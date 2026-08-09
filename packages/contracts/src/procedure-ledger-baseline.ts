@@ -3,7 +3,7 @@ import type { ProcedureDomain } from './procedure-ledger'
 import type { ProcedureName } from './procedures/names'
 
 /**
- * Migration-only initial ownership baseline. CON-012 deletes this with the transitional ledger.
+ * Migration-only initial ownership baseline. CON-021 deletes this with the transitional ledger.
  * It is not a public wire catalog; the procedure lint uses it only to enforce migration ownership.
  */
 export type InitialProcedureOwnership = Readonly<{

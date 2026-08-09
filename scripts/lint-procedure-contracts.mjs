@@ -3,7 +3,8 @@
  * Keep the daemon procedure surface and the transitional/domain contract records in lockstep.
  * The migration-only initial ownership baseline fixes each procedure's domain and kind. The ledger
  * can only shrink as a domain record lands; it may never grow, move, or change a procedure kind.
- * Full input/output exhaustiveness is CON-012's responsibility.
+ * CON-012 adds a temporary router-file ledger: each file removed from it must use its exact
+ * procedureCatalog input/output bindings. CON-021 deletes that bridge after every router migrates.
  */
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -22,29 +23,61 @@ export const DOMAIN_KEYS = [
   'project-data',
 ]
 
+// Temporary CON-012 router validation scaffolding. CON-021 deletes both lists once every router
+// is contract-validated and no remaining file is needed.
+export const PRODUCTION_ROUTER_FILES = [
+  'board.ts',
+  'daemon.ts',
+  'files.ts',
+  'git.ts',
+  'network.ts',
+  'repos.ts',
+  'review.ts',
+  'settings.ts',
+  'terminal.ts',
+]
+
+export const REMAINING_ROUTER_FILES = [
+  'board.ts',
+  'daemon.ts',
+  'files.ts',
+  'git.ts',
+  'network.ts',
+  'repos.ts',
+  'review.ts',
+  'settings.ts',
+  'terminal.ts',
+]
+
 const INITIAL_PROCEDURE_COUNT = 113
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 
-function extractRouterProcedures(source) {
+export function extractRouterProcedures(source, filename) {
   const starts = [...source.matchAll(/^ {2}(\w+):\s*(?:public|admin)Procedure/gm)]
   return starts.map((match, index) => {
     const end = starts[index + 1]?.index ?? source.length
     const block = source.slice(match.index, end)
     const kind = /\.(query|mutation)\s*\(/.exec(block)?.[1]
-    return { name: match[1], kind }
+    return { filename, name: match[1], kind, block }
   })
 }
 
 function readRouterProcedures(repositoryRoot) {
   const routerDir = join(repositoryRoot, 'apps', 'daemon', 'src', 'router')
+  const files = readdirSync(routerDir)
+    .filter((name) => name.endsWith('.ts') && !name.endsWith('.test.ts'))
+    .sort()
   const procedures = []
-  for (const file of readdirSync(routerDir).filter((name) => name.endsWith('.ts'))) {
-    for (const procedure of extractRouterProcedures(readFileSync(join(routerDir, file), 'utf8'))) {
+  for (const file of files) {
+    for (const procedure of extractRouterProcedures(
+      readFileSync(join(routerDir, file), 'utf8'),
+      file,
+    )) {
       procedures.push({ ...procedure, source: `apps/daemon/src/router/${file}` })
     }
   }
-  return procedures
+  return { files, procedures }
 }
 
 function readProcedureNames(repositoryRoot) {
@@ -139,11 +172,101 @@ function duplicateValues(values) {
   return [...duplicates].sort()
 }
 
+function countMatches(source, pattern) {
+  return [...source.matchAll(pattern)].length
+}
+
+function procedureLabel({ filename, name }) {
+  return `apps/daemon/src/router/${filename}:${name}`
+}
+
+/**
+ * Temporary CON-012 migration gate. It validates exact production filenames before treating a
+ * file outside the remaining ledger as migrated, then requires its same-name catalog bindings.
+ */
+export function checkRouterValidationLedger({
+  routerFiles,
+  routerProcedures,
+  remainingRouterFiles = REMAINING_ROUTER_FILES,
+}) {
+  const failures = []
+  const productionFiles = new Set(PRODUCTION_ROUTER_FILES)
+  const routerFileSet = new Set(routerFiles)
+  const remainingFileSet = new Set(remainingRouterFiles)
+
+  for (const duplicate of duplicateValues(routerFiles)) {
+    failures.push(`production router filename appears more than once: ${duplicate}`)
+  }
+  for (const filename of routerFiles) {
+    if (!filename.endsWith('.ts') || filename.endsWith('.test.ts')) {
+      failures.push(`router filename is not a production router file: ${filename}`)
+    } else if (!productionFiles.has(filename)) {
+      failures.push(`unknown production router filename: ${filename}`)
+    }
+  }
+  for (const filename of PRODUCTION_ROUTER_FILES) {
+    if (!routerFileSet.has(filename)) {
+      failures.push(`production router file is missing: ${filename}`)
+    }
+  }
+
+  for (const duplicate of duplicateValues(remainingRouterFiles)) {
+    failures.push(`remaining router filename appears more than once: ${duplicate}`)
+  }
+  for (const filename of remainingRouterFiles) {
+    if (!filename.endsWith('.ts') || filename.endsWith('.test.ts')) {
+      failures.push(`remaining router filename is not a production router file: ${filename}`)
+    } else if (!productionFiles.has(filename)) {
+      failures.push(`remaining router filename is unknown: ${filename}`)
+    } else if (!routerFileSet.has(filename)) {
+      failures.push(`remaining router file is missing: ${filename}`)
+    }
+  }
+
+  for (const procedure of routerProcedures) {
+    if (remainingFileSet.has(procedure.filename)) continue
+    if (!productionFiles.has(procedure.filename)) continue
+
+    const label = procedureLabel(procedure)
+    const inputCount = countMatches(procedure.block, /\.input\s*\(/g)
+    const canonicalInputCount = countMatches(
+      procedure.block,
+      new RegExp(`\\.input\\s*\\(\\s*procedureCatalog\\.${procedure.name}\\.input\\s*\\)`, 'g'),
+    )
+    if (inputCount === 0) {
+      failures.push(`router procedure input is missing: ${label}`)
+    } else if (inputCount > 1) {
+      failures.push(`router procedure input is duplicated: ${label}`)
+    } else if (canonicalInputCount !== 1) {
+      failures.push(
+        `router procedure input is wrong: ${label} (expected .input(procedureCatalog.${procedure.name}.input))`,
+      )
+    }
+
+    const outputCount = countMatches(procedure.block, /\.output\s*\(/g)
+    const canonicalOutputCount = countMatches(
+      procedure.block,
+      new RegExp(`\\.output\\s*\\(\\s*procedureCatalog\\.${procedure.name}\\.output\\s*\\)`, 'g'),
+    )
+    if (outputCount === 0) {
+      failures.push(`router procedure output is missing: ${label}`)
+    } else if (outputCount > 1) {
+      failures.push(`router procedure output is duplicated: ${label}`)
+    } else if (canonicalOutputCount !== 1) {
+      failures.push(
+        `router procedure output is wrong: ${label} (expected .output(procedureCatalog.${procedure.name}.output))`,
+      )
+    }
+  }
+
+  return failures
+}
+
 /**
  * Pure catalog check exported for fixture tests. `contractNames` is the current horizontal
  * PROCEDURE_NAMES baseline; `ledgerEntries` and `completedRecords` are its shrink-only owners.
  * `baselineEntries` is the temporary migration-only owner-of-record map. It is deliberately kept
- * outside the package's public exports and deleted with the transitional ledger by CON-012.
+ * outside the package's public exports and deleted with the transitional ledger by CON-021.
  */
 export function checkProcedureCatalog({
   daemonProcedures,
@@ -285,7 +408,8 @@ export function checkProcedureCatalog({
 
 export function checkProcedureContracts(repositoryRoot = root) {
   const failures = []
-  const daemonProcedures = readRouterProcedures(repositoryRoot)
+  const routers = readRouterProcedures(repositoryRoot)
+  const daemonProcedures = routers.procedures
   const contractNames = readProcedureNames(repositoryRoot)
   const ledger = readLedgerEntries(repositoryRoot)
   const baselineEntries = readInitialOwnershipBaseline(repositoryRoot)
@@ -299,6 +423,12 @@ export function checkProcedureContracts(repositoryRoot = root) {
       ledgerEntries: ledger.entries,
       ledgerDomains: ledger.domains,
       completedRecords,
+    }),
+  )
+  failures.push(
+    ...checkRouterValidationLedger({
+      routerFiles: routers.files,
+      routerProcedures: daemonProcedures,
     }),
   )
 
@@ -327,14 +457,18 @@ function main() {
     process.exit(1)
   }
 
-  const daemonProcedures = readRouterProcedures(root)
+  const routers = readRouterProcedures(root)
+  const daemonProcedures = routers.procedures
   const refinedSource = readFileSync(
     join(root, 'packages', 'contracts', 'src', 'procedures', 'refined.ts'),
     'utf8',
   )
   const refinedCount = [...refinedSource.matchAll(/^\s{2}(\w+):\s*io\(/gm)].length
+  const remainingProcedures = daemonProcedures.filter(({ filename }) =>
+    REMAINING_ROUTER_FILES.includes(filename),
+  ).length
   console.log(
-    `lint-procedure-contracts: ok — ${daemonProcedures.length} procedures, ${refinedCount} refined`,
+    `lint-procedure-contracts: ok — ${daemonProcedures.length} procedures (${remainingProcedures} remaining, ${daemonProcedures.length - remainingProcedures} validated), ${refinedCount} refined`,
   )
 }
 

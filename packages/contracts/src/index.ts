@@ -43,6 +43,7 @@ export {
   stateConflictErrorSchema,
 } from './errors'
 export { type HeadRef, headLabel } from './head'
+export { procedureCatalog } from './procedure-catalog'
 export {
   actionSchema,
   boardCardSchema,

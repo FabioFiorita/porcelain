@@ -20,7 +20,7 @@ export type UnmigratedProcedure = Readonly<{
 
 /**
  * Transitional ownership ledger. CON-002 through CON-011 remove only their own entries;
- * CON-012 deletes this file once every domain record is complete.
+ * CON-021 deletes this file after every router adopts the canonical procedure catalog.
  */
 export const unmigratedProcedureLedger = {
   remote: [],

@@ -1,7 +1,14 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { checkProcedureCatalog, DOMAIN_KEYS } from './lint-procedure-contracts.mjs'
+import {
+  checkProcedureCatalog,
+  checkRouterValidationLedger,
+  DOMAIN_KEYS,
+  extractRouterProcedures,
+  PRODUCTION_ROUTER_FILES,
+  REMAINING_ROUTER_FILES,
+} from './lint-procedure-contracts.mjs'
 
 const base = () => ({
   daemonProcedures: [
@@ -107,6 +114,169 @@ test('rejects a router procedure absent from every contract record', () => {
   assert.ok(
     checkProcedureCatalog(fixture).some((failure) =>
       failure.includes('router procedure has no ledger/domain record: unknownProcedure'),
+    ),
+  )
+})
+
+function procedureSource({ input = '', output = '', kind = 'query' } = {}) {
+  return `export const router = t.router({
+  boardCards: publicProcedure
+    ${input}
+    ${output}
+    .${kind}(() => undefined),
+})
+`
+}
+
+function migratedBoardFixture(options) {
+  return {
+    routerFiles: [...PRODUCTION_ROUTER_FILES],
+    routerProcedures: extractRouterProcedures(procedureSource(options), 'board.ts'),
+    remainingRouterFiles: REMAINING_ROUTER_FILES.filter((filename) => filename !== 'board.ts'),
+  }
+}
+
+test('retains each router filename and complete procedure source block', () => {
+  const [procedure] = extractRouterProcedures(
+    procedureSource({
+      input: '.input(procedureCatalog.boardCards.input)',
+      output: '.output(procedureCatalog.boardCards.output)',
+    }),
+    'board.ts',
+  )
+
+  assert.equal(procedure.filename, 'board.ts')
+  assert.match(procedure.block, /procedureCatalog\.boardCards\.input/)
+  assert.match(procedure.block, /procedureCatalog\.boardCards\.output/)
+})
+
+test('accepts the exact current nine-file remaining ledger before router migration', () => {
+  const procedures = PRODUCTION_ROUTER_FILES.flatMap((filename) =>
+    extractRouterProcedures(procedureSource(), filename),
+  )
+  assert.deepEqual(
+    checkRouterValidationLedger({
+      routerFiles: [...PRODUCTION_ROUTER_FILES],
+      routerProcedures: procedures,
+    }),
+    [],
+  )
+})
+
+test('rejects an unknown remaining router filename', () => {
+  const fixture = migratedBoardFixture()
+  fixture.remainingRouterFiles.push('unknown.ts')
+  assert.ok(
+    checkRouterValidationLedger(fixture).some((failure) =>
+      failure.includes('remaining router filename is unknown: unknown.ts'),
+    ),
+  )
+})
+
+test('rejects a duplicate remaining router filename', () => {
+  const fixture = migratedBoardFixture()
+  fixture.remainingRouterFiles.push('daemon.ts')
+  assert.ok(
+    checkRouterValidationLedger(fixture).some((failure) =>
+      failure.includes('remaining router filename appears more than once: daemon.ts'),
+    ),
+  )
+})
+
+test('rejects a missing production router filename', () => {
+  const fixture = migratedBoardFixture()
+  fixture.routerFiles = fixture.routerFiles.filter((filename) => filename !== 'daemon.ts')
+  assert.ok(
+    checkRouterValidationLedger(fixture).some((failure) =>
+      failure.includes('production router file is missing: daemon.ts'),
+    ),
+  )
+})
+
+test('rejects a non-production remaining router filename', () => {
+  const fixture = migratedBoardFixture()
+  fixture.remainingRouterFiles.push('board.test.ts')
+  assert.ok(
+    checkRouterValidationLedger(fixture).some((failure) =>
+      failure.includes('remaining router filename is not a production router file: board.test.ts'),
+    ),
+  )
+})
+
+test('rejects missing, wrong, and duplicate canonical inputs', () => {
+  const cases = [
+    { options: {}, expected: 'router procedure input is missing' },
+    {
+      options: { input: '.input(procedureCatalog.addBoardCard.input)' },
+      expected: 'router procedure input is wrong',
+    },
+    {
+      options: {
+        input:
+          '.input(procedureCatalog.boardCards.input)\n    .input(procedureCatalog.boardCards.input)',
+      },
+      expected: 'router procedure input is duplicated',
+    },
+  ]
+
+  for (const { options, expected } of cases) {
+    assert.ok(
+      checkRouterValidationLedger(migratedBoardFixture(options)).some((failure) =>
+        failure.includes(expected),
+      ),
+    )
+  }
+})
+
+test('rejects missing, wrong, and duplicate canonical outputs', () => {
+  const cases = [
+    {
+      options: { input: '.input(procedureCatalog.boardCards.input)' },
+      expected: 'router procedure output is missing',
+    },
+    {
+      options: {
+        input: '.input(procedureCatalog.boardCards.input)',
+        output: '.output(procedureCatalog.addBoardCard.output)',
+      },
+      expected: 'router procedure output is wrong',
+    },
+    {
+      options: {
+        input: '.input(procedureCatalog.boardCards.input)',
+        output:
+          '.output(procedureCatalog.boardCards.output)\n    .output(procedureCatalog.boardCards.output)',
+      },
+      expected: 'router procedure output is duplicated',
+    },
+  ]
+
+  for (const { options, expected } of cases) {
+    assert.ok(
+      checkRouterValidationLedger(migratedBoardFixture(options)).some((failure) =>
+        failure.includes(expected),
+      ),
+    )
+  }
+})
+
+test('rejects a router kind drift after a file leaves the remaining ledger', () => {
+  const fixture = base()
+  fixture.ledgerEntries = [fixture.ledgerEntries[1]]
+  fixture.completedRecords = [
+    { domain: 'board', name: 'boardCards', kind: 'query', source: 'board.procedures.ts' },
+  ]
+  fixture.daemonProcedures = extractRouterProcedures(
+    procedureSource({
+      input: '.input(procedureCatalog.boardCards.input)',
+      output: '.output(procedureCatalog.boardCards.output)',
+      kind: 'mutation',
+    }),
+    'board.ts',
+  )
+  assert.ok(
+    checkProcedureCatalog(fixture).some((failure) =>
+      failure.includes('procedure kind drift for boardCards: router=mutation record=query'),
     ),
   )
 })
