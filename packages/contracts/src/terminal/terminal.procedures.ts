@@ -12,11 +12,13 @@ const terminalProcedureDefinitions = {
     kind: 'query',
     input: terminalSessionsInputSchema,
     output: terminalSessionsOutputSchema,
+    errors: [],
   },
   renameTerminal: {
     kind: 'mutation',
     input: renameTerminalInputSchema,
     output: renameTerminalOutputSchema,
+    errors: [],
   },
 } as const
 

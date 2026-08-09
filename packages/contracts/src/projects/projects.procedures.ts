@@ -16,21 +16,25 @@ const projectsProcedureDefinitions = {
     kind: 'mutation',
     input: openRepoPathInputSchema,
     output: openRepoPathOutputSchema,
+    errors: [],
   },
   recentRepos: {
     kind: 'query',
     input: recentReposInputSchema,
     output: recentReposOutputSchema,
+    errors: [],
   },
   removeRecentRepo: {
     kind: 'mutation',
     input: removeRecentRepoInputSchema,
     output: removeRecentRepoOutputSchema,
+    errors: [],
   },
   browseDirs: {
     kind: 'query',
     input: browseDirsInputSchema,
     output: browseDirsOutputSchema,
+    errors: [],
   },
 } as const
 

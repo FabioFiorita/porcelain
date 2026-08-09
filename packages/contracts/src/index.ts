@@ -24,6 +24,24 @@ export {
   endpointKindSchema,
   orderedEndpointUrls,
 } from './environment'
+export {
+  authForbiddenErrorSchema,
+  authUnauthenticatedErrorSchema,
+  internalUnexpectedErrorSchema,
+  type PorcelainError,
+  PUBLIC_ERROR_CATEGORY_VALUES,
+  type PublicErrorCategory,
+  type PublicErrorCode,
+  protocolUpdateRequiredErrorDetailsSchema,
+  protocolUpdateRequiredErrorSchema,
+  publicErrorCategorySchema,
+  publicErrorFixtures,
+  publicErrorSchema,
+  requestInvalidErrorSchema,
+  resourceNotFoundErrorSchema,
+  resourceUnavailableErrorSchema,
+  stateConflictErrorSchema,
+} from './errors'
 export { type HeadRef, headLabel } from './head'
 export {
   actionSchema,

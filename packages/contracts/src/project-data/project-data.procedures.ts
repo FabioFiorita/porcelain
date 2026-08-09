@@ -20,31 +20,37 @@ const projectDataProcedureDefinitions = {
     kind: 'query',
     input: repoNotesInputSchema,
     output: repoNotesOutputSchema,
+    errors: [],
   },
   setRepoNotes: {
     kind: 'mutation',
     input: setRepoNotesInputSchema,
     output: setRepoNotesOutputSchema,
+    errors: [],
   },
   companionDispositions: {
     kind: 'query',
     input: companionDispositionsInputSchema,
     output: companionDispositionsOutputSchema,
+    errors: [],
   },
   companionGitVisibility: {
     kind: 'query',
     input: companionGitVisibilityInputSchema,
     output: companionGitVisibilityOutputSchema,
+    errors: [],
   },
   setCompanionGitVisibility: {
     kind: 'mutation',
     input: setCompanionGitVisibilityInputSchema,
     output: setCompanionGitVisibilityOutputSchema,
+    errors: [],
   },
   setCompanionDisposition: {
     kind: 'mutation',
     input: setCompanionDispositionInputSchema,
     output: setCompanionDispositionOutputSchema,
+    errors: [],
   },
 } as const
 

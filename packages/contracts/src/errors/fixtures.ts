@@ -1,0 +1,62 @@
+import type { PorcelainError, PublicErrorCode } from './public-errors'
+
+/** Synthetic public errors used by contract tests and client mocks. */
+export const publicErrorFixtures = {
+  'request.invalid': {
+    code: 'request.invalid',
+    category: 'invalid-request',
+    message: 'The request is invalid.',
+    retryable: false,
+    requestId: '00000000-0000-4000-8000-000000000001',
+  },
+  'auth.unauthenticated': {
+    code: 'auth.unauthenticated',
+    category: 'unauthenticated',
+    message: 'Authentication is required.',
+    retryable: false,
+    requestId: '00000000-0000-4000-8000-000000000002',
+  },
+  'auth.forbidden': {
+    code: 'auth.forbidden',
+    category: 'forbidden',
+    message: 'Access is forbidden.',
+    retryable: false,
+    requestId: '00000000-0000-4000-8000-000000000003',
+  },
+  'resource.not-found': {
+    code: 'resource.not-found',
+    category: 'not-found',
+    message: 'The resource was not found.',
+    retryable: false,
+    requestId: '00000000-0000-4000-8000-000000000004',
+  },
+  'state.conflict': {
+    code: 'state.conflict',
+    category: 'conflict',
+    message: 'The requested state conflicts with the current state.',
+    retryable: false,
+    requestId: '00000000-0000-4000-8000-000000000005',
+  },
+  'resource.unavailable': {
+    code: 'resource.unavailable',
+    category: 'unavailable',
+    message: 'The resource is unavailable.',
+    retryable: true,
+    requestId: '00000000-0000-4000-8000-000000000006',
+  },
+  'internal.unexpected': {
+    code: 'internal.unexpected',
+    category: 'internal',
+    message: 'An unexpected error occurred.',
+    retryable: false,
+    requestId: '00000000-0000-4000-8000-000000000007',
+  },
+  'protocol.update-required': {
+    code: 'protocol.update-required',
+    category: 'conflict',
+    message: 'A protocol update is required.',
+    retryable: false,
+    requestId: '00000000-0000-4000-8000-000000000008',
+    details: { expected: 2, received: null },
+  },
+} as const satisfies Record<PublicErrorCode, PorcelainError>

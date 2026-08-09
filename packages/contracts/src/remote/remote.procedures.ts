@@ -28,45 +28,77 @@ import {
 } from './remote.contract'
 
 const remoteProcedureDefinitions = {
-  daemonInfo: { kind: 'query', input: daemonInfoInputSchema, output: daemonInfoOutputSchema },
-  accessStatus: { kind: 'query', input: accessStatusInputSchema, output: accessStatusOutputSchema },
+  daemonInfo: {
+    kind: 'query',
+    input: daemonInfoInputSchema,
+    output: daemonInfoOutputSchema,
+    errors: [],
+  },
+  accessStatus: {
+    kind: 'query',
+    input: accessStatusInputSchema,
+    output: accessStatusOutputSchema,
+    errors: ['auth.forbidden'],
+  },
   issuePairingLink: {
     kind: 'mutation',
     input: issuePairingLinkInputSchema,
     output: issuePairingLinkOutputSchema,
+    errors: ['auth.forbidden', 'request.invalid'],
   },
   revokePairingLink: {
     kind: 'mutation',
     input: revokePairingLinkInputSchema,
     output: revokePairingLinkOutputSchema,
+    errors: ['auth.forbidden'],
   },
   revokeAuthorizedClient: {
     kind: 'mutation',
     input: revokeAuthorizedClientInputSchema,
     output: revokeAuthorizedClientOutputSchema,
+    errors: ['auth.forbidden'],
   },
   revokeCurrentClient: {
     kind: 'mutation',
     input: revokeCurrentClientInputSchema,
     output: revokeCurrentClientOutputSchema,
+    errors: ['auth.forbidden'],
   },
   tailnetStatus: {
     kind: 'query',
     input: tailnetStatusInputSchema,
     output: tailnetStatusOutputSchema,
+    errors: ['auth.forbidden'],
   },
   setTailnetBind: {
     kind: 'mutation',
     input: setTailnetBindInputSchema,
     output: setTailnetBindOutputSchema,
+    errors: ['auth.forbidden'],
   },
-  lanStatus: { kind: 'query', input: lanStatusInputSchema, output: lanStatusOutputSchema },
-  setLanBind: { kind: 'mutation', input: setLanBindInputSchema, output: setLanBindOutputSchema },
-  funnelStatus: { kind: 'query', input: funnelStatusInputSchema, output: funnelStatusOutputSchema },
+  lanStatus: {
+    kind: 'query',
+    input: lanStatusInputSchema,
+    output: lanStatusOutputSchema,
+    errors: ['auth.forbidden'],
+  },
+  setLanBind: {
+    kind: 'mutation',
+    input: setLanBindInputSchema,
+    output: setLanBindOutputSchema,
+    errors: ['auth.forbidden'],
+  },
+  funnelStatus: {
+    kind: 'query',
+    input: funnelStatusInputSchema,
+    output: funnelStatusOutputSchema,
+    errors: ['auth.forbidden'],
+  },
   setFunnelBind: {
     kind: 'mutation',
     input: setFunnelBindInputSchema,
     output: setFunnelBindOutputSchema,
+    errors: ['auth.forbidden'],
   },
 } as const
 

@@ -13,7 +13,51 @@ import { reviewProcedures } from './review'
 import { searchProcedures } from './search'
 import { terminalProcedures } from './terminal'
 
+const allDomainProcedures = {
+  ...remoteProcedures,
+  ...projectsProcedures,
+  ...filesProcedures,
+  ...searchProcedures,
+  ...gitProcedures,
+  ...reviewProcedures,
+  ...boardProcedures,
+  ...actionsProcedures,
+  ...terminalProcedures,
+  ...projectDataProcedures,
+} as const
+
+const expectedPublicErrors = {
+  accessStatus: ['auth.forbidden'],
+  issuePairingLink: ['auth.forbidden', 'request.invalid'],
+  revokePairingLink: ['auth.forbidden'],
+  revokeAuthorizedClient: ['auth.forbidden'],
+  revokeCurrentClient: ['auth.forbidden'],
+  tailnetStatus: ['auth.forbidden'],
+  setTailnetBind: ['auth.forbidden'],
+  lanStatus: ['auth.forbidden'],
+  setLanBind: ['auth.forbidden'],
+  funnelStatus: ['auth.forbidden'],
+  setFunnelBind: ['auth.forbidden'],
+  renamePath: ['state.conflict'],
+} as const
+
 describe('unmigrated procedure ledger', () => {
+  it('declares every procedure public error list explicitly and only exposes current refusals', () => {
+    expect(Object.keys(allDomainProcedures)).toHaveLength(113)
+    expect(Object.keys(allDomainProcedures).sort()).toEqual([...PROCEDURE_NAMES].sort())
+
+    for (const procedure of Object.values(allDomainProcedures)) {
+      expect(Array.isArray(procedure.errors)).toBe(true)
+    }
+
+    const nonEmptyErrors = Object.fromEntries(
+      Object.entries(allDomainProcedures)
+        .filter(([, procedure]) => procedure.errors.length > 0)
+        .map(([name, procedure]) => [name, procedure.errors]),
+    )
+    expect(nonEmptyErrors).toEqual(expectedPublicErrors)
+  })
+
   it('has no unmigrated procedures left', () => {
     expect(unmigratedProcedureNames).toEqual([])
     expect([...unmigratedProcedureNames].sort()).toEqual(

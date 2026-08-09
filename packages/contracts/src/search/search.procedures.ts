@@ -10,9 +10,24 @@ import {
 } from './search.contract'
 
 const searchProcedureDefinitions = {
-  searchText: { kind: 'query', input: searchTextInputSchema, output: searchTextOutputSchema },
-  searchCode: { kind: 'query', input: searchCodeInputSchema, output: searchCodeOutputSchema },
-  searchFiles: { kind: 'query', input: searchFilesInputSchema, output: searchFilesOutputSchema },
+  searchText: {
+    kind: 'query',
+    input: searchTextInputSchema,
+    output: searchTextOutputSchema,
+    errors: [],
+  },
+  searchCode: {
+    kind: 'query',
+    input: searchCodeInputSchema,
+    output: searchCodeOutputSchema,
+    errors: [],
+  },
+  searchFiles: {
+    kind: 'query',
+    input: searchFilesInputSchema,
+    output: searchFilesOutputSchema,
+    errors: [],
+  },
 } as const
 
 export type SearchProcedureName = Extract<keyof typeof searchProcedureDefinitions, ProcedureName>
