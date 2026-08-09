@@ -64,5 +64,13 @@ The inventory is distilled into tracked maps for:
 - current tests and target test ownership;
 - migration dependency order.
 
+Current tracked maps:
+
+- [`backend.md`](backend.md) — every daemon procedure, router, contract, message, and module;
+- [`clients.md`](clients.md) — Web, mobile, client-runtime, state, wire, and feature boundaries;
+- [`data-and-workflows.md`](data-and-workflows.md) — persisted roots, CLI surface, and workflow edges;
+- [`tests.md`](tests.md) — what all current test layers actually prove and what they do not;
+- [`agent-foundations.md`](agent-foundations.md) — Ship, Audit, Companion, gates, and invariant moves.
+
 Scratch reports from inventory agents live under `scripts/agent-scratch/` and are not durable plan
 artifacts. Their claims must be checked against current code before entering a tracked map.
