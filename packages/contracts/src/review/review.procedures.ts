@@ -12,6 +12,7 @@ import {
   evidenceSchema,
   exploreFeatureInputSchema,
   featureReadingOutputSchema,
+  featureReadingSchema,
   featureViewSchema,
   markReviewedInputSchema,
   publishCostSchema,
@@ -157,7 +158,7 @@ const reviewProcedureDefinitions = {
   exploreFeature: {
     kind: 'query',
     input: exploreFeatureInputSchema,
-    output: featureReadingOutputSchema,
+    output: featureReadingSchema,
   },
   repoLayers: {
     kind: 'query',

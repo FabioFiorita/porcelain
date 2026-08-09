@@ -234,6 +234,15 @@ describe('Review procedure contracts', () => {
     ).toBe(true)
   })
 
+  it('keeps exploreFeature non-null while featureReading remains nullable', () => {
+    expect(reviewProcedures.featureReading.output.safeParse(null).success).toBe(true)
+    expect(reviewProcedures.exploreFeature.output.safeParse(null).success).toBe(false)
+    expect(
+      reviewProcedures.exploreFeature.output.safeParse(reviewContractFixtures.exploreFeature.output)
+        .success,
+    ).toBe(true)
+  })
+
   it('preserves input bounds, normalization, nullability, and void results', () => {
     expect(
       reviewProcedures.reviewEvidenceAsset.input.safeParse({
