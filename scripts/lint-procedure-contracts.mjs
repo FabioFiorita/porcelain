@@ -83,7 +83,10 @@ function readLedgerEntries(repositoryRoot) {
   )
   const entries = []
   const domains = new Set()
-  const domainPattern = /^ {2}(?:'([^']+)'|(\w+)): \[([\s\S]*?)^ {2}\],?/gm
+  // Match both populated multiline buckets and a completed domain's `[]` bucket.
+  // Procedure entries never contain a closing square bracket, so the first `]` is
+  // the ledger array terminator.
+  const domainPattern = /^ {2}(?:'([^']+)'|(\w+)): \[([\s\S]*?)\](?:,|$)/gm
   for (const match of body.matchAll(domainPattern)) {
     const domain = match[1] ?? match[2]
     domains.add(domain)

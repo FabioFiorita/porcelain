@@ -23,20 +23,7 @@ export type UnmigratedProcedure = Readonly<{
  * CON-012 deletes this file once every domain record is complete.
  */
 export const unmigratedProcedureLedger = {
-  remote: [
-    { name: 'daemonInfo', kind: 'query' },
-    { name: 'accessStatus', kind: 'query' },
-    { name: 'issuePairingLink', kind: 'mutation' },
-    { name: 'revokePairingLink', kind: 'mutation' },
-    { name: 'revokeAuthorizedClient', kind: 'mutation' },
-    { name: 'revokeCurrentClient', kind: 'mutation' },
-    { name: 'tailnetStatus', kind: 'query' },
-    { name: 'setTailnetBind', kind: 'mutation' },
-    { name: 'lanStatus', kind: 'query' },
-    { name: 'setLanBind', kind: 'mutation' },
-    { name: 'funnelStatus', kind: 'query' },
-    { name: 'setFunnelBind', kind: 'mutation' },
-  ],
+  remote: [],
   projects: [
     { name: 'openRepoPath', kind: 'mutation' },
     { name: 'recentRepos', kind: 'query' },
