@@ -88,14 +88,17 @@ that contains an unresolved product or architecture choice returns to the decisi
 11. [`011-test-the-boundary-that-owns-the-risk.md`](decisions/011-test-the-boundary-that-owns-the-risk.md)
     — operation tests form the server regression backbone, clients mock the public contract, real
     adapters prove external behavior, and E2E stays a small wiring suite.
+12. [`012-enforce-the-target-architecture.md`](decisions/012-enforce-the-target-architecture.md) —
+    canonical naming, package and domain import rules, shrink-only size limits, and migration-aware
+    gates make the correct architecture the easiest compiling path.
 
 ## Decision queue
 
 Only the first unresolved item is discussed at a time. The order may change when a decision exposes
 a dependency.
 
-1. Define naming, file-size, dependency, and architecture enforcement.
-2. Inventory domains, order migrations, and author execution specifications.
+1. Inventory domains, settle canonical vocabulary, and map cross-domain workflows.
+2. Order migrations and author execution specifications.
 
 ## Inputs considered
 
