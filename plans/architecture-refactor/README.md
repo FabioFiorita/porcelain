@@ -73,19 +73,21 @@ that contains an unresolved product or architecture choice returns to the decisi
 6. [`006-compose-explicit-capabilities.md`](decisions/006-compose-explicit-capabilities.md) — one
    composition root injects capability-shaped dependencies into operations, while domains own
    persistence semantics and declare honest consistency boundaries.
+7. [`007-share-nonvisual-client-behavior.md`](decisions/007-share-nonvisual-client-behavior.md) —
+   client-runtime owns cross-client application semantics, while Web and mobile adapt them to their
+   UI frameworks, transports, and platforms.
 
 ## Decision queue
 
 Only the first unresolved item is discussed at a time. The order may change when a decision exposes
 a dependency.
 
-1. Define the shared client-runtime boundary and Web/mobile responsibilities.
-2. Define client state ownership, mutations, optimism, and invalidation.
-3. Define realtime events, subscriptions, and refresh ownership.
-4. Define errors and validation across domain and transport boundaries.
-5. Define test responsibilities by boundary and risk.
-6. Define naming, file-size, dependency, and architecture enforcement.
-7. Inventory domains, order migrations, and author execution specifications.
+1. Define client state ownership, mutations, optimism, and invalidation.
+2. Define realtime events, subscriptions, and refresh ownership.
+3. Define errors and validation across domain and transport boundaries.
+4. Define test responsibilities by boundary and risk.
+5. Define naming, file-size, dependency, and architecture enforcement.
+6. Inventory domains, order migrations, and author execution specifications.
 
 ## Inputs considered
 
