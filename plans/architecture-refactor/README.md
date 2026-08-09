@@ -8,6 +8,11 @@ This directory is the durable memory for the program. Conversation discovers the
 accepted decisions here govern it. Nothing in this plan describes the current product merely
 because we intend it to become true.
 
+Program artifacts:
+
+- [`inventory/`](inventory/) maps every current behavior, path, boundary, and legacy disposition.
+- [`specs/`](specs/) contains bounded recipes for migration agents after inventory and ordering.
+
 ## Phases
 
 1. **Decide.** Discuss one architectural question at a time. Record it only after the human accepts
