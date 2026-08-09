@@ -18,6 +18,7 @@ Contributor architecture. Start with `architecture.md`; the rest are deep dives.
 | File | What |
 |------|------|
 | [internals/architecture.md](internals/architecture.md) | Package charter: daemon · cli · web · shell · mobile, surfaces, boundaries |
+| [internals/domain-architecture.md](internals/domain-architecture.md) | Active domain-first migration rules, boundaries, ratchets, and testing ownership |
 | [internals/one-architecture.md](internals/one-architecture.md) | Daemon procedures → hooks → components, WS, tabs, data-flow traps |
 | [internals/app-shell.md](internals/app-shell.md) | Multi-window Electron shell, stateless daemon router, window chrome |
 | [internals/terminal.md](internals/terminal.md) | Terminal / PTY — the deliberate bend in the one architecture |

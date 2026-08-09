@@ -26,7 +26,7 @@ apps/
   mobile/     @porcelain/mobile     Expo iOS
 
 packages/
-  contracts/       wire protocol + full public procedure I/O (99 names)
+  contracts/       wire protocol + public procedure catalog (113 names; 63 refined I/O)
   client-runtime/  non-UI client core (session protocol, keys, word-diff)
   shared/          pure cross-cutting helpers (home, platform, ids, …)
 ```
@@ -77,16 +77,17 @@ Canonical stamp: `apps/desktop/package.json` (electron-builder) until release pr
 | 1 | No daemon / CLI / web business logic under `apps/desktop` | **Done** (only main/preload/packaging) |
 | 2 | Daemon and CLI build without electron-vite | **Done** (`build-node.mjs`) |
 | 3 | Web builds with its own Vite pipeline | **Done** (`apps/web` vite) |
-| 4 | Contracts: no apps imports; full procedure I/O catalog | **Done** (99 names, 56 refined, drift lint) |
-| 5 | client-runtime shared pure core; forks deleted | **Done** for protocol/keys/word-diff; session **lifecycle** stays per app (platform APIs differ) |
+| 4 | Contracts: no application imports; exhaustive exact procedure I/O | **In progress** (113 names, 63 refined; one legacy app-type tombstone and 50 unknown fallbacks are ratcheted debt) |
+| 5 | client-runtime shared nonvisual semantics; platform adapters stay per app | **In progress** (pure protocol/keys/word-diff leaves exist; query, mutation, notification, error, and session state semantics are not shared yet) |
 | 6 | All package versions identical via sync-versions | **Done** |
 | 7 | Linux default = daemon + web | **Done** (docs + packaging story) |
 | 8 | Agent docs match tree; verify green | **Done** when `pnpm verify` passes on this revision |
 
 Residual (not blockers for resuming product work):
 
-- Daemon routers still author some zod inputs locally; adopt contracts inputs over time.
-- Mobile procedures beyond connection still use local zod mirrors; prefer contracts schemas when touched.
+- Daemon routers still author Zod inputs locally; completed domain cutovers consume exhaustive
+  contracts and delete the router-local copy.
+- Mobile still has local Zod procedure mirrors. They are deleted by domain cutovers, not extended.
 - Two word-diff algorithms in client-runtime (line vs tokens) — intentional presentation split.
 - Runtime artifacts still land under `apps/desktop/out/` for shell spawn + dist-daemon layout.
 
