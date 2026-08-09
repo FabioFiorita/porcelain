@@ -6,12 +6,13 @@ import { initialProcedureOwnershipBaseline } from './procedure-ledger-baseline'
 import { PROCEDURE_NAMES } from './procedures/names'
 import { projectsProcedures } from './projects'
 import { remoteProcedures } from './remote'
+import { reviewProcedures } from './review'
 import { searchProcedures } from './search'
 
 describe('unmigrated procedure ledger', () => {
   it('contains each unmigrated procedure exactly once', () => {
-    expect(unmigratedProcedureNames).toHaveLength(49)
-    expect(new Set(unmigratedProcedureNames).size).toBe(49)
+    expect(unmigratedProcedureNames).toHaveLength(20)
+    expect(new Set(unmigratedProcedureNames).size).toBe(20)
     expect([...unmigratedProcedureNames].sort()).toEqual(
       PROCEDURE_NAMES.filter(
         (name) =>
@@ -19,7 +20,8 @@ describe('unmigrated procedure ledger', () => {
           !(name in projectsProcedures) &&
           !(name in filesProcedures) &&
           !(name in searchProcedures) &&
-          !(name in gitProcedures),
+          !(name in gitProcedures) &&
+          !(name in reviewProcedures),
       ).sort(),
     )
   })
@@ -151,10 +153,48 @@ describe('unmigrated procedure ledger', () => {
     }
   })
 
+  it('removes exactly the completed Review procedures', () => {
+    expect(unmigratedProcedureLedger.review).toEqual([])
+    expect(Object.keys(reviewProcedures).sort()).toEqual([
+      'addReviewComment',
+      'archivedReviews',
+      'clearFeatureReview',
+      'clearLoopEvidence',
+      'clearResolvedReviewComments',
+      'deleteArchivedReview',
+      'deleteReviewComment',
+      'editReviewComment',
+      'exploreFeature',
+      'featureReading',
+      'featureView',
+      'loopEvidence',
+      'loopEvidenceHtml',
+      'markReviewed',
+      'publishReview',
+      'repoLayers',
+      'resolveReviewComment',
+      'restoreArchivedReview',
+      'reviewComments',
+      'reviewEvidenceAsset',
+      'reviewEvidenceAssets',
+      'reviewEvidenceDocs',
+      'reviewIntent',
+      'reviewPublishCost',
+      'reviewedPaths',
+      'setRepoLayers',
+      'setReviewed',
+      'unmarkReviewed',
+      'worktreeInbox',
+    ])
+    for (const name of Object.keys(reviewProcedures)) {
+      expect(unmigratedProcedureNames).not.toContain(name)
+    }
+  })
+
   it('declares only query and mutation kinds with the expected current balance', () => {
     const entries = Object.values(unmigratedProcedureLedger).flat()
     expect(entries.every(({ kind }) => kind === 'query' || kind === 'mutation')).toBe(true)
-    expect(entries.filter(({ kind }) => kind === 'query')).toHaveLength(21)
-    expect(entries.filter(({ kind }) => kind === 'mutation')).toHaveLength(28)
+    expect(entries.filter(({ kind }) => kind === 'query')).toHaveLength(6)
+    expect(entries.filter(({ kind }) => kind === 'mutation')).toHaveLength(14)
   })
 })
