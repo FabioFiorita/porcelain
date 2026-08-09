@@ -86,8 +86,9 @@ without the specification that removes the corresponding legacy path.
 
 `scripts/lint-architecture-specs.mjs` keeps the migration executable by less architecture-aware
 agents. It checks recipe/catalog identity and status, required executor sections and order, known
-dependencies, Ready-versus-Landed prerequisites, primary-exemplar metadata, and placeholder language
-that delegates an unresolved choice.
+dependencies, dependency cycles, complete recipe coverage for non-landed work,
+Ready-versus-Landed prerequisites, primary-exemplar metadata, and placeholder language that
+delegates an unresolved choice.
 
 ## Test the owner of the risk
 

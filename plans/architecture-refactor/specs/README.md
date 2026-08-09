@@ -32,7 +32,7 @@ Every specification uses this structure:
 ```markdown
 # <ID> — <imperative outcome>
 
-- Status: Ready | Blocked | Landed
+- Status: Draft | Ready | Blocked | Landed
 - Batch: <ordered batch>
 - Domain: <canonical domain or supporting region>
 - Depends on: <spec ids or none>

@@ -205,3 +205,23 @@ boundary, every public wire shape is exhaustive, every caller uses the target pa
 deleted, tests own the meaningful risks, clean version-1 state works, resilience remains proved, and
 the architecture gate has no waiver for that domain. “New path exists” is not completion while the
 old path remains callable.
+
+## Concrete exemplar sequence
+
+Board is the first complete worked example. Its recipes turn the model above into five bounded,
+ordered commits:
+
+1. [`BRD-001`](specs/BRD-001-board-contracts.md) defines strict contracts, failures, and the typed
+   change fact.
+2. [`BRD-002`](specs/BRD-002-board-daemon.md) implements operations over an injected version-1
+   store and makes the router a transport adapter.
+3. [`BRD-003`](specs/BRD-003.md) defines framework-neutral query, mutation,
+   optimism, and notification consequences.
+4. [`BRD-004`](specs/BRD-004.md) binds those semantics to Web while keeping presentation
+   local.
+5. [`BRD-005`](specs/BRD-005.md) completes mobile/CLI adoption, deletes the
+   old representations, and closes the architecture ledger.
+
+These are executable specifications, not illustrative pseudocode. Later domain recipes copy their
+ownership and proof pattern while preserving their own behavior; they do not copy Board-specific
+types or abstractions.

@@ -93,6 +93,10 @@ for (const name of recipeFiles) {
   const depends = /^- Depends on: (.+)$/m.exec(source)?.[1] ?? ''
   const dependencyIds = [...depends.matchAll(/[A-Z][A-Z0-9]*-\d{3}/g)].map((match) => match[0])
   dependencyGraph.set(id, dependencyIds)
+  if (dependencyIds.includes(id)) failures.push(`${name} depends on itself`)
+  if (new Set(dependencyIds).size !== dependencyIds.length) {
+    failures.push(`${name} repeats a dependency id`)
+  }
   for (const dependency of dependencyIds) {
     if (!catalogEntries.has(dependency)) {
       failures.push(`${name} depends on unknown catalog id ${dependency}`)
@@ -137,6 +141,12 @@ function visit(id) {
 }
 
 for (const id of dependencyGraph.keys()) visit(id)
+
+for (const [id, status] of catalogEntries) {
+  if (status !== 'Landed' && !recipeIds.has(id)) {
+    failures.push(`${id} is ${status} in the catalog but has no full execution recipe`)
+  }
+}
 
 if (failures.length > 0) {
   console.error('Architecture specification drift:\n')
