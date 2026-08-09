@@ -64,22 +64,24 @@ that contains an unresolved product or architecture choice returns to the decisi
 3. [`003-application-operations-own-orchestration.md`](decisions/003-application-operations-own-orchestration.md)
    — routers translate, application operations orchestrate, domain rules decide, and adapters
    perform I/O.
+4. [`004-keep-cross-domain-workflows-shallow.md`](decisions/004-keep-cross-domain-workflows-shallow.md)
+   — one operation visibly coordinates narrow domain-owned capabilities without recursive
+   orchestration or event-hidden requirements.
 
 ## Decision queue
 
 Only the first unresolved item is discussed at a time. The order may change when a decision exposes
 a dependency.
 
-1. Define cross-domain collaboration without hidden service graphs.
-2. Make contracts and public domain vocabulary authoritative across clients.
-3. Define infrastructure adapters, persistence ownership, and dependency injection.
-4. Define the shared client-runtime boundary and Web/mobile responsibilities.
-5. Define client state ownership, mutations, optimism, and invalidation.
-6. Define realtime events, subscriptions, and refresh ownership.
-7. Define errors and validation across domain and transport boundaries.
-8. Define test responsibilities by boundary and risk.
-9. Define naming, file-size, dependency, and architecture enforcement.
-10. Inventory domains, order migrations, and author execution specifications.
+1. Make contracts and public domain vocabulary authoritative across clients.
+2. Define infrastructure adapters, persistence ownership, and dependency injection.
+3. Define the shared client-runtime boundary and Web/mobile responsibilities.
+4. Define client state ownership, mutations, optimism, and invalidation.
+5. Define realtime events, subscriptions, and refresh ownership.
+6. Define errors and validation across domain and transport boundaries.
+7. Define test responsibilities by boundary and risk.
+8. Define naming, file-size, dependency, and architecture enforcement.
+9. Inventory domains, order migrations, and author execution specifications.
 
 ## Inputs considered
 
