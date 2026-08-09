@@ -1,0 +1,23 @@
+import type { ProcedureContract } from '../procedure-contract'
+import type { ProcedureName } from '../procedures/names'
+import {
+  searchCodeInputSchema,
+  searchCodeOutputSchema,
+  searchFilesInputSchema,
+  searchFilesOutputSchema,
+  searchTextInputSchema,
+  searchTextOutputSchema,
+} from './search.contract'
+
+const searchProcedureDefinitions = {
+  searchText: { kind: 'query', input: searchTextInputSchema, output: searchTextOutputSchema },
+  searchCode: { kind: 'query', input: searchCodeInputSchema, output: searchCodeOutputSchema },
+  searchFiles: { kind: 'query', input: searchFilesInputSchema, output: searchFilesOutputSchema },
+} as const
+
+export type SearchProcedureName = Extract<keyof typeof searchProcedureDefinitions, ProcedureName>
+
+export const searchProcedures = searchProcedureDefinitions satisfies Record<
+  SearchProcedureName,
+  ProcedureContract
+>

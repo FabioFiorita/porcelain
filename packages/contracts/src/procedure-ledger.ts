@@ -26,11 +26,7 @@ export const unmigratedProcedureLedger = {
   remote: [],
   projects: [],
   files: [],
-  search: [
-    { name: 'searchText', kind: 'query' },
-    { name: 'searchCode', kind: 'query' },
-    { name: 'searchFiles', kind: 'query' },
-  ],
+  search: [],
   git: [
     { name: 'gitQuickCommand', kind: 'mutation' },
     { name: 'gitPush', kind: 'mutation' },

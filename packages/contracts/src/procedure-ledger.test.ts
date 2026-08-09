@@ -5,17 +5,19 @@ import { initialProcedureOwnershipBaseline } from './procedure-ledger-baseline'
 import { PROCEDURE_NAMES } from './procedures/names'
 import { projectsProcedures } from './projects'
 import { remoteProcedures } from './remote'
+import { searchProcedures } from './search'
 
 describe('unmigrated procedure ledger', () => {
   it('contains each unmigrated procedure exactly once', () => {
-    expect(unmigratedProcedureNames).toHaveLength(82)
-    expect(new Set(unmigratedProcedureNames).size).toBe(82)
+    expect(unmigratedProcedureNames).toHaveLength(79)
+    expect(new Set(unmigratedProcedureNames).size).toBe(79)
     expect([...unmigratedProcedureNames].sort()).toEqual(
       PROCEDURE_NAMES.filter(
         (name) =>
           !(name in remoteProcedures) &&
           !(name in projectsProcedures) &&
-          !(name in filesProcedures),
+          !(name in filesProcedures) &&
+          !(name in searchProcedures),
       ).sort(),
     )
   })
@@ -96,10 +98,22 @@ describe('unmigrated procedure ledger', () => {
     }
   })
 
+  it('removes exactly the completed Search procedures', () => {
+    expect(unmigratedProcedureLedger.search).toEqual([])
+    expect(Object.keys(searchProcedures).sort()).toEqual([
+      'searchCode',
+      'searchFiles',
+      'searchText',
+    ])
+    for (const name of Object.keys(searchProcedures)) {
+      expect(unmigratedProcedureNames).not.toContain(name)
+    }
+  })
+
   it('declares only query and mutation kinds with the expected current balance', () => {
     const entries = Object.values(unmigratedProcedureLedger).flat()
     expect(entries.every(({ kind }) => kind === 'query' || kind === 'mutation')).toBe(true)
-    expect(entries.filter(({ kind }) => kind === 'query')).toHaveLength(41)
+    expect(entries.filter(({ kind }) => kind === 'query')).toHaveLength(38)
     expect(entries.filter(({ kind }) => kind === 'mutation')).toHaveLength(41)
   })
 })
