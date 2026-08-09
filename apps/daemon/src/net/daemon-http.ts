@@ -6,7 +6,11 @@ import type { AnyRouter } from '@trpc/server'
 import { fetchRequestHandler } from '@trpc/server/adapters/fetch'
 import { type WebSocket, WebSocketServer } from 'ws'
 import { logUnexpectedError } from '../daemon-composition/error-log'
-import { normalizePublicError } from '../daemon-composition/public-error'
+import {
+  normalizePublicError,
+  publicErrorFor,
+  writePublicError,
+} from '../daemon-composition/public-error'
 import { createRequestId } from '../daemon-composition/request-id'
 import type { AuthIdentity } from '../stores/access-store'
 
@@ -137,6 +141,7 @@ export function createDaemonHttp(opts: DaemonHttpOptions): DaemonHttp {
     req: IncomingMessage,
     res: ServerResponse,
     cors: Record<string, string>,
+    requestId: string,
   ): Promise<void> {
     if (req.method !== 'POST') {
       res.writeHead(405, { ...cors, allow: 'POST' })
@@ -144,20 +149,19 @@ export function createDaemonHttp(opts: DaemonHttpOptions): DaemonHttp {
       return
     }
     if (pairingRateLimited(req)) {
-      res.writeHead(429, { ...cors, 'retry-after': '60' })
-      res.end()
+      writePublicError(res, 429, cors, publicErrorFor('resource.unavailable', requestId), {
+        'retry-after': '60',
+      })
       return
     }
     const contentLength = Number(req.headers['content-length'] ?? '0')
     if (!Number.isFinite(contentLength) || contentLength > 8_192) {
-      res.writeHead(413, cors)
-      res.end()
+      writePublicError(res, 413, cors, publicErrorFor('request.invalid', requestId))
       return
     }
     const raw = await readBody(req, 8_192)
     if (raw === null) {
-      res.writeHead(413, cors)
-      res.end()
+      writePublicError(res, 413, cors, publicErrorFor('request.invalid', requestId))
       return
     }
     let credential: string
@@ -173,14 +177,12 @@ export function createDaemonHttp(opts: DaemonHttpOptions): DaemonHttp {
       }
       credential = parsed.credential
     } catch {
-      res.writeHead(400, cors)
-      res.end()
+      writePublicError(res, 400, cors, publicErrorFor('request.invalid', requestId))
       return
     }
     const exchanged = await opts.exchangePairing(credential)
     if (exchanged === null) {
-      res.writeHead(401, cors)
-      res.end()
+      writePublicError(res, 401, cors, publicErrorFor('auth.unauthenticated', requestId))
       return
     }
     const body = Buffer.from(JSON.stringify(exchanged))
@@ -193,6 +195,20 @@ export function createDaemonHttp(opts: DaemonHttpOptions): DaemonHttp {
     res.end(body)
   }
 
+  function writeUnexpectedRequestFailure(
+    res: ServerResponse,
+    cors: Record<string, string>,
+    error: unknown,
+    requestId: string,
+  ): void {
+    logUnexpectedError({ error, requestId, path: undefined })
+    if (!res.headersSent) {
+      writePublicError(res, 500, cors, publicErrorFor('internal.unexpected', requestId))
+    } else if (!res.writableEnded) {
+      res.end()
+    }
+  }
+
   // Rebuild a fetch Request from the Node request and hand it to tRPC's official
   // fetch adapter — all protocol logic (batching, input decoding, error shapes)
   // stays in tRPC, exactly like the Stage-1 IPC shuttle. The appRouter context is
@@ -202,45 +218,50 @@ export function createDaemonHttp(opts: DaemonHttpOptions): DaemonHttp {
   // below then applies to both automatically.
   async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const cors = corsHeaders(req)
-    try {
-      const url = req.url ?? '/'
-      if (url === '/pair' && req.method === 'OPTIONS') {
-        res.writeHead(204, cors)
-        res.end()
-        return
+    const url = req.url ?? '/'
+    if (url === '/pair' && req.method === 'OPTIONS') {
+      res.writeHead(204, cors)
+      res.end()
+      return
+    }
+    if (url === '/pair' && req.method === 'POST') {
+      const requestId = createRequestId()
+      try {
+        await handlePairing(req, res, cors, requestId)
+      } catch (error) {
+        writeUnexpectedRequestFailure(res, cors, error, requestId)
       }
-      if (url === '/pair' && req.method === 'POST') {
-        await handlePairing(req, res, cors)
-        return
-      }
-      if (!url.startsWith('/trpc')) {
-        // OPTIONS anywhere is a CORS preflight — answer it, don't fall to static.
-        if (req.method === 'OPTIONS') {
-          res.writeHead(204, cors)
-          res.end()
-          return
-        }
-        // Everything that isn't /trpc (and isn't the /session WS upgrade, which never
-        // reaches here) is the renderer dist — the browser client's app shell. Static
-        // assets are UNAUTHENTICATED by design (the shell is not secret; the token gate
-        // stays on /trpc + /session — see static-server.ts). GET/HEAD only.
-        if (req.method === 'GET' || req.method === 'HEAD') {
-          await serveStatic(req, res)
-        } else {
-          res.writeHead(404, cors)
-          res.end()
-        }
-        return
-      }
+      return
+    }
+    if (!url.startsWith('/trpc')) {
+      // OPTIONS anywhere is a CORS preflight — answer it, don't fall to static.
       if (req.method === 'OPTIONS') {
         res.writeHead(204, cors)
         res.end()
         return
       }
+      // Everything that isn't /trpc (and isn't the /session WS upgrade, which never
+      // reaches here) is the renderer dist — the browser client's app shell. Static
+      // assets are UNAUTHENTICATED by design (the shell is not secret; the token gate
+      // stays on /trpc + /session — see static-server.ts). GET/HEAD only.
+      if (req.method === 'GET' || req.method === 'HEAD') {
+        await serveStatic(req, res)
+      } else {
+        res.writeHead(404, cors)
+        res.end()
+      }
+      return
+    }
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204, cors)
+      res.end()
+      return
+    }
+    const requestId = createRequestId()
+    try {
       const identity = await authenticate(bearerToken(req))
       if (identity === null) {
-        res.writeHead(401, cors)
-        res.end()
+        writePublicError(res, 401, cors, publicErrorFor('auth.unauthenticated', requestId))
         return
       }
       const method = req.method ?? 'GET'
@@ -253,7 +274,6 @@ export function createDaemonHttp(opts: DaemonHttpOptions): DaemonHttp {
       // not in the lib types, and tRPC bodies are small JSON payloads.
       const body =
         method === 'GET' || method === 'HEAD' ? undefined : new Uint8Array(await readBody(req))
-      const requestId = createRequestId()
       const response = await fetchRequestHandler({
         endpoint: '/trpc',
         router,
@@ -270,9 +290,7 @@ export function createDaemonHttp(opts: DaemonHttpOptions): DaemonHttp {
       })
       res.end(Buffer.from(await response.arrayBuffer()))
     } catch (error) {
-      console.error('[daemon] /trpc request failed:', error)
-      if (!res.headersSent) res.writeHead(500, cors)
-      res.end()
+      writeUnexpectedRequestFailure(res, cors, error, requestId)
     }
   }
 
@@ -314,12 +332,14 @@ export function createDaemonHttp(opts: DaemonHttpOptions): DaemonHttp {
   }
 
   // Bridge the async request handler to the sync (req, res) signature http.Server
-  // expects, swallowing rejections into a 500 log — one wrapper, reused for both
-  // listeners so their behaviour is identical (same routes, same token gate).
+  // expects. Dynamic request failures handle themselves above; this last-resort
+  // path preserves non-public static-route failures without logging raw details.
   const requestListener = (req: IncomingMessage, res: ServerResponse): void => {
-    handleRequest(req, res).catch((error) =>
-      console.error('[daemon] request handler crashed:', error),
-    )
+    handleRequest(req, res).catch((error) => {
+      logUnexpectedError({ error, requestId: createRequestId(), path: undefined })
+      if (!res.headersSent) res.writeHead(500, corsHeaders(req))
+      if (!res.writableEnded) res.end()
+    })
   }
 
   const server = createServer(requestListener)

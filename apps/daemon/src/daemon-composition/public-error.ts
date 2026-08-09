@@ -1,3 +1,4 @@
+import type { ServerResponse } from 'node:http'
 import {
   type PorcelainError,
   type PublicErrorCategory,
@@ -25,7 +26,7 @@ type PublicErrorShape = Omit<TRPCDefaultErrorShape, 'data' | 'message'> & {
   data: Omit<TRPCDefaultErrorShape['data'], 'stack'> & { porcelain: PorcelainError }
 }
 
-function publicErrorFor(
+export function publicErrorFor(
   code: PorcelainError['code'],
   requestId: string,
   details?: PublicErrorDetails,
@@ -36,6 +37,24 @@ function publicErrorFor(
     requestId,
     ...(details === undefined ? {} : { details }),
   })
+}
+
+export function writePublicError(
+  res: ServerResponse,
+  status: number,
+  corsHeaders: Record<string, string>,
+  error: PorcelainError,
+  extraHeaders: Record<string, string> = {},
+): void {
+  const body = Buffer.from(JSON.stringify(publicErrorSchema.parse(error)), 'utf8')
+  res.writeHead(status, {
+    ...corsHeaders,
+    ...extraHeaders,
+    'cache-control': 'no-store',
+    'content-type': 'application/json; charset=utf-8',
+    'content-length': String(body.byteLength),
+  })
+  res.end(body)
 }
 
 function expectedFailureFrom(error: unknown): ExpectedFailure | undefined {

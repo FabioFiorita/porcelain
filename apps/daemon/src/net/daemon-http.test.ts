@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { createHash } from 'node:crypto'
 import { mkdtemp } from 'node:fs/promises'
-import type { IncomingMessage, ServerResponse } from 'node:http'
+import { type IncomingMessage, request, type ServerResponse } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -27,45 +27,43 @@ vi.mock('../terminal/terminal-manager', () => ({
 import { router } from '../api'
 import { initConfigDir } from '../stores/config-store'
 import { attachTerminal } from '../terminal/terminal-manager'
-import { createDaemonHttp } from './daemon-http'
+import { createDaemonHttp, type DaemonHttpOptions } from './daemon-http'
 import { closeAllSessions, closeClientSessions, createSession, sessionCount } from './session'
 
 const TOKEN = 'test-token'
 const CLIENT_TOKEN = 'client-token'
 const PAIRING_TOKEN = 'pairing-token'
 const ORIGIN = 'http://localhost:5173'
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 let base: string
 let daemon: ReturnType<typeof createDaemonHttp>
 
-async function publicErrorFrom(response: Response) {
-  const body = (await response.json()) as {
-    error: { message: string; data: { porcelain: unknown } }
-  }
-  return { message: body.error.message, error: publicErrorSchema.parse(body.error.data.porcelain) }
-}
+const authenticateTestClient: DaemonHttpOptions['authenticateClient'] = async (provided) =>
+  provided === CLIENT_TOKEN ? { kind: 'client', clientId: 'client-1', label: 'Test phone' } : null
 
-beforeAll(async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'porcelain-daemon-http-'))
-  initConfigDir(dir)
-  const tokenHash = createHash('sha256').update(TOKEN).digest()
-  daemon = createDaemonHttp({
-    adminTokenHash: tokenHash,
-    authenticateClient: async (provided: string) =>
-      provided === CLIENT_TOKEN
-        ? { kind: 'client', clientId: 'client-1', label: 'Test phone' }
-        : null,
-    exchangePairing: async (provided: string) =>
-      provided === PAIRING_TOKEN
-        ? {
-            token: CLIENT_TOKEN,
-            client: {
-              id: 'client-1',
-              label: 'Test phone',
-              createdAt: new Date(0).toISOString(),
-            },
-          }
-        : null,
+const exchangeTestPairing: DaemonHttpOptions['exchangePairing'] = async (provided) =>
+  provided === PAIRING_TOKEN
+    ? {
+        token: CLIENT_TOKEN,
+        client: {
+          id: 'client-1',
+          label: 'Test phone',
+          createdAt: new Date(0).toISOString(),
+        },
+      }
+    : null
+
+function testDaemonOptions({
+  authenticateClient = authenticateTestClient,
+  exchangePairing = exchangeTestPairing,
+}: Partial<
+  Pick<DaemonHttpOptions, 'authenticateClient' | 'exchangePairing'>
+> = {}): DaemonHttpOptions {
+  return {
+    adminTokenHash: createHash('sha256').update(TOKEN).digest(),
+    authenticateClient,
+    exchangePairing,
     allowedOrigin: ORIGIN,
     router,
     onSession: createSession,
@@ -73,29 +71,113 @@ beforeAll(async () => {
       res.writeHead(req.url === '/pair' ? 200 : 404)
       res.end()
     },
+  }
+}
+
+async function startTestDaemon(
+  options: Partial<Pick<DaemonHttpOptions, 'authenticateClient' | 'exchangePairing'>> = {},
+): Promise<{ base: string; daemon: ReturnType<typeof createDaemonHttp> }> {
+  const testDaemon = createDaemonHttp(testDaemonOptions(options))
+  await new Promise<void>((resolve) => testDaemon.server.listen(0, '127.0.0.1', resolve))
+  const address = testDaemon.server.address() as AddressInfo
+  return { base: `http://127.0.0.1:${address.port}`, daemon: testDaemon }
+}
+
+async function stopTestDaemon(testDaemon: ReturnType<typeof createDaemonHttp>): Promise<void> {
+  await new Promise<void>((resolve, reject) =>
+    testDaemon.server.close((error) => (error ? reject(error) : resolve())),
+  )
+}
+
+async function trpcPublicErrorFrom(response: Response) {
+  const body = (await response.json()) as {
+    error: { message: string; data: { porcelain: unknown } }
+  }
+  return { message: body.error.message, error: publicErrorSchema.parse(body.error.data.porcelain) }
+}
+
+async function publicHttpErrorFrom(response: Response) {
+  const contentLength = response.headers.get('content-length')
+  const body = await response.text()
+  expect(response.headers.get('cache-control')).toBe('no-store')
+  expect(response.headers.get('content-type')).toBe('application/json; charset=utf-8')
+  expect(contentLength).toBe(String(Buffer.byteLength(body, 'utf8')))
+  return publicErrorSchema.parse(JSON.parse(body))
+}
+
+async function expectPublicHttpFailure(response: Response, status: number, code: string) {
+  expect(response.status).toBe(status)
+  const error = await publicHttpErrorFrom(response)
+  expect(error).toMatchObject({ code })
+  expect(error.requestId).toMatch(UUID_PATTERN)
+  return error
+}
+
+function postChunked(url: string, body: string): Promise<Response> {
+  const target = new URL(url)
+  return new Promise((resolve, reject) => {
+    const req = request(
+      {
+        hostname: target.hostname,
+        port: Number(target.port),
+        path: target.pathname,
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'transfer-encoding': 'chunked',
+        },
+      },
+      (response) => {
+        const chunks: Buffer[] = []
+        response.on('data', (chunk: Buffer) => chunks.push(chunk))
+        response.on('end', () => {
+          const headers = new Headers()
+          for (const [name, value] of Object.entries(response.headers)) {
+            if (value === undefined) continue
+            if (Array.isArray(value)) {
+              for (const entry of value) headers.append(name, entry)
+            } else {
+              headers.set(name, value)
+            }
+          }
+          resolve(
+            new Response(Buffer.concat(chunks), {
+              status: response.statusCode ?? 500,
+              headers,
+            }),
+          )
+        })
+      },
+    )
+    req.on('error', reject)
+    const midpoint = Math.floor(body.length / 2)
+    req.write(body.slice(0, midpoint))
+    req.end(body.slice(midpoint))
   })
-  await new Promise<void>((resolve) => daemon.server.listen(0, '127.0.0.1', resolve))
-  const address = daemon.server.address() as AddressInfo
-  base = `http://127.0.0.1:${address.port}`
+}
+
+beforeAll(async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'porcelain-daemon-http-'))
+  initConfigDir(dir)
+  const started = await startTestDaemon()
+  base = started.base
+  daemon = started.daemon
 })
 
 afterAll(async () => {
-  await new Promise<void>((resolve, reject) =>
-    daemon.server.close((err) => (err ? reject(err) : resolve())),
-  )
+  await stopTestDaemon(daemon)
 })
 
 describe('daemon http surface — the token gate + CORS scope', () => {
-  it('rejects /trpc with no auth header (401)', async () => {
-    const res = await fetch(`${base}/trpc/recentRepos`)
-    expect(res.status).toBe(401)
-  })
-
-  it('rejects /trpc with a wrong Bearer token (401)', async () => {
+  it.each([
+    ['a missing Bearer credential', {}],
+    ['a wrong Bearer credential', { authorization: 'Bearer wrong-token' }],
+  ])('returns a public unauthenticated error for %s', async (_label, authHeaders) => {
     const res = await fetch(`${base}/trpc/recentRepos`, {
-      headers: { authorization: 'Bearer wrong-token' },
+      headers: { ...authHeaders, origin: ORIGIN },
     })
-    expect(res.status).toBe(401)
+    await expectPublicHttpFailure(res, 401, 'auth.unauthenticated')
+    expect(res.headers.get('access-control-allow-origin')).toBe(ORIGIN)
   })
 
   it('accepts /trpc with the right Bearer token', async () => {
@@ -126,6 +208,7 @@ describe('daemon http surface — the token gate + CORS scope', () => {
       headers: { origin: ORIGIN },
     })
     expect(res.status).toBe(204)
+    expect(await res.text()).toBe('')
   })
 
   it('exchanges a valid one-time pairing credential without authentication', async () => {
@@ -135,6 +218,7 @@ describe('daemon http surface — the token gate + CORS scope', () => {
       body: JSON.stringify({ credential: PAIRING_TOKEN }),
     })
     expect(res.status).toBe(200)
+    expect(res.headers.get('cache-control')).toBe('no-store')
     expect(await res.json()).toMatchObject({ token: CLIENT_TOKEN })
   })
 
@@ -143,22 +227,159 @@ describe('daemon http surface — the token gate + CORS scope', () => {
     expect(res.status).toBe(200)
   })
 
-  it('rejects an invalid pairing credential', async () => {
-    const res = await fetch(`${base}/pair`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ credential: 'wrong-pairing-token' }),
-    })
-    expect(res.status).toBe(401)
+  it('returns a public unauthenticated error for an exhausted pairing grant', async () => {
+    const exchangePairing = vi.fn(async (_credential: string) => null)
+    const isolated = await startTestDaemon({ exchangePairing })
+
+    try {
+      const res = await fetch(`${isolated.base}/pair`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ credential: 'consumed-pairing-grant' }),
+      })
+      await expectPublicHttpFailure(res, 401, 'auth.unauthenticated')
+      expect(exchangePairing).toHaveBeenCalledOnce()
+    } finally {
+      await stopTestDaemon(isolated.daemon)
+    }
   })
 
-  it('rejects an oversized pairing body before parsing it', async () => {
-    const res = await fetch(`${base}/pair`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ credential: 'x'.repeat(8_192) }),
+  it.each([
+    ['malformed JSON', '{"credential":'],
+    ['a non-string credential', JSON.stringify({ credential: 42 })],
+  ])('rejects pairing %s before grant exchange', async (_label, body) => {
+    const exchangePairing = vi.fn(async (_credential: string) => null)
+    const isolated = await startTestDaemon({ exchangePairing })
+
+    try {
+      const res = await fetch(`${isolated.base}/pair`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body,
+      })
+      await expectPublicHttpFailure(res, 400, 'request.invalid')
+      expect(exchangePairing).not.toHaveBeenCalled()
+    } finally {
+      await stopTestDaemon(isolated.daemon)
+    }
+  })
+
+  it('rejects a declared pairing body above the cap before grant exchange', async () => {
+    const exchangePairing = vi.fn(async (_credential: string) => null)
+    const isolated = await startTestDaemon({ exchangePairing })
+
+    try {
+      const res = await fetch(`${isolated.base}/pair`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ credential: 'x'.repeat(8_192) }),
+      })
+      await expectPublicHttpFailure(res, 413, 'request.invalid')
+      expect(exchangePairing).not.toHaveBeenCalled()
+    } finally {
+      await stopTestDaemon(isolated.daemon)
+    }
+  })
+
+  it('rejects a streamed pairing body above the cap before grant exchange', async () => {
+    const exchangePairing = vi.fn(async (_credential: string) => null)
+    const isolated = await startTestDaemon({ exchangePairing })
+
+    try {
+      const res = await postChunked(
+        `${isolated.base}/pair`,
+        JSON.stringify({ credential: 'x'.repeat(8_192) }),
+      )
+      await expectPublicHttpFailure(res, 413, 'request.invalid')
+      expect(exchangePairing).not.toHaveBeenCalled()
+    } finally {
+      await stopTestDaemon(isolated.daemon)
+    }
+  })
+
+  it('rate limits pairing before grant exchange and preserves retry-after', async () => {
+    const exchangePairing = vi.fn(async (_credential: string) => null)
+    const isolated = await startTestDaemon({ exchangePairing })
+
+    try {
+      for (let attempt = 0; attempt < 12; attempt += 1) {
+        const res = await fetch(`${isolated.base}/pair`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ credential: `pairing-attempt-${attempt}` }),
+        })
+        await expectPublicHttpFailure(res, 401, 'auth.unauthenticated')
+      }
+
+      const limited = await fetch(`${isolated.base}/pair`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ credential: 'rate-limited-pairing-attempt' }),
+      })
+      expect(limited.headers.get('retry-after')).toBe('60')
+      await expectPublicHttpFailure(limited, 429, 'resource.unavailable')
+      expect(exchangePairing).toHaveBeenCalledTimes(12)
+    } finally {
+      await stopTestDaemon(isolated.daemon)
+    }
+  })
+
+  it('logs an unexpected authentication failure once without exposing raw details', async () => {
+    const secret = 'token=authentication-secret path=/host/private content=never-send'
+    const authenticateClient = vi.fn(async (_credential: string) => {
+      throw new Error(secret)
     })
-    expect(res.status).toBe(413)
+    const isolated = await startTestDaemon({ authenticateClient })
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    try {
+      const res = await fetch(`${isolated.base}/trpc/recentRepos`, {
+        headers: { authorization: 'Bearer unexpected-authentication-token' },
+      })
+      const error = await expectPublicHttpFailure(res, 500, 'internal.unexpected')
+
+      expect(authenticateClient).toHaveBeenCalledOnce()
+      expect(log).toHaveBeenCalledOnce()
+      expect(log).toHaveBeenCalledWith({
+        requestId: error.requestId,
+        path: null,
+        errorType: 'Error',
+      })
+      expect(JSON.stringify({ error, logs: log.mock.calls })).not.toContain(secret)
+    } finally {
+      log.mockRestore()
+      await stopTestDaemon(isolated.daemon)
+    }
+  })
+
+  it('logs an unexpected pairing failure once without exposing raw details', async () => {
+    const secret = 'token=pairing-secret path=/host/private content=never-send'
+    const exchangePairing = vi.fn(async (_credential: string) => {
+      throw new Error(secret)
+    })
+    const isolated = await startTestDaemon({ exchangePairing })
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    try {
+      const res = await fetch(`${isolated.base}/pair`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ credential: 'unexpected-pairing-grant' }),
+      })
+      const error = await expectPublicHttpFailure(res, 500, 'internal.unexpected')
+
+      expect(exchangePairing).toHaveBeenCalledOnce()
+      expect(log).toHaveBeenCalledOnce()
+      expect(log).toHaveBeenCalledWith({
+        requestId: error.requestId,
+        path: null,
+        errorType: 'Error',
+      })
+      expect(JSON.stringify({ error, logs: log.mock.calls })).not.toContain(secret)
+    } finally {
+      log.mockRestore()
+      await stopTestDaemon(isolated.daemon)
+    }
   })
 
   it('accepts a client token for ordinary procedures', async () => {
@@ -176,12 +397,10 @@ describe('daemon http surface — the token gate + CORS scope', () => {
         headers: { authorization: `Bearer ${CLIENT_TOKEN}` },
       })
       expect(forbidden.status).toBe(403)
-      const publicError = await publicErrorFrom(forbidden)
+      const publicError = await trpcPublicErrorFrom(forbidden)
       expect(publicError.message).toBe('Access is forbidden.')
       expect(publicError.error).toMatchObject({ code: 'auth.forbidden' })
-      expect(publicError.error.requestId).toMatch(
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
-      )
+      expect(publicError.error.requestId).toMatch(UUID_PATTERN)
       expect(log).not.toHaveBeenCalled()
     } finally {
       log.mockRestore()
@@ -198,7 +417,7 @@ describe('daemon http surface — the token gate + CORS scope', () => {
         body: JSON.stringify({ label: '', baseUrl: 'not a URL' }),
       })
       expect(invalid.status).toBe(400)
-      expect((await publicErrorFrom(invalid)).error).toMatchObject({ code: 'request.invalid' })
+      expect((await trpcPublicErrorFrom(invalid)).error).toMatchObject({ code: 'request.invalid' })
       expect(log).not.toHaveBeenCalled()
     } finally {
       log.mockRestore()
@@ -219,7 +438,7 @@ describe('daemon http surface — the token gate + CORS scope', () => {
         }),
       })
       expect(unexpected.status).toBe(500)
-      const publicError = await publicErrorFrom(unexpected)
+      const publicError = await trpcPublicErrorFrom(unexpected)
 
       expect(publicError.error).toMatchObject({ code: 'internal.unexpected' })
       expect(log).toHaveBeenCalledOnce()

@@ -26,7 +26,7 @@ an external choice or authorization.
 | `CON-011` | Landed | Project Data schemas remove the final 6 ledger entries |
 | `ERR-001` | Landed | Strict public-error contracts and exhaustive per-procedure error declarations |
 | `ERR-002` | Landed | tRPC request correlation, public-error mapping, and safe unexpected diagnostics |
-| `ERR-003` | Queued | Public errors at daemon HTTP authentication and pairing boundaries |
+| `ERR-003` | Landed | Public errors at daemon HTTP authentication and pairing boundaries |
 | `CON-012` | Draft | Delete the horizontal fallback and enforce router input/output/kind exhaustiveness |
 | `PRO-001` | Draft | Protocol-v1 contract and daemon-info field without request enforcement |
 | `PRO-002` | Draft | Repository-owned HTTP/pairing adapters send the shared version header |
