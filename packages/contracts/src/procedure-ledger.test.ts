@@ -6,6 +6,7 @@ import { gitProcedures } from './git'
 import { unmigratedProcedureLedger, unmigratedProcedureNames } from './procedure-ledger'
 import { initialProcedureOwnershipBaseline } from './procedure-ledger-baseline'
 import { PROCEDURE_NAMES } from './procedures/names'
+import { projectDataProcedures } from './project-data'
 import { projectsProcedures } from './projects'
 import { remoteProcedures } from './remote'
 import { reviewProcedures } from './review'
@@ -13,9 +14,8 @@ import { searchProcedures } from './search'
 import { terminalProcedures } from './terminal'
 
 describe('unmigrated procedure ledger', () => {
-  it('contains each unmigrated procedure exactly once', () => {
-    expect(unmigratedProcedureNames).toHaveLength(6)
-    expect(new Set(unmigratedProcedureNames).size).toBe(6)
+  it('has no unmigrated procedures left', () => {
+    expect(unmigratedProcedureNames).toEqual([])
     expect([...unmigratedProcedureNames].sort()).toEqual(
       PROCEDURE_NAMES.filter(
         (name) =>
@@ -27,7 +27,8 @@ describe('unmigrated procedure ledger', () => {
           !(name in reviewProcedures) &&
           !(name in boardProcedures) &&
           !(name in actionsProcedures) &&
-          !(name in terminalProcedures),
+          !(name in terminalProcedures) &&
+          !(name in projectDataProcedures),
       ).sort(),
     )
   })
@@ -235,16 +236,28 @@ describe('unmigrated procedure ledger', () => {
     }
   })
 
-  it('declares only query and mutation kinds with the expected current balance', () => {
-    const entries = Object.values(unmigratedProcedureLedger).flat()
-    expect(entries.every(({ kind }) => kind === 'query' || kind === 'mutation')).toBe(true)
-    expect(entries.filter(({ kind }) => kind === 'query')).toHaveLength(3)
-    expect(entries.filter(({ kind }) => kind === 'mutation')).toHaveLength(3)
+  it('removes exactly the completed Project Data procedures', () => {
+    expect(unmigratedProcedureLedger['project-data']).toEqual([])
+    expect(Object.keys(projectDataProcedures).sort()).toEqual([
+      'companionDispositions',
+      'companionGitVisibility',
+      'repoNotes',
+      'setCompanionDisposition',
+      'setCompanionGitVisibility',
+      'setRepoNotes',
+    ])
+    for (const name of Object.keys(projectDataProcedures)) {
+      expect(unmigratedProcedureNames).not.toContain(name)
+    }
+  })
+
+  it('leaves every domain bucket empty', () => {
+    expect(Object.values(unmigratedProcedureLedger).flat()).toEqual([])
     expect(
       Object.keys(unmigratedProcedureLedger).filter(
         (domain) =>
           unmigratedProcedureLedger[domain as keyof typeof unmigratedProcedureLedger].length > 0,
       ),
-    ).toEqual(['project-data'])
+    ).toEqual([])
   })
 })

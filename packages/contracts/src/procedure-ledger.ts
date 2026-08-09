@@ -32,14 +32,7 @@ export const unmigratedProcedureLedger = {
   board: [],
   actions: [],
   terminal: [],
-  'project-data': [
-    { name: 'repoNotes', kind: 'query' },
-    { name: 'setRepoNotes', kind: 'mutation' },
-    { name: 'companionDispositions', kind: 'query' },
-    { name: 'companionGitVisibility', kind: 'query' },
-    { name: 'setCompanionGitVisibility', kind: 'mutation' },
-    { name: 'setCompanionDisposition', kind: 'mutation' },
-  ],
+  'project-data': [],
 } as const satisfies Readonly<Record<ProcedureDomain, readonly UnmigratedProcedure[]>>
 
 export const unmigratedProcedureNames: readonly ProcedureName[] = Object.freeze(
