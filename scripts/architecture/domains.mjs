@@ -11,8 +11,21 @@ export const DOMAIN_KEYS = [
   'remote',
 ]
 
+export const DOMAIN_MIGRATIONS = Object.freeze(
+  Object.fromEntries(
+    DOMAIN_KEYS.map((key) => [
+      key,
+      Object.freeze({
+        status: 'legacy',
+        targetRoots: Object.freeze([]),
+        legacyPaths: Object.freeze([]),
+      }),
+    ]),
+  ),
+)
+
 export const DOMAIN_STATUS = Object.freeze(
-  Object.fromEntries(DOMAIN_KEYS.map((domain) => [domain, 'legacy'])),
+  Object.fromEntries(DOMAIN_KEYS.map((key) => [key, DOMAIN_MIGRATIONS[key].status])),
 )
 
 export const SUPPORTING_REGIONS = [

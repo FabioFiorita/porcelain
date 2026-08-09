@@ -11,7 +11,7 @@ open judgment and has landed dependencies, and **Blocked** names a dependency or
 | ID | Status | Outcome |
 | --- | --- | --- |
 | `ARC-001` | Landed | Canonical registry, target model, active AGENTS guidance, and package/debt/file-size ratchet |
-| `ARC-002` | Draft | Import-graph and domain-public-entry checks become migration-status aware |
+| `ARC-002` | Landed | Import-graph and domain-public-entry checks become migration-status aware |
 | `CON-001` | Draft | Contract-domain scaffolding and exact shrink-only 113-procedure ledger |
 | `CON-002` | Draft | Remote schemas remove 12 entries from the contract ledger |
 | `CON-003` | Draft | Projects schemas remove 4 entries from the contract ledger |
