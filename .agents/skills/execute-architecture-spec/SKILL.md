@@ -2,7 +2,7 @@
 name: execute-architecture-spec
 metadata:
   internal: true
-description: Execute exactly one reviewer-approved Porcelain architecture-refactor recipe and leave a self-contained review packet. Use when the human asks Claude, Codex, or Grok to continue the architecture refactor, run the next spec, execute the next Ready recipe, or land one migration unit from plans/architecture-refactor/specs.
+description: Execute exactly one reviewer-approved Porcelain architecture-refactor recipe and leave a self-contained review packet. Use when the human asks Claude, Codex, or Grok to continue the architecture refactor, run the next spec, execute the next Ready or dependency-eligible Queued recipe, or land one migration unit from plans/architecture-refactor/specs.
 ---
 
 # Execute Architecture Spec
@@ -18,8 +18,9 @@ node .agents/skills/execute-architecture-spec/scripts/next-ready.mjs
 ```
 
 The script requires a clean worktree, validates the recipe catalog, and prints the only executable
-recipe plus the starting commit. If it reports zero or multiple Ready recipes, stop and return that
-result. Never choose a Draft/Blocked recipe, promote one, or continue a previous agent's dirty work.
+recipe plus the starting commit. Executable means Ready, or Queued with all dependencies now Landed.
+If it reports zero or multiple candidates, stop and return that result. Never choose or promote a
+Draft/Blocked recipe, or continue a previous agent's dirty work.
 
 One invocation owns one recipe. Never begin the next recipe in the same session.
 
@@ -52,7 +53,7 @@ Do not ask the human to restate information already available in these sources.
 6. Re-read the complete diff against the recipe and current runtime types. Check strictness,
    optionality, nullability, defaults, output shapes, deletion searches, file ceilings, and
    dependency direction as applicable.
-7. Change the selected recipe and catalog row from Ready to Landed only after every completion
+7. Change the selected Ready/Queued recipe and catalog row to Landed only after every completion
    criterion passes.
 8. Commit the complete unit once using the repository commit convention. Do not push.
 9. Confirm the worktree is clean and stop.

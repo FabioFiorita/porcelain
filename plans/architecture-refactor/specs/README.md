@@ -5,7 +5,7 @@ and the integrated inventory contain the judgment; a specification contains no u
 architecture choice.
 
 The ordered work breakdown is [`catalog.md`](catalog.md). A catalog row is not executable until its
-full recipe exists and is marked Ready.
+full recipe is architecture-reviewed and either Ready or dependency-eligible Queued.
 
 ## Readiness and review gates
 
@@ -15,12 +15,15 @@ Recipe authoring and recipe execution are separate units of work:
    its landed dependencies. The reviewer replaces summaries with exact paths, symbols, wire shapes,
    deletion searches, test boundaries, and commands wherever an executor would otherwise need to
    choose.
-2. Only that reviewer changes the recipe and catalog from **Draft** to **Ready**. Ready means all
-   dependencies are already **Landed** and no product or architecture judgment remains.
+2. Only that reviewer changes the recipe and catalog from **Draft** to **Ready** or **Queued**.
+   Ready means reviewed for immediate execution. Queued means reviewed ahead of its turn and gated
+   mechanically by its catalog dependencies.
 3. An executor verifies the stated anchors still match before editing. A mismatch returns the unit
    to the reviewer; it is not permission to reinterpret the recipe.
-4. The executor changes Ready to **Landed** in the same commit as the implementation only after all
-   completion criteria pass.
+4. A Queued recipe becomes executable automatically when all its catalog dependencies are Landed;
+   this is dependency resolution, not architecture review.
+5. The executor changes the selected Ready/Queued recipe to **Landed** in the same commit as the
+   implementation only after all completion criteria pass.
 
 Do not queue Draft recipes merely because their files are detailed. This deliberately limits
 parallelism: dependency order and a trustworthy review boundary are more valuable than speculative
@@ -69,7 +72,7 @@ Every specification uses this structure:
 ```markdown
 # <ID> — <imperative outcome>
 
-- Status: Draft | Ready | Blocked | Landed
+- Status: Draft | Queued | Ready | Blocked | Landed
 - Batch: <ordered batch>
 - Domain: <canonical domain or supporting region>
 - Depends on: <spec ids or none>
@@ -132,8 +135,10 @@ What the next dependent specification may now assume; no unplanned follow-up wor
 - At most one specification owns a current file at a time within a parallel batch.
 - Shared foundations land before domains that consume them.
 - The first specifications are primary-agent exemplars; later agents copy their concrete conventions.
-- No specification is marked Ready while one of its target types, paths, or failure semantics says
-  “TBD,” “choose,” “as appropriate,” or an equivalent delegation of judgment.
+- No specification is marked Ready or Queued while one of its target types, paths, or failure
+  semantics says “TBD,” “choose,” “as appropriate,” or an equivalent delegation of judgment.
+- Dependency status is resolved from `catalog.md`; do not repeat a mutable status beside an ID in a
+  newly queued recipe.
 
 ## Review standard
 

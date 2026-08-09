@@ -27,38 +27,56 @@ const specsRoot = path.join(root, 'plans', 'architecture-refactor', 'specs')
 const catalog = readFileSync(path.join(specsRoot, 'catalog.md'), 'utf8')
 const catalogStatuses = new Map()
 for (const match of catalog.matchAll(
-  /^\| `([A-Z][A-Z0-9]*-\d{3})` \| (Landed|Draft|Ready|Blocked) \|/gm,
+  /^\| `([A-Z][A-Z0-9]*-\d{3})` \| (Landed|Draft|Queued|Ready|Blocked) \|/gm,
 )) {
   catalogStatuses.set(match[1], match[2])
 }
 
-const ready = [...catalogStatuses].filter(([, recipeStatus]) => recipeStatus === 'Ready')
-if (ready.length === 0) {
+function dependenciesFor(recipe) {
+  const depends = /^- Depends on: (.+)$/m.exec(recipe)?.[1] ?? ''
+  return [...depends.matchAll(/[A-Z][A-Z0-9]*-\d{3}/g)].map((match) => match[0])
+}
+
+const recipeFiles = new Map()
+for (const [id, recipeStatus] of catalogStatuses) {
+  if (recipeStatus !== 'Ready' && recipeStatus !== 'Queued') continue
+  const matches = readdirSync(specsRoot).filter(
+    (name) => name === `${id}.md` || name.startsWith(`${id}-`),
+  )
+  if (matches.length !== 1) fail(`${id} must resolve to exactly one recipe file`)
+  const recipePath = path.join(specsRoot, matches[0])
+  const recipe = readFileSync(recipePath, 'utf8')
+  recipeFiles.set(id, { recipePath, recipe, recipeStatus })
+}
+
+const executable = [...recipeFiles].filter(([, { recipe, recipeStatus }]) => {
+  if (recipeStatus === 'Ready') return true
+  return dependenciesFor(recipe).every((dependency) => catalogStatuses.get(dependency) === 'Landed')
+})
+if (executable.length === 0) {
   const nextDraft = [...catalogStatuses].find(([, recipeStatus]) => recipeStatus === 'Draft')?.[0]
   fail(
-    `no Ready recipe; an architecture reviewer must preflight${nextDraft ? ` ${nextDraft}` : ' the next unit'}`,
+    `no executable reviewed recipe; an architecture reviewer must preflight${nextDraft ? ` ${nextDraft}` : ' the next unit'}`,
   )
 }
-if (ready.length !== 1) {
-  fail(`expected exactly one Ready recipe, found ${ready.map(([id]) => id).join(', ')}`)
+if (executable.length !== 1) {
+  fail(`expected exactly one executable recipe, found ${executable.map(([id]) => id).join(', ')}`)
 }
 
-const id = ready[0][0]
-const matches = readdirSync(specsRoot).filter((name) => name === `${id}.md` || name.startsWith(`${id}-`))
-if (matches.length !== 1) fail(`${id} must resolve to exactly one recipe file`)
-
-const recipePath = path.join(specsRoot, matches[0])
-const recipe = readFileSync(recipePath, 'utf8')
-if (!new RegExp(`^# ${id} — .+$`, 'm').test(recipe) || !/^- Status: Ready$/m.test(recipe)) {
-  fail(`${matches[0]} does not declare the selected Ready recipe`)
+const [id, { recipePath, recipe, recipeStatus }] = executable[0]
+if (
+  !new RegExp(`^# ${id} — .+$`, 'm').test(recipe) ||
+  !new RegExp(`^- Status: ${recipeStatus}$`, 'm').test(recipe)
+) {
+  fail(`${path.basename(recipePath)} does not declare the selected ${recipeStatus} recipe`)
 }
 
-const depends = /^- Depends on: (.+)$/m.exec(recipe)?.[1] ?? ''
-const dependencyIds = [...depends.matchAll(/[A-Z][A-Z0-9]*-\d{3}/g)].map((match) => match[0])
+const dependencyIds = dependenciesFor(recipe)
 const unlanded = dependencyIds.filter((dependency) => catalogStatuses.get(dependency) !== 'Landed')
 if (unlanded.length > 0) fail(`${id} has unlanded dependencies: ${unlanded.join(', ')}`)
 
 const startingCommit = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
-console.log(`READY_RECIPE=${id}`)
+console.log(`EXECUTABLE_RECIPE=${id}`)
+console.log(`RECIPE_STATUS=${recipeStatus}`)
 console.log(`RECIPE_PATH=${path.relative(root, recipePath)}`)
 console.log(`STARTING_COMMIT=${startingCommit}`)

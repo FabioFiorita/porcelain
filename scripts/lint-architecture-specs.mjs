@@ -11,7 +11,7 @@ const failures = []
 
 const catalogEntries = new Map()
 for (const match of catalog.matchAll(
-  /^\| `([A-Z][A-Z0-9]*-\d{3})` \| (Landed|Draft|Ready|Blocked) \|/gm,
+  /^\| `([A-Z][A-Z0-9]*-\d{3})` \| (Landed|Draft|Queued|Ready|Blocked) \|/gm,
 )) {
   const [, id, status] = match
   if (catalogEntries.has(id)) failures.push(`catalog duplicates ${id}`)
@@ -64,7 +64,7 @@ for (const name of recipeFiles) {
   const catalogStatus = catalogEntries.get(id)
   if (!catalogStatus) failures.push(`${name} has no catalog row for ${id}`)
 
-  const status = /^- Status: (Landed|Draft|Ready|Blocked)$/m.exec(source)?.[1]
+  const status = /^- Status: (Landed|Draft|Queued|Ready|Blocked)$/m.exec(source)?.[1]
   if (!status) failures.push(`${name} has no valid Status metadata`)
   else if (catalogStatus !== status) {
     failures.push(`${name} is ${status} but its catalog row is ${catalogStatus}`)
@@ -108,8 +108,9 @@ for (const name of recipeFiles) {
         failures.push(`${name} is Ready but ${dependency} is not Landed`)
       }
     }
-
-    const readyEvidence = [
+  }
+  if (status === 'Ready' || status === 'Queued') {
+    const reviewedEvidence = [
       ['repository lint', /\bpnpm lint\b/],
       ['full verification', /\bpnpm verify\b/],
       ['diff validation', /\bgit diff --check\b/],
@@ -117,8 +118,8 @@ for (const name of recipeFiles) {
       ['README review packet', /README review packet/i],
       ['no-push boundary', /without pushing|nothing was pushed/i],
     ]
-    for (const [requirement, pattern] of readyEvidence) {
-      if (!pattern.test(source)) failures.push(`${name} is Ready without ${requirement}`)
+    for (const [requirement, pattern] of reviewedEvidence) {
+      if (!pattern.test(source)) failures.push(`${name} is ${status} without ${requirement}`)
     }
   }
 

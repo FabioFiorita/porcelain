@@ -3,8 +3,9 @@
 This is the ordered work breakdown. A row becomes delegable only when its full recipe file satisfies
 the [executor contract](README.md); the catalog alone is never implementation authorization.
 
-Status meanings: **Landed** is current truth, **Draft** needs recipe review, **Ready** contains no
-open judgment and has landed dependencies, and **Blocked** names a dependency or authorization.
+Status meanings: **Landed** is current truth; **Draft** needs recipe review; **Queued** is reviewed
+ahead and dependency-gated; **Ready** is reviewed for immediate execution; and **Blocked** awaits
+an external choice or authorization.
 
 ## Batch 0 — architecture and contract foundations
 
@@ -21,8 +22,8 @@ open judgment and has landed dependencies, and **Blocked** names a dependency or
 | `CON-007` | Landed | Review schemas remove 29 entries, including the unknown reading output |
 | `CON-008` | Landed | Board schemas remove 6 entries from the contract ledger |
 | `CON-009` | Landed | Actions schemas remove 6 entries from the contract ledger |
-| `CON-010` | Draft | Terminal request/response schemas remove 2 entries from the ledger |
-| `CON-011` | Draft | Project Data schemas remove the final 6 ledger entries |
+| `CON-010` | Ready | Terminal request/response schemas remove 2 entries from the ledger |
+| `CON-011` | Queued | Project Data schemas remove the final 6 ledger entries |
 | `ERR-001` | Draft | Contract public-error envelope and centralized daemon mapping with request correlation |
 | `CON-012` | Draft | Delete the horizontal fallback and enforce router input/output/kind exhaustiveness |
 | `PRO-001` | Draft | Protocol-v1 contract and daemon-info field without request enforcement |

@@ -169,8 +169,8 @@ Vendor-neutral sources are canonical; host directories are adapters.
 
 Architecture-refactor executors must also read
 `plans/architecture-refactor/specs/README.md` before accepting a recipe. A recipe is executable only
-when its own status is **Ready** and every dependency is **Landed**; the existence of a Draft recipe
-is not authorization to fill in its missing judgment.
+when it is **Ready**, or **Queued** with every dependency now **Landed**; the existence of a Draft
+recipe is not authorization to fill in its missing judgment.
 
 Work on `main` by default. Use a managed worktree (`pnpm worktree create <slug>`) when isolation
 helps — parallel tasks, risky experiments, or a PR boundary. Preference, not law.
