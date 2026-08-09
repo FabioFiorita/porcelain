@@ -5,6 +5,9 @@ import { MAX_SESSION_MESSAGE_BYTES } from '@porcelain/contracts'
 import type { AnyRouter } from '@trpc/server'
 import { fetchRequestHandler } from '@trpc/server/adapters/fetch'
 import { type WebSocket, WebSocketServer } from 'ws'
+import { logUnexpectedError } from '../daemon-composition/error-log'
+import { normalizePublicError } from '../daemon-composition/public-error'
+import { createRequestId } from '../daemon-composition/request-id'
 import type { AuthIdentity } from '../stores/access-store'
 
 /**
@@ -250,10 +253,15 @@ export function createDaemonHttp(opts: DaemonHttpOptions): DaemonHttp {
       // not in the lib types, and tRPC bodies are small JSON payloads.
       const body =
         method === 'GET' || method === 'HEAD' ? undefined : new Uint8Array(await readBody(req))
+      const requestId = createRequestId()
       const response = await fetchRequestHandler({
         endpoint: '/trpc',
         router,
-        createContext: () => ({ auth: identity }),
+        createContext: () => ({ auth: identity, requestId }),
+        onError: ({ error, path }) => {
+          const normalized = normalizePublicError(error, requestId)
+          if (normalized.unexpected) logUnexpectedError({ error, requestId, path })
+        },
         req: new Request(`http://127.0.0.1${url}`, { method, headers, body }),
       })
       res.writeHead(response.status, {

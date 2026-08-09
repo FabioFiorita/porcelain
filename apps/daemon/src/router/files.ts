@@ -1,7 +1,9 @@
 import { existsSync } from 'node:fs'
 import { cp, mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises'
-import { basename, dirname } from 'node:path'
+import { dirname } from 'node:path'
 import { z } from 'zod'
+import { expectedFailure } from '../daemon-composition/expected-failure'
+import { toTrpcError } from '../daemon-composition/public-error'
 import { inlineLocalAssets } from '../fs/evidence-assets'
 import { uniqueDuplicatePath } from '../fs/fs-ops'
 import { imageMimeForPath, isBinaryBuffer } from '../fs/image-mime'
@@ -100,7 +102,7 @@ export const filesRouter = t.router({
     .input(z.object({ from: z.string(), to: z.string() }))
     .mutation(async ({ input }) => {
       if (input.to !== input.from && existsSync(input.to)) {
-        throw new Error(`“${basename(input.to)}” already exists`)
+        throw toTrpcError(expectedFailure('state.conflict'))
       }
       await rename(input.from, input.to)
     }),

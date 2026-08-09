@@ -1,5 +1,6 @@
-import { TRPCError } from '@trpc/server'
 import { z } from 'zod'
+import { expectedFailure } from '../daemon-composition/expected-failure'
+import { toTrpcError } from '../daemon-composition/public-error'
 import { displayAdminTokenPath } from '../net/admin-token'
 import { type DaemonIdentity, daemonIdentity } from '../net/daemon-identity'
 import { daemonVersion } from '../net/daemon-version'
@@ -39,13 +40,10 @@ export const daemonRouter = t.router({
     .mutation(async ({ input }) => {
       const base = new URL(input.baseUrl)
       if (base.protocol !== 'http:' && base.protocol !== 'https:') {
-        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Pairing requires HTTP or HTTPS' })
+        throw toTrpcError(expectedFailure('request.invalid'))
       }
       if (base.username !== '' || base.password !== '' || base.search !== '' || base.hash !== '') {
-        throw new TRPCError({
-          code: 'BAD_REQUEST',
-          message: 'Pairing endpoint must not contain credentials, query, or fragment',
-        })
+        throw toTrpcError(expectedFailure('request.invalid'))
       }
       base.pathname = '/pair'
       const grant = await issuePairingGrant(input.label)
@@ -63,7 +61,7 @@ export const daemonRouter = t.router({
 
   revokeCurrentClient: publicProcedure.mutation(async ({ ctx }) => {
     if (ctx.auth.kind !== 'client') {
-      throw new TRPCError({ code: 'FORBIDDEN', message: 'No paired-device credential to revoke' })
+      throw toTrpcError(expectedFailure('auth.forbidden'))
     }
     if (await revokeAuthorizedClient(ctx.auth.clientId)) closeClientSessions(ctx.auth.clientId)
   }),

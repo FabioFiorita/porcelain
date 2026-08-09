@@ -5,6 +5,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { publicErrorSchema } from '@porcelain/contracts'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import WebSocket from 'ws'
 
@@ -36,6 +37,13 @@ const ORIGIN = 'http://localhost:5173'
 
 let base: string
 let daemon: ReturnType<typeof createDaemonHttp>
+
+async function publicErrorFrom(response: Response) {
+  const body = (await response.json()) as {
+    error: { message: string; data: { porcelain: unknown } }
+  }
+  return { message: body.error.message, error: publicErrorSchema.parse(body.error.data.porcelain) }
+}
 
 beforeAll(async () => {
   const dir = await mkdtemp(join(tmpdir(), 'porcelain-daemon-http-'))
@@ -161,10 +169,69 @@ describe('daemon http surface — the token gate + CORS scope', () => {
   })
 
   it('forbids a client token from access administration', async () => {
-    const forbidden = await fetch(`${base}/trpc/accessStatus`, {
-      headers: { authorization: `Bearer ${CLIENT_TOKEN}` },
-    })
-    expect(forbidden.status).toBe(403)
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    try {
+      const forbidden = await fetch(`${base}/trpc/accessStatus`, {
+        headers: { authorization: `Bearer ${CLIENT_TOKEN}` },
+      })
+      expect(forbidden.status).toBe(403)
+      const publicError = await publicErrorFrom(forbidden)
+      expect(publicError.message).toBe('Access is forbidden.')
+      expect(publicError.error).toMatchObject({ code: 'auth.forbidden' })
+      expect(publicError.error.requestId).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+      )
+      expect(log).not.toHaveBeenCalled()
+    } finally {
+      log.mockRestore()
+    }
+  })
+
+  it('maps malformed tRPC input to request.invalid without error logging', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    try {
+      const invalid = await fetch(`${base}/trpc/issuePairingLink`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${TOKEN}`, 'content-type': 'application/json' },
+        body: JSON.stringify({ label: '', baseUrl: 'not a URL' }),
+      })
+      expect(invalid.status).toBe(400)
+      expect((await publicErrorFrom(invalid)).error).toMatchObject({ code: 'request.invalid' })
+      expect(log).not.toHaveBeenCalled()
+    } finally {
+      log.mockRestore()
+    }
+  })
+
+  it('logs unexpected router failures once without exposing their raw details', async () => {
+    const secret = 'token=secret-path-content-never-send'
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    try {
+      const unexpected = await fetch(`${base}/trpc/renamePath`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${TOKEN}`, 'content-type': 'application/json' },
+        body: JSON.stringify({
+          from: `/private/${secret}/from.txt`,
+          to: `/private/${secret}/to.txt`,
+        }),
+      })
+      expect(unexpected.status).toBe(500)
+      const publicError = await publicErrorFrom(unexpected)
+
+      expect(publicError.error).toMatchObject({ code: 'internal.unexpected' })
+      expect(log).toHaveBeenCalledOnce()
+      expect(log).toHaveBeenCalledWith({
+        requestId: publicError.error.requestId,
+        path: 'renamePath',
+        errorType: 'Error',
+      })
+      expect(JSON.stringify({ publicError, logs: log.mock.calls })).not.toContain(secret)
+    } finally {
+      log.mockRestore()
+    }
   })
 })
 
