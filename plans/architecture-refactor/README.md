@@ -61,23 +61,25 @@ that contains an unresolved product or architecture choice returns to the decisi
    inside Porcelain's existing product topology and transports; this is not a rewrite.
 2. [`002-organize-by-product-domain.md`](decisions/002-organize-by-product-domain.md) — keep runtime
    packages as hard boundaries and use product domains as the shared navigation spine within them.
+3. [`003-application-operations-own-orchestration.md`](decisions/003-application-operations-own-orchestration.md)
+   — routers translate, application operations orchestrate, domain rules decide, and adapters
+   perform I/O.
 
 ## Decision queue
 
 Only the first unresolved item is discussed at a time. The order may change when a decision exposes
 a dependency.
 
-1. Define the daemon application boundary and where orchestration lives.
-2. Define cross-domain collaboration without hidden service graphs.
-3. Make contracts and public domain vocabulary authoritative across clients.
-4. Define infrastructure adapters, persistence ownership, and dependency injection.
-5. Define the shared client-runtime boundary and Web/mobile responsibilities.
-6. Define client state ownership, mutations, optimism, and invalidation.
-7. Define realtime events, subscriptions, and refresh ownership.
-8. Define errors and validation across domain and transport boundaries.
-9. Define test responsibilities by boundary and risk.
-10. Define naming, file-size, dependency, and architecture enforcement.
-11. Inventory domains, order migrations, and author execution specifications.
+1. Define cross-domain collaboration without hidden service graphs.
+2. Make contracts and public domain vocabulary authoritative across clients.
+3. Define infrastructure adapters, persistence ownership, and dependency injection.
+4. Define the shared client-runtime boundary and Web/mobile responsibilities.
+5. Define client state ownership, mutations, optimism, and invalidation.
+6. Define realtime events, subscriptions, and refresh ownership.
+7. Define errors and validation across domain and transport boundaries.
+8. Define test responsibilities by boundary and risk.
+9. Define naming, file-size, dependency, and architecture enforcement.
+10. Inventory domains, order migrations, and author execution specifications.
 
 ## Inputs considered
 
