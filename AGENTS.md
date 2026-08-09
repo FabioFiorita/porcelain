@@ -85,6 +85,7 @@ Don't memorize these — the gate catches you. Hooks run `pnpm lint` on every co
 | Rule | Owner |
 |---|---|
 | Ten canonical domains, runtime dependency direction, target feature names, 450-line repository ceiling, shrinking raw server imports | `lint-architecture` |
+| Executor recipes match their catalog, required shape, dependency status, and no-placeholder rule | `lint-architecture-specs` |
 | No `as unknown as`; no `void`-swallowed promises | `lint-escapes` |
 | No inline `style` / `contentContainerStyle` in mobile src | `lint-mobile-nativewind` |
 | Mobile-local 450-line migration ledger (temporary overlap) | `lint-mobile-file-size` |

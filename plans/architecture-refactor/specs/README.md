@@ -4,6 +4,9 @@ Specifications in this directory are recipes for execution agents. Accepted arch
 and the integrated inventory contain the judgment; a specification contains no unresolved product or
 architecture choice.
 
+The ordered work breakdown is [`catalog.md`](catalog.md). A catalog row is not executable until its
+full recipe exists and is marked Ready.
+
 ## Executor contract
 
 An execution agent:

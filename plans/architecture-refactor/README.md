@@ -10,7 +10,10 @@ because we intend it to become true.
 
 Program artifacts:
 
+- [`domain-registry.md`](domain-registry.md) is the canonical naming and ownership authority.
+- [`target-architecture.md`](target-architecture.md) is the integrated contributor recipe.
 - [`inventory/`](inventory/) maps every current behavior, path, boundary, and legacy disposition.
+- [`migration-order.md`](migration-order.md) defines dependencies, exemplars, and review gates.
 - [`specs/`](specs/) contains bounded recipes for migration agents after inventory and ordering.
 
 ## Phases
