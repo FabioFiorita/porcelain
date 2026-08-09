@@ -29,14 +29,7 @@ export const unmigratedProcedureLedger = {
   search: [],
   git: [],
   review: [],
-  board: [
-    { name: 'boardCards', kind: 'query' },
-    { name: 'addBoardCard', kind: 'mutation' },
-    { name: 'updateBoardCard', kind: 'mutation' },
-    { name: 'moveBoardCard', kind: 'mutation' },
-    { name: 'deleteBoardCard', kind: 'mutation' },
-    { name: 'clearBoardCards', kind: 'mutation' },
-  ],
+  board: [],
   actions: [
     { name: 'actions', kind: 'query' },
     { name: 'trustActions', kind: 'mutation' },

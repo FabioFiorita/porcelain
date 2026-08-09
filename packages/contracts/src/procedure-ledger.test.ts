@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { boardProcedures } from './board'
 import { filesProcedures } from './files'
 import { gitProcedures } from './git'
 import { unmigratedProcedureLedger, unmigratedProcedureNames } from './procedure-ledger'
@@ -11,8 +12,8 @@ import { searchProcedures } from './search'
 
 describe('unmigrated procedure ledger', () => {
   it('contains each unmigrated procedure exactly once', () => {
-    expect(unmigratedProcedureNames).toHaveLength(20)
-    expect(new Set(unmigratedProcedureNames).size).toBe(20)
+    expect(unmigratedProcedureNames).toHaveLength(14)
+    expect(new Set(unmigratedProcedureNames).size).toBe(14)
     expect([...unmigratedProcedureNames].sort()).toEqual(
       PROCEDURE_NAMES.filter(
         (name) =>
@@ -21,7 +22,8 @@ describe('unmigrated procedure ledger', () => {
           !(name in filesProcedures) &&
           !(name in searchProcedures) &&
           !(name in gitProcedures) &&
-          !(name in reviewProcedures),
+          !(name in reviewProcedures) &&
+          !(name in boardProcedures),
       ).sort(),
     )
   })
@@ -191,10 +193,25 @@ describe('unmigrated procedure ledger', () => {
     }
   })
 
+  it('removes exactly the completed Board procedures', () => {
+    expect(unmigratedProcedureLedger.board).toEqual([])
+    expect(Object.keys(boardProcedures).sort()).toEqual([
+      'addBoardCard',
+      'boardCards',
+      'clearBoardCards',
+      'deleteBoardCard',
+      'moveBoardCard',
+      'updateBoardCard',
+    ])
+    for (const name of Object.keys(boardProcedures)) {
+      expect(unmigratedProcedureNames).not.toContain(name)
+    }
+  })
+
   it('declares only query and mutation kinds with the expected current balance', () => {
     const entries = Object.values(unmigratedProcedureLedger).flat()
     expect(entries.every(({ kind }) => kind === 'query' || kind === 'mutation')).toBe(true)
-    expect(entries.filter(({ kind }) => kind === 'query')).toHaveLength(6)
-    expect(entries.filter(({ kind }) => kind === 'mutation')).toHaveLength(14)
+    expect(entries.filter(({ kind }) => kind === 'query')).toHaveLength(5)
+    expect(entries.filter(({ kind }) => kind === 'mutation')).toHaveLength(9)
   })
 })
