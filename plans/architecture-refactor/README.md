@@ -91,14 +91,19 @@ that contains an unresolved product or architecture choice returns to the decisi
 12. [`012-enforce-the-target-architecture.md`](decisions/012-enforce-the-target-architecture.md) —
     canonical naming, package and domain import rules, shrink-only size limits, and migration-aware
     gates make the correct architecture the easiest compiling path.
+13. [`013-use-ten-canonical-product-domains.md`](decisions/013-use-ten-canonical-product-domains.md)
+    — Projects, Files, Git, Search, Review, Board, Actions, Terminal, Project Data, and Remote own
+    product behavior; UI regions and technical capabilities remain supporting architecture.
 
 ## Decision queue
 
 Only the first unresolved item is discussed at a time. The order may change when a decision exposes
 a dependency.
 
-1. Inventory domains, settle canonical vocabulary, and map cross-domain workflows.
-2. Order migrations and author execution specifications.
+1. Decide the always-on agent loop, skill retirement, and invariant ownership.
+2. Decide the pre-launch clean-break policy for wire and persisted data.
+3. Map every procedure, contract, CLI noun, persisted file, module, client region, and workflow.
+4. Order migrations and author execution specifications.
 
 ## Inputs considered
 
