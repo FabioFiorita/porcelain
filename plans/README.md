@@ -11,3 +11,9 @@ Rules that keep it honest:
   false documentation.
 - Before deleting, distill anything durable into `docs/` or the owning `AGENTS.md`. Never move a
   plan wholesale into docs — plans are written in the wrong tense for reference.
+
+Active efforts:
+
+- [`architecture-refactor/`](architecture-refactor/) — decide Porcelain's target feature
+  architecture, turn accepted decisions into executable migration specifications, then retire the
+  plan as each rule becomes true and moves into contributor documentation or enforcement.
