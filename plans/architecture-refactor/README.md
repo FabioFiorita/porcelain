@@ -67,21 +67,23 @@ that contains an unresolved product or architecture choice returns to the decisi
 4. [`004-keep-cross-domain-workflows-shallow.md`](decisions/004-keep-cross-domain-workflows-shallow.md)
    — one operation visibly coordinates narrow domain-owned capabilities without recursive
    orchestration or event-hidden requirements.
+5. [`005-contracts-own-the-wire.md`](decisions/005-contracts-own-the-wire.md) — contracts provide
+   the exhaustive runtime-validated wire specification and canonical public vocabulary without
+   owning internal application, domain, persistence, or presentation models.
 
 ## Decision queue
 
 Only the first unresolved item is discussed at a time. The order may change when a decision exposes
 a dependency.
 
-1. Make contracts and public domain vocabulary authoritative across clients.
-2. Define infrastructure adapters, persistence ownership, and dependency injection.
-3. Define the shared client-runtime boundary and Web/mobile responsibilities.
-4. Define client state ownership, mutations, optimism, and invalidation.
-5. Define realtime events, subscriptions, and refresh ownership.
-6. Define errors and validation across domain and transport boundaries.
-7. Define test responsibilities by boundary and risk.
-8. Define naming, file-size, dependency, and architecture enforcement.
-9. Inventory domains, order migrations, and author execution specifications.
+1. Define infrastructure adapters, persistence ownership, and dependency injection.
+2. Define the shared client-runtime boundary and Web/mobile responsibilities.
+3. Define client state ownership, mutations, optimism, and invalidation.
+4. Define realtime events, subscriptions, and refresh ownership.
+5. Define errors and validation across domain and transport boundaries.
+6. Define test responsibilities by boundary and risk.
+7. Define naming, file-size, dependency, and architecture enforcement.
+8. Inventory domains, order migrations, and author execution specifications.
 
 ## Inputs considered
 
