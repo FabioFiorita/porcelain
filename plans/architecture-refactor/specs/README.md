@@ -7,6 +7,25 @@ architecture choice.
 The ordered work breakdown is [`catalog.md`](catalog.md). A catalog row is not executable until its
 full recipe exists and is marked Ready.
 
+## Readiness and review gates
+
+Recipe authoring and recipe execution are separate units of work:
+
+1. An architecture reviewer checks a Draft against the current code, every accepted decision, and
+   its landed dependencies. The reviewer replaces summaries with exact paths, symbols, wire shapes,
+   deletion searches, test boundaries, and commands wherever an executor would otherwise need to
+   choose.
+2. Only that reviewer changes the recipe and catalog from **Draft** to **Ready**. Ready means all
+   dependencies are already **Landed** and no product or architecture judgment remains.
+3. An executor verifies the stated anchors still match before editing. A mismatch returns the unit
+   to the reviewer; it is not permission to reinterpret the recipe.
+4. The executor changes Ready to **Landed** in the same commit as the implementation only after all
+   completion criteria pass.
+
+Do not queue Draft recipes merely because their files are detailed. This deliberately limits
+parallelism: dependency order and a trustworthy review boundary are more valuable than speculative
+throughput.
+
 ## Executor contract
 
 An execution agent:
@@ -19,11 +38,29 @@ An execution agent:
 6. runs every required validation command and captures truthful evidence;
 7. removes all temporary scaffolding the specification introduces;
 8. commits the bounded unit when every completion criterion passes;
-9. stops and reports a mismatch instead of inventing architecture, compatibility, waivers, or scope.
+9. leaves the worktree clean and reports the review packet below;
+10. stops and reports a mismatch instead of inventing architecture, compatibility, waivers, or scope.
 
 Execution agents do not add dependencies, public behavior, architecture exceptions, compatibility
 paths, migrations, retries, fallbacks, or speculative abstractions unless the specification explicitly
 requires them.
+
+## Required review packet
+
+Every executor's final report must let a fresh reviewer inspect the unit without chat history. It
+contains:
+
+- recipe ID, starting commit, final commit, and whether the worktree is clean;
+- the exact files changed and a one-sentence reason for each group;
+- each validation command actually run and its pass/fail/count result;
+- every requested deletion search and its result;
+- any mismatch, deviation, skipped check, warning, or assumption—`none` when there were none;
+- confirmation that nothing was pushed and no later recipe was started.
+
+The reviewer reads the committed diff from the reported starting commit through final commit,
+compares it with current production return types rather than only legacy contract schemas, reruns
+the risk-owning tests, and either accepts it or adds a narrow correction commit under the same recipe.
+A correction never smuggles in the next recipe.
 
 ## Required shape
 
@@ -86,6 +123,8 @@ What the next dependent specification may now assume; no unplanned follow-up wor
 
 - One specification produces one reviewable commit unless it explicitly names a small inseparable
   sequence.
+- One executor session owns one specification. A correction may reuse that session; the next
+  specification starts with fresh context.
 - A specification should fit one execution agent context without relying on chat history.
 - File movement and behavior change are separated when either can land and prove independently.
 - A domain cutover may span several specifications, but the complete batch includes deletion of the

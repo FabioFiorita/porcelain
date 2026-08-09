@@ -20,7 +20,7 @@ open judgment and has landed dependencies, and **Blocked** names a dependency or
 | `CON-006` | Landed | Git schemas remove 30 entries from the contract ledger |
 | `CON-007` | Landed | Review schemas remove 29 entries, including the unknown reading output |
 | `CON-008` | Landed | Board schemas remove 6 entries from the contract ledger |
-| `CON-009` | Draft | Actions schemas remove 6 entries from the contract ledger |
+| `CON-009` | Ready | Actions schemas remove 6 entries from the contract ledger |
 | `CON-010` | Draft | Terminal request/response schemas remove 2 entries from the ledger |
 | `CON-011` | Draft | Project Data schemas remove the final 6 ledger entries |
 | `ERR-001` | Draft | Contract public-error envelope and centralized daemon mapping with request correlation |

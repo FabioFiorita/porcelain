@@ -108,6 +108,18 @@ for (const name of recipeFiles) {
         failures.push(`${name} is Ready but ${dependency} is not Landed`)
       }
     }
+
+    const readyEvidence = [
+      ['repository lint', /\bpnpm lint\b/],
+      ['full verification', /\bpnpm verify\b/],
+      ['diff validation', /\bgit diff --check\b/],
+      ['clean-worktree handoff', /clean worktree/i],
+      ['README review packet', /README review packet/i],
+      ['no-push boundary', /without pushing|nothing was pushed/i],
+    ]
+    for (const [requirement, pattern] of readyEvidence) {
+      if (!pattern.test(source)) failures.push(`${name} is Ready without ${requirement}`)
+    }
   }
 
   if (/\b(?:TBD|TODO)\b/.test(source) || /as appropriate|to be decided|if needed/i.test(source)) {
