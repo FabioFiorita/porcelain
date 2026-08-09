@@ -143,17 +143,17 @@ export type SetFunnelBindOutput = z.infer<typeof setFunnelBindOutputSchema>
 export const remoteContractFixtures = {
   daemonInfo: {
     input: undefined,
-    output: { version: '0.52.1', host: 'beelink', platform: 'linux', arch: 'x64' },
+    output: { version: '0.52.1', host: 'workstation', platform: 'linux', arch: 'x64' },
   },
   accessStatus: {
     input: undefined,
     output: { pairings: [], clients: [], connected: 0, adminTokenPath: '~/.porcelain/admin-token' },
   },
   issuePairingLink: {
-    input: { label: 'Fabio laptop', baseUrl: 'https://porcelain.example' },
+    input: { label: 'Example laptop', baseUrl: 'https://porcelain.example' },
     output: {
       id: 'pairing-id',
-      label: 'Fabio laptop',
+      label: 'Example laptop',
       createdAt: '2026-08-09T12:00:00.000Z',
       expiresAt: '2026-08-09T12:15:00.000Z',
       credential: 'pc_pair_pairing-id_secret',
@@ -167,7 +167,7 @@ export const remoteContractFixtures = {
     input: undefined,
     output: {
       enabled: true,
-      url: 'http://beelink.tailnet.ts.net:43118',
+      url: 'http://workstation.example:43118',
       error: null,
       envForced: false,
       port: 43118,
@@ -177,7 +177,7 @@ export const remoteContractFixtures = {
     input: true,
     output: {
       enabled: true,
-      url: 'http://beelink.tailnet.ts.net:43118',
+      url: 'http://workstation.example:43118',
       error: null,
       envForced: false,
       port: 43118,
@@ -187,7 +187,7 @@ export const remoteContractFixtures = {
     input: undefined,
     output: {
       enabled: true,
-      url: 'http://beelink.local:43118',
+      url: 'http://workstation.local:43118',
       numericUrl: 'http://192.168.1.10:43118',
       error: null,
       envForced: false,
@@ -198,7 +198,7 @@ export const remoteContractFixtures = {
     input: true,
     output: {
       enabled: true,
-      url: 'http://beelink.local:43118',
+      url: 'http://workstation.local:43118',
       numericUrl: 'http://192.168.1.10:43118',
       error: null,
       envForced: false,

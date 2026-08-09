@@ -33,7 +33,7 @@ const invalidInputs: Record<keyof typeof remoteProcedures, unknown> = {
 }
 
 const invalidOutputs: Record<keyof typeof remoteProcedures, unknown> = {
-  daemonInfo: { version: '0.52.1', host: 'beelink', platform: 'linux' },
+  daemonInfo: { version: '0.52.1', host: 'workstation', platform: 'linux' },
   accessStatus: { pairings: [], clients: [], connected: 0 },
   issuePairingLink: { ...remoteContractFixtures.issuePairingLink.output, credential: undefined },
   revokePairingLink: null,
