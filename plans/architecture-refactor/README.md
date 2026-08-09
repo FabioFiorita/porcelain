@@ -79,17 +79,19 @@ that contains an unresolved product or architecture choice returns to the decisi
 8. [`008-give-each-client-state-one-owner.md`](decisions/008-give-each-client-state-one-owner.md) —
    TanStack Query owns server truth, domain stores own shared client workflows, components own small
    interactions, and client-runtime owns query and mutation semantics.
+9. [`009-treat-realtime-as-recoverable-signals-and-streams.md`](decisions/009-treat-realtime-as-recoverable-signals-and-streams.md)
+   — typed change notifications, declarative watches, and stateful streams share one socket while
+   retaining distinct semantics and honest recovery guarantees.
 
 ## Decision queue
 
 Only the first unresolved item is discussed at a time. The order may change when a decision exposes
 a dependency.
 
-1. Define realtime events, subscriptions, and refresh ownership.
-2. Define errors and validation across domain and transport boundaries.
-3. Define test responsibilities by boundary and risk.
-4. Define naming, file-size, dependency, and architecture enforcement.
-5. Inventory domains, order migrations, and author execution specifications.
+1. Define errors and validation across domain and transport boundaries.
+2. Define test responsibilities by boundary and risk.
+3. Define naming, file-size, dependency, and architecture enforcement.
+4. Inventory domains, order migrations, and author execution specifications.
 
 ## Inputs considered
 
