@@ -3,7 +3,7 @@
 - Status: Draft
 - Batch: 1 — Board primary exemplar
 - Domain: `board`
-- Depends on: `CON-012`, `ERR-001`, `RT-001`
+- Depends on: `CON-021`, `ERR-001`, `RT-001`
 - Governing decisions: [002](../decisions/002-organize-by-product-domain.md), [005](../decisions/005-contracts-own-the-wire.md), [009](../decisions/009-treat-realtime-as-recoverable-signals-and-streams.md), [010](../decisions/010-type-expected-failures-and-validate-boundaries.md), [015](../decisions/015-make-a-clean-pre-launch-cutover.md)
 - Primary exemplar: yes
 

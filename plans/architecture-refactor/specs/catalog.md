@@ -27,7 +27,16 @@ an external choice or authorization.
 | `ERR-001` | Landed | Strict public-error contracts and exhaustive per-procedure error declarations |
 | `ERR-002` | Landed | tRPC request correlation, public-error mapping, and safe unexpected diagnostics |
 | `ERR-003` | Landed | Public errors at daemon HTTP authentication and pairing boundaries |
-| `CON-012` | Draft | Delete the horizontal fallback and enforce router input/output/kind exhaustiveness |
+| `CON-012` | Ready | Compose the canonical catalog and add a router-validation migration gate |
+| `CON-013` | Queued | Remote daemon/network routers adopt exact contract input/output middleware |
+| `CON-014` | Queued | Projects and repository Files procedures adopt exact contracts |
+| `CON-015` | Queued | Remaining Files and Search router procedures adopt exact contracts |
+| `CON-016` | Queued | Git router procedures and Review inbox adopt exact contracts |
+| `CON-017` | Queued | Review router procedures and Git diff reading adopt exact contracts |
+| `CON-018` | Queued | Board router procedures adopt exact contracts |
+| `CON-019` | Queued | Settings-owned cross-domain procedures adopt exact contracts |
+| `CON-020` | Queued | Actions and Terminal router procedures adopt exact contracts |
+| `CON-021` | Queued | Delete horizontal contracts and make catalog exhaustiveness permanent |
 | `PRO-001` | Draft | Protocol-v1 contract and daemon-info field without request enforcement |
 | `PRO-002` | Draft | Repository-owned HTTP/pairing adapters send the shared version header |
 | `PRO-003` | Draft | Strict session hello/ready/mismatch contract and pure decision |
@@ -138,5 +147,5 @@ an external choice or authorization.
 | `LCH-002` | Draft | Remove final ledgers and prove canonical/fresh-agent discoverability |
 | `LCH-003` | Draft | Clean-checkout verify and named browser/Terminal/packaging evidence |
 
-There are 101 bounded units. Broad rows split if factual recipe authoring shows overlapping files or
+There are 110 bounded units. Broad rows split if factual recipe authoring shows overlapping files or
 more than one reviewable commit; they never remain broad by asking an executor to make that split.
