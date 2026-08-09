@@ -69,15 +69,15 @@ function readRouterProcedures(repositoryRoot) {
     .filter((name) => name.endsWith('.ts') && !name.endsWith('.test.ts'))
     .sort()
   const procedures = []
+  const sources = {}
   for (const file of files) {
-    for (const procedure of extractRouterProcedures(
-      readFileSync(join(routerDir, file), 'utf8'),
-      file,
-    )) {
+    const source = readFileSync(join(routerDir, file), 'utf8')
+    sources[file] = source
+    for (const procedure of extractRouterProcedures(source, file)) {
       procedures.push({ ...procedure, source: `apps/daemon/src/router/${file}` })
     }
   }
-  return { files, procedures }
+  return { files, procedures, sources }
 }
 
 function readProcedureNames(repositoryRoot) {
@@ -180,6 +180,17 @@ function procedureLabel({ filename, name }) {
   return `apps/daemon/src/router/${filename}:${name}`
 }
 
+function directlyImportsProcedureCatalog(source) {
+  for (const match of source.matchAll(
+    /import\s+(?:type\s+)?\{([^}]*)\}\s+from\s+['"]([^'"]+)['"]/g,
+  )) {
+    if (match[2] !== '@porcelain/contracts') continue
+    const names = match[1].split(',').map((specifier) => specifier.trim())
+    if (names.includes('procedureCatalog')) return true
+  }
+  return false
+}
+
 /**
  * Temporary CON-012 migration gate. It validates exact production filenames before treating a
  * file outside the remaining ledger as migrated, then requires its same-name catalog bindings.
@@ -187,6 +198,7 @@ function procedureLabel({ filename, name }) {
 export function checkRouterValidationLedger({
   routerFiles,
   routerProcedures,
+  routerSources = {},
   remainingRouterFiles = REMAINING_ROUTER_FILES,
 }) {
   const failures = []
@@ -220,6 +232,15 @@ export function checkRouterValidationLedger({
       failures.push(`remaining router filename is unknown: ${filename}`)
     } else if (!routerFileSet.has(filename)) {
       failures.push(`remaining router file is missing: ${filename}`)
+    }
+  }
+
+  for (const filename of PRODUCTION_ROUTER_FILES) {
+    if (remainingFileSet.has(filename) || !routerFileSet.has(filename)) continue
+    if (!directlyImportsProcedureCatalog(routerSources[filename] ?? '')) {
+      failures.push(
+        `validated router must import procedureCatalog directly from @porcelain/contracts: ${filename}`,
+      )
     }
   }
 
@@ -429,6 +450,7 @@ export function checkProcedureContracts(repositoryRoot = root) {
     ...checkRouterValidationLedger({
       routerFiles: routers.files,
       routerProcedures: daemonProcedures,
+      routerSources: routers.sources,
     }),
   )
 

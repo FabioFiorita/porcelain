@@ -118,8 +118,14 @@ test('rejects a router procedure absent from every contract record', () => {
   )
 })
 
-function procedureSource({ input = '', output = '', kind = 'query' } = {}) {
-  return `export const router = t.router({
+function procedureSource({
+  catalogImport = "import { procedureCatalog } from '@porcelain/contracts'",
+  input = '',
+  output = '',
+  kind = 'query',
+} = {}) {
+  return `${catalogImport}
+export const router = t.router({
   boardCards: publicProcedure
     ${input}
     ${output}
@@ -129,9 +135,11 @@ function procedureSource({ input = '', output = '', kind = 'query' } = {}) {
 }
 
 function migratedBoardFixture(options) {
+  const source = procedureSource(options)
   return {
     routerFiles: [...PRODUCTION_ROUTER_FILES],
-    routerProcedures: extractRouterProcedures(procedureSource(options), 'board.ts'),
+    routerProcedures: extractRouterProcedures(source, 'board.ts'),
+    routerSources: { 'board.ts': source },
     remainingRouterFiles: REMAINING_ROUTER_FILES.filter((filename) => filename !== 'board.ts'),
   }
 }
@@ -199,6 +207,21 @@ test('rejects a non-production remaining router filename', () => {
   assert.ok(
     checkRouterValidationLedger(fixture).some((failure) =>
       failure.includes('remaining router filename is not a production router file: board.test.ts'),
+    ),
+  )
+})
+
+test('rejects a catalog identifier not imported directly from the contracts root', () => {
+  const fixture = migratedBoardFixture({
+    catalogImport: "import { procedureCatalog } from './local-catalog'",
+    input: '.input(procedureCatalog.boardCards.input)',
+    output: '.output(procedureCatalog.boardCards.output)',
+  })
+  assert.ok(
+    checkRouterValidationLedger(fixture).some((failure) =>
+      failure.includes(
+        'validated router must import procedureCatalog directly from @porcelain/contracts: board.ts',
+      ),
     ),
   )
 })
