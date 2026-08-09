@@ -82,16 +82,18 @@ that contains an unresolved product or architecture choice returns to the decisi
 9. [`009-treat-realtime-as-recoverable-signals-and-streams.md`](decisions/009-treat-realtime-as-recoverable-signals-and-streams.md)
    — typed change notifications, declarative watches, and stateful streams share one socket while
    retaining distinct semantics and honest recovery guarantees.
+10. [`010-type-expected-failures-and-validate-boundaries.md`](decisions/010-type-expected-failures-and-validate-boundaries.md)
+    — each boundary validates its own concern, expected failures remain typed, and one safe public
+    error model connects daemon failures to client recovery.
 
 ## Decision queue
 
 Only the first unresolved item is discussed at a time. The order may change when a decision exposes
 a dependency.
 
-1. Define errors and validation across domain and transport boundaries.
-2. Define test responsibilities by boundary and risk.
-3. Define naming, file-size, dependency, and architecture enforcement.
-4. Inventory domains, order migrations, and author execution specifications.
+1. Define test responsibilities by boundary and risk.
+2. Define naming, file-size, dependency, and architecture enforcement.
+3. Inventory domains, order migrations, and author execution specifications.
 
 ## Inputs considered
 
