@@ -135,5 +135,5 @@ open judgment and has landed dependencies, and **Blocked** names a dependency or
 | `LCH-002` | Draft | Remove final ledgers and prove canonical/fresh-agent discoverability |
 | `LCH-003` | Draft | Clean-checkout verify and named browser/Terminal/packaging evidence |
 
-There are 98 bounded units. Broad rows split if factual recipe authoring shows overlapping files or
+There are 99 bounded units. Broad rows split if factual recipe authoring shows overlapping files or
 more than one reviewable commit; they never remain broad by asking an executor to make that split.

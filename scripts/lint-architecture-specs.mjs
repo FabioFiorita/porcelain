@@ -10,7 +10,9 @@ const catalog = readFileSync(catalogPath, 'utf8')
 const failures = []
 
 const catalogEntries = new Map()
-for (const match of catalog.matchAll(/^\| `([A-Z]+-\d{3})` \| (Landed|Draft|Ready|Blocked) \|/gm)) {
+for (const match of catalog.matchAll(
+  /^\| `([A-Z][A-Z0-9]*-\d{3})` \| (Landed|Draft|Ready|Blocked) \|/gm,
+)) {
   const [, id, status] = match
   if (catalogEntries.has(id)) failures.push(`catalog duplicates ${id}`)
   catalogEntries.set(id, status)
@@ -45,9 +47,10 @@ const recipeFiles = readdirSync(specsRoot)
   .sort()
 
 const recipeIds = new Set()
+const dependencyGraph = new Map()
 for (const name of recipeFiles) {
   const source = readFileSync(path.join(specsRoot, name), 'utf8')
-  const title = /^# ([A-Z]+-\d{3}) — .+$/m.exec(source)
+  const title = /^# ([A-Z][A-Z0-9]*-\d{3}) — .+$/m.exec(source)
   if (!title) {
     failures.push(`${name} has no exact “# ID — outcome” title`)
     continue
@@ -88,7 +91,8 @@ for (const name of recipeFiles) {
   }
 
   const depends = /^- Depends on: (.+)$/m.exec(source)?.[1] ?? ''
-  const dependencyIds = [...depends.matchAll(/[A-Z]+-\d{3}/g)].map((match) => match[0])
+  const dependencyIds = [...depends.matchAll(/[A-Z][A-Z0-9]*-\d{3}/g)].map((match) => match[0])
+  dependencyGraph.set(id, dependencyIds)
   for (const dependency of dependencyIds) {
     if (!catalogEntries.has(dependency)) {
       failures.push(`${name} depends on unknown catalog id ${dependency}`)
@@ -109,6 +113,30 @@ for (const name of recipeFiles) {
     failures.push(`${name} contains a host-personal absolute path`)
   }
 }
+
+const visited = new Set()
+const active = new Set()
+const stack = []
+
+function visit(id) {
+  if (active.has(id)) {
+    const cycleStart = stack.indexOf(id)
+    failures.push(`dependency cycle: ${[...stack.slice(cycleStart), id].join(' -> ')}`)
+    return
+  }
+  if (visited.has(id)) return
+
+  visited.add(id)
+  active.add(id)
+  stack.push(id)
+  for (const dependency of dependencyGraph.get(id) ?? []) {
+    if (dependencyGraph.has(dependency)) visit(dependency)
+  }
+  stack.pop()
+  active.delete(id)
+}
+
+for (const id of dependencyGraph.keys()) visit(id)
 
 if (failures.length > 0) {
   console.error('Architecture specification drift:\n')
