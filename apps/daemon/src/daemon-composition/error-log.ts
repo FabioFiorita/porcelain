@@ -1,6 +1,7 @@
 function errorType(error: unknown): string {
   const cause = error instanceof Error && error.cause !== undefined ? error.cause : error
-  return cause instanceof Error ? cause.name : typeof cause
+  if (cause instanceof Error) return 'Error'
+  return typeof cause
 }
 
 export function logUnexpectedError({
