@@ -76,18 +76,20 @@ that contains an unresolved product or architecture choice returns to the decisi
 7. [`007-share-nonvisual-client-behavior.md`](decisions/007-share-nonvisual-client-behavior.md) —
    client-runtime owns cross-client application semantics, while Web and mobile adapt them to their
    UI frameworks, transports, and platforms.
+8. [`008-give-each-client-state-one-owner.md`](decisions/008-give-each-client-state-one-owner.md) —
+   TanStack Query owns server truth, domain stores own shared client workflows, components own small
+   interactions, and client-runtime owns query and mutation semantics.
 
 ## Decision queue
 
 Only the first unresolved item is discussed at a time. The order may change when a decision exposes
 a dependency.
 
-1. Define client state ownership, mutations, optimism, and invalidation.
-2. Define realtime events, subscriptions, and refresh ownership.
-3. Define errors and validation across domain and transport boundaries.
-4. Define test responsibilities by boundary and risk.
-5. Define naming, file-size, dependency, and architecture enforcement.
-6. Inventory domains, order migrations, and author execution specifications.
+1. Define realtime events, subscriptions, and refresh ownership.
+2. Define errors and validation across domain and transport boundaries.
+3. Define test responsibilities by boundary and risk.
+4. Define naming, file-size, dependency, and architecture enforcement.
+5. Inventory domains, order migrations, and author execution specifications.
 
 ## Inputs considered
 
