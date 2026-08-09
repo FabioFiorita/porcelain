@@ -70,20 +70,22 @@ that contains an unresolved product or architecture choice returns to the decisi
 5. [`005-contracts-own-the-wire.md`](decisions/005-contracts-own-the-wire.md) — contracts provide
    the exhaustive runtime-validated wire specification and canonical public vocabulary without
    owning internal application, domain, persistence, or presentation models.
+6. [`006-compose-explicit-capabilities.md`](decisions/006-compose-explicit-capabilities.md) — one
+   composition root injects capability-shaped dependencies into operations, while domains own
+   persistence semantics and declare honest consistency boundaries.
 
 ## Decision queue
 
 Only the first unresolved item is discussed at a time. The order may change when a decision exposes
 a dependency.
 
-1. Define infrastructure adapters, persistence ownership, and dependency injection.
-2. Define the shared client-runtime boundary and Web/mobile responsibilities.
-3. Define client state ownership, mutations, optimism, and invalidation.
-4. Define realtime events, subscriptions, and refresh ownership.
-5. Define errors and validation across domain and transport boundaries.
-6. Define test responsibilities by boundary and risk.
-7. Define naming, file-size, dependency, and architecture enforcement.
-8. Inventory domains, order migrations, and author execution specifications.
+1. Define the shared client-runtime boundary and Web/mobile responsibilities.
+2. Define client state ownership, mutations, optimism, and invalidation.
+3. Define realtime events, subscriptions, and refresh ownership.
+4. Define errors and validation across domain and transport boundaries.
+5. Define test responsibilities by boundary and risk.
+6. Define naming, file-size, dependency, and architecture enforcement.
+7. Inventory domains, order migrations, and author execution specifications.
 
 ## Inputs considered
 
