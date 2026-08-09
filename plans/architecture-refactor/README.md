@@ -94,16 +94,18 @@ that contains an unresolved product or architecture choice returns to the decisi
 13. [`013-use-ten-canonical-product-domains.md`](decisions/013-use-ten-canonical-product-domains.md)
     — Projects, Files, Git, Search, Review, Board, Actions, Terminal, Project Data, and Remote own
     product behavior; UI regions and technical capabilities remain supporting architecture.
+14. [`014-make-the-delivery-loop-always-on.md`](decisions/014-make-the-delivery-loop-always-on.md) —
+    the delivery loop becomes agent identity, Ship retires, Audit invariants move to their owners
+    before Audit retires, and Companion remains an explicit product-surface procedure.
 
 ## Decision queue
 
 Only the first unresolved item is discussed at a time. The order may change when a decision exposes
 a dependency.
 
-1. Decide the always-on agent loop, skill retirement, and invariant ownership.
-2. Decide the pre-launch clean-break policy for wire and persisted data.
-3. Map every procedure, contract, CLI noun, persisted file, module, client region, and workflow.
-4. Order migrations and author execution specifications.
+1. Decide the pre-launch clean-break policy for wire and persisted data.
+2. Map every procedure, contract, CLI noun, persisted file, module, client region, and workflow.
+3. Order migrations and author execution specifications, including agent-foundation migration.
 
 ## Inputs considered
 
