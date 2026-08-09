@@ -24,7 +24,9 @@ an external choice or authorization.
 | `CON-009` | Landed | Actions schemas remove 6 entries from the contract ledger |
 | `CON-010` | Landed | Terminal request/response schemas remove 2 entries from the ledger |
 | `CON-011` | Landed | Project Data schemas remove the final 6 ledger entries |
-| `ERR-001` | Draft | Contract public-error envelope and centralized daemon mapping with request correlation |
+| `ERR-001` | Ready | Strict public-error contracts and exhaustive per-procedure error declarations |
+| `ERR-002` | Queued | tRPC request correlation, public-error mapping, and safe unexpected diagnostics |
+| `ERR-003` | Queued | Public errors at daemon HTTP authentication and pairing boundaries |
 | `CON-012` | Draft | Delete the horizontal fallback and enforce router input/output/kind exhaustiveness |
 | `PRO-001` | Draft | Protocol-v1 contract and daemon-info field without request enforcement |
 | `PRO-002` | Draft | Repository-owned HTTP/pairing adapters send the shared version header |
@@ -136,5 +138,5 @@ an external choice or authorization.
 | `LCH-002` | Draft | Remove final ledgers and prove canonical/fresh-agent discoverability |
 | `LCH-003` | Draft | Clean-checkout verify and named browser/Terminal/packaging evidence |
 
-There are 99 bounded units. Broad rows split if factual recipe authoring shows overlapping files or
+There are 101 bounded units. Broad rows split if factual recipe authoring shows overlapping files or
 more than one reviewable commit; they never remain broad by asking an executor to make that split.
