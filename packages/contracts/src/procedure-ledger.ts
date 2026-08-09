@@ -30,14 +30,7 @@ export const unmigratedProcedureLedger = {
   git: [],
   review: [],
   board: [],
-  actions: [
-    { name: 'actions', kind: 'query' },
-    { name: 'trustActions', kind: 'mutation' },
-    { name: 'addAction', kind: 'mutation' },
-    { name: 'updateAction', kind: 'mutation' },
-    { name: 'moveAction', kind: 'mutation' },
-    { name: 'deleteAction', kind: 'mutation' },
-  ],
+  actions: [],
   terminal: [
     { name: 'terminalSessions', kind: 'query' },
     { name: 'renameTerminal', kind: 'mutation' },
