@@ -63,9 +63,10 @@ are in
 
 ## Treat migration as a ratchet
 
-The architecture registry currently labels domains as legacy until a bounded specification performs
-their cross-package cutover. Existing horizontal paths may remain while inventoried. They may shrink,
-not grow.
+The architecture registry records each domain's migration stage and target roots. Contract roots are
+currently staged as `migrating` while product behavior remains in its inventoried horizontal paths;
+later bounded specifications advance the domain only as each cross-package cutover lands. Existing
+horizontal paths may remain while inventoried. They may shrink, not grow.
 
 - New or migrated feature code uses the canonical domain paths.
 - A domain exposes one narrow `index.ts`; foreign domains do not deep-import its internals.

@@ -16,8 +16,8 @@ export const DOMAIN_MIGRATIONS = Object.freeze(
     DOMAIN_KEYS.map((key) => [
       key,
       Object.freeze({
-        status: 'legacy',
-        targetRoots: Object.freeze([]),
+        status: 'migrating',
+        targetRoots: Object.freeze([`packages/contracts/src/${key}`]),
         legacyPaths: Object.freeze([]),
       }),
     ]),

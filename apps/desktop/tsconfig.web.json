@@ -12,6 +12,7 @@
     "src/test-setup.ts"
   ],
   "exclude": [
+    "../../packages/contracts/src/**/*.test.ts",
     "../../packages/shared/src/**/*.test.ts",
     "../daemon/src/**/*.test.ts",
     "../web/src/**/*.test.ts",
