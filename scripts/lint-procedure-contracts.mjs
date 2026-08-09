@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 /**
  * Keep the daemon procedure surface and the transitional/domain contract records in lockstep.
- * The ledger can only shrink as a domain record lands; it may never grow or change a procedure
- * kind. Full input/output exhaustiveness is CON-012's responsibility.
+ * The migration-only initial ownership baseline fixes each procedure's domain and kind. The ledger
+ * can only shrink as a domain record lands; it may never grow, move, or change a procedure kind.
+ * Full input/output exhaustiveness is CON-012's responsibility.
  */
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -20,6 +21,8 @@ export const DOMAIN_KEYS = [
   'terminal',
   'project-data',
 ]
+
+const INITIAL_PROCEDURE_COUNT = 113
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -50,6 +53,23 @@ function readProcedureNames(repositoryRoot) {
     'utf8',
   )
   return [...source.matchAll(/^\s+'(\w+)',\s*$/gm)].map((match) => match[1])
+}
+
+function readInitialOwnershipBaseline(repositoryRoot) {
+  const source = readFileSync(
+    join(repositoryRoot, 'packages', 'contracts', 'src', 'procedure-ledger-baseline.ts'),
+    'utf8',
+  )
+  return [
+    ...source.matchAll(
+      /\{\s*domain:\s*'([^']+)'\s*,\s*name:\s*'(\w+)'\s*,\s*kind:\s*'(query|mutation)'\s*\}/g,
+    ),
+  ].map((match) => ({
+    domain: match[1],
+    name: match[2],
+    kind: match[3],
+    source: 'procedure-ledger-baseline.ts',
+  }))
 }
 
 function readLedgerEntries(repositoryRoot) {
@@ -119,16 +139,20 @@ function duplicateValues(values) {
 /**
  * Pure catalog check exported for fixture tests. `contractNames` is the current horizontal
  * PROCEDURE_NAMES baseline; `ledgerEntries` and `completedRecords` are its shrink-only owners.
+ * `baselineEntries` is the temporary migration-only owner-of-record map. It is deliberately kept
+ * outside the package's public exports and deleted with the transitional ledger by CON-012.
  */
 export function checkProcedureCatalog({
   daemonProcedures,
   contractNames,
+  baselineEntries = [],
   ledgerEntries,
   ledgerDomains = new Set(DOMAIN_KEYS),
   completedRecords = [],
 }) {
   const failures = []
   const contractSet = new Set(contractNames)
+  const baselineByName = new Map()
   const daemonByName = new Map()
   const allRecords = [...ledgerEntries, ...completedRecords]
   const recordByName = new Map()
@@ -138,6 +162,9 @@ export function checkProcedureCatalog({
   }
   for (const duplicate of duplicateNames(ledgerEntries)) {
     failures.push(`ledger procedure appears more than once: ${duplicate}`)
+  }
+  for (const duplicate of duplicateNames(baselineEntries)) {
+    failures.push(`initial ownership baseline procedure appears more than once: ${duplicate}`)
   }
   for (const duplicate of duplicateNames(completedRecords)) {
     failures.push(`domain procedure appears more than once: ${duplicate}`)
@@ -157,11 +184,65 @@ export function checkProcedureCatalog({
     failures.push(`contract procedure name is duplicated: ${duplicate}`)
   }
 
+  if (baselineEntries.length !== INITIAL_PROCEDURE_COUNT) {
+    failures.push(
+      `initial ownership baseline must contain exactly ${INITIAL_PROCEDURE_COUNT} procedures: found ${baselineEntries.length}`,
+    )
+  }
+
+  for (const entry of baselineEntries) {
+    if (!DOMAIN_KEYS.includes(entry.domain)) {
+      failures.push(`initial ownership baseline has a non-canonical domain: ${entry.name}`)
+    }
+    if (entry.kind !== 'query' && entry.kind !== 'mutation') {
+      failures.push(`initial ownership baseline has an invalid kind: ${entry.name}`)
+    }
+    if (!contractSet.has(entry.name)) {
+      failures.push(`initial ownership baseline procedure is not in PROCEDURE_NAMES: ${entry.name}`)
+    }
+    if (!baselineByName.has(entry.name)) baselineByName.set(entry.name, entry)
+  }
+
+  for (const name of contractSet) {
+    if (!baselineByName.has(name)) {
+      failures.push(`procedure is missing from initial ownership baseline: ${name}`)
+    }
+  }
+
+  for (const name of baselineByName.keys()) {
+    if (!contractSet.has(name)) {
+      failures.push(`initial ownership baseline has a procedure outside PROCEDURE_NAMES: ${name}`)
+    }
+  }
+
   for (const entry of ledgerEntries) {
     if (!contractSet.has(entry.name)) {
       failures.push(`ledger procedure is not in PROCEDURE_NAMES: ${entry.name}`)
     }
   }
+
+  const checkOwnership = (entries, label) => {
+    for (const entry of entries) {
+      const baseline = baselineByName.get(entry.name)
+      if (!baseline) {
+        failures.push(`${label} procedure is not in initial ownership baseline: ${entry.name}`)
+        continue
+      }
+      if (entry.domain !== baseline.domain) {
+        failures.push(
+          `${label} procedure has wrong initial domain: ${entry.name} (record=${entry.domain} baseline=${baseline.domain})`,
+        )
+      }
+      if (entry.kind !== baseline.kind) {
+        failures.push(
+          `${label} procedure has wrong initial kind: ${entry.name} (record=${entry.kind} baseline=${baseline.kind})`,
+        )
+      }
+    }
+  }
+
+  checkOwnership(ledgerEntries, 'ledger')
+  checkOwnership(completedRecords, 'completed domain')
 
   for (const entry of allRecords) {
     if (recordByName.has(entry.name)) continue
@@ -204,12 +285,14 @@ export function checkProcedureContracts(repositoryRoot = root) {
   const daemonProcedures = readRouterProcedures(repositoryRoot)
   const contractNames = readProcedureNames(repositoryRoot)
   const ledger = readLedgerEntries(repositoryRoot)
+  const baselineEntries = readInitialOwnershipBaseline(repositoryRoot)
   const completedRecords = readCompletedDomainRecords(repositoryRoot)
 
   failures.push(
     ...checkProcedureCatalog({
       daemonProcedures,
       contractNames,
+      baselineEntries,
       ledgerEntries: ledger.entries,
       ledgerDomains: ledger.domains,
       completedRecords,

@@ -9,6 +9,15 @@ const base = () => ({
     { name: 'addBoardCard', kind: 'mutation', source: 'board.ts' },
   ],
   contractNames: ['boardCards', 'addBoardCard'],
+  baselineEntries: [
+    { domain: 'board', name: 'boardCards', kind: 'query', source: 'procedure-ledger-baseline.ts' },
+    {
+      domain: 'board',
+      name: 'addBoardCard',
+      kind: 'mutation',
+      source: 'procedure-ledger-baseline.ts',
+    },
+  ],
   ledgerEntries: [
     { domain: 'board', name: 'boardCards', kind: 'query', source: 'procedure-ledger.ts' },
     { domain: 'board', name: 'addBoardCard', kind: 'mutation', source: 'procedure-ledger.ts' },
@@ -24,6 +33,8 @@ test('rejects a duplicate ledger entry', () => {
 
 test('rejects ledger growth beyond PROCEDURE_NAMES', () => {
   const fixture = base()
+  fixture.daemonProcedures.push({ name: 'newProcedure', kind: 'query', source: 'board.ts' })
+  fixture.contractNames.push('newProcedure')
   fixture.ledgerEntries.push({
     domain: 'board',
     name: 'newProcedure',
@@ -32,7 +43,53 @@ test('rejects ledger growth beyond PROCEDURE_NAMES', () => {
   })
   assert.ok(
     checkProcedureCatalog(fixture).some((failure) =>
-      failure.includes('ledger procedure is not in PROCEDURE_NAMES: newProcedure'),
+      failure.includes('ledger procedure is not in initial ownership baseline: newProcedure'),
+    ),
+  )
+})
+
+test('rejects a ledger procedure moved to the wrong domain', () => {
+  const fixture = base()
+  fixture.ledgerEntries[0] = { ...fixture.ledgerEntries[0], domain: 'git' }
+  assert.ok(
+    checkProcedureCatalog(fixture).some((failure) =>
+      failure.includes('ledger procedure has wrong initial domain: boardCards'),
+    ),
+  )
+})
+
+test('rejects a completed domain procedure moved to the wrong domain', () => {
+  const fixture = base()
+  fixture.ledgerEntries = [fixture.ledgerEntries[1]]
+  fixture.completedRecords = [
+    { domain: 'git', name: 'boardCards', kind: 'query', source: 'board.procedures.ts' },
+  ]
+  assert.ok(
+    checkProcedureCatalog(fixture).some((failure) =>
+      failure.includes('completed domain procedure has wrong initial domain: boardCards'),
+    ),
+  )
+})
+
+test('rejects a record with a kind changed from the initial baseline', () => {
+  const fixture = base()
+  fixture.ledgerEntries[0] = { ...fixture.ledgerEntries[0], kind: 'mutation' }
+  assert.ok(
+    checkProcedureCatalog(fixture).some((failure) =>
+      failure.includes('ledger procedure has wrong initial kind: boardCards'),
+    ),
+  )
+})
+
+test('rejects a completed domain record with a kind changed from the initial baseline', () => {
+  const fixture = base()
+  fixture.ledgerEntries = [fixture.ledgerEntries[1]]
+  fixture.completedRecords = [
+    { domain: 'board', name: 'boardCards', kind: 'mutation', source: 'board.procedures.ts' },
+  ]
+  assert.ok(
+    checkProcedureCatalog(fixture).some((failure) =>
+      failure.includes('completed domain procedure has wrong initial kind: boardCards'),
     ),
   )
 })
