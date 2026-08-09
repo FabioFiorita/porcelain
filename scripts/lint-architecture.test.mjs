@@ -12,7 +12,7 @@ import { checkArchitecture } from './lint-architecture.mjs'
 // those hardcoded paths do not exist under a temporary root; filtering to this pattern lets a
 // fixture assert on the behavior under test without reproducing the whole legacy ledger.
 const NEW_CHECK_PATTERN =
-  /DOMAIN_MIGRATIONS must define|supporting region is also registered|registered target root|migration record|migration status|registers a target root|registers no target root|legacy path still exists|not unique across DOMAIN_MIGRATIONS|is not a registered target domain|has no public index\.ts|deep-imports|domain instead of its public entry/
+  /DOMAIN_MIGRATIONS must define|supporting region is also registered|registered target root|migration record|migration status|targetRoots must be an array|legacyPaths must be an array|invalid repository-relative POSIX path|contains a duplicate path|registers a target root|registers no target root|legacy path still exists|not unique across DOMAIN_MIGRATIONS|is not a registered target domain|has no public index\.ts|deep-imports/
 
 function buildMigrations(overrides = {}) {
   const base = Object.fromEntries(
@@ -42,7 +42,7 @@ function newViolations(failures) {
   return failures.filter((failure) => NEW_CHECK_PATTERN.test(failure))
 }
 
-test('an all-legacy registry with no registered target root passes the new checks', () => {
+test('a canonical-named legacy directory remains allowed until it exposes a public index.ts', () => {
   withFixtureRepo(
     (root) => {
       writeFixtureFile(
@@ -148,6 +148,145 @@ test('a relative import that resolves to the foreign root index.ts passes', () =
       })
       const failures = checkArchitecture(root, migrations)
       assert.ok(!failures.some((failure) => failure.includes('deep-imports')))
+    },
+  )
+})
+
+const aliasTargetRoots = [
+  {
+    targetRoot: 'apps/daemon/src/features',
+    alias: '@backend/features/',
+  },
+  {
+    targetRoot: 'apps/daemon/src/features',
+    alias: '@porcelain/daemon/features/',
+  },
+  {
+    targetRoot: 'apps/web/src/features',
+    alias: '@renderer/features/',
+  },
+  {
+    targetRoot: 'apps/mobile/src/features',
+    alias: '@/features/',
+  },
+  {
+    targetRoot: 'packages/contracts/src',
+    alias: '@porcelain/contracts/',
+  },
+  {
+    targetRoot: 'packages/client-runtime/src',
+    alias: '@porcelain/client-runtime/',
+  },
+]
+
+for (const { targetRoot, alias } of aliasTargetRoots) {
+  test(`${alias} rejects a deep import but permits the foreign public index`, () => {
+    withFixtureRepo(
+      (root) => {
+        writeFixtureFile(
+          root,
+          `${targetRoot}/board/index.ts`,
+          `import { deep } from '${alias}git/deep'\nexport const board = deep\n`,
+        )
+        writeFixtureFile(root, `${targetRoot}/git/index.ts`, 'export const git = 1\n')
+        writeFixtureFile(root, `${targetRoot}/git/deep.ts`, 'export const deep = 1\n')
+      },
+      (root) => {
+        const migrations = buildMigrations({
+          board: {
+            status: 'migrating',
+            targetRoots: [`${targetRoot}/board`],
+            legacyPaths: [],
+          },
+          git: {
+            status: 'migrating',
+            targetRoots: [`${targetRoot}/git`],
+            legacyPaths: [],
+          },
+        })
+        const deepFailures = checkArchitecture(root, migrations)
+        assert.ok(deepFailures.some((failure) => failure.includes('deep-imports')))
+
+        writeFixtureFile(
+          root,
+          `${targetRoot}/board/index.ts`,
+          `import { git } from '${alias}git'\nexport const board = git\n`,
+        )
+        const publicEntryFailures = checkArchitecture(root, migrations)
+        assert.ok(!publicEntryFailures.some((failure) => failure.includes('deep-imports')))
+      },
+    )
+  })
+}
+
+test('malformed migration records and path lists fail without crashing', () => {
+  withFixtureRepo(
+    () => {},
+    (root) => {
+      const migrations = buildMigrations()
+      migrations.board = null
+      migrations.git = {
+        status: 'migrating',
+        targetRoots: 'apps/daemon/src/features/git',
+        legacyPaths: [],
+      }
+      migrations.search = {
+        status: 'legacy',
+        targetRoots: [],
+        legacyPaths: 'apps/daemon/src/search',
+      }
+
+      const failures = checkArchitecture(root, migrations)
+      assert.ok(
+        failures.some((failure) =>
+          failure.includes('domain board migration record must be an object'),
+        ),
+      )
+      assert.ok(
+        failures.some((failure) => failure.includes('domain git targetRoots must be an array')),
+      )
+      assert.ok(
+        failures.some((failure) => failure.includes('domain search legacyPaths must be an array')),
+      )
+    },
+  )
+})
+
+test('migration paths must be unique normalized repository-relative POSIX strings', () => {
+  withFixtureRepo(
+    () => {},
+    (root) => {
+      const migrations = buildMigrations({
+        board: {
+          status: 'legacy',
+          targetRoots: [],
+          legacyPaths: [
+            '',
+            '/absolute',
+            'C:/windows-absolute',
+            '../outside-root',
+            'apps\\daemon',
+            'apps//daemon',
+            'apps/./daemon',
+            'apps/daemon/../search',
+            42,
+            'duplicate',
+            'duplicate',
+          ],
+        },
+      })
+
+      const failures = checkArchitecture(root, migrations)
+      assert.equal(
+        failures.filter((failure) => failure.includes('invalid repository-relative POSIX path'))
+          .length,
+        9,
+      )
+      assert.ok(
+        failures.some((failure) =>
+          failure.includes('legacyPaths contains a duplicate path: duplicate'),
+        ),
+      )
     },
   )
 })

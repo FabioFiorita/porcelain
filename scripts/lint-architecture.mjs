@@ -25,6 +25,23 @@ const genericFeatureFiles = new Set([
   'utils.ts',
 ])
 
+// These mirror the source aliases Porcelain configures for its applications and packages. Keeping
+// the mapping here lets the architecture gate resolve a target-domain import to the same file
+// whether the importer uses a relative path or the public TypeScript alias.
+const NON_RELATIVE_SOURCE_ALIASES = [
+  ['@renderer/', 'apps/web/src/'],
+  ['@backend/', 'apps/daemon/src/'],
+  ['@porcelain/daemon/', 'apps/daemon/src/'],
+  ['@/', 'apps/mobile/src/'],
+  ['@porcelain/contracts/', 'packages/contracts/src/'],
+  ['@porcelain/client-runtime/', 'packages/client-runtime/src/'],
+]
+
+const NON_RELATIVE_SOURCE_FILES = [
+  ['@porcelain/contracts', 'packages/contracts/src/index.ts'],
+  ['@porcelain/client-runtime', 'packages/client-runtime/src/index.ts'],
+]
+
 function walk(directory, output = []) {
   if (!existsSync(directory) || !statSync(directory).isDirectory()) return output
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
@@ -46,8 +63,7 @@ function importSpecifiers(source) {
   )
 }
 
-function resolveRelativeSpecifier(fromFileAbsolute, specifier) {
-  const base = path.resolve(path.dirname(fromFileAbsolute), specifier)
+function resolveSourceFile(base) {
   const candidates = [
     base,
     `${base}.ts`,
@@ -61,6 +77,70 @@ function resolveRelativeSpecifier(fromFileAbsolute, specifier) {
   return null
 }
 
+function resolveRelativeSpecifier(fromFileAbsolute, specifier) {
+  return resolveSourceFile(path.resolve(path.dirname(fromFileAbsolute), specifier))
+}
+
+function resolveNonRelativeSpecifier(root, specifier) {
+  const sourceFile = NON_RELATIVE_SOURCE_FILES.find(([alias]) => specifier === alias)
+  if (sourceFile) return resolveSourceFile(path.join(root, sourceFile[1]))
+
+  const sourceAlias = NON_RELATIVE_SOURCE_ALIASES.find(([alias]) => specifier.startsWith(alias))
+  if (sourceAlias) {
+    return resolveSourceFile(
+      path.join(root, sourceAlias[1], specifier.slice(sourceAlias[0].length)),
+    )
+  }
+
+  if (specifier.startsWith('apps/') || specifier.startsWith('packages/')) {
+    return resolveSourceFile(path.join(root, specifier))
+  }
+
+  return null
+}
+
+function isRepositoryRelativePosixPath(value) {
+  if (typeof value !== 'string' || value.length === 0 || value.includes('\\')) return false
+  if (value === '.' || path.posix.isAbsolute(value) || path.win32.isAbsolute(value)) return false
+  if (path.posix.normalize(value) !== value) return false
+  return !value.split('/').some((segment) => segment === '.' || segment === '..')
+}
+
+function describeMalformedValue(value) {
+  try {
+    return JSON.stringify(value) ?? String(value)
+  } catch {
+    return Object.prototype.toString.call(value)
+  }
+}
+
+function validatePathList(key, field, value, fail) {
+  if (!Array.isArray(value)) {
+    fail(
+      `domain ${key} ${field} must be an array of unique normalized repository-relative POSIX paths`,
+    )
+    return []
+  }
+
+  const paths = []
+  const seen = new Set()
+  for (const entry of value) {
+    if (!isRepositoryRelativePosixPath(entry)) {
+      fail(
+        `domain ${key} ${field} contains an invalid repository-relative POSIX path: ${describeMalformedValue(entry)}`,
+      )
+      continue
+    }
+    if (seen.has(entry)) {
+      fail(`domain ${key} ${field} contains a duplicate path: ${entry}`)
+      continue
+    }
+    seen.add(entry)
+    paths.push(entry)
+  }
+  return paths
+}
+
 /**
  * @param {string} root
  * @param {typeof DOMAIN_MIGRATIONS} migrations
@@ -71,7 +151,9 @@ export function checkArchitecture(root, migrations = DOMAIN_MIGRATIONS) {
   const fail = (message) => failures.push(message)
   const relative = (absolute) => path.relative(root, absolute).split(path.sep).join('/')
 
-  const migrationKeys = Object.keys(migrations)
+  const migrationsAreRecords =
+    migrations !== null && typeof migrations === 'object' && !Array.isArray(migrations)
+  const migrationKeys = migrationsAreRecords ? Object.keys(migrations) : []
   const uniqueDomainKeys = new Set(DOMAIN_KEYS)
   if (
     uniqueDomainKeys.size !== 10 ||
@@ -86,8 +168,13 @@ export function checkArchitecture(root, migrations = DOMAIN_MIGRATIONS) {
   }
 
   const registeredPaths = []
+  const validatedMigrations = new Map()
   for (const key of migrationKeys) {
     const record = migrations[key]
+    if (record === null || typeof record !== 'object' || Array.isArray(record)) {
+      fail(`domain ${key} migration record must be an object`)
+      continue
+    }
     const recordKeys = Object.keys(record ?? {})
       .sort()
       .join(',')
@@ -96,9 +183,15 @@ export function checkArchitecture(root, migrations = DOMAIN_MIGRATIONS) {
       continue
     }
     if (!['legacy', 'migrating', 'complete'].includes(record.status)) {
-      fail(`domain ${key} has an unknown migration status: ${record.status}`)
+      fail(
+        `domain ${key} has an unknown migration status: ${describeMalformedValue(record.status)}`,
+      )
     }
-    for (const targetRoot of record.targetRoots) {
+    const targetRoots = validatePathList(key, 'targetRoots', record.targetRoots, fail)
+    const legacyPaths = validatePathList(key, 'legacyPaths', record.legacyPaths, fail)
+    validatedMigrations.set(key, { status: record.status, targetRoots, legacyPaths })
+
+    for (const targetRoot of targetRoots) {
       registeredPaths.push(targetRoot)
       const matchesAllowedRoot = TARGET_DOMAIN_ROOTS.some(
         (domainRoot) => targetRoot === `${domainRoot}/${key}`,
@@ -109,19 +202,19 @@ export function checkArchitecture(root, migrations = DOMAIN_MIGRATIONS) {
         )
       }
     }
-    for (const legacyPath of record.legacyPaths) registeredPaths.push(legacyPath)
+    for (const legacyPath of legacyPaths) registeredPaths.push(legacyPath)
 
-    if (record.status === 'legacy' && record.targetRoots.length > 0) {
+    if (record.status === 'legacy' && targetRoots.length > 0) {
       fail(`domain ${key} is legacy but registers a target root`)
     }
     if (
       (record.status === 'migrating' || record.status === 'complete') &&
-      record.targetRoots.length === 0
+      targetRoots.length === 0
     ) {
       fail(`domain ${key} is ${record.status} but registers no target root`)
     }
     if (record.status === 'complete') {
-      for (const legacyPath of record.legacyPaths) {
+      for (const legacyPath of legacyPaths) {
         if (existsSync(path.join(root, legacyPath))) {
           fail(`domain ${key} is complete but its legacy path still exists: ${legacyPath}`)
         }
@@ -140,8 +233,8 @@ export function checkArchitecture(root, migrations = DOMAIN_MIGRATIONS) {
   for (const domainRoot of TARGET_DOMAIN_ROOTS) {
     for (const key of DOMAIN_KEYS) {
       const candidateRoot = `${domainRoot}/${key}`
-      const record = migrations[key]
-      const isRegistered = Boolean(record?.targetRoots?.includes(candidateRoot))
+      const record = validatedMigrations.get(key)
+      const isRegistered = Boolean(record?.targetRoots.includes(candidateRoot))
       const indexPath = path.join(root, candidateRoot, 'index.ts')
       const hasIndex = existsSync(indexPath) && statSync(indexPath).isFile()
       if (hasIndex && !isRegistered) {
@@ -251,29 +344,22 @@ export function checkArchitecture(root, migrations = DOMAIN_MIGRATIONS) {
     )
     if (fileRoot) {
       for (const specifier of specifiers) {
-        if (specifier.startsWith('.')) {
-          const resolved = resolveRelativeSpecifier(absolute, specifier)
-          if (!resolved) continue
-          const resolvedRelative = relative(resolved)
-          const foreignRoot = [...validTargetRoots.keys()].find(
-            (registeredRoot) =>
-              registeredRoot !== fileRoot &&
-              (resolvedRelative === `${registeredRoot}/index.ts` ||
-                resolvedRelative.startsWith(`${registeredRoot}/`)),
+        const resolved = specifier.startsWith('.')
+          ? resolveRelativeSpecifier(absolute, specifier)
+          : resolveNonRelativeSpecifier(root, specifier)
+        if (!resolved) continue
+
+        const resolvedRelative = relative(resolved)
+        const foreignRoot = [...validTargetRoots.keys()].find(
+          (registeredRoot) =>
+            registeredRoot !== fileRoot &&
+            (resolvedRelative === `${registeredRoot}/index.ts` ||
+              resolvedRelative.startsWith(`${registeredRoot}/`)),
+        )
+        if (foreignRoot && resolvedRelative !== `${foreignRoot}/index.ts`) {
+          fail(
+            `${file} deep-imports ${resolvedRelative} across the ${foreignRoot} domain boundary; only its index.ts is public`,
           )
-          if (foreignRoot && resolvedRelative !== `${foreignRoot}/index.ts`) {
-            fail(
-              `${file} deep-imports ${resolvedRelative} across the ${foreignRoot} domain boundary; only its index.ts is public`,
-            )
-          }
-        } else {
-          for (const foreignRoot of validTargetRoots.keys()) {
-            if (foreignRoot !== fileRoot && specifier.startsWith(foreignRoot)) {
-              fail(
-                `${file} imports ${specifier} directly into the ${foreignRoot} domain instead of its public entry`,
-              )
-            }
-          }
         }
       }
     }
