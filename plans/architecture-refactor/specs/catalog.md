@@ -14,7 +14,7 @@ open judgment and has landed dependencies, and **Blocked** names a dependency or
 | `ARC-002` | Landed | Import-graph and domain-public-entry checks become migration-status aware |
 | `CON-001` | Landed | Contract-domain scaffolding, ownership baseline, and exact shrink-only 113-procedure ledger |
 | `CON-002` | Landed | Remote schemas remove 12 entries from the contract ledger |
-| `CON-003` | Draft | Projects schemas remove 4 entries from the contract ledger |
+| `CON-003` | Landed | Projects schemas remove 4 entries from the contract ledger |
 | `CON-004` | Draft | Files schemas remove 15 entries from the contract ledger |
 | `CON-005` | Draft | Search schemas remove 3 entries from the contract ledger |
 | `CON-006` | Draft | Git schemas remove 30 entries from the contract ledger |

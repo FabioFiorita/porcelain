@@ -24,12 +24,7 @@ export type UnmigratedProcedure = Readonly<{
  */
 export const unmigratedProcedureLedger = {
   remote: [],
-  projects: [
-    { name: 'openRepoPath', kind: 'mutation' },
-    { name: 'recentRepos', kind: 'query' },
-    { name: 'removeRecentRepo', kind: 'mutation' },
-    { name: 'browseDirs', kind: 'query' },
-  ],
+  projects: [],
   files: [
     { name: 'readDir', kind: 'query' },
     { name: 'hidePath', kind: 'mutation' },
