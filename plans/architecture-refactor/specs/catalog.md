@@ -22,7 +22,7 @@ an external choice or authorization.
 | `CON-007` | Landed | Review schemas remove 29 entries, including the unknown reading output |
 | `CON-008` | Landed | Board schemas remove 6 entries from the contract ledger |
 | `CON-009` | Landed | Actions schemas remove 6 entries from the contract ledger |
-| `CON-010` | Ready | Terminal request/response schemas remove 2 entries from the ledger |
+| `CON-010` | Landed | Terminal request/response schemas remove 2 entries from the ledger |
 | `CON-011` | Queued | Project Data schemas remove the final 6 ledger entries |
 | `ERR-001` | Draft | Contract public-error envelope and centralized daemon mapping with request correlation |
 | `CON-012` | Draft | Delete the horizontal fallback and enforce router input/output/kind exhaustiveness |

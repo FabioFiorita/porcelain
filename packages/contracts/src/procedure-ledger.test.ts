@@ -10,11 +10,12 @@ import { projectsProcedures } from './projects'
 import { remoteProcedures } from './remote'
 import { reviewProcedures } from './review'
 import { searchProcedures } from './search'
+import { terminalProcedures } from './terminal'
 
 describe('unmigrated procedure ledger', () => {
   it('contains each unmigrated procedure exactly once', () => {
-    expect(unmigratedProcedureNames).toHaveLength(8)
-    expect(new Set(unmigratedProcedureNames).size).toBe(8)
+    expect(unmigratedProcedureNames).toHaveLength(6)
+    expect(new Set(unmigratedProcedureNames).size).toBe(6)
     expect([...unmigratedProcedureNames].sort()).toEqual(
       PROCEDURE_NAMES.filter(
         (name) =>
@@ -25,7 +26,8 @@ describe('unmigrated procedure ledger', () => {
           !(name in gitProcedures) &&
           !(name in reviewProcedures) &&
           !(name in boardProcedures) &&
-          !(name in actionsProcedures),
+          !(name in actionsProcedures) &&
+          !(name in terminalProcedures),
       ).sort(),
     )
   })
@@ -225,10 +227,24 @@ describe('unmigrated procedure ledger', () => {
     }
   })
 
+  it('removes exactly the completed Terminal procedures', () => {
+    expect(unmigratedProcedureLedger.terminal).toEqual([])
+    expect(Object.keys(terminalProcedures).sort()).toEqual(['renameTerminal', 'terminalSessions'])
+    for (const name of Object.keys(terminalProcedures)) {
+      expect(unmigratedProcedureNames).not.toContain(name)
+    }
+  })
+
   it('declares only query and mutation kinds with the expected current balance', () => {
     const entries = Object.values(unmigratedProcedureLedger).flat()
     expect(entries.every(({ kind }) => kind === 'query' || kind === 'mutation')).toBe(true)
-    expect(entries.filter(({ kind }) => kind === 'query')).toHaveLength(4)
-    expect(entries.filter(({ kind }) => kind === 'mutation')).toHaveLength(4)
+    expect(entries.filter(({ kind }) => kind === 'query')).toHaveLength(3)
+    expect(entries.filter(({ kind }) => kind === 'mutation')).toHaveLength(3)
+    expect(
+      Object.keys(unmigratedProcedureLedger).filter(
+        (domain) =>
+          unmigratedProcedureLedger[domain as keyof typeof unmigratedProcedureLedger].length > 0,
+      ),
+    ).toEqual(['project-data'])
   })
 })

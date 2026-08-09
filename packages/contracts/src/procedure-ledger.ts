@@ -31,10 +31,7 @@ export const unmigratedProcedureLedger = {
   review: [],
   board: [],
   actions: [],
-  terminal: [
-    { name: 'terminalSessions', kind: 'query' },
-    { name: 'renameTerminal', kind: 'mutation' },
-  ],
+  terminal: [],
   'project-data': [
     { name: 'repoNotes', kind: 'query' },
     { name: 'setRepoNotes', kind: 'mutation' },
