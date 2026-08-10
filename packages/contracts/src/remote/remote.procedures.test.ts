@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { PROTOCOL_VERSION } from '../protocol'
 import { remoteContractFixtures } from './remote.contract'
 import { remoteProcedures } from './remote.procedures'
 
@@ -33,7 +34,7 @@ const invalidInputs: Record<keyof typeof remoteProcedures, unknown> = {
 }
 
 const invalidOutputs: Record<keyof typeof remoteProcedures, unknown> = {
-  daemonInfo: { version: '0.52.1', host: 'workstation', platform: 'linux' },
+  daemonInfo: { version: '0.52.1', protocolVersion: PROTOCOL_VERSION, platform: 'linux' },
   accessStatus: { pairings: [], clients: [], connected: 0 },
   issuePairingLink: { ...remoteContractFixtures.issuePairingLink.output, credential: undefined },
   revokePairingLink: null,
@@ -69,6 +70,29 @@ describe('Remote procedure contracts', () => {
       expect(procedure.output.safeParse(invalidOutputs[name]).success).toBe(false)
     })
   }
+
+  it('exposes the shared protocol version on daemon-info and rejects any other value', () => {
+    const output = remoteContractFixtures.daemonInfo.output
+    expect(output.protocolVersion).toBe(PROTOCOL_VERSION)
+    expect(remoteProcedures.daemonInfo.output.parse(output)).toEqual(output)
+
+    for (const malformed of [0, 2, '1', null, undefined]) {
+      expect(
+        remoteProcedures.daemonInfo.output.safeParse({ ...output, protocolVersion: malformed })
+          .success,
+        `${String(malformed)}`,
+      ).toBe(false)
+    }
+
+    expect(
+      remoteProcedures.daemonInfo.output.safeParse({
+        version: output.version,
+        host: output.host,
+        platform: output.platform,
+        arch: output.arch,
+      }).success,
+    ).toBe(false)
+  })
 
   it('rejects unknown fields at the Remote wire boundary', () => {
     expect(

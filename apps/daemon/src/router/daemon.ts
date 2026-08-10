@@ -1,4 +1,4 @@
-import { procedureCatalog } from '@porcelain/contracts'
+import { PROTOCOL_VERSION, type ProtocolVersion, procedureCatalog } from '@porcelain/contracts'
 import { expectedFailure } from '../daemon-composition/expected-failure'
 import { toTrpcError } from '../daemon-composition/public-error'
 import { displayAdminTokenPath } from '../net/admin-token'
@@ -14,13 +14,15 @@ import {
 import { adminProcedure, publicProcedure, t } from '../trpc'
 
 export const daemonRouter = t.router({
-  // The current daemon's build version and identity. One response gives the client
-  // the machine label and the exact build serving the rest of the contract.
+  // The current daemon's build version, wire protocol, and identity. One response gives the
+  // client the machine label, the exact build serving the rest of the contract, and the
+  // protocol it speaks — the shared literal, never derived from the build version.
   daemonInfo: publicProcedure
     .input(procedureCatalog.daemonInfo.input)
     .output(procedureCatalog.daemonInfo.output)
-    .query((): { version: string } & DaemonIdentity => ({
+    .query((): { version: string; protocolVersion: ProtocolVersion } & DaemonIdentity => ({
       version: daemonVersion(),
+      protocolVersion: PROTOCOL_VERSION,
       ...daemonIdentity(),
     })),
 

@@ -19,11 +19,18 @@ describe('connection procedures parse canonical domain contracts', () => {
     expect(
       daemonInfoQuery.output.parse({
         version: '0.52.1',
+        protocolVersion: 1,
         host: 'daemon-host',
         platform: 'linux',
         arch: 'x64',
       }),
-    ).toEqual({ version: '0.52.1', host: 'daemon-host', platform: 'linux', arch: 'x64' })
+    ).toEqual({
+      version: '0.52.1',
+      protocolVersion: 1,
+      host: 'daemon-host',
+      platform: 'linux',
+      arch: 'x64',
+    })
 
     expect(daemonInfoQuery.output.safeParse({ version: '0.52.1' }).success).toBe(false)
   })

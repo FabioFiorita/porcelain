@@ -45,8 +45,8 @@ so they can't drift, and pointing the client at a remote daemon needed no new tr
   blank; seeding runs only when the target has no settings at all, and a create/open must never fail
   because a channel file was unreadable. Cross-host carry stays explicit and agent-driven.
 - **Environments announce themselves.** `daemonInfo` returns the required `host`/`platform`/`arch`
-  identity alongside `version`, so a missing or malformed response is a contract error rather than
-  a partial identity. **`unauthorized` is a distinct state from `offline`** (answering and rejecting
+  identity alongside `version` and the literal `protocolVersion` the daemon speaks, so a missing or
+  malformed response is a contract error rather than a partial identity. **`unauthorized` is a distinct state from `offline`** (answering and rejecting
   the token means re-pair, not wake). One network call per environment, so the hook is deliberately
   lazy.
 - **One environment, many endpoints.** (1) **Kind is derived from the address, preference stored by

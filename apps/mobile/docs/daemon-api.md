@@ -36,7 +36,7 @@ This is why the app ships `NSAllowsArbitraryLoads` / `usesCleartextTraffic` (see
 ## Bootstrap sequence
 
 1. Try the group's exact preferred endpoint, then last-known-good, then the remaining saved routes. Failover is sequential; a 401 stops immediately.
-2. `daemonInfo` → `{version, host, platform, arch}`. This is the current daemon identity and build contract; a missing or malformed response is an invalid response.
+2. `daemonInfo` → `{version, protocolVersion, host, platform, arch}`. This is the current daemon identity, wire protocol, and build contract; a missing or malformed response is an invalid response.
 3. `recentRepos({includeWorktrees:true})` → pick a repo (also the cheap "is my token valid" probe — the browser client uses it exactly this way).
 4. `openRepoPath(path)` — **load-bearing**: records the recent, seeds worktree settings, warms the file-list cache. Always call it when switching repo.
 5. Remember the endpoint that answered as last-known-good without changing the preferred route.

@@ -1,4 +1,4 @@
-import { publicErrorSchema } from '@porcelain/contracts'
+import { PROTOCOL_VERSION, procedureCatalog, publicErrorSchema } from '@porcelain/contracts'
 import { callTRPCProcedure } from '@trpc/server'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { normalizePublicError } from '../daemon-composition/public-error'
@@ -40,10 +40,19 @@ describe('daemon router contract boundary', () => {
 
     expect(await caller.daemonInfo()).toEqual({
       version: expect.any(String),
+      protocolVersion: PROTOCOL_VERSION,
       host: 'workstation',
       platform: process.platform,
       arch: process.arch,
     })
+  })
+
+  it('announces the shared protocol literal rather than the build version', async () => {
+    const info = await daemonRouter.createCaller(ADMIN_CONTEXT).daemonInfo()
+
+    expect(info.protocolVersion).toBe(1)
+    expect(info.protocolVersion).not.toBe(info.version)
+    expect(procedureCatalog.daemonInfo.output.safeParse(info).success).toBe(true)
   })
 
   it('rejects an unknown key on a strict object input as request.invalid', async () => {

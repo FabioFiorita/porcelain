@@ -45,6 +45,7 @@ export {
 } from './errors'
 export { type HeadRef, headLabel } from './head'
 export { type ProcedureName, procedureCatalog } from './procedure-catalog'
+export { PROTOCOL_VERSION, type ProtocolVersion, protocolVersionSchema } from './protocol'
 export {
   type AppEvent,
   appEventSchema,

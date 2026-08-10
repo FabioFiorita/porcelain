@@ -1,10 +1,18 @@
 import { z } from 'zod'
+import { PROTOCOL_VERSION, protocolVersionSchema } from '../protocol'
 
-/** The daemon's public identity, without host-only or credential data. */
+/**
+ * The daemon's public identity, without host-only or credential data.
+ *
+ * `protocolVersion` is the wire protocol, not the build: `version` moves every release,
+ * `protocolVersion` only when the wire changes, so a client compares the former for display
+ * and the latter for compatibility.
+ */
 export const daemonInfoInputSchema = z.void()
 export const daemonInfoOutputSchema = z
   .object({
     version: z.string(),
+    protocolVersion: protocolVersionSchema,
     host: z.string(),
     platform: z.string(),
     arch: z.string(),
@@ -143,7 +151,13 @@ export type SetFunnelBindOutput = z.infer<typeof setFunnelBindOutputSchema>
 export const remoteContractFixtures = {
   daemonInfo: {
     input: undefined,
-    output: { version: '0.52.1', host: 'workstation', platform: 'linux', arch: 'x64' },
+    output: {
+      version: '0.52.1',
+      protocolVersion: PROTOCOL_VERSION,
+      host: 'workstation',
+      platform: 'linux',
+      arch: 'x64',
+    },
   },
   accessStatus: {
     input: undefined,
