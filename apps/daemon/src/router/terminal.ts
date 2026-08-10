@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { procedureCatalog } from '@porcelain/contracts'
 import {
   type Action,
   type ActionView,
@@ -22,37 +22,26 @@ export const terminalRouter = t.router({
   // is gated on it in the UI — see `action-trust-store.ts` for what that does and
   // does not defend.
   actions: publicProcedure
-    .input(z.string())
+    .input(procedureCatalog.actions.input)
+    .output(procedureCatalog.actions.output)
     .query(({ input }): Promise<ActionView[]> => readActionViews(input)),
 
   trustActions: publicProcedure
-    .input(z.object({ repoPath: z.string(), ids: z.array(z.string()).min(1) }))
+    .input(procedureCatalog.trustActions.input)
+    .output(procedureCatalog.trustActions.output)
     .mutation(({ input }) => trustActions(input.repoPath, input.ids)),
 
   addAction: publicProcedure
-    .input(
-      z.object({
-        repoPath: z.string(),
-        title: z.string().trim().min(1),
-        command: z.string().trim().min(1),
-        where: z.enum(['primary', 'local']).optional(),
-      }),
-    )
+    .input(procedureCatalog.addAction.input)
+    .output(procedureCatalog.addAction.output)
     .mutation(({ input }): Promise<Action> => {
       const { repoPath, ...action } = input
       return addAction(repoPath, action)
     }),
 
   updateAction: publicProcedure
-    .input(
-      z.object({
-        repoPath: z.string(),
-        id: z.string(),
-        title: z.string().trim().min(1).optional(),
-        command: z.string().trim().min(1).optional(),
-        where: z.enum(['primary', 'local']).optional(),
-      }),
-    )
+    .input(procedureCatalog.updateAction.input)
+    .output(procedureCatalog.updateAction.output)
     .mutation(({ input }) =>
       updateAction(input.repoPath, input.id, {
         title: input.title,
@@ -62,17 +51,13 @@ export const terminalRouter = t.router({
     ),
 
   moveAction: publicProcedure
-    .input(
-      z.object({
-        repoPath: z.string(),
-        id: z.string(),
-        direction: z.enum(['up', 'down']),
-      }),
-    )
+    .input(procedureCatalog.moveAction.input)
+    .output(procedureCatalog.moveAction.output)
     .mutation(({ input }) => moveAction(input.repoPath, input.id, input.direction)),
 
   deleteAction: publicProcedure
-    .input(z.object({ repoPath: z.string(), id: z.string() }))
+    .input(procedureCatalog.deleteAction.input)
+    .output(procedureCatalog.deleteAction.output)
     .mutation(({ input }) => deleteAction(input.repoPath, input.id)),
 
   // The daemon-owned terminal roster — every live/exited PTY with its name, cwd, and
@@ -80,10 +65,14 @@ export const terminalRouter = t.router({
   // repo) on repo open and on daemon reconnect, so a still-running session reappears
   // after a reload. Create/attach/write ride the WS session (byte streams); list/rename
   // are plain request/response, so they live here.
-  terminalSessions: publicProcedure.query((): TerminalInfo[] => listTerminals()),
+  terminalSessions: publicProcedure
+    .input(procedureCatalog.terminalSessions.input)
+    .output(procedureCatalog.terminalSessions.output)
+    .query((): TerminalInfo[] => listTerminals()),
 
   renameTerminal: publicProcedure
-    .input(z.object({ id: z.string(), name: z.string() }))
+    .input(procedureCatalog.renameTerminal.input)
+    .output(procedureCatalog.renameTerminal.output)
     .mutation(({ input }) => {
       renameTerminal(input.id, input.name)
     }),
