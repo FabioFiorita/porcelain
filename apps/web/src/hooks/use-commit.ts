@@ -1,5 +1,9 @@
 import type { CommitConventions } from '@backend/git/conventions'
-import type { CommitGroupGenerationGroup, CommitModelOption } from '@porcelain/contracts'
+import type {
+  CommitGroupGenerationGroup,
+  CommitModelOption,
+  procedureCatalog,
+} from '@porcelain/contracts'
 import { onMutationError } from '@renderer/hooks/mutation-error'
 import { trpc } from '@renderer/lib/trpc'
 import { usePreferencesStore } from '@renderer/stores/preferences'
@@ -174,11 +178,18 @@ export function useCommitGeneration(): {
   }
 }
 
-export function useQuickCommand(): (commandId: string) => Promise<string> {
+/**
+ * The ids the daemon will actually run, read off the gitQuickCommand contract rather than
+ * mirrored here — a button for a command outside the whitelist now fails to compile.
+ */
+export type QuickCommandId =
+  (typeof procedureCatalog.gitQuickCommand.input.shape.command.options)[number]
+
+export function useQuickCommand(): (commandId: QuickCommandId) => Promise<string> {
   const repo = useRepoStore((s) => s.repo)
   const utils = trpc.useUtils()
   const mutation = trpc.gitQuickCommand.useMutation()
-  return async (commandId: string): Promise<string> => {
+  return async (commandId: QuickCommandId): Promise<string> => {
     if (!repo) return ''
     try {
       return await mutation.mutateAsync({

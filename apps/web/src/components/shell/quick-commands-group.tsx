@@ -4,7 +4,7 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
 } from '@renderer/components/ui/sidebar'
-import { useQuickCommand } from '@renderer/hooks/use-commit'
+import { type QuickCommandId, useQuickCommand } from '@renderer/hooks/use-commit'
 import { useGitSuggestions } from '@renderer/hooks/use-git-flow'
 import { compactButtonClass } from '@renderer/lib/controls'
 import { cn } from '@renderer/lib/utils'
@@ -24,9 +24,11 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 
-// mirrors the QUICK_COMMANDS whitelist in src/main/git.ts — only these ids run.
+// The presentation half of the quick-command whitelist; the runnable ids come from the
+// gitQuickCommand contract (QuickCommandId), so a button for a command the daemon does
+// not allow fails to compile instead of failing at the wire.
 const QUICK_COMMANDS: {
-  id: string
+  id: QuickCommandId
   label: string
   icon: React.ComponentType<{ className?: string }>
 }[] = [
@@ -85,7 +87,7 @@ export function QuickCommandsGroup(): React.JSX.Element {
   const runCommand = useQuickCommand()
   const suggestions = useGitSuggestions()
 
-  const handleRun = async (command: { id: string; label: string }): Promise<void> => {
+  const handleRun = async (command: { id: QuickCommandId; label: string }): Promise<void> => {
     if (running) return
     setRunning(command.id)
     try {

@@ -31,7 +31,7 @@ an external choice or authorization.
 | `CON-013` | Landed | Remote daemon/network routers adopt exact contract input/output middleware |
 | `CON-014` | Landed | Projects and repository Files procedures adopt exact contracts |
 | `CON-015` | Landed | Remaining Files and Search router procedures adopt exact contracts |
-| `CON-016` | Queued | Git router procedures and Review inbox adopt exact contracts |
+| `CON-016` | Landed | Git router procedures and Review inbox adopt exact contracts |
 | `CON-017` | Queued | Review router procedures and Git diff reading adopt exact contracts |
 | `CON-018` | Queued | Board router procedures adopt exact contracts |
 | `CON-019` | Queued | Settings-owned cross-domain procedures adopt exact contracts |

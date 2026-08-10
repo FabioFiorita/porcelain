@@ -37,13 +37,7 @@ export const PRODUCTION_ROUTER_FILES = [
   'terminal.ts',
 ]
 
-export const REMAINING_ROUTER_FILES = [
-  'board.ts',
-  'git.ts',
-  'review.ts',
-  'settings.ts',
-  'terminal.ts',
-]
+export const REMAINING_ROUTER_FILES = ['board.ts', 'review.ts', 'settings.ts', 'terminal.ts']
 
 const INITIAL_PROCEDURE_COUNT = 113
 
