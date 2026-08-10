@@ -71,7 +71,7 @@ type EvidenceHtmlUnavailable = {
   maxBytes: number
 }
 
-export type Evidence = {
+type EvidenceBase = {
   title: string
   updatedAt: string
   /** Absolute directory (for "open in browser" / Reveal). */
@@ -80,14 +80,16 @@ export type Evidence = {
   checks: EvidenceCheck[]
   /** Always HTML for evidence. */
   medium: EvidenceMedium
-  /** Inlined for the sandboxed iframe. Absent when over-cap or empty. */
-  html?: string
-  /**
-   * Present when the pack exists (title/checks still valid) but the HTML body
-   * cannot be served — never collapse this into `null` (that looks "cleared").
-   */
-  htmlUnavailable?: EvidenceHtmlUnavailable
 }
+
+/**
+ * Exactly one body outcome per read, matching the public contract's two members:
+ * the inlined HTML for the sandboxed iframe, or the reason it cannot be served
+ * (title/checks still valid) — never collapsed into `null`, which looks "cleared".
+ */
+export type Evidence =
+  | (EvidenceBase & { html: string; htmlUnavailable?: never })
+  | (EvidenceBase & { html?: never; htmlUnavailable: EvidenceHtmlUnavailable })
 
 export type EvidenceMeta = {
   title: string

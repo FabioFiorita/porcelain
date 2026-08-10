@@ -339,6 +339,22 @@ export function buildFeatureReading(params: {
   }
 }
 
+/** A stacked-diff file: always `changed`, carrying its hunks. */
+interface DiffReadingFile extends ReadingFile {
+  source: 'changed'
+}
+
+/**
+ * The stacked-diff reading surface: a `FeatureReading` narrowed to what a pure
+ * diff can contain — no walkthrough sections, no evidence chapter, every file
+ * `changed` — which is exactly what its public contract accepts.
+ */
+export interface DiffReading extends FeatureReading {
+  sections: []
+  evidence: null
+  groups: { layer: string; files: DiffReadingFile[] }[]
+}
+
 /**
  * Build a continuous stacked-diff reading surface from a flow-grouped file list
  * and pre-fetched per-file hunks. Used by the Changes / History "review all"
@@ -348,7 +364,7 @@ export function buildDiffReading(params: {
   name: string
   groups: readonly FlowGroup[]
   diffs: ReadonlyMap<string, DiffHunk[]>
-}): FeatureReading {
+}): DiffReading {
   return {
     name: params.name,
     sections: [],
@@ -356,7 +372,7 @@ export function buildDiffReading(params: {
     groups: params.groups.map((group) => ({
       layer: group.layer,
       files: group.files.map(
-        (file): ReadingFile => ({
+        (file): DiffReadingFile => ({
           path: file.path,
           source: 'changed',
           additions: file.additions,

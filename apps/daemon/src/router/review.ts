@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { procedureCatalog } from '@porcelain/contracts'
 import { projectEvidenceAssetsDir as evidenceAssetsDir } from '@shared/project-porcelain'
-import { z } from 'zod'
 import type { DiffHunk } from '../git/diff'
 import {
   gitCommitDiff,
@@ -29,6 +29,7 @@ import { buildExploreReading, walkExplore } from '../review/feature-explore'
 import {
   buildDiffReading,
   buildFeatureReading,
+  type DiffReading,
   type FeatureReading,
   type FeatureView,
 } from '../review/feature-view'
@@ -76,7 +77,8 @@ export const reviewRouter = t.router({
   // reconciled: `reviewedPaths` re-derives each marked file's current fingerprint and
   // prunes any mark whose content changed (external commit, amend, post-mark edit).
   markReviewed: publicProcedure
-    .input(z.object({ repoPath: z.string(), path: z.string() }))
+    .input(procedureCatalog.markReviewed.input)
+    .output(procedureCatalog.markReviewed.output)
     .mutation(async ({ input }) => {
       await markReviewed(
         input.repoPath,
@@ -86,27 +88,32 @@ export const reviewRouter = t.router({
     }),
 
   unmarkReviewed: publicProcedure
-    .input(z.object({ repoPath: z.string(), path: z.string() }))
+    .input(procedureCatalog.unmarkReviewed.input)
+    .output(procedureCatalog.unmarkReviewed.output)
     .mutation(async ({ input }) => {
       await unmarkReviewed(input.repoPath, input.path)
     }),
 
-  reviewedPaths: publicProcedure.input(z.string()).query(async ({ input }): Promise<string[]> => {
-    // Only the marked paths need fingerprinting (few files); reconcile prunes stale
-    // marks and writes through so reviewed.json stays truthful for the CLI reader.
-    // reconcileReviewed re-reads after prune so a concurrent markReviewed (the UI's
-    // optimistic tick) is never omitted from this response — that omission used to
-    // overwrite the client cache and make the mark appear to un-toggle a second later.
-    const marks = await readReviewedMarks(input)
-    const current = await reviewedFingerprints(
-      input,
-      marks.map((mark) => mark.path),
-    )
-    return reconcileReviewed(input, marks, current)
-  }),
+  reviewedPaths: publicProcedure
+    .input(procedureCatalog.reviewedPaths.input)
+    .output(procedureCatalog.reviewedPaths.output)
+    .query(async ({ input }): Promise<string[]> => {
+      // Only the marked paths need fingerprinting (few files); reconcile prunes stale
+      // marks and writes through so reviewed.json stays truthful for the CLI reader.
+      // reconcileReviewed re-reads after prune so a concurrent markReviewed (the UI's
+      // optimistic tick) is never omitted from this response — that omission used to
+      // overwrite the client cache and make the mark appear to un-toggle a second later.
+      const marks = await readReviewedMarks(input)
+      const current = await reviewedFingerprints(
+        input,
+        marks.map((mark) => mark.path),
+      )
+      return reconcileReviewed(input, marks, current)
+    }),
 
   setReviewed: publicProcedure
-    .input(z.object({ repoPath: z.string(), paths: z.array(z.string()) }))
+    .input(procedureCatalog.setReviewed.input)
+    .output(procedureCatalog.setReviewed.output)
     .mutation(async ({ input }) => {
       const fingerprints = await reviewedFingerprints(input.repoPath, input.paths)
       await setReviewedMarks(
@@ -119,17 +126,9 @@ export const reviewRouter = t.router({
   // History (a single commit). Same flow order as the lists; every file carries
   // its full diff so the viewer can scroll the whole change as one document.
   diffReading: publicProcedure
-    .input(
-      z.object({
-        repoPath: z.string(),
-        scope: z.discriminatedUnion('type', [
-          z.object({ type: z.literal('working') }),
-          z.object({ type: z.literal('branch') }),
-          z.object({ type: z.literal('commit'), hash: z.string() }),
-        ]),
-      }),
-    )
-    .query(async ({ input }): Promise<FeatureReading> => {
+    .input(procedureCatalog.diffReading.input)
+    .output(procedureCatalog.diffReading.output)
+    .query(async ({ input }): Promise<DiffReading> => {
       const { repoPath, scope } = input
       let groups: FlowGroup[]
       let name: string
@@ -174,7 +173,8 @@ export const reviewRouter = t.router({
   // renderer shows the "No review yet" empty state). Working-tree changes that
   // the agent did not list never appear here.
   featureView: publicProcedure
-    .input(z.string())
+    .input(procedureCatalog.featureView.input)
+    .output(procedureCatalog.featureView.output)
     .query(async ({ input }): Promise<FeatureView | null> => {
       const g = await gatherFeature(input)
       if (!g.reviewSet) return null
@@ -188,7 +188,8 @@ export const reviewRouter = t.router({
   // agent review set, so the slice heuristic only ever runs on the agent's
   // curated, annotated set.
   featureReading: publicProcedure
-    .input(z.string())
+    .input(procedureCatalog.featureReading.input)
+    .output(procedureCatalog.featureReading.output)
     .query(async ({ input }): Promise<FeatureReading | null> => {
       const g = await gatherFeature(input)
       if (!g.reviewSet) return null
@@ -237,9 +238,12 @@ export const reviewRouter = t.router({
 
   // Archive the active review (intent, comments, reviewed marks, evidence) under
   // .porcelain/reviews/<id>/ and clear the active slots → "No review yet".
-  clearFeatureReview: publicProcedure.input(z.string()).mutation(async ({ input }) => {
-    await clearReviewSet(input)
-  }),
+  clearFeatureReview: publicProcedure
+    .input(procedureCatalog.clearFeatureReview.input)
+    .output(procedureCatalog.clearFeatureReview.output)
+    .mutation(async ({ input }) => {
+      await clearReviewSet(input)
+    }),
 
   /**
    * Intent as a document set: `.porcelain/intent/` rendered as ordered tabs.
@@ -248,7 +252,8 @@ export const reviewRouter = t.router({
    * drop the parent CSP that backstops agent-authored HTML.
    */
   reviewIntent: publicProcedure
-    .input(z.string())
+    .input(procedureCatalog.reviewIntent.input)
+    .output(procedureCatalog.reviewIntent.output)
     .query(({ input }): Promise<ReviewDoc[]> => readActiveIntentDocs(input)),
 
   /**
@@ -260,7 +265,8 @@ export const reviewRouter = t.router({
    * Installed clients call it, so it keeps its name and gains a meaning.
    */
   reviewEvidenceDocs: publicProcedure
-    .input(z.string())
+    .input(procedureCatalog.reviewEvidenceDocs.input)
+    .output(procedureCatalog.reviewEvidenceDocs.output)
     .query(({ input }): Promise<ReviewDoc[]> => readActiveEvidenceResults(input)),
 
   /**
@@ -268,7 +274,8 @@ export const reviewRouter = t.router({
    * one tile's bytes arrive from `reviewEvidenceAsset`, on demand.
    */
   reviewEvidenceAssets: publicProcedure
-    .input(z.string())
+    .input(procedureCatalog.reviewEvidenceAssets.input)
+    .output(procedureCatalog.reviewEvidenceAssets.output)
     .query(({ input }): Promise<EvidenceAsset[]> => listEvidenceAssets(evidenceAssetsDir(input))),
 
   /**
@@ -277,7 +284,8 @@ export const reviewRouter = t.router({
    * and user files must never leave through it. Null when missing or over cap.
    */
   reviewEvidenceAsset: publicProcedure
-    .input(z.object({ repoPath: z.string(), file: z.string().min(1) }))
+    .input(procedureCatalog.reviewEvidenceAsset.input)
+    .output(procedureCatalog.reviewEvidenceAsset.output)
     .query(
       ({ input }): Promise<EvidenceAssetBody | null> =>
         readEvidenceAsset(evidenceAssetsDir(input.repoPath), input.file),
@@ -285,7 +293,8 @@ export const reviewRouter = t.router({
 
   /** Byte cost of publishing the active review, so the warning can be specific. */
   reviewPublishCost: publicProcedure
-    .input(z.string())
+    .input(procedureCatalog.reviewPublishCost.input)
+    .output(procedureCatalog.reviewPublishCost.output)
     .query(({ input }): Promise<PublishCost> => activeReviewCost(input)),
 
   /**
@@ -294,22 +303,26 @@ export const reviewRouter = t.router({
    * human.
    */
   publishReview: publicProcedure
-    .input(z.string())
+    .input(procedureCatalog.publishReview.input)
+    .output(procedureCatalog.publishReview.output)
     .mutation(({ input }): Promise<PublishResult | null> => publishActiveReview(input)),
 
   /** Previous (archived) reviews for the project, newest first. */
   archivedReviews: publicProcedure
-    .input(z.string())
+    .input(procedureCatalog.archivedReviews.input)
+    .output(procedureCatalog.archivedReviews.output)
     .query(({ input }): Promise<ArchivedReviewMeta[]> => listArchivedReviews(input)),
 
   restoreArchivedReview: publicProcedure
-    .input(z.object({ repoPath: z.string(), id: z.string().min(1) }))
+    .input(procedureCatalog.restoreArchivedReview.input)
+    .output(procedureCatalog.restoreArchivedReview.output)
     .mutation(async ({ input }) => {
       await restoreArchivedReview(input.repoPath, input.id)
     }),
 
   deleteArchivedReview: publicProcedure
-    .input(z.object({ repoPath: z.string(), id: z.string().min(1) }))
+    .input(procedureCatalog.deleteArchivedReview.input)
+    .output(procedureCatalog.deleteArchivedReview.output)
     .mutation(async ({ input }) => {
       await deleteArchivedReview(input.repoPath, input.id)
     }),
@@ -320,54 +333,56 @@ export const reviewRouter = t.router({
   // process owns the files). Cheap metadata query; full HTML fetched only while
   // the evidence chapter is on screen. `clearLoopEvidence` is the app's one write.
   loopEvidence: publicProcedure
-    .input(z.string())
+    .input(procedureCatalog.loopEvidence.input)
+    .output(procedureCatalog.loopEvidence.output)
     .query(({ input }): Promise<EvidenceMeta | null> => readEvidenceMeta(input)),
 
   loopEvidenceHtml: publicProcedure
-    .input(z.string())
+    .input(procedureCatalog.loopEvidenceHtml.input)
+    .output(procedureCatalog.loopEvidenceHtml.output)
     .query(({ input }): Promise<Evidence | null> => readEvidence(input)),
 
-  clearLoopEvidence: publicProcedure.input(z.string()).mutation(async ({ input }) => {
-    await clearEvidence(input)
-  }),
+  clearLoopEvidence: publicProcedure
+    .input(procedureCatalog.clearLoopEvidence.input)
+    .output(procedureCatalog.clearLoopEvidence.output)
+    .mutation(async ({ input }) => {
+      await clearEvidence(input)
+    }),
 
   // Review comments — the human's notes on lines/files, fed to the agent as context
   // via the porcelain CLI (`comments list`) and resolvable by it (`comments resolve`).
   // Stored in the active review folder (see `comment-store.ts`); a two-way channel.
   reviewComments: publicProcedure
-    .input(z.string())
+    .input(procedureCatalog.reviewComments.input)
+    .output(procedureCatalog.reviewComments.output)
     .query(({ input }): Promise<ReviewComment[]> => readComments(input)),
 
   addReviewComment: publicProcedure
-    .input(
-      z.object({
-        repoPath: z.string(),
-        path: z.string().min(1),
-        startLine: z.number().int().positive().optional(),
-        endLine: z.number().int().positive().optional(),
-        anchorText: z.string().optional(),
-        body: z.string().min(1),
-      }),
-    )
+    .input(procedureCatalog.addReviewComment.input)
+    .output(procedureCatalog.addReviewComment.output)
     .mutation(({ input }): Promise<ReviewComment> => {
       const { repoPath, ...comment } = input
       return addComment(repoPath, comment)
     }),
 
   editReviewComment: publicProcedure
-    .input(z.object({ repoPath: z.string(), id: z.string(), body: z.string().min(1) }))
+    .input(procedureCatalog.editReviewComment.input)
+    .output(procedureCatalog.editReviewComment.output)
     .mutation(({ input }) => editComment(input.repoPath, input.id, input.body)),
 
   deleteReviewComment: publicProcedure
-    .input(z.object({ repoPath: z.string(), id: z.string() }))
+    .input(procedureCatalog.deleteReviewComment.input)
+    .output(procedureCatalog.deleteReviewComment.output)
     .mutation(({ input }) => deleteComment(input.repoPath, input.id)),
 
   clearResolvedReviewComments: publicProcedure
-    .input(z.object({ repoPath: z.string() }))
+    .input(procedureCatalog.clearResolvedReviewComments.input)
+    .output(procedureCatalog.clearResolvedReviewComments.output)
     .mutation(({ input }) => clearResolvedComments(input.repoPath)),
 
   resolveReviewComment: publicProcedure
-    .input(z.object({ repoPath: z.string(), id: z.string(), resolved: z.boolean() }))
+    .input(procedureCatalog.resolveReviewComment.input)
+    .output(procedureCatalog.resolveReviewComment.output)
     .mutation(({ input }) => setCommentResolved(input.repoPath, input.id, input.resolved)),
 
   // Explore an existing feature read-only: seed from a symbol (or a whole file)
@@ -375,15 +390,8 @@ export const reviewRouter = t.router({
   // surface — no working-tree change, no agent. Files outside the working tree are
   // read on demand (bounded by the walk's depth/file caps + the 10MB read limit).
   exploreFeature: publicProcedure
-    .input(
-      z.object({
-        repoPath: z.string(),
-        seed: z.discriminatedUnion('kind', [
-          z.object({ kind: z.literal('file'), path: z.string() }),
-          z.object({ kind: z.literal('symbol'), path: z.string(), symbol: z.string() }),
-        ]),
-      }),
-    )
+    .input(procedureCatalog.exploreFeature.input)
+    .output(procedureCatalog.exploreFeature.output)
     .query(async ({ input }): Promise<FeatureReading> => {
       const repoFiles = new Set(await gitListFiles(input.repoPath))
       const sources = new Map<string, string>()
