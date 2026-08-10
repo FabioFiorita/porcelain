@@ -195,10 +195,12 @@ test('rejects an unknown remaining router filename', () => {
 
 test('rejects a duplicate remaining router filename', () => {
   const fixture = migratedBoardFixture()
-  fixture.remainingRouterFiles.push('files.ts')
+  // Derived from the live ledger so shrinking it as routers migrate cannot rot this fixture.
+  const [duplicate] = fixture.remainingRouterFiles
+  fixture.remainingRouterFiles.push(duplicate)
   assert.ok(
     checkRouterValidationLedger(fixture).some((failure) =>
-      failure.includes('remaining router filename appears more than once: files.ts'),
+      failure.includes(`remaining router filename appears more than once: ${duplicate}`),
     ),
   )
 })

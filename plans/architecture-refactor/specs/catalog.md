@@ -30,7 +30,7 @@ an external choice or authorization.
 | `CON-012` | Landed | Compose the canonical catalog and add a router-validation migration gate |
 | `CON-013` | Landed | Remote daemon/network routers adopt exact contract input/output middleware |
 | `CON-014` | Landed | Projects and repository Files procedures adopt exact contracts |
-| `CON-015` | Queued | Remaining Files and Search router procedures adopt exact contracts |
+| `CON-015` | Landed | Remaining Files and Search router procedures adopt exact contracts |
 | `CON-016` | Queued | Git router procedures and Review inbox adopt exact contracts |
 | `CON-017` | Queued | Review router procedures and Git diff reading adopt exact contracts |
 | `CON-018` | Queued | Board router procedures adopt exact contracts |

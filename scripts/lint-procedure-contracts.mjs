@@ -39,7 +39,6 @@ export const PRODUCTION_ROUTER_FILES = [
 
 export const REMAINING_ROUTER_FILES = [
   'board.ts',
-  'files.ts',
   'git.ts',
   'review.ts',
   'settings.ts',
