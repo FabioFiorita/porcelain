@@ -28,7 +28,7 @@ an external choice or authorization.
 | `ERR-002` | Landed | tRPC request correlation, public-error mapping, and safe unexpected diagnostics |
 | `ERR-003` | Landed | Public errors at daemon HTTP authentication and pairing boundaries |
 | `CON-012` | Landed | Compose the canonical catalog and add a router-validation migration gate |
-| `CON-013` | Queued | Remote daemon/network routers adopt exact contract input/output middleware |
+| `CON-013` | Landed | Remote daemon/network routers adopt exact contract input/output middleware |
 | `CON-014` | Queued | Projects and repository Files procedures adopt exact contracts |
 | `CON-015` | Queued | Remaining Files and Search router procedures adopt exact contracts |
 | `CON-016` | Queued | Git router procedures and Review inbox adopt exact contracts |

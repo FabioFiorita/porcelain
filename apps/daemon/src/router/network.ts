@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { procedureCatalog } from '@porcelain/contracts'
 import { funnelStatus, startFunnel, stopFunnel } from '../net/funnel'
 import {
   ifaceListenerPort,
@@ -23,52 +23,58 @@ export const networkRouter = t.router({
   // GUI shows it on but not togglable); `url` is non-null only while the second
   // listener is actually up, and `error` says why nothing bound ('in-use' = the
   // fixed port is squatted) so the UI can distinguish that from "no tailnet here".
-  tailnetStatus: adminProcedure.query(
-    async (): Promise<{
-      enabled: boolean
-      url: string | null
-      error: 'in-use' | null
-      envForced: boolean
-      /** Port LAN/tailnet bind (same as PORCELAIN_DAEMON_PORT when set). */
-      port: number
-    }> => {
-      const config = await loadConfig()
-      const envForced = process.env.PORCELAIN_TAILNET_BIND === '1'
-      return {
-        enabled: config.tailnetBind === true || envForced,
-        url: tailnetUrl(),
-        error: tailnetBindError(),
-        envForced,
-        port: ifaceListenerPort(),
-      }
-    },
-  ),
+  tailnetStatus: adminProcedure
+    .input(procedureCatalog.tailnetStatus.input)
+    .output(procedureCatalog.tailnetStatus.output)
+    .query(
+      async (): Promise<{
+        enabled: boolean
+        url: string | null
+        error: 'in-use' | null
+        envForced: boolean
+        /** Port LAN/tailnet bind (same as PORCELAIN_DAEMON_PORT when set). */
+        port: number
+      }> => {
+        const config = await loadConfig()
+        const envForced = process.env.PORCELAIN_TAILNET_BIND === '1'
+        return {
+          enabled: config.tailnetBind === true || envForced,
+          url: tailnetUrl(),
+          error: tailnetBindError(),
+          envForced,
+          port: ifaceListenerPort(),
+        }
+      },
+    ),
 
-  setTailnetBind: adminProcedure.input(z.boolean()).mutation(
-    async ({
-      input,
-    }): Promise<{
-      enabled: boolean
-      url: string | null
-      error: 'in-use' | null
-      envForced: boolean
-      port: number
-    }> => {
-      await updateConfig((config) => ({ ...config, tailnetBind: input }))
-      // Apply the change live: start the second listener (null url ⇒ no Tailscale
-      // interface here) or tear it down. The loopback listener is untouched either way.
-      if (input) await startTailnetListener()
-      else await stopTailnetListener()
-      const envForced = process.env.PORCELAIN_TAILNET_BIND === '1'
-      return {
-        enabled: input || envForced,
-        url: tailnetUrl(),
-        error: tailnetBindError(),
-        envForced,
-        port: ifaceListenerPort(),
-      }
-    },
-  ),
+  setTailnetBind: adminProcedure
+    .input(procedureCatalog.setTailnetBind.input)
+    .output(procedureCatalog.setTailnetBind.output)
+    .mutation(
+      async ({
+        input,
+      }): Promise<{
+        enabled: boolean
+        url: string | null
+        error: 'in-use' | null
+        envForced: boolean
+        port: number
+      }> => {
+        await updateConfig((config) => ({ ...config, tailnetBind: input }))
+        // Apply the change live: start the second listener (null url ⇒ no Tailscale
+        // interface here) or tear it down. The loopback listener is untouched either way.
+        if (input) await startTailnetListener()
+        else await stopTailnetListener()
+        const envForced = process.env.PORCELAIN_TAILNET_BIND === '1'
+        return {
+          enabled: input || envForced,
+          url: tailnetUrl(),
+          error: tailnetBindError(),
+          envForced,
+          port: ifaceListenerPort(),
+        }
+      },
+    ),
 
   // Remote access over the home LAN: the daemon can additionally listen on the
   // machine's RFC1918 private addresses (same token, same daemon port; see
@@ -76,64 +82,76 @@ export const networkRouter = t.router({
   // `numericUrl` is the numeric fallback. Both are non-null only while the LAN
   // listener is actually up; `enabled`/`envForced` (PORCELAIN_LAN_BIND=1) and
   // `error` ('in-use' = the port is squatted) mirror tailnetStatus above.
-  lanStatus: adminProcedure.query(
-    async (): Promise<{
-      enabled: boolean
-      url: string | null
-      numericUrl: string | null
-      error: 'in-use' | null
-      envForced: boolean
-      port: number
-    }> => {
-      const config = await loadConfig()
-      const envForced = process.env.PORCELAIN_LAN_BIND === '1'
-      return {
-        enabled: config.lanBind === true || envForced,
-        url: lanUrl(),
-        numericUrl: lanNumericUrl(),
-        error: lanBindError(),
-        envForced,
-        port: ifaceListenerPort(),
-      }
-    },
-  ),
+  lanStatus: adminProcedure
+    .input(procedureCatalog.lanStatus.input)
+    .output(procedureCatalog.lanStatus.output)
+    .query(
+      async (): Promise<{
+        enabled: boolean
+        url: string | null
+        numericUrl: string | null
+        error: 'in-use' | null
+        envForced: boolean
+        port: number
+      }> => {
+        const config = await loadConfig()
+        const envForced = process.env.PORCELAIN_LAN_BIND === '1'
+        return {
+          enabled: config.lanBind === true || envForced,
+          url: lanUrl(),
+          numericUrl: lanNumericUrl(),
+          error: lanBindError(),
+          envForced,
+          port: ifaceListenerPort(),
+        }
+      },
+    ),
 
-  setLanBind: adminProcedure.input(z.boolean()).mutation(
-    async ({
-      input,
-    }): Promise<{
-      enabled: boolean
-      url: string | null
-      numericUrl: string | null
-      error: 'in-use' | null
-      envForced: boolean
-      port: number
-    }> => {
-      await updateConfig((config) => ({ ...config, lanBind: input }))
-      // Apply the change live: start the LAN listener(s) (null url ⇒ no private
-      // interface here) or tear them down. The loopback listener is untouched.
-      if (input) await startLanListener()
-      else await stopLanListener()
-      const envForced = process.env.PORCELAIN_LAN_BIND === '1'
-      return {
-        enabled: input || envForced,
-        url: lanUrl(),
-        numericUrl: lanNumericUrl(),
-        error: lanBindError(),
-        envForced,
-        port: ifaceListenerPort(),
-      }
-    },
-  ),
+  setLanBind: adminProcedure
+    .input(procedureCatalog.setLanBind.input)
+    .output(procedureCatalog.setLanBind.output)
+    .mutation(
+      async ({
+        input,
+      }): Promise<{
+        enabled: boolean
+        url: string | null
+        numericUrl: string | null
+        error: 'in-use' | null
+        envForced: boolean
+        port: number
+      }> => {
+        await updateConfig((config) => ({ ...config, lanBind: input }))
+        // Apply the change live: start the LAN listener(s) (null url ⇒ no private
+        // interface here) or tear them down. The loopback listener is untouched.
+        if (input) await startLanListener()
+        else await stopLanListener()
+        const envForced = process.env.PORCELAIN_LAN_BIND === '1'
+        return {
+          enabled: input || envForced,
+          url: lanUrl(),
+          numericUrl: lanNumericUrl(),
+          error: lanBindError(),
+          envForced,
+          port: ifaceListenerPort(),
+        }
+      },
+    ),
 
-  funnelStatus: adminProcedure.query(async () => ({
-    ...(await funnelStatus()),
-    envForced: process.env.PORCELAIN_FUNNEL_BIND === '1',
-  })),
+  funnelStatus: adminProcedure
+    .input(procedureCatalog.funnelStatus.input)
+    .output(procedureCatalog.funnelStatus.output)
+    .query(async () => ({
+      ...(await funnelStatus()),
+      envForced: process.env.PORCELAIN_FUNNEL_BIND === '1',
+    })),
 
-  setFunnelBind: adminProcedure.input(z.boolean()).mutation(async ({ input }) => {
-    const status = input ? await startFunnel() : await stopFunnel()
-    await updateConfig((config) => ({ ...config, funnelBind: input }))
-    return { ...status, envForced: process.env.PORCELAIN_FUNNEL_BIND === '1' }
-  }),
+  setFunnelBind: adminProcedure
+    .input(procedureCatalog.setFunnelBind.input)
+    .output(procedureCatalog.setFunnelBind.output)
+    .mutation(async ({ input }) => {
+      const status = input ? await startFunnel() : await stopFunnel()
+      await updateConfig((config) => ({ ...config, funnelBind: input }))
+      return { ...status, envForced: process.env.PORCELAIN_FUNNEL_BIND === '1' }
+    }),
 })

@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { procedureCatalog } from '@porcelain/contracts'
 import { expectedFailure } from '../daemon-composition/expected-failure'
 import { toTrpcError } from '../daemon-composition/public-error'
 import { displayAdminTokenPath } from '../net/admin-token'
@@ -16,27 +16,29 @@ import { adminProcedure, publicProcedure, t } from '../trpc'
 export const daemonRouter = t.router({
   // The current daemon's build version and identity. One response gives the client
   // the machine label and the exact build serving the rest of the contract.
-  daemonInfo: publicProcedure.query((): { version: string } & DaemonIdentity => ({
-    version: daemonVersion(),
-    ...daemonIdentity(),
-  })),
+  daemonInfo: publicProcedure
+    .input(procedureCatalog.daemonInfo.input)
+    .output(procedureCatalog.daemonInfo.output)
+    .query((): { version: string } & DaemonIdentity => ({
+      version: daemonVersion(),
+      ...daemonIdentity(),
+    })),
 
   // Host access administration. These procedures are callable only with the
   // administrator credential held by the local Electron shell / host CLI.
   // Paired devices receive client identities and are rejected by the middleware.
-  accessStatus: adminProcedure.query(async () => ({
-    ...(await accessSnapshot()),
-    connected: clientSessionCount(),
-    adminTokenPath: displayAdminTokenPath(),
-  })),
+  accessStatus: adminProcedure
+    .input(procedureCatalog.accessStatus.input)
+    .output(procedureCatalog.accessStatus.output)
+    .query(async () => ({
+      ...(await accessSnapshot()),
+      connected: clientSessionCount(),
+      adminTokenPath: displayAdminTokenPath(),
+    })),
 
   issuePairingLink: adminProcedure
-    .input(
-      z.object({
-        label: z.string().trim().min(1).max(80),
-        baseUrl: z.string().url(),
-      }),
-    )
+    .input(procedureCatalog.issuePairingLink.input)
+    .output(procedureCatalog.issuePairingLink.output)
     .mutation(async ({ input }) => {
       const base = new URL(input.baseUrl)
       if (base.protocol !== 'http:' && base.protocol !== 'https:') {
@@ -51,18 +53,27 @@ export const daemonRouter = t.router({
       return { ...grant, url: base.toString() }
     }),
 
-  revokePairingLink: adminProcedure.input(z.string()).mutation(async ({ input }) => {
-    await revokePairingGrant(input)
-  }),
+  revokePairingLink: adminProcedure
+    .input(procedureCatalog.revokePairingLink.input)
+    .output(procedureCatalog.revokePairingLink.output)
+    .mutation(async ({ input }) => {
+      await revokePairingGrant(input)
+    }),
 
-  revokeAuthorizedClient: adminProcedure.input(z.string()).mutation(async ({ input }) => {
-    if (await revokeAuthorizedClient(input)) closeClientSessions(input)
-  }),
+  revokeAuthorizedClient: adminProcedure
+    .input(procedureCatalog.revokeAuthorizedClient.input)
+    .output(procedureCatalog.revokeAuthorizedClient.output)
+    .mutation(async ({ input }) => {
+      if (await revokeAuthorizedClient(input)) closeClientSessions(input)
+    }),
 
-  revokeCurrentClient: publicProcedure.mutation(async ({ ctx }) => {
-    if (ctx.auth.kind !== 'client') {
-      throw toTrpcError(expectedFailure('auth.forbidden'))
-    }
-    if (await revokeAuthorizedClient(ctx.auth.clientId)) closeClientSessions(ctx.auth.clientId)
-  }),
+  revokeCurrentClient: publicProcedure
+    .input(procedureCatalog.revokeCurrentClient.input)
+    .output(procedureCatalog.revokeCurrentClient.output)
+    .mutation(async ({ ctx }) => {
+      if (ctx.auth.kind !== 'client') {
+        throw toTrpcError(expectedFailure('auth.forbidden'))
+      }
+      if (await revokeAuthorizedClient(ctx.auth.clientId)) closeClientSessions(ctx.auth.clientId)
+    }),
 })

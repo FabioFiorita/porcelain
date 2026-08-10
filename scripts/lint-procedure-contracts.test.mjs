@@ -158,14 +158,26 @@ test('retains each router filename and complete procedure source block', () => {
   assert.match(procedure.block, /procedureCatalog\.boardCards\.output/)
 })
 
-test('accepts the exact current nine-file remaining ledger before router migration', () => {
+test('accepts the current remaining ledger beside every migrated router file', () => {
+  const unmigrated = procedureSource()
+  const migrated = procedureSource({
+    input: '.input(procedureCatalog.boardCards.input)',
+    output: '.output(procedureCatalog.boardCards.output)',
+  })
+  const routerSources = Object.fromEntries(
+    PRODUCTION_ROUTER_FILES.map((filename) => [
+      filename,
+      REMAINING_ROUTER_FILES.includes(filename) ? unmigrated : migrated,
+    ]),
+  )
   const procedures = PRODUCTION_ROUTER_FILES.flatMap((filename) =>
-    extractRouterProcedures(procedureSource(), filename),
+    extractRouterProcedures(routerSources[filename], filename),
   )
   assert.deepEqual(
     checkRouterValidationLedger({
       routerFiles: [...PRODUCTION_ROUTER_FILES],
       routerProcedures: procedures,
+      routerSources,
     }),
     [],
   )
@@ -183,10 +195,10 @@ test('rejects an unknown remaining router filename', () => {
 
 test('rejects a duplicate remaining router filename', () => {
   const fixture = migratedBoardFixture()
-  fixture.remainingRouterFiles.push('daemon.ts')
+  fixture.remainingRouterFiles.push('files.ts')
   assert.ok(
     checkRouterValidationLedger(fixture).some((failure) =>
-      failure.includes('remaining router filename appears more than once: daemon.ts'),
+      failure.includes('remaining router filename appears more than once: files.ts'),
     ),
   )
 })
