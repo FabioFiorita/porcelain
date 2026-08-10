@@ -1,3 +1,4 @@
+import { PROTOCOL_VERSION, PROTOCOL_VERSION_HEADER } from '@porcelain/contracts'
 import { setBrowserDaemonToken } from '@renderer/lib/daemon'
 import { isBrowser } from '@renderer/lib/platform'
 import { trpcClient } from '@renderer/lib/trpc'
@@ -51,7 +52,12 @@ export function useTokenGate(): TokenGate {
         try {
           const response = await fetch('/pair', {
             method: 'POST',
-            headers: { 'content-type': 'application/json' },
+            headers: {
+              'content-type': 'application/json',
+              // Pairing is unauthenticated but not unversioned: it crosses the same
+              // daemon boundary as every tRPC request and declares the same protocol.
+              [PROTOCOL_VERSION_HEADER]: String(PROTOCOL_VERSION),
+            },
             body: JSON.stringify({ credential: pairingCredential }),
           })
           if (!response.ok) throw new Error(`pairing failed (${response.status})`)

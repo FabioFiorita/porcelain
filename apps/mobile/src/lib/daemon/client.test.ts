@@ -1,6 +1,7 @@
+import { PROTOCOL_VERSION, PROTOCOL_VERSION_HEADER } from '@porcelain/contracts'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { createTimeoutFetch, PROBE_TIMEOUT_MS } from './client'
+import { createDaemonClient, createTimeoutFetch, PROBE_TIMEOUT_MS } from './client'
 
 function pendingFetchCapturingSignal(): {
   fetchImpl: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
@@ -117,5 +118,45 @@ describe('createTimeoutFetch', () => {
 
     await assertion
     expect(signal()?.aborted).toBe(true)
+  })
+})
+
+/**
+ * The daemon boundary reads a protocol version off every request, so the phone's transport has
+ * to send one on the same request it already sends — same URL, same batched body, same bearer
+ * token. A client that dropped the auth header while gaining the version header would trade a
+ * 426 for a 401 and look like a pairing bug.
+ */
+describe('createDaemonClient headers', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('sends the protocol version alongside the bearer token on a tRPC call', async () => {
+    let requestUrl = ''
+    let request: RequestInit | undefined
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        requestUrl = String(input)
+        request = init
+        return new Response(JSON.stringify([{ result: { data: { ok: true } } }]), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        })
+      }),
+    )
+
+    const client = createDaemonClient('http://beelink.local:43117', 'pc_client_abc')
+    await client.mutation('setRepoNote', { note: 'hi' })
+
+    const init = request
+    if (init === undefined) throw new Error('the transport made no request')
+    expect(requestUrl).toContain('http://beelink.local:43117/trpc/setRepoNote')
+    expect(init.method).toBe('POST')
+    expect(String(init.body)).toContain('"note":"hi"')
+    const headers = new Headers(init.headers)
+    expect(headers.get(PROTOCOL_VERSION_HEADER)).toBe(String(PROTOCOL_VERSION))
+    expect(headers.get('authorization')).toBe('Bearer pc_client_abc')
   })
 })

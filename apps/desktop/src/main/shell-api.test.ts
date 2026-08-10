@@ -1,0 +1,212 @@
+import { PROTOCOL_VERSION, PROTOCOL_VERSION_HEADER } from '@porcelain/contracts'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+import type { RemoteEnvironment, RemoteEnvironmentState } from './remote-daemon'
+
+// The shell router is Electron-shaped but every daemon request in it is plain `fetch`.
+// These mocks keep the native shell and the on-disk environment state out of the way so the
+// requests themselves are what the test observes.
+vi.mock('electron', () => ({
+  BrowserWindow: { fromWebContents: (): null => null, getAllWindows: (): [] => [] },
+  clipboard: { readImage: vi.fn(), readText: vi.fn(), writeText: vi.fn() },
+  nativeTheme: { shouldUseDarkColors: false, themeSource: 'system' },
+  shell: { showItemInFolder: vi.fn() },
+}))
+
+let state: RemoteEnvironmentState = { activeId: null, environments: [] }
+
+vi.mock('./daemon', () => ({
+  getDefaultEnvironmentId: (): null => null,
+  localDaemonPair: (): { url: string; token: string } => ({
+    url: 'http://127.0.0.1:43118',
+    token: 'pc_admin_local',
+  }),
+  reloadEnvironmentsCache: async (): Promise<RemoteEnvironmentState> => state,
+  setDefaultEnvironmentId: vi.fn(),
+  setWindowRemoteEndpoint: vi.fn(),
+  windowEnvironmentId: (): null => null,
+}))
+
+vi.mock('./local-terminal-paths', () => ({
+  loadLocalTerminalPaths: async (): Promise<{ paths: Record<string, string> }> => ({ paths: {} }),
+  localTerminalPathKey: (): string => 'key',
+  updateLocalTerminalPaths: vi.fn(),
+}))
+
+vi.mock('./skills-assets', () => ({
+  SKILLS_VERSION: '0.0.0-test',
+  skillsInstallCommand: (): string => 'install',
+  skillsUpgradeCommand: (): string => 'upgrade',
+}))
+
+vi.mock('./updater', () => ({
+  checkForUpdates: vi.fn(),
+  installUpdate: vi.fn(),
+  updateStatus: (): { state: 'idle' } => ({ state: 'idle' }),
+}))
+
+vi.mock('./window', () => ({
+  createWindow: vi.fn(),
+  switchWindowEnvironment: vi.fn(),
+  windowInitFor: vi.fn(),
+}))
+
+vi.mock('./remote-daemon', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./remote-daemon')>()
+  return {
+    ...actual,
+    loadRemoteEnvironmentState: async (): Promise<RemoteEnvironmentState> => state,
+    updateRemoteEnvironmentState: async (
+      update: (current: RemoteEnvironmentState) => RemoteEnvironmentState,
+    ): Promise<RemoteEnvironmentState> => {
+      state = update(state)
+      return state
+    },
+  }
+})
+
+const { shellRouter } = await import('./shell-api')
+
+const GRANT = `pc_pair_3f2a1c88-0f4d-4b6e-9a11-2c7d5e8b0a34_${'a'.repeat(64)}`
+const DAEMON_INFO = {
+  result: { data: { version: '1.0.0', host: 'synthetic-host', platform: 'linux', arch: 'x64' } },
+}
+
+interface SeenRequest {
+  url: string
+  method: string
+  body: string | null
+  headers: Headers
+}
+
+const seen: SeenRequest[] = []
+
+function stubDaemon(): void {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      seen.push({
+        url,
+        method: init?.method ?? 'GET',
+        body: typeof init?.body === 'string' ? init.body : null,
+        headers: new Headers(init?.headers),
+      })
+      if (url.endsWith('/pair')) {
+        return new Response(
+          JSON.stringify({
+            token: 'pc_client_remote',
+            client: { id: 'c1', label: 'Desktop', createdAt: '2026-01-01T00:00:00.000Z' },
+          }),
+          { status: 200 },
+        )
+      }
+      if (url.includes('/trpc/daemonInfo')) {
+        return new Response(JSON.stringify(DAEMON_INFO), { status: 200 })
+      }
+      if (url.includes('/trpc/revokeCurrentClient')) {
+        return new Response(JSON.stringify({ result: { data: null } }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        })
+      }
+      return new Response('{}', { status: 200 })
+    }),
+  )
+}
+
+function request(match: string): SeenRequest {
+  const found = seen.find((entry) => entry.url.includes(match))
+  if (found === undefined) throw new Error(`no request matched ${match}: ${seen.map((s) => s.url)}`)
+  return found
+}
+
+function expectsProtocol(entry: SeenRequest): void {
+  expect(entry.headers.get(PROTOCOL_VERSION_HEADER)).toBe(String(PROTOCOL_VERSION))
+}
+
+const caller = (): ReturnType<typeof shellRouter.createCaller> =>
+  // The procedures under test never touch the sender; the shell's window handle is mocked away.
+  shellRouter.createCaller({ sender: {} as never })
+
+beforeEach(() => {
+  seen.length = 0
+  state = { activeId: null, environments: [] }
+  stubDaemon()
+})
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
+
+/**
+ * The shell talks to daemons on four request shapes — redeem a connection link, probe with
+ * `recentRepos`, read identity with `daemonInfo`, revoke a temporary credential — and every
+ * one crosses the same versioned boundary. The interesting failure is a partial rollout: one
+ * of these keeping its old headers would make a healthy machine look like an outdated client
+ * only in the switcher, or only while pairing.
+ */
+describe('shell daemon requests', () => {
+  it('versions the pairing exchange and both authenticated probes', async () => {
+    const result = await caller().pairEnvironmentConnection({
+      connectionLink: `http://synthetic.local:43117/pair#token=${GRANT}`,
+      connectThisWindow: false,
+    })
+
+    expect(result.merged).toBe(false)
+
+    const pairing = request('/pair')
+    expect(pairing.url).toBe('http://synthetic.local:43117/pair')
+    expect(pairing.method).toBe('POST')
+    expect(pairing.body).toBe(JSON.stringify({ credential: GRANT }))
+    expect(pairing.headers.get('content-type')).toBe('application/json')
+    // Pairing is the unauthenticated exchange; the version must not have added a credential.
+    expect(pairing.headers.get('authorization')).toBeNull()
+    expectsProtocol(pairing)
+
+    const probe = request('/trpc/recentRepos')
+    expect(probe.method).toBe('GET')
+    expect(probe.headers.get('authorization')).toBe('Bearer pc_client_remote')
+    expectsProtocol(probe)
+
+    const identity = request('/trpc/daemonInfo')
+    expect(identity.method).toBe('GET')
+    expect(identity.headers.get('authorization')).toBe('Bearer pc_client_remote')
+    expectsProtocol(identity)
+  })
+
+  it('versions the tRPC revocation of a merged endpoint credential', async () => {
+    const twin: RemoteEnvironment = {
+      id: 'env-1',
+      name: 'Synthetic',
+      url: 'http://synthetic.local:43117',
+      token: 'pc_client_twin',
+      endpoints: ['http://synthetic.local:43117'],
+      preferredEndpoint: 'http://synthetic.local:43117',
+      host: 'synthetic-host',
+    }
+    state = { activeId: 'env-1', environments: [twin] }
+
+    const result = await caller().pairEnvironmentConnection({
+      connectionLink: `http://synthetic.tail1234.ts.net/pair#token=${GRANT}`,
+      connectThisWindow: false,
+    })
+
+    expect(result.merged).toBe(true)
+
+    const revoke = request('/trpc/revokeCurrentClient')
+    expect(revoke.method).toBe('POST')
+    // The one-shot pairing credential is what gets revoked — not the group's own token.
+    expect(revoke.headers.get('authorization')).toBe('Bearer pc_client_remote')
+    expectsProtocol(revoke)
+  })
+
+  it('versions the identity probe behind the environment switcher', async () => {
+    const statuses = await caller().environmentStatuses()
+
+    expect(statuses[0]?.state).toBe('online')
+    const identity = request('/trpc/daemonInfo')
+    expect(identity.headers.get('authorization')).toBe('Bearer pc_admin_local')
+    expectsProtocol(identity)
+  })
+})

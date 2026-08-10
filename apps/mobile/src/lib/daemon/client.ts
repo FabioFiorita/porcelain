@@ -1,4 +1,5 @@
 import { REQUEST_TIMEOUT_MS } from '@porcelain/client-runtime/session-protocol'
+import { PROTOCOL_VERSION, PROTOCOL_VERSION_HEADER } from '@porcelain/contracts'
 import { createTRPCUntypedClient, httpBatchLink } from '@trpc/client'
 import type { AnyTRPCRouter } from '@trpc/server'
 
@@ -67,7 +68,13 @@ export function createDaemonClient(
     links: [
       httpBatchLink({
         fetch: createTimeoutFetch(options?.timeoutMs ?? DEFAULT_TIMEOUT_MS),
-        headers: () => ({ authorization: `Bearer ${token}` }),
+        // The bearer token authenticates the request; the protocol header declares which
+        // wire this build speaks, so a phone that skipped an update fails clearly instead
+        // of sending shapes the daemon no longer accepts.
+        headers: () => ({
+          authorization: `Bearer ${token}`,
+          [PROTOCOL_VERSION_HEADER]: String(PROTOCOL_VERSION),
+        }),
         url: `${baseUrl}/trpc`,
       }),
     ],

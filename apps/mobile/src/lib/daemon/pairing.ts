@@ -1,3 +1,4 @@
+import { PROTOCOL_VERSION, PROTOCOL_VERSION_HEADER } from '@porcelain/contracts'
 import { z } from 'zod'
 
 import { DaemonError } from './errors'
@@ -76,7 +77,12 @@ export async function redeemPairingLink(link: PairingLink): Promise<string> {
   try {
     response = await fetch(`${link.baseUrl}/pair`, {
       body: JSON.stringify({ credential: link.credential }),
-      headers: { 'content-type': 'application/json' },
+      headers: {
+        'content-type': 'application/json',
+        // Unauthenticated, still versioned: pairing is the first request a phone makes,
+        // so a protocol mismatch should surface here rather than after a token exists.
+        [PROTOCOL_VERSION_HEADER]: String(PROTOCOL_VERSION),
+      },
       method: 'POST',
     })
   } catch (cause) {

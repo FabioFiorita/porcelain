@@ -1,5 +1,6 @@
 import type { AppRouter } from '@backend/api'
 import type { ShellRouter } from '@main/shell-api'
+import { PROTOCOL_VERSION, PROTOCOL_VERSION_HEADER } from '@porcelain/contracts'
 import type { PorcelainBridge } from '@preload/bridge'
 import { createTRPCClient, httpBatchLink, type TRPCLink } from '@trpc/client'
 import { createTRPCReact } from '@trpc/react-query'
@@ -49,8 +50,12 @@ function appLinksFor(baseUrl: () => string, token: () => string): TRPCLink<AppRo
       url: `${DAEMON_PLACEHOLDER}/trpc`,
       // Every daemon request carries the session token — the daemon 401s
       // without it (loopback is reachable by any local webpage; see the
-      // security note in backend/server.ts).
-      headers: () => ({ authorization: `Bearer ${token()}` }),
+      // security note in backend/server.ts) — and the protocol version this
+      // build speaks, which the daemon boundary checks before dispatching.
+      headers: () => ({
+        authorization: `Bearer ${token()}`,
+        [PROTOCOL_VERSION_HEADER]: String(PROTOCOL_VERSION),
+      }),
       fetch: (input: RequestInfo | URL, init?: RequestInit) =>
         fetch(rebaseTo(input, baseUrl()), init),
     }),

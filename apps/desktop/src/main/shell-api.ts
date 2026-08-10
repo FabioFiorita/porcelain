@@ -11,6 +11,7 @@ import {
   setWindowRemoteEndpoint,
   windowEnvironmentId,
 } from './daemon'
+import { daemonHeaders, protocolHeaders } from './daemon-headers'
 import {
   loadLocalTerminalPaths,
   localTerminalPathKey,
@@ -78,7 +79,7 @@ async function exchangePairingLink(link: string): Promise<{ url: string; token: 
   try {
     response = await fetch(`${url}/pair`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', ...protocolHeaders },
       body: JSON.stringify({ credential }),
       signal: AbortSignal.timeout(5000),
     })
@@ -110,7 +111,7 @@ async function probeDaemon(url: string, token: string): Promise<void> {
   let res: Response
   try {
     res = await fetch(`${url}/trpc/recentRepos`, {
-      headers: { authorization: `Bearer ${token}` },
+      headers: daemonHeaders(token),
       signal: AbortSignal.timeout(5000),
     })
   } catch {
@@ -125,7 +126,7 @@ async function revokeClientCredential(url: string, token: string): Promise<void>
     links: [
       httpLink({
         url: `${url}/trpc`,
-        headers: { authorization: `Bearer ${token}` },
+        headers: daemonHeaders(token),
       }),
     ],
   })
@@ -188,11 +189,10 @@ async function probeEnvironment(
   url: string,
   token: string,
 ): Promise<Omit<EnvironmentStatus, 'id' | 'endpoint'>> {
-  const authed = { authorization: `Bearer ${token}` }
   let res: Response
   try {
     res = await fetch(`${url}/trpc/daemonInfo`, {
-      headers: authed,
+      headers: daemonHeaders(token),
       signal: AbortSignal.timeout(STATUS_PROBE_TIMEOUT_MS),
     })
   } catch {

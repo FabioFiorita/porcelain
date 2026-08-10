@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest'
+import { PROTOCOL_VERSION, PROTOCOL_VERSION_HEADER } from '@porcelain/contracts'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { parsePairingLink } from './pairing'
+import { parsePairingLink, redeemPairingLink } from './pairing'
 
 const GRANT = `pc_pair_3f2a1c88-0f4d-4b6e-9a11-2c7d5e8b0a34_${'a'.repeat(64)}`
 
@@ -79,5 +80,47 @@ describe('parsePairingLink', () => {
       ok: false,
       problem: 'foreign-token',
     })
+  })
+})
+
+/**
+ * Pairing is the only request this app makes without a bearer token, which is exactly why it
+ * must still declare the protocol: it is the first thing a phone says to a daemon. The header
+ * rides alongside the existing request — same URL, same JSON body, same content type — because
+ * a version declaration that altered the exchange would be a second pairing protocol.
+ */
+describe('redeemPairingLink', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('sends the shared protocol header without disturbing the pairing request', async () => {
+    let requestUrl = ''
+    let request: RequestInit | undefined
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        requestUrl = String(input)
+        request = init
+        return new Response(JSON.stringify({ token: 'pc_client_abc' }), { status: 200 })
+      }),
+    )
+
+    const token = await redeemPairingLink({
+      baseUrl: 'http://beelink.local:43117',
+      credential: GRANT,
+    })
+
+    expect(token).toBe('pc_client_abc')
+    const init = request
+    if (init === undefined) throw new Error('pairing made no request')
+    expect(requestUrl).toBe('http://beelink.local:43117/pair')
+    expect(init.method).toBe('POST')
+    expect(init.body).toBe(JSON.stringify({ credential: GRANT }))
+    const headers = new Headers(init.headers)
+    expect(headers.get(PROTOCOL_VERSION_HEADER)).toBe(String(PROTOCOL_VERSION))
+    expect(headers.get('content-type')).toBe('application/json')
+    // Redeeming a grant is unauthenticated by design; the header must not have added one.
+    expect(headers.get('authorization')).toBeNull()
   })
 })
