@@ -41,7 +41,6 @@ export const REMAINING_ROUTER_FILES = [
   'board.ts',
   'files.ts',
   'git.ts',
-  'repos.ts',
   'review.ts',
   'settings.ts',
   'terminal.ts',
