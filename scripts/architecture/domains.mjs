@@ -76,7 +76,3 @@ export const WEB_SERVER_IMPORT_BASELINE = Object.freeze({
   occurrences: 118,
   files: 96,
 })
-
-export const LEGACY_FOUNDATION_APP_IMPORTS = new Set([
-  'packages/contracts/src/router.ts:@backend/api',
-])

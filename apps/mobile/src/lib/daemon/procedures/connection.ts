@@ -1,8 +1,5 @@
-import {
-  browseDirsOutputSchema,
-  daemonInfoOutputSchema,
-  repoInfoSchema,
-} from '@porcelain/contracts'
+import { browseDirsOutputSchema, repoInfoSchema } from '@porcelain/contracts/projects'
+import { daemonInfoOutputSchema } from '@porcelain/contracts/remote'
 import { z } from 'zod'
 
 import { defineMutation, defineQuery } from '../procedure'

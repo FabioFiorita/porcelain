@@ -1,5 +1,4 @@
 import type { ProcedureContract } from '../procedure-contract'
-import type { ProcedureName } from '../procedures/names'
 import {
   searchCodeInputSchema,
   searchCodeOutputSchema,
@@ -30,7 +29,7 @@ const searchProcedureDefinitions = {
   },
 } as const
 
-export type SearchProcedureName = Extract<keyof typeof searchProcedureDefinitions, ProcedureName>
+export type SearchProcedureName = keyof typeof searchProcedureDefinitions
 
 export const searchProcedures = searchProcedureDefinitions satisfies Record<
   SearchProcedureName,

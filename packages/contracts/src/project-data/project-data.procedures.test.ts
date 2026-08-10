@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import { unmigratedProcedureLedger, unmigratedProcedureNames } from '../procedure-ledger'
 import {
   COMPANION_DISPOSITION_VALUES,
   channelDispositionSchema,
@@ -177,10 +176,5 @@ describe('Project Data procedure contracts', () => {
 
   it('keeps the notes mutation result void', () => {
     expect(projectDataProcedures.setRepoNotes.output.safeParse(undefined).success).toBe(true)
-  })
-
-  it('leaves the transitional ledger empty for Project Data', () => {
-    expect(unmigratedProcedureLedger['project-data']).toEqual([])
-    expect(unmigratedProcedureNames).toEqual([])
   })
 })

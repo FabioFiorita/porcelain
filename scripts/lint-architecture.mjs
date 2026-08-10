@@ -7,7 +7,6 @@ import {
   DOMAIN_KEYS,
   DOMAIN_MIGRATIONS,
   LEGACY_FEATURE_DIRECTORIES,
-  LEGACY_FOUNDATION_APP_IMPORTS,
   OVERSIZED_PRODUCTION_FILES,
   SUPPORTING_REGIONS,
   TARGET_DOMAIN_ROOTS,
@@ -269,10 +268,7 @@ export function checkArchitecture(root, migrations = DOMAIN_MIGRATIONS) {
           specifier.startsWith('@main/') ||
           specifier.startsWith('@porcelain/client-runtime')
         ) {
-          const legacyKey = `${file}:${specifier}`
-          if (!LEGACY_FOUNDATION_APP_IMPORTS.has(legacyKey)) {
-            fail(`${file} crosses from a foundation package into an application: ${specifier}`)
-          }
+          fail(`${file} crosses from a foundation package into an application: ${specifier}`)
         }
       }
     }
@@ -411,20 +407,6 @@ export function checkArchitecture(root, migrations = DOMAIN_MIGRATIONS) {
         fail(`${file} no longer exists; remove its ${cap}-line legacy cap`)
     } catch {
       fail(`${file} no longer exists; remove its ${cap}-line legacy cap`)
-    }
-  }
-
-  for (const legacyImport of LEGACY_FOUNDATION_APP_IMPORTS) {
-    const separator = legacyImport.indexOf(':')
-    const file = legacyImport.slice(0, separator)
-    const specifier = legacyImport.slice(separator + 1)
-    try {
-      const source = readFileSync(path.join(root, file), 'utf8')
-      if (!importSpecifiers(source).includes(specifier)) {
-        fail(`${legacyImport} is gone; remove its foundation-import legacy entry`)
-      }
-    } catch {
-      fail(`${legacyImport} is gone; remove its foundation-import legacy entry`)
     }
   }
 

@@ -1,5 +1,4 @@
 import type { ProcedureContract } from '../procedure-contract'
-import type { ProcedureName } from '../procedures/names'
 import {
   companionDispositionsInputSchema,
   companionDispositionsOutputSchema,
@@ -54,10 +53,7 @@ const projectDataProcedureDefinitions = {
   },
 } as const
 
-export type ProjectDataProcedureName = Extract<
-  keyof typeof projectDataProcedureDefinitions,
-  ProcedureName
->
+export type ProjectDataProcedureName = keyof typeof projectDataProcedureDefinitions
 
 export const projectDataProcedures = projectDataProcedureDefinitions satisfies Record<
   ProjectDataProcedureName,

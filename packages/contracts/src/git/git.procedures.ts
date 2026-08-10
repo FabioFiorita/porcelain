@@ -1,5 +1,4 @@
 import type { ProcedureContract } from '../procedure-contract'
-import type { ProcedureName } from '../procedures/names'
 import {
   commitModelsInputSchema,
   commitModelsOutputSchema,
@@ -226,7 +225,7 @@ const gitProcedureDefinitions = {
   },
 } as const
 
-export type GitProcedureName = Extract<keyof typeof gitProcedureDefinitions, ProcedureName>
+export type GitProcedureName = keyof typeof gitProcedureDefinitions
 
 export const gitProcedures = gitProcedureDefinitions satisfies Record<
   GitProcedureName,

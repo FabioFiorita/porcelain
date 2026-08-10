@@ -1,5 +1,4 @@
 import type { ProcedureContract } from '../procedure-contract'
-import type { ProcedureName } from '../procedures/names'
 import {
   browseDirsInputSchema,
   browseDirsOutputSchema,
@@ -38,10 +37,7 @@ const projectsProcedureDefinitions = {
   },
 } as const
 
-export type ProjectsProcedureName = Extract<
-  keyof typeof projectsProcedureDefinitions,
-  ProcedureName
->
+export type ProjectsProcedureName = keyof typeof projectsProcedureDefinitions
 
 export const projectsProcedures = projectsProcedureDefinitions satisfies Record<
   ProjectsProcedureName,

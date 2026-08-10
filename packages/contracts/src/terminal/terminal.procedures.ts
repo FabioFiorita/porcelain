@@ -1,5 +1,4 @@
 import type { ProcedureContract } from '../procedure-contract'
-import type { ProcedureName } from '../procedures/names'
 import {
   renameTerminalInputSchema,
   renameTerminalOutputSchema,
@@ -22,10 +21,7 @@ const terminalProcedureDefinitions = {
   },
 } as const
 
-export type TerminalProcedureName = Extract<
-  keyof typeof terminalProcedureDefinitions,
-  ProcedureName
->
+export type TerminalProcedureName = keyof typeof terminalProcedureDefinitions
 
 export const terminalProcedures = terminalProcedureDefinitions satisfies Record<
   TerminalProcedureName,

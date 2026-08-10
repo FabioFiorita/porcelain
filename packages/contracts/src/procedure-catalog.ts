@@ -9,6 +9,10 @@ import { reviewProcedures } from './review'
 import { searchProcedures } from './search'
 import { terminalProcedures } from './terminal'
 
+/**
+ * The only public procedure truth: the ten domain records composed into one flat frozen catalog.
+ * Names, kinds, and schemas are owned by the domain records; nothing here is manufactured locally.
+ */
 export const procedureCatalog = Object.freeze({
   ...remoteProcedures,
   ...projectsProcedures,
@@ -21,3 +25,5 @@ export const procedureCatalog = Object.freeze({
   ...terminalProcedures,
   ...projectDataProcedures,
 })
+
+export type ProcedureName = keyof typeof procedureCatalog

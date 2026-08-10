@@ -1,5 +1,4 @@
 import type { ProcedureContract } from '../procedure-contract'
-import type { ProcedureName } from '../procedures/names'
 import {
   accessStatusInputSchema,
   accessStatusOutputSchema,
@@ -102,7 +101,7 @@ const remoteProcedureDefinitions = {
   },
 } as const
 
-export type RemoteProcedureName = Extract<keyof typeof remoteProcedureDefinitions, ProcedureName>
+export type RemoteProcedureName = keyof typeof remoteProcedureDefinitions
 
 export const remoteProcedures = remoteProcedureDefinitions satisfies Record<
   RemoteProcedureName,

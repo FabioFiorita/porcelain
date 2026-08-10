@@ -1,5 +1,4 @@
 import type { ProcedureContract } from '../procedure-contract'
-import type { ProcedureName } from '../procedures/names'
 import {
   createFileInputSchema,
   createFileOutputSchema,
@@ -111,7 +110,7 @@ const filesProcedureDefinitions = {
   },
 } as const
 
-export type FilesProcedureName = Extract<keyof typeof filesProcedureDefinitions, ProcedureName>
+export type FilesProcedureName = keyof typeof filesProcedureDefinitions
 
 export const filesProcedures = filesProcedureDefinitions satisfies Record<
   FilesProcedureName,

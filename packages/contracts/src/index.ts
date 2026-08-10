@@ -1,4 +1,5 @@
-// Wire protocol + leaf types + full procedure I/O catalog (zod only).
+// Wire protocol + leaf types + the composed procedure catalog (zod only).
+// Domain schemas are imported from their own subpath (`@porcelain/contracts/<domain>`).
 // AppRouter type lives on the daemon (`@backend/api` / apps/daemon) — contracts
 // must never import apps/* (architecture charter).
 
@@ -43,26 +44,7 @@ export {
   stateConflictErrorSchema,
 } from './errors'
 export { type HeadRef, headLabel } from './head'
-export { procedureCatalog } from './procedure-catalog'
-export {
-  actionSchema,
-  boardCardSchema,
-  browseDirsOutputSchema,
-  daemonInfoOutputSchema,
-  dirEntrySchema,
-  fileViewSchema,
-  flowGroupSchema,
-  headRefSchema,
-  PROCEDURE_NAMES,
-  type ProcedureIo,
-  type ProcedureName,
-  procedureIo,
-  procedureNames,
-  refinedProcedureIo,
-  repoInfoSchema,
-  reviewCommentSchema,
-  terminalInfoSchema,
-} from './procedures'
+export { type ProcedureName, procedureCatalog } from './procedure-catalog'
 export {
   type AppEvent,
   appEventSchema,

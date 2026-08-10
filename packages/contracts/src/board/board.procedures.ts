@@ -1,5 +1,4 @@
 import type { ProcedureContract } from '../procedure-contract'
-import type { ProcedureName } from '../procedures/names'
 import {
   addBoardCardInputSchema,
   addBoardCardOutputSchema,
@@ -54,7 +53,7 @@ const boardProcedureDefinitions = {
   },
 } as const
 
-export type BoardProcedureName = Extract<keyof typeof boardProcedureDefinitions, ProcedureName>
+export type BoardProcedureName = keyof typeof boardProcedureDefinitions
 
 export const boardProcedures = boardProcedureDefinitions satisfies Record<
   BoardProcedureName,

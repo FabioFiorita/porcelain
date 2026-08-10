@@ -26,7 +26,7 @@ apps/
   mobile/     @porcelain/mobile     Expo iOS
 
 packages/
-  contracts/       wire protocol + public procedure catalog (113 names; 63 refined I/O)
+  contracts/       wire protocol + ten-domain procedure catalog (113 exact I/O schemas)
   client-runtime/  non-UI client core (session protocol, keys, word-diff)
   shared/          pure cross-cutting helpers (home, platform, ids, …)
 ```
@@ -56,7 +56,7 @@ shared         →  (none)
 Hard rules:
 
 1. **Contracts never import apps.** Procedure I/O lives in contracts.
-2. **One wire.** Clients share procedureIo / refined schemas; drift linted.
+2. **One wire.** Clients share the ten domain records composed into `procedureCatalog`; drift linted.
 3. **Daemon always.** Local and remote share one code path. No in-process shell backend.
 4. **Independent builds.** Daemon and CLI without electron-vite; web has its own Vite pipeline.
 5. **One terminal-native exception.** `apps/mobile/modules/porcelain-terminal` is the sole native
@@ -77,7 +77,7 @@ Canonical stamp: `apps/desktop/package.json` (electron-builder) until release pr
 | 1 | No daemon / CLI / web business logic under `apps/desktop` | **Done** (only main/preload/packaging) |
 | 2 | Daemon and CLI build without electron-vite | **Done** (`build-node.mjs`) |
 | 3 | Web builds with its own Vite pipeline | **Done** (`apps/web` vite) |
-| 4 | Contracts: no application imports; exhaustive exact procedure I/O | **In progress** (113 names, 63 refined; one legacy app-type tombstone and 50 unknown fallbacks are ratcheted debt) |
+| 4 | Contracts: no application imports; exhaustive exact procedure I/O | **Done** (ten domain records compose 113 exact input/output schemas; no horizontal names list, fallback I/O, or app-type tombstone remains) |
 | 5 | client-runtime shared nonvisual semantics; platform adapters stay per app | **In progress** (pure protocol/keys/word-diff leaves exist; query, mutation, notification, error, and session state semantics are not shared yet) |
 | 6 | All package versions identical via sync-versions | **Done** |
 | 7 | Linux default = daemon + web | **Done** (docs + packaging story) |
@@ -85,8 +85,6 @@ Canonical stamp: `apps/desktop/package.json` (electron-builder) until release pr
 
 Residual (not blockers for resuming product work):
 
-- Daemon routers still author Zod inputs locally; completed domain cutovers consume exhaustive
-  contracts and delete the router-local copy.
 - Mobile still has local Zod procedure mirrors. They are deleted by domain cutovers, not extended.
 - Two word-diff algorithms in client-runtime (line vs tokens) — intentional presentation split.
 - Runtime artifacts still land under `apps/desktop/out/` for shell spawn + dist-daemon layout.

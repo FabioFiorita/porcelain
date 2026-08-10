@@ -291,6 +291,28 @@ test('migration paths must be unique normalized repository-relative POSIX string
   )
 })
 
+test('a foundation package importing an application fails unconditionally', () => {
+  withFixtureRepo(
+    (root) => {
+      writeFixtureFile(
+        root,
+        'packages/contracts/src/router.ts',
+        "import type { AppRouter } from '@backend/api'\nexport type Router = AppRouter\n",
+      )
+    },
+    (root) => {
+      const failures = checkArchitecture(root, buildMigrations())
+      assert.ok(
+        failures.some((failure) =>
+          /packages\/contracts\/src\/router\.ts crosses from a foundation package into an application: @backend\/api/.test(
+            failure,
+          ),
+        ),
+      )
+    },
+  )
+})
+
 test('a complete domain fails while its recorded legacy path still exists', () => {
   withFixtureRepo(
     (root) => {

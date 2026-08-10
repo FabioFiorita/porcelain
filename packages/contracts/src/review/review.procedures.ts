@@ -1,5 +1,4 @@
 import type { ProcedureContract } from '../procedure-contract'
-import type { ProcedureName } from '../procedures/names'
 import {
   addReviewCommentInputSchema,
   archivedReviewsOutputSchema,
@@ -213,7 +212,7 @@ const reviewProcedureDefinitions = {
   },
 } as const
 
-export type ReviewProcedureName = Extract<keyof typeof reviewProcedureDefinitions, ProcedureName>
+export type ReviewProcedureName = keyof typeof reviewProcedureDefinitions
 
 export const reviewProcedures = reviewProcedureDefinitions satisfies Record<
   ReviewProcedureName,
