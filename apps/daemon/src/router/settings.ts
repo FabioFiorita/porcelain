@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { procedureCatalog } from '@porcelain/contracts'
 import { listCommitModels } from '../git/commit-generation'
 import {
   type ChannelDisposition,
@@ -14,56 +14,44 @@ import { readNotes, writeNotes } from '../stores/notes-store'
 import { type RepoScope, readRepoScope } from '../stores/scope-store'
 import { publicProcedure, t } from '../trpc'
 
-function isValidPattern(pattern: string): boolean {
-  try {
-    new RegExp(pattern)
-    return true
-  } catch {
-    return false
-  }
-}
-
 export const settingsRouter = t.router({
-  commitModels: publicProcedure.query(() => listCommitModels()),
+  commitModels: publicProcedure
+    .input(procedureCatalog.commitModels.input)
+    .output(procedureCatalog.commitModels.output)
+    .query(() => listCommitModels()),
 
   repoLayers: publicProcedure
-    .input(z.string())
+    .input(procedureCatalog.repoLayers.input)
+    .output(procedureCatalog.repoLayers.output)
     .query(async ({ input }): Promise<{ layers: Layer[]; custom: boolean }> => {
       const stored = await readLayers(input)
       return { layers: stored ?? DEFAULT_LAYERS, custom: stored !== null }
     }),
 
+  // null layers clear the override back to the Docs + Agents starters
   setRepoLayers: publicProcedure
-    .input(
-      z.object({
-        repoPath: z.string(),
-        // null clears the override back to the Docs + Agents starters
-        layers: z
-          .array(
-            z.object({
-              label: z.string().trim().min(1),
-              pattern: z.string().min(1).refine(isValidPattern, 'invalid regular expression'),
-            }),
-          )
-          .min(1)
-          .nullable(),
-      }),
-    )
+    .input(procedureCatalog.setRepoLayers.input)
+    .output(procedureCatalog.setRepoLayers.output)
     .mutation(async ({ input }) => {
       await writeLayers(input.repoPath, input.layers)
     }),
 
   /** Monorepo hide/pin lists for this repo (empty arrays when never configured). */
-  repoScope: publicProcedure.input(z.string()).query(async ({ input }): Promise<RepoScope> => {
-    return readRepoScope(input)
-  }),
+  repoScope: publicProcedure
+    .input(procedureCatalog.repoScope.input)
+    .output(procedureCatalog.repoScope.output)
+    .query(async ({ input }): Promise<RepoScope> => {
+      return readRepoScope(input)
+    }),
 
   repoNotes: publicProcedure
-    .input(z.string())
+    .input(procedureCatalog.repoNotes.input)
+    .output(procedureCatalog.repoNotes.output)
     .query(({ input }): Promise<string> => readNotes(input)),
 
   setRepoNotes: publicProcedure
-    .input(z.object({ repoPath: z.string(), notes: z.string() }))
+    .input(procedureCatalog.setRepoNotes.input)
+    .output(procedureCatalog.setRepoNotes.output)
     .mutation(async ({ input }) => {
       await writeNotes(input.repoPath, input.notes)
     }),
@@ -74,7 +62,8 @@ export const settingsRouter = t.router({
    * carries it. See `project/companion-disposition.ts` for why.
    */
   companionDispositions: publicProcedure
-    .input(z.string())
+    .input(procedureCatalog.companionDispositions.input)
+    .output(procedureCatalog.companionDispositions.output)
     .query(({ input }): Promise<ChannelDisposition[]> => readChannelDispositions(input)),
 
   /**
@@ -83,11 +72,13 @@ export const settingsRouter = t.router({
    * until the human shares something. See `project/git-exclude.ts`.
    */
   companionGitVisibility: publicProcedure
-    .input(z.string())
+    .input(procedureCatalog.companionGitVisibility.input)
+    .output(procedureCatalog.companionGitVisibility.output)
     .query(({ input }): Promise<{ hidden: boolean }> => readCompanionGitVisibility(input)),
 
   setCompanionGitVisibility: publicProcedure
-    .input(z.object({ repoPath: z.string(), hidden: z.boolean() }))
+    .input(procedureCatalog.setCompanionGitVisibility.input)
+    .output(procedureCatalog.setCompanionGitVisibility.output)
     .mutation(async ({ input }): Promise<{ changed: boolean }> => {
       const changed = input.hidden
         ? await hideCompanion(input.repoPath)
@@ -96,13 +87,8 @@ export const settingsRouter = t.router({
     }),
 
   setCompanionDisposition: publicProcedure
-    .input(
-      z.object({
-        repoPath: z.string(),
-        key: z.string().min(1),
-        disposition: z.enum(['shared', 'local']),
-      }),
-    )
+    .input(procedureCatalog.setCompanionDisposition.input)
+    .output(procedureCatalog.setCompanionDisposition.output)
     .mutation(
       ({ input }): Promise<SetDispositionResult> =>
         setChannelDisposition(input.repoPath, input.key, input.disposition),
