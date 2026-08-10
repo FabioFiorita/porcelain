@@ -33,7 +33,7 @@ an external choice or authorization.
 | `CON-015` | Landed | Remaining Files and Search router procedures adopt exact contracts |
 | `CON-016` | Landed | Git router procedures and Review inbox adopt exact contracts |
 | `CON-017` | Landed | Review router procedures and Git diff reading adopt exact contracts |
-| `CON-018` | Queued | Board router procedures adopt exact contracts |
+| `CON-018` | Landed | Board router procedures adopt exact contracts |
 | `CON-019` | Queued | Settings-owned cross-domain procedures adopt exact contracts |
 | `CON-020` | Queued | Actions and Terminal router procedures adopt exact contracts |
 | `CON-021` | Queued | Delete horizontal contracts and make catalog exhaustiveness permanent |

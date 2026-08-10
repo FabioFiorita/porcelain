@@ -1,8 +1,7 @@
-import { z } from 'zod'
+import { procedureCatalog } from '@porcelain/contracts'
 import {
   addCard,
   type BoardCard,
-  CARD_STATUSES,
   clearCards,
   deleteCard,
   moveCard,
@@ -16,45 +15,37 @@ export const boardRouter = t.router({
   // stored in <repo>/.porcelain/board.json (see `board-store.ts`); a two-way channel the
   // agent reads (`board list`) and mutates (`board create/update/move/delete`) via the CLI.
   boardCards: publicProcedure
-    .input(z.string())
+    .input(procedureCatalog.boardCards.input)
+    .output(procedureCatalog.boardCards.output)
     .query(({ input }): Promise<BoardCard[]> => readCards(input)),
 
   addBoardCard: publicProcedure
-    .input(
-      z.object({
-        repoPath: z.string(),
-        title: z.string().min(1),
-        body: z.string().optional(),
-        status: z.enum(CARD_STATUSES).optional(),
-      }),
-    )
+    .input(procedureCatalog.addBoardCard.input)
+    .output(procedureCatalog.addBoardCard.output)
     .mutation(({ input }): Promise<BoardCard> => {
       const { repoPath, ...card } = input
       return addCard(repoPath, card)
     }),
 
   updateBoardCard: publicProcedure
-    .input(
-      z.object({
-        repoPath: z.string(),
-        id: z.string(),
-        title: z.string().min(1).optional(),
-        body: z.string().optional(),
-      }),
-    )
+    .input(procedureCatalog.updateBoardCard.input)
+    .output(procedureCatalog.updateBoardCard.output)
     .mutation(({ input }) =>
       updateCard(input.repoPath, input.id, { title: input.title, body: input.body }),
     ),
 
   moveBoardCard: publicProcedure
-    .input(z.object({ repoPath: z.string(), id: z.string(), status: z.enum(CARD_STATUSES) }))
+    .input(procedureCatalog.moveBoardCard.input)
+    .output(procedureCatalog.moveBoardCard.output)
     .mutation(({ input }) => moveCard(input.repoPath, input.id, input.status)),
 
   deleteBoardCard: publicProcedure
-    .input(z.object({ repoPath: z.string(), id: z.string() }))
+    .input(procedureCatalog.deleteBoardCard.input)
+    .output(procedureCatalog.deleteBoardCard.output)
     .mutation(({ input }) => deleteCard(input.repoPath, input.id)),
 
   clearBoardCards: publicProcedure
-    .input(z.object({ repoPath: z.string(), status: z.enum(CARD_STATUSES) }))
+    .input(procedureCatalog.clearBoardCards.input)
+    .output(procedureCatalog.clearBoardCards.output)
     .mutation(({ input }) => clearCards(input.repoPath, input.status)),
 })
