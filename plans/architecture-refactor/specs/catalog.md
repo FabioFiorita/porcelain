@@ -41,7 +41,7 @@ an external choice or authorization.
 | `PRO-002` | Landed | Repository-owned HTTP/pairing adapters send the shared version header |
 | `PRO-003` | Queued | Strict session hello/ready/mismatch contract and pure decision |
 | `PRO-004` | Draft | Daemon enforces the version header after owned callers send it |
-| `RT-001` | Ready | Typed notification, watch, session, and stateful-stream contracts |
+| `RT-001` | Landed | Typed notification, watch, session, and stateful-stream contracts |
 | `RT-002` | Draft | Daemon publisher, target gateway, and bounded watch management |
 | `RT-003` | Draft | Shared client recovery and declarative Files-interest runtime |
 | `RT-004` | Draft | Web binds to target realtime runtime while mobile legacy remains bounded |

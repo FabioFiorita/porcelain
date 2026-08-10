@@ -15,7 +15,8 @@
     "./board": "./src/board/index.ts",
     "./actions": "./src/actions/index.ts",
     "./terminal": "./src/terminal/index.ts",
-    "./project-data": "./src/project-data/index.ts"
+    "./project-data": "./src/project-data/index.ts",
+    "./session": "./src/session/index.ts"
   },
   "dependencies": {
     "zod": "^4.4.3"
