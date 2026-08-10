@@ -37,7 +37,7 @@ an external choice or authorization.
 | `CON-019` | Landed | Settings-owned cross-domain procedures adopt exact contracts |
 | `CON-020` | Landed | Actions and Terminal router procedures adopt exact contracts |
 | `CON-021` | Landed | Delete horizontal contracts and make catalog exhaustiveness permanent |
-| `PRO-001` | Draft | Protocol-v1 contract and daemon-info field without request enforcement |
+| `PRO-001` | Ready | Protocol-v1 contract and daemon-info field without request enforcement |
 | `PRO-002` | Draft | Repository-owned HTTP/pairing adapters send the shared version header |
 | `PRO-003` | Draft | Strict session hello/ready/mismatch contract and pure decision |
 | `PRO-004` | Draft | Daemon enforces the version header after owned callers send it |
