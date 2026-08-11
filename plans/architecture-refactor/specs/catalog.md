@@ -73,7 +73,7 @@ an external choice or authorization.
 | `FIL-001` | Landed | Canonical file read/write/tree/pin/scope contracts and expected failures |
 | `FIL-002` | Landed | Safe-path/read-limit Files capabilities, operations, and filesystem adapter proof |
 | `FIL-003` | Landed | Declarative bounded watches and typed successful-change facts |
-| `FIL-004` | Draft | Shared Files query/mutation/watch/recovery semantics |
+| `FIL-004` | Ready | Shared Files query/mutation/watch/recovery semantics |
 | `FIL-005` | Draft | Web Files adapter and Viewer seam remove raw daemon models |
 | `FIL-006` | Draft | Mobile Files adapter deletes local schemas and string invalidations |
 | `GIT-001` | Draft | Checkout/add-worktree/status/branches/worktrees contracts and failures |
