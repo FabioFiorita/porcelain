@@ -46,7 +46,7 @@ an external choice or authorization.
 | `RT-003` | Landed | Shared client recovery and declarative Files-interest runtime |
 | `RT-004` | Landed | Web binds to target realtime runtime while mobile legacy remains bounded |
 | `RT-005` | Draft | Mobile binds and deletes the entire legacy realtime path |
-| `TST-001` | Ready | Contract fixture builders and transport-independent validating daemon mock |
+| `TST-001` | Landed | Contract fixture builders and transport-independent validating daemon mock |
 | `DAE-001` | Draft | Explicit capability construction and bound-operation router context |
 | `TST-002` | Draft | Operation fake conventions and controlled adapter integration fixtures |
 | `DAT-001` | Draft | Strict version-1 persisted-envelope and atomic/corruption adapter conventions |

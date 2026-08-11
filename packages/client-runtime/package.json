@@ -15,6 +15,7 @@
     "./session/client-runtime": "./src/session/client-runtime.ts",
     "./session/interests": "./src/session/interests.ts",
     "./session/recovery": "./src/session/recovery.ts",
+    "./testing/daemon-mock": "./src/testing/daemon-mock.ts",
     "./word-diff-line": "./src/word-diff-line.ts",
     "./word-diff-tokens": "./src/word-diff-tokens.ts"
   },

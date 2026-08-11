@@ -36,6 +36,9 @@ export default defineConfig({
       '@porcelain/client-runtime/session-protocol': resolve(
         '../../packages/client-runtime/src/session-protocol.ts',
       ),
+      '@porcelain/client-runtime/testing/daemon-mock': resolve(
+        '../../packages/client-runtime/src/testing/daemon-mock.ts',
+      ),
       '@porcelain/client-runtime/word-diff-line': resolve(
         '../../packages/client-runtime/src/word-diff-line.ts',
       ),
