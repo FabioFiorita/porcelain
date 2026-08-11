@@ -1,4 +1,3 @@
-import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import {
   attachTerminalFiles,
   chooseTerminalFiles,
@@ -278,10 +277,8 @@ export function receiveData(id: string, data: string): void {
   seeded.add(id)
   const instance = recordFor(id)
   const visible = instance.osc52.process(data, (text) => {
-    // A copy that quietly fails is a bug: the clipboard write must own its error.
-    copyText(text).catch((error: unknown) => {
-      toastUserActionError('Copy to clipboard', error)
-    })
+    // OSC52 auto-copy is program-driven, not a user action: settle, don't toast.
+    settleBackground(copyText(text), 'clipboard')
   })
   if (visible === '') return
   if (instance.surface) instance.surface.write(visible)
