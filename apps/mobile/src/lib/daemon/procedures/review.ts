@@ -152,23 +152,6 @@ const featureReadingSchema = z.object({
   evidence: evidenceMetaSchema.nullable(),
 })
 
-const reviewCommentSchema = z.object({
-  id: z.string(),
-  path: z.string(),
-  startLine: z.number().optional(),
-  endLine: z.number().optional(),
-  anchorText: z.string().optional(),
-  body: z.string(),
-  resolved: z.boolean(),
-  createdAt: z.number(),
-  agentReply: z
-    .object({
-      body: z.string(),
-      createdAt: z.number(),
-    })
-    .optional(),
-})
-
 /**
  * Intent (and extra Evidence) documents: `.porcelain/intent/` and the files beside
  * `evidence/index.html`, rendered as ordered tabs.
@@ -228,7 +211,6 @@ export type IntentDoc = z.infer<typeof intentDocSchema>
 export type PublishCost = z.infer<typeof publishCostSchema>
 export type PublishResult = z.infer<typeof publishResultSchema>
 export type ArchivedReview = z.infer<typeof archivedReviewSchema>
-export type ReviewComment = z.infer<typeof reviewCommentSchema>
 
 export const featureViewQuery = defineQuery<string, FeatureView | null>(
   'featureView',
@@ -328,46 +310,3 @@ export const clearFeatureReviewMutation = defineMutation<string, void>(
 
 /** Drop the loop evidence without touching the rest of the review. */
 export const clearLoopEvidenceMutation = defineMutation<string, void>('clearLoopEvidence', z.void())
-
-export const reviewCommentsQuery = defineQuery<string, ReviewComment[]>(
-  'reviewComments',
-  z.array(reviewCommentSchema),
-)
-
-/**
- * A comment with no `startLine` is anchored to the whole file; with one it anchors to a line
- * range on the NEW side of the diff. `anchorText` is the quoted source the agent sees when the
- * lines have since moved.
- */
-export const addReviewCommentMutation = defineMutation<
-  {
-    repoPath: string
-    path: string
-    body: string
-    startLine?: number
-    endLine?: number
-    anchorText?: string
-  },
-  ReviewComment
->('addReviewComment', reviewCommentSchema)
-
-export const editReviewCommentMutation = defineMutation<
-  { repoPath: string; id: string; body: string },
-  void
->('editReviewComment', z.void())
-
-export const deleteReviewCommentMutation = defineMutation<{ repoPath: string; id: string }, void>(
-  'deleteReviewComment',
-  z.void(),
-)
-
-export const resolveReviewCommentMutation = defineMutation<
-  { repoPath: string; id: string; resolved: boolean },
-  void
->('resolveReviewComment', z.void())
-
-/** Bulk delete of every resolved comment — open ones are left alone. Not recoverable. */
-export const clearResolvedReviewCommentsMutation = defineMutation<{ repoPath: string }, void>(
-  'clearResolvedReviewComments',
-  z.void(),
-)

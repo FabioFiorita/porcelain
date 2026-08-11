@@ -1,11 +1,11 @@
 import { fileName } from '@porcelain/client-runtime/paths'
+import type { ReviewComment } from '@porcelain/contracts/review'
 import { useState } from 'react'
 import { Text, View } from 'react-native'
 import { ConfirmDialog, IconAction, PanelLabel } from '@/components/panel-chrome'
 import { PANEL_CARD } from '@/components/surface-layout'
+import { useCommentActions, useReviewComments } from '@/features/comments'
 import { CommentComposer } from '@/features/comments/comment-composer'
-import { useCommentActions, useReviewComments } from '@/features/comments/use-comments'
-import type { ReviewComment } from '@/lib/daemon/procedures/review'
 import { cn } from '@/lib/utils'
 
 /** "file.ts", "file.ts:12", or "file.ts:12–18" — the shortest thing that locates a comment. */

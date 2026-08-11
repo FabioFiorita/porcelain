@@ -1,14 +1,13 @@
 import { fileName } from '@porcelain/client-runtime/paths'
+import type { ReviewComment } from '@porcelain/contracts/review'
 import { useEffect, useState } from 'react'
 import { Text, View } from 'react-native'
-
 import { ShellModal, useShellModalSize } from '@/components/shell-modal'
 import { Button } from '@/components/ui/button'
 import { Text as UiText } from '@/components/ui/text'
 import { Textarea } from '@/components/ui/textarea'
-import type { ReviewComment } from '@/lib/daemon/procedures/review'
 
-import { useCommentActions } from './use-comments'
+import { useCommentActions } from './comment-data'
 
 export type CommentAnchor = {
   /** Repo-relative path. */

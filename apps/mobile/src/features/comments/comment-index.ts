@@ -1,4 +1,4 @@
-import type { ReviewComment } from '@/lib/daemon/procedures/review'
+import type { ReviewComment } from '@porcelain/contracts/review'
 
 /** A file's comments split into per-line and whole-file lookups, for the diff's markers. */
 export type CommentIndex = {

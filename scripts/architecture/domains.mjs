@@ -22,11 +22,13 @@ export const DOMAIN_MIGRATIONS = Object.freeze(
         targetRoots.push('apps/web/src/features/board')
         targetRoots.push('apps/mobile/src/features/board')
       }
-      // Review comments: contracts + daemon (RVC-001), client-runtime (RVC-002), Web (RVC-003).
+      // Review comments: contracts + daemon (RVC-001), client-runtime (RVC-002), Web (RVC-003),
+      // mobile (RVC-004).
       if (key === 'review') {
         targetRoots.push('apps/daemon/src/features/review')
         targetRoots.push('packages/client-runtime/src/review')
         targetRoots.push('apps/web/src/features/review')
+        targetRoots.push('apps/mobile/src/features/comments')
       }
       return [
         key,
@@ -56,7 +58,7 @@ export const SUPPORTING_REGIONS = [
 ]
 
 export const LEGACY_FEATURE_DIRECTORIES = Object.freeze({
-  'apps/mobile/src/features': ['changes', 'comments', 'diff', 'history', 'settings', 'shell'],
+  'apps/mobile/src/features': ['changes', 'diff', 'history', 'settings', 'shell'],
   'apps/web/src/features': [],
 })
 

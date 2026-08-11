@@ -1,3 +1,8 @@
+import { useQueryClient } from '@tanstack/react-query'
+
+import { invalidateAllReviewComments } from '@/features/comments'
+import { isPaired } from '@/lib/daemon/environment'
+import { useActiveEnvironment } from '@/lib/daemon/environments-store'
 import { LIVE_POLL_MS } from '@/lib/daemon/poll'
 import { companionGitVisibilityQuery } from '@/lib/daemon/procedures/companion'
 import {
@@ -45,7 +50,6 @@ const REVIEW_INVALIDATIONS = [
   'reviewPublishCost',
   'loopEvidence',
   'loopEvidenceHtml',
-  'reviewComments',
   'reviewedPaths',
   'archivedReviews',
 ] as const
@@ -216,6 +220,8 @@ export type ReviewActions = {
  */
 export function useReviewActions(): ReviewActions {
   const repo = useActiveRepo()
+  const environment = useActiveEnvironment()
+  const queryClient = useQueryClient()
   const publish = useDaemonMutation(publishReviewMutation, { invalidates: REVIEW_INVALIDATIONS })
   const archive = useDaemonMutation(clearFeatureReviewMutation, {
     invalidates: REVIEW_INVALIDATIONS,
@@ -224,10 +230,16 @@ export function useReviewActions(): ReviewActions {
     invalidates: EVIDENCE_INVALIDATIONS,
   })
 
+  const invalidateComments = async (): Promise<void> => {
+    if (!isPaired(environment)) return
+    await invalidateAllReviewComments(queryClient, environment.id)
+  }
+
   return {
     archive: async (): Promise<void> => {
       if (repo === null) return
       await archive.mutateAsync(repo.path)
+      await invalidateComments()
     },
     clearEvidence: async (): Promise<void> => {
       if (repo === null) return
@@ -237,6 +249,7 @@ export function useReviewActions(): ReviewActions {
     publish: async (): Promise<string | null> => {
       if (repo === null) return null
       const result = await publish.mutateAsync(repo.path)
+      await invalidateComments()
       return result?.id ?? null
     },
   }
@@ -251,6 +264,8 @@ export type ArchivedReviewActions = {
 /** Promote an archive back to active, or delete it for good. */
 export function useArchivedReviewActions(): ArchivedReviewActions {
   const repo = useActiveRepo()
+  const environment = useActiveEnvironment()
+  const queryClient = useQueryClient()
   const restore = useDaemonMutation(restoreArchivedReviewMutation, {
     invalidates: REVIEW_INVALIDATIONS,
   })
@@ -258,15 +273,22 @@ export function useArchivedReviewActions(): ArchivedReviewActions {
     invalidates: REVIEW_INVALIDATIONS,
   })
 
+  const invalidateComments = async (): Promise<void> => {
+    if (!isPaired(environment)) return
+    await invalidateAllReviewComments(queryClient, environment.id)
+  }
+
   return {
     isPending: restore.isPending || remove.isPending,
     remove: async (id: string): Promise<void> => {
       if (repo === null) return
       await remove.mutateAsync({ id, repoPath: repo.path })
+      await invalidateComments()
     },
     restore: async (id: string): Promise<void> => {
       if (repo === null) return
       await restore.mutateAsync({ id, repoPath: repo.path })
+      await invalidateComments()
     },
   }
 }

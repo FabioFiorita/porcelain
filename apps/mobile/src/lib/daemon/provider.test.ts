@@ -60,7 +60,9 @@ vi.mock('./procedure', async (importOriginal) => {
 const { environmentActions, getEnvironment, currentConnection } = await import(
   './environments-store'
 )
-const { retryConnection, recoverToPreferredEndpoint } = await import('./provider')
+const { proceduresForChange, retryConnection, recoverToPreferredEndpoint } = await import(
+  './provider'
+)
 const { createDaemonClient, PROBE_TIMEOUT_MS } = await import('./client')
 
 const LAN = 'http://192.168.1.50:43117'
@@ -158,5 +160,37 @@ describe('automatic endpoint failover', () => {
     await retryConnection()
 
     expect(getEnvironment(id)?.baseUrl).toBe(FUNNEL)
+  })
+})
+
+describe('proceduresForChange review.changed cutover (RVC-004)', () => {
+  it('excludes reviewComments while keeping other Review procedure names', () => {
+    const names = proceduresForChange({
+      kind: 'review.changed',
+      projectPath: '/synthetic/repo',
+    })
+    expect(names).not.toContain('reviewComments')
+    expect(names).toEqual(
+      expect.arrayContaining([
+        'featureView',
+        'featureReading',
+        'worktreeInbox',
+        'repoLayers',
+        'loopEvidence',
+        'loopEvidenceHtml',
+        'reviewEvidenceDocs',
+        'reviewEvidenceAssets',
+        'reviewEvidenceAsset',
+        'gitFlow',
+        'gitRangeFlow',
+        'gitCommitFlow',
+      ]),
+    )
+  })
+
+  it('leaves board.changed feature-owned (empty bulk list)', () => {
+    expect(proceduresForChange({ kind: 'board.changed', projectPath: '/synthetic/repo' })).toEqual(
+      [],
+    )
   })
 })

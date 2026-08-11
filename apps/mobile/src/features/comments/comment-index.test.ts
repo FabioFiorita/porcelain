@@ -1,6 +1,5 @@
+import type { ReviewComment } from '@porcelain/contracts/review'
 import { describe, expect, it } from 'vitest'
-
-import type { ReviewComment } from '@/lib/daemon/procedures/review'
 
 import { buildCommentIndex, commentedLinesByPath } from './comment-index'
 

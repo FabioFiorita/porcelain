@@ -77,15 +77,22 @@ a record of Phase 3b debt and may only shrink; adding an entry is never the fix.
 
 ## The data idiom
 
-- A feature reaches the daemon **only** through its own `use-<feature>.ts`. Components import
-  procedure *types* freely and `lib/daemon/queries` never — Biome enforces it at error level with
-  no exemptions left. Do not add one back; split the file instead.
-- Mutations are **invalidate-only**: `useDaemonMutation` with a named `*_INVALIDATIONS` constant,
-  and `await mutateAsync`. No optimistic cache writes — the daemon moves real files, and a client
-  that painted the result first would show work that never happened.
-- The one sanctioned exception is `features/terminal/terminal-store.ts`: closing a session writes a
-  local tombstone so a poll in flight cannot resurrect the row. That is session state, not repo
-  state, and it is the only place the pattern belongs.
+- A feature reaches the daemon **only** through its own feature hooks. Components import procedure
+  *types* freely and `lib/daemon/queries` never — Biome enforces it at error level with no
+  exemptions left. Do not add one back; split the file instead.
+- Mutations are **invalidate-only by default**: `useDaemonMutation` with a named `*_INVALIDATIONS`
+  constant, and `await mutateAsync`. Ad-hoc feature-local optimistic cache writes are forbidden —
+  the daemon moves real files, and a client that painted the result first would show work that never
+  happened.
+- **Reviewed shared-optimism exception:** architecture-reviewed feature adapters may bind
+  `@porcelain/client-runtime` reversible optimistic transitions plus authoritative refetch on the
+  existing `callDaemon` transport and React Query owner. Today that is Board
+  (`features/board/`) and Review comments (`features/comments/`). Those adapters own typed Query
+  identities, load-gated or domain-approved optimism, and notification bridges — they do not invent
+  a second fetch/retry layer or a second transport.
+- The terminal tombstone in `features/terminal/terminal-store.ts` remains a separate session-state
+  exception: closing a session writes a local tombstone so a poll in flight cannot resurrect the
+  row. That is session state, not repo state.
 - Shared poll intervals live in `lib/daemon/poll.ts`. `LIVE_POLL_MS` is shared rather than
   per-feature because React Query takes the **shortest** interval among a key's observers — two
   surfaces on one cache entry with different rates silently get the faster one.

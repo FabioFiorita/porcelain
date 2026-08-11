@@ -1,8 +1,7 @@
 import { useMemo, useState } from 'react'
-
+import { useCommentIndex, useReviewComments } from '@/features/comments'
 import type { CommentAnchor } from '@/features/comments/comment-composer'
 import { type LineRange, rangeForPath } from '@/features/comments/line-range'
-import { useCommentIndex, useReviewComments } from '@/features/comments/use-comments'
 import { useLineSelection } from '@/features/comments/use-line-selection'
 import {
   type HtmlMode,

@@ -73,12 +73,12 @@ export function proceduresForChange(change: SessionChange): readonly string[] {
         'readFile',
       ]
     case 'review.changed':
-      // union of feature-view, comments, layers, evidence
+      // union of feature-view, layers, evidence — comments owned by
+      // ReviewCommentNotificationBridge (RVC-004)
       return [
         'featureView',
         'featureReading',
         'worktreeInbox',
-        'reviewComments',
         'repoLayers',
         'loopEvidence',
         'loopEvidenceHtml',
