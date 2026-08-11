@@ -35,6 +35,7 @@ describe('Terminal procedure contracts', () => {
       const procedure = terminalProcedures[name]
       expect(procedure.input.safeParse(fixture.input).success).toBe(true)
       expect(procedure.output.safeParse(fixture.output).success).toBe(true)
+      expect(procedure.errors).toEqual([])
     })
 
     it(`rejects invalid ${name} input and output fixtures`, () => {

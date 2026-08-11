@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { terminalStatusSchema } from './terminal.contract'
+import { terminalPublicErrorSchema } from './terminal.errors'
 
 /**
  * The terminal stream protocol: PTY lifecycle, ordered output, and the input a client pushes
@@ -30,6 +31,9 @@ export const MAX_PASTE_FILE_BYTES = 8_388_608
 /** One PTY write must fit in one bounded WebSocket frame. */
 export const MAX_TERMINAL_WRITE_CODE_UNITS = 65_536
 
+/** Maximum replay snapshot accepted in one attach reply, measured in UTF-16 code units. */
+export const MAX_TERMINAL_SCROLLBACK_CODE_UNITS = 64 * 1024
+
 /** Largest accepted session frame, including JSON/base64 overhead for an 8 MiB attachment. */
 export const MAX_SESSION_MESSAGE_BYTES = 12 * 1024 * 1024
 
@@ -53,9 +57,14 @@ export const PASTE_IMAGE_MIME_TYPES = [
 export const pasteImageMimeSchema = z.enum(PASTE_IMAGE_MIME_TYPES)
 export type PasteImageMime = z.infer<typeof pasteImageMimeSchema>
 
-export const PASTE_RESULTS = ['ok', 'too-large', 'no-session', 'write-failed'] as const
+export const PASTE_RESULTS = ['ok'] as const
 export const pasteResultSchema = z.enum(PASTE_RESULTS)
 export type PasteResult = z.infer<typeof pasteResultSchema>
+
+export const terminalIdSchema = z.string().min(1)
+export const terminalRequestIdSchema = z.string().min(1)
+export const terminalEpochSchema = z.string().min(1)
+export const terminalSequenceSchema = z.number().int().nonnegative()
 
 // ---------------------------------------------------------------------------
 // Lifecycle: creating, attaching, detaching, resizing, killing, and ending a PTY.
@@ -64,7 +73,7 @@ export type PasteResult = z.infer<typeof pasteResultSchema>
 export const terminalCreateSchema = z
   .object({
     t: z.literal('terminal:create'),
-    reqId: z.string(),
+    reqId: terminalRequestIdSchema,
     name: z.string(),
     cwd: z.string(),
     initialInput: z.string().optional(),
@@ -74,63 +83,70 @@ export const terminalCreateSchema = z
   .strict()
 
 /**
- * Answers a `terminal:create`. The empty id is the only "there is no session" value this
- * frame can express, which is how a refused create still settles the caller's promise.
+ * Answers a successful `terminal:create`. Refused creates use the correlated terminal:error
+ * frame instead of an empty-id sentinel.
  */
 export const terminalCreatedSchema = z
   .object({
     t: z.literal('terminal:created'),
-    reqId: z.string(),
-    id: z.string(),
+    reqId: terminalRequestIdSchema,
+    id: terminalIdSchema,
   })
   .strict()
 
 export const terminalAttachSchema = z
   .object({
     t: z.literal('terminal:attach'),
-    reqId: z.string(),
-    id: z.string(),
+    reqId: terminalRequestIdSchema,
+    id: terminalIdSchema,
   })
   .strict()
 
 /**
  * Answers a `terminal:attach` with the replay scrollback and the session's current state.
- * `found: false` (empty scrollback) means the id is unknown to the daemon — killed, or a
- * stale reference. It precedes any following `terminal:data`, so the client writes the
- * snapshot before live output follows.
+ * The epoch and sequence are the baseline for following `terminal:data` and `terminal:exit`
+ * frames. Unknown ids use the correlated terminal:error frame instead of a found sentinel.
  */
 export const terminalAttachedSchema = z
   .object({
     t: z.literal('terminal:attached'),
-    reqId: z.string(),
-    id: z.string(),
-    scrollback: z.string(),
+    reqId: terminalRequestIdSchema,
+    id: terminalIdSchema,
+    scrollback: z.string().max(MAX_TERMINAL_SCROLLBACK_CODE_UNITS),
     status: terminalStatusSchema,
     exitCode: z.number().optional(),
-    found: z.boolean(),
+    epoch: terminalEpochSchema,
+    sequence: terminalSequenceSchema,
   })
   .strict()
 
 /** Stop streaming a PTY to this client without killing it; the PTY lives on. */
 export const terminalDetachSchema = z
-  .object({ t: z.literal('terminal:detach'), id: z.string() })
+  .object({ t: z.literal('terminal:detach'), reqId: terminalRequestIdSchema, id: terminalIdSchema })
   .strict()
 
 export const terminalResizeSchema = z
   .object({
     t: z.literal('terminal:resize'),
-    id: z.string(),
+    reqId: terminalRequestIdSchema,
+    id: terminalIdSchema,
     cols: z.number().int(),
     rows: z.number().int(),
   })
   .strict()
 
 export const terminalKillSchema = z
-  .object({ t: z.literal('terminal:kill'), id: z.string() })
+  .object({ t: z.literal('terminal:kill'), reqId: terminalRequestIdSchema, id: terminalIdSchema })
   .strict()
 
 export const terminalExitSchema = z
-  .object({ t: z.literal('terminal:exit'), id: z.string(), exitCode: z.number() })
+  .object({
+    t: z.literal('terminal:exit'),
+    id: terminalIdSchema,
+    exitCode: z.number(),
+    epoch: terminalEpochSchema,
+    sequence: terminalSequenceSchema,
+  })
   .strict()
 
 export const terminalLifecycleFrameSchema = z.discriminatedUnion('t', [
@@ -155,7 +171,13 @@ export type TerminalLifecycleFrame = z.infer<typeof terminalLifecycleFrameSchema
  * client-side.
  */
 export const terminalDataSchema = z
-  .object({ t: z.literal('terminal:data'), id: z.string(), data: z.string() })
+  .object({
+    t: z.literal('terminal:data'),
+    id: terminalIdSchema,
+    data: z.string(),
+    epoch: terminalEpochSchema,
+    sequence: terminalSequenceSchema,
+  })
   .strict()
 
 export const terminalOutputFrameSchema = z.discriminatedUnion('t', [terminalDataSchema])
@@ -168,7 +190,8 @@ export type TerminalOutputFrame = z.infer<typeof terminalOutputFrameSchema>
 export const terminalWriteSchema = z
   .object({
     t: z.literal('terminal:write'),
-    id: z.string(),
+    reqId: terminalRequestIdSchema,
+    id: terminalIdSchema,
     data: z.string().max(MAX_TERMINAL_WRITE_CODE_UNITS),
   })
   .strict()
@@ -181,8 +204,8 @@ export const terminalWriteSchema = z
 export const terminalPasteImageSchema = z
   .object({
     t: z.literal('terminal:paste-image'),
-    id: z.string(),
-    reqId: z.string(),
+    id: terminalIdSchema,
+    reqId: terminalRequestIdSchema,
     mime: pasteImageMimeSchema,
     dataBase64: z.string().max(MAX_PASTE_IMAGE_BASE64_CODE_UNITS),
     insert: z.boolean().optional(),
@@ -196,8 +219,8 @@ export const terminalPasteImageSchema = z
 export const terminalPasteFileSchema = z
   .object({
     t: z.literal('terminal:paste-file'),
-    id: z.string(),
-    reqId: z.string(),
+    id: terminalIdSchema,
+    reqId: terminalRequestIdSchema,
     filename: z.string().min(1).max(MAX_PASTE_FILENAME_CODE_UNITS),
     mime: z.string().max(MAX_PASTE_MIME_CODE_UNITS),
     dataBase64: z.string().max(MAX_PASTE_FILE_BASE64_CODE_UNITS),
@@ -206,15 +229,15 @@ export const terminalPasteFileSchema = z
   .strict()
 
 /**
- * Answers a paste. `result` is a reason enum, not free text — each client owns whatever it
- * shows. `path` is present only on `ok`, for callers that want it; the daemon has already
- * written the mention into the PTY itself.
+ * Answers a successful paste. `result` remains an explicit success marker and `path` is
+ * present when the daemon wrote an attachment to its scratch area. Expected failures use the
+ * correlated terminal:error frame.
  */
 export const terminalImagePastedSchema = z
   .object({
     t: z.literal('terminal:image-pasted'),
-    reqId: z.string(),
-    id: z.string(),
+    reqId: terminalRequestIdSchema,
+    id: terminalIdSchema,
     result: pasteResultSchema,
     path: z.string().optional(),
   })
@@ -223,8 +246,8 @@ export const terminalImagePastedSchema = z
 export const terminalFilePastedSchema = z
   .object({
     t: z.literal('terminal:file-pasted'),
-    reqId: z.string(),
-    id: z.string(),
+    reqId: terminalRequestIdSchema,
+    id: terminalIdSchema,
     result: pasteResultSchema,
     path: z.string().optional(),
   })
@@ -238,6 +261,27 @@ export const terminalInputFrameSchema = z.discriminatedUnion('t', [
   terminalFilePastedSchema,
 ])
 export type TerminalInputFrame = z.infer<typeof terminalInputFrameSchema>
+
+/** Correlated expected Terminal failures use the common public error vocabulary. */
+export const terminalErrorFrameSchema = z
+  .object({
+    t: z.literal('terminal:error'),
+    reqId: terminalRequestIdSchema,
+    id: terminalIdSchema.optional(),
+    error: terminalPublicErrorSchema,
+  })
+  .strict()
+
+export const terminalServerFrameSchema = z.discriminatedUnion('t', [
+  terminalCreatedSchema,
+  terminalAttachedSchema,
+  terminalDataSchema,
+  terminalExitSchema,
+  terminalImagePastedSchema,
+  terminalFilePastedSchema,
+  terminalErrorFrameSchema,
+])
+export type TerminalServerFrame = z.infer<typeof terminalServerFrameSchema>
 
 /** Prompt text that makes one daemon-stored image visible to an agent. */
 export function terminalImagePromptReference(path: string): string {
@@ -263,18 +307,25 @@ export const terminalStreamFixtures = {
       id: 'term-1',
       scrollback: '$ pnpm lint\n',
       status: 'running',
-      found: true,
+      epoch: 'epoch-1',
+      sequence: 0,
     },
-    detach: { t: 'terminal:detach', id: 'term-1' },
-    resize: { t: 'terminal:resize', id: 'term-1', cols: 120, rows: 40 },
-    kill: { t: 'terminal:kill', id: 'term-1' },
-    exit: { t: 'terminal:exit', id: 'term-1', exitCode: 0 },
+    detach: { t: 'terminal:detach', reqId: 'req-5', id: 'term-1' },
+    resize: { t: 'terminal:resize', reqId: 'req-6', id: 'term-1', cols: 120, rows: 40 },
+    kill: { t: 'terminal:kill', reqId: 'req-7', id: 'term-1' },
+    exit: { t: 'terminal:exit', id: 'term-1', exitCode: 0, epoch: 'epoch-1', sequence: 2 },
   },
   output: {
-    data: { t: 'terminal:data', id: 'term-1', data: 'hello\r\n' },
+    data: {
+      t: 'terminal:data',
+      id: 'term-1',
+      data: 'hello\r\n',
+      epoch: 'epoch-1',
+      sequence: 1,
+    },
   },
   input: {
-    write: { t: 'terminal:write', id: 'term-1', data: 'pnpm lint\r' },
+    write: { t: 'terminal:write', reqId: 'req-8', id: 'term-1', data: 'pnpm lint\r' },
     pasteImage: {
       t: 'terminal:paste-image',
       id: 'term-1',
@@ -301,7 +352,20 @@ export const terminalStreamFixtures = {
       t: 'terminal:file-pasted',
       reqId: 'req-4',
       id: 'term-1',
-      result: 'too-large',
+      result: 'ok',
+      path: '/synthetic/scratch/evidence.txt',
+    },
+  },
+  error: {
+    t: 'terminal:error',
+    reqId: 'req-2',
+    id: 'term-gone',
+    error: {
+      code: 'terminal.not-found',
+      category: 'not-found',
+      message: 'The terminal session was not found.',
+      retryable: false,
+      requestId: '00000000-0000-4000-8000-000000000016',
     },
   },
 } as const

@@ -80,7 +80,7 @@ an external choice or authorization.
 | `GIT-002` | Landed | Checkout and add-worktree operations over hardened Git capabilities |
 | `GIT-003` | Landed | Distinct non-optimistic checkout/add-worktree query consequences |
 | `GIT-004` | Landed | Both clients adopt shared worktree mutation semantics |
-| `TRM-001` | Ready | Terminal stream command/event/epoch/sequence/error vocabulary |
+| `TRM-001` | Landed | Terminal stream command/event/epoch/sequence/error vocabulary |
 | `TRM-002` | Draft | PTY capability, lifecycle operations, environment policy, and stream gateway |
 | `TRM-003` | Draft | Transport-neutral attach/correlation/recovery/scrollback state machine |
 | `TRM-004` | Draft | Web socket/Ghostty adapter adopts shared stream semantics |

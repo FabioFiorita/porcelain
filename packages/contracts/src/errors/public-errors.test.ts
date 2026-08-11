@@ -26,6 +26,11 @@ import {
   resourceNotFoundErrorSchema,
   resourceUnavailableErrorSchema,
   stateConflictErrorSchema,
+  terminalCapacityErrorSchema,
+  terminalExitedErrorSchema,
+  terminalInvalidSizeErrorSchema,
+  terminalNotFoundErrorSchema,
+  terminalPasteUnavailableErrorSchema,
 } from '../index'
 import {
   reviewCommentNotFoundErrorSchema,
@@ -54,6 +59,11 @@ const memberSchemas = {
   'git.branch-already-exists': gitBranchAlreadyExistsErrorSchema,
   'git.worktree-conflict': gitWorktreeConflictErrorSchema,
   'git.working-tree-conflict': gitWorkingTreeConflictErrorSchema,
+  'terminal.not-found': terminalNotFoundErrorSchema,
+  'terminal.exited': terminalExitedErrorSchema,
+  'terminal.capacity': terminalCapacityErrorSchema,
+  'terminal.invalid-size': terminalInvalidSizeErrorSchema,
+  'terminal.paste-unavailable': terminalPasteUnavailableErrorSchema,
 } as const
 
 const expectedMembers = [
@@ -118,10 +128,25 @@ const expectedMembers = [
     retryable: false,
     hasDetails: false,
   },
+  { code: 'terminal.not-found', category: 'not-found', retryable: false, hasDetails: false },
+  { code: 'terminal.exited', category: 'conflict', retryable: false, hasDetails: false },
+  { code: 'terminal.capacity', category: 'unavailable', retryable: true, hasDetails: false },
+  {
+    code: 'terminal.invalid-size',
+    category: 'invalid-request',
+    retryable: false,
+    hasDetails: false,
+  },
+  {
+    code: 'terminal.paste-unavailable',
+    category: 'unavailable',
+    retryable: true,
+    hasDetails: false,
+  },
 ] as const
 
 describe('public error contracts', () => {
-  it('exports the system, Board, Review, Files, and Git public members and categories', () => {
+  it('exports the system, Board, Review, Files, Git, and Terminal public members and categories', () => {
     expect(Object.keys(memberSchemas).sort()).toEqual(
       expectedMembers.map(({ code }) => code).sort(),
     )

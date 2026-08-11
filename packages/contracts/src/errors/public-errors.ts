@@ -20,6 +20,13 @@ import {
   reviewCommentNotFoundErrorSchema,
   reviewUnavailableErrorSchema,
 } from '../review/review.errors'
+import {
+  terminalCapacityErrorSchema,
+  terminalExitedErrorSchema,
+  terminalInvalidSizeErrorSchema,
+  terminalNotFoundErrorSchema,
+  terminalPasteUnavailableErrorSchema,
+} from '../terminal'
 import { definePublicError } from './define-public-error'
 import {
   authForbiddenErrorSchema,
@@ -67,6 +74,11 @@ export const publicErrorSchema = z.discriminatedUnion('code', [
   gitBranchAlreadyExistsErrorSchema,
   gitWorktreeConflictErrorSchema,
   gitWorkingTreeConflictErrorSchema,
+  terminalNotFoundErrorSchema,
+  terminalExitedErrorSchema,
+  terminalCapacityErrorSchema,
+  terminalInvalidSizeErrorSchema,
+  terminalPasteUnavailableErrorSchema,
 ])
 
 export type PorcelainError = z.infer<typeof publicErrorSchema>

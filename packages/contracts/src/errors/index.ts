@@ -21,6 +21,15 @@ export {
   reviewCommentNotFoundErrorSchema,
   reviewUnavailableErrorSchema,
 } from '../review/review.errors'
+export {
+  type TerminalPublicError,
+  terminalCapacityErrorSchema,
+  terminalExitedErrorSchema,
+  terminalInvalidSizeErrorSchema,
+  terminalNotFoundErrorSchema,
+  terminalPasteUnavailableErrorSchema,
+  terminalPublicErrorSchema,
+} from '../terminal'
 export { publicErrorFixtures } from './fixtures'
 export {
   type PorcelainError,
