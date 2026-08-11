@@ -1,3 +1,4 @@
+import { isFilesProjectRelativePath } from '@porcelain/contracts/files'
 import { useMemo } from 'react'
 import {
   type CodeSearchOptions,
@@ -28,6 +29,12 @@ import { useDaemonWatch } from '@/lib/daemon/watch'
 
 import { absolutePath, parentPath, relativePath } from './file-paths'
 import { useFilesStore } from './files-store'
+
+/** Valid typed disabled query input — always pass with enabled:false (never null/cast). */
+const DISABLED_FILES_QUERY_INPUT = {
+  projectPath: '/',
+  path: '__disabled__',
+} as const
 
 /** A repo-relative directory entry — what every row, route and comment in this tab speaks. */
 export type FileEntry = Omit<DirEntry, 'path'> & {
@@ -127,14 +134,16 @@ export type FileContents = {
  */
 export function useFileContents(relative: string, active: boolean): FileContents {
   const repo = useActiveRepo()
-  const path = absolutePath(repo?.path ?? '', relative)
-  const enabled = active && repo !== null && relative !== ''
+  const valid = repo !== null && relative !== '' && isFilesProjectRelativePath(relative)
+  const enabled = active && valid
+  // Watch still absolute until a later unit.
+  useDaemonWatch({ files: enabled && repo ? [absolutePath(repo.path, relative)] : [] })
 
-  useDaemonWatch({ files: enabled ? [path] : [] })
-
-  const { data, error, isLoading } = useDaemonQuery(readFileQuery, path, {
-    enabled,
-  })
+  const { data, error, isLoading } = useDaemonQuery(
+    readFileQuery,
+    valid && repo ? { projectPath: repo.path, path: relative } : DISABLED_FILES_QUERY_INPUT,
+    { enabled },
+  )
   return { error, isLoading, view: data }
 }
 
@@ -151,10 +160,11 @@ export function useHtmlPreview(
   enabled: boolean,
 ): { html: string | null | undefined; isLoading: boolean; error: Error | null } {
   const repo = useActiveRepo()
+  const valid = repo !== null && relative !== '' && isFilesProjectRelativePath(relative)
   const { data, error, isLoading } = useDaemonQuery(
     previewHtmlQuery,
-    absolutePath(repo?.path ?? '', relative),
-    { enabled: enabled && repo !== null && relative !== '' },
+    valid && repo ? { projectPath: repo.path, path: relative } : DISABLED_FILES_QUERY_INPUT,
+    { enabled: enabled && valid },
   )
   return { error, html: data, isLoading }
 }
@@ -244,24 +254,23 @@ export function useFileWrites(): FileWrites {
   const duplicate = useDaemonMutation(duplicatePathMutation, { invalidates: WRITE_INVALIDATIONS })
   const trash = useDaemonMutation(trashPathMutation, { invalidates: WRITE_INVALIDATIONS })
 
-  const absolute = (relative: string): string | null =>
-    repo === null ? null : absolutePath(repo.path, relative)
-
   return {
     createFile: async (dir, name): Promise<void> => {
-      const parent = absolute(dir)
-      if (parent === null) return
-      await create.mutateAsync({ path: `${parent}/${name}` })
+      if (repo === null) return
+      const path = dir === '' ? name : `${dir}/${name}`
+      if (!isFilesProjectRelativePath(path)) return
+      await create.mutateAsync({ projectPath: repo.path, path })
     },
     createFolder: async (dir, name): Promise<void> => {
-      const parent = absolute(dir)
-      if (parent === null) return
-      await folder.mutateAsync({ path: `${parent}/${name}` })
+      if (repo === null) return
+      const path = dir === '' ? name : `${dir}/${name}`
+      if (!isFilesProjectRelativePath(path)) return
+      await folder.mutateAsync({ projectPath: repo.path, path })
     },
     duplicate: async (relative): Promise<string | null> => {
-      const path = absolute(relative)
-      if (path === null || repo === null) return null
-      return relativePath(repo.path, await duplicate.mutateAsync({ path }))
+      if (repo === null || !isFilesProjectRelativePath(relative)) return null
+      // Daemon returns project-relative path directly.
+      return await duplicate.mutateAsync({ projectPath: repo.path, path: relative })
     },
     isPending:
       create.isPending ||
@@ -270,15 +279,15 @@ export function useFileWrites(): FileWrites {
       duplicate.isPending ||
       trash.isPending,
     rename: async (relative, name): Promise<void> => {
-      const from = absolute(relative)
-      const parent = absolute(parentPath(relative))
-      if (from === null || parent === null) return
-      await rename.mutateAsync({ from, to: `${parent}/${name}` })
+      if (repo === null || !isFilesProjectRelativePath(relative)) return
+      const parent = parentPath(relative)
+      const to = parent === '' ? name : `${parent}/${name}`
+      if (!isFilesProjectRelativePath(to)) return
+      await rename.mutateAsync({ projectPath: repo.path, from: relative, to })
     },
     trash: async (relative): Promise<void> => {
-      const path = absolute(relative)
-      if (path === null) return
-      await trash.mutateAsync(path)
+      if (repo === null || !isFilesProjectRelativePath(relative)) return
+      await trash.mutateAsync({ projectPath: repo.path, path: relative })
     },
   }
 }

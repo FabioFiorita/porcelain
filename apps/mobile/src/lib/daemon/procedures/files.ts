@@ -99,10 +99,12 @@ export const searchCodeQuery = defineQuery<
   CodeSearchResult
 >('searchCode', codeSearchResultSchema)
 
-export const readFileQuery = defineQuery<string, FileView>('readFile', fileViewSchema)
+type ProjectFileInput = { projectPath: string; path: string }
+
+export const readFileQuery = defineQuery<ProjectFileInput, FileView>('readFile', fileViewSchema)
 
 /** Sandboxed HTML preview with local images inlined as data URIs (daemon-side). */
-export const previewHtmlQuery = defineQuery<string, string | null>(
+export const previewHtmlQuery = defineQuery<ProjectFileInput, string | null>(
   'previewHtml',
   z.string().nullable(),
 )
@@ -115,26 +117,26 @@ export const pinPathMutation = defineMutation<ScopeInput, void>('pinPath', z.voi
 export const unpinPathMutation = defineMutation<ScopeInput, void>('unpinPath', z.void())
 
 /**
- * The working-tree writes, all on absolute host paths.
+ * The eight host-fs writes: caller-nominated `projectPath` + project-relative targets.
  *
  * Each one refuses rather than clobbers: `createFile` opens with `wx`, `createFolder` is a
- * non-recursive `mkdir`, and `renamePath` checks the target first because POSIX `rename`
- * overwrites. The daemon's message is the one worth showing — none of these are swallowed.
+ * non-recursive `mkdir`, and `renamePath` best-effort checks the target first because POSIX
+ * `rename` overwrites. The daemon's message is the one worth showing — none of these are swallowed.
  */
-export const createFileMutation = defineMutation<{ path: string }, void>('createFile', z.void())
-export const createFolderMutation = defineMutation<{ path: string }, void>('createFolder', z.void())
-export const renamePathMutation = defineMutation<{ from: string; to: string }, void>(
-  'renamePath',
-  z.void(),
-)
-/** Answers the free "… copy" sibling it wrote, so the caller can reveal it. */
-export const duplicatePathMutation = defineMutation<{ path: string }, string>(
+export const createFileMutation = defineMutation<ProjectFileInput, void>('createFile', z.void())
+export const createFolderMutation = defineMutation<ProjectFileInput, void>('createFolder', z.void())
+export const renamePathMutation = defineMutation<
+  { projectPath: string; from: string; to: string },
+  void
+>('renamePath', z.void())
+/** Answers the free "… copy" sibling as a project-relative path so the caller can reveal it. */
+export const duplicatePathMutation = defineMutation<ProjectFileInput, string>(
   'duplicatePath',
   z.string(),
 )
 /** The OS trash, not `rm` — recoverable, which is why the confirmation says "Trash". */
-export const trashPathMutation = defineMutation<string, void>('trashPath', z.void())
-export const writeTextFileMutation = defineMutation<{ path: string; content: string }, void>(
-  'writeTextFile',
-  z.void(),
-)
+export const trashPathMutation = defineMutation<ProjectFileInput, void>('trashPath', z.void())
+export const writeTextFileMutation = defineMutation<
+  { projectPath: string; path: string; content: string },
+  void
+>('writeTextFile', z.void())

@@ -1,5 +1,6 @@
 import type { SessionChange } from '@porcelain/contracts/session'
 import { type BoardOperations, createBoardOperations } from '../features/board'
+import { createFilesOperations, type FilesOperations } from '../features/files'
 import { createReviewCommentOperations, type ReviewCommentOperations } from '../features/review'
 import { publishSessionChange } from '../session/live-session'
 
@@ -11,6 +12,7 @@ import { publishSessionChange } from '../session/live-session'
 export type DaemonOperations = Readonly<{
   board: BoardOperations
   reviewComments: ReviewCommentOperations
+  files: FilesOperations
 }>
 
 export interface CreateDaemonRouterOptions {
@@ -28,5 +30,7 @@ export function createDaemonOperations(options?: {
     reviewComments: createReviewCommentOperations({
       publishSessionChange: publish,
     }),
+    // No publishSessionChange — Files RT facts are FIL-003.
+    files: createFilesOperations(),
   })
 }

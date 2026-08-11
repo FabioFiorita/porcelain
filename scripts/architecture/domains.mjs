@@ -30,6 +30,9 @@ export const DOMAIN_MIGRATIONS = Object.freeze(
         targetRoots.push('apps/web/src/features/review')
         targetRoots.push('apps/mobile/src/features/comments')
       }
+      if (key === 'files') {
+        targetRoots.push('apps/daemon/src/features/files')
+      }
       return [
         key,
         Object.freeze({

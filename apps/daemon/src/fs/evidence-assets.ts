@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises'
+import { readFile, realpath } from 'node:fs/promises'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
 
 /**
@@ -10,10 +10,11 @@ import { isAbsolute, relative, resolve, sep } from 'node:path'
  * Two roots, deliberately: references resolve relative to the document's own
  * directory, but containment is checked against `root`. A Results document sits
  * one level down and points at `../assets/shot.png` — the same gallery the
- * Assets tab lists — so the pack keeps ONE copy of each image. Containment is a
- * resolved-path check against `root` and nothing else; a textual `..` test would
- * reject that legitimate reference while proving nothing extra (`a/../../b`
- * escapes without a leading `..`).
+ * Assets tab lists — so the pack keeps ONE copy of each image.
+ *
+ * Lexical pre-gate uses path.relative (not startsWith('..'), so names like
+ * `..foo` are not false-outside). Before every host read, candidates are
+ * realpath-checked against the real root so symlink escapes are left alone.
  *
  * Paths that escape `root`, or that are absolute / remote / data:, are left
  * alone (remote still blocked by CSP; absolute file paths never load in srcdoc).
@@ -40,9 +41,11 @@ function mimeFor(filePath: string): string {
   return 'application/octet-stream'
 }
 
+/** Exact outside rule — never startsWith('..') alone (that false-positives `..foo`). */
 function isInsideDir(dir: string, candidate: string): boolean {
   const rel = relative(dir, candidate)
-  return rel !== '' && !rel.startsWith(`..${sep}`) && !rel.startsWith('..') && !isAbsolute(rel)
+  if (rel === '') return false
+  return !(rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel))
 }
 
 function attributeValue(tag: string, name: string): string | null {
@@ -75,6 +78,25 @@ function escapeStyleText(css: string): string {
   return css.replace(/<\/style/gi, '<\\/style')
 }
 
+async function readContainedAsset(
+  base: string,
+  root: string,
+  rootReal: string,
+  raw: string,
+): Promise<{ lexical: string; real: string; bytes: Buffer } | null> {
+  const candidateLexical = localAssetPath(base, root, raw)
+  if (candidateLexical === null) return null
+  try {
+    const candidateReal = await realpath(candidateLexical)
+    if (!isInsideDir(rootReal, candidateReal)) return null
+    const bytes = await readFile(candidateReal)
+    return { lexical: candidateLexical, real: candidateReal, bytes }
+  } catch {
+    // missing / dangling / ELOOP — leave original reference alone
+    return null
+  }
+}
+
 /**
  * Expand local relative image sources into data URIs. References resolve
  * against `dir`; `root` (defaulting to `dir`) is the boundary they may not
@@ -87,6 +109,14 @@ export async function inlineLocalAssets(
 ): Promise<string> {
   const base = resolve(dir)
   const root = resolve(rootDir)
+  let rootReal: string
+  try {
+    rootReal = await realpath(root)
+  } catch {
+    // Unusable root: leave every asset alone (same as total read failure).
+    return html
+  }
+
   const matches = [...html.matchAll(SRC_ATTR)]
   const stylesheetMatches = [...html.matchAll(LINK_TAG)]
 
@@ -100,14 +130,9 @@ export async function inlineLocalAssets(
   const dataUris = new Map<string, string>()
   await Promise.all(
     [...paths].map(async (raw) => {
-      const abs = localAssetPath(base, root, raw)
-      if (abs === null) return
-      try {
-        const bytes = await readFile(abs)
-        dataUris.set(raw, `data:${mimeFor(abs)};base64,${bytes.toString('base64')}`)
-      } catch {
-        // missing file — leave original src
-      }
+      const asset = await readContainedAsset(base, root, rootReal, raw)
+      if (asset === null) return
+      dataUris.set(raw, `data:${mimeFor(asset.real)};base64,${asset.bytes.toString('base64')}`)
     }),
   )
 
@@ -120,13 +145,9 @@ export async function inlineLocalAssets(
   const stylesheets = new Map<string, string>()
   await Promise.all(
     [...stylesheetPaths].map(async (raw) => {
-      const abs = localAssetPath(base, root, raw)
-      if (abs === null) return
-      try {
-        stylesheets.set(raw, await readFile(abs, 'utf8'))
-      } catch {
-        // missing stylesheet — leave the original link so the preview stays honest
-      }
+      const asset = await readContainedAsset(base, root, rootReal, raw)
+      if (asset === null) return
+      stylesheets.set(raw, asset.bytes.toString('utf8'))
     }),
   )
 

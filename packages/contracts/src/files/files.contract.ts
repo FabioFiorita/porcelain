@@ -31,6 +31,49 @@ export const repoScopeSchema = z
 
 export type RepoScope = z.infer<typeof repoScopeSchema>
 
+/**
+ * Caller-nominated operation root for Files host-fs procedures.
+ * POSIX absolute path string for Linux/macOS daemons. Not a repo-authorization grant:
+ * any absolute directory the credential holder names is acceptable, including `/`.
+ */
+export function isFilesProjectPath(value: string): boolean {
+  if (value.length < 1 || value.length > 4096) return false
+  if (value.includes('\0')) return false
+  if (!value.startsWith('/')) return false // relative roots are request.invalid
+  if (value.includes('\\')) return false
+  return true
+}
+
+export const filesProjectPathSchema = z
+  .string()
+  .min(1)
+  .max(4096)
+  .refine(isFilesProjectPath, { message: 'invalid files projectPath' })
+
+/**
+ * Project-relative file target for the eight host-fs procedures.
+ * Rejects absolute paths, Windows drive letters, backslashes, empty segments,
+ * and `.` / `..` segments. Names like `..foo` are valid (not parent traversal).
+ */
+export function isFilesProjectRelativePath(value: string): boolean {
+  if (value.length === 0 || value.length > 4096) return false
+  if (value.includes('\0')) return false
+  if (value.startsWith('/')) return false
+  if (value.includes('\\')) return false
+  if (/^[A-Za-z]:/.test(value)) return false
+  const segments = value.split('/')
+  for (const segment of segments) {
+    if (segment === '' || segment === '.' || segment === '..') return false
+  }
+  return true
+}
+
+export const filesProjectRelativePathSchema = z
+  .string()
+  .min(1)
+  .max(4096)
+  .refine(isFilesProjectRelativePath, { message: 'invalid project-relative path' })
+
 export const readDirInputSchema = z
   .object({
     repoPath: z.string(),
@@ -74,19 +117,30 @@ export const pinnedEntriesOutputSchema = z.array(dirEntrySchema)
 export type PinnedEntriesInput = z.infer<typeof pinnedEntriesInputSchema>
 export type PinnedEntriesOutput = z.infer<typeof pinnedEntriesOutputSchema>
 
-export const readFileInputSchema = z.string()
+export const readFileInputSchema = z
+  .object({
+    projectPath: filesProjectPathSchema,
+    path: filesProjectRelativePathSchema,
+  })
+  .strict()
 export const readFileOutputSchema = fileViewSchema
 export type ReadFileInput = z.infer<typeof readFileInputSchema>
 export type ReadFileOutput = z.infer<typeof readFileOutputSchema>
 
-export const previewHtmlInputSchema = z.string()
+export const previewHtmlInputSchema = z
+  .object({
+    projectPath: filesProjectPathSchema,
+    path: filesProjectRelativePathSchema,
+  })
+  .strict()
 export const previewHtmlOutputSchema = z.string().nullable()
 export type PreviewHtmlInput = z.infer<typeof previewHtmlInputSchema>
 export type PreviewHtmlOutput = z.infer<typeof previewHtmlOutputSchema>
 
 export const writeTextFileInputSchema = z
   .object({
-    path: z.string(),
+    projectPath: filesProjectPathSchema,
+    path: filesProjectRelativePathSchema,
     content: z.string(),
   })
   .strict()
@@ -94,32 +148,48 @@ export const writeTextFileOutputSchema = z.void()
 export type WriteTextFileInput = z.infer<typeof writeTextFileInputSchema>
 export type WriteTextFileOutput = z.infer<typeof writeTextFileOutputSchema>
 
-export const createFileInputSchema = z.object({ path: z.string() }).strict()
+export const createFileInputSchema = z
+  .object({
+    projectPath: filesProjectPathSchema,
+    path: filesProjectRelativePathSchema,
+  })
+  .strict()
 export const createFileOutputSchema = z.void()
 export type CreateFileInput = z.infer<typeof createFileInputSchema>
 export type CreateFileOutput = z.infer<typeof createFileOutputSchema>
 
-export const createFolderInputSchema = z.object({ path: z.string() }).strict()
+export const createFolderInputSchema = createFileInputSchema
 export const createFolderOutputSchema = z.void()
 export type CreateFolderInput = z.infer<typeof createFolderInputSchema>
 export type CreateFolderOutput = z.infer<typeof createFolderOutputSchema>
 
 export const renamePathInputSchema = z
   .object({
-    from: z.string(),
-    to: z.string(),
+    projectPath: filesProjectPathSchema,
+    from: filesProjectRelativePathSchema,
+    to: filesProjectRelativePathSchema,
   })
   .strict()
 export const renamePathOutputSchema = z.void()
 export type RenamePathInput = z.infer<typeof renamePathInputSchema>
 export type RenamePathOutput = z.infer<typeof renamePathOutputSchema>
 
-export const duplicatePathInputSchema = z.object({ path: z.string() }).strict()
-export const duplicatePathOutputSchema = z.string()
+export const duplicatePathInputSchema = z
+  .object({
+    projectPath: filesProjectPathSchema,
+    path: filesProjectRelativePathSchema,
+  })
+  .strict()
+export const duplicatePathOutputSchema = filesProjectRelativePathSchema
 export type DuplicatePathInput = z.infer<typeof duplicatePathInputSchema>
 export type DuplicatePathOutput = z.infer<typeof duplicatePathOutputSchema>
 
-export const trashPathInputSchema = z.string()
+export const trashPathInputSchema = z
+  .object({
+    projectPath: filesProjectPathSchema,
+    path: filesProjectRelativePathSchema,
+  })
+  .strict()
 export const trashPathOutputSchema = z.void()
 export type TrashPathInput = z.infer<typeof trashPathInputSchema>
 export type TrashPathOutput = z.infer<typeof trashPathOutputSchema>
@@ -188,35 +258,43 @@ export const filesContractFixtures = {
     ],
   },
   readFile: {
-    input: '/synthetic/repo/README.md',
+    input: { projectPath: '/synthetic/repo', path: 'README.md' },
     output: fileViewFixtures.text,
   },
   previewHtml: {
-    input: '/synthetic/repo/docs/index.html',
+    input: { projectPath: '/synthetic/repo', path: 'docs/index.html' },
     output: '<!doctype html><html><body>synthetic preview</body></html>',
   },
   writeTextFile: {
-    input: { path: 'docs/notes.txt', content: 'line one\nline two\n' },
+    input: {
+      projectPath: '/synthetic/repo',
+      path: 'docs/notes.txt',
+      content: 'line one\nline two\n',
+    },
     output: undefined,
   },
   createFile: {
-    input: { path: '/synthetic/repo/docs/empty.txt' },
+    input: { projectPath: '/synthetic/repo', path: 'docs/empty.txt' },
     output: undefined,
   },
   createFolder: {
-    input: { path: '/synthetic/repo/docs/generated' },
+    input: { projectPath: '/synthetic/repo', path: 'docs/generated' },
     output: undefined,
   },
   renamePath: {
-    input: { from: '/synthetic/repo/docs/draft.md', to: '/synthetic/repo/docs/final.md' },
+    input: {
+      projectPath: '/synthetic/repo',
+      from: 'docs/draft.md',
+      to: 'docs/final.md',
+    },
     output: undefined,
   },
   duplicatePath: {
-    input: { path: '/synthetic/repo/docs/guide.md' },
-    output: '/synthetic/repo/docs/guide copy.md',
+    input: { projectPath: '/synthetic/repo', path: 'docs/guide.md' },
+    output: 'docs/guide copy.md',
   },
   trashPath: {
-    input: '/synthetic/repo/docs/old.md',
+    input: { projectPath: '/synthetic/repo', path: 'docs/old.md' },
     output: undefined,
   },
   repoScope: {

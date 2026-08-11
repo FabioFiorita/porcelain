@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { uniqueDuplicatePath } from './fs-ops'
+import { entryExists, uniqueDuplicatePath } from './unique-duplicate-path'
 
 describe('uniqueDuplicatePath', () => {
   const none = (): boolean => false
@@ -27,5 +27,25 @@ describe('uniqueDuplicatePath', () => {
     expect(uniqueDuplicatePath('/repo/archive.tar.gz', false, none)).toBe(
       '/repo/archive.tar copy.gz',
     )
+  })
+
+  it('advances past a dangling-sibling collision when entryExists treats it as occupied', () => {
+    // entryExists semantics: dangling symlink counts as occupied
+    const taken = new Set(['/repo/bar copy.ts'])
+    expect(uniqueDuplicatePath('/repo/bar.ts', false, (c) => taken.has(c))).toBe(
+      '/repo/bar copy 2.ts',
+    )
+  })
+
+  it('throws when no free name within the bound', () => {
+    expect(() => uniqueDuplicatePath('/repo/bar.ts', false, () => true)).toThrow(
+      /no free name within 10000/,
+    )
+  })
+})
+
+describe('entryExists', () => {
+  it('returns false for a missing path', () => {
+    expect(entryExists('/tmp/porcelain-entry-exists-missing-path-xyz')).toBe(false)
   })
 })

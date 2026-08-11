@@ -4,7 +4,11 @@ import {
   boardInvalidTitleErrorSchema,
   boardUnavailableErrorSchema,
 } from '../board/board.errors'
-import { filesAlreadyExistsErrorSchema } from '../files/files.errors'
+import {
+  filesAlreadyExistsErrorSchema,
+  filesNotFoundErrorSchema,
+  filesPathOutsideProjectErrorSchema,
+} from '../files/files.errors'
 import {
   authForbiddenErrorSchema,
   authUnauthenticatedErrorSchema,
@@ -38,6 +42,8 @@ const memberSchemas = {
   'review.unavailable': reviewUnavailableErrorSchema,
   'review.comment-not-found': reviewCommentNotFoundErrorSchema,
   'files.already-exists': filesAlreadyExistsErrorSchema,
+  'files.path-outside-project': filesPathOutsideProjectErrorSchema,
+  'files.not-found': filesNotFoundErrorSchema,
 } as const
 
 const expectedMembers = [
@@ -72,6 +78,18 @@ const expectedMembers = [
   {
     code: 'files.already-exists',
     category: 'conflict',
+    retryable: false,
+    hasDetails: true,
+  },
+  {
+    code: 'files.path-outside-project',
+    category: 'invalid-request',
+    retryable: false,
+    hasDetails: true,
+  },
+  {
+    code: 'files.not-found',
+    category: 'not-found',
     retryable: false,
     hasDetails: true,
   },
@@ -216,7 +234,7 @@ describe('public error contracts', () => {
   it('gives Files already-exists its required non-empty path detail', () => {
     const alreadyExists = publicErrorFixtures['files.already-exists']
     expect(filesAlreadyExistsErrorSchema.parse(alreadyExists).details).toEqual({
-      path: '/synthetic/repo/docs/empty.txt',
+      path: 'docs/empty.txt',
     })
     expect(
       filesAlreadyExistsErrorSchema.safeParse({
@@ -233,7 +251,37 @@ describe('public error contracts', () => {
     expect(
       filesAlreadyExistsErrorSchema.safeParse({
         ...alreadyExists,
-        details: { path: '/synthetic/repo/docs/empty.txt', extra: true },
+        details: { path: 'docs/empty.txt', extra: true },
+      }).success,
+    ).toBe(false)
+  })
+
+  it('gives Files path-outside-project invalid-request category and path detail', () => {
+    const outside = publicErrorFixtures['files.path-outside-project']
+    expect(filesPathOutsideProjectErrorSchema.parse(outside)).toMatchObject({
+      code: 'files.path-outside-project',
+      category: 'invalid-request',
+      details: { path: 'outside-via-symlink' },
+    })
+    expect(
+      filesPathOutsideProjectErrorSchema.safeParse({
+        ...outside,
+        details: { path: '' },
+      }).success,
+    ).toBe(false)
+  })
+
+  it('gives Files not-found its required non-empty path detail', () => {
+    const notFound = publicErrorFixtures['files.not-found']
+    expect(filesNotFoundErrorSchema.parse(notFound)).toMatchObject({
+      code: 'files.not-found',
+      category: 'not-found',
+      details: { path: 'docs/missing.txt' },
+    })
+    expect(
+      filesNotFoundErrorSchema.safeParse({
+        ...notFound,
+        details: { path: '' },
       }).success,
     ).toBe(false)
   })

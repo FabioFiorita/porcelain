@@ -56,9 +56,11 @@ All flat names; Q = query, M = mutation. No tRPC subscriptions exist.
 - `repoScope` Q, `hidePath`/`unhidePath`/`pinPath`/`unpinPath` M, `pinnedEntries` Q — monorepo hide/pin
 - `searchFiles` Q `{repoPath, query}` → fuzzy results, max 50 (drives the Files search bar)
 - `searchText` Q (git grep), `searchCode` Q `{regex, caseSensitive, include, exclude}`
-- `readFile` Q abs path → `text|image(dataUrl)|binary|too-large|not-found` discriminated union
-- `previewHtml` Q, `writeTextFile` M `{path, content}` (debounced autosave edits)
-- fs mutations: `createFile`, `createFolder`, `renamePath`, `duplicatePath`, `trashPath`
+- `readFile` Q `{projectPath, path}` (POSIX-absolute project root + project-relative path) → `text|image(dataUrl)|binary|too-large|not-found` discriminated union
+- `previewHtml` Q `{projectPath, path}` → inlined HTML string or `null`
+- `writeTextFile` M `{projectPath, path, content}` (debounced autosave edits)
+- fs mutations (all `{projectPath, …}` + relative targets): `createFile`, `createFolder`, `renamePath`, `duplicatePath` (returns **relative** new path), `trashPath`
+- `readDir` / pin / hide still absolute/`repoPath` until a later Files migration
 
 ### Changes tab
 - `gitStatus` Q, `gitFlow` Q (layer-grouped working tree), `gitRangeFlow` Q (vs merge-base)
@@ -96,7 +98,7 @@ All flat names; Q = query, M = mutation. No tRPC subscriptions exist.
 ## Mobile-side cautions
 
 - Heavy payloads: `readFile` inlines images as data URLs; `loopEvidenceHtml` is a whole HTML document; `diffReading`/`featureReading` can carry up to ~200 files of hunks. Fine on LAN/tailnet; cap or defer on a Funnel/cellular path.
-- Every path in every call is a **daemon-side** path (`~` expands daemon-side). Never touch the phone's filesystem for repo content.
+- Paths are **daemon-side**. The eight host-fs procedures take an absolute `projectPath` plus project-relative targets (no `~` expansion on those). `readDir`/scope still use absolute host paths. Never touch the phone's filesystem for repo content.
 - The mobile client and daemon are developed and delivered together. A missing procedure or
   malformed payload is an error; do not feature-detect alternate daemon contracts or silently
   degrade.

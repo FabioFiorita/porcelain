@@ -1,10 +1,54 @@
 import type { DirEntry, FileView } from '@backend/api'
+import { isFilesProjectRelativePath } from '@porcelain/contracts/files'
 import { onMutationError } from '@renderer/hooks/mutation-error'
 import { shellTrpc, trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useSelectionStore } from '@renderer/stores/selection'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { useCallback } from 'react'
+
+/** Strip trailing slashes except root `/`. */
+export function normalizeProjectRoot(projectPath: string): string {
+  const trimmed = projectPath.replace(/\/+$/, '')
+  return trimmed === '' ? '/' : trimmed
+}
+
+/**
+ * Convert a daemon-host absolute path to a project-relative wire path.
+ * Returns null when outside, equal to root, empty relative, or not a valid
+ * filesProjectRelativePath (including embedded .. segments).
+ */
+export function projectRelativeFromAbsolute(
+  projectPath: string,
+  absolutePath: string,
+): string | null {
+  const root = normalizeProjectRoot(projectPath)
+  if (absolutePath === root) return null
+  const prefix = root === '/' ? '/' : `${root}/`
+  if (!absolutePath.startsWith(prefix)) return null
+  const rel = absolutePath.slice(prefix.length)
+  if (rel === '') return null
+  // Reject repeated separators / dot segments without accepting outside paths
+  if (!isFilesProjectRelativePath(rel)) return null
+  return rel
+}
+
+/**
+ * Convert project-relative wire path back to UI absolute.
+ * Normalized root `/` → `/${relative}` — NEVER `//${relative}`.
+ */
+export function projectAbsoluteFromRelative(projectPath: string, relative: string): string {
+  const root = normalizeProjectRoot(projectPath)
+  if (root === '/') return `/${relative}`
+  return `${root}/${relative}`
+}
+
+/** Valid typed disabled query input — always pass this (never null/cast) when the query hook must run disabled. */
+export const DISABLED_FILES_QUERY_INPUT = {
+  projectPath: '/',
+  path: '__disabled__',
+} as const
+// Satisfies readFileInputSchema / previewHtmlInputSchema (projectPath `/` is valid; path `__disabled__` is a valid relative).
 
 export function useReadDir(path: string, enabled = true): DirEntry[] | undefined {
   const repo = useRepoStore((s) => s.repo)
@@ -23,11 +67,18 @@ export function useReadFile(
   view: FileView | undefined
   error: { message: string } | null
 } {
-  const { data: view, error } = trpc.readFile.useQuery(path, {
-    // Agent markdown images call this with enabled=false for data:/remote srcs so
-    // we never hit the daemon with an empty path or a URL it can't open.
-    enabled: enabled && path !== '',
-  })
+  const repo = useRepoStore((s) => s.repo)
+  const rel = repo ? projectRelativeFromAbsolute(repo.path, path) : null
+  const { data: view, error } = trpc.readFile.useQuery(
+    rel && repo
+      ? { projectPath: normalizeProjectRoot(repo.path), path: rel }
+      : DISABLED_FILES_QUERY_INPUT,
+    {
+      // Agent markdown images call this with enabled=false for data:/remote srcs so
+      // we never hit the daemon with an empty path or a URL it can't open.
+      enabled: enabled && repo !== null && rel !== null && path !== '',
+    },
+  )
   return { view, error }
 }
 
@@ -39,14 +90,30 @@ export function usePreviewHtml(
   path: string,
   enabled: boolean,
 ): { html: string | null | undefined; error: { message: string } | null } {
-  const { data: html, error } = trpc.previewHtml.useQuery(path, { enabled })
+  const repo = useRepoStore((s) => s.repo)
+  const rel = repo ? projectRelativeFromAbsolute(repo.path, path) : null
+  const { data: html, error } = trpc.previewHtml.useQuery(
+    rel && repo
+      ? { projectPath: normalizeProjectRoot(repo.path), path: rel }
+      : DISABLED_FILES_QUERY_INPUT,
+    { enabled: enabled && repo !== null && rel !== null && path !== '' },
+  )
   return { html, error }
 }
 
 /** Prefetch a file's contents (tree hover) so opening it feels instant. */
 export function useReadFilePrefetch(): (path: string) => Promise<void> {
   const utils = trpc.useUtils()
-  return (path: string): Promise<void> => utils.readFile.prefetch(path)
+  const repo = useRepoStore((s) => s.repo)
+  return (path: string): Promise<void> => {
+    if (!repo) return Promise.resolve()
+    const rel = projectRelativeFromAbsolute(repo.path, path)
+    if (rel === null) return Promise.resolve()
+    return utils.readFile.prefetch({
+      projectPath: normalizeProjectRoot(repo.path),
+      path: rel,
+    })
+  }
 }
 
 export function useWriteTextFile(path: string): {
@@ -54,16 +121,17 @@ export function useWriteTextFile(path: string): {
   isSaving: boolean
   error: { message: string } | null
 } {
+  const repo = useRepoStore((s) => s.repo)
   const utils = trpc.useUtils()
   const mutation = trpc.writeTextFile.useMutation({
     onSuccess: async (
       _data: unknown,
-      variables: { path: string; content: string },
+      variables: { projectPath: string; path: string; content: string },
     ): Promise<void> => {
       // the edit changes git state too, not just the file
       await Promise.all([
-        utils.readFile.invalidate(variables.path),
-        utils.previewHtml.invalidate(variables.path),
+        utils.readFile.invalidate({ projectPath: variables.projectPath, path: variables.path }),
+        utils.previewHtml.invalidate({ projectPath: variables.projectPath, path: variables.path }),
         utils.gitFlow.invalidate(),
         utils.gitDiffFile.invalidate(),
       ])
@@ -72,8 +140,15 @@ export function useWriteTextFile(path: string): {
   return {
     // Per-call onSuccess runs *in addition to* the hook-level one (TanStack v5);
     // it lets the caller advance its saved-watermark only once the write settles.
-    save: (content: string, onSaved?: () => void): void =>
-      mutation.mutate({ path, content }, { onSuccess: onSaved }),
+    save: (content: string, onSaved?: () => void): void => {
+      if (!repo) return
+      const rel = projectRelativeFromAbsolute(repo.path, path)
+      if (rel === null) return
+      mutation.mutate(
+        { projectPath: normalizeProjectRoot(repo.path), path: rel, content },
+        { onSuccess: onSaved },
+      )
+    },
     isSaving: mutation.isPending,
     error: mutation.error,
   }
@@ -108,6 +183,7 @@ export function useRefreshTree(): () => void {
 }
 
 export function useTrashPath(): (path: string) => Promise<void> {
+  const repo = useRepoStore((s) => s.repo)
   const utils = trpc.useUtils()
   const mutation = trpc.trashPath.useMutation({
     onSuccess: async () => {
@@ -123,8 +199,14 @@ export function useTrashPath(): (path: string) => Promise<void> {
     onError: onMutationError('Delete'),
   })
   return async (path: string): Promise<void> => {
+    if (!repo) return
+    const rel = projectRelativeFromAbsolute(repo.path, path)
+    if (rel === null) return
     try {
-      await mutation.mutateAsync(path)
+      await mutation.mutateAsync({
+        projectPath: normalizeProjectRoot(repo.path),
+        path: rel,
+      })
       // The file is gone from disk; close any open view of it so the viewer doesn't
       // render a dead tab (the tree keys a file tab by this same absolute path).
       useTabsStore.getState().closeTabEverywhere(tabId('file', path))
@@ -150,10 +232,16 @@ export function useCreateFile(): {
   create: (path: string) => Promise<void>
   error: { message: string } | null
 } {
+  const repo = useRepoStore((s) => s.repo)
   const utils = trpc.useUtils()
   const mutation = trpc.createFile.useMutation({ onSuccess: () => invalidateTree(utils) })
   return {
-    create: (path: string): Promise<void> => mutation.mutateAsync({ path }),
+    create: async (path: string): Promise<void> => {
+      if (!repo) return
+      const rel = projectRelativeFromAbsolute(repo.path, path)
+      if (rel === null) return
+      await mutation.mutateAsync({ projectPath: normalizeProjectRoot(repo.path), path: rel })
+    },
     error: mutation.error,
   }
 }
@@ -162,10 +250,16 @@ export function useCreateFolder(): {
   create: (path: string) => Promise<void>
   error: { message: string } | null
 } {
+  const repo = useRepoStore((s) => s.repo)
   const utils = trpc.useUtils()
   const mutation = trpc.createFolder.useMutation({ onSuccess: () => invalidateTree(utils) })
   return {
-    create: (path: string): Promise<void> => mutation.mutateAsync({ path }),
+    create: async (path: string): Promise<void> => {
+      if (!repo) return
+      const rel = projectRelativeFromAbsolute(repo.path, path)
+      if (rel === null) return
+      await mutation.mutateAsync({ projectPath: normalizeProjectRoot(repo.path), path: rel })
+    },
     error: mutation.error,
   }
 }
@@ -174,18 +268,44 @@ export function useRenamePath(): {
   rename: (from: string, to: string) => Promise<void>
   error: { message: string } | null
 } {
+  const repo = useRepoStore((s) => s.repo)
   const utils = trpc.useUtils()
   const mutation = trpc.renamePath.useMutation({ onSuccess: () => invalidateTree(utils) })
   return {
-    rename: (from: string, to: string): Promise<void> => mutation.mutateAsync({ from, to }),
+    rename: async (from: string, to: string): Promise<void> => {
+      if (!repo) return
+      const fromRel = projectRelativeFromAbsolute(repo.path, from)
+      const toRel = projectRelativeFromAbsolute(repo.path, to)
+      if (fromRel === null || toRel === null) return
+      await mutation.mutateAsync({
+        projectPath: normalizeProjectRoot(repo.path),
+        from: fromRel,
+        to: toRel,
+      })
+    },
     error: mutation.error,
   }
 }
 
-export function useDuplicatePath(): (path: string) => Promise<string> {
+/**
+ * Duplicate returns absolute UI path on success, or null when no mutation ran
+ * (no repo / invalid conversion). Callers that ignore the result need no edits:
+ * tree-node.tsx, file-commands.tsx.
+ */
+export function useDuplicatePath(): (path: string) => Promise<string | null> {
+  const repo = useRepoStore((s) => s.repo)
   const utils = trpc.useUtils()
   const mutation = trpc.duplicatePath.useMutation({ onSuccess: () => invalidateTree(utils) })
-  return (path: string): Promise<string> => mutation.mutateAsync({ path })
+  return async (path: string): Promise<string | null> => {
+    if (!repo) return null
+    const rel = projectRelativeFromAbsolute(repo.path, path)
+    if (rel === null) return null
+    const relativeNew = await mutation.mutateAsync({
+      projectPath: normalizeProjectRoot(repo.path),
+      path: rel,
+    })
+    return projectAbsoluteFromRelative(repo.path, relativeNew)
+  }
 }
 
 export function useEntryActions(entry: DirEntry): {

@@ -471,8 +471,9 @@ describe('daemon http surface — the token gate + CORS scope', () => {
           ...PROTOCOL_HEADERS,
         },
         body: JSON.stringify({
-          from: `/private/${secret}/from.txt`,
-          to: `/private/${secret}/to.txt`,
+          projectPath: `/private/${secret}/does-not-exist-as-dir`,
+          from: 'from.txt',
+          to: 'to.txt',
         }),
       })
       expect(unexpected.status).toBe(500)

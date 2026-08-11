@@ -1,12 +1,16 @@
 /**
  * Paths in the Files tab come in two forms and the difference matters.
  *
- * The **daemon** speaks absolute host paths: `readDir`, `readFile`, and the scope mutations all
- * take one. **Routes, comments and this tab's own state** speak repo-relative paths, because a
- * deep link, a review comment, and a pushed screen all have to survive the repo moving on the
- * host — and because a rest route segment cannot carry a leading slash.
+ * The eight host-fs procedures (`readFile`, `previewHtml`, `writeTextFile`, `createFile`,
+ * `createFolder`, `renamePath`, `duplicatePath`, `trashPath`) speak caller-nominated
+ * `projectPath` + project-relative targets on the wire — this module is **not** their
+ * conversion layer. `readDir`, pin/hide scope mutations, and watch registration remain
+ * absolute/`repoPath` until a later unit.
  *
- * Everything here converts between the two, and nothing else in the feature does.
+ * **Routes, comments and this tab's own state** speak repo-relative paths, because a deep
+ * link, a review comment, and a pushed screen all have to survive the repo moving on the
+ * host — and because a rest route segment cannot carry a leading slash. Conversion helpers
+ * still serve tree/watch/UI absolute↔relative needs — not the eight wire inputs.
  */
 
 /** The repo root itself, as a relative path. Empty rather than `.` — routes concatenate it. */

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { filesContractFixtures, fileViewFixtures } from './files.contract'
+import {
+  filesContractFixtures,
+  fileViewFixtures,
+  isFilesProjectPath,
+  isFilesProjectRelativePath,
+} from './files.contract'
 import { filesProcedures } from './files.procedures'
 
 const expectedKinds = {
@@ -27,14 +32,14 @@ const expectedErrors = {
   pinPath: [],
   unpinPath: [],
   pinnedEntries: [],
-  readFile: [],
-  previewHtml: [],
-  writeTextFile: [],
-  createFile: ['files.already-exists'],
-  createFolder: ['files.already-exists'],
-  renamePath: ['state.conflict'],
-  duplicatePath: [],
-  trashPath: [],
+  readFile: ['files.path-outside-project'],
+  previewHtml: ['files.path-outside-project'],
+  writeTextFile: ['files.path-outside-project', 'files.not-found'],
+  createFile: ['files.path-outside-project', 'files.already-exists', 'files.not-found'],
+  createFolder: ['files.path-outside-project', 'files.already-exists', 'files.not-found'],
+  renamePath: ['files.path-outside-project', 'state.conflict', 'files.not-found'],
+  duplicatePath: ['files.path-outside-project', 'files.not-found'],
+  trashPath: ['files.path-outside-project', 'files.not-found'],
   repoScope: [],
 } as const
 
@@ -47,10 +52,10 @@ const invalidInputs: Record<keyof typeof filesProcedures, unknown> = {
   pinnedEntries: 42,
   readFile: 42,
   previewHtml: null,
-  writeTextFile: { path: '/synthetic/repo/notes.txt', content: 42 },
+  writeTextFile: { projectPath: '/synthetic/repo', path: 'notes.txt', content: 42 },
   createFile: { path: 42 },
   createFolder: null,
-  renamePath: { from: '/synthetic/repo/old.md' },
+  renamePath: { projectPath: '/synthetic/repo', from: 'docs/old.md' },
   duplicatePath: { path: 42 },
   trashPath: null,
   repoScope: 42,
@@ -146,7 +151,81 @@ describe('Files procedure contracts', () => {
     })
   })
 
-  it('preserves relative and absolute paths plus empty and multiline text content', () => {
+  it('accepts POSIX-absolute projectPath including / and rejects relative projectPath', () => {
+    for (const value of ['/', '/repo', '/repo/', '/var/tmp/playground', '/synthetic/repo']) {
+      expect(isFilesProjectPath(value)).toBe(true)
+      expect(
+        filesProcedures.readFile.input.safeParse({ projectPath: value, path: 'a.txt' }).success,
+      ).toBe(true)
+    }
+    for (const value of ['', 'repo', './repo', '~/repo', 'C:/repo', '\\\\server\\share', 'a\0b']) {
+      expect(isFilesProjectPath(value)).toBe(false)
+    }
+    expect(
+      filesProcedures.readFile.input.safeParse({ projectPath: 'relative/repo', path: 'a.txt' })
+        .success,
+    ).toBe(false)
+  })
+
+  it('accepts project-relative targets including ..foo and rejects traversal forms', () => {
+    const accepted = [
+      'README.md',
+      'src/main.ts',
+      'docs/a b.md',
+      '.gitignore',
+      '.porcelain/board.json',
+      '..foo',
+      '..config',
+      'dir/..foo/bar',
+    ]
+    for (const path of accepted) {
+      expect(isFilesProjectRelativePath(path)).toBe(true)
+      expect(
+        filesProcedures.readFile.input.safeParse({ projectPath: '/synthetic/repo', path }).success,
+      ).toBe(true)
+    }
+
+    const rejected = [
+      '',
+      '.',
+      '..',
+      'foo/../bar',
+      'foo/./bar',
+      '/etc/passwd',
+      'foo//bar',
+      'foo/',
+      'foo\\bar',
+      'C:/foo',
+      'a\0b',
+    ]
+    for (const path of rejected) {
+      expect(isFilesProjectRelativePath(path)).toBe(false)
+    }
+  })
+
+  it('rejects bare host paths and absolute-only legacy wire for the eight host-fs procedures', () => {
+    expect(filesProcedures.readFile.input.safeParse('/synthetic/repo/README.md').success).toBe(
+      false,
+    )
+    expect(
+      filesProcedures.previewHtml.input.safeParse('/synthetic/repo/docs/index.html').success,
+    ).toBe(false)
+    expect(filesProcedures.trashPath.input.safeParse('/synthetic/repo/docs/old.md').success).toBe(
+      false,
+    )
+    expect(
+      filesProcedures.writeTextFile.input.safeParse({
+        path: 'docs/notes.txt',
+        content: 'x',
+      }).success,
+    ).toBe(false)
+    expect(
+      filesProcedures.createFile.input.safeParse({ path: '/synthetic/repo/docs/empty.txt' })
+        .success,
+    ).toBe(false)
+  })
+
+  it('preserves relative hide/pin paths and empty/multiline write content under projectPath', () => {
     expect(
       filesProcedures.hidePath.input.safeParse({
         repoPath: '/synthetic/repo',
@@ -159,19 +238,24 @@ describe('Files procedure contracts', () => {
         path: '/synthetic/repo/src/generated',
       }).success,
     ).toBe(true)
-    expect(filesProcedures.readFile.input.safeParse('~/synthetic/repo/README.md').success).toBe(
-      true,
-    )
-    expect(filesProcedures.writeTextFile.input.parse({ path: 'notes.txt', content: '' })).toEqual({
-      path: 'notes.txt',
-      content: '',
-    })
     expect(
       filesProcedures.writeTextFile.input.parse({
-        path: '/synthetic/repo/notes.txt',
+        projectPath: '/synthetic/repo',
+        path: 'notes.txt',
+        content: '',
+      }),
+    ).toEqual({ projectPath: '/synthetic/repo', path: 'notes.txt', content: '' })
+    expect(
+      filesProcedures.writeTextFile.input.parse({
+        projectPath: '/synthetic/repo',
+        path: 'docs/notes.txt',
         content: 'line one\nline two\n',
       }),
-    ).toEqual({ path: '/synthetic/repo/notes.txt', content: 'line one\nline two\n' })
+    ).toEqual({
+      projectPath: '/synthetic/repo',
+      path: 'docs/notes.txt',
+      content: 'line one\nline two\n',
+    })
   })
 
   it('rejects unknown fields at the strict Files wire boundary', () => {

@@ -110,6 +110,14 @@ host; a token sniffed off a LAN grants a shell; the second-listener binds must n
 their enumerated addresses. Funnel is intentionally public HTTPS, so possession of a device credential
 is its entire product boundary. Keep admin-only procedures separate, but **do not repo-scope ordinary
 file procedures** — that breaks cross-repo flows.
+The eight Files host-fs procedures take an explicit caller-nominated absolute `projectPath` (including
+`/`) plus project-relative targets. That `projectPath` is an **operation-scope / correctness boundary**
+with realpath containment of relative targets under the request-declared root — **not** repository
+authorization and **not** a shrink of token authority. A credential holder who sets `projectPath: '/'`
+retains broad host access by design. Public code `files.path-outside-project` means the target is
+outside the **request-declared** root (category `invalid-request`), not “not a Porcelain project.”
+`readDir` / pin / hide remain absolute/uncontained host paths until their later Files migration
+(temporary non-goal).
 
 *Verify:* `rg -n "createServer|listen\(|http\.createServer" apps/daemon apps/desktop/src/main apps/cli`
 hits at most two `createServer` sites (`server.ts`, `tailnet-listener.ts`) and nothing in `apps/cli`;

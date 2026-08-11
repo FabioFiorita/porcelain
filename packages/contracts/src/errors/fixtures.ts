@@ -103,6 +103,22 @@ export const publicErrorFixtures = {
     message: 'The path already exists.',
     retryable: false,
     requestId: '00000000-0000-4000-8000-00000000000e',
-    details: { path: '/synthetic/repo/docs/empty.txt' },
+    details: { path: 'docs/empty.txt' },
+  },
+  'files.path-outside-project': {
+    code: 'files.path-outside-project',
+    category: 'invalid-request',
+    message: 'The path is outside the declared project root.',
+    retryable: false,
+    requestId: '00000000-0000-4000-8000-00000000000f',
+    details: { path: 'outside-via-symlink' },
+  },
+  'files.not-found': {
+    code: 'files.not-found',
+    category: 'not-found',
+    message: 'The path was not found.',
+    retryable: false,
+    requestId: '00000000-0000-4000-8000-000000000010',
+    details: { path: 'docs/missing.txt' },
   },
 } as const satisfies Record<PublicErrorCode, PorcelainError>

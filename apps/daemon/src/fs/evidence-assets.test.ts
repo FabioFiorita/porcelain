@@ -1,4 +1,4 @@
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -70,5 +70,41 @@ describe('inlineLocalAssets', () => {
     writeFileSync(join(dir, 'shot.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47]))
     const html = '<img src="../../shot.png">'
     expect(await inlineLocalAssets(join(dir, 'results'), html, dir)).toBe(html)
+  })
+
+  it('does not false-positive ..foo filenames as outside', async () => {
+    writeFileSync(join(dir, '..foo.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47]))
+    const html = '<img src="..foo.png">'
+    const out = await inlineLocalAssets(dir, html)
+    expect(out).toMatch(/src="data:image\/png;base64,/)
+  })
+
+  it('leaves image symlink escape alone but inlines contained symlink', async () => {
+    const outside = join(tmpdir(), 'porcelain-evidence-assets-outside')
+    rmSync(outside, { recursive: true, force: true })
+    mkdirSync(outside, { recursive: true })
+    writeFileSync(join(outside, 'secret.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47]))
+    symlinkSync(join(outside, 'secret.png'), join(dir, 'escape.png'))
+    writeFileSync(join(dir, 'real.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47]))
+    symlinkSync(join(dir, 'real.png'), join(dir, 'ok-link.png'))
+
+    const escaped = '<img src="escape.png">'
+    expect(await inlineLocalAssets(dir, escaped)).toBe(escaped)
+
+    const contained = '<img src="ok-link.png">'
+    expect(await inlineLocalAssets(dir, contained)).toMatch(/src="data:image\/png;base64,/)
+
+    rmSync(outside, { recursive: true, force: true })
+  })
+
+  it('leaves stylesheet symlink escape alone', async () => {
+    const outside = join(tmpdir(), 'porcelain-evidence-assets-css-outside')
+    rmSync(outside, { recursive: true, force: true })
+    mkdirSync(outside, { recursive: true })
+    writeFileSync(join(outside, 'evil.css'), 'body{color:red}')
+    symlinkSync(join(outside, 'evil.css'), join(dir, 'escape.css'))
+    const html = '<link rel="stylesheet" href="escape.css">'
+    expect(await inlineLocalAssets(dir, html)).toBe(html)
+    rmSync(outside, { recursive: true, force: true })
   })
 })
