@@ -70,4 +70,22 @@ describe('createDaemonRouter composition', () => {
     expect(cards).toEqual([created])
     expect(await readCards(repo)).toEqual([created])
   })
+
+  it('supplies the operation catalog at construction rather than through a module mock', () => {
+    // Construction seam (TST-002): each call builds its own catalog and passes it
+    // into createDaemonRouter({ operations }). Domain migrations inject bound
+    // operations (or createDeferredOperationStub().operation) here — never by
+    // vi.mock of daemon-operations, router modules, or stores.
+    const first = createDaemonOperations()
+    const second = createDaemonOperations()
+    expect(first).not.toBe(second)
+    expect(Object.isFrozen(first)).toBe(true)
+    expect(Object.isFrozen(second)).toBe(true)
+
+    const routerA = createDaemonRouter({ operations: first })
+    const routerB = createDaemonRouter({ operations: second })
+
+    expect(Object.keys(routerA._def.procedures).sort()).toEqual(EXPECTED_PROCEDURE_KEYS)
+    expect(Object.keys(routerB._def.procedures).sort()).toEqual(EXPECTED_PROCEDURE_KEYS)
+  })
 })
