@@ -1,5 +1,6 @@
 import { createBoardRouter } from '../features/board'
 import { createFilesFeatureRouter } from '../features/files'
+import { createGitFeatureRouter } from '../features/git'
 import { createReviewCommentRouter } from '../features/review'
 import { createDaemonRouter as createDaemonHostRouter } from '../router/daemon'
 import { createFilesRouter } from '../router/files'
@@ -24,6 +25,7 @@ export function createDaemonRouter({ operations }: CreateDaemonRouterOptions) {
   return t.mergeRouters(
     createDaemonHostRouter(),
     createReposRouter(),
+    createGitFeatureRouter(operations.git),
     createGitRouter(),
     // Files feature eight first so flat merge position matches historical createFilesRouter slot.
     createFilesFeatureRouter(operations.files),

@@ -4,9 +4,7 @@ import { moveToTrash } from '../fs/move-to-trash'
 import { generateCommitGroups, generateCommitMessage } from '../git/commit-generation'
 import { type CommitConventions, parseConventions } from '../git/conventions'
 import {
-  gitAddWorktree,
   gitBranches,
-  gitCheckout,
   gitCommit,
   gitCommitDiff,
   gitCommitFiles,
@@ -184,11 +182,6 @@ export function createGitRouter() {
       .output(procedureCatalog.gitBranches.output)
       .query(({ input }) => gitBranches(input)),
 
-    gitCheckout: publicProcedure
-      .input(procedureCatalog.gitCheckout.input)
-      .output(procedureCatalog.gitCheckout.output)
-      .mutation(({ input }) => gitCheckout(input.repoPath, input.branch)),
-
     gitCreateBranch: publicProcedure
       .input(procedureCatalog.gitCreateBranch.input)
       .output(procedureCatalog.gitCreateBranch.output)
@@ -206,15 +199,6 @@ export function createGitRouter() {
       .input(procedureCatalog.worktreeInbox.input)
       .output(procedureCatalog.worktreeInbox.output)
       .query(({ input }) => worktreeInbox(input)),
-
-    gitAddWorktree: publicProcedure
-      .input(procedureCatalog.gitAddWorktree.input)
-      .output(procedureCatalog.gitAddWorktree.output)
-      .mutation(async ({ input }) => {
-        // Companion data is in-repo under .porcelain — linked worktrees that share
-        // the same commit see the same files; no daemon-side seed/copy.
-        return gitAddWorktree(input.repoPath, input.branch)
-      }),
 
     gitLog: publicProcedure
       .input(procedureCatalog.gitLog.input)

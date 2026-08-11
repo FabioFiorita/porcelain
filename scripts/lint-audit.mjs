@@ -4,13 +4,13 @@
  *
  *   1. External URLs go through `isSafeExternalUrl` — any file reaching
  *      `shell.openExternal` / `setWindowOpenHandler` must also import the guard.
- *   2. Every git invocation sets `GIT_OPTIONAL_LOCKS=0` via `runGit` in
- *      `apps/daemon/src/git/git.ts`, the sole chokepoint; no other shipped daemon
- *      / shell `src/main` module may spawn git around it. Test fixtures and the
- *      agent CLI's one-shot `rev-parse` are out of scope.
+ *   2. Every git invocation sets `GIT_OPTIONAL_LOCKS=0` through a registered Git gateway:
+ *      `runGit` in `apps/daemon/src/git/git.ts` or a bounded feature adapter. No other
+ *      shipped daemon / shell `src/main` module may spawn git around them. Test fixtures and
+ *      the agent CLI's one-shot `rev-parse` are out of scope.
  *   3. `.husky/pre-commit` clears Git's exported repository-local env before
  *      the commit gate (`pnpm lint`).
- *   4. Every git spawn in the gateway builds its env with `gitEnv`, the runtime
+ *   4. Every git spawn in a registered gateway builds its env with `gitEnv`, the runtime
  *      half of 3.
  *
  * Comment lines are skipped, matching `lint-escapes.mjs`.
@@ -33,6 +33,8 @@ const GUARD_FILES = new Set([
 ])
 
 const GIT_GATEWAY = join(daemonSrc, 'git', 'git.ts')
+const GIT_FEATURE_ADAPTER = join(daemonSrc, 'features', 'git', 'git-subprocess.ts')
+const GIT_GATEWAYS = [GIT_GATEWAY, GIT_FEATURE_ADAPTER]
 const GIT_LOCKS_FLAG = 'GIT_OPTIONAL_LOCKS'
 const GIT_LOCKS_SET = /GIT_OPTIONAL_LOCKS\s*:\s*['"]0['"]/
 const GIT_SPAWN =
@@ -146,7 +148,7 @@ for (const file of [...walk(desktopSrc), ...walk(daemonSrc)]) {
   }
 
   if (
-    file !== GIT_GATEWAY &&
+    !GIT_GATEWAYS.includes(file) &&
     GIT_SPAWN_ROOTS.some((dir) => file.startsWith(dir)) &&
     !isTest(file) &&
     GIT_SPAWN.test(code)
@@ -161,7 +163,9 @@ for (const file of [...walk(desktopSrc), ...walk(daemonSrc)]) {
   }
 }
 
-if (!codeLines(GIT_GATEWAY).some(({ line }) => GIT_LOCKS_SET.test(line))) {
+if (
+  !GIT_GATEWAYS.every((gateway) => codeLines(gateway).some(({ line }) => GIT_LOCKS_SET.test(line)))
+) {
   failures.push({
     file: relative(root, GIT_GATEWAY),
     line: 0,
@@ -170,7 +174,7 @@ if (!codeLines(GIT_GATEWAY).some(({ line }) => GIT_LOCKS_SET.test(line))) {
   })
 }
 
-const gatewayCode = codeLines(GIT_GATEWAY)
+const gatewayCode = GIT_GATEWAYS.flatMap((gateway) => codeLines(gateway))
   .map(({ line }) => line)
   .join('\n')
 const gatewaySpawns = gatewayCode.match(GIT_SPAWN_ALL)?.length ?? 0

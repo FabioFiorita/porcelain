@@ -28,10 +28,8 @@ const { git, generation, flow, inbox, trash, workingTree, reviewed } = vi.hoiste
     gitDiffFile: vi.fn(async () => ({ hunks: [], status: 'modified' })),
     gitHead: vi.fn(async () => ({ branch: 'main', detachedSha: null })),
     gitBranches: vi.fn(async () => [{ name: 'main', remote: 'origin/main' }]),
-    gitCheckout: vi.fn(async () => undefined),
     gitCreateBranch: vi.fn(async () => undefined),
     gitWorktrees: vi.fn(async () => [{ path: '/synthetic/repo', branch: 'main' }]),
-    gitAddWorktree: vi.fn(async () => ({ path: '/synthetic/repo-work', branch: 'work/alpha' })),
     gitLog: vi.fn(async () => [
       { hash: 'abc1234', author: 'Agent', date: '2 days ago', subject: 'feat(git): add' },
     ]),
@@ -168,7 +166,7 @@ describe('git router contract input', () => {
     expect(reviewed.clearReviewedPaths).toHaveBeenCalledWith(REPO, ['src/alpha.ts'])
   })
 
-  it('rejects an empty branch name for branch creation and worktree creation', async () => {
+  it('rejects an empty branch name for branch creation', async () => {
     expectPublicCode(
       await rejected(() =>
         callWithRawInput('gitCreateBranch', 'mutation', { repoPath: REPO, branch: '' }),
@@ -176,15 +174,7 @@ describe('git router contract input', () => {
       'request.invalid',
       false,
     )
-    expectPublicCode(
-      await rejected(() =>
-        callWithRawInput('gitAddWorktree', 'mutation', { repoPath: REPO, branch: '' }),
-      ),
-      'request.invalid',
-      false,
-    )
     expect(git.gitCreateBranch).not.toHaveBeenCalled()
-    expect(git.gitAddWorktree).not.toHaveBeenCalled()
   })
 
   it('applies the gitLog and gitFileLog limit defaults and enforces their maximums', async () => {
@@ -267,7 +257,6 @@ describe('git router contract output', () => {
   it('serializes void staging mutations as undefined', async () => {
     expect(await caller().gitStageAll({ repoPath: REPO })).toBeUndefined()
     expect(await caller().gitUnstageAll({ repoPath: REPO })).toBeUndefined()
-    expect(await caller().gitCheckout({ repoPath: REPO, branch: 'main' })).toBeUndefined()
     expect(git.gitStageAll).toHaveBeenCalledWith(REPO)
     expect(git.gitUnstageAll).toHaveBeenCalledWith(REPO)
   })

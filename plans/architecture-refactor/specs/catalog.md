@@ -77,7 +77,7 @@ an external choice or authorization.
 | `FIL-005` | Landed | Web Files adapter and Viewer seam remove raw daemon models |
 | `FIL-006` | Landed | Mobile Files adapter deletes local schemas and string invalidations |
 | `GIT-001` | Landed | Checkout/add-worktree/status/branches/worktrees contracts and failures |
-| `GIT-002` | Ready | Checkout and add-worktree operations over hardened Git capabilities |
+| `GIT-002` | Landed | Checkout and add-worktree operations over hardened Git capabilities |
 | `GIT-003` | Draft | Distinct non-optimistic checkout/add-worktree query consequences |
 | `GIT-004` | Draft | Both clients adopt shared worktree mutation semantics |
 | `TRM-001` | Draft | Terminal stream command/event/epoch/sequence/error vocabulary |

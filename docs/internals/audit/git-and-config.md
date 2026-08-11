@@ -32,11 +32,14 @@
   (every gateway spawn passes `env: gitEnv(`); `git-env.test.ts` pins the strip list; `git.test.ts` →
   "inherited repository env" runs a fixture under a decoy `GIT_DIR` and asserts the decoy keeps its
   HEAD, branches, index, and `core.bare=false`.
-- **Every git invocation sets `GIT_OPTIONAL_LOCKS=0`** (`runGit`). The 3s `gitStatus`/`gitFlow`
+- **Every git invocation sets `GIT_OPTIONAL_LOCKS=0`** (`runGit` and the registered Git
+  feature adapters). The 3s `gitStatus`/`gitFlow`
   background polls otherwise rewrite `.git/index` under a lock, racing the user's own `pull`/`commit`
   and failing it with `fatal: Unable to write index.`. The flag disables only optional refreshes;
   required locks for real mutations are untouched. *Verify:* lint-enforced — the flag stays in `git.ts`
-  and no other shipped `apps/daemon`/`apps/desktop/src/main` module spawns `git` around `runGit`.
+  and no other shipped `apps/daemon`/`apps/desktop/src/main` module spawns `git` outside a registered
+  gateway. The bounded `apps/daemon/src/features/git/git-subprocess.ts` adapter is registered because
+  checkout/add-worktree own fixed argv, `cwd`, the 64 MiB buffer, and `gitEnv` construction themselves.
   Tests and `apps/cli`'s one-shot `rev-parse` are out of scope on purpose (neither polls a live user
   repo).
   `git.ts` itself is exempt from the spawn half, so a new in-file bypass of `runGit` is invisible to
@@ -49,4 +52,3 @@
   `-unormal` collapses an untracked directory into one `dir/` row; that row reaches the Changes list,
   and `gitDiffFile` then `readFile`s a directory → `EISDIR` (blank tab + error). *Verify:* new
   `git status` calls feeding the changes list keep the flag.
-
