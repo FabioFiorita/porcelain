@@ -562,3 +562,189 @@ test('external deep imports without a baseline fail immediately; zero baseline m
     },
   )
 })
+
+test('null or non-object deep-import baseline catalogs fail without crashing', () => {
+  withFixtureRepo(
+    (root) => {
+      writeFixtureFile(
+        root,
+        'apps/mobile/src/features/comments/index.ts',
+        'export const comments = 1\n',
+      )
+      writeFixtureFile(
+        root,
+        'apps/mobile/src/features/comments/comment-composer.tsx',
+        'export const Composer = 1\n',
+      )
+      writeFixtureFile(
+        root,
+        'apps/mobile/src/features/diff/diff-view.tsx',
+        "import { Composer } from '@/features/comments/comment-composer'\nexport const Diff = Composer\n",
+      )
+    },
+    (root) => {
+      const migrations = buildMigrations({
+        review: {
+          status: 'migrating',
+          targetRoots: ['apps/mobile/src/features/comments'],
+          legacyPaths: [],
+        },
+      })
+
+      for (const catalog of [null, [], 'nope', 42]) {
+        const failures = checkArchitecture(root, migrations, /** @type {any} */ (catalog))
+        assert.ok(
+          failures.some((failure) =>
+            failure.includes(
+              'TARGET_ROOT_DEEP_IMPORT_BASELINES must be an object of root → { occurrences, files }',
+            ),
+          ),
+          `expected catalog failure for ${String(catalog)}`,
+        )
+        // Scanning still reports the unbaselined deep import (empty catalog after normalize).
+        assert.ok(
+          failures.some(
+            (failure) =>
+              failure.includes('deep-imports') &&
+              failure.includes('apps/mobile/src/features/comments/comment-composer.tsx'),
+          ),
+        )
+      }
+    },
+  )
+})
+
+test('malformed deep-import baseline records fail without crashing', () => {
+  withFixtureRepo(
+    (root) => {
+      writeFixtureFile(
+        root,
+        'apps/mobile/src/features/comments/index.ts',
+        'export const comments = 1\n',
+      )
+      writeFixtureFile(
+        root,
+        'apps/mobile/src/features/comments/comment-composer.tsx',
+        'export const Composer = 1\n',
+      )
+      writeFixtureFile(
+        root,
+        'apps/mobile/src/features/diff/diff-view.tsx',
+        "import { Composer } from '@/features/comments/comment-composer'\nexport const Diff = Composer\n",
+      )
+    },
+    (root) => {
+      const migrations = buildMigrations({
+        review: {
+          status: 'migrating',
+          targetRoots: ['apps/mobile/src/features/comments'],
+          legacyPaths: [],
+        },
+      })
+      const rootKey = 'apps/mobile/src/features/comments'
+
+      const nullRecord = checkArchitecture(root, migrations, { [rootKey]: null })
+      assert.ok(
+        nullRecord.some((failure) =>
+          failure.includes(
+            `TARGET_ROOT_DEEP_IMPORT_BASELINES[${rootKey}] must be { occurrences: number, files: number }`,
+          ),
+        ),
+      )
+
+      const extraKey = checkArchitecture(root, migrations, {
+        [rootKey]: { occurrences: 1, files: 1, extra: true },
+      })
+      assert.ok(
+        extraKey.some((failure) =>
+          failure.includes(
+            `TARGET_ROOT_DEEP_IMPORT_BASELINES[${rootKey}] must have exactly occurrences and files`,
+          ),
+        ),
+      )
+
+      const missingKey = checkArchitecture(root, migrations, {
+        [rootKey]: { occurrences: 1 },
+      })
+      assert.ok(
+        missingKey.some((failure) =>
+          failure.includes(
+            `TARGET_ROOT_DEEP_IMPORT_BASELINES[${rootKey}] must have exactly occurrences and files`,
+          ),
+        ),
+      )
+
+      for (const bad of [
+        { occurrences: 1.5, files: 1 },
+        { occurrences: -1, files: 1 },
+        { occurrences: Number.POSITIVE_INFINITY, files: 1 },
+        { occurrences: Number.NaN, files: 1 },
+        { occurrences: '1', files: 1 },
+        { occurrences: 1, files: -0.1 },
+      ]) {
+        const failures = checkArchitecture(root, migrations, { [rootKey]: bad })
+        assert.ok(
+          failures.some((failure) =>
+            failure.includes(
+              `TARGET_ROOT_DEEP_IMPORT_BASELINES[${rootKey}] occurrences and files must be finite non-negative integers`,
+            ),
+          ),
+          `expected integer validation for ${JSON.stringify(bad)}`,
+        )
+      }
+    },
+  )
+})
+
+test('production-mode rejects baseline roots that are no longer registered; fixture mode stays quiet', () => {
+  withFixtureRepo(
+    (root) => {
+      writeFixtureFile(
+        root,
+        'apps/mobile/src/features/comments/index.ts',
+        'export const comments = 1\n',
+      )
+    },
+    (root) => {
+      const migrations = buildMigrations({
+        review: {
+          status: 'migrating',
+          targetRoots: ['apps/mobile/src/features/comments'],
+          legacyPaths: [],
+        },
+      })
+      const staleRoot = 'apps/mobile/src/features/board'
+      const baselines = {
+        'apps/mobile/src/features/comments': { occurrences: 1, files: 1 },
+        [staleRoot]: { occurrences: 3, files: 2 },
+      }
+
+      // Fixture default: custom migration catalog → do not demand removal of unrelated roots.
+      const fixtureQuiet = checkArchitecture(root, migrations, baselines)
+      assert.ok(
+        !fixtureQuiet.some((failure) => failure.includes(staleRoot)),
+        'fixture mode must not report stale unregistered baseline roots',
+      )
+      // comments baseline is still enforced (zero actual → remove-at-zero).
+      assert.ok(
+        fixtureQuiet.some((failure) =>
+          failure.includes(
+            'External deep imports into apps/mobile/src/features/comments reached zero',
+          ),
+        ),
+      )
+
+      // Explicit production-mode option: unregistered baseline roots are stale and must go.
+      const productionMode = checkArchitecture(root, migrations, baselines, {
+        rejectUnregisteredBaselineRoots: true,
+      })
+      assert.ok(
+        productionMode.some((failure) =>
+          failure.includes(
+            `TARGET_ROOT_DEEP_IMPORT_BASELINES names ${staleRoot} which is not a registered target root; remove the stale baseline entry`,
+          ),
+        ),
+      )
+    },
+  )
+})

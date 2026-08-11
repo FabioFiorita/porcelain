@@ -145,16 +145,24 @@ function validatePathList(key, field, value, fail) {
  * @param {string} root
  * @param {typeof DOMAIN_MIGRATIONS} migrations
  * @param {typeof TARGET_ROOT_DEEP_IMPORT_BASELINES} [deepImportBaselines]
+ * @param {{ rejectUnregisteredBaselineRoots?: boolean }} [options]
+ *   `rejectUnregisteredBaselineRoots` defaults to true when `migrations` is the live
+ *   `DOMAIN_MIGRATIONS` catalog (repository / production check). Fixture checks that pass a
+ *   custom migration catalog default to false so they can omit unrelated default roots without
+ *   noise. Pass the flag explicitly to assert production-mode stale-root behavior in fixtures.
  * @returns {string[]}
  */
 export function checkArchitecture(
   root,
   migrations = DOMAIN_MIGRATIONS,
   deepImportBaselines = TARGET_ROOT_DEEP_IMPORT_BASELINES,
+  options = {},
 ) {
   const failures = []
   const fail = (message) => failures.push(message)
   const relative = (absolute) => path.relative(root, absolute).split(path.sep).join('/')
+  const rejectUnregisteredBaselineRoots =
+    options.rejectUnregisteredBaselineRoots ?? migrations === DOMAIN_MIGRATIONS
 
   const migrationsAreRecords =
     migrations !== null && typeof migrations === 'object' && !Array.isArray(migrations)
@@ -171,6 +179,18 @@ export function checkArchitecture(
   if (SUPPORTING_REGIONS.some((region) => uniqueDomainKeys.has(region))) {
     fail('a supporting region is also registered as a product domain')
   }
+
+  // Normalize early so source scanning never indexes a non-object catalog (null throws).
+  // Malformed catalogs still fail below; scanning treats them as empty.
+  const baselinesAreRecords =
+    deepImportBaselines !== null &&
+    typeof deepImportBaselines === 'object' &&
+    !Array.isArray(deepImportBaselines)
+  if (!baselinesAreRecords) {
+    fail('TARGET_ROOT_DEEP_IMPORT_BASELINES must be an object of root → { occurrences, files }')
+  }
+  /** @type {Record<string, unknown>} */
+  const baselineCatalog = baselinesAreRecords ? deepImportBaselines : {}
 
   const registeredPaths = []
   const validatedMigrations = new Map()
@@ -393,7 +413,7 @@ export function checkArchitecture(
 
       // Importer is outside any registered root (or outside this target): external deep import.
       if (!isProductionSource) continue
-      const baseline = deepImportBaselines[targetRoot]
+      const baseline = baselineCatalog[targetRoot]
       if (baseline === undefined) {
         fail(
           `${file} deep-imports ${resolvedRelative} into registered target root ${targetRoot}; only its index.ts is public (record a shrink-only TARGET_ROOT_DEEP_IMPORT_BASELINES entry only for inventoried migration debt)`,
@@ -431,49 +451,63 @@ export function checkArchitecture(
     )
   }
 
-  if (
-    deepImportBaselines === null ||
-    typeof deepImportBaselines !== 'object' ||
-    Array.isArray(deepImportBaselines)
-  ) {
-    fail('TARGET_ROOT_DEEP_IMPORT_BASELINES must be an object of root → { occurrences, files }')
-  } else {
-    for (const [targetRoot, baseline] of Object.entries(deepImportBaselines)) {
-      if (!validTargetRoots.has(targetRoot)) {
-        // Fixture migrations may omit roots that the default baselines name; only enforce
-        // baselines for roots that are registered in this check.
-        continue
-      }
-      if (
-        baseline === null ||
-        typeof baseline !== 'object' ||
-        typeof baseline.occurrences !== 'number' ||
-        typeof baseline.files !== 'number'
-      ) {
+  for (const [targetRoot, baseline] of Object.entries(baselineCatalog)) {
+    if (!validTargetRoots.has(targetRoot)) {
+      // Production/default-catalog mode: a baseline for an unregistered root is stale debt ledger.
+      // Fixture checks with custom migrations default rejectUnregisteredBaselineRoots=false so
+      // they can pass a partial baseline map (or inherit default baselines) without noise.
+      if (rejectUnregisteredBaselineRoots) {
         fail(
-          `TARGET_ROOT_DEEP_IMPORT_BASELINES[${targetRoot}] must be { occurrences: number, files: number }`,
-        )
-        continue
-      }
-      const actual = externalDeepImportsByRoot.get(targetRoot) ?? {
-        occurrences: 0,
-        files: new Set(),
-      }
-      if (actual.occurrences > baseline.occurrences) {
-        fail(
-          `External deep imports into ${targetRoot} grew from ${baseline.occurrences} to ${actual.occurrences} occurrences`,
+          `TARGET_ROOT_DEEP_IMPORT_BASELINES names ${targetRoot} which is not a registered target root; remove the stale baseline entry`,
         )
       }
-      if (actual.files.size > baseline.files) {
-        fail(
-          `Files with external deep imports into ${targetRoot} grew from ${baseline.files} to ${actual.files.size}`,
-        )
-      }
-      if (actual.occurrences === 0 && actual.files.size === 0) {
-        fail(
-          `External deep imports into ${targetRoot} reached zero; remove its TARGET_ROOT_DEEP_IMPORT_BASELINES entry`,
-        )
-      }
+      continue
+    }
+    if (baseline === null || typeof baseline !== 'object' || Array.isArray(baseline)) {
+      fail(
+        `TARGET_ROOT_DEEP_IMPORT_BASELINES[${targetRoot}] must be { occurrences: number, files: number }`,
+      )
+      continue
+    }
+    const recordKeys = Object.keys(baseline).sort().join(',')
+    if (recordKeys !== 'files,occurrences') {
+      fail(
+        `TARGET_ROOT_DEEP_IMPORT_BASELINES[${targetRoot}] must have exactly occurrences and files`,
+      )
+      continue
+    }
+    const { occurrences, files } = /** @type {{ occurrences: unknown, files: unknown }} */ (
+      baseline
+    )
+    if (
+      !Number.isInteger(occurrences) ||
+      !Number.isInteger(files) ||
+      /** @type {number} */ (occurrences) < 0 ||
+      /** @type {number} */ (files) < 0
+    ) {
+      fail(
+        `TARGET_ROOT_DEEP_IMPORT_BASELINES[${targetRoot}] occurrences and files must be finite non-negative integers`,
+      )
+      continue
+    }
+    const actual = externalDeepImportsByRoot.get(targetRoot) ?? {
+      occurrences: 0,
+      files: new Set(),
+    }
+    if (actual.occurrences > occurrences) {
+      fail(
+        `External deep imports into ${targetRoot} grew from ${occurrences} to ${actual.occurrences} occurrences`,
+      )
+    }
+    if (actual.files.size > files) {
+      fail(
+        `Files with external deep imports into ${targetRoot} grew from ${files} to ${actual.files.size}`,
+      )
+    }
+    if (actual.occurrences === 0 && actual.files.size === 0) {
+      fail(
+        `External deep imports into ${targetRoot} reached zero; remove its TARGET_ROOT_DEEP_IMPORT_BASELINES entry`,
+      )
     }
   }
 
