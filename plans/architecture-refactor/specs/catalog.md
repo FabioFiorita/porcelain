@@ -70,7 +70,7 @@ an external choice or authorization.
 | `RVC-002` | Landed | Shared optimistic transitions, rollback, reconciliation, and notification consequences |
 | `RVC-003` | Landed | Web comments adopt shared optimism and contract mock |
 | `RVC-004` | Landed | Mobile comments adopt the same semantics and delete local descriptors |
-| `FIL-001` | Draft | Canonical file read/write/tree/pin/scope contracts and expected failures |
+| `FIL-001` | Ready | Canonical file read/write/tree/pin/scope contracts and expected failures |
 | `FIL-002` | Draft | Safe-path/read-limit Files capabilities, operations, and filesystem adapter proof |
 | `FIL-003` | Draft | Declarative bounded watches and typed successful-change facts |
 | `FIL-004` | Draft | Shared Files query/mutation/watch/recovery semantics |
