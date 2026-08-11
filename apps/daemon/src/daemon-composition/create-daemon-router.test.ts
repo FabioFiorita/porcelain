@@ -5,19 +5,6 @@ import { join } from 'node:path'
 import { procedureCatalog } from '@porcelain/contracts'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-// terminal-manager pulls node-pty (Electron ABI); mock before composition imports it.
-vi.mock('../terminal/terminal-manager', () => ({
-  listTerminals: () => [],
-  renameTerminal: vi.fn(),
-  createTerminal: vi.fn(() => 'term-1'),
-  attachTerminal: vi.fn(() => ({ scrollback: '', status: 'running' as const })),
-  detachTerminal: vi.fn(),
-  detachSender: vi.fn(),
-  killTerminal: vi.fn(),
-  writeTerminal: vi.fn(),
-  resizeTerminal: vi.fn(),
-}))
-
 vi.mock('../project/git-exclude', () => ({
   ensureCompanionHidden: vi.fn(async () => undefined),
 }))
@@ -25,6 +12,7 @@ vi.mock('../review/review-watch', () => ({
   watchProjectCompanion: vi.fn(),
 }))
 
+import type { TerminalOperations } from '../features/terminal'
 import { createDaemonRouter } from './create-daemon-router'
 import { createDaemonOperations } from './daemon-operations'
 
@@ -33,6 +21,23 @@ const PUBLIC_CONTEXT = { auth: { kind: 'admin' as const }, requestId: REQUEST_ID
 
 /** Complete flat procedure key set locked from the live composed router. */
 const EXPECTED_PROCEDURE_KEYS = Object.keys(procedureCatalog).sort()
+
+function terminalOperations(): TerminalOperations {
+  return {
+    create: () => ({ ok: true, value: 'term-1' }),
+    attach: () => ({ ok: false, error: { code: 'terminal.not-found' } }),
+    detach: () => ({ ok: false, error: { code: 'terminal.not-found' } }),
+    write: () => ({ ok: false, error: { code: 'terminal.not-found' } }),
+    resize: () => ({ ok: false, error: { code: 'terminal.not-found' } }),
+    kill: () => ({ ok: false, error: { code: 'terminal.not-found' } }),
+    pasteImage: async () => ({ ok: false, error: { code: 'terminal.not-found' } }),
+    pasteFile: async () => ({ ok: false, error: { code: 'terminal.not-found' } }),
+    list: () => [],
+    rename: () => undefined,
+    detachSink: () => undefined,
+    sweep: () => undefined,
+  }
+}
 
 describe('createDaemonRouter composition', () => {
   let root = ''
@@ -48,12 +53,16 @@ describe('createDaemonRouter composition', () => {
   })
 
   it('exposes the complete flat procedure key set from a single composition root', () => {
-    const operations = createDaemonOperations({ publishSessionChange: () => undefined })
+    const operations = createDaemonOperations({
+      publishSessionChange: () => undefined,
+      terminal: terminalOperations(),
+    })
     expect(Object.isFrozen(operations)).toBe(true)
     expect(operations.board).toBeDefined()
     expect(operations.reviewComments).toBeDefined()
     expect(operations.files).toBeDefined()
     expect(operations.git).toBeDefined()
+    expect(operations.terminal).toBeDefined()
 
     const router = createDaemonRouter({ operations })
     const keys = Object.keys(router._def.procedures).sort()
@@ -63,7 +72,10 @@ describe('createDaemonRouter composition', () => {
   })
 
   it('calls listBoardCards through the composed router against a temporary project board', async () => {
-    const operations = createDaemonOperations({ publishSessionChange: () => undefined })
+    const operations = createDaemonOperations({
+      publishSessionChange: () => undefined,
+      terminal: terminalOperations(),
+    })
     const router = createDaemonRouter({ operations })
     const caller = router.createCaller(PUBLIC_CONTEXT)
 
@@ -80,8 +92,14 @@ describe('createDaemonRouter composition', () => {
   })
 
   it('supplies the operation catalog at construction rather than through a module mock', () => {
-    const first = createDaemonOperations({ publishSessionChange: () => undefined })
-    const second = createDaemonOperations({ publishSessionChange: () => undefined })
+    const first = createDaemonOperations({
+      publishSessionChange: () => undefined,
+      terminal: terminalOperations(),
+    })
+    const second = createDaemonOperations({
+      publishSessionChange: () => undefined,
+      terminal: terminalOperations(),
+    })
     expect(first).not.toBe(second)
     expect(Object.isFrozen(first)).toBe(true)
     expect(Object.isFrozen(second)).toBe(true)

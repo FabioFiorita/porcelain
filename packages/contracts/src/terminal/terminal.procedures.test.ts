@@ -20,6 +20,7 @@ const invalidOutputs = {
   terminalSessions: [{ ...terminalContractFixtures.terminalSessions.output[0], status: 'paused' }],
   renameTerminal: null,
 } as const
+const EMPTY_ID = ''
 
 describe('Terminal procedure contracts', () => {
   it('declares exactly two procedures with their router kinds', () => {
@@ -67,8 +68,10 @@ describe('Terminal procedure contracts', () => {
   })
 
   it('defaults createdAt to zero and preserves unbounded id, name, and cwd strings', () => {
-    expect(terminalInfoSchema.parse({ id: '', name: '', cwd: '', status: 'running' })).toEqual({
-      id: '',
+    expect(
+      terminalInfoSchema.parse({ id: EMPTY_ID, name: '', cwd: '', status: 'running' }),
+    ).toEqual({
+      id: EMPTY_ID,
       name: '',
       cwd: '',
       status: 'running',
@@ -82,9 +85,9 @@ describe('Terminal procedure contracts', () => {
         terminalProcedures.renameTerminal.input.safeParse({ id: 'terminal-1', name }).success,
       ).toBe(true)
     }
-    expect(terminalProcedures.renameTerminal.input.safeParse({ id: '', name: '' }).success).toBe(
-      true,
-    )
+    expect(
+      terminalProcedures.renameTerminal.input.safeParse({ id: EMPTY_ID, name: '' }).success,
+    ).toBe(true)
   })
 
   it('rejects unknown fields at the roster and rename boundaries', () => {

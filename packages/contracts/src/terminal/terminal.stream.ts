@@ -262,6 +262,18 @@ export const terminalInputFrameSchema = z.discriminatedUnion('t', [
 ])
 export type TerminalInputFrame = z.infer<typeof terminalInputFrameSchema>
 
+export const terminalClientFrameSchema = z.discriminatedUnion('t', [
+  terminalCreateSchema,
+  terminalAttachSchema,
+  terminalDetachSchema,
+  terminalResizeSchema,
+  terminalKillSchema,
+  terminalWriteSchema,
+  terminalPasteImageSchema,
+  terminalPasteFileSchema,
+])
+export type TerminalClientFrame = z.infer<typeof terminalClientFrameSchema>
+
 /** Correlated expected Terminal failures use the common public error vocabulary. */
 export const terminalErrorFrameSchema = z
   .object({

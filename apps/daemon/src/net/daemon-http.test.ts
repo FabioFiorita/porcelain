@@ -10,25 +10,8 @@ import { initTRPC } from '@trpc/server'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import WebSocket from 'ws'
 
-// The session and the router statically import terminal-manager, which imports
-// node-pty — a native module built for Electron's ABI that won't load under
-// plain-Node Vitest. Mock it (hoisted) so the import graph never touches it.
-vi.mock('../terminal/terminal-manager', () => ({
-  listTerminals: () => [],
-  renameTerminal: vi.fn(),
-  createTerminal: vi.fn(() => 'term-1'),
-  attachTerminal: vi.fn(() => ({ scrollback: '', status: 'running' as const })),
-  detachTerminal: vi.fn(),
-  detachSender: vi.fn(),
-  killTerminal: vi.fn(),
-  writeTerminal: vi.fn(),
-  resizeTerminal: vi.fn(),
-}))
-
 import { createDaemonOperations, createDaemonRouter } from '../api'
-
-const router = createDaemonRouter({ operations: createDaemonOperations() })
-
+import type { TerminalOperations } from '../features/terminal'
 import {
   closeAllSessions,
   closeClientSessions,
@@ -36,8 +19,29 @@ import {
   sessionCount,
 } from '../session/live-session'
 import { initConfigDir } from '../stores/config-store'
-import { attachTerminal } from '../terminal/terminal-manager'
 import { createDaemonHttp, type DaemonHttpOptions } from './daemon-http'
+
+const terminalOperations: TerminalOperations = {
+  create: vi.fn(() => ({ ok: true, value: 'term-1' })),
+  attach: vi.fn((id) => ({
+    ok: false,
+    error: { code: id === 'ghost' ? 'terminal.not-found' : 'terminal.exited' },
+  })),
+  detach: vi.fn(() => ({ ok: true, value: undefined })),
+  write: vi.fn(() => ({ ok: true, value: undefined })),
+  resize: vi.fn(() => ({ ok: true, value: undefined })),
+  kill: vi.fn(() => ({ ok: true, value: undefined })),
+  pasteImage: vi.fn(async () => ({ ok: true, value: { result: 'ok' } })),
+  pasteFile: vi.fn(async () => ({ ok: true, value: { result: 'ok' } })),
+  list: vi.fn(() => []),
+  rename: vi.fn(),
+  detachSink: vi.fn(),
+  sweep: vi.fn(),
+}
+
+const router = createDaemonRouter({
+  operations: createDaemonOperations({ terminal: terminalOperations }),
+})
 
 const TOKEN = 'test-token'
 const CLIENT_TOKEN = 'client-token'
@@ -83,7 +87,7 @@ function testDaemonOptions({
     exchangePairing,
     allowedOrigin: ORIGIN,
     router: testRouter,
-    onSession: createSession,
+    onSession: (socket, identity) => createSession(socket, identity, terminalOperations),
     serveStatic: async (req: IncomingMessage, res: ServerResponse) => {
       res.writeHead(req.url === '/pair' ? 200 : 404)
       res.end()
@@ -753,18 +757,20 @@ describe('daemon ws surface — the /session upgrade gate + dispatch', () => {
     ws.close()
   })
 
-  it('replies found:false for an unknown terminal:attach id', async () => {
-    vi.mocked(attachTerminal).mockReturnValueOnce(null)
+  it('replies with a typed error for an unknown terminal:attach id', async () => {
     const ws = await connect(`porcelain.${TOKEN}`)
     await readySession(ws)
     const reply = nextMessage(ws)
     ws.send(JSON.stringify({ t: 'terminal:attach', reqId: 'r2', id: 'ghost' }))
     expect(await reply).toMatchObject({
-      t: 'terminal:attached',
+      t: 'terminal:error',
       reqId: 'r2',
       id: 'ghost',
-      found: false,
-      status: 'exited',
+      error: {
+        code: 'terminal.not-found',
+        category: 'not-found',
+        retryable: false,
+      },
     })
     ws.close()
   })

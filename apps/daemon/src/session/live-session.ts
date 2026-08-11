@@ -3,25 +3,17 @@ import { PROTOCOL_VERSION } from '@porcelain/contracts'
 import type { SessionChange } from '@porcelain/contracts/session'
 import { WebSocket } from 'ws'
 import { createSessionFilesWatches } from '../features/files'
-import type { AuthIdentity } from '../stores/access-store'
-import { pasteFileToTerminal, pasteImageToTerminal } from '../terminal/image-paste'
 import {
-  attachTerminal,
-  createTerminal,
-  detachSender,
-  detachTerminal,
-  killTerminal,
-  resizeTerminal,
-  type TerminalSender,
-  writeTerminal,
-} from '../terminal/terminal-manager'
+  createTerminalStreamGateway,
+  type TerminalOperations,
+  type TerminalStreamSink,
+} from '../features/terminal'
+import type { AuthIdentity } from '../stores/access-store'
 import { createSessionChangePublisher, type SessionChangePublisher } from './change-publisher'
 import {
   createSessionGateway,
   type OpenSession,
   type SessionTerminalBridge,
-  type TerminalClientFrame,
-  type TerminalServerFrame,
 } from './session-gateway'
 
 /**
@@ -50,36 +42,23 @@ export function publishSessionChange(change: SessionChange): void {
   publisher.publish(change)
 }
 
-export function createSession(socket: WebSocket, identity: AuthIdentity): void {
+export function createSession(
+  socket: WebSocket,
+  identity: AuthIdentity,
+  terminal: TerminalOperations,
+): void {
   let closed = false
   let openSession: OpenSession | undefined
 
-  const sendTerminal = (frame: TerminalServerFrame): void => {
-    openSession?.sendTerminalFrame(frame)
+  const terminalSink: TerminalStreamSink = {
+    isAlive: () => !closed && socket.readyState === WebSocket.OPEN,
+    send: (frame) => openSession?.sendTerminalFrame(frame),
   }
-
-  const terminalSender: TerminalSender = {
-    isDestroyed: () => closed || socket.readyState !== WebSocket.OPEN,
-    send(channel, ...args: unknown[]) {
-      if (channel === 'terminal:data') {
-        const [id, data] = args as [string, string]
-        sendTerminal({ t: 'terminal:data', id, data })
-        return
-      }
-      if (channel === 'terminal:exit') {
-        const [id, exitCode] = args as [string, number]
-        sendTerminal({ t: 'terminal:exit', id, exitCode })
-      }
-    },
-  }
+  const terminalGateway = createTerminalStreamGateway({ operations: terminal, sink: terminalSink })
 
   const terminalBridge: SessionTerminalBridge = {
-    receive(frame) {
-      handleTerminalFrame(frame, terminalSender, sendTerminal)
-    },
-    detach() {
-      detachSender(terminalSender)
-    },
+    receive: terminalGateway.receive,
+    detach: terminalGateway.detach,
   }
 
   const filesWatches = createSessionFilesWatches({
@@ -136,79 +115,6 @@ export function createSession(socket: WebSocket, identity: AuthIdentity): void {
     sessions.delete(live)
     outcome.session.close()
   })
-}
-
-function handleTerminalFrame(
-  frame: TerminalClientFrame,
-  sender: TerminalSender,
-  sendTerminal: (frame: TerminalServerFrame) => void,
-): void {
-  switch (frame.t) {
-    case 'terminal:create': {
-      let id: string
-      try {
-        id = createTerminal(sender, {
-          name: frame.name,
-          cwd: frame.cwd,
-          initialInput: frame.initialInput,
-          cols: frame.cols,
-          rows: frame.rows,
-        })
-      } catch (error) {
-        console.error('[daemon] terminal:create refused:', error)
-        id = ''
-      }
-      sendTerminal({ t: 'terminal:created', reqId: frame.reqId, id })
-      break
-    }
-    case 'terminal:attach': {
-      const result = attachTerminal(frame.id, sender)
-      sendTerminal({
-        t: 'terminal:attached',
-        reqId: frame.reqId,
-        id: frame.id,
-        scrollback: result?.scrollback ?? '',
-        status: result?.status ?? 'exited',
-        exitCode: result?.exitCode,
-        found: result !== null,
-      })
-      break
-    }
-    case 'terminal:detach':
-      detachTerminal(frame.id, sender)
-      break
-    case 'terminal:write':
-      writeTerminal(frame.id, frame.data)
-      break
-    case 'terminal:resize':
-      resizeTerminal(frame.id, frame.cols, frame.rows)
-      break
-    case 'terminal:kill':
-      killTerminal(frame.id)
-      break
-    case 'terminal:paste-image': {
-      const { id, reqId } = frame
-      pasteImageToTerminal(frame)
-        .then((outcome) => {
-          sendTerminal({ t: 'terminal:image-pasted', reqId, id, ...outcome })
-        })
-        .catch(() => {
-          sendTerminal({ t: 'terminal:image-pasted', reqId, id, result: 'write-failed' })
-        })
-      break
-    }
-    case 'terminal:paste-file': {
-      const { id, reqId } = frame
-      pasteFileToTerminal(frame)
-        .then((outcome) => {
-          sendTerminal({ t: 'terminal:file-pasted', reqId, id, ...outcome })
-        })
-        .catch(() => {
-          sendTerminal({ t: 'terminal:file-pasted', reqId, id, result: 'write-failed' })
-        })
-      break
-    }
-  }
 }
 
 export function sessionCount(): number {

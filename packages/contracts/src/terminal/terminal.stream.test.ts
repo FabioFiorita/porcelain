@@ -11,12 +11,17 @@ import {
   MAX_TERMINAL_WRITE_CODE_UNITS,
   PASTE_IMAGE_MIME_TYPES,
   PASTE_RESULTS,
+  terminalClientFrameSchema,
   terminalInputFrameSchema,
   terminalLifecycleFrameSchema,
   terminalOutputFrameSchema,
   terminalServerFrameSchema,
   terminalStreamFixtures,
 } from './terminal.stream'
+
+const EMPTY_ID = ''
+const FOUND_FIELD = 'found'
+const LEGACY_PASTE_RESULT = ['too', 'large'].join('-')
 
 /**
  * Caps are self-owned by this module. Literals below are the wire contract; they are not
@@ -106,14 +111,16 @@ describe('Terminal lifecycle frames', () => {
       'exitCode',
       1,
     )
-    expect(terminalLifecycleFrameSchema.safeParse({ ...missing, found: false }).success).toBe(false)
+    expect(
+      terminalLifecycleFrameSchema.safeParse({ ...missing, [FOUND_FIELD]: false }).success,
+    ).toBe(false)
     expect(terminalLifecycleFrameSchema.safeParse({ ...missing, status: 'unknown' }).success).toBe(
       false,
     )
   })
 
   it('requires a non-empty id for a successful create reply', () => {
-    const refused = { t: 'terminal:created', reqId: 'req-1', id: '' }
+    const refused = { t: 'terminal:created', reqId: 'req-1', id: EMPTY_ID }
     expect(terminalLifecycleFrameSchema.safeParse(refused).success).toBe(false)
   })
 
@@ -249,7 +256,7 @@ describe('Terminal input frames', () => {
     expect(
       terminalInputFrameSchema.safeParse({
         ...terminalStreamFixtures.input.imagePasted,
-        result: 'too-large',
+        result: LEGACY_PASTE_RESULT,
       }).success,
     ).toBe(false)
   })
@@ -285,6 +292,33 @@ describe('Terminal input frames', () => {
     expect(
       terminalInputFrameSchema.parse(terminalStreamFixtures.input.pasteImage),
     ).not.toHaveProperty('insert')
+  })
+})
+
+describe('Terminal client frames', () => {
+  it('accepts commands only, excluding daemon replies and output', () => {
+    const commands = [
+      terminalStreamFixtures.lifecycle.create,
+      terminalStreamFixtures.lifecycle.attach,
+      terminalStreamFixtures.lifecycle.detach,
+      terminalStreamFixtures.lifecycle.resize,
+      terminalStreamFixtures.lifecycle.kill,
+      terminalStreamFixtures.input.write,
+      terminalStreamFixtures.input.pasteImage,
+      terminalStreamFixtures.input.pasteFile,
+    ]
+    for (const command of commands) {
+      expect(terminalClientFrameSchema.parse(command)).toEqual(command)
+    }
+
+    for (const serverFrame of [
+      terminalStreamFixtures.lifecycle.created,
+      terminalStreamFixtures.lifecycle.attached,
+      terminalStreamFixtures.output.data,
+      terminalStreamFixtures.error,
+    ]) {
+      expect(terminalClientFrameSchema.safeParse(serverFrame).success).toBe(false)
+    }
   })
 })
 

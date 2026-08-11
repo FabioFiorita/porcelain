@@ -12,16 +12,28 @@ import { normalizePublicError } from '../daemon-composition/public-error'
 // tRPC contract seam only: which raw wire input each router procedure accepts and which handler
 // result it will serialize. The real actions store and action-trust store run against a temporary
 // project directory and a temporary trust file, so nothing reads the human's companion home. The
-// terminal manager is a test-owned seam — a request/response schema needs no PTY — and
+// Terminal operations catalog is a test-owned seam — a request/response schema needs no PTY — and
 // `readActionViews` delegates to the real implementation except where a malformed row is injected.
 const { companion, actions, terminal } = vi.hoisted(() => ({
   companion: { ensureProjectCompanion: vi.fn(async () => undefined) },
   actions: { readActionViews: vi.fn() },
-  terminal: { listTerminals: vi.fn(), renameTerminal: vi.fn() },
+  terminal: {
+    create: vi.fn(),
+    attach: vi.fn(),
+    detach: vi.fn(),
+    write: vi.fn(),
+    resize: vi.fn(),
+    kill: vi.fn(),
+    pasteImage: vi.fn(),
+    pasteFile: vi.fn(),
+    list: vi.fn(),
+    rename: vi.fn(),
+    detachSink: vi.fn(),
+    sweep: vi.fn(),
+  },
 }))
 
 vi.mock('../project/migrate-home', () => companion)
-vi.mock('../terminal/terminal-manager', () => terminal)
 vi.mock('../stores/actions-store', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../stores/actions-store')>()
   actions.readActionViews.mockImplementation(actual.readActionViews)
@@ -31,7 +43,7 @@ vi.mock('../stores/actions-store', async (importOriginal) => {
 import { readActions } from '../stores/actions-store'
 import { createTerminalRouter } from './terminal'
 
-const terminalRouter = createTerminalRouter()
+const terminalRouter = createTerminalRouter(terminal)
 
 const REQUEST_ID = '00000000-0000-4000-8000-000000000020'
 const PUBLIC_CONTEXT = { auth: { kind: 'admin' }, requestId: REQUEST_ID } as const
@@ -100,7 +112,7 @@ afterAll(async () => {
 })
 
 beforeEach(() => {
-  terminal.listTerminals.mockReturnValue([SESSION])
+  terminal.list.mockReturnValue([SESSION])
 })
 
 afterEach(async () => {
@@ -240,7 +252,7 @@ describe('terminal router contract input', () => {
       'request.invalid',
       false,
     )
-    expect(terminal.listTerminals).not.toHaveBeenCalled()
+    expect(terminal.list).not.toHaveBeenCalled()
   })
 
   it('rejects an unknown key on rename without renaming the session', async () => {
@@ -255,7 +267,7 @@ describe('terminal router contract input', () => {
       'request.invalid',
       false,
     )
-    expect(terminal.renameTerminal).not.toHaveBeenCalled()
+    expect(terminal.rename).not.toHaveBeenCalled()
   })
 })
 
@@ -319,7 +331,7 @@ describe('terminal router contract output', () => {
   })
 
   it('serializes the roster with its status, exit code, and default creation time', async () => {
-    terminal.listTerminals.mockReturnValueOnce([
+    terminal.list.mockReturnValueOnce([
       SESSION,
       { id: 'session-2', name: 'Gone', cwd: '/synthetic/repo', status: 'exited', exitCode: 1 },
     ] as never)
@@ -339,7 +351,7 @@ describe('terminal router contract output', () => {
 
   it('serializes a rename as undefined and forwards the requested name unchanged', async () => {
     expect(await caller().renameTerminal({ id: SESSION.id, name: '  Renamed  ' })).toBeUndefined()
-    expect(terminal.renameTerminal).toHaveBeenCalledWith(SESSION.id, '  Renamed  ')
+    expect(terminal.rename).toHaveBeenCalledWith(SESSION.id, '  Renamed  ')
   })
 
   it('refuses to serialize an action whose stored where violates the contract', async () => {
@@ -359,7 +371,7 @@ describe('terminal router contract output', () => {
   })
 
   it('refuses to serialize a roster row whose status violates the contract', async () => {
-    terminal.listTerminals.mockReturnValueOnce([{ ...SESSION, status: 'sleeping' }] as never)
+    terminal.list.mockReturnValueOnce([{ ...SESSION, status: 'sleeping' }] as never)
 
     expectPublicCode(await rejected(() => caller().terminalSessions()), 'internal.unexpected', true)
   })

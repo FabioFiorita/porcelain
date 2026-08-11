@@ -3,6 +3,7 @@ import { type BoardOperations, createBoardOperations } from '../features/board'
 import { createFilesOperations, type FilesOperations } from '../features/files'
 import { createGitOperations, type GitOperations } from '../features/git'
 import { createReviewCommentOperations, type ReviewCommentOperations } from '../features/review'
+import type { TerminalOperations } from '../features/terminal'
 import { publishSessionChange } from '../session/live-session'
 
 /**
@@ -15,16 +16,18 @@ export type DaemonOperations = Readonly<{
   reviewComments: ReviewCommentOperations
   files: FilesOperations
   git: GitOperations
+  terminal: TerminalOperations
 }>
 
 export interface CreateDaemonRouterOptions {
   operations: DaemonOperations
 }
 
-export function createDaemonOperations(options?: {
+export function createDaemonOperations(options: {
+  terminal: TerminalOperations
   publishSessionChange?: (change: SessionChange) => void
 }): DaemonOperations {
-  const publish = options?.publishSessionChange ?? publishSessionChange
+  const publish = options.publishSessionChange ?? publishSessionChange
   return Object.freeze({
     board: createBoardOperations({
       publishSessionChange: publish,
@@ -34,5 +37,6 @@ export function createDaemonOperations(options?: {
     }),
     files: createFilesOperations({ publishSessionChange: publish }),
     git: createGitOperations(),
+    terminal: options.terminal,
   })
 }

@@ -1,4 +1,5 @@
 import { procedureCatalog } from '@porcelain/contracts'
+import type { TerminalOperations } from '../features/terminal'
 import {
   type Action,
   type ActionView,
@@ -9,10 +10,9 @@ import {
   trustActions,
   updateAction,
 } from '../stores/actions-store'
-import { listTerminals, renameTerminal, type TerminalInfo } from '../terminal/terminal-manager'
 import { publicProcedure, t } from '../trpc'
 
-export function createTerminalRouter() {
+export function createTerminalRouter(terminal: TerminalOperations) {
   return t.router({
     // Saved actions — named commands the human runs in the embedded terminal with one
     // click, stored in <repo>/.porcelain/actions.json (see `actions-store.ts`); a two-way
@@ -69,13 +69,13 @@ export function createTerminalRouter() {
     terminalSessions: publicProcedure
       .input(procedureCatalog.terminalSessions.input)
       .output(procedureCatalog.terminalSessions.output)
-      .query((): TerminalInfo[] => listTerminals()),
+      .query(() => terminal.list()),
 
     renameTerminal: publicProcedure
       .input(procedureCatalog.renameTerminal.input)
       .output(procedureCatalog.renameTerminal.output)
       .mutation(({ input }) => {
-        renameTerminal(input.id, input.name)
+        terminal.rename(input.id, input.name)
       }),
   })
 }

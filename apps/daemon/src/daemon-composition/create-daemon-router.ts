@@ -35,6 +35,6 @@ export function createDaemonRouter({ operations }: CreateDaemonRouterOptions) {
     createBoardRouter(operations.board),
     createSettingsRouter(),
     createNetworkRouter(),
-    createTerminalRouter(),
+    createTerminalRouter(operations.terminal),
   )
 }

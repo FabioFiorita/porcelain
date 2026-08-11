@@ -5,26 +5,18 @@ import {
   sessionWatchesFrameSchema,
 } from '@porcelain/contracts/session'
 import {
-  terminalAttachedSchema,
-  terminalAttachSchema,
-  terminalCreatedSchema,
-  terminalCreateSchema,
-  terminalDataSchema,
-  terminalDetachSchema,
-  terminalExitSchema,
-  terminalFilePastedSchema,
-  terminalImagePastedSchema,
-  terminalKillSchema,
-  terminalPasteFileSchema,
-  terminalPasteImageSchema,
-  terminalResizeSchema,
-  terminalWriteSchema,
+  type TerminalClientFrame,
+  type TerminalServerFrame,
+  terminalClientFrameSchema,
+  terminalServerFrameSchema,
 } from '@porcelain/contracts/terminal'
 import { z } from 'zod'
 import type { AuthIdentity } from '../stores/access-store'
 import type { SessionChangePublisher } from './change-publisher'
 import { decideSessionHandshake } from './session-handshake'
 import { createSessionWatchInterests, type SessionWatchSink } from './session-watches'
+
+export type { TerminalClientFrame, TerminalServerFrame }
 
 /**
  * The daemon's session gateway: what an authenticated socket is allowed to do, in the order it
@@ -61,35 +53,6 @@ export type SessionTransport = {
   readonly send: (payload: string) => void
   readonly close: (code: number, reason: string) => void
 }
-
-/**
- * Client → daemon terminal traffic, forwarded verbatim to whatever owns the PTYs. Composed from
- * the frames a *client* may send: the daemon-authored replies in the same contract union
- * (`terminal:created`, `terminal:attached`, `terminal:exit`, the paste answers) are not
- * accepted inbound, so a peer cannot inject a reply nobody asked for.
- */
-const terminalClientFrameSchema = z.discriminatedUnion('t', [
-  terminalCreateSchema,
-  terminalAttachSchema,
-  terminalDetachSchema,
-  terminalResizeSchema,
-  terminalKillSchema,
-  terminalWriteSchema,
-  terminalPasteImageSchema,
-  terminalPasteFileSchema,
-])
-export type TerminalClientFrame = z.infer<typeof terminalClientFrameSchema>
-
-/** Daemon → client terminal traffic: ordered PTY output and the lifecycle replies around it. */
-const terminalServerFrameSchema = z.discriminatedUnion('t', [
-  terminalCreatedSchema,
-  terminalAttachedSchema,
-  terminalDataSchema,
-  terminalExitSchema,
-  terminalImagePastedSchema,
-  terminalFilePastedSchema,
-])
-export type TerminalServerFrame = z.infer<typeof terminalServerFrameSchema>
 
 /** Everything a session may send once it is open. A second hello is not one of them. */
 const openSessionClientFrameSchema = z.discriminatedUnion('t', [

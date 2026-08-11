@@ -1,7 +1,14 @@
 import { createHash } from 'node:crypto'
+import { porcelainHomePath } from '@shared/porcelain-home'
 import { createDaemonOperations, createDaemonRouter } from './api'
 import { ensureCli } from './cli-install'
 import { seedDevConfig } from './dev-config'
+import {
+  createPtyAdapter,
+  createTerminalEnvironment,
+  createTerminalOperations,
+  createTerminalPasteAdapter,
+} from './features/terminal'
 import { ensureAdminToken } from './net/admin-token'
 import { createDaemonHttp } from './net/daemon-http'
 import { setFunnelDaemonPort, startFunnel } from './net/funnel'
@@ -91,7 +98,12 @@ async function main(): Promise<void> {
   // sends a literal "null" origin the factory always echoes. See daemon-http.ts.
   // Compose the bound-operation catalog and flat router once before any listener
   // accepts a request — never per request, never as a module singleton.
-  const operations = createDaemonOperations()
+  const terminalEnvironment = createTerminalEnvironment()
+  const terminal = createTerminalOperations({
+    pty: createPtyAdapter({ environment: terminalEnvironment }),
+    paste: createTerminalPasteAdapter({ root: porcelainHomePath('terminal-pastes') }),
+  })
+  const operations = createDaemonOperations({ terminal })
   const router = createDaemonRouter({ operations })
   daemon = createDaemonHttp({
     adminTokenHash: tokenHash,
@@ -99,7 +111,7 @@ async function main(): Promise<void> {
     exchangePairing: exchangePairingGrant,
     allowedOrigin: process.env.PORCELAIN_ALLOWED_ORIGIN ?? '',
     router,
-    onSession: createSession,
+    onSession: (socket, identity) => createSession(socket, identity, terminal),
     serveStatic,
   })
 
