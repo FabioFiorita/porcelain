@@ -39,7 +39,7 @@ an external choice or authorization.
 | `CON-021` | Landed | Delete horizontal contracts and make catalog exhaustiveness permanent |
 | `PRO-001` | Landed | Protocol-v1 contract and daemon-info field without request enforcement |
 | `PRO-002` | Landed | Repository-owned HTTP/pairing adapters send the shared version header |
-| `PRO-003` | Queued | Strict session hello/ready/mismatch contract and pure decision |
+| `PRO-003` | Landed | Strict session hello/ready/mismatch contract and pure decision |
 | `PRO-004` | Draft | Daemon enforces the version header after owned callers send it |
 | `RT-001` | Landed | Typed notification, watch, session, and stateful-stream contracts |
 | `RT-002` | Draft | Daemon publisher, target gateway, and bounded watch management |
