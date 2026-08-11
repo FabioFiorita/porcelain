@@ -299,6 +299,14 @@ describe('Session client runtime terminal stream', () => {
 
     expect(context.terminal).toEqual([])
   })
+
+  it('forwards the contract-owned typed Terminal error frame', () => {
+    const context = openRuntime()
+
+    context.deliver(terminalStreamFixtures.error)
+
+    expect(context.terminal).toEqual([terminalStreamFixtures.error])
+  })
 })
 
 describe('Session client runtime protocol mismatch', () => {

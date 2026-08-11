@@ -9,6 +9,7 @@
     "./files": "./src/files/index.ts",
     "./git": "./src/git/index.ts",
     "./review": "./src/review/index.ts",
+    "./terminal": "./src/terminal/index.ts",
     "./commit-message": "./src/commit-message.ts",
     "./companion-disposition": "./src/companion-disposition.ts",
     "./highlight": "./src/highlight.ts",

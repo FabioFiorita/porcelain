@@ -44,6 +44,7 @@ export const DOMAIN_MIGRATIONS = Object.freeze(
       }
       if (key === 'terminal') {
         targetRoots.push('apps/daemon/src/features/terminal')
+        targetRoots.push('packages/client-runtime/src/terminal')
       }
       return [
         key,

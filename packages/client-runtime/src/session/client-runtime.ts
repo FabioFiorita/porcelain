@@ -7,14 +7,7 @@ import {
   sessionMismatchFrameSchema,
   sessionReadyFrameSchema,
 } from '@porcelain/contracts/session'
-import {
-  type TerminalInputFrame,
-  type TerminalLifecycleFrame,
-  type TerminalOutputFrame,
-  terminalInputFrameSchema,
-  terminalLifecycleFrameSchema,
-  terminalOutputFrameSchema,
-} from '@porcelain/contracts/terminal'
+import { type TerminalServerFrame, terminalServerFrameSchema } from '@porcelain/contracts/terminal'
 import {
   createWatchInterestRegistry,
   type WatchInterest,
@@ -68,41 +61,11 @@ export type SessionClientTransport = {
  * (`terminal:create`, `terminal:write`, the paste requests) are not accepted inbound, so a peer
  * cannot feed this client an echo of its own commands.
  */
-const SERVER_LIFECYCLE_FRAME_TYPES = new Set<string>([
-  'terminal:created',
-  'terminal:attached',
-  'terminal:exit',
-])
-const SERVER_PASTE_REPLY_TYPES = new Set<string>(['terminal:image-pasted', 'terminal:file-pasted'])
-
-type ServerLifecycleFrame = Extract<
-  TerminalLifecycleFrame,
-  { t: 'terminal:created' | 'terminal:attached' | 'terminal:exit' }
->
-type ServerPasteReplyFrame = Extract<
-  TerminalInputFrame,
-  { t: 'terminal:image-pasted' | 'terminal:file-pasted' }
->
-export type TerminalServerFrame = ServerLifecycleFrame | TerminalOutputFrame | ServerPasteReplyFrame
-
-function isServerLifecycleFrame(frame: TerminalLifecycleFrame): frame is ServerLifecycleFrame {
-  return SERVER_LIFECYCLE_FRAME_TYPES.has(frame.t)
-}
-
-function isServerPasteReplyFrame(frame: TerminalInputFrame): frame is ServerPasteReplyFrame {
-  return SERVER_PASTE_REPLY_TYPES.has(frame.t)
-}
+export type { TerminalServerFrame } from '@porcelain/contracts/terminal'
 
 function parseTerminalServerFrame(frame: unknown): TerminalServerFrame | undefined {
-  const lifecycle = terminalLifecycleFrameSchema.safeParse(frame)
-  if (lifecycle.success) {
-    return isServerLifecycleFrame(lifecycle.data) ? lifecycle.data : undefined
-  }
-  const output = terminalOutputFrameSchema.safeParse(frame)
-  if (output.success) return output.data
-  const input = terminalInputFrameSchema.safeParse(frame)
-  if (input.success && isServerPasteReplyFrame(input.data)) return input.data
-  return undefined
+  const parsed = terminalServerFrameSchema.safeParse(frame)
+  return parsed.success ? parsed.data : undefined
 }
 
 /**
