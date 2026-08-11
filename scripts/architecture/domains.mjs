@@ -39,6 +39,8 @@ export const DOMAIN_MIGRATIONS = Object.freeze(
       if (key === 'git') {
         targetRoots.push('apps/daemon/src/features/git')
         targetRoots.push('packages/client-runtime/src/git')
+        targetRoots.push('apps/web/src/features/git')
+        targetRoots.push('apps/mobile/src/features/git')
       }
       return [
         key,

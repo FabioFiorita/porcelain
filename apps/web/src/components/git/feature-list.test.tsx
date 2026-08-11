@@ -30,10 +30,17 @@ vi.mock('@renderer/hooks/use-reviewed', () => ({
   useToggleReviewed: () => ({ mark: markSpy, unmark: unmarkSpy }),
 }))
 
-// FeatureList now renders the Review inbox above the outline; stub its worktree hook
+// FeatureList now renders the Review inbox above the outline; stub its Git workspace hook
 // (a real tRPC query otherwise) so these outline-focused cases render without a client.
-vi.mock('@renderer/hooks/use-worktrees', () => ({
-  useWorktreeInbox: () => [],
+vi.mock('@renderer/features/git', () => ({
+  useGitWorkspace: () => ({
+    branch: 'main',
+    branches: [],
+    head: undefined,
+    inbox: [],
+    refreshBranches: async () => {},
+    worktrees: [],
+  }),
 }))
 
 const reading: FeatureReading = {

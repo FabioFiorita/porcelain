@@ -1,12 +1,12 @@
-import type { InboxRow } from '@backend/git/worktree-inbox'
 import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
 } from '@renderer/components/ui/sidebar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
+import type { WorktreeInboxRow } from '@renderer/features/git'
+import { useGitWorkspace } from '@renderer/features/git'
 import { useNewWindow } from '@renderer/hooks/use-repo'
-import { useWorktreeInbox } from '@renderer/hooks/use-worktrees'
 import { isBrowser } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
@@ -16,7 +16,7 @@ import { GitBranch, SquareArrowOutUpRight } from 'lucide-react'
 /** "N changed files · review pushed/none" — the row's tooltip detail. Spells out both
  *  signals a row is built from (assembleWorktreeInbox); the row itself shows only the
  *  count badge and a dot. */
-function inboxSummary(row: InboxRow): string {
+function inboxSummary(row: WorktreeInboxRow): string {
   const files = `${row.changedCount} changed file${row.changedCount === 1 ? '' : 's'}`
   return `${files} · review ${row.hasReview ? 'pushed' : 'none'}`
 }
@@ -24,7 +24,7 @@ function inboxSummary(row: InboxRow): string {
 /** One inbox row: click switches THIS window to that worktree (in place, via switchTo —
  *  the same call the worktree-switcher rows make), landing on its Review. Trailing
  *  open-in-new-window keeps this window put — shell only. */
-function InboxRowButton({ row }: { row: InboxRow }): React.JSX.Element {
+function InboxRowButton({ row }: { row: WorktreeInboxRow }): React.JSX.Element {
   const switchTo = useRepoStore((s) => s.switchTo)
   const newWindow = useNewWindow()
 
@@ -94,7 +94,7 @@ function InboxRowButton({ row }: { row: InboxRow }): React.JSX.Element {
  * unnoticed while you work in one. Renders nothing until the inbox has rows.
  */
 export function ReviewInbox(): React.JSX.Element | null {
-  const rows = useWorktreeInbox()
+  const rows = useGitWorkspace().inbox
   if (rows.length === 0) return null
 
   return (

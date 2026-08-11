@@ -17,7 +17,7 @@ import {
 } from '@renderer/components/ui/dialog'
 import { Input } from '@renderer/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@renderer/components/ui/popover'
-import { useBranch, useBranches, useCheckout, useCreateBranch } from '@renderer/hooks/use-worktrees'
+import { useGitCheckout, useGitCreateBranch, useGitWorkspace } from '@renderer/features/git'
 import { commandGroupHeadingClass } from '@renderer/lib/controls'
 import { useRepoStore } from '@renderer/stores/repo'
 import { runUserAction } from '@shared/background'
@@ -38,10 +38,9 @@ import { toast } from 'sonner'
 // into the thousands and the DOM size bites, the fix is virtualization, not paging.
 export function BranchSwitcher(): React.JSX.Element | null {
   const repo = useRepoStore((s) => s.repo)
-  const branch = useBranch()
-  const { branches, refresh } = useBranches()
-  const checkout = useCheckout()
-  const createBranch = useCreateBranch()
+  const { branch, branches, refreshBranches } = useGitWorkspace()
+  const checkout = useGitCheckout()
+  const createBranch = useGitCreateBranch()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   // The create-branch dialog: opened from the menu, so the popover closes first
@@ -64,7 +63,7 @@ export function BranchSwitcher(): React.JSX.Element | null {
     if (target === branch) return
     runUserAction(
       async () => {
-        await checkout(target)
+        await checkout.mutateAsync(target)
         toast.success(`Switched to ${target}`)
       },
       (error) => {
@@ -89,7 +88,7 @@ export function BranchSwitcher(): React.JSX.Element | null {
       return
     }
     runUserAction(
-      () => refresh(),
+      () => refreshBranches(),
       (error) => {
         toast.error('Could not refresh branches', {
           description: error instanceof Error ? error.message : String(error),
@@ -105,7 +104,7 @@ export function BranchSwitcher(): React.JSX.Element | null {
     // git is the validator — no client-side name regex (see the checkout philosophy).
     runUserAction(
       async () => {
-        await createBranch(name)
+        await createBranch.mutateAsync(name)
         setCreateOpen(false)
         toast.success(`Created ${name}`)
       },

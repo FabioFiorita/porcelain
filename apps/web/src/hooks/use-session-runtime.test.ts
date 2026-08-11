@@ -1,5 +1,4 @@
 import { PROTOCOL_VERSION } from '@porcelain/contracts'
-import type { SessionChange } from '@porcelain/contracts/session'
 import { sessionContractFixtures } from '@porcelain/contracts/session'
 import { terminalStreamFixtures } from '@porcelain/contracts/terminal'
 import { createDaemonSession, type DaemonSession } from '@renderer/lib/daemon'
@@ -58,7 +57,7 @@ function recordingUtils(): { utils: SessionQueryUtils; invalidated: string[] } {
   return { utils, invalidated }
 }
 
-async function invalidatedBy(change: SessionChange): Promise<string[]> {
+async function invalidatedBy(change: Parameters<typeof invalidateForChange>[0]): Promise<string[]> {
   const { utils, invalidated } = recordingUtils()
   await invalidateForChange(change, utils)
   return invalidated.sort()
@@ -81,12 +80,6 @@ describe('Session change invalidation mapping', () => {
         paths: ['src/open.ts'],
       }),
     ).toEqual([])
-  })
-
-  it('refreshes the Git surfaces when the working tree changed', async () => {
-    expect(await invalidatedBy({ kind: 'git.working-tree-changed', projectPath: PROJECT })).toEqual(
-      ['gitDiffFile', 'gitFlow'].sort(),
-    )
   })
 
   it('refreshes non-comments Review surfaces; comments are feature-owned', async () => {

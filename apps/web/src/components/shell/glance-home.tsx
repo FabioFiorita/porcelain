@@ -1,10 +1,9 @@
-import type { InboxRow } from '@backend/git/worktree-inbox'
 import { reviewTabKey } from '@renderer/components/git/review-view'
 import { useBoardCards } from '@renderer/features/board'
+import { useGitWorkspace, type WorktreeInboxRow } from '@renderer/features/git'
 import { useReviewComments } from '@renderer/features/review/comments'
 import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
 import { useGitFlow } from '@renderer/hooks/use-git-flow'
-import { useBranch, useWorktreeInbox } from '@renderer/hooks/use-worktrees'
 import { cn } from '@renderer/lib/utils'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
@@ -46,7 +45,7 @@ function GlanceSection({
 
 /** One inbox row — the review-inbox row content on the Glance's tap-target recipe.
  *  Tap switches THIS window to that worktree (same call as review-inbox rows). */
-function InboxGlanceRow({ row }: { row: InboxRow }): React.JSX.Element {
+function InboxGlanceRow({ row }: { row: WorktreeInboxRow }): React.JSX.Element {
   const switchTo = useRepoStore((s) => s.switchTo)
 
   const handleOpenWorktree = (): void => {
@@ -82,8 +81,9 @@ export function GlanceHome(): React.JSX.Element | null {
   const repo = useRepoStore((s) => s.repo)
   const openTab = useTabsStore((s) => s.openTab)
   const setSidebarTab = usePreferencesStore((s) => s.setSidebarTab)
-  const inbox = useWorktreeInbox()
-  const branch = useBranch()
+  const workspace = useGitWorkspace()
+  const inbox = workspace.inbox
+  const branch = workspace.branch
   const { groups } = useGitFlow()
   const { reading } = useFeatureReading()
   const { cards } = useBoardCards()

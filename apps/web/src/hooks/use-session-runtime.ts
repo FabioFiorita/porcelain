@@ -99,8 +99,10 @@ function invalidateReview(utils: SessionQueryUtils): Promise<unknown> {
  * contract falls through to an implicit `return undefined`, which fails the annotated type at
  * `pnpm typecheck` — so a new domain signal cannot silently ship un-refreshed.
  */
+type GlobalSessionChange = Exclude<SessionChange, { kind: 'git.working-tree-changed' }>
+
 export function invalidateForChange(
-  change: SessionChange,
+  change: GlobalSessionChange,
   utils: SessionQueryUtils,
 ): Promise<unknown> {
   switch (change.kind) {
@@ -110,10 +112,6 @@ export function invalidateForChange(
       // Files owns notification → identity mapping (FIL-005 feature adapter).
       // Session runtime must not invalidate Files, Git, or Search here.
       return Promise.resolve()
-    case 'git.working-tree-changed':
-      // the Git half of today's coarse working-tree event: the flow and the per-file diffs.
-      // Today those recover through gitFlow's 3s poll; the target signal makes that explicit.
-      return Promise.all([utils.gitFlow.invalidate(), utils.gitDiffFile.invalidate()])
     case 'review.changed':
       return invalidateReview(utils)
     case 'board.changed':
@@ -234,7 +232,9 @@ export function useSessionRuntime({
       if (tab) useUnreadStore.getState().mark(tab)
       // Invalidation failure surfaces on the query that failed to refetch — the UI
       // already renders that error, so a push refresh owes nothing but not floating.
-      settleBackground(invalidateForChange(change, latest.current.utils), 'invalidation')
+      if (change.kind !== 'git.working-tree-changed') {
+        settleBackground(invalidateForChange(change, latest.current.utils), 'invalidation')
+      }
     })
     const offFreshness = session.onFreshnessRequired((requirement: FreshnessRequirement): void => {
       settleBackground(invalidateForRecovery(requirement, latest.current.utils), 'invalidation')

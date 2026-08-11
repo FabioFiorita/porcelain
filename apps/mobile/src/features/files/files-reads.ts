@@ -4,9 +4,13 @@ import {
   filesPinsQuery,
   filesProjectKey,
   filesTreeQuery,
-  isFilesProjectRelativePath,
 } from '@porcelain/client-runtime/files'
-import { type DirEntry, type FileView, filesProcedures } from '@porcelain/contracts/files'
+import {
+  type DirEntry,
+  type FileView,
+  filesProcedures,
+  isFilesProjectRelativePath,
+} from '@porcelain/contracts/files'
 import { keepPreviousData, type UseQueryResult, useQuery } from '@tanstack/react-query'
 
 import { isPaired } from '@/lib/daemon/environment'

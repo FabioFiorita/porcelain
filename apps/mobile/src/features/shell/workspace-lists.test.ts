@@ -1,6 +1,5 @@
+import type { BranchRef, Worktree } from '@porcelain/contracts/git'
 import { describe, expect, it } from 'vitest'
-
-import type { BranchRef, Worktree } from '@/lib/daemon/procedures/workspace'
 
 import {
   blockingWorktree,

@@ -6,8 +6,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from '@renderer/components/ui/dropdown-menu'
+import { useGitWorkspace } from '@renderer/features/git'
 import { useNewWindow } from '@renderer/hooks/use-repo'
-import { useWorktreeInbox, useWorktrees } from '@renderer/hooks/use-worktrees'
 import { isBrowser } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
@@ -25,8 +25,7 @@ export function WorktreeSwitcher(): React.JSX.Element | null {
   const repo = useRepoStore((s) => s.repo)
   const switchTo = useRepoStore((s) => s.switchTo)
   const newWindow = useNewWindow()
-  const worktrees = useWorktrees()
-  const inbox = useWorktreeInbox()
+  const { inbox, worktrees } = useGitWorkspace()
   const [menuOpen, setMenuOpen] = useState(false)
 
   if (!repo) return null

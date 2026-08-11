@@ -3,7 +3,7 @@ import { Text, View } from 'react-native'
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { Button } from '@/components/ui/button'
 import { Text as UiText } from '@/components/ui/text'
-import { useWorktreeSheet } from './use-workspace'
+import { useGitWorktreeSheet } from '@/features/git'
 import { WorkspaceCreateForm } from './workspace-create-form'
 import { workspaceTestId } from './workspace-lists'
 import {
@@ -20,7 +20,7 @@ export function WorktreeSheetBody({
   onCreatingChange,
   open,
 }: CreatingPickerBodyProps): React.JSX.Element {
-  const sheet = useWorktreeSheet(open, onCreatingChange)
+  const sheet = useGitWorktreeSheet(open, onCreatingChange)
   const { repoPath } = sheet
 
   if (repoPath === null) {

@@ -1,6 +1,6 @@
 import { fileName } from '@porcelain/client-runtime/paths'
 
-import type { BranchRef, Worktree } from '@/lib/daemon/procedures/workspace'
+import type { BranchRef, Worktree } from '@porcelain/contracts/git'
 
 /**
  * The workspace pickers' derivations, with no React and no daemon in them.

@@ -5,8 +5,7 @@ import { ShellModalScroll } from '@/components/shell-modal'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Text as UiText } from '@/components/ui/text'
-import type { BranchRef, Worktree } from '@/lib/daemon/procedures/workspace'
-import { useBranchSheet } from './use-workspace'
+import { type BranchRef, useGitBranchSheet, type Worktree } from '@/features/git'
 import { WorkspaceCreateForm } from './workspace-create-form'
 import { branchRowFacts, workspaceTestId } from './workspace-lists'
 import {
@@ -23,7 +22,7 @@ export function BranchSheetBody({
   onCreatingChange,
   open,
 }: CreatingPickerBodyProps): React.JSX.Element {
-  const sheet = useBranchSheet(open, onCreatingChange)
+  const sheet = useGitBranchSheet(open, onCreatingChange)
   const { repoPath } = sheet
 
   if (repoPath === null) {

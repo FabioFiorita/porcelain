@@ -5,6 +5,7 @@ import { Toaster } from '@renderer/components/ui/sonner'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { CardComposer, useBoardNotificationSubscription } from '@renderer/features/board'
 import { useFilesInterestBridge, useFilesNotificationSubscription } from '@renderer/features/files'
+import { useGitNotificationSubscription } from '@renderer/features/git'
 import { useReviewCommentNotificationSubscription } from '@renderer/features/review/comments'
 import { useDocumentTitle } from '@renderer/hooks/use-document-title'
 import { useEnvironmentStatuses } from '@renderer/hooks/use-environment-status'
@@ -199,6 +200,9 @@ export function AppShell(): React.JSX.Element {
   useSessionRuntime()
   // Board notifications own their cards-identity invalidation (BRD-004); not session-runtime.
   useBoardNotificationSubscription()
+  // Git workspace notifications own typed Git identities; session-runtime handles only residual
+  // non-Git recovery and Review/Files cross-domain concerns.
+  useGitNotificationSubscription()
   // Comments notifications own their comments-identity invalidation (RVC-003); bulk review.changed
   // in session-runtime no longer touches comments.
   useReviewCommentNotificationSubscription()

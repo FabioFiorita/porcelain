@@ -1,12 +1,11 @@
-import type { InboxRow } from '@backend/git/worktree-inbox'
 import type { FeatureReading } from '@backend/review/feature-view'
 import type { FlowGroup } from '@backend/review/flow'
 import type { BoardCard } from '@porcelain/contracts/board'
 import { useBoardCards } from '@renderer/features/board'
+import { useGitWorkspace, type WorktreeInboxRow } from '@renderer/features/git'
 import { useReviewComments } from '@renderer/features/review/comments'
 import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
 import { useGitFlow } from '@renderer/hooks/use-git-flow'
-import { useBranch, useWorktreeInbox } from '@renderer/hooks/use-worktrees'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
@@ -16,9 +15,8 @@ import { GlanceHome } from './glance-home'
 
 // Same convention as changes-list/feature-list: mock the domain hooks, never the
 // tRPC proxy. Each returns exactly the shape its real query hands back.
-vi.mock('@renderer/hooks/use-worktrees', () => ({
-  useWorktreeInbox: vi.fn(),
-  useBranch: vi.fn(),
+vi.mock('@renderer/features/git', () => ({
+  useGitWorkspace: vi.fn(),
 }))
 vi.mock('@renderer/hooks/use-git-flow', () => ({ useGitFlow: vi.fn() }))
 vi.mock('@renderer/hooks/use-feature-reading', () => ({ useFeatureReading: vi.fn() }))
@@ -27,7 +25,7 @@ vi.mock('@renderer/features/review/comments', () => ({ useReviewComments: vi.fn(
 
 const switchToSpy = vi.fn(async () => {})
 
-const inboxRow: InboxRow = {
+const inboxRow: WorktreeInboxRow = {
   path: '/repo-worktrees/fix-nav',
   branch: 'fix-nav',
   changedCount: 4,
@@ -60,8 +58,14 @@ const card = (over: Partial<BoardCard> & { id: string; title: string }): BoardCa
 
 /** Reset every mock to a fully empty repo; tests layer their data on top. */
 function mockEmpty(): void {
-  vi.mocked(useWorktreeInbox).mockReturnValue([])
-  vi.mocked(useBranch).mockReturnValue('main')
+  vi.mocked(useGitWorkspace).mockReturnValue({
+    branch: 'main',
+    branches: [],
+    head: undefined,
+    inbox: [],
+    refreshBranches: vi.fn().mockResolvedValue(undefined),
+    worktrees: [],
+  })
   vi.mocked(useGitFlow).mockReturnValue({ groups: [], refresh: async () => {} })
   vi.mocked(useFeatureReading).mockReturnValue({ reading: null, refresh: async () => {} })
   vi.mocked(useBoardCards).mockReturnValue({ cards: [], error: null, isLoaded: true })
@@ -89,7 +93,14 @@ describe('GlanceHome', () => {
   })
 
   it('renders inbox rows with their changed count, and tapping one switches to that worktree', () => {
-    vi.mocked(useWorktreeInbox).mockReturnValue([inboxRow])
+    vi.mocked(useGitWorkspace).mockReturnValue({
+      branch: 'main',
+      branches: [],
+      head: undefined,
+      inbox: [inboxRow],
+      refreshBranches: vi.fn().mockResolvedValue(undefined),
+      worktrees: [],
+    })
     render(<GlanceHome />)
     expect(screen.getByText('Review inbox')).toBeInTheDocument()
     expect(screen.getByLabelText('Review pushed')).toBeInTheDocument()

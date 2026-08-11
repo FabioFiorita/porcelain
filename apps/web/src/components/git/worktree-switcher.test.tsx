@@ -1,7 +1,7 @@
-import type { Worktree } from '@backend/git/diff'
-import type { InboxRow } from '@backend/git/worktree-inbox'
+import type { Worktree } from '@porcelain/contracts/git'
+import type { WorktreeInboxRow } from '@porcelain/contracts/review'
+import { useGitWorkspace } from '@renderer/features/git'
 import { useNewWindow } from '@renderer/hooks/use-repo'
-import { useWorktreeInbox, useWorktrees } from '@renderer/hooks/use-worktrees'
 import { useRepoStore } from '@renderer/stores/repo'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -15,9 +15,8 @@ vi.mock('@renderer/lib/platform', () => ({ isBrowser: false, isE2E: false }))
 // Components read through domain hooks, so mock the hook modules and never touch
 // the tRPC proxy. Worktree is the real @main/diff type, so shape drift breaks here.
 vi.mock('@renderer/hooks/use-repo', () => ({ useNewWindow: vi.fn() }))
-vi.mock('@renderer/hooks/use-worktrees', () => ({
-  useWorktrees: vi.fn(),
-  useWorktreeInbox: vi.fn(),
+vi.mock('@renderer/features/git', () => ({
+  useGitWorkspace: vi.fn(),
 }))
 
 const worktrees: Worktree[] = [
@@ -38,8 +37,14 @@ describe('WorktreeSwitcher', () => {
       repo: { path: '/Users/me/code/app', name: 'app' },
       switchTo: vi.fn(),
     })
-    vi.mocked(useWorktrees).mockReturnValue(worktrees)
-    vi.mocked(useWorktreeInbox).mockReturnValue([])
+    vi.mocked(useGitWorkspace).mockReturnValue({
+      branch: 'main',
+      branches: [],
+      head: undefined,
+      inbox: [],
+      refreshBranches: vi.fn().mockResolvedValue(undefined),
+      worktrees,
+    })
     vi.mocked(useNewWindow).mockReturnValue({ openWindow })
   })
 
@@ -71,7 +76,7 @@ describe('WorktreeSwitcher', () => {
   })
 
   it('badges the chip when other worktrees need review', () => {
-    const inbox: InboxRow[] = [
+    const inbox: WorktreeInboxRow[] = [
       {
         path: '/Users/me/code/app-feature',
         branch: 'feature',
@@ -79,7 +84,14 @@ describe('WorktreeSwitcher', () => {
         hasReview: true,
       },
     ]
-    vi.mocked(useWorktreeInbox).mockReturnValue(inbox)
+    vi.mocked(useGitWorkspace).mockReturnValue({
+      branch: 'main',
+      branches: [],
+      head: undefined,
+      inbox,
+      refreshBranches: vi.fn().mockResolvedValue(undefined),
+      worktrees,
+    })
     render(<WorktreeSwitcher />)
     const chip = screen.getByRole('button', { name: /Worktrees:.*need review/i })
     expect(chip).toHaveAttribute('data-inbox-count', '1')

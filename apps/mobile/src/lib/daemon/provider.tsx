@@ -44,7 +44,9 @@ import {
  * return type at typecheck unless this switch gains a branch — so a new domain signal cannot
  * silently ship un-refreshed.
  */
-export function proceduresForChange(change: SessionChange): readonly string[] {
+type GlobalSessionChange = Exclude<SessionChange, { kind: 'git.working-tree-changed' }>
+
+export function proceduresForChange(change: GlobalSessionChange): readonly string[] {
   switch (change.kind) {
     case 'files.scope-changed':
       // Files identities are owned by FilesNotificationBridge; keep provider recovery for
@@ -56,22 +58,6 @@ export function proceduresForChange(change: SessionChange): readonly string[] {
       // Diff reading is still provider-owned; Files content/tree identities belong to the
       // typed Files notification bridge.
       return ['diffReading']
-    case 'git.working-tree-changed':
-      // the Git half of today's coarse working-tree event
-      return [
-        'gitStatus',
-        'gitFlow',
-        'gitRangeFlow',
-        'diffReading',
-        'gitDiffFile',
-        'gitCommitConventions',
-        'gitSuggestions',
-        'reviewedPaths',
-        'gitHead',
-        'gitLog',
-        'gitFileLog',
-        'readFile',
-      ]
     case 'review.changed':
       // union of feature-view, layers, evidence — comments owned by
       // ReviewCommentNotificationBridge (RVC-004)
@@ -112,7 +98,6 @@ export function proceduresForRecovery(
     'files.scope-changed',
     'files.tree-changed',
     'files.content-changed',
-    'git.working-tree-changed',
     'review.changed',
     'board.changed',
     'actions.changed',
@@ -127,7 +112,7 @@ export function proceduresForRecovery(
             paths: [requirement.scope.projectPath],
           }
         : { kind, projectPath: requirement.scope.projectPath }
-    ) as SessionChange
+    ) as GlobalSessionChange
     for (const name of proceduresForChange(change)) names.add(name)
   }
   return [...names]
@@ -420,7 +405,9 @@ function DaemonLifecycle(): null {
     if (environmentId === null || repoPath === null) return
     return subscribeSessionChanges({
       onChange: (change) => {
-        invalidateProcedures(environmentId, proceduresForChange(change))
+        if (change.kind !== 'git.working-tree-changed') {
+          invalidateProcedures(environmentId, proceduresForChange(change))
+        }
       },
       onFreshnessRequired: (requirement) => {
         const target = proceduresForRecovery(requirement)
