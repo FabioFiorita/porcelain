@@ -132,6 +132,9 @@ export function createSession(socket: WebSocket, identity: AuthIdentity): void {
         clearWatchedDirs(fileWatchSender)
       },
     },
+    onProjectScopeChanged(nextProjectPath) {
+      projectPath = nextProjectPath
+    },
     terminal: terminalBridge,
   })
 
@@ -154,23 +157,7 @@ export function createSession(socket: WebSocket, identity: AuthIdentity): void {
 
   socket.on('message', (raw) => {
     if (closed) return
-    const text = raw.toString()
-    // Capture projectPath from the declarative watches frame so file-watch events can
-    // publish project-scoped change facts. The gateway validates and applies the same frame.
-    try {
-      const json: unknown = JSON.parse(text)
-      if (
-        typeof json === 'object' &&
-        json !== null &&
-        (json as { t?: unknown }).t === 'session:watches' &&
-        typeof (json as { projectPath?: unknown }).projectPath === 'string'
-      ) {
-        projectPath = (json as { projectPath: string }).projectPath
-      }
-    } catch {
-      // Invalid JSON is dropped by the gateway too.
-    }
-    outcome.session.receive(text)
+    outcome.session.receive(raw.toString())
   })
   socket.on('error', () => {})
   socket.on('close', () => {

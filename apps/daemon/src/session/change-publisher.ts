@@ -86,7 +86,7 @@ export type SessionChangeSubscription = {
    * Scope this subscription to one project. Called when the session declares the project it
    * is watching; until then the subscription receives nothing.
    */
-  readonly scopeToProject: (projectPath: string) => void
+  readonly scopeToProject: (projectPath: string | undefined) => void
   /** The project currently in scope, or `undefined` while the subscription is unscoped. */
   readonly projectPath: () => string | undefined
   /** Drop the subscription. Idempotent — a closed socket may report closed more than once. */

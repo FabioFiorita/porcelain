@@ -112,6 +112,8 @@ export type SessionConnection = {
   readonly identity: AuthIdentity | null
   readonly transport: SessionTransport
   readonly watchSink: SessionWatchSink
+  /** Accepted canonical project scope for transport adapters that publish watcher facts. */
+  readonly onProjectScopeChanged: (projectPath: string | undefined) => void
   readonly terminal: SessionTerminalBridge
 }
 
@@ -149,7 +151,7 @@ export function createSessionGateway({
   epoch: string
 }): SessionGateway {
   return {
-    openSession({ identity, transport, watchSink, terminal }) {
+    openSession({ identity, transport, watchSink, onProjectScopeChanged, terminal }) {
       // Fail closed. The upgrade is the authentication boundary; a connection that arrives
       // without an identity is refused before any per-session resource exists.
       if (identity === null) {
@@ -171,6 +173,7 @@ export function createSessionGateway({
         subscription?.close()
         subscription = undefined
         watches.clear()
+        onProjectScopeChanged(undefined)
         terminal.detach()
       }
 
@@ -213,7 +216,14 @@ export function createSessionGateway({
           // Watch interests carry the project this session is looking at, which is also the
           // only project its change stream may cover. An unusable project path leaves the
           // subscription unscoped: it keeps receiving nothing rather than everything.
-          if (outcome.ok) subscription?.scopeToProject(outcome.interests.projectPath)
+          if (outcome.ok) {
+            subscription?.scopeToProject(outcome.interests.projectPath)
+            onProjectScopeChanged(outcome.interests.projectPath)
+          } else {
+            watches.clear()
+            subscription?.scopeToProject(undefined)
+            onProjectScopeChanged(undefined)
+          }
           return
         }
         terminal.receive(parsed.data)

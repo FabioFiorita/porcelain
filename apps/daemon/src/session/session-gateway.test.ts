@@ -35,6 +35,7 @@ function harness({ identity = { kind: 'admin' } as SessionConnection['identity']
     setWatchedDirs: vi.fn<(paths: readonly string[]) => void>(),
     clear: vi.fn<() => void>(),
   }
+  const onProjectScopeChanged = vi.fn<(projectPath: string | undefined) => void>()
   const received: TerminalClientFrame[] = []
   const terminal = {
     receive: (frame: TerminalClientFrame) => received.push(frame),
@@ -48,10 +49,20 @@ function harness({ identity = { kind: 'admin' } as SessionConnection['identity']
       close: (code, reason) => closed.push({ code, reason }),
     },
     watchSink,
+    onProjectScopeChanged,
     terminal,
   })
 
-  return { publisher, outcome, sent, closed, watchSink, terminal, received }
+  return {
+    publisher,
+    outcome,
+    sent,
+    closed,
+    watchSink,
+    onProjectScopeChanged,
+    terminal,
+    received,
+  }
 }
 
 function openedSession() {
@@ -133,12 +144,13 @@ describe('Session gateway', () => {
   })
 
   it('registers watch interests only after ready and scopes the change stream to them', () => {
-    const { session, watchSink, publisher, sent } = openedSession()
+    const { session, watchSink, onProjectScopeChanged, publisher, sent } = openedSession()
 
     session.receive(JSON.stringify(sessionWatchesFixtures.watches))
 
     expect(watchSink.setWatchedFiles).toHaveBeenCalledWith(['/synthetic/repo/src/open-document.ts'])
     expect(watchSink.setWatchedDirs).toHaveBeenCalledWith(['/synthetic/repo/src'])
+    expect(onProjectScopeChanged).toHaveBeenLastCalledWith(PROJECT)
 
     publisher.publish({ kind: 'board.changed', projectPath: PROJECT })
     publisher.publish({ kind: 'board.changed', projectPath: '/synthetic/other-repo' })
@@ -151,6 +163,33 @@ describe('Session gateway', () => {
         change: { kind: 'board.changed', projectPath: PROJECT },
       },
     ])
+  })
+
+  it('shares one canonical watch scope and clears it after an invalid re-registration', () => {
+    const { session, watchSink, onProjectScopeChanged, publisher, sent } = openedSession()
+
+    session.receive(
+      JSON.stringify({
+        ...sessionWatchesFixtures.watches,
+        projectPath: `${PROJECT}/`,
+      }),
+    )
+
+    expect(onProjectScopeChanged).toHaveBeenLastCalledWith(PROJECT)
+    publisher.publish({ kind: 'files.content-changed', projectPath: PROJECT, paths: [PROJECT] })
+    expect(changeFrames(sent)).toHaveLength(1)
+
+    session.receive(
+      JSON.stringify({
+        ...sessionWatchesFixtures.watches,
+        projectPath: 'synthetic/repo',
+      }),
+    )
+
+    expect(watchSink.clear).toHaveBeenCalledTimes(1)
+    expect(onProjectScopeChanged).toHaveBeenLastCalledWith(undefined)
+    publisher.publish({ kind: 'files.content-changed', projectPath: PROJECT, paths: [PROJECT] })
+    expect(changeFrames(sent)).toHaveLength(1)
   })
 
   it('receives nothing until it declares a project', () => {
