@@ -15,9 +15,10 @@ export const DOMAIN_MIGRATIONS = Object.freeze(
   Object.fromEntries(
     DOMAIN_KEYS.map((key) => {
       const targetRoots = [`packages/contracts/src/${key}`]
-      // Board is the first daemon feature slice (BRD-002).
+      // Board is the primary exemplar: contracts (BRD-001), daemon (BRD-002), client-runtime (BRD-003).
       if (key === 'board') {
         targetRoots.push('apps/daemon/src/features/board')
+        targetRoots.push('packages/client-runtime/src/board')
       }
       return [
         key,

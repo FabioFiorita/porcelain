@@ -5,6 +5,7 @@
   "description": "Non-UI client core shared by web and mobile.",
   "type": "module",
   "exports": {
+    "./board": "./src/board/index.ts",
     "./commit-message": "./src/commit-message.ts",
     "./companion-disposition": "./src/companion-disposition.ts",
     "./highlight": "./src/highlight.ts",
