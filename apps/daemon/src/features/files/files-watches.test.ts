@@ -277,6 +277,26 @@ describe('createSessionFilesWatches', () => {
     expect(h.published).toEqual([])
   })
 
+  it('ignores a queued callback from a watcher replaced with a new project frame', () => {
+    const h = createHarness()
+    h.watches.apply({
+      projectPath: '/synthetic',
+      files: [],
+      dirs: [`${PROJECT}/src`],
+    })
+    const staleListener = h.listenerFor(`${PROJECT}/src`)
+
+    h.watches.apply({
+      projectPath: PROJECT,
+      files: [],
+      dirs: [`${PROJECT}/src`],
+    })
+    staleListener?.('rename', 'stale.ts')
+    vi.advanceTimersByTime(FILES_TREE_DEBOUNCE_MS)
+
+    expect(h.published).toEqual([])
+  })
+
   it('publishes "." when the watched directory is the project root', () => {
     const h = createHarness()
     h.watches.apply({

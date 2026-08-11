@@ -1,4 +1,4 @@
-import { isAbsolute, relative, resolve } from 'node:path'
+import { isAbsolute, relative, resolve, sep } from 'node:path'
 import {
   SESSION_WATCH_INTEREST_LIMIT,
   type SessionWatchesFrame,
@@ -77,7 +77,7 @@ export function resolveSessionWatchInterests(
       const within = relative(projectPath, canonical)
       // '' is the project root itself; anything that has to climb out of it, or resolves to
       // another root entirely, is outside the scope this session declared.
-      if (within.startsWith('..') || isAbsolute(within)) {
+      if (within === '..' || within.startsWith(`..${sep}`) || isAbsolute(within)) {
         rejected.push({ path, reason: 'outside-project' })
         continue
       }

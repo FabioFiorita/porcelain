@@ -121,10 +121,10 @@ export function createSessionFilesWatches(options: {
     byDir.delete(dir)
   }
 
-  function onDirEvent(dir: string, filename: string | null): void {
+  function onDirEvent(dir: string, source: FSWatcher, filename: string | null): void {
     const entry = byDir.get(dir)
     const root = projectPath
-    if (!entry || root === undefined) return
+    if (!entry || entry.watcher !== source || root === undefined) return
 
     const name =
       filename === null || filename === undefined
@@ -163,19 +163,22 @@ export function createSessionFilesWatches(options: {
 
   function openWatcher(dir: string, files: Set<string>, treeInterested: boolean): void {
     try {
-      const watcher = host.watch(dir, (_event, filename) => {
+      let watcher: FSWatcher
+      watcher = host.watch(dir, (_event, filename) => {
         const name =
           filename === null || filename === undefined
             ? null
             : typeof filename === 'string'
               ? filename
               : String(filename)
-        onDirEvent(dir, name)
+        onDirEvent(dir, watcher, name)
       })
       watcher.on('error', () => {
         watcher.close()
-        byDir.delete(dir)
-        if (byDir.size === 0) cancelTreeDebounce()
+        if (byDir.get(dir)?.watcher === watcher) {
+          byDir.delete(dir)
+          if (byDir.size === 0) cancelTreeDebounce()
+        }
       })
       byDir.set(dir, { watcher, files, treeInterested })
     } catch {

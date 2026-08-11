@@ -66,6 +66,19 @@ describe('Session watch interests', () => {
     expect(resolved({ dirs: [PROJECT] }).dirs).toEqual([PROJECT])
   })
 
+  it('keeps in-project names that begin with two dots', () => {
+    expect(
+      resolved({
+        files: [`${PROJECT}/..foo`],
+        dirs: [`${PROJECT}/..folder`],
+      }),
+    ).toMatchObject({
+      files: [`${PROJECT}/..foo`],
+      dirs: [`${PROJECT}/..folder`],
+      rejected: [],
+    })
+  })
+
   it('rejects paths outside the declared project without expanding scope', () => {
     const interests = resolved({
       files: [`${PROJECT}/../elsewhere/secret.ts`, '/etc/shadow'],
