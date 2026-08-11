@@ -3,6 +3,7 @@ import {
   FILES_CHANGE_KINDS,
   filesChangeSchema,
   filesNotificationFixtures,
+  isFilesNotificationPath,
 } from './files.notifications'
 
 describe('Files change notifications', () => {
@@ -60,9 +61,33 @@ describe('Files change notifications', () => {
     })
 
     it(`preserves every path it was given on ${kind}`, () => {
-      const paths = ['/synthetic/repo/a.ts', '/synthetic/repo/nested/b.ts']
+      const paths = ['a.ts', 'nested/b.ts']
       const parsed = filesChangeSchema.parse({ ...filesNotificationFixtures[kind], paths })
       expect(parsed).toHaveProperty('paths', paths)
+    })
+
+    it(`accepts '.' as the project-root marker on ${kind}`, () => {
+      expect(
+        filesChangeSchema.safeParse({ ...filesNotificationFixtures[kind], paths: ['.'] }).success,
+      ).toBe(true)
+    })
+
+    it(`rejects absolute host paths on ${kind}`, () => {
+      expect(
+        filesChangeSchema.safeParse({
+          ...filesNotificationFixtures[kind],
+          paths: ['/synthetic/repo/src'],
+        }).success,
+      ).toBe(false)
+    })
+
+    it(`rejects parent-segment and empty-segment paths on ${kind}`, () => {
+      for (const path of ['foo/../bar', 'foo//bar', '..', 'foo/./bar']) {
+        expect(
+          filesChangeSchema.safeParse({ ...filesNotificationFixtures[kind], paths: [path] })
+            .success,
+        ).toBe(false)
+      }
     })
   }
 
@@ -70,8 +95,20 @@ describe('Files change notifications', () => {
     expect(
       filesChangeSchema.safeParse({
         ...filesNotificationFixtures['files.scope-changed'],
-        paths: ['/synthetic/repo'],
+        paths: ['.'],
       }).success,
     ).toBe(false)
+  })
+
+  it('accepts project-relative notification paths and the root marker', () => {
+    for (const path of ['README.md', 'src/main.ts', '.gitignore', '..foo', '.']) {
+      expect(isFilesNotificationPath(path)).toBe(true)
+    }
+  })
+
+  it('rejects absolute, empty, and traversal notification paths', () => {
+    for (const path of ['', '/', '/synthetic/repo/src', 'foo/../bar', 'foo//bar']) {
+      expect(isFilesNotificationPath(path)).toBe(false)
+    }
   })
 })

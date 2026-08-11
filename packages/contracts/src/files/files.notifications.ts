@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { isFilesProjectRelativePath } from './files.contract'
 
 /**
  * Files change notifications — the domain-owned replacement for the coarse `scope`,
@@ -11,11 +12,10 @@ import { z } from 'zod'
  * `projectPath`: a change signal a client cannot scope to a project is a signal it can
  * only answer by refetching everything.
  *
- * `paths` is required on the two path-detailed categories. The current daemon events are
- * bare enums, so a renderer re-reads every open document on any watched write; carrying
- * the changed paths is what lets a consumer narrow that. A category with no path detail
- * (`files.scope-changed`) says so by not declaring the field, rather than by sending an
- * empty array that reads as "nothing changed".
+ * `paths` is required on the two path-detailed categories. Entries are project-relative
+ * POSIX paths (or `'.'` for the project root itself), never host-absolute paths. A
+ * category with no path detail (`files.scope-changed`) says so by not declaring the field,
+ * rather than by sending an empty array that reads as "nothing changed".
  */
 
 export const FILES_CHANGE_KINDS = [
@@ -25,7 +25,20 @@ export const FILES_CHANGE_KINDS = [
 ] as const
 
 const projectPathSchema = z.string().min(1)
-const changedPathsSchema = z.array(z.string().min(1)).min(1)
+
+/** Notification path: project-relative file/dir identity, or '.' for the project root. */
+export function isFilesNotificationPath(value: string): boolean {
+  if (value === '.') return true
+  return isFilesProjectRelativePath(value)
+}
+
+export const filesNotificationPathSchema = z
+  .string()
+  .min(1)
+  .max(4096)
+  .refine(isFilesNotificationPath, { message: 'invalid files notification path' })
+
+export const changedPathsSchema = z.array(filesNotificationPathSchema).min(1)
 
 /** Hidden/pinned project scope changed (current `scope` app event). */
 export const filesScopeChangedSchema = z
@@ -36,7 +49,7 @@ export const filesScopeChangedSchema = z
   .strict()
 export type FilesScopeChanged = z.infer<typeof filesScopeChangedSchema>
 
-/** Entries appeared or disappeared under watched directories (current `file-tree`). */
+/** Entries appeared or disappeared under watched directories. */
 export const filesTreeChangedSchema = z
   .object({
     kind: z.literal('files.tree-changed'),
@@ -46,7 +59,7 @@ export const filesTreeChangedSchema = z
   .strict()
 export type FilesTreeChanged = z.infer<typeof filesTreeChangedSchema>
 
-/** Watched file bodies changed on disk (the file half of the current `working-tree`). */
+/** Watched file bodies changed on disk. */
 export const filesContentChangedSchema = z
   .object({
     kind: z.literal('files.content-changed'),
@@ -72,11 +85,11 @@ export const filesNotificationFixtures = {
   'files.tree-changed': {
     kind: 'files.tree-changed',
     projectPath: '/synthetic/repo',
-    paths: ['/synthetic/repo/src', '/synthetic/repo/src/added.ts'],
+    paths: ['src', 'src/added.ts'],
   },
   'files.content-changed': {
     kind: 'files.content-changed',
     projectPath: '/synthetic/repo',
-    paths: ['/synthetic/repo/src/open-document.ts'],
+    paths: ['src/open-document.ts'],
   },
 } as const

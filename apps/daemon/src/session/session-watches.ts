@@ -9,16 +9,12 @@ import {
  * connection wants observed, canonicalized, scoped to the project it declared, deduplicated,
  * and bounded before a single host watcher is created.
  *
- * UNACTIVATED. No daemon construction path reaches this module; `RT-005` is the sole
- * activation owner and connects `SessionWatchSink` to the real watchers in
- * `apps/daemon/src/fs/file-watch.ts` when it retires the imperative `watch:files` /
- * `watch:dirs` messages.
- *
- * Interests are advisory. Accepting one is a promise to *consider* observing a path, never a
- * promise to grow the daemon's watch scope on demand: a path outside the declared project, a
- * relative path, or anything past `SESSION_WATCH_INTEREST_LIMIT` is refused here, before the
- * watcher layer sees it. That is the point of putting the bound at the boundary — a client
- * cannot spend daemon file descriptors by asking harder.
+ * Live-session hands accepted interests to `createSessionFilesWatches` through
+ * `SessionWatchSink.apply`. Interests are advisory. Accepting one is a promise to *consider*
+ * observing a path, never a promise to grow the daemon's watch scope on demand: a path outside
+ * the declared project, a relative path, or anything past `SESSION_WATCH_INTEREST_LIMIT` is
+ * refused here, before the watcher layer sees it. That is the point of putting the bound at
+ * the boundary — a client cannot spend daemon file descriptors by asking harder.
  *
  * The bound follows the contract's own rule: keep the first interests, drop the extras. A
  * schema-level rejection of the whole frame would lose the registrations the client is
@@ -106,13 +102,19 @@ export function resolveSessionWatchInterests(
 }
 
 /**
- * Where accepted interests are applied. Shaped after the current watcher entry points so
- * `RT-005` can hand over `setWatchedFiles` / `setWatchedDirs` / the pair of clear calls
- * without this module learning anything about `fs.watch`.
+ * Where accepted interests are applied. One complete desired set per call so project identity
+ * never races install; the Files watcher receives projectPath + files + dirs together.
  */
 export type SessionWatchSink = {
-  readonly setWatchedFiles: (paths: readonly string[]) => void
-  readonly setWatchedDirs: (paths: readonly string[]) => void
+  /**
+   * Apply one complete desired set for this session. Idempotent reconcile.
+   * `files` / `dirs` are already canonical absolute paths inside `projectPath`.
+   */
+  readonly apply: (interests: {
+    readonly projectPath: string
+    readonly files: readonly string[]
+    readonly dirs: readonly string[]
+  }) => void
   /** Release every watcher this session owns. */
   readonly clear: () => void
 }
@@ -137,8 +139,11 @@ export function createSessionWatchInterests(sink: SessionWatchSink): SessionWatc
       const outcome = resolveSessionWatchInterests(frame)
       if (!outcome.ok) return outcome
       applied = outcome.interests
-      sink.setWatchedFiles(outcome.interests.files)
-      sink.setWatchedDirs(outcome.interests.dirs)
+      sink.apply({
+        projectPath: outcome.interests.projectPath,
+        files: outcome.interests.files,
+        dirs: outcome.interests.dirs,
+      })
       return outcome
     },
     current() {

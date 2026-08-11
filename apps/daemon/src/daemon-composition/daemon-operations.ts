@@ -30,7 +30,6 @@ export function createDaemonOperations(options?: {
     reviewComments: createReviewCommentOperations({
       publishSessionChange: publish,
     }),
-    // No publishSessionChange — Files RT facts are FIL-003.
-    files: createFilesOperations(),
+    files: createFilesOperations({ publishSessionChange: publish }),
   })
 }

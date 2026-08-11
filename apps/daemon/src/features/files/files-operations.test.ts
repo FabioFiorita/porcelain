@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, expectTypeOf, it, vi } from 'vitest'
 import { createFilesOperations, type FilesOperations } from './files-operations'
-import type { WorkspaceFiles } from './files-ports'
+import type { FilesChangeFact, FilesChanges, WorkspaceFiles } from './files-ports'
 
 function fakeWorkspace(overrides: Partial<WorkspaceFiles> = {}): WorkspaceFiles {
   const reject: never = undefined as never
@@ -18,6 +18,20 @@ function fakeWorkspace(overrides: Partial<WorkspaceFiles> = {}): WorkspaceFiles 
   }
 }
 
+function recordingChanges(): { changes: FilesChanges; facts: FilesChangeFact[] } {
+  const facts: FilesChangeFact[] = []
+  return {
+    facts,
+    changes: {
+      publish(change) {
+        facts.push(change)
+      },
+    },
+  }
+}
+
+const PROJECT = '/synthetic/repo'
+
 describe('createFilesOperations', () => {
   it('maps adapter path-outside without touching fs', async () => {
     const readFile = vi.fn(async () => ({
@@ -25,21 +39,19 @@ describe('createFilesOperations', () => {
       error: { code: 'path-outside-project' as const, path: 'escape' },
     }))
     const ops = createFilesOperations({ workspaceFiles: fakeWorkspace({ readFile }) })
-    await expect(ops.readFile({ projectPath: '/synthetic/repo', path: 'escape' })).resolves.toEqual(
-      {
-        ok: false,
-        error: { code: 'path-outside-project', path: 'escape' },
-      },
-    )
+    await expect(ops.readFile({ projectPath: PROJECT, path: 'escape' })).resolves.toEqual({
+      ok: false,
+      error: { code: 'path-outside-project', path: 'escape' },
+    })
     expect(readFile).toHaveBeenCalledOnce()
   })
 
   it('passes through success values', async () => {
     const createFile = vi.fn(async () => ({ ok: true as const, value: undefined }))
     const ops = createFilesOperations({ workspaceFiles: fakeWorkspace({ createFile }) })
-    await expect(
-      ops.createFile({ projectPath: '/synthetic/repo', path: 'docs/empty.txt' }),
-    ).resolves.toEqual({ ok: true, value: undefined })
+    await expect(ops.createFile({ projectPath: PROJECT, path: 'docs/empty.txt' })).resolves.toEqual(
+      { ok: true, value: undefined },
+    )
   })
 
   it('maps already-exists, not-found, and destination-exists 1:1', async () => {
@@ -98,7 +110,6 @@ describe('createFilesOperations', () => {
       'path-outside-project' | 'not-found' | 'destination-exists'
     >()
 
-    // Create-only / rename-only codes must not be assignable to read failures.
     expectTypeOf<{
       ok: false
       error: { code: 'already-exists'; path: string }
@@ -107,5 +118,82 @@ describe('createFilesOperations', () => {
       ok: false
       error: { code: 'destination-exists' }
     }>().not.toMatchTypeOf<Awaited<ReturnType<FilesOperations['readFile']>>>()
+  })
+
+  it('publishes content-changed on successful write only', async () => {
+    const { changes, facts } = recordingChanges()
+    const ops = createFilesOperations({
+      workspaceFiles: fakeWorkspace({
+        writeTextFile: async () => ({ ok: true, value: undefined }),
+      }),
+      changes,
+    })
+    await ops.writeTextFile({ projectPath: PROJECT, path: 'src/a.ts', content: 'x' })
+    expect(facts).toEqual([
+      { type: 'files.content-changed', projectPath: PROJECT, paths: ['src/a.ts'] },
+    ])
+  })
+
+  it('publishes tree-changed for create/folder/trash with the input path', async () => {
+    const { changes, facts } = recordingChanges()
+    const ops = createFilesOperations({
+      workspaceFiles: fakeWorkspace({
+        createFile: async () => ({ ok: true, value: undefined }),
+        createFolder: async () => ({ ok: true, value: undefined }),
+        trashPath: async () => ({ ok: true, value: undefined }),
+      }),
+      changes,
+    })
+    await ops.createFile({ projectPath: PROJECT, path: 'docs/n.txt' })
+    await ops.createFolder({ projectPath: PROJECT, path: 'docs/dir' })
+    await ops.trashPath({ projectPath: PROJECT, path: 'docs/old.md' })
+    expect(facts).toEqual([
+      { type: 'files.tree-changed', projectPath: PROJECT, paths: ['docs/n.txt'] },
+      { type: 'files.tree-changed', projectPath: PROJECT, paths: ['docs/dir'] },
+      { type: 'files.tree-changed', projectPath: PROJECT, paths: ['docs/old.md'] },
+    ])
+  })
+
+  it('publishes unique from/to on rename and returned path on duplicate', async () => {
+    const { changes, facts } = recordingChanges()
+    const ops = createFilesOperations({
+      workspaceFiles: fakeWorkspace({
+        renamePath: async () => ({ ok: true, value: undefined }),
+        duplicatePath: async () => ({ ok: true, value: 'src/a copy.ts' }),
+      }),
+      changes,
+    })
+    await ops.renamePath({ projectPath: PROJECT, from: 'a.ts', to: 'b.ts' })
+    await ops.renamePath({ projectPath: PROJECT, from: 'same.ts', to: 'same.ts' })
+    await ops.duplicatePath({ projectPath: PROJECT, path: 'src/a.ts' })
+    expect(facts).toEqual([
+      { type: 'files.tree-changed', projectPath: PROJECT, paths: ['a.ts', 'b.ts'] },
+      { type: 'files.tree-changed', projectPath: PROJECT, paths: ['same.ts'] },
+      { type: 'files.tree-changed', projectPath: PROJECT, paths: ['src/a copy.ts'] },
+    ])
+  })
+
+  it('publishes nothing for read/preview or failed mutations', async () => {
+    const { changes, facts } = recordingChanges()
+    const ops = createFilesOperations({
+      workspaceFiles: fakeWorkspace({
+        readFile: async () => ({ ok: true, value: { type: 'text', content: 'x' } }),
+        previewHtml: async () => ({ ok: true, value: null }),
+        writeTextFile: async () => ({
+          ok: false,
+          error: { code: 'not-found', path: 'missing.ts' },
+        }),
+        createFile: async () => ({
+          ok: false,
+          error: { code: 'already-exists', path: 'x' },
+        }),
+      }),
+      changes,
+    })
+    await ops.readFile({ projectPath: PROJECT, path: 'src/a.ts' })
+    await ops.previewHtml({ projectPath: PROJECT, path: 'src/a.ts' })
+    await ops.writeTextFile({ projectPath: PROJECT, path: 'missing.ts', content: '' })
+    await ops.createFile({ projectPath: PROJECT, path: 'x' })
+    expect(facts).toEqual([])
   })
 })

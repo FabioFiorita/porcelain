@@ -1,6 +1,7 @@
 /**
  * Files domain public surface for daemon composition.
- * Bound operations + feature router; no global WorkspaceFiles singleton.
+ * Bound operations + feature router + per-session watch factory;
+ * no global WorkspaceFiles singleton.
  */
 
 export {
@@ -8,3 +9,7 @@ export {
   type FilesOperations,
 } from './files-operations'
 export { createFilesFeatureRouter } from './files-router'
+export {
+  createSessionFilesWatches,
+  type SessionFilesWatches,
+} from './files-watches'

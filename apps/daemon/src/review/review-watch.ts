@@ -47,7 +47,7 @@ const FILE_CHANGES: Record<string, SessionChange['kind']> = {
 
 function publish(kind: SessionChange['kind'], projectPath: string): void {
   if (kind === 'files.tree-changed' || kind === 'files.content-changed') {
-    publishSessionChange({ kind, projectPath, paths: [projectPath] })
+    publishSessionChange({ kind, projectPath, paths: ['.'] })
     return
   }
   publishSessionChange({ kind, projectPath })

@@ -31,8 +31,14 @@ function harness({ identity = { kind: 'admin' } as SessionConnection['identity']
   const sent: unknown[] = []
   const closed: Array<{ code: number; reason: string }> = []
   const watchSink = {
-    setWatchedFiles: vi.fn<(paths: readonly string[]) => void>(),
-    setWatchedDirs: vi.fn<(paths: readonly string[]) => void>(),
+    apply:
+      vi.fn<
+        (interests: {
+          readonly projectPath: string
+          readonly files: readonly string[]
+          readonly dirs: readonly string[]
+        }) => void
+      >(),
     clear: vi.fn<() => void>(),
   }
   const onProjectScopeChanged = vi.fn<(projectPath: string | undefined) => void>()
@@ -87,7 +93,7 @@ describe('Session gateway', () => {
     expect(closed).toEqual([{ code: SESSION_CLOSE_UNAUTHENTICATED, reason: 'unauthenticated' }])
     expect(sent).toEqual([])
     expect(publisher.subscriptionCount()).toBe(0)
-    expect(watchSink.setWatchedFiles).not.toHaveBeenCalled()
+    expect(watchSink.apply).not.toHaveBeenCalled()
     expect(terminal.detach).not.toHaveBeenCalled()
   })
 
@@ -121,7 +127,7 @@ describe('Session gateway', () => {
       { code: SESSION_CLOSE_PROTOCOL_MISMATCH, reason: 'protocol.update-required' },
     ])
     expect(context.publisher.subscriptionCount()).toBe(0)
-    expect(context.watchSink.setWatchedFiles).not.toHaveBeenCalled()
+    expect(context.watchSink.apply).not.toHaveBeenCalled()
     expect(context.outcome.session.isOpen()).toBe(false)
   })
 
@@ -138,7 +144,7 @@ describe('Session gateway', () => {
       expect(sessionMismatchFrameSchema.safeParse(context.sent[0]).success).toBe(true)
       expect(context.closed).toHaveLength(1)
       expect(context.publisher.subscriptionCount()).toBe(0)
-      expect(context.watchSink.setWatchedFiles).not.toHaveBeenCalled()
+      expect(context.watchSink.apply).not.toHaveBeenCalled()
       expect(context.received).toEqual([])
     }
   })
@@ -148,8 +154,11 @@ describe('Session gateway', () => {
 
     session.receive(JSON.stringify(sessionWatchesFixtures.watches))
 
-    expect(watchSink.setWatchedFiles).toHaveBeenCalledWith(['/synthetic/repo/src/open-document.ts'])
-    expect(watchSink.setWatchedDirs).toHaveBeenCalledWith(['/synthetic/repo/src'])
+    expect(watchSink.apply).toHaveBeenCalledWith({
+      projectPath: PROJECT,
+      files: ['/synthetic/repo/src/open-document.ts'],
+      dirs: ['/synthetic/repo/src'],
+    })
     expect(onProjectScopeChanged).toHaveBeenLastCalledWith(PROJECT)
 
     publisher.publish({ kind: 'board.changed', projectPath: PROJECT })
@@ -176,7 +185,7 @@ describe('Session gateway', () => {
     )
 
     expect(onProjectScopeChanged).toHaveBeenLastCalledWith(PROJECT)
-    publisher.publish({ kind: 'files.content-changed', projectPath: PROJECT, paths: [PROJECT] })
+    publisher.publish({ kind: 'files.content-changed', projectPath: PROJECT, paths: ['.'] })
     expect(changeFrames(sent)).toHaveLength(1)
 
     session.receive(
@@ -188,7 +197,7 @@ describe('Session gateway', () => {
 
     expect(watchSink.clear).toHaveBeenCalledTimes(1)
     expect(onProjectScopeChanged).toHaveBeenLastCalledWith(undefined)
-    publisher.publish({ kind: 'files.content-changed', projectPath: PROJECT, paths: [PROJECT] })
+    publisher.publish({ kind: 'files.content-changed', projectPath: PROJECT, paths: ['.'] })
     expect(changeFrames(sent)).toHaveLength(1)
   })
 
@@ -238,7 +247,7 @@ describe('Session gateway', () => {
 
     expect(received).toEqual([])
     expect(sent).toHaveLength(1)
-    expect(watchSink.setWatchedFiles).not.toHaveBeenCalled()
+    expect(watchSink.apply).not.toHaveBeenCalled()
   })
 
   it('releases subscription, watchers, and terminals on close', () => {

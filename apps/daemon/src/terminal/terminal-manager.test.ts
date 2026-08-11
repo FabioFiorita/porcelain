@@ -91,7 +91,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-  // Reset module-level state through the production API (the file-watch.test.ts idiom):
+  // Reset module-level state through the production API:
   // kill every session this test left behind, then forget the fakes.
   for (const info of listTerminals()) killTerminal(info.id)
   ptys.length = 0

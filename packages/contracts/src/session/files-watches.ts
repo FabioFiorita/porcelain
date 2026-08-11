@@ -12,12 +12,12 @@ import { z } from 'zod'
  */
 
 /**
- * The ceiling on one session's combined interests, transcribed from the daemon's current
- * `MAX_WATCHED_DIRS` (`apps/daemon/src/fs/file-watch.ts`). The value belongs to the contract
- * so a client can bound its own registration instead of discovering the limit by losing
- * watches, but it is deliberately not a schema failure: the daemon bounds by keeping the
- * first interests and dropping the extras, and rejecting the frame outright would lose the
- * registrations a client is entitled to instead of only the ones over the line.
+ * The ceiling on one session's combined interests. The value belongs to the contract so a
+ * client can bound its own registration instead of discovering the limit by losing watches,
+ * but it is deliberately not a schema failure: the daemon bounds by keeping the first
+ * interests and dropping the extras, and rejecting the frame outright would lose the
+ * registrations a client is entitled to instead of only the ones over the line. The combined
+ * cap is owned solely by session-watches; the Files watcher does not re-cap.
  */
 export const SESSION_WATCH_INTEREST_LIMIT = 128
 

@@ -27,8 +27,8 @@ import { terminalEnv } from './terminal-env'
 
 /**
  * The minimal slice of `WebContents` we need: send terminal output and check the
- * sender is still alive. Kept structural (not the electron type, same as
- * `FileWatchSender` in file-watch.ts) so this module stays Electron-free.
+ * sender is still alive. Kept structural (not the electron type) so this module
+ * stays Electron-free.
  */
 export interface TerminalSender {
   send(channel: string, ...args: unknown[]): void

@@ -2,12 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { PROTOCOL_VERSION } from '@porcelain/contracts'
 import type { SessionChange } from '@porcelain/contracts/session'
 import { WebSocket } from 'ws'
-import {
-  clearWatchedDirs,
-  clearWatchedFiles,
-  setWatchedDirs,
-  setWatchedFiles,
-} from '../fs/file-watch'
+import { createSessionFilesWatches } from '../features/files'
 import type { AuthIdentity } from '../stores/access-store'
 import { pasteFileToTerminal, pasteImageToTerminal } from '../terminal/image-paste'
 import {
@@ -31,7 +26,7 @@ import {
 
 /**
  * Activated session surface: one publisher + gateway for the process, real WebSocket
- * transports, file-watch sinks, and terminal bridges. Replaces legacy `session/live-session`
+ * transports, Files watch sinks, and terminal bridges. Replaces legacy `session/live-session`
  * and the `legacy event bus` bus in one switch (RT-005).
  */
 
@@ -57,7 +52,6 @@ export function publishSessionChange(change: SessionChange): void {
 
 export function createSession(socket: WebSocket, identity: AuthIdentity): void {
   let closed = false
-  let projectPath: string | undefined
   let openSession: OpenSession | undefined
 
   const sendTerminal = (frame: TerminalServerFrame): void => {
@@ -88,27 +82,9 @@ export function createSession(socket: WebSocket, identity: AuthIdentity): void {
     },
   }
 
-  const fileWatchSender = {
-    isDestroyed: () => closed || socket.readyState !== WebSocket.OPEN,
-    send(_channel: string, event: unknown) {
-      if (projectPath === undefined) return
-      if (event === 'working-tree') {
-        publisher.publish({
-          kind: 'files.content-changed',
-          projectPath,
-          paths: [projectPath],
-        })
-        return
-      }
-      if (event === 'file-tree') {
-        publisher.publish({
-          kind: 'files.tree-changed',
-          projectPath,
-          paths: [projectPath],
-        })
-      }
-    },
-  }
+  const filesWatches = createSessionFilesWatches({
+    publish: (change) => publisher.publish(change),
+  })
 
   const outcome = gateway.openSession({
     identity,
@@ -121,20 +97,14 @@ export function createSession(socket: WebSocket, identity: AuthIdentity): void {
       },
     },
     watchSink: {
-      setWatchedFiles(paths) {
-        setWatchedFiles(fileWatchSender, [...paths])
-      },
-      setWatchedDirs(paths) {
-        setWatchedDirs(fileWatchSender, [...paths])
+      apply(interests) {
+        filesWatches.apply(interests)
       },
       clear() {
-        clearWatchedFiles(fileWatchSender)
-        clearWatchedDirs(fileWatchSender)
+        filesWatches.clear()
       },
     },
-    onProjectScopeChanged(nextProjectPath) {
-      projectPath = nextProjectPath
-    },
+    onProjectScopeChanged: () => {},
     terminal: terminalBridge,
   })
 

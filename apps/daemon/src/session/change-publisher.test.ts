@@ -26,7 +26,7 @@ function changesForEveryKind(projectPath: string): SessionChange[] {
     const kind = option.shape.kind.value
     return sessionChangeSchema.parse(
       kind === 'files.tree-changed' || kind === 'files.content-changed'
-        ? { kind, projectPath, paths: [`${projectPath}/a.ts`] }
+        ? { kind, projectPath, paths: ['a.ts'] }
         : { kind, projectPath },
     )
   })

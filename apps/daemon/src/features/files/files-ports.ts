@@ -120,3 +120,20 @@ export type WorkspaceFiles = {
     | { ok: false; error: FilesPathOutsideError | FilesNotFoundError }
   >
 }
+
+export type FilesChangeFact =
+  | {
+      type: 'files.content-changed'
+      projectPath: string
+      paths: readonly string[]
+    }
+  | {
+      type: 'files.tree-changed'
+      projectPath: string
+      paths: readonly string[]
+    }
+
+export type FilesChanges = {
+  /** Best-effort; must not throw to callers. */
+  publish(change: FilesChangeFact): void
+}

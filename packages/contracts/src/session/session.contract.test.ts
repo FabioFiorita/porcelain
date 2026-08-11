@@ -27,12 +27,12 @@ const changeFixtures = {
   'files.tree-changed': {
     kind: 'files.tree-changed',
     projectPath: '/synthetic/repo',
-    paths: ['/synthetic/repo/src'],
+    paths: ['src'],
   },
   'files.content-changed': {
     kind: 'files.content-changed',
     projectPath: '/synthetic/repo',
-    paths: ['/synthetic/repo/src/open.ts'],
+    paths: ['src/open.ts'],
   },
   'git.working-tree-changed': {
     kind: 'git.working-tree-changed',

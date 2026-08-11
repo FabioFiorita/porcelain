@@ -25,8 +25,14 @@ function resolved(overrides: Partial<SessionWatchesFrame> = {}) {
 
 function watchSinkSpy() {
   return {
-    setWatchedFiles: vi.fn<(paths: readonly string[]) => void>(),
-    setWatchedDirs: vi.fn<(paths: readonly string[]) => void>(),
+    apply:
+      vi.fn<
+        (interests: {
+          readonly projectPath: string
+          readonly files: readonly string[]
+          readonly dirs: readonly string[]
+        }) => void
+      >(),
     clear: vi.fn<() => void>(),
   }
 }
@@ -122,12 +128,18 @@ describe('Session watch interests', () => {
     const interests = createSessionWatchInterests(sink)
 
     interests.register(frame({ files: [`${PROJECT}/src/a.ts`], dirs: [`${PROJECT}/src`] }))
-    expect(sink.setWatchedFiles).toHaveBeenLastCalledWith([`${PROJECT}/src/a.ts`])
-    expect(sink.setWatchedDirs).toHaveBeenLastCalledWith([`${PROJECT}/src`])
+    expect(sink.apply).toHaveBeenLastCalledWith({
+      projectPath: PROJECT,
+      files: [`${PROJECT}/src/a.ts`],
+      dirs: [`${PROJECT}/src`],
+    })
 
     interests.register(frame({ files: [], dirs: [] }))
-    expect(sink.setWatchedFiles).toHaveBeenLastCalledWith([])
-    expect(sink.setWatchedDirs).toHaveBeenLastCalledWith([])
+    expect(sink.apply).toHaveBeenLastCalledWith({
+      projectPath: PROJECT,
+      files: [],
+      dirs: [],
+    })
     expect(interests.current()?.files).toEqual([])
   })
 
@@ -138,8 +150,7 @@ describe('Session watch interests', () => {
     const outcome = interests.register(frame({ projectPath: 'relative/repo' }))
 
     expect(outcome.ok).toBe(false)
-    expect(sink.setWatchedFiles).not.toHaveBeenCalled()
-    expect(sink.setWatchedDirs).not.toHaveBeenCalled()
+    expect(sink.apply).not.toHaveBeenCalled()
     expect(interests.current()).toBeUndefined()
   })
 
