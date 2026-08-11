@@ -3,7 +3,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { ChangesDiffView } from '@/features/changes/changes-diff-view'
 import { useChangesFlow } from '@/features/changes/use-changes'
-import { pathSegments } from '@/features/files/file-paths'
+import { pathSegments } from '@/features/files'
 
 /**
  * One file's diff, pushed over the Changes list.

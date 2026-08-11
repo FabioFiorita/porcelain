@@ -1,14 +1,6 @@
 import { z } from 'zod'
 
-import { defineMutation, defineQuery } from '../procedure'
-
-const dirEntrySchema = z.object({
-  name: z.string(),
-  path: z.string(),
-  kind: z.enum(['file', 'dir']),
-  hidden: z.boolean(),
-  pinned: z.boolean(),
-})
+import { defineQuery } from '../procedure'
 
 const searchResultSchema = z.object({
   path: z.string(),
@@ -42,17 +34,7 @@ const codeSearchResultSchema = z.object({
   truncated: z.boolean(),
 })
 
-const fileViewSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('text'), content: z.string() }),
-  z.object({ type: z.literal('image'), dataUrl: z.string() }),
-  z.object({ type: z.literal('binary'), size: z.number() }),
-  z.object({ type: z.literal('too-large'), size: z.number() }),
-  z.object({ type: z.literal('not-found') }),
-])
-
-export type DirEntry = z.infer<typeof dirEntrySchema>
 export type FileSearchResult = z.infer<typeof searchResultSchema>
-export type FileView = z.infer<typeof fileViewSchema>
 export type GrepMatch = z.infer<typeof grepMatchSchema>
 export type CodeSearchLine = z.infer<typeof codeSearchLineSchema>
 export type CodeSearchFile = z.infer<typeof codeSearchFileSchema>
@@ -68,16 +50,6 @@ export type CodeSearchOptions = {
   include: string
   exclude: string
 }
-
-export const readDirQuery = defineQuery<
-  { repoPath: string; path: string; showHidden: boolean },
-  DirEntry[]
->('readDir', z.array(dirEntrySchema))
-
-export const pinnedEntriesQuery = defineQuery<string, DirEntry[]>(
-  'pinnedEntries',
-  z.array(dirEntrySchema),
-)
 
 export const searchFilesQuery = defineQuery<
   { repoPath: string; query: string },
@@ -98,45 +70,3 @@ export const searchCodeQuery = defineQuery<
   CodeSearchOptions & { repoPath: string },
   CodeSearchResult
 >('searchCode', codeSearchResultSchema)
-
-type ProjectFileInput = { projectPath: string; path: string }
-
-export const readFileQuery = defineQuery<ProjectFileInput, FileView>('readFile', fileViewSchema)
-
-/** Sandboxed HTML preview with local images inlined as data URIs (daemon-side). */
-export const previewHtmlQuery = defineQuery<ProjectFileInput, string | null>(
-  'previewHtml',
-  z.string().nullable(),
-)
-
-type ScopeInput = { repoPath: string; path: string }
-
-export const hidePathMutation = defineMutation<ScopeInput, void>('hidePath', z.void())
-export const unhidePathMutation = defineMutation<ScopeInput, void>('unhidePath', z.void())
-export const pinPathMutation = defineMutation<ScopeInput, void>('pinPath', z.void())
-export const unpinPathMutation = defineMutation<ScopeInput, void>('unpinPath', z.void())
-
-/**
- * The eight host-fs writes: caller-nominated `projectPath` + project-relative targets.
- *
- * Each one refuses rather than clobbers: `createFile` opens with `wx`, `createFolder` is a
- * non-recursive `mkdir`, and `renamePath` best-effort checks the target first because POSIX
- * `rename` overwrites. The daemon's message is the one worth showing — none of these are swallowed.
- */
-export const createFileMutation = defineMutation<ProjectFileInput, void>('createFile', z.void())
-export const createFolderMutation = defineMutation<ProjectFileInput, void>('createFolder', z.void())
-export const renamePathMutation = defineMutation<
-  { projectPath: string; from: string; to: string },
-  void
->('renamePath', z.void())
-/** Answers the free "… copy" sibling as a project-relative path so the caller can reveal it. */
-export const duplicatePathMutation = defineMutation<ProjectFileInput, string>(
-  'duplicatePath',
-  z.string(),
-)
-/** The OS trash, not `rm` — recoverable, which is why the confirmation says "Trash". */
-export const trashPathMutation = defineMutation<ProjectFileInput, void>('trashPath', z.void())
-export const writeTextFileMutation = defineMutation<
-  { projectPath: string; path: string; content: string },
-  void
->('writeTextFile', z.void())

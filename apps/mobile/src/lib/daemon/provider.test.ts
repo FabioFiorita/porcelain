@@ -194,3 +194,28 @@ describe('proceduresForChange review.changed cutover (RVC-004)', () => {
     )
   })
 })
+
+describe('proceduresForChange Files cutover (FIL-006)', () => {
+  it('leaves Files identities to the typed bridge', () => {
+    expect(
+      proceduresForChange({ kind: 'files.scope-changed', projectPath: '/synthetic/repo' }),
+    ).toEqual([])
+    expect(
+      proceduresForChange({
+        kind: 'files.tree-changed',
+        paths: ['src'],
+        projectPath: '/synthetic/repo',
+      }),
+    ).toEqual([])
+  })
+
+  it('retains only diffReading for content changes', () => {
+    expect(
+      proceduresForChange({
+        kind: 'files.content-changed',
+        paths: ['src/main.ts'],
+        projectPath: '/synthetic/repo',
+      }),
+    ).toEqual(['diffReading'])
+  })
+})

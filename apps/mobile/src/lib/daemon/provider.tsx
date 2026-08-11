@@ -47,16 +47,15 @@ import {
 export function proceduresForChange(change: SessionChange): readonly string[] {
   switch (change.kind) {
     case 'files.scope-changed':
-      // hidden/pinned scope moved — the tree, the pins, and every listing that filters
-      // hidden paths (flow + search)
-      return ['repoScope', 'pinnedEntries', 'readDir', 'gitFlow', 'searchFiles']
+      // Files identities are owned by FilesNotificationBridge; keep provider recovery for
+      // cross-domain procedure identities only.
+      return []
     case 'files.tree-changed':
-      // entries appeared or disappeared under a watched directory — tree rows, pins, flow,
-      // and content search (open greps keep hits in files that no longer have them otherwise)
-      return ['readDir', 'pinnedEntries', 'gitFlow', 'searchFiles', 'searchCode', 'searchText']
+      return []
     case 'files.content-changed':
-      // a watched file body changed outside the app — re-read open documents and diffs
-      return ['readFile', 'previewHtml', 'gitDiffFile', 'diffReading']
+      // Diff reading is still provider-owned; Files content/tree identities belong to the
+      // typed Files notification bridge.
+      return ['diffReading']
     case 'git.working-tree-changed':
       // the Git half of today's coarse working-tree event
       return [
@@ -101,7 +100,8 @@ export function proceduresForChange(change: SessionChange): readonly string[] {
 /**
  * Recover from a freshness requirement the runtime raised.
  * - `session` scope (reconnect / replaced daemon): invalidate every daemon-derived query.
- * - `project` scope (sequence gap): invalidate every project-derived procedure name wholesale.
+ * - `project` scope (sequence gap): invalidate provider-owned project procedures; typed domain
+ *   bridges recover their own identities from the requirement's project path.
  */
 export function proceduresForRecovery(
   requirement: FreshnessRequirement,

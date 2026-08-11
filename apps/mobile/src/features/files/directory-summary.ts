@@ -1,4 +1,4 @@
-import type { FileEntry } from './use-files'
+import type { FileEntry } from './files-data'
 
 /**
  * The line under the breadcrumb: what is in this directory, and whether you are seeing all of it.

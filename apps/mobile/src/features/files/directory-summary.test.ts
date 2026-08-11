@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { directorySummary } from './directory-summary'
-import type { FileEntry } from './use-files'
+import type { FileEntry } from './files-data'
 
 function entry(path: string, kind: 'dir' | 'file'): FileEntry {
   return { absolutePath: `/repo/${path}`, hidden: false, kind, name: path, path, pinned: false }

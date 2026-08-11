@@ -6,8 +6,7 @@ import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-cont
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { EmptyNote } from '@/components/panel-chrome'
 import { SurfaceList } from '@/components/surface-scroll'
-import { pathTestId } from '@/features/files/file-paths'
-import { describeBytes } from '@/features/files/source-rows'
+import { describeBytes, pathTestId } from '@/features/files'
 import type { EvidenceAsset } from '@/lib/daemon/procedures/review'
 
 import { useReviewEvidenceAsset } from './use-review'

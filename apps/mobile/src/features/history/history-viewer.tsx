@@ -3,7 +3,7 @@ import { View } from 'react-native'
 import { EmptyNote } from '@/components/panel-chrome'
 import { DiffView } from '@/features/diff/diff-view'
 import { ReadAllView } from '@/features/diff/read-all-view'
-import { useFilesStore } from '@/features/files/files-store'
+import { useFilesStore } from '@/features/files'
 import { useShellStore } from '@/features/shell/shell-store'
 
 import { commitTitle, shortHash } from './commit-message'

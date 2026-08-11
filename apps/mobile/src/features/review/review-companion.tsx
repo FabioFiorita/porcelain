@@ -16,7 +16,7 @@ import { Text as UiText } from '@/components/ui/text'
 import { CommentsCard } from '@/features/changes/comments-card'
 import { useReviewedPaths } from '@/features/changes/use-changes'
 import { useReviewComments } from '@/features/comments'
-import { pathTestId } from '@/features/files/file-paths'
+import { pathTestId } from '@/features/files'
 import type { ArchivedReview, FeatureReading } from '@/lib/daemon/procedures/review'
 import { cn } from '@/lib/utils'
 

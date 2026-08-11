@@ -9,14 +9,14 @@ import {
 } from '@/components/panel-chrome'
 import { SURFACE_TOOLBAR } from '@/components/surface-layout'
 import { SurfaceList } from '@/components/surface-scroll'
-import { CommentComposer } from '@/features/comments/comment-composer'
+import { CommentComposer } from '@/features/comments'
 import { useActiveRepo } from '@/lib/daemon/repo'
 import { cn } from '@/lib/utils'
 import { FileEntryRow } from './file-entry-row'
 import { breadcrumbs, type Crumb, pathTestId, REPO_ROOT } from './file-paths'
+import type { FileEntry } from './files-data'
 import { useFilesStore } from './files-store'
 import { NamePrompt } from './name-prompt'
-import type { FileEntry } from './use-files'
 import { useFilesBrowser } from './use-files-browser'
 
 /**

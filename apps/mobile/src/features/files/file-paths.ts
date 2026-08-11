@@ -16,9 +16,16 @@
 /** The repo root itself, as a relative path. Empty rather than `.` — routes concatenate it. */
 export const REPO_ROOT = ''
 
+function normalizedRepoPath(repoPath: string): string {
+  if (repoPath === '/') return '/'
+  return repoPath.replace(/\/+$/, '')
+}
+
 /** Absolute host path for a repo-relative one. The root maps to the repo path itself. */
 export function absolutePath(repoPath: string, relative: string): string {
-  return relative === REPO_ROOT ? repoPath : `${repoPath}/${relative}`
+  const root = normalizedRepoPath(repoPath)
+  if (relative === REPO_ROOT) return root
+  return root === '/' ? `/${relative}` : `${root}/${relative}`
 }
 
 /**
@@ -29,8 +36,13 @@ export function absolutePath(repoPath: string, relative: string): string {
  * stale pin from another checkout must not be turned into a path that reads as inside.
  */
 export function relativePath(repoPath: string, absolute: string): string | null {
-  if (absolute === repoPath) return REPO_ROOT
-  return absolute.startsWith(`${repoPath}/`) ? absolute.slice(repoPath.length + 1) : null
+  const root = normalizedRepoPath(repoPath)
+  const candidate = absolute.length > 1 ? absolute.replace(/\/+$/, '') : absolute
+  if (candidate === root) return REPO_ROOT
+  const prefix = root === '/' ? '/' : `${root}/`
+  if (!candidate.startsWith(prefix)) return null
+  const relative = candidate.slice(prefix.length)
+  return relative === '' || relative.startsWith('/') || relative.includes('//') ? null : relative
 }
 
 /** The containing directory of a repo-relative path; the root's parent is itself. */

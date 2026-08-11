@@ -3,13 +3,15 @@ import { ChangesCompanion } from '@/features/changes/changes-companion'
 import { ChangesList } from '@/features/changes/changes-list'
 import { ChangesPhoneScreen } from '@/features/changes/changes-phone-screen'
 import { ChangesViewer } from '@/features/changes/changes-viewer'
-import { FilesCompanion } from '@/features/files/files-companion'
-import { FilesList } from '@/features/files/files-list'
-import { FilesPhoneScreen } from '@/features/files/files-phone-screen'
-import { FilesViewer } from '@/features/files/files-viewer'
-import { SearchCompanion } from '@/features/files/search-companion'
-import { SearchList } from '@/features/files/search-list'
-import { SearchPhoneScreen } from '@/features/files/search-phone-screen'
+import {
+  FilesCompanion,
+  FilesList,
+  FilesPhoneScreen,
+  FilesViewer,
+  SearchCompanion,
+  SearchList,
+  SearchPhoneScreen,
+} from '@/features/files'
 import { HistoryCompanion } from '@/features/history/history-companion'
 import { HistoryList } from '@/features/history/history-list'
 import { HistoryPhoneScreen } from '@/features/history/history-phone-screen'

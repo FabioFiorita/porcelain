@@ -1,21 +1,24 @@
+import type { FileView } from '@porcelain/contracts/files'
 import { useMemo, useState } from 'react'
-import { useCommentIndex, useReviewComments } from '@/features/comments'
-import type { CommentAnchor } from '@/features/comments/comment-composer'
-import { type LineRange, rangeForPath } from '@/features/comments/line-range'
-import { useLineSelection } from '@/features/comments/use-line-selection'
+import type { CommentAnchor, LineRange } from '@/features/comments'
+import {
+  rangeForPath,
+  useCommentIndex,
+  useLineSelection,
+  useReviewComments,
+} from '@/features/comments'
 import {
   type HtmlMode,
   type MarkdownMode,
   usePreferencesStore,
 } from '@/features/settings/preferences-store'
-import type { FileView } from '@/lib/daemon/procedures/files'
 
 import { isHtmlPath, isMarkdownPath } from './file-kinds'
 import { pathTestId } from './file-paths'
+import { useFileContents, useHtmlPreview, usePathScope, usePinnedEntries } from './files-data'
 import type { SourceLine } from './source-lines'
 import { type SourceRow, sourceAnchorText, toSourceRows } from './source-rows'
 import { useSourceTokens } from './use-file-highlight'
-import { useFileContents, useHtmlPreview, usePathScope, usePinnedEntries } from './use-files'
 import {
   anchorableRange,
   type ViewerFace,

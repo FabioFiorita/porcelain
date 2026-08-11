@@ -1,8 +1,7 @@
 import { Text, View } from 'react-native'
 
 import { EmptyNote, ErrorNote } from '@/components/panel-chrome'
-import { markdownToHtml, previewDocument, readerDocument } from '@/features/files/preview-document'
-import { PreviewView } from '@/features/files/preview-view'
+import { markdownToHtml, PreviewView, previewDocument, readerDocument } from '@/features/files'
 import { useResolvedColorScheme } from '@/features/settings/theme-provider'
 import type { FeatureReading, IntentDoc } from '@/lib/daemon/procedures/review'
 

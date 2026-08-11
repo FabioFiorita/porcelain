@@ -8,6 +8,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context'
 
 import { BoardNotificationBridge } from '@/features/board'
 import { ReviewCommentNotificationBridge } from '@/features/comments'
+import { FilesNotificationBridge } from '@/features/files'
 import { AppThemeProvider, useResolvedColorScheme } from '@/features/settings/theme-provider'
 import { PhoneBottomChrome } from '@/features/shell/bottom-chrome'
 import { PhoneShell } from '@/features/shell/phone-shell'
@@ -36,6 +37,7 @@ function ThemedApp(): React.JSX.Element {
       <DaemonProvider>
         <BoardNotificationBridge />
         <ReviewCommentNotificationBridge />
+        <FilesNotificationBridge />
         <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
         {/* Only the phone floats chrome over its content. A tablet column ends above its own
             chrome already, so it declares none and every shared body reads zero there. */}

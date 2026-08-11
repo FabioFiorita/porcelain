@@ -1,7 +1,7 @@
 import { fileName } from '@porcelain/client-runtime/paths'
 
 import { IconAction, ScreenHeader } from '@/components/panel-chrome'
-import { describeRange, type LineRange } from '@/features/comments/line-range'
+import { describeRange, type LineRange } from '@/features/comments'
 
 /** The viewer's own chrome: what the file is, how much has been said about it, pin and comment. */
 export function FileViewerHeader({

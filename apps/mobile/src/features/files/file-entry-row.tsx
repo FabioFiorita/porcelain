@@ -7,7 +7,7 @@ import { SURFACE_ROW, SURFACE_ROW_SELECTED } from '@/components/surface-layout'
 import { cn } from '@/lib/utils'
 
 import { pathTestId } from './file-paths'
-import type { FileEntry } from './use-files'
+import type { FileEntry } from './files-data'
 
 export type EntryActions = {
   onOpen: (entry: FileEntry) => void

@@ -1,4 +1,4 @@
-import type { CodeSearchLine } from '@/lib/daemon/procedures/files'
+import type { CodeSearchLine } from './search-data'
 
 /** Where a literal query sits inside a result line, so the match can be picked out of it. */
 export type MatchSpan = { start: number; end: number }

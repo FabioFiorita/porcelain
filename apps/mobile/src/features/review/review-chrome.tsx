@@ -3,7 +3,7 @@ import { ScrollView, Text, View } from 'react-native'
 import { PanelLabel } from '@/components/panel-chrome'
 import { Button } from '@/components/ui/button'
 import { Text as UiText } from '@/components/ui/text'
-import { pathTestId } from '@/features/files/file-paths'
+import { pathTestId } from '@/features/files'
 import type { FileSource } from '@/lib/daemon/procedures/review'
 import { cn } from '@/lib/utils'
 

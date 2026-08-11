@@ -12,8 +12,9 @@ import { useActiveRepo } from '@/lib/daemon/repo'
 import { cn } from '@/lib/utils'
 
 import { pathSegments, pathTestId } from './file-paths'
+import { type FileEntry, usePathScope, usePinnedEntries } from './files-data'
 import { useFilesStore } from './files-store'
-import { type FileEntry, usePathScope, usePinnedEntries, useRepoNotes } from './use-files'
+import { useRepoNotes } from './use-repo-notes'
 
 /**
  * The Files companion — "Pinned & notes", the same pair the web rail carries.

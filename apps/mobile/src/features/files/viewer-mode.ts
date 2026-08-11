@@ -14,7 +14,7 @@
  * the next file you open reads the default again.
  */
 
-import type { LineRange } from '@/features/comments/line-range'
+import type { LineRange } from '@/features/comments'
 import type { HtmlMode, MarkdownMode } from '@/features/settings/preferences-store'
 
 /** A mode chosen for one specific file, by the reader, for as long as that file is open. */

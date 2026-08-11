@@ -22,6 +22,12 @@ describe('absolutePath', () => {
   it('maps the root to the repo itself, without a trailing slash', () => {
     expect(absolutePath(REPO, REPO_ROOT)).toBe(REPO)
   })
+
+  it('keeps the filesystem root from becoming a doubled slash', () => {
+    expect(absolutePath('/', REPO_ROOT)).toBe('/')
+    expect(absolutePath('/', 'src')).toBe('/src')
+    expect(absolutePath('/home/dev/porcelain/', 'src')).toBe('/home/dev/porcelain/src')
+  })
 })
 
 describe('relativePath', () => {
@@ -40,6 +46,13 @@ describe('relativePath', () => {
   it('refuses a sibling directory that merely shares the prefix', () => {
     // Without the separator check, `…/porcelain-dev` would read as `-dev` inside the repo.
     expect(relativePath(REPO, '/home/dev/porcelain-dev/config.json')).toBeNull()
+  })
+
+  it('round-trips the filesystem root without accepting doubled-root paths', () => {
+    expect(relativePath('/', '/')).toBe(REPO_ROOT)
+    expect(relativePath('/', '/src')).toBe('src')
+    expect(relativePath('/', '//src')).toBeNull()
+    expect(relativePath('/home/dev/porcelain/', '/home/dev/porcelain/src/')).toBe('src')
   })
 })
 

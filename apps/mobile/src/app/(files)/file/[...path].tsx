@@ -1,8 +1,7 @@
 import { useIsFocused, useLocalSearchParams, useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { pathFromSegments } from '@/features/files/file-paths'
-import { FileViewer } from '@/features/files/file-viewer'
+import { FileViewer, pathFromSegments } from '@/features/files'
 
 /**
  * One file, pushed over the tree — or over a search, or over a diff, since every surface that

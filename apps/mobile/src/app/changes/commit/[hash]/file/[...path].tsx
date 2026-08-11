@@ -2,7 +2,7 @@ import { useIsFocused, useLocalSearchParams, useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { DiffView } from '@/features/diff/diff-view'
-import { pathSegments } from '@/features/files/file-paths'
+import { pathSegments } from '@/features/files'
 import { useHistoryFocus } from '@/features/history/use-history'
 
 /**

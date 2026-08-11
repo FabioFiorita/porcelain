@@ -1,7 +1,7 @@
 import { View } from 'react-native'
 
 import { EmptyNote } from '@/components/panel-chrome'
-import { useFilesStore } from '@/features/files/files-store'
+import { useFilesStore } from '@/features/files'
 import { useShellStore } from '@/features/shell/shell-store'
 
 import { ChangesDiffView } from './changes-diff-view'

@@ -1,5 +1,5 @@
 import { type DiffMode, type DiffRow, toDiffRows } from '@/features/diff/diff-rows'
-import type { SourceRow } from '@/features/files/source-rows'
+import type { SourceRow } from '@/features/files'
 import type { FeatureReading, ReadingFile } from '@/lib/daemon/procedures/review'
 
 /**

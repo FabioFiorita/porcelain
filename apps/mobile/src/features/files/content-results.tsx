@@ -4,10 +4,10 @@ import { Pressable, Text, View } from 'react-native'
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { SurfaceList } from '@/components/surface-scroll'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
-import type { CodeSearchFile, CodeSearchLine } from '@/lib/daemon/procedures/files'
 import { cn } from '@/lib/utils'
 
 import { pathTestId } from './file-paths'
+import type { CodeSearchFile, CodeSearchLine } from './search-data'
 import { commonIndent, matchSpans } from './search-highlight'
 
 /**

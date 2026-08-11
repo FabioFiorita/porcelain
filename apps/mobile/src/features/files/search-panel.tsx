@@ -13,13 +13,17 @@ import {
 } from '@/components/surface-layout'
 import { SurfaceList } from '@/components/surface-scroll'
 import { Input } from '@/components/ui/input'
-import type { CodeSearchOptions, FileSearchResult } from '@/lib/daemon/procedures/files'
 import { cn } from '@/lib/utils'
 
 import { ContentResults } from './content-results'
 import { pathTestId } from './file-paths'
 import { type SearchMode, useFilesStore } from './files-store'
-import { useCodeSearch, useFileSearch } from './use-files'
+import {
+  type CodeSearchOptions,
+  type FileSearchResult,
+  useCodeSearch,
+  useFileSearch,
+} from './search-data'
 
 /** A settled query costs one daemon round trip; a keystroke-per-request costs one each. */
 const DEBOUNCE_MS = 150

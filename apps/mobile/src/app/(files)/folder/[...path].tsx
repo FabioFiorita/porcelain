@@ -2,8 +2,7 @@ import { useIsFocused, useLocalSearchParams, useRouter } from 'expo-router'
 import { View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { pathFromSegments, pathSegments } from '@/features/files/file-paths'
-import { FilesBrowser } from '@/features/files/files-browser'
+import { FilesBrowser, pathFromSegments, pathSegments } from '@/features/files'
 
 /**
  * One directory, pushed over the tree.

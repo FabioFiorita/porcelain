@@ -1,10 +1,9 @@
 import { fileName } from '@porcelain/client-runtime/paths'
+import type { FileView } from '@porcelain/contracts/files'
 import { useEffect, useRef } from 'react'
 import { type FlatList, Image, Text, View } from 'react-native'
-
 import { EmptyNote, ErrorNote } from '@/components/panel-chrome'
 import { SurfaceList } from '@/components/surface-scroll'
-import type { FileView } from '@/lib/daemon/procedures/files'
 
 import { pathTestId } from './file-paths'
 import { previewDocument } from './preview-document'

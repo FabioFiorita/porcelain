@@ -1,7 +1,7 @@
 import { useState } from 'react'
 
 import type { SheetAction } from '@/components/panel-chrome'
-import type { CommentAnchor } from '@/features/comments/comment-composer'
+import type { CommentAnchor } from '@/features/comments'
 
 import { directorySummary } from './directory-summary'
 import type { EntryActions } from './file-entry-row'
@@ -12,7 +12,7 @@ import {
   useDirEntries,
   useFileWrites,
   usePathScope,
-} from './use-files'
+} from './files-data'
 
 /**
  * The write the tree is in the middle of asking about.
