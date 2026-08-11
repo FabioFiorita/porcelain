@@ -50,7 +50,7 @@ an external choice or authorization.
 | `DAE-001` | Landed | Explicit capability construction and bound-operation router context |
 | `TST-002` | Landed | Operation fake conventions and controlled adapter integration fixtures |
 | `DAT-001` | Landed | Strict version-1 persisted-envelope and atomic/corruption adapter conventions |
-| `CLI-001` | Ready | CLI build/dependency/channel boundary gate before command cutovers |
+| `CLI-001` | Landed | CLI build/dependency/channel boundary gate before command cutovers |
 
 ## Batch 1 — Board primary exemplar
 

@@ -60,6 +60,18 @@ describe('COMMANDS registry matches the dispatch switch', () => {
   it('found the switch at all (guards the regex itself)', () => {
     expect(dispatched.size).toBeGreaterThan(20)
   })
+  // CLI-001: the agent channel never grows a shell-exec `run` verb; process
+  // execution belongs to Actions + Terminal, not this filesystem writer.
+  it('registers no run verb', () => {
+    const runVerbs = COMMANDS.flatMap((noun) =>
+      noun.verbs.filter((verb) => verb.verb === 'run').map((verb) => `${noun.noun} ${verb.verb}`),
+    )
+    expect(runVerbs).toEqual([])
+  })
+  it('registers unique noun/verb pairs', () => {
+    const pairs = COMMANDS.flatMap((noun) => noun.verbs.map((verb) => `${noun.noun} ${verb.verb}`))
+    expect(new Set(pairs).size).toBe(pairs.length)
+  })
 })
 
 describe('runCli — flag parsing, help, repo resolution', () => {
