@@ -44,16 +44,23 @@ substitutions; everything not listed here is unchanged:
    relies on its memory of a prior unit where the repository can answer.
 3. **External review moves to the campaign boundary.** Per-unit independent review is deferred; a
    fresh reviewer later reads the entire campaign range commit-by-commit against the catalog.
-   Per-unit machine gates (`pnpm verify`, one implementation commit per unit, Landed flipped in
-   that commit, clean tree, truthful packet) are NOT deferred — they are what makes the deferred
-   review possible.
-4. **Stop conditions become skip conditions.** A genuine product choice, architecture fork, or
+   Per-unit machine gates (one implementation commit per unit, Landed flipped in that commit,
+   clean tree, truthful packet) are NOT deferred — they are what makes the deferred review
+   possible.
+4. **Heavy validation is deferred to the campaign boundary.** Per unit the model runs `pnpm lint`
+   and the unit's own focused tests only (`pnpm --dir <pkg> exec vitest run <paths>`). Full
+   `pnpm verify` (whole suite, builds, e2e typecheck), runtime evidence, dev-daemon sessions,
+   browsers, and Playwright are all skipped during the campaign even where a recipe's Validation
+   section names them; the recipe text stays as written for the eventual reviewer, and one full
+   `pnpm verify` runs at campaign end. A focused-test or lint failure is still fixed within the
+   unit before it lands.
+5. **Stop conditions become skip conditions.** A genuine product choice, architecture fork, or
    anchor mismatch the recipe cannot absorb is recorded in the campaign log with exact evidence;
    the model then continues with the next unit that does not depend on the skipped one. It never
    fills in missing judgment to keep moving.
-5. **A campaign log** (`scripts/agent-scratch/<campaign>-log.md`, gitignored) records per unit:
+6. **A campaign log** (`scripts/agent-scratch/<campaign>-log.md`, gitignored) records per unit:
    commit range, gates run with counts, deviations, and skips. It is the end-review's index.
-6. Pushing, real-data mutation, and touching the production daemon (port 43117) remain forbidden
+7. Pushing, real-data mutation, and touching the production daemon (port 43117) remain forbidden
    regardless of mode.
 
 ## Executor contract
