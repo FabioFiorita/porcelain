@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { router } from './api'
+import { createDaemonOperations, createDaemonRouter } from './api'
 import { ensureCli } from './cli-install'
 import { seedDevConfig } from './dev-config'
 import { ensureAdminToken } from './net/admin-token'
@@ -89,6 +89,10 @@ async function main(): Promise<void> {
   // CORS is scoped, not `*`: the shell passes the dev renderer's origin via
   // PORCELAIN_ALLOWED_ORIGIN (the Vite server); the packaged file:// renderer
   // sends a literal "null" origin the factory always echoes. See daemon-http.ts.
+  // Compose the bound-operation catalog and flat router once before any listener
+  // accepts a request — never per request, never as a module singleton.
+  const operations = createDaemonOperations()
+  const router = createDaemonRouter({ operations })
   daemon = createDaemonHttp({
     adminTokenHash: tokenHash,
     authenticateClient: authenticateClientToken,

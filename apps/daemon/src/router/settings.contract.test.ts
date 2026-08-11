@@ -38,7 +38,9 @@ vi.mock('../review/review-watch', () => watch)
 import { DEFAULT_LAYERS } from '../review/flow'
 import { readLayers } from '../stores/layers-store'
 import { readNotes } from '../stores/notes-store'
-import { settingsRouter } from './settings'
+import { createSettingsRouter } from './settings'
+
+const settingsRouter = createSettingsRouter()
 
 const REQUEST_ID = '00000000-0000-4000-8000-000000000019'
 const PUBLIC_CONTEXT = { auth: { kind: 'admin' }, requestId: REQUEST_ID } as const

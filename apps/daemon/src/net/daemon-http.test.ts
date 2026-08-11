@@ -25,7 +25,10 @@ vi.mock('../terminal/terminal-manager', () => ({
   resizeTerminal: vi.fn(),
 }))
 
-import { router } from '../api'
+import { createDaemonOperations, createDaemonRouter } from '../api'
+
+const router = createDaemonRouter({ operations: createDaemonOperations() })
+
 import {
   closeAllSessions,
   closeClientSessions,

@@ -37,142 +37,144 @@ async function recordRecent(path: string): Promise<void> {
   await updateConfig((config) => withRecentRepo(config, path))
 }
 
-export const reposRouter = t.router({
-  openRepoPath: publicProcedure
-    .input(procedureCatalog.openRepoPath.input)
-    .output(procedureCatalog.openRepoPath.output)
-    .mutation(async ({ input }): Promise<RepoInfo> => {
-      await stat(input)
-      await recordRecent(input)
-      // One-way migrate home companion data into <repo>/.porcelain when present.
-      await ensureProjectCompanion(input)
-      watchProjectCompanion(input)
-      warmFileList(input)
-      return toRepoInfo(input)
-    }),
+export function createReposRouter() {
+  return t.router({
+    openRepoPath: publicProcedure
+      .input(procedureCatalog.openRepoPath.input)
+      .output(procedureCatalog.openRepoPath.output)
+      .mutation(async ({ input }): Promise<RepoInfo> => {
+        await stat(input)
+        await recordRecent(input)
+        // One-way migrate home companion data into <repo>/.porcelain when present.
+        await ensureProjectCompanion(input)
+        watchProjectCompanion(input)
+        warmFileList(input)
+        return toRepoInfo(input)
+      }),
 
-  recentRepos: publicProcedure
-    // Linked worktrees are dropped by default: a worktree already has a home in the
-    // footer's worktree switcher, so listing it as a project too shows one checkout
-    // under two identities. They stay in the STORED recents — `includeWorktrees` is
-    // what lets last-repo restore land back in the worktree the human left.
-    .input(procedureCatalog.recentRepos.input)
-    .output(procedureCatalog.recentRepos.output)
-    .query(async ({ input }): Promise<RepoInfo[]> => {
-      const includeWorktrees = input?.includeWorktrees ?? false
-      const config = await loadConfig()
-      const existing = await Promise.all(
-        config.recentRepos.map(async (path) => {
-          try {
-            await stat(path)
-            if (!includeWorktrees && (await isLinkedWorktree(path))) return null
-            return path
-          } catch {
-            return null
-          }
-        }),
-      )
-      return existing.filter((p): p is string => p !== null).map(toRepoInfo)
-    }),
-
-  // Drop a repo from the recents list. Removes only the recents entry — project
-  // companion data lives in <repo>/.porcelain and survives remove + re-open.
-  removeRecentRepo: publicProcedure
-    .input(procedureCatalog.removeRecentRepo.input)
-    .output(procedureCatalog.removeRecentRepo.output)
-    .mutation(async ({ input }) => {
-      await updateConfig((config) => withoutRecentRepo(config, input))
-    }),
-
-  // Daemon-side directory browser for the repo picker (replaces the native
-  // open-folder dialog — repos are daemon paths, so a remote daemon must pick
-  // ITS paths; see remote-envs decision 5). `null` starts at the daemon home.
-  // Directory NAMES only, never file contents; any token-holder can already open
-  // any path via openRepoPath, so this widens nothing.
-  browseDirs: publicProcedure
-    .input(procedureCatalog.browseDirs.input)
-    .output(procedureCatalog.browseDirs.output)
-    .query(({ input }): Promise<BrowseResult> => browseDirs(input)),
-
-  readDir: publicProcedure
-    .input(procedureCatalog.readDir.input)
-    .output(procedureCatalog.readDir.output)
-    .query(async ({ input }): Promise<DirEntry[]> => {
-      const [hidden, pinnedList] = await Promise.all([
-        hiddenPathsForRepo(input.repoPath),
-        pinnedPathsForRepo(input.repoPath),
-      ])
-      const pinned = new Set(pinnedList)
-      const entries = await readdir(input.path, { withFileTypes: true })
-      return entries
-        .filter((entry) => entry.name !== '.DS_Store')
-        .map(
-          (entry): DirEntry => ({
-            name: entry.name,
-            path: join(input.path, entry.name),
-            kind: entry.isDirectory() ? 'dir' : 'file',
-            hidden: hidden.has(join(input.path, entry.name)),
-            pinned: pinned.has(join(input.path, entry.name)),
+    recentRepos: publicProcedure
+      // Linked worktrees are dropped by default: a worktree already has a home in the
+      // footer's worktree switcher, so listing it as a project too shows one checkout
+      // under two identities. They stay in the STORED recents — `includeWorktrees` is
+      // what lets last-repo restore land back in the worktree the human left.
+      .input(procedureCatalog.recentRepos.input)
+      .output(procedureCatalog.recentRepos.output)
+      .query(async ({ input }): Promise<RepoInfo[]> => {
+        const includeWorktrees = input?.includeWorktrees ?? false
+        const config = await loadConfig()
+        const existing = await Promise.all(
+          config.recentRepos.map(async (path) => {
+            try {
+              await stat(path)
+              if (!includeWorktrees && (await isLinkedWorktree(path))) return null
+              return path
+            } catch {
+              return null
+            }
           }),
         )
-        .filter((entry) => input.showHidden || !entry.hidden)
-        .sort((a, b) =>
-          a.kind === b.kind ? a.name.localeCompare(b.name) : a.kind === 'dir' ? -1 : 1,
-        )
-    }),
+        return existing.filter((p): p is string => p !== null).map(toRepoInfo)
+      }),
 
-  hidePath: publicProcedure
-    .input(procedureCatalog.hidePath.input)
-    .output(procedureCatalog.hidePath.output)
-    .mutation(async ({ input }) => {
-      await hideScopePath(input.repoPath, input.path)
-    }),
+    // Drop a repo from the recents list. Removes only the recents entry — project
+    // companion data lives in <repo>/.porcelain and survives remove + re-open.
+    removeRecentRepo: publicProcedure
+      .input(procedureCatalog.removeRecentRepo.input)
+      .output(procedureCatalog.removeRecentRepo.output)
+      .mutation(async ({ input }) => {
+        await updateConfig((config) => withoutRecentRepo(config, input))
+      }),
 
-  unhidePath: publicProcedure
-    .input(procedureCatalog.unhidePath.input)
-    .output(procedureCatalog.unhidePath.output)
-    .mutation(async ({ input }) => {
-      await unhideScopePath(input.repoPath, input.path)
-    }),
+    // Daemon-side directory browser for the repo picker (replaces the native
+    // open-folder dialog — repos are daemon paths, so a remote daemon must pick
+    // ITS paths; see remote-envs decision 5). `null` starts at the daemon home.
+    // Directory NAMES only, never file contents; any token-holder can already open
+    // any path via openRepoPath, so this widens nothing.
+    browseDirs: publicProcedure
+      .input(procedureCatalog.browseDirs.input)
+      .output(procedureCatalog.browseDirs.output)
+      .query(({ input }): Promise<BrowseResult> => browseDirs(input)),
 
-  pinPath: publicProcedure
-    .input(procedureCatalog.pinPath.input)
-    .output(procedureCatalog.pinPath.output)
-    .mutation(async ({ input }) => {
-      await pinScopePath(input.repoPath, input.path)
-    }),
+    readDir: publicProcedure
+      .input(procedureCatalog.readDir.input)
+      .output(procedureCatalog.readDir.output)
+      .query(async ({ input }): Promise<DirEntry[]> => {
+        const [hidden, pinnedList] = await Promise.all([
+          hiddenPathsForRepo(input.repoPath),
+          pinnedPathsForRepo(input.repoPath),
+        ])
+        const pinned = new Set(pinnedList)
+        const entries = await readdir(input.path, { withFileTypes: true })
+        return entries
+          .filter((entry) => entry.name !== '.DS_Store')
+          .map(
+            (entry): DirEntry => ({
+              name: entry.name,
+              path: join(input.path, entry.name),
+              kind: entry.isDirectory() ? 'dir' : 'file',
+              hidden: hidden.has(join(input.path, entry.name)),
+              pinned: pinned.has(join(input.path, entry.name)),
+            }),
+          )
+          .filter((entry) => input.showHidden || !entry.hidden)
+          .sort((a, b) =>
+            a.kind === b.kind ? a.name.localeCompare(b.name) : a.kind === 'dir' ? -1 : 1,
+          )
+      }),
 
-  unpinPath: publicProcedure
-    .input(procedureCatalog.unpinPath.input)
-    .output(procedureCatalog.unpinPath.output)
-    .mutation(async ({ input }) => {
-      await unpinScopePath(input.repoPath, input.path)
-    }),
+    hidePath: publicProcedure
+      .input(procedureCatalog.hidePath.input)
+      .output(procedureCatalog.hidePath.output)
+      .mutation(async ({ input }) => {
+        await hideScopePath(input.repoPath, input.path)
+      }),
 
-  pinnedEntries: publicProcedure
-    .input(procedureCatalog.pinnedEntries.input)
-    .output(procedureCatalog.pinnedEntries.output)
-    .query(async ({ input }): Promise<DirEntry[]> => {
-      const [hidden, pinned] = await Promise.all([
-        hiddenPathsForRepo(input),
-        pinnedPathsForRepo(input),
-      ])
-      const entries = await Promise.all(
-        pinned.map(async (path): Promise<DirEntry | null> => {
-          try {
-            const info = await stat(path)
-            return {
-              name: basename(path),
-              path,
-              kind: info.isDirectory() ? 'dir' : 'file',
-              hidden: hidden.has(path),
-              pinned: true,
+    unhidePath: publicProcedure
+      .input(procedureCatalog.unhidePath.input)
+      .output(procedureCatalog.unhidePath.output)
+      .mutation(async ({ input }) => {
+        await unhideScopePath(input.repoPath, input.path)
+      }),
+
+    pinPath: publicProcedure
+      .input(procedureCatalog.pinPath.input)
+      .output(procedureCatalog.pinPath.output)
+      .mutation(async ({ input }) => {
+        await pinScopePath(input.repoPath, input.path)
+      }),
+
+    unpinPath: publicProcedure
+      .input(procedureCatalog.unpinPath.input)
+      .output(procedureCatalog.unpinPath.output)
+      .mutation(async ({ input }) => {
+        await unpinScopePath(input.repoPath, input.path)
+      }),
+
+    pinnedEntries: publicProcedure
+      .input(procedureCatalog.pinnedEntries.input)
+      .output(procedureCatalog.pinnedEntries.output)
+      .query(async ({ input }): Promise<DirEntry[]> => {
+        const [hidden, pinned] = await Promise.all([
+          hiddenPathsForRepo(input),
+          pinnedPathsForRepo(input),
+        ])
+        const entries = await Promise.all(
+          pinned.map(async (path): Promise<DirEntry | null> => {
+            try {
+              const info = await stat(path)
+              return {
+                name: basename(path),
+                path,
+                kind: info.isDirectory() ? 'dir' : 'file',
+                hidden: hidden.has(path),
+                pinned: true,
+              }
+            } catch {
+              return null // pinned path no longer exists; keep the scope entry, skip the row
             }
-          } catch {
-            return null // pinned path no longer exists; keep the scope entry, skip the row
-          }
-        }),
-      )
-      return entries.filter((e): e is DirEntry => e !== null)
-    }),
-})
+          }),
+        )
+        return entries.filter((e): e is DirEntry => e !== null)
+      }),
+  })
+}

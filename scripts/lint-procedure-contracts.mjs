@@ -40,7 +40,8 @@ export const PROCEDURE_COUNT = 113
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 
 export function extractRouterProcedures(source, filename) {
-  const starts = [...source.matchAll(/^ {2}(\w+):\s*(?:public|admin)Procedure/gm)]
+  // Two spaces for a top-level router object; four for a create*Router factory body.
+  const starts = [...source.matchAll(/^ {2,4}(\w+):\s*(?:public|admin)Procedure/gm)]
   return starts.map((match, index) => {
     const end = starts[index + 1]?.index ?? source.length
     const block = source.slice(match.index, end)

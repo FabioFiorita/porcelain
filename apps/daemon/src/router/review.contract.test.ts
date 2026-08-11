@@ -190,7 +190,9 @@ vi.mock('../stores/layers-store', () => layers)
 vi.mock('../stores/review-store', () => reviews)
 vi.mock('../stores/reviewed-store', () => reviewed)
 
-import { reviewRouter } from './review'
+import { createReviewRouter } from './review'
+
+const reviewRouter = createReviewRouter()
 
 const REQUEST_ID = '00000000-0000-4000-8000-000000000117'
 const PUBLIC_CONTEXT = { auth: { kind: 'admin' }, requestId: REQUEST_ID } as const

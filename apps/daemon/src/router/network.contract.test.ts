@@ -50,7 +50,9 @@ vi.mock('../stores/config-store', () => configStore)
 vi.mock('../net/tailnet-listener', () => listeners)
 vi.mock('../net/funnel', () => funnel)
 
-import { networkRouter } from './network'
+import { createNetworkRouter } from './network'
+
+const networkRouter = createNetworkRouter()
 
 const REQUEST_ID = '00000000-0000-4000-8000-000000000099'
 const ADMIN_CONTEXT = { auth: { kind: 'admin' }, requestId: REQUEST_ID } as const

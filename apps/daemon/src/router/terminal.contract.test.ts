@@ -29,7 +29,9 @@ vi.mock('../stores/actions-store', async (importOriginal) => {
 })
 
 import { readActions } from '../stores/actions-store'
-import { terminalRouter } from './terminal'
+import { createTerminalRouter } from './terminal'
+
+const terminalRouter = createTerminalRouter()
 
 const REQUEST_ID = '00000000-0000-4000-8000-000000000020'
 const PUBLIC_CONTEXT = { auth: { kind: 'admin' }, requestId: REQUEST_ID } as const

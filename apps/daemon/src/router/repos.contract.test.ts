@@ -45,7 +45,9 @@ vi.mock('../review/review-watch', () => watch)
 vi.mock('../stores/config-store', () => config)
 vi.mock('../stores/scope-store', () => scope)
 
-import { reposRouter } from './repos'
+import { createReposRouter } from './repos'
+
+const reposRouter = createReposRouter()
 
 const REQUEST_ID = '00000000-0000-4000-8000-000000000077'
 const PUBLIC_CONTEXT = { auth: { kind: 'admin' }, requestId: REQUEST_ID } as const

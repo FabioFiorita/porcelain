@@ -72,7 +72,9 @@ vi.mock('../fs/move-to-trash', () => trash)
 vi.mock('../git/working-tree', () => workingTree)
 vi.mock('../stores/reviewed-store', () => reviewed)
 
-import { gitRouter } from './git'
+import { createGitRouter } from './git'
+
+const gitRouter = createGitRouter()
 
 const REQUEST_ID = '00000000-0000-4000-8000-000000000077'
 const PUBLIC_CONTEXT = { auth: { kind: 'admin' }, requestId: REQUEST_ID } as const

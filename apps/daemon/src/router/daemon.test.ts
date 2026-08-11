@@ -2,7 +2,9 @@ import { PROTOCOL_VERSION, procedureCatalog, publicErrorSchema } from '@porcelai
 import { callTRPCProcedure } from '@trpc/server'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { normalizePublicError } from '../daemon-composition/public-error'
-import { daemonRouter } from './daemon'
+import { createDaemonRouter } from './daemon'
+
+const daemonRouter = createDaemonRouter()
 
 const REQUEST_ID = '00000000-0000-4000-8000-000000000099'
 const ADMIN_CONTEXT = { auth: { kind: 'admin' }, requestId: REQUEST_ID } as const

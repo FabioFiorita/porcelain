@@ -26,7 +26,9 @@ vi.mock('../stores/board-store', async (importOriginal) => {
 })
 
 import { readCards } from '../stores/board-store'
-import { boardRouter } from './board'
+import { createBoardRouter } from './board'
+
+const boardRouter = createBoardRouter()
 
 const REQUEST_ID = '00000000-0000-4000-8000-000000000018'
 const PUBLIC_CONTEXT = { auth: { kind: 'admin' }, requestId: REQUEST_ID } as const

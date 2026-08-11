@@ -34,7 +34,9 @@ vi.mock('../git/git', () => git)
 vi.mock('../stores/scope-store', () => scope)
 vi.mock('../fs/move-to-trash', () => trash)
 
-import { filesRouter } from './files'
+import { createFilesRouter } from './files'
+
+const filesRouter = createFilesRouter()
 
 const REQUEST_ID = '00000000-0000-4000-8000-000000000099'
 const PUBLIC_CONTEXT = { auth: { kind: 'admin' }, requestId: REQUEST_ID } as const

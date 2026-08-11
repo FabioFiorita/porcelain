@@ -107,6 +107,23 @@ test('retains each router filename and complete procedure source block', () => {
   assert.match(procedure.block, /procedureCatalog\.boardCards\.output/)
 })
 
+test('extracts procedures from a create*Router factory body', () => {
+  const factorySource = `import { procedureCatalog } from '@porcelain/contracts'
+export function createBoardRouter() {
+  return t.router({
+    boardCards: publicProcedure
+      .input(procedureCatalog.boardCards.input)
+      .output(procedureCatalog.boardCards.output)
+      .query(() => undefined),
+  })
+}
+`
+  const [procedure] = extractRouterProcedures(factorySource, 'board.ts')
+  assert.equal(procedure.name, 'boardCards')
+  assert.equal(procedure.kind, 'query')
+  assert.match(procedure.block, /procedureCatalog\.boardCards\.input/)
+})
+
 test('accepts a router bound to its exact catalog input and output', () => {
   assert.deepEqual(checkRouterCatalogBinding(routerFixture()), [])
 })

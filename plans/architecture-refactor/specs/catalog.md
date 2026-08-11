@@ -47,7 +47,7 @@ an external choice or authorization.
 | `RT-004` | Landed | Web binds to target realtime runtime while mobile legacy remains bounded |
 | `RT-005` | Landed | Mobile binds and deletes the entire legacy realtime path |
 | `TST-001` | Landed | Contract fixture builders and transport-independent validating daemon mock |
-| `DAE-001` | Ready | Explicit capability construction and bound-operation router context |
+| `DAE-001` | Landed | Explicit capability construction and bound-operation router context |
 | `TST-002` | Draft | Operation fake conventions and controlled adapter integration fixtures |
 | `DAT-001` | Draft | Strict version-1 persisted-envelope and atomic/corruption adapter conventions |
 | `CLI-001` | Draft | CLI build/dependency/channel boundary gate before command cutovers |
