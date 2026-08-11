@@ -97,3 +97,16 @@ describe('reviewCommentsQueryKey', () => {
     expect(isReviewCommentsQueryKey(['daemon', 42, reviewCommentsQuery(PROJECT)])).toBe(false)
   })
 })
+
+describe('mobile comments key parsing', () => {
+  it('rejects a numeric or missing environment id and identity fields', () => {
+    expect(isReviewCommentsQueryKey(['daemon', ENV, { domain: 'review', name: 'comments' }])).toBe(
+      false,
+    )
+    expect(
+      isReviewCommentsQueryKey(['daemon', ENV, { ...reviewCommentsQuery(PROJECT), extra: true }]),
+    ).toBe(false)
+    expect(isReviewCommentsQueryKey(['daemon', null, reviewCommentsQuery(PROJECT)])).toBe(false)
+    expect(isReviewCommentsQueryKey(['session', ENV, reviewCommentsQuery(PROJECT)])).toBe(false)
+  })
+})

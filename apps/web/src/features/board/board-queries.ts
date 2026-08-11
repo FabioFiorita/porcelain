@@ -1,9 +1,10 @@
 import type { BoardCard } from '@porcelain/contracts/board'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
+import type { DaemonScope } from '@renderer/lib/daemon-scope'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useQuery } from '@tanstack/react-query'
-import { type BoardDaemonScope, boardCardsKeyForProject } from './board-query-key'
+import { boardCardsKeyForProject } from './board-query-key'
 
 /**
  * Board cards read adapter (BRD-004).
@@ -35,7 +36,7 @@ export function useBoardCards(): BoardCardsView {
   const repo = useRepoStore((s) => s.repo)
   const daemon = useDaemonIdentity()
   const projectPath = repo?.path ?? null
-  const daemonScope: BoardDaemonScope = { host: daemon.host, version: daemon.version }
+  const daemonScope: DaemonScope = { host: daemon.host, version: daemon.version }
   const utils = trpc.useUtils()
 
   const query = useQuery({

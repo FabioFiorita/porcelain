@@ -1,3 +1,4 @@
+import { z } from 'zod'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
@@ -17,6 +18,25 @@ interface CommitDraftState {
   clearMessage: (repoPath: string) => void
 }
 
+/**
+ * Drafts are keyed by repo path and valued by raw message text — a shape `localStorage`
+ * cannot be trusted to still hold. An entry whose value is not a string would be handed
+ * straight to the composer's `value`, so the whole map falls back to empty rather than
+ * half-loading: a lost draft is recoverable, a broken composer is not.
+ */
+const persistedCommitDraftsSchema = z
+  .object({ messages: z.record(z.string(), z.string()) })
+  .partial()
+
+/** The drafts a persisted blob still describes correctly; `{}` for anything else. */
+export function hydrateCommitDrafts(persisted: unknown): Partial<{
+  messages: Record<string, string>
+}> {
+  const parsed = persistedCommitDraftsSchema.safeParse(persisted)
+  if (!parsed.success || parsed.data.messages === undefined) return {}
+  return { messages: parsed.data.messages }
+}
+
 export const useCommitDraftStore = create<CommitDraftState>()(
   persist(
     (set) => ({
@@ -30,6 +50,12 @@ export const useCommitDraftStore = create<CommitDraftState>()(
           return { messages: rest }
         }),
     }),
-    { name: 'porcelain-commit-drafts' },
+    {
+      name: 'porcelain-commit-drafts',
+      merge: (persisted, current): CommitDraftState => ({
+        ...current,
+        ...hydrateCommitDrafts(persisted),
+      }),
+    },
   ),
 )

@@ -2,10 +2,11 @@ import { boardNotificationEffects } from '@porcelain/client-runtime/board'
 import type { BoardChanged } from '@porcelain/contracts/board'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import { primary } from '@renderer/lib/daemon'
+import type { DaemonScope } from '@renderer/lib/daemon-scope'
 import type { QueryClient } from '@tanstack/react-query'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
-import { type BoardDaemonScope, boardCardsQueryKey, isBoardCardsQueryKey } from './board-query-key'
+import { boardCardsQueryKey, isBoardCardsQueryKey } from './board-query-key'
 
 /**
  * Board notification adapter (BRD-004).
@@ -16,7 +17,7 @@ import { type BoardDaemonScope, boardCardsQueryKey, isBoardCardsQueryKey } from 
 
 export type ApplyBoardNotificationOptions = {
   readonly queryClient: QueryClient
-  readonly daemon: BoardDaemonScope
+  readonly daemon: DaemonScope
 }
 
 /** Invalidate exactly the Project cards identities a Board change makes stale. */
@@ -50,7 +51,7 @@ export function useBoardNotificationSubscription(): void {
   const version = daemon.version
 
   useEffect(() => {
-    const daemonScope: BoardDaemonScope = { host, version }
+    const daemonScope: DaemonScope = { host, version }
     return primary.onChange((change) => {
       if (change.kind !== 'board.changed') return
       applyBoardNotification(

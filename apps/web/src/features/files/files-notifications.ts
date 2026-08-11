@@ -7,6 +7,7 @@ import {
 import type { FilesChange } from '@porcelain/contracts/files'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import { primary } from '@renderer/lib/daemon'
+import type { DaemonScope } from '@renderer/lib/daemon-scope'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 import type { QueryClient } from '@tanstack/react-query'
@@ -14,7 +15,6 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { applyFilesForeignDependencies } from './files-mutations'
 import { invalidateAllFilesQueries, invalidateFilesEffects } from './files-query-filter'
-import type { FilesDaemonScope } from './files-query-key'
 
 /**
  * Files notification adapter (FIL-005).
@@ -24,7 +24,7 @@ import type { FilesDaemonScope } from './files-query-key'
 
 export type ApplyFilesNotificationOptions = {
   readonly queryClient: QueryClient
-  readonly daemon: FilesDaemonScope
+  readonly daemon: DaemonScope
   readonly activeProjectPath: string | null
   /** Required: every accepted Files fact applies both Files and cross-domain freshness. */
   readonly applyForeignDependencies: (
@@ -67,7 +67,7 @@ export function useFilesNotificationSubscription(): void {
   const utils = trpc.useUtils()
 
   useEffect(() => {
-    const daemonScope: FilesDaemonScope = { host, version }
+    const daemonScope: DaemonScope = { host, version }
     return primary.onChange((change) => {
       // Kind guard: only the three Files kinds reach the mapper (Board pattern).
       let notification: FilesChange

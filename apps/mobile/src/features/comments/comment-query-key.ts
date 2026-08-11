@@ -1,9 +1,25 @@
-import { type ReviewCommentsQuery, reviewCommentsQuery } from '@porcelain/client-runtime/review'
+import {
+  type ReviewCommentsQuery,
+  reviewCommentsQuery,
+  reviewCommentsQuerySchema,
+} from '@porcelain/client-runtime/review'
+import { z } from 'zod'
 
 /**
  * Mobile React Query key for Review comments: RVC-002 identity + active environment id.
  * The only comments server-state key; procedure-name strings never appear here.
  */
+
+/**
+ * Mobile's key layout is a three-tuple, not Web's `[identity, scope]`: the environment id
+ * leads so every daemon-backed key shares one `['daemon', environmentId, …]` prefix. The
+ * identity element is the SAME shared RVC-002 schema Web parses — only the tuple differs.
+ */
+const reviewCommentsQueryKeySchema = z.tuple([
+  z.literal('daemon'),
+  z.string(),
+  reviewCommentsQuerySchema,
+])
 
 /** Compose the exact React Query key for one Project's comments on one environment. */
 export function reviewCommentsQueryKey(
@@ -27,15 +43,5 @@ export function reviewCommentsQueryKeyForIdentity(
  * Rejects extra elements, missing/non-string projectPath, and Web-shaped head-identity keys.
  */
 export function isReviewCommentsQueryKey(queryKey: readonly unknown[]): boolean {
-  if (queryKey.length !== 3) return false
-  if (queryKey[0] !== 'daemon') return false
-  if (typeof queryKey[1] !== 'string') return false
-  const identity = queryKey[2]
-  if (typeof identity !== 'object' || identity === null || Array.isArray(identity)) return false
-  const record = identity as Record<string, unknown>
-  return (
-    record.domain === 'review' &&
-    record.name === 'comments' &&
-    typeof record.projectPath === 'string'
-  )
+  return reviewCommentsQueryKeySchema.safeParse(queryKey).success
 }

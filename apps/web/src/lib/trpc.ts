@@ -6,6 +6,7 @@ import { createTRPCClient, httpBatchLink, type TRPCLink } from '@trpc/client'
 import { createTRPCReact } from '@trpc/react-query'
 import { createContext } from 'react'
 import { daemonBaseUrl, daemonToken } from './daemon'
+import { contractValidationLink } from './trpc-contract-link'
 
 declare global {
   interface Window {
@@ -46,6 +47,9 @@ function rebaseTo(input: RequestInfo | URL, baseUrl: string): string {
  */
 function appLinksFor(baseUrl: () => string, token: () => string): TRPCLink<AppRouter>[] {
   return [
+    // Above the transport: every daemon call is contract-checked in and out, for the React
+    // client, the vanilla client, and the local-daemon client alike (Decision 005).
+    contractValidationLink<AppRouter>(),
     httpBatchLink({
       url: `${DAEMON_PLACEHOLDER}/trpc`,
       // Every daemon request carries the session token — the daemon 401s

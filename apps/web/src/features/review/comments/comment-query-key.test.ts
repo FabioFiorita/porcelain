@@ -41,3 +41,27 @@ describe('reviewCommentsQueryKey', () => {
     expect(isReviewCommentsQueryKey([])).toBe(false)
   })
 })
+
+describe('comments key parsing', () => {
+  const IDENTITY = reviewCommentsQuery(PROJECT)
+
+  it('rejects a malformed daemon scope', () => {
+    expect(isReviewCommentsQueryKey([IDENTITY, { host: 'beelink' }])).toBe(false)
+    expect(isReviewCommentsQueryKey([IDENTITY, { host: null, version: 2 }])).toBe(false)
+    expect(isReviewCommentsQueryKey([IDENTITY, { host: null, version: null, extra: 1 }])).toBe(
+      false,
+    )
+    expect(isReviewCommentsQueryKey([IDENTITY])).toBe(false)
+    expect(isReviewCommentsQueryKey([IDENTITY, { host: null, version: null }])).toBe(true)
+  })
+
+  it('rejects malformed identities and the mobile key layout', () => {
+    expect(isReviewCommentsQueryKey([{ domain: 'review', name: 'comments' }, DAEMON])).toBe(false)
+    expect(
+      isReviewCommentsQueryKey([{ domain: 'review', name: 'comments', projectPath: 12 }, DAEMON]),
+    ).toBe(false)
+    expect(isReviewCommentsQueryKey([{ ...IDENTITY, extra: true }, DAEMON])).toBe(false)
+    expect(isReviewCommentsQueryKey(['daemon', 'env-1', IDENTITY])).toBe(false)
+    expect(isReviewCommentsQueryKey([IDENTITY, DAEMON, 'extra'])).toBe(false)
+  })
+})

@@ -1,60 +1,39 @@
 import {
   dedupeFilesQueryEffects,
-  type FilesQuery,
   type FilesQueryEffect,
   isFileContentQuery,
   isFilePreviewQuery,
   isFilesTreeQuery,
 } from '@porcelain/client-runtime/files'
+import type { DaemonScope } from '@renderer/lib/daemon-scope'
 import type { QueryClient } from '@tanstack/react-query'
-import { type FilesDaemonScope, filesQueryKey, isFilesQueryKey } from './files-query-key'
+import { filesQueryKey, isFilesQueryKey, parseFilesQueryKey } from './files-query-key'
 
 /** Segment-safe: self or descendant. Never bare string prefix (rejects 'a' matching 'ab'). */
 export function filesPathIsSelfOrDescendant(candidate: string, root: string): boolean {
   return candidate === root || candidate.startsWith(`${root}/`)
 }
 
-function isFilesQueryHead(head: unknown): head is FilesQuery {
-  return (
-    typeof head === 'object' &&
-    head !== null &&
-    'domain' in head &&
-    (head as { domain: unknown }).domain === 'files' &&
-    'name' in head
-  )
-}
-
-function daemonScopeEquals(a: FilesDaemonScope, b: FilesDaemonScope): boolean {
+function daemonScopeEquals(a: DaemonScope, b: DaemonScope): boolean {
   return a.host === b.host && a.version === b.version
-}
-
-function parseKey(
-  queryKey: readonly unknown[],
-): { query: FilesQuery; daemon: FilesDaemonScope } | null {
-  if (queryKey.length < 2) return null
-  const head = queryKey[0]
-  const scope = queryKey[1]
-  if (!isFilesQueryHead(head)) return null
-  if (typeof scope !== 'object' || scope === null) return null
-  if (!('host' in scope) || !('version' in scope)) return null
-  const daemon = scope as FilesDaemonScope
-  return { query: head, daemon }
 }
 
 export function filesQueryMatchesEffect(
   queryKey: readonly unknown[],
   effect: FilesQueryEffect,
-  daemon: FilesDaemonScope,
+  daemon: DaemonScope,
 ): boolean {
-  const parsed = parseKey(queryKey)
+  const parsed = parseFilesQueryKey(queryKey)
   if (parsed === null) return false
   if (!daemonScopeEquals(parsed.daemon, daemon)) return false
 
   switch (effect.type) {
     case 'exact': {
       const expected = filesQueryKey(daemon, effect.query)
+      // Both sides are canonical: `parsed.query` comes out of the identity schema and
+      // `expected[0]` out of the identity constructors, so field order cannot diverge.
       return (
-        JSON.stringify(queryKey[0]) === JSON.stringify(expected[0]) &&
+        JSON.stringify(parsed.query) === JSON.stringify(expected[0]) &&
         daemonScopeEquals(parsed.daemon, expected[1])
       )
     }
@@ -82,7 +61,7 @@ export function filesQueryMatchesEffect(
 /** Invalidate every Files cache entry matching the given effects under the active daemon. */
 export function invalidateFilesEffects(
   queryClient: QueryClient,
-  daemon: FilesDaemonScope,
+  daemon: DaemonScope,
   effects: readonly FilesQueryEffect[],
 ): Promise<void> {
   const deduped = dedupeFilesQueryEffects(effects)

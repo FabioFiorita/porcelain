@@ -26,7 +26,8 @@
     "@porcelain/contracts": "workspace:*",
     "@shikijs/langs": "^4.2.0",
     "@shikijs/themes": "^4.2.0",
-    "shiki": "^4.2.0"
+    "shiki": "^4.2.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "typescript": "^6.0.3",

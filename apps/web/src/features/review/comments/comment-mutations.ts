@@ -15,15 +15,12 @@ import type {
 } from '@porcelain/contracts/review'
 import { onMutationError } from '@renderer/hooks/mutation-error'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
+import type { DaemonScope } from '@renderer/lib/daemon-scope'
 import { trpc } from '@renderer/lib/trpc'
 import { randomId } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
 import { type QueryClient, useMutation, useQueryClient } from '@tanstack/react-query'
-import {
-  type ReviewCommentsDaemonScope,
-  reviewCommentsKeyForProject,
-  reviewCommentsQueryKey,
-} from './comment-query-key'
+import { reviewCommentsKeyForProject, reviewCommentsQueryKey } from './comment-query-key'
 
 /**
  * Review comment mutation adapter (RVC-003).
@@ -93,7 +90,7 @@ export function useCommentActions(): {
 } {
   const repo = useRepoStore((s) => s.repo)
   const daemon = useDaemonIdentity()
-  const daemonScope: ReviewCommentsDaemonScope = { host: daemon.host, version: daemon.version }
+  const daemonScope: DaemonScope = { host: daemon.host, version: daemon.version }
   const queryClient = useQueryClient()
   const client = trpc.useUtils().client
 

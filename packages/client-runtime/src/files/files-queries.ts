@@ -1,4 +1,10 @@
-import { isFilesProjectPath, isFilesProjectRelativePath } from '@porcelain/contracts/files'
+import {
+  filesProjectPathSchema,
+  filesProjectRelativePathSchema,
+  isFilesProjectPath,
+  isFilesProjectRelativePath,
+} from '@porcelain/contracts/files'
+import { z } from 'zod'
 
 /**
  * Programmer error for invalid project or identity paths.
@@ -28,46 +34,79 @@ export function filesProjectKey(projectPath: string): string {
   return trimmed === '' ? '/' : trimmed
 }
 
-export type FilesTreeQuery = {
-  readonly domain: 'files'
-  readonly name: 'tree'
-  readonly projectPath: string
-  readonly path: string
-  readonly showHidden: boolean
-}
+/**
+ * Runtime identity schemas (foundation Zod repair).
+ *
+ * A React Query cache key is generic `unknown[]` at every predicate, so an adapter that
+ * only pattern-matched `domain`/`name` was trusting a shape it never parsed. These strict
+ * schemas are the single executable description of the five Files identities; the exported
+ * types are inferred from them and the constructors below still own normalization.
+ *
+ * `projectPath` reuses the wire `filesProjectPathSchema` because `filesProjectKey` already
+ * produces exactly that vocabulary. Tree paths additionally admit `'.'` (project root),
+ * which is the one identity path with no project-relative spelling.
+ */
+const filesTreePathSchema = z.union([z.literal('.'), filesProjectRelativePathSchema])
 
-export type FilesPinsQuery = {
-  readonly domain: 'files'
-  readonly name: 'pins'
-  readonly projectPath: string
-}
+export const filesTreeQuerySchema = z
+  .object({
+    domain: z.literal('files'),
+    name: z.literal('tree'),
+    projectPath: filesProjectPathSchema,
+    path: filesTreePathSchema,
+    showHidden: z.boolean(),
+  })
+  .strict()
 
-export type FilesScopeQuery = {
-  readonly domain: 'files'
-  readonly name: 'scope'
-  readonly projectPath: string
-}
+export const filesPinsQuerySchema = z
+  .object({
+    domain: z.literal('files'),
+    name: z.literal('pins'),
+    projectPath: filesProjectPathSchema,
+  })
+  .strict()
 
-export type FileContentQuery = {
-  readonly domain: 'files'
-  readonly name: 'content'
-  readonly projectPath: string
-  readonly path: string
-}
+export const filesScopeQuerySchema = z
+  .object({
+    domain: z.literal('files'),
+    name: z.literal('scope'),
+    projectPath: filesProjectPathSchema,
+  })
+  .strict()
 
-export type FilePreviewQuery = {
-  readonly domain: 'files'
-  readonly name: 'preview'
-  readonly projectPath: string
-  readonly path: string
-}
+export const fileContentQuerySchema = z
+  .object({
+    domain: z.literal('files'),
+    name: z.literal('content'),
+    projectPath: filesProjectPathSchema,
+    path: filesProjectRelativePathSchema,
+  })
+  .strict()
 
-export type FilesQuery =
-  | FilesTreeQuery
-  | FilesPinsQuery
-  | FilesScopeQuery
-  | FileContentQuery
-  | FilePreviewQuery
+export const filePreviewQuerySchema = z
+  .object({
+    domain: z.literal('files'),
+    name: z.literal('preview'),
+    projectPath: filesProjectPathSchema,
+    path: filesProjectRelativePathSchema,
+  })
+  .strict()
+
+/** Any Files server-state identity, discriminated by `name`. */
+export const filesQuerySchema = z.discriminatedUnion('name', [
+  filesTreeQuerySchema,
+  filesPinsQuerySchema,
+  filesScopeQuerySchema,
+  fileContentQuerySchema,
+  filePreviewQuerySchema,
+])
+
+export type FilesTreeQuery = Readonly<z.infer<typeof filesTreeQuerySchema>>
+export type FilesPinsQuery = Readonly<z.infer<typeof filesPinsQuerySchema>>
+export type FilesScopeQuery = Readonly<z.infer<typeof filesScopeQuerySchema>>
+export type FileContentQuery = Readonly<z.infer<typeof fileContentQuerySchema>>
+export type FilePreviewQuery = Readonly<z.infer<typeof filePreviewQuerySchema>>
+export type FilesQuery = Readonly<z.infer<typeof filesQuerySchema>>
 
 export function filesTreeQuery(
   projectPath: string,

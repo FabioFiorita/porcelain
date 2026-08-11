@@ -22,7 +22,10 @@ describe('appRouter transport headers', () => {
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
         requestUrl = String(input)
         request = init
-        return new Response(JSON.stringify([{ result: { data: { ok: true } } }]), {
+        // `setRepoNotes` returns void, so the daemon's real reply carries no `data`.
+        // The contract link parses every result that does, which makes a stand-in
+        // payload here a lie the gate now catches.
+        return new Response(JSON.stringify([{ result: {} }]), {
           status: 200,
           headers: { 'content-type': 'application/json' },
         })

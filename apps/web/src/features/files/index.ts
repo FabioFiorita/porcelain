@@ -38,7 +38,6 @@ export {
   invalidateFilesEffects,
 } from './files-query-filter'
 export {
-  type FilesDaemonScope,
   filesQueryKey,
   isFilesQueryKey,
   isFilesTreeQueryKey,

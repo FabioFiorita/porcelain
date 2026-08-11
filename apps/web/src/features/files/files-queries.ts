@@ -10,6 +10,7 @@ import {
 } from '@porcelain/client-runtime/files'
 import type { DirEntry, FileView, RepoScope } from '@porcelain/contracts/files'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
+import type { DaemonScope } from '@renderer/lib/daemon-scope'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -21,7 +22,7 @@ import {
   treePathFromAbsolute,
 } from './files-path'
 import { invalidateFilesEffects } from './files-query-filter'
-import { type FilesDaemonScope, filesQueryKey } from './files-query-key'
+import { filesQueryKey } from './files-query-key'
 
 /** Private sentinel identities for disabled React Query keys (never public, never sent). */
 const DISABLED_TREE = filesTreeQuery('/', '.', false)
@@ -33,7 +34,7 @@ const DISABLED_PREVIEW = filePreviewQuery('/', '__disabled__')
 function daemonScopeFromIdentity(daemon: {
   host: string | null
   version: string | null
-}): FilesDaemonScope {
+}): DaemonScope {
   return { host: daemon.host, version: daemon.version }
 }
 
@@ -221,7 +222,7 @@ export function useRefreshFilesTree(): () => void {
   return useCallback(() => {
     if (!repo) return
     const projectKey = filesProjectKey(repo.path)
-    const daemonScope: FilesDaemonScope = { host, version }
+    const daemonScope: DaemonScope = { host, version }
     void invalidateFilesEffects(queryClient, daemonScope, [
       filesTreeFamilyEffect(projectKey),
       filesExactEffect(filesPinsQuery(projectKey)),

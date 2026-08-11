@@ -15,6 +15,7 @@ export { boardNotificationEffects } from './board-notifications'
 export {
   type BoardCardsQuery,
   boardCardsQuery,
+  boardCardsQuerySchema,
 } from './board-queries'
 export {
   applyBoardOptimisticTransition,

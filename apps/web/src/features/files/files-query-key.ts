@@ -1,43 +1,48 @@
-import type { FilesQuery } from '@porcelain/client-runtime/files'
+import {
+  type FilesQuery,
+  filesQuerySchema,
+  filesTreeQuerySchema,
+} from '@porcelain/client-runtime/files'
+import { type DaemonScope, daemonScopeSchema } from '@renderer/lib/daemon-scope'
+import { z } from 'zod'
 
 /**
  * Web React Query key for Files: FIL-004 identity + active daemon scope.
  * Procedure-name strings never appear here.
  */
 
-export type FilesDaemonScope = {
-  readonly host: string | null
-  readonly version: string | null
-}
+/** The exact two-element key shape, parsed rather than pattern-matched. */
+const filesQueryKeySchema = z.tuple([filesQuerySchema, daemonScopeSchema])
+const filesTreeQueryKeySchema = z.tuple([filesTreeQuerySchema, daemonScopeSchema])
 
 /** React Query key: FIL-004 identity + active daemon scope. Never procedure-name strings. */
 export function filesQueryKey(
-  daemon: FilesDaemonScope,
+  daemon: DaemonScope,
   query: FilesQuery,
-): readonly [FilesQuery, FilesDaemonScope] {
+): readonly [FilesQuery, DaemonScope] {
   return [query, { host: daemon.host, version: daemon.version }] as const
+}
+
+/**
+ * The Files identity and scope a React Query key carries, or null when the key is not a
+ * Files key. The cache holds every domain's keys as `unknown[]`, so this is a real parse
+ * of untrusted input — `safeParse` over a handful of cached entries, never filesystem rows.
+ */
+export function parseFilesQueryKey(
+  queryKey: readonly unknown[],
+): { query: FilesQuery; daemon: DaemonScope } | null {
+  const parsed = filesQueryKeySchema.safeParse(queryKey)
+  if (!parsed.success) return null
+  const [query, daemon] = parsed.data
+  return { query, daemon }
 }
 
 /** True when a React Query key is any Files identity (any project / daemon). */
 export function isFilesQueryKey(queryKey: readonly unknown[]): boolean {
-  const head = queryKey[0]
-  return (
-    typeof head === 'object' &&
-    head !== null &&
-    'domain' in head &&
-    (head as { domain: unknown }).domain === 'files'
-  )
+  return filesQueryKeySchema.safeParse(queryKey).success
 }
 
 /** True when a React Query key is a Files tree identity. */
 export function isFilesTreeQueryKey(queryKey: readonly unknown[]): boolean {
-  const head = queryKey[0]
-  return (
-    typeof head === 'object' &&
-    head !== null &&
-    'domain' in head &&
-    (head as { domain: unknown }).domain === 'files' &&
-    'name' in head &&
-    (head as { name: unknown }).name === 'tree'
-  )
+  return filesTreeQueryKeySchema.safeParse(queryKey).success
 }

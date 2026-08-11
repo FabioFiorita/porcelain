@@ -281,3 +281,83 @@ describe('createStrictJsonDocument', () => {
     })
   })
 })
+
+/**
+ * The envelope is now a schema, not a hand-narrowed record. Its outcomes are load-bearing:
+ * an unreadable envelope must be backed up, and a version this build does not speak must
+ * leave the file exactly where the older (or newer) build can still read it.
+ */
+describe('persisted envelope boundary', () => {
+  async function readEnvelope(
+    directory: string,
+    name: string,
+    raw: string,
+  ): Promise<{ result: ReadStrictJsonDocument<SampleValue>; survivors: string[] }> {
+    const path = join(directory, name)
+    await writeFile(path, raw, 'utf8')
+    const result = await documentAt(path).read()
+    return { result, survivors: await readdir(directory) }
+  }
+
+  it('backs up every envelope shape that is not an object with a finite version', async () => {
+    await withTemporaryDirectory('porcelain-dat-001-envelope-corrupt-', async (directory) => {
+      const malformed = [
+        '[{"version":1,"value":{"name":"x","count":1}}]',
+        'null',
+        '"just a string"',
+        '42',
+        '{"version":"1","value":{"name":"x","count":1}}',
+        '{"version":null,"value":{"name":"x","count":1}}',
+        '{"value":{"name":"x","count":1}}',
+      ]
+      let index = 0
+      for (const raw of malformed) {
+        index += 1
+        const name = `envelope-${index}.json`
+        const { result, survivors } = await readEnvelope(directory, name, raw)
+        expect(result.kind, raw).toBe('corrupt')
+        if (result.kind !== 'corrupt') return
+        expect(result.backupPath.startsWith(join(directory, `${name}.corrupt-`))).toBe(true)
+        expect(survivors).not.toContain(name)
+        expect(await readFile(result.backupPath, 'utf8')).toBe(raw)
+      }
+    })
+  })
+
+  it('backs up a version-1 envelope whose value the caller schema rejects', async () => {
+    await withTemporaryDirectory('porcelain-dat-001-envelope-value-', async (directory) => {
+      for (const [index, raw] of ['{"version":1}', '{"version":1,"value":null}'].entries()) {
+        const name = `value-${index}.json`
+        const { result, survivors } = await readEnvelope(directory, name, raw)
+        expect(result.kind, raw).toBe('corrupt')
+        expect(survivors).not.toContain(name)
+      }
+    })
+  })
+
+  it('leaves any other numeric version untouched, in both directions', async () => {
+    await withTemporaryDirectory('porcelain-dat-001-envelope-version-', async (directory) => {
+      for (const version of [0, 2, -1, 1.5, 1000]) {
+        const name = `version-${String(version).replace('.', '-')}.json`
+        const raw = JSON.stringify({ version, value: { name: 'x', count: 1 } })
+        const { result, survivors } = await readEnvelope(directory, name, raw)
+        expect(result, String(version)).toEqual({ kind: 'incompatible-version', version })
+        expect(survivors).toContain(name)
+        expect(await readFile(join(directory, name), 'utf8')).toBe(raw)
+      }
+    })
+  })
+
+  it('reads a well-formed envelope and ignores fields it does not own', async () => {
+    await withTemporaryDirectory('porcelain-dat-001-envelope-valid-', async (directory) => {
+      const raw = JSON.stringify({
+        version: PERSISTED_FORMAT_VERSION,
+        value: { name: 'x', count: 1 },
+        writtenBy: '0.99.0',
+      })
+      const { result, survivors } = await readEnvelope(directory, 'valid.json', raw)
+      expect(result).toEqual({ kind: 'valid', value: { name: 'x', count: 1 } })
+      expect(survivors).toEqual(['valid.json'])
+    })
+  })
+})

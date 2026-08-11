@@ -2,36 +2,38 @@ import { electronAPI } from '@electron-toolkit/preload'
 import { resolvePlatform } from '@shared/platform'
 import { contextBridge, ipcRenderer } from 'electron'
 import type { ShellEvent } from '../main/shell-events'
-import type { PorcelainBridge } from './bridge'
+import {
+  type DaemonInfo,
+  daemonInfoSchema,
+  type PorcelainBridge,
+  type TrpcShellRequest,
+  type TrpcShellResponse,
+  trpcShellResponseSchema,
+} from './bridge'
 
 // The daemon's base url + session token, fetched synchronously at window boot
 // (the shell spawns the daemon before the first window, so both are known). A
 // a daemon restart or environment-group route change pushes a fresh pair through
 // `daemon.onUrlChanged` (see src/main/daemon.ts). The token gates every request — see the
 // security note in backend/server.ts.
-interface DaemonInfo {
-  url: string
-  token: string
-}
-
 function toDaemonInfo(value: unknown): DaemonInfo {
-  if (value !== null && typeof value === 'object' && 'url' in value && 'token' in value) {
-    const { url, token } = value
-    if (typeof url === 'string' && typeof token === 'string') return { url, token }
-  }
-  return { url: '', token: '' }
+  const parsed = daemonInfoSchema.safeParse(value)
+  return parsed.success ? parsed.data : { url: '', token: '' }
 }
 
 const initialDaemon = toDaemonInfo(ipcRenderer.sendSync('daemon-url'))
 
 const porcelain: PorcelainBridge = {
-  trpcShell: (request: {
-    url: string
-    method: string
-    headers: Record<string, string>
-    body?: string
-  }): Promise<{ status: number; headers: Record<string, string>; body: string }> =>
-    ipcRenderer.invoke('trpc-shell', request),
+  // The reply crosses back from main as `unknown`; parse it here, where trust changes,
+  // so the renderer's fetch shim can build a Response without re-checking anything.
+  trpcShell: async (request: TrpcShellRequest): Promise<TrpcShellResponse> => {
+    const reply: unknown = await ipcRenderer.invoke('trpc-shell', request)
+    const parsed = trpcShellResponseSchema.safeParse(reply)
+    if (!parsed.success) {
+      throw new Error('shell router returned a malformed response')
+    }
+    return parsed.data
+  },
   onShellEvent: (callback: (event: ShellEvent) => void): (() => void) => {
     const handler = (_event: Electron.IpcRendererEvent, event: ShellEvent): void => callback(event)
     ipcRenderer.on('shell-event', handler)

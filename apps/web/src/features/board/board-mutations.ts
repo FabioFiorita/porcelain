@@ -17,11 +17,12 @@ import type {
 } from '@porcelain/contracts/board'
 import { onMutationError } from '@renderer/hooks/mutation-error'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
+import type { DaemonScope } from '@renderer/lib/daemon-scope'
 import { trpc } from '@renderer/lib/trpc'
 import { randomId } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { type BoardDaemonScope, boardCardsQueryKey } from './board-query-key'
+import { boardCardsQueryKey } from './board-query-key'
 
 /**
  * Board mutation adapter (BRD-004).
@@ -66,7 +67,7 @@ export function useBoardCardActions(): {
 } {
   const repo = useRepoStore((s) => s.repo)
   const daemon = useDaemonIdentity()
-  const daemonScope: BoardDaemonScope = { host: daemon.host, version: daemon.version }
+  const daemonScope: DaemonScope = { host: daemon.host, version: daemon.version }
   const queryClient = useQueryClient()
   const client = trpc.useUtils().client
 

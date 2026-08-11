@@ -1,10 +1,26 @@
 import { mkdir, open, readFile, rename, stat } from 'node:fs/promises'
 import { dirname, isAbsolute, join } from 'node:path'
-import type { z } from 'zod'
+import { z } from 'zod'
 
 export const PERSISTED_FORMAT_VERSION = 1 as const
 
 export type PersistedEnvelope<Value> = { version: 1; value: Value }
+
+/**
+ * The persisted envelope, parsed rather than hand-narrowed.
+ *
+ * This adapter owns its file format — the envelope is persistence, not wire, so contracts
+ * never see it. `version` is read as a plain finite number and compared afterwards so an
+ * envelope written by a FUTURE format still reports `incompatible-version` (and keeps its
+ * file) instead of being backed up as corrupt. `value` stays optional `unknown` here: the
+ * caller's `valueSchema` is the only thing allowed to describe it, including whether an
+ * absent value is acceptable.
+ */
+const persistedEnvelopeSchema = z.object({
+  // Finite only: NaN/±Infinity must not be misread as a future format version.
+  version: z.number().finite(),
+  value: z.unknown().optional(),
+})
 
 export type ReadStrictJsonDocument<Value> =
   | { kind: 'missing' }
@@ -162,27 +178,18 @@ export function createStrictJsonDocument<Value>(
       return { kind: 'corrupt', backupPath }
     }
 
-    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    const envelope = persistedEnvelopeSchema.safeParse(parsed)
+    if (!envelope.success) {
       const backupPath = await moveToCorruptBackup(documentPath)
       return { kind: 'corrupt', backupPath }
     }
 
-    const record = parsed as Record<string, unknown>
-    if (
-      !('version' in record) ||
-      typeof record.version !== 'number' ||
-      !Number.isFinite(record.version)
-    ) {
-      const backupPath = await moveToCorruptBackup(documentPath)
-      return { kind: 'corrupt', backupPath }
-    }
-
-    const version = record.version
+    const { version } = envelope.data
     if (version !== PERSISTED_FORMAT_VERSION) {
       return { kind: 'incompatible-version', version }
     }
 
-    const schemaResult = valueSchema.safeParse(record.value)
+    const schemaResult = valueSchema.safeParse(envelope.data.value)
     if (!schemaResult.success) {
       const backupPath = await moveToCorruptBackup(documentPath)
       return { kind: 'corrupt', backupPath }

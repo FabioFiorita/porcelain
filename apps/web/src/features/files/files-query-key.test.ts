@@ -6,7 +6,12 @@ import {
   filesTreeQuery,
 } from '@porcelain/client-runtime/files'
 import { describe, expect, it } from 'vitest'
-import { filesQueryKey, isFilesQueryKey, isFilesTreeQueryKey } from './files-query-key'
+import {
+  filesQueryKey,
+  isFilesQueryKey,
+  isFilesTreeQueryKey,
+  parseFilesQueryKey,
+} from './files-query-key'
 
 const PROJECT = '/synthetic/repo'
 const OTHER = '/synthetic/other'
@@ -66,5 +71,50 @@ describe('isFilesQueryKey / isFilesTreeQueryKey', () => {
     expect(isFilesTreeQueryKey(treeKey)).toBe(true)
     expect(isFilesTreeQueryKey(pinsKey)).toBe(false)
     expect(isFilesQueryKey([{ domain: 'board', name: 'cards' }, DAEMON])).toBe(false)
+  })
+})
+
+describe('Files query-key parsing', () => {
+  const TREE = filesTreeQuery(PROJECT, 'src', false)
+
+  it('rejects a malformed daemon scope', () => {
+    expect(isFilesQueryKey([TREE, { host: 'beelink' }])).toBe(false)
+    expect(isFilesQueryKey([TREE, { host: 1, version: null }])).toBe(false)
+    expect(isFilesQueryKey([TREE, { host: null, version: null, extra: true }])).toBe(false)
+    expect(isFilesQueryKey([TREE, null])).toBe(false)
+    expect(isFilesQueryKey([TREE])).toBe(false)
+    // A null-identity daemon is a real scope, not a malformed one.
+    expect(isFilesQueryKey([TREE, { host: null, version: null }])).toBe(true)
+  })
+
+  it('rejects malformed identities and foreign key layouts', () => {
+    expect(isFilesQueryKey([{ ...TREE, showHidden: 'yes' }, DAEMON])).toBe(false)
+    expect(isFilesQueryKey([{ ...TREE, extra: 1 }, DAEMON])).toBe(false)
+    expect(isFilesQueryKey([{ domain: 'files', name: 'tree', projectPath: PROJECT }, DAEMON])).toBe(
+      false,
+    )
+    expect(isFilesQueryKey([{ ...TREE, projectPath: 'relative' }, DAEMON])).toBe(false)
+    // The mobile three-tuple layout is not a Web key.
+    expect(isFilesQueryKey(['daemon', 'env-1', TREE])).toBe(false)
+    expect(isFilesQueryKey([TREE, DAEMON, 'extra'])).toBe(false)
+    expect(isFilesTreeQueryKey([{ ...TREE, name: 'pins' }, DAEMON])).toBe(false)
+  })
+
+  it('returns the identity and scope for a valid key, null otherwise', () => {
+    const parsed = parseFilesQueryKey(filesQueryKey(DAEMON, TREE))
+    expect(parsed?.query).toEqual(TREE)
+    expect(parsed?.daemon).toEqual(DAEMON)
+    expect(parseFilesQueryKey([{ domain: 'board', name: 'cards' }, DAEMON])).toBeNull()
+  })
+
+  it('keeps segment-safe Files paths parseable', () => {
+    // `a` must not be read as a prefix of `ab`; both are valid identities.
+    const a = filesTreeQuery(PROJECT, 'a', false)
+    const ab = filesTreeQuery(PROJECT, 'ab', false)
+    expect(isFilesTreeQueryKey(filesQueryKey(DAEMON, a))).toBe(true)
+    expect(isFilesTreeQueryKey(filesQueryKey(DAEMON, ab))).toBe(true)
+    expect(parseFilesQueryKey(filesQueryKey(DAEMON, a))?.query).not.toEqual(
+      parseFilesQueryKey(filesQueryKey(DAEMON, ab))?.query,
+    )
   })
 })

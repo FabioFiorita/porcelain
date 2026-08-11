@@ -2,14 +2,11 @@ import { reviewCommentNotificationEffects } from '@porcelain/client-runtime/revi
 import type { ReviewChanged } from '@porcelain/contracts/review'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import { primary } from '@renderer/lib/daemon'
+import type { DaemonScope } from '@renderer/lib/daemon-scope'
 import type { QueryClient } from '@tanstack/react-query'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
-import {
-  isReviewCommentsQueryKey,
-  type ReviewCommentsDaemonScope,
-  reviewCommentsQueryKey,
-} from './comment-query-key'
+import { isReviewCommentsQueryKey, reviewCommentsQueryKey } from './comment-query-key'
 
 /**
  * Review comments notification adapter (RVC-003).
@@ -21,7 +18,7 @@ import {
 
 export type ApplyReviewCommentNotificationOptions = {
   readonly queryClient: QueryClient
-  readonly daemon: ReviewCommentsDaemonScope
+  readonly daemon: DaemonScope
 }
 
 /** Invalidate exactly the Project comments identities a Review change makes stale. */
@@ -56,7 +53,7 @@ export function useReviewCommentNotificationSubscription(): void {
   const version = daemon.version
 
   useEffect(() => {
-    const daemonScope: ReviewCommentsDaemonScope = { host, version }
+    const daemonScope: DaemonScope = { host, version }
     return primary.onChange((change) => {
       if (change.kind !== 'review.changed') return
       applyReviewCommentNotification(

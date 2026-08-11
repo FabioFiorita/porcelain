@@ -5,6 +5,7 @@ import {
 } from '@porcelain/client-runtime/files'
 import { onMutationError } from '@renderer/hooks/mutation-error'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
+import type { DaemonScope } from '@renderer/lib/daemon-scope'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -14,7 +15,6 @@ import {
   projectRelativeFromAbsolute,
 } from './files-path'
 import { invalidateFilesEffects } from './files-query-filter'
-import type { FilesDaemonScope } from './files-query-key'
 
 /**
  * Files mutation adapter (FIL-005).
@@ -26,7 +26,7 @@ import type { FilesDaemonScope } from './files-query-key'
 function daemonScopeFromIdentity(daemon: {
   host: string | null
   version: string | null
-}): FilesDaemonScope {
+}): DaemonScope {
   return { host: daemon.host, version: daemon.version }
 }
 
@@ -65,7 +65,7 @@ export function applyFilesForeignDependencies(
 async function applyMutationSuccess(
   queryClient: ReturnType<typeof useQueryClient>,
   utils: ReturnType<typeof trpc.useUtils>,
-  daemon: FilesDaemonScope,
+  daemon: DaemonScope,
   effects: ReturnType<typeof filesMutations.createFile.affectedEffects>,
   foreign: readonly FilesForeignDependency[],
 ): Promise<void> {

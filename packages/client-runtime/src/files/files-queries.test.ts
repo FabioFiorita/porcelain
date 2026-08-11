@@ -2,12 +2,15 @@ import { describe, expect, it } from 'vitest'
 import {
   FilesIdentityError,
   fileContentQuery,
+  fileContentQuerySchema,
   filePreviewQuery,
   filesPinsQuery,
   filesProjectKey,
+  filesQuerySchema,
   filesScopeQuery,
   filesTreePathsAffectedBy,
   filesTreeQuery,
+  filesTreeQuerySchema,
   isFileContentQuery,
   isFilePreviewQuery,
   isFilesTreeQuery,
@@ -132,5 +135,105 @@ describe('parentFilesPath and filesTreePathsAffectedBy', () => {
     expect(filesTreePathsAffectedBy('.')).toEqual(['.'])
     expect(filesTreePathsAffectedBy('foo')).toEqual(['foo', '.'])
     expect(filesTreePathsAffectedBy('a/b')).toEqual(['a/b', 'a'])
+  })
+})
+
+describe('files identity schemas', () => {
+  it('accepts every identity its own constructor produces', () => {
+    const identities = [
+      filesTreeQuery(REPO, '.', false),
+      filesTreeQuery(REPO, 'src/nested', true),
+      filesTreeQuery('/', '.', false),
+      filesPinsQuery(REPO),
+      filesScopeQuery(REPO),
+      fileContentQuery(REPO, 'README.md'),
+      filePreviewQuery(REPO, 'docs/index.html'),
+    ]
+    for (const identity of identities) {
+      expect(filesQuerySchema.safeParse(identity).success, JSON.stringify(identity)).toBe(true)
+    }
+  })
+
+  it('rejects missing, numeric, and extra fields', () => {
+    expect(filesQuerySchema.safeParse({ domain: 'files', name: 'pins' }).success).toBe(false)
+    expect(
+      filesQuerySchema.safeParse({ domain: 'files', name: 'pins', projectPath: 42 }).success,
+    ).toBe(false)
+    expect(
+      filesTreeQuerySchema.safeParse({
+        domain: 'files',
+        name: 'tree',
+        projectPath: REPO,
+        path: 'src',
+      }).success,
+    ).toBe(false)
+    expect(
+      filesTreeQuerySchema.safeParse({
+        domain: 'files',
+        name: 'tree',
+        projectPath: REPO,
+        path: 'src',
+        showHidden: 'yes',
+      }).success,
+    ).toBe(false)
+    expect(
+      filesQuerySchema.safeParse({
+        domain: 'files',
+        name: 'pins',
+        projectPath: REPO,
+        extra: true,
+      }).success,
+    ).toBe(false)
+  })
+
+  it('rejects a wrong domain or an unknown name', () => {
+    expect(
+      filesQuerySchema.safeParse({ domain: 'board', name: 'pins', projectPath: REPO }).success,
+    ).toBe(false)
+    expect(
+      filesQuerySchema.safeParse({ domain: 'files', name: 'evidence', projectPath: REPO }).success,
+    ).toBe(false)
+  })
+
+  it('holds the same path vocabulary as the constructors', () => {
+    // `'.'` is a tree path only; content and preview address a real file.
+    expect(
+      filesTreeQuerySchema.safeParse({
+        domain: 'files',
+        name: 'tree',
+        projectPath: REPO,
+        path: '.',
+        showHidden: false,
+      }).success,
+    ).toBe(true)
+    expect(
+      fileContentQuerySchema.safeParse({
+        domain: 'files',
+        name: 'content',
+        projectPath: REPO,
+        path: '.',
+      }).success,
+    ).toBe(false)
+    for (const path of ['', '/abs', 'a/../b', 'win\\path']) {
+      expect(
+        fileContentQuerySchema.safeParse({
+          domain: 'files',
+          name: 'content',
+          projectPath: REPO,
+          path,
+        }).success,
+        path,
+      ).toBe(false)
+    }
+    for (const projectPath of ['', 'repo', '/repo\\win', '/a\0b']) {
+      expect(
+        filesQuerySchema.safeParse({
+          domain: 'files',
+          name: 'pins',
+          projectPath,
+        }).success,
+        projectPath,
+      ).toBe(false)
+    }
   })
 })

@@ -1,11 +1,12 @@
 import type { ReviewComment } from '@porcelain/contracts/review'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
+import type { DaemonScope } from '@renderer/lib/daemon-scope'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { buildCommentIndex, type CommentIndex } from './comment-index'
-import { type ReviewCommentsDaemonScope, reviewCommentsKeyForProject } from './comment-query-key'
+import { reviewCommentsKeyForProject } from './comment-query-key'
 
 /**
  * Review comments read adapter (RVC-003).
@@ -20,7 +21,7 @@ export function useReviewComments(): ReviewComment[] {
   const repo = useRepoStore((s) => s.repo)
   const daemon = useDaemonIdentity()
   const projectPath = repo?.path ?? null
-  const daemonScope: ReviewCommentsDaemonScope = { host: daemon.host, version: daemon.version }
+  const daemonScope: DaemonScope = { host: daemon.host, version: daemon.version }
   const utils = trpc.useUtils()
 
   const query = useQuery({

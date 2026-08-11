@@ -1,4 +1,4 @@
-import type { CommitModel } from '@porcelain/contracts'
+import { type CommitModel, commitModelSchema } from '@porcelain/contracts'
 import * as SecureStore from 'expo-secure-store'
 import { Appearance, type ColorSchemeName } from 'react-native'
 import { colorScheme as cssColorScheme } from 'react-native-css/native'
@@ -20,7 +20,9 @@ const preferencesSchema = z.object({
   markdownMode: z.enum(['reader', 'source']),
   htmlMode: z.enum(['preview', 'source']),
   pullMode: z.enum(['merge', 'rebase']),
-  commitModel: z.string().trim().min(1),
+  // The one field here that IS wire vocabulary — the daemon receives it verbatim, so it
+  // reuses the canonical schema instead of a local copy that could drift from it.
+  commitModel: commitModelSchema,
   terminalTextSize: z.enum(['small', 'medium', 'large']),
 })
 

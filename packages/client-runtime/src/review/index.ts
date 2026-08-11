@@ -15,6 +15,7 @@ export { reviewCommentNotificationEffects } from './comment-notifications'
 export {
   type ReviewCommentsQuery,
   reviewCommentsQuery,
+  reviewCommentsQuerySchema,
 } from './comment-queries'
 export {
   applyReviewCommentOptimisticTransition,
