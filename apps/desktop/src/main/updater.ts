@@ -1,3 +1,4 @@
+import { settleBackground } from '@shared/background'
 import { app } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import { broadcastShellEvent } from './shell-events'
@@ -50,9 +51,9 @@ export function initUpdater(): void {
   autoUpdater.on('error', (error) => setStatus({ state: 'error', error: error.message }))
 
   const check = (): void => {
-    autoUpdater.checkForUpdates().catch(() => {
-      // 'error' listener already captured the reason
-    })
+    // 'error' listener already captured the reason, and the shell renders it as the
+    // update status the user sees instead.
+    settleBackground(autoUpdater.checkForUpdates(), 'fallback')
   }
   check()
   setInterval(check, CHECK_INTERVAL)
@@ -60,7 +61,11 @@ export function initUpdater(): void {
 
 export async function checkForUpdates(): Promise<UpdateStatus> {
   if (app.isPackaged) {
-    await autoUpdater.checkForUpdates().catch(() => {})
+    await autoUpdater.checkForUpdates().catch((error: unknown) => {
+      // The 'error' listener already wrote the reason into `status`, which is what this
+      // returns to the caller — but the check must still be awaited before reading it.
+      console.error('[updater] check failed:', error)
+    })
   }
   return status
 }

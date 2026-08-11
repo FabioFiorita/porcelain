@@ -13,6 +13,7 @@ import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
+import { settleBackground } from '@shared/background'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback } from 'react'
 import {
@@ -223,10 +224,13 @@ export function useRefreshFilesTree(): () => void {
     if (!repo) return
     const projectKey = filesProjectKey(repo.path)
     const daemonScope: DaemonScope = { host, version }
-    void invalidateFilesEffects(queryClient, daemonScope, [
-      filesTreeFamilyEffect(projectKey),
-      filesExactEffect(filesPinsQuery(projectKey)),
-    ])
+    settleBackground(
+      invalidateFilesEffects(queryClient, daemonScope, [
+        filesTreeFamilyEffect(projectKey),
+        filesExactEffect(filesPinsQuery(projectKey)),
+      ]),
+      'invalidation',
+    )
   }, [repo, host, version, queryClient])
 }
 

@@ -15,7 +15,6 @@ import type {
   MoveBoardCardInput,
   UpdateBoardCardInput,
 } from '@porcelain/contracts/board'
-import { onMutationError } from '@renderer/hooks/mutation-error'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
 import { trpc } from '@renderer/lib/trpc'
@@ -33,6 +32,11 @@ import { boardCardsQueryKey } from './board-query-key'
  *
  * Transport calls go through the vanilla tRPC client (not `trpc.<legacy>.useMutation`
  * procedure hooks) so the feature adapter owns the cache identity.
+ *
+ * On failure the adapter owns the CACHE (rollback) and nothing else: every call
+ * rejects to its caller, and the edge the human touched owns the message. ONE owner
+ * per failure — a toast here would print the same line the composer, the card menus,
+ * and the clear-column dialog already print through runUserAction.
  */
 
 export type NewCardInput = {
@@ -49,11 +53,6 @@ type MutationContext = {
 
 function temporaryId(): string {
   return `optimistic-${randomId()}`
-}
-
-function mutationErrorMessage(error: unknown): string {
-  if (error instanceof Error && error.message.length > 0) return error.message
-  return 'Request failed'
 }
 
 /** Add/edit/move/delete/clear Board cards with reversible optimism. */
@@ -162,9 +161,8 @@ export function useBoardCardActions(): {
   const create = useMutation({
     mutationFn: (input: CreateBoardCardInput) => client.createBoardCard.mutate(input),
     onMutate: beginCreate,
-    onError: (error, _vars, context): void => {
+    onError: (_error, _vars, context): void => {
       rollback(context)
-      onMutationError('Add card')({ message: mutationErrorMessage(error) })
     },
     onSuccess: (result: CreateBoardCardOutput, _vars, context): void => {
       if (!context?.temporaryId) return
@@ -186,9 +184,8 @@ export function useBoardCardActions(): {
   const update = useMutation({
     mutationFn: (input: UpdateBoardCardInput) => client.updateBoardCard.mutate(input),
     onMutate: beginUpdate,
-    onError: (error, _vars, context): void => {
+    onError: (_error, _vars, context): void => {
       rollback(context)
-      onMutationError('Update card')({ message: mutationErrorMessage(error) })
     },
     onSettled: async (_d, _e, vars): Promise<void> => {
       if (vars && boardMutations.update.requiresAuthoritativeRefetch) {
@@ -200,9 +197,8 @@ export function useBoardCardActions(): {
   const move = useMutation({
     mutationFn: (input: MoveBoardCardInput) => client.moveBoardCard.mutate(input),
     onMutate: beginMove,
-    onError: (error, _vars, context): void => {
+    onError: (_error, _vars, context): void => {
       rollback(context)
-      onMutationError('Move card')({ message: mutationErrorMessage(error) })
     },
     onSettled: async (_d, _e, vars): Promise<void> => {
       if (vars && boardMutations.move.requiresAuthoritativeRefetch) {
@@ -214,9 +210,8 @@ export function useBoardCardActions(): {
   const remove = useMutation({
     mutationFn: (input: DeleteBoardCardInput) => client.deleteBoardCard.mutate(input),
     onMutate: beginDelete,
-    onError: (error, _vars, context): void => {
+    onError: (_error, _vars, context): void => {
       rollback(context)
-      onMutationError('Delete card')({ message: mutationErrorMessage(error) })
     },
     onSettled: async (_d, _e, vars): Promise<void> => {
       if (vars && boardMutations.delete.requiresAuthoritativeRefetch) {
@@ -228,9 +223,8 @@ export function useBoardCardActions(): {
   const clearColumn = useMutation({
     mutationFn: (input: ClearBoardColumnInput) => client.clearBoardColumn.mutate(input),
     onMutate: beginClear,
-    onError: (error, _vars, context): void => {
+    onError: (_error, _vars, context): void => {
       rollback(context)
-      onMutationError('Clear cards')({ message: mutationErrorMessage(error) })
     },
     onSettled: async (_d, _e, vars): Promise<void> => {
       if (vars && boardMutations.clearColumn.requiresAuthoritativeRefetch) {

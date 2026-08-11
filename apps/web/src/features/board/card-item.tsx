@@ -7,8 +7,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@renderer/components/ui/dropdown-menu'
+import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
+import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
 import { CheckCircle2, Circle, CircleDot, MoreHorizontal, PenLine, Trash2 } from 'lucide-react'
 import { BOARD_COLUMNS } from './board-columns'
@@ -109,14 +111,34 @@ export function CardItem({
           {BOARD_COLUMNS.filter((column) => column.status !== card.status).map((column) => {
             const Icon = COLUMN_ICON[column.status]
             return (
-              <DropdownMenuItem key={column.status} onClick={() => move(card.id, column.status)}>
+              <DropdownMenuItem
+                key={column.status}
+                onClick={() => {
+                  runUserAction(
+                    () => move(card.id, column.status),
+                    (error) => {
+                      toastUserActionError('Move card', error)
+                    },
+                  )
+                }}
+              >
                 <Icon />
                 Move to {column.label}
               </DropdownMenuItem>
             )
           })}
           <DropdownMenuSeparator />
-          <DropdownMenuItem variant="destructive" onClick={() => remove(card.id)}>
+          <DropdownMenuItem
+            variant="destructive"
+            onClick={() => {
+              runUserAction(
+                () => remove(card.id),
+                (error) => {
+                  toastUserActionError('Delete card', error)
+                },
+              )
+            }}
+          >
             <Trash2 />
             Delete
           </DropdownMenuItem>

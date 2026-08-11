@@ -8,6 +8,7 @@ import {
 } from '@renderer/lib/highlight'
 import { cn } from '@renderer/lib/utils'
 import { type CharRange, splitByRanges } from '@renderer/lib/word-diff'
+import { settleBackground } from '@shared/background'
 import { useEffect, useMemo, useState } from 'react'
 import type { BundledLanguage, ThemedToken } from 'shiki'
 
@@ -16,9 +17,13 @@ export function useHighlighter(): Highlighter | null {
 
   useEffect(() => {
     let stale = false
-    getHighlighter().then((h) => {
-      if (!stale) setHighlighter(h)
-    })
+    // Load failure leaves highlighter null — plain text fallback (current UX).
+    settleBackground(
+      getHighlighter().then((h) => {
+        if (!stale) setHighlighter(h)
+      }),
+      'fallback',
+    )
     return () => {
       stale = true
     }

@@ -1,8 +1,8 @@
 import { applyCommitPrefix, parseCommitPrefix } from '@porcelain/client-runtime/commit-message'
 import type { CommitGroupGenerationGroup } from '@porcelain/contracts'
+import { runUserAction } from '@porcelain/shared/background'
 import { useState } from 'react'
 import { Text, View } from 'react-native'
-
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { PanelLabel, StatusNote } from '@/components/panel-chrome'
 import { PANEL_CARD } from '@/components/surface-layout'
@@ -57,28 +57,34 @@ export function CommitCard({ active }: { active: boolean }): React.JSX.Element {
 
   /**
    * Every action in this card reports on the one status line — a generated message, a staging
-   * write, a failed provider. Nothing here fails silently.
+   * write, a failed provider. Nothing here fails silently. Returns void for sync UI edges.
    */
-  const report = async (run: () => Promise<string>): Promise<void> => {
+  const report = (run: () => Promise<string>): void => {
     setStatus(null)
-    try {
-      setStatus({ failed: false, text: await run() })
-    } catch (cause) {
-      setStatus({ failed: true, text: cause instanceof Error ? cause.message : String(cause) })
-    }
+    runUserAction(
+      async () => {
+        setStatus({ failed: false, text: await run() })
+      },
+      (cause) => {
+        setStatus({ failed: true, text: cause instanceof Error ? cause.message : String(cause) })
+      },
+    )
   }
 
-  const handleCommit = async (): Promise<void> => {
+  const handleCommit = (): void => {
     if (!ready || isCommitting) return
     setStatus(null)
-    try {
-      await commit(message.trim())
-      clearMessage(repoPath)
-      setGenerated(null)
-      setStatus({ failed: false, text: 'Committed' })
-    } catch (cause) {
-      setStatus({ failed: true, text: cause instanceof Error ? cause.message : String(cause) })
-    }
+    runUserAction(
+      async () => {
+        await commit(message.trim())
+        clearMessage(repoPath)
+        setGenerated(null)
+        setStatus({ failed: false, text: 'Committed' })
+      },
+      (cause) => {
+        setStatus({ failed: true, text: cause instanceof Error ? cause.message : String(cause) })
+      },
+    )
   }
 
   /**
@@ -86,17 +92,17 @@ export function CommitCard({ active }: { active: boolean }): React.JSX.Element {
    * one action here that survives `treeClean`. The daemon's output is printed as written: an
    * "Everything up-to-date" and a rejected non-fast-forward must not look alike.
    */
-  const handlePush = async (): Promise<void> => {
+  const handlePush = (): void => {
     if (isPushing) return
-    await report(async () => {
+    report(async () => {
       const output = await push()
       return output === '' ? 'Pushed' : output
     })
   }
 
-  const handleToggleStaging = async (): Promise<void> => {
+  const handleToggleStaging = (): void => {
     if (isStaging) return
-    await report(async () => {
+    report(async () => {
       if (allStaged) {
         await unstageAll()
         return 'Unstaged all changes'
@@ -106,9 +112,9 @@ export function CommitCard({ active }: { active: boolean }): React.JSX.Element {
     })
   }
 
-  const handleGenerateMessage = async (): Promise<void> => {
+  const handleGenerateMessage = (): void => {
     if (!hasStaged || isGenerating) return
-    await report(async () => {
+    report(async () => {
       const next = await generateMessage()
       setMessage(repoPath, next)
       setGenerated(null)
@@ -116,24 +122,35 @@ export function CommitCard({ active }: { active: boolean }): React.JSX.Element {
     })
   }
 
-  const handleGenerateGroups = async (): Promise<void> => {
+  const handleGenerateGroups = (): void => {
     if (hasStaged || !hasUnstaged || isGenerating) return
-    await report(async () => {
+    report(async () => {
       const next = await generateGroups()
       setGenerated(next)
       return `Generated ${next.length} commit group${next.length === 1 ? '' : 's'}`
     })
   }
 
-  const handleUseGroup = async (group: CommitGroupGenerationGroup): Promise<void> => {
+  const handleUseGroup = (group: CommitGroupGenerationGroup): void => {
     if (applyingGroup) return
     setApplyingGroup(true)
-    await report(async () => {
-      for (const path of group.files) await stageFile(path)
-      setMessage(repoPath, group.message)
-      return `Staged ${group.files.length} file${group.files.length === 1 ? '' : 's'} for this group`
-    })
-    setApplyingGroup(false)
+    setStatus(null)
+    runUserAction(
+      async () => {
+        for (const path of group.files) await stageFile(path)
+        setMessage(repoPath, group.message)
+        setStatus({
+          failed: false,
+          text: `Staged ${group.files.length} file${group.files.length === 1 ? '' : 's'} for this group`,
+        })
+      },
+      (cause) => {
+        setStatus({ failed: true, text: cause instanceof Error ? cause.message : String(cause) })
+      },
+      () => {
+        setApplyingGroup(false)
+      },
+    )
   }
 
   return (

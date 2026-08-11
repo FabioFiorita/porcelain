@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Text } from '@/components/ui/text'
 import type { EnvironmentId } from '@/lib/daemon/environment'
-
 import { BackRow, Field } from './environment-chrome'
 import { useAddConnectionForm, useCreateGroupForm } from './use-environments-panel'
 

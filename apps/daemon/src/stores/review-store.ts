@@ -149,7 +149,9 @@ export async function archiveActiveReview(repoPath: string): Promise<string | nu
   }
   await writeFile(join(dest, 'meta.json'), JSON.stringify(meta, null, 2))
 
-  await rm(activeDir, { recursive: true, force: true }).catch(() => {})
+  // The copy already landed; a failure here would leave the review both archived and
+  // active, so it must reach the caller instead of settling quietly.
+  await rm(activeDir, { recursive: true, force: true })
   return id
 }
 

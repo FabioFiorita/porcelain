@@ -17,6 +17,7 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
 } from '@renderer/components/ui/sidebar'
+import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import {
   useActionMutations,
   useActions,
@@ -26,6 +27,7 @@ import {
 import { useLocalDaemon, useLocalTerminalPath } from '@renderer/hooks/use-local-terminal'
 import { useActionRunStore } from '@renderer/stores/action-run'
 import { useRepoStore } from '@renderer/stores/repo'
+import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
 import {
   ArrowDown,
@@ -128,16 +130,46 @@ function ActionRow({
             <PenLine />
             Edit
           </DropdownMenuItem>
-          <DropdownMenuItem disabled={isFirst} onClick={() => move(action.id, 'up')}>
+          <DropdownMenuItem
+            disabled={isFirst}
+            onClick={() => {
+              runUserAction(
+                () => move(action.id, 'up'),
+                (error) => {
+                  toastUserActionError('Move action', error)
+                },
+              )
+            }}
+          >
             <ArrowUp />
             Move up
           </DropdownMenuItem>
-          <DropdownMenuItem disabled={isLast} onClick={() => move(action.id, 'down')}>
+          <DropdownMenuItem
+            disabled={isLast}
+            onClick={() => {
+              runUserAction(
+                () => move(action.id, 'down'),
+                (error) => {
+                  toastUserActionError('Move action', error)
+                },
+              )
+            }}
+          >
             <ArrowDown />
             Move down
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem variant="destructive" onClick={() => remove(action.id)}>
+          <DropdownMenuItem
+            variant="destructive"
+            onClick={() => {
+              runUserAction(
+                () => remove(action.id),
+                (error) => {
+                  toastUserActionError('Delete action', error)
+                },
+              )
+            }}
+          >
             <Trash2 />
             Delete
           </DropdownMenuItem>
@@ -181,14 +213,21 @@ export function ActionsGroup(): React.JSX.Element {
     clearStorePending()
   }, [storePending, clearStorePending])
 
-  const spawn = async (action: Action, localPath?: string | null): Promise<void> => {
-    const result = await runAction(action, {
-      localPath: localPath ?? mappedLocalPath,
-    })
-    if (result === 'needs-local-path') {
-      setPendingLocal(action)
-      setMappingMode('run')
-    }
+  const spawn = (action: Action, localPath?: string | null): void => {
+    runUserAction(
+      async () => {
+        const result = await runAction(action, {
+          localPath: localPath ?? mappedLocalPath,
+        })
+        if (result === 'needs-local-path') {
+          setPendingLocal(action)
+          setMappingMode('run')
+        }
+      },
+      (error) => {
+        toastUserActionError('Run command', error)
+      },
+    )
   }
 
   /**
@@ -197,12 +236,12 @@ export function ActionsGroup(): React.JSX.Element {
    * cost nothing on the path people use fifty times a day, or it trains them to
    * click through it.
    */
-  const handleRun = async (action: ActionView, localPath?: string | null): Promise<void> => {
+  const handleRun = (action: ActionView, localPath?: string | null): void => {
     if (!action.trusted) {
       setPendingTrust(action)
       return
     }
-    await spawn(action, localPath)
+    spawn(action, localPath)
   }
 
   return (
@@ -243,10 +282,17 @@ export function ActionsGroup(): React.JSX.Element {
       <ActionTrustDialog
         action={pendingTrust}
         onCancel={() => setPendingTrust(null)}
-        onTrust={async (action: ActionView): Promise<void> => {
+        onTrust={(action: ActionView): void => {
           setPendingTrust(null)
-          await trustAction(action.id)
-          await spawn(action)
+          runUserAction(
+            async () => {
+              await trustAction(action.id)
+              spawn(action)
+            },
+            (error) => {
+              toastUserActionError('Accept command', error)
+            },
+          )
         }}
       />
       <ActionComposer

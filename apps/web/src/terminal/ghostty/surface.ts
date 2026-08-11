@@ -1,3 +1,4 @@
+import { settleBackground } from '@shared/background'
 import { applyTerminalTouchScroll } from '../../lib/terminal-touch-scroll'
 import {
   type GhosttyScrollbar,
@@ -993,15 +994,14 @@ export class GhosttyTerminalSurface {
         // browsers whose paste shortcut produces no paste event. Not preventing
         // the default keeps the native path alive when the read is denied.
         const token = ++this.pasteShortcutToken
-        void clipboard.readText().then(
-          (text) => {
+        // Read denied leaves the native paste event as the path; the shortcut degrades.
+        settleBackground(
+          clipboard.readText().then((text) => {
             if (this.disposed || this.pasteShortcutToken !== token) return
             this.pasteShortcutToken += 1
             if (text.length > 0) this.options.onData(this.core.encodePaste(text))
-          },
-          () => {
-            // Clipboard read denied; the native paste event remains the path.
-          },
+          }),
+          'clipboard',
         )
       }
       return

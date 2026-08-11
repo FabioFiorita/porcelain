@@ -2,11 +2,13 @@ import { SetupTip } from '@renderer/components/shell/setup-tip'
 import { Button } from '@renderer/components/ui/button'
 import { SidebarMenu } from '@renderer/components/ui/sidebar'
 import { useFilesScope, useFilesTree } from '@renderer/features/files'
+import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { scopeSetupPrompt } from '@renderer/lib/agent-setup-prompts'
 import { copyText } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useSetupTipsStore } from '@renderer/stores/setup-tips'
 import { useTreeDirsStore } from '@renderer/stores/tree-dirs'
+import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
 import { Check, Copy } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -43,9 +45,16 @@ export function FileTree({ rootPath }: { rootPath: string }): React.JSX.Element 
   const showScopeKickoff =
     repo !== null && scopeEmpty && rootDirs >= NOISY_ROOT_DIR_THRESHOLD && !scopeKickoffDismissed
 
-  const handleCopyScopeSetup = async (): Promise<void> => {
-    await copyText(scopeSetupPrompt())
-    setCopied(true)
+  const handleCopyScopeSetup = (): void => {
+    runUserAction(
+      async () => {
+        await copyText(scopeSetupPrompt())
+        setCopied(true)
+      },
+      (error) => {
+        toastUserActionError('Copy focus setup prompt', error)
+      },
+    )
   }
 
   return (
@@ -61,8 +70,8 @@ export function FileTree({ rootPath }: { rootPath: string }): React.JSX.Element 
               variant="outline"
               size="sm"
               className="h-6 gap-1 px-2 text-2xs"
-              onClick={async () => {
-                await handleCopyScopeSetup()
+              onClick={() => {
+                handleCopyScopeSetup()
               }}
             >
               {copied ? <Check className="size-3 text-success" /> : <Copy className="size-3" />}

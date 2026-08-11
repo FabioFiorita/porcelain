@@ -1,3 +1,4 @@
+import { settleBackground } from '@porcelain/shared/background'
 import {
   keepPreviousData,
   type UseMutationResult,
@@ -8,7 +9,6 @@ import {
   useQueryClient,
 } from '@tanstack/react-query'
 import { useCallback, useMemo } from 'react'
-
 import { getDaemonClient } from './client'
 import { type EnvironmentId, isPaired } from './environment'
 import { environmentActions, useActiveEnvironment } from './environments-store'
@@ -196,7 +196,10 @@ export function useDaemonInvalidate(): (names: readonly string[]) => void {
     (names: readonly string[]): void => {
       if (environment === null) return
       for (const name of names) {
-        client.invalidateQueries({ queryKey: daemonKeys.procedure(environment.id, name) })
+        settleBackground(
+          client.invalidateQueries({ queryKey: daemonKeys.procedure(environment.id, name) }),
+          'invalidation',
+        )
       }
     },
     [client, environment],

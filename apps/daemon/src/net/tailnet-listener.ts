@@ -239,10 +239,9 @@ export function createIfaceListener(
     wanted = true
     scheduleTimer()
     const run = chain.then(() => reconcile())
-    chain = run.then(
-      () => undefined,
-      () => undefined,
-    )
+    // The caller owns `run`'s rejection; this tail only keeps the chain alive so a
+    // failed start never blocks a later start/stop.
+    chain = Promise.allSettled([run]).then(() => undefined)
     return run
   }
 
@@ -254,10 +253,9 @@ export function createIfaceListener(
       lastError = null
       await closeAll()
     })
-    chain = run.then(
-      () => undefined,
-      () => undefined,
-    )
+    // The caller owns `run`'s rejection; this tail only keeps the chain alive so a
+    // failed stop never blocks a later start/stop.
+    chain = Promise.allSettled([run]).then(() => undefined)
     return run
   }
 

@@ -105,10 +105,9 @@ export function updateRemoteEnvironmentState(
   const run = writeChain.then(async () => {
     await saveRemoteEnvironmentState(mutate(await loadRemoteEnvironmentState()))
   })
-  writeChain = run.then(
-    () => undefined,
-    () => undefined,
-  )
+  // The rejection belongs to the caller that got `run`; the chain only needs a settled
+  // tail so the next writer still runs.
+  writeChain = Promise.allSettled([run]).then(() => undefined)
   return run
 }
 

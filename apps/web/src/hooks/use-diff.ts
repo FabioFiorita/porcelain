@@ -1,6 +1,7 @@
 import type { DiffHunk, FileStatus } from '@backend/git/diff'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
+import { settleBackground } from '@shared/background'
 import { keepPreviousData } from '@tanstack/react-query'
 
 export function useDiffFile(
@@ -38,6 +39,18 @@ export function useDiffFile(
     image: active.data?.image,
     binary: active.data?.binary === true,
     error: active.error,
+  }
+}
+
+/**
+ * Hover prefetch as the UI actually uses it: nobody awaits a warm-up, and a failed one
+ * only means the next open is slower, so the hook owns the disposition and hands the
+ * event edge a plain void call.
+ */
+export function useDiffFileHoverPrefetch(): (filePath: string, base?: string) => void {
+  const prefetch = useDiffFilePrefetch()
+  return (filePath: string, base?: string): void => {
+    settleBackground(prefetch(filePath, base), 'invalidation')
   }
 }
 

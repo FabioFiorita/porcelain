@@ -34,6 +34,17 @@ const homeChannels = [
 
 type HomeChannel = (typeof homeChannels)[number]
 
+/**
+ * A migration step that must not abort the pass: every caller re-checks the disk
+ * (`exists`, `ensureFile`, the next write) before it acts on the outcome, so the
+ * failure is reported once and the pass continues with the on-disk truth.
+ */
+async function bestEffort(step: string, work: Promise<unknown>): Promise<void> {
+  await work.catch((error: unknown) => {
+    console.error(`porcelain: migrate-home ${step} failed:`, error)
+  })
+}
+
 async function exists(path: string): Promise<boolean> {
   try {
     await access(path)
@@ -57,7 +68,7 @@ async function readHomeRecord(fileName: string): Promise<Record<string, unknown>
 async function writeHomeRecord(fileName: string, all: Record<string, unknown>): Promise<void> {
   const path = porcelainHomePath(fileName)
   const tmp = `${path}.tmp`
-  await mkdir(join(path, '..'), { recursive: true }).catch(() => {})
+  await bestEffort('mkdir home dir', mkdir(join(path, '..'), { recursive: true }))
   await writeFile(tmp, JSON.stringify(all, null, 2))
   await rename(tmp, path)
 }
@@ -67,7 +78,7 @@ async function purgeHomeKey(fileName: string, repoPath: string): Promise<void> {
   if (!(repoPath in all)) return
   delete all[repoPath]
   if (Object.keys(all).length === 0) {
-    await rm(porcelainHomePath(fileName), { force: true }).catch(() => {})
+    await bestEffort(`remove emptied ${fileName}`, rm(porcelainHomePath(fileName), { force: true }))
     return
   }
   await writeHomeRecord(fileName, all)
@@ -86,7 +97,7 @@ function toRelativePaths(repoPath: string, paths: unknown): string[] {
 }
 
 async function writeJson(path: string, value: unknown): Promise<void> {
-  await mkdir(join(path, '..'), { recursive: true }).catch(() => {})
+  await bestEffort('mkdir project dir', mkdir(join(path, '..'), { recursive: true }))
   const tmp = `${path}.tmp`
   await writeFile(tmp, JSON.stringify(value, null, 2))
   await rename(tmp, path)
@@ -247,10 +258,13 @@ async function migrateHome(repoPath: string): Promise<{ migrated: boolean }> {
   if (hasEvidence) {
     const dest = projectPorcelainPath(repoPath, PROJECT_EVIDENCE_DIR)
     if (!(await exists(dest))) {
-      await cp(homeEvidence, dest, { recursive: true }).catch(() => {})
+      await bestEffort('copy home evidence', cp(homeEvidence, dest, { recursive: true }))
     }
     if (await exists(dest)) {
-      await rm(homeEvidence, { recursive: true, force: true }).catch(() => {})
+      await bestEffort(
+        'remove copied home evidence',
+        rm(homeEvidence, { recursive: true, force: true }),
+      )
     }
   }
 

@@ -1,5 +1,5 @@
 import type { Layer } from '@backend/review/flow'
-import { onMutationError } from '@renderer/hooks/mutation-error'
+import { invalidateAfterSuccess } from '@renderer/hooks/mutation-error'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 
@@ -14,21 +14,27 @@ export function useSetRepoLayers(): {
   isSaving: boolean
 } {
   const utils = trpc.useUtils()
-  const mutation = trpc.setRepoLayers.useMutation({ onError: onMutationError('Save layers') })
+  // Rejects rather than toasting: the Save / Reset buttons own the failure through
+  // runUserAction. (invalidateAfterSuccess below reports a DIFFERENT failure — the
+  // write landed but the cache did not — so it stays.)
+  const mutation = trpc.setRepoLayers.useMutation()
   const save = async (layers: Layer[] | null, repoPath?: string): Promise<void> => {
     if (!repoPath) return
     await mutation.mutateAsync({ repoPath, layers })
     // Refresh every surface that buckets files by layer — same set the CLI-driven
     // `review.changed` invalidates (use-session-runtime.ts), so a Settings edit and an
     // agent edit refresh identically.
-    await Promise.all([
-      utils.repoLayers.invalidate(),
-      utils.gitFlow.invalidate(),
-      utils.gitRangeFlow.invalidate(),
-      utils.featureView.invalidate(),
-      utils.featureReading.invalidate(),
-      utils.exploreFeature.invalidate(),
-    ])
+    await invalidateAfterSuccess(
+      [
+        utils.repoLayers.invalidate(),
+        utils.gitFlow.invalidate(),
+        utils.gitRangeFlow.invalidate(),
+        utils.featureView.invalidate(),
+        utils.featureReading.invalidate(),
+        utils.exploreFeature.invalidate(),
+      ],
+      'Save layers',
+    )
   }
   return {
     // repoPath is read from the store so callers stay declarative

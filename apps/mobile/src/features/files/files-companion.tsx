@@ -1,3 +1,4 @@
+import { settleBackground } from '@porcelain/shared/background'
 import { useRouter } from 'expo-router'
 import { useEffect, useRef, useState } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
@@ -180,9 +181,8 @@ function NotesCard({ active }: { active: boolean }): React.JSX.Element {
       if (next === null || next === saved.current) return
       saved.current = next
       pending.current = null
-      saveRef.current(next).catch(() => {
-        // Nothing is mounted to report to any more; the draft stays on the daemon's last copy.
-      })
+      // Nothing is mounted to report to any more; the draft stays on the daemon's last copy.
+      settleBackground(saveRef.current(next), 'teardown')
     }
   }, [])
 

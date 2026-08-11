@@ -1,9 +1,8 @@
+import { runUserAction } from '@porcelain/shared/background'
 import { useState } from 'react'
 import { Alert } from 'react-native'
-
 import type { Environment, EnvironmentId } from '@/lib/daemon/environment'
 import { environmentActions, getEnvironment } from '@/lib/daemon/environments-store'
-
 import { movedOrder, promotedOrder } from './environment-labels'
 import { addGroupConnection, describePairProblem, pairNewGroup } from './pair-environment'
 
@@ -58,7 +57,8 @@ export type PairForm = {
   error: string | null
   /** True while there is nothing to submit — the disabled-submit rule every form here shares. */
   empty: boolean
-  submit: () => Promise<void>
+  /** Total void action: catches, clears busy in finally, routes failure to `error`. */
+  submit: () => void
 }
 
 export type CreateGroupForm = PairForm & {
@@ -104,12 +104,22 @@ function usePairSubmit(
     error,
     link,
     setLink,
-    submit: async () => {
+    submit: (): void => {
+      if (busy) return
       setBusy(true)
       setError(null)
-      const problem = await run(link)
-      setBusy(false)
-      if (problem !== null) setError(describePairProblem(problem))
+      runUserAction(
+        async () => {
+          const problem = await run(link)
+          if (problem !== null) setError(describePairProblem(problem))
+        },
+        (cause: unknown) => {
+          setError(cause instanceof Error ? cause.message : String(cause))
+        },
+        () => {
+          setBusy(false)
+        },
+      )
     },
   }
 }
@@ -117,8 +127,8 @@ function usePairSubmit(
 export type GroupDetailState = {
   nickname: string
   setNickname: (nickname: string) => void
-  /** Committed on blur and on submit — a rename is not worth a Save button. */
-  saveNickname: () => Promise<void>
+  /** Committed on blur and on submit — a rename is not worth a Save button. Total void. */
+  saveNickname: () => void
   /** The connection URL whose long-press menu is open, or null. */
   menuFor: string | null
   openMenu: (url: string) => void
@@ -128,11 +138,17 @@ export type GroupDetailState = {
   askRemove: (url: string) => void
   cancelRemove: () => void
   confirmRemove: () => void
-  makePrimary: (url: string) => Promise<void>
-  move: (index: number, direction: -1 | 1) => Promise<void>
+  makePrimary: (url: string) => void
+  move: (index: number, direction: -1 | 1) => void
   setIcon: (icon: Environment['icon']) => void
   use: () => void
   confirmDelete: () => void
+  /** Last write failure for this detail surface (pair forms use their own `error`). */
+  writeError: string | null
+}
+
+function writeFailureMessage(label: string, cause: unknown): string {
+  return `${label}: ${cause instanceof Error ? cause.message : String(cause)}`
 }
 
 /** One group's editable state: its nickname draft, its row menus, and its endpoint writes. */
@@ -140,6 +156,15 @@ export function useGroupDetail(environment: Environment, onDeleted: () => void):
   const [nickname, setNickname] = useState(environment.nickname)
   const [menuFor, setMenuFor] = useState<string | null>(null)
   const [removing, setRemoving] = useState<string | null>(null)
+  const [writeError, setWriteError] = useState<string | null>(null)
+
+  const runWrite = (label: string, work: () => Promise<void>): void => {
+    setWriteError(null)
+    // Same channel as pair forms / data-panel ErrorNote: inline text, not a second Alert.
+    runUserAction(work, (cause: unknown) => {
+      setWriteError(writeFailureMessage(label, cause))
+    })
+  }
 
   return {
     askRemove: setRemoving,
@@ -157,7 +182,15 @@ export function useGroupDetail(environment: Environment, onDeleted: () => void):
           { style: 'cancel', text: 'Cancel' },
           {
             onPress: () => {
-              environmentActions.remove(environment.id).then(onDeleted)
+              // Alert button handlers are sync; route failure to the detail writeError channel
+              // (pair forms / settings panels use inline text, not nested Alerts).
+              setWriteError(null)
+              runUserAction(
+                () => environmentActions.remove(environment.id).then(onDeleted),
+                (cause: unknown) => {
+                  setWriteError(writeFailureMessage('Could not delete environment', cause))
+                },
+              )
             },
             style: 'destructive',
             text: 'Delete',
@@ -165,40 +198,53 @@ export function useGroupDetail(environment: Environment, onDeleted: () => void):
         ],
       )
     },
-    confirmRemove: () => {
+    confirmRemove: (): void => {
       const url = removing
       setRemoving(null)
-      if (url !== null) environmentActions.removeEndpoint(environment.id, url)
+      if (url === null) return
+      runWrite('Could not remove connection', () =>
+        environmentActions.removeEndpoint(environment.id, url),
+      )
     },
-    makePrimary: async (url) => {
-      await environmentActions.preferEndpoint(environment.id, url)
-      // Read the group back: `preferEndpoint` is what decides the list this reorder rewrites.
-      const saved = getEnvironment(environment.id)
-      if (saved === null) return
-      await environmentActions.setEndpointOrder(environment.id, promotedOrder(saved.endpoints, url))
+    makePrimary: (url): void => {
+      runWrite('Could not make primary', async () => {
+        await environmentActions.preferEndpoint(environment.id, url)
+        // Read the group back: `preferEndpoint` is what decides the list this reorder rewrites.
+        const saved = getEnvironment(environment.id)
+        if (saved === null) return
+        await environmentActions.setEndpointOrder(
+          environment.id,
+          promotedOrder(saved.endpoints, url),
+        )
+      })
     },
     menuFor,
-    move: async (index, direction) => {
-      const saved = getEnvironment(environment.id)
-      if (saved === null) return
-      const next = movedOrder(saved.endpoints, index, direction)
-      if (next === null) return
-      await environmentActions.setEndpointOrder(environment.id, next)
+    move: (index, direction): void => {
+      runWrite('Could not reorder connections', async () => {
+        const saved = getEnvironment(environment.id)
+        if (saved === null) return
+        const next = movedOrder(saved.endpoints, index, direction)
+        if (next === null) return
+        await environmentActions.setEndpointOrder(environment.id, next)
+      })
     },
     nickname,
     openMenu: setMenuFor,
     removing,
-    saveNickname: async () => {
+    saveNickname: (): void => {
       const next = nickname.trim()
       if (next === '' || next === environment.nickname) return
-      await environmentActions.rename(environment.id, next)
+      runWrite('Could not rename environment', () =>
+        environmentActions.rename(environment.id, next),
+      )
     },
-    setIcon: (icon) => {
-      environmentActions.setIcon(environment.id, icon)
+    setIcon: (icon): void => {
+      runWrite('Could not update icon', () => environmentActions.setIcon(environment.id, icon))
     },
     setNickname,
-    use: () => {
-      environmentActions.setActive(environment.id)
+    use: (): void => {
+      runWrite('Could not switch environment', () => environmentActions.setActive(environment.id))
     },
+    writeError,
   }
 }

@@ -1,12 +1,12 @@
 import { fileName } from '@porcelain/client-runtime/paths'
 import type { ReviewComment } from '@porcelain/contracts/review'
+import { runUserAction } from '@porcelain/shared/background'
 import { useEffect, useState } from 'react'
 import { Text, View } from 'react-native'
 import { ShellModal, useShellModalSize } from '@/components/shell-modal'
 import { Button } from '@/components/ui/button'
 import { Text as UiText } from '@/components/ui/text'
 import { Textarea } from '@/components/ui/textarea'
-
 import { useCommentActions } from './comment-data'
 
 export type CommentAnchor = {
@@ -68,29 +68,33 @@ export function CommentComposer({
     }
   }, [open, initialBody])
 
-  const handleSave = async (): Promise<void> => {
+  const handleSave = (): void => {
     const next = body.trim()
     if (next === '' || saving) return
     setSaving(true)
     setError(null)
-    try {
-      if (editing !== null) {
-        await edit(editing.id, next)
-      } else if (anchor !== null) {
-        await add({
-          body: next,
-          path: anchor.path,
-          ...(anchor.startLine === undefined ? {} : { startLine: anchor.startLine }),
-          ...(anchor.endLine === undefined ? {} : { endLine: anchor.endLine }),
-          ...(anchor.anchorText === undefined ? {} : { anchorText: anchor.anchorText }),
-        })
-      }
-      onClose()
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not save the comment.')
-    } finally {
-      setSaving(false)
-    }
+    runUserAction(
+      async () => {
+        if (editing !== null) {
+          await edit(editing.id, next)
+        } else if (anchor !== null) {
+          await add({
+            body: next,
+            path: anchor.path,
+            ...(anchor.startLine === undefined ? {} : { startLine: anchor.startLine }),
+            ...(anchor.endLine === undefined ? {} : { endLine: anchor.endLine }),
+            ...(anchor.anchorText === undefined ? {} : { anchorText: anchor.anchorText }),
+          })
+        }
+        onClose()
+      },
+      (cause) => {
+        setError(cause instanceof Error ? cause.message : 'Could not save the comment.')
+      },
+      () => {
+        setSaving(false)
+      },
+    )
   }
 
   return (

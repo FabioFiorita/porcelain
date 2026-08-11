@@ -24,8 +24,9 @@ type SetReviewedVars = { repoPath: string; paths: string[] }
 
 /** Returns mark/unmark functions that persist the reviewed state and invalidate the query. */
 export function useToggleReviewed(): {
-  mark: (path: string) => Promise<void>
-  unmark: (path: string) => Promise<void>
+  /** Total void: mutation onError/onSettled own failure + invalidation. Safe at sync UI edges. */
+  mark: (path: string) => void
+  unmark: (path: string) => void
 } {
   const repo = useRepoStore((s) => s.repo)
   const utils = trpc.useUtils()
@@ -75,13 +76,13 @@ export function useToggleReviewed(): {
     },
   })
   return {
-    mark: async (path: string): Promise<void> => {
+    mark: (path: string): void => {
       if (!repo) return
-      await markMutation.mutateAsync({ repoPath: repo.path, path })
+      markMutation.mutate({ repoPath: repo.path, path })
     },
-    unmark: async (path: string): Promise<void> => {
+    unmark: (path: string): void => {
       if (!repo) return
-      await unmarkMutation.mutateAsync({ repoPath: repo.path, path })
+      unmarkMutation.mutate({ repoPath: repo.path, path })
     },
   }
 }
@@ -90,7 +91,7 @@ export function useToggleReviewed(): {
  * Replace all reviewed marks for the current repo in one write — powers the Changes
  * header's "mark all / unmark all" toggle (pass every path, or [] to clear them all).
  */
-export function useSetReviewed(): (paths: string[]) => Promise<void> {
+export function useSetReviewed(): (paths: string[]) => void {
   const repo = useRepoStore((s) => s.repo)
   const utils = trpc.useUtils()
   const mutation = trpc.setReviewed.useMutation({
@@ -116,8 +117,8 @@ export function useSetReviewed(): (paths: string[]) => Promise<void> {
       await utils.reviewedPaths.invalidate(repoPath)
     },
   })
-  return async (paths: string[]): Promise<void> => {
+  return (paths: string[]): void => {
     if (!repo) return
-    await mutation.mutateAsync({ repoPath: repo.path, paths })
+    mutation.mutate({ repoPath: repo.path, paths })
   }
 }

@@ -10,7 +10,8 @@
     "./evidence-check": "./src/evidence-check.ts",
     "./test-ids": "./src/test-ids.ts",
     "./board-file": "./src/board-file.ts",
-    "./comments-file": "./src/comments-file.ts"
+    "./comments-file": "./src/comments-file.ts",
+    "./background": "./src/background.ts"
   },
   "typesVersions": {
     "*": {
@@ -34,6 +35,9 @@
       ],
       "comments-file": [
         "./src/comments-file.ts"
+      ],
+      "background": [
+        "./src/background.ts"
       ]
     }
   }

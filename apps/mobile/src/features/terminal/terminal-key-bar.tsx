@@ -1,11 +1,10 @@
 import type { ArrowDirection } from '@porcelain/client-runtime/terminal-keys'
+import { runUserAction } from '@porcelain/shared/background'
 import { Alert, Pressable, ScrollView, Text } from 'react-native'
-
 import { ChromeGlyph, type ChromeIconName } from '@/components/chrome-glyph'
 import { getImage, hasImage } from '@/lib/clipboard'
 import { pasteImageToTerminal } from '@/lib/daemon/terminal'
 import { cn } from '@/lib/utils'
-
 import { sendTerminalArrow, sendTerminalBytes, sendTerminalNewline } from './terminal-input'
 import { takeArmedModifier, useTerminalInputStore } from './terminal-input-store'
 
@@ -16,26 +15,37 @@ import { takeArmedModifier, useTerminalInputStore } from './terminal-input-store
  * (only `Alert.alert`, used the same way for the delete-environment confirmation), so
  * every failure here is a modal rather than a transient banner.
  */
-async function handlePasteImage(sessionId: string): Promise<void> {
-  if (!(await hasImage())) {
-    Alert.alert('No image on clipboard', 'Copy a screenshot or photo first, then try again.')
-    return
-  }
-  const image = await getImage()
-  if (image === null) {
-    Alert.alert('Could not read the clipboard image', 'Try copying it again.')
-    return
-  }
-  const outcome = await pasteImageToTerminal(sessionId, image.mime, image.base64).catch(() => ({
-    result: 'write-failed' as const,
-  }))
-  if (outcome.result === 'ok') return
-  const message: Record<'no-session' | 'too-large' | 'write-failed', string> = {
-    'no-session': 'This terminal is no longer available.',
-    'too-large': 'That image is too large to paste.',
-    'write-failed': 'The daemon could not save the image. Try again.',
-  }
-  Alert.alert('Could not attach the image', message[outcome.result])
+/** Total void: failures surface as Alert; safe at a sync key-bar edge. */
+function handlePasteImage(sessionId: string): void {
+  runUserAction(
+    async () => {
+      if (!(await hasImage())) {
+        Alert.alert('No image on clipboard', 'Copy a screenshot or photo first, then try again.')
+        return
+      }
+      const image = await getImage()
+      if (image === null) {
+        Alert.alert('Could not read the clipboard image', 'Try copying it again.')
+        return
+      }
+      const outcome = await pasteImageToTerminal(sessionId, image.mime, image.base64).catch(() => ({
+        result: 'write-failed' as const,
+      }))
+      if (outcome.result === 'ok') return
+      const message: Record<'no-session' | 'too-large' | 'write-failed', string> = {
+        'no-session': 'This terminal is no longer available.',
+        'too-large': 'That image is too large to paste.',
+        'write-failed': 'The daemon could not save the image. Try again.',
+      }
+      Alert.alert('Could not attach the image', message[outcome.result])
+    },
+    (cause) => {
+      Alert.alert(
+        'Could not attach the image',
+        cause instanceof Error ? cause.message : String(cause),
+      )
+    },
+  )
 }
 
 const ARROWS: readonly { direction: ArrowDirection; label: string; glyph: ChromeIconName }[] = [

@@ -19,7 +19,7 @@ import { ChangesList } from './changes-list'
 vi.mock('@renderer/hooks/use-git-flow', () => ({ useGitFlow: vi.fn() }))
 vi.mock('@renderer/hooks/use-branch-flow', () => ({ useBranchFlow: vi.fn() }))
 vi.mock('@renderer/hooks/use-repo-layers', () => ({ useRepoLayers: vi.fn() }))
-vi.mock('@renderer/hooks/use-diff', () => ({ useDiffFilePrefetch: () => async () => {} }))
+vi.mock('@renderer/hooks/use-diff', () => ({ useDiffFileHoverPrefetch: () => () => {} }))
 vi.mock('@renderer/hooks/use-commit', () => ({
   useFileStaging: () => ({ stageFile: async () => {}, unstageFile: async () => {} }),
   useDiscardFile: () => async () => {},

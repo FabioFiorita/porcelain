@@ -142,10 +142,8 @@ export function createStrictJsonDocument<Value>(
 
   function write(value: Value): Promise<void> {
     const run = writeChain.then(() => performWrite(value))
-    writeChain = run.then(
-      () => undefined,
-      () => undefined,
-    )
+    // The caller owns `run`'s rejection; this tail only keeps the FIFO chain alive.
+    writeChain = Promise.allSettled([run]).then(() => undefined)
     return run
   }
 

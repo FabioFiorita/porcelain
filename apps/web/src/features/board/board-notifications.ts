@@ -3,6 +3,7 @@ import type { BoardChanged } from '@porcelain/contracts/board'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import { primary } from '@renderer/lib/daemon'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
+import { settleBackground } from '@shared/background'
 import type { QueryClient } from '@tanstack/react-query'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
@@ -26,10 +27,14 @@ export function applyBoardNotification(
   options: ApplyBoardNotificationOptions,
 ): void {
   for (const identity of boardNotificationEffects(notification)) {
-    void options.queryClient.invalidateQueries({
-      queryKey: boardCardsQueryKey(options.daemon, identity),
-      exact: true,
-    })
+    // Sync notification edge: settle in the background; query errors surface on refetch.
+    settleBackground(
+      options.queryClient.invalidateQueries({
+        queryKey: boardCardsQueryKey(options.daemon, identity),
+        exact: true,
+      }),
+      'notification',
+    )
   }
 }
 

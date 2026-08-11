@@ -30,6 +30,7 @@ import {
   useFilesTree,
   usePrefetchFileContent,
 } from '@renderer/features/files'
+import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { useIsMobile } from '@renderer/hooks/use-mobile'
 import { dirName } from '@renderer/lib/paths'
 import { isBrowser } from '@renderer/lib/platform'
@@ -42,6 +43,7 @@ import { useRevealStore } from '@renderer/stores/reveal'
 import { useSelectionStore } from '@renderer/stores/selection'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { useTreeDirsStore } from '@renderer/stores/tree-dirs'
+import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
 import {
   ChevronRight,
@@ -90,31 +92,28 @@ function EntryContextMenu({
   const startRename = useFilePromptStore((s) => s.rename)
   const repo = useRepoStore((s) => s.repo)
 
-  const hide = async (): Promise<void> => {
-    await scopeActions.hide([entry.path])
+  const scopeAct = (label: string, work: () => PromiseLike<unknown>): void =>
+    runUserAction(work, (e) => toastUserActionError(label, e))
+  const afterScope = async (op: PromiseLike<unknown>): Promise<void> => {
+    await op
     clearSelection()
   }
-  const unhide = async (): Promise<void> => {
-    await scopeActions.unhide([entry.path])
-    clearSelection()
-  }
-  const hideSelected = async (): Promise<void> => {
-    await scopeActions.hide([...new Set([...selected, entry.path])])
-    clearSelection()
-  }
-  const pin = async (): Promise<void> => {
-    await scopeActions.pin([entry.path])
-    clearSelection()
-  }
-  const unpin = async (): Promise<void> => {
-    await scopeActions.unpin([entry.path])
-    clearSelection()
-  }
-  const trashEntry = async (): Promise<void> => {
-    if (await trash(entry.path)) {
-      useTabsStore.getState().closeTabEverywhere(tabId('file', entry.path))
-    }
-  }
+  const hide = (): void => scopeAct('Hide path', () => afterScope(scopeActions.hide([entry.path])))
+  const unhide = (): void =>
+    scopeAct('Unhide path', () => afterScope(scopeActions.unhide([entry.path])))
+  const hideSelected = (): void =>
+    scopeAct('Hide paths', () =>
+      afterScope(scopeActions.hide([...new Set([...selected, entry.path])])),
+    )
+  const pin = (): void => scopeAct('Pin path', () => afterScope(scopeActions.pin([entry.path])))
+  const unpin = (): void =>
+    scopeAct('Unpin path', () => afterScope(scopeActions.unpin([entry.path])))
+  // trash() toasts mutation failures; onError covers unexpected throws after success.
+  const trashEntry = (): void =>
+    scopeAct('Delete', async () => {
+      if (await trash(entry.path))
+        useTabsStore.getState().closeTabEverywhere(tabId('file', entry.path))
+    })
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [commentAnchor, setCommentAnchor] = useState<CommentAnchor | null>(null)
   // Comments store repo-relative paths; the tree holds absolute ones.
@@ -233,7 +232,7 @@ function EntryContextMenu({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" onClick={() => void trashEntry()}>
+            <AlertDialogAction variant="destructive" onClick={trashEntry}>
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

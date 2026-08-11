@@ -1,7 +1,8 @@
 import { fileName } from '@porcelain/client-runtime/paths'
 import type { ReviewComment } from '@porcelain/contracts/review'
+import { runUserAction } from '@porcelain/shared/background'
 import { useState } from 'react'
-import { Text, View } from 'react-native'
+import { Alert, Text, View } from 'react-native'
 import { ConfirmDialog, IconAction, PanelLabel } from '@/components/panel-chrome'
 import { PANEL_CARD } from '@/components/surface-layout'
 import { useCommentActions, useReviewComments } from '@/features/comments'
@@ -62,10 +63,26 @@ export function CommentsCard({ active }: { active: boolean }): React.JSX.Element
                 setEditing(comment)
               }}
               onRemove={() => {
-                remove(comment.id)
+                runUserAction(
+                  () => remove(comment.id),
+                  (cause) => {
+                    Alert.alert(
+                      'Could not delete comment',
+                      cause instanceof Error ? cause.message : String(cause),
+                    )
+                  },
+                )
               }}
               onToggleResolved={() => {
-                setResolved(comment.id, !comment.resolved)
+                runUserAction(
+                  () => setResolved(comment.id, !comment.resolved),
+                  (cause) => {
+                    Alert.alert(
+                      'Could not update comment',
+                      cause instanceof Error ? cause.message : String(cause),
+                    )
+                  },
+                )
               }}
             />
           ))}
@@ -92,7 +109,15 @@ export function CommentsCard({ active }: { active: boolean }): React.JSX.Element
         }}
         onConfirm={() => {
           setConfirmClear(false)
-          clearResolved()
+          runUserAction(
+            () => clearResolved(),
+            (cause) => {
+              Alert.alert(
+                'Could not clear closed comments',
+                cause instanceof Error ? cause.message : String(cause),
+              )
+            },
+          )
         }}
       />
     </View>

@@ -2,7 +2,7 @@ import {
   type GhosttyKeyboardLayoutMap,
   ghosttyKeyForCode,
   ghosttyUnshiftedCodepoint,
-  loadGhosttyKeyboardLayoutMap,
+  onGhosttyKeyboardLayoutMap,
 } from './keyCodes'
 import { type GhosttyRuntime, loadGhosttyRuntime } from './runtime'
 
@@ -205,7 +205,7 @@ export class GhosttyTerminalCore {
 
   private constructor(runtime: GhosttyRuntime) {
     this.runtime = runtime
-    void loadGhosttyKeyboardLayoutMap().then((layoutMap) => {
+    onGhosttyKeyboardLayoutMap((layoutMap) => {
       if (!this.disposed) this.keyboardLayoutMap = layoutMap
     })
   }

@@ -14,14 +14,23 @@ export function WindowControls(): React.JSX.Element {
 
   return (
     <div className="app-no-drag flex items-center gap-0.5">
-      <Button variant="ghost" size="icon" aria-label="Minimize window" onClick={minimize}>
+      <Button
+        variant="ghost"
+        size="icon"
+        aria-label="Minimize window"
+        onClick={() => {
+          minimize()
+        }}
+      >
         <Minus />
       </Button>
       <Button
         variant="ghost"
         size="icon"
         aria-label={isMaximized ? 'Restore window' : 'Maximize window'}
-        onClick={toggleMaximize}
+        onClick={() => {
+          toggleMaximize()
+        }}
       >
         {isMaximized ? <Copy /> : <Square />}
       </Button>
@@ -29,7 +38,9 @@ export function WindowControls(): React.JSX.Element {
         variant="ghost"
         size="icon"
         aria-label="Close window"
-        onClick={close}
+        onClick={() => {
+          close()
+        }}
         className="hover:bg-destructive/20 hover:text-destructive dark:hover:bg-destructive/30"
       >
         <X />

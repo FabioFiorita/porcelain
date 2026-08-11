@@ -2,6 +2,7 @@ import { PROTOCOL_VERSION, PROTOCOL_VERSION_HEADER } from '@porcelain/contracts'
 import { setBrowserDaemonToken } from '@renderer/lib/daemon'
 import { isBrowser } from '@renderer/lib/platform'
 import { trpcClient } from '@renderer/lib/trpc'
+import { settleBackground } from '@shared/background'
 import { useCallback, useEffect, useState } from 'react'
 
 type GateStatus = 'checking' | 'pairing' | 'locked' | 'open'
@@ -45,7 +46,7 @@ export function useTokenGate(): TokenGate {
   useEffect(() => {
     if (!isBrowser) return
     let active = true
-    void (async () => {
+    const run = async (): Promise<void> => {
       const pairingCredential = new URLSearchParams(window.location.hash.slice(1)).get('token')
       if (window.location.pathname === '/pair' && pairingCredential !== null) {
         setStatus('pairing')
@@ -86,7 +87,9 @@ export function useTokenGate(): TokenGate {
       const ok = await probe()
       if (!active) return
       setStatus(ok ? 'open' : 'locked')
-    })()
+    }
+    // Mount probe owns status transitions (open/locked/pairing); never leave the gate "checking".
+    settleBackground(run(), 'lifecycle')
     return () => {
       active = false
     }

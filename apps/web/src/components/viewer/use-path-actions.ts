@@ -1,12 +1,14 @@
+import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { useRevealInFinder } from '@renderer/hooks/use-reveal-in-finder'
 import { fileName, relativeTo } from '@renderer/lib/paths'
 import { copyText } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
+import { runUserAction } from '@shared/background'
 
 export function usePathActions(path: string): {
-  copyPath: () => Promise<void>
-  copyRelativePath: () => Promise<void>
+  copyPath: () => void
+  copyRelativePath: () => void
   reveal: () => void
   findReferences: (text: string) => void
   exploreFlow: (symbol?: string) => void
@@ -16,11 +18,21 @@ export function usePathActions(path: string): {
   const reveal = useRevealInFinder()
 
   return {
-    copyPath: async () => {
-      await copyText(path)
+    copyPath: () => {
+      runUserAction(
+        () => copyText(path),
+        (error) => {
+          toastUserActionError('Copy path', error)
+        },
+      )
     },
-    copyRelativePath: async () => {
-      await copyText(relativeTo(repo?.path, path))
+    copyRelativePath: () => {
+      runUserAction(
+        () => copyText(relativeTo(repo?.path, path)),
+        (error) => {
+          toastUserActionError('Copy relative path', error)
+        },
+      )
     },
     reveal: () => reveal(path),
     findReferences: (text: string) => {

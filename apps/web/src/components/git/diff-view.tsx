@@ -100,7 +100,10 @@ export function DiffView({
                     compactButtonClass,
                     isReviewed ? 'text-success' : 'text-muted-foreground hover:text-foreground',
                   )}
-                  onClick={async () => (isReviewed ? unmark(filePath) : mark(filePath))}
+                  onClick={() => {
+                    if (isReviewed) unmark(filePath)
+                    else mark(filePath)
+                  }}
                 >
                   {isReviewed ? (
                     <SquareCheck className="size-3.5" />

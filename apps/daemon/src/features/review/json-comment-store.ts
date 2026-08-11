@@ -189,12 +189,11 @@ export function createJsonCommentStore(options: { maxBytes?: number } = {}): Rev
   function serialize(projectPath: string, run: () => Promise<void>): Promise<void> {
     const prev = chains.get(projectPath) ?? Promise.resolve()
     const next = prev.then(run, run)
+    // The caller owns `next`'s rejection; this tail only keeps the chain alive so a
+    // failed transaction never blocks the next one.
     chains.set(
       projectPath,
-      next.then(
-        () => undefined,
-        () => undefined,
-      ),
+      Promise.allSettled([next]).then(() => undefined),
     )
     return next
   }
@@ -238,5 +237,7 @@ export function createJsonCommentStore(options: { maxBytes?: number } = {}): Rev
 
 /** Test helper: remove a leftover temp if present (adapter should not leave them). */
 export async function unlinkQuiet(path: string): Promise<void> {
-  await unlink(path).catch(() => undefined)
+  await unlink(path).catch((error: unknown) => {
+    if (!isEnoent(error)) throw error
+  })
 }

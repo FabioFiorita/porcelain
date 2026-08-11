@@ -1,5 +1,5 @@
 import type { ChannelDisposition } from '@backend/project/companion-disposition'
-import { onMutationError } from '@renderer/hooks/mutation-error'
+import { invalidateAfterSuccess, onMutationError } from '@renderer/hooks/mutation-error'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 import type { CompanionDisposition } from '@shared/project-porcelain'
@@ -31,11 +31,14 @@ export function useSetCompanionGitVisibility(): (hidden: boolean) => Promise<voi
     const repoPath = useRepoStore.getState().repo?.path
     if (!repoPath) return
     await mutation.mutateAsync({ repoPath, hidden })
-    await Promise.all([
-      utils.companionGitVisibility.invalidate(),
-      utils.companionDispositions.invalidate(),
-      utils.gitStatus.invalidate(),
-    ])
+    await invalidateAfterSuccess(
+      [
+        utils.companionGitVisibility.invalidate(),
+        utils.companionDispositions.invalidate(),
+        utils.gitStatus.invalidate(),
+      ],
+      'Change git visibility',
+    )
   }
 }
 
@@ -54,11 +57,14 @@ export function useSetCompanionDisposition(): {
       const result = await mutation.mutateAsync({ repoPath, key, disposition })
       // Going Local stages a deletion; going Shared can lift the clone-wide
       // exclude. Either way the toggle row, the visibility line and Changes are stale.
-      await Promise.all([
-        utils.companionDispositions.invalidate(),
-        utils.companionGitVisibility.invalidate(),
-        utils.gitStatus.invalidate(),
-      ])
+      await invalidateAfterSuccess(
+        [
+          utils.companionDispositions.invalidate(),
+          utils.companionGitVisibility.invalidate(),
+          utils.gitStatus.invalidate(),
+        ],
+        'Change what git carries',
+      )
       return result.untracked
     },
     isSaving: mutation.isPending,

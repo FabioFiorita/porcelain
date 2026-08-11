@@ -111,4 +111,45 @@ describe('applyFilesNotification', () => {
     })
     expect(applyForeignDependencies).toHaveBeenCalledWith(allForeign)
   })
+
+  it('settles foreign-dependency rejection without throwing (silent background absorb)', async () => {
+    applyForeignDependencies.mockClear()
+    applyForeignDependencies.mockImplementationOnce(() => Promise.reject(new Error('foreign boom')))
+    const queryClient = new QueryClient()
+    vi.spyOn(queryClient, 'invalidateQueries').mockResolvedValue(undefined)
+
+    expect(() => {
+      applyFilesNotification(filesNotificationFixtures['files.scope-changed'], {
+        queryClient,
+        daemon: DAEMON,
+        activeProjectPath: PROJECT,
+        applyForeignDependencies,
+      })
+    }).not.toThrow()
+
+    // Flush the microtask queue so the background catch runs without becoming unhandled.
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(applyForeignDependencies).toHaveBeenCalled()
+  })
+
+  it('settles files-effect invalidation rejection without throwing', async () => {
+    applyForeignDependencies.mockClear()
+    applyForeignDependencies.mockResolvedValue(undefined)
+    const queryClient = new QueryClient()
+    vi.spyOn(queryClient, 'invalidateQueries').mockRejectedValueOnce(new Error('invalidate boom'))
+
+    expect(() => {
+      applyFilesNotification(filesNotificationFixtures['files.scope-changed'], {
+        queryClient,
+        daemon: DAEMON,
+        activeProjectPath: PROJECT,
+        applyForeignDependencies,
+      })
+    }).not.toThrow()
+
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(queryClient.invalidateQueries).toHaveBeenCalled()
+  })
 })

@@ -290,6 +290,9 @@ importers:
       '@porcelain/mobile-terminal-native':
         specifier: file:./modules/porcelain-terminal
         version: file:apps/mobile/modules/porcelain-terminal
+      '@porcelain/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@porcelain/ui':
         specifier: workspace:*
         version: link:../../packages/ui

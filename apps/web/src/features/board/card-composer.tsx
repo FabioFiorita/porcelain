@@ -8,7 +8,9 @@ import {
 } from '@renderer/components/ui/dialog'
 import { Input } from '@renderer/components/ui/input'
 import { Textarea } from '@renderer/components/ui/textarea'
+import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { kbdLabel } from '@renderer/lib/keyboard'
+import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
 import { useEffect, useState } from 'react'
 import { useBoardCardActions } from './board-mutations'
@@ -34,26 +36,32 @@ export function CardComposer(): React.JSX.Element {
     }
   }, [draft])
 
-  const handleSave = async (): Promise<void> => {
+  const handleSave = (): void => {
     if (!draft || title.trim() === '' || saving) return
     setSaving(true)
-    try {
-      if (draft.id) {
-        await update(draft.id, { title: title.trim(), body: body.trim() })
-      } else {
-        await add({ title: title.trim(), body: body.trim() || undefined, status: draft.status })
-      }
-      close()
-    } finally {
-      setSaving(false)
-    }
+    runUserAction(
+      async () => {
+        if (draft.id) {
+          await update(draft.id, { title: title.trim(), body: body.trim() })
+        } else {
+          await add({ title: title.trim(), body: body.trim() || undefined, status: draft.status })
+        }
+        close()
+      },
+      (error) => {
+        toastUserActionError(draft.id ? 'Update card' : 'Add card', error)
+      },
+      () => {
+        setSaving(false)
+      },
+    )
   }
 
   // ⌘↵ and ⌘S both save, from either field.
-  const handleKeyDown = async (e: React.KeyboardEvent): Promise<void> => {
+  const handleKeyDown = (e: React.KeyboardEvent): void => {
     if ((e.metaKey || e.ctrlKey) && (e.key === 'Enter' || e.key.toLowerCase() === 's')) {
       e.preventDefault()
-      await handleSave()
+      handleSave()
     }
   }
 

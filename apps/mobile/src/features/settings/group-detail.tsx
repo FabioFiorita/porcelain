@@ -1,7 +1,13 @@
 import { Pressable, View } from 'react-native'
 
 import { ChromeGlyph, type ChromeIconName } from '@/components/chrome-glyph'
-import { ActionSheet, ConfirmDialog, PanelLabel, type SheetAction } from '@/components/panel-chrome'
+import {
+  ActionSheet,
+  ConfirmDialog,
+  ErrorNote,
+  PanelLabel,
+  type SheetAction,
+} from '@/components/panel-chrome'
 import { PANEL_CARD } from '@/components/surface-layout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,7 +15,6 @@ import { Text } from '@/components/ui/text'
 import type { Environment, EnvironmentIcon } from '@/lib/daemon/environment'
 import { useActiveEnvironment, useConnectionState } from '@/lib/daemon/environments-store'
 import { cn } from '@/lib/utils'
-
 import { BackRow, Field, Meta } from './environment-chrome'
 import { connectionStatusLabel, endpointLabel } from './environment-labels'
 import { useGroupDetail } from './use-environments-panel'
@@ -152,12 +157,18 @@ export function GroupDetail({
           <Button
             testID="porcelain-settings-use-environment"
             variant="outline"
-            onPress={detail.use}
+            onPress={() => {
+              detail.use()
+            }}
           >
             <Text>Use this environment</Text>
           </Button>
         ) : null}
       </View>
+
+      {detail.writeError === null ? null : (
+        <ErrorNote message={detail.writeError} testID="porcelain-settings-group-write-error" />
+      )}
 
       <View className="gap-2">
         <View className="gap-0.5">
@@ -224,7 +235,9 @@ export function GroupDetail({
         testID="porcelain-settings-connection-remove-confirm"
         title="Remove this connection?"
         onCancel={detail.cancelRemove}
-        onConfirm={detail.confirmRemove}
+        onConfirm={() => {
+          detail.confirmRemove()
+        }}
       />
     </View>
   )

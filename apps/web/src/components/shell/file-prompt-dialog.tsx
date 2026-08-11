@@ -10,6 +10,7 @@ import { Input } from '@renderer/components/ui/input'
 import { useFilesActions } from '@renderer/features/files'
 import { dirName } from '@renderer/lib/paths'
 import { type FilePromptKind, useFilePromptStore } from '@renderer/stores/file-prompt'
+import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
 import { useState } from 'react'
 
@@ -63,21 +64,25 @@ function FilePrompt({
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
-  const handleSubmit = async (): Promise<void> => {
+  const handleSubmit = (): void => {
     const trimmed = name.trim()
     if (trimmed === '' || busy) return
     setBusy(true)
     setError(null)
-    try {
-      if (kind === 'new-file') await createFile(`${dir}/${trimmed}`)
-      else if (kind === 'new-folder') await createFolder(`${dir}/${trimmed}`)
-      else await rename(target, `${dirName(target)}/${trimmed}`)
-      onClose()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not complete that')
-    } finally {
-      setBusy(false)
-    }
+    runUserAction(
+      async () => {
+        if (kind === 'new-file') await createFile(`${dir}/${trimmed}`)
+        else if (kind === 'new-folder') await createFolder(`${dir}/${trimmed}`)
+        else await rename(target, `${dirName(target)}/${trimmed}`)
+        onClose()
+      },
+      (e) => {
+        setError(e instanceof Error ? e.message : 'Could not complete that')
+      },
+      () => {
+        setBusy(false)
+      },
+    )
   }
 
   return (
@@ -96,10 +101,10 @@ function FilePrompt({
           value={name}
           onChange={(e: React.ChangeEvent<HTMLInputElement>): void => setName(e.target.value)}
           onFocus={(e: React.FocusEvent<HTMLInputElement>): void => e.target.select()}
-          onKeyDown={async (e: React.KeyboardEvent<HTMLInputElement>): Promise<void> => {
+          onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
             if (e.key === 'Enter') {
               e.preventDefault()
-              await handleSubmit()
+              handleSubmit()
             }
           }}
           placeholder={kind === 'new-folder' ? 'Folder name' : 'File name'}

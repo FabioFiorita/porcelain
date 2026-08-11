@@ -5,8 +5,10 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from '@renderer/components/ui/context-menu'
+import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { useFetchCommitMessage } from '@renderer/hooks/use-history'
 import { copyText } from '@renderer/lib/utils'
+import { runUserAction } from '@shared/background'
 import { Copy, MessageSquare } from 'lucide-react'
 
 // Right-click affordances shared by the History list and the file timeline:
@@ -21,15 +23,31 @@ export function CommitContextMenu({
 }): React.JSX.Element {
   const fetchMessage = useFetchCommitMessage()
 
-  const handleCopyMessage = async (): Promise<void> => {
-    await copyText(await fetchMessage(commit.hash))
+  const handleCopyMessage = (): void => {
+    runUserAction(
+      async () => {
+        await copyText(await fetchMessage(commit.hash))
+      },
+      (error) => {
+        toastUserActionError('Copy commit message', error)
+      },
+    )
   }
 
   return (
     <ContextMenu>
       <ContextMenuTrigger>{children}</ContextMenuTrigger>
       <ContextMenuContent>
-        <ContextMenuItem onClick={() => copyText(commit.hash)}>
+        <ContextMenuItem
+          onClick={() => {
+            runUserAction(
+              () => copyText(commit.hash),
+              (error) => {
+                toastUserActionError('Copy SHA', error)
+              },
+            )
+          }}
+        >
           <Copy />
           Copy SHA
         </ContextMenuItem>

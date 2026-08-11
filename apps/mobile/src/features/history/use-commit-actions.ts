@@ -34,11 +34,15 @@ export function useCommitActions(): CommitActions {
     clearStatus: () => {
       setStatus(null)
     },
-    // `copyText` reports failure rather than rejecting, so there is nothing here to catch.
+    // `copyText` reports failure rather than rejecting; still attach catch so the chain never floats.
     copyHash: (hash: string): void => {
-      copyText(hash).then((ok) => {
-        report(ok ? `Copied ${shortHash(hash)}` : 'Could not reach the pasteboard', !ok)
-      })
+      copyText(hash)
+        .then((ok) => {
+          report(ok ? `Copied ${shortHash(hash)}` : 'Could not reach the pasteboard', !ok)
+        })
+        .catch(() => {
+          report('Could not reach the pasteboard', true)
+        })
     },
     copyMessage: (hash: string): void => {
       if (repo === null) return

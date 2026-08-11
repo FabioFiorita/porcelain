@@ -1,4 +1,5 @@
 import { useFilesActions } from '@renderer/features/files'
+import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { isTerminalTarget, isTextEntry } from '@renderer/lib/keyboard'
 import { dirName } from '@renderer/lib/paths'
 import { useFilePromptStore } from '@renderer/stores/file-prompt'
@@ -6,6 +7,7 @@ import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useSelectionStore } from '@renderer/stores/selection'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
+import { runUserAction } from '@shared/background'
 import { useEffect } from 'react'
 
 /**
@@ -19,7 +21,7 @@ export function FileCommands(): null {
   const { duplicate, trash } = useFilesActions()
 
   useEffect(() => {
-    const handleKeyDown = async (e: KeyboardEvent): Promise<void> => {
+    const handleKeyDown = (e: KeyboardEvent): void => {
       if (usePreferencesStore.getState().sidebarTab !== 'files') return
       if (!(e.metaKey || e.ctrlKey) || e.altKey) return
       if (isTextEntry(e.target) || isTerminalTarget(e.target)) return
@@ -47,16 +49,30 @@ export function FileCommands(): null {
       } else if (key === 'd' && !e.shiftKey) {
         if (targets.length === 0) return
         e.preventDefault()
-        for (const path of targets) await duplicate(path)
+        runUserAction(
+          async () => {
+            for (const path of targets) await duplicate(path)
+          },
+          (error) => {
+            toastUserActionError('Duplicate', error)
+          },
+        )
       } else if (e.key === 'Backspace') {
         if (targets.length === 0) return
         e.preventDefault()
-        for (const path of targets) {
-          if (await trash(path)) {
-            useTabsStore.getState().closeTabEverywhere(tabId('file', path))
-          }
-        }
-        useSelectionStore.getState().clear()
+        runUserAction(
+          async () => {
+            for (const path of targets) {
+              if (await trash(path)) {
+                useTabsStore.getState().closeTabEverywhere(tabId('file', path))
+              }
+            }
+            useSelectionStore.getState().clear()
+          },
+          (error) => {
+            toastUserActionError('Delete', error)
+          },
+        )
       }
     }
     window.addEventListener('keydown', handleKeyDown)

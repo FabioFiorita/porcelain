@@ -28,6 +28,7 @@ import { kbdLabel } from '@renderer/lib/keyboard'
 import { cn } from '@renderer/lib/utils'
 import { useCommitDraftStore } from '@renderer/stores/commit-draft'
 import { useRepoStore } from '@renderer/stores/repo'
+import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
 import {
   ChevronsUpDown,
@@ -197,66 +198,79 @@ export function CommitGroup(): React.JSX.Element {
     runCommit(message.trim())
   }
 
-  const handleToggleStaging = async (): Promise<void> => {
+  const handleToggleStaging = (): void => {
     if (isStaging) return
     setStaged(null)
-    try {
-      if (allStaged) {
-        await unstageAll()
-        setStaged({ text: 'Unstaged all changes', failed: false })
-      } else {
-        await stageAll()
-        setStaged({ text: 'Staged all changes', failed: false })
-      }
-    } catch (e) {
-      setStaged({ text: e instanceof Error ? e.message : String(e), failed: true })
-    }
+    runUserAction(
+      async () => {
+        if (allStaged) {
+          await unstageAll()
+          setStaged({ text: 'Unstaged all changes', failed: false })
+        } else {
+          await stageAll()
+          setStaged({ text: 'Staged all changes', failed: false })
+        }
+      },
+      (e) => {
+        setStaged({ text: e instanceof Error ? e.message : String(e), failed: true })
+      },
+    )
   }
 
-  const handleGenerateMessage = async (): Promise<void> => {
+  const handleGenerateMessage = (): void => {
     if (!hasStaged || isGenerating) return
     setStaged(null)
-    try {
-      const generated = await generateMessage()
-      setMessage(repoPath, generated)
-      setGeneratedGroups(null)
-      setStaged({ text: 'Generated commit message', failed: false })
-    } catch (e) {
-      setStaged({ text: e instanceof Error ? e.message : String(e), failed: true })
-    }
+    runUserAction(
+      async () => {
+        const generated = await generateMessage()
+        setMessage(repoPath, generated)
+        setGeneratedGroups(null)
+        setStaged({ text: 'Generated commit message', failed: false })
+      },
+      (e) => {
+        setStaged({ text: e instanceof Error ? e.message : String(e), failed: true })
+      },
+    )
   }
 
-  const handleGenerateGroups = async (): Promise<void> => {
+  const handleGenerateGroups = (): void => {
     if (hasStaged || !hasUnstaged || isGenerating) return
     setStaged(null)
-    try {
-      const generated = await generateGroups()
-      setGeneratedGroups(generated)
-      setStaged({
-        text: `Generated ${generated.length} commit group${generated.length === 1 ? '' : 's'}`,
-        failed: false,
-      })
-    } catch (e) {
-      setStaged({ text: e instanceof Error ? e.message : String(e), failed: true })
-    }
+    runUserAction(
+      async () => {
+        const generated = await generateGroups()
+        setGeneratedGroups(generated)
+        setStaged({
+          text: `Generated ${generated.length} commit group${generated.length === 1 ? '' : 's'}`,
+          failed: false,
+        })
+      },
+      (e) => {
+        setStaged({ text: e instanceof Error ? e.message : String(e), failed: true })
+      },
+    )
   }
 
-  const handleUseGroup = async (group: CommitGroupGenerationGroup): Promise<void> => {
+  const handleUseGroup = (group: CommitGroupGenerationGroup): void => {
     if (isApplyingGroup) return
     setIsApplyingGroup(true)
     setStaged(null)
-    try {
-      for (const path of group.files) await stageFile(path)
-      setMessage(repoPath, group.message)
-      setStaged({
-        text: `Staged ${group.files.length} file${group.files.length === 1 ? '' : 's'} for this group`,
-        failed: false,
-      })
-    } catch (e) {
-      setStaged({ text: e instanceof Error ? e.message : String(e), failed: true })
-    } finally {
-      setIsApplyingGroup(false)
-    }
+    runUserAction(
+      async () => {
+        for (const path of group.files) await stageFile(path)
+        setMessage(repoPath, group.message)
+        setStaged({
+          text: `Staged ${group.files.length} file${group.files.length === 1 ? '' : 's'} for this group`,
+          failed: false,
+        })
+      },
+      (e) => {
+        setStaged({ text: e instanceof Error ? e.message : String(e), failed: true })
+      },
+      () => {
+        setIsApplyingGroup(false)
+      },
+    )
   }
 
   // Only the commit mutation reports here; generation failures land on the status

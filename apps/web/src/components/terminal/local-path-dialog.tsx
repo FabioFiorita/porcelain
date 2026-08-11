@@ -8,8 +8,10 @@ import {
   DialogTitle,
 } from '@renderer/components/ui/dialog'
 import { Input } from '@renderer/components/ui/input'
+import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { useSetLocalTerminalPath } from '@renderer/hooks/use-local-terminal'
 import { cn } from '@renderer/lib/utils'
+import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
 import { useState } from 'react'
 
@@ -43,12 +45,19 @@ export function LocalPathDialog({
   const [path, setPath] = useState(initialPath ?? repoPath)
   const { save, isPending } = useSetLocalTerminalPath()
 
-  const handleSubmit = async (): Promise<void> => {
-    const trimmed = path.trim()
-    if (trimmed === '') return
-    await save({ repoPath, localPath: trimmed })
-    onSaved(trimmed)
-    onClose()
+  const submit = (): void => {
+    runUserAction(
+      async () => {
+        const trimmed = path.trim()
+        if (trimmed === '') return
+        await save({ repoPath, localPath: trimmed })
+        onSaved(trimmed)
+        onClose()
+      },
+      (error) => {
+        toastUserActionError('Save local terminal path', error)
+      },
+    )
   }
 
   return (
@@ -72,10 +81,10 @@ export function LocalPathDialog({
           value={path}
           onChange={(e: React.ChangeEvent<HTMLInputElement>): void => setPath(e.target.value)}
           onFocus={(e: React.FocusEvent<HTMLInputElement>): void => e.target.select()}
-          onKeyDown={async (e: React.KeyboardEvent<HTMLInputElement>): Promise<void> => {
+          onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
             if (e.key !== 'Enter') return
             e.preventDefault()
-            await handleSubmit()
+            submit()
           }}
           placeholder="/Users/you/code/app"
           aria-label="Local folder"
@@ -89,7 +98,7 @@ export function LocalPathDialog({
           <Button
             disabled={path.trim() === '' || isPending}
             data-testid={TestIds.localTerminalPathSave}
-            onClick={handleSubmit}
+            onClick={submit}
           >
             {isPending
               ? 'Saving…'

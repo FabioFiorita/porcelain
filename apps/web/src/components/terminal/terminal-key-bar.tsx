@@ -9,9 +9,11 @@ import {
 } from '@renderer/lib/terminal-registry'
 import { cn } from '@renderer/lib/utils'
 import { useTerminalInputStore } from '@renderer/stores/terminal-input'
+import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ImageIcon, Keyboard } from 'lucide-react'
 import { useRef } from 'react'
+import { toast } from 'sonner'
 
 const ARROWS = [
   { direction: 'left', label: 'Left', Icon: ArrowLeft },
@@ -156,7 +158,12 @@ export function TerminalKeyBar({ sessionId }: { sessionId: string }): React.JSX.
         label="Paste image"
         title="Paste an image from the clipboard"
         onActivate={() => {
-          pasteTerminalImage(sessionId)
+          runUserAction(
+            () => pasteTerminalImage(sessionId),
+            () => {
+              toast.error('Could not paste image')
+            },
+          )
         }}
       >
         <ImageIcon />

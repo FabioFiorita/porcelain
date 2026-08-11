@@ -1,6 +1,6 @@
 import { headLabel } from '@porcelain/contracts'
+import { runUserAction } from '@porcelain/shared/background'
 import { useEffect, useState } from 'react'
-
 import { useActiveEnvironment } from '@/lib/daemon/environments-store'
 import { gitHeadQuery } from '@/lib/daemon/procedures/changes'
 import {
@@ -92,7 +92,8 @@ export type ProjectSheet = {
   }
   busyPath: string | null
   actionError: string | null
-  open: (path: string) => Promise<void>
+  /** Total void: failures land on actionError; busyPath cleared in finally. */
+  open: (path: string) => void
   setBrowsePath: (path: string | null) => void
   startBrowsing: () => void
   stopBrowsing: () => void
@@ -145,18 +146,22 @@ export function useProjectSheet(open: boolean): ProjectSheet {
       ? errorMessage(recentQuery.error, 'Could not load recent projects.')
       : null,
     mode,
-    open: async (path) => {
+    open: (path): void => {
       setBusyPath(path)
       setActionError(null)
-      try {
-        await openRepo(path)
-        invalidate(['recentRepos'])
-        closeSheet()
-      } catch (error) {
-        setActionError(errorMessage(error, 'Could not open that project.'))
-      } finally {
-        setBusyPath(null)
-      }
+      runUserAction(
+        async () => {
+          await openRepo(path)
+          invalidate(['recentRepos'])
+          closeSheet()
+        },
+        (error) => {
+          setActionError(errorMessage(error, 'Could not open that project.'))
+        },
+        () => {
+          setBusyPath(null)
+        },
+      )
     },
     paired: environment !== null && environment.token !== null,
     projects: recentQuery.data ?? [],
@@ -191,8 +196,9 @@ export type BranchSheet = {
   actionError: string | null
   createError: string | null
   clearCreateError: () => void
-  select: (branch: BranchRef) => Promise<void>
-  create: (branch: string) => Promise<void>
+  /** Total void: failures land on actionError / createError. */
+  select: (branch: BranchRef) => void
+  create: (branch: string) => void
 }
 
 /** Searchable Local / Remote branch picker with the daemon's worktree guard. */
@@ -254,17 +260,20 @@ export function useBranchSheet(
     clearCreateError: () => {
       setCreateError(null)
     },
-    create: async (branch) => {
+    create: (branch): void => {
       if (repo === null || createBranch.isPending) return
       setCreateError(null)
-      try {
-        await createBranch.mutateAsync({ branch, repoPath: repo.path })
-        onCreatingChange(false)
-        closeSheet()
-      } catch (error) {
-        // git's refusal (an existing branch, a malformed ref) is the message worth reading.
-        setCreateError(errorMessage(error, 'Create branch failed.'))
-      }
+      runUserAction(
+        async () => {
+          await createBranch.mutateAsync({ branch, repoPath: repo.path })
+          onCreatingChange(false)
+          closeSheet()
+        },
+        (error) => {
+          // git's refusal (an existing branch, a malformed ref) is the message worth reading.
+          setCreateError(errorMessage(error, 'Create branch failed.'))
+        },
+      )
     },
     createError,
     createPending: createBranch.isPending,
@@ -279,7 +288,7 @@ export function useBranchSheet(
     query,
     remote: matched.remote,
     repoPath: repo?.path ?? null,
-    select: async (branch) => {
+    select: (branch): void => {
       if (blockingWorktree(worktrees, branch.name, repoPath) !== undefined) {
         openSheet('worktree')
         return
@@ -290,12 +299,15 @@ export function useBranchSheet(
       }
 
       setActionError(null)
-      try {
-        await checkout.mutateAsync({ branch: branch.name, repoPath: repo.path })
-        closeSheet()
-      } catch (error) {
-        setActionError(errorMessage(error, 'Checkout failed.'))
-      }
+      runUserAction(
+        async () => {
+          await checkout.mutateAsync({ branch: branch.name, repoPath: repo.path })
+          closeSheet()
+        },
+        (error) => {
+          setActionError(errorMessage(error, 'Checkout failed.'))
+        },
+      )
     },
     setQuery,
     worktrees,
@@ -314,8 +326,9 @@ export type WorktreeSheet = {
   actionError: string | null
   createError: string | null
   clearCreateError: () => void
-  open: (path: string) => Promise<void>
-  create: (branch: string) => Promise<void>
+  /** Total void: failures land on actionError / createError; busyPath cleared in finally. */
+  open: (path: string) => void
+  create: (branch: string) => void
 }
 
 /** Worktree switcher: switching the row opens that checkout, including linked worktrees. */
@@ -365,24 +378,28 @@ export function useWorktreeSheet(
     clearCreateError: () => {
       setCreateError(null)
     },
-    create: async (branch) => {
+    create: (branch): void => {
       if (repo === null || addWorktree.isPending || busyPath !== null) return
       setCreateError(null)
-      try {
-        // The daemon derives and realpaths the destination, so its answer — not the preview the
-        // form showed — is what gets opened. Creating a worktree you are not standing in would
-        // leave the tap with nothing to show for it. The form stays up until the switch lands so
-        // a failing open still has somewhere to report.
-        const created = await addWorktree.mutateAsync({ branch, repoPath: repo.path })
-        setBusyPath(created.path)
-        await openRepo(created.path)
-        onCreatingChange(false)
-        closeSheet()
-      } catch (error) {
-        setCreateError(errorMessage(error, 'Create worktree failed.'))
-      } finally {
-        setBusyPath(null)
-      }
+      runUserAction(
+        async () => {
+          // The daemon derives and realpaths the destination, so its answer — not the preview the
+          // form showed — is what gets opened. Creating a worktree you are not standing in would
+          // leave the tap with nothing to show for it. The form stays up until the switch lands so
+          // a failing open still has somewhere to report.
+          const created = await addWorktree.mutateAsync({ branch, repoPath: repo.path })
+          setBusyPath(created.path)
+          await openRepo(created.path)
+          onCreatingChange(false)
+          closeSheet()
+        },
+        (error) => {
+          setCreateError(errorMessage(error, 'Create worktree failed.'))
+        },
+        () => {
+          setBusyPath(null)
+        },
+      )
     },
     createError,
     existingBranches: localBranchNames(branchesQuery.data ?? []),
@@ -391,21 +408,25 @@ export function useWorktreeSheet(
     loadError: worktreesQuery.isError
       ? errorMessage(worktreesQuery.error, 'Could not load worktrees.')
       : null,
-    open: async (path) => {
+    open: (path): void => {
       if (path === repo?.path) {
         closeSheet()
         return
       }
       setBusyPath(path)
       setActionError(null)
-      try {
-        await openRepo(path)
-        closeSheet()
-      } catch (error) {
-        setActionError(errorMessage(error, 'Could not open that worktree.'))
-      } finally {
-        setBusyPath(null)
-      }
+      runUserAction(
+        async () => {
+          await openRepo(path)
+          closeSheet()
+        },
+        (error) => {
+          setActionError(errorMessage(error, 'Could not open that worktree.'))
+        },
+        () => {
+          setBusyPath(null)
+        },
+      )
     },
     repoPath: repo?.path ?? null,
     worktrees: worktreesQuery.data ?? [],

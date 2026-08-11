@@ -1,3 +1,4 @@
+import { settleBackground } from '@porcelain/shared/background'
 import { useEffect, useMemo } from 'react'
 
 import type { DaemonError } from '@/lib/daemon/errors'
@@ -110,9 +111,8 @@ export function useTerminals(active: boolean): {
     )
     for (const session of inRepo) {
       if (isTerminalAttached(session.id)) continue
-      attachTerminal(session.id).catch(() => {
-        // A dropped socket rejects the attach; the next poll after reconnect re-attaches it.
-      })
+      // A dropped socket rejects the attach; the next poll after reconnect re-attaches it.
+      settleBackground(attachTerminal(session.id), 'lifecycle')
     }
   }, [data, hydrate, inRepo, repoPath, reset])
 

@@ -155,9 +155,10 @@ export function FilesBrowser({
         testID="porcelain-files-new-file-prompt"
         title="New file"
         onClose={browser.closePending}
-        onSubmit={async (name) => {
-          if (pending?.kind !== 'create-file') return
-          await writes.createFile(pending.dir, name)
+        onSubmit={(name) => {
+          // NamePrompt attaches .then(onClose).catch(error) — return the write Promise, no async JSX.
+          if (pending?.kind !== 'create-file') return Promise.resolve()
+          return writes.createFile(pending.dir, name)
         }}
       />
 
@@ -174,9 +175,9 @@ export function FilesBrowser({
         testID="porcelain-files-new-folder-prompt"
         title="New folder"
         onClose={browser.closePending}
-        onSubmit={async (name) => {
-          if (pending?.kind !== 'create-folder') return
-          await writes.createFolder(pending.dir, name)
+        onSubmit={(name) => {
+          if (pending?.kind !== 'create-folder') return Promise.resolve()
+          return writes.createFolder(pending.dir, name)
         }}
       />
 
@@ -190,9 +191,9 @@ export function FilesBrowser({
         testID="porcelain-files-rename-prompt"
         title="Rename"
         onClose={browser.closePending}
-        onSubmit={async (name) => {
-          if (pending?.kind !== 'rename') return
-          await writes.rename(pending.path, name)
+        onSubmit={(name) => {
+          if (pending?.kind !== 'rename') return Promise.resolve()
+          return writes.rename(pending.path, name)
         }}
       />
 

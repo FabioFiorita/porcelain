@@ -26,9 +26,10 @@ import {
   SidebarMenuItem,
 } from '@renderer/components/ui/sidebar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
+import { toastingAction } from '@renderer/hooks/mutation-error'
 import { useBranchFlow } from '@renderer/hooks/use-branch-flow'
 import { useDiscardFile, useFileStaging } from '@renderer/hooks/use-commit'
-import { useDiffFilePrefetch } from '@renderer/hooks/use-diff'
+import { useDiffFileHoverPrefetch } from '@renderer/hooks/use-diff'
 import { useGitFlow } from '@renderer/hooks/use-git-flow'
 import { useRepoLayers } from '@renderer/hooks/use-repo-layers'
 import { useReviewedPaths, useToggleReviewed } from '@renderer/hooks/use-reviewed'
@@ -84,9 +85,10 @@ function FileRowImpl({
   const openTab = useTabsStore((s) => s.openTab)
   const setSidebarTab = usePreferencesStore((s) => s.setSidebarTab)
   const reveal = useRevealStore((s) => s.reveal)
-  const prefetchDiff = useDiffFilePrefetch()
+  const prefetchDiff = useDiffFileHoverPrefetch()
   const { stageFile, unstageFile } = useFileStaging()
   const discardFile = useDiscardFile()
+  const confirmDiscardFile = toastingAction('Discard file', () => discardFile(file.path))
   const { mark, unmark } = useToggleReviewed()
   const [confirmDiscard, setConfirmDiscard] = useState(false)
   const [commentAnchor, setCommentAnchor] = useState<CommentAnchor | null>(null)
@@ -210,12 +212,12 @@ function FileRowImpl({
         </ContextMenuTrigger>
         <ContextMenuContent>
           {isReviewed ? (
-            <ContextMenuItem onClick={async () => unmark(file.path)}>
+            <ContextMenuItem onClick={() => unmark(file.path)}>
               <Square />
               Unmark reviewed
             </ContextMenuItem>
           ) : (
-            <ContextMenuItem onClick={async () => mark(file.path)}>
+            <ContextMenuItem onClick={() => mark(file.path)}>
               <SquareCheck />
               Mark reviewed
             </ContextMenuItem>
@@ -248,13 +250,13 @@ function FileRowImpl({
             Comment on file
           </ContextMenuItem>
           {file.unstaged && (
-            <ContextMenuItem onClick={() => stageFile(file.path)}>
+            <ContextMenuItem onClick={toastingAction('Stage file', () => stageFile(file.path))}>
               <Plus />
               Stage
             </ContextMenuItem>
           )}
           {file.staged && (
-            <ContextMenuItem onClick={() => unstageFile(file.path)}>
+            <ContextMenuItem onClick={toastingAction('Unstage file', () => unstageFile(file.path))}>
               <Minus />
               Unstage
             </ContextMenuItem>
@@ -281,7 +283,7 @@ function FileRowImpl({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" onClick={() => discardFile(file.path)}>
+            <AlertDialogAction variant="destructive" onClick={confirmDiscardFile}>
               Discard
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -336,10 +338,10 @@ export function ChangesList(): React.JSX.Element {
   const showLayersKickoff =
     layers !== undefined && !layers.custom && total > 0 && !layersKickoffDismissed
 
-  const handleCopyLayersSetup = async (): Promise<void> => {
+  const handleCopyLayersSetup = toastingAction('Copy setup prompt', async () => {
     await copyText(layersSetupPrompt())
     setSetupCopied(true)
-  }
+  })
 
   // Opens the continuous stacked-diff surface for the active scope (working or
   // branch) — same flow order as this list, one scrollable document.
@@ -424,9 +426,7 @@ export function ChangesList(): React.JSX.Element {
                 variant="outline"
                 size="sm"
                 className="h-6 gap-1 px-2 text-2xs"
-                onClick={async () => {
-                  await handleCopyLayersSetup()
-                }}
+                onClick={handleCopyLayersSetup}
               >
                 {setupCopied ? (
                   <Check className="size-3 text-success" />

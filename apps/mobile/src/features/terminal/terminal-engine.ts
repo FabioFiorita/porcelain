@@ -1,3 +1,4 @@
+import { settleBackground } from '@porcelain/shared/background'
 import type { Terminal } from '@xterm/headless'
 import { copyText } from '@/lib/clipboard'
 import { resizeTerminal, writeTerminal } from '@/lib/daemon/terminal'
@@ -143,7 +144,7 @@ export function ensureTerminal(id: string): void {
       if (replaying.has(id)) return
       // Fire-and-forget: an OSC handler cannot await, and `copyText` reports failure by
       // resolving false rather than rejecting.
-      copyText(text)
+      settleBackground(copyText(text), 'clipboard')
     })
 
     const queued = pending.get(id)

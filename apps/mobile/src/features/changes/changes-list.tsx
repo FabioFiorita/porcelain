@@ -84,7 +84,10 @@ export function ChangesList({
       guard('Stage failed', () => stageFile(path))
     },
     onToggleReviewed: (path, next) => {
-      guard('Mark reviewed failed', () => (next ? mark(path) : unmark(path)))
+      // Total void: failure is on useToggleReviewed().error (reviewedError below).
+      setActionError(null)
+      if (next) mark(path)
+      else unmark(path)
     },
     onUnstage: (path) => {
       guard('Unstage failed', () => unstageFile(path))
@@ -107,9 +110,9 @@ export function ChangesList({
         onReadAll={openAll}
         onScopeChange={setScope}
         onToggleAll={() => {
-          guard('Update reviewed failed', () =>
-            setReviewed(summary.allReviewed ? [] : changedPaths(groups ?? [])),
-          )
+          // Total void: failure is on useToggleReviewed().error.
+          setActionError(null)
+          setReviewed(summary.allReviewed ? [] : changedPaths(groups ?? []))
         }}
       />
 

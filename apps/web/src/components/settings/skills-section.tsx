@@ -1,7 +1,9 @@
 import { Button } from '@renderer/components/ui/button'
+import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { useSkillsInfo } from '@renderer/hooks/use-skills'
 import { compactButtonClass } from '@renderer/lib/controls'
 import { copyText } from '@renderer/lib/utils'
+import { runUserAction } from '@shared/background'
 import { Check, Copy } from 'lucide-react'
 import { useState } from 'react'
 
@@ -17,10 +19,17 @@ export function SkillsSection(): React.JSX.Element {
   const installCommand = info?.installCommand ?? ''
   const upgradeCommand = info?.upgradeCommand ?? ''
 
-  const handleCopy = async (text: string, setCopied: (value: boolean) => void): Promise<void> => {
-    await copyText(text)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1500)
+  const handleCopy = (text: string, setCopied: (value: boolean) => void): void => {
+    runUserAction(
+      async () => {
+        await copyText(text)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 1500)
+      },
+      (error) => {
+        toastUserActionError('Copy command', error)
+      },
+    )
   }
 
   return (

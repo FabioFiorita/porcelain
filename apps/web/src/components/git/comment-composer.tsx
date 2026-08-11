@@ -9,8 +9,10 @@ import {
 } from '@renderer/components/ui/dialog'
 import { Textarea } from '@renderer/components/ui/textarea'
 import { type NewComment, useCommentActions } from '@renderer/features/review/comments'
+import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { kbdLabel } from '@renderer/lib/keyboard'
 import { fileName } from '@renderer/lib/paths'
+import { runUserAction } from '@shared/background'
 import { useEffect, useState } from 'react'
 
 export interface CommentAnchor {
@@ -53,26 +55,32 @@ export function CommentComposer({
     if (open) setBody('')
   }, [open])
 
-  const handleSave = async (): Promise<void> => {
+  const handleSave = (): void => {
     if (!anchor || body.trim() === '' || saving) return
     setSaving(true)
-    try {
-      const input: NewComment = { path: anchor.path, body: body.trim() }
-      if (anchor.startLine !== undefined) input.startLine = anchor.startLine
-      if (anchor.endLine !== undefined) input.endLine = anchor.endLine
-      if (anchor.anchorText !== undefined) input.anchorText = anchor.anchorText
-      await add(input)
-      onOpenChange(false)
-    } finally {
-      setSaving(false)
-    }
+    runUserAction(
+      async () => {
+        const input: NewComment = { path: anchor.path, body: body.trim() }
+        if (anchor.startLine !== undefined) input.startLine = anchor.startLine
+        if (anchor.endLine !== undefined) input.endLine = anchor.endLine
+        if (anchor.anchorText !== undefined) input.anchorText = anchor.anchorText
+        await add(input)
+        onOpenChange(false)
+      },
+      (error) => {
+        toastUserActionError('Add comment', error)
+      },
+      () => {
+        setSaving(false)
+      },
+    )
   }
 
   // ⌘↵ and ⌘S both save.
-  const handleKeyDown = async (e: React.KeyboardEvent): Promise<void> => {
+  const handleKeyDown = (e: React.KeyboardEvent): void => {
     if ((e.metaKey || e.ctrlKey) && (e.key === 'Enter' || e.key.toLowerCase() === 's')) {
       e.preventDefault()
-      await handleSave()
+      handleSave()
     }
   }
 

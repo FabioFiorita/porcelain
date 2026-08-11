@@ -339,7 +339,7 @@ function CommentMenu({
   onComment: (anchor: CommentAnchor) => void
   fileActions?: ReadingFileActions
   isReviewed?: boolean
-  onToggleReviewed?: () => void | Promise<void>
+  onToggleReviewed?: () => void
   onOpenFile?: () => void
   canOpenFile?: boolean
   children: React.ReactNode
@@ -368,11 +368,7 @@ function CommentMenu({
           </ContextMenuItem>
         )}
         {fileActions?.reviewed && onToggleReviewed && (
-          <ContextMenuItem
-            onClick={async () => {
-              await onToggleReviewed()
-            }}
-          >
+          <ContextMenuItem onClick={() => onToggleReviewed()}>
             {isReviewed ? <Square /> : <SquareCheck />}
             {isReviewed ? 'Unmark reviewed' : 'Mark reviewed'}
           </ContextMenuItem>
@@ -438,12 +434,12 @@ function FileHeaderRow({
     reveal(absolute)
   }
 
-  const handleToggleReviewed = async (): Promise<void> => {
+  const handleToggleReviewed = (): void => {
     if (isReviewed) {
-      await unmark(file.path)
+      unmark(file.path)
       return
     }
-    await mark(file.path)
+    mark(file.path)
     if (fileActions?.collapsible) onCollapse()
   }
 
@@ -504,9 +500,9 @@ function FileHeaderRow({
                 <Button
                   variant="ghost"
                   size="icon-2xs"
-                  onClick={async (e: React.MouseEvent<HTMLButtonElement>): Promise<void> => {
+                  onClick={(e: React.MouseEvent<HTMLButtonElement>): void => {
                     e.stopPropagation()
-                    await handleToggleReviewed()
+                    handleToggleReviewed()
                   }}
                   className={cn(
                     'shrink-0',

@@ -1,4 +1,4 @@
-import { watch as defaultWatch, type FSWatcher } from 'node:fs'
+import { watch as defaultWatch } from 'node:fs'
 import { basename, dirname, isAbsolute, join, relative, sep } from 'node:path'
 import { isFilesNotificationPath } from '@porcelain/contracts/files'
 import type { SessionChange } from '@porcelain/contracts/session'
@@ -19,10 +19,14 @@ export function isGitChurn(filename: string | null): boolean {
   return filename === '.git' || (filename?.startsWith('.git/') ?? false)
 }
 
+/** Minimal host surface — structural so unit tests can inject fakes without double-casts. */
 export type FilesWatchHost = {
-  readonly watch: typeof defaultWatch
-  readonly setTimeout: typeof setTimeout
-  readonly clearTimeout: typeof clearTimeout
+  readonly watch: (
+    path: string,
+    listener: (event: string, filename: string | null) => void,
+  ) => { close: () => void; on: (event: string, handler: () => void) => unknown }
+  readonly setTimeout: (fn: () => void, ms?: number) => ReturnType<typeof setTimeout>
+  readonly clearTimeout: (id: ReturnType<typeof setTimeout>) => void
 }
 
 export type SessionFilesWatches = {
@@ -34,8 +38,10 @@ export type SessionFilesWatches = {
   readonly clear: () => void
 }
 
+type HostWatcher = ReturnType<FilesWatchHost['watch']>
+
 type DirEntry = {
-  watcher: FSWatcher
+  watcher: HostWatcher
   files: Set<string>
   treeInterested: boolean
 }
@@ -64,9 +70,9 @@ export function createSessionFilesWatches(options: {
   host?: Partial<FilesWatchHost>
 }): SessionFilesWatches {
   const host: FilesWatchHost = {
-    watch: options.host?.watch ?? defaultWatch,
-    setTimeout: options.host?.setTimeout ?? setTimeout,
-    clearTimeout: options.host?.clearTimeout ?? clearTimeout,
+    watch: options.host?.watch ?? ((path, listener) => defaultWatch(path, listener)),
+    setTimeout: options.host?.setTimeout ?? ((fn, ms) => setTimeout(fn, ms)),
+    clearTimeout: options.host?.clearTimeout ?? ((id) => clearTimeout(id)),
   }
 
   let projectPath: string | undefined
@@ -121,7 +127,7 @@ export function createSessionFilesWatches(options: {
     byDir.delete(dir)
   }
 
-  function onDirEvent(dir: string, source: FSWatcher, filename: string | null): void {
+  function onDirEvent(dir: string, source: HostWatcher, filename: string | null): void {
     const entry = byDir.get(dir)
     const root = projectPath
     if (!entry || entry.watcher !== source || root === undefined) return
@@ -163,7 +169,7 @@ export function createSessionFilesWatches(options: {
 
   function openWatcher(dir: string, files: Set<string>, treeInterested: boolean): void {
     try {
-      let watcher: FSWatcher
+      let watcher: HostWatcher
       watcher = host.watch(dir, (_event, filename) => {
         const name =
           filename === null || filename === undefined

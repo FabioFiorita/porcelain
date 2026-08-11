@@ -1,5 +1,6 @@
 import { REQUEST_TIMEOUT_MS } from '@porcelain/client-runtime/session/transport'
 import { MAX_TERMINAL_WRITE_CODE_UNITS } from '@porcelain/contracts/terminal'
+import { settleBackground } from '@porcelain/shared/background'
 import { randomUUID } from 'expo-crypto'
 
 import { DaemonError } from './errors'
@@ -224,9 +225,8 @@ export function subscribeTerminalStream(handlers: StreamHandlers): () => void {
   })
   const stopReconnect = daemonSession.onReconnect(() => {
     for (const id of [...attachedIds]) {
-      attachTerminal(id).catch(() => {
-        // The next roster read re-attaches; a failed re-attach must not break the others.
-      })
+      // The next roster read re-attaches; a failed re-attach must not break the others.
+      settleBackground(attachTerminal(id), 'lifecycle')
     }
   })
   return () => {

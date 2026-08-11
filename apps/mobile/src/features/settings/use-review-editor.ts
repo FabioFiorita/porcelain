@@ -1,5 +1,5 @@
+import { runUserAction } from '@porcelain/shared/background'
 import { useEffect, useState } from 'react'
-
 import type { Layer } from '@/lib/daemon/procedures/settings'
 
 import {
@@ -41,8 +41,8 @@ export type ReviewEditor = {
   update: (index: number, next: Layer) => void
   move: (index: number, direction: 1 | -1) => void
   remove: (index: number) => void
-  /** Saves the draft; `null` clears the override back to the starters. */
-  save: (layers: readonly DraftLayer[] | null) => Promise<void>
+  /** Saves the draft; `null` clears the override back to the starters. Total void for UI edges. */
+  save: (layers: readonly DraftLayer[] | null) => void
 }
 
 export function useReviewEditor(repoPath: string): ReviewEditor {
@@ -68,12 +68,21 @@ export function useReviewEditor(repoPath: string): ReviewEditor {
       setDraft((current) => current.filter((_, position) => position !== index))
     },
     review,
-    save: async (layers) => {
-      if (!(await review.save(layers))) return
-      setSavedFlash(true)
-      setTimeout(() => {
-        setSavedFlash(false)
-      }, SAVED_FLASH_MS)
+    save: (layers): void => {
+      // review.save is total (catches into failure); flash only on success.
+      runUserAction(
+        async () => {
+          if (!(await review.save(layers))) return
+          setSavedFlash(true)
+          setTimeout(() => {
+            setSavedFlash(false)
+          }, SAVED_FLASH_MS)
+        },
+        (error) => {
+          // review.save already writes failure text when it returns false; log unexpected throws.
+          console.error('[use-review-editor] save failed', error)
+        },
+      )
     },
     savedFlash,
     update: (index, next) => {

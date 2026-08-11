@@ -87,7 +87,9 @@ function TopBar({ left }: { left: LeftSidebarHandle }): React.JSX.Element {
             <Button
               variant="ghost"
               size="icon-sm"
-              onClick={toggleRight}
+              onClick={() => {
+                toggleRight()
+              }}
               aria-label="Toggle quick access sidebar"
               aria-expanded={rightActive}
               data-testid={TestIds.toggleRightSidebar}

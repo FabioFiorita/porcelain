@@ -1,5 +1,5 @@
 import type { ReviewDoc } from '@backend/review/doc-set'
-import { onMutationError } from '@renderer/hooks/mutation-error'
+import { invalidateAfterSuccess, onMutationError } from '@renderer/hooks/mutation-error'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 
@@ -41,13 +41,17 @@ export function usePublishReview(): {
       const result = await mutation.mutateAsync(repoPath)
       // Publishing archives the active review and stages the folder, so the
       // Review surface, the archive list and the Changes tab are all now stale.
-      await Promise.all([
-        utils.featureReading.invalidate(),
-        utils.featureView.invalidate(),
-        utils.reviewIntent.invalidate(),
-        utils.archivedReviews.invalidate(),
-        utils.gitStatus.invalidate(),
-      ])
+      // Server success must remain durable even when invalidation fails.
+      await invalidateAfterSuccess(
+        [
+          utils.featureReading.invalidate(),
+          utils.featureView.invalidate(),
+          utils.reviewIntent.invalidate(),
+          utils.archivedReviews.invalidate(),
+          utils.gitStatus.invalidate(),
+        ],
+        'Publish review',
+      )
       return result?.id ?? null
     },
     isPublishing: mutation.isPending,

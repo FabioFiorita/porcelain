@@ -25,7 +25,6 @@ import { useBottomChrome } from '@/features/shell/bottom-chrome'
 import type { DiffHunk } from '@/lib/daemon/procedures/changes'
 import type { FeatureReading, ReadingFile, SliceRange } from '@/lib/daemon/procedures/review'
 import { cn } from '@/lib/utils'
-
 import { blockRowIndex, type ExecutionRow, toExecutionRows } from './execution-rows'
 import { FileNote, GapRow, SourceMarker } from './review-chrome'
 import { useReviewStore } from './review-store'
@@ -151,6 +150,7 @@ export function ExecutionBody({
             sliceTokensFor={sliceTokens}
             onToggleCollapsed={toggleCollapsed}
             onToggleReviewed={(path, next) => {
+              // mark/unmark are total void (React Query owns error + pending).
               if (next) mark(path)
               else unmark(path)
               // Ticking a file off folds it away, like the continuous read: the document

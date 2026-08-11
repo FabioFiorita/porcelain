@@ -39,7 +39,7 @@ export type ConnectionState =
   | { kind: 'connecting' }
   | { kind: 'ready'; daemonVersion: string; reachability: Reachability }
   | { kind: 'unreachable'; message: string; reachability: Reachability }
-  | { kind: 'unauthorized' }
+  | { kind: 'unauthorized'; cleanupError?: string } // cleanupError: secure-store delete failed after memory clear
 
 type EnvironmentsState = {
   environments: readonly Environment[]
@@ -357,7 +357,7 @@ export const environmentActions: EnvironmentActions = {
     await persist()
   },
 
-  /** The token was revoked host-side: keep the nickname and routes, drop the dead credential. */
+  /** Revoked host-side: clear memory first, then secure-store (caller owns delete rejection). */
   async forgetToken(id: EnvironmentId): Promise<void> {
     forgetDaemonClient(id)
     useEnvironmentsStore.setState((state) => ({

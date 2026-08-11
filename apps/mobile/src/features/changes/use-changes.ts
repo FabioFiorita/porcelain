@@ -112,9 +112,10 @@ const REVIEWED_INVALIDATIONS = ['reviewedPaths'] as const
  * so the next poll cannot re-publish the pre-write list.
  */
 export function useToggleReviewed(): {
-  mark: (path: string) => Promise<void>
-  unmark: (path: string) => Promise<void>
-  setReviewed: (paths: string[]) => Promise<void>
+  /** Total: React Query owns pending + error; safe at sync UI edges. */
+  mark: (path: string) => void
+  unmark: (path: string) => void
+  setReviewed: (paths: string[]) => void
   isPending: boolean
   error: Error | null
 } {
@@ -126,17 +127,19 @@ export function useToggleReviewed(): {
   return {
     error: mark.error ?? unmark.error ?? setAll.error,
     isPending: mark.isPending || unmark.isPending || setAll.isPending,
-    mark: async (path: string): Promise<void> => {
+    // `mutate` is void and publishes failure on the mutation error field — never mutateAsync
+    // at a React event edge (the framework ignores the returned Promise).
+    mark: (path: string): void => {
       if (repo === null) return
-      await mark.mutateAsync({ path, repoPath: repo.path })
+      mark.mutate({ path, repoPath: repo.path })
     },
-    setReviewed: async (paths: string[]): Promise<void> => {
+    setReviewed: (paths: string[]): void => {
       if (repo === null) return
-      await setAll.mutateAsync({ paths, repoPath: repo.path })
+      setAll.mutate({ paths, repoPath: repo.path })
     },
-    unmark: async (path: string): Promise<void> => {
+    unmark: (path: string): void => {
       if (repo === null) return
-      await unmark.mutateAsync({ path, repoPath: repo.path })
+      unmark.mutate({ path, repoPath: repo.path })
     },
   }
 }

@@ -310,5 +310,7 @@ export async function readEvidenceMeta(repoPath: string): Promise<EvidenceMeta |
  * Atomic enough for the UI (watcher + poll refresh).
  */
 export async function clearEvidence(repoPath: string): Promise<void> {
-  await rm(evidenceDirForRepo(repoPath), { recursive: true, force: true }).catch(() => {})
+  // The human asked for this: `force` already absorbs "no pack", so anything left
+  // is a real failure the caller must hear about rather than a silent no-op clear.
+  await rm(evidenceDirForRepo(repoPath), { recursive: true, force: true })
 }

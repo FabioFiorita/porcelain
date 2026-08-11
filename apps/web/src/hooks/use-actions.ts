@@ -1,5 +1,5 @@
 import type { Action, ActionView, ActionWhere } from '@backend/stores/actions-store'
-import { onMutationError } from '@renderer/hooks/mutation-error'
+import { invalidateAfterSuccess } from '@renderer/hooks/mutation-error'
 import { spawnLocalTerminal } from '@renderer/lib/terminal-actions'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
@@ -19,7 +19,13 @@ export interface NewActionInput {
   where?: ActionWhere
 }
 
-/** Add/edit/delete saved actions. Each mutation refreshes the list. */
+/**
+ * Add/edit/delete saved actions. Each mutation refreshes the list.
+ *
+ * Every call rejects rather than toasting: ONE owner per failure, and that owner is
+ * the edge the human touched (the composer and the row menu both wrap these in
+ * `runUserAction` with a real toast). A mutation-level `onError` would double it.
+ */
 export function useActionMutations(): {
   add: (input: NewActionInput) => Promise<void>
   update: (id: string, fields: NewActionInput) => Promise<void>
@@ -31,22 +37,10 @@ export function useActionMutations(): {
   const refresh = async (): Promise<void> => {
     await utils.actions.invalidate()
   }
-  const add = trpc.addAction.useMutation({
-    onSuccess: refresh,
-    onError: onMutationError('Add action'),
-  })
-  const update = trpc.updateAction.useMutation({
-    onSuccess: refresh,
-    onError: onMutationError('Update action'),
-  })
-  const move = trpc.moveAction.useMutation({
-    onSuccess: refresh,
-    onError: onMutationError('Move action'),
-  })
-  const remove = trpc.deleteAction.useMutation({
-    onSuccess: refresh,
-    onError: onMutationError('Delete action'),
-  })
+  const add = trpc.addAction.useMutation({ onSuccess: refresh })
+  const update = trpc.updateAction.useMutation({ onSuccess: refresh })
+  const move = trpc.moveAction.useMutation({ onSuccess: refresh })
+  const remove = trpc.deleteAction.useMutation({ onSuccess: refresh })
   return {
     add: async (input: NewActionInput): Promise<void> => {
       if (!repo) return
@@ -71,15 +65,17 @@ export function useActionMutations(): {
  * Accept a command this machine has not run before. Trust is recorded against the
  * command TEXT on this machine only, so editing it later — by hand, by an agent,
  * or by a teammate's commit — asks again.
+ *
+ * Rejects rather than toasting: the trust dialog that called it owns the failure.
  */
 export function useTrustAction(): (id: string) => Promise<void> {
   const utils = trpc.useUtils()
-  const mutation = trpc.trustActions.useMutation({ onError: onMutationError('Accept command') })
+  const mutation = trpc.trustActions.useMutation()
   return async (id: string): Promise<void> => {
     const repoPath = useRepoStore.getState().repo?.path
     if (!repoPath) return
     await mutation.mutateAsync({ repoPath, ids: [id] })
-    await utils.actions.invalidate()
+    await invalidateAfterSuccess([utils.actions.invalidate()], 'Accept command')
   }
 }
 

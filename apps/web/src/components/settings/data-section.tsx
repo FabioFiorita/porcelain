@@ -1,6 +1,7 @@
 import { describeDisposition } from '@porcelain/client-runtime/companion-disposition'
 import { Button } from '@renderer/components/ui/button'
 import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-group'
+import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import {
   useCompanionDispositions,
   useCompanionGitVisibility,
@@ -9,6 +10,7 @@ import {
 } from '@renderer/hooks/use-companion-dispositions'
 import { compactButtonClass } from '@renderer/lib/controls'
 import { useRepoStore } from '@renderer/stores/repo'
+import { runUserAction } from '@shared/background'
 // Type-only on purpose: `@shared/project-porcelain` imports `node:path`, so a
 // value import from it fails the web bundle. Client-facing copy lives in
 // `@porcelain/client-runtime/companion-disposition` instead.
@@ -40,7 +42,7 @@ function DispositionRow({
   hint: string
   disposition: CompanionDisposition
   trackedCount: number
-  onChange: (next: CompanionDisposition) => Promise<void>
+  onChange: (next: CompanionDisposition) => void
 }): React.JSX.Element {
   return (
     <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
@@ -57,10 +59,10 @@ function DispositionRow({
       <div className="shrink-0 self-start">
         <ToggleGroup
           value={[disposition]}
-          onValueChange={async (value: string[]) => {
+          onValueChange={(value: string[]) => {
             const next = value[0]
             if (next === 'shared' || next === 'local') {
-              await onChange(next satisfies CompanionDisposition)
+              onChange(next satisfies CompanionDisposition)
             }
           }}
         >
@@ -129,8 +131,15 @@ export function DataSection(): React.JSX.Element {
               size="sm"
               className="shrink-0 self-start sm:self-center"
               data-testid={TestIds.companionGitVisibilityToggle}
-              onClick={async () => {
-                await setVisibility(!hidden)
+              onClick={() => {
+                runUserAction(
+                  async () => {
+                    await setVisibility(!hidden)
+                  },
+                  (error) => {
+                    toastUserActionError('Change git visibility', error)
+                  },
+                )
               }}
             >
               {hidden ? 'Start sharing' : 'Hide from git'}
@@ -149,8 +158,15 @@ export function DataSection(): React.JSX.Element {
                 hint={channel.hint}
                 disposition={channel.disposition}
                 trackedCount={channel.trackedPaths.length}
-                onChange={async (next) => {
-                  setLastUntracked(await set(channel.key, next))
+                onChange={(next) => {
+                  runUserAction(
+                    async () => {
+                      setLastUntracked(await set(channel.key, next))
+                    },
+                    (error) => {
+                      toastUserActionError('Change what git carries', error)
+                    },
+                  )
                 }}
               />
             ))}

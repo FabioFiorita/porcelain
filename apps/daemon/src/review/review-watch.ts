@@ -2,6 +2,7 @@ import { watch } from 'node:fs'
 import { mkdir, stat } from 'node:fs/promises'
 import { basename } from 'node:path'
 import type { SessionChange } from '@porcelain/contracts/session'
+import { settleBackground } from '@porcelain/shared/background'
 import {
   PROJECT_FILES,
   projectActiveReviewDir,
@@ -133,8 +134,8 @@ async function watchRepo(repoPath: string): Promise<void> {
     projectEvidenceResultsDir(repoPath),
     projectEvidenceAssetsDir(repoPath),
   ]) {
-    void mkdir(dirToWatch, { recursive: true })
-      .then(() => {
+    settleBackground(
+      mkdir(dirToWatch, { recursive: true }).then(() => {
         try {
           const w = watch(dirToWatch, () => {
             publishReview(repoPath)
@@ -143,8 +144,9 @@ async function watchRepo(repoPath: string): Promise<void> {
         } catch {
           // unsupported FS
         }
-      })
-      .catch(() => {})
+      }),
+      'watcher',
+    )
   }
 }
 
@@ -161,5 +163,6 @@ export async function syncProjectWatches(extraRepo?: string): Promise<void> {
 }
 
 export function watchProjectCompanion(repoPath: string): void {
-  void watchRepo(repoPath)
+  // Best-effort registration — keep cleanup/reconnect paths intact; failures stay silent.
+  settleBackground(watchRepo(repoPath), 'watcher')
 }

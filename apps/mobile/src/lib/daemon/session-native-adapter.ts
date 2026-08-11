@@ -7,6 +7,8 @@ import {
   sessionWebSocketUrl,
 } from '@porcelain/client-runtime/session/transport'
 
+import { settleBackground } from '@porcelain/shared/background'
+
 /**
  * The React Native half of the shared session runtime: one WebSocket, its auth, and the
  * reconnect timer around `@porcelain/client-runtime/session/client-runtime`.
@@ -121,6 +123,15 @@ const defaultSchedule: SessionRetrySchedule = (run, delayMs) => {
   return (): void => clearTimeout(timer)
 }
 
+function isThenable(value: unknown): value is PromiseLike<unknown> {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'then' in value &&
+    typeof (value as PromiseLike<unknown>).then === 'function'
+  )
+}
+
 export function createSessionNativeAdapter({
   runtime,
   endpoint,
@@ -135,6 +146,11 @@ export function createSessionNativeAdapter({
   shouldReconnect = (): boolean => true,
   /** Fires after the runtime is told about a drop, before reconnect is scheduled. */
   onTransportClosed,
+  /**
+   * Terminal (non-reconnect) close work failed. Required for observability when the close
+   * callback rejects — never absorbed by silent settleBackground on this path.
+   */
+  onTransportClosedFailure,
 }: {
   readonly runtime: SessionClientRuntime
   readonly endpoint: () => SessionEndpoint
@@ -143,6 +159,7 @@ export function createSessionNativeAdapter({
   readonly onStatusChange?: (status: SessionConnectionStatus) => void
   readonly shouldReconnect?: (closeCode: number) => boolean
   readonly onTransportClosed?: (closeCode: number) => void | Promise<void>
+  readonly onTransportClosedFailure?: (error: unknown, closeCode: number) => void
 }): SessionNativeAdapter {
   let socket: SessionSocket | undefined
   let cancelRetry: (() => void) | undefined
@@ -192,15 +209,30 @@ export function createSessionNativeAdapter({
           if (!reconnect) {
             running = false
             setStatus('idle')
-            void onTransportClosed?.(code)
+            const closed = onTransportClosed?.(code)
+            // Terminal close (e.g. 4001 revoked): never silent settleBackground — report failure.
+            if (isThenable(closed)) {
+              Promise.resolve(closed).catch((error: unknown) => {
+                onTransportClosedFailure?.(error, code)
+              })
+            }
             return
           }
           setStatus('reconnecting')
           const maybe = onTransportClosed?.(code)
-          if (maybe !== undefined && typeof (maybe as Promise<void>).then === 'function') {
-            void (maybe as Promise<void>).then(() => {
-              if (running) scheduleReconnect()
-            })
+          if (isThenable(maybe)) {
+            // Reconnect after close work finishes OR rejects — never skip reconnect on failure.
+            settleBackground(
+              Promise.resolve(maybe).then(
+                () => {
+                  if (running) scheduleReconnect()
+                },
+                () => {
+                  if (running) scheduleReconnect()
+                },
+              ),
+              'lifecycle',
+            )
             return
           }
           scheduleReconnect()

@@ -4,6 +4,7 @@ import { mkdir, readFile, realpath, stat } from 'node:fs/promises'
 import { basename, dirname, isAbsolute, join, relative } from 'node:path'
 import { promisify } from 'node:util'
 import type { HeadRef } from '@porcelain/contracts'
+import { settleBackground } from '@porcelain/shared/background'
 import { imageMimeForPath, isBinaryBuffer, isGitBinaryDiff } from '../fs/image-mime'
 import { exceedsReadLimit } from '../fs/read-limits'
 import { type GitSuggestion, parseSuggestions } from '../search/suggestions'
@@ -99,9 +100,8 @@ export async function gitListFiles(repoPath: string): Promise<string[]> {
 }
 
 export function warmFileList(repoPath: string): void {
-  // fire-and-forget; non-git directories simply stay uncached. Warms the finder
-  // list, which also populates the tracked-file cache (it reads `gitListFiles`).
-  refreshSearchList(repoPath).catch(() => {})
+  // Fire-and-forget finder warm-up (also fills the tracked-file cache); non-git dirs stay uncached.
+  settleBackground(refreshSearchList(repoPath), 'invalidation')
 }
 
 const searchListCache = new Map<string, { files: string[]; at: number; refreshing: boolean }>()

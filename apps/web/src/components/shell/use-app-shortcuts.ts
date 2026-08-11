@@ -1,4 +1,5 @@
 import { useCardDraftStore } from '@renderer/features/board'
+import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import {
   ctrlIsPrimary,
   isModExclusive,
@@ -8,6 +9,7 @@ import {
 import { spawnTerminal } from '@renderer/lib/terminal-actions'
 import { type SidebarTab, usePreferencesStore } from '@renderer/stores/preferences'
 import { useTabsStore } from '@renderer/stores/tabs'
+import { runUserAction } from '@shared/background'
 import { useEffect } from 'react'
 
 // Must match the rail order in app-sidebar.tsx (agentic loop: Files → Changes →
@@ -31,7 +33,7 @@ const SIDEBAR_TAB_KEYS: Record<string, SidebarTab | undefined> = {
  */
 export function useAppShortcuts(): void {
   useEffect(() => {
-    const handleKeyDown = async (e: KeyboardEvent): Promise<void> => {
+    const handleKeyDown = (e: KeyboardEvent): void => {
       if (e.key === 'Tab' && e.ctrlKey) {
         e.preventDefault()
         useTabsStore.getState().cycleTab(e.shiftKey ? -1 : 1)
@@ -83,7 +85,12 @@ export function useAppShortcuts(): void {
         const key = e.key.toLowerCase()
         if (key === 't' && !e.shiftKey) {
           e.preventDefault()
-          await spawnTerminal()
+          runUserAction(
+            () => spawnTerminal(),
+            (error) => {
+              toastUserActionError('Open terminal', error)
+            },
+          )
           return
         }
         if (key === 'n' && !e.shiftKey) {
@@ -95,7 +102,12 @@ export function useAppShortcuts(): void {
           }
           if (sidebarTab === 'terminal') {
             e.preventDefault()
-            await spawnTerminal()
+            runUserAction(
+              () => spawnTerminal(),
+              (error) => {
+                toastUserActionError('Open terminal', error)
+              },
+            )
             return
           }
         }

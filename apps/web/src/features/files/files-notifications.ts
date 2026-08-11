@@ -10,6 +10,7 @@ import { primary } from '@renderer/lib/daemon'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
+import { settleBackground } from '@shared/background'
 import type { QueryClient } from '@tanstack/react-query'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
@@ -41,12 +42,19 @@ export function applyFilesNotification(
   if (filesProjectKey(notification.projectPath) !== filesProjectKey(options.activeProjectPath)) {
     return
   }
-  void invalidateFilesEffects(
-    options.queryClient,
-    options.daemon,
-    filesNotificationEffects(notification),
+  // Sync notification edge: Files + foreign freshness stay best-effort; query surfaces refetch errors.
+  settleBackground(
+    invalidateFilesEffects(
+      options.queryClient,
+      options.daemon,
+      filesNotificationEffects(notification),
+    ),
+    'notification',
   )
-  void options.applyForeignDependencies(filesNotificationForeignDependencies(notification))
+  settleBackground(
+    options.applyForeignDependencies(filesNotificationForeignDependencies(notification)),
+    'notification',
+  )
 }
 
 /** Invalidate every Files cache entry (session/project recovery). */

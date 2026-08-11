@@ -3,6 +3,7 @@ import { Button } from '@renderer/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useClearEvidence } from '@renderer/hooks/use-evidence'
 import { cn } from '@renderer/lib/utils'
+import { runUserAction } from '@shared/background'
 import {
   type EvidenceCheck,
   type EvidenceCheckStatus,
@@ -42,7 +43,11 @@ export function EvidenceHeaderRow({
               variant="ghost"
               size="icon-xs"
               className="shrink-0 text-muted-foreground"
-              onClick={clear}
+              onClick={() => {
+                runUserAction(clear, (error) => {
+                  console.error('Clear evidence failed', error)
+                })
+              }}
               disabled={isClearing}
               aria-label="Clear evidence"
               data-testid={TestIds.evidenceClear}

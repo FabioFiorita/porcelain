@@ -7,6 +7,7 @@ import {
   terminalFilePromptReference,
   terminalImagePromptReference,
 } from '@porcelain/contracts/terminal'
+import { settleBackground } from '@porcelain/shared/background'
 import { porcelainHomePath } from '@shared/porcelain-home'
 import { hasTerminal, writeTerminal } from './terminal-manager'
 
@@ -53,9 +54,12 @@ let sweepTimer: ReturnType<typeof setInterval> | undefined
  */
 function startSweeping(): void {
   if (sweepTimer !== undefined) return
-  sweepTimer = setInterval(() => void sweepPastedImages(), SWEEP_INTERVAL_MS)
+  sweepTimer = setInterval(() => {
+    // Sweep already absorbs fs errors; settle so interval callbacks never float.
+    settleBackground(sweepPastedImages(), 'watcher')
+  }, SWEEP_INTERVAL_MS)
   sweepTimer.unref()
-  void sweepPastedImages()
+  settleBackground(sweepPastedImages(), 'watcher')
 }
 
 /** Delete pasted-image files older than `PASTE_RETENTION_MS`. Missing root is not an error. */
@@ -79,7 +83,10 @@ export async function sweepPastedImages(now: number = Date.now()): Promise<void>
       const path = join(dir, file)
       const info = await stat(path).catch(() => null)
       if (info !== null && now - info.mtimeMs > PASTE_RETENTION_MS) {
-        await rm(path, { force: true }).catch(() => {})
+        await rm(path, { force: true }).catch((error: unknown) => {
+          // One stuck file must not abort the sweep of the rest; it ages out next pass.
+          console.debug('[terminal-paste] sweep could not remove', path, error)
+        })
       }
     }
   }

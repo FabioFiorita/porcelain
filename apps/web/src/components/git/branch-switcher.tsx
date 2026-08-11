@@ -20,6 +20,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@renderer/components/ui
 import { useBranch, useBranches, useCheckout, useCreateBranch } from '@renderer/hooks/use-worktrees'
 import { commandGroupHeadingClass } from '@renderer/lib/controls'
 import { useRepoStore } from '@renderer/stores/repo'
+import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
 import { Check, GitBranch, Plus } from 'lucide-react'
 import { useState } from 'react'
@@ -57,18 +58,21 @@ export function BranchSwitcher(): React.JSX.Element | null {
     (b) => b.remote !== null && `${b.remote}/${b.name}`.toLowerCase().includes(q),
   )
 
-  const handleSwitchBranch = async (target: string): Promise<void> => {
+  const handleSwitchBranch = (target: string): void => {
     setOpen(false)
     setQuery('')
     if (target === branch) return
-    try {
-      await checkout(target)
-      toast.success(`Switched to ${target}`)
-    } catch (error) {
-      toast.error('Checkout failed', {
-        description: error instanceof Error ? error.message : String(error),
-      })
-    }
+    runUserAction(
+      async () => {
+        await checkout(target)
+        toast.success(`Switched to ${target}`)
+      },
+      (error) => {
+        toast.error('Checkout failed', {
+          description: error instanceof Error ? error.message : String(error),
+        })
+      },
+    )
   }
 
   const handleOpenCreate = (): void => {
@@ -78,31 +82,42 @@ export function BranchSwitcher(): React.JSX.Element | null {
     setCreateOpen(true)
   }
 
-  const handleOpenChange = async (next: boolean): Promise<void> => {
+  const handleOpenChange = (next: boolean): void => {
     setOpen(next)
     if (!next) {
       setQuery('')
       return
     }
-    await refresh()
+    runUserAction(
+      () => refresh(),
+      (error) => {
+        toast.error('Could not refresh branches', {
+          description: error instanceof Error ? error.message : String(error),
+        })
+      },
+    )
   }
 
-  const handleCreate = async (): Promise<void> => {
+  const handleCreate = (): void => {
     const name = newName.trim()
     if (name === '' || creating) return
     setCreating(true)
     // git is the validator — no client-side name regex (see the checkout philosophy).
-    try {
-      await createBranch(name)
-      setCreateOpen(false)
-      toast.success(`Created ${name}`)
-    } catch (error) {
-      toast.error('Create branch failed', {
-        description: error instanceof Error ? error.message : String(error),
-      })
-    } finally {
-      setCreating(false)
-    }
+    runUserAction(
+      async () => {
+        await createBranch(name)
+        setCreateOpen(false)
+        toast.success(`Created ${name}`)
+      },
+      (error) => {
+        toast.error('Create branch failed', {
+          description: error instanceof Error ? error.message : String(error),
+        })
+      },
+      () => {
+        setCreating(false)
+      },
+    )
   }
 
   return (
@@ -201,6 +216,7 @@ export function BranchSwitcher(): React.JSX.Element | null {
             onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>): void => {
               if (e.key === 'Enter') {
                 e.preventDefault()
+                // handleCreate is total void (toast + creating guard).
                 handleCreate()
               }
             }}

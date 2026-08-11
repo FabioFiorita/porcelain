@@ -1,3 +1,5 @@
+import { settleBackground } from '@shared/background'
+
 // This order mirrors GhosttyKey in ghostty/vt/key/event.h. The values are
 // intentionally derived from the official W3C-aligned enum instead of
 // maintaining a second keyboard protocol.
@@ -218,6 +220,32 @@ const shiftedToUnshiftedCharacter = new Map<string, string>([
 
 let keyboardLayoutMapPromise: Promise<GhosttyKeyboardLayoutMap | undefined> | undefined
 
+/**
+ * The layout map is an optional enhancement: without it the shifted/unshifted tables
+ * below answer for a US layout, so a rejection resolves to `undefined` rather than
+ * failing the caller.
+ */
+async function readKeyboardLayoutMap(
+  getLayoutMap: () => Promise<GhosttyKeyboardLayoutMap>,
+): Promise<GhosttyKeyboardLayoutMap | undefined> {
+  try {
+    return await getLayoutMap()
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * Hand the layout map to `adopt` once it resolves. The loader above is total, so this
+ * is a settled background warm-up: callers keep encoding from browser event codes until
+ * (and unless) a map arrives.
+ */
+export function onGhosttyKeyboardLayoutMap(
+  adopt: (layoutMap: GhosttyKeyboardLayoutMap | undefined) => void,
+): void {
+  settleBackground(loadGhosttyKeyboardLayoutMap().then(adopt), 'fallback')
+}
+
 export function loadGhosttyKeyboardLayoutMap(): Promise<GhosttyKeyboardLayoutMap | undefined> {
   if (keyboardLayoutMapPromise) return keyboardLayoutMapPromise
   const browserNavigator = globalThis.navigator as
@@ -228,7 +256,10 @@ export function loadGhosttyKeyboardLayoutMap(): Promise<GhosttyKeyboardLayoutMap
       })
     | undefined
   const keyboard = browserNavigator?.keyboard
-  const promise = keyboard?.getLayoutMap().catch(() => undefined) ?? Promise.resolve(undefined)
+  const promise =
+    keyboard === undefined
+      ? Promise.resolve(undefined)
+      : readKeyboardLayoutMap(() => keyboard.getLayoutMap())
   keyboardLayoutMapPromise = promise
   return promise
 }

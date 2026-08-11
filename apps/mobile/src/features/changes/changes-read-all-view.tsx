@@ -1,5 +1,4 @@
 import { ReadAllView } from '@/features/diff/read-all-view'
-
 import type { ChangesScope } from './changes-store'
 import { readingScopeFor, useReviewedPaths, useToggleReviewed } from './use-changes'
 
@@ -28,6 +27,7 @@ export function ChangesReadAllView({
       active={active}
       context={scope === 'branch' ? `Branch range · vs ${base ?? 'base'}` : 'Working tree'}
       reviewed={{
+        // mark/unmark are total void (React Query owns error + pending).
         onToggle: (path, next) => {
           if (next) mark(path)
           else unmark(path)

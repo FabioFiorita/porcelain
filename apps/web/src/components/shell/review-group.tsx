@@ -29,6 +29,7 @@ import { reviewOutlineFiles } from '@renderer/lib/review-lifecycle'
 import { openFeatureReview } from '@renderer/lib/surface-handoffs'
 import { cn } from '@renderer/lib/utils'
 import { type ReviewFocusSection, useReviewFocusStore } from '@renderer/stores/review-focus'
+import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
 import { Archive, Trash2 } from 'lucide-react'
 import { useState } from 'react'
@@ -87,14 +88,17 @@ export function ReviewGroup(): React.JSX.Element | null {
   const [clearError, setClearError] = useState<string | null>(null)
   const [archiveError, setArchiveError] = useState<string | null>(null)
 
-  const handleRunClear = async (): Promise<void> => {
-    setClearError(null)
-    try {
-      await clear()
-      setConfirmClearOpen(false)
-    } catch (e) {
-      setClearError(e instanceof Error ? e.message : String(e))
-    }
+  const handleRunClear = (): void => {
+    runUserAction(
+      async () => {
+        setClearError(null)
+        await clear()
+        setConfirmClearOpen(false)
+      },
+      (e) => {
+        setClearError(e instanceof Error ? e.message : String(e))
+      },
+    )
   }
 
   // Always rendered — the section is where archived units land, so it has to be
@@ -119,14 +123,17 @@ export function ReviewGroup(): React.JSX.Element | null {
               className="min-w-0 flex-1 text-left"
               data-testid={TestIds.previousReviewRestore(row.id)}
               disabled={isBusy}
-              onClick={async () => {
-                setArchiveError(null)
-                try {
-                  await restore(row.id)
-                  openFeatureReview()
-                } catch (e) {
-                  setArchiveError(e instanceof Error ? e.message : String(e))
-                }
+              onClick={() => {
+                runUserAction(
+                  async () => {
+                    setArchiveError(null)
+                    await restore(row.id)
+                    openFeatureReview()
+                  },
+                  (e) => {
+                    setArchiveError(e instanceof Error ? e.message : String(e))
+                  },
+                )
               }}
             >
               <span className="block truncate text-xs font-medium">{row.name}</span>
@@ -145,13 +152,16 @@ export function ReviewGroup(): React.JSX.Element | null {
               data-testid={TestIds.previousReviewDelete(row.id)}
               disabled={isBusy}
               aria-label={`Delete archived review ${row.name}`}
-              onClick={async () => {
-                setArchiveError(null)
-                try {
-                  await remove(row.id)
-                } catch (e) {
-                  setArchiveError(e instanceof Error ? e.message : String(e))
-                }
+              onClick={() => {
+                runUserAction(
+                  async () => {
+                    setArchiveError(null)
+                    await remove(row.id)
+                  },
+                  (e) => {
+                    setArchiveError(e instanceof Error ? e.message : String(e))
+                  },
+                )
               }}
             >
               <Trash2 className="size-3.5" />
@@ -255,8 +265,8 @@ export function ReviewGroup(): React.JSX.Element | null {
               <AlertDialogAction
                 variant="destructive"
                 disabled={isClearing}
-                onClick={async () => {
-                  await handleRunClear()
+                onClick={() => {
+                  handleRunClear()
                 }}
                 aria-label="Confirm archive review and evidence"
               >

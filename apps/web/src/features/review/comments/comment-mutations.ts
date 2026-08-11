@@ -58,6 +58,18 @@ function mutationErrorMessage(error: unknown): string {
 
 const mutationQueues = new WeakMap<QueryClient, Map<string, Promise<void>>>()
 
+/**
+ * Queue tail: sequencing only. The rejection belongs to whoever awaits the returned
+ * `result`; the stored tail must settle either way so the next mutation still runs.
+ */
+async function queueTail(promise: Promise<unknown>): Promise<void> {
+  try {
+    await promise
+  } catch {
+    // Already owned by the caller awaiting `result` — the queue only needs the order.
+  }
+}
+
 function enqueueCommentMutation<T>(
   queryClient: QueryClient,
   queueKey: string,
@@ -70,13 +82,7 @@ function enqueueCommentMutation<T>(
   }
   const previous = queues.get(queueKey) ?? Promise.resolve()
   const result = previous.then(run, run)
-  queues.set(
-    queueKey,
-    result.then(
-      () => undefined,
-      () => undefined,
-    ),
-  )
+  queues.set(queueKey, queueTail(result))
   return result
 }
 

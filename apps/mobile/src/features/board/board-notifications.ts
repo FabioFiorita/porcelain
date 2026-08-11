@@ -1,6 +1,7 @@
 import { boardNotificationEffects } from '@porcelain/client-runtime/board'
 import type { FreshnessRequirement } from '@porcelain/client-runtime/session/recovery'
 import type { BoardChanged } from '@porcelain/contracts/board'
+import { settleBackground } from '@porcelain/shared/background'
 import type { QueryClient } from '@tanstack/react-query'
 
 import { boardCardsQueryKeyForIdentity } from './board-query-key'
@@ -24,11 +25,14 @@ export function applyBoardNotification(
   options: ApplyBoardNotificationOptions,
 ): void {
   for (const identity of boardNotificationEffects(notification)) {
-    // Fire-and-forget: notification handlers must not block the session subscriber.
-    options.queryClient.invalidateQueries({
-      queryKey: boardCardsQueryKeyForIdentity(options.environmentId, identity),
-      exact: true,
-    })
+    // Sync notification edge: settle in the background; query errors surface on refetch.
+    settleBackground(
+      options.queryClient.invalidateQueries({
+        queryKey: boardCardsQueryKeyForIdentity(options.environmentId, identity),
+        exact: true,
+      }),
+      'notification',
+    )
   }
 }
 

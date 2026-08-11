@@ -8,6 +8,7 @@ import { type QuickCommandId, useQuickCommand } from '@renderer/hooks/use-commit
 import { useGitSuggestions } from '@renderer/hooks/use-git-flow'
 import { compactButtonClass } from '@renderer/lib/controls'
 import { cn } from '@renderer/lib/utils'
+import { runUserAction } from '@shared/background'
 import {
   Archive,
   ArchiveRestore,
@@ -87,21 +88,26 @@ export function QuickCommandsGroup(): React.JSX.Element {
   const runCommand = useQuickCommand()
   const suggestions = useGitSuggestions()
 
-  const handleRun = async (command: { id: QuickCommandId; label: string }): Promise<void> => {
+  const handleRun = (command: { id: QuickCommandId; label: string }): void => {
     if (running) return
     setRunning(command.id)
-    try {
-      const output = await runCommand(command.id)
-      setResult({ label: command.label, output: output || '(no output)', failed: false })
-    } catch (error) {
-      setResult({
-        label: command.label,
-        output: error instanceof Error ? error.message : String(error),
-        failed: true,
-      })
-    } finally {
-      setRunning(null)
-    }
+    // Failure is not silent: it renders in the ResultCard rather than a toast.
+    runUserAction(
+      async () => {
+        const output = await runCommand(command.id)
+        setResult({ label: command.label, output: output || '(no output)', failed: false })
+      },
+      (error) => {
+        setResult({
+          label: command.label,
+          output: error instanceof Error ? error.message : String(error),
+          failed: true,
+        })
+      },
+      () => {
+        setRunning(null)
+      },
+    )
   }
 
   return (

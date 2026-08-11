@@ -1,6 +1,7 @@
 import { TerminalContextMenu } from '@renderer/components/terminal/terminal-context-menu'
 import { TerminalKeyBar } from '@renderer/components/terminal/terminal-key-bar'
 import { TerminalSelectionToolbar } from '@renderer/components/terminal/terminal-selection-toolbar'
+import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { useResolvedTheme } from '@renderer/hooks/use-theme'
 import { isCoarseTouch } from '@renderer/lib/platform'
 import {
@@ -11,6 +12,7 @@ import {
   focusTerminal,
   TERMINAL_THEMES,
 } from '@renderer/lib/terminal-registry'
+import { runUserAction } from '@shared/background'
 import { useEffect, useRef } from 'react'
 
 /** Squared px movement above this = pan (scroll), not a tap that should raise the keyboard. */
@@ -96,10 +98,15 @@ export function TerminalView({ sessionId }: { sessionId: string }): React.JSX.El
           onDragOver={(event) => {
             if (event.dataTransfer.types.includes('Files')) event.preventDefault()
           }}
-          onDrop={async (event) => {
+          onDrop={(event) => {
             if (event.dataTransfer.files.length === 0) return
             event.preventDefault()
-            await attachTerminalFiles(sessionId, Array.from(event.dataTransfer.files))
+            runUserAction(
+              () => attachTerminalFiles(sessionId, Array.from(event.dataTransfer.files)),
+              (error) => {
+                toastUserActionError('Attach file', error)
+              },
+            )
           }}
         >
           <TerminalSelectionToolbar sessionId={sessionId} />

@@ -7,7 +7,7 @@ export function installAppMenu(): void {
   const isMac = resolvePlatform() === 'darwin'
 
   // dev-only items typed via an annotated const so the role strings stay
-  // contextually typed (NO casts — 'as'/'as unknown as' are banned repo-wide).
+  // contextually typed (NO casts — 'as'/'as unknown as' are banned in lint-escapes scan roots).
   const devViewItems: MenuItemConstructorOptions[] = is.dev
     ? [
         { role: 'reload' },

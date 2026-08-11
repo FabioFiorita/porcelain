@@ -1,6 +1,6 @@
 import type { EvidenceAsset, EvidenceAssetBody } from '@backend/review/evidence-assets-list'
 import type { Evidence } from '@backend/stores/evidence-store'
-import { onMutationError } from '@renderer/hooks/mutation-error'
+import { invalidateAfterSuccess, onMutationError } from '@renderer/hooks/mutation-error'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 
@@ -66,13 +66,18 @@ export function useClearEvidence(): { clear: () => Promise<void>; isClearing: bo
     clear: async () => {
       if (!repo) return
       await mutation.mutateAsync(repo.path)
-      await Promise.all([
-        utils.loopEvidence.invalidate(),
-        utils.loopEvidenceHtml.invalidate(),
-        utils.reviewEvidenceDocs.invalidate(),
-        utils.reviewEvidenceAssets.invalidate(),
-        utils.featureReading.invalidate(),
-      ])
+      // The delete is durable once the mutation resolves; a failed refresh must not
+      // read as a failed clear, so it degrades to a "UI may be stale" toast.
+      await invalidateAfterSuccess(
+        [
+          utils.loopEvidence.invalidate(),
+          utils.loopEvidenceHtml.invalidate(),
+          utils.reviewEvidenceDocs.invalidate(),
+          utils.reviewEvidenceAssets.invalidate(),
+          utils.featureReading.invalidate(),
+        ],
+        'Clear evidence',
+      )
     },
     isClearing: mutation.isPending,
   }

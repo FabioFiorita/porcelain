@@ -1,5 +1,5 @@
+import { runUserAction } from '@porcelain/shared/background'
 import { useState } from 'react'
-
 import { useConnectionState } from '@/lib/daemon/environments-store'
 import { gitFlowQuery } from '@/lib/daemon/procedures/changes'
 import {
@@ -71,13 +71,27 @@ function failureText(label: string, cause: unknown): string {
  */
 function useWriteFailure(): {
   failure: string | null
-  run: (label: string, work: () => Promise<unknown>) => Promise<boolean>
+  /**
+   * Total void write for sync UI edges: catches into `failure`.
+   * Callers that need a success boolean (saved flash) use {@link runAsync}.
+   */
+  run: (label: string, work: () => Promise<unknown>) => void
+  runAsync: (label: string, work: () => Promise<unknown>) => Promise<boolean>
 } {
   const [failure, setFailure] = useState<string | null>(null)
 
   return {
     failure,
-    run: async (label, work): Promise<boolean> => {
+    run: (label, work): void => {
+      setFailure(null)
+      runUserAction(
+        () => work(),
+        (cause: unknown) => {
+          setFailure(failureText(label, cause))
+        },
+      )
+    },
+    runAsync: async (label, work): Promise<boolean> => {
       setFailure(null)
       try {
         await work()
@@ -104,8 +118,8 @@ export type CompanionData = {
    * the panel keeps no copy of it, so a second flip cannot leave a stale line on screen.
    */
   untracked: readonly string[]
-  setDisposition: (key: string, disposition: 'shared' | 'local') => Promise<boolean>
-  setVisibility: (hidden: boolean) => Promise<boolean>
+  setDisposition: (key: string, disposition: 'shared' | 'local') => void
+  setVisibility: (hidden: boolean) => void
 }
 
 /** Settings › Data — the repo companion dispositions, and what git can see of them. */
@@ -127,12 +141,14 @@ export function useCompanionData(repoPath: string): CompanionData {
     hidden: visibility.data?.hidden === true,
     isLoading: dispositions.isLoading,
     isPending: setDisposition.isPending || setVisibility.isPending,
-    setDisposition: (key, disposition) =>
+    setDisposition: (key, disposition): void => {
       run('Could not change what git carries', () =>
         setDisposition.mutateAsync({ disposition, key, repoPath }),
-      ),
-    setVisibility: (hidden) =>
-      run('Could not change git visibility', () => setVisibility.mutateAsync({ hidden, repoPath })),
+      )
+    },
+    setVisibility: (hidden): void => {
+      run('Could not change git visibility', () => setVisibility.mutateAsync({ hidden, repoPath }))
+    },
     untracked: setDisposition.data?.untracked ?? [],
   }
 }
@@ -180,7 +196,7 @@ export function useReviewLayers(repoPath: string): ReviewLayers {
   const saveLayers = useDaemonMutation(setRepoLayersMutation, {
     invalidates: REVIEW_LAYER_INVALIDATIONS,
   })
-  const { failure, run } = useWriteFailure()
+  const { failure, runAsync } = useWriteFailure()
 
   return {
     changedPaths: (flow.data ?? []).flatMap((group) => group.files.map((file) => file.path)),
@@ -191,7 +207,7 @@ export function useReviewLayers(repoPath: string): ReviewLayers {
     isStarter: layers.data !== undefined && !layers.data.custom,
     layers: layers.data?.layers,
     save: (next) =>
-      run('Could not save layers', () =>
+      runAsync('Could not save layers', () =>
         saveLayers.mutateAsync({
           layers: next === null ? null : next.map(({ label, pattern }) => ({ label, pattern })),
           repoPath,

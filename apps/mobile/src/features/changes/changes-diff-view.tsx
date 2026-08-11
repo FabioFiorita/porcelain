@@ -1,6 +1,5 @@
 import { DiffView } from '@/features/diff/diff-view'
 import { changesDiffSource } from '@/features/diff/use-diff'
-
 import { useReviewedPaths, useToggleReviewed } from './use-changes'
 
 /**
@@ -36,6 +35,7 @@ export function ChangesDiffView({
       filePath={filePath}
       reviewed={{
         isReviewed,
+        // mark/unmark are total void (React Query owns error + pending).
         onToggle: () => {
           if (isReviewed) unmark(filePath)
           else mark(filePath)

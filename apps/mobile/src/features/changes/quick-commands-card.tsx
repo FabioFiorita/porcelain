@@ -1,6 +1,6 @@
+import { runUserAction } from '@porcelain/shared/background'
 import { useState } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
-
 import { ChromeGlyph, type ChromeIconName } from '@/components/chrome-glyph'
 import { PanelLabel } from '@/components/panel-chrome'
 import { PANEL_CARD } from '@/components/surface-layout'
@@ -31,26 +31,30 @@ export function QuickCommandsCard({ active }: { active: boolean }): React.JSX.El
   const [running, setRunning] = useState<QuickCommandId | null>(null)
   const [result, setResult] = useState<CommandResult | null>(null)
 
-  const handleRun = async (command: QuickCommandId): Promise<void> => {
+  const handleRun = (command: QuickCommandId): void => {
     if (isRunning) return
     setRunning(command)
     setResult(null)
-    try {
-      const output = await runCommand(command)
-      setResult({
-        failed: false,
-        label: COMMAND_FACES[command].label,
-        output: output === '' ? '(no output)' : output,
-      })
-    } catch (cause) {
-      setResult({
-        failed: true,
-        label: COMMAND_FACES[command].label,
-        output: cause instanceof Error ? cause.message : String(cause),
-      })
-    } finally {
-      setRunning(null)
-    }
+    runUserAction(
+      async () => {
+        const output = await runCommand(command)
+        setResult({
+          failed: false,
+          label: COMMAND_FACES[command].label,
+          output: output === '' ? '(no output)' : output,
+        })
+      },
+      (cause) => {
+        setResult({
+          failed: true,
+          label: COMMAND_FACES[command].label,
+          output: cause instanceof Error ? cause.message : String(cause),
+        })
+      },
+      () => {
+        setRunning(null)
+      },
+    )
   }
 
   return (

@@ -9,6 +9,7 @@ import { receiveData, receiveExit, receiveScrollback } from '@renderer/lib/termi
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 import { type TerminalSession, useTerminalsStore } from '@renderer/stores/terminals'
+import { settleBackground } from '@shared/background'
 import { useEffect } from 'react'
 
 /**
@@ -95,18 +96,16 @@ export function useTerminalChannel(): void {
       // Fire-and-forget: the scrollback replays through onTerminalScrollback → the
       // registry. The promise result (found/state) isn't needed here — the roster
       // already carries status, and an unknown id (found=false) just replays nothing.
-      primary.attachTerminal(session.id).catch(() => {
-        // A dropped socket rejects the attach (lib/daemon drops the id on reject); the
-        // next roster refetch after reconnect re-attaches it.
-      })
+      // A dropped socket rejects the attach (lib/daemon drops the id on reject); the
+      // next roster refetch after reconnect re-attaches it.
+      settleBackground(primary.attachTerminal(session.id), 'lifecycle')
     }
     const local = localDaemonSession()
     if (local === null) return
     for (const session of localSessions) {
       if (local.isTerminalAttached(session.id)) continue
-      local.attachTerminal(session.id).catch(() => {
-        // Same as above — the next poll re-attaches after a reconnect.
-      })
+      // Same as above — the next poll re-attaches after a reconnect.
+      settleBackground(local.attachTerminal(session.id), 'lifecycle')
     }
   }, [repoPath, sessions, localSessions, hydrate])
 }

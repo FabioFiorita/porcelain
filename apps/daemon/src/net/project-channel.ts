@@ -44,7 +44,9 @@ export function createProjectChannel<T>(opts: {
       const parsed = opts.schema.parse(JSON.parse(raw))
       return opts.transform ? opts.transform(parsed) : parsed
     } catch {
-      await rename(p, `${p}.corrupt-${Date.now()}`).catch(() => {})
+      await rename(p, `${p}.corrupt-${Date.now()}`).catch((error: unknown) => {
+        console.error(`porcelain: could not back up unparseable ${p}:`, error)
+      })
       return opts.empty()
     }
   }
@@ -103,12 +105,11 @@ export function createProjectChannel<T>(opts: {
       const next = fn(current)
       await write(repoPath, next ?? current)
     })
+    // The caller owns `run`'s rejection; this tail only keeps the chain alive so a
+    // failed mutation never blocks the next one.
     chains.set(
       repoPath,
-      run.then(
-        () => undefined,
-        () => undefined,
-      ),
+      Promise.allSettled([run]).then(() => undefined),
     )
     return run
   }
@@ -143,7 +144,12 @@ export async function writeProjectText(
   const p = projectPorcelainPath(repoPath, fileName)
   if (text === '') {
     // Drop empty notes so the tree stays tidy.
-    await unlink(p).catch(() => {})
+    await unlink(p).catch((error: unknown) => {
+      // Never written is the common case; anything else is worth seeing.
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        console.error(`porcelain: could not remove empty ${p}:`, error)
+      }
+    })
     return
   }
   const tmp = `${p}.tmp`

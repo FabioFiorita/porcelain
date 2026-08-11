@@ -7,11 +7,13 @@ import {
   ContextMenuTrigger,
 } from '@renderer/components/ui/context-menu'
 import { Kbd } from '@renderer/components/ui/kbd'
+import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { kbdLabel } from '@renderer/lib/keyboard'
 import { type LineSelection, lineSelectionFromDom } from '@renderer/lib/line-selection'
 import { isBrowser } from '@renderer/lib/platform'
 import { copyText } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
+import { runUserAction } from '@shared/background'
 import {
   Compass,
   Copy,
@@ -67,7 +69,16 @@ export function SourceContextMenu({
         <ContextMenuContent className="w-56">
           {selection !== '' ? (
             <>
-              <ContextMenuItem onClick={() => copyText(selection)}>
+              <ContextMenuItem
+                onClick={() => {
+                  runUserAction(
+                    () => copyText(selection),
+                    (error) => {
+                      toastUserActionError('Copy', error)
+                    },
+                  )
+                }}
+              >
                 <Copy /> Copy
                 <ContextMenuShortcut>
                   <Kbd>{kbdLabel('mod', 'C')}</Kbd>
@@ -97,17 +108,29 @@ export function SourceContextMenu({
                 <MessageSquarePlus /> Comment on file
               </ContextMenuItem>
               <ContextMenuSeparator />
-              <ContextMenuItem onClick={copyPath}>
+              <ContextMenuItem
+                onClick={() => {
+                  copyPath()
+                }}
+              >
                 <Link2 /> Copy path
               </ContextMenuItem>
-              <ContextMenuItem onClick={copyRelativePath}>
+              <ContextMenuItem
+                onClick={() => {
+                  copyRelativePath()
+                }}
+              >
                 <FileSymlink /> Copy relative path
               </ContextMenuItem>
               {/* Reveal in Finder is a shell-only action — hidden in the browser client. */}
               {!isBrowser && (
                 <>
                   <ContextMenuSeparator />
-                  <ContextMenuItem onClick={reveal}>
+                  <ContextMenuItem
+                    onClick={() => {
+                      reveal()
+                    }}
+                  >
                     <FolderOpen /> Reveal in Finder
                   </ContextMenuItem>
                 </>

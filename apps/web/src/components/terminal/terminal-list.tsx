@@ -17,6 +17,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@renderer/components/ui/dropdown-menu'
+import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import { useLocalDaemon, useLocalTerminalPath } from '@renderer/hooks/use-local-terminal'
 import { spawnLocalTerminal, spawnTerminal } from '@renderer/lib/terminal-actions'
@@ -24,6 +25,7 @@ import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { useTerminalsStore } from '@renderer/stores/terminals'
+import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
 import { Cloud, FolderPen, Monitor, PenLine, Plus, SquareTerminal, X } from 'lucide-react'
 import { useState } from 'react'
@@ -63,13 +65,27 @@ export function TerminalList(): React.JSX.Element {
   // Path dialog: 'spawn' also opens a terminal after save; 'edit' only updates the map.
   const [mappingMode, setMappingMode] = useState<LocalPathDialogMode | null>(null)
 
-  const handleSpawnLocal = async (): Promise<void> => {
+  const handleSpawnLocal = (): void => {
     if (!repo) return
     if (mappedLocalPath == null || mappedLocalPath === '') {
       setMappingMode('spawn')
       return
     }
-    await spawnLocalTerminal(mappedLocalPath)
+    runUserAction(
+      () => spawnLocalTerminal(mappedLocalPath),
+      (error) => {
+        toastUserActionError('Open local terminal', error)
+      },
+    )
+  }
+
+  const handleSpawnRemote = (): void => {
+    runUserAction(
+      () => spawnTerminal(),
+      (error) => {
+        toastUserActionError('Open terminal', error)
+      },
+    )
   }
 
   const handleOpen = (id: string, name: string): void => {
@@ -121,7 +137,10 @@ export function TerminalList(): React.JSX.Element {
                 }
               />
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={spawnTerminal} data-testid={TestIds.terminalNewRemote}>
+                <DropdownMenuItem
+                  onClick={handleSpawnRemote}
+                  data-testid={TestIds.terminalNewRemote}
+                >
                   <Cloud />
                   {identity.host ?? 'This window’s machine'}
                 </DropdownMenuItem>
@@ -135,7 +154,7 @@ export function TerminalList(): React.JSX.Element {
             <Button
               variant="ghost"
               size="icon-sm"
-              onClick={spawnTerminal}
+              onClick={handleSpawnRemote}
               aria-label="New terminal"
               data-testid={TestIds.terminalNew}
               disabled={!repo}
@@ -237,7 +256,14 @@ export function TerminalList(): React.JSX.Element {
           // hasn't landed yet). Edit mode only updates the map — the human asked for a
           // setting, not a shell.
           onSaved={(localPath: string): void => {
-            if (mappingMode === 'spawn') spawnLocalTerminal(localPath)
+            if (mappingMode === 'spawn') {
+              runUserAction(
+                () => spawnLocalTerminal(localPath),
+                (error) => {
+                  toastUserActionError('Open local terminal', error)
+                },
+              )
+            }
           }}
           onClose={() => setMappingMode(null)}
         />

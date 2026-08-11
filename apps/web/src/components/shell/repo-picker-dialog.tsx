@@ -8,6 +8,7 @@ import {
   DialogTitle,
 } from '@renderer/components/ui/dialog'
 import { ScrollArea } from '@renderer/components/ui/scroll-area'
+import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { useBrowseDirs } from '@renderer/hooks/use-browse'
 import { useRemoteEnvironments } from '@renderer/hooks/use-remote-daemon'
 import { rowActionClass } from '@renderer/lib/controls'
@@ -16,6 +17,7 @@ import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useRepoPickerStore } from '@renderer/stores/repo-picker'
 import { useSettingsDialogStore } from '@renderer/stores/settings-dialog'
+import { runUserAction } from '@shared/background'
 import { CornerLeftUp, Folder, FolderGit2 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -62,9 +64,16 @@ function RepoPicker({ onClose }: { onClose: () => void }): React.JSX.Element {
 
   // openRepoPath is a store action (the sanctioned cross-store call from a component);
   // it records the recent + warms the file list daemon-side, then this dialog closes.
-  const handleOpen = async (target: string): Promise<void> => {
-    await useRepoStore.getState().openRepoPath(target)
-    onClose()
+  const handleOpen = (target: string): void => {
+    runUserAction(
+      async () => {
+        await useRepoStore.getState().openRepoPath(target)
+        onClose()
+      },
+      (error) => {
+        toastUserActionError('Open repository', error)
+      },
+    )
   }
 
   const currentPath = result?.path ?? ''

@@ -14,7 +14,7 @@ import { FeatureList } from './feature-list'
 vi.mock('@renderer/hooks/use-feature-reading', () => ({
   useFeatureReading: vi.fn(),
 }))
-vi.mock('@renderer/hooks/use-diff', () => ({ useDiffFilePrefetch: () => async () => {} }))
+vi.mock('@renderer/hooks/use-diff', () => ({ useDiffFileHoverPrefetch: () => () => {} }))
 // FeatureList mounts CommentComposer (right-click → "Comment on file"), which uses the
 // comment hook — mock the domain hook, never the tRPC proxy (the component-test rule).
 vi.mock('@renderer/features/review/comments', () => ({

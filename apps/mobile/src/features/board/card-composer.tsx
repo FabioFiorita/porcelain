@@ -1,14 +1,13 @@
 import type { BoardStatus } from '@porcelain/contracts/board'
+import { runUserAction } from '@porcelain/shared/background'
 import { useEffect, useState } from 'react'
 import { Text, View } from 'react-native'
-
 import { SegmentedControl } from '@/components/segmented-control'
 import { ShellModal, useShellModalSize } from '@/components/shell-modal'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Text as UiText } from '@/components/ui/text'
 import { Textarea } from '@/components/ui/textarea'
-
 import { BOARD_COLUMNS, useBoardCardActions } from './board-data'
 import { type ComposerHost, useBoardStore } from './board-store'
 
@@ -42,27 +41,31 @@ export function CardComposer({ host }: { host: ComposerHost }): React.JSX.Elemen
     setError(null)
   }, [draft, host])
 
-  const handleSave = async (): Promise<void> => {
+  const handleSave = (): void => {
     if (draft === null || title.trim() === '' || saving) return
     setSaving(true)
     setError(null)
-    try {
-      if (draft.id === undefined) {
-        await add({
-          status,
-          title: title.trim(),
-          ...(body.trim() === '' ? {} : { body: body.trim() }),
-        })
-      } else {
-        await update(draft.id, { body: body.trim(), title: title.trim() })
-        if (status !== draft.status) await move(draft.id, status)
-      }
-      close()
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not save the card.')
-    } finally {
-      setSaving(false)
-    }
+    runUserAction(
+      async () => {
+        if (draft.id === undefined) {
+          await add({
+            status,
+            title: title.trim(),
+            ...(body.trim() === '' ? {} : { body: body.trim() }),
+          })
+        } else {
+          await update(draft.id, { body: body.trim(), title: title.trim() })
+          if (status !== draft.status) await move(draft.id, status)
+        }
+        close()
+      },
+      (cause) => {
+        setError(cause instanceof Error ? cause.message : 'Could not save the card.')
+      },
+      () => {
+        setSaving(false)
+      },
+    )
   }
 
   return (

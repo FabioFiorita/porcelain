@@ -86,6 +86,15 @@ describe('describeConnection', () => {
       'Connecting… · 1 connection',
     )
   })
+
+  it('surfaces revoked-token cleanup failure in the environments list', () => {
+    expect(
+      describeConnection(environment(), true, {
+        kind: 'unauthorized',
+        cleanupError: 'secure store locked',
+      }),
+    ).toBe('Token rejected · credential cleanup failed · 1 connection')
+  })
 })
 
 describe('promotedOrder', () => {

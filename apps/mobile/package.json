@@ -5,6 +5,7 @@
   "dependencies": {
     "@porcelain/client-runtime": "workspace:*",
     "@porcelain/contracts": "workspace:*",
+    "@porcelain/shared": "workspace:*",
     "@porcelain/mobile-terminal-native": "file:./modules/porcelain-terminal",
     "@porcelain/ui": "workspace:*",
     "@rn-primitives/collapsible": "^1.5.2",

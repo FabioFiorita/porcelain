@@ -1,4 +1,5 @@
 import { type CommitModel, commitModelSchema } from '@porcelain/contracts'
+import { settleBackground } from '@porcelain/shared/background'
 import * as SecureStore from 'expo-secure-store'
 import { Appearance, type ColorSchemeName } from 'react-native'
 import { colorScheme as cssColorScheme } from 'react-native-css/native'
@@ -106,10 +107,9 @@ export const usePreferencesStore = create<PreferencesState>()((set, get) => {
    */
   const save = (): void => {
     if (!get().hydrated) return
-    persist(slicePrefs(get())).catch(() => {
-      // A preference is a convenience, not a credential: a failed write is not worth a dialog,
-      // and the value is already live in memory for this session.
-    })
+    // A preference is a convenience, not a credential: a failed write is not worth a dialog,
+    // and the value is already live in memory for this session.
+    settleBackground(persist(slicePrefs(get())), 'fallback')
   }
 
   return {

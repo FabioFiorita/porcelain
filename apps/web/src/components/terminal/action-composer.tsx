@@ -10,8 +10,10 @@ import {
 import { Input } from '@renderer/components/ui/input'
 import { Textarea } from '@renderer/components/ui/textarea'
 import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-group'
+import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { useActionMutations } from '@renderer/hooks/use-actions'
 import { kbdLabel } from '@renderer/lib/keyboard'
+import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
 import { Cloud, Monitor } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -61,32 +63,38 @@ export function ActionComposer({
     }
   }, [open, draft])
 
-  const handleSave = async (): Promise<void> => {
+  const handleSave = (): void => {
     if (!draft || title.trim() === '' || command.trim() === '' || saving) return
     setSaving(true)
-    try {
-      // Always send where on edit so switching back to primary clears a stored local.
-      const payload = {
-        title: title.trim(),
-        command: command.trim(),
-        where: showWhere ? where : 'primary',
-      }
-      if (draft.id) {
-        await update(draft.id, payload)
-      } else {
-        await add(payload)
-      }
-      onOpenChange(false)
-    } finally {
-      setSaving(false)
-    }
+    runUserAction(
+      async () => {
+        // Always send where on edit so switching back to primary clears a stored local.
+        const payload = {
+          title: title.trim(),
+          command: command.trim(),
+          where: showWhere ? where : 'primary',
+        }
+        if (draft.id) {
+          await update(draft.id, payload)
+        } else {
+          await add(payload)
+        }
+        onOpenChange(false)
+      },
+      (error) => {
+        toastUserActionError(draft.id ? 'Update action' : 'Add action', error)
+      },
+      () => {
+        setSaving(false)
+      },
+    )
   }
 
   // ⌘↵ and ⌘S both save, from any field.
-  const handleKeyDown = async (e: React.KeyboardEvent): Promise<void> => {
+  const handleKeyDown = (e: React.KeyboardEvent): void => {
     if ((e.metaKey || e.ctrlKey) && (e.key === 'Enter' || e.key.toLowerCase() === 's')) {
       e.preventDefault()
-      await handleSave()
+      handleSave()
     }
   }
 

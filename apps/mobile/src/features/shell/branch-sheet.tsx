@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Text as UiText } from '@/components/ui/text'
 import type { BranchRef, Worktree } from '@/lib/daemon/procedures/workspace'
-
 import { useBranchSheet } from './use-workspace'
 import { WorkspaceCreateForm } from './workspace-create-form'
 import { branchRowFacts, workspaceTestId } from './workspace-lists'

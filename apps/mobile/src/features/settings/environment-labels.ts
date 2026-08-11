@@ -64,7 +64,11 @@ export function describeConnection(
     case 'unreachable':
       return `Unreachable · ${routes}`
     case 'unauthorized':
-      return `Token rejected · ${routes}`
+      // cleanupError means the in-memory token is gone but secure-store deletion failed —
+      // surface the persisted-token risk in the environments list (production consumer).
+      return connection.cleanupError !== undefined
+        ? `Token rejected · credential cleanup failed · ${routes}`
+        : `Token rejected · ${routes}`
     case 'no-environment':
       return routes
   }

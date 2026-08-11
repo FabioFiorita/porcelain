@@ -20,11 +20,13 @@ export function AppThemeProvider({ children }: { children: React.ReactNode }): R
   }, [hydrate])
 
   // When preference is `system`, keep CSS/Appearance aligned with OS flips.
+  // `systemScheme` is the OS-flip signal from useColorScheme; applyTheme re-reads Appearance.
   useEffect(() => {
     if (!hydrated || theme !== 'system') return
-    // Read systemScheme so this re-runs when the OS appearance changes.
-    void systemScheme
-    applyTheme('system')
+    // Read the scheme so this dependency is live (null/light/dark all re-apply system).
+    if (systemScheme === 'dark' || systemScheme === 'light' || systemScheme == null) {
+      applyTheme('system')
+    }
   }, [hydrated, systemScheme, theme])
 
   const resolved: 'light' | 'dark' =

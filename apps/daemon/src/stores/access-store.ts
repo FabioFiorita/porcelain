@@ -101,7 +101,9 @@ async function readAccess(): Promise<AccessFile> {
     cached = { path, mtimeMs: fileStat.mtimeMs, size: fileStat.size, value }
     return value
   } catch {
-    await rename(path, `${path}.corrupt-${Date.now()}`).catch(() => {})
+    await rename(path, `${path}.corrupt-${Date.now()}`).catch((error: unknown) => {
+      console.error(`porcelain: could not back up unparseable ${path}:`, error)
+    })
     cached = null
     return emptyAccess()
   }
@@ -125,10 +127,9 @@ function mutateAccess<T>(fn: (value: AccessFile) => T | Promise<T>): Promise<T> 
     result = await fn(value)
     await writeAccess(value)
   })
-  mutationChain = run.then(
-    () => undefined,
-    () => undefined,
-  )
+  // The caller owns `run`'s rejection; this tail only keeps the chain alive so a
+  // failed mutation never blocks the next one.
+  mutationChain = Promise.allSettled([run]).then(() => undefined)
   return run.then(() => result)
 }
 

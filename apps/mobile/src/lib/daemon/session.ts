@@ -188,6 +188,11 @@ const adapter: SessionNativeAdapter = createSessionNativeAdapter({
     // can therefore move to LAN, Tailscale, or Funnel instead of backing off against one dead URL.
     if (everReady) await onClosed?.('refused')
   },
+  onTransportClosedFailure: (error, closeCode) => {
+    // Never silent-settle terminal close; revoke path owns unauthorized via goUnauthorized.
+    if (closeCode === REVOKED_CLOSE_CODE) return
+    failPending(error instanceof Error ? error.message : String(error))
+  },
 })
 
 function ensureOpen(): void {

@@ -9,6 +9,7 @@ import type { SessionConnectionStatus } from '@renderer/lib/session-browser-adap
 import { shellTrpcClient, trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 import { unreadTabFor, useUnreadStore } from '@renderer/stores/unread'
+import { settleBackground } from '@shared/background'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
@@ -165,15 +166,6 @@ export type SessionRuntimeState = {
 }
 
 /**
- * A refresh nobody awaits. Invalidation failure surfaces on the query that failed to refetch —
- * the UI already renders that error — so the only thing owed here is not leaving an unhandled
- * rejection behind a push notification.
- */
-function applyRefresh(refresh: Promise<unknown>): void {
-  refresh.catch(() => undefined)
-}
-
-/**
  * Bind React Query invalidation to a daemon session's runtime.
  *
  * Defaults to `primary` so the whole window shares one socket with terminal traffic.
@@ -240,15 +232,19 @@ export function useSessionRuntime({
       // (mark no-ops when that tab is already active).
       const tab = unreadTabFor(change)
       if (tab) useUnreadStore.getState().mark(tab)
-      applyRefresh(invalidateForChange(change, latest.current.utils))
+      // Invalidation failure surfaces on the query that failed to refetch — the UI
+      // already renders that error, so a push refresh owes nothing but not floating.
+      settleBackground(invalidateForChange(change, latest.current.utils), 'invalidation')
     })
     const offFreshness = session.onFreshnessRequired((requirement: FreshnessRequirement): void => {
-      applyRefresh(invalidateForRecovery(requirement, latest.current.utils))
+      settleBackground(invalidateForRecovery(requirement, latest.current.utils), 'invalidation')
     })
     // Socket died: a remote-bound window may need the shell to re-resolve the local child's
-    // route (port moved). Browser clients have no shell bridge.
+    // route (port moved). Browser clients have no shell bridge. Best-effort — failures stay silent.
     const offClose = session.onDaemonClose(() => {
-      if (!isBrowser) void shellTrpcClient.refreshRemoteEnvironment.query()
+      if (!isBrowser) {
+        settleBackground(shellTrpcClient.refreshRemoteEnvironment.query(), 'lifecycle')
+      }
     })
     return () => {
       offStatus()

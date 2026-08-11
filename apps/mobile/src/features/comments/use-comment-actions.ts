@@ -102,12 +102,11 @@ function enqueueCommentMutation<T>(
   }
   const previous = queues.get(queueKey) ?? Promise.resolve()
   const result = previous.then(run, run)
+  // The rejection belongs to the caller that got `result`; the queue only needs a settled
+  // tail so the next mutation on this key still runs.
   queues.set(
     queueKey,
-    result.then(
-      () => undefined,
-      () => undefined,
-    ),
+    Promise.allSettled([result]).then(() => undefined),
   )
   return result
 }

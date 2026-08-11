@@ -7,7 +7,7 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from '@renderer/components/ui/context-menu'
-import { useDiffFilePrefetch } from '@renderer/hooks/use-diff'
+import { useDiffFileHoverPrefetch } from '@renderer/hooks/use-diff'
 import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
 import { useReviewedPaths, useToggleReviewed } from '@renderer/hooks/use-reviewed'
 import { compactButtonClass } from '@renderer/lib/controls'
@@ -52,7 +52,7 @@ function OutlineFileRowImpl({
   onComment: (path: string) => void
 }): React.JSX.Element {
   const openTab = useTabsStore((s) => s.openTab)
-  const prefetchDiff = useDiffFilePrefetch()
+  const prefetchDiff = useDiffFileHoverPrefetch()
   const { mark, unmark } = useToggleReviewed()
   const name = fileName(file.path)
   const dir = dirName(file.path)
@@ -139,12 +139,12 @@ function OutlineFileRowImpl({
             </ContextMenuItem>
           )}
           {isReviewed ? (
-            <ContextMenuItem onClick={async () => unmark(file.path)}>
+            <ContextMenuItem onClick={() => unmark(file.path)}>
               <Square />
               Unmark reviewed
             </ContextMenuItem>
           ) : (
-            <ContextMenuItem onClick={async () => mark(file.path)}>
+            <ContextMenuItem onClick={() => mark(file.path)}>
               <SquareCheck />
               Mark reviewed
             </ContextMenuItem>

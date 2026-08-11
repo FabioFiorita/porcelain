@@ -3,7 +3,6 @@ import { Text, View } from 'react-native'
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { Button } from '@/components/ui/button'
 import { Text as UiText } from '@/components/ui/text'
-
 import { useWorktreeSheet } from './use-workspace'
 import { WorkspaceCreateForm } from './workspace-create-form'
 import { workspaceTestId } from './workspace-lists'

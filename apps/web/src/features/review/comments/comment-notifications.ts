@@ -3,6 +3,7 @@ import type { ReviewChanged } from '@porcelain/contracts/review'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import { primary } from '@renderer/lib/daemon'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
+import { settleBackground } from '@shared/background'
 import type { QueryClient } from '@tanstack/react-query'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
@@ -27,10 +28,14 @@ export function applyReviewCommentNotification(
   options: ApplyReviewCommentNotificationOptions,
 ): void {
   for (const identity of reviewCommentNotificationEffects(notification)) {
-    void options.queryClient.invalidateQueries({
-      queryKey: reviewCommentsQueryKey(options.daemon, identity),
-      exact: true,
-    })
+    // Sync notification edge: settle in the background; query errors surface on refetch.
+    settleBackground(
+      options.queryClient.invalidateQueries({
+        queryKey: reviewCommentsQueryKey(options.daemon, identity),
+        exact: true,
+      }),
+      'notification',
+    )
   }
 }
 

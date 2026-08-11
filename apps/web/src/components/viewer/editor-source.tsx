@@ -13,6 +13,7 @@ import { Kbd } from '@renderer/components/ui/kbd'
 import { CodeLine, useTokenizedLines } from '@renderer/components/viewer/code-line'
 import { ROW_HEIGHT } from '@renderer/components/viewer/virtual-rows'
 import { useWriteTextFile } from '@renderer/features/files'
+import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { languageFor } from '@renderer/lib/highlight'
 import { lineInHighlightRanges } from '@renderer/lib/highlight-ranges'
 import { kbdLabel } from '@renderer/lib/keyboard'
@@ -20,6 +21,7 @@ import { lineRangeFromOffsets } from '@renderer/lib/line-selection'
 import { cn, copyText } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
+import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
 import {
   ClipboardPaste,
@@ -179,12 +181,19 @@ export function EditorSource({
     return el.value.slice(el.selectionStart, el.selectionEnd)
   }
 
-  const handlePaste = async (): Promise<void> => {
+  const handlePaste = (): void => {
     // readText has no insecure-context polyfill (tailnet browser client). When it's
     // absent, no-op: the browser's native paste event still delivers the text and
     // Cmd/Ctrl+V keeps working — only this context-menu Paste item goes quiet.
     if (!navigator.clipboard?.readText) return
-    insertAtCursor(await navigator.clipboard.readText())
+    runUserAction(
+      async () => {
+        insertAtCursor(await navigator.clipboard.readText())
+      },
+      (error) => {
+        toastUserActionError('Paste', error)
+      },
+    )
   }
 
   const dirty = content !== savedContent
@@ -305,9 +314,16 @@ export function EditorSource({
         <ContextMenuContent className="w-60">
           <ContextMenuItem
             disabled={selection === ''}
-            onClick={async () => {
-              await copyText(selection)
-              insertAtCursor('')
+            onClick={() => {
+              runUserAction(
+                async () => {
+                  await copyText(selection)
+                  insertAtCursor('')
+                },
+                (error) => {
+                  toastUserActionError('Cut', error)
+                },
+              )
             }}
           >
             <Scissors /> Cut
@@ -315,7 +331,17 @@ export function EditorSource({
               <Kbd>{kbdLabel('mod', 'X')}</Kbd>
             </ContextMenuShortcut>
           </ContextMenuItem>
-          <ContextMenuItem disabled={selection === ''} onClick={() => copyText(selection)}>
+          <ContextMenuItem
+            disabled={selection === ''}
+            onClick={() => {
+              runUserAction(
+                () => copyText(selection),
+                (error) => {
+                  toastUserActionError('Copy', error)
+                },
+              )
+            }}
+          >
             <Copy /> Copy
             <ContextMenuShortcut>
               <Kbd>{kbdLabel('mod', 'C')}</Kbd>
@@ -357,13 +383,25 @@ export function EditorSource({
           <ContextMenuItem onClick={() => setCommentAnchor({ path: relativePath })}>
             <MessageSquarePlus /> Comment on file
           </ContextMenuItem>
-          <ContextMenuItem onClick={copyPath}>
+          <ContextMenuItem
+            onClick={() => {
+              copyPath()
+            }}
+          >
             <Link2 /> Copy path
           </ContextMenuItem>
-          <ContextMenuItem onClick={copyRelativePath}>
+          <ContextMenuItem
+            onClick={() => {
+              copyRelativePath()
+            }}
+          >
             <FileSymlink /> Copy relative path
           </ContextMenuItem>
-          <ContextMenuItem onClick={reveal}>
+          <ContextMenuItem
+            onClick={() => {
+              reveal()
+            }}
+          >
             <FolderOpen /> Reveal in Finder
           </ContextMenuItem>
         </ContextMenuContent>

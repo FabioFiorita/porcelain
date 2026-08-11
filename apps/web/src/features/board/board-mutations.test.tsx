@@ -117,7 +117,7 @@ describe('useBoardCardActions optimism', () => {
     )
   })
 
-  it('restores the previous column and toasts when the move fails', async () => {
+  it('restores the previous column and rejects to the caller when the move fails', async () => {
     const { write, refetch, mount } = board([CARD])
     const result = await mount()
 
@@ -132,9 +132,9 @@ describe('useBoardCardActions optimism', () => {
 
     refetch.resolve()
     await expect(moving).rejects.toThrow()
-    expect(toast.error).toHaveBeenCalledWith('Move card failed', {
-      description: 'daemon down',
-    })
+    // ONE owner per failure: the adapter rolls the cache back and stays silent — the
+    // edge the human touched (card menu / quick access) does the toasting.
+    expect(toast.error).not.toHaveBeenCalled()
   })
 
   it('shows an added card under a temporary id that is never sent to the daemon', async () => {
@@ -181,7 +181,7 @@ describe('useBoardCardActions optimism', () => {
 
     refetch.resolve()
     await expect(adding).rejects.toThrow()
-    expect(toast.error).toHaveBeenCalledWith('Add card failed', { description: 'disk full' })
+    expect(toast.error).not.toHaveBeenCalled()
   })
 
   it('empties a column on clear and puts it back when the write fails', async () => {

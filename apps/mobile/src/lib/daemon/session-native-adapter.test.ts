@@ -56,6 +56,7 @@ function harness(
   options?: {
     shouldReconnect?: (code: number) => boolean
     onTransportClosed?: (code: number) => void | Promise<void>
+    onTransportClosedFailure?: (error: unknown, closeCode: number) => void
   },
 ): Harness {
   const sockets: FakeSocket[] = []
@@ -82,6 +83,7 @@ function harness(
     onStatusChange: (status) => statuses.push(status),
     shouldReconnect: options?.shouldReconnect,
     onTransportClosed: options?.onTransportClosed,
+    onTransportClosedFailure: options?.onTransportClosedFailure,
     openSocket: ({ url, protocols, handlers }) => {
       const sent: string[] = []
       let isClosed = false
@@ -263,6 +265,52 @@ describe('Session native adapter recovery', () => {
 
     expect(context.adapter.status()).toBe('idle')
     expect(context.pending).toHaveLength(0)
+  })
+
+  it('close 4001 with rejecting close work: no reconnect, failure owned, no unhandled rejection', async () => {
+    const failures: unknown[] = []
+    const context = harness(
+      { url: ORIGIN, token: TOKEN },
+      {
+        shouldReconnect: (code) => code !== 4001,
+        onTransportClosed: () => Promise.reject(new Error('secure store locked')),
+        onTransportClosedFailure: (error) => {
+          failures.push(error)
+        },
+      },
+    )
+    context.adapter.start()
+    context.socket().handlers.opened()
+    context.deliver(readyFrame)
+
+    context.socket().handlers.closed(4001)
+
+    expect(context.adapter.status()).toBe('idle')
+    expect(context.pending).toHaveLength(0)
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(failures).toHaveLength(1)
+    expect(failures[0]).toMatchObject({ message: 'secure store locked' })
+  })
+
+  it('still schedules reconnect when onTransportClosed rejects', async () => {
+    const context = harness(
+      { url: ORIGIN, token: TOKEN },
+      {
+        onTransportClosed: () => Promise.reject(new Error('close work failed')),
+      },
+    )
+    context.adapter.start()
+    context.socket().handlers.opened()
+    context.deliver(readyFrame)
+
+    context.socket().handlers.closed(1006)
+
+    expect(context.adapter.status()).toBe('reconnecting')
+    // Rejection is settled in the background; reconnect still arms.
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(context.pending).toHaveLength(1)
   })
 })
 

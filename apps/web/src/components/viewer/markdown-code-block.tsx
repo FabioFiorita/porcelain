@@ -1,7 +1,9 @@
 import { Button } from '@renderer/components/ui/button'
 import { CodeLine, useTokenizedLines } from '@renderer/components/viewer/code-line'
+import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { fenceLanguageFor } from '@renderer/lib/highlight'
 import { copyText } from '@renderer/lib/utils'
+import { runUserAction } from '@shared/background'
 import { Check, Copy } from 'lucide-react'
 import { Children, isValidElement, type ReactNode, useState } from 'react'
 import type { ExtraProps } from 'react-markdown'
@@ -69,7 +71,14 @@ function MarkdownCodeBlock({
           variant="ghost"
           size="icon-xs"
           className="text-muted-foreground hover:text-foreground"
-          onClick={() => void handleCopy()}
+          onClick={() => {
+            runUserAction(
+              () => handleCopy(),
+              (error) => {
+                toastUserActionError('Copy code', error)
+              },
+            )
+          }}
           aria-label={copied ? 'Copied' : 'Copy code'}
         >
           {copied ? <Check className="size-3" /> : <Copy className="size-3" />}

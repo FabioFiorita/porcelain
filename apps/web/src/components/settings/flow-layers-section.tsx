@@ -4,6 +4,7 @@ import { Button } from '@renderer/components/ui/button'
 import { Input } from '@renderer/components/ui/input'
 import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
+import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { useGitFlow } from '@renderer/hooks/use-git-flow'
 import { useRepoLayers, useSetRepoLayers } from '@renderer/hooks/use-repo-layers'
 import { layersSetupPrompt } from '@renderer/lib/agent-setup-prompts'
@@ -11,6 +12,7 @@ import { compactButtonClass, compactInputClass } from '@renderer/lib/controls'
 import { cn, copyText } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useSetupTipsStore } from '@renderer/stores/setup-tips'
+import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
 import { Check, ChevronDown, ChevronUp, Copy, Plus, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -333,9 +335,16 @@ export function FlowLayersSection({ onSaved }: { onSaved: () => void }): React.J
     setDraft(next)
   }
 
-  const handleSave = async (layers: DraftLayer[] | null): Promise<void> => {
-    await saveLayers(layers?.map(({ label, pattern }) => ({ label, pattern })) ?? null)
-    onSaved()
+  const handleSave = (layers: DraftLayer[] | null): void => {
+    runUserAction(
+      async () => {
+        await saveLayers(layers?.map(({ label, pattern }) => ({ label, pattern })) ?? null)
+        onSaved()
+      },
+      (error) => {
+        toastUserActionError('Save layers', error)
+      },
+    )
   }
 
   const handleCopySetup = async (): Promise<void> => {
@@ -357,8 +366,15 @@ export function FlowLayersSection({ onSaved }: { onSaved: () => void }): React.J
               size="sm"
               className={cn(compactButtonClass, 'self-start')}
               data-testid={TestIds.layersCopySetup}
-              onClick={async () => {
-                await handleCopySetup()
+              onClick={() => {
+                runUserAction(
+                  async () => {
+                    await handleCopySetup()
+                  },
+                  (error) => {
+                    toastUserActionError('Copy setup prompt', error)
+                  },
+                )
               }}
             >
               {copied ? <Check className="text-success" /> : <Copy />}

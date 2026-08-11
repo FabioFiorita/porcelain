@@ -1,4 +1,5 @@
 import { Button } from '@renderer/components/ui/button'
+import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { compactButtonClass } from '@renderer/lib/controls'
 import {
   copyTerminalSelection,
@@ -6,6 +7,7 @@ import {
   subscribeTerminalSelection,
 } from '@renderer/lib/terminal-registry'
 import { cn } from '@renderer/lib/utils'
+import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
 import { Check, Copy } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -84,8 +86,15 @@ export function TerminalSelectionToolbar({
           )}
           // Don't let the press clear Ghostty's selection before onClick runs.
           onMouseDown={(e: React.MouseEvent<HTMLButtonElement>): void => e.preventDefault()}
-          onClick={async () => {
-            await handleCopy()
+          onClick={() => {
+            runUserAction(
+              async () => {
+                await handleCopy()
+              },
+              (error) => {
+                toastUserActionError('Copy selection', error)
+              },
+            )
           }}
         >
           {copied ? <Check data-icon="inline-start" /> : <Copy data-icon="inline-start" />}

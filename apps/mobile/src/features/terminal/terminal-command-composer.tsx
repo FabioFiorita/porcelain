@@ -1,6 +1,6 @@
+import { runUserAction } from '@porcelain/shared/background'
 import { useCallback, useRef, useState } from 'react'
 import { Alert, Pressable, Text, type TextInput, View } from 'react-native'
-
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { Textarea } from '@/components/ui/textarea'
 import { useIsTablet } from '@/features/shell/use-app-window'
@@ -58,37 +58,57 @@ export function TerminalCommandComposer({
     }
   }, [current.expanded, isTablet, sessionId, setExpanded])
 
-  const addClipboardImage = useCallback(async () => {
-    if (!(await hasImage())) {
-      Alert.alert('No image on clipboard', 'Copy a screenshot or photo first, then try again.')
-      return
-    }
-    const image = await getImage()
-    if (image === null) {
-      Alert.alert('Could not read the clipboard image', 'Try copying it again.')
-      return
-    }
-    addAttachment(sessionId, { ...image, filename: 'clipboard.png', kind: 'image' })
-    setExpanded(sessionId, true)
+  const addClipboardImage = useCallback((): void => {
+    runUserAction(
+      async () => {
+        if (!(await hasImage())) {
+          Alert.alert('No image on clipboard', 'Copy a screenshot or photo first, then try again.')
+          return
+        }
+        const image = await getImage()
+        if (image === null) {
+          Alert.alert('Could not read the clipboard image', 'Try copying it again.')
+          return
+        }
+        addAttachment(sessionId, { ...image, filename: 'clipboard.png', kind: 'image' })
+        setExpanded(sessionId, true)
+      },
+      (cause) => {
+        Alert.alert(
+          'Could not read the clipboard image',
+          cause instanceof Error ? cause.message : String(cause),
+        )
+      },
+    )
   }, [addAttachment, sessionId, setExpanded])
 
-  const addFiles = useCallback(async () => {
-    const result = await pickTerminalFiles().catch(() => ({ result: 'read-failed' as const }))
-    if (result.result === 'cancelled') return
-    if (result.result === 'too-large') {
-      Alert.alert('File too large', `${result.name} is larger than the 8 MiB attachment limit.`)
-      return
-    }
-    if (result.result === 'read-failed') {
-      Alert.alert('Could not attach the file', 'Try selecting the file again.')
-      return
-    }
-    for (const attachment of result.attachments) addAttachment(sessionId, attachment)
-    setExpanded(sessionId, true)
+  const addFiles = useCallback((): void => {
+    runUserAction(
+      async () => {
+        const result = await pickTerminalFiles().catch(() => ({ result: 'read-failed' as const }))
+        if (result.result === 'cancelled') return
+        if (result.result === 'too-large') {
+          Alert.alert('File too large', `${result.name} is larger than the 8 MiB attachment limit.`)
+          return
+        }
+        if (result.result === 'read-failed') {
+          Alert.alert('Could not attach the file', 'Try selecting the file again.')
+          return
+        }
+        for (const attachment of result.attachments) addAttachment(sessionId, attachment)
+        setExpanded(sessionId, true)
+      },
+      (cause) => {
+        Alert.alert(
+          'Could not attach the file',
+          cause instanceof Error ? cause.message : String(cause),
+        )
+      },
+    )
   }, [addAttachment, sessionId, setExpanded])
 
   const deliver = useCallback(
-    async (submit: boolean) => {
+    (submit: boolean): void => {
       if (delivering) return
       const activeDraft = useTerminalComposerStore.getState().drafts[sessionId] ?? EMPTY_DRAFT
       // Empty Insert is intentionally inert. Empty Send remains a real Return, which lets the
@@ -96,41 +116,53 @@ export function TerminalCommandComposer({
       if (!submit && activeDraft.text === '' && activeDraft.attachments.length === 0) return
       setDelivering(true)
       takeArmedModifier(sessionId)
-      const result = await deliverComposerDraft(
-        {
-          attachments: activeDraft.attachments,
-          bracketedPaste: getTerminal(sessionId)?.modes.bracketedPasteMode ?? false,
-          submit,
-          text: activeDraft.text,
+      runUserAction(
+        async () => {
+          const result = await deliverComposerDraft(
+            {
+              attachments: activeDraft.attachments,
+              bracketedPaste: getTerminal(sessionId)?.modes.bracketedPasteMode ?? false,
+              submit,
+              text: activeDraft.text,
+            },
+            {
+              upload: (attachment) =>
+                attachment.kind === 'image'
+                  ? pasteImageToTerminal(sessionId, attachment.mime, attachment.base64, {
+                      insert: false,
+                    })
+                  : pasteFileToTerminal(
+                      sessionId,
+                      attachment.filename,
+                      attachment.mime,
+                      attachment.base64,
+                      { insert: false },
+                    ),
+              write: (bytes) => {
+                sendTerminalBytesAtomically(sessionId, bytes)
+              },
+            },
+          )
+          if (result.result === 'attachment-failed') {
+            Alert.alert('Could not attach the image', ATTACHMENT_FAILURE_COPY[result.failure])
+            return
+          }
+          if (result.result === 'too-large') {
+            Alert.alert('Command too large', 'Shorten the command before inserting it.')
+            return
+          }
+          clear(sessionId)
         },
-        {
-          upload: (attachment) =>
-            attachment.kind === 'image'
-              ? pasteImageToTerminal(sessionId, attachment.mime, attachment.base64, {
-                  insert: false,
-                })
-              : pasteFileToTerminal(
-                  sessionId,
-                  attachment.filename,
-                  attachment.mime,
-                  attachment.base64,
-                  { insert: false },
-                ),
-          write: (bytes) => {
-            sendTerminalBytesAtomically(sessionId, bytes)
-          },
+        (cause) => {
+          Alert.alert(
+            'Could not deliver the command',
+            cause instanceof Error ? cause.message : String(cause),
+          )
+        },
+        () => {
+          setDelivering(false)
         },
       )
-      setDelivering(false)
-      if (result.result === 'attachment-failed') {
-        Alert.alert('Could not attach the image', ATTACHMENT_FAILURE_COPY[result.failure])
-        return
-      }
-      if (result.result === 'too-large') {
-        Alert.alert('Command too large', 'Shorten the command before inserting it.')
-        return
-      }
-      clear(sessionId)
     },
     [clear, delivering, sessionId],
   )

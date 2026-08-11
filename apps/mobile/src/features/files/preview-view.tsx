@@ -1,6 +1,7 @@
-import { Linking } from 'react-native'
+import { Alert, Linking } from 'react-native'
 import { WebView } from 'react-native-webview'
 
+import { openPreviewExternalLink } from '@/features/files/preview-open-link'
 import { useBottomChrome } from '@/features/shell/bottom-chrome'
 
 /**
@@ -52,7 +53,18 @@ export function PreviewView({
         // A tapped link leaves for the system browser instead of navigating the preview — and
         // only if it is a web link. Anything else (file:, javascript:, a custom scheme) is a
         // way out of the sandbox, not a link.
-        if (/^https?:\/\//i.test(request.url)) Linking.openURL(request.url).catch(() => undefined)
+        if (/^https?:\/\//i.test(request.url)) {
+          openPreviewExternalLink(
+            request.url,
+            (href) => Linking.openURL(href),
+            (error) => {
+              Alert.alert(
+                'Could not open link',
+                error instanceof Error ? error.message : String(error),
+              )
+            },
+          )
+        }
         return false
       }}
       originWhitelist={['about:blank']}

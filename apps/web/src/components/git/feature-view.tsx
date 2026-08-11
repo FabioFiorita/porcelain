@@ -6,7 +6,7 @@ import { ReviewDocBody } from '@renderer/components/git/review-doc-body'
 import { Button } from '@renderer/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@renderer/components/ui/tabs'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
-import { useDiffFilePrefetch } from '@renderer/hooks/use-diff'
+import { useDiffFileHoverPrefetch } from '@renderer/hooks/use-diff'
 import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
 import { useReviewIntent } from '@renderer/hooks/use-review-intent'
 import { useReviewedPaths } from '@renderer/hooks/use-reviewed'
@@ -386,7 +386,7 @@ function IntentBody({ reading }: { reading: FeatureReading }): React.JSX.Element
 function ExecutionBody({ reading }: { reading: FeatureReading }): React.JSX.Element {
   const repo = useRepoStore((s) => s.repo)
   const openTab = useTabsStore((s) => s.openTab)
-  const prefetchDiff = useDiffFilePrefetch()
+  const prefetchDiff = useDiffFileHoverPrefetch()
   const reviewed = useReviewedPaths()
 
   if (!repo) {
@@ -448,8 +448,8 @@ function ExecutionBody({ reading }: { reading: FeatureReading }): React.JSX.Elem
         <button
           type="button"
           onClick={() => handlePrimaryOpen(file)}
-          onMouseEnter={async () => {
-            if (file.source === 'changed') await prefetchDiff(file.path)
+          onMouseEnter={() => {
+            if (file.source === 'changed') prefetchDiff(file.path)
           }}
           className="flex w-full flex-col gap-0.5 rounded-md px-2 py-1.5 text-left hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
         >

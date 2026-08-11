@@ -1,6 +1,7 @@
 import type { FreshnessRequirement } from '@porcelain/client-runtime/session/recovery'
 import { endpointKind, orderedEndpointUrls } from '@porcelain/contracts'
 import type { SessionChange } from '@porcelain/contracts/session'
+import { settleBackground } from '@porcelain/shared/background'
 import {
   focusManager,
   onlineManager,
@@ -10,9 +11,8 @@ import {
 import * as Network from 'expo-network'
 import { type ReactNode, useEffect } from 'react'
 import { AppState, type AppStateStatus } from 'react-native'
-
 import { createDaemonClient, PROBE_TIMEOUT_MS } from './client'
-import { type Environment, isPaired, type PairedEnvironment } from './environment'
+import { isPaired, type PairedEnvironment } from './environment'
 import {
   activeEnvironment,
   currentConnection,
@@ -23,6 +23,7 @@ import {
   useConnectionState,
 } from './environments-store'
 import { DaemonError, daemonErrorMessage } from './errors'
+import { goUnauthorized } from './go-unauthorized'
 import { callDaemon } from './procedure'
 import { daemonInfoQuery, openRepoPathMutation, recentReposQuery } from './procedures/connection'
 import { daemonKeys } from './queries'
@@ -134,7 +135,10 @@ export function proceduresForRecovery(
 
 function invalidateProcedures(environmentId: string, names: readonly string[]): void {
   for (const name of names) {
-    queryClient.invalidateQueries({ queryKey: daemonKeys.procedure(environmentId, name) })
+    settleBackground(
+      queryClient.invalidateQueries({ queryKey: daemonKeys.procedure(environmentId, name) }),
+      'invalidation',
+    )
   }
 }
 
@@ -168,7 +172,8 @@ onlineManager.setEventListener((setOnline): (() => void) => {
   const subscription = Network.addNetworkStateListener((state: Network.NetworkState) => {
     const online = state.isConnected ?? true
     setOnline(online)
-    if (online) recoverToPreferredEndpoint()
+    // Recovery owns connection state transitions (ready/unreachable); silent settle is intentional.
+    if (online) settleBackground(recoverToPreferredEndpoint(), 'lifecycle')
   })
   return (): void => {
     subscription.remove()
@@ -249,13 +254,6 @@ async function bootstrap(
     firstUnreachable ??
       new DaemonError('unreachable', 'bootstrap', 'The daemon could not be reached.'),
   )
-}
-
-/** The credential is dead: drop it, stop the socket, and keep the daemon's name for re-pairing. */
-async function goUnauthorized(environment: Environment): Promise<void> {
-  configureSession(null)
-  await environmentActions.forgetToken(environment.id)
-  environmentActions.setConnection({ kind: 'unauthorized' })
 }
 
 async function connect(environment: PairedEnvironment): Promise<void> {
@@ -353,7 +351,7 @@ function DaemonLifecycle(): null {
     const recover = async (): Promise<void> => {
       await connect(current)
     }
-    recover()
+    settleBackground(recover(), 'lifecycle')
   }, [connection])
 
   useEffect(() => {
@@ -378,7 +376,7 @@ function DaemonLifecycle(): null {
     })
     const subscription = AppState.addEventListener('change', (state: AppStateStatus) => {
       setSessionForeground(state === 'active')
-      if (state === 'active') recoverToPreferredEndpoint()
+      if (state === 'active') settleBackground(recoverToPreferredEndpoint(), 'lifecycle')
     })
     return () => {
       off()
@@ -394,7 +392,8 @@ function DaemonLifecycle(): null {
         environmentActions.setConnection({ kind: 'no-environment' })
       }
     }
-    hydrate()
+    // hydrate() maps store read failure to no-environment itself.
+    settleBackground(hydrate(), 'lifecycle')
   }, [])
 
   useEffect(() => {
@@ -413,7 +412,7 @@ function DaemonLifecycle(): null {
       const current = activeEnvironment()
       if (isPaired(current)) await connect(current)
     }
-    run()
+    settleBackground(run(), 'lifecycle')
   }, [identity])
 
   useEffect(() => {
@@ -426,7 +425,10 @@ function DaemonLifecycle(): null {
       onFreshnessRequired: (requirement) => {
         const target = proceduresForRecovery(requirement)
         if (target === 'all') {
-          queryClient.invalidateQueries({ queryKey: daemonKeys.environment(environmentId) })
+          settleBackground(
+            queryClient.invalidateQueries({ queryKey: daemonKeys.environment(environmentId) }),
+            'invalidation',
+          )
           return
         }
         invalidateProcedures(environmentId, target)

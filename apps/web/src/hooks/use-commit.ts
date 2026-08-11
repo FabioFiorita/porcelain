@@ -4,7 +4,6 @@ import type {
   CommitModelOption,
   procedureCatalog,
 } from '@porcelain/contracts'
-import { onMutationError } from '@renderer/hooks/mutation-error'
 import { trpc } from '@renderer/lib/trpc'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
@@ -48,8 +47,10 @@ export function useStageAll(): {
 } {
   const repo = useRepoStore((s) => s.repo)
   const utils = trpc.useUtils()
-  const stage = trpc.gitStageAll.useMutation({ onError: onMutationError('Stage changes') })
-  const unstage = trpc.gitUnstageAll.useMutation({ onError: onMutationError('Unstage changes') })
+  // No mutation-level onError: both calls reject out to the composer, which reports
+  // the failure on its status line. One owner per failure — see useFileStaging.
+  const stage = trpc.gitStageAll.useMutation()
+  const unstage = trpc.gitUnstageAll.useMutation()
   return {
     stageAll: async () => {
       if (!repo) return
@@ -66,15 +67,22 @@ export function useStageAll(): {
   }
 }
 
-/** Per-file stage/unstage from the changes list. Refreshes gitFlow after each. */
+/**
+ * Per-file stage/unstage from the changes list. Refreshes gitFlow after each.
+ *
+ * These reject rather than toast: ONE owner per failure, and that owner is the edge
+ * the human touched. The Changes context menu wraps each call in `runUserAction` with
+ * a toast; the commit composer awaits them and reports on its status line. A
+ * mutation-level `onError` here would print the same failure a second time.
+ */
 export function useFileStaging(): {
   stageFile: (path: string) => Promise<void>
   unstageFile: (path: string) => Promise<void>
 } {
   const repo = useRepoStore((s) => s.repo)
   const utils = trpc.useUtils()
-  const stage = trpc.gitStageFile.useMutation({ onError: onMutationError('Stage file') })
-  const unstage = trpc.gitUnstageFile.useMutation({ onError: onMutationError('Unstage file') })
+  const stage = trpc.gitStageFile.useMutation()
+  const unstage = trpc.gitUnstageFile.useMutation()
   return {
     stageFile: async (path: string): Promise<void> => {
       if (!repo) return
@@ -93,6 +101,9 @@ export function useFileStaging(): {
  * Discard a single file's changes from the changes list. Reverts a tracked file to
  * HEAD or trashes a new file (decided server-side), so it can touch the working
  * tree, the file tree, the pinned list, and the file's open diff — invalidate all.
+ *
+ * Rejects rather than toasts, for the same reason as useFileStaging: the confirm
+ * dialog that triggered it owns the failure.
  */
 export function useDiscardFile(): (path: string) => Promise<void> {
   const repo = useRepoStore((s) => s.repo)
@@ -106,7 +117,6 @@ export function useDiscardFile(): (path: string) => Promise<void> {
         utils.pinnedEntries.invalidate(),
       ])
     },
-    onError: onMutationError('Discard file'),
   })
   return async (path: string): Promise<void> => {
     if (!repo) return

@@ -7,6 +7,7 @@ import {
   ContextMenuTrigger,
 } from '@renderer/components/ui/context-menu'
 import { Kbd } from '@renderer/components/ui/kbd'
+import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { kbdLabel } from '@renderer/lib/keyboard'
 import {
   chooseTerminalFiles,
@@ -17,6 +18,7 @@ import {
   selectAllTerminal,
   terminalSelectionText,
 } from '@renderer/lib/terminal-registry'
+import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
 import { ClipboardPaste, Copy, Eraser, FilePlus2, ImageIcon, TextSelect } from 'lucide-react'
 import { useState } from 'react'
@@ -45,8 +47,15 @@ export function TerminalContextMenu({
         <ContextMenuItem
           data-testid={TestIds.terminalContextCopy}
           disabled={selection === ''}
-          onClick={async () => {
-            await copyTerminalSelection(sessionId)
+          onClick={() => {
+            runUserAction(
+              async () => {
+                await copyTerminalSelection(sessionId)
+              },
+              (error) => {
+                toastUserActionError('Copy selection', error)
+              },
+            )
           }}
         >
           <Copy /> Copy
@@ -56,8 +65,15 @@ export function TerminalContextMenu({
         </ContextMenuItem>
         <ContextMenuItem
           data-testid={TestIds.terminalContextPaste}
-          onClick={async () => {
-            await pasteTerminalClipboard(sessionId)
+          onClick={() => {
+            runUserAction(
+              async () => {
+                await pasteTerminalClipboard(sessionId)
+              },
+              (error) => {
+                toastUserActionError('Paste', error)
+              },
+            )
           }}
         >
           <ClipboardPaste /> Paste
@@ -67,8 +83,15 @@ export function TerminalContextMenu({
         </ContextMenuItem>
         <ContextMenuItem
           data-testid={TestIds.terminalContextPasteImage}
-          onClick={async () => {
-            await pasteTerminalImage(sessionId)
+          onClick={() => {
+            runUserAction(
+              async () => {
+                await pasteTerminalImage(sessionId)
+              },
+              (error) => {
+                toastUserActionError('Paste image', error)
+              },
+            )
           }}
         >
           <ImageIcon /> Paste image

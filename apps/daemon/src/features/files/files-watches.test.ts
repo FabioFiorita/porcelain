@@ -1,5 +1,5 @@
 // @vitest-environment node
-import type { FSWatcher, WatchListener } from 'node:fs'
+import type { WatchListener } from 'node:fs'
 import type { SessionChange } from '@porcelain/contracts/session'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createSessionFilesWatches, FILES_TREE_DEBOUNCE_MS, isGitChurn } from './files-watches'
@@ -33,20 +33,20 @@ function createHarness() {
     }
     watchers.set(dir, fake)
     listeners.set(dir, listener)
-    return fake as unknown as FSWatcher
+    return fake
   })
   const setTimeoutFn = vi.fn((fn: () => void, _ms?: number) => {
     // Manual control via fake timers — store callback id via real setTimeout under fake timers.
     return globalThis.setTimeout(fn, _ms)
-  }) as unknown as typeof setTimeout
+  })
   const clearTimeoutFn = vi.fn((id: ReturnType<typeof setTimeout>) => {
     globalThis.clearTimeout(id)
-  }) as unknown as typeof clearTimeout
+  })
 
   const watches = createSessionFilesWatches({
     publish: (change) => published.push(change),
     host: {
-      watch: watch as typeof import('node:fs').watch,
+      watch,
       setTimeout: setTimeoutFn,
       clearTimeout: clearTimeoutFn,
     },

@@ -9,7 +9,6 @@ import { Text } from '@/components/ui/text'
 import { useActiveEnvironment, useConnectionState } from '@/lib/daemon/environments-store'
 import type { ChannelDisposition } from '@/lib/daemon/procedures/companion'
 import { cn } from '@/lib/utils'
-
 import { useCompanionData } from './use-settings'
 
 /**

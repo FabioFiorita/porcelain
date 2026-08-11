@@ -1,6 +1,7 @@
 import { reviewCommentNotificationEffects } from '@porcelain/client-runtime/review'
 import type { FreshnessRequirement } from '@porcelain/client-runtime/session/recovery'
 import type { ReviewChanged } from '@porcelain/contracts/review'
+import { settleBackground } from '@porcelain/shared/background'
 import type { QueryClient } from '@tanstack/react-query'
 
 import { isReviewCommentsQueryKey, reviewCommentsQueryKeyForIdentity } from './comment-query-key'
@@ -24,11 +25,14 @@ export function applyReviewCommentNotification(
   options: ApplyReviewCommentNotificationOptions,
 ): void {
   for (const identity of reviewCommentNotificationEffects(notification)) {
-    // Fire-and-forget: notification handlers must not block the session subscriber.
-    options.queryClient.invalidateQueries({
-      queryKey: reviewCommentsQueryKeyForIdentity(options.environmentId, identity),
-      exact: true,
-    })
+    // Sync notification edge: settle in the background; query errors surface on refetch.
+    settleBackground(
+      options.queryClient.invalidateQueries({
+        queryKey: reviewCommentsQueryKeyForIdentity(options.environmentId, identity),
+        exact: true,
+      }),
+      'notification',
+    )
   }
 }
 

@@ -9,9 +9,11 @@ import {
   AlertDialogTitle,
 } from '@renderer/components/ui/alert-dialog'
 import { Button } from '@renderer/components/ui/button'
+import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { useCompanionGitVisibility } from '@renderer/hooks/use-companion-dispositions'
 import { usePublishReview, useReviewPublishCost } from '@renderer/hooks/use-review-intent'
 import { cn } from '@renderer/lib/utils'
+import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
 import { Share2 } from 'lucide-react'
 import { useState } from 'react'
@@ -100,8 +102,15 @@ export function PublishReviewButton({ className }: { className?: string }): Reac
             <AlertDialogAction
               disabled={isPublishing || visibilityPending}
               data-testid={TestIds.reviewPublishConfirm}
-              onClick={async () => {
-                setPublished(await publish())
+              onClick={() => {
+                runUserAction(
+                  async () => {
+                    setPublished(await publish())
+                  },
+                  (error) => {
+                    toastUserActionError('Publish review', error)
+                  },
+                )
               }}
             >
               Publish

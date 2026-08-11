@@ -1,3 +1,4 @@
+import { settleBackground } from '@porcelain/shared/background'
 import { SplitView } from 'expo-router/unstable-split-view'
 import { useEffect, useState } from 'react'
 import { Linking, Platform, View } from 'react-native'
@@ -46,9 +47,13 @@ export function TabletShell(): React.JSX.Element {
         // Ignore malformed deep links.
       }
     }
-    Linking.getInitialURL().then((url) => {
-      if (url !== null) openFromUrl(url)
-    })
+    // Initial URL probe is best-effort; malformed/unavailable stays silent.
+    settleBackground(
+      Linking.getInitialURL().then((url) => {
+        if (url !== null) openFromUrl(url)
+      }),
+      'lifecycle',
+    )
     const sub = Linking.addEventListener('url', (event) => {
       openFromUrl(event.url)
     })

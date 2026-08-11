@@ -53,7 +53,9 @@ export function createHomeChannel<T>(
     } catch {
       // present but unparseable/schema-invalid — back it up (never silently lose a
       // file an external process may have written) and treat as empty.
-      await rename(p, `${p}.corrupt-${Date.now()}`).catch(() => {})
+      await rename(p, `${p}.corrupt-${Date.now()}`).catch((error: unknown) => {
+        console.error(`porcelain: could not back up unparseable ${p}:`, error)
+      })
       return opts.empty()
     }
   }
@@ -132,10 +134,9 @@ export function createHomeChannel<T>(
       const next = fn(all)
       await writeAll(next ?? all)
     })
-    chain = run.then(
-      () => undefined,
-      () => undefined,
-    )
+    // The caller owns `run`'s rejection; this tail only keeps the chain alive so a
+    // failed mutation never blocks the next one.
+    chain = Promise.allSettled([run]).then(() => undefined)
     return run
   }
 

@@ -1,6 +1,6 @@
 import type { FeatureView } from '@backend/review/feature-view'
 import { invalidateAllReviewComments } from '@renderer/features/review/comments'
-import { onMutationError } from '@renderer/hooks/mutation-error'
+import { invalidateAfterSuccess, onMutationError } from '@renderer/hooks/mutation-error'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useQueryClient } from '@tanstack/react-query'
@@ -41,15 +41,19 @@ export function useClearFeatureReview(): { clear: () => Promise<void>; isClearin
     clear: async () => {
       if (!repo) return
       await mutation.mutateAsync(repo.path)
-      await Promise.all([
-        utils.featureView.invalidate(),
-        utils.featureReading.invalidate(),
-        utils.loopEvidence.invalidate(),
-        utils.loopEvidenceHtml.invalidate(),
-        utils.archivedReviews.invalidate(),
-        invalidateAllReviewComments(queryClient),
-        utils.reviewedPaths.invalidate(),
-      ])
+      // The archive is already on disk; only the refresh can still fail.
+      await invalidateAfterSuccess(
+        [
+          utils.featureView.invalidate(),
+          utils.featureReading.invalidate(),
+          utils.loopEvidence.invalidate(),
+          utils.loopEvidenceHtml.invalidate(),
+          utils.archivedReviews.invalidate(),
+          invalidateAllReviewComments(queryClient),
+          utils.reviewedPaths.invalidate(),
+        ],
+        'Archive review',
+      )
     },
     isClearing: mutation.isPending,
   }

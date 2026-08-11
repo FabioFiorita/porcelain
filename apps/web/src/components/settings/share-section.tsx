@@ -2,6 +2,7 @@ import { Badge } from '@renderer/components/ui/badge'
 import { Button } from '@renderer/components/ui/button'
 import { Input } from '@renderer/components/ui/input'
 import { Switch } from '@renderer/components/ui/switch'
+import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { useFunnelStatus, useSetFunnelBind } from '@renderer/hooks/use-funnel'
 import { useLanStatus, useSetLanBind } from '@renderer/hooks/use-lan'
 import {
@@ -13,6 +14,7 @@ import {
 import { useSetTailnetBind, useTailnetStatus } from '@renderer/hooks/use-tailnet'
 import { compactButtonClass, rowActionClass } from '@renderer/lib/controls'
 import { copyText } from '@renderer/lib/utils'
+import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
 import { useState } from 'react'
 
@@ -98,14 +100,17 @@ function PairDevice({ endpoints }: { endpoints: ShareEndpoint[] }): React.JSX.El
               size="sm"
               className={compactButtonClass}
               disabled={isPending || label.trim() === ''}
-              onClick={async () => {
-                try {
-                  const result = await issue({ label, baseUrl: endpoint.url })
-                  setCreatedUrl(result.url)
-                  await copyText(result.url)
-                } catch {
-                  // The mutation's shared error handler already explains the failure.
-                }
+              onClick={() => {
+                runUserAction(
+                  async () => {
+                    const result = await issue({ label, baseUrl: endpoint.url })
+                    setCreatedUrl(result.url)
+                    await copyText(result.url)
+                  },
+                  (error) => {
+                    toastUserActionError('Create pairing link', error)
+                  },
+                )
               }}
             >
               {isPending ? 'Creating…' : `Create ${endpoint.label} link`}
@@ -126,7 +131,14 @@ function PairDevice({ endpoints }: { endpoints: ShareEndpoint[] }): React.JSX.El
               variant="outline"
               size="sm"
               className={rowActionClass}
-              onClick={async () => copyText(createdUrl)}
+              onClick={() => {
+                runUserAction(
+                  () => copyText(createdUrl),
+                  (error) => {
+                    toastUserActionError('Copy pairing link', error)
+                  },
+                )
+              }}
             >
               Copy
             </Button>
@@ -237,7 +249,9 @@ export function ShareSection(): React.JSX.Element {
             description="Same Wi‑Fi or LAN. Traffic is not encrypted on the wire."
             checked={lan?.enabled ?? false}
             disabled={lan?.envForced ?? false}
-            onCheckedChange={setLanEnabled}
+            onCheckedChange={(enabled) => {
+              setLanEnabled(enabled)
+            }}
             envForcedHint={
               lan?.envForced === true
                 ? 'Locked on at daemon startup — change it from the host CLI or service.'
@@ -256,7 +270,9 @@ export function ShareSection(): React.JSX.Element {
             description="Private, WireGuard-encrypted access for devices on your tailnet."
             checked={tailnet?.enabled ?? false}
             disabled={tailnet?.envForced ?? false}
-            onCheckedChange={setTailnetEnabled}
+            onCheckedChange={(enabled) => {
+              setTailnetEnabled(enabled)
+            }}
             envForcedHint={
               tailnet?.envForced === true
                 ? 'Locked on at daemon startup — change it from the host CLI or service.'
@@ -278,7 +294,9 @@ export function ShareSection(): React.JSX.Element {
               funnel?.envForced === true ||
               (funnel?.enabled === true && funnel.managed === false)
             }
-            onCheckedChange={setFunnelEnabled}
+            onCheckedChange={(enabled) => {
+              setFunnelEnabled(enabled)
+            }}
             envForcedHint={
               funnel?.envForced === true
                 ? 'Locked on at daemon startup — change it from the host CLI or service.'

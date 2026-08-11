@@ -11,10 +11,12 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
 } from '@renderer/components/ui/sidebar'
+import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { compactButtonClass } from '@renderer/lib/controls'
 import { openFeatureReview } from '@renderer/lib/surface-handoffs'
 import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
+import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
 import {
   CheckCircle2,
@@ -166,7 +168,14 @@ function CardDetail({
                   return (
                     <DropdownMenuItem
                       key={column.status}
-                      onClick={() => move(card.id, column.status)}
+                      onClick={() => {
+                        runUserAction(
+                          () => move(card.id, column.status),
+                          (error) => {
+                            toastUserActionError('Move card', error)
+                          },
+                        )
+                      }}
                     >
                       <Icon className="size-3.5" aria-hidden />
                       {column.label}
@@ -179,7 +188,14 @@ function CardDetail({
               variant="ghost"
               size="sm"
               className={cn(compactButtonClass, 'ml-auto text-destructive hover:text-destructive')}
-              onClick={() => remove(card.id)}
+              onClick={() => {
+                runUserAction(
+                  () => remove(card.id),
+                  (error) => {
+                    toastUserActionError('Delete card', error)
+                  },
+                )
+              }}
               aria-label="Delete card"
             >
               <Trash2 /> Delete

@@ -8,7 +8,6 @@ import { Text } from '@/components/ui/text'
 import { useActiveEnvironment, useConnectionState } from '@/lib/daemon/environments-store'
 import type { Layer } from '@/lib/daemon/procedures/settings'
 import { cn } from '@/lib/utils'
-
 import { PatternBuilder } from './pattern-builder'
 import { patternError } from './review-layers'
 import { useReviewEditor } from './use-review-editor'

@@ -10,6 +10,8 @@ import {
   AlertDialogTitle,
 } from '@renderer/components/ui/alert-dialog'
 import { Button } from '@renderer/components/ui/button'
+import { toastUserActionError } from '@renderer/hooks/mutation-error'
+import { runUserAction } from '@shared/background'
 import { Eraser } from 'lucide-react'
 import { useState } from 'react'
 import { boardStatusLabel } from './board-columns'
@@ -56,7 +58,17 @@ export function ClearColumnButton({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" onClick={() => clear(status)}>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                runUserAction(
+                  () => clear(status),
+                  (error) => {
+                    toastUserActionError('Clear cards', error)
+                  },
+                )
+              }}
+            >
               Clear
             </AlertDialogAction>
           </AlertDialogFooter>

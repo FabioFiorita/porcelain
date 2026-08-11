@@ -11,6 +11,7 @@ import {
   CommandList,
 } from '@renderer/components/ui/command'
 import { FileTypeIcon, FolderIcon } from '@renderer/components/viewer/file-icon'
+import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { useActions, useRunAction } from '@renderer/hooks/use-actions'
 import { useGitLog } from '@renderer/hooks/use-history'
 import { useFileSearch } from '@renderer/hooks/use-search'
@@ -23,6 +24,7 @@ import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useRevealStore } from '@renderer/stores/reveal'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
+import { runUserAction } from '@shared/background'
 import { GitCommitHorizontal, Play } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
@@ -119,16 +121,23 @@ export function FileFinder(): React.JSX.Element {
   }
 
   const requestLocalRun = useActionRunStore((s) => s.requestLocalRun)
-  const handleRunCommand = async (action: Action): Promise<void> => {
+  const handleRunCommand = (action: Action): void => {
     setOpen(false)
     setQuery('')
-    const result = await runAction(action)
-    if (result === 'needs-local-path') {
-      // ActionsGroup owns the path dialog — flip to Terminal so it mounts, and hand
-      // the pending action through the compose-intent store.
-      setSidebarTab('terminal')
-      requestLocalRun(action)
-    }
+    runUserAction(
+      async () => {
+        const result = await runAction(action)
+        if (result === 'needs-local-path') {
+          // ActionsGroup owns the path dialog — flip to Terminal so it mounts, and hand
+          // the pending action through the compose-intent store.
+          setSidebarTab('terminal')
+          requestLocalRun(action)
+        }
+      },
+      (error) => {
+        toastUserActionError('Run command', error)
+      },
+    )
   }
 
   const handleOpenCommit = (commit: Commit): void => {
