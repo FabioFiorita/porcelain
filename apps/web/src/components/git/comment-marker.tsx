@@ -1,7 +1,7 @@
 import type { ReviewComment } from '@porcelain/contracts/review'
 import { Button } from '@renderer/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@renderer/components/ui/popover'
-import { useCommentActions } from '@renderer/hooks/use-comments'
+import { useCommentActions } from '@renderer/features/review/comments'
 import { cn } from '@renderer/lib/utils'
 import { Check, MessageSquare, RotateCcw, Trash2 } from 'lucide-react'
 

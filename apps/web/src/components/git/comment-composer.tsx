@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from '@renderer/components/ui/dialog'
 import { Textarea } from '@renderer/components/ui/textarea'
-import { type NewCommentInput, useCommentActions } from '@renderer/hooks/use-comments'
+import { type NewComment, useCommentActions } from '@renderer/features/review/comments'
 import { kbdLabel } from '@renderer/lib/keyboard'
 import { fileName } from '@renderer/lib/paths'
 import { useEffect, useState } from 'react'
@@ -57,7 +57,7 @@ export function CommentComposer({
     if (!anchor || body.trim() === '' || saving) return
     setSaving(true)
     try {
-      const input: NewCommentInput = { path: anchor.path, body: body.trim() }
+      const input: NewComment = { path: anchor.path, body: body.trim() }
       if (anchor.startLine !== undefined) input.startLine = anchor.startLine
       if (anchor.endLine !== undefined) input.endLine = anchor.endLine
       if (anchor.anchorText !== undefined) input.anchorText = anchor.anchorText

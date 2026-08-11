@@ -19,7 +19,7 @@ vi.mock(import('@renderer/hooks/use-files'), async (importOriginal) => {
 
 // EditorSource also mounts CommentComposer, which reaches tRPC via useCommentActions;
 // mock the domain hook so it renders without a tRPC provider (the component-test rule).
-vi.mock('@renderer/hooks/use-comments', () => ({
+vi.mock('@renderer/features/review/comments', () => ({
   useCommentActions: () => ({ add: async () => {} }),
   useCommentIndex: () => ({ byLine: new Map(), fileLevel: [] }),
 }))

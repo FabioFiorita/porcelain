@@ -16,7 +16,7 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
 } from '@renderer/components/ui/sidebar'
-import { useReviewComments } from '@renderer/hooks/use-comments'
+import { useReviewComments } from '@renderer/features/review/comments'
 import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
 import {
   useArchivedReviewActions,

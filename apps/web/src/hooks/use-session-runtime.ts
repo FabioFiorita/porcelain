@@ -1,6 +1,7 @@
 import type { FreshnessRequirement } from '@porcelain/client-runtime/session/recovery'
 import type { SessionChange, SessionMismatchFrame } from '@porcelain/contracts/session'
 import { invalidateAllBoardCards } from '@renderer/features/board'
+import { invalidateAllReviewComments } from '@renderer/features/review/comments'
 import { type DaemonSession, primary } from '@renderer/lib/daemon'
 import { isBrowser } from '@renderer/lib/platform'
 import type { SessionConnectionStatus } from '@renderer/lib/session-browser-adapter'
@@ -75,8 +76,9 @@ export type SessionQueryUtils = {
 }
 
 /**
- * The queries a Review change makes stale: the union of today's `feature-view`, `comments`,
- * `layers`, and `evidence` mappings, which the target contract collapses into one category.
+ * The queries a Review change makes stale for non-comments Review surfaces: feature-view,
+ * layers, and evidence. Comments are owned by the RVC-003 feature adapter (subscription +
+ * recovery predicate), so they are not bulk-invalidated here.
  * The per-asset body is dropped too — an agent retrying a capture reuses `before.png`, so the
  * name is not a proxy for immutable bytes.
  */
@@ -85,7 +87,6 @@ function invalidateReview(utils: SessionQueryUtils): Promise<unknown> {
     utils.featureView.invalidate(),
     utils.featureReading.invalidate(),
     utils.exploreFeature.invalidate(),
-    utils.reviewComments.invalidate(),
     utils.repoLayers.invalidate(),
     utils.gitFlow.invalidate(),
     utils.gitRangeFlow.invalidate(),
@@ -176,6 +177,8 @@ export function invalidateForRecovery(
     utils.searchFiles.invalidate(),
     utils.gitDiffFile.invalidate(),
     invalidateReview(utils),
+    // Comments freshness is feature-owned (RVC-003); recovery still hits the predicate slot.
+    utils.reviewComments.invalidate(),
     utils.boardCards.invalidate(),
     utils.actions.invalidate(),
   ])
@@ -229,8 +232,8 @@ export function useSessionRuntime({
     session.updateRequiredFrame(),
   )
 
-  // Structural SessionQueryUtils: Board recovery uses the feature key predicate so it
-  // invalidates the BRD-004 cards cache, not a tRPC procedure-name key.
+  // Structural SessionQueryUtils: Board and comments recovery use feature key predicates so
+  // they invalidate the BRD-004 / RVC-003 caches, not tRPC procedure-name keys.
   const utils: SessionQueryUtils = useMemo(
     () => ({
       invalidate: () => trpcUtils.invalidate(),
@@ -248,7 +251,7 @@ export function useSessionRuntime({
       featureView: { invalidate: () => trpcUtils.featureView.invalidate() },
       featureReading: { invalidate: () => trpcUtils.featureReading.invalidate() },
       exploreFeature: { invalidate: () => trpcUtils.exploreFeature.invalidate() },
-      reviewComments: { invalidate: () => trpcUtils.reviewComments.invalidate() },
+      reviewComments: { invalidate: () => invalidateAllReviewComments(queryClient) },
       loopEvidence: { invalidate: () => trpcUtils.loopEvidence.invalidate() },
       loopEvidenceHtml: { invalidate: () => trpcUtils.loopEvidenceHtml.invalidate() },
       reviewEvidenceDocs: { invalidate: () => trpcUtils.reviewEvidenceDocs.invalidate() },

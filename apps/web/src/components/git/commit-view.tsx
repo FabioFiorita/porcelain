@@ -7,7 +7,7 @@ import {
   ContextMenuTrigger,
 } from '@renderer/components/ui/context-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
-import { useCommentIndex } from '@renderer/hooks/use-comments'
+import { useCommentIndex } from '@renderer/features/review/comments'
 import { useCommitDiff } from '@renderer/hooks/use-diff'
 import { useCommitFlow, useCommitMessage } from '@renderer/hooks/use-history'
 import { type LineSelection, lineSelectionFromDom } from '@renderer/lib/line-selection'

@@ -1,6 +1,6 @@
 import type { FeatureReading } from '@backend/review/feature-view'
 import { SidebarProvider } from '@renderer/components/ui/sidebar'
-import { useReviewComments } from '@renderer/hooks/use-comments'
+import { useReviewComments } from '@renderer/features/review/comments'
 import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
 import { useReviewFocusStore } from '@renderer/stores/review-focus'
 import { fireEvent, render, screen } from '@testing-library/react'
@@ -10,7 +10,7 @@ import { firstProseLine, ReviewGroup } from './review-group'
 vi.mock('@renderer/hooks/use-feature-reading', () => ({
   useFeatureReading: vi.fn(),
 }))
-vi.mock('@renderer/hooks/use-comments', () => ({
+vi.mock('@renderer/features/review/comments', () => ({
   useReviewComments: vi.fn(),
 }))
 vi.mock('@renderer/hooks/use-reviewed', () => ({

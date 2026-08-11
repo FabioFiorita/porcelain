@@ -16,7 +16,7 @@ import {
   buildCommentIndex,
   type CommentIndex,
   useReviewComments,
-} from '@renderer/hooks/use-comments'
+} from '@renderer/features/review/comments'
 import { useEvidenceHtml } from '@renderer/hooks/use-evidence'
 import { useReviewedPaths, useToggleReviewed } from '@renderer/hooks/use-reviewed'
 import { useResolvedTheme } from '@renderer/hooks/use-theme'

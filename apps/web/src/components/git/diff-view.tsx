@@ -6,7 +6,7 @@ import {
   ContextMenuTrigger,
 } from '@renderer/components/ui/context-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
-import { useCommentIndex } from '@renderer/hooks/use-comments'
+import { useCommentIndex } from '@renderer/features/review/comments'
 import { useDiffFile } from '@renderer/hooks/use-diff'
 import { useIsMobile } from '@renderer/hooks/use-mobile'
 import { useReviewedPaths, useToggleReviewed } from '@renderer/hooks/use-reviewed'

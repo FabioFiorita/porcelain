@@ -101,7 +101,7 @@ describe('Session change invalidation mapping', () => {
     )
   })
 
-  it('refreshes every Review surface the four legacy events covered', async () => {
+  it('refreshes non-comments Review surfaces; comments are feature-owned', async () => {
     expect(await invalidatedBy({ kind: 'review.changed', projectPath: PROJECT })).toEqual(
       [
         'exploreFeature',
@@ -113,7 +113,6 @@ describe('Session change invalidation mapping', () => {
         'loopEvidence',
         'loopEvidenceHtml',
         'repoLayers',
-        'reviewComments',
         'reviewEvidenceAsset',
         'reviewEvidenceAssets',
         'reviewEvidenceDocs',

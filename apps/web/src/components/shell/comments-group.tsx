@@ -15,7 +15,7 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
 } from '@renderer/components/ui/sidebar'
-import { useCommentActions, useReviewComments } from '@renderer/hooks/use-comments'
+import { useCommentActions, useReviewComments } from '@renderer/features/review/comments'
 import { fileName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'

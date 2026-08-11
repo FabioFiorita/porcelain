@@ -1,14 +1,11 @@
 import type { ReviewComment } from '@porcelain/contracts/review'
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import {
+  defaultCommentHandlers,
+  renderComments,
+} from '@renderer/features/review/comments/test-support'
+import { screen } from '@testing-library/react'
+import { describe, expect, it } from 'vitest'
 import { commentRowClass, LineDecorations } from './comment-marker'
-
-vi.mock('@renderer/hooks/use-comments', () => ({
-  useCommentActions: () => ({
-    remove: vi.fn(),
-    setResolved: vi.fn(),
-  }),
-}))
 
 function comment(
   partial: Partial<ReviewComment> & Pick<ReviewComment, 'id' | 'body'>,
@@ -43,11 +40,12 @@ describe('commentRowClass', () => {
 
 describe('LineDecorations', () => {
   it('renders only the gutter glyph — no absolute fill that would cover code', () => {
-    const { container } = render(
+    const { container } = renderComments(
       <div className="relative flex">
         <LineDecorations comments={[comment({ id: '1', body: 'look here' })]} />
         <span>const x = 1</span>
       </div>,
+      defaultCommentHandlers(),
     )
     expect(screen.getByText('const x = 1')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /1 comment/i })).toBeInTheDocument()
@@ -57,7 +55,10 @@ describe('LineDecorations', () => {
   })
 
   it('renders nothing without comments', () => {
-    const { container } = render(<LineDecorations comments={undefined} />)
+    const { container } = renderComments(
+      <LineDecorations comments={undefined} />,
+      defaultCommentHandlers(),
+    )
     expect(container).toBeEmptyDOMElement()
   })
 })

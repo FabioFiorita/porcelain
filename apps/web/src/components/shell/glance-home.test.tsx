@@ -3,7 +3,7 @@ import type { FeatureReading } from '@backend/review/feature-view'
 import type { FlowGroup } from '@backend/review/flow'
 import type { BoardCard } from '@porcelain/contracts/board'
 import { useBoardCards } from '@renderer/features/board'
-import { useReviewComments } from '@renderer/hooks/use-comments'
+import { useReviewComments } from '@renderer/features/review/comments'
 import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
 import { useGitFlow } from '@renderer/hooks/use-git-flow'
 import { useBranch, useWorktreeInbox } from '@renderer/hooks/use-worktrees'
@@ -23,7 +23,7 @@ vi.mock('@renderer/hooks/use-worktrees', () => ({
 vi.mock('@renderer/hooks/use-git-flow', () => ({ useGitFlow: vi.fn() }))
 vi.mock('@renderer/hooks/use-feature-reading', () => ({ useFeatureReading: vi.fn() }))
 vi.mock('@renderer/features/board', () => ({ useBoardCards: vi.fn() }))
-vi.mock('@renderer/hooks/use-comments', () => ({ useReviewComments: vi.fn() }))
+vi.mock('@renderer/features/review/comments', () => ({ useReviewComments: vi.fn() }))
 
 const switchToSpy = vi.fn(async () => {})
 

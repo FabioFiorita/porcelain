@@ -17,7 +17,7 @@ vi.mock('@renderer/hooks/use-feature-reading', () => ({
 vi.mock('@renderer/hooks/use-diff', () => ({ useDiffFilePrefetch: () => async () => {} }))
 // FeatureList mounts CommentComposer (right-click → "Comment on file"), which uses the
 // comment hook — mock the domain hook, never the tRPC proxy (the component-test rule).
-vi.mock('@renderer/hooks/use-comments', () => ({
+vi.mock('@renderer/features/review/comments', () => ({
   useCommentActions: () => ({ add: async () => {} }),
 }))
 // Reviewed marks (green check + strikethrough, Mark/Unmark menu) — mock the domain hook.

@@ -1,7 +1,7 @@
 import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-group'
 import { HtmlView, isHtmlPath } from '@renderer/components/viewer/html-view'
 import { isMarkdownPath, MarkdownView } from '@renderer/components/viewer/markdown-view'
-import { useCommentIndex } from '@renderer/hooks/use-comments'
+import { useCommentIndex } from '@renderer/features/review/comments'
 import { usePreviewHtml } from '@renderer/hooks/use-files'
 import { relativeTo } from '@renderer/lib/paths'
 import { usePreferencesStore } from '@renderer/stores/preferences'

@@ -6,7 +6,7 @@ import { parseReviewTabKey, ReviewView, reviewTabKey } from './review-view'
 
 vi.mock('@renderer/hooks/use-diff-reading', () => ({ useDiffReading: vi.fn() }))
 // Reading surface pulls comments + reviewed + highlighter — stub the domain hooks.
-vi.mock('@renderer/hooks/use-comments', () => ({
+vi.mock('@renderer/features/review/comments', () => ({
   useReviewComments: () => [],
   useCommentActions: () => ({ add: async () => {} }),
   buildCommentIndex: () => ({ byLine: new Map(), fileLevel: [] }),

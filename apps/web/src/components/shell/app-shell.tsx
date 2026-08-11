@@ -4,6 +4,7 @@ import { SidebarInset, SidebarProvider, useSidebar } from '@renderer/components/
 import { Toaster } from '@renderer/components/ui/sonner'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { CardComposer, useBoardNotificationSubscription } from '@renderer/features/board'
+import { useReviewCommentNotificationSubscription } from '@renderer/features/review/comments'
 import { useDocumentTitle } from '@renderer/hooks/use-document-title'
 import { useEnvironmentStatuses } from '@renderer/hooks/use-environment-status'
 import { useResponsiveShell } from '@renderer/hooks/use-responsive-shell'
@@ -195,6 +196,9 @@ export function AppShell(): React.JSX.Element {
   useSessionRuntime()
   // Board notifications own their cards-identity invalidation (BRD-004); not session-runtime.
   useBoardNotificationSubscription()
+  // Comments notifications own their comments-identity invalidation (RVC-003); bulk review.changed
+  // in session-runtime no longer touches comments.
+  useReviewCommentNotificationSubscription()
   useEnvironmentStatuses()
   useThemeSync()
   useDocumentTitle()

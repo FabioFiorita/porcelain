@@ -1,7 +1,9 @@
 import type { FeatureView } from '@backend/review/feature-view'
+import { invalidateAllReviewComments } from '@renderer/features/review/comments'
 import { onMutationError } from '@renderer/hooks/mutation-error'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
+import { useQueryClient } from '@tanstack/react-query'
 
 /** `view` is `null` when no agent review set exists (the "No review yet" state). */
 export function useFeatureView(): {
@@ -31,6 +33,7 @@ export function useFeatureView(): {
 export function useClearFeatureReview(): { clear: () => Promise<void>; isClearing: boolean } {
   const repo = useRepoStore((s) => s.repo)
   const utils = trpc.useUtils()
+  const queryClient = useQueryClient()
   const mutation = trpc.clearFeatureReview.useMutation({
     onError: onMutationError('Archive review'),
   })
@@ -44,7 +47,7 @@ export function useClearFeatureReview(): { clear: () => Promise<void>; isClearin
         utils.loopEvidence.invalidate(),
         utils.loopEvidenceHtml.invalidate(),
         utils.archivedReviews.invalidate(),
-        utils.reviewComments.invalidate(),
+        invalidateAllReviewComments(queryClient),
         utils.reviewedPaths.invalidate(),
       ])
     },
@@ -76,6 +79,7 @@ export function useArchivedReviewActions(): {
 } {
   const repo = useRepoStore((s) => s.repo)
   const utils = trpc.useUtils()
+  const queryClient = useQueryClient()
   const restoreMut = trpc.restoreArchivedReview.useMutation({
     onError: onMutationError('Restore review'),
   })
@@ -90,7 +94,7 @@ export function useArchivedReviewActions(): {
       utils.loopEvidence.invalidate(),
       utils.loopEvidenceHtml.invalidate(),
       utils.archivedReviews.invalidate(),
-      utils.reviewComments.invalidate(),
+      invalidateAllReviewComments(queryClient),
       utils.reviewedPaths.invalidate(),
     ])
   }

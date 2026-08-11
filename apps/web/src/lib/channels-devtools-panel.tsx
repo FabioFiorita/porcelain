@@ -1,6 +1,6 @@
 import { useBoardCards } from '@renderer/features/board'
+import { useReviewComments } from '@renderer/features/review/comments'
 import { useActions } from '@renderer/hooks/use-actions'
-import { useReviewComments } from '@renderer/hooks/use-comments'
 import { useFeatureView } from '@renderer/hooks/use-feature-view'
 import { useRepoNotes } from '@renderer/hooks/use-repo-notes'
 import { useSkillsInfo } from '@renderer/hooks/use-skills'
