@@ -3,8 +3,8 @@ import type { ReviewComment } from '@porcelain/contracts/review'
 import { reviewContractFixtures } from '@porcelain/contracts/review'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-
-import { reviewCommentsQueryKey, useCommentActions, useReviewComments } from './comment-data'
+import { useCommentActions, useReviewComments } from './comment-data'
+import { reviewCommentsQueryKey } from './comment-query-key'
 import {
   COMMENTS,
   createCommentHarness,

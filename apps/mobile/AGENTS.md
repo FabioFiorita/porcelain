@@ -30,10 +30,12 @@ loop and runtime traps. This file is platform law that must stay true without lo
   a file from the Reusables CLI unless a screen is using it in the same change.
 - The v5 setup does not use the NativeWind v4 Babel preset or a `tailwind.config.js`. Keep
   `components.json` for Reusables CLI metadata and make CSS imports the source of truth.
-- **`src/lib/daemon/` is the only daemon seam.** Procedures are hand-declared and zod-parsed; never
-  import the desktop daemon's `AppRouter`. Keep the existing React Query, zustand, and session
-  change invalidation seams (`subscribeSessionChanges` / `proceduresForChange`) — no second
-  transport or mobile-only protocol.
+- **`src/lib/daemon/` is the only daemon seam.** Never import the desktop daemon's `AppRouter`.
+  Untouched legacy procedure descriptors remain local and Zod-parsed temporarily; migrated slices
+  bind canonical `@porcelain/contracts/<domain>` procedure descriptors through
+  `namedContractProcedure` and must not recreate local wire schemas. Keep the existing React Query,
+  zustand, and session change invalidation seams (`subscribeSessionChanges` /
+  `proceduresForChange`) — no second transport or mobile-only protocol.
 - Mobile is a **separate native client** of the same daemon, not a renderer port. UI code may share
   design vocabulary with web, but it must use React Native primitives and remain free of desktop DOM
   and shell state.

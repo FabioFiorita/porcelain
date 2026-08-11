@@ -94,3 +94,36 @@ export const WEB_SERVER_IMPORT_BASELINE = Object.freeze({
   occurrences: 106,
   files: 86,
 })
+
+/**
+ * Shrink-only baselines for external production deep imports into a registered target root
+ * (importers outside that root resolving to non-`index.ts` internals). Counts are real
+ * resolved production imports only — not comments/tests. Occurrences and files may shrink
+ * or stay; growth fails. When both reach zero the baseline entry must be removed.
+ *
+ * Cross-imports between two registered target roots remain an immediate rejection and are
+ * never absorbed by these baselines.
+ *
+ * `apps/mobile/src/features/comments` is the RVC-004 presentation-module migration debt
+ * (composer/line-range/selection remain deep-imported until a later unit rehomes them).
+ * Other entries inventory pre-existing external deep imports so the gate can stay strict
+ * without inventing a special waiver path.
+ */
+export const TARGET_ROOT_DEEP_IMPORT_BASELINES = Object.freeze({
+  'apps/mobile/src/features/comments': Object.freeze({
+    occurrences: 28,
+    files: 16,
+  }),
+  'apps/web/src/features/review': Object.freeze({
+    occurrences: 14,
+    files: 14,
+  }),
+  'packages/contracts/src/board': Object.freeze({
+    occurrences: 3,
+    files: 3,
+  }),
+  'packages/contracts/src/review': Object.freeze({
+    occurrences: 2,
+    files: 2,
+  }),
+})

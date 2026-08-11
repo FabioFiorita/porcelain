@@ -12,7 +12,7 @@ import { checkArchitecture } from './lint-architecture.mjs'
 // those hardcoded paths do not exist under a temporary root; filtering to this pattern lets a
 // fixture assert on the behavior under test without reproducing the whole legacy ledger.
 const NEW_CHECK_PATTERN =
-  /DOMAIN_MIGRATIONS must define|supporting region is also registered|registered target root|migration record|migration status|targetRoots must be an array|legacyPaths must be an array|invalid repository-relative POSIX path|contains a duplicate path|registers a target root|registers no target root|legacy path still exists|not unique across DOMAIN_MIGRATIONS|is not a registered target domain|has no public index\.ts|deep-imports|direct child|claims the canonical/
+  /DOMAIN_MIGRATIONS must define|supporting region is also registered|registered target root|migration record|migration status|targetRoots must be an array|legacyPaths must be an array|invalid repository-relative POSIX path|contains a duplicate path|registers a target root|registers no target root|legacy path still exists|not unique across DOMAIN_MIGRATIONS|is not a registered target domain|has no public index\.ts|deep-imports|External deep imports|TARGET_ROOT_DEEP_IMPORT|direct child|claims the canonical/
 
 function buildMigrations(overrides = {}) {
   const base = Object.fromEntries(
@@ -110,7 +110,8 @@ test('an explicitly registered alias root is owned by its domain and allowed in 
           legacyPaths: [],
         },
       })
-      const failures = checkArchitecture(root, migrations)
+      // Empty deep-import baselines: this fixture is about registration, not presentation debt.
+      const failures = checkArchitecture(root, migrations, {})
       assert.deepEqual(newViolations(failures), [])
       assert.ok(
         !failures.some((failure) => failure.includes('comments is neither a canonical domain')),
@@ -386,6 +387,176 @@ test('a complete domain fails while its recorded legacy path still exists', () =
       assert.ok(
         failures.some((failure) =>
           /domain search is complete but its legacy path still exists/.test(failure),
+        ),
+      )
+    },
+  )
+})
+
+test('a registered Board root deep-importing a foreign Review-owned comments alias fails immediately', () => {
+  withFixtureRepo(
+    (root) => {
+      writeFixtureFile(
+        root,
+        'apps/mobile/src/features/board/index.ts',
+        "import { deep } from '@/features/comments/comment-composer'\nexport const board = deep\n",
+      )
+      writeFixtureFile(
+        root,
+        'apps/mobile/src/features/comments/index.ts',
+        'export const comments = 1\n',
+      )
+      writeFixtureFile(
+        root,
+        'apps/mobile/src/features/comments/comment-composer.tsx',
+        'export const deep = 1\n',
+      )
+    },
+    (root) => {
+      const migrations = buildMigrations({
+        board: {
+          status: 'migrating',
+          targetRoots: ['apps/mobile/src/features/board'],
+          legacyPaths: [],
+        },
+        review: {
+          status: 'migrating',
+          targetRoots: ['apps/mobile/src/features/comments'],
+          legacyPaths: [],
+        },
+      })
+      // Baseline would cover external (non-registered) importers only; cross-root stays hard-fail.
+      const failures = checkArchitecture(root, migrations, {
+        'apps/mobile/src/features/comments': { occurrences: 99, files: 99 },
+      })
+      assert.ok(
+        failures.some(
+          (failure) =>
+            failure.includes('deep-imports') &&
+            failure.includes('apps/mobile/src/features/comments/comment-composer.tsx') &&
+            failure.includes('apps/mobile/src/features/comments'),
+        ),
+      )
+    },
+  )
+})
+
+test('external deep imports into a registered alias are accounted against a shrink-only baseline', () => {
+  withFixtureRepo(
+    (root) => {
+      writeFixtureFile(
+        root,
+        'apps/mobile/src/features/comments/index.ts',
+        'export const comments = 1\n',
+      )
+      writeFixtureFile(
+        root,
+        'apps/mobile/src/features/comments/comment-composer.tsx',
+        'export const Composer = 1\n',
+      )
+      writeFixtureFile(
+        root,
+        'apps/mobile/src/features/diff/diff-view.tsx',
+        "import { Composer } from '@/features/comments/comment-composer'\nexport const Diff = Composer\n",
+      )
+    },
+    (root) => {
+      const migrations = buildMigrations({
+        review: {
+          status: 'migrating',
+          targetRoots: ['apps/mobile/src/features/comments'],
+          legacyPaths: [],
+        },
+      })
+
+      const within = checkArchitecture(root, migrations, {
+        'apps/mobile/src/features/comments': { occurrences: 1, files: 1 },
+      })
+      assert.ok(!within.some((failure) => /External deep imports|deep-imports/.test(failure)))
+
+      const growth = checkArchitecture(root, migrations, {
+        'apps/mobile/src/features/comments': { occurrences: 0, files: 0 },
+      })
+      assert.ok(
+        growth.some((failure) =>
+          failure.includes(
+            'External deep imports into apps/mobile/src/features/comments grew from 0 to 1 occurrences',
+          ),
+        ),
+      )
+
+      // Shrinking below the recorded baseline remains allowed.
+      const shrink = checkArchitecture(root, migrations, {
+        'apps/mobile/src/features/comments': { occurrences: 5, files: 5 },
+      })
+      assert.ok(!shrink.some((failure) => failure.includes('External deep imports')))
+    },
+  )
+})
+
+test('external deep imports without a baseline fail immediately; zero baseline must be removed', () => {
+  withFixtureRepo(
+    (root) => {
+      writeFixtureFile(
+        root,
+        'apps/mobile/src/features/comments/index.ts',
+        'export const comments = 1\n',
+      )
+      writeFixtureFile(
+        root,
+        'apps/mobile/src/features/comments/comment-composer.tsx',
+        'export const Composer = 1\n',
+      )
+      writeFixtureFile(
+        root,
+        'apps/mobile/src/features/diff/diff-view.tsx',
+        "import { Composer } from '@/features/comments/comment-composer'\nexport const Diff = Composer\n",
+      )
+    },
+    (root) => {
+      const migrations = buildMigrations({
+        review: {
+          status: 'migrating',
+          targetRoots: ['apps/mobile/src/features/comments'],
+          legacyPaths: [],
+        },
+      })
+
+      const noBaseline = checkArchitecture(root, migrations, {})
+      assert.ok(
+        noBaseline.some(
+          (failure) =>
+            failure.includes('deep-imports') &&
+            failure.includes('apps/mobile/src/features/comments/comment-composer.tsx'),
+        ),
+      )
+    },
+  )
+
+  withFixtureRepo(
+    (root) => {
+      writeFixtureFile(
+        root,
+        'apps/mobile/src/features/comments/index.ts',
+        'export const comments = 1\n',
+      )
+    },
+    (root) => {
+      const migrations = buildMigrations({
+        review: {
+          status: 'migrating',
+          targetRoots: ['apps/mobile/src/features/comments'],
+          legacyPaths: [],
+        },
+      })
+      const failures = checkArchitecture(root, migrations, {
+        'apps/mobile/src/features/comments': { occurrences: 1, files: 1 },
+      })
+      assert.ok(
+        failures.some((failure) =>
+          failure.includes(
+            'External deep imports into apps/mobile/src/features/comments reached zero; remove its TARGET_ROOT_DEEP_IMPORT_BASELINES entry',
+          ),
         ),
       )
     },

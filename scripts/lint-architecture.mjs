@@ -10,6 +10,7 @@ import {
   OVERSIZED_PRODUCTION_FILES,
   SUPPORTING_REGIONS,
   TARGET_DOMAIN_ROOTS,
+  TARGET_ROOT_DEEP_IMPORT_BASELINES,
   WEB_SERVER_IMPORT_BASELINE,
 } from './architecture/domains.mjs'
 
@@ -143,9 +144,14 @@ function validatePathList(key, field, value, fail) {
 /**
  * @param {string} root
  * @param {typeof DOMAIN_MIGRATIONS} migrations
+ * @param {typeof TARGET_ROOT_DEEP_IMPORT_BASELINES} [deepImportBaselines]
  * @returns {string[]}
  */
-export function checkArchitecture(root, migrations = DOMAIN_MIGRATIONS) {
+export function checkArchitecture(
+  root,
+  migrations = DOMAIN_MIGRATIONS,
+  deepImportBaselines = TARGET_ROOT_DEEP_IMPORT_BASELINES,
+) {
   const failures = []
   const fail = (message) => failures.push(message)
   const relative = (absolute) => path.relative(root, absolute).split(path.sep).join('/')
@@ -263,11 +269,20 @@ export function checkArchitecture(root, migrations = DOMAIN_MIGRATIONS) {
   const sourceFiles = productionRoots.flatMap((directory) => walk(directory))
   let rawWebServerImportOccurrences = 0
   const rawWebServerImportFiles = new Set()
+  /** @type {Map<string, { occurrences: number, files: Set<string> }>} */
+  const externalDeepImportsByRoot = new Map()
+  for (const targetRoot of validTargetRoots.keys()) {
+    externalDeepImportsByRoot.set(targetRoot, { occurrences: 0, files: new Set() })
+  }
 
   for (const absolute of sourceFiles) {
     const file = relative(absolute)
     const source = readFileSync(absolute, 'utf8')
     const specifiers = importSpecifiers(source)
+    const isProductionSource =
+      /\.(?:ts|tsx)$/.test(file) &&
+      file.includes('/src/') &&
+      !/\.(?:test|spec)\.(?:ts|tsx)$/.test(file)
 
     if (file.startsWith('packages/contracts/src/') || file.startsWith('packages/shared/src/')) {
       for (const specifier of specifiers) {
@@ -349,34 +364,50 @@ export function checkArchitecture(root, migrations = DOMAIN_MIGRATIONS) {
       (registeredRoot) =>
         file === `${registeredRoot}/index.ts` || file.startsWith(`${registeredRoot}/`),
     )
-    if (fileRoot) {
-      for (const specifier of specifiers) {
-        const resolved = specifier.startsWith('.')
-          ? resolveRelativeSpecifier(absolute, specifier)
-          : resolveNonRelativeSpecifier(root, specifier)
-        if (!resolved) continue
+    for (const specifier of specifiers) {
+      const resolved = specifier.startsWith('.')
+        ? resolveRelativeSpecifier(absolute, specifier)
+        : resolveNonRelativeSpecifier(root, specifier)
+      if (!resolved) continue
 
-        const resolvedRelative = relative(resolved)
-        const foreignRoot = [...validTargetRoots.keys()].find(
-          (registeredRoot) =>
-            registeredRoot !== fileRoot &&
-            (resolvedRelative === `${registeredRoot}/index.ts` ||
-              resolvedRelative.startsWith(`${registeredRoot}/`)),
+      const resolvedRelative = relative(resolved)
+      const targetRoot = [...validTargetRoots.keys()].find(
+        (registeredRoot) =>
+          resolvedRelative === `${registeredRoot}/index.ts` ||
+          resolvedRelative.startsWith(`${registeredRoot}/`),
+      )
+      if (!targetRoot) continue
+      // Public index is always allowed.
+      if (resolvedRelative === `${targetRoot}/index.ts`) continue
+      // Internal imports within the same registered root are allowed.
+      if (fileRoot === targetRoot) continue
+
+      if (fileRoot && fileRoot !== targetRoot) {
+        // Stricter path: registered root → foreign registered root internals fail immediately.
+        // These never count against a shrink-only external baseline.
+        fail(
+          `${file} deep-imports ${resolvedRelative} across the ${targetRoot} domain boundary; only its index.ts is public`,
         )
-        if (foreignRoot && resolvedRelative !== `${foreignRoot}/index.ts`) {
-          fail(
-            `${file} deep-imports ${resolvedRelative} across the ${foreignRoot} domain boundary; only its index.ts is public`,
-          )
-        }
+        continue
+      }
+
+      // Importer is outside any registered root (or outside this target): external deep import.
+      if (!isProductionSource) continue
+      const baseline = deepImportBaselines[targetRoot]
+      if (baseline === undefined) {
+        fail(
+          `${file} deep-imports ${resolvedRelative} into registered target root ${targetRoot}; only its index.ts is public (record a shrink-only TARGET_ROOT_DEEP_IMPORT_BASELINES entry only for inventoried migration debt)`,
+        )
+        continue
+      }
+      const bucket = externalDeepImportsByRoot.get(targetRoot)
+      if (bucket) {
+        bucket.occurrences += 1
+        bucket.files.add(file)
       }
     }
 
-    if (
-      /\.(?:ts|tsx)$/.test(file) &&
-      file.includes('/src/') &&
-      !/\.(?:test|spec)\.(?:ts|tsx)$/.test(file) &&
-      !file.startsWith('apps/web/src/components/ui/')
-    ) {
+    if (isProductionSource && !file.startsWith('apps/web/src/components/ui/')) {
       const lines = lineCount(source)
       const legacyCap = OVERSIZED_PRODUCTION_FILES[file]
       if (legacyCap === undefined && lines > ARCHITECTURE_LINE_CEILING) {
@@ -398,6 +429,52 @@ export function checkArchitecture(root, migrations = DOMAIN_MIGRATIONS) {
     fail(
       `Web files with raw server imports grew from ${WEB_SERVER_IMPORT_BASELINE.files} to ${rawWebServerImportFiles.size}`,
     )
+  }
+
+  if (
+    deepImportBaselines === null ||
+    typeof deepImportBaselines !== 'object' ||
+    Array.isArray(deepImportBaselines)
+  ) {
+    fail('TARGET_ROOT_DEEP_IMPORT_BASELINES must be an object of root → { occurrences, files }')
+  } else {
+    for (const [targetRoot, baseline] of Object.entries(deepImportBaselines)) {
+      if (!validTargetRoots.has(targetRoot)) {
+        // Fixture migrations may omit roots that the default baselines name; only enforce
+        // baselines for roots that are registered in this check.
+        continue
+      }
+      if (
+        baseline === null ||
+        typeof baseline !== 'object' ||
+        typeof baseline.occurrences !== 'number' ||
+        typeof baseline.files !== 'number'
+      ) {
+        fail(
+          `TARGET_ROOT_DEEP_IMPORT_BASELINES[${targetRoot}] must be { occurrences: number, files: number }`,
+        )
+        continue
+      }
+      const actual = externalDeepImportsByRoot.get(targetRoot) ?? {
+        occurrences: 0,
+        files: new Set(),
+      }
+      if (actual.occurrences > baseline.occurrences) {
+        fail(
+          `External deep imports into ${targetRoot} grew from ${baseline.occurrences} to ${actual.occurrences} occurrences`,
+        )
+      }
+      if (actual.files.size > baseline.files) {
+        fail(
+          `Files with external deep imports into ${targetRoot} grew from ${baseline.files} to ${actual.files.size}`,
+        )
+      }
+      if (actual.occurrences === 0 && actual.files.size === 0) {
+        fail(
+          `External deep imports into ${targetRoot} reached zero; remove its TARGET_ROOT_DEEP_IMPORT_BASELINES entry`,
+        )
+      }
+    }
   }
 
   for (const [directory, legacyNames] of Object.entries(LEGACY_FEATURE_DIRECTORIES)) {

@@ -84,15 +84,33 @@ describe('applyReviewCommentNotification', () => {
     const projectKey = reviewCommentsQueryKey(ENV_ID, PROJECT)
     const otherEnvKey = reviewCommentsQueryKey('other-env', PROJECT)
     const boardKey = ['daemon', ENV_ID, { domain: 'board', name: 'cards', projectPath: PROJECT }]
+    // Hostile near-matches the predicate must reject.
+    const webShaped = [
+      { domain: 'review', name: 'comments', projectPath: PROJECT },
+      { host: null, version: null },
+    ]
+    const extraTuple = [
+      'daemon',
+      ENV_ID,
+      { domain: 'review', name: 'comments', projectPath: PROJECT },
+      'extra',
+    ]
+    const missingProjectPath = ['daemon', ENV_ID, { domain: 'review', name: 'comments' }]
 
     queryClient.setQueryData(projectKey, ['comments'])
     queryClient.setQueryData(otherEnvKey, ['other-env'])
     queryClient.setQueryData(boardKey, ['board'])
+    queryClient.setQueryData(webShaped, ['web'])
+    queryClient.setQueryData(extraTuple, ['extra'])
+    queryClient.setQueryData(missingProjectPath, ['missing'])
 
     await invalidateAllReviewComments(queryClient, ENV_ID)
 
     expect(queryClient.getQueryState(projectKey)?.isInvalidated).toBe(true)
     expect(queryClient.getQueryState(otherEnvKey)?.isInvalidated).toBeFalsy()
     expect(queryClient.getQueryState(boardKey)?.isInvalidated).toBeFalsy()
+    expect(queryClient.getQueryState(webShaped)?.isInvalidated).toBeFalsy()
+    expect(queryClient.getQueryState(extraTuple)?.isInvalidated).toBeFalsy()
+    expect(queryClient.getQueryState(missingProjectPath)?.isInvalidated).toBeFalsy()
   })
 })

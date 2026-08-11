@@ -166,4 +166,62 @@ describe('Review lifecycle typed comments invalidation (RVC-004)', () => {
     expect(source).not.toMatch(/['"]reviewComments['"]/)
     expect(source).toContain('invalidateAllReviewComments')
   })
+
+  it('failed publish/archive leave typed comments caches uninvalidated', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+    const commentsKey = reviewCommentsQueryKey(ENV_ID, REPO)
+    queryClient.setQueryData(commentsKey, reviewContractFixtures.reviewComments.output)
+
+    ctx.mutationHandlers.set('publishReview', () => {
+      throw new Error('publish failed')
+    })
+    ctx.mutationHandlers.set('clearFeatureReview', () => {
+      throw new Error('archive failed')
+    })
+
+    const { result } = renderHook(() => useReviewActions(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    await act(async () => {
+      await expect(result.current.publish()).rejects.toThrow('publish failed')
+    })
+    expect(queryClient.getQueryState(commentsKey)?.isInvalidated).toBeFalsy()
+
+    await act(async () => {
+      await expect(result.current.archive()).rejects.toThrow('archive failed')
+    })
+    expect(queryClient.getQueryState(commentsKey)?.isInvalidated).toBeFalsy()
+  })
+
+  it('failed archived restore/remove leave typed comments caches uninvalidated', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+    const commentsKey = reviewCommentsQueryKey(ENV_ID, REPO)
+    queryClient.setQueryData(commentsKey, reviewContractFixtures.reviewComments.output)
+
+    ctx.mutationHandlers.set('restoreArchivedReview', () => {
+      throw new Error('restore failed')
+    })
+    ctx.mutationHandlers.set('deleteArchivedReview', () => {
+      throw new Error('remove failed')
+    })
+
+    const { result } = renderHook(() => useArchivedReviewActions(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    await act(async () => {
+      await expect(result.current.restore('archive-synthetic')).rejects.toThrow('restore failed')
+    })
+    expect(queryClient.getQueryState(commentsKey)?.isInvalidated).toBeFalsy()
+
+    await act(async () => {
+      await expect(result.current.remove('archive-synthetic')).rejects.toThrow('remove failed')
+    })
+    expect(queryClient.getQueryState(commentsKey)?.isInvalidated).toBeFalsy()
+  })
 })

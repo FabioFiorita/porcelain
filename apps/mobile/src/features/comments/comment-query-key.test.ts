@@ -31,8 +31,10 @@ describe('reviewCommentsQueryKey', () => {
     expect(a[1]).not.toEqual(c[1])
   })
 
-  it('recognizes only comments identities in the predicate', () => {
+  it('recognizes only the exact mobile three-tuple comments identity', () => {
     expect(isReviewCommentsQueryKey(reviewCommentsQueryKey(ENV, PROJECT))).toBe(true)
+
+    // Wrong domain / name
     expect(
       isReviewCommentsQueryKey([
         'daemon',
@@ -47,8 +49,51 @@ describe('reviewCommentsQueryKey', () => {
         { domain: 'review', name: 'evidence', projectPath: PROJECT },
       ]),
     ).toBe(false)
+
+    // Missing / non-string projectPath
+    expect(isReviewCommentsQueryKey(['daemon', ENV, { domain: 'review', name: 'comments' }])).toBe(
+      false,
+    )
+    expect(
+      isReviewCommentsQueryKey([
+        'daemon',
+        ENV,
+        { domain: 'review', name: 'comments', projectPath: 12 },
+      ]),
+    ).toBe(false)
+    expect(
+      isReviewCommentsQueryKey([
+        'daemon',
+        ENV,
+        { domain: 'review', name: 'comments', projectPath: null },
+      ]),
+    ).toBe(false)
+
+    // Extra tuple elements
+    expect(
+      isReviewCommentsQueryKey([
+        'daemon',
+        ENV,
+        { domain: 'review', name: 'comments', projectPath: PROJECT },
+        'extra',
+      ]),
+    ).toBe(false)
+
+    // Web-shaped / head-identity keys (identity first, no daemon prefix)
+    expect(
+      isReviewCommentsQueryKey([
+        { domain: 'review', name: 'comments', projectPath: PROJECT },
+        { host: null, version: null },
+      ]),
+    ).toBe(false)
+    expect(
+      isReviewCommentsQueryKey([{ domain: 'review', name: 'comments', projectPath: PROJECT }]),
+    ).toBe(false)
+
+    // Truncated / wrong head
     expect(isReviewCommentsQueryKey(['reviewComments'])).toBe(false)
     expect(isReviewCommentsQueryKey(['daemon', ENV])).toBe(false)
     expect(isReviewCommentsQueryKey([])).toBe(false)
+    expect(isReviewCommentsQueryKey(['daemon', 42, reviewCommentsQuery(PROJECT)])).toBe(false)
   })
 })
