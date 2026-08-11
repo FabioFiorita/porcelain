@@ -1,0 +1,26 @@
+{
+  "extends": "../mobile/tsconfig.json",
+  "include": [
+    "../mobile/nativewind-env.d.ts",
+    "../mobile/expo-env.d.ts",
+    "../mobile/src/**/*.test.ts",
+    "../mobile/src/**/*.test.tsx",
+    "../mobile/src/**/test-support.tsx"
+  ],
+  "exclude": [],
+  "compilerOptions": {
+    "composite": false,
+    "baseUrl": ".",
+    "ignoreDeprecations": "6.0",
+    "types": ["vitest/globals", "@testing-library/jest-dom/vitest"],
+    "paths": {
+      "@/*": ["../mobile/src/*"],
+      "@/assets/*": ["../mobile/assets/*"],
+      "@porcelain/contracts": ["../../packages/contracts/src/index.ts"],
+      "@porcelain/contracts/*": ["../../packages/contracts/src/*"],
+      "@porcelain/client-runtime/*": ["../../packages/client-runtime/src/*"],
+      "@porcelain/shared/*": ["../../packages/shared/src/*"],
+      "@testing-library/react": ["node_modules/@testing-library/react/types/index.d.ts"]
+    }
+  }
+}

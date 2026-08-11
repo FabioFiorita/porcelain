@@ -1,4 +1,5 @@
 import { boardNotificationEffects } from '@porcelain/client-runtime/board'
+import type { FreshnessRequirement } from '@porcelain/client-runtime/session/recovery'
 import type { BoardChanged } from '@porcelain/contracts/board'
 import type { QueryClient } from '@tanstack/react-query'
 
@@ -29,4 +30,16 @@ export function applyBoardNotification(
       exact: true,
     })
   }
+}
+
+/** Recover the exact Board query when the session reports a project-scoped sequence gap. */
+export function applyBoardFreshnessRequirement(
+  requirement: FreshnessRequirement,
+  options: ApplyBoardNotificationOptions,
+): void {
+  if (requirement.scope.kind !== 'project') return
+  applyBoardNotification(
+    { kind: 'board.changed', projectPath: requirement.scope.projectPath },
+    options,
+  )
 }

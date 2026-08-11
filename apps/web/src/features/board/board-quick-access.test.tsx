@@ -8,7 +8,8 @@ describe('BoardQuickAccess', () => {
   it('focuses the first Doing card and exposes Start Review / Edit / Delete labels', async () => {
     renderBoard(<BoardQuickAccess />)
     const doing = boardContractFixtures.listBoardCards.output.find((c) => c.status === 'doing')
-    await waitFor(() => expect(screen.getByText(doing!.title)).toBeInTheDocument())
+    if (doing === undefined) throw new Error('Expected a Doing Board card fixture')
+    await waitFor(() => expect(screen.getByText(doing.title)).toBeInTheDocument())
     expect(screen.getByLabelText('Edit card')).toBeInTheDocument()
     expect(screen.getByLabelText('Start Review from this card')).toBeInTheDocument()
     expect(screen.getByLabelText('Delete card')).toBeInTheDocument()

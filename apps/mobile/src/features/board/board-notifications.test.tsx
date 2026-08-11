@@ -3,7 +3,7 @@ import { boardNotificationFixture } from '@porcelain/contracts/board'
 import { QueryClient } from '@tanstack/react-query'
 import { describe, expect, it, vi } from 'vitest'
 
-import { applyBoardNotification } from './board-notifications'
+import { applyBoardFreshnessRequirement, applyBoardNotification } from './board-notifications'
 import { boardCardsQueryKey } from './board-query-key'
 
 const ENV_ID = 'env-board-test'
@@ -58,5 +58,21 @@ describe('applyBoardNotification', () => {
     expect(queryClient.getQueryData(projectKey)).toEqual(['project'])
     expect(queryClient.getQueryState(otherKey)?.isInvalidated).toBe(true)
     expect(queryClient.getQueryState(projectKey)?.isInvalidated).toBeFalsy()
+  })
+
+  it('recovers the exact Project Board after a sequence gap', () => {
+    const queryClient = new QueryClient()
+    const projectKey = boardCardsQueryKey(ENV_ID, PROJECT)
+    const otherKey = boardCardsQueryKey(ENV_ID, OTHER)
+    queryClient.setQueryData(projectKey, ['project'])
+    queryClient.setQueryData(otherKey, ['other'])
+
+    applyBoardFreshnessRequirement(
+      { reason: 'sequence-gap', scope: { kind: 'project', projectPath: PROJECT } },
+      { queryClient, environmentId: ENV_ID },
+    )
+
+    expect(queryClient.getQueryState(projectKey)?.isInvalidated).toBe(true)
+    expect(queryClient.getQueryState(otherKey)?.isInvalidated).toBeFalsy()
   })
 })

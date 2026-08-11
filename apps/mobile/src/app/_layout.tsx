@@ -6,7 +6,7 @@ import { StatusBar } from 'expo-status-bar'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 
-import { BoardNotificationBridge } from '@/features/board/board-notification-bridge'
+import { BoardNotificationBridge } from '@/features/board'
 import { AppThemeProvider, useResolvedColorScheme } from '@/features/settings/theme-provider'
 import { PhoneBottomChrome } from '@/features/shell/bottom-chrome'
 import { PhoneShell } from '@/features/shell/phone-shell'

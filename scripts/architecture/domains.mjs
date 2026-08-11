@@ -20,6 +20,7 @@ export const DOMAIN_MIGRATIONS = Object.freeze(
         targetRoots.push('apps/daemon/src/features/board')
         targetRoots.push('packages/client-runtime/src/board')
         targetRoots.push('apps/web/src/features/board')
+        targetRoots.push('apps/mobile/src/features/board')
       }
       return [
         key,

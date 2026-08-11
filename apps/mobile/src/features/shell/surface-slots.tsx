@@ -1,7 +1,4 @@
-import { BoardCompanion } from '@/features/board/board-companion'
-import { BoardList } from '@/features/board/board-list'
-import { BoardPhoneScreen } from '@/features/board/board-phone-screen'
-import { BoardViewer } from '@/features/board/board-viewer'
+import { BoardCompanion, BoardList, BoardPhoneScreen, BoardViewer } from '@/features/board'
 import { ChangesCompanion } from '@/features/changes/changes-companion'
 import { ChangesList } from '@/features/changes/changes-list'
 import { ChangesPhoneScreen } from '@/features/changes/changes-phone-screen'

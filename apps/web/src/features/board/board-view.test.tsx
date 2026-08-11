@@ -1,17 +1,12 @@
-import { boardContractFixtures } from '@porcelain/contracts/board'
 import { screen, waitFor } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { BoardView } from './board-view'
-import { renderBoard } from './test-support'
+import { boardCardAt, renderBoard } from './test-support'
 
 describe('BoardView', () => {
   it('renders the wide kanban columns and cards', async () => {
     renderBoard(<BoardView />)
-    await waitFor(() =>
-      expect(
-        screen.getByText(boardContractFixtures.listBoardCards.output[0]!.title),
-      ).toBeInTheDocument(),
-    )
+    await waitFor(() => expect(screen.getByText(boardCardAt(0).title)).toBeInTheDocument())
     expect(screen.getByLabelText('Add card to To do')).toBeInTheDocument()
   })
 

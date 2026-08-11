@@ -3,7 +3,16 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { boardCardsQueryKey, useBoardCardActions, useBoardCards } from './board-data'
-import { CARDS, createBoardHarness, deferred, ENV_ID, PAIRED_ENV, REPO } from './test-support'
+import {
+  CARDS,
+  createBoardHarness,
+  deferred,
+  ENV_ID,
+  PAIRED_ENV,
+  REPO,
+  type TestDaemonClient,
+  type TestPairedEnvironment,
+} from './test-support'
 
 const UNAVAILABLE = {
   code: 'board.unavailable' as const,

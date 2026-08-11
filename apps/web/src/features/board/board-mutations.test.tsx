@@ -7,11 +7,12 @@ import { toast } from 'sonner'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useBoardCardActions } from './board-mutations'
 import { useBoardCards } from './board-queries'
+import { boardCardAt } from './test-support'
 
 vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
 
 const REPO = boardContractFixtures.listBoardCards.input
-const CARD = boardContractFixtures.listBoardCards.output[0]!
+const CARD = boardCardAt(0)
 const CREATED = boardContractFixtures.createBoardCard.output
 
 const UNAVAILABLE = {

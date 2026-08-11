@@ -4,7 +4,7 @@ import { Text, View } from 'react-native'
 import { ChromeGlyph } from '@/components/chrome-glyph'
 // The Board hands a card's title over when it sends you here to start the unit. Consumed
 // once, so the name stays stable while you read it.
-import { useReviewHandoffStore } from '@/features/board/review-handoff-store'
+import { useReviewHandoffStore } from '@/features/board'
 
 /**
  * The start of a unit of work.

@@ -1,17 +1,12 @@
-import { boardContractFixtures } from '@porcelain/contracts/board'
 import { screen, waitFor } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { BoardList } from './board-list'
-import { renderBoard } from './test-support'
+import { boardCardAt, renderBoard } from './test-support'
 
 describe('BoardList', () => {
   it('renders column labels, card titles, and add accessibility labels', async () => {
     renderBoard(<BoardList />)
-    await waitFor(() =>
-      expect(
-        screen.getByText(boardContractFixtures.listBoardCards.output[0]!.title),
-      ).toBeInTheDocument(),
-    )
+    await waitFor(() => expect(screen.getByText(boardCardAt(0).title)).toBeInTheDocument())
     // "Open board" portals into the sidebar header slot (absent in isolation).
     expect(screen.getByRole('button', { name: 'Add card to To do' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Add card to Doing' })).toBeInTheDocument()

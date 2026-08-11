@@ -1,10 +1,9 @@
-import { boardContractFixtures } from '@porcelain/contracts/board'
 import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { CardItem } from './card-item'
-import { renderBoard } from './test-support'
+import { boardCardAt, renderBoard } from './test-support'
 
-const CARD = boardContractFixtures.listBoardCards.output[0]!
+const CARD = boardCardAt(0)
 
 describe('CardItem', () => {
   it('renders the card title and opens card actions', async () => {

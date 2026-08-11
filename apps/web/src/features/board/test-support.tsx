@@ -11,6 +11,13 @@ import type { ReactElement } from 'react'
 const REPO = boardContractFixtures.listBoardCards.input
 const CARDS = boardContractFixtures.listBoardCards.output
 
+/** A required canonical card fixture with a useful failure if the fixture contract drifts. */
+export function boardCardAt(index: number) {
+  const card = CARDS[index]
+  if (card === undefined) throw new Error(`Expected Board card fixture at index ${index}`)
+  return card
+}
+
 /** Default Board procedure handlers for presentation tests. */
 export function defaultBoardHandlers(overrides: DaemonMockHandlers = {}): DaemonMockHandlers {
   return {

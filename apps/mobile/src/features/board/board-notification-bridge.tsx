@@ -4,7 +4,7 @@ import { useEffect } from 'react'
 import { useActiveEnvironment } from '@/lib/daemon/environments-store'
 import { subscribeSessionChanges } from '@/lib/daemon/session'
 
-import { applyBoardNotification } from './board-notifications'
+import { applyBoardFreshnessRequirement, applyBoardNotification } from './board-notifications'
 
 /**
  * Subscribe once to the configured mobile daemon session and apply Board notifications.
@@ -25,9 +25,10 @@ export function BoardNotificationBridge(): null {
           { queryClient, environmentId },
         )
       },
-      onFreshnessRequired: () => {
-        // Session/project recovery remains owned by DaemonProvider (environment-wide
-        // invalidation). Board live signals alone are handled here.
+      onFreshnessRequired: (requirement) => {
+        // DaemonProvider owns session-wide recovery through the environment key. Board owns
+        // its project-scoped identity, which procedure-name invalidation cannot address.
+        applyBoardFreshnessRequirement(requirement, { queryClient, environmentId })
       },
     })
   }, [queryClient, environmentId])
