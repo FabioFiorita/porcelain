@@ -1,6 +1,6 @@
 # BRD-001 — Define the canonical Board wire
 
-- Status: Draft
+- Status: Ready
 - Batch: 1 — Board primary exemplar
 - Domain: `board`
 - Depends on: `CON-021`, `ERR-001`, `RT-001`
@@ -19,15 +19,26 @@ contract must land before the operation and client exemplars can compile against
 
 ## Current behavior and evidence
 
-- `packages/contracts/src/procedures/names.ts` lists `boardCards`, `addBoardCard`,
-  `updateBoardCard`, `moveBoardCard`, `deleteBoardCard`, and `clearBoardCards`.
-- `packages/contracts/src/procedures/refined.ts` defines their current schemas and
-  `boardCardSchema`; five mutation outputs are `void` except create.
-- `packages/contracts/src/ws-protocol.ts` exposes the coarse `app-event: board` discriminator.
-- `apps/daemon/src/router/board.ts` authors duplicate Zod inputs and returns daemon store types.
-- `apps/mobile/src/lib/daemon/procedures/review.ts` mirrors the Board card and all six procedures.
-- Web imports `BoardCard` and `CardStatus` from `@backend/stores/board-store`.
+Post-Batch-0 truth (anchors reviewed 2026-08-10):
+
+- The six current names (`boardCards`, `addBoardCard`, `updateBoardCard`, `moveBoardCard`,
+  `deleteBoardCard`, `clearBoardCards`) live in `packages/contracts/src/board/board.procedures.ts`
+  with schemas in `board.contract.ts` and fixtures in `board.fixtures.ts`; the horizontal
+  `procedures/**` and `ws-protocol.ts` files no longer exist (CON-021, RT-005).
+- `board.changed` already exists in `board.notifications.ts` (RT-001) and rides the live session.
+- `apps/daemon/src/router/board.ts` binds the current catalog entries via `createBoardRouter()`
+  (CON-018 + DAE-001); it no longer authors local Zod.
+- `apps/mobile/src/lib/daemon/procedures/review.ts` still mirrors the Board card and procedures;
+  Web components import `BoardCard` from `@backend/stores/board-store` (board-view, card-item,
+  board-quick-access).
 - Current card fields are `id`, `title`, optional `body`, `status`, `order`, and `createdAt`.
+- The permanent contract gate (`lint-procedure-contracts.mjs`) requires EXACTLY 113 catalog
+  procedures mapped 1:1 onto the nine routers. Therefore this unit defines the six canonical
+  declarations (`listBoardCards` … `clearBoardColumn`) as exported, tested members of the `board/`
+  domain modules but does NOT add them to `procedureCatalog`: the catalog swap — six old names out,
+  six canonical names in, count staying exactly 113 — happens atomically in `BRD-002`'s router
+  cutover. "Compose into the exhaustive global catalogs" below binds only the error union and the
+  notification/fixture surfaces in this unit.
 
 ## Scope
 
@@ -116,10 +127,12 @@ performing them before `BRD-002` through `BRD-005` are ready.
 Run:
 
 ```bash
-pnpm exec vitest run packages/contracts/src/board
+pnpm --dir apps/desktop exec vitest run ../../packages/contracts/src/board
 node scripts/lint-procedure-contracts.mjs
 node scripts/lint-architecture.mjs
 pnpm lint
+pnpm verify
+git diff --check
 ```
 
 Before the final Board cutover, `rg -n "boardCards|addBoardCard|clearBoardCards|app-event.*board"`
@@ -139,8 +152,11 @@ runtime compatibility path.
 - [ ] Six exact canonical declarations and one typed notification exist under `contracts/src/board`.
 - [ ] Inputs, outputs, public errors, and fixtures are runtime validated and exhaustive.
 - [ ] Package exports expose the Board boundary without exposing private catalog internals.
-- [ ] Contract tests and all listed gates pass.
+- [ ] Contract tests and all listed gates pass (the 113-procedure gate stays green because the
+      canonical six are not yet catalog members).
 - [ ] The handoff names every legacy deletion owned by the remaining Board specs.
+- [ ] One commit lands only `BRD-001`, marks recipe/catalog Landed, leaves a clean worktree,
+      provides the README review packet, and finishes without pushing.
 
 ## Handoff
 
