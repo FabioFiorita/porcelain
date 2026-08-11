@@ -118,7 +118,7 @@ an external choice or authorization.
 | `PDT-001` | Draft | Version-1 root manifest and per-domain persisted-file ownership |
 | `PDT-002` | Draft | Notes, dispositions, layers, visibility contracts/operations/adapters |
 | `PDT-003` | Draft | Web/mobile settings adapters over Project Data semantics |
-| `PDT-004` | Blocked | Exact export/backup/reset of disposable and human-authored pre-launch data |
+| `PDT-004` | Draft | Recorded reset authorization, classification fixtures, and manual-only procedure |
 | `PDT-005` | Draft | Delete home and active-layout migrations after authorized clean-state path |
 | `PDT-006` | Draft | Corruption/atomicity/ownership proof and completed domain gate |
 | `REV-001` | Draft | Canonical active/archive/reading/intent/reviewed/inbox contracts |
@@ -143,7 +143,7 @@ an external choice or authorization.
 | `AGT-001` | Draft | Relocate every Ship responsibility and Audit invariant to current owners |
 | `AGT-002` | Draft | Remove mandatory Companion Review lifecycle and migration guidance |
 | `AGT-003` | Draft | Delete Ship/Audit and audit docs; strengthen foundation sync |
-| `LCH-001` | Blocked | Clean-v1 seed/reset and protocol match/mismatch launch rehearsal |
+| `LCH-001` | Draft | Clean-v1 seed/reset and protocol match/mismatch launch rehearsal |
 | `LCH-002` | Draft | Remove final ledgers and prove canonical/fresh-agent discoverability |
 | `LCH-003` | Draft | Clean-checkout verify and named browser/Terminal/packaging evidence |
 
