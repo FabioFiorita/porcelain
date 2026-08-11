@@ -8,7 +8,8 @@
     "./project-porcelain": "./src/project-porcelain.ts",
     "./platform": "./src/platform.ts",
     "./evidence-check": "./src/evidence-check.ts",
-    "./test-ids": "./src/test-ids.ts"
+    "./test-ids": "./src/test-ids.ts",
+    "./board-file": "./src/board-file.ts"
   },
   "typesVersions": {
     "*": {
@@ -26,6 +27,9 @@
       ],
       "test-ids": [
         "./src/test-ids.ts"
+      ],
+      "board-file": [
+        "./src/board-file.ts"
       ]
     }
   }

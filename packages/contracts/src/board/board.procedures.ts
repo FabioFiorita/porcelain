@@ -80,8 +80,9 @@ export const boardProcedures = {
 export type BoardProcedureName = keyof typeof boardProcedures
 
 /**
- * Live Board catalog members still bound by `apps/daemon/src/router/board.ts` and composed into
- * `procedureCatalog`. BRD-002 deletes this block when the router mounts the canonical six.
+ * Live Board catalog members still bound by `apps/daemon/src/features/board/board-router.ts`
+ * (legacy wire names) and composed into `procedureCatalog`. BRD-004 performs the six-for-six
+ * catalog/name swap with the Web migration.
  *
  * Not part of the public Board boundary (`@porcelain/contracts/board` does not re-export it).
  * Inline legacy schemas preserve current wire shapes (repoPath, void mutations) without aliasing

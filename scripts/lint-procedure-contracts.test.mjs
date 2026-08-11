@@ -87,12 +87,12 @@ function routerFixture(options = {}) {
   const routerSources = Object.fromEntries(
     PRODUCTION_ROUTER_FILES.map((filename) => [
       filename,
-      filename === 'board.ts' ? boardSource : emptySource,
+      filename === 'features/board/board-router.ts' ? boardSource : emptySource,
     ]),
   )
   return {
     routerFiles: [...PRODUCTION_ROUTER_FILES],
-    routerProcedures: extractRouterProcedures(boardSource, 'board.ts'),
+    routerProcedures: extractRouterProcedures(boardSource, 'features/board/board-router.ts'),
     routerSources,
     domainRecords: [
       { domain: 'board', name: 'boardCards', kind: 'query', source: 'board.procedures.ts' },
@@ -101,8 +101,8 @@ function routerFixture(options = {}) {
 }
 
 test('retains each router filename and complete procedure source block', () => {
-  const [procedure] = extractRouterProcedures(procedureSource(), 'board.ts')
-  assert.equal(procedure.filename, 'board.ts')
+  const [procedure] = extractRouterProcedures(procedureSource(), 'features/board/board-router.ts')
+  assert.equal(procedure.filename, 'features/board/board-router.ts')
   assert.match(procedure.block, /procedureCatalog\.boardCards\.input/)
   assert.match(procedure.block, /procedureCatalog\.boardCards\.output/)
 })
@@ -118,7 +118,7 @@ export function createBoardRouter() {
   })
 }
 `
-  const [procedure] = extractRouterProcedures(factorySource, 'board.ts')
+  const [procedure] = extractRouterProcedures(factorySource, 'features/board/board-router.ts')
   assert.equal(procedure.name, 'boardCards')
   assert.equal(procedure.kind, 'query')
   assert.match(procedure.block, /procedureCatalog\.boardCards\.input/)
@@ -130,22 +130,24 @@ test('accepts a router bound to its exact catalog input and output', () => {
 
 test('rejects an unknown router filename and a test file treated as a router', () => {
   const fixture = routerFixture()
-  fixture.routerFiles = [...fixture.routerFiles, 'unknown.ts', 'board.contract.test.ts']
+  fixture.routerFiles = [...fixture.routerFiles, 'unknown.ts', 'router/board.contract.test.ts']
   const failures = checkRouterCatalogBinding(fixture)
   assert.ok(failures.some((failure) => failure.includes('unknown production router filename')))
   assert.ok(
     failures.some((failure) =>
-      failure.includes('router filename is not a production router file: board.contract.test.ts'),
+      failure.includes(
+        'router filename is not a production router file: router/board.contract.test.ts',
+      ),
     ),
   )
 })
 
 test('rejects a missing production router filename', () => {
   const fixture = routerFixture()
-  fixture.routerFiles = fixture.routerFiles.filter((filename) => filename !== 'daemon.ts')
+  fixture.routerFiles = fixture.routerFiles.filter((filename) => filename !== 'router/daemon.ts')
   assert.ok(
     checkRouterCatalogBinding(fixture).some((failure) =>
-      failure.includes('production router file is missing: daemon.ts'),
+      failure.includes('production router file is missing: router/daemon.ts'),
     ),
   )
 })
@@ -155,7 +157,7 @@ test('rejects a catalog identifier not imported directly from the contracts root
   assert.ok(
     checkRouterCatalogBinding(fixture).some((failure) =>
       failure.includes(
-        'router must import procedureCatalog directly from @porcelain/contracts: board.ts',
+        'router must import procedureCatalog directly from @porcelain/contracts: features/board/board-router.ts',
       ),
     ),
   )
@@ -267,7 +269,7 @@ test('rejects a router that reaches for a deleted horizontal contract path', () 
     assert.ok(
       checkRouterCatalogBinding(fixture).some((failure) =>
         failure.includes(
-          'router must import procedureCatalog directly from @porcelain/contracts: board.ts',
+          'router must import procedureCatalog directly from @porcelain/contracts: features/board/board-router.ts',
         ),
       ),
     )

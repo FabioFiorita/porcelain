@@ -1,6 +1,6 @@
 # BRD-002 — Put Board behavior behind operations and a version-1 adapter
 
-- Status: Ready
+- Status: Landed
 - Batch: 1 — Board primary exemplar
 - Domain: `board`
 - Depends on: `BRD-001`, `DAE-001`, `TST-002`, `DAT-001`
@@ -201,16 +201,16 @@ storage schema. (The legacy wire-name search moves to `BRD-004`/`BRD-005` with t
 
 ## Completion criteria
 
-- [ ] Six canonical procedures invoke six directly tested operations.
-- [ ] Daemon and CLI accept/write only the shared strict v1 Board file shape.
-- [ ] Expected failures and authoritative mutation results match BRD-001.
-- [ ] Atomicity, concurrency, corruption, size, visibility, and CLI constraints remain proved.
-- [ ] Successful writes emit one typed fact; rejects/failures emit none.
-- [ ] Old Board router/store files and permissive schemas have no daemon/CLI runtime path; the six
+- [x] Six canonical procedures invoke six directly tested operations.
+- [x] Daemon and CLI accept/write only the shared strict v1 Board file shape.
+- [x] Expected failures and authoritative mutation results match BRD-001.
+- [x] Atomicity, concurrency, corruption, size, visibility, and CLI constraints remain proved.
+- [x] Successful writes emit one typed fact; rejects/failures emit none.
+- [x] Old Board router/store files and permissive schemas have no daemon/CLI runtime path; the six
       legacy wire names survive only as thin bindings over the new operations until `BRD-004`.
-- [ ] No existing real Board data was deleted or rewritten during implementation/proof.
-- [ ] Focused tests, builds, repository lint, full verify, diff check, and searches pass.
-- [ ] One commit lands only `BRD-002`, marks recipe/catalog Landed, leaves a clean worktree,
+- [x] No existing real Board data was deleted or rewritten during implementation/proof.
+- [x] Focused tests, builds, repository lint, full verify, diff check, and searches pass.
+- [x] One commit lands only `BRD-002`, marks recipe/catalog Landed, leaves a clean worktree,
       provides the README review packet, and finishes without pushing.
 
 ## Handoff

@@ -13,14 +13,21 @@ export const DOMAIN_KEYS = [
 
 export const DOMAIN_MIGRATIONS = Object.freeze(
   Object.fromEntries(
-    DOMAIN_KEYS.map((key) => [
-      key,
-      Object.freeze({
-        status: 'migrating',
-        targetRoots: Object.freeze([`packages/contracts/src/${key}`]),
-        legacyPaths: Object.freeze([]),
-      }),
-    ]),
+    DOMAIN_KEYS.map((key) => {
+      const targetRoots = [`packages/contracts/src/${key}`]
+      // Board is the first daemon feature slice (BRD-002).
+      if (key === 'board') {
+        targetRoots.push('apps/daemon/src/features/board')
+      }
+      return [
+        key,
+        Object.freeze({
+          status: 'migrating',
+          targetRoots: Object.freeze(targetRoots),
+          legacyPaths: Object.freeze([]),
+        }),
+      ]
+    }),
   ),
 )
 

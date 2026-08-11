@@ -1,53 +1,76 @@
 import { randomUUID } from 'node:crypto'
-import { PROJECT_FILES } from '@shared/project-porcelain'
-import { readProjectJson, writeProjectJson } from './project-io'
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { dirname } from 'node:path'
+import {
+  type BoardFileCard,
+  BoardFileParseError,
+  type BoardFileStatus,
+  emptyBoardFileV1,
+  parseBoardFileV1,
+  planCreateBoardCard,
+  planDeleteBoardCard,
+  planMoveBoardCard,
+  planUpdateBoardCard,
+  serializeBoardFileV1,
+  sortBoardCards,
+} from '@porcelain/shared/board-file'
+import { PROJECT_FILES, projectPorcelainPath } from '@shared/project-porcelain'
+import { ensureProjectDir } from './project-io'
 
-// Builtins only — see cli.ts. Project board in <repo>/.porcelain/board.json.
+// Builtins + @porcelain/shared only — see cli.ts. Project board is strict v1 JSON.
 
-const CARD_STATUSES = ['todo', 'doing', 'done'] as const
-type CardStatus = (typeof CARD_STATUSES)[number]
-const STATUS_SET = new Set<string>(CARD_STATUSES)
+export type BoardCard = BoardFileCard
+export type CardStatus = BoardFileStatus
 
-export interface BoardCard {
-  id: string
-  title: string
-  body?: string
-  status: CardStatus
-  order: number
-  createdAt: number
+const STATUS_SET = new Set<string>(['todo', 'doing', 'done'])
+
+function boardPath(repoPath: string): string {
+  return projectPorcelainPath(repoPath, PROJECT_FILES.board)
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
+function isEnoent(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code: unknown }).code === 'ENOENT'
+  )
 }
 
-function parseCards(value: unknown): BoardCard[] {
-  if (!Array.isArray(value)) return []
-  const cards: BoardCard[] = []
-  for (const item of value) {
-    if (!isRecord(item)) continue
-    if (typeof item.id !== 'string' || typeof item.title !== 'string') continue
-    const status =
-      typeof item.status === 'string' && STATUS_SET.has(item.status) ? item.status : 'todo'
-    const card: BoardCard = {
-      id: item.id,
-      title: item.title,
-      status: status as CardStatus,
-      order: typeof item.order === 'number' ? item.order : 0,
-      createdAt: typeof item.createdAt === 'number' ? item.createdAt : 0,
-    }
-    if (typeof item.body === 'string') card.body = item.body
-    cards.push(card)
+function readBoardFile(repoPath: string): ReturnType<typeof emptyBoardFileV1> {
+  let raw: string
+  try {
+    raw = readFileSync(boardPath(repoPath), 'utf8')
+  } catch (error) {
+    if (isEnoent(error)) return emptyBoardFileV1()
+    throw error
   }
-  return cards
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    throw new BoardFileParseError('malformed', 'Board file is not valid JSON')
+  }
+
+  // Legacy top-level array is not accepted — agents must use the v1 document.
+  if (Array.isArray(parsed)) {
+    throw new BoardFileParseError(
+      'malformed',
+      'Board file must be version 1 ({ version: 1, cards: [...] }); top-level arrays are not supported',
+    )
+  }
+
+  return parseBoardFileV1(parsed)
 }
 
-function readAll(repoPath: string): BoardCard[] {
-  return parseCards(readProjectJson(repoPath, PROJECT_FILES.board))
-}
-
-function writeAll(repoPath: string, cards: BoardCard[]): void {
-  writeProjectJson(repoPath, PROJECT_FILES.board, cards)
+function writeBoardFile(repoPath: string, file: ReturnType<typeof emptyBoardFileV1>): void {
+  ensureProjectDir(repoPath)
+  const path = boardPath(repoPath)
+  mkdirSync(dirname(path), { recursive: true })
+  const tmp = `${path}.tmp`
+  writeFileSync(tmp, serializeBoardFileV1(file))
+  renameSync(tmp, path)
 }
 
 export function normalizeStatus(value: unknown): CardStatus | null {
@@ -55,7 +78,7 @@ export function normalizeStatus(value: unknown): CardStatus | null {
 }
 
 export function readCards(repoPath: string): BoardCard[] {
-  return [...readAll(repoPath)].sort((a, b) => a.order - b.order)
+  return sortBoardCards(readBoardFile(repoPath).cards)
 }
 
 export function createCard(
@@ -65,10 +88,21 @@ export function createCard(
   status: CardStatus,
 ): BoardCard {
   const now = Date.now()
-  const card: BoardCard = { id: randomUUID(), title, status, order: now, createdAt: now }
-  if (body !== undefined) card.body = body
-  writeAll(repoPath, [...readAll(repoPath), card])
-  return card
+  const planned = planCreateBoardCard(readBoardFile(repoPath), {
+    id: randomUUID(),
+    title,
+    body,
+    status,
+    order: now,
+    createdAt: now,
+  })
+  if (!planned.ok) {
+    throw new Error(
+      planned.error.reason === 'blank' ? 'title is required' : 'title is too long (max 240)',
+    )
+  }
+  writeBoardFile(repoPath, planned.file)
+  return planned.card
 }
 
 export function updateCard(
@@ -76,32 +110,36 @@ export function updateCard(
   id: string,
   fields: { title?: string; body?: string },
 ): boolean {
-  const cards = readAll(repoPath)
-  const card = cards.find((c) => c.id === id)
-  if (!card) return false
-  if (fields.title !== undefined) card.title = fields.title
-  if (fields.body !== undefined) card.body = fields.body
-  writeAll(repoPath, cards)
+  const planned = planUpdateBoardCard(readBoardFile(repoPath), {
+    cardId: id,
+    title: fields.title,
+    body: fields.body,
+  })
+  if (!planned.ok) {
+    if (planned.error.code === 'board.card-not-found') return false
+    throw new Error(
+      planned.error.reason === 'blank' ? 'title is required' : 'title is too long (max 240)',
+    )
+  }
+  writeBoardFile(repoPath, planned.file)
   return true
 }
 
 export function moveCard(repoPath: string, id: string, status: CardStatus): boolean {
-  const cards = readAll(repoPath)
-  const card = cards.find((c) => c.id === id)
-  if (!card) return false
-  card.status = status
-  card.order = Date.now()
-  writeAll(repoPath, cards)
+  const planned = planMoveBoardCard(readBoardFile(repoPath), {
+    cardId: id,
+    status,
+    order: Date.now(),
+  })
+  if (!planned.ok) return false
+  writeBoardFile(repoPath, planned.file)
   return true
 }
 
 export function deleteCard(repoPath: string, id: string): boolean {
-  const cards = readAll(repoPath)
-  if (!cards.some((c) => c.id === id)) return false
-  writeAll(
-    repoPath,
-    cards.filter((c) => c.id !== id),
-  )
+  const planned = planDeleteBoardCard(readBoardFile(repoPath), { cardId: id })
+  if (!planned.ok) return false
+  writeBoardFile(repoPath, planned.file)
   return true
 }
 
@@ -112,7 +150,7 @@ export function describeBoard(repoPath: string, cards: BoardCard[]): string {
     return `The project board for ${repoPath} is empty. The human (or you) adds cards in Porcelain; read them here to know what to build. Data: .porcelain/board.json`
   }
   const lines: string[] = [`Project board for ${repoPath} (${cards.length} card(s)):`]
-  for (const status of CARD_STATUSES) {
+  for (const status of ['todo', 'doing', 'done'] as const) {
     const inColumn = cards.filter((c) => c.status === status)
     if (inColumn.length === 0) continue
     lines.push(`\n## ${STATUS_LABEL[status]} (${inColumn.length})`)

@@ -34,7 +34,13 @@ const read = (): {
   files: unknown[]
   sections?: unknown[]
 } => JSON.parse(readFileSync(activeReview('review.json'), 'utf8'))
-const readBoard = (): unknown[] => JSON.parse(readFileSync(porcelain('board.json'), 'utf8'))
+const readBoard = (): unknown[] => {
+  const raw = JSON.parse(readFileSync(porcelain('board.json'), 'utf8')) as {
+    version: number
+    cards: unknown[]
+  }
+  return raw.cards
+}
 const readActions = (): unknown[] => JSON.parse(readFileSync(porcelain('actions.json'), 'utf8'))
 
 describe('COMMANDS registry matches the dispatch switch', () => {

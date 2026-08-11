@@ -22,17 +22,20 @@ export const DOMAIN_KEYS = [
   'project-data',
 ]
 
-/** The exact production router files. Test and support modules are never routers. */
+/**
+ * Production router sources relative to `apps/daemon/src`. Horizontal routers stay under
+ * `router/`; migrated domains (Board first) live under `features/<domain>/`.
+ */
 export const PRODUCTION_ROUTER_FILES = [
-  'board.ts',
-  'daemon.ts',
-  'files.ts',
-  'git.ts',
-  'network.ts',
-  'repos.ts',
-  'review.ts',
-  'settings.ts',
-  'terminal.ts',
+  'features/board/board-router.ts',
+  'router/daemon.ts',
+  'router/files.ts',
+  'router/git.ts',
+  'router/network.ts',
+  'router/repos.ts',
+  'router/review.ts',
+  'router/settings.ts',
+  'router/terminal.ts',
 ]
 
 export const PROCEDURE_COUNT = 113
@@ -51,18 +54,27 @@ export function extractRouterProcedures(source, filename) {
 }
 
 function readRouterProcedures(repositoryRoot) {
-  const routerDir = join(repositoryRoot, 'apps', 'daemon', 'src', 'router')
-  const files = readdirSync(routerDir)
-    .filter((name) => name.endsWith('.ts') && !name.endsWith('.test.ts'))
-    .sort()
+  const daemonSrc = join(repositoryRoot, 'apps', 'daemon', 'src')
   const procedures = []
   const sources = {}
-  for (const file of files) {
-    const source = readFileSync(join(routerDir, file), 'utf8')
-    sources[file] = source
-    for (const procedure of extractRouterProcedures(source, file)) {
-      procedures.push({ ...procedure, source: `apps/daemon/src/router/${file}` })
+  const files = []
+  for (const relativePath of PRODUCTION_ROUTER_FILES) {
+    const absolute = join(daemonSrc, relativePath)
+    if (!existsSync(absolute)) continue
+    files.push(relativePath)
+    const source = readFileSync(absolute, 'utf8')
+    sources[relativePath] = source
+    for (const procedure of extractRouterProcedures(source, relativePath)) {
+      procedures.push({ ...procedure, source: `apps/daemon/src/${relativePath}` })
     }
+  }
+  // Discover unexpected router/*.ts files that are not on the production list.
+  const routerDir = join(daemonSrc, 'router')
+  for (const name of readdirSync(routerDir)
+    .filter((entry) => entry.endsWith('.ts') && !entry.endsWith('.test.ts'))
+    .sort()) {
+    const relativePath = `router/${name}`
+    if (!files.includes(relativePath)) files.push(relativePath)
   }
   return { files, procedures, sources }
 }
@@ -107,7 +119,7 @@ function countMatches(source, pattern) {
 }
 
 function procedureLabel({ filename, name }) {
-  return `apps/daemon/src/router/${filename}:${name}`
+  return `apps/daemon/src/${filename}:${name}`
 }
 
 function directlyImportsProcedureCatalog(source) {

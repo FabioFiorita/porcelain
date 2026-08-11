@@ -4,7 +4,6 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { procedureCatalog } from '@porcelain/contracts'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { addCard, readCards } from '../stores/board-store'
 
 // terminal-manager pulls node-pty (Electron ABI); mock before composition imports it.
 vi.mock('../terminal/terminal-manager', () => ({
@@ -19,9 +18,11 @@ vi.mock('../terminal/terminal-manager', () => ({
   resizeTerminal: vi.fn(),
 }))
 
-// Companion home migration is not under test; keep project-board I/O on the temp fixture.
-vi.mock('../project/migrate-home', () => ({
-  ensureProjectCompanion: vi.fn(async () => undefined),
+vi.mock('../project/git-exclude', () => ({
+  ensureCompanionHidden: vi.fn(async () => undefined),
+}))
+vi.mock('../review/review-watch', () => ({
+  watchProjectCompanion: vi.fn(),
 }))
 
 import { createDaemonRouter } from './create-daemon-router'
@@ -47,9 +48,9 @@ describe('createDaemonRouter composition', () => {
   })
 
   it('exposes the complete flat procedure key set from a single composition root', () => {
-    const operations = createDaemonOperations()
+    const operations = createDaemonOperations({ publishSessionChange: () => undefined })
     expect(Object.isFrozen(operations)).toBe(true)
-    expect(operations).toEqual({})
+    expect(operations.board).toBeDefined()
 
     const router = createDaemonRouter({ operations })
     const keys = Object.keys(router._def.procedures).sort()
@@ -59,25 +60,25 @@ describe('createDaemonRouter composition', () => {
   })
 
   it('calls boardCards through the composed router against a temporary project board', async () => {
-    const router = createDaemonRouter({ operations: createDaemonOperations() })
+    const operations = createDaemonOperations({ publishSessionChange: () => undefined })
+    const router = createDaemonRouter({ operations })
     const caller = router.createCaller(PUBLIC_CONTEXT)
 
     expect(await caller.boardCards(repo)).toEqual([])
 
-    const created = await addCard(repo, { title: 'Composition seam card' })
+    const created = await caller.addBoardCard({
+      repoPath: repo,
+      title: 'Composition seam card',
+    })
     const cards = await caller.boardCards(repo)
 
     expect(cards).toEqual([created])
-    expect(await readCards(repo)).toEqual([created])
+    expect(created.title).toBe('Composition seam card')
   })
 
   it('supplies the operation catalog at construction rather than through a module mock', () => {
-    // Construction seam (TST-002): each call builds its own catalog and passes it
-    // into createDaemonRouter({ operations }). Domain migrations inject bound
-    // operations (or createDeferredOperationStub().operation) here — never by
-    // vi.mock of daemon-operations, router modules, or stores.
-    const first = createDaemonOperations()
-    const second = createDaemonOperations()
+    const first = createDaemonOperations({ publishSessionChange: () => undefined })
+    const second = createDaemonOperations({ publishSessionChange: () => undefined })
     expect(first).not.toBe(second)
     expect(Object.isFrozen(first)).toBe(true)
     expect(Object.isFrozen(second)).toBe(true)
