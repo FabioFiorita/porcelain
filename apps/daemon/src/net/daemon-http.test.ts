@@ -227,9 +227,17 @@ describe('daemon http surface — the token gate + CORS scope', () => {
   it('answers OPTIONS preflight for /trpc without requiring a token', async () => {
     const res = await fetch(`${base}/trpc/recentRepos`, {
       method: 'OPTIONS',
-      headers: { origin: ORIGIN },
+      headers: {
+        origin: ORIGIN,
+        'access-control-request-headers': `authorization,content-type,${PROTOCOL_VERSION_HEADER}`,
+      },
     })
     expect(res.status).toBe(204)
+    expect(res.headers.get('access-control-allow-headers')?.split(',')).toEqual([
+      'content-type',
+      'authorization',
+      PROTOCOL_VERSION_HEADER,
+    ])
     expect(await res.text()).toBe('')
   })
 
