@@ -1,6 +1,6 @@
 # BRD-001 — Define the canonical Board wire
 
-- Status: Ready
+- Status: Landed
 - Batch: 1 — Board primary exemplar
 - Domain: `board`
 - Depends on: `CON-021`, `ERR-001`, `RT-001`
@@ -149,13 +149,13 @@ runtime compatibility path.
 
 ## Completion criteria
 
-- [ ] Six exact canonical declarations and one typed notification exist under `contracts/src/board`.
-- [ ] Inputs, outputs, public errors, and fixtures are runtime validated and exhaustive.
-- [ ] Package exports expose the Board boundary without exposing private catalog internals.
-- [ ] Contract tests and all listed gates pass (the 113-procedure gate stays green because the
+- [x] Six exact canonical declarations and one typed notification exist under `contracts/src/board`.
+- [x] Inputs, outputs, public errors, and fixtures are runtime validated and exhaustive.
+- [x] Package exports expose the Board boundary without exposing private catalog internals.
+- [x] Contract tests and all listed gates pass (the 113-procedure gate stays green because the
       canonical six are not yet catalog members).
-- [ ] The handoff names every legacy deletion owned by the remaining Board specs.
-- [ ] One commit lands only `BRD-001`, marks recipe/catalog Landed, leaves a clean worktree,
+- [x] The handoff names every legacy deletion owned by the remaining Board specs.
+- [x] One commit lands only `BRD-001`, marks recipe/catalog Landed, leaves a clean worktree,
       provides the README review packet, and finishes without pushing.
 
 ## Handoff

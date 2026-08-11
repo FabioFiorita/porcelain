@@ -59,4 +59,27 @@ export const publicErrorFixtures = {
     requestId: '00000000-0000-4000-8000-000000000008',
     details: { expected: 2, received: null },
   },
+  'board.unavailable': {
+    code: 'board.unavailable',
+    category: 'unavailable',
+    message: 'The board is unavailable.',
+    retryable: true,
+    requestId: '00000000-0000-4000-8000-000000000009',
+  },
+  'board.card-not-found': {
+    code: 'board.card-not-found',
+    category: 'not-found',
+    message: 'The board card was not found.',
+    retryable: false,
+    requestId: '00000000-0000-4000-8000-00000000000a',
+    details: { cardId: '00000000-0000-4000-8000-000000000101' },
+  },
+  'board.invalid-title': {
+    code: 'board.invalid-title',
+    category: 'invalid-request',
+    message: 'The board card title is invalid.',
+    retryable: false,
+    requestId: '00000000-0000-4000-8000-00000000000b',
+    details: { reason: 'blank', maxLength: 240 },
+  },
 } as const satisfies Record<PublicErrorCode, PorcelainError>

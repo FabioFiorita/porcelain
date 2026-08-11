@@ -1,5 +1,5 @@
 import { actionsProcedures } from './actions'
-import { boardProcedures } from './board'
+import { boardLiveCatalogProcedures } from './board/board.procedures'
 import { filesProcedures } from './files'
 import { gitProcedures } from './git'
 import { projectDataProcedures } from './project-data'
@@ -12,6 +12,10 @@ import { terminalProcedures } from './terminal'
 /**
  * The only public procedure truth: the ten domain records composed into one flat frozen catalog.
  * Names, kinds, and schemas are owned by the domain records; nothing here is manufactured locally.
+ *
+ * Board composes the live legacy six (`boardCards` … `clearBoardCards`) until BRD-002 swaps them
+ * for the canonical `boardProcedures` (`listBoardCards` … `clearBoardColumn`). Canonical Board
+ * declarations are exported from `@porcelain/contracts/board` but are not catalog members yet.
  */
 export const procedureCatalog = Object.freeze({
   ...remoteProcedures,
@@ -20,7 +24,7 @@ export const procedureCatalog = Object.freeze({
   ...searchProcedures,
   ...gitProcedures,
   ...reviewProcedures,
-  ...boardProcedures,
+  ...boardLiveCatalogProcedures,
   ...actionsProcedures,
   ...terminalProcedures,
   ...projectDataProcedures,

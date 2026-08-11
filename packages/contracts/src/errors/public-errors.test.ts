@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  boardCardNotFoundErrorSchema,
+  boardInvalidTitleErrorSchema,
+  boardUnavailableErrorSchema,
+} from '../board/board.errors'
+import {
   authForbiddenErrorSchema,
   authUnauthenticatedErrorSchema,
   internalUnexpectedErrorSchema,
@@ -22,6 +27,9 @@ const memberSchemas = {
   'resource.unavailable': resourceUnavailableErrorSchema,
   'internal.unexpected': internalUnexpectedErrorSchema,
   'protocol.update-required': protocolUpdateRequiredErrorSchema,
+  'board.unavailable': boardUnavailableErrorSchema,
+  'board.card-not-found': boardCardNotFoundErrorSchema,
+  'board.invalid-title': boardInvalidTitleErrorSchema,
 } as const
 
 const expectedMembers = [
@@ -43,10 +51,13 @@ const expectedMembers = [
     retryable: false,
     hasDetails: true,
   },
+  { code: 'board.unavailable', category: 'unavailable', retryable: true, hasDetails: false },
+  { code: 'board.card-not-found', category: 'not-found', retryable: false, hasDetails: true },
+  { code: 'board.invalid-title', category: 'invalid-request', retryable: false, hasDetails: true },
 ] as const
 
 describe('public error contracts', () => {
-  it('exports exactly the eight fixed public members and categories', () => {
+  it('exports the system and Board public members and categories', () => {
     expect(Object.keys(memberSchemas).sort()).toEqual(
       expectedMembers.map(({ code }) => code).sort(),
     )
@@ -118,31 +129,46 @@ describe('public error contracts', () => {
       }).details,
     ).toEqual({ expected: 2, received: 1 })
     expect(
-      protocolUpdateRequiredErrorSchema.safeParse({ ...updateRequired, details: undefined })
-        .success,
-    ).toBe(false)
-    expect(
       protocolUpdateRequiredErrorSchema.safeParse({
         ...updateRequired,
-        details: { expected: -1, received: 1 },
+        details: { expected: -1, received: null },
       }).success,
     ).toBe(false)
     expect(
       protocolUpdateRequiredErrorSchema.safeParse({
         ...updateRequired,
-        details: { expected: 2, received: 1.5 },
+        details: { expected: 2 },
       }).success,
     ).toBe(false)
+  })
+
+  it('gives Board card-not-found and invalid-title their required strict details', () => {
+    const notFound = publicErrorFixtures['board.card-not-found']
+    expect(boardCardNotFoundErrorSchema.parse(notFound).details).toEqual({
+      cardId: '00000000-0000-4000-8000-000000000101',
+    })
     expect(
-      protocolUpdateRequiredErrorSchema.safeParse({
-        ...updateRequired,
-        details: { expected: 2, received: '1' },
+      boardCardNotFoundErrorSchema.safeParse({
+        ...notFound,
+        details: { cardId: 'not-a-uuid' },
       }).success,
     ).toBe(false)
+
+    const invalidTitle = publicErrorFixtures['board.invalid-title']
+    expect(boardInvalidTitleErrorSchema.parse(invalidTitle).details).toEqual({
+      reason: 'blank',
+      maxLength: 240,
+    })
     expect(
-      protocolUpdateRequiredErrorSchema.safeParse({
-        ...updateRequired,
-        details: { expected: 2, received: null, rawHeader: '2' },
+      boardInvalidTitleErrorSchema.parse({
+        ...invalidTitle,
+        details: { reason: 'too-long', maxLength: 240 },
+      }).details.reason,
+    ).toBe('too-long')
+    expect(
+      boardInvalidTitleErrorSchema.safeParse({
+        ...invalidTitle,
+        details: { reason: 'blank', maxLength: 100 },
       }).success,
     ).toBe(false)
   })

@@ -1,39 +1,98 @@
 import { describe, expect, it } from 'vitest'
-import { BOARD_STATUSES, boardCardSchema, boardContractFixtures } from './board.contract'
-import { boardProcedures } from './board.procedures'
+import { procedureCatalog } from '../procedure-catalog'
+import { sessionWatchesFrameSchema } from '../session'
+import { terminalOutputFrameSchema } from '../terminal'
+import {
+  BOARD_STATUSES,
+  boardCardSchema,
+  boardProjectPathSchema,
+  createBoardCardInputSchema,
+  updateBoardCardInputSchema,
+} from './board.contract'
+import {
+  boardCardNotFoundErrorSchema,
+  boardInvalidTitleErrorSchema,
+  boardUnavailableErrorSchema,
+} from './board.errors'
+import { boardCardFixture, boardContractFixtures, boardNotificationFixture } from './board.fixtures'
+import {
+  BOARD_CHANGE_KINDS,
+  boardChangedSchema,
+  boardChangeSchema,
+  boardNotificationFixtures,
+} from './board.notifications'
+import { boardLiveCatalogProcedures, boardProcedures } from './board.procedures'
 
 const expectedKinds = {
-  boardCards: 'query',
-  addBoardCard: 'mutation',
+  listBoardCards: 'query',
+  createBoardCard: 'mutation',
   updateBoardCard: 'mutation',
   moveBoardCard: 'mutation',
   deleteBoardCard: 'mutation',
-  clearBoardCards: 'mutation',
+  clearBoardColumn: 'mutation',
+} as const
+
+const expectedErrors = {
+  listBoardCards: ['board.unavailable'],
+  createBoardCard: ['board.unavailable', 'board.invalid-title'],
+  updateBoardCard: ['board.unavailable', 'board.card-not-found', 'board.invalid-title'],
+  moveBoardCard: ['board.unavailable', 'board.card-not-found'],
+  deleteBoardCard: ['board.unavailable', 'board.card-not-found'],
+  clearBoardColumn: ['board.unavailable'],
 } as const
 
 const invalidInputs = {
-  boardCards: 42,
-  addBoardCard: { repoPath: '/synthetic/repo', title: '' },
-  updateBoardCard: { repoPath: '/synthetic/repo', id: 'card-todo', title: '' },
-  moveBoardCard: { repoPath: '/synthetic/repo', id: 'card-todo', status: 'blocked' },
-  deleteBoardCard: { repoPath: '/synthetic/repo' },
-  clearBoardCards: { repoPath: '/synthetic/repo', status: 'blocked' },
+  listBoardCards: '',
+  createBoardCard: { projectPath: '/synthetic/repo', title: '' },
+  updateBoardCard: {
+    projectPath: '/synthetic/repo',
+    cardId: '00000000-0000-4000-8000-000000000101',
+  },
+  moveBoardCard: {
+    projectPath: '/synthetic/repo',
+    cardId: '00000000-0000-4000-8000-000000000101',
+    status: 'blocked',
+  },
+  deleteBoardCard: { projectPath: '/synthetic/repo' },
+  clearBoardColumn: { projectPath: '/synthetic/repo', status: 'blocked' },
 } as const
 
 const invalidOutputs = {
-  boardCards: [{ ...boardContractFixtures.boardCards.output[0], createdAt: '10' }],
-  addBoardCard: { ...boardContractFixtures.addBoardCard.output, status: 'blocked' },
-  updateBoardCard: null,
-  moveBoardCard: null,
-  deleteBoardCard: null,
-  clearBoardCards: null,
+  listBoardCards: [{ ...boardContractFixtures.listBoardCards.output[0], createdAt: '10' }],
+  createBoardCard: { ...boardContractFixtures.createBoardCard.output, status: 'blocked' },
+  updateBoardCard: { ...boardContractFixtures.updateBoardCard.output, order: -1 },
+  moveBoardCard: undefined,
+  deleteBoardCard: undefined,
+  clearBoardColumn: { status: 'todo' },
 } as const
 
 describe('Board procedure contracts', () => {
-  it('declares exactly six procedures with their router kinds', () => {
+  it('declares exactly six canonical procedures with kinds and allowed errors', () => {
     expect(Object.keys(boardProcedures).sort()).toEqual(Object.keys(expectedKinds).sort())
     for (const [name, kind] of Object.entries(expectedKinds)) {
-      expect(boardProcedures[name as keyof typeof boardProcedures].kind).toBe(kind)
+      const procedure = boardProcedures[name as keyof typeof boardProcedures]
+      expect(procedure.kind).toBe(kind)
+      expect([...procedure.errors]).toEqual([
+        ...expectedErrors[name as keyof typeof expectedErrors],
+      ])
+    }
+  })
+
+  it('exports each canonical procedure once without installing them as catalog members', () => {
+    const names = Object.keys(boardProcedures)
+    expect(new Set(names).size).toBe(names.length)
+    expect(names).toHaveLength(6)
+    expect(Object.keys(boardLiveCatalogProcedures)).toHaveLength(6)
+
+    // Renamed procedures are absent from the live catalog until BRD-002.
+    for (const name of ['listBoardCards', 'createBoardCard', 'clearBoardColumn'] as const) {
+      expect(Object.hasOwn(procedureCatalog, name)).toBe(false)
+    }
+
+    // Shared names still refer to the live legacy schemas, not the canonical declarations.
+    for (const name of ['updateBoardCard', 'moveBoardCard', 'deleteBoardCard'] as const) {
+      expect(procedureCatalog[name]).toBe(boardLiveCatalogProcedures[name])
+      expect(procedureCatalog[name]).not.toBe(boardProcedures[name])
     }
   })
 
@@ -52,120 +111,252 @@ describe('Board procedure contracts', () => {
     })
   }
 
-  it('preserves every status, optional body, and server-side defaults', () => {
-    const cards = BOARD_STATUSES.map((status, index) => ({
-      id: `card-${status}`,
-      title: `Card ${status}`,
-      ...(status === 'doing' ? { body: 'present body' } : {}),
-      status,
-      order: index + 1,
-      createdAt: index + 1,
-    }))
-    const parsedCards = boardProcedures.boardCards.output.parse(cards)
-    expect(parsedCards).toEqual(cards)
-    expect('body' in parsedCards[0]).toBe(false)
-    expect(parsedCards[1]?.body).toBe('present body')
+  it('accepts a complete card and rejects missing, defaulted, invalid, and unknown fields', () => {
+    const complete = boardCardFixture({
+      body: 'optional body',
+      status: 'doing',
+      order: 0,
+      createdAt: 0,
+    })
+    expect(boardCardSchema.parse(complete)).toEqual(complete)
 
+    expect(boardCardSchema.safeParse({}).success).toBe(false)
+    expect(
+      boardCardSchema.safeParse({
+        id: complete.id,
+        title: complete.title,
+        status: complete.status,
+        order: complete.order,
+        // missing createdAt
+      }).success,
+    ).toBe(false)
+    expect(
+      boardCardSchema.safeParse({
+        ...complete,
+        status: 'blocked',
+      }).success,
+    ).toBe(false)
+    expect(
+      boardCardSchema.safeParse({
+        ...complete,
+        order: -1,
+      }).success,
+    ).toBe(false)
+    expect(
+      boardCardSchema.safeParse({
+        ...complete,
+        order: 1.5,
+      }).success,
+    ).toBe(false)
+    expect(
+      boardCardSchema.safeParse({
+        ...complete,
+        createdAt: Number.POSITIVE_INFINITY,
+      }).success,
+    ).toBe(false)
+    expect(
+      boardCardSchema.safeParse({
+        ...complete,
+        createdAt: Number.MAX_SAFE_INTEGER + 1,
+      }).success,
+    ).toBe(false)
+    expect(
+      boardCardSchema.safeParse({
+        ...complete,
+        title: '',
+      }).success,
+    ).toBe(false)
+    expect(
+      boardCardSchema.safeParse({
+        ...complete,
+        id: 'not-a-uuid',
+      }).success,
+    ).toBe(false)
+    expect(
+      boardCardSchema.safeParse({
+        ...complete,
+        extra: true,
+      }).success,
+    ).toBe(false)
+  })
+
+  it('enforces projectPath, title, body, and update field bounds', () => {
+    expect(boardProjectPathSchema.safeParse('').success).toBe(false)
+    expect(boardProjectPathSchema.safeParse('x'.repeat(4097)).success).toBe(false)
+    expect(boardProjectPathSchema.safeParse('x'.repeat(4096)).success).toBe(true)
+
+    expect(
+      createBoardCardInputSchema.safeParse({
+        projectPath: '/synthetic/repo',
+        title: '   ',
+      }).success,
+    ).toBe(false)
+    expect(
+      createBoardCardInputSchema.safeParse({
+        projectPath: '/synthetic/repo',
+        title: 'a'.repeat(241),
+      }).success,
+    ).toBe(false)
+    expect(
+      createBoardCardInputSchema.parse({
+        projectPath: '/synthetic/repo',
+        title: '  Trimmed title  ',
+      }),
+    ).toEqual({ projectPath: '/synthetic/repo', title: 'Trimmed title' })
+    expect(
+      createBoardCardInputSchema.safeParse({
+        projectPath: '/synthetic/repo',
+        title: 'ok',
+        body: 'b'.repeat(20_001),
+      }).success,
+    ).toBe(false)
+
+    expect(
+      updateBoardCardInputSchema.safeParse({
+        projectPath: '/synthetic/repo',
+        cardId: '00000000-0000-4000-8000-000000000101',
+      }).success,
+    ).toBe(false)
+    expect(
+      updateBoardCardInputSchema.safeParse({
+        projectPath: '/synthetic/repo',
+        cardId: '00000000-0000-4000-8000-000000000101',
+        title: 'Only title',
+      }).success,
+    ).toBe(true)
+    expect(
+      updateBoardCardInputSchema.safeParse({
+        projectPath: '/synthetic/repo',
+        cardId: '00000000-0000-4000-8000-000000000101',
+        body: 'Only body',
+      }).success,
+    ).toBe(true)
+  })
+
+  it('preserves every status and optional body without defaulting create status on the wire', () => {
     for (const status of BOARD_STATUSES) {
       expect(
-        boardProcedures.addBoardCard.input.safeParse({
-          repoPath: '/synthetic/repo',
+        boardProcedures.createBoardCard.input.safeParse({
+          projectPath: '/synthetic/repo',
           title: 'A card',
           status,
         }).success,
       ).toBe(true)
       expect(
         boardProcedures.moveBoardCard.input.safeParse({
-          repoPath: '/synthetic/repo',
-          id: 'card-todo',
+          projectPath: '/synthetic/repo',
+          cardId: '00000000-0000-4000-8000-000000000101',
           status,
         }).success,
       ).toBe(true)
       expect(
-        boardProcedures.clearBoardCards.input.safeParse({
-          repoPath: '/synthetic/repo',
+        boardProcedures.clearBoardColumn.input.safeParse({
+          projectPath: '/synthetic/repo',
           status,
         }).success,
       ).toBe(true)
     }
 
     expect(
-      boardProcedures.addBoardCard.input.parse({
-        repoPath: '/synthetic/repo',
-        title: 'Default card',
+      boardProcedures.createBoardCard.input.parse({
+        projectPath: '/synthetic/repo',
+        title: 'Default status elsewhere',
       }),
-    ).toEqual({ repoPath: '/synthetic/repo', title: 'Default card' })
-    expect(
-      boardProcedures.addBoardCard.input.parse({
-        repoPath: '/synthetic/repo',
-        title: 'Empty body',
-        body: '',
-      }),
-    ).toEqual({ repoPath: '/synthetic/repo', title: 'Empty body', body: '' })
-    expect(
-      boardProcedures.updateBoardCard.input.parse({
-        repoPath: '/synthetic/repo',
-        id: 'card-todo',
-      }),
-    ).toEqual({ repoPath: '/synthetic/repo', id: 'card-todo' })
-    expect(boardProcedures.boardCards.output.safeParse([{}]).success).toBe(false)
+    ).toEqual({ projectPath: '/synthetic/repo', title: 'Default status elsewhere' })
+
+    const withoutBody = boardCardFixture()
+    expect('body' in withoutBody).toBe(false)
+    const withBody = boardCardFixture({ body: 'present body' })
+    expect(withBody.body).toBe('present body')
   })
 
-  it('preserves the current unbounded path, id, title, body, order, and time shapes', () => {
-    expect(boardProcedures.boardCards.input.safeParse('').success).toBe(true)
-    expect(
-      boardProcedures.addBoardCard.input.safeParse({ repoPath: '', title: 'x', body: '' }).success,
-    ).toBe(true)
-    expect(
-      boardProcedures.updateBoardCard.input.safeParse({ repoPath: '', id: '', body: '' }).success,
-    ).toBe(true)
-    expect(
-      boardCardSchema.safeParse({
-        id: '',
-        title: '',
-        status: 'todo',
-        order: -1.5,
-        createdAt: 0.5,
-      }).success,
-    ).toBe(true)
-  })
-
-  it('rejects unknown fields at strict input and nested card boundaries', () => {
-    expect(
-      boardProcedures.addBoardCard.input.safeParse({
-        ...boardContractFixtures.addBoardCard.input,
-        extra: true,
-      }).success,
-    ).toBe(false)
-    expect(
-      boardProcedures.updateBoardCard.input.safeParse({
-        ...boardContractFixtures.updateBoardCard.input,
-        extra: true,
-      }).success,
-    ).toBe(false)
-    expect(
-      boardProcedures.boardCards.output.safeParse([
-        { ...boardContractFixtures.boardCards.output[0], extra: true },
-      ]).success,
-    ).toBe(false)
-    expect(
-      boardProcedures.addBoardCard.output.safeParse({
-        ...boardContractFixtures.addBoardCard.output,
-        extra: true,
-      }).success,
-    ).toBe(false)
-  })
-
-  it('keeps void mutation results distinct from card results', () => {
-    expect(boardProcedures.addBoardCard.output.safeParse(undefined).success).toBe(false)
+  it('rejects void mutation outputs and unknown input fields', () => {
     for (const name of [
+      'createBoardCard',
       'updateBoardCard',
       'moveBoardCard',
       'deleteBoardCard',
-      'clearBoardCards',
+      'clearBoardColumn',
     ] as const) {
-      expect(boardProcedures[name].output.safeParse(undefined).success).toBe(true)
-      expect(boardProcedures[name].output.safeParse(null).success).toBe(false)
+      expect(boardProcedures[name].output.safeParse(undefined).success).toBe(false)
     }
+
+    expect(
+      boardProcedures.createBoardCard.input.safeParse({
+        ...boardContractFixtures.createBoardCard.input,
+        extra: true,
+      }).success,
+    ).toBe(false)
+    expect(
+      boardProcedures.listBoardCards.output.safeParse([
+        { ...boardContractFixtures.listBoardCards.output[0], extra: true },
+      ]).success,
+    ).toBe(false)
+  })
+
+  it('parses every Board fixture through its schema', () => {
+    expect(boardCardSchema.parse(boardCardFixture())).toEqual(boardCardFixture())
+    expect(boardChangedSchema.parse(boardNotificationFixture())).toEqual(boardNotificationFixture())
+    for (const name of Object.keys(boardContractFixtures) as Array<
+      keyof typeof boardContractFixtures
+    >) {
+      const fixture = boardContractFixtures[name]
+      expect(boardProcedures[name].input.parse(fixture.input)).toEqual(fixture.input)
+      expect(boardProcedures[name].output.parse(fixture.output)).toEqual(fixture.output)
+    }
+  })
+
+  it('composes Board public errors into the strict error shapes', () => {
+    expect(boardUnavailableErrorSchema.shape.code.value).toBe('board.unavailable')
+    expect(boardCardNotFoundErrorSchema.shape.code.value).toBe('board.card-not-found')
+    expect(boardInvalidTitleErrorSchema.shape.code.value).toBe('board.invalid-title')
+  })
+})
+
+describe('Board change notifications', () => {
+  it('covers exactly the declared change categories', () => {
+    expect(boardChangeSchema.options.map((option) => option.shape.kind.value)).toEqual([
+      ...BOARD_CHANGE_KINDS,
+    ])
+    expect(Object.keys(boardNotificationFixtures)).toEqual([...BOARD_CHANGE_KINDS])
+  })
+
+  it('accepts the board.changed fixture and rejects watch or stream traffic', () => {
+    const notification = boardNotificationFixture()
+    expect(boardChangeSchema.parse(notification)).toEqual(notification)
+    expect(boardChangedSchema.parse(boardNotificationFixtures['board.changed'])).toEqual(
+      boardNotificationFixtures['board.changed'],
+    )
+
+    expect(sessionWatchesFrameSchema.safeParse(notification).success).toBe(false)
+    expect(terminalOutputFrameSchema.safeParse(notification).success).toBe(false)
+    expect(
+      sessionWatchesFrameSchema.safeParse({
+        t: 'session:watches',
+        projectPath: '/synthetic/repo',
+        files: [],
+        dirs: [],
+      }).success,
+    ).toBe(true)
+  })
+
+  it('rejects board.changed without projectPath, empty path, or unknown fields', () => {
+    const { projectPath: _dropped, ...withoutProject } = boardNotificationFixtures['board.changed']
+    expect(boardChangeSchema.safeParse(withoutProject).success).toBe(false)
+    expect(
+      boardChangeSchema.safeParse({
+        ...boardNotificationFixtures['board.changed'],
+        projectPath: '',
+      }).success,
+    ).toBe(false)
+    expect(
+      boardChangeSchema.safeParse({
+        ...boardNotificationFixtures['board.changed'],
+        payload: 'entity',
+      }).success,
+    ).toBe(false)
+    expect(
+      boardChangeSchema.safeParse({ kind: 'changed', projectPath: '/synthetic/repo' }).success,
+    ).toBe(false)
   })
 })

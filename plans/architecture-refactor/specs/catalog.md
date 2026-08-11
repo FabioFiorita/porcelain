@@ -56,7 +56,7 @@ an external choice or authorization.
 
 | ID | Status | Outcome |
 | --- | --- | --- |
-| `BRD-001` | Ready | Canonical exhaustive Board procedures, errors, notification, and fixtures |
+| `BRD-001` | Landed | Canonical exhaustive Board procedures, errors, notification, and fixtures |
 | `BRD-002` | Draft | Board rules, operations, v1 store adapter, composition, router, and tests |
 | `BRD-003` | Draft | Board client-runtime query identities, mutation consequences, and notification mapping |
 | `BRD-004` | Draft | Web Board feature adapter/presentation uses contracts and shared semantics |

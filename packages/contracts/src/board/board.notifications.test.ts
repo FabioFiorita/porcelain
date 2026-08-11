@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import { sessionWatchesFrameSchema } from '../session'
+import { terminalOutputFrameSchema } from '../terminal'
+import { boardNotificationFixture } from './board.fixtures'
 import {
   BOARD_CHANGE_KINDS,
   boardChangeSchema,
@@ -17,6 +20,14 @@ describe('Board change notifications', () => {
     expect(boardChangeSchema.parse(boardNotificationFixtures['board.changed'])).toEqual(
       boardNotificationFixtures['board.changed'],
     )
+    expect(boardChangeSchema.parse(boardNotificationFixture())).toEqual(boardNotificationFixture())
+  })
+
+  it('is a notification and cannot parse as watch or stream traffic', () => {
+    const notification = boardNotificationFixture()
+    expect(boardChangeSchema.safeParse(notification).success).toBe(true)
+    expect(sessionWatchesFrameSchema.safeParse(notification).success).toBe(false)
+    expect(terminalOutputFrameSchema.safeParse(notification).success).toBe(false)
   })
 
   it('rejects board.changed without projectPath', () => {

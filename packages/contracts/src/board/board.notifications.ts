@@ -6,7 +6,10 @@ import { z } from 'zod'
  *
  * The board is one repo-local file, so one strict category carrying `projectPath` says
  * everything a consumer needs: the cards for that project are stale. The card payload
- * itself stays with the `boardCards` query, which remains authoritative.
+ * itself stays with the list query, which remains authoritative.
+ *
+ * RT-001 owns this envelope (`kind: 'board.changed'`). BRD-001 reuses it without a second
+ * notification name or dual discriminator.
  */
 
 export const BOARD_CHANGE_KINDS = ['board.changed'] as const

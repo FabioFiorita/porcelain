@@ -28,6 +28,11 @@ export {
 export {
   authForbiddenErrorSchema,
   authUnauthenticatedErrorSchema,
+  boardCardNotFoundErrorDetailsSchema,
+  boardCardNotFoundErrorSchema,
+  boardInvalidTitleErrorDetailsSchema,
+  boardInvalidTitleErrorSchema,
+  boardUnavailableErrorSchema,
   internalUnexpectedErrorSchema,
   type PorcelainError,
   PUBLIC_ERROR_CATEGORY_VALUES,

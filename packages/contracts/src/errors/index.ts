@@ -1,3 +1,10 @@
+export {
+  boardCardNotFoundErrorDetailsSchema,
+  boardCardNotFoundErrorSchema,
+  boardInvalidTitleErrorDetailsSchema,
+  boardInvalidTitleErrorSchema,
+  boardUnavailableErrorSchema,
+} from '../board/board.errors'
 export { publicErrorFixtures } from './fixtures'
 export {
   type PorcelainError,

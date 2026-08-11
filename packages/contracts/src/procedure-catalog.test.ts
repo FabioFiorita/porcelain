@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { actionsProcedures } from './actions'
-import { boardProcedures } from './board'
+import { boardLiveCatalogProcedures, boardProcedures } from './board/board.procedures'
 import { filesProcedures } from './files'
 import { gitProcedures } from './git'
 import { procedureCatalog } from './procedure-catalog'
@@ -11,7 +11,7 @@ import { reviewProcedures } from './review'
 import { searchProcedures } from './search'
 import { terminalProcedures } from './terminal'
 
-/** The ten canonical domains in catalog composition order. */
+/** The ten domain records that currently compose the 113-name live catalog. */
 const domainProcedures = {
   remote: remoteProcedures,
   projects: projectsProcedures,
@@ -19,7 +19,7 @@ const domainProcedures = {
   search: searchProcedures,
   git: gitProcedures,
   review: reviewProcedures,
-  board: boardProcedures,
+  board: boardLiveCatalogProcedures,
   actions: actionsProcedures,
   terminal: terminalProcedures,
   'project-data': projectDataProcedures,
@@ -68,5 +68,30 @@ describe('procedure catalog', () => {
   it('rejects a value the owning domain contract does not describe', () => {
     expect(procedureCatalog.daemonInfo.output.safeParse({ version: '1' }).success).toBe(false)
     expect(procedureCatalog.browseDirs.input.safeParse(42).success).toBe(false)
+  })
+
+  it('keeps canonical Board procedure objects out of the live catalog until BRD-002', () => {
+    // Renamed procedures are not catalog members yet.
+    for (const name of ['listBoardCards', 'createBoardCard', 'clearBoardColumn'] as const) {
+      expect(Object.hasOwn(procedureCatalog, name)).toBe(false)
+      expect(boardProcedures[name]).toBeDefined()
+    }
+
+    // Shared names still bind the live legacy schemas (void / repoPath), not canonical objects.
+    for (const name of ['updateBoardCard', 'moveBoardCard', 'deleteBoardCard'] as const) {
+      expect(procedureCatalog[name]).toBe(boardLiveCatalogProcedures[name])
+      expect(procedureCatalog[name]).not.toBe(boardProcedures[name])
+    }
+
+    expect(Object.keys(boardLiveCatalogProcedures).sort()).toEqual(
+      [
+        'addBoardCard',
+        'boardCards',
+        'clearBoardCards',
+        'deleteBoardCard',
+        'moveBoardCard',
+        'updateBoardCard',
+      ].sort(),
+    )
   })
 })

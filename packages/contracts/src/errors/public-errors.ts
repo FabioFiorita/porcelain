@@ -1,4 +1,9 @@
 import { z } from 'zod'
+import {
+  boardCardNotFoundErrorSchema,
+  boardInvalidTitleErrorSchema,
+  boardUnavailableErrorSchema,
+} from '../board/board.errors'
 import { definePublicError } from './define-public-error'
 import {
   authForbiddenErrorSchema,
@@ -33,6 +38,9 @@ export const publicErrorSchema = z.discriminatedUnion('code', [
   resourceUnavailableErrorSchema,
   internalUnexpectedErrorSchema,
   protocolUpdateRequiredErrorSchema,
+  boardUnavailableErrorSchema,
+  boardCardNotFoundErrorSchema,
+  boardInvalidTitleErrorSchema,
 ])
 
 export type PorcelainError = z.infer<typeof publicErrorSchema>
