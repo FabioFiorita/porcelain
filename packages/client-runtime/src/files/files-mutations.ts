@@ -20,10 +20,12 @@ import {
   FILES_FOREIGN_CONTENT_INDEX,
   FILES_FOREIGN_PATH_INDEX,
   FILES_FOREIGN_WORKING_TREE,
+  filesContentSubtreeEffect,
   filesExactEffect,
   filesTreeFamilyEffect,
+  filesTreeSubtreeEffect,
   treeEffectsForStructuralPath,
-  treeSelfEffects,
+  treeSubtreeEffectsForStructuralPath,
 } from './files-effects'
 import { filesPinsQuery, filesProjectKey, filesScopeQuery } from './files-queries'
 
@@ -167,11 +169,11 @@ export const filesMutations = {
     procedureName: 'renamePath',
     affectedEffects: (input: RenamePathInput): readonly FilesQueryEffect[] =>
       dedupeFilesQueryEffects([
-        ...treeEffectsForStructuralPath(input.projectPath, input.from),
-        ...treeEffectsForStructuralPath(input.projectPath, input.to),
+        ...treeSubtreeEffectsForStructuralPath(input.projectPath, input.from),
+        ...treeSubtreeEffectsForStructuralPath(input.projectPath, input.to),
         filesExactEffect(filesPinsQuery(input.projectPath)),
-        ...contentPreviewEffects(input.projectPath, input.from),
-        ...contentPreviewEffects(input.projectPath, input.to),
+        filesContentSubtreeEffect(input.projectPath, input.from),
+        filesContentSubtreeEffect(input.projectPath, input.to),
       ]),
     foreignDependencies: (_input: RenamePathInput): readonly FilesForeignDependency[] =>
       ALL_THREE_FOREIGN,
@@ -188,8 +190,8 @@ export const filesMutations = {
     ): readonly FilesQueryEffect[] =>
       dedupeFilesQueryEffects([
         ...structuralTreesAndPins(input.projectPath, input.path),
-        ...treeSelfEffects(input.projectPath, output),
-        ...contentPreviewEffects(input.projectPath, output),
+        filesTreeSubtreeEffect(input.projectPath, output),
+        filesContentSubtreeEffect(input.projectPath, output),
       ]),
     foreignDependencies: (_input: DuplicatePathInput): readonly FilesForeignDependency[] =>
       ALL_THREE_FOREIGN,
@@ -200,8 +202,9 @@ export const filesMutations = {
     procedureName: 'trashPath',
     affectedEffects: (input: TrashPathInput): readonly FilesQueryEffect[] =>
       dedupeFilesQueryEffects([
-        ...structuralTreesAndPins(input.projectPath, input.path),
-        ...contentPreviewEffects(input.projectPath, input.path),
+        ...treeSubtreeEffectsForStructuralPath(input.projectPath, input.path),
+        filesExactEffect(filesPinsQuery(input.projectPath)),
+        filesContentSubtreeEffect(input.projectPath, input.path),
       ]),
     foreignDependencies: (_input: TrashPathInput): readonly FilesForeignDependency[] =>
       ALL_THREE_FOREIGN,

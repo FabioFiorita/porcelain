@@ -1,4 +1,6 @@
+import { isFilesProjectRelativePath } from '@porcelain/contracts/files'
 import {
+  FilesIdentityError,
   type FilesQuery,
   fileContentQuery,
   filePreviewQuery,
@@ -9,11 +11,13 @@ import {
 
 /**
  * Runtime-owned invalidation effect. Not a sixth query identity.
- * Adapters must exhaustively switch on `type` (exact | tree-family).
+ * Adapters must exhaustively switch on every exact, family, and subtree variant.
  */
 export type FilesQueryEffect =
   | { readonly type: 'exact'; readonly query: FilesQuery }
   | { readonly type: 'tree-family'; readonly projectPath: string }
+  | { readonly type: 'tree-subtree'; readonly projectPath: string; readonly path: string }
+  | { readonly type: 'content-subtree'; readonly projectPath: string; readonly path: string }
 
 /** Files-owned foreign freshness tokens — not query identities and not procedure names. */
 export type FilesForeignDependency =
@@ -43,6 +47,25 @@ export function filesTreeFamilyEffect(projectPath: string): FilesQueryEffect {
   return { type: 'tree-family', projectPath: filesProjectKey(projectPath) }
 }
 
+function subtreeEffect(
+  type: 'tree-subtree' | 'content-subtree',
+  projectPath: string,
+  path: string,
+): FilesQueryEffect {
+  if (!isFilesProjectRelativePath(path)) {
+    throw new FilesIdentityError(`files: invalid ${type} path`)
+  }
+  return { type, projectPath: filesProjectKey(projectPath), path }
+}
+
+export function filesTreeSubtreeEffect(projectPath: string, path: string): FilesQueryEffect {
+  return subtreeEffect('tree-subtree', projectPath, path)
+}
+
+export function filesContentSubtreeEffect(projectPath: string, path: string): FilesQueryEffect {
+  return subtreeEffect('content-subtree', projectPath, path)
+}
+
 function exactQueryKey(query: FilesQuery): string {
   switch (query.name) {
     case 'tree':
@@ -59,10 +82,16 @@ function exactQueryKey(query: FilesQuery): string {
 }
 
 function effectKey(effect: FilesQueryEffect): string {
-  if (effect.type === 'tree-family') {
-    return `tree-family\0${effect.projectPath}`
+  switch (effect.type) {
+    case 'tree-family':
+      return `tree-family\0${effect.projectPath}`
+    case 'tree-subtree':
+      return `tree-subtree\0${effect.projectPath}\0${effect.path}`
+    case 'content-subtree':
+      return `content-subtree\0${effect.projectPath}\0${effect.path}`
+    case 'exact':
+      return `exact\0${exactQueryKey(effect.query)}`
   }
-  return `exact\0${exactQueryKey(effect.query)}`
 }
 
 /**
@@ -136,15 +165,15 @@ export function contentPreviewEffects(
   ]
 }
 
-/**
- * Destination-only tree effects for duplicate result: self path × both showHidden as exact
- * effects. Does **not** include parent (parent already covered by source structural expansion
- * when destination is a sibling; do not re-emit parent here).
- */
-export function treeSelfEffects(projectPath: string, path: string): readonly FilesQueryEffect[] {
-  const key = filesProjectKey(projectPath)
+/** A structural directory path and every cached descendant, plus its parent listing. */
+export function treeSubtreeEffectsForStructuralPath(
+  projectPath: string,
+  path: string,
+): readonly FilesQueryEffect[] {
+  const parent = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '.'
   return dedupeFilesQueryEffects([
-    filesExactEffect(filesTreeQuery(key, path, false)),
-    filesExactEffect(filesTreeQuery(key, path, true)),
+    filesTreeSubtreeEffect(projectPath, path),
+    filesExactEffect(filesTreeQuery(projectPath, parent, false)),
+    filesExactEffect(filesTreeQuery(projectPath, parent, true)),
   ])
 }

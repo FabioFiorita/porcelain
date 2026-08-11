@@ -8,10 +8,12 @@ import {
   FILES_FOREIGN_CONTENT_INDEX,
   FILES_FOREIGN_PATH_INDEX,
   FILES_FOREIGN_WORKING_TREE,
+  filesContentSubtreeEffect,
   filesExactEffect,
   filesTreeFamilyEffect,
+  filesTreeSubtreeEffect,
   treeEffectsForStructuralPath,
-  treeSelfEffects,
+  treeSubtreeEffectsForStructuralPath,
 } from './files-effects'
 import { filesMutations } from './files-mutations'
 import { filesPinsQuery, filesScopeQuery } from './files-queries'
@@ -102,20 +104,20 @@ describe('filesMutations affectedEffects tables', () => {
     expect(effects.some((e) => e.type === 'exact' && e.query.name === 'preview')).toBe(false)
   })
 
-  it('rename expands structural trees and content/preview for from and to plus pins', () => {
+  it('rename invalidates descendant trees and content for from and to plus pins', () => {
     const input = fixtures.renamePath.input
     expect(filesMutations.rename.affectedEffects(input)).toEqual(
       dedupeFilesQueryEffects([
-        ...treeEffectsForStructuralPath(input.projectPath, input.from),
-        ...treeEffectsForStructuralPath(input.projectPath, input.to),
+        ...treeSubtreeEffectsForStructuralPath(input.projectPath, input.from),
+        ...treeSubtreeEffectsForStructuralPath(input.projectPath, input.to),
         filesExactEffect(filesPinsQuery(input.projectPath)),
-        ...contentPreviewEffects(input.projectPath, input.from),
-        ...contentPreviewEffects(input.projectPath, input.to),
+        filesContentSubtreeEffect(input.projectPath, input.from),
+        filesContentSubtreeEffect(input.projectPath, input.to),
       ]),
     )
   })
 
-  it('duplicate base omits destination; affectedEffectsForResult adds self trees + content/preview only', () => {
+  it('duplicate base omits destination; result adds destination tree/content subtrees', () => {
     const input = fixtures.duplicatePath.input
     const output = fixtures.duplicatePath.output
     const base = filesMutations.duplicate.affectedEffects(input)
@@ -129,33 +131,19 @@ describe('filesMutations affectedEffects tables', () => {
     expect(complete).toEqual([
       ...treeEffectsForStructuralPath(input.projectPath, input.path),
       filesExactEffect(filesPinsQuery(input.projectPath)),
-      ...treeSelfEffects(input.projectPath, output),
-      ...contentPreviewEffects(input.projectPath, output),
+      filesTreeSubtreeEffect(input.projectPath, output),
+      filesContentSubtreeEffect(input.projectPath, output),
     ])
-    // destination parent is not re-emitted as an extra beyond source structural coverage
-    const destParentTreeExact = complete.filter(
-      (e) =>
-        e.type === 'exact' &&
-        e.query.name === 'tree' &&
-        e.query.path === 'docs' &&
-        // parent of destination appears only via source structural (docs from source path parent)
-        true,
-    )
-    // source structural already covers docs; treeSelfEffects must not add only-parent without self
-    expect(
-      complete.filter(
-        (e) => e.type === 'exact' && e.query.name === 'tree' && e.query.path === output,
-      ),
-    ).toHaveLength(2)
-    expect(destParentTreeExact.length).toBeGreaterThanOrEqual(0)
+    expect(complete).toContainEqual(filesTreeSubtreeEffect(input.projectPath, output))
+    expect(complete).toContainEqual(filesContentSubtreeEffect(input.projectPath, output))
   })
 
-  it('trash includes structural trees, pins, content, and preview', () => {
+  it('trash invalidates descendant trees/content plus its parent and pins', () => {
     const input = fixtures.trashPath.input
     expect(filesMutations.trash.affectedEffects(input)).toEqual([
-      ...treeEffectsForStructuralPath(input.projectPath, input.path),
+      ...treeSubtreeEffectsForStructuralPath(input.projectPath, input.path),
       filesExactEffect(filesPinsQuery(input.projectPath)),
-      ...contentPreviewEffects(input.projectPath, input.path),
+      filesContentSubtreeEffect(input.projectPath, input.path),
     ])
   })
 })

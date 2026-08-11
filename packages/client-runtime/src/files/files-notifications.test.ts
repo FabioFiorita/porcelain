@@ -13,15 +13,16 @@ import {
   FILES_FOREIGN_CONTENT_INDEX,
   FILES_FOREIGN_PATH_INDEX,
   FILES_FOREIGN_WORKING_TREE,
+  filesContentSubtreeEffect,
   filesExactEffect,
   filesTreeFamilyEffect,
-  treeEffectsForStructuralPath,
+  treeSubtreeEffectsForStructuralPath,
 } from './files-effects'
 import {
   filesNotificationEffects,
   filesNotificationForeignDependencies,
 } from './files-notifications'
-import { filesPinsQuery, filesScopeQuery } from './files-queries'
+import { filesPinsQuery, filesScopeQuery, filesTreeQuery } from './files-queries'
 
 const PROJECT = '/synthetic/repo'
 const OTHER = '/synthetic/other-repo'
@@ -47,7 +48,7 @@ describe('filesNotificationEffects', () => {
     )
   })
 
-  it('tree-changed expands parent/self × showHidden + pins without content or scope', () => {
+  it('tree-changed invalidates tree/content subtrees plus exact parents and pins', () => {
     const notification = filesNotificationFixtures['files.tree-changed']
     const effects = filesNotificationEffects(notification)
     expect(effects[0]).toEqual(filesExactEffect(filesPinsQuery(PROJECT)))
@@ -55,16 +56,30 @@ describe('filesNotificationEffects', () => {
     expect(effects).toEqual(
       dedupeFilesQueryEffects([
         filesExactEffect(filesPinsQuery(PROJECT)),
-        ...treeEffectsForStructuralPath(PROJECT, 'src'),
-        ...treeEffectsForStructuralPath(PROJECT, 'src/added.ts'),
+        ...treeSubtreeEffectsForStructuralPath(PROJECT, 'src'),
+        filesContentSubtreeEffect(PROJECT, 'src'),
+        ...treeSubtreeEffectsForStructuralPath(PROJECT, 'src/added.ts'),
+        filesContentSubtreeEffect(PROJECT, 'src/added.ts'),
       ]),
     )
-    expect(effects.some((e) => e.type === 'exact' && e.query.name === 'content')).toBe(false)
-    expect(effects.some((e) => e.type === 'exact' && e.query.name === 'preview')).toBe(false)
+    expect(effects.some((e) => e.type === 'content-subtree')).toBe(true)
     expect(effects.some((e) => e.type === 'exact' && e.query.name === 'scope')).toBe(false)
-    expect(effects.every((e) => e.type === 'tree-family' || e.query.projectPath === PROJECT)).toBe(
-      true,
-    )
+    expect(
+      effects.every((e) => (e.type === 'exact' ? e.query.projectPath : e.projectPath) === PROJECT),
+    ).toBe(true)
+  })
+
+  it('tree-changed root marker invalidates exact root trees without subtree/content effects', () => {
+    const notification = filesChangeSchema.parse({
+      kind: 'files.tree-changed',
+      projectPath: PROJECT,
+      paths: ['.'],
+    })
+    expect(filesNotificationEffects(notification)).toEqual([
+      filesExactEffect(filesPinsQuery(PROJECT)),
+      filesExactEffect(filesTreeQuery(PROJECT, '.', false)),
+      filesExactEffect(filesTreeQuery(PROJECT, '.', true)),
+    ])
   })
 
   it('content-changed couples preview, skips ".", and never expands trees (create-missing stays content-only on wire)', () => {

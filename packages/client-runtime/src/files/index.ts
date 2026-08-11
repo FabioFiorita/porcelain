@@ -15,10 +15,12 @@ export {
   FILES_FOREIGN_WORKING_TREE,
   type FilesForeignDependency,
   type FilesQueryEffect,
+  filesContentSubtreeEffect,
   filesExactEffect,
   filesTreeFamilyEffect,
+  filesTreeSubtreeEffect,
   treeEffectsForStructuralPath,
-  treeSelfEffects,
+  treeSubtreeEffectsForStructuralPath,
 } from './files-effects'
 export {
   createFilesInterest,

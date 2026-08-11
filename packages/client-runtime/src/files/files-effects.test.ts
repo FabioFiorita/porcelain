@@ -6,18 +6,20 @@ import {
   FILES_FOREIGN_CONTENT_INDEX,
   FILES_FOREIGN_PATH_INDEX,
   FILES_FOREIGN_WORKING_TREE,
+  filesContentSubtreeEffect,
   filesExactEffect,
   filesTreeFamilyEffect,
+  filesTreeSubtreeEffect,
   treeEffectsForStructuralPath,
-  treeSelfEffects,
+  treeSubtreeEffectsForStructuralPath,
 } from './files-effects'
 import { fileContentQuery, filePreviewQuery, filesPinsQuery, filesTreeQuery } from './files-queries'
 
 const REPO = '/synthetic/repo'
 const OTHER = '/synthetic/other-repo'
 
-describe('filesExactEffect and filesTreeFamilyEffect', () => {
-  it('builds exact and tree-family effects with normalized projectPath', () => {
+describe('Files query effect builders', () => {
+  it('builds normalized exact, family, and subtree effects', () => {
     const query = filesTreeQuery(REPO, 'src', false)
     expect(filesExactEffect(query)).toEqual({ type: 'exact', query })
     expect(filesTreeFamilyEffect(`${REPO}/`)).toEqual({
@@ -25,6 +27,20 @@ describe('filesExactEffect and filesTreeFamilyEffect', () => {
       projectPath: REPO,
     })
     expect(filesTreeFamilyEffect(REPO)).not.toEqual(filesTreeFamilyEffect(OTHER))
+    expect(filesTreeSubtreeEffect(`${REPO}/`, 'a/b')).toEqual({
+      type: 'tree-subtree',
+      projectPath: REPO,
+      path: 'a/b',
+    })
+    expect(filesContentSubtreeEffect(REPO, 'a/b')).toEqual({
+      type: 'content-subtree',
+      projectPath: REPO,
+      path: 'a/b',
+    })
+    expect(() => filesTreeSubtreeEffect(REPO, '.')).toThrow('files: invalid tree-subtree path')
+    expect(() => filesContentSubtreeEffect(REPO, 'a/../b')).toThrow(
+      'files: invalid content-subtree path',
+    )
   })
 })
 
@@ -33,15 +49,27 @@ describe('dedupeFilesQueryEffects', () => {
     const tree = filesTreeQuery(REPO, 'src', false)
     const pins = filesPinsQuery(REPO)
     const family = filesTreeFamilyEffect(REPO)
+    const treeSubtree = filesTreeSubtreeEffect(REPO, 'src')
+    const contentSubtree = filesContentSubtreeEffect(REPO, 'src')
     const effects = dedupeFilesQueryEffects([
       filesExactEffect(tree),
       filesExactEffect(pins),
       filesExactEffect(tree),
       family,
       filesTreeFamilyEffect(`${REPO}/`),
+      treeSubtree,
+      filesTreeSubtreeEffect(`${REPO}/`, 'src'),
+      contentSubtree,
+      filesContentSubtreeEffect(REPO, 'src'),
       filesExactEffect(tree),
     ])
-    expect(effects).toEqual([filesExactEffect(tree), filesExactEffect(pins), family])
+    expect(effects).toEqual([
+      filesExactEffect(tree),
+      filesExactEffect(pins),
+      family,
+      treeSubtree,
+      contentSubtree,
+    ])
     // family present does not remove exact tree identities
     expect(effects.some((e) => e.type === 'exact' && e.query.name === 'tree')).toBe(true)
   })
@@ -67,10 +95,16 @@ describe('expansion helpers', () => {
     ])
   })
 
-  it('treeSelfEffects emits only self path × both showHidden', () => {
-    expect(treeSelfEffects(REPO, 'docs/guide copy.md')).toEqual([
-      filesExactEffect(filesTreeQuery(REPO, 'docs/guide copy.md', false)),
-      filesExactEffect(filesTreeQuery(REPO, 'docs/guide copy.md', true)),
+  it('treeSubtreeEffectsForStructuralPath emits subtree plus exact parent trees', () => {
+    expect(treeSubtreeEffectsForStructuralPath(REPO, 'docs/guide')).toEqual([
+      filesTreeSubtreeEffect(REPO, 'docs/guide'),
+      filesExactEffect(filesTreeQuery(REPO, 'docs', false)),
+      filesExactEffect(filesTreeQuery(REPO, 'docs', true)),
+    ])
+    expect(treeSubtreeEffectsForStructuralPath(REPO, 'docs')).toEqual([
+      filesTreeSubtreeEffect(REPO, 'docs'),
+      filesExactEffect(filesTreeQuery(REPO, '.', false)),
+      filesExactEffect(filesTreeQuery(REPO, '.', true)),
     ])
   })
 

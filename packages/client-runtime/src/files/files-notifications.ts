@@ -7,11 +7,12 @@ import {
   FILES_FOREIGN_CONTENT_INDEX,
   FILES_FOREIGN_PATH_INDEX,
   FILES_FOREIGN_WORKING_TREE,
+  filesContentSubtreeEffect,
   filesExactEffect,
   filesTreeFamilyEffect,
-  treeEffectsForStructuralPath,
+  treeSubtreeEffectsForStructuralPath,
 } from './files-effects'
-import { filesPinsQuery, filesProjectKey, filesScopeQuery } from './files-queries'
+import { filesPinsQuery, filesProjectKey, filesScopeQuery, filesTreeQuery } from './files-queries'
 
 /**
  * Exhaustive Files notification → query effect mapping (FIL-004).
@@ -41,7 +42,13 @@ export function filesNotificationEffects(notification: FilesChange): readonly Fi
     case 'files.tree-changed': {
       const effects: FilesQueryEffect[] = [filesExactEffect(filesPinsQuery(projectPath))]
       for (const path of notification.paths) {
-        effects.push(...treeEffectsForStructuralPath(projectPath, path))
+        if (path === '.') {
+          effects.push(filesExactEffect(filesTreeQuery(projectPath, '.', false)))
+          effects.push(filesExactEffect(filesTreeQuery(projectPath, '.', true)))
+          continue
+        }
+        effects.push(...treeSubtreeEffectsForStructuralPath(projectPath, path))
+        effects.push(filesContentSubtreeEffect(projectPath, path))
       }
       return dedupeFilesQueryEffects(effects)
     }
