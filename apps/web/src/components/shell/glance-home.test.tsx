@@ -1,8 +1,8 @@
 import type { InboxRow } from '@backend/git/worktree-inbox'
 import type { FeatureReading } from '@backend/review/feature-view'
 import type { FlowGroup } from '@backend/review/flow'
-import type { BoardCard } from '@backend/stores/board-store'
-import { useBoardCards } from '@renderer/hooks/use-board'
+import type { BoardCard } from '@porcelain/contracts/board'
+import { useBoardCards } from '@renderer/features/board'
 import { useReviewComments } from '@renderer/hooks/use-comments'
 import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
 import { useGitFlow } from '@renderer/hooks/use-git-flow'
@@ -22,7 +22,7 @@ vi.mock('@renderer/hooks/use-worktrees', () => ({
 }))
 vi.mock('@renderer/hooks/use-git-flow', () => ({ useGitFlow: vi.fn() }))
 vi.mock('@renderer/hooks/use-feature-reading', () => ({ useFeatureReading: vi.fn() }))
-vi.mock('@renderer/hooks/use-board', () => ({ useBoardCards: vi.fn() }))
+vi.mock('@renderer/features/board', () => ({ useBoardCards: vi.fn() }))
 vi.mock('@renderer/hooks/use-comments', () => ({ useReviewComments: vi.fn() }))
 
 const switchToSpy = vi.fn(async () => {})
@@ -64,7 +64,7 @@ function mockEmpty(): void {
   vi.mocked(useBranch).mockReturnValue('main')
   vi.mocked(useGitFlow).mockReturnValue({ groups: [], refresh: async () => {} })
   vi.mocked(useFeatureReading).mockReturnValue({ reading: null, refresh: async () => {} })
-  vi.mocked(useBoardCards).mockReturnValue({ cards: [], error: null })
+  vi.mocked(useBoardCards).mockReturnValue({ cards: [], error: null, isLoaded: true })
   vi.mocked(useReviewComments).mockReturnValue([])
 }
 
@@ -125,6 +125,7 @@ describe('GlanceHome', () => {
         card({ id: 'c3', title: 'Another later thing' }),
       ],
       error: null,
+      isLoaded: true,
     })
     render(<GlanceHome />)
     // Section label + Jump to row both say "Board"; summary also appears twice

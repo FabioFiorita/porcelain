@@ -1,4 +1,3 @@
-import { BoardList } from '@renderer/components/board/board-list'
 import { BranchSwitcher } from '@renderer/components/git/branch-switcher'
 import { ChangesList } from '@renderer/components/git/changes-list'
 import { FeatureList } from '@renderer/components/git/feature-list'
@@ -22,6 +21,7 @@ import {
   useSidebar,
 } from '@renderer/components/ui/sidebar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
+import { BoardList } from '@renderer/features/board'
 import { kbdLabel } from '@renderer/lib/keyboard'
 import { cn } from '@renderer/lib/utils'
 import { useFileTreeStore } from '@renderer/stores/file-tree'

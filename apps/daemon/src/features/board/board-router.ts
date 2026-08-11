@@ -6,9 +6,8 @@ import type { BoardOperationResult } from './board-capabilities'
 import type { BoardOperations } from './board-operations'
 
 /**
- * Board feature router — six EXISTING legacy wire names bound to boardLiveCatalogProcedures.
- * Each procedure is parse → invoke one operation → map. BRD-004 performs the six-for-six
- * catalog/name swap to listBoardCards…clearBoardColumn with the Web migration.
+ * Board feature router — six canonical BRD-001 wire names bound to boardProcedures.
+ * Each procedure is parse → invoke one operation → map authoritative outputs.
  */
 
 function throwIfFailed<T>(result: BoardOperationResult<T>): T {
@@ -30,20 +29,20 @@ function throwIfFailed<T>(result: BoardOperationResult<T>): T {
 
 export function createBoardRouter(operations: BoardOperations) {
   return t.router({
-    boardCards: publicProcedure
-      .input(procedureCatalog.boardCards.input)
-      .output(procedureCatalog.boardCards.output)
+    listBoardCards: publicProcedure
+      .input(procedureCatalog.listBoardCards.input)
+      .output(procedureCatalog.listBoardCards.output)
       .query(async ({ input }) => {
         const result = await operations.listBoardCards({ projectPath: input })
         return throwIfFailed(result)
       }),
 
-    addBoardCard: publicProcedure
-      .input(procedureCatalog.addBoardCard.input)
-      .output(procedureCatalog.addBoardCard.output)
+    createBoardCard: publicProcedure
+      .input(procedureCatalog.createBoardCard.input)
+      .output(procedureCatalog.createBoardCard.output)
       .mutation(async ({ input }) => {
         const result = await operations.createBoardCard({
-          projectPath: input.repoPath,
+          projectPath: input.projectPath,
           title: input.title,
           body: input.body,
           status: input.status,
@@ -56,13 +55,12 @@ export function createBoardRouter(operations: BoardOperations) {
       .output(procedureCatalog.updateBoardCard.output)
       .mutation(async ({ input }) => {
         const result = await operations.updateBoardCard({
-          projectPath: input.repoPath,
-          cardId: input.id,
+          projectPath: input.projectPath,
+          cardId: input.cardId,
           title: input.title,
           body: input.body,
         })
-        throwIfFailed(result)
-        // Legacy wire keeps void mutation outputs until BRD-004.
+        return throwIfFailed(result)
       }),
 
     moveBoardCard: publicProcedure
@@ -70,11 +68,11 @@ export function createBoardRouter(operations: BoardOperations) {
       .output(procedureCatalog.moveBoardCard.output)
       .mutation(async ({ input }) => {
         const result = await operations.moveBoardCard({
-          projectPath: input.repoPath,
-          cardId: input.id,
+          projectPath: input.projectPath,
+          cardId: input.cardId,
           status: input.status,
         })
-        throwIfFailed(result)
+        return throwIfFailed(result)
       }),
 
     deleteBoardCard: publicProcedure
@@ -82,21 +80,21 @@ export function createBoardRouter(operations: BoardOperations) {
       .output(procedureCatalog.deleteBoardCard.output)
       .mutation(async ({ input }) => {
         const result = await operations.deleteBoardCard({
-          projectPath: input.repoPath,
-          cardId: input.id,
+          projectPath: input.projectPath,
+          cardId: input.cardId,
         })
-        throwIfFailed(result)
+        return throwIfFailed(result)
       }),
 
-    clearBoardCards: publicProcedure
-      .input(procedureCatalog.clearBoardCards.input)
-      .output(procedureCatalog.clearBoardCards.output)
+    clearBoardColumn: publicProcedure
+      .input(procedureCatalog.clearBoardColumn.input)
+      .output(procedureCatalog.clearBoardColumn.output)
       .mutation(async ({ input }) => {
         const result = await operations.clearBoardColumn({
-          projectPath: input.repoPath,
+          projectPath: input.projectPath,
           status: input.status,
         })
-        throwIfFailed(result)
+        return throwIfFailed(result)
       }),
   })
 }

@@ -59,18 +59,18 @@ describe('createDaemonRouter composition', () => {
     expect(keys).toHaveLength(EXPECTED_PROCEDURE_KEYS.length)
   })
 
-  it('calls boardCards through the composed router against a temporary project board', async () => {
+  it('calls listBoardCards through the composed router against a temporary project board', async () => {
     const operations = createDaemonOperations({ publishSessionChange: () => undefined })
     const router = createDaemonRouter({ operations })
     const caller = router.createCaller(PUBLIC_CONTEXT)
 
-    expect(await caller.boardCards(repo)).toEqual([])
+    expect(await caller.listBoardCards(repo)).toEqual([])
 
-    const created = await caller.addBoardCard({
-      repoPath: repo,
+    const created = await caller.createBoardCard({
+      projectPath: repo,
       title: 'Composition seam card',
     })
-    const cards = await caller.boardCards(repo)
+    const cards = await caller.listBoardCards(repo)
 
     expect(cards).toEqual([created])
     expect(created.title).toBe('Composition seam card')

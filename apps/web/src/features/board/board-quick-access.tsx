@@ -1,4 +1,4 @@
-import type { BoardCard, CardStatus } from '@backend/stores/board-store'
+import type { BoardCard, BoardStatus } from '@porcelain/contracts/board'
 import { Button } from '@renderer/components/ui/button'
 import {
   DropdownMenu,
@@ -11,17 +11,9 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
 } from '@renderer/components/ui/sidebar'
-import {
-  BOARD_COLUMNS,
-  STATUS_LABEL,
-  useBoardCards,
-  useCardActions,
-} from '@renderer/hooks/use-board'
 import { compactButtonClass } from '@renderer/lib/controls'
 import { openFeatureReview } from '@renderer/lib/surface-handoffs'
 import { cn } from '@renderer/lib/utils'
-import { resolveBoardFocus, useBoardSelectionStore } from '@renderer/stores/board-selection'
-import { draftFromCard, useCardDraftStore } from '@renderer/stores/card-draft'
 import { useRepoStore } from '@renderer/stores/repo'
 import { TestIds } from '@shared/test-ids'
 import {
@@ -33,9 +25,14 @@ import {
   Sparkles,
   Trash2,
 } from 'lucide-react'
+import { BOARD_COLUMNS, boardStatusLabel } from './board-columns'
+import { useBoardCardActions } from './board-mutations'
+import { useBoardCards } from './board-queries'
+import { resolveBoardFocus, useBoardSelectionStore } from './board-selection-store'
+import { draftFromCard, useCardDraftStore } from './card-draft-store'
 
 const COLUMN_ICON: Record<
-  CardStatus,
+  BoardStatus,
   React.ComponentType<{ className?: string; 'aria-hidden'?: boolean }>
 > = {
   todo: Circle,
@@ -54,7 +51,7 @@ export function BoardQuickAccess(): React.JSX.Element {
   const repoPath = useRepoStore((s) => s.repo?.path)
   const focusKey = useBoardSelectionStore((s) => s.focus)
   const focus = resolveBoardFocus(cards, repoPath, focusKey)
-  const { move, remove } = useCardActions()
+  const { move, remove } = useBoardCardActions()
   const openDraft = useCardDraftStore((s) => s.open)
 
   if (error) {
@@ -102,7 +99,7 @@ function CardDetail({
 }: {
   card: BoardCard
   onEdit: () => void
-  move: (id: string, status: CardStatus) => Promise<void>
+  move: (id: string, status: BoardStatus) => Promise<void>
   remove: (id: string) => Promise<void>
 }): React.JSX.Element {
   const StatusIcon = COLUMN_ICON[card.status]
@@ -122,7 +119,7 @@ function CardDetail({
             <span className="flex items-center gap-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
               {/* Lucide defaults to 24px; pin to the label’s text size so To do / Doing don’t dwarf the word. */}
               <StatusIcon className="size-3 shrink-0" aria-hidden />
-              {STATUS_LABEL[card.status]}
+              {boardStatusLabel(card.status)}
             </span>
             <h2 className="text-sm font-medium break-words text-foreground">{card.title}</h2>
           </div>

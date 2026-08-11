@@ -1,6 +1,6 @@
-import type { BoardCard } from '@backend/stores/board-store'
+import type { BoardCard } from '@porcelain/contracts/board'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { resolveBoardFocus, useBoardSelectionStore } from './board-selection'
+import { resolveBoardFocus, useBoardSelectionStore } from './board-selection-store'
 
 const card = (id: string, status: BoardCard['status'], order: number, title = id): BoardCard => ({
   id,

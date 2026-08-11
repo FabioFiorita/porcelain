@@ -19,6 +19,7 @@ export const DOMAIN_MIGRATIONS = Object.freeze(
       if (key === 'board') {
         targetRoots.push('apps/daemon/src/features/board')
         targetRoots.push('packages/client-runtime/src/board')
+        targetRoots.push('apps/web/src/features/board')
       }
       return [
         key,
@@ -81,6 +82,6 @@ export const OVERSIZED_PRODUCTION_FILES = Object.freeze({
 })
 
 export const WEB_SERVER_IMPORT_BASELINE = Object.freeze({
-  occurrences: 118,
-  files: 96,
+  occurrences: 106,
+  files: 86,
 })

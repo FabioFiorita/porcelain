@@ -3,6 +3,7 @@ import { Kbd } from '@renderer/components/ui/kbd'
 import { SidebarInset, SidebarProvider, useSidebar } from '@renderer/components/ui/sidebar'
 import { Toaster } from '@renderer/components/ui/sonner'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
+import { CardComposer, useBoardNotificationSubscription } from '@renderer/features/board'
 import { useDocumentTitle } from '@renderer/hooks/use-document-title'
 import { useEnvironmentStatuses } from '@renderer/hooks/use-environment-status'
 import { useResponsiveShell } from '@renderer/hooks/use-responsive-shell'
@@ -19,7 +20,6 @@ import { useZenStore } from '@renderer/stores/zen'
 import { TestIds } from '@shared/test-ids'
 import { PanelLeft, Zap } from 'lucide-react'
 import { useEffect, useRef } from 'react'
-import { CardComposer } from '../board/card-composer'
 import { SettingsDialog } from '../settings/settings-dialog'
 import { AppSidebar } from './app-sidebar'
 import { ContentSearch } from './content-search'
@@ -193,6 +193,8 @@ export function AppShell(): React.JSX.Element {
   // One session runtime for the window: domain change invalidation, watch interests,
   // project selection, and reconnect recovery. Terminal traffic shares the same socket.
   useSessionRuntime()
+  // Board notifications own their cards-identity invalidation (BRD-004); not session-runtime.
+  useBoardNotificationSubscription()
   useEnvironmentStatuses()
   useThemeSync()
   useDocumentTitle()

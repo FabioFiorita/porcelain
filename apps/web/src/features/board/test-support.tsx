@@ -1,0 +1,41 @@
+import { boardContractFixtures } from '@porcelain/contracts/board'
+import { remoteContractFixtures } from '@porcelain/contracts/remote'
+import {
+  createValidatingTrpcHarness,
+  type DaemonMockHandlers,
+} from '@renderer/hooks/trpc-test-harness'
+import { useRepoStore } from '@renderer/stores/repo'
+import { type RenderResult, render } from '@testing-library/react'
+import type { ReactElement } from 'react'
+
+const REPO = boardContractFixtures.listBoardCards.input
+const CARDS = boardContractFixtures.listBoardCards.output
+
+/** Default Board procedure handlers for presentation tests. */
+export function defaultBoardHandlers(overrides: DaemonMockHandlers = {}): DaemonMockHandlers {
+  return {
+    daemonInfo: () => ({ ok: true, value: remoteContractFixtures.daemonInfo.output }),
+    listBoardCards: () => ({ ok: true, value: [...CARDS] }),
+    createBoardCard: () => ({ ok: true, value: boardContractFixtures.createBoardCard.output }),
+    updateBoardCard: () => ({ ok: true, value: boardContractFixtures.updateBoardCard.output }),
+    moveBoardCard: () => ({ ok: true, value: boardContractFixtures.moveBoardCard.output }),
+    deleteBoardCard: () => ({ ok: true, value: boardContractFixtures.deleteBoardCard.output }),
+    clearBoardColumn: () => ({ ok: true, value: boardContractFixtures.clearBoardColumn.output }),
+    ...overrides,
+  }
+}
+
+/** Render a Board surface under the validating tRPC harness with an active Project. */
+export function renderBoard(
+  ui: ReactElement,
+  handlers: DaemonMockHandlers = {},
+): RenderResult & { mock: ReturnType<typeof createValidatingTrpcHarness>['mock'] } {
+  useRepoStore.setState({ repo: { path: REPO, name: 'repo' } })
+  const { mock, wrapper: Wrapper } = createValidatingTrpcHarness(defaultBoardHandlers(handlers))
+  const result = render(ui, {
+    wrapper: ({ children }) => <Wrapper>{children}</Wrapper>,
+  })
+  return { ...result, mock }
+}
+
+export { CARDS, REPO }

@@ -8,11 +8,11 @@ import {
 } from '@renderer/components/ui/dialog'
 import { Input } from '@renderer/components/ui/input'
 import { Textarea } from '@renderer/components/ui/textarea'
-import { useCardActions } from '@renderer/hooks/use-board'
 import { kbdLabel } from '@renderer/lib/keyboard'
-import { useCardDraftStore } from '@renderer/stores/card-draft'
 import { TestIds } from '@shared/test-ids'
 import { useEffect, useState } from 'react'
+import { useBoardCardActions } from './board-mutations'
+import { useCardDraftStore } from './card-draft-store'
 
 /**
  * The one create/edit-card dialog, driven by the card-draft store and mounted once in
@@ -20,7 +20,7 @@ import { useEffect, useState } from 'react'
  * ⌘↵ or ⌘S.
  */
 export function CardComposer(): React.JSX.Element {
-  const { add, update } = useCardActions()
+  const { add, update } = useBoardCardActions()
   const draft = useCardDraftStore((s) => s.draft)
   const close = useCardDraftStore((s) => s.close)
   const [title, setTitle] = useState('')

@@ -39,8 +39,8 @@ function unavailableOps(overrides: Partial<BoardOperations> = {}): BoardOperatio
   }
 }
 
-describe('board feature router (legacy wire names)', () => {
-  it('maps boardCards path input onto listBoardCards and returns the card list', async () => {
+describe('board feature router (canonical wire names)', () => {
+  it('maps listBoardCards project path onto the operation and returns the card list', async () => {
     const calls: unknown[] = []
     const router = createBoardRouter(
       unavailableOps({
@@ -62,13 +62,13 @@ describe('board feature router (legacy wire names)', () => {
       }),
     )
 
-    await expect(router.createCaller(PUBLIC_CONTEXT).boardCards(REPO)).resolves.toEqual([
+    await expect(router.createCaller(PUBLIC_CONTEXT).listBoardCards(REPO)).resolves.toEqual([
       { id: ID, title: 'Ship', status: 'todo', order: 1, createdAt: 1 },
     ])
     expect(calls).toEqual([{ projectPath: REPO }])
   })
 
-  it('maps addBoardCard repoPath onto createBoardCard and returns the card', async () => {
+  it('maps createBoardCard and returns the authoritative card', async () => {
     const calls: unknown[] = []
     const router = createBoardRouter(
       unavailableOps({
@@ -89,8 +89,8 @@ describe('board feature router (legacy wire names)', () => {
     )
 
     await expect(
-      router.createCaller(PUBLIC_CONTEXT).addBoardCard({
-        repoPath: REPO,
+      router.createCaller(PUBLIC_CONTEXT).createBoardCard({
+        projectPath: REPO,
         title: 'Ship',
         status: 'doing',
       }),
@@ -105,7 +105,7 @@ describe('board feature router (legacy wire names)', () => {
     ])
   })
 
-  it('maps void mutations and surfaces board.card-not-found', async () => {
+  it('returns authoritative update output and surfaces board.card-not-found', async () => {
     const calls: unknown[] = []
     const router = createBoardRouter(
       unavailableOps({
@@ -119,8 +119,8 @@ describe('board feature router (legacy wire names)', () => {
     expectPublicCode(
       await rejected(() =>
         router.createCaller(PUBLIC_CONTEXT).updateBoardCard({
-          repoPath: REPO,
-          id: ID,
+          projectPath: REPO,
+          cardId: ID,
           title: 'x',
         }),
       ),
@@ -128,6 +128,34 @@ describe('board feature router (legacy wire names)', () => {
       false,
     )
     expect(calls).toEqual([{ projectPath: REPO, cardId: ID, title: 'x', body: undefined }])
+  })
+
+  it('returns authoritative outputs for move, delete, and clearColumn', async () => {
+    const router = createBoardRouter(
+      unavailableOps({
+        moveBoardCard: async () => ({
+          ok: true,
+          value: { id: ID, title: 'Ship', status: 'done', order: 9, createdAt: 1 },
+        }),
+        deleteBoardCard: async () => ({ ok: true, value: { cardId: ID } }),
+        clearBoardColumn: async () => ({
+          ok: true,
+          value: { status: 'todo', cardIds: [ID] },
+        }),
+      }),
+    )
+    const caller = router.createCaller(PUBLIC_CONTEXT)
+
+    await expect(
+      caller.moveBoardCard({ projectPath: REPO, cardId: ID, status: 'done' }),
+    ).resolves.toMatchObject({ id: ID, status: 'done' })
+    await expect(caller.deleteBoardCard({ projectPath: REPO, cardId: ID })).resolves.toEqual({
+      cardId: ID,
+    })
+    await expect(caller.clearBoardColumn({ projectPath: REPO, status: 'todo' })).resolves.toEqual({
+      status: 'todo',
+      cardIds: [ID],
+    })
   })
 
   it('surfaces board.unavailable and board.invalid-title', async () => {
@@ -138,8 +166,8 @@ describe('board feature router (legacy wire names)', () => {
     )
     expectPublicCode(
       await rejected(() =>
-        routerUnavailable.createCaller(PUBLIC_CONTEXT).addBoardCard({
-          repoPath: REPO,
+        routerUnavailable.createCaller(PUBLIC_CONTEXT).createBoardCard({
+          projectPath: REPO,
           title: 'x',
         }),
       ),
@@ -157,8 +185,8 @@ describe('board feature router (legacy wire names)', () => {
     )
     expectPublicCode(
       await rejected(() =>
-        routerInvalid.createCaller(PUBLIC_CONTEXT).addBoardCard({
-          repoPath: REPO,
+        routerInvalid.createCaller(PUBLIC_CONTEXT).createBoardCard({
+          projectPath: REPO,
           title: 'y',
         }),
       ),
@@ -180,10 +208,10 @@ describe('board feature router (legacy wire names)', () => {
     const error = await rejected(() =>
       callTRPCProcedure({
         router,
-        path: 'addBoardCard',
+        path: 'createBoardCard',
         type: 'mutation',
         ctx: PUBLIC_CONTEXT,
-        getRawInput: async () => ({ repoPath: REPO, title: '' }),
+        getRawInput: async () => ({ projectPath: REPO, title: '' }),
         signal: undefined,
         batchIndex: 0,
       }),
@@ -200,7 +228,7 @@ describe('board feature router (legacy wire names)', () => {
         },
       }),
     )
-    const error = await rejected(() => router.createCaller(PUBLIC_CONTEXT).boardCards(REPO))
+    const error = await rejected(() => router.createCaller(PUBLIC_CONTEXT).listBoardCards(REPO))
     const normalized = normalizePublicError(error, REQUEST_ID)
     expect(normalized.unexpected).toBe(true)
     expect(publicErrorSchema.parse(normalized.error).code).toBe('internal.unexpected')

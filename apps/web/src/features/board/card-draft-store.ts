@@ -1,19 +1,20 @@
-import type { BoardCard, CardStatus } from '@backend/stores/board-store'
+import type { BoardCard, BoardStatus } from '@porcelain/contracts/board'
 import { create } from 'zustand'
 
 /**
  * The board's create/edit-card intent. Both board surfaces (sidebar list + viewer
  * kanban) and the ⌘N shortcut open the composer through here, so a single
  * `CardComposer` (mounted in AppShell) shows — never two stacked dialogs when both
- * surfaces are mounted at once.
+ * surfaces are mounted at once. Drafts are unpersisted presentation state.
  */
+
 export interface CardDraft {
   /** Present when editing an existing card; absent when creating a new one. */
   id?: string
   title: string
   body: string
   /** Column a new card lands in. */
-  status: CardStatus
+  status: BoardStatus
 }
 
 /** Build an edit draft from an existing card (used by both board surfaces). */

@@ -1,4 +1,4 @@
-import type { CardStatus } from '@backend/stores/board-store'
+import type { BoardStatus } from '@porcelain/contracts/board'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -10,9 +10,10 @@ import {
   AlertDialogTitle,
 } from '@renderer/components/ui/alert-dialog'
 import { Button } from '@renderer/components/ui/button'
-import { STATUS_LABEL, useCardActions } from '@renderer/hooks/use-board'
 import { Eraser } from 'lucide-react'
 import { useState } from 'react'
+import { boardStatusLabel } from './board-columns'
+import { useBoardCardActions } from './board-mutations'
 
 /**
  * Clears every card in a column in one shot — the human's bulk equivalent of the
@@ -25,14 +26,14 @@ export function ClearColumnButton({
   count,
   className,
 }: {
-  status: CardStatus
+  status: BoardStatus
   count: number
   className?: string
 }): React.JSX.Element | null {
-  const { clear } = useCardActions()
+  const { clear } = useBoardCardActions()
   const [confirm, setConfirm] = useState(false)
   if (count === 0) return null
-  const label = STATUS_LABEL[status]
+  const label = boardStatusLabel(status)
   return (
     <>
       <Button

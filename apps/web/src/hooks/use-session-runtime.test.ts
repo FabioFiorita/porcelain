@@ -121,10 +121,8 @@ describe('Session change invalidation mapping', () => {
     )
   })
 
-  it('refreshes only the board and only the actions for their own categories', async () => {
-    expect(await invalidatedBy({ kind: 'board.changed', projectPath: PROJECT })).toEqual([
-      'boardCards',
-    ])
+  it('leaves board.changed to the Board feature adapter and refreshes actions only', async () => {
+    expect(await invalidatedBy({ kind: 'board.changed', projectPath: PROJECT })).toEqual([])
     expect(await invalidatedBy({ kind: 'actions.changed', projectPath: PROJECT })).toEqual([
       'actions',
     ])

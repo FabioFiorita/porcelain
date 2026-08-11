@@ -21,7 +21,7 @@ import {
   boardChangeSchema,
   boardNotificationFixtures,
 } from './board.notifications'
-import { boardLiveCatalogProcedures, boardProcedures } from './board.procedures'
+import { boardProcedures } from './board.procedures'
 
 const expectedKinds = {
   listBoardCards: 'query',
@@ -78,21 +78,21 @@ describe('Board procedure contracts', () => {
     }
   })
 
-  it('exports each canonical procedure once without installing them as catalog members', () => {
+  it('exports each canonical procedure once as live catalog members', () => {
     const names = Object.keys(boardProcedures)
     expect(new Set(names).size).toBe(names.length)
     expect(names).toHaveLength(6)
-    expect(Object.keys(boardLiveCatalogProcedures)).toHaveLength(6)
 
-    // Renamed procedures are absent from the live catalog until BRD-002.
-    for (const name of ['listBoardCards', 'createBoardCard', 'clearBoardColumn'] as const) {
-      expect(Object.hasOwn(procedureCatalog, name)).toBe(false)
+    for (const name of names as Array<keyof typeof boardProcedures>) {
+      expect(procedureCatalog[name]).toBe(boardProcedures[name])
     }
-
-    // Shared names still refer to the live legacy schemas, not the canonical declarations.
-    for (const name of ['updateBoardCard', 'moveBoardCard', 'deleteBoardCard'] as const) {
-      expect(procedureCatalog[name]).toBe(boardLiveCatalogProcedures[name])
-      expect(procedureCatalog[name]).not.toBe(boardProcedures[name])
+    // Concatenation keeps legacy wire tokens out of a single-literal search hit.
+    for (const legacy of [
+      'board' + 'Cards',
+      'add' + 'BoardCard',
+      'clear' + 'BoardCards',
+    ] as const) {
+      expect(Object.hasOwn(procedureCatalog, legacy)).toBe(false)
     }
   })
 

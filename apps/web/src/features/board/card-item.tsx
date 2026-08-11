@@ -1,4 +1,4 @@
-import type { BoardCard, CardStatus } from '@backend/stores/board-store'
+import type { BoardCard, BoardStatus } from '@porcelain/contracts/board'
 import { Button } from '@renderer/components/ui/button'
 import {
   DropdownMenu,
@@ -7,15 +7,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@renderer/components/ui/dropdown-menu'
-import { BOARD_COLUMNS, useBoardCards, useCardActions } from '@renderer/hooks/use-board'
 import { cn } from '@renderer/lib/utils'
-import { resolveBoardFocus, useBoardSelectionStore } from '@renderer/stores/board-selection'
 import { useRepoStore } from '@renderer/stores/repo'
 import { TestIds } from '@shared/test-ids'
 import { CheckCircle2, Circle, CircleDot, MoreHorizontal, PenLine, Trash2 } from 'lucide-react'
+import { BOARD_COLUMNS } from './board-columns'
+import { useBoardCardActions } from './board-mutations'
+import { useBoardCards } from './board-queries'
+import { resolveBoardFocus, useBoardSelectionStore } from './board-selection-store'
 
 /** Icon per column, so a "Move to …" row reads at a glance. */
-const COLUMN_ICON: Record<CardStatus, React.ComponentType> = {
+const COLUMN_ICON: Record<BoardStatus, React.ComponentType> = {
   todo: Circle,
   doing: CircleDot,
   done: CheckCircle2,
@@ -38,7 +40,7 @@ export function CardItem({
   onEdit: (card: BoardCard) => void
   compact?: boolean
 }): React.JSX.Element {
-  const { move, remove } = useCardActions()
+  const { move, remove } = useBoardCardActions()
   const { cards } = useBoardCards()
   const repoPath = useRepoStore((s) => s.repo?.path)
   const focusKey = useBoardSelectionStore((s) => s.focus)

@@ -1,6 +1,6 @@
-import { BoardQuickAccess } from '@renderer/components/board/board-quick-access'
 import { ActionsGroup } from '@renderer/components/terminal/actions-group'
 import { Sidebar, SidebarContent, SidebarHeader, useSidebar } from '@renderer/components/ui/sidebar'
+import { BoardQuickAccess } from '@renderer/features/board'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { TestIds } from '@shared/test-ids'
 import { CommentsGroup } from './comments-group'

@@ -1,3 +1,4 @@
+import { useCardDraftStore } from '@renderer/features/board'
 import {
   ctrlIsPrimary,
   isModExclusive,
@@ -5,7 +6,6 @@ import {
   isTextEntry,
 } from '@renderer/lib/keyboard'
 import { spawnTerminal } from '@renderer/lib/terminal-actions'
-import { useCardDraftStore } from '@renderer/stores/card-draft'
 import { type SidebarTab, usePreferencesStore } from '@renderer/stores/preferences'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { useEffect } from 'react'

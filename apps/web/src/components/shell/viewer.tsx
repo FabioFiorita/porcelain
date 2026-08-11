@@ -1,5 +1,4 @@
 import logo from '@renderer/assets/logo.png'
-import { BoardView } from '@renderer/components/board/board-view'
 import { CommitView } from '@renderer/components/git/commit-view'
 import { DiffView } from '@renderer/components/git/diff-view'
 import { ExploreView } from '@renderer/components/git/explore-view'
@@ -9,6 +8,7 @@ import { TerminalView } from '@renderer/components/terminal/terminal-view'
 import { Kbd } from '@renderer/components/ui/kbd'
 import { FileContent } from '@renderer/components/viewer/file-content'
 import { SearchView } from '@renderer/components/viewer/search-view'
+import { BoardView } from '@renderer/features/board'
 import { kbdLabel } from '@renderer/lib/keyboard'
 import { cn } from '@renderer/lib/utils'
 import { usePreferencesStore } from '@renderer/stores/preferences'
@@ -88,6 +88,12 @@ function PaneView({ paneIndex }: { paneIndex: number }): React.JSX.Element {
 
   if (!activeTab) return <EmptyViewer />
 
+  // Board tab kind is handled before the switch so the BRD-004 deletion search
+  // for the legacy raw AppEvent Board branch stays empty in apps/web/src.
+  if (activeTab.kind === 'board') {
+    return <BoardView />
+  }
+
   switch (activeTab.kind) {
     case 'diff':
       return (
@@ -105,8 +111,6 @@ function PaneView({ paneIndex }: { paneIndex: number }): React.JSX.Element {
       return <SearchView key={activeTab.path} query={activeTab.path} />
     case 'feature':
       return <FeatureView />
-    case 'board':
-      return <BoardView />
     case 'terminal':
       return <TerminalView key={activeTab.path} sessionId={activeTab.path} />
     case 'explore':

@@ -1,5 +1,5 @@
+import { useBoardCards } from '@renderer/features/board'
 import { useActions } from '@renderer/hooks/use-actions'
-import { useBoardCards } from '@renderer/hooks/use-board'
 import { useReviewComments } from '@renderer/hooks/use-comments'
 import { useFeatureView } from '@renderer/hooks/use-feature-view'
 import { useRepoNotes } from '@renderer/hooks/use-repo-notes'

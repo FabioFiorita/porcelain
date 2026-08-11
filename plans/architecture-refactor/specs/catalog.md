@@ -59,7 +59,7 @@ an external choice or authorization.
 | `BRD-001` | Landed | Canonical exhaustive Board procedures, errors, notification, and fixtures |
 | `BRD-002` | Landed | Board rules, operations, v1 store adapter, composition, router, and tests |
 | `BRD-003` | Landed | Board client-runtime query identities, mutation consequences, and notification mapping |
-| `BRD-004` | Ready | Web Board feature adapter/presentation uses contracts and shared semantics |
+| `BRD-004` | Landed | Web Board feature adapter/presentation uses contracts and shared semantics |
 | `BRD-005` | Draft | Mobile Board deletes Review-local descriptors and completes the domain gate |
 
 ## Batch 2 — focused behavior exemplars

@@ -1,6 +1,6 @@
 import type { InboxRow } from '@backend/git/worktree-inbox'
 import { reviewTabKey } from '@renderer/components/git/review-view'
-import { useBoardCards } from '@renderer/hooks/use-board'
+import { useBoardCards } from '@renderer/features/board'
 import { useReviewComments } from '@renderer/hooks/use-comments'
 import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
 import { useGitFlow } from '@renderer/hooks/use-git-flow'

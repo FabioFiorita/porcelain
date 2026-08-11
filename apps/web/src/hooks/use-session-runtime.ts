@@ -1,5 +1,6 @@
 import type { FreshnessRequirement } from '@porcelain/client-runtime/session/recovery'
 import type { SessionChange, SessionMismatchFrame } from '@porcelain/contracts/session'
+import { invalidateAllBoardCards } from '@renderer/features/board'
 import { type DaemonSession, primary } from '@renderer/lib/daemon'
 import { isBrowser } from '@renderer/lib/platform'
 import type { SessionConnectionStatus } from '@renderer/lib/session-browser-adapter'
@@ -8,6 +9,7 @@ import { useRepoStore } from '@renderer/stores/repo'
 import { type Pane, useTabsStore } from '@renderer/stores/tabs'
 import { useTreeDirsStore } from '@renderer/stores/tree-dirs'
 import { unreadTabFor, useUnreadStore } from '@renderer/stores/unread'
+import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 /**
@@ -67,6 +69,7 @@ export type SessionQueryUtils = {
   readonly reviewEvidenceDocs: QueryInvalidation
   readonly reviewEvidenceAssets: QueryInvalidation
   readonly reviewEvidenceAsset: QueryInvalidation
+  /** Board cards cache — wired to the feature key predicate, not a procedure-name string. */
   readonly boardCards: QueryInvalidation
   readonly actions: QueryInvalidation
 }
@@ -142,7 +145,9 @@ export function invalidateForChange(
     case 'review.changed':
       return invalidateReview(utils)
     case 'board.changed':
-      return utils.boardCards.invalidate()
+      // Board owns its notification → cards-identity mapping (BRD-004 feature adapter).
+      // Session runtime must not invalidate Board here; the feature subscription does.
+      return Promise.resolve()
     case 'actions.changed':
       return utils.actions.invalidate()
   }
@@ -214,13 +219,45 @@ export function useSessionRuntime({
 }: {
   readonly session?: DaemonSession
 } = {}): SessionRuntimeState {
-  const utils = trpc.useUtils()
+  const trpcUtils = trpc.useUtils()
+  const queryClient = useQueryClient()
   const repoPath = useRepoStore((s) => s.repo?.path)
   const panes = useTabsStore((s) => s.panes)
   const treeDirs = useTreeDirsStore((s) => s.dirs)
   const [status, setStatus] = useState<SessionConnectionStatus>(() => session.status())
   const [updateRequired, setUpdateRequired] = useState<SessionMismatchFrame | undefined>(() =>
     session.updateRequiredFrame(),
+  )
+
+  // Structural SessionQueryUtils: Board recovery uses the feature key predicate so it
+  // invalidates the BRD-004 cards cache, not a tRPC procedure-name key.
+  const utils: SessionQueryUtils = useMemo(
+    () => ({
+      invalidate: () => trpcUtils.invalidate(),
+      readDir: { invalidate: () => trpcUtils.readDir.invalidate() },
+      readFile: { invalidate: () => trpcUtils.readFile.invalidate() },
+      previewHtml: { invalidate: () => trpcUtils.previewHtml.invalidate() },
+      pinnedEntries: { invalidate: () => trpcUtils.pinnedEntries.invalidate() },
+      repoScope: { invalidate: () => trpcUtils.repoScope.invalidate() },
+      searchFiles: { invalidate: () => trpcUtils.searchFiles.invalidate() },
+      gitFlow: { invalidate: () => trpcUtils.gitFlow.invalidate() },
+      gitDiffFile: { invalidate: () => trpcUtils.gitDiffFile.invalidate() },
+      gitRangeFlow: { invalidate: () => trpcUtils.gitRangeFlow.invalidate() },
+      gitCommitFlow: { invalidate: () => trpcUtils.gitCommitFlow.invalidate() },
+      repoLayers: { invalidate: () => trpcUtils.repoLayers.invalidate() },
+      featureView: { invalidate: () => trpcUtils.featureView.invalidate() },
+      featureReading: { invalidate: () => trpcUtils.featureReading.invalidate() },
+      exploreFeature: { invalidate: () => trpcUtils.exploreFeature.invalidate() },
+      reviewComments: { invalidate: () => trpcUtils.reviewComments.invalidate() },
+      loopEvidence: { invalidate: () => trpcUtils.loopEvidence.invalidate() },
+      loopEvidenceHtml: { invalidate: () => trpcUtils.loopEvidenceHtml.invalidate() },
+      reviewEvidenceDocs: { invalidate: () => trpcUtils.reviewEvidenceDocs.invalidate() },
+      reviewEvidenceAssets: { invalidate: () => trpcUtils.reviewEvidenceAssets.invalidate() },
+      reviewEvidenceAsset: { invalidate: () => trpcUtils.reviewEvidenceAsset.invalidate() },
+      boardCards: { invalidate: () => invalidateAllBoardCards(queryClient) },
+      actions: { invalidate: () => trpcUtils.actions.invalidate() },
+    }),
+    [trpcUtils, queryClient],
   )
 
   // Utils identity changes every render from tRPC; a ref keeps the long-lived change/
