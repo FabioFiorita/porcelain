@@ -4,10 +4,23 @@
  * Uses fixtures and injectable spawn — never deletes real worktrees or pushes.
  */
 import assert from 'node:assert/strict'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { test } from 'node:test'
+import { CONFIG_FILE, parseWorktreeConfig } from '../worktree.mjs'
+import {
+  adoptManagedWorktree,
+  assertPreparedIdentity,
+  assertWorktreeIdentity,
+  checkDependencyIntegration,
+  defaultSpawnExecutor,
+  executorPacketPath,
+  executorSpecsPaths,
+  mergeWithTrackedGroups,
+  runOneRecipe,
+} from './dispatch.mjs'
 import {
   assertFreshContextArgs,
   buildClaudePersonalInvocation,
@@ -25,19 +38,90 @@ import { evaluatePostconditions } from './postconditions.mjs'
 import { buildRecipePrompt } from './prompt.mjs'
 import {
   createInitialState,
+  identitiesEqual,
+  identityFromManifestOrState,
   orchestrationDir,
   readState,
   writeJsonAtomic,
   writeState,
 } from './state.mjs'
 
-function withTemp(run) {
+async function withTemp(run) {
   const root = mkdtempSync(join(tmpdir(), 'arch-dispatch-'))
   try {
-    run(root)
+    return await run(root)
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
+}
+
+function git(cwd, args) {
+  const env = { ...process.env }
+  for (const key of [
+    'GIT_DIR',
+    'GIT_WORK_TREE',
+    'GIT_INDEX_FILE',
+    'GIT_OBJECT_DIRECTORY',
+    'GIT_ALTERNATE_OBJECT_DIRECTORIES',
+    'GIT_COMMON_DIR',
+  ]) {
+    delete env[key]
+  }
+  const result = spawnSync('git', args, {
+    cwd,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+    env,
+  })
+  if (result.status !== 0) {
+    throw new Error((result.stderr ?? '').trim() || `git ${args.join(' ')} failed`)
+  }
+  return (result.stdout ?? '').trim()
+}
+
+function initRepo(dir, { branch = 'main', message = 'init' } = {}) {
+  mkdirSync(dir, { recursive: true })
+  git(dir, ['init', '-b', branch])
+  git(dir, ['config', 'user.name', 'Dispatch Fixture'])
+  git(dir, ['config', 'user.email', 'dispatch-fixture@localhost'])
+  writeFileSync(join(dir, 'README.md'), '# fixture\n')
+  git(dir, ['add', '.'])
+  git(dir, ['commit', '-m', message])
+  return git(dir, ['rev-parse', 'HEAD'])
+}
+
+function writeRecipeFixture(specsRoot, id, status = 'Ready') {
+  mkdirSync(specsRoot, { recursive: true })
+  writeFileSync(
+    join(specsRoot, `${id}.md`),
+    `# ${id} — fixture outcome\n\n- Status: ${status}\n- Depends on: none\n`,
+  )
+}
+
+function writeCatalog(specsRoot, rows) {
+  mkdirSync(specsRoot, { recursive: true })
+  const body = rows.map(([id, status]) => `| \`${id}\` | ${status} | fixture |`).join('\n')
+  writeFileSync(
+    join(specsRoot, 'catalog.md'),
+    `| ID | Status | Outcome |\n| --- | --- | --- |\n${body}\n`,
+  )
+}
+
+function writeManagedProfile(worktreePath, { slug, port = 43200, base = 'main' }) {
+  writeFileSync(
+    join(worktreePath, CONFIG_FILE),
+    `${JSON.stringify(
+      {
+        version: 1,
+        slug,
+        branch: `work/${slug}`,
+        port,
+        base,
+      },
+      null,
+      2,
+    )}\n`,
+  )
 }
 
 // --- manifest ---
@@ -158,6 +242,121 @@ test('parseCatalogStatuses reads catalog rows', () => {
   const map = parseCatalogStatuses('| `FOO-001` | Landed | x |\n| `BAR-002` | Ready | y |\n')
   assert.equal(map.get('FOO-001'), 'Landed')
   assert.equal(map.get('BAR-002'), 'Ready')
+})
+
+// --- dependsOn structural + integration ---
+
+test('mergeWithTrackedGroups and set validation catch unknown dependsOn', () => {
+  withTemp((root) => {
+    const groupsDir = join(root, 'groups')
+    mkdirSync(groupsDir, { recursive: true })
+    writeFileSync(
+      join(groupsDir, 'dep.group.json'),
+      JSON.stringify({
+        version: 1,
+        id: 'dep-group',
+        slug: 'arch-dep-group',
+        base: 'main',
+        executor: 'grok',
+        recipes: ['DEP-001'],
+        dependsOn: [],
+      }),
+    )
+    const candidate = parseExecutionGroup({
+      version: 1,
+      id: 'child-group',
+      slug: 'arch-child-group',
+      base: 'main',
+      executor: 'grok',
+      recipes: ['CHD-001'],
+      dependsOn: ['missing-group'],
+    }).group
+    const merged = mergeWithTrackedGroups(candidate, groupsDir)
+    assert.equal(merged.groups.length, 2)
+    const specs = join(root, 'specs')
+    writeCatalog(specs, [
+      ['DEP-001', 'Ready'],
+      ['CHD-001', 'Ready'],
+    ])
+    writeRecipeFixture(specs, 'DEP-001')
+    writeRecipeFixture(specs, 'CHD-001')
+    const errors = validateGroupSet(merged.groups, {
+      catalogText: readFileSync(join(specs, 'catalog.md'), 'utf8'),
+      specsRoot: specs,
+    })
+    assert.ok(errors.some((e) => e.includes('unknown group missing-group')))
+  })
+})
+
+test('checkDependencyIntegration fails without completed dep / non-ancestor head', () => {
+  const group = parseExecutionGroup({
+    version: 1,
+    id: 'child',
+    slug: 'arch-child',
+    base: 'main',
+    executor: 'grok',
+    recipes: ['CHD-001'],
+    dependsOn: ['dep'],
+  }).group
+
+  const missing = checkDependencyIntegration(group, {
+    readDepState: () => null,
+    isAncestor: () => true,
+  })
+  assert.ok(missing.some((e) => e.includes('no orchestration state')))
+
+  const incomplete = checkDependencyIntegration(group, {
+    readDepState: () => ({ status: 'prepared', endingHead: 'abc' }),
+    isAncestor: () => true,
+  })
+  assert.ok(incomplete.some((e) => e.includes('need completed')))
+
+  const notIntegrated = checkDependencyIntegration(group, {
+    readDepState: () => ({ status: 'completed', endingHead: 'deadbeefdeadbeef' }),
+    isAncestor: () => false,
+  })
+  assert.ok(notIntegrated.some((e) => e.includes('not an ancestor')))
+
+  const ok = checkDependencyIntegration(group, {
+    readDepState: () => ({ status: 'completed', endingHead: 'deadbeefdeadbeef' }),
+    isAncestor: () => true,
+  })
+  assert.deepEqual(ok, [])
+})
+
+test('checkDependencyIntegration success with real git ancestor', () => {
+  withTemp((root) => {
+    const head = initRepo(root)
+    // Create a side commit then merge-base ancestor check: head is ancestor of main
+    const group = parseExecutionGroup({
+      version: 1,
+      id: 'child',
+      slug: 'arch-child',
+      base: 'main',
+      executor: 'grok',
+      recipes: ['CHD-001'],
+      dependsOn: ['dep'],
+    }).group
+    const errors = checkDependencyIntegration(group, {
+      readDepState: () => ({ status: 'completed', endingHead: head }),
+      gitCwd: root,
+    })
+    assert.deepEqual(errors, [])
+
+    // Non-ancestor: orphan commit via another branch not merged
+    git(root, ['checkout', '-b', 'orphan-side'])
+    writeFileSync(join(root, 'side.txt'), 'side\n')
+    git(root, ['add', '.'])
+    git(root, ['commit', '-m', 'side'])
+    const sideHead = git(root, ['rev-parse', 'HEAD'])
+    git(root, ['checkout', 'main'])
+    // sideHead is NOT ancestor of main
+    const bad = checkDependencyIntegration(group, {
+      readDepState: () => ({ status: 'completed', endingHead: sideHead }),
+      gitCwd: root,
+    })
+    assert.ok(bad.some((e) => e.includes('not an ancestor')))
+  })
 })
 
 // --- executors ---
@@ -318,20 +517,19 @@ test('evaluatePostconditions fails on non-zero exit and missing packet', () => {
   assert.ok(result.reasons.some((r) => r.includes('packet')))
 })
 
-// --- state atomic + interrupted inspectability ---
+// --- state atomic + identity ---
 
 test('atomic state write and interrupted status fields', () => {
   withTemp((root) => {
-    // orchestrationDir expects real repo shape — synthesize under root
     const orchRoot = join(root, 'scripts', 'agent-scratch', 'orchestration', 'group-x')
     mkdirSync(orchRoot, { recursive: true })
-    // writeState derives repo root from path marker
     const state = createInitialState({
       groupId: 'group-x',
       slug: 'arch-group-x',
       base: 'main',
       executor: 'grok',
       recipes: ['AAA-001'],
+      dependsOn: ['prior'],
       status: 'running',
       worktreePath: join(root, 'wt'),
       branch: 'work/arch-group-x',
@@ -358,36 +556,180 @@ test('atomic state write and interrupted status fields', () => {
     assert.equal(loaded.status, 'running')
     assert.equal(loaded.pid, 4242)
     assert.equal(loaded.currentRecipe, 'AAA-001')
+    assert.deepEqual(loaded.dependsOn, ['prior'])
     assert.equal(loaded.recipeRuns[0].endTime, null)
 
-    // atomic overwrite
     loaded.status = 'interrupted'
     loaded.endTime = '2026-01-01T00:01:00.000Z'
     writeState(orchRoot, loaded)
     assert.equal(readState(orchRoot).status, 'interrupted')
 
-    // writeJsonAtomic creates parent dirs
     const nested = join(orchRoot, 'nested', 'x.json')
     writeJsonAtomic(nested, { ok: true })
     assert.equal(JSON.parse(readFileSync(nested, 'utf8')).ok, true)
   })
 })
 
+test('assertPreparedIdentity fails closed on manifest replacement', () => {
+  withTemp((root) => {
+    const orch = join(root, 'scripts', 'agent-scratch', 'orchestration', 'g1')
+    mkdirSync(orch, { recursive: true })
+    const group = parseExecutionGroup({
+      version: 1,
+      id: 'g1',
+      slug: 'arch-g1',
+      base: 'main',
+      executor: 'grok',
+      recipes: ['AAA-001'],
+      dependsOn: [],
+    }).group
+    const state = createInitialState({
+      groupId: group.id,
+      slug: group.slug,
+      base: group.base,
+      executor: group.executor,
+      recipes: group.recipes,
+      dependsOn: group.dependsOn,
+      status: 'prepared',
+      worktreePath: join(root, 'wt'),
+      branch: `work/${group.slug}`,
+      startingHead: 'a',
+      groupStartingHead: 'a',
+    })
+    writeState(orch, state)
+    writeJsonAtomic(join(orch, 'manifest.snapshot.json'), group)
+
+    assert.deepEqual(
+      assertPreparedIdentity({ group, state, orch }),
+      identityFromManifestOrState(group),
+    )
+
+    const replaced = { ...group, recipes: ['BBB-001'] }
+    assert.throws(
+      () => assertPreparedIdentity({ group: replaced, state, orch }),
+      /manifest changed since prepare/,
+    )
+
+    const driftedState = { ...state, executor: 'claude-personal' }
+    assert.throws(
+      () => assertPreparedIdentity({ group, state: driftedState, orch }),
+      /state identity does not match/,
+    )
+
+    assert.equal(
+      identitiesEqual(identityFromManifestOrState(group), identityFromManifestOrState(group)),
+      true,
+    )
+  })
+})
+
+// --- worktree adoption ---
+
+test('adoptManagedWorktree rejects malformed, wrong-slug, wrong-base, wrong-branch profiles', () => {
+  withTemp((root) => {
+    initRepo(root)
+    const group = parseExecutionGroup({
+      version: 1,
+      id: 'adopt-g',
+      slug: 'arch-adopt',
+      base: 'main',
+      executor: 'grok',
+      recipes: ['AAA-001'],
+    }).group
+
+    const wt = join(root, 'wt-bad')
+    mkdirSync(wt, { recursive: true })
+
+    // missing profile
+    assert.equal(adoptManagedWorktree({ root, worktreePath: wt, group }).ok, false)
+
+    // malformed JSON
+    writeFileSync(join(wt, CONFIG_FILE), '{not-json')
+    assert.equal(adoptManagedWorktree({ root, worktreePath: wt, group }).ok, false)
+
+    // wrong slug
+    writeManagedProfile(wt, { slug: 'other-slug', base: 'main' })
+    assert.ok(adoptManagedWorktree({ root, worktreePath: wt, group }).error.includes('slug'))
+
+    // wrong base
+    writeManagedProfile(wt, { slug: group.slug, base: 'work/other' })
+    assert.ok(adoptManagedWorktree({ root, worktreePath: wt, group }).error.includes('base'))
+
+    // valid profile shape but not a linked worktree
+    writeManagedProfile(wt, { slug: group.slug, base: 'main' })
+    const notLinked = adoptManagedWorktree({ root, worktreePath: wt, group })
+    assert.equal(notLinked.ok, false)
+    assert.ok(notLinked.error.includes('not a linked worktree'))
+  })
+})
+
+test('adoptManagedWorktree accepts linked worktree with matching profile and branch', () => {
+  withTemp((root) => {
+    initRepo(root)
+    const slug = 'arch-adopt-ok'
+    const group = parseExecutionGroup({
+      version: 1,
+      id: 'adopt-ok',
+      slug,
+      base: 'main',
+      executor: 'grok',
+      recipes: ['AAA-001'],
+    }).group
+    const wt = join(root, 'linked-wt')
+    git(root, ['worktree', 'add', '-b', `work/${slug}`, wt])
+    writeManagedProfile(wt, { slug, base: 'main', port: 43211 })
+    const adopted = adoptManagedWorktree({ root, worktreePath: wt, group })
+    assert.equal(adopted.ok, true)
+    assert.equal(adopted.config.slug, slug)
+    assert.equal(adopted.config.base, 'main')
+
+    // wrong current branch (checkout main inside worktree is not possible while branch is checked out elsewhere —
+    // create detached HEAD instead)
+    git(wt, ['checkout', '--detach', 'HEAD'])
+    const detached = adoptManagedWorktree({ root, worktreePath: wt, group })
+    assert.equal(detached.ok, false)
+    assert.ok(detached.error.includes('detached') || detached.error.includes('branch'))
+  })
+})
+
+test('parseWorktreeConfig is used for adoption (not raw JSON trust)', () => {
+  const parsed = parseWorktreeConfig({
+    version: 1,
+    slug: 'arch-x',
+    branch: 'work/arch-x',
+    port: 43200,
+    base: 'refs/heads/main',
+  })
+  assert.equal(parsed.ok, true)
+  assert.equal(parsed.config.base, 'main')
+  assert.equal(
+    parseWorktreeConfig({
+      version: 1,
+      slug: 'arch-x',
+      branch: 'work/wrong',
+      port: 43200,
+    }).ok,
+    false,
+  )
+})
+
 // --- prompt ---
 
 test('recipe prompt binds one recipe, requires execute skill, no push, stop after', () => {
+  const packet = '/abs/executor/scripts/agent-scratch/orchestration/board-slice/packets/BRD-004.md'
   const prompt = buildRecipePrompt({
     recipeId: 'BRD-004',
     recipePath: 'plans/architecture-refactor/specs/BRD-004.md',
     recipeStatus: 'Ready',
     groupId: 'board-slice',
-    packetPath: 'scripts/agent-scratch/orchestration/board-slice/packets/BRD-004.md',
+    packetPath: packet,
     startingHead: 'deadbeef',
   })
   assert.match(prompt, /BRD-004/)
   assert.match(prompt, /execute-architecture-spec/)
   assert.match(prompt, /Do not push/)
   assert.match(prompt, /Stop after this single recipe/)
+  assert.match(prompt, new RegExp(packet.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
   assert.doesNotMatch(prompt, /BRD-005/)
 })
 
@@ -395,12 +737,10 @@ test('recipe prompt binds one recipe, requires execute skill, no push, stop afte
 
 test('dispatcher modules never export merge/push/cherry-pick helpers', async () => {
   const dispatchSource = readFileSync(new URL('./dispatch.mjs', import.meta.url), 'utf8')
-  // Forbid real git integration argv — prose may say "never cherry-picks".
   assert.doesNotMatch(dispatchSource, /['"]cherry-pick['"]/)
   assert.doesNotMatch(dispatchSource, /['"]push['"]/)
   assert.doesNotMatch(dispatchSource, /merge --ff-only/)
   assert.match(dispatchSource, /never merges/)
-  // shell:true forbidden
   assert.doesNotMatch(dispatchSource, /shell:\s*true/)
   assert.match(dispatchSource, /shell:\s*false/)
 })
@@ -408,7 +748,6 @@ test('dispatcher modules never export merge/push/cherry-pick helpers', async () 
 // --- fresh process per recipe (mock spawn) ---
 
 test('sequential run launches a new process per recipe and stops closed on mismatch', async () => {
-  // Lightweight simulation of run loop postcondition gate without real git worktrees.
   const launches = []
   const recipes = ['AAA-001', 'BBB-001']
   let head = '11111111'
@@ -420,7 +759,6 @@ test('sequential run launches a new process per recipe and stops closed on misma
   async function fakeRun(recipeId, { failPacket = false } = {}) {
     launches.push({ recipeId, t: Date.now() })
     const startingHead = head
-    // New process identity + advancing HEAD each launch
     head = `${'c'.repeat(7)}${launches.length}`
     const before =
       recipeId === 'AAA-001'
@@ -463,4 +801,258 @@ test('sequential run launches a new process per recipe and stops closed on misma
 test('orchestrationDir rejects path-like group ids', () => {
   assert.throws(() => orchestrationDir('/repo', '../evil'))
   assert.throws(() => orchestrationDir('/repo', 'a/b'))
+})
+
+// --- PID persistence while running ---
+
+test('defaultSpawnExecutor exposes PID via onStart before exit; state is inspectable in-flight', async () => {
+  await withTemp(async (root) => {
+    const orch = join(root, 'scripts', 'agent-scratch', 'orchestration', 'pid-group')
+    mkdirSync(orch, { recursive: true })
+    const logPath = join(orch, 'logs', 'pid.log')
+    mkdirSync(join(orch, 'logs'), { recursive: true })
+
+    const state = createInitialState({
+      groupId: 'pid-group',
+      slug: 'arch-pid',
+      base: 'main',
+      executor: 'grok',
+      recipes: ['PID-001'],
+      dependsOn: [],
+      status: 'running',
+      worktreePath: root,
+      branch: 'work/arch-pid',
+      startingHead: 'aaa',
+      groupStartingHead: 'aaa',
+    })
+    const runRecord = {
+      recipeId: 'PID-001',
+      pid: null,
+      startTime: new Date().toISOString(),
+      endTime: null,
+      exitCode: null,
+      startingHead: 'aaa',
+      endingHead: null,
+      status: 'running',
+      logPath,
+    }
+    state.recipeRuns = [runRecord]
+    writeState(orch, state)
+
+    let sawInflight = false
+    const result = await defaultSpawnExecutor({
+      command: process.execPath,
+      args: ['-e', 'setTimeout(() => {}, 150)'],
+      cwd: root,
+      logPath,
+      env: {},
+      onStart: ({ pid }) => {
+        assert.ok(pid > 0)
+        runRecord.pid = pid
+        state.pid = pid
+        writeState(orch, state)
+        const inflight = readState(orch)
+        assert.equal(inflight.pid, pid)
+        assert.equal(inflight.recipeRuns[0].status, 'running')
+        assert.equal(inflight.recipeRuns[0].endTime, null)
+        assert.equal(inflight.recipeRuns[0].pid, pid)
+        sawInflight = true
+      },
+    })
+    assert.equal(sawInflight, true)
+    assert.equal(result.exitCode, 0)
+    assert.equal(result.pid, state.pid)
+
+    // finalize
+    state.pid = null
+    runRecord.endTime = new Date().toISOString()
+    runRecord.exitCode = result.exitCode
+    runRecord.status = 'landed'
+    writeState(orch, state)
+    const done = readState(orch)
+    assert.equal(done.pid, null)
+    assert.equal(done.recipeRuns[0].status, 'landed')
+  })
+})
+
+// --- cross-worktree ownership (would fail with controller-bound catalog/packet) ---
+
+test('cross-worktree: runtime catalog/status/packet bind to executor worktree not controller', async () => {
+  await withTemp(async (root) => {
+    // Controller checkout (orchestration only)
+    const controller = join(root, 'controller')
+    initRepo(controller)
+    const controllerSpecs = join(controller, 'plans', 'architecture-refactor', 'specs')
+    // Controller still says Ready — old split would read this and fail postconditions
+    writeCatalog(controllerSpecs, [['XWT-001', 'Ready']])
+    writeRecipeFixture(controllerSpecs, 'XWT-001', 'Ready')
+
+    // Executor linked worktree — the only place that lands
+    const slug = 'arch-xwt'
+    const worktreePath = join(root, 'executor-wt')
+    git(controller, ['worktree', 'add', '-b', `work/${slug}`, worktreePath])
+    // Seed same tree, then we will land only in executor
+    const specsRoot = join(worktreePath, 'plans', 'architecture-refactor', 'specs')
+    writeCatalog(specsRoot, [['XWT-001', 'Ready']])
+    writeRecipeFixture(specsRoot, 'XWT-001', 'Ready')
+    writeManagedProfile(worktreePath, { slug, base: 'main', port: 43222 })
+    git(worktreePath, ['add', '.'])
+    git(worktreePath, ['commit', '-m', 'seed executor fixtures'])
+
+    const group = parseExecutionGroup({
+      version: 1,
+      id: 'xwt-group',
+      slug,
+      base: 'main',
+      executor: 'grok',
+      recipes: ['XWT-001'],
+      dependsOn: [],
+    }).group
+
+    const orch = orchestrationDir(controller, group.id)
+    mkdirSync(orch, { recursive: true })
+    const state = createInitialState({
+      groupId: group.id,
+      slug: group.slug,
+      base: group.base,
+      executor: group.executor,
+      recipes: group.recipes,
+      dependsOn: group.dependsOn,
+      status: 'prepared',
+      worktreePath: resolve(worktreePath),
+      branch: `work/${slug}`,
+      startingHead: git(worktreePath, ['rev-parse', 'HEAD']),
+      groupStartingHead: git(worktreePath, ['rev-parse', 'HEAD']),
+    })
+    writeState(orch, state)
+    writeJsonAtomic(join(orch, 'manifest.snapshot.json'), group)
+
+    // Identity bind works
+    assertPreparedIdentity({ group, state, orch })
+    assertWorktreeIdentity({
+      root: controller,
+      worktreePath,
+      group,
+      state,
+    })
+
+    const expectedPacket = executorPacketPath(worktreePath, group.id, 'XWT-001')
+    assert.ok(expectedPacket.startsWith(worktreePath))
+    assert.equal(executorSpecsPaths(worktreePath).catalogPath, join(specsRoot, 'catalog.md'))
+
+    const result = await runOneRecipe({
+      group,
+      recipeId: 'XWT-001',
+      worktreePath,
+      orch,
+      state,
+      controllerRoot: controller,
+      spawnExecutor: async ({ onStart, cwd, logPath }) => {
+        onStart?.({ pid: 99901 })
+        // Land ONLY in executor worktree (catalog + recipe + packet + commit)
+        writeCatalog(specsRoot, [['XWT-001', 'Landed']])
+        writeRecipeFixture(specsRoot, 'XWT-001', 'Landed')
+        mkdirSync(join(expectedPacket, '..'), { recursive: true })
+        writeFileSync(expectedPacket, '# packet XWT-001\n\n- landed in executor worktree\n')
+        writeFileSync(join(cwd, 'landed.txt'), 'done\n')
+        git(cwd, ['add', '.'])
+        git(cwd, ['commit', '-m', 'feat: land XWT-001 in executor worktree'])
+        // Touch log path so spawn contract is realistic
+        mkdirSync(join(logPath, '..'), { recursive: true })
+        writeFileSync(logPath, 'executor mock ok\n')
+        return { exitCode: 0, pid: 99901 }
+      },
+    })
+
+    assert.equal(result.ok, true, result.reasons?.join('; '))
+    assert.equal(existsSync(expectedPacket), true)
+    assert.equal(result.runRecord.packetPath, expectedPacket)
+    assert.equal(result.runRecord.pid, 99901)
+
+    // Controller catalog still Ready — proves we did not snapshot from controller
+    const controllerCatalog = readFileSync(join(controllerSpecs, 'catalog.md'), 'utf8')
+    assert.match(controllerCatalog, /XWT-001` \| Ready/)
+    // Executor catalog Landed
+    const executorCatalog = readFileSync(join(specsRoot, 'catalog.md'), 'utf8')
+    assert.match(executorCatalog, /XWT-001` \| Landed/)
+
+    // Packet must not be required under controller orch
+    assert.equal(existsSync(join(orch, 'packets', 'XWT-001.md')), false)
+
+    const finalState = readState(orch)
+    assert.deepEqual(finalState.completed, ['XWT-001'])
+    assert.equal(finalState.pid, null)
+    assert.ok(finalState.recipeRuns[0].packetPath.startsWith(worktreePath))
+  })
+})
+
+test('cross-worktree: postconditions fail if packet only exists on controller (old split)', async () => {
+  await withTemp(async (root) => {
+    const controller = join(root, 'controller')
+    initRepo(controller)
+    const slug = 'arch-xwt-fail'
+    const worktreePath = join(root, 'executor-wt')
+    git(controller, ['worktree', 'add', '-b', `work/${slug}`, worktreePath])
+
+    const specsRoot = join(worktreePath, 'plans', 'architecture-refactor', 'specs')
+    writeCatalog(specsRoot, [['XWT-002', 'Ready']])
+    writeRecipeFixture(specsRoot, 'XWT-002', 'Ready')
+    writeManagedProfile(worktreePath, { slug, base: 'main', port: 43223 })
+    git(worktreePath, ['add', '.'])
+    git(worktreePath, ['commit', '-m', 'seed'])
+
+    const group = parseExecutionGroup({
+      version: 1,
+      id: 'xwt-fail',
+      slug,
+      base: 'main',
+      executor: 'grok',
+      recipes: ['XWT-002'],
+      dependsOn: [],
+    }).group
+    const orch = orchestrationDir(controller, group.id)
+    mkdirSync(orch, { recursive: true })
+    const state = createInitialState({
+      groupId: group.id,
+      slug,
+      base: 'main',
+      executor: 'grok',
+      recipes: ['XWT-002'],
+      dependsOn: [],
+      status: 'prepared',
+      worktreePath: resolve(worktreePath),
+      branch: `work/${slug}`,
+      startingHead: git(worktreePath, ['rev-parse', 'HEAD']),
+      groupStartingHead: git(worktreePath, ['rev-parse', 'HEAD']),
+    })
+    writeState(orch, state)
+
+    // Old split: write packet under controller orch only
+    const wrongPacket = join(orch, 'packets', 'XWT-002.md')
+    mkdirSync(join(wrongPacket, '..'), { recursive: true })
+    writeFileSync(wrongPacket, 'wrong place\n')
+
+    const result = await runOneRecipe({
+      group,
+      recipeId: 'XWT-002',
+      worktreePath,
+      orch,
+      state,
+      controllerRoot: controller,
+      spawnExecutor: async ({ onStart, cwd }) => {
+        onStart?.({ pid: 1 })
+        writeCatalog(specsRoot, [['XWT-002', 'Landed']])
+        writeRecipeFixture(specsRoot, 'XWT-002', 'Landed')
+        writeFileSync(join(cwd, 'x.txt'), 'x\n')
+        git(cwd, ['add', '.'])
+        git(cwd, ['commit', '-m', 'land without executor packet'])
+        return { exitCode: 0, pid: 1 }
+      },
+    })
+    assert.equal(result.ok, false)
+    assert.ok(result.reasons.some((r) => r.includes('packet')))
+    const expected = executorPacketPath(worktreePath, group.id, 'XWT-002')
+    assert.equal(existsSync(expected), false)
+    assert.equal(existsSync(wrongPacket), true)
+  })
 })

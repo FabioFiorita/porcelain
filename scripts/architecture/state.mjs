@@ -72,6 +72,7 @@ export function createInitialState(partial) {
     base: partial.base,
     executor: partial.executor,
     recipes: [...partial.recipes],
+    dependsOn: [...(partial.dependsOn ?? [])],
     status: partial.status ?? 'prepared',
     worktreePath: partial.worktreePath ?? null,
     branch: partial.branch ?? null,
@@ -88,6 +89,37 @@ export function createInitialState(partial) {
     recipeRuns: [],
     notes: partial.notes ?? [],
   }
+}
+
+/**
+ * Canonical identity fields compared at run against the live manifest + snapshot.
+ * @param {{ id?: string, groupId?: string, slug: string, base: string, executor: string, recipes: string[], dependsOn?: string[] }} value
+ */
+export function identityFromManifestOrState(value) {
+  return {
+    id: value.id ?? value.groupId,
+    slug: value.slug,
+    base: value.base,
+    executor: value.executor,
+    recipes: [...(value.recipes ?? [])],
+    dependsOn: [...(value.dependsOn ?? [])],
+  }
+}
+
+/**
+ * Strict field equality for prepared identity (ordered recipes/dependsOn).
+ * @param {ReturnType<typeof identityFromManifestOrState>} a
+ * @param {ReturnType<typeof identityFromManifestOrState>} b
+ */
+export function identitiesEqual(a, b) {
+  return (
+    a.id === b.id &&
+    a.slug === b.slug &&
+    a.base === b.base &&
+    a.executor === b.executor &&
+    JSON.stringify(a.recipes) === JSON.stringify(b.recipes) &&
+    JSON.stringify(a.dependsOn) === JSON.stringify(b.dependsOn)
+  )
 }
 
 /**

@@ -1399,13 +1399,51 @@ async function main() {
   fail(`unknown command: ${verb}`)
 }
 
+/**
+ * Load `.porcelain-worktree.json` without process.exit — for dispatch adoption.
+ * @param {string} worktreePath
+ * @returns {{ ok: true, config: { version: 1, slug: string, branch: string, port: number, base: string } } | { ok: false, error: string }}
+ */
+function loadManagedWorktreeProfile(worktreePath) {
+  const path = join(worktreePath, CONFIG_FILE)
+  if (!existsSync(path)) return { ok: false, error: `missing ${CONFIG_FILE}` }
+  let value
+  try {
+    value = JSON.parse(readFileSync(path, 'utf8'))
+  } catch (error) {
+    return {
+      ok: false,
+      error: `unreadable ${CONFIG_FILE}: ${error instanceof Error ? error.message : String(error)}`,
+    }
+  }
+  return parseWorktreeConfig(value)
+}
+
+/**
+ * Whether `worktreePath` is a linked worktree of the repository rooted at `root`.
+ * @param {string} root
+ * @param {string} worktreePath
+ */
+function isLinkedWorktreeOf(root, worktreePath) {
+  let target
+  try {
+    target = realpathSync(worktreePath)
+  } catch {
+    return false
+  }
+  return parseWorktrees(root).some((entry) => entry.path === target)
+}
+
 export {
   BASE_REF_PATTERN,
   CONFIG_FILE,
   DEFAULT_BASE,
   ENV,
+  isLinkedWorktreeOf,
+  loadManagedWorktreeProfile,
   normalizeBaseRef,
   parseWorktreeConfig,
+  parseWorktrees,
   planCreateGitArgs,
   planRemoveGuard,
   resolveBaseRef,
