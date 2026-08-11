@@ -1,12 +1,10 @@
 import type { DirEntry, FileView } from '@backend/api'
 import { onMutationError } from '@renderer/hooks/mutation-error'
-import { watchDirs, watchFiles } from '@renderer/lib/daemon'
 import { shellTrpc, trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useSelectionStore } from '@renderer/stores/selection'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
-import { useTreeDirsStore } from '@renderer/stores/tree-dirs'
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback } from 'react'
 
 export function useReadDir(path: string, enabled = true): DirEntry[] | undefined {
   const repo = useRepoStore((s) => s.repo)
@@ -43,57 +41,6 @@ export function usePreviewHtml(
 ): { html: string | null | undefined; error: { message: string } | null } {
   const { data: html, error } = trpc.previewHtml.useQuery(path, { enabled })
   return { html, error }
-}
-
-/**
- * Tell the daemon which files are open in the viewer so it can watch them for
- * external writes (the coding agent editing in the terminal). The twin of
- * `useAppEvents`: pushes the open-file set over the WS session (`watch:files` —
- * per-connection state, not on the router); `working-tree` comes back and
- * invalidates `readFile`. Re-sends only when the path set actually changes.
- */
-export function useWatchOpenFiles(): void {
-  const panes = useTabsStore((s) => s.panes)
-  const lastSent = useRef('')
-
-  const filePaths = useMemo(() => {
-    const paths = new Set<string>()
-    for (const pane of panes) {
-      for (const tab of pane.tabs) {
-        if (tab.kind === 'file') paths.add(tab.path)
-      }
-    }
-    return [...paths].sort()
-  }, [panes])
-
-  useEffect(() => {
-    const key = filePaths.join('\n')
-    if (key === lastSent.current) return
-    lastSent.current = key
-    watchFiles(filePaths)
-  }, [filePaths])
-}
-
-/**
- * Tell the daemon which directories are expanded in the Files tree so it can
- * watch them for external adds/removes (the coding agent creating files in the
- * terminal). The tree twin of `useWatchOpenFiles`: this pushes the expanded-dir
- * set out over the WS session (`watch:dirs`), the `file-tree` app-event comes
- * back and invalidates the tree. Mounted once in `AppShell`. We re-send only
- * when the set actually changes.
- */
-export function useWatchTreeDirs(): void {
-  const dirs = useTreeDirsStore((s) => s.dirs)
-  const lastSent = useRef('')
-
-  const dirPaths = useMemo(() => [...dirs].sort(), [dirs])
-
-  useEffect(() => {
-    const key = dirPaths.join('\n')
-    if (key === lastSent.current) return
-    lastSent.current = key
-    watchDirs(dirPaths)
-  }, [dirPaths])
 }
 
 /** Prefetch a file's contents (tree hover) so opening it feels instant. */

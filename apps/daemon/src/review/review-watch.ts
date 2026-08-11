@@ -1,6 +1,7 @@
 import { watch } from 'node:fs'
 import { mkdir, stat } from 'node:fs/promises'
 import { basename } from 'node:path'
+import type { SessionChange } from '@porcelain/contracts/session'
 import {
   PROJECT_FILES,
   projectActiveReviewDir,
@@ -9,13 +10,13 @@ import {
   projectEvidenceResultsDir,
   projectPorcelainDir,
 } from '@shared/project-porcelain'
-import { type AppEvent, emitAppEvent } from '../app-events'
+import { publishSessionChange } from '../session/live-session'
 import { loadConfig } from '../stores/config-store'
 
 /**
  * Watch each open project's `.porcelain/` directory for agent/app channel writes
- * so the UI live-refreshes. Watches the directory (atomic tmp+rename replaces
- * inodes). Evidence is a tree under `.porcelain/evidence/`.
+ * so the UI live-refreshes. Publishes project-scoped session change facts through
+ * the RT-002 publisher (RT-005 activation).
  *
  * Never create a repo root that does not already exist — mkdir of `.porcelain`
  * is recursive and would materialize e2e "absent" paths (and any stale recent)
@@ -26,15 +27,28 @@ import { loadConfig } from '../stores/config-store'
 
 const watched = new Map<string, { close: () => void }>()
 
-const FILE_EVENTS: Record<string, AppEvent> = {
-  [PROJECT_FILES.review]: 'feature-view',
-  [PROJECT_FILES.comments]: 'comments',
-  [PROJECT_FILES.board]: 'board',
-  [PROJECT_FILES.actions]: 'actions',
-  [PROJECT_FILES.layers]: 'layers',
-  [PROJECT_FILES.scope]: 'scope',
-  [PROJECT_FILES.featureView]: 'feature-view',
-  [PROJECT_FILES.notes]: 'feature-view',
+/** Map a companion file basename to the domain change kind it makes stale. */
+const FILE_CHANGES: Record<string, SessionChange['kind']> = {
+  [PROJECT_FILES.review]: 'review.changed',
+  [PROJECT_FILES.comments]: 'review.changed',
+  [PROJECT_FILES.board]: 'board.changed',
+  [PROJECT_FILES.actions]: 'actions.changed',
+  [PROJECT_FILES.layers]: 'review.changed',
+  [PROJECT_FILES.scope]: 'files.scope-changed',
+  [PROJECT_FILES.featureView]: 'review.changed',
+  [PROJECT_FILES.notes]: 'review.changed',
+}
+
+function publish(kind: SessionChange['kind'], projectPath: string): void {
+  if (kind === 'files.tree-changed' || kind === 'files.content-changed') {
+    publishSessionChange({ kind, projectPath, paths: [projectPath] })
+    return
+  }
+  publishSessionChange({ kind, projectPath })
+}
+
+function publishReview(projectPath: string): void {
+  publish('review.changed', projectPath)
 }
 
 async function isDirectory(path: string): Promise<boolean> {
@@ -47,27 +61,19 @@ async function isDirectory(path: string): Promise<boolean> {
 
 async function watchRepo(repoPath: string): Promise<void> {
   if (watched.has(repoPath)) return
-  // Repo root must already exist. Creating `.porcelain` under a missing path
-  // would invent the parent directory (recursive mkdir).
   if (!(await isDirectory(repoPath))) return
 
   const dir = projectPorcelainDir(repoPath)
-  // Do not mkdir `.porcelain` here — an empty shell blocks home→repo migrate
-  // (ensureProjectCompanion used to treat any existing dir as "already done").
-  // Re-invoke after ensure/write once the dir exists.
   if (!(await isDirectory(dir))) return
 
   const evidenceDir = projectEvidenceDir(repoPath)
   const closers: Array<() => void> = []
-  // The unit in flight lives in its own directory now; watch it as well as the
-  // companion root, or an agent write to review.json never reaches the UI.
   try {
     const active = watch(projectActiveReviewDir(repoPath), (_event, filename) => {
       const base = typeof filename === 'string' ? basename(filename) : null
-      const event = base === null ? undefined : FILE_EVENTS[base]
-      if (event) emitAppEvent(event)
-      emitAppEvent('evidence')
-      emitAppEvent('feature-view')
+      const kind = base === null ? undefined : FILE_CHANGES[base]
+      if (kind) publish(kind, repoPath)
+      publishReview(repoPath)
     })
     closers.push(() => active.close())
   } catch {
@@ -77,18 +83,17 @@ async function watchRepo(repoPath: string): Promise<void> {
   try {
     const w = watch(dir, (_event, filename) => {
       if (!filename) {
-        for (const event of new Set(Object.values(FILE_EVENTS))) emitAppEvent(event)
-        emitAppEvent('evidence')
+        for (const kind of new Set(Object.values(FILE_CHANGES))) publish(kind, repoPath)
+        publishReview(repoPath)
         return
       }
       const name = typeof filename === 'string' ? filename : null
       if (!name) return
       const base = basename(name)
-      const event = FILE_EVENTS[base]
-      if (event) emitAppEvent(event)
+      const kind = FILE_CHANGES[base]
+      if (kind) publish(kind, repoPath)
       if (base === 'evidence' || name.startsWith('evidence') || name.startsWith('reviews')) {
-        emitAppEvent('evidence')
-        emitAppEvent('feature-view')
+        publishReview(repoPath)
       }
     })
     closers.push(() => w.close())
@@ -96,10 +101,6 @@ async function watchRepo(repoPath: string): Promise<void> {
     // unsupported FS — polls still cover discovery
   }
 
-  // Evidence tree may not exist yet; create under an existing companion only.
-  // `watch` is non-recursive on Linux, so the pack's sub-directories each need
-  // their own watch or a screenshot dropped into `assets/` only reaches the UI
-  // on the next poll. Best-effort throughout — the poll is the correctness path.
   for (const dirToWatch of [
     evidenceDir,
     projectEvidenceResultsDir(repoPath),
@@ -109,7 +110,7 @@ async function watchRepo(repoPath: string): Promise<void> {
       .then(() => {
         try {
           const w = watch(dirToWatch, () => {
-            emitAppEvent('evidence')
+            publishReview(repoPath)
           })
           closers.push(() => w.close())
         } catch {

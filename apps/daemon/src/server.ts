@@ -1,15 +1,14 @@
 import { createHash } from 'node:crypto'
 import { router } from './api'
-import { subscribeAppEvents } from './app-events'
 import { ensureCli } from './cli-install'
 import { seedDevConfig } from './dev-config'
 import { ensureAdminToken } from './net/admin-token'
 import { createDaemonHttp } from './net/daemon-http'
 import { setFunnelDaemonPort, startFunnel } from './net/funnel'
-import { broadcastAppEvent, createSession } from './net/session'
 import { rendererDistExists, serveStatic } from './net/static-server'
 import { initIfaceHandlers, startLanListener, startTailnetListener } from './net/tailnet-listener'
 import { watchAgentChannels } from './review/review-watch'
+import { createSession } from './session/live-session'
 import { authenticateClientToken, exchangePairingGrant } from './stores/access-store'
 import { initConfigDir, loadConfig } from './stores/config-store'
 
@@ -18,7 +17,7 @@ import { initConfigDir, loadConfig } from './stores/config-store'
  * (`src/main/daemon.ts`) and built as its own bundle (`out/main/daemon/server.js`,
  * see electron.vite.config.ts). It serves the appRouter over HTTP (`/trpc`, tRPC's
  * fetch adapter) and the per-window session channel over one WebSocket (`/session`,
- * see session.ts / shared/ws-protocol.ts).
+ * see session/live-session.ts and @porcelain/contracts/session).
  *
  * SECURITY INVARIANTS live in the audit skill's listener rule and must hold here:
  * binds are 127.0.0.1 ALWAYS plus, on opt-in, the enumerated Tailscale/RFC1918
@@ -134,9 +133,8 @@ async function main(): Promise<void> {
   }
 
   // Watch the agent channels so CLI-pushed review sets / resolved comments refresh
-  // the open views — fanned out to every session over the WS channel.
+  // the open views — published as project-scoped session change facts.
   await watchAgentChannels()
-  subscribeAppEvents(broadcastAppEvent)
 
   // Port 0 = OS-assigned (the default); PORCELAIN_DAEMON_PORT pins it (e2e/debugging).
   const requestedPort = Number(process.env.PORCELAIN_DAEMON_PORT ?? '') || 0

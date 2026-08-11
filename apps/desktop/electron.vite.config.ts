@@ -22,8 +22,17 @@ const workspaceAliases = {
   '@porcelain/client-runtime/terminal-keys': resolve(
     '../../packages/client-runtime/src/terminal-keys.ts',
   ),
-  '@porcelain/client-runtime/session-protocol': resolve(
-    '../../packages/client-runtime/src/session-protocol.ts',
+  '@porcelain/client-runtime/session/transport': resolve(
+    '../../packages/client-runtime/src/session/transport.ts',
+  ),
+  '@porcelain/client-runtime/session/client-runtime': resolve(
+    '../../packages/client-runtime/src/session/client-runtime.ts',
+  ),
+  '@porcelain/client-runtime/session/interests': resolve(
+    '../../packages/client-runtime/src/session/interests.ts',
+  ),
+  '@porcelain/client-runtime/session/recovery': resolve(
+    '../../packages/client-runtime/src/session/recovery.ts',
   ),
   '@porcelain/client-runtime/word-diff-line': resolve(
     '../../packages/client-runtime/src/word-diff-line.ts',

@@ -3,12 +3,11 @@ import { Kbd } from '@renderer/components/ui/kbd'
 import { SidebarInset, SidebarProvider, useSidebar } from '@renderer/components/ui/sidebar'
 import { Toaster } from '@renderer/components/ui/sonner'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
-import { useAppEvents } from '@renderer/hooks/use-app-events'
 import { useDocumentTitle } from '@renderer/hooks/use-document-title'
 import { useEnvironmentStatuses } from '@renderer/hooks/use-environment-status'
-import { useWatchOpenFiles, useWatchTreeDirs } from '@renderer/hooks/use-files'
-import { useAnnounceSession } from '@renderer/hooks/use-repo'
 import { useResponsiveShell } from '@renderer/hooks/use-responsive-shell'
+import { useSessionRuntime } from '@renderer/hooks/use-session-runtime'
+import { useShellEvents } from '@renderer/hooks/use-shell-events'
 import { useTerminalChannel } from '@renderer/hooks/use-terminal-channel'
 import { useThemeSync } from '@renderer/hooks/use-theme'
 import { kbdLabel } from '@renderer/lib/keyboard'
@@ -190,14 +189,14 @@ export function AppShell(): React.JSX.Element {
   const boot = useRepoStore((s) => s.boot)
 
   useAppShortcuts()
-  useAppEvents()
+  useShellEvents()
+  // One session runtime for the window: domain change invalidation, watch interests,
+  // project selection, and reconnect recovery. Terminal traffic shares the same socket.
+  useSessionRuntime()
   useEnvironmentStatuses()
   useThemeSync()
   useDocumentTitle()
   useTerminalChannel()
-  useWatchOpenFiles()
-  useWatchTreeDirs()
-  useAnnounceSession()
 
   useEffect(() => {
     boot()

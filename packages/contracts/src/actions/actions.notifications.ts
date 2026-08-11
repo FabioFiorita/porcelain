@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 /**
  * Actions change notifications — the domain-owned replacement for the `actions` entry in
- * `appEventSchema` (`../ws-protocol.ts`), which today broadcasts to every session.
+ * `appEventSchema` (the deleted horizontal session protocol), which today broadcasts to every session.
  *
  * Saved Actions are repo-local, so one strict category carrying `projectPath` is the whole
  * signal: the saved commands for that project are stale. Machine-local trust is not on the

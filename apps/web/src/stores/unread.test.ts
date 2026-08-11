@@ -1,7 +1,9 @@
-import type { AppEvent } from '@porcelain/contracts'
+import type { SessionChange } from '@porcelain/contracts/session'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { usePreferencesStore } from './preferences'
 import { isUnreadTab, type UnreadTab, unreadTabFor, useUnreadStore } from './unread'
+
+const PROJECT = '/synthetic/repo'
 
 describe('useUnreadStore', () => {
   beforeEach(() => {
@@ -41,27 +43,24 @@ describe('useUnreadStore', () => {
 })
 
 describe('unreadTabFor', () => {
-  const cases: [AppEvent, UnreadTab | null][] = [
-    ['feature-view', 'feature'],
-    ['evidence', 'feature'],
-    ['comments', 'feature'],
-    ['board', 'board'],
-    ['actions', 'terminal'],
-    ['working-tree', 'changes'],
-    ['file-tree', 'changes'],
-    ['layers', null],
-    ['scope', null],
+  const cases: [SessionChange, UnreadTab | null][] = [
+    [{ kind: 'review.changed', projectPath: PROJECT }, 'feature'],
+    [{ kind: 'board.changed', projectPath: PROJECT }, 'board'],
+    [{ kind: 'actions.changed', projectPath: PROJECT }, 'terminal'],
+    [
+      { kind: 'files.content-changed', projectPath: PROJECT, paths: [`${PROJECT}/a.ts`] },
+      'changes',
+    ],
+    [{ kind: 'files.tree-changed', projectPath: PROJECT, paths: [`${PROJECT}/src`] }, 'changes'],
+    [{ kind: 'git.working-tree-changed', projectPath: PROJECT }, 'changes'],
+    [{ kind: 'files.scope-changed', projectPath: PROJECT }, null],
   ]
 
-  for (const [event, expected] of cases) {
-    it(`maps ${event} → ${expected}`, () => {
-      expect(unreadTabFor(event)).toBe(expected)
+  for (const [change, expected] of cases) {
+    it(`maps ${change.kind} → ${expected}`, () => {
+      expect(unreadTabFor(change)).toBe(expected)
     })
   }
-
-  it('maps an unknown event → null', () => {
-    expect(unreadTabFor('nonsense' as AppEvent)).toBe(null)
-  })
 })
 
 describe('isUnreadTab', () => {

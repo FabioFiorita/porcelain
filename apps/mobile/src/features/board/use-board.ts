@@ -40,9 +40,10 @@ export type BoardCards = {
 /**
  * Every card on the open repo's board.
  *
- * No poll, by design: the daemon pushes a `board` app event whenever a card is written —
- * whether by this client, the desktop, or the agent through the CLI — and `app-events.ts`
- * turns that into an invalidation. A timer here would only add reads the socket already covers.
+ * No poll, by design: the daemon pushes a `board.changed` session signal whenever a card is
+ * written — whether by this client, the desktop, or the agent through the CLI — and the
+ * session binding turns that into an invalidation. A timer here would only add reads the
+ * socket already covers.
  */
 export function useBoardCards(active: boolean): BoardCards {
   const repo = useActiveRepo()

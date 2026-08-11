@@ -4,7 +4,7 @@ import { shellTrpc } from '@renderer/lib/trpc'
 /**
  * The frameless-chrome window controls (Linux/Windows) — min/maximize/close, all
  * shell-only. `isMaximized` stays fresh via the `maximized-changed` shell event
- * (use-app-events invalidates this query), so the maximize/restore glyph tracks
+ * (use-shell-events shell path invalidates this query), so the maximize/restore glyph tracks
  * OS-driven state changes, not just our own toggle. macOS keeps its native traffic
  * lights and never mounts this.
  */

@@ -4,7 +4,7 @@ import { BrowserWindow } from 'electron'
 // whose SOURCE is the shell ride it — Cmd/Ctrl+W tab-close routing and window
 // maximize/unmaximize (window.ts), plus updater status changes (updater.ts).
 // Everything else pushes from the daemon over the WS session
-// (src/shared/ws-protocol.ts); the renderer consumes both in use-app-events.ts
+// (src/shared/session contracts.ts); the renderer consumes both in use-shell-events.ts
 // under one union type.
 export type ShellEvent =
   | 'close-tab'

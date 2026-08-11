@@ -22,7 +22,7 @@ export interface LocalDaemonInfo {
 
 /**
  * The local daemon's endpoint. Refetched on focus and on `local-daemon-changed` (the child
- * restarted on a new port — use-app-events invalidates this), and each result re-points the
+ * restarted on a new port — shell `local-daemon-changed` invalidates this), and each result re-points the
  * live session rather than rebuilding it, so open PTYs survive a daemon restart.
  */
 export function useLocalDaemon(): LocalDaemonInfo | undefined {

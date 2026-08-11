@@ -1,13 +1,11 @@
-import { useRepoStore } from '@renderer/stores/repo'
-import { act, renderHook } from '@testing-library/react'
+import { renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { useAnnounceSession, useNewWindow, useRecentRepos, useRemoveRecentRepo } from './use-repo'
+import { useNewWindow, useRecentRepos, useRemoveRecentRepo } from './use-repo'
 
 const recentReposQuery = vi.hoisted(() => vi.fn())
 const removeRecentRepoMutation = vi.hoisted(() => vi.fn())
 const newWindowMutation = vi.hoisted(() => vi.fn())
 const useUtils = vi.hoisted(() => vi.fn())
-const announceSession = vi.hoisted(() => vi.fn())
 
 vi.mock('@renderer/lib/trpc', () => ({
   trpc: {
@@ -20,13 +18,10 @@ vi.mock('@renderer/lib/trpc', () => ({
   },
 }))
 
-vi.mock('@renderer/lib/daemon', () => ({ announceSession }))
-
 const aRepo = { path: '/repo', name: 'repo' }
 
 beforeEach(() => {
   vi.clearAllMocks()
-  useRepoStore.setState({ repo: null })
   recentReposQuery.mockReturnValue({ data: undefined })
   useUtils.mockReturnValue({ recentRepos: { invalidate: vi.fn() } })
 })
@@ -48,24 +43,6 @@ describe('useRecentRepos', () => {
   it('forwards the enabled gate to the query', () => {
     renderHook(() => useRecentRepos(false))
     expect(recentReposQuery).toHaveBeenCalledWith(undefined, { enabled: false })
-  })
-})
-
-describe('useAnnounceSession', () => {
-  it('announces undefined with no repo open', () => {
-    renderHook(() => useAnnounceSession())
-    expect(announceSession).toHaveBeenCalledWith(undefined)
-  })
-
-  it('re-announces when the open repo changes', () => {
-    renderHook(() => useAnnounceSession())
-    expect(announceSession).toHaveBeenLastCalledWith(undefined)
-
-    act(() => {
-      useRepoStore.setState({ repo: aRepo })
-    })
-
-    expect(announceSession).toHaveBeenLastCalledWith(aRepo.path)
   })
 })
 

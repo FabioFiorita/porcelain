@@ -12,11 +12,12 @@ import { type TerminalSession, useTerminalsStore } from '@renderer/stores/termin
 import { useEffect } from 'react'
 
 /**
- * Consumes the inbound half of the terminal stream on the daemon WS session AND
- * hydrates the daemon-owned roster, mounted once in AppShell — the inbound twin of
- * `useAppEvents`. PTY output routes to the matching Ghostty (buffered via the registry
- * until the view mounts); an exit marks the roster session "exited"; a re-attach's
- * scrollback replays into the Ghostty.
+ * Consumes the inbound half of the terminal stream on the daemon session AND
+ * hydrates the daemon-owned roster, mounted once in AppShell — the stream twin of
+ * `useSessionRuntime` (which owns change invalidation on the same socket). PTY
+ * output routes to the matching Ghostty (buffered via the registry until the view
+ * mounts); an exit marks the roster session "exited"; a re-attach's scrollback
+ * replays into the Ghostty.
  *
  * Roster hydration: `terminalSessions` lists every daemon-owned PTY; filter to the
  * current repo and hydrate the store. Refetches on daemon reconnect and on a 5s

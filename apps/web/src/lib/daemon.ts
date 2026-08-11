@@ -1,47 +1,31 @@
 import {
-  MIN_RETRY_MS,
-  nextRetryDelay,
-  parseServerMessage,
-  sessionSubprotocol,
-  sessionWebSocketUrl,
-} from '@porcelain/client-runtime/session-protocol'
+  createSessionClientRuntime,
+  type SessionClientRuntime,
+  type TerminalServerFrame,
+} from '@porcelain/client-runtime/session/client-runtime'
+import type { FreshnessRequirement } from '@porcelain/client-runtime/session/recovery'
+import type { SessionChange, SessionMismatchFrame } from '@porcelain/contracts/session'
+import { MAX_TERMINAL_WRITE_CODE_UNITS } from '@porcelain/contracts/terminal'
 import {
-  type AppEvent,
-  type ClientMessage,
-  MAX_TERMINAL_WRITE_CODE_UNITS,
-  type ServerMessage,
-} from '@porcelain/contracts'
+  createSessionBrowserAdapter,
+  type SessionBrowserAdapter,
+  type SessionConnectionStatus,
+  type SessionRetrySchedule,
+  type SessionSocketOpener,
+} from './session-browser-adapter'
 import { randomId } from './utils'
 
 /**
- * The renderer's connection to a daemon: the appRouter's HTTP base url
- * (lib/trpc.ts) plus ONE WebSocket session (`/session`) carrying everything
- * that isn't request/response — app-events, terminal bytes both ways, watch
- * registrations (see `@shared/ws-protocol`).
- *
- * A session is an INSTANCE; `primary` is the one every surface uses — a window
- * bound to a remote daemon can also hold a connection to the local one (see
- * `local-daemon.ts`). Lives in lib only (hooks, the terminal registry/store,
- * lib/trpc — components never import it directly; Biome-enforced).
- *
- * Reconnect: retries with capped backoff while the daemon is down; a restart
- * pushes a new url via `daemon.onUrlChanged`. Every reconnect re-registers the
- * last watch sets and re-attaches every streamed terminal (server-side session
- * state died with the old socket), replaying scrollback through
- * `onTerminalScrollback` before live data resumes; `onDaemonReconnect`
- * subscribers are notified so queries refetch.
+ * One daemon connection: HTTP base for tRPC plus ONE `/session` WebSocket for change
+ * signals, watches, and terminal bytes. Owns the shared runtime + browser adapter so
+ * terminal I/O and query invalidation never open a second socket. `primary` is the
+ * window's bound session; see `local-daemon.ts` for a second local session. Lib-only
+ * (Biome). Reconnect re-attaches terminals and fires recovery handlers.
  */
 
-// The localStorage key the browser client stores its user-entered daemon token
-// under (Phase 3): the packaged app gets its token from the preload bridge, but a
-// plain browser has no bridge, so the human types it once on the TokenGate screen
-// and it's persisted here.
+/** Browser client token persistence key (packaged app uses the preload bridge). */
 const BROWSER_TOKEN_KEY = 'porcelain-client-token'
 
-// The bridge is absent both in the browser client AND under vitest/jsdom. In the
-// browser we read the persisted token from localStorage; under jsdom localStorage
-// exists and returns null → '' (nothing connects in unit tests — hooks are mocked,
-// ensureSession is lazy), so this fallback stays quiet there too.
 function initialToken(): string {
   const fromBridge = window.porcelain?.daemon?.token
   if (fromBridge !== undefined) return fromBridge
@@ -68,6 +52,13 @@ export interface DaemonEndpoint {
   token: string
 }
 
+export type DaemonSessionOptions = {
+  /** Injectable WebSocket opener (tests). Production uses the browser default. */
+  readonly openSocket?: SessionSocketOpener
+  /** Injectable reconnect timer (tests). Production uses `window.setTimeout`. */
+  readonly schedule?: SessionRetrySchedule
+}
+
 export interface DaemonSession {
   /** The daemon's HTTP origin, resolved (page origin when the raw url is empty). */
   baseUrl: () => string
@@ -77,16 +68,27 @@ export interface DaemonSession {
   endpoint: () => DaemonEndpoint
   /** Re-point this session and reconnect immediately, skipping any pending backoff. */
   setEndpoint: (endpoint: DaemonEndpoint) => void
-  onDaemonEvent: (listener: (event: AppEvent) => void) => () => void
+  /**
+   * The shared session runtime for this daemon connection. Terminal APIs and
+   * `useSessionRuntime` both use this instance — never construct a second one.
+   */
+  runtime: SessionClientRuntime
+  /** Open the session socket (idempotent). Called lazily by terminal APIs and on shell mount. */
+  start: () => void
+  /** Browser adapter connection status for UI chrome. */
+  status: () => SessionConnectionStatus
+  /** Set when the daemon refused this build's protocol (terminal mismatch). */
+  updateRequiredFrame: () => SessionMismatchFrame | undefined
+  onStatusChange: (listener: (status: SessionConnectionStatus) => void) => () => void
+  onUpdateRequired: (listener: (frame: SessionMismatchFrame) => void) => () => void
+  onChange: (listener: (change: SessionChange) => void) => () => void
+  onFreshnessRequired: (listener: (requirement: FreshnessRequirement) => void) => () => void
   onTerminalData: (listener: (id: string, data: string) => void) => () => void
   onTerminalExit: (listener: (id: string, exitCode: number) => void) => () => void
   onTerminalScrollback: (listener: (id: string, scrollback: string) => void) => () => void
   onDaemonReconnect: (listener: () => void) => () => void
   /** Fires when the primary socket dies; the shell can resolve a group's next route. */
   onDaemonClose: (listener: () => void) => () => void
-  watchFiles: (paths: string[]) => void
-  watchDirs: (paths: string[]) => void
-  announceSession: (repo: string | undefined) => void
   createTerminal: (opts: {
     name: string
     cwd: string
@@ -114,20 +116,27 @@ export interface DaemonSession {
 }
 
 /**
- * Build a session pointed at one daemon. Each instance owns its own socket, listener
- * sets, pending-request maps, and reconnect state — nothing is shared, so a second
- * session can't fail the first's in-flight creates or replay its watches.
+ * Build a session pointed at one daemon. Each instance owns its own runtime,
+ * adapter, listener sets, pending-request maps, and reconnect state — nothing is
+ * shared, so a second session can't fail the first's in-flight creates.
  */
-export function createDaemonSession(initial: DaemonEndpoint): DaemonSession {
+export function createDaemonSession(
+  initial: DaemonEndpoint,
+  options: DaemonSessionOptions = {},
+): DaemonSession {
   let baseUrl = initial.url
   let token = initial.token
 
-  const eventListeners = new Set<(event: AppEvent) => void>()
   const dataListeners = new Set<(id: string, data: string) => void>()
   const exitListeners = new Set<(id: string, exitCode: number) => void>()
   const scrollbackListeners = new Set<(id: string, scrollback: string) => void>()
   const reconnectListeners = new Set<() => void>()
   const closeListeners = new Set<() => void>()
+  const changeListeners = new Set<(change: SessionChange) => void>()
+  const freshnessListeners = new Set<(requirement: FreshnessRequirement) => void>()
+  const statusListeners = new Set<(status: SessionConnectionStatus) => void>()
+  const updateRequiredListeners = new Set<(frame: SessionMismatchFrame) => void>()
+
   interface PendingCreate {
     resolve: (id: string) => void
     reject: (error: Error) => void
@@ -149,35 +158,78 @@ export function createDaemonSession(initial: DaemonEndpoint): DaemonSession {
   // scrollback routed through the scrollback listeners so the registry can replay it.
   const attachedIds = new Set<string>()
 
-  // Creates issued while the socket is still CONNECTING are queued and flushed on
-  // open; fire-and-forget messages (write/resize/kill/watch) are not — a dead
-  // socket means dead PTYs, and watches re-register from lastWatched* on open.
-  // Both the queue and the in-flight creates die with the socket (see onclose):
-  // replaying a stale terminal:create on a much-later reconnect would spawn a
-  // shell nobody is waiting for.
-  const outbox: ClientMessage[] = []
-  let lastWatchedFiles: string[] | null = null
-  let lastWatchedDirs: string[] | null = null
-  // Boxed because `undefined` is a MEANINGFUL announce (this client has no repo open, so the
-  // roster row must clear) — `null` is the distinct "never announced, nothing to replay".
-  let lastAnnouncedRepo: { repo: string | undefined } | null = null
+  // Creates/attaches/pastes issued while the session is still handshaking are queued and
+  // flushed on ready; fire-and-forget messages (write/resize/kill) are not — a dead
+  // socket means dead PTYs. Both the queue and the in-flight requests die with the socket.
+  const outbox: unknown[] = []
 
-  let socket: WebSocket | null = null
-  let everConnected = false
   // Set when the shell pushes a fresh daemon url (the daemon came up late or was
-  // restarted): the NEXT successful connect must refetch queries even if this is
-  // the first-ever connect — boot queries errored against the dead/absent daemon.
+  // restarted): the NEXT successful ready must refetch queries even if this is
+  // the first-ever ready — boot queries errored against the dead/absent daemon.
   let recoveryPending = false
-  let retryDelay = MIN_RETRY_MS
-  let reconnectTimer: number | null = null
+  // True after the first completed handshake; subsequent readies re-attach terminals
+  // and notify reconnect listeners.
+  let everSessionOpen = false
+  // True for the current connection after we have flushed the post-ready work once.
+  let openGenerationHandled = false
 
-  /** The daemon's HTTP origin. Falls back to the page origin — Phase 3 serves the remote client FROM the daemon, making it same-origin. */
-  function resolvedBaseUrl(): string {
-    return baseUrl !== '' ? baseUrl : window.location.origin
+  let connectionStatus: SessionConnectionStatus = 'idle'
+  let updateRequired: SessionMismatchFrame | undefined
+
+  function dispatchTerminalFrame(frame: TerminalServerFrame): void {
+    switch (frame.t) {
+      case 'terminal:data':
+        for (const listener of dataListeners) listener(frame.id, frame.data)
+        break
+      case 'terminal:exit':
+        for (const listener of exitListeners) listener(frame.id, frame.exitCode)
+        break
+      case 'terminal:created': {
+        const pending = pendingCreates.get(frame.reqId)
+        if (pending) {
+          pendingCreates.delete(frame.reqId)
+          pending.resolve(frame.id)
+        }
+        break
+      }
+      case 'terminal:attached': {
+        // Route the replay scrollback to the registry before any live data follows
+        // (the daemon sends this reply before subsequent terminal:data), then settle
+        // the pending attach promise for the caller that awaited the initial attach.
+        for (const listener of scrollbackListeners) listener(frame.id, frame.scrollback)
+        const pending = pendingAttaches.get(frame.reqId)
+        if (pending) {
+          pendingAttaches.delete(frame.reqId)
+          pending.resolve({
+            scrollback: frame.scrollback,
+            status: frame.status,
+            exitCode: frame.exitCode,
+            found: frame.found,
+          })
+        }
+        break
+      }
+      case 'terminal:image-pasted': {
+        const pending = pendingPastes.get(frame.reqId)
+        if (pending) {
+          pendingPastes.delete(frame.reqId)
+          pending.resolve({ path: frame.path, result: frame.result })
+        }
+        break
+      }
+      case 'terminal:file-pasted': {
+        const pending = pendingFiles.get(frame.reqId)
+        if (pending) {
+          pendingFiles.delete(frame.reqId)
+          pending.resolve({ path: frame.path, result: frame.result })
+        }
+        break
+      }
+    }
   }
 
-  /** Fail every in-flight/queued create + attach — their socket is gone. */
-  function failPendingCreates(reason: string): void {
+  /** Fail every in-flight/queued create + attach + paste — their socket is gone. */
+  function failPending(reason: string): void {
     outbox.length = 0
     const creates = [...pendingCreates.values()]
     pendingCreates.clear()
@@ -193,164 +245,115 @@ export function createDaemonSession(initial: DaemonEndpoint): DaemonSession {
     for (const { reject } of files) reject(new Error(reason))
   }
 
-  function dispatch(message: ServerMessage): void {
-    switch (message.t) {
-      case 'app-event':
-        for (const listener of eventListeners) listener(message.event)
-        break
-      case 'terminal:data':
-        for (const listener of dataListeners) listener(message.id, message.data)
-        break
-      case 'terminal:exit':
-        for (const listener of exitListeners) listener(message.id, message.exitCode)
-        break
-      case 'terminal:created': {
-        const pending = pendingCreates.get(message.reqId)
-        if (pending) {
-          pendingCreates.delete(message.reqId)
-          pending.resolve(message.id)
-        }
-        break
-      }
-      case 'terminal:attached': {
-        // Route the replay scrollback to the registry before any live data follows
-        // (the daemon sends this reply before subsequent terminal:data), then settle
-        // the pending attach promise for the caller that awaited the initial attach.
-        for (const listener of scrollbackListeners) listener(message.id, message.scrollback)
-        const pending = pendingAttaches.get(message.reqId)
-        if (pending) {
-          pendingAttaches.delete(message.reqId)
-          pending.resolve({
-            scrollback: message.scrollback,
-            status: message.status,
-            exitCode: message.exitCode,
-            found: message.found,
-          })
-        }
-        break
-      }
-      case 'terminal:image-pasted': {
-        const pending = pendingPastes.get(message.reqId)
-        if (pending) {
-          pendingPastes.delete(message.reqId)
-          pending.resolve({ path: message.path, result: message.result })
-        }
-        break
-      }
-      case 'terminal:file-pasted': {
-        const pending = pendingFiles.get(message.reqId)
-        if (pending) {
-          pendingFiles.delete(message.reqId)
-          pending.resolve({ path: message.path, result: message.result })
-        }
-        break
+  const DROP_REASON =
+    'The Porcelain daemon connection dropped before the terminal could be created. Try again in a moment — the app reconnects automatically.'
+
+  function onBecameOpen(): void {
+    // Re-attach every terminal this client was streaming: the daemon's attached-sender
+    // set died with the old socket. Not on the first-ever ready — those attaches are
+    // already queued in the outbox (double-sending would replay scrollback twice).
+    if (everSessionOpen) {
+      for (const id of attachedIds) {
+        baseRuntime.send({ t: 'terminal:attach', id, reqId: randomId() })
       }
     }
+    for (const frame of outbox.splice(0)) baseRuntime.send(frame)
+    // Refetch on every REconnect — and on the first ready after the shell pushed a
+    // fresh url (the daemon came up late; boot queries errored and must recover now).
+    if (everSessionOpen || recoveryPending) {
+      for (const listener of reconnectListeners) listener()
+    }
+    recoveryPending = false
+    everSessionOpen = true
   }
 
-  function push(message: ClientMessage): void {
-    if (socket !== null && socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify(message))
-    }
-  }
+  // Assigned after the runtime wrapper below; onUpdateRequired retires the transport
+  // only once a mismatch arrives (never during construction).
+  let adapter: SessionBrowserAdapter
 
-  /** Send now if OPEN, else queue in the outbox to flush on the next open. */
-  function pushOrQueue(message: ClientMessage): void {
-    if (socket !== null && socket.readyState === WebSocket.OPEN) push(message)
-    else outbox.push(message)
-  }
+  const baseRuntime = createSessionClientRuntime({
+    observer: {
+      onChange: (change: SessionChange): void => {
+        for (const listener of changeListeners) listener(change)
+      },
+      onFreshnessRequired: (requirement: FreshnessRequirement): void => {
+        for (const listener of freshnessListeners) listener(requirement)
+      },
+      onTerminalFrame: dispatchTerminalFrame,
+      onUpdateRequired: (frame: SessionMismatchFrame): void => {
+        updateRequired = frame
+        for (const listener of updateRequiredListeners) listener(frame)
+        adapter.updateRequired()
+      },
+    },
+  })
 
-  function scheduleReconnect(): void {
-    if (reconnectTimer !== null) return
-    reconnectTimer = window.setTimeout(() => {
-      reconnectTimer = null
-      ensureSession()
-    }, retryDelay)
-    // Desktop allows a 10s cap (mobile uses the shared 8s default).
-    retryDelay = nextRetryDelay(retryDelay, 10_000)
-  }
-
-  /** Idempotent: opens the session if it isn't open/connecting. Called lazily by every consumer. */
-  function ensureSession(): void {
-    if (
-      socket !== null &&
-      (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)
-    ) {
-      return
-    }
-    // The token rides as the requested subprotocol (`porcelain.<token>`) — the
-    // one header a browser WebSocket can carry — because the upgrade has no CORS
-    // check at all; the daemon rejects the handshake without it (server.ts).
-    const ws = new WebSocket(
-      sessionWebSocketUrl(resolvedBaseUrl()),
-      token !== '' ? [sessionSubprotocol(token)] : [],
-    )
-    socket = ws
-    ws.onopen = (): void => {
-      if (socket !== ws) return
-      retryDelay = MIN_RETRY_MS
-      // The daemon keys watchers (and the roster's what-is-this-device-doing state) by
-      // session, so a fresh socket starts blank — replay the current watch sets and the
-      // announced repo before anything else.
-      if (lastWatchedFiles !== null) push({ t: 'watch:files', paths: lastWatchedFiles })
-      if (lastWatchedDirs !== null) push({ t: 'watch:dirs', paths: lastWatchedDirs })
-      if (lastAnnouncedRepo !== null) push({ t: 'session:hello', repo: lastAnnouncedRepo.repo })
-      // On a genuine REconnect, re-attach every terminal this client was streaming: the
-      // daemon's attached-sender set died with the old socket, so a fresh attach
-      // re-registers us and its scrollback reply replays into the registry (dispatch →
-      // scrollbackListeners). Not awaited — best-effort re-registrations, not the initial
-      // attach promise. Skipped on the first-ever open: those attaches are already queued
-      // in the outbox (double-sending would replay scrollback twice).
-      if (everConnected) {
-        for (const id of attachedIds) push({ t: 'terminal:attach', id, reqId: randomId() })
+  // After every inbound frame, detect the transition into protocol-open so the
+  // outbox can flush and terminals re-attach. The runtime does not expose an
+  // onReady hook; receive is the authoritative path that completes the handshake.
+  const runtime: SessionClientRuntime = {
+    connected: (transport) => baseRuntime.connected(transport),
+    receive: (raw) => {
+      baseRuntime.receive(raw)
+      if (baseRuntime.status() === 'open' && !openGenerationHandled) {
+        openGenerationHandled = true
+        onBecameOpen()
       }
-      for (const message of outbox.splice(0)) push(message)
-      // Refetch on every REconnect — and on the first connect after the shell
-      // pushed a fresh url (the daemon came up late; boot queries errored and
-      // must recover now, not on the next manual refetch).
-      if (everConnected || recoveryPending) for (const listener of reconnectListeners) listener()
-      recoveryPending = false
-      everConnected = true
-    }
-    ws.onmessage = (event: MessageEvent): void => {
-      if (typeof event.data !== 'string') return
-      // Validate on the way in, mirroring the daemon — protocol drift fails
-      // quietly per message instead of mis-shaping data downstream.
-      const parsed = parseServerMessage(event.data)
-      if (parsed !== null) dispatch(parsed)
-    }
-    ws.onclose = (): void => {
-      // Creates addressed to THIS socket can never be answered — fail them even
-      // if a newer socket has already taken over (their reqIds died with ws).
-      failPendingCreates(
-        'The Porcelain daemon connection dropped before the terminal could be created. Try again in a moment — the app reconnects automatically.',
-      )
-      if (socket !== ws) return
-      socket = null
+    },
+    disconnected: () => {
+      openGenerationHandled = false
+      failPending(DROP_REASON)
+      baseRuntime.disconnected()
       for (const listener of closeListeners) listener()
-      scheduleReconnect()
-    }
+    },
+    send: (frame) => baseRuntime.send(frame),
+    selectProject: (projectPath) => baseRuntime.selectProject(projectPath),
+    registerWatchInterest: (interest) => baseRuntime.registerWatchInterest(interest),
+    status: () => baseRuntime.status(),
+    epoch: () => baseRuntime.epoch(),
+    projectPath: () => baseRuntime.projectPath(),
   }
 
-  // Drop the current socket and reconnect immediately with the current baseUrl/token,
-  // skipping any pending backoff. Shared by the shell's url-change push and the browser's
-  // token-gate submit (setBrowserDaemonToken) — both change what the next handshake must
-  // carry, so both want the same forced-reconnect path.
+  adapter = createSessionBrowserAdapter({
+    runtime,
+    endpoint: () => ({ url: baseUrl, token }),
+    openSocket: options.openSocket,
+    schedule: options.schedule,
+    onStatusChange: (status) => {
+      connectionStatus = status
+      for (const listener of statusListeners) listener(status)
+    },
+  })
+
+  /** The daemon's HTTP origin. Falls back to the page origin — Phase 3 serves the remote client FROM the daemon, making it same-origin. */
+  function resolvedBaseUrl(): string {
+    return baseUrl !== '' ? baseUrl : window.location.origin
+  }
+
+  function ensureSession(): void {
+    adapter.start()
+  }
+
+  /** Send now if the protocol is open, else queue for the next ready. */
+  function pushOrQueue(frame: unknown): void {
+    if (runtime.status() === 'open') runtime.send(frame)
+    else outbox.push(frame)
+  }
+
+  /** Fire-and-forget: only lands on an open session (writes into a dead socket are dropped). */
+  function push(frame: unknown): void {
+    if (runtime.status() === 'open') runtime.send(frame)
+  }
+
   function reconnectNow(): void {
     recoveryPending = true
-    if (reconnectTimer !== null) {
-      window.clearTimeout(reconnectTimer)
-      reconnectTimer = null
-    }
-    retryDelay = 500
-    const stale = socket
-    socket = null
-    stale?.close()
-    ensureSession()
+    openGenerationHandled = false
+    adapter.stop()
+    adapter.start()
   }
 
-  function subscribe<T>(set: Set<T>, listener: T): () => void {
-    ensureSession()
+  function subscribe<T>(set: Set<T>, listener: T, start = true): () => void {
+    if (start) ensureSession()
     set.add(listener)
     return () => {
       set.delete(listener)
@@ -366,7 +369,14 @@ export function createDaemonSession(initial: DaemonEndpoint): DaemonSession {
       token = next.token
       reconnectNow()
     },
-    onDaemonEvent: (listener: (event: AppEvent) => void) => subscribe(eventListeners, listener),
+    runtime,
+    start: ensureSession,
+    status: () => connectionStatus,
+    updateRequiredFrame: () => updateRequired,
+    onStatusChange: (listener) => subscribe(statusListeners, listener, false),
+    onUpdateRequired: (listener) => subscribe(updateRequiredListeners, listener, false),
+    onChange: (listener) => subscribe(changeListeners, listener, false),
+    onFreshnessRequired: (listener) => subscribe(freshnessListeners, listener, false),
     onTerminalData: (listener: (id: string, data: string) => void) =>
       subscribe(dataListeners, listener),
     onTerminalExit: (listener: (id: string, exitCode: number) => void) =>
@@ -380,29 +390,6 @@ export function createDaemonSession(initial: DaemonEndpoint): DaemonSession {
     /** Fires after the session comes BACK (never on the first connect) — queries are stale, refetch. */
     onDaemonReconnect: (listener: () => void) => subscribe(reconnectListeners, listener),
     onDaemonClose: (listener: () => void) => subscribe(closeListeners, listener),
-
-    /** Register the open-file set to watch; replayed automatically on reconnect. */
-    watchFiles: (paths: string[]): void => {
-      lastWatchedFiles = paths
-      ensureSession()
-      push({ t: 'watch:files', paths })
-    },
-    /** Register the expanded-dir set to watch; replayed automatically on reconnect. */
-    watchDirs: (paths: string[]): void => {
-      lastWatchedDirs = paths
-      ensureSession()
-      push({ t: 'watch:dirs', paths })
-    },
-    /**
-     * Tell the daemon which repo this client is looking at, so the device roster
-     * (Settings → Environments) can say what each paired device is DOING. Pass `undefined`
-     * when no repo is open — the row must clear, not keep the last one. Replayed on reconnect.
-     */
-    announceSession: (repo: string | undefined): void => {
-      lastAnnouncedRepo = { repo }
-      ensureSession()
-      push({ t: 'session:hello', repo })
-    },
 
     /**
      * Spawn a PTY; resolves with its id via the reqId-correlated `terminal:created`
@@ -449,7 +436,7 @@ export function createDaemonSession(initial: DaemonEndpoint): DaemonSession {
           resolve,
           // A socket drop before the reply rejects this — drop the id so `isTerminalAttached`
           // reports false and the next roster hydrate re-attaches (the reconnect re-attach
-          // loop only fires once everConnected, so an initial-connect failure needs this).
+          // loop only fires once everSessionOpen, so an initial-connect failure needs this).
           reject: (error: Error): void => {
             attachedIds.delete(id)
             reject(error)
@@ -482,8 +469,8 @@ export function createDaemonSession(initial: DaemonEndpoint): DaemonSession {
     },
     /**
      * Send a pasted image to the daemon for `id`'s session. `pushOrQueue`, like create and
-     * attach: the outbox only survives the initial CONNECTING window (cleared on any
-     * close, per `failPendingCreates`), so this never replays a stale paste into whatever
+     * attach: the outbox only survives the initial handshaking window (cleared on any
+     * close, per `failPending`), so this never replays a stale paste into whatever
      * the cursor is doing after a later reconnect — it only lets a paste tapped the instant
      * the socket is still opening ride the same flush a create would.
      */
@@ -532,32 +519,21 @@ window.porcelain?.daemon?.onUrlChanged((info) => {
   primary.setEndpoint({ url: info.url, token: info.token })
 })
 
-/**
- * Persist and adopt a browser-client daemon token (from the TokenGate screen),
- * then reconnect the WS with the new subprotocol — no reload needed. The base
- * url stays the page origin (baseUrl's fallback); only the token changes.
- * A no-op for the packaged app, which never calls this (its token rides the bridge).
- */
+/** Persist a browser-client token and reconnect (packaged app uses the bridge). */
 export function setBrowserDaemonToken(newToken: string): void {
   localStorage.setItem(BROWSER_TOKEN_KEY, newToken)
   primary.setEndpoint({ url: primary.endpoint().url, token: newToken })
 }
 
-// The singleton API every surface uses, bound to `primary`. Keep these delegating
-// one-liners — a call site that wants a specific machine names its session explicitly
-// instead of reaching through here.
+// Singleton API bound to `primary`. Name a session explicitly for another machine.
 export const daemonBaseUrl: DaemonSession['baseUrl'] = primary.baseUrl
 export const daemonToken: DaemonSession['token'] = primary.token
-export const onDaemonEvent: DaemonSession['onDaemonEvent'] = primary.onDaemonEvent
 export const onTerminalData: DaemonSession['onTerminalData'] = primary.onTerminalData
 export const onTerminalExit: DaemonSession['onTerminalExit'] = primary.onTerminalExit
 export const onTerminalScrollback: DaemonSession['onTerminalScrollback'] =
   primary.onTerminalScrollback
 export const onDaemonReconnect: DaemonSession['onDaemonReconnect'] = primary.onDaemonReconnect
 export const onDaemonClose: DaemonSession['onDaemonClose'] = primary.onDaemonClose
-export const watchFiles: DaemonSession['watchFiles'] = primary.watchFiles
-export const watchDirs: DaemonSession['watchDirs'] = primary.watchDirs
-export const announceSession: DaemonSession['announceSession'] = primary.announceSession
 export const createTerminal: DaemonSession['createTerminal'] = primary.createTerminal
 export const attachTerminal: DaemonSession['attachTerminal'] = primary.attachTerminal
 export const detachTerminal: DaemonSession['detachTerminal'] = primary.detachTerminal

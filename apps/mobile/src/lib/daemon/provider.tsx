@@ -1,4 +1,6 @@
+import type { FreshnessRequirement } from '@porcelain/client-runtime/session/recovery'
 import { endpointKind, orderedEndpointUrls } from '@porcelain/contracts'
+import type { SessionChange } from '@porcelain/contracts/session'
 import {
   focusManager,
   onlineManager,
@@ -9,7 +11,6 @@ import * as Network from 'expo-network'
 import { type ReactNode, useEffect } from 'react'
 import { AppState, type AppStateStatus } from 'react-native'
 
-import { APP_EVENT_INVALIDATIONS } from './app-events'
 import { createDaemonClient, PROBE_TIMEOUT_MS } from './client'
 import { type Environment, isPaired, type PairedEnvironment } from './environment'
 import {
@@ -25,7 +26,116 @@ import { DaemonError, daemonErrorMessage } from './errors'
 import { callDaemon } from './procedure'
 import { daemonInfoQuery, openRepoPathMutation, recentReposQuery } from './procedures/connection'
 import { daemonKeys } from './queries'
-import { configureSession, daemonSession, onSessionClosed, setSessionForeground } from './session'
+import {
+  configureSession,
+  onSessionClosed,
+  setSessionForeground,
+  subscribeSessionChanges,
+} from './session'
+
+/**
+ * Map one change notification to the procedure names it makes stale. The union of today's
+ * legacy `APP_EVENT_INVALIDATIONS` entries where the target contract merges several events into
+ * one category (review, working-tree split into files/git). Invalidating an absent key is a
+ * no-op.
+ *
+ * The `default` fall-through is deliberate: a category added to the contract fails the annotated
+ * return type at typecheck unless this switch gains a branch — so a new domain signal cannot
+ * silently ship un-refreshed.
+ */
+export function proceduresForChange(change: SessionChange): readonly string[] {
+  switch (change.kind) {
+    case 'files.scope-changed':
+      // hidden/pinned scope moved — the tree, the pins, and every listing that filters
+      // hidden paths (flow + search)
+      return ['repoScope', 'pinnedEntries', 'readDir', 'gitFlow', 'searchFiles']
+    case 'files.tree-changed':
+      // entries appeared or disappeared under a watched directory — tree rows, pins, flow,
+      // and content search (open greps keep hits in files that no longer have them otherwise)
+      return ['readDir', 'pinnedEntries', 'gitFlow', 'searchFiles', 'searchCode', 'searchText']
+    case 'files.content-changed':
+      // a watched file body changed outside the app — re-read open documents and diffs
+      return ['readFile', 'previewHtml', 'gitDiffFile', 'diffReading']
+    case 'git.working-tree-changed':
+      // the Git half of today's coarse working-tree event
+      return [
+        'gitStatus',
+        'gitFlow',
+        'gitRangeFlow',
+        'diffReading',
+        'gitDiffFile',
+        'gitCommitConventions',
+        'gitSuggestions',
+        'reviewedPaths',
+        'gitHead',
+        'gitLog',
+        'gitFileLog',
+        'readFile',
+      ]
+    case 'review.changed':
+      // union of feature-view, comments, layers, evidence
+      return [
+        'featureView',
+        'featureReading',
+        'worktreeInbox',
+        'reviewComments',
+        'repoLayers',
+        'loopEvidence',
+        'loopEvidenceHtml',
+        'reviewEvidenceDocs',
+        'reviewEvidenceAssets',
+        'reviewEvidenceAsset',
+        'gitFlow',
+        'gitRangeFlow',
+        'gitCommitFlow',
+      ]
+    case 'board.changed':
+      return ['boardCards']
+    case 'actions.changed':
+      return ['actions']
+  }
+}
+
+/**
+ * Recover from a freshness requirement the runtime raised.
+ * - `session` scope (reconnect / replaced daemon): invalidate every daemon-derived query.
+ * - `project` scope (sequence gap): invalidate every project-derived procedure name wholesale.
+ */
+export function proceduresForRecovery(
+  requirement: FreshnessRequirement,
+): 'all' | readonly string[] {
+  if (requirement.scope.kind === 'session') return 'all'
+  // Narrower than the whole client, still wholesale: a gap says only that something was missed.
+  const kinds: SessionChange['kind'][] = [
+    'files.scope-changed',
+    'files.tree-changed',
+    'files.content-changed',
+    'git.working-tree-changed',
+    'review.changed',
+    'board.changed',
+    'actions.changed',
+  ]
+  const names = new Set<string>()
+  for (const kind of kinds) {
+    const change = (
+      kind === 'files.tree-changed' || kind === 'files.content-changed'
+        ? {
+            kind,
+            projectPath: requirement.scope.projectPath,
+            paths: [requirement.scope.projectPath],
+          }
+        : { kind, projectPath: requirement.scope.projectPath }
+    ) as SessionChange
+    for (const name of proceduresForChange(change)) names.add(name)
+  }
+  return [...names]
+}
+
+function invalidateProcedures(environmentId: string, names: readonly string[]): void {
+  for (const name of names) {
+    queryClient.invalidateQueries({ queryKey: daemonKeys.procedure(environmentId, name) })
+  }
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -308,11 +418,18 @@ function DaemonLifecycle(): null {
   useEffect(() => {
     // Lazy by contract: the socket opens once a repo is open, not merely because a daemon is paired.
     if (environmentId === null || repoPath === null) return
-    return daemonSession.subscribe((frame) => {
-      if (frame.t !== 'app-event') return
-      for (const name of APP_EVENT_INVALIDATIONS[frame.event]) {
-        queryClient.invalidateQueries({ queryKey: daemonKeys.procedure(environmentId, name) })
-      }
+    return subscribeSessionChanges({
+      onChange: (change) => {
+        invalidateProcedures(environmentId, proceduresForChange(change))
+      },
+      onFreshnessRequired: (requirement) => {
+        const target = proceduresForRecovery(requirement)
+        if (target === 'all') {
+          queryClient.invalidateQueries({ queryKey: daemonKeys.environment(environmentId) })
+          return
+        }
+        invalidateProcedures(environmentId, target)
+      },
     })
   }, [environmentId, repoPath])
 

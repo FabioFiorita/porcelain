@@ -31,10 +31,8 @@ import { createSessionWatchInterests, type SessionWatchSink } from './session-wa
  * is allowed to do it. Authorization, handshake, subscriber lifecycle, watch registration, and
  * terminal stream forwarding meet here instead of being scattered across one connection class.
  *
- * UNACTIVATED. Daemon construction still opens sessions through `apps/daemon/src/net/session.ts`;
- * nothing here is referenced by it. `RT-005` is the sole activation owner: it supplies the
- * transport over the real socket, the terminal bridge over the terminal manager, and the watch
- * sink over the file watchers, then deletes the legacy handler in one switch.
+ * Activated by `session/live-session.ts`: real sockets, terminal bridge over the terminal
+ * manager, and file-watch sinks. Clients speak the versioned hello/ready gateway only.
  *
  * Transport-agnostic on purpose. No `ws` import, no socket type, no timers — a `SessionTransport`
  * is two functions, so the whole protocol is table-testable without opening a port, and the

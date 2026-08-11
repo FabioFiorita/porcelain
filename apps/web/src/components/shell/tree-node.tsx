@@ -308,7 +308,7 @@ function DirNode({
   const [expanded, setExpanded] = useState(false)
   const children = useReadDir(entry.path, expanded)
   // Register this dir as watched while it's open so an external add/remove inside it
-  // live-refreshes the tree (see `useWatchTreeDirs`); cleanup on collapse or unmount.
+  // live-refreshes the tree (see `useSessionRuntime` interests); cleanup on collapse or unmount.
   const addWatchedDir = useTreeDirsStore((s) => s.add)
   const removeWatchedDir = useTreeDirsStore((s) => s.remove)
   useEffect(() => {

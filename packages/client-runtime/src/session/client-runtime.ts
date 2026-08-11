@@ -139,6 +139,11 @@ export type SessionClientRuntime = {
   readonly receive: (raw: string) => void
   /** The connection dropped. The adapter decides whether and when to reconnect. */
   readonly disconnected: () => void
+  /**
+   * Send one client frame on the open session (terminal stream commands, etc.).
+   * No-op until `ready`; adapters never open a second socket for terminal traffic.
+   */
+  readonly send: (frame: unknown) => void
   /** Declare the project this session watches; interests are scoped to it. */
   readonly selectProject: (projectPath: string) => void
   /** Declare a watch interest, held until the returned registration is released. */
@@ -243,6 +248,11 @@ export function createSessionClientRuntime({
       transport = undefined
       status = 'disconnected'
       tracker.disconnected()
+    },
+
+    send(frame) {
+      if (status !== 'open') return
+      send(frame)
     },
 
     selectProject(nextProjectPath) {

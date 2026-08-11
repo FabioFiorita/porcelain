@@ -2,7 +2,7 @@
 import { mkdir, mkdtemp, readFile, rm, stat, utimes, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { MAX_PASTE_IMAGE_BYTES } from '@porcelain/contracts'
+import { MAX_PASTE_IMAGE_BYTES } from '@porcelain/contracts/terminal'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Same reason terminal-manager.test.ts mocks this: a real PTY would spawn a real login

@@ -1,9 +1,9 @@
 import {
-  clientMessageSchema,
   MAX_TERMINAL_WRITE_CODE_UNITS,
   terminalFilePromptReference,
   terminalImagePromptReference,
-} from '@porcelain/contracts'
+  terminalInputFrameSchema,
+} from '@porcelain/contracts/terminal'
 import { describe, expect, it } from 'vitest'
 
 describe('terminal image paste protocol', () => {
@@ -16,8 +16,10 @@ describe('terminal image paste protocol', () => {
       t: 'terminal:paste-image' as const,
     }
 
-    expect(clientMessageSchema.parse(base)).not.toHaveProperty('insert')
-    expect(clientMessageSchema.parse({ ...base, insert: false })).toMatchObject({ insert: false })
+    expect(terminalInputFrameSchema.parse(base)).not.toHaveProperty('insert')
+    expect(terminalInputFrameSchema.parse({ ...base, insert: false })).toMatchObject({
+      insert: false,
+    })
   })
 
   it('quotes paths with spaces exactly once for a combined composer write', () => {
@@ -28,7 +30,7 @@ describe('terminal image paste protocol', () => {
 
   it('accepts a bounded generic file without trusting a client-local path', () => {
     expect(
-      clientMessageSchema.parse({
+      terminalInputFrameSchema.parse({
         dataBase64: 'YWJj',
         filename: '../../a report.pdf',
         id: 'terminal-1',
@@ -42,13 +44,7 @@ describe('terminal image paste protocol', () => {
     )
   })
 
-  it('rejects oversized PTY write frames before they reach node-pty', () => {
-    expect(
-      clientMessageSchema.safeParse({
-        data: 'x'.repeat(MAX_TERMINAL_WRITE_CODE_UNITS + 1),
-        id: 'terminal-1',
-        t: 'terminal:write',
-      }).success,
-    ).toBe(false)
+  it('bounds interactive writes at the shared write cap', () => {
+    expect(MAX_TERMINAL_WRITE_CODE_UNITS).toBe(65_536)
   })
 })

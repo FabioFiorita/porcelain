@@ -1,12 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import {
-  clientMessageSchema,
-  MAX_PASTE_FILE_BYTES as LEGACY_MAX_PASTE_FILE_BYTES,
-  MAX_PASTE_IMAGE_BYTES as LEGACY_MAX_PASTE_IMAGE_BYTES,
-  MAX_SESSION_MESSAGE_BYTES as LEGACY_MAX_SESSION_MESSAGE_BYTES,
-  MAX_TERMINAL_WRITE_CODE_UNITS as LEGACY_MAX_TERMINAL_WRITE_CODE_UNITS,
-} from '../ws-protocol'
-import {
   MAX_PASTE_FILE_BASE64_CODE_UNITS,
   MAX_PASTE_FILE_BYTES,
   MAX_PASTE_FILENAME_CODE_UNITS,
@@ -24,16 +17,11 @@ import {
 } from './terminal.stream'
 
 /**
- * The legacy `ws-protocol.ts` values are still the ones the daemon and both clients run on.
- * Asserting equality here is what makes this transcription drift-proof until the coordinated
- * cutover deletes that module.
+ * Caps are self-owned by this module. Literals below are the wire contract; they are not
+ * mirrored from a second horizontal protocol file.
  */
 describe('Terminal stream caps', () => {
-  it('transcribes every current cap exactly', () => {
-    expect(MAX_TERMINAL_WRITE_CODE_UNITS).toBe(LEGACY_MAX_TERMINAL_WRITE_CODE_UNITS)
-    expect(MAX_SESSION_MESSAGE_BYTES).toBe(LEGACY_MAX_SESSION_MESSAGE_BYTES)
-    expect(MAX_PASTE_IMAGE_BYTES).toBe(LEGACY_MAX_PASTE_IMAGE_BYTES)
-    expect(MAX_PASTE_FILE_BYTES).toBe(LEGACY_MAX_PASTE_FILE_BYTES)
+  it('owns every current cap exactly', () => {
     expect(MAX_TERMINAL_WRITE_CODE_UNITS).toBe(65_536)
     expect(MAX_SESSION_MESSAGE_BYTES).toBe(12 * 1024 * 1024)
     expect(MAX_PASTE_IMAGE_BYTES).toBe(4_194_304)
@@ -51,7 +39,6 @@ describe('Terminal stream caps', () => {
       data: 'x'.repeat(MAX_TERMINAL_WRITE_CODE_UNITS),
     }
     expect(terminalInputFrameSchema.safeParse(atCap).success).toBe(true)
-    expect(clientMessageSchema.safeParse(atCap).success).toBe(true)
     expect(
       terminalInputFrameSchema.safeParse({
         ...atCap,

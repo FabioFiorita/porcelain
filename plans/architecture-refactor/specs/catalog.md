@@ -45,7 +45,7 @@ an external choice or authorization.
 | `RT-002` | Landed | Daemon publisher, target gateway, and bounded watch management |
 | `RT-003` | Landed | Shared client recovery and declarative Files-interest runtime |
 | `RT-004` | Landed | Web binds to target realtime runtime while mobile legacy remains bounded |
-| `RT-005` | Ready | Mobile binds and deletes the entire legacy realtime path |
+| `RT-005` | Landed | Mobile binds and deletes the entire legacy realtime path |
 | `TST-001` | Landed | Contract fixture builders and transport-independent validating daemon mock |
 | `DAE-001` | Draft | Explicit capability construction and bound-operation router context |
 | `TST-002` | Draft | Operation fake conventions and controlled adapter integration fixtures |

@@ -10,11 +10,8 @@ import {
  * sequenced `session:change` frame, and the one place that decides which sessions are
  * allowed to see it.
  *
- * UNACTIVATED. Nothing in daemon construction references this module. `RT-005` is the sole
- * activation owner: it moves the real event sources onto `connectSource`, wires the gateway's
- * subscriptions, and deletes the legacy `app-events` fan-out in the same switch. Until then
- * `apps/daemon/src/app-events.ts` remains the live bus and this module is a second *prepared*
- * publisher, never a second *running* one.
+ * Activated with the session gateway in `session/live-session.ts`. Domain sources publish
+ * through `publishSessionChange` / `connectSource`; there is one process-wide publisher.
  *
  * Three rules make it different from the bus it replaces:
  *

@@ -2,7 +2,7 @@ import {
   MAX_TERMINAL_WRITE_CODE_UNITS,
   terminalFilePromptReference,
   terminalImagePromptReference,
-} from '@porcelain/contracts'
+} from '@porcelain/contracts/terminal'
 import { create } from 'zustand'
 
 type TerminalComposerAttachmentBase = {

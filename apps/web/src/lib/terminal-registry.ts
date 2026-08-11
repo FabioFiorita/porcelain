@@ -1,4 +1,4 @@
-import { MAX_PASTE_FILE_BYTES } from '@porcelain/contracts'
+import { MAX_PASTE_FILE_BYTES } from '@porcelain/contracts/terminal'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useTerminalInputStore } from '@renderer/stores/terminal-input'
 import type { GhosttyTheme } from '@renderer/terminal/ghostty/core'

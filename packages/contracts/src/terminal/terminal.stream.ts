@@ -3,7 +3,7 @@ import { terminalStatusSchema } from './terminal.contract'
 
 /**
  * The terminal stream protocol: PTY lifecycle, ordered output, and the input a client pushes
- * into a session. Transcribed from the terminal half of `../ws-protocol.ts`, including every
+ * into a session. Transcribed from the terminal half of the deleted horizontal session protocol, including every
  * one of its resource caps.
  *
  * Terminal is a stateful stream, not a change notification, and stays out of the session
@@ -238,6 +238,18 @@ export const terminalInputFrameSchema = z.discriminatedUnion('t', [
   terminalFilePastedSchema,
 ])
 export type TerminalInputFrame = z.infer<typeof terminalInputFrameSchema>
+
+/** Prompt text that makes one daemon-stored image visible to an agent. */
+export function terminalImagePromptReference(path: string): string {
+  const quotedPath = path.includes(' ') ? `"${path}"` : path
+  return `Analyze this image: ${quotedPath} `
+}
+
+/** Prompt text that makes one daemon-stored non-image attachment visible to an agent. */
+export function terminalFilePromptReference(path: string): string {
+  const quotedPath = path.includes(' ') ? `"${path}"` : path
+  return `Analyze this file: ${quotedPath} `
+}
 
 /** Representative terminal stream values used by boundary tests and client mocks. */
 export const terminalStreamFixtures = {

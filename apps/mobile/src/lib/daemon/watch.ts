@@ -7,12 +7,11 @@ import { daemonSession } from './session'
  * and pushes when the agent writes underneath you.
  *
  * The daemon only watches what a session explicitly registers — a healthy socket is not a
- * promise of freshness. `working-tree` comes back for a watched file and `file-tree` for a
- * watched directory; `APP_EVENT_INVALIDATIONS` turns both into query invalidation, so a
- * caller never touches the cache itself.
+ * promise of freshness. Interests ride the shared session runtime (`registerWatchInterest`);
+ * domain change notifications invalidate the authoritative queries in `provider.tsx`.
  *
- * Watches are per-socket daemon-side and re-sent on reconnect (see `session.ts`). Registering
- * is idempotent: several screens may watch the same path, and the session unions them.
+ * Watches are re-sent after every ready (including reconnect). Registering is idempotent:
+ * several screens may watch the same path, and the runtime unions them by reference count.
  */
 export function useDaemonWatch(paths: {
   files?: readonly string[]
@@ -27,6 +26,6 @@ export function useDaemonWatch(paths: {
     const files = fileKey === '' ? [] : fileKey.split('\n')
     const dirs = dirKey === '' ? [] : dirKey.split('\n')
     if (files.length === 0 && dirs.length === 0) return
-    return daemonSession.watch({ dirs, files })
+    return daemonSession.registerWatchInterest({ dirs, files })
   }, [dirKey, fileKey])
 }

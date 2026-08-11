@@ -11,7 +11,7 @@
     "./paths": "./src/paths.ts",
     "./terminal-keys": "./src/terminal-keys.ts",
     "./terminal-touch-scroll": "./src/terminal-touch-scroll.ts",
-    "./session-protocol": "./src/session-protocol.ts",
+    "./session/transport": "./src/session/transport.ts",
     "./session/client-runtime": "./src/session/client-runtime.ts",
     "./session/interests": "./src/session/interests.ts",
     "./session/recovery": "./src/session/recovery.ts",

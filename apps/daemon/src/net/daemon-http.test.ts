@@ -26,10 +26,15 @@ vi.mock('../terminal/terminal-manager', () => ({
 }))
 
 import { router } from '../api'
+import {
+  closeAllSessions,
+  closeClientSessions,
+  createSession,
+  sessionCount,
+} from '../session/live-session'
 import { initConfigDir } from '../stores/config-store'
 import { attachTerminal } from '../terminal/terminal-manager'
 import { createDaemonHttp, type DaemonHttpOptions } from './daemon-http'
-import { closeAllSessions, closeClientSessions, createSession, sessionCount } from './session'
 
 const TOKEN = 'test-token'
 const CLIENT_TOKEN = 'client-token'
@@ -675,6 +680,13 @@ function nextMessage(ws: WebSocket): Promise<Record<string, unknown>> {
   })
 }
 
+/** Complete the versioned hello/ready handshake before terminal or watches traffic. */
+async function readySession(ws: WebSocket): Promise<void> {
+  const reply = nextMessage(ws)
+  ws.send(JSON.stringify({ t: 'session:hello', protocolVersion: 1 }))
+  await expect(reply).resolves.toMatchObject({ t: 'session:ready', protocolVersion: 1 })
+}
+
 describe('daemon ws surface — the /session upgrade gate + dispatch', () => {
   it('rejects a /session upgrade with no subprotocol', async () => {
     await expect(connect()).rejects.toBeDefined()
@@ -720,8 +732,9 @@ describe('daemon ws surface — the /session upgrade gate + dispatch', () => {
     ).rejects.toBeDefined()
   })
 
-  it('accepts the right subprotocol and answers terminal:create', async () => {
+  it('accepts the right subprotocol and answers terminal:create after ready', async () => {
     const ws = await connect(`porcelain.${TOKEN}`)
+    await readySession(ws)
     const reply = nextMessage(ws)
     ws.send(JSON.stringify({ t: 'terminal:create', reqId: 'r1', name: 't', cwd: '/tmp' }))
     expect(await reply).toEqual({ t: 'terminal:created', reqId: 'r1', id: 'term-1' })
@@ -731,6 +744,7 @@ describe('daemon ws surface — the /session upgrade gate + dispatch', () => {
   it('replies found:false for an unknown terminal:attach id', async () => {
     vi.mocked(attachTerminal).mockReturnValueOnce(null)
     const ws = await connect(`porcelain.${TOKEN}`)
+    await readySession(ws)
     const reply = nextMessage(ws)
     ws.send(JSON.stringify({ t: 'terminal:attach', reqId: 'r2', id: 'ghost' }))
     expect(await reply).toMatchObject({
@@ -745,6 +759,7 @@ describe('daemon ws surface — the /session upgrade gate + dispatch', () => {
 
   it('drops malformed input without closing the socket', async () => {
     const ws = await connect(`porcelain.${TOKEN}`)
+    await readySession(ws)
     ws.send('}{ not json')
     const reply = nextMessage(ws)
     ws.send(JSON.stringify({ t: 'terminal:create', reqId: 'r3', name: 't', cwd: '/tmp' }))

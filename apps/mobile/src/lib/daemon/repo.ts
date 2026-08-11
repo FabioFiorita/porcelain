@@ -21,5 +21,7 @@ export async function openRepo(path: string): Promise<void> {
   if (!isPaired(environment)) return
   const repo = await callDaemon(getDaemonClient(environment), openRepoPathMutation, path)
   await environmentActions.setActiveRepoPath(environment.id, repo.path)
-  daemonSession.send({ repo: repo.path, t: 'session:hello' })
+  // Interests are project-scoped: declare the project on the live session without tearing the
+  // socket down (a reconnect would drop every attached terminal).
+  daemonSession.selectProject(repo.path)
 }

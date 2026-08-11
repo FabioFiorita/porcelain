@@ -1,4 +1,4 @@
-import type { AppEvent } from '@porcelain/contracts'
+import type { SessionChange } from '@porcelain/contracts/session'
 import { create } from 'zustand'
 import { usePreferencesStore } from './preferences'
 
@@ -50,31 +50,29 @@ usePreferencesStore.subscribe((state, prev) => {
 })
 
 /**
- * Which rail dot an agent-push event lights, or `null` for events that carry no
- * attention signal (plan 035, decision 2):
- * - `feature-view` / `evidence` / `comments` → Feature (all surface there)
- * - `board` → Board ; `actions` → Terminal
- * - `layers` (regroups the open view visibly) + the on-disk watches → no dot
+ * Which rail dot a session change lights, or `null` for signals that carry no
+ * attention cue (plan 035, decision 2):
+ * - `review.changed` → Feature
+ * - `board.changed` → Board
+ * - `actions.changed` → Terminal
+ * - tree / working-tree / content → Changes
+ * - scope-only config → no dot
  */
-export function unreadTabFor(event: AppEvent): UnreadTab | null {
-  switch (event) {
-    case 'feature-view':
-    case 'evidence':
-    case 'comments':
+export function unreadTabFor(change: SessionChange): UnreadTab | null {
+  switch (change.kind) {
+    case 'review.changed':
       return 'feature'
-    case 'board':
+    case 'board.changed':
       return 'board'
-    case 'actions':
+    case 'actions.changed':
       return 'terminal'
-    case 'working-tree':
-    case 'file-tree':
-      // Tree dirty after agent edits — soft cue on Changes (U9).
+    case 'files.tree-changed':
+    case 'files.content-changed':
+    case 'git.working-tree-changed':
+      // Tree or working-tree dirty after agent edits — soft cue on Changes (U9).
       return 'changes'
-    case 'scope':
-    case 'layers':
+    case 'files.scope-changed':
       // Nav/grouping config — live-refresh without a rail unread dot.
-      return null
-    default:
       return null
   }
 }

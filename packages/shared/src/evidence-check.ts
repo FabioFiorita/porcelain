@@ -1,7 +1,7 @@
 /**
  * Structured verification checks attached to loop evidence — the pass/fail/skip
  * result of each verification step (lint, tests, build, e2e). Runtime code
- * shared between renderer and daemon lives in `src/shared/` (like ws-protocol /
+ * shared between renderer and daemon lives in `src/shared/` (like session contracts /
  * agent-protocol): this node-free leaf lets the RENDERER import the shape + the
  * pure overall-status helper without runtime-importing `@backend/*` and pulling
  * evidence-store's `node:fs` graph into the browser bundle. `evidence-store.ts`

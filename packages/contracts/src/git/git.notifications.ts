@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 /**
  * Git change notifications — the Git half of the current coarse `working-tree` app event
- * (`../ws-protocol.ts`), which today makes both open documents and every Git surface
+ * (the deleted horizontal session protocol), which today makes both open documents and every Git surface
  * (status, flow, diffs, log, reviewed marks) stale through one undifferentiated signal.
  *
  * One category is deliberate: Git staleness is answered by refetching the Git queries the

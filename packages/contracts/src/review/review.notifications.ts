@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 /**
  * Review change notifications — the domain-owned replacement for the `feature-view`,
- * `comments`, `layers`, and `evidence` entries in `appEventSchema` (`../ws-protocol.ts`).
+ * `comments`, `layers`, and `evidence` entries in `appEventSchema` (the deleted horizontal session protocol).
  *
  * Those four are one category here because the current publisher already fires them
  * together: a single write under `.porcelain/active-review/` emits the matching event plus

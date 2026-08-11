@@ -3,7 +3,7 @@ import { z } from 'zod'
 /**
  * Files change notifications — the domain-owned replacement for the coarse `scope`,
  * `file-tree`, and file-content half of `working-tree` entries in `appEventSchema`
- * (`../ws-protocol.ts`, still live until the coordinated legacy deletion).
+ * (formerly the horizontal session protocol; RT-005 deleted that dual path).
  *
  * A notification states that daemon-owned Files data changed; it never carries the
  * authoritative entity, so a consumer stays free to recover through queries and may

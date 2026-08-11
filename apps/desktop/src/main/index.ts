@@ -81,7 +81,7 @@ app.whenReady().then(async () => {
   installAppMenu()
 
   // Spawn the daemon (the Electron-free backend: appRouter over HTTP, terminal/
-  // watch/app-events over the WS session) before the first window so the preload's
+  // watch/legacy event bus over the WS session) before the first window so the preload's
   // sync daemon-url getter has a port to hand out. Config seeding, the agent-channel
   // migrations, and the channel watchers all run daemon-side now (backend/server.ts).
   try {

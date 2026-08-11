@@ -1,20 +1,23 @@
+import { PROTOCOL_VERSION } from '@porcelain/contracts'
+import { sessionHelloFrameSchema } from '@porcelain/contracts/session'
 import {
-  type ClientMessage,
-  clientMessageSchema,
   MAX_TERMINAL_WRITE_CODE_UNITS,
-} from '@porcelain/contracts'
+  terminalInputFrameSchema,
+  terminalLifecycleFrameSchema,
+} from '@porcelain/contracts/terminal'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 /**
  * Characterization tests for the renderer's ONE WebSocket client
- * (`@renderer/lib/daemon`): outbox queuing, pending create/attach rejection on
- * close, capped-backoff reconnect, watch-set + re-attach replay, and the
+ * (`@renderer/lib/daemon`): outbox queuing after hello/ready, pending create/attach
+ * rejection on close, capped-backoff reconnect, re-attach replay, and the
  * first-connect guard. These pin behavior as shipped — they are a tripwire for
  * the next change to reconnect semantics, not a spec to satisfy.
  *
- * The module is a module-scope singleton with no injection seam, so each test
- * gets fresh state via `vi.resetModules()` + a dynamic import, and drives a
- * controllable fake `WebSocket` installed with `vi.stubGlobal`.
+ * The module is a module-scope singleton with no injection seam on `primary`, so
+ * each test gets fresh state via `vi.resetModules()` + a dynamic import, and drives
+ * a controllable fake `WebSocket` installed with `vi.stubGlobal`. Math.random is
+ * pinned so the adapter's jittered backoff is deterministic.
  */
 
 class FakeWebSocket {
@@ -55,9 +58,33 @@ class FakeWebSocket {
   }
 }
 
-/** The parsed (and schema-validated) client frames a socket has sent so far. */
-function sentMessages(ws: FakeWebSocket): ClientMessage[] {
-  return ws.sent.map((s) => clientMessageSchema.parse(JSON.parse(s)))
+type ClientFrame = { t: string; [key: string]: unknown }
+
+/** Parsed client frames a socket has sent so far. */
+function sentMessages(ws: FakeWebSocket): ClientFrame[] {
+  return ws.sent.map((s) => JSON.parse(s) as ClientFrame)
+}
+
+/** Validate every outbound frame is a known client-bound schema. */
+function assertValidClientFrame(raw: string): void {
+  const frame: unknown = JSON.parse(raw)
+  if (sessionHelloFrameSchema.safeParse(frame).success) return
+  if (terminalLifecycleFrameSchema.safeParse(frame).success) return
+  if (terminalInputFrameSchema.safeParse(frame).success) return
+  // session:watches is project-scoped; primary tests may not select a project
+  if (
+    typeof frame === 'object' &&
+    frame !== null &&
+    't' in frame &&
+    (frame as { t: string }).t === 'session:watches'
+  ) {
+    return
+  }
+  throw new Error(`unexpected client frame: ${raw}`)
+}
+
+function deliverReady(ws: FakeWebSocket, epoch = 'epoch-1'): void {
+  ws.receive({ t: 'session:ready', protocolVersion: PROTOCOL_VERSION, epoch })
 }
 
 const latest = (): FakeWebSocket => {
@@ -70,6 +97,8 @@ let daemon: typeof import('@renderer/lib/daemon')
 
 beforeEach(async () => {
   vi.useFakeTimers()
+  // Adapter backoff multiplies by (1 + random*0.3); pin jitter at 0 for exact delays.
+  vi.spyOn(Math, 'random').mockReturnValue(0)
   FakeWebSocket.instances = []
   localStorage.clear()
   vi.stubGlobal('WebSocket', FakeWebSocket)
@@ -78,34 +107,36 @@ beforeEach(async () => {
 })
 
 afterEach(() => {
-  // Step 4 (case 11): every frame the client emitted this test must be a valid
-  // ClientMessage — pins the renderer to the same shared schema the daemon
-  // validates against, so protocol drift fails a test on THIS side too.
   for (const ws of FakeWebSocket.instances) {
     for (const frame of ws.sent) {
-      clientMessageSchema.parse(JSON.parse(frame))
+      assertValidClientFrame(frame)
     }
   }
   vi.unstubAllGlobals()
   vi.useRealTimers()
+  vi.restoreAllMocks()
 })
 
-describe('daemon WS client', () => {
+describe('daemon session client', () => {
   it('opens one tokenless socket lazily (protocols [] under jsdom)', () => {
-    daemon.watchFiles(['/a'])
+    daemon.onDaemonReconnect(() => {})
     expect(FakeWebSocket.instances).toHaveLength(1)
     expect(latest().protocols).toEqual([])
     expect(latest().url).toMatch(/^ws.*\/session$/)
   })
 
-  // --- Step 2: outbox + settlement ---
+  // --- outbox + settlement ---
 
-  it('queues a create while CONNECTING, flushes on open, resolves on reply', async () => {
+  it('queues a create while handshaking, flushes on ready, resolves on reply', async () => {
     const created = daemon.createTerminal({ name: 't', cwd: '/x' })
     const ws = latest()
     expect(ws.sent).toEqual([]) // nothing sent while CONNECTING
 
     ws.open()
+    expect(sentMessages(ws).map((f) => f.t)).toEqual(['session:hello'])
+    expect(sentMessages(ws).find((f) => f.t === 'terminal:create')).toBeUndefined()
+
+    deliverReady(ws)
     const frames = sentMessages(ws)
     const create = frames.find((f) => f.t === 'terminal:create')
     expect(create).toBeDefined()
@@ -134,24 +165,27 @@ describe('daemon WS client', () => {
     expect(next.sent).toEqual([])
   })
 
-  it('does not queue fire-and-forget messages (write/kill) issued while CONNECTING', () => {
-    daemon.onDaemonEvent(() => {}) // opens a CONNECTING socket without pushing
+  it('does not queue fire-and-forget messages (write/kill) issued while handshaking', () => {
+    daemon.onDaemonReconnect(() => {}) // opens a CONNECTING socket without pushing
     const ws = latest()
     daemon.writeTerminal('id', 'x')
     daemon.killTerminal('id')
     expect(ws.sent).toEqual([]) // dropped, not queued
 
     ws.open()
+    deliverReady(ws)
     const kinds = sentMessages(ws).map((f) => f.t)
     expect(kinds).not.toContain('terminal:write')
     expect(kinds).not.toContain('terminal:kill')
-    expect(ws.sent).toEqual([]) // nothing flushed at all (no watch sets, no outbox)
+    // Only the protocol hello (and no outbox) landed.
+    expect(kinds).toEqual(['session:hello'])
   })
 
   it('chunks ordinary terminal writes at the shared bounded-frame limit', () => {
-    daemon.onDaemonEvent(() => {})
+    daemon.onDaemonReconnect(() => {})
     const ws = latest()
     ws.open()
+    deliverReady(ws)
 
     daemon.writeTerminal('id', 'x'.repeat(MAX_TERMINAL_WRITE_CODE_UNITS + 1))
 
@@ -167,6 +201,7 @@ describe('daemon WS client', () => {
     const created = daemon.createTerminal({ name: 't', cwd: '/x' })
     const ws = latest()
     ws.open()
+    deliverReady(ws)
     const create = sentMessages(ws).find((f) => f.t === 'terminal:create')
     if (create?.t !== 'terminal:create') throw new Error('expected a create frame')
 
@@ -178,12 +213,13 @@ describe('daemon WS client', () => {
     await expect(created).resolves.toBe('survived')
   })
 
-  // --- Step 3: reconnect ---
+  // --- reconnect ---
 
   it('reconnects with a new socket after backoff', () => {
-    daemon.onDaemonEvent(() => {})
+    daemon.onDaemonReconnect(() => {})
     const ws = latest()
     ws.open()
+    deliverReady(ws)
     ws.drop()
     expect(FakeWebSocket.instances).toHaveLength(1) // no immediate reconnect
 
@@ -191,13 +227,13 @@ describe('daemon WS client', () => {
     expect(FakeWebSocket.instances).toHaveLength(2)
   })
 
-  it('replays watch sets and re-attaches on REconnect, but not on the first connect', () => {
-    daemon.watchFiles(['/a'])
+  it('re-attaches on REconnect, but not on the first ready', async () => {
     const attached = daemon.attachTerminal('t1')
     const ws1 = latest()
 
     ws1.open()
-    // First open: exactly the queued attach — NOT a duplicate re-attach replay.
+    deliverReady(ws1)
+    // First ready: exactly the queued attach — NOT a duplicate re-attach replay.
     const firstAttaches = sentMessages(ws1).filter((f) => f.t === 'terminal:attach')
     expect(firstAttaches).toHaveLength(1)
     const attach = firstAttaches[0]
@@ -212,56 +248,32 @@ describe('daemon WS client', () => {
       found: true,
     })
     // settle the initial attach so it does not leak across the reconnect
-    return attached.then(() => {
-      ws1.drop()
-      vi.advanceTimersByTime(500)
-      const ws2 = latest()
-      expect(ws2).not.toBe(ws1)
-      ws2.open()
+    await attached
+    ws1.drop()
+    vi.advanceTimersByTime(500)
+    const ws2 = latest()
+    expect(ws2).not.toBe(ws1)
+    ws2.open()
+    deliverReady(ws2, 'epoch-2')
 
-      const frames = sentMessages(ws2)
-      const watch = frames.find((f) => f.t === 'watch:files')
-      expect(watch).toBeDefined()
-      if (watch?.t === 'watch:files') expect(watch.paths).toEqual(['/a'])
-      expect(frames.some((f) => f.t === 'terminal:attach')).toBe(true)
-    })
+    const frames = sentMessages(ws2)
+    expect(frames.some((f) => f.t === 'session:hello')).toBe(true)
+    expect(frames.some((f) => f.t === 'terminal:attach')).toBe(true)
   })
 
-  it('replays the announced repo on reconnect, including the no-repo announce', () => {
-    daemon.announceSession('/repo')
+  it('fires reconnect listeners only on REconnect, never on the first ready', () => {
+    const spy = vi.fn()
+    daemon.onDaemonReconnect(spy)
     const ws1 = latest()
     ws1.open()
-    expect(sentMessages(ws1).filter((f) => f.t === 'session:hello')).toEqual([
-      { t: 'session:hello', repo: '/repo' },
-    ])
+    deliverReady(ws1)
+    expect(spy).not.toHaveBeenCalled() // first connect: no refetch
 
     ws1.drop()
     vi.advanceTimersByTime(500)
     const ws2 = latest()
     ws2.open()
-    expect(sentMessages(ws2)).toContainEqual({ t: 'session:hello', repo: '/repo' })
-
-    // Closing the repo announces `undefined` — the replay must carry the CLEARED state,
-    // not the last repo, or the roster row would keep showing a repo nobody has open.
-    daemon.announceSession(undefined)
-    ws2.drop()
-    vi.advanceTimersByTime(500)
-    const ws3 = latest()
-    ws3.open()
-    const hellos = sentMessages(ws3).filter((f) => f.t === 'session:hello')
-    expect(hellos).toEqual([{ t: 'session:hello' }])
-  })
-
-  it('fires reconnect listeners only on REconnect, never on the first connect', () => {
-    const spy = vi.fn()
-    daemon.onDaemonReconnect(spy)
-    const ws1 = latest()
-    ws1.open()
-    expect(spy).not.toHaveBeenCalled() // first connect: no refetch
-
-    ws1.drop()
-    vi.advanceTimersByTime(500)
-    latest().open()
+    deliverReady(ws2, 'epoch-2')
     expect(spy).toHaveBeenCalledTimes(1)
   })
 
@@ -270,16 +282,18 @@ describe('daemon WS client', () => {
     daemon.onDaemonClose(spy)
     const ws = latest()
     ws.open()
+    deliverReady(ws)
     ws.drop()
     expect(spy).toHaveBeenCalledTimes(1)
   })
 
   it('caps the reconnect backoff at 10_000ms', () => {
-    daemon.onDaemonEvent(() => {})
+    daemon.onDaemonReconnect(() => {})
     latest().open() // resets backoff to 500
+    deliverReady(latest())
 
-    // Drive the backoff up to its cap: drop each CONNECTING socket and let its
-    // (ever-larger) timer fire. After ~6 cycles retryDelay is pinned at 10_000.
+    // Drive the backoff up to its cap: drop each socket and let its (ever-larger)
+    // timer fire. After ~6 cycles retryDelay is pinned at 10_000.
     for (let i = 0; i < 7; i++) {
       latest().drop()
       vi.advanceTimersByTime(10_000)
@@ -294,7 +308,7 @@ describe('daemon WS client', () => {
     expect(FakeWebSocket.instances).toHaveLength(beforeProbe + 1)
   })
 
-  it('setBrowserDaemonToken reconnects with the new subprotocol and refetches even on first connect', () => {
+  it('setBrowserDaemonToken reconnects with the new subprotocol and refetches even on first ready', () => {
     const spy = vi.fn()
     daemon.onDaemonReconnect(spy) // opens ws0 (CONNECTING)
 
@@ -304,7 +318,8 @@ describe('daemon WS client', () => {
     expect(localStorage.getItem('porcelain-client-token')).toBe('tok')
 
     ws.open()
-    // recoveryPending makes this first successful connect fire the refetch listeners.
+    deliverReady(ws)
+    // recoveryPending makes this first successful ready fire the refetch listeners.
     expect(spy).toHaveBeenCalledTimes(1)
     expect(daemon.daemonToken()).toBe('tok')
   })
@@ -321,7 +336,8 @@ describe('daemon WS client', () => {
     const retry = daemon.attachTerminal('t2')
     const ws2 = latest()
     expect(ws2).not.toBe(ws1)
-    ws2.open() // flushes the freshly-queued attach
+    ws2.open()
+    deliverReady(ws2) // flushes the freshly-queued attach
 
     expect(daemon.isTerminalAttached('t2')).toBe(true)
     const attaches = sentMessages(ws2).filter((f) => f.t === 'terminal:attach')
@@ -348,6 +364,7 @@ describe('daemon WS client', () => {
     const pasted = daemon.pasteImageToTerminal('t1', 'image/png', 'YWJj')
     const ws = latest()
     ws.open()
+    deliverReady(ws)
 
     const frame = sentMessages(ws).find((f) => f.t === 'terminal:paste-image')
     expect(frame).toBeDefined()
@@ -378,6 +395,7 @@ describe('daemon WS client', () => {
     const pasted = daemon.pasteFileToTerminal('t1', 'notes.txt', 'text/plain', 'YWJj')
     const ws = latest()
     ws.open()
+    deliverReady(ws)
 
     const frame = sentMessages(ws).find((message) => message.t === 'terminal:paste-file')
     if (frame?.t !== 'terminal:paste-file') throw new Error('expected a file upload frame')

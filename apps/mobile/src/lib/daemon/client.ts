@@ -1,4 +1,4 @@
-import { REQUEST_TIMEOUT_MS } from '@porcelain/client-runtime/session-protocol'
+import { REQUEST_TIMEOUT_MS } from '@porcelain/client-runtime/session/transport'
 import { PROTOCOL_VERSION, PROTOCOL_VERSION_HEADER } from '@porcelain/contracts'
 import { createTRPCUntypedClient, httpBatchLink } from '@trpc/client'
 import type { AnyTRPCRouter } from '@trpc/server'

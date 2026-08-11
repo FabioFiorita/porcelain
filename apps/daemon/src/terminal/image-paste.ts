@@ -6,14 +6,14 @@ import {
   MAX_PASTE_IMAGE_BYTES,
   terminalFilePromptReference,
   terminalImagePromptReference,
-} from '@porcelain/contracts'
+} from '@porcelain/contracts/terminal'
 import { porcelainHomePath } from '@shared/porcelain-home'
 import { hasTerminal, writeTerminal } from './terminal-manager'
 
 /**
  * Client → PTY image paste. The client and the PTY are never the same machine (even the
  * "local" Electron case: the daemon owns the PTY, the shell client owns the clipboard —
- * see `ws-protocol.ts`'s `terminal:paste-image`), so this is a real file transfer, not a
+ * see terminal stream `terminal:paste-image`), so this is a real file transfer, not a
  * clipboard forward. The image lands under the daemon's own per-user home
  * (`porcelainHomePath`), never under `<repo>/.porcelain/` — that directory is NOT
  * gitignored (only `.porcelain-worktree.json` is), so a pasted screenshot there would

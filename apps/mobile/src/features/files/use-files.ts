@@ -122,8 +122,8 @@ export type FileContents = {
 /**
  * One file's contents.
  *
- * Watched rather than polled: an open file is exactly what the daemon's `watch:files` set is
- * for, and a poll would re-read a megabyte of source every few seconds to learn nothing.
+ * Watched rather than polled: an open file is exactly what session watch interests are for,
+ * and a poll would re-read a megabyte of source every few seconds to learn nothing.
  */
 export function useFileContents(relative: string, active: boolean): FileContents {
   const repo = useActiveRepo()

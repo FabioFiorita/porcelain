@@ -1,24 +1,22 @@
-import { MAX_TERMINAL_WRITE_CODE_UNITS } from '@porcelain/contracts'
+import { REQUEST_TIMEOUT_MS } from '@porcelain/client-runtime/session/transport'
+import { MAX_TERMINAL_WRITE_CODE_UNITS } from '@porcelain/contracts/terminal'
 import { randomUUID } from 'expo-crypto'
 
 import { DaemonError } from './errors'
-import { daemonSession } from './session'
+import { daemonSession, sessionClientRuntime } from './session'
 
 /**
- * The terminal half of the daemon WS session — the one place this client speaks PTY.
+ * The terminal half of the daemon session — the one place this client speaks PTY.
  *
  * A terminal is a live bidirectional byte stream, not request/response data, so it rides
- * the socket rather than tRPC (the roster and saved actions are data and stay on tRPC, in
- * `procedures/terminal.ts`). PTYs are daemon-owned: they survive this app being
+ * the session socket rather than tRPC (the roster and saved actions are data and stay on
+ * tRPC, in `procedures/terminal.ts`). PTYs are daemon-owned: they survive this app being
  * backgrounded, the socket dropping, and the screen unmounting. Closing a screen DETACHES;
  * only `killTerminal` ends a shell.
  *
- * Lifecycle control lives here rather than in a hook for the same reason it does on the
- * desktop client: a PTY is not TanStack-Query data and must outlive any one React tree.
+ * Frames are the terminal stream contract (`@porcelain/contracts/terminal`). Correlation for
+ * create/attach/paste is `reqId` over `daemonSession.request` + `onTerminalFrame`.
  */
-
-/** A create/attach reply must arrive on the socket that asked; 10s is the daemon's own budget. */
-const REQUEST_TIMEOUT_MS = 10_000
 
 /** One `terminal:write` frame stays well under any proxy's message cap. */
 const WRITE_CHUNK = MAX_TERMINAL_WRITE_CODE_UNITS
@@ -38,15 +36,16 @@ export type TerminalAttachResult = {
 const attachedIds = new Set<string>()
 
 /**
- * A socket in `connecting` drops anything pushed into it, and a create/attach correlates its
- * reply by `reqId` — so an early push would leave the caller waiting out the full timeout for
- * a reply the daemon was never asked for. Wait for the socket instead of racing it.
+ * A session still handshaking drops anything pushed into it, and a create/attach correlates
+ * its reply by `reqId` — so an early push would leave the caller waiting out the full timeout
+ * for a reply the daemon was never asked for. Wait for ready instead of racing it.
  *
  * Deliberately not a replay queue: re-sending a stale `terminal:create` after a long outage
  * would spawn a shell nobody is still waiting for.
  */
 async function whenOpen(): Promise<void> {
-  if (daemonSession.status === 'open') return
+  // Adapter `open` is the socket; terminal send is no-op until the runtime has `ready`.
+  if (sessionClientRuntime().status() === 'open') return
   await new Promise<void>((resolve, reject) => {
     const timer = setTimeout(() => {
       off()
@@ -216,7 +215,7 @@ type StreamHandlers = {
  * keeps attachment state per socket and the old one is gone.
  */
 export function subscribeTerminalStream(handlers: StreamHandlers): () => void {
-  const stopMessages = daemonSession.subscribe((frame) => {
+  const stopMessages = daemonSession.subscribeTerminal((frame) => {
     if (frame.t === 'terminal:data') handlers.onData(frame.id, frame.data)
     else if (frame.t === 'terminal:exit') handlers.onExit(frame.id, frame.exitCode)
     else if (frame.t === 'terminal:attached' && frame.found) {

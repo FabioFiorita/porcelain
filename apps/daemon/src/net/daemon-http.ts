@@ -1,11 +1,8 @@
 import { createHash, timingSafeEqual } from 'node:crypto'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import type { Duplex } from 'node:stream'
-import {
-  MAX_SESSION_MESSAGE_BYTES,
-  PROTOCOL_VERSION,
-  PROTOCOL_VERSION_HEADER,
-} from '@porcelain/contracts'
+import { PROTOCOL_VERSION, PROTOCOL_VERSION_HEADER } from '@porcelain/contracts'
+import { MAX_SESSION_MESSAGE_BYTES } from '@porcelain/contracts/terminal'
 import type { AnyRouter } from '@trpc/server'
 import { fetchRequestHandler } from '@trpc/server/adapters/fetch'
 import { type WebSocket, WebSocketServer } from 'ws'

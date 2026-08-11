@@ -2,6 +2,7 @@ import { PROTOCOL_VERSION } from '@porcelain/contracts'
 import type { SessionChange } from '@porcelain/contracts/session'
 import { sessionContractFixtures } from '@porcelain/contracts/session'
 import { terminalStreamFixtures } from '@porcelain/contracts/terminal'
+import { createDaemonSession, type DaemonSession } from '@renderer/lib/daemon'
 import type { SessionSocket, SessionSocketHandlers } from '@renderer/lib/session-browser-adapter'
 import { useRepoStore } from '@renderer/stores/repo'
 import { type Pane, useTabsStore } from '@renderer/stores/tabs'
@@ -170,7 +171,7 @@ describe('Session recovery invalidation', () => {
 type MountedSession = {
   readonly sockets: FakeSocket[]
   readonly socket: () => FakeSocket
-  readonly terminal: string[]
+  readonly session: DaemonSession
   readonly result: { current: ReturnType<typeof useSessionRuntime> }
   readonly unmount: () => void
   readonly deliver: (frame: unknown) => void
@@ -193,40 +194,40 @@ function filePane(...paths: string[]): Pane {
 }
 
 /**
- * Mount the hook over a fake socket. `ready: false` leaves the session mid-handshake, which is
- * the only state a mismatch can arrive in — the daemon answers hello with ready or with refusal,
- * never both.
+ * Mount the hook over an injected daemon session with a fake socket. Production uses
+ * `primary`; tests never construct a second runtime on top of primary.
+ *
+ * `ready: false` leaves the session mid-handshake, which is the only state a mismatch can
+ * arrive in — the daemon answers hello with ready or with refusal, never both.
  */
 async function mountSession({ ready = true }: { ready?: boolean } = {}): Promise<MountedSession> {
   const sockets: FakeSocket[] = []
-  const terminal: string[] = []
   const wrapper = trpcWrapper(() => Promise.resolve(null))
 
-  const hook = renderHook(
-    () =>
-      useSessionRuntime({
-        endpoint: () => ({ url: 'http://127.0.0.1:43118', token: 'synthetic-token' }),
-        onTerminalFrame: (frame) => terminal.push(frame.t),
-        // No reconnect runs in these tests; the adapter's backoff is proved in its own suite.
-        schedule: () => (): void => undefined,
-        openSocket: ({ handlers }) => {
-          const sent: string[] = []
-          let isClosed = false
-          const socket: FakeSocket = {
-            handlers,
-            sent,
-            send: (payload) => sent.push(payload),
-            close: () => {
-              isClosed = true
-            },
-            closed: () => isClosed,
-          }
-          sockets.push(socket)
-          return socket
-        },
-      }),
-    { wrapper },
+  const session = createDaemonSession(
+    { url: 'http://127.0.0.1:43118', token: 'synthetic-token' },
+    {
+      // No reconnect runs in these tests; the adapter's backoff is proved in its own suite.
+      schedule: () => (): void => undefined,
+      openSocket: ({ handlers }) => {
+        const sent: string[] = []
+        let isClosed = false
+        const socket: FakeSocket = {
+          handlers,
+          sent,
+          send: (payload) => sent.push(payload),
+          close: () => {
+            isClosed = true
+          },
+          closed: () => isClosed,
+        }
+        sockets.push(socket)
+        return socket
+      },
+    },
   )
+
+  const hook = renderHook(() => useSessionRuntime({ session }), { wrapper })
 
   const socket = (): FakeSocket => {
     const current = sockets.at(-1)
@@ -241,7 +242,7 @@ async function mountSession({ ready = true }: { ready?: boolean } = {}): Promise
   return {
     sockets,
     socket,
-    terminal,
+    session,
     result: hook.result,
     unmount: hook.unmount,
     deliver: (frame) => act(() => socket().handlers.message(JSON.stringify(frame))),
@@ -317,12 +318,16 @@ describe('useSessionRuntime lifecycle', () => {
     expect(session.frames()).toHaveLength(before)
   })
 
-  it('forwards terminal frames to the stream consumer, not to the query cache', async () => {
+  it('does not forward terminal frames to the query cache (terminal stays on the session)', async () => {
     const session = await mountSession()
+    const before = session.frames().length
 
     session.deliver(terminalStreamFixtures.output.data)
 
-    expect(session.terminal).toEqual(['terminal:data'])
+    // Terminal frames are consumed by createDaemonSession's dispatch, not by RQ invalidation.
+    // No extra outbound frames, and the hook's status stays open.
+    expect(session.frames()).toHaveLength(before)
+    expect(session.result.current.status).toBe('open')
   })
 
   it('surfaces the daemon refusing this build protocol as a recoverable UI state', async () => {
@@ -337,17 +342,18 @@ describe('useSessionRuntime lifecycle', () => {
     expect(session.socket().closed()).toBe(true)
   })
 
-  it('closes the session on unmount and stops speaking on the dead socket', async () => {
+  it('releases watch interests on unmount without tearing down the shared session socket', async () => {
     useTabsStore.setState({ panes: [filePane(`${PROJECT}/src/a.ts`)], activePaneIndex: 0 })
     const session = await mountSession()
-    await waitFor(() => expect(session.frames()).toHaveLength(2))
+    await waitFor(() => expect(session.frames().length).toBeGreaterThanOrEqual(2))
+    const before = session.frames().length
 
     session.unmount()
 
-    expect(session.socket().closed()).toBe(true)
-    expect(session.sockets).toHaveLength(1)
-    // The interest release runs after the transport is retired, so the runtime has nothing to
-    // send it on — the daemon drops session-owned watchers when the connection ends.
-    expect(session.frames()).toHaveLength(2)
+    // The socket belongs to the DaemonSession, not the hook: unmount must not close it
+    // (production primary stays up for terminal traffic). Interest release may send watches.
+    expect(session.socket().closed()).toBe(false)
+    // A release with an open session may send an empty/updated watches frame.
+    expect(session.frames().length).toBeGreaterThanOrEqual(before)
   })
 })

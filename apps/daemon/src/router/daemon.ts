@@ -4,7 +4,7 @@ import { toTrpcError } from '../daemon-composition/public-error'
 import { displayAdminTokenPath } from '../net/admin-token'
 import { type DaemonIdentity, daemonIdentity } from '../net/daemon-identity'
 import { daemonVersion } from '../net/daemon-version'
-import { clientSessionCount, closeClientSessions } from '../net/session'
+import { clientSessionCount, closeClientSessions } from '../session/live-session'
 import {
   accessSnapshot,
   issuePairingGrant,

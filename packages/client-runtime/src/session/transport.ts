@@ -1,4 +1,8 @@
-import { type ServerMessage, serverMessageSchema } from '@porcelain/contracts'
+/**
+ * Transport-only session helpers shared by Web and mobile adapters: WebSocket URL shape,
+ * token subprotocol, and reconnect backoff. No frame parsing — the shared client runtime
+ * owns the protocol; adapters own the socket.
+ */
 
 /** Initial reconnect delay after a dropped socket. */
 export const MIN_RETRY_MS = 500
@@ -30,28 +34,4 @@ export function nextRetryDelay(currentMs: number, maxMs: number = MAX_RETRY_MS):
 /** Jittered delay for a reconnect timer (0–30% of the base delay). */
 export function reconnectDelayMs(baseMs: number, random = Math.random): number {
   return baseMs + random() * baseMs * 0.3
-}
-
-/** Parse and validate a daemon session frame; null if not a known ServerMessage. */
-export function parseServerMessage(raw: string): ServerMessage | null {
-  try {
-    const json: unknown = JSON.parse(raw)
-    const parsed = serverMessageSchema.safeParse(json)
-    return parsed.success ? parsed.data : null
-  } catch {
-    return null
-  }
-}
-
-/** Union file/dir watch registrations into unique path lists. */
-export function unionWatchPaths(
-  registrations: Iterable<{ files?: readonly string[]; dirs?: readonly string[] }>,
-): { files: string[]; dirs: string[] } {
-  const files = new Set<string>()
-  const dirs = new Set<string>()
-  for (const reg of registrations) {
-    for (const path of reg.files ?? []) files.add(path)
-    for (const path of reg.dirs ?? []) dirs.add(path)
-  }
-  return { files: [...files], dirs: [...dirs] }
 }

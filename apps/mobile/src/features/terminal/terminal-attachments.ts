@@ -1,4 +1,4 @@
-import { MAX_PASTE_FILE_BYTES } from '@porcelain/contracts'
+import { MAX_PASTE_FILE_BYTES } from '@porcelain/contracts/terminal'
 import * as DocumentPicker from 'expo-document-picker'
 import * as FileSystem from 'expo-file-system/legacy'
 

@@ -1,26 +1,23 @@
-import {
-  createSessionClientRuntime,
-  type TerminalServerFrame,
-} from '@porcelain/client-runtime/session/client-runtime'
 import type { FreshnessRequirement } from '@porcelain/client-runtime/session/recovery'
 import type { SessionChange, SessionMismatchFrame } from '@porcelain/contracts/session'
-import {
-  createSessionBrowserAdapter,
-  type SessionConnectionStatus,
-  type SessionEndpoint,
-  type SessionRetrySchedule,
-  type SessionSocketOpener,
-} from '@renderer/lib/session-browser-adapter'
-import { trpc } from '@renderer/lib/trpc'
+import { type DaemonSession, primary } from '@renderer/lib/daemon'
+import { isBrowser } from '@renderer/lib/platform'
+import type { SessionConnectionStatus } from '@renderer/lib/session-browser-adapter'
+import { shellTrpcClient, trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 import { type Pane, useTabsStore } from '@renderer/stores/tabs'
 import { useTreeDirsStore } from '@renderer/stores/tree-dirs'
+import { unreadTabFor, useUnreadStore } from '@renderer/stores/unread'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 /**
  * Web's binding between the shared session runtime and React Query: it turns a domain change
  * notification into a refetch of the queries that own the data, restates the Viewer's file and
  * directory interests to the runtime, and reports the connection state a human can act on.
+ *
+ * Owns no socket. The window's primary `DaemonSession` (or an injected test session) owns the
+ * single runtime + adapter; this hook only registers invalidation handlers, project selection,
+ * and watch interests on that runtime so terminal traffic and change signals share one connection.
  *
  * The contract of this module is that a notification is a *freshness signal*, never data
  * (decision 009). Nothing here writes a payload into the cache; every category maps to
@@ -29,15 +26,12 @@ import { useEffect, useMemo, useRef, useState } from 'react'
  * runtime says it can no longer prove freshness, the affected scope is invalidated wholesale
  * rather than reconstructed from what might have been missed.
  *
- * The category → query mapping is deliberately the one `use-app-events.ts` performs today, so
- * the cutover changes the transport and not what the screen refreshes. Where the target contract
- * merges several legacy events into one category, this maps to the union of what those events
- * invalidated — the daemon already published them together
+ * The category → query mapping is deliberately the one the legacy `useShellEvents` path
+ * performed, so the cutover changes the transport and not what the screen refreshes. Where the
+ * target contract merges several legacy events into one category, this maps to the union of
+ * what those events invalidated — the daemon already published them together
  * (`packages/contracts/src/review/review.notifications.ts`), so no consumer could act on the
  * distinction anyway.
- *
- * UNACTIVATED. No production module imports this hook; `use-app-events.ts` and `use-files.ts`
- * remain the mounted path until `RT-005` switches the daemon and deletes them.
  */
 
 /** One query's invalidator, structurally satisfied by a tRPC utils proxy. */
@@ -104,10 +98,9 @@ function invalidateReview(utils: SessionQueryUtils): Promise<unknown> {
 /**
  * Map one change notification to the authoritative queries it makes stale.
  *
- * The `Promise<unknown>` return with NO `default` case is deliberate, and copied from
- * `use-app-events.ts`: a category added to the contract falls through to an implicit
- * `return undefined`, which fails the annotated type at `pnpm typecheck` — so a new domain
- * signal cannot silently ship un-refreshed.
+ * The `Promise<unknown>` return with NO `default` case is deliberate: a category added to the
+ * contract falls through to an implicit `return undefined`, which fails the annotated type at
+ * `pnpm typecheck` — so a new domain signal cannot silently ship un-refreshed.
  */
 export function invalidateForChange(
   change: SessionChange,
@@ -210,84 +203,69 @@ function openFilePaths(panes: readonly Pane[]): string[] {
   return [...paths].sort()
 }
 
+/**
+ * Bind React Query invalidation + Viewer interests to a daemon session's runtime.
+ *
+ * Defaults to `primary` so the whole window shares one socket with terminal traffic.
+ * Tests may inject a purpose-built `DaemonSession` (with a fake opener) instead.
+ */
 export function useSessionRuntime({
-  endpoint,
-  openSocket,
-  schedule,
-  onTerminalFrame,
+  session = primary,
 }: {
-  readonly endpoint: () => SessionEndpoint
-  readonly openSocket?: SessionSocketOpener
-  readonly schedule?: SessionRetrySchedule
-  /** Terminal is a stateful stream, not a query: its frames go to the terminal registry as-is. */
-  readonly onTerminalFrame?: (frame: TerminalServerFrame) => void
-}): SessionRuntimeState {
+  readonly session?: DaemonSession
+} = {}): SessionRuntimeState {
   const utils = trpc.useUtils()
   const repoPath = useRepoStore((s) => s.repo?.path)
   const panes = useTabsStore((s) => s.panes)
   const treeDirs = useTreeDirsStore((s) => s.dirs)
-  const [status, setStatus] = useState<SessionConnectionStatus>('idle')
-  const [updateRequired, setUpdateRequired] = useState<SessionMismatchFrame | undefined>(undefined)
-
-  // The observer closes over values that change on every render; a ref keeps the runtime and its
-  // socket alive across those renders instead of tearing the session down to adopt a new
-  // callback identity. A caller that re-points its daemon changes what `endpoint()` answers, not
-  // which session exists.
-  const latest = useRef({ utils, onTerminalFrame, endpoint })
-  latest.current = { utils, onTerminalFrame, endpoint }
-  // Transport injection is a mount-time concern (production passes neither); only the first
-  // value is ever read, so a fresh callback identity cannot restart the session.
-  const transport = useRef({ openSocket, schedule })
-
-  const runtime = useMemo(
-    () =>
-      createSessionClientRuntime({
-        observer: {
-          onChange: (change: SessionChange): void => {
-            applyRefresh(invalidateForChange(change, latest.current.utils))
-          },
-          onFreshnessRequired: (requirement: FreshnessRequirement): void => {
-            applyRefresh(invalidateForRecovery(requirement, latest.current.utils))
-          },
-          onTerminalFrame: (frame: TerminalServerFrame): void => {
-            latest.current.onTerminalFrame?.(frame)
-          },
-          onUpdateRequired: (frame: SessionMismatchFrame): void => {
-            setUpdateRequired(frame)
-          },
-        },
-      }),
-    [],
+  const [status, setStatus] = useState<SessionConnectionStatus>(() => session.status())
+  const [updateRequired, setUpdateRequired] = useState<SessionMismatchFrame | undefined>(() =>
+    session.updateRequiredFrame(),
   )
 
-  const adapter = useMemo(
-    () =>
-      createSessionBrowserAdapter({
-        runtime,
-        endpoint: () => latest.current.endpoint(),
-        openSocket: transport.current.openSocket,
-        schedule: transport.current.schedule,
-        onStatusChange: setStatus,
-      }),
-    [runtime],
-  )
+  // Utils identity changes every render from tRPC; a ref keeps the long-lived change/
+  // freshness subscriptions from tearing down and re-registering on that churn.
+  const latest = useRef({ utils })
+  latest.current = { utils }
+
+  // Open the single session for this window (idempotent). Terminal APIs also start it, but
+  // change signals must flow even when no PTY is open.
+  useEffect(() => {
+    session.start()
+  }, [session])
 
   useEffect(() => {
-    adapter.start()
-    return () => adapter.stop()
-  }, [adapter])
-
-  // The daemon refused this protocol: retire the transport rather than reconnect into the same
-  // final answer. The runtime has already stopped speaking on its own.
-  useEffect(() => {
-    if (updateRequired !== undefined) adapter.updateRequired()
-  }, [adapter, updateRequired])
+    const offStatus = session.onStatusChange(setStatus)
+    const offUpdate = session.onUpdateRequired(setUpdateRequired)
+    const offChange = session.onChange((change: SessionChange): void => {
+      // Light the rail's unread dot for agent-push categories that carry an attention signal
+      // (mark no-ops when that tab is already active).
+      const tab = unreadTabFor(change)
+      if (tab) useUnreadStore.getState().mark(tab)
+      applyRefresh(invalidateForChange(change, latest.current.utils))
+    })
+    const offFreshness = session.onFreshnessRequired((requirement: FreshnessRequirement): void => {
+      applyRefresh(invalidateForRecovery(requirement, latest.current.utils))
+    })
+    // Socket died: a remote-bound window may need the shell to re-resolve the local child's
+    // route (port moved). Browser clients have no shell bridge.
+    const offClose = session.onDaemonClose(() => {
+      if (!isBrowser) void shellTrpcClient.refreshRemoteEnvironment.query()
+    })
+    return () => {
+      offStatus()
+      offUpdate()
+      offChange()
+      offFreshness()
+      offClose()
+    }
+  }, [session])
 
   // Interests are project-scoped by contract, so the project is declared before any registration
   // can reach the wire.
   useEffect(() => {
-    if (repoPath !== undefined) runtime.selectProject(repoPath)
-  }, [runtime, repoPath])
+    if (repoPath !== undefined) session.runtime.selectProject(repoPath)
+  }, [session, repoPath])
 
   // Compared by value, not identity: a Viewer that reordered its tabs without opening or closing
   // one must not resend the whole desired set to the daemon. NUL separates the two lists because
@@ -302,9 +280,9 @@ export function useSessionRuntime({
   }, [interestKey])
 
   useEffect(() => {
-    const registration = runtime.registerWatchInterest(interest)
+    const registration = session.runtime.registerWatchInterest(interest)
     return () => registration.release()
-  }, [runtime, interest])
+  }, [session, interest])
 
   return { status, updateRequired }
 }

@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 /**
  * Board change notifications — the domain-owned replacement for the `board` entry in
- * `appEventSchema` (`../ws-protocol.ts`), which today broadcasts to every session.
+ * `appEventSchema` (the deleted horizontal session protocol), which today broadcasts to every session.
  *
  * The board is one repo-local file, so one strict category carrying `projectPath` says
  * everything a consumer needs: the cards for that project are stale. The card payload
