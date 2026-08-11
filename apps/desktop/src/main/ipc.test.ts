@@ -48,6 +48,12 @@ const VALID = {
   body: '{"0":{}}',
 }
 
+const MALFORMED_400 = {
+  status: 400,
+  headers: { 'content-type': 'application/json' },
+  body: JSON.stringify({ error: { message: 'malformed trpc-shell request' } }),
+}
+
 async function invoke(payload: unknown): Promise<unknown> {
   const handler = handlers.get('trpc-shell')
   if (handler === undefined) throw new Error('trpc-shell handler was never registered')
@@ -90,7 +96,7 @@ describe('trpc-shell shuttle', () => {
     expect(fetchRequestHandler).toHaveBeenCalledTimes(1)
   })
 
-  it('answers 400 and never dispatches a malformed payload', async () => {
+  it('answers 400 and never dispatches a structurally malformed payload', async () => {
     const malformed: unknown[] = [
       undefined,
       null,
@@ -111,11 +117,40 @@ describe('trpc-shell shuttle', () => {
 
     for (const payload of malformed) {
       const reply = await invoke(payload)
-      expect(reply, JSON.stringify(payload ?? null)).toEqual({
-        status: 400,
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ error: { message: 'malformed trpc-shell request' } }),
-      })
+      expect(reply, JSON.stringify(payload ?? null)).toEqual(MALFORMED_400)
+    }
+
+    expect(fetchRequestHandler).not.toHaveBeenCalled()
+  })
+
+  it('answers the same 400 and never dispatches semantically invalid shuttle values', async () => {
+    const semanticInvalid: unknown[] = [
+      // invalid URL (relative / unparseable)
+      { ...VALID, url: 'not-a-url' },
+      { ...VALID, url: '/trpc-shell/windowInit' },
+      { ...VALID, url: 'http://' },
+      // invalid method token / non-shuttle verb
+      { ...VALID, method: 'GET POST' },
+      { ...VALID, method: 'PUT' },
+      { ...VALID, method: 'DELETE' },
+      { ...VALID, method: 'get' },
+      // GET with body
+      {
+        url: 'http://localhost/trpc-shell/updateStatus',
+        method: 'GET',
+        headers: {},
+        body: '{"0":{}}',
+      },
+      // invalid headers
+      { ...VALID, headers: { 'bad name': 'x' } },
+      { ...VALID, headers: { '': 'x' } },
+      { ...VALID, headers: { 'x-custom': 'line\r\ninject' } },
+      { ...VALID, headers: { 'x-custom': 'nul\0byte' } },
+    ]
+
+    for (const payload of semanticInvalid) {
+      const reply = await invoke(payload)
+      expect(reply, JSON.stringify(payload)).toEqual(MALFORMED_400)
     }
 
     expect(fetchRequestHandler).not.toHaveBeenCalled()

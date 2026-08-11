@@ -30,21 +30,29 @@ function malformedRequestResponse(): TrpcShellResponse {
 export function registerTrpcHandler(): void {
   ipcMain.handle('trpc-shell', async (event, payload: unknown): Promise<TrpcShellResponse> => {
     // IPC erases types: `payload` is whatever the renderer world sent. Parse before a
-    // Request exists, and never dispatch what did not parse.
+    // Request exists, and never dispatch what did not parse. Schema covers the Fetch
+    // constructibility rules; the try/catch is belt-and-suspenders so a future
+    // undici edge still fails as the same 400 instead of throwing across IPC.
     const parsed = trpcShellRequestSchema.safeParse(payload)
     if (!parsed.success) return malformedRequestResponse()
     const request = parsed.data
+    let req: Request
+    try {
+      req = new Request(request.url, {
+        method: request.method,
+        headers: request.headers,
+        body: request.body,
+      })
+    } catch {
+      return malformedRequestResponse()
+    }
     const response = await fetchRequestHandler({
       endpoint: '/trpc-shell',
       router: shellRouter,
       // The calling window rides in as ctx.sender — the sanctioned per-call way
       // for a shell procedure (windowInit) to act on its own window.
       createContext: () => ({ sender: event.sender }),
-      req: new Request(request.url, {
-        method: request.method,
-        headers: request.headers,
-        body: request.body,
-      }),
+      req,
     })
     return {
       status: response.status,

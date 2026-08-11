@@ -16,12 +16,15 @@ import {
 // a daemon restart or environment-group route change pushes a fresh pair through
 // `daemon.onUrlChanged` (see src/main/daemon.ts). The token gates every request — see the
 // security note in backend/server.ts.
-function toDaemonInfo(value: unknown): DaemonInfo {
-  const parsed = daemonInfoSchema.safeParse(value)
-  return parsed.success ? parsed.data : { url: '', token: '' }
+//
+// Fail closed: a foreign shape is a main/preload contract break, not a legitimate empty
+// pair. Boot throws so the bridge never exposes fabricated url/token; change events log
+// and drop the payload rather than inventing one for the callback.
+function parseDaemonInfo(value: unknown): DaemonInfo {
+  return daemonInfoSchema.parse(value)
 }
 
-const initialDaemon = toDaemonInfo(ipcRenderer.sendSync('daemon-url'))
+const initialDaemon = parseDaemonInfo(ipcRenderer.sendSync('daemon-url'))
 
 const porcelain: PorcelainBridge = {
   // The reply crosses back from main as `unknown`; parse it here, where trust changes,
@@ -43,8 +46,14 @@ const porcelain: PorcelainBridge = {
     url: initialDaemon.url,
     token: initialDaemon.token,
     onUrlChanged: (callback: (info: DaemonInfo) => void): (() => void) => {
-      const handler = (_event: Electron.IpcRendererEvent, info: unknown): void =>
-        callback(toDaemonInfo(info))
+      const handler = (_event: Electron.IpcRendererEvent, info: unknown): void => {
+        const parsed = daemonInfoSchema.safeParse(info)
+        if (!parsed.success) {
+          console.error('daemon-url-changed payload is not daemon info', parsed.error)
+          return
+        }
+        callback(parsed.data)
+      }
       ipcRenderer.on('daemon-url-changed', handler)
       return () => ipcRenderer.removeListener('daemon-url-changed', handler)
     },

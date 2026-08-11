@@ -99,9 +99,15 @@ function shellLinks(): TRPCLink<ShellRouter>[] {
         new Headers(init?.headers).forEach((value, key) => {
           headers[key] = value
         })
+        // The shared shuttle schema admits only GET|POST (httpBatchLink verbs). Narrow
+        // before invoke so a future verb cannot smuggle past the bridge types.
+        const methodToken = (init?.method ?? 'GET').toUpperCase()
+        if (methodToken !== 'GET' && methodToken !== 'POST') {
+          throw new Error(`shell shuttle does not support method ${methodToken}`)
+        }
         const response = await window.porcelain.trpcShell({
           url: input.toString(),
-          method: init?.method ?? 'GET',
+          method: methodToken,
           headers,
           body: typeof init?.body === 'string' ? init.body : undefined,
         })

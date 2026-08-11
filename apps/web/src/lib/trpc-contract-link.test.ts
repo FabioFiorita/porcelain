@@ -16,7 +16,7 @@ type Envelope = OperationResultEnvelope<unknown, TRPCClientError<AnyTRPCRouter>>
 type Results = Observable<Envelope, TRPCClientError<AnyTRPCRouter>>
 
 /** The link under test, with the transport it would sit above replaced by `next`. */
-function drive(op: Operation, next: () => Results): Results {
+function drive(op: Operation, next: (op: Operation) => Results): Results {
   return contractValidationLink<AnyTRPCRouter>()({})({ op, next })
 }
 
@@ -38,7 +38,7 @@ type Settled = { value?: unknown; error?: unknown; completed: boolean; dispatche
 function run(op: Operation, data: unknown): Promise<Settled> {
   const settled: Settled = { completed: false, dispatched: 0 }
   const next = vi.fn(
-    (): Results =>
+    (_op: Operation): Results =>
       observable<Envelope, TRPCClientError<AnyTRPCRouter>>((observer) => {
         observer.next({ result: { data } })
         observer.complete()
@@ -156,7 +156,7 @@ describe('contractValidationLink', () => {
   it('forwards a transport error unchanged', async () => {
     const failure = new TRPCClientError<AnyTRPCRouter>('UNAUTHORIZED')
     const next = vi.fn(
-      (): Results =>
+      (_op: Operation): Results =>
         observable<Envelope, TRPCClientError<AnyTRPCRouter>>((observer) => {
           observer.error(failure)
         }),
@@ -171,5 +171,106 @@ describe('contractValidationLink', () => {
     })
 
     expect(observed).toBe(failure)
+  })
+
+  it('re-emits catalog defaults/transforms on success output (actions)', async () => {
+    // Real procedureCatalog `actions` output: actionViewSchema defaults order/createdAt/trusted.
+    // A wire payload that omits those fields must parse, and callers must observe the defaults —
+    // not the pre-default shape that would sit outside the inferred type.
+    const wireAction = {
+      id: 'action-build',
+      title: 'Build',
+      command: 'make build',
+      // order, createdAt, trusted omitted — schema defaults apply
+    }
+    const settled = await run(
+      operation({ type: 'query', path: 'actions', input: '/synthetic/repo' }),
+      [wireAction],
+    )
+
+    expect(settled.error).toBeUndefined()
+    expect(settled.completed).toBe(true)
+    expect(settled.value).toEqual([
+      {
+        id: 'action-build',
+        title: 'Build',
+        command: 'make build',
+        order: 0,
+        createdAt: 0,
+        trusted: false,
+      },
+    ])
+    // Must not be the same reference as the wire array (normalized re-emit).
+    expect(settled.value).not.toBe([wireAction])
+  })
+
+  it('forwards Zod-normalized input to next (recentRepos default)', async () => {
+    // recentRepos input is optional object with includeWorktrees defaulting to false.
+    // The server-bound op must carry the parsed value, not the raw {}/undefined ambiguity.
+    let seenInput: unknown
+    const next = vi.fn(
+      (op: Operation): Results =>
+        observable<Envelope, TRPCClientError<AnyTRPCRouter>>((observer) => {
+          seenInput = op.input
+          observer.next({ result: { data: [] } })
+          observer.complete()
+        }),
+    )
+
+    await new Promise<void>((resolve, reject) => {
+      drive(operation({ type: 'query', path: 'recentRepos', input: {} }), next).subscribe({
+        next: () => undefined,
+        error: reject,
+        complete: () => resolve(),
+      })
+    })
+
+    expect(next).toHaveBeenCalledTimes(1)
+    expect(seenInput).toEqual({ includeWorktrees: false })
+    // Metadata preserved on the forwarded operation.
+    const forwarded = next.mock.calls[0]?.[0]
+    expect(forwarded?.path).toBe('recentRepos')
+    expect(forwarded?.type).toBe('query')
+    expect(forwarded?.id).toBe(1)
+  })
+
+  it('unsubscribes a synchronous invalid next and ignores later emissions', async () => {
+    const cleanup = vi.fn()
+    let sourceObserver: {
+      next: (value: Envelope) => void
+      complete: () => void
+    } | null = null
+
+    const next = vi.fn(
+      (_op: Operation): Results =>
+        observable<Envelope, TRPCClientError<AnyTRPCRouter>>((observer) => {
+          sourceObserver = observer
+          // Synchronous invalid data — fires before subscribe() returns to the link.
+          observer.next({ result: { data: 42 } })
+          return cleanup
+        }),
+    )
+
+    const outerNext = vi.fn()
+    const outerComplete = vi.fn()
+    const observedError = await new Promise<unknown>((resolve) => {
+      drive(operation({}), next).subscribe({
+        next: outerNext,
+        error: resolve,
+        complete: outerComplete,
+      })
+    })
+
+    expect(observedError).toBeInstanceOf(TRPCClientError)
+    expect(String(observedError)).toContain('returned data outside its contract')
+    // Source cleanup ran: either via the in-handler optional unsubscribe once assigned,
+    // or the post-subscribe terminal path — either way the spy fires exactly once.
+    expect(cleanup).toHaveBeenCalledTimes(1)
+
+    // Later source activity must not reach the outer observer after the terminal error.
+    sourceObserver?.next({ result: { data: 'the notes' } })
+    sourceObserver?.complete()
+    expect(outerNext).not.toHaveBeenCalled()
+    expect(outerComplete).not.toHaveBeenCalled()
   })
 })
