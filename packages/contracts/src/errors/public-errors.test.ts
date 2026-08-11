@@ -17,6 +17,10 @@ import {
   resourceUnavailableErrorSchema,
   stateConflictErrorSchema,
 } from '../index'
+import {
+  reviewCommentNotFoundErrorSchema,
+  reviewUnavailableErrorSchema,
+} from '../review/review.errors'
 
 const memberSchemas = {
   'request.invalid': requestInvalidErrorSchema,
@@ -30,6 +34,8 @@ const memberSchemas = {
   'board.unavailable': boardUnavailableErrorSchema,
   'board.card-not-found': boardCardNotFoundErrorSchema,
   'board.invalid-title': boardInvalidTitleErrorSchema,
+  'review.unavailable': reviewUnavailableErrorSchema,
+  'review.comment-not-found': reviewCommentNotFoundErrorSchema,
 } as const
 
 const expectedMembers = [
@@ -54,10 +60,17 @@ const expectedMembers = [
   { code: 'board.unavailable', category: 'unavailable', retryable: true, hasDetails: false },
   { code: 'board.card-not-found', category: 'not-found', retryable: false, hasDetails: true },
   { code: 'board.invalid-title', category: 'invalid-request', retryable: false, hasDetails: true },
+  { code: 'review.unavailable', category: 'unavailable', retryable: true, hasDetails: false },
+  {
+    code: 'review.comment-not-found',
+    category: 'not-found',
+    retryable: false,
+    hasDetails: true,
+  },
 ] as const
 
 describe('public error contracts', () => {
-  it('exports the system and Board public members and categories', () => {
+  it('exports the system, Board, and Review public members and categories', () => {
     expect(Object.keys(memberSchemas).sort()).toEqual(
       expectedMembers.map(({ code }) => code).sort(),
     )
@@ -169,6 +182,25 @@ describe('public error contracts', () => {
       boardInvalidTitleErrorSchema.safeParse({
         ...invalidTitle,
         details: { reason: 'blank', maxLength: 100 },
+      }).success,
+    ).toBe(false)
+  })
+
+  it('gives Review comment-not-found its required non-empty commentId detail', () => {
+    const notFound = publicErrorFixtures['review.comment-not-found']
+    expect(reviewCommentNotFoundErrorSchema.parse(notFound).details).toEqual({
+      commentId: 'comment-synthetic-001',
+    })
+    expect(
+      reviewCommentNotFoundErrorSchema.safeParse({
+        ...notFound,
+        details: { commentId: '' },
+      }).success,
+    ).toBe(false)
+    expect(
+      reviewCommentNotFoundErrorSchema.safeParse({
+        ...notFound,
+        details: {},
       }).success,
     ).toBe(false)
   })

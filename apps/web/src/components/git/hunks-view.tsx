@@ -1,5 +1,5 @@
 import type { DiffHunk, DiffLine } from '@backend/git/diff'
-import type { ReviewComment } from '@backend/stores/comment-store'
+import type { ReviewComment } from '@porcelain/contracts/review'
 import { commentRowClass, LineDecorations } from '@renderer/components/git/comment-marker'
 import { CodeLine, useHighlighter } from '@renderer/components/viewer/code-line'
 import { VirtualRows } from '@renderer/components/viewer/virtual-rows'

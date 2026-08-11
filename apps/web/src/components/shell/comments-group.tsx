@@ -1,4 +1,4 @@
-import type { ReviewComment } from '@backend/stores/comment-store'
+import type { ReviewComment } from '@porcelain/contracts/review'
 import {
   AlertDialog,
   AlertDialogAction,

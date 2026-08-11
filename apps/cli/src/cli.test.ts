@@ -322,9 +322,12 @@ describe('runCli — review + feature + comments + reviewed', () => {
     ensurePorcelain()
     writeFileSync(
       activeReview('comments.json'),
-      JSON.stringify([
-        { id: 'c1', path: 'server/svc.ts', body: 'check', resolved: false, createdAt: 1 },
-      ]),
+      JSON.stringify({
+        version: 1,
+        comments: [
+          { id: 'c1', path: 'server/svc.ts', body: 'check', resolved: false, createdAt: 1 },
+        ],
+      }),
     )
     writeFileSync(
       porcelain('feature-view.json'),
@@ -339,15 +342,20 @@ describe('runCli — review + feature + comments + reviewed', () => {
     ensurePorcelain()
     writeFileSync(
       activeReview('comments.json'),
-      JSON.stringify([{ id: 'c1', path: 'a.ts', body: 'why?', resolved: false, createdAt: 1 }]),
+      JSON.stringify({
+        version: 1,
+        comments: [{ id: 'c1', path: 'a.ts', body: 'why?', resolved: false, createdAt: 1 }],
+      }),
     )
     expect(
       await runCli(['comments', 'answer', ...repo, '--id', 'c1', '--body', 'because']),
     ).toContain('Answered comment c1')
-    const stored: Array<{ agentReply?: { body: string } }> = JSON.parse(
-      readFileSync(activeReview('comments.json'), 'utf8'),
-    )
-    expect(stored[0]?.agentReply?.body).toBe('because')
+    const stored = JSON.parse(readFileSync(activeReview('comments.json'), 'utf8')) as {
+      version: number
+      comments: Array<{ agentReply?: { body: string } }>
+    }
+    expect(stored.version).toBe(1)
+    expect(stored.comments[0]?.agentReply?.body).toBe('because')
     expect(await runCli(['comments', 'answer', ...repo, '--id', 'nope', '--body', 'x'])).toContain(
       'No comment nope',
     )

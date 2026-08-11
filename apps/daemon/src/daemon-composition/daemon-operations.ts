@@ -1,5 +1,6 @@
 import type { SessionChange } from '@porcelain/contracts/session'
 import { type BoardOperations, createBoardOperations } from '../features/board'
+import { createReviewCommentOperations, type ReviewCommentOperations } from '../features/review'
 import { publishSessionChange } from '../session/live-session'
 
 /**
@@ -9,6 +10,7 @@ import { publishSessionChange } from '../session/live-session'
  */
 export type DaemonOperations = Readonly<{
   board: BoardOperations
+  reviewComments: ReviewCommentOperations
 }>
 
 export interface CreateDaemonRouterOptions {
@@ -18,9 +20,13 @@ export interface CreateDaemonRouterOptions {
 export function createDaemonOperations(options?: {
   publishSessionChange?: (change: SessionChange) => void
 }): DaemonOperations {
+  const publish = options?.publishSessionChange ?? publishSessionChange
   return Object.freeze({
     board: createBoardOperations({
-      publishSessionChange: options?.publishSessionChange ?? publishSessionChange,
+      publishSessionChange: publish,
+    }),
+    reviewComments: createReviewCommentOperations({
+      publishSessionChange: publish,
     }),
   })
 }

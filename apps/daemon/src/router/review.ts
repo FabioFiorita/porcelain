@@ -35,15 +35,7 @@ import {
 } from '../review/feature-view'
 import { DEFAULT_LAYERS, type FlowGroup } from '../review/flow'
 import { loadCommitFlow, loadRangeFlow, loadWorkingFlow } from '../review/flow-build'
-import {
-  addComment,
-  clearResolvedComments,
-  deleteComment,
-  editComment,
-  type ReviewComment,
-  readComments,
-  setCommentResolved,
-} from '../stores/comment-store'
+
 import {
   clearEvidence,
   type Evidence,
@@ -349,42 +341,6 @@ export function createReviewRouter() {
       .mutation(async ({ input }) => {
         await clearEvidence(input)
       }),
-
-    // Review comments — the human's notes on lines/files, fed to the agent as context
-    // via the porcelain CLI (`comments list`) and resolvable by it (`comments resolve`).
-    // Stored in the active review folder (see `comment-store.ts`); a two-way channel.
-    reviewComments: publicProcedure
-      .input(procedureCatalog.reviewComments.input)
-      .output(procedureCatalog.reviewComments.output)
-      .query(({ input }): Promise<ReviewComment[]> => readComments(input)),
-
-    addReviewComment: publicProcedure
-      .input(procedureCatalog.addReviewComment.input)
-      .output(procedureCatalog.addReviewComment.output)
-      .mutation(({ input }): Promise<ReviewComment> => {
-        const { repoPath, ...comment } = input
-        return addComment(repoPath, comment)
-      }),
-
-    editReviewComment: publicProcedure
-      .input(procedureCatalog.editReviewComment.input)
-      .output(procedureCatalog.editReviewComment.output)
-      .mutation(({ input }) => editComment(input.repoPath, input.id, input.body)),
-
-    deleteReviewComment: publicProcedure
-      .input(procedureCatalog.deleteReviewComment.input)
-      .output(procedureCatalog.deleteReviewComment.output)
-      .mutation(({ input }) => deleteComment(input.repoPath, input.id)),
-
-    clearResolvedReviewComments: publicProcedure
-      .input(procedureCatalog.clearResolvedReviewComments.input)
-      .output(procedureCatalog.clearResolvedReviewComments.output)
-      .mutation(({ input }) => clearResolvedComments(input.repoPath)),
-
-    resolveReviewComment: publicProcedure
-      .input(procedureCatalog.resolveReviewComment.input)
-      .output(procedureCatalog.resolveReviewComment.output)
-      .mutation(({ input }) => setCommentResolved(input.repoPath, input.id, input.resolved)),
 
     // Explore an existing feature read-only: seed from a symbol (or a whole file)
     // and walk the import/reference graph into the SAME flow-ordered, sliced reading

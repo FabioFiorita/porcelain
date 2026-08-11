@@ -66,7 +66,7 @@ an external choice or authorization.
 
 | ID | Status | Outcome |
 | --- | --- | --- |
-| `RVC-001` | Ready | Review comment contracts and add/edit/delete/resolve/clear operations |
+| `RVC-001` | Landed | Review comment contracts and add/edit/delete/resolve/clear operations |
 | `RVC-002` | Draft | Shared optimistic transitions, rollback, reconciliation, and notification consequences |
 | `RVC-003` | Draft | Web comments adopt shared optimism and contract mock |
 | `RVC-004` | Draft | Mobile comments adopt the same semantics and delete local descriptors |

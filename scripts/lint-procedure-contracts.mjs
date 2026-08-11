@@ -28,6 +28,7 @@ export const DOMAIN_KEYS = [
  */
 export const PRODUCTION_ROUTER_FILES = [
   'features/board/board-router.ts',
+  'features/review/comment-router.ts',
   'router/daemon.ts',
   'router/files.ts',
   'router/git.ts',

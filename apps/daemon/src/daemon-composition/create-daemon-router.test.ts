@@ -51,6 +51,7 @@ describe('createDaemonRouter composition', () => {
     const operations = createDaemonOperations({ publishSessionChange: () => undefined })
     expect(Object.isFrozen(operations)).toBe(true)
     expect(operations.board).toBeDefined()
+    expect(operations.reviewComments).toBeDefined()
 
     const router = createDaemonRouter({ operations })
     const keys = Object.keys(router._def.procedures).sort()

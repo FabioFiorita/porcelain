@@ -1,4 +1,5 @@
 import { createBoardRouter } from '../features/board'
+import { createReviewCommentRouter } from '../features/review'
 import { createDaemonRouter as createDaemonHostRouter } from '../router/daemon'
 import { createFilesRouter } from '../router/files'
 import { createGitRouter } from '../router/git'
@@ -15,8 +16,8 @@ import type { CreateDaemonRouterOptions } from './daemon-operations'
  * domain router factory in the historical merge order and merges them with the
  * one shared `initTRPC` builder so procedure names stay flat on the wire.
  *
- * Board is the first domain bound through `operations`; remaining routers still
- * construct their own dependencies until their migrations convert them.
+ * Board and Review-comment procedures are bound through `operations`; remaining
+ * routers still construct their own dependencies until their migrations convert them.
  */
 export function createDaemonRouter({ operations }: CreateDaemonRouterOptions) {
   return t.mergeRouters(
@@ -25,6 +26,7 @@ export function createDaemonRouter({ operations }: CreateDaemonRouterOptions) {
     createGitRouter(),
     createFilesRouter(),
     createReviewRouter(),
+    createReviewCommentRouter(operations.reviewComments),
     createBoardRouter(operations.board),
     createSettingsRouter(),
     createNetworkRouter(),

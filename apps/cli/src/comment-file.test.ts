@@ -12,6 +12,14 @@ import { answerComment, describeComments, readComments, resolveComment } from '.
 const root = join(tmpdir(), 'porcelain-comment-file-test')
 const repo = join(root, 'repo')
 
+function seedV1(comments: unknown[]): void {
+  mkdirSync(projectActiveReviewDir(repo), { recursive: true })
+  writeFileSync(
+    projectPorcelainPath(repo, ACTIVE_FILES.comments),
+    JSON.stringify({ version: 1, comments }, null, 2),
+  )
+}
+
 describe('describeComments', () => {
   it('explains a repo with no comments', () => {
     expect(describeComments(repo, [])).toContain('No review comments')
@@ -64,7 +72,7 @@ describe('describeComments', () => {
   })
 })
 
-describe('comment-file round-trip', () => {
+describe('comment-file v1 round-trip', () => {
   beforeEach(() => {
     rmSync(root, { recursive: true, force: true })
     mkdirSync(repo, { recursive: true })
@@ -74,20 +82,16 @@ describe('comment-file round-trip', () => {
   })
 
   const seed = (): void => {
-    mkdirSync(projectActiveReviewDir(repo), { recursive: true })
-    writeFileSync(
-      projectPorcelainPath(repo, ACTIVE_FILES.comments),
-      JSON.stringify([
-        {
-          id: 'c1',
-          path: 'a.ts',
-          startLine: 10,
-          body: 'why?',
-          resolved: false,
-          createdAt: 1,
-        },
-      ]),
-    )
+    seedV1([
+      {
+        id: 'c1',
+        path: 'a.ts',
+        startLine: 10,
+        body: 'why?',
+        resolved: false,
+        createdAt: 1,
+      },
+    ])
   }
 
   it('reads comments and resolves one by id', () => {
@@ -128,5 +132,14 @@ describe('comment-file round-trip', () => {
     answerComment(repo, 'c1', 'kept')
     resolveComment(repo, 'c1')
     expect(readComments(repo)[0]?.agentReply?.body).toBe('kept')
+  })
+
+  it('rejects legacy top-level arrays without coercing', () => {
+    mkdirSync(projectActiveReviewDir(repo), { recursive: true })
+    writeFileSync(
+      projectPorcelainPath(repo, ACTIVE_FILES.comments),
+      JSON.stringify([{ id: 'c1', path: 'a.ts', body: 'x', resolved: false, createdAt: 1 }]),
+    )
+    expect(() => readComments(repo)).toThrow(/top-level arrays|version 1/)
   })
 })

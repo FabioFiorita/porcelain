@@ -4,6 +4,10 @@ import {
   boardInvalidTitleErrorSchema,
   boardUnavailableErrorSchema,
 } from '../board/board.errors'
+import {
+  reviewCommentNotFoundErrorSchema,
+  reviewUnavailableErrorSchema,
+} from '../review/review.errors'
 import { definePublicError } from './define-public-error'
 import {
   authForbiddenErrorSchema,
@@ -41,6 +45,8 @@ export const publicErrorSchema = z.discriminatedUnion('code', [
   boardUnavailableErrorSchema,
   boardCardNotFoundErrorSchema,
   boardInvalidTitleErrorSchema,
+  reviewUnavailableErrorSchema,
+  reviewCommentNotFoundErrorSchema,
 ])
 
 export type PorcelainError = z.infer<typeof publicErrorSchema>

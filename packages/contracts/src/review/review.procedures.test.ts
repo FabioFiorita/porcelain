@@ -34,6 +34,15 @@ const expectedKinds = {
   setRepoLayers: 'mutation',
 } as const
 
+const expectedCommentErrors = {
+  reviewComments: ['review.unavailable'],
+  addReviewComment: ['review.unavailable', 'request.invalid'],
+  editReviewComment: ['review.unavailable', 'review.comment-not-found'],
+  deleteReviewComment: ['review.unavailable', 'review.comment-not-found'],
+  resolveReviewComment: ['review.unavailable', 'review.comment-not-found'],
+  clearResolvedReviewComments: ['review.unavailable'],
+} as const
+
 const invalidInputs: Record<keyof typeof reviewProcedures, unknown> = {
   worktreeInbox: 42,
   markReviewed: { repoPath: '/synthetic/repo' },
@@ -121,6 +130,14 @@ describe('Review procedure contracts', () => {
     expect(Object.keys(reviewProcedures).sort()).toEqual(Object.keys(expectedKinds).sort())
     for (const [name, kind] of Object.entries(expectedKinds)) {
       expect(reviewProcedures[name as keyof typeof reviewProcedures].kind).toBe(kind)
+    }
+  })
+
+  it('declares the six comment procedure public error codes', () => {
+    for (const [name, errors] of Object.entries(expectedCommentErrors)) {
+      expect([...reviewProcedures[name as keyof typeof expectedCommentErrors].errors]).toEqual([
+        ...errors,
+      ])
     }
   })
 

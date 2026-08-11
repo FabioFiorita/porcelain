@@ -6,8 +6,9 @@ import { normalizePublicError } from '../daemon-composition/public-error'
 
 // This suite owns the tRPC contract seam only: which raw wire input the Review router
 // accepts and which resolver result it will serialize. Every companion read/write —
-// review sets, evidence packs, comments, archives, the Git plumbing behind the readings —
-// is mocked with synthetic data, so nothing here touches a real repository or channel.
+// review sets, evidence packs, comments (via construction-seam ops), archives, the Git
+// plumbing behind the readings — is mocked with synthetic data, so nothing here touches
+// a real repository or channel.
 const {
   git,
   docSet,
@@ -15,7 +16,7 @@ const {
   featureBuild,
   explore,
   flow,
-  comments,
+  commentOps,
   evidence,
   layers,
   reviews,
@@ -104,29 +105,35 @@ const {
       loadRangeFlow: vi.fn(async () => ({ groups: flowGroups, base: 'main' })),
       loadCommitFlow: vi.fn(async () => flowGroups),
     },
-    comments: {
-      readComments: vi.fn(async () => [
-        {
-          id: 'c1',
+    commentOps: {
+      listReviewComments: vi.fn(async () => ({
+        ok: true as const,
+        value: [
+          {
+            id: 'c1',
+            path: 'src/alpha.ts',
+            startLine: 1,
+            endLine: 2,
+            body: 'Check this invariant',
+            resolved: false,
+            createdAt: 1_760_000_000_000,
+          },
+        ],
+      })),
+      addReviewComment: vi.fn(async () => ({
+        ok: true as const,
+        value: {
+          id: 'c2',
           path: 'src/alpha.ts',
-          startLine: 1,
-          endLine: 2,
           body: 'Check this invariant',
           resolved: false,
-          createdAt: 1_760_000_000_000,
+          createdAt: 1_760_000_000_001,
         },
-      ]),
-      addComment: vi.fn(async () => ({
-        id: 'c2',
-        path: 'src/alpha.ts',
-        body: 'Check this invariant',
-        resolved: false,
-        createdAt: 1_760_000_000_001,
       })),
-      editComment: vi.fn(async () => undefined),
-      deleteComment: vi.fn(async () => undefined),
-      clearResolvedComments: vi.fn(async () => undefined),
-      setCommentResolved: vi.fn(async () => undefined),
+      editReviewComment: vi.fn(async () => ({ ok: true as const, value: undefined })),
+      deleteReviewComment: vi.fn(async () => ({ ok: true as const, value: undefined })),
+      resolveReviewComment: vi.fn(async () => ({ ok: true as const, value: undefined })),
+      clearResolvedReviewComments: vi.fn(async () => ({ ok: true as const, value: undefined })),
     },
     evidence: {
       readEvidenceMeta: vi.fn(async () => ({
@@ -184,15 +191,16 @@ vi.mock('../review/evidence-assets-list', () => assets)
 vi.mock('../review/feature-build', () => featureBuild)
 vi.mock('../review/feature-explore', () => explore)
 vi.mock('../review/flow-build', () => flow)
-vi.mock('../stores/comment-store', () => comments)
 vi.mock('../stores/evidence-store', () => evidence)
 vi.mock('../stores/layers-store', () => layers)
 vi.mock('../stores/review-store', () => reviews)
 vi.mock('../stores/reviewed-store', () => reviewed)
 
+import { createReviewCommentRouter } from '../features/review'
+import { t } from '../trpc'
 import { createReviewRouter } from './review'
 
-const reviewRouter = createReviewRouter()
+const reviewRouter = t.mergeRouters(createReviewRouter(), createReviewCommentRouter(commentOps))
 
 const REQUEST_ID = '00000000-0000-4000-8000-000000000117'
 const PUBLIC_CONTEXT = { auth: { kind: 'admin' }, requestId: REQUEST_ID } as const
@@ -265,7 +273,7 @@ describe('review router contract input', () => {
     )
 
     expectPublicCode(error, 'request.invalid', false)
-    expect(comments.addComment).not.toHaveBeenCalled()
+    expect(commentOps.addReviewComment).not.toHaveBeenCalled()
   })
 
   it('keeps the comment body and archive id minimums', async () => {
@@ -301,8 +309,8 @@ describe('review router contract input', () => {
       'request.invalid',
       false,
     )
-    expect(comments.addComment).not.toHaveBeenCalled()
-    expect(comments.editComment).not.toHaveBeenCalled()
+    expect(commentOps.addReviewComment).not.toHaveBeenCalled()
+    expect(commentOps.editReviewComment).not.toHaveBeenCalled()
     expect(reviews.restoreArchivedReview).not.toHaveBeenCalled()
     expect(reviews.deleteArchivedReview).not.toHaveBeenCalled()
   })
@@ -510,9 +518,13 @@ describe('review router contract output', () => {
         body: 'Check this invariant',
       }),
     ).toMatchObject({ id: 'c2', resolved: false })
-    expect(comments.addComment).toHaveBeenCalledWith(REPO, {
+    expect(commentOps.addReviewComment).toHaveBeenCalledWith({
+      projectPath: REPO,
       path: 'src/alpha.ts',
       body: 'Check this invariant',
+      startLine: undefined,
+      endLine: undefined,
+      anchorText: undefined,
     })
   })
 
@@ -541,7 +553,11 @@ describe('review router contract output', () => {
     ).toBeUndefined()
     expect(await caller().clearResolvedReviewComments({ repoPath: REPO })).toBeUndefined()
     expect(reviewed.markReviewed).toHaveBeenCalledWith(REPO, 'src/alpha.ts', 'fp-alpha')
-    expect(comments.setCommentResolved).toHaveBeenCalledWith(REPO, 'c1', true)
+    expect(commentOps.resolveReviewComment).toHaveBeenCalledWith({
+      projectPath: REPO,
+      commentId: 'c1',
+      resolved: true,
+    })
   })
 
   it('refuses to serialize an archived review row with an unknown key', async () => {
@@ -573,16 +589,19 @@ describe('review router contract output', () => {
   })
 
   it('refuses to serialize a comment with an unknown key', async () => {
-    comments.readComments.mockResolvedValueOnce([
-      {
-        id: 'c1',
-        path: 'src/alpha.ts',
-        body: 'Check this invariant',
-        resolved: false,
-        createdAt: 1_760_000_000_000,
-        severity: 'blocker',
-      },
-    ] as never)
+    commentOps.listReviewComments.mockResolvedValueOnce({
+      ok: true,
+      value: [
+        {
+          id: 'c1',
+          path: 'src/alpha.ts',
+          body: 'Check this invariant',
+          resolved: false,
+          createdAt: 1_760_000_000_000,
+          severity: 'blocker',
+        },
+      ],
+    } as never)
 
     expectPublicCode(
       await rejected(() => caller().reviewComments(REPO)),

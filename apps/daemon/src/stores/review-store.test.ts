@@ -10,7 +10,6 @@ import {
   projectPorcelainPath,
 } from '@shared/project-porcelain'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { addComment, readComments } from './comment-store'
 import {
   activeReviewCost,
   archiveActiveReview,
@@ -139,7 +138,26 @@ describe('restoreArchivedReview', () => {
   // back with its comments and marks nowhere anything would find them.
   it('lands every slot where the readers look', async () => {
     writeReview({ name: 'First', files: [{ path: 'a.ts' }], sections: [] })
-    await addComment(repo, { path: 'a.ts', body: 'look here' })
+    // Strict v1 comments document — archive/restore copy bytes; no dual-read of legacy arrays.
+    writeFileSync(
+      projectPorcelainPath(repo, ACTIVE_FILES.comments),
+      `${JSON.stringify(
+        {
+          version: 1,
+          comments: [
+            {
+              id: 'c1',
+              path: 'a.ts',
+              body: 'look here',
+              resolved: false,
+              createdAt: 1,
+            },
+          ],
+        },
+        null,
+        2,
+      )}\n`,
+    )
     await markReviewed(repo, 'a.ts', 'fingerprint-1')
     mkdirSync(projectEvidenceDir(repo), { recursive: true })
     writeFileSync(join(projectEvidenceDir(repo), 'index.html'), '<p>proof</p>')
@@ -149,7 +167,11 @@ describe('restoreArchivedReview', () => {
     const id = await archiveActiveReview(repo)
     await restoreArchivedReview(repo, id as string)
 
-    expect((await readComments(repo)).map((c) => c.body)).toEqual(['look here'])
+    const restoredComments = JSON.parse(
+      readFileSync(projectPorcelainPath(repo, ACTIVE_FILES.comments), 'utf8'),
+    ) as { version: number; comments: Array<{ body: string }> }
+    expect(restoredComments.version).toBe(1)
+    expect(restoredComments.comments.map((c) => c.body)).toEqual(['look here'])
     expect((await readReviewedMarks(repo)).map((m) => m.path)).toEqual(['a.ts'])
     expect(readFileSync(join(projectEvidenceDir(repo), 'index.html'), 'utf8')).toBe('<p>proof</p>')
     expect(readFileSync(join(projectIntentDir(repo), 'why.md'), 'utf8')).toBe('# Why')

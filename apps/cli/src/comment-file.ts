@@ -1,81 +1,94 @@
-import { ACTIVE_FILES } from '@shared/project-porcelain'
-import { readProjectJson, writeProjectJson } from './project-io'
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { dirname } from 'node:path'
+import {
+  type CommentsFileComment,
+  CommentsFileParseError,
+  emptyCommentsFileV1,
+  parseCommentsFileV1,
+  planAnswerReviewComment,
+  planSetReviewCommentResolved,
+  serializeCommentsFileV1,
+  sortComments,
+} from '@porcelain/shared/comments-file'
+import { ACTIVE_FILES, projectPorcelainPath } from '@shared/project-porcelain'
+import { ensureProjectDir } from './project-io'
 
-// Active review comments — <repo>/.porcelain/comments.json
+// Builtins + @porcelain/shared only — see cli.ts. Active review comments are strict v1 JSON.
 
-export interface Comment {
-  id: string
-  path: string
-  startLine?: number
-  endLine?: number
-  anchorText?: string
-  body: string
-  resolved: boolean
-  createdAt: number
-  agentReply?: { body: string; createdAt: number }
+export type Comment = CommentsFileComment
+
+function commentsPath(repoPath: string): string {
+  return projectPorcelainPath(repoPath, ACTIVE_FILES.comments)
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
+function isEnoent(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code: unknown }).code === 'ENOENT'
+  )
 }
 
-function parseComments(value: unknown): Comment[] {
-  if (!Array.isArray(value)) return []
-  const comments: Comment[] = []
-  for (const item of value) {
-    if (!isRecord(item)) continue
-    if (typeof item.id !== 'string' || typeof item.path !== 'string') continue
-    if (typeof item.body !== 'string') continue
-    const comment: Comment = {
-      id: item.id,
-      path: item.path,
-      body: item.body,
-      resolved: item.resolved === true,
-      createdAt: typeof item.createdAt === 'number' ? item.createdAt : 0,
-    }
-    if (typeof item.startLine === 'number') comment.startLine = item.startLine
-    if (typeof item.endLine === 'number') comment.endLine = item.endLine
-    if (typeof item.anchorText === 'string') comment.anchorText = item.anchorText
-    if (
-      isRecord(item.agentReply) &&
-      typeof item.agentReply.body === 'string' &&
-      typeof item.agentReply.createdAt === 'number'
-    ) {
-      comment.agentReply = { body: item.agentReply.body, createdAt: item.agentReply.createdAt }
-    }
-    comments.push(comment)
+function readCommentsFile(repoPath: string): ReturnType<typeof emptyCommentsFileV1> {
+  let raw: string
+  try {
+    raw = readFileSync(commentsPath(repoPath), 'utf8')
+  } catch (error) {
+    if (isEnoent(error)) return emptyCommentsFileV1()
+    throw error
   }
-  return comments
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    throw new CommentsFileParseError('malformed', 'Comments file is not valid JSON')
+  }
+
+  // Legacy top-level array is not accepted — agents must use the v1 document.
+  if (Array.isArray(parsed)) {
+    throw new CommentsFileParseError(
+      'malformed',
+      'Comments file must be version 1 ({ version: 1, comments: [...] }); top-level arrays are not supported',
+    )
+  }
+
+  return parseCommentsFileV1(parsed)
 }
 
-function readAll(repoPath: string): Comment[] {
-  return parseComments(readProjectJson(repoPath, ACTIVE_FILES.comments))
-}
-
-function writeAll(repoPath: string, comments: Comment[]): void {
-  writeProjectJson(repoPath, ACTIVE_FILES.comments, comments)
+function writeCommentsFile(repoPath: string, file: ReturnType<typeof emptyCommentsFileV1>): void {
+  ensureProjectDir(repoPath)
+  const path = commentsPath(repoPath)
+  mkdirSync(dirname(path), { recursive: true })
+  const tmp = `${path}.tmp`
+  writeFileSync(tmp, serializeCommentsFileV1(file))
+  renameSync(tmp, path)
 }
 
 export function readComments(repoPath: string): Comment[] {
-  return readAll(repoPath)
+  return sortComments(readCommentsFile(repoPath).comments)
 }
 
 export function resolveComment(repoPath: string, id: string): boolean {
-  const comments = readAll(repoPath)
-  const target = comments.find((c) => c.id === id)
+  const file = readCommentsFile(repoPath)
+  const target = file.comments.find((c) => c.id === id)
   if (!target || target.resolved) return false
-  target.resolved = true
-  writeAll(repoPath, comments)
+  const planned = planSetReviewCommentResolved(file, { commentId: id, resolved: true })
+  if (!planned.ok) return false
+  writeCommentsFile(repoPath, planned.file)
   return true
 }
 
 export function answerComment(repoPath: string, id: string, body: string): boolean {
   if (body.trim().length === 0) return false
-  const comments = readAll(repoPath)
-  const target = comments.find((c) => c.id === id)
-  if (!target) return false
-  target.agentReply = { body, createdAt: Date.now() }
-  writeAll(repoPath, comments)
+  const planned = planAnswerReviewComment(readCommentsFile(repoPath), {
+    commentId: id,
+    body,
+    createdAt: Date.now(),
+  })
+  if (!planned.ok) return false
+  writeCommentsFile(repoPath, planned.file)
   return true
 }
 

@@ -5,6 +5,11 @@ export {
   boardInvalidTitleErrorSchema,
   boardUnavailableErrorSchema,
 } from '../board/board.errors'
+export {
+  reviewCommentNotFoundErrorDetailsSchema,
+  reviewCommentNotFoundErrorSchema,
+  reviewUnavailableErrorSchema,
+} from '../review/review.errors'
 export { publicErrorFixtures } from './fixtures'
 export {
   type PorcelainError,
