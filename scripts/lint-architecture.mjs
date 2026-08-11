@@ -193,12 +193,16 @@ export function checkArchitecture(root, migrations = DOMAIN_MIGRATIONS) {
     for (const targetRoot of targetRoots) {
       registeredPaths.push(targetRoot)
       const matchesAllowedRoot = TARGET_DOMAIN_ROOTS.some(
-        (domainRoot) => targetRoot === `${domainRoot}/${key}`,
+        (domainRoot) => path.posix.dirname(targetRoot) === domainRoot,
       )
       if (!matchesAllowedRoot) {
         fail(
-          `${key} target root ${targetRoot} must begin under a registered TARGET_DOMAIN_ROOTS entry and end with its own domain key`,
+          `${key} target root ${targetRoot} must be a direct child of a registered TARGET_DOMAIN_ROOTS entry`,
         )
+      }
+      const targetName = path.posix.basename(targetRoot)
+      if (DOMAIN_KEYS.includes(targetName) && targetName !== key) {
+        fail(`${key} target root ${targetRoot} claims the canonical ${targetName} domain name`)
       }
     }
     for (const legacyPath of legacyPaths) registeredPaths.push(legacyPath)
@@ -240,10 +244,17 @@ export function checkArchitecture(root, migrations = DOMAIN_MIGRATIONS) {
         fail(
           `${candidateRoot}/index.ts exists but is not a registered target root for domain ${key}`,
         )
-      } else if (isRegistered && !hasIndex) {
-        fail(`${candidateRoot} is a registered target root but has no public index.ts`)
-      } else if (isRegistered && hasIndex) {
-        validTargetRoots.set(candidateRoot, key)
+      }
+    }
+  }
+  for (const [key, record] of validatedMigrations) {
+    for (const targetRoot of record.targetRoots) {
+      const indexPath = path.join(root, targetRoot, 'index.ts')
+      const hasIndex = existsSync(indexPath) && statSync(indexPath).isFile()
+      if (!hasIndex) {
+        fail(`${targetRoot} is a registered target root but has no public index.ts`)
+      } else {
+        validTargetRoots.set(targetRoot, key)
       }
     }
   }
@@ -392,7 +403,10 @@ export function checkArchitecture(root, migrations = DOMAIN_MIGRATIONS) {
   for (const [directory, legacyNames] of Object.entries(LEGACY_FEATURE_DIRECTORIES)) {
     const absolute = path.join(root, directory)
     if (!existsSync(absolute) || !statSync(absolute).isDirectory()) continue
-    const allowed = new Set([...DOMAIN_KEYS, ...legacyNames])
+    const registeredNames = [...validTargetRoots.keys()]
+      .filter((targetRoot) => path.posix.dirname(targetRoot) === directory)
+      .map((targetRoot) => path.posix.basename(targetRoot))
+    const allowed = new Set([...DOMAIN_KEYS, ...legacyNames, ...registeredNames])
     for (const entry of readdirSync(absolute, { withFileTypes: true })) {
       if (entry.isDirectory() && !allowed.has(entry.name)) {
         fail(`${directory}/${entry.name} is neither a canonical domain nor recorded legacy`)

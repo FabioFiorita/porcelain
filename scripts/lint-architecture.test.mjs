@@ -12,7 +12,7 @@ import { checkArchitecture } from './lint-architecture.mjs'
 // those hardcoded paths do not exist under a temporary root; filtering to this pattern lets a
 // fixture assert on the behavior under test without reproducing the whole legacy ledger.
 const NEW_CHECK_PATTERN =
-  /DOMAIN_MIGRATIONS must define|supporting region is also registered|registered target root|migration record|migration status|targetRoots must be an array|legacyPaths must be an array|invalid repository-relative POSIX path|contains a duplicate path|registers a target root|registers no target root|legacy path still exists|not unique across DOMAIN_MIGRATIONS|is not a registered target domain|has no public index\.ts|deep-imports/
+  /DOMAIN_MIGRATIONS must define|supporting region is also registered|registered target root|migration record|migration status|targetRoots must be an array|legacyPaths must be an array|invalid repository-relative POSIX path|contains a duplicate path|registers a target root|registers no target root|legacy path still exists|not unique across DOMAIN_MIGRATIONS|is not a registered target domain|has no public index\.ts|deep-imports|direct child|claims the canonical/
 
 function buildMigrations(overrides = {}) {
   const base = Object.fromEntries(
@@ -89,6 +89,57 @@ test('a registered migrating root with its public index.ts passes', () => {
       })
       const failures = checkArchitecture(root, migrations)
       assert.deepEqual(newViolations(failures), [])
+    },
+  )
+})
+
+test('an explicitly registered alias root is owned by its domain and allowed in the feature tree', () => {
+  withFixtureRepo(
+    (root) => {
+      writeFixtureFile(
+        root,
+        'apps/mobile/src/features/comments/index.ts',
+        'export const comments = 1\n',
+      )
+    },
+    (root) => {
+      const migrations = buildMigrations({
+        review: {
+          status: 'migrating',
+          targetRoots: ['apps/mobile/src/features/comments'],
+          legacyPaths: [],
+        },
+      })
+      const failures = checkArchitecture(root, migrations)
+      assert.deepEqual(newViolations(failures), [])
+      assert.ok(
+        !failures.some((failure) => failure.includes('comments is neither a canonical domain')),
+      )
+    },
+  )
+})
+
+test('an alias root cannot claim another canonical domain name', () => {
+  withFixtureRepo(
+    (root) => {
+      writeFixtureFile(root, 'apps/mobile/src/features/board/index.ts', 'export const board = 1\n')
+    },
+    (root) => {
+      const migrations = buildMigrations({
+        review: {
+          status: 'migrating',
+          targetRoots: ['apps/mobile/src/features/board'],
+          legacyPaths: [],
+        },
+      })
+      const failures = checkArchitecture(root, migrations)
+      assert.ok(
+        failures.some((failure) =>
+          failure.includes(
+            'review target root apps/mobile/src/features/board claims the canonical board domain name',
+          ),
+        ),
+      )
     },
   )
 })
