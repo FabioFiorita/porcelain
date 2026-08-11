@@ -1,6 +1,6 @@
 # BRD-002 — Put Board behavior behind operations and a version-1 adapter
 
-- Status: Draft
+- Status: Ready
 - Batch: 1 — Board primary exemplar
 - Domain: `board`
 - Depends on: `BRD-001`, `DAE-001`, `TST-002`, `DAT-001`
@@ -41,7 +41,16 @@ semantics and would falsely mark Board migrated.
 - Change `apps/cli/src/board-file.ts`, its focused tests, and Board command assertions in `cli.test.ts`
   to the shared strict v1 file model while keeping the CLI dependency-free after bundling.
 - Remove `apps/daemon/src/router/board.ts`, `apps/daemon/src/stores/board-store.ts`, and its old tests.
-- Remove the old Board names from daemon routing and activate the BRD-001 canonical contract entries.
+- **Reviewer resequencing (2026-08-10):** the canonical Board router in `features/board/` serves the
+  six EXISTING legacy wire names (`boardCards` … `clearBoardCards`), each procedure a thin
+  parse/invoke/map over its new operation. The six-for-six catalog/name swap to the BRD-001
+  canonical names moves to `BRD-004`, landing atomically with the Web caller migration — otherwise
+  this unit deletes procedures Web's typed tRPC hooks still reference and cannot pass its own
+  `pnpm verify` gate. At every commit exactly one wire surface exists; no dual exposure, no alias.
+  Wire-visible behavior changes that DO land here through the legacy names: missing-card
+  update/move/delete return `board.card-not-found` instead of silent void success, and mutations
+  return authoritative outputs where the legacy schema allows (create already returns the card;
+  update/move/delete/clear keep their current output schemas until the swap).
 
 ## Non-goals
 
@@ -134,8 +143,8 @@ card remains a nonzero/explicit CLI outcome, not silent success or a daemon tran
    parse/invoke/map-only procedures with narrow router tests.
 7. Publish `board.changed` only after successful mutations and let the session notification gateway
    carry it through RT-001.
-8. Switch the global router/catalog from the six legacy names to the six BRD-001 names in the same
-   Board batch.
+8. Keep the six legacy wire names bound to `boardLiveCatalogProcedures`; record in the feature
+   router that `BRD-004` performs the six-for-six catalog swap with the Web migration.
 9. Delete the old router/store/tests and prove no daemon/CLI caller imports them.
 
 ## Tests
@@ -158,24 +167,25 @@ card remains a nonzero/explicit CLI outcome, not silent success or a daemon tran
 Run the exact focused commands established by `TST-002`, then:
 
 ```bash
-pnpm exec vitest run packages/shared/src/board apps/daemon/src/features/board apps/cli/src/board-file.test.ts apps/cli/src/cli.test.ts
+pnpm --dir apps/desktop exec vitest run ../../packages/shared/src/board ../daemon/src/features/board ../cli/src/board-file.test.ts ../cli/src/cli.test.ts
 node scripts/lint-procedure-contracts.mjs
 node scripts/lint-architecture.mjs
 pnpm build:cli
 pnpm build:daemon
 pnpm lint
+pnpm verify
+git diff --check
 ```
 
 Search proof:
 
 ```bash
 rg -n "stores/board-store|router/board|ensureProjectCompanion" apps/daemon/src apps/cli/src
-rg -n "'boardCards'|'addBoardCard'|'clearBoardCards'" apps/daemon/src packages/contracts/src
 rg -n "z\.array\(boardCardSchema\)|status.*default\('todo'\)" apps/daemon/src apps/cli/src
 ```
 
-The first two searches have no Board runtime hits after the atomic batch; the third finds no legacy
-permissive storage schema. Inspect a temp fixture, not real companion data, to show exact v1 JSON.
+The first search has no Board runtime hits after this unit; the second finds no legacy permissive
+storage schema. (The legacy wire-name search moves to `BRD-004`/`BRD-005` with the swap.) Inspect a temp fixture, not real companion data, to show exact v1 JSON.
 
 ## Forbidden shortcuts
 
@@ -196,9 +206,12 @@ permissive storage schema. Inspect a temp fixture, not real companion data, to s
 - [ ] Expected failures and authoritative mutation results match BRD-001.
 - [ ] Atomicity, concurrency, corruption, size, visibility, and CLI constraints remain proved.
 - [ ] Successful writes emit one typed fact; rejects/failures emit none.
-- [ ] Old Board router/store/procedure names and permissive schemas have no daemon/CLI runtime path.
+- [ ] Old Board router/store files and permissive schemas have no daemon/CLI runtime path; the six
+      legacy wire names survive only as thin bindings over the new operations until `BRD-004`.
 - [ ] No existing real Board data was deleted or rewritten during implementation/proof.
-- [ ] Focused tests, builds, lint, and searches pass in one bounded commit.
+- [ ] Focused tests, builds, repository lint, full verify, diff check, and searches pass.
+- [ ] One commit lands only `BRD-002`, marks recipe/catalog Landed, leaves a clean worktree,
+      provides the README review packet, and finishes without pushing.
 
 ## Handoff
 
