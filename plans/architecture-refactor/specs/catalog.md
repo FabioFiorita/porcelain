@@ -49,7 +49,7 @@ an external choice or authorization.
 | `TST-001` | Landed | Contract fixture builders and transport-independent validating daemon mock |
 | `DAE-001` | Landed | Explicit capability construction and bound-operation router context |
 | `TST-002` | Landed | Operation fake conventions and controlled adapter integration fixtures |
-| `DAT-001` | Draft | Strict version-1 persisted-envelope and atomic/corruption adapter conventions |
+| `DAT-001` | Ready | Strict version-1 persisted-envelope and atomic/corruption adapter conventions |
 | `CLI-001` | Draft | CLI build/dependency/channel boundary gate before command cutovers |
 
 ## Batch 1 — Board primary exemplar
