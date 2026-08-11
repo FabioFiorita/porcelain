@@ -10,6 +10,7 @@ import { join } from 'node:path'
 export const GROK_BIN = join(homedir(), '.grok', 'bin', 'grok')
 /** Claude Personal only — never the subscription alias `claude` as vocabulary. */
 export const CLAUDE_PERSONAL_BIN = join(homedir(), '.local', 'bin', 'claude')
+export const CLAUDE_PERSONAL_CONFIG_DIR = join(homedir(), '.claude-personal')
 
 /**
  * @param {{ promptFile: string, cwd: string, grokBin?: string }} options
@@ -36,7 +37,7 @@ export function buildGrokInvocation(options) {
 
 /**
  * @param {{ prompt: string, cwd: string, claudeBin?: string }} options
- * @returns {{ command: string, args: string[] }}
+ * @returns {{ command: string, args: string[], envExtras: Record<string, string> }}
  */
 export function buildClaudePersonalInvocation(options) {
   const command = options.claudeBin ?? CLAUDE_PERSONAL_BIN
@@ -46,12 +47,16 @@ export function buildClaudePersonalInvocation(options) {
     '--model',
     'opus',
     '--effort',
-    'max',
+    'high',
     '--dangerously-skip-permissions',
     '--disable-slash-commands',
     options.prompt,
   ]
-  return { command, args }
+  return {
+    command,
+    args,
+    envExtras: { CLAUDE_CONFIG_DIR: CLAUDE_PERSONAL_CONFIG_DIR },
+  }
 }
 
 /**

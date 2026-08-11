@@ -189,8 +189,8 @@ test('Grok argv: prompt-file, no-subagents, no-memory, high, bypassPermissions, 
   }
 })
 
-test('Claude Personal argv: -p opus max skip-permissions disable-slash-commands', () => {
-  const { command, args } = buildClaudePersonalInvocation({
+test('Claude Personal uses the personal config and Opus high', () => {
+  const { command, args, envExtras } = buildClaudePersonalInvocation({
     prompt: 'execute only RECIPE',
     cwd: '/tmp/wt',
     claudeBin: '/home/user/.local/bin/claude',
@@ -200,10 +200,11 @@ test('Claude Personal argv: -p opus max skip-permissions disable-slash-commands'
   assert.ok(args.includes('--model'))
   assert.ok(args.includes('opus'))
   assert.ok(args.includes('--effort'))
-  assert.ok(args.includes('max'))
+  assert.ok(args.includes('high'))
   assert.ok(args.includes('--dangerously-skip-permissions'))
   assert.ok(args.includes('--disable-slash-commands'))
   assert.equal(args.at(-1), 'execute only RECIPE')
+  assert.equal(envExtras.CLAUDE_CONFIG_DIR.endsWith('/.claude-personal'), true)
   assertFreshContextArgs(args)
 })
 

@@ -413,7 +413,7 @@ async function runOneRecipe({
       args: invocation.args,
       cwd: worktreePath,
       logPath,
-      env: {},
+      env: invocation.envExtras ?? {},
     })
     exitCode = result.exitCode
     pid = result.pid
@@ -675,7 +675,7 @@ scripts/agent-scratch/orchestration/<group-id>/.
 
 Executors:
   grok              ~/.grok/bin/grok (prompt-file, no-subagents, no-memory, high, bypassPermissions, plain)
-  claude-personal   ~/.local/bin/claude (-p, opus, effort max, skip-permissions, disable-slash-commands)
+  claude-personal   CLAUDE_CONFIG_DIR=~/.claude-personal ~/.local/bin/claude (-p, opus, effort high, skip-permissions, disable-slash-commands)
 
 Never merges, cherry-picks, or pushes. Integration is an explicit follow-up.
 `)

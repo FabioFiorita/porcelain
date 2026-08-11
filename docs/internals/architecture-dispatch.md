@@ -33,7 +33,7 @@ drift. Any mismatch stops closed.
 | Manifest value | Binary | Notes |
 | --- | --- | --- |
 | `grok` | `~/.grok/bin/grok` | `--prompt-file`, `--no-subagents`, `--no-memory`, `--reasoning-effort high`, `--permission-mode bypassPermissions`, `--output-format plain` |
-| `claude-personal` | `~/.local/bin/claude` | `-p --model opus --effort max --dangerously-skip-permissions --disable-slash-commands`. Vocabulary is **claude-personal**, not a subscription alias |
+| `claude-personal` | `CLAUDE_CONFIG_DIR=~/.claude-personal ~/.local/bin/claude` | `-p --model opus --effort high --dangerously-skip-permissions --disable-slash-commands`. The explicit config directory prevents use of the default work account |
 
 ## Managed worktree base
 
