@@ -167,7 +167,13 @@ export function invalidateForRecovery(
   requirement: FreshnessRequirement,
   utils: SessionQueryUtils,
 ): Promise<unknown> {
-  if (requirement.scope.kind === 'session') return utils.invalidate()
+  if (requirement.scope.kind === 'session') {
+    return Promise.all([
+      utils.invalidate(),
+      utils.reviewComments.invalidate(),
+      utils.boardCards.invalidate(),
+    ])
+  }
   return Promise.all([
     utils.readDir.invalidate(),
     utils.readFile.invalidate(),

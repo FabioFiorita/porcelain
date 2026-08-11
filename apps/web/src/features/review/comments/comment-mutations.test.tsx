@@ -98,6 +98,32 @@ beforeEach(() => {
 })
 
 describe('useCommentActions optimism', () => {
+  it('serializes overlapping writes for one comments identity before applying optimism', async () => {
+    const existing = { ...FIXTURE, body: 'original' }
+    const { inputs, write, refetch, setAuthoritative, mount } = comments([existing])
+    const result = await mount()
+
+    let first!: Promise<void>
+    let second!: Promise<void>
+    act(() => {
+      first = result.current.edit(existing.id, 'first edit')
+      second = result.current.edit(existing.id, 'second edit')
+    })
+
+    await waitFor(() => expect(result.current.list[0]?.body).toBe('first edit'))
+    expect(inputs).toEqual([{ repoPath: REPO, id: existing.id, body: 'first edit' }])
+
+    setAuthoritative([{ ...existing, body: 'second edit' }])
+    write.resolve({ ok: true, value: undefined })
+    refetch.resolve()
+    await Promise.all([first, second])
+
+    expect(inputs).toEqual([
+      { repoPath: REPO, id: existing.id, body: 'first edit' },
+      { repoPath: REPO, id: existing.id, body: 'second edit' },
+    ])
+  })
+
   it('closes a comment in the cache before the server answers, then reconciles', async () => {
     const open = { ...FIXTURE, resolved: false }
     const { write, refetch, setAuthoritative, mount } = comments([open])

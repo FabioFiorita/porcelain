@@ -146,7 +146,14 @@ describe('Session recovery invalidation', () => {
     await invalidateForRecovery({ reason: 'reconnect', scope: { kind: 'session' } }, utils)
     await invalidateForRecovery({ reason: 'epoch-changed', scope: { kind: 'session' } }, utils)
 
-    expect(invalidated).toEqual(['*', '*'])
+    expect(invalidated).toEqual([
+      '*',
+      'reviewComments',
+      'boardCards',
+      '*',
+      'reviewComments',
+      'boardCards',
+    ])
   })
 
   it('invalidates the affected project scope when one stream lost a notification', async () => {

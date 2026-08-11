@@ -18,8 +18,12 @@ import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import { trpc } from '@renderer/lib/trpc'
 import { randomId } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { type ReviewCommentsDaemonScope, reviewCommentsQueryKey } from './comment-query-key'
+import { type QueryClient, useMutation, useQueryClient } from '@tanstack/react-query'
+import {
+  type ReviewCommentsDaemonScope,
+  reviewCommentsKeyForProject,
+  reviewCommentsQueryKey,
+} from './comment-query-key'
 
 /**
  * Review comment mutation adapter (RVC-003).
@@ -55,6 +59,30 @@ function mutationErrorMessage(error: unknown): string {
   return 'Request failed'
 }
 
+const mutationQueues = new WeakMap<QueryClient, Map<string, Promise<void>>>()
+
+function enqueueCommentMutation<T>(
+  queryClient: QueryClient,
+  queueKey: string,
+  run: () => Promise<T>,
+): Promise<T> {
+  let queues = mutationQueues.get(queryClient)
+  if (queues === undefined) {
+    queues = new Map()
+    mutationQueues.set(queryClient, queues)
+  }
+  const previous = queues.get(queueKey) ?? Promise.resolve()
+  const result = previous.then(run, run)
+  queues.set(
+    queueKey,
+    result.then(
+      () => undefined,
+      () => undefined,
+    ),
+  )
+  return result
+}
+
 /** Add/edit/delete/resolve/clear review comments with reversible, load-gated optimism. */
 export function useCommentActions(): {
   add: (input: NewComment) => Promise<void>
@@ -68,6 +96,12 @@ export function useCommentActions(): {
   const daemonScope: ReviewCommentsDaemonScope = { host: daemon.host, version: daemon.version }
   const queryClient = useQueryClient()
   const client = trpc.useUtils().client
+
+  const runSerially = <T>(run: () => Promise<T>): Promise<T> => {
+    if (!repo) return run()
+    const queueKey = JSON.stringify(reviewCommentsKeyForProject(daemonScope, repo.path))
+    return enqueueCommentMutation(queryClient, queueKey, run)
+  }
 
   const commentsIdentity = (
     identities: ReturnType<typeof reviewCommentMutations.add.affectedQueries>,
@@ -273,30 +307,40 @@ export function useCommentActions(): {
   return {
     add: async (input: NewComment): Promise<void> => {
       if (!repo) return
-      await add.mutateAsync({
-        repoPath: repo.path,
-        path: input.path,
-        body: input.body,
-        ...(input.startLine !== undefined ? { startLine: input.startLine } : {}),
-        ...(input.endLine !== undefined ? { endLine: input.endLine } : {}),
-        ...(input.anchorText !== undefined ? { anchorText: input.anchorText } : {}),
+      await runSerially(async () => {
+        await add.mutateAsync({
+          repoPath: repo.path,
+          path: input.path,
+          body: input.body,
+          ...(input.startLine !== undefined ? { startLine: input.startLine } : {}),
+          ...(input.endLine !== undefined ? { endLine: input.endLine } : {}),
+          ...(input.anchorText !== undefined ? { anchorText: input.anchorText } : {}),
+        })
       })
     },
     edit: async (id: string, body: string): Promise<void> => {
       if (!repo) return
-      await edit.mutateAsync({ repoPath: repo.path, id, body })
+      await runSerially(async () => {
+        await edit.mutateAsync({ repoPath: repo.path, id, body })
+      })
     },
     remove: async (id: string): Promise<void> => {
       if (!repo) return
-      await remove.mutateAsync({ repoPath: repo.path, id })
+      await runSerially(async () => {
+        await remove.mutateAsync({ repoPath: repo.path, id })
+      })
     },
     setResolved: async (id: string, resolved: boolean): Promise<void> => {
       if (!repo) return
-      await setResolved.mutateAsync({ repoPath: repo.path, id, resolved })
+      await runSerially(async () => {
+        await setResolved.mutateAsync({ repoPath: repo.path, id, resolved })
+      })
     },
     clearResolved: async (): Promise<void> => {
       if (!repo) return
-      await clearResolved.mutateAsync({ repoPath: repo.path })
+      await runSerially(async () => {
+        await clearResolved.mutateAsync({ repoPath: repo.path })
+      })
     },
   }
 }
