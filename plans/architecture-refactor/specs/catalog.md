@@ -74,7 +74,7 @@ an external choice or authorization.
 | `FIL-002` | Landed | Safe-path/read-limit Files capabilities, operations, and filesystem adapter proof |
 | `FIL-003` | Landed | Declarative bounded watches and typed successful-change facts |
 | `FIL-004` | Landed | Shared Files query/mutation/watch/recovery semantics |
-| `FIL-005` | Draft | Web Files adapter and Viewer seam remove raw daemon models |
+| `FIL-005` | Ready | Web Files adapter and Viewer seam remove raw daemon models |
 | `FIL-006` | Draft | Mobile Files adapter deletes local schemas and string invalidations |
 | `GIT-001` | Draft | Checkout/add-worktree/status/branches/worktrees contracts and failures |
 | `GIT-002` | Draft | Checkout and add-worktree operations over hardened Git capabilities |
