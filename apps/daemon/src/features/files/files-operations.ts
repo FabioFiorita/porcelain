@@ -1,34 +1,20 @@
-import type { FileView } from '@porcelain/contracts/files'
-import type { FilesOperationResult, WorkspaceFiles } from './files-ports'
+import type { WorkspaceFiles } from './files-ports'
 import { createNodeWorkspaceFiles } from './workspace-files'
 
+/**
+ * Bound operations surface — exact per-operation result unions from WorkspaceFiles.
+ * Do not widen to global FilesOperationResult<T>: that would let readFile advertise
+ * create/rename-only errors and publish undeclared contract codes at the router.
+ */
 export type FilesOperations = {
-  readFile(input: { projectPath: string; path: string }): Promise<FilesOperationResult<FileView>>
-
-  previewHtml(input: {
-    projectPath: string
-    path: string
-  }): Promise<FilesOperationResult<string | null>>
-
-  writeTextFile(input: {
-    projectPath: string
-    path: string
-    content: string
-  }): Promise<FilesOperationResult<void>>
-
-  createFile(input: { projectPath: string; path: string }): Promise<FilesOperationResult<void>>
-
-  createFolder(input: { projectPath: string; path: string }): Promise<FilesOperationResult<void>>
-
-  renamePath(input: {
-    projectPath: string
-    from: string
-    to: string
-  }): Promise<FilesOperationResult<void>>
-
-  duplicatePath(input: { projectPath: string; path: string }): Promise<FilesOperationResult<string>>
-
-  trashPath(input: { projectPath: string; path: string }): Promise<FilesOperationResult<void>>
+  readFile: WorkspaceFiles['readFile']
+  previewHtml: WorkspaceFiles['previewHtml']
+  writeTextFile: WorkspaceFiles['writeTextFile']
+  createFile: WorkspaceFiles['createFile']
+  createFolder: WorkspaceFiles['createFolder']
+  renamePath: WorkspaceFiles['renamePath']
+  duplicatePath: WorkspaceFiles['duplicatePath']
+  trashPath: WorkspaceFiles['trashPath']
 }
 
 /**

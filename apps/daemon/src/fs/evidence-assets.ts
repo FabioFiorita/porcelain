@@ -83,14 +83,15 @@ async function readContainedAsset(
   root: string,
   rootReal: string,
   raw: string,
-): Promise<{ lexical: string; real: string; bytes: Buffer } | null> {
+): Promise<{ lexical: string; bytes: Buffer } | null> {
   const candidateLexical = localAssetPath(base, root, raw)
   if (candidateLexical === null) return null
   try {
     const candidateReal = await realpath(candidateLexical)
     if (!isInsideDir(rootReal, candidateReal)) return null
+    // Read the contained real target; MIME identity stays on the lexical name.
     const bytes = await readFile(candidateReal)
-    return { lexical: candidateLexical, real: candidateReal, bytes }
+    return { lexical: candidateLexical, bytes }
   } catch {
     // missing / dangling / ELOOP — leave original reference alone
     return null
@@ -132,7 +133,7 @@ export async function inlineLocalAssets(
     [...paths].map(async (raw) => {
       const asset = await readContainedAsset(base, root, rootReal, raw)
       if (asset === null) return
-      dataUris.set(raw, `data:${mimeFor(asset.real)};base64,${asset.bytes.toString('base64')}`)
+      dataUris.set(raw, `data:${mimeFor(asset.lexical)};base64,${asset.bytes.toString('base64')}`)
     }),
   )
 

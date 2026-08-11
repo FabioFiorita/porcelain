@@ -1,6 +1,6 @@
 // @vitest-environment node
-import { describe, expect, it, vi } from 'vitest'
-import { createFilesOperations } from './files-operations'
+import { describe, expect, expectTypeOf, it, vi } from 'vitest'
+import { createFilesOperations, type FilesOperations } from './files-operations'
 import type { WorkspaceFiles } from './files-ports'
 
 function fakeWorkspace(overrides: Partial<WorkspaceFiles> = {}): WorkspaceFiles {
@@ -70,5 +70,42 @@ describe('createFilesOperations', () => {
       ok: false,
       error: { code: 'destination-exists' },
     })
+  })
+
+  it('preserves exact per-operation result unions (read cannot return create-only errors)', () => {
+    expectTypeOf<FilesOperations['readFile']>().toEqualTypeOf<WorkspaceFiles['readFile']>()
+    expectTypeOf<FilesOperations['createFile']>().toEqualTypeOf<WorkspaceFiles['createFile']>()
+    expectTypeOf<FilesOperations['renamePath']>().toEqualTypeOf<WorkspaceFiles['renamePath']>()
+
+    type ReadError = Extract<
+      Awaited<ReturnType<FilesOperations['readFile']>>,
+      { ok: false }
+    >['error']['code']
+    type CreateError = Extract<
+      Awaited<ReturnType<FilesOperations['createFile']>>,
+      { ok: false }
+    >['error']['code']
+    type RenameError = Extract<
+      Awaited<ReturnType<FilesOperations['renamePath']>>,
+      { ok: false }
+    >['error']['code']
+
+    expectTypeOf<ReadError>().toEqualTypeOf<'path-outside-project'>()
+    expectTypeOf<CreateError>().toEqualTypeOf<
+      'path-outside-project' | 'already-exists' | 'not-found'
+    >()
+    expectTypeOf<RenameError>().toEqualTypeOf<
+      'path-outside-project' | 'not-found' | 'destination-exists'
+    >()
+
+    // Create-only / rename-only codes must not be assignable to read failures.
+    expectTypeOf<{
+      ok: false
+      error: { code: 'already-exists'; path: string }
+    }>().not.toMatchTypeOf<Awaited<ReturnType<FilesOperations['readFile']>>>()
+    expectTypeOf<{
+      ok: false
+      error: { code: 'destination-exists' }
+    }>().not.toMatchTypeOf<Awaited<ReturnType<FilesOperations['readFile']>>>()
   })
 })

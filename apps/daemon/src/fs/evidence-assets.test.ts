@@ -97,6 +97,16 @@ describe('inlineLocalAssets', () => {
     rmSync(outside, { recursive: true, force: true })
   })
 
+  it('MIME identity follows lexical name when contained symlink target extension differs', async () => {
+    // Lexical entry ends in .png; real target has no image extension — MIME must stay image/png.
+    writeFileSync(join(dir, 'payload.bin'), Buffer.from([0x89, 0x50, 0x4e, 0x47]))
+    symlinkSync(join(dir, 'payload.bin'), join(dir, 'shot.png'))
+    const html = '<img src="shot.png" alt="x">'
+    const out = await inlineLocalAssets(dir, html)
+    expect(out).toMatch(/src="data:image\/png;base64,/)
+    expect(out).not.toContain('application/octet-stream')
+  })
+
   it('leaves stylesheet symlink escape alone', async () => {
     const outside = join(tmpdir(), 'porcelain-evidence-assets-css-outside')
     rmSync(outside, { recursive: true, force: true })

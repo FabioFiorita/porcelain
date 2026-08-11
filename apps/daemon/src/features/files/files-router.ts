@@ -3,14 +3,28 @@ import { expectedFailure } from '../../daemon-composition/expected-failure'
 import { toTrpcError } from '../../daemon-composition/public-error'
 import { publicProcedure, t } from '../../trpc'
 import type { FilesOperations } from './files-operations'
-import type { FilesOperationResult } from './files-ports'
+import type {
+  FilesAlreadyExistsError,
+  FilesDestinationExistsError,
+  FilesNotFoundError,
+  FilesPathOutsideError,
+} from './files-ports'
 
 /**
  * Files feature router — eight host-fs procedures only.
  * Residual Search stays in router/files.ts.
  */
 
-function throwIfFailed<T>(result: FilesOperationResult<T>): T {
+/** Full public error set for exhaustive mapping — callers may pass narrower per-op unions. */
+type FilesMappedError =
+  | FilesPathOutsideError
+  | FilesNotFoundError
+  | FilesAlreadyExistsError
+  | FilesDestinationExistsError
+
+function throwIfFailed<T>(
+  result: { ok: true; value: T } | { ok: false; error: FilesMappedError },
+): T {
   if (result.ok) return result.value
   const e = result.error
   switch (e.code) {

@@ -175,11 +175,17 @@ export async function resolveMissingCapable(
   const { lexicalAbsolute } = joined
 
   // Leaf present as ANY directory entry type (file, dir, or symlink)?
+  // Intermediate symlink loops make lstat(ELOOP) before the ancestor walk runs —
+  // map that containment failure here (do not throw unexpected).
   let lst: Awaited<ReturnType<typeof lstat>> | null = null
   try {
     lst = await lstat(lexicalAbsolute)
   } catch (lstatErr) {
-    if ((lstatErr as NodeJS.ErrnoException).code !== 'ENOENT') throw lstatErr
+    const code = (lstatErr as NodeJS.ErrnoException).code
+    if (code === 'ELOOP') {
+      return { ok: false, error: { code: 'path-outside-project', path: relativePath } }
+    }
+    if (code !== 'ENOENT') throw lstatErr
   }
 
   if (lst !== null) {
