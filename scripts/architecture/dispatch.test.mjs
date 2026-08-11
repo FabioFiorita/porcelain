@@ -48,6 +48,20 @@ import {
   writeState,
 } from './state.mjs'
 
+/**
+ * Synchronous variant. An `async` helper hands a sync `test()` callback a Promise it
+ * never returns, so a failing assertion inside would reject unobserved and the test
+ * would pass. Sync bodies must use this one.
+ */
+function withTempSync(run) {
+  const root = mkdtempSync(join(tmpdir(), 'arch-dispatch-'))
+  try {
+    run(root)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+}
+
 async function withTemp(run) {
   const root = mkdtempSync(join(tmpdir(), 'arch-dispatch-'))
   try {
@@ -221,7 +235,7 @@ test('findGroupCycles and overlapping recipes fail closed', () => {
     recipes: ['AAA-001'],
     dependsOn: [],
   }).group
-  withTemp((root) => {
+  withTempSync((root) => {
     const specs = join(root, 'specs')
     mkdirSync(specs)
     writeFileSync(
@@ -249,7 +263,7 @@ test('parseCatalogStatuses reads catalog rows', () => {
 // --- dependsOn structural + integration ---
 
 test('mergeWithTrackedGroups and set validation catch unknown dependsOn', () => {
-  withTemp((root) => {
+  withTempSync((root) => {
     const groupsDir = join(root, 'groups')
     mkdirSync(groupsDir, { recursive: true })
     writeFileSync(
@@ -327,7 +341,7 @@ test('checkDependencyIntegration fails without completed dep / non-ancestor head
 })
 
 test('checkDependencyIntegration success with real git ancestor', () => {
-  withTemp((root) => {
+  withTempSync((root) => {
     const head = initRepo(root)
     // Create a side commit then merge-base ancestor check: head is ancestor of main
     const group = parseExecutionGroup({
@@ -522,7 +536,7 @@ test('evaluatePostconditions fails on non-zero exit and missing packet', () => {
 // --- state atomic + identity ---
 
 test('atomic state write and interrupted status fields', () => {
-  withTemp((root) => {
+  withTempSync((root) => {
     const orchRoot = join(root, 'scripts', 'agent-scratch', 'orchestration', 'group-x')
     mkdirSync(orchRoot, { recursive: true })
     const state = createInitialState({
@@ -573,7 +587,7 @@ test('atomic state write and interrupted status fields', () => {
 })
 
 test('assertPreparedIdentity fails closed on manifest replacement', () => {
-  withTemp((root) => {
+  withTempSync((root) => {
     const orch = join(root, 'scripts', 'agent-scratch', 'orchestration', 'g1')
     mkdirSync(orch, { recursive: true })
     const group = parseExecutionGroup({
@@ -628,7 +642,7 @@ test('assertPreparedIdentity fails closed on manifest replacement', () => {
 // --- worktree adoption ---
 
 test('adoptManagedWorktree rejects malformed, wrong-slug, wrong-base, wrong-branch profiles', () => {
-  withTemp((root) => {
+  withTempSync((root) => {
     initRepo(root)
     const group = parseExecutionGroup({
       version: 1,
@@ -666,7 +680,7 @@ test('adoptManagedWorktree rejects malformed, wrong-slug, wrong-base, wrong-bran
 })
 
 test('adoptManagedWorktree accepts linked worktree with matching profile and branch', () => {
-  withTemp((root) => {
+  withTempSync((root) => {
     initRepo(root)
     const slug = 'arch-adopt-ok'
     const group = parseExecutionGroup({
@@ -1274,7 +1288,7 @@ test('post-executor: corrupt catalog after exit finalizes failed with diagnostic
 })
 
 test('probeWorktreeClean returns structured dirty result and never exits', () => {
-  withTemp((root) => {
+  withTempSync((root) => {
     initRepo(root)
     assert.equal(probeWorktreeClean(root).clean, true)
     writeFileSync(join(root, 'dirt.txt'), 'x\n')
@@ -1285,7 +1299,7 @@ test('probeWorktreeClean returns structured dirty result and never exits', () =>
 })
 
 test('loadCatalogText throws ordinary Error on missing file (not process.exit)', () => {
-  withTemp((root) => {
+  withTempSync((root) => {
     assert.throws(() => loadCatalogText(join(root, 'no-such-catalog.md')), /catalog missing/)
   })
 })

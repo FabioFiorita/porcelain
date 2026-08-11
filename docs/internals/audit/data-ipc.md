@@ -14,8 +14,37 @@
   post-mutation invalidation; the WS session is reached only through `use-app-events` /
   `use-terminal-channel` / `use-files`. The vanilla tRPC client is sanctioned only in `stores/repo.ts`
   and `use-app-events.ts`.
-- **Never `void` a promise** to silence a floating-promise lint — use `async`/`await` or
-  `await Promise.all([...])`.
+- **Never `void` a promise** to silence a floating-promise lint, **never leave a Promise bare**, and
+  **never write `.catch(() => {})`** — a no-op catch is indistinguishable from the bug and carries no
+  reason, so `lint-escapes` rejects it (empty body, `() => undefined`, comment-only body, and
+  `.then(ok, () => {})` alike) and no longer counts it as disposition.
+  Prefer `async`/`await` or `await Promise.all([...])`. Intentional best-effort work uses
+  **`settleBackground(promise, reason)`** (reason-tagged settle, recorded through a debug observer —
+  `invalidation | notification | teardown | watcher | clipboard | lifecycle | fallback`).
+  Both boundaries live in **one** module, `packages/shared/src/background.ts`, imported by web,
+  mobile, and the daemon alike; a same-named local helper does not count, because the rule resolves
+  the boundary name to that module. User-intent work uses
+  **`runUserAction(work, onError, onSettled?)`** — required **non-noop** error handler (toast /
+  Alert / status / log); handlers may be async; the boundary is total (sync throw, rejection
+  including `undefined`, throwing/async onError/onSettled never float; async onError completes
+  before onSettled; boundary-handler failures go to a reporter / `console.error`, and a throwing
+  or rejecting reporter is itself guarded by a last-resort console path). Or make the owning hook
+  **total and void** before a React/RN event edge — frameworks ignore returned promises from
+  `onX` handlers. Enforced by `lint-escapes` over ownership roots: (1) regex ban on promise-`void`
+  and `as unknown as`, (2) TypeScript AST scan for bare expression-statement `mutateAsync` /
+  `invalidateQueries` / `*Async`, for **every JSX `onX`** (no library exclusions — including
+  `onError`/`onStatusChange`) that is inline-async, scope-resolved async/Promise-returning, or an
+  imported handler reference, for **object `onX`** except React Query/transport lifecycle keys
+  (option context only), for **`addEventListener` async/Promise listeners**, for **no-op rejection
+  handlers anywhere**, and for **syntactic no-op `runUserAction` error handlers**, with fixture
+  tests. The scan is **import-aware**: it resolves a specifier to its file and reads that module's
+  declared signatures, so `const { stageFile } = useFileStaging()` and `const [save] = useSaver()`
+  both carry their real disposition to the edge. It also **inspects handler bodies** —
+  `onClick={() => stage(p)}` and `onClick={() => { stage(p) }}` fail exactly when `stage` returns a
+  Promise, which is what makes `() => { thing() }` the one blessed idiom for a provably-void
+  handler. A **type-annotation rebind** (`const handleX: () => void = asyncThing`) is not an idiom:
+  TypeScript accepts the assignment, the rule does not. Biome adds `complexity/noVoid` and
+  `nursery/noFloatingPromises` (does not alone catch async event attributes).
 - **The shell forks the daemon via `utilityProcess.fork` — NEVER via `spawn(process.execPath, …,
   ELECTRON_RUN_AS_NODE)`.** Packaged builds fuse `RunAsNode` OFF and **the fuse silently IGNORES the
   env var**, so a child_process spawn boots the child as a second full GUI app whose own

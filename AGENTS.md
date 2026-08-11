@@ -86,7 +86,7 @@ Don't memorize these — the gate catches you. Hooks run `pnpm lint` on every co
 |---|---|
 | Ten canonical domains, runtime dependency direction, target feature names, 450-line repository ceiling, shrinking raw server imports | `lint-architecture` |
 | Executor recipes match their catalog, required shape, dependency status, and no-placeholder rule | `lint-architecture-specs` |
-| No `as unknown as`; no `void`-swallowed promises | `lint-escapes` |
+| No `as unknown as` outside exact allowlisted external test fakes; no promise-`void`; no bare floating `mutateAsync`/`invalidateQueries`/`*Async` expression statements; no async/Promise-returning `onX` JSX/object event handlers or `addEventListener` listeners; no syntactic no-op `runUserAction` error handlers — best-effort via `settleBackground(reason)`; user intent via total void hooks or `runUserAction` (required non-noop error handler; total boundary) | `lint-escapes` (+ fixture tests, TS AST); Biome `complexity/noVoid` + `nursery/noFloatingPromises` |
 | No inline `style` / `contentContainerStyle` in mobile src | `lint-mobile-nativewind` |
 | Mobile-local 450-line migration ledger (temporary overlap) | `lint-mobile-file-size` |
 | Components never import `lib/trpc` / `lib/daemon` | Biome |

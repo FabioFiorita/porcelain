@@ -31,7 +31,9 @@
       "correctness": {
         "noUnusedImports": "error",
         "noUnusedVariables": "error"
-      }
+      },
+      "complexity": { "noVoid": "error" },
+      "nursery": { "noFloatingPromises": "error" }
     }
   },
   "assist": { "actions": { "source": { "organizeImports": "on" } } },
