@@ -4,6 +4,7 @@ import {
   boardInvalidTitleErrorSchema,
   boardUnavailableErrorSchema,
 } from '../board/board.errors'
+import { filesAlreadyExistsErrorSchema } from '../files/files.errors'
 import {
   authForbiddenErrorSchema,
   authUnauthenticatedErrorSchema,
@@ -36,6 +37,7 @@ const memberSchemas = {
   'board.invalid-title': boardInvalidTitleErrorSchema,
   'review.unavailable': reviewUnavailableErrorSchema,
   'review.comment-not-found': reviewCommentNotFoundErrorSchema,
+  'files.already-exists': filesAlreadyExistsErrorSchema,
 } as const
 
 const expectedMembers = [
@@ -67,10 +69,16 @@ const expectedMembers = [
     retryable: false,
     hasDetails: true,
   },
+  {
+    code: 'files.already-exists',
+    category: 'conflict',
+    retryable: false,
+    hasDetails: true,
+  },
 ] as const
 
 describe('public error contracts', () => {
-  it('exports the system, Board, and Review public members and categories', () => {
+  it('exports the system, Board, Review, and Files public members and categories', () => {
     expect(Object.keys(memberSchemas).sort()).toEqual(
       expectedMembers.map(({ code }) => code).sort(),
     )
@@ -201,6 +209,31 @@ describe('public error contracts', () => {
       reviewCommentNotFoundErrorSchema.safeParse({
         ...notFound,
         details: {},
+      }).success,
+    ).toBe(false)
+  })
+
+  it('gives Files already-exists its required non-empty path detail', () => {
+    const alreadyExists = publicErrorFixtures['files.already-exists']
+    expect(filesAlreadyExistsErrorSchema.parse(alreadyExists).details).toEqual({
+      path: '/synthetic/repo/docs/empty.txt',
+    })
+    expect(
+      filesAlreadyExistsErrorSchema.safeParse({
+        ...alreadyExists,
+        details: { path: '' },
+      }).success,
+    ).toBe(false)
+    expect(
+      filesAlreadyExistsErrorSchema.safeParse({
+        ...alreadyExists,
+        details: {},
+      }).success,
+    ).toBe(false)
+    expect(
+      filesAlreadyExistsErrorSchema.safeParse({
+        ...alreadyExists,
+        details: { path: '/synthetic/repo/docs/empty.txt', extra: true },
       }).success,
     ).toBe(false)
   })

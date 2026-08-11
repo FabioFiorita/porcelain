@@ -97,4 +97,12 @@ export const publicErrorFixtures = {
     requestId: '00000000-0000-4000-8000-00000000000d',
     details: { commentId: 'comment-synthetic-001' },
   },
+  'files.already-exists': {
+    code: 'files.already-exists',
+    category: 'conflict',
+    message: 'The path already exists.',
+    retryable: false,
+    requestId: '00000000-0000-4000-8000-00000000000e',
+    details: { path: '/synthetic/repo/docs/empty.txt' },
+  },
 } as const satisfies Record<PublicErrorCode, PorcelainError>

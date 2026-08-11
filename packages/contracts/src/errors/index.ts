@@ -6,6 +6,10 @@ export {
   boardUnavailableErrorSchema,
 } from '../board/board.errors'
 export {
+  filesAlreadyExistsErrorDetailsSchema,
+  filesAlreadyExistsErrorSchema,
+} from '../files'
+export {
   reviewCommentNotFoundErrorDetailsSchema,
   reviewCommentNotFoundErrorSchema,
   reviewUnavailableErrorSchema,

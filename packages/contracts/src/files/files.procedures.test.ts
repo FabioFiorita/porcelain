@@ -20,6 +20,24 @@ const expectedKinds = {
   repoScope: 'query',
 } as const
 
+const expectedErrors = {
+  readDir: [],
+  hidePath: [],
+  unhidePath: [],
+  pinPath: [],
+  unpinPath: [],
+  pinnedEntries: [],
+  readFile: [],
+  previewHtml: [],
+  writeTextFile: [],
+  createFile: ['files.already-exists'],
+  createFolder: ['files.already-exists'],
+  renamePath: ['state.conflict'],
+  duplicatePath: [],
+  trashPath: [],
+  repoScope: [],
+} as const
+
 const invalidInputs: Record<keyof typeof filesProcedures, unknown> = {
   readDir: { repoPath: '/synthetic/repo', path: '/synthetic/repo/src', showHidden: 'false' },
   hidePath: { repoPath: '/synthetic/repo' },
@@ -65,10 +83,14 @@ const invalidOutputs: Record<keyof typeof filesProcedures, unknown> = {
 }
 
 describe('Files procedure contracts', () => {
-  it('declares exactly fifteen procedures with their router kinds', () => {
+  it('declares exactly fifteen procedures with their router kinds and allowed errors', () => {
     expect(Object.keys(filesProcedures).sort()).toEqual(Object.keys(expectedKinds).sort())
     for (const [name, kind] of Object.entries(expectedKinds)) {
-      expect(filesProcedures[name as keyof typeof filesProcedures].kind).toBe(kind)
+      const procedure = filesProcedures[name as keyof typeof filesProcedures]
+      expect(procedure.kind).toBe(kind)
+      expect([...procedure.errors]).toEqual([
+        ...expectedErrors[name as keyof typeof expectedErrors],
+      ])
     }
   })
 
@@ -91,6 +113,17 @@ describe('Files procedure contracts', () => {
     for (const fixture of Object.values(fileViewFixtures)) {
       expect(filesProcedures.readFile.output.safeParse(fixture).success).toBe(true)
     }
+  })
+
+  it('rejects non-integer or negative FileView sizes and empty image dataUrls', () => {
+    const output = filesProcedures.readFile.output
+    expect(output.safeParse({ type: 'binary', size: 1.5 }).success).toBe(false)
+    expect(output.safeParse({ type: 'binary', size: -1 }).success).toBe(false)
+    expect(output.safeParse({ type: 'too-large', size: 1.5 }).success).toBe(false)
+    expect(output.safeParse({ type: 'too-large', size: -1 }).success).toBe(false)
+    expect(output.safeParse({ type: 'image', dataUrl: '' }).success).toBe(false)
+    expect(output.safeParse({ type: 'binary', size: 0 }).success).toBe(true)
+    expect(output.safeParse({ type: 'too-large', size: 0 }).success).toBe(true)
   })
 
   it('accepts both populated and nullable HTML previews', () => {

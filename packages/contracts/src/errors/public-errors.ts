@@ -4,6 +4,7 @@ import {
   boardInvalidTitleErrorSchema,
   boardUnavailableErrorSchema,
 } from '../board/board.errors'
+import { filesAlreadyExistsErrorSchema } from '../files'
 import {
   reviewCommentNotFoundErrorSchema,
   reviewUnavailableErrorSchema,
@@ -47,6 +48,7 @@ export const publicErrorSchema = z.discriminatedUnion('code', [
   boardInvalidTitleErrorSchema,
   reviewUnavailableErrorSchema,
   reviewCommentNotFoundErrorSchema,
+  filesAlreadyExistsErrorSchema,
 ])
 
 export type PorcelainError = z.infer<typeof publicErrorSchema>

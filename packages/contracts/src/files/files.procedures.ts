@@ -76,13 +76,13 @@ const filesProcedureDefinitions = {
     kind: 'mutation',
     input: createFileInputSchema,
     output: createFileOutputSchema,
-    errors: [],
+    errors: ['files.already-exists'],
   },
   createFolder: {
     kind: 'mutation',
     input: createFolderInputSchema,
     output: createFolderOutputSchema,
-    errors: [],
+    errors: ['files.already-exists'],
   },
   renamePath: {
     kind: 'mutation',

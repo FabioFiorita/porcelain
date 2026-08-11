@@ -14,9 +14,9 @@ export type DirEntry = z.infer<typeof dirEntrySchema>
 
 export const fileViewSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('text'), content: z.string() }).strict(),
-  z.object({ type: z.literal('image'), dataUrl: z.string() }).strict(),
-  z.object({ type: z.literal('binary'), size: z.number() }).strict(),
-  z.object({ type: z.literal('too-large'), size: z.number() }).strict(),
+  z.object({ type: z.literal('image'), dataUrl: z.string().min(1) }).strict(),
+  z.object({ type: z.literal('binary'), size: z.number().int().nonnegative() }).strict(),
+  z.object({ type: z.literal('too-large'), size: z.number().int().nonnegative() }).strict(),
   z.object({ type: z.literal('not-found') }).strict(),
 ])
 

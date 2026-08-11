@@ -1,6 +1,7 @@
 import { readdir, stat } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import { procedureCatalog } from '@porcelain/contracts'
+import type { DirEntry } from '@porcelain/contracts/files'
 import { type BrowseResult, browseDirs } from '../git/browse'
 import { warmFileList } from '../git/git'
 import { isLinkedWorktree } from '../git/linked-worktree'
@@ -21,14 +22,6 @@ import { publicProcedure, t } from '../trpc'
 export interface RepoInfo {
   path: string
   name: string
-}
-
-export interface DirEntry {
-  name: string
-  path: string
-  kind: 'file' | 'dir'
-  hidden: boolean
-  pinned: boolean
 }
 
 const toRepoInfo = (path: string): RepoInfo => ({ path, name: basename(path) })

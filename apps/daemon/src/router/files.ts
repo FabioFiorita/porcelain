@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs'
 import { cp, mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import { procedureCatalog } from '@porcelain/contracts'
+import type { FileView } from '@porcelain/contracts/files'
 import { expectedFailure } from '../daemon-composition/expected-failure'
 import { toTrpcError } from '../daemon-composition/public-error'
 import { inlineLocalAssets } from '../fs/evidence-assets'
@@ -16,13 +17,6 @@ import { searchCandidates } from '../search/search-candidates'
 import { MAX_HTML_BYTES } from '../stores/evidence-store'
 import { hiddenPathsForRepo } from '../stores/scope-store'
 import { publicProcedure, t } from '../trpc'
-
-export type FileView =
-  | { type: 'text'; content: string }
-  | { type: 'image'; dataUrl: string }
-  | { type: 'binary'; size: number }
-  | { type: 'too-large'; size: number }
-  | { type: 'not-found' }
 
 export function createFilesRouter() {
   return t.router({
