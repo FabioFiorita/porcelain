@@ -1,7 +1,11 @@
 import { createHash, timingSafeEqual } from 'node:crypto'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import type { Duplex } from 'node:stream'
-import { MAX_SESSION_MESSAGE_BYTES } from '@porcelain/contracts'
+import {
+  MAX_SESSION_MESSAGE_BYTES,
+  PROTOCOL_VERSION,
+  PROTOCOL_VERSION_HEADER,
+} from '@porcelain/contracts'
 import type { AnyRouter } from '@trpc/server'
 import { fetchRequestHandler } from '@trpc/server/adapters/fetch'
 import { type WebSocket, WebSocketServer } from 'ws'
@@ -30,6 +34,10 @@ import type { AuthIdentity } from '../stores/access-store'
  * individually by the access store. POST /pair is the only unauthenticated
  * mutation, and accepts rate-limited, size-capped one-time credentials. Static
  * assets are public by design; CORS is scoped, never `*`.
+ *
+ * Both dispatching routes also require the exact wire protocol this build speaks
+ * (`rejectProtocolMismatch` below): the daemon serves independently updated clients
+ * and does not emulate older ones.
  */
 export interface DaemonHttpOptions {
   /** sha256 digest of the local host administrator credential. */
@@ -60,6 +68,20 @@ export interface DaemonHttp {
 }
 
 const WS_PROTOCOL_PREFIX = 'porcelain.'
+
+/**
+ * A protocol announcement is exactly one decimal integer — no sign, space, exponent,
+ * fraction, or repeated header. Anything else announced no version this build can compare
+ * against, so it is reported back as `received: null` rather than guessed into a number.
+ */
+const PROTOCOL_VERSION_PATTERN = /^(?:0|[1-9]\d*)$/
+
+function announcedProtocolVersion(req: IncomingMessage): number | null {
+  const raw = req.headers[PROTOCOL_VERSION_HEADER]
+  if (typeof raw !== 'string' || !PROTOCOL_VERSION_PATTERN.test(raw)) return null
+  const announced = Number(raw)
+  return Number.isSafeInteger(announced) ? announced : null
+}
 
 export function createDaemonHttp(opts: DaemonHttpOptions): DaemonHttp {
   const { allowedOrigin, router, onSession, serveStatic } = opts
@@ -123,6 +145,44 @@ export function createDaemonHttp(opts: DaemonHttpOptions): DaemonHttp {
     })
   }
 
+  /**
+   * THE protocol gate. Every dispatching route — /trpc and POST /pair — must announce
+   * exactly the protocol this build speaks. Absent, malformed, older, and newer are one
+   * outcome: `protocol.update-required`, carrying what was expected and what arrived, the
+   * same contract the session handshake refuses a mismatched socket with. There is no
+   * optional header, no inferred app version, and no per-route plain-text variant.
+   *
+   * ORDER OF CHECKS (audit): this runs *after* the check each route already leads with —
+   * the Bearer gate on /trpc, the rate limiter on POST /pair — and never reorders them.
+   * Authentication stays the daemon's outermost fail-closed gate, so an anonymous caller
+   * still gets `auth.unauthenticated` and cannot use a version reply to probe a daemon it
+   * has no credential for; the pairing limiter stays outermost for the same reason, so a
+   * mismatched client cannot spend unlimited pairing attempts. It still precedes every
+   * dispatch: a rejected request reaches no router procedure and no grant exchange, and
+   * spends only the one request ID its route already minted.
+   *
+   * Returns true when it has already written the response.
+   */
+  function rejectProtocolMismatch(
+    req: IncomingMessage,
+    res: ServerResponse,
+    cors: Record<string, string>,
+    requestId: string,
+  ): boolean {
+    const received = announcedProtocolVersion(req)
+    if (received === PROTOCOL_VERSION) return false
+    writePublicError(
+      res,
+      409,
+      cors,
+      publicErrorFor('protocol.update-required', requestId, {
+        expected: PROTOCOL_VERSION,
+        received,
+      }),
+    )
+    return true
+  }
+
   const pairingAttempts = new Map<string, { windowStartedAt: number; count: number }>()
 
   function pairingRateLimited(req: IncomingMessage): boolean {
@@ -154,6 +214,7 @@ export function createDaemonHttp(opts: DaemonHttpOptions): DaemonHttp {
       })
       return
     }
+    if (rejectProtocolMismatch(req, res, cors, requestId)) return
     const contentLength = Number(req.headers['content-length'] ?? '0')
     if (!Number.isFinite(contentLength) || contentLength > 8_192) {
       writePublicError(res, 413, cors, publicErrorFor('request.invalid', requestId))
@@ -264,6 +325,7 @@ export function createDaemonHttp(opts: DaemonHttpOptions): DaemonHttp {
         writePublicError(res, 401, cors, publicErrorFor('auth.unauthenticated', requestId))
         return
       }
+      if (rejectProtocolMismatch(req, res, cors, requestId)) return
       const method = req.method ?? 'GET'
       const headers = new Headers()
       for (const [key, value] of Object.entries(req.headers)) {

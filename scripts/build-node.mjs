@@ -10,6 +10,7 @@ import { parseArgs } from 'node:util'
  * porcelain-daemon packaging keep working:
  *
  *   apps/desktop/out/main/daemon/server.js
+ *   apps/desktop/out/main/contracts/protocol.js
  *   apps/desktop/out/main/cli/porcelain.js
  *
  * CLI is a single dependency-free CJS file (Node builtins only). Daemon externalizes
@@ -105,6 +106,29 @@ async function buildDaemon() {
   console.log(`[build-node] daemon → ${outfile}`)
 }
 
+/**
+ * The wire protocol constants, built as one requirable CJS module.
+ *
+ * `scripts/daemon-cli.js` is plain CommonJS with no bundler and no workspace resolution, but
+ * it is a repository-owned daemon client: it must announce the same protocol version the
+ * daemon enforces, from the same contracts definition, never a copied literal. It already
+ * requires the built daemon out of this layout — this puts the contracts it needs beside it,
+ * in both the monorepo (`apps/desktop/out/main/`) and the published package (`main/`).
+ */
+async function buildProtocol() {
+  const outfile = join(outMain, 'contracts', 'protocol.js')
+  mkdirSync(dirname(outfile), { recursive: true })
+  await esbuild.build({
+    ...common,
+    entryPoints: [join(contractsSrc, 'protocol.ts')],
+    outfile,
+    // zod stays external, exactly as in the daemon bundle: it is a declared dependency of
+    // the porcelain-daemon package, and bundling it would grow two constants to 500 kB.
+    external: ['zod'],
+  })
+  console.log(`[build-node] protocol → ${outfile}`)
+}
+
 async function buildCli() {
   const outfile = join(outMain, 'cli', 'porcelain.js')
   mkdirSync(dirname(outfile), { recursive: true })
@@ -122,4 +146,5 @@ async function buildCli() {
 }
 
 if (target === 'daemon' || target === 'all') await buildDaemon()
+if (target === 'daemon' || target === 'all') await buildProtocol()
 if (target === 'cli' || target === 'all') await buildCli()

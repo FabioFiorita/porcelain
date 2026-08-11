@@ -79,6 +79,8 @@ mkdirSync(dist, { recursive: true })
 // main/chunks is optional — independent esbuild CLI is a single file.
 const requiredCopies = [
   ['main/daemon/server.js', 'main/daemon/server.js'],
+  // Wire protocol constants the bundled CLI requires (bin/porcelain-daemon.js).
+  ['main/contracts/protocol.js', 'main/contracts/protocol.js'],
   ['main/cli/porcelain.js', 'main/cli/porcelain.js'],
   ['renderer', 'renderer'],
 ]

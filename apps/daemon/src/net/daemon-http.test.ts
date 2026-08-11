@@ -5,7 +5,8 @@ import { type IncomingMessage, request, type ServerResponse } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { publicErrorSchema } from '@porcelain/contracts'
+import { PROTOCOL_VERSION, PROTOCOL_VERSION_HEADER, publicErrorSchema } from '@porcelain/contracts'
+import { initTRPC } from '@trpc/server'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import WebSocket from 'ws'
 
@@ -36,6 +37,11 @@ const PAIRING_TOKEN = 'pairing-token'
 const ORIGIN = 'http://localhost:5173'
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
+/** What every repository-owned caller announces; the daemon accepts nothing else. */
+const PROTOCOL_HEADERS: Record<string, string> = {
+  [PROTOCOL_VERSION_HEADER]: String(PROTOCOL_VERSION),
+}
+
 let base: string
 let daemon: ReturnType<typeof createDaemonHttp>
 
@@ -54,18 +60,21 @@ const exchangeTestPairing: DaemonHttpOptions['exchangePairing'] = async (provide
       }
     : null
 
+type TestDaemonOverrides = Partial<
+  Pick<DaemonHttpOptions, 'authenticateClient' | 'exchangePairing' | 'router'>
+>
+
 function testDaemonOptions({
   authenticateClient = authenticateTestClient,
   exchangePairing = exchangeTestPairing,
-}: Partial<
-  Pick<DaemonHttpOptions, 'authenticateClient' | 'exchangePairing'>
-> = {}): DaemonHttpOptions {
+  router: testRouter = router,
+}: TestDaemonOverrides = {}): DaemonHttpOptions {
   return {
     adminTokenHash: createHash('sha256').update(TOKEN).digest(),
     authenticateClient,
     exchangePairing,
     allowedOrigin: ORIGIN,
-    router,
+    router: testRouter,
     onSession: createSession,
     serveStatic: async (req: IncomingMessage, res: ServerResponse) => {
       res.writeHead(req.url === '/pair' ? 200 : 404)
@@ -75,7 +84,7 @@ function testDaemonOptions({
 }
 
 async function startTestDaemon(
-  options: Partial<Pick<DaemonHttpOptions, 'authenticateClient' | 'exchangePairing'>> = {},
+  options: TestDaemonOverrides = {},
 ): Promise<{ base: string; daemon: ReturnType<typeof createDaemonHttp> }> {
   const testDaemon = createDaemonHttp(testDaemonOptions(options))
   await new Promise<void>((resolve) => testDaemon.server.listen(0, '127.0.0.1', resolve))
@@ -125,6 +134,7 @@ function postChunked(url: string, body: string): Promise<Response> {
         headers: {
           'content-type': 'application/json',
           'transfer-encoding': 'chunked',
+          ...PROTOCOL_HEADERS,
         },
       },
       (response) => {
@@ -174,7 +184,7 @@ describe('daemon http surface — the token gate + CORS scope', () => {
     ['a wrong Bearer credential', { authorization: 'Bearer wrong-token' }],
   ])('returns a public unauthenticated error for %s', async (_label, authHeaders) => {
     const res = await fetch(`${base}/trpc/recentRepos`, {
-      headers: { ...authHeaders, origin: ORIGIN },
+      headers: { ...authHeaders, origin: ORIGIN, ...PROTOCOL_HEADERS },
     })
     await expectPublicHttpFailure(res, 401, 'auth.unauthenticated')
     expect(res.headers.get('access-control-allow-origin')).toBe(ORIGIN)
@@ -182,14 +192,14 @@ describe('daemon http surface — the token gate + CORS scope', () => {
 
   it('accepts /trpc with the right Bearer token', async () => {
     const res = await fetch(`${base}/trpc/recentRepos`, {
-      headers: { authorization: `Bearer ${TOKEN}` },
+      headers: { authorization: `Bearer ${TOKEN}`, ...PROTOCOL_HEADERS },
     })
     expect(res.status).toBe(200)
   })
 
   it('echoes CORS for the allowed origin and never *', async () => {
     const res = await fetch(`${base}/trpc/recentRepos`, {
-      headers: { authorization: `Bearer ${TOKEN}`, origin: ORIGIN },
+      headers: { authorization: `Bearer ${TOKEN}`, origin: ORIGIN, ...PROTOCOL_HEADERS },
     })
     expect(res.headers.get('access-control-allow-origin')).toBe(ORIGIN)
     expect(res.headers.get('access-control-allow-origin')).not.toBe('*')
@@ -197,7 +207,11 @@ describe('daemon http surface — the token gate + CORS scope', () => {
 
   it('does not echo CORS for an unlisted origin', async () => {
     const res = await fetch(`${base}/trpc/recentRepos`, {
-      headers: { authorization: `Bearer ${TOKEN}`, origin: 'http://evil.example' },
+      headers: {
+        authorization: `Bearer ${TOKEN}`,
+        origin: 'http://evil.example',
+        ...PROTOCOL_HEADERS,
+      },
     })
     expect(res.headers.get('access-control-allow-origin')).toBeNull()
   })
@@ -214,7 +228,7 @@ describe('daemon http surface — the token gate + CORS scope', () => {
   it('exchanges a valid one-time pairing credential without authentication', async () => {
     const res = await fetch(`${base}/pair`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', ...PROTOCOL_HEADERS },
       body: JSON.stringify({ credential: PAIRING_TOKEN }),
     })
     expect(res.status).toBe(200)
@@ -234,7 +248,7 @@ describe('daemon http surface — the token gate + CORS scope', () => {
     try {
       const res = await fetch(`${isolated.base}/pair`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', ...PROTOCOL_HEADERS },
         body: JSON.stringify({ credential: 'consumed-pairing-grant' }),
       })
       await expectPublicHttpFailure(res, 401, 'auth.unauthenticated')
@@ -254,7 +268,7 @@ describe('daemon http surface — the token gate + CORS scope', () => {
     try {
       const res = await fetch(`${isolated.base}/pair`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', ...PROTOCOL_HEADERS },
         body,
       })
       await expectPublicHttpFailure(res, 400, 'request.invalid')
@@ -271,7 +285,7 @@ describe('daemon http surface — the token gate + CORS scope', () => {
     try {
       const res = await fetch(`${isolated.base}/pair`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', ...PROTOCOL_HEADERS },
         body: JSON.stringify({ credential: 'x'.repeat(8_192) }),
       })
       await expectPublicHttpFailure(res, 413, 'request.invalid')
@@ -305,7 +319,7 @@ describe('daemon http surface — the token gate + CORS scope', () => {
       for (let attempt = 0; attempt < 12; attempt += 1) {
         const res = await fetch(`${isolated.base}/pair`, {
           method: 'POST',
-          headers: { 'content-type': 'application/json' },
+          headers: { 'content-type': 'application/json', ...PROTOCOL_HEADERS },
           body: JSON.stringify({ credential: `pairing-attempt-${attempt}` }),
         })
         await expectPublicHttpFailure(res, 401, 'auth.unauthenticated')
@@ -313,7 +327,7 @@ describe('daemon http surface — the token gate + CORS scope', () => {
 
       const limited = await fetch(`${isolated.base}/pair`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', ...PROTOCOL_HEADERS },
         body: JSON.stringify({ credential: 'rate-limited-pairing-attempt' }),
       })
       expect(limited.headers.get('retry-after')).toBe('60')
@@ -334,7 +348,7 @@ describe('daemon http surface — the token gate + CORS scope', () => {
 
     try {
       const res = await fetch(`${isolated.base}/trpc/recentRepos`, {
-        headers: { authorization: 'Bearer unexpected-authentication-token' },
+        headers: { authorization: 'Bearer unexpected-authentication-token', ...PROTOCOL_HEADERS },
       })
       const error = await expectPublicHttpFailure(res, 500, 'internal.unexpected')
 
@@ -363,7 +377,7 @@ describe('daemon http surface — the token gate + CORS scope', () => {
     try {
       const res = await fetch(`${isolated.base}/pair`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', ...PROTOCOL_HEADERS },
         body: JSON.stringify({ credential: 'unexpected-pairing-grant' }),
       })
       const error = await expectPublicHttpFailure(res, 500, 'internal.unexpected')
@@ -384,7 +398,7 @@ describe('daemon http surface — the token gate + CORS scope', () => {
 
   it('accepts a client token for ordinary procedures', async () => {
     const ok = await fetch(`${base}/trpc/recentRepos`, {
-      headers: { authorization: `Bearer ${CLIENT_TOKEN}` },
+      headers: { authorization: `Bearer ${CLIENT_TOKEN}`, ...PROTOCOL_HEADERS },
     })
     expect(ok.status).toBe(200)
   })
@@ -394,7 +408,7 @@ describe('daemon http surface — the token gate + CORS scope', () => {
 
     try {
       const forbidden = await fetch(`${base}/trpc/accessStatus`, {
-        headers: { authorization: `Bearer ${CLIENT_TOKEN}` },
+        headers: { authorization: `Bearer ${CLIENT_TOKEN}`, ...PROTOCOL_HEADERS },
       })
       expect(forbidden.status).toBe(403)
       const publicError = await trpcPublicErrorFrom(forbidden)
@@ -413,7 +427,11 @@ describe('daemon http surface — the token gate + CORS scope', () => {
     try {
       const invalid = await fetch(`${base}/trpc/issuePairingLink`, {
         method: 'POST',
-        headers: { authorization: `Bearer ${TOKEN}`, 'content-type': 'application/json' },
+        headers: {
+          authorization: `Bearer ${TOKEN}`,
+          'content-type': 'application/json',
+          ...PROTOCOL_HEADERS,
+        },
         body: JSON.stringify({ label: '', baseUrl: 'not a URL' }),
       })
       expect(invalid.status).toBe(400)
@@ -431,7 +449,11 @@ describe('daemon http surface — the token gate + CORS scope', () => {
     try {
       const unexpected = await fetch(`${base}/trpc/renamePath`, {
         method: 'POST',
-        headers: { authorization: `Bearer ${TOKEN}`, 'content-type': 'application/json' },
+        headers: {
+          authorization: `Bearer ${TOKEN}`,
+          'content-type': 'application/json',
+          ...PROTOCOL_HEADERS,
+        },
         body: JSON.stringify({
           from: `/private/${secret}/from.txt`,
           to: `/private/${secret}/to.txt`,
@@ -450,6 +472,179 @@ describe('daemon http surface — the token gate + CORS scope', () => {
       expect(JSON.stringify({ publicError, logs: log.mock.calls })).not.toContain(secret)
     } finally {
       log.mockRestore()
+    }
+  })
+})
+
+/**
+ * A synthetic one-procedure router: the only way to prove a rejected request never reached
+ * a handler is to own the handler. Nothing here reimplements product behavior — the spy
+ * records that it was called, and the protocol gate is what decides whether it ever is.
+ */
+function probeRouter(): {
+  dispatched: ReturnType<typeof vi.fn>
+  router: DaemonHttpOptions['router']
+} {
+  const t = initTRPC.create()
+  const dispatched = vi.fn(() => 'dispatched')
+  return { dispatched, router: t.router({ probe: t.procedure.query(dispatched) }) }
+}
+
+const protocolMismatches: Array<
+  [label: string, headers: Record<string, string>, received: number | null]
+> = [
+  ['no version at all', {}, null],
+  ['a non-numeric version', { [PROTOCOL_VERSION_HEADER]: 'one' }, null],
+  ['a fractional version', { [PROTOCOL_VERSION_HEADER]: `${PROTOCOL_VERSION}.5` }, null],
+  ['an empty version', { [PROTOCOL_VERSION_HEADER]: '' }, null],
+  [
+    'an older version',
+    { [PROTOCOL_VERSION_HEADER]: String(PROTOCOL_VERSION - 1) },
+    PROTOCOL_VERSION - 1,
+  ],
+  [
+    'a newer version',
+    { [PROTOCOL_VERSION_HEADER]: String(PROTOCOL_VERSION + 1) },
+    PROTOCOL_VERSION + 1,
+  ],
+]
+
+describe('daemon http surface — the protocol gate', () => {
+  it.each(
+    protocolMismatches,
+  )('refuses a /trpc call announcing %s before any handler runs', async (_label, headers, received) => {
+    const probe = probeRouter()
+    const isolated = await startTestDaemon({ router: probe.router })
+
+    try {
+      const res = await fetch(`${isolated.base}/trpc/probe`, {
+        headers: { authorization: `Bearer ${TOKEN}`, ...headers },
+      })
+      const error = await expectPublicHttpFailure(res, 409, 'protocol.update-required')
+      expect(error).toMatchObject({
+        category: 'conflict',
+        retryable: false,
+        details: { expected: PROTOCOL_VERSION, received },
+      })
+      expect(probe.dispatched).not.toHaveBeenCalled()
+    } finally {
+      await stopTestDaemon(isolated.daemon)
+    }
+  })
+
+  it('dispatches a /trpc call announcing the matching version', async () => {
+    const probe = probeRouter()
+    const isolated = await startTestDaemon({ router: probe.router })
+
+    try {
+      const res = await fetch(`${isolated.base}/trpc/probe`, {
+        headers: { authorization: `Bearer ${TOKEN}`, ...PROTOCOL_HEADERS },
+      })
+      expect(res.status).toBe(200)
+      expect(await res.json()).toMatchObject({ result: { data: 'dispatched' } })
+      expect(probe.dispatched).toHaveBeenCalledOnce()
+    } finally {
+      await stopTestDaemon(isolated.daemon)
+    }
+  })
+
+  it.each(
+    protocolMismatches,
+  )('refuses a pairing exchange announcing %s before the grant is consumed', async (_label, headers, received) => {
+    const exchangePairing = vi.fn(async (_credential: string) => null)
+    const isolated = await startTestDaemon({ exchangePairing })
+
+    try {
+      const res = await fetch(`${isolated.base}/pair`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', ...headers },
+        body: JSON.stringify({ credential: PAIRING_TOKEN }),
+      })
+      const error = await expectPublicHttpFailure(res, 409, 'protocol.update-required')
+      expect(error).toMatchObject({ details: { expected: PROTOCOL_VERSION, received } })
+      expect(exchangePairing).not.toHaveBeenCalled()
+    } finally {
+      await stopTestDaemon(isolated.daemon)
+    }
+  })
+
+  it('exchanges a pairing grant announcing the matching version', async () => {
+    const exchangePairing = vi.fn(exchangeTestPairing)
+    const isolated = await startTestDaemon({ exchangePairing })
+
+    try {
+      const res = await fetch(`${isolated.base}/pair`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', ...PROTOCOL_HEADERS },
+        body: JSON.stringify({ credential: PAIRING_TOKEN }),
+      })
+      expect(res.status).toBe(200)
+      expect(await res.json()).toMatchObject({ token: CLIENT_TOKEN })
+      expect(exchangePairing).toHaveBeenCalledOnce()
+    } finally {
+      await stopTestDaemon(isolated.daemon)
+    }
+  })
+
+  // The two ordering tests below pin the decision recorded in `rejectProtocolMismatch`:
+  // the protocol gate never displaces a check its route already leads with.
+  it('answers an unauthenticated /trpc call with the auth error, not the protocol error', async () => {
+    const probe = probeRouter()
+    const isolated = await startTestDaemon({ router: probe.router })
+
+    try {
+      const res = await fetch(`${isolated.base}/trpc/probe`)
+      await expectPublicHttpFailure(res, 401, 'auth.unauthenticated')
+      expect(probe.dispatched).not.toHaveBeenCalled()
+    } finally {
+      await stopTestDaemon(isolated.daemon)
+    }
+  })
+
+  it('keeps the pairing rate limit outside the protocol gate', async () => {
+    const exchangePairing = vi.fn(async (_credential: string) => null)
+    const isolated = await startTestDaemon({ exchangePairing })
+    const stale = { [PROTOCOL_VERSION_HEADER]: String(PROTOCOL_VERSION + 1) }
+
+    try {
+      for (let attempt = 0; attempt < 12; attempt += 1) {
+        const res = await fetch(`${isolated.base}/pair`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', ...stale },
+          body: JSON.stringify({ credential: `pairing-attempt-${attempt}` }),
+        })
+        await expectPublicHttpFailure(res, 409, 'protocol.update-required')
+      }
+
+      const limited = await fetch(`${isolated.base}/pair`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', ...stale },
+        body: JSON.stringify({ credential: 'rate-limited-pairing-attempt' }),
+      })
+      expect(limited.headers.get('retry-after')).toBe('60')
+      await expectPublicHttpFailure(limited, 429, 'resource.unavailable')
+      expect(exchangePairing).not.toHaveBeenCalled()
+    } finally {
+      await stopTestDaemon(isolated.daemon)
+    }
+  })
+
+  it('mints exactly one request id per refused request', async () => {
+    const probe = probeRouter()
+    const isolated = await startTestDaemon({ router: probe.router })
+
+    try {
+      const requestIds: string[] = []
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        const res = await fetch(`${isolated.base}/trpc/probe`, {
+          headers: { authorization: `Bearer ${TOKEN}` },
+        })
+        const error = await expectPublicHttpFailure(res, 409, 'protocol.update-required')
+        requestIds.push(error.requestId)
+      }
+      expect(new Set(requestIds).size).toBe(2)
+    } finally {
+      await stopTestDaemon(isolated.daemon)
     }
   })
 })

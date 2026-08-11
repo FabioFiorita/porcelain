@@ -171,12 +171,35 @@ function ensureAdminToken(path = ADMIN_TOKEN_PATH()) {
   return token
 }
 
+// The built contracts module (scripts/build-node.mjs), in the two layouts this script
+// ships in: the installed package (bin/ beside main/) and the monorepo checkout (scripts/
+// beside apps/desktop/out/main/). Same relative-resolution mechanism the serve path already
+// uses for main/daemon/server.js.
+const PROTOCOL_MODULES = [
+  join(__dirname, '..', 'main', 'contracts', 'protocol.js'),
+  join(__dirname, '..', 'apps', 'desktop', 'out', 'main', 'contracts', 'protocol.js'),
+]
+
+/**
+ * The daemon refuses any request that does not announce its exact wire protocol, so this
+ * CLI announces it too — read from the built contracts, never a literal copied here, which
+ * would silently become a lie the day the protocol moves.
+ */
+function protocolHeaders() {
+  const modulePath = PROTOCOL_MODULES.find((candidate) => existsSync(candidate))
+  if (modulePath === undefined) {
+    fail('protocol contracts missing — run `pnpm build` in the monorepo, or reinstall the package')
+  }
+  const { PROTOCOL_VERSION, PROTOCOL_VERSION_HEADER } = require(modulePath)
+  return { [PROTOCOL_VERSION_HEADER]: String(PROTOCOL_VERSION) }
+}
+
 function adminClient(daemonUrl, token) {
   return createTRPCUntypedClient({
     links: [
       httpLink({
         url: `${daemonUrl}/trpc`,
-        headers: { authorization: `Bearer ${token}` },
+        headers: { authorization: `Bearer ${token}`, ...protocolHeaders() },
       }),
     ],
   })
