@@ -1,4 +1,3 @@
-import type { DirEntry } from '@backend/api'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,12 +24,12 @@ import { SidebarMenuButton, SidebarMenuItem, SidebarMenuSub } from '@renderer/co
 import { FileTypeIcon, FolderIcon } from '@renderer/components/viewer/file-icon'
 import { usePathActions } from '@renderer/components/viewer/use-path-actions'
 import {
-  useDuplicatePath,
-  useEntryActions,
-  useReadDir,
-  useReadFilePrefetch,
-  useTrashPath,
-} from '@renderer/hooks/use-files'
+  type DirEntry,
+  useFilesActions,
+  useFilesScopeActions,
+  useFilesTree,
+  usePrefetchFileContent,
+} from '@renderer/features/files'
 import { useIsMobile } from '@renderer/hooks/use-mobile'
 import { dirName } from '@renderer/lib/paths'
 import { isBrowser } from '@renderer/lib/platform'
@@ -76,18 +75,46 @@ function EntryContextMenu({
   entry: DirEntry
   children: React.ReactNode
 }): React.JSX.Element {
-  const { hide, unhide, hideSelected, pin, unpin, selectionSize } = useEntryActions(entry)
-  const batchSize = selectionSize + (useSelectionStore.getState().selected.has(entry.path) ? 0 : 1)
+  const scopeActions = useFilesScopeActions()
+  const selected = useSelectionStore((s) => s.selected)
+  const clearSelection = useSelectionStore((s) => s.clear)
+  const selectionSize = selected.size
+  const batchSize = selectionSize + (selected.has(entry.path) ? 0 : 1)
   const openTabToSide = useTabsStore((s) => s.openTabToSide)
   // Split panes are unusable at phone width — hide the "Open to the Side" entry there.
   const isMobile = useIsMobile()
   const { reveal, exploreFlow, copyPath, copyRelativePath } = usePathActions(entry.path)
-  const trash = useTrashPath()
-  const duplicate = useDuplicatePath()
+  const { trash, duplicate } = useFilesActions()
   const newFile = useFilePromptStore((s) => s.newFile)
   const newFolder = useFilePromptStore((s) => s.newFolder)
   const startRename = useFilePromptStore((s) => s.rename)
   const repo = useRepoStore((s) => s.repo)
+
+  const hide = async (): Promise<void> => {
+    await scopeActions.hide([entry.path])
+    clearSelection()
+  }
+  const unhide = async (): Promise<void> => {
+    await scopeActions.unhide([entry.path])
+    clearSelection()
+  }
+  const hideSelected = async (): Promise<void> => {
+    await scopeActions.hide([...new Set([...selected, entry.path])])
+    clearSelection()
+  }
+  const pin = async (): Promise<void> => {
+    await scopeActions.pin([entry.path])
+    clearSelection()
+  }
+  const unpin = async (): Promise<void> => {
+    await scopeActions.unpin([entry.path])
+    clearSelection()
+  }
+  const trashEntry = async (): Promise<void> => {
+    if (await trash(entry.path)) {
+      useTabsStore.getState().closeTabEverywhere(tabId('file', entry.path))
+    }
+  }
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [commentAnchor, setCommentAnchor] = useState<CommentAnchor | null>(null)
   // Comments store repo-relative paths; the tree holds absolute ones.
@@ -206,7 +233,7 @@ function EntryContextMenu({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" onClick={() => trash(entry.path)}>
+            <AlertDialogAction variant="destructive" onClick={() => void trashEntry()}>
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -235,7 +262,7 @@ function TreeNodeImpl({
   const isSelected = useSelectionStore((s) => s.selected.has(entry.path))
   const toggleSelection = useSelectionStore((s) => s.toggle)
   const setActive = useSelectionStore((s) => s.setActive)
-  const prefetchFile = useReadFilePrefetch()
+  const prefetchFile = usePrefetchFileContent()
   // A file opened from outside the tree (Changes → Open file) sets the reveal
   // target; the matching row scrolls into view and shows the accent highlight.
   const isRevealed = useRevealStore((s) => s.path === entry.path)
@@ -306,7 +333,7 @@ function DirNode({
   parentCollapseNonce: number
 }): React.JSX.Element {
   const [expanded, setExpanded] = useState(false)
-  const children = useReadDir(entry.path, expanded)
+  const children = useFilesTree(entry.path, expanded)
   // Register this dir as watched while it's open so an external add/remove inside it
   // live-refreshes the tree (see `useSessionRuntime` interests); cleanup on collapse or unmount.
   const addWatchedDir = useTreeDirsStore((s) => s.add)
@@ -322,7 +349,7 @@ function DirNode({
   // Open this folder when a revealed file lives inside it (or this folder IS the
   // reveal target — the Cmd+P finder picking a folder), so the tree expands all
   // the way down to whatever was opened from elsewhere. Each ancestor opens in
-  // turn — opening loads its children (lazy `useReadDir`), mounting the next
+  // turn — opening loads its children (lazy `useFilesTree`), mounting the next
   // level, which repeats the check until the leaf row mounts and scrolls itself
   // into view. Controlled `open` lets the effect drive the Collapsible.
   const isRevealed = useRevealStore((s) => s.path === entry.path)

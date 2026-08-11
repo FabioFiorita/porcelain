@@ -1,10 +1,11 @@
-import { useDuplicatePath, useTrashPath } from '@renderer/hooks/use-files'
+import { useFilesActions } from '@renderer/features/files'
 import { isTerminalTarget, isTextEntry } from '@renderer/lib/keyboard'
 import { dirName } from '@renderer/lib/paths'
 import { useFilePromptStore } from '@renderer/stores/file-prompt'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useSelectionStore } from '@renderer/stores/selection'
+import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { useEffect } from 'react'
 
 /**
@@ -15,8 +16,7 @@ import { useEffect } from 'react'
  * last-clicked row when nothing is selected.
  */
 export function FileCommands(): null {
-  const duplicate = useDuplicatePath()
-  const trash = useTrashPath()
+  const { duplicate, trash } = useFilesActions()
 
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent): Promise<void> => {
@@ -51,7 +51,11 @@ export function FileCommands(): null {
       } else if (e.key === 'Backspace') {
         if (targets.length === 0) return
         e.preventDefault()
-        for (const path of targets) await trash(path)
+        for (const path of targets) {
+          if (await trash(path)) {
+            useTabsStore.getState().closeTabEverywhere(tabId('file', path))
+          }
+        }
         useSelectionStore.getState().clear()
       }
     }

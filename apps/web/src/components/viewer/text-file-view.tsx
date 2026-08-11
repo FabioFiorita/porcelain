@@ -1,8 +1,8 @@
 import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-group'
 import { HtmlView, isHtmlPath } from '@renderer/components/viewer/html-view'
 import { isMarkdownPath, MarkdownView } from '@renderer/components/viewer/markdown-view'
+import { useFilePreview } from '@renderer/features/files'
 import { useCommentIndex } from '@renderer/features/review/comments'
-import { usePreviewHtml } from '@renderer/hooks/use-files'
 import { relativeTo } from '@renderer/lib/paths'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
@@ -80,7 +80,7 @@ export function TextFileView({
   const html = isHtmlPath(path)
   const reader = markdown && markdownMode === 'reader'
   const preview = html && htmlMode === 'preview'
-  const { html: previewHtml, error: previewError } = usePreviewHtml(path, preview)
+  const { html: previewHtml, error: previewError } = useFilePreview(path, preview)
   const lineCount = content.split('\n').length
   const editable = !reader && !preview && lineCount <= EDITABLE_MAX_LINES
   // ≥90% coverage = whole-file noise (untracked); drop the tint, keep scroll.

@@ -6,16 +6,19 @@ import { beforeEach, expect, test, vi } from 'vitest'
 import { TextFileView } from './text-file-view'
 
 // EditorSource (rendered for short files) calls useWriteTextFile which reaches
-// tRPC. Mock only the tRPC-backed hooks; keep the rest real via importOriginal.
-vi.mock(import('@renderer/hooks/use-files'), async (importOriginal) => {
+// tRPC. Mock Files feature hooks; keep path helpers real via importOriginal.
+vi.mock(import('@renderer/features/files'), async (importOriginal) => {
   const actual = await importOriginal()
   return {
     ...actual,
     useWriteTextFile: () => ({ save: async () => {}, isSaving: false, error: null }),
-    useRevealInFinder: () => () => {},
-    usePreviewHtml: () => ({ html: null, error: null }),
+    useFilePreview: () => ({ html: null, error: null }),
   }
 })
+
+vi.mock('@renderer/hooks/use-reveal-in-finder', () => ({
+  useRevealInFinder: () => () => {},
+}))
 
 // EditorSource also mounts CommentComposer, which reaches tRPC via useCommentActions;
 // mock the domain hook so it renders without a tRPC provider (the component-test rule).

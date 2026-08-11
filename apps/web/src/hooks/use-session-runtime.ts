@@ -1,26 +1,28 @@
 import type { FreshnessRequirement } from '@porcelain/client-runtime/session/recovery'
 import type { SessionChange, SessionMismatchFrame } from '@porcelain/contracts/session'
 import { invalidateAllBoardCards } from '@renderer/features/board'
+import { invalidateAllFilesQueries } from '@renderer/features/files'
 import { invalidateAllReviewComments } from '@renderer/features/review/comments'
 import { type DaemonSession, primary } from '@renderer/lib/daemon'
 import { isBrowser } from '@renderer/lib/platform'
 import type { SessionConnectionStatus } from '@renderer/lib/session-browser-adapter'
 import { shellTrpcClient, trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
-import { type Pane, useTabsStore } from '@renderer/stores/tabs'
-import { useTreeDirsStore } from '@renderer/stores/tree-dirs'
 import { unreadTabFor, useUnreadStore } from '@renderer/stores/unread'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 /**
  * Web's binding between the shared session runtime and React Query: it turns a domain change
- * notification into a refetch of the queries that own the data, restates the Viewer's file and
- * directory interests to the runtime, and reports the connection state a human can act on.
+ * notification into a refetch of the queries that own the data and reports the connection
+ * state a human can act on.
  *
  * Owns no socket. The window's primary `DaemonSession` (or an injected test session) owns the
- * single runtime + adapter; this hook only registers invalidation handlers, project selection,
- * and watch interests on that runtime so terminal traffic and change signals share one connection.
+ * single runtime + adapter; this hook only registers invalidation handlers and project
+ * selection on that runtime so terminal traffic and change signals share one connection.
+ *
+ * Files notifications and watch interests are owned by the Files feature adapters (FIL-005);
+ * Board and Review comments are feature-owned the same way. Files change arms here are no-ops.
  *
  * The contract of this module is that a notification is a *freshness signal*, never data
  * (decision 009). Nothing here writes a payload into the cache; every category maps to
@@ -28,13 +30,6 @@ import { useEffect, useMemo, useRef, useState } from 'react'
  * notification twice is harmless. Recovery is the same instruction with a wider scope: when the
  * runtime says it can no longer prove freshness, the affected scope is invalidated wholesale
  * rather than reconstructed from what might have been missed.
- *
- * The category → query mapping is deliberately the one the legacy `useShellEvents` path
- * performed, so the cutover changes the transport and not what the screen refreshes. Where the
- * target contract merges several legacy events into one category, this maps to the union of
- * what those events invalidated — the daemon already published them together
- * (`packages/contracts/src/review/review.notifications.ts`), so no consumer could act on the
- * distinction anyway.
  */
 
 /** One query's invalidator, structurally satisfied by a tRPC utils proxy. */
@@ -50,11 +45,6 @@ type QueryInvalidation = {
 export type SessionQueryUtils = {
   /** Every daemon-derived query this client holds. Used only for session-wide recovery. */
   readonly invalidate: () => Promise<void>
-  readonly readDir: QueryInvalidation
-  readonly readFile: QueryInvalidation
-  readonly previewHtml: QueryInvalidation
-  readonly pinnedEntries: QueryInvalidation
-  readonly repoScope: QueryInvalidation
   readonly searchFiles: QueryInvalidation
   readonly gitFlow: QueryInvalidation
   readonly gitDiffFile: QueryInvalidation
@@ -72,6 +62,8 @@ export type SessionQueryUtils = {
   readonly reviewEvidenceAsset: QueryInvalidation
   /** Board cards cache — wired to the feature key predicate, not a procedure-name string. */
   readonly boardCards: QueryInvalidation
+  /** Files cache — wired to the feature key predicate (FIL-005). */
+  readonly files: QueryInvalidation
   readonly actions: QueryInvalidation
 }
 
@@ -112,33 +104,11 @@ export function invalidateForChange(
 ): Promise<unknown> {
   switch (change.kind) {
     case 'files.scope-changed':
-      // hidden/pinned scope moved — the tree, the pins, and every listing that filters
-      // hidden paths (flow + search)
-      return Promise.all([
-        utils.readDir.invalidate(),
-        utils.pinnedEntries.invalidate(),
-        utils.repoScope.invalidate(),
-        utils.gitFlow.invalidate(),
-        utils.searchFiles.invalidate(),
-      ])
     case 'files.tree-changed':
-      // entries appeared or disappeared under a watched directory — the lazy tree rows, the
-      // pinned list, and the working-tree grouping
-      return Promise.all([
-        utils.readDir.invalidate(),
-        utils.pinnedEntries.invalidate(),
-        utils.gitFlow.invalidate(),
-      ])
     case 'files.content-changed':
-      // a watched file body changed outside the app — re-read the open documents and diffs.
-      // exploreFeature too: the explore tab has no manual reload, so a re-trace when the seed
-      // file's imports change is the live path.
-      return Promise.all([
-        utils.readFile.invalidate(),
-        utils.previewHtml.invalidate(),
-        utils.gitDiffFile.invalidate(),
-        utils.exploreFeature.invalidate(),
-      ])
+      // Files owns notification → identity mapping (FIL-005 feature adapter).
+      // Session runtime must not invalidate Files, Git, or Search here.
+      return Promise.resolve()
     case 'git.working-tree-changed':
       // the Git half of today's coarse working-tree event: the flow and the per-file diffs.
       // Today those recover through gitFlow's 3s poll; the target signal makes that explicit.
@@ -172,14 +142,11 @@ export function invalidateForRecovery(
       utils.invalidate(),
       utils.reviewComments.invalidate(),
       utils.boardCards.invalidate(),
+      utils.files.invalidate(),
     ])
   }
   return Promise.all([
-    utils.readDir.invalidate(),
-    utils.readFile.invalidate(),
-    utils.previewHtml.invalidate(),
-    utils.pinnedEntries.invalidate(),
-    utils.repoScope.invalidate(),
+    utils.files.invalidate(),
     utils.searchFiles.invalidate(),
     utils.gitDiffFile.invalidate(),
     invalidateReview(utils),
@@ -206,22 +173,13 @@ function applyRefresh(refresh: Promise<unknown>): void {
   refresh.catch(() => undefined)
 }
 
-/** The Viewer's open files, deduplicated and ordered so an unchanged set compares equal. */
-function openFilePaths(panes: readonly Pane[]): string[] {
-  const paths = new Set<string>()
-  for (const pane of panes) {
-    for (const tab of pane.tabs) {
-      if (tab.kind === 'file') paths.add(tab.path)
-    }
-  }
-  return [...paths].sort()
-}
-
 /**
- * Bind React Query invalidation + Viewer interests to a daemon session's runtime.
+ * Bind React Query invalidation to a daemon session's runtime.
  *
  * Defaults to `primary` so the whole window shares one socket with terminal traffic.
  * Tests may inject a purpose-built `DaemonSession` (with a fake opener) instead.
+ *
+ * Files watch interests are owned by `useFilesInterestBridge` (FIL-005), not here.
  */
 export function useSessionRuntime({
   session = primary,
@@ -231,23 +189,16 @@ export function useSessionRuntime({
   const trpcUtils = trpc.useUtils()
   const queryClient = useQueryClient()
   const repoPath = useRepoStore((s) => s.repo?.path)
-  const panes = useTabsStore((s) => s.panes)
-  const treeDirs = useTreeDirsStore((s) => s.dirs)
   const [status, setStatus] = useState<SessionConnectionStatus>(() => session.status())
   const [updateRequired, setUpdateRequired] = useState<SessionMismatchFrame | undefined>(() =>
     session.updateRequiredFrame(),
   )
 
-  // Structural SessionQueryUtils: Board and comments recovery use feature key predicates so
-  // they invalidate the BRD-004 / RVC-003 caches, not tRPC procedure-name keys.
+  // Structural SessionQueryUtils: Board, comments, and Files recovery use feature key predicates
+  // so they invalidate domain caches, not tRPC procedure-name keys.
   const utils: SessionQueryUtils = useMemo(
     () => ({
       invalidate: () => trpcUtils.invalidate(),
-      readDir: { invalidate: () => trpcUtils.readDir.invalidate() },
-      readFile: { invalidate: () => trpcUtils.readFile.invalidate() },
-      previewHtml: { invalidate: () => trpcUtils.previewHtml.invalidate() },
-      pinnedEntries: { invalidate: () => trpcUtils.pinnedEntries.invalidate() },
-      repoScope: { invalidate: () => trpcUtils.repoScope.invalidate() },
       searchFiles: { invalidate: () => trpcUtils.searchFiles.invalidate() },
       gitFlow: { invalidate: () => trpcUtils.gitFlow.invalidate() },
       gitDiffFile: { invalidate: () => trpcUtils.gitDiffFile.invalidate() },
@@ -264,6 +215,7 @@ export function useSessionRuntime({
       reviewEvidenceAssets: { invalidate: () => trpcUtils.reviewEvidenceAssets.invalidate() },
       reviewEvidenceAsset: { invalidate: () => trpcUtils.reviewEvidenceAsset.invalidate() },
       boardCards: { invalidate: () => invalidateAllBoardCards(queryClient) },
+      files: { invalidate: () => invalidateAllFilesQueries(queryClient) },
       actions: { invalidate: () => trpcUtils.actions.invalidate() },
     }),
     [trpcUtils, queryClient],
@@ -308,27 +260,10 @@ export function useSessionRuntime({
   }, [session])
 
   // Interests are project-scoped by contract, so the project is declared before any registration
-  // can reach the wire.
+  // can reach the wire. Files interest bridge owns the watches themselves.
   useEffect(() => {
     if (repoPath !== undefined) session.runtime.selectProject(repoPath)
   }, [session, repoPath])
-
-  // Compared by value, not identity: a Viewer that reordered its tabs without opening or closing
-  // one must not resend the whole desired set to the daemon. NUL separates the two lists because
-  // a path can contain anything else.
-  const interestKey = `${openFilePaths(panes).join('\n')}\u0000${[...treeDirs].sort().join('\n')}`
-  const interest = useMemo(() => {
-    const [files = '', dirs = ''] = interestKey.split('\u0000')
-    return {
-      files: files === '' ? [] : files.split('\n'),
-      dirs: dirs === '' ? [] : dirs.split('\n'),
-    }
-  }, [interestKey])
-
-  useEffect(() => {
-    const registration = session.runtime.registerWatchInterest(interest)
-    return () => registration.release()
-  }, [session, interest])
 
   return { status, updateRequired }
 }

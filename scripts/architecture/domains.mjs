@@ -33,6 +33,7 @@ export const DOMAIN_MIGRATIONS = Object.freeze(
       if (key === 'files') {
         targetRoots.push('apps/daemon/src/features/files')
         targetRoots.push('packages/client-runtime/src/files')
+        targetRoots.push('apps/web/src/features/files')
       }
       return [
         key,

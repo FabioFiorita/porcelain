@@ -1,4 +1,4 @@
-import { useRevealInFinder } from '@renderer/hooks/use-files'
+import { useRevealInFinder } from '@renderer/hooks/use-reveal-in-finder'
 import { fileName, relativeTo } from '@renderer/lib/paths'
 import { copyText } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'

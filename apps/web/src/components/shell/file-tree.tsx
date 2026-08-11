@@ -1,7 +1,7 @@
 import { SetupTip } from '@renderer/components/shell/setup-tip'
 import { Button } from '@renderer/components/ui/button'
 import { SidebarMenu } from '@renderer/components/ui/sidebar'
-import { useReadDir, useRepoScope } from '@renderer/hooks/use-files'
+import { useFilesScope, useFilesTree } from '@renderer/features/files'
 import { scopeSetupPrompt } from '@renderer/lib/agent-setup-prompts'
 import { copyText } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
@@ -17,8 +17,8 @@ const NOISY_ROOT_DIR_THRESHOLD = 5
 
 export function FileTree({ rootPath }: { rootPath: string }): React.JSX.Element {
   const repo = useRepoStore((s) => s.repo)
-  const entries = useReadDir(rootPath)
-  const scope = useRepoScope()
+  const entries = useFilesTree(rootPath)
+  const scope = useFilesScope()
   const scopeKickoffDismissed = useSetupTipsStore((s) =>
     repo ? s.dismissed[repo.path]?.['scope-kickoff'] === true : true,
   )

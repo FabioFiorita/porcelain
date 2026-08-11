@@ -7,7 +7,7 @@ import {
   DialogTitle,
 } from '@renderer/components/ui/dialog'
 import { Input } from '@renderer/components/ui/input'
-import { useCreateFile, useCreateFolder, useRenamePath } from '@renderer/hooks/use-files'
+import { useFilesActions } from '@renderer/features/files'
 import { dirName } from '@renderer/lib/paths'
 import { type FilePromptKind, useFilePromptStore } from '@renderer/stores/file-prompt'
 import { TestIds } from '@shared/test-ids'
@@ -58,9 +58,7 @@ function FilePrompt({
   initialName: string
   onClose: () => void
 }): React.JSX.Element {
-  const { create: createFile } = useCreateFile()
-  const { create: createFolder } = useCreateFolder()
-  const { rename } = useRenamePath()
+  const { createFile, createFolder, rename } = useFilesActions()
   const [name, setName] = useState(initialName)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)

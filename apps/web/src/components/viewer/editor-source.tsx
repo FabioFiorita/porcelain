@@ -12,7 +12,7 @@ import {
 import { Kbd } from '@renderer/components/ui/kbd'
 import { CodeLine, useTokenizedLines } from '@renderer/components/viewer/code-line'
 import { ROW_HEIGHT } from '@renderer/components/viewer/virtual-rows'
-import { useWriteTextFile } from '@renderer/hooks/use-files'
+import { useWriteTextFile } from '@renderer/features/files'
 import { languageFor } from '@renderer/lib/highlight'
 import { lineInHighlightRanges } from '@renderer/lib/highlight-ranges'
 import { kbdLabel } from '@renderer/lib/keyboard'

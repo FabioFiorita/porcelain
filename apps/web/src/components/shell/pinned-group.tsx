@@ -4,11 +4,11 @@ import {
   SidebarGroupLabel,
   SidebarMenu,
 } from '@renderer/components/ui/sidebar'
-import { usePinnedEntries } from '@renderer/hooks/use-files'
+import { usePinnedFiles } from '@renderer/features/files'
 import { TreeNode } from './tree-node'
 
 export function PinnedGroup(): React.JSX.Element {
-  const entries = usePinnedEntries()
+  const entries = usePinnedFiles()
 
   // Empty: the label still orients the panel; a centered treatment (short line + the
   // existing hint) sits below it so the panel doesn't read as an orphan header over a

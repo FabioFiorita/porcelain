@@ -1,4 +1,4 @@
-import { useReadFile, useRefreshTree } from '@renderer/hooks/use-files'
+import { useFileContent, useRefreshFilesTree } from '@renderer/features/files'
 import { useEffect } from 'react'
 import { TextFileView } from './text-file-view'
 
@@ -13,8 +13,8 @@ export function FileContent({
   highlight?: { start: number; end: number }[]
   paneIndex: number
 }): React.JSX.Element {
-  const { view, error } = useReadFile(path)
-  const refreshTree = useRefreshTree()
+  const { view, error } = useFileContent(path)
+  const refreshTree = useRefreshFilesTree()
 
   // Opening a row for a file that's already gone refreshes the tree, so the
   // phantom row (and any siblings deleted alongside it) drops on the next read.

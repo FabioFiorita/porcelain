@@ -4,6 +4,7 @@ import { SidebarInset, SidebarProvider, useSidebar } from '@renderer/components/
 import { Toaster } from '@renderer/components/ui/sonner'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { CardComposer, useBoardNotificationSubscription } from '@renderer/features/board'
+import { useFilesInterestBridge, useFilesNotificationSubscription } from '@renderer/features/files'
 import { useReviewCommentNotificationSubscription } from '@renderer/features/review/comments'
 import { useDocumentTitle } from '@renderer/hooks/use-document-title'
 import { useEnvironmentStatuses } from '@renderer/hooks/use-environment-status'
@@ -199,6 +200,9 @@ export function AppShell(): React.JSX.Element {
   // Comments notifications own their comments-identity invalidation (RVC-003); bulk review.changed
   // in session-runtime no longer touches comments.
   useReviewCommentNotificationSubscription()
+  // Files notifications + watch interests (FIL-005); session-runtime Files arms are no-ops.
+  useFilesNotificationSubscription()
+  useFilesInterestBridge()
   useEnvironmentStatuses()
   useThemeSync()
   useDocumentTitle()

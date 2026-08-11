@@ -36,11 +36,6 @@ function recordingUtils(): { utils: SessionQueryUtils; invalidated: string[] } {
       invalidated.push('*')
       return Promise.resolve()
     },
-    readDir: query('readDir'),
-    readFile: query('readFile'),
-    previewHtml: query('previewHtml'),
-    pinnedEntries: query('pinnedEntries'),
-    repoScope: query('repoScope'),
     searchFiles: query('searchFiles'),
     gitFlow: query('gitFlow'),
     gitDiffFile: query('gitDiffFile'),
@@ -57,6 +52,7 @@ function recordingUtils(): { utils: SessionQueryUtils; invalidated: string[] } {
     reviewEvidenceAssets: query('reviewEvidenceAssets'),
     reviewEvidenceAsset: query('reviewEvidenceAsset'),
     boardCards: query('boardCards'),
+    files: query('files'),
     actions: query('actions'),
   }
   return { utils, invalidated }
@@ -69,30 +65,22 @@ async function invalidatedBy(change: SessionChange): Promise<string[]> {
 }
 
 describe('Session change invalidation mapping', () => {
-  it('refreshes the tree, pins, scope, flow, and search when project scope moved', async () => {
-    expect(await invalidatedBy({ kind: 'files.scope-changed', projectPath: PROJECT })).toEqual(
-      ['gitFlow', 'pinnedEntries', 'readDir', 'repoScope', 'searchFiles'].sort(),
-    )
-  })
-
-  it('refreshes the tree rows, pins, and working-tree grouping when entries appeared', async () => {
+  it('leaves all files.* kinds to the Files feature adapter (no session invalidation)', async () => {
+    expect(await invalidatedBy({ kind: 'files.scope-changed', projectPath: PROJECT })).toEqual([])
     expect(
       await invalidatedBy({
         kind: 'files.tree-changed',
         projectPath: PROJECT,
-        paths: [`${PROJECT}/src`],
+        paths: ['src'],
       }),
-    ).toEqual(['gitFlow', 'pinnedEntries', 'readDir'].sort())
-  })
-
-  it('re-reads open documents and diffs when a watched file body changed', async () => {
+    ).toEqual([])
     expect(
       await invalidatedBy({
         kind: 'files.content-changed',
         projectPath: PROJECT,
-        paths: [`${PROJECT}/src/open.ts`],
+        paths: ['src/open.ts'],
       }),
-    ).toEqual(['exploreFeature', 'gitDiffFile', 'previewHtml', 'readFile'].sort())
+    ).toEqual([])
   })
 
   it('refreshes the Git surfaces when the working tree changed', async () => {
@@ -126,17 +114,6 @@ describe('Session change invalidation mapping', () => {
       'actions',
     ])
   })
-
-  it('never writes a notification payload into the cache', async () => {
-    const { utils, invalidated } = recordingUtils()
-    await invalidateForChange(
-      { kind: 'files.content-changed', projectPath: PROJECT, paths: [`${PROJECT}/a.ts`] },
-      utils,
-    )
-    // Every effect a change notification has is an invalidation of an authoritative query.
-    expect(invalidated).not.toContain('*')
-    expect(invalidated.length).toBeGreaterThan(0)
-  })
 })
 
 describe('Session recovery invalidation', () => {
@@ -150,13 +127,15 @@ describe('Session recovery invalidation', () => {
       '*',
       'reviewComments',
       'boardCards',
+      'files',
       '*',
       'reviewComments',
       'boardCards',
+      'files',
     ])
   })
 
-  it('invalidates the affected project scope when one stream lost a notification', async () => {
+  it('invalidates the affected project scope including the files feature slot', async () => {
     const { utils, invalidated } = recordingUtils()
 
     await invalidateForRecovery(
@@ -166,7 +145,9 @@ describe('Session recovery invalidation', () => {
 
     // Narrower than the whole client, still wholesale: a gap says only that something was missed.
     expect(invalidated).not.toContain('*')
-    expect(invalidated).toContain('readFile')
+    expect(invalidated).toContain('files')
+    expect(invalidated).not.toContain('readDir')
+    expect(invalidated).not.toContain('readFile')
     expect(invalidated).toContain('boardCards')
     expect(invalidated).toContain('featureReading')
   })
@@ -261,7 +242,7 @@ beforeEach(() => {
 })
 
 describe('useSessionRuntime lifecycle', () => {
-  it('announces the protocol, then registers the Viewer interests for the open project', async () => {
+  it('announces the protocol and selects the project without Viewer file/dir watch interests', async () => {
     useTabsStore.setState({ panes: [filePane(`${PROJECT}/src/open.ts`)], activePaneIndex: 0 })
     useTreeDirsStore.setState({ dirs: new Set([`${PROJECT}/src`]) })
 
@@ -271,55 +252,36 @@ describe('useSessionRuntime lifecycle', () => {
       t: 'session:hello',
       protocolVersion: PROTOCOL_VERSION,
     })
-    await waitFor(() =>
-      expect(session.frames().at(-1)).toEqual({
-        t: 'session:watches',
-        projectPath: PROJECT,
-        files: [`${PROJECT}/src/open.ts`],
-        dirs: [`${PROJECT}/src`],
-      }),
-    )
+    // selectProject may emit an empty watches restatement; session must not register
+    // open Viewer files or expanded tree dirs (Files interest bridge owns that).
+    const watchFrames = session.frames().filter((f) => f.t === 'session:watches')
+    for (const frame of watchFrames) {
+      expect(frame).toMatchObject({ projectPath: PROJECT, files: [], dirs: [] })
+    }
     expect(session.result.current.status).toBe('open')
     expect(session.result.current.updateRequired).toBeUndefined()
   })
 
-  it('re-registers when the Viewer opens a file or expands a directory', async () => {
+  it('does not restate Viewer interests when a file opens or a directory expands', async () => {
     const session = await mountSession()
 
     act(() => {
       useTabsStore.setState({ panes: [filePane(`${PROJECT}/src/a.ts`)], activePaneIndex: 0 })
     })
-    await waitFor(() =>
-      expect(session.frames().at(-1)).toEqual({
-        t: 'session:watches',
-        projectPath: PROJECT,
-        files: [`${PROJECT}/src/a.ts`],
-        dirs: [],
-      }),
-    )
-
     act(() => {
       useTreeDirsStore.setState({ dirs: new Set([`${PROJECT}/src`]) })
     })
-    await waitFor(() =>
-      expect(session.frames().at(-1)).toEqual({
-        t: 'session:watches',
-        projectPath: PROJECT,
-        files: [`${PROJECT}/src/a.ts`],
-        dirs: [`${PROJECT}/src`],
-      }),
-    )
-  })
 
-  it('does not resend the desired set for a render that changed no interest', async () => {
-    const session = await mountSession()
-    const before = session.frames().length
-
-    act(() => {
-      useTabsStore.setState({ panes: [filePane()], activePaneIndex: 0 })
-    })
-
-    expect(session.frames()).toHaveLength(before)
+    // Files bridge owns interest recomputation; session never observes panes/treeDirs.
+    const watchFrames = session.frames().filter((f) => f.t === 'session:watches')
+    for (const frame of watchFrames) {
+      expect(frame).toMatchObject({ files: [], dirs: [] })
+    }
+    expect(
+      watchFrames.some(
+        (f) => Array.isArray(f.files) && (f.files as string[]).includes(`${PROJECT}/src/a.ts`),
+      ),
+    ).toBe(false)
   })
 
   it('does not forward terminal frames to the query cache (terminal stays on the session)', async () => {
@@ -346,18 +308,14 @@ describe('useSessionRuntime lifecycle', () => {
     expect(session.socket().closed()).toBe(true)
   })
 
-  it('releases watch interests on unmount without tearing down the shared session socket', async () => {
+  it('unmounts without tearing down the shared session socket', async () => {
     useTabsStore.setState({ panes: [filePane(`${PROJECT}/src/a.ts`)], activePaneIndex: 0 })
     const session = await mountSession()
-    await waitFor(() => expect(session.frames().length).toBeGreaterThanOrEqual(2))
-    const before = session.frames().length
 
     session.unmount()
 
     // The socket belongs to the DaemonSession, not the hook: unmount must not close it
-    // (production primary stays up for terminal traffic). Interest release may send watches.
+    // (production primary stays up for terminal traffic).
     expect(session.socket().closed()).toBe(false)
-    // A release with an open session may send an empty/updated watches frame.
-    expect(session.frames().length).toBeGreaterThanOrEqual(before)
   })
 })
