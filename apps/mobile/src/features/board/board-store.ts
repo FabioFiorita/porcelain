@@ -1,6 +1,5 @@
+import type { BoardCard, BoardStatus } from '@porcelain/contracts/board'
 import { create } from 'zustand'
-
-import type { BoardCard, CardStatus } from '@/lib/daemon/procedures/review'
 
 /**
  * Which board panel presents the shared composer.
@@ -18,7 +17,7 @@ export type CardDraft = {
   title: string
   body: string
   /** Column a new card lands in — and the column an edited card is moved to on save. */
-  status: CardStatus
+  status: BoardStatus
   host: ComposerHost
 }
 
@@ -31,10 +30,10 @@ type BoardState = {
   /** Explicit Focus selection, scoped by repo so a project switch cannot show another board's card. */
   focus: { repoPath: string; cardId: string } | null
   /** The single column a phone shows at a time; the tablet panels show all three. */
-  column: CardStatus
+  column: BoardStatus
   draft: CardDraft | null
   select: (repoPath: string, cardId: string) => void
-  setColumn: (column: CardStatus) => void
+  setColumn: (column: BoardStatus) => void
   openDraft: (draft: CardDraft) => void
   closeDraft: () => void
 }
@@ -66,7 +65,7 @@ export const useBoardStore = create<BoardState>()((set) => ({
 }))
 
 /** Column priority for the default Focus card when nothing is selected. */
-const DEFAULT_STATUS_ORDER: readonly CardStatus[] = ['doing', 'todo', 'done']
+const DEFAULT_STATUS_ORDER: readonly BoardStatus[] = ['doing', 'todo', 'done']
 
 /**
  * The card the Focus companion should show for the current board.

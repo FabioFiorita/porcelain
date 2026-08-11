@@ -90,7 +90,8 @@ export function proceduresForChange(change: SessionChange): readonly string[] {
         'gitCommitFlow',
       ]
     case 'board.changed':
-      return ['boardCards']
+      // BoardNotificationBridge owns exact Board cards invalidation (BRD-005).
+      return []
     case 'actions.changed':
       return ['actions']
   }

@@ -1,0 +1,32 @@
+import { boardNotificationEffects } from '@porcelain/client-runtime/board'
+import type { BoardChanged } from '@porcelain/contracts/board'
+import type { QueryClient } from '@tanstack/react-query'
+
+import { boardCardsQueryKeyForIdentity } from './board-query-key'
+
+/**
+ * Board notification adapter (BRD-005).
+ *
+ * Accepts only a validated BRD-001 `board.changed` notification and maps BRD-003
+ * effects onto the mobile QueryClient for the active environment. Does not inspect
+ * raw AppEvent strings.
+ */
+
+export type ApplyBoardNotificationOptions = {
+  readonly queryClient: QueryClient
+  readonly environmentId: string
+}
+
+/** Invalidate exactly the Project cards identities a Board change makes stale. */
+export function applyBoardNotification(
+  notification: BoardChanged,
+  options: ApplyBoardNotificationOptions,
+): void {
+  for (const identity of boardNotificationEffects(notification)) {
+    // Fire-and-forget: notification handlers must not block the session subscriber.
+    options.queryClient.invalidateQueries({
+      queryKey: boardCardsQueryKeyForIdentity(options.environmentId, identity),
+      exact: true,
+    })
+  }
+}

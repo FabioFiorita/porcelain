@@ -3,8 +3,8 @@ import { Text, View } from 'react-native'
 import { EmptyNote, ErrorNote } from '@/components/panel-chrome'
 
 import { BoardColumn } from './board-column'
+import { BOARD_COLUMNS, useBoardCards, useFocusCard, useSelectedCardId } from './board-data'
 import { CardComposer } from './card-composer'
-import { BOARD_COLUMNS, useBoardCards, useFocusCard, useSelectedCardId } from './use-board'
 
 /**
  * The tablet's viewer column: the wide kanban, three columns side by side.

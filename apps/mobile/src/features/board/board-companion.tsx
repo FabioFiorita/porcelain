@@ -1,3 +1,4 @@
+import type { BoardCard } from '@porcelain/contracts/board'
 import { useState } from 'react'
 import { ScrollView, Text, View } from 'react-native'
 
@@ -16,21 +17,20 @@ import { Text as UiText } from '@/components/ui/text'
 import { useShellStore } from '@/features/shell/shell-store'
 import { useTabFaces } from '@/features/shell/tab-faces'
 import { useIsTablet } from '@/features/shell/use-app-window'
-import type { BoardCard } from '@/lib/daemon/procedures/review'
-import { useActiveRepo } from '@/lib/daemon/repo'
 import { cn } from '@/lib/utils'
 
 import { COLUMN_GLYPH } from './board-column'
+import {
+  BOARD_COLUMNS,
+  boardStatusLabel,
+  useBoardCardActions,
+  useBoardCards,
+  useBoardFailure,
+  useBoardProjectPath,
+} from './board-data'
 import { draftFromCard, resolveBoardFocus, useBoardStore } from './board-store'
 import { CardComposer } from './card-composer'
 import { useReviewHandoffStore } from './review-handoff-store'
-import {
-  BOARD_COLUMNS,
-  STATUS_LABEL,
-  useBoardCards,
-  useBoardFailure,
-  useCardActions,
-} from './use-board'
 
 /**
  * The Board companion — "Focus": the selected card in full, with the things you can do to it.
@@ -41,9 +41,9 @@ import {
  */
 export function BoardCompanion({ active }: { active: boolean }): React.JSX.Element {
   const { cards, error, isLoading } = useBoardCards(active)
-  const repo = useActiveRepo()
+  const projectPath = useBoardProjectPath()
   const focusKey = useBoardStore((state) => state.focus)
-  const card = resolveBoardFocus(cards, repo?.path ?? null, focusKey)
+  const card = resolveBoardFocus(cards, projectPath, focusKey)
 
   return (
     <ScrollView
@@ -88,7 +88,7 @@ export function BoardCompanion({ active }: { active: boolean }): React.JSX.Eleme
 }
 
 function FocusCard({ card }: { card: BoardCard }): React.JSX.Element {
-  const { move, remove } = useCardActions()
+  const { move, remove } = useBoardCardActions()
   const { failure, guard } = useBoardFailure()
   const openDraft = useBoardStore((state) => state.openDraft)
   const startReview = useStartReview()
@@ -114,7 +114,7 @@ function FocusCard({ card }: { card: BoardCard }): React.JSX.Element {
       <View className="flex-row items-center gap-1.5">
         <ChromeGlyph name={COLUMN_GLYPH[card.status]} size={12} />
         <Text className="text-2xs font-medium text-muted-foreground">
-          {STATUS_LABEL[card.status]}
+          {boardStatusLabel(card.status)}
         </Text>
       </View>
 
@@ -177,7 +177,7 @@ function FocusCard({ card }: { card: BoardCard }): React.JSX.Element {
       <ActionSheet
         actions={moveActions}
         open={moving}
-        subtitle={`In ${STATUS_LABEL[card.status]}`}
+        subtitle={`In ${boardStatusLabel(card.status)}`}
         testID="porcelain-board-focus-move-menu"
         title={card.title}
         onClose={() => {

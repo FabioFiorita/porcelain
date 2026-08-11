@@ -1,8 +1,8 @@
+import type { BoardCard } from '@porcelain/contracts/board'
 import { Pressable, Text } from 'react-native'
 import { PANEL_CARD } from '@/components/surface-layout'
-import type { BoardCard } from '@/lib/daemon/procedures/review'
 import { cn } from '@/lib/utils'
-import { STATUS_LABEL } from './use-board'
+import { boardStatusLabel } from './board-columns'
 
 /**
  * One card, in every board panel: its title, a hint of the body, and whether it is the card
@@ -26,7 +26,7 @@ export function CardRow({
 
   return (
     <Pressable
-      accessibilityLabel={`${card.title}, ${STATUS_LABEL[card.status]}`}
+      accessibilityLabel={`${card.title}, ${boardStatusLabel(card.status)}`}
       accessibilityRole="button"
       accessibilityState={{ selected }}
       className={cn(

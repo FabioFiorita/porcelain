@@ -1,3 +1,4 @@
+import type { BoardStatus } from '@porcelain/contracts/board'
 import { useIsFocused } from 'expo-router'
 import { Text, View } from 'react-native'
 
@@ -5,18 +6,17 @@ import { ErrorNote } from '@/components/panel-chrome'
 import { SegmentedControl } from '@/components/segmented-control'
 import { SurfaceScroll } from '@/components/surface-scroll'
 import { PhoneHeader } from '@/features/shell/phone-header'
-import type { CardStatus } from '@/lib/daemon/procedures/review'
 
 import { BoardColumn } from './board-column'
-import { useBoardStore } from './board-store'
-import { CardComposer } from './card-composer'
 import {
   BOARD_COLUMNS,
   cardsInColumn,
   useBoardCards,
   useFocusCard,
   useSelectedCardId,
-} from './use-board'
+} from './board-data'
+import { useBoardStore } from './board-store'
+import { CardComposer } from './card-composer'
 
 /**
  * The Board face of the Review tab on phone: the header, a column switcher, and one column.
@@ -39,7 +39,7 @@ export function BoardPhoneScreen(): React.JSX.Element {
       <PhoneHeader companionSurface="board" title="Board" />
 
       <View className="px-4 pb-2 pt-3">
-        <SegmentedControl<CardStatus>
+        <SegmentedControl<BoardStatus>
           options={BOARD_COLUMNS.map((entry) => ({
             label: `${entry.label} · ${cardsInColumn(cards, entry.status).length}`,
             testID: `porcelain-board-phone-tab-${entry.status}`,

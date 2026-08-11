@@ -1,3 +1,4 @@
+import type { BoardStatus } from '@porcelain/contracts/board'
 import { useEffect, useState } from 'react'
 import { Text, View } from 'react-native'
 
@@ -7,10 +8,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Text as UiText } from '@/components/ui/text'
 import { Textarea } from '@/components/ui/textarea'
-import type { CardStatus } from '@/lib/daemon/procedures/review'
 
+import { BOARD_COLUMNS, useBoardCardActions } from './board-data'
 import { type ComposerHost, useBoardStore } from './board-store'
-import { BOARD_COLUMNS, useCardActions } from './use-board'
 
 /**
  * The one create/edit-card form, driven by the draft in the board store.
@@ -23,11 +23,11 @@ import { BOARD_COLUMNS, useCardActions } from './use-board'
 export function CardComposer({ host }: { host: ComposerHost }): React.JSX.Element {
   const draft = useBoardStore((state) => state.draft)
   const close = useBoardStore((state) => state.closeDraft)
-  const { add, move, update } = useCardActions()
+  const { add, move, update } = useBoardCardActions()
   const { width } = useShellModalSize()
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
-  const [status, setStatus] = useState<CardStatus>('todo')
+  const [status, setStatus] = useState<BoardStatus>('todo')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const mine = draft !== null && draft.host === host
@@ -89,7 +89,7 @@ export function CardComposer({ host }: { host: ComposerHost }): React.JSX.Elemen
           value={body}
           onChangeText={setBody}
         />
-        <SegmentedControl<CardStatus>
+        <SegmentedControl<BoardStatus>
           options={BOARD_COLUMNS.map((column) => ({
             label: column.label,
             testID: `porcelain-board-composer-status-${column.status}`,

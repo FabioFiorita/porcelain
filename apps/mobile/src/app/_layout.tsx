@@ -6,6 +6,7 @@ import { StatusBar } from 'expo-status-bar'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 
+import { BoardNotificationBridge } from '@/features/board/board-notification-bridge'
 import { AppThemeProvider, useResolvedColorScheme } from '@/features/settings/theme-provider'
 import { PhoneBottomChrome } from '@/features/shell/bottom-chrome'
 import { PhoneShell } from '@/features/shell/phone-shell'
@@ -32,6 +33,7 @@ function ThemedApp(): React.JSX.Element {
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <DaemonProvider>
+        <BoardNotificationBridge />
         <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
         {/* Only the phone floats chrome over its content. A tablet column ends above its own
             chrome already, so it declares none and every shared body reads zero there. */}

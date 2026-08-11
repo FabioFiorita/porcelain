@@ -14,7 +14,16 @@ export default defineConfig({
   assetsInclude: ['**/*.wasm'],
   plugins: [react()],
   resolve: {
+    // Same dual-React trap as apps/web (RN pins 19.2.3; desktop/web use 19.2.8).
+    // Mobile Board tests share this graph — pin one React + the matching Query peer.
+    dedupe: ['react', 'react-dom', '@tanstack/react-query'],
     alias: {
+      react: resolve('node_modules/react'),
+      'react-dom': resolve('node_modules/react-dom'),
+      'react/jsx-runtime': resolve('node_modules/react/jsx-runtime.js'),
+      'react/jsx-dev-runtime': resolve('node_modules/react/jsx-dev-runtime.js'),
+      '@tanstack/react-query': resolve('node_modules/@tanstack/react-query'),
+      zustand: resolve('node_modules/zustand'),
       '@renderer': resolve('../web/src'),
       '@main': resolve('src/main'),
       '@preload': resolve('src/preload'),
@@ -45,6 +54,9 @@ export default defineConfig({
       '@porcelain/client-runtime/session/interests': resolve(
         '../../packages/client-runtime/src/session/interests.ts',
       ),
+      '@porcelain/client-runtime/board': resolve(
+        '../../packages/client-runtime/src/board/index.ts',
+      ),
       '@porcelain/client-runtime/testing/daemon-mock': resolve(
         '../../packages/client-runtime/src/testing/daemon-mock.ts',
       ),
@@ -54,6 +66,8 @@ export default defineConfig({
       '@porcelain/client-runtime/word-diff-tokens': resolve(
         '../../packages/client-runtime/src/word-diff-tokens.ts',
       ),
+      // Mobile feature tests resolve through the desktop vitest graph; share the same RTL.
+      '@testing-library/react': resolve('node_modules/@testing-library/react'),
       '@/': `${resolve('../mobile/src')}/`,
     },
   },

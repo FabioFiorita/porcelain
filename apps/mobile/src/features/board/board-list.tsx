@@ -3,8 +3,8 @@ import { ScrollView, Text, View } from 'react-native'
 import { ErrorNote } from '@/components/panel-chrome'
 
 import { BoardColumn } from './board-column'
+import { BOARD_COLUMNS, useBoardCards, useFocusCard, useSelectedCardId } from './board-data'
 import { CardComposer } from './card-composer'
-import { BOARD_COLUMNS, useBoardCards, useFocusCard, useSelectedCardId } from './use-board'
 
 /**
  * The Board's supplementary column on tablet: the three columns stacked down a narrow panel.

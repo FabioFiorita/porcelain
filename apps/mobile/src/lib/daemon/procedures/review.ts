@@ -169,15 +169,6 @@ const reviewCommentSchema = z.object({
     .optional(),
 })
 
-const boardCardSchema = z.object({
-  id: z.string(),
-  title: z.string(),
-  body: z.string().optional(),
-  status: z.enum(['todo', 'doing', 'done']),
-  order: z.number(),
-  createdAt: z.number(),
-})
-
 /**
  * Intent (and extra Evidence) documents: `.porcelain/intent/` and the files beside
  * `evidence/index.html`, rendered as ordered tabs.
@@ -238,8 +229,6 @@ export type PublishCost = z.infer<typeof publishCostSchema>
 export type PublishResult = z.infer<typeof publishResultSchema>
 export type ArchivedReview = z.infer<typeof archivedReviewSchema>
 export type ReviewComment = z.infer<typeof reviewCommentSchema>
-export type BoardCard = z.infer<typeof boardCardSchema>
-export type CardStatus = BoardCard['status']
 
 export const featureViewQuery = defineQuery<string, FeatureView | null>(
   'featureView',
@@ -382,33 +371,3 @@ export const clearResolvedReviewCommentsMutation = defineMutation<{ repoPath: st
   'clearResolvedReviewComments',
   z.void(),
 )
-
-export const boardCardsQuery = defineQuery<string, BoardCard[]>(
-  'boardCards',
-  z.array(boardCardSchema),
-)
-
-export const addBoardCardMutation = defineMutation<
-  { repoPath: string; title: string; body?: string; status?: CardStatus },
-  BoardCard
->('addBoardCard', boardCardSchema)
-
-export const updateBoardCardMutation = defineMutation<
-  { repoPath: string; id: string; title?: string; body?: string },
-  void
->('updateBoardCard', z.void())
-
-export const moveBoardCardMutation = defineMutation<
-  { repoPath: string; id: string; status: CardStatus },
-  void
->('moveBoardCard', z.void())
-
-export const deleteBoardCardMutation = defineMutation<{ repoPath: string; id: string }, void>(
-  'deleteBoardCard',
-  z.void(),
-)
-
-export const clearBoardCardsMutation = defineMutation<
-  { repoPath: string; status: CardStatus },
-  void
->('clearBoardCards', z.void())

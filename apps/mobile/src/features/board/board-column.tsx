@@ -1,20 +1,20 @@
+import type { BoardCard, BoardStatus } from '@porcelain/contracts/board'
 import { useState } from 'react'
 import { ScrollView, Text, View } from 'react-native'
 
 import { ChromeGlyph, type ChromeIconName } from '@/components/chrome-glyph'
 import { ConfirmDialog, ErrorNote, IconAction, PanelLabel } from '@/components/panel-chrome'
-import type { BoardCard, CardStatus } from '@/lib/daemon/procedures/review'
 import { cn } from '@/lib/utils'
 
+import { boardStatusLabel, cardsInColumn, useBoardCardActions, useBoardFailure } from './board-data'
 import { type ComposerHost, useBoardStore } from './board-store'
 import { CardRow } from './card-row'
-import { cardsInColumn, STATUS_LABEL, useBoardFailure, useCardActions } from './use-board'
 
 /**
  * Column iconography, from the chrome symbol set the whole app shares: an empty box for work
  * not started, the running arrow for work in flight, a filled tick for work that is finished.
  */
-export const COLUMN_GLYPH: Record<CardStatus, ChromeIconName> = {
+export const COLUMN_GLYPH: Record<BoardStatus, ChromeIconName> = {
   doing: 'refresh',
   done: 'circleCheck',
   todo: 'square',
@@ -42,14 +42,14 @@ export function BoardColumn({
   host: ComposerHost
   onSelect: (card: BoardCard) => void
   selectedId: string | null
-  status: CardStatus
+  status: BoardStatus
   testIDPrefix: string
 }): React.JSX.Element {
   const openDraft = useBoardStore((state) => state.openDraft)
-  const { clear } = useCardActions()
+  const { clear } = useBoardCardActions()
   const { failure, guard } = useBoardFailure()
   const [confirmClear, setConfirmClear] = useState(false)
-  const label = STATUS_LABEL[status]
+  const label = boardStatusLabel(status)
   const inColumn = cardsInColumn(cards, status)
 
   const rows =
