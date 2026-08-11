@@ -22,7 +22,10 @@ recipe plus the starting commit. Executable means Ready, or Queued with all depe
 If it reports zero or multiple candidates, stop and return that result. Never choose or promote a
 Draft/Blocked recipe, or continue a previous agent's dirty work.
 
-One invocation owns one recipe. Never begin the next recipe in the same session.
+One invocation owns one recipe. Never begin the next recipe in the same session — unless the
+human explicitly started a campaign under "Single-orchestrator campaign mode" in
+`plans/architecture-refactor/specs/README.md`; in that mode the same session promotes one Draft,
+executes it, and loops, with all other rules in this skill unchanged per unit.
 
 ## Rebuild context from the repository
 

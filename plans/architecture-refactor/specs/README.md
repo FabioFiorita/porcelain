@@ -29,6 +29,33 @@ Do not queue Draft recipes merely because their files are detailed. This deliber
 parallelism: dependency order and a trustworthy review boundary are more valuable than speculative
 throughput.
 
+## Single-orchestrator campaign mode
+
+When the human explicitly assigns one frontier model a campaign goal ("land every remaining
+catalog unit"), that model may hold both roles — architecture reviewer and executor — under these
+substitutions; everything not listed here is unchanged:
+
+1. **One unit in flight, ever.** The campaign loop is: preflight the next eligible Draft against
+   the current tree and promote it (its own `docs(architecture)` commit, reasoning in the body) →
+   confirm with `next-ready.mjs` → execute it under the executor contract → land → repeat. Keeping
+   exactly one Ready at a time preserves every selector and drift-gate invariant.
+2. **Session freshness is replaced by repository reconstruction.** Before each unit the model
+   re-reads the recipe, its governing decisions, and the current anchors as if cold; it never
+   relies on its memory of a prior unit where the repository can answer.
+3. **External review moves to the campaign boundary.** Per-unit independent review is deferred; a
+   fresh reviewer later reads the entire campaign range commit-by-commit against the catalog.
+   Per-unit machine gates (`pnpm verify`, one implementation commit per unit, Landed flipped in
+   that commit, clean tree, truthful packet) are NOT deferred — they are what makes the deferred
+   review possible.
+4. **Stop conditions become skip conditions.** A genuine product choice, architecture fork, or
+   anchor mismatch the recipe cannot absorb is recorded in the campaign log with exact evidence;
+   the model then continues with the next unit that does not depend on the skipped one. It never
+   fills in missing judgment to keep moving.
+5. **A campaign log** (`scripts/agent-scratch/<campaign>-log.md`, gitignored) records per unit:
+   commit range, gates run with counts, deviations, and skips. It is the end-review's index.
+6. Pushing, real-data mutation, and touching the production daemon (port 43117) remain forbidden
+   regardless of mode.
+
 ## Executor contract
 
 An execution agent:
