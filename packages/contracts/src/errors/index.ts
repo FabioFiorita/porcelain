@@ -10,6 +10,13 @@ export {
   filesAlreadyExistsErrorSchema,
 } from '../files'
 export {
+  gitBranchAlreadyExistsErrorSchema,
+  gitBranchNotFoundErrorSchema,
+  gitNotARepositoryErrorSchema,
+  gitWorkingTreeConflictErrorSchema,
+  gitWorktreeConflictErrorSchema,
+} from '../git'
+export {
   reviewCommentNotFoundErrorDetailsSchema,
   reviewCommentNotFoundErrorSchema,
   reviewUnavailableErrorSchema,

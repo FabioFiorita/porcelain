@@ -122,7 +122,7 @@ const gitProcedureDefinitions = {
     kind: 'mutation',
     input: gitCheckoutInputSchema,
     output: gitCheckoutOutputSchema,
-    errors: [],
+    errors: ['git.not-a-repository', 'git.branch-not-found', 'git.working-tree-conflict'],
   },
   gitCreateBranch: {
     kind: 'mutation',
@@ -134,7 +134,7 @@ const gitProcedureDefinitions = {
     kind: 'mutation',
     input: gitAddWorktreeInputSchema,
     output: gitAddWorktreeOutputSchema,
-    errors: [],
+    errors: ['git.not-a-repository', 'git.branch-already-exists', 'git.worktree-conflict'],
   },
   gitCommitConventions: {
     kind: 'query',
@@ -146,7 +146,7 @@ const gitProcedureDefinitions = {
     kind: 'query',
     input: gitStatusInputSchema,
     output: gitStatusOutputSchema,
-    errors: [],
+    errors: ['git.not-a-repository'],
   },
   gitSuggestions: {
     kind: 'query',
@@ -178,13 +178,13 @@ const gitProcedureDefinitions = {
     kind: 'query',
     input: gitBranchesInputSchema,
     output: gitBranchesOutputSchema,
-    errors: [],
+    errors: ['git.not-a-repository'],
   },
   gitWorktrees: {
     kind: 'query',
     input: gitWorktreesInputSchema,
     output: gitWorktreesOutputSchema,
-    errors: [],
+    errors: ['git.not-a-repository'],
   },
   gitLog: { kind: 'query', input: gitLogInputSchema, output: gitLogOutputSchema, errors: [] },
   gitCommitMessage: {

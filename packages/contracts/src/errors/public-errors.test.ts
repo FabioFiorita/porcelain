@@ -12,6 +12,11 @@ import {
 import {
   authForbiddenErrorSchema,
   authUnauthenticatedErrorSchema,
+  gitBranchAlreadyExistsErrorSchema,
+  gitBranchNotFoundErrorSchema,
+  gitNotARepositoryErrorSchema,
+  gitWorkingTreeConflictErrorSchema,
+  gitWorktreeConflictErrorSchema,
   internalUnexpectedErrorSchema,
   protocolUpdateRequiredErrorSchema,
   publicErrorCategorySchema,
@@ -44,6 +49,11 @@ const memberSchemas = {
   'files.already-exists': filesAlreadyExistsErrorSchema,
   'files.path-outside-project': filesPathOutsideProjectErrorSchema,
   'files.not-found': filesNotFoundErrorSchema,
+  'git.not-a-repository': gitNotARepositoryErrorSchema,
+  'git.branch-not-found': gitBranchNotFoundErrorSchema,
+  'git.branch-already-exists': gitBranchAlreadyExistsErrorSchema,
+  'git.worktree-conflict': gitWorktreeConflictErrorSchema,
+  'git.working-tree-conflict': gitWorkingTreeConflictErrorSchema,
 } as const
 
 const expectedMembers = [
@@ -93,10 +103,25 @@ const expectedMembers = [
     retryable: false,
     hasDetails: true,
   },
+  { code: 'git.not-a-repository', category: 'not-found', retryable: false, hasDetails: false },
+  { code: 'git.branch-not-found', category: 'not-found', retryable: false, hasDetails: false },
+  {
+    code: 'git.branch-already-exists',
+    category: 'conflict',
+    retryable: false,
+    hasDetails: false,
+  },
+  { code: 'git.worktree-conflict', category: 'conflict', retryable: false, hasDetails: false },
+  {
+    code: 'git.working-tree-conflict',
+    category: 'conflict',
+    retryable: false,
+    hasDetails: false,
+  },
 ] as const
 
 describe('public error contracts', () => {
-  it('exports the system, Board, Review, and Files public members and categories', () => {
+  it('exports the system, Board, Review, Files, and Git public members and categories', () => {
     expect(Object.keys(memberSchemas).sort()).toEqual(
       expectedMembers.map(({ code }) => code).sort(),
     )

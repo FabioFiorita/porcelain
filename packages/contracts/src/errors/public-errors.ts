@@ -10,6 +10,13 @@ import {
   filesPathOutsideProjectErrorSchema,
 } from '../files'
 import {
+  gitBranchAlreadyExistsErrorSchema,
+  gitBranchNotFoundErrorSchema,
+  gitNotARepositoryErrorSchema,
+  gitWorkingTreeConflictErrorSchema,
+  gitWorktreeConflictErrorSchema,
+} from '../git'
+import {
   reviewCommentNotFoundErrorSchema,
   reviewUnavailableErrorSchema,
 } from '../review/review.errors'
@@ -55,6 +62,11 @@ export const publicErrorSchema = z.discriminatedUnion('code', [
   filesAlreadyExistsErrorSchema,
   filesPathOutsideProjectErrorSchema,
   filesNotFoundErrorSchema,
+  gitNotARepositoryErrorSchema,
+  gitBranchNotFoundErrorSchema,
+  gitBranchAlreadyExistsErrorSchema,
+  gitWorktreeConflictErrorSchema,
+  gitWorkingTreeConflictErrorSchema,
 ])
 
 export type PorcelainError = z.infer<typeof publicErrorSchema>

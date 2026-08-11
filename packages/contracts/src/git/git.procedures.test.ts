@@ -35,6 +35,39 @@ const expectedKinds = {
   commitModels: 'query',
 } as const
 
+const expectedErrors = {
+  gitQuickCommand: [],
+  gitPush: [],
+  gitStageAll: [],
+  gitUnstageAll: [],
+  gitStageFile: [],
+  gitUnstageFile: [],
+  gitDiscardFile: [],
+  gitCommit: [],
+  gitGenerateCommitMessage: [],
+  gitGenerateCommitGroups: [],
+  gitCheckout: ['git.not-a-repository', 'git.branch-not-found', 'git.working-tree-conflict'],
+  gitCreateBranch: [],
+  gitAddWorktree: ['git.not-a-repository', 'git.branch-already-exists', 'git.worktree-conflict'],
+  gitCommitConventions: [],
+  gitStatus: ['git.not-a-repository'],
+  gitSuggestions: [],
+  gitFlow: [],
+  gitRangeFlow: [],
+  gitRangeDiffFile: [],
+  gitDiffFile: [],
+  gitHead: [],
+  gitBranches: ['git.not-a-repository'],
+  gitWorktrees: ['git.not-a-repository'],
+  gitLog: [],
+  gitCommitMessage: [],
+  gitFileLog: [],
+  gitCommitDiff: [],
+  gitCommitFlow: [],
+  diffReading: [],
+  commitModels: [],
+} as const
+
 const invalidInputs: Record<keyof typeof gitProcedures, unknown> = {
   gitQuickCommand: { repoPath: '/synthetic/repo', command: 'publish' },
   gitPush: 42,
@@ -119,10 +152,14 @@ const invalidOutputs: Record<keyof typeof gitProcedures, unknown> = {
 }
 
 describe('Git procedure contracts', () => {
-  it('declares exactly thirty procedures with their router kinds', () => {
+  it('declares exactly thirty procedures with their router kinds and allowed errors', () => {
     expect(Object.keys(gitProcedures).sort()).toEqual(Object.keys(expectedKinds).sort())
     for (const [name, kind] of Object.entries(expectedKinds)) {
-      expect(gitProcedures[name as keyof typeof gitProcedures].kind).toBe(kind)
+      const procedure = gitProcedures[name as keyof typeof gitProcedures]
+      expect(procedure.kind).toBe(kind)
+      expect([...procedure.errors]).toEqual([
+        ...expectedErrors[name as keyof typeof expectedErrors],
+      ])
     }
   })
 
