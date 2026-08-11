@@ -1,4 +1,5 @@
 import {
+  type FilesForeignDependency,
   filesNotificationEffects,
   filesNotificationForeignDependencies,
   filesProjectKey,
@@ -25,8 +26,10 @@ export type ApplyFilesNotificationOptions = {
   readonly queryClient: QueryClient
   readonly daemon: FilesDaemonScope
   readonly activeProjectPath: string | null
-  /** Optional utils for foreign invalidation; tests may omit when asserting Files-only effects. */
-  readonly utils?: ReturnType<typeof trpc.useUtils>
+  /** Required: every accepted Files fact applies both Files and cross-domain freshness. */
+  readonly applyForeignDependencies: (
+    dependencies: readonly FilesForeignDependency[],
+  ) => Promise<void>
 }
 
 /** Apply a typed Files change to the QueryClient (active-project + foreign tokens). */
@@ -43,12 +46,7 @@ export function applyFilesNotification(
     options.daemon,
     filesNotificationEffects(notification),
   )
-  if (options.utils) {
-    void applyFilesForeignDependencies(
-      options.utils,
-      filesNotificationForeignDependencies(notification),
-    )
-  }
+  void options.applyForeignDependencies(filesNotificationForeignDependencies(notification))
 }
 
 /** Invalidate every Files cache entry (session/project recovery). */
@@ -98,7 +96,8 @@ export function useFilesNotificationSubscription(): void {
         queryClient,
         daemon: daemonScope,
         activeProjectPath: repoPath,
-        utils,
+        applyForeignDependencies: (dependencies) =>
+          applyFilesForeignDependencies(utils, dependencies),
       })
     })
   }, [queryClient, host, version, repoPath, utils])
