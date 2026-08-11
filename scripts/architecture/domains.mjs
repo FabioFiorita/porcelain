@@ -22,9 +22,10 @@ export const DOMAIN_MIGRATIONS = Object.freeze(
         targetRoots.push('apps/web/src/features/board')
         targetRoots.push('apps/mobile/src/features/board')
       }
-      // Review comments dual-writer (RVC-001) lands the first daemon feature root for review.
+      // Review comments: contracts + daemon (RVC-001), client-runtime (RVC-002).
       if (key === 'review') {
         targetRoots.push('apps/daemon/src/features/review')
+        targetRoots.push('packages/client-runtime/src/review')
       }
       return [
         key,

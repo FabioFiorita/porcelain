@@ -6,6 +6,7 @@
   "type": "module",
   "exports": {
     "./board": "./src/board/index.ts",
+    "./review": "./src/review/index.ts",
     "./commit-message": "./src/commit-message.ts",
     "./companion-disposition": "./src/companion-disposition.ts",
     "./highlight": "./src/highlight.ts",
