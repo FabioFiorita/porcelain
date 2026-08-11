@@ -141,7 +141,14 @@ function assertManagedSiblingPath(root, worktreePath) {
   return resolved
 }
 
-function loadCatalogText(catalogPath = CATALOG_PATH) {
+/**
+ * Read catalog text. Throws ordinary errors (never process.exit) so callers
+ * can finalize durable state.
+ */
+export function loadCatalogText(catalogPath = CATALOG_PATH) {
+  if (!existsSync(catalogPath)) {
+    throw new Error(`catalog missing: ${catalogPath}`)
+  }
   return readFileSync(catalogPath, 'utf8')
 }
 
@@ -526,14 +533,32 @@ function cmdPrepare(args, options = {}) {
   return state
 }
 
-function assertCleanWorktree(path) {
+/**
+ * Internal cleanliness probe — returns a structured result or throws an ordinary
+ * Error on git failure. Never calls process.exit (safe inside runOneRecipe).
+ *
+ * @returns {{ clean: true } | { clean: false, lines: string[] }}
+ */
+export function probeWorktreeClean(path) {
   const status = git(path, ['status', '--porcelain', '--untracked-files=all'])
   // Ignore managed profile file noise if ever untracked (it is gitignored).
   const dirty = status
     .split('\n')
     .filter((line) => line !== '' && !line.endsWith('.porcelain-worktree.json'))
   if (dirty.length > 0) {
-    fail(`worktree is dirty:\n${dirty.map((line) => `  ${line}`).join('\n')}`)
+    return { clean: false, lines: dirty }
+  }
+  return { clean: true }
+}
+
+/**
+ * CLI-only hard stop when the worktree is dirty. Do not use from runOneRecipe
+ * evidence paths — use probeWorktreeClean instead.
+ */
+function assertCleanWorktree(path) {
+  const probe = probeWorktreeClean(path)
+  if (!probe.clean) {
+    fail(`worktree is dirty:\n${probe.lines.map((line) => `  ${line}`).join('\n')}`)
   }
 }
 
@@ -581,8 +606,102 @@ export function defaultSpawnExecutor({ command, args, cwd, logPath, env, onStart
 }
 
 /**
+ * Atomically mark recipe/group failed after child start or exit.
+ * Clears pid + currentRecipe; stores reasons for investigation. Never process.exit.
+ *
+ * @returns {{ ok: false, reasons: string[], runRecord: object }}
+ */
+function finalizeRecipeFailure({
+  orch,
+  state,
+  runRecord,
+  recipeId,
+  reasons,
+  exitCode = 1,
+  endingHead = null,
+  status = 'failed',
+  error = null,
+  pid = null,
+}) {
+  const endTime = new Date().toISOString()
+  const reasonList = reasons.length > 0 ? reasons : ['unknown post-executor failure']
+  runRecord.pid = pid ?? runRecord.pid ?? null
+  runRecord.endTime = endTime
+  runRecord.exitCode = exitCode
+  runRecord.endingHead = endingHead
+  runRecord.status = status
+  runRecord.reasons = reasonList
+  if (error != null) runRecord.error = error
+
+  state.pid = null
+  state.currentRecipe = null
+  state.status = 'failed'
+  state.failed = { recipeId, reasons: reasonList }
+  state.exitCode = exitCode
+  state.endTime = endTime
+  if (endingHead) state.endingHead = endingHead
+  replaceRunRecord(state, runRecord)
+  writeState(orch, state)
+  return { ok: false, reasons: reasonList, runRecord }
+}
+
+/**
+ * Collect post-spawn evidence from the executor worktree.
+ * Throws ordinary Errors only — callers own durable finalization.
+ */
+function collectPostExecutorEvidence({
+  worktreePath,
+  catalogPath,
+  specsRoot,
+  recipeIds,
+  packetPath,
+}) {
+  let endingHead = null
+  try {
+    endingHead = readHead(worktreePath)
+  } catch {
+    // Keep going; postconditions will fail on missing/invalid HEAD.
+    endingHead = null
+  }
+
+  let worktreeClean = false
+  /** @type {string | null} */
+  let cleanDetail = null
+  try {
+    const probe = probeWorktreeClean(worktreePath)
+    worktreeClean = probe.clean
+    if (!probe.clean) {
+      cleanDetail = `worktree is dirty:\n${probe.lines.map((line) => `  ${line}`).join('\n')}`
+    }
+  } catch (error) {
+    worktreeClean = false
+    cleanDetail = `worktree clean probe failed: ${error instanceof Error ? error.message : String(error)}`
+  }
+
+  const afterCatalogText = loadCatalogText(catalogPath)
+  const after = snapshotStatuses({
+    catalogText: afterCatalogText,
+    specsRoot,
+    recipeIds,
+  })
+  const packetExists = existsSync(packetPath)
+
+  return {
+    endingHead,
+    worktreeClean,
+    cleanDetail,
+    after,
+    packetExists,
+  }
+}
+
+/**
  * Run one recipe in a fresh process. Catalog/specs/packet bind to worktreePath;
  * orchestration state/logs/prompts bind to controller orch.
+ *
+ * After the child starts (or fails to spawn), every evidence step runs inside one
+ * finalization boundary: any exception or postcondition mismatch writes durable
+ * failed state with pid/currentRecipe cleared — never process.exit mid-flight.
  */
 export async function runOneRecipe({
   group,
@@ -611,7 +730,11 @@ export async function runOneRecipe({
     )
   }
 
-  assertCleanWorktree(worktreePath)
+  // Pre-spawn only — throw ordinary errors (no process.exit); state not yet in-flight.
+  const preClean = probeWorktreeClean(worktreePath)
+  if (!preClean.clean) {
+    throw new Error(`worktree is dirty:\n${preClean.lines.map((line) => `  ${line}`).join('\n')}`)
+  }
   const startingHead = readHead(worktreePath)
   const before = snapshotStatuses({
     catalogText,
@@ -695,80 +818,124 @@ export async function runOneRecipe({
     exitCode = result.exitCode
     pid = result.pid
   } catch (error) {
-    runRecord.endTime = new Date().toISOString()
-    runRecord.exitCode = 1
-    runRecord.status = 'spawn-failed'
-    runRecord.error = error instanceof Error ? error.message : String(error)
+    const message = error instanceof Error ? error.message : String(error)
+    return finalizeRecipeFailure({
+      orch,
+      state,
+      runRecord,
+      recipeId,
+      reasons: [message],
+      exitCode: 1,
+      status: 'spawn-failed',
+      error: message,
+      pid: runRecord.pid,
+    })
+  }
+
+  // ── Post-spawn finalization boundary ──────────────────────────────────────
+  // Every evidence op (clean, HEAD, catalog/spec snapshot, packet, postconditions)
+  // must either succeed into a landed write or fail into finalizeRecipeFailure.
+  // Never process.exit; never leave status=running with a dead pid.
+  try {
+    let evidence
+    try {
+      evidence = collectPostExecutorEvidence({
+        worktreePath,
+        catalogPath,
+        specsRoot,
+        recipeIds: group.recipes,
+        packetPath,
+      })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      // Best-effort ending HEAD even when catalog/spec snapshot throws.
+      let endingHead = null
+      try {
+        endingHead = readHead(worktreePath)
+      } catch {
+        /* keep null */
+      }
+      return finalizeRecipeFailure({
+        orch,
+        state,
+        runRecord,
+        recipeId,
+        reasons: [`post-executor evidence failed: ${message}`],
+        exitCode,
+        endingHead,
+        pid,
+      })
+    }
+
+    const post = evaluatePostconditions({
+      exitCode,
+      startingHead,
+      endingHead: evidence.endingHead,
+      worktreeClean: evidence.worktreeClean,
+      packetPath,
+      packetExists: evidence.packetExists,
+      recipeId,
+      before,
+      after: evidence.after,
+      allGroupRecipeIds: group.recipes,
+    })
+
+    if (!post.ok) {
+      // Attach dirty-line / probe-error detail when available (for investigation).
+      const reasons = [...post.reasons]
+      if (
+        evidence.cleanDetail &&
+        !reasons.some((r) => r.includes(evidence.cleanDetail) || r.startsWith('worktree is dirty:'))
+      ) {
+        reasons.push(evidence.cleanDetail)
+      }
+      return finalizeRecipeFailure({
+        orch,
+        state,
+        runRecord,
+        recipeId,
+        reasons,
+        exitCode,
+        endingHead: evidence.endingHead,
+        pid,
+      })
+    }
+
+    // Success — clear in-flight fields, record landed.
+    const endTime = new Date().toISOString()
+    runRecord.pid = pid
+    runRecord.endTime = endTime
+    runRecord.exitCode = exitCode
+    runRecord.endingHead = evidence.endingHead
+    runRecord.status = 'landed'
     state.pid = null
-    state.failed = { recipeId, reasons: [runRecord.error] }
-    state.status = 'failed'
+    state.currentRecipe = null
+    state.endingHead = evidence.endingHead
+    state.completed = [...(state.completed ?? []), recipeId]
     replaceRunRecord(state, runRecord)
     writeState(orch, state)
-    throw error
-  }
-
-  const endingHead = (() => {
+    ok(`${recipeId} landed at ${evidence.endingHead}`)
+    return { ok: true, runRecord }
+  } catch (error) {
+    // Catch-all: unexpected throw after child exit must still finalize.
+    const message = error instanceof Error ? error.message : String(error)
+    let endingHead = null
     try {
-      return readHead(worktreePath)
+      endingHead = readHead(worktreePath)
     } catch {
-      return null
+      /* keep null */
     }
-  })()
-  const clean = (() => {
-    try {
-      assertCleanWorktree(worktreePath)
-      return true
-    } catch {
-      return false
-    }
-  })()
-
-  // After snapshots from executor worktree only
-  const afterCatalogText = loadCatalogText(catalogPath)
-  const after = snapshotStatuses({
-    catalogText: afterCatalogText,
-    specsRoot,
-    recipeIds: group.recipes,
-  })
-
-  const post = evaluatePostconditions({
-    exitCode,
-    startingHead,
-    endingHead,
-    worktreeClean: clean,
-    packetPath,
-    packetExists: existsSync(packetPath),
-    recipeId,
-    before,
-    after,
-    allGroupRecipeIds: group.recipes,
-  })
-
-  runRecord.pid = pid
-  runRecord.endTime = new Date().toISOString()
-  runRecord.exitCode = exitCode
-  runRecord.endingHead = endingHead
-  runRecord.status = post.ok ? 'landed' : 'failed'
-  if (!post.ok) runRecord.reasons = post.reasons
-
-  state.pid = null
-  state.currentRecipe = null
-  state.endingHead = endingHead
-  replaceRunRecord(state, runRecord)
-
-  if (!post.ok) {
-    state.status = 'failed'
-    state.failed = { recipeId, reasons: post.reasons }
-    state.exitCode = exitCode
-    state.endTime = runRecord.endTime
-    writeState(orch, state)
-    return { ok: false, reasons: post.reasons, runRecord }
+    return finalizeRecipeFailure({
+      orch,
+      state,
+      runRecord,
+      recipeId,
+      reasons: [`post-executor finalization failed: ${message}`],
+      exitCode,
+      endingHead,
+      pid,
+    })
   }
-
-  state.completed = [...(state.completed ?? []), recipeId]
-  writeState(orch, state)
-  ok(`${recipeId} landed at ${endingHead}`)
-  return { ok: true, runRecord }
 }
 
 function replaceRunRecord(state, runRecord) {

@@ -46,6 +46,12 @@ dispatcher re-checks: exit 0, recipe+catalog Landed (from the executor
 worktree), new commit, clean worktree, required packet at the absolute executor
 path, and no unrelated status drift. Any mismatch stops closed.
 
+Post-executor evidence (clean probe, ending HEAD, catalog/spec snapshot, packet,
+postconditions) runs inside one finalization boundary. Internal probes return
+structured results or throw ordinary errors — never `process.exit`. On any
+failure after child start/exit, durable state is written as `failed` with
+`pid` and `currentRecipe` cleared and reasons preserved for investigation.
+
 ## Prepared identity binding
 
 Before any spawn, `run` compares the live manifest to `manifest.snapshot.json`

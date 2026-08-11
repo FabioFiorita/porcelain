@@ -18,7 +18,9 @@ import {
   defaultSpawnExecutor,
   executorPacketPath,
   executorSpecsPaths,
+  loadCatalogText,
   mergeWithTrackedGroups,
+  probeWorktreeClean,
   runOneRecipe,
 } from './dispatch.mjs'
 import {
@@ -1054,5 +1056,236 @@ test('cross-worktree: postconditions fail if packet only exists on controller (o
     const expected = executorPacketPath(worktreePath, group.id, 'XWT-002')
     assert.equal(existsSync(expected), false)
     assert.equal(existsSync(wrongPacket), true)
+  })
+})
+
+// --- post-executor finalization (no stale running state) ---
+
+/**
+ * Shared fixture: prepared controller orch + linked executor worktree with one Ready recipe.
+ */
+function setupExecutorFixture(root, { slug, groupId, recipeId, port }) {
+  const controller = join(root, 'controller')
+  initRepo(controller)
+  const worktreePath = join(root, 'executor-wt')
+  git(controller, ['worktree', 'add', '-b', `work/${slug}`, worktreePath])
+  const specsRoot = join(worktreePath, 'plans', 'architecture-refactor', 'specs')
+  writeCatalog(specsRoot, [[recipeId, 'Ready']])
+  writeRecipeFixture(specsRoot, recipeId, 'Ready')
+  writeManagedProfile(worktreePath, { slug, base: 'main', port })
+  git(worktreePath, ['add', '.'])
+  git(worktreePath, ['commit', '-m', 'seed executor fixtures'])
+
+  const group = parseExecutionGroup({
+    version: 1,
+    id: groupId,
+    slug,
+    base: 'main',
+    executor: 'grok',
+    recipes: [recipeId],
+    dependsOn: [],
+  }).group
+  const orch = orchestrationDir(controller, group.id)
+  mkdirSync(orch, { recursive: true })
+  const startingHead = git(worktreePath, ['rev-parse', 'HEAD'])
+  const state = createInitialState({
+    groupId: group.id,
+    slug: group.slug,
+    base: group.base,
+    executor: group.executor,
+    recipes: group.recipes,
+    dependsOn: group.dependsOn,
+    status: 'prepared',
+    worktreePath: resolve(worktreePath),
+    branch: `work/${slug}`,
+    startingHead,
+    groupStartingHead: startingHead,
+  })
+  writeState(orch, state)
+  writeJsonAtomic(join(orch, 'manifest.snapshot.json'), group)
+  return { controller, worktreePath, specsRoot, group, orch, state }
+}
+
+function assertDurableFailed(finalState, { recipeId, deadPid }) {
+  assert.equal(finalState.status, 'failed', 'group must be failed, not running')
+  assert.equal(finalState.pid, null, 'pid must be cleared')
+  assert.equal(finalState.currentRecipe, null, 'currentRecipe must be cleared')
+  assert.ok(finalState.endTime, 'group endTime set')
+  assert.ok(finalState.failed, 'failed payload stored')
+  assert.equal(finalState.failed.recipeId, recipeId)
+  assert.ok(Array.isArray(finalState.failed.reasons) && finalState.failed.reasons.length > 0)
+  const run = finalState.recipeRuns.at(-1)
+  assert.ok(run, 'run record exists')
+  assert.equal(run.recipeId, recipeId)
+  assert.notEqual(run.status, 'running', 'run record must not stay running')
+  assert.ok(run.endTime, 'run endTime set')
+  assert.equal(run.pid, deadPid)
+  assert.ok(run.reasons?.length || run.error, 'diagnostic detail preserved')
+}
+
+test('post-executor: dirty worktree finalizes failed state (no process.exit / no stale pid)', async () => {
+  await withTemp(async (root) => {
+    const recipeId = 'FIN-001'
+    const { controller, worktreePath, specsRoot, group, orch, state } = setupExecutorFixture(root, {
+      slug: 'arch-fin-dirty',
+      groupId: 'fin-dirty',
+      recipeId,
+      port: 43230,
+    })
+    const packetPath = executorPacketPath(worktreePath, group.id, recipeId)
+    const deadPid = 77701
+
+    const result = await runOneRecipe({
+      group,
+      recipeId,
+      worktreePath,
+      orch,
+      state,
+      controllerRoot: controller,
+      spawnExecutor: async ({ onStart, cwd, logPath }) => {
+        onStart?.({ pid: deadPid })
+        // Land catalog/recipe/packet/commit as if executor succeeded…
+        writeCatalog(specsRoot, [[recipeId, 'Landed']])
+        writeRecipeFixture(specsRoot, recipeId, 'Landed')
+        mkdirSync(join(packetPath, '..'), { recursive: true })
+        writeFileSync(packetPath, `# packet ${recipeId}\n`)
+        writeFileSync(join(cwd, 'landed.txt'), 'done\n')
+        git(cwd, ['add', '.'])
+        git(cwd, ['commit', '-m', `feat: land ${recipeId}`])
+        // …then leave untracked dirt that would previously process.exit before finalization
+        writeFileSync(join(cwd, 'leftover-dirt.txt'), 'executor left this\n')
+        mkdirSync(join(logPath, '..'), { recursive: true })
+        writeFileSync(logPath, 'mock executor exited 0 with dirty tree\n')
+        return { exitCode: 0, pid: deadPid }
+      },
+    })
+
+    assert.equal(result.ok, false)
+    assert.ok(
+      result.reasons.some((r) => r.includes('clean') || r.includes('dirty')),
+      `expected clean/dirty reason, got: ${result.reasons.join('; ')}`,
+    )
+    // Must return (not throw / not exit) so caller can stop-closed
+    const finalState = readState(orch)
+    assertDurableFailed(finalState, { recipeId, deadPid })
+    assert.ok(
+      finalState.failed.reasons.some((r) => r.includes('dirty') || r.includes('clean')),
+      `durable reasons: ${finalState.failed.reasons.join('; ')}`,
+    )
+  })
+})
+
+test('post-executor: missing catalog after exit finalizes failed (pid/currentRecipe cleared)', async () => {
+  await withTemp(async (root) => {
+    const recipeId = 'FIN-002'
+    const { controller, worktreePath, specsRoot, group, orch, state } = setupExecutorFixture(root, {
+      slug: 'arch-fin-cat',
+      groupId: 'fin-cat',
+      recipeId,
+      port: 43231,
+    })
+    const catalogPath = join(specsRoot, 'catalog.md')
+    const deadPid = 77702
+
+    const result = await runOneRecipe({
+      group,
+      recipeId,
+      worktreePath,
+      orch,
+      state,
+      controllerRoot: controller,
+      spawnExecutor: async ({ onStart, cwd, logPath }) => {
+        onStart?.({ pid: deadPid })
+        // Commit a new HEAD, then remove catalog so after-snapshot throws
+        writeFileSync(join(cwd, 'landed.txt'), 'done\n')
+        git(cwd, ['add', '.'])
+        git(cwd, ['commit', '-m', `feat: pretend land ${recipeId}`])
+        rmSync(catalogPath, { force: true })
+        mkdirSync(join(logPath, '..'), { recursive: true })
+        writeFileSync(logPath, 'mock executor deleted catalog\n')
+        return { exitCode: 0, pid: deadPid }
+      },
+    })
+
+    assert.equal(result.ok, false)
+    assert.ok(
+      result.reasons.some((r) => r.includes('catalog') || r.includes('evidence')),
+      `expected catalog/evidence reason, got: ${result.reasons.join('; ')}`,
+    )
+    const finalState = readState(orch)
+    assertDurableFailed(finalState, { recipeId, deadPid })
+    assert.ok(
+      finalState.failed.reasons.some((r) => r.includes('catalog') || r.includes('evidence')),
+    )
+  })
+})
+
+test('post-executor: corrupt catalog after exit finalizes failed with diagnostic reason', async () => {
+  await withTemp(async (root) => {
+    const recipeId = 'FIN-003'
+    const { controller, worktreePath, specsRoot, group, orch, state } = setupExecutorFixture(root, {
+      slug: 'arch-fin-cor',
+      groupId: 'fin-cor',
+      recipeId,
+      port: 43232,
+    })
+    const catalogPath = join(specsRoot, 'catalog.md')
+    const recipePath = join(specsRoot, `${recipeId}.md`)
+    const deadPid = 77703
+
+    const result = await runOneRecipe({
+      group,
+      recipeId,
+      worktreePath,
+      orch,
+      state,
+      controllerRoot: controller,
+      spawnExecutor: async ({ onStart, cwd, logPath }) => {
+        onStart?.({ pid: deadPid })
+        writeFileSync(join(cwd, 'landed.txt'), 'done\n')
+        git(cwd, ['add', '.'])
+        git(cwd, ['commit', '-m', `feat: pretend land ${recipeId}`])
+        // Corrupt after commit: empty catalog + unreadable recipe status surface
+        writeFileSync(catalogPath, 'this is not a catalog table\n')
+        // Delete recipe file so recipe status is null / missing Landed
+        rmSync(recipePath, { force: true })
+        mkdirSync(join(logPath, '..'), { recursive: true })
+        writeFileSync(logPath, 'mock executor corrupted catalog\n')
+        return { exitCode: 0, pid: deadPid }
+      },
+    })
+
+    assert.equal(result.ok, false)
+    assert.ok(result.reasons.length > 0)
+    const finalState = readState(orch)
+    assertDurableFailed(finalState, { recipeId, deadPid })
+    // Corrupt catalog parses as empty → postconditions report missing Landed (not process.exit)
+    assert.ok(
+      finalState.failed.reasons.some(
+        (r) =>
+          r.includes('Landed') ||
+          r.includes('catalog') ||
+          r.includes('packet') ||
+          r.includes('evidence'),
+      ),
+      `durable reasons: ${finalState.failed.reasons.join('; ')}`,
+    )
+  })
+})
+
+test('probeWorktreeClean returns structured dirty result and never exits', () => {
+  withTemp((root) => {
+    initRepo(root)
+    assert.equal(probeWorktreeClean(root).clean, true)
+    writeFileSync(join(root, 'dirt.txt'), 'x\n')
+    const dirty = probeWorktreeClean(root)
+    assert.equal(dirty.clean, false)
+    assert.ok(dirty.lines.some((l) => l.includes('dirt.txt')))
+  })
+})
+
+test('loadCatalogText throws ordinary Error on missing file (not process.exit)', () => {
+  withTemp((root) => {
+    assert.throws(() => loadCatalogText(join(root, 'no-such-catalog.md')), /catalog missing/)
   })
 })
