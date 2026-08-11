@@ -143,6 +143,23 @@ describe('Session change publisher', () => {
     expect(publisher.subscriptionCount()).toBe(0)
   })
 
+  it('drops a throwing subscriber without failing other best-effort deliveries', () => {
+    const publisher = createSessionChangePublisher({ epoch: EPOCH })
+    publisher
+      .subscribe({
+        deliver() {
+          throw new Error('socket closed')
+        },
+      })
+      .scopeToProject(PROJECT)
+    const healthy = subscriberSpy()
+    publisher.subscribe(healthy.subscriber).scopeToProject(PROJECT)
+
+    expect(publisher.publish(change(PROJECT))).toEqual({ ok: true, delivered: 1 })
+    expect(healthy.frames.map((frame) => frame.sequence)).toEqual([0])
+    expect(publisher.subscriptionCount()).toBe(1)
+  })
+
   describe('source-to-category mapping', () => {
     it('maps every contract change kind to a declared category', () => {
       const changes = changesForEveryKind(PROJECT)

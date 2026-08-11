@@ -1,6 +1,7 @@
 import { mkdir, open, readFile, rename, stat, unlink, writeFile } from 'node:fs/promises'
 import { dirname, isAbsolute, join } from 'node:path'
 import {
+  COMMENTS_FILE_MAX_BYTES,
   CommentsFileParseError,
   type CommentsFileV1,
   emptyCommentsFileV1,
@@ -23,7 +24,7 @@ import type {
 } from './comment-capabilities'
 
 /** Soft size bound for active-review/comments.json — fail closed on oversized documents. */
-export const COMMENT_FILE_MAX_BYTES = 512 * 1024
+export const COMMENT_FILE_MAX_BYTES = COMMENTS_FILE_MAX_BYTES
 
 let tempNameCounter = 0
 
@@ -159,14 +160,16 @@ export function createJsonCommentStore(options: { maxBytes?: number } = {}): Rev
       return { ok: false, error: { code: 'review.unavailable' } }
     }
     try {
+      const body = serializeCommentsFileV1(file)
+      if (Buffer.byteLength(body, 'utf8') > maxBytes) {
+        return { ok: false, error: { code: 'review.unavailable' } }
+      }
       await ensureCompanionShell(projectPath)
       const path = commentsFilePath(projectPath)
       const parent = dirname(path)
       await mkdir(parent, { recursive: true })
       tempNameCounter += 1
       const tmpPath = join(parent, `.tmp-comments-${tempNameCounter}`)
-      const body = serializeCommentsFileV1(file)
-
       const handle = await open(tmpPath, 'wx', 0o600)
       try {
         await handle.writeFile(body, 'utf8')

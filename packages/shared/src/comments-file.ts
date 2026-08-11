@@ -4,6 +4,7 @@
  */
 
 export const COMMENTS_FILE_VERSION = 1 as const
+export const COMMENTS_FILE_MAX_BYTES = 512 * 1024
 
 export type CommentsFileAgentReply = {
   body: string

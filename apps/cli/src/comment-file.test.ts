@@ -1,6 +1,7 @@
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { COMMENTS_FILE_MAX_BYTES } from '@porcelain/shared/comments-file'
 import {
   ACTIVE_FILES,
   projectActiveReviewDir,
@@ -132,6 +133,15 @@ describe('comment-file v1 round-trip', () => {
     answerComment(repo, 'c1', 'kept')
     resolveComment(repo, 'c1')
     expect(readComments(repo)[0]?.agentReply?.body).toBe('kept')
+  })
+
+  it('refuses an answer that would exceed the shared document bound without replacing the file', () => {
+    seed()
+    const path = projectPorcelainPath(repo, ACTIVE_FILES.comments)
+    const before = readFileSync(path, 'utf8')
+
+    expect(answerComment(repo, 'c1', 'x'.repeat(COMMENTS_FILE_MAX_BYTES))).toBe(false)
+    expect(readFileSync(path, 'utf8')).toBe(before)
   })
 
   it('rejects legacy top-level arrays without coercing', () => {

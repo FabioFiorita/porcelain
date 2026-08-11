@@ -131,6 +131,31 @@ describe('createJsonCommentStore', () => {
     })
   })
 
+  it('rejects a mutation that would create an oversized document before writing', async () => {
+    await withTemporaryDirectory('porcelain-comments-write-large-', async (directory) => {
+      const store = createJsonCommentStore({ maxBytes: 100 })
+      const comment = {
+        id: ID,
+        path: 'src/a.ts',
+        body: 'x'.repeat(200),
+        resolved: false,
+        createdAt: 1,
+      }
+
+      expect(
+        await store.transact(directory, () => ({
+          ok: true,
+          value: {
+            kind: 'add',
+            file: { version: 1, comments: [comment] },
+            comment,
+          },
+        })),
+      ).toEqual({ ok: false, error: { code: 'review.unavailable' } })
+      expect(await readdir(directory)).toEqual([])
+    })
+  })
+
   it('serializes concurrent mutations on the same project', async () => {
     await withTemporaryDirectory('porcelain-comments-concurrent-', async (directory) => {
       const store = createJsonCommentStore()

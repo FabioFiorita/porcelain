@@ -361,14 +361,14 @@ export const restoreArchivedReviewInputSchema = z
   .strict()
 export const deleteArchivedReviewInputSchema = restoreArchivedReviewInputSchema
 export const editReviewCommentInputSchema = z
-  .object({ repoPath: z.string(), id: z.string(), body: z.string().min(1) })
+  .object({ repoPath: z.string(), id: z.string().min(1), body: z.string().min(1) })
   .strict()
 export const deleteReviewCommentInputSchema = z
-  .object({ repoPath: z.string(), id: z.string() })
+  .object({ repoPath: z.string(), id: z.string().min(1) })
   .strict()
 export const clearResolvedReviewCommentsInputSchema = z.object({ repoPath: z.string() }).strict()
 export const resolveReviewCommentInputSchema = z
-  .object({ repoPath: z.string(), id: z.string(), resolved: z.boolean() })
+  .object({ repoPath: z.string(), id: z.string().min(1), resolved: z.boolean() })
   .strict()
 export const addReviewCommentInputSchema = z
   .object({

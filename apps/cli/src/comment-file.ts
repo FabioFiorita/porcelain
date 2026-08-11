@@ -1,6 +1,7 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import {
+  COMMENTS_FILE_MAX_BYTES,
   type CommentsFileComment,
   CommentsFileParseError,
   emptyCommentsFileV1,
@@ -57,13 +58,19 @@ function readCommentsFile(repoPath: string): ReturnType<typeof emptyCommentsFile
   return parseCommentsFileV1(parsed)
 }
 
-function writeCommentsFile(repoPath: string, file: ReturnType<typeof emptyCommentsFileV1>): void {
+function writeCommentsFile(
+  repoPath: string,
+  file: ReturnType<typeof emptyCommentsFileV1>,
+): boolean {
+  const body = serializeCommentsFileV1(file)
+  if (Buffer.byteLength(body, 'utf8') > COMMENTS_FILE_MAX_BYTES) return false
   ensureProjectDir(repoPath)
   const path = commentsPath(repoPath)
   mkdirSync(dirname(path), { recursive: true })
   const tmp = `${path}.tmp`
-  writeFileSync(tmp, serializeCommentsFileV1(file))
+  writeFileSync(tmp, body)
   renameSync(tmp, path)
+  return true
 }
 
 export function readComments(repoPath: string): Comment[] {
@@ -76,8 +83,7 @@ export function resolveComment(repoPath: string, id: string): boolean {
   if (!target || target.resolved) return false
   const planned = planSetReviewCommentResolved(file, { commentId: id, resolved: true })
   if (!planned.ok) return false
-  writeCommentsFile(repoPath, planned.file)
-  return true
+  return writeCommentsFile(repoPath, planned.file)
 }
 
 export function answerComment(repoPath: string, id: string, body: string): boolean {
@@ -88,8 +94,7 @@ export function answerComment(repoPath: string, id: string, body: string): boole
     createdAt: Date.now(),
   })
   if (!planned.ok) return false
-  writeCommentsFile(repoPath, planned.file)
-  return true
+  return writeCommentsFile(repoPath, planned.file)
 }
 
 function describeOne(c: Comment, sourceOf?: ReadonlyMap<string, string>): string {

@@ -126,7 +126,7 @@ type SubscriptionState = {
 export function createSessionChangePublisher({ epoch }: { epoch: string }): SessionChangePublisher {
   const subscriptions = new Set<SubscriptionState>()
 
-  function deliverTo(state: SubscriptionState, change: SessionChange): void {
+  function deliverTo(state: SubscriptionState, change: SessionChange): boolean {
     // The daemon's own output still crosses the contract: an unparseable frame here is a
     // defect in this module, not an expected outcome, so it throws rather than shipping a
     // frame no client agreed to accept.
@@ -136,8 +136,15 @@ export function createSessionChangePublisher({ epoch }: { epoch: string }): Sess
       sequence: state.nextSequence,
       change,
     })
+    try {
+      state.subscriber.deliver(frame)
+    } catch {
+      state.open = false
+      subscriptions.delete(state)
+      return false
+    }
     state.nextSequence += 1
-    state.subscriber.deliver(frame)
+    return true
   }
 
   function publish(change: unknown): SessionPublishOutcome {
@@ -147,8 +154,7 @@ export function createSessionChangePublisher({ epoch }: { epoch: string }): Sess
     let delivered = 0
     for (const state of subscriptions) {
       if (!state.open || state.projectPath !== parsed.data.projectPath) continue
-      deliverTo(state, parsed.data)
-      delivered += 1
+      if (deliverTo(state, parsed.data)) delivered += 1
     }
     return { ok: true, delivered }
   }

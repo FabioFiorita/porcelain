@@ -141,6 +141,23 @@ describe('Review procedure contracts', () => {
     }
   })
 
+  it('rejects blank comment ids before they can reach non-empty not-found error details', () => {
+    expect(
+      reviewProcedures.editReviewComment.input.safeParse({ repoPath: '/repo', id: '', body: 'x' })
+        .success,
+    ).toBe(false)
+    expect(
+      reviewProcedures.deleteReviewComment.input.safeParse({ repoPath: '/repo', id: '' }).success,
+    ).toBe(false)
+    expect(
+      reviewProcedures.resolveReviewComment.input.safeParse({
+        repoPath: '/repo',
+        id: '',
+        resolved: true,
+      }).success,
+    ).toBe(false)
+  })
+
   for (const name of Object.keys(reviewProcedures) as Array<keyof typeof reviewProcedures>) {
     it(`accepts valid ${name} input and output fixtures`, () => {
       const fixture = reviewContractFixtures[name]

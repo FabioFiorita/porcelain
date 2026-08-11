@@ -194,6 +194,19 @@ describe('review comment router mapping', () => {
     )
     expectPublicCode(error, 'request.invalid', false)
     expect(called).toBe(false)
+
+    const blankIdError = await rejected(() =>
+      callTRPCProcedure({
+        router: guarded,
+        path: 'deleteReviewComment',
+        type: 'mutation',
+        ctx: PUBLIC_CONTEXT,
+        getRawInput: async () => ({ repoPath: REPO, id: '' }),
+        signal: undefined,
+        batchIndex: 0,
+      }),
+    )
+    expectPublicCode(blankIdError, 'request.invalid', false)
   })
 
   it('keeps expectedFailure helper available for correlation fixtures', () => {

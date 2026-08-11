@@ -25,7 +25,13 @@ import { loadConfig } from '../stores/config-store'
  * Re-syncs watches when recent repos change (openRepoPath updates config).
  */
 
-const watched = new Map<string, { close: () => void }>()
+type WatchedRepo = {
+  activeReview: boolean
+  closers: Array<() => void>
+  close: () => void
+}
+
+const watched = new Map<string, WatchedRepo>()
 
 /** Map a companion file basename to the domain change kind it makes stale. */
 const FILE_CHANGES: Record<string, SessionChange['kind']> = {
@@ -59,29 +65,46 @@ async function isDirectory(path: string): Promise<boolean> {
   }
 }
 
-async function watchRepo(repoPath: string): Promise<void> {
-  if (watched.has(repoPath)) return
-  if (!(await isDirectory(repoPath))) return
-
-  const dir = projectPorcelainDir(repoPath)
-  if (!(await isDirectory(dir))) return
-
-  const evidenceDir = projectEvidenceDir(repoPath)
-  const closers: Array<() => void> = []
+function attachActiveReviewWatcher(repoPath: string, state: WatchedRepo): void {
+  if (state.activeReview) return
   try {
     const active = watch(projectActiveReviewDir(repoPath), (_event, filename) => {
       const base = typeof filename === 'string' ? basename(filename) : null
       const kind = base === null ? undefined : FILE_CHANGES[base]
       if (kind) publish(kind, repoPath)
-      publishReview(repoPath)
+      if (kind !== 'review.changed') publishReview(repoPath)
     })
-    closers.push(() => active.close())
+    state.closers.push(() => active.close())
+    state.activeReview = true
   } catch {
-    // absent until the first review write — the poll path still discovers it
+    // The root watcher retries when active-review is created or another companion event arrives.
   }
+}
+
+async function watchRepo(repoPath: string): Promise<void> {
+  const existing = watched.get(repoPath)
+  if (existing) {
+    attachActiveReviewWatcher(repoPath, existing)
+    return
+  }
+  if (!(await isDirectory(repoPath))) return
+
+  const dir = projectPorcelainDir(repoPath)
+  if (!(await isDirectory(dir))) return
+
+  const closers: Array<() => void> = []
+  const state: WatchedRepo = {
+    activeReview: false,
+    closers,
+    close: () => {
+      for (const close of closers) close()
+    },
+  }
+  watched.set(repoPath, state)
 
   try {
     const w = watch(dir, (_event, filename) => {
+      attachActiveReviewWatcher(repoPath, state)
       if (!filename) {
         for (const kind of new Set(Object.values(FILE_CHANGES))) publish(kind, repoPath)
         publishReview(repoPath)
@@ -90,6 +113,7 @@ async function watchRepo(repoPath: string): Promise<void> {
       const name = typeof filename === 'string' ? filename : null
       if (!name) return
       const base = basename(name)
+      if (base === basename(projectActiveReviewDir(repoPath))) publishReview(repoPath)
       const kind = FILE_CHANGES[base]
       if (kind) publish(kind, repoPath)
       if (base === 'evidence' || name.startsWith('evidence') || name.startsWith('reviews')) {
@@ -101,6 +125,9 @@ async function watchRepo(repoPath: string): Promise<void> {
     // unsupported FS — polls still cover discovery
   }
 
+  attachActiveReviewWatcher(repoPath, state)
+
+  const evidenceDir = projectEvidenceDir(repoPath)
   for (const dirToWatch of [
     evidenceDir,
     projectEvidenceResultsDir(repoPath),
@@ -119,12 +146,6 @@ async function watchRepo(repoPath: string): Promise<void> {
       })
       .catch(() => {})
   }
-
-  watched.set(repoPath, {
-    close: () => {
-      for (const c of closers) c()
-    },
-  })
 }
 
 export async function watchAgentChannels(): Promise<void> {
