@@ -15,6 +15,8 @@ Program artifacts:
 - [`inventory/`](inventory/) maps every current behavior, path, boundary, and legacy disposition.
 - [`migration-order.md`](migration-order.md) defines dependencies, exemplars, and review gates.
 - [`specs/`](specs/) contains bounded recipes for migration agents after inventory and ordering.
+- [`execution-groups/`](execution-groups/) holds tracked group manifests for the isolated dispatcher
+  (`docs/internals/architecture-dispatch.md`).
 
 ## Phases
 

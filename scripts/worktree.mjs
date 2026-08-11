@@ -18,6 +18,7 @@ import {
 import { homedir, tmpdir } from 'node:os'
 import { basename, dirname, join, resolve, sep } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
+import { fileURLToPath } from 'node:url'
 
 const CONFIG_FILE = '.porcelain-worktree.json'
 const INCLUDE_FILE = '.worktreeinclude'
@@ -25,6 +26,13 @@ const MAX_INCLUDED_FILES = 200
 const BRANCH_PREFIX = 'work/'
 const PORT_MIN = 43200
 const PORT_MAX = 43999
+/** Default integration base for managed worktrees. Omitted in older profiles ≡ this value. */
+const DEFAULT_BASE = 'main'
+/**
+ * Local branch-like refs only. Rejects option-shaped names, path traversal, and
+ * shell metacharacters so every git spawn keeps using argv + scrubbed ENV.
+ */
+const BASE_REF_PATTERN = /^(?:refs\/heads\/)?[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$/
 
 /**
  * Git's repository-local variables OVERRIDE `cwd`, and git exports them to every
@@ -116,6 +124,111 @@ function validateSlug(value) {
   return slug
 }
 
+/**
+ * Normalize a local base branch/ref for storage. Does not talk to git — call
+ * `resolveBaseRef` when the ref must exist in a concrete repository.
+ */
+function normalizeBaseRef(value, onError = fail) {
+  const raw = typeof value === 'string' ? value.trim() : ''
+  if (raw === '') return onError('base ref must be non-empty')
+  if (raw.startsWith('-')) return onError('base ref must not look like a flag')
+  if (raw.includes('..') || raw.includes('\\') || raw.includes('\0') || /\s/.test(raw)) {
+    return onError('base ref is invalid')
+  }
+  if (!BASE_REF_PATTERN.test(raw)) {
+    return onError('base ref must be a local branch-like name')
+  }
+  return raw.startsWith('refs/heads/') ? raw.slice('refs/heads/'.length) : raw
+}
+
+/**
+ * Validate + resolve a base ref in `cwd`. Returns the normalized branch name
+ * after `git rev-parse` confirms it points at a commit.
+ */
+function resolveBaseRef(cwd, value, onError = fail) {
+  const base = normalizeBaseRef(value, onError)
+  if (base === undefined) return undefined
+  const result = spawnSync('git', ['rev-parse', '--verify', '--quiet', `${base}^{commit}`], {
+    cwd,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+    env: ENV,
+  })
+  if (result.status !== 0) return onError(`base ref does not resolve to a commit: ${base}`)
+  return base
+}
+
+/**
+ * Pure config parse for tests and callers that need the structured result without
+ * process.exit. Returns `{ ok: true, config }` or `{ ok: false, error }`.
+ */
+function parseWorktreeConfig(value) {
+  try {
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+      return { ok: false, error: 'config must be a JSON object' }
+    }
+    if (value.version !== 1) return { ok: false, error: 'version must be 1' }
+    const slug = typeof value.slug === 'string' ? value.slug.trim() : ''
+    if (!slug || !/^[a-z0-9][a-z0-9-]{1,47}$/.test(slug)) {
+      return { ok: false, error: 'slug must be 2–48 lowercase letters, numbers, or hyphens' }
+    }
+    const branch = `${BRANCH_PREFIX}${slug}`
+    if (value.branch !== branch) return { ok: false, error: `branch must be ${branch}` }
+    if (!Number.isInteger(value.port) || value.port < PORT_MIN || value.port > PORT_MAX) {
+      return { ok: false, error: `port must be an integer in ${PORT_MIN}–${PORT_MAX}` }
+    }
+    let base = DEFAULT_BASE
+    if (value.base !== undefined) {
+      const errors = []
+      base = normalizeBaseRef(value.base, (message) => {
+        errors.push(message)
+        return undefined
+      })
+      if (errors.length > 0 || base === undefined) {
+        return { ok: false, error: errors[0] ?? 'base ref is invalid' }
+      }
+    }
+    // Unknown fields are ignored so version-1 profiles stay forward-compatible.
+    return {
+      ok: true,
+      config: { version: 1, slug, branch, port: value.port, base },
+    }
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) }
+  }
+}
+
+/**
+ * Pure removal guard: whether a non-force remove may delete the worktree.
+ * `reachableFromBase` is the result of `merge-base --is-ancestor branch base`.
+ */
+function planRemoveGuard({
+  force = false,
+  dirtyLines = [],
+  reachableFromBase = false,
+  base = DEFAULT_BASE,
+}) {
+  if (force) return { allow: true, reason: null }
+  if (dirtyLines.length > 0) {
+    return {
+      allow: false,
+      reason: `worktree has uncommitted changes:\n${dirtyLines.map((line) => `  ${line}`).join('\n')}`,
+    }
+  }
+  if (!reachableFromBase) {
+    return {
+      allow: false,
+      reason: `branch is not merged into local ${base}; integrate into ${base} first`,
+    }
+  }
+  return { allow: true, reason: null }
+}
+
+/** Git argv for creating a managed worktree at `path` from `base`. */
+function planCreateGitArgs({ branch, path, base = DEFAULT_BASE }) {
+  return ['worktree', 'add', '-b', branch, path, base]
+}
+
 /** `--flag value` or `--flag=value`; undefined when absent, fails on an empty value. */
 function flagValue(args, name) {
   const index = args.indexOf(`--${name}`)
@@ -173,18 +286,14 @@ function readConfig(worktreePath) {
   if (!existsSync(path)) return null
   try {
     const value = JSON.parse(readFileSync(path, 'utf8'))
-    const slug = validateSlug(value.slug)
-    const branch = `${BRANCH_PREFIX}${slug}`
-    if (
-      value.version !== 1 ||
-      value.branch !== branch ||
-      !Number.isInteger(value.port) ||
-      value.port < PORT_MIN ||
-      value.port > PORT_MAX
-    ) {
-      fail(`${path} is invalid; remove and recreate this managed worktree`)
+    const parsed = parseWorktreeConfig(value)
+    if (!parsed.ok) {
+      fail(`${path} is invalid (${parsed.error}); remove and recreate this managed worktree`)
     }
-    return { version: 1, slug, branch, port: value.port }
+    // Side-effect: validateSlug rejects the same way as other call sites when the
+    // profile is present but the slug shape is wrong (already covered by parse).
+    validateSlug(parsed.config.slug)
+    return parsed.config
   } catch (error) {
     fail(`${path} is unreadable: ${error instanceof Error ? error.message : String(error)}`)
   }
@@ -364,22 +473,26 @@ function installDependencies(path) {
   if (result.status !== 0) throw new Error(`dependency install failed in ${path}`)
 }
 
-function assertPrimaryMain(root, force) {
+function assertPrimaryCreate(root, force, base) {
   if (repoRoot() !== root) fail('create must run from the primary checkout, not a task worktree')
-  const branch = git(root, ['branch', '--show-current'])
-  if (branch !== 'main') fail(`create must run from main (currently ${branch || 'detached'})`)
+  // Default-main path keeps today's "create from main" rule so existing workflows
+  // stay unchanged. Explicit non-main bases only require the primary checkout.
+  if (base === DEFAULT_BASE) {
+    const branch = git(root, ['branch', '--show-current'])
+    if (branch !== 'main') fail(`create must run from main (currently ${branch || 'detached'})`)
+  }
   const dirty = git(root, ['status', '--porcelain'])
   if (dirty !== '') {
     if (!force) {
       fail(
-        'primary main is dirty; commit/integrate the current unit before creating a task worktree ' +
-          "(or pass --force if the dirty files are a concurrent session's, not yours — `git worktree " +
-          'add` branches from the committed tip of main regardless, so this only skips the safety check, ' +
+        'primary checkout is dirty; commit/integrate the current unit before creating a task worktree ' +
+          `(or pass --force if the dirty files are a concurrent session's, not yours — \`git worktree ` +
+          `add\` branches from the committed tip of ${base} regardless, so this only skips the safety check, ` +
           'not the checkout)',
       )
     }
     console.error(
-      "worktree ⚠ primary main is dirty; --force set, branching from main's committed tip anyway. " +
+      `worktree ⚠ primary checkout is dirty; --force set, branching from ${base}'s committed tip anyway. ` +
         'The uncommitted files stay in the primary checkout, untouched.',
     )
   }
@@ -388,7 +501,8 @@ function assertPrimaryMain(root, force) {
 function create(slugArg, options) {
   const slug = validateSlug(slugArg)
   const root = primaryRoot()
-  assertPrimaryMain(root, options.force)
+  const base = resolveBaseRef(root, options.base ?? DEFAULT_BASE)
+  assertPrimaryCreate(root, options.force, base)
 
   const branch = `${BRANCH_PREFIX}${slug}`
   const paths = managedPaths(slug)
@@ -402,10 +516,10 @@ function create(slugArg, options) {
 
   mkdirSync(parent, { recursive: true })
   const port = allocatePort(root)
-  git(root, ['worktree', 'add', '-b', branch, path, 'main'], { inherit: true })
+  git(root, planCreateGitArgs({ branch, path, base }), { inherit: true })
 
   try {
-    writeConfig(path, { version: 1, slug, branch, port })
+    writeConfig(path, { version: 1, slug, branch, port, base })
     copyIncludedFiles(root, path)
     createPlayground(paths.playground, slug)
     if (!options.skipInstall) installDependencies(path)
@@ -423,9 +537,15 @@ function create(slugArg, options) {
     throw error
   }
 
+  const integrateHint =
+    base === DEFAULT_BASE
+      ? `Push ${branch}, open a PR into main, then update main and run:\n  pnpm worktree remove ${slug}`
+      : `Integrate ${branch} into ${base} (explicit review; no automatic merge), then run:\n  pnpm worktree remove ${slug}`
+
   console.log(`worktree ✓ created ${branch}
 
   checkout    ${path}
+  base        ${base}
   port        ${port}
   channels    ${paths.home}
   user data   ${paths.userData}
@@ -435,8 +555,7 @@ function create(slugArg, options) {
   pnpm build && pnpm dev:daemon -- --loopback
   pnpm porcelain review set ...
 
-Push ${branch}, open a PR into main, then update main and run:
-  pnpm worktree remove ${slug}
+${integrateHint}
 `)
 }
 
@@ -446,14 +565,20 @@ function statusWithoutMetadata(path) {
     .filter((line) => line !== '' && line.slice(3) !== CONFIG_FILE)
 }
 
-function isAncestorMerged(root, branch) {
+/** True when `commitish` is an ancestor of `base` (branch tip reachable from base). */
+function isAncestorOf(root, commitish, base) {
   return (
-    spawnSync('git', ['merge-base', '--is-ancestor', branch, 'main'], {
+    spawnSync('git', ['merge-base', '--is-ancestor', commitish, base], {
       cwd: root,
       stdio: 'ignore',
       env: ENV,
     }).status === 0
   )
+}
+
+/** Harness cleanup still keys off main — those checkouts are not managed profiles. */
+function isAncestorMerged(root, branch) {
+  return isAncestorOf(root, branch, DEFAULT_BASE)
 }
 
 /** Porcelain status of a worktree, or null when the directory is gone/unreadable. */
@@ -546,13 +671,17 @@ function mergedPullRequest(root, branch) {
   }
 }
 
-function mergeStatus(root, branch) {
-  if (isAncestorMerged(root, branch)) return { merged: true, kind: 'ancestor', pr: null }
-  const pr = mergedPullRequest(root, branch)
-  const branchTip = git(root, ['rev-parse', branch])
-  return pr?.headRefOid === branchTip
-    ? { merged: true, kind: 'pull-request', pr }
-    : { merged: false, kind: null, pr: null }
+function mergeStatus(root, branch, base = DEFAULT_BASE) {
+  if (isAncestorOf(root, branch, base)) return { merged: true, kind: 'ancestor', pr: null }
+  // GitHub PR discovery stays main-only; non-main bases use ancestry only.
+  if (base === DEFAULT_BASE) {
+    const pr = mergedPullRequest(root, branch)
+    const branchTip = git(root, ['rev-parse', branch])
+    return pr?.headRefOid === branchTip
+      ? { merged: true, kind: 'pull-request', pr }
+      : { merged: false, kind: null, pr: null }
+  }
+  return { merged: false, kind: null, pr: null }
 }
 
 function assertLocalMainContainsOrigin(root) {
@@ -650,24 +779,25 @@ function findManaged(root, slugArg) {
 async function remove(slugArg, options = {}) {
   const root = primaryRoot()
   const worktree = findManaged(root, slugArg)
-  const { slug, branch } = worktree.config
+  const { slug, branch, base } = worktree.config
   const paths = managedPaths(slug)
 
   if (!options.force) {
     const dirty = statusWithoutMetadata(worktree.path)
-    if (dirty.length > 0) {
-      fail(`worktree has uncommitted changes:\n${dirty.map((line) => `  ${line}`).join('\n')}`)
-    }
-    const merge = mergeStatus(root, branch)
-    if (!merge.merged) {
-      fail(`${branch} is not merged into local main; merge the PR and update main first`)
-    }
+    const merge = mergeStatus(root, branch, base)
+    const guard = planRemoveGuard({
+      force: false,
+      dirtyLines: dirty,
+      reachableFromBase: merge.merged,
+      base,
+    })
+    if (!guard.allow) fail(guard.reason)
     if (merge.kind === 'pull-request') assertLocalMainContainsOrigin(root)
   }
 
   await stopDaemon(worktree.path, paths.home)
   git(root, ['worktree', 'remove', ...(options.force ? ['--force'] : []), worktree.path])
-  const ancestryMerged = isAncestorMerged(root, branch)
+  const ancestryMerged = isAncestorOf(root, branch, base)
   git(root, ['branch', options.force || !ancestryMerged ? '-D' : '-d', branch])
 
   safeManagedTarget(paths.home, join(homedir(), '.porcelain-dev-worktrees'))
@@ -1053,7 +1183,8 @@ function adopt(pathArg, slugArg, options) {
   git(target, ['switch', '-c', branch])
 
   try {
-    writeConfig(target, { version: 1, slug, branch, port })
+    // Adopted harness checkouts still integrate via main unless a later tool rewrites base.
+    writeConfig(target, { version: 1, slug, branch, port, base: DEFAULT_BASE })
     copyIncludedFiles(root, target)
     createPlayground(paths.playground, slug)
     if (!options.skipInstall) installDependencies(target)
@@ -1101,7 +1232,8 @@ function list() {
         slug: config.slug,
         branch: config.branch,
         port: config.port,
-        merged: mergeStatus(root, config.branch).merged,
+        base: config.base,
+        merged: mergeStatus(root, config.branch, config.base).merged,
         path: entry.path,
       }
     })
@@ -1111,8 +1243,9 @@ function list() {
     console.log('No managed worktrees.')
   }
   for (const row of rows) {
+    const baseLabel = row.base === DEFAULT_BASE ? '' : ` base=${row.base}`
     console.log(
-      `${row.slug.padEnd(24)} ${String(row.port).padEnd(6)} ${row.merged ? 'merged ' : 'active '} ${row.path}`,
+      `${row.slug.padEnd(24)} ${String(row.port).padEnd(6)} ${row.merged ? 'merged ' : 'active '}${baseLabel} ${row.path}`,
     )
   }
 
@@ -1149,7 +1282,7 @@ async function cleanup() {
   const root = primaryRoot()
   const merged = parseWorktrees(root)
     .map((entry) => readConfig(entry.path))
-    .filter((config) => config && mergeStatus(root, config.branch).merged)
+    .filter((config) => config && mergeStatus(root, config.branch, config.base).merged)
   if (merged.length === 0) {
     console.log('worktree ✓ no merged managed worktrees to clean')
   }
@@ -1162,7 +1295,7 @@ function help() {
     `Porcelain managed worktrees
 
 Usage:
-  pnpm worktree create <slug> [--skip-install] [--force]
+  pnpm worktree create <slug> [--base <ref>] [--skip-install] [--force]
   pnpm worktree adopt <path> <slug> [--skip-install]
   pnpm worktree list
   pnpm worktree pr <slug> [--draft] [--dry-run] [--title <title>]
@@ -1170,21 +1303,22 @@ Usage:
   pnpm worktree cleanup
 
 create:
-  Run from the primary main checkout. Creates work/<slug> in the sibling
+  Run from the primary checkout. Creates work/<slug> in the sibling
   <repo>-worktrees/<slug> directory with an isolated port, channels, user data,
   and disposable playground. Installs dependencies unless --skip-install is set.
-  Refuses a dirty primary main by default — the branch point is main's last
-  COMMIT either way, so this check only guards against silently losing your own
-  uncommitted work, not against a concurrent session's. When the dirty files are
-  provably not yours (a different session's in-progress edit on the shared
-  primary checkout), pass --force to skip the check; it does not touch or stage
+  Default base is main (create must run from main in that case). Pass --base <ref>
+  to branch from another local branch/ref; the normalized base is stored in
+  .porcelain-worktree.json. Refuses a dirty primary checkout by default — the
+  branch point is the base's last COMMIT either way, so this check only guards
+  against silently losing your own uncommitted work. When the dirty files are
+  provably not yours, pass --force to skip the check; it does not touch or stage
   those files.
 
 adopt:
   Converts a detached harness worktree (Codex, Grok Build, hand-made) into a
   managed one: branches work/<slug> at its current HEAD, writes the managed
-  config, allocates a port, and creates the playground. The checkout stays where
-  the harness put it; remove <slug> later deletes that directory.
+  config (base=main), allocates a port, and creates the playground. The checkout
+  stays where the harness put it; remove <slug> later deletes that directory.
 
 .worktreeinclude:
   create and adopt both copy the gitignored files this file lists (one relative
@@ -1195,28 +1329,30 @@ adopt:
 list:
   Managed worktrees first, then any unmanaged detached checkouts a harness left
   behind, marked prunable when they sit under a harness root (~/.t3, ~/.codex,
-  ~/.grok, */.claude/worktrees) and are clean and already merged into main.
+  ~/.grok, */.claude/worktrees) and are clean and already merged into their
+  recorded base (main for harness pruning).
 
 pr:
-  Pushes work/<slug> to origin and opens a PR into main via gh. Title defaults to
-  the branch's latest commit subject; the body carries the worktree's published
-  Review (Intent + Evidence) when one exists, plus the commit list. Evidence-pack
-  screenshots are published to R2 and inlined as short-lived (~2h) presigned links
-  so they render on GitHub. Prints the URL and exits when a PR is already open for
-  the branch. --dry-run prints the title and body it would send, lists screenshot
-  names it would upload, and touches neither origin, gh, nor R2.
+  Pushes work/<slug> to origin and opens a PR into main via gh (main-only). Title
+  defaults to the branch's latest commit subject; the body carries the worktree's
+  published Review (Intent + Evidence) when one exists, plus the commit list.
+  Evidence-pack screenshots are published to R2 and inlined as short-lived (~2h)
+  presigned links so they render on GitHub. Prints the URL and exits when a PR is
+  already open for the branch. --dry-run prints the title and body it would send,
+  lists screenshot names it would upload, and touches neither origin, gh, nor R2.
 
 remove:
-  Requires a clean worktree whose branch is merged into local main. Stops its
-  recorded dev daemon, removes the checkout and branch, and permanently deletes
-  its channels, user data, and playground. --force is only for abandoned work.
+  Requires a clean worktree whose branch tip is reachable from its recorded base
+  (default main for older profiles). Stops its recorded dev daemon, removes the
+  checkout and branch, and permanently deletes its channels, user data, and
+  playground. --force is only for abandoned work.
 
 cleanup:
-  Removes every clean managed worktree already merged into local main, then
-  prunes unmanaged detached harness checkouts that are clean and whose HEAD is
-  reachable from main. Never touches a worktree on a branch, a dirty one, one
-  holding commits main does not have, or a hand-made checkout outside a harness
-  root.
+  Removes every clean managed worktree already merged into its recorded base,
+  then prunes unmanaged detached harness checkouts that are clean and whose HEAD
+  is reachable from main. Never touches a worktree on a branch, a dirty one, one
+  holding commits its base does not have, or a hand-made checkout outside a
+  harness root.
 `,
   )
 }
@@ -1228,7 +1364,11 @@ async function main() {
     return
   }
   if (verb === 'create') {
-    create(name, { skipInstall: rest.includes('--skip-install'), force: rest.includes('--force') })
+    create(name, {
+      skipInstall: rest.includes('--skip-install'),
+      force: rest.includes('--force'),
+      base: flagValue(rest, 'base'),
+    })
     return
   }
   if (verb === 'adopt') {
@@ -1259,6 +1399,24 @@ async function main() {
   fail(`unknown command: ${verb}`)
 }
 
-main().catch((error) => {
-  fail(error instanceof Error ? error.message : String(error))
-})
+export {
+  BASE_REF_PATTERN,
+  CONFIG_FILE,
+  DEFAULT_BASE,
+  ENV,
+  normalizeBaseRef,
+  parseWorktreeConfig,
+  planCreateGitArgs,
+  planRemoveGuard,
+  resolveBaseRef,
+  validateSlug,
+}
+
+const isDirectRun =
+  process.argv[1] !== undefined && fileURLToPath(import.meta.url) === resolve(process.argv[1])
+
+if (isDirectRun) {
+  main().catch((error) => {
+    fail(error instanceof Error ? error.message : String(error))
+  })
+}
