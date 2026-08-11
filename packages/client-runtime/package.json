@@ -12,6 +12,9 @@
     "./terminal-keys": "./src/terminal-keys.ts",
     "./terminal-touch-scroll": "./src/terminal-touch-scroll.ts",
     "./session-protocol": "./src/session-protocol.ts",
+    "./session/client-runtime": "./src/session/client-runtime.ts",
+    "./session/interests": "./src/session/interests.ts",
+    "./session/recovery": "./src/session/recovery.ts",
     "./word-diff-line": "./src/word-diff-line.ts",
     "./word-diff-tokens": "./src/word-diff-tokens.ts"
   },

@@ -43,7 +43,7 @@ an external choice or authorization.
 | `PRO-004` | Landed | Daemon enforces the version header after owned callers send it |
 | `RT-001` | Landed | Typed notification, watch, session, and stateful-stream contracts |
 | `RT-002` | Landed | Daemon publisher, target gateway, and bounded watch management |
-| `RT-003` | Ready | Shared client recovery and declarative Files-interest runtime |
+| `RT-003` | Landed | Shared client recovery and declarative Files-interest runtime |
 | `RT-004` | Draft | Web binds to target realtime runtime while mobile legacy remains bounded |
 | `RT-005` | Draft | Mobile binds and deletes the entire legacy realtime path |
 | `TST-001` | Draft | Contract fixture builders and transport-independent validating daemon mock |
