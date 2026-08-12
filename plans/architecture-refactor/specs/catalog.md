@@ -105,7 +105,7 @@ an external choice or authorization.
 | `ACT-004` | Landed | Delete Terminal-owned descriptors/facades and complete Actions |
 | `TRM-006` | Landed | Remaining Terminal request/response cutover and completed stream gate |
 | `REM-001` | Landed | Remote identity, pairing, and access operations plus feature router |
-| `REM-002` | Draft | Auth, pairing, CORS, listener, Funnel/LAN/Tailnet operations/adapters |
+| `REM-002` | Ready | Auth, pairing, CORS, listener, Funnel/LAN/Tailnet operations/adapters |
 | `REM-003` | Draft | Shared endpoint selection, retry, session health, and public-error parsing |
 | `REM-004` | Draft | Web local/remote/shell adapter and settings presentation cutover |
 | `REM-005` | Draft | Mobile strict-v1 environment and provider; delete version-3/icon coercion |
