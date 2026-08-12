@@ -24,8 +24,8 @@ import {
   useReviewedPaths,
   useToggleReviewed,
 } from '@renderer/features/git'
+import { useProjectLayers } from '@renderer/features/project-data'
 import { toastingAction } from '@renderer/hooks/mutation-error'
-import { useProjectLayers } from '@renderer/hooks/use-project-layers'
 import { layersSetupPrompt } from '@renderer/lib/agent-setup-prompts'
 import { dirName, fileName } from '@renderer/lib/paths'
 import { cn, copyText } from '@renderer/lib/utils'

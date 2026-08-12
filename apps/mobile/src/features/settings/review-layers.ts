@@ -1,4 +1,4 @@
-import type { Layer } from '@/lib/daemon/procedures/settings'
+import type { Layer } from '@porcelain/contracts/project-data'
 
 /**
  * The review layer editor's regex building and draft edits, with no React in them.

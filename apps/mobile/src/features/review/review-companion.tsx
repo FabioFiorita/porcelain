@@ -17,14 +17,15 @@ import { CommentsCard } from '@/features/changes/comments-card'
 import { useReviewedPaths } from '@/features/changes/use-changes'
 import { useReviewComments } from '@/features/comments'
 import { pathTestId } from '@/features/files'
+import { useCompanionGitVisibility } from '@/features/project-data'
 import type { ArchivedReview, FeatureReading } from '@/lib/daemon/procedures/review'
 import { cn } from '@/lib/utils'
 
 import { reviewedFractionOf } from './review-lifecycle'
+
 import {
   useArchivedReviewActions,
   useArchivedReviews,
-  useCompanionGitVisibility,
   useFeatureReading,
   useReviewActions,
   useReviewPublishCost,

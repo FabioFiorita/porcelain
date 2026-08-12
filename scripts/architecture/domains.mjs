@@ -74,6 +74,9 @@ export const DOMAIN_MIGRATIONS = Object.freeze(
       }
       if (key === 'project-data') {
         targetRoots.push('apps/daemon/src/features/project-data')
+        targetRoots.push('packages/client-runtime/src/project-data')
+        targetRoots.push('apps/web/src/features/project-data')
+        targetRoots.push('apps/mobile/src/features/project-data')
       }
       return [
         key,

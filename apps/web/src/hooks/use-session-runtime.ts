@@ -3,6 +3,10 @@ import type { SessionChange, SessionMismatchFrame } from '@porcelain/contracts/s
 import { invalidateAllActionsQueries } from '@renderer/features/actions'
 import { invalidateAllBoardCards } from '@renderer/features/board'
 import { invalidateAllFilesQueries } from '@renderer/features/files'
+import {
+  invalidateAllProjectDataQueries,
+  invalidateProjectDataLayers,
+} from '@renderer/features/project-data'
 import { invalidateAllReviewComments } from '@renderer/features/review/comments'
 import { type DaemonSession, primary } from '@renderer/lib/daemon'
 import { isBrowser } from '@renderer/lib/platform'
@@ -48,6 +52,7 @@ export type SessionQueryUtils = {
   /** Every daemon-derived query this client holds. Used only for session-wide recovery. */
   readonly invalidate: () => Promise<void>
   readonly repoLayers: QueryInvalidation
+  readonly projectData: QueryInvalidation
   readonly featureView: QueryInvalidation
   readonly featureReading: QueryInvalidation
   readonly exploreFeature: QueryInvalidation
@@ -140,6 +145,7 @@ export function invalidateForRecovery(
       utils.reviewComments.invalidate(),
       utils.boardCards.invalidate(),
       utils.files.invalidate(),
+      utils.projectData.invalidate(),
     ])
   }
   return Promise.all([
@@ -149,6 +155,7 @@ export function invalidateForRecovery(
     utils.reviewComments.invalidate(),
     utils.boardCards.invalidate(),
     utils.actions.invalidate(),
+    utils.projectData.invalidate(),
   ])
 }
 
@@ -185,7 +192,8 @@ export function useSessionRuntime({
   const utils: SessionQueryUtils = useMemo(
     () => ({
       invalidate: () => trpcUtils.invalidate(),
-      repoLayers: { invalidate: () => trpcUtils.repoLayers.invalidate() },
+      repoLayers: { invalidate: () => invalidateProjectDataLayers(queryClient) },
+      projectData: { invalidate: () => invalidateAllProjectDataQueries(queryClient) },
       featureView: { invalidate: () => trpcUtils.featureView.invalidate() },
       featureReading: { invalidate: () => trpcUtils.featureReading.invalidate() },
       exploreFeature: { invalidate: () => trpcUtils.exploreFeature.invalidate() },

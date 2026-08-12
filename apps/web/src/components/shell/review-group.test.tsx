@@ -24,7 +24,7 @@ vi.mock('@renderer/hooks/use-review-intent', () => ({
     isPublishing: false,
   }),
 }))
-vi.mock('@renderer/hooks/use-companion-dispositions', () => ({
+vi.mock('@renderer/features/project-data', () => ({
   useCompanionGitVisibility: (): { data: { hidden: boolean }; isPending: boolean } => ({
     data: { hidden: false },
     isPending: false,

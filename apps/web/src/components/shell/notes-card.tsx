@@ -6,7 +6,7 @@ import {
   DropdownMenuTrigger,
 } from '@renderer/components/ui/dropdown-menu'
 import { Toggle } from '@renderer/components/ui/toggle'
-import { useProjectNotes, useSetProjectNotes } from '@renderer/hooks/use-project-notes'
+import { useProjectNotes, useSetProjectNotes } from '@renderer/features/project-data'
 import { isModExclusive } from '@renderer/lib/keyboard'
 import { cn } from '@renderer/lib/utils'
 import type { EditorEvents } from '@tiptap/core'

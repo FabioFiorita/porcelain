@@ -1,11 +1,11 @@
-import { useProjectNotes, useSetProjectNotes } from '@renderer/hooks/use-project-notes'
+import { useProjectNotes, useSetProjectNotes } from '@renderer/features/project-data'
 import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NotesCard } from './notes-card'
 
 // Convention: mock the domain hook, never tRPC. useProjectNotes feeds the initial
 // markdown; useSetProjectNotes captures autosave writes.
-vi.mock('@renderer/hooks/use-project-notes', () => ({
+vi.mock('@renderer/features/project-data', () => ({
   useProjectNotes: vi.fn(),
   useSetProjectNotes: vi.fn(),
 }))

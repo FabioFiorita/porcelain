@@ -1,12 +1,11 @@
+import type { Layer } from '@porcelain/contracts/project-data'
 import { Pressable, View } from 'react-native'
-
 import { EmptyNote, ErrorNote, PanelLabel } from '@/components/panel-chrome'
 import { PANEL_CARD } from '@/components/surface-layout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Text } from '@/components/ui/text'
 import { activeProjectPathOf, useActiveEnvironment, useConnectionState } from '@/features/remote'
-import type { Layer } from '@/lib/daemon/procedures/settings'
 import { cn } from '@/lib/utils'
 import { PatternBuilder } from './pattern-builder'
 import { patternError } from './review-layers'

@@ -11,7 +11,7 @@ import { join } from 'node:path'
  * NODE-ONLY. The `node:path` import below externalizes in a browser bundle and
  * Metro cannot resolve it at all, so web and mobile may only `import type` from
  * this module. Anything a client needs at runtime belongs in
- * `@porcelain/client-runtime` — see `companion-disposition.ts` there.
+ * `@porcelain/client-runtime` — see `project-data` there.
  */
 
 export const PROJECT_PORCELAIN_DIR = '.porcelain'
@@ -96,7 +96,7 @@ export type CompanionDisposition = 'shared' | 'local'
 
 /**
  * The sentence each client renders under a channel row lives in
- * `@porcelain/client-runtime/companion-disposition` — this module reaches for
+ * `@porcelain/client-runtime/project-data` — this module reaches for
  * `node:path`, which Metro cannot resolve, so shared copy for the mobile client
  * cannot live here.
  */

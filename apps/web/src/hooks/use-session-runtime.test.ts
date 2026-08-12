@@ -36,6 +36,7 @@ function recordingUtils(): { utils: SessionQueryUtils; invalidated: string[] } {
       return Promise.resolve()
     },
     repoLayers: query('repoLayers'),
+    projectData: query('projectData'),
     featureView: query('featureView'),
     featureReading: query('featureReading'),
     exploreFeature: query('exploreFeature'),
@@ -117,10 +118,12 @@ describe('Session recovery invalidation', () => {
       'reviewComments',
       'boardCards',
       'files',
+      'projectData',
       '*',
       'reviewComments',
       'boardCards',
       'files',
+      'projectData',
     ])
   })
 
@@ -139,6 +142,7 @@ describe('Session recovery invalidation', () => {
     expect(invalidated).not.toContain('readFile')
     expect(invalidated).toContain('boardCards')
     expect(invalidated).toContain('featureReading')
+    expect(invalidated).toContain('projectData')
     // Git recovers itself from the same requirement (GIT-006), so generic recovery must not
     // name a single Git query — otherwise every gap double-invalidates the Git caches.
     expect(invalidated.filter((name) => name.toLowerCase().startsWith('git'))).toEqual([])

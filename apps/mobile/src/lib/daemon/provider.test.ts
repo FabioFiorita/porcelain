@@ -33,12 +33,12 @@ describe('proceduresForChange review.changed cutover (RVC-004)', () => {
       projectPath: '/synthetic/repo',
     })
     expect(names).not.toContain('reviewComments')
+    expect(names).not.toContain('repoLayers')
     expect(names).toEqual(
       expect.arrayContaining([
         'featureView',
         'featureReading',
         'worktreeInbox',
-        'repoLayers',
         'loopEvidence',
         'loopEvidenceHtml',
         'reviewEvidenceDocs',

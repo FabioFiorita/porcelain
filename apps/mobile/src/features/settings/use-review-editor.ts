@@ -1,6 +1,7 @@
+import type { Layer } from '@porcelain/contracts/project-data'
 import { runUserAction } from '@porcelain/shared/background'
 import { useEffect, useState } from 'react'
-import type { Layer } from '@/lib/daemon/procedures/settings'
+import { type ReviewLayers, useReviewLayers } from '@/features/project-data'
 
 import {
   buildPattern,
@@ -12,12 +13,11 @@ import {
   moveLayer,
   splitNames,
 } from './review-layers'
-import { type ReviewLayers, useReviewLayers } from './use-settings'
 
 /**
  * The Review panel's editor state, layered on top of `useReviewLayers`.
  *
- * The daemon seam stays in `use-settings.ts` — this is the draft the reader is editing before
+ * The daemon seam stays in the Project Data feature — this is the draft the reader is editing before
  * any of it is saved, which is a different lifetime: it survives a refetch, it can be invalid,
  * and it is thrown away by "Reset to starters". Keeping it out of the daemon hook is what stops
  * that hook from growing a second job.

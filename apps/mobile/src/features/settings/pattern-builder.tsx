@@ -1,12 +1,11 @@
+import type { Layer } from '@porcelain/contracts/project-data'
 import { View } from 'react-native'
-
 import { PanelLabel } from '@/components/panel-chrome'
 import { SegmentedControl } from '@/components/segmented-control'
 import { PANEL_CARD } from '@/components/surface-layout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Text } from '@/components/ui/text'
-import type { Layer } from '@/lib/daemon/procedures/settings'
 import { cn } from '@/lib/utils'
 
 import { EXAMPLE_LIMIT, MATCH_HELP, type MatchType, PLACEHOLDERS } from './review-layers'

@@ -1,20 +1,17 @@
-import { describeDisposition } from '@porcelain/client-runtime/companion-disposition'
+import { describeDisposition } from '@porcelain/client-runtime/project-data'
+import type { CompanionDispositionValue } from '@porcelain/contracts/project-data'
 import { Button } from '@renderer/components/ui/button'
 import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-group'
-import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import {
   useCompanionDispositions,
   useCompanionGitVisibility,
   useSetCompanionDisposition,
   useSetCompanionGitVisibility,
-} from '@renderer/hooks/use-companion-dispositions'
+} from '@renderer/features/project-data'
+import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { compactButtonClass } from '@renderer/lib/controls'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { runUserAction } from '@shared/background'
-// Type-only on purpose: `@shared/project-porcelain` imports `node:path`, so a
-// value import from it fails the web bundle. Client-facing copy lives in
-// `@porcelain/client-runtime/companion-disposition` instead.
-import type { CompanionDisposition } from '@shared/project-porcelain'
 import { TestIds } from '@shared/test-ids'
 import { useState } from 'react'
 
@@ -40,9 +37,9 @@ function DispositionRow({
   channelKey: string
   label: string
   hint: string
-  disposition: CompanionDisposition
+  disposition: CompanionDispositionValue
   trackedCount: number
-  onChange: (next: CompanionDisposition) => void
+  onChange: (next: CompanionDispositionValue) => void
 }): React.JSX.Element {
   return (
     <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
@@ -62,7 +59,7 @@ function DispositionRow({
           onValueChange={(value: string[]) => {
             const next = value[0]
             if (next === 'shared' || next === 'local') {
-              onChange(next satisfies CompanionDisposition)
+              onChange(next satisfies CompanionDispositionValue)
             }
           }}
         >

@@ -1,8 +1,8 @@
 import { useActions } from '@renderer/features/actions'
 import { useBoardCards } from '@renderer/features/board'
+import { useProjectNotes } from '@renderer/features/project-data'
 import { useReviewComments } from '@renderer/features/review/comments'
 import { useFeatureView } from '@renderer/hooks/use-feature-view'
-import { useProjectNotes } from '@renderer/hooks/use-project-notes'
 import { useSkillsInfo } from '@renderer/hooks/use-skills'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 

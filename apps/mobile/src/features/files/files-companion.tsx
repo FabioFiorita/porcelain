@@ -6,6 +6,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native'
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { IconAction, PanelLabel, StatusNote } from '@/components/panel-chrome'
 import { Textarea } from '@/components/ui/textarea'
+import { useProjectNotes } from '@/features/project-data'
 import { useActiveProject } from '@/features/projects'
 import { useShellStore } from '@/features/shell/shell-store'
 import { useIsTablet } from '@/features/shell/use-app-window'
@@ -14,7 +15,6 @@ import { cn } from '@/lib/utils'
 import { pathSegments, pathTestId } from './file-paths'
 import { type FileEntry, usePathScope, usePinnedEntries } from './files-data'
 import { useFilesStore } from './files-store'
-import { useProjectNotes } from './use-project-notes'
 
 /**
  * The Files companion — "Pinned & notes", the same pair the web rail carries.

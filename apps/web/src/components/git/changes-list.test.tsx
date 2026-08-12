@@ -6,7 +6,7 @@ import {
   useReviewedPaths,
   useToggleReviewed,
 } from '@renderer/features/git'
-import { useProjectLayers } from '@renderer/hooks/use-project-layers'
+import { useProjectLayers } from '@renderer/features/project-data'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useRevealStore } from '@renderer/stores/reveal'
@@ -19,7 +19,7 @@ import { ChangesList } from './changes-list'
 // Same convention as history-list: mock the domain hooks, never tRPC. useGitFlow
 // hands back grouped flow data shaped exactly like the real gitFlow result; the
 // diff-prefetch hook is a no-op since hover prefetching is irrelevant here.
-vi.mock('@renderer/hooks/use-project-layers', () => ({ useProjectLayers: vi.fn() }))
+vi.mock('@renderer/features/project-data', () => ({ useProjectLayers: vi.fn() }))
 vi.mock('@renderer/features/git', () => ({
   useBranchFlow: vi.fn(),
   useDiffFileHoverPrefetch: () => () => {},

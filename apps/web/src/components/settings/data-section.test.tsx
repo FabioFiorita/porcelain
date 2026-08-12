@@ -3,14 +3,14 @@ import {
   useCompanionGitVisibility,
   useSetCompanionDisposition,
   useSetCompanionGitVisibility,
-} from '@renderer/hooks/use-companion-dispositions'
+} from '@renderer/features/project-data'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { TestIds } from '@shared/test-ids'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { DataSection } from './data-section'
 
-vi.mock('@renderer/hooks/use-companion-dispositions', () => ({
+vi.mock('@renderer/features/project-data', () => ({
   useCompanionDispositions: vi.fn(),
   useCompanionGitVisibility: vi.fn(),
   useSetCompanionDisposition: vi.fn(),

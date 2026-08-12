@@ -1,4 +1,5 @@
-import { describeDisposition } from '@porcelain/client-runtime/companion-disposition'
+import { describeDisposition } from '@porcelain/client-runtime/project-data'
+import type { ChannelDispositionValue } from '@porcelain/contracts/project-data'
 import { View } from 'react-native'
 
 import { EmptyNote, ErrorNote, PanelLabel } from '@/components/panel-chrome'
@@ -6,10 +7,9 @@ import { SegmentedControl } from '@/components/segmented-control'
 import { PANEL_CARD } from '@/components/surface-layout'
 import { Button } from '@/components/ui/button'
 import { Text } from '@/components/ui/text'
+import { useCompanionData } from '@/features/project-data'
 import { activeProjectPathOf, useActiveEnvironment, useConnectionState } from '@/features/remote'
-import type { ChannelDisposition } from '@/lib/daemon/procedures/companion'
 import { cn } from '@/lib/utils'
-import { useCompanionData } from './use-settings'
 
 /**
  * Settings › Data — the same repo companion dispositions the desktop client edits,
@@ -148,7 +148,7 @@ function DispositionRow({
   disabled,
   onChange,
 }: {
-  channel: ChannelDisposition
+  channel: ChannelDispositionValue
   disabled: boolean
   onChange: (disposition: 'shared' | 'local') => void
 }): React.JSX.Element {

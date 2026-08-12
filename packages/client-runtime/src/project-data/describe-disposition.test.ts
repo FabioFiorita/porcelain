@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { describeDisposition } from './companion-disposition'
+import { describeDisposition } from './describe-disposition'
 
 describe('describeDisposition', () => {
   it('says a local channel keeps its file, so Local never reads as deletion', () => {

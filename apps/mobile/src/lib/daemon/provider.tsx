@@ -55,14 +55,14 @@ export function proceduresForChange(change: SessionChange): readonly string[] {
       // diff reading it also moves is a typed Git identity now.
       return []
     case 'review.changed':
-      // union of feature-view, layers, evidence — comments owned by
-      // ReviewCommentNotificationBridge (RVC-004); Review's Git consequences are owned by
+      // union of feature-view and evidence — comments owned by
+      // ReviewCommentNotificationBridge (RVC-004); layers owned by
+      // ProjectDataFreshnessBridge; Review's Git consequences are owned by
       // GitNotificationBridge.
       return [
         'featureView',
         'featureReading',
         'worktreeInbox',
-        'repoLayers',
         'loopEvidence',
         'loopEvidenceHtml',
         'reviewEvidenceDocs',
