@@ -109,7 +109,7 @@ an external choice or authorization.
 | `REM-003` | Landed | Shared endpoint selection, retry, session health, and public-error parsing |
 | `REM-004` | Landed | Web local/remote/shell adapter and settings presentation cutover |
 | `REM-005` | Landed | Mobile strict-v1 environment and provider; delete version-3/icon coercion |
-| `REM-006` | Ready | Remote security/resilience proof and completed domain gate |
+| `REM-006` | Landed | Remote security/resilience proof and completed domain gate |
 
 ## Batch 4 — Project Data and complete Review
 
