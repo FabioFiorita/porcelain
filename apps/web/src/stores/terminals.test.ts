@@ -9,7 +9,7 @@ import {
 // roster). Unmocked, each rename fires a REAL fetch at jsdom's localhost:3000
 // origin whose rejection can escape test teardown as a vitest unhandled error
 // (it did, intermittently, under load — a flaky gate). No store test may touch
-// the network. close() reaches sessionForTerminal + dispose + tabs; mock those.
+// the network. close() reaches the Terminal feature adapter + dispose + tabs; mock those.
 const killTerminal = vi.fn()
 const detachTerminal = vi.fn()
 vi.mock('@renderer/lib/trpc', () => ({
@@ -20,7 +20,10 @@ vi.mock('@renderer/lib/local-daemon', () => ({
   localDaemonClient: vi.fn(() => null),
   localDaemonSession: vi.fn(() => null),
   markLocalTerminal: vi.fn(),
-  sessionForTerminal: vi.fn(() => ({ killTerminal, detachTerminal })),
+}))
+vi.mock('@renderer/features/terminal', () => ({
+  terminalAdapterFor: vi.fn(() => ({ killTerminal, detachTerminal })),
+  terminalAdapterForSession: vi.fn(() => ({ createTerminal: vi.fn() })),
 }))
 vi.mock('@renderer/lib/terminal-registry', () => ({
   disposeTerminal: vi.fn(),

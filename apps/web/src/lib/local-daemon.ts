@@ -27,7 +27,7 @@ let client: ReturnType<typeof createTRPCClient<AppRouter>> | null = null
 
 // Terminal ids that live on the LOCAL daemon. Ids come from whichever daemon minted them,
 // so the shared registry/store need this to know where a write, resize, or kill goes.
-// Re-seeded on every roster hydrate (see use-terminal-channel), so a reload doesn't
+// Re-seeded on every roster hydrate (see useTerminalRoster), so a reload doesn't
 // misroute a session that outlived the window.
 const localTerminalIds = new Set<string>()
 

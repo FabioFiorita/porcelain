@@ -45,6 +45,7 @@ export const DOMAIN_MIGRATIONS = Object.freeze(
       if (key === 'terminal') {
         targetRoots.push('apps/daemon/src/features/terminal')
         targetRoots.push('packages/client-runtime/src/terminal')
+        targetRoots.push('apps/web/src/features/terminal')
       }
       return [
         key,
@@ -100,7 +101,6 @@ export const OVERSIZED_PRODUCTION_FILES = Object.freeze({
   'apps/web/src/components/git/changes-list.tsx': 485,
   'apps/web/src/components/git/feature-view.tsx': 520,
   'apps/web/src/components/git/reading-surface.tsx': 904,
-  'apps/web/src/lib/daemon.ts': 570,
   'apps/web/src/lib/terminal-registry.ts': 602,
   'apps/web/src/terminal/ghostty/core.ts': 1240,
   'apps/web/src/terminal/ghostty/surface.ts': 1778,

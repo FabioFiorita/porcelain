@@ -1,7 +1,12 @@
 import {
+  type TerminalPasteResult,
+  terminalAdapterFor,
+  terminalPasteFailureMessage,
+} from '@renderer/features/terminal'
+import {
   attachTerminalFiles,
   chooseTerminalFiles,
-  PASTE_FILE_FAILURE_MESSAGE,
+  PASTE_FILE_TOO_LARGE_MESSAGE,
 } from '@renderer/lib/terminal-file-attach'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useTerminalInputStore } from '@renderer/stores/terminal-input'
@@ -9,8 +14,6 @@ import type { GhosttyTheme } from '@renderer/terminal/ghostty/core'
 import { GhosttyTerminalSurface } from '@renderer/terminal/ghostty/surface'
 import { runUserAction, settleBackground } from '@shared/background'
 import { toast } from 'sonner'
-import type { PasteImageResult } from './daemon'
-import { sessionForTerminal } from './local-daemon'
 import { isBrowser, isCoarseTouch, isE2E } from './platform'
 import {
   blobToBase64,
@@ -148,9 +151,9 @@ function ensureSurface(instance: Instance): Promise<GhosttyTerminalSurface> | nu
   instance.wrapper.replaceChildren()
   instance.creating = GhosttyTerminalSurface.create(instance.wrapper, {
     theme: ghosttyTheme(currentTerminalMode()),
-    onData: (data) => sessionForTerminal(instance.id).writeTerminal(instance.id, data),
+    onData: (data) => terminalAdapterFor(instance.id).writeTerminal(instance.id, data),
     onResize: (cols, rows) =>
-      sessionForTerminal(instance.id).resizeTerminal(instance.id, cols, rows),
+      terminalAdapterFor(instance.id).resizeTerminal(instance.id, cols, rows),
     onSelectionChange: () => notifySelection(instance),
     onCopy: (text) => {
       copyTerminalText(instance.id, text).catch(() => toast.error('Could not copy the selection'))
@@ -223,7 +226,7 @@ function beforeTerminalKey(instance: Instance, event: KeyboardEvent): boolean {
     const data = controlByte(event.key)
     if (data !== null) {
       event.preventDefault()
-      sessionForTerminal(id).writeTerminal(id, data)
+      terminalAdapterFor(id).writeTerminal(id, data)
       return false
     }
   }
@@ -266,7 +269,7 @@ function beforeTerminalKey(instance: Instance, event: KeyboardEvent): boolean {
   const edit = terminalEditBytes(event)
   if (edit !== null) {
     event.preventDefault()
-    sessionForTerminal(id).writeTerminal(id, edit)
+    terminalAdapterFor(id).writeTerminal(id, edit)
     return false
   }
   return true
@@ -397,7 +400,7 @@ export function getTerminalSelectionAnchor(
 }
 
 export function sendTerminalInput(id: string, data: string): void {
-  sessionForTerminal(id).writeTerminal(id, data)
+  terminalAdapterFor(id).writeTerminal(id, data)
   instances.get(id)?.surface?.scrollToBottom()
 }
 
@@ -405,20 +408,11 @@ export function pasteImageToTerminal(
   id: string,
   mime: 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp',
   dataBase64: string,
-): Promise<PasteImageResult> {
-  return sessionForTerminal(id).pasteImageToTerminal(id, mime, dataBase64)
+): Promise<TerminalPasteResult> {
+  return terminalAdapterFor(id).pasteImageToTerminal({ id, mime, dataBase64 })
 }
 
-export { attachTerminalFiles, chooseTerminalFiles, PASTE_FILE_FAILURE_MESSAGE }
-
-export const PASTE_IMAGE_FAILURE_MESSAGE: Record<
-  Exclude<PasteImageResult['result'], 'ok'>,
-  string
-> = {
-  'no-session': 'This terminal is no longer available.',
-  'too-large': 'That image is too large to paste.',
-  'write-failed': 'The daemon could not save the image. Try again.',
-}
+export { attachTerminalFiles, chooseTerminalFiles, PASTE_FILE_TOO_LARGE_MESSAGE }
 
 async function pasteTerminalContents(
   id: string,
@@ -440,12 +434,11 @@ async function pasteTerminalContents(
   }
   const image = contents.image
   if (image === null) return
-  const outcome = await pasteImageToTerminal(id, image.mime, image.dataBase64).catch(() => ({
-    result: 'write-failed' as const,
-  }))
-  if (outcome.result !== 'ok') {
+  try {
+    await pasteImageToTerminal(id, image.mime, image.dataBase64)
+  } catch (error: unknown) {
     toast.error('Could not attach the image', {
-      description: PASTE_IMAGE_FAILURE_MESSAGE[outcome.result],
+      description: terminalPasteFailureMessage(error, 'image'),
     })
   }
 }

@@ -76,7 +76,7 @@ export interface LocalTerminalRow {
 
 /**
  * The local daemon's terminal roster, scoped to the mapped directory — the local twin
- * of `terminalSessions` in `use-terminal-channel` (same 5s poll, so a session killed
+ * of `terminalSessions` in `useTerminalRoster` (same 5s poll, so a session killed
  * elsewhere reconciles here too). Goes through the vanilla client (`localDaemonClient`)
  * via plain react-query, not `trpc.terminalSessions.useQuery`: tRPC hooks bind to ONE
  * client/provider, and a second `createTRPCReact` instance (own context — the

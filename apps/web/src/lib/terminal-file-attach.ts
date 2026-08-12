@@ -1,18 +1,10 @@
 import { MAX_PASTE_FILE_BYTES } from '@porcelain/contracts/terminal'
+import { terminalAdapterFor, terminalPasteFailureMessage } from '@renderer/features/terminal'
 import { runUserAction } from '@shared/background'
 import { toast } from 'sonner'
-import type { PasteImageResult } from './daemon'
-import { sessionForTerminal } from './local-daemon'
 import { blobToBase64 } from './terminal-clipboard'
 
-export const PASTE_FILE_FAILURE_MESSAGE: Record<
-  Exclude<PasteImageResult['result'], 'ok'>,
-  string
-> = {
-  'no-session': 'This terminal is no longer available.',
-  'too-large': 'That file is too large to attach (8 MiB limit).',
-  'write-failed': 'The daemon could not save the file. Try again.',
-}
+export const PASTE_FILE_TOO_LARGE_MESSAGE = 'That file is too large to attach (8 MiB limit).'
 
 /**
  * Transfer browser/Electron-selected files as bytes to the terminal's daemon. `File.name` is
@@ -22,21 +14,20 @@ export const PASTE_FILE_FAILURE_MESSAGE: Record<
 async function attachTerminalFile(id: string, file: File): Promise<void> {
   if (file.size > MAX_PASTE_FILE_BYTES) {
     toast.error('Could not attach the file', {
-      description: PASTE_FILE_FAILURE_MESSAGE['too-large'],
+      description: PASTE_FILE_TOO_LARGE_MESSAGE,
     })
     return
   }
-  const outcome = await sessionForTerminal(id)
-    .pasteFileToTerminal(
+  try {
+    await terminalAdapterFor(id).pasteFileToTerminal({
       id,
-      file.name || 'attachment',
-      file.type || 'application/octet-stream',
-      await blobToBase64(file),
-    )
-    .catch(() => ({ result: 'write-failed' as const }))
-  if (outcome.result !== 'ok') {
+      filename: file.name || 'attachment',
+      mime: file.type || 'application/octet-stream',
+      dataBase64: await blobToBase64(file),
+    })
+  } catch (error: unknown) {
     toast.error('Could not attach the file', {
-      description: PASTE_FILE_FAILURE_MESSAGE[outcome.result],
+      description: terminalPasteFailureMessage(error, 'file'),
     })
   }
 }

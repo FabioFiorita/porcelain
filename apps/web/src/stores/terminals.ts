@@ -1,10 +1,10 @@
+import { terminalAdapterFor, terminalAdapterForSession } from '@renderer/features/terminal'
 import { primary } from '@renderer/lib/daemon'
 import {
   forgetLocalTerminal,
   localDaemonClient,
   localDaemonSession,
   markLocalTerminal,
-  sessionForTerminal,
 } from '@renderer/lib/local-daemon'
 import { disposeTerminal } from '@renderer/lib/terminal-registry'
 import { trpcClient } from '@renderer/lib/trpc'
@@ -122,7 +122,14 @@ export const useTerminalsStore = create<TerminalsState>((set, get) => ({
     }
     // The daemon stores the name (roster is daemon-owned); we still append locally so the
     // row shows immediately, before the next hydrate confirms it.
-    const id = await session.createTerminal({ cwd, name, initialInput })
+    const adapter =
+      origin === 'local' && session !== null
+        ? terminalAdapterForSession(session)
+        : origin === 'primary'
+          ? terminalAdapterForSession(primary)
+          : null
+    if (adapter === null) throw new Error('The local daemon connection is not ready yet.')
+    const id = await adapter.createTerminal({ cwd, name, initialInput })
     // Register BEFORE the row exists: the registry may write to this id (an initialInput
     // action, the first keystroke) as soon as the view mounts, and it routes by this map.
     if (origin === 'local') markLocalTerminal(id)
@@ -159,7 +166,7 @@ export const useTerminalsStore = create<TerminalsState>((set, get) => ({
   },
   close: (id: string) => {
     closedTombstones.set(id, Date.now())
-    sessionForTerminal(id).killTerminal(id)
+    terminalAdapterFor(id).killTerminal(id)
     forgetLocalTerminal(id)
     disposeTerminal(id)
     // The PTY and its Ghostty are gone; close any viewer tab still pointing at it so
@@ -174,7 +181,7 @@ export const useTerminalsStore = create<TerminalsState>((set, get) => ({
     // the PTYs survive the switch (explicit kill only). Detaching also frees the id to
     // re-attach (and replay scrollback into a fresh Ghostty) if the repo comes back.
     for (const session of get().sessions) {
-      sessionForTerminal(session.id).detachTerminal(session.id)
+      terminalAdapterFor(session.id).detachTerminal(session.id)
       disposeTerminal(session.id)
     }
     set({ sessions: [] })

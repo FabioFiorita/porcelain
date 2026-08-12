@@ -7,12 +7,12 @@ import { CardComposer, useBoardNotificationSubscription } from '@renderer/featur
 import { useFilesInterestBridge, useFilesNotificationSubscription } from '@renderer/features/files'
 import { useGitNotificationSubscription } from '@renderer/features/git'
 import { useReviewCommentNotificationSubscription } from '@renderer/features/review/comments'
+import { useTerminalRoster } from '@renderer/features/terminal'
 import { useDocumentTitle } from '@renderer/hooks/use-document-title'
 import { useEnvironmentStatuses } from '@renderer/hooks/use-environment-status'
 import { useResponsiveShell } from '@renderer/hooks/use-responsive-shell'
 import { useSessionRuntime } from '@renderer/hooks/use-session-runtime'
 import { useShellEvents } from '@renderer/hooks/use-shell-events'
-import { useTerminalChannel } from '@renderer/hooks/use-terminal-channel'
 import { useThemeSync } from '@renderer/hooks/use-theme'
 import { kbdLabel } from '@renderer/lib/keyboard'
 import { cn } from '@renderer/lib/utils'
@@ -212,7 +212,7 @@ export function AppShell(): React.JSX.Element {
   useEnvironmentStatuses()
   useThemeSync()
   useDocumentTitle()
-  useTerminalChannel()
+  useTerminalRoster()
 
   useEffect(() => {
     boot()

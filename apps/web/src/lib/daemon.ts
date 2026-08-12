@@ -5,7 +5,6 @@ import {
 } from '@porcelain/client-runtime/session/client-runtime'
 import type { FreshnessRequirement } from '@porcelain/client-runtime/session/recovery'
 import type { SessionChange, SessionMismatchFrame } from '@porcelain/contracts/session'
-import { MAX_TERMINAL_WRITE_CODE_UNITS } from '@porcelain/contracts/terminal'
 import {
   createSessionBrowserAdapter,
   type SessionBrowserAdapter,
@@ -13,14 +12,13 @@ import {
   type SessionRetrySchedule,
   type SessionSocketOpener,
 } from './session-browser-adapter'
-import { randomId } from './utils'
 
 /**
  * One daemon connection: HTTP base for tRPC plus ONE `/session` WebSocket for change
  * signals, watches, and terminal bytes. Owns the shared runtime + browser adapter so
  * terminal I/O and query invalidation never open a second socket. `primary` is the
  * window's bound session; see `local-daemon.ts` for a second local session. Lib-only
- * (Biome). Reconnect re-attaches terminals and fires recovery handlers.
+ * (Biome). Reconnect fires generic recovery handlers; Terminal behavior lives in the Web feature.
  */
 
 /** Browser client token persistence key (packaged app uses the preload bridge). */
@@ -31,20 +29,6 @@ function initialToken(): string {
   if (fromBridge !== undefined) return fromBridge
   return localStorage.getItem(BROWSER_TOKEN_KEY) ?? ''
 }
-
-export interface AttachResult {
-  scrollback: string
-  status: 'running' | 'exited'
-  exitCode?: number
-  found: boolean
-}
-
-export interface PasteImageResult {
-  result: 'ok' | 'too-large' | 'no-session' | 'write-failed'
-  path?: string
-}
-
-export type PasteFileResult = PasteImageResult
 
 /** Where a session points. An empty `url` means "the page origin" (the browser client is served BY its daemon). */
 export interface DaemonEndpoint {
@@ -69,7 +53,7 @@ export interface DaemonSession {
   /** Re-point this session and reconnect immediately, skipping any pending backoff. */
   setEndpoint: (endpoint: DaemonEndpoint) => void
   /**
-   * The shared session runtime for this daemon connection. Terminal APIs and
+   * The shared session runtime for this daemon connection. The Terminal feature and
    * `useSessionRuntime` both use this instance — never construct a second one.
    */
   runtime: SessionClientRuntime
@@ -83,42 +67,19 @@ export interface DaemonSession {
   onUpdateRequired: (listener: (frame: SessionMismatchFrame) => void) => () => void
   onChange: (listener: (change: SessionChange) => void) => () => void
   onFreshnessRequired: (listener: (requirement: FreshnessRequirement) => void) => () => void
-  onTerminalData: (listener: (id: string, data: string) => void) => () => void
-  onTerminalExit: (listener: (id: string, exitCode: number) => void) => () => void
-  onTerminalScrollback: (listener: (id: string, scrollback: string) => void) => () => void
+  /** Forward a complete contract-valid Terminal server frame; no Terminal semantics live here. */
+  onTerminalFrame: (listener: (frame: TerminalServerFrame) => void) => () => void
+  /** Fires after every successful shared-runtime handshake, before reconnect listeners. */
+  onDaemonReady: (listener: () => void) => () => void
   onDaemonReconnect: (listener: () => void) => () => void
   /** Fires when the primary socket dies; the shell can resolve a group's next route. */
   onDaemonClose: (listener: () => void) => () => void
-  createTerminal: (opts: {
-    name: string
-    cwd: string
-    initialInput?: string
-    cols?: number
-    rows?: number
-  }) => Promise<string>
-  attachTerminal: (id: string) => Promise<AttachResult>
-  detachTerminal: (id: string) => void
-  isTerminalAttached: (id: string) => boolean
-  writeTerminal: (id: string, data: string) => void
-  resizeTerminal: (id: string, cols: number, rows: number) => void
-  killTerminal: (id: string) => void
-  pasteImageToTerminal: (
-    id: string,
-    mime: 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp',
-    dataBase64: string,
-  ) => Promise<PasteImageResult>
-  pasteFileToTerminal: (
-    id: string,
-    filename: string,
-    mime: string,
-    dataBase64: string,
-  ) => Promise<PasteFileResult>
 }
 
 /**
  * Build a session pointed at one daemon. Each instance owns its own runtime,
- * adapter, listener sets, pending-request maps, and reconnect state — nothing is
- * shared, so a second session can't fail the first's in-flight creates.
+ * adapter, listener sets, and reconnect state — nothing is shared, so a second session cannot
+ * affect the first session's transport lifecycle.
  */
 export function createDaemonSession(
   initial: DaemonEndpoint,
@@ -127,41 +88,14 @@ export function createDaemonSession(
   let baseUrl = initial.url
   let token = initial.token
 
-  const dataListeners = new Set<(id: string, data: string) => void>()
-  const exitListeners = new Set<(id: string, exitCode: number) => void>()
-  const scrollbackListeners = new Set<(id: string, scrollback: string) => void>()
+  const terminalFrameListeners = new Set<(frame: TerminalServerFrame) => void>()
+  const readyListeners = new Set<() => void>()
   const reconnectListeners = new Set<() => void>()
   const closeListeners = new Set<() => void>()
   const changeListeners = new Set<(change: SessionChange) => void>()
   const freshnessListeners = new Set<(requirement: FreshnessRequirement) => void>()
   const statusListeners = new Set<(status: SessionConnectionStatus) => void>()
   const updateRequiredListeners = new Set<(frame: SessionMismatchFrame) => void>()
-
-  interface PendingCreate {
-    resolve: (id: string) => void
-    reject: (error: Error) => void
-  }
-  const pendingCreates = new Map<string, PendingCreate>()
-  interface PendingAttach {
-    resolve: (result: AttachResult) => void
-    reject: (error: Error) => void
-  }
-  const pendingAttaches = new Map<string, PendingAttach>()
-  interface PendingPaste {
-    resolve: (result: PasteImageResult) => void
-    reject: (error: Error) => void
-  }
-  const pendingPastes = new Map<string, PendingPaste>()
-  const pendingFiles = new Map<string, PendingPaste>()
-  // The ids this client is currently streaming — re-sent as `terminal:attach` on every
-  // reconnect (the daemon's attached-sender set died with the old socket), with the fresh
-  // scrollback routed through the scrollback listeners so the registry can replay it.
-  const attachedIds = new Set<string>()
-
-  // Creates/attaches/pastes issued while the session is still handshaking are queued and
-  // flushed on ready; fire-and-forget messages (write/resize/kill) are not — a dead
-  // socket means dead PTYs. Both the queue and the in-flight requests die with the socket.
-  const outbox: unknown[] = []
 
   // Set when the shell pushes a fresh daemon url (the daemon came up late or was
   // restarted): the NEXT successful ready must refetch queries even if this is
@@ -170,94 +104,18 @@ export function createDaemonSession(
   // True after the first completed handshake; subsequent readies re-attach terminals
   // and notify reconnect listeners.
   let everSessionOpen = false
-  // True for the current connection after we have flushed the post-ready work once.
+  // True for the current connection after the ready lifecycle has fired once.
   let openGenerationHandled = false
 
   let connectionStatus: SessionConnectionStatus = 'idle'
   let updateRequired: SessionMismatchFrame | undefined
 
   function dispatchTerminalFrame(frame: TerminalServerFrame): void {
-    switch (frame.t) {
-      case 'terminal:data':
-        for (const listener of dataListeners) listener(frame.id, frame.data)
-        break
-      case 'terminal:exit':
-        for (const listener of exitListeners) listener(frame.id, frame.exitCode)
-        break
-      case 'terminal:created': {
-        const pending = pendingCreates.get(frame.reqId)
-        if (pending) {
-          pendingCreates.delete(frame.reqId)
-          pending.resolve(frame.id)
-        }
-        break
-      }
-      case 'terminal:attached': {
-        // Route the replay scrollback to the registry before any live data follows
-        // (the daemon sends this reply before subsequent terminal:data), then settle
-        // the pending attach promise for the caller that awaited the initial attach.
-        for (const listener of scrollbackListeners) listener(frame.id, frame.scrollback)
-        const pending = pendingAttaches.get(frame.reqId)
-        if (pending) {
-          pendingAttaches.delete(frame.reqId)
-          pending.resolve({
-            scrollback: frame.scrollback,
-            status: frame.status,
-            exitCode: frame.exitCode,
-            found: frame.found,
-          })
-        }
-        break
-      }
-      case 'terminal:image-pasted': {
-        const pending = pendingPastes.get(frame.reqId)
-        if (pending) {
-          pendingPastes.delete(frame.reqId)
-          pending.resolve({ path: frame.path, result: frame.result })
-        }
-        break
-      }
-      case 'terminal:file-pasted': {
-        const pending = pendingFiles.get(frame.reqId)
-        if (pending) {
-          pendingFiles.delete(frame.reqId)
-          pending.resolve({ path: frame.path, result: frame.result })
-        }
-        break
-      }
-    }
+    for (const listener of terminalFrameListeners) listener(frame)
   }
-
-  /** Fail every in-flight/queued create + attach + paste — their socket is gone. */
-  function failPending(reason: string): void {
-    outbox.length = 0
-    const creates = [...pendingCreates.values()]
-    pendingCreates.clear()
-    for (const { reject } of creates) reject(new Error(reason))
-    const attaches = [...pendingAttaches.values()]
-    pendingAttaches.clear()
-    for (const { reject } of attaches) reject(new Error(reason))
-    const pastes = [...pendingPastes.values()]
-    pendingPastes.clear()
-    for (const { reject } of pastes) reject(new Error(reason))
-    const files = [...pendingFiles.values()]
-    pendingFiles.clear()
-    for (const { reject } of files) reject(new Error(reason))
-  }
-
-  const DROP_REASON =
-    'The Porcelain daemon connection dropped before the terminal could be created. Try again in a moment — the app reconnects automatically.'
 
   function onBecameOpen(): void {
-    // Re-attach every terminal this client was streaming: the daemon's attached-sender
-    // set died with the old socket. Not on the first-ever ready — those attaches are
-    // already queued in the outbox (double-sending would replay scrollback twice).
-    if (everSessionOpen) {
-      for (const id of attachedIds) {
-        baseRuntime.send({ t: 'terminal:attach', id, reqId: randomId() })
-      }
-    }
-    for (const frame of outbox.splice(0)) baseRuntime.send(frame)
+    for (const listener of readyListeners) listener()
     // Refetch on every REconnect — and on the first ready after the shell pushed a
     // fresh url (the daemon came up late; boot queries errored and must recover now).
     if (everSessionOpen || recoveryPending) {
@@ -288,9 +146,9 @@ export function createDaemonSession(
     },
   })
 
-  // After every inbound frame, detect the transition into protocol-open so the
-  // outbox can flush and terminals re-attach. The runtime does not expose an
-  // onReady hook; receive is the authoritative path that completes the handshake.
+  // After every inbound frame, detect the transition into protocol-open so generic ready
+  // subscribers can finish adapter-owned work. The runtime does not expose an onReady hook;
+  // receive is the authoritative path that completes the handshake.
   const runtime: SessionClientRuntime = {
     connected: (transport) => baseRuntime.connected(transport),
     receive: (raw) => {
@@ -302,7 +160,6 @@ export function createDaemonSession(
     },
     disconnected: () => {
       openGenerationHandled = false
-      failPending(DROP_REASON)
       baseRuntime.disconnected()
       for (const listener of closeListeners) listener()
     },
@@ -332,17 +189,6 @@ export function createDaemonSession(
 
   function ensureSession(): void {
     adapter.start()
-  }
-
-  /** Send now if the protocol is open, else queue for the next ready. */
-  function pushOrQueue(frame: unknown): void {
-    if (runtime.status() === 'open') runtime.send(frame)
-    else outbox.push(frame)
-  }
-
-  /** Fire-and-forget: only lands on an open session (writes into a dead socket are dropped). */
-  function push(frame: unknown): void {
-    if (runtime.status() === 'open') runtime.send(frame)
   }
 
   function reconnectNow(): void {
@@ -377,128 +223,12 @@ export function createDaemonSession(
     onUpdateRequired: (listener) => subscribe(updateRequiredListeners, listener, false),
     onChange: (listener) => subscribe(changeListeners, listener, false),
     onFreshnessRequired: (listener) => subscribe(freshnessListeners, listener, false),
-    onTerminalData: (listener: (id: string, data: string) => void) =>
-      subscribe(dataListeners, listener),
-    onTerminalExit: (listener: (id: string, exitCode: number) => void) =>
-      subscribe(exitListeners, listener),
-    /**
-     * Fires with a session's replay scrollback on attach (both the initial attach and every
-     * reconnect re-attach). The registry replays it into the Ghostty before live data follows.
-     */
-    onTerminalScrollback: (listener: (id: string, scrollback: string) => void) =>
-      subscribe(scrollbackListeners, listener),
+    onTerminalFrame: (listener: (frame: TerminalServerFrame) => void) =>
+      subscribe(terminalFrameListeners, listener),
+    onDaemonReady: (listener: () => void) => subscribe(readyListeners, listener),
     /** Fires after the session comes BACK (never on the first connect) — queries are stale, refetch. */
     onDaemonReconnect: (listener: () => void) => subscribe(reconnectListeners, listener),
     onDaemonClose: (listener: () => void) => subscribe(closeListeners, listener),
-
-    /**
-     * Spawn a PTY; resolves with its id via the reqId-correlated `terminal:created`
-     * reply. Rejects if the session drops before the daemon answers (the socket's
-     * close fails all in-flight creates) — callers surface the error instead of
-     * hanging on a promise that can never settle.
-     */
-    createTerminal: (opts: {
-      name: string
-      cwd: string
-      initialInput?: string
-      cols?: number
-      rows?: number
-    }): Promise<string> => {
-      ensureSession()
-      return new Promise<string>((resolve, reject) => {
-        const reqId = randomId()
-        pendingCreates.set(reqId, {
-          // The creator is auto-attached daemon-side — track the id so a later reconnect
-          // re-attaches it like any other streaming terminal.
-          resolve: (id: string): void => {
-            attachedIds.add(id)
-            resolve(id)
-          },
-          reject,
-        })
-        pushOrQueue({ t: 'terminal:create', reqId, ...opts })
-      })
-    },
-    /**
-     * Attach to a daemon-owned PTY (opening a session hydrated from the roster after a
-     * reload, or a second view of one already running) and resolve with its replay
-     * scrollback + state. The scrollback is ALSO pushed through `onTerminalScrollback` (the
-     * registry's replay path); the promise result is for the caller that needs the state
-     * (e.g. an already-exited session). Rejects if the socket drops before the daemon
-     * answers, like create. Re-attaches automatically on every reconnect thereafter.
-     */
-    attachTerminal: (id: string): Promise<AttachResult> => {
-      ensureSession()
-      attachedIds.add(id)
-      return new Promise<AttachResult>((resolve, reject) => {
-        const reqId = randomId()
-        pendingAttaches.set(reqId, {
-          resolve,
-          // A socket drop before the reply rejects this — drop the id so `isTerminalAttached`
-          // reports false and the next roster hydrate re-attaches (the reconnect re-attach
-          // loop only fires once everSessionOpen, so an initial-connect failure needs this).
-          reject: (error: Error): void => {
-            attachedIds.delete(id)
-            reject(error)
-          },
-        })
-        pushOrQueue({ t: 'terminal:attach', id, reqId })
-      })
-    },
-    /** Stop streaming a PTY to this client without killing it (fire-and-forget). */
-    detachTerminal: (id: string): void => {
-      attachedIds.delete(id)
-      push({ t: 'terminal:detach', id })
-    },
-    /** Whether this client is currently streaming `id` — so a caller doesn't re-attach it. */
-    isTerminalAttached: (id: string) => attachedIds.has(id),
-    writeTerminal: (id: string, data: string) => {
-      for (let offset = 0; offset < data.length; offset += MAX_TERMINAL_WRITE_CODE_UNITS) {
-        push({
-          t: 'terminal:write',
-          id,
-          data: data.slice(offset, offset + MAX_TERMINAL_WRITE_CODE_UNITS),
-        })
-      }
-    },
-    resizeTerminal: (id: string, cols: number, rows: number) =>
-      push({ t: 'terminal:resize', id, cols, rows }),
-    killTerminal: (id: string): void => {
-      attachedIds.delete(id)
-      push({ t: 'terminal:kill', id })
-    },
-    /**
-     * Send a pasted image to the daemon for `id`'s session. `pushOrQueue`, like create and
-     * attach: the outbox only survives the initial handshaking window (cleared on any
-     * close, per `failPending`), so this never replays a stale paste into whatever
-     * the cursor is doing after a later reconnect — it only lets a paste tapped the instant
-     * the socket is still opening ride the same flush a create would.
-     */
-    pasteImageToTerminal: (
-      id: string,
-      mime: 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp',
-      dataBase64: string,
-    ): Promise<PasteImageResult> => {
-      ensureSession()
-      return new Promise<PasteImageResult>((resolve, reject) => {
-        const reqId = randomId()
-        pendingPastes.set(reqId, { resolve, reject })
-        pushOrQueue({ t: 'terminal:paste-image', id, reqId, mime, dataBase64 })
-      })
-    },
-    pasteFileToTerminal: (
-      id: string,
-      filename: string,
-      mime: string,
-      dataBase64: string,
-    ): Promise<PasteFileResult> => {
-      ensureSession()
-      return new Promise<PasteFileResult>((resolve, reject) => {
-        const reqId = randomId()
-        pendingFiles.set(reqId, { resolve, reject })
-        pushOrQueue({ t: 'terminal:paste-file', id, reqId, filename, mime, dataBase64 })
-      })
-    },
   }
 }
 
@@ -528,19 +258,7 @@ export function setBrowserDaemonToken(newToken: string): void {
 // Singleton API bound to `primary`. Name a session explicitly for another machine.
 export const daemonBaseUrl: DaemonSession['baseUrl'] = primary.baseUrl
 export const daemonToken: DaemonSession['token'] = primary.token
-export const onTerminalData: DaemonSession['onTerminalData'] = primary.onTerminalData
-export const onTerminalExit: DaemonSession['onTerminalExit'] = primary.onTerminalExit
-export const onTerminalScrollback: DaemonSession['onTerminalScrollback'] =
-  primary.onTerminalScrollback
+export const onTerminalFrame: DaemonSession['onTerminalFrame'] = primary.onTerminalFrame
+export const onDaemonReady: DaemonSession['onDaemonReady'] = primary.onDaemonReady
 export const onDaemonReconnect: DaemonSession['onDaemonReconnect'] = primary.onDaemonReconnect
 export const onDaemonClose: DaemonSession['onDaemonClose'] = primary.onDaemonClose
-export const createTerminal: DaemonSession['createTerminal'] = primary.createTerminal
-export const attachTerminal: DaemonSession['attachTerminal'] = primary.attachTerminal
-export const detachTerminal: DaemonSession['detachTerminal'] = primary.detachTerminal
-export const isTerminalAttached: DaemonSession['isTerminalAttached'] = primary.isTerminalAttached
-export const writeTerminal: DaemonSession['writeTerminal'] = primary.writeTerminal
-export const resizeTerminal: DaemonSession['resizeTerminal'] = primary.resizeTerminal
-export const killTerminal: DaemonSession['killTerminal'] = primary.killTerminal
-export const pasteImageToTerminal: DaemonSession['pasteImageToTerminal'] =
-  primary.pasteImageToTerminal
-export const pasteFileToTerminal: DaemonSession['pasteFileToTerminal'] = primary.pasteFileToTerminal
