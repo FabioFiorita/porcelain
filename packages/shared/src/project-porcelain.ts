@@ -28,6 +28,7 @@ export const PROJECT_FILES = {
   reviewed: 'reviewed.json',
   featureView: 'feature-view.json',
   gitignore: '.gitignore',
+  manifest: 'project-manifest.json',
 } as const
 
 export const PROJECT_EVIDENCE_DIR = 'evidence'
@@ -175,6 +176,8 @@ export const COMPANION_CHANNELS: readonly CompanionChannel[] = [
  *   covers everything the evidence pack grew — checks, `results/`, `assets/` —
  *   so no rule needs to name them.
  * - `.migrated-from-home` is a machine artifact from the home→repo migration.
+ * - `project-manifest.json` is a per-checkout v1 root marker recreated on first
+ *   write; it is not a `COMPANION_CHANNELS` toggle.
  * - `*.tmp` / `*.corrupt-*` are atomic-write debris.
  * - the per-review evidence glob keeps proof packs opt-in even when Reviews are
  *   shared (spelled out in the array — a block comment cannot hold that glob).
@@ -183,6 +186,7 @@ export const ALWAYS_IGNORED = [
   '/feature-view.json',
   '/active-review/',
   '/.migrated-from-home',
+  '/project-manifest.json',
   '*.tmp',
   '*.corrupt-*',
   'reviews/*/evidence/',

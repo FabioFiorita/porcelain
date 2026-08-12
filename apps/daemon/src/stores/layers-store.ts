@@ -1,7 +1,6 @@
 import { PROJECT_FILES } from '@shared/project-porcelain'
 import { z } from 'zod'
 import { createProjectChannel } from '../net/project-channel'
-import { ensureProjectCompanion } from '../project/migrate-home'
 import type { Layer } from '../review/flow'
 
 /**
@@ -34,12 +33,10 @@ export function layersPath(repoPath: string): string {
 }
 
 export async function readLayers(repoPath: string): Promise<Layer[] | null> {
-  await ensureProjectCompanion(repoPath)
   const layers = await channel.read(repoPath)
   return layers.length > 0 ? layers : null
 }
 
 export async function writeLayers(repoPath: string, layers: Layer[] | null): Promise<void> {
-  await ensureProjectCompanion(repoPath)
   await channel.write(repoPath, layers ?? [])
 }

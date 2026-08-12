@@ -44,6 +44,12 @@ describe('project-porcelain paths', () => {
       expect(DEFAULT_PROJECT_GITIGNORE).toContain(pattern)
     }
   })
+
+  it('names the v1 companion manifest and always ignores it', () => {
+    expect(PROJECT_FILES.manifest).toBe('project-manifest.json')
+    expect(ALWAYS_IGNORED).toContain('/project-manifest.json')
+    expect(DEFAULT_PROJECT_GITIGNORE).toContain('/project-manifest.json')
+  })
 })
 
 describe('companion dispositions', () => {

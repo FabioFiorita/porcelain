@@ -1,14 +1,15 @@
 import { mkdir, readFile, rename, stat, unlink, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
-import {
-  DEFAULT_PROJECT_GITIGNORE,
-  PROJECT_FILES,
-  projectPorcelainDir,
-  projectPorcelainPath,
-} from '@shared/project-porcelain'
+import { projectPorcelainPath } from '@shared/project-porcelain'
 import type { ZodType } from 'zod'
-import { ensureCompanionHidden } from '../project/git-exclude'
+import { ensureProjectDataRoot } from '../features/project-data'
 import { watchProjectCompanion } from '../review/review-watch'
+
+async function ensureProjectRoot(repoPath: string): Promise<void> {
+  const root = await ensureProjectDataRoot(repoPath)
+  if (!root.ok) throw new Error(`project-data: ${root.error.code}`)
+  watchProjectCompanion(repoPath)
+}
 
 export interface ProjectChannel<T> {
   path(repoPath: string): string
@@ -71,26 +72,10 @@ export function createProjectChannel<T>(opts: {
     }
   }
 
-  const ensureProjectDir = async (repoPath: string): Promise<void> => {
-    const dir = projectPorcelainDir(repoPath)
-    // Decide git visibility BEFORE the first file lands, so opening a repo and
-    // letting an agent write never leaves `?? .porcelain/` in the human's status.
-    await ensureCompanionHidden(repoPath)
-    await mkdir(dir, { recursive: true })
-    const gi = projectPorcelainPath(repoPath, PROJECT_FILES.gitignore)
-    try {
-      await stat(gi)
-    } catch {
-      await writeFile(gi, DEFAULT_PROJECT_GITIGNORE)
-    }
-    // Watcher skips missing dirs so it never invents an empty companion; attach once created.
-    watchProjectCompanion(repoPath)
-  }
-
   const read = async (repoPath: string): Promise<T> => readWithGuards(pathFor(repoPath))
 
   const write = async (repoPath: string, value: T): Promise<void> => {
-    await ensureProjectDir(repoPath)
+    await ensureProjectRoot(repoPath)
     const p = pathFor(repoPath)
     await mkdir(dirname(p), { recursive: true })
     const tmp = `${p}.tmp`
@@ -131,16 +116,7 @@ export async function writeProjectText(
   fileName: string,
   text: string,
 ): Promise<void> {
-  const dir = projectPorcelainDir(repoPath)
-  await ensureCompanionHidden(repoPath)
-  await mkdir(dir, { recursive: true })
-  const gi = projectPorcelainPath(repoPath, PROJECT_FILES.gitignore)
-  try {
-    await stat(gi)
-  } catch {
-    await writeFile(gi, DEFAULT_PROJECT_GITIGNORE)
-  }
-  watchProjectCompanion(repoPath)
+  await ensureProjectRoot(repoPath)
   const p = projectPorcelainPath(repoPath, fileName)
   if (text === '') {
     // Drop empty notes so the tree stays tidy.
@@ -152,6 +128,7 @@ export async function writeProjectText(
     })
     return
   }
+  await mkdir(dirname(p), { recursive: true })
   const tmp = `${p}.tmp`
   await writeFile(tmp, text)
   await rename(tmp, p)

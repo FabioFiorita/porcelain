@@ -1,7 +1,6 @@
 import { PROJECT_FILES } from '@shared/project-porcelain'
 import { z } from 'zod'
 import { createProjectChannel } from '../net/project-channel'
-import { ensureProjectCompanion } from '../project/migrate-home'
 import { FILE_SOURCES } from '../review/review-set'
 
 /**
@@ -32,7 +31,6 @@ export function featureSnapshotPath(repoPath: string): string {
 }
 
 export async function readFeatureSnapshot(repoPath: string): Promise<FeatureSnapshot | null> {
-  await ensureProjectCompanion(repoPath)
   const snap = await channel.read(repoPath)
   if (snap.files.length === 0 && snap.name === '') return null
   return snap
@@ -47,7 +45,6 @@ export async function writeFeatureSnapshot(
   const key = snapshot.files.length === 0 ? '' : JSON.stringify(snapshot)
   if (lastWritten.get(repoPath) === key) return
   lastWritten.set(repoPath, key)
-  await ensureProjectCompanion(repoPath)
   if (snapshot.files.length === 0) {
     await channel.write(repoPath, { name: '', files: [] })
     return

@@ -10,11 +10,9 @@ import { normalizePublicError } from '../daemon-composition/public-error'
 // settings.ts hosts two Review, one Files, and six Project Data procedures. This suite owns
 // their tRPC contract seam only: which raw wire input each router procedure accepts and which
 // handler result it will serialize. The layers, notes, and scope stores run for real against a
-// temporary project directory created per run. Everything that would touch the machine's Git index,
-// companion home, or a filesystem watcher is a test-owned seam, so nothing here shells out to
-// Git or reads the human's companion data.
-const { companion, dispositions, gitExclude, watch } = vi.hoisted(() => ({
-  companion: { ensureProjectCompanion: vi.fn(async () => undefined) },
+// temporary project directory created per run. Everything that would touch the machine's Git index
+// or a filesystem watcher is a test-owned seam, so nothing here shells out to Git.
+const { dispositions, gitExclude, watch } = vi.hoisted(() => ({
   dispositions: {
     readChannelDispositions: vi.fn(),
     readCompanionGitVisibility: vi.fn(),
@@ -30,7 +28,6 @@ const { companion, dispositions, gitExclude, watch } = vi.hoisted(() => ({
 
 vi.mock('../project/companion-disposition', () => dispositions)
 vi.mock('../project/git-exclude', () => gitExclude)
-vi.mock('../project/migrate-home', () => companion)
 vi.mock('../review/review-watch', () => watch)
 
 import { DEFAULT_LAYERS } from '../review/flow'

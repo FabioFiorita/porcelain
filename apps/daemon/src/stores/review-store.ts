@@ -17,7 +17,6 @@ import { z } from 'zod'
 import { gitForceStage } from '../git/git'
 import { createProjectChannel } from '../net/project-channel'
 import { recordPublishedReview } from '../project/companion-disposition'
-import { ensureProjectCompanion } from '../project/migrate-home'
 import {
   type ReviewSection,
   type ReviewSet,
@@ -107,7 +106,6 @@ function sanitizeReview(repoPath: string, set: z.infer<typeof lenientReviewSetSc
 
 /** The active agent-fed review set, or null if none / empty name. */
 export async function readReviewSet(repoPath: string): Promise<ReviewSet | null> {
-  await ensureProjectCompanion(repoPath)
   try {
     const raw = await readFile(reviewPath(repoPath), 'utf8')
     const set = lenientReviewSetSchema.parse(JSON.parse(raw))
@@ -128,7 +126,6 @@ function newArchiveId(): string {
  * nothing active. Returns the new archive id or null.
  */
 export async function archiveActiveReview(repoPath: string): Promise<string | null> {
-  await ensureProjectCompanion(repoPath)
   const set = await readReviewSet(repoPath)
   const activeDir = projectActiveReviewDir(repoPath)
   if (!(await pathExists(activeDir))) return null
@@ -204,7 +201,6 @@ export interface PublishCost {
  * because history does not forget.
  */
 export async function activeReviewCost(repoPath: string): Promise<PublishCost> {
-  await ensureProjectCompanion(repoPath)
   // One walk: the active review is a single directory now.
   return dirCost(projectActiveReviewDir(repoPath))
 }
@@ -236,7 +232,6 @@ export async function publishActiveReview(repoPath: string): Promise<PublishResu
 
 /** List archived reviews, newest first. */
 export async function listArchivedReviews(repoPath: string): Promise<ArchivedReviewMeta[]> {
-  await ensureProjectCompanion(repoPath)
   const root = projectReviewsDir(repoPath)
   let entries: string[]
   try {

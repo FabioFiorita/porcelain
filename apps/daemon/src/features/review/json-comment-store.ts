@@ -1,4 +1,4 @@
-import { mkdir, open, readFile, rename, stat, unlink, writeFile } from 'node:fs/promises'
+import { mkdir, open, readFile, rename, stat, unlink } from 'node:fs/promises'
 import { dirname, isAbsolute, join } from 'node:path'
 import {
   COMMENTS_FILE_MAX_BYTES,
@@ -8,15 +8,9 @@ import {
   parseCommentsFileV1,
   serializeCommentsFileV1,
 } from '@porcelain/shared/comments-file'
-import {
-  ACTIVE_FILES,
-  DEFAULT_PROJECT_GITIGNORE,
-  PROJECT_FILES,
-  projectPorcelainDir,
-  projectPorcelainPath,
-} from '@shared/project-porcelain'
-import { ensureCompanionHidden } from '../../project/git-exclude'
+import { ACTIVE_FILES, projectPorcelainPath } from '@shared/project-porcelain'
 import { watchProjectCompanion } from '../../review/review-watch'
+import { ensureProjectDataRoot } from '../project-data'
 import type {
   ReviewCommentStore,
   ReviewCommentStoreResult,
@@ -62,17 +56,9 @@ async function moveToCorruptBackup(sourcePath: string): Promise<string> {
   }
 }
 
-async function ensureCompanionShell(projectPath: string): Promise<void> {
-  await ensureCompanionHidden(projectPath)
-  const dir = projectPorcelainDir(projectPath)
-  await mkdir(dir, { recursive: true })
-  const gi = projectPorcelainPath(projectPath, PROJECT_FILES.gitignore)
-  try {
-    await stat(gi)
-  } catch (error) {
-    if (!isEnoent(error)) throw error
-    await writeFile(gi, DEFAULT_PROJECT_GITIGNORE)
-  }
+async function ensureProjectRoot(projectPath: string): Promise<void> {
+  const root = await ensureProjectDataRoot(projectPath)
+  if (!root.ok) throw new Error(`project-data: ${root.error.code}`)
   watchProjectCompanion(projectPath)
 }
 
@@ -164,7 +150,7 @@ export function createJsonCommentStore(options: { maxBytes?: number } = {}): Rev
       if (Buffer.byteLength(body, 'utf8') > maxBytes) {
         return { ok: false, error: { code: 'review.unavailable' } }
       }
-      await ensureCompanionShell(projectPath)
+      await ensureProjectRoot(projectPath)
       const path = commentsFilePath(projectPath)
       const parent = dirname(path)
       await mkdir(parent, { recursive: true })

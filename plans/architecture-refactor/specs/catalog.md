@@ -115,7 +115,7 @@ an external choice or authorization.
 
 | ID | Status | Outcome |
 | --- | --- | --- |
-| `PDT-001` | Ready | Version-1 root manifest and per-domain persisted-file ownership |
+| `PDT-001` | Landed | Version-1 root manifest and per-domain persisted-file ownership |
 | `PDT-002` | Draft | Notes, dispositions, layers, visibility contracts/operations/adapters |
 | `PDT-003` | Draft | Web/mobile settings adapters over Project Data semantics |
 | `PDT-004` | Draft | Recorded reset authorization, classification fixtures, and manual-only procedure |
