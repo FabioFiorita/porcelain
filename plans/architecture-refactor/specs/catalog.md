@@ -84,7 +84,7 @@ an external choice or authorization.
 | `TRM-002` | Landed | PTY capability, lifecycle operations, environment policy, and stream gateway |
 | `TRM-003` | Landed | Transport-neutral attach/correlation/recovery/scrollback state machine |
 | `TRM-004` | Landed | Web socket/Ghostty adapter adopts shared stream semantics |
-| `TRM-005` | Draft | Mobile native adapter adopts shared stream semantics |
+| `TRM-005` | Ready | Mobile native adapter adopts shared stream semantics |
 
 ## Batch 3 — remaining domain cutovers
 
