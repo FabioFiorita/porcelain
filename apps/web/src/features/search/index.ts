@@ -24,10 +24,12 @@ export {
   invalidateAllSearchQueries,
   invalidateSearchEffects,
   invalidateSearchProjectQueries,
+  searchQueryMatchesEffect,
+} from './search-query-filter'
+export {
   isSearchQueryKey,
   parseSearchQueryKey,
   searchQueryKey,
-  searchQueryMatchesEffect,
-} from './search-query-filter'
+} from './search-query-key'
 export { SearchQuickAccess } from './search-quick-access'
 export { useSearchStore } from './search-store'
