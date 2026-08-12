@@ -7,14 +7,13 @@ import { callTRPCProcedure } from '@trpc/server'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { normalizePublicError } from '../daemon-composition/public-error'
 
-// settings.ts hosts one Git, two Review, one Files, and six Project Data procedures. This suite owns
+// settings.ts hosts two Review, one Files, and six Project Data procedures. This suite owns
 // their tRPC contract seam only: which raw wire input each router procedure accepts and which
 // handler result it will serialize. The layers, notes, and scope stores run for real against a
 // temporary project directory created per run. Everything that would touch the machine's Git index,
-// PATH, companion home, or a filesystem watcher is a test-owned seam, so nothing here shells out to
+// companion home, or a filesystem watcher is a test-owned seam, so nothing here shells out to
 // Git or reads the human's companion data.
-const { commitGeneration, companion, dispositions, gitExclude, watch } = vi.hoisted(() => ({
-  commitGeneration: { listCommitModels: vi.fn() },
+const { companion, dispositions, gitExclude, watch } = vi.hoisted(() => ({
   companion: { ensureProjectCompanion: vi.fn(async () => undefined) },
   dispositions: {
     readChannelDispositions: vi.fn(),
@@ -29,7 +28,6 @@ const { commitGeneration, companion, dispositions, gitExclude, watch } = vi.hois
   watch: { watchProjectCompanion: vi.fn(() => undefined) },
 }))
 
-vi.mock('../git/commit-generation', () => commitGeneration)
 vi.mock('../project/companion-disposition', () => dispositions)
 vi.mock('../project/git-exclude', () => gitExclude)
 vi.mock('../project/migrate-home', () => companion)
@@ -45,7 +43,6 @@ const settingsRouter = createSettingsRouter()
 const REQUEST_ID = '00000000-0000-4000-8000-000000000019'
 const PUBLIC_CONTEXT = { auth: { kind: 'admin' }, requestId: REQUEST_ID } as const
 
-const COMMIT_MODEL = { id: 'luna', label: 'Luna', provider: 'claude' } as const
 const CHANNEL = {
   key: 'synthetic-channel',
   label: 'Synthetic channel',
@@ -100,7 +97,6 @@ afterAll(async () => {
 })
 
 beforeEach(() => {
-  commitGeneration.listCommitModels.mockResolvedValue([COMMIT_MODEL])
   dispositions.readChannelDispositions.mockResolvedValue([CHANNEL])
   dispositions.readCompanionGitVisibility.mockResolvedValue({ hidden: true })
   dispositions.setChannelDisposition.mockResolvedValue({ untracked: [], revealed: false })
@@ -114,13 +110,6 @@ afterEach(() => {
 })
 
 describe('settings router contract input', () => {
-  it('rejects supplied input on the void commit-model query without listing models', async () => {
-    const error = await rejected(() => callWithRawInput('commitModels', 'query', { refresh: true }))
-
-    expectPublicCode(error, 'request.invalid', false)
-    expect(commitGeneration.listCommitModels).not.toHaveBeenCalled()
-  })
-
   it('rejects an object where a bare repository-path query is contracted', async () => {
     for (const path of [
       'repoLayers',
@@ -242,10 +231,6 @@ describe('settings router contract input', () => {
 })
 
 describe('settings router contract output', () => {
-  it('serializes the discovered commit models', async () => {
-    expect(await caller().commitModels()).toEqual([COMMIT_MODEL])
-  })
-
   it('serializes the starter layers as non-custom and a stored override as custom', async () => {
     expect(await caller().repoLayers(repo)).toEqual({ layers: DEFAULT_LAYERS, custom: false })
 
@@ -303,14 +288,6 @@ describe('settings router contract output', () => {
       }),
     ).toEqual({ untracked: ['.porcelain/synthetic.json'], revealed: true })
     expect(dispositions.setChannelDisposition).toHaveBeenCalledWith(repo, CHANNEL.key, 'local')
-  })
-
-  it('refuses to serialize a commit model whose provider violates the contract', async () => {
-    commitGeneration.listCommitModels.mockResolvedValueOnce([
-      { id: 'luna', label: 'Luna', provider: 'unknown-provider' },
-    ])
-
-    expectPublicCode(await rejected(() => caller().commitModels()), 'internal.unexpected', true)
   })
 
   it('refuses to serialize a channel whose disposition violates the contract', async () => {

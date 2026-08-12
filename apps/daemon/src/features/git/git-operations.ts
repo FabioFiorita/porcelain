@@ -1,8 +1,11 @@
 import { join } from 'node:path'
+import type { CommitModelOption } from '@porcelain/contracts'
 import type {
   BranchRef,
   ChangedFile,
   CommitConventions,
+  DiffReadingInput,
+  DiffReadingOutput,
   GitAddWorktreeInput,
   GitCheckoutInput,
   GitCommitInput,
@@ -22,9 +25,13 @@ import type {
   Worktree,
 } from '@porcelain/contracts/git'
 import { parseConventions } from '../../git/conventions'
+import type { DiffHunk } from '../../git/diff'
+import { buildDiffReading } from '../../review/feature-view'
+import type { FlowGroup } from '../../review/flow'
 import type {
   CommitGeneration,
   GitChanges,
+  GitDiffReadingSources,
   GitProjectResult,
   GitWorkspacePort,
   GitWorkspaceResult,
@@ -62,6 +69,8 @@ export type GitOperations = Readonly<{
   branchesGit(repoPath: string): Promise<GitProjectResult<BranchRef[]>>
   createBranchGit(input: GitCreateBranchInput): Promise<void>
   worktreesGit(repoPath: string): Promise<GitProjectResult<Worktree[]>>
+  commitModelsGit(): Promise<CommitModelOption[]>
+  diffReadingGit(input: DiffReadingInput): Promise<DiffReadingOutput>
 }>
 
 export type GitOperationDependencies = Readonly<{
@@ -72,6 +81,7 @@ export type GitOperationDependencies = Readonly<{
   reviewMarks: ReviewMarks
   workingTreeCache: WorkingTreeCache
   changes: GitChanges
+  diffReadingSources: GitDiffReadingSources
 }>
 
 export function createGitOperations(dependencies: GitOperationDependencies): GitOperations {
@@ -83,6 +93,7 @@ export function createGitOperations(dependencies: GitOperationDependencies): Git
     reviewMarks,
     workingTreeCache,
     changes,
+    diffReadingSources,
   } = dependencies
 
   function changed(repoPath: string): void {
@@ -170,5 +181,43 @@ export function createGitOperations(dependencies: GitOperationDependencies): Git
       projectGit.createBranch(input.repoPath, input.branch),
 
     worktreesGit: (repoPath: string) => projectGit.worktrees(repoPath),
+
+    commitModelsGit: () => commitGeneration.listModels(),
+
+    async diffReadingGit(input: DiffReadingInput): Promise<DiffReadingOutput> {
+      const { repoPath, scope } = input
+      let groups: FlowGroup[]
+      let name: string
+      let fetchHunks: (path: string) => Promise<DiffHunk[]>
+
+      if (scope.type === 'working') {
+        groups = await diffReadingSources.loadWorkingFlow(repoPath)
+        name = 'Changes'
+        fetchHunks = (path: string) => diffReadingSources.workingHunks(repoPath, path)
+      } else if (scope.type === 'branch') {
+        const range = await diffReadingSources.loadRangeFlow(repoPath)
+        groups = range.groups
+        name = `vs ${range.base}`
+        fetchHunks = (path: string) => diffReadingSources.rangeHunks(repoPath, range.base, path)
+      } else {
+        groups = await diffReadingSources.loadCommitFlow(repoPath, scope.hash)
+        const message = await diffReadingSources.commitMessage(repoPath, scope.hash)
+        name = message.split('\n')[0]?.trim() || scope.hash.slice(0, 12)
+        fetchHunks = (path: string) => diffReadingSources.commitHunks(repoPath, scope.hash, path)
+      }
+
+      const files = groups.flatMap((group) => group.files)
+      const diffs = new Map<string, DiffHunk[]>()
+      await Promise.all(
+        files.map(async (file) => {
+          try {
+            diffs.set(file.path, await fetchHunks(file.path))
+          } catch {
+            // vanished/renamed between the flow snapshot and this read — empty hunks
+          }
+        }),
+      )
+      return buildDiffReading({ name, groups, diffs })
+    },
   })
 }

@@ -1,6 +1,7 @@
 export {
   createCommitGeneration,
   createGitChangesPublisher,
+  createGitDiffReadingSources,
   createProjectGit,
   createReviewMarks,
   createWorkingTreeCache,
@@ -14,6 +15,7 @@ export {
 export type {
   CommitGeneration,
   GitChanges,
+  GitDiffReadingSources,
   GitProjectError,
   GitProjectResult,
   GitWorkspaceError,

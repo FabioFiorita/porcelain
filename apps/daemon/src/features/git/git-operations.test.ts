@@ -2,6 +2,7 @@
 import type {
   BranchRef,
   ChangedFile,
+  DiffReadingInput,
   GitAddWorktreeInput,
   GitCheckoutInput,
   GitGenerateCommitGroupsOutput,
@@ -11,10 +12,13 @@ import type {
   Worktree,
 } from '@porcelain/contracts/git'
 import { describe, expect, it, vi } from 'vitest'
+import type { DiffHunk } from '../../git/diff'
+import type { FlowGroup } from '../../review/flow'
 import { createGitOperations, type GitOperationDependencies } from './git-operations'
 import type {
   CommitGeneration,
   GitChanges,
+  GitDiffReadingSources,
   GitProjectError,
   GitProjectResult,
   GitWorkspaceError,
@@ -82,6 +86,34 @@ function projectGit(overrides: Partial<ProjectGit> = {}): ProjectGit {
   }
 }
 
+const FLOW_GROUPS: FlowGroup[] = [
+  {
+    layer: 'source',
+    files: [
+      { path: 'src/alpha.ts', status: 'modified', additions: 3, deletions: 1, connects: [] },
+      { path: 'src/beta.ts', status: 'modified', additions: 1, deletions: 0, connects: [] },
+    ],
+  },
+]
+
+const SAMPLE_HUNK: DiffHunk = {
+  header: '@@ -1,1 +1,2 @@',
+  lines: [{ kind: 'add', oldLine: null, newLine: 2, text: '+added' }],
+}
+
+function diffReadingSources(overrides: Partial<GitDiffReadingSources> = {}): GitDiffReadingSources {
+  return {
+    loadWorkingFlow: vi.fn(async () => FLOW_GROUPS),
+    loadRangeFlow: vi.fn(async () => ({ groups: FLOW_GROUPS, base: 'main' })),
+    loadCommitFlow: vi.fn(async () => FLOW_GROUPS),
+    workingHunks: vi.fn(async () => [SAMPLE_HUNK]),
+    rangeHunks: vi.fn(async () => [SAMPLE_HUNK]),
+    commitHunks: vi.fn(async () => [SAMPLE_HUNK]),
+    commitMessage: vi.fn(async () => 'feat(git): land\n\nbody'),
+    ...overrides,
+  }
+}
+
 function dependencies(
   overrides: {
     workspace?: GitWorkspacePort
@@ -91,6 +123,7 @@ function dependencies(
     reviewMarks?: ReviewMarks
     workingTreeCache?: WorkingTreeCache
     changes?: GitChanges
+    diffReadingSources?: GitDiffReadingSources
   } = {},
 ): GitOperationDependencies {
   return {
@@ -101,6 +134,7 @@ function dependencies(
       ({
         generateMessage: vi.fn(async (_input: GitGenerateCommitMessageInput) => 'generated'),
         generateGroups: vi.fn(async (): Promise<GitGenerateCommitGroupsOutput['groups']> => []),
+        listModels: vi.fn(async () => [{ id: 'luna', label: 'Luna', provider: 'claude' }]),
       } satisfies CommitGeneration),
     workspaceTrash:
       overrides.workspaceTrash ??
@@ -122,6 +156,7 @@ function dependencies(
       ({
         publishWorkingTreeChanged: vi.fn(() => undefined),
       } satisfies GitChanges),
+    diffReadingSources: overrides.diffReadingSources ?? diffReadingSources(),
   }
 }
 
@@ -295,5 +330,135 @@ describe('Git operations', () => {
       pullMode: 'merge',
     })
     expect(changes.publishWorkingTreeChanged).toHaveBeenCalledWith(REPO)
+  })
+
+  it('delegates commitModelsGit to listModels once', async () => {
+    const models = [{ id: 'sonnet', label: 'Sonnet', provider: 'claude' as const }]
+    const listModels = vi.fn(async () => models)
+    const operations = createGitOperations(
+      dependencies({
+        commitGeneration: {
+          generateMessage: vi.fn(async () => 'generated'),
+          generateGroups: vi.fn(async () => []),
+          listModels,
+        },
+      }),
+    )
+
+    await expect(operations.commitModelsGit()).resolves.toEqual(models)
+    expect(listModels).toHaveBeenCalledTimes(1)
+  })
+
+  it('builds a working-scope diff reading with Changes title and parallel hunks', async () => {
+    const sources = diffReadingSources()
+    const operations = createGitOperations(dependencies({ diffReadingSources: sources }))
+    const input: DiffReadingInput = { repoPath: REPO, scope: { type: 'working' } }
+
+    await expect(operations.diffReadingGit(input)).resolves.toEqual({
+      name: 'Changes',
+      sections: [],
+      evidence: null,
+      groups: [
+        {
+          layer: 'source',
+          files: [
+            {
+              path: 'src/alpha.ts',
+              source: 'changed',
+              status: 'modified',
+              additions: 3,
+              deletions: 1,
+              hunks: [SAMPLE_HUNK],
+            },
+            {
+              path: 'src/beta.ts',
+              source: 'changed',
+              status: 'modified',
+              additions: 1,
+              deletions: 0,
+              hunks: [SAMPLE_HUNK],
+            },
+          ],
+        },
+      ],
+    })
+    expect(sources.loadWorkingFlow).toHaveBeenCalledWith(REPO)
+    expect(sources.workingHunks).toHaveBeenCalledWith(REPO, 'src/alpha.ts')
+    expect(sources.workingHunks).toHaveBeenCalledWith(REPO, 'src/beta.ts')
+    expect(sources.loadRangeFlow).not.toHaveBeenCalled()
+    expect(sources.loadCommitFlow).not.toHaveBeenCalled()
+  })
+
+  it('titles a branch-scope reading vs the range base', async () => {
+    const sources = diffReadingSources()
+    const operations = createGitOperations(dependencies({ diffReadingSources: sources }))
+
+    await expect(
+      operations.diffReadingGit({ repoPath: REPO, scope: { type: 'branch' } }),
+    ).resolves.toMatchObject({ name: 'vs main' })
+    expect(sources.loadRangeFlow).toHaveBeenCalledWith(REPO)
+    expect(sources.rangeHunks).toHaveBeenCalledWith(REPO, 'main', 'src/alpha.ts')
+  })
+
+  it('titles a commit-scope reading from the first message line or short hash', async () => {
+    const withMessage = diffReadingSources({
+      commitMessage: vi.fn(async () => 'fix(auth): lock session\n\ndetail'),
+    })
+    const operations = createGitOperations(dependencies({ diffReadingSources: withMessage }))
+    const hash = 'abcdef1234567890'
+
+    await expect(
+      operations.diffReadingGit({ repoPath: REPO, scope: { type: 'commit', hash } }),
+    ).resolves.toMatchObject({ name: 'fix(auth): lock session' })
+    expect(withMessage.loadCommitFlow).toHaveBeenCalledWith(REPO, hash)
+    expect(withMessage.commitHunks).toHaveBeenCalledWith(REPO, hash, 'src/alpha.ts')
+
+    const emptyMessage = diffReadingSources({
+      commitMessage: vi.fn(async () => '   \n'),
+    })
+    await expect(
+      createGitOperations(dependencies({ diffReadingSources: emptyMessage })).diffReadingGit({
+        repoPath: REPO,
+        scope: { type: 'commit', hash },
+      }),
+    ).resolves.toMatchObject({ name: hash.slice(0, 12) })
+  })
+
+  it('recovers vanished-file hunks as empty without failing the reading', async () => {
+    const sources = diffReadingSources({
+      workingHunks: vi.fn(async (_repoPath, path) => {
+        if (path === 'src/beta.ts') throw new Error('path vanished')
+        return [SAMPLE_HUNK]
+      }),
+    })
+    const operations = createGitOperations(dependencies({ diffReadingSources: sources }))
+    const reading = await operations.diffReadingGit({
+      repoPath: REPO,
+      scope: { type: 'working' },
+    })
+
+    expect(reading.groups[0]?.files[0]?.hunks).toEqual([SAMPLE_HUNK])
+    expect(reading.groups[0]?.files[1]?.hunks).toEqual([])
+  })
+
+  it('does not call hunk helpers when flow load fails and never publishes', async () => {
+    const error = new Error('flow load failed')
+    const sources = diffReadingSources({
+      loadWorkingFlow: vi.fn(async () => {
+        throw error
+      }),
+    })
+    const changes = { publishWorkingTreeChanged: vi.fn(() => undefined) }
+    const cache = { clear: vi.fn(() => undefined) }
+    const operations = createGitOperations(
+      dependencies({ diffReadingSources: sources, changes, workingTreeCache: cache }),
+    )
+
+    await expect(
+      operations.diffReadingGit({ repoPath: REPO, scope: { type: 'working' } }),
+    ).rejects.toBe(error)
+    expect(sources.workingHunks).not.toHaveBeenCalled()
+    expect(cache.clear).not.toHaveBeenCalled()
+    expect(changes.publishWorkingTreeChanged).not.toHaveBeenCalled()
   })
 })

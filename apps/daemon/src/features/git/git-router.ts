@@ -148,5 +148,15 @@ export function createGitFeatureRouter(operations: GitOperations) {
       .input(procedureCatalog.gitWorktrees.input)
       .output(procedureCatalog.gitWorktrees.output)
       .query(async ({ input }) => throwIfProjectReadFailed(await operations.worktreesGit(input))),
+
+    diffReading: publicProcedure
+      .input(procedureCatalog.diffReading.input)
+      .output(procedureCatalog.diffReading.output)
+      .query(({ input }) => operations.diffReadingGit(input)),
+
+    commitModels: publicProcedure
+      .input(procedureCatalog.commitModels.input)
+      .output(procedureCatalog.commitModels.output)
+      .query(() => operations.commitModelsGit()),
   })
 }

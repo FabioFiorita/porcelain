@@ -1,3 +1,4 @@
+import type { CommitModelOption } from '@porcelain/contracts'
 import type {
   BranchRef,
   ChangedFile,
@@ -10,6 +11,8 @@ import type {
   GitSuggestion,
   Worktree,
 } from '@porcelain/contracts/git'
+import type { DiffHunk } from '../../git/diff'
+import type { FlowGroup } from '../../review/flow'
 
 export type GitWorkspaceError =
   | { code: 'git.not-a-repository' }
@@ -60,6 +63,18 @@ export type CommitGeneration = Readonly<{
   generateGroups(
     input: GitGenerateCommitGroupsInput,
   ): Promise<GitGenerateCommitGroupsOutput['groups']>
+  listModels(): Promise<CommitModelOption[]>
+}>
+
+/** Flow loaders + per-file hunk helpers for continuous stacked-diff reading. */
+export type GitDiffReadingSources = Readonly<{
+  loadWorkingFlow(repoPath: string): Promise<FlowGroup[]>
+  loadRangeFlow(repoPath: string): Promise<{ groups: FlowGroup[]; base: string }>
+  loadCommitFlow(repoPath: string, hash: string): Promise<FlowGroup[]>
+  workingHunks(repoPath: string, path: string): Promise<DiffHunk[]>
+  rangeHunks(repoPath: string, base: string, path: string): Promise<DiffHunk[]>
+  commitHunks(repoPath: string, hash: string, path: string): Promise<DiffHunk[]>
+  commitMessage(repoPath: string, hash: string): Promise<string>
 }>
 
 export type WorkspaceTrash = Readonly<{

@@ -31,6 +31,25 @@ function expectPublicCode(error: unknown, code: string, unexpected = false): voi
   })
 }
 
+const DIFF_READING = {
+  name: 'Changes',
+  sections: [] as [],
+  evidence: null,
+  groups: [] as {
+    layer: string
+    files: {
+      path: string
+      source: 'changed'
+      status: 'modified'
+      additions: number
+      deletions: number
+      hunks: never[]
+    }[]
+  }[],
+}
+
+const COMMIT_MODELS = [{ id: 'luna', label: 'Luna', provider: 'claude' as const }]
+
 function operations(overrides: Partial<GitOperations> = {}): GitOperations {
   return {
     checkoutGit: vi.fn(async () => ({ ok: true, value: undefined })),
@@ -55,6 +74,8 @@ function operations(overrides: Partial<GitOperations> = {}): GitOperations {
     branchesGit: vi.fn(async (): Promise<GitProjectResult<never[]>> => ({ ok: true, value: [] })),
     createBranchGit: vi.fn(async () => undefined),
     worktreesGit: vi.fn(async (): Promise<GitProjectResult<never[]>> => ({ ok: true, value: [] })),
+    commitModelsGit: vi.fn(async () => COMMIT_MODELS),
+    diffReadingGit: vi.fn(async () => DIFF_READING),
     ...overrides,
   }
 }
@@ -121,6 +142,10 @@ describe('Git feature router', () => {
       caller.gitCreateBranch({ repoPath: REPO, branch: 'feature/new' }),
     ).resolves.toBeUndefined()
     await expect(caller.gitWorktrees(REPO)).resolves.toEqual([])
+    await expect(caller.commitModels()).resolves.toEqual(COMMIT_MODELS)
+    await expect(
+      caller.diffReading({ repoPath: REPO, scope: { type: 'working' } }),
+    ).resolves.toEqual(DIFF_READING)
 
     expect(bound.quickCommandGit).toHaveBeenCalled()
     expect(bound.pushGit).toHaveBeenCalled()
@@ -139,6 +164,12 @@ describe('Git feature router', () => {
     expect(bound.branchesGit).toHaveBeenCalled()
     expect(bound.createBranchGit).toHaveBeenCalled()
     expect(bound.worktreesGit).toHaveBeenCalled()
+    expect(bound.commitModelsGit).toHaveBeenCalledTimes(1)
+    expect(bound.diffReadingGit).toHaveBeenCalledTimes(1)
+    expect(bound.diffReadingGit).toHaveBeenCalledWith({
+      repoPath: REPO,
+      scope: { type: 'working' },
+    })
   })
 
   it('maps every declared workspace failure to its public error', async () => {
@@ -219,6 +250,87 @@ describe('Git feature router', () => {
     expectPublicCode(error, 'internal.unexpected', true)
     expect(JSON.stringify(normalizePublicError(error, REQUEST_ID).error)).not.toContain(
       '/home/user/private',
+    )
+  })
+
+  it('returns contract-shaped success for diffReading and commitModels', async () => {
+    const diffReadingGit = vi.fn(async () => DIFF_READING)
+    const commitModelsGit = vi.fn(async () => COMMIT_MODELS)
+    const caller = createGitFeatureRouter(
+      operations({ diffReadingGit, commitModelsGit }),
+    ).createCaller(PUBLIC_CONTEXT)
+
+    await expect(
+      caller.diffReading({ repoPath: REPO, scope: { type: 'branch' } }),
+    ).resolves.toEqual(DIFF_READING)
+    await expect(caller.commitModels()).resolves.toEqual(COMMIT_MODELS)
+    expect(diffReadingGit).toHaveBeenCalledTimes(1)
+    expect(diffReadingGit).toHaveBeenCalledWith({ repoPath: REPO, scope: { type: 'branch' } })
+    expect(commitModelsGit).toHaveBeenCalledTimes(1)
+  })
+
+  it('rejects invalid diffReading and commitModels input before the operation', async () => {
+    const diffReadingGit = vi.fn(async () => DIFF_READING)
+    const commitModelsGit = vi.fn(async () => COMMIT_MODELS)
+    const router = createGitFeatureRouter(operations({ diffReadingGit, commitModelsGit }))
+
+    expectPublicCode(
+      await rejected(() =>
+        callTRPCProcedure({
+          router,
+          path: 'diffReading',
+          type: 'query',
+          ctx: PUBLIC_CONTEXT,
+          getRawInput: async () => ({ repoPath: REPO, scope: { type: 'staged' } }),
+          signal: undefined,
+          batchIndex: 0,
+        }),
+      ),
+      'request.invalid',
+    )
+    expectPublicCode(
+      await rejected(() =>
+        callTRPCProcedure({
+          router,
+          path: 'commitModels',
+          type: 'query',
+          ctx: PUBLIC_CONTEXT,
+          getRawInput: async () => ({ refresh: true }),
+          signal: undefined,
+          batchIndex: 0,
+        }),
+      ),
+      'request.invalid',
+    )
+    expect(diffReadingGit).not.toHaveBeenCalled()
+    expect(commitModelsGit).not.toHaveBeenCalled()
+  })
+
+  it('redacts unexpected errors from the moved Git reading procedures', async () => {
+    const router = createGitFeatureRouter(
+      operations({
+        diffReadingGit: async () => {
+          throw new Error('secret native path /tmp/private-diff')
+        },
+        commitModelsGit: async () => {
+          throw new Error('secret model inventory /home/user/.config')
+        },
+      }),
+    )
+    const caller = router.createCaller(PUBLIC_CONTEXT)
+
+    const diffError = await rejected(() =>
+      caller.diffReading({ repoPath: REPO, scope: { type: 'working' } }),
+    )
+    expectPublicCode(diffError, 'internal.unexpected', true)
+    expect(JSON.stringify(normalizePublicError(diffError, REQUEST_ID).error)).not.toContain(
+      '/tmp/private-diff',
+    )
+
+    const modelsError = await rejected(() => caller.commitModels())
+    expectPublicCode(modelsError, 'internal.unexpected', true)
+    expect(JSON.stringify(normalizePublicError(modelsError, REQUEST_ID).error)).not.toContain(
+      '/home/user/.config',
     )
   })
 })

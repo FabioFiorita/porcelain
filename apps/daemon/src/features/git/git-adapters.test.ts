@@ -5,8 +5,14 @@ import { join } from 'node:path'
 import type { GitQuickCommandInput } from '@porcelain/contracts/git'
 import { describe, expect, it } from 'vitest'
 import { gitEnv } from '../../git/git-env'
+import * as flowBuild from '../../review/flow-build'
 import { withTemporaryDirectory } from '../../testing/temporary-directory'
-import { createGitChangesPublisher, createProjectGit } from './git-adapters'
+import {
+  createCommitGeneration,
+  createGitChangesPublisher,
+  createGitDiffReadingSources,
+  createProjectGit,
+} from './git-adapters'
 
 const GIT_ENV = {
   GIT_AUTHOR_EMAIL: 'test@porcelain.test',
@@ -91,5 +97,49 @@ describe('ProjectGit adapter', () => {
     publisher.publishWorkingTreeChanged('/synthetic/repo')
 
     expect(changes).toEqual([{ kind: 'git.working-tree-changed', projectPath: '/synthetic/repo' }])
+  })
+})
+
+describe('CommitGeneration and GitDiffReadingSources adapters', () => {
+  it('lists commit models through the commit-generation capability', async () => {
+    const generation = createCommitGeneration()
+    expect(Object.isFrozen(generation)).toBe(true)
+
+    const models = await generation.listModels()
+    expect(Array.isArray(models)).toBe(true)
+    for (const model of models) {
+      expect(model).toEqual(
+        expect.objectContaining({
+          id: expect.any(String),
+          label: expect.any(String),
+          provider: expect.stringMatching(/^(claude|codex|grok|opencode)$/),
+        }),
+      )
+    }
+  })
+
+  it('binds flow loaders and Git hunk helpers on the diff-reading capability', async () => {
+    const sources = createGitDiffReadingSources()
+    expect(Object.isFrozen(sources)).toBe(true)
+    expect(sources.loadWorkingFlow).toBe(flowBuild.loadWorkingFlow)
+    expect(sources.loadRangeFlow).toBe(flowBuild.loadRangeFlow)
+    expect(sources.loadCommitFlow).toBe(flowBuild.loadCommitFlow)
+    expect(typeof sources.workingHunks).toBe('function')
+    expect(typeof sources.rangeHunks).toBe('function')
+    expect(typeof sources.commitHunks).toBe('function')
+    expect(typeof sources.commitMessage).toBe('function')
+
+    await withTemporaryDirectory('porcelain-git-diff-sources-', async (root) => {
+      const repo = await makeRepo(root)
+      await writeFile(join(repo, 'tracked.ts'), 'export const value = 2\n')
+      const groups = await sources.loadWorkingFlow(repo)
+      expect(groups.some((group) => group.files.some((file) => file.path === 'tracked.ts'))).toBe(
+        true,
+      )
+      const hunks = await sources.workingHunks(repo, 'tracked.ts')
+      expect(Array.isArray(hunks)).toBe(true)
+      const message = await sources.commitMessage(repo, 'HEAD')
+      expect(message).toContain('root')
+    })
   })
 })

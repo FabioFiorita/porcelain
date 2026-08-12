@@ -4,6 +4,7 @@ import { createFilesOperations, type FilesOperations } from '../features/files'
 import {
   createCommitGeneration,
   createGitChangesPublisher,
+  createGitDiffReadingSources,
   createGitOperations,
   createGitSubprocess,
   createProjectGit,
@@ -61,6 +62,7 @@ export function createDaemonOperations(options: {
       reviewMarks: createReviewMarks(),
       workingTreeCache: createWorkingTreeCache(),
       changes: createGitChangesPublisher(publish),
+      diffReadingSources: createGitDiffReadingSources(),
     }),
     search: createSearchOperations({
       git: {

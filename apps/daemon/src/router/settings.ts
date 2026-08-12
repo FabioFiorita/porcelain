@@ -1,5 +1,4 @@
 import { procedureCatalog } from '@porcelain/contracts'
-import { listCommitModels } from '../git/commit-generation'
 import {
   type ChannelDisposition,
   readChannelDispositions,
@@ -16,11 +15,6 @@ import { publicProcedure, t } from '../trpc'
 
 export function createSettingsRouter() {
   return t.router({
-    commitModels: publicProcedure
-      .input(procedureCatalog.commitModels.input)
-      .output(procedureCatalog.commitModels.output)
-      .query(() => listCommitModels()),
-
     repoLayers: publicProcedure
       .input(procedureCatalog.repoLayers.input)
       .output(procedureCatalog.repoLayers.output)

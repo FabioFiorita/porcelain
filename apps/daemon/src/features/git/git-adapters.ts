@@ -11,17 +11,25 @@ import type {
 } from '@porcelain/contracts/git'
 import type { SessionChange } from '@porcelain/contracts/session'
 import { moveToTrash } from '../../fs/move-to-trash'
-import { generateCommitGroups, generateCommitMessage } from '../../git/commit-generation'
+import {
+  generateCommitGroups,
+  generateCommitMessage,
+  listCommitModels,
+} from '../../git/commit-generation'
 import {
   gitBranches,
   gitCommit,
+  gitCommitDiff,
   gitCommitFiles,
+  gitCommitMessage,
   gitCreateBranch,
+  gitDiffFile,
   gitFileInHead,
   gitHead,
   gitLog,
   gitPush,
   gitQuickCommand,
+  gitRangeDiffFile,
   gitResetPath,
   gitRestoreFromHead,
   gitStageAll,
@@ -33,10 +41,12 @@ import {
   gitWorktrees,
 } from '../../git/git'
 import { clearWorkingTreeSnapshot } from '../../git/working-tree'
+import { loadCommitFlow, loadRangeFlow, loadWorkingFlow } from '../../review/flow-build'
 import { clearReviewedPaths } from '../../stores/reviewed-store'
 import type {
   CommitGeneration,
   GitChanges,
+  GitDiffReadingSources,
   GitProjectResult,
   ProjectGit,
   ReviewMarks,
@@ -101,6 +111,21 @@ export function createCommitGeneration(): CommitGeneration {
       input: GitGenerateCommitGroupsInput,
     ): Promise<GitGenerateCommitGroupsOutput['groups']> =>
       generateCommitGroups(input.repoPath, input.model),
+    listModels: () => listCommitModels(),
+  })
+}
+
+export function createGitDiffReadingSources(): GitDiffReadingSources {
+  return Object.freeze({
+    loadWorkingFlow,
+    loadRangeFlow,
+    loadCommitFlow,
+    workingHunks: (repoPath: string, path: string) =>
+      gitDiffFile(repoPath, path).then((result) => result.hunks),
+    rangeHunks: (repoPath: string, base: string, path: string) =>
+      gitRangeDiffFile(repoPath, base, path).then((result) => result.hunks),
+    commitHunks: gitCommitDiff,
+    commitMessage: gitCommitMessage,
   })
 }
 

@@ -3,15 +3,7 @@ import { join } from 'node:path'
 import { procedureCatalog } from '@porcelain/contracts'
 import { projectEvidenceAssetsDir as evidenceAssetsDir } from '@shared/project-porcelain'
 import type { DiffHunk } from '../git/diff'
-import {
-  gitCommitDiff,
-  gitCommitMessage,
-  gitDiffFile,
-  gitListFiles,
-  gitRangeDiffFile,
-  reviewedFingerprint,
-  reviewedFingerprints,
-} from '../git/git'
+import { gitDiffFile, gitListFiles, reviewedFingerprint, reviewedFingerprints } from '../git/git'
 import { type ReviewDoc, readActiveEvidenceResults, readActiveIntentDocs } from '../review/doc-set'
 import {
   type EvidenceAsset,
@@ -26,15 +18,8 @@ import {
   storeFeatureReading,
 } from '../review/feature-build'
 import { buildExploreReading, walkExplore } from '../review/feature-explore'
-import {
-  buildDiffReading,
-  buildFeatureReading,
-  type DiffReading,
-  type FeatureReading,
-  type FeatureView,
-} from '../review/feature-view'
-import { DEFAULT_LAYERS, type FlowGroup } from '../review/flow'
-import { loadCommitFlow, loadRangeFlow, loadWorkingFlow } from '../review/flow-build'
+import { buildFeatureReading, type FeatureReading, type FeatureView } from '../review/feature-view'
+import { DEFAULT_LAYERS } from '../review/flow'
 
 import {
   clearEvidence,
@@ -113,51 +98,6 @@ export function createReviewRouter() {
           input.repoPath,
           Array.from(fingerprints, ([path, fingerprint]) => ({ path, fingerprint })),
         )
-      }),
-
-    // Continuous stacked-diff reading surface for Changes (working/branch) and
-    // History (a single commit). Same flow order as the lists; every file carries
-    // its full diff so the viewer can scroll the whole change as one document.
-    diffReading: publicProcedure
-      .input(procedureCatalog.diffReading.input)
-      .output(procedureCatalog.diffReading.output)
-      .query(async ({ input }): Promise<DiffReading> => {
-        const { repoPath, scope } = input
-        let groups: FlowGroup[]
-        let name: string
-        let fetchHunks: (path: string) => Promise<DiffHunk[]>
-
-        if (scope.type === 'working') {
-          groups = await loadWorkingFlow(repoPath)
-          name = 'Changes'
-          fetchHunks = async (path: string): Promise<DiffHunk[]> =>
-            (await gitDiffFile(repoPath, path)).hunks
-        } else if (scope.type === 'branch') {
-          const range = await loadRangeFlow(repoPath)
-          groups = range.groups
-          name = `vs ${range.base}`
-          fetchHunks = async (path: string): Promise<DiffHunk[]> =>
-            (await gitRangeDiffFile(repoPath, range.base, path)).hunks
-        } else {
-          groups = await loadCommitFlow(repoPath, scope.hash)
-          const message = await gitCommitMessage(repoPath, scope.hash)
-          name = message.split('\n')[0]?.trim() || scope.hash.slice(0, 12)
-          fetchHunks = (path: string): Promise<DiffHunk[]> =>
-            gitCommitDiff(repoPath, scope.hash, path)
-        }
-
-        const files = groups.flatMap((group) => group.files)
-        const diffs = new Map<string, DiffHunk[]>()
-        await Promise.all(
-          files.map(async (file) => {
-            try {
-              diffs.set(file.path, await fetchHunks(file.path))
-            } catch {
-              // vanished/renamed between the flow snapshot and this read — empty hunks
-            }
-          }),
-        )
-        return buildDiffReading({ name, groups, diffs })
       }),
 
     // The feature view (the Review's Execution outline): exactly the files the agent

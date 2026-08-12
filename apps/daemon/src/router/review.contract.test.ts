@@ -15,7 +15,6 @@ const {
   assets,
   featureBuild,
   explore,
-  flow,
   commentOps,
   evidence,
   layers,
@@ -42,22 +41,11 @@ const {
       },
     ],
   }
-  const flowGroups = [
-    {
-      layer: 'source',
-      files: [
-        { path: 'src/alpha.ts', status: 'modified', additions: 3, deletions: 1, connects: [] },
-      ],
-    },
-  ]
   return {
     git: {
       reviewedFingerprint: vi.fn(async () => 'fp-alpha'),
       reviewedFingerprints: vi.fn(async () => new Map([['src/alpha.ts', 'fp-alpha']])),
       gitDiffFile: vi.fn(async () => ({ hunks: [], status: 'modified' })),
-      gitRangeDiffFile: vi.fn(async () => ({ hunks: [], status: 'modified' })),
-      gitCommitDiff: vi.fn(async () => []),
-      gitCommitMessage: vi.fn(async () => 'feat(review): land\n\nbody'),
       gitListFiles: vi.fn(async () => ['src/alpha.ts']),
     },
     docSet: {
@@ -99,11 +87,6 @@ const {
         groups: [],
         evidence: null,
       })),
-    },
-    flow: {
-      loadWorkingFlow: vi.fn(async () => flowGroups),
-      loadRangeFlow: vi.fn(async () => ({ groups: flowGroups, base: 'main' })),
-      loadCommitFlow: vi.fn(async () => flowGroups),
     },
     commentOps: {
       listReviewComments: vi.fn(async () => ({
@@ -190,7 +173,6 @@ vi.mock('../review/doc-set', () => docSet)
 vi.mock('../review/evidence-assets-list', () => assets)
 vi.mock('../review/feature-build', () => featureBuild)
 vi.mock('../review/feature-explore', () => explore)
-vi.mock('../review/flow-build', () => flow)
 vi.mock('../stores/evidence-store', () => evidence)
 vi.mock('../stores/layers-store', () => layers)
 vi.mock('../stores/review-store', () => reviews)
@@ -324,25 +306,6 @@ describe('review router contract input', () => {
     expect(assets.readEvidenceAsset).not.toHaveBeenCalled()
   })
 
-  it('rejects an unknown diff-reading scope and a commit scope without a hash', async () => {
-    expectPublicCode(
-      await rejected(() =>
-        callWithRawInput('diffReading', 'query', { repoPath: REPO, scope: { type: 'staged' } }),
-      ),
-      'request.invalid',
-      false,
-    )
-    expectPublicCode(
-      await rejected(() =>
-        callWithRawInput('diffReading', 'query', { repoPath: REPO, scope: { type: 'commit' } }),
-      ),
-      'request.invalid',
-      false,
-    )
-    expect(flow.loadWorkingFlow).not.toHaveBeenCalled()
-    expect(flow.loadCommitFlow).not.toHaveBeenCalled()
-  })
-
   it('rejects an exploration seed missing its symbol without walking the graph', async () => {
     const error = await rejected(() =>
       callWithRawInput('exploreFeature', 'query', {
@@ -371,29 +334,6 @@ describe('review router contract output', () => {
       [{ path: 'src/alpha.ts', fingerprint: 'fp-alpha' }],
       new Map([['src/alpha.ts', 'fp-alpha']]),
     )
-  })
-
-  it('serializes a working-scope diff reading as changed files with hunks', async () => {
-    expect(await caller().diffReading({ repoPath: REPO, scope: { type: 'working' } })).toEqual({
-      name: 'Changes',
-      sections: [],
-      evidence: null,
-      groups: [
-        {
-          layer: 'source',
-          files: [
-            {
-              path: 'src/alpha.ts',
-              source: 'changed',
-              status: 'modified',
-              additions: 3,
-              deletions: 1,
-              hunks: [],
-            },
-          ],
-        },
-      ],
-    })
   })
 
   it('serializes the Review view and reading as null without an agent review set', async () => {
