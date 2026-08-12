@@ -5,13 +5,27 @@ import {
 import { projectDataContractFixtures } from '@porcelain/contracts/project-data'
 import { QueryClient } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { Environment } from '@/features/remote'
+
+const ENV = 'env-project-data-mut'
+
+function pairedEnvironment(): Environment {
+  return {
+    id: ENV,
+    nickname: 'test',
+    icon: 'desktop',
+    baseUrl: 'http://192.168.1.50:43117',
+    endpoints: ['http://192.168.1.50:43117'],
+    preferredEndpoint: 'http://192.168.1.50:43117',
+    createdAt: 1,
+    activeRepoPath: null,
+    token: 'paired',
+  }
+}
 
 const ctx = vi.hoisted(() => ({
   callDaemon: vi.fn(),
-  environment: { id: 'env-project-data-mut', token: 'paired' } as {
-    id: string
-    token: string | null
-  } | null,
+  environment: null as Environment | null,
 }))
 
 vi.mock('@/features/remote', () => ({
@@ -36,10 +50,9 @@ import { projectDataQueryKey } from './project-data-query-key'
 
 const REPO = '/synthetic/repo'
 const OTHER = '/synthetic/other'
-const ENV = 'env-project-data-mut'
 
 beforeEach(() => {
-  ctx.environment = { id: ENV, token: 'paired' }
+  ctx.environment = pairedEnvironment()
   ctx.callDaemon.mockReset()
   ctx.callDaemon.mockResolvedValue(undefined)
 })

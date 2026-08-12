@@ -28,11 +28,15 @@ describe('mobile Search notifications', () => {
     const key = searchQueryKey(ENVIRONMENT, fileSearchQuery(PROJECT, 'needle'))
     queryClient.setQueryData(key, [])
 
-    applySearchNotification(filesNotificationFixtures['files.tree-changed'], {
-      activeProjectPath: PROJECT,
-      environmentId: ENVIRONMENT,
-      queryClient,
-    })
+    const tree = filesNotificationFixtures['files.tree-changed']
+    applySearchNotification(
+      { kind: tree.kind, projectPath: tree.projectPath, paths: [...tree.paths] },
+      {
+        activeProjectPath: PROJECT,
+        environmentId: ENVIRONMENT,
+        queryClient,
+      },
+    )
     await Promise.resolve()
     await Promise.resolve()
 
@@ -44,11 +48,15 @@ describe('mobile Search notifications', () => {
     const key = searchQueryKey(ENVIRONMENT, textSearchQuery(PROJECT, 'needle'))
     queryClient.setQueryData(key, [])
 
-    applySearchNotification(filesNotificationFixtures['files.content-changed'], {
-      activeProjectPath: '/other/repo',
-      environmentId: ENVIRONMENT,
-      queryClient,
-    })
+    const content = filesNotificationFixtures['files.content-changed']
+    applySearchNotification(
+      { kind: content.kind, projectPath: content.projectPath, paths: [...content.paths] },
+      {
+        activeProjectPath: '/other/repo',
+        environmentId: ENVIRONMENT,
+        queryClient,
+      },
+    )
     await Promise.resolve()
     expect(queryClient.getQueryState(key)?.isInvalidated).toBe(false)
   })

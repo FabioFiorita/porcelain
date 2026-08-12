@@ -2,7 +2,7 @@ import type { ActionView } from '@porcelain/contracts/actions'
 import { renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const spawnTerminalSession = vi.fn(async () => 'term-1')
+const spawnTerminalSession = vi.fn(async (_input?: unknown) => 'term-1')
 const project = vi.hoisted(() => ({
   current: { name: 'repo', path: '/synthetic/repo' } as { name: string; path: string } | null,
 }))
@@ -12,7 +12,7 @@ vi.mock('@/features/projects', () => ({
 }))
 
 vi.mock('@/features/terminal', () => ({
-  spawnTerminalSession: (...args: unknown[]) => spawnTerminalSession(...args),
+  spawnTerminalSession: (input: unknown) => spawnTerminalSession(input),
 }))
 
 import { useActionRun } from './action-run'

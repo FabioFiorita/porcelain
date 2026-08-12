@@ -4,10 +4,13 @@ import { describe, expect, it } from 'vitest'
 import { readingPaths, toReadingRows } from './reading-rows'
 
 const reading: DiffReadingOutput = {
+  evidence: null,
+  sections: [],
   groups: [
     {
       files: [
         {
+          source: 'changed',
           additions: 1,
           hunks: [
             {
@@ -21,7 +24,7 @@ const reading: DiffReadingOutput = {
           path: 'docs/a.md',
           status: 'modified',
         },
-        { path: 'assets/logo.png', status: 'modified' },
+        { path: 'assets/logo.png', source: 'changed', status: 'modified' },
       ],
       layer: 'Docs',
     },
@@ -56,6 +59,8 @@ describe('toReadingRows', () => {
 
   it('keys rows uniquely across files, which repeat hunk positions', () => {
     const twoFiles: DiffReadingOutput = {
+      evidence: null,
+      sections: [],
       groups: [
         {
           files: [

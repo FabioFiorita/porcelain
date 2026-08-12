@@ -88,6 +88,7 @@ function harness(options: MobileTerminalAdapterOptions = {}): Harness {
     },
     registerWatchInterest: () => () => undefined,
     selectProject: () => undefined,
+    health: () => 'idle',
   }
 
   const open = (epoch = 'epoch-1', reconnect = false): void => {

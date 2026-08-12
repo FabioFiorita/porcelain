@@ -98,7 +98,7 @@ describe('Mobile Git notification bridge', () => {
     expect(queryClient.getQueryState(other)?.isInvalidated).toBeFalsy()
 
     applyGitFreshnessRequirement(
-      { reason: 'daemon-replaced', scope: { kind: 'session' } },
+      { reason: 'epoch-changed', scope: { kind: 'session' } },
       { environmentId: ENVIRONMENT, queryClient },
     )
     await waitFor(() => expect(queryClient.getQueryState(other)?.isInvalidated).toBe(true))

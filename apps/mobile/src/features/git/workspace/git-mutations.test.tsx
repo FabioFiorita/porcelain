@@ -36,19 +36,24 @@ function clientFromMock(mock: ReturnType<typeof createValidatingDaemonMock>): Te
   ): Promise<unknown> => {
     const outcome = await mock.dispatch({ procedure, kind, input })
     if (outcome.ok) return outcome.value
+    const porcelain = outcome.error
+    const message =
+      porcelain !== null && typeof porcelain === 'object' && 'message' in porcelain
+        ? String(porcelain.message)
+        : 'daemon mock failure'
     throw TRPCClientError.from(
-      Object.assign(new Error(outcome.error.message), {
+      Object.assign(new Error(message), {
         data: {
           code: 'INTERNAL_SERVER_ERROR',
           httpStatus: 500,
-          porcelain: outcome.error,
+          porcelain,
         },
       }),
     )
   }
   return {
-    mutation: (procedure, input) => dispatch('mutation', procedure, input),
-    query: (procedure, input) => dispatch('query', procedure, input),
+    mutation: vi.fn((procedure, input) => dispatch('mutation', procedure, input)),
+    query: vi.fn((procedure, input) => dispatch('query', procedure, input)),
   }
 }
 
@@ -88,7 +93,7 @@ describe('Mobile Git workspace mutations', () => {
     const mock = createValidatingDaemonMock(validatingCatalog, {
       gitAddWorktree: () => ({ ok: true, value: gitContractFixtures.gitAddWorktree.output }),
     })
-    ctx.client = clientFromMock(mock)
+    ctx.client = clientFromMock(mock) as typeof ctx.client
     const queryClient = new QueryClient()
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
     const { result } = renderHook(() => useGitAddWorktree(), { wrapper: wrapper(queryClient) })
@@ -114,7 +119,7 @@ describe('Mobile Git workspace mutations', () => {
     const mock = createValidatingDaemonMock(validatingCatalog, {
       gitCheckout: async () => write.promise,
     })
-    ctx.client = clientFromMock(mock)
+    ctx.client = clientFromMock(mock) as typeof ctx.client
     const queryClient = new QueryClient()
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
     const { result } = renderHook(() => useGitCheckout(), { wrapper: wrapper(queryClient) })
