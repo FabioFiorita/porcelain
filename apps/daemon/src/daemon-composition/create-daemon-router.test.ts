@@ -70,6 +70,7 @@ describe('createDaemonRouter composition', () => {
     })
     expect(Object.isFrozen(operations)).toBe(true)
     expect(operations.board).toBeDefined()
+    expect(operations.actions).toBeDefined()
     expect(operations.reviewComments).toBeDefined()
     expect(operations.files).toBeDefined()
     expect(operations.git).toBeDefined()

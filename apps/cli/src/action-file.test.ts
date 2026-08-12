@@ -1,4 +1,4 @@
-import { mkdirSync, rmSync } from 'node:fs'
+import { mkdirSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -46,9 +46,15 @@ describe('action-file round-trip', () => {
     rmSync(root, { recursive: true, force: true })
   })
 
-  it('creates, updates, and deletes an action', () => {
+  it('creates, updates, and deletes an action as a strict v1 document', () => {
     const action = createAction(repo, 'Storybook', 'pnpm storybook', undefined)
     expect(readActions(repo)).toHaveLength(1)
+    const raw = JSON.parse(readFileSync(join(repo, '.porcelain', 'actions.json'), 'utf8')) as {
+      version: number
+      actions: unknown[]
+    }
+    expect(raw.version).toBe(1)
+    expect(Array.isArray(raw.actions)).toBe(true)
     expect(updateAction(repo, action.id, { command: 'pnpm sb' })).toBe(true)
     expect(readActions(repo)[0]?.command).toBe('pnpm sb')
     expect(deleteAction(repo, action.id)).toBe(true)

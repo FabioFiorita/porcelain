@@ -1,5 +1,10 @@
 import { z } from 'zod'
 import {
+  actionsNotFoundErrorSchema,
+  actionsUnavailableErrorSchema,
+  actionsUntrustedErrorSchema,
+} from '../actions'
+import {
   boardCardNotFoundErrorSchema,
   boardInvalidTitleErrorSchema,
   boardUnavailableErrorSchema,
@@ -69,6 +74,9 @@ export const publicErrorSchema = z.discriminatedUnion('code', [
   boardUnavailableErrorSchema,
   boardCardNotFoundErrorSchema,
   boardInvalidTitleErrorSchema,
+  actionsUnavailableErrorSchema,
+  actionsNotFoundErrorSchema,
+  actionsUntrustedErrorSchema,
   reviewUnavailableErrorSchema,
   reviewCommentNotFoundErrorSchema,
   projectsNotFoundErrorSchema,

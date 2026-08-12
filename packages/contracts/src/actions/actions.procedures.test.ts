@@ -17,6 +17,15 @@ const expectedKinds = {
   deleteAction: 'mutation',
 } as const
 
+const expectedErrors = {
+  actions: ['actions.unavailable'],
+  trustActions: ['actions.unavailable'],
+  addAction: ['actions.unavailable', 'request.invalid'],
+  updateAction: ['actions.unavailable', 'actions.not-found', 'request.invalid'],
+  moveAction: ['actions.unavailable', 'actions.not-found'],
+  deleteAction: ['actions.unavailable', 'actions.not-found'],
+} as const
+
 const invalidInputs = {
   actions: 42,
   trustActions: { repoPath: '/synthetic/repo', ids: [] },
@@ -36,10 +45,14 @@ const invalidOutputs = {
 } as const
 
 describe('Actions procedure contracts', () => {
-  it('declares exactly six procedures with their router kinds', () => {
+  it('declares exactly six procedures with their router kinds and allowed errors', () => {
     expect(Object.keys(actionsProcedures).sort()).toEqual(Object.keys(expectedKinds).sort())
     for (const [name, kind] of Object.entries(expectedKinds)) {
-      expect(actionsProcedures[name as keyof typeof actionsProcedures].kind).toBe(kind)
+      const procedure = actionsProcedures[name as keyof typeof actionsProcedures]
+      expect(procedure.kind).toBe(kind)
+      expect([...procedure.errors]).toEqual([
+        ...expectedErrors[name as keyof typeof expectedErrors],
+      ])
     }
   })
 

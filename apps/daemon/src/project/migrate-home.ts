@@ -10,7 +10,7 @@ import {
   projectPorcelainPath,
 } from '@shared/project-porcelain'
 import { z } from 'zod'
-import { trustMigratedCommands } from '../stores/action-trust-store'
+import { trustMigratedCommands } from '../features/actions'
 import { migrateActiveReviewLayout } from './migrate-active-review'
 
 /**

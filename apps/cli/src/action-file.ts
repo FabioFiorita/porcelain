@@ -1,65 +1,77 @@
 import { randomUUID } from 'node:crypto'
-import { PROJECT_FILES } from '@shared/project-porcelain'
-import { readProjectJson, writeProjectJson } from './project-io'
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { dirname } from 'node:path'
+import {
+  type ActionsFileAction,
+  ActionsFileParseError,
+  type ActionsFileWhere,
+  emptyActionsFileV1,
+  parseActionsFileV1,
+  planCreateAction,
+  planDeleteAction,
+  planUpdateAction,
+  serializeActionsFileV1,
+  sortActions,
+} from '@porcelain/shared/actions-file'
+import { PROJECT_FILES, projectPorcelainPath } from '@shared/project-porcelain'
+import { ensureProjectDir } from './project-io'
 
-// Saved actions in <repo>/.porcelain/actions.json — agent curates, human runs.
+// Builtins + @porcelain/shared only — see cli.ts. Project actions are strict v1 JSON.
 
-export type ActionWhere = 'primary' | 'local'
+export type ActionWhere = ActionsFileWhere
+export type Action = ActionsFileAction
 
-export interface Action {
-  id: string
-  title: string
-  command: string
-  where?: ActionWhere
-  order: number
-  createdAt: number
+function actionsPath(repoPath: string): string {
+  return projectPorcelainPath(repoPath, PROJECT_FILES.actions)
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
+function isEnoent(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code: unknown }).code === 'ENOENT'
+  )
 }
 
-function parseWhere(value: unknown): ActionWhere | undefined {
-  if (value === 'primary' || value === 'local') return value
-  return undefined
-}
-
-function parseActions(value: unknown): Action[] {
-  if (!Array.isArray(value)) return []
-  const actions: Action[] = []
-  for (const item of value) {
-    if (!isRecord(item)) continue
-    if (
-      typeof item.id !== 'string' ||
-      typeof item.title !== 'string' ||
-      typeof item.command !== 'string'
-    ) {
-      continue
-    }
-    const action: Action = {
-      id: item.id,
-      title: item.title,
-      command: item.command,
-      order: typeof item.order === 'number' ? item.order : 0,
-      createdAt: typeof item.createdAt === 'number' ? item.createdAt : 0,
-    }
-    const where = parseWhere(item.where)
-    if (where !== undefined && where !== 'primary') action.where = where
-    actions.push(action)
+function readActionsFile(repoPath: string): ReturnType<typeof emptyActionsFileV1> {
+  let raw: string
+  try {
+    raw = readFileSync(actionsPath(repoPath), 'utf8')
+  } catch (error) {
+    if (isEnoent(error)) return emptyActionsFileV1()
+    throw error
   }
-  return actions
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    throw new ActionsFileParseError('malformed', 'Actions file is not valid JSON')
+  }
+
+  // Legacy top-level array is not accepted — agents must use the v1 document.
+  if (Array.isArray(parsed)) {
+    throw new ActionsFileParseError(
+      'malformed',
+      'Actions file must be version 1 ({ version: 1, actions: [...] }); top-level arrays are not supported',
+    )
+  }
+
+  return parseActionsFileV1(parsed)
 }
 
-function readAll(repoPath: string): Action[] {
-  return parseActions(readProjectJson(repoPath, PROJECT_FILES.actions))
-}
-
-function writeAll(repoPath: string, actions: Action[]): void {
-  writeProjectJson(repoPath, PROJECT_FILES.actions, actions)
+function writeActionsFile(repoPath: string, file: ReturnType<typeof emptyActionsFileV1>): void {
+  ensureProjectDir(repoPath)
+  const path = actionsPath(repoPath)
+  mkdirSync(dirname(path), { recursive: true })
+  const tmp = `${path}.tmp`
+  writeFileSync(tmp, serializeActionsFileV1(file))
+  renameSync(tmp, path)
 }
 
 export function readActions(repoPath: string): Action[] {
-  return [...readAll(repoPath)].sort((a, b) => a.order - b.order)
+  return sortActions(readActionsFile(repoPath).actions)
 }
 
 export function createAction(
@@ -69,10 +81,23 @@ export function createAction(
   where: ActionWhere | undefined,
 ): Action {
   const now = Date.now()
-  const action: Action = { id: randomUUID(), title, command, order: now, createdAt: now }
-  if (where !== undefined && where !== 'primary') action.where = where
-  writeAll(repoPath, [...readAll(repoPath), action])
-  return action
+  const planned = planCreateAction(readActionsFile(repoPath), {
+    id: randomUUID(),
+    title,
+    command,
+    where,
+    order: now,
+    createdAt: now,
+  })
+  if (!planned.ok) {
+    throw new Error(
+      planned.error.code === 'request.invalid'
+        ? 'title or command is invalid (blank or too long)'
+        : 'could not create action',
+    )
+  }
+  writeActionsFile(repoPath, planned.file)
+  return planned.action
 }
 
 export function updateAction(
@@ -80,26 +105,24 @@ export function updateAction(
   id: string,
   fields: { title?: string; command?: string; where?: ActionWhere },
 ): boolean {
-  const actions = readAll(repoPath)
-  const action = actions.find((a) => a.id === id)
-  if (!action) return false
-  if (fields.title !== undefined) action.title = fields.title
-  if (fields.command !== undefined) action.command = fields.command
-  if (fields.where !== undefined) {
-    if (fields.where === 'primary') delete action.where
-    else action.where = fields.where
+  const planned = planUpdateAction(readActionsFile(repoPath), {
+    actionId: id,
+    title: fields.title,
+    command: fields.command,
+    where: fields.where,
+  })
+  if (!planned.ok) {
+    if (planned.error.code === 'actions.not-found') return false
+    throw new Error('title or command is invalid (blank or too long)')
   }
-  writeAll(repoPath, actions)
+  writeActionsFile(repoPath, planned.file)
   return true
 }
 
 export function deleteAction(repoPath: string, id: string): boolean {
-  const actions = readAll(repoPath)
-  if (!actions.some((a) => a.id === id)) return false
-  writeAll(
-    repoPath,
-    actions.filter((a) => a.id !== id),
-  )
+  const planned = planDeleteAction(readActionsFile(repoPath), { actionId: id })
+  if (!planned.ok) return false
+  writeActionsFile(repoPath, planned.file)
   return true
 }
 

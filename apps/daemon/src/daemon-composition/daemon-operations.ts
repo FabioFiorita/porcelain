@@ -1,4 +1,5 @@
 import type { SessionChange } from '@porcelain/contracts/session'
+import { type ActionsOperations, createActionsOperations } from '../features/actions'
 import { type BoardOperations, createBoardOperations } from '../features/board'
 import { createFilesOperations, type FilesOperations } from '../features/files'
 import {
@@ -28,6 +29,7 @@ import { hiddenPathsForRepo } from '../stores/scope-store'
  */
 export type DaemonOperations = Readonly<{
   board: BoardOperations
+  actions: ActionsOperations
   reviewComments: ReviewCommentOperations
   files: FilesOperations
   git: GitOperations
@@ -48,6 +50,9 @@ export function createDaemonOperations(options: {
   const publish = options.publishSessionChange ?? publishSessionChange
   return Object.freeze({
     board: createBoardOperations({
+      publishSessionChange: publish,
+    }),
+    actions: createActionsOperations({
       publishSessionChange: publish,
     }),
     reviewComments: createReviewCommentOperations({

@@ -26,6 +26,11 @@ export {
   orderedEndpointUrls,
 } from './environment'
 export {
+  actionsNotFoundErrorDetailsSchema,
+  actionsNotFoundErrorSchema,
+  actionsUnavailableErrorSchema,
+  actionsUntrustedErrorDetailsSchema,
+  actionsUntrustedErrorSchema,
   authForbiddenErrorSchema,
   authUnauthenticatedErrorSchema,
   boardCardNotFoundErrorDetailsSchema,

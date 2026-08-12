@@ -1,4 +1,4 @@
-import type { Action, ActionView, ActionWhere } from '@backend/stores/actions-store'
+import type { Action, ActionView, ActionWhere } from '@porcelain/contracts/actions'
 import { invalidateAfterSuccess } from '@renderer/hooks/mutation-error'
 import { spawnLocalTerminal } from '@renderer/lib/terminal-actions'
 import { trpc } from '@renderer/lib/trpc'

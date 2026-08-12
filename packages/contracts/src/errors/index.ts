@@ -1,4 +1,11 @@
 export {
+  actionsNotFoundErrorDetailsSchema,
+  actionsNotFoundErrorSchema,
+  actionsUnavailableErrorSchema,
+  actionsUntrustedErrorDetailsSchema,
+  actionsUntrustedErrorSchema,
+} from '../actions'
+export {
   boardCardNotFoundErrorDetailsSchema,
   boardCardNotFoundErrorSchema,
   boardInvalidTitleErrorDetailsSchema,

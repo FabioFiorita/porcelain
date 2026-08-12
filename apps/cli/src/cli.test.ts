@@ -41,7 +41,13 @@ const readBoard = (): unknown[] => {
   }
   return raw.cards
 }
-const readActions = (): unknown[] => JSON.parse(readFileSync(porcelain('actions.json'), 'utf8'))
+const readActions = (): unknown[] => {
+  const raw = JSON.parse(readFileSync(porcelain('actions.json'), 'utf8')) as {
+    version: number
+    actions: unknown[]
+  }
+  return raw.actions
+}
 
 describe('COMMANDS registry matches the dispatch switch', () => {
   // Static comparison rather than invocation: running every verb would touch the filesystem

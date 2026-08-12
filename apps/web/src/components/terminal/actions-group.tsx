@@ -1,4 +1,4 @@
-import type { Action, ActionView } from '@backend/stores/actions-store'
+import type { Action, ActionView } from '@porcelain/contracts/actions'
 import { ActionTrustDialog } from '@renderer/components/terminal/action-trust-dialog'
 import {
   LocalPathDialog,

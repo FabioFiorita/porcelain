@@ -11,6 +11,7 @@
     "./test-ids": "./src/test-ids.ts",
     "./board-file": "./src/board-file.ts",
     "./comments-file": "./src/comments-file.ts",
+    "./actions-file": "./src/actions-file.ts",
     "./background": "./src/background.ts"
   },
   "typesVersions": {
@@ -35,6 +36,9 @@
       ],
       "comments-file": [
         "./src/comments-file.ts"
+      ],
+      "actions-file": [
+        "./src/actions-file.ts"
       ],
       "background": [
         "./src/background.ts"

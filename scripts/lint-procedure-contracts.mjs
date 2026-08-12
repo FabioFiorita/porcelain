@@ -27,6 +27,7 @@ export const DOMAIN_KEYS = [
  * `router/`; migrated domains (Board first) live under `features/<domain>/`.
  */
 export const PRODUCTION_ROUTER_FILES = [
+  'features/actions/actions-router.ts',
   'features/board/board-router.ts',
   'features/files/files-router.ts',
   'features/git/git-router.ts',

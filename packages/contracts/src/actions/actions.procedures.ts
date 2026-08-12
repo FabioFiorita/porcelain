@@ -19,37 +19,37 @@ const actionsProcedureDefinitions = {
     kind: 'query',
     input: actionsInputSchema,
     output: actionsOutputSchema,
-    errors: [],
+    errors: ['actions.unavailable'],
   },
   trustActions: {
     kind: 'mutation',
     input: trustActionsInputSchema,
     output: trustActionsOutputSchema,
-    errors: [],
+    errors: ['actions.unavailable'],
   },
   addAction: {
     kind: 'mutation',
     input: addActionInputSchema,
     output: addActionOutputSchema,
-    errors: [],
+    errors: ['actions.unavailable', 'request.invalid'],
   },
   updateAction: {
     kind: 'mutation',
     input: updateActionInputSchema,
     output: updateActionOutputSchema,
-    errors: [],
+    errors: ['actions.unavailable', 'actions.not-found', 'request.invalid'],
   },
   moveAction: {
     kind: 'mutation',
     input: moveActionInputSchema,
     output: moveActionOutputSchema,
-    errors: [],
+    errors: ['actions.unavailable', 'actions.not-found'],
   },
   deleteAction: {
     kind: 'mutation',
     input: deleteActionInputSchema,
     output: deleteActionOutputSchema,
-    errors: [],
+    errors: ['actions.unavailable', 'actions.not-found'],
   },
 } as const
 

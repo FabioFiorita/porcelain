@@ -1,4 +1,4 @@
-import type { ActionView } from '@backend/stores/actions-store'
+import type { ActionView } from '@porcelain/contracts/actions'
 import {
   AlertDialog,
   AlertDialogAction,

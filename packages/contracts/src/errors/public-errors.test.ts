@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  actionsNotFoundErrorSchema,
+  actionsUnavailableErrorSchema,
+  actionsUntrustedErrorSchema,
+} from '../actions'
+import {
   boardCardNotFoundErrorSchema,
   boardInvalidTitleErrorSchema,
   boardUnavailableErrorSchema,
@@ -54,6 +59,9 @@ const memberSchemas = {
   'board.unavailable': boardUnavailableErrorSchema,
   'board.card-not-found': boardCardNotFoundErrorSchema,
   'board.invalid-title': boardInvalidTitleErrorSchema,
+  'actions.unavailable': actionsUnavailableErrorSchema,
+  'actions.not-found': actionsNotFoundErrorSchema,
+  'actions.untrusted': actionsUntrustedErrorSchema,
   'review.unavailable': reviewUnavailableErrorSchema,
   'review.comment-not-found': reviewCommentNotFoundErrorSchema,
   'projects.not-found': projectsNotFoundErrorSchema,
@@ -96,6 +104,9 @@ const expectedMembers = [
   { code: 'board.unavailable', category: 'unavailable', retryable: true, hasDetails: false },
   { code: 'board.card-not-found', category: 'not-found', retryable: false, hasDetails: true },
   { code: 'board.invalid-title', category: 'invalid-request', retryable: false, hasDetails: true },
+  { code: 'actions.unavailable', category: 'unavailable', retryable: true, hasDetails: false },
+  { code: 'actions.not-found', category: 'not-found', retryable: false, hasDetails: true },
+  { code: 'actions.untrusted', category: 'conflict', retryable: false, hasDetails: true },
   { code: 'review.unavailable', category: 'unavailable', retryable: true, hasDetails: false },
   {
     code: 'review.comment-not-found',
@@ -162,7 +173,7 @@ const expectedMembers = [
 ] as const
 
 describe('public error contracts', () => {
-  it('exports the system, Project, Board, Review, Files, Git, and Terminal public members and categories', () => {
+  it('exports the system, Project, Board, Actions, Review, Files, Git, and Terminal public members and categories', () => {
     expect(Object.keys(memberSchemas).sort()).toEqual(
       expectedMembers.map(({ code }) => code).sort(),
     )
@@ -274,6 +285,30 @@ describe('public error contracts', () => {
       boardInvalidTitleErrorSchema.safeParse({
         ...invalidTitle,
         details: { reason: 'blank', maxLength: 100 },
+      }).success,
+    ).toBe(false)
+  })
+
+  it('gives Actions not-found and untrusted their required strict actionId details', () => {
+    const notFound = publicErrorFixtures['actions.not-found']
+    expect(actionsNotFoundErrorSchema.parse(notFound).details).toEqual({
+      actionId: 'action-synthetic-001',
+    })
+    expect(
+      actionsNotFoundErrorSchema.safeParse({
+        ...notFound,
+        details: { actionId: '' },
+      }).success,
+    ).toBe(false)
+
+    const untrusted = publicErrorFixtures['actions.untrusted']
+    expect(actionsUntrustedErrorSchema.parse(untrusted).details).toEqual({
+      actionId: 'action-synthetic-001',
+    })
+    expect(
+      actionsUntrustedErrorSchema.safeParse({
+        ...untrusted,
+        details: { actionId: '' },
       }).success,
     ).toBe(false)
   })

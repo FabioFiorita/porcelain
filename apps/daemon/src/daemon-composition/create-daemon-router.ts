@@ -1,3 +1,4 @@
+import { createActionsRouter } from '../features/actions'
 import { createBoardRouter } from '../features/board'
 import { createFilesFeatureRouter } from '../features/files'
 import { createGitFeatureRouter } from '../features/git'
@@ -35,6 +36,7 @@ export function createDaemonRouter({ operations }: CreateDaemonRouterOptions) {
     createReviewRouter(),
     createReviewCommentRouter(operations.reviewComments),
     createBoardRouter(operations.board),
+    createActionsRouter(operations.actions),
     createSettingsRouter(),
     createNetworkRouter(),
     createTerminalRouter(operations.terminal),
