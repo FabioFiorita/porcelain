@@ -1,8 +1,28 @@
-export { createGitOperations, type GitOperations } from './git-operations'
+export {
+  createCommitGeneration,
+  createGitChangesPublisher,
+  createProjectGit,
+  createReviewMarks,
+  createWorkingTreeCache,
+  createWorkspaceTrash,
+} from './git-adapters'
+export {
+  createGitOperations,
+  type GitOperationDependencies,
+  type GitOperations,
+} from './git-operations'
 export type {
+  CommitGeneration,
+  GitChanges,
+  GitProjectError,
+  GitProjectResult,
   GitWorkspaceError,
   GitWorkspacePort,
   GitWorkspaceResult,
+  ProjectGit,
+  ReviewMarks,
+  WorkingTreeCache,
+  WorkspaceTrash,
 } from './git-ports'
 export { createGitFeatureRouter } from './git-router'
 export {

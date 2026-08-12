@@ -1,14 +1,36 @@
 // @vitest-environment node
-import type { GitAddWorktreeInput, GitCheckoutInput } from '@porcelain/contracts/git'
+import type {
+  BranchRef,
+  ChangedFile,
+  GitAddWorktreeInput,
+  GitCheckoutInput,
+  GitGenerateCommitGroupsOutput,
+  GitGenerateCommitMessageInput,
+  GitHead,
+  GitSuggestion,
+  Worktree,
+} from '@porcelain/contracts/git'
 import { describe, expect, it, vi } from 'vitest'
-import { createGitOperations } from './git-operations'
-import type { GitWorkspaceError, GitWorkspacePort } from './git-ports'
+import { createGitOperations, type GitOperationDependencies } from './git-operations'
+import type {
+  CommitGeneration,
+  GitChanges,
+  GitProjectError,
+  GitProjectResult,
+  GitWorkspaceError,
+  GitWorkspacePort,
+  ProjectGit,
+  ReviewMarks,
+  WorkingTreeCache,
+  WorkspaceTrash,
+} from './git-ports'
 
 const CHECKOUT_INPUT: GitCheckoutInput = { repoPath: '/synthetic/repo', branch: 'main' }
 const WORKTREE_INPUT: GitAddWorktreeInput = {
   repoPath: '/synthetic/repo',
   branch: 'feature/x',
 }
+const REPO = '/synthetic/repo'
 
 function workspace(overrides: Partial<GitWorkspacePort> = {}): GitWorkspacePort {
   return {
@@ -21,10 +43,92 @@ function workspace(overrides: Partial<GitWorkspacePort> = {}): GitWorkspacePort 
   }
 }
 
+function projectGit(overrides: Partial<ProjectGit> = {}): ProjectGit {
+  return {
+    quickCommand: vi.fn(async () => 'On branch main'),
+    push: vi.fn(async () => 'Everything up-to-date'),
+    stageAll: vi.fn(async () => undefined),
+    unstageAll: vi.fn(async () => undefined),
+    stageFile: vi.fn(async () => undefined),
+    unstageFile: vi.fn(async () => undefined),
+    fileInHead: vi.fn(async () => true),
+    restoreFromHead: vi.fn(async () => undefined),
+    resetPath: vi.fn(async () => undefined),
+    commit: vi.fn(async () => undefined),
+    commitFiles: vi.fn(async () => [{ path: 'src/alpha.ts', status: 'modified' }]),
+    status: vi.fn(
+      async (): Promise<GitProjectResult<ChangedFile[]>> => ({
+        ok: true,
+        value: [],
+      }),
+    ),
+    suggestions: vi.fn(async (): Promise<GitSuggestion[]> => []),
+    head: vi.fn(async (): Promise<GitHead> => ({ branch: 'main', detachedSha: null })),
+    branches: vi.fn(
+      async (): Promise<GitProjectResult<BranchRef[]>> => ({
+        ok: true,
+        value: [],
+      }),
+    ),
+    createBranch: vi.fn(async () => undefined),
+    worktrees: vi.fn(
+      async (): Promise<GitProjectResult<Worktree[]>> => ({
+        ok: true,
+        value: [],
+      }),
+    ),
+    log: vi.fn(async (): Promise<import('@porcelain/contracts/git').Commit[]> => []),
+    ...overrides,
+  }
+}
+
+function dependencies(
+  overrides: {
+    workspace?: GitWorkspacePort
+    projectGit?: ProjectGit
+    commitGeneration?: CommitGeneration
+    workspaceTrash?: WorkspaceTrash
+    reviewMarks?: ReviewMarks
+    workingTreeCache?: WorkingTreeCache
+    changes?: GitChanges
+  } = {},
+): GitOperationDependencies {
+  return {
+    workspace: overrides.workspace ?? workspace(),
+    projectGit: overrides.projectGit ?? projectGit(),
+    commitGeneration:
+      overrides.commitGeneration ??
+      ({
+        generateMessage: vi.fn(async (_input: GitGenerateCommitMessageInput) => 'generated'),
+        generateGroups: vi.fn(async (): Promise<GitGenerateCommitGroupsOutput['groups']> => []),
+      } satisfies CommitGeneration),
+    workspaceTrash:
+      overrides.workspaceTrash ??
+      ({
+        moveToTrash: vi.fn(async () => undefined),
+      } satisfies WorkspaceTrash),
+    reviewMarks:
+      overrides.reviewMarks ??
+      ({
+        clear: vi.fn(async () => undefined),
+      } satisfies ReviewMarks),
+    workingTreeCache:
+      overrides.workingTreeCache ??
+      ({
+        clear: vi.fn(() => undefined),
+      } satisfies WorkingTreeCache),
+    changes:
+      overrides.changes ??
+      ({
+        publishWorkingTreeChanged: vi.fn(() => undefined),
+      } satisfies GitChanges),
+  }
+}
+
 describe('Git operations', () => {
-  it('passes contract inputs to the matching workspace capability', async () => {
+  it('passes checkout and worktree inputs to their workspace capabilities', async () => {
     const port = workspace()
-    const operations = createGitOperations({ workspace: port })
+    const operations = createGitOperations(dependencies({ workspace: port }))
 
     await expect(operations.checkoutGit(CHECKOUT_INPUT)).resolves.toEqual({
       ok: true,
@@ -52,7 +156,7 @@ describe('Git operations', () => {
         checkout: vi.fn(async () => ({ ok: false, error })),
         addWorktree: vi.fn(async () => ({ ok: false, error })),
       })
-      const operations = createGitOperations({ workspace: port })
+      const operations = createGitOperations(dependencies({ workspace: port }))
 
       await expect(operations.checkoutGit(CHECKOUT_INPUT)).resolves.toEqual({
         ok: false,
@@ -65,7 +169,131 @@ describe('Git operations', () => {
     }
   })
 
-  it('returns a frozen operation catalog', () => {
-    expect(Object.isFrozen(createGitOperations({ workspace: workspace() }))).toBe(true)
+  it('clears and publishes only after successful staging', async () => {
+    const events: string[] = []
+    const git = projectGit({
+      stageAll: async () => {
+        events.push('git')
+      },
+    })
+    const cache = { clear: vi.fn(() => events.push('clear')) }
+    const changes = { publishWorkingTreeChanged: vi.fn(() => events.push('publish')) }
+    const operations = createGitOperations(
+      dependencies({ projectGit: git, workingTreeCache: cache, changes }),
+    )
+
+    await operations.stageAllGit({ repoPath: REPO })
+    expect(events).toEqual(['git', 'clear', 'publish'])
+    expect(cache.clear).toHaveBeenCalledWith(REPO)
+    expect(changes.publishWorkingTreeChanged).toHaveBeenCalledWith(REPO)
+  })
+
+  it('does not clear or publish when a mutation fails', async () => {
+    const error = new Error('native failure')
+    const git = projectGit({
+      stageFile: async () => {
+        throw error
+      },
+    })
+    const cache = { clear: vi.fn(() => undefined) }
+    const changes = { publishWorkingTreeChanged: vi.fn(() => undefined) }
+    const operations = createGitOperations(
+      dependencies({ projectGit: git, workingTreeCache: cache, changes }),
+    )
+
+    await expect(operations.stageFileGit({ repoPath: REPO, path: 'src/a.ts' })).rejects.toBe(error)
+    expect(cache.clear).not.toHaveBeenCalled()
+    expect(changes.publishWorkingTreeChanged).not.toHaveBeenCalled()
+  })
+
+  it('keeps discard branching and publishes after Trash succeeds', async () => {
+    const git = projectGit({
+      fileInHead: vi.fn(async () => false),
+    })
+    const trash = { moveToTrash: vi.fn(async () => undefined) }
+    const cache = { clear: vi.fn(() => undefined) }
+    const changes = { publishWorkingTreeChanged: vi.fn(() => undefined) }
+    const operations = createGitOperations(
+      dependencies({
+        projectGit: git,
+        workspaceTrash: trash,
+        workingTreeCache: cache,
+        changes,
+      }),
+    )
+
+    await operations.discardFileGit({ repoPath: REPO, path: 'new.ts' })
+    expect(git.resetPath).toHaveBeenCalledWith(REPO, 'new.ts')
+    expect(trash.moveToTrash).toHaveBeenCalledWith('/synthetic/repo/new.ts')
+    expect(git.restoreFromHead).not.toHaveBeenCalled()
+    expect(cache.clear).toHaveBeenCalledWith(REPO)
+    expect(changes.publishWorkingTreeChanged).toHaveBeenCalledWith(REPO)
+  })
+
+  it('commits, clears cache, clears reviewed marks, then publishes', async () => {
+    const events: string[] = []
+    const git = projectGit({
+      commit: async () => events.push('commit'),
+      commitFiles: async () => {
+        events.push('files')
+        return [{ path: 'src/a.ts', status: 'modified' }]
+      },
+    })
+    const cache = { clear: vi.fn(() => events.push('cache')) }
+    const marks = {
+      clear: vi.fn(async () => {
+        events.push('marks')
+      }),
+    }
+    const changes = { publishWorkingTreeChanged: vi.fn(() => events.push('publish')) }
+    const operations = createGitOperations(
+      dependencies({
+        projectGit: git,
+        workingTreeCache: cache,
+        reviewMarks: marks,
+        changes,
+      }),
+    )
+
+    await operations.commitGit({ repoPath: REPO, message: 'feat: test' })
+    expect(events).toEqual(['commit', 'cache', 'files', 'marks', 'publish'])
+    expect(marks.clear).toHaveBeenCalledWith(REPO, ['src/a.ts'])
+  })
+
+  it('keeps a frozen operation catalog', () => {
+    expect(Object.isFrozen(createGitOperations(dependencies()))).toBe(true)
+  })
+
+  it('retains the typed project read result for repository failures', async () => {
+    const error: GitProjectError = { code: 'git.not-a-repository' }
+    const git = projectGit({
+      status: async () => ({ ok: false, error }),
+    })
+    const operations = createGitOperations(dependencies({ projectGit: git }))
+
+    await expect(operations.statusGit(REPO)).resolves.toEqual({ ok: false, error })
+  })
+
+  it('keeps quick-command cache behavior and only publishes working-tree effects', async () => {
+    const cache = { clear: vi.fn(() => undefined) }
+    const changes = { publishWorkingTreeChanged: vi.fn(() => undefined) }
+    const git = projectGit()
+    const operations = createGitOperations(
+      dependencies({ projectGit: git, workingTreeCache: cache, changes }),
+    )
+
+    await operations.quickCommandGit({
+      repoPath: REPO,
+      command: 'fetch',
+    })
+    expect(cache.clear).toHaveBeenCalledWith(REPO)
+    expect(changes.publishWorkingTreeChanged).not.toHaveBeenCalled()
+
+    await operations.quickCommandGit({
+      repoPath: REPO,
+      command: 'pull',
+      pullMode: 'merge',
+    })
+    expect(changes.publishWorkingTreeChanged).toHaveBeenCalledWith(REPO)
   })
 })

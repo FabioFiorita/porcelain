@@ -1,7 +1,17 @@
 import type { SessionChange } from '@porcelain/contracts/session'
 import { type BoardOperations, createBoardOperations } from '../features/board'
 import { createFilesOperations, type FilesOperations } from '../features/files'
-import { createGitOperations, type GitOperations } from '../features/git'
+import {
+  createCommitGeneration,
+  createGitChangesPublisher,
+  createGitOperations,
+  createGitSubprocess,
+  createProjectGit,
+  createReviewMarks,
+  createWorkingTreeCache,
+  createWorkspaceTrash,
+  type GitOperations,
+} from '../features/git'
 import type { ProjectsOperations } from '../features/projects'
 import { createReviewCommentOperations, type ReviewCommentOperations } from '../features/review'
 import { createSearchOperations, type SearchOperations } from '../features/search'
@@ -43,7 +53,15 @@ export function createDaemonOperations(options: {
       publishSessionChange: publish,
     }),
     files: createFilesOperations({ publishSessionChange: publish }),
-    git: createGitOperations(),
+    git: createGitOperations({
+      workspace: createGitSubprocess(),
+      projectGit: createProjectGit(),
+      commitGeneration: createCommitGeneration(),
+      workspaceTrash: createWorkspaceTrash(),
+      reviewMarks: createReviewMarks(),
+      workingTreeCache: createWorkingTreeCache(),
+      changes: createGitChangesPublisher(publish),
+    }),
     search: createSearchOperations({
       git: {
         listFiles: gitListSearchFiles,

@@ -1,4 +1,15 @@
-import type { Worktree } from '@porcelain/contracts/git'
+import type {
+  BranchRef,
+  ChangedFile,
+  Commit,
+  GitGenerateCommitGroupsInput,
+  GitGenerateCommitGroupsOutput,
+  GitGenerateCommitMessageInput,
+  GitHead,
+  GitQuickCommandInput,
+  GitSuggestion,
+  Worktree,
+} from '@porcelain/contracts/git'
 
 export type GitWorkspaceError =
   | { code: 'git.not-a-repository' }
@@ -14,4 +25,55 @@ export type GitWorkspaceResult<Value> =
 export type GitWorkspacePort = Readonly<{
   checkout(repoPath: string, branch: string): Promise<GitWorkspaceResult<void>>
   addWorktree(repoPath: string, branch: string): Promise<GitWorkspaceResult<Worktree>>
+}>
+
+export type GitProjectError = Readonly<{ code: 'git.not-a-repository' }>
+
+export type GitProjectResult<Value> =
+  | { ok: true; value: Value }
+  | { ok: false; error: GitProjectError }
+
+/** Fixed Git effects used by the Git operations; arbitrary argv never crosses this port. */
+export type ProjectGit = Readonly<{
+  quickCommand(input: GitQuickCommandInput): Promise<string>
+  push(repoPath: string): Promise<string>
+  stageAll(repoPath: string): Promise<void>
+  unstageAll(repoPath: string): Promise<void>
+  stageFile(repoPath: string, path: string): Promise<void>
+  unstageFile(repoPath: string, path: string): Promise<void>
+  fileInHead(repoPath: string, path: string): Promise<boolean>
+  restoreFromHead(repoPath: string, path: string): Promise<void>
+  resetPath(repoPath: string, path: string): Promise<void>
+  commit(repoPath: string, message: string): Promise<void>
+  commitFiles(repoPath: string, hash: string): Promise<ChangedFile[]>
+  status(repoPath: string): Promise<GitProjectResult<ChangedFile[]>>
+  suggestions(repoPath: string): Promise<GitSuggestion[]>
+  head(repoPath: string): Promise<GitHead>
+  branches(repoPath: string): Promise<GitProjectResult<BranchRef[]>>
+  createBranch(repoPath: string, branch: string): Promise<void>
+  worktrees(repoPath: string): Promise<GitProjectResult<Worktree[]>>
+  log(repoPath: string, limit: number): Promise<Commit[]>
+}>
+
+export type CommitGeneration = Readonly<{
+  generateMessage(input: GitGenerateCommitMessageInput): Promise<string>
+  generateGroups(
+    input: GitGenerateCommitGroupsInput,
+  ): Promise<GitGenerateCommitGroupsOutput['groups']>
+}>
+
+export type WorkspaceTrash = Readonly<{
+  moveToTrash(path: string): Promise<void>
+}>
+
+export type ReviewMarks = Readonly<{
+  clear(repoPath: string, paths: string[]): Promise<void>
+}>
+
+export type WorkingTreeCache = Readonly<{
+  clear(repoPath: string): void
+}>
+
+export type GitChanges = Readonly<{
+  publishWorkingTreeChanged(projectPath: string): void
 }>
