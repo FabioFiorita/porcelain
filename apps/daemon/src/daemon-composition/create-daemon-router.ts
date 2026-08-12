@@ -3,10 +3,10 @@ import { createBoardRouter } from '../features/board'
 import { createFilesFeatureRouter } from '../features/files'
 import { createGitFeatureRouter } from '../features/git'
 import { createProjectsRouter } from '../features/projects'
+import { createRemoteRouter } from '../features/remote'
 import { createReviewCommentRouter } from '../features/review'
 import { createSearchRouter } from '../features/search'
 import { createTerminalRouter } from '../features/terminal'
-import { createDaemonRouter as createDaemonHostRouter } from '../router/daemon'
 import { createGitRouter } from '../router/git'
 import { createNetworkRouter } from '../router/network'
 import { createReposRouter } from '../router/repos'
@@ -25,7 +25,7 @@ import type { CreateDaemonRouterOptions } from './daemon-operations'
  */
 export function createDaemonRouter({ operations }: CreateDaemonRouterOptions) {
   return t.mergeRouters(
-    createDaemonHostRouter(),
+    createRemoteRouter(operations.remote),
     createProjectsRouter(operations.projects),
     createReposRouter(),
     createGitFeatureRouter(operations.git),

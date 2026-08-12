@@ -1,5 +1,5 @@
-import { statSync } from 'node:fs'
-import { readFile, rm } from 'node:fs/promises'
+import { mkdirSync, statSync, writeFileSync } from 'node:fs'
+import { readdir, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -70,5 +70,31 @@ describe('access store', () => {
     const exchanged = await exchangePairingGrant(third.credential)
     expect(await revokeAuthorizedClient(exchanged?.client.id ?? '')).toBe(true)
     expect(await authenticateClientToken(exchanged?.token ?? '')).toBeNull()
+  })
+
+  it('treats a missing access file as empty', async () => {
+    expect(await accessSnapshot()).toEqual({ pairings: [], clients: [] })
+  })
+
+  it('renames a malformed access file to a corrupt backup then reads empty', async () => {
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(file, '{not-json', 'utf8')
+    const before = Date.now()
+
+    expect(await accessSnapshot()).toEqual({ pairings: [], clients: [] })
+
+    const after = Date.now()
+    const backups = (await readdir(dir)).filter((name) => name.startsWith('access.json.corrupt-'))
+    expect(backups).toHaveLength(1)
+    const stamp = Number(backups[0]?.slice('access.json.corrupt-'.length))
+    expect(stamp).toBeGreaterThanOrEqual(before)
+    expect(stamp).toBeLessThanOrEqual(after)
+  })
+
+  it('treats an oversized access file as empty', async () => {
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(file, Buffer.alloc(1_048_576 + 1, 0x20))
+
+    expect(await accessSnapshot()).toEqual({ pairings: [], clients: [] })
   })
 })

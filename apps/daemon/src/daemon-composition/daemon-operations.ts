@@ -15,11 +15,26 @@ import {
   type GitOperations,
 } from '../features/git'
 import type { ProjectsOperations } from '../features/projects'
+import {
+  accessSnapshot,
+  createRemoteOperations,
+  issuePairingGrant,
+  type RemoteOperations,
+  revokeAuthorizedClient,
+  revokePairingGrant,
+} from '../features/remote'
 import { createReviewCommentOperations, type ReviewCommentOperations } from '../features/review'
 import { createSearchOperations, type SearchOperations } from '../features/search'
 import type { TerminalOperations } from '../features/terminal'
 import { gitGrep, gitListSearchFiles, gitSearchCode } from '../git/git'
-import { publishSessionChange } from '../session/live-session'
+import { displayAdminTokenPath } from '../net/admin-token'
+import { daemonIdentity } from '../net/daemon-identity'
+import { daemonVersion } from '../net/daemon-version'
+import {
+  clientSessionCount,
+  closeClientSessions,
+  publishSessionChange,
+} from '../session/live-session'
 import { hiddenPathsForRepo } from '../stores/scope-store'
 
 /**
@@ -28,6 +43,7 @@ import { hiddenPathsForRepo } from '../stores/scope-store'
  * router factory to receive that narrow slice in the same change.
  */
 export type DaemonOperations = Readonly<{
+  remote: RemoteOperations
   board: BoardOperations
   actions: ActionsOperations
   reviewComments: ReviewCommentOperations
@@ -49,6 +65,18 @@ export function createDaemonOperations(options: {
 }): DaemonOperations {
   const publish = options.publishSessionChange ?? publishSessionChange
   return Object.freeze({
+    remote: createRemoteOperations({
+      access: {
+        snapshot: accessSnapshot,
+        issuePairingGrant,
+        revokePairingGrant,
+        revokeAuthorizedClient,
+      },
+      identity: daemonIdentity,
+      version: daemonVersion,
+      displayAdminTokenPath,
+      sessions: { clientSessionCount, closeClientSessions },
+    }),
     board: createBoardOperations({
       publishSessionChange: publish,
     }),

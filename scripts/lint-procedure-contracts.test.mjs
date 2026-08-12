@@ -144,10 +144,12 @@ test('rejects an unknown router filename and a test file treated as a router', (
 
 test('rejects a missing production router filename', () => {
   const fixture = routerFixture()
-  fixture.routerFiles = fixture.routerFiles.filter((filename) => filename !== 'router/daemon.ts')
+  fixture.routerFiles = fixture.routerFiles.filter(
+    (filename) => filename !== 'features/remote/remote-router.ts',
+  )
   assert.ok(
     checkRouterCatalogBinding(fixture).some((failure) =>
-      failure.includes('production router file is missing: router/daemon.ts'),
+      failure.includes('production router file is missing: features/remote/remote-router.ts'),
     ),
   )
 })

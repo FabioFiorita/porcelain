@@ -1,7 +1,7 @@
 import { initTRPC } from '@trpc/server'
 import { expectedFailure } from './daemon-composition/expected-failure'
 import { formatPublicError, toTrpcError } from './daemon-composition/public-error'
-import type { AuthIdentity } from './stores/access-store'
+import type { AuthIdentity } from './features/remote'
 
 export interface DaemonTrpcContext {
   auth: AuthIdentity

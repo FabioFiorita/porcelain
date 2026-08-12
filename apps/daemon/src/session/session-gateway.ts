@@ -11,7 +11,7 @@ import {
   terminalServerFrameSchema,
 } from '@porcelain/contracts/terminal'
 import { z } from 'zod'
-import type { AuthIdentity } from '../stores/access-store'
+import type { AuthIdentity } from '../features/remote'
 import type { SessionChangePublisher } from './change-publisher'
 import { decideSessionHandshake } from './session-handshake'
 import { createSessionWatchInterests, type SessionWatchSink } from './session-watches'

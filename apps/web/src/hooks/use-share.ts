@@ -1,4 +1,4 @@
-import type { AuthorizedClient, PairingGrant } from '@backend/stores/access-store'
+import type { AuthorizedClient, PairingGrant } from '@porcelain/contracts/remote'
 import { onMutationError } from '@renderer/hooks/mutation-error'
 import { trpc } from '@renderer/lib/trpc'
 

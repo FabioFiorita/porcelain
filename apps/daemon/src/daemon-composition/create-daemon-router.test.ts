@@ -69,6 +69,7 @@ describe('createDaemonRouter composition', () => {
       terminal: terminalOperations(),
     })
     expect(Object.isFrozen(operations)).toBe(true)
+    expect(operations.remote).toBeDefined()
     expect(operations.board).toBeDefined()
     expect(operations.actions).toBeDefined()
     expect(operations.reviewComments).toBeDefined()

@@ -3,12 +3,12 @@ import { PROTOCOL_VERSION } from '@porcelain/contracts'
 import type { SessionChange } from '@porcelain/contracts/session'
 import { WebSocket } from 'ws'
 import { createSessionFilesWatches } from '../features/files'
+import type { AuthIdentity } from '../features/remote'
 import {
   createTerminalStreamGateway,
   type TerminalOperations,
   type TerminalStreamSink,
 } from '../features/terminal'
-import type { AuthIdentity } from '../stores/access-store'
 import { createSessionChangePublisher, type SessionChangePublisher } from './change-publisher'
 import {
   createSessionGateway,

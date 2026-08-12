@@ -8,6 +8,7 @@ import {
   createProjectsOperations,
   initProjectsRecentsDir,
 } from './features/projects'
+import { authenticateClientToken, exchangePairingGrant } from './features/remote'
 import {
   createPtyAdapter,
   createTerminalEnvironment,
@@ -23,7 +24,6 @@ import { rendererDistExists, serveStatic } from './net/static-server'
 import { initIfaceHandlers, startLanListener, startTailnetListener } from './net/tailnet-listener'
 import { watchAgentChannels, watchProjectCompanion } from './review/review-watch'
 import { createSession } from './session/live-session'
-import { authenticateClientToken, exchangePairingGrant } from './stores/access-store'
 import { initConfigDir, loadConfig } from './stores/config-store'
 
 /**

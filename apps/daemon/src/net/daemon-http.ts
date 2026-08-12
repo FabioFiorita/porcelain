@@ -13,7 +13,7 @@ import {
   writePublicError,
 } from '../daemon-composition/public-error'
 import { createRequestId } from '../daemon-composition/request-id'
-import type { AuthIdentity } from '../stores/access-store'
+import type { AuthIdentity } from '../features/remote'
 
 /**
  * The daemon's HTTP + WS surface, factored out of `server.ts` so it can be booted
