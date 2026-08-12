@@ -97,7 +97,7 @@ an external choice or authorization.
 | `SEA-002` | Landed | Shared Search keys/effects and Web/mobile feature relocation |
 | `SEA-003` | Landed | Delete Files/Git router and mobile Files ownership; complete domain |
 | `GIT-005` | Landed | Remaining Git mutation/read operations, domain rules, and adapter seams |
-| `GIT-006` | Draft | Changes/diff/history/commit/branch client-runtime and app cutover |
+| `GIT-006` | Ready | Changes/diff/history/commit/branch client-runtime and app cutover |
 | `GIT-007` | Draft | Remove Review/settings router leakage and complete Git domain |
 | `ACT-001` | Draft | Actions contracts, trust, CRUD/run-preparation operations, and v1 adapters |
 | `ACT-002` | Draft | Shared Actions query/mutation/notification semantics and run preparation |
