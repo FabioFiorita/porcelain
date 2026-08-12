@@ -12,7 +12,7 @@ import { BoardView } from '@renderer/features/board'
 import { kbdLabel } from '@renderer/lib/keyboard'
 import { cn } from '@renderer/lib/utils'
 import { usePreferencesStore } from '@renderer/stores/preferences'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { GlanceHome } from './glance-home'
 import { SplitResizeHandle } from './sidebar-resize-handle'
@@ -27,11 +27,11 @@ const QUICKSTART: { label: string; keys: string }[] = [
 ]
 
 function EmptyViewer(): React.JSX.Element {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
 
-  // With a repo open, empty pane is the Glance (work in flight) on every form
+  // With a project open, empty pane is the Glance (work in flight) on every form
   // factor — phone already had it; desktop used to show only logo + chords (U6).
-  if (repo !== null) {
+  if (project !== null) {
     return (
       <div className="flex h-full min-h-0 flex-col">
         <div className="min-h-0 flex-1">

@@ -1,6 +1,6 @@
 import type { FlowGroup } from '@backend/review/flow'
 import { trpc } from '@renderer/lib/trpc'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 
 /**
  * The Changes tab's Branch scope: the flow-ordered cumulative diff since the
@@ -12,9 +12,9 @@ export function useBranchFlow(enabled: boolean): {
   base: string | undefined
   refresh: () => Promise<void>
 } {
-  const repo = useRepoStore((s) => s.repo)
-  const { data, refetch } = trpc.gitRangeFlow.useQuery(repo?.path ?? '', {
-    enabled: enabled && repo !== null,
+  const project = useProjectSelectionStore((s) => s.project)
+  const { data, refetch } = trpc.gitRangeFlow.useQuery(project?.path ?? '', {
+    enabled: enabled && project !== null,
     staleTime: Number.POSITIVE_INFINITY,
   })
   const refresh = async (): Promise<void> => {

@@ -3,12 +3,11 @@ import type { ReviewComment } from '@porcelain/contracts/review'
 import { reviewProcedures } from '@porcelain/contracts/review'
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
-
+import { useActiveProject } from '@/features/projects'
 import { getDaemonClient } from '@/lib/daemon/client'
 import { isPaired } from '@/lib/daemon/environment'
 import { useActiveEnvironment } from '@/lib/daemon/environments-store'
 import { callDaemon, namedContractProcedure } from '@/lib/daemon/procedure'
-import { useActiveRepo } from '@/lib/daemon/repo'
 
 import { buildCommentIndex, type CommentIndex, commentedLinesByPath } from './comment-index'
 import { reviewCommentsQueryKey } from './comment-query-key'
@@ -30,11 +29,11 @@ const reviewCommentsProcedure = namedContractProcedure(
  * turns that into an exact invalidation of the typed comments identity.
  */
 export function useReviewComments(active: boolean): ReviewComment[] {
-  const repo = useActiveRepo()
+  const project = useActiveProject()
   const environment = useActiveEnvironment()
   const environmentId = environment?.id ?? 'none'
-  const projectPath = repo?.path ?? null
-  const enabled = active && repo !== null && isPaired(environment)
+  const projectPath = project?.path ?? null
+  const enabled = active && project !== null && isPaired(environment)
 
   const query = useQuery({
     enabled,

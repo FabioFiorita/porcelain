@@ -18,7 +18,7 @@ import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
 import { trpc } from '@renderer/lib/trpc'
 import { randomId } from '@renderer/lib/utils'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { type QueryClient, useMutation, useQueryClient } from '@tanstack/react-query'
 import { reviewCommentsKeyForProject, reviewCommentsQueryKey } from './comment-query-key'
 
@@ -94,15 +94,15 @@ export function useCommentActions(): {
   setResolved: (id: string, resolved: boolean) => Promise<void>
   clearResolved: () => Promise<void>
 } {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const daemon = useDaemonIdentity()
   const daemonScope: DaemonScope = { host: daemon.host, version: daemon.version }
   const queryClient = useQueryClient()
   const client = trpc.useUtils().client
 
   const runSerially = <T>(run: () => Promise<T>): Promise<T> => {
-    if (!repo) return run()
-    const queueKey = JSON.stringify(reviewCommentsKeyForProject(daemonScope, repo.path))
+    if (!project) return run()
+    const queueKey = JSON.stringify(reviewCommentsKeyForProject(daemonScope, project.path))
     return enqueueCommentMutation(queryClient, queueKey, run)
   }
 
@@ -309,10 +309,10 @@ export function useCommentActions(): {
 
   return {
     add: async (input: NewComment): Promise<void> => {
-      if (!repo) return
+      if (!project) return
       await runSerially(async () => {
         await add.mutateAsync({
-          repoPath: repo.path,
+          repoPath: project.path,
           path: input.path,
           body: input.body,
           ...(input.startLine !== undefined ? { startLine: input.startLine } : {}),
@@ -322,27 +322,27 @@ export function useCommentActions(): {
       })
     },
     edit: async (id: string, body: string): Promise<void> => {
-      if (!repo) return
+      if (!project) return
       await runSerially(async () => {
-        await edit.mutateAsync({ repoPath: repo.path, id, body })
+        await edit.mutateAsync({ repoPath: project.path, id, body })
       })
     },
     remove: async (id: string): Promise<void> => {
-      if (!repo) return
+      if (!project) return
       await runSerially(async () => {
-        await remove.mutateAsync({ repoPath: repo.path, id })
+        await remove.mutateAsync({ repoPath: project.path, id })
       })
     },
     setResolved: async (id: string, resolved: boolean): Promise<void> => {
-      if (!repo) return
+      if (!project) return
       await runSerially(async () => {
-        await setResolved.mutateAsync({ repoPath: repo.path, id, resolved })
+        await setResolved.mutateAsync({ repoPath: project.path, id, resolved })
       })
     },
     clearResolved: async (): Promise<void> => {
-      if (!repo) return
+      if (!project) return
       await runSerially(async () => {
-        await clearResolved.mutateAsync({ repoPath: repo.path })
+        await clearResolved.mutateAsync({ repoPath: project.path })
       })
     },
   }

@@ -6,6 +6,7 @@ import { SegmentedControl } from '@/components/segmented-control'
 import { PANEL_CARD } from '@/components/surface-layout'
 import { Button } from '@/components/ui/button'
 import { Text } from '@/components/ui/text'
+import { activeProjectPathOf } from '@/lib/daemon/environment'
 import { useActiveEnvironment, useConnectionState } from '@/lib/daemon/environments-store'
 import type { ChannelDisposition } from '@/lib/daemon/procedures/companion'
 import { cn } from '@/lib/utils'
@@ -20,7 +21,7 @@ import { useCompanionData } from './use-settings'
 export function DataSettings(): React.JSX.Element {
   const environment = useActiveEnvironment()
   const connection = useConnectionState()
-  const repoPath = environment?.activeRepoPath ?? null
+  const repoPath = activeProjectPathOf(environment)
 
   if (environment === null || connection.kind === 'no-environment') {
     return (

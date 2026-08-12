@@ -1,4 +1,4 @@
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { type TerminalOrigin, useTerminalsStore } from '@renderer/stores/terminals'
 
@@ -25,22 +25,22 @@ export function nextTerminalNumber(existingNames: string[], floor: number): numb
 let terminalNumberFloor = 0
 
 /**
- * Spawn a shell in the repo root and open it as a terminal tab. Shared by the Terminal
+ * Spawn a shell in the project root and open it as a terminal tab. Shared by the Terminal
  * tab's "+" button and the ⌘T / ⌘N shortcuts so they stay in lockstep (naming, the
- * open-in-tab step). No-op without a repo. Not a store action — it reaches across three
+ * open-in-tab step). No-op without a project. Not a store action — it reaches across three
  * stores via `getState()`, which a lib helper can do without risking an import cycle.
  */
 export async function spawnTerminal(): Promise<void> {
-  const repo = useRepoStore.getState().repo
-  if (!repo) return
-  await spawn(repo.path, 'primary')
+  const project = useProjectSelectionStore.getState().project
+  if (!project) return
+  await spawn(project.path, 'primary')
 }
 
 /**
  * Spawn a shell on the machine running the app (not the daemon this window is bound to)
  * and open it as a terminal tab — the "This device" path. `localPath` is the human's
- * mapped local directory for this repo; the caller (the Terminal list) collects it first,
- * since the remote repo's path rarely exists locally.
+ * mapped local directory for this project; the caller (the Terminal list) collects it first,
+ * since the remote project's path rarely exists locally.
  */
 export async function spawnLocalTerminal(
   localPath: string,

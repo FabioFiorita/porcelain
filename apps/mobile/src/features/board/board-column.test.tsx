@@ -18,8 +18,8 @@ vi.mock('@/lib/daemon/client', () => ({
   },
 }))
 
-vi.mock('@/lib/daemon/repo', () => ({
-  useActiveRepo: () => ({ path: REPO, name: 'repo' }),
+vi.mock('@/features/projects', () => ({
+  useActiveProject: () => ({ path: REPO, name: 'repo' }),
 }))
 
 vi.mock('@/lib/daemon/environments-store', () => ({

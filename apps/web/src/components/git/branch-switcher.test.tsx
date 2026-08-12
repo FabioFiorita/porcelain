@@ -1,5 +1,5 @@
 import { useGitCheckout, useGitCreateBranch, useGitWorkspace } from '@renderer/features/git'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { TestIds } from '@shared/test-ids'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -23,13 +23,13 @@ if (typeof Element.prototype.scrollIntoView !== 'function') {
   Element.prototype.scrollIntoView = (): void => {}
 }
 
-const repo = { path: '/repo', name: 'repo' }
+const project = { path: '/repo', name: 'repo' }
 const refresh = vi.fn().mockResolvedValue(undefined)
 
 describe('BranchSwitcher', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    useRepoStore.setState({ repo })
+    useProjectSelectionStore.setState({ project })
     vi.mocked(useGitWorkspace).mockReturnValue({
       branch: 'main',
       branches: [{ name: 'main', remote: null }],

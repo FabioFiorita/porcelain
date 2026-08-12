@@ -1,6 +1,6 @@
 import { useIsFocused } from 'expo-router'
 import { useEffect } from 'react'
-
+import { useActiveProject } from '@/features/projects'
 import {
   type Commit,
   type FlowGroup,
@@ -11,7 +11,6 @@ import {
   gitLogQuery,
 } from '@/lib/daemon/procedures/changes'
 import { useDaemonQuery } from '@/lib/daemon/queries'
-import { useActiveRepo } from '@/lib/daemon/repo'
 
 import { type HistorySelection, useHistoryStore } from './history-store'
 
@@ -37,12 +36,12 @@ export type GitLog = {
 
 /** Commits on the checked-out branch, newest first. */
 export function useGitLog(active: boolean): GitLog {
-  const repo = useActiveRepo()
+  const project = useActiveProject()
   const { data, error, isLoading } = useDaemonQuery(
     gitLogQuery,
-    { limit: LOG_LIMIT, repoPath: repo?.path ?? '' },
+    { limit: LOG_LIMIT, repoPath: project?.path ?? '' },
     {
-      enabled: active && repo !== null,
+      enabled: active && project !== null,
       placeholderData: 'keepPreviousData',
       pollMs: HISTORY_POLL_MS,
       staleTime: 0,
@@ -53,9 +52,9 @@ export function useGitLog(active: boolean): GitLog {
 
 /** The branch the log belongs to — the list header's context, not a fetch key. */
 export function useHeadLabel(active: boolean): string | null {
-  const repo = useActiveRepo()
-  const { data } = useDaemonQuery(gitHeadQuery, repo?.path ?? '', {
-    enabled: active && repo !== null,
+  const project = useActiveProject()
+  const { data } = useDaemonQuery(gitHeadQuery, project?.path ?? '', {
+    enabled: active && project !== null,
     pollMs: HISTORY_POLL_MS,
   })
   if (data === undefined) return null
@@ -71,11 +70,11 @@ const IMMUTABLE = { staleTime: Number.POSITIVE_INFINITY } as const
 
 /** The commit's raw `%B` — subject and body. */
 export function useCommitMessage(hash: string, active: boolean): string | undefined {
-  const repo = useActiveRepo()
+  const project = useActiveProject()
   const { data } = useDaemonQuery(
     gitCommitMessageQuery,
-    { hash, repoPath: repo?.path ?? '' },
-    { enabled: active && repo !== null, ...IMMUTABLE },
+    { hash, repoPath: project?.path ?? '' },
+    { enabled: active && project !== null, ...IMMUTABLE },
   )
   return data
 }
@@ -88,11 +87,11 @@ export type CommitFlow = {
 
 /** The commit's changed files, in the same flow order the Changes list groups by. */
 export function useCommitFlow(hash: string, active: boolean): CommitFlow {
-  const repo = useActiveRepo()
+  const project = useActiveProject()
   const { data, error, isLoading } = useDaemonQuery(
     gitCommitFlowQuery,
-    { hash, repoPath: repo?.path ?? '' },
-    { enabled: active && repo !== null, ...IMMUTABLE },
+    { hash, repoPath: project?.path ?? '' },
+    { enabled: active && project !== null, ...IMMUTABLE },
   )
   return { error, groups: data, isLoading }
 }
@@ -102,12 +101,12 @@ export function useCommitFlow(hash: string, active: boolean): CommitFlow {
  * there is no point asking git about an empty path.
  */
 export function useFileLog(filePath: string | null, active: boolean): Commit[] | undefined {
-  const repo = useActiveRepo()
+  const project = useActiveProject()
   const { data } = useDaemonQuery(
     gitFileLogQuery,
-    { filePath: filePath ?? '', limit: FILE_LOG_LIMIT, repoPath: repo?.path ?? '' },
+    { filePath: filePath ?? '', limit: FILE_LOG_LIMIT, repoPath: project?.path ?? '' },
     {
-      enabled: active && repo !== null && filePath !== null,
+      enabled: active && project !== null && filePath !== null,
       pollMs: HISTORY_POLL_MS,
       staleTime: 0,
     },

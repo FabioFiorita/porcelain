@@ -1,6 +1,6 @@
 import type { CodeSearchResult } from '@backend/git/git'
 import { useCodeSearch } from '@renderer/hooks/use-search'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useSearchStore } from '@renderer/stores/search'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { render, screen } from '@testing-library/react'
@@ -41,7 +41,7 @@ const result: CodeSearchResult = {
 describe('SearchList', () => {
   beforeEach(() => {
     useTabsStore.setState({ panes: [{ tabs: [], activeTabId: null }], activePaneIndex: 0 })
-    useRepoStore.setState({ repo: { path: '/myrepo', name: 'myrepo' } })
+    useProjectSelectionStore.setState({ project: { path: '/myrepo', name: 'myrepo' } })
     useSearchStore.setState({
       query: '',
       regex: false,

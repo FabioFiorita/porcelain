@@ -1,4 +1,4 @@
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useCommitDiff, useDiffFile, useDiffFilePrefetch } from './use-diff'
@@ -21,7 +21,7 @@ const aRepo = { path: '/repo', name: 'repo' }
 
 beforeEach(() => {
   vi.clearAllMocks()
-  useRepoStore.setState({ repo: null })
+  useProjectSelectionStore.setState({ project: null })
   gitDiffFileQuery.mockReturnValue({ data: undefined, error: null })
   gitRangeDiffFileQuery.mockReturnValue({ data: undefined, error: null })
   gitCommitDiffQuery.mockReturnValue({ data: undefined, error: null })
@@ -49,7 +49,7 @@ describe('useDiffFile', () => {
   })
 
   it('with no base, enables the working-tree query only and reads it', () => {
-    useRepoStore.setState({ repo: aRepo })
+    useProjectSelectionStore.setState({ project: aRepo })
     const hunks = [{ header: '@@ -1 +1 @@', lines: [] }]
     gitDiffFileQuery.mockReturnValue({ data: { hunks, status: 'modified' }, error: null })
 
@@ -68,7 +68,7 @@ describe('useDiffFile', () => {
   })
 
   it('with a base, enables the range query only and reads it', () => {
-    useRepoStore.setState({ repo: aRepo })
+    useProjectSelectionStore.setState({ project: aRepo })
     const hunks = [{ header: '@@ -1 +1 @@', lines: [] }]
     gitRangeDiffFileQuery.mockReturnValue({ data: { hunks, status: 'added' }, error: null })
 
@@ -87,21 +87,21 @@ describe('useDiffFile', () => {
   })
 
   it('collapses a missing `binary` flag to false', () => {
-    useRepoStore.setState({ repo: aRepo })
+    useProjectSelectionStore.setState({ project: aRepo })
     gitDiffFileQuery.mockReturnValue({ data: { hunks: [] }, error: null })
     const { result } = renderHook(() => useDiffFile('src/a.ts'))
     expect(result.current.binary).toBe(false)
   })
 
   it('reports `binary: true` only when the query says so exactly', () => {
-    useRepoStore.setState({ repo: aRepo })
+    useProjectSelectionStore.setState({ project: aRepo })
     gitDiffFileQuery.mockReturnValue({ data: { hunks: [], binary: true }, error: null })
     const { result } = renderHook(() => useDiffFile('src/a.ts'))
     expect(result.current.binary).toBe(true)
   })
 
   it('passes through the active query error', () => {
-    useRepoStore.setState({ repo: aRepo })
+    useProjectSelectionStore.setState({ project: aRepo })
     const error = { message: 'no such path' }
     gitDiffFileQuery.mockReturnValue({ data: undefined, error })
     const { result } = renderHook(() => useDiffFile('src/a.ts'))
@@ -122,7 +122,7 @@ describe('useDiffFilePrefetch', () => {
   })
 
   it('prefetches the working-tree diff when no base is given', async () => {
-    useRepoStore.setState({ repo: aRepo })
+    useProjectSelectionStore.setState({ project: aRepo })
     const prefetch = vi.fn().mockResolvedValue(undefined)
     useUtils.mockReturnValue({
       gitDiffFile: { prefetch },
@@ -139,7 +139,7 @@ describe('useDiffFilePrefetch', () => {
   })
 
   it('prefetches the range diff when a base is given', async () => {
-    useRepoStore.setState({ repo: aRepo })
+    useProjectSelectionStore.setState({ project: aRepo })
     const prefetch = vi.fn().mockResolvedValue(undefined)
     useUtils.mockReturnValue({
       gitDiffFile: { prefetch: vi.fn() },
@@ -167,7 +167,7 @@ describe('useCommitDiff', () => {
   })
 
   it('passes through hunks and error for a real repo', () => {
-    useRepoStore.setState({ repo: aRepo })
+    useProjectSelectionStore.setState({ project: aRepo })
     const hunks = [{ header: '@@ -1 +1 @@', lines: [] }]
     const error = null
     gitCommitDiffQuery.mockReturnValue({ data: hunks, error })

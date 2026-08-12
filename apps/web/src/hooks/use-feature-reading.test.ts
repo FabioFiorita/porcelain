@@ -1,4 +1,4 @@
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useFeatureReading } from './use-feature-reading'
@@ -15,7 +15,7 @@ const aRepo = { path: '/repo', name: 'repo' }
 
 beforeEach(() => {
   vi.clearAllMocks()
-  useRepoStore.setState({ repo: null })
+  useProjectSelectionStore.setState({ project: null })
   featureReadingQuery.mockReturnValue({ data: undefined, refetch: vi.fn() })
 })
 
@@ -30,7 +30,7 @@ describe('useFeatureReading', () => {
   })
 
   it('reports null as the documented "no review yet" state, not undefined', () => {
-    useRepoStore.setState({ repo: aRepo })
+    useProjectSelectionStore.setState({ project: aRepo })
     featureReadingQuery.mockReturnValue({ data: null, refetch: vi.fn() })
     const { result } = renderHook(() => useFeatureReading())
     expect(featureReadingQuery).toHaveBeenCalledWith(
@@ -41,7 +41,7 @@ describe('useFeatureReading', () => {
   })
 
   it('passes through a real reading', () => {
-    useRepoStore.setState({ repo: aRepo })
+    useProjectSelectionStore.setState({ project: aRepo })
     const reading = { name: 'Feature', sections: [], groups: [], evidence: null }
     featureReadingQuery.mockReturnValue({ data: reading, refetch: vi.fn() })
     const { result } = renderHook(() => useFeatureReading())
@@ -49,7 +49,7 @@ describe('useFeatureReading', () => {
   })
 
   it('refresh() refetches the query', async () => {
-    useRepoStore.setState({ repo: aRepo })
+    useProjectSelectionStore.setState({ project: aRepo })
     const refetch = vi.fn().mockResolvedValue(undefined)
     featureReadingQuery.mockReturnValue({ data: null, refetch })
     const { result } = renderHook(() => useFeatureReading())

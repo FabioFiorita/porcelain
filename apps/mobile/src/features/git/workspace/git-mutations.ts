@@ -7,12 +7,11 @@ import {
   type Worktree,
 } from '@porcelain/contracts/git'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-
+import { useActiveProject } from '@/features/projects'
 import { isPaired } from '@/lib/daemon/environment'
 import { useActiveEnvironment } from '@/lib/daemon/environments-store'
 import { DaemonError } from '@/lib/daemon/errors'
 import { type DaemonProcedure, namedContractProcedure } from '@/lib/daemon/procedure'
-import { useActiveRepo } from '@/lib/daemon/repo'
 import { invalidateGitEffects } from './git-legacy-cache'
 import { callGitMutation } from './use-git-mutations'
 
@@ -28,7 +27,7 @@ function useGitWorkspaceMutation<TOutput>(
   affectedQueries: (input: GitWorkspaceInput) => readonly GitWorkspaceQuery[],
 ): GitMutationAction<TOutput> {
   const environment = useActiveEnvironment()
-  const repo = useActiveRepo()
+  const project = useActiveProject()
   const queryClient = useQueryClient()
   const mutation = useMutation<TOutput, DaemonError, GitWorkspaceInput>({
     mutationFn: async (input): Promise<TOutput> => {
@@ -50,9 +49,9 @@ function useGitWorkspaceMutation<TOutput>(
   return {
     isPending: mutation.isPending,
     mutateAsync: (branch): Promise<TOutput | undefined> =>
-      repo === null
+      project === null
         ? Promise.resolve(undefined)
-        : mutation.mutateAsync({ branch, repoPath: repo.path }),
+        : mutation.mutateAsync({ branch, repoPath: project.path }),
   }
 }
 

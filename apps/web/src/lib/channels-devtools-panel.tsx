@@ -2,9 +2,9 @@ import { useBoardCards } from '@renderer/features/board'
 import { useReviewComments } from '@renderer/features/review/comments'
 import { useActions } from '@renderer/hooks/use-actions'
 import { useFeatureView } from '@renderer/hooks/use-feature-view'
-import { useRepoNotes } from '@renderer/hooks/use-repo-notes'
+import { useProjectNotes } from '@renderer/hooks/use-project-notes'
 import { useSkillsInfo } from '@renderer/hooks/use-skills'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 
 /**
  * A product-specific devtools panel that inspects Porcelain's agent channels — the
@@ -15,16 +15,16 @@ import { useRepoStore } from '@renderer/stores/repo'
  * see/do. Registered as a `plugins` entry in {@link DevtoolsShell}.
  */
 export function ChannelsDevtoolsPanel(): React.JSX.Element {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const skills = useSkillsInfo()
   const { view } = useFeatureView()
   const comments = useReviewComments()
   const { cards } = useBoardCards()
   const actions = useActions()
-  const notes = useRepoNotes()
+  const notes = useProjectNotes()
 
-  if (!repo) {
-    return <div style={WRAP}>No repo open — the agent channels are repo-keyed.</div>
+  if (!project) {
+    return <div style={WRAP}>No project open — the agent channels are project-keyed.</div>
   }
 
   const reviewFiles = view?.groups.flatMap((g) => g.files) ?? []

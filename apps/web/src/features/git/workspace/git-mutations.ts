@@ -8,7 +8,7 @@ import type {
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
 import { trpc } from '@renderer/lib/trpc'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { type UseMutationResult, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { invalidateGitEffects } from './git-legacy-cache'
@@ -28,7 +28,7 @@ function useGitWorkspaceMutation<TInput extends GitWorkspaceInput, TOutput>(
   repoPath: string | null
   daemon: DaemonScope
 } {
-  const repo = useRepoStore((state) => state.repo)
+  const project = useProjectSelectionStore((state) => state.project)
   const daemonIdentity = useDaemonIdentity()
   const daemon: DaemonScope = { host: daemonIdentity.host, version: daemonIdentity.version }
   const queryClient = useQueryClient()
@@ -40,7 +40,7 @@ function useGitWorkspaceMutation<TInput extends GitWorkspaceInput, TOutput>(
     },
   })
 
-  return { daemon, mutation, repoPath: repo?.path ?? null }
+  return { daemon, mutation, repoPath: project?.path ?? null }
 }
 
 export function useGitCheckout(): GitMutationAction<void> {

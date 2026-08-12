@@ -9,9 +9,9 @@ import { ProjectSwitcherMenu } from './project-switcher-menu'
 // surface), a dense chip that sits above the tab icons. The menu opens to the
 // right of the rail.
 export function ProjectSwitcher(): React.JSX.Element | null {
-  const repo = useSelectedProject()
+  const project = useSelectedProject()
 
-  if (!repo) return null
+  if (!project) return null
 
   return (
     <ProjectSwitcherMenu
@@ -28,7 +28,7 @@ export function ProjectSwitcher(): React.JSX.Element | null {
                     // badge on the rail.
                     className="app-no-drag relative flex size-10 items-center justify-center rounded-md border bg-secondary text-sm font-semibold text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                   >
-                    {repo.name.charAt(0).toUpperCase()}
+                    {project.name.charAt(0).toUpperCase()}
                     <span className="absolute -right-0.5 -bottom-0.5 flex size-3.5 items-center justify-center rounded-full border bg-card text-muted-foreground">
                       <ChevronsUpDown className="size-2" />
                     </span>
@@ -37,7 +37,7 @@ export function ProjectSwitcher(): React.JSX.Element | null {
               />
             }
           />
-          <TooltipContent side="right">{repo.name}</TooltipContent>
+          <TooltipContent side="right">{project.name}</TooltipContent>
         </Tooltip>
       }
     />

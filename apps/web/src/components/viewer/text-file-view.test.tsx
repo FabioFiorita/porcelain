@@ -1,5 +1,5 @@
 import { usePreferencesStore } from '@renderer/stores/preferences'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, expect, test, vi } from 'vitest'
@@ -28,7 +28,7 @@ vi.mock('@renderer/features/review/comments', () => ({
 }))
 
 beforeEach(() => {
-  useRepoStore.setState({ repo: { path: '/repo', name: 'repo' } as never })
+  useProjectSelectionStore.setState({ project: { path: '/repo', name: 'repo' } as never })
   usePreferencesStore.setState({ markdownMode: 'source' } as never)
   useTabsStore.setState({
     panes: [

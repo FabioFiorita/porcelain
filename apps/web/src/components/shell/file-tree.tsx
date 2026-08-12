@@ -5,7 +5,7 @@ import { useFilesScope, useFilesTree } from '@renderer/features/files'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { scopeSetupPrompt } from '@renderer/lib/agent-setup-prompts'
 import { copyText } from '@renderer/lib/utils'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useSetupTipsStore } from '@renderer/stores/setup-tips'
 import { useTreeDirsStore } from '@renderer/stores/tree-dirs'
 import { runUserAction } from '@shared/background'
@@ -18,15 +18,15 @@ import { TreeNode } from './tree-node'
 const NOISY_ROOT_DIR_THRESHOLD = 5
 
 export function FileTree({ rootPath }: { rootPath: string }): React.JSX.Element {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const entries = useFilesTree(rootPath)
   const scope = useFilesScope()
   const scopeKickoffDismissed = useSetupTipsStore((s) =>
-    repo ? s.dismissed[repo.path]?.['scope-kickoff'] === true : true,
+    project ? s.dismissed[project.path]?.['scope-kickoff'] === true : true,
   )
   const dismissTip = useSetupTipsStore((s) => s.dismiss)
   const [copied, setCopied] = useState(false)
-  // Watch the repo root the same way each expanded `DirNode` watches itself, so an
+  // Watch the project root the same way each expanded `DirNode` watches itself, so an
   // add/remove at the top level (not inside an expanded subfolder) refreshes too.
   const addWatchedDir = useTreeDirsStore((s) => s.add)
   const removeWatchedDir = useTreeDirsStore((s) => s.remove)
@@ -43,7 +43,7 @@ export function FileTree({ rootPath }: { rootPath: string }): React.JSX.Element 
   const scopeEmpty =
     scope !== undefined && scope.hiddenPaths.length === 0 && scope.pinnedPaths.length === 0
   const showScopeKickoff =
-    repo !== null && scopeEmpty && rootDirs >= NOISY_ROOT_DIR_THRESHOLD && !scopeKickoffDismissed
+    project !== null && scopeEmpty && rootDirs >= NOISY_ROOT_DIR_THRESHOLD && !scopeKickoffDismissed
 
   const handleCopyScopeSetup = (): void => {
     runUserAction(
@@ -59,12 +59,12 @@ export function FileTree({ rootPath }: { rootPath: string }): React.JSX.Element 
 
   return (
     <div className="flex flex-col gap-1">
-      {showScopeKickoff && repo !== null && (
+      {showScopeKickoff && project !== null && (
         <SetupTip
           testId={TestIds.filesScopeSetup}
           dismissTestId={TestIds.filesScopeSetupDismiss}
           className="mx-2 mt-1"
-          onDismiss={() => dismissTip(repo.path, 'scope-kickoff')}
+          onDismiss={() => dismissTip(project.path, 'scope-kickoff')}
           actions={
             <Button
               variant="outline"

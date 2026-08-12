@@ -12,7 +12,7 @@ import {
 } from '@/components/surface-chrome'
 import { SURFACE_ROW, SURFACE_ROW_SELECTED } from '@/components/surface-layout'
 import { SurfaceList } from '@/components/surface-scroll'
-import { useActiveRepo } from '@/lib/daemon/repo'
+import { useActiveProject } from '@/features/projects'
 import { cn } from '@/lib/utils'
 
 import { TerminalRenameDialog } from './terminal-rename-dialog'
@@ -35,7 +35,7 @@ export function TerminalList({
   /** Phone: push the session's route. Omitted on tablet, which selects into its viewer. */
   onOpenSession?: (id: string) => void
 }): React.JSX.Element {
-  const repo = useActiveRepo()
+  const project = useActiveProject()
   const { error, isLoading, sessions } = useTerminals(active)
   const selectedId = useTerminalStore((state) => state.selectedId)
   const select = useTerminalStore((state) => state.select)
@@ -53,7 +53,7 @@ export function TerminalList({
     onOpenSession?.(id)
   }
 
-  // Every write here is a daemon round trip that can fail — a dead socket, a repo that moved.
+  // Every write here is a daemon round trip that can fail — a dead socket, a project that moved.
   // Say so on the header rather than letting a tap look like it worked.
   const guard = (label: string, run: () => Promise<unknown>): void => {
     setFailure(null)
@@ -63,9 +63,9 @@ export function TerminalList({
   }
 
   const handleNew = (): void => {
-    if (repo === null) return
+    if (project === null) return
     guard('New terminal failed', async () => {
-      const id = await spawn({ cwd: repo.path })
+      const id = await spawn({ cwd: project.path })
       onOpenSession?.(id)
     })
   }
@@ -97,14 +97,14 @@ export function TerminalList({
           className="min-w-0 flex-1 text-xs text-muted-foreground"
           testID="porcelain-terminal-summary"
         >
-          {summaryLabel(sessions, isLoading, repo !== null)}
+          {summaryLabel(sessions, isLoading, project !== null)}
         </Text>
         {/* Hung out by half the icon button's slack so the glyph — not its 36pt box — lands
             on the same gutter as the summary beside it. */}
         <View className="-mr-2">
           <IconAction
             accessibilityLabel="New terminal"
-            disabled={repo === null}
+            disabled={project === null}
             glyph="plus"
             testID="porcelain-terminal-new"
             onPress={handleNew}
@@ -126,7 +126,7 @@ export function TerminalList({
       {sessions.length === 0 && !isLoading ? (
         <EmptyNote
           body={
-            repo === null
+            project === null
               ? 'Open a project first — a shell needs somewhere to run.'
               : 'Start one with +, or run a saved action from the companion.'
           }

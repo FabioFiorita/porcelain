@@ -12,7 +12,7 @@ import type { DirEntry, FileView, RepoScope } from '@porcelain/contracts/files'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
 import { trpc } from '@renderer/lib/trpc'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { settleBackground } from '@shared/background'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback } from 'react'
@@ -45,15 +45,15 @@ function invariantDisabledQueryFn(label: string): never {
 
 /** Directory listing for one absolute UI path (lazy tree rows). */
 export function useFilesTree(absolutePath: string, enabled = true): DirEntry[] | undefined {
-  const repo = useRepoStore((s) => s.repo)
-  const showHidden = useRepoStore((s) => s.showHidden)
+  const project = useProjectSelectionStore((s) => s.project)
+  const showHidden = useProjectSelectionStore((s) => s.showHidden)
   const daemon = useDaemonIdentity()
   const daemonScope = daemonScopeFromIdentity(daemon)
   const utils = trpc.useUtils()
 
-  const identityPath = repo !== null ? treePathFromAbsolute(repo.path, absolutePath) : null
-  const projectKey = repo !== null ? filesProjectKey(repo.path) : null
-  const canRun = repo !== null && identityPath !== null && enabled
+  const identityPath = project !== null ? treePathFromAbsolute(project.path, absolutePath) : null
+  const projectKey = project !== null ? filesProjectKey(project.path) : null
+  const canRun = project !== null && identityPath !== null && enabled
 
   const identity =
     canRun && projectKey !== null
@@ -82,11 +82,11 @@ export function useFilesTree(absolutePath: string, enabled = true): DirEntry[] |
 
 /** Pinned entries for the active project. */
 export function usePinnedFiles(): DirEntry[] | undefined {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const daemon = useDaemonIdentity()
   const daemonScope = daemonScopeFromIdentity(daemon)
   const utils = trpc.useUtils()
-  const projectKey = repo !== null ? filesProjectKey(repo.path) : null
+  const projectKey = project !== null ? filesProjectKey(project.path) : null
   const identity = projectKey !== null ? filesPinsQuery(projectKey) : DISABLED_PINS
 
   const { data } = useQuery({
@@ -95,19 +95,19 @@ export function usePinnedFiles(): DirEntry[] | undefined {
       if (projectKey === null) return invariantDisabledQueryFn('pins')
       return utils.client.pinnedEntries.query(projectKey)
     },
-    enabled: repo !== null,
+    enabled: project !== null,
   })
 
   return data
 }
 
-/** Monorepo hide/pin lists; empty arrays when the repo has never configured scope. */
+/** Monorepo hide/pin lists; empty arrays when the project has never configured scope. */
 export function useFilesScope(): RepoScope | undefined {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const daemon = useDaemonIdentity()
   const daemonScope = daemonScopeFromIdentity(daemon)
   const utils = trpc.useUtils()
-  const projectKey = repo !== null ? filesProjectKey(repo.path) : null
+  const projectKey = project !== null ? filesProjectKey(project.path) : null
   const identity = projectKey !== null ? filesScopeQuery(projectKey) : DISABLED_SCOPE
 
   const { data } = useQuery({
@@ -116,7 +116,7 @@ export function useFilesScope(): RepoScope | undefined {
       if (projectKey === null) return invariantDisabledQueryFn('scope')
       return utils.client.repoScope.query(projectKey)
     },
-    enabled: repo !== null,
+    enabled: project !== null,
   })
 
   return data
@@ -130,14 +130,14 @@ export function useFileContent(
   view: FileView | undefined
   error: { message: string } | null
 } {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const daemon = useDaemonIdentity()
   const daemonScope = daemonScopeFromIdentity(daemon)
   const utils = trpc.useUtils()
-  const rel = repo ? projectRelativeFromAbsolute(repo.path, absolutePath) : null
-  const projectKey = repo !== null ? filesProjectKey(repo.path) : null
+  const rel = project ? projectRelativeFromAbsolute(project.path, absolutePath) : null
+  const projectKey = project !== null ? filesProjectKey(project.path) : null
   const canRun =
-    enabled && repo !== null && rel !== null && absolutePath !== '' && projectKey !== null
+    enabled && project !== null && rel !== null && absolutePath !== '' && projectKey !== null
   const identity =
     canRun && projectKey !== null && rel !== null
       ? fileContentQuery(projectKey, rel)
@@ -164,14 +164,14 @@ export function useFilePreview(
   absolutePath: string,
   enabled: boolean,
 ): { html: string | null | undefined; error: { message: string } | null } {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const daemon = useDaemonIdentity()
   const daemonScope = daemonScopeFromIdentity(daemon)
   const utils = trpc.useUtils()
-  const rel = repo ? projectRelativeFromAbsolute(repo.path, absolutePath) : null
-  const projectKey = repo !== null ? filesProjectKey(repo.path) : null
+  const rel = project ? projectRelativeFromAbsolute(project.path, absolutePath) : null
+  const projectKey = project !== null ? filesProjectKey(project.path) : null
   const canRun =
-    enabled && repo !== null && rel !== null && absolutePath !== '' && projectKey !== null
+    enabled && project !== null && rel !== null && absolutePath !== '' && projectKey !== null
   const identity =
     canRun && projectKey !== null && rel !== null
       ? filePreviewQuery(projectKey, rel)
@@ -193,17 +193,17 @@ export function useFilePreview(
 
 /** Prefetch a file's contents (tree hover) into the same key as useFileContent. */
 export function usePrefetchFileContent(): (path: string) => Promise<void> {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const daemon = useDaemonIdentity()
   const daemonScope = daemonScopeFromIdentity(daemon)
   const queryClient = useQueryClient()
   const utils = trpc.useUtils()
 
   return (path: string): Promise<void> => {
-    if (!repo) return Promise.resolve()
-    const rel = projectRelativeFromAbsolute(repo.path, path)
+    if (!project) return Promise.resolve()
+    const rel = projectRelativeFromAbsolute(project.path, path)
     if (rel === null) return Promise.resolve()
-    const projectKey = filesProjectKey(repo.path)
+    const projectKey = filesProjectKey(project.path)
     const identity = fileContentQuery(projectKey, rel)
     return queryClient.prefetchQuery({
       queryKey: filesQueryKey(daemonScope, identity),
@@ -214,15 +214,15 @@ export function usePrefetchFileContent(): (path: string) => Promise<void> {
 
 /** Drop stale tree + pinned rows after a file vanished from disk (external delete). */
 export function useRefreshFilesTree(): () => void {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const daemon = useDaemonIdentity()
   const host = daemon.host
   const version = daemon.version
   const queryClient = useQueryClient()
 
   return useCallback(() => {
-    if (!repo) return
-    const projectKey = filesProjectKey(repo.path)
+    if (!project) return
+    const projectKey = filesProjectKey(project.path)
     const daemonScope: DaemonScope = { host, version }
     settleBackground(
       invalidateFilesEffects(queryClient, daemonScope, [
@@ -231,7 +231,7 @@ export function useRefreshFilesTree(): () => void {
       ]),
       'invalidation',
     )
-  }, [repo, host, version, queryClient])
+  }, [project, host, version, queryClient])
 }
 
 // Re-export path helpers used when building wire absolute paths from identity paths.

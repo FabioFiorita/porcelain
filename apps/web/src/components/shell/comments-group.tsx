@@ -18,7 +18,7 @@ import {
 import { useCommentActions, useReviewComments } from '@renderer/features/review/comments'
 import { fileName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { Check, Eraser, RotateCcw, Trash2 } from 'lucide-react'
 import { useState } from 'react'
@@ -33,13 +33,13 @@ function anchorLabel(comment: ReviewComment): string {
 }
 
 function CommentRow({ comment }: { comment: ReviewComment }): React.JSX.Element {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const openTab = useTabsStore((s) => s.openTab)
   const { remove, setResolved } = useCommentActions()
 
   const handleOpen = (): void => {
-    if (!repo) return
-    const absolute = `${repo.path}/${comment.path}`
+    if (!project) return
+    const absolute = `${project.path}/${comment.path}`
     openTab({
       id: tabId('file', absolute),
       kind: 'file',

@@ -1,4 +1,4 @@
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -29,7 +29,7 @@ const aRepo = { path: '/repo', name: 'repo' }
 
 beforeEach(() => {
   vi.clearAllMocks()
-  useRepoStore.setState({ repo: null })
+  useProjectSelectionStore.setState({ project: null })
   gitLogQuery.mockReturnValue({ data: undefined })
   gitFileLogQuery.mockReturnValue({ data: undefined })
   gitCommitMessageQuery.mockReturnValue({ data: undefined })
@@ -47,7 +47,7 @@ describe('useGitLog', () => {
   })
 
   it('stays disabled when explicitly disabled, even with a repo open', () => {
-    useRepoStore.setState({ repo: aRepo })
+    useProjectSelectionStore.setState({ project: aRepo })
     renderHook(() => useGitLog(200, false))
     expect(gitLogQuery).toHaveBeenCalledWith(
       { repoPath: aRepo.path, limit: 200 },
@@ -56,7 +56,7 @@ describe('useGitLog', () => {
   })
 
   it('enables and forwards a custom limit with a repo open', () => {
-    useRepoStore.setState({ repo: aRepo })
+    useProjectSelectionStore.setState({ project: aRepo })
     const commits = [{ hash: 'a', author: 'x', date: 'today', subject: 'msg' }]
     gitLogQuery.mockReturnValue({ data: commits })
     const { result } = renderHook(() => useGitLog(50))
@@ -70,7 +70,7 @@ describe('useGitLog', () => {
 
 describe('useFileLog', () => {
   it('disables the query when no file is open in the viewer', () => {
-    useRepoStore.setState({ repo: aRepo })
+    useProjectSelectionStore.setState({ project: aRepo })
     const { result } = renderHook(() => useFileLog(null))
     expect(gitFileLogQuery).toHaveBeenCalledWith(
       { repoPath: aRepo.path, filePath: '', limit: 50 },
@@ -80,7 +80,7 @@ describe('useFileLog', () => {
   })
 
   it('enables the query and forwards the file path once one is open', () => {
-    useRepoStore.setState({ repo: aRepo })
+    useProjectSelectionStore.setState({ project: aRepo })
     const commits = [{ hash: 'a', author: 'x', date: 'today', subject: 'msg' }]
     gitFileLogQuery.mockReturnValue({ data: commits })
     const { result } = renderHook(() => useFileLog('src/a.ts', 10))
@@ -103,7 +103,7 @@ describe('useCommitMessage', () => {
   })
 
   it('passes through the commit message', () => {
-    useRepoStore.setState({ repo: aRepo })
+    useProjectSelectionStore.setState({ project: aRepo })
     gitCommitMessageQuery.mockReturnValue({ data: 'fix: thing' })
     const { result } = renderHook(() => useCommitMessage('abc123'))
     expect(result.current).toBe('fix: thing')
@@ -121,7 +121,7 @@ describe('useFetchCommitMessage', () => {
   })
 
   it('fetches the full commit message with a repo open', async () => {
-    useRepoStore.setState({ repo: aRepo })
+    useProjectSelectionStore.setState({ project: aRepo })
     const fetch = vi.fn().mockResolvedValue('fix: thing\n\nbody')
     useUtils.mockReturnValue({ gitCommitMessage: { fetch } })
     const { result } = renderHook(() => useFetchCommitMessage())
@@ -142,7 +142,7 @@ describe('useCommitFlow', () => {
   })
 
   it('wraps the query data in a groups object', () => {
-    useRepoStore.setState({ repo: aRepo })
+    useProjectSelectionStore.setState({ project: aRepo })
     const groups = [{ layer: 'ui', files: [] }]
     gitCommitFlowQuery.mockReturnValue({ data: groups })
     const { result } = renderHook(() => useCommitFlow('abc123'))

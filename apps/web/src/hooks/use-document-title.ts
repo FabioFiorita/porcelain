@@ -1,4 +1,4 @@
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useEffect } from 'react'
 
 /**
@@ -8,7 +8,7 @@ import { useEffect } from 'react'
  * window mode, including the welcome screen (repo === null → plain "Porcelain").
  */
 export function useDocumentTitle(): void {
-  const repoName = useRepoStore((s) => s.repo?.name)
+  const repoName = useProjectSelectionStore((s) => s.project?.name)
 
   useEffect(() => {
     document.title = repoName ? `${repoName} — Porcelain` : 'Porcelain'

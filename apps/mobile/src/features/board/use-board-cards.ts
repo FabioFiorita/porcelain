@@ -3,7 +3,7 @@ import type { BoardCard } from '@porcelain/contracts/board'
 import { boardProcedures } from '@porcelain/contracts/board'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-
+import { useActiveProject } from '@/features/projects'
 import { useShellStore } from '@/features/shell/shell-store'
 import { useIsTablet } from '@/features/shell/use-app-window'
 import { getDaemonClient } from '@/lib/daemon/client'
@@ -11,7 +11,6 @@ import { isPaired } from '@/lib/daemon/environment'
 import { useActiveEnvironment } from '@/lib/daemon/environments-store'
 import { DaemonError, daemonErrorMessage } from '@/lib/daemon/errors'
 import { callDaemon, namedContractProcedure } from '@/lib/daemon/procedure'
-import { useActiveRepo } from '@/lib/daemon/repo'
 
 import { boardCardsQueryKey } from './board-query-key'
 import { useBoardStore } from './board-store'
@@ -34,18 +33,18 @@ const listBoardCardsProcedure = namedContractProcedure(
 )
 
 /**
- * Every card on the open repo's board.
+ * Every card on the open project's board.
  *
  * No poll, by design: the daemon pushes a `board.changed` session signal whenever a card is
  * written — whether by this client, the desktop, or the agent through the CLI — and the
  * BoardNotificationBridge turns that into an exact invalidation.
  */
 export function useBoardCards(active: boolean): BoardCards {
-  const repo = useActiveRepo()
+  const project = useActiveProject()
   const environment = useActiveEnvironment()
   const environmentId = environment?.id ?? 'none'
-  const projectPath = repo?.path ?? null
-  const enabled = active && repo !== null && isPaired(environment)
+  const projectPath = project?.path ?? null
+  const enabled = active && project !== null && isPaired(environment)
 
   const query = useQuery({
     enabled,
@@ -78,7 +77,7 @@ export function useBoardCards(active: boolean): BoardCards {
 }
 
 /**
- * Every board write is a daemon round trip that can fail — a repo that moved, a card the agent
+ * Every board write is a daemon round trip that can fail — a project that moved, a card the agent
  * deleted first. Report it on the panel that triggered it rather than letting a tap look like
  * it worked.
  */
@@ -113,30 +112,30 @@ export function useBoardFailure(): {
  * shows it — otherwise the selection would have no visible effect at all.
  */
 export function useFocusCard(): (card: BoardCard) => void {
-  const repo = useActiveRepo()
+  const project = useActiveProject()
   const select = useBoardStore((state) => state.select)
   const isTablet = useIsTablet()
   const openSheet = useShellStore((state) => state.openSheet)
   const setActiveSurface = useShellStore((state) => state.setActiveSurface)
 
   return (card: BoardCard): void => {
-    if (repo === null) return
-    select(repo.path, card.id)
+    if (project === null) return
+    select(project.path, card.id)
     if (isTablet) return
     setActiveSurface('board')
     openSheet('companion')
   }
 }
 
-/** The focused card id for the open repo, or `null` when the Focus rail is on its default. */
+/** The focused card id for the open project, or `null` when the Focus rail is on its default. */
 export function useSelectedCardId(): string | null {
-  const repo = useActiveRepo()
+  const project = useActiveProject()
   const focus = useBoardStore((state) => state.focus)
-  if (focus === null || repo === null) return null
-  return focus.repoPath === repo.path ? focus.cardId : null
+  if (focus === null || project === null) return null
+  return focus.repoPath === project.path ? focus.cardId : null
 }
 
 /** Active Project path for Board focus resolution — kept inside the feature boundary. */
 export function useBoardProjectPath(): string | null {
-  return useActiveRepo()?.path ?? null
+  return useActiveProject()?.path ?? null
 }

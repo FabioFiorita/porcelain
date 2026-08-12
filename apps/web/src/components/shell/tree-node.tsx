@@ -38,7 +38,7 @@ import { cn } from '@renderer/lib/utils'
 import { useFilePromptStore } from '@renderer/stores/file-prompt'
 import { useFileTreeStore } from '@renderer/stores/file-tree'
 import { usePreferencesStore } from '@renderer/stores/preferences'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useRevealStore } from '@renderer/stores/reveal'
 import { useSelectionStore } from '@renderer/stores/selection'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
@@ -90,7 +90,7 @@ function EntryContextMenu({
   const newFile = useFilePromptStore((s) => s.newFile)
   const newFolder = useFilePromptStore((s) => s.newFolder)
   const startRename = useFilePromptStore((s) => s.rename)
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
 
   const scopeAct = (label: string, work: () => PromiseLike<unknown>): void =>
     runUserAction(work, (e) => toastUserActionError(label, e))
@@ -116,10 +116,10 @@ function EntryContextMenu({
     })
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [commentAnchor, setCommentAnchor] = useState<CommentAnchor | null>(null)
-  // Comments store repo-relative paths; the tree holds absolute ones.
+  // Comments store project-relative paths; the tree holds absolute ones.
   const relativePath =
-    repo && entry.path.startsWith(`${repo.path}/`)
-      ? entry.path.slice(repo.path.length + 1)
+    project && entry.path.startsWith(`${project.path}/`)
+      ? entry.path.slice(project.path.length + 1)
       : entry.path
   // New file/folder land in this directory (the folder itself, or a file's parent).
   const dir = entry.kind === 'dir' ? entry.path : dirName(entry.path)

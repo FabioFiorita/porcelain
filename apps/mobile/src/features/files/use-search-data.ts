@@ -1,5 +1,5 @@
+import { useActiveProject } from '@/features/projects'
 import { useDaemonQuery } from '@/lib/daemon/queries'
-import { useActiveRepo } from '@/lib/daemon/repo'
 
 import {
   type CodeSearchOptions,
@@ -14,13 +14,13 @@ export function useFileSearch(
   query: string,
   active: boolean,
 ): { results: FileSearchResult[]; isLoading: boolean; error: Error | null } {
-  const repo = useActiveRepo()
+  const project = useActiveProject()
   const trimmed = query.trim()
   const result = useDaemonQuery(
     searchFilesQuery,
-    { query: trimmed, repoPath: repo?.path ?? '' },
+    { query: trimmed, repoPath: project?.path ?? '' },
     {
-      enabled: active && repo !== null && trimmed !== '',
+      enabled: active && project !== null && trimmed !== '',
       placeholderData: 'keepPreviousData',
       staleTime: 10_000,
     },
@@ -36,13 +36,13 @@ export function useCodeSearch(
   options: CodeSearchOptions,
   active: boolean,
 ): { result: CodeSearchResult | undefined; isLoading: boolean; error: Error | null } {
-  const repo = useActiveRepo()
+  const project = useActiveProject()
   const trimmed = options.query.trim()
   const result = useDaemonQuery(
     searchCodeQuery,
-    { ...options, query: trimmed, repoPath: repo?.path ?? '' },
+    { ...options, query: trimmed, repoPath: project?.path ?? '' },
     {
-      enabled: active && repo !== null && trimmed !== '',
+      enabled: active && project !== null && trimmed !== '',
       placeholderData: 'keepPreviousData',
       staleTime: 10_000,
     },

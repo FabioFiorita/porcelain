@@ -1,13 +1,13 @@
 import type { Commit } from '@backend/git/diff'
 import type { FlowGroup } from '@backend/review/flow'
 import { trpc } from '@renderer/lib/trpc'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 
 export function useGitLog(limit = 200, enabled = true): Commit[] | undefined {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const { data } = trpc.gitLog.useQuery(
-    { repoPath: repo?.path ?? '', limit },
-    { enabled: enabled && repo !== null, staleTime: 0 },
+    { repoPath: project?.path ?? '', limit },
+    { enabled: enabled && project !== null, staleTime: 0 },
   )
   return data
 }
@@ -17,29 +17,29 @@ export function useGitLog(limit = 200, enabled = true): Commit[] | undefined {
  *  query (no point asking git for an empty path). staleTime 0: the timeline
  *  should reflect new commits as they land. */
 export function useFileLog(filePath: string | null, limit = 50): Commit[] | undefined {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const { data } = trpc.gitFileLog.useQuery(
-    { repoPath: repo?.path ?? '', filePath: filePath ?? '', limit },
-    { enabled: repo !== null && filePath !== null, staleTime: 0 },
+    { repoPath: project?.path ?? '', filePath: filePath ?? '', limit },
+    { enabled: project !== null && filePath !== null, staleTime: 0 },
   )
   return data
 }
 
 export function useCommitMessage(hash: string): string | undefined {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const { data } = trpc.gitCommitMessage.useQuery(
-    { repoPath: repo?.path ?? '', hash },
-    { enabled: repo !== null },
+    { repoPath: project?.path ?? '', hash },
+    { enabled: project !== null },
   )
   return data
 }
 
 /** Imperatively fetch a commit's full message (subject + body) — for copy actions. */
 export function useFetchCommitMessage(): (hash: string) => Promise<string> {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const utils = trpc.useUtils()
   return (hash: string) =>
-    repo ? utils.gitCommitMessage.fetch({ repoPath: repo.path, hash }) : Promise.resolve('')
+    project ? utils.gitCommitMessage.fetch({ repoPath: project.path, hash }) : Promise.resolve('')
 }
 
 /** Flow-grouped file list for a single historical commit.
@@ -47,10 +47,10 @@ export function useFetchCommitMessage(): (hash: string) => Promise<string> {
  *  No refetchInterval — unlike the live gitFlow, there's nothing to poll.
  */
 export function useCommitFlow(hash: string): { groups: FlowGroup[] | undefined } {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const { data } = trpc.gitCommitFlow.useQuery(
-    { repoPath: repo?.path ?? '', hash },
-    { enabled: repo !== null, staleTime: Number.POSITIVE_INFINITY },
+    { repoPath: project?.path ?? '', hash },
+    { enabled: project !== null, staleTime: Number.POSITIVE_INFINITY },
   )
   return { groups: data }
 }

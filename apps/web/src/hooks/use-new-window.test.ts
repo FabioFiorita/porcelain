@@ -1,6 +1,6 @@
 import { renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { useNewWindow } from './use-repo'
+import { useNewWindow } from './use-new-window'
 
 const newWindowMutation = vi.hoisted(() => vi.fn())
 

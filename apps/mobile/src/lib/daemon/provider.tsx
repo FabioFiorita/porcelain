@@ -11,8 +11,9 @@ import {
 import * as Network from 'expo-network'
 import { type ReactNode, useEffect } from 'react'
 import { AppState, type AppStateStatus } from 'react-native'
+import { openProjectProcedure, recentProjectsProcedure } from '@/features/projects'
 import { createDaemonClient, PROBE_TIMEOUT_MS } from './client'
-import { isPaired, type PairedEnvironment } from './environment'
+import { activeProjectPathOf, isPaired, type PairedEnvironment } from './environment'
 import {
   activeEnvironment,
   currentConnection,
@@ -25,7 +26,7 @@ import {
 import { DaemonError, daemonErrorMessage } from './errors'
 import { goUnauthorized } from './go-unauthorized'
 import { callDaemon } from './procedure'
-import { daemonInfoQuery, openRepoPathMutation, recentReposQuery } from './procedures/connection'
+import { daemonInfoQuery } from './procedures/connection'
 import { daemonKeys } from './queries'
 import {
   configureSession,
@@ -175,11 +176,12 @@ async function bootstrapAtEndpoint(
   const daemonVersion = (await callDaemon(client, daemonInfoQuery, undefined)).version
 
   // Doubles as the token probe: a 401 here is what proves the credential is dead.
-  await callDaemon(client, recentReposQuery, { includeWorktrees: true })
+  await callDaemon(client, recentProjectsProcedure, { includeWorktrees: true })
 
-  if (environment.activeRepoPath !== null) {
+  const projectPath = activeProjectPathOf(environment)
+  if (projectPath !== null) {
     try {
-      await callDaemon(client, openRepoPathMutation, environment.activeRepoPath)
+      await callDaemon(client, openProjectProcedure, projectPath)
     } catch (error) {
       // A repo deleted or moved on the host is not a broken daemon: forget the choice and
       // let the repo gate ask for a new one, rather than showing an unretryable failure.
@@ -189,7 +191,7 @@ async function bootstrapAtEndpoint(
       ) {
         throw error
       }
-      await environmentActions.setActiveRepoPath(environment.id, null)
+      await environmentActions.setActiveProjectPath(environment.id, null)
     }
   }
   return { daemonVersion }
@@ -322,7 +324,7 @@ function DaemonLifecycle(): null {
   const environmentId = environment?.id ?? null
   const baseUrl = environment?.baseUrl ?? null
   const token = environment?.token ?? null
-  const repoPath = environment?.activeRepoPath ?? null
+  const projectPath = activeProjectPathOf(environment)
   const connection = useConnectionState()
   const identity =
     environment === null
@@ -386,10 +388,10 @@ function DaemonLifecycle(): null {
       configureSession(null)
       return
     }
-    configureSession({ baseUrl, repo: repoPath, token })
-  }, [baseUrl, token, repoPath])
+    configureSession({ baseUrl, repo: projectPath, token })
+  }, [baseUrl, token, projectPath])
 
-  // Keyed on the daemon's identity, not the environment object: `openRepo` already ran
+  // Keyed on the daemon's identity, not the environment object: `openProject` already ran
   // `openRepoPath`, so re-bootstrapping on a repo change would run the sequence twice.
   useEffect(() => {
     if (identity === null) return
@@ -402,7 +404,7 @@ function DaemonLifecycle(): null {
 
   useEffect(() => {
     // Lazy by contract: the socket opens once a repo is open, not merely because a daemon is paired.
-    if (environmentId === null || repoPath === null) return
+    if (environmentId === null || projectPath === null) return
     return subscribeSessionChanges({
       onChange: (change) => {
         if (change.kind !== 'git.working-tree-changed') {
@@ -421,7 +423,7 @@ function DaemonLifecycle(): null {
         invalidateProcedures(environmentId, target)
       },
     })
-  }, [environmentId, repoPath])
+  }, [environmentId, projectPath])
 
   return null
 }

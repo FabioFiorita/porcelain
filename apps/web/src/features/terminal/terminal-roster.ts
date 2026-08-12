@@ -7,7 +7,7 @@ import { type DaemonSession, primary } from '@renderer/lib/daemon'
 import { localDaemonSession, markLocalTerminal } from '@renderer/lib/local-daemon'
 import { receiveData, receiveExit, receiveScrollback } from '@renderer/lib/terminal-registry'
 import { trpc } from '@renderer/lib/trpc'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { type TerminalSession, useTerminalsStore } from '@renderer/stores/terminals'
 import { settleBackground } from '@shared/background'
 import { useQueryClient } from '@tanstack/react-query'
@@ -41,7 +41,7 @@ function useResolvedLocalSession(localPath: string | null): DaemonSession | null
 export function useTerminalRoster(): void {
   const markExited = useTerminalsStore((state) => state.markExited)
   const hydrate = useTerminalsStore((state) => state.hydrate)
-  const repoPath = useRepoStore((state) => state.repo?.path ?? null)
+  const repoPath = useProjectSelectionStore((state) => state.project?.path ?? null)
   const primaryRoster = trpc.terminalSessions.useQuery(undefined, {
     enabled: repoPath !== null,
     refetchInterval: 5000,

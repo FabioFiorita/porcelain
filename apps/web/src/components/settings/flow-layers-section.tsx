@@ -6,11 +6,11 @@ import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-gro
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { useGitFlow } from '@renderer/hooks/use-git-flow'
-import { useRepoLayers, useSetRepoLayers } from '@renderer/hooks/use-repo-layers'
+import { useProjectLayers, useSetProjectLayers } from '@renderer/hooks/use-project-layers'
 import { layersSetupPrompt } from '@renderer/lib/agent-setup-prompts'
 import { compactButtonClass, compactInputClass } from '@renderer/lib/controls'
 import { cn, copyText } from '@renderer/lib/utils'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useSetupTipsStore } from '@renderer/stores/setup-tips'
 import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
@@ -39,7 +39,7 @@ const splitNames = (raw: string): string[] =>
     .filter(Boolean)
 
 // Turn the picked match type + names into the regex the flow grouper tests against
-// the repo-relative path — the same three shapes the defaults use.
+// the project-relative path — the same three shapes the defaults use.
 const buildPattern = (type: MatchType, names: string[]): string => {
   if (names.length === 0) return ''
   const alt = `(${names.map(escapeRe).join('|')})`
@@ -301,15 +301,15 @@ const toDraft = (layers: Layer[]): DraftLayer[] =>
   layers.map((layer) => ({ ...layer, id: nextDraftId++ }))
 
 export function FlowLayersSection({ onSaved }: { onSaved: () => void }): React.JSX.Element | null {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const [draft, setDraft] = useState<DraftLayer[]>([])
   const [copied, setCopied] = useState(false)
-  const data = useRepoLayers()
+  const data = useProjectLayers()
   const { groups } = useGitFlow()
   const changedPaths = (groups ?? []).flatMap((g) => g.files.map((f) => f.path))
-  const { save: saveLayers, isSaving } = useSetRepoLayers()
+  const { save: saveLayers, isSaving } = useSetProjectLayers()
   const settingsTipDismissed = useSetupTipsStore((s) =>
-    repo ? s.dismissed[repo.path]?.['layers-settings'] === true : true,
+    project ? s.dismissed[project.path]?.['layers-settings'] === true : true,
   )
   const dismissTip = useSetupTipsStore((s) => s.dismiss)
   // custom=false → still on Docs + Agents starters; tip is dismissible and goes away after save
@@ -320,7 +320,7 @@ export function FlowLayersSection({ onSaved }: { onSaved: () => void }): React.J
     if (data) setDraft(toDraft(data.layers))
   }, [data])
 
-  if (!repo) return null
+  if (!project) return null
 
   const valid = draft.every((l) => l.label.trim() !== '' && patternError(l.pattern) === null)
 
@@ -359,7 +359,7 @@ export function FlowLayersSection({ onSaved }: { onSaved: () => void }): React.J
           testId={TestIds.layersStarterBanner}
           dismissTestId={TestIds.layersStarterDismiss}
           className="border bg-muted/40 p-3 pr-9"
-          onDismiss={() => dismissTip(repo.path, 'layers-settings')}
+          onDismiss={() => dismissTip(project.path, 'layers-settings')}
           actions={
             <Button
               variant="outline"

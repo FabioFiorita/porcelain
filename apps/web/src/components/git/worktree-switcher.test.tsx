@@ -1,8 +1,8 @@
 import type { Worktree } from '@porcelain/contracts/git'
 import type { WorktreeInboxRow } from '@porcelain/contracts/review'
 import { useGitWorkspace } from '@renderer/features/git'
-import { useNewWindow } from '@renderer/hooks/use-repo'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useNewWindow } from '@renderer/hooks/use-new-window'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { WorktreeSwitcher } from './worktree-switcher'
@@ -14,7 +14,7 @@ vi.mock('@renderer/lib/platform', () => ({ isBrowser: false, isE2E: false }))
 
 // Components read through domain hooks, so mock the hook modules and never touch
 // the tRPC proxy. Worktree is the real @main/diff type, so shape drift breaks here.
-vi.mock('@renderer/hooks/use-repo', () => ({ useNewWindow: vi.fn() }))
+vi.mock('@renderer/hooks/use-new-window', () => ({ useNewWindow: vi.fn() }))
 vi.mock('@renderer/features/git', () => ({
   useGitWorkspace: vi.fn(),
 }))
@@ -33,9 +33,9 @@ function openMenu(): void {
 describe('WorktreeSwitcher', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    useRepoStore.setState({
-      repo: { path: '/Users/me/code/app', name: 'app' },
-      switchTo: vi.fn(),
+    useProjectSelectionStore.setState({
+      project: { path: '/Users/me/code/app', name: 'app' },
+      switchProject: vi.fn(),
     })
     vi.mocked(useGitWorkspace).mockReturnValue({
       branch: 'main',
@@ -54,7 +54,9 @@ describe('WorktreeSwitcher', () => {
 
     fireEvent.click(await screen.findByRole('menuitem', { name: /feature/i }))
 
-    expect(useRepoStore.getState().switchTo).toHaveBeenCalledWith('/Users/me/code/app-feature')
+    expect(useProjectSelectionStore.getState().switchProject).toHaveBeenCalledWith(
+      '/Users/me/code/app-feature',
+    )
     expect(openWindow).not.toHaveBeenCalled()
   })
 
@@ -69,7 +71,7 @@ describe('WorktreeSwitcher', () => {
     fireEvent.click(button)
 
     expect(openWindow).toHaveBeenCalledWith('/Users/me/code/app-feature')
-    expect(useRepoStore.getState().switchTo).not.toHaveBeenCalled()
+    expect(useProjectSelectionStore.getState().switchProject).not.toHaveBeenCalled()
     // The controlled menu closes after the click (the button's stopPropagation
     // suppresses Base UI's row-level handling).
     expect(screen.queryByRole('menuitem', { name: /feature/i })).toBeNull()

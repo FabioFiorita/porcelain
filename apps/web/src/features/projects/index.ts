@@ -11,3 +11,9 @@ export {
   useRemoveRecentProject,
   useSelectedProject,
 } from './project-data'
+export {
+  browseProjectDirectoriesOnDaemon,
+  openProjectOnDaemon,
+  recentProjectsOnDaemon,
+  removeRecentProjectOnDaemon,
+} from './project-transport'

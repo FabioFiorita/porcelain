@@ -6,10 +6,10 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import type { WorktreeInboxRow } from '@renderer/features/git'
 import { useGitWorkspace } from '@renderer/features/git'
-import { useNewWindow } from '@renderer/hooks/use-repo'
+import { useNewWindow } from '@renderer/hooks/use-new-window'
 import { isBrowser } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { TestIds } from '@shared/test-ids'
 import { GitBranch, SquareArrowOutUpRight } from 'lucide-react'
 
@@ -21,15 +21,15 @@ function inboxSummary(row: WorktreeInboxRow): string {
   return `${files} · review ${row.hasReview ? 'pushed' : 'none'}`
 }
 
-/** One inbox row: click switches THIS window to that worktree (in place, via switchTo —
+/** One inbox row: click switches THIS window to that worktree (in place, via switchProject —
  *  the same call the worktree-switcher rows make), landing on its Review. Trailing
  *  open-in-new-window keeps this window put — shell only. */
 function InboxRowButton({ row }: { row: WorktreeInboxRow }): React.JSX.Element {
-  const switchTo = useRepoStore((s) => s.switchTo)
+  const switchProject = useProjectSelectionStore((s) => s.switchProject)
   const newWindow = useNewWindow()
 
   const handleOpenWorktree = (): void => {
-    switchTo(row.path)
+    switchProject(row.path)
   }
 
   return (

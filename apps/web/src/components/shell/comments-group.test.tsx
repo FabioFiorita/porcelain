@@ -6,7 +6,7 @@ import {
   REPO,
   renderComments,
 } from '@renderer/features/review/comments/test-support'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { CommentsGroup } from './comments-group'
@@ -20,7 +20,7 @@ const base: ReviewComment = {
 }
 
 function renderGroup(comments: ReviewComment[]): void {
-  useRepoStore.setState({ repo: { path: REPO, name: 'repo' } })
+  useProjectSelectionStore.setState({ project: { path: REPO, name: 'repo' } })
   renderComments(
     <SidebarProvider>
       <CommentsGroup />
@@ -33,7 +33,7 @@ function renderGroup(comments: ReviewComment[]): void {
 
 describe('CommentsGroup', () => {
   beforeEach(() => {
-    useRepoStore.setState({ repo: { path: REPO, name: 'repo' } })
+    useProjectSelectionStore.setState({ project: { path: REPO, name: 'repo' } })
   })
 
   it("renders the agent's reply under a comment that has one", async () => {

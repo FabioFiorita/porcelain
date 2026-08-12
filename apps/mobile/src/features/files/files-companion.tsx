@@ -6,15 +6,15 @@ import { Pressable, ScrollView, Text, View } from 'react-native'
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { IconAction, PanelLabel, StatusNote } from '@/components/panel-chrome'
 import { Textarea } from '@/components/ui/textarea'
+import { useActiveProject } from '@/features/projects'
 import { useShellStore } from '@/features/shell/shell-store'
 import { useIsTablet } from '@/features/shell/use-app-window'
-import { useActiveRepo } from '@/lib/daemon/repo'
 import { cn } from '@/lib/utils'
 
 import { pathSegments, pathTestId } from './file-paths'
 import { type FileEntry, usePathScope, usePinnedEntries } from './files-data'
 import { useFilesStore } from './files-store'
-import { useRepoNotes } from './use-repo-notes'
+import { useProjectNotes } from './use-project-notes'
 
 /**
  * The Files companion — "Pinned & notes", the same pair the web rail carries.
@@ -23,7 +23,7 @@ import { useRepoNotes } from './use-repo-notes'
  * two can never drift into different companions for the same surface.
  */
 export function FilesCompanion({ active }: { active: boolean }): React.JSX.Element {
-  const repo = useActiveRepo()
+  const project = useActiveProject()
 
   return (
     <ScrollView
@@ -35,16 +35,16 @@ export function FilesCompanion({ active }: { active: boolean }): React.JSX.Eleme
       testID="porcelain-files-companion"
     >
       <PinnedCard active={active} />
-      {/* Remount per repo so the editor loads that repo's notes rather than carrying a draft
-          across a repo switch. */}
-      <NotesCard key={repo?.path ?? 'none'} active={active} />
+      {/* Remount per project so the editor loads that project's notes rather than carrying a draft
+          across a project switch. */}
+      <NotesCard key={project?.path ?? 'none'} active={active} />
     </ScrollView>
   )
 }
 
 /**
- * The repo's pinned paths. Pinning is how a monorepo gets a short list of the places you
- * actually work — the tab's own bookmarks, stored per repo on the daemon rather than here.
+ * The project's pinned paths. Pinning is how a monorepo gets a short list of the places you
+ * actually work — the tab's own bookmarks, stored per project on the daemon rather than here.
  */
 function PinnedCard({ active }: { active: boolean }): React.JSX.Element {
   const { entries, error } = usePinnedEntries(active)
@@ -80,8 +80,8 @@ function PinnedCard({ active }: { active: boolean }): React.JSX.Element {
         <Text className="text-2xs leading-4 text-destructive">{error.message}</Text>
       ) : entries.length === 0 ? (
         <Text className="text-2xs leading-4 text-muted-foreground">
-          Long-press a file or folder in the tree and pin it. Pins are per repo and shared with the
-          desktop app.
+          Long-press a file or folder in the tree and pin it. Pins are per project and shared with
+          the desktop app.
         </Text>
       ) : (
         <View className="gap-1">
@@ -143,14 +143,14 @@ function PinnedCard({ active }: { active: boolean }): React.JSX.Element {
 const AUTOSAVE_DELAY_MS = 800
 
 /**
- * Per-repo quick notes.
+ * Per-project quick notes.
  *
  * A plain textarea persisting the same markdown string the desktop's rich editor writes — the
  * two are the same note, and a phone has no room for a formatting toolbar. Autosaved on a
  * pause and flushed on unmount, so nothing is lost to a tab switch.
  */
 function NotesCard({ active }: { active: boolean }): React.JSX.Element {
-  const { error, isSaving, notes, save } = useRepoNotes(active)
+  const { error, isSaving, notes, save } = useProjectNotes(active)
   const [draft, setDraft] = useState<string | null>(null)
   const [failure, setFailure] = useState<string | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -173,7 +173,7 @@ function NotesCard({ active }: { active: boolean }): React.JSX.Element {
     }
   }, [notes])
 
-  // Nothing typed may be lost to a tab switch, a sheet dismissal, or a repo change — all of
+  // Nothing typed may be lost to a tab switch, a sheet dismissal, or a project change — all of
   // which unmount this card while the debounce is still pending.
   useEffect(() => {
     return () => {

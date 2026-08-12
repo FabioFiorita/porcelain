@@ -9,7 +9,7 @@ import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import { primary } from '@renderer/lib/daemon'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
 import { trpc } from '@renderer/lib/trpc'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { settleBackground } from '@shared/background'
 import type { QueryClient } from '@tanstack/react-query'
 import { useQueryClient } from '@tanstack/react-query'
@@ -71,7 +71,7 @@ export function useFilesNotificationSubscription(): void {
   const daemon = useDaemonIdentity()
   const host = daemon.host
   const version = daemon.version
-  const repoPath = useRepoStore((s) => s.repo?.path ?? null)
+  const repoPath = useProjectSelectionStore((s) => s.project?.path ?? null)
   const utils = trpc.useUtils()
 
   useEffect(() => {

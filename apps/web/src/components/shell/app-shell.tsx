@@ -17,7 +17,7 @@ import { useThemeSync } from '@renderer/hooks/use-theme'
 import { kbdLabel } from '@renderer/lib/keyboard'
 import { cn } from '@renderer/lib/utils'
 import { usePreferencesStore } from '@renderer/stores/preferences'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { useZenStore } from '@renderer/stores/zen'
 import { TestIds } from '@shared/test-ids'
@@ -29,7 +29,7 @@ import { ContentSearch } from './content-search'
 import { FileCommands } from './file-commands'
 import { FileFinder } from './file-finder'
 import { FilePromptDialog } from './file-prompt-dialog'
-import { RepoPickerDialog } from './repo-picker-dialog'
+import { ProjectPickerDialog } from './project-picker-dialog'
 import { RightSidebar } from './right-sidebar'
 import { SkillsUpdateToast } from './skills-update-toast'
 import { TabBar } from './tab-bar'
@@ -188,10 +188,10 @@ function RepoShell(): React.JSX.Element {
 }
 
 export function AppShell(): React.JSX.Element {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const sidebarWidth = usePreferencesStore((s) => s.sidebarWidth)
-  const restoring = useRepoStore((s) => s.restoring)
-  const boot = useRepoStore((s) => s.boot)
+  const restoring = useProjectSelectionStore((s) => s.restoring)
+  const boot = useProjectSelectionStore((s) => s.boot)
 
   useAppShortcuts()
   useShellEvents()
@@ -227,14 +227,14 @@ export function AppShell(): React.JSX.Element {
   // The gear triggers (sidebar rail + welcome) only open the store.
   // Safe-area padding keeps the browser client clear of the iPhone notch / home bar
   // (viewport-fit=cover in index.html); inert on desktop Electron (env() → 0).
-  if (!repo) {
+  if (!project) {
     return (
       <div className="flex h-dvh flex-col bg-background pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] text-foreground">
         <div className="app-drag h-12 shrink-0" />
         <div className="min-h-0 flex-1">
           <Welcome />
         </div>
-        <RepoPickerDialog />
+        <ProjectPickerDialog />
         <SettingsDialog />
         <Toaster />
       </div>
@@ -264,7 +264,7 @@ export function AppShell(): React.JSX.Element {
         <ContentSearch />
         <FileCommands />
         <FilePromptDialog />
-        <RepoPickerDialog />
+        <ProjectPickerDialog />
         <CardComposer />
         <SkillsUpdateToast />
         <SettingsDialog />

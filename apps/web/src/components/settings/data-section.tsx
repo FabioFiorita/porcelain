@@ -9,7 +9,7 @@ import {
   useSetCompanionGitVisibility,
 } from '@renderer/hooks/use-companion-dispositions'
 import { compactButtonClass } from '@renderer/lib/controls'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { runUserAction } from '@shared/background'
 // Type-only on purpose: `@shared/project-porcelain` imports `node:path`, so a
 // value import from it fails the web bundle. Client-facing copy lives in
@@ -22,11 +22,11 @@ import { useState } from 'react'
  * Settings → Data: where this project's companion data lives and what git carries.
  *
  * Split out of Settings → Companion, which had grown two unrelated jobs: the
- * agent skill (a machine install) and the repo's git dispositions (a property of
+ * agent skill (a machine install) and the project's git dispositions (a property of
  * the checkout, reachable from every client). Companion now owns only the skill.
  *
  * The toggle is a git disposition, not a storage location — companion data lives
- * in `<repo>/.porcelain/` either way. Local writes an ignore line and untracks;
+ * in `<project>/.porcelain/` either way. Local writes an ignore line and untracks;
  * Shared removes the line and leaves staging to the human.
  */
 function DispositionRow({
@@ -89,7 +89,7 @@ function DispositionRow({
 }
 
 export function DataSection(): React.JSX.Element {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const channels = useCompanionDispositions()
   const { data: visibility } = useCompanionGitVisibility()
   const setVisibility = useSetCompanionGitVisibility()
@@ -107,13 +107,13 @@ export function DataSection(): React.JSX.Element {
           <p className="text-xs text-muted-foreground">
             Every channel below is stored in{' '}
             <code className="rounded bg-muted px-1 py-0.5 font-mono text-2xs">.porcelain/</code>{' '}
-            inside this repo. <span className="font-medium text-foreground">Shared</span> lets git
-            carry it to teammates, other worktrees, and your other machines.{' '}
+            inside this project. <span className="font-medium text-foreground">Shared</span> lets
+            git carry it to teammates, other worktrees, and your other machines.{' '}
             <span className="font-medium text-foreground">Local</span> ignores it here — the file
             still exists, it just never leaves this clone.
           </p>
         </div>
-        {repo !== null && (
+        {project !== null && (
           <div
             className="flex flex-col gap-2 rounded-lg border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between"
             data-testid={TestIds.companionGitVisibility}
@@ -146,7 +146,7 @@ export function DataSection(): React.JSX.Element {
             </Button>
           </div>
         )}
-        {repo === null ? (
+        {project === null ? (
           <p className="text-xs text-muted-foreground">Open a project to choose.</p>
         ) : (
           <div className="flex flex-col gap-4" data-testid={TestIds.companionDispositions}>

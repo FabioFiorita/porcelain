@@ -1,7 +1,7 @@
 import type { FlowGroup } from '@backend/review/flow'
 import { useCommitFlow, useCommitMessage } from '@renderer/hooks/use-history'
 import { usePreferencesStore } from '@renderer/stores/preferences'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -66,7 +66,7 @@ function renderView(): void {
 describe('CommitView', () => {
   beforeEach(() => {
     useTabsStore.setState({ panes: [{ tabs: [], activeTabId: null }], activePaneIndex: 0 })
-    useRepoStore.setState({ repo: { path: '/repo', name: 'repo' } })
+    useProjectSelectionStore.setState({ project: { path: '/repo', name: 'repo' } })
     usePreferencesStore.setState({ diffMode: 'unified' })
     vi.mocked(useCommitFlow).mockReturnValue({ groups })
     vi.mocked(useCommitMessage).mockReturnValue('feat: add widget and schema')

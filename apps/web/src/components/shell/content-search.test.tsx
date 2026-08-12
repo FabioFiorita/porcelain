@@ -1,6 +1,6 @@
 import type { GrepMatch } from '@backend/git/diff'
 import { useTextSearch } from '@renderer/hooks/use-search'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -36,7 +36,7 @@ function openDialog(): void {
 describe('ContentSearch', () => {
   beforeEach(() => {
     useTabsStore.setState({ panes: [{ tabs: [], activeTabId: null }], activePaneIndex: 0 })
-    useRepoStore.setState({ repo: { path: '/myrepo', name: 'myrepo' } })
+    useProjectSelectionStore.setState({ project: { path: '/myrepo', name: 'myrepo' } })
     vi.mocked(useTextSearch).mockReturnValue({ matches: undefined, error: null, isFetching: false })
   })
 

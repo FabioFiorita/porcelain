@@ -6,7 +6,7 @@ import {
   DropdownMenuTrigger,
 } from '@renderer/components/ui/dropdown-menu'
 import { Toggle } from '@renderer/components/ui/toggle'
-import { useRepoNotes, useSetRepoNotes } from '@renderer/hooks/use-repo-notes'
+import { useProjectNotes, useSetProjectNotes } from '@renderer/hooks/use-project-notes'
 import { isModExclusive } from '@renderer/lib/keyboard'
 import { cn } from '@renderer/lib/utils'
 import type { EditorEvents } from '@tiptap/core'
@@ -44,8 +44,8 @@ function markdownOf(editor: Editor): string {
  * plain textarea — see the decision log) persisted as a markdown string with
  * debounced autosave, mirroring EditorSource's save lifecycle.
  */
-export function NotesCard({ repoPath }: { repoPath?: string }): React.JSX.Element {
-  const notes = useRepoNotes()
+export function NotesCard({ projectPath }: { projectPath?: string }): React.JSX.Element {
+  const notes = useProjectNotes()
 
   return (
     <div className="flex h-full flex-col px-3 pb-3">
@@ -58,7 +58,7 @@ export function NotesCard({ repoPath }: { repoPath?: string }): React.JSX.Elemen
         {notes === undefined ? (
           <div className="px-3 py-2 text-xs text-muted-foreground">Loading…</div>
         ) : (
-          <NotesEditor initialMarkdown={notes} repoPath={repoPath} />
+          <NotesEditor initialMarkdown={notes} projectPath={projectPath} />
         )}
       </div>
     </div>
@@ -67,12 +67,12 @@ export function NotesCard({ repoPath }: { repoPath?: string }): React.JSX.Elemen
 
 function NotesEditor({
   initialMarkdown,
-  repoPath,
+  projectPath,
 }: {
   initialMarkdown: string
-  repoPath?: string
+  projectPath?: string
 }): React.JSX.Element {
-  const { save } = useSetRepoNotes()
+  const { save } = useSetProjectNotes()
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const savedRef = useRef(initialMarkdown)
 
@@ -82,7 +82,7 @@ function NotesEditor({
     const next = markdownOf(editor)
     if (next === savedRef.current) return
     savedRef.current = next
-    save(repoPath, next)
+    save(projectPath, next)
   })
 
   const editor = useEditor({

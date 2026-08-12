@@ -1,7 +1,7 @@
-import type { RepoInfo } from '@backend/api'
+import type { ProjectSummary } from '@porcelain/client-runtime/projects'
 import { shellTrpcClient, trpcClient } from '@renderer/lib/trpc'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { useRepoStore } from './repo'
+import { useProjectSelectionStore } from './project-selection'
 
 // boot() skips windowInit entirely in the browser client (isBrowser), which is
 // jsdom's default (no preload bridge). This suite tests the Electron windowInit
@@ -9,7 +9,7 @@ import { useRepoStore } from './repo'
 vi.mock('@renderer/lib/platform', () => ({ isBrowser: false, isE2E: false }))
 
 // boot() drives the window-aware boot: it reads windowInit and branches on the
-// mode, so we mock the tRPC client surface it (and restoreLastRepo) touches.
+// mode, so we mock the tRPC client surface it (and restoreLastProject) touches.
 vi.mock('@renderer/lib/trpc', () => ({
   trpcClient: {
     openRepoPath: { mutate: vi.fn() },
@@ -20,11 +20,11 @@ vi.mock('@renderer/lib/trpc', () => ({
   },
 }))
 
-const aRepo: RepoInfo = { path: '/x', name: 'x' }
+const aProject: ProjectSummary = { path: '/x', name: 'x' }
 
-describe('useRepoStore.boot', () => {
+describe('useProjectSelectionStore.boot', () => {
   beforeEach(() => {
-    useRepoStore.setState({ repo: null, restoring: true })
+    useProjectSelectionStore.setState({ project: null, restoring: true })
     vi.mocked(shellTrpcClient.windowInit.query).mockReset()
     vi.mocked(trpcClient.openRepoPath.mutate).mockReset()
     vi.mocked(trpcClient.recentRepos.query).mockReset()
@@ -32,33 +32,33 @@ describe('useRepoStore.boot', () => {
 
   it("mode 'open' opens the given repo", async () => {
     vi.mocked(shellTrpcClient.windowInit.query).mockResolvedValue({ mode: 'open', repoPath: '/x' })
-    vi.mocked(trpcClient.openRepoPath.mutate).mockResolvedValue(aRepo)
+    vi.mocked(trpcClient.openRepoPath.mutate).mockResolvedValue(aProject)
 
-    await useRepoStore.getState().boot()
+    await useProjectSelectionStore.getState().boot()
 
     expect(trpcClient.openRepoPath.mutate).toHaveBeenCalledWith('/x')
-    expect(useRepoStore.getState().repo).toBe(aRepo)
-    expect(useRepoStore.getState().restoring).toBe(false)
+    expect(useProjectSelectionStore.getState().project).toEqual(aProject)
+    expect(useProjectSelectionStore.getState().restoring).toBe(false)
   })
 
   it("mode 'restore' restores the last repo", async () => {
     vi.mocked(shellTrpcClient.windowInit.query).mockResolvedValue({ mode: 'restore' })
-    vi.mocked(trpcClient.recentRepos.query).mockResolvedValue([aRepo])
-    vi.mocked(trpcClient.openRepoPath.mutate).mockResolvedValue(aRepo)
+    vi.mocked(trpcClient.recentRepos.query).mockResolvedValue([aProject])
+    vi.mocked(trpcClient.openRepoPath.mutate).mockResolvedValue(aProject)
 
-    await useRepoStore.getState().boot()
+    await useProjectSelectionStore.getState().boot()
 
     expect(trpcClient.recentRepos.query).toHaveBeenCalled()
-    expect(useRepoStore.getState().repo).toBe(aRepo)
-    expect(useRepoStore.getState().restoring).toBe(false)
+    expect(useProjectSelectionStore.getState().project).toEqual(aProject)
+    expect(useProjectSelectionStore.getState().restoring).toBe(false)
   })
 
   it("mode 'welcome' lands on the welcome screen", async () => {
     vi.mocked(shellTrpcClient.windowInit.query).mockResolvedValue({ mode: 'welcome' })
 
-    await useRepoStore.getState().boot()
+    await useProjectSelectionStore.getState().boot()
 
-    expect(useRepoStore.getState().repo).toBeNull()
-    expect(useRepoStore.getState().restoring).toBe(false)
+    expect(useProjectSelectionStore.getState().project).toBeNull()
+    expect(useProjectSelectionStore.getState().restoring).toBe(false)
   })
 })

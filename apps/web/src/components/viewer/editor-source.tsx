@@ -19,7 +19,7 @@ import { lineInHighlightRanges } from '@renderer/lib/highlight-ranges'
 import { kbdLabel } from '@renderer/lib/keyboard'
 import { lineRangeFromOffsets } from '@renderer/lib/line-selection'
 import { cn, copyText } from '@renderer/lib/utils'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
@@ -85,11 +85,11 @@ export function EditorSource({
   const tokenLines = useTokenizedLines(deferredContent, lang)
   const { findReferences, exploreFlow, copyPath, copyRelativePath, reveal } = usePathActions(path)
   const { save, isSaving, error: saveError } = useWriteTextFile(path)
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
 
-  // Comments store repo-relative paths; the viewer holds an absolute one.
+  // Comments store project-relative paths; the viewer holds an absolute one.
   const relativePath =
-    repo && path.startsWith(`${repo.path}/`) ? path.slice(repo.path.length + 1) : path
+    project && path.startsWith(`${project.path}/`) ? path.slice(project.path.length + 1) : path
 
   // While the composer is open on a range in this file, tint those lines so the anchor
   // stays visible after the dialog steals focus (killing the DOM selection).

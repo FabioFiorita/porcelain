@@ -1,11 +1,12 @@
+import { recentProjectsProcedure } from '@/features/projects'
 import { createDaemonClient } from './client'
 import { callDaemon } from './procedure'
-import { recentReposQuery, revokeCurrentClientMutation } from './procedures/connection'
+import { revokeCurrentClientMutation } from './procedures/connection'
 
 /** Verify a newly issued credential before saving it as a group connection. */
 export async function verifyPairingCredential(baseUrl: string, token: string): Promise<void> {
   try {
-    await callDaemon(createDaemonClient(baseUrl, token), recentReposQuery, {
+    await callDaemon(createDaemonClient(baseUrl, token), recentProjectsProcedure, {
       includeWorktrees: true,
     })
   } catch (cause) {
@@ -25,7 +26,7 @@ export async function attachPairingCredential(
 ): Promise<void> {
   await verifyPairingCredential(baseUrl, pairingToken)
   try {
-    await callDaemon(createDaemonClient(baseUrl, groupToken), recentReposQuery, {
+    await callDaemon(createDaemonClient(baseUrl, groupToken), recentProjectsProcedure, {
       includeWorktrees: true,
     })
   } catch (cause) {

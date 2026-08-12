@@ -1,4 +1,4 @@
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useGitFlow, useGitSuggestions } from './use-git-flow'
@@ -19,7 +19,7 @@ const aRepo = { path: '/repo', name: 'repo' }
 
 beforeEach(() => {
   vi.clearAllMocks()
-  useRepoStore.setState({ repo: null })
+  useProjectSelectionStore.setState({ project: null })
   gitFlowQuery.mockReturnValue({ data: undefined, refetch: vi.fn() })
   gitSuggestionsQuery.mockReturnValue({ data: undefined })
   useUtils.mockReturnValue({ gitDiffFile: { invalidate: vi.fn() } })
@@ -33,7 +33,7 @@ describe('useGitFlow', () => {
   })
 
   it('passes through the flow groups', () => {
-    useRepoStore.setState({ repo: aRepo })
+    useProjectSelectionStore.setState({ project: aRepo })
     const groups = [{ layer: 'ui', files: [] }]
     gitFlowQuery.mockReturnValue({ data: groups, refetch: vi.fn() })
     const { result } = renderHook(() => useGitFlow())
@@ -45,7 +45,7 @@ describe('useGitFlow', () => {
   })
 
   it('refresh() refetches the flow AND invalidates every mounted diff', async () => {
-    useRepoStore.setState({ repo: aRepo })
+    useProjectSelectionStore.setState({ project: aRepo })
     const refetch = vi.fn().mockResolvedValue(undefined)
     gitFlowQuery.mockReturnValue({ data: [], refetch })
     const invalidate = vi.fn().mockResolvedValue(undefined)
@@ -70,7 +70,7 @@ describe('useGitSuggestions', () => {
   })
 
   it('passes through the suggestion list', () => {
-    useRepoStore.setState({ repo: aRepo })
+    useProjectSelectionStore.setState({ project: aRepo })
     const suggestions = [{ command: 'stash', reason: '3 files changed' }]
     gitSuggestionsQuery.mockReturnValue({ data: suggestions })
     const { result } = renderHook(() => useGitSuggestions())

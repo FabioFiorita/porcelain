@@ -63,9 +63,11 @@ export function localBranchNames(branches: readonly BranchRef[]): string[] {
 export function blockingWorktree(
   worktrees: readonly Worktree[],
   branchName: string,
-  repoPath: string,
+  currentWorktreePath: string,
 ): Worktree | undefined {
-  return worktrees.find((worktree) => worktree.path !== repoPath && worktree.branch === branchName)
+  return worktrees.find(
+    (worktree) => worktree.path !== currentWorktreePath && worktree.branch === branchName,
+  )
 }
 
 export type BranchRowFacts = {
@@ -81,9 +83,9 @@ export function branchRowFacts(
   branch: BranchRef,
   currentBranch: string | null,
   worktrees: readonly Worktree[],
-  repoPath: string,
+  currentWorktreePath: string,
 ): BranchRowFacts {
-  const blockedBy = blockingWorktree(worktrees, branch.name, repoPath)
+  const blockedBy = blockingWorktree(worktrees, branch.name, currentWorktreePath)
   const selected = branch.remote === null && branch.name === currentBranch
   const label = branchLabel(branch)
 
@@ -106,8 +108,8 @@ export function branchRowFacts(
 
 export type WorkspaceIdentityInput = {
   /** `null` means no project is open — every chip says so rather than guessing. */
-  repoName: string | null
-  repoPath: string
+  projectName: string | null
+  projectPath: string
   /** `git worktree list` puts the main worktree first; `null` while the roster is unread. */
   mainWorktreePath: string | null
   /** Resolved HEAD label, or `null` while it is unknown. */
@@ -131,7 +133,7 @@ export type WorkspaceIdentity = {
  * Three chips have to carry three different facts or they are noise. Two of them used to
  * collide: the worktree chip read back the branch checked out in it, and a worktree is named
  * for its branch — so the header said the same word twice and the reader had to work out which
- * chip was which. `repo.name` is only the active path's basename, so naming the worktree by its
+ * chip was which. `project.name` is only the active path's basename, so naming the worktree by its
  * folder instead just moves the collision onto the project chip, which in a linked checkout was
  * already reporting the worktree's folder as the project.
  *
@@ -139,24 +141,31 @@ export type WorkspaceIdentity = {
  * project, and the chip says where you are actually standing.
  */
 export function deriveWorkspaceIdentity(input: WorkspaceIdentityInput): WorkspaceIdentity {
-  const { branch, branchFailed, environmentNickname, mainWorktreePath, repoName, repoPath } = input
-  const open = repoName !== null
+  const {
+    branch,
+    branchFailed,
+    environmentNickname,
+    mainWorktreePath,
+    projectName: activeProjectName,
+    projectPath,
+  } = input
+  const open = activeProjectName !== null
   // The linked worktrees live in a sibling `<repo>-worktrees/` directory and must not rename
   // the project.
-  const projectName =
-    mainWorktreePath === null ? (repoName ?? 'Project') : fileName(mainWorktreePath)
+  const displayProjectName =
+    mainWorktreePath === null ? (activeProjectName ?? 'Project') : fileName(mainWorktreePath)
 
   return {
     branch: !open ? 'No project' : (branch ?? (branchFailed ? 'No branch' : '…')),
     environmentLabel: environmentNickname ?? 'No environment',
-    projectInitial: projectName.charAt(0).toUpperCase() || '?',
-    projectName,
+    projectInitial: displayProjectName.charAt(0).toUpperCase() || '?',
+    projectName: displayProjectName,
     // Until the roster lands, the folder is the honest answer: less specific than "Main", never
     // wrong. Naming it before we know which checkout is the main one would be a guess.
     worktree: !open
       ? 'No project'
-      : mainWorktreePath === repoPath
+      : mainWorktreePath === projectPath
         ? 'Main'
-        : fileName(repoPath) || repoName,
+        : fileName(projectPath) || (activeProjectName ?? 'Project'),
   }
 }

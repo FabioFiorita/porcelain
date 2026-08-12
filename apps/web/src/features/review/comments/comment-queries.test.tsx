@@ -1,7 +1,7 @@
 import { remoteContractFixtures } from '@porcelain/contracts/remote'
 import { reviewContractFixtures } from '@porcelain/contracts/review'
 import { createValidatingTrpcHarness, deferred } from '@renderer/hooks/trpc-test-harness'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { useReviewComments } from './comment-queries'
@@ -16,7 +16,7 @@ const baseHandlers = {
 
 describe('useReviewComments', () => {
   beforeEach(() => {
-    useRepoStore.setState({ repo: { path: REPO, name: 'repo' } })
+    useProjectSelectionStore.setState({ project: { path: REPO, name: 'repo' } })
   })
 
   it('queries reviewComments for the active Project and exposes contract-valid comments', async () => {
@@ -40,7 +40,7 @@ describe('useReviewComments', () => {
   })
 
   it('returns an empty list when no Project is selected', () => {
-    useRepoStore.setState({ repo: null })
+    useProjectSelectionStore.setState({ project: null })
     const { wrapper } = createValidatingTrpcHarness({
       ...baseHandlers,
       reviewComments: () => ({ ok: true, value: [] }),

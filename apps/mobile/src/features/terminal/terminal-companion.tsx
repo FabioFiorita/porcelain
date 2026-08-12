@@ -4,13 +4,13 @@ import { Pressable, ScrollView, Text, View } from 'react-native'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { ConfirmDialog, EmptyNote, ErrorNote, PanelLabel } from '@/components/surface-chrome'
-import { useActiveRepo } from '@/lib/daemon/repo'
+import { useActiveProject } from '@/features/projects'
 import { cn } from '@/lib/utils'
 import { useTerminalActions, useTrustAction } from './terminal-roster'
 import { useTerminalStore } from './terminal-store'
 
 /**
- * Saved actions — the repo's curated commands.
+ * Saved actions — the project's curated commands.
  *
  * Running one spawns a shell named after it with the command typed in, and the shell STAYS
  * live afterwards, so you can read the output, interrupt it, or run it again. That is why an
@@ -22,7 +22,7 @@ import { useTerminalStore } from './terminal-store'
  * TEXT, so editing it later asks again.
  */
 export function TerminalCompanion({ active }: { active: boolean }): React.JSX.Element {
-  const repo = useActiveRepo()
+  const project = useActiveProject()
   const { actions, error } = useTerminalActions(active)
   const spawn = useTerminalStore((state) => state.spawn)
   const trust = useTrustAction()
@@ -30,9 +30,9 @@ export function TerminalCompanion({ active }: { active: boolean }): React.JSX.El
   const [failure, setFailure] = useState<string | null>(null)
 
   const run = (action: ActionView): void => {
-    if (repo === null) return
+    if (project === null) return
     setFailure(null)
-    spawn({ cwd: repo.path, initialInput: action.command, name: action.title }).catch(
+    spawn({ cwd: project.path, initialInput: action.command, name: action.title }).catch(
       (cause: unknown) => {
         setFailure(`Run failed: ${cause instanceof Error ? cause.message : String(cause)}`)
       },
@@ -57,7 +57,7 @@ export function TerminalCompanion({ active }: { active: boolean }): React.JSX.El
 
       {actions.length === 0 ? (
         <EmptyNote
-          body="Commands the agent saves for this repo show up here, ready to run in a shell."
+          body="Commands the agent saves for this project show up here, ready to run in a shell."
           testID="porcelain-terminal-actions-empty"
           title="No saved actions"
         />

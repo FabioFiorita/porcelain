@@ -10,12 +10,12 @@ import { deriveWorkspaceIdentity, type WorkspaceIdentity } from './workspace-lis
  */
 
 export function useWorkspaceHeader(): WorkspaceIdentity & {
-  repo: ReturnType<typeof useSelectedProject>
+  project: ReturnType<typeof useSelectedProject>
 } {
-  const repo = useSelectedProject()
+  const project = useSelectedProject()
   const environment = useActiveEnvironment()
-  const repoPath = repo?.path ?? ''
-  const workspace = useGitWorkspace({ enabled: repo !== null, placeholderData: true })
+  const projectPath = project?.path ?? ''
+  const workspace = useGitWorkspace({ enabled: project !== null, placeholderData: true })
 
   return {
     ...deriveWorkspaceIdentity({
@@ -23,9 +23,9 @@ export function useWorkspaceHeader(): WorkspaceIdentity & {
       branchFailed: workspace.head.isError,
       environmentNickname: environment?.nickname ?? null,
       mainWorktreePath: workspace.worktrees.data?.[0]?.path ?? null,
-      repoName: repo?.name ?? null,
-      repoPath,
+      projectName: project?.name ?? null,
+      projectPath,
     }),
-    repo,
+    project,
   }
 }

@@ -7,7 +7,7 @@ import {
 import { filesContractFixtures } from '@porcelain/contracts/files'
 import { remoteContractFixtures } from '@porcelain/contracts/remote'
 import { createValidatingTrpcHarness, deferred } from '@renderer/hooks/trpc-test-harness'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { toast } from 'sonner'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -26,7 +26,7 @@ const baseHandlers = {
 
 beforeEach(() => {
   vi.mocked(toast.error).mockReset()
-  useRepoStore.setState({ repo: { path: REPO, name: 'repo' }, showHidden: false })
+  useProjectSelectionStore.setState({ project: { path: REPO, name: 'repo' }, showHidden: false })
 })
 
 describe('useFilesActions', () => {
@@ -107,11 +107,11 @@ describe('useFilesActions', () => {
     // Only the failed mutation request — no success-driven follow-up queries
     expect(mock.requests().filter((r) => r.kind === 'mutation')).toHaveLength(1)
 
-    useRepoStore.setState({ repo: null })
+    useProjectSelectionStore.setState({ project: null })
     const noRepo = renderHook(() => useFilesActions(), { wrapper })
     await expect(noRepo.result.current.trash(FILE_ABS)).resolves.toBe(false)
 
-    useRepoStore.setState({ repo: { path: REPO, name: 'repo' } })
+    useProjectSelectionStore.setState({ project: { path: REPO, name: 'repo' } })
     await expect(result.current.trash('/outside/x')).resolves.toBe(false)
   })
 

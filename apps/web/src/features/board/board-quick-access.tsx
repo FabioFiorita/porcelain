@@ -15,7 +15,7 @@ import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { compactButtonClass } from '@renderer/lib/controls'
 import { openFeatureReview } from '@renderer/lib/surface-handoffs'
 import { cn } from '@renderer/lib/utils'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
 import {
@@ -50,7 +50,7 @@ const COLUMN_ICON: Record<
  */
 export function BoardQuickAccess(): React.JSX.Element {
   const { cards, error } = useBoardCards()
-  const repoPath = useRepoStore((s) => s.repo?.path)
+  const repoPath = useProjectSelectionStore((s) => s.project?.path)
   const focusKey = useBoardSelectionStore((s) => s.focus)
   const focus = resolveBoardFocus(cards, repoPath, focusKey)
   const { move, remove } = useBoardCardActions()

@@ -15,7 +15,7 @@ import { highlightRangesForFile } from '@renderer/lib/highlight-ranges'
 import { dirName, fileName } from '@renderer/lib/paths'
 import { reviewOutlineFiles } from '@renderer/lib/review-lifecycle'
 import { cn } from '@renderer/lib/utils'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import {
   type ReviewFocusSection,
   type ReviewJumpTarget,
@@ -220,7 +220,7 @@ export function FeatureList(): React.JSX.Element {
 // The outline of this checkout's own Review — the inbox above is rendered by FeatureList
 // so it shows in every state (loading, no-review, and full outline) of the outline below.
 function FeatureOutline(): React.JSX.Element {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const openTab = useTabsStore((s) => s.openTab)
   // featureView / reading poll + agent channel events — no manual refresh.
   const { reading } = useFeatureReading()
@@ -230,7 +230,7 @@ function FeatureOutline(): React.JSX.Element {
   const canvasTab = useReviewFocusStore((s) => s.canvasTab)
   const [commentPath, setCommentPath] = useState<string | null>(null)
 
-  if (!repo || reading === undefined) {
+  if (!project || reading === undefined) {
     return <p className="p-3 text-sm text-muted-foreground">Loading…</p>
   }
 
@@ -248,15 +248,15 @@ function FeatureOutline(): React.JSX.Element {
     )
   }
 
-  // Open the Review canvas (one tab per repo) and optionally jump to an Intent
+  // Open the Review canvas (one tab per project) and optionally jump to an Intent
   // chapter — FeatureView consumes jumps once mounted. Canvas tabs (Intent /
   // Execution / Evidence) live only in the viewer, not here.
   const handleOpenReview = (target?: ReviewJumpTarget): void => {
     openTab({
-      id: tabId('feature', repo.path),
+      id: tabId('feature', project.path),
       kind: 'feature',
       title: 'Review',
-      path: repo.path,
+      path: project.path,
     })
     if (target) requestJump(target)
   }
@@ -315,7 +315,7 @@ function FeatureOutline(): React.JSX.Element {
               <OutlineFileRow
                 key={file.path}
                 file={file}
-                repoPath={repo.path}
+                repoPath={project.path}
                 isReviewed={reviewed.has(file.path)}
                 onComment={setCommentPath}
               />
@@ -339,7 +339,7 @@ function FeatureOutline(): React.JSX.Element {
                   <OutlineFileRow
                     key={file.path}
                     file={file}
-                    repoPath={repo.path}
+                    repoPath={project.path}
                     isReviewed={reviewed.has(file.path)}
                     onComment={setCommentPath}
                   />

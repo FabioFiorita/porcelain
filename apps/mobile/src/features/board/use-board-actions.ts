@@ -16,13 +16,12 @@ import type {
   UpdateBoardCardInput,
 } from '@porcelain/contracts/board'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-
+import { useActiveProject } from '@/features/projects'
 import { getDaemonClient } from '@/lib/daemon/client'
 import { isPaired } from '@/lib/daemon/environment'
 import { useActiveEnvironment } from '@/lib/daemon/environments-store'
 import { DaemonError } from '@/lib/daemon/errors'
 import { callDaemon, namedContractProcedure } from '@/lib/daemon/procedure'
-import { useActiveRepo } from '@/lib/daemon/repo'
 
 import { boardCardsQueryKey } from './board-query-key'
 
@@ -90,7 +89,7 @@ function requirePaired(
 
 /** Add, edit, move, delete, and bulk-clear cards with reversible optimism (BRD-003 lifecycle). */
 export function useBoardCardActions(): CardActions {
-  const repo = useActiveRepo()
+  const project = useActiveProject()
   const environment = useActiveEnvironment()
   const queryClient = useQueryClient()
 
@@ -279,30 +278,30 @@ export function useBoardCardActions(): CardActions {
 
   return {
     add: async (input): Promise<void> => {
-      if (repo === null) return
+      if (project === null) return
       await create.mutateAsync({
-        projectPath: repo.path,
+        projectPath: project.path,
         title: input.title,
         status: input.status,
         ...(input.body === undefined ? {} : { body: input.body }),
       })
     },
     clear: async (status): Promise<void> => {
-      if (repo === null) return
-      await clearColumn.mutateAsync({ projectPath: repo.path, status })
+      if (project === null) return
+      await clearColumn.mutateAsync({ projectPath: project.path, status })
     },
     move: async (id, status): Promise<void> => {
-      if (repo === null) return
-      await move.mutateAsync({ projectPath: repo.path, cardId: id, status })
+      if (project === null) return
+      await move.mutateAsync({ projectPath: project.path, cardId: id, status })
     },
     remove: async (id): Promise<void> => {
-      if (repo === null) return
-      await remove.mutateAsync({ projectPath: repo.path, cardId: id })
+      if (project === null) return
+      await remove.mutateAsync({ projectPath: project.path, cardId: id })
     },
     update: async (id, fields): Promise<void> => {
-      if (repo === null) return
+      if (project === null) return
       await update.mutateAsync({
-        projectPath: repo.path,
+        projectPath: project.path,
         cardId: id,
         title: fields.title,
         body: fields.body,

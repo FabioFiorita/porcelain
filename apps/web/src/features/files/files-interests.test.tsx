@@ -2,7 +2,7 @@ import type {
   WatchInterest,
   WatchInterestRegistration,
 } from '@porcelain/client-runtime/session/interests'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { type Pane, useTabsStore } from '@renderer/stores/tabs'
 import { useTreeDirsStore } from '@renderer/stores/tree-dirs'
 import { act, renderHook, waitFor } from '@testing-library/react'
@@ -41,7 +41,7 @@ function filePane(...paths: string[]): Pane {
 beforeEach(() => {
   registrations.length = 0
   release.mockClear()
-  useRepoStore.setState({ repo: { path: PROJECT, name: 'repo' } })
+  useProjectSelectionStore.setState({ project: { path: PROJECT, name: 'repo' } })
   useTabsStore.setState({ panes: [filePane()], activePaneIndex: 0 })
   useTreeDirsStore.setState({ dirs: new Set<string>() })
 })
@@ -81,7 +81,7 @@ describe('useFilesInterestBridge', () => {
     const before = registrations.length
 
     act(() => {
-      useRepoStore.setState({ repo: { path: '/synthetic/other', name: 'other' } })
+      useProjectSelectionStore.setState({ project: { path: '/synthetic/other', name: 'other' } })
     })
     await waitFor(() => expect(release).toHaveBeenCalled())
 

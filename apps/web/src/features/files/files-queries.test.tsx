@@ -7,7 +7,7 @@ import {
 import { filesContractFixtures, fileViewFixtures } from '@porcelain/contracts/files'
 import { remoteContractFixtures } from '@porcelain/contracts/remote'
 import { createValidatingTrpcHarness } from '@renderer/hooks/trpc-test-harness'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
@@ -28,7 +28,7 @@ const baseHandlers = {
 }
 
 beforeEach(() => {
-  useRepoStore.setState({ repo: { path: REPO, name: 'repo' }, showHidden: false })
+  useProjectSelectionStore.setState({ project: { path: REPO, name: 'repo' }, showHidden: false })
 })
 
 describe('useFilesTree', () => {
@@ -51,7 +51,7 @@ describe('useFilesTree', () => {
   })
 
   it('is disabled without a repo and never calls the daemon', async () => {
-    useRepoStore.setState({ repo: null })
+    useProjectSelectionStore.setState({ project: null })
     const { mock, wrapper } = createValidatingTrpcHarness({
       ...baseHandlers,
       readDir: () => ({ ok: true, value: [] }),

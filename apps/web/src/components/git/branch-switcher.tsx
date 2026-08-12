@@ -19,7 +19,7 @@ import { Input } from '@renderer/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@renderer/components/ui/popover'
 import { useGitCheckout, useGitCreateBranch, useGitWorkspace } from '@renderer/features/git'
 import { commandGroupHeadingClass } from '@renderer/lib/controls'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
 import { Check, GitBranch, Plus } from 'lucide-react'
@@ -37,7 +37,7 @@ import { toast } from 'sonner'
 // few hundred branches narrow instantly as you type. If a monorepo ever pushes this
 // into the thousands and the DOM size bites, the fix is virtualization, not paging.
 export function BranchSwitcher(): React.JSX.Element | null {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const { branch, branches, refreshBranches } = useGitWorkspace()
   const checkout = useGitCheckout()
   const createBranch = useGitCreateBranch()
@@ -49,7 +49,7 @@ export function BranchSwitcher(): React.JSX.Element | null {
   const [newName, setNewName] = useState('')
   const [creating, setCreating] = useState(false)
 
-  if (!repo) return null
+  if (!project) return null
 
   const q = query.trim().toLowerCase()
   const local = branches.filter((b) => b.remote === null && b.name.toLowerCase().includes(q))

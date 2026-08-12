@@ -10,7 +10,7 @@ import {
 import { SURFACE_TOOLBAR } from '@/components/surface-layout'
 import { SurfaceList } from '@/components/surface-scroll'
 import { CommentComposer } from '@/features/comments'
-import { useActiveRepo } from '@/lib/daemon/repo'
+import { useActiveProject } from '@/features/projects'
 import { cn } from '@/lib/utils'
 import { FileEntryRow } from './file-entry-row'
 import { breadcrumbs, type Crumb, pathTestId, REPO_ROOT } from './file-paths'
@@ -43,7 +43,7 @@ export function FilesBrowser({
   topInset,
 }: {
   active: boolean
-  /** Repo-relative directory; `''` is the repo root. */
+  /** Repo-relative directory; `''` is the project root. */
   dirPath: string
   /** Phone folder screens: pop back. Omitted at a tab root and on tablet. */
   onBack?: () => void
@@ -60,7 +60,7 @@ export function FilesBrowser({
   /** Phone folder screens: this view replaces the tab header, so it owns the status bar. */
   topInset?: number
 }): React.JSX.Element {
-  const repo = useActiveRepo()
+  const project = useActiveProject()
   const showHidden = useFilesStore((state) => state.showHidden)
   const toggleHidden = useFilesStore((state) => state.toggleHidden)
   const browser = useFilesBrowser({ active, dirPath, onOpenDir, onOpenFile, showHidden })
@@ -69,7 +69,7 @@ export function FilesBrowser({
   return (
     <View className="flex-1" testID="porcelain-files-browser">
       <BrowserHeader
-        crumbs={breadcrumbs(repo?.name ?? 'Repo', dirPath)}
+        crumbs={breadcrumbs(project?.name ?? 'Repo', dirPath)}
         onBack={onBack}
         onNew={() => {
           browser.setNewMenuOpen(true)
@@ -101,7 +101,7 @@ export function FilesBrowser({
           body={
             showHidden
               ? 'This folder has nothing in it.'
-              : 'Everything here is hidden by the repo’s scope, or the folder is empty.'
+              : 'Everything here is hidden by the project’s scope, or the folder is empty.'
           }
           testID="porcelain-files-empty"
           title="Nothing to show"
@@ -132,7 +132,7 @@ export function FilesBrowser({
       <ActionSheet
         actions={browser.newActions}
         open={browser.newMenuOpen}
-        subtitle={dirPath === REPO_ROOT ? repo?.name : dirPath}
+        subtitle={dirPath === REPO_ROOT ? project?.name : dirPath}
         testID="porcelain-files-new-menu"
         title="New"
         onClose={() => {
@@ -148,7 +148,7 @@ export function FilesBrowser({
         confirmLabel="Create"
         description={
           pending?.kind === 'create-file'
-            ? `In ${pending.dir === REPO_ROOT ? (repo?.name ?? 'the repo root') : pending.dir}.`
+            ? `In ${pending.dir === REPO_ROOT ? (project?.name ?? 'the project root') : pending.dir}.`
             : ''
         }
         open={pending?.kind === 'create-file'}
@@ -168,7 +168,7 @@ export function FilesBrowser({
         confirmLabel="Create"
         description={
           pending?.kind === 'create-folder'
-            ? `In ${pending.dir === REPO_ROOT ? (repo?.name ?? 'the repo root') : pending.dir}.`
+            ? `In ${pending.dir === REPO_ROOT ? (project?.name ?? 'the project root') : pending.dir}.`
             : ''
         }
         open={pending?.kind === 'create-folder'}

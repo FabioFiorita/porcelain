@@ -1,5 +1,5 @@
 import { usePreferencesStore } from '@renderer/stores/preferences'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
@@ -17,7 +17,7 @@ describe('surface-handoffs', () => {
       activePaneIndex: 0,
     })
     usePreferencesStore.setState({ sidebarTab: 'files' })
-    useRepoStore.setState({ repo: { path: '/repo', name: 'repo' } })
+    useProjectSelectionStore.setState({ project: { path: '/repo', name: 'repo' } })
   })
 
   it('openChanges switches to the Changes sidebar', () => {

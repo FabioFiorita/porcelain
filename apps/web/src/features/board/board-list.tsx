@@ -1,7 +1,7 @@
 import type { BoardCard } from '@porcelain/contracts/board'
 import { SidebarHeaderActions } from '@renderer/components/shell/sidebar-header-actions'
 import { Button } from '@renderer/components/ui/button'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { Columns3, Plus } from 'lucide-react'
 import { BOARD_COLUMNS } from './board-columns'
@@ -17,13 +17,13 @@ import { ClearColumnButton } from './clear-column-button'
  */
 export function BoardList(): React.JSX.Element {
   const { cards, error } = useBoardCards()
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const openTab = useTabsStore((s) => s.openTab)
   const openDraft = useCardDraftStore((s) => s.open)
 
   const handleOpenBoard = (): void => {
-    if (!repo) return
-    openTab({ id: tabId('board', repo.path), kind: 'board', title: 'Board', path: repo.path })
+    if (!project) return
+    openTab({ id: tabId('board', project.path), kind: 'board', title: 'Board', path: project.path })
   }
 
   return (

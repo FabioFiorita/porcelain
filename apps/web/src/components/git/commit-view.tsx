@@ -14,7 +14,7 @@ import { type LineSelection, lineSelectionFromDom } from '@renderer/lib/line-sel
 import { fileName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'
 import { usePreferencesStore } from '@renderer/stores/preferences'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useRevealStore } from '@renderer/stores/reveal'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { FileText, MessageSquarePlus, Rows3 } from 'lucide-react'
@@ -79,7 +79,7 @@ function CommitFileRow({
             Open file
           </ContextMenuItem>
         )}
-        {/* file.path is repo-relative — exactly what a comment anchors to. The
+        {/* file.path is project-relative — exactly what a comment anchors to. The
             composer is a single instance lifted to CommitView (one per view, not
             per row), so the row just reports the path to comment on. */}
         <ContextMenuItem onClick={() => onComment(file.path)}>
@@ -182,10 +182,10 @@ export function CommitView({ hash }: { hash: string }): React.JSX.Element {
   const [commentAnchor, setCommentAnchor] = useState<CommentAnchor | null>(null)
   const { groups } = useCommitFlow(hash)
   const message = useCommitMessage(hash)
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const openTab = useTabsStore((s) => s.openTab)
 
-  if (!repo || groups === undefined) {
+  if (!project || groups === undefined) {
     return <p className="p-4 text-sm text-muted-foreground">Loading…</p>
   }
 
@@ -197,7 +197,7 @@ export function CommitView({ hash }: { hash: string }): React.JSX.Element {
   // button). Hidden for a deleted file — it no longer exists on disk.
   const handleOpenFile = (): void => {
     if (!selectedFile) return
-    const absolute = `${repo.path}/${selectedFile}`
+    const absolute = `${project.path}/${selectedFile}`
     openTab({
       id: tabId('file', absolute),
       kind: 'file',
@@ -258,7 +258,7 @@ export function CommitView({ hash }: { hash: string }): React.JSX.Element {
               <CommitFileRow
                 key={file.path}
                 file={file}
-                repoPath={repo.path}
+                repoPath={project.path}
                 selected={file.path === selectedFile}
                 onSelect={setSelected}
                 onComment={(path: string): void => setCommentAnchor({ path })}

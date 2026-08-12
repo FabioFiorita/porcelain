@@ -19,7 +19,7 @@ import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
 import { trpc } from '@renderer/lib/trpc'
 import { randomId } from '@renderer/lib/utils'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { boardCardsQueryKey } from './board-query-key'
 
@@ -64,7 +64,7 @@ export function useBoardCardActions(): {
   clear: (status: BoardStatus) => Promise<void>
   isPending: boolean
 } {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const daemon = useDaemonIdentity()
   const daemonScope: DaemonScope = { host: daemon.host, version: daemon.version }
   const queryClient = useQueryClient()
@@ -235,34 +235,34 @@ export function useBoardCardActions(): {
 
   return {
     add: async (input: NewCardInput): Promise<void> => {
-      if (!repo) return
+      if (!project) return
       await create.mutateAsync({
-        projectPath: repo.path,
+        projectPath: project.path,
         title: input.title,
         ...(input.body !== undefined ? { body: input.body } : {}),
         ...(input.status !== undefined ? { status: input.status } : {}),
       })
     },
     update: async (id: string, fields: { title?: string; body?: string }): Promise<void> => {
-      if (!repo) return
+      if (!project) return
       await update.mutateAsync({
-        projectPath: repo.path,
+        projectPath: project.path,
         cardId: id,
         ...(fields.title !== undefined ? { title: fields.title } : {}),
         ...(fields.body !== undefined ? { body: fields.body } : {}),
       })
     },
     move: async (id: string, status: BoardStatus): Promise<void> => {
-      if (!repo) return
-      await move.mutateAsync({ projectPath: repo.path, cardId: id, status })
+      if (!project) return
+      await move.mutateAsync({ projectPath: project.path, cardId: id, status })
     },
     remove: async (id: string): Promise<void> => {
-      if (!repo) return
-      await remove.mutateAsync({ projectPath: repo.path, cardId: id })
+      if (!project) return
+      await remove.mutateAsync({ projectPath: project.path, cardId: id })
     },
     clear: async (status: BoardStatus): Promise<void> => {
-      if (!repo) return
-      await clearColumn.mutateAsync({ projectPath: repo.path, status })
+      if (!project) return
+      await clearColumn.mutateAsync({ projectPath: project.path, status })
     },
     isPending:
       create.isPending ||

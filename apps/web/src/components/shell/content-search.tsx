@@ -9,12 +9,12 @@ import {
 } from '@renderer/components/ui/command'
 import { useTextSearch } from '@renderer/hooks/use-search'
 import { fileName } from '@renderer/lib/paths'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { useEffect, useState } from 'react'
 
 export function ContentSearch(): React.JSX.Element {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const openTab = useTabsStore((s) => s.openTab)
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -49,13 +49,13 @@ export function ContentSearch(): React.JSX.Element {
   const searching = isFetching || query !== debouncedQuery
 
   const handleSelect = (path: string, line: number): void => {
-    if (!repo) return
+    if (!project) return
     const name = fileName(path)
     openTab({
-      id: tabId('file', `${repo.path}/${path}`),
+      id: tabId('file', `${project.path}/${path}`),
       kind: 'file',
       title: name,
-      path: `${repo.path}/${path}`,
+      path: `${project.path}/${path}`,
       line,
     })
     setOpen(false)

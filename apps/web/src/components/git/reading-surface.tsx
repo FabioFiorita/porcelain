@@ -33,7 +33,7 @@ import { type LineSelection, lineSelectionForFile } from '@renderer/lib/line-sel
 import { fileName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'
 import { usePreferencesStore } from '@renderer/stores/preferences'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useRevealStore } from '@renderer/stores/reveal'
 import {
   type ReviewFocusSection,
@@ -410,7 +410,7 @@ function FileHeaderRow({
   onToggleCollapsed: () => void
   onCollapse: () => void
 }): React.JSX.Element {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const openTab = useTabsStore((s) => s.openTab)
   const setSidebarTab = usePreferencesStore((s) => s.setSidebarTab)
   const reveal = useRevealStore((s) => s.reveal)
@@ -421,8 +421,8 @@ function FileHeaderRow({
   const showSource = fileActions?.showSource !== false
 
   const handleOpenFile = (): void => {
-    if (!repo || !canOpenFile) return
-    const absolute = `${repo.path}/${file.path}`
+    if (!project || !canOpenFile) return
+    const absolute = `${project.path}/${file.path}`
     openTab({
       id: tabId('file', absolute),
       kind: 'file',
@@ -585,8 +585,8 @@ function MarkdownBlock({ md }: { md: string }): React.JSX.Element {
 // (includeEvidence default true). Feature Intent opts out; Evidence tab uses
 // EvidencePanel (full height, HTML only).
 function EvidenceBodyRow(): React.JSX.Element {
-  const repo = useRepoStore((s) => s.repo)
-  const { evidence } = useEvidenceHtml(repo?.path ?? '')
+  const project = useProjectSelectionStore((s) => s.project)
+  const { evidence } = useEvidenceHtml(project?.path ?? '')
   const empty = evidenceHtmlEmptyMessage(evidence)
   return (
     <div className="sticky left-0 max-w-[var(--vrows-vw)] px-3 py-2">
@@ -852,7 +852,7 @@ export function ReadingSurfaceBody({
   }, [trackFocus, jump, rows, clearJump])
 
   // One comment index per file in the reading (built once per file), so each diff/code
-  // row can mark its commented lines. Comments key on the same repo-relative paths.
+  // row can mark its commented lines. Comments key on the same project-relative paths.
   const commentIndexByPath = useMemo(() => {
     const map = new Map<string, CommentIndex>()
     const files = [

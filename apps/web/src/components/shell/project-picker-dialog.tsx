@@ -14,7 +14,7 @@ import { useRemoteEnvironments } from '@renderer/hooks/use-remote-daemon'
 import { rowActionClass } from '@renderer/lib/controls'
 import { isBrowser } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
-import { useRepoPickerStore } from '@renderer/stores/repo-picker'
+import { useProjectPickerStore } from '@renderer/stores/project-picker'
 import { useSettingsDialogStore } from '@renderer/stores/settings-dialog'
 import { runUserAction } from '@shared/background'
 import { CornerLeftUp, Folder, FolderGit2 } from 'lucide-react'
@@ -36,22 +36,22 @@ function browseErrorMessage(error: { message: string }, remoteName: string | nul
 }
 
 /**
- * The daemon-side directory browser that opens a repo — mounted once in AppShell
- * for both the welcome screen and repo shell. With a remote daemon it must browse
+ * The daemon-side directory browser that opens a Project — mounted once in AppShell
+ * for both the welcome screen and Project shell. With a remote daemon it must browse
  * ITS filesystem (remote-envs decision 5), giving local/remote one code path.
  *
  * Browsing path resets on each open (starts at daemon home, `null`); "Open this
  * folder" opens the CURRENT path even for a non-repo (any-directory semantics).
  */
-export function RepoPickerDialog(): React.JSX.Element | null {
-  const open = useRepoPickerStore((s) => s.open)
-  const hide = useRepoPickerStore((s) => s.hide)
+export function ProjectPickerDialog(): React.JSX.Element | null {
+  const open = useProjectPickerStore((s) => s.open)
+  const hide = useProjectPickerStore((s) => s.hide)
 
   if (!open) return null
-  return <RepoPicker onClose={hide} />
+  return <ProjectPicker onClose={hide} />
 }
 
-function RepoPicker({ onClose }: { onClose: () => void }): React.JSX.Element {
+function ProjectPicker({ onClose }: { onClose: () => void }): React.JSX.Element {
   // null = the daemon home; a fresh browse each open (no persistence).
   const [path, setPath] = useState<string | null>(null)
   const { result, error, isFetching } = useProjectDirectories(path, true)
@@ -71,7 +71,7 @@ function RepoPicker({ onClose }: { onClose: () => void }): React.JSX.Element {
         onClose()
       },
       (error) => {
-        toastUserActionError('Open repository', error)
+        toastUserActionError('Open project', error)
       },
     )
   }
@@ -87,7 +87,7 @@ function RepoPicker({ onClose }: { onClose: () => void }): React.JSX.Element {
     >
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Open repository</DialogTitle>
+          <DialogTitle>Open project</DialogTitle>
           {/* Truncate the deep end off the LEFT so the folder name stays visible. */}
           <p
             className="truncate font-mono text-xs text-muted-foreground"
@@ -144,7 +144,7 @@ function RepoPicker({ onClose }: { onClose: () => void }): React.JSX.Element {
                       variant="outline"
                       className="rounded-md border-border/60 text-2xs uppercase tracking-wider text-muted-foreground"
                     >
-                      repo
+                      project
                     </Badge>
                   )}
                 </button>

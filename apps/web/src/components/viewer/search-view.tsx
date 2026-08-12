@@ -1,11 +1,11 @@
 import { useTextSearch } from '@renderer/hooks/use-search'
 import { fileName } from '@renderer/lib/paths'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 
 /** Repo-wide literal search results (git grep); rows open the file at the line. */
 export function SearchView({ query }: { query: string }): React.JSX.Element {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const openTab = useTabsStore((s) => s.openTab)
   const { matches, error } = useTextSearch(query)
 
@@ -15,13 +15,13 @@ export function SearchView({ query }: { query: string }): React.JSX.Element {
   }
 
   const handleOpen = (path: string, line: number): void => {
-    if (!repo) return
+    if (!project) return
     const name = fileName(path)
     openTab({
-      id: tabId('file', `${repo.path}/${path}`),
+      id: tabId('file', `${project.path}/${path}`),
       kind: 'file',
       title: name,
-      path: `${repo.path}/${path}`,
+      path: `${project.path}/${path}`,
       line,
     })
   }

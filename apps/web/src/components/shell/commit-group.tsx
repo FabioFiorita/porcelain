@@ -27,7 +27,7 @@ import { compactButtonClass } from '@renderer/lib/controls'
 import { kbdLabel } from '@renderer/lib/keyboard'
 import { cn } from '@renderer/lib/utils'
 import { useCommitDraftStore } from '@renderer/stores/commit-draft'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
 import {
@@ -139,7 +139,7 @@ function CommitTokenSelect({
 export function CommitGroup(): React.JSX.Element {
   // The draft is keyed by repo path and lives in a persisted store so it survives the
   // Quick Access section unmounting on sidebar-tab switches (and a reload).
-  const repoPath = useRepoStore((s) => s.repo?.path ?? '')
+  const repoPath = useProjectSelectionStore((s) => s.project?.path ?? '')
   const message = useCommitDraftStore((s) => s.messages[repoPath] ?? '')
   const setMessage = useCommitDraftStore((s) => s.setMessage)
   const clearMessage = useCommitDraftStore((s) => s.clearMessage)

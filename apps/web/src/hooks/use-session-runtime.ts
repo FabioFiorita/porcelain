@@ -7,7 +7,7 @@ import { type DaemonSession, primary } from '@renderer/lib/daemon'
 import { isBrowser } from '@renderer/lib/platform'
 import type { SessionConnectionStatus } from '@renderer/lib/session-browser-adapter'
 import { shellTrpcClient, trpc } from '@renderer/lib/trpc'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { unreadTabFor, useUnreadStore } from '@renderer/stores/unread'
 import { settleBackground } from '@shared/background'
 import { useQueryClient } from '@tanstack/react-query'
@@ -178,7 +178,7 @@ export function useSessionRuntime({
 } = {}): SessionRuntimeState {
   const trpcUtils = trpc.useUtils()
   const queryClient = useQueryClient()
-  const repoPath = useRepoStore((s) => s.repo?.path)
+  const repoPath = useProjectSelectionStore((s) => s.project?.path)
   const [status, setStatus] = useState<SessionConnectionStatus>(() => session.status())
   const [updateRequired, setUpdateRequired] = useState<SessionMismatchFrame | undefined>(() =>
     session.updateRequiredFrame(),

@@ -2,10 +2,10 @@ import type { FlowGroup } from '@backend/review/flow'
 import { SidebarProvider } from '@renderer/components/ui/sidebar'
 import { useBranchFlow } from '@renderer/hooks/use-branch-flow'
 import { useGitFlow } from '@renderer/hooks/use-git-flow'
-import { useRepoLayers } from '@renderer/hooks/use-repo-layers'
+import { useProjectLayers } from '@renderer/hooks/use-project-layers'
 import { useReviewedPaths, useToggleReviewed } from '@renderer/hooks/use-reviewed'
 import { usePreferencesStore } from '@renderer/stores/preferences'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useRevealStore } from '@renderer/stores/reveal'
 import { useSetupTipsStore } from '@renderer/stores/setup-tips'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
@@ -18,7 +18,7 @@ import { ChangesList } from './changes-list'
 // diff-prefetch hook is a no-op since hover prefetching is irrelevant here.
 vi.mock('@renderer/hooks/use-git-flow', () => ({ useGitFlow: vi.fn() }))
 vi.mock('@renderer/hooks/use-branch-flow', () => ({ useBranchFlow: vi.fn() }))
-vi.mock('@renderer/hooks/use-repo-layers', () => ({ useRepoLayers: vi.fn() }))
+vi.mock('@renderer/hooks/use-project-layers', () => ({ useProjectLayers: vi.fn() }))
 vi.mock('@renderer/hooks/use-diff', () => ({ useDiffFileHoverPrefetch: () => () => {} }))
 vi.mock('@renderer/hooks/use-commit', () => ({
   useFileStaging: () => ({ stageFile: async () => {}, unstageFile: async () => {} }),
@@ -89,7 +89,7 @@ describe('ChangesList', () => {
 
   beforeEach(() => {
     useTabsStore.setState({ panes: [{ tabs: [], activeTabId: null }], activePaneIndex: 0 })
-    useRepoStore.setState({ repo: { path: '/repo', name: 'repo' } })
+    useProjectSelectionStore.setState({ project: { path: '/repo', name: 'repo' } })
     usePreferencesStore.setState({ sidebarTab: 'changes', changesScope: 'working' })
     useRevealStore.setState({ path: null })
     vi.mocked(useGitFlow).mockReturnValue({ groups, refresh: async () => {} })
@@ -99,14 +99,14 @@ describe('ChangesList', () => {
       refresh: async () => {},
     })
     // custom layers → no starter kickoff banner in the default suite
-    vi.mocked(useRepoLayers).mockReturnValue({ layers: [], custom: true })
+    vi.mocked(useProjectLayers).mockReturnValue({ layers: [], custom: true })
     vi.mocked(useReviewedPaths).mockReturnValue(new Set())
     vi.mocked(useToggleReviewed).mockReturnValue({ mark: markFn, unmark: unmarkFn })
     useSetupTipsStore.setState({ dismissed: {} })
   })
 
   it('shows a layers setup kickoff while still on starters', () => {
-    vi.mocked(useRepoLayers).mockReturnValue({
+    vi.mocked(useProjectLayers).mockReturnValue({
       layers: [
         { label: 'Docs', pattern: 'docs' },
         { label: 'Agents', pattern: 'agents' },
@@ -121,7 +121,7 @@ describe('ChangesList', () => {
   })
 
   it('hides the layers kickoff after dismiss', () => {
-    vi.mocked(useRepoLayers).mockReturnValue({
+    vi.mocked(useProjectLayers).mockReturnValue({
       layers: [{ label: 'Docs', pattern: 'docs' }],
       custom: false,
     })

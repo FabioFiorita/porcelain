@@ -7,7 +7,7 @@ import { useReviewComments } from '@renderer/features/review/comments'
 import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
 import { useGitFlow } from '@renderer/hooks/use-git-flow'
 import { usePreferencesStore } from '@renderer/stores/preferences'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -76,7 +76,10 @@ describe('GlanceHome', () => {
   beforeEach(() => {
     switchToSpy.mockClear()
     useTabsStore.setState({ panes: [{ tabs: [], activeTabId: null }], activePaneIndex: 0 })
-    useRepoStore.setState({ repo: { path: '/repo', name: 'repo' }, switchTo: switchToSpy })
+    useProjectSelectionStore.setState({
+      project: { path: '/repo', name: 'repo' },
+      switchProject: switchToSpy,
+    })
     usePreferencesStore.setState({ sidebarTab: 'files' })
     mockEmpty()
   })

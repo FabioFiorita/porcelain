@@ -13,8 +13,8 @@ const ctx = vi.hoisted(() => ({
 vi.mock('@/lib/daemon/environments-store', () => ({
   useActiveEnvironment: () => ctx.environment,
 }))
-vi.mock('@/lib/daemon/repo', () => ({
-  useActiveRepo: () => ({ name: 'repo', path: ctx.repoPath }),
+vi.mock('@/features/projects', () => ({
+  useActiveProject: () => ({ name: 'repo', path: ctx.repoPath }),
 }))
 vi.mock('@/lib/daemon/session', () => ({
   daemonSession: {

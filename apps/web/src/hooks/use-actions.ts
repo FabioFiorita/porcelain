@@ -2,14 +2,16 @@ import type { Action, ActionView, ActionWhere } from '@backend/stores/actions-st
 import { invalidateAfterSuccess } from '@renderer/hooks/mutation-error'
 import { spawnLocalTerminal } from '@renderer/lib/terminal-actions'
 import { trpc } from '@renderer/lib/trpc'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { useTerminalsStore } from '@renderer/stores/terminals'
 
-/** All saved actions for the current repo (live-refreshed when the agent curates them). */
+/** All saved actions for the current project (live-refreshed when the agent curates them). */
 export function useActions(enabled = true): ActionView[] {
-  const repo = useRepoStore((s) => s.repo)
-  const { data } = trpc.actions.useQuery(repo?.path ?? '', { enabled: enabled && repo !== null })
+  const project = useProjectSelectionStore((s) => s.project)
+  const { data } = trpc.actions.useQuery(project?.path ?? '', {
+    enabled: enabled && project !== null,
+  })
   return data ?? []
 }
 
@@ -32,7 +34,7 @@ export function useActionMutations(): {
   move: (id: string, direction: 'up' | 'down') => Promise<void>
   remove: (id: string) => Promise<void>
 } {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const utils = trpc.useUtils()
   const refresh = async (): Promise<void> => {
     await utils.actions.invalidate()
@@ -43,20 +45,20 @@ export function useActionMutations(): {
   const remove = trpc.deleteAction.useMutation({ onSuccess: refresh })
   return {
     add: async (input: NewActionInput): Promise<void> => {
-      if (!repo) return
-      await add.mutateAsync({ repoPath: repo.path, ...input })
+      if (!project) return
+      await add.mutateAsync({ repoPath: project.path, ...input })
     },
     update: async (id: string, fields: NewActionInput): Promise<void> => {
-      if (!repo) return
-      await update.mutateAsync({ repoPath: repo.path, id, ...fields })
+      if (!project) return
+      await update.mutateAsync({ repoPath: project.path, id, ...fields })
     },
     move: async (id: string, direction: 'up' | 'down'): Promise<void> => {
-      if (!repo) return
-      await move.mutateAsync({ repoPath: repo.path, id, direction })
+      if (!project) return
+      await move.mutateAsync({ repoPath: project.path, id, direction })
     },
     remove: async (id: string): Promise<void> => {
-      if (!repo) return
-      await remove.mutateAsync({ repoPath: repo.path, id })
+      if (!project) return
+      await remove.mutateAsync({ repoPath: project.path, id })
     },
   }
 }
@@ -72,7 +74,7 @@ export function useTrustAction(): (id: string) => Promise<void> {
   const utils = trpc.useUtils()
   const mutation = trpc.trustActions.useMutation()
   return async (id: string): Promise<void> => {
-    const repoPath = useRepoStore.getState().repo?.path
+    const repoPath = useProjectSelectionStore.getState().project?.path
     if (!repoPath) return
     await mutation.mutateAsync({ repoPath, ids: [id] })
     await invalidateAfterSuccess([utils.actions.invalidate()], 'Accept command')
@@ -93,11 +95,11 @@ export function useRunAction(): (
   action: Action,
   opts?: { localPath?: string | null },
 ) => Promise<RunActionResult> {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const createTerminal = useTerminalsStore((s) => s.create)
   const openTab = useTabsStore((s) => s.openTab)
   return async (action: Action, opts?: { localPath?: string | null }): Promise<RunActionResult> => {
-    if (!repo) return 'ran'
+    if (!project) return 'ran'
     if (action.where === 'local') {
       const localPath = opts?.localPath
       if (localPath == null || localPath === '') return 'needs-local-path'
@@ -108,7 +110,7 @@ export function useRunAction(): (
       return 'ran'
     }
     const id = await createTerminal({
-      cwd: repo.path,
+      cwd: project.path,
       name: action.title,
       initialInput: action.command,
     })

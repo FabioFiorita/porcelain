@@ -1,5 +1,6 @@
 import {
   openProject,
+  type ProjectPath,
   type ProjectSummary,
   type ProjectsQuery,
   projectDirectoriesQuery,
@@ -7,13 +8,20 @@ import {
   recentProjectsQuery,
   removeRecentProject,
 } from '@porcelain/client-runtime/projects'
-import { type BrowseDirsOutput, projectsProcedures } from '@porcelain/contracts/projects'
+import type { BrowseDirsOutput } from '@porcelain/contracts/projects'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import { type DaemonScope, daemonScopeSchema } from '@renderer/lib/daemon-scope'
 import { trpc } from '@renderer/lib/trpc'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
+
+import {
+  browseProjectDirectoriesOnDaemon,
+  openProjectOnDaemon,
+  recentProjectsOnDaemon,
+  removeRecentProjectOnDaemon,
+} from './project-transport'
 
 export type ProjectsDaemonScope = DaemonScope
 
@@ -38,10 +46,6 @@ function errorView(error: unknown): { message: string } | null {
   return { message: String(error) }
 }
 
-function recentInput(includeWorktrees: boolean): { includeWorktrees: true } | undefined {
-  return includeWorktrees ? { includeWorktrees: true } : undefined
-}
-
 async function invalidateProjectQueries(
   queryClient: ReturnType<typeof useQueryClient>,
   daemon: ProjectsDaemonScope,
@@ -63,9 +67,7 @@ export function useRecentProjects(enabled = true): readonly ProjectSummary[] {
   const query = useQuery({
     enabled,
     queryFn: async (): Promise<readonly ProjectSummary[]> =>
-      projectsProcedures.recentRepos.output.parse(
-        await client.recentRepos.query(recentInput(identity.includeWorktrees)),
-      ),
+      recentProjectsOnDaemon(client, identity.includeWorktrees),
     queryKey: projectsQueryKey(daemon, identity),
   })
   return query.data ?? []
@@ -73,17 +75,19 @@ export function useRecentProjects(enabled = true): readonly ProjectSummary[] {
 
 /** Open a Project and apply its authoritative summary to the existing Web selection boundary. */
 export function useOpenProject(): {
-  open: (path: string, options?: { resetPresentation?: boolean }) => Promise<void>
+  open: (path: ProjectPath, options?: { resetPresentation?: boolean }) => Promise<void>
   isPending: boolean
 } {
   const daemon = useDaemonIdentity()
   const client = trpc.useUtils().client
   const queryClient = useQueryClient()
-  const selectProject = useRepoStore((state) => state.selectProject)
-  const resetProjectPresentation = useRepoStore((state) => state.resetProjectPresentation)
+  const selectProject = useProjectSelectionStore((state) => state.selectProject)
+  const resetProjectPresentation = useProjectSelectionStore(
+    (state) => state.resetProjectPresentation,
+  )
   const mutation = useMutation({
-    mutationFn: async (path: string): Promise<ProjectSummary> =>
-      projectsProcedures.openRepoPath.output.parse(await client.openRepoPath.mutate(path)),
+    mutationFn: async (path: ProjectPath): Promise<ProjectSummary> =>
+      openProjectOnDaemon(client, path),
     onSuccess: async (project, path) => {
       selectProject(project)
       await invalidateProjectQueries(queryClient, daemon, openProject.affectedQueries(path))
@@ -92,8 +96,8 @@ export function useOpenProject(): {
 
   return {
     isPending: mutation.isPending,
-    open: async (path, options): Promise<void> => {
-      const selected = useRepoStore.getState().repo
+    open: async (path: ProjectPath, options): Promise<void> => {
+      const selected = useProjectSelectionStore.getState().project
       if (options?.resetPresentation && selected?.path !== path) {
         resetProjectPresentation()
       }
@@ -110,15 +114,14 @@ export function useRemoveRecentProject(): {
   const daemon = useDaemonIdentity()
   const client = trpc.useUtils().client
   const queryClient = useQueryClient()
-  const selectProject = useRepoStore((state) => state.selectProject)
+  const selectProject = useProjectSelectionStore((state) => state.selectProject)
   const mutation = useMutation({
     mutationFn: async (path: string): Promise<void> => {
-      const result = await client.removeRecentRepo.mutate(path)
-      projectsProcedures.removeRecentRepo.output.parse(result)
+      await removeRecentProjectOnDaemon(client, path)
     },
     onSuccess: async (_result, path) => {
       await invalidateProjectQueries(queryClient, daemon, removeRecentProject.affectedQueries(path))
-      if (useRepoStore.getState().repo?.path === path) selectProject(null)
+      if (useProjectSelectionStore.getState().project?.path === path) selectProject(null)
     },
   })
 
@@ -140,8 +143,7 @@ export function useProjectDirectories(
   const query = useQuery({
     enabled,
     placeholderData: keepPreviousData,
-    queryFn: async (): Promise<BrowseDirsOutput> =>
-      projectsProcedures.browseDirs.output.parse(await client.browseDirs.query(path)),
+    queryFn: async (): Promise<BrowseDirsOutput> => browseProjectDirectoriesOnDaemon(client, path),
     queryKey: projectsQueryKey(daemon, identity),
   })
   return { error: errorView(query.error), isFetching: query.isFetching, result: query.data }
@@ -149,5 +151,5 @@ export function useProjectDirectories(
 
 /** Selected Project presentation state; the recent list remains Query data. */
 export function useSelectedProject(): ProjectSummary | null {
-  return useRepoStore((state) => state.repo)
+  return useProjectSelectionStore((state) => state.project)
 }

@@ -4,7 +4,7 @@ import {
   useSetCompanionDisposition,
   useSetCompanionGitVisibility,
 } from '@renderer/hooks/use-companion-dispositions'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { TestIds } from '@shared/test-ids'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -23,7 +23,7 @@ const setVisibility = vi.fn()
 describe('DataSection', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    useRepoStore.setState({ repo: { path: '/repo', name: 'repo' } })
+    useProjectSelectionStore.setState({ project: { path: '/repo', name: 'repo' } })
     set.mockResolvedValue([])
     vi.mocked(useSetCompanionDisposition).mockReturnValue({ set, isSaving: false })
     setVisibility.mockResolvedValue(undefined)
@@ -71,7 +71,7 @@ describe('DataSection', () => {
   })
 
   it('asks for a project before offering the choice', () => {
-    useRepoStore.setState({ repo: null })
+    useProjectSelectionStore.setState({ project: null })
     render(<DataSection />)
     expect(screen.getByText('Open a project to choose.')).toBeTruthy()
   })
@@ -102,7 +102,7 @@ describe('git visibility', () => {
     vi.clearAllMocks()
     // Sibling describe — it does not inherit the setup above, and the line only
     // renders with a project open.
-    useRepoStore.setState({ repo: { path: '/repo', name: 'repo' } })
+    useProjectSelectionStore.setState({ project: { path: '/repo', name: 'repo' } })
     setVisibility.mockResolvedValue(undefined)
     vi.mocked(useSetCompanionGitVisibility).mockReturnValue(setVisibility)
     vi.mocked(useSetCompanionDisposition).mockReturnValue({ set, isSaving: false })

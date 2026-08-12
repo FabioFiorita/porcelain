@@ -4,7 +4,7 @@ import {
   type FilesInterestHandle,
 } from '@porcelain/client-runtime/files'
 import { primary } from '@renderer/lib/daemon'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { type Pane, useTabsStore } from '@renderer/stores/tabs'
 import { useTreeDirsStore } from '@renderer/stores/tree-dirs'
 import { useEffect, useMemo, useRef } from 'react'
@@ -26,7 +26,7 @@ function openFilePaths(panes: readonly Pane[]): string[] {
  * Mounted once from AppShell. Session runtime no longer registers watch interests.
  */
 export function useFilesInterestBridge(): void {
-  const repoPath = useRepoStore((s) => s.repo?.path ?? null)
+  const repoPath = useProjectSelectionStore((s) => s.project?.path ?? null)
   // Reactive selectors — never snapshot-only getState(); tab open / dir expand must recompute.
   const panes = useTabsStore((s) => s.panes)
   const dirs = useTreeDirsStore((s) => s.dirs)

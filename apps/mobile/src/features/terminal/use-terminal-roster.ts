@@ -1,7 +1,7 @@
 import type { ActionView } from '@porcelain/contracts/actions'
 import { settleBackground } from '@porcelain/shared/background'
 import { useEffect, useMemo } from 'react'
-
+import { useActiveProject } from '@/features/projects'
 import type { DaemonError } from '@/lib/daemon/errors'
 import {
   actionsQuery,
@@ -10,7 +10,6 @@ import {
   trustActionsMutation,
 } from '@/lib/daemon/procedures/terminal'
 import { useDaemonMutation, useDaemonQuery } from '@/lib/daemon/queries'
-import { useActiveRepo } from '@/lib/daemon/repo'
 import { receiveData, receiveExit, receiveScrollback } from './terminal-engine'
 import { useMobileTerminalRecovery } from './terminal-recovery'
 import { TERMINAL_ROSTER_POLL_MS, terminalSessionsForRepo } from './terminal-roster-policy'
@@ -45,8 +44,8 @@ export function useTerminals(active: boolean): {
   isLoading: boolean
   error: DaemonError | null
 } {
-  const repo = useActiveRepo()
-  const repoPath = repo?.path ?? ''
+  const project = useActiveProject()
+  const repoPath = project?.path ?? ''
   const hydrate = useTerminalStore((state) => state.hydrate)
   const reset = useTerminalStore((state) => state.reset)
   const sessions = useTerminalStore((state) => state.sessions)
@@ -55,14 +54,14 @@ export function useTerminals(active: boolean): {
   useTerminalStream()
 
   const { data, error, isLoading, refetch } = useDaemonQuery(terminalSessionsQuery, undefined, {
-    enabled: active && repo !== null,
+    enabled: active && project !== null,
     placeholderData: 'keepPreviousData',
     pollMs: TERMINAL_ROSTER_POLL_MS,
     staleTime: 0,
   })
-  useMobileTerminalRecovery(active && repo !== null, refetch)
+  useMobileTerminalRecovery(active && project !== null, refetch)
 
-  // The daemon lists every PTY it owns, across repos. This client shows one repo at a time.
+  // The daemon lists every PTY it owns, across repos. This client shows one project at a time.
   const inRepo = useMemo(() => terminalSessionsForRepo(data ?? [], repoPath), [data, repoPath])
 
   useEffect(() => {
@@ -104,14 +103,14 @@ export function useRenameTerminal(): (id: string, name: string) => Promise<void>
   }
 }
 
-/** The repo's saved actions — the agent curates them; running one is human-only. */
+/** The project's saved actions — the agent curates them; running one is human-only. */
 export function useTerminalActions(active: boolean): {
   actions: ActionView[]
   error: DaemonError | null
 } {
-  const repo = useActiveRepo()
-  const { data, error } = useDaemonQuery(actionsQuery, repo?.path ?? '', {
-    enabled: active && repo !== null,
+  const project = useActiveProject()
+  const { data, error } = useDaemonQuery(actionsQuery, project?.path ?? '', {
+    enabled: active && project !== null,
   })
   // A phone has no local daemon, so local-only actions are not runnable here.
   const actions = useMemo(() => (data ?? []).filter((action) => action.where !== 'local'), [data])
@@ -120,11 +119,11 @@ export function useTerminalActions(active: boolean): {
 
 /** Accept a command this daemon's machine has not run before. */
 export function useTrustAction(): (id: string) => Promise<void> {
-  const repo = useActiveRepo()
+  const project = useActiveProject()
   const mutation = useDaemonMutation(trustActionsMutation, { invalidates: ['actions'] })
 
   return async (id: string): Promise<void> => {
-    if (repo === null) return
-    await mutation.mutateAsync({ ids: [id], repoPath: repo.path })
+    if (project === null) return
+    await mutation.mutateAsync({ ids: [id], repoPath: project.path })
   }
 }

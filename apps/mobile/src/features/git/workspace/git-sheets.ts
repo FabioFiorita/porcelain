@@ -2,7 +2,7 @@ import { headLabel } from '@porcelain/contracts'
 import type { BranchRef, Worktree } from '@porcelain/contracts/git'
 import { runUserAction, settleBackground } from '@porcelain/shared/background'
 import { useEffect, useState } from 'react'
-
+import { openProject, useActiveProject } from '@/features/projects'
 import { useShellStore } from '@/features/shell/shell-store'
 import {
   blockingWorktree,
@@ -10,13 +10,12 @@ import {
   localBranchNames,
   matchBranches,
 } from '@/features/shell/workspace-lists'
-import { openRepo, useActiveRepo } from '@/lib/daemon/repo'
 
 import { useGitAddWorktree, useGitCheckout, useGitCreateBranch } from './git-mutations'
 import { useGitWorkspace } from './git-queries'
 
 export type GitBranchSheet = {
-  repoPath: string | null
+  projectPath: string | null
   query: string
   setQuery: (query: string) => void
   currentBranch: string | null
@@ -45,9 +44,9 @@ export function useGitBranchSheet(
 ): GitBranchSheet {
   const closeSheet = useShellStore((state) => state.closeSheet)
   const openSheet = useShellStore((state) => state.openSheet)
-  const repo = useActiveRepo()
+  const project = useActiveProject()
   const workspace = useGitWorkspace({
-    enabled: open && repo !== null,
+    enabled: open && project !== null,
     placeholderData: true,
   })
   const checkout = useGitCheckout()
@@ -55,7 +54,7 @@ export function useGitBranchSheet(
   const [query, setQuery] = useState('')
   const [actionError, setActionError] = useState<string | null>(null)
   const [createError, setCreateError] = useState<string | null>(null)
-  const repoPath = repo?.path ?? ''
+  const projectPath = project?.path ?? ''
 
   const branches = workspace.branches.data ?? []
   const worktrees = workspace.worktrees.data ?? []
@@ -69,10 +68,10 @@ export function useGitBranchSheet(
       setQuery('')
       return
     }
-    if (repoPath !== '') {
+    if (projectPath !== '') {
       settleBackground(workspace.refreshBranches(), 'invalidation')
     }
-  }, [open, repoPath, workspace.refreshBranches])
+  }, [open, projectPath, workspace.refreshBranches])
 
   return {
     actionError,
@@ -81,7 +80,7 @@ export function useGitBranchSheet(
       setCreateError(null)
     },
     create: (branch): void => {
-      if (repo === null || createBranch.isPending) return
+      if (project === null || createBranch.isPending) return
       setCreateError(null)
       runUserAction(
         async () => {
@@ -107,13 +106,13 @@ export function useGitBranchSheet(
     local: matched.local,
     query,
     remote: matched.remote,
-    repoPath: repo?.path ?? null,
+    projectPath: project?.path ?? null,
     select: (branch): void => {
-      if (blockingWorktree(worktrees, branch.name, repoPath) !== undefined) {
+      if (blockingWorktree(worktrees, branch.name, projectPath) !== undefined) {
         openSheet('worktree')
         return
       }
-      if (repo === null || branch.name === currentBranch) {
+      if (project === null || branch.name === currentBranch) {
         closeSheet()
         return
       }
@@ -135,7 +134,7 @@ export function useGitBranchSheet(
 }
 
 export type GitWorktreeSheet = {
-  repoPath: string | null
+  projectPath: string | null
   worktrees: readonly Worktree[]
   existingBranches: readonly string[]
   fromLabel: string
@@ -157,9 +156,9 @@ export function useGitWorktreeSheet(
   onCreatingChange: (creating: boolean) => void,
 ): GitWorktreeSheet {
   const closeSheet = useShellStore((state) => state.closeSheet)
-  const repo = useActiveRepo()
+  const project = useActiveProject()
   const workspace = useGitWorkspace({
-    enabled: open && repo !== null,
+    enabled: open && project !== null,
     placeholderData: true,
   })
   const addWorktree = useGitAddWorktree()
@@ -183,7 +182,7 @@ export function useGitWorktreeSheet(
       setCreateError(null)
     },
     create: (branch): void => {
-      if (repo === null || addWorktree.isPending || busyPath !== null) return
+      if (project === null || addWorktree.isPending || busyPath !== null) return
       setCreateError(null)
       runUserAction(
         async () => {
@@ -194,7 +193,7 @@ export function useGitWorktreeSheet(
           const created = await addWorktree.mutateAsync(branch)
           if (created === undefined) return
           setBusyPath(created.path)
-          await openRepo(created.path)
+          await openProject(created.path)
           onCreatingChange(false)
           closeSheet()
         },
@@ -214,7 +213,7 @@ export function useGitWorktreeSheet(
       ? errorMessage(workspace.worktrees.error, 'Could not load worktrees.')
       : null,
     open: (path): void => {
-      if (path === repo?.path) {
+      if (path === project?.path) {
         closeSheet()
         return
       }
@@ -222,7 +221,7 @@ export function useGitWorktreeSheet(
       setActionError(null)
       runUserAction(
         async () => {
-          await openRepo(path)
+          await openProject(path)
           closeSheet()
         },
         (error) => {
@@ -233,7 +232,7 @@ export function useGitWorktreeSheet(
         },
       )
     },
-    repoPath: repo?.path ?? null,
+    projectPath: project?.path ?? null,
     worktrees: workspace.worktrees.data ?? [],
   }
 }

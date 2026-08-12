@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { useActiveProject } from '@/features/projects'
 import { BADGE_POLL_MS, LIVE_POLL_MS } from '@/lib/daemon/poll'
 import {
   type DiffReadingScope,
@@ -11,7 +12,6 @@ import {
   unmarkReviewedMutation,
 } from '@/lib/daemon/procedures/changes'
 import { useDaemonMutation, useDaemonQuery } from '@/lib/daemon/queries'
-import { useActiveRepo } from '@/lib/daemon/repo'
 
 import { type ChangesScope, useChangesStore } from './changes-store'
 
@@ -28,10 +28,10 @@ export type ChangesFlow = {
  * cannot be conditional; the inactive one is disabled, so only one is ever in flight.
  */
 export function useChangesFlow(active: boolean): ChangesFlow {
-  const repo = useActiveRepo()
+  const project = useActiveProject()
   const scope = useChangesStore((state) => state.scope)
-  const repoPath = repo?.path ?? ''
-  const enabled = active && repo !== null
+  const repoPath = project?.path ?? ''
+  const enabled = active && project !== null
 
   const working = useDaemonQuery(gitFlowQuery, repoPath, {
     enabled: enabled && scope === 'working',
@@ -68,9 +68,9 @@ export function useChangesFlow(active: boolean): ChangesFlow {
  * rather than the active scope's groups.
  */
 export function useWorkingFlow(active: boolean): FlowGroup[] | undefined {
-  const repo = useActiveRepo()
-  const { data } = useDaemonQuery(gitFlowQuery, repo?.path ?? '', {
-    enabled: active && repo !== null,
+  const project = useActiveProject()
+  const { data } = useDaemonQuery(gitFlowQuery, project?.path ?? '', {
+    enabled: active && project !== null,
     placeholderData: 'keepPreviousData',
     pollMs: LIVE_POLL_MS,
     staleTime: 0,
@@ -84,9 +84,9 @@ export function useWorkingFlow(active: boolean): FlowGroup[] | undefined {
  * interval among observers, so an open list still refreshes at the live rate.
  */
 export function useChangedFileCount(): number {
-  const repo = useActiveRepo()
-  const { data } = useDaemonQuery(gitFlowQuery, repo?.path ?? '', {
-    enabled: repo !== null,
+  const project = useActiveProject()
+  const { data } = useDaemonQuery(gitFlowQuery, project?.path ?? '', {
+    enabled: project !== null,
     pollMs: BADGE_POLL_MS,
   })
   return (data ?? []).reduce((count, group) => count + group.files.length, 0)
@@ -94,9 +94,9 @@ export function useChangedFileCount(): number {
 
 /** Repo-relative paths the user has ticked off. Reconciled daemon-side, so it polls too. */
 export function useReviewedPaths(active: boolean): Set<string> {
-  const repo = useActiveRepo()
-  const { data } = useDaemonQuery(reviewedPathsQuery, repo?.path ?? '', {
-    enabled: active && repo !== null,
+  const project = useActiveProject()
+  const { data } = useDaemonQuery(reviewedPathsQuery, project?.path ?? '', {
+    enabled: active && project !== null,
     pollMs: LIVE_POLL_MS,
     staleTime: 0,
   })
@@ -119,7 +119,7 @@ export function useToggleReviewed(): {
   isPending: boolean
   error: Error | null
 } {
-  const repo = useActiveRepo()
+  const project = useActiveProject()
   const mark = useDaemonMutation(markReviewedMutation, { invalidates: REVIEWED_INVALIDATIONS })
   const unmark = useDaemonMutation(unmarkReviewedMutation, { invalidates: REVIEWED_INVALIDATIONS })
   const setAll = useDaemonMutation(setReviewedMutation, { invalidates: REVIEWED_INVALIDATIONS })
@@ -130,16 +130,16 @@ export function useToggleReviewed(): {
     // `mutate` is void and publishes failure on the mutation error field — never mutateAsync
     // at a React event edge (the framework ignores the returned Promise).
     mark: (path: string): void => {
-      if (repo === null) return
-      mark.mutate({ path, repoPath: repo.path })
+      if (project === null) return
+      mark.mutate({ path, repoPath: project.path })
     },
     setReviewed: (paths: string[]): void => {
-      if (repo === null) return
-      setAll.mutate({ paths, repoPath: repo.path })
+      if (project === null) return
+      setAll.mutate({ paths, repoPath: project.path })
     },
     unmark: (path: string): void => {
-      if (repo === null) return
-      unmark.mutate({ path, repoPath: repo.path })
+      if (project === null) return
+      unmark.mutate({ path, repoPath: project.path })
     },
   }
 }

@@ -13,10 +13,10 @@ import {
   useSelectedProject,
 } from '@renderer/features/projects'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
-import { useNewWindow } from '@renderer/hooks/use-repo'
+import { useNewWindow } from '@renderer/hooks/use-new-window'
 import { isBrowser } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { runUserAction } from '@shared/background'
 import { Check, FolderPlus, SquareArrowOutUpRight, X } from 'lucide-react'
 import { useState } from 'react'
@@ -29,10 +29,10 @@ type MenuContentProps = React.ComponentProps<typeof DropdownMenuContent>
  * rail's avatar (`ProjectSwitcher`); the `trigger` is rendered as a direct child
  * of the menu (the caller wraps its own `DropdownMenuTrigger`, with or without a
  * tooltip); `contentSide`/`contentAlign` place the panel relative to that
- * trigger. Renders nothing without an open repo.
+ * trigger. Renders nothing without an open project.
  *
  * The menu is controlled (`menuOpen`) so a row's inline button can `stopPropagation`
- * to suppress the row's `switchTo` and still steer the menu (close on open-in-window,
+ * to suppress the row's `switchProject` and still steer the menu (close on open-in-window,
  * stay open while pruning several recents).
  */
 export function ProjectSwitcherMenu({
@@ -44,15 +44,15 @@ export function ProjectSwitcherMenu({
   contentSide?: MenuContentProps['side']
   contentAlign?: MenuContentProps['align']
 }): React.JSX.Element | null {
-  const repo = useSelectedProject()
-  const openRepo = useRepoStore((s) => s.openRepo)
+  const project = useSelectedProject()
+  const openProjectPicker = useProjectSelectionStore((s) => s.openProjectPicker)
   const openProject = useOpenProject()
   const newWindow = useNewWindow()
   const removeRecent = useRemoveRecentProject()
-  const recents = useRecentProjects(repo !== null)
+  const recents = useRecentProjects(project !== null)
   const [menuOpen, setMenuOpen] = useState(false)
 
-  const switchTo = (path: string): void => {
+  const switchProject = (path: string): void => {
     runUserAction(
       () => openProject.open(path, { resetPresentation: true }),
       (error) => toastUserActionError('Switch project', error),
@@ -66,7 +66,7 @@ export function ProjectSwitcherMenu({
     )
   }
 
-  if (!repo) return null
+  if (!project) return null
 
   return (
     <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
@@ -76,7 +76,7 @@ export function ProjectSwitcherMenu({
         <DropdownMenuGroup>
           <DropdownMenuLabel>Projects</DropdownMenuLabel>
           {recents.map((recent) => (
-            <DropdownMenuItem key={recent.path} onClick={() => switchTo(recent.path)}>
+            <DropdownMenuItem key={recent.path} onClick={() => switchProject(recent.path)}>
               <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-sidebar-accent text-xs font-semibold text-sidebar-accent-foreground">
                 {recent.name.charAt(0).toUpperCase()}
               </span>
@@ -87,9 +87,9 @@ export function ProjectSwitcherMenu({
                 </span>
               </div>
               <div className="ml-auto flex shrink-0 items-center gap-1">
-                {recent.path === repo.path && <Check className="shrink-0 text-success" />}
+                {recent.path === project.path && <Check className="shrink-0 text-success" />}
                 {/* Open in a fresh window without switching this one — stopPropagation
-                    keeps the row's switchTo from also firing. Shell-only: the browser
+                    keeps the row's switchProject from also firing. Shell-only: the browser
                     client can't spawn Electron windows. */}
                 {!isBrowser && (
                   <button
@@ -110,10 +110,10 @@ export function ProjectSwitcherMenu({
                   </button>
                 )}
                 {/* Prune a stale project from the list — stopPropagation keeps the row's
-                    switchTo from firing, and we deliberately leave the menu open so the
-                    user can remove several in a row. Never offered for the open repo (that
+                    switchProject from firing, and we deliberately leave the menu open so the
+                    user can remove several in a row. Never offered for the open project (that
                     row shows the check — you can't drop the project you're standing in). */}
-                {recent.path !== repo.path && (
+                {recent.path !== project.path && (
                   <button
                     type="button"
                     aria-label="Remove from projects"
@@ -136,7 +136,7 @@ export function ProjectSwitcherMenu({
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuItem onClick={openRepo}>
+          <DropdownMenuItem onClick={openProjectPicker}>
             <FolderPlus className="shrink-0" />
             Open project…
           </DropdownMenuItem>

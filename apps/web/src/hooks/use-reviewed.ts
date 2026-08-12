@@ -1,13 +1,13 @@
 import { onMutationError } from '@renderer/hooks/mutation-error'
 import { trpc } from '@renderer/lib/trpc'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useMemo } from 'react'
 
-/** Returns the set of repo-relative paths the user has marked as reviewed for the current repo. */
+/** Returns the set of project-relative paths the user has marked as reviewed for the current project. */
 export function useReviewedPaths(): Set<string> {
-  const repo = useRepoStore((s) => s.repo)
-  const { data } = trpc.reviewedPaths.useQuery(repo?.path ?? '', {
-    enabled: repo !== null,
+  const project = useProjectSelectionStore((s) => s.project)
+  const { data } = trpc.reviewedPaths.useQuery(project?.path ?? '', {
+    enabled: project !== null,
     // Marks reconcile against the working tree (content-keyed) — an external commit or
     // post-mark edit prunes them — so poll like the flow queries to surface un-ticks.
     staleTime: 0,
@@ -16,7 +16,7 @@ export function useReviewedPaths(): Set<string> {
   return useMemo(() => new Set(data ?? []), [data])
 }
 
-/** Optimistic-update rollback context: the pre-mutation reviewed-paths snapshot for one repo. */
+/** Optimistic-update rollback context: the pre-mutation reviewed-paths snapshot for one project. */
 type MutationContext = { previous: string[] | undefined; repoPath: string }
 
 type MarkVars = { repoPath: string; path: string }
@@ -28,7 +28,7 @@ export function useToggleReviewed(): {
   mark: (path: string) => void
   unmark: (path: string) => void
 } {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const utils = trpc.useUtils()
   // Optimistic: the checkbox flips on click, then the 3s poll reconciles against server truth.
   // cancelQueries stops in-flight polls from writing a pre-mark snapshot over the tick;
@@ -77,22 +77,22 @@ export function useToggleReviewed(): {
   })
   return {
     mark: (path: string): void => {
-      if (!repo) return
-      markMutation.mutate({ repoPath: repo.path, path })
+      if (!project) return
+      markMutation.mutate({ repoPath: project.path, path })
     },
     unmark: (path: string): void => {
-      if (!repo) return
-      unmarkMutation.mutate({ repoPath: repo.path, path })
+      if (!project) return
+      unmarkMutation.mutate({ repoPath: project.path, path })
     },
   }
 }
 
 /**
- * Replace all reviewed marks for the current repo in one write — powers the Changes
+ * Replace all reviewed marks for the current project in one write — powers the Changes
  * header's "mark all / unmark all" toggle (pass every path, or [] to clear them all).
  */
 export function useSetReviewed(): (paths: string[]) => void {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const utils = trpc.useUtils()
   const mutation = trpc.setReviewed.useMutation({
     onMutate: async ({ repoPath, paths }: SetReviewedVars): Promise<MutationContext> => {
@@ -118,7 +118,7 @@ export function useSetReviewed(): (paths: string[]) => void {
     },
   })
   return (paths: string[]): void => {
-    if (!repo) return
-    mutation.mutate({ repoPath: repo.path, paths })
+    if (!project) return
+    mutation.mutate({ repoPath: project.path, paths })
   }
 }

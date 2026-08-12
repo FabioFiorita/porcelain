@@ -15,8 +15,8 @@ const ctx = vi.hoisted(() => ({
 vi.mock('@/lib/daemon/environments-store', () => ({
   useActiveEnvironment: () => ctx.environment,
 }))
-vi.mock('@/lib/daemon/repo', () => ({
-  useActiveRepo: () => ctx.repo,
+vi.mock('@/features/projects', () => ({
+  useActiveProject: () => ctx.repo,
 }))
 vi.mock('@/lib/daemon/client', () => ({
   getDaemonClient: () => ({ mutation: vi.fn(), query: vi.fn() }),

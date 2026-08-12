@@ -14,7 +14,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const ctx = vi.hoisted(() => ({
   client: { mutation: vi.fn(), query: vi.fn() },
   environment: { id: 'env-git-test', token: 'paired' as string | null },
-  repo: { name: 'repo', path: '/synthetic/repo' },
+  project: { name: 'repo', path: '/synthetic/repo' },
 }))
 
 const validatingCatalog = {
@@ -55,8 +55,8 @@ function clientFromMock(mock: ReturnType<typeof createValidatingDaemonMock>): Te
 vi.mock('@/lib/daemon/environments-store', () => ({
   useActiveEnvironment: () => ctx.environment,
 }))
-vi.mock('@/lib/daemon/repo', () => ({
-  useActiveRepo: () => ctx.repo,
+vi.mock('@/features/projects', () => ({
+  useActiveProject: () => ctx.project,
 }))
 vi.mock('@/lib/daemon/client', () => ({
   getDaemonClient: () => ctx.client,
@@ -72,7 +72,7 @@ function wrapper(queryClient: QueryClient) {
 
 beforeEach(() => {
   ctx.environment = { id: 'env-git-test', token: 'paired' }
-  ctx.repo = { name: 'repo', path: '/synthetic/repo' }
+  ctx.project = { name: 'repo', path: '/synthetic/repo' }
   ctx.client = { mutation: vi.fn(), query: vi.fn() }
 })
 
@@ -95,7 +95,7 @@ describe('Mobile Git workspace mutations', () => {
       procedure: 'gitAddWorktree',
       input: {
         branch: 'topic/synthetic',
-        repoPath: ctx.repo.path,
+        repoPath: ctx.project.path,
       },
     })
     expect(invalidate).toHaveBeenCalledTimes(6)

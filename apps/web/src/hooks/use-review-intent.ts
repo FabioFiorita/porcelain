@@ -1,19 +1,21 @@
 import type { ReviewDoc } from '@backend/review/doc-set'
 import { invalidateAfterSuccess, onMutationError } from '@renderer/hooks/mutation-error'
 import { trpc } from '@renderer/lib/trpc'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 
 /** Intent documents the agent wrote under `.porcelain/intent/`, in tab order. */
 export function useReviewIntent(): ReviewDoc[] {
-  const repo = useRepoStore((s) => s.repo)
-  const { data } = trpc.reviewIntent.useQuery(repo?.path ?? '', { enabled: repo !== null })
+  const project = useProjectSelectionStore((s) => s.project)
+  const { data } = trpc.reviewIntent.useQuery(project?.path ?? '', { enabled: project !== null })
   return data ?? []
 }
 
 /** Extra evidence documents beside index.html — tabs, same media as Intent. */
 export function useReviewEvidenceDocs(): ReviewDoc[] {
-  const repo = useRepoStore((s) => s.repo)
-  const { data } = trpc.reviewEvidenceDocs.useQuery(repo?.path ?? '', { enabled: repo !== null })
+  const project = useProjectSelectionStore((s) => s.project)
+  const { data } = trpc.reviewEvidenceDocs.useQuery(project?.path ?? '', {
+    enabled: project !== null,
+  })
   return data ?? []
 }
 
@@ -21,9 +23,9 @@ export function useReviewEvidenceDocs(): ReviewDoc[] {
 export function useReviewPublishCost(
   enabled: boolean,
 ): { bytes: number; files: number } | undefined {
-  const repo = useRepoStore((s) => s.repo)
-  const { data } = trpc.reviewPublishCost.useQuery(repo?.path ?? '', {
-    enabled: enabled && repo !== null,
+  const project = useProjectSelectionStore((s) => s.project)
+  const { data } = trpc.reviewPublishCost.useQuery(project?.path ?? '', {
+    enabled: enabled && project !== null,
   })
   return data
 }
@@ -36,7 +38,7 @@ export function usePublishReview(): {
   const mutation = trpc.publishReview.useMutation({ onError: onMutationError('Publish review') })
   return {
     publish: async (): Promise<string | null> => {
-      const repoPath = useRepoStore.getState().repo?.path
+      const repoPath = useProjectSelectionStore.getState().project?.path
       if (!repoPath) return null
       const result = await mutation.mutateAsync(repoPath)
       // Publishing archives the active review and stages the folder, so the

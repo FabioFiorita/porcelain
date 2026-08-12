@@ -150,7 +150,7 @@ function DirectoryBrowser({ sheet }: { sheet: ProjectSheet }): React.JSX.Element
               <Text className="min-w-0 flex-1 font-mono text-sm text-foreground" numberOfLines={1}>
                 {entry.name}
               </Text>
-              {entry.isRepo ? <Text className="text-3xs text-primary">repo</Text> : null}
+              {entry.isRepo ? <Text className="text-3xs text-primary">project</Text> : null}
             </Pressable>
             {entry.isRepo ? (
               <Button

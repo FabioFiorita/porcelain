@@ -45,7 +45,7 @@ const doubles = vi.hoisted(() => {
     localAdapter,
     primaryRoster,
     terminalState,
-    repoState: { repo: { path: '/repo' } },
+    projectState: { project: { path: '/repo' } },
     localDaemon: { isLocal: false },
     localPath: '/machine/repo',
     localSessions: [
@@ -89,9 +89,9 @@ vi.mock('@renderer/lib/terminal-registry', () => ({
 vi.mock('@renderer/lib/trpc', () => ({
   trpc: { terminalSessions: { useQuery: doubles.usePrimaryQuery } },
 }))
-vi.mock('@renderer/stores/repo', () => ({
-  useRepoStore: (selector: (state: typeof doubles.repoState) => unknown) =>
-    selector(doubles.repoState),
+vi.mock('@renderer/stores/project-selection', () => ({
+  useProjectSelectionStore: (selector: (state: typeof doubles.projectState) => unknown) =>
+    selector(doubles.projectState),
 }))
 vi.mock('@renderer/stores/terminals', () => ({
   useTerminalsStore: (selector: (state: typeof doubles.terminalState) => unknown) =>

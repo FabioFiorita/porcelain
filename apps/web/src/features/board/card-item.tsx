@@ -9,7 +9,7 @@ import {
 } from '@renderer/components/ui/dropdown-menu'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { cn } from '@renderer/lib/utils'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
 import { CheckCircle2, Circle, CircleDot, MoreHorizontal, PenLine, Trash2 } from 'lucide-react'
@@ -44,7 +44,7 @@ export function CardItem({
 }): React.JSX.Element {
   const { move, remove } = useBoardCardActions()
   const { cards } = useBoardCards()
-  const repoPath = useRepoStore((s) => s.repo?.path)
+  const repoPath = useProjectSelectionStore((s) => s.project?.path)
   const focusKey = useBoardSelectionStore((s) => s.focus)
   const select = useBoardSelectionStore((s) => s.select)
   const selected = resolveBoardFocus(cards, repoPath, focusKey)?.id === card.id

@@ -1,3 +1,4 @@
+import { useActiveProject } from '@/features/projects'
 import { LIVE_POLL_MS } from '@/lib/daemon/poll'
 import {
   type DiffHunk,
@@ -10,7 +11,6 @@ import {
   gitRangeDiffFileQuery,
 } from '@/lib/daemon/procedures/changes'
 import { useDaemonQuery } from '@/lib/daemon/queries'
-import { useActiveRepo } from '@/lib/daemon/repo'
 
 /**
  * Which diff a file surface reads.
@@ -47,9 +47,9 @@ export type DiffFile = {
  * a range is static until the next commit, and a commit hash is immutable.
  */
 export function useDiffFile(filePath: string, source: DiffSource, active: boolean): DiffFile {
-  const repo = useActiveRepo()
-  const repoPath = repo?.path ?? ''
-  const enabled = active && repo !== null
+  const project = useActiveProject()
+  const repoPath = project?.path ?? ''
+  const enabled = active && project !== null
   const live = source.kind === 'working'
   const base = source.kind === 'branch' ? source.base : undefined
   const hash = source.kind === 'commit' ? source.hash : ''
@@ -121,13 +121,13 @@ export function useDiffReading(
   scope: DiffReadingScope,
   active: boolean,
 ): { reading: FeatureReading | undefined; isLoading: boolean; error: Error | null } {
-  const repo = useActiveRepo()
+  const project = useActiveProject()
   const live = scope.type === 'working'
   const { data, error, isLoading } = useDaemonQuery(
     diffReadingQuery,
-    { repoPath: repo?.path ?? '', scope },
+    { repoPath: project?.path ?? '', scope },
     {
-      enabled: active && repo !== null,
+      enabled: active && project !== null,
       placeholderData: 'keepPreviousData',
       pollMs: live ? LIVE_POLL_MS : undefined,
       staleTime: live ? 0 : undefined,

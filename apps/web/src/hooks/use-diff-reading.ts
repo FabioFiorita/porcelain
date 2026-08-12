@@ -1,6 +1,6 @@
 import type { FeatureReading } from '@backend/review/feature-view'
 import { trpc } from '@renderer/lib/trpc'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 
 export type DiffReadingScope =
   | { type: 'working' }
@@ -16,12 +16,12 @@ export function useDiffReading(scope: DiffReadingScope): {
   reading: FeatureReading | undefined
   error: { message: string } | null
 } {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const live = scope.type === 'working'
   const { data: reading, error } = trpc.diffReading.useQuery(
-    { repoPath: repo?.path ?? '', scope },
+    { repoPath: project?.path ?? '', scope },
     {
-      enabled: repo !== null,
+      enabled: project !== null,
       // Working tree changes under the agent; poll like gitFlow. Branch/commit
       // are static until the next commit, so don't burn a 3s poll on them.
       staleTime: live ? 0 : Number.POSITIVE_INFINITY,

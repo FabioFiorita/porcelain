@@ -70,7 +70,7 @@ vi.mock('@/lib/daemon/client', () => ({
 
 vi.mock('@/lib/daemon/environments-store', () => ({
   activeEnvironment: (): TestEnvironment | null => ctx.environment,
-  environmentActions: { setActiveRepoPath: vi.fn() },
+  environmentActions: { setActiveProjectPath: vi.fn() },
   useActiveEnvironment: (): TestEnvironment | null => ctx.environment,
 }))
 
@@ -157,8 +157,8 @@ function createProjectHarness(overrides: DaemonMockHandlers = {}): {
 beforeEach(() => {
   ctx.client = null
   ctx.environment = { ...pairedEnvironment }
-  vi.mocked(environmentActions.setActiveRepoPath).mockReset()
-  vi.mocked(environmentActions.setActiveRepoPath).mockImplementation(
+  vi.mocked(environmentActions.setActiveProjectPath).mockReset()
+  vi.mocked(environmentActions.setActiveProjectPath).mockImplementation(
     async (id: string, path: string | null): Promise<void> => {
       if (ctx.environment?.id === id) {
         ctx.environment = { ...ctx.environment, activeRepoPath: path }

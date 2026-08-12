@@ -79,11 +79,16 @@ export function parseEnvironmentsFile(raw: string | null): StoredEnvironments {
   return parsed.success ? { status: 'ok', file: parsed.data } : { status: 'corrupt' }
 }
 
-/** `/home/you/code/my-app` → `my-app`. Daemon paths are POSIX; the phone never sees its own. */
-export function repoNameOf(path: string): string {
+/** Return the basename used for a selected Project. Daemon paths are POSIX. */
+export function projectNameOf(path: string): string {
   const trimmed = path.replace(/\/+$/, '')
   const slash = trimmed.lastIndexOf('/')
   return slash === -1 ? trimmed : trimmed.slice(slash + 1)
+}
+
+/** Runtime Project accessor; the version-3 storage adapter still serializes `activeRepoPath`. */
+export function activeProjectPathOf(environment: Environment | null): string | null {
+  return environment?.activeRepoPath ?? null
 }
 
 /** Origin only, lowercased, no trailing slash — the form stored and compared. */

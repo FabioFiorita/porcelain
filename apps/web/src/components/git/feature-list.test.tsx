@@ -2,7 +2,7 @@ import type { FeatureReading } from '@backend/review/feature-view'
 import { SidebarProvider } from '@renderer/components/ui/sidebar'
 import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
 import { usePreferencesStore } from '@renderer/stores/preferences'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useReviewFocusStore } from '@renderer/stores/review-focus'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { fireEvent, render, screen } from '@testing-library/react'
@@ -112,7 +112,7 @@ describe('FeatureList', () => {
     unmarkSpy.mockClear()
     reviewedPaths.current = new Set()
     useTabsStore.setState({ panes: [{ tabs: [], activeTabId: null }], activePaneIndex: 0 })
-    useRepoStore.setState({ repo: { path: '/repo', name: 'repo' } })
+    useProjectSelectionStore.setState({ project: { path: '/repo', name: 'repo' } })
     usePreferencesStore.setState({ sidebarTab: 'feature' })
     useReviewFocusStore.setState({
       canvasTab: 'intent',

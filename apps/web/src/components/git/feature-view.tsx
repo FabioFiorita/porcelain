@@ -20,7 +20,7 @@ import { highlightRangesForFile } from '@renderer/lib/highlight-ranges'
 import { isTerminalTarget, isTextEntry } from '@renderer/lib/keyboard'
 import { dirName, fileName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { jumpTargets, nextTarget, useReviewFocusStore } from '@renderer/stores/review-focus'
 import { useReviewStartStore } from '@renderer/stores/review-start'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
@@ -384,13 +384,13 @@ function IntentBody({ reading }: { reading: FeatureReading }): React.JSX.Element
  * semantics as the sidebar outline (diff for changed, file for context/shipped).
  */
 function ExecutionBody({ reading }: { reading: FeatureReading }): React.JSX.Element {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const openTab = useTabsStore((s) => s.openTab)
   const prefetchDiff = useDiffFileHoverPrefetch()
   const reviewed = useReviewedPaths()
 
-  if (!repo) {
-    return <p className="p-4 text-sm text-muted-foreground">No repo open.</p>
+  if (!project) {
+    return <p className="p-4 text-sm text-muted-foreground">No project open.</p>
   }
 
   const sectionBlocks = reading.sections.map((section, index) => ({
@@ -413,7 +413,7 @@ function ExecutionBody({ reading }: { reading: FeatureReading }): React.JSX.Elem
   }
 
   const handleOpenFile = (file: ReadingFile): void => {
-    const absolute = `${repo.path}/${file.path}`
+    const absolute = `${project.path}/${file.path}`
     const ranges = highlightRangesForFile(file)
     openTab({
       id: tabId('file', absolute),

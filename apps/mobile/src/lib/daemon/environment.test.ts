@@ -7,7 +7,7 @@ import {
   isPaired,
   normalizeBaseUrl,
   parseEnvironmentsFile,
-  repoNameOf,
+  projectNameOf,
 } from './environment'
 
 const RECORD = {
@@ -121,11 +121,11 @@ describe('isPaired', () => {
   })
 })
 
-describe('repoNameOf', () => {
+describe('projectNameOf', () => {
   it('reads the last segment of a daemon path', () => {
-    expect(repoNameOf('/home/you/code/my-app')).toBe('my-app')
-    expect(repoNameOf('/home/you/code/my-app/')).toBe('my-app')
-    expect(repoNameOf('my-app')).toBe('my-app')
+    expect(projectNameOf('/home/you/code/my-app')).toBe('my-app')
+    expect(projectNameOf('/home/you/code/my-app/')).toBe('my-app')
+    expect(projectNameOf('my-app')).toBe('my-app')
   })
 })
 

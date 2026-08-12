@@ -37,8 +37,8 @@ vi.mock('@/lib/daemon/client', () => ({
   },
 }))
 
-vi.mock('@/lib/daemon/repo', () => ({
-  useActiveRepo: () => (ctx.repoPath === null ? null : { path: ctx.repoPath, name: 'repo' }),
+vi.mock('@/features/projects', () => ({
+  useActiveProject: () => (ctx.repoPath === null ? null : { path: ctx.repoPath, name: 'repo' }),
 }))
 
 vi.mock('@/lib/daemon/environments-store', () => ({

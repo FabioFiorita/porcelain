@@ -1,16 +1,16 @@
 import { usePreferencesStore } from '@renderer/stores/preferences'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useTabsStore } from '@renderer/stores/tabs'
 
 /**
  * Example product-specific devtools panel. It reads Porcelain's own zustand
- * stores (repo / tabs / preferences) and renders a live snapshot — the kind of
+ * stores (project / tabs / preferences) and renders a live snapshot — the kind of
  * inspector that doesn't belong in any library's devtools. Mounted as one entry
  * in the unified shell's `plugins` array (see {@link DevtoolsShell}); add more
  * product panels there the same way.
  */
 export function ProductDevtoolsPanel(): React.JSX.Element {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const sidebarTab = usePreferencesStore((s) => s.sidebarTab)
   const panes = useTabsStore((s) => s.panes)
   const activePaneIndex = useTabsStore((s) => s.activePaneIndex)
@@ -20,7 +20,7 @@ export function ProductDevtoolsPanel(): React.JSX.Element {
 
   return (
     <div style={{ display: 'grid', gap: 8, padding: 12, fontSize: 12, lineHeight: 1.5 }}>
-      <Row label="Repo" value={repo ? `${repo.name} (${repo.path})` : '—'} />
+      <Row label="Repo" value={project ? `${project.name} (${project.path})` : '—'} />
       <Row label="Sidebar tab" value={sidebarTab} />
       <Row label="Panes" value={String(panes.length)} />
       <Row

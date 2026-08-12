@@ -6,7 +6,7 @@ import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
 import { useGitFlow } from '@renderer/hooks/use-git-flow'
 import { cn } from '@renderer/lib/utils'
 import { usePreferencesStore } from '@renderer/stores/preferences'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { TestIds } from '@shared/test-ids'
 import {
@@ -46,10 +46,10 @@ function GlanceSection({
 /** One inbox row — the review-inbox row content on the Glance's tap-target recipe.
  *  Tap switches THIS window to that worktree (same call as review-inbox rows). */
 function InboxGlanceRow({ row }: { row: WorktreeInboxRow }): React.JSX.Element {
-  const switchTo = useRepoStore((s) => s.switchTo)
+  const switchProject = useProjectSelectionStore((s) => s.switchProject)
 
   const handleOpenWorktree = (): void => {
-    switchTo(row.path)
+    switchProject(row.path)
   }
 
   return (
@@ -78,7 +78,7 @@ function InboxGlanceRow({ row }: { row: WorktreeInboxRow }): React.JSX.Element {
  * both use it (U6).
  */
 export function GlanceHome(): React.JSX.Element | null {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const openTab = useTabsStore((s) => s.openTab)
   const setSidebarTab = usePreferencesStore((s) => s.setSidebarTab)
   const workspace = useGitWorkspace()
@@ -89,7 +89,7 @@ export function GlanceHome(): React.JSX.Element | null {
   const { cards } = useBoardCards()
   const comments = useReviewComments()
 
-  if (!repo) return null
+  if (!project) return null
 
   const changedCount = groups?.reduce((n, group) => n + group.files.length, 0) ?? 0
   const hasReview = reading !== null && reading !== undefined
@@ -104,7 +104,12 @@ export function GlanceHome(): React.JSX.Element | null {
   // Agent-published Review canvas (Feature tab).
   const handleOpenFeatureReview = (): void => {
     setSidebarTab('feature')
-    openTab({ id: tabId('feature', repo.path), kind: 'feature', title: 'Review', path: repo.path })
+    openTab({
+      id: tabId('feature', project.path),
+      kind: 'feature',
+      title: 'Review',
+      path: project.path,
+    })
   }
 
   // Continuous stacked diffs for the working tree (U3 — not Feature empty state).
@@ -116,7 +121,7 @@ export function GlanceHome(): React.JSX.Element | null {
 
   const handleOpenBoard = (): void => {
     setSidebarTab('board')
-    openTab({ id: tabId('board', repo.path), kind: 'board', title: 'Board', path: repo.path })
+    openTab({ id: tabId('board', project.path), kind: 'board', title: 'Board', path: project.path })
   }
 
   const handleOpenTerminal = (): void => {
@@ -152,7 +157,7 @@ export function GlanceHome(): React.JSX.Element | null {
         {/* Repo identity + branch so the Glance orients you before any work rows. */}
         <header className="flex flex-col gap-1 px-2">
           <h1 className="truncate text-base font-medium tracking-tight text-foreground">
-            {repo.name}
+            {project.name}
           </h1>
           {branch && (
             <p className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground">

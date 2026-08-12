@@ -3,7 +3,7 @@ import { sessionContractFixtures } from '@porcelain/contracts/session'
 import { terminalStreamFixtures } from '@porcelain/contracts/terminal'
 import { createDaemonSession, type DaemonSession } from '@renderer/lib/daemon'
 import type { SessionSocket, SessionSocketHandlers } from '@renderer/lib/session-browser-adapter'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { type Pane, useTabsStore } from '@renderer/stores/tabs'
 import { useTreeDirsStore } from '@renderer/stores/tree-dirs'
 import { act, renderHook, waitFor } from '@testing-library/react'
@@ -229,7 +229,7 @@ async function mountSession({ ready = true }: { ready?: boolean } = {}): Promise
 }
 
 beforeEach(() => {
-  useRepoStore.setState({ repo: { path: PROJECT, name: 'repo' } })
+  useProjectSelectionStore.setState({ project: { path: PROJECT, name: 'repo' } })
   useTabsStore.setState({ panes: [filePane()], activePaneIndex: 0 })
   useTreeDirsStore.setState({ dirs: new Set<string>() })
 })

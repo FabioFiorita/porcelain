@@ -1,5 +1,5 @@
 import { usePreferencesStore } from '@renderer/stores/preferences'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { NotesCard } from './notes-card'
 import { PinnedGroup } from './pinned-group'
 import { NotesResizeHandle } from './sidebar-resize-handle'
@@ -8,7 +8,7 @@ import { NotesResizeHandle } from './sidebar-resize-handle'
 // then the per-repo notes card pinned to `--notes-height` at the bottom.
 export function FilesQuickAccess(): React.JSX.Element {
   const notesHeight = usePreferencesStore((s) => s.notesHeight)
-  const repoPath = useRepoStore((s) => s.repo?.path)
+  const projectPath = useProjectSelectionStore((s) => s.project?.path)
 
   return (
     <div
@@ -22,7 +22,7 @@ export function FilesQuickAccess(): React.JSX.Element {
       <NotesResizeHandle />
       <div className="h-(--notes-height) shrink-0">
         {/* remount per repo so the editor reloads that repo's notes */}
-        <NotesCard key={repoPath ?? 'none'} repoPath={repoPath} />
+        <NotesCard key={projectPath ?? 'none'} projectPath={projectPath} />
       </div>
     </div>
   )

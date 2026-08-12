@@ -171,7 +171,7 @@ export const useTerminalsStore = create<TerminalsState>((set, get) => ({
     disposeTerminal(id)
     // The PTY and its Ghostty are gone; close any viewer tab still pointing at it so
     // the pane doesn't render a dead terminal. (Cross-store getState() from a store
-    // action is the sanctioned pattern — see repo.switchTo.)
+    // action is the sanctioned pattern — see repo.switchProject.)
     useTabsStore.getState().closeTabEverywhere(tabId('terminal', id))
     set((state) => ({ sessions: state.sessions.filter((s) => s.id !== id) }))
   },

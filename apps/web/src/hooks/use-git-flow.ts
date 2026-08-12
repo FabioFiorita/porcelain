@@ -1,13 +1,13 @@
 import type { FlowGroup } from '@backend/review/flow'
 import type { GitSuggestion } from '@backend/search/suggestions'
 import { trpc } from '@renderer/lib/trpc'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 
 export function useGitFlow(): { groups: FlowGroup[] | undefined; refresh: () => Promise<void> } {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const utils = trpc.useUtils()
-  const { data: groups, refetch } = trpc.gitFlow.useQuery(repo?.path ?? '', {
-    enabled: repo !== null,
+  const { data: groups, refetch } = trpc.gitFlow.useQuery(project?.path ?? '', {
+    enabled: project !== null,
     // working-tree state changes outside the app constantly; keep it live
     staleTime: 0,
     refetchInterval: 3000,
@@ -21,9 +21,9 @@ export function useGitFlow(): { groups: FlowGroup[] | undefined; refresh: () => 
 }
 
 export function useGitSuggestions(): GitSuggestion[] {
-  const repo = useRepoStore((s) => s.repo)
-  const { data = [] } = trpc.gitSuggestions.useQuery(repo?.path ?? '', {
-    enabled: repo !== null,
+  const project = useProjectSelectionStore((s) => s.project)
+  const { data = [] } = trpc.gitSuggestions.useQuery(project?.path ?? '', {
+    enabled: project !== null,
     staleTime: 0,
     refetchInterval: 5000,
   })

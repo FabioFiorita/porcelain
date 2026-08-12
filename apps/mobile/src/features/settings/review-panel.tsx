@@ -5,6 +5,7 @@ import { PANEL_CARD } from '@/components/surface-layout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Text } from '@/components/ui/text'
+import { activeProjectPathOf } from '@/lib/daemon/environment'
 import { useActiveEnvironment, useConnectionState } from '@/lib/daemon/environments-store'
 import type { Layer } from '@/lib/daemon/procedures/settings'
 import { cn } from '@/lib/utils'
@@ -16,7 +17,7 @@ import { useReviewEditor } from './use-review-editor'
 export function ReviewSettings(): React.JSX.Element {
   const environment = useActiveEnvironment()
   const connection = useConnectionState()
-  const repoPath = environment?.activeRepoPath ?? null
+  const repoPath = activeProjectPathOf(environment)
 
   if (environment === null || connection.kind === 'no-environment') {
     return (

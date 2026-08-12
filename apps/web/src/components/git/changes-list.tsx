@@ -31,13 +31,13 @@ import { useBranchFlow } from '@renderer/hooks/use-branch-flow'
 import { useDiscardFile, useFileStaging } from '@renderer/hooks/use-commit'
 import { useDiffFileHoverPrefetch } from '@renderer/hooks/use-diff'
 import { useGitFlow } from '@renderer/hooks/use-git-flow'
-import { useRepoLayers } from '@renderer/hooks/use-repo-layers'
+import { useProjectLayers } from '@renderer/hooks/use-project-layers'
 import { useReviewedPaths, useToggleReviewed } from '@renderer/hooks/use-reviewed'
 import { layersSetupPrompt } from '@renderer/lib/agent-setup-prompts'
 import { dirName, fileName } from '@renderer/lib/paths'
 import { cn, copyText } from '@renderer/lib/utils'
 import { usePreferencesStore } from '@renderer/stores/preferences'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useRevealStore } from '@renderer/stores/reveal'
 import { useSettingsDialogStore } from '@renderer/stores/settings-dialog'
 import { useSetupTipsStore } from '@renderer/stores/setup-tips'
@@ -244,7 +244,7 @@ function FileRowImpl({
               Explore flow
             </ContextMenuItem>
           )}
-          {/* file.path is repo-relative — exactly what a comment anchors to. */}
+          {/* file.path is project-relative — exactly what a comment anchors to. */}
           <ContextMenuItem onClick={() => setCommentAnchor({ path: file.path })}>
             <MessageSquarePlus />
             Comment on file
@@ -303,12 +303,12 @@ function FileRowImpl({
 const FileRow = memo(FileRowImpl)
 
 export function ChangesList(): React.JSX.Element {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const changesScope = usePreferencesStore((s) => s.changesScope)
   const openTab = useTabsStore((s) => s.openTab)
-  const layers = useRepoLayers()
+  const layers = useProjectLayers()
   const layersKickoffDismissed = useSetupTipsStore((s) =>
-    repo ? s.dismissed[repo.path]?.['layers-kickoff'] === true : true,
+    project ? s.dismissed[project.path]?.['layers-kickoff'] === true : true,
   )
   const dismissTip = useSetupTipsStore((s) => s.dismiss)
   const [setupCopied, setSetupCopied] = useState(false)
@@ -325,7 +325,7 @@ export function ChangesList(): React.JSX.Element {
 
   const reviewed = useReviewedPaths()
 
-  if (!repo || groups === undefined) {
+  if (!project || groups === undefined) {
     return <p className="p-3 text-sm text-muted-foreground">Loading…</p>
   }
 
@@ -419,7 +419,7 @@ export function ChangesList(): React.JSX.Element {
           testId={TestIds.changesLayersSetup}
           dismissTestId={TestIds.changesLayersSetupDismiss}
           className="mx-2"
-          onDismiss={() => dismissTip(repo.path, 'layers-kickoff')}
+          onDismiss={() => dismissTip(project.path, 'layers-kickoff')}
           actions={
             <>
               <Button
@@ -471,7 +471,7 @@ export function ChangesList(): React.JSX.Element {
                 <FileRow
                   key={file.path}
                   file={file}
-                  repoPath={repo.path}
+                  repoPath={project.path}
                   isReviewed={reviewed.has(file.path)}
                   base={base}
                 />

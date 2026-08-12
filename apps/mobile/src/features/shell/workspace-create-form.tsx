@@ -40,8 +40,8 @@ export function branchNameError(name: string, existingBranches: readonly string[
  * exactly the kind of hidden default this form exists to avoid.
  * Keep in step with `gitAddWorktree` in `apps/daemon/src/git/git.ts`.
  */
-export function worktreeDirectoryPreview(repoPath: string, branch: string): string | null {
-  const normalized = repoPath.replace(/\/+$/, '')
+export function worktreeDirectoryPreview(projectPath: string, branch: string): string | null {
+  const normalized = projectPath.replace(/\/+$/, '')
   const cut = normalized.lastIndexOf('/')
   if (cut < 1) return null
   const leaf = branch.trim().replace(/[/\\:<>"|?*]+/g, '-')
@@ -77,7 +77,7 @@ export function WorkspaceCreateForm({
   onCancel,
   onSubmit,
   pending,
-  repoPath,
+  projectPath,
   target,
 }: {
   /** git's own refusal from the last attempt — shown verbatim, never replaced. */
@@ -87,7 +87,7 @@ export function WorkspaceCreateForm({
   onCancel: () => void
   onSubmit: (branch: string) => void
   pending: boolean
-  repoPath: string
+  projectPath: string
   target: WorkspaceCreateTarget
 }): React.JSX.Element {
   // Mounted only while the picker is in create mode, so the field starts empty every time
@@ -97,7 +97,7 @@ export function WorkspaceCreateForm({
   const copy = WORKSPACE_CREATE_COPY[target]
   const testID = `porcelain-workspace-create-${target}`
   const validation = branchNameError(name, existingBranches)
-  const destination = target === 'worktree' ? worktreeDirectoryPreview(repoPath, name) : null
+  const destination = target === 'worktree' ? worktreeDirectoryPreview(projectPath, name) : null
 
   const submit = (): void => {
     setSubmitted(true)

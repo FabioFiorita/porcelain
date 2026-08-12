@@ -4,7 +4,7 @@ import {
   createValidatingTrpcHarness,
   type DaemonMockHandlers,
 } from '@renderer/hooks/trpc-test-harness'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { type RenderResult, render } from '@testing-library/react'
 import type { ReactElement } from 'react'
 
@@ -37,7 +37,7 @@ export function renderComments(
   ui: ReactElement,
   handlers: DaemonMockHandlers = {},
 ): RenderResult & { mock: ReturnType<typeof createValidatingTrpcHarness>['mock'] } {
-  useRepoStore.setState({ repo: { path: REPO, name: 'repo' } })
+  useProjectSelectionStore.setState({ project: { path: REPO, name: 'repo' } })
   const { mock, wrapper: Wrapper } = createValidatingTrpcHarness(defaultCommentHandlers(handlers))
   const result = render(ui, {
     wrapper: ({ children }) => <Wrapper>{children}</Wrapper>,

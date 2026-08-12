@@ -7,7 +7,7 @@ import { onMutationError } from '@renderer/hooks/mutation-error'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
 import { trpc } from '@renderer/lib/trpc'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   normalizeProjectRoot,
@@ -78,12 +78,12 @@ export function useFilesActions(): {
   createFile: (absolutePath: string) => Promise<void>
   createFolder: (absolutePath: string) => Promise<void>
   rename: (fromAbsolute: string, toAbsolute: string) => Promise<void>
-  /** Relative daemon output converted to absolute UI path; null if no repo / invalid conversion. */
+  /** Relative daemon output converted to absolute UI path; null if no project / invalid conversion. */
   duplicate: (absolutePath: string) => Promise<string | null>
   /** True only when the daemon mutation and its success effects completed. */
   trash: (absolutePath: string) => Promise<boolean>
 } {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const daemon = useDaemonIdentity()
   const daemonScope = daemonScopeFromIdentity(daemon)
   const queryClient = useQueryClient()
@@ -92,10 +92,10 @@ export function useFilesActions(): {
 
   return {
     createFile: async (absolutePath: string): Promise<void> => {
-      if (!repo) return
-      const rel = projectRelativeFromAbsolute(repo.path, absolutePath)
+      if (!project) return
+      const rel = projectRelativeFromAbsolute(project.path, absolutePath)
       if (rel === null) return
-      const input = { projectPath: filesProjectKey(repo.path), path: rel }
+      const input = { projectPath: filesProjectKey(project.path), path: rel }
       await client.createFile.mutate(input)
       await applyMutationSuccess(
         queryClient,
@@ -106,10 +106,10 @@ export function useFilesActions(): {
       )
     },
     createFolder: async (absolutePath: string): Promise<void> => {
-      if (!repo) return
-      const rel = projectRelativeFromAbsolute(repo.path, absolutePath)
+      if (!project) return
+      const rel = projectRelativeFromAbsolute(project.path, absolutePath)
       if (rel === null) return
-      const input = { projectPath: filesProjectKey(repo.path), path: rel }
+      const input = { projectPath: filesProjectKey(project.path), path: rel }
       await client.createFolder.mutate(input)
       await applyMutationSuccess(
         queryClient,
@@ -120,12 +120,12 @@ export function useFilesActions(): {
       )
     },
     rename: async (fromAbsolute: string, toAbsolute: string): Promise<void> => {
-      if (!repo) return
-      const fromRel = projectRelativeFromAbsolute(repo.path, fromAbsolute)
-      const toRel = projectRelativeFromAbsolute(repo.path, toAbsolute)
+      if (!project) return
+      const fromRel = projectRelativeFromAbsolute(project.path, fromAbsolute)
+      const toRel = projectRelativeFromAbsolute(project.path, toAbsolute)
       if (fromRel === null || toRel === null) return
       const input = {
-        projectPath: filesProjectKey(repo.path),
+        projectPath: filesProjectKey(project.path),
         from: fromRel,
         to: toRel,
       }
@@ -139,10 +139,10 @@ export function useFilesActions(): {
       )
     },
     duplicate: async (absolutePath: string): Promise<string | null> => {
-      if (!repo) return null
-      const rel = projectRelativeFromAbsolute(repo.path, absolutePath)
+      if (!project) return null
+      const rel = projectRelativeFromAbsolute(project.path, absolutePath)
       if (rel === null) return null
-      const input = { projectPath: filesProjectKey(repo.path), path: rel }
+      const input = { projectPath: filesProjectKey(project.path), path: rel }
       const output = await client.duplicatePath.mutate(input)
       await applyMutationSuccess(
         queryClient,
@@ -151,13 +151,13 @@ export function useFilesActions(): {
         filesMutations.duplicate.affectedEffectsForResult(input, output),
         filesMutations.duplicate.foreignDependencies(input),
       )
-      return projectAbsoluteFromRelative(repo.path, output)
+      return projectAbsoluteFromRelative(project.path, output)
     },
     trash: async (absolutePath: string): Promise<boolean> => {
-      if (!repo) return false
-      const rel = projectRelativeFromAbsolute(repo.path, absolutePath)
+      if (!project) return false
+      const rel = projectRelativeFromAbsolute(project.path, absolutePath)
       if (rel === null) return false
-      const input = { projectPath: filesProjectKey(repo.path), path: rel }
+      const input = { projectPath: filesProjectKey(project.path), path: rel }
       try {
         await client.trashPath.mutate(input)
       } catch (error) {
@@ -182,7 +182,7 @@ export function useWriteTextFile(absolutePath: string): {
   isSaving: boolean
   error: { message: string } | null
 } {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const daemon = useDaemonIdentity()
   const daemonScope = daemonScopeFromIdentity(daemon)
   const queryClient = useQueryClient()
@@ -214,12 +214,12 @@ export function useWriteTextFile(absolutePath: string): {
 
   return {
     save: (content: string, onSaved?: () => void): void => {
-      if (!repo) return
-      const rel = projectRelativeFromAbsolute(repo.path, absolutePath)
+      if (!project) return
+      const rel = projectRelativeFromAbsolute(project.path, absolutePath)
       if (rel === null) return
       mutation.mutate(
         {
-          projectPath: normalizeProjectRoot(repo.path),
+          projectPath: normalizeProjectRoot(project.path),
           path: rel,
           content,
         },
@@ -242,7 +242,7 @@ export function useFilesScopeActions(): {
   pin: (absolutePaths: readonly string[]) => Promise<void>
   unpin: (absolutePaths: readonly string[]) => Promise<void>
 } {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const daemon = useDaemonIdentity()
   const daemonScope = daemonScopeFromIdentity(daemon)
   const queryClient = useQueryClient()
@@ -253,9 +253,9 @@ export function useFilesScopeActions(): {
     absolutePaths: readonly string[],
     kind: 'hide' | 'unhide' | 'pin' | 'unpin',
   ): Promise<void> => {
-    if (!repo) return
+    if (!project) return
     for (const absolutePath of absolutePaths) {
-      const input = { repoPath: repo.path, path: absolutePath }
+      const input = { repoPath: project.path, path: absolutePath }
       switch (kind) {
         case 'hide':
           await client.hidePath.mutate(input)

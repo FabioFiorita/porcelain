@@ -2,7 +2,7 @@ import { recentProjectsQuery } from '@porcelain/client-runtime/projects'
 import { publicErrorFixtures } from '@porcelain/contracts'
 import { projectsContractFixtures } from '@porcelain/contracts/projects'
 import { remoteContractFixtures } from '@porcelain/contracts/remote'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useQueryClient } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -34,7 +34,7 @@ function handlers(overrides: DaemonMockHandlers = {}): DaemonMockHandlers {
 }
 
 beforeEach(() => {
-  useRepoStore.setState({ repo: alpha })
+  useProjectSelectionStore.setState({ project: alpha })
 })
 
 describe('Web Projects adapter', () => {
@@ -90,7 +90,7 @@ describe('Web Projects adapter', () => {
 
   it('selects the daemon result, resets presentation on switch, and invalidates both recents', async () => {
     const resetPresentation = vi.fn()
-    useRepoStore.setState({ resetProjectPresentation: resetPresentation })
+    useProjectSelectionStore.setState({ resetProjectPresentation: resetPresentation })
     const { mock, wrapper } = createValidatingTrpcHarness(handlers())
     const hook = renderHook(
       () => ({
@@ -109,7 +109,7 @@ describe('Web Projects adapter', () => {
       await hook.result.current.open.open(beta.path, { resetPresentation: true })
     })
 
-    expect(useRepoStore.getState().repo).toEqual(beta)
+    expect(useProjectSelectionStore.getState().project).toEqual(beta)
     expect(resetPresentation).toHaveBeenCalledOnce()
     expect(hook.result.current.queryClient.getQueryState(trueKey)?.isInvalidated).toBe(true)
     expect(
@@ -125,12 +125,12 @@ describe('Web Projects adapter', () => {
       await hook.result.current.remove(alpha.path)
     })
 
-    expect(useRepoStore.getState().repo).toBeNull()
-    useRepoStore.setState({ repo: alpha })
+    expect(useProjectSelectionStore.getState().project).toBeNull()
+    useProjectSelectionStore.setState({ project: alpha })
     await act(async () => {
       await hook.result.current.remove('/synthetic/projects/unrelated')
     })
-    expect(useRepoStore.getState().repo).toEqual(alpha)
+    expect(useProjectSelectionStore.getState().project).toEqual(alpha)
   })
 
   it('keeps a failed recent read on the empty welcome surface', async () => {

@@ -4,7 +4,7 @@ import { isTerminalTarget, isTextEntry } from '@renderer/lib/keyboard'
 import { dirName } from '@renderer/lib/paths'
 import { useFilePromptStore } from '@renderer/stores/file-prompt'
 import { usePreferencesStore } from '@renderer/stores/preferences'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useSelectionStore } from '@renderer/stores/selection'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { runUserAction } from '@shared/background'
@@ -28,14 +28,14 @@ export function FileCommands(): null {
 
       const prompt = useFilePromptStore.getState()
       const { selected, active } = useSelectionStore.getState()
-      const repo = useRepoStore.getState().repo
+      const project = useProjectSelectionStore.getState().project
       // Where a new file/folder lands: into the active folder, beside the active file,
-      // else the repo root.
+      // else the project root.
       const newDir = active
         ? active.kind === 'dir'
           ? active.path
           : dirName(active.path)
-        : (repo?.path ?? '')
+        : (project?.path ?? '')
       // What duplicate/trash act on: the multi-selection, else the active row.
       const targets = selected.size > 0 ? [...selected] : active ? [active.path] : []
 

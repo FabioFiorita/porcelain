@@ -26,7 +26,7 @@ import { kbdLabel } from '@renderer/lib/keyboard'
 import { cn } from '@renderer/lib/utils'
 import { useFileTreeStore } from '@renderer/stores/file-tree'
 import { type SidebarTab, usePreferencesStore } from '@renderer/stores/preferences'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { isUnreadTab, useUnreadStore } from '@renderer/stores/unread'
 import { TestIds } from '@shared/test-ids'
@@ -73,9 +73,9 @@ const PANEL_TITLES: Record<SidebarTab, string> = {
 }
 
 export function AppSidebar(): React.JSX.Element {
-  const repo = useRepoStore((s) => s.repo)
-  const showHidden = useRepoStore((s) => s.showHidden)
-  const toggleShowHidden = useRepoStore((s) => s.toggleShowHidden)
+  const project = useProjectSelectionStore((s) => s.project)
+  const showHidden = useProjectSelectionStore((s) => s.showHidden)
+  const toggleShowHidden = useProjectSelectionStore((s) => s.toggleShowHidden)
   const sidebarTab = usePreferencesStore((s) => s.sidebarTab)
   const setSidebarTab = usePreferencesStore((s) => s.setSidebarTab)
   const unread = useUnreadStore((s) => s.unread)
@@ -286,7 +286,7 @@ export function AppSidebar(): React.JSX.Element {
             </div>
           </SidebarHeader>
           <SidebarContent data-testid={TestIds.sidebarPanel} className="overflow-hidden">
-            {repo ? (
+            {project ? (
               <div className="min-h-0 flex-1 overflow-auto">
                 <SidebarGroup>
                   <SidebarGroupContent>
@@ -295,7 +295,7 @@ export function AppSidebar(): React.JSX.Element {
                         state, so unmounting would collapse everything the user
                         had opened. The other tabs keep conditional rendering. */}
                     <div className={cn(sidebarTab !== 'files' && 'hidden')}>
-                      <FileTree rootPath={repo.path} />
+                      <FileTree rootPath={project.path} />
                     </div>
                     {sidebarTab === 'changes' && <ChangesList />}
                     {sidebarTab === 'history' && <HistoryList />}

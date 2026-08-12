@@ -7,32 +7,32 @@ import {
   DropdownMenuTrigger,
 } from '@renderer/components/ui/dropdown-menu'
 import { useGitWorkspace } from '@renderer/features/git'
-import { useNewWindow } from '@renderer/hooks/use-repo'
+import { useNewWindow } from '@renderer/hooks/use-new-window'
 import { isBrowser } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { TestIds } from '@shared/test-ids'
 import { Check, ChevronsUpDown, Folder, SquareArrowOutUpRight } from 'lucide-react'
 import { useState } from 'react'
 
 // The footer's right chip: the worktree count, opening the list to jump to a
 // worktree. Mirrors the ProjectSwitcher's two-option pattern — clicking a row
-// switches THIS window to that worktree (in place, via switchTo), while the
+// switches THIS window to that worktree (in place, via switchProject), while the
 // trailing button opens it in a NEW window (this one — and its terminals — stays
 // put), for working two worktrees side by side. The left chip (BranchSwitcher)
 // does in-place branch checkout instead — two distinct controls, no shared menu.
 export function WorktreeSwitcher(): React.JSX.Element | null {
-  const repo = useRepoStore((s) => s.repo)
-  const switchTo = useRepoStore((s) => s.switchTo)
+  const project = useProjectSelectionStore((s) => s.project)
+  const switchProject = useProjectSelectionStore((s) => s.switchProject)
   const newWindow = useNewWindow()
   const { inbox, worktrees } = useGitWorkspace()
   const [menuOpen, setMenuOpen] = useState(false)
 
-  if (!repo) return null
+  if (!project) return null
 
-  const current = worktrees.find((w) => w.path === repo.path)
+  const current = worktrees.find((w) => w.path === project.path)
   // Which checkout you're on (U20); full count lives in the tooltip.
-  const chipLabel = current?.branch ?? repo.name
+  const chipLabel = current?.branch ?? project.name
   const inboxCount = inbox.length
   // Inbox badge (U15): other worktrees await review — full list is on Review sidebar.
   const chipTitle =
@@ -42,7 +42,7 @@ export function WorktreeSwitcher(): React.JSX.Element | null {
         : 'This checkout'
       : inboxCount > 0
         ? `${worktrees.length} worktrees — ${inboxCount} need review`
-        : `${worktrees.length} worktrees — ${current?.path ?? repo.path}`
+        : `${worktrees.length} worktrees — ${current?.path ?? project.path}`
   const chipAria =
     inboxCount > 0
       ? `Worktrees: ${chipLabel}, ${inboxCount} need review`
@@ -83,7 +83,7 @@ export function WorktreeSwitcher(): React.JSX.Element | null {
             <DropdownMenuItem
               key={worktree.path}
               data-testid={TestIds.worktreeMenuItem(worktree.branch)}
-              onClick={() => switchTo(worktree.path)}
+              onClick={() => switchProject(worktree.path)}
             >
               <div className="flex min-w-0 flex-col">
                 <span className="truncate font-mono">{worktree.branch}</span>
@@ -92,9 +92,9 @@ export function WorktreeSwitcher(): React.JSX.Element | null {
                 </span>
               </div>
               <div className="ml-auto flex shrink-0 items-center gap-1">
-                {worktree.path === repo.path && <Check className="shrink-0 text-success" />}
+                {worktree.path === project.path && <Check className="shrink-0 text-success" />}
                 {/* Open in a fresh window without switching this one —
-                    stopPropagation keeps the row's switchTo from also firing.
+                    stopPropagation keeps the row's switchProject from also firing.
                     Shell-only: the browser client can't spawn Electron windows. */}
                 {!isBrowser && (
                   <button

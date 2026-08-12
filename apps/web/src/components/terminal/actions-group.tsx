@@ -26,7 +26,7 @@ import {
 } from '@renderer/hooks/use-actions'
 import { useLocalDaemon, useLocalTerminalPath } from '@renderer/hooks/use-local-terminal'
 import { useActionRunStore } from '@renderer/stores/action-run'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
 import {
@@ -180,7 +180,7 @@ function ActionRow({
 }
 
 /**
- * The Actions Quick Access section (Terminal tab active): the repo's saved
+ * The Actions Quick Access section (Terminal tab active): the project's saved
  * commands, one click from running. The agent curates these via the porcelain
  * CLI; the human runs them. Mirrors the Comments/Board sections.
  *
@@ -190,10 +190,10 @@ function ActionRow({
 export function ActionsGroup(): React.JSX.Element {
   const actions = useActions()
   const runAction = useRunAction()
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const localDaemon = useLocalDaemon()
-  const canSpawnLocal = localDaemon !== undefined && !localDaemon.isLocal && repo !== null
-  const mappedLocalPath = useLocalTerminalPath(repo?.path ?? null)
+  const canSpawnLocal = localDaemon !== undefined && !localDaemon.isLocal && project !== null
+  const mappedLocalPath = useLocalTerminalPath(project?.path ?? null)
   const [draft, setDraft] = useState<ActionDraft | null>(null)
   // When a local-targeted action needs the folder map first: hold the action and open
   // the path dialog in 'run' mode; on save, run with the just-saved path. Also fed by
@@ -303,10 +303,10 @@ export function ActionsGroup(): React.JSX.Element {
           if (!open) setDraft(null)
         }}
       />
-      {mappingMode && repo && pendingLocal && (
+      {mappingMode && project && pendingLocal && (
         <LocalPathDialog
           key={`run:${pendingLocal.id}`}
-          repoPath={repo.path}
+          repoPath={project.path}
           initialPath={mappedLocalPath ?? null}
           mode={mappingMode}
           onSaved={(localPath: string): void => {

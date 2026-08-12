@@ -12,7 +12,7 @@ import { kbdLabel } from '@renderer/lib/keyboard'
 import { type LineSelection, lineSelectionFromDom } from '@renderer/lib/line-selection'
 import { isBrowser } from '@renderer/lib/platform'
 import { copyText } from '@renderer/lib/utils'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { runUserAction } from '@shared/background'
 import {
   Compass,
@@ -37,12 +37,12 @@ export function SourceContextMenu({
   const [selection, setSelection] = useState('')
   const [lineSel, setLineSel] = useState<LineSelection | null>(null)
   const [commentAnchor, setCommentAnchor] = useState<CommentAnchor | null>(null)
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const { copyPath, copyRelativePath, reveal, findReferences, exploreFlow } = usePathActions(path)
 
-  // Comments store repo-relative paths; the viewer holds an absolute one.
+  // Comments store project-relative paths; the viewer holds an absolute one.
   const relativePath =
-    repo && path.startsWith(`${repo.path}/`) ? path.slice(repo.path.length + 1) : path
+    project && path.startsWith(`${project.path}/`) ? path.slice(project.path.length + 1) : path
 
   const handleCommentOnSelection = (): void => {
     if (!lineSel) return

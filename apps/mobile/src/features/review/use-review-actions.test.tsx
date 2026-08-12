@@ -4,7 +4,10 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { reviewCommentsQueryKey } from '@/features/comments/comment-query-key'
+import {
+  isReviewCommentsQueryKey,
+  reviewCommentsQueryKey,
+} from '@/features/comments/comment-query-key'
 
 import { useArchivedReviewActions, useReviewActions } from './use-review'
 
@@ -31,8 +34,23 @@ vi.mock('@/lib/daemon/client', () => ({
   getDaemonClient: () => ({ baseUrl: 'http://127.0.0.1:43118', token: 'pc_client_test' }),
 }))
 
-vi.mock('@/lib/daemon/repo', () => ({
-  useActiveRepo: () => (ctx.repoPath === null ? null : { path: ctx.repoPath, name: 'repo' }),
+vi.mock('@/features/projects', () => ({
+  useActiveProject: () => (ctx.repoPath === null ? null : { path: ctx.repoPath, name: 'repo' }),
+}))
+
+vi.mock('@/features/comments', () => ({
+  invalidateAllReviewComments: (queryClient: QueryClient, environmentId: string): Promise<void> =>
+    queryClient.invalidateQueries({
+      predicate: (query) => {
+        const key = query.queryKey
+        return (
+          Array.isArray(key) &&
+          key[0] === 'daemon' &&
+          key[1] === environmentId &&
+          isReviewCommentsQueryKey(key)
+        )
+      },
+    }),
 }))
 
 vi.mock('@/lib/daemon/environments-store', () => ({

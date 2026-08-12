@@ -1,5 +1,7 @@
 /** Shared Projects client semantics: typed identities and non-optimistic mutation effects. */
 
+import type { ProjectSummary } from './project-queries'
+
 export {
   openProject,
   type ProjectMutationDefinition,
@@ -15,3 +17,5 @@ export {
   type RecentProjectsQuery,
   recentProjectsQuery,
 } from './project-queries'
+
+export type ProjectPath = ProjectSummary['path']

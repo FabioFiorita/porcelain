@@ -15,7 +15,7 @@ import { type LineSelection, lineSelectionFromDom } from '@renderer/lib/line-sel
 import { fileName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'
 import { usePreferencesStore } from '@renderer/stores/preferences'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { FileText, MessageSquarePlus, Square, SquareCheck } from 'lucide-react'
 import { useMemo, useState } from 'react'
@@ -34,7 +34,7 @@ export function DiffView({
   // Split needs two code columns — force unified on phone for a readable glance.
   const isMobile = useIsMobile()
   const diffMode = isMobile ? 'unified' : prefDiffMode
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const openTab = useTabsStore((s) => s.openTab)
   const { hunks, status, image, binary, error } = useDiffFile(filePath, base)
   const reviewed = useReviewedPaths()
@@ -64,8 +64,8 @@ export function DiffView({
   // "Open file"). Hidden for a deleted file — it no longer exists on disk, so
   // there's nothing to open.
   const handleOpenFile = (): void => {
-    if (!repo) return
-    const absolute = `${repo.path}/${filePath}`
+    if (!project) return
+    const absolute = `${project.path}/${filePath}`
     openTab({
       id: tabId('file', absolute),
       kind: 'file',

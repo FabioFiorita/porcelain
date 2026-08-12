@@ -1,8 +1,8 @@
 import type { WorktreeInboxRow } from '@porcelain/contracts/review'
 import { SidebarProvider } from '@renderer/components/ui/sidebar'
 import { useGitWorkspace } from '@renderer/features/git'
-import { useNewWindow } from '@renderer/hooks/use-repo'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useNewWindow } from '@renderer/hooks/use-new-window'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ReviewInbox } from './review-inbox'
@@ -14,7 +14,7 @@ vi.mock('@renderer/lib/platform', () => ({ isBrowser: false, isE2E: false }))
 vi.mock('@renderer/features/git', () => ({
   useGitWorkspace: vi.fn(),
 }))
-vi.mock('@renderer/hooks/use-repo', () => ({ useNewWindow: vi.fn() }))
+vi.mock('@renderer/hooks/use-new-window', () => ({ useNewWindow: vi.fn() }))
 
 // Base UI's tooltip positioner polls getAnimations on a timer; jsdom has none.
 Element.prototype.getAnimations ??= (): Animation[] => []
@@ -38,12 +38,12 @@ function renderInbox(): void {
 }
 
 describe('ReviewInbox', () => {
-  const switchTo = vi.fn()
+  const switchProject = vi.fn()
   const openWindow = vi.fn()
 
   beforeEach(() => {
     vi.clearAllMocks()
-    useRepoStore.setState({ switchTo })
+    useProjectSelectionStore.setState({ switchProject })
     vi.mocked(useNewWindow).mockReturnValue({ openWindow })
     vi.mocked(useGitWorkspace).mockReturnValue({
       branch: 'main',
@@ -121,7 +121,7 @@ describe('ReviewInbox', () => {
     })
     renderInbox()
     fireEvent.click(screen.getByText('feature/x'))
-    expect(switchTo).toHaveBeenCalledWith('/repo-worktrees/feat')
+    expect(switchProject).toHaveBeenCalledWith('/repo-worktrees/feat')
   })
 
   it('opens a worktree in a new window without switching this one', () => {
@@ -136,6 +136,6 @@ describe('ReviewInbox', () => {
     renderInbox()
     fireEvent.click(screen.getByLabelText('Open feature/x in new window'))
     expect(openWindow).toHaveBeenCalledWith('/repo-worktrees/feat')
-    expect(switchTo).not.toHaveBeenCalled()
+    expect(switchProject).not.toHaveBeenCalled()
   })
 })

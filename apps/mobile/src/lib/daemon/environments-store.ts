@@ -160,7 +160,7 @@ type EnvironmentActions = {
   setEndpointOrder(id: EnvironmentId, endpoints: readonly string[]): Promise<void>
   remove(id: EnvironmentId): Promise<void>
   forgetToken(id: EnvironmentId): Promise<void>
-  setActiveRepoPath(id: EnvironmentId, path: string | null): Promise<void>
+  setActiveProjectPath(id: EnvironmentId, path: string | null): Promise<void>
   recordReachabilityFailure(
     id: EnvironmentId,
     message: string,
@@ -368,7 +368,7 @@ export const environmentActions: EnvironmentActions = {
     await SecureStore.deleteItemAsync(tokenKey(id))
   },
 
-  async setActiveRepoPath(id: EnvironmentId, path: string | null): Promise<void> {
+  async setActiveProjectPath(id: EnvironmentId, path: string | null): Promise<void> {
     useEnvironmentsStore.setState((state) => ({
       environments: state.environments.map((candidate) =>
         candidate.id === id ? { ...candidate, activeRepoPath: path } : candidate,

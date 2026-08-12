@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 
 import { invalidateAllReviewComments } from '@/features/comments'
+import { useActiveProject } from '@/features/projects'
 import { isPaired } from '@/lib/daemon/environment'
 import { useActiveEnvironment } from '@/lib/daemon/environments-store'
 import { LIVE_POLL_MS } from '@/lib/daemon/poll'
@@ -26,7 +27,6 @@ import {
   reviewPublishCostQuery,
 } from '@/lib/daemon/procedures/review'
 import { useDaemonMutation, useDaemonQuery } from '@/lib/daemon/queries'
-import { useActiveRepo } from '@/lib/daemon/repo'
 
 /**
  * Every read the Review makes, and the rule each one follows.
@@ -81,9 +81,9 @@ export type ReviewReading = {
  * moved past.
  */
 export function useFeatureReading(active: boolean): ReviewReading {
-  const repo = useActiveRepo()
-  const { data, error, isLoading } = useDaemonQuery(featureReadingQuery, repo?.path ?? '', {
-    enabled: active && repo !== null,
+  const project = useActiveProject()
+  const { data, error, isLoading } = useDaemonQuery(featureReadingQuery, project?.path ?? '', {
+    enabled: active && project !== null,
     placeholderData: 'keepPreviousData',
     pollMs: LIVE_POLL_MS,
     staleTime: 0,
@@ -101,9 +101,9 @@ export function useReviewIntentDocs(enabled: boolean): {
   isLoading: boolean
   error: Error | null
 } {
-  const repo = useActiveRepo()
-  const { data, error, isLoading } = useDaemonQuery(reviewIntentQuery, repo?.path ?? '', {
-    enabled: enabled && repo !== null,
+  const project = useActiveProject()
+  const { data, error, isLoading } = useDaemonQuery(reviewIntentQuery, project?.path ?? '', {
+    enabled: enabled && project !== null,
   })
   return { docs: data, error, isLoading }
 }
@@ -118,9 +118,9 @@ export function useReviewEvidenceDocs(enabled: boolean): {
   isLoading: boolean
   error: Error | null
 } {
-  const repo = useActiveRepo()
-  const { data, error, isLoading } = useDaemonQuery(reviewEvidenceDocsQuery, repo?.path ?? '', {
-    enabled: enabled && repo !== null,
+  const project = useActiveProject()
+  const { data, error, isLoading } = useDaemonQuery(reviewEvidenceDocsQuery, project?.path ?? '', {
+    enabled: enabled && project !== null,
   })
   return { docs: data, error, isLoading }
 }
@@ -135,10 +135,14 @@ export function useReviewEvidenceAssets(enabled: boolean): {
   isLoading: boolean
   error: Error | null
 } {
-  const repo = useActiveRepo()
-  const { data, error, isLoading } = useDaemonQuery(reviewEvidenceAssetsQuery, repo?.path ?? '', {
-    enabled: enabled && repo !== null,
-  })
+  const project = useActiveProject()
+  const { data, error, isLoading } = useDaemonQuery(
+    reviewEvidenceAssetsQuery,
+    project?.path ?? '',
+    {
+      enabled: enabled && project !== null,
+    },
+  )
   return { assets: data, error, isLoading }
 }
 
@@ -154,11 +158,11 @@ export function useReviewEvidenceAsset(
   file: string,
   enabled: boolean,
 ): { asset: EvidenceAssetBody | null | undefined; isLoading: boolean } {
-  const repo = useActiveRepo()
+  const project = useActiveProject()
   const { data, isLoading } = useDaemonQuery(
     reviewEvidenceAssetQuery,
-    { file, repoPath: repo?.path ?? '' },
-    { enabled: enabled && repo !== null },
+    { file, repoPath: project?.path ?? '' },
+    { enabled: enabled && project !== null },
   )
   return { asset: data, isLoading }
 }
@@ -168,9 +172,9 @@ export function useReviewEvidenceAsset(
  * it walks the whole active review directory to answer.
  */
 export function useReviewPublishCost(enabled: boolean): PublishCost | undefined {
-  const repo = useActiveRepo()
-  const { data } = useDaemonQuery(reviewPublishCostQuery, repo?.path ?? '', {
-    enabled: enabled && repo !== null,
+  const project = useActiveProject()
+  const { data } = useDaemonQuery(reviewPublishCostQuery, project?.path ?? '', {
+    enabled: enabled && project !== null,
   })
   return data
 }
@@ -185,18 +189,18 @@ export function useCompanionGitVisibility(enabled: boolean): {
   hidden: boolean | undefined
   isPending: boolean
 } {
-  const repo = useActiveRepo()
-  const { data, isPending } = useDaemonQuery(companionGitVisibilityQuery, repo?.path ?? '', {
-    enabled: enabled && repo !== null,
+  const project = useActiveProject()
+  const { data, isPending } = useDaemonQuery(companionGitVisibilityQuery, project?.path ?? '', {
+    enabled: enabled && project !== null,
   })
   return { hidden: data?.hidden, isPending }
 }
 
 /** Previous reviews under `.porcelain/reviews/`, newest first. */
 export function useArchivedReviews(active: boolean): ArchivedReview[] {
-  const repo = useActiveRepo()
-  const { data } = useDaemonQuery(archivedReviewsQuery, repo?.path ?? '', {
-    enabled: active && repo !== null,
+  const project = useActiveProject()
+  const { data } = useDaemonQuery(archivedReviewsQuery, project?.path ?? '', {
+    enabled: active && project !== null,
   })
   return data ?? []
 }
@@ -219,7 +223,7 @@ export type ReviewActions = {
  * the result first would show an archived unit that is still there because the copy failed.
  */
 export function useReviewActions(): ReviewActions {
-  const repo = useActiveRepo()
+  const project = useActiveProject()
   const environment = useActiveEnvironment()
   const queryClient = useQueryClient()
   const publish = useDaemonMutation(publishReviewMutation, { invalidates: REVIEW_INVALIDATIONS })
@@ -237,18 +241,18 @@ export function useReviewActions(): ReviewActions {
 
   return {
     archive: async (): Promise<void> => {
-      if (repo === null) return
-      await archive.mutateAsync(repo.path)
+      if (project === null) return
+      await archive.mutateAsync(project.path)
       await invalidateComments()
     },
     clearEvidence: async (): Promise<void> => {
-      if (repo === null) return
-      await clearEvidence.mutateAsync(repo.path)
+      if (project === null) return
+      await clearEvidence.mutateAsync(project.path)
     },
     isPending: publish.isPending || archive.isPending || clearEvidence.isPending,
     publish: async (): Promise<string | null> => {
-      if (repo === null) return null
-      const result = await publish.mutateAsync(repo.path)
+      if (project === null) return null
+      const result = await publish.mutateAsync(project.path)
       await invalidateComments()
       return result?.id ?? null
     },
@@ -263,7 +267,7 @@ export type ArchivedReviewActions = {
 
 /** Promote an archive back to active, or delete it for good. */
 export function useArchivedReviewActions(): ArchivedReviewActions {
-  const repo = useActiveRepo()
+  const project = useActiveProject()
   const environment = useActiveEnvironment()
   const queryClient = useQueryClient()
   const restore = useDaemonMutation(restoreArchivedReviewMutation, {
@@ -281,13 +285,13 @@ export function useArchivedReviewActions(): ArchivedReviewActions {
   return {
     isPending: restore.isPending || remove.isPending,
     remove: async (id: string): Promise<void> => {
-      if (repo === null) return
-      await remove.mutateAsync({ id, repoPath: repo.path })
+      if (project === null) return
+      await remove.mutateAsync({ id, repoPath: project.path })
       await invalidateComments()
     },
     restore: async (id: string): Promise<void> => {
-      if (repo === null) return
-      await restore.mutateAsync({ id, repoPath: repo.path })
+      if (project === null) return
+      await restore.mutateAsync({ id, repoPath: project.path })
       await invalidateComments()
     },
   }

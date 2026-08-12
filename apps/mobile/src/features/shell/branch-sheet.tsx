@@ -23,9 +23,9 @@ export function BranchSheetBody({
   open,
 }: CreatingPickerBodyProps): React.JSX.Element {
   const sheet = useGitBranchSheet(open, onCreatingChange)
-  const { repoPath } = sheet
+  const { projectPath } = sheet
 
-  if (repoPath === null) {
+  if (projectPath === null) {
     return (
       <EmptyPickerState
         body="Open a project before switching branches."
@@ -42,7 +42,7 @@ export function BranchSheetBody({
         existingBranches={sheet.existingBranches}
         fromLabel={sheet.currentBranch ?? 'HEAD'}
         pending={sheet.createPending}
-        repoPath={repoPath}
+        projectPath={projectPath}
         target="branch"
         onCancel={() => {
           onCreatingChange(false)
@@ -92,7 +92,7 @@ export function BranchSheetBody({
                   branch={branch}
                   currentBranch={sheet.currentBranch}
                   disabled={sheet.busy}
-                  repoPath={repoPath}
+                  projectPath={projectPath}
                   worktrees={sheet.worktrees}
                   onPress={() => {
                     sheet.select(branch)
@@ -109,7 +109,7 @@ export function BranchSheetBody({
                   branch={branch}
                   currentBranch={sheet.currentBranch}
                   disabled={sheet.busy}
-                  repoPath={repoPath}
+                  projectPath={projectPath}
                   worktrees={sheet.worktrees}
                   onPress={() => {
                     sheet.select(branch)
@@ -153,17 +153,17 @@ function BranchRow({
   currentBranch,
   disabled,
   onPress,
-  repoPath,
+  projectPath,
   worktrees,
 }: {
   branch: BranchRef
   currentBranch: string | null
   disabled: boolean
   onPress: () => void
-  repoPath: string
+  projectPath: string
   worktrees: readonly Worktree[]
 }): React.JSX.Element {
-  const facts = branchRowFacts(branch, currentBranch, worktrees, repoPath)
+  const facts = branchRowFacts(branch, currentBranch, worktrees, projectPath)
 
   return (
     <WorkspaceRow

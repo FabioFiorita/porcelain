@@ -1,5 +1,6 @@
 import {
   openProject,
+  type ProjectPath,
   type ProjectSummary,
   type ProjectsQuery,
   projectDirectoriesQuery,
@@ -11,7 +12,7 @@ import { runUserAction } from '@porcelain/shared/background'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { useShellStore } from '@/features/shell/shell-store'
-import { isPaired, repoNameOf } from '@/lib/daemon/environment'
+import { activeProjectPathOf, isPaired } from '@/lib/daemon/environment'
 import {
   activeEnvironment,
   environmentActions,
@@ -21,12 +22,13 @@ import { daemonSession } from '@/lib/daemon/session'
 
 import {
   browseDirectoriesProcedure,
-  callProjectDaemon,
   openProjectProcedure,
   pairedProjectEnvironment,
   recentProjectsProcedure,
   removeRecentProjectProcedure,
-} from './use-project-transport'
+} from './project-procedures'
+import { useActiveProject } from './project-transport'
+import { callProjectDaemon } from './use-project-transport'
 
 export function projectsQueryKey(
   environmentId: string,
@@ -82,18 +84,18 @@ export function useRecentProjects(active: boolean): {
 
 /** Open a Project and apply the daemon's authoritative summary to mobile selection/session state. */
 export function useOpenProject(): {
-  open: (path: string) => Promise<void>
+  open: (path: ProjectPath) => Promise<void>
   isPending: boolean
 } {
   const environment = useActiveEnvironment()
   const queryClient = useQueryClient()
   const mutation = useMutation({
-    mutationFn: async (path: string): Promise<ProjectSummary> => {
+    mutationFn: async (path: ProjectPath): Promise<ProjectSummary> => {
       return callProjectDaemon(environment, openProjectProcedure, path)
     },
     onSuccess: async (project) => {
       const paired = pairedProjectEnvironment(environment, openProjectProcedure.name)
-      await environmentActions.setActiveRepoPath(paired.id, project.path)
+      await environmentActions.setActiveProjectPath(paired.id, project.path)
       daemonSession.selectProject(project.path)
       await invalidateProjectQueries(
         queryClient,
@@ -105,7 +107,7 @@ export function useOpenProject(): {
 
   return {
     isPending: mutation.isPending,
-    open: async (path): Promise<void> => {
+    open: async (path: ProjectPath): Promise<void> => {
       await mutation.mutateAsync(path)
     },
   }
@@ -130,8 +132,8 @@ export function useRemoveRecentProject(): {
         removeRecentProject.affectedQueries(path),
       )
       const current = activeEnvironment()
-      if (isPaired(current) && current.activeRepoPath === path) {
-        await environmentActions.setActiveRepoPath(current.id, null)
+      if (isPaired(current) && activeProjectPathOf(current) === path) {
+        await environmentActions.setActiveProjectPath(current.id, null)
       }
     },
   })
@@ -180,9 +182,7 @@ export function useProjectDirectories(
 
 /** Selected Project presentation state derived from the persisted active path. */
 export function useSelectedProject(): ProjectSummary | null {
-  const environment = useActiveEnvironment()
-  const path = environment?.activeRepoPath ?? null
-  return path === null ? null : { name: repoNameOf(path), path }
+  return useActiveProject()
 }
 
 export type ProjectSheet = {
@@ -202,7 +202,7 @@ export type ProjectSheet = {
   busyPath: string | null
   actionError: string | null
   /** Total void: failures land on actionError; busyPath cleared in finally. */
-  open: (path: string) => void
+  open: (path: ProjectPath) => void
   setBrowsePath: (path: string | null) => void
   startBrowsing: () => void
   stopBrowsing: () => void

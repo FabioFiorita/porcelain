@@ -1,15 +1,13 @@
 import { z } from 'zod'
 
-export const repoInfoSchema = z
+export const projectInfoSchema = z
   .object({
     path: z.string(),
     name: z.string(),
   })
   .strict()
 
-export type ProjectInfo = z.infer<typeof repoInfoSchema>
-/** Stable external alias retained until PRJ-003 removes product-boundary repo vocabulary. */
-export type RepoInfo = ProjectInfo
+export type ProjectInfo = z.infer<typeof projectInfoSchema>
 
 export const browseEntrySchema = z
   .object({
@@ -32,7 +30,7 @@ export const browseDirsOutputSchema = z
 export type BrowseDirsOutput = z.infer<typeof browseDirsOutputSchema>
 
 export const openRepoPathInputSchema = z.string()
-export const openRepoPathOutputSchema = repoInfoSchema
+export const openRepoPathOutputSchema = projectInfoSchema
 export type OpenRepoPathInput = z.infer<typeof openRepoPathInputSchema>
 export type OpenRepoPathOutput = z.infer<typeof openRepoPathOutputSchema>
 
@@ -40,7 +38,7 @@ export const recentReposInputSchema = z
   .object({ includeWorktrees: z.boolean().default(false) })
   .strict()
   .optional()
-export const recentReposOutputSchema = z.array(repoInfoSchema)
+export const recentReposOutputSchema = z.array(projectInfoSchema)
 export type RecentReposInput = z.infer<typeof recentReposInputSchema>
 export type RecentReposOutput = z.infer<typeof recentReposOutputSchema>
 

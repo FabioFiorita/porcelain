@@ -1,8 +1,8 @@
 import { useState } from 'react'
+import { useActiveProject } from '@/features/projects'
 import { copyText } from '@/lib/clipboard'
 import { gitCommitMessageQuery } from '@/lib/daemon/procedures/changes'
 import { useDaemonFetch } from '@/lib/daemon/queries'
-import { useActiveRepo } from '@/lib/daemon/repo'
 
 import { shortHash } from './commit-message'
 
@@ -22,7 +22,7 @@ export type CommitActions = {
  * silently did nothing.
  */
 export function useCommitActions(): CommitActions {
-  const repo = useActiveRepo()
+  const project = useActiveProject()
   const fetch = useDaemonFetch()
   const [status, setStatus] = useState<{ text: string; failed: boolean } | null>(null)
 
@@ -45,8 +45,8 @@ export function useCommitActions(): CommitActions {
         })
     },
     copyMessage: (hash: string): void => {
-      if (repo === null) return
-      fetch(gitCommitMessageQuery, { hash, repoPath: repo.path })
+      if (project === null) return
+      fetch(gitCommitMessageQuery, { hash, repoPath: project.path })
         .then(copyText)
         .then((ok) => {
           report(ok ? 'Copied commit message' : 'Could not reach the pasteboard', !ok)

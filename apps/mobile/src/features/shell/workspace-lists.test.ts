@@ -137,8 +137,8 @@ describe('deriveWorkspaceIdentity', () => {
     branchFailed: false,
     environmentNickname: 'Beelink',
     mainWorktreePath: '/home/me/code/porcelain',
-    repoName: 'porcelain',
-    repoPath: '/home/me/code/porcelain',
+    projectName: 'porcelain',
+    projectPath: '/home/me/code/porcelain',
   }
 
   it('names the three chips from the main checkout', () => {
@@ -157,8 +157,8 @@ describe('deriveWorkspaceIdentity', () => {
     const identity = deriveWorkspaceIdentity({
       ...base,
       branch: 'wip',
-      repoName: 'wip',
-      repoPath: '/home/me/code/porcelain-worktrees/wip',
+      projectName: 'wip',
+      projectPath: '/home/me/code/porcelain-worktrees/wip',
     })
     expect(identity.projectName).toBe('porcelain')
     expect(identity.worktree).toBe('wip')
@@ -177,8 +177,8 @@ describe('deriveWorkspaceIdentity', () => {
         branch: null,
         environmentNickname: null,
         mainWorktreePath: null,
-        repoName: null,
-        repoPath: '',
+        projectName: null,
+        projectPath: '',
       }),
     ).toEqual({
       branch: 'No project',

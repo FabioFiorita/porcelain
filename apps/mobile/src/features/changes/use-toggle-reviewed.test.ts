@@ -5,8 +5,8 @@ const markMutate = vi.fn()
 const unmarkMutate = vi.fn()
 const setAllMutate = vi.fn()
 
-vi.mock('@/lib/daemon/repo', () => ({
-  useActiveRepo: () => ({ path: '/repo' }),
+vi.mock('@/features/projects', () => ({
+  useActiveProject: () => ({ path: '/repo' }),
 }))
 
 vi.mock('@/lib/daemon/queries', () => ({

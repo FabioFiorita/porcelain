@@ -13,7 +13,7 @@ import {
 } from '@renderer/hooks/use-remote-daemon'
 import { isBrowser } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useSettingsDialogStore } from '@renderer/stores/settings-dialog'
 import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
@@ -46,7 +46,7 @@ function EnvironmentBanner(): React.JSX.Element | null {
             <p className="text-xs font-medium">This window → {active.name}</p>
             <p className="truncate font-mono text-2xs text-muted-foreground">{active.url}</p>
             <p className="mt-0.5 text-2xs text-muted-foreground">
-              Recent projects and Open repository use this remote.
+              Recent projects and Open project use this remote.
             </p>
           </div>
         </div>
@@ -90,7 +90,7 @@ function EnvironmentBanner(): React.JSX.Element | null {
 }
 
 export function Welcome(): React.JSX.Element {
-  const openRepo = useRepoStore((s) => s.openRepo)
+  const openProjectPicker = useProjectSelectionStore((s) => s.openProjectPicker)
   const openProject = useOpenProject()
   const removeRecent = useRemoveRecentProject()
   const recents = useRecentProjects()
@@ -120,7 +120,7 @@ export function Welcome(): React.JSX.Element {
       data-testid={TestIds.welcome}
       className="relative flex h-full flex-col items-center justify-center gap-8 px-6"
     >
-      {/* Settings must be reachable with no repo open — Remote daemons live there,
+      {/* Settings must be reachable with no Project open — Remote daemons live there,
           and a stuck remote would otherwise leave no escape hatch. */}
       <div className="absolute top-2 right-3">
         <SettingsButton className="app-no-drag size-10 text-muted-foreground [&_svg]:size-5" />
@@ -138,32 +138,32 @@ export function Welcome(): React.JSX.Element {
         <p className="mt-1 text-sm text-muted-foreground">Where agent work becomes trusted work.</p>
       </div>
       <EnvironmentBanner />
-      <Button data-testid={TestIds.welcomeOpenRepo} onClick={openRepo}>
+      <Button data-testid={TestIds.welcomeOpenRepo} onClick={openProjectPicker}>
         <FolderOpen />
-        {onRemote ? `Open repository on ${remoteName}` : 'Open repository'}
+        {onRemote ? `Open project on ${remoteName}` : 'Open project'}
       </Button>
       {recents.length > 0 && (
         <div className="flex w-80 flex-col gap-0.5">
           <p className="px-2 pb-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
             {onRemote ? `Recent on ${remoteName}` : 'Recent on this device'}
           </p>
-          {recents.map((repo) => (
+          {recents.map((project) => (
             // A button can't nest a button, so the remove affordance is an overlaid
             // sibling revealed on hover (or keyboard focus) rather than a child.
-            <div key={repo.path} className="group relative">
+            <div key={project.path} className="group relative">
               <Button
                 variant="ghost"
                 className="h-auto w-full justify-start gap-2.5 py-1.5 pr-9"
-                onClick={() => openRecent(repo.path)}
+                onClick={() => openRecent(project.path)}
               >
                 <Folder className="size-4 shrink-0 text-muted-foreground" />
                 <span className="flex min-w-0 flex-col items-start">
-                  <span className="truncate text-sm">{repo.name}</span>
+                  <span className="truncate text-sm">{project.name}</span>
                   <span
                     className="max-w-full truncate font-mono text-xs text-muted-foreground"
                     dir="rtl"
                   >
-                    {repo.path}
+                    {project.path}
                   </span>
                 </span>
               </Button>
@@ -176,7 +176,7 @@ export function Welcome(): React.JSX.Element {
                   'hover:bg-accent/50 hover:text-foreground',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
                 )}
-                onClick={() => remove(repo.path)}
+                onClick={() => remove(project.path)}
               >
                 <X className="size-3.5" />
               </button>

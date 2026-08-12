@@ -1,7 +1,7 @@
 import { boardCardFixture, boardContractFixtures } from '@porcelain/contracts/board'
 import { remoteContractFixtures } from '@porcelain/contracts/remote'
 import { createValidatingTrpcHarness, deferred } from '@renderer/hooks/trpc-test-harness'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { useBoardCards } from './board-queries'
@@ -16,7 +16,7 @@ const baseHandlers = {
 
 describe('useBoardCards', () => {
   beforeEach(() => {
-    useRepoStore.setState({ repo: { path: REPO, name: 'repo' } })
+    useProjectSelectionStore.setState({ project: { path: REPO, name: 'repo' } })
   })
 
   it('queries listBoardCards for the active Project and exposes contract-valid cards', async () => {
@@ -42,7 +42,7 @@ describe('useBoardCards', () => {
   })
 
   it('distinguishes unloaded, empty, and failed Board reads', async () => {
-    useRepoStore.setState({ repo: null })
+    useProjectSelectionStore.setState({ project: null })
     const idle = createValidatingTrpcHarness({
       ...baseHandlers,
       listBoardCards: () => ({ ok: true, value: [] }),
@@ -50,7 +50,7 @@ describe('useBoardCards', () => {
     const unloaded = renderHook(() => useBoardCards(), { wrapper: idle.wrapper })
     expect(unloaded.result.current).toEqual({ cards: [], error: null, isLoaded: false })
 
-    useRepoStore.setState({ repo: { path: REPO, name: 'repo' } })
+    useProjectSelectionStore.setState({ project: { path: REPO, name: 'repo' } })
     const empty = createValidatingTrpcHarness({
       ...baseHandlers,
       listBoardCards: () => ({ ok: true, value: [] }),

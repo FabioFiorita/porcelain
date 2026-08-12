@@ -6,7 +6,7 @@ import type {
 } from '@porcelain/contracts'
 import { trpc } from '@renderer/lib/trpc'
 import { usePreferencesStore } from '@renderer/stores/preferences'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { useEffect } from 'react'
 
@@ -15,7 +15,7 @@ export function useCommit(onCommitted?: () => void): {
   isCommitting: boolean
   error: { message: string } | null
 } {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const utils = trpc.useUtils()
   const mutation = trpc.gitCommit.useMutation({
     onSuccess: async () => {
@@ -32,8 +32,8 @@ export function useCommit(onCommitted?: () => void): {
   })
   return {
     commit: (message: string): void => {
-      if (!repo) return
-      mutation.mutate({ repoPath: repo.path, message })
+      if (!project) return
+      mutation.mutate({ repoPath: project.path, message })
     },
     isCommitting: mutation.isPending,
     error: mutation.error,
@@ -45,7 +45,7 @@ export function useStageAll(): {
   unstageAll: () => Promise<void>
   isStaging: boolean
 } {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const utils = trpc.useUtils()
   // No mutation-level onError: both calls reject out to the composer, which reports
   // the failure on its status line. One owner per failure — see useFileStaging.
@@ -53,14 +53,14 @@ export function useStageAll(): {
   const unstage = trpc.gitUnstageAll.useMutation()
   return {
     stageAll: async () => {
-      if (!repo) return
-      await stage.mutateAsync({ repoPath: repo.path })
+      if (!project) return
+      await stage.mutateAsync({ repoPath: project.path })
       // gitFlow carries per-file staged/unstaged state now, so refresh it.
       await utils.gitFlow.invalidate()
     },
     unstageAll: async () => {
-      if (!repo) return
-      await unstage.mutateAsync({ repoPath: repo.path })
+      if (!project) return
+      await unstage.mutateAsync({ repoPath: project.path })
       await utils.gitFlow.invalidate()
     },
     isStaging: stage.isPending || unstage.isPending,
@@ -79,19 +79,19 @@ export function useFileStaging(): {
   stageFile: (path: string) => Promise<void>
   unstageFile: (path: string) => Promise<void>
 } {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const utils = trpc.useUtils()
   const stage = trpc.gitStageFile.useMutation()
   const unstage = trpc.gitUnstageFile.useMutation()
   return {
     stageFile: async (path: string): Promise<void> => {
-      if (!repo) return
-      await stage.mutateAsync({ repoPath: repo.path, path })
+      if (!project) return
+      await stage.mutateAsync({ repoPath: project.path, path })
       await utils.gitFlow.invalidate()
     },
     unstageFile: async (path: string): Promise<void> => {
-      if (!repo) return
-      await unstage.mutateAsync({ repoPath: repo.path, path })
+      if (!project) return
+      await unstage.mutateAsync({ repoPath: project.path, path })
       await utils.gitFlow.invalidate()
     },
   }
@@ -106,7 +106,7 @@ export function useFileStaging(): {
  * dialog that triggered it owns the failure.
  */
 export function useDiscardFile(): (path: string) => Promise<void> {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const utils = trpc.useUtils()
   const mutation = trpc.gitDiscardFile.useMutation({
     onSuccess: async () => {
@@ -119,8 +119,8 @@ export function useDiscardFile(): (path: string) => Promise<void> {
     },
   })
   return async (path: string): Promise<void> => {
-    if (!repo) return
-    await mutation.mutateAsync({ repoPath: repo.path, path })
+    if (!project) return
+    await mutation.mutateAsync({ repoPath: project.path, path })
     // The working-tree diff for this file no longer exists (reverted or trashed), so
     // its open diff tab would render a dead/errored view — close it. The Changes list
     // keys a working-tree diff tab by the bare path (no base ref).
@@ -129,8 +129,10 @@ export function useDiscardFile(): (path: string) => Promise<void> {
 }
 
 export function useCommitConventions(): CommitConventions | undefined {
-  const repo = useRepoStore((s) => s.repo)
-  const { data } = trpc.gitCommitConventions.useQuery(repo?.path ?? '', { enabled: repo !== null })
+  const project = useProjectSelectionStore((s) => s.project)
+  const { data } = trpc.gitCommitConventions.useQuery(project?.path ?? '', {
+    enabled: project !== null,
+  })
   return data
 }
 
@@ -164,20 +166,20 @@ export function useCommitGeneration(): {
   generateGroups: () => Promise<CommitGroupGenerationGroup[]>
   isGenerating: boolean
 } {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const model = usePreferencesStore((s) => s.commitModel)
   const messageMutation = trpc.gitGenerateCommitMessage.useMutation()
   const groupsMutation = trpc.gitGenerateCommitGroups.useMutation()
 
   const generateMessage = async (): Promise<string> => {
-    if (!repo) return ''
-    const result = await messageMutation.mutateAsync({ repoPath: repo.path, model })
+    if (!project) return ''
+    const result = await messageMutation.mutateAsync({ repoPath: project.path, model })
     return result.message
   }
 
   const generateGroups = async (): Promise<CommitGroupGenerationGroup[]> => {
-    if (!repo) return []
-    const result = await groupsMutation.mutateAsync({ repoPath: repo.path, model })
+    if (!project) return []
+    const result = await groupsMutation.mutateAsync({ repoPath: project.path, model })
     return result.groups
   }
 
@@ -196,20 +198,20 @@ export type QuickCommandId =
   (typeof procedureCatalog.gitQuickCommand.input.shape.command.options)[number]
 
 export function useQuickCommand(): (commandId: QuickCommandId) => Promise<string> {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const utils = trpc.useUtils()
   const mutation = trpc.gitQuickCommand.useMutation()
   return async (commandId: QuickCommandId): Promise<string> => {
-    if (!repo) return ''
+    if (!project) return ''
     try {
       return await mutation.mutateAsync({
-        repoPath: repo.path,
+        repoPath: project.path,
         command: commandId,
         // read at call-time — the pull strategy needn't re-render this hook.
         pullMode: usePreferencesStore.getState().pullMode,
       })
     } finally {
-      // pull/stash/push all change repo state; refresh everything that's mounted
+      // pull/stash/push all change project state; refresh everything that's mounted
       await utils.invalidate()
     }
   }

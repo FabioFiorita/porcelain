@@ -21,9 +21,9 @@ export function WorktreeSheetBody({
   open,
 }: CreatingPickerBodyProps): React.JSX.Element {
   const sheet = useGitWorktreeSheet(open, onCreatingChange)
-  const { repoPath } = sheet
+  const { projectPath } = sheet
 
-  if (repoPath === null) {
+  if (projectPath === null) {
     return (
       <EmptyPickerState
         body="Open a project before switching worktrees."
@@ -40,7 +40,7 @@ export function WorktreeSheetBody({
         existingBranches={sheet.existingBranches}
         fromLabel={sheet.fromLabel}
         pending={sheet.busy}
-        repoPath={repoPath}
+        projectPath={projectPath}
         target="worktree"
         onCancel={() => {
           onCreatingChange(false)
@@ -78,7 +78,7 @@ export function WorktreeSheetBody({
               detail={worktree.path}
               disabled={sheet.busyPath !== null}
               label={worktree.branch}
-              selected={worktree.path === repoPath}
+              selected={worktree.path === projectPath}
               testID={workspaceTestId('worktree-row', worktree.path)}
               onPress={() => {
                 sheet.open(worktree.path)

@@ -10,7 +10,7 @@ import type { BranchRef, GitHead, Worktree } from '@porcelain/contracts/git'
 import type { WorktreeInboxRow } from '@porcelain/contracts/review'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import { trpc } from '@renderer/lib/trpc'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useQuery } from '@tanstack/react-query'
 
 import { gitWorkspaceQueryKey } from './git-query-key'
@@ -26,12 +26,12 @@ export function useGitWorkspace(): {
   inbox: WorktreeInboxRow[]
   head: GitHead | undefined
 } {
-  const repo = useRepoStore((state) => state.repo)
+  const project = useProjectSelectionStore((state) => state.project)
   const daemon = useDaemonIdentity()
   const daemonScope = { host: daemon.host, version: daemon.version }
   const utils = trpc.useUtils()
-  const enabled = repo !== null
-  const projectPath = repo === null ? DISABLED_PROJECT : gitProjectKey(repo.path)
+  const enabled = project !== null
+  const projectPath = project === null ? DISABLED_PROJECT : gitProjectKey(project.path)
 
   const head = useQuery({
     enabled,

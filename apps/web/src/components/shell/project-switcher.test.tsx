@@ -5,8 +5,8 @@ import {
   useRemoveRecentProject,
   useSelectedProject,
 } from '@renderer/features/projects'
-import { useNewWindow } from '@renderer/hooks/use-repo'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useNewWindow } from '@renderer/hooks/use-new-window'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ProjectSwitcher } from './project-switcher'
@@ -17,9 +17,9 @@ import { ProjectSwitcher } from './project-switcher'
 vi.mock('@renderer/lib/platform', () => ({ isBrowser: false, isE2E: false }))
 
 // The convention: components read through domain hooks, so mock the hook module
-// and never touch the tRPC proxy. RepoInfo is the real @main/api type, so drift
+// and never touch the tRPC proxy. ProjectSummary is the real @main/api type, so drift
 // in the recents shape breaks the build here.
-vi.mock('@renderer/hooks/use-repo', () => ({
+vi.mock('@renderer/hooks/use-new-window', () => ({
   useNewWindow: vi.fn(),
 }))
 
@@ -46,10 +46,10 @@ function openMenu(): void {
 describe('ProjectSwitcher', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    useRepoStore.setState({
-      repo: { path: '/Users/me/code/alpha', name: 'alpha' },
-      switchTo: vi.fn(),
-      openRepo: vi.fn(),
+    useProjectSelectionStore.setState({
+      project: { path: '/Users/me/code/alpha', name: 'alpha' },
+      switchProject: vi.fn(),
+      openProjectPicker: vi.fn(),
     })
     vi.mocked(useSelectedProject).mockReturnValue(recents[0] ?? null)
     vi.mocked(useRecentProjects).mockReturnValue(recents)

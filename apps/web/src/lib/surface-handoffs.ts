@@ -1,7 +1,7 @@
 import { reviewTabKey } from '@renderer/components/git/review-view'
 import { fileName } from '@renderer/lib/paths'
 import { usePreferencesStore } from '@renderer/stores/preferences'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useReviewStartStore } from '@renderer/stores/review-start'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 
@@ -51,7 +51,7 @@ export function openReviewSidebar(): void {
 
 /** Sidebar → Feature and open the Review canvas for the current repo. */
 export function openFeatureReview(options: OpenFeatureReviewOptions = {}): void {
-  const repoPath = useRepoStore.getState().repo?.path
+  const repoPath = useProjectSelectionStore.getState().project?.path
   if (repoPath === undefined) return
   if (options.suggestedName !== undefined && options.suggestedName.trim() !== '') {
     useReviewStartStore.getState().setSuggestedName(options.suggestedName.trim())

@@ -12,7 +12,7 @@ import { useCodeSearch } from '@renderer/hooks/use-search'
 import { compactInputClass } from '@renderer/lib/controls'
 import { dirName, fileName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useSearchStore } from '@renderer/stores/search'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { CaseSensitive, ChevronRight, Regex, SlidersHorizontal } from 'lucide-react'
@@ -148,7 +148,7 @@ function FileGroup({
 /** Repo-wide code search: literal/regex with case + include/exclude globs, grouped
  *  by file with context. Rows open the file at the line. Sibling to the ⌘⇧F overlay. */
 export function SearchList(): React.JSX.Element {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const query = useSearchStore((s) => s.query)
   const regex = useSearchStore((s) => s.regex)
   const caseSensitive = useSearchStore((s) => s.caseSensitive)
@@ -281,7 +281,7 @@ export function SearchList(): React.JSX.Element {
             <FileGroup
               key={file.path}
               file={file}
-              repoPath={repo?.path ?? ''}
+              repoPath={project?.path ?? ''}
               query={debounced.query}
               regex={debounced.regex}
               caseSensitive={debounced.caseSensitive}

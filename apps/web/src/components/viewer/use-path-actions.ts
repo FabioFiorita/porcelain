@@ -2,7 +2,7 @@ import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { useRevealInFinder } from '@renderer/hooks/use-reveal-in-finder'
 import { fileName, relativeTo } from '@renderer/lib/paths'
 import { copyText } from '@renderer/lib/utils'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { runUserAction } from '@shared/background'
 
@@ -13,7 +13,7 @@ export function usePathActions(path: string): {
   findReferences: (text: string) => void
   exploreFlow: (symbol?: string) => void
 } {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const openTab = useTabsStore((s) => s.openTab)
   const reveal = useRevealInFinder()
 
@@ -28,7 +28,7 @@ export function usePathActions(path: string): {
     },
     copyRelativePath: () => {
       runUserAction(
-        () => copyText(relativeTo(repo?.path, path)),
+        () => copyText(relativeTo(project?.path, path)),
         (error) => {
           toastUserActionError('Copy relative path', error)
         },
@@ -41,10 +41,10 @@ export function usePathActions(path: string): {
       openTab({ id: tabId('search', query), kind: 'search', title: query, path: query })
     },
     // Open a read-only feature-flow explore seeded from this file (whole-file) or a
-    // symbol in it. The seed path is repo-relative — the walk resolves against the
-    // repo file list, not absolute paths.
+    // symbol in it. The seed path is project-relative — the walk resolves against the
+    // project file list, not absolute paths.
     exploreFlow: (symbol?: string) => {
-      const relative = relativeTo(repo?.path, path)
+      const relative = relativeTo(project?.path, path)
       const seed = symbol?.trim()
       openTab({
         id: tabId('explore', seed ? `${relative}#${seed}` : relative),

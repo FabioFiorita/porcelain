@@ -14,13 +14,12 @@ import type {
   ReviewComment,
 } from '@porcelain/contracts/review'
 import { type QueryClient, useMutation, useQueryClient } from '@tanstack/react-query'
-
+import { useActiveProject } from '@/features/projects'
 import { type DaemonClient, getDaemonClient } from '@/lib/daemon/client'
 import { isPaired } from '@/lib/daemon/environment'
 import { useActiveEnvironment } from '@/lib/daemon/environments-store'
 import { DaemonError } from '@/lib/daemon/errors'
 import { callDaemon, namedContractProcedure } from '@/lib/daemon/procedure'
-import { useActiveRepo } from '@/lib/daemon/repo'
 
 import { reviewCommentsQueryKey } from './comment-query-key'
 
@@ -33,7 +32,7 @@ import { reviewCommentsQueryKey } from './comment-query-key'
  * timestamps are supplied only here.
  *
  * Daemon scope is frozen per public-action invocation: environment id, transport client, and
- * repo path are captured before enqueue and carried in mutation variables so TanStack observer
+ * project path are captured before enqueue and carried in mutation variables so TanStack observer
  * updates after an environment switch cannot retarget an in-flight write.
  */
 
@@ -206,21 +205,21 @@ export function useCommentActions(): {
   isPending: boolean
   error: Error | null
 } {
-  const repo = useActiveRepo()
+  const project = useActiveProject()
   const environment = useActiveEnvironment()
   const queryClient = useQueryClient()
 
   /**
-   * Capture paired environment + repo at the public-action boundary. Every later mutation
+   * Capture paired environment + project at the public-action boundary. Every later mutation
    * callback reads this frozen scope from variables, never the live hook environment.
    */
   const captureScope = (procedure: string): CommentMutationScope | null => {
-    if (repo === null) return null
+    if (project === null) return null
     requirePaired(environment, procedure)
     return {
       environmentId: environment.id,
       client: getDaemonClient(environment),
-      repoPath: repo.path,
+      repoPath: project.path,
     }
   }
 

@@ -9,7 +9,7 @@ import { PANEL_CARD } from '@/components/surface-layout'
 import { Button } from '@/components/ui/button'
 import { Text as UiText } from '@/components/ui/text'
 import { Textarea } from '@/components/ui/textarea'
-import { useActiveRepo } from '@/lib/daemon/repo'
+import { useActiveProject } from '@/features/projects'
 import { cn } from '@/lib/utils'
 import { useCommitDraftStore } from './commit-draft-store'
 import { commitReady, stagingState } from './commit-staging'
@@ -32,8 +32,8 @@ import {
  * leading prefix, so a hand-written message with no prefix commits exactly as typed.
  */
 export function CommitCard({ active }: { active: boolean }): React.JSX.Element {
-  const repo = useActiveRepo()
-  const repoPath = repo?.path ?? ''
+  const project = useActiveProject()
+  const repoPath = project?.path ?? ''
   const message = useCommitDraftStore((state) => state.messages[repoPath] ?? '')
   const setMessage = useCommitDraftStore((state) => state.setMessage)
   const clearMessage = useCommitDraftStore((state) => state.clearMessage)

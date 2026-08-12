@@ -1,12 +1,14 @@
 import type { ChannelDisposition } from '@backend/project/companion-disposition'
 import { invalidateAfterSuccess, onMutationError } from '@renderer/hooks/mutation-error'
 import { trpc } from '@renderer/lib/trpc'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import type { CompanionDisposition } from '@shared/project-porcelain'
 
 export function useCompanionDispositions(): ChannelDisposition[] | undefined {
-  const repo = useRepoStore((s) => s.repo)
-  const { data } = trpc.companionDispositions.useQuery(repo?.path ?? '', { enabled: repo !== null })
+  const project = useProjectSelectionStore((s) => s.project)
+  const { data } = trpc.companionDispositions.useQuery(project?.path ?? '', {
+    enabled: project !== null,
+  })
   return data
 }
 
@@ -15,9 +17,9 @@ export function useCompanionGitVisibility(): {
   data: { hidden: boolean } | undefined
   isPending: boolean
 } {
-  const repo = useRepoStore((s) => s.repo)
-  const { data, isPending } = trpc.companionGitVisibility.useQuery(repo?.path ?? '', {
-    enabled: repo !== null,
+  const project = useProjectSelectionStore((s) => s.project)
+  const { data, isPending } = trpc.companionGitVisibility.useQuery(project?.path ?? '', {
+    enabled: project !== null,
   })
   return { data, isPending }
 }
@@ -28,7 +30,7 @@ export function useSetCompanionGitVisibility(): (hidden: boolean) => Promise<voi
     onError: onMutationError('Change git visibility'),
   })
   return async (hidden: boolean): Promise<void> => {
-    const repoPath = useRepoStore.getState().repo?.path
+    const repoPath = useProjectSelectionStore.getState().project?.path
     if (!repoPath) return
     await mutation.mutateAsync({ repoPath, hidden })
     await invalidateAfterSuccess(
@@ -52,7 +54,7 @@ export function useSetCompanionDisposition(): {
   })
   return {
     set: async (key, disposition): Promise<string[]> => {
-      const repoPath = useRepoStore.getState().repo?.path
+      const repoPath = useProjectSelectionStore.getState().project?.path
       if (!repoPath) return []
       const result = await mutation.mutateAsync({ repoPath, key, disposition })
       // Going Local stages a deletion; going Shared can lift the clone-wide

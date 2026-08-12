@@ -1,7 +1,6 @@
 import type { createDaemonRouter } from './daemon-composition/create-daemon-router'
 
 export type { DirEntry, FileView } from '@porcelain/contracts/files'
-export type { RepoInfo } from '@porcelain/contracts/projects'
 /**
  * The daemon's whole tRPC surface is built by the composition root. Callers
  * construct it once at process start (see `server.ts`); there is no process-global

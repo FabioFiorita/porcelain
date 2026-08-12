@@ -21,7 +21,7 @@ import { dirName, fileName } from '@renderer/lib/paths'
 import { useActionRunStore } from '@renderer/stores/action-run'
 import { useFileFinderStore } from '@renderer/stores/file-finder'
 import { usePreferencesStore } from '@renderer/stores/preferences'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useRevealStore } from '@renderer/stores/reveal'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { runUserAction } from '@shared/background'
@@ -51,7 +51,7 @@ function matchCommits(query: string, commits: Commit[]): Commit[] {
 }
 
 export function FileFinder(): React.JSX.Element {
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const openTab = useTabsStore((s) => s.openTab)
   const setSidebarTab = usePreferencesStore((s) => s.setSidebarTab)
   const reveal = useRevealStore((s) => s.reveal)
@@ -91,7 +91,7 @@ export function FileFinder(): React.JSX.Element {
   }, [setOpen])
 
   const { results: files, isFetching } = useFileSearch(debouncedQuery, open)
-  // Commands + commits match the already-loaded repo data instantly (no IPC), gated to
+  // Commands + commits match the already-loaded project data instantly (no IPC), gated to
   // when the finder is open so the always-mounted finder doesn't fetch them on launch.
   const commands = matchCommands(query, useActions(open))
   const commits = matchCommits(query, useGitLog(200, open) ?? [])
@@ -104,8 +104,8 @@ export function FileFinder(): React.JSX.Element {
   const labelled = kinds > 1
 
   const handleOpenFile = (result: SearchResult): void => {
-    if (!repo) return
-    const absolute = `${repo.path}/${result.path}`
+    if (!project) return
+    const absolute = `${project.path}/${result.path}`
     if (result.kind === 'dir') {
       // Porcelain isn't an editor — a folder can't open as a tab. Flip to the
       // Files tab and reveal it in the tree (expand down to it + scroll), the

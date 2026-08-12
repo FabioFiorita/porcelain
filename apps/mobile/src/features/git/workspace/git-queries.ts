@@ -11,11 +11,10 @@ import type { WorktreeInboxRow } from '@porcelain/contracts/review'
 import { reviewProcedures } from '@porcelain/contracts/review'
 import { keepPreviousData, type UseQueryResult, useQuery } from '@tanstack/react-query'
 import { useCallback } from 'react'
-
+import { useActiveProject } from '@/features/projects'
 import { isPaired } from '@/lib/daemon/environment'
 import { useActiveEnvironment } from '@/lib/daemon/environments-store'
 import { namedContractProcedure } from '@/lib/daemon/procedure'
-import { useActiveRepo } from '@/lib/daemon/repo'
 
 import { gitWorkspaceQueryKey } from './git-query-key'
 import { callGitQuery } from './use-git-reads'
@@ -46,10 +45,10 @@ export function useGitWorkspace(options: GitWorkspaceOptions = {}): {
   refreshBranches: () => Promise<void>
 } {
   const environment = useActiveEnvironment()
-  const repo = useActiveRepo()
+  const project = useActiveProject()
   const environmentId = environment?.id ?? 'none'
-  const projectPath = repo === null ? DISABLED_PROJECT : gitProjectKey(repo.path)
-  const enabled = isPaired(environment) && repo !== null && (options.enabled ?? true)
+  const projectPath = project === null ? DISABLED_PROJECT : gitProjectKey(project.path)
+  const enabled = isPaired(environment) && project !== null && (options.enabled ?? true)
   const placeholder = options.placeholderData === true ? keepPreviousData : undefined
 
   const head = useQuery({

@@ -22,7 +22,7 @@ import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import { useLocalDaemon, useLocalTerminalPath } from '@renderer/hooks/use-local-terminal'
 import { spawnLocalTerminal, spawnTerminal } from '@renderer/lib/terminal-actions'
 import { cn } from '@renderer/lib/utils'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { useTerminalsStore } from '@renderer/stores/terminals'
 import { runUserAction } from '@shared/background'
@@ -45,7 +45,7 @@ export function TerminalList(): React.JSX.Element {
   const sessions = useTerminalsStore((s) => s.sessions)
   const closeTerminal = useTerminalsStore((s) => s.close)
   const renameTerminal = useTerminalsStore((s) => s.rename)
-  const repo = useRepoStore((s) => s.repo)
+  const project = useProjectSelectionStore((s) => s.project)
   const openTab = useTabsStore((s) => s.openTab)
   const retitleTerminalTab = useTabsStore((s) => s.retitleTerminalTab)
   const activeTabId = useTabsStore((s) => {
@@ -59,14 +59,14 @@ export function TerminalList(): React.JSX.Element {
   // "This device" terminals exist only when this window is on ANOTHER machine; on a local
   // window the option would just be a second way to spawn the same shell.
   const localDaemon = useLocalDaemon()
-  const canSpawnLocal = localDaemon !== undefined && !localDaemon.isLocal && repo !== null
-  const mappedLocalPath = useLocalTerminalPath(repo?.path ?? null)
+  const canSpawnLocal = localDaemon !== undefined && !localDaemon.isLocal && project !== null
+  const mappedLocalPath = useLocalTerminalPath(project?.path ?? null)
   const identity = useDaemonIdentity()
   // Path dialog: 'spawn' also opens a terminal after save; 'edit' only updates the map.
   const [mappingMode, setMappingMode] = useState<LocalPathDialogMode | null>(null)
 
   const handleSpawnLocal = (): void => {
-    if (!repo) return
+    if (!project) return
     if (mappedLocalPath == null || mappedLocalPath === '') {
       setMappingMode('spawn')
       return
@@ -114,10 +114,10 @@ export function TerminalList(): React.JSX.Element {
               title={
                 hasMappedPath
                   ? `This device folder: ${mappedLocalPath}`
-                  : 'Set this device folder (local clone of this repo)'
+                  : 'Set this device folder (local clone of this project)'
               }
               data-testid={TestIds.localTerminalPathButton}
-              disabled={!repo}
+              disabled={!project}
             >
               <FolderPen />
             </Button>
@@ -157,7 +157,7 @@ export function TerminalList(): React.JSX.Element {
               onClick={handleSpawnRemote}
               aria-label="New terminal"
               data-testid={TestIds.terminalNew}
-              disabled={!repo}
+              disabled={!project}
             >
               <Plus />
             </Button>
@@ -246,10 +246,10 @@ export function TerminalList(): React.JSX.Element {
           onClose={() => setRenaming(null)}
         />
       )}
-      {mappingMode && repo && (
+      {mappingMode && project && (
         <LocalPathDialog
           key={`${mappingMode}:${mappedLocalPath ?? ''}`}
-          repoPath={repo.path}
+          repoPath={project.path}
           initialPath={mappedLocalPath ?? null}
           mode={mappingMode}
           // Spawn mode opens a terminal from the just-saved value (query invalidation

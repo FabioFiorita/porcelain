@@ -10,7 +10,7 @@ import {
 } from '@renderer/hooks/use-commit'
 import { useGitFlow } from '@renderer/hooks/use-git-flow'
 import { useCommitDraftStore } from '@renderer/stores/commit-draft'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { CommitGroup } from './commit-group'
@@ -56,7 +56,7 @@ function renderGroup(): void {
 
 describe('CommitGroup', () => {
   beforeEach(() => {
-    useRepoStore.setState({ repo: { path: '/repo', name: 'repo' } })
+    useProjectSelectionStore.setState({ project: { path: '/repo', name: 'repo' } })
     useCommitDraftStore.setState({ messages: {} })
     vi.mocked(useCommit).mockReturnValue({ commit: vi.fn(), isCommitting: false, error: null })
     vi.mocked(useCommitConventions).mockReturnValue(conventions)
