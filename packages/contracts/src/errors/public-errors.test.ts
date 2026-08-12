@@ -33,6 +33,11 @@ import {
   terminalPasteUnavailableErrorSchema,
 } from '../index'
 import {
+  projectsNotADirectoryErrorSchema,
+  projectsNotFoundErrorSchema,
+  projectsUnavailableErrorSchema,
+} from '../projects/projects.errors'
+import {
   reviewCommentNotFoundErrorSchema,
   reviewUnavailableErrorSchema,
 } from '../review/review.errors'
@@ -51,6 +56,9 @@ const memberSchemas = {
   'board.invalid-title': boardInvalidTitleErrorSchema,
   'review.unavailable': reviewUnavailableErrorSchema,
   'review.comment-not-found': reviewCommentNotFoundErrorSchema,
+  'projects.not-found': projectsNotFoundErrorSchema,
+  'projects.not-a-directory': projectsNotADirectoryErrorSchema,
+  'projects.unavailable': projectsUnavailableErrorSchema,
   'files.already-exists': filesAlreadyExistsErrorSchema,
   'files.path-outside-project': filesPathOutsideProjectErrorSchema,
   'files.not-found': filesNotFoundErrorSchema,
@@ -95,6 +103,14 @@ const expectedMembers = [
     retryable: false,
     hasDetails: true,
   },
+  { code: 'projects.not-found', category: 'not-found', retryable: false, hasDetails: false },
+  {
+    code: 'projects.not-a-directory',
+    category: 'invalid-request',
+    retryable: false,
+    hasDetails: false,
+  },
+  { code: 'projects.unavailable', category: 'unavailable', retryable: true, hasDetails: false },
   {
     code: 'files.already-exists',
     category: 'conflict',
@@ -146,7 +162,7 @@ const expectedMembers = [
 ] as const
 
 describe('public error contracts', () => {
-  it('exports the system, Board, Review, Files, Git, and Terminal public members and categories', () => {
+  it('exports the system, Project, Board, Review, Files, Git, and Terminal public members and categories', () => {
     expect(Object.keys(memberSchemas).sort()).toEqual(
       expectedMembers.map(({ code }) => code).sort(),
     )

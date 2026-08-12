@@ -101,8 +101,8 @@ case is a compile error.
   action (`switchTo`); never clear tabs ad hoc. Both switchers carry a per-row "open in new window"
   leaving this window and its terminals untouched (worktrees get worked side by side).
 - **A linked worktree is NOT a project:** `recentRepos` drops paths whose `.git` is a file (one
-  `stat`, never a git spawn — the endpoint is hot), so a checkout has one home; they stay in stored
-  recents so quitting inside a worktree reopens there.
+  `stat`, never a git spawn — the endpoint is hot), so a checkout has one home; they stay in the
+  strict Projects-recents document so quitting inside a worktree reopens there.
 - **HEAD is reported structurally, never as a label:** `gitHead` returns `{ branch, detachedSha }`
   and the ONE rendering is `headLabel` — that's why nothing string-sniffs `'HEAD'` or invents a
   second "(detached)".

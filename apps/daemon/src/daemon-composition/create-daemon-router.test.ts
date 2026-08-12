@@ -12,6 +12,7 @@ vi.mock('../review/review-watch', () => ({
   watchProjectCompanion: vi.fn(),
 }))
 
+import type { ProjectsOperations } from '../features/projects'
 import type { TerminalOperations } from '../features/terminal'
 import { createDaemonRouter } from './create-daemon-router'
 import { createDaemonOperations } from './daemon-operations'
@@ -39,6 +40,15 @@ function terminalOperations(): TerminalOperations {
   }
 }
 
+function projectsOperations(): ProjectsOperations {
+  return {
+    openProject: async () => ({ ok: false, error: { code: 'projects.not-found' } }),
+    listRecentProjects: async () => ({ ok: true, value: [] }),
+    removeRecentProject: async () => ({ ok: true, value: undefined }),
+    browseProjectDirectories: async () => ({ ok: false, error: { code: 'projects.unavailable' } }),
+  }
+}
+
 describe('createDaemonRouter composition', () => {
   let root = ''
   let repo = ''
@@ -55,6 +65,7 @@ describe('createDaemonRouter composition', () => {
   it('exposes the complete flat procedure key set from a single composition root', () => {
     const operations = createDaemonOperations({
       publishSessionChange: () => undefined,
+      projects: projectsOperations(),
       terminal: terminalOperations(),
     })
     expect(Object.isFrozen(operations)).toBe(true)
@@ -62,6 +73,7 @@ describe('createDaemonRouter composition', () => {
     expect(operations.reviewComments).toBeDefined()
     expect(operations.files).toBeDefined()
     expect(operations.git).toBeDefined()
+    expect(operations.projects).toBeDefined()
     expect(operations.terminal).toBeDefined()
 
     const router = createDaemonRouter({ operations })
@@ -74,6 +86,7 @@ describe('createDaemonRouter composition', () => {
   it('calls listBoardCards through the composed router against a temporary project board', async () => {
     const operations = createDaemonOperations({
       publishSessionChange: () => undefined,
+      projects: projectsOperations(),
       terminal: terminalOperations(),
     })
     const router = createDaemonRouter({ operations })
@@ -94,10 +107,12 @@ describe('createDaemonRouter composition', () => {
   it('supplies the operation catalog at construction rather than through a module mock', () => {
     const first = createDaemonOperations({
       publishSessionChange: () => undefined,
+      projects: projectsOperations(),
       terminal: terminalOperations(),
     })
     const second = createDaemonOperations({
       publishSessionChange: () => undefined,
+      projects: projectsOperations(),
       terminal: terminalOperations(),
     })
     expect(first).not.toBe(second)

@@ -2,7 +2,6 @@ import { z } from 'zod'
 
 export const appConfigSchema = z
   .object({
-    recentRepos: z.array(z.string()).default([]),
     // Global (not per-repo): when true the daemon additionally listens on the
     // detected Tailscale interface (see backend/tailnet.ts + server.ts), gated on
     // the same authentication gate. Absent/false ⇒ loopback only. Toggled from Settings.
@@ -19,23 +18,7 @@ export const appConfigSchema = z
 
 export type AppConfig = z.infer<typeof appConfigSchema>
 
-export const emptyConfig: AppConfig = { recentRepos: [] }
-
-const MAX_RECENTS = 10
-
-export function withRecentRepo(config: AppConfig, repoPath: string): AppConfig {
-  return {
-    ...config,
-    recentRepos: [repoPath, ...config.recentRepos.filter((p) => p !== repoPath)].slice(
-      0,
-      MAX_RECENTS,
-    ),
-  }
-}
-
-export function withoutRecentRepo(config: AppConfig, repoPath: string): AppConfig {
-  return { ...config, recentRepos: config.recentRepos.filter((p) => p !== repoPath) }
-}
+export const emptyConfig: AppConfig = {}
 
 /**
  * Repo-relative file paths with hidden entries removed. Hidden paths may be

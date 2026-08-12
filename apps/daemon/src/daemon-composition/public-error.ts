@@ -26,6 +26,11 @@ type PublicErrorShape = Omit<TRPCDefaultErrorShape, 'data' | 'message'> & {
   data: Omit<TRPCDefaultErrorShape['data'], 'stack'> & { porcelain: PorcelainError }
 }
 
+export function publicErrorFor<Code extends PorcelainError['code']>(
+  code: Code,
+  requestId: string,
+  details?: PublicErrorDetails,
+): Extract<PorcelainError, { code: Code }>
 export function publicErrorFor(
   code: PorcelainError['code'],
   requestId: string,

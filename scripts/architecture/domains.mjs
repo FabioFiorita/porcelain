@@ -22,6 +22,9 @@ export const DOMAIN_MIGRATIONS = Object.freeze(
         targetRoots.push('apps/web/src/features/board')
         targetRoots.push('apps/mobile/src/features/board')
       }
+      if (key === 'projects') {
+        targetRoots.push('apps/daemon/src/features/projects')
+      }
       // Review comments: contracts + daemon (RVC-001), client-runtime (RVC-002), Web (RVC-003),
       // mobile (RVC-004).
       if (key === 'review') {

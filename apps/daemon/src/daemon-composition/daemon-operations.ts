@@ -2,6 +2,7 @@ import type { SessionChange } from '@porcelain/contracts/session'
 import { type BoardOperations, createBoardOperations } from '../features/board'
 import { createFilesOperations, type FilesOperations } from '../features/files'
 import { createGitOperations, type GitOperations } from '../features/git'
+import type { ProjectsOperations } from '../features/projects'
 import { createReviewCommentOperations, type ReviewCommentOperations } from '../features/review'
 import type { TerminalOperations } from '../features/terminal'
 import { publishSessionChange } from '../session/live-session'
@@ -16,6 +17,7 @@ export type DaemonOperations = Readonly<{
   reviewComments: ReviewCommentOperations
   files: FilesOperations
   git: GitOperations
+  projects: ProjectsOperations
   terminal: TerminalOperations
 }>
 
@@ -24,6 +26,7 @@ export interface CreateDaemonRouterOptions {
 }
 
 export function createDaemonOperations(options: {
+  projects: ProjectsOperations
   terminal: TerminalOperations
   publishSessionChange?: (change: SessionChange) => void
 }): DaemonOperations {
@@ -37,6 +40,7 @@ export function createDaemonOperations(options: {
     }),
     files: createFilesOperations({ publishSessionChange: publish }),
     git: createGitOperations(),
+    projects: options.projects,
     terminal: options.terminal,
   })
 }

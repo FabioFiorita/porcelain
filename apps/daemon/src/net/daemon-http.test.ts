@@ -11,6 +11,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import WebSocket from 'ws'
 
 import { createDaemonOperations, createDaemonRouter } from '../api'
+import type { ProjectsOperations } from '../features/projects'
 import type { TerminalOperations } from '../features/terminal'
 import {
   closeAllSessions,
@@ -39,8 +40,21 @@ const terminalOperations: TerminalOperations = {
   sweep: vi.fn(),
 }
 
+const projectsOperations: ProjectsOperations = {
+  openProject: vi.fn(async () => ({ ok: false, error: { code: 'projects.not-found' } })),
+  listRecentProjects: vi.fn(async () => ({ ok: true, value: [] })),
+  removeRecentProject: vi.fn(async () => ({ ok: true, value: undefined })),
+  browseProjectDirectories: vi.fn(async () => ({
+    ok: false,
+    error: { code: 'projects.unavailable' },
+  })),
+}
+
 const router = createDaemonRouter({
-  operations: createDaemonOperations({ terminal: terminalOperations }),
+  operations: createDaemonOperations({
+    projects: projectsOperations,
+    terminal: terminalOperations,
+  }),
 })
 
 const TOKEN = 'test-token'

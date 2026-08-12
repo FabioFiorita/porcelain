@@ -1,8 +1,7 @@
 import { stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { withRecentRepo } from './repo-config'
-import { updateConfig } from './stores/config-store'
+import { configuredProjectsRecentsStore } from './features/projects'
 
 export function devRepoPath(source: NodeJS.ProcessEnv = process.env, home = homedir()): string {
   return source.PORCELAIN_DEV_PLAYGROUND ?? join(home, 'code', 'porcelain-playground')
@@ -19,7 +18,9 @@ export async function seedDevConfig(): Promise<void> {
   } catch {
     return
   }
-  await updateConfig((config) =>
-    config.recentRepos.length > 0 ? config : withRecentRepo(config, devRepo),
-  )
+  const recents = configuredProjectsRecentsStore()
+  const current = await recents.readPaths()
+  if (!current.ok || current.value.length > 0) return
+  const seeded = await recents.addPath(devRepo)
+  if (!seeded.ok) return
 }

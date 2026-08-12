@@ -25,7 +25,11 @@ vi.mock('node:fs/promises', () => ({
 }))
 
 vi.mock('../session/live-session', () => ({ publishSessionChange }))
-vi.mock('../stores/config-store', () => ({ loadConfig: vi.fn(async () => ({ recentRepos: [] })) }))
+vi.mock('../features/projects', () => ({
+  configuredProjectsRecentsStore: vi.fn(() => ({
+    readPaths: vi.fn(async () => ({ ok: true, value: [] })),
+  })),
+}))
 
 import { syncProjectWatches } from './review-watch'
 

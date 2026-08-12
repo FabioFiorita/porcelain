@@ -17,6 +17,11 @@ import {
   gitWorktreeConflictErrorSchema,
 } from '../git'
 import {
+  projectsNotADirectoryErrorSchema,
+  projectsNotFoundErrorSchema,
+  projectsUnavailableErrorSchema,
+} from '../projects'
+import {
   reviewCommentNotFoundErrorSchema,
   reviewUnavailableErrorSchema,
 } from '../review/review.errors'
@@ -66,6 +71,9 @@ export const publicErrorSchema = z.discriminatedUnion('code', [
   boardInvalidTitleErrorSchema,
   reviewUnavailableErrorSchema,
   reviewCommentNotFoundErrorSchema,
+  projectsNotFoundErrorSchema,
+  projectsNotADirectoryErrorSchema,
+  projectsUnavailableErrorSchema,
   filesAlreadyExistsErrorSchema,
   filesPathOutsideProjectErrorSchema,
   filesNotFoundErrorSchema,

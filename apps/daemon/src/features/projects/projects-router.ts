@@ -1,0 +1,47 @@
+import { procedureCatalog } from '@porcelain/contracts'
+import { expectedFailure } from '../../daemon-composition/expected-failure'
+import { toTrpcError } from '../../daemon-composition/public-error'
+import { publicProcedure, t } from '../../trpc'
+import type { ProjectOperationResult, ProjectsOperations } from './projects-operations'
+
+function throwIfFailed<Value>(result: ProjectOperationResult<Value>): Value {
+  if (result.ok) return result.value
+  switch (result.error.code) {
+    case 'projects.not-found':
+      throw toTrpcError(expectedFailure('projects.not-found'))
+    case 'projects.not-a-directory':
+      throw toTrpcError(expectedFailure('projects.not-a-directory'))
+    case 'projects.unavailable':
+      throw toTrpcError(expectedFailure('projects.unavailable'))
+  }
+}
+
+export function createProjectsRouter(operations: ProjectsOperations) {
+  return t.router({
+    openRepoPath: publicProcedure
+      .input(procedureCatalog.openRepoPath.input)
+      .output(procedureCatalog.openRepoPath.output)
+      .mutation(async ({ input }) => throwIfFailed(await operations.openProject(input))),
+
+    recentRepos: publicProcedure
+      .input(procedureCatalog.recentRepos.input)
+      .output(procedureCatalog.recentRepos.output)
+      .query(async ({ input }) =>
+        throwIfFailed(
+          await operations.listRecentProjects({
+            includeWorktrees: input?.includeWorktrees ?? false,
+          }),
+        ),
+      ),
+
+    removeRecentRepo: publicProcedure
+      .input(procedureCatalog.removeRecentRepo.input)
+      .output(procedureCatalog.removeRecentRepo.output)
+      .mutation(async ({ input }) => throwIfFailed(await operations.removeRecentProject(input))),
+
+    browseDirs: publicProcedure
+      .input(procedureCatalog.browseDirs.input)
+      .output(procedureCatalog.browseDirs.output)
+      .query(async ({ input }) => throwIfFailed(await operations.browseProjectDirectories(input))),
+  })
+}

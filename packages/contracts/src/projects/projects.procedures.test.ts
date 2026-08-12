@@ -9,6 +9,13 @@ const expectedKinds = {
   browseDirs: 'query',
 } as const
 
+const expectedErrors = {
+  openRepoPath: ['projects.not-found', 'projects.not-a-directory', 'projects.unavailable'],
+  recentRepos: ['projects.unavailable'],
+  removeRecentRepo: ['projects.unavailable'],
+  browseDirs: ['projects.not-found', 'projects.not-a-directory', 'projects.unavailable'],
+} as const
+
 const invalidInputs = {
   openRepoPath: 42,
   recentRepos: { includeWorktrees: 'true' },
@@ -32,6 +39,12 @@ describe('Projects procedure contracts', () => {
     expect(Object.keys(projectsProcedures).sort()).toEqual(Object.keys(expectedKinds).sort())
     for (const [name, kind] of Object.entries(expectedKinds)) {
       expect(projectsProcedures[name as keyof typeof projectsProcedures].kind).toBe(kind)
+    }
+  })
+
+  it('declares the exact typed Project failures for each procedure', () => {
+    for (const [name, errors] of Object.entries(expectedErrors)) {
+      expect(projectsProcedures[name as keyof typeof projectsProcedures].errors).toEqual(errors)
     }
   })
 

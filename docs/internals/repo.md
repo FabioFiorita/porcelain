@@ -25,8 +25,9 @@
   `context` option it falls back to a module-level singleton, so nesting the shell Provider inside
   the app Provider silently routes ALL app hooks to the shell client ("No procedure found" hang).
 - Procedure catalog: `packages/contracts` + `scripts/lint-procedure-contracts.mjs`.
-- Daemon `userData/config.json` holds recents + global bind flags only. Notes, layers, reviewed marks,
-  and scope live under `~/.porcelain/*.json` so the dependency-free CLI can read them.
+- Daemon `userData/config.json` holds global Remote bind flags only; Project recents are owned by
+  the daemon's separate strict-v1 `userData/projects-recents.json` document. Notes, layers, reviewed
+  marks, and scope live under `~/.porcelain/*.json` so the dependency-free CLI can read them.
 
 ## Packaging, release, conventions
 

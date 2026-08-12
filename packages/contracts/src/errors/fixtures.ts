@@ -97,6 +97,27 @@ export const publicErrorFixtures = {
     requestId: '00000000-0000-4000-8000-00000000000d',
     details: { commentId: 'comment-synthetic-001' },
   },
+  'projects.not-found': {
+    code: 'projects.not-found',
+    category: 'not-found',
+    message: 'The Project path was not found.',
+    retryable: false,
+    requestId: '00000000-0000-4000-8000-00000000001b',
+  },
+  'projects.not-a-directory': {
+    code: 'projects.not-a-directory',
+    category: 'invalid-request',
+    message: 'The Project path is not a directory.',
+    retryable: false,
+    requestId: '00000000-0000-4000-8000-00000000001c',
+  },
+  'projects.unavailable': {
+    code: 'projects.unavailable',
+    category: 'unavailable',
+    message: 'The Project is unavailable.',
+    retryable: true,
+    requestId: '00000000-0000-4000-8000-00000000001d',
+  },
   'files.already-exists': {
     code: 'files.already-exists',
     category: 'conflict',

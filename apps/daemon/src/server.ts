@@ -4,17 +4,24 @@ import { createDaemonOperations, createDaemonRouter } from './api'
 import { ensureCli } from './cli-install'
 import { seedDevConfig } from './dev-config'
 import {
+  createNodeProjectsPort,
+  createProjectsOperations,
+  initProjectsRecentsDir,
+} from './features/projects'
+import {
   createPtyAdapter,
   createTerminalEnvironment,
   createTerminalOperations,
   createTerminalPasteAdapter,
 } from './features/terminal'
+import { warmFileList } from './git/git'
+import { isLinkedWorktree } from './git/linked-worktree'
 import { ensureAdminToken } from './net/admin-token'
 import { createDaemonHttp } from './net/daemon-http'
 import { setFunnelDaemonPort, startFunnel } from './net/funnel'
 import { rendererDistExists, serveStatic } from './net/static-server'
 import { initIfaceHandlers, startLanListener, startTailnetListener } from './net/tailnet-listener'
-import { watchAgentChannels } from './review/review-watch'
+import { watchAgentChannels, watchProjectCompanion } from './review/review-watch'
 import { createSession } from './session/live-session'
 import { authenticateClientToken, exchangePairingGrant } from './stores/access-store'
 import { initConfigDir, loadConfig } from './stores/config-store'
@@ -48,6 +55,7 @@ if (userData === undefined || userData === '') {
   process.exit(1)
 }
 initConfigDir(userData)
+const projectsRecents = initProjectsRecentsDir(userData)
 
 // The single daemon shutdown path. Every shutdown route (SIGTERM from the shell's
 // utilityProcess.kill, SIGINT at a TTY, or the stdin-EOF watchdog) converges here.
@@ -103,7 +111,13 @@ async function main(): Promise<void> {
     pty: createPtyAdapter({ environment: terminalEnvironment }),
     paste: createTerminalPasteAdapter({ root: porcelainHomePath('terminal-pastes') }),
   })
-  const operations = createDaemonOperations({ terminal })
+  const projects = createProjectsOperations({
+    projects: createNodeProjectsPort(),
+    recents: projectsRecents,
+    worktree: { isLinkedWorktree },
+    effects: { watchProjectCompanion, warmFileList },
+  })
+  const operations = createDaemonOperations({ projects, terminal })
   const router = createDaemonRouter({ operations })
   daemon = createDaemonHttp({
     adminTokenHash: tokenHash,
@@ -129,8 +143,8 @@ async function main(): Promise<void> {
     )
   }
 
-  // Dev seeding moved here from the shell with the config store: the playground
-  // recent is config state, and the daemon owns config now. Same semantics —
+  // Dev seeding moved here from the shell with the Projects-recents store: the
+  // playground recent is Project state, and the daemon owns that document now. Same semantics —
   // gated on dev (the shell sets PORCELAIN_DEV from `is.dev`) and a no-op once
   // any recent exists.
   if (process.env.PORCELAIN_DEV === '1') await seedDevConfig()

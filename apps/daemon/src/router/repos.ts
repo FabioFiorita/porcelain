@@ -2,13 +2,6 @@ import { readdir, stat } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import { procedureCatalog } from '@porcelain/contracts'
 import type { DirEntry } from '@porcelain/contracts/files'
-import { type BrowseResult, browseDirs } from '../git/browse'
-import { warmFileList } from '../git/git'
-import { isLinkedWorktree } from '../git/linked-worktree'
-import { ensureProjectCompanion } from '../project/migrate-home'
-import { withoutRecentRepo, withRecentRepo } from '../repo-config'
-import { watchProjectCompanion } from '../review/review-watch'
-import { loadConfig, updateConfig } from '../stores/config-store'
 import {
   hiddenPathsForRepo,
   hidePath as hideScopePath,
@@ -19,75 +12,8 @@ import {
 } from '../stores/scope-store'
 import { publicProcedure, t } from '../trpc'
 
-export interface RepoInfo {
-  path: string
-  name: string
-}
-
-const toRepoInfo = (path: string): RepoInfo => ({ path, name: basename(path) })
-
-async function recordRecent(path: string): Promise<void> {
-  await updateConfig((config) => withRecentRepo(config, path))
-}
-
 export function createReposRouter() {
   return t.router({
-    openRepoPath: publicProcedure
-      .input(procedureCatalog.openRepoPath.input)
-      .output(procedureCatalog.openRepoPath.output)
-      .mutation(async ({ input }): Promise<RepoInfo> => {
-        await stat(input)
-        await recordRecent(input)
-        // One-way migrate home companion data into <repo>/.porcelain when present.
-        await ensureProjectCompanion(input)
-        watchProjectCompanion(input)
-        warmFileList(input)
-        return toRepoInfo(input)
-      }),
-
-    recentRepos: publicProcedure
-      // Linked worktrees are dropped by default: a worktree already has a home in the
-      // footer's worktree switcher, so listing it as a project too shows one checkout
-      // under two identities. They stay in the STORED recents — `includeWorktrees` is
-      // what lets last-repo restore land back in the worktree the human left.
-      .input(procedureCatalog.recentRepos.input)
-      .output(procedureCatalog.recentRepos.output)
-      .query(async ({ input }): Promise<RepoInfo[]> => {
-        const includeWorktrees = input?.includeWorktrees ?? false
-        const config = await loadConfig()
-        const existing = await Promise.all(
-          config.recentRepos.map(async (path) => {
-            try {
-              await stat(path)
-              if (!includeWorktrees && (await isLinkedWorktree(path))) return null
-              return path
-            } catch {
-              return null
-            }
-          }),
-        )
-        return existing.filter((p): p is string => p !== null).map(toRepoInfo)
-      }),
-
-    // Drop a repo from the recents list. Removes only the recents entry — project
-    // companion data lives in <repo>/.porcelain and survives remove + re-open.
-    removeRecentRepo: publicProcedure
-      .input(procedureCatalog.removeRecentRepo.input)
-      .output(procedureCatalog.removeRecentRepo.output)
-      .mutation(async ({ input }) => {
-        await updateConfig((config) => withoutRecentRepo(config, input))
-      }),
-
-    // Daemon-side directory browser for the repo picker (replaces the native
-    // open-folder dialog — repos are daemon paths, so a remote daemon must pick
-    // ITS paths; see remote-envs decision 5). `null` starts at the daemon home.
-    // Directory NAMES only, never file contents; any token-holder can already open
-    // any path via openRepoPath, so this widens nothing.
-    browseDirs: publicProcedure
-      .input(procedureCatalog.browseDirs.input)
-      .output(procedureCatalog.browseDirs.output)
-      .query(({ input }): Promise<BrowseResult> => browseDirs(input)),
-
     readDir: publicProcedure
       .input(procedureCatalog.readDir.input)
       .output(procedureCatalog.readDir.output)

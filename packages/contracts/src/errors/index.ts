@@ -17,6 +17,11 @@ export {
   gitWorktreeConflictErrorSchema,
 } from '../git'
 export {
+  projectsNotADirectoryErrorSchema,
+  projectsNotFoundErrorSchema,
+  projectsUnavailableErrorSchema,
+} from '../projects'
+export {
   reviewCommentNotFoundErrorDetailsSchema,
   reviewCommentNotFoundErrorSchema,
   reviewUnavailableErrorSchema,

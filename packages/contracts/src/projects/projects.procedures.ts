@@ -15,25 +15,25 @@ const projectsProcedureDefinitions = {
     kind: 'mutation',
     input: openRepoPathInputSchema,
     output: openRepoPathOutputSchema,
-    errors: [],
+    errors: ['projects.not-found', 'projects.not-a-directory', 'projects.unavailable'],
   },
   recentRepos: {
     kind: 'query',
     input: recentReposInputSchema,
     output: recentReposOutputSchema,
-    errors: [],
+    errors: ['projects.unavailable'],
   },
   removeRecentRepo: {
     kind: 'mutation',
     input: removeRecentRepoInputSchema,
     output: removeRecentRepoOutputSchema,
-    errors: [],
+    errors: ['projects.unavailable'],
   },
   browseDirs: {
     kind: 'query',
     input: browseDirsInputSchema,
     output: browseDirsOutputSchema,
-    errors: [],
+    errors: ['projects.not-found', 'projects.not-a-directory', 'projects.unavailable'],
   },
 } as const
 

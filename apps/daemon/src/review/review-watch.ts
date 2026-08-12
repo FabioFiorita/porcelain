@@ -11,8 +11,8 @@ import {
   projectEvidenceResultsDir,
   projectPorcelainDir,
 } from '@shared/project-porcelain'
+import { configuredProjectsRecentsStore } from '../features/projects'
 import { publishSessionChange } from '../session/live-session'
-import { loadConfig } from '../stores/config-store'
 
 /**
  * Watch each open project's `.porcelain/` directory for agent/app channel writes
@@ -23,7 +23,7 @@ import { loadConfig } from '../stores/config-store'
  * is recursive and would materialize e2e "absent" paths (and any stale recent)
  * into real directories, skipping Welcome.
  *
- * Re-syncs watches when recent repos change (openRepoPath updates config).
+ * Re-syncs watches when recent Projects change (openRepoPath updates the Projects-recents store).
  */
 
 type WatchedRepo = {
@@ -156,8 +156,8 @@ export async function watchAgentChannels(): Promise<void> {
 
 /** Start watches for recent repos (and any newly opened path). */
 export async function syncProjectWatches(extraRepo?: string): Promise<void> {
-  const config = await loadConfig()
-  const paths = new Set(config.recentRepos)
+  const recents = await configuredProjectsRecentsStore().readPaths()
+  const paths = new Set(recents.ok ? recents.value : [])
   if (extraRepo) paths.add(extraRepo)
   await Promise.all([...paths].map((repo) => watchRepo(repo)))
 }

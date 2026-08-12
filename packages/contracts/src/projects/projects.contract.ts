@@ -7,7 +7,9 @@ export const repoInfoSchema = z
   })
   .strict()
 
-export type RepoInfo = z.infer<typeof repoInfoSchema>
+export type ProjectInfo = z.infer<typeof repoInfoSchema>
+/** Stable external alias retained until PRJ-003 removes product-boundary repo vocabulary. */
+export type RepoInfo = ProjectInfo
 
 export const browseEntrySchema = z
   .object({

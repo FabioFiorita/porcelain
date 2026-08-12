@@ -1,4 +1,4 @@
-import type { BrowseResult } from '@backend/git/browse'
+import type { BrowseDirsOutput } from '@porcelain/contracts/projects'
 import { trpc } from '@renderer/lib/trpc'
 import { keepPreviousData } from '@tanstack/react-query'
 
@@ -12,7 +12,7 @@ export function useBrowseDirs(
   path: string | null,
   enabled: boolean,
 ): {
-  result: BrowseResult | undefined
+  result: BrowseDirsOutput | undefined
   error: { message: string } | null
   isFetching: boolean
 } {
