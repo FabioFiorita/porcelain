@@ -24,6 +24,7 @@ vi.mock('@renderer/lib/local-daemon', () => ({
 vi.mock('@renderer/features/terminal', () => ({
   terminalAdapterFor: vi.fn(() => ({ killTerminal, detachTerminal })),
   terminalAdapterForSession: vi.fn(() => ({ createTerminal: vi.fn() })),
+  renameTerminalOnDaemon: vi.fn().mockResolvedValue(undefined),
 }))
 vi.mock('@renderer/lib/terminal-registry', () => ({
   disposeTerminal: vi.fn(),

@@ -2,8 +2,8 @@
 import { publicErrorSchema } from '@porcelain/contracts'
 import { callTRPCProcedure } from '@trpc/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { normalizePublicError } from '../daemon-composition/public-error'
-import { createTerminalRouter } from './terminal'
+import { normalizePublicError } from '../../daemon-composition/public-error'
+import { createTerminalRouter } from './terminal-router'
 
 // Terminal residual surface only: roster + rename. Actions live on the Actions feature router.
 const terminal = {

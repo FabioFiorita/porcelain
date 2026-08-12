@@ -1,6 +1,10 @@
 /** Web Terminal public boundary: transport adapter, roster binding, and recovery copy. */
 
 export { applyTerminalRecovery, terminalPasteFailureMessage } from './terminal-notifications'
+export {
+  invalidateTerminalSessionsQueries,
+  terminalSessionsQueryKey,
+} from './terminal-query-key'
 export { useTerminalRoster } from './terminal-roster'
 export {
   type BrowserTerminalAdapter,
@@ -14,3 +18,4 @@ export {
   terminalAdapterForSession,
   useTerminalStream,
 } from './terminal-stream-adapter'
+export { listTerminalSessionsOnDaemon, renameTerminalOnDaemon } from './terminal-transport'

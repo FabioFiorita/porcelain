@@ -1,4 +1,8 @@
-import { terminalAdapterFor, terminalAdapterForSession } from '@renderer/features/terminal'
+import {
+  renameTerminalOnDaemon,
+  terminalAdapterFor,
+  terminalAdapterForSession,
+} from '@renderer/features/terminal'
 import { primary } from '@renderer/lib/daemon'
 import {
   forgetLocalTerminal,
@@ -9,6 +13,7 @@ import {
 import { disposeTerminal } from '@renderer/lib/terminal-registry'
 import { trpcClient } from '@renderer/lib/trpc'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
+import { settleBackground } from '@shared/background'
 import { create } from 'zustand'
 
 /**
@@ -141,10 +146,13 @@ export const useTerminalsStore = create<TerminalsState>((set, get) => ({
     const trimmed = name.trim()
     if (trimmed === '') return
     // Write through to the daemon that OWNS this session so the rename survives a reload
-    // (the roster is daemon-owned); optimistically update the row too.
+    // (the roster is daemon-owned); optimistically update the row too. Fire-and-forget:
+    // the five-second roster poll remains the backstop (no mandatory invalidation).
     const client =
       get().sessions.find((s) => s.id === id)?.origin === 'local' ? localDaemonClient() : trpcClient
-    client?.renameTerminal.mutate({ id, name: trimmed })
+    if (client !== null) {
+      settleBackground(renameTerminalOnDaemon(client, { id, name: trimmed }), 'fallback')
+    }
     set((state) => ({
       sessions: state.sessions.map((s) => (s.id === id ? { ...s, name: trimmed } : s)),
     }))

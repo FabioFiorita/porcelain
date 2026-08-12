@@ -1,8 +1,12 @@
 import { procedureCatalog } from '@porcelain/contracts'
-import type { TerminalOperations } from '../features/terminal'
-import { publicProcedure, t } from '../trpc'
+import { publicProcedure, t } from '../../trpc'
+import type { TerminalOperations } from './terminal-ports'
 
-export function createTerminalRouter(terminal: TerminalOperations) {
+/**
+ * Terminal feature router — residual request/response surface only:
+ * `terminalSessions` and `renameTerminal`. Create/attach/write ride the WS stream.
+ */
+export function createTerminalRouter(operations: TerminalOperations) {
   return t.router({
     // The daemon-owned terminal roster — every live/exited PTY with its name, cwd, and
     // status. The renderer hydrates its sidebar list from this (filtered to the current
@@ -12,13 +16,13 @@ export function createTerminalRouter(terminal: TerminalOperations) {
     terminalSessions: publicProcedure
       .input(procedureCatalog.terminalSessions.input)
       .output(procedureCatalog.terminalSessions.output)
-      .query(() => terminal.list()),
+      .query(() => operations.list()),
 
     renameTerminal: publicProcedure
       .input(procedureCatalog.renameTerminal.input)
       .output(procedureCatalog.renameTerminal.output)
       .mutation(({ input }) => {
-        terminal.rename(input.id, input.name)
+        operations.rename(input.id, input.name)
       }),
   })
 }

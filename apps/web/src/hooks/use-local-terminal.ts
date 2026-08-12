@@ -1,3 +1,4 @@
+import { listTerminalSessionsOnDaemon } from '@renderer/features/terminal'
 import { onMutationError } from '@renderer/hooks/mutation-error'
 import { localDaemonClient, setLocalDaemonEndpoint } from '@renderer/lib/local-daemon'
 import { isBrowser } from '@renderer/lib/platform'
@@ -78,9 +79,9 @@ export interface LocalTerminalRow {
  * The local daemon's terminal roster, scoped to the mapped directory — the local twin
  * of `terminalSessions` in `useTerminalRoster` (same 5s poll, so a session killed
  * elsewhere reconciles here too). Goes through the vanilla client (`localDaemonClient`)
- * via plain react-query, not `trpc.terminalSessions.useQuery`: tRPC hooks bind to ONE
- * client/provider, and a second `createTRPCReact` instance (own context — the
- * shared-context trap in lib/trpc) is too much for one query on a second machine.
+ * via plain react-query and the Terminal feature list helper. Keeps the dual-daemon
+ * technical key `['local-terminal-sessions', localPath]` distinct from primary identity
+ * keys; never invents a second `createTRPCReact` instance.
  */
 export function useLocalTerminalSessions(localPath: string | null): LocalTerminalRow[] {
   const { data } = useQuery({
@@ -90,7 +91,7 @@ export function useLocalTerminalSessions(localPath: string | null): LocalTermina
     queryFn: async (): Promise<LocalTerminalRow[]> => {
       const client = localDaemonClient()
       if (client === null || localPath === null) return []
-      const sessions = await client.terminalSessions.query()
+      const sessions = await listTerminalSessionsOnDaemon(client)
       return sessions.filter((s) => s.cwd === localPath || s.cwd.startsWith(`${localPath}/`))
     },
   })

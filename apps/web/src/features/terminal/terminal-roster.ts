@@ -1,19 +1,24 @@
+import { terminalSessionsQuery } from '@porcelain/client-runtime/terminal'
+import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import {
   useLocalDaemon,
   useLocalTerminalPath,
   useLocalTerminalSessions,
 } from '@renderer/hooks/use-local-terminal'
 import { type DaemonSession, primary } from '@renderer/lib/daemon'
+import type { DaemonScope } from '@renderer/lib/daemon-scope'
 import { localDaemonSession, markLocalTerminal } from '@renderer/lib/local-daemon'
 import { receiveData, receiveExit, receiveScrollback } from '@renderer/lib/terminal-registry'
 import { trpc } from '@renderer/lib/trpc'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { type TerminalSession, useTerminalsStore } from '@renderer/stores/terminals'
 import { settleBackground } from '@shared/background'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useState } from 'react'
 import { applyTerminalRecovery } from './terminal-notifications'
+import { terminalSessionsQueryKey } from './terminal-query-key'
 import { type TerminalStreamListeners, useTerminalStream } from './terminal-stream-adapter'
+import { listTerminalSessionsOnDaemon } from './terminal-transport'
 
 /** The local endpoint is installed by useLocalDaemon's effect; resolve it after that effect runs. */
 function useResolvedLocalSession(localPath: string | null): DaemonSession | null {
@@ -42,7 +47,12 @@ export function useTerminalRoster(): void {
   const markExited = useTerminalsStore((state) => state.markExited)
   const hydrate = useTerminalsStore((state) => state.hydrate)
   const repoPath = useProjectSelectionStore((state) => state.project?.path ?? null)
-  const primaryRoster = trpc.terminalSessions.useQuery(undefined, {
+  const daemon = useDaemonIdentity()
+  const daemonScope: DaemonScope = { host: daemon.host, version: daemon.version }
+  const utils = trpc.useUtils()
+  const primaryRoster = useQuery({
+    queryKey: terminalSessionsQueryKey(daemonScope, terminalSessionsQuery()),
+    queryFn: () => listTerminalSessionsOnDaemon(utils.client),
     enabled: repoPath !== null,
     refetchInterval: 5000,
   })

@@ -51,9 +51,10 @@ const doubles = vi.hoisted(() => {
     localSessions: [
       { id: 'local-in', name: 'local', cwd: '/machine/repo', status: 'running' as const },
     ],
+    daemonIdentity: { host: 'primary', version: '0.0.0-test' },
     primaryListeners: undefined as ListenerSet | undefined,
     localListeners: undefined as ListenerSet | undefined,
-    usePrimaryQuery: vi.fn(() => primaryRoster),
+    useQuery: vi.fn(() => primaryRoster),
     useQueryClient: vi.fn(() => ({
       invalidateQueries: vi.fn(() => Promise.resolve()),
     })),
@@ -76,6 +77,9 @@ vi.mock('@renderer/hooks/use-local-terminal', () => ({
   useLocalTerminalPath: vi.fn(() => doubles.localPath),
   useLocalTerminalSessions: vi.fn(() => doubles.localSessions),
 }))
+vi.mock('@renderer/hooks/use-daemon-identity', () => ({
+  useDaemonIdentity: () => doubles.daemonIdentity,
+}))
 vi.mock('@renderer/lib/daemon', () => ({ primary: doubles.primarySession }))
 vi.mock('@renderer/lib/local-daemon', () => ({
   localDaemonSession: () => doubles.localSession,
@@ -87,7 +91,11 @@ vi.mock('@renderer/lib/terminal-registry', () => ({
   receiveScrollback: vi.fn(),
 }))
 vi.mock('@renderer/lib/trpc', () => ({
-  trpc: { terminalSessions: { useQuery: doubles.usePrimaryQuery } },
+  trpc: {
+    useUtils: () => ({
+      client: { terminalSessions: { query: vi.fn() }, renameTerminal: { mutate: vi.fn() } },
+    }),
+  },
 }))
 vi.mock('@renderer/stores/project-selection', () => ({
   useProjectSelectionStore: (selector: (state: typeof doubles.projectState) => unknown) =>
@@ -97,7 +105,10 @@ vi.mock('@renderer/stores/terminals', () => ({
   useTerminalsStore: (selector: (state: typeof doubles.terminalState) => unknown) =>
     selector(doubles.terminalState),
 }))
-vi.mock('@tanstack/react-query', () => ({ useQueryClient: doubles.useQueryClient }))
+vi.mock('@tanstack/react-query', () => ({
+  useQuery: doubles.useQuery,
+  useQueryClient: doubles.useQueryClient,
+}))
 vi.mock('./terminal-stream-adapter', () => ({
   useTerminalStream: doubles.useTerminalStream,
 }))
@@ -116,10 +127,16 @@ describe('useTerminalRoster', () => {
   it('filters the primary project, binds the mapped local roster, hydrates, and attaches gaps', () => {
     renderHook(() => useTerminalRoster())
 
-    expect(doubles.usePrimaryQuery).toHaveBeenCalledWith(undefined, {
-      enabled: true,
-      refetchInterval: 5000,
-    })
+    expect(doubles.useQuery).toHaveBeenCalledWith(
+      expect.objectContaining({
+        enabled: true,
+        refetchInterval: 5000,
+        queryKey: [
+          { domain: 'terminal', name: 'sessions' },
+          { host: 'primary', version: '0.0.0-test' },
+        ],
+      }),
+    )
     expect(doubles.terminalState.hydrate).toHaveBeenCalledWith([
       { id: 'primary-in', name: 'remote', status: 'running', origin: 'primary' },
       { id: 'primary-nested', name: 'nested', status: 'exited', exitCode: 2, origin: 'primary' },

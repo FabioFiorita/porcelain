@@ -24,6 +24,7 @@ export type {
   TerminalResult,
   TerminalStreamSink,
 } from './terminal-ports'
+export { createTerminalRouter } from './terminal-router'
 export {
   createTerminalStreamGateway,
   type TerminalStreamGateway,

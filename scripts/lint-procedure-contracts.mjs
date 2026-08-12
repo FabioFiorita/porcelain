@@ -34,13 +34,13 @@ export const PRODUCTION_ROUTER_FILES = [
   'features/projects/projects-router.ts',
   'features/review/comment-router.ts',
   'features/search/search-router.ts',
+  'features/terminal/terminal-router.ts',
   'router/daemon.ts',
   'router/git.ts',
   'router/network.ts',
   'router/repos.ts',
   'router/review.ts',
   'router/settings.ts',
-  'router/terminal.ts',
 ]
 
 export const PROCEDURE_COUNT = 113
