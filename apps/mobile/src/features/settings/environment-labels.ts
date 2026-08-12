@@ -1,8 +1,6 @@
 import { endpointKind } from '@porcelain/contracts'
 
-import type { Environment } from '@/lib/daemon/environment'
-import { hostOf } from '@/lib/daemon/environment'
-import type { ConnectionState } from '@/lib/daemon/environments-store'
+import { type ConnectionState, type Environment, hostOf } from '@/features/remote'
 
 /**
  * What the environments panel says, and the endpoint orders it writes — with no React in them.
@@ -37,6 +35,8 @@ export function connectionStatusLabel(kind: ConnectionState['kind']): string {
       return 'Token rejected'
     case 'no-environment':
       return 'None'
+    case 'update-required':
+      return 'A protocol update is required.'
   }
 }
 
@@ -71,6 +71,8 @@ export function describeConnection(
         : `Token rejected · ${routes}`
     case 'no-environment':
       return routes
+    case 'update-required':
+      return `A protocol update is required. · ${routes}`
   }
 }
 

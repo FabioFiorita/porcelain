@@ -1,7 +1,7 @@
 import { headLabel } from '@porcelain/contracts'
 import { useGitWorkspace } from '@/features/git'
 import { useSelectedProject } from '@/features/projects'
-import { useActiveEnvironment } from '@/lib/daemon/environments-store'
+import { useActiveEnvironment } from '@/features/remote'
 import { deriveWorkspaceIdentity, type WorkspaceIdentity } from './workspace-lists'
 
 /**

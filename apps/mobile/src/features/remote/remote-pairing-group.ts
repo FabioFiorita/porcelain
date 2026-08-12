@@ -1,7 +1,13 @@
+import { remoteProcedures } from '@porcelain/contracts/remote'
+
 import { recentProjectsProcedure } from '@/features/projects'
-import { createDaemonClient } from './client'
-import { callDaemon } from './procedure'
-import { revokeCurrentClientMutation } from './procedures/connection'
+import { createDaemonClient } from '@/lib/daemon/client'
+import { callDaemon, namedContractProcedure } from '@/lib/daemon/procedure'
+
+const revokeCurrentClient = namedContractProcedure(
+  'revokeCurrentClient',
+  remoteProcedures.revokeCurrentClient,
+)
 
 /** Verify a newly issued credential before saving it as a group connection. */
 export async function verifyPairingCredential(baseUrl: string, token: string): Promise<void> {
@@ -35,17 +41,13 @@ export async function attachPairingCredential(
       cause,
     })
   }
-  await callDaemon(
-    createDaemonClient(baseUrl, pairingToken),
-    revokeCurrentClientMutation,
-    undefined,
-  )
+  await callDaemon(createDaemonClient(baseUrl, pairingToken), revokeCurrentClient, undefined)
 }
 
 /** Best-effort cleanup when a one-shot pairing credential cannot be saved. */
 async function discardPairingCredential(baseUrl: string, token: string): Promise<void> {
   try {
-    await callDaemon(createDaemonClient(baseUrl, token), revokeCurrentClientMutation, undefined)
+    await callDaemon(createDaemonClient(baseUrl, token), revokeCurrentClient, undefined)
   } catch {
     // The endpoint may disappear while cleanup runs; the original pairing error is clearer.
   }

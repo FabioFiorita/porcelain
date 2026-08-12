@@ -17,9 +17,8 @@ import type {
 } from '@porcelain/contracts/board'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useActiveProject } from '@/features/projects'
+import { isPaired, useActiveEnvironment } from '@/features/remote'
 import { getDaemonClient } from '@/lib/daemon/client'
-import { isPaired } from '@/lib/daemon/environment'
-import { useActiveEnvironment } from '@/lib/daemon/environments-store'
 import { DaemonError } from '@/lib/daemon/errors'
 import { callDaemon, namedContractProcedure } from '@/lib/daemon/procedure'
 

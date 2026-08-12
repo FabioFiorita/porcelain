@@ -8,14 +8,14 @@ vi.mock('react-native', () => ({
   Alert: { alert: vi.fn() },
 }))
 
-vi.mock('@/lib/daemon/environments-store', () => ({
+vi.mock('@/features/remote', async () => ({
+  ...(await vi.importActual<typeof import('@/features/remote/remote-environment')>(
+    '@/features/remote/remote-environment',
+  )),
   environmentActions: {
     setActive: (...args: unknown[]) => setActive(...args),
   },
   getEnvironment: vi.fn(),
-}))
-
-vi.mock('./pair-environment', () => ({
   addGroupConnection: vi.fn(),
   describePairProblem: (problem: { kind: string }) => `pair:${problem.kind}`,
   pairNewGroup: (...args: unknown[]) => pairNewGroup(...args),

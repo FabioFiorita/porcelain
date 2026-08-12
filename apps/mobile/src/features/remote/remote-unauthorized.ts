@@ -1,6 +1,7 @@
-import type { Environment } from './environment'
-import { environmentActions } from './environments-store'
-import { configureSession } from './session'
+import { configureSession } from '@/lib/daemon/session'
+
+import type { Environment } from './remote-environment'
+import { environmentActions } from './remote-environment-store'
 
 /** Credential dead: always land unauthorized; report secure-store delete failure on the state. */
 export async function goUnauthorized(environment: Environment): Promise<void> {

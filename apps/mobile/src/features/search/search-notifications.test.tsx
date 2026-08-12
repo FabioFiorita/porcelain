@@ -3,7 +3,10 @@ import { filesNotificationFixtures } from '@porcelain/contracts/files'
 import { QueryClient } from '@tanstack/react-query'
 import { describe, expect, it, vi } from 'vitest'
 
-vi.mock('@/lib/daemon/environments-store', () => ({
+vi.mock('@/features/remote', () => ({
+  // Pure identity the subject reads from the same feature index; the store half is faked below.
+  isPaired: (environment: { token: string | null } | null): boolean =>
+    environment !== null && environment.token !== null,
   useActiveEnvironment: () => ({ id: 'env-search-notifications', token: 'paired' }),
 }))
 vi.mock('@/features/projects', () => ({

@@ -108,7 +108,7 @@ an external choice or authorization.
 | `REM-002` | Landed | Auth, pairing, CORS, listener, Funnel/LAN/Tailnet operations/adapters |
 | `REM-003` | Landed | Shared endpoint selection, retry, session health, and public-error parsing |
 | `REM-004` | Landed | Web local/remote/shell adapter and settings presentation cutover |
-| `REM-005` | Ready | Mobile strict-v1 environment and provider; delete version-3/icon coercion |
+| `REM-005` | Landed | Mobile strict-v1 environment and provider; delete version-3/icon coercion |
 | `REM-006` | Draft | Remote security/resilience proof and completed domain gate |
 
 ## Batch 4 — Project Data and complete Review

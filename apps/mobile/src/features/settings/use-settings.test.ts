@@ -10,7 +10,10 @@ const ctx = vi.hoisted(() => ({
   saveLayers: vi.fn(),
 }))
 
-vi.mock('@/lib/daemon/environments-store', () => ({
+vi.mock('@/features/remote', async () => ({
+  ...(await vi.importActual<typeof import('@/features/remote/remote-environment')>(
+    '@/features/remote/remote-environment',
+  )),
   useConnectionState: () => ctx.connection,
 }))
 vi.mock('@/features/git', () => ({

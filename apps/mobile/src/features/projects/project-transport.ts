@@ -1,10 +1,12 @@
 import type { ProjectPath, ProjectSummary } from '@porcelain/client-runtime/projects'
-import { activeProjectPathOf, type Environment, projectNameOf } from '@/lib/daemon/environment'
 import {
   activeEnvironment,
+  activeProjectPathOf,
+  type Environment,
   environmentActions,
+  projectNameOf,
   useActiveEnvironment,
-} from '@/lib/daemon/environments-store'
+} from '@/features/remote'
 import { daemonSession } from '@/lib/daemon/session'
 
 import { openProjectProcedure, pairedProjectEnvironment } from './project-procedures'

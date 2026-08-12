@@ -7,9 +7,13 @@ import {
 } from '@tanstack/react-query'
 import { useCallback } from 'react'
 import { useActiveProject } from '@/features/projects'
+import {
+  type Environment,
+  environmentActions,
+  isPaired,
+  useActiveEnvironment,
+} from '@/features/remote'
 import { getDaemonClient } from '@/lib/daemon/client'
-import { type Environment, isPaired } from '@/lib/daemon/environment'
-import { environmentActions, useActiveEnvironment } from '@/lib/daemon/environments-store'
 import { DaemonError, daemonErrorMessage } from '@/lib/daemon/errors'
 import { callDaemon, type DaemonProcedure } from '@/lib/daemon/procedure'
 

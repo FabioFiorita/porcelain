@@ -1,4 +1,10 @@
 import {
+  createSessionHealth,
+  REMOTE_MAX_RETRY_MS,
+  REMOTE_MIN_RETRY_MS,
+  type SessionHealth,
+} from '@porcelain/client-runtime/remote'
+import {
   createSessionClientRuntime,
   type TerminalServerFrame,
 } from '@porcelain/client-runtime/session/client-runtime'
@@ -57,6 +63,8 @@ function harness(
     shouldReconnect?: (code: number) => boolean
     onTransportClosed?: (code: number) => void | Promise<void>
     onTransportClosedFailure?: (error: unknown, closeCode: number) => void
+    random?: () => number
+    health?: SessionHealth
   },
 ): Harness {
   const sockets: FakeSocket[] = []
@@ -84,6 +92,8 @@ function harness(
     shouldReconnect: options?.shouldReconnect,
     onTransportClosed: options?.onTransportClosed,
     onTransportClosedFailure: options?.onTransportClosedFailure,
+    random: options?.random,
+    health: options?.health,
     openSocket: ({ url, protocols, handlers }) => {
       const sent: string[] = []
       let isClosed = false
@@ -344,6 +354,80 @@ describe('Session native adapter shutdown', () => {
     context.socket().handlers.closed(1000)
     expect(context.pending).toHaveLength(0)
     expect(context.sockets).toHaveLength(1)
+  })
+})
+
+/**
+ * REM-003 owns the retry math and the health vocabulary; this adapter only binds them, so the
+ * assertions below are about the binding — never a second policy.
+ */
+describe('Session native adapter binds the shared Remote retry and health policy', () => {
+  const dropped = (random: () => number): Harness => {
+    const context = connected(harness({ url: ORIGIN, token: TOKEN }, { random }))
+    context.socket().handlers.closed(1006)
+    return context
+  }
+
+  it('waits the un-jittered base delay when random is 0 and the full 30% when it is 1', () => {
+    expect(dropped(() => 0).pending[0]?.delayMs).toBe(REMOTE_MIN_RETRY_MS)
+    expect(dropped(() => 1).pending[0]?.delayMs).toBe(REMOTE_MIN_RETRY_MS * 1.3)
+  })
+
+  it('doubles to the shared 10s cap and resets to the floor once a socket opens', () => {
+    const context = dropped(() => 0)
+    const waits = [context.pending[0]?.delayMs ?? 0]
+    for (let attempt = 0; attempt < 7; attempt++) {
+      context.runRetry()
+      context.socket().handlers.closed(1006)
+      waits.push(context.pending[0]?.delayMs ?? 0)
+    }
+
+    expect(waits.slice(0, 2)).toEqual([REMOTE_MIN_RETRY_MS, REMOTE_MIN_RETRY_MS * 2])
+    expect(Math.max(...waits)).toBe(REMOTE_MAX_RETRY_MS)
+
+    // A connection that opens is the reset point, not merely a scheduled attempt.
+    context.runRetry()
+    context.socket().handlers.opened()
+    context.socket().handlers.closed(1006)
+    expect(context.pending[0]?.delayMs).toBe(REMOTE_MIN_RETRY_MS)
+  })
+
+  // A drop after an open socket reads as `reconnecting` (proved in recovery above); a drop
+  // before one ever opened is still the first attempt, and says so.
+  it('reports a drop that precedes any open socket as connecting', () => {
+    const context = harness()
+    context.adapter.start()
+    context.socket().handlers.closed(1006)
+    expect(context.adapter.status()).toBe('connecting')
+  })
+
+  it('drives the shared health machine through start, connect, drop, and stop', () => {
+    const health: SessionHealth = createSessionHealth()
+    const context = harness({ url: ORIGIN, token: TOKEN }, { health })
+
+    context.adapter.start()
+    expect(health.status()).toBe('connecting')
+    context.socket().handlers.opened()
+    expect(health.status()).toBe('healthy')
+    context.socket().handlers.closed(1006)
+    expect(health.status()).toBe('recovering')
+    context.adapter.stop()
+    expect(health.status()).toBe('idle')
+  })
+
+  it('marks health update-required terminally and schedules no further retry', () => {
+    const health: SessionHealth = createSessionHealth()
+    const context = harness({ url: ORIGIN, token: TOKEN }, { health })
+    connected(context)
+
+    context.adapter.updateRequired()
+
+    expect(health.status()).toBe('update-required')
+    expect(context.adapter.status()).toBe('update-required')
+    context.socket().handlers.closed(1006)
+    expect(context.pending).toHaveLength(0)
+    // Terminal: the shared machine refuses to leave update-required.
+    expect(health.apply({ type: 'connected' })).toBe('update-required')
   })
 })
 

@@ -1,4 +1,9 @@
 import {
+  createSessionHealth,
+  type RemoteSessionHealth,
+  type SessionHealth,
+} from '@porcelain/client-runtime/remote'
+import {
   createSessionClientRuntime,
   type SessionClientRuntime,
   type TerminalServerFrame,
@@ -13,6 +18,8 @@ import {
   type SessionConnectionStatus,
   type SessionNativeAdapter,
 } from './session-native-adapter'
+
+export type { SessionConnectionStatus }
 
 /**
  * Mobile's binding between the shared session runtime and the React Native process: one
@@ -38,6 +45,8 @@ export type SessionChangeObserver = {
 
 export type DaemonSession = {
   readonly status: SessionConnectionStatus
+  /** REM-003 session health for the one native adapter. */
+  health(): RemoteSessionHealth
   /** The shared protocol runtime; feature adapters send only contract-typed frames through it. */
   readonly runtime: SessionClientRuntime
   /** Start the one native session socket; idempotent while it is active. */
@@ -162,6 +171,7 @@ function createMobileRuntime(): SessionClientRuntime {
 }
 
 const runtime = createMobileRuntime()
+const health = createSessionHealth()
 
 const adapter: SessionNativeAdapter = createSessionNativeAdapter({
   runtime,
@@ -169,6 +179,7 @@ const adapter: SessionNativeAdapter = createSessionNativeAdapter({
     url: endpoint?.baseUrl ?? '',
     token: endpoint?.token ?? '',
   }),
+  health,
   onStatusChange: setStatus,
   shouldReconnect: (code) => code !== REVOKED_CLOSE_CODE,
   onTransportClosed: async (code) => {
@@ -199,6 +210,9 @@ export const daemonSession: DaemonSession = {
   runtime,
   get status(): SessionConnectionStatus {
     return status
+  },
+  health(): RemoteSessionHealth {
+    return health.status()
   },
   start(): void {
     ensureOpen()
@@ -301,6 +315,16 @@ export function onSessionClosed(
 /** The shared runtime — interests and project selection for advanced callers / tests. */
 export function sessionClientRuntime(): SessionClientRuntime {
   return runtime
+}
+
+/** The one REM-003 health machine owned by this process's native adapter. */
+export function sessionHealth(): SessionHealth {
+  return health
+}
+
+/** Terminal protocol refusal: retire the socket and stop reconnecting. */
+export function markSessionUpdateRequired(): void {
+  adapter.updateRequired()
 }
 
 export function useDaemonSession(): DaemonSession {

@@ -9,9 +9,8 @@ import type { CodeSearchResult, GrepMatch, SearchResult } from '@porcelain/contr
 import { searchProcedures } from '@porcelain/contracts/search'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useActiveProject } from '@/features/projects'
+import { type Environment, isPaired, useActiveEnvironment } from '@/features/remote'
 import { getDaemonClient } from '@/lib/daemon/client'
-import { type Environment, isPaired } from '@/lib/daemon/environment'
-import { useActiveEnvironment } from '@/lib/daemon/environments-store'
 import { callDaemon, namedContractProcedure } from '@/lib/daemon/procedure'
 import { searchQueryKey } from './search-query-key'
 

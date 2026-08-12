@@ -1,8 +1,9 @@
-import { type EnvironmentId, hostOf, type PairedEnvironment } from '@/lib/daemon/environment'
-import { environmentActions, getEnvironment } from '@/lib/daemon/environments-store'
-import { DaemonError, daemonErrorMessage } from '@/lib/daemon/errors'
-import { type PairingLinkProblem, parsePairingLink, redeemPairingLink } from '@/lib/daemon/pairing'
-import { attachPairingCredential, verifyPairingCredential } from '@/lib/daemon/pairing-group'
+import { parsePublicError } from '@porcelain/client-runtime/remote'
+
+import { type EnvironmentId, hostOf, type PairedEnvironment } from './remote-environment'
+import { environmentActions, getEnvironment } from './remote-environment-store'
+import { type PairingLinkProblem, parsePairingLink, redeemPairingLink } from './remote-pairing'
+import { attachPairingCredential, verifyPairingCredential } from './remote-pairing-group'
 
 export type PairProblem =
   | { kind: 'link'; problem: PairingLinkProblem }
@@ -30,8 +31,15 @@ export function describePairProblem(error: PairProblem): string {
 }
 
 function toDaemonProblem(error: unknown): PairProblem {
-  if (error instanceof DaemonError) {
-    return { kind: 'daemon', message: daemonErrorMessage(error) }
+  const parsed = parsePublicError(error)
+  if (parsed.kind === 'update-required') {
+    return { kind: 'daemon', message: parsed.error.message }
+  }
+  if (parsed.kind === 'public') {
+    if (parsed.error.code === 'auth.unauthenticated' || parsed.error.code === 'auth.forbidden') {
+      return { kind: 'daemon', message: 'That pairing link was already used or expired.' }
+    }
+    return { kind: 'daemon', message: parsed.error.message }
   }
   if (error instanceof Error && error.message.length > 0) {
     return { kind: 'mismatch', message: error.message }

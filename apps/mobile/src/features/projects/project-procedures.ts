@@ -1,7 +1,7 @@
 import { openProject, removeRecentProject } from '@porcelain/client-runtime/projects'
 import { projectsProcedures } from '@porcelain/contracts/projects'
 
-import { type Environment, isPaired, type PairedEnvironment } from '@/lib/daemon/environment'
+import { type Environment, isPaired, type PairedEnvironment } from '@/features/remote'
 import { DaemonError } from '@/lib/daemon/errors'
 import { namedContractProcedure } from '@/lib/daemon/procedure'
 

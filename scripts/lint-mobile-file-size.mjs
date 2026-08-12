@@ -20,7 +20,7 @@ const mobileSourceRoot = path.resolve('apps/mobile/src')
  * is never the answer to a failure. An allowlisted file may not grow past its recorded length
  * either — the recorded number is a cap, not a licence.
  */
-const ALLOWLIST = new Map([['lib/daemon/environments-store.ts', 453]])
+const ALLOWLIST = new Map()
 
 const violations = []
 const seen = new Set()

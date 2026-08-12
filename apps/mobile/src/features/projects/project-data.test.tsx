@@ -12,7 +12,7 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { TRPCClientError } from '@trpc/client'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { environmentActions } from '@/lib/daemon/environments-store'
+import { environmentActions } from '@/features/remote'
 import { daemonSession } from '@/lib/daemon/session'
 import {
   projectsQueryKey,
@@ -68,7 +68,13 @@ vi.mock('@/lib/daemon/client', () => ({
   },
 }))
 
-vi.mock('@/lib/daemon/environments-store', () => ({
+vi.mock('@/features/remote', () => ({
+  // Pure identity the subject reads from the same feature index; the store half is faked below.
+  isPaired: (environment: { token: string | null } | null): boolean =>
+    environment !== null && environment.token !== null,
+  projectNameOf: (path: string): string => path.slice(path.lastIndexOf('/') + 1),
+  activeProjectPathOf: (environment: { activeRepoPath: string | null } | null): string | null =>
+    environment?.activeRepoPath ?? null,
   activeEnvironment: (): TestEnvironment | null => ctx.environment,
   environmentActions: { setActiveProjectPath: vi.fn() },
   useActiveEnvironment: (): TestEnvironment | null => ctx.environment,

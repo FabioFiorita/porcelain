@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { Environment } from '@/lib/daemon/environment'
+import type { Environment } from '@/features/remote'
 
 const remove = vi.fn()
 const removeEndpoint = vi.fn()
@@ -27,7 +27,10 @@ vi.mock('react-native', () => ({
   },
 }))
 
-vi.mock('@/lib/daemon/environments-store', () => ({
+vi.mock('@/features/remote', async () => ({
+  ...(await vi.importActual<typeof import('@/features/remote/remote-environment')>(
+    '@/features/remote/remote-environment',
+  )),
   environmentActions: {
     remove: (...args: unknown[]) => remove(...args),
     removeEndpoint: (...args: unknown[]) => removeEndpoint(...args),

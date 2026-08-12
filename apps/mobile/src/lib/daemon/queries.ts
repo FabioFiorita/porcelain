@@ -9,9 +9,13 @@ import {
   useQueryClient,
 } from '@tanstack/react-query'
 import { useCallback, useMemo } from 'react'
+import {
+  type EnvironmentId,
+  environmentActions,
+  isPaired,
+  useActiveEnvironment,
+} from '@/features/remote'
 import { getDaemonClient } from './client'
-import { type EnvironmentId, isPaired } from './environment'
-import { environmentActions, useActiveEnvironment } from './environments-store'
 import { DaemonError, daemonErrorMessage } from './errors'
 import { callDaemon, type DaemonMutation, type DaemonQuery } from './procedure'
 import { useDaemonSession } from './session'

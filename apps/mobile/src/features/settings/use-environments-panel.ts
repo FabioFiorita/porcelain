@@ -1,10 +1,16 @@
 import { runUserAction } from '@porcelain/shared/background'
 import { useState } from 'react'
 import { Alert } from 'react-native'
-import type { Environment, EnvironmentId } from '@/lib/daemon/environment'
-import { environmentActions, getEnvironment } from '@/lib/daemon/environments-store'
+import {
+  addGroupConnection,
+  describePairProblem,
+  type Environment,
+  type EnvironmentId,
+  environmentActions,
+  getEnvironment,
+  pairNewGroup,
+} from '@/features/remote'
 import { movedOrder, promotedOrder } from './environment-labels'
-import { addGroupConnection, describePairProblem, pairNewGroup } from './pair-environment'
 
 /**
  * The environments panel's state, kept out of its markup.

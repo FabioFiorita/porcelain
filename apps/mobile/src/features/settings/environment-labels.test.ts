@@ -1,7 +1,15 @@
-import { describe, expect, it } from 'vitest'
+import { publicErrorFixtures } from '@porcelain/contracts'
+import { describe, expect, it, vi } from 'vitest'
 
-import type { Environment } from '@/lib/daemon/environment'
-import type { ConnectionState } from '@/lib/daemon/environments-store'
+import type { ConnectionState, Environment } from '@/features/remote'
+
+// Labels need only the Remote feature's pure environment identity. The real index also carries
+// the Secure Store adapter, which reaches into a native module that has no meaning under Vitest.
+vi.mock('@/features/remote', async () => ({
+  ...(await vi.importActual<typeof import('@/features/remote/remote-environment')>(
+    '@/features/remote/remote-environment',
+  )),
+}))
 
 import {
   connectionStatusLabel,
@@ -53,6 +61,13 @@ describe('connectionStatusLabel', () => {
     expect(connectionStatusLabel('unauthorized')).toBe('Token rejected')
     expect(connectionStatusLabel('no-environment')).toBe('None')
   })
+
+  // The sentence is the contract's, not ours: `publicErrorFixtures['protocol.update-required']`.
+  it('uses the contract sentence when the daemon refuses this build protocol', () => {
+    expect(connectionStatusLabel('update-required')).toBe(
+      publicErrorFixtures['protocol.update-required'].message,
+    )
+  })
 })
 
 describe('describeConnection', () => {
@@ -84,6 +99,12 @@ describe('describeConnection', () => {
     )
     expect(describeConnection(environment(), true, { kind: 'connecting' })).toBe(
       'Connecting… · 1 connection',
+    )
+  })
+
+  it('describes a protocol refusal with the contract sentence and the route count', () => {
+    expect(describeConnection(environment(), true, { kind: 'update-required' })).toBe(
+      `${publicErrorFixtures['protocol.update-required'].message} · 1 connection`,
     )
   })
 

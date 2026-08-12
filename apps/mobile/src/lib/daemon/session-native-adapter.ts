@@ -1,8 +1,10 @@
+import {
+  nextRemoteRetry,
+  resetRemoteRetry,
+  type SessionHealth,
+} from '@porcelain/client-runtime/remote'
 import type { SessionClientRuntime } from '@porcelain/client-runtime/session/client-runtime'
 import {
-  MIN_RETRY_MS,
-  nextRetryDelay,
-  reconnectDelayMs,
   sessionSubprotocol,
   sessionWebSocketUrl,
 } from '@porcelain/client-runtime/session/transport'
@@ -59,13 +61,6 @@ export type SessionSocketOpener = (input: {
 
 /** A cancellable delayed run. Injectable for the same reason as the opener. */
 export type SessionRetrySchedule = (run: () => void, delayMs: number) => () => void
-
-/**
- * Cap on the backoff between reconnect attempts. Matches the browser client's 10s rather than
- * the shared 8s default: a phone left on overnight against a stopped daemon should not poll it
- * four hundred times an hour.
- */
-const MAX_RETRY_MS = 10_000
 
 /**
  * What a human can be told about this connection. `connecting` and `reconnecting` are the same
@@ -151,6 +146,8 @@ export function createSessionNativeAdapter({
    * callback rejects — never absorbed by silent settleBackground on this path.
    */
   onTransportClosedFailure,
+  random = Math.random,
+  health,
 }: {
   readonly runtime: SessionClientRuntime
   readonly endpoint: () => SessionEndpoint
@@ -160,10 +157,12 @@ export function createSessionNativeAdapter({
   readonly shouldReconnect?: (closeCode: number) => boolean
   readonly onTransportClosed?: (closeCode: number) => void | Promise<void>
   readonly onTransportClosedFailure?: (error: unknown, closeCode: number) => void
+  readonly random?: () => number
+  readonly health?: SessionHealth
 }): SessionNativeAdapter {
   let socket: SessionSocket | undefined
   let cancelRetry: (() => void) | undefined
-  let retryDelay = MIN_RETRY_MS
+  let retryDelay = resetRemoteRetry()
   let running = false
   let everConnected = false
   let status: SessionConnectionStatus = 'idle'
@@ -191,8 +190,9 @@ export function createSessionNativeAdapter({
           // Identity check on every handler: a socket the adapter has already replaced or
           // retired must not be able to drive the runtime it no longer belongs to.
           if (socket !== opened) return
-          retryDelay = MIN_RETRY_MS
+          retryDelay = resetRemoteRetry()
           everConnected = true
+          health?.apply({ type: 'connected' })
           setStatus('open')
           runtime.connected({ send: (payload: string) => opened.send(payload) })
         },
@@ -208,6 +208,7 @@ export function createSessionNativeAdapter({
           const reconnect = shouldReconnect(code)
           if (!reconnect) {
             running = false
+            health?.apply({ type: 'stop' })
             setStatus('idle')
             const closed = onTransportClosed?.(code)
             // Terminal close (e.g. 4001 revoked): never silent settleBackground — report failure.
@@ -218,7 +219,8 @@ export function createSessionNativeAdapter({
             }
             return
           }
-          setStatus('reconnecting')
+          health?.apply({ type: 'disconnected' })
+          setStatus(everConnected ? 'reconnecting' : 'connecting')
           const maybe = onTransportClosed?.(code)
           if (isThenable(maybe)) {
             // Reconnect after close work finishes OR rejects — never skip reconnect on failure.
@@ -245,13 +247,13 @@ export function createSessionNativeAdapter({
 
   function scheduleReconnect(): void {
     if (cancelRetry !== undefined) return
-    // Jittered so a daemon restart does not bring every client back in the same millisecond.
+    const step = nextRemoteRetry(retryDelay, random)
     cancelRetry = schedule(() => {
       cancelRetry = undefined
       if (!running) return
       connect()
-    }, reconnectDelayMs(retryDelay))
-    retryDelay = nextRetryDelay(retryDelay, MAX_RETRY_MS)
+    }, step.waitMs)
+    retryDelay = step.delayMs
   }
 
   const retire = (): void => {
@@ -265,6 +267,7 @@ export function createSessionNativeAdapter({
     start() {
       if (running) return
       running = true
+      health?.apply({ type: 'start' })
       connect()
     },
 
@@ -276,12 +279,14 @@ export function createSessionNativeAdapter({
       // The runtime is told directly rather than through the closed handler: `retire` already
       // disowned the socket, so its close event is correctly ignored.
       if (wasConnected) runtime.disconnected()
+      health?.apply({ type: 'stop' })
       setStatus('idle')
     },
 
     updateRequired() {
       running = false
       retire()
+      health?.apply({ type: 'update-required' })
       setStatus('update-required')
     },
 

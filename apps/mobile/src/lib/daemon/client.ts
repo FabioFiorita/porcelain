@@ -3,7 +3,7 @@ import { PROTOCOL_VERSION, PROTOCOL_VERSION_HEADER } from '@porcelain/contracts'
 import { createTRPCUntypedClient, httpBatchLink } from '@trpc/client'
 import type { AnyTRPCRouter } from '@trpc/server'
 
-import type { EnvironmentId, PairedEnvironment } from './environment'
+type DaemonEnvironment = { id: string; baseUrl: string; token: string }
 
 /**
  * Untyped on purpose: the daemon's `AppRouter` type cannot cross into this project (it drags
@@ -25,7 +25,7 @@ const clients = new Map<string, CachedClient>()
  * probe hung instead of failing, so the app never accumulated the failures that trigger it.
  *
  * `PROBE_TIMEOUT_MS` is a CONNECT-failure detector, not a request budget — it exists only for
- * `bootstrapAtEndpoint` in `provider.tsx`, the reachability walk that needs exactly that signal to
+ * `bootstrapAtEndpoint` in the Remote session walk, the reachability check that needs that signal to
  * fail over. Regular app traffic (everything through `getDaemonClient`) keeps a much larger
  * budget: `gitGenerateCommitMessage`/`gitGenerateCommitGroups` (`procedures/changes.ts`)
  * legitimately run tens of seconds against a daemon that is very much alive, and the short
@@ -83,7 +83,7 @@ export function createDaemonClient(
 
 /** One cached client per environment, rebuilt when its `baseUrl` or token changes. Regular
  * app traffic — the ordinary-budget client, never the reachability probe's short one. */
-export function getDaemonClient(env: PairedEnvironment): DaemonClient {
+export function getDaemonClient(env: DaemonEnvironment): DaemonClient {
   const cached = clients.get(env.id)
   if (cached !== undefined && cached.baseUrl === env.baseUrl && cached.token === env.token) {
     return cached.client
@@ -94,6 +94,6 @@ export function getDaemonClient(env: PairedEnvironment): DaemonClient {
   return client
 }
 
-export function forgetDaemonClient(id: EnvironmentId): void {
+export function forgetDaemonClient(id: string): void {
   clients.delete(id)
 }

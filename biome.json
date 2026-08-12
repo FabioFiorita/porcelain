@@ -76,6 +76,24 @@
       }
     },
     {
+      "includes": ["apps/mobile/src/features/remote/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "@/lib/daemon/queries": "Remote owns environments and pairing, not React Query identities — never import lib/daemon/queries here.",
+                  "@/lib/daemon/watch": "Remote owns environments and pairing, not watch registration — never import lib/daemon/watch here."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       "includes": ["apps/daemon/src/**", "apps/web/src/**", "packages/shared/src/**"],
       "linter": {
         "rules": {

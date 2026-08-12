@@ -1,9 +1,17 @@
-import { type EndpointKind, endpointKind, orderedEndpointUrls } from '@porcelain/contracts'
 import { randomUUID } from 'expo-crypto'
 import * as SecureStore from 'expo-secure-store'
 import { create } from 'zustand'
 
-import { forgetDaemonClient } from './client'
+import { forgetDaemonClient } from '@/lib/daemon/client'
+
+import {
+  type ConnectionState,
+  connectionFor,
+  type EndpointAttempt,
+  recordReachabilityFailure,
+  recordReachabilitySuccess,
+  setConnection,
+} from './remote-connection'
 import {
   EMPTY_ENVIRONMENTS_FILE,
   type Environment,
@@ -14,7 +22,7 @@ import {
   normalizeBaseUrl,
   type PairedEnvironment,
   parseEnvironmentsFile,
-} from './environment'
+} from './remote-environment'
 
 /**
  * The index is one small non-secret blob; each token gets its own key. Secure-store values are
@@ -23,32 +31,15 @@ import {
 const INDEX_KEY = 'porcelain.environments'
 const CORRUPT_KEY = 'porcelain.environments.corrupt'
 const tokenKey = (id: EnvironmentId): string => `porcelain.token.${id}`
-const REACHABILITY_FAILURE_THRESHOLD = 2
 
-export type EndpointAttempt = { url: string; kind: EndpointKind }
-type Reachability = {
-  state: 'reachable' | 'unreachable'
-  source: 'endpoint-walk' | 'query'
-  consecutiveFailures: number
-  attempted: readonly EndpointAttempt[]
-}
-
-export type ConnectionState =
-  | { kind: 'loading' }
-  | { kind: 'no-environment' }
-  | { kind: 'connecting' }
-  | { kind: 'ready'; daemonVersion: string; reachability: Reachability }
-  | { kind: 'unreachable'; message: string; reachability: Reachability }
-  | { kind: 'unauthorized'; cleanupError?: string } // cleanupError: secure-store delete failed after memory clear
-
-type EnvironmentsState = {
+export type EnvironmentsState = {
   environments: readonly Environment[]
   activeId: EnvironmentId | null
   connection: ConnectionState
   corrupt: boolean
 }
 
-const useEnvironmentsStore = create<EnvironmentsState>()(() => ({
+export const environmentsStore = create<EnvironmentsState>()(() => ({
   activeId: null,
   connection: { kind: 'loading' },
   corrupt: false,
@@ -56,43 +47,33 @@ const useEnvironmentsStore = create<EnvironmentsState>()(() => ({
 }))
 
 export function useEnvironments(): readonly Environment[] {
-  return useEnvironmentsStore((state) => state.environments)
+  return environmentsStore((state) => state.environments)
 }
 
 /** Imperative lookup for pairing / non-React callers. */
 export function getEnvironment(id: EnvironmentId): Environment | null {
-  return (
-    useEnvironmentsStore.getState().environments.find((candidate) => candidate.id === id) ?? null
-  )
+  return environmentsStore.getState().environments.find((candidate) => candidate.id === id) ?? null
 }
 
 export function useActiveEnvironment(): Environment | null {
-  return useEnvironmentsStore(
+  return environmentsStore(
     (state) => state.environments.find((candidate) => candidate.id === state.activeId) ?? null,
   )
 }
 
-export function useConnectionState(): ConnectionState {
-  return useEnvironmentsStore((state) => state.connection)
-}
-
 /** True when stored environments could not be read — the app says so instead of looking empty. */
 export function useEnvironmentsCorrupt(): boolean {
-  return useEnvironmentsStore((state) => state.corrupt)
+  return environmentsStore((state) => state.corrupt)
 }
 
 export function activeEnvironment(): Environment | null {
-  const { activeId, environments } = useEnvironmentsStore.getState()
+  const { activeId, environments } = environmentsStore.getState()
   return environments.find((candidate) => candidate.id === activeId) ?? null
-}
-
-export function currentConnection(): ConnectionState {
-  return useEnvironmentsStore.getState().connection
 }
 
 /** Subscribe outside React (the provider drives bootstrap off this). */
 export function subscribeToEnvironments(listener: (state: EnvironmentsState) => void): () => void {
-  return useEnvironmentsStore.subscribe(listener)
+  return environmentsStore.subscribe(listener)
 }
 
 function toRecord(environment: Environment): EnvironmentRecord {
@@ -101,11 +82,11 @@ function toRecord(environment: Environment): EnvironmentRecord {
 }
 
 async function persist(): Promise<void> {
-  const { activeId, environments } = useEnvironmentsStore.getState()
+  const { activeId, environments } = environmentsStore.getState()
   const file: EnvironmentsFile = {
     activeId,
     environments: environments.map(toRecord),
-    version: 3,
+    version: 1,
   }
   await SecureStore.setItemAsync(INDEX_KEY, JSON.stringify(file))
 }
@@ -120,7 +101,7 @@ async function hydrate(): Promise<void> {
   if (stored.status === 'corrupt') {
     // Kept, not discarded: a credential that vanishes without a word is worse than an error.
     if (raw !== null) await SecureStore.setItemAsync(CORRUPT_KEY, raw)
-    useEnvironmentsStore.setState({ connection: { kind: 'no-environment' }, corrupt: true })
+    environmentsStore.setState({ connection: { kind: 'no-environment' }, corrupt: true })
     return
   }
 
@@ -133,17 +114,12 @@ async function hydrate(): Promise<void> {
   }
   const active =
     environments.find((candidate) => candidate.id === file.activeId) ?? environments[0] ?? null
-  useEnvironmentsStore.setState({
+  environmentsStore.setState({
     activeId: active?.id ?? null,
     connection: connectionFor(active),
     corrupt: false,
     environments,
   })
-}
-
-function connectionFor(environment: Environment | null): ConnectionState {
-  if (environment === null) return { kind: 'no-environment' }
-  return environment.token === null ? { kind: 'unauthorized' } : { kind: 'connecting' }
 }
 
 type EnvironmentActions = {
@@ -191,7 +167,7 @@ export const environmentActions: EnvironmentActions = {
       token: input.token,
     }
     await SecureStore.setItemAsync(tokenKey(environment.id), environment.token)
-    useEnvironmentsStore.setState((state) => ({
+    environmentsStore.setState((state) => ({
       activeId: state.activeId ?? environment.id,
       environments: [...state.environments, environment],
     }))
@@ -201,12 +177,12 @@ export const environmentActions: EnvironmentActions = {
 
   async addEndpoint(id: EnvironmentId, inputUrl: string): Promise<void> {
     const baseUrl = normalizeBaseUrl(inputUrl)
-    const environment = useEnvironmentsStore
+    const environment = environmentsStore
       .getState()
       .environments.find((candidate) => candidate.id === id)
     if (environment === undefined) throw new Error('That environment no longer exists')
     if (environment.endpoints.includes(baseUrl)) return
-    useEnvironmentsStore.setState((state) => ({
+    environmentsStore.setState((state) => ({
       environments: state.environments.map((candidate) =>
         candidate.id === id
           ? { ...candidate, endpoints: [...candidate.endpoints, baseUrl] }
@@ -218,7 +194,7 @@ export const environmentActions: EnvironmentActions = {
 
   async restoreToken(id: EnvironmentId, inputUrl: string, token: string): Promise<void> {
     const baseUrl = normalizeBaseUrl(inputUrl)
-    const environment = useEnvironmentsStore
+    const environment = environmentsStore
       .getState()
       .environments.find((candidate) => candidate.id === id)
     if (environment === undefined) throw new Error('That environment no longer exists')
@@ -226,7 +202,7 @@ export const environmentActions: EnvironmentActions = {
       ? environment.endpoints
       : [...environment.endpoints, baseUrl]
     await SecureStore.setItemAsync(tokenKey(id), token)
-    useEnvironmentsStore.setState((state) => ({
+    environmentsStore.setState((state) => ({
       environments: state.environments.map((candidate) =>
         candidate.id === id
           ? {
@@ -244,11 +220,11 @@ export const environmentActions: EnvironmentActions = {
   },
 
   async setIcon(id: EnvironmentId, icon: EnvironmentIcon): Promise<void> {
-    const environment = useEnvironmentsStore
+    const environment = environmentsStore
       .getState()
       .environments.find((candidate) => candidate.id === id)
     if (environment === undefined) throw new Error('That environment no longer exists')
-    useEnvironmentsStore.setState((state) => ({
+    environmentsStore.setState((state) => ({
       environments: state.environments.map((candidate) =>
         candidate.id === id ? { ...candidate, icon } : candidate,
       ),
@@ -257,7 +233,7 @@ export const environmentActions: EnvironmentActions = {
   },
 
   async rename(id: EnvironmentId, nickname: string): Promise<void> {
-    useEnvironmentsStore.setState((state) => ({
+    environmentsStore.setState((state) => ({
       environments: state.environments.map((candidate) =>
         candidate.id === id ? { ...candidate, nickname } : candidate,
       ),
@@ -266,20 +242,18 @@ export const environmentActions: EnvironmentActions = {
   },
 
   async setActive(id: EnvironmentId): Promise<void> {
-    const next = useEnvironmentsStore
-      .getState()
-      .environments.find((candidate) => candidate.id === id)
-    useEnvironmentsStore.setState({ activeId: id, connection: connectionFor(next ?? null) })
+    const next = environmentsStore.getState().environments.find((candidate) => candidate.id === id)
+    environmentsStore.setState({ activeId: id, connection: connectionFor(next ?? null) })
     await persist()
   },
 
   async setActiveEndpoint(id: EnvironmentId, inputUrl: string): Promise<void> {
     const baseUrl = normalizeBaseUrl(inputUrl)
-    const environment = useEnvironmentsStore
+    const environment = environmentsStore
       .getState()
       .environments.find((candidate) => candidate.id === id)
     if (environment === undefined || !environment.endpoints.includes(baseUrl)) return
-    useEnvironmentsStore.setState((state) => ({
+    environmentsStore.setState((state) => ({
       environments: state.environments.map((candidate) =>
         candidate.id === id ? { ...candidate, baseUrl } : candidate,
       ),
@@ -289,11 +263,11 @@ export const environmentActions: EnvironmentActions = {
 
   async preferEndpoint(id: EnvironmentId, inputUrl: string): Promise<void> {
     const baseUrl = normalizeBaseUrl(inputUrl)
-    const environment = useEnvironmentsStore
+    const environment = environmentsStore
       .getState()
       .environments.find((candidate) => candidate.id === id)
     if (environment === undefined || !environment.endpoints.includes(baseUrl)) return
-    useEnvironmentsStore.setState((state) => ({
+    environmentsStore.setState((state) => ({
       environments: state.environments.map((candidate) =>
         candidate.id === id ? { ...candidate, preferredEndpoint: baseUrl } : candidate,
       ),
@@ -303,7 +277,7 @@ export const environmentActions: EnvironmentActions = {
 
   async removeEndpoint(id: EnvironmentId, inputUrl: string): Promise<void> {
     const baseUrl = normalizeBaseUrl(inputUrl)
-    const environment = useEnvironmentsStore
+    const environment = environmentsStore
       .getState()
       .environments.find((candidate) => candidate.id === id)
     if (environment === undefined || environment.endpoints.length === 1) return
@@ -316,7 +290,7 @@ export const environmentActions: EnvironmentActions = {
       environment.preferredEndpoint === baseUrl
         ? (endpoints[0] ?? environment.preferredEndpoint)
         : environment.preferredEndpoint
-    useEnvironmentsStore.setState((state) => ({
+    environmentsStore.setState((state) => ({
       environments: state.environments.map((candidate) =>
         candidate.id === id
           ? { ...candidate, baseUrl: nextBaseUrl, endpoints, preferredEndpoint }
@@ -327,7 +301,7 @@ export const environmentActions: EnvironmentActions = {
   },
 
   async setEndpointOrder(id: EnvironmentId, next: readonly string[]): Promise<void> {
-    const environment = useEnvironmentsStore
+    const environment = environmentsStore
       .getState()
       .environments.find((candidate) => candidate.id === id)
     if (environment === undefined) return
@@ -337,7 +311,7 @@ export const environmentActions: EnvironmentActions = {
       normalized.every((url) => environment.endpoints.includes(url)) &&
       environment.endpoints.every((url) => normalized.includes(url))
     if (!sameSet) return
-    useEnvironmentsStore.setState((state) => ({
+    environmentsStore.setState((state) => ({
       environments: state.environments.map((candidate) =>
         candidate.id === id ? { ...candidate, endpoints: normalized } : candidate,
       ),
@@ -347,7 +321,7 @@ export const environmentActions: EnvironmentActions = {
 
   async remove(id: EnvironmentId): Promise<void> {
     forgetDaemonClient(id)
-    useEnvironmentsStore.setState((state) => {
+    environmentsStore.setState((state) => {
       const environments = state.environments.filter((candidate) => candidate.id !== id)
       if (state.activeId !== id) return { environments }
       const next = environments[0] ?? null
@@ -360,7 +334,7 @@ export const environmentActions: EnvironmentActions = {
   /** Revoked host-side: clear memory first, then secure-store (caller owns delete rejection). */
   async forgetToken(id: EnvironmentId): Promise<void> {
     forgetDaemonClient(id)
-    useEnvironmentsStore.setState((state) => ({
+    environmentsStore.setState((state) => ({
       environments: state.environments.map((candidate) =>
         candidate.id === id ? { ...candidate, token: null } : candidate,
       ),
@@ -369,7 +343,7 @@ export const environmentActions: EnvironmentActions = {
   },
 
   async setActiveProjectPath(id: EnvironmentId, path: string | null): Promise<void> {
-    useEnvironmentsStore.setState((state) => ({
+    environmentsStore.setState((state) => ({
       environments: state.environments.map((candidate) =>
         candidate.id === id ? { ...candidate, activeRepoPath: path } : candidate,
       ),
@@ -377,77 +351,8 @@ export const environmentActions: EnvironmentActions = {
     await persist()
   },
 
-  recordReachabilityFailure(
-    id: EnvironmentId,
-    message: string,
-    attempted?: readonly EndpointAttempt[],
-  ): void {
-    const state = useEnvironmentsStore.getState()
-    if (state.activeId !== id) return
-    const environment = state.environments.find((candidate) => candidate.id === id)
-    if (environment === undefined || environment.token === null) return
-    const routes =
-      attempted ??
-      orderedEndpointUrls({
-        endpoints: environment.endpoints,
-        preferredEndpoint: environment.preferredEndpoint,
-        url: environment.baseUrl,
-      }).map((url) => ({ kind: endpointKind(url), url }))
-    const previousFailures =
-      state.connection.kind === 'ready' || state.connection.kind === 'unreachable'
-        ? state.connection.reachability.consecutiveFailures
-        : 0
-    const consecutiveFailures = previousFailures + 1
-    if (consecutiveFailures < REACHABILITY_FAILURE_THRESHOLD) {
-      if (state.connection.kind !== 'ready') return
-      useEnvironmentsStore.setState({
-        connection: {
-          ...state.connection,
-          reachability: {
-            attempted: routes,
-            consecutiveFailures,
-            source: 'query',
-            state: 'reachable',
-          },
-        },
-      })
-      return
-    }
-    useEnvironmentsStore.setState({
-      connection: {
-        kind: 'unreachable',
-        message,
-        reachability: {
-          attempted: routes,
-          consecutiveFailures,
-          source: 'query',
-          state: 'unreachable',
-        },
-      },
-    })
-  },
-
-  recordReachabilitySuccess(id: EnvironmentId): void {
-    const state = useEnvironmentsStore.getState()
-    if (state.activeId !== id) return
-    if (state.connection.kind === 'ready') {
-      useEnvironmentsStore.setState({
-        connection: {
-          ...state.connection,
-          reachability: {
-            ...state.connection.reachability,
-            consecutiveFailures: 0,
-            source: 'endpoint-walk',
-            state: 'reachable',
-          },
-        },
-      })
-    }
-  },
-
-  setConnection(connection: ConnectionState): void {
-    useEnvironmentsStore.setState({ connection })
-  },
-
+  recordReachabilityFailure,
+  recordReachabilitySuccess,
+  setConnection,
   hydrate,
 }

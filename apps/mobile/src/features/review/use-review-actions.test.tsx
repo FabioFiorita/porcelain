@@ -53,7 +53,10 @@ vi.mock('@/features/comments', () => ({
     }),
 }))
 
-vi.mock('@/lib/daemon/environments-store', () => ({
+vi.mock('@/features/remote', async () => ({
+  ...(await vi.importActual<typeof import('@/features/remote/remote-environment')>(
+    '@/features/remote/remote-environment',
+  )),
   useActiveEnvironment: () => ctx.env,
   environmentActions: {
     recordReachabilitySuccess: vi.fn(),

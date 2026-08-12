@@ -5,13 +5,14 @@ import { EmptyNote, ErrorNote } from '@/components/panel-chrome'
 import { PANEL_CARD } from '@/components/surface-layout'
 import { Button } from '@/components/ui/button'
 import { Text } from '@/components/ui/text'
-import type { Environment, EnvironmentId } from '@/lib/daemon/environment'
 import {
+  type Environment,
+  type EnvironmentId,
   useActiveEnvironment,
   useConnectionState,
   useEnvironments,
   useEnvironmentsCorrupt,
-} from '@/lib/daemon/environments-store'
+} from '@/features/remote'
 import { cn } from '@/lib/utils'
 import { AddConnectionForm, CreateGroupForm } from './environment-forms'
 import { describeConnection } from './environment-labels'

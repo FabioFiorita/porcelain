@@ -24,8 +24,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query'
 import { useActiveProject } from '@/features/projects'
-import { isPaired } from '@/lib/daemon/environment'
-import { useActiveEnvironment } from '@/lib/daemon/environments-store'
+import { isPaired, useActiveEnvironment } from '@/features/remote'
 import { namedContractProcedure } from '@/lib/daemon/procedure'
 
 import { absolutePath, parentPath } from './file-paths'

@@ -1,5 +1,5 @@
+import { type Environment, isPaired } from '@/features/remote'
 import { getDaemonClient } from '@/lib/daemon/client'
-import { type Environment, isPaired } from '@/lib/daemon/environment'
 import { DaemonError } from '@/lib/daemon/errors'
 import { callDaemon, type DaemonProcedure } from '@/lib/daemon/procedure'
 

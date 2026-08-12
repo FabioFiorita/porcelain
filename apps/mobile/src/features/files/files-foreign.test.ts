@@ -9,7 +9,10 @@ import { describe, expect, it, vi } from 'vitest'
 
 // The Git public index carries hooks whose stores reach React Native; this handoff is pure
 // cache work, so the seams it never calls stand in.
-vi.mock('@/lib/daemon/environments-store', () => ({
+vi.mock('@/features/remote', () => ({
+  // Pure identity the subject reads from the same feature index; the store half is faked below.
+  isPaired: (environment: { token: string | null } | null): boolean =>
+    environment !== null && environment.token !== null,
   environmentActions: { recordReachabilityFailure: () => {}, recordReachabilitySuccess: () => {} },
   useActiveEnvironment: () => null,
 }))

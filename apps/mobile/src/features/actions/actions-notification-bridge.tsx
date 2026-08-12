@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 
-import { useActiveEnvironment } from '@/lib/daemon/environments-store'
+import { useActiveEnvironment } from '@/features/remote'
 import { subscribeSessionChanges } from '@/lib/daemon/session'
 
 import { applyActionsFreshnessRequirement, applyActionsNotification } from './actions-notifications'

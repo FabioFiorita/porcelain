@@ -1,7 +1,6 @@
+import { parsePublicError } from '@porcelain/client-runtime/remote'
 import { PROTOCOL_VERSION, PROTOCOL_VERSION_HEADER } from '@porcelain/contracts'
 import { z } from 'zod'
-
-import { DaemonError } from './errors'
 
 /** What a pairing link carries: where the daemon is, and the one-shot grant to redeem there. */
 export type PairingLink = {
@@ -70,7 +69,7 @@ const pairResponseSchema = z.object({ token: z.string().min(1) })
 /**
  * Redeem a grant at `POST <origin>/pair` — the daemon's one unauthenticated mutation, and the
  * only request this app makes without a bearer token. Single-use: a second attempt with the
- * same link is a `daemon-error`, not a retryable failure.
+ * same link is a public auth error, not a retryable failure.
  */
 export async function redeemPairingLink(link: PairingLink): Promise<string> {
   let response: Response
@@ -85,24 +84,35 @@ export async function redeemPairingLink(link: PairingLink): Promise<string> {
       },
       method: 'POST',
     })
-  } catch (cause) {
-    throw new DaemonError('unreachable', 'pair', `Could not reach ${link.baseUrl}.`, { cause })
+  } catch {
+    throw new Error(`Could not reach ${link.baseUrl}.`)
   }
 
-  if (response.status === 401 || response.status === 403) {
-    throw new DaemonError('unauthorized', 'pair', 'That pairing link was already used or expired.')
+  let body: unknown
+  try {
+    body = await response.json()
+  } catch {
+    body = null
   }
+
+  const parsed = parsePublicError(body)
+  if (parsed.kind === 'update-required') {
+    throw new Error(parsed.error.message)
+  }
+  if (
+    parsed.kind === 'public' &&
+    (parsed.error.code === 'auth.unauthenticated' || parsed.error.code === 'auth.forbidden')
+  ) {
+    throw new Error('That pairing link was already used or expired.')
+  }
+
   if (!response.ok) {
-    throw new DaemonError(
-      'daemon-error',
-      'pair',
-      `The daemon refused the link (${response.status}).`,
-    )
+    throw new Error(`The daemon refused the link (${response.status}).`)
   }
 
-  const parsed = pairResponseSchema.safeParse(await response.json().catch(() => null))
-  if (!parsed.success) {
-    throw new DaemonError('invalid-response', 'pair', 'The daemon answered pairing with no token.')
+  const token = pairResponseSchema.safeParse(body)
+  if (!token.success) {
+    throw new Error('The daemon answered pairing with no token.')
   }
-  return parsed.data.token
+  return token.data.token
 }

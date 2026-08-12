@@ -12,8 +12,12 @@ import { PANEL_CARD } from '@/components/surface-layout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Text } from '@/components/ui/text'
-import type { Environment, EnvironmentIcon } from '@/lib/daemon/environment'
-import { useActiveEnvironment, useConnectionState } from '@/lib/daemon/environments-store'
+import {
+  type Environment,
+  type EnvironmentIcon,
+  useActiveEnvironment,
+  useConnectionState,
+} from '@/features/remote'
 import { cn } from '@/lib/utils'
 import { BackRow, Field, Meta } from './environment-chrome'
 import { connectionStatusLabel, endpointLabel } from './environment-labels'

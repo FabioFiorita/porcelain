@@ -6,7 +6,7 @@ import {
   useGitFlow,
   useInvalidateGitGrouping,
 } from '@/features/git'
-import { useConnectionState } from '@/lib/daemon/environments-store'
+import { useConnectionState } from '@/features/remote'
 import {
   type ChannelDisposition,
   companionDispositionsQuery,

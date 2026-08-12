@@ -8,8 +8,7 @@ import type { QueryClient } from '@tanstack/react-query'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 
-import { isPaired } from '@/lib/daemon/environment'
-import { useActiveEnvironment } from '@/lib/daemon/environments-store'
+import { isPaired, useActiveEnvironment } from '@/features/remote'
 import { subscribeSessionChanges } from '@/lib/daemon/session'
 
 import {

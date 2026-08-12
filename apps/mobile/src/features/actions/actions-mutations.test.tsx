@@ -13,7 +13,10 @@ const ctx = vi.hoisted(() => ({
   project: { name: 'repo', path: '/synthetic/repo' } as { name: string; path: string } | null,
 }))
 
-vi.mock('@/lib/daemon/environments-store', () => ({
+vi.mock('@/features/remote', () => ({
+  // Pure identity the subject reads from the same feature index; the store half is faked below.
+  isPaired: (environment: { token: string | null } | null): boolean =>
+    environment !== null && environment.token !== null,
   useActiveEnvironment: () => ctx.environment,
 }))
 vi.mock('@/features/projects', () => ({
@@ -26,9 +29,6 @@ vi.mock('@/lib/daemon/procedure', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/daemon/procedure')>()
   return { ...actual, callDaemon: ctx.callDaemon }
 })
-vi.mock('@/lib/daemon/environment', () => ({
-  isPaired: (env: { token: string | null } | null) => env !== null && env.token !== null,
-}))
 
 import { useTrustAction } from './actions-mutations'
 import { actionsListKeyForProject } from './actions-query-key'

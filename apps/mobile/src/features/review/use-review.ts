@@ -2,8 +2,7 @@ import { useQueryClient } from '@tanstack/react-query'
 
 import { invalidateAllReviewComments } from '@/features/comments'
 import { useActiveProject } from '@/features/projects'
-import { isPaired } from '@/lib/daemon/environment'
-import { useActiveEnvironment } from '@/lib/daemon/environments-store'
+import { isPaired, useActiveEnvironment } from '@/features/remote'
 import { LIVE_POLL_MS } from '@/lib/daemon/poll'
 import { companionGitVisibilityQuery } from '@/lib/daemon/procedures/companion'
 import {

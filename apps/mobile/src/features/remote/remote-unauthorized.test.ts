@@ -15,58 +15,44 @@ vi.mock('expo-secure-store', () => ({
   setItemAsync,
 }))
 
-vi.mock('expo-network', () => ({
-  addNetworkStateListener: vi.fn(() => ({ remove: vi.fn() })),
-}))
-vi.mock('react-native', () => ({
-  AppState: { addEventListener: vi.fn(() => ({ remove: vi.fn() })) },
+vi.mock('@/lib/daemon/client', () => ({
+  forgetDaemonClient: vi.fn(),
 }))
 
-vi.mock('./client', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('./client')>()
-  return {
-    ...actual,
-    createDaemonClient: vi.fn((baseUrl: string, token: string) => ({ baseUrl, token })),
-    forgetDaemonClient: vi.fn(),
-  }
-})
-
-vi.mock('./procedure', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('./procedure')>()
-  return {
-    ...actual,
-    callDaemon: vi.fn(async () => ({ version: '1.0.0' })),
-  }
-})
-
-vi.mock('./session', () => ({
+vi.mock('@/lib/daemon/session', () => ({
   configureSession: vi.fn(),
-  onSessionClosed: vi.fn(),
-  setSessionForeground: vi.fn(),
-  subscribeSessionChanges: vi.fn(() => () => undefined),
 }))
 
-const { environmentActions, currentConnection, getEnvironment } = await import(
-  './environments-store'
+const { environmentActions, environmentsStore, getEnvironment } = await import(
+  './remote-environment-store'
 )
-const { goUnauthorized } = await import('./go-unauthorized')
-const { configureSession } = await import('./session')
+const { currentConnection } = await import('./remote-connection')
+const { goUnauthorized } = await import('./remote-unauthorized')
+const { configureSession } = await import('@/lib/daemon/session')
+
+const LAN = 'http://192.168.1.50:43117'
 
 describe('goUnauthorized revoked-session cleanup', () => {
   beforeEach(() => {
+    nextId = 0
     deleteItemAsync.mockReset()
     deleteItemAsync.mockResolvedValue(undefined)
     getItemAsync.mockReset()
     getItemAsync.mockResolvedValue(null)
     setItemAsync.mockReset()
     setItemAsync.mockResolvedValue(undefined)
-    nextId = 0
+    environmentsStore.setState({
+      activeId: null,
+      connection: { kind: 'loading' },
+      corrupt: false,
+      environments: [],
+    })
   })
 
   it('reaches unauthorized even when secure-store token deletion rejects', async () => {
     const environment = await environmentActions.add({
-      baseUrl: 'http://192.168.1.10:43118',
-      nickname: 'beelink',
+      baseUrl: LAN,
+      nickname: 'studio',
       token: 'pc_client_test',
     })
     await environmentActions.setActive(environment.id)
@@ -102,12 +88,13 @@ describe('goUnauthorized revoked-session cleanup', () => {
 
   it('unauthorized without cleanupError when deletion succeeds', async () => {
     const environment = await environmentActions.add({
-      baseUrl: 'http://192.168.1.11:43118',
+      baseUrl: 'http://100.64.0.1:43117',
       nickname: 'other',
       token: 'pc_ok',
     })
+
     await goUnauthorized(getEnvironment(environment.id) ?? environment)
-    const connection = currentConnection()
-    expect(connection).toEqual({ kind: 'unauthorized' })
+
+    expect(currentConnection()).toEqual({ kind: 'unauthorized' })
   })
 })

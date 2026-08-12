@@ -1,8 +1,7 @@
 import { createFilesInterest } from '@porcelain/client-runtime/files'
 import { useEffect } from 'react'
 import { useActiveProject } from '@/features/projects'
-import { isPaired } from '@/lib/daemon/environment'
-import { useActiveEnvironment } from '@/lib/daemon/environments-store'
+import { isPaired, useActiveEnvironment } from '@/features/remote'
 import { daemonSession } from '@/lib/daemon/session'
 
 /** Watch the active Files browser directory through the shared session interest facade. */

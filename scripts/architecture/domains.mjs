@@ -70,6 +70,7 @@ export const DOMAIN_MIGRATIONS = Object.freeze(
         targetRoots.push('apps/daemon/src/features/remote')
         targetRoots.push('packages/client-runtime/src/remote')
         targetRoots.push('apps/web/src/features/remote')
+        targetRoots.push('apps/mobile/src/features/remote')
       }
       return [
         key,
@@ -122,7 +123,6 @@ export const OVERSIZED_PRODUCTION_FILES = Object.freeze({
   'apps/daemon/src/git/commit-generation.ts': 991,
   'apps/daemon/src/git/git.ts': 947,
   'apps/desktop/src/main/shell-api.ts': 741,
-  'apps/mobile/src/lib/daemon/environments-store.ts': 453,
   'apps/web/src/components/git/changes-list.tsx': 468,
   'apps/web/src/components/git/feature-view.tsx': 520,
   'apps/web/src/components/git/reading-surface.tsx': 904,

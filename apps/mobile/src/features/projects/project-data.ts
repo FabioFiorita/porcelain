@@ -11,13 +11,14 @@ import type { BrowseDirsOutput } from '@porcelain/contracts/projects'
 import { runUserAction } from '@porcelain/shared/background'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
-import { useShellStore } from '@/features/shell/shell-store'
-import { activeProjectPathOf, isPaired } from '@/lib/daemon/environment'
 import {
   activeEnvironment,
+  activeProjectPathOf,
   environmentActions,
+  isPaired,
   useActiveEnvironment,
-} from '@/lib/daemon/environments-store'
+} from '@/features/remote'
+import { useShellStore } from '@/features/shell/shell-store'
 import { daemonSession } from '@/lib/daemon/session'
 
 import {

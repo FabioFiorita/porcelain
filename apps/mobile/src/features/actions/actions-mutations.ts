@@ -1,7 +1,7 @@
 import { actionsMutations, actionsProjectKey } from '@porcelain/client-runtime/actions'
 import { useQueryClient } from '@tanstack/react-query'
 import { useActiveProject } from '@/features/projects'
-import { useActiveEnvironment } from '@/lib/daemon/environments-store'
+import { useActiveEnvironment } from '@/features/remote'
 import { namedContractProcedure } from '@/lib/daemon/procedure'
 
 import { invalidateActionsIdentities } from './actions-query-key'

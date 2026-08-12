@@ -1,5 +1,5 @@
+import type { Environment } from '@/features/remote'
 import { getDaemonClient } from '@/lib/daemon/client'
-import type { Environment } from '@/lib/daemon/environment'
 import { callDaemon, type DaemonProcedure } from '@/lib/daemon/procedure'
 
 import { pairedProjectEnvironment } from './project-procedures'

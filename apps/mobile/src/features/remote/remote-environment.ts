@@ -1,10 +1,5 @@
 import { z } from 'zod'
 
-const environmentIconSchema = z.preprocess(
-  (value: unknown): unknown => (value === 'box' ? 'desktop' : value),
-  z.enum(['desktop', 'terminal', 'notebook']).default('desktop'),
-)
-
 /**
  * One paired daemon, as stored. The token lives under its own secure-store key
  * (`porcelain.token.<id>`), never in this record: renaming an environment rewrites the
@@ -14,7 +9,7 @@ const environmentRecordSchema = z.object({
   id: z.string(),
   nickname: z.string().min(1).max(64),
   /** The visual kind chosen for this environment group in Settings. */
-  icon: environmentIconSchema,
+  icon: z.enum(['desktop', 'terminal', 'notebook']),
   /** Normalized: scheme + host + port, no trailing slash. */
   baseUrl: z.string().url(),
   /** Every verified route for this daemon; a group of one is valid. */
@@ -31,7 +26,7 @@ export type EnvironmentId = EnvironmentRecord['id']
 export type EnvironmentIcon = EnvironmentRecord['icon']
 
 export const environmentsFileSchema = z.object({
-  version: z.literal(3),
+  version: z.literal(1),
   activeId: z.string().nullable(),
   environments: z.array(environmentRecordSchema),
 })
@@ -51,7 +46,7 @@ export function isPaired(environment: Environment | null): environment is Paired
 }
 
 export const EMPTY_ENVIRONMENTS_FILE: EnvironmentsFile = {
-  version: 3,
+  version: 1,
   activeId: null,
   environments: [],
 }
@@ -86,7 +81,7 @@ export function projectNameOf(path: string): string {
   return slash === -1 ? trimmed : trimmed.slice(slash + 1)
 }
 
-/** Runtime Project accessor; the version-3 storage adapter still serializes `activeRepoPath`. */
+/** Runtime Project accessor; the version-1 storage adapter still serializes `activeRepoPath`. */
 export function activeProjectPathOf(environment: Environment | null): string | null {
   return environment?.activeRepoPath ?? null
 }
@@ -96,7 +91,7 @@ export function normalizeBaseUrl(baseUrl: string): string {
   return baseUrl.trim().replace(/\/+$/, '').toLowerCase()
 }
 
-/** `http://beelink.local:43117` → `beelink.local`, the default nickname for a fresh pairing. */
+/** `http://192.168.1.50:43117` → `192.168.1.50`, the default nickname for a fresh pairing. */
 export function hostOf(baseUrl: string): string {
   const host = baseUrl.replace(/^https?:\/\//i, '')
   const port = host.lastIndexOf(':')

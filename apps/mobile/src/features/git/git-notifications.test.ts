@@ -14,7 +14,10 @@ import { QueryClient } from '@tanstack/react-query'
 import { waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
-vi.mock('@/lib/daemon/environments-store', () => ({
+vi.mock('@/features/remote', () => ({
+  // Pure identity the subject reads from the same feature index; the store half is faked below.
+  isPaired: (environment: { token: string | null } | null): boolean =>
+    environment !== null && environment.token !== null,
   useActiveEnvironment: () => null,
 }))
 vi.mock('@/lib/daemon/session', () => ({

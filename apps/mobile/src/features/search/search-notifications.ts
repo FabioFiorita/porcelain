@@ -12,8 +12,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 
 import { useActiveProject } from '@/features/projects'
-import { isPaired } from '@/lib/daemon/environment'
-import { useActiveEnvironment } from '@/lib/daemon/environments-store'
+import { isPaired, useActiveEnvironment } from '@/features/remote'
 import { subscribeSessionChanges } from '@/lib/daemon/session'
 import { applySearchForeignDependencies as applyTypedSearchForeignDependencies } from '@/lib/search-invalidation'
 import {
