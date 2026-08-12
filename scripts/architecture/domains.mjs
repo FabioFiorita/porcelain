@@ -24,6 +24,7 @@ export const DOMAIN_MIGRATIONS = Object.freeze(
       }
       if (key === 'actions') {
         targetRoots.push('apps/daemon/src/features/actions')
+        targetRoots.push('packages/client-runtime/src/actions')
       }
       if (key === 'projects') {
         targetRoots.push('apps/daemon/src/features/projects')

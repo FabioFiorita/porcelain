@@ -100,7 +100,7 @@ an external choice or authorization.
 | `GIT-006` | Landed | Changes/diff/history/commit/branch client-runtime and app cutover |
 | `GIT-007` | Landed | Remove Review/settings router leakage for diffReading and commitModels |
 | `ACT-001` | Landed | Actions contracts, trust, CRUD/run-preparation operations, and v1 adapters |
-| `ACT-002` | Ready | Shared Actions query/mutation/notification semantics and run preparation |
+| `ACT-002` | Landed | Shared Actions query/mutation/notification semantics and run preparation |
 | `ACT-003` | Draft | Relocate UI and execute through explicit Actions → Terminal workflow |
 | `ACT-004` | Draft | Delete Terminal-owned descriptors/facades and complete Actions |
 | `TRM-006` | Draft | Remaining Terminal request/response cutover and completed stream gate |
