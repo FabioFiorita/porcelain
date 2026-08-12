@@ -1,3 +1,10 @@
+export { DEFAULT_LAYERS } from './default-layers'
+export { recordPublishedReview } from './gitignore-dispositions'
+export { readLayers, writeLayers } from './json-layers-document'
+export {
+  createProjectDataOperations,
+  type ProjectDataOperations,
+} from './project-data-operations'
 export {
   PROJECT_DATA_DOMAIN_FILES,
   PROJECT_DATA_DOMAIN_KEYS,
@@ -8,6 +15,7 @@ export {
   type ProjectDomainFiles,
   projectDataFilesForDomain,
 } from './project-data-ports'
+export { createProjectDataRouter } from './project-data-router'
 export {
   createProjectDataStore,
   ensureProjectDataRoot,

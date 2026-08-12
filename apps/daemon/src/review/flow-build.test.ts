@@ -3,11 +3,11 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
+import { DEFAULT_LAYERS, writeLayers } from '../features/project-data'
 import type { ChangedFile, DiffStat } from '../git/diff'
 import { gitEnv } from '../git/git-env'
 import { clearWorkingTreeSnapshot } from '../git/working-tree'
-import { writeLayers } from '../stores/layers-store'
-import { DEFAULT_LAYERS, type FlowGroup } from './flow'
+import type { FlowGroup } from './flow'
 import {
   loadCommitFlow,
   loadRangeFlow,

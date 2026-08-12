@@ -174,7 +174,10 @@ vi.mock('../review/evidence-assets-list', () => assets)
 vi.mock('../review/feature-build', () => featureBuild)
 vi.mock('../review/feature-explore', () => explore)
 vi.mock('../stores/evidence-store', () => evidence)
-vi.mock('../stores/layers-store', () => layers)
+vi.mock('../features/project-data', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../features/project-data')>()
+  return { ...actual, readLayers: layers.readLayers }
+})
 vi.mock('../stores/review-store', () => reviews)
 vi.mock('../stores/reviewed-store', () => reviewed)
 

@@ -11,8 +11,12 @@ import {
   projectPorcelainPath,
   renderGitignore,
 } from '@shared/project-porcelain'
-import { gitTrackedUnder, gitUntrackKeepingFile } from '../git/git'
-import { isCompanionHidden, unhideCompanion } from './git-exclude'
+import { gitTrackedUnder, gitUntrackKeepingFile } from '../../git/git'
+import { hideCompanion, isCompanionHidden, unhideCompanion } from '../../project/git-exclude'
+import type {
+  CompanionDispositionsPort,
+  CompanionGitVisibilityPort,
+} from './project-data-capabilities'
 
 /**
  * Shared vs Local per companion channel, expressed as `.porcelain/.gitignore`
@@ -138,4 +142,22 @@ export async function recordPublishedReview(repoPath: string, id: string): Promi
 /** Whether git can see the companion in this clone at all. */
 export async function readCompanionGitVisibility(repoPath: string): Promise<{ hidden: boolean }> {
   return { hidden: await isCompanionHidden(repoPath) }
+}
+
+export function createGitignoreDispositions(): CompanionDispositionsPort {
+  return {
+    read: readChannelDispositions,
+    set: setChannelDisposition,
+    recordPublishedReview,
+  }
+}
+
+export function createCompanionGitVisibility(): CompanionGitVisibilityPort {
+  return {
+    read: async (repoPath) => ({ hidden: await isCompanionHidden(repoPath) }),
+    async set(repoPath, hidden) {
+      const changed = hidden ? await hideCompanion(repoPath) : await unhideCompanion(repoPath)
+      return { changed }
+    },
+  }
 }

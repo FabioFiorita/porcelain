@@ -1,11 +1,11 @@
+import type { Layer } from '@porcelain/contracts/project-data'
 import { describe, expect, it } from 'vitest'
+import { DEFAULT_LAYERS } from '../features/project-data'
 import type { ChangedFile } from '../git/diff'
 import {
   buildFlow,
-  DEFAULT_LAYERS,
   groupByLayer,
   groupByLayerOrdered,
-  type Layer,
   layerFor,
   OTHER_LABEL,
   parseImports,

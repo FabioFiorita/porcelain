@@ -1,7 +1,7 @@
 import { mkdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { DEFAULT_LAYERS as MAIN_DEFAULT_LAYERS } from '@backend/review/flow'
+import { DEFAULT_LAYERS as MAIN_DEFAULT_LAYERS } from '@backend/features/project-data'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   clearLayers,

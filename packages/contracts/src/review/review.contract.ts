@@ -298,39 +298,6 @@ export const archivedReviewSchema = z
 export type ArchivedReview = z.infer<typeof archivedReviewSchema>
 export const archivedReviewsOutputSchema = z.array(archivedReviewSchema)
 
-export const layerSchema = z.object({ label: z.string(), pattern: z.string() }).strict()
-export type Layer = z.infer<typeof layerSchema>
-
-function isValidPattern(pattern: string): boolean {
-  try {
-    new RegExp(pattern)
-    return true
-  } catch {
-    return false
-  }
-}
-
-export const repoLayersOutputSchema = z
-  .object({ layers: z.array(layerSchema), custom: z.boolean() })
-  .strict()
-
-export const setRepoLayersInputSchema = z
-  .object({
-    repoPath: z.string(),
-    layers: z
-      .array(
-        z
-          .object({
-            label: z.string().trim().min(1),
-            pattern: z.string().min(1).refine(isValidPattern, 'invalid regular expression'),
-          })
-          .strict(),
-      )
-      .min(1)
-      .nullable(),
-  })
-  .strict()
-
 export const exploreFeatureInputSchema = z
   .object({
     repoPath: z.string(),
@@ -400,7 +367,5 @@ export type ClearResolvedReviewCommentsInput = z.infer<
 export type ResolveReviewCommentInput = z.infer<typeof resolveReviewCommentInputSchema>
 export type AddReviewCommentInput = z.infer<typeof addReviewCommentInputSchema>
 export type ExploreFeatureInput = z.infer<typeof exploreFeatureInputSchema>
-export type SetRepoLayersInput = z.infer<typeof setRepoLayersInputSchema>
-export type RepoLayersOutput = z.infer<typeof repoLayersOutputSchema>
 
 export { reviewContractFixtures } from './review.fixtures'

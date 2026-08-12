@@ -234,18 +234,4 @@ export const reviewContractFixtures = {
     },
     output: featureReading,
   },
-  repoLayers: {
-    input: '/synthetic/repo',
-    output: {
-      layers: [{ label: 'Docs', pattern: '(^|/)docs/' }],
-      custom: true,
-    },
-  },
-  setRepoLayers: {
-    input: {
-      repoPath: '/synthetic/repo',
-      layers: [{ label: ' Docs ', pattern: '(^|/)docs/' }],
-    },
-    output: undefined,
-  },
 } as const

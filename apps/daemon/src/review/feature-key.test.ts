@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import { DEFAULT_LAYERS } from '../features/project-data'
 import type { ChangedFile, DiffStat } from '../git/diff'
 import { featureKey, flowKey } from './feature-key'
-import { DEFAULT_LAYERS } from './flow'
 
 const files: ChangedFile[] = [{ path: 'a.ts', status: 'modified', staged: false, unstaged: true }]
 const stats: DiffStat[] = [{ path: 'a.ts', additions: 1, deletions: 0 }]

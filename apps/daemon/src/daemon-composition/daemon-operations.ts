@@ -14,6 +14,7 @@ import {
   createWorkspaceTrash,
   type GitOperations,
 } from '../features/git'
+import { createProjectDataOperations, type ProjectDataOperations } from '../features/project-data'
 import type { ProjectsOperations } from '../features/projects'
 import {
   accessSnapshot,
@@ -65,6 +66,7 @@ export type DaemonOperations = Readonly<{
   files: FilesOperations
   git: GitOperations
   search: SearchOperations
+  projectData: ProjectDataOperations
   projects: ProjectsOperations
   terminal: TerminalOperations
 }>
@@ -139,6 +141,7 @@ export function createDaemonOperations(options: {
       },
       scope: { hiddenPaths: hiddenPathsForRepo },
     }),
+    projectData: createProjectDataOperations(),
     projects: options.projects,
     terminal: options.terminal,
   })

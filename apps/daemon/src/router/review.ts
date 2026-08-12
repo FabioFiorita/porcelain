@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { procedureCatalog } from '@porcelain/contracts'
 import { projectEvidenceAssetsDir as evidenceAssetsDir } from '@shared/project-porcelain'
+import { DEFAULT_LAYERS, readLayers } from '../features/project-data'
 import type { DiffHunk } from '../git/diff'
 import { gitDiffFile, gitListFiles, reviewedFingerprint, reviewedFingerprints } from '../git/git'
 import { type ReviewDoc, readActiveEvidenceResults, readActiveIntentDocs } from '../review/doc-set'
@@ -19,8 +20,6 @@ import {
 } from '../review/feature-build'
 import { buildExploreReading, walkExplore } from '../review/feature-explore'
 import { buildFeatureReading, type FeatureReading, type FeatureView } from '../review/feature-view'
-import { DEFAULT_LAYERS } from '../review/flow'
-
 import {
   clearEvidence,
   type Evidence,
@@ -28,7 +27,6 @@ import {
   readEvidence,
   readEvidenceMeta,
 } from '../stores/evidence-store'
-import { readLayers } from '../stores/layers-store'
 import {
   type ArchivedReviewMeta,
   activeReviewCost,

@@ -1,13 +1,13 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { DEFAULT_LAYERS, readLayers } from '../features/project-data'
 import type { ChangedFile, DiffStat } from '../git/diff'
 import { workingTreeSnapshot } from '../git/working-tree'
 import { writeFeatureSnapshot } from '../stores/feature-snapshot-store'
-import { readLayers } from '../stores/layers-store'
 import { readReviewSet } from '../stores/review-store'
 import { featureKey } from './feature-key'
 import { buildFeatureView, type FeatureReading, type FeatureView } from './feature-view'
-import { DEFAULT_LAYERS, type Layer } from './flow'
+import type { Layer } from './flow'
 import type { ReviewSet } from './review-set'
 
 // One shared build per snapshot — both feature procedures reuse it instead of each

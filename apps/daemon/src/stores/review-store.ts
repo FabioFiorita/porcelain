@@ -14,9 +14,9 @@ import {
   projectReviewsDir,
 } from '@shared/project-porcelain'
 import { z } from 'zod'
+import { recordPublishedReview } from '../features/project-data'
 import { gitForceStage } from '../git/git'
 import { createProjectChannel } from '../net/project-channel'
-import { recordPublishedReview } from '../project/companion-disposition'
 import {
   type ReviewSection,
   type ReviewSet,

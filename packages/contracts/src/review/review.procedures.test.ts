@@ -30,8 +30,6 @@ const expectedKinds = {
   clearResolvedReviewComments: 'mutation',
   resolveReviewComment: 'mutation',
   exploreFeature: 'query',
-  repoLayers: 'query',
-  setRepoLayers: 'mutation',
 } as const
 
 const expectedCommentErrors = {
@@ -78,8 +76,6 @@ const invalidInputs: Record<keyof typeof reviewProcedures, unknown> = {
     repoPath: '/synthetic/repo',
     seed: { kind: 'module', path: 'src/changed.ts' },
   },
-  repoLayers: 42,
-  setRepoLayers: { repoPath: '/synthetic/repo', layers: [] },
 }
 
 const invalidOutputs: Record<keyof typeof reviewProcedures, unknown> = {
@@ -121,12 +117,10 @@ const invalidOutputs: Record<keyof typeof reviewProcedures, unknown> = {
     ...reviewContractFixtures.exploreFeature.output,
     groups: [{ layer: 'Source' }],
   },
-  repoLayers: { layers: [{ label: 'Docs', pattern: 42 }], custom: true },
-  setRepoLayers: null,
 }
 
 describe('Review procedure contracts', () => {
-  it('declares exactly twenty-nine procedures with their router kinds', () => {
+  it('declares exactly twenty-seven procedures with their router kinds', () => {
     expect(Object.keys(reviewProcedures).sort()).toEqual(Object.keys(expectedKinds).sort())
     for (const [name, kind] of Object.entries(expectedKinds)) {
       expect(reviewProcedures[name as keyof typeof reviewProcedures].kind).toBe(kind)
@@ -302,24 +296,6 @@ describe('Review procedure contracts', () => {
         id: '',
       }).success,
     ).toBe(false)
-    expect(
-      reviewProcedures.setRepoLayers.input.parse({
-        repoPath: '/synthetic/repo',
-        layers: [{ label: ' Docs ', pattern: '(^|/)docs/' }],
-      }),
-    ).toEqual({ repoPath: '/synthetic/repo', layers: [{ label: 'Docs', pattern: '(^|/)docs/' }] })
-    expect(
-      reviewProcedures.setRepoLayers.input.safeParse({
-        repoPath: '/synthetic/repo',
-        layers: null,
-      }).success,
-    ).toBe(true)
-    expect(
-      reviewProcedures.setRepoLayers.input.safeParse({
-        repoPath: '/synthetic/repo',
-        layers: [{ label: 'Docs', pattern: '[' }],
-      }).success,
-    ).toBe(false)
 
     for (const [name, procedure] of Object.entries(reviewProcedures)) {
       if (expectedKinds[name as keyof typeof expectedKinds] !== 'mutation') continue
@@ -380,12 +356,6 @@ describe('Review procedure contracts', () => {
       reviewProcedures.worktreeInbox.output.safeParse([
         { ...reviewContractFixtures.worktreeInbox.output[0], extra: true },
       ]).success,
-    ).toBe(false)
-    expect(
-      reviewProcedures.repoLayers.output.safeParse({
-        ...reviewContractFixtures.repoLayers.output,
-        layers: [{ ...reviewContractFixtures.repoLayers.output.layers[0], extra: true }],
-      }).success,
     ).toBe(false)
     expect(
       reviewProcedures.setReviewed.input.safeParse({

@@ -1,4 +1,4 @@
-import type { Layer } from '@backend/review/flow'
+import type { Layer } from '@porcelain/contracts/project-data'
 import { invalidateAfterSuccess } from '@renderer/hooks/mutation-error'
 import { trpc } from '@renderer/lib/trpc'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'

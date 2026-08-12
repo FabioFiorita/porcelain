@@ -8,6 +8,7 @@ import {
   projectPorcelainPath,
 } from '@shared/project-porcelain'
 import { afterAll, describe, expect, it } from 'vitest'
+import { DEFAULT_LAYERS } from '../features/project-data'
 import { gitEnv } from '../git/git-env'
 import { clearWorkingTreeSnapshot } from '../git/working-tree'
 import {
@@ -18,7 +19,6 @@ import {
   readSourcesInto,
   storeFeatureReading,
 } from './feature-build'
-import { DEFAULT_LAYERS } from './flow'
 import type { ReviewSet } from './review-set'
 
 const GIT_ENV = {

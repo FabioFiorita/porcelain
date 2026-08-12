@@ -40,4 +40,18 @@ export const projectDataContractFixtures = {
     input: { repoPath: '/synthetic/repo', key: 'board', disposition: 'local' },
     output: { untracked: ['.porcelain/board.json'], revealed: false },
   },
+  repoLayers: {
+    input: '/synthetic/repo',
+    output: {
+      layers: [{ label: 'Docs', pattern: '(^|/)docs/' }],
+      custom: true,
+    },
+  },
+  setRepoLayers: {
+    input: {
+      repoPath: '/synthetic/repo',
+      layers: [{ label: ' Docs ', pattern: '(^|/)docs/' }],
+    },
+    output: undefined,
+  },
 } as const

@@ -13,6 +13,8 @@ const expectedKinds = {
   companionGitVisibility: 'query',
   setCompanionGitVisibility: 'mutation',
   setCompanionDisposition: 'mutation',
+  repoLayers: 'query',
+  setRepoLayers: 'mutation',
 } as const
 
 const invalidInputs = {
@@ -22,6 +24,8 @@ const invalidInputs = {
   companionGitVisibility: null,
   setCompanionGitVisibility: { repoPath: '/synthetic/repo', hidden: 'yes' },
   setCompanionDisposition: { repoPath: '/synthetic/repo', key: '', disposition: 'local' },
+  repoLayers: 42,
+  setRepoLayers: { repoPath: '/synthetic/repo', layers: [] },
 } as const
 
 const invalidOutputs = {
@@ -33,10 +37,12 @@ const invalidOutputs = {
   companionGitVisibility: { hidden: 'true' },
   setCompanionGitVisibility: {},
   setCompanionDisposition: { untracked: '.porcelain/board.json', revealed: false },
+  repoLayers: { layers: [{ label: 'Docs', pattern: 42 }], custom: true },
+  setRepoLayers: null,
 } as const
 
 describe('Project Data procedure contracts', () => {
-  it('declares exactly six procedures with their router kinds', () => {
+  it('declares exactly eight procedures with their router kinds', () => {
     expect(Object.keys(projectDataProcedures).sort()).toEqual(Object.keys(expectedKinds).sort())
     for (const [name, kind] of Object.entries(expectedKinds)) {
       expect(projectDataProcedures[name as keyof typeof projectDataProcedures].kind).toBe(kind)
@@ -176,5 +182,53 @@ describe('Project Data procedure contracts', () => {
 
   it('keeps the notes mutation result void', () => {
     expect(projectDataProcedures.setRepoNotes.output.safeParse(undefined).success).toBe(true)
+  })
+
+  it('trims layer labels, accepts a null clear, and rejects blank labels, empty arrays, and invalid regexes', () => {
+    expect(
+      projectDataProcedures.setRepoLayers.input.parse({
+        repoPath: '/synthetic/repo',
+        layers: [{ label: ' Docs ', pattern: '(^|/)docs/' }],
+      }),
+    ).toEqual({ repoPath: '/synthetic/repo', layers: [{ label: 'Docs', pattern: '(^|/)docs/' }] })
+    expect(
+      projectDataProcedures.setRepoLayers.input.safeParse({
+        repoPath: '/synthetic/repo',
+        layers: null,
+      }).success,
+    ).toBe(true)
+    expect(
+      projectDataProcedures.setRepoLayers.input.safeParse({
+        repoPath: '/synthetic/repo',
+        layers: [{ label: '   ', pattern: 'docs/' }],
+      }).success,
+    ).toBe(false)
+    expect(
+      projectDataProcedures.setRepoLayers.input.safeParse({
+        repoPath: '/synthetic/repo',
+        layers: [{ label: 'Docs', pattern: '[' }],
+      }).success,
+    ).toBe(false)
+    expect(
+      projectDataProcedures.setRepoLayers.input.safeParse({
+        repoPath: '/synthetic/repo',
+        layers: [],
+      }).success,
+    ).toBe(false)
+  })
+
+  it('rejects extra keys on layer write input and layer read output', () => {
+    expect(
+      projectDataProcedures.setRepoLayers.input.safeParse({
+        ...projectDataContractFixtures.setRepoLayers.input,
+        reset: true,
+      }).success,
+    ).toBe(false)
+    expect(
+      projectDataProcedures.repoLayers.output.safeParse({
+        ...projectDataContractFixtures.repoLayers.output,
+        layers: [{ ...projectDataContractFixtures.repoLayers.output.layers[0], extra: true }],
+      }).success,
+    ).toBe(false)
   })
 })

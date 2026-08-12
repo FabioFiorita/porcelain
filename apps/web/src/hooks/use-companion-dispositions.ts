@@ -1,10 +1,10 @@
-import type { ChannelDisposition } from '@backend/project/companion-disposition'
+import type { ChannelDispositionValue } from '@porcelain/contracts/project-data'
 import { invalidateAfterSuccess, onMutationError } from '@renderer/hooks/mutation-error'
 import { trpc } from '@renderer/lib/trpc'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import type { CompanionDisposition } from '@shared/project-porcelain'
 
-export function useCompanionDispositions(): ChannelDisposition[] | undefined {
+export function useCompanionDispositions(): ChannelDispositionValue[] | undefined {
   const project = useProjectSelectionStore((s) => s.project)
   const { data } = trpc.companionDispositions.useQuery(project?.path ?? '', {
     enabled: project !== null,

@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { DEFAULT_LAYERS, readLayers } from '../features/project-data'
 import type { ChangedFile, DiffStat } from '../git/diff'
 import {
   gitCommitFiles,
@@ -10,9 +11,8 @@ import {
   gitRangeNumstatFrom,
 } from '../git/git'
 import { workingTreeSnapshot } from '../git/working-tree'
-import { readLayers } from '../stores/layers-store'
 import { flowKey } from './feature-key'
-import { buildFlow, DEFAULT_LAYERS, type FlowGroup, type Layer } from './flow'
+import { buildFlow, type FlowGroup, type Layer } from './flow'
 
 // Read up to 200 files' working-tree contents, run buildFlow, and attach
 // additions/deletions from the stat map. Shared by the working, range, and commit

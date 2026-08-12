@@ -31,6 +31,7 @@ export const PRODUCTION_ROUTER_FILES = [
   'features/board/board-router.ts',
   'features/files/files-router.ts',
   'features/git/git-router.ts',
+  'features/project-data/project-data-router.ts',
   'features/projects/projects-router.ts',
   'features/remote/remote-network-router.ts',
   'features/remote/remote-router.ts',

@@ -1,29 +1,7 @@
+import type { Layer } from '@porcelain/contracts/project-data'
 import type { ChangedFile } from '../git/diff'
 
-export interface Layer {
-  label: string
-  pattern: string
-}
-
-/**
- * Default (starter) review-flow layers for any unconfigured repo — Docs + Agents
- * only, never a fat framework stack (Pages/Components/Hooks/…). Ordered so agent
- * tooling and prose sit above product code when dirty; everything else lands in
- * Other until the human/agent runs `layers set` for this tree. Reset / no custom
- * entry both resolve here. Keep in sync with the CLI copy in layers-file.ts
- * (guarded by layers-file.test.ts).
- */
-export const DEFAULT_LAYERS: Layer[] = [
-  {
-    label: 'Docs',
-    pattern: '(^|/)(README|CONTRIBUTING|LICENSE|CHANGELOG)(\\.md)?$|(^|/)docs/',
-  },
-  {
-    label: 'Agents',
-    pattern:
-      '(^|/)(AGENTS|CLAUDE|CLAUDE\\.local)\\.md$|(^|/)\\.agents/|(^|/)\\.claude/|(^|/)skills/',
-  },
-]
+export type { Layer }
 
 export const OTHER_LABEL = 'Other'
 
