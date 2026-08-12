@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
-import { funnelConfigurationContains, funnelPublicUrl } from './funnel'
+import { funnelConfigurationContains, funnelPublicUrl } from './remote-funnel'
 
 describe('Tailscale Funnel output parsing', () => {
   it('finds the daemon target without depending on Tailscale JSON key names', () => {

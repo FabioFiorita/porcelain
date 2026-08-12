@@ -2,8 +2,11 @@ import { PROTOCOL_VERSION } from '@porcelain/contracts'
 import type {
   AccessStatusOutput,
   DaemonInfoOutput,
+  FunnelStatusOutput,
   IssuePairingLinkInput,
   IssuePairingLinkOutput,
+  LanStatusOutput,
+  TailnetStatusOutput,
 } from '@porcelain/contracts/remote'
 import {
   type AuthIdentity,
@@ -14,7 +17,11 @@ import {
 } from './access-store'
 import type {
   RemoteAccess,
+  RemoteFunnel,
   RemoteIdentityValue,
+  RemoteListeners,
+  RemoteNetworkConfig,
+  RemoteNetworkEnv,
   RemoteOperationError,
   RemoteOperationResult,
   RemoteSessions,
@@ -31,6 +38,12 @@ export type RemoteOperations = Readonly<{
   revokePairingLink: (id: string) => Promise<RemoteOperationResult<void>>
   revokeAuthorizedClient: (id: string) => Promise<RemoteOperationResult<void>>
   revokeCurrentClient: (auth: AuthIdentity) => Promise<RemoteOperationResult<void>>
+  tailnetStatus: () => Promise<TailnetStatusOutput>
+  setTailnetBind: (input: boolean) => Promise<TailnetStatusOutput>
+  lanStatus: () => Promise<LanStatusOutput>
+  setLanBind: (input: boolean) => Promise<LanStatusOutput>
+  funnelStatus: () => Promise<FunnelStatusOutput>
+  setFunnelBind: (input: boolean) => Promise<FunnelStatusOutput>
 }>
 
 function invalid(): RemoteOperationResult<never> {
@@ -43,6 +56,10 @@ export function createRemoteOperations(options: {
   version: () => string
   displayAdminTokenPath: () => string
   sessions: RemoteSessions
+  config: RemoteNetworkConfig
+  listeners: RemoteListeners
+  funnel: RemoteFunnel
+  env: RemoteNetworkEnv
 }): RemoteOperations {
   const access = options.access ?? {
     snapshot: accessSnapshot,
@@ -109,6 +126,73 @@ export function createRemoteOperations(options: {
         options.sessions.closeClientSessions(auth.clientId)
       }
       return { ok: true, value: undefined }
+    },
+
+    async tailnetStatus(): Promise<TailnetStatusOutput> {
+      const flags = await options.config.load()
+      const envForced = options.env.tailnetBindForced()
+      return {
+        enabled: flags.tailnetBind === true || envForced,
+        url: options.listeners.tailnetUrl(),
+        error: options.listeners.tailnetBindError(),
+        envForced,
+        port: options.listeners.ifaceListenerPort(),
+      }
+    },
+
+    async setTailnetBind(input: boolean): Promise<TailnetStatusOutput> {
+      await options.config.update((current) => ({ ...current, tailnetBind: input }))
+      if (input) await options.listeners.startTailnetListener()
+      else await options.listeners.stopTailnetListener()
+      const envForced = options.env.tailnetBindForced()
+      return {
+        enabled: input || envForced,
+        url: options.listeners.tailnetUrl(),
+        error: options.listeners.tailnetBindError(),
+        envForced,
+        port: options.listeners.ifaceListenerPort(),
+      }
+    },
+
+    async lanStatus(): Promise<LanStatusOutput> {
+      const flags = await options.config.load()
+      const envForced = options.env.lanBindForced()
+      return {
+        enabled: flags.lanBind === true || envForced,
+        url: options.listeners.lanUrl(),
+        numericUrl: options.listeners.lanNumericUrl(),
+        error: options.listeners.lanBindError(),
+        envForced,
+        port: options.listeners.ifaceListenerPort(),
+      }
+    },
+
+    async setLanBind(input: boolean): Promise<LanStatusOutput> {
+      await options.config.update((current) => ({ ...current, lanBind: input }))
+      if (input) await options.listeners.startLanListener()
+      else await options.listeners.stopLanListener()
+      const envForced = options.env.lanBindForced()
+      return {
+        enabled: input || envForced,
+        url: options.listeners.lanUrl(),
+        numericUrl: options.listeners.lanNumericUrl(),
+        error: options.listeners.lanBindError(),
+        envForced,
+        port: options.listeners.ifaceListenerPort(),
+      }
+    },
+
+    async funnelStatus(): Promise<FunnelStatusOutput> {
+      return {
+        ...(await options.funnel.status()),
+        envForced: options.env.funnelBindForced(),
+      }
+    },
+
+    async setFunnelBind(input: boolean): Promise<FunnelStatusOutput> {
+      const status = input ? await options.funnel.start() : await options.funnel.stop()
+      await options.config.update((current) => ({ ...current, funnelBind: input }))
+      return { ...status, envForced: options.env.funnelBindForced() }
     },
   })
 }

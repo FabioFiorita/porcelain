@@ -8,7 +8,18 @@ import {
   createProjectsOperations,
   initProjectsRecentsDir,
 } from './features/projects'
-import { authenticateClientToken, exchangePairingGrant } from './features/remote'
+import {
+  authenticateClientToken,
+  createRemoteHttp,
+  exchangePairingGrant,
+  initConfigDir,
+  initIfaceHandlers,
+  loadConfig,
+  setFunnelDaemonPort,
+  startFunnel,
+  startLanListener,
+  startTailnetListener,
+} from './features/remote'
 import {
   createPtyAdapter,
   createTerminalEnvironment,
@@ -18,13 +29,9 @@ import {
 import { warmFileList } from './git/git'
 import { isLinkedWorktree } from './git/linked-worktree'
 import { ensureAdminToken } from './net/admin-token'
-import { createDaemonHttp } from './net/daemon-http'
-import { setFunnelDaemonPort, startFunnel } from './net/funnel'
 import { rendererDistExists, serveStatic } from './net/static-server'
-import { initIfaceHandlers, startLanListener, startTailnetListener } from './net/tailnet-listener'
 import { watchAgentChannels, watchProjectCompanion } from './review/review-watch'
 import { createSession } from './session/live-session'
-import { initConfigDir, loadConfig } from './stores/config-store'
 
 /**
  * The daemon entry point — the Electron-free half of Porcelain, forked by the shell
@@ -87,13 +94,13 @@ async function resolveAdminToken(): Promise<string> {
   return ensureAdminToken()
 }
 
-// The whole request/upgrade pipeline lives in the factory (daemon-http.ts) so it
+// The whole request/upgrade pipeline lives in the factory (createRemoteHttp) so it
 // can be booted for real in a test; the entry file only resolves its inputs. Built
 // in main() (below) once the token is known — a `let` because the token resolves
 // asynchronously (env or file), and the digest must exist before either listener
 // accepts a connection (the factory takes it as input, so that ordering is now
 // structural).
-let daemon: ReturnType<typeof createDaemonHttp>
+let daemon: ReturnType<typeof createRemoteHttp>
 
 async function main(): Promise<void> {
   // Resolve the local administrator credential and precompute its digest BEFORE
@@ -103,7 +110,7 @@ async function main(): Promise<void> {
 
   // CORS is scoped, not `*`: the shell passes the dev renderer's origin via
   // PORCELAIN_ALLOWED_ORIGIN (the Vite server); the packaged file:// renderer
-  // sends a literal "null" origin the factory always echoes. See daemon-http.ts.
+  // sends a literal "null" origin the factory always echoes. See createRemoteHttp.
   // Compose the bound-operation catalog and flat router once before any listener
   // accepts a request — never per request, never as a module singleton.
   const terminalEnvironment = createTerminalEnvironment()
@@ -119,7 +126,7 @@ async function main(): Promise<void> {
   })
   const operations = createDaemonOperations({ projects, terminal })
   const router = createDaemonRouter({ operations })
-  daemon = createDaemonHttp({
+  daemon = createRemoteHttp({
     adminTokenHash: tokenHash,
     authenticateClient: authenticateClientToken,
     exchangePairing: exchangePairingGrant,

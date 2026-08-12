@@ -41,6 +41,50 @@ const operations: RemoteOperations = {
       ? { ok: true as const, value: undefined }
       : { ok: false as const, error: { code: 'auth.forbidden' as const } },
   ),
+  tailnetStatus: vi.fn(async () => ({
+    enabled: false,
+    url: null,
+    error: null,
+    envForced: false,
+    port: 43117,
+  })),
+  setTailnetBind: vi.fn(async () => ({
+    enabled: false,
+    url: null,
+    error: null,
+    envForced: false,
+    port: 43117,
+  })),
+  lanStatus: vi.fn(async () => ({
+    enabled: false,
+    url: null,
+    numericUrl: null,
+    error: null,
+    envForced: false,
+    port: 43117,
+  })),
+  setLanBind: vi.fn(async () => ({
+    enabled: false,
+    url: null,
+    numericUrl: null,
+    error: null,
+    envForced: false,
+    port: 43117,
+  })),
+  funnelStatus: vi.fn(async () => ({
+    enabled: false,
+    url: null,
+    managed: false,
+    error: 'unavailable' as const,
+    envForced: false,
+  })),
+  setFunnelBind: vi.fn(async () => ({
+    enabled: false,
+    url: null,
+    managed: false,
+    error: 'unavailable' as const,
+    envForced: false,
+  })),
 }
 
 const router = createRemoteRouter(operations)

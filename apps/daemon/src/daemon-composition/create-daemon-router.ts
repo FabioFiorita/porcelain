@@ -3,12 +3,11 @@ import { createBoardRouter } from '../features/board'
 import { createFilesFeatureRouter } from '../features/files'
 import { createGitFeatureRouter } from '../features/git'
 import { createProjectsRouter } from '../features/projects'
-import { createRemoteRouter } from '../features/remote'
+import { createRemoteNetworkRouter, createRemoteRouter } from '../features/remote'
 import { createReviewCommentRouter } from '../features/review'
 import { createSearchRouter } from '../features/search'
 import { createTerminalRouter } from '../features/terminal'
 import { createGitRouter } from '../router/git'
-import { createNetworkRouter } from '../router/network'
 import { createReposRouter } from '../router/repos'
 import { createReviewRouter } from '../router/review'
 import { createSettingsRouter } from '../router/settings'
@@ -38,7 +37,7 @@ export function createDaemonRouter({ operations }: CreateDaemonRouterOptions) {
     createBoardRouter(operations.board),
     createActionsRouter(operations.actions),
     createSettingsRouter(),
-    createNetworkRouter(),
+    createRemoteNetworkRouter(operations.remote),
     createTerminalRouter(operations.terminal),
   )
 }

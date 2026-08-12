@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import type { Duplex } from 'node:stream'
-import { findLanAddresses, lanDisplayHost } from './lan'
-import { findTailscaleAddress } from './tailnet'
+import { findLanAddresses, lanDisplayHost } from './remote-lan'
+import { findTailscaleAddress } from './remote-tailnet'
 
 /**
  * The optional SECOND daemon listeners — bound to non-loopback private interfaces so

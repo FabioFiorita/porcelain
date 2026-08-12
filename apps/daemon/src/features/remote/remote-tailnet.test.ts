@@ -1,6 +1,6 @@
 import type { networkInterfaces } from 'node:os'
 import { describe, expect, it } from 'vitest'
-import { findTailscaleAddress } from './tailnet'
+import { findTailscaleAddress } from './remote-tailnet'
 
 type Interfaces = ReturnType<typeof networkInterfaces>
 

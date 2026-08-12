@@ -3,7 +3,17 @@ import { PROTOCOL_VERSION } from '@porcelain/contracts'
 import { describe, expect, it, vi } from 'vitest'
 import type { AuthIdentity } from './access-store'
 import { createRemoteOperations } from './remote-operations'
-import type { RemoteAccess, RemoteIdentityValue, RemoteSessions } from './remote-ports'
+import type {
+  RemoteAccess,
+  RemoteFunnel,
+  RemoteFunnelState,
+  RemoteIdentityValue,
+  RemoteListeners,
+  RemoteNetworkConfig,
+  RemoteNetworkEnv,
+  RemoteNetworkFlags,
+  RemoteSessions,
+} from './remote-ports'
 
 const GRANT = {
   id: 'pairing-id',
@@ -33,6 +43,65 @@ function fakeSessions(overrides: Partial<RemoteSessions> = {}): RemoteSessions {
   }
 }
 
+function fakeConfig(initial: RemoteNetworkFlags = {}): RemoteNetworkConfig {
+  let flags: RemoteNetworkFlags = { ...initial }
+  return {
+    load: vi.fn(async () => ({ ...flags })),
+    update: vi.fn(async (fn) => {
+      flags = fn(flags)
+      return { ...flags }
+    }),
+  }
+}
+
+function fakeListeners(overrides: Partial<RemoteListeners> = {}): RemoteListeners {
+  return {
+    tailnetUrl: vi.fn(() => 'http://workstation.example:43118'),
+    tailnetBindError: vi.fn(() => null),
+    startTailnetListener: vi.fn(async () => 'http://workstation.example:43118'),
+    stopTailnetListener: vi.fn(async () => undefined),
+    lanUrl: vi.fn(() => 'http://workstation.local:43118'),
+    lanNumericUrl: vi.fn(() => 'http://192.168.1.10:43118'),
+    lanBindError: vi.fn(() => null),
+    startLanListener: vi.fn(async () => 'http://workstation.local:43118'),
+    stopLanListener: vi.fn(async () => undefined),
+    ifaceListenerPort: vi.fn(() => 43118),
+    ...overrides,
+  }
+}
+
+const FUNNEL_OFF: RemoteFunnelState = {
+  enabled: false,
+  url: null,
+  managed: false,
+  error: 'unavailable',
+}
+
+const FUNNEL_ON: RemoteFunnelState = {
+  enabled: true,
+  url: 'https://workstation.example.ts.net',
+  managed: true,
+  error: null,
+}
+
+function fakeFunnel(overrides: Partial<RemoteFunnel> = {}): RemoteFunnel {
+  return {
+    status: vi.fn(async () => FUNNEL_OFF),
+    start: vi.fn(async () => FUNNEL_ON),
+    stop: vi.fn(async () => FUNNEL_OFF),
+    ...overrides,
+  }
+}
+
+function fakeEnv(overrides: Partial<RemoteNetworkEnv> = {}): RemoteNetworkEnv {
+  return {
+    tailnetBindForced: vi.fn(() => false),
+    lanBindForced: vi.fn(() => false),
+    funnelBindForced: vi.fn(() => false),
+    ...overrides,
+  }
+}
+
 function operations(
   overrides: {
     access?: Partial<RemoteAccess>
@@ -40,19 +109,35 @@ function operations(
     identity?: () => RemoteIdentityValue
     version?: () => string
     displayAdminTokenPath?: () => string
+    config?: RemoteNetworkConfig
+    listeners?: Partial<RemoteListeners>
+    funnel?: Partial<RemoteFunnel>
+    env?: Partial<RemoteNetworkEnv>
   } = {},
 ) {
   const access = fakeAccess(overrides.access)
   const sessions = fakeSessions(overrides.sessions)
+  const config = overrides.config ?? fakeConfig()
+  const listeners = fakeListeners(overrides.listeners)
+  const funnel = fakeFunnel(overrides.funnel)
+  const env = fakeEnv(overrides.env)
   return {
     access,
     sessions,
+    config,
+    listeners,
+    funnel,
+    env,
     ops: createRemoteOperations({
       access,
       identity: overrides.identity ?? (() => IDENTITY),
       version: overrides.version ?? (() => '0.52.1'),
       displayAdminTokenPath: overrides.displayAdminTokenPath ?? (() => '~/.porcelain/admin-token'),
       sessions,
+      config,
+      listeners,
+      funnel,
+      env,
     }),
   }
 }
@@ -163,5 +248,172 @@ describe('Remote operations', () => {
     })
     expect(access.revokeAuthorizedClient).not.toHaveBeenCalled()
     expect(sessions.closeClientSessions).not.toHaveBeenCalled()
+  })
+
+  it('composes tailnet and LAN status from flags, env, and listener ports without start/stop', async () => {
+    const { listeners, ops } = operations({
+      config: fakeConfig({ tailnetBind: true, lanBind: false }),
+      listeners: {
+        tailnetUrl: vi.fn(() => 'http://100.64.0.2:43118'),
+        tailnetBindError: vi.fn(() => null),
+        lanUrl: vi.fn(() => null),
+        lanNumericUrl: vi.fn(() => null),
+        lanBindError: vi.fn(() => 'in-use'),
+      },
+      env: { lanBindForced: vi.fn(() => true) },
+    })
+
+    expect(await ops.tailnetStatus()).toEqual({
+      enabled: true,
+      url: 'http://100.64.0.2:43118',
+      error: null,
+      envForced: false,
+      port: 43118,
+    })
+    expect(await ops.lanStatus()).toEqual({
+      enabled: true,
+      url: null,
+      numericUrl: null,
+      error: 'in-use',
+      envForced: true,
+      port: 43118,
+    })
+    expect(listeners.startTailnetListener).not.toHaveBeenCalled()
+    expect(listeners.stopTailnetListener).not.toHaveBeenCalled()
+    expect(listeners.startLanListener).not.toHaveBeenCalled()
+    expect(listeners.stopLanListener).not.toHaveBeenCalled()
+  })
+
+  it('writes then starts on setTailnetBind(true) and does not stop', async () => {
+    const order: string[] = []
+    const config = fakeConfig()
+    vi.mocked(config.update).mockImplementation(async (fn) => {
+      order.push('update')
+      return fn({})
+    })
+    const { listeners, ops } = operations({
+      config,
+      listeners: {
+        startTailnetListener: vi.fn(async () => {
+          order.push('start')
+          return 'http://workstation.example:43118'
+        }),
+      },
+    })
+
+    expect(await ops.setTailnetBind(true)).toMatchObject({ enabled: true })
+    expect(order).toEqual(['update', 'start'])
+    expect(listeners.startTailnetListener).toHaveBeenCalledOnce()
+    expect(listeners.stopTailnetListener).not.toHaveBeenCalled()
+  })
+
+  it('writes then stops on setLanBind(false) and does not start', async () => {
+    const order: string[] = []
+    const config = fakeConfig({ lanBind: true })
+    vi.mocked(config.update).mockImplementation(async (fn) => {
+      order.push('update')
+      return fn({ lanBind: true })
+    })
+    const { listeners, ops } = operations({
+      config,
+      listeners: {
+        stopLanListener: vi.fn(async () => {
+          order.push('stop')
+        }),
+      },
+    })
+
+    expect(await ops.setLanBind(false)).toMatchObject({ enabled: false })
+    expect(order).toEqual(['update', 'stop'])
+    expect(listeners.stopLanListener).toHaveBeenCalledOnce()
+    expect(listeners.startLanListener).not.toHaveBeenCalled()
+  })
+
+  it('keeps enabled true on set when env is forced even if input is false', async () => {
+    const { ops } = operations({
+      env: { tailnetBindForced: vi.fn(() => true) },
+    })
+
+    expect(await ops.setTailnetBind(false)).toMatchObject({ enabled: true, envForced: true })
+  })
+
+  it('passes Funnel live state through status and does not read funnelBind', async () => {
+    const live: RemoteFunnelState = {
+      enabled: true,
+      url: 'https://workstation.example.ts.net',
+      managed: true,
+      error: null,
+    }
+    const config = fakeConfig({ funnelBind: false })
+    const { funnel, ops } = operations({
+      config,
+      funnel: { status: vi.fn(async () => live) },
+      env: { funnelBindForced: vi.fn(() => true) },
+    })
+
+    expect(await ops.funnelStatus()).toEqual({ ...live, envForced: true })
+    expect(funnel.status).toHaveBeenCalledOnce()
+    expect(config.load).not.toHaveBeenCalled()
+  })
+
+  it('starts or stops Funnel then writes config', async () => {
+    const order: string[] = []
+    const config = fakeConfig()
+    vi.mocked(config.update).mockImplementation(async (fn) => {
+      order.push('update')
+      return fn({})
+    })
+    const { funnel, ops } = operations({
+      config,
+      funnel: {
+        start: vi.fn(async () => {
+          order.push('start')
+          return FUNNEL_ON
+        }),
+        stop: vi.fn(async () => {
+          order.push('stop')
+          return FUNNEL_OFF
+        }),
+      },
+    })
+
+    expect(await ops.setFunnelBind(true)).toEqual({ ...FUNNEL_ON, envForced: false })
+    expect(order).toEqual(['start', 'update'])
+    expect(funnel.start).toHaveBeenCalledOnce()
+    expect(funnel.stop).not.toHaveBeenCalled()
+
+    order.length = 0
+    expect(await ops.setFunnelBind(false)).toEqual({ ...FUNNEL_OFF, envForced: false })
+    expect(order).toEqual(['stop', 'update'])
+    expect(funnel.stop).toHaveBeenCalledOnce()
+  })
+
+  it('skips config.update when Funnel start throws', async () => {
+    const config = fakeConfig()
+    const { ops } = operations({
+      config,
+      funnel: {
+        start: vi.fn(async () => {
+          throw new Error('The daemon is not listening yet')
+        }),
+      },
+    })
+
+    await expect(ops.setFunnelBind(true)).rejects.toThrow('The daemon is not listening yet')
+    expect(config.update).not.toHaveBeenCalled()
+  })
+
+  it('reads env only through the injected port, never process.env', async () => {
+    vi.stubEnv('PORCELAIN_TAILNET_BIND', '1')
+    vi.stubEnv('PORCELAIN_LAN_BIND', '1')
+    vi.stubEnv('PORCELAIN_FUNNEL_BIND', '1')
+    const { ops } = operations({
+      config: fakeConfig({ tailnetBind: false, lanBind: false }),
+    })
+
+    expect(await ops.tailnetStatus()).toMatchObject({ enabled: false, envForced: false })
+    expect(await ops.lanStatus()).toMatchObject({ enabled: false, envForced: false })
+    expect(await ops.funnelStatus()).toMatchObject({ envForced: false })
+    vi.unstubAllEnvs()
   })
 })

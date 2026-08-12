@@ -7,7 +7,7 @@ import {
   ifaceListenerPort,
   initIfaceHandlers,
   LISTENER_PORT,
-} from './tailnet-listener'
+} from './remote-listeners'
 
 // The ephemeral port every listener in this suite binds (picked in beforeAll).
 let testPort: number

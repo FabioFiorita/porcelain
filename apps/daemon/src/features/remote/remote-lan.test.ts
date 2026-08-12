@@ -13,7 +13,7 @@ vi.mock('node:os', async (importOriginal) => {
   return { ...mocked, default: mocked }
 })
 
-import { findLanAddresses, lanDisplayHost } from './lan'
+import { findLanAddresses, lanDisplayHost } from './remote-lan'
 
 type Interfaces = ReturnType<typeof networkInterfaces>
 

@@ -6,18 +6,18 @@ import { MAX_SESSION_MESSAGE_BYTES } from '@porcelain/contracts/terminal'
 import type { AnyRouter } from '@trpc/server'
 import { fetchRequestHandler } from '@trpc/server/adapters/fetch'
 import { type WebSocket, WebSocketServer } from 'ws'
-import { logUnexpectedError } from '../daemon-composition/error-log'
+import { logUnexpectedError } from '../../daemon-composition/error-log'
 import {
   normalizePublicError,
   publicErrorFor,
   writePublicError,
-} from '../daemon-composition/public-error'
-import { createRequestId } from '../daemon-composition/request-id'
-import type { AuthIdentity } from '../features/remote'
+} from '../../daemon-composition/public-error'
+import { createRequestId } from '../../daemon-composition/request-id'
+import type { AuthIdentity } from './access-store'
 
 /**
  * The daemon's HTTP + WS surface, factored out of `server.ts` so it can be booted
- * for real inside a test (`daemon-http.test.ts`) on an ephemeral port. This is the
+ * for real inside a test (`remote-http.test.ts`) on an ephemeral port. This is the
  * whole request/upgrade pipeline — the token gate, the CORS scope, the tRPC fetch
  * adapter, and the WS-upgrade handshake — with nothing entangled: the entry file
  * (`server.ts`) owns the env guard, token resolution, migrations, watch/broadcast
@@ -36,7 +36,7 @@ import type { AuthIdentity } from '../features/remote'
  * (`rejectProtocolMismatch` below): the daemon serves independently updated clients
  * and does not emulate older ones.
  */
-export interface DaemonHttpOptions {
+export interface RemoteHttpOptions {
   /** sha256 digest of the local host administrator credential. */
   adminTokenHash: Buffer
   /** Validate an individually issued client token. */
@@ -55,7 +55,7 @@ export interface DaemonHttpOptions {
   serveStatic: (req: IncomingMessage, res: ServerResponse) => Promise<void>
 }
 
-export interface DaemonHttp {
+export interface RemoteHttp {
   /** The http.Server, NOT yet listening — the caller owns `.listen()`. */
   server: Server
   /** The (req, res) listener; shared with the optional tailnet listener. */
@@ -80,7 +80,7 @@ function announcedProtocolVersion(req: IncomingMessage): number | null {
   return Number.isSafeInteger(announced) ? announced : null
 }
 
-export function createDaemonHttp(opts: DaemonHttpOptions): DaemonHttp {
+export function createRemoteHttp(opts: RemoteHttpOptions): RemoteHttp {
   const { allowedOrigin, router, onSession, serveStatic } = opts
   const adminTokenHash = Buffer.from(opts.adminTokenHash)
 

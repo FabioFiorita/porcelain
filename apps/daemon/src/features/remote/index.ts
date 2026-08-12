@@ -10,6 +10,23 @@ export {
   revokeAuthorizedClient,
   revokePairingGrant,
 } from './access-store'
+export { initConfigDir, loadConfig, updateConfig } from './remote-config-store'
+export { funnelStatus, setFunnelDaemonPort, startFunnel, stopFunnel } from './remote-funnel'
+export { createRemoteHttp, type RemoteHttp, type RemoteHttpOptions } from './remote-http'
+export {
+  ifaceListenerPort,
+  initIfaceHandlers,
+  lanBindError,
+  lanNumericUrl,
+  lanUrl,
+  startLanListener,
+  startTailnetListener,
+  stopLanListener,
+  stopTailnetListener,
+  tailnetBindError,
+  tailnetUrl,
+} from './remote-listeners'
+export { createRemoteNetworkRouter } from './remote-network-router'
 export type {
   RemoteOperationError,
   RemoteOperationResult,

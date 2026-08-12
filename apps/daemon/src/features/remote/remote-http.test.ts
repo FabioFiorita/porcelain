@@ -10,17 +10,16 @@ import { initTRPC } from '@trpc/server'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import WebSocket from 'ws'
 
-import { createDaemonOperations, createDaemonRouter } from '../api'
-import type { ProjectsOperations } from '../features/projects'
-import type { TerminalOperations } from '../features/terminal'
+import { createDaemonOperations, createDaemonRouter } from '../../api'
 import {
   closeAllSessions,
   closeClientSessions,
   createSession,
   sessionCount,
-} from '../session/live-session'
-import { initConfigDir } from '../stores/config-store'
-import { createDaemonHttp, type DaemonHttpOptions } from './daemon-http'
+} from '../../session/live-session'
+import type { ProjectsOperations } from '../projects'
+import type { TerminalOperations } from '../terminal'
+import { createRemoteHttp, initConfigDir, type RemoteHttp, type RemoteHttpOptions } from '.'
 
 const terminalOperations: TerminalOperations = {
   create: vi.fn(() => ({ ok: true, value: 'term-1' })),
@@ -69,12 +68,12 @@ const PROTOCOL_HEADERS: Record<string, string> = {
 }
 
 let base: string
-let daemon: ReturnType<typeof createDaemonHttp>
+let daemon: RemoteHttp
 
-const authenticateTestClient: DaemonHttpOptions['authenticateClient'] = async (provided) =>
+const authenticateTestClient: RemoteHttpOptions['authenticateClient'] = async (provided) =>
   provided === CLIENT_TOKEN ? { kind: 'client', clientId: 'client-1', label: 'Test phone' } : null
 
-const exchangeTestPairing: DaemonHttpOptions['exchangePairing'] = async (provided) =>
+const exchangeTestPairing: RemoteHttpOptions['exchangePairing'] = async (provided) =>
   provided === PAIRING_TOKEN
     ? {
         token: CLIENT_TOKEN,
@@ -87,14 +86,14 @@ const exchangeTestPairing: DaemonHttpOptions['exchangePairing'] = async (provide
     : null
 
 type TestDaemonOverrides = Partial<
-  Pick<DaemonHttpOptions, 'authenticateClient' | 'exchangePairing' | 'router'>
+  Pick<RemoteHttpOptions, 'authenticateClient' | 'exchangePairing' | 'router'>
 >
 
 function testDaemonOptions({
   authenticateClient = authenticateTestClient,
   exchangePairing = exchangeTestPairing,
   router: testRouter = router,
-}: TestDaemonOverrides = {}): DaemonHttpOptions {
+}: TestDaemonOverrides = {}): RemoteHttpOptions {
   return {
     adminTokenHash: createHash('sha256').update(TOKEN).digest(),
     authenticateClient,
@@ -111,14 +110,14 @@ function testDaemonOptions({
 
 async function startTestDaemon(
   options: TestDaemonOverrides = {},
-): Promise<{ base: string; daemon: ReturnType<typeof createDaemonHttp> }> {
-  const testDaemon = createDaemonHttp(testDaemonOptions(options))
+): Promise<{ base: string; daemon: RemoteHttp }> {
+  const testDaemon = createRemoteHttp(testDaemonOptions(options))
   await new Promise<void>((resolve) => testDaemon.server.listen(0, '127.0.0.1', resolve))
   const address = testDaemon.server.address() as AddressInfo
   return { base: `http://127.0.0.1:${address.port}`, daemon: testDaemon }
 }
 
-async function stopTestDaemon(testDaemon: ReturnType<typeof createDaemonHttp>): Promise<void> {
+async function stopTestDaemon(testDaemon: RemoteHttp): Promise<void> {
   await new Promise<void>((resolve, reject) =>
     testDaemon.server.close((error) => (error ? reject(error) : resolve())),
   )
@@ -518,7 +517,7 @@ describe('daemon http surface — the token gate + CORS scope', () => {
  */
 function probeRouter(): {
   dispatched: ReturnType<typeof vi.fn>
-  router: DaemonHttpOptions['router']
+  router: RemoteHttpOptions['router']
 } {
   const t = initTRPC.create()
   const dispatched = vi.fn(() => 'dispatched')
