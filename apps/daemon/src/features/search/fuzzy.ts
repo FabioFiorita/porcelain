@@ -3,11 +3,6 @@ export interface FuzzyResult {
   score: number
 }
 
-export interface SearchResult {
-  path: string
-  kind: 'file' | 'dir'
-}
-
 /**
  * Every ancestor directory of the given repo-relative files, deduped, with no
  * trailing slash. Lets the Cmd+P finder surface folders (e.g. `src`) alongside

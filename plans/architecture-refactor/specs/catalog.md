@@ -93,7 +93,7 @@ an external choice or authorization.
 | `PRJ-001` | Landed | Canonical Project contracts and open/recent/remove/discovery operations |
 | `PRJ-002` | Landed | Shared Project identities/effects and Web/mobile selection adapters |
 | `PRJ-003` | Landed | Delete product-boundary repo/workspace aliases and complete domain |
-| `SEA-001` | Ready | Search contracts and file/text/code operations over Files/Git capabilities |
+| `SEA-001` | Landed | Search contracts and file/text/code operations over Files/Git capabilities |
 | `SEA-002` | Draft | Shared Search keys/effects and Web/mobile feature relocation |
 | `SEA-003` | Draft | Delete Files/Git router and mobile Files ownership; complete domain |
 | `GIT-005` | Draft | Remaining Git mutation/read operations, domain rules, and adapter seams |

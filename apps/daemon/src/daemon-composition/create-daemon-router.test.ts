@@ -73,6 +73,7 @@ describe('createDaemonRouter composition', () => {
     expect(operations.reviewComments).toBeDefined()
     expect(operations.files).toBeDefined()
     expect(operations.git).toBeDefined()
+    expect(operations.search).toBeDefined()
     expect(operations.projects).toBeDefined()
     expect(operations.terminal).toBeDefined()
 

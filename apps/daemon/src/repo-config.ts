@@ -19,24 +19,3 @@ export const appConfigSchema = z
 export type AppConfig = z.infer<typeof appConfigSchema>
 
 export const emptyConfig: AppConfig = {}
-
-/**
- * Repo-relative file paths with hidden entries removed. Hidden paths may be
- * absolute (under repoPath) or already repo-relative; a hidden directory hides
- * its whole subtree but never a sibling that merely shares a name prefix.
- * Used with the scope channel (`scope-store`), not config.json.
- */
-export function visibleFilePaths(
-  repoPath: string,
-  files: readonly string[],
-  hidden: ReadonlySet<string>,
-): string[] {
-  if (hidden.size === 0) return [...files]
-  return files.filter((file) => {
-    for (const h of hidden) {
-      const rel = h.startsWith(`${repoPath}/`) ? h.slice(repoPath.length + 1) : h
-      if (file === rel || file.startsWith(`${rel}/`)) return false
-    }
-    return true
-  })
-}

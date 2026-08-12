@@ -27,6 +27,16 @@ describe('searchCandidates', () => {
     expect(paths).toContain('src/app/page.tsx')
   })
 
+  it('does not hide a sibling that only shares a name prefix', () => {
+    const { paths } = searchCandidates(
+      '/repo-prefix',
+      ['apps/legacy/a.ts', 'apps/legacy-other/b.ts'],
+      new Set(['/repo-prefix/apps/legacy']),
+    )
+
+    expect(paths).toEqual(['apps/legacy-other/b.ts', 'apps/legacy-other', 'apps'])
+  })
+
   // Keystroke cost: only the fuzzy scoring may run per keystroke. The memo is keyed
   // on the file-list IDENTITY (git.ts reuses the same array while ls-files is
   // unchanged) plus the hidden set.

@@ -10,10 +10,7 @@ import type {
   FilesPathOutsideError,
 } from './files-ports'
 
-/**
- * Files feature router — eight host-fs procedures only.
- * Residual Search stays in router/files.ts.
- */
+/** Files feature router — eight host-fs procedures only. */
 
 /** Full public error set for exhaustive mapping — callers may pass narrower per-op unions. */
 type FilesMappedError =

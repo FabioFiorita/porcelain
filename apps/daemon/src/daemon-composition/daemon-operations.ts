@@ -4,8 +4,11 @@ import { createFilesOperations, type FilesOperations } from '../features/files'
 import { createGitOperations, type GitOperations } from '../features/git'
 import type { ProjectsOperations } from '../features/projects'
 import { createReviewCommentOperations, type ReviewCommentOperations } from '../features/review'
+import { createSearchOperations, type SearchOperations } from '../features/search'
 import type { TerminalOperations } from '../features/terminal'
+import { gitGrep, gitListSearchFiles, gitSearchCode } from '../git/git'
 import { publishSessionChange } from '../session/live-session'
+import { hiddenPathsForRepo } from '../stores/scope-store'
 
 /**
  * Process-wide bound operation catalog constructed once at daemon startup.
@@ -17,6 +20,7 @@ export type DaemonOperations = Readonly<{
   reviewComments: ReviewCommentOperations
   files: FilesOperations
   git: GitOperations
+  search: SearchOperations
   projects: ProjectsOperations
   terminal: TerminalOperations
 }>
@@ -40,6 +44,14 @@ export function createDaemonOperations(options: {
     }),
     files: createFilesOperations({ publishSessionChange: publish }),
     git: createGitOperations(),
+    search: createSearchOperations({
+      git: {
+        listFiles: gitListSearchFiles,
+        searchText: gitGrep,
+        searchCode: gitSearchCode,
+      },
+      scope: { hiddenPaths: hiddenPathsForRepo },
+    }),
     projects: options.projects,
     terminal: options.terminal,
   })

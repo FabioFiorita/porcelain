@@ -1,6 +1,6 @@
 import type { GrepMatch } from '@backend/git/diff'
 import type { CodeSearchOptions, CodeSearchResult } from '@backend/git/git'
-import type { SearchResult } from '@backend/search/fuzzy'
+import type { SearchResult } from '@porcelain/contracts/search'
 import { trpc } from '@renderer/lib/trpc'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { keepPreviousData } from '@tanstack/react-query'

@@ -3,8 +3,8 @@ import { createFilesFeatureRouter } from '../features/files'
 import { createGitFeatureRouter } from '../features/git'
 import { createProjectsRouter } from '../features/projects'
 import { createReviewCommentRouter } from '../features/review'
+import { createSearchRouter } from '../features/search'
 import { createDaemonRouter as createDaemonHostRouter } from '../router/daemon'
-import { createFilesRouter } from '../router/files'
 import { createGitRouter } from '../router/git'
 import { createNetworkRouter } from '../router/network'
 import { createReposRouter } from '../router/repos'
@@ -19,8 +19,8 @@ import type { CreateDaemonRouterOptions } from './daemon-operations'
  * domain router factory in the historical merge order and merges them with the
  * one shared `initTRPC` builder so procedure names stay flat on the wire.
  *
- * Project, Board, Review-comment, and Files host-fs procedures are bound through
- * `operations`; residual Search stays on createFilesRouter until Search migrates.
+ * Project, Board, Review-comment, Files, and Search procedures are bound through
+ * `operations`; the remaining legacy routers are composition-only until their migrations land.
  */
 export function createDaemonRouter({ operations }: CreateDaemonRouterOptions) {
   return t.mergeRouters(
@@ -29,9 +29,9 @@ export function createDaemonRouter({ operations }: CreateDaemonRouterOptions) {
     createReposRouter(),
     createGitFeatureRouter(operations.git),
     createGitRouter(),
-    // Files feature eight first so flat merge position matches historical createFilesRouter slot.
+    // Files feature eight first so flat merge position stays stable for the Search procedures.
     createFilesFeatureRouter(operations.files),
-    createFilesRouter(), // Search only
+    createSearchRouter(operations.search),
     createReviewRouter(),
     createReviewCommentRouter(operations.reviewComments),
     createBoardRouter(operations.board),

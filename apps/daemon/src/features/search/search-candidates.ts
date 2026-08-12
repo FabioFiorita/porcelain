@@ -1,4 +1,3 @@
-import { visibleFilePaths } from '../repo-config'
 import { directoriesOf } from './fuzzy'
 
 // The finder searches visible files PLUS their ancestor folders. Both the
@@ -14,6 +13,21 @@ const searchCandidatesCache = new Map<
   string,
   { files: readonly string[]; hiddenKey: string; candidates: SearchCandidates }
 >()
+
+function visibleFilePaths(
+  repoPath: string,
+  files: readonly string[],
+  hidden: ReadonlySet<string>,
+): string[] {
+  if (hidden.size === 0) return [...files]
+  return files.filter((file) => {
+    for (const h of hidden) {
+      const rel = h.startsWith(`${repoPath}/`) ? h.slice(repoPath.length + 1) : h
+      if (file === rel || file.startsWith(`${rel}/`)) return false
+    }
+    return true
+  })
+}
 
 export function searchCandidates(
   repoPath: string,

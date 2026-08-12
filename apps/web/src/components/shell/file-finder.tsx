@@ -1,6 +1,6 @@
 import type { Commit } from '@backend/git/diff'
-import type { SearchResult } from '@backend/search/fuzzy'
 import type { Action } from '@backend/stores/actions-store'
+import type { SearchResult } from '@porcelain/contracts/search'
 import {
   Command,
   CommandDialog,
