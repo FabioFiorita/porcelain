@@ -12,6 +12,7 @@
     "./search": "./src/search/index.ts",
     "./projects": "./src/projects/index.ts",
     "./review": "./src/review/index.ts",
+    "./remote": "./src/remote/index.ts",
     "./terminal": "./src/terminal/index.ts",
     "./commit-message": "./src/commit-message.ts",
     "./companion-disposition": "./src/companion-disposition.ts",
