@@ -10,6 +10,7 @@ import { BoardNotificationBridge } from '@/features/board'
 import { ReviewCommentNotificationBridge } from '@/features/comments'
 import { FilesNotificationBridge } from '@/features/files'
 import { GitNotificationBridge } from '@/features/git'
+import { SearchNotificationBridge } from '@/features/search'
 import { AppThemeProvider, useResolvedColorScheme } from '@/features/settings/theme-provider'
 import { PhoneBottomChrome } from '@/features/shell/bottom-chrome'
 import { PhoneShell } from '@/features/shell/phone-shell'
@@ -39,6 +40,7 @@ function ThemedApp(): React.JSX.Element {
         <BoardNotificationBridge />
         <ReviewCommentNotificationBridge />
         <FilesNotificationBridge />
+        <SearchNotificationBridge />
         <GitNotificationBridge />
         <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
         {/* Only the phone floats chrome over its content. A tablet column ends above its own

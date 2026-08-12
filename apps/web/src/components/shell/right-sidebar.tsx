@@ -1,6 +1,7 @@
 import { ActionsGroup } from '@renderer/components/terminal/actions-group'
 import { Sidebar, SidebarContent, SidebarHeader, useSidebar } from '@renderer/components/ui/sidebar'
 import { BoardQuickAccess } from '@renderer/features/board'
+import { SearchQuickAccess } from '@renderer/features/search'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { TestIds } from '@shared/test-ids'
 import { CommentsGroup } from './comments-group'
@@ -9,7 +10,6 @@ import { FileTimelineGroup } from './file-timeline-group'
 import { FilesQuickAccess } from './files-quick-access'
 import { QuickCommandsGroup } from './quick-commands-group'
 import { ReviewGroup } from './review-group'
-import { SearchQuickAccess } from './search-quick-access'
 import { RightSidebarResizeHandle } from './sidebar-resize-handle'
 
 // Sections follow the left sidebar's active tab. Board Focus is the selected

@@ -1,4 +1,4 @@
-import type { CodeSearchLine } from './search-data'
+import type { CodeSearchLine } from '@porcelain/contracts/search'
 
 /** Where a literal query sits inside a result line, so the match can be picked out of it. */
 export type MatchSpan = { start: number; end: number }

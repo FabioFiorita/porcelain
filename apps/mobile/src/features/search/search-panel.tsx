@@ -1,4 +1,6 @@
 import { dirName, fileName } from '@porcelain/client-runtime/paths'
+import type { SearchCodeOptions } from '@porcelain/client-runtime/search'
+import type { SearchResult } from '@porcelain/contracts/search'
 import { useEffect, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 
@@ -13,17 +15,11 @@ import {
 } from '@/components/surface-layout'
 import { SurfaceList } from '@/components/surface-scroll'
 import { Input } from '@/components/ui/input'
+import { pathTestId } from '@/lib/path-identities'
 import { cn } from '@/lib/utils'
-
 import { ContentResults } from './content-results'
-import { pathTestId } from './file-paths'
-import { type SearchMode, useFilesStore } from './files-store'
-import {
-  type CodeSearchOptions,
-  type FileSearchResult,
-  useCodeSearch,
-  useFileSearch,
-} from './search-data'
+import { useCodeSearch, useFileSearch } from './search-data'
+import { type SearchMode, useSearchStore } from './search-store'
 
 /** A settled query costs one daemon round trip; a keystroke-per-request costs one each. */
 const DEBOUNCE_MS = 150
@@ -58,25 +54,25 @@ export function SearchPanel({
   /** Tablet: the file the viewer column is showing. */
   selectedPath?: string | null
 }): React.JSX.Element {
-  const query = useFilesStore((state) => state.query)
-  const setQuery = useFilesStore((state) => state.setQuery)
-  const searchMode = useFilesStore((state) => state.searchMode)
-  const setSearchMode = useFilesStore((state) => state.setSearchMode)
-  const caseSensitive = useFilesStore((state) => state.caseSensitive)
-  const regex = useFilesStore((state) => state.regex)
-  const showFilters = useFilesStore((state) => state.showFilters)
-  const include = useFilesStore((state) => state.include)
-  const exclude = useFilesStore((state) => state.exclude)
-  const toggleCaseSensitive = useFilesStore((state) => state.toggleCaseSensitive)
-  const toggleRegex = useFilesStore((state) => state.toggleRegex)
-  const toggleFilters = useFilesStore((state) => state.toggleFilters)
-  const setInclude = useFilesStore((state) => state.setInclude)
-  const setExclude = useFilesStore((state) => state.setExclude)
-  const rememberSearch = useFilesStore((state) => state.rememberSearch)
+  const query = useSearchStore((state) => state.query)
+  const setQuery = useSearchStore((state) => state.setQuery)
+  const searchMode = useSearchStore((state) => state.searchMode)
+  const setSearchMode = useSearchStore((state) => state.setSearchMode)
+  const caseSensitive = useSearchStore((state) => state.caseSensitive)
+  const regex = useSearchStore((state) => state.regex)
+  const showFilters = useSearchStore((state) => state.showFilters)
+  const include = useSearchStore((state) => state.include)
+  const exclude = useSearchStore((state) => state.exclude)
+  const toggleCaseSensitive = useSearchStore((state) => state.toggleCaseSensitive)
+  const toggleRegex = useSearchStore((state) => state.toggleRegex)
+  const toggleFilters = useSearchStore((state) => state.toggleFilters)
+  const setInclude = useSearchStore((state) => state.setInclude)
+  const setExclude = useSearchStore((state) => state.setExclude)
+  const rememberSearch = useSearchStore((state) => state.rememberSearch)
 
   // The whole option set is debounced together: a keystroke in the exclude field is as much a
   // new search as a keystroke in the query, and each one is a `git grep` on the host.
-  const [settled, setSettled] = useState<CodeSearchOptions>({
+  const [settled, setSettled] = useState<SearchCodeOptions>({
     caseSensitive,
     exclude,
     include,
@@ -244,7 +240,7 @@ export function SearchPanel({
           edgeToEdge
           gap={2}
           keyboardShouldPersistTaps="handled"
-          keyExtractor={(result: FileSearchResult) => `${result.kind}:${result.path}`}
+          keyExtractor={(result: SearchResult) => `${result.kind}:${result.path}`}
           renderItem={({ item }) => (
             <SearchRow
               result={item}
@@ -330,7 +326,7 @@ function SearchRow({
   selected,
 }: {
   onOpen: () => void
-  result: FileSearchResult
+  result: SearchResult
   selected: boolean
 }): React.JSX.Element {
   const directory = dirName(result.path)

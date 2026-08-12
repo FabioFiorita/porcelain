@@ -7,11 +7,12 @@ import {
   CommandItem,
   CommandList,
 } from '@renderer/components/ui/command'
-import { useTextSearch } from '@renderer/hooks/use-search'
 import { fileName } from '@renderer/lib/paths'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { useEffect, useState } from 'react'
+
+import { useTextSearch } from './search-queries'
 
 export function ContentSearch(): React.JSX.Element {
   const project = useProjectSelectionStore((s) => s.project)

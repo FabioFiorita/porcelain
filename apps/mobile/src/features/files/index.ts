@@ -19,9 +19,6 @@ export {
   readerDocument,
 } from './preview-document'
 export { PreviewView } from './preview-view'
-export { SearchCompanion } from './search-companion'
-export { SearchList } from './search-list'
-export { SearchPhoneScreen } from './search-phone-screen'
 export { SourceLine } from './source-lines'
 export type { SourceRow } from './source-rows'
 export { describeBytes, sourceAnchorText } from './source-rows'

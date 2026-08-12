@@ -1,13 +1,13 @@
-import type { GrepMatch } from '@backend/git/diff'
-import { useTextSearch } from '@renderer/hooks/use-search'
+import type { GrepMatch } from '@porcelain/contracts/search'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ContentSearch } from './content-search'
+import { useTextSearch } from './search-queries'
 
 // Mock the domain hook — never tRPC. useTextSearch feeds match data.
-vi.mock('@renderer/hooks/use-search', () => ({ useTextSearch: vi.fn() }))
+vi.mock('./search-queries', () => ({ useTextSearch: vi.fn() }))
 
 // cmdk uses ResizeObserver and scrollIntoView internally; jsdom doesn't ship them.
 if (typeof window.ResizeObserver === 'undefined') {

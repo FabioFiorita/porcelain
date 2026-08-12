@@ -1,7 +1,4 @@
 import {
-  FILES_FOREIGN_CONTENT_INDEX,
-  FILES_FOREIGN_PATH_INDEX,
-  FILES_FOREIGN_WORKING_TREE,
   filesNotificationEffects,
   filesNotificationForeignDependencies,
   filesProjectKey,
@@ -23,10 +20,10 @@ export type ApplyFilesNotificationOptions = {
 function applyForeign(
   queryClient: QueryClient,
   environmentId: string,
-  dependencies: Parameters<typeof applyFilesForeignDependencies>[2],
+  dependencies: Parameters<typeof applyFilesForeignDependencies>[3],
 ): void {
   settleBackground(
-    applyFilesForeignDependencies(queryClient, environmentId, dependencies),
+    applyFilesForeignDependencies(queryClient, environmentId, null, dependencies),
     'notification',
   )
 }
@@ -51,7 +48,9 @@ export function applyFilesNotification(
   applyForeign(
     options.queryClient,
     options.environmentId,
-    filesNotificationForeignDependencies(notification),
+    filesNotificationForeignDependencies(notification).filter(
+      (dependency) => dependency.domain === 'git',
+    ),
   )
 }
 
@@ -69,9 +68,4 @@ export function applyFilesFreshnessRequirement(
     ),
     'invalidation',
   )
-  applyForeign(options.queryClient, options.environmentId, [
-    FILES_FOREIGN_WORKING_TREE,
-    FILES_FOREIGN_PATH_INDEX,
-    FILES_FOREIGN_CONTENT_INDEX,
-  ])
 }

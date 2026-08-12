@@ -52,7 +52,11 @@ export function applyFilesNotification(
     'notification',
   )
   settleBackground(
-    options.applyForeignDependencies(filesNotificationForeignDependencies(notification)),
+    options.applyForeignDependencies(
+      filesNotificationForeignDependencies(notification).filter(
+        (dependency) => dependency.domain === 'git',
+      ),
+    ),
     'notification',
   )
 }
@@ -105,7 +109,7 @@ export function useFilesNotificationSubscription(): void {
         daemon: daemonScope,
         activeProjectPath: repoPath,
         applyForeignDependencies: (dependencies) =>
-          applyFilesForeignDependencies(utils, dependencies),
+          applyFilesForeignDependencies(utils, queryClient, daemonScope, repoPath, dependencies),
       })
     })
   }, [queryClient, host, version, repoPath, utils])

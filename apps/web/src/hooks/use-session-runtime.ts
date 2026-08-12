@@ -46,7 +46,6 @@ type QueryInvalidation = {
 export type SessionQueryUtils = {
   /** Every daemon-derived query this client holds. Used only for session-wide recovery. */
   readonly invalidate: () => Promise<void>
-  readonly searchFiles: QueryInvalidation
   readonly gitFlow: QueryInvalidation
   readonly gitDiffFile: QueryInvalidation
   readonly gitRangeFlow: QueryInvalidation
@@ -146,7 +145,6 @@ export function invalidateForRecovery(
   }
   return Promise.all([
     utils.files.invalidate(),
-    utils.searchFiles.invalidate(),
     utils.gitDiffFile.invalidate(),
     invalidateReview(utils),
     // Comments freshness is feature-owned (RVC-003); recovery still hits the predicate slot.
@@ -189,7 +187,6 @@ export function useSessionRuntime({
   const utils: SessionQueryUtils = useMemo(
     () => ({
       invalidate: () => trpcUtils.invalidate(),
-      searchFiles: { invalidate: () => trpcUtils.searchFiles.invalidate() },
       gitFlow: { invalidate: () => trpcUtils.gitFlow.invalidate() },
       gitDiffFile: { invalidate: () => trpcUtils.gitDiffFile.invalidate() },
       gitRangeFlow: { invalidate: () => trpcUtils.gitRangeFlow.invalidate() },

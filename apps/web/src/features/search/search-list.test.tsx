@@ -1,14 +1,14 @@
-import type { CodeSearchResult } from '@backend/git/git'
-import { useCodeSearch } from '@renderer/hooks/use-search'
+import type { CodeSearchResult } from '@porcelain/contracts/search'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
-import { useSearchStore } from '@renderer/stores/search'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { SearchList } from './search-list'
+import { useCodeSearch } from './search-queries'
+import { useSearchStore } from './search-store'
 
 // Mock the domain hook — never tRPC. useCodeSearch feeds result data.
-vi.mock('@renderer/hooks/use-search', () => ({ useCodeSearch: vi.fn() }))
+vi.mock('./search-queries', () => ({ useCodeSearch: vi.fn() }))
 
 // Base UI's Collapsible measures its panel via ResizeObserver; jsdom lacks it.
 if (typeof window.ResizeObserver === 'undefined') {

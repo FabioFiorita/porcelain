@@ -13,8 +13,9 @@
  * still serve tree/watch/UI absolute↔relative needs — not the eight wire inputs.
  */
 
-/** The repo root itself, as a relative path. Empty rather than `.` — routes concatenate it. */
-export const REPO_ROOT = ''
+import { REPO_ROOT } from '@/lib/path-identities'
+
+export { pathFromSegments, pathSegments, pathTestId, REPO_ROOT } from '@/lib/path-identities'
 
 function normalizedRepoPath(repoPath: string): string {
   if (repoPath === '/') return '/'
@@ -74,31 +75,6 @@ export function breadcrumbs(repoName: string, relative: string): Crumb[] {
     crumbs.push({ label: segment, path: walked })
   }
   return crumbs
-}
-
-/**
- * Rest-route segments for a repo-relative path.
- *
- * Expo Router hands `[...path]` back as an array and joins it into the URL, so the round trip
- * is only lossless if empty segments never enter it — the root pushes no route at all.
- */
-export function pathSegments(relative: string): string[] {
-  return relative === REPO_ROOT ? [] : relative.split('/')
-}
-
-/** The repo-relative path a `[...path]` route was opened with. */
-export function pathFromSegments(segments: string[] | string | undefined): string {
-  if (segments === undefined) return REPO_ROOT
-  return (Array.isArray(segments) ? segments : [segments]).join('/')
-}
-
-/** A stable, resolvable per-path testID — never an array index, so the Android tree finds it. */
-export function pathTestId(prefix: string, relative: string): string {
-  const slug = relative
-    .replace(/[^a-zA-Z0-9_-]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(-80)
-  return `${prefix}-${slug === '' ? 'root' : slug}`
 }
 
 /**

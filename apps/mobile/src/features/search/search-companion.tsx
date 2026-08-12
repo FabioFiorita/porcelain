@@ -4,9 +4,9 @@ import { ChromeGlyph } from '@/components/chrome-glyph'
 import { IconAction, PanelLabel } from '@/components/panel-chrome'
 import { useShellStore } from '@/features/shell/shell-store'
 import { useIsTablet } from '@/features/shell/use-app-window'
+import { pathTestId } from '@/lib/path-identities'
 
-import { pathTestId } from './file-paths'
-import { useFilesStore } from './files-store'
+import { useSearchStore } from './search-store'
 
 /**
  * The Search companion — "Recent searches", the same roster the web rail carries.
@@ -19,9 +19,9 @@ import { useFilesStore } from './files-store'
  * so it needs no `active` flag.
  */
 export function SearchCompanion(): React.JSX.Element {
-  const recent = useFilesStore((state) => state.recentSearches)
-  const setQuery = useFilesStore((state) => state.setQuery)
-  const forgetSearch = useFilesStore((state) => state.forgetSearch)
+  const recent = useSearchStore((state) => state.recentSearches)
+  const setQuery = useSearchStore((state) => state.setQuery)
+  const forgetSearch = useSearchStore((state) => state.forgetSearch)
   const closeSheet = useShellStore((state) => state.closeSheet)
   const isTablet = useIsTablet()
 

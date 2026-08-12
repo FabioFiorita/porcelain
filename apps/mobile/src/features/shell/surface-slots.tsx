@@ -8,9 +8,7 @@ import {
   FilesList,
   FilesPhoneScreen,
   FilesViewer,
-  SearchCompanion,
-  SearchList,
-  SearchPhoneScreen,
+  useFilesStore,
 } from '@/features/files'
 import { HistoryCompanion } from '@/features/history/history-companion'
 import { HistoryList } from '@/features/history/history-list'
@@ -20,6 +18,7 @@ import { ReviewCompanion } from '@/features/review/review-companion'
 import { ReviewList } from '@/features/review/review-list'
 import { ReviewPhoneScreen } from '@/features/review/review-phone-screen'
 import { ReviewViewer } from '@/features/review/review-viewer'
+import { SearchCompanion, SearchList, SearchPhoneScreen } from '@/features/search'
 import {
   TerminalCompanion,
   TerminalList,
@@ -28,6 +27,20 @@ import {
 } from '@/features/terminal'
 
 import type { SurfaceId } from './surfaces'
+
+function SearchListSlot({ active }: { active: boolean }): React.JSX.Element {
+  const selection = useFilesStore((state) => state.selection)
+  const openDir = useFilesStore((state) => state.openDir)
+  const openFile = useFilesStore((state) => state.openFile)
+  return (
+    <SearchList
+      active={active}
+      onOpenDir={openDir}
+      onOpenFile={openFile}
+      selectedPath={selection}
+    />
+  )
+}
 
 /**
  * A surface's real, daemon-backed panels. Every surface has a full set — the shell has no other
@@ -79,7 +92,7 @@ const SURFACE_SLOTS: Record<SurfaceId, SurfaceSlots> = {
   // same split the web rail makes.
   search: {
     companion: SearchCompanion,
-    list: SearchList,
+    list: SearchListSlot,
     phone: SearchPhoneScreen,
     viewer: FilesViewer,
   },

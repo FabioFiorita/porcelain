@@ -1,9 +1,8 @@
 import { useIsFocused, useRouter } from 'expo-router'
 import { View } from 'react-native'
-
 import { PhoneHeader } from '@/features/shell/phone-header'
+import { pathSegments } from '@/lib/path-identities'
 
-import { pathSegments } from './file-paths'
 import { SearchPanel } from './search-panel'
 
 /**

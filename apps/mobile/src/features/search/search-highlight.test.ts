@@ -1,6 +1,5 @@
+import type { CodeSearchLine } from '@porcelain/contracts/search'
 import { describe, expect, it } from 'vitest'
-
-import type { CodeSearchLine } from '@/lib/daemon/procedures/files'
 
 import { commonIndent, matchSpans } from './search-highlight'
 

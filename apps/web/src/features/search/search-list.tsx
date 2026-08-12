@@ -1,4 +1,4 @@
-import type { CodeSearchFile, CodeSearchLine } from '@backend/git/diff'
+import type { CodeSearchFile, CodeSearchLine } from '@porcelain/contracts/search'
 import {
   Collapsible,
   CollapsibleContent,
@@ -8,15 +8,16 @@ import { Input } from '@renderer/components/ui/input'
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@renderer/components/ui/input-group'
 import { Toggle } from '@renderer/components/ui/toggle'
 import { FileTypeIcon } from '@renderer/components/viewer/file-icon'
-import { useCodeSearch } from '@renderer/hooks/use-search'
 import { compactInputClass } from '@renderer/lib/controls'
 import { dirName, fileName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
-import { useSearchStore } from '@renderer/stores/search'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { CaseSensitive, ChevronRight, Regex, SlidersHorizontal } from 'lucide-react'
 import { useEffect, useState } from 'react'
+
+import { useCodeSearch } from './search-queries'
+import { useSearchStore } from './search-store'
 
 // Bold the literal matches inside a result line. Skipped for regex queries — JS
 // regex semantics don't match git's POSIX -E exactly, so we'd risk highlighting

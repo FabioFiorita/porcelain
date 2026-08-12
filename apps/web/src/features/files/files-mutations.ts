@@ -1,13 +1,19 @@
 import {
   type FilesForeignDependency,
+  type FilesQueryEffect,
   filesMutations,
   filesProjectKey,
 } from '@porcelain/client-runtime/files'
+import {
+  applySearchForeignDependencies,
+  type SearchForeignDependency,
+} from '@renderer/features/search'
 import { onMutationError } from '@renderer/hooks/mutation-error'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
 import { trpc } from '@renderer/lib/trpc'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
+import type { QueryClient } from '@tanstack/react-query'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   normalizeProjectRoot,
@@ -35,29 +41,37 @@ function mutationErrorMessage(error: unknown): string {
   return 'Request failed'
 }
 
-/** Map FIL-004 foreign tokens onto current Web Git/Search procedure keys. */
+function projectPathFromEffects(effects: readonly FilesQueryEffect[]): string | null {
+  const first = effects[0]
+  if (first === undefined) return null
+  return first.type === 'exact' ? first.query.projectPath : first.projectPath
+}
+
+/** Map FIL-004 foreign tokens onto Web Git and typed Search effects. */
 export function applyFilesForeignDependencies(
   utils: ReturnType<typeof trpc.useUtils>,
+  queryClient: QueryClient,
+  daemon: DaemonScope,
+  projectPath: string | null,
   deps: readonly FilesForeignDependency[],
 ): Promise<void> {
   const tasks: Promise<unknown>[] = []
+  const searchDependencies: SearchForeignDependency[] = []
   for (const dep of deps) {
     if (dep.domain === 'git' && dep.name === 'working-tree') {
       tasks.push(utils.gitFlow.invalidate())
       tasks.push(utils.gitDiffFile.invalidate())
       continue
     }
-    if (dep.domain === 'search' && dep.name === 'path-index') {
-      tasks.push(utils.searchFiles.invalidate())
-      continue
-    }
-    if (dep.domain === 'search' && dep.name === 'content-index') {
-      tasks.push(utils.searchCode.invalidate())
-      tasks.push(utils.searchText.invalidate())
+    if (dep.domain === 'search') {
+      searchDependencies.push(dep)
       continue
     }
     const _exhaustive: never = dep
     return Promise.reject(new Error(`unknown foreign dep: ${JSON.stringify(_exhaustive)}`))
+  }
+  if (projectPath !== null && searchDependencies.length > 0) {
+    tasks.push(applySearchForeignDependencies(queryClient, daemon, projectPath, searchDependencies))
   }
   return Promise.all(tasks).then(() => undefined)
 }
@@ -70,7 +84,13 @@ async function applyMutationSuccess(
   foreign: readonly FilesForeignDependency[],
 ): Promise<void> {
   await invalidateFilesEffects(queryClient, daemon, effects)
-  await applyFilesForeignDependencies(utils, foreign)
+  await applyFilesForeignDependencies(
+    utils,
+    queryClient,
+    daemon,
+    projectPathFromEffects(effects),
+    foreign,
+  )
 }
 
 /** Create / rename / duplicate / trash filesystem paths (non-optimistic). */

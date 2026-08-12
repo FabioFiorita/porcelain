@@ -35,7 +35,6 @@ function recordingUtils(): { utils: SessionQueryUtils; invalidated: string[] } {
       invalidated.push('*')
       return Promise.resolve()
     },
-    searchFiles: query('searchFiles'),
     gitFlow: query('gitFlow'),
     gitDiffFile: query('gitDiffFile'),
     gitRangeFlow: query('gitRangeFlow'),

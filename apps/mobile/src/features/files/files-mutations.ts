@@ -79,7 +79,14 @@ async function applyMutationSuccess(
   dependencies: readonly FilesForeignDependency[],
 ): Promise<void> {
   await invalidateFilesEffects(queryClient, environmentId, effects)
-  await applyFilesForeignDependencies(queryClient, environmentId, dependencies)
+  const first = effects[0]
+  const projectPath =
+    first === undefined
+      ? null
+      : first.type === 'exact'
+        ? first.query.projectPath
+        : first.projectPath
+  await applyFilesForeignDependencies(queryClient, environmentId, projectPath, dependencies)
 }
 
 type MutationRunner<TInput, TOutput> = Pick<

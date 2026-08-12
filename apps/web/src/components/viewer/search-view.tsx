@@ -1,4 +1,4 @@
-import { useTextSearch } from '@renderer/hooks/use-search'
+import { useTextSearch } from '@renderer/features/search'
 import { fileName } from '@renderer/lib/paths'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'

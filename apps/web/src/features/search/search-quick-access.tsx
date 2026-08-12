@@ -4,8 +4,9 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
 } from '@renderer/components/ui/sidebar'
-import { useSearchStore } from '@renderer/stores/search'
 import { Search, X } from 'lucide-react'
+
+import { useSearchStore } from './search-store'
 
 /** Recent Search-tab queries (the group label names the section — the companion
  *  header is static); clicking one re-runs it in the panel, the row's × drops it

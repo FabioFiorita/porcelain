@@ -7,6 +7,11 @@ import { CardComposer, useBoardNotificationSubscription } from '@renderer/featur
 import { useFilesInterestBridge, useFilesNotificationSubscription } from '@renderer/features/files'
 import { useGitNotificationSubscription } from '@renderer/features/git'
 import { useReviewCommentNotificationSubscription } from '@renderer/features/review/comments'
+import {
+  ContentSearch,
+  FileFinder,
+  useSearchNotificationSubscription,
+} from '@renderer/features/search'
 import { useTerminalRoster } from '@renderer/features/terminal'
 import { useDocumentTitle } from '@renderer/hooks/use-document-title'
 import { useEnvironmentStatuses } from '@renderer/hooks/use-environment-status'
@@ -25,9 +30,7 @@ import { PanelLeft, Zap } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { SettingsDialog } from '../settings/settings-dialog'
 import { AppSidebar } from './app-sidebar'
-import { ContentSearch } from './content-search'
 import { FileCommands } from './file-commands'
-import { FileFinder } from './file-finder'
 import { FilePromptDialog } from './file-prompt-dialog'
 import { ProjectPickerDialog } from './project-picker-dialog'
 import { RightSidebar } from './right-sidebar'
@@ -208,6 +211,8 @@ export function AppShell(): React.JSX.Element {
   useReviewCommentNotificationSubscription()
   // Files notifications + watch interests (FIL-005); session-runtime Files arms are no-ops.
   useFilesNotificationSubscription()
+  // Search owns its typed Search identities, Files facts, and recovery invalidation.
+  useSearchNotificationSubscription()
   useFilesInterestBridge()
   useEnvironmentStatuses()
   useThemeSync()

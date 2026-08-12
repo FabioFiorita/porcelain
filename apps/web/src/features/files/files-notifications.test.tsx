@@ -69,9 +69,7 @@ describe('applyFilesNotification', () => {
       queryKey: pinsKey,
       exact: true,
     })
-    expect(applyForeignDependencies).toHaveBeenCalledWith([
-      { domain: 'search', name: 'path-index' },
-    ])
+    expect(applyForeignDependencies).toHaveBeenCalledWith([])
   })
 
   it('handles files.tree-changed and files.content-changed kinds', () => {
@@ -90,12 +88,9 @@ describe('applyFilesNotification', () => {
       applyForeignDependencies,
     })
     expect(spy.mock.calls.length).toBeGreaterThan(0)
-    const allForeign = [
+    expect(applyForeignDependencies).toHaveBeenLastCalledWith([
       { domain: 'git', name: 'working-tree' },
-      { domain: 'search', name: 'path-index' },
-      { domain: 'search', name: 'content-index' },
-    ]
-    expect(applyForeignDependencies).toHaveBeenLastCalledWith(allForeign)
+    ])
 
     spy.mockClear()
     applyForeignDependencies.mockClear()
@@ -109,7 +104,7 @@ describe('applyFilesNotification', () => {
       queryKey: contentKey,
       exact: true,
     })
-    expect(applyForeignDependencies).toHaveBeenCalledWith(allForeign)
+    expect(applyForeignDependencies).toHaveBeenCalledWith([{ domain: 'git', name: 'working-tree' }])
   })
 
   it('settles foreign-dependency rejection without throwing (silent background absorb)', async () => {

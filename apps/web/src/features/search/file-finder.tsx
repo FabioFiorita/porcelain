@@ -1,5 +1,5 @@
-import type { Commit } from '@backend/git/diff'
-import type { Action } from '@backend/stores/actions-store'
+import type { Action } from '@porcelain/contracts/actions'
+import type { Commit } from '@porcelain/contracts/git'
 import type { SearchResult } from '@porcelain/contracts/search'
 import {
   Command,
@@ -14,7 +14,6 @@ import { FileTypeIcon, FolderIcon } from '@renderer/components/viewer/file-icon'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { useActions, useRunAction } from '@renderer/hooks/use-actions'
 import { useGitLog } from '@renderer/hooks/use-history'
-import { useFileSearch } from '@renderer/hooks/use-search'
 import { commandGroupHeadingClass } from '@renderer/lib/controls'
 import { isTerminalTarget } from '@renderer/lib/keyboard'
 import { dirName, fileName } from '@renderer/lib/paths'
@@ -27,6 +26,8 @@ import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { runUserAction } from '@shared/background'
 import { GitCommitHorizontal, Play } from 'lucide-react'
 import { useEffect, useState } from 'react'
+
+import { useFileSearch } from './search-queries'
 
 // A 7–40 char hex string is almost certainly a pasted commit SHA (the History list
 // shows 7-char short hashes; "Copy SHA" yields the full 40). We match these against
