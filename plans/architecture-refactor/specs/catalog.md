@@ -118,7 +118,7 @@ an external choice or authorization.
 | `PDT-001` | Landed | Version-1 root manifest and per-domain persisted-file ownership |
 | `PDT-002` | Landed | Notes, dispositions, layers, visibility contracts/operations/adapters |
 | `PDT-003` | Landed | Web/mobile settings adapters over Project Data semantics |
-| `PDT-004` | Draft | Recorded reset authorization, classification fixtures, and manual-only procedure |
+| `PDT-004` | Ready | Recorded reset authorization, classification fixtures, and manual-only procedure |
 | `PDT-005` | Draft | Delete home and active-layout migrations after authorized clean-state path |
 | `PDT-006` | Draft | Corruption/atomicity/ownership proof and completed domain gate |
 | `REV-001` | Draft | Canonical active/archive/reading/intent/reviewed/inbox contracts |
