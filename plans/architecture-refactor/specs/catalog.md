@@ -106,7 +106,7 @@ an external choice or authorization.
 | `TRM-006` | Landed | Remaining Terminal request/response cutover and completed stream gate |
 | `REM-001` | Landed | Remote identity, pairing, and access operations plus feature router |
 | `REM-002` | Landed | Auth, pairing, CORS, listener, Funnel/LAN/Tailnet operations/adapters |
-| `REM-003` | Draft | Shared endpoint selection, retry, session health, and public-error parsing |
+| `REM-003` | Ready | Shared endpoint selection, retry, session health, and public-error parsing |
 | `REM-004` | Draft | Web local/remote/shell adapter and settings presentation cutover |
 | `REM-005` | Draft | Mobile strict-v1 environment and provider; delete version-3/icon coercion |
 | `REM-006` | Draft | Remote security/resilience proof and completed domain gate |
