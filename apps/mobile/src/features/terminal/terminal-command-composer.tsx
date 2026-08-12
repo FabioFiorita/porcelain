@@ -5,7 +5,6 @@ import { ChromeGlyph } from '@/components/chrome-glyph'
 import { Textarea } from '@/components/ui/textarea'
 import { useIsTablet } from '@/features/shell/use-app-window'
 import { getImage, hasImage } from '@/lib/clipboard'
-import { pasteFileToTerminal, pasteImageToTerminal } from '@/lib/daemon/terminal'
 import { cn } from '@/lib/utils'
 import { pickTerminalFiles } from './terminal-attachments'
 import {
@@ -16,12 +15,8 @@ import {
 import { getTerminal } from './terminal-engine'
 import { sendTerminalBytesAtomically } from './terminal-input'
 import { takeArmedModifier } from './terminal-input-store'
-
-const ATTACHMENT_FAILURE_COPY: Record<'no-session' | 'too-large' | 'write-failed', string> = {
-  'no-session': 'This terminal is no longer available.',
-  'too-large': 'That image is too large to paste.',
-  'write-failed': 'The daemon could not save the image. Try again.',
-}
+import { terminalPasteFailureMessage } from './terminal-recovery'
+import { mobileTerminalAdapter } from './terminal-stream-adapter'
 
 /**
  * A visible native editing surface for touch keyboards. It complements the hidden terminal
@@ -128,23 +123,29 @@ export function TerminalCommandComposer({
             {
               upload: (attachment) =>
                 attachment.kind === 'image'
-                  ? pasteImageToTerminal(sessionId, attachment.mime, attachment.base64, {
+                  ? mobileTerminalAdapter().pasteImageToTerminal({
+                      dataBase64: attachment.base64,
+                      id: sessionId,
+                      mime: attachment.mime,
                       insert: false,
                     })
-                  : pasteFileToTerminal(
-                      sessionId,
-                      attachment.filename,
-                      attachment.mime,
-                      attachment.base64,
-                      { insert: false },
-                    ),
+                  : mobileTerminalAdapter().pasteFileToTerminal({
+                      dataBase64: attachment.base64,
+                      filename: attachment.filename,
+                      id: sessionId,
+                      insert: false,
+                      mime: attachment.mime,
+                    }),
               write: (bytes) => {
                 sendTerminalBytesAtomically(sessionId, bytes)
               },
             },
           )
           if (result.result === 'attachment-failed') {
-            Alert.alert('Could not attach the image', ATTACHMENT_FAILURE_COPY[result.failure])
+            Alert.alert(
+              `Could not attach the ${result.kind}`,
+              terminalPasteFailureMessage(result.failure, result.kind),
+            )
             return
           }
           if (result.result === 'too-large') {

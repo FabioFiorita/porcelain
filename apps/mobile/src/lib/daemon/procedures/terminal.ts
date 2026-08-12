@@ -1,47 +1,38 @@
-import { z } from 'zod'
+import {
+  type ActionsInput,
+  type ActionsOutput,
+  actionsOutputSchema,
+  type TrustActionsInput,
+  type TrustActionsOutput,
+  trustActionsOutputSchema,
+} from '@porcelain/contracts/actions'
+import {
+  type RenameTerminalInput,
+  type RenameTerminalOutput,
+  renameTerminalOutputSchema,
+  type TerminalSessionsInput,
+  type TerminalSessionsOutput,
+  terminalSessionsOutputSchema,
+} from '@porcelain/contracts/terminal'
 
 import { defineMutation, defineQuery } from '../procedure'
 
-const terminalInfoSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  cwd: z.string(),
-  status: z.enum(['running', 'exited']),
-  exitCode: z.number().optional(),
-  createdAt: z.number().default(0),
-})
+export type TerminalInfo = TerminalSessionsOutput[number]
+export type TerminalAction = ActionsOutput[number]
 
-const actionSchema = z
-  .object({
-    id: z.string(),
-    title: z.string(),
-    command: z.string(),
-    where: z.enum(['primary', 'local']).optional(),
-    order: z.number().default(0),
-    createdAt: z.number().default(0),
-    // Daemon-derived: whether the human on the DAEMON's machine has accepted this command
-    // text. Shared actions arrive from a clone or an agent write, so running an unaccepted
-    // one is gated in the UI. Omitting it here fails the strict parse for every action.
-    trusted: z.boolean().default(false),
-  })
-  .strict()
-
-export type TerminalInfo = z.infer<typeof terminalInfoSchema>
-export type TerminalAction = z.infer<typeof actionSchema>
-
-export const terminalSessionsQuery = defineQuery<void, TerminalInfo[]>(
+export const terminalSessionsQuery = defineQuery<TerminalSessionsInput, TerminalSessionsOutput>(
   'terminalSessions',
-  z.array(terminalInfoSchema),
+  terminalSessionsOutputSchema,
 )
 
-export const renameTerminalMutation = defineMutation<{ id: string; name: string }, void>(
+export const renameTerminalMutation = defineMutation<RenameTerminalInput, RenameTerminalOutput>(
   'renameTerminal',
-  z.void(),
+  renameTerminalOutputSchema,
 )
 
-export const actionsQuery = defineQuery<string, TerminalAction[]>('actions', z.array(actionSchema))
+export const actionsQuery = defineQuery<ActionsInput, ActionsOutput>('actions', actionsOutputSchema)
 
-export const trustActionsMutation = defineMutation<{ repoPath: string; ids: string[] }, void>(
+export const trustActionsMutation = defineMutation<TrustActionsInput, TrustActionsOutput>(
   'trustActions',
-  z.void(),
+  trustActionsOutputSchema,
 )

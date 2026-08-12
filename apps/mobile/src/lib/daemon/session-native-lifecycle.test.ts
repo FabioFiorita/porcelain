@@ -276,20 +276,46 @@ describe('Session native lifecycle — mobile binding', () => {
     stop()
   })
 
-  it('correlates a terminal request reply through subscribeTerminal + send', async () => {
+  it('exposes generic Terminal frames and orders ready, reconnect, and close lifecycle', () => {
+    const order: string[] = []
+    const stopFrame = daemonSession.onTerminalFrame(() => {
+      order.push('frame')
+    })
+    const stopReady = daemonSession.onDaemonReady(() => {
+      order.push('ready')
+    })
+    const stopReconnect = daemonSession.onDaemonReconnect(() => {
+      order.push('reconnect')
+    })
+    const stopClose = daemonSession.onDaemonClose(() => {
+      order.push('close')
+    })
     const runtime = sessionClientRuntime()
-    runtime.selectProject(PROJECT)
+    runtime.connected({ send: () => undefined })
+    runtime.receive(JSON.stringify(readyFrame()))
+    runtime.receive(JSON.stringify(terminalStreamFixtures.output.data))
+    runtime.disconnected()
     runtime.connected({ send: () => undefined })
     runtime.receive(JSON.stringify(readyFrame()))
 
-    const pending = daemonSession.request(
-      { t: 'terminal:create', reqId: 'req-1', name: 'zsh', cwd: PROJECT },
-      (frame) => (frame.t === 'terminal:created' && frame.reqId === 'req-1' ? frame : null),
-    )
+    expect(order).toEqual(['ready', 'frame', 'close', 'ready', 'reconnect'])
+    stopFrame()
+    stopReady()
+    stopReconnect()
+    stopClose()
+  })
 
-    runtime.receive(JSON.stringify(terminalStreamFixtures.lifecycle.created))
+  it('notifies the generic close seam before retiring an update-required session', () => {
+    const closes: string[] = []
+    const stop = daemonSession.onDaemonClose(() => {
+      closes.push('close')
+    })
+    const runtime = sessionClientRuntime()
+    runtime.connected({ send: () => undefined })
+    runtime.receive(JSON.stringify(sessionContractFixtures.mismatch))
 
-    await expect(pending).resolves.toMatchObject({ t: 'terminal:created', id: 'term-1' })
+    expect(closes).toEqual(['close'])
+    stop()
   })
 
   it('invokes onSessionClosed(revoked) wiring without throwing when cleared', async () => {

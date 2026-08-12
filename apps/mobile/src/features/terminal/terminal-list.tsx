@@ -16,8 +16,8 @@ import { useActiveRepo } from '@/lib/daemon/repo'
 import { cn } from '@/lib/utils'
 
 import { TerminalRenameDialog } from './terminal-rename-dialog'
+import { useRenameTerminal, useTerminals } from './terminal-roster'
 import { type TerminalSession, useTerminalStore } from './terminal-store'
-import { useRenameTerminal, useTerminals } from './use-terminals'
 
 /**
  * The roster of open shells: the tablet's supplementary column, and the phone tab's root list.

@@ -1,13 +1,8 @@
 import { create } from 'zustand'
 
-import {
-  createTerminal as createDaemonTerminal,
-  detachTerminal,
-  killTerminal,
-} from '@/lib/daemon/terminal'
-
 import { disposeTerminal, fitTerminal, nextTerminalSize } from './terminal-engine'
 import { nextTerminalNumber } from './terminal-naming'
+import { mobileTerminalAdapter } from './terminal-stream-adapter'
 
 /**
  * The roster: which PTYs this repo has open, and which one the tablet's viewer is showing.
@@ -96,7 +91,7 @@ export const useTerminalStore = create<TerminalState>()((set, get) => ({
   },
   close: (id: string) => {
     tombstones.set(id, Date.now())
-    killTerminal(id)
+    mobileTerminalAdapter().killTerminal(id)
     disposeTerminal(id)
     set((state) => {
       const sessions = state.sessions.filter((session) => session.id !== id)
@@ -120,7 +115,7 @@ export const useTerminalStore = create<TerminalState>()((set, get) => ({
   reset: () => {
     // Detach, never kill: these PTYs survive a repo switch and re-hydrate if it comes back.
     for (const session of get().sessions) {
-      detachTerminal(session.id)
+      mobileTerminalAdapter().detachTerminal(session.id)
       disposeTerminal(session.id)
     }
     set({ selectedId: null, sessions: [] })
@@ -140,7 +135,7 @@ export const useTerminalStore = create<TerminalState>()((set, get) => ({
     // shell's first frame — and an agent CLI's whole first screen — is drawn before any view
     // has mounted to correct it, and a TUI redrawn at a new size is a visible reflow.
     const size = nextTerminalSize()
-    const id = await createDaemonTerminal({
+    const id = await mobileTerminalAdapter().createTerminal({
       cols: size?.cols,
       cwd,
       initialInput,

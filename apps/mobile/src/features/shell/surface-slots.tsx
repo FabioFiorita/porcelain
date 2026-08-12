@@ -20,10 +20,12 @@ import { ReviewCompanion } from '@/features/review/review-companion'
 import { ReviewList } from '@/features/review/review-list'
 import { ReviewPhoneScreen } from '@/features/review/review-phone-screen'
 import { ReviewViewer } from '@/features/review/review-viewer'
-import { TerminalCompanion } from '@/features/terminal/terminal-companion'
-import { TerminalList } from '@/features/terminal/terminal-list'
-import { TerminalPhoneScreen } from '@/features/terminal/terminal-phone-screen'
-import { TerminalViewer } from '@/features/terminal/terminal-viewer'
+import {
+  TerminalCompanion,
+  TerminalList,
+  TerminalPhoneScreen,
+  TerminalViewer,
+} from '@/features/terminal'
 
 import type { SurfaceId } from './surfaces'
 

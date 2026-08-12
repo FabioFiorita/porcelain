@@ -5,10 +5,9 @@ import {
   terminalModifierBytes,
 } from '@porcelain/client-runtime/terminal-keys'
 
-import { writeTerminal, writeTerminalAtomically } from '@/lib/daemon/terminal'
-
 import { getTerminal, scrollTerminalToBottom } from './terminal-engine'
 import { takeArmedModifier } from './terminal-input-store'
+import { mobileTerminalAdapter } from './terminal-stream-adapter'
 
 /**
  * Everything the human types, on its way to the PTY.
@@ -23,14 +22,14 @@ import { takeArmedModifier } from './terminal-input-store'
 
 export function sendTerminalBytes(id: string, data: string): void {
   if (data === '') return
-  writeTerminal(id, data)
+  mobileTerminalAdapter().writeTerminal(id, data)
   scrollTerminalToBottom(id)
 }
 
 /** Insert a complete command composer payload in one PTY frame. */
 export function sendTerminalBytesAtomically(id: string, data: string): void {
   if (data === '') return
-  writeTerminalAtomically(id, data)
+  mobileTerminalAdapter().writeTerminal(id, data)
   scrollTerminalToBottom(id)
 }
 

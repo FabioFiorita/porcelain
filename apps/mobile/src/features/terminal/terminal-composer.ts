@@ -5,6 +5,8 @@ import {
 } from '@porcelain/contracts/terminal'
 import { create } from 'zustand'
 
+import type { TerminalPasteResult } from './terminal-stream-adapter'
+
 type TerminalComposerAttachmentBase = {
   base64: string
   filename: string
@@ -111,13 +113,11 @@ export type ComposerDelivery = {
 
 export type ComposerDeliveryResult =
   | { result: 'ok' }
-  | { result: 'attachment-failed'; failure: 'no-session' | 'too-large' | 'write-failed' }
+  | { result: 'attachment-failed'; failure: unknown; kind: 'image' | 'file' }
   | { result: 'too-large' }
 
 export type ComposerDeliveryDependencies = {
-  upload: (
-    attachment: TerminalComposerAttachment,
-  ) => Promise<{ path?: string; result: 'ok' | 'no-session' | 'too-large' | 'write-failed' }>
+  upload: (attachment: TerminalComposerAttachment) => Promise<TerminalPasteResult>
   write: (bytes: string) => void
 }
 
@@ -149,12 +149,14 @@ export async function deliverComposerDraft(
 ): Promise<ComposerDeliveryResult> {
   const references: string[] = []
   for (const attachment of delivery.attachments) {
-    const outcome = await dependencies
-      .upload(attachment)
-      .catch(() => ({ result: 'write-failed' as const }))
-    if (outcome.result !== 'ok') return { failure: outcome.result, result: 'attachment-failed' }
+    let outcome: TerminalPasteResult
+    try {
+      outcome = await dependencies.upload(attachment)
+    } catch (failure) {
+      return { failure, kind: attachment.kind, result: 'attachment-failed' }
+    }
     if (outcome.path === undefined) {
-      return { failure: 'write-failed', result: 'attachment-failed' }
+      return { failure: undefined, kind: attachment.kind, result: 'attachment-failed' }
     }
     references.push(
       attachment.kind === 'image'

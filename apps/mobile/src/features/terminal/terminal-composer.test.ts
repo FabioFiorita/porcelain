@@ -1,3 +1,4 @@
+import { publicErrorFixtures } from '@porcelain/contracts'
 import { describe, expect, it, vi } from 'vitest'
 
 import {
@@ -153,15 +154,20 @@ describe('terminal command composer attachment delivery', () => {
       {
         upload: async (attachment) => {
           uploads.push(attachment.id)
-          return attachment.id === 'image-2'
-            ? { result: 'too-large' }
-            : { path: '/daemon/image-1.png', result: 'ok' }
+          if (attachment.id === 'image-2') {
+            throw { error: publicErrorFixtures['terminal.capacity'], reason: 'server' as const }
+          }
+          return { path: '/daemon/image-1.png', result: 'ok' as const }
         },
         write,
       },
     )
 
-    expect(result).toEqual({ failure: 'too-large', result: 'attachment-failed' })
+    expect(result).toEqual({
+      failure: { error: publicErrorFixtures['terminal.capacity'], reason: 'server' },
+      kind: 'image',
+      result: 'attachment-failed',
+    })
     expect(uploads).toEqual(['image-1', 'image-2'])
     expect(write).not.toHaveBeenCalled()
   })
@@ -191,12 +197,13 @@ describe('terminal command composer attachment delivery', () => {
     }
     let attempt = 0
     const upload = async (attachment: { id: string }) => {
-      if (attachment.id === 'image-2' && attempt++ === 0) return { result: 'write-failed' as const }
+      if (attachment.id === 'image-2' && attempt++ === 0) throw new Error('disk full')
       return { path: `/daemon/${attachment.id}.png`, result: 'ok' as const }
     }
 
     await expect(deliverComposerDraft(delivery, { upload, write })).resolves.toEqual({
-      failure: 'write-failed',
+      failure: new Error('disk full'),
+      kind: 'image',
       result: 'attachment-failed',
     })
     await expect(deliverComposerDraft(delivery, { upload, write })).resolves.toEqual({
@@ -232,7 +239,11 @@ describe('terminal command composer attachment delivery', () => {
       },
     )
 
-    expect(result).toEqual({ failure: 'write-failed', result: 'attachment-failed' })
+    expect(result).toEqual({
+      failure: new Error('offline'),
+      kind: 'image',
+      result: 'attachment-failed',
+    })
     expect(write).not.toHaveBeenCalled()
   })
 })

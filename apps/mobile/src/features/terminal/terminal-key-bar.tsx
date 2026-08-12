@@ -3,10 +3,11 @@ import { runUserAction } from '@porcelain/shared/background'
 import { Alert, Pressable, ScrollView, Text } from 'react-native'
 import { ChromeGlyph, type ChromeIconName } from '@/components/chrome-glyph'
 import { getImage, hasImage } from '@/lib/clipboard'
-import { pasteImageToTerminal } from '@/lib/daemon/terminal'
 import { cn } from '@/lib/utils'
 import { sendTerminalArrow, sendTerminalBytes, sendTerminalNewline } from './terminal-input'
 import { takeArmedModifier, useTerminalInputStore } from './terminal-input-store'
+import { terminalPasteFailureMessage } from './terminal-recovery'
+import { mobileTerminalAdapter } from './terminal-stream-adapter'
 
 /**
  * Copy a screenshot, tap this, and the agent in the shell can see it — the PTY is always
@@ -28,16 +29,15 @@ function handlePasteImage(sessionId: string): void {
         Alert.alert('Could not read the clipboard image', 'Try copying it again.')
         return
       }
-      const outcome = await pasteImageToTerminal(sessionId, image.mime, image.base64).catch(() => ({
-        result: 'write-failed' as const,
-      }))
-      if (outcome.result === 'ok') return
-      const message: Record<'no-session' | 'too-large' | 'write-failed', string> = {
-        'no-session': 'This terminal is no longer available.',
-        'too-large': 'That image is too large to paste.',
-        'write-failed': 'The daemon could not save the image. Try again.',
+      try {
+        await mobileTerminalAdapter().pasteImageToTerminal({
+          dataBase64: image.base64,
+          id: sessionId,
+          mime: image.mime,
+        })
+      } catch (cause) {
+        Alert.alert('Could not attach the image', terminalPasteFailureMessage(cause, 'image'))
       }
-      Alert.alert('Could not attach the image', message[outcome.result])
     },
     (cause) => {
       Alert.alert(

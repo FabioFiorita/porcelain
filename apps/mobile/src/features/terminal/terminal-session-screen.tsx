@@ -3,10 +3,9 @@ import { Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { EmptyNote, ScreenHeader } from '@/components/surface-chrome'
 import { ClearBottomChrome } from '@/features/shell/bottom-chrome'
-
+import { useTerminalStream } from './terminal-roster'
 import { useTerminalStore } from './terminal-store'
 import { TerminalView } from './terminal-view'
-import { useTerminalStream } from './use-terminals'
 
 /**
  * One session, full screen, pushed from the roster.

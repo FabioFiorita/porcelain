@@ -1,9 +1,9 @@
 import { settleBackground } from '@porcelain/shared/background'
 import type { Terminal } from '@xterm/headless'
 import { copyText } from '@/lib/clipboard'
-import { resizeTerminal, writeTerminal } from '@/lib/daemon/terminal'
 import { NativeTerminalBuffer } from './native-terminal-buffer'
 import { attachOsc52Clipboard } from './terminal-osc52'
+import { mobileTerminalAdapter } from './terminal-stream-adapter'
 import { loadTerminalEngine } from './xterm-host'
 
 /**
@@ -134,7 +134,7 @@ export function ensureTerminal(id: string): void {
     // (`ESC [ 6 n` and friends). Those replies are input, so they go back over the wire — a TUI
     // that asks and never hears back hangs waiting.
     term.onData((data: string) => {
-      writeTerminal(id, data)
+      mobileTerminalAdapter().writeTerminal(id, data)
     })
 
     // Agents, vim and tmux copy by emitting OSC 52 — xterm does not handle it, so without this
@@ -259,7 +259,7 @@ export function fitTerminal(id: string, cols: number, rows: number): void {
   if (instance === undefined) return
   if (instance.term.cols === cols && instance.term.rows === rows) return
   instance.term.resize(cols, rows)
-  resizeTerminal(id, cols, rows)
+  mobileTerminalAdapter().resizeTerminal(id, cols, rows)
   notify(id)
 }
 

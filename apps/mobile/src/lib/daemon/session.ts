@@ -4,11 +4,10 @@ import {
   type TerminalServerFrame,
 } from '@porcelain/client-runtime/session/client-runtime'
 import type { FreshnessRequirement } from '@porcelain/client-runtime/session/recovery'
-import { REQUEST_TIMEOUT_MS, REVOKED_CLOSE_CODE } from '@porcelain/client-runtime/session/transport'
+import { REVOKED_CLOSE_CODE } from '@porcelain/client-runtime/session/transport'
 import type { SessionChange, SessionMismatchFrame } from '@porcelain/contracts/session'
 import { useMemo, useSyncExternalStore } from 'react'
 
-import { DaemonError } from './errors'
 import {
   createSessionNativeAdapter,
   type SessionConnectionStatus,
@@ -17,8 +16,8 @@ import {
 
 /**
  * Mobile's binding between the shared session runtime and the React Native process: one
- * adapter, one runtime, terminal request correlation, and the foreground / credential close
- * policy a phone owes its paired daemon.
+ * adapter, one runtime, and the foreground / credential close policy a phone owes its paired
+ * daemon.
  *
  * There is no legacy frame path. Hello/ready, watches, change delivery, and recovery live in
  * `@porcelain/client-runtime/session/client-runtime`. The native adapter owns the socket. This
@@ -39,18 +38,21 @@ export type SessionChangeObserver = {
 
 export type DaemonSession = {
   readonly status: SessionConnectionStatus
-  /** Send one client frame on the open session (terminal stream commands). No-op until ready. */
-  send(frame: unknown): void
-  /** Subscribe to daemon → client terminal stream frames. */
-  subscribeTerminal(listener: (frame: TerminalServerFrame) => void): () => void
-  /** Fires after every successful (re)handshake AFTER the first ready. */
-  onReconnect(handler: () => void): () => void
+  /** The shared protocol runtime; feature adapters send only contract-typed frames through it. */
+  readonly runtime: SessionClientRuntime
+  /** Start the one native session socket; idempotent while it is active. */
+  start(): void
+  /** Subscribe to already-validated daemon → client Terminal stream frames. */
+  onTerminalFrame(listener: (frame: TerminalServerFrame) => void): () => void
   /**
-   * Fires after every successful ready INCLUDING the first — `onReconnect` deliberately skips
-   * that one. Anything that must not be pushed into a session still handshaking (a terminal
-   * create/attach, which correlates a reply by `reqId`) waits on this instead.
+   * Fires after every successful ready INCLUDING the first. Anything queued while the protocol
+   * handshakes waits on this generic lifecycle seam.
    */
-  onOpen(handler: () => void): () => void
+  onDaemonReady(handler: () => void): () => void
+  /** Fires after every successful ready AFTER the first one. */
+  onDaemonReconnect(handler: () => void): () => void
+  /** Fires when the protocol runtime is disconnected for any reason. */
+  onDaemonClose(handler: () => void): () => void
   /**
    * Declare a watch interest (files/dirs). Held until the returned release runs. Interests are
    * project-scoped; call `selectProject` (or configure with a repo) first.
@@ -61,23 +63,14 @@ export type DaemonSession = {
   }): () => void
   /** Declare the project this session watches. */
   selectProject(projectPath: string): void
-  /**
-   * Send a terminal request frame and resolve with the matching stream reply. Correlation is
-   * by the caller's matcher (typically `reqId`); the request dies with the socket.
-   */
-  request<TReply>(
-    frame: unknown,
-    match: (frame: TerminalServerFrame) => TReply | null,
-    options?: { timeoutMs?: number },
-  ): Promise<TReply>
 }
 
 const terminalListeners = new Set<(frame: TerminalServerFrame) => void>()
 const reconnectHandlers = new Set<() => void>()
 const openHandlers = new Set<() => void>()
+const closeHandlers = new Set<() => void>()
 const statusListeners = new Set<() => void>()
 const changeObservers = new Set<SessionChangeObserver>()
-const pendingRejects = new Set<(error: DaemonError) => void>()
 
 let endpoint: SessionEndpoint | null = null
 let status: SessionConnectionStatus = 'idle'
@@ -92,18 +85,17 @@ function setStatus(next: SessionConnectionStatus): void {
   for (const listener of statusListeners) listener()
 }
 
-function failPending(message: string): void {
-  const rejects = [...pendingRejects]
-  pendingRejects.clear()
-  for (const reject of rejects) reject(new DaemonError('unreachable', 'session', message))
-}
-
 function fireOpenHandlers(): void {
-  if (everReady) {
+  for (const handler of [...openHandlers]) handler()
+  const wasReady = everReady
+  everReady = true
+  if (wasReady) {
     for (const handler of [...reconnectHandlers]) handler()
   }
-  everReady = true
-  for (const handler of [...openHandlers]) handler()
+}
+
+function fireCloseHandlers(): void {
+  for (const handler of [...closeHandlers]) handler()
 }
 
 /**
@@ -125,6 +117,7 @@ function createMobileRuntime(): SessionClientRuntime {
       },
       onUpdateRequired(frame) {
         for (const observer of [...changeObservers]) observer.onUpdateRequired?.(frame)
+        fireCloseHandlers()
         adapter.updateRequired()
       },
     },
@@ -144,8 +137,8 @@ function createMobileRuntime(): SessionClientRuntime {
     },
     disconnected() {
       wasOpen = false
-      failPending('The daemon connection dropped before the reply arrived.')
       core.disconnected()
+      fireCloseHandlers()
     },
     send(frame) {
       core.send(frame)
@@ -188,11 +181,6 @@ const adapter: SessionNativeAdapter = createSessionNativeAdapter({
     // can therefore move to LAN, Tailscale, or Funnel instead of backing off against one dead URL.
     if (everReady) await onClosed?.('refused')
   },
-  onTransportClosedFailure: (error, closeCode) => {
-    // Never silent-settle terminal close; revoke path owns unauthorized via goUnauthorized.
-    if (closeCode === REVOKED_CLOSE_CODE) return
-    failPending(error instanceof Error ? error.message : String(error))
-  },
 })
 
 function ensureOpen(): void {
@@ -204,36 +192,41 @@ function ensureOpen(): void {
 }
 
 function stopAdapter(): void {
-  failPending('The daemon connection closed.')
   adapter.stop()
 }
 
 export const daemonSession: DaemonSession = {
+  runtime,
   get status(): SessionConnectionStatus {
     return status
   },
-  send(frame: unknown): void {
+  start(): void {
     ensureOpen()
-    runtime.send(frame)
   },
-  subscribeTerminal(listener: (frame: TerminalServerFrame) => void): () => void {
+  onTerminalFrame(listener: (frame: TerminalServerFrame) => void): () => void {
     ensureOpen()
     terminalListeners.add(listener)
     return () => {
       terminalListeners.delete(listener)
     }
   },
-  onReconnect(handler: () => void): () => void {
+  onDaemonReconnect(handler: () => void): () => void {
     reconnectHandlers.add(handler)
     return () => {
       reconnectHandlers.delete(handler)
     }
   },
-  onOpen(handler: () => void): () => void {
+  onDaemonReady(handler: () => void): () => void {
     ensureOpen()
     openHandlers.add(handler)
     return () => {
       openHandlers.delete(handler)
+    }
+  },
+  onDaemonClose(handler: () => void): () => void {
+    closeHandlers.add(handler)
+    return () => {
+      closeHandlers.delete(handler)
     }
   },
   registerWatchInterest(interest: {
@@ -249,47 +242,6 @@ export const daemonSession: DaemonSession = {
   },
   selectProject(projectPath: string): void {
     runtime.selectProject(projectPath)
-  },
-  request<TReply>(
-    frame: unknown,
-    match: (reply: TerminalServerFrame) => TReply | null,
-    options?: { timeoutMs?: number },
-  ): Promise<TReply> {
-    ensureOpen()
-    return new Promise<TReply>((resolve, reject) => {
-      const settle = (): void => {
-        clearTimeout(timer)
-        pendingRejects.delete(fail)
-        stop()
-      }
-      const fail = (error: DaemonError): void => {
-        clearTimeout(timer)
-        stop()
-        reject(error)
-      }
-      const timer = setTimeout(() => {
-        pendingRejects.delete(fail)
-        fail(
-          new DaemonError(
-            'unreachable',
-            typeof frame === 'object' && frame !== null && 't' in frame
-              ? String((frame as { t: unknown }).t)
-              : 'session',
-            'The daemon did not answer in time.',
-          ),
-        )
-      }, options?.timeoutMs ?? REQUEST_TIMEOUT_MS)
-      // The matcher dies with the socket: a reply on a fresh socket must not settle a
-      // request the daemon lost when the old one closed.
-      pendingRejects.add(fail)
-      const stop = daemonSession.subscribeTerminal((incoming) => {
-        const reply = match(incoming)
-        if (reply === null) return
-        settle()
-        resolve(reply)
-      })
-      runtime.send(frame)
-    })
   },
 }
 
@@ -324,7 +276,6 @@ export function configureSession(next: SessionEndpoint | null): void {
   }
   if (changed) {
     everReady = false
-    failPending('The daemon connection closed.')
     adapter.stop()
   }
   if (wanted && foreground) adapter.start()

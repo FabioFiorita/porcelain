@@ -1,14 +1,13 @@
+import type { ActionView } from '@porcelain/contracts/actions'
 import { useState } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { ConfirmDialog, EmptyNote, ErrorNote, PanelLabel } from '@/components/surface-chrome'
-import type { TerminalAction } from '@/lib/daemon/procedures/terminal'
 import { useActiveRepo } from '@/lib/daemon/repo'
 import { cn } from '@/lib/utils'
-
+import { useTerminalActions, useTrustAction } from './terminal-roster'
 import { useTerminalStore } from './terminal-store'
-import { useTerminalActions, useTrustAction } from './use-terminals'
 
 /**
  * Saved actions — the repo's curated commands.
@@ -27,10 +26,10 @@ export function TerminalCompanion({ active }: { active: boolean }): React.JSX.El
   const { actions, error } = useTerminalActions(active)
   const spawn = useTerminalStore((state) => state.spawn)
   const trust = useTrustAction()
-  const [pendingTrust, setPendingTrust] = useState<TerminalAction | null>(null)
+  const [pendingTrust, setPendingTrust] = useState<ActionView | null>(null)
   const [failure, setFailure] = useState<string | null>(null)
 
-  const run = (action: TerminalAction): void => {
+  const run = (action: ActionView): void => {
     if (repo === null) return
     setFailure(null)
     spawn({ cwd: repo.path, initialInput: action.command, name: action.title }).catch(
@@ -112,7 +111,7 @@ function ActionRow({
   action,
   onPress,
 }: {
-  action: TerminalAction
+  action: ActionView
   onPress: () => void
 }): React.JSX.Element {
   return (
