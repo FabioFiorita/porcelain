@@ -95,7 +95,7 @@ an external choice or authorization.
 | `PRJ-003` | Landed | Delete product-boundary repo/workspace aliases and complete domain |
 | `SEA-001` | Landed | Search contracts and file/text/code operations over Files/Git capabilities |
 | `SEA-002` | Landed | Shared Search keys/effects and Web/mobile feature relocation |
-| `SEA-003` | Ready | Delete Files/Git router and mobile Files ownership; complete domain |
+| `SEA-003` | Landed | Delete Files/Git router and mobile Files ownership; complete domain |
 | `GIT-005` | Landed | Remaining Git mutation/read operations, domain rules, and adapter seams |
 | `GIT-006` | Draft | Changes/diff/history/commit/branch client-runtime and app cutover |
 | `GIT-007` | Draft | Remove Review/settings router leakage and complete Git domain |
