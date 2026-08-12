@@ -9,6 +9,12 @@ vi.mock('@/features/projects', () => ({
   useActiveProject: () => ({ path: '/repo' }),
 }))
 
+// Flow reads are the Git feature's; this suite is about the Review-mark writes only.
+vi.mock('@/features/git', () => ({
+  useGitFlow: () => ({ error: null, groups: undefined, isLoading: false }),
+  useGitRangeFlow: () => ({ base: undefined, error: null, groups: undefined, isLoading: false }),
+}))
+
 vi.mock('@/lib/daemon/queries', () => ({
   useDaemonMutation: (procedure: { name: string }) => {
     if (procedure.name === 'markReviewed') {
@@ -39,17 +45,6 @@ vi.mock('@/lib/daemon/queries', () => ({
   },
   useDaemonQuery: () => ({ data: [], error: null, isLoading: false }),
 }))
-
-vi.mock('@/lib/daemon/procedures/changes', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/lib/daemon/procedures/changes')>()
-  return {
-    ...actual,
-    markReviewedMutation: { name: 'markReviewed' },
-    unmarkReviewedMutation: { name: 'unmarkReviewed' },
-    setReviewedMutation: { name: 'setReviewed' },
-    reviewedPathsQuery: { name: 'reviewedPaths' },
-  }
-})
 
 import { useToggleReviewed } from './use-changes'
 

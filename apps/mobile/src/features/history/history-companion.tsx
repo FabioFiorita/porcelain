@@ -1,21 +1,20 @@
 import { fileName } from '@porcelain/client-runtime/paths'
+import type { Commit } from '@porcelain/contracts/git'
 import { useRouter } from 'expo-router'
 import { Pressable, ScrollView, Text, View } from 'react-native'
-
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { PanelLabel, StatusNote } from '@/components/panel-chrome'
 import { PANEL_CARD } from '@/components/surface-layout'
 import { Button } from '@/components/ui/button'
 import { Text as UiText } from '@/components/ui/text'
+import { useCommitMessage, useFileLog, useGitLog } from '@/features/git'
 import { useShellStore } from '@/features/shell/shell-store'
 import { useIsTablet } from '@/features/shell/use-app-window'
-import type { Commit } from '@/lib/daemon/procedures/changes'
 import { cn } from '@/lib/utils'
 
 import { commitTitle, shortHash } from './commit-message'
 import { useHistoryStore } from './history-store'
-import { useCommitActions } from './use-commit-actions'
-import { useCommitMessage, useFileLog, useGitLog } from './use-history'
+import { useCopyActions } from './use-copy-actions'
 
 /**
  * The History companion — "Timeline".
@@ -45,7 +44,7 @@ function CommitCard({ active }: { active: boolean }): React.JSX.Element {
   const hash = selection?.hash ?? null
   const { commits } = useGitLog(active)
   const message = useCommitMessage(hash ?? '', active && hash !== null)
-  const { copyHash, copyMessage, status } = useCommitActions()
+  const { copyHash, copyMessage, status } = useCopyActions()
   // The log is already in cache for the list beside this, so the metadata costs no extra read.
   // A commit older than the log's window simply has no row, and the message carries the title.
   const row = hash === null ? undefined : commits?.find((commit) => commit.hash === hash)

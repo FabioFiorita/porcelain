@@ -1,14 +1,14 @@
-import type { CommitConventions } from '@backend/git/conventions'
 import type { FlowGroup } from '@backend/review/flow'
+import type { CommitConventions } from '@porcelain/contracts/git'
 import { SidebarProvider } from '@renderer/components/ui/sidebar'
 import {
   useCommit,
   useCommitConventions,
   useCommitGeneration,
   useFileStaging,
+  useGitFlow,
   useStageAll,
-} from '@renderer/hooks/use-commit'
-import { useGitFlow } from '@renderer/hooks/use-git-flow'
+} from '@renderer/features/git'
 import { useCommitDraftStore } from '@renderer/stores/commit-draft'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -16,15 +16,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { CommitGroup } from './commit-group'
 
 // Same convention as changes-list: mock the domain hooks, never the tRPC proxy.
-vi.mock('@renderer/hooks/use-commit', () => ({
+vi.mock('@renderer/features/git', () => ({
   useCommit: vi.fn(),
   useCommitConventions: vi.fn(),
   useCommitGeneration: vi.fn(),
   useFileStaging: vi.fn(),
-  useStageAll: vi.fn(),
-}))
-vi.mock('@renderer/hooks/use-git-flow', () => ({
   useGitFlow: vi.fn(),
+  useStageAll: vi.fn(),
 }))
 
 const conventions: CommitConventions = { types: ['feat', 'fix'], scopes: ['ui'] }

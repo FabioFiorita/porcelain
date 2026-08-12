@@ -4,8 +4,7 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
 } from '@renderer/components/ui/sidebar'
-import { type QuickCommandId, useQuickCommand } from '@renderer/hooks/use-commit'
-import { useGitSuggestions } from '@renderer/hooks/use-git-flow'
+import { type QuickCommandId, useGitSuggestions, useQuickCommand } from '@renderer/features/git'
 import { compactButtonClass } from '@renderer/lib/controls'
 import { cn } from '@renderer/lib/utils'
 import { runUserAction } from '@shared/background'

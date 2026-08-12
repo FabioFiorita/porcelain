@@ -17,6 +17,9 @@ vi.mock('@/lib/daemon/environments-store', () => ({
 vi.mock('@/features/projects', () => ({
   useActiveProject: () => (ctx.repoPath === null ? null : { name: 'repo', path: ctx.repoPath }),
 }))
+vi.mock('@/features/git', () => ({
+  invalidateGitWorkingTree: (): Promise<void> => Promise.resolve(),
+}))
 vi.mock('@/lib/daemon/session', () => ({
   subscribeSessionChanges: (observer: SessionChangeObserver): (() => void) => {
     ctx.observers.push(observer)

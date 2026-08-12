@@ -1,26 +1,34 @@
 /**
- * Shared Git workspace client semantics (GIT-003).
+ * Shared Git client semantics (GIT-006).
  *
- * Framework-neutral project-scoped identities, exact non-optimistic workspace mutation
- * consequences, and typed working-tree notification mapping. Web and mobile adapters bind these
- * definitions to their transport and cache layers in GIT-004.
+ * Framework-neutral exact identities, freshness families, non-optimistic mutation consequences,
+ * and typed Git/Review notification mapping. Web and mobile bind these definitions to their
+ * transport and cache layers.
  */
 
 export {
-  type GitWorkspaceMutation,
-  type GitWorkspaceMutationDefinition,
-  gitWorkspaceMutations,
+  type GitMutation,
+  type GitMutationDefinition,
+  gitMutations,
 } from './git-mutations'
-export { gitNotificationEffects } from './git-notifications'
+export { gitNotificationEffects, gitReviewNotificationEffects } from './git-notifications'
 export {
+  type DiffReadingScope,
   type GitBranchesQuery,
   type GitCommitConventionsQuery,
-  type GitDiffQuery,
+  type GitCommitDiffQuery,
+  type GitCommitFlowQuery,
+  type GitCommitMessageQuery,
+  type GitCommitModelsQuery,
+  type GitDiffFileQuery,
+  type GitDiffReadingQuery,
+  type GitFileLogQuery,
   type GitFlowQuery,
   type GitHeadQuery,
   GitIdentityError,
   type GitLogQuery,
   type GitQuery,
+  type GitRangeDiffFileQuery,
   type GitRangeFlowQuery,
   type GitStatusQuery,
   type GitSuggestionsQuery,
@@ -28,12 +36,19 @@ export {
   type GitWorktreesQuery,
   gitBranchesQuery,
   gitCommitConventionsQuery,
-  gitDiffQuery,
+  gitCommitDiffQuery,
+  gitCommitFlowQuery,
+  gitCommitMessageQuery,
+  gitCommitModelsQuery,
+  gitDiffFileQuery,
+  gitDiffReadingQuery,
+  gitFileLogQuery,
   gitFlowQuery,
   gitHeadQuery,
   gitLogQuery,
   gitProjectKey,
   gitQuerySchema,
+  gitRangeDiffFileQuery,
   gitRangeFlowQuery,
   gitStatusQuery,
   gitSuggestionsQuery,
@@ -50,3 +65,19 @@ export {
   type WorktreeInboxQuery,
   worktreeInboxQuery,
 } from './git-queries'
+export {
+  dedupeGitQueryEffects,
+  type GitDiffQuery,
+  type GitDiffReadingFamilyEffect,
+  type GitFileLogFamilyEffect,
+  type GitLogFamilyEffect,
+  type GitQueryEffect,
+  type GitRangeDiffQuery,
+  gitDiffQuery,
+  gitDiffReadingQueryFamily,
+  gitFileLogQueryFamily,
+  gitLogQueryFamily,
+  gitQueryEffectMatchesQuery,
+  gitQueryProjectPath,
+  gitRangeDiffQuery,
+} from './git-query-effects'

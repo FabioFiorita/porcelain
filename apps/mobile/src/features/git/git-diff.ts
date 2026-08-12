@@ -1,16 +1,24 @@
-import { useActiveProject } from '@/features/projects'
-import { LIVE_POLL_MS } from '@/lib/daemon/poll'
 import {
-  type DiffHunk,
   type DiffReadingScope,
-  diffReadingQuery,
-  type FeatureReading,
-  type FileStatus,
   gitCommitDiffQuery,
   gitDiffFileQuery,
+  gitDiffReadingQuery,
   gitRangeDiffFileQuery,
-} from '@/lib/daemon/procedures/changes'
-import { useDaemonQuery } from '@/lib/daemon/queries'
+} from '@porcelain/client-runtime/git'
+import type { DiffHunk, DiffReadingOutput, FileStatus } from '@porcelain/contracts/git'
+import { gitProcedures } from '@porcelain/contracts/git'
+import { LIVE_POLL_MS } from '@/lib/daemon/poll'
+import { namedContractProcedure } from '@/lib/daemon/procedure'
+
+import { useGitQuery, useGitScope } from './use-git-transport'
+
+const diffFileProcedure = namedContractProcedure('gitDiffFile', gitProcedures.gitDiffFile)
+const rangeDiffFileProcedure = namedContractProcedure(
+  'gitRangeDiffFile',
+  gitProcedures.gitRangeDiffFile,
+)
+const commitDiffProcedure = namedContractProcedure('gitCommitDiff', gitProcedures.gitCommitDiff)
+const diffReadingProcedure = namedContractProcedure('diffReading', gitProcedures.diffReading)
 
 /**
  * Which diff a file surface reads.
@@ -42,41 +50,34 @@ export type DiffFile = {
 /**
  * One file's diff from whichever source the surface reads.
  *
- * All three queries are declared because hooks cannot be conditional; the two that do not
+ * All three identities are declared because hooks cannot be conditional; the two that do not
  * match the source are disabled, so only one is ever in flight. Only the working tree polls —
  * a range is static until the next commit, and a commit hash is immutable.
  */
 export function useDiffFile(filePath: string, source: DiffSource, active: boolean): DiffFile {
-  const project = useActiveProject()
-  const repoPath = project?.path ?? ''
-  const enabled = active && project !== null
+  const scope = useGitScope()
+  const enabled = scope.ready && active
   const live = source.kind === 'working'
   const base = source.kind === 'branch' ? source.base : undefined
   const hash = source.kind === 'commit' ? source.hash : ''
 
-  const working = useDaemonQuery(
-    gitDiffFileQuery,
-    { filePath, repoPath },
-    {
-      enabled: enabled && live,
-      pollMs: live ? LIVE_POLL_MS : undefined,
-      staleTime: 0,
-    },
+  const working = useGitQuery(
+    gitDiffFileQuery(scope.projectPath, filePath),
+    diffFileProcedure,
+    { filePath, repoPath: scope.repoPath },
+    { enabled: enabled && live, pollMs: live ? LIVE_POLL_MS : undefined, staleTime: 0 },
   )
-  const range = useDaemonQuery(
-    gitRangeDiffFileQuery,
-    { base: base ?? '', filePath, repoPath },
-    {
-      enabled: enabled && base !== undefined,
-    },
+  const range = useGitQuery(
+    gitRangeDiffFileQuery(scope.projectPath, base ?? '', filePath),
+    rangeDiffFileProcedure,
+    { base: base ?? '', filePath, repoPath: scope.repoPath },
+    { enabled: enabled && base !== undefined },
   )
-  const commit = useDaemonQuery(
-    gitCommitDiffQuery,
-    { filePath, hash, repoPath },
-    {
-      enabled: enabled && hash !== '',
-      staleTime: Number.POSITIVE_INFINITY,
-    },
+  const commit = useGitQuery(
+    gitCommitDiffQuery(scope.projectPath, hash, filePath),
+    commitDiffProcedure,
+    { filePath, hash, repoPath: scope.repoPath },
+    { enabled: enabled && hash !== '', staleTime: Number.POSITIVE_INFINITY },
   )
 
   if (source.kind === 'commit') {
@@ -120,15 +121,16 @@ export function useDiffFile(filePath: string, source: DiffSource, active: boolea
 export function useDiffReading(
   scope: DiffReadingScope,
   active: boolean,
-): { reading: FeatureReading | undefined; isLoading: boolean; error: Error | null } {
-  const project = useActiveProject()
+): { reading: DiffReadingOutput | undefined; isLoading: boolean; error: Error | null } {
+  const git = useGitScope()
   const live = scope.type === 'working'
-  const { data, error, isLoading } = useDaemonQuery(
-    diffReadingQuery,
-    { repoPath: project?.path ?? '', scope },
+  const { data, error, isLoading } = useGitQuery(
+    gitDiffReadingQuery(git.projectPath, scope),
+    diffReadingProcedure,
+    { repoPath: git.repoPath, scope },
     {
-      enabled: active && project !== null,
-      placeholderData: 'keepPreviousData',
+      enabled: git.ready && active,
+      keepPreviousData: true,
       pollMs: live ? LIVE_POLL_MS : undefined,
       staleTime: live ? 0 : undefined,
     },

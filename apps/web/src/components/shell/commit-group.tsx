@@ -19,9 +19,9 @@ import {
   useCommitConventions,
   useCommitGeneration,
   useFileStaging,
+  useGitFlow,
   useStageAll,
-} from '@renderer/hooks/use-commit'
-import { useGitFlow } from '@renderer/hooks/use-git-flow'
+} from '@renderer/features/git'
 import { applyCommitPrefix, parseCommitPrefix } from '@renderer/lib/commit-message'
 import { compactButtonClass } from '@renderer/lib/controls'
 import { kbdLabel } from '@renderer/lib/keyboard'

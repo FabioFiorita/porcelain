@@ -1,9 +1,11 @@
+import { filesPinsQuery, filesTreeSubtreeEffect } from '@porcelain/client-runtime/files'
 import { createValidatingDaemonMock } from '@porcelain/client-runtime/testing/daemon-mock'
 import { publicErrorFixtures, publicErrorSchema } from '@porcelain/contracts'
 import { gitChangeSchema, gitProcedures } from '@porcelain/contracts/git'
 import { describe, expect, it } from 'vitest'
-import { gitWorkspaceMutations } from './git-mutations'
-import { gitDiffQuery } from './git-queries'
+
+import { gitMutations } from './git-mutations'
+import { gitDiffQuery } from './git-query-effects'
 
 const PROJECT = '/synthetic/repo'
 const CHECKOUT_INPUT = { repoPath: PROJECT, branch: 'topic/synthetic' }
@@ -18,68 +20,108 @@ const contractCatalog = {
   publicError: publicErrorSchema,
 }
 
-function queryNames(queries: readonly { domain: string; name: string }[]): readonly string[] {
+function names(queries: readonly { domain: string; name: string }[]): readonly string[] {
   return queries.map((query) => `${query.domain}/${query.name}`)
 }
 
-describe('gitWorkspaceMutations', () => {
-  it('binds each definition to its canonical contract procedure', () => {
-    expect(gitWorkspaceMutations.checkout.procedure).toBe(gitProcedures.gitCheckout)
-    expect(gitWorkspaceMutations.checkout.procedureName).toBe('gitCheckout')
-    expect(gitWorkspaceMutations.createBranch.procedure).toBe(gitProcedures.gitCreateBranch)
-    expect(gitWorkspaceMutations.createBranch.procedureName).toBe('gitCreateBranch')
-    expect(gitWorkspaceMutations.addWorktree.procedure).toBe(gitProcedures.gitAddWorktree)
-    expect(gitWorkspaceMutations.addWorktree.procedureName).toBe('gitAddWorktree')
+describe('gitMutations', () => {
+  it('binds every definition to its canonical contract procedure', () => {
+    expect(gitMutations.checkout.procedure).toBe(gitProcedures.gitCheckout)
+    expect(gitMutations.createBranch.procedure).toBe(gitProcedures.gitCreateBranch)
+    expect(gitMutations.addWorktree.procedure).toBe(gitProcedures.gitAddWorktree)
+    expect(gitMutations.quickCommand.procedure).toBe(gitProcedures.gitQuickCommand)
+    expect(gitMutations.push.procedure).toBe(gitProcedures.gitPush)
+    expect(gitMutations.stageAll.procedure).toBe(gitProcedures.gitStageAll)
+    expect(gitMutations.unstageAll.procedure).toBe(gitProcedures.gitUnstageAll)
+    expect(gitMutations.stageFile.procedure).toBe(gitProcedures.gitStageFile)
+    expect(gitMutations.unstageFile.procedure).toBe(gitProcedures.gitUnstageFile)
+    expect(gitMutations.discardFile.procedure).toBe(gitProcedures.gitDiscardFile)
+    expect(gitMutations.commit.procedure).toBe(gitProcedures.gitCommit)
+    expect(gitMutations.generateMessage.procedure).toBe(gitProcedures.gitGenerateCommitMessage)
+    expect(gitMutations.generateGroups.procedure).toBe(gitProcedures.gitGenerateCommitGroups)
   })
 
-  it('gives checkout and create-branch the same exact consequence set', () => {
-    const checkout = gitWorkspaceMutations.checkout.affectedQueries(CHECKOUT_INPUT)
-    const createBranch = gitWorkspaceMutations.createBranch.affectedQueries(CHECKOUT_INPUT)
-    expect(checkout).toEqual(createBranch)
-    expect(queryNames(checkout)).toEqual([
-      'git/head',
+  it('keeps workspace consequences explicit and includes the working diff family', () => {
+    const checkout = gitMutations.checkout.affectedQueries(CHECKOUT_INPUT)
+    const addWorktree = gitMutations.addWorktree.affectedQueries(CHECKOUT_INPUT)
+    expect(names(checkout)).toContain('git/diff')
+    expect(names(checkout)).toContain('git/range-diff')
+    expect(names(checkout)).toContain('review/worktree-inbox')
+    expect(names(addWorktree)).toEqual(['git/branches', 'git/worktrees', 'review/worktree-inbox'])
+    expect(gitMutations.checkout.filesEffects(CHECKOUT_INPUT)).toEqual([])
+  })
+
+  it('uses a typed, narrow Files consequence for discard', () => {
+    const input = { repoPath: PROJECT, path: 'src/a.ts' }
+    expect(gitMutations.discardFile.filesEffects(input)).toEqual([
+      filesTreeSubtreeEffect(PROJECT, 'src/a.ts'),
+      { type: 'exact', query: filesPinsQuery(PROJECT) },
+    ])
+  })
+
+  it('declares exact mutation consequences and no optimism', () => {
+    expect(
+      names(gitMutations.stageFile.affectedQueries({ repoPath: PROJECT, path: 'src/a.ts' })),
+    ).toEqual(['git/flow', 'git/status', 'git/diff', 'git/diff-reading', 'git/suggestions'])
+    expect(
+      gitMutations.quickCommand.affectedQueries({ repoPath: PROJECT, command: 'status' }),
+    ).toEqual([])
+    expect(
+      names(gitMutations.quickCommand.affectedQueries({ repoPath: PROJECT, command: 'stash' })),
+    ).toEqual(['git/flow', 'git/status', 'git/diff', 'git/diff-reading', 'git/suggestions'])
+    for (const definition of Object.values(gitMutations)) {
+      expect(definition.optimistic).toBe(false)
+      expect(definition.requiresAuthoritativeRefetch).toBe(true)
+      expect(Object.hasOwn(definition, 'optimisticTransition')).toBe(false)
+    }
+    expect(gitMutations.checkout.affectedQueries(CHECKOUT_INPUT)).toContainEqual(
+      gitDiffQuery(PROJECT),
+    )
+  })
+
+  it('refreshes the working, range, history and Review surfaces after a commit', () => {
+    const effects = names(
+      gitMutations.commit.affectedQueries({ message: 'feat: x', repoPath: PROJECT }),
+    )
+    expect(effects).toEqual([
       'git/flow',
-      'git/range-flow',
       'git/status',
       'git/diff',
-      'git/branches',
-      'git/worktrees',
-      'git/log',
+      'git/diff-reading',
+      'git/suggestions',
+      'git/diff-reading',
+      'git/head',
+      'git/range-flow',
+      'git/range-diff',
+      'git/log-family',
+      'git/file-log-family',
+      'git/commit-conventions',
+      'review/reading',
+      'review/view',
+      'review/reviewed-paths',
+    ])
+    expect(new Set(effects).size).toBe(effects.length - 1)
+    expect(names(gitMutations.push.affectedQueries({ repoPath: PROJECT }))).toEqual([
+      'git/head',
+      'git/range-flow',
+      'git/range-diff',
+      'git/log-family',
+      'git/file-log-family',
       'git/commit-conventions',
       'git/suggestions',
       'review/reading',
       'review/view',
       'review/reviewed-paths',
-      'review/worktree-inbox',
     ])
+    expect(
+      names(gitMutations.quickCommand.affectedQueries({ command: 'fetch', repoPath: PROJECT })),
+    ).toEqual(['git/head', 'git/range-flow', 'git/branches', 'git/log-family', 'git/suggestions'])
+    expect(
+      gitMutations.generateMessage.affectedQueries({ model: 'claude', repoPath: PROJECT }),
+    ).toEqual([])
   })
 
-  it('keeps add-worktree a strict branch/worktree/inbox subset', () => {
-    const checkout = gitWorkspaceMutations.checkout.affectedQueries(CHECKOUT_INPUT)
-    const addWorktree = gitWorkspaceMutations.addWorktree.affectedQueries(CHECKOUT_INPUT)
-    expect(queryNames(addWorktree)).toEqual([
-      'git/branches',
-      'git/worktrees',
-      'review/worktree-inbox',
-    ])
-    expect(checkout).toEqual(expect.arrayContaining(addWorktree))
-    expect(addWorktree).toHaveLength(3)
-    expect(checkout).toHaveLength(14)
-    expect(addWorktree).not.toEqual(checkout)
-  })
-
-  it('declares authoritative, non-optimistic behavior for all three mutations', () => {
-    for (const definition of Object.values(gitWorkspaceMutations)) {
-      expect(definition.optimistic).toBe(false)
-      expect(definition.requiresAuthoritativeRefetch).toBe(true)
-      expect(Object.hasOwn(definition, 'optimisticTransition')).toBe(false)
-    }
-    expect(gitWorkspaceMutations.checkout.affectedQueries(CHECKOUT_INPUT)).toContainEqual(
-      gitDiffQuery(PROJECT),
-    )
-  })
-
-  it('dispatches contract-valid workspace successes through the TST-001 mock', async () => {
+  it('dispatches contract-valid workspace successes through the validating mock', async () => {
     const daemon = createValidatingDaemonMock(contractCatalog, {
       gitCheckout: () => ({ ok: true, value: undefined }),
       gitCreateBranch: () => ({ ok: true, value: undefined }),
@@ -88,18 +130,18 @@ describe('gitWorkspaceMutations', () => {
 
     const outcomes = await Promise.all([
       daemon.dispatch({
-        procedure: gitWorkspaceMutations.checkout.procedureName,
-        kind: gitWorkspaceMutations.checkout.procedure.kind,
+        procedure: gitMutations.checkout.procedureName,
+        kind: gitMutations.checkout.procedure.kind,
         input: CHECKOUT_INPUT,
       }),
       daemon.dispatch({
-        procedure: gitWorkspaceMutations.createBranch.procedureName,
-        kind: gitWorkspaceMutations.createBranch.procedure.kind,
+        procedure: gitMutations.createBranch.procedureName,
+        kind: gitMutations.createBranch.procedure.kind,
         input: CHECKOUT_INPUT,
       }),
       daemon.dispatch({
-        procedure: gitWorkspaceMutations.addWorktree.procedureName,
-        kind: gitWorkspaceMutations.addWorktree.procedure.kind,
+        procedure: gitMutations.addWorktree.procedureName,
+        kind: gitMutations.addWorktree.procedure.kind,
         input: CHECKOUT_INPUT,
       }),
     ])
@@ -112,7 +154,7 @@ describe('gitWorkspaceMutations', () => {
     ])
   })
 
-  it('preserves a typed refusal as an observable public error without a local state patch', async () => {
+  it('preserves a typed refusal without a local state patch', async () => {
     const refusal = publicErrorFixtures['git.working-tree-conflict']
     const daemon = createValidatingDaemonMock(contractCatalog, {
       gitCheckout: () => ({ ok: false, error: refusal }),
@@ -120,11 +162,11 @@ describe('gitWorkspaceMutations', () => {
 
     await expect(
       daemon.dispatch({
-        procedure: gitWorkspaceMutations.checkout.procedureName,
-        kind: gitWorkspaceMutations.checkout.procedure.kind,
+        procedure: gitMutations.checkout.procedureName,
+        kind: gitMutations.checkout.procedure.kind,
         input: CHECKOUT_INPUT,
       }),
     ).resolves.toEqual({ ok: false, error: refusal })
-    expect(gitWorkspaceMutations.checkout.optimistic).toBe(false)
+    expect(gitMutations.checkout.optimistic).toBe(false)
   })
 })

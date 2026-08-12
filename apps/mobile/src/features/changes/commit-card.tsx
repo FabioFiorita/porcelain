@@ -9,12 +9,6 @@ import { PANEL_CARD } from '@/components/surface-layout'
 import { Button } from '@/components/ui/button'
 import { Text as UiText } from '@/components/ui/text'
 import { Textarea } from '@/components/ui/textarea'
-import { useActiveProject } from '@/features/projects'
-import { cn } from '@/lib/utils'
-import { useCommitDraftStore } from './commit-draft-store'
-import { commitReady, stagingState } from './commit-staging'
-import { CommitTokenChip } from './commit-token-chip'
-import { useWorkingFlow } from './use-changes'
 import {
   useCommit,
   useCommitConventions,
@@ -22,7 +16,13 @@ import {
   useFileStaging,
   usePush,
   useStageAll,
-} from './use-commit'
+  useWorkingFlow,
+} from '@/features/git'
+import { useActiveProject } from '@/features/projects'
+import { cn } from '@/lib/utils'
+import { useCommitDraftStore } from './commit-draft-store'
+import { commitReady, stagingState } from './commit-staging'
+import { CommitTokenChip } from './commit-token-chip'
 
 /**
  * The commit composer: conventional-commit tokens over a free-text message, the staging

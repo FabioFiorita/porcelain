@@ -1,10 +1,9 @@
+import type { DiffReadingOutput } from '@porcelain/contracts/git'
 import { describe, expect, it } from 'vitest'
-
-import type { FeatureReading } from '@/lib/daemon/procedures/changes'
 
 import { readingPaths, toReadingRows } from './reading-rows'
 
-const reading: FeatureReading = {
+const reading: DiffReadingOutput = {
   groups: [
     {
       files: [
@@ -56,7 +55,7 @@ describe('toReadingRows', () => {
   })
 
   it('keys rows uniquely across files, which repeat hunk positions', () => {
-    const twoFiles: FeatureReading = {
+    const twoFiles: DiffReadingOutput = {
       groups: [
         {
           files: [

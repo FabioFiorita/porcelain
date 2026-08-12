@@ -2,10 +2,9 @@ import type { FeatureReading } from '@backend/review/feature-view'
 import type { FlowGroup } from '@backend/review/flow'
 import type { BoardCard } from '@porcelain/contracts/board'
 import { useBoardCards } from '@renderer/features/board'
-import { useGitWorkspace, type WorktreeInboxRow } from '@renderer/features/git'
+import { useGitFlow, useGitWorkspace, type WorktreeInboxRow } from '@renderer/features/git'
 import { useReviewComments } from '@renderer/features/review/comments'
 import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
-import { useGitFlow } from '@renderer/hooks/use-git-flow'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
@@ -16,9 +15,9 @@ import { GlanceHome } from './glance-home'
 // Same convention as changes-list/feature-list: mock the domain hooks, never the
 // tRPC proxy. Each returns exactly the shape its real query hands back.
 vi.mock('@renderer/features/git', () => ({
+  useGitFlow: vi.fn(),
   useGitWorkspace: vi.fn(),
 }))
-vi.mock('@renderer/hooks/use-git-flow', () => ({ useGitFlow: vi.fn() }))
 vi.mock('@renderer/hooks/use-feature-reading', () => ({ useFeatureReading: vi.fn() }))
 vi.mock('@renderer/features/board', () => ({ useBoardCards: vi.fn() }))
 vi.mock('@renderer/features/review/comments', () => ({ useReviewComments: vi.fn() }))

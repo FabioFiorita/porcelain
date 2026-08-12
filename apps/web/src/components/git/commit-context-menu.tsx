@@ -1,12 +1,12 @@
-import type { Commit } from '@backend/git/diff'
+import type { Commit } from '@porcelain/contracts/git'
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuTrigger,
 } from '@renderer/components/ui/context-menu'
+import { useFetchCommitMessage } from '@renderer/features/git'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
-import { useFetchCommitMessage } from '@renderer/hooks/use-history'
 import { copyText } from '@renderer/lib/utils'
 import { runUserAction } from '@shared/background'
 import { Copy, MessageSquare } from 'lucide-react'

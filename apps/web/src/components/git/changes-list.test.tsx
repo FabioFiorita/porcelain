@@ -1,9 +1,12 @@
 import type { FlowGroup } from '@backend/review/flow'
 import { SidebarProvider } from '@renderer/components/ui/sidebar'
-import { useBranchFlow } from '@renderer/hooks/use-branch-flow'
-import { useGitFlow } from '@renderer/hooks/use-git-flow'
+import {
+  useBranchFlow,
+  useGitFlow,
+  useReviewedPaths,
+  useToggleReviewed,
+} from '@renderer/features/git'
 import { useProjectLayers } from '@renderer/hooks/use-project-layers'
-import { useReviewedPaths, useToggleReviewed } from '@renderer/hooks/use-reviewed'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useRevealStore } from '@renderer/stores/reveal'
@@ -16,18 +19,16 @@ import { ChangesList } from './changes-list'
 // Same convention as history-list: mock the domain hooks, never tRPC. useGitFlow
 // hands back grouped flow data shaped exactly like the real gitFlow result; the
 // diff-prefetch hook is a no-op since hover prefetching is irrelevant here.
-vi.mock('@renderer/hooks/use-git-flow', () => ({ useGitFlow: vi.fn() }))
-vi.mock('@renderer/hooks/use-branch-flow', () => ({ useBranchFlow: vi.fn() }))
 vi.mock('@renderer/hooks/use-project-layers', () => ({ useProjectLayers: vi.fn() }))
-vi.mock('@renderer/hooks/use-diff', () => ({ useDiffFileHoverPrefetch: () => () => {} }))
-vi.mock('@renderer/hooks/use-commit', () => ({
-  useFileStaging: () => ({ stageFile: async () => {}, unstageFile: async () => {} }),
+vi.mock('@renderer/features/git', () => ({
+  useBranchFlow: vi.fn(),
+  useDiffFileHoverPrefetch: () => () => {},
   useDiscardFile: () => async () => {},
-}))
-vi.mock('@renderer/hooks/use-reviewed', () => ({
+  useFileStaging: () => ({ stageFile: async () => {}, unstageFile: async () => {} }),
+  useGitFlow: vi.fn(),
   useReviewedPaths: vi.fn(),
-  useToggleReviewed: vi.fn(),
   useSetReviewed: () => async () => {},
+  useToggleReviewed: vi.fn(),
 }))
 // The "Comment on file" item mounts CommentComposer, which reaches tRPC; mock the
 // domain hook so the list renders without a tRPC provider (same convention above).

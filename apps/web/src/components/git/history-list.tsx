@@ -1,5 +1,5 @@
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@renderer/components/ui/sidebar'
-import { useGitLog } from '@renderer/hooks/use-history'
+import { useGitLog } from '@renderer/features/git'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { CommitContextMenu } from './commit-context-menu'
 

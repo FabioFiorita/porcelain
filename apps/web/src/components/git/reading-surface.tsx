@@ -1,5 +1,5 @@
-import type { DiffLine } from '@backend/git/diff'
 import type { FeatureReading, ReadingFile } from '@backend/review/feature-view'
+import type { DiffLine } from '@porcelain/contracts/git'
 import { Button } from '@renderer/components/ui/button'
 import {
   ContextMenu,
@@ -12,13 +12,13 @@ import { CodeLine, useHighlighter } from '@renderer/components/viewer/code-line'
 import { HtmlView } from '@renderer/components/viewer/html-view'
 import { MarkdownPre } from '@renderer/components/viewer/markdown-code-block'
 import { VirtualRows } from '@renderer/components/viewer/virtual-rows'
+import { useReviewedPaths, useToggleReviewed } from '@renderer/features/git'
 import {
   buildCommentIndex,
   type CommentIndex,
   useReviewComments,
 } from '@renderer/features/review/comments'
 import { useEvidenceHtml } from '@renderer/hooks/use-evidence'
-import { useReviewedPaths, useToggleReviewed } from '@renderer/hooks/use-reviewed'
 import { useResolvedTheme } from '@renderer/hooks/use-theme'
 import { evidenceHtmlEmptyMessage } from '@renderer/lib/evidence-message'
 import {

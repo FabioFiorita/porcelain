@@ -1,11 +1,10 @@
 import type { GitChange } from '@porcelain/contracts/git'
+import type { ReviewChanged } from '@porcelain/contracts/review'
 import {
-  type GitWorkspaceQuery,
   gitCommitConventionsQuery,
-  gitDiffQuery,
+  gitDiffReadingQuery,
   gitFlowQuery,
   gitHeadQuery,
-  gitLogQuery,
   gitProjectKey,
   gitRangeFlowQuery,
   gitStatusQuery,
@@ -14,9 +13,18 @@ import {
   reviewReadingQuery,
   reviewViewQuery,
 } from './git-queries'
+import {
+  dedupeGitQueryEffects,
+  type GitQueryEffect,
+  gitDiffQuery,
+  gitDiffReadingQueryFamily,
+  gitFileLogQueryFamily,
+  gitLogQueryFamily,
+  gitRangeDiffQuery,
+} from './git-query-effects'
 
-/** Map the typed Git change fact to the current-worktree data it can make stale. */
-export function gitNotificationEffects(notification: GitChange): readonly GitWorkspaceQuery[] {
+/** Map a typed Git change fact to all project data that can be stale. */
+export function gitNotificationEffects(notification: GitChange): readonly GitQueryEffect[] {
   const projectPath = gitProjectKey(notification.projectPath)
   return [
     gitHeadQuery(projectPath),
@@ -24,11 +32,29 @@ export function gitNotificationEffects(notification: GitChange): readonly GitWor
     gitRangeFlowQuery(projectPath),
     gitStatusQuery(projectPath),
     gitDiffQuery(projectPath),
-    gitLogQuery(projectPath),
+    gitRangeDiffQuery(projectPath),
+    gitDiffReadingQueryFamily(projectPath),
+    gitLogQueryFamily(projectPath),
+    gitFileLogQueryFamily(projectPath),
     gitCommitConventionsQuery(projectPath),
     gitSuggestionsQuery(projectPath),
     reviewReadingQuery(projectPath),
     reviewViewQuery(projectPath),
     reviewedPathsQuery(projectPath),
   ]
+}
+
+/** Map changed Review layers to the Git reads whose grouping and stacked diffs they affect. */
+export function gitReviewNotificationEffects(
+  notification: ReviewChanged,
+): readonly GitQueryEffect[] {
+  const projectPath = gitProjectKey(notification.projectPath)
+  return dedupeGitQueryEffects([
+    gitFlowQuery(projectPath),
+    gitRangeFlowQuery(projectPath),
+    gitDiffQuery(projectPath),
+    gitRangeDiffQuery(projectPath),
+    gitDiffReadingQuery(projectPath, { type: 'working' }),
+    gitDiffReadingQuery(projectPath, { type: 'branch' }),
+  ])
 }

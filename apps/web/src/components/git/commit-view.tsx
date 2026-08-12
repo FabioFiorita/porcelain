@@ -1,4 +1,4 @@
-import type { FlowFile } from '@backend/review/flow'
+import type { FlowFile } from '@porcelain/contracts/git'
 import { Button } from '@renderer/components/ui/button'
 import {
   ContextMenu,
@@ -7,9 +7,8 @@ import {
   ContextMenuTrigger,
 } from '@renderer/components/ui/context-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
+import { useCommitDiff, useCommitFlow, useCommitMessage } from '@renderer/features/git'
 import { useCommentIndex } from '@renderer/features/review/comments'
-import { useCommitDiff } from '@renderer/hooks/use-diff'
-import { useCommitFlow, useCommitMessage } from '@renderer/hooks/use-history'
 import { type LineSelection, lineSelectionFromDom } from '@renderer/lib/line-selection'
 import { fileName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'

@@ -11,9 +11,9 @@ import {
   CommandList,
 } from '@renderer/components/ui/command'
 import { FileTypeIcon, FolderIcon } from '@renderer/components/viewer/file-icon'
+import { useGitLog } from '@renderer/features/git'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { useActions, useRunAction } from '@renderer/hooks/use-actions'
-import { useGitLog } from '@renderer/hooks/use-history'
 import { commandGroupHeadingClass } from '@renderer/lib/controls'
 import { isTerminalTarget } from '@renderer/lib/keyboard'
 import { dirName, fileName } from '@renderer/lib/paths'

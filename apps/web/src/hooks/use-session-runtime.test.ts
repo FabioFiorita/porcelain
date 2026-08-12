@@ -35,10 +35,6 @@ function recordingUtils(): { utils: SessionQueryUtils; invalidated: string[] } {
       invalidated.push('*')
       return Promise.resolve()
     },
-    gitFlow: query('gitFlow'),
-    gitDiffFile: query('gitDiffFile'),
-    gitRangeFlow: query('gitRangeFlow'),
-    gitCommitFlow: query('gitCommitFlow'),
     repoLayers: query('repoLayers'),
     featureView: query('featureView'),
     featureReading: query('featureReading'),
@@ -87,9 +83,6 @@ describe('Session change invalidation mapping', () => {
         'exploreFeature',
         'featureReading',
         'featureView',
-        'gitCommitFlow',
-        'gitFlow',
-        'gitRangeFlow',
         'loopEvidence',
         'loopEvidenceHtml',
         'repoLayers',
@@ -97,6 +90,12 @@ describe('Session change invalidation mapping', () => {
         'reviewEvidenceAssets',
         'reviewEvidenceDocs',
       ].sort(),
+    )
+  })
+
+  it('leaves git.working-tree-changed entirely to the Git feature bridge', async () => {
+    expect(await invalidatedBy({ kind: 'git.working-tree-changed', projectPath: PROJECT })).toEqual(
+      [],
     )
   })
 
@@ -142,6 +141,9 @@ describe('Session recovery invalidation', () => {
     expect(invalidated).not.toContain('readFile')
     expect(invalidated).toContain('boardCards')
     expect(invalidated).toContain('featureReading')
+    // Git recovers itself from the same requirement (GIT-006), so generic recovery must not
+    // name a single Git query — otherwise every gap double-invalidates the Git caches.
+    expect(invalidated.filter((name) => name.toLowerCase().startsWith('git'))).toEqual([])
   })
 })
 

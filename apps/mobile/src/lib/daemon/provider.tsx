@@ -36,19 +36,18 @@ import {
 } from './session'
 
 /**
- * Map one change notification to the procedure names it makes stale. The union of today's
- * legacy `APP_EVENT_INVALIDATIONS` entries where the target contract merges several events into
- * one category (review, working-tree split into files/git). Invalidating an absent key is a
- * no-op.
+ * Map one change notification to the procedure names it makes stale — the domains that still
+ * key their cache by procedure name. Invalidating an absent key is a no-op.
  *
- * The `default` fall-through is deliberate: a category added to the contract fails the annotated
+ * The exhaustive switch is deliberate: a category added to the contract fails the annotated
  * return type at typecheck unless this switch gains a branch — so a new domain signal cannot
  * silently ship un-refreshed.
  */
-type GlobalSessionChange = Exclude<SessionChange, { kind: 'git.working-tree-changed' }>
-
-export function proceduresForChange(change: GlobalSessionChange): readonly string[] {
+export function proceduresForChange(change: SessionChange): readonly string[] {
   switch (change.kind) {
+    case 'git.working-tree-changed':
+      // Git identities are typed and owned by GitNotificationBridge; nothing here to refresh.
+      return []
     case 'files.scope-changed':
       // Files identities are owned by FilesNotificationBridge; keep provider recovery for
       // cross-domain procedure identities only.
@@ -56,12 +55,13 @@ export function proceduresForChange(change: GlobalSessionChange): readonly strin
     case 'files.tree-changed':
       return []
     case 'files.content-changed':
-      // Diff reading is still provider-owned; Files content/tree identities belong to the
-      // typed Files notification bridge.
-      return ['diffReading']
+      // Files content/tree identities belong to the typed Files notification bridge, and the
+      // diff reading it also moves is a typed Git identity now.
+      return []
     case 'review.changed':
       // union of feature-view, layers, evidence — comments owned by
-      // ReviewCommentNotificationBridge (RVC-004)
+      // ReviewCommentNotificationBridge (RVC-004); Review's Git consequences are owned by
+      // GitNotificationBridge.
       return [
         'featureView',
         'featureReading',
@@ -72,9 +72,6 @@ export function proceduresForChange(change: GlobalSessionChange): readonly strin
         'reviewEvidenceDocs',
         'reviewEvidenceAssets',
         'reviewEvidenceAsset',
-        'gitFlow',
-        'gitRangeFlow',
-        'gitCommitFlow',
       ]
     case 'board.changed':
       // BoardNotificationBridge owns exact Board cards invalidation (BRD-005).
@@ -113,7 +110,7 @@ export function proceduresForRecovery(
             paths: [requirement.scope.projectPath],
           }
         : { kind, projectPath: requirement.scope.projectPath }
-    ) as GlobalSessionChange
+    ) as SessionChange
     for (const name of proceduresForChange(change)) names.add(name)
   }
   return [...names]
@@ -407,9 +404,7 @@ function DaemonLifecycle(): null {
     if (environmentId === null || projectPath === null) return
     return subscribeSessionChanges({
       onChange: (change) => {
-        if (change.kind !== 'git.working-tree-changed') {
-          invalidateProcedures(environmentId, proceduresForChange(change))
-        }
+        invalidateProcedures(environmentId, proceduresForChange(change))
       },
       onFreshnessRequired: (requirement) => {
         const target = proceduresForRecovery(requirement)

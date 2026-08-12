@@ -4,9 +4,13 @@ import { Pressable, ScrollView, Text, View } from 'react-native'
 import { ChromeGlyph, type ChromeIconName } from '@/components/chrome-glyph'
 import { PanelLabel } from '@/components/panel-chrome'
 import { PANEL_CARD } from '@/components/surface-layout'
-import { QUICK_COMMANDS, type QuickCommandId } from '@/lib/daemon/procedures/changes'
+import {
+  QUICK_COMMANDS,
+  type QuickCommandId,
+  useGitSuggestions,
+  useQuickCommand,
+} from '@/features/git'
 import { cn } from '@/lib/utils'
-import { useGitSuggestions, useQuickCommand } from './use-commit'
 
 /** Label + glyph for each whitelisted command; the ids come from the daemon's own list. */
 const COMMAND_FACES: Record<QuickCommandId, { label: string; glyph: ChromeIconName }> = {

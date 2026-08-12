@@ -6,10 +6,9 @@ import {
   ContextMenuTrigger,
 } from '@renderer/components/ui/context-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
+import { useDiffFile, useReviewedPaths, useToggleReviewed } from '@renderer/features/git'
 import { useCommentIndex } from '@renderer/features/review/comments'
-import { useDiffFile } from '@renderer/hooks/use-diff'
 import { useIsMobile } from '@renderer/hooks/use-mobile'
-import { useReviewedPaths, useToggleReviewed } from '@renderer/hooks/use-reviewed'
 import { compactButtonClass } from '@renderer/lib/controls'
 import { type LineSelection, lineSelectionFromDom } from '@renderer/lib/line-selection'
 import { fileName } from '@renderer/lib/paths'

@@ -1,5 +1,5 @@
 import { SidebarProvider } from '@renderer/components/ui/sidebar'
-import { useFileLog } from '@renderer/hooks/use-history'
+import { useFileLog } from '@renderer/features/git'
 import { type Tab, tabId, useTabsStore } from '@renderer/stores/tabs'
 import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -8,9 +8,9 @@ import { FileTimelineGroup } from './file-timeline-group'
 // Like the History list test: mock the domain hook, never tRPC. useFileLog
 // returns the file's commit history; useFetchCommitMessage backs the shared
 // CommitContextMenu (copy actions).
-vi.mock('@renderer/hooks/use-history', () => ({
-  useFileLog: vi.fn(),
+vi.mock('@renderer/features/git', () => ({
   useFetchCommitMessage: () => vi.fn().mockResolvedValue(''),
+  useFileLog: vi.fn(),
 }))
 
 const commits = [

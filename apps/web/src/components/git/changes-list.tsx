@@ -1,17 +1,6 @@
-import type { FileStatus } from '@backend/git/diff'
-import type { FlowFile } from '@backend/review/flow'
+import type { FileStatus, FlowFile } from '@porcelain/contracts/git'
 import { SetupTip } from '@renderer/components/shell/setup-tip'
 import { SidebarHeaderActions } from '@renderer/components/shell/sidebar-header-actions'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@renderer/components/ui/alert-dialog'
 import { Button } from '@renderer/components/ui/button'
 import {
   ContextMenu,
@@ -26,13 +15,17 @@ import {
   SidebarMenuItem,
 } from '@renderer/components/ui/sidebar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
+import {
+  useBranchFlow,
+  useDiffFileHoverPrefetch,
+  useDiscardFile,
+  useFileStaging,
+  useGitFlow,
+  useReviewedPaths,
+  useToggleReviewed,
+} from '@renderer/features/git'
 import { toastingAction } from '@renderer/hooks/mutation-error'
-import { useBranchFlow } from '@renderer/hooks/use-branch-flow'
-import { useDiscardFile, useFileStaging } from '@renderer/hooks/use-commit'
-import { useDiffFileHoverPrefetch } from '@renderer/hooks/use-diff'
-import { useGitFlow } from '@renderer/hooks/use-git-flow'
 import { useProjectLayers } from '@renderer/hooks/use-project-layers'
-import { useReviewedPaths, useToggleReviewed } from '@renderer/hooks/use-reviewed'
 import { layersSetupPrompt } from '@renderer/lib/agent-setup-prompts'
 import { dirName, fileName } from '@renderer/lib/paths'
 import { cn, copyText } from '@renderer/lib/utils'
@@ -60,6 +53,7 @@ import {
 import { memo, useState } from 'react'
 import { ChangesScopeToggle } from './changes-scope-toggle'
 import { type CommentAnchor, CommentComposer } from './comment-composer'
+import { DiscardFileDialog } from './discard-file-dialog'
 import { ReviewAllToggle } from './review-all-toggle'
 import { reviewTabKey } from './review-view'
 
@@ -271,24 +265,13 @@ function FileRowImpl({
           )}
         </ContextMenuContent>
       </ContextMenu>
-      <AlertDialog open={confirmDiscard} onOpenChange={setConfirmDiscard}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Discard {name}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {isNew
-                ? `This moves the new file “${name}” to the Trash — you can restore it from there.`
-                : `This reverts “${name}” to the last commit. Uncommitted changes cannot be recovered.`}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" onClick={confirmDiscardFile}>
-              Discard
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DiscardFileDialog
+        name={name}
+        isNew={isNew}
+        open={confirmDiscard}
+        onOpenChange={setConfirmDiscard}
+        onConfirm={confirmDiscardFile}
+      />
       <CommentComposer
         anchor={commentAnchor}
         open={commentAnchor !== null}

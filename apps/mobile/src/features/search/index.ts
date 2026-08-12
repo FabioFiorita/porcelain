@@ -24,7 +24,7 @@ export {
   invalidateSearchProjectQueries,
   isSearchQueryKey,
   parseSearchQueryKey,
-  searchQueryKey,
   searchQueryMatchesEffect,
 } from './search-query-filter'
+export { searchQueryKey } from './search-query-key'
 export { useSearchStore } from './search-store'

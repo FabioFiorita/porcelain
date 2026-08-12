@@ -1,4 +1,4 @@
-import { type DiffReadingScope, useDiffReading } from '@renderer/hooks/use-diff-reading'
+import { type DiffReadingScope, useDiffReading } from '@renderer/features/git'
 import { ReadingSurfaceBody } from './reading-surface'
 
 /** Encode a review scope into the tab's path key (and parse it back). */

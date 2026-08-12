@@ -1,5 +1,5 @@
 import type { FlowGroup } from '@backend/review/flow'
-import { useCommitFlow, useCommitMessage } from '@renderer/hooks/use-history'
+import { useCommitFlow, useCommitMessage } from '@renderer/features/git'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
@@ -9,14 +9,12 @@ import { CommitView } from './commit-view'
 
 // Mock domain hooks so the component renders without a tRPC provider — exactly
 // like changes-list.test.tsx mocks useGitFlow/useBranchFlow.
-vi.mock('@renderer/hooks/use-history', () => ({
+// CommitFileDiff also reaches useCommitDiff, which would need tRPC; stub it out so
+// clicking a file row doesn't break on an un-wired provider.
+vi.mock('@renderer/features/git', () => ({
+  useCommitDiff: () => ({ hunks: undefined, error: undefined }),
   useCommitFlow: vi.fn(),
   useCommitMessage: vi.fn(),
-}))
-// CommitFileDiff reaches useCommitDiff which would need tRPC; stub it out so
-// clicking a file row doesn't break on an un-wired provider.
-vi.mock('@renderer/hooks/use-diff', () => ({
-  useCommitDiff: () => ({ hunks: undefined, error: undefined }),
 }))
 // File rows and the diff pane mount CommentComposer and read the comment index,
 // both of which reach tRPC; mock the domain hooks so the view renders without a

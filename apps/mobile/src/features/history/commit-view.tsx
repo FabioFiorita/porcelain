@@ -1,6 +1,6 @@
+import type { FlowFile } from '@porcelain/contracts/git'
 import { useMemo, useState } from 'react'
 import { SectionList, Text, View } from 'react-native'
-
 import {
   EmptyNote,
   ErrorNote,
@@ -10,13 +10,12 @@ import {
 } from '@/components/panel-chrome'
 import { PANEL_CARD, SURFACE_GUTTER, surfaceContentStyle } from '@/components/surface-layout'
 import { type CommentAnchor, CommentComposer } from '@/features/comments/comment-composer'
+import { useCommitFlow, useCommitMessage } from '@/features/git'
 import { useBottomChrome } from '@/features/shell/bottom-chrome'
-import type { FlowFile } from '@/lib/daemon/procedures/changes'
 import { cn } from '@/lib/utils'
 
 import { CommitFileRow, type CommitFileRowActions } from './commit-file-row'
 import { commitTitle, shortHash, splitCommitMessage } from './commit-message'
-import { useCommitFlow, useCommitMessage } from './use-history'
 
 /**
  * One commit: its message, and the files it changed in flow order.

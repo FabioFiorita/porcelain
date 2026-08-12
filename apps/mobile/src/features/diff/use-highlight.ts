@@ -6,10 +6,9 @@ import {
   themeNameFor,
   tokenizeHunks,
 } from '@porcelain/client-runtime/highlight'
+import type { DiffHunk } from '@porcelain/contracts/git'
 import { useMemo } from 'react'
-
 import { useResolvedColorScheme } from '@/features/settings/theme-provider'
-import type { DiffHunk } from '@/lib/daemon/procedures/changes'
 import { useHighlighter } from '@/lib/highlight'
 
 const EMPTY_TOKENS: TokenMap = new Map()

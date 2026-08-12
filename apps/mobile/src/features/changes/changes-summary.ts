@@ -1,4 +1,4 @@
-import type { FlowGroup } from '@/lib/daemon/procedures/changes'
+import type { FlowGroup } from '@porcelain/contracts/git'
 
 /** Header counts for a change set, and the sentence the Changes header prints. */
 export type ChangesSummary = {

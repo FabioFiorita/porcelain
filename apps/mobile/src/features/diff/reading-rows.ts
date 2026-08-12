@@ -1,8 +1,8 @@
-import type { FeatureReading } from '@/lib/daemon/procedures/changes'
+import type { DiffReadingOutput } from '@porcelain/contracts/git'
 
 import { type DiffMode, type DiffRow, toDiffRows } from './diff-rows'
 
-type ReadingFile = FeatureReading['groups'][number]['files'][number]
+type ReadingFile = DiffReadingOutput['groups'][number]['files'][number]
 
 /**
  * One row of the continuous "read all" surface: layer captions, per-file headers, and the
@@ -22,7 +22,7 @@ export type ReadingRow =
  * stays cheap when the set is large, because the list windows across file boundaries.
  */
 export function toReadingRows(
-  reading: FeatureReading,
+  reading: DiffReadingOutput,
   mode: DiffMode,
   /** Files whose body is folded away; their header stays so the set reads as a table of contents. */
   collapsed?: ReadonlySet<string>,
@@ -47,6 +47,6 @@ export function toReadingRows(
 }
 
 /** Files in the reading, in flow order — the bulk reviewed toggle's input for this surface. */
-export function readingPaths(reading: FeatureReading): string[] {
+export function readingPaths(reading: DiffReadingOutput): string[] {
   return reading.groups.flatMap((group) => group.files.map((file) => file.path))
 }

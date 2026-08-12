@@ -20,10 +20,11 @@ export type ApplyFilesNotificationOptions = {
 function applyForeign(
   queryClient: QueryClient,
   environmentId: string,
+  projectPath: string,
   dependencies: Parameters<typeof applyFilesForeignDependencies>[3],
 ): void {
   settleBackground(
-    applyFilesForeignDependencies(queryClient, environmentId, null, dependencies),
+    applyFilesForeignDependencies(queryClient, environmentId, projectPath, dependencies),
     'notification',
   )
 }
@@ -48,6 +49,7 @@ export function applyFilesNotification(
   applyForeign(
     options.queryClient,
     options.environmentId,
+    notification.projectPath,
     filesNotificationForeignDependencies(notification).filter(
       (dependency) => dependency.domain === 'git',
     ),

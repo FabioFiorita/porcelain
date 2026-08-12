@@ -6,7 +6,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@renderer/components/ui/sidebar'
-import { useFileLog } from '@renderer/hooks/use-history'
+import { useFileLog } from '@renderer/features/git'
 import { fileName } from '@renderer/lib/paths'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { CommitContextMenu } from '../git/commit-context-menu'

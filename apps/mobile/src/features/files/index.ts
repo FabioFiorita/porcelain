@@ -11,6 +11,7 @@ export { FilesCompanion } from './files-companion'
 export { FilesList } from './files-list'
 export { FilesNotificationBridge } from './files-notification-bridge'
 export { FilesPhoneScreen } from './files-phone-screen'
+export { invalidateFilesEffects } from './files-query-filter'
 export { useFilesStore } from './files-store'
 export { FilesViewer } from './files-viewer'
 export {

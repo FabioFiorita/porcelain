@@ -9,14 +9,13 @@ import {
   surfaceContentStyle,
 } from '@/components/surface-layout'
 import { type CommentAnchor, CommentComposer } from '@/features/comments/comment-composer'
+import { type FlowFile, useDiscardFile, useFileStaging } from '@/features/git'
 import { useBottomChrome } from '@/features/shell/bottom-chrome'
-import type { FlowFile } from '@/lib/daemon/procedures/changes'
 import { cn } from '@/lib/utils'
 import { type ChangesScope, useChangesStore } from './changes-store'
 import { changedPaths, summarizeChanges } from './changes-summary'
 import { FileRow, type FileRowActions } from './file-row'
 import { useChangesFlow, useReviewedPaths, useToggleReviewed } from './use-changes'
-import { useDiscardFile, useFileStaging } from './use-commit'
 
 /**
  * The Changes list: the flow-grouped change set for the active scope, with the header that

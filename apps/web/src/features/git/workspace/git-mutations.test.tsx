@@ -24,7 +24,7 @@ afterEach(() => {
 })
 
 describe('Web Git workspace mutations', () => {
-  it('sends checkout input and applies its exact fourteen consequences after success', async () => {
+  it('sends checkout input and applies its exact eighteen consequences after success', async () => {
     const { mock, wrapper } = createValidatingTrpcHarness({
       ...baseHandlers,
       gitCheckout: () => ({ ok: true, value: gitContractFixtures.gitCheckout.output }),
@@ -41,7 +41,7 @@ describe('Web Git workspace mutations', () => {
       kind: 'mutation',
       input: { branch: 'topic/synthetic', repoPath: REPO },
     })
-    expect(invalidate).toHaveBeenCalledTimes(28)
+    expect(invalidate).toHaveBeenCalledTimes(18)
   })
 
   it('keeps add-worktree consequences narrower than checkout', async () => {
@@ -56,7 +56,7 @@ describe('Web Git workspace mutations', () => {
       await result.current.mutateAsync('topic/synthetic')
     })
 
-    expect(invalidate).toHaveBeenCalledTimes(6)
+    expect(invalidate).toHaveBeenCalledTimes(3)
   })
 
   it('does not invalidate while pending and does not invalidate after refusal', async () => {

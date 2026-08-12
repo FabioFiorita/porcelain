@@ -1,4 +1,4 @@
-import type { DiffHunk } from '@/lib/daemon/procedures/changes'
+import type { DiffHunk } from '@porcelain/contracts/git'
 
 import { isLineInRange, type LineRange, MAX_ANCHOR_TEXT } from '../comments/line-range'
 

@@ -1,19 +1,13 @@
 import type { FilesForeignDependency } from '@porcelain/client-runtime/files'
 import type { QueryClient } from '@tanstack/react-query'
 
+import { invalidateGitWorkingTree } from '@/features/git'
 import {
   applySearchForeignDependencies,
   type SearchForeignDependency,
 } from '@/lib/search-invalidation'
 
-function daemonProcedureKey(
-  environmentId: string,
-  name: string,
-): readonly [string, string, string] {
-  return ['daemon', environmentId, name]
-}
-
-/** Map Files-owned foreign tokens onto Mobile Git keys and typed Search effects. */
+/** Map Files-owned foreign tokens onto typed Git and Search effects. */
 export function applyFilesForeignDependencies(
   queryClient: QueryClient,
   environmentId: string,
@@ -24,12 +18,9 @@ export function applyFilesForeignDependencies(
   const searchDependencies: SearchForeignDependency[] = []
   for (const dependency of dependencies) {
     if (dependency.domain === 'git' && dependency.name === 'working-tree') {
-      tasks.push(
-        queryClient.invalidateQueries({ queryKey: daemonProcedureKey(environmentId, 'gitFlow') }),
-        queryClient.invalidateQueries({
-          queryKey: daemonProcedureKey(environmentId, 'gitDiffFile'),
-        }),
-      )
+      if (projectPath !== null) {
+        tasks.push(invalidateGitWorkingTree(queryClient, environmentId, projectPath))
+      }
       continue
     }
     if (dependency.domain === 'search') {

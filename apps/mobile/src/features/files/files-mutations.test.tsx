@@ -18,6 +18,9 @@ vi.mock('@/lib/daemon/environments-store', () => ({
 vi.mock('@/features/projects', () => ({
   useActiveProject: () => ctx.repo,
 }))
+vi.mock('@/features/git', () => ({
+  invalidateGitWorkingTree: (): Promise<void> => Promise.resolve(),
+}))
 vi.mock('@/lib/daemon/client', () => ({
   getDaemonClient: () => ({ mutation: vi.fn(), query: vi.fn() }),
 }))

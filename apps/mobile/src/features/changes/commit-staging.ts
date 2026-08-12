@@ -1,6 +1,6 @@
 import { applyCommitPrefix } from '@porcelain/client-runtime/commit-message'
 
-import type { FlowGroup } from '@/lib/daemon/procedures/changes'
+import type { FlowGroup } from '@porcelain/contracts/git'
 
 /** What the working tree looks like to the commit card's buttons. */
 export type StagingState = {

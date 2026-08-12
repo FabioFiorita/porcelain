@@ -2,8 +2,9 @@ import { useIsFocused, useLocalSearchParams, useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { ReadAllView } from '@/features/diff/read-all-view'
+import { useCommitMessage } from '@/features/git'
 import { commitTitle, shortHash } from '@/features/history/commit-message'
-import { useCommitMessage, useHistoryFocus } from '@/features/history/use-history'
+import { useHistoryFocus } from '@/features/history/use-history'
 
 /**
  * A whole commit as one continuous read, pushed over the commit screen. The daemon inlines

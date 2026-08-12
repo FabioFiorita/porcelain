@@ -1,12 +1,11 @@
 import { useState } from 'react'
+import { useFetchCommitMessage } from '@/features/git'
 import { useActiveProject } from '@/features/projects'
 import { copyText } from '@/lib/clipboard'
-import { gitCommitMessageQuery } from '@/lib/daemon/procedures/changes'
-import { useDaemonFetch } from '@/lib/daemon/queries'
 
 import { shortHash } from './commit-message'
 
-export type CommitActions = {
+export type CopyActions = {
   copyHash: (hash: string) => void
   copyMessage: (hash: string) => void
   /** What the last action did, for the surface to print. Null until one runs. */
@@ -16,14 +15,15 @@ export type CommitActions = {
 
 /**
  * Copy a commit's SHA or its full message, the pair the web row's context menu offers.
+ * The commit message itself is read through the Git feature adapter (GIT-006).
  *
  * A pasteboard write gives no visible feedback of its own, and the message form is a daemon
  * round trip that can fail — so both report on a status line rather than leaving a tap that
  * silently did nothing.
  */
-export function useCommitActions(): CommitActions {
+export function useCopyActions(): CopyActions {
   const project = useActiveProject()
-  const fetch = useDaemonFetch()
+  const fetchCommitMessage = useFetchCommitMessage()
   const [status, setStatus] = useState<{ text: string; failed: boolean } | null>(null)
 
   const report = (text: string, failed: boolean): void => {
@@ -46,7 +46,7 @@ export function useCommitActions(): CommitActions {
     },
     copyMessage: (hash: string): void => {
       if (project === null) return
-      fetch(gitCommitMessageQuery, { hash, repoPath: project.path })
+      fetchCommitMessage(hash)
         .then(copyText)
         .then((ok) => {
           report(ok ? 'Copied commit message' : 'Could not reach the pasteboard', !ok)

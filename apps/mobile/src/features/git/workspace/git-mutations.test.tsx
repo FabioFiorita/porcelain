@@ -53,6 +53,10 @@ function clientFromMock(mock: ReturnType<typeof createValidatingDaemonMock>): Te
 }
 
 vi.mock('@/lib/daemon/environments-store', () => ({
+  environmentActions: {
+    recordReachabilityFailure: vi.fn(),
+    recordReachabilitySuccess: vi.fn(),
+  },
   useActiveEnvironment: () => ctx.environment,
 }))
 vi.mock('@/features/projects', () => ({
@@ -98,7 +102,8 @@ describe('Mobile Git workspace mutations', () => {
         repoPath: ctx.project.path,
       },
     })
-    expect(invalidate).toHaveBeenCalledTimes(6)
+    // Three typed effects, one predicate pass each — no legacy procedure-key bridge left.
+    expect(invalidate).toHaveBeenCalledTimes(3)
   })
 
   it('stays pending without invalidating, then rejects without post-failure effects', async () => {

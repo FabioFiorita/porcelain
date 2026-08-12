@@ -1,7 +1,12 @@
+import type { CommitModelOption } from '@porcelain/contracts'
 import { runUserAction } from '@porcelain/shared/background'
 import { useState } from 'react'
+import {
+  useCommitModels as useGitCommitModels,
+  useGitFlow,
+  useInvalidateGitGrouping,
+} from '@/features/git'
 import { useConnectionState } from '@/lib/daemon/environments-store'
-import { gitFlowQuery } from '@/lib/daemon/procedures/changes'
 import {
   type ChannelDisposition,
   companionDispositionsQuery,
@@ -10,8 +15,6 @@ import {
   setCompanionGitVisibilityMutation,
 } from '@/lib/daemon/procedures/companion'
 import {
-  type CommitModelOption,
-  commitModelsQuery,
   type Layer,
   repoLayersQuery,
   setRepoLayersMutation,
@@ -30,26 +33,14 @@ import { useDaemonMutation, useDaemonQuery } from '@/lib/daemon/queries'
  */
 
 /**
- * A flip rewrites `.porcelain/.gitignore` and going Local stages a deletion, so the row, the
- * visibility line, and every Changes read are stale afterwards. Named for the mobile procedure
- * set — this client has no `gitStatus`.
+ * A flip rewrites `.porcelain/.gitignore` and going Local stages a deletion, so the row and the
+ * visibility line are stale afterwards. The Git reads it also invalidates are typed effects the
+ * Git feature owns — see `useInvalidateGitGrouping`.
  */
-const COMPANION_INVALIDATIONS = [
-  'companionDispositions',
-  'companionGitVisibility',
-  'gitFlow',
-  'gitRangeFlow',
-  'diffReading',
-] as const
+const COMPANION_INVALIDATIONS = ['companionDispositions', 'companionGitVisibility'] as const
 
 /** Layers regroup every flow the reader is looking at, committed ranges and the review included. */
-const REVIEW_LAYER_INVALIDATIONS = [
-  'repoLayers',
-  'gitFlow',
-  'gitRangeFlow',
-  'featureView',
-  'featureReading',
-] as const
+const REVIEW_LAYER_INVALIDATIONS = ['repoLayers', 'featureView', 'featureReading'] as const
 
 /**
  * How often the pattern builder re-reads the changed files it previews against.
@@ -132,6 +123,7 @@ export function useCompanionData(repoPath: string): CompanionData {
   const setVisibility = useDaemonMutation(setCompanionGitVisibilityMutation, {
     invalidates: COMPANION_INVALIDATIONS,
   })
+  const invalidateGrouping = useInvalidateGitGrouping()
   const { failure, run } = useWriteFailure()
 
   return {
@@ -142,12 +134,16 @@ export function useCompanionData(repoPath: string): CompanionData {
     isLoading: dispositions.isLoading,
     isPending: setDisposition.isPending || setVisibility.isPending,
     setDisposition: (key, disposition): void => {
-      run('Could not change what git carries', () =>
-        setDisposition.mutateAsync({ disposition, key, repoPath }),
-      )
+      run('Could not change what git carries', async () => {
+        await setDisposition.mutateAsync({ disposition, key, repoPath })
+        await invalidateGrouping(repoPath)
+      })
     },
     setVisibility: (hidden): void => {
-      run('Could not change git visibility', () => setVisibility.mutateAsync({ hidden, repoPath }))
+      run('Could not change git visibility', async () => {
+        await setVisibility.mutateAsync({ hidden, repoPath })
+        await invalidateGrouping(repoPath)
+      })
     },
     untracked: setDisposition.data?.untracked ?? [],
   }
@@ -165,12 +161,12 @@ export type CommitModels = {
 export function useCommitModels(): CommitModels {
   const connection = useConnectionState()
   const unreachable = connection.kind !== 'ready'
-  const models = useDaemonQuery(commitModelsQuery, undefined, { enabled: !unreachable })
+  const models = useGitCommitModels(!unreachable)
 
   return {
     error: models.error,
     isLoading: models.isLoading && !unreachable,
-    options: models.data ?? [],
+    options: models.options,
     unreachable,
   }
 }
@@ -192,14 +188,15 @@ export type ReviewLayers = {
 /** Settings › Review — the agent-managed path groups for one repository. */
 export function useReviewLayers(repoPath: string): ReviewLayers {
   const layers = useDaemonQuery(repoLayersQuery, repoPath)
-  const flow = useDaemonQuery(gitFlowQuery, repoPath, { pollMs: FLOW_PREVIEW_POLL_MS })
+  const flow = useGitFlow({ pollMs: FLOW_PREVIEW_POLL_MS })
   const saveLayers = useDaemonMutation(setRepoLayersMutation, {
     invalidates: REVIEW_LAYER_INVALIDATIONS,
   })
+  const invalidateGrouping = useInvalidateGitGrouping()
   const { failure, runAsync } = useWriteFailure()
 
   return {
-    changedPaths: (flow.data ?? []).flatMap((group) => group.files.map((file) => file.path)),
+    changedPaths: (flow.groups ?? []).flatMap((group) => group.files.map((file) => file.path)),
     error: layers.error,
     failure,
     isLoading: layers.isLoading,
@@ -207,11 +204,12 @@ export function useReviewLayers(repoPath: string): ReviewLayers {
     isStarter: layers.data !== undefined && !layers.data.custom,
     layers: layers.data?.layers,
     save: (next) =>
-      runAsync('Could not save layers', () =>
-        saveLayers.mutateAsync({
+      runAsync('Could not save layers', async () => {
+        await saveLayers.mutateAsync({
           layers: next === null ? null : next.map(({ label, pattern }) => ({ label, pattern })),
           repoPath,
-        }),
-      ),
+        })
+        await invalidateGrouping(repoPath)
+      }),
   }
 }

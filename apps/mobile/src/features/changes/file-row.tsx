@@ -1,11 +1,10 @@
 import { dirName, fileName } from '@porcelain/client-runtime/paths'
+import type { FileStatus, FlowFile } from '@porcelain/contracts/git'
 import { memo, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
-
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { ActionSheet, ConfirmDialog, type SheetAction } from '@/components/panel-chrome'
 import { SURFACE_ROW, SURFACE_ROW_SELECTED } from '@/components/surface-layout'
-import type { FileStatus, FlowFile } from '@/lib/daemon/procedures/changes'
 import { cn } from '@/lib/utils'
 
 /** The one-letter status lead, matching the web row (colour carries the meaning). */

@@ -1,4 +1,7 @@
-export type { SearchCodeOptions } from '@porcelain/client-runtime/search'
+export type {
+  SearchCodeOptions,
+  SearchForeignDependency,
+} from '@porcelain/client-runtime/search'
 export type {
   CodeSearchFile,
   CodeSearchLine,

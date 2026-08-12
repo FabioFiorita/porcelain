@@ -1,4 +1,4 @@
-import type { DiffHunk, DiffLine } from '@backend/git/diff'
+import type { DiffHunk, DiffLine } from '@porcelain/contracts/git'
 import { describe, expect, it } from 'vitest'
 import { intraLineEmphasis, lineChangeRange, splitByRanges } from './word-diff'
 

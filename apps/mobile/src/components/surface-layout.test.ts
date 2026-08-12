@@ -136,7 +136,7 @@ describe('surface layout', () => {
     const rows = [
       'changes/file-row.tsx',
       'files/file-entry-row.tsx',
-      'files/search-panel.tsx',
+      'search/search-panel.tsx',
       'history/commit-file-row.tsx',
       'history/commit-row.tsx',
       'terminal/terminal-list.tsx',

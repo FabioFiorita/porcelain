@@ -62,7 +62,7 @@ export function useFileSearch(
     enabled,
     placeholderData: keepPreviousData,
     queryFn: async (): Promise<SearchResult[]> => {
-      if (!enabled || projectPath === null || environment === null) return disabledQuery('files')
+      if (!enabled || projectPath === null || !isPaired(environment)) return disabledQuery('files')
       return callDaemon(getDaemonClient(environment), searchFilesProcedure, {
         query: identity.query,
         repoPath: projectPath,
@@ -93,7 +93,7 @@ export function useTextSearch(
     enabled,
     placeholderData: keepPreviousData,
     queryFn: async (): Promise<GrepMatch[]> => {
-      if (!enabled || projectPath === null || environment === null) return disabledQuery('text')
+      if (!enabled || projectPath === null || !isPaired(environment)) return disabledQuery('text')
       return callDaemon(getDaemonClient(environment), searchTextProcedure, {
         query: identity.query,
         repoPath: projectPath,
@@ -126,7 +126,7 @@ export function useCodeSearch(
     enabled,
     placeholderData: keepPreviousData,
     queryFn: async (): Promise<CodeSearchResult> => {
-      if (!enabled || projectPath === null || environment === null) return disabledQuery('code')
+      if (!enabled || projectPath === null || !isPaired(environment)) return disabledQuery('code')
       return callDaemon(getDaemonClient(environment), searchCodeProcedure, {
         caseSensitive: identity.caseSensitive,
         exclude: identity.exclude,

@@ -7,9 +7,12 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from '@renderer/components/ui/context-menu'
-import { useDiffFileHoverPrefetch } from '@renderer/hooks/use-diff'
+import {
+  useDiffFileHoverPrefetch,
+  useReviewedPaths,
+  useToggleReviewed,
+} from '@renderer/features/git'
 import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
-import { useReviewedPaths, useToggleReviewed } from '@renderer/hooks/use-reviewed'
 import { compactButtonClass } from '@renderer/lib/controls'
 import { highlightRangesForFile } from '@renderer/lib/highlight-ranges'
 import { dirName, fileName } from '@renderer/lib/paths'

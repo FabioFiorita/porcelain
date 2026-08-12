@@ -1,11 +1,10 @@
 import { dirName, fileName } from '@porcelain/client-runtime/paths'
+import type { FlowFile } from '@porcelain/contracts/git'
 import { memo, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
-
 import { ActionSheet, type SheetAction } from '@/components/panel-chrome'
 import { SURFACE_ROW } from '@/components/surface-layout'
 import { StatusBadge } from '@/features/diff/status-badge'
-import type { FlowFile } from '@/lib/daemon/procedures/changes'
 import { cn } from '@/lib/utils'
 
 /** Deterministic per-path id — never an array index, so the Android tree resolves it. */

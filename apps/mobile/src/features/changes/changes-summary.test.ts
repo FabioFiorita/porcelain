@@ -1,6 +1,5 @@
+import type { FlowGroup } from '@porcelain/contracts/git'
 import { describe, expect, it } from 'vitest'
-
-import type { FlowGroup } from '@/lib/daemon/procedures/changes'
 
 import { changedPaths, summarizeChanges } from './changes-summary'
 

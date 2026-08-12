@@ -5,7 +5,13 @@ import {
   filesTreeQuery,
 } from '@porcelain/client-runtime/files'
 import { QueryClient } from '@tanstack/react-query'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+// Files' Git handoff is a seam here — `git-files-handoff.test.ts` proves the real wiring, and
+// loading the Git feature would drag React Native into a pure cache test.
+vi.mock('@/features/git', () => ({
+  invalidateGitWorkingTree: (): Promise<void> => Promise.resolve(),
+}))
 
 import { applyFilesFreshnessRequirement, applyFilesNotification } from './files-notifications'
 import { filesQueryKey } from './files-query-key'

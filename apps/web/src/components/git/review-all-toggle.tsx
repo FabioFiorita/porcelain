@@ -1,5 +1,5 @@
 import { Button } from '@renderer/components/ui/button'
-import { useSetReviewed } from '@renderer/hooks/use-reviewed'
+import { useSetReviewed } from '@renderer/features/git'
 import { ListChecks, ListX } from 'lucide-react'
 
 /**

@@ -4,6 +4,7 @@ import {
   filesMutations,
   filesProjectKey,
 } from '@porcelain/client-runtime/files'
+import { invalidateGitWorkingTree } from '@renderer/features/git'
 import {
   applySearchForeignDependencies,
   type SearchForeignDependency,
@@ -49,7 +50,6 @@ function projectPathFromEffects(effects: readonly FilesQueryEffect[]): string | 
 
 /** Map FIL-004 foreign tokens onto Web Git and typed Search effects. */
 export function applyFilesForeignDependencies(
-  utils: ReturnType<typeof trpc.useUtils>,
   queryClient: QueryClient,
   daemon: DaemonScope,
   projectPath: string | null,
@@ -59,8 +59,8 @@ export function applyFilesForeignDependencies(
   const searchDependencies: SearchForeignDependency[] = []
   for (const dep of deps) {
     if (dep.domain === 'git' && dep.name === 'working-tree') {
-      tasks.push(utils.gitFlow.invalidate())
-      tasks.push(utils.gitDiffFile.invalidate())
+      if (projectPath !== null)
+        tasks.push(invalidateGitWorkingTree(queryClient, daemon, projectPath))
       continue
     }
     if (dep.domain === 'search') {
@@ -78,19 +78,12 @@ export function applyFilesForeignDependencies(
 
 async function applyMutationSuccess(
   queryClient: ReturnType<typeof useQueryClient>,
-  utils: ReturnType<typeof trpc.useUtils>,
   daemon: DaemonScope,
   effects: ReturnType<typeof filesMutations.createFile.affectedEffects>,
   foreign: readonly FilesForeignDependency[],
 ): Promise<void> {
   await invalidateFilesEffects(queryClient, daemon, effects)
-  await applyFilesForeignDependencies(
-    utils,
-    queryClient,
-    daemon,
-    projectPathFromEffects(effects),
-    foreign,
-  )
+  await applyFilesForeignDependencies(queryClient, daemon, projectPathFromEffects(effects), foreign)
 }
 
 /** Create / rename / duplicate / trash filesystem paths (non-optimistic). */
@@ -119,7 +112,6 @@ export function useFilesActions(): {
       await client.createFile.mutate(input)
       await applyMutationSuccess(
         queryClient,
-        utils,
         daemonScope,
         filesMutations.createFile.affectedEffects(input),
         filesMutations.createFile.foreignDependencies(input),
@@ -133,7 +125,6 @@ export function useFilesActions(): {
       await client.createFolder.mutate(input)
       await applyMutationSuccess(
         queryClient,
-        utils,
         daemonScope,
         filesMutations.createFolder.affectedEffects(input),
         filesMutations.createFolder.foreignDependencies(input),
@@ -152,7 +143,6 @@ export function useFilesActions(): {
       await client.renamePath.mutate(input)
       await applyMutationSuccess(
         queryClient,
-        utils,
         daemonScope,
         filesMutations.rename.affectedEffects(input),
         filesMutations.rename.foreignDependencies(input),
@@ -166,7 +156,6 @@ export function useFilesActions(): {
       const output = await client.duplicatePath.mutate(input)
       await applyMutationSuccess(
         queryClient,
-        utils,
         daemonScope,
         filesMutations.duplicate.affectedEffectsForResult(input, output),
         filesMutations.duplicate.foreignDependencies(input),
@@ -186,7 +175,6 @@ export function useFilesActions(): {
       }
       await applyMutationSuccess(
         queryClient,
-        utils,
         daemonScope,
         filesMutations.trash.affectedEffects(input),
         filesMutations.trash.foreignDependencies(input),
@@ -224,7 +212,6 @@ export function useWriteTextFile(absolutePath: string): {
       }
       await applyMutationSuccess(
         queryClient,
-        utils,
         daemonScope,
         filesMutations.writeText.affectedEffects(input),
         filesMutations.writeText.foreignDependencies(input),
@@ -281,7 +268,6 @@ export function useFilesScopeActions(): {
           await client.hidePath.mutate(input)
           await applyMutationSuccess(
             queryClient,
-            utils,
             daemonScope,
             filesMutations.hide.affectedEffects(input),
             filesMutations.hide.foreignDependencies(input),
@@ -291,7 +277,6 @@ export function useFilesScopeActions(): {
           await client.unhidePath.mutate(input)
           await applyMutationSuccess(
             queryClient,
-            utils,
             daemonScope,
             filesMutations.unhide.affectedEffects(input),
             filesMutations.unhide.foreignDependencies(input),
@@ -301,7 +286,6 @@ export function useFilesScopeActions(): {
           await client.pinPath.mutate(input)
           await applyMutationSuccess(
             queryClient,
-            utils,
             daemonScope,
             filesMutations.pin.affectedEffects(input),
             filesMutations.pin.foreignDependencies(input),
@@ -311,7 +295,6 @@ export function useFilesScopeActions(): {
           await client.unpinPath.mutate(input)
           await applyMutationSuccess(
             queryClient,
-            utils,
             daemonScope,
             filesMutations.unpin.affectedEffects(input),
             filesMutations.unpin.foreignDependencies(input),

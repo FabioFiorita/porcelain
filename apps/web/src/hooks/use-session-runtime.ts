@@ -46,10 +46,6 @@ type QueryInvalidation = {
 export type SessionQueryUtils = {
   /** Every daemon-derived query this client holds. Used only for session-wide recovery. */
   readonly invalidate: () => Promise<void>
-  readonly gitFlow: QueryInvalidation
-  readonly gitDiffFile: QueryInvalidation
-  readonly gitRangeFlow: QueryInvalidation
-  readonly gitCommitFlow: QueryInvalidation
   readonly repoLayers: QueryInvalidation
   readonly featureView: QueryInvalidation
   readonly featureReading: QueryInvalidation
@@ -70,7 +66,8 @@ export type SessionQueryUtils = {
 /**
  * The queries a Review change makes stale for non-comments Review surfaces: feature-view,
  * layers, and evidence. Comments are owned by the RVC-003 feature adapter (subscription +
- * recovery predicate), so they are not bulk-invalidated here.
+ * recovery predicate), so they are not bulk-invalidated here. The Git consequences of a Review
+ * change (flow, range flow, stacked diff reading) belong to the Git feature bridge (GIT-006).
  * The per-asset body is dropped too — an agent retrying a capture reuses `before.png`, so the
  * name is not a proxy for immutable bytes.
  */
@@ -80,9 +77,6 @@ function invalidateReview(utils: SessionQueryUtils): Promise<unknown> {
     utils.featureReading.invalidate(),
     utils.exploreFeature.invalidate(),
     utils.repoLayers.invalidate(),
-    utils.gitFlow.invalidate(),
-    utils.gitRangeFlow.invalidate(),
-    utils.gitCommitFlow.invalidate(),
     utils.loopEvidence.invalidate(),
     utils.loopEvidenceHtml.invalidate(),
     utils.reviewEvidenceDocs.invalidate(),
@@ -98,10 +92,8 @@ function invalidateReview(utils: SessionQueryUtils): Promise<unknown> {
  * contract falls through to an implicit `return undefined`, which fails the annotated type at
  * `pnpm typecheck` — so a new domain signal cannot silently ship un-refreshed.
  */
-type GlobalSessionChange = Exclude<SessionChange, { kind: 'git.working-tree-changed' }>
-
 export function invalidateForChange(
-  change: GlobalSessionChange,
+  change: SessionChange,
   utils: SessionQueryUtils,
 ): Promise<unknown> {
   switch (change.kind) {
@@ -110,6 +102,10 @@ export function invalidateForChange(
     case 'files.content-changed':
       // Files owns notification → identity mapping (FIL-005 feature adapter).
       // Session runtime must not invalidate Files, Git, or Search here.
+      return Promise.resolve()
+    case 'git.working-tree-changed':
+      // The Git feature bridge owns it (GIT-006): one subscription maps the change to typed
+      // Git identities. Handled here only so the switch stays exhaustive over SessionChange.
       return Promise.resolve()
     case 'review.changed':
       return invalidateReview(utils)
@@ -145,7 +141,6 @@ export function invalidateForRecovery(
   }
   return Promise.all([
     utils.files.invalidate(),
-    utils.gitDiffFile.invalidate(),
     invalidateReview(utils),
     // Comments freshness is feature-owned (RVC-003); recovery still hits the predicate slot.
     utils.reviewComments.invalidate(),
@@ -187,10 +182,6 @@ export function useSessionRuntime({
   const utils: SessionQueryUtils = useMemo(
     () => ({
       invalidate: () => trpcUtils.invalidate(),
-      gitFlow: { invalidate: () => trpcUtils.gitFlow.invalidate() },
-      gitDiffFile: { invalidate: () => trpcUtils.gitDiffFile.invalidate() },
-      gitRangeFlow: { invalidate: () => trpcUtils.gitRangeFlow.invalidate() },
-      gitCommitFlow: { invalidate: () => trpcUtils.gitCommitFlow.invalidate() },
       repoLayers: { invalidate: () => trpcUtils.repoLayers.invalidate() },
       featureView: { invalidate: () => trpcUtils.featureView.invalidate() },
       featureReading: { invalidate: () => trpcUtils.featureReading.invalidate() },
@@ -229,9 +220,7 @@ export function useSessionRuntime({
       if (tab) useUnreadStore.getState().mark(tab)
       // Invalidation failure surfaces on the query that failed to refetch — the UI
       // already renders that error, so a push refresh owes nothing but not floating.
-      if (change.kind !== 'git.working-tree-changed') {
-        settleBackground(invalidateForChange(change, latest.current.utils), 'invalidation')
-      }
+      settleBackground(invalidateForChange(change, latest.current.utils), 'invalidation')
     })
     const offFreshness = session.onFreshnessRequired((requirement: FreshnessRequirement): void => {
       settleBackground(invalidateForRecovery(requirement, latest.current.utils), 'invalidation')

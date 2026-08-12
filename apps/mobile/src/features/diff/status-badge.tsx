@@ -1,6 +1,5 @@
+import type { FileStatus } from '@porcelain/contracts/git'
 import { Text } from 'react-native'
-
-import type { FileStatus } from '@/lib/daemon/procedures/changes'
 import { cn } from '@/lib/utils'
 
 /** The one-letter status lead, matching the web row — colour carries the meaning. */

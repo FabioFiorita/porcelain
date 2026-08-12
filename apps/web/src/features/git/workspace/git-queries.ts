@@ -13,7 +13,7 @@ import { trpc } from '@renderer/lib/trpc'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useQuery } from '@tanstack/react-query'
 
-import { gitWorkspaceQueryKey } from './git-query-key'
+import { gitQueryKey } from '../git-query-key'
 
 const DISABLED_PROJECT = '/__porcelain-disabled-git-workspace__'
 
@@ -36,26 +36,26 @@ export function useGitWorkspace(): {
   const head = useQuery({
     enabled,
     queryFn: (): Promise<GitHead> => utils.client.gitHead.query(projectPath),
-    queryKey: gitWorkspaceQueryKey(daemonScope, gitHeadQuery(projectPath)),
+    queryKey: gitQueryKey(daemonScope, gitHeadQuery(projectPath)),
     refetchInterval: enabled ? 5_000 : false,
     staleTime: 0,
   })
   const branches = useQuery({
     enabled,
     queryFn: (): Promise<BranchRef[]> => utils.client.gitBranches.query(projectPath),
-    queryKey: gitWorkspaceQueryKey(daemonScope, gitBranchesQuery(projectPath)),
+    queryKey: gitQueryKey(daemonScope, gitBranchesQuery(projectPath)),
     staleTime: 0,
   })
   const worktrees = useQuery({
     enabled,
     queryFn: (): Promise<Worktree[]> => utils.client.gitWorktrees.query(projectPath),
-    queryKey: gitWorkspaceQueryKey(daemonScope, gitWorktreesQuery(projectPath)),
+    queryKey: gitQueryKey(daemonScope, gitWorktreesQuery(projectPath)),
     refetchInterval: enabled ? 15_000 : false,
   })
   const inbox = useQuery({
     enabled,
     queryFn: (): Promise<WorktreeInboxRow[]> => utils.client.worktreeInbox.query(projectPath),
-    queryKey: gitWorkspaceQueryKey(daemonScope, worktreeInboxQuery(projectPath)),
+    queryKey: gitQueryKey(daemonScope, worktreeInboxQuery(projectPath)),
     refetchInterval: enabled ? 15_000 : false,
   })
   const refetchBranches = branches.refetch

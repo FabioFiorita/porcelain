@@ -1,4 +1,3 @@
-import { commitModelOptionsSchema } from '@porcelain/contracts'
 import { z } from 'zod'
 
 import { defineMutation, defineQuery } from '../procedure'
@@ -15,14 +14,6 @@ const repoLayersSchema = z.object({
 
 export type Layer = z.infer<typeof layerSchema>
 export type RepoLayers = z.infer<typeof repoLayersSchema>
-export type CommitModelOption = z.infer<typeof commitModelOptionsSchema>[number]
-
-/** Providers installed on the host daemon — empty when none are configured. */
-export const commitModelsQuery = defineQuery<void, CommitModelOption[]>(
-  'commitModels',
-  commitModelOptionsSchema,
-)
-
 /** Agent-managed path groups for this repository (Docs + Agents starters when unset). */
 export const repoLayersQuery = defineQuery<string, RepoLayers>('repoLayers', repoLayersSchema)
 

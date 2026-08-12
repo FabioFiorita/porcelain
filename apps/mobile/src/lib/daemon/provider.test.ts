@@ -181,11 +181,15 @@ describe('proceduresForChange review.changed cutover (RVC-004)', () => {
         'reviewEvidenceDocs',
         'reviewEvidenceAssets',
         'reviewEvidenceAsset',
-        'gitFlow',
-        'gitRangeFlow',
-        'gitCommitFlow',
       ]),
     )
+  })
+
+  it('leaves the Git consequences of a Review change to the Git bridge (GIT-006)', () => {
+    const names = proceduresForChange({ kind: 'review.changed', projectPath: '/synthetic/repo' })
+    for (const git of ['gitFlow', 'gitRangeFlow', 'gitCommitFlow', 'diffReading']) {
+      expect(names).not.toContain(git)
+    }
   })
 
   it('leaves board.changed feature-owned (empty bulk list)', () => {
@@ -209,13 +213,21 @@ describe('proceduresForChange Files cutover (FIL-006)', () => {
     ).toEqual([])
   })
 
-  it('retains only diffReading for content changes', () => {
+  it('leaves content changes to the Files and Git bridges (GIT-006)', () => {
     expect(
       proceduresForChange({
         kind: 'files.content-changed',
         paths: ['src/main.ts'],
         projectPath: '/synthetic/repo',
       }),
-    ).toEqual(['diffReading'])
+    ).toEqual([])
+  })
+})
+
+describe('proceduresForChange Git cutover (GIT-006)', () => {
+  it('handles the working-tree signal as an explicit no-op the Git bridge owns', () => {
+    expect(
+      proceduresForChange({ kind: 'git.working-tree-changed', projectPath: '/synthetic/repo' }),
+    ).toEqual([])
   })
 })

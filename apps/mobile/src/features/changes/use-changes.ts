@@ -1,19 +1,25 @@
+import type { DiffReadingScope } from '@porcelain/client-runtime/git'
+import { reviewProcedures } from '@porcelain/contracts/review'
 import { useMemo } from 'react'
+import { type FlowGroup, useGitFlow, useGitRangeFlow } from '@/features/git'
 import { useActiveProject } from '@/features/projects'
-import { BADGE_POLL_MS, LIVE_POLL_MS } from '@/lib/daemon/poll'
-import {
-  type DiffReadingScope,
-  type FlowGroup,
-  gitFlowQuery,
-  gitRangeFlowQuery,
-  markReviewedMutation,
-  reviewedPathsQuery,
-  setReviewedMutation,
-  unmarkReviewedMutation,
-} from '@/lib/daemon/procedures/changes'
+import { LIVE_POLL_MS } from '@/lib/daemon/poll'
+import { namedContractMutation, namedContractQuery } from '@/lib/daemon/procedure'
 import { useDaemonMutation, useDaemonQuery } from '@/lib/daemon/queries'
 
 import { type ChangesScope, useChangesStore } from './changes-store'
+
+/**
+ * Review marks are Review-owned wire, read and written from the Changes surface that shows the
+ * ticks. Bound to the canonical contract here; no schema is recreated.
+ */
+const reviewedPathsProcedure = namedContractQuery('reviewedPaths', reviewProcedures.reviewedPaths)
+const markReviewedProcedure = namedContractMutation('markReviewed', reviewProcedures.markReviewed)
+const unmarkReviewedProcedure = namedContractMutation(
+  'unmarkReviewed',
+  reviewProcedures.unmarkReviewed,
+)
+const setReviewedProcedure = namedContractMutation('setReviewed', reviewProcedures.setReviewed)
 
 export type ChangesFlow = {
   groups: FlowGroup[] | undefined
@@ -24,78 +30,34 @@ export type ChangesFlow = {
 }
 
 /**
- * The flow-grouped change set for the active scope. Both queries are declared because hooks
+ * The flow-grouped change set for the active scope. Both reads are declared because hooks
  * cannot be conditional; the inactive one is disabled, so only one is ever in flight.
  */
 export function useChangesFlow(active: boolean): ChangesFlow {
-  const project = useActiveProject()
   const scope = useChangesStore((state) => state.scope)
-  const repoPath = project?.path ?? ''
-  const enabled = active && project !== null
-
-  const working = useDaemonQuery(gitFlowQuery, repoPath, {
-    enabled: enabled && scope === 'working',
-    placeholderData: 'keepPreviousData',
-    pollMs: scope === 'working' ? LIVE_POLL_MS : undefined,
-    staleTime: 0,
-  })
-  const branch = useDaemonQuery(gitRangeFlowQuery, repoPath, {
-    enabled: enabled && scope === 'branch',
-    placeholderData: 'keepPreviousData',
-  })
+  const working = useGitFlow({ enabled: active && scope === 'working' })
+  const branch = useGitRangeFlow({ enabled: active && scope === 'branch' })
 
   if (scope === 'branch') {
     return {
-      base: branch.data?.base,
+      base: branch.base,
       error: branch.error,
-      groups: branch.data?.groups,
+      groups: branch.groups,
       isLoading: branch.isLoading,
     }
   }
   return {
     base: undefined,
     error: working.error,
-    groups: working.data,
+    groups: working.groups,
     isLoading: working.isLoading,
   }
-}
-
-/**
- * The working-tree flow, whatever scope the list is reading.
- *
- * Staging and committing always act on the working tree — the branch range is committed
- * history and carries no staged/unstaged state at all — so the commit composer reads this
- * rather than the active scope's groups.
- */
-export function useWorkingFlow(active: boolean): FlowGroup[] | undefined {
-  const project = useActiveProject()
-  const { data } = useDaemonQuery(gitFlowQuery, project?.path ?? '', {
-    enabled: active && project !== null,
-    placeholderData: 'keepPreviousData',
-    pollMs: LIVE_POLL_MS,
-    staleTime: 0,
-  })
-  return data
-}
-
-/**
- * Changed-file count for the tab-bar badge. Shares `gitFlow`'s cache entry with the list, so
- * this adds a read only while the tab is off screen — and React Query uses the shortest
- * interval among observers, so an open list still refreshes at the live rate.
- */
-export function useChangedFileCount(): number {
-  const project = useActiveProject()
-  const { data } = useDaemonQuery(gitFlowQuery, project?.path ?? '', {
-    enabled: project !== null,
-    pollMs: BADGE_POLL_MS,
-  })
-  return (data ?? []).reduce((count, group) => count + group.files.length, 0)
 }
 
 /** Repo-relative paths the user has ticked off. Reconciled daemon-side, so it polls too. */
 export function useReviewedPaths(active: boolean): Set<string> {
   const project = useActiveProject()
-  const { data } = useDaemonQuery(reviewedPathsQuery, project?.path ?? '', {
+  const { data } = useDaemonQuery(reviewedPathsProcedure, project?.path ?? '', {
     enabled: active && project !== null,
     pollMs: LIVE_POLL_MS,
     staleTime: 0,
@@ -120,9 +82,11 @@ export function useToggleReviewed(): {
   error: Error | null
 } {
   const project = useActiveProject()
-  const mark = useDaemonMutation(markReviewedMutation, { invalidates: REVIEWED_INVALIDATIONS })
-  const unmark = useDaemonMutation(unmarkReviewedMutation, { invalidates: REVIEWED_INVALIDATIONS })
-  const setAll = useDaemonMutation(setReviewedMutation, { invalidates: REVIEWED_INVALIDATIONS })
+  const mark = useDaemonMutation(markReviewedProcedure, { invalidates: REVIEWED_INVALIDATIONS })
+  const unmark = useDaemonMutation(unmarkReviewedProcedure, {
+    invalidates: REVIEWED_INVALIDATIONS,
+  })
+  const setAll = useDaemonMutation(setReviewedProcedure, { invalidates: REVIEWED_INVALIDATIONS })
 
   return {
     error: mark.error ?? unmark.error ?? setAll.error,

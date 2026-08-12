@@ -9,8 +9,10 @@ import { FeatureView } from './feature-view'
 vi.mock('@renderer/hooks/use-feature-reading', () => ({
   useFeatureReading: vi.fn(),
 }))
-vi.mock('@renderer/hooks/use-reviewed', () => ({
+vi.mock('@renderer/features/git', () => ({
+  useDiffFileHoverPrefetch: () => () => {},
   useReviewedPaths: () => new Set<string>(),
+  useToggleReviewed: () => ({ mark: () => {}, unmark: () => {} }),
 }))
 // The Evidence tab mounts EvidencePanel; stub its pack hooks so the canvas can be
 // exercised without a query provider (the panel's own tests cover the sub-tabs).

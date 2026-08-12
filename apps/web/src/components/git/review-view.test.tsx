@@ -1,19 +1,20 @@
 import type { FeatureReading } from '@backend/review/feature-view'
-import { useDiffReading } from '@renderer/hooks/use-diff-reading'
+import { useDiffReading } from '@renderer/features/git'
 import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { parseReviewTabKey, ReviewView, reviewTabKey } from './review-view'
 
-vi.mock('@renderer/hooks/use-diff-reading', () => ({ useDiffReading: vi.fn() }))
+vi.mock('@renderer/features/git', () => ({
+  useDiffReading: vi.fn(),
+  useReviewedPaths: () => new Set(),
+  useSetReviewed: () => () => {},
+  useToggleReviewed: () => ({ mark: async () => {}, unmark: async () => {} }),
+}))
 // Reading surface pulls comments + reviewed + highlighter — stub the domain hooks.
 vi.mock('@renderer/features/review/comments', () => ({
   useReviewComments: () => [],
   useCommentActions: () => ({ add: async () => {} }),
   buildCommentIndex: () => ({ byLine: new Map(), fileLevel: [] }),
-}))
-vi.mock('@renderer/hooks/use-reviewed', () => ({
-  useReviewedPaths: () => new Set(),
-  useToggleReviewed: () => ({ mark: async () => {}, unmark: async () => {} }),
 }))
 vi.mock('@renderer/components/viewer/code-line', () => ({
   useHighlighter: () => null,

@@ -1,5 +1,5 @@
 import { SidebarProvider } from '@renderer/components/ui/sidebar'
-import { useGitLog } from '@renderer/hooks/use-history'
+import { useGitLog } from '@renderer/features/git'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -8,9 +8,9 @@ import { HistoryList } from './history-list'
 // The convention: components read git data through domain hooks, so a component
 // test mocks the hook module and never touches tRPC. useGitLog returns the
 // commits this test wants to render.
-vi.mock('@renderer/hooks/use-history', () => ({
-  useGitLog: vi.fn(),
+vi.mock('@renderer/features/git', () => ({
   useFetchCommitMessage: () => vi.fn().mockResolvedValue(''),
+  useGitLog: vi.fn(),
 }))
 
 const commits = [

@@ -1,6 +1,6 @@
 import { NativeTabs } from 'expo-router/unstable-native-tabs'
 
-import { useChangedFileCount } from '@/features/changes/use-changes'
+import { useChangedFileCount } from '@/features/git'
 
 import { ShellSheets } from './shell-sheets'
 import type { DualTabSlot } from './tab-faces'

@@ -16,10 +16,8 @@ import { isPaired } from '@/lib/daemon/environment'
 import { useActiveEnvironment } from '@/lib/daemon/environments-store'
 import { namedContractProcedure } from '@/lib/daemon/procedure'
 
-import { gitWorkspaceQueryKey } from './git-query-key'
-import { callGitQuery } from './use-git-reads'
-
-const DISABLED_PROJECT = '/__porcelain-disabled-git-workspace__'
+import { gitQueryKey } from '../git-query-key'
+import { callGit, DISABLED_PROJECT } from '../use-git-transport'
 
 const gitHeadProcedure = namedContractProcedure('gitHead', gitProcedures.gitHead)
 const gitBranchesProcedure = namedContractProcedure('gitBranches', gitProcedures.gitBranches)
@@ -55,9 +53,9 @@ export function useGitWorkspace(options: GitWorkspaceOptions = {}): {
     enabled,
     queryFn: async (): Promise<GitHead> => {
       if (!enabled) throw new Error('Git head query is disabled')
-      return callGitQuery(environment, gitHeadProcedure, projectPath)
+      return callGit(environment, gitHeadProcedure, projectPath)
     },
-    queryKey: gitWorkspaceQueryKey(environmentId, gitHeadQuery(projectPath)),
+    queryKey: gitQueryKey(environmentId, gitHeadQuery(projectPath)),
     refetchInterval: enabled ? 5_000 : false,
     staleTime: 0,
   })
@@ -66,9 +64,9 @@ export function useGitWorkspace(options: GitWorkspaceOptions = {}): {
     placeholderData: placeholder,
     queryFn: async (): Promise<BranchRef[]> => {
       if (!enabled) throw new Error('Git branches query is disabled')
-      return callGitQuery(environment, gitBranchesProcedure, projectPath)
+      return callGit(environment, gitBranchesProcedure, projectPath)
     },
-    queryKey: gitWorkspaceQueryKey(environmentId, gitBranchesQuery(projectPath)),
+    queryKey: gitQueryKey(environmentId, gitBranchesQuery(projectPath)),
     staleTime: 0,
   })
   const worktrees = useQuery({
@@ -76,9 +74,9 @@ export function useGitWorkspace(options: GitWorkspaceOptions = {}): {
     placeholderData: placeholder,
     queryFn: async (): Promise<Worktree[]> => {
       if (!enabled) throw new Error('Git worktrees query is disabled')
-      return callGitQuery(environment, gitWorktreesProcedure, projectPath)
+      return callGit(environment, gitWorktreesProcedure, projectPath)
     },
-    queryKey: gitWorkspaceQueryKey(environmentId, gitWorktreesQuery(projectPath)),
+    queryKey: gitQueryKey(environmentId, gitWorktreesQuery(projectPath)),
     refetchInterval: enabled ? 15_000 : false,
   })
   const inbox = useQuery({
@@ -86,9 +84,9 @@ export function useGitWorkspace(options: GitWorkspaceOptions = {}): {
     placeholderData: placeholder,
     queryFn: async (): Promise<WorktreeInboxRow[]> => {
       if (!enabled) throw new Error('Git inbox query is disabled')
-      return callGitQuery(environment, worktreeInboxProcedure, projectPath)
+      return callGit(environment, worktreeInboxProcedure, projectPath)
     },
-    queryKey: gitWorkspaceQueryKey(environmentId, worktreeInboxQuery(projectPath)),
+    queryKey: gitQueryKey(environmentId, worktreeInboxQuery(projectPath)),
     refetchInterval: enabled ? 15_000 : false,
   })
   const refetchBranches = branches.refetch

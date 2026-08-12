@@ -4,12 +4,12 @@ import { EmptyNote } from '@/components/panel-chrome'
 import { DiffView } from '@/features/diff/diff-view'
 import { ReadAllView } from '@/features/diff/read-all-view'
 import { useFilesStore } from '@/features/files'
+import { useCommitMessage } from '@/features/git'
 import { useShellStore } from '@/features/shell/shell-store'
 
 import { commitTitle, shortHash } from './commit-message'
 import { CommitView } from './commit-view'
 import { useHistoryStore } from './history-store'
-import { useCommitMessage } from './use-history'
 
 /**
  * The tablet's viewer column: the commit the list last selected, and — one level in — a single

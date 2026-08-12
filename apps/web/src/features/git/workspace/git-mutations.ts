@@ -1,4 +1,4 @@
-import { type GitWorkspaceQuery, gitWorkspaceMutations } from '@porcelain/client-runtime/git'
+import { type GitQueryEffect, gitMutations } from '@porcelain/client-runtime/git'
 import type {
   GitAddWorktreeInput,
   GitCheckoutInput,
@@ -11,7 +11,7 @@ import { trpc } from '@renderer/lib/trpc'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { type UseMutationResult, useMutation, useQueryClient } from '@tanstack/react-query'
 
-import { invalidateGitEffects } from './git-legacy-cache'
+import { invalidateGitEffects } from '../git-query-filter'
 
 type GitWorkspaceInput = GitCheckoutInput | GitCreateBranchInput | GitAddWorktreeInput
 
@@ -22,7 +22,7 @@ export type GitMutationAction<TOutput> = {
 
 function useGitWorkspaceMutation<TInput extends GitWorkspaceInput, TOutput>(
   execute: (input: TInput) => Promise<TOutput>,
-  affectedQueries: (input: TInput) => readonly GitWorkspaceQuery[],
+  affectedQueries: (input: TInput) => readonly GitQueryEffect[],
 ): {
   mutation: UseMutationResult<TOutput, Error, TInput>
   repoPath: string | null
@@ -32,11 +32,10 @@ function useGitWorkspaceMutation<TInput extends GitWorkspaceInput, TOutput>(
   const daemonIdentity = useDaemonIdentity()
   const daemon: DaemonScope = { host: daemonIdentity.host, version: daemonIdentity.version }
   const queryClient = useQueryClient()
-  const utils = trpc.useUtils()
   const mutation = useMutation<TOutput, Error, TInput>({
     mutationFn: execute,
     onSuccess: async (_value, input): Promise<void> => {
-      await invalidateGitEffects(queryClient, daemon, utils, affectedQueries(input))
+      await invalidateGitEffects(queryClient, daemon, affectedQueries(input))
     },
   })
 
@@ -47,7 +46,7 @@ export function useGitCheckout(): GitMutationAction<void> {
   const utils = trpc.useUtils()
   const { mutation, repoPath } = useGitWorkspaceMutation<GitCheckoutInput, void>(
     (input) => utils.client.gitCheckout.mutate(input),
-    (input) => gitWorkspaceMutations.checkout.affectedQueries(input),
+    (input) => gitMutations.checkout.affectedQueries(input),
   )
 
   return {
@@ -61,7 +60,7 @@ export function useGitCreateBranch(): GitMutationAction<void> {
   const utils = trpc.useUtils()
   const { mutation, repoPath } = useGitWorkspaceMutation<GitCreateBranchInput, void>(
     (input) => utils.client.gitCreateBranch.mutate(input),
-    (input) => gitWorkspaceMutations.createBranch.affectedQueries(input),
+    (input) => gitMutations.createBranch.affectedQueries(input),
   )
 
   return {
@@ -75,7 +74,7 @@ export function useGitAddWorktree(): GitMutationAction<Worktree> {
   const utils = trpc.useUtils()
   const { mutation, repoPath } = useGitWorkspaceMutation<GitAddWorktreeInput, Worktree>(
     (input) => utils.client.gitAddWorktree.mutate(input),
-    (input) => gitWorkspaceMutations.addWorktree.affectedQueries(input),
+    (input) => gitMutations.addWorktree.affectedQueries(input),
   )
 
   return {

@@ -1,5 +1,5 @@
 import { DiffView } from '@/features/diff/diff-view'
-import { changesDiffSource } from '@/features/diff/use-diff'
+import { changesDiffSource } from '@/features/git'
 import { useReviewedPaths, useToggleReviewed } from './use-changes'
 
 /**

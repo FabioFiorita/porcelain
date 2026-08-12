@@ -56,6 +56,44 @@ export function namedContractProcedure<TInput, TOutput>(
   }
 }
 
+/** The read form of {@link namedContractProcedure}, for the hooks that need a `DaemonQuery`. */
+export function namedContractQuery<TInput, TOutput>(
+  name: string,
+  contract: {
+    readonly kind: 'query'
+    readonly input: z.ZodType<TInput>
+    readonly output: z.ZodType<TOutput>
+    readonly errors: readonly string[]
+  },
+): DaemonQuery<TInput, TOutput> {
+  return {
+    kind: 'query',
+    name,
+    input: contract.input,
+    output: contract.output,
+    errors: contract.errors,
+  }
+}
+
+/** The write form of {@link namedContractProcedure}, for the hooks that need a `DaemonMutation`. */
+export function namedContractMutation<TInput, TOutput>(
+  name: string,
+  contract: {
+    readonly kind: 'mutation'
+    readonly input: z.ZodType<TInput>
+    readonly output: z.ZodType<TOutput>
+    readonly errors: readonly string[]
+  },
+): DaemonMutation<TInput, TOutput> {
+  return {
+    kind: 'mutation',
+    name,
+    input: contract.input,
+    output: contract.output,
+    errors: contract.errors,
+  }
+}
+
 export function defineQuery<TInput, TOutput>(
   name: string,
   output: z.ZodType<TOutput>,

@@ -6,10 +6,9 @@ import { ReviewDocBody } from '@renderer/components/git/review-doc-body'
 import { Button } from '@renderer/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@renderer/components/ui/tabs'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
-import { useDiffFileHoverPrefetch } from '@renderer/hooks/use-diff'
+import { useDiffFileHoverPrefetch, useReviewedPaths } from '@renderer/features/git'
 import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
 import { useReviewIntent } from '@renderer/hooks/use-review-intent'
-import { useReviewedPaths } from '@renderer/hooks/use-reviewed'
 import { compactButtonClass } from '@renderer/lib/controls'
 import {
   FEATURE_CANVAS_TABS,

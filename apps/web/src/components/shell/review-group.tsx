@@ -16,6 +16,7 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
 } from '@renderer/components/ui/sidebar'
+import { useReviewedPaths } from '@renderer/features/git'
 import { useReviewComments } from '@renderer/features/review/comments'
 import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
 import {
@@ -23,7 +24,6 @@ import {
   useArchivedReviews,
   useClearFeatureReview,
 } from '@renderer/hooks/use-feature-view'
-import { useReviewedPaths } from '@renderer/hooks/use-reviewed'
 import { rowActionClass } from '@renderer/lib/controls'
 import { reviewOutlineFiles } from '@renderer/lib/review-lifecycle'
 import { openFeatureReview } from '@renderer/lib/surface-handoffs'

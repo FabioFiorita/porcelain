@@ -1,5 +1,6 @@
 import { fileName } from '@porcelain/client-runtime/paths'
 import { intraLineEmphasis } from '@porcelain/client-runtime/word-diff-line'
+import type { DiffHunk, FileStatus } from '@porcelain/contracts/git'
 import { useMemo, useState } from 'react'
 import { Image, Text, View } from 'react-native'
 import { EmptyNote, ErrorNote, IconAction, ScreenHeader } from '@/components/panel-chrome'
@@ -9,12 +10,12 @@ import { type CommentAnchor, CommentComposer } from '@/features/comments/comment
 import { describeRange, type LineRange, rangeForPath } from '@/features/comments/line-range'
 import { SelectionBar } from '@/features/comments/selection-bar'
 import { useLineSelection } from '@/features/comments/use-line-selection'
+import { type DiffSource, useDiffFile } from '@/features/git'
 import { usePreferencesStore } from '@/features/settings/preferences-store'
 import { useBottomChrome } from '@/features/shell/bottom-chrome'
-import type { DiffHunk, FileStatus } from '@/lib/daemon/procedures/changes'
 import { DiffRowView } from './diff-lines'
 import { anchorTextFor, type DiffRow, toDiffRows } from './diff-rows'
-import { type DiffSource, useDiffFile } from './use-diff'
+
 import { useDiffTokens } from './use-highlight'
 
 /** The reviewed tick, when the surface has one. A historical commit has no reviewed state. */

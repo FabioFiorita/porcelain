@@ -3,11 +3,18 @@ import {
   GitIdentityError,
   gitBranchesQuery,
   gitCommitConventionsQuery,
-  gitDiffQuery,
+  gitCommitDiffQuery,
+  gitCommitFlowQuery,
+  gitCommitMessageQuery,
+  gitCommitModelsQuery,
+  gitDiffFileQuery,
+  gitDiffReadingQuery,
+  gitFileLogQuery,
   gitFlowQuery,
   gitHeadQuery,
   gitLogQuery,
   gitQuerySchema,
+  gitRangeDiffFileQuery,
   gitRangeFlowQuery,
   gitStatusQuery,
   gitSuggestionsQuery,
@@ -19,71 +26,117 @@ import {
   reviewWorkspaceQuerySchema,
   worktreeInboxQuery,
 } from './git-queries'
+import {
+  dedupeGitQueryEffects,
+  gitDiffQuery,
+  gitDiffReadingQueryFamily,
+  gitFileLogQueryFamily,
+  gitLogQueryFamily,
+  gitQueryEffectMatchesQuery,
+  gitQueryProjectPath,
+  gitRangeDiffQuery,
+} from './git-query-effects'
 
 const PROJECT = '/synthetic/repo'
 const OTHER_PROJECT = '/synthetic/other-repo'
 
-const gitQueries = [
-  gitHeadQuery,
-  gitFlowQuery,
-  gitRangeFlowQuery,
-  gitStatusQuery,
-  gitDiffQuery,
-  gitBranchesQuery,
-  gitWorktreesQuery,
-  gitLogQuery,
-  gitCommitConventionsQuery,
-  gitSuggestionsQuery,
-] as const
+describe('Git query identities', () => {
+  it('keeps exact identities project-scoped and strict', () => {
+    const queries = [
+      gitHeadQuery(PROJECT),
+      gitFlowQuery(PROJECT),
+      gitRangeFlowQuery(PROJECT),
+      gitStatusQuery(PROJECT),
+      gitDiffFileQuery(PROJECT, 'src/a.ts'),
+      gitRangeDiffFileQuery(PROJECT, 'main', 'src/a.ts'),
+      gitCommitDiffQuery(PROJECT, 'abc123', 'src/a.ts'),
+      gitDiffReadingQuery(PROJECT, { type: 'commit', hash: 'abc123' }),
+      gitBranchesQuery(PROJECT),
+      gitWorktreesQuery(PROJECT),
+      gitLogQuery(PROJECT, 50),
+      gitFileLogQuery(PROJECT, 'src/a.ts', 10),
+      gitCommitMessageQuery(PROJECT, 'abc123'),
+      gitCommitFlowQuery(PROJECT, 'abc123'),
+      gitCommitConventionsQuery(PROJECT),
+      gitSuggestionsQuery(PROJECT),
+      gitCommitModelsQuery(),
+    ]
 
-const reviewQueries = [
-  reviewReadingQuery,
-  reviewViewQuery,
-  reviewedPathsQuery,
-  worktreeInboxQuery,
-] as const
-
-describe('Git workspace query identities', () => {
-  it('keeps each identity project-scoped and equal for the same project', () => {
-    for (const query of gitQueries) {
-      expect(query(PROJECT)).toEqual(query(PROJECT))
-      expect(query(PROJECT).projectPath).toBe(PROJECT)
-      expect(query(PROJECT)).not.toEqual(query(OTHER_PROJECT))
+    for (const query of queries) {
+      expect(gitQuerySchema.safeParse(query).success).toBe(true)
     }
-    for (const query of reviewQueries) {
-      expect(query(PROJECT)).toEqual(query(PROJECT))
-      expect(query(PROJECT).projectPath).toBe(PROJECT)
-      expect(query(PROJECT)).not.toEqual(query(OTHER_PROJECT))
+    expect(gitCommitModelsQuery()).toEqual({ domain: 'git', name: 'commit-models' })
+    expect(gitLogQuery(PROJECT, 50)).not.toEqual(gitLogQuery(PROJECT, 200))
+    expect(gitFileLogQuery(PROJECT, 'src/a.ts', 10)).not.toEqual(
+      gitFileLogQuery(PROJECT, 'src/a.ts', 50),
+    )
+    expect(gitDiffReadingQuery(PROJECT, { type: 'working' })).not.toEqual(
+      gitDiffReadingQuery(PROJECT, { type: 'branch' }),
+    )
+    expect(gitDiffFileQuery(PROJECT, 'src/a.ts')).not.toEqual(gitDiffFileQuery(PROJECT, 'src/b.ts'))
+    expect(gitCommitMessageQuery(PROJECT, 'abc123')).not.toEqual(
+      gitCommitMessageQuery(PROJECT, 'def456'),
+    )
+  })
+
+  it('keeps every project identity distinct by project path', () => {
+    expect(gitHeadQuery(PROJECT)).not.toEqual(gitHeadQuery(OTHER_PROJECT))
+    expect(gitDiffFileQuery(PROJECT, 'src/a.ts')).not.toEqual(
+      gitDiffFileQuery(OTHER_PROJECT, 'src/a.ts'),
+    )
+    expect(gitDiffReadingQuery(PROJECT, { type: 'working' })).not.toEqual(
+      gitDiffReadingQuery(OTHER_PROJECT, { type: 'working' }),
+    )
+  })
+
+  it('matches family effects to every exact query in that family only', () => {
+    const diff = gitDiffFileQuery(PROJECT, 'src/a.ts')
+    const rangeDiff = gitRangeDiffFileQuery(PROJECT, 'main', 'src/a.ts')
+    const log = gitLogQuery(PROJECT, 200)
+    const fileLog = gitFileLogQuery(PROJECT, 'src/a.ts', 50)
+    const reading = gitDiffReadingQuery(PROJECT, { type: 'working' })
+
+    expect(gitQueryEffectMatchesQuery(diff, gitDiffQuery(PROJECT))).toBe(true)
+    expect(gitQueryEffectMatchesQuery(rangeDiff, gitRangeDiffQuery(PROJECT))).toBe(true)
+    expect(gitQueryEffectMatchesQuery(log, gitLogQueryFamily(PROJECT))).toBe(true)
+    expect(gitQueryEffectMatchesQuery(fileLog, gitFileLogQueryFamily(PROJECT))).toBe(true)
+    expect(gitQueryEffectMatchesQuery(reading, gitDiffReadingQueryFamily(PROJECT))).toBe(true)
+    expect(gitQueryEffectMatchesQuery(diff, gitRangeDiffQuery(PROJECT))).toBe(false)
+    expect(gitQueryEffectMatchesQuery(gitHeadQuery(OTHER_PROJECT), gitHeadQuery(PROJECT))).toBe(
+      false,
+    )
+    expect(gitQueryEffectMatchesQuery(gitLogQuery(PROJECT, 50), gitLogQuery(PROJECT, 200))).toBe(
+      false,
+    )
+  })
+
+  it('keeps Review workspace identities in their own strict schema', () => {
+    const queries = [
+      reviewReadingQuery(PROJECT),
+      reviewViewQuery(PROJECT),
+      reviewedPathsQuery(PROJECT),
+      worktreeInboxQuery(PROJECT),
+    ]
+    for (const query of queries) {
+      expect(reviewWorkspaceQuerySchema.safeParse(query).success).toBe(true)
+      expect(gitWorkspaceQuerySchema.safeParse(query).success).toBe(true)
     }
   })
 
-  it('represents the per-file diff procedure as one project-scoped semantic family', () => {
-    expect(gitDiffQuery(PROJECT)).toEqual({
-      domain: 'git',
-      name: 'diff',
-      projectPath: PROJECT,
-    })
-  })
-
-  it('accepts every constructor result through its owning strict schema', () => {
-    for (const query of gitQueries) {
-      expect(gitQuerySchema.safeParse(query(PROJECT)).success).toBe(true)
-    }
-    for (const query of reviewQueries) {
-      expect(reviewWorkspaceQuerySchema.safeParse(query(PROJECT)).success).toBe(true)
-      expect(gitWorkspaceQuerySchema.safeParse(query(PROJECT)).success).toBe(true)
-    }
-  })
-
-  it('rejects empty, extra-field, foreign-domain, and unknown-name identities', () => {
+  it('rejects invalid or foreign identities', () => {
     expect(() => gitHeadQuery('')).toThrow(GitIdentityError)
-    expect(() => reviewViewQuery('')).toThrow('project path must be non-empty')
+    expect(() => gitDiffReadingQuery(PROJECT, { type: 'commit', hash: '' })).not.toThrow()
     expect(gitQuerySchema.safeParse({ domain: 'git', name: 'head', projectPath: '' }).success).toBe(
       false,
     )
     expect(
-      gitQuerySchema.safeParse({ domain: 'git', name: 'head', projectPath: PROJECT, extra: true })
-        .success,
+      gitQuerySchema.safeParse({
+        domain: 'git',
+        name: 'diff-file',
+        projectPath: PROJECT,
+        filePath: 'src/a.ts',
+        extra: true,
+      }).success,
     ).toBe(false)
     expect(
       gitQuerySchema.safeParse({ domain: 'review', name: 'head', projectPath: PROJECT }).success,
@@ -92,5 +145,25 @@ describe('Git workspace query identities', () => {
       gitWorkspaceQuerySchema.safeParse({ domain: 'git', name: 'unknown', projectPath: PROJECT })
         .success,
     ).toBe(false)
+  })
+
+  it('deduplicates repeated effects while preserving first-seen order', () => {
+    const effects = dedupeGitQueryEffects([
+      gitFlowQuery(PROJECT),
+      gitDiffQuery(PROJECT),
+      gitFlowQuery(PROJECT),
+      gitDiffQuery(OTHER_PROJECT),
+    ])
+    expect(effects).toEqual([
+      gitFlowQuery(PROJECT),
+      gitDiffQuery(PROJECT),
+      gitDiffQuery(OTHER_PROJECT),
+    ])
+  })
+
+  it('reports the project dimension of exact and family effects', () => {
+    expect(gitQueryProjectPath(gitFlowQuery(PROJECT))).toBe(PROJECT)
+    expect(gitQueryProjectPath(gitLogQueryFamily(PROJECT))).toBe(PROJECT)
+    expect(gitQueryProjectPath(gitCommitModelsQuery())).toBeUndefined()
   })
 })

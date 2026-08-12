@@ -1,10 +1,10 @@
 import type { TokenMap } from '@porcelain/client-runtime/highlight'
 import { type CharRange, splitByRanges } from '@porcelain/client-runtime/word-diff-line'
+import type { DiffHunk } from '@porcelain/contracts/git'
 import { memo } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import type { ThemedToken } from 'shiki'
 import { isLineInRange, type LineRange } from '@/features/comments/line-range'
-import type { DiffHunk } from '@/lib/daemon/procedures/changes'
 import { cn } from '@/lib/utils'
 import { anchorLineOf, cellAnchorLine, type DiffRow } from './diff-rows'
 

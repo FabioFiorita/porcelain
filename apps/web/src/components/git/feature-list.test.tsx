@@ -14,7 +14,6 @@ import { FeatureList } from './feature-list'
 vi.mock('@renderer/hooks/use-feature-reading', () => ({
   useFeatureReading: vi.fn(),
 }))
-vi.mock('@renderer/hooks/use-diff', () => ({ useDiffFileHoverPrefetch: () => () => {} }))
 // FeatureList mounts CommentComposer (right-click → "Comment on file"), which uses the
 // comment hook — mock the domain hook, never the tRPC proxy (the component-test rule).
 vi.mock('@renderer/features/review/comments', () => ({
@@ -25,14 +24,10 @@ vi.mock('@renderer/features/review/comments', () => ({
 const markSpy = vi.hoisted(() => vi.fn(async () => {}))
 const unmarkSpy = vi.hoisted(() => vi.fn(async () => {}))
 const reviewedPaths = vi.hoisted(() => ({ current: new Set<string>() }))
-vi.mock('@renderer/hooks/use-reviewed', () => ({
-  useReviewedPaths: () => reviewedPaths.current,
-  useToggleReviewed: () => ({ mark: markSpy, unmark: unmarkSpy }),
-}))
-
-// FeatureList now renders the Review inbox above the outline; stub its Git workspace hook
+// FeatureList also renders the Review inbox above the outline; stub its Git workspace hook
 // (a real tRPC query otherwise) so these outline-focused cases render without a client.
 vi.mock('@renderer/features/git', () => ({
+  useDiffFileHoverPrefetch: () => () => {},
   useGitWorkspace: () => ({
     branch: 'main',
     branches: [],
@@ -41,6 +36,8 @@ vi.mock('@renderer/features/git', () => ({
     refreshBranches: async () => {},
     worktrees: [],
   }),
+  useReviewedPaths: () => reviewedPaths.current,
+  useToggleReviewed: () => ({ mark: markSpy, unmark: unmarkSpy }),
 }))
 
 const reading: FeatureReading = {

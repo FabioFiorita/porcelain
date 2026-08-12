@@ -1,13 +1,12 @@
+import type { Commit } from '@porcelain/contracts/git'
 import { Text, View } from 'react-native'
-
 import { EmptyNote, ErrorNote, StatusNote } from '@/components/panel-chrome'
 import { SurfaceList } from '@/components/surface-scroll'
-import type { Commit } from '@/lib/daemon/procedures/changes'
+import { useGitLog, useHeadLabel } from '@/features/git'
 
 import { CommitRow, type CommitRowActions } from './commit-row'
 import { useHistoryStore } from './history-store'
-import { useCommitActions } from './use-commit-actions'
-import { useGitLog, useHeadLabel } from './use-history'
+import { useCopyActions } from './use-copy-actions'
 
 /**
  * The History list: commits on the checked-out branch, newest first.
@@ -29,7 +28,7 @@ export function HistoryList({
   const openCommit = onOpenCommit ?? selectCommit
   const { commits, error, isLoading } = useGitLog(active)
   const branch = useHeadLabel(active)
-  const { copyHash, copyMessage, status } = useCommitActions()
+  const { copyHash, copyMessage, status } = useCopyActions()
 
   const actions: CommitRowActions = {
     onCopyHash: copyHash,

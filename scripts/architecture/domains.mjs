@@ -111,7 +111,7 @@ export const OVERSIZED_PRODUCTION_FILES = Object.freeze({
   'apps/daemon/src/git/git.ts': 947,
   'apps/desktop/src/main/shell-api.ts': 741,
   'apps/mobile/src/lib/daemon/environments-store.ts': 453,
-  'apps/web/src/components/git/changes-list.tsx': 485,
+  'apps/web/src/components/git/changes-list.tsx': 468,
   'apps/web/src/components/git/feature-view.tsx': 520,
   'apps/web/src/components/git/reading-surface.tsx': 904,
   'apps/web/src/lib/terminal-registry.ts': 602,

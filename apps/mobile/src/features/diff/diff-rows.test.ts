@@ -1,6 +1,5 @@
+import type { DiffHunk } from '@porcelain/contracts/git'
 import { describe, expect, it } from 'vitest'
-
-import type { DiffHunk } from '@/lib/daemon/procedures/changes'
 
 import {
   anchorLineOf,

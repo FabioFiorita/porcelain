@@ -1,4 +1,4 @@
-import { type GitWorkspaceQuery, gitWorkspaceMutations } from '@porcelain/client-runtime/git'
+import { type GitQueryEffect, gitMutations } from '@porcelain/client-runtime/git'
 import {
   type GitAddWorktreeInput,
   type GitCheckoutInput,
@@ -12,8 +12,8 @@ import { isPaired } from '@/lib/daemon/environment'
 import { useActiveEnvironment } from '@/lib/daemon/environments-store'
 import { DaemonError } from '@/lib/daemon/errors'
 import { type DaemonProcedure, namedContractProcedure } from '@/lib/daemon/procedure'
-import { invalidateGitEffects } from './git-legacy-cache'
-import { callGitMutation } from './use-git-mutations'
+import { invalidateGitEffects } from '../git-query-filter'
+import { callGit } from '../use-git-transport'
 
 type GitWorkspaceInput = GitCheckoutInput | GitCreateBranchInput | GitAddWorktreeInput
 
@@ -24,7 +24,7 @@ export type GitMutationAction<TOutput> = {
 
 function useGitWorkspaceMutation<TOutput>(
   procedure: DaemonProcedure<GitWorkspaceInput, TOutput>,
-  affectedQueries: (input: GitWorkspaceInput) => readonly GitWorkspaceQuery[],
+  affectedQueries: (input: GitWorkspaceInput) => readonly GitQueryEffect[],
 ): GitMutationAction<TOutput> {
   const environment = useActiveEnvironment()
   const project = useActiveProject()
@@ -38,7 +38,7 @@ function useGitWorkspaceMutation<TOutput>(
           'No daemon is paired with this device.',
         )
       }
-      return callGitMutation(environment, procedure, input)
+      return callGit(environment, procedure, input)
     },
     onSuccess: async (_value, input): Promise<void> => {
       if (!isPaired(environment)) return
@@ -64,18 +64,18 @@ const addWorktreeProcedure = namedContractProcedure('gitAddWorktree', gitProcedu
 
 export function useGitCheckout(): GitMutationAction<void> {
   return useGitWorkspaceMutation(checkoutProcedure, (input) =>
-    gitWorkspaceMutations.checkout.affectedQueries(input),
+    gitMutations.checkout.affectedQueries(input),
   )
 }
 
 export function useGitCreateBranch(): GitMutationAction<void> {
   return useGitWorkspaceMutation(createBranchProcedure, (input) =>
-    gitWorkspaceMutations.createBranch.affectedQueries(input),
+    gitMutations.createBranch.affectedQueries(input),
   )
 }
 
 export function useGitAddWorktree(): GitMutationAction<Worktree> {
   return useGitWorkspaceMutation(addWorktreeProcedure, (input) =>
-    gitWorkspaceMutations.addWorktree.affectedQueries(input),
+    gitMutations.addWorktree.affectedQueries(input),
   )
 }

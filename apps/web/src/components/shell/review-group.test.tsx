@@ -13,7 +13,7 @@ vi.mock('@renderer/hooks/use-feature-reading', () => ({
 vi.mock('@renderer/features/review/comments', () => ({
   useReviewComments: vi.fn(),
 }))
-vi.mock('@renderer/hooks/use-reviewed', () => ({
+vi.mock('@renderer/features/git', () => ({
   useReviewedPaths: () => new Set<string>(),
 }))
 const clearSpy = vi.hoisted(() => vi.fn(async () => {}))

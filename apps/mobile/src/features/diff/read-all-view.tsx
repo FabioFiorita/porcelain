@@ -1,6 +1,7 @@
 import type { TokenMap } from '@porcelain/client-runtime/highlight'
 import { fileName } from '@porcelain/client-runtime/paths'
 import { intraLineEmphasis } from '@porcelain/client-runtime/word-diff-line'
+import type { DiffHunk, DiffReadingOutput } from '@porcelain/contracts/git'
 import { useMemo, useState } from 'react'
 import { Text, View } from 'react-native'
 import {
@@ -19,14 +20,14 @@ import {
   type LineSelectionControls,
   useLineSelection,
 } from '@/features/comments/use-line-selection'
+import { type DiffReadingScope, useDiffReading } from '@/features/git'
 import { usePreferencesStore } from '@/features/settings/preferences-store'
 import { useBottomChrome } from '@/features/shell/bottom-chrome'
-import type { DiffHunk, DiffReadingScope, FeatureReading } from '@/lib/daemon/procedures/changes'
 import { cn } from '@/lib/utils'
 import { DiffRowView } from './diff-lines'
 import { anchorTextFor } from './diff-rows'
 import { type ReadingRow, toReadingRows } from './reading-rows'
-import { useDiffReading } from './use-diff'
+
 import { useDiffTokens } from './use-highlight'
 
 /** Per-file reviewed ticks, when the surface has them. A commit's files are already history. */
@@ -208,7 +209,7 @@ export function ReadAllView({
   )
 }
 
-function allHunks(reading: FeatureReading | undefined): DiffHunk[] {
+function allHunks(reading: DiffReadingOutput | undefined): DiffHunk[] {
   if (reading === undefined) return []
   return reading.groups.flatMap((group) => group.files.flatMap((file) => file.hunks ?? []))
 }

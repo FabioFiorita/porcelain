@@ -9,7 +9,7 @@ import {
 } from '@renderer/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@renderer/components/ui/popover'
 import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-group'
-import { useCommitModels } from '@renderer/hooks/use-commit'
+import { useCommitModels } from '@renderer/features/git'
 import { compactButtonClass } from '@renderer/lib/controls'
 import {
   type DiffMode,
