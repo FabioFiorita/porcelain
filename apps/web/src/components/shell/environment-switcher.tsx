@@ -8,15 +8,15 @@ import {
   DropdownMenuTrigger,
 } from '@renderer/components/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
-import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
-import { useEnvironmentStatuses } from '@renderer/hooks/use-environment-status'
-import { useIsMobile } from '@renderer/hooks/use-mobile'
 import {
   useConnectRemoteEnvironment,
   useDisconnectRemoteEnvironment,
+  useEnvironmentStatuses,
   useOpenWindowInEnvironment,
   useRemoteEnvironments,
-} from '@renderer/hooks/use-remote-daemon'
+} from '@renderer/features/remote'
+import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
+import { useIsMobile } from '@renderer/hooks/use-mobile'
 import { isBrowser } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
 import { useSettingsDialogStore } from '@renderer/stores/settings-dialog'

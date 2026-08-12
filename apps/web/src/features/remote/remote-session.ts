@@ -1,9 +1,37 @@
+import {
+  orderRemoteEndpoints,
+  parsePublicError,
+  type RemoteEndpointGroup,
+  type RemotePublicErrorParse,
+  type RemoteSessionHealth,
+} from '@porcelain/client-runtime/remote'
 import { PROTOCOL_VERSION, PROTOCOL_VERSION_HEADER } from '@porcelain/contracts'
 import { setBrowserDaemonToken } from '@renderer/lib/daemon'
 import { isBrowser } from '@renderer/lib/platform'
+import type { SessionConnectionStatus } from '@renderer/lib/session-browser-adapter'
 import { trpcClient } from '@renderer/lib/trpc'
 import { settleBackground } from '@shared/background'
 import { useCallback, useEffect, useState } from 'react'
+
+const ADAPTER_HEALTH = {
+  idle: 'idle',
+  connecting: 'connecting',
+  open: 'healthy',
+  reconnecting: 'recovering',
+  'update-required': 'update-required',
+} as const satisfies Record<SessionConnectionStatus, RemoteSessionHealth>
+
+export function orderWebRemoteEndpoints(group: RemoteEndpointGroup): string[] {
+  return orderRemoteEndpoints(group)
+}
+
+export function classifyRemoteFailure(value: unknown): RemotePublicErrorParse {
+  return parsePublicError(value)
+}
+
+export function mapAdapterStatus(status: SessionConnectionStatus): RemoteSessionHealth {
+  return ADAPTER_HEALTH[status]
+}
 
 type GateStatus = 'checking' | 'pairing' | 'locked' | 'open'
 
@@ -17,11 +45,6 @@ interface TokenGate {
   connect: (link: string) => void
 }
 
-// A cheap authenticated probe: recentRepos is a plain daemon query that 401s
-// without a valid token (the same gate every request carries). Success means the
-// token in lib/daemon is good and the WS will connect too; failure means locked.
-// Uses the vanilla trpcClient — the sanctioned non-React client (this is a hook,
-// so the lib/trpc import is inside the fence).
 async function probe(): Promise<boolean> {
   try {
     await trpcClient.recentRepos.query()
@@ -29,6 +52,12 @@ async function probe(): Promise<boolean> {
   } catch {
     return false
   }
+}
+
+function pairingToken(body: unknown): string | null {
+  if (typeof body !== 'object' || body === null) return null
+  if (!('token' in body) || typeof body.token !== 'string') return null
+  return body.token
 }
 
 /**
@@ -55,25 +84,29 @@ export function useTokenGate(): TokenGate {
             method: 'POST',
             headers: {
               'content-type': 'application/json',
-              // Pairing is unauthenticated but not unversioned: it crosses the same
-              // daemon boundary as every tRPC request and declares the same protocol.
               [PROTOCOL_VERSION_HEADER]: String(PROTOCOL_VERSION),
             },
             body: JSON.stringify({ credential: pairingCredential }),
           })
-          if (!response.ok) throw new Error(`pairing failed (${response.status})`)
-          const body: unknown = await response.json()
-          if (
-            typeof body !== 'object' ||
-            body === null ||
-            !('token' in body) ||
-            typeof body.token !== 'string'
-          ) {
-            throw new Error('invalid pairing response')
+          let body: unknown
+          try {
+            body = await response.json()
+          } catch {
+            body = undefined
           }
-          setBrowserDaemonToken(body.token)
+          const classified = classifyRemoteFailure(body)
+          const token = pairingToken(body)
+          if (token !== null && classified.kind === 'unreachable') {
+            setBrowserDaemonToken(token)
+            window.history.replaceState(null, '', '/')
+            if (active) setStatus('open')
+            return
+          }
           window.history.replaceState(null, '', '/')
-          if (active) setStatus('open')
+          if (active) {
+            setError(true)
+            setStatus('locked')
+          }
           return
         } catch {
           window.history.replaceState(null, '', '/')
@@ -88,7 +121,6 @@ export function useTokenGate(): TokenGate {
       if (!active) return
       setStatus(ok ? 'open' : 'locked')
     }
-    // Mount probe owns status transitions (open/locked/pairing); never leave the gate "checking".
     settleBackground(run(), 'lifecycle')
     return () => {
       active = false

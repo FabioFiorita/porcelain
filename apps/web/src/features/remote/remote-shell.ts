@@ -1,26 +1,103 @@
-import type { EndpointKind } from '@main/remote-daemon'
+import { parsePublicError } from '@porcelain/client-runtime/remote'
+import type { EndpointKind } from '@porcelain/contracts'
 import { onMutationError } from '@renderer/hooks/mutation-error'
 import { isBrowser } from '@renderer/lib/platform'
 import { shellTrpc } from '@renderer/lib/trpc'
+import { useMemo } from 'react'
 
 /**
  * One address of an environment group (one identity, many endpoints). `preferred`
  * is per KIND, not per address — a DHCP lease is not a preference — so every LAN
  * address of an environment reads as preferred once the LAN is the preferred kind.
  */
-export interface EnvironmentEndpoint {
+export type EnvironmentEndpoint = {
   url: string
   kind: EndpointKind
   preferred: boolean
+}
+
+export type EnvironmentStatus = {
+  id: string | null
+  state: 'online' | 'unauthorized' | 'offline'
+  endpoint: string | null
+  host: string | null
+  platform: string | null
+  version: string | null
+}
+
+/**
+ * Vanilla shell Remote RPC surface. Hooks below are the React Query binding;
+ * this type is the only owner of those Electron-only procedures.
+ */
+export type WebLocalRemoteAdapter = {
+  readonly remoteEnvironments: () => ReturnType<
+    ReturnType<typeof shellTrpc.useUtils>['client']['remoteEnvironments']['query']
+  >
+  readonly environmentStatuses: () => ReturnType<
+    ReturnType<typeof shellTrpc.useUtils>['client']['environmentStatuses']['query']
+  >
+  readonly pairEnvironmentConnection: (
+    input: Parameters<
+      ReturnType<typeof shellTrpc.useUtils>['client']['pairEnvironmentConnection']['mutate']
+    >[0],
+  ) => ReturnType<
+    ReturnType<typeof shellTrpc.useUtils>['client']['pairEnvironmentConnection']['mutate']
+  >
+  readonly preferEnvironmentEndpoint: (
+    input: Parameters<
+      ReturnType<typeof shellTrpc.useUtils>['client']['preferEnvironmentEndpoint']['mutate']
+    >[0],
+  ) => ReturnType<
+    ReturnType<typeof shellTrpc.useUtils>['client']['preferEnvironmentEndpoint']['mutate']
+  >
+  readonly removeEnvironmentEndpoint: (
+    input: Parameters<
+      ReturnType<typeof shellTrpc.useUtils>['client']['removeEnvironmentEndpoint']['mutate']
+    >[0],
+  ) => ReturnType<
+    ReturnType<typeof shellTrpc.useUtils>['client']['removeEnvironmentEndpoint']['mutate']
+  >
+  readonly connectRemoteEnvironment: (
+    input: Parameters<
+      ReturnType<typeof shellTrpc.useUtils>['client']['connectRemoteEnvironment']['mutate']
+    >[0],
+  ) => ReturnType<
+    ReturnType<typeof shellTrpc.useUtils>['client']['connectRemoteEnvironment']['mutate']
+  >
+  readonly disconnectRemoteEnvironment: () => ReturnType<
+    ReturnType<typeof shellTrpc.useUtils>['client']['disconnectRemoteEnvironment']['mutate']
+  >
+  readonly openWindowInEnvironment: (
+    input: Parameters<
+      ReturnType<typeof shellTrpc.useUtils>['client']['openWindowInEnvironment']['mutate']
+    >[0],
+  ) => ReturnType<
+    ReturnType<typeof shellTrpc.useUtils>['client']['openWindowInEnvironment']['mutate']
+  >
+  readonly removeRemoteEnvironment: (
+    input: Parameters<
+      ReturnType<typeof shellTrpc.useUtils>['client']['removeRemoteEnvironment']['mutate']
+    >[0],
+  ) => ReturnType<
+    ReturnType<typeof shellTrpc.useUtils>['client']['removeRemoteEnvironment']['mutate']
+  >
+}
+
+function pairingErrorMessage(error: unknown): string | null {
+  const parsed = parsePublicError(error)
+  if (parsed.kind === 'public' || parsed.kind === 'update-required') return parsed.error.message
+  if (error !== null && typeof error === 'object' && 'message' in error) {
+    return typeof error.message === 'string' ? error.message : null
+  }
+  return null
 }
 
 /**
  * Saved remote environments: list other Porcelain daemons and bind THIS window (or
  * a new one) to one. Per-window, so one project can stay open while another window
  * uses a different machine. Wraps the SHELL router (Electron-only).
- * Switch = main-process hard-reload of THIS window (see `switchWindowEnvironment` in
- * `src/main/window.ts`); the renderer must NOT also `location.reload()` — that
- * double-reload races. Removing a non-active environment just invalidates the list.
+ * Switch = main-process hard-reload of THIS window; the renderer must NOT also
+ * `location.reload()` — that double-reload races.
  */
 export function useRemoteEnvironments():
   | {
@@ -31,6 +108,18 @@ export function useRemoteEnvironments():
   | undefined {
   const { data } = shellTrpc.remoteEnvironments.useQuery(undefined, { enabled: !isBrowser })
   return data
+}
+
+export function useEnvironmentStatuses(): Map<string | null, EnvironmentStatus> {
+  const { data } = shellTrpc.environmentStatuses.useQuery(undefined, {
+    enabled: !isBrowser,
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
+  })
+  return useMemo<Map<string | null, EnvironmentStatus>>(
+    () => new Map((data ?? []).map((status) => [status.id, status])),
+    [data],
+  )
 }
 
 export function usePairEnvironmentConnection(): {
@@ -66,10 +155,7 @@ export function usePairEnvironmentConnection(): {
       connectThisWindow?: boolean
     }): void => mutation.mutate(input),
     isPending: mutation.isPending,
-    error: mutation.error?.message ?? null,
-    // The procedure also returns `merged` (this address joined an existing group). It is not
-    // surfaced: pairing a new group reloads into it, while adding to an existing group refreshes
-    // the endpoint list in place.
+    error: pairingErrorMessage(mutation.error),
   }
 }
 
@@ -123,8 +209,6 @@ export function useConnectRemoteEnvironment(): {
   })
   return {
     connect: (id: string): void => mutation.mutate({ id }),
-    // `variables` holds the in-flight input while pending, so the connecting row
-    // can show its own spinner text instead of every row spinning at once.
     pendingId: mutation.isPending ? (mutation.variables?.id ?? null) : null,
   }
 }
@@ -132,7 +216,6 @@ export function useConnectRemoteEnvironment(): {
 export function useDisconnectRemoteEnvironment(): { disconnect: () => void; isPending: boolean } {
   const mutation = shellTrpc.disconnectRemoteEnvironment.useMutation({
     // Main-process reload handles the switch — no renderer reload / invalidate.
-    // Disconnect has no inline error surface — a failed clear would otherwise be silent.
     onError: onMutationError('Disconnect remote daemon'),
   })
   return { disconnect: () => mutation.mutate(), isPending: mutation.isPending }
@@ -157,8 +240,6 @@ export function useRemoveRemoteEnvironment(): {
   const utils = shellTrpc.useUtils()
   const removeMutation = shellTrpc.removeRemoteEnvironment.useMutation({
     onSuccess: async () => {
-      // Main process reloads every window that was on the removed env (including
-      // this one when wasActive). Invalidate for the case where this window stayed put.
       await utils.remoteEnvironments.invalidate()
     },
     onError: onMutationError('Remove remote daemon'),

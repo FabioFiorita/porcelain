@@ -1,3 +1,4 @@
+import { createSessionHealth, type RemoteSessionHealth } from '@porcelain/client-runtime/remote'
 import {
   createSessionClientRuntime,
   type SessionClientRuntime,
@@ -61,6 +62,8 @@ export interface DaemonSession {
   start: () => void
   /** Browser adapter connection status for UI chrome. */
   status: () => SessionConnectionStatus
+  /** REM-003 health for this session (never walk-exhausted on the single-URL adapter). */
+  health: () => RemoteSessionHealth
   /** Set when the daemon refused this build's protocol (terminal mismatch). */
   updateRequiredFrame: () => SessionMismatchFrame | undefined
   onStatusChange: (listener: (status: SessionConnectionStatus) => void) => () => void
@@ -171,11 +174,14 @@ export function createDaemonSession(
     projectPath: () => baseRuntime.projectPath(),
   }
 
+  const health = createSessionHealth()
+
   adapter = createSessionBrowserAdapter({
     runtime,
     endpoint: () => ({ url: baseUrl, token }),
     openSocket: options.openSocket,
     schedule: options.schedule,
+    health,
     onStatusChange: (status) => {
       connectionStatus = status
       for (const listener of statusListeners) listener(status)
@@ -218,6 +224,7 @@ export function createDaemonSession(
     runtime,
     start: ensureSession,
     status: () => connectionStatus,
+    health: () => health.status(),
     updateRequiredFrame: () => updateRequired,
     onStatusChange: (listener) => subscribe(statusListeners, listener, false),
     onUpdateRequired: (listener) => subscribe(updateRequiredListeners, listener, false),

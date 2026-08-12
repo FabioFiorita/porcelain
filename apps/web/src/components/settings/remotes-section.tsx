@@ -1,20 +1,20 @@
-import type { EnvironmentStatus } from '@main/shell-api'
 import { endpointKind } from '@porcelain/contracts'
 import { Badge } from '@renderer/components/ui/badge'
 import { Button } from '@renderer/components/ui/button'
 import { Input } from '@renderer/components/ui/input'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
-import { useEnvironmentStatuses } from '@renderer/hooks/use-environment-status'
 import {
+  type EnvironmentStatus,
   useConnectRemoteEnvironment,
   useDisconnectRemoteEnvironment,
+  useEnvironmentStatuses,
   useOpenWindowInEnvironment,
   usePairEnvironmentConnection,
   usePreferEnvironmentEndpoint,
   useRemoteEnvironments,
   useRemoveEnvironmentEndpoint,
   useRemoveRemoteEnvironment,
-} from '@renderer/hooks/use-remote-daemon'
+} from '@renderer/features/remote'
 import { compactButtonClass, rowActionClass } from '@renderer/lib/controls'
 import { cn } from '@renderer/lib/utils'
 import { platformLabel } from '@shared/platform'

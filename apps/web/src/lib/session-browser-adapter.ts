@@ -1,8 +1,10 @@
+import {
+  nextRemoteRetry,
+  resetRemoteRetry,
+  type SessionHealth,
+} from '@porcelain/client-runtime/remote'
 import type { SessionClientRuntime } from '@porcelain/client-runtime/session/client-runtime'
 import {
-  MIN_RETRY_MS,
-  nextRetryDelay,
-  reconnectDelayMs,
   sessionSubprotocol,
   sessionWebSocketUrl,
 } from '@porcelain/client-runtime/session/transport'
@@ -60,13 +62,6 @@ export type SessionSocketOpener = (input: {
 
 /** A cancellable delayed run. Injectable for the same reason as the opener. */
 export type SessionRetrySchedule = (run: () => void, delayMs: number) => () => void
-
-/**
- * Cap on the backoff between reconnect attempts. Deliberately the desktop client's 10s rather
- * than the shared 8s default: a browser tab left open overnight against a stopped daemon should
- * not poll it four hundred times an hour.
- */
-const MAX_RETRY_MS = 10_000
 
 /**
  * What a human can be told about this connection. `connecting` and `reconnecting` are the same
@@ -129,6 +124,8 @@ export function createSessionBrowserAdapter({
   schedule = defaultSchedule,
   pageOrigin = (): string => window.location.origin,
   onStatusChange,
+  random = Math.random,
+  health,
 }: {
   readonly runtime: SessionClientRuntime
   readonly endpoint: () => SessionEndpoint
@@ -136,10 +133,12 @@ export function createSessionBrowserAdapter({
   readonly schedule?: SessionRetrySchedule
   readonly pageOrigin?: () => string
   readonly onStatusChange?: (status: SessionConnectionStatus) => void
+  readonly random?: () => number
+  readonly health?: SessionHealth
 }): SessionBrowserAdapter {
   let socket: SessionSocket | undefined
   let cancelRetry: (() => void) | undefined
-  let retryDelay = MIN_RETRY_MS
+  let retryDelay = resetRemoteRetry()
   let running = false
   let everConnected = false
   let status: SessionConnectionStatus = 'idle'
@@ -167,8 +166,9 @@ export function createSessionBrowserAdapter({
           // Identity check on every handler: a socket the adapter has already replaced or
           // retired must not be able to drive the runtime it no longer belongs to.
           if (socket !== opened) return
-          retryDelay = MIN_RETRY_MS
+          retryDelay = resetRemoteRetry()
           everConnected = true
+          health?.apply({ type: 'connected' })
           setStatus('open')
           runtime.connected({ send: (payload: string) => opened.send(payload) })
         },
@@ -181,7 +181,8 @@ export function createSessionBrowserAdapter({
           socket = undefined
           runtime.disconnected()
           if (!running) return
-          setStatus('reconnecting')
+          health?.apply({ type: 'disconnected' })
+          setStatus(everConnected ? 'reconnecting' : 'connecting')
           scheduleReconnect()
         },
       },
@@ -192,13 +193,13 @@ export function createSessionBrowserAdapter({
 
   function scheduleReconnect(): void {
     if (cancelRetry !== undefined) return
-    // Jittered so a daemon restart does not bring every open tab back in the same millisecond.
+    const step = nextRemoteRetry(retryDelay, random)
     cancelRetry = schedule(() => {
       cancelRetry = undefined
       if (!running) return
       connect()
-    }, reconnectDelayMs(retryDelay))
-    retryDelay = nextRetryDelay(retryDelay, MAX_RETRY_MS)
+    }, step.waitMs)
+    retryDelay = step.delayMs
   }
 
   const retire = (): void => {
@@ -212,6 +213,7 @@ export function createSessionBrowserAdapter({
     start() {
       if (running) return
       running = true
+      health?.apply({ type: 'start' })
       connect()
     },
 
@@ -223,12 +225,14 @@ export function createSessionBrowserAdapter({
       // The runtime is told directly rather than through the closed handler: `retire` already
       // disowned the socket, so its close event is correctly ignored.
       if (wasConnected) runtime.disconnected()
+      health?.apply({ type: 'stop' })
       setStatus('idle')
     },
 
     updateRequired() {
       running = false
       retire()
+      health?.apply({ type: 'update-required' })
       setStatus('update-required')
     },
 

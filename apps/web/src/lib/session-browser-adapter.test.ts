@@ -1,3 +1,4 @@
+import { createSessionHealth, type SessionHealth } from '@porcelain/client-runtime/remote'
 import {
   createSessionClientRuntime,
   type TerminalServerFrame,
@@ -46,12 +47,16 @@ type Harness = {
   readonly requirements: FreshnessRequirement[]
   readonly terminal: TerminalServerFrame[]
   readonly mismatches: SessionMismatchFrame[]
+  readonly health: SessionHealth
   readonly socket: () => FakeSocket
   readonly deliver: (frame: unknown) => void
   readonly runRetry: () => void
 }
 
-function harness(endpoint: SessionEndpoint = { url: ORIGIN, token: TOKEN }): Harness {
+function harness(
+  endpoint: SessionEndpoint = { url: ORIGIN, token: TOKEN },
+  extras: { readonly random?: () => number } = {},
+): Harness {
   const sockets: FakeSocket[] = []
   const pending: Pending[] = []
   const statuses: SessionConnectionStatus[] = []
@@ -70,11 +75,14 @@ function harness(endpoint: SessionEndpoint = { url: ORIGIN, token: TOKEN }): Har
   })
   runtime.selectProject(PROJECT)
 
+  const health = createSessionHealth()
   const adapter = createSessionBrowserAdapter({
     runtime,
     endpoint: () => endpoint,
     pageOrigin: () => 'http://page.origin',
     onStatusChange: (status) => statuses.push(status),
+    health,
+    random: extras.random,
     openSocket: ({ url, protocols, handlers }) => {
       const sent: string[] = []
       let isClosed = false
@@ -117,6 +125,7 @@ function harness(endpoint: SessionEndpoint = { url: ORIGIN, token: TOKEN }): Har
     requirements,
     terminal,
     mismatches,
+    health,
     socket,
     deliver: (frame) => socket().handlers.message(JSON.stringify(frame)),
     runRetry: () => {
@@ -241,6 +250,86 @@ describe('Session browser adapter recovery', () => {
 
     expect(context.sockets).toHaveLength(2)
     expect(context.pending).toHaveLength(0)
+  })
+})
+
+describe('Session browser adapter REM-003 retry and health', () => {
+  it('waits nextRemoteRetry for random 0 and 1, then caps at 10_000', () => {
+    const zero = harness({ url: ORIGIN, token: TOKEN }, { random: () => 0 })
+    zero.adapter.start()
+    zero.socket().handlers.opened()
+    zero.socket().handlers.closed()
+    expect(zero.pending[0]?.delayMs).toBe(500)
+
+    const one = harness({ url: ORIGIN, token: TOKEN }, { random: () => 1 })
+    one.adapter.start()
+    one.socket().handlers.opened()
+    one.socket().handlers.closed()
+    expect(one.pending[0]?.delayMs).toBe(650)
+
+    const capped = harness({ url: ORIGIN, token: TOKEN }, { random: () => 0 })
+    capped.adapter.start()
+    for (let step = 0; step < 5; step += 1) {
+      capped.socket().handlers.closed()
+      expect(capped.pending).toHaveLength(1)
+      capped.runRetry()
+    }
+    capped.socket().handlers.closed()
+    expect(capped.pending[0]?.delayMs).toBe(10_000)
+  })
+
+  it('resets the retry floor after a successful open', () => {
+    const context = harness({ url: ORIGIN, token: TOKEN }, { random: () => 0 })
+    context.adapter.start()
+    context.socket().handlers.opened()
+    context.socket().handlers.closed()
+    context.runRetry()
+    context.socket().handlers.closed()
+    expect(context.pending[0]?.delayMs).toBe(1_000)
+    context.runRetry()
+    context.socket().handlers.opened()
+    context.socket().handlers.closed()
+    expect(context.pending[0]?.delayMs).toBe(500)
+  })
+
+  it('reports connecting on the first close before open and reconnecting after open', () => {
+    const first = harness()
+    first.adapter.start()
+    first.socket().handlers.closed()
+    expect(first.adapter.status()).toBe('connecting')
+    expect(first.health.status()).toBe('connecting')
+
+    const afterOpen = connected()
+    afterOpen.socket().handlers.closed()
+    expect(afterOpen.adapter.status()).toBe('reconnecting')
+    expect(afterOpen.health.status()).toBe('recovering')
+  })
+
+  it('applies createSessionHealth outcomes for start, connect, drop, stop, and update-required', () => {
+    const context = harness()
+    expect(context.health.status()).toBe('idle')
+
+    context.adapter.start()
+    expect(context.health.status()).toBe('connecting')
+
+    context.socket().handlers.opened()
+    expect(context.health.status()).toBe('healthy')
+
+    context.socket().handlers.closed()
+    expect(context.health.status()).toBe('recovering')
+
+    context.adapter.stop()
+    expect(context.health.status()).toBe('idle')
+    expect(context.pending).toHaveLength(0)
+
+    const refused = harness()
+    refused.adapter.start()
+    refused.socket().handlers.opened()
+    refused.adapter.updateRequired()
+    expect(refused.health.status()).toBe('update-required')
+    expect(refused.adapter.status()).toBe('update-required')
+    refused.socket().handlers.closed()
+    expect(refused.pending).toHaveLength(0)
   })
 })
 

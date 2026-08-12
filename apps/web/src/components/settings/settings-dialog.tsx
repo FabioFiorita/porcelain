@@ -15,8 +15,8 @@ import {
   SidebarMenuItem,
   SidebarProvider,
 } from '@renderer/components/ui/sidebar'
+import { useRemoteEnvironments } from '@renderer/features/remote'
 import { useIsMobile } from '@renderer/hooks/use-mobile'
-import { useRemoteEnvironments } from '@renderer/hooks/use-remote-daemon'
 import { isBrowser } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
 import { type SettingsSection, useSettingsDialogStore } from '@renderer/stores/settings-dialog'

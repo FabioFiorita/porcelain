@@ -1,4 +1,4 @@
-import type { EnvironmentStatus } from '@main/shell-api'
+import type { EnvironmentStatus } from '@renderer/features/remote'
 import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { TitleBar } from './title-bar'
@@ -44,7 +44,7 @@ vi.mock('@renderer/hooks/use-daemon-identity', () => ({
   useDaemonIdentity: () => ({ host: 'studio', platform: 'darwin', version: '0.49.0' }),
 }))
 
-vi.mock('@renderer/hooks/use-environment-status', () => ({
+vi.mock('@renderer/features/remote', () => ({
   useEnvironmentStatuses: (): Map<string | null, EnvironmentStatus> =>
     new Map([
       [
@@ -59,9 +59,6 @@ vi.mock('@renderer/hooks/use-environment-status', () => ({
         },
       ],
     ]),
-}))
-
-vi.mock('@renderer/hooks/use-remote-daemon', () => ({
   useRemoteEnvironments: () => ({ activeId: null, defaultId: null, environments: [] }),
   useConnectRemoteEnvironment: () => ({ connect: vi.fn(), pendingId: null }),
   useDisconnectRemoteEnvironment: () => ({ disconnect: vi.fn(), isPending: false }),

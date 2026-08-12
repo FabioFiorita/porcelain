@@ -1,4 +1,4 @@
-import type { EnvironmentStatus } from '@main/shell-api'
+import type { EnvironmentStatus } from '@renderer/features/remote'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { RemotesSection } from './remotes-section'
@@ -13,13 +13,10 @@ const prefer = vi.fn()
 const removeEndpoint = vi.fn()
 const removeGroup = vi.fn()
 
-vi.mock('@renderer/hooks/use-environment-status', () => ({
-  useEnvironmentStatuses: () => statusesMock(),
-}))
-
-vi.mock('@renderer/hooks/use-remote-daemon', () => ({
+vi.mock('@renderer/features/remote', () => ({
   useConnectRemoteEnvironment: () => ({ connect, pendingId: null }),
   useDisconnectRemoteEnvironment: () => ({ disconnect, isPending: false }),
+  useEnvironmentStatuses: () => statusesMock(),
   useOpenWindowInEnvironment: () => ({ open }),
   usePairEnvironmentConnection: () => ({ pair, isPending: false, error: null }),
   usePreferEnvironmentEndpoint: () => ({ prefer, isPending: false }),

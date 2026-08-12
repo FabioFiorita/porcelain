@@ -69,6 +69,7 @@ export const DOMAIN_MIGRATIONS = Object.freeze(
       if (key === 'remote') {
         targetRoots.push('apps/daemon/src/features/remote')
         targetRoots.push('packages/client-runtime/src/remote')
+        targetRoots.push('apps/web/src/features/remote')
       }
       return [
         key,

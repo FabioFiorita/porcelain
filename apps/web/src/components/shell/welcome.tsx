@@ -6,11 +6,8 @@ import {
   useRecentProjects,
   useRemoveRecentProject,
 } from '@renderer/features/projects'
+import { useDisconnectRemoteEnvironment, useRemoteEnvironments } from '@renderer/features/remote'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
-import {
-  useDisconnectRemoteEnvironment,
-  useRemoteEnvironments,
-} from '@renderer/hooks/use-remote-daemon'
 import { isBrowser } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'

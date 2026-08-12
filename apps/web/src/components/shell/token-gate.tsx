@@ -1,7 +1,7 @@
 import logo from '@renderer/assets/logo.png'
 import { Button } from '@renderer/components/ui/button'
 import { Input } from '@renderer/components/ui/input'
-import { useTokenGate } from '@renderer/hooks/use-token-gate'
+import { useTokenGate } from '@renderer/features/remote'
 import { Loader2 } from 'lucide-react'
 import { useState } from 'react'
 

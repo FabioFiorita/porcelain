@@ -7,6 +7,7 @@ import { useActionsNotificationSubscription } from '@renderer/features/actions'
 import { CardComposer, useBoardNotificationSubscription } from '@renderer/features/board'
 import { useFilesInterestBridge, useFilesNotificationSubscription } from '@renderer/features/files'
 import { useGitNotificationSubscription } from '@renderer/features/git'
+import { useEnvironmentStatuses } from '@renderer/features/remote'
 import { useReviewCommentNotificationSubscription } from '@renderer/features/review/comments'
 import {
   ContentSearch,
@@ -15,7 +16,6 @@ import {
 } from '@renderer/features/search'
 import { useTerminalRoster } from '@renderer/features/terminal'
 import { useDocumentTitle } from '@renderer/hooks/use-document-title'
-import { useEnvironmentStatuses } from '@renderer/hooks/use-environment-status'
 import { useResponsiveShell } from '@renderer/hooks/use-responsive-shell'
 import { useSessionRuntime } from '@renderer/hooks/use-session-runtime'
 import { useShellEvents } from '@renderer/hooks/use-shell-events'

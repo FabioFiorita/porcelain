@@ -1,4 +1,4 @@
-import type { EnvironmentStatus } from '@main/shell-api'
+import type { EnvironmentStatus } from '@renderer/features/remote'
 import { useSettingsDialogStore } from '@renderer/stores/settings-dialog'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -16,12 +16,9 @@ vi.mock('@renderer/hooks/use-daemon-identity', () => ({
   useDaemonIdentity: () => identityMock(),
 }))
 
-vi.mock('@renderer/hooks/use-environment-status', () => ({
-  useEnvironmentStatuses: () => statusesMock(),
-}))
-
-vi.mock('@renderer/hooks/use-remote-daemon', () => ({
+vi.mock('@renderer/features/remote', () => ({
   useRemoteEnvironments: () => environmentsMock(),
+  useEnvironmentStatuses: () => statusesMock(),
   useConnectRemoteEnvironment: () => ({ connect, pendingId: null }),
   useDisconnectRemoteEnvironment: () => ({ disconnect, isPending: false }),
   useOpenWindowInEnvironment: () => ({ open: openInEnv }),

@@ -1,26 +1,23 @@
 import { PROTOCOL_VERSION, PROTOCOL_VERSION_HEADER } from '@porcelain/contracts'
+import { trpcClient } from '@renderer/lib/trpc'
 import { renderHook, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { useTokenGate } from './remote-session'
 
-import { useTokenGate } from './use-token-gate'
-
-// The gate only stores the redeemed token; the transport's getters are stubbed so importing
-// lib/trpc never opens a session in jsdom.
 vi.mock('@renderer/lib/daemon', () => ({
   daemonBaseUrl: (): string => 'http://127.0.0.1:43118',
   daemonToken: (): string => '',
   setBrowserDaemonToken: vi.fn(),
 }))
 
+vi.mock('@renderer/lib/trpc', () => ({
+  trpcClient: {
+    recentRepos: { query: vi.fn() },
+  },
+}))
+
 const GRANT = `pc_pair_3f2a1c88-0f4d-4b6e-9a11-2c7d5e8b0a34_${'a'.repeat(64)}`
 
-/**
- * `/pair` is the browser client's one unauthenticated request, and the only one the gate
- * makes before a token exists. It must still declare the protocol: the daemon reads the
- * version off the request envelope, so a versionless pairing POST is indistinguishable from
- * a client too old to pair. The rest of the exchange — path, method, JSON body, content
- * type — is what the daemon already accepts and must not move.
- */
 describe('useTokenGate pairing request', () => {
   afterEach(() => {
     vi.restoreAllMocks()
@@ -53,7 +50,17 @@ describe('useTokenGate pairing request', () => {
     const headers = new Headers(init.headers)
     expect(headers.get(PROTOCOL_VERSION_HEADER)).toBe(String(PROTOCOL_VERSION))
     expect(headers.get('content-type')).toBe('application/json')
-    // Redeeming the grant is how a token is obtained; it must not require one.
     expect(headers.get('authorization')).toBeNull()
+  })
+
+  it('treats any failed recentRepos probe as locked without walking another URL', async () => {
+    vi.mocked(trpcClient.recentRepos.query).mockRejectedValueOnce(new Error('UNAUTHORIZED'))
+    window.history.replaceState(null, '', '/')
+
+    const hook = renderHook(() => useTokenGate())
+    await waitFor(() => {
+      expect(hook.result.current.status).toBe('locked')
+    })
+    expect(trpcClient.recentRepos.query).toHaveBeenCalledTimes(1)
   })
 })

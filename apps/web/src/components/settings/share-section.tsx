@@ -2,16 +2,19 @@ import { Badge } from '@renderer/components/ui/badge'
 import { Button } from '@renderer/components/ui/button'
 import { Input } from '@renderer/components/ui/input'
 import { Switch } from '@renderer/components/ui/switch'
-import { toastUserActionError } from '@renderer/hooks/mutation-error'
-import { useFunnelStatus, useSetFunnelBind } from '@renderer/hooks/use-funnel'
-import { useLanStatus, useSetLanBind } from '@renderer/hooks/use-lan'
 import {
   useAccessStatus,
+  useFunnelStatus,
   useIssuePairingLink,
+  useLanStatus,
   useRevokeAuthorizedClient,
   useRevokePairingLink,
-} from '@renderer/hooks/use-share'
-import { useSetTailnetBind, useTailnetStatus } from '@renderer/hooks/use-tailnet'
+  useSetFunnelBind,
+  useSetLanBind,
+  useSetTailnetBind,
+  useTailnetStatus,
+} from '@renderer/features/remote'
+import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { compactButtonClass, rowActionClass } from '@renderer/lib/controls'
 import { copyText } from '@renderer/lib/utils'
 import { runUserAction } from '@shared/background'
