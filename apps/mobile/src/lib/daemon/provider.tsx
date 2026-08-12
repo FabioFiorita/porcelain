@@ -77,7 +77,8 @@ export function proceduresForChange(change: SessionChange): readonly string[] {
       // BoardNotificationBridge owns exact Board cards invalidation (BRD-005).
       return []
     case 'actions.changed':
-      return ['actions']
+      // ActionsNotificationBridge owns exact Actions list invalidation (ACT-003).
+      return []
   }
 }
 

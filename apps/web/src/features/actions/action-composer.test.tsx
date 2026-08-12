@@ -1,12 +1,12 @@
-import { useActionMutations } from '@renderer/hooks/use-actions'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ActionComposer } from './action-composer'
+import { useActionMutations } from './actions-mutations'
 
 // Same convention as the git list tests: mock the domain hook, never tRPC. The
 // composer reaches the store only through useActionMutations, so spying on its
 // add/update lets us assert exactly what fields cross the IPC seam.
-vi.mock('@renderer/hooks/use-actions', () => ({ useActionMutations: vi.fn() }))
+vi.mock('./actions-mutations', () => ({ useActionMutations: vi.fn() }))
 
 describe('ActionComposer', () => {
   const add = vi.fn(async () => {})

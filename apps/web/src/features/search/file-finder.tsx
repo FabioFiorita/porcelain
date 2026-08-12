@@ -1,4 +1,4 @@
-import type { Action } from '@porcelain/contracts/actions'
+import type { ActionView } from '@porcelain/contracts/actions'
 import type { Commit } from '@porcelain/contracts/git'
 import type { SearchResult } from '@porcelain/contracts/search'
 import {
@@ -11,13 +11,12 @@ import {
   CommandList,
 } from '@renderer/components/ui/command'
 import { FileTypeIcon, FolderIcon } from '@renderer/components/viewer/file-icon'
+import { useActionRun, useActionRunStore, useActions } from '@renderer/features/actions'
 import { useGitLog } from '@renderer/features/git'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
-import { useActions, useRunAction } from '@renderer/hooks/use-actions'
 import { commandGroupHeadingClass } from '@renderer/lib/controls'
 import { isTerminalTarget } from '@renderer/lib/keyboard'
 import { dirName, fileName } from '@renderer/lib/paths'
-import { useActionRunStore } from '@renderer/stores/action-run'
 import { useFileFinderStore } from '@renderer/stores/file-finder'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
@@ -36,7 +35,7 @@ import { useFileSearch } from './search-queries'
 const SHA_QUERY = /^[0-9a-f]{7,40}$/i
 
 /** Saved commands whose title or command text contains the query (few items, plain substring). */
-function matchCommands(query: string, actions: Action[]): Action[] {
+function matchCommands(query: string, actions: ActionView[]): ActionView[] {
   const q = query.trim().toLowerCase()
   if (q === '') return []
   return actions
@@ -59,7 +58,7 @@ export function FileFinder(): React.JSX.Element {
   // Open state lives in a store so the titlebar search bar can raise the popup too.
   const open = useFileFinderStore((s) => s.open)
   const setOpen = useFileFinderStore((s) => s.setOpen)
-  const runAction = useRunAction()
+  const runAction = useActionRun()
   const [query, setQuery] = useState('')
   // debounce keystrokes so each IPC round-trip searches a settled query
   const [debouncedQuery, setDebouncedQuery] = useState('')
@@ -122,7 +121,7 @@ export function FileFinder(): React.JSX.Element {
   }
 
   const requestLocalRun = useActionRunStore((s) => s.requestLocalRun)
-  const handleRunCommand = (action: Action): void => {
+  const handleRunCommand = (action: ActionView): void => {
     setOpen(false)
     setQuery('')
     runUserAction(
@@ -133,6 +132,11 @@ export function FileFinder(): React.JSX.Element {
           // the pending action through the compose-intent store.
           setSidebarTab('terminal')
           requestLocalRun(action)
+        }
+        if (result === 'needs-trust') {
+          // Trust dialog lives on ActionsGroup; surface the Terminal companion so the
+          // human can accept the command from the list (unreviewed shield).
+          setSidebarTab('terminal')
         }
       },
       (error) => {

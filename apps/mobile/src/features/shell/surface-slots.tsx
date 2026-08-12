@@ -1,3 +1,4 @@
+import { ActionsCompanion } from '@/features/actions'
 import { BoardCompanion, BoardList, BoardPhoneScreen, BoardViewer } from '@/features/board'
 import { ChangesCompanion } from '@/features/changes/changes-companion'
 import { ChangesList } from '@/features/changes/changes-list'
@@ -19,12 +20,7 @@ import { ReviewList } from '@/features/review/review-list'
 import { ReviewPhoneScreen } from '@/features/review/review-phone-screen'
 import { ReviewViewer } from '@/features/review/review-viewer'
 import { SearchCompanion, SearchList, SearchPhoneScreen } from '@/features/search'
-import {
-  TerminalCompanion,
-  TerminalList,
-  TerminalPhoneScreen,
-  TerminalViewer,
-} from '@/features/terminal'
+import { TerminalList, TerminalPhoneScreen, TerminalViewer } from '@/features/terminal'
 
 import type { SurfaceId } from './surfaces'
 
@@ -112,7 +108,7 @@ const SURFACE_SLOTS: Record<SurfaceId, SurfaceSlots> = {
     viewer: ReviewViewer,
   },
   terminal: {
-    companion: TerminalCompanion,
+    companion: ActionsCompanion,
     list: TerminalList,
     phone: TerminalPhoneScreen,
     viewer: TerminalViewer,

@@ -3,6 +3,7 @@ import { Kbd } from '@renderer/components/ui/kbd'
 import { SidebarInset, SidebarProvider, useSidebar } from '@renderer/components/ui/sidebar'
 import { Toaster } from '@renderer/components/ui/sonner'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
+import { useActionsNotificationSubscription } from '@renderer/features/actions'
 import { CardComposer, useBoardNotificationSubscription } from '@renderer/features/board'
 import { useFilesInterestBridge, useFilesNotificationSubscription } from '@renderer/features/files'
 import { useGitNotificationSubscription } from '@renderer/features/git'
@@ -213,6 +214,8 @@ export function AppShell(): React.JSX.Element {
   useFilesNotificationSubscription()
   // Search owns its typed Search identities, Files facts, and recovery invalidation.
   useSearchNotificationSubscription()
+  // Actions owns list invalidation (ACT-003); session-runtime actions.changed is a no-op.
+  useActionsNotificationSubscription()
   useFilesInterestBridge()
   useEnvironmentStatuses()
   useThemeSync()

@@ -1,5 +1,4 @@
-import type { Action, ActionView } from '@porcelain/contracts/actions'
-import { ActionTrustDialog } from '@renderer/components/terminal/action-trust-dialog'
+import type { ActionView } from '@porcelain/contracts/actions'
 import {
   LocalPathDialog,
   type LocalPathDialogMode,
@@ -18,14 +17,7 @@ import {
   SidebarGroupLabel,
 } from '@renderer/components/ui/sidebar'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
-import {
-  useActionMutations,
-  useActions,
-  useRunAction,
-  useTrustAction,
-} from '@renderer/hooks/use-actions'
 import { useLocalDaemon, useLocalTerminalPath } from '@renderer/hooks/use-local-terminal'
-import { useActionRunStore } from '@renderer/stores/action-run'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
@@ -43,6 +35,11 @@ import {
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { ActionComposer, type ActionDraft, draftFromAction } from './action-composer'
+import { useActionRun } from './action-run'
+import { useActionRunStore } from './action-run-store'
+import { ActionTrustDialog } from './action-trust-dialog'
+import { useActionMutations, useTrustAction } from './actions-mutations'
+import { useActions } from './actions-queries'
 
 function ActionRow({
   action,
@@ -53,7 +50,7 @@ function ActionRow({
   isLast,
 }: {
   action: ActionView
-  onEdit: (action: Action) => void
+  onEdit: (action: ActionView) => void
   onRun: (action: ActionView) => void
   /** When true, surface a small Cloud/Monitor cue so Play’s target is obvious. */
   showWhere: boolean
@@ -189,7 +186,7 @@ function ActionRow({
  */
 export function ActionsGroup(): React.JSX.Element {
   const actions = useActions()
-  const runAction = useRunAction()
+  const runAction = useActionRun()
   const project = useProjectSelectionStore((s) => s.project)
   const localDaemon = useLocalDaemon()
   const canSpawnLocal = localDaemon !== undefined && !localDaemon.isLocal && project !== null
@@ -198,7 +195,7 @@ export function ActionsGroup(): React.JSX.Element {
   // When a local-targeted action needs the folder map first: hold the action and open
   // the path dialog in 'run' mode; on save, run with the just-saved path. Also fed by
   // the file finder via useActionRunStore (compose-intent).
-  const [pendingLocal, setPendingLocal] = useState<Action | null>(null)
+  const [pendingLocal, setPendingLocal] = useState<ActionView | null>(null)
   // Held while the human reads a command they have not run here before.
   const [pendingTrust, setPendingTrust] = useState<ActionView | null>(null)
   const trustAction = useTrustAction()
@@ -213,7 +210,7 @@ export function ActionsGroup(): React.JSX.Element {
     clearStorePending()
   }, [storePending, clearStorePending])
 
-  const spawn = (action: Action, localPath?: string | null): void => {
+  const spawn = (action: ActionView, localPath?: string | null): void => {
     runUserAction(
       async () => {
         const result = await runAction(action, {
@@ -223,6 +220,7 @@ export function ActionsGroup(): React.JSX.Element {
           setPendingLocal(action)
           setMappingMode('run')
         }
+        // needs-trust is handled by handleRun / trust dialog before prepare.
       },
       (error) => {
         toastUserActionError('Run command', error)
@@ -270,7 +268,7 @@ export function ActionsGroup(): React.JSX.Element {
             <ActionRow
               key={action.id}
               action={action}
-              onEdit={(a: Action): void => setDraft(draftFromAction(a))}
+              onEdit={(a: ActionView): void => setDraft(draftFromAction(a))}
               onRun={handleRun}
               showWhere={canSpawnLocal}
               isFirst={index === 0}
@@ -287,7 +285,8 @@ export function ActionsGroup(): React.JSX.Element {
           runUserAction(
             async () => {
               await trustAction(action.id)
-              spawn(action)
+              // List refetch is async; prepare requires trusted — pass explicit true.
+              spawn({ ...action, trusted: true })
             },
             (error) => {
               toastUserActionError('Accept command', error)

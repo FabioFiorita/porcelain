@@ -1,4 +1,4 @@
-import type { Action } from '@porcelain/contracts/actions'
+import type { ActionView } from '@porcelain/contracts/actions'
 import { create } from 'zustand'
 
 /**
@@ -8,13 +8,13 @@ import { create } from 'zustand'
  * pattern as `file-prompt` / `card-draft` (one dialog, multiple openers).
  */
 interface ActionRunState {
-  pendingLocal: Action | null
-  requestLocalRun: (action: Action) => void
+  pendingLocal: ActionView | null
+  requestLocalRun: (action: ActionView) => void
   clearPendingLocal: () => void
 }
 
 export const useActionRunStore = create<ActionRunState>((set) => ({
   pendingLocal: null,
-  requestLocalRun: (action: Action) => set({ pendingLocal: action }),
+  requestLocalRun: (action: ActionView) => set({ pendingLocal: action }),
   clearPendingLocal: () => set({ pendingLocal: null }),
 }))

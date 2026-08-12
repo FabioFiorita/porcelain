@@ -6,6 +6,7 @@ import { StatusBar } from 'expo-status-bar'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 
+import { ActionsNotificationBridge } from '@/features/actions'
 import { BoardNotificationBridge } from '@/features/board'
 import { ReviewCommentNotificationBridge } from '@/features/comments'
 import { FilesNotificationBridge } from '@/features/files'
@@ -42,6 +43,7 @@ function ThemedApp(): React.JSX.Element {
         <FilesNotificationBridge />
         <SearchNotificationBridge />
         <GitNotificationBridge />
+        <ActionsNotificationBridge />
         <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
         {/* Only the phone floats chrome over its content. A tablet column ends above its own
             chrome already, so it declares none and every shared body reads zero there. */}

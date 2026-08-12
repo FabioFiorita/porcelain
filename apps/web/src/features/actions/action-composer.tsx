@@ -11,12 +11,12 @@ import { Input } from '@renderer/components/ui/input'
 import { Textarea } from '@renderer/components/ui/textarea'
 import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-group'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
-import { useActionMutations } from '@renderer/hooks/use-actions'
 import { kbdLabel } from '@renderer/lib/keyboard'
 import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
 import { Cloud, Monitor } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { useActionMutations } from './actions-mutations'
 
 export interface ActionDraft {
   /** Present when editing an existing action; absent when creating one. */

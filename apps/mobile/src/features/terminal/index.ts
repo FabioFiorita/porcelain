@@ -1,6 +1,7 @@
 /** Mobile Terminal public boundary: stream transport, recovery, roster, and presentation roots. */
 
-export { TerminalCompanion } from './terminal-companion'
+import { useTerminalStore } from './terminal-store'
+
 export { TerminalList } from './terminal-list'
 export { TerminalPhoneScreen } from './terminal-phone-screen'
 export {
@@ -8,13 +9,7 @@ export {
   terminalPasteFailureMessage,
   useMobileTerminalRecovery,
 } from './terminal-recovery'
-export {
-  useRenameTerminal,
-  useTerminalActions,
-  useTerminalStream,
-  useTerminals,
-  useTrustAction,
-} from './terminal-roster'
+export { useRenameTerminal, useTerminalStream, useTerminals } from './terminal-roster'
 export { TerminalSessionScreen } from './terminal-session-screen'
 export {
   createMobileTerminalAdapter,
@@ -28,3 +23,12 @@ export {
   useMobileTerminalStream,
 } from './terminal-stream-adapter'
 export { TerminalViewer } from './terminal-viewer'
+
+/** Public create surface for Actions prepare → Terminal create (ACT-003). */
+export async function spawnTerminalSession(opts: {
+  cwd: string
+  name?: string
+  initialInput?: string
+}): Promise<string> {
+  return useTerminalStore.getState().spawn(opts)
+}

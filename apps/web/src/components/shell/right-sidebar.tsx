@@ -1,5 +1,5 @@
-import { ActionsGroup } from '@renderer/components/terminal/actions-group'
 import { Sidebar, SidebarContent, SidebarHeader, useSidebar } from '@renderer/components/ui/sidebar'
+import { ActionsGroup } from '@renderer/features/actions'
 import { BoardQuickAccess } from '@renderer/features/board'
 import { SearchQuickAccess } from '@renderer/features/search'
 import { usePreferencesStore } from '@renderer/stores/preferences'

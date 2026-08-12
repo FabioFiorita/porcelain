@@ -1,5 +1,6 @@
 import type { FreshnessRequirement } from '@porcelain/client-runtime/session/recovery'
 import type { SessionChange, SessionMismatchFrame } from '@porcelain/contracts/session'
+import { invalidateAllActionsQueries } from '@renderer/features/actions'
 import { invalidateAllBoardCards } from '@renderer/features/board'
 import { invalidateAllFilesQueries } from '@renderer/features/files'
 import { invalidateAllReviewComments } from '@renderer/features/review/comments'
@@ -114,7 +115,9 @@ export function invalidateForChange(
       // Session runtime must not invalidate Board here; the feature subscription does.
       return Promise.resolve()
     case 'actions.changed':
-      return utils.actions.invalidate()
+      // Actions owns its notification → list-identity mapping (ACT-003 feature adapter).
+      // Session runtime must not invalidate Actions here; the feature subscription does.
+      return Promise.resolve()
   }
 }
 
@@ -194,7 +197,7 @@ export function useSessionRuntime({
       reviewEvidenceAsset: { invalidate: () => trpcUtils.reviewEvidenceAsset.invalidate() },
       boardCards: { invalidate: () => invalidateAllBoardCards(queryClient) },
       files: { invalidate: () => invalidateAllFilesQueries(queryClient) },
-      actions: { invalidate: () => trpcUtils.actions.invalidate() },
+      actions: { invalidate: () => invalidateAllActionsQueries(queryClient) },
     }),
     [trpcUtils, queryClient],
   )

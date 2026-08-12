@@ -6,8 +6,9 @@ import { ChromeGlyph } from '@/components/chrome-glyph'
 import { ConfirmDialog, EmptyNote, ErrorNote, PanelLabel } from '@/components/surface-chrome'
 import { useActiveProject } from '@/features/projects'
 import { cn } from '@/lib/utils'
-import { useTerminalActions, useTrustAction } from './terminal-roster'
-import { useTerminalStore } from './terminal-store'
+import { useActionRun } from './action-run'
+import { useTrustAction } from './actions-mutations'
+import { useActions } from './actions-queries'
 
 /**
  * Saved actions — the project's curated commands.
@@ -20,11 +21,13 @@ import { useTerminalStore } from './terminal-store'
  * daemon's machine has not accepted yet is gated behind an explicit confirmation, because a
  * shared action can arrive from a clone or an agent write — accepting is keyed to the command
  * TEXT, so editing it later asks again.
+ *
+ * Placement remains under the Terminal surface (companion slot); ownership is Actions.
  */
-export function TerminalCompanion({ active }: { active: boolean }): React.JSX.Element {
+export function ActionsCompanion({ active }: { active: boolean }): React.JSX.Element {
   const project = useActiveProject()
-  const { actions, error } = useTerminalActions(active)
-  const spawn = useTerminalStore((state) => state.spawn)
+  const { actions, error } = useActions(active)
+  const runAction = useActionRun()
   const trust = useTrustAction()
   const [pendingTrust, setPendingTrust] = useState<ActionView | null>(null)
   const [failure, setFailure] = useState<string | null>(null)
@@ -32,11 +35,9 @@ export function TerminalCompanion({ active }: { active: boolean }): React.JSX.El
   const run = (action: ActionView): void => {
     if (project === null) return
     setFailure(null)
-    spawn({ cwd: project.path, initialInput: action.command, name: action.title }).catch(
-      (cause: unknown) => {
-        setFailure(`Run failed: ${cause instanceof Error ? cause.message : String(cause)}`)
-      },
-    )
+    runAction(action).catch((cause: unknown) => {
+      setFailure(`Run failed: ${cause instanceof Error ? cause.message : String(cause)}`)
+    })
   }
 
   return (
@@ -96,7 +97,8 @@ export function TerminalCompanion({ active }: { active: boolean }): React.JSX.El
           setFailure(null)
           trust(action.id)
             .then(() => {
-              run(action)
+              // List refetch is async; prepare requires trusted — pass explicit true.
+              run({ ...action, trusted: true })
             })
             .catch((cause: unknown) => {
               setFailure(`Accept failed: ${cause instanceof Error ? cause.message : String(cause)}`)

@@ -1,14 +1,8 @@
-import type { ActionView } from '@porcelain/contracts/actions'
 import { settleBackground } from '@porcelain/shared/background'
 import { useEffect, useMemo } from 'react'
 import { useActiveProject } from '@/features/projects'
 import type { DaemonError } from '@/lib/daemon/errors'
-import {
-  actionsQuery,
-  renameTerminalMutation,
-  terminalSessionsQuery,
-  trustActionsMutation,
-} from '@/lib/daemon/procedures/terminal'
+import { renameTerminalMutation, terminalSessionsQuery } from '@/lib/daemon/procedures/terminal'
 import { useDaemonMutation, useDaemonQuery } from '@/lib/daemon/queries'
 import { receiveData, receiveExit, receiveScrollback } from './terminal-engine'
 import { useMobileTerminalRecovery } from './terminal-recovery'
@@ -100,30 +94,5 @@ export function useRenameTerminal(): (id: string, name: string) => Promise<void>
     if (trimmed === '') return
     rename(id, trimmed)
     await mutation.mutateAsync({ id, name: trimmed })
-  }
-}
-
-/** The project's saved actions — the agent curates them; running one is human-only. */
-export function useTerminalActions(active: boolean): {
-  actions: ActionView[]
-  error: DaemonError | null
-} {
-  const project = useActiveProject()
-  const { data, error } = useDaemonQuery(actionsQuery, project?.path ?? '', {
-    enabled: active && project !== null,
-  })
-  // A phone has no local daemon, so local-only actions are not runnable here.
-  const actions = useMemo(() => (data ?? []).filter((action) => action.where !== 'local'), [data])
-  return { actions, error }
-}
-
-/** Accept a command this daemon's machine has not run before. */
-export function useTrustAction(): (id: string) => Promise<void> {
-  const project = useActiveProject()
-  const mutation = useDaemonMutation(trustActionsMutation, { invalidates: ['actions'] })
-
-  return async (id: string): Promise<void> => {
-    if (project === null) return
-    await mutation.mutateAsync({ ids: [id], repoPath: project.path })
   }
 }

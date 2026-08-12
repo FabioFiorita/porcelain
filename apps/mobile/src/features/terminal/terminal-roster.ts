@@ -2,8 +2,6 @@
 
 export {
   useRenameTerminal,
-  useTerminalActions,
   useTerminalStream,
   useTerminals,
-  useTrustAction,
 } from './use-terminal-roster'
