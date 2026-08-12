@@ -33,7 +33,11 @@ function trimUtf8Tail(value: string, cap: number): string {
   const bytes = Buffer.from(value)
   if (bytes.byteLength <= cap) return value
   let start = bytes.byteLength - cap
-  while (start < bytes.byteLength && (bytes[start] & 0xc0) === 0x80) start += 1
+  while (start < bytes.byteLength) {
+    const byte = bytes[start]
+    if (byte === undefined || (byte & 0xc0) !== 0x80) break
+    start += 1
+  }
   return bytes.subarray(start).toString('utf8')
 }
 
