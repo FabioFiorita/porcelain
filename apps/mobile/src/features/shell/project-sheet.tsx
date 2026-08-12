@@ -4,7 +4,7 @@ import { ChromeGlyph } from '@/components/chrome-glyph'
 import { ShellModalScroll } from '@/components/shell-modal'
 import { Button } from '@/components/ui/button'
 import { Text as UiText } from '@/components/ui/text'
-import { type ProjectSheet, useProjectSheet } from './use-workspace'
+import { type ProjectSheet, useProjectSheet } from '@/features/projects'
 import { workspaceTestId } from './workspace-lists'
 import {
   EmptyPickerState,

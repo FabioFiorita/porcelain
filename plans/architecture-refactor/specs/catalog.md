@@ -91,7 +91,7 @@ an external choice or authorization.
 | ID | Status | Outcome |
 | --- | --- | --- |
 | `PRJ-001` | Landed | Canonical Project contracts and open/recent/remove/discovery operations |
-| `PRJ-002` | Ready | Shared Project identities/effects and Web/mobile selection adapters |
+| `PRJ-002` | Landed | Shared Project identities/effects and Web/mobile selection adapters |
 | `PRJ-003` | Draft | Delete product-boundary repo/workspace aliases and complete domain |
 | `SEA-001` | Draft | Search contracts and file/text/code operations over Files/Git capabilities |
 | `SEA-002` | Draft | Shared Search keys/effects and Web/mobile feature relocation |

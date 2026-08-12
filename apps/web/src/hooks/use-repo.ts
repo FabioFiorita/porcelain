@@ -1,26 +1,4 @@
-import type { RepoInfo } from '@backend/api'
-import { shellTrpc, trpc } from '@renderer/lib/trpc'
-
-/** Recent repos for the welcome screen + project switcher; pass `enabled` to gate. */
-export function useRecentRepos(enabled = true): RepoInfo[] {
-  const { data = [] } = trpc.recentRepos.useQuery(undefined, { enabled })
-  return data
-}
-
-/**
- * Removes a repo from the recents list (the project switcher's "Projects"). The list is
- * small and the write instant, so `onSuccess` just invalidates `recentRepos` — no optimistic
- * update. The repo's per-repo config (hidden/pinned paths) survives a later re-open.
- */
-export function useRemoveRecentRepo(): { remove: (repoPath: string) => void } {
-  const utils = trpc.useUtils()
-  const mutation = trpc.removeRecentRepo.useMutation({
-    onSuccess: async () => {
-      await utils.recentRepos.invalidate()
-    },
-  })
-  return { remove: (repoPath: string): void => mutation.mutate(repoPath) }
-}
+import { shellTrpc } from '@renderer/lib/trpc'
 
 /**
  * Opens another window — `openWindow()` raises a welcome window, `openWindow(repoPath)`

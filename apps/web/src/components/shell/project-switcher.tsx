@@ -1,6 +1,6 @@
 import { DropdownMenuTrigger } from '@renderer/components/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
-import { useRepoStore } from '@renderer/stores/repo'
+import { useSelectedProject } from '@renderer/features/projects'
 import { ChevronsUpDown } from 'lucide-react'
 import { ProjectSwitcherMenu } from './project-switcher-menu'
 
@@ -9,7 +9,7 @@ import { ProjectSwitcherMenu } from './project-switcher-menu'
 // surface), a dense chip that sits above the tab icons. The menu opens to the
 // right of the rail.
 export function ProjectSwitcher(): React.JSX.Element | null {
-  const repo = useRepoStore((s) => s.repo)
+  const repo = useSelectedProject()
 
   if (!repo) return null
 

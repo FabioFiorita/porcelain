@@ -8,13 +8,12 @@ import {
   DialogTitle,
 } from '@renderer/components/ui/dialog'
 import { ScrollArea } from '@renderer/components/ui/scroll-area'
+import { useOpenProject, useProjectDirectories } from '@renderer/features/projects'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
-import { useBrowseDirs } from '@renderer/hooks/use-browse'
 import { useRemoteEnvironments } from '@renderer/hooks/use-remote-daemon'
 import { rowActionClass } from '@renderer/lib/controls'
 import { isBrowser } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
-import { useRepoStore } from '@renderer/stores/repo'
 import { useRepoPickerStore } from '@renderer/stores/repo-picker'
 import { useSettingsDialogStore } from '@renderer/stores/settings-dialog'
 import { runUserAction } from '@shared/background'
@@ -55,19 +54,20 @@ export function RepoPickerDialog(): React.JSX.Element | null {
 function RepoPicker({ onClose }: { onClose: () => void }): React.JSX.Element {
   // null = the daemon home; a fresh browse each open (no persistence).
   const [path, setPath] = useState<string | null>(null)
-  const { result, error, isFetching } = useBrowseDirs(path, true)
+  const { result, error, isFetching } = useProjectDirectories(path, true)
+  const openProject = useOpenProject()
   const remote = useRemoteEnvironments()
   const activeRemote =
     !isBrowser && remote?.activeId != null
       ? (remote.environments.find((env) => env.id === remote.activeId) ?? null)
       : null
 
-  // openRepoPath is a store action (the sanctioned cross-store call from a component);
-  // it records the recent + warms the file list daemon-side, then this dialog closes.
+  // The Projects adapter records the recent, selects the authoritative result, and then this
+  // dialog closes.
   const handleOpen = (target: string): void => {
     runUserAction(
       async () => {
-        await useRepoStore.getState().openRepoPath(target)
+        await openProject.open(target)
         onClose()
       },
       (error) => {

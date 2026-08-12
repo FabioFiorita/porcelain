@@ -1,5 +1,11 @@
-import type { RepoInfo } from '@backend/api'
-import { useNewWindow, useRecentRepos, useRemoveRecentRepo } from '@renderer/hooks/use-repo'
+import type { ProjectInfo } from '@porcelain/contracts/projects'
+import {
+  useOpenProject,
+  useRecentProjects,
+  useRemoveRecentProject,
+  useSelectedProject,
+} from '@renderer/features/projects'
+import { useNewWindow } from '@renderer/hooks/use-repo'
 import { useRepoStore } from '@renderer/stores/repo'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -14,17 +20,23 @@ vi.mock('@renderer/lib/platform', () => ({ isBrowser: false, isE2E: false }))
 // and never touch the tRPC proxy. RepoInfo is the real @main/api type, so drift
 // in the recents shape breaks the build here.
 vi.mock('@renderer/hooks/use-repo', () => ({
-  useRecentRepos: vi.fn(),
   useNewWindow: vi.fn(),
-  useRemoveRecentRepo: vi.fn(),
 }))
 
-const recents: RepoInfo[] = [
+vi.mock('@renderer/features/projects', () => ({
+  useOpenProject: vi.fn(),
+  useRecentProjects: vi.fn(),
+  useRemoveRecentProject: vi.fn(),
+  useSelectedProject: vi.fn(),
+}))
+
+const recents: ProjectInfo[] = [
   { path: '/Users/me/code/alpha', name: 'alpha' },
   { path: '/Users/me/code/beta', name: 'beta' },
 ]
 
 const openWindow = vi.fn()
+const openProject = vi.fn()
 const remove = vi.fn()
 
 function openMenu(): void {
@@ -39,9 +51,11 @@ describe('ProjectSwitcher', () => {
       switchTo: vi.fn(),
       openRepo: vi.fn(),
     })
-    vi.mocked(useRecentRepos).mockReturnValue(recents)
+    vi.mocked(useSelectedProject).mockReturnValue(recents[0] ?? null)
+    vi.mocked(useRecentProjects).mockReturnValue(recents)
+    vi.mocked(useOpenProject).mockReturnValue({ open: openProject, isPending: false })
     vi.mocked(useNewWindow).mockReturnValue({ openWindow })
-    vi.mocked(useRemoveRecentRepo).mockReturnValue({ remove })
+    vi.mocked(useRemoveRecentProject).mockReturnValue({ remove, isPending: false })
   })
 
   it('opens a fresh welcome window when "New window" is clicked', async () => {
@@ -64,7 +78,7 @@ describe('ProjectSwitcher', () => {
     const alpha = recents[0]
     if (alpha === undefined) throw new Error('expected recents[0]')
     expect(openWindow).toHaveBeenCalledWith(alpha.path)
-    expect(useRepoStore.getState().switchTo).not.toHaveBeenCalled()
+    expect(openProject).not.toHaveBeenCalled()
     // The controlled open state closes the menu after the click (the button's
     // stopPropagation used to suppress Base UI's auto-close).
     expect(screen.queryByRole('menuitem', { name: /new window/i })).toBeNull()
@@ -85,7 +99,7 @@ describe('ProjectSwitcher', () => {
     const beta = recents[1]
     if (beta === undefined) throw new Error('expected recents[1]')
     expect(remove).toHaveBeenCalledWith(beta.path)
-    expect(useRepoStore.getState().switchTo).not.toHaveBeenCalled()
+    expect(openProject).not.toHaveBeenCalled()
     // The menu stays open so several projects can be pruned in a row.
     expect(screen.queryByRole('menuitem', { name: /new window/i })).not.toBeNull()
   })

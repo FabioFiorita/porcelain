@@ -2,14 +2,20 @@ import logo from '@renderer/assets/logo.png'
 import { SettingsButton } from '@renderer/components/settings/settings-dialog'
 import { Button } from '@renderer/components/ui/button'
 import {
+  useOpenProject,
+  useRecentProjects,
+  useRemoveRecentProject,
+} from '@renderer/features/projects'
+import { toastUserActionError } from '@renderer/hooks/mutation-error'
+import {
   useDisconnectRemoteEnvironment,
   useRemoteEnvironments,
 } from '@renderer/hooks/use-remote-daemon'
-import { useRecentRepos, useRemoveRecentRepo } from '@renderer/hooks/use-repo'
 import { isBrowser } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useSettingsDialogStore } from '@renderer/stores/settings-dialog'
+import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
 import { Cloud, Folder, FolderOpen, Laptop, Unplug, X } from 'lucide-react'
 
@@ -85,15 +91,29 @@ function EnvironmentBanner(): React.JSX.Element | null {
 
 export function Welcome(): React.JSX.Element {
   const openRepo = useRepoStore((s) => s.openRepo)
-  const openRepoPath = useRepoStore((s) => s.openRepoPath)
-  const removeRecent = useRemoveRecentRepo()
-  const recents = useRecentRepos()
+  const openProject = useOpenProject()
+  const removeRecent = useRemoveRecentProject()
+  const recents = useRecentProjects()
   const remote = useRemoteEnvironments()
   const onRemote = !isBrowser && remote != null && remote.activeId != null
   const remoteName =
     onRemote && remote != null
       ? (remote.environments.find((env) => env.id === remote.activeId)?.name ?? 'remote')
       : null
+
+  const openRecent = (path: string): void => {
+    runUserAction(
+      () => openProject.open(path),
+      (error) => toastUserActionError('Open project', error),
+    )
+  }
+
+  const remove = (path: string): void => {
+    runUserAction(
+      () => removeRecent.remove(path),
+      (error) => toastUserActionError('Remove project', error),
+    )
+  }
 
   return (
     <div
@@ -134,7 +154,7 @@ export function Welcome(): React.JSX.Element {
               <Button
                 variant="ghost"
                 className="h-auto w-full justify-start gap-2.5 py-1.5 pr-9"
-                onClick={() => openRepoPath(repo.path)}
+                onClick={() => openRecent(repo.path)}
               >
                 <Folder className="size-4 shrink-0 text-muted-foreground" />
                 <span className="flex min-w-0 flex-col items-start">
@@ -156,7 +176,7 @@ export function Welcome(): React.JSX.Element {
                   'hover:bg-accent/50 hover:text-foreground',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
                 )}
-                onClick={() => removeRecent.remove(repo.path)}
+                onClick={() => remove(repo.path)}
               >
                 <X className="size-3.5" />
               </button>

@@ -57,6 +57,9 @@ export default defineConfig({
       '@porcelain/client-runtime/board': resolve(
         '../../packages/client-runtime/src/board/index.ts',
       ),
+      '@porcelain/client-runtime/projects': resolve(
+        '../../packages/client-runtime/src/projects/index.ts',
+      ),
       '@porcelain/client-runtime/testing/daemon-mock': resolve(
         '../../packages/client-runtime/src/testing/daemon-mock.ts',
       ),

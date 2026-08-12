@@ -10,6 +10,10 @@ interface RepoState {
   repo: RepoInfo | null
   restoring: boolean
   showHidden: boolean
+  /** Presentation-only selection update used by the Projects feature adapter. */
+  selectProject: (project: RepoInfo | null) => void
+  /** Clear this window's local presentation before an in-place Project switch. */
+  resetProjectPresentation: () => void
   boot: () => Promise<void>
   restoreLastRepo: () => Promise<void>
   /** Opens the daemon-side repo picker (the native folder dialog is gone —
@@ -31,6 +35,11 @@ export const useRepoStore = create<RepoState>((set, get) => ({
   repo: null,
   restoring: true,
   showHidden: false,
+  selectProject: (project) => set({ repo: project }),
+  resetProjectPresentation: () => {
+    useTabsStore.getState().closeAllTabs()
+    useTerminalsStore.getState().reset()
+  },
   boot: async () => {
     // No shell in a browser, so there's no windowInit to ask (open-this-repo /
     // restore / welcome is a per-Electron-window decision). The daemon's recents
@@ -83,8 +92,7 @@ export const useRepoStore = create<RepoState>((set, get) => ({
     // clears this window's terminal views — the PTYs survive the switch (explicit kill
     // only) and re-hydrate if the repo comes back; `use-terminals` re-filters the roster
     // to the new repo after openRepoPath resolves.
-    useTabsStore.getState().closeAllTabs()
-    useTerminalsStore.getState().reset()
+    get().resetProjectPresentation()
     set({ repo: await trpcClient.openRepoPath.mutate(path) })
   },
   toggleShowHidden: () => set((s) => ({ showHidden: !s.showHidden })),

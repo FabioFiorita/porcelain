@@ -6,10 +6,18 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from '@renderer/components/ui/dropdown-menu'
-import { useNewWindow, useRecentRepos, useRemoveRecentRepo } from '@renderer/hooks/use-repo'
+import {
+  useOpenProject,
+  useRecentProjects,
+  useRemoveRecentProject,
+  useSelectedProject,
+} from '@renderer/features/projects'
+import { toastUserActionError } from '@renderer/hooks/mutation-error'
+import { useNewWindow } from '@renderer/hooks/use-repo'
 import { isBrowser } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
+import { runUserAction } from '@shared/background'
 import { Check, FolderPlus, SquareArrowOutUpRight, X } from 'lucide-react'
 import { useState } from 'react'
 
@@ -36,13 +44,27 @@ export function ProjectSwitcherMenu({
   contentSide?: MenuContentProps['side']
   contentAlign?: MenuContentProps['align']
 }): React.JSX.Element | null {
-  const repo = useRepoStore((s) => s.repo)
+  const repo = useSelectedProject()
   const openRepo = useRepoStore((s) => s.openRepo)
-  const switchTo = useRepoStore((s) => s.switchTo)
+  const openProject = useOpenProject()
   const newWindow = useNewWindow()
-  const removeRecent = useRemoveRecentRepo()
-  const recents = useRecentRepos(repo !== null)
+  const removeRecent = useRemoveRecentProject()
+  const recents = useRecentProjects(repo !== null)
   const [menuOpen, setMenuOpen] = useState(false)
+
+  const switchTo = (path: string): void => {
+    runUserAction(
+      () => openProject.open(path, { resetPresentation: true }),
+      (error) => toastUserActionError('Switch project', error),
+    )
+  }
+
+  const remove = (path: string): void => {
+    runUserAction(
+      () => removeRecent.remove(path),
+      (error) => toastUserActionError('Remove project', error),
+    )
+  }
 
   if (!repo) return null
 
@@ -102,7 +124,7 @@ export function ProjectSwitcherMenu({
                     )}
                     onClick={(e: React.MouseEvent<HTMLButtonElement>): void => {
                       e.stopPropagation()
-                      removeRecent.remove(recent.path)
+                      remove(recent.path)
                     }}
                   >
                     <X className="size-3.5" />

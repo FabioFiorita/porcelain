@@ -1,0 +1,13 @@
+/** Web Projects data boundary for the shell's switcher and directory picker. */
+
+export type { ProjectSummary } from '@porcelain/client-runtime/projects'
+export {
+  isProjectsQueryKey,
+  type ProjectsDaemonScope,
+  projectsQueryKey,
+  useOpenProject,
+  useProjectDirectories,
+  useRecentProjects,
+  useRemoveRecentProject,
+  useSelectedProject,
+} from './project-data'

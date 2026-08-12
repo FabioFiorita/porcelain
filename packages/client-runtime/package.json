@@ -8,6 +8,7 @@
     "./board": "./src/board/index.ts",
     "./files": "./src/files/index.ts",
     "./git": "./src/git/index.ts",
+    "./projects": "./src/projects/index.ts",
     "./review": "./src/review/index.ts",
     "./terminal": "./src/terminal/index.ts",
     "./commit-message": "./src/commit-message.ts",
