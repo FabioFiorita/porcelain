@@ -6,167 +6,140 @@ import { normalizePublicError } from '../daemon-composition/public-error'
 
 // This suite owns the tRPC contract seam only: which raw wire input the Review router
 // accepts and which resolver result it will serialize. Every companion read/write —
-// review sets, evidence packs, comments (via construction-seam ops), archives, the Git
-// plumbing behind the readings — is mocked with synthetic data, so nothing here touches
-// a real repository or channel.
-const {
-  git,
-  docSet,
-  assets,
-  featureBuild,
-  explore,
-  commentOps,
-  evidence,
-  layers,
-  reviews,
-  reviewed,
-} = vi.hoisted(() => {
-  const view = {
-    name: 'Review',
-    fromAgent: true,
-    sections: [],
-    groups: [
-      {
-        layer: 'source',
-        files: [
-          {
-            path: 'src/alpha.ts',
-            source: 'changed',
-            status: 'modified',
-            additions: 3,
-            deletions: 1,
-            connects: [],
-          },
-        ],
+// review sets, evidence packs, comments (via construction-seam ops), the Git plumbing
+// behind the readings — is mocked with synthetic data, so nothing here touches a real
+// repository or channel. Lifecycle procedures live in the Review feature's own router
+// seam (`features/review/review-lifecycle-router.test.ts`).
+const { git, docSet, assets, featureBuild, explore, commentOps, evidence, layers, reviewed } =
+  vi.hoisted(() => {
+    const view = {
+      name: 'Review',
+      fromAgent: true,
+      sections: [],
+      groups: [
+        {
+          layer: 'source',
+          files: [
+            {
+              path: 'src/alpha.ts',
+              source: 'changed',
+              status: 'modified',
+              additions: 3,
+              deletions: 1,
+              connects: [],
+            },
+          ],
+        },
+      ],
+    }
+    return {
+      git: {
+        reviewedFingerprint: vi.fn(async () => 'fp-alpha'),
+        reviewedFingerprints: vi.fn(async () => new Map([['src/alpha.ts', 'fp-alpha']])),
+        gitDiffFile: vi.fn(async () => ({ hunks: [], status: 'modified' })),
+        gitListFiles: vi.fn(async () => ['src/alpha.ts']),
       },
-    ],
-  }
-  return {
-    git: {
-      reviewedFingerprint: vi.fn(async () => 'fp-alpha'),
-      reviewedFingerprints: vi.fn(async () => new Map([['src/alpha.ts', 'fp-alpha']])),
-      gitDiffFile: vi.fn(async () => ({ hunks: [], status: 'modified' })),
-      gitListFiles: vi.fn(async () => ['src/alpha.ts']),
-    },
-    docSet: {
-      readActiveIntentDocs: vi.fn(async () => [
-        { file: 'intent.md', label: 'Intent', medium: 'markdown', body: '# Intent' },
-      ]),
-      readActiveEvidenceResults: vi.fn(async () => [
-        { file: 'index.html', label: 'Results', medium: 'html', body: '<p>green</p>' },
-      ]),
-    },
-    assets: {
-      listEvidenceAssets: vi.fn(async () => [
-        { file: 'shot.png', label: 'shot', kind: 'image', mime: 'image/png', bytes: 2048 },
-      ]),
-      readEvidenceAsset: vi.fn(async () => ({
-        file: 'shot.png',
-        mime: 'image/png',
-        bytes: 2048,
-        dataUrl: 'data:image/png;base64,AAAA',
-      })),
-    },
-    featureBuild: {
-      gatherFeature: vi.fn(async () => ({
-        files: [],
-        stats: [],
-        layers: [],
-        reviewSet: null as unknown,
-        key: 'key-1',
-      })),
-      getFeatureBuild: vi.fn(async () => ({ key: 'key-1', view, sources: new Map() })),
-      cachedFeatureReading: vi.fn(() => null),
-      storeFeatureReading: vi.fn(() => undefined),
-    },
-    explore: {
-      walkExplore: vi.fn(async () => []),
-      buildExploreReading: vi.fn(() => ({
-        name: 'alpha.ts',
-        sections: [],
-        groups: [],
-        evidence: null,
-      })),
-    },
-    commentOps: {
-      listReviewComments: vi.fn(async () => ({
-        ok: true as const,
-        value: [
-          {
-            id: 'c1',
+      docSet: {
+        readActiveIntentDocs: vi.fn(async () => [
+          { file: 'intent.md', label: 'Intent', medium: 'markdown', body: '# Intent' },
+        ]),
+        readActiveEvidenceResults: vi.fn(async () => [
+          { file: 'index.html', label: 'Results', medium: 'html', body: '<p>green</p>' },
+        ]),
+      },
+      assets: {
+        listEvidenceAssets: vi.fn(async () => [
+          { file: 'shot.png', label: 'shot', kind: 'image', mime: 'image/png', bytes: 2048 },
+        ]),
+        readEvidenceAsset: vi.fn(async () => ({
+          file: 'shot.png',
+          mime: 'image/png',
+          bytes: 2048,
+          dataUrl: 'data:image/png;base64,AAAA',
+        })),
+      },
+      featureBuild: {
+        gatherFeature: vi.fn(async () => ({
+          files: [],
+          stats: [],
+          layers: [],
+          reviewSet: null as unknown,
+          key: 'key-1',
+        })),
+        getFeatureBuild: vi.fn(async () => ({ key: 'key-1', view, sources: new Map() })),
+        cachedFeatureReading: vi.fn(() => null),
+        storeFeatureReading: vi.fn(() => undefined),
+      },
+      explore: {
+        walkExplore: vi.fn(async () => []),
+        buildExploreReading: vi.fn(() => ({
+          name: 'alpha.ts',
+          sections: [],
+          groups: [],
+          evidence: null,
+        })),
+      },
+      commentOps: {
+        listReviewComments: vi.fn(async () => ({
+          ok: true as const,
+          value: [
+            {
+              id: 'c1',
+              path: 'src/alpha.ts',
+              startLine: 1,
+              endLine: 2,
+              body: 'Check this invariant',
+              resolved: false,
+              createdAt: 1_760_000_000_000,
+            },
+          ],
+        })),
+        addReviewComment: vi.fn(async () => ({
+          ok: true as const,
+          value: {
+            id: 'c2',
             path: 'src/alpha.ts',
-            startLine: 1,
-            endLine: 2,
             body: 'Check this invariant',
             resolved: false,
-            createdAt: 1_760_000_000_000,
+            createdAt: 1_760_000_000_001,
           },
-        ],
-      })),
-      addReviewComment: vi.fn(async () => ({
-        ok: true as const,
-        value: {
-          id: 'c2',
-          path: 'src/alpha.ts',
-          body: 'Check this invariant',
-          resolved: false,
-          createdAt: 1_760_000_000_001,
-        },
-      })),
-      editReviewComment: vi.fn(async () => ({ ok: true as const, value: undefined })),
-      deleteReviewComment: vi.fn(async () => ({ ok: true as const, value: undefined })),
-      resolveReviewComment: vi.fn(async () => ({ ok: true as const, value: undefined })),
-      clearResolvedReviewComments: vi.fn(async () => ({ ok: true as const, value: undefined })),
-    },
-    evidence: {
-      readEvidenceMeta: vi.fn(async () => ({
-        title: 'Evidence',
-        updatedAt: '2026-08-10T00:00:00.000Z',
-        checks: [{ label: 'pnpm verify', status: 'pass' }],
-        dir: '/synthetic/repo/.porcelain/active-review/evidence',
-        medium: 'html',
-        results: 1,
-        assets: 1,
-        hasReport: true,
-      })),
-      readEvidence: vi.fn(async () => ({
-        title: 'Evidence',
-        updatedAt: '2026-08-10T00:00:00.000Z',
-        dir: '/synthetic/repo/.porcelain/active-review/evidence',
-        checks: [{ label: 'pnpm verify', status: 'pass' }],
-        medium: 'html',
-        html: '<p>green</p>',
-      })),
-      clearEvidence: vi.fn(async () => undefined),
-    },
-    layers: { readLayers: vi.fn(async () => null) },
-    reviews: {
-      activeReviewCost: vi.fn(async () => ({ bytes: 2048, files: 3 })),
-      publishActiveReview: vi.fn(async () => ({
-        id: '2026-08-10-review',
-        cost: { bytes: 2048, files: 3 },
-      })),
-      listArchivedReviews: vi.fn(async () => [
-        {
-          id: '2026-08-09-review',
-          name: 'Earlier review',
-          thesis: 'It shipped',
-          archivedAt: '2026-08-09T00:00:00.000Z',
-        },
-      ]),
-      restoreArchivedReview: vi.fn(async () => undefined),
-      deleteArchivedReview: vi.fn(async () => undefined),
-      clearReviewSet: vi.fn(async () => undefined),
-    },
-    reviewed: {
-      markReviewed: vi.fn(async () => undefined),
-      unmarkReviewed: vi.fn(async () => undefined),
-      readReviewedMarks: vi.fn(async () => [{ path: 'src/alpha.ts', fingerprint: 'fp-alpha' }]),
-      reconcileReviewed: vi.fn(async () => ['src/alpha.ts']),
-      setReviewedMarks: vi.fn(async () => undefined),
-    },
-  }
-})
+        })),
+        editReviewComment: vi.fn(async () => ({ ok: true as const, value: undefined })),
+        deleteReviewComment: vi.fn(async () => ({ ok: true as const, value: undefined })),
+        resolveReviewComment: vi.fn(async () => ({ ok: true as const, value: undefined })),
+        clearResolvedReviewComments: vi.fn(async () => ({ ok: true as const, value: undefined })),
+      },
+      evidence: {
+        readEvidenceMeta: vi.fn(async () => ({
+          title: 'Evidence',
+          updatedAt: '2026-08-10T00:00:00.000Z',
+          checks: [{ label: 'pnpm verify', status: 'pass' }],
+          dir: '/synthetic/repo/.porcelain/active-review/evidence',
+          medium: 'html',
+          results: 1,
+          assets: 1,
+          hasReport: true,
+        })),
+        readEvidence: vi.fn(async () => ({
+          title: 'Evidence',
+          updatedAt: '2026-08-10T00:00:00.000Z',
+          dir: '/synthetic/repo/.porcelain/active-review/evidence',
+          checks: [{ label: 'pnpm verify', status: 'pass' }],
+          medium: 'html',
+          html: '<p>green</p>',
+        })),
+        clearEvidence: vi.fn(async () => undefined),
+      },
+      layers: { readLayers: vi.fn(async () => null) },
+      reviewed: {
+        markReviewed: vi.fn(async () => undefined),
+        unmarkReviewed: vi.fn(async () => undefined),
+        readReviewedMarks: vi.fn(async () => [{ path: 'src/alpha.ts', fingerprint: 'fp-alpha' }]),
+        reconcileReviewed: vi.fn(async () => ['src/alpha.ts']),
+        setReviewedMarks: vi.fn(async () => undefined),
+      },
+    }
+  })
 
 vi.mock('../git/git', () => git)
 vi.mock('../review/doc-set', () => docSet)
@@ -178,7 +151,6 @@ vi.mock('../features/project-data', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../features/project-data')>()
   return { ...actual, readLayers: layers.readLayers }
 })
-vi.mock('../stores/review-store', () => reviews)
 vi.mock('../stores/reviewed-store', () => reviewed)
 
 import { createReviewCommentRouter } from '../features/review'
@@ -261,7 +233,7 @@ describe('review router contract input', () => {
     expect(commentOps.addReviewComment).not.toHaveBeenCalled()
   })
 
-  it('keeps the comment body and archive id minimums', async () => {
+  it('keeps the comment body minimums', async () => {
     expectPublicCode(
       await rejected(() =>
         callWithRawInput('addReviewComment', 'mutation', {
@@ -280,24 +252,8 @@ describe('review router contract input', () => {
       'request.invalid',
       false,
     )
-    expectPublicCode(
-      await rejected(() =>
-        callWithRawInput('restoreArchivedReview', 'mutation', { repoPath: REPO, id: '' }),
-      ),
-      'request.invalid',
-      false,
-    )
-    expectPublicCode(
-      await rejected(() =>
-        callWithRawInput('deleteArchivedReview', 'mutation', { repoPath: REPO, id: '' }),
-      ),
-      'request.invalid',
-      false,
-    )
     expect(commentOps.addReviewComment).not.toHaveBeenCalled()
     expect(commentOps.editReviewComment).not.toHaveBeenCalled()
-    expect(reviews.restoreArchivedReview).not.toHaveBeenCalled()
-    expect(reviews.deleteArchivedReview).not.toHaveBeenCalled()
   })
 
   it('rejects an empty evidence asset name before any file read', async () => {
@@ -402,28 +358,6 @@ describe('review router contract output', () => {
     expect(await caller().reviewEvidenceAsset({ repoPath: REPO, file: 'gone.png' })).toBeNull()
   })
 
-  it('serializes publish cost, publish result, and the archive list', async () => {
-    expect(await caller().reviewPublishCost(REPO)).toEqual({ bytes: 2048, files: 3 })
-    expect(await caller().publishReview(REPO)).toEqual({
-      id: '2026-08-10-review',
-      cost: { bytes: 2048, files: 3 },
-    })
-    expect(await caller().archivedReviews(REPO)).toEqual([
-      {
-        id: '2026-08-09-review',
-        name: 'Earlier review',
-        thesis: 'It shipped',
-        archivedAt: '2026-08-09T00:00:00.000Z',
-      },
-    ])
-  })
-
-  it('serializes nothing to publish as null', async () => {
-    reviews.publishActiveReview.mockResolvedValueOnce(null as never)
-
-    expect(await caller().publishReview(REPO)).toBeNull()
-  })
-
   it('serializes both loop-evidence body members and the metadata read', async () => {
     expect(await caller().loopEvidence(REPO)).toMatchObject({ title: 'Evidence', medium: 'html' })
     expect(await caller().loopEvidenceHtml(REPO)).toMatchObject({ html: '<p>green</p>' })
@@ -489,7 +423,6 @@ describe('review router contract output', () => {
     expect(await caller().markReviewed({ repoPath: REPO, path: 'src/alpha.ts' })).toBeUndefined()
     expect(await caller().unmarkReviewed({ repoPath: REPO, path: 'src/alpha.ts' })).toBeUndefined()
     expect(await caller().setReviewed({ repoPath: REPO, paths: ['src/alpha.ts'] })).toBeUndefined()
-    expect(await caller().clearFeatureReview(REPO)).toBeUndefined()
     expect(await caller().clearLoopEvidence(REPO)).toBeUndefined()
     expect(
       await caller().resolveReviewComment({ repoPath: REPO, id: 'c1', resolved: true }),
@@ -501,23 +434,6 @@ describe('review router contract output', () => {
       commentId: 'c1',
       resolved: true,
     })
-  })
-
-  it('refuses to serialize an archived review row with an unknown key', async () => {
-    reviews.listArchivedReviews.mockResolvedValueOnce([
-      {
-        id: '2026-08-09-review',
-        name: 'Earlier review',
-        archivedAt: '2026-08-09T00:00:00.000Z',
-        stale: true,
-      },
-    ] as never)
-
-    expectPublicCode(
-      await rejected(() => caller().archivedReviews(REPO)),
-      'internal.unexpected',
-      true,
-    )
   })
 
   it('refuses to serialize evidence metadata whose check status violates the contract', async () => {

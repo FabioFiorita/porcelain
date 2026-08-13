@@ -39,7 +39,7 @@ import {
   tailnetUrl,
   updateConfig,
 } from '../features/remote'
-import { createReviewCommentOperations, type ReviewCommentOperations } from '../features/review'
+import { createReviewOperations, type ReviewOperations } from '../features/review'
 import { createSearchOperations, type SearchOperations } from '../features/search'
 import type { TerminalOperations } from '../features/terminal'
 import { gitGrep, gitListSearchFiles, gitSearchCode } from '../git/git'
@@ -62,7 +62,7 @@ export type DaemonOperations = Readonly<{
   remote: RemoteOperations
   board: BoardOperations
   actions: ActionsOperations
-  reviewComments: ReviewCommentOperations
+  review: ReviewOperations
   files: FilesOperations
   git: GitOperations
   search: SearchOperations
@@ -119,7 +119,7 @@ export function createDaemonOperations(options: {
     actions: createActionsOperations({
       publishSessionChange: publish,
     }),
-    reviewComments: createReviewCommentOperations({
+    review: createReviewOperations({
       publishSessionChange: publish,
     }),
     files: createFilesOperations({ publishSessionChange: publish }),

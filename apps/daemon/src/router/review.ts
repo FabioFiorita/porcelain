@@ -28,17 +28,6 @@ import {
   readEvidenceMeta,
 } from '../stores/evidence-store'
 import {
-  type ArchivedReviewMeta,
-  activeReviewCost,
-  clearReviewSet,
-  deleteArchivedReview,
-  listArchivedReviews,
-  type PublishCost,
-  type PublishResult,
-  publishActiveReview,
-  restoreArchivedReview,
-} from '../stores/review-store'
-import {
   markReviewed,
   readReviewedMarks,
   reconcileReviewed,
@@ -167,15 +156,6 @@ export function createReviewRouter() {
         return reading
       }),
 
-    // Archive the active review (intent, comments, reviewed marks, evidence) under
-    // .porcelain/reviews/<id>/ and clear the active slots → "No review yet".
-    clearFeatureReview: publicProcedure
-      .input(procedureCatalog.clearFeatureReview.input)
-      .output(procedureCatalog.clearFeatureReview.output)
-      .mutation(async ({ input }) => {
-        await clearReviewSet(input)
-      }),
-
     /**
      * Intent as a document set: `.porcelain/intent/` rendered as ordered tabs.
      * HTML arrives self-contained (siblings inlined by the daemon) so the renderer
@@ -221,42 +201,6 @@ export function createReviewRouter() {
         ({ input }): Promise<EvidenceAssetBody | null> =>
           readEvidenceAsset(evidenceAssetsDir(input.repoPath), input.file),
       ),
-
-    /** Byte cost of publishing the active review, so the warning can be specific. */
-    reviewPublishCost: publicProcedure
-      .input(procedureCatalog.reviewPublishCost.input)
-      .output(procedureCatalog.reviewPublishCost.output)
-      .query(({ input }): Promise<PublishCost> => activeReviewCost(input)),
-
-    /**
-     * Archive the active review and stage it for the team. Reviews are Local by
-     * default, so this force-adds; it stages and stops, leaving the commit to the
-     * human.
-     */
-    publishReview: publicProcedure
-      .input(procedureCatalog.publishReview.input)
-      .output(procedureCatalog.publishReview.output)
-      .mutation(({ input }): Promise<PublishResult | null> => publishActiveReview(input)),
-
-    /** Previous (archived) reviews for the project, newest first. */
-    archivedReviews: publicProcedure
-      .input(procedureCatalog.archivedReviews.input)
-      .output(procedureCatalog.archivedReviews.output)
-      .query(({ input }): Promise<ArchivedReviewMeta[]> => listArchivedReviews(input)),
-
-    restoreArchivedReview: publicProcedure
-      .input(procedureCatalog.restoreArchivedReview.input)
-      .output(procedureCatalog.restoreArchivedReview.output)
-      .mutation(async ({ input }) => {
-        await restoreArchivedReview(input.repoPath, input.id)
-      }),
-
-    deleteArchivedReview: publicProcedure
-      .input(procedureCatalog.deleteArchivedReview.input)
-      .output(procedureCatalog.deleteArchivedReview.output)
-      .mutation(async ({ input }) => {
-        await deleteArchivedReview(input.repoPath, input.id)
-      }),
 
     // Loop evidence: agent-authored HTML proving the work was validated (browser /
     // simulator / screenshots), rendered sandboxed as the Review's final chapter.
