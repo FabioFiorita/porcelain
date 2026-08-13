@@ -1,6 +1,11 @@
 function errorType(error: unknown): string {
   const cause = error instanceof Error && error.cause !== undefined ? error.cause : error
-  if (cause instanceof Error) return 'Error'
+  if (cause instanceof Error) {
+    // Class identity only (ERR-002). Never the settable `name`/`message`/`stack` —
+    // those are runtime strings and can carry payload data.
+    const className = cause.constructor.name
+    return className === '' ? 'Error' : className
+  }
   return typeof cause
 }
 

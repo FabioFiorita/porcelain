@@ -29,4 +29,27 @@ describe('unexpected error logging', () => {
       log.mockRestore()
     }
   })
+
+  it('reports the error class name, not the settable name property', () => {
+    const cause = new TypeError('boom')
+    cause.name = 'token=still-secret'
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    try {
+      logUnexpectedError({
+        error: new TRPCError({ code: 'INTERNAL_SERVER_ERROR', cause }),
+        requestId: REQUEST_ID,
+        path: 'renamePath',
+      })
+
+      expect(log).toHaveBeenCalledWith({
+        requestId: REQUEST_ID,
+        path: 'renamePath',
+        errorType: 'TypeError',
+      })
+      expect(JSON.stringify(log.mock.calls)).not.toContain('still-secret')
+    } finally {
+      log.mockRestore()
+    }
+  })
 })

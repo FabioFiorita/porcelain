@@ -25,10 +25,10 @@ import type { CreateDaemonRouterOptions } from './daemon-operations'
  * domain router factory in the historical merge order and merges them with the
  * one shared `initTRPC` builder so procedure names stay flat on the wire.
  *
- * Project, Board, the whole Review domain (comments, lifecycle, reading, Evidence,
- * reviewed marks), Files, Search, and Project Data procedures are bound through
- * `operations`; the remaining legacy routers are composition-only until their
- * migrations land.
+ * Remote, Projects, Git, Files, Search, the whole Review domain (comments,
+ * lifecycle, reading, Evidence, reviewed marks), Board, Actions, Project Data,
+ * and Terminal procedures are bound through `operations`; only the residual
+ * repos/git/settings routers remain composition-only until their migrations land.
  */
 export function createDaemonRouter({ operations }: CreateDaemonRouterOptions) {
   return t.mergeRouters(
