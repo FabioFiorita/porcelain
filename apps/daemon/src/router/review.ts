@@ -1,20 +1,7 @@
 import { procedureCatalog } from '@porcelain/contracts'
-import { projectEvidenceAssetsDir as evidenceAssetsDir } from '@shared/project-porcelain'
 import { reviewedFingerprint, reviewedFingerprints } from '../git/git'
-import { type ReviewDoc, readActiveEvidenceResults, readActiveIntentDocs } from '../review/doc-set'
-import {
-  type EvidenceAsset,
-  type EvidenceAssetBody,
-  listEvidenceAssets,
-  readEvidenceAsset,
-} from '../review/evidence-assets-list'
-import {
-  clearEvidence,
-  type Evidence,
-  type EvidenceMeta,
-  readEvidence,
-  readEvidenceMeta,
-} from '../stores/evidence-store'
+import { type ReviewDoc, readActiveIntentDocs } from '../review/doc-set'
+import { type Evidence, readEvidence } from '../stores/evidence-store'
 import {
   markReviewed,
   readReviewedMarks,
@@ -86,61 +73,15 @@ export function createReviewRouter() {
       .output(procedureCatalog.reviewIntent.output)
       .query(({ input }): Promise<ReviewDoc[]> => readActiveIntentDocs(input)),
 
-    /**
-     * Evidence is three sub-tabs over one directory: **Checks** (the structured
-     * list on `loopEvidence`), **Results** (this — `evidence/results/` as a
-     * document set, the same primitive as Intent), and **Assets** (below).
-     *
-     * The name is wire history: it used to mean "extra docs beside index.html".
-     * Installed clients call it, so it keeps its name and gains a meaning.
-     */
-    reviewEvidenceDocs: publicProcedure
-      .input(procedureCatalog.reviewEvidenceDocs.input)
-      .output(procedureCatalog.reviewEvidenceDocs.output)
-      .query(({ input }): Promise<ReviewDoc[]> => readActiveEvidenceResults(input)),
-
-    /**
-     * The Assets sub-tab: `evidence/assets/` listed as a gallery. Metadata only —
-     * one tile's bytes arrive from `reviewEvidenceAsset`, on demand.
-     */
-    reviewEvidenceAssets: publicProcedure
-      .input(procedureCatalog.reviewEvidenceAssets.input)
-      .output(procedureCatalog.reviewEvidenceAssets.output)
-      .query(({ input }): Promise<EvidenceAsset[]> => listEvidenceAssets(evidenceAssetsDir(input))),
-
-    /**
-     * One gallery image as a data URL. Deliberately a procedure and not an HTTP
-     * route: the daemon's static server serves the renderer dist unauthenticated,
-     * and user files must never leave through it. Null when missing or over cap.
-     */
-    reviewEvidenceAsset: publicProcedure
-      .input(procedureCatalog.reviewEvidenceAsset.input)
-      .output(procedureCatalog.reviewEvidenceAsset.output)
-      .query(
-        ({ input }): Promise<EvidenceAssetBody | null> =>
-          readEvidenceAsset(evidenceAssetsDir(input.repoPath), input.file),
-      ),
-
-    // Loop evidence: agent-authored HTML proving the work was validated (browser /
-    // simulator / screenshots), rendered sandboxed as the Review's final chapter.
-    // See `evidence-store.ts` — re-validated + size-capped on every read (external
-    // process owns the files). Cheap metadata query; full HTML fetched only while
-    // the evidence chapter is on screen. `clearLoopEvidence` is the app's one write.
-    loopEvidence: publicProcedure
-      .input(procedureCatalog.loopEvidence.input)
-      .output(procedureCatalog.loopEvidence.output)
-      .query(({ input }): Promise<EvidenceMeta | null> => readEvidenceMeta(input)),
-
+    // The legacy single-page report: agent-authored HTML from before Evidence had
+    // sub-tabs, rendered sandboxed for installed clients not yet on the
+    // Results/Assets split. Re-validated + size-capped on every read (an external
+    // process owns the files). The rest of the Evidence pack — checks, Results,
+    // Assets, and the clear — is served from `features/review/`; REV-009 deletes
+    // this procedure and its reader together.
     loopEvidenceHtml: publicProcedure
       .input(procedureCatalog.loopEvidenceHtml.input)
       .output(procedureCatalog.loopEvidenceHtml.output)
       .query(({ input }): Promise<Evidence | null> => readEvidence(input)),
-
-    clearLoopEvidence: publicProcedure
-      .input(procedureCatalog.clearLoopEvidence.input)
-      .output(procedureCatalog.clearLoopEvidence.output)
-      .mutation(async ({ input }) => {
-        await clearEvidence(input)
-      }),
   })
 }

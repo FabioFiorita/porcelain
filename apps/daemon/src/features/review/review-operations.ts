@@ -1,6 +1,10 @@
 import type { SessionChange } from '@porcelain/contracts/session'
 import { createReviewCommentOperations, type ReviewCommentOperations } from './comment-operations'
 import {
+  createReviewEvidenceOperations,
+  type ReviewEvidenceOperations,
+} from './review-evidence-operations'
+import {
   createReviewLifecycleOperations,
   type ReviewLifecycleOperations,
 } from './review-lifecycle-operations'
@@ -10,13 +14,14 @@ import {
 } from './review-reading-operations'
 
 /**
- * The Review domain's single bound operation family: comments, lifecycle, and
- * reading under one key, so composition never grows a second Review slice to keep
- * in sync.
+ * The Review domain's single bound operation family: comments, lifecycle, reading,
+ * and evidence under one key, so composition never grows a second Review slice to
+ * keep in sync.
  */
 export type ReviewOperations = ReviewCommentOperations &
   ReviewLifecycleOperations &
-  ReviewReadingOperations
+  ReviewReadingOperations &
+  ReviewEvidenceOperations
 
 export function createReviewOperations(options: {
   publishSessionChange?: (change: SessionChange) => void
@@ -25,5 +30,6 @@ export function createReviewOperations(options: {
     ...createReviewCommentOperations({ publishSessionChange: options.publishSessionChange }),
     ...createReviewLifecycleOperations({}),
     ...createReviewReadingOperations({}),
+    ...createReviewEvidenceOperations({}),
   })
 }

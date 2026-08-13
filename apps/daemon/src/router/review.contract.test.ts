@@ -6,11 +6,12 @@ import { normalizePublicError } from '../daemon-composition/public-error'
 
 // This suite owns the tRPC contract seam only: which raw wire input the Review router
 // accepts and which resolver result it will serialize. Every companion read/write —
-// review sets, evidence packs, comments (via construction-seam ops), the Git plumbing
-// behind the readings — is mocked with synthetic data, so nothing here touches a real
-// repository or channel. Lifecycle procedures live in the Review feature's own router
-// seam (`features/review/review-lifecycle-router.test.ts`).
-const { git, docSet, assets, commentOps, evidence, reviewed } = vi.hoisted(() => {
+// review sets, the legacy evidence body, comments (via construction-seam ops), the Git
+// plumbing behind the readings — is mocked with synthetic data, so nothing here touches
+// a real repository or channel. Lifecycle and Evidence procedures live in the Review
+// feature's own router seams (`features/review/review-lifecycle-router.test.ts`,
+// `features/review/review-evidence-router.test.ts`).
+const { git, docSet, commentOps, evidence, reviewed } = vi.hoisted(() => {
   return {
     git: {
       reviewedFingerprint: vi.fn(async () => 'fp-alpha'),
@@ -20,20 +21,6 @@ const { git, docSet, assets, commentOps, evidence, reviewed } = vi.hoisted(() =>
       readActiveIntentDocs: vi.fn(async () => [
         { file: 'intent.md', label: 'Intent', medium: 'markdown', body: '# Intent' },
       ]),
-      readActiveEvidenceResults: vi.fn(async () => [
-        { file: 'index.html', label: 'Results', medium: 'html', body: '<p>green</p>' },
-      ]),
-    },
-    assets: {
-      listEvidenceAssets: vi.fn(async () => [
-        { file: 'shot.png', label: 'shot', kind: 'image', mime: 'image/png', bytes: 2048 },
-      ]),
-      readEvidenceAsset: vi.fn(async () => ({
-        file: 'shot.png',
-        mime: 'image/png',
-        bytes: 2048,
-        dataUrl: 'data:image/png;base64,AAAA',
-      })),
     },
     commentOps: {
       listReviewComments: vi.fn(async () => ({
@@ -66,16 +53,6 @@ const { git, docSet, assets, commentOps, evidence, reviewed } = vi.hoisted(() =>
       clearResolvedReviewComments: vi.fn(async () => ({ ok: true as const, value: undefined })),
     },
     evidence: {
-      readEvidenceMeta: vi.fn(async () => ({
-        title: 'Evidence',
-        updatedAt: '2026-08-10T00:00:00.000Z',
-        checks: [{ label: 'pnpm verify', status: 'pass' }],
-        dir: '/synthetic/repo/.porcelain/active-review/evidence',
-        medium: 'html',
-        results: 1,
-        assets: 1,
-        hasReport: true,
-      })),
       readEvidence: vi.fn(async () => ({
         title: 'Evidence',
         updatedAt: '2026-08-10T00:00:00.000Z',
@@ -84,7 +61,6 @@ const { git, docSet, assets, commentOps, evidence, reviewed } = vi.hoisted(() =>
         medium: 'html',
         html: '<p>green</p>',
       })),
-      clearEvidence: vi.fn(async () => undefined),
     },
     reviewed: {
       markReviewed: vi.fn(async () => undefined),
@@ -98,7 +74,6 @@ const { git, docSet, assets, commentOps, evidence, reviewed } = vi.hoisted(() =>
 
 vi.mock('../git/git', () => git)
 vi.mock('../review/doc-set', () => docSet)
-vi.mock('../review/evidence-assets-list', () => assets)
 vi.mock('../stores/evidence-store', () => evidence)
 vi.mock('../stores/reviewed-store', () => reviewed)
 
@@ -198,15 +173,6 @@ describe('review router contract input', () => {
     expect(commentOps.addReviewComment).not.toHaveBeenCalled()
     expect(commentOps.editReviewComment).not.toHaveBeenCalled()
   })
-
-  it('rejects an empty evidence asset name before any file read', async () => {
-    const error = await rejected(() =>
-      callWithRawInput('reviewEvidenceAsset', 'query', { repoPath: REPO, file: '' }),
-    )
-
-    expectPublicCode(error, 'request.invalid', false)
-    expect(assets.readEvidenceAsset).not.toHaveBeenCalled()
-  })
 })
 
 describe('review router contract output', () => {
@@ -219,32 +185,13 @@ describe('review router contract output', () => {
     )
   })
 
-  it('serializes Intent and Evidence document sets and the asset gallery', async () => {
+  it('serializes the Intent document set', async () => {
     expect(await caller().reviewIntent(REPO)).toEqual([
       { file: 'intent.md', label: 'Intent', medium: 'markdown', body: '# Intent' },
     ])
-    expect(await caller().reviewEvidenceDocs(REPO)).toEqual([
-      { file: 'index.html', label: 'Results', medium: 'html', body: '<p>green</p>' },
-    ])
-    expect(await caller().reviewEvidenceAssets(REPO)).toEqual([
-      { file: 'shot.png', label: 'shot', kind: 'image', mime: 'image/png', bytes: 2048 },
-    ])
-    expect(await caller().reviewEvidenceAsset({ repoPath: REPO, file: 'shot.png' })).toEqual({
-      file: 'shot.png',
-      mime: 'image/png',
-      bytes: 2048,
-      dataUrl: 'data:image/png;base64,AAAA',
-    })
   })
 
-  it('serializes a missing evidence asset as null', async () => {
-    assets.readEvidenceAsset.mockResolvedValueOnce(null as never)
-
-    expect(await caller().reviewEvidenceAsset({ repoPath: REPO, file: 'gone.png' })).toBeNull()
-  })
-
-  it('serializes both loop-evidence body members and the metadata read', async () => {
-    expect(await caller().loopEvidence(REPO)).toMatchObject({ title: 'Evidence', medium: 'html' })
+  it('serializes both loop-evidence body members', async () => {
     expect(await caller().loopEvidenceHtml(REPO)).toMatchObject({ html: '<p>green</p>' })
 
     evidence.readEvidence.mockResolvedValueOnce({
@@ -294,7 +241,6 @@ describe('review router contract output', () => {
     expect(await caller().markReviewed({ repoPath: REPO, path: 'src/alpha.ts' })).toBeUndefined()
     expect(await caller().unmarkReviewed({ repoPath: REPO, path: 'src/alpha.ts' })).toBeUndefined()
     expect(await caller().setReviewed({ repoPath: REPO, paths: ['src/alpha.ts'] })).toBeUndefined()
-    expect(await caller().clearLoopEvidence(REPO)).toBeUndefined()
     expect(
       await caller().resolveReviewComment({ repoPath: REPO, id: 'c1', resolved: true }),
     ).toBeUndefined()
@@ -305,17 +251,6 @@ describe('review router contract output', () => {
       commentId: 'c1',
       resolved: true,
     })
-  })
-
-  it('refuses to serialize evidence metadata whose check status violates the contract', async () => {
-    evidence.readEvidenceMeta.mockResolvedValueOnce({
-      title: 'Evidence',
-      updatedAt: '2026-08-10T00:00:00.000Z',
-      checks: [{ label: 'pnpm verify', status: 'exploded' }],
-      medium: 'html',
-    } as never)
-
-    expectPublicCode(await rejected(() => caller().loopEvidence(REPO)), 'internal.unexpected', true)
   })
 
   it('refuses to serialize a comment with an unknown key', async () => {

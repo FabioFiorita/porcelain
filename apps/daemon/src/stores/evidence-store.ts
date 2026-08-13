@@ -1,4 +1,4 @@
-import { readdir, readFile, rm, stat } from 'node:fs/promises'
+import { readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import {
   type EvidenceCheck,
@@ -6,11 +6,10 @@ import {
   MAX_CHECK_LABEL,
   MAX_CHECKS,
 } from '@shared/evidence-check'
-import { projectEvidenceAssetsDir, projectEvidenceResultsDir } from '@shared/project-porcelain'
+import { projectEvidenceResultsDir } from '@shared/project-porcelain'
 import { z } from 'zod'
 import { inlineLocalAssets } from '../fs/evidence-assets'
 import { evidenceDirForRepo, evidenceIndexPath, evidenceMetaPath } from '../fs/evidence-paths'
-import { imageMimeForPath } from '../fs/image-mime'
 
 // Structured checks live in the node-free `@shared/evidence-check` leaf so the
 // renderer can import the shape + `evidenceOverallStatus` without pulling this
@@ -18,21 +17,15 @@ import { imageMimeForPath } from '../fs/image-mime'
 export { type EvidenceCheck, evidenceOverallStatus } from '@shared/evidence-check'
 
 /**
- * Evidence — **files on disk are the source of truth**. The pack is three
- * sub-tabs over one directory (`…/active-review/evidence/`):
+ * What is LEFT of the pre-sub-tab evidence store: the single-page body behind
+ * `loopEvidenceHtml`, and the read cap two callers share. The pack itself — its
+ * meta, its `results/` documents, its `assets/` gallery, its presence, its
+ * freshness, and its clear — is owned by
+ * `features/review/fs-review-evidence-store.ts`.
  *
- * - **Checks** — `meta.json` (title + structured checks),
- * - **Results** — `results/`, a document set (see `review/doc-set.ts`),
- * - **Assets** — `assets/`, images listed as a gallery (`review/evidence-assets-list.ts`).
- *
- * Any ONE of them makes a pack. The old gate — "there is an index.html" — hid a
- * checks-only pack completely: an agent that ran the suite and recorded four
- * passes saw "no evidence yet" unless it also wrote a page saying so. Legacy
- * `index.html` still counts, and still renders (as the Results tab's "Report").
- *
- * Agents write with normal Write tools; the app inlines relative images for the
- * sandboxed viewer and clears by deleting the directory (or archives it with the
- * review). See `evidence-paths.ts`.
+ * Files on disk stay the source of truth: agents write with normal Write tools and
+ * the app inlines relative images for the sandboxed viewer. REV-009 deletes this
+ * module with `loopEvidenceHtml`. See `evidence-paths.ts`.
  */
 
 /**
@@ -91,25 +84,6 @@ export type Evidence =
   | (EvidenceBase & { html: string; htmlUnavailable?: never })
   | (EvidenceBase & { html?: never; htmlUnavailable: EvidenceHtmlUnavailable })
 
-export type EvidenceMeta = {
-  title: string
-  updatedAt: string
-  checks: EvidenceCheck[]
-  dir?: string
-  /**
-   * @deprecated Evidence is no longer one medium. Installed mobile clients parse
-   * this as a required literal, so it keeps being emitted; drop it one release
-   * after mobile ships the widened schema.
-   */
-  medium: EvidenceMedium
-  /** Documents in `results/` — how many tabs the Results sub-tab will have. */
-  results?: number
-  /** Images in `assets/` — how many tiles the Assets gallery will have. */
-  assets?: number
-  /** A legacy `index.html` is present, surfaced as the "Report" document. */
-  hasReport?: boolean
-}
-
 // Re-export path helpers so callers (review-watch, e2e) use one place.
 export { evidenceDirForRepo } from '../fs/evidence-paths'
 
@@ -130,96 +104,22 @@ async function fileExists(path: string): Promise<boolean> {
   }
 }
 
-// Mirrors `MEDIUM_BY_EXT` in `review/doc-set.ts` — the counter must agree with
-// the reader about what a document is, or the header promises a tab that is not there.
-const RESULT_EXT = /\.(?:md|markdown|html?)$/i
-
-/** Renderable document names in a `results/` directory (dotfiles excluded). */
-function isResultDoc(name: string): boolean {
-  return !name.startsWith('.') && RESULT_EXT.test(name)
-}
-
-interface PackShape {
-  hasMeta: boolean
-  hasReport: boolean
-  results: number
-  assets: number
-  /** Newest mtime seen under `results/` and `assets/`, ISO or ''. */
-  newestAt: string
-}
-
-/** Names + newest mtime for one sub-directory, matching `keep`. Missing dir → zero. */
-async function scanSubdir(
-  dir: string,
-  keep: (name: string) => boolean,
-): Promise<{ count: number; newestAt: string }> {
-  let entries: string[]
-  try {
-    entries = await readdir(dir)
-  } catch {
-    return { count: 0, newestAt: '' }
-  }
-  let count = 0
-  let newestAt = ''
-  for (const name of entries) {
-    if (!keep(name)) continue
-    try {
-      const info = await stat(join(dir, name))
-      if (!info.isFile()) continue
-      count += 1
-      const at = info.mtime.toISOString()
-      if (at > newestAt) newestAt = at
-    } catch {
-      // vanished mid-scan — the count is a snapshot
-    }
-  }
-  return { count, newestAt }
-}
-
-/** What the pack actually holds. One stat/readdir pass, reused by every reader. */
-async function readPackShape(repoPath: string): Promise<PackShape> {
-  const [results, assets, hasReport, hasMeta] = await Promise.all([
-    scanSubdir(projectEvidenceResultsDir(repoPath), isResultDoc),
-    scanSubdir(projectEvidenceAssetsDir(repoPath), (n) => imageMimeForPath(n) !== null),
-    fileExists(evidenceIndexPath(repoPath)),
-    fileExists(evidenceMetaPath(repoPath)),
-  ])
-  const newestAt = results.newestAt > assets.newestAt ? results.newestAt : assets.newestAt
-  return { hasMeta, hasReport, results: results.count, assets: assets.count, newestAt }
-}
-
 /**
- * A pack exists when ANY of its parts does: recorded checks (`meta.json`), a
- * Results document, a gallery image, or a legacy `index.html`. Checks alone is
- * a complete, honest evidence pack — it used to be invisible. Presence keys off
- * the meta FILE, not a successful parse, so a half-written `meta.json` shows an
- * empty pack rather than making the whole thing vanish mid-write.
- */
-function evidencePackExists(shape: PackShape): boolean {
-  return shape.hasMeta || shape.hasReport || shape.results > 0 || shape.assets > 0
-}
-
-/**
- * Effective stamp for the evidence pack: the latest of meta.updatedAt, the
- * legacy index.html mtime, and the newest file under `results/` / `assets/`.
- * In-place edits (sed, an agent dropping a screenshot in) must invalidate even
- * when `evidence check` never re-bumped meta.
+ * Effective stamp for the legacy report: the later of meta.updatedAt and the body's
+ * own mtime. An in-place edit (a `sed`) must invalidate even when `evidence check`
+ * never re-bumped meta.
  */
 async function resolveUpdatedAt(
   bodyPath: string,
   meta: z.infer<typeof metaSchema> | null,
-  shape?: PackShape,
 ): Promise<string> {
   let latest = meta?.updatedAt?.trim() || ''
-  const consider = (at: string): void => {
-    if (at > latest) latest = at
-  }
   try {
-    consider((await stat(bodyPath)).mtime.toISOString())
+    const at = (await stat(bodyPath)).mtime.toISOString()
+    if (at > latest) latest = at
   } catch {
     // missing body
   }
-  if (shape) consider(shape.newestAt)
   return latest
 }
 
@@ -282,35 +182,4 @@ export async function readEvidence(repoPath: string): Promise<Evidence | null> {
   } catch {
     return null
   }
-}
-
-/**
- * Metadata only, for the Feature list opener and the Evidence header (no HTML
- * payload). Null means "no pack" — see `evidencePackExists` for what counts.
- */
-export async function readEvidenceMeta(repoPath: string): Promise<EvidenceMeta | null> {
-  const shape = await readPackShape(repoPath)
-  if (!evidencePackExists(shape)) return null
-
-  const meta = await readDiskMeta(repoPath)
-  return {
-    title: meta?.title?.trim() || 'Evidence',
-    updatedAt: await resolveUpdatedAt(evidenceIndexPath(repoPath), meta, shape),
-    dir: evidenceDirForRepo(repoPath),
-    checks: meta?.checks ?? [],
-    medium: 'html',
-    results: shape.results,
-    assets: shape.assets,
-    hasReport: shape.hasReport,
-  }
-}
-
-/**
- * Remove a repo's loop evidence by deleting the on-disk directory.
- * Atomic enough for the UI (watcher + poll refresh).
- */
-export async function clearEvidence(repoPath: string): Promise<void> {
-  // The human asked for this: `force` already absorbs "no pack", so anything left
-  // is a real failure the caller must hear about rather than a silent no-op clear.
-  await rm(evidenceDirForRepo(repoPath), { recursive: true, force: true })
 }
