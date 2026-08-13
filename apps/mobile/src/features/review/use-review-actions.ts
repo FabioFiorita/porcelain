@@ -6,8 +6,8 @@ import { isPaired } from '@/features/remote'
 import type { DaemonError } from '@/lib/daemon/errors'
 import type { DaemonMutation } from '@/lib/daemon/procedure'
 import {
-  clearFeatureReviewProcedure,
-  clearLoopEvidenceProcedure,
+  archiveReviewProcedure,
+  clearEvidenceProcedure,
   deleteArchivedReviewProcedure,
   publishReviewProcedure,
   restoreArchivedReviewProcedure,
@@ -59,11 +59,11 @@ export function useReviewActions(): ReviewActions {
     reviewMutations.publishReview.affectedQueries,
   )
   const archive = useReviewMutation(
-    clearFeatureReviewProcedure,
+    archiveReviewProcedure,
     reviewMutations.archiveReview.affectedQueries,
   )
   const clearEvidence = useReviewMutation(
-    clearLoopEvidenceProcedure,
+    clearEvidenceProcedure,
     reviewMutations.clearEvidence.affectedQueries,
   )
 

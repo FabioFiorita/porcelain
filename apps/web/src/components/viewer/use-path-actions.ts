@@ -40,7 +40,7 @@ export function usePathActions(path: string): {
       if (query === '') return
       openTab({ id: tabId('search', query), kind: 'search', title: query, path: query })
     },
-    // Open a read-only feature-flow explore seeded from this file (whole-file) or a
+    // Open a read-only flow exploration seeded from this file (whole-file) or a
     // symbol in it. The seed path is project-relative — the walk resolves against the
     // project file list, not absolute paths.
     exploreFlow: (symbol?: string) => {

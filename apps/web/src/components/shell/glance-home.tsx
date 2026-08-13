@@ -1,6 +1,6 @@
 import { reviewTabKey } from '@renderer/components/git/review-view'
 import { useBoardCards } from '@renderer/features/board'
-import { useGitFlow, useGitWorkspace, type WorktreeInboxRow } from '@renderer/features/git'
+import { type ReviewInboxRow, useGitFlow, useGitWorkspace } from '@renderer/features/git'
 import { useReviewComments, useReviewReading } from '@renderer/features/review'
 import { cn } from '@renderer/lib/utils'
 import { usePreferencesStore } from '@renderer/stores/preferences'
@@ -43,7 +43,7 @@ function GlanceSection({
 
 /** One inbox row — the review-inbox row content on the Glance's tap-target recipe.
  *  Tap switches THIS window to that worktree (same call as review-inbox rows). */
-function InboxGlanceRow({ row }: { row: WorktreeInboxRow }): React.JSX.Element {
+function InboxGlanceRow({ row }: { row: ReviewInboxRow }): React.JSX.Element {
   const switchProject = useProjectSelectionStore((s) => s.switchProject)
 
   const handleOpenWorktree = (): void => {
@@ -99,22 +99,22 @@ export function GlanceHome(): React.JSX.Element | null {
   const showBoard = doing.length > 0 || todo.length > 0
   const hasWork = inbox.length > 0 || showCheckout || showBoard
 
-  // Agent-published Review canvas (Feature tab).
+  // Agent-published Review canvas (the Review tab).
   const handleOpenFeatureReview = (): void => {
-    setSidebarTab('feature')
+    setSidebarTab('review')
     openTab({
-      id: tabId('feature', project.path),
-      kind: 'feature',
+      id: tabId('review', project.path),
+      kind: 'review',
       title: 'Review',
       path: project.path,
     })
   }
 
-  // Continuous stacked diffs for the working tree (U3 — not Feature empty state).
+  // Continuous stacked diffs for the working tree (U3 — not the Review empty state).
   const handleOpenAllChanges = (): void => {
     setSidebarTab('changes')
     const key = reviewTabKey({ type: 'working' })
-    openTab({ id: tabId('review', key), kind: 'review', title: 'All changes', path: key })
+    openTab({ id: tabId('changeset', key), kind: 'changeset', title: 'All changes', path: key })
   }
 
   const handleOpenBoard = (): void => {
@@ -127,7 +127,7 @@ export function GlanceHome(): React.JSX.Element | null {
   }
 
   const handleOpenCommentsRail = (): void => {
-    setSidebarTab(hasReview ? 'feature' : 'changes')
+    setSidebarTab(hasReview ? 'review' : 'changes')
   }
 
   const boardSummary = [

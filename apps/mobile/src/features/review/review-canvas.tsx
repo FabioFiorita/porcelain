@@ -12,7 +12,7 @@ import { SourceCounts } from './review-chrome'
 import { ReviewEmptyState } from './review-empty'
 import { reviewedFractionOf, reviewSourceCounts } from './review-lifecycle'
 import { type ReviewCanvasTab, useReviewStore } from './review-store'
-import { useFeatureReading } from './use-review'
+import { useReviewReading } from './use-review'
 
 const CANVAS_TABS: readonly { value: ReviewCanvasTab; label: string; testID: string }[] = [
   { label: 'Intent', testID: 'porcelain-review-tab-intent', value: 'intent' },
@@ -33,7 +33,7 @@ const CANVAS_TABS: readonly { value: ReviewCanvasTab; label: string; testID: str
  * hidden Intent or Evidence pane has no query in flight at all.
  */
 export function ReviewCanvas({ active }: { active: boolean }): React.JSX.Element {
-  const { error, isLoading, reading } = useFeatureReading(active)
+  const { error, isLoading, reading } = useReviewReading(active)
   const tab = useReviewStore((state) => state.canvasTab)
   const setTab = useReviewStore((state) => state.setCanvasTab)
   // Shares the Changes tab's cache entry, so this costs nothing extra — but only ask once a

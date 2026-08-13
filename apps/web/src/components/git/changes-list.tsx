@@ -94,7 +94,7 @@ function FileRowImpl({
 
   // The row's click opens the working-tree diff; this opens the FULL file (better
   // for reading it whole), flips the sidebar to Files, and reveals the file in
-  // the tree (expand down to it + scroll + highlight). Like feature-list, the
+  // the tree (expand down to it + scroll + highlight). Like review-list, the
   // file tab is keyed by the absolute path.
   const handleOpenFile = (): void => {
     const absolute = `${repoPath}/${file.path}`
@@ -333,8 +333,8 @@ export function ChangesList(): React.JSX.Element {
       changesScope === 'branch' ? ({ type: 'branch' } as const) : ({ type: 'working' } as const)
     const key = reviewTabKey(scope)
     openTab({
-      id: tabId('review', key),
-      kind: 'review',
+      id: tabId('changeset', key),
+      kind: 'changeset',
       title: scope.type === 'branch' ? `All changes · vs ${base ?? 'base'}` : 'All changes',
       path: key,
     })

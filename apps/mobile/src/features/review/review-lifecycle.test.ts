@@ -1,9 +1,9 @@
-import type { FeatureReading } from '@porcelain/contracts/review'
+import type { ReviewReading } from '@porcelain/contracts/review'
 import { describe, expect, it } from 'vitest'
 
 import { reviewedFractionOf, reviewOutlineFiles, reviewSourceCounts } from './review-lifecycle'
 
-function readingWith(overrides: Partial<FeatureReading> = {}): FeatureReading {
+function readingWith(overrides: Partial<ReviewReading> = {}): ReviewReading {
   return {
     evidence: null,
     groups: [],

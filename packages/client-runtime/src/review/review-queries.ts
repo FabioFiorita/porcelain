@@ -5,9 +5,10 @@ import { reviewCommentsQuerySchema } from './comment-queries'
  * Typed Review query identities outside comments (REV-006).
  *
  * One owner for every non-comment Review server-state identity. Four of them —
- * `reading`, `view`, `reviewed-paths` and `worktree-inbox` — were declared in the Git
- * slice before this unit and keep their exact object shape here, so every cache key both
- * clients already hold stays valid. Product language is `projectPath`; the wire's
+ * `reading`, `active`, `reviewed-paths` and `inbox` — were declared in the Git slice
+ * before this unit and keep their exact object shape here. Each identity is named after
+ * its target procedure minus the `review` prefix. Product language is `projectPath`; the
+ * wire's
  * `repoPath` is mapped at the adapter boundary. Empty path is a programmer error
  * (`ReviewIdentityError`), never a public error code, and identity construction is pure.
  */
@@ -34,13 +35,13 @@ const exploreSeedSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('symbol'), path: z.string(), symbol: z.string() }).strict(),
 ])
 
-/** Explore seed dimension, mirroring the live `exploreFeature` input seed. */
+/** Explore seed dimension, mirroring the `exploreReading` input seed. */
 export type ReviewExploreSeed = Readonly<z.infer<typeof exploreSeedSchema>>
 
-export const reviewViewQuerySchema = z
+export const reviewActiveQuerySchema = z
   .object({
     domain: z.literal('review'),
-    name: z.literal('view'),
+    name: z.literal('active'),
     projectPath: projectPathSchema,
   })
   .strict()
@@ -69,27 +70,12 @@ const reviewEvidenceQuerySchema = z
   })
   .strict()
 
-const reviewEvidenceHtmlQuerySchema = z
+const reviewEvidenceDocQuerySchema = z
   .object({
     domain: z.literal('review'),
-    name: z.literal('evidence-html'),
+    name: z.literal('evidence-doc'),
     projectPath: projectPathSchema,
-  })
-  .strict()
-
-const reviewEvidenceDocsQuerySchema = z
-  .object({
-    domain: z.literal('review'),
-    name: z.literal('evidence-docs'),
-    projectPath: projectPathSchema,
-  })
-  .strict()
-
-const reviewEvidenceAssetsQuerySchema = z
-  .object({
-    domain: z.literal('review'),
-    name: z.literal('evidence-assets'),
-    projectPath: projectPathSchema,
+    file: fileDimensionSchema,
   })
   .strict()
 
@@ -126,10 +112,10 @@ export const reviewedPathsQuerySchema = z
   })
   .strict()
 
-export const worktreeInboxQuerySchema = z
+export const reviewInboxQuerySchema = z
   .object({
     domain: z.literal('review'),
-    name: z.literal('worktree-inbox'),
+    name: z.literal('inbox'),
     projectPath: projectPathSchema,
   })
   .strict()
@@ -149,40 +135,36 @@ const reviewExploreQuerySchema = z
  * parses with exactly one constructor per identity.
  */
 export const reviewQuerySchema = z.discriminatedUnion('name', [
-  reviewViewQuerySchema,
+  reviewActiveQuerySchema,
   reviewReadingQuerySchema,
   reviewIntentQuerySchema,
   reviewEvidenceQuerySchema,
-  reviewEvidenceHtmlQuerySchema,
-  reviewEvidenceDocsQuerySchema,
-  reviewEvidenceAssetsQuerySchema,
+  reviewEvidenceDocQuerySchema,
   reviewEvidenceAssetQuerySchema,
   reviewPublishCostQuerySchema,
   reviewArchivedQuerySchema,
   reviewedPathsQuerySchema,
-  worktreeInboxQuerySchema,
+  reviewInboxQuerySchema,
   reviewExploreQuerySchema,
   reviewCommentsQuerySchema,
 ])
 
 export type ReviewQuery = Readonly<z.infer<typeof reviewQuerySchema>>
 
-export type ReviewViewQuery = Readonly<z.infer<typeof reviewViewQuerySchema>>
+export type ReviewActiveQuery = Readonly<z.infer<typeof reviewActiveQuerySchema>>
 export type ReviewReadingQuery = Readonly<z.infer<typeof reviewReadingQuerySchema>>
 export type ReviewIntentQuery = Readonly<z.infer<typeof reviewIntentQuerySchema>>
 export type ReviewEvidenceQuery = Readonly<z.infer<typeof reviewEvidenceQuerySchema>>
-export type ReviewEvidenceHtmlQuery = Readonly<z.infer<typeof reviewEvidenceHtmlQuerySchema>>
-export type ReviewEvidenceDocsQuery = Readonly<z.infer<typeof reviewEvidenceDocsQuerySchema>>
-export type ReviewEvidenceAssetsQuery = Readonly<z.infer<typeof reviewEvidenceAssetsQuerySchema>>
+export type ReviewEvidenceDocQuery = Readonly<z.infer<typeof reviewEvidenceDocQuerySchema>>
 export type ReviewEvidenceAssetQuery = Readonly<z.infer<typeof reviewEvidenceAssetQuerySchema>>
 export type ReviewPublishCostQuery = Readonly<z.infer<typeof reviewPublishCostQuerySchema>>
 export type ReviewArchivedQuery = Readonly<z.infer<typeof reviewArchivedQuerySchema>>
 export type ReviewedPathsQuery = Readonly<z.infer<typeof reviewedPathsQuerySchema>>
-export type WorktreeInboxQuery = Readonly<z.infer<typeof worktreeInboxQuerySchema>>
+export type ReviewInboxQuery = Readonly<z.infer<typeof reviewInboxQuerySchema>>
 export type ReviewExploreQuery = Readonly<z.infer<typeof reviewExploreQuerySchema>>
 
-export function reviewViewQuery(projectPath: string): ReviewViewQuery {
-  return { domain: 'review', name: 'view', projectPath: reviewProjectKey(projectPath) }
+export function reviewActiveQuery(projectPath: string): ReviewActiveQuery {
+  return { domain: 'review', name: 'active', projectPath: reviewProjectKey(projectPath) }
 }
 
 export function reviewReadingQuery(projectPath: string): ReviewReadingQuery {
@@ -197,16 +179,13 @@ export function reviewEvidenceQuery(projectPath: string): ReviewEvidenceQuery {
   return { domain: 'review', name: 'evidence', projectPath: reviewProjectKey(projectPath) }
 }
 
-export function reviewEvidenceHtmlQuery(projectPath: string): ReviewEvidenceHtmlQuery {
-  return { domain: 'review', name: 'evidence-html', projectPath: reviewProjectKey(projectPath) }
-}
-
-export function reviewEvidenceDocsQuery(projectPath: string): ReviewEvidenceDocsQuery {
-  return { domain: 'review', name: 'evidence-docs', projectPath: reviewProjectKey(projectPath) }
-}
-
-export function reviewEvidenceAssetsQuery(projectPath: string): ReviewEvidenceAssetsQuery {
-  return { domain: 'review', name: 'evidence-assets', projectPath: reviewProjectKey(projectPath) }
+export function reviewEvidenceDocQuery(projectPath: string, file: string): ReviewEvidenceDocQuery {
+  return {
+    domain: 'review',
+    name: 'evidence-doc',
+    projectPath: reviewProjectKey(projectPath),
+    file,
+  }
 }
 
 export function reviewEvidenceAssetQuery(
@@ -233,8 +212,8 @@ export function reviewedPathsQuery(projectPath: string): ReviewedPathsQuery {
   return { domain: 'review', name: 'reviewed-paths', projectPath: reviewProjectKey(projectPath) }
 }
 
-export function worktreeInboxQuery(projectPath: string): WorktreeInboxQuery {
-  return { domain: 'review', name: 'worktree-inbox', projectPath: reviewProjectKey(projectPath) }
+export function reviewInboxQuery(projectPath: string): ReviewInboxQuery {
+  return { domain: 'review', name: 'inbox', projectPath: reviewProjectKey(projectPath) }
 }
 
 export function reviewExploreQuery(

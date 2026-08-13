@@ -1,7 +1,7 @@
-import type { FeatureReading, ReviewDoc } from '@porcelain/contracts/review'
+import type { ReviewDoc, ReviewReading } from '@porcelain/contracts/review'
 import { Text, View } from 'react-native'
 import { EmptyNote, ErrorNote } from '@/components/panel-chrome'
-import { markdownToHtml, PreviewView, previewDocument, readerDocument } from '@/features/files'
+import { markdownToHtml, PreviewView, readerDocument } from '@/features/files'
 import { useResolvedColorScheme } from '@/features/settings/theme-provider'
 
 import { IntentDocBody } from './doc-body'
@@ -12,10 +12,10 @@ import { useReviewIntentDocs } from './use-review'
 /**
  * Intent: whatever the agent reached for to make the case.
  *
- * Documents written under `.porcelain/intent/` become panes, plus the review set's freeform
- * board and its thesis/walkthrough narrative — the same three sources the desktop canvas
- * offers, in the same order. One pane renders bare; more than one gets a strip, so a review
- * with a single `index.md` never pays for chrome it does not need.
+ * Documents written under `.porcelain/intent/` become panes, plus the review set's
+ * thesis/walkthrough narrative — the same sources the desktop canvas offers, in the same
+ * order. One pane renders bare; more than one gets a strip, so a review with a single
+ * `index.md` never pays for chrome it does not need.
  *
  * The document set is only read while this canvas is up (see `useReviewIntentDocs`), which is
  * the whole reason Intent is a tab rather than a chapter of one long page.
@@ -26,7 +26,7 @@ export function IntentBody({
 }: {
   /** Focus AND tab visibility — the gate on a read that can reach 8 MiB. */
   active: boolean
-  reading: FeatureReading
+  reading: ReviewReading
 }): React.JSX.Element {
   const { docs, error, isLoading } = useReviewIntentDocs(active)
   const pane = useReviewStore((state) => state.intentPane)
@@ -57,7 +57,7 @@ export function IntentBody({
     }
     return (
       <EmptyNote
-        body="No Intent yet — a document under .porcelain/intent/, a thesis, walkthrough sections, or a freeform board. Files live on the Execution tab."
+        body="No Intent yet — a document under .porcelain/intent/, a thesis, or walkthrough sections. Files live on the Execution tab."
         testID="porcelain-review-intent-empty"
         title="Nothing to read yet"
       />
@@ -80,29 +80,19 @@ export function IntentBody({
 }
 
 /**
- * A pane is one of the agent's documents, the freeform board, or the narrative the review set
+ * A pane is one of the agent's documents, or the narrative the review set
  * carries in `thesis` / `sections`. Resolved to a body at render time, so the strip can list
  * them all without building any of them.
  */
-type IntentPane = DocTab &
-  (
-    | { kind: 'doc'; doc: ReviewDoc }
-    | { kind: 'html'; html: string }
-    | { kind: 'markup'; markup: string }
-  )
+type IntentPane = DocTab & ({ kind: 'doc'; doc: ReviewDoc } | { kind: 'markup'; markup: string })
 
-function intentPanes(reading: FeatureReading, docs: readonly ReviewDoc[]): IntentPane[] {
+function intentPanes(reading: ReviewReading, docs: readonly ReviewDoc[]): IntentPane[] {
   const panes: IntentPane[] = docs.map((doc) => ({
     doc,
     key: `doc:${doc.file}`,
     kind: 'doc',
     label: doc.label,
   }))
-
-  const canvas = reading.canvas
-  if (canvas !== undefined) {
-    panes.push({ html: canvas.html, key: 'board', kind: 'html', label: 'Board' })
-  }
 
   const markup = narrativeMarkup(reading)
   if (markup !== null) {
@@ -121,7 +111,7 @@ function intentPanes(reading: FeatureReading, docs: readonly ReviewDoc[]): Inten
  * The preview document's own CSP (`default-src 'none'`, no scripting, no network) is what
  * makes that safe — the same guarantee the desktop's `sandbox=""` frame gives them.
  */
-function narrativeMarkup(reading: FeatureReading): string | null {
+function narrativeMarkup(reading: ReviewReading): string | null {
   const parts: string[] = []
   if (reading.thesis !== undefined && reading.thesis.trim() !== '') {
     parts.push(markdownToHtml(reading.thesis))
@@ -148,11 +138,6 @@ function IntentPaneBody({
         document={readerDocument(pane.markup, scheme)}
         testID="porcelain-review-intent-document"
       />
-    )
-  }
-  if (pane.kind === 'html') {
-    return (
-      <PreviewView document={previewDocument(pane.html)} testID="porcelain-review-intent-board" />
     )
   }
   return <IntentDocBody doc={pane.doc} testIDPrefix="porcelain-review-intent-doc" />

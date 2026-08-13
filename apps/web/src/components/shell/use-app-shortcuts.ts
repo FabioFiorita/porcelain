@@ -13,11 +13,11 @@ import { runUserAction } from '@shared/background'
 import { useEffect } from 'react'
 
 // Must match the rail order in app-sidebar.tsx (agentic loop: Files → Changes →
-// Feature → History → Search → Board → Terminal).
+// Review → History → Search → Board → Terminal).
 const SIDEBAR_TAB_KEYS: Record<string, SidebarTab | undefined> = {
   '1': 'files',
   '2': 'changes',
-  '3': 'feature',
+  '3': 'review',
   '4': 'history',
   '5': 'search',
   '6': 'board',

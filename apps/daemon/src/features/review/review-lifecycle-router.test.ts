@@ -85,7 +85,7 @@ describe('review lifecycle router mapping', () => {
     const calls: unknown[] = []
     const caller = createReviewLifecycleRouter(lifecycleOps({}, calls)).createCaller(PUBLIC_CONTEXT)
 
-    await expect(caller.reviewPublishCost(REPO)).resolves.toEqual({ bytes: 2048, files: 3 })
+    await expect(caller.publishCost(REPO)).resolves.toEqual({ bytes: 2048, files: 3 })
     await expect(caller.publishReview(REPO)).resolves.toEqual({
       id: '2026-08-10-review',
       cost: { bytes: 2048, files: 3 },
@@ -105,7 +105,7 @@ describe('review lifecycle router mapping', () => {
     const calls: unknown[] = []
     const caller = createReviewLifecycleRouter(lifecycleOps({}, calls)).createCaller(PUBLIC_CONTEXT)
 
-    await expect(caller.clearFeatureReview(REPO)).resolves.toBeUndefined()
+    await expect(caller.archiveReview(REPO)).resolves.toBeUndefined()
     await expect(
       caller.restoreArchivedReview({ repoPath: REPO, id: 'arc-1' }),
     ).resolves.toBeUndefined()
@@ -179,11 +179,7 @@ describe('review lifecycle router mapping', () => {
     const caller = createReviewLifecycleRouter(failing()).createCaller(PUBLIC_CONTEXT)
 
     expectPublicCode(await rejected(() => caller.publishReview(REPO)), 'review.unavailable', false)
-    expectPublicCode(
-      await rejected(() => caller.clearFeatureReview(REPO)),
-      'review.unavailable',
-      false,
-    )
+    expectPublicCode(await rejected(() => caller.archiveReview(REPO)), 'review.unavailable', false)
     expectPublicCode(
       await rejected(() => caller.restoreArchivedReview({ repoPath: REPO, id: 'arc-1' })),
       'review.unavailable',

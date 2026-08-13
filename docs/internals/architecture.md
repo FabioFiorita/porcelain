@@ -26,7 +26,7 @@ apps/
   mobile/     @porcelain/mobile     Expo iOS
 
 packages/
-  contracts/       wire protocol + ten-domain procedure catalog (113 exact I/O schemas)
+  contracts/       wire protocol + ten-domain procedure catalog (109 exact I/O schemas)
   client-runtime/  non-UI client core (session protocol, keys, word-diff)
   shared/          pure cross-cutting helpers (home, platform, ids, …)
 ```
@@ -77,7 +77,7 @@ Canonical stamp: `apps/desktop/package.json` (electron-builder) until release pr
 | 1 | No daemon / CLI / web business logic under `apps/desktop` | **Done** (only main/preload/packaging) |
 | 2 | Daemon and CLI build without electron-vite | **Done** (`build-node.mjs`) |
 | 3 | Web builds with its own Vite pipeline | **Done** (`apps/web` vite) |
-| 4 | Contracts: no application imports; exhaustive exact procedure I/O | **Done** (ten domain records compose 113 exact input/output schemas; no horizontal names list, fallback I/O, or app-type tombstone remains) |
+| 4 | Contracts: no application imports; exhaustive exact procedure I/O | **Done** (ten domain records compose 109 exact input/output schemas; no horizontal names list, fallback I/O, or app-type tombstone remains) |
 | 5 | client-runtime shared nonvisual semantics; platform adapters stay per app | **In progress** (pure protocol/keys/word-diff leaves exist; query, mutation, notification, error, and session state semantics are not shared yet) |
 | 6 | All package versions identical via sync-versions | **Done** |
 | 7 | Linux default = daemon + web | **Done** (docs + packaging story) |

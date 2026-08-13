@@ -3,8 +3,8 @@ import { Compass } from 'lucide-react'
 import { ReadingSurfaceBody } from './reading-surface'
 import { useExplore } from './review-queries'
 
-// The viewer's `explore` tab: a read-only feature flow seeded from a symbol (or a
-// whole file), rendered through the same sliced reading surface as the feature read.
+// The viewer's `explore` tab: a read-only code flow seeded from a symbol (or a
+// whole file), rendered through the same sliced reading surface as the Review read.
 // Nothing is changed — every file is `context`, flow-ordered entry-point → data.
 // Re-traces when the seed changes or watched files invalidate the query (no manual
 // reload control — same doctrine as Changes / Review).

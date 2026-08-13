@@ -1,31 +1,31 @@
 import {
   reviewArchivedQuery,
   reviewEvidenceAssetQuery,
-  reviewEvidenceAssetsQuery,
-  reviewEvidenceDocsQuery,
+  reviewEvidenceDocQuery,
+  reviewEvidenceQuery,
   reviewIntentQuery,
   reviewPublishCostQuery,
   reviewReadingQuery,
 } from '@porcelain/client-runtime/review'
 import type {
   ArchivedReview,
-  EvidenceAsset,
   EvidenceAssetBody,
-  FeatureReading,
   PublishCost,
   ReviewDoc,
+  ReviewEvidence,
+  ReviewReading as ReviewReadingDocument,
 } from '@porcelain/contracts/review'
 
 import { LIVE_POLL_MS } from '@/lib/daemon/poll'
 
 import {
   archivedReviewsProcedure,
-  featureReadingProcedure,
+  publishCostProcedure,
   reviewEvidenceAssetProcedure,
-  reviewEvidenceAssetsProcedure,
-  reviewEvidenceDocsProcedure,
+  reviewEvidenceDocProcedure,
+  reviewEvidenceProcedure,
   reviewIntentProcedure,
-  reviewPublishCostProcedure,
+  reviewReadingProcedure,
 } from './review-procedures'
 import { useReviewQuery, useReviewScope } from './use-review-transport'
 
@@ -33,8 +33,8 @@ import { useReviewQuery, useReviewScope } from './use-review-transport'
  * Every read the Review makes, and the rule each one follows.
  *
  * The rule that matters here is **lazy**: an Intent document set can be 8 MiB and an evidence
- * pack 4 MiB, and neither is worth a byte until the reader is actually on that canvas. So
- * `featureReading` — small, live, and what every other surface derives from — is the only
+ * document 2 MiB, and neither is worth a byte until the reader is actually on that canvas. So
+ * `reviewReading` — small, live, and what every other surface derives from — is the only
  * thing that polls, and the heavy reads are gated on their own tab being visible. Fetching
  * them beside the reading "to have them ready" is the one thing that would make this tab
  * expensive to open.
@@ -44,9 +44,9 @@ import { useReviewQuery, useReviewScope } from './use-review-transport'
  * on this surface.
  */
 
-export type ReviewReading = {
+export type ReviewReadingResult = {
   /** `undefined` until the first read lands; `null` when there is no active review. */
-  reading: FeatureReading | null | undefined
+  reading: ReviewReadingDocument | null | undefined
   isLoading: boolean
   error: Error | null
 }
@@ -59,11 +59,11 @@ export type ReviewReading = {
  * read it — a Review that only refreshed on remount would show a story the agent has already
  * moved past.
  */
-export function useFeatureReading(active: boolean): ReviewReading {
+export function useReviewReading(active: boolean): ReviewReadingResult {
   const scope = useReviewScope()
   const { data, error, isLoading } = useReviewQuery(
     reviewReadingQuery(scope.projectPath),
-    featureReadingProcedure,
+    reviewReadingProcedure,
     scope.repoPath,
     {
       enabled: active && scope.ready,
@@ -96,43 +96,44 @@ export function useReviewIntentDocs(enabled: boolean): {
 }
 
 /**
- * The Results sub-tab of Evidence: `evidence/results/`, plus a legacy `index.html`
- * the daemon folds in as "Report". Same lazy rule as Intent, same reason — this is
- * the single largest thing the Evidence canvas reads.
+ * The whole evidence pack in one read: the checks, the Results document descriptors and the
+ * Assets descriptors. No document text and no image bytes travel here, which is what makes a
+ * single aggregate cheap enough for the Evidence canvas to open on — the bodies are fetched
+ * one at a time by the panes that actually show them.
  */
-export function useReviewEvidenceDocs(enabled: boolean): {
-  docs: ReviewDoc[] | undefined
+export function useReviewEvidence(enabled: boolean): {
+  evidence: ReviewEvidence | null | undefined
   isLoading: boolean
   error: Error | null
 } {
   const scope = useReviewScope()
   const { data, error, isLoading } = useReviewQuery(
-    reviewEvidenceDocsQuery(scope.projectPath),
-    reviewEvidenceDocsProcedure,
+    reviewEvidenceQuery(scope.projectPath),
+    reviewEvidenceProcedure,
     scope.repoPath,
     { enabled: enabled && scope.ready },
   )
-  return { docs: data, error, isLoading }
+  return { error, evidence: data, isLoading }
 }
 
 /**
- * The Assets gallery listing — names, types, sizes, no bytes. Cheap enough to read
- * with the rest of the pack, which is what lets the sub-tab show its count before
- * anyone opens it.
+ * One Results document's body, named by its descriptor's file.
+ *
+ * The identity carries the file, so two documents never share a cache entry, and a pack with
+ * five documents costs one document's bytes rather than five.
  */
-export function useReviewEvidenceAssets(enabled: boolean): {
-  assets: EvidenceAsset[] | undefined
-  isLoading: boolean
-  error: Error | null
-} {
+export function useReviewEvidenceDoc(
+  file: string,
+  enabled: boolean,
+): { doc: ReviewDoc | null | undefined; isLoading: boolean; error: Error | null } {
   const scope = useReviewScope()
   const { data, error, isLoading } = useReviewQuery(
-    reviewEvidenceAssetsQuery(scope.projectPath),
-    reviewEvidenceAssetsProcedure,
-    scope.repoPath,
+    reviewEvidenceDocQuery(scope.projectPath, file),
+    reviewEvidenceDocProcedure,
+    { file, repoPath: scope.repoPath },
     { enabled: enabled && scope.ready },
   )
-  return { assets: data, error, isLoading }
+  return { doc: data, error, isLoading }
 }
 
 /**
@@ -166,7 +167,7 @@ export function useReviewPublishCost(enabled: boolean): PublishCost | undefined 
   const scope = useReviewScope()
   const { data } = useReviewQuery(
     reviewPublishCostQuery(scope.projectPath),
-    reviewPublishCostProcedure,
+    publishCostProcedure,
     scope.repoPath,
     { enabled: enabled && scope.ready },
   )

@@ -33,7 +33,6 @@ import { ensureProjectDir } from './project-io'
 //     meta.json    — { title, repoPath, updatedAt, checks[] }   → the Checks sub-tab
 //     results/     — an ordered .md/.html document set (meta.json {tabs})  → Results
 //     assets/      — a flat directory of images, rendered natively  → Assets gallery
-//     index.html   — LEGACY single report; still renders, no longer written here
 //
 // Agents SHOULD write those files with normal Write tools (no CLI payload limits).
 // `porcelain evidence prepare` with a title only makes the directories and returns
@@ -43,8 +42,8 @@ import { ensureProjectDir } from './project-io'
 /**
  * The CLI `set` payload cap stays small on purpose — it steers agents to the
  * write-files path for anything with screenshots. The READ-side cap in
- * apps/daemon/src/stores/evidence-store.ts is higher (4 MB) to give inlined screenshots
- * headroom after data-URI inlining.
+ * apps/daemon/src/features/files/workspace-files.ts is higher (4 MB) to give inlined
+ * screenshots headroom after data-URI inlining.
  */
 export const MAX_HTML_BYTES = 1_572_864
 
@@ -53,8 +52,8 @@ export { evidenceOverallStatus } from '@shared/evidence-check'
 
 /**
  * Viewer read-side ceiling after data-URI inlining (the `MAX_HTML_BYTES` in
- * `apps/daemon/src/stores/evidence-store.ts`). Exceeding it makes the app show
- * "Evidence too large" instead of the HTML body.
+ * `apps/daemon/src/features/files/workspace-files.ts`). Exceeding it makes the app
+ * show "Evidence too large" instead of the HTML body.
  */
 const READ_MAX_HTML_BYTES = 4_194_304
 
@@ -63,7 +62,7 @@ export interface Evidence {
   html: string
   updatedAt: string
   dir: string
-  /** Where the report was found, relative to `dir` — `results/index.html` or the legacy root. */
+  /** Where the report was found, relative to `dir` — always `results/index.html`. */
   file: string
 }
 
@@ -260,7 +259,7 @@ export interface PreparedEvidence {
  * and the meta that carries the title.
  *
  * Wipes any previous pack (documents, screenshots, checks) first so agents never
- * stack stale images from an older feature under a new title. Agents then write
+ * stack stale images from an older review under a new title. Agents then write
  * documents into `results/` and drop screenshots into `assets/`.
  */
 export function prepareEvidence(repoPath: string, title: unknown): PreparedEvidence {
@@ -287,9 +286,9 @@ export function prepareEvidence(repoPath: string, title: unknown): PreparedEvide
  * agent Write tools for large documents. Clears the prior pack first so old
  * screenshots cannot linger beside a new body.
  *
- * The document goes to `results/`, NOT the evidence root: the root `index.html` is
- * read-only legacy compatibility now, and a pack that mixes the two makes an agent
- * guess which one the human is reading.
+ * The document goes to `results/`, NOT the evidence root: the root `index.html` era
+ * is retired, and a pack that mixes the two makes an agent guess which one the
+ * human is reading.
  */
 export function setEvidence(repoPath: string, title: unknown, html: unknown): Evidence {
   const valid = validateEvidence(title, html)
@@ -311,18 +310,12 @@ export function clearEvidence(repoPath: string): void {
 }
 
 /**
- * The pack's primary report, for the `get` summary: `results/index.html` first,
- * then the legacy root `index.html` a pack written by an older agent still has.
- * A pack with no report at all is not "no evidence" — checks and a gallery are
- * evidence too — so `describeEvidence` reports those separately.
+ * The pack's primary report, for the `get` summary: `results/index.html`. A pack
+ * with no report at all is not "no evidence" — checks and a gallery are evidence
+ * too — so `describeEvidence` reports those separately.
  */
 export function getEvidence(repoPath: string): Evidence | null {
-  const dir = evidenceDirForRepo(repoPath)
-  for (const file of [`${EVIDENCE_RESULTS_DIR}/index.html`, 'index.html']) {
-    const found = readReport(dir, file)
-    if (found !== null) return found
-  }
-  return null
+  return readReport(evidenceDirForRepo(repoPath), `${EVIDENCE_RESULTS_DIR}/index.html`)
 }
 
 function readReport(dir: string, file: string): Evidence | null {

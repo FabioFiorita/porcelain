@@ -17,7 +17,7 @@ export function parseReviewTabKey(path: string): DiffReadingScope {
 
 /**
  * Continuous stacked-diff reading surface opened from Changes or History.
- * Reuses the same ReadingSurfaceBody as Feature/Explore; file-name rows carry
+ * Reuses the same ReadingSurfaceBody as the Review canvas and Explore; file-name rows carry
  * mark-reviewed (working/branch only), open-file, and collapse actions.
  */
 export function ReviewView({ path }: { path: string }): React.JSX.Element {

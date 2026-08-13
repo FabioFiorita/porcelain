@@ -1,7 +1,7 @@
 /** Web Git feature boundary: transport, semantic cache identities, and Git-owned actions. */
 
 export type { BranchRef, GitHead, Worktree } from '@porcelain/contracts/git'
-export type { WorktreeInboxRow } from '@porcelain/contracts/review'
+export type { ReviewInboxRow } from '@porcelain/contracts/review'
 export type { QuickCommandId } from './git-mutations'
 export {
   useCommit,

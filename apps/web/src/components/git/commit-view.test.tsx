@@ -120,12 +120,12 @@ describe('CommitView', () => {
     const { tabs, activeTabId } = pane
     expect(tabs).toHaveLength(1)
     expect(tabs[0]).toMatchObject({
-      id: tabId('review', key),
-      kind: 'review',
+      id: tabId('changeset', key),
+      kind: 'changeset',
       path: key,
       title: 'feat: add widget and schema',
     })
-    expect(activeTabId).toBe(tabId('review', key))
+    expect(activeTabId).toBe(tabId('changeset', key))
   })
 
   it('hides All changes when the commit has no files', () => {

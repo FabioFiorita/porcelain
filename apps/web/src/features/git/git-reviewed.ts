@@ -9,8 +9,7 @@ import { useMemo } from 'react'
 import { invalidateGitEffects } from './git-query-filter'
 import { gitQueryKey } from './git-query-key'
 
-type MarkVariables = { repoPath: string; path: string }
-type SetVariables = { repoPath: string; paths: string[] }
+type SetVariables = { repoPath: string; paths: string[]; reviewed: boolean }
 type MutationContext = { previous: string[] | undefined; queryKey: readonly unknown[] }
 
 function daemonScope(identity: { host: string | null; version: string | null }) {
@@ -32,17 +31,17 @@ export function useReviewedPaths(): Set<string> {
   return useMemo(() => new Set(query.data ?? []), [query.data])
 }
 
-function useReviewedMutation<TInput extends MarkVariables | SetVariables>(
-  execute: (input: TInput) => Promise<void>,
+function useReviewedMutation(
+  execute: (input: SetVariables) => Promise<void>,
   title: string,
-  update: (previous: string[] | undefined, input: TInput) => string[],
-): ReturnType<typeof useMutation<void, Error, TInput>> {
+  update: (previous: string[] | undefined, input: SetVariables) => string[],
+): ReturnType<typeof useMutation<void, Error, SetVariables>> {
   const project = useProjectSelectionStore((state) => state.project)
   const identity = useDaemonIdentity()
   const queryClient = useQueryClient()
   const path = project?.path ?? '/__porcelain-disabled-reviewed-paths__'
   const queryKey = gitQueryKey(daemonScope(identity), reviewedPathsQuery(path))
-  return useMutation<void, Error, TInput, MutationContext>({
+  return useMutation<void, Error, SetVariables, MutationContext>({
     mutationFn: execute,
     onError: (error, _input, context): void => {
       if (context !== undefined) queryClient.setQueryData(context.queryKey, context.previous)
@@ -60,46 +59,52 @@ function useReviewedMutation<TInput extends MarkVariables | SetVariables>(
   })
 }
 
+/**
+ * The one reviewed-mark write: `setReviewed` is total over `{ repoPath, paths, reviewed }`,
+ * so marking, unmarking, and the bulk header toggle are the same atomic call. The optimistic
+ * update mirrors that totality — it adds or removes exactly the named paths.
+ */
+function useSetReviewedMutation(): ReturnType<typeof useMutation<void, Error, SetVariables>> {
+  const utils = trpc.useUtils()
+  return useReviewedMutation(
+    (input) => utils.client.setReviewed.mutate(input),
+    'Update reviewed',
+    (previous, input) => {
+      if (!input.reviewed) {
+        const dropped = new Set(input.paths)
+        return (previous ?? []).filter((path) => !dropped.has(path))
+      }
+      return [...new Set([...(previous ?? []), ...input.paths])]
+    },
+  )
+}
+
 export function useToggleReviewed(): {
   mark: (path: string) => void
   unmark: (path: string) => void
 } {
   const project = useProjectSelectionStore((state) => state.project)
-  const utils = trpc.useUtils()
-  const mark = useReviewedMutation<MarkVariables>(
-    (input) => utils.client.markReviewed.mutate(input),
-    'Mark reviewed',
-    (previous, input) => [...new Set([...(previous ?? []), input.path])],
-  )
-  const unmark = useReviewedMutation<MarkVariables>(
-    async (input): Promise<void> => {
-      await utils.client.unmarkReviewed.mutate(input)
-    },
-    'Unmark reviewed',
-    (previous, input) => (previous ?? []).filter((path) => path !== input.path),
-  )
+  const mutation = useSetReviewedMutation()
   return {
     mark: (path: string): void => {
-      if (project !== null) mark.mutate({ path, repoPath: project.path })
+      if (project !== null)
+        mutation.mutate({ paths: [path], repoPath: project.path, reviewed: true })
     },
     unmark: (path: string): void => {
       if (project !== null) {
-        const input = { path, repoPath: project.path }
-        unmark.mutate(input)
+        mutation.mutate({ paths: [path], repoPath: project.path, reviewed: false })
       }
     },
   }
 }
 
-export function useSetReviewed(): (paths: string[]) => void {
+/** Bulk "mark all / unmark all" — one atomic write over the named paths. */
+export function useSetReviewed(): (paths: string[], reviewed: boolean) => void {
   const project = useProjectSelectionStore((state) => state.project)
-  const utils = trpc.useUtils()
-  const mutation = useReviewedMutation<SetVariables>(
-    (input) => utils.client.setReviewed.mutate(input),
-    'Update reviewed',
-    (_previous, input) => input.paths,
-  )
-  return (paths: string[]): void => {
-    if (project !== null) mutation.mutate({ paths, repoPath: project.path })
+  const mutation = useSetReviewedMutation()
+  return (paths: string[], reviewed: boolean): void => {
+    if (project !== null && paths.length > 0) {
+      mutation.mutate({ paths, repoPath: project.path, reviewed })
+    }
   }
 }

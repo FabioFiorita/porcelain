@@ -3,45 +3,43 @@ import { describe, expect, it } from 'vitest'
 import { reviewCommentsQuery } from './comment-queries'
 import { reviewNotificationEffects } from './review-notifications'
 import {
+  reviewActiveQuery,
   reviewArchivedQuery,
-  reviewEvidenceAssetsQuery,
-  reviewEvidenceDocsQuery,
-  reviewEvidenceHtmlQuery,
   reviewEvidenceQuery,
   reviewExploreQuery,
   reviewedPathsQuery,
+  reviewInboxQuery,
   reviewIntentQuery,
   reviewPublishCostQuery,
   reviewReadingQuery,
-  reviewViewQuery,
-  worktreeInboxQuery,
 } from './review-queries'
-import { reviewEvidenceAssetQueryFamily } from './review-query-effects'
+import {
+  reviewEvidenceAssetQueryFamily,
+  reviewEvidenceDocQueryFamily,
+} from './review-query-effects'
 
 const notification = reviewChangedSchema.parse(reviewNotificationFixtures['review.changed'])
 const PROJECT = notification.projectPath
 
 describe('reviewNotificationEffects', () => {
-  it('maps review.changed to exactly the eleven active-review effects of its project', () => {
+  it('maps review.changed to exactly the ten stale effects of its project', () => {
     expect(reviewNotificationEffects(notification)).toEqual([
-      reviewViewQuery(PROJECT),
+      reviewActiveQuery(PROJECT),
       reviewReadingQuery(PROJECT),
       reviewIntentQuery(PROJECT),
       reviewEvidenceQuery(PROJECT),
-      reviewEvidenceHtmlQuery(PROJECT),
-      reviewEvidenceDocsQuery(PROJECT),
-      reviewEvidenceAssetsQuery(PROJECT),
+      reviewEvidenceDocQueryFamily(PROJECT),
       reviewEvidenceAssetQueryFamily(PROJECT),
       reviewedPathsQuery(PROJECT),
+      reviewCommentsQuery(PROJECT),
       reviewPublishCostQuery(PROJECT),
       reviewArchivedQuery(PROJECT),
     ])
   })
 
-  it('excludes comments, worktree-inbox, explore, and every foreign domain', () => {
+  it('excludes the inbox, explore, and every foreign domain', () => {
     const effects = reviewNotificationEffects(notification)
-    expect(effects).not.toContainEqual(reviewCommentsQuery(PROJECT))
-    expect(effects).not.toContainEqual(worktreeInboxQuery(PROJECT))
+    expect(effects).not.toContainEqual(reviewInboxQuery(PROJECT))
     expect(effects).not.toContainEqual(
       reviewExploreQuery(PROJECT, { kind: 'file', path: 'src/changed.ts' }),
     )

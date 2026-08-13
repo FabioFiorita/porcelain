@@ -1,9 +1,8 @@
 /**
  * Review domain public surface for daemon composition.
- * Comment, lifecycle, reading (the active review, its document, exploration, and the
- * inbox), and Evidence (checks, Results, Assets, clear) procedures live here; the
- * remaining Review procedures (Intent, `loopEvidenceHtml`, reviewed marks) stay under
- * router/review.ts until REV-009.
+ * The whole Review wire lives here: comments, lifecycle, reading (the active review,
+ * its document, Intent, exploration, and the inbox), Evidence (the pack, one document,
+ * one asset, clear), and the reviewed marks.
  */
 
 export {
@@ -12,6 +11,7 @@ export {
 } from './comment-operations'
 export { createReviewCommentRouter } from './comment-router'
 export type {
+  ReviewEvidenceAssetDescriptor,
   ReviewEvidenceDocDescriptor,
   ReviewEvidencePack,
   ReviewEvidenceStore,
@@ -27,6 +27,16 @@ export type {
   ReviewPublishOutcome,
 } from './review-lifecycle-capabilities'
 export { createReviewLifecycleRouter } from './review-lifecycle-router'
+export type {
+  ReviewedMark,
+  ReviewMarksGit,
+  ReviewMarksStore,
+} from './review-marks-capabilities'
+export {
+  createReviewMarksOperations,
+  type ReviewMarksOperations,
+} from './review-marks-operations'
+export { createReviewMarksRouter } from './review-marks-router'
 export { createReviewOperations, type ReviewOperations } from './review-operations'
 export type {
   InboxRow,
@@ -34,6 +44,7 @@ export type {
   ReviewEvidenceSummary,
   ReviewFiles,
   ReviewGit,
+  ReviewIntent,
   ReviewReadingSources,
 } from './review-reading-capabilities'
 export {

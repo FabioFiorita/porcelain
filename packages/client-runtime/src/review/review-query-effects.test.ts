@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { reviewCommentsQuery } from './comment-queries'
 import {
+  reviewActiveQuery,
   reviewArchivedQuery,
   reviewEvidenceAssetQuery,
-  reviewEvidenceAssetsQuery,
+  reviewEvidenceQuery,
   reviewedPathsQuery,
   reviewReadingQuery,
-  reviewViewQuery,
 } from './review-queries'
 import {
   dedupeReviewQueryEffects,
@@ -34,9 +34,9 @@ describe('reviewEvidenceAssetQueryFamily', () => {
   it('matches no other Review identity', () => {
     const family = reviewEvidenceAssetQueryFamily(PROJECT)
     const others = [
-      reviewViewQuery(PROJECT),
+      reviewActiveQuery(PROJECT),
       reviewReadingQuery(PROJECT),
-      reviewEvidenceAssetsQuery(PROJECT),
+      reviewEvidenceQuery(PROJECT),
       reviewedPathsQuery(PROJECT),
       reviewArchivedQuery(PROJECT),
       reviewCommentsQuery(PROJECT),
@@ -49,14 +49,14 @@ describe('reviewEvidenceAssetQueryFamily', () => {
 
 describe('reviewQueryEffectMatchesQuery', () => {
   it('matches an exact identity against itself only', () => {
-    expect(reviewQueryEffectMatchesQuery(reviewViewQuery(PROJECT), reviewViewQuery(PROJECT))).toBe(
-      true,
-    )
     expect(
-      reviewQueryEffectMatchesQuery(reviewViewQuery(PROJECT), reviewReadingQuery(PROJECT)),
+      reviewQueryEffectMatchesQuery(reviewActiveQuery(PROJECT), reviewActiveQuery(PROJECT)),
+    ).toBe(true)
+    expect(
+      reviewQueryEffectMatchesQuery(reviewActiveQuery(PROJECT), reviewReadingQuery(PROJECT)),
     ).toBe(false)
     expect(
-      reviewQueryEffectMatchesQuery(reviewViewQuery(PROJECT), reviewViewQuery(OTHER_PROJECT)),
+      reviewQueryEffectMatchesQuery(reviewActiveQuery(PROJECT), reviewActiveQuery(OTHER_PROJECT)),
     ).toBe(false)
     expect(
       reviewQueryEffectMatchesQuery(
@@ -70,14 +70,14 @@ describe('reviewQueryEffectMatchesQuery', () => {
 describe('dedupeReviewQueryEffects', () => {
   it('collapses repeats while preserving first-seen order', () => {
     const effects = dedupeReviewQueryEffects([
-      reviewViewQuery(PROJECT),
+      reviewActiveQuery(PROJECT),
       reviewEvidenceAssetQueryFamily(PROJECT),
-      reviewViewQuery(PROJECT),
+      reviewActiveQuery(PROJECT),
       reviewEvidenceAssetQueryFamily(OTHER_PROJECT),
       reviewEvidenceAssetQueryFamily(PROJECT),
     ])
     expect(effects).toEqual([
-      reviewViewQuery(PROJECT),
+      reviewActiveQuery(PROJECT),
       reviewEvidenceAssetQueryFamily(PROJECT),
       reviewEvidenceAssetQueryFamily(OTHER_PROJECT),
     ])

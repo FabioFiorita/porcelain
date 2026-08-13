@@ -80,8 +80,8 @@ export type {
   GitWorkspaceOptions,
   GitWorkspaceQueryResult,
   GitWorktreeSheet,
+  ReviewInboxRow,
   Worktree,
-  WorktreeInboxRow,
 } from './workspace'
 export {
   useGitAddWorktree,

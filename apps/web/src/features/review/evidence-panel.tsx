@@ -1,15 +1,17 @@
+import type { EvidenceDocDescriptor } from '@porcelain/contracts/review'
 import { Badge } from '@renderer/components/ui/badge'
 import { Button } from '@renderer/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@renderer/components/ui/tabs'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { compactButtonClass } from '@renderer/lib/controls'
+import { evidenceOverCapMessage } from '@renderer/lib/evidence-message'
 import type { EvidenceCheck } from '@shared/evidence-check'
 import { TestIds } from '@shared/test-ids'
 import { useState } from 'react'
 import { EvidenceGallery } from './evidence-gallery'
 import { EvidenceChecksRow, EvidenceHeaderRow } from './reading-evidence-rows'
 import { ReviewDocBody } from './review-doc-body'
-import { useEvidenceAssets, useReviewEvidenceDocs } from './review-queries'
+import { useEvidenceDoc, useReviewEvidence } from './review-queries'
 
 type SubTab = 'checks' | 'results' | 'assets'
 
@@ -45,8 +47,9 @@ export function EvidencePanel({
   updatedAt: string
   checks: EvidenceCheck[]
 }): React.JSX.Element {
-  const docs = useReviewEvidenceDocs()
-  const assets = useEvidenceAssets()
+  const pack = useReviewEvidence()
+  const docs = pack?.results ?? []
+  const assets = pack?.assets ?? []
   const counts: Record<SubTab, number> = {
     checks: checks.length,
     results: docs.length,
@@ -113,7 +116,7 @@ export function EvidencePanel({
           </div>
         </TabsContent>
         <TabsContent value="results" className="min-h-0 flex-1 outline-none">
-          <ResultsPane />
+          <ResultsPane docs={docs} />
         </TabsContent>
         <TabsContent value="assets" className="min-h-0 flex-1 outline-none">
           {assets.length > 0 ? (
@@ -128,12 +131,12 @@ export function EvidencePanel({
 }
 
 /**
- * Results: `evidence/results/` (plus a legacy `index.html`, which the daemon
- * folds in as "Report") as the same pill strip Intent uses, over the same
- * two-media renderer. One document renders bare — no strip for a single pill.
+ * Results: the `evidence/results/` document descriptors as the same pill strip Intent
+ * uses, over the same two-media renderer. One document renders bare — no strip for a
+ * single pill. Bodies are fetched one at a time by descriptor `file`, so a pack of
+ * documents costs one body, not all of them.
  */
-function ResultsPane(): React.JSX.Element {
-  const docs = useReviewEvidenceDocs()
+function ResultsPane({ docs }: { docs: readonly EvidenceDocDescriptor[] }): React.JSX.Element {
   const [picked, setPicked] = useState<string | null>(null)
   const current = docs.find((doc) => doc.file === picked) ?? docs[0]
 
@@ -161,10 +164,22 @@ function ResultsPane(): React.JSX.Element {
         </div>
       )}
       <div className="min-h-0 flex-1">
-        <ReviewDocBody doc={current} />
+        <ResultsBody key={current.file} descriptor={current} />
       </div>
     </div>
   )
+}
+
+/** One Results document: the descriptor names it, the body query fetches it. */
+function ResultsBody({ descriptor }: { descriptor: EvidenceDocDescriptor }): React.JSX.Element {
+  const available = descriptor.state === 'available'
+  const { doc, isLoading } = useEvidenceDoc(descriptor.file, available)
+  if (descriptor.state === 'unavailable') {
+    return <EmptyPane message={evidenceOverCapMessage(descriptor)} />
+  }
+  if (isLoading) return <EmptyPane message="Loading…" />
+  if (!doc) return <EmptyPane message="No document body." />
+  return <ReviewDocBody doc={doc} />
 }
 
 function EmptyPane({ message }: { message: string }): React.JSX.Element {

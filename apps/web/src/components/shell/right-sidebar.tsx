@@ -13,7 +13,7 @@ import { ReviewGroup } from './review-group'
 import { RightSidebarResizeHandle } from './sidebar-resize-handle'
 
 // Sections follow the left sidebar's active tab. Board Focus is the selected
-// card detail (default first Doing); Files keeps pins/notes. Feature stays Review-native.
+// card detail (default first Doing); Files keeps pins/notes. The rail stays Review-native.
 export function RightSidebar(): React.JSX.Element {
   const sidebarTab = usePreferencesStore((s) => s.sidebarTab)
   const { isMobile } = useSidebar()
@@ -48,9 +48,9 @@ export function RightSidebar(): React.JSX.Element {
         {sidebarTab === 'board' && <BoardQuickAccess />}
         {(sidebarTab === 'changes' || sidebarTab === 'history') && <QuickCommandsGroup />}
         {sidebarTab === 'history' && <FileTimelineGroup />}
-        {sidebarTab === 'feature' && <ReviewGroup />}
+        {sidebarTab === 'review' && <ReviewGroup />}
         {sidebarTab === 'changes' && <CommitGroup />}
-        {(sidebarTab === 'changes' || sidebarTab === 'feature') && <CommentsGroup />}
+        {(sidebarTab === 'changes' || sidebarTab === 'review') && <CommentsGroup />}
         {sidebarTab === 'terminal' && <ActionsGroup />}
         {sidebarTab === 'search' && <SearchQuickAccess />}
       </SidebarContent>

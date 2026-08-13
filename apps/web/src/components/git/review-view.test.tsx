@@ -1,4 +1,4 @@
-import type { FeatureReading } from '@porcelain/contracts/review'
+import type { ReviewReading } from '@porcelain/contracts/review'
 import { useDiffReading } from '@renderer/features/git'
 import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -43,7 +43,7 @@ vi.mock('@renderer/components/viewer/virtual-rows', () => ({
   ),
 }))
 
-const reading: FeatureReading = {
+const reading: ReviewReading = {
   name: 'Changes',
   sections: [],
   evidence: null,

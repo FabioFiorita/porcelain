@@ -33,16 +33,20 @@ import { inlineLocalAssets } from '../fs/evidence-assets'
  * else's JavaScript in your renderer, for a capability nothing needs yet.
  */
 
-const MAX_DOC_BYTES = 2 * 1024 * 1024
+/** Per-document read cap; the Evidence descriptors declare it as `maxBytes`. */
+export const MAX_DOC_BYTES = 2 * 1024 * 1024
 const MAX_TOTAL_BYTES = 8 * 1024 * 1024
 
-/** Legacy single-page evidence, from before Evidence had sub-tabs. */
-const LEGACY_REPORT_FILES = ['index.html', 'index.htm'] as const
+/**
+ * The retired root `index.html` era: the single page from before Evidence had
+ * sub-tabs. REV-009 deleted its reader, so these names are excluded from the
+ * loose-document scan at the evidence root rather than rendered as a tab.
+ */
+const RETIRED_ROOT_REPORT_FILES = ['index.html', 'index.htm'] as const
 
 /**
- * What a pack's `index` document is called in the tab strip. The legacy root
- * report has always been "Report"; `results/index.html` — the same document, one
- * directory down — read as "Index" until a manifest renamed it.
+ * What a pack's `index` document is called in the tab strip. `results/index.html`
+ * reads as "Index" until a manifest renames it — a filename artifact nobody wrote.
  */
 const REPORT_LABEL = 'Report'
 
@@ -249,47 +253,17 @@ export function readActiveIntentDocs(repoPath: string): Promise<ReviewDoc[]> {
  * with the evidence directory as the asset root so `../assets/shot.png` — the
  * same image the Assets gallery lists — inlines into a sandboxed report.
  *
- * Two legacy shapes still render, because a pack written last month is still
- * proof: loose `*.md` / `*.html` at the evidence root, and the single
- * `index.html` from before Evidence had sub-tabs, surfaced first as "Report".
- *
- * A pack can hold BOTH — `evidence/index.html` and `evidence/results/index.html`
- * are two files, in two directories, written by two generations of agent. Both
- * render; the legacy one gives up the bare `index.html` tab key, because `file`
- * is what every client uses as the key, and the "Report" name with it, because
- * two tabs reading "Report" is a strip the human cannot navigate.
+ * One legacy shape still renders, because a pack written last month is still
+ * proof: loose `*.md` / `*.html` at the evidence root. The retired root
+ * `index.html` is not among them — REV-009 deleted that reader with the legacy
+ * HTML evidence procedure, so the name is excluded rather than surfaced as a tab.
  */
-export async function readActiveEvidenceResults(repoPath: string): Promise<ReviewDoc[]> {
+export function readActiveEvidenceResults(repoPath: string): Promise<ReviewDoc[]> {
   const evidenceDir = projectEvidenceDir(repoPath)
-  const docs = await readDocSet(projectEvidenceResultsDir(repoPath), {
+  return readDocSet(projectEvidenceResultsDir(repoPath), {
     assetRoot: evidenceDir,
     alsoScan: [evidenceDir],
-    excludeFromAlsoScan: LEGACY_REPORT_FILES,
+    excludeFromAlsoScan: RETIRED_ROOT_REPORT_FILES,
     defaultLabels: { 'index.html': REPORT_LABEL, 'index.htm': REPORT_LABEL },
   })
-  const report = await readLegacyReport(evidenceDir)
-  if (report === null) return docs
-  const taken = new Set(docs.map((doc) => doc.file))
-  // `../index.html` is the legacy file's path from the results directory: stable,
-  // honest about where it came from, and never a name a scanned directory yields
-  // (those are plain file names, with no separator in them).
-  const keyed = taken.has(report.file)
-    ? { ...report, file: `../${report.file}`, label: 'Earlier report' }
-    : report
-  // The legacy report is joined to a set that was made unique on its own; only
-  // this last merge can put two "Report"s next to each other (a legacy
-  // `index.htm` beside a modern `index.html`, say).
-  return withUniqueLabels([keyed, ...docs])
-}
-
-async function readLegacyReport(evidenceDir: string): Promise<ReviewDoc | null> {
-  for (const file of LEGACY_REPORT_FILES) {
-    const doc = await readDoc(
-      { file, label: REPORT_LABEL, dir: evidenceDir },
-      evidenceDir,
-      MAX_DOC_BYTES,
-    )
-    if (doc !== null) return doc
-  }
-  return null
 }

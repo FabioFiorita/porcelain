@@ -1,5 +1,5 @@
 import type { DiffLine } from '@porcelain/contracts/git'
-import type { FeatureReading, ReadingFile } from '@porcelain/contracts/review'
+import type { ReadingFile, ReviewReading } from '@porcelain/contracts/review'
 import { type CommentAnchor, CommentComposer } from '@renderer/components/git/comment-composer'
 import { commentRowClass, LineDecorations } from '@renderer/components/git/comment-marker'
 import { Button } from '@renderer/components/ui/button'
@@ -13,10 +13,10 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui
 import { CodeLine, useHighlighter } from '@renderer/components/viewer/code-line'
 import { HtmlView } from '@renderer/components/viewer/html-view'
 import { MarkdownPre } from '@renderer/components/viewer/markdown-code-block'
+import { MarkdownView } from '@renderer/components/viewer/markdown-view'
 import { VirtualRows } from '@renderer/components/viewer/virtual-rows'
 import { useReviewedPaths, useToggleReviewed } from '@renderer/features/git'
 import { useResolvedTheme } from '@renderer/hooks/use-theme'
-import { evidenceHtmlEmptyMessage } from '@renderer/lib/evidence-message'
 import {
   HIGHLIGHT_THEMES,
   type HighlightThemeName,
@@ -47,14 +47,14 @@ import Markdown, { type ExtraProps } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { ThemedToken } from 'shiki'
 import { buildCommentIndex, type CommentIndex, useReviewComments } from './comments'
-import { SourceMarker } from './feature-list'
 import { EvidenceChecksRow, EvidenceHeaderRow } from './reading-evidence-rows'
 import {
   type ReviewFocusSection,
   type ReviewJumpTarget,
   useReviewFocusStore,
 } from './review-focus-store'
-import { useEvidenceHtml } from './review-queries'
+import { SourceMarker } from './review-list'
+import { useEvidenceDoc, useReviewEvidence } from './review-queries'
 
 export { EvidenceChecksRow, EvidenceHeaderRow } from './reading-evidence-rows'
 
@@ -66,11 +66,11 @@ export interface ReadingFileActions {
   openFile?: boolean
   /** Show the per-file collapse/expand control in a continuous diff review. */
   collapsible?: boolean
-  /** Show the feature source marker (changed/context/shipped). Off for pure diffs. */
+  /** Show the Review source marker (changed/context/shipped). Off for pure diffs. */
   showSource?: boolean
 }
 
-// The shared inline reading surface: the Review document (`feature-view.tsx`), the
+// The shared inline reading surface: the Review document (`active-review.tsx`), the
 // pure-diff continuous review (`review-view.tsx`), and the read-only explore view
 // (`explore-view.tsx`) all render through this. Everything flattens into a single
 // VirtualRows (the house pattern — same as HunksView flattening hunks); code rows
@@ -143,13 +143,13 @@ function pushFileRows(
 
 export interface BuildRowsOptions {
   /**
-   * When false, omit the evidence chapter rows (Feature Intent tab — evidence is
+   * When false, omit the evidence chapter rows (the Review's Intent tab — evidence is
    * its own canvas tab). Default true so Changes/History continuous review and
    * Explore stay identical.
    */
   includeEvidence?: boolean
   /**
-   * When false, omit anchored code / file blocks and "More files" groups (Feature
+   * When false, omit anchored code / file blocks and "More files" groups (the Review's
    * Intent narrative — Execution owns the file list). Default true.
    */
   includeAnchors?: boolean
@@ -161,11 +161,11 @@ export interface BuildRowsOptions {
  * Flatten the whole Review document into rows: thesis, then each walkthrough
  * section (header, prose, optional diagram, optional anchored code), then the
  * unanchored files under "More files", then the evidence chapter (opt-out via
- * `includeEvidence: false` for Feature Intent). Intent also opts out of anchors
+ * `includeEvidence: false` for the Review's Intent). Intent also opts out of anchors
  * via `includeAnchors: false`.
  */
 export function buildRows(
-  reading: FeatureReading,
+  reading: ReviewReading,
   highlighter: ReturnType<typeof useHighlighter>,
   theme: HighlightThemeName = HIGHLIGHT_THEMES.dark,
   options?: BuildRowsOptions,
@@ -256,9 +256,9 @@ export function rowIndexForTarget(
   target: ReviewJumpTarget,
 ): number | null {
   if (target.kind === 'top' || target.kind === 'intent') return rows.length > 0 ? 0 : null
-  // Execution is a canvas tab only (FeatureView) — no row in the reading surface.
+  // Execution is a canvas tab only (ActiveReview) — no row in the reading surface.
   if (target.kind === 'execution') return null
-  // Evidence: continuous review still embeds an evidence chapter; FeatureView
+  // Evidence: continuous review still embeds an evidence chapter; ActiveReview
   // intercepts the jump for its own Evidence tab first.
   if (target.kind === 'evidence') {
     const index = rows.findIndex((row) => row.type === 'evidenceHeader')
@@ -311,7 +311,7 @@ function svgDimension(tag: string, name: string): number | null {
   return Number.isFinite(n) && n > 0 ? n : null
 }
 
-// Right-click a feature file (or one of its lines) to leave a review comment without
+// Right-click a Review file (or one of its lines) to leave a review comment without
 // leaving the read — "Add comment" anchors to the line (or the drag-selected range),
 // "Comment on file" to the file. One CommentComposer is mounted by the body; these
 // items just set its anchor. The trigger stays text-selectable (the surface is read)
@@ -574,27 +574,27 @@ function MarkdownBlock({ md }: { md: string }): React.JSX.Element {
   )
 }
 
-// The evidence document itself, fetched lazily — the row only mounts when scrolled
-// near (virtualization), so the (up to ~4 MB) HTML never rides the 3s reading poll.
-// Same fully-sandboxed iframe path as the diagram rows; fixed height, scrolls inside.
-// Kept for non-Feature surfaces that still flatten evidence into rows
-// (includeEvidence default true). Feature Intent opts out; Evidence tab uses
-// EvidencePanel (full height, HTML only).
+// The pack's leading Results document, fetched lazily — the row only mounts when scrolled
+// near (virtualization), so a multi-megabyte body never rides the 3s reading poll. HTML takes
+// the same fully-sandboxed iframe path as the diagram rows; fixed height, scrolls inside. Kept
+// for the surfaces that flatten evidence into rows (includeEvidence default true) — the
+// Review's Intent opts out, and its Evidence canvas tab uses EvidencePanel for the whole pack.
 function EvidenceBodyRow(): React.JSX.Element {
-  const project = useProjectSelectionStore((s) => s.project)
-  const { evidence } = useEvidenceHtml(project?.path ?? '')
-  const empty = evidenceHtmlEmptyMessage(evidence)
-  // The contract's Evidence union is strict (no `?: never` arms), so the body arm is narrowed
-  // by presence rather than by optional chaining.
-  const body = evidence !== undefined && evidence !== null && 'html' in evidence ? evidence : null
+  const pack = useReviewEvidence()
+  const lead = pack?.results.find((entry) => entry.state === 'available') ?? null
+  const { doc, isLoading } = useEvidenceDoc(lead?.file ?? '', lead !== null)
+  const missing = lead === null ? 'No documents in evidence/results/.' : 'No document body.'
+  const empty = pack === undefined || isLoading ? 'Loading…' : doc ? null : missing
   return (
     <div className="sticky left-0 max-w-[var(--vrows-vw)] px-3 py-2">
       <div className="h-[28rem] overflow-hidden rounded-md border">
-        {empty ? (
+        {empty !== null || !doc ? (
           <p className="p-4 text-sm text-muted-foreground">{empty}</p>
-        ) : body ? (
-          <HtmlView html={body.html} title={body.title} />
-        ) : null}
+        ) : doc.medium === 'html' ? (
+          <HtmlView html={doc.body} title={doc.label} />
+        ) : (
+          <MarkdownView content={doc.body} />
+        )}
       </div>
     </div>
   )
@@ -773,12 +773,12 @@ function ReadingRowView({
 }
 
 /**
- * The scrollable body: flattens a FeatureReading into one virtualized row list.
+ * The scrollable body: flattens a ReviewReading into one virtualized row list.
  * Note/prose/iframe rows opt into VirtualRows' dynamic measurement instead of the
  * fixed `ROW_HEIGHT` (fine here — this list is short and sliced, unlike the full
  * file/diff viewers). `fileActions` adds mark-reviewed/open-file chrome
  * (Changes/History only); `trackFocus` (Review doc only) drives the
- * review-focus store; Feature Intent passes `includeEvidence`/`includeAnchors` false.
+ * review-focus store; the Review's Intent passes `includeEvidence`/`includeAnchors` false.
  */
 export function ReadingSurfaceBody({
   reading,
@@ -787,7 +787,7 @@ export function ReadingSurfaceBody({
   includeEvidence = true,
   includeAnchors = true,
 }: {
-  reading: FeatureReading
+  reading: ReviewReading
   fileActions?: ReadingFileActions
   trackFocus?: boolean
   includeEvidence?: boolean

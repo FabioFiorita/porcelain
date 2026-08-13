@@ -1,4 +1,4 @@
-import type { FeatureReading } from '@porcelain/contracts/review'
+import type { ReviewReading } from '@porcelain/contracts/review'
 import { SidebarProvider } from '@renderer/components/ui/sidebar'
 import { useReviewComments, useReviewFocusStore, useReviewReading } from '@renderer/features/review'
 import { fireEvent, render, screen } from '@testing-library/react'
@@ -37,7 +37,7 @@ vi.mock('@renderer/features/project-data', () => ({
   }),
 }))
 
-const reading: FeatureReading = {
+const reading: ReviewReading = {
   name: 'Crew call-outs',
   thesis: 'One paragraph of intent.',
   sections: [
@@ -92,7 +92,7 @@ describe('ReviewGroup', () => {
     expect(screen.getByText('Current review')).toBeInTheDocument()
     expect(screen.getAllByText('Crew call-outs').length).toBeGreaterThanOrEqual(1)
     expect(screen.queryByText(/In progress/i)).not.toBeInTheDocument()
-    expect(screen.getByTestId('feature-clear-review')).toBeInTheDocument()
+    expect(screen.getByTestId('review-archive')).toBeInTheDocument()
   })
 
   it('always shows Previous reviews, with a note when nothing is archived', () => {
@@ -110,7 +110,7 @@ describe('ReviewGroup', () => {
 
   it('archives only after AlertDialog confirm', () => {
     renderGroup()
-    fireEvent.click(screen.getByTestId('feature-clear-review'))
+    fireEvent.click(screen.getByTestId('review-archive'))
     expect(clearSpy).not.toHaveBeenCalled()
     fireEvent.click(screen.getByLabelText('Confirm archive review and evidence'))
     expect(clearSpy).toHaveBeenCalledTimes(1)

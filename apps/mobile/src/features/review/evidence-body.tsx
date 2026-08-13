@@ -1,15 +1,21 @@
-import type { EvidenceCheck, EvidenceMeta } from '@porcelain/contracts/review'
+import type {
+  EvidenceCheck,
+  EvidenceDocDescriptor,
+  ReviewEvidence,
+} from '@porcelain/contracts/review'
 import { Text, View } from 'react-native'
 import { ChromeGlyph, type ChromeIconName, type IconTone } from '@/components/chrome-glyph'
 import { EmptyNote, ErrorNote } from '@/components/panel-chrome'
 import { SurfaceScroll } from '@/components/surface-scroll'
+import { describeBytes } from '@/features/files'
 import { cn } from '@/lib/utils'
 
 import { IntentDocBody } from './doc-body'
 import { EvidenceGallery } from './evidence-gallery'
 import { type DocTab, DocTabs } from './review-chrome'
+import type { ReviewReadingEvidence } from './review-lifecycle'
 import { useReviewStore } from './review-store'
-import { useReviewEvidenceAssets, useReviewEvidenceDocs } from './use-review'
+import { useReviewEvidence, useReviewEvidenceDoc } from './use-review'
 
 const CHECK_FACE: Record<EvidenceCheck['status'], { glyph: ChromeIconName; tone: IconTone }> = {
   fail: { glyph: 'circleX', tone: 'destructive' },
@@ -20,12 +26,11 @@ const CHECK_FACE: Record<EvidenceCheck['status'], { glyph: ChromeIconName; tone:
 /**
  * Evidence: what the agent actually ran, and the proof of it.
  *
- * One directory read as a flat set of panes: **Checks**, the agent's structured claim; then
- * each document it wrote to back that claim (`evidence/results/`, with a legacy `index.html`
- * folded in as "Report"); then **Assets**, the screenshots. A pane with nothing behind it stays
- * visible and dimmed, so the shape of a pack is legible before you tap — and the first pane
- * that has anything is the one that opens, so a pack without checks lands on a document rather
- * than a dead pane.
+ * One pack read as a flat set of panes: **Checks**, the agent's structured claim; then each
+ * document it wrote to back that claim (`evidence/results/`); then **Assets**, the screenshots.
+ * A pane with nothing behind it stays visible and dimmed, so the shape of a pack is legible
+ * before you tap — and the first pane that has anything is the one that opens, so a pack
+ * without checks lands on a document rather than a dead pane.
  *
  * The documents are panes in their own right rather than a "Results" pane you then choose
  * inside. That grouping cost a whole extra level of tabs: the canvas' own Intent · Execution ·
@@ -37,8 +42,9 @@ const CHECK_FACE: Record<EvidenceCheck['status'], { glyph: ChromeIconName; tone:
  * The header keeps only what is true of the whole pack: title, when it was written, and the
  * one-line pass/fail.
  *
- * Every read here is gated on this canvas being up: a pack runs to megabytes, and only the
- * mounted pane's body fetches at all.
+ * The listing is one cheap aggregate — checks plus descriptors, no bodies — and it is gated on
+ * this canvas being up. A document's text and an image's bytes are fetched one at a time by
+ * the pane that shows them, so a pack running to megabytes never lands on a tab nobody opened.
  */
 export function EvidenceBody({
   active,
@@ -46,12 +52,11 @@ export function EvidenceBody({
 }: {
   /** Focus AND tab visibility — the gate on reads that can reach megabytes. */
   active: boolean
-  /** From `featureReading`; `null` when the agent has published no evidence. */
-  meta: EvidenceMeta | null
+  /** From `reviewReading`; `null` when the agent has published no evidence. */
+  meta: ReviewReadingEvidence | null
 }): React.JSX.Element {
   const enabled = active && meta !== null
-  const { docs } = useReviewEvidenceDocs(enabled)
-  const { assets } = useReviewEvidenceAssets(enabled)
+  const { evidence } = useReviewEvidence(enabled)
   const picked = useReviewStore((state) => state.evidencePane)
   const setPicked = useReviewStore((state) => state.setEvidencePane)
 
@@ -65,7 +70,7 @@ export function EvidenceBody({
     )
   }
 
-  const panes = evidencePanes(meta, docs, assets)
+  const panes = evidencePanes(meta, evidence)
   // The reader's own pick wins while it still has anything behind it; otherwise open on the
   // first pane that does, so a pack with no checks lands on its documents, not a dead one.
   const current =
@@ -96,26 +101,19 @@ export function EvidenceBody({
 /**
  * The pack as one flat strip: the claim, each document behind it, then the screenshots.
  *
- * Ordered claim → argument → exhibits, which is the order the proof is read in. The listings
- * are authoritative once they land; until then `meta`'s own counts keep a pane from flashing
- * dimmed on a pack that has plenty in it. Before the document listing arrives there is nothing
- * to name the documents with, so they are represented by a single placeholder that resolves
- * into real pills — the alternative is a strip that cannot show the pack has documents at all.
+ * Ordered claim → argument → exhibits, which is the order the proof is read in. The counts are
+ * the aggregate's own descriptors — the reading carries the chapter's checks and nothing else,
+ * so until the pack lands the strip shows exactly what it can prove: the checks it already has.
  */
 function evidencePanes(
-  meta: EvidenceMeta,
-  docs: readonly { file: string; label: string }[] | undefined,
-  assets: readonly unknown[] | undefined,
+  meta: ReviewReadingEvidence,
+  pack: ReviewEvidence | null | undefined,
 ): DocTab[] {
-  const assetCount = assets?.length ?? meta.assets ?? 0
-  const listedDocs = (meta.results ?? 0) + (meta.hasReport === true ? 1 : 0)
-
-  const documents: DocTab[] =
-    docs === undefined
-      ? listedDocs > 0
-        ? [{ count: listedDocs, disabled: true, key: 'doc:', label: 'Results' }]
-        : []
-      : docs.map((doc) => ({ key: `doc:${doc.file}`, label: doc.label }))
+  const assetCount = pack?.assets.length ?? 0
+  const documents: DocTab[] = (pack?.results ?? []).map((doc) => ({
+    key: `doc:${doc.file}`,
+    label: doc.label,
+  }))
 
   return [
     {
@@ -130,7 +128,7 @@ function evidencePanes(
 }
 
 /** Title, when it was written, and the one-line verdict — true of the whole pack. */
-function EvidenceHeader({ meta }: { meta: EvidenceMeta }): React.JSX.Element {
+function EvidenceHeader({ meta }: { meta: ReviewReadingEvidence }): React.JSX.Element {
   const failed = meta.checks.filter((check) => check.status === 'fail').length
   const passed = meta.checks.filter((check) => check.status === 'pass').length
 
@@ -201,13 +199,14 @@ function CheckRow({ check }: { check: EvidenceCheck }): React.JSX.Element {
 }
 
 /**
- * One document from `evidence/results/`, over the same two-media renderer Intent uses.
+ * One document from `evidence/results/`, picked out of the pack's descriptors.
  *
- * It renders exactly the document the strip above named — it no longer owns a strip of its
- * own, because its documents ARE pills in that strip now.
+ * The strip names a file; this resolves it to a descriptor and hands the body fetch to
+ * {@link ResultsDoc}, so a document past the daemon's cap says so from its listed size
+ * instead of asking for bytes that will not come.
  */
 function ResultsPane({ file }: { file: string }): React.JSX.Element {
-  const { docs, error, isLoading } = useReviewEvidenceDocs(true)
+  const { error, evidence, isLoading } = useReviewEvidence(true)
 
   if (error !== null) {
     return (
@@ -216,7 +215,7 @@ function ResultsPane({ file }: { file: string }): React.JSX.Element {
       </View>
     )
   }
-  if (docs === undefined) {
+  if (evidence === undefined) {
     return (
       <Text
         className="p-4 text-sm text-muted-foreground"
@@ -229,7 +228,8 @@ function ResultsPane({ file }: { file: string }): React.JSX.Element {
 
   // The strip is built from the same listing, so a miss means the pane was picked from a
   // listing that has since changed — fall back to the first document rather than a blank pane.
-  const current = docs.find((doc) => doc.file === file) ?? docs[0]
+  const results = evidence?.results ?? []
+  const current = results.find((doc) => doc.file === file) ?? results[0]
   if (current === undefined) {
     return (
       <EmptyNote
@@ -242,14 +242,53 @@ function ResultsPane({ file }: { file: string }): React.JSX.Element {
 
   return (
     <View className="flex-1" testID="porcelain-review-evidence-results">
-      <IntentDocBody doc={current} testIDPrefix="porcelain-review-evidence-doc" />
+      <ResultsDoc descriptor={current} />
     </View>
   )
 }
 
+/** One Results document's body, over the same two-media renderer Intent uses. */
+function ResultsDoc({ descriptor }: { descriptor: EvidenceDocDescriptor }): React.JSX.Element {
+  const unavailable = descriptor.state === 'unavailable'
+  const { doc, error, isLoading } = useReviewEvidenceDoc(descriptor.file, !unavailable)
+
+  if (unavailable) {
+    return (
+      <EmptyNote
+        body={`This document is ${describeBytes(descriptor.bytes)} — past the size the daemon will send. Open it in the repo instead.`}
+        testID="porcelain-review-evidence-doc-unavailable"
+        title="Too large to show"
+      />
+    )
+  }
+  if (error !== null) {
+    return (
+      <View className="p-4">
+        <ErrorNote message={error.message} testID="porcelain-review-evidence-doc-error" />
+      </View>
+    )
+  }
+  if (doc === undefined || doc === null) {
+    return (
+      <Text
+        className="p-4 text-sm text-muted-foreground"
+        testID={
+          isLoading
+            ? 'porcelain-review-evidence-doc-loading'
+            : 'porcelain-review-evidence-doc-missing'
+        }
+      >
+        {isLoading ? 'Loading the document…' : 'This document is no longer in the pack.'}
+      </Text>
+    )
+  }
+
+  return <IntentDocBody doc={doc} testIDPrefix="porcelain-review-evidence-doc" />
+}
+
 /** Assets: the screenshots, native. The listing is cheap; the bytes are not, so they wait. */
 function AssetsPane(): React.JSX.Element {
-  const { assets, error, isLoading } = useReviewEvidenceAssets(true)
+  const { error, evidence, isLoading } = useReviewEvidence(true)
 
   if (error !== null) {
     return (
@@ -258,7 +297,7 @@ function AssetsPane(): React.JSX.Element {
       </View>
     )
   }
-  if (assets === undefined) {
+  if (evidence === undefined) {
     return (
       <Text
         className="p-4 text-sm text-muted-foreground"
@@ -272,7 +311,7 @@ function AssetsPane(): React.JSX.Element {
       </Text>
     )
   }
-  return <EvidenceGallery assets={assets} />
+  return <EvidenceGallery assets={evidence?.assets ?? []} />
 }
 
 function formatUpdatedAt(iso: string): string {

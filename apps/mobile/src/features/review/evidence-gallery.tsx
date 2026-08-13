@@ -1,4 +1,4 @@
-import type { EvidenceAsset } from '@porcelain/contracts/review'
+import type { EvidenceAssetDescriptor } from '@porcelain/contracts/review'
 import { StatusBar } from 'expo-status-bar'
 import { useState } from 'react'
 import { FlatList, Image, Modal, Pressable, Text, useWindowDimensions, View } from 'react-native'
@@ -25,7 +25,11 @@ const TILE_TEST_ID = 'porcelain-review-evidence-asset'
  * sub-tab is up, which is what keeps a tens-of-megabytes pack off a canvas nobody
  * asked for; each tile then pays only for itself.
  */
-export function EvidenceGallery({ assets }: { assets: EvidenceAsset[] }): React.JSX.Element {
+export function EvidenceGallery({
+  assets,
+}: {
+  assets: EvidenceAssetDescriptor[]
+}): React.JSX.Element {
   const [zoomed, setZoomed] = useState<number | null>(null)
 
   if (assets.length === 0) {
@@ -72,7 +76,7 @@ function GalleryTile({
   asset,
   onPress,
 }: {
-  asset: EvidenceAsset
+  asset: EvidenceAssetDescriptor
   onPress: () => void
 }): React.JSX.Element {
   const { asset: body, isLoading } = useReviewEvidenceAsset(asset.file, true)
@@ -129,7 +133,7 @@ function GalleryZoom({
   index,
   onClose,
 }: {
-  assets: EvidenceAsset[]
+  assets: EvidenceAssetDescriptor[]
   index: number
   onClose: () => void
 }): React.JSX.Element {
@@ -157,7 +161,7 @@ function GalleryZoomBody({
   index,
   onClose,
 }: {
-  assets: EvidenceAsset[]
+  assets: EvidenceAssetDescriptor[]
   index: number
   onClose: () => void
 }): React.JSX.Element {
@@ -204,7 +208,13 @@ function GalleryZoomBody({
  * Its name was only an accessibility label before, which is a strange thing for a
  * gallery of `run-2.png` and `after.png` to keep from the person looking at them.
  */
-function ZoomPage({ asset, width }: { asset: EvidenceAsset; width: number }): React.JSX.Element {
+function ZoomPage({
+  asset,
+  width,
+}: {
+  asset: EvidenceAssetDescriptor
+  width: number
+}): React.JSX.Element {
   const { asset: body, isLoading } = useReviewEvidenceAsset(asset.file, true)
   const insets = useSafeAreaInsets()
 
@@ -244,6 +254,6 @@ function ZoomPage({ asset, width }: { asset: EvidenceAsset; width: number }): Re
 }
 
 /** Over the daemon's per-image cap — the size comes from the listing, not the body. */
-function overCap(asset: EvidenceAsset): string {
+function overCap(asset: EvidenceAssetDescriptor): string {
   return `Too large to preview (${describeBytes(asset.bytes)})`
 }

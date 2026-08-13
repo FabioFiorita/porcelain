@@ -8,6 +8,7 @@ import {
   createReviewLifecycleOperations,
   type ReviewLifecycleOperations,
 } from './review-lifecycle-operations'
+import { createReviewMarksOperations, type ReviewMarksOperations } from './review-marks-operations'
 import {
   createReviewReadingOperations,
   type ReviewReadingOperations,
@@ -15,13 +16,14 @@ import {
 
 /**
  * The Review domain's single bound operation family: comments, lifecycle, reading,
- * and evidence under one key, so composition never grows a second Review slice to
- * keep in sync.
+ * Evidence, and reviewed marks under one key, so composition never grows a second
+ * Review slice to keep in sync.
  */
 export type ReviewOperations = ReviewCommentOperations &
   ReviewLifecycleOperations &
   ReviewReadingOperations &
-  ReviewEvidenceOperations
+  ReviewEvidenceOperations &
+  ReviewMarksOperations
 
 export function createReviewOperations(options: {
   publishSessionChange?: (change: SessionChange) => void
@@ -31,5 +33,6 @@ export function createReviewOperations(options: {
     ...createReviewLifecycleOperations({}),
     ...createReviewReadingOperations({}),
     ...createReviewEvidenceOperations({}),
+    ...createReviewMarksOperations({}),
   })
 }

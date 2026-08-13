@@ -1,17 +1,22 @@
-import type { EvidenceAsset, ReviewDoc } from '@porcelain/contracts/review'
+import type {
+  EvidenceAssetDescriptor,
+  EvidenceDocDescriptor,
+  ReviewDoc,
+  ReviewEvidence,
+} from '@porcelain/contracts/review'
 import type { EvidenceCheck } from '@shared/evidence-check'
 import { TestIds } from '@shared/test-ids'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { EvidencePanel } from './evidence-panel'
-import { useEvidenceAssets, useReviewEvidenceDocs } from './review-queries'
+import { useEvidenceDoc, useReviewEvidence } from './review-queries'
 
 // Mock the domain hooks, never tRPC (the component-test rule). The gallery's own
 // per-asset bodies are covered by evidence-gallery.test.tsx.
 vi.mock('./review-queries', () => ({
-  useEvidenceAssets: vi.fn(),
   useEvidenceAsset: () => ({ asset: null, isLoading: false }),
-  useReviewEvidenceDocs: vi.fn(),
+  useEvidenceDoc: vi.fn(),
+  useReviewEvidence: vi.fn(),
 }))
 vi.mock('./review-mutations', () => ({
   useClearEvidence: () => ({ clear: async () => {}, isClearing: false }),
@@ -22,14 +27,37 @@ const checks: EvidenceCheck[] = [
   { label: 'browser e2e', status: 'fail' },
 ]
 
-const docs: ReviewDoc[] = [
-  { file: 'index.html', label: 'Report', medium: 'html', body: '<p>report</p>' },
-  { file: 'notes.md', label: 'Notes', medium: 'markdown', body: '# Run log heading' },
+const results: EvidenceDocDescriptor[] = [
+  { file: 'index.html', label: 'Report', medium: 'html', bytes: 64, state: 'available' },
+  { file: 'notes.md', label: 'Notes', medium: 'markdown', bytes: 32, state: 'available' },
 ]
 
-const assets: EvidenceAsset[] = [
-  { file: 'shot.png', label: 'Shot', kind: 'image', mime: 'image/png', bytes: 2048 },
+const bodies: Record<string, ReviewDoc> = {
+  'index.html': { file: 'index.html', label: 'Report', medium: 'html', body: '<p>report</p>' },
+  'notes.md': { file: 'notes.md', label: 'Notes', medium: 'markdown', body: '# Run log heading' },
+}
+
+const assets: EvidenceAssetDescriptor[] = [
+  {
+    file: 'shot.png',
+    label: 'Shot',
+    kind: 'image',
+    mime: 'image/png',
+    bytes: 2048,
+    state: 'available',
+  },
 ]
+
+function pack(overrides: Partial<ReviewEvidence> = {}): ReviewEvidence {
+  return {
+    title: 'Test evidence',
+    updatedAt: '2024-01-01T12:00:00.000Z',
+    checks,
+    results,
+    assets,
+    ...overrides,
+  }
+}
 
 function renderPanel(): void {
   render(
@@ -39,8 +67,11 @@ function renderPanel(): void {
 
 describe('EvidencePanel', () => {
   beforeEach(() => {
-    vi.mocked(useReviewEvidenceDocs).mockReturnValue(docs)
-    vi.mocked(useEvidenceAssets).mockReturnValue(assets)
+    vi.mocked(useReviewEvidence).mockReturnValue(pack())
+    vi.mocked(useEvidenceDoc).mockImplementation((file: string) => ({
+      doc: bodies[file] ?? null,
+      isLoading: false,
+    }))
   })
 
   it('counts each part of the pack in its sub-tab', () => {
@@ -64,7 +95,7 @@ describe('EvidencePanel', () => {
   })
 
   it('disables an empty sub-tab instead of hiding it, and refuses the switch', () => {
-    vi.mocked(useEvidenceAssets).mockReturnValue([])
+    vi.mocked(useReviewEvidence).mockReturnValue(pack({ assets: [] }))
     renderPanel()
     const assetsTab = screen.getByTestId(TestIds.evidenceSubTab('assets'))
     // Visible and counted zero — the shape of the pack stays legible.

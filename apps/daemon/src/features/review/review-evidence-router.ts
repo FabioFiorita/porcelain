@@ -1,59 +1,49 @@
 import { procedureCatalog } from '@porcelain/contracts'
-import type { EvidenceCheck } from '@shared/evidence-check'
 import type { ReviewDoc } from '../../review/doc-set'
-import type { EvidenceAsset, EvidenceAssetBody } from '../../review/evidence-assets-list'
+import type { EvidenceAssetBody } from '../../review/evidence-assets-list'
 import { publicProcedure, t } from '../../trpc'
+import type { ReviewEvidencePack } from './review-evidence-capabilities'
 import type { ReviewEvidenceOperations } from './review-evidence-operations'
 
 /**
- * Review Evidence router — five wire procedures bound to the live catalog names.
+ * Review Evidence router — four wire procedures bound to the canonical catalog names.
  * Each procedure is parse → invoke one operation → serialize. None of them has an
- * expected typed failure: a missing pack is `null`, an over-cap document is dropped,
- * an uncontained or oversized asset is `null`, and a genuine filesystem failure
+ * expected typed failure: a missing pack is `null`, an over-cap document or image is
+ * described as `unavailable` and fetches as `null`, and a genuine filesystem failure
  * throws and serializes as `internal.unexpected`.
  *
  * The files are owned by an external process, so they are re-validated and size-capped
- * on every read. `clearLoopEvidence` is the app's one write.
+ * on every read. `clearEvidence` is the app's one write.
  */
-
-/** The `loopEvidence` wire shape. REV-009 deletes `medium` and `hasReport`. */
-type LoopEvidenceOutput = {
-  title: string
-  updatedAt: string
-  checks: EvidenceCheck[]
-  medium: 'html'
-  results: number
-  assets: number
-  hasReport: boolean
-}
-
 export function createReviewEvidenceRouter(operations: ReviewEvidenceOperations) {
   return t.router({
     /**
-     * Evidence is three sub-tabs over one directory: **Checks** (the structured
-     * list on `loopEvidence`), **Results** (this — `evidence/results/` as a
-     * document set, the same primitive as Intent), and **Assets** (below).
-     *
-     * The name is wire history: it used to mean "extra docs beside index.html".
-     * Installed clients call it, so it keeps its name and gains a meaning.
+     * The Evidence pack in one read: **Checks** (`meta.json`), **Results**
+     * (`evidence/results/` described as documents), and **Assets**
+     * (`evidence/assets/` described as a gallery). Descriptors only — bodies and
+     * image bytes are fetched separately, only while the Evidence chapter is on
+     * screen — so the header can never promise a tab that is not there.
      */
-    reviewEvidenceDocs: publicProcedure
-      .input(procedureCatalog.reviewEvidenceDocs.input)
-      .output(procedureCatalog.reviewEvidenceDocs.output)
+    reviewEvidence: publicProcedure
+      .input(procedureCatalog.reviewEvidence.input)
+      .output(procedureCatalog.reviewEvidence.output)
       .query(
-        ({ input }): Promise<ReviewDoc[]> => operations.readEvidenceResults({ projectPath: input }),
+        ({ input }): Promise<ReviewEvidencePack | null> =>
+          operations.readEvidencePack({ projectPath: input }),
       ),
 
     /**
-     * The Assets sub-tab: `evidence/assets/` listed as a gallery. Metadata only —
-     * one tile's bytes arrive from `reviewEvidenceAsset`, on demand.
+     * One Results document by its descriptor `file`. HTML arrives self-contained
+     * (siblings inlined by the reader) so the renderer keeps it on the
+     * `sandbox="" srcdoc` path — never a `src` URL, which would drop the parent CSP
+     * that backstops agent-authored HTML.
      */
-    reviewEvidenceAssets: publicProcedure
-      .input(procedureCatalog.reviewEvidenceAssets.input)
-      .output(procedureCatalog.reviewEvidenceAssets.output)
+    reviewEvidenceDoc: publicProcedure
+      .input(procedureCatalog.reviewEvidenceDoc.input)
+      .output(procedureCatalog.reviewEvidenceDoc.output)
       .query(
-        ({ input }): Promise<EvidenceAsset[]> =>
-          operations.listEvidenceAssets({ projectPath: input }),
+        ({ input }): Promise<ReviewDoc | null> =>
+          operations.readEvidenceDoc({ projectPath: input.repoPath, file: input.file }),
       ),
 
     /**
@@ -69,30 +59,9 @@ export function createReviewEvidenceRouter(operations: ReviewEvidenceOperations)
           operations.readEvidenceAsset({ projectPath: input.repoPath, file: input.file }),
       ),
 
-    // Cheap metadata query for the Feature list opener and the Evidence header; the
-    // document bodies and the image bytes are fetched separately, only while the
-    // Evidence chapter is on screen. Counts come from the same scan the gallery and
-    // the Results tab use, so the header never promises a tab that is not there.
-    loopEvidence: publicProcedure
-      .input(procedureCatalog.loopEvidence.input)
-      .output(procedureCatalog.loopEvidence.output)
-      .query(async ({ input }): Promise<LoopEvidenceOutput | null> => {
-        const pack = await operations.readEvidenceSummary({ projectPath: input })
-        if (pack === null) return null
-        return {
-          title: pack.title,
-          updatedAt: pack.updatedAt,
-          checks: pack.checks,
-          medium: 'html' as const, // REV-009 deletes this marker
-          results: pack.results.length,
-          assets: pack.assets.length,
-          hasReport: pack.legacyReport, // REV-009 deletes this field
-        }
-      }),
-
-    clearLoopEvidence: publicProcedure
-      .input(procedureCatalog.clearLoopEvidence.input)
-      .output(procedureCatalog.clearLoopEvidence.output)
+    clearEvidence: publicProcedure
+      .input(procedureCatalog.clearEvidence.input)
+      .output(procedureCatalog.clearEvidence.output)
       .mutation(async ({ input }) => {
         await operations.clearEvidence({ projectPath: input })
       }),

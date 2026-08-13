@@ -51,12 +51,12 @@ export const loc = {
   reviewInbox: (page: Page): Locator => byId(page, TestIds.reviewInbox),
   reviewInboxRow: (page: Page, branch: string): Locator =>
     byId(page, TestIds.reviewInboxRow(branch)),
-  featureList: (page: Page): Locator => byId(page, TestIds.featureList),
-  featureOpenReview: (page: Page): Locator => byId(page, TestIds.featureOpenReview),
-  featureCanvas: (page: Page): Locator => byId(page, TestIds.featureCanvas),
-  featureEmpty: (page: Page): Locator => byId(page, TestIds.featureEmpty),
-  featureCanvasTab: (page: Page, tab: 'intent' | 'execution' | 'evidence'): Locator =>
-    byId(page, TestIds.featureCanvasTab(tab)),
+  reviewList: (page: Page): Locator => byId(page, TestIds.reviewList),
+  reviewOpen: (page: Page): Locator => byId(page, TestIds.reviewOpen),
+  activeReview: (page: Page): Locator => byId(page, TestIds.activeReview),
+  activeReviewEmpty: (page: Page): Locator => byId(page, TestIds.activeReviewEmpty),
+  activeReviewTab: (page: Page, tab: 'intent' | 'execution' | 'evidence'): Locator =>
+    byId(page, TestIds.activeReviewTab(tab)),
   evidencePanel: (page: Page): Locator => byId(page, TestIds.evidencePanel),
   evidenceClear: (page: Page): Locator => byId(page, TestIds.evidenceClear),
   evidenceIframe: (page: Page): Locator => byId(page, TestIds.evidenceIframe),
@@ -69,7 +69,7 @@ export const loc = {
   evidenceGalleryItem: (page: Page, file: string): Locator =>
     byId(page, TestIds.evidenceGalleryItem(file)),
   evidenceGalleryZoom: (page: Page): Locator => byId(page, TestIds.evidenceGalleryZoom),
-  featureClearReview: (page: Page): Locator => byId(page, TestIds.featureClearReview),
+  reviewArchive: (page: Page): Locator => byId(page, TestIds.reviewArchive),
   boardStartReview: (page: Page): Locator => byId(page, TestIds.boardStartReview),
 
   commitButton: (page: Page): Locator => byId(page, TestIds.commitButton),

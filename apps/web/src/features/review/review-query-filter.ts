@@ -12,7 +12,7 @@ import { isReviewQueryKey, parseReviewQueryKey, reviewQueryKey } from './review-
 /**
  * Review effect → cache invalidation (REV-007), following `features/git/git-query-filter.ts`.
  *
- * `reviewed-paths` and `worktree-inbox` are Review identities that REV-006 froze inside the
+ * `reviewed-paths` and `inbox` are Review identities that REV-006 froze inside the
  * **Git** key namespace (both app key parsers validate against `gitWorkspaceQuerySchema`), so
  * this filter partitions the effect list and forwards those two through Git's public entry.
  * Everything else is matched by the Review key predicate, which is how the
@@ -22,11 +22,11 @@ import { isReviewQueryKey, parseReviewQueryKey, reviewQueryKey } from './review-
 /** The two Review identities REV-006 froze inside the Git key namespace. */
 type GitKeyedReviewEffect = Extract<
   ReviewQueryEffect,
-  { readonly name: 'reviewed-paths' | 'worktree-inbox' }
+  { readonly name: 'reviewed-paths' | 'inbox' }
 >
 
 function isGitKeyed(effect: ReviewQueryEffect): effect is GitKeyedReviewEffect {
-  return effect.name === 'reviewed-paths' || effect.name === 'worktree-inbox'
+  return effect.name === 'reviewed-paths' || effect.name === 'inbox'
 }
 
 function sameDaemon(a: DaemonScope, b: DaemonScope): boolean {

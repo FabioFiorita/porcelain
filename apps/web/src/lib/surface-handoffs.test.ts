@@ -28,7 +28,7 @@ describe('surface-handoffs', () => {
   it('openChanges with continuousReview opens the All changes review tab', () => {
     openChanges({ continuousReview: true })
     const pane = useTabsStore.getState().panes[0]
-    expect(pane?.tabs.some((t) => t.kind === 'review' && t.path === 'working')).toBe(true)
+    expect(pane?.tabs.some((t) => t.kind === 'changeset' && t.path === 'working')).toBe(true)
   })
 
   it('openChanges with path opens a diff tab', () => {
@@ -49,11 +49,11 @@ describe('surface-handoffs', () => {
     expect(pane?.tabs.some((t) => t.kind === 'file' && t.path === '/repo/src/a.ts')).toBe(true)
   })
 
-  it('openFeatureReview opens Feature sidebar and feature tab', () => {
+  it('openFeatureReview opens the Review sidebar and the review tab', () => {
     openFeatureReview()
-    expect(usePreferencesStore.getState().sidebarTab).toBe('feature')
+    expect(usePreferencesStore.getState().sidebarTab).toBe('review')
     const pane = useTabsStore.getState().panes[0]
-    expect(pane?.tabs.some((t) => t.kind === 'feature' && t.path === '/repo')).toBe(true)
+    expect(pane?.tabs.some((t) => t.kind === 'review' && t.path === '/repo')).toBe(true)
   })
 
   it('openFeatureReview with suggestedName stores a Board→Review prefill', async () => {
@@ -65,7 +65,7 @@ describe('surface-handoffs', () => {
 
   it('openReviewSidebar only switches the sidebar (no canvas tab)', () => {
     openReviewSidebar()
-    expect(usePreferencesStore.getState().sidebarTab).toBe('feature')
+    expect(usePreferencesStore.getState().sidebarTab).toBe('review')
     expect(useTabsStore.getState().panes[0]?.tabs).toHaveLength(0)
   })
 })

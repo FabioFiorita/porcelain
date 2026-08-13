@@ -4,10 +4,10 @@ import {
   gitProjectKey,
   gitWorktreesQuery,
 } from '@porcelain/client-runtime/git'
-import { worktreeInboxQuery } from '@porcelain/client-runtime/review'
+import { reviewInboxQuery } from '@porcelain/client-runtime/review'
 import { headLabel } from '@porcelain/contracts'
 import type { BranchRef, GitHead, Worktree } from '@porcelain/contracts/git'
-import type { WorktreeInboxRow } from '@porcelain/contracts/review'
+import type { ReviewInboxRow } from '@porcelain/contracts/review'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import { trpc } from '@renderer/lib/trpc'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
@@ -23,7 +23,7 @@ export function useGitWorkspace(): {
   branches: BranchRef[]
   refreshBranches: () => Promise<void>
   worktrees: Worktree[]
-  inbox: WorktreeInboxRow[]
+  inbox: ReviewInboxRow[]
   head: GitHead | undefined
 } {
   const project = useProjectSelectionStore((state) => state.project)
@@ -54,8 +54,8 @@ export function useGitWorkspace(): {
   })
   const inbox = useQuery({
     enabled,
-    queryFn: (): Promise<WorktreeInboxRow[]> => utils.client.worktreeInbox.query(projectPath),
-    queryKey: gitQueryKey(daemonScope, worktreeInboxQuery(projectPath)),
+    queryFn: (): Promise<ReviewInboxRow[]> => utils.client.reviewInbox.query(projectPath),
+    queryKey: gitQueryKey(daemonScope, reviewInboxQuery(projectPath)),
     refetchInterval: enabled ? 15_000 : false,
   })
   const refetchBranches = branches.refetch

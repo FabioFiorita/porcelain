@@ -1,12 +1,11 @@
 import { boardCardsQuery } from '@porcelain/client-runtime/board'
 import { gitStatusQuery } from '@porcelain/client-runtime/git'
 import {
+  reviewActiveQuery,
   reviewEvidenceAssetQuery,
   reviewEvidenceAssetQueryFamily,
-  reviewEvidenceAssetsQuery,
   reviewedPathsQuery,
   reviewIntentQuery,
-  reviewViewQuery,
 } from '@porcelain/client-runtime/review'
 import { gitQueryKey } from '@renderer/features/git'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
@@ -34,7 +33,7 @@ describe('invalidateReviewEffects', () => {
       reviewQueryKey(DAEMON, reviewEvidenceAssetQuery(PROJECT, 'b.png')),
     )
     const theirs = seed(client, reviewQueryKey(DAEMON, reviewEvidenceAssetQuery(OTHER, 'a.png')))
-    const listing = seed(client, reviewQueryKey(DAEMON, reviewEvidenceAssetsQuery(PROJECT)))
+    const listing = seed(client, reviewQueryKey(DAEMON, reviewEvidenceAssetQueryFamily(PROJECT)))
 
     await invalidateReviewEffects(client, DAEMON, [reviewEvidenceAssetQueryFamily(PROJECT)])
 
@@ -47,7 +46,7 @@ describe('invalidateReviewEffects', () => {
   it('invalidates only its own key for an exact identity effect', async () => {
     const client = new QueryClient()
     const intent = seed(client, reviewQueryKey(DAEMON, reviewIntentQuery(PROJECT)))
-    const view = seed(client, reviewQueryKey(DAEMON, reviewViewQuery(PROJECT)))
+    const view = seed(client, reviewQueryKey(DAEMON, reviewActiveQuery(PROJECT)))
 
     await invalidateReviewEffects(client, DAEMON, [reviewIntentQuery(PROJECT)])
 
@@ -58,7 +57,7 @@ describe('invalidateReviewEffects', () => {
   it('forwards a reviewed-paths effect to the Git-keyed cache and leaves Review keys alone', async () => {
     const client = new QueryClient()
     const gitKeyed = seed(client, gitQueryKey(DAEMON, reviewedPathsQuery(PROJECT)))
-    const view = seed(client, reviewQueryKey(DAEMON, reviewViewQuery(PROJECT)))
+    const view = seed(client, reviewQueryKey(DAEMON, reviewActiveQuery(PROJECT)))
 
     await invalidateReviewEffects(client, DAEMON, [reviewedPathsQuery(PROJECT)])
 
@@ -86,8 +85,8 @@ describe('invalidateReviewEffects', () => {
 describe('invalidateAllReviewQueries', () => {
   it('invalidates every Review key and nothing owned by another domain', async () => {
     const client = new QueryClient()
-    const view = seed(client, reviewQueryKey(DAEMON, reviewViewQuery(PROJECT)))
-    const otherProject = seed(client, reviewQueryKey(DAEMON, reviewViewQuery(OTHER)))
+    const view = seed(client, reviewQueryKey(DAEMON, reviewActiveQuery(PROJECT)))
+    const otherProject = seed(client, reviewQueryKey(DAEMON, reviewActiveQuery(OTHER)))
     const status = seed(client, gitQueryKey(DAEMON, gitStatusQuery(PROJECT)))
     const board = seed(client, [boardCardsQuery(PROJECT), DAEMON])
 

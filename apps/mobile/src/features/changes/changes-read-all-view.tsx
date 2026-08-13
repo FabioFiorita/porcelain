@@ -20,17 +20,16 @@ export function ChangesReadAllView({
   topInset?: number
 }): React.JSX.Element {
   const reviewedPaths = useReviewedPaths(active)
-  const { mark, unmark } = useToggleReviewed()
+  const { setReviewed } = useToggleReviewed()
 
   return (
     <ReadAllView
       active={active}
       context={scope === 'branch' ? `Branch range · vs ${base ?? 'base'}` : 'Working tree'}
       reviewed={{
-        // mark/unmark are total void (React Query owns error + pending).
+        // setReviewed is total void (React Query owns error + pending).
         onToggle: (path, next) => {
-          if (next) mark(path)
-          else unmark(path)
+          setReviewed([path], next)
         },
         paths: reviewedPaths,
       }}

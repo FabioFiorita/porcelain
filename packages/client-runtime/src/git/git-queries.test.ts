@@ -1,8 +1,8 @@
 import {
+  reviewActiveQuery,
   reviewedPathsQuery,
+  reviewInboxQuery,
   reviewReadingQuery,
-  reviewViewQuery,
-  worktreeInboxQuery,
 } from '@porcelain/client-runtime/review'
 import { describe, expect, it } from 'vitest'
 import {
@@ -114,9 +114,9 @@ describe('Git query identities', () => {
   it('keeps the relocated Review workspace identities in gitWorkspaceQuerySchema', () => {
     const queries = [
       reviewReadingQuery(PROJECT),
-      reviewViewQuery(PROJECT),
+      reviewActiveQuery(PROJECT),
       reviewedPathsQuery(PROJECT),
-      worktreeInboxQuery(PROJECT),
+      reviewInboxQuery(PROJECT),
     ]
     for (const query of queries) {
       expect(gitWorkspaceQuerySchema.safeParse(query).success).toBe(true)

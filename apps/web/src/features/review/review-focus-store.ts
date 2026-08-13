@@ -1,10 +1,10 @@
-import type { FeatureCanvasTab } from '@renderer/lib/feature-canvas'
+import type { ActiveReviewTab } from '@renderer/lib/active-review-tabs'
 import { create } from 'zustand'
 
 /**
  * Where the Review document is, and where to send it next. One concern: the review
  * surface publishes the topmost visible chapter + file on scroll, the outline
- * (Feature list) and Quick Access subscribe, and either side can request a jump
+ * (the Review list) and Quick Access subscribe, and either side can request a jump
  * that the surface consumes by scrolling itself. Canvas tab (Intent / Execution /
  * Evidence) is shared so the sidebar pills and the viewer stay in lockstep.
  */
@@ -24,15 +24,15 @@ export type ReviewJumpTarget =
   | { kind: 'evidence' }
 
 interface ReviewFocusState {
-  /** Active Feature canvas tab (Intent / Execution / Evidence). */
-  canvasTab: FeatureCanvasTab
+  /** Active Review canvas tab (Intent / Execution / Evidence). */
+  canvasTab: ActiveReviewTab
   /** Topmost visible chapter, published by the Intent reading surface on scroll. */
   activeSection: ReviewFocusSection
   /** Repo-relative path of the topmost visible file block (null between files). */
   visiblePath: string | null
   /** Pending jump request; the nonce re-fires a jump to the already-active target. */
   jump: { target: ReviewJumpTarget; nonce: number } | null
-  setCanvasTab: (tab: FeatureCanvasTab) => void
+  setCanvasTab: (tab: ActiveReviewTab) => void
   setVisible: (activeSection: ReviewFocusSection, visiblePath: string | null) => void
   requestJump: (target: ReviewJumpTarget) => void
   clearJump: () => void
@@ -43,7 +43,7 @@ export const useReviewFocusStore = create<ReviewFocusState>((set) => ({
   activeSection: null,
   visiblePath: null,
   jump: null,
-  setCanvasTab: (canvasTab: FeatureCanvasTab) => set({ canvasTab }),
+  setCanvasTab: (canvasTab: ActiveReviewTab) => set({ canvasTab }),
   // Returning the state object unchanged skips the notify — the scroll handler
   // calls this per top-row change, and subscribers must not re-render otherwise.
   setVisible: (activeSection: ReviewFocusSection, visiblePath: string | null) =>

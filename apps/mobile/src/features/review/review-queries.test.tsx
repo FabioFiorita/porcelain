@@ -1,8 +1,8 @@
 import {
   reviewArchivedQuery,
   reviewEvidenceAssetQuery,
-  reviewEvidenceAssetsQuery,
-  reviewEvidenceDocsQuery,
+  reviewEvidenceDocQuery,
+  reviewEvidenceQuery,
   reviewIntentQuery,
   reviewPublishCostQuery,
   reviewReadingQuery,
@@ -21,7 +21,8 @@ import { TRPCClientError } from '@trpc/client'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const REPO = reviewContractFixtures.featureReading.input
+const REPO = reviewContractFixtures.reviewReading.input
+const RESULT_DOC = reviewContractFixtures.reviewEvidenceDoc.input.file
 const OTHER_REPO = '/synthetic/other'
 const ENV_ID = 'env-review-reads'
 
@@ -85,12 +86,12 @@ vi.mock('@/features/remote', () => ({
 import { parseReviewQueryKey, reviewQueryKey } from './review-query-key'
 import {
   useArchivedReviews,
-  useFeatureReading,
+  useReviewEvidence,
   useReviewEvidenceAsset,
-  useReviewEvidenceAssets,
-  useReviewEvidenceDocs,
+  useReviewEvidenceDoc,
   useReviewIntentDocs,
   useReviewPublishCost,
+  useReviewReading,
 } from './use-review'
 import { REVIEW_DISABLED_PROJECT } from './use-review-transport'
 
@@ -129,21 +130,18 @@ function clientFromMock(mock: ValidatingDaemonMock): TestDaemonClient {
 /** Contract-shaped outcomes for the seven Review reads this client makes. */
 function defaultHandlers(overrides: Handlers = {}): Handlers {
   return {
-    featureReading: () => ({ ok: true, value: reviewContractFixtures.featureReading.output }),
+    reviewReading: () => ({ ok: true, value: reviewContractFixtures.reviewReading.output }),
     reviewIntent: () => ({ ok: true, value: reviewContractFixtures.reviewIntent.output }),
-    reviewEvidenceDocs: () => ({
+    reviewEvidence: () => ({ ok: true, value: reviewContractFixtures.reviewEvidence.output }),
+    reviewEvidenceDoc: () => ({
       ok: true,
-      value: reviewContractFixtures.reviewEvidenceDocs.output,
-    }),
-    reviewEvidenceAssets: () => ({
-      ok: true,
-      value: reviewContractFixtures.reviewEvidenceAssets.output,
+      value: reviewContractFixtures.reviewEvidenceDoc.output,
     }),
     reviewEvidenceAsset: () => ({
       ok: true,
       value: reviewContractFixtures.reviewEvidenceAsset.output,
     }),
-    reviewPublishCost: () => ({ ok: true, value: reviewContractFixtures.reviewPublishCost.output }),
+    publishCost: () => ({ ok: true, value: reviewContractFixtures.publishCost.output }),
     archivedReviews: () => ({ ok: true, value: reviewContractFixtures.archivedReviews.output }),
     ...overrides,
   }
@@ -170,11 +168,11 @@ function useAllReads(enabled: boolean, file = 'shot.png') {
   return {
     archived: useArchivedReviews(enabled),
     asset: useReviewEvidenceAsset(file, enabled),
-    assets: useReviewEvidenceAssets(enabled),
     cost: useReviewPublishCost(enabled),
-    docs: useReviewEvidenceDocs(enabled),
+    doc: useReviewEvidenceDoc(RESULT_DOC, enabled),
+    evidence: useReviewEvidence(enabled),
     intent: useReviewIntentDocs(enabled),
-    reading: useFeatureReading(enabled),
+    reading: useReviewReading(enabled),
   }
 }
 
@@ -198,25 +196,25 @@ describe('Mobile Review reads', () => {
     await waitFor(() => expect(result.current.archived).toHaveLength(1))
     await waitFor(() => expect(result.current.asset.asset).not.toBeUndefined())
     await waitFor(() => expect(result.current.cost).not.toBeUndefined())
-    await waitFor(() => expect(result.current.docs.docs).not.toBeUndefined())
+    await waitFor(() => expect(result.current.doc.doc).not.toBeUndefined())
     await waitFor(() => expect(result.current.intent.docs).not.toBeUndefined())
-    await waitFor(() => expect(result.current.assets.assets).not.toBeUndefined())
+    await waitFor(() => expect(result.current.evidence.evidence).not.toBeUndefined())
 
     expect(procedureNames(mock).toSorted()).toEqual([
       'archivedReviews',
-      'featureReading',
+      'publishCost',
+      'reviewEvidence',
       'reviewEvidenceAsset',
-      'reviewEvidenceAssets',
-      'reviewEvidenceDocs',
+      'reviewEvidenceDoc',
       'reviewIntent',
-      'reviewPublishCost',
+      'reviewReading',
     ])
 
     for (const query of [
       reviewReadingQuery(REPO),
       reviewIntentQuery(REPO),
-      reviewEvidenceDocsQuery(REPO),
-      reviewEvidenceAssetsQuery(REPO),
+      reviewEvidenceQuery(REPO),
+      reviewEvidenceDocQuery(REPO, RESULT_DOC),
       reviewEvidenceAssetQuery(REPO, 'shot.png'),
       reviewPublishCostQuery(REPO),
       reviewArchivedQuery(REPO),
@@ -234,7 +232,7 @@ describe('Mobile Review reads', () => {
     await waitFor(() => expect(second.result.current.asset).not.toBeUndefined())
 
     ctx.repoPath = OTHER_REPO
-    const other = renderHook(() => useFeatureReading(true), { wrapper })
+    const other = renderHook(() => useReviewReading(true), { wrapper })
     await waitFor(() => expect(other.result.current.reading).not.toBeUndefined())
 
     expect(
@@ -327,16 +325,15 @@ describe('Mobile Review contract strictness (REV-008 ruling 7)', () => {
     expect(result.current.docs).toBeUndefined()
   })
 
-  it('fails a reading whose canvas is in a medium this build cannot draw', async () => {
-    const { canvas: _canvas, ...reading } = {
-      ...reviewContractFixtures.featureReading.output,
-      canvas: undefined,
-    }
+  it('fails a reading carrying a field this build has no model for', async () => {
     ctx.client = rawClient({
-      featureReading: { ...reading, canvas: { medium: 'scene', scene: 'legacy' } },
+      reviewReading: {
+        ...reviewContractFixtures.reviewReading.output,
+        canvas: { medium: 'scene', scene: 'legacy' },
+      },
     })
 
-    const { result } = renderHook(() => useFeatureReading(true), { wrapper: rawWrapper() })
+    const { result } = renderHook(() => useReviewReading(true), { wrapper: rawWrapper() })
 
     await waitFor(() => expect(result.current.error).not.toBeNull())
     expect(result.current.reading).toBeUndefined()

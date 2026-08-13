@@ -1,103 +1,87 @@
+import { z } from 'zod'
 import type { ProcedureContract } from '../procedure-contract'
 import {
+  activeReviewOutputSchema,
   addReviewCommentInputSchema,
-  archivedReviewsOutputSchema,
+  archivedReviewIdInputSchema,
+  archivedReviewSchema,
   clearResolvedReviewCommentsInputSchema,
-  deleteArchivedReviewInputSchema,
   deleteReviewCommentInputSchema,
   editReviewCommentInputSchema,
   evidenceAssetBodySchema,
-  evidenceMetaSchema,
-  evidenceSchema,
-  exploreFeatureInputSchema,
-  featureReadingOutputSchema,
-  featureReadingSchema,
-  featureViewSchema,
-  markReviewedInputSchema,
+  exploreReadingInputSchema,
   publishCostSchema,
   publishResultSchema,
+  repoPathInputSchema,
   resolveReviewCommentInputSchema,
-  restoreArchivedReviewInputSchema,
   reviewCommentSchema,
+  reviewDocSchema,
   reviewEvidenceAssetInputSchema,
-  reviewEvidenceAssetsOutputSchema,
-  reviewEvidenceDocsOutputSchema,
-  reviewedPathsInputSchema,
-  reviewedPathsOutputSchema,
+  reviewEvidenceDocInputSchema,
+  reviewEvidenceOutputSchema,
+  reviewInboxRowSchema,
   reviewIntentOutputSchema,
-  reviewRepoPathInputSchema,
+  reviewReadingOutputSchema,
+  reviewReadingSchema,
   setReviewedInputSchema,
-  unmarkReviewedInputSchema,
   voidOutputSchema,
-  worktreeInboxInputSchema,
-  worktreeInboxOutputSchema,
 } from './review.contract'
 
+/**
+ * The canonical Review catalog (REV-001, activated by REV-009): 23 procedures — 12 queries,
+ * 11 mutations. It is the Review record of the 109-name `procedure-catalog.ts`.
+ *
+ * Only the six comment procedures declare public codes: transport authentication, malformed
+ * input, and unexpected defects are boundary system errors that no procedure repeats
+ * (ERR-001). Evidence unavailability is expressed in the output type, not an error code.
+ */
 const reviewProcedureDefinitions = {
-  worktreeInbox: {
+  reviewInbox: {
     kind: 'query',
-    input: worktreeInboxInputSchema,
-    output: worktreeInboxOutputSchema,
-    errors: [],
-  },
-  markReviewed: {
-    kind: 'mutation',
-    input: markReviewedInputSchema,
-    output: voidOutputSchema,
-    errors: [],
-  },
-  unmarkReviewed: {
-    kind: 'mutation',
-    input: unmarkReviewedInputSchema,
-    output: voidOutputSchema,
+    input: repoPathInputSchema,
+    output: reviewInboxRowSchema.array(),
     errors: [],
   },
   reviewedPaths: {
     kind: 'query',
-    input: reviewedPathsInputSchema,
-    output: reviewedPathsOutputSchema,
+    input: repoPathInputSchema,
+    output: z.array(z.string()),
     errors: [],
   },
-  setReviewed: {
-    kind: 'mutation',
-    input: setReviewedInputSchema,
-    output: voidOutputSchema,
-    errors: [],
-  },
-  featureView: {
+  activeReview: {
     kind: 'query',
-    input: reviewRepoPathInputSchema,
-    output: featureViewSchema,
+    input: repoPathInputSchema,
+    output: activeReviewOutputSchema,
     errors: [],
   },
-  featureReading: {
+  reviewReading: {
     kind: 'query',
-    input: reviewRepoPathInputSchema,
-    output: featureReadingOutputSchema,
+    input: repoPathInputSchema,
+    output: reviewReadingOutputSchema,
     errors: [],
   },
-  clearFeatureReview: {
-    kind: 'mutation',
-    input: reviewRepoPathInputSchema,
-    output: voidOutputSchema,
+  exploreReading: {
+    kind: 'query',
+    input: exploreReadingInputSchema,
+    output: reviewReadingSchema,
     errors: [],
   },
   reviewIntent: {
     kind: 'query',
-    input: reviewRepoPathInputSchema,
+    input: repoPathInputSchema,
     output: reviewIntentOutputSchema,
     errors: [],
   },
-  reviewEvidenceDocs: {
+  reviewEvidence: {
     kind: 'query',
-    input: reviewRepoPathInputSchema,
-    output: reviewEvidenceDocsOutputSchema,
+    input: repoPathInputSchema,
+    output: reviewEvidenceOutputSchema,
     errors: [],
   },
-  reviewEvidenceAssets: {
+  reviewEvidenceDoc: {
     kind: 'query',
-    input: reviewRepoPathInputSchema,
-    output: reviewEvidenceAssetsOutputSchema,
+    input: reviewEvidenceDocInputSchema,
+    output: reviewDocSchema.nullable(),
     errors: [],
   },
   reviewEvidenceAsset: {
@@ -106,59 +90,59 @@ const reviewProcedureDefinitions = {
     output: evidenceAssetBodySchema.nullable(),
     errors: [],
   },
-  reviewPublishCost: {
+  publishCost: {
     kind: 'query',
-    input: reviewRepoPathInputSchema,
+    input: repoPathInputSchema,
     output: publishCostSchema,
-    errors: [],
-  },
-  publishReview: {
-    kind: 'mutation',
-    input: reviewRepoPathInputSchema,
-    output: publishResultSchema.nullable(),
     errors: [],
   },
   archivedReviews: {
     kind: 'query',
-    input: reviewRepoPathInputSchema,
-    output: archivedReviewsOutputSchema,
+    input: repoPathInputSchema,
+    output: archivedReviewSchema.array(),
+    errors: [],
+  },
+  reviewComments: {
+    kind: 'query',
+    input: repoPathInputSchema,
+    output: reviewCommentSchema.array(),
+    errors: ['review.unavailable'],
+  },
+  setReviewed: {
+    kind: 'mutation',
+    input: setReviewedInputSchema,
+    output: voidOutputSchema,
+    errors: [],
+  },
+  archiveReview: {
+    kind: 'mutation',
+    input: repoPathInputSchema,
+    output: voidOutputSchema,
+    errors: [],
+  },
+  clearEvidence: {
+    kind: 'mutation',
+    input: repoPathInputSchema,
+    output: voidOutputSchema,
+    errors: [],
+  },
+  publishReview: {
+    kind: 'mutation',
+    input: repoPathInputSchema,
+    output: publishResultSchema.nullable(),
     errors: [],
   },
   restoreArchivedReview: {
     kind: 'mutation',
-    input: restoreArchivedReviewInputSchema,
+    input: archivedReviewIdInputSchema,
     output: voidOutputSchema,
     errors: [],
   },
   deleteArchivedReview: {
     kind: 'mutation',
-    input: deleteArchivedReviewInputSchema,
+    input: archivedReviewIdInputSchema,
     output: voidOutputSchema,
     errors: [],
-  },
-  loopEvidence: {
-    kind: 'query',
-    input: reviewRepoPathInputSchema,
-    output: evidenceMetaSchema.nullable(),
-    errors: [],
-  },
-  loopEvidenceHtml: {
-    kind: 'query',
-    input: reviewRepoPathInputSchema,
-    output: evidenceSchema.nullable(),
-    errors: [],
-  },
-  clearLoopEvidence: {
-    kind: 'mutation',
-    input: reviewRepoPathInputSchema,
-    output: voidOutputSchema,
-    errors: [],
-  },
-  reviewComments: {
-    kind: 'query',
-    input: reviewRepoPathInputSchema,
-    output: reviewCommentSchema.array(),
-    errors: ['review.unavailable'],
   },
   addReviewComment: {
     kind: 'mutation',
@@ -190,12 +174,6 @@ const reviewProcedureDefinitions = {
     output: voidOutputSchema,
     errors: ['review.unavailable', 'review.comment-not-found'],
   },
-  exploreFeature: {
-    kind: 'query',
-    input: exploreFeatureInputSchema,
-    output: featureReadingSchema,
-    errors: [],
-  },
 } as const
 
 export type ReviewProcedureName = keyof typeof reviewProcedureDefinitions
@@ -204,3 +182,26 @@ export const reviewProcedures = reviewProcedureDefinitions satisfies Record<
   ReviewProcedureName,
   ProcedureContract
 >
+
+/**
+ * The typed staleness fact for the single existing `review.changed` notification kind: exactly
+ * the queries a change under a project's active review makes stale.
+ *
+ * `reviewInbox` (a cross-worktree git scan) and `exploreReading` (independent of the active
+ * review) are excluded. This adds no notification kind and no notification field.
+ */
+export const REVIEW_STALE_ON_REVIEW_CHANGED = [
+  'activeReview',
+  'reviewReading',
+  'reviewIntent',
+  'reviewEvidence',
+  'reviewEvidenceDoc',
+  'reviewEvidenceAsset',
+  'reviewedPaths',
+  'reviewComments',
+  'publishCost',
+  'archivedReviews',
+] as const satisfies readonly ReviewProcedureName[]
+
+/** One of the ten queries a `review.changed` notification makes stale. */
+export type ReviewStaleProcedureName = (typeof REVIEW_STALE_ON_REVIEW_CHANGED)[number]

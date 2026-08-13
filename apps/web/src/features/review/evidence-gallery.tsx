@@ -1,8 +1,8 @@
-import type { EvidenceAsset } from '@porcelain/contracts/review'
+import type { EvidenceAssetDescriptor } from '@porcelain/contracts/review'
 import { formatBytes } from '@renderer/components/shell/publish-review-button'
 import { Dialog, DialogContent, DialogTitle } from '@renderer/components/ui/dialog'
 import { Skeleton } from '@renderer/components/ui/skeleton'
-import { formatEvidenceMb } from '@renderer/lib/evidence-message'
+import { evidenceOverCapMessage } from '@renderer/lib/evidence-message'
 import { TestIds } from '@shared/test-ids'
 import { useState } from 'react'
 import { useEvidenceAsset } from './review-queries'
@@ -23,7 +23,7 @@ export function EvidenceGallery({
   assets,
   active,
 }: {
-  assets: EvidenceAsset[]
+  assets: readonly EvidenceAssetDescriptor[]
   active: boolean
 }): React.JSX.Element {
   const [zoomed, setZoomed] = useState<number | null>(null)
@@ -75,11 +75,14 @@ function GalleryTile({
   active,
   onZoom,
 }: {
-  asset: EvidenceAsset
+  asset: EvidenceAssetDescriptor
   active: boolean
   onZoom: () => void
 }): React.JSX.Element {
-  const { asset: body, isLoading } = useEvidenceAsset(asset.file, active)
+  const { asset: body, isLoading } = useEvidenceAsset(
+    asset.file,
+    active && asset.state === 'available',
+  )
   return (
     <button
       type="button"
@@ -102,14 +105,15 @@ function GalleryTile({
 }
 
 /** The image itself, re-queried by file so ←/→ swaps the body inside one dialog. */
-function ZoomBody({ asset }: { asset: EvidenceAsset }): React.JSX.Element {
-  const { asset: body, isLoading } = useEvidenceAsset(asset.file, true)
+function ZoomBody({ asset }: { asset: EvidenceAssetDescriptor }): React.JSX.Element {
+  const { asset: body, isLoading } = useEvidenceAsset(asset.file, asset.state === 'available')
   if (isLoading) return <Skeleton className="h-[60vh] w-full" />
   if (!body) return <p className="p-4 text-sm text-muted-foreground">{overCap(asset)}</p>
   return <img src={body.dataUrl} alt={asset.label} className="max-h-[80vh] w-full object-contain" />
 }
 
-/** Over-cap (or vanished) tile copy — size comes from the listing, not the body. */
-function overCap(asset: EvidenceAsset): string {
-  return `Too large to preview (${formatEvidenceMb(asset.bytes)})`
+/** Over-cap (or vanished) tile copy — size comes from the descriptor, not the body. */
+function overCap(asset: EvidenceAssetDescriptor): string {
+  if (asset.state === 'unavailable') return evidenceOverCapMessage(asset)
+  return 'Image unavailable'
 }

@@ -1,4 +1,3 @@
-import type { EvidenceMeta } from '@porcelain/contracts/review'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { EmptyNote, ErrorNote, PanelLabel } from '@/components/panel-chrome'
@@ -7,9 +6,9 @@ import { pathTestId } from '@/features/files'
 import { cn } from '@/lib/utils'
 
 import { executionBlocks } from './execution-rows'
-import { reviewedFractionOf } from './review-lifecycle'
+import { type ReviewReadingEvidence, reviewedFractionOf } from './review-lifecycle'
 import { type ReviewCanvasTab, useReviewStore } from './review-store'
-import { useFeatureReading } from './use-review'
+import { useReviewReading } from './use-review'
 
 /**
  * The Review outline — the tablet's supplementary column.
@@ -23,7 +22,7 @@ import { useFeatureReading } from './use-review'
  * empty after dedup is missing from both, and the count on a row is the count you land on.
  */
 export function ReviewList({ active }: { active: boolean }): React.JSX.Element {
-  const { error, isLoading, reading } = useFeatureReading(active)
+  const { error, isLoading, reading } = useReviewReading(active)
   const reviewed = useReviewedPaths(active && reading !== null && reading !== undefined)
   const canvasTab = useReviewStore((state) => state.canvasTab)
   const focusBlock = useReviewStore((state) => state.focusExecutionBlock)
@@ -158,7 +157,7 @@ export function ReviewList({ active }: { active: boolean }): React.JSX.Element {
 }
 
 /** The chapter row's one line about the proof: what it claims, or that there is none. */
-function evidenceDetail(meta: EvidenceMeta | null): string {
+function evidenceDetail(meta: ReviewReadingEvidence | null): string {
   if (meta === null) return 'Nothing published yet'
   const checks = meta.checks
   if (checks.length === 0) return 'Published, no checks recorded'

@@ -78,9 +78,9 @@ export function useSetProjectLayers(): {
             gitFlowQuery(wire.repoPath),
             gitRangeFlowQuery(wire.repoPath),
           ]),
-          utils.featureView.invalidate(),
-          utils.featureReading.invalidate(),
-          utils.exploreFeature.invalidate(),
+          utils.activeReview.invalidate(),
+          utils.reviewReading.invalidate(),
+          utils.exploreReading.invalidate(),
         ],
         'Save layers',
       )

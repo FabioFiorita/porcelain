@@ -115,10 +115,10 @@ beforeEach(() => {
   }
   ctx.mutationHandlers.clear()
   ctx.mutationHandlers.set('publishReview', () => reviewContractFixtures.publishReview.output)
-  ctx.mutationHandlers.set('clearFeatureReview', () => undefined)
+  ctx.mutationHandlers.set('archiveReview', () => undefined)
   ctx.mutationHandlers.set('restoreArchivedReview', () => undefined)
   ctx.mutationHandlers.set('deleteArchivedReview', () => undefined)
-  ctx.mutationHandlers.set('clearLoopEvidence', () => undefined)
+  ctx.mutationHandlers.set('clearEvidence', () => undefined)
 })
 
 describe('Review lifecycle typed comments invalidation (RVC-004)', () => {
@@ -210,7 +210,7 @@ describe('Review lifecycle typed comments invalidation (RVC-004)', () => {
     ctx.mutationHandlers.set('publishReview', () => {
       throw new Error('publish failed')
     })
-    ctx.mutationHandlers.set('clearFeatureReview', () => {
+    ctx.mutationHandlers.set('archiveReview', () => {
       throw new Error('archive failed')
     })
 

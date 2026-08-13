@@ -20,7 +20,7 @@ test('changes tab', async ({ page }) => {
 })
 
 // The rail is exactly these seven, in this order — the ⌘1–7 contract.
-const RAIL_TABS = ['files', 'changes', 'feature', 'history', 'search', 'board', 'terminal']
+const RAIL_TABS = ['files', 'changes', 'review', 'history', 'search', 'board', 'terminal']
 
 // Element-scoped baseline for the icon rail. Framing just the rail makes a tab
 // restyle fail where full-page 2% tolerance would swallow it.

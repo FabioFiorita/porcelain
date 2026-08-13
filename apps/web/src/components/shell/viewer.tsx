@@ -7,7 +7,7 @@ import { Kbd } from '@renderer/components/ui/kbd'
 import { FileContent } from '@renderer/components/viewer/file-content'
 import { SearchView } from '@renderer/components/viewer/search-view'
 import { BoardView } from '@renderer/features/board'
-import { ExploreView, FeatureView } from '@renderer/features/review'
+import { ActiveReview, ExploreView } from '@renderer/features/review'
 import { kbdLabel } from '@renderer/lib/keyboard'
 import { cn } from '@renderer/lib/utils'
 import { usePreferencesStore } from '@renderer/stores/preferences'
@@ -104,12 +104,12 @@ function PaneView({ paneIndex }: { paneIndex: number }): React.JSX.Element {
       )
     case 'commit':
       return <CommitView key={activeTab.path} hash={activeTab.path} />
-    case 'review':
+    case 'changeset':
       return <ReviewView key={activeTab.path} path={activeTab.path} />
     case 'search':
       return <SearchView key={activeTab.path} query={activeTab.path} />
-    case 'feature':
-      return <FeatureView />
+    case 'review':
+      return <ActiveReview />
     case 'terminal':
       return <TerminalView key={activeTab.path} sessionId={activeTab.path} />
     case 'explore':

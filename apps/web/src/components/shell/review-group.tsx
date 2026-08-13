@@ -1,4 +1,4 @@
-import type { FeatureReading } from '@porcelain/contracts/review'
+import type { ReviewReading } from '@porcelain/contracts/review'
 import { PublishReviewButton } from '@renderer/components/shell/publish-review-button'
 import {
   AlertDialog,
@@ -48,7 +48,7 @@ export function firstProseLine(prose: string): string | null {
   return line.replace(/^#+\s*/, '')
 }
 
-function chapterTitle(reading: FeatureReading, active: ReviewFocusSection): string {
+function chapterTitle(reading: ReviewReading, active: ReviewFocusSection): string {
   if (active === 'evidence') return reading.evidence?.title ?? 'Evidence'
   if (active !== null && active < reading.sections.length) {
     return reading.sections[active]?.title ?? reading.name
@@ -75,7 +75,7 @@ function formatArchivedAt(iso: string): string {
 }
 
 /**
- * Feature tab companion: current unit status, archive (clear), and previous
+ * Review tab companion: current unit status, archive (clear), and previous
  * reviews restored from `<repo>/.porcelain/reviews/`.
  */
 export function ReviewGroup(): React.JSX.Element | null {
@@ -243,7 +243,7 @@ export function ReviewGroup(): React.JSX.Element | null {
             size="sm"
             className={cn(rowActionClass, 'w-full justify-start text-destructive')}
             disabled={isArchiving}
-            data-testid={TestIds.featureClearReview}
+            data-testid={TestIds.reviewArchive}
             onClick={() => setConfirmClearOpen(true)}
           >
             <Archive />

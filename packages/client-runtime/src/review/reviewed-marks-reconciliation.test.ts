@@ -6,68 +6,53 @@ import {
 } from './reviewed-marks-reconciliation'
 
 const fixtures = reviewContractFixtures
-const MARKED = fixtures.markReviewed.input.path
-const OTHER_PATH = 'src/context.ts'
+const MARK_INPUT = fixtures.setReviewed.input
+const UNMARK_INPUT = { ...MARK_INPUT, reviewed: false } as const
+const [FIRST, SECOND] = MARK_INPUT.paths
+const UNRELATED = 'src/unrelated.ts'
 
 describe('applyReviewedMarksTransition', () => {
-  it('marks a path once, idempotently, preserving first-seen order', () => {
+  it('marks the named paths once, idempotently, preserving first-seen order', () => {
+    expect(applyReviewedMarksTransition('setReviewed', [UNRELATED], MARK_INPUT)).toEqual([
+      UNRELATED,
+      FIRST,
+      SECOND,
+    ])
     expect(
-      applyReviewedMarksTransition('markReviewed', [OTHER_PATH], fixtures.markReviewed.input),
-    ).toEqual([OTHER_PATH, MARKED])
-    expect(
-      applyReviewedMarksTransition(
-        'markReviewed',
-        [OTHER_PATH, MARKED],
-        fixtures.markReviewed.input,
-      ),
-    ).toEqual([OTHER_PATH, MARKED])
+      applyReviewedMarksTransition('setReviewed', [UNRELATED, FIRST, SECOND], MARK_INPUT),
+    ).toEqual([UNRELATED, FIRST, SECOND])
   })
 
-  it('unmarks only the named path', () => {
+  it('unmarks only the named paths and leaves every other mark alone', () => {
     expect(
-      applyReviewedMarksTransition(
-        'unmarkReviewed',
-        [OTHER_PATH, MARKED],
-        fixtures.unmarkReviewed.input,
-      ),
-    ).toEqual([OTHER_PATH])
-    expect(
-      applyReviewedMarksTransition('unmarkReviewed', [OTHER_PATH], fixtures.unmarkReviewed.input),
-    ).toEqual([OTHER_PATH])
-  })
-
-  it('replaces the whole list when setting', () => {
-    expect(
-      applyReviewedMarksTransition('setReviewed', ['src/stale.ts'], fixtures.setReviewed.input),
-    ).toEqual(fixtures.setReviewed.input.paths)
+      applyReviewedMarksTransition('setReviewed', [UNRELATED, FIRST, SECOND], UNMARK_INPUT),
+    ).toEqual([UNRELATED])
+    expect(applyReviewedMarksTransition('setReviewed', [UNRELATED], UNMARK_INPUT)).toEqual([
+      UNRELATED,
+    ])
   })
 
   it('treats an absent previous list as empty', () => {
-    expect(
-      applyReviewedMarksTransition('markReviewed', undefined, fixtures.markReviewed.input),
-    ).toEqual([MARKED])
-    expect(
-      applyReviewedMarksTransition('unmarkReviewed', undefined, fixtures.unmarkReviewed.input),
-    ).toEqual([])
-    expect(
-      applyReviewedMarksTransition('setReviewed', undefined, fixtures.setReviewed.input),
-    ).toEqual(fixtures.setReviewed.input.paths)
+    expect(applyReviewedMarksTransition('setReviewed', undefined, MARK_INPUT)).toEqual([
+      FIRST,
+      SECOND,
+    ])
+    expect(applyReviewedMarksTransition('setReviewed', undefined, UNMARK_INPUT)).toEqual([])
   })
 
   it('never mutates its input arrays', () => {
-    const previous = [OTHER_PATH]
-    applyReviewedMarksTransition('markReviewed', previous, fixtures.markReviewed.input)
-    applyReviewedMarksTransition('unmarkReviewed', previous, fixtures.unmarkReviewed.input)
-    const set = applyReviewedMarksTransition('setReviewed', previous, fixtures.setReviewed.input)
-    expect(previous).toEqual([OTHER_PATH])
-    expect(set).not.toBe(fixtures.setReviewed.input.paths)
+    const previous = [UNRELATED]
+    const marked = applyReviewedMarksTransition('setReviewed', previous, MARK_INPUT)
+    applyReviewedMarksTransition('setReviewed', previous, UNMARK_INPUT)
+    expect(previous).toEqual([UNRELATED])
+    expect(marked).not.toBe(MARK_INPUT.paths)
   })
 })
 
 describe('rollbackReviewedMarksTransition', () => {
   it('restores the exact snapshot', () => {
-    const snapshot = { paths: [OTHER_PATH, MARKED] }
-    expect(rollbackReviewedMarksTransition(snapshot)).toEqual([OTHER_PATH, MARKED])
+    const snapshot = { paths: [UNRELATED, FIRST] }
+    expect(rollbackReviewedMarksTransition(snapshot)).toEqual([UNRELATED, FIRST])
     expect(rollbackReviewedMarksTransition({ paths: [] })).toEqual([])
   })
 })

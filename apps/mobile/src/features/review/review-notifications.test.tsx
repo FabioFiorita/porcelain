@@ -3,9 +3,9 @@ import { gitHeadQuery } from '@porcelain/client-runtime/git'
 import {
   reviewArchivedQuery,
   reviewEvidenceAssetQuery,
+  reviewInboxQuery,
   reviewIntentQuery,
   reviewReadingQuery,
-  worktreeInboxQuery,
 } from '@porcelain/client-runtime/review'
 import type { FreshnessRequirement } from '@porcelain/client-runtime/session/recovery'
 import type { SessionChange } from '@porcelain/contracts/session'
@@ -78,7 +78,7 @@ function seed(queryClient: QueryClient): {
     asset: reviewQueryKey(ENVIRONMENT, reviewEvidenceAssetQuery(PROJECT, 'shot.png')),
     board: ['daemon', ENVIRONMENT, boardCardsQuery(PROJECT)] as const,
     git: ['daemon', ENVIRONMENT, gitHeadQuery(PROJECT)] as const,
-    inbox: reviewQueryKey(ENVIRONMENT, worktreeInboxQuery(PROJECT)),
+    inbox: reviewQueryKey(ENVIRONMENT, reviewInboxQuery(PROJECT)),
     intent: reviewQueryKey(ENVIRONMENT, reviewIntentQuery(PROJECT)),
     other: reviewQueryKey(ENVIRONMENT, reviewReadingQuery(OTHER_PROJECT)),
     reading: reviewQueryKey(ENVIRONMENT, reviewReadingQuery(PROJECT)),

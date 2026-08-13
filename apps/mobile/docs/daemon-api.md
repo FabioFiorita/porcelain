@@ -45,7 +45,7 @@ This is why the app ships `NSAllowsArbitraryLoads` / `usesCleartextTraffic` (see
 
 ## Live updates
 
-File-watched channels under `~/.porcelain/` (review sets, comments, board, actions, layers, scope, notes, evidence) surface as WS `{t:'app-event', event}` pushes, where `event ∈ feature-view|comments|board|actions|layers|evidence|scope|working-tree|file-tree`. Handle by invalidating the matching React Query keys. The browser client also keeps a polling backstop (3 s for featureView/featureReading/gitFlow/reviewedPaths/diffReading; 5 s for range flow/worktrees; 15 s for inbox) — mobile should poll more lazily (screen-focused only) to respect battery/cellular.
+File-watched channels under `~/.porcelain/` (review sets, comments, board, actions, layers, scope, notes, evidence) surface as WS `{t:'app-event', event}` pushes, where `event ∈ active-review|comments|board|actions|layers|evidence|scope|working-tree|file-tree`. Handle by invalidating the matching React Query keys. The browser client also keeps a polling backstop (3 s for activeReview/reviewReading/gitFlow/reviewedPaths/diffReading; 5 s for range flow/worktrees; 15 s for inbox) — mobile should poll more lazily (screen-focused only) to respect battery/cellular.
 
 ## Procedure catalog by feature area
 
@@ -69,17 +69,17 @@ All flat names; Q = query, M = mutation. No tRPC subscriptions exist.
 - staging: `gitStageAll`/`gitUnstageAll`/`gitStageFile`/`gitUnstageFile`/`gitDiscardFile` M
 - commit: `gitCommit` M (clears reviewed marks), `gitSuggestions` Q, `gitCommitConventions` Q
 - `gitPush` M, `gitQuickCommand` M `{command, pullMode?}`, `gitHead`/`gitBranches`/`gitWorktrees` Q, `gitCheckout`/`gitCreateBranch`/`gitAddWorktree` M
-- reviewed marks: `markReviewed`/`unmarkReviewed`/`setReviewed` M, `reviewedPaths` Q
+- reviewed marks: `setReviewed` M `{repoPath, paths, reviewed}` (total and idempotent — one call marks or unmarks a whole set), `reviewedPaths` Q
 - History (inside Changes): `gitLog` Q `{limit≤500}`, `gitCommitFlow` Q, `gitCommitMessage` Q, `gitFileLog` Q (`--follow`)
 
 ### Review tab
-- `featureView` Q → review set or `null` ("No review yet")
-- `featureReading` Q → full document: thesis, walkthrough sections with anchors, `evidence` meta, `canvas`
-- `loopEvidence` Q (meta + checks), `loopEvidenceHtml` Q (full sandboxed HTML — render in a WebView with `sandbox`-equivalent settings), `clearLoopEvidence` M, `clearFeatureReview` M
+- `activeReview` Q → review set or `null` ("No review yet")
+- `reviewReading` Q → full document: thesis, walkthrough sections with anchors, `evidence` meta
+- `reviewEvidence` Q → one pack: checks + Results document descriptors + Assets descriptors; `reviewEvidenceDoc` Q `{repoPath, file}` → one document body (HTML arrives self-contained — render in a WebView with `sandbox`-equivalent settings), `reviewEvidenceAsset` Q → one image as a data URL; `clearEvidence` M, `archiveReview` M
 - comments: `reviewComments` Q, `addReviewComment` M `{path, startLine?, endLine?, anchorText?, body}`, `editReviewComment`/`deleteReviewComment`/`resolveReviewComment` M, `clearResolvedReviewComments` M
-- `exploreFeature` Q `{seed: file|symbol}` → read-only flow reading
+- `exploreReading` Q `{seed: file|symbol}` → read-only flow reading
 - Board (inside Review): `boardCards` Q, `addBoardCard`/`updateBoardCard`/`moveBoardCard`/`deleteBoardCard`/`clearBoardCards` M
-- `worktreeInbox` Q — sibling worktrees with agent work awaiting review
+- `reviewInbox` Q — sibling worktrees with agent work awaiting review
 
 ### Terminal tab
 - Roster via tRPC: `terminalSessions` Q → `{id,name,cwd,status,exitCode}[]`, `renameTerminal` M
@@ -97,7 +97,7 @@ All flat names; Q = query, M = mutation. No tRPC subscriptions exist.
 
 ## Mobile-side cautions
 
-- Heavy payloads: `readFile` inlines images as data URLs; `loopEvidenceHtml` is a whole HTML document; `diffReading`/`featureReading` can carry up to ~200 files of hunks. Fine on LAN/tailnet; cap or defer on a Funnel/cellular path.
+- Heavy payloads: `readFile` inlines images as data URLs; `reviewEvidenceDoc` returns a whole HTML document; `diffReading`/`reviewReading` can carry up to ~200 files of hunks. Fine on LAN/tailnet; cap or defer on a Funnel/cellular path.
 - Paths are **daemon-side**. The eight host-fs procedures take an absolute `projectPath` plus project-relative targets (no `~` expansion on those). `readDir`/scope still use absolute host paths. Never touch the phone's filesystem for repo content.
 - The mobile client and daemon are developed and delivered together. A missing procedure or
   malformed payload is an error; do not feature-detect alternate daemon contracts or silently

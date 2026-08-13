@@ -131,13 +131,13 @@ export const ARCHITECTURE_LINE_CEILING = 450
 // Existing authored production files above the target ceiling. Caps may shrink; entries may only
 // be removed. Test fixtures and generated UI primitives are intentionally outside this ledger.
 export const OVERSIZED_PRODUCTION_FILES = Object.freeze({
-  'apps/cli/src/cli.ts': 676,
-  'apps/cli/src/evidence-file.ts': 542,
+  'apps/cli/src/cli.ts': 672,
+  'apps/cli/src/evidence-file.ts': 535,
   'apps/daemon/src/git/commit-generation.ts': 991,
   'apps/daemon/src/git/git.ts': 947,
   'apps/desktop/src/main/shell-api.ts': 741,
   'apps/web/src/components/git/changes-list.tsx': 468,
-  'apps/web/src/features/review/feature-view.tsx': 520,
+  'apps/web/src/features/review/active-review.tsx': 508,
   'apps/web/src/features/review/reading-surface.tsx': 904,
   'apps/web/src/lib/terminal-registry.ts': 602,
   'apps/web/src/terminal/ghostty/core.ts': 1240,

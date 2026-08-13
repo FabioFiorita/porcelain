@@ -7,9 +7,19 @@ import {
   projectEvidenceResultsDir,
 } from '@shared/project-porcelain'
 import { z } from 'zod'
-import { type DocMedium, type ReviewDoc, readActiveEvidenceResults } from '../../review/doc-set'
-import { listEvidenceAssets, readEvidenceAsset } from '../../review/evidence-assets-list'
+import {
+  type DocMedium,
+  MAX_DOC_BYTES,
+  type ReviewDoc,
+  readActiveEvidenceResults,
+} from '../../review/doc-set'
+import {
+  listEvidenceAssets,
+  MAX_ASSET_BYTES,
+  readEvidenceAsset,
+} from '../../review/evidence-assets-list'
 import type {
+  ReviewEvidenceAssetDescriptor,
   ReviewEvidenceDocDescriptor,
   ReviewEvidencePack,
   ReviewEvidenceStore,
@@ -73,9 +83,18 @@ function metaPath(repoPath: string): string {
   return join(projectEvidenceDir(repoPath), 'meta.json')
 }
 
-/** The pre-sub-tab single page. Read-only legacy; REV-009 retires it. */
-function legacyReportPath(repoPath: string): string {
-  return join(projectEvidenceDir(repoPath), 'index.html')
+/**
+ * A descriptor says up front whether the body fetch can serve it. The readers drop
+ * an over-cap document and refuse an over-cap image, so a pack that only listed
+ * available files would quietly under-report what the agent produced.
+ */
+function stateFor(
+  bytes: number,
+  maxBytes: number,
+): { state: 'available' } | { state: 'unavailable'; reason: 'too-large'; maxBytes: number } {
+  return bytes > maxBytes
+    ? { state: 'unavailable', reason: 'too-large', maxBytes }
+    : { state: 'available' }
 }
 
 async function readDiskMeta(repoPath: string): Promise<z.infer<typeof metaSchema> | null> {
@@ -126,7 +145,13 @@ async function scanResults(dir: string): Promise<ResultsScan> {
     try {
       const info = await stat(join(dir, file))
       if (!info.isFile()) continue
-      docs.push({ file, label: labelFor(file), medium, bytes: info.size })
+      docs.push({
+        file,
+        label: labelFor(file),
+        medium,
+        bytes: info.size,
+        ...stateFor(info.size, MAX_DOC_BYTES),
+      })
       const at = info.mtime.toISOString()
       if (at > newestAt) newestAt = at
     } catch {
@@ -155,26 +180,23 @@ export function createFsReviewEvidenceStore(): ReviewEvidenceStore {
   return Object.freeze({
     readPack: async (repoPath: string): Promise<ReviewEvidencePack | null> => {
       const assetsDir = projectEvidenceAssetsDir(repoPath)
-      const [results, assets, legacyReport, hasMeta] = await Promise.all([
+      const [results, assets, hasMeta] = await Promise.all([
         scanResults(projectEvidenceResultsDir(repoPath)),
         // One scan serves both the gallery and the count: the header must never
         // promise a tile the gallery refuses to show (symlinks, past MAX_ASSETS).
         listEvidenceAssets(assetsDir),
-        fileExists(legacyReportPath(repoPath)),
         fileExists(metaPath(repoPath)),
       ])
       // A pack exists when ANY of its parts does: recorded checks (`meta.json`), a
-      // Results document, a gallery image, or a legacy `index.html`.
-      if (!hasMeta && !legacyReport && results.docs.length === 0 && assets.length === 0) return null
+      // Results document, or a gallery image.
+      if (!hasMeta && results.docs.length === 0 && assets.length === 0) return null
 
       const meta = await readDiskMeta(repoPath)
-      // Effective stamp: the latest of meta.updatedAt, the legacy report's mtime, and
-      // the newest file under `results/` / `assets/`. An in-place edit (a `sed`, an
-      // agent dropping a screenshot in) must invalidate even when nothing re-bumped
-      // `meta.json`.
+      // Effective stamp: the latest of meta.updatedAt and the newest file under
+      // `results/` / `assets/`. An in-place edit (a `sed`, an agent dropping a
+      // screenshot in) must invalidate even when nothing re-bumped `meta.json`.
       let updatedAt = meta?.updatedAt?.trim() || ''
       for (const at of [
-        await mtimeOf(legacyReportPath(repoPath)),
         results.newestAt,
         await newestAssetAt(
           assetsDir,
@@ -184,13 +206,17 @@ export function createFsReviewEvidenceStore(): ReviewEvidenceStore {
         if (at > updatedAt) updatedAt = at
       }
 
+      const assetDescriptors: ReviewEvidenceAssetDescriptor[] = assets.map((asset) => ({
+        ...asset,
+        ...stateFor(asset.bytes, MAX_ASSET_BYTES),
+      }))
+
       return {
         title: meta?.title?.trim() || 'Evidence',
         updatedAt,
         checks: meta?.checks ?? [],
         results: results.docs,
-        assets,
-        legacyReport,
+        assets: assetDescriptors,
       }
     },
 

@@ -21,7 +21,7 @@ export function ReviewAllToggle({
       size="icon-sm"
       className="shrink-0"
       aria-label={allReviewed ? 'Unmark all reviewed' : 'Mark all reviewed'}
-      onClick={() => setReviewed(allReviewed ? [] : paths)}
+      onClick={() => setReviewed(paths, !allReviewed)}
     >
       {allReviewed ? <ListX /> : <ListChecks />}
     </Button>

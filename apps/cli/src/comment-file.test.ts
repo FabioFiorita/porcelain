@@ -54,7 +54,7 @@ describe('describeComments', () => {
     expect(text).not.toContain('resolved note')
   })
 
-  it('tags each comment with its feature-view source when a lookup is supplied', () => {
+  it('tags each comment with its active-review source when a lookup is supplied', () => {
     const text = describeComments(
       repo,
       [

@@ -47,7 +47,7 @@ export function ChangesList({
 
   const { base, error, groups, isLoading } = useChangesFlow(active)
   const reviewed = useReviewedPaths(active)
-  const { mark, setReviewed, unmark, error: reviewedError } = useToggleReviewed()
+  const { setReviewed, error: reviewedError } = useToggleReviewed()
   const { stageFile, unstageFile } = useFileStaging()
   const { discardFile } = useDiscardFile()
   const [anchor, setAnchor] = useState<CommentAnchor | null>(null)
@@ -85,8 +85,7 @@ export function ChangesList({
     onToggleReviewed: (path, next) => {
       // Total void: failure is on useToggleReviewed().error (reviewedError below).
       setActionError(null)
-      if (next) mark(path)
-      else unmark(path)
+      setReviewed([path], next)
     },
     onUnstage: (path) => {
       guard('Unstage failed', () => unstageFile(path))
@@ -111,7 +110,7 @@ export function ChangesList({
         onToggleAll={() => {
           // Total void: failure is on useToggleReviewed().error.
           setActionError(null)
-          setReviewed(summary.allReviewed ? [] : changedPaths(groups ?? []))
+          setReviewed(changedPaths(groups ?? []), !summary.allReviewed)
         }}
       />
 

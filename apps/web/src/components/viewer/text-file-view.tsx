@@ -67,7 +67,7 @@ export function TextFileView({
   path: string
   content: string
   line?: number
-  /** Agent-changed line ranges from the Feature outline (tinted in source). */
+  /** Agent-changed line ranges from the Review outline (tinted in source). */
   highlightRanges?: { start: number; end: number }[]
   paneIndex: number
 }): React.JSX.Element {

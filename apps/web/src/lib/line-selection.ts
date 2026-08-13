@@ -62,7 +62,7 @@ export function lineSelectionFromDom(): LineSelection | null {
 
 /**
  * Map a `Range` to a 1-based line range WITHIN a single file, for a surface that
- * interleaves many files in one scroll (the feature reading surface): rows there
+ * interleaves many files in one scroll (the Review reading surface): rows there
  * carry `data-file` alongside `data-line`, and only endpoints in `path` count. A
  * selection that crosses INTO another file can't anchor cleanly to one, so it
  * returns null (the caller falls back to the single right-clicked line). The pure

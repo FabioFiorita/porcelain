@@ -35,7 +35,7 @@ import { useState } from 'react'
  * new shell and opens it; a row click opens/focuses its viewer tab; "x" kills the PTY.
  * Sessions are independent of tabs — closing a tab keeps the session here (a background
  * dev server keeps running), so this roster is how you get back to it. Mirrors the
- * Board/Feature tabs: a list here, the live surface in the viewer.
+ * Board/Review tabs: a list here, the live surface in the viewer.
  *
  * When the window is bound to a remote daemon, the header gains a folder icon (set the
  * local clone path for "This device" shells) and "+" becomes a menu (this window's

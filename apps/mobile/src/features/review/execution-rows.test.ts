@@ -1,4 +1,4 @@
-import type { FeatureReading } from '@porcelain/contracts/review'
+import type { ReviewReading } from '@porcelain/contracts/review'
 import { describe, expect, it } from 'vitest'
 
 import { blockRowIndex, executionBlocks, executionPaths, toExecutionRows } from './execution-rows'
@@ -28,7 +28,7 @@ const context = {
   source: 'context' as const,
 }
 
-const reading: FeatureReading = {
+const reading: ReviewReading = {
   evidence: null,
   groups: [{ files: [context], layer: 'Support' }],
   name: 'Unit',
@@ -37,7 +37,7 @@ const reading: FeatureReading = {
 
 describe('executionBlocks', () => {
   it('claims a file for the first block that lists it, so it is rendered once', () => {
-    const both: FeatureReading = {
+    const both: ReviewReading = {
       ...reading,
       groups: [{ files: [changed, context], layer: 'Support' }],
     }
@@ -48,7 +48,7 @@ describe('executionBlocks', () => {
   })
 
   it('drops a block whose files were all claimed earlier rather than showing an empty one', () => {
-    const duplicated: FeatureReading = {
+    const duplicated: ReviewReading = {
       ...reading,
       groups: [{ files: [changed], layer: 'Support' }],
     }
@@ -56,7 +56,7 @@ describe('executionBlocks', () => {
   })
 
   it('names an untitled section rather than captioning the block with nothing', () => {
-    const untitled: FeatureReading = {
+    const untitled: ReviewReading = {
       ...reading,
       sections: [{ files: [changed], prose: '', title: '  ' }],
     }
@@ -95,7 +95,7 @@ describe('toExecutionRows', () => {
   })
 
   it('marks a file with no body rather than dropping it from the document', () => {
-    const empty: FeatureReading = {
+    const empty: ReviewReading = {
       ...reading,
       groups: [
         { files: [{ path: 'assets/logo.png', ranges: [], source: 'shipped' }], layer: 'Assets' },
@@ -107,7 +107,7 @@ describe('toExecutionRows', () => {
   })
 
   it('carries the agent’s note above the file body', () => {
-    const noted: FeatureReading = {
+    const noted: ReviewReading = {
       ...reading,
       groups: [],
       sections: [{ files: [{ ...changed, note: 'the point' }], prose: '', title: 'Core' }],
@@ -123,7 +123,7 @@ describe('toExecutionRows', () => {
   })
 
   it('reports a capped slice so a partial read never looks complete', () => {
-    const capped: FeatureReading = {
+    const capped: ReviewReading = {
       ...reading,
       groups: [{ files: [{ ...context, truncated: true }], layer: 'Support' }],
       sections: [],

@@ -13,7 +13,7 @@ import { ClearColumnButton } from './clear-column-button'
 /**
  * The Board sidebar tab body: the three columns stacked vertically (narrow panel),
  * each with an add button and its cards. "Open board" opens the wide side-by-side
- * board in the viewer. Mirrors the Feature tab (list here, expanded view in the viewer).
+ * board in the viewer. Mirrors the Review tab (list here, expanded view in the viewer).
  */
 export function BoardList(): React.JSX.Element {
   const { cards, error } = useBoardCards()

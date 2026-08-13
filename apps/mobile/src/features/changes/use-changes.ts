@@ -15,11 +15,6 @@ import { type ChangesScope, useChangesStore } from './changes-store'
  * ticks. Bound to the canonical contract here; no schema is recreated.
  */
 const reviewedPathsProcedure = namedContractQuery('reviewedPaths', reviewProcedures.reviewedPaths)
-const markReviewedProcedure = namedContractMutation('markReviewed', reviewProcedures.markReviewed)
-const unmarkReviewedProcedure = namedContractMutation(
-  'unmarkReviewed',
-  reviewProcedures.unmarkReviewed,
-)
 const setReviewedProcedure = namedContractMutation('setReviewed', reviewProcedures.setReviewed)
 
 export type ChangesFlow = {
@@ -87,41 +82,32 @@ export function invalidateReviewedPaths(
 }
 
 /**
- * Mark / unmark one file, or replace the whole reviewed set in a single write (the header's
- * bulk toggle — pass every path, or `[]` to clear). Each write invalidates the reviewed query
- * so the next poll cannot re-publish the pre-write list.
+ * Set the reviewed state of exactly the named paths, in one write.
+ *
+ * One total call serves both edges: a row's tick passes its own path, the header's bulk
+ * toggle passes every changed path. There is no per-path mark and unmark to keep in step
+ * with it, and the bulk case stays a single atomic round trip rather than one per file.
+ * Each write invalidates the reviewed query so the next poll cannot re-publish the
+ * pre-write list.
  */
 export function useToggleReviewed(): {
   /** Total: React Query owns pending + error; safe at sync UI edges. */
-  mark: (path: string) => void
-  unmark: (path: string) => void
-  setReviewed: (paths: string[]) => void
+  setReviewed: (paths: readonly string[], reviewed: boolean) => void
   isPending: boolean
   error: Error | null
 } {
   const project = useActiveProject()
-  const mark = useDaemonMutation(markReviewedProcedure, { invalidates: REVIEWED_INVALIDATIONS })
-  const unmark = useDaemonMutation(unmarkReviewedProcedure, {
-    invalidates: REVIEWED_INVALIDATIONS,
-  })
-  const setAll = useDaemonMutation(setReviewedProcedure, { invalidates: REVIEWED_INVALIDATIONS })
+  const write = useDaemonMutation(setReviewedProcedure, { invalidates: REVIEWED_INVALIDATIONS })
 
   return {
-    error: mark.error ?? unmark.error ?? setAll.error,
-    isPending: mark.isPending || unmark.isPending || setAll.isPending,
+    error: write.error,
+    isPending: write.isPending,
     // `mutate` is void and publishes failure on the mutation error field — never mutateAsync
     // at a React event edge (the framework ignores the returned Promise).
-    mark: (path: string): void => {
-      if (project === null) return
-      mark.mutate({ path, repoPath: project.path })
-    },
-    setReviewed: (paths: string[]): void => {
-      if (project === null) return
-      setAll.mutate({ paths, repoPath: project.path })
-    },
-    unmark: (path: string): void => {
-      if (project === null) return
-      unmark.mutate({ path, repoPath: project.path })
+    setReviewed: (paths: readonly string[], reviewed: boolean): void => {
+      // The wire refuses an empty path list; nothing to set is not a write.
+      if (project === null || paths.length === 0) return
+      write.mutate({ paths: [...paths], repoPath: project.path, reviewed })
     },
   }
 }

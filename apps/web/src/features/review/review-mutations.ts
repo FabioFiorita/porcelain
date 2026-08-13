@@ -1,10 +1,6 @@
 import { gitStatusQuery } from '@porcelain/client-runtime/git'
 import { reviewMutations } from '@porcelain/client-runtime/review'
-import type {
-  DeleteArchivedReviewInput,
-  RestoreArchivedReviewInput,
-  ReviewRepoPathInput,
-} from '@porcelain/contracts/review'
+import type { ArchivedReviewIdInput, RepoPathInput } from '@porcelain/contracts/review'
 import { invalidateGitEffects } from '@renderer/features/git'
 import { invalidateAfterSuccess, onMutationError } from '@renderer/hooks/mutation-error'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
@@ -50,8 +46,8 @@ export function useArchiveReview(): { archive: () => Promise<void>; isArchiving:
   const { daemon, projectPath } = useReviewMutationContext()
   const queryClient = useQueryClient()
   const utils = trpc.useUtils()
-  const mutation = useMutation<void, Error, ReviewRepoPathInput>({
-    mutationFn: (input) => utils.client.clearFeatureReview.mutate(input),
+  const mutation = useMutation<void, Error, RepoPathInput>({
+    mutationFn: (input) => utils.client.archiveReview.mutate(input),
     onError: onMutationError('Archive review'),
     onSettled: (_data, error, input): Promise<void> | undefined => {
       if (error !== null || input === undefined) return undefined
@@ -90,7 +86,7 @@ export function usePublishReview(): {
   const queryClient = useQueryClient()
   const utils = trpc.useUtils()
   const mutation = useMutation({
-    mutationFn: (input: ReviewRepoPathInput) => utils.client.publishReview.mutate(input),
+    mutationFn: (input: RepoPathInput) => utils.client.publishReview.mutate(input),
     onError: onMutationError('Publish review'),
     onSettled: (_data, error, input): Promise<void> | undefined => {
       if (error !== null || input === undefined) return undefined
@@ -126,7 +122,7 @@ export function useRestoreArchivedReview(): {
   const { daemon, projectPath } = useReviewMutationContext()
   const queryClient = useQueryClient()
   const utils = trpc.useUtils()
-  const mutation = useMutation<void, Error, RestoreArchivedReviewInput>({
+  const mutation = useMutation<void, Error, ArchivedReviewIdInput>({
     mutationFn: (input) => utils.client.restoreArchivedReview.mutate(input),
     onError: onMutationError('Restore review'),
     onSettled: (_data, error, input): Promise<void> | undefined => {
@@ -161,7 +157,7 @@ export function useDeleteArchivedReview(): {
   const { daemon, projectPath } = useReviewMutationContext()
   const queryClient = useQueryClient()
   const utils = trpc.useUtils()
-  const mutation = useMutation<void, Error, DeleteArchivedReviewInput>({
+  const mutation = useMutation<void, Error, ArchivedReviewIdInput>({
     mutationFn: (input) => utils.client.deleteArchivedReview.mutate(input),
     onError: onMutationError('Delete review'),
     onSettled: (_data, error, input): Promise<void> | undefined => {
@@ -188,7 +184,7 @@ export function useDeleteArchivedReview(): {
 }
 
 /**
- * Clear the agent's loop evidence for the current project — the app's one write to the
+ * Clear the agent's evidence pack for the current project — the app's one write to the
  * evidence channel. Clear deletes the whole directory, so the Results and Assets sub-tabs
  * go with it, and the reading is refreshed so the evidence chapter drops immediately.
  */
@@ -196,8 +192,8 @@ export function useClearEvidence(): { clear: () => Promise<void>; isClearing: bo
   const { daemon, projectPath } = useReviewMutationContext()
   const queryClient = useQueryClient()
   const utils = trpc.useUtils()
-  const mutation = useMutation<void, Error, ReviewRepoPathInput>({
-    mutationFn: (input) => utils.client.clearLoopEvidence.mutate(input),
+  const mutation = useMutation<void, Error, RepoPathInput>({
+    mutationFn: (input) => utils.client.clearEvidence.mutate(input),
     onError: onMutationError('Clear evidence'),
     onSettled: (_data, error, input): Promise<void> | undefined => {
       if (error !== null || input === undefined) return undefined

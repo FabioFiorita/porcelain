@@ -26,7 +26,7 @@ export function ChangesDiffView({
   topInset?: number
 }): React.JSX.Element {
   const reviewedPaths = useReviewedPaths(active)
-  const { mark, unmark } = useToggleReviewed()
+  const { setReviewed } = useToggleReviewed()
   const isReviewed = reviewedPaths.has(filePath)
 
   return (
@@ -35,10 +35,9 @@ export function ChangesDiffView({
       filePath={filePath}
       reviewed={{
         isReviewed,
-        // mark/unmark are total void (React Query owns error + pending).
+        // setReviewed is total void (React Query owns error + pending).
         onToggle: () => {
-          if (isReviewed) unmark(filePath)
-          else mark(filePath)
+          setReviewed([filePath], !isReviewed)
         },
       }}
       source={changesDiffSource(base)}

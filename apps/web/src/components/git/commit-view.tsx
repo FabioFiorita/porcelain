@@ -212,8 +212,8 @@ export function CommitView({ hash }: { hash: string }): React.JSX.Element {
     const key = reviewTabKey({ type: 'commit', hash })
     const title = (message ?? hash.slice(0, 12)).split('\n')[0]?.trim() || hash.slice(0, 12)
     openTab({
-      id: tabId('review', key),
-      kind: 'review',
+      id: tabId('changeset', key),
+      kind: 'changeset',
       title,
       path: key,
     })

@@ -1,4 +1,4 @@
-import type { FeatureReading } from '@porcelain/contracts/review'
+import type { ReviewReading } from '@porcelain/contracts/review'
 import type { EvidenceCheck } from '@shared/evidence-check'
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
@@ -18,8 +18,8 @@ vi.mock('./review-mutations', () => ({
   useClearEvidence: () => ({ clear: async () => {}, isClearing: false }),
 }))
 
-const reading: FeatureReading = {
-  name: 'Feature',
+const reading: ReviewReading = {
+  name: 'Review',
   sections: [],
   evidence: null,
   groups: [
@@ -93,7 +93,7 @@ describe('buildRows', () => {
 // The full Review document: thesis, a walkthrough section (prose + diagram +
 // anchored code), the unanchored files under the synthetic "More files" chapter,
 // and the loop-evidence final chapter.
-const document: FeatureReading = {
+const document: ReviewReading = {
   name: 'The Review',
   thesis: 'One paragraph of intent.',
   sections: [
@@ -178,7 +178,7 @@ describe('buildRows (Review document)', () => {
   })
 
   it('emits an embed row after the diagram and before the file rows for a section with html', () => {
-    const withEmbed: FeatureReading = {
+    const withEmbed: ReviewReading = {
       name: 'Embedded',
       sections: [
         {
@@ -203,7 +203,7 @@ describe('buildRows (Review document)', () => {
   })
 
   it('skips empty prose and absent diagram/thesis/evidence', () => {
-    const bare: FeatureReading = {
+    const bare: ReviewReading = {
       name: 'Bare',
       sections: [{ title: 'Only title', prose: '  ', files: [] }],
       groups: [],
@@ -218,7 +218,7 @@ describe('buildRows (evidence checks)', () => {
     { label: 'pnpm test', status: 'pass', detail: '1348 passed' },
     { label: 'pnpm build', status: 'fail', detail: 'tsc error' },
   ]
-  const withChecks = (list: EvidenceCheck[]): FeatureReading => ({
+  const withChecks = (list: EvidenceCheck[]): ReviewReading => ({
     name: 'X',
     sections: [],
     groups: [],

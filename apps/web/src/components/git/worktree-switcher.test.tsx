@@ -1,5 +1,5 @@
 import type { Worktree } from '@porcelain/contracts/git'
-import type { WorktreeInboxRow } from '@porcelain/contracts/review'
+import type { ReviewInboxRow } from '@porcelain/contracts/review'
 import { useGitWorkspace } from '@renderer/features/git'
 import { useNewWindow } from '@renderer/hooks/use-new-window'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
@@ -78,7 +78,7 @@ describe('WorktreeSwitcher', () => {
   })
 
   it('badges the chip when other worktrees need review', () => {
-    const inbox: WorktreeInboxRow[] = [
+    const inbox: ReviewInboxRow[] = [
       {
         path: '/Users/me/code/app-feature',
         branch: 'feature',

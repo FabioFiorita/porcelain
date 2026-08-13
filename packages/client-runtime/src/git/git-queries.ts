@@ -1,8 +1,8 @@
 import {
+  reviewActiveQuerySchema,
   reviewedPathsQuerySchema,
+  reviewInboxQuerySchema,
   reviewReadingQuerySchema,
-  reviewViewQuerySchema,
-  worktreeInboxQuerySchema,
 } from '@porcelain/client-runtime/review'
 import { z } from 'zod'
 
@@ -217,9 +217,9 @@ export const gitWorkspaceQuerySchema = z.discriminatedUnion('name', [
   gitSuggestionsQuerySchema,
   gitCommitModelsQuerySchema,
   reviewReadingQuerySchema,
-  reviewViewQuerySchema,
+  reviewActiveQuerySchema,
   reviewedPathsQuerySchema,
-  worktreeInboxQuerySchema,
+  reviewInboxQuerySchema,
 ])
 
 export type GitQuery = Readonly<z.infer<typeof gitQuerySchema>>

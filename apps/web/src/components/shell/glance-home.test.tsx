@@ -1,8 +1,8 @@
 import type { FlowGroup } from '@backend/review/flow'
 import type { BoardCard } from '@porcelain/contracts/board'
-import type { FeatureReading } from '@porcelain/contracts/review'
+import type { ReviewReading } from '@porcelain/contracts/review'
 import { useBoardCards } from '@renderer/features/board'
-import { useGitFlow, useGitWorkspace, type WorktreeInboxRow } from '@renderer/features/git'
+import { type ReviewInboxRow, useGitFlow, useGitWorkspace } from '@renderer/features/git'
 import { useReviewComments, useReviewReading } from '@renderer/features/review'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
@@ -11,7 +11,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { GlanceHome } from './glance-home'
 
-// Same convention as changes-list/feature-list: mock the domain hooks, never the
+// Same convention as changes-list/review-list: mock the domain hooks, never the
 // tRPC proxy. Each returns exactly the shape its real query hands back.
 vi.mock('@renderer/features/git', () => ({
   useGitFlow: vi.fn(),
@@ -25,7 +25,7 @@ vi.mock('@renderer/features/review', () => ({
 
 const switchToSpy = vi.fn(async () => {})
 
-const inboxRow: WorktreeInboxRow = {
+const inboxRow: ReviewInboxRow = {
   path: '/repo-worktrees/fix-nav',
   branch: 'fix-nav',
   changedCount: 4,
@@ -42,7 +42,7 @@ const flowGroups: FlowGroup[] = [
   },
 ]
 
-const reading: FeatureReading = {
+const reading: ReviewReading = {
   name: 'Glance home',
   sections: [],
   groups: [],
@@ -121,14 +121,17 @@ describe('GlanceHome', () => {
     fireEvent.click(screen.getByText('2 changed files'))
     const paneBefore = useTabsStore.getState().panes[0]
     if (paneBefore === undefined) throw new Error('expected pane 0')
-    expect(paneBefore.tabs[0]).toMatchObject({ id: tabId('review', 'working'), kind: 'review' })
+    expect(paneBefore.tabs[0]).toMatchObject({
+      id: tabId('changeset', 'working'),
+      kind: 'changeset',
+    })
     expect(usePreferencesStore.getState().sidebarTab).toBe('changes')
     fireEvent.click(screen.getByText('Glance home'))
     const paneAfter = useTabsStore.getState().panes[0]
     if (paneAfter === undefined) throw new Error('expected pane 0')
-    const feature = paneAfter.tabs.find((t) => t.kind === 'feature')
-    expect(feature).toMatchObject({ id: tabId('feature', '/repo'), kind: 'feature' })
-    expect(usePreferencesStore.getState().sidebarTab).toBe('feature')
+    const reviewTab = paneAfter.tabs.find((t) => t.kind === 'review')
+    expect(reviewTab).toMatchObject({ id: tabId('review', '/repo'), kind: 'review' })
+    expect(usePreferencesStore.getState().sidebarTab).toBe('review')
   })
 
   it('renders the board summary with doing titles and tapping opens the board tab', () => {

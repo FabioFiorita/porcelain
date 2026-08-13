@@ -4,10 +4,10 @@ import {
   gitProjectKey,
   gitWorktreesQuery,
 } from '@porcelain/client-runtime/git'
-import { worktreeInboxQuery } from '@porcelain/client-runtime/review'
+import { reviewInboxQuery } from '@porcelain/client-runtime/review'
 import type { BranchRef, GitHead, Worktree } from '@porcelain/contracts/git'
 import { gitProcedures } from '@porcelain/contracts/git'
-import type { WorktreeInboxRow } from '@porcelain/contracts/review'
+import type { ReviewInboxRow } from '@porcelain/contracts/review'
 import { reviewProcedures } from '@porcelain/contracts/review'
 import { keepPreviousData, type UseQueryResult, useQuery } from '@tanstack/react-query'
 import { useCallback } from 'react'
@@ -21,10 +21,7 @@ import { callGit, DISABLED_PROJECT } from '../use-git-transport'
 const gitHeadProcedure = namedContractProcedure('gitHead', gitProcedures.gitHead)
 const gitBranchesProcedure = namedContractProcedure('gitBranches', gitProcedures.gitBranches)
 const gitWorktreesProcedure = namedContractProcedure('gitWorktrees', gitProcedures.gitWorktrees)
-const worktreeInboxProcedure = namedContractProcedure(
-  'worktreeInbox',
-  reviewProcedures.worktreeInbox,
-)
+const reviewInboxProcedure = namedContractProcedure('reviewInbox', reviewProcedures.reviewInbox)
 
 export type GitWorkspaceOptions = {
   readonly enabled?: boolean
@@ -38,7 +35,7 @@ export function useGitWorkspace(options: GitWorkspaceOptions = {}): {
   head: GitWorkspaceQueryResult<GitHead>
   branches: GitWorkspaceQueryResult<BranchRef[]>
   worktrees: GitWorkspaceQueryResult<Worktree[]>
-  inbox: GitWorkspaceQueryResult<WorktreeInboxRow[]>
+  inbox: GitWorkspaceQueryResult<ReviewInboxRow[]>
   refreshBranches: () => Promise<void>
 } {
   const environment = useActiveEnvironment()
@@ -81,11 +78,11 @@ export function useGitWorkspace(options: GitWorkspaceOptions = {}): {
   const inbox = useQuery({
     enabled,
     placeholderData: placeholder,
-    queryFn: async (): Promise<WorktreeInboxRow[]> => {
+    queryFn: async (): Promise<ReviewInboxRow[]> => {
       if (!enabled) throw new Error('Git inbox query is disabled')
-      return callGit(environment, worktreeInboxProcedure, projectPath)
+      return callGit(environment, reviewInboxProcedure, projectPath)
     },
-    queryKey: gitQueryKey(environmentId, worktreeInboxQuery(projectPath)),
+    queryKey: gitQueryKey(environmentId, reviewInboxQuery(projectPath)),
     refetchInterval: enabled ? 15_000 : false,
   })
   const refetchBranches = branches.refetch

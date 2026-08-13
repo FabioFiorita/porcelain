@@ -45,12 +45,11 @@ describe('evidence directory channel', () => {
     expect(getEvidence(repo)?.file).toBe('results/index.html')
   })
 
-  // A pack written before Evidence had sub-tabs is still proof; `get` must still find it.
-  it('getEvidence still reads a legacy root index.html', () => {
+  // The root `index.html` era is retired: a pack that only has one reports no report.
+  it('getEvidence ignores a root index.html', () => {
     prepareEvidence(repo, 'Loop')
     writeFileSync(join(evidenceDirForRepo(repo), 'index.html'), '<h1>legacy</h1>')
-    expect(getEvidence(repo)?.html).toBe('<h1>legacy</h1>')
-    expect(getEvidence(repo)?.file).toBe('index.html')
+    expect(getEvidence(repo)).toBeNull()
   })
 
   it('setEvidence writes results/index.html, never the legacy root file', () => {

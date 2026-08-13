@@ -102,7 +102,7 @@ describe('companion dispositions', () => {
     expect(next).toContain('# trailing note')
     expect(parseDispositions(next).board).toBe('shared')
     // The always-ignored set survives a rewrite — it is inside the block.
-    expect(next).toContain('/feature-view.json')
+    expect(next).toContain('/active-review.json')
   })
 
   it('appends a managed block when the file has none', () => {

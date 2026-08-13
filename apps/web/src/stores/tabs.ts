@@ -4,9 +4,9 @@ export type TabKind =
   | 'file'
   | 'diff'
   | 'commit'
-  | 'review'
+  | 'changeset'
   | 'search'
-  | 'feature'
+  | 'review'
   | 'explore'
   | 'board'
   | 'terminal'
@@ -23,13 +23,13 @@ export interface Tab {
   kind: TabKind
   title: string
   /** File path for file/diff tabs, commit hash for commit tabs, query for search tabs,
-   *  terminal session id for terminal tabs, review scope key (`working` / `branch` /
-   *  `commit:<hash>`) for review tabs. */
+   *  terminal session id for terminal tabs, change-set scope key (`working` / `branch` /
+   *  `commit:<hash>`) for changeset tabs. */
   path: string
   /** 1-based line to scroll to when opening (search results jump here). */
   line?: number
   /**
-   * Inclusive 1-based line ranges to tint as agent-changed (Feature outline open).
+   * Inclusive 1-based line ranges to tint as agent-changed (Review outline open).
    * Distinct from `line` (scroll target) and from find-highlight (`bg-primary/15`).
    */
   highlight?: { start: number; end: number }[]

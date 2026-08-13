@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
 import type { DiffHunk } from '../../git/diff'
-import type { FeatureReading, FeatureView } from '../../review/feature-view'
+import type { ActiveReview, ReviewReading } from '../../review/active-review'
 import type { ReviewSet } from '../../review/review-set'
 import { createExploreReview } from './explore-review'
 import { createReadActiveReview } from './read-active-review'
@@ -19,7 +19,7 @@ import type {
 /**
  * In-memory capability fakes: they answer from the case's own synthetic data and
  * record call order, never reimplementing git, the build memo, or the filesystem.
- * The pure builders (`buildFeatureReading`, `walkExplore`, `buildExploreReading`)
+ * The pure builders (`buildReviewReading`, `walkExplore`, `buildExploreReading`)
  * run for real — they are the shared production modules these operations compose,
  * and they keep their own tests under `review/`.
  */
@@ -30,7 +30,6 @@ const REVIEW_SET: ReviewSet = {
   name: 'Review',
   files: [{ path: 'src/alpha.ts', source: 'changed' }],
   sections: [],
-  canvas: { medium: 'html', html: '<p>overview</p>' },
 }
 
 const SUMMARY: ReviewEvidenceSummary = {
@@ -40,7 +39,7 @@ const SUMMARY: ReviewEvidenceSummary = {
   medium: 'html',
 }
 
-const VIEW: FeatureView = {
+const VIEW: ActiveReview = {
   name: 'Review',
   fromAgent: true,
   sections: [],
@@ -48,9 +47,9 @@ const VIEW: FeatureView = {
     {
       layer: 'source',
       files: [
-        { path: 'src/alpha.ts', source: 'changed', connects: [] },
-        { path: 'src/beta.ts', source: 'changed', connects: [] },
-        { path: 'src/shipped.ts', source: 'shipped', connects: [] },
+        { path: 'src/alpha.ts', source: 'changed' },
+        { path: 'src/beta.ts', source: 'changed' },
+        { path: 'src/shipped.ts', source: 'shipped' },
       ],
     },
   ],
@@ -67,11 +66,11 @@ function gathered(reviewSet: ReviewSet | null): ReviewGatherState {
 type SourceFakeConfig = {
   gather?: ReviewGatherState
   built?: ReviewBuiltReview
-  cached?: FeatureReading | null
+  cached?: ReviewReading | null
 }
 
 function sourcesFake(config: SourceFakeConfig, calls: string[]) {
-  const stored: { key: string; reading: FeatureReading }[] = []
+  const stored: { key: string; reading: ReviewReading }[] = []
   const sources = {
     gather: async () => {
       calls.push('gather')
@@ -85,7 +84,7 @@ function sourcesFake(config: SourceFakeConfig, calls: string[]) {
       calls.push('cachedReading')
       return config.cached ?? null
     },
-    storeReading: (_repoPath: string, key: string, reading: FeatureReading) => {
+    storeReading: (_repoPath: string, key: string, reading: ReviewReading) => {
       calls.push('storeReading')
       stored.push({ key, reading })
     },
@@ -163,9 +162,9 @@ describe('readReviewReading', () => {
     expect(calls).toEqual(['gather'])
   })
 
-  it('reattaches the fresh Evidence summary and the canvas to a cached reading', async () => {
+  it('reattaches the fresh Evidence summary to a cached reading', async () => {
     const calls: string[] = []
-    const cached: FeatureReading = {
+    const cached: ReviewReading = {
       name: 'Review',
       sections: [],
       groups: [],
@@ -179,11 +178,11 @@ describe('readReviewReading', () => {
       evidence: evidenceFake(calls),
     })({ projectPath: REPO })
 
-    expect(reading).toEqual({ ...cached, evidence: SUMMARY, canvas: REVIEW_SET.canvas })
+    expect(reading).toEqual({ ...cached, evidence: SUMMARY })
     expect(calls).toEqual(['gather', 'readSummary', 'cachedReading'])
   })
 
-  it('builds, diffs only changed files, stores under the gather key, and carries summary and canvas', async () => {
+  it('builds, diffs only changed files, stores under the gather key, and carries the summary', async () => {
     const calls: string[] = []
     const { sources, stored } = sourcesFake({}, calls)
 
@@ -198,7 +197,6 @@ describe('readReviewReading', () => {
       'fileHunks:src/beta.ts',
     ])
     expect(reading?.evidence).toEqual(SUMMARY)
-    expect(reading?.canvas).toEqual(REVIEW_SET.canvas)
     expect(stored).toEqual([{ key: 'key-1', reading }])
   })
 

@@ -67,29 +67,18 @@ describe('readReviewSet path containment', () => {
   })
 })
 
-describe('canvas media', () => {
-  it('keeps an html canvas', async () => {
-    writeReview({
-      name: 'test',
-      files: [],
-      sections: [],
-      canvas: { medium: 'html', html: '<p>board</p>' },
-    })
-    const set = await readReviewSet(repo)
-    expect(set?.canvas).toEqual({ medium: 'html', html: '<p>board</p>' })
-  })
-
-  it('drops a legacy scene canvas instead of failing the whole review', async () => {
-    writeReview({
-      name: 'test',
-      files: [{ path: 'a.ts' }],
-      sections: [],
-      canvas: { medium: 'excalidraw', scene: { elements: [] } },
-    })
-    const set = await readReviewSet(repo)
-    expect(set?.name).toBe('test')
-    expect(set?.files.map((file) => file.path)).toEqual(['a.ts'])
-    expect(set?.canvas).toBeUndefined()
+describe('retired canvas field', () => {
+  it('ignores an on-disk canvas of any medium instead of failing the whole review', async () => {
+    for (const canvas of [
+      { medium: 'html', html: '<p>board</p>' },
+      { medium: 'excalidraw', scene: { elements: [] } },
+    ]) {
+      writeReview({ name: 'test', files: [{ path: 'a.ts' }], sections: [], canvas })
+      const set = await readReviewSet(repo)
+      expect(set?.name).toBe('test')
+      expect(set?.files.map((file) => file.path)).toEqual(['a.ts'])
+      expect(set).not.toHaveProperty('canvas')
+    }
   })
 })
 

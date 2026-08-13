@@ -129,7 +129,7 @@ an external choice or authorization.
 | `REV-006` | Landed | Shared Review query/mutation/notification semantics beyond comments |
 | `REV-007` | Landed | Web Review feature relocation and daemon-type removal |
 | `REV-008` | Landed | Mobile Review feature and local schema deletion |
-| `REV-009` | Ready | Activate the target Review catalog and delete the Feature wire atomically |
+| `REV-009` | Landed | Activate the target Review catalog and delete the Feature wire atomically |
 | `REV-010` | Draft | Active-content/CSP/containment/resilience proof and completed domain gate |
 
 ## Batch 5 — supporting regions, foundations, and launch

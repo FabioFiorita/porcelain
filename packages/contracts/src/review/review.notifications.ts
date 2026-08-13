@@ -1,12 +1,12 @@
 import { z } from 'zod'
 
 /**
- * Review change notifications — the domain-owned replacement for the `feature-view`,
+ * Review change notifications — the domain-owned replacement for the active-review,
  * `comments`, `layers`, and `evidence` entries in `appEventSchema` (the deleted horizontal session protocol).
  *
  * Those four are one category here because the current publisher already fires them
  * together: a single write under `.porcelain/active-review/` emits the matching event plus
- * `evidence` plus `feature-view` (`apps/daemon/src/review/review-watch.ts`), so no consumer
+ * `evidence` plus the active-review signal (`apps/daemon/src/review/review-watch.ts`), so no consumer
  * can act on the distinction. A Review change makes Review-owned queries stale; the client
  * refetches the ones it has open. Strict, and scoped by `projectPath` because Review data
  * is repo-local companion state.

@@ -26,7 +26,7 @@ import type {
 } from '@porcelain/contracts/git'
 import { parseConventions } from '../../git/conventions'
 import type { DiffHunk } from '../../git/diff'
-import { buildDiffReading } from '../../review/feature-view'
+import { buildDiffReading } from '../../review/active-review'
 import type { FlowGroup } from '../../review/flow'
 import type {
   CommitGeneration,

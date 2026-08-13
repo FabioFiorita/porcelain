@@ -18,7 +18,7 @@ const OLD_DEFAULT_WITHOUT_MANIFEST = `# Porcelain project companion.
 /notes.md
 /board.json
 /reviews/*
-/feature-view.json
+/active-review.json
 /active-review/
 /.migrated-from-home
 *.tmp

@@ -26,7 +26,7 @@ export const PROJECT_FILES = {
   review: 'review.json',
   comments: 'comments.json',
   reviewed: 'reviewed.json',
-  featureView: 'feature-view.json',
+  activeReview: 'active-review.json',
   gitignore: '.gitignore',
   manifest: 'project-manifest.json',
 } as const
@@ -175,7 +175,7 @@ export const COMPANION_CHANNELS: readonly CompanionChannel[] = [
  * Always ignored, no toggle. Anchored (leading `/`) so a rule meant for the
  * companion root never swallows the same filename inside `reviews/<id>/`.
  *
- * - `feature-view.json` is a render snapshot, derived and stale on arrival.
+ * - `active-review.json` is a render snapshot, derived and stale on arrival.
  * - `active-review/` is the unit in flight — per branch, per worktree, and
  *   rewritten constantly. Publishing is what shares a review: it copies the
  *   directory to `reviews/<id>/` and re-includes that one folder. Tracking the
@@ -191,7 +191,7 @@ export const COMPANION_CHANNELS: readonly CompanionChannel[] = [
  *   shared (spelled out in the array — a block comment cannot hold that glob).
  */
 export const ALWAYS_IGNORED = [
-  '/feature-view.json',
+  '/active-review.json',
   '/active-review/',
   '/.migrated-from-home',
   '/project-manifest.json',

@@ -1,26 +1,22 @@
 import {
+  reviewActiveQuery,
   reviewArchivedQuery,
   reviewEvidenceAssetQuery,
-  reviewEvidenceAssetsQuery,
-  reviewEvidenceDocsQuery,
-  reviewEvidenceHtmlQuery,
+  reviewEvidenceDocQuery,
   reviewEvidenceQuery,
   reviewExploreQuery,
   reviewIntentQuery,
   reviewPublishCostQuery,
   reviewReadingQuery,
-  reviewViewQuery,
 } from '@porcelain/client-runtime/review'
 import type {
+  ActiveReview,
   ArchivedReview,
-  Evidence,
-  EvidenceAsset,
   EvidenceAssetBody,
-  EvidenceMeta,
-  FeatureReading,
-  FeatureView,
   PublishCost,
   ReviewDoc,
+  ReviewEvidence,
+  ReviewReading,
 } from '@porcelain/contracts/review'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
@@ -35,13 +31,13 @@ import { reviewQueryKey } from './review-query-key'
  *
  * Every read is one semantic Review identity keyed as `[typed Review query, DaemonScope]`;
  * no tRPC procedure-name key survives here. The fetch policies are product decisions carried
- * over unchanged from the five raw hooks this replaces: the view and the reading poll every
- * three seconds at `staleTime: 0` because the working tree and the agent channel both change
- * outside the app; the evidence HTML never polls (up to ~4 MB, refreshed by notification);
- * asset bytes are lazily `enabled` and immutable for a pack; an exploration is a 60-second
- * snapshot of code being read, not of the active review.
+ * over unchanged from the raw hooks this replaces: the active review and the reading poll
+ * every three seconds at `staleTime: 0` because the working tree and the agent channel both
+ * change outside the app; the Evidence pack is descriptors only and rides the Review
+ * notification; a document body and asset bytes are lazily `enabled` and immutable for a
+ * pack; an exploration is a 60-second snapshot of code being read, not of the active review.
  *
- * `reviewed-paths` and `worktree-inbox` are Git-keyed by REV-006 and stay in `features/git`.
+ * `reviewed-paths` and `inbox` are Git-keyed by REV-006 and stay in `features/git`.
  */
 
 /** Placeholder path for a disabled query so the key stays a valid Review identity. */
@@ -52,19 +48,19 @@ function useDaemonScope(): DaemonScope {
   return { host: identity.host, version: identity.version }
 }
 
-/** `view` is `null` when no agent review set exists (the "No review yet" state). */
-export function useReviewView(): {
-  view: FeatureView | null | undefined
+/** `active` is `null` when no agent review set exists (the "No review yet" state). */
+export function useActiveReview(): {
+  active: ActiveReview | null | undefined
   refresh: () => Promise<void>
 } {
   const project = useProjectSelectionStore((s) => s.project)
   const daemon = useDaemonScope()
   const utils = trpc.useUtils()
   const path = project?.path ?? NO_PROJECT
-  const { data: view, refetch } = useQuery({
+  const { data: active, refetch } = useQuery({
     enabled: project !== null,
-    queryFn: () => utils.client.featureView.query(path),
-    queryKey: reviewQueryKey(daemon, reviewViewQuery(path)),
+    queryFn: () => utils.client.activeReview.query(path),
+    queryKey: reviewQueryKey(daemon, reviewActiveQuery(path)),
     refetchInterval: 3000,
     staleTime: 0,
   })
@@ -73,7 +69,7 @@ export function useReviewView(): {
     await refetch()
   }
 
-  return { refresh, view }
+  return { active, refresh }
 }
 
 /**
@@ -82,7 +78,7 @@ export function useReviewView(): {
  * state; `undefined` while loading.
  */
 export function useReviewReading(): {
-  reading: FeatureReading | null | undefined
+  reading: ReviewReading | null | undefined
   refresh: () => Promise<void>
 } {
   const project = useProjectSelectionStore((s) => s.project)
@@ -91,7 +87,7 @@ export function useReviewReading(): {
   const path = project?.path ?? NO_PROJECT
   const { data: reading, refetch } = useQuery({
     enabled: project !== null,
-    queryFn: () => utils.client.featureReading.query(path),
+    queryFn: () => utils.client.reviewReading.query(path),
     queryKey: reviewQueryKey(daemon, reviewReadingQuery(path)),
     refetchInterval: 3000,
     staleTime: 0,
@@ -118,20 +114,6 @@ export function useReviewIntent(): ReviewDoc[] {
   return data ?? []
 }
 
-/** Extra evidence documents beside index.html — tabs, same media as Intent. */
-export function useReviewEvidenceDocs(): ReviewDoc[] {
-  const project = useProjectSelectionStore((s) => s.project)
-  const daemon = useDaemonScope()
-  const utils = trpc.useUtils()
-  const path = project?.path ?? NO_PROJECT
-  const { data } = useQuery({
-    enabled: project !== null,
-    queryFn: () => utils.client.reviewEvidenceDocs.query(path),
-    queryKey: reviewQueryKey(daemon, reviewEvidenceDocsQuery(path)),
-  })
-  return data ?? []
-}
-
 /** Bytes and file count publishing the active review would add to git history. */
 export function useReviewPublishCost(enabled: boolean): PublishCost | undefined {
   const project = useProjectSelectionStore((s) => s.project)
@@ -140,61 +122,50 @@ export function useReviewPublishCost(enabled: boolean): PublishCost | undefined 
   const path = project?.path ?? NO_PROJECT
   const { data } = useQuery({
     enabled: enabled && project !== null,
-    queryFn: () => utils.client.reviewPublishCost.query(path),
+    queryFn: () => utils.client.publishCost.query(path),
     queryKey: reviewQueryKey(daemon, reviewPublishCostQuery(path)),
   })
   return data
 }
 
-/** Loop-evidence metadata (title, timestamp, checks) for the active review. */
-export function useReviewEvidence(): EvidenceMeta | null | undefined {
+/**
+ * The one Evidence aggregate: title, timestamp, checks, plus the Results and Assets
+ * descriptors. Descriptors only — no document text and no image bytes ride here, so
+ * the whole pack is cheap enough to hold and refresh on the Review notification.
+ */
+export function useReviewEvidence(): ReviewEvidence | null | undefined {
   const project = useProjectSelectionStore((s) => s.project)
   const daemon = useDaemonScope()
   const utils = trpc.useUtils()
   const path = project?.path ?? NO_PROJECT
   const { data } = useQuery({
     enabled: project !== null,
-    queryFn: () => utils.client.loopEvidence.query(path),
+    queryFn: () => utils.client.reviewEvidence.query(path),
     queryKey: reviewQueryKey(daemon, reviewEvidenceQuery(path)),
   })
   return data
 }
 
 /**
- * The full evidence document for a project — read only while the Review's evidence
- * chapter is on screen. No poll: it's a static document, and the Review notification
- * refreshes it live on a CLI write; polling the (up to ~4 MB) HTML on a timer would be
- * wasteful. (Chapter presence/meta rides on the reading.)
+ * One Results document body, named by its descriptor `file`. `enabled` is the laziness:
+ * a document can be megabytes, so only the visible pill pays for its body. `null` data
+ * means over-cap (or vanished); the caller shows the descriptor's size instead.
  */
-export function useEvidenceHtml(repoPath: string): { evidence: Evidence | null | undefined } {
-  const daemon = useDaemonScope()
-  const utils = trpc.useUtils()
-  const path = repoPath === '' ? NO_PROJECT : repoPath
-  const { data: evidence } = useQuery({
-    enabled: repoPath !== '',
-    queryFn: () => utils.client.loopEvidenceHtml.query(path),
-    queryKey: reviewQueryKey(daemon, reviewEvidenceHtmlQuery(path)),
-    staleTime: 0,
-  })
-  return { evidence }
-}
-
-/**
- * The Assets sub-tab's listing — metadata only (file, label, mime, bytes), never
- * bytes. Cheap enough to hold with the rest of the pack and refreshed by the Review
- * notification when the agent rewrites the directory.
- */
-export function useEvidenceAssets(): EvidenceAsset[] {
+export function useEvidenceDoc(
+  file: string,
+  enabled: boolean,
+): { doc: ReviewDoc | null | undefined; isLoading: boolean } {
   const project = useProjectSelectionStore((s) => s.project)
   const daemon = useDaemonScope()
   const utils = trpc.useUtils()
   const path = project?.path ?? NO_PROJECT
-  const { data } = useQuery({
-    enabled: project !== null,
-    queryFn: () => utils.client.reviewEvidenceAssets.query(path),
-    queryKey: reviewQueryKey(daemon, reviewEvidenceAssetsQuery(path)),
+  const { data, isPending } = useQuery({
+    enabled: enabled && project !== null,
+    queryFn: () => utils.client.reviewEvidenceDoc.query({ file, repoPath: path }),
+    queryKey: reviewQueryKey(daemon, reviewEvidenceDocQuery(path, file)),
+    staleTime: Number.POSITIVE_INFINITY,
   })
-  return data ?? []
+  return { doc: data, isLoading: enabled && isPending }
 }
 
 /**
@@ -240,15 +211,15 @@ export function useArchivedReviews(): ArchivedReview[] {
 }
 
 /**
- * Read-only feature-flow exploration seeded from a file (whole-file) or a symbol
- * within it. The result is the same reading-surface payload the review read uses, just
- * derived from an import/reference walk instead of the working tree. A snapshot, not
- * live — exploration is of code you're reading, not changing.
+ * Read-only exploration seeded from a file (whole-file) or a symbol within it. The
+ * result is the same reading-surface payload the review read uses, just derived from an
+ * import/reference walk instead of the working tree. A snapshot, not live — exploration
+ * is of code you're reading, not changing.
  */
 export function useExplore(
   path: string,
   symbol?: string,
-): { reading: FeatureReading | undefined; refresh: () => Promise<void> } {
+): { reading: ReviewReading | undefined; refresh: () => Promise<void> } {
   const project = useProjectSelectionStore((s) => s.project)
   const daemon = useDaemonScope()
   const utils = trpc.useUtils()
@@ -256,7 +227,7 @@ export function useExplore(
   const seed = symbol ? { kind: 'symbol' as const, path, symbol } : { kind: 'file' as const, path }
   const { data: reading, refetch } = useQuery({
     enabled: project !== null && path !== '',
-    queryFn: () => utils.client.exploreFeature.query({ repoPath, seed }),
+    queryFn: () => utils.client.exploreReading.query({ repoPath, seed }),
     queryKey: reviewQueryKey(daemon, reviewExploreQuery(repoPath, seed)),
     staleTime: 60_000,
   })

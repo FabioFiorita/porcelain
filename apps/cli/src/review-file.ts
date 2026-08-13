@@ -288,7 +288,7 @@ export function setReview(repoPath: string, set: ReviewSet): void {
 
 /** Merge files into the existing set; name/thesis/sections are whole-set (replaced by `review set`). */
 export function addReviewFiles(repoPath: string, files: ReviewFile[]): number {
-  const current = readDisk(repoPath) ?? { name: 'Feature view', files: [], sections: [] }
+  const current = readDisk(repoPath) ?? { name: 'Active review', files: [], sections: [] }
   const merged = mergeReviewFiles(current.files, files)
   writeDisk(repoPath, { ...current, files: merged })
   return merged.length
@@ -296,7 +296,7 @@ export function addReviewFiles(repoPath: string, files: ReviewFile[]): number {
 
 /** Attach or replace the freeform Overview canvas on an existing (or empty) set. */
 export function setReviewCanvas(repoPath: string, canvas: ReviewCanvas): void {
-  const current = readDisk(repoPath) ?? { name: 'Feature view', files: [], sections: [] }
+  const current = readDisk(repoPath) ?? { name: 'Active review', files: [], sections: [] }
   writeDisk(repoPath, { ...current, canvas })
 }
 
@@ -311,7 +311,7 @@ export function clearReviewCanvas(repoPath: string): boolean {
 
 export function clearReview(repoPath: string): void {
   // CLI clear drops the active set (does not archive — that is the app's
-  // clearFeatureReview). Agents starting a new unit should clear first.
+  // `archiveReview`). Agents starting a new unit should clear first.
   try {
     unlinkSync(projectPorcelainPath(repoPath, ACTIVE_FILES.review))
   } catch {
@@ -342,7 +342,7 @@ export function describeReview(repoPath: string, review: ReviewSet | null): stri
     !review.canvas &&
     (review.thesis === undefined || review.thesis.trim() === '')
   if (!review || empty) {
-    return `No feature review set for ${repoPath}. Porcelain shows the no-review empty state until one is pushed. Use \`porcelain review set\` to define one.`
+    return `No review set for ${repoPath}. Porcelain shows the no-review empty state until one is pushed. Use \`porcelain review set\` to define one.`
   }
   const counts = new Map<string, number>()
   for (const file of review.files) {
@@ -356,5 +356,5 @@ export function describeReview(repoPath: string, review: ReviewSet | null): stri
   const json = JSON.stringify(roundTrip, null, 2)
   const fileCount = `${review.files.length} file(s)${breakdown ? ` (${breakdown})` : ''}`
   const canvasNote = review.canvas ? `, overview canvas=${review.canvas.medium}` : ''
-  return `Feature review "${review.name}" for ${repoPath}: ${fileCount}, ${review.sections.length} section(s), thesis ${review.thesis ? 'set' : 'not set'}${canvasNote}. Execution shows only these listed files (in this order); listed dirty paths render as "changed".\n${json}`
+  return `Review "${review.name}" for ${repoPath}: ${fileCount}, ${review.sections.length} section(s), thesis ${review.thesis ? 'set' : 'not set'}${canvasNote}. Execution shows only these listed files (in this order); listed dirty paths render as "changed".\n${json}`
 }

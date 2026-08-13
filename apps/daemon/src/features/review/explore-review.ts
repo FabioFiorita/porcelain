@@ -1,5 +1,5 @@
-import { buildExploreReading, type ExploreSeed, walkExplore } from '../../review/feature-explore'
-import type { FeatureReading } from '../../review/feature-view'
+import type { ReviewReading } from '../../review/active-review'
+import { buildExploreReading, type ExploreSeed, walkExplore } from '../../review/review-explore'
 import { DEFAULT_LAYERS, readLayers } from '../project-data'
 import type { ReviewFiles, ReviewGit } from './review-reading-capabilities'
 
@@ -17,7 +17,7 @@ export function createExploreReview(deps: { git: ReviewGit; files: ReviewFiles }
   }: {
     projectPath: string
     seed: ExploreSeed
-  }): Promise<FeatureReading> => {
+  }): Promise<ReviewReading> => {
     const repoFiles = new Set(await deps.git.listFiles(projectPath))
     const sources = new Map<string, string>()
     const readSource = async (path: string): Promise<string | undefined> => {

@@ -4,7 +4,7 @@ import {
   SidebarGroupLabel,
 } from '@renderer/components/ui/sidebar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
-import type { WorktreeInboxRow } from '@renderer/features/git'
+import type { ReviewInboxRow } from '@renderer/features/git'
 import { useGitWorkspace } from '@renderer/features/git'
 import { useNewWindow } from '@renderer/hooks/use-new-window'
 import { isBrowser } from '@renderer/lib/platform'
@@ -16,7 +16,7 @@ import { GitBranch, SquareArrowOutUpRight } from 'lucide-react'
 /** "N changed files · review pushed/none" — the row's tooltip detail. Spells out both
  *  signals a row is built from (assembleWorktreeInbox); the row itself shows only the
  *  count badge and a dot. */
-function inboxSummary(row: WorktreeInboxRow): string {
+function inboxSummary(row: ReviewInboxRow): string {
   const files = `${row.changedCount} changed file${row.changedCount === 1 ? '' : 's'}`
   return `${files} · review ${row.hasReview ? 'pushed' : 'none'}`
 }
@@ -24,7 +24,7 @@ function inboxSummary(row: WorktreeInboxRow): string {
 /** One inbox row: click switches THIS window to that worktree (in place, via switchProject —
  *  the same call the worktree-switcher rows make), landing on its Review. Trailing
  *  open-in-new-window keeps this window put — shell only. */
-function InboxRowButton({ row }: { row: WorktreeInboxRow }): React.JSX.Element {
+function InboxRowButton({ row }: { row: ReviewInboxRow }): React.JSX.Element {
   const switchProject = useProjectSelectionStore((s) => s.switchProject)
   const newWindow = useNewWindow()
 

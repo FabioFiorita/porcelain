@@ -1,46 +1,45 @@
 import {
-  type DeleteArchivedReviewInput,
-  type MarkReviewedInput,
-  type RestoreArchivedReviewInput,
-  type ReviewRepoPathInput,
+  type ArchivedReviewIdInput,
+  REVIEW_STALE_ON_REVIEW_CHANGED,
+  type RepoPathInput,
+  type ReviewStaleProcedureName,
   reviewProcedures,
   type SetReviewedInput,
-  type UnmarkReviewedInput,
 } from '@porcelain/contracts/review'
+import { reviewCommentsQuery } from './comment-queries'
 import {
+  reviewActiveQuery,
   reviewArchivedQuery,
-  reviewEvidenceAssetsQuery,
-  reviewEvidenceDocsQuery,
-  reviewEvidenceHtmlQuery,
   reviewEvidenceQuery,
   reviewedPathsQuery,
   reviewIntentQuery,
   reviewProjectKey,
   reviewPublishCostQuery,
   reviewReadingQuery,
-  reviewViewQuery,
 } from './review-queries'
-import { type ReviewQueryEffect, reviewEvidenceAssetQueryFamily } from './review-query-effects'
+import {
+  type ReviewQueryEffect,
+  reviewEvidenceAssetQueryFamily,
+  reviewEvidenceDocQueryFamily,
+} from './review-query-effects'
 
 /**
  * Review mutation consequence definitions outside comments (REV-006).
  *
- * Each entry binds exactly one live Review procedure and the Review identities it makes
- * stale. Only the three reviewed-mark writes are optimistic — the rest perform Git,
- * filesystem and process effects whose success the client cannot predict. Cross-domain
- * refreshes (`gitStatus` after publish, `repoLayers` on review change) stay in the Git and
- * Project Data bridges that own them, as in `project-data-mutations.ts`.
+ * Each entry binds exactly one Review procedure and the Review identities it makes stale.
+ * Only the reviewed-mark write is optimistic — the rest perform Git, filesystem and
+ * process effects whose success the client cannot predict. Cross-domain refreshes
+ * (`gitStatus` after publish, `repoLayers` on review change) stay in the Git and Project
+ * Data bridges that own them, as in `project-data-mutations.ts`.
  */
 
 type ReviewMutationProcedureName =
-  | 'markReviewed'
-  | 'unmarkReviewed'
   | 'setReviewed'
-  | 'clearFeatureReview'
+  | 'archiveReview'
   | 'publishReview'
   | 'restoreArchivedReview'
   | 'deleteArchivedReview'
-  | 'clearLoopEvidence'
+  | 'clearEvidence'
 
 export type ReviewMutationDefinition<TName extends ReviewMutationProcedureName, TInput> = {
   readonly procedure: (typeof reviewProcedures)[TName]
@@ -51,45 +50,37 @@ export type ReviewMutationDefinition<TName extends ReviewMutationProcedureName, 
 }
 
 /**
- * Everything a whole-active-review write makes stale. Slice-internal: the notification
- * mapping declares the same eleven effects, and one owner keeps them from drifting apart.
+ * One identity constructor per stale-on-change procedure. The two per-file reads resolve
+ * to their families, because a change cannot name which document or image moved.
+ */
+const staleEffectByProcedure: Record<
+  ReviewStaleProcedureName,
+  (projectKey: string) => ReviewQueryEffect
+> = {
+  activeReview: reviewActiveQuery,
+  reviewReading: reviewReadingQuery,
+  reviewIntent: reviewIntentQuery,
+  reviewEvidence: reviewEvidenceQuery,
+  reviewEvidenceDoc: reviewEvidenceDocQueryFamily,
+  reviewEvidenceAsset: reviewEvidenceAssetQueryFamily,
+  reviewedPaths: reviewedPathsQuery,
+  reviewComments: reviewCommentsQuery,
+  publishCost: reviewPublishCostQuery,
+  archivedReviews: reviewArchivedQuery,
+}
+
+/**
+ * Everything a whole-active-review write makes stale. Slice-internal, and DERIVED from
+ * the contract's `REVIEW_STALE_ON_REVIEW_CHANGED` rather than restating it: the wire fact
+ * and the cache consequence cannot drift apart, and the notification mapping reads the
+ * same list.
  */
 export function activeReviewEffects(projectPath: string): readonly ReviewQueryEffect[] {
   const key = reviewProjectKey(projectPath)
-  return [
-    reviewViewQuery(key),
-    reviewReadingQuery(key),
-    reviewIntentQuery(key),
-    reviewEvidenceQuery(key),
-    reviewEvidenceHtmlQuery(key),
-    reviewEvidenceDocsQuery(key),
-    reviewEvidenceAssetsQuery(key),
-    reviewEvidenceAssetQueryFamily(key),
-    reviewedPathsQuery(key),
-    reviewPublishCostQuery(key),
-    reviewArchivedQuery(key),
-  ]
+  return REVIEW_STALE_ON_REVIEW_CHANGED.map((name) => staleEffectByProcedure[name](key))
 }
 
 export const reviewMutations = {
-  markReviewed: {
-    procedure: reviewProcedures.markReviewed,
-    procedureName: 'markReviewed',
-    affectedQueries: (input: MarkReviewedInput): readonly ReviewQueryEffect[] => [
-      reviewedPathsQuery(input.repoPath),
-    ],
-    optimistic: true,
-    requiresAuthoritativeRefetch: true,
-  },
-  unmarkReviewed: {
-    procedure: reviewProcedures.unmarkReviewed,
-    procedureName: 'unmarkReviewed',
-    affectedQueries: (input: UnmarkReviewedInput): readonly ReviewQueryEffect[] => [
-      reviewedPathsQuery(input.repoPath),
-    ],
-    optimistic: true,
-    requiresAuthoritativeRefetch: true,
-  },
   setReviewed: {
     procedure: reviewProcedures.setReviewed,
     procedureName: 'setReviewed',
@@ -100,9 +91,9 @@ export const reviewMutations = {
     requiresAuthoritativeRefetch: true,
   },
   archiveReview: {
-    procedure: reviewProcedures.clearFeatureReview,
-    procedureName: 'clearFeatureReview',
-    affectedQueries: (input: ReviewRepoPathInput): readonly ReviewQueryEffect[] =>
+    procedure: reviewProcedures.archiveReview,
+    procedureName: 'archiveReview',
+    affectedQueries: (input: RepoPathInput): readonly ReviewQueryEffect[] =>
       activeReviewEffects(input),
     optimistic: false,
     requiresAuthoritativeRefetch: true,
@@ -110,7 +101,7 @@ export const reviewMutations = {
   publishReview: {
     procedure: reviewProcedures.publishReview,
     procedureName: 'publishReview',
-    affectedQueries: (input: ReviewRepoPathInput): readonly ReviewQueryEffect[] =>
+    affectedQueries: (input: RepoPathInput): readonly ReviewQueryEffect[] =>
       activeReviewEffects(input),
     optimistic: false,
     requiresAuthoritativeRefetch: true,
@@ -118,7 +109,7 @@ export const reviewMutations = {
   restoreArchivedReview: {
     procedure: reviewProcedures.restoreArchivedReview,
     procedureName: 'restoreArchivedReview',
-    affectedQueries: (input: RestoreArchivedReviewInput): readonly ReviewQueryEffect[] =>
+    affectedQueries: (input: ArchivedReviewIdInput): readonly ReviewQueryEffect[] =>
       activeReviewEffects(input.repoPath),
     optimistic: false,
     requiresAuthoritativeRefetch: true,
@@ -126,23 +117,21 @@ export const reviewMutations = {
   deleteArchivedReview: {
     procedure: reviewProcedures.deleteArchivedReview,
     procedureName: 'deleteArchivedReview',
-    affectedQueries: (input: DeleteArchivedReviewInput): readonly ReviewQueryEffect[] => [
+    affectedQueries: (input: ArchivedReviewIdInput): readonly ReviewQueryEffect[] => [
       reviewArchivedQuery(input.repoPath),
     ],
     optimistic: false,
     requiresAuthoritativeRefetch: true,
   },
   clearEvidence: {
-    procedure: reviewProcedures.clearLoopEvidence,
-    procedureName: 'clearLoopEvidence',
-    affectedQueries: (input: ReviewRepoPathInput): readonly ReviewQueryEffect[] => {
+    procedure: reviewProcedures.clearEvidence,
+    procedureName: 'clearEvidence',
+    affectedQueries: (input: RepoPathInput): readonly ReviewQueryEffect[] => {
       const key = reviewProjectKey(input)
       return [
         reviewReadingQuery(key),
         reviewEvidenceQuery(key),
-        reviewEvidenceHtmlQuery(key),
-        reviewEvidenceDocsQuery(key),
-        reviewEvidenceAssetsQuery(key),
+        reviewEvidenceDocQueryFamily(key),
         reviewEvidenceAssetQueryFamily(key),
         reviewPublishCostQuery(key),
       ]
@@ -151,20 +140,18 @@ export const reviewMutations = {
     requiresAuthoritativeRefetch: true,
   },
 } as const satisfies {
-  readonly markReviewed: ReviewMutationDefinition<'markReviewed', MarkReviewedInput>
-  readonly unmarkReviewed: ReviewMutationDefinition<'unmarkReviewed', UnmarkReviewedInput>
   readonly setReviewed: ReviewMutationDefinition<'setReviewed', SetReviewedInput>
-  readonly archiveReview: ReviewMutationDefinition<'clearFeatureReview', ReviewRepoPathInput>
-  readonly publishReview: ReviewMutationDefinition<'publishReview', ReviewRepoPathInput>
+  readonly archiveReview: ReviewMutationDefinition<'archiveReview', RepoPathInput>
+  readonly publishReview: ReviewMutationDefinition<'publishReview', RepoPathInput>
   readonly restoreArchivedReview: ReviewMutationDefinition<
     'restoreArchivedReview',
-    RestoreArchivedReviewInput
+    ArchivedReviewIdInput
   >
   readonly deleteArchivedReview: ReviewMutationDefinition<
     'deleteArchivedReview',
-    DeleteArchivedReviewInput
+    ArchivedReviewIdInput
   >
-  readonly clearEvidence: ReviewMutationDefinition<'clearLoopEvidence', ReviewRepoPathInput>
+  readonly clearEvidence: ReviewMutationDefinition<'clearEvidence', RepoPathInput>
 }
 
 export type ReviewMutation = (typeof reviewMutations)[keyof typeof reviewMutations]

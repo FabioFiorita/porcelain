@@ -27,7 +27,7 @@ interface ReviewSetFile {
   note?: string
   /**
    * The flow-layer (group heading) this file belongs to IN THE FEATURE VIEW. When
-   * the agent sets it, the feature view honours the agent's layers + declared file
+   * the agent sets it, the active review honours the agent's layers + declared file
    * order verbatim instead of the repo-wide regex layers (which still drive the
    * Changes tab). Files left without a layer fall back to the regex match.
    */
@@ -81,37 +81,11 @@ export interface ReviewSection {
   anchors: ReviewSectionAnchor[]
 }
 
-/**
- * Freeform Overview canvas body (optional). When set, the Feature Overview tab
- * renders this full-height instead of the structured reading surface; thesis +
- * sections still drive the sidebar outline. Not a revival of the deleted
- * feature-artifact channel — a medium on the same Review.
- *
- * HTML is the only canvas medium. Reviews written before the media collapsed to
- * HTML + Markdown may still carry a scene-based canvas on disk; that canvas is
- * dropped on read (see `canvas` below), never a parse failure.
- */
-const reviewCanvasSchema = z.discriminatedUnion('medium', [
-  z.object({
-    medium: z.literal('html'),
-    html: z.string().min(1).max(524_288),
-  }),
-])
-
-export type ReviewCanvas = z.infer<typeof reviewCanvasSchema>
-
 export const reviewSetSchema = z.object({
-  name: z.string().default('Feature view'),
+  name: z.string().default('Active review'),
   thesis: z.string().max(4096).optional(),
   files: z.array(reviewSetFileSchema).default([]),
   sections: z.array(reviewSectionSchema).max(30).default([]),
-  /**
-   * A canvas the app cannot render — a legacy scene medium, or anything over the
-   * caps — degrades to no canvas instead of failing the whole review. review.json
-   * is written by an external process; one stale field must not cost the human
-   * every other tab.
-   */
-  canvas: reviewCanvasSchema.optional().catch(undefined),
 })
 
 export interface ReviewSet {
@@ -121,6 +95,4 @@ export interface ReviewSet {
   files: ReviewSetFile[]
   /** The agent-authored walkthrough sections, in flow order. */
   sections: ReviewSection[]
-  /** Optional freeform Overview body (html). */
-  canvas?: ReviewCanvas
 }

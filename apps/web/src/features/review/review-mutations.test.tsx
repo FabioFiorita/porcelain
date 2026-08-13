@@ -1,10 +1,10 @@
 import { gitStatusQuery } from '@porcelain/client-runtime/git'
 import {
+  reviewActiveQuery,
   reviewArchivedQuery,
   reviewCommentsQuery,
   reviewedPathsQuery,
   reviewMutations,
-  reviewViewQuery,
 } from '@porcelain/client-runtime/review'
 import { remoteContractFixtures } from '@porcelain/contracts/remote'
 import { reviewContractFixtures } from '@porcelain/contracts/review'
@@ -31,7 +31,7 @@ import { reviewQueryKey } from './review-query-key'
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
 
 const F = reviewContractFixtures
-const PROJECT = F.featureView.input
+const PROJECT = F.activeReview.input
 const ARCHIVED_ID = F.restoreArchivedReview.input.id
 /** The harness has no daemonInfo answer until it lands, so keys are scoped as unidentified. */
 const DAEMON: DaemonScope = { host: null, version: null }
@@ -39,11 +39,11 @@ const DAEMON: DaemonScope = { host: null, version: null }
 function handlers(overrides: DaemonMockHandlers = {}): DaemonMockHandlers {
   return {
     daemonInfo: () => ({ ok: true, value: remoteContractFixtures.daemonInfo.output }),
-    clearFeatureReview: () => ({ ok: true, value: undefined }),
+    archiveReview: () => ({ ok: true, value: undefined }),
     publishReview: () => ({ ok: true, value: F.publishReview.output }),
     restoreArchivedReview: () => ({ ok: true, value: undefined }),
     deleteArchivedReview: () => ({ ok: true, value: undefined }),
-    clearLoopEvidence: () => ({ ok: true, value: undefined }),
+    clearEvidence: () => ({ ok: true, value: undefined }),
     ...overrides,
   }
 }
@@ -53,7 +53,7 @@ const KEYS = {
   comments: () => reviewCommentsQueryKey(DAEMON, reviewCommentsQuery(PROJECT)),
   gitStatus: () => gitQueryKey(DAEMON, gitStatusQuery(PROJECT)),
   reviewedPaths: () => gitQueryKey(DAEMON, reviewedPathsQuery(PROJECT)),
-  view: () => reviewQueryKey(DAEMON, reviewViewQuery(PROJECT)),
+  active: () => reviewQueryKey(DAEMON, reviewActiveQuery(PROJECT)),
 } as const
 
 type KeyName = keyof typeof KEYS
@@ -82,7 +82,7 @@ describe('Review mutation adapter', () => {
     useProjectSelectionStore.setState({ project: { name: 'repo', path: PROJECT } })
   })
 
-  it('archives through clearFeatureReview and refreshes its effects plus comments', async () => {
+  it('archives through archiveReview and refreshes its effects plus comments', async () => {
     const { result } = renderMutation(useArchiveReview)
     seedAll(result.current.client)
 
@@ -91,10 +91,10 @@ describe('Review mutation adapter', () => {
     // `reviewed-paths` is a declared effect that the Git namespace owns (REV-006 ruling 2).
     await waitFor(() =>
       expect(staleNames(result.current.client).sort()).toEqual([
+        'active',
         'archived',
         'comments',
         'reviewedPaths',
-        'view',
       ]),
     )
   })
@@ -108,10 +108,11 @@ describe('Review mutation adapter', () => {
     expect(id).toBe(F.publishReview.output?.id ?? null)
     await waitFor(() =>
       expect(staleNames(result.current.client).sort()).toEqual([
+        'active',
         'archived',
+        'comments',
         'gitStatus',
         'reviewedPaths',
-        'view',
       ]),
     )
   })
@@ -124,10 +125,10 @@ describe('Review mutation adapter', () => {
 
     await waitFor(() =>
       expect(staleNames(result.current.client).sort()).toEqual([
+        'active',
         'archived',
         'comments',
         'reviewedPaths',
-        'view',
       ]),
     )
   })
@@ -141,7 +142,7 @@ describe('Review mutation adapter', () => {
     await waitFor(() => expect(staleNames(result.current.client)).toEqual(['archived']))
   })
 
-  it('clears loop evidence without touching the archive listing', async () => {
+  it('clears the evidence pack without touching the archive listing', async () => {
     const { result } = renderMutation(useClearEvidence)
     seedAll(result.current.client)
 
@@ -156,9 +157,7 @@ describe('Review mutation adapter', () => {
     ).toEqual([
       'evidence',
       'evidence-asset-family',
-      'evidence-assets',
-      'evidence-docs',
-      'evidence-html',
+      'evidence-doc-family',
       'publish-cost',
       'reading',
     ])
@@ -170,7 +169,7 @@ describe('Review mutation adapter', () => {
     const { result } = renderMutation(
       useArchiveReview,
       handlers({
-        clearFeatureReview: () => {
+        archiveReview: () => {
           throw new Error('Archive failed on disk')
         },
       }),

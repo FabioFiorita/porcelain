@@ -16,7 +16,7 @@ export function SourceView({
   path: string
   content: string
   highlightLine?: number
-  /** Agent-changed lines (Feature outline). Diff-token tint, not find highlight. */
+  /** Agent-changed lines (Review outline). Diff-token tint, not find highlight. */
   highlightRanges?: HighlightRange[]
   commentsByLine?: Map<number, ReviewComment[]>
 }): React.JSX.Element {

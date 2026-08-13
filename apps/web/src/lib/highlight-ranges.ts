@@ -7,7 +7,7 @@ export interface HighlightRange {
 }
 
 /**
- * Agent-changed line ranges for a Feature-outline file open.
+ * Agent-changed line ranges for a Review-outline file open.
  * Changed files: union of each hunk's new-side **add** lines, coalesced into
  * contiguous ranges. Other sources → undefined (no tint). When `lineCount` is
  * given and coverage is ≥90% (typical untracked whole-file hunk), skip the tint

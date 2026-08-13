@@ -8,31 +8,31 @@ const evidenceChecks = [
   { label: 'Browser proof', status: 'skip' },
 ] as const
 
-const featureView = {
+const readingGroups = [
+  {
+    layer: 'Source',
+    files: [
+      {
+        path: 'src/context.ts',
+        source: 'context',
+        note: 'Synthetic context',
+        ranges: [{ startLine: 1, lines: ['export const value = 1'], gapBefore: 0 }],
+        truncated: false,
+        whole: false,
+      },
+    ],
+  },
+] as const
+
+const activeReview = {
   name: 'Synthetic Review',
   fromAgent: true,
   thesis: 'A synthetic review thesis.',
   sections: [{ title: 'Execution', anchorCount: 1 }],
-  groups: [
-    {
-      layer: 'Source',
-      files: [
-        {
-          path: 'src/changed.ts',
-          source: 'changed',
-          status: 'modified',
-          note: 'Synthetic note',
-          layer: 'Source',
-          additions: 2,
-          deletions: 1,
-          connects: ['src/context.ts'],
-        },
-      ],
-    },
-  ],
+  groups: readingGroups,
 } as const
 
-const featureReading = {
+const reviewReading = {
   name: 'Synthetic Review',
   thesis: 'A synthetic reading thesis.',
   sections: [
@@ -55,27 +55,11 @@ const featureReading = {
       ],
     },
   ],
-  groups: [
-    {
-      layer: 'Source',
-      files: [
-        {
-          path: 'src/context.ts',
-          source: 'context',
-          note: 'Synthetic context',
-          ranges: [{ startLine: 1, lines: ['export const value = 1'], gapBefore: 0 }],
-          truncated: false,
-          whole: false,
-        },
-      ],
-    },
-  ],
-  canvas: { medium: 'html', html: '<main>Synthetic canvas.</main>' },
+  groups: readingGroups,
   evidence: {
     title: 'Synthetic evidence',
     updatedAt: '2026-08-09T12:00:00.000Z',
     checks: evidenceChecks,
-    medium: 'html',
   },
 } as const
 
@@ -84,24 +68,29 @@ const reviewDocs = [
   { file: 'report.html', label: 'Report', medium: 'html', body: '<p>Synthetic result.</p>' },
 ] as const
 
-const evidenceMeta = {
+const reviewEvidence = {
   title: 'Synthetic evidence',
   updatedAt: '2026-08-09T12:00:00.000Z',
   checks: evidenceChecks,
-  dir: '/synthetic/repo/.porcelain/active-review/evidence',
-  medium: 'html',
-  results: 1,
-  assets: 1,
-  hasReport: false,
-} as const
-
-const evidence = {
-  title: 'Synthetic evidence',
-  updatedAt: '2026-08-09T12:00:00.000Z',
-  dir: '/synthetic/repo/.porcelain/active-review/evidence',
-  checks: evidenceChecks,
-  medium: 'html',
-  html: '<!doctype html><p>Synthetic evidence.</p>',
+  results: [
+    {
+      file: 'report.html',
+      label: 'Report',
+      medium: 'html',
+      bytes: 34,
+      state: 'available',
+    },
+  ],
+  assets: [
+    {
+      file: 'shot.png',
+      label: 'Shot',
+      kind: 'image',
+      mime: 'image/png',
+      bytes: 128,
+      state: 'available',
+    },
+  ],
 } as const
 
 const reviewComment = {
@@ -118,7 +107,7 @@ const reviewComment = {
 
 /** Representative Review wire values used by boundary tests and client mocks. */
 export const reviewContractFixtures = {
-  worktreeInbox: {
+  reviewInbox: {
     input: '/synthetic/repo',
     output: [
       {
@@ -129,35 +118,23 @@ export const reviewContractFixtures = {
       },
     ],
   },
-  markReviewed: {
-    input: { repoPath: '/synthetic/repo', path: 'src/changed.ts' },
-    output: undefined,
-  },
-  unmarkReviewed: {
-    input: { repoPath: '/synthetic/repo', path: 'src/changed.ts' },
-    output: undefined,
-  },
   reviewedPaths: { input: '/synthetic/repo', output: ['src/changed.ts'] },
   setReviewed: {
-    input: { repoPath: '/synthetic/repo', paths: ['src/changed.ts', 'src/context.ts'] },
+    input: {
+      repoPath: '/synthetic/repo',
+      paths: ['src/changed.ts', 'src/context.ts'],
+      reviewed: true,
+    },
     output: undefined,
   },
-  featureView: { input: '/synthetic/repo', output: featureView },
-  featureReading: { input: '/synthetic/repo', output: featureReading },
-  clearFeatureReview: { input: '/synthetic/repo', output: undefined },
+  activeReview: { input: '/synthetic/repo', output: activeReview },
+  reviewReading: { input: '/synthetic/repo', output: reviewReading },
+  archiveReview: { input: '/synthetic/repo', output: undefined },
   reviewIntent: { input: '/synthetic/repo', output: reviewDocs },
-  reviewEvidenceDocs: { input: '/synthetic/repo', output: [reviewDocs[1]] },
-  reviewEvidenceAssets: {
-    input: '/synthetic/repo',
-    output: [
-      {
-        file: 'shot.png',
-        label: 'Shot',
-        kind: 'image',
-        mime: 'image/png',
-        bytes: 128,
-      },
-    ],
+  reviewEvidence: { input: '/synthetic/repo', output: reviewEvidence },
+  reviewEvidenceDoc: {
+    input: { repoPath: '/synthetic/repo', file: 'report.html' },
+    output: reviewDocs[1],
   },
   reviewEvidenceAsset: {
     input: { repoPath: '/synthetic/repo', file: 'shot.png' },
@@ -168,7 +145,7 @@ export const reviewContractFixtures = {
       dataUrl: 'data:image/png;base64,AA==',
     },
   },
-  reviewPublishCost: { input: '/synthetic/repo', output: { bytes: 2048, files: 4 } },
+  publishCost: { input: '/synthetic/repo', output: { bytes: 2048, files: 4 } },
   publishReview: {
     input: '/synthetic/repo',
     output: { id: 'archive-synthetic', cost: { bytes: 2048, files: 4 } },
@@ -192,9 +169,7 @@ export const reviewContractFixtures = {
     input: { repoPath: '/synthetic/repo', id: 'archive-synthetic' },
     output: undefined,
   },
-  loopEvidence: { input: '/synthetic/repo', output: evidenceMeta },
-  loopEvidenceHtml: { input: '/synthetic/repo', output: evidence },
-  clearLoopEvidence: { input: '/synthetic/repo', output: undefined },
+  clearEvidence: { input: '/synthetic/repo', output: undefined },
   reviewComments: { input: '/synthetic/repo', output: [reviewComment] },
   addReviewComment: {
     input: {
@@ -227,11 +202,11 @@ export const reviewContractFixtures = {
     input: { repoPath: '/synthetic/repo', id: 'comment-synthetic', resolved: true },
     output: undefined,
   },
-  exploreFeature: {
+  exploreReading: {
     input: {
       repoPath: '/synthetic/repo',
       seed: { kind: 'symbol', path: 'src/changed.ts', symbol: 'value' },
     },
-    output: featureReading,
+    output: reviewReading,
   },
 } as const

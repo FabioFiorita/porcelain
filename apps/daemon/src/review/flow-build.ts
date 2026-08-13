@@ -11,8 +11,8 @@ import {
   gitRangeNumstatFrom,
 } from '../git/git'
 import { workingTreeSnapshot } from '../git/working-tree'
-import { flowKey } from './feature-key'
 import { buildFlow, type FlowGroup, type Layer } from './flow'
+import { flowKey } from './review-key'
 
 // Read up to 200 files' working-tree contents, run buildFlow, and attach
 // additions/deletions from the stat map. Shared by the working, range, and commit

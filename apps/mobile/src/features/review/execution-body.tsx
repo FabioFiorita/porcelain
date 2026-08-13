@@ -2,7 +2,7 @@ import type { TokenMap } from '@porcelain/client-runtime/highlight'
 import { fileName } from '@porcelain/client-runtime/paths'
 import { intraLineEmphasis } from '@porcelain/client-runtime/word-diff-line'
 import type { DiffHunk } from '@porcelain/contracts/git'
-import type { FeatureReading, ReadingFile, SliceRange } from '@porcelain/contracts/review'
+import type { ReadingFile, ReviewReading, SliceRange } from '@porcelain/contracts/review'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { type FlatList, Text, View } from 'react-native'
 import type { ThemedToken } from 'shiki'
@@ -53,13 +53,13 @@ export function ExecutionBody({
   reading,
 }: {
   active: boolean
-  reading: FeatureReading
+  reading: ReviewReading
 }): React.JSX.Element {
   const bottomInset = useBottomChrome()
   const mode = usePreferencesStore((state) => state.diffMode)
   const comments = useReviewComments(active)
   const reviewed = useReviewedPaths(active)
-  const { mark, unmark } = useToggleReviewed()
+  const { setReviewed } = useToggleReviewed()
   const [anchor, setAnchor] = useState<CommentAnchor | null>(null)
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set())
   const lineSelection = useLineSelection()
@@ -152,9 +152,8 @@ export function ExecutionBody({
             sliceTokensFor={sliceTokens}
             onToggleCollapsed={toggleCollapsed}
             onToggleReviewed={(path, next) => {
-              // mark/unmark are total void (React Query owns error + pending).
-              if (next) mark(path)
-              else unmark(path)
+              // setReviewed is total void (React Query owns error + pending).
+              setReviewed([path], next)
               // Ticking a file off folds it away, like the continuous read: the document
               // moves on instead of leaving a wall of already-read code behind.
               if (next) setCollapsed((current) => new Set(current).add(path))
@@ -189,7 +188,7 @@ export function ExecutionBody({
 /** A file's readable body — one of the two shapes, never both. */
 type FileBody = { hunks?: readonly DiffHunk[]; ranges?: readonly SliceRange[] }
 
-function bodiesByPath(reading: FeatureReading): Map<string, FileBody> {
+function bodiesByPath(reading: ReviewReading): Map<string, FileBody> {
   const bodies = new Map<string, FileBody>()
   for (const file of [
     ...reading.sections.flatMap((section) => section.files),
@@ -201,7 +200,7 @@ function bodiesByPath(reading: FeatureReading): Map<string, FileBody> {
   return bodies
 }
 
-function allHunks(reading: FeatureReading): DiffHunk[] {
+function allHunks(reading: ReviewReading): DiffHunk[] {
   return [
     ...reading.sections.flatMap((section) => section.files),
     ...reading.groups.flatMap((group) => group.files),

@@ -1,5 +1,6 @@
 import type { ChangedFile, DiffHunk, DiffStat, Worktree } from '../../git/diff'
-import type { FeatureReading, FeatureView } from '../../review/feature-view'
+import type { ActiveReview, ReviewReading } from '../../review/active-review'
+import type { ReviewDoc } from '../../review/doc-set'
 import type { Layer } from '../../review/flow'
 import type { ReviewSet } from '../../review/review-set'
 
@@ -26,12 +27,12 @@ export type ReviewGatherState = {
 /** The expensive phase's memoized result: the view plus the sources it read. */
 export type ReviewBuiltReview = {
   key: string
-  view: FeatureView
+  view: ActiveReview
   sources: Map<string, string>
 }
 
 /** The Evidence chapter descriptor, exactly as the reading surface carries it. */
-export type ReviewEvidenceSummary = NonNullable<FeatureReading['evidence']>
+export type ReviewEvidenceSummary = NonNullable<ReviewReading['evidence']>
 
 /**
  * One Review-inbox row: a SIBLING worktree of the current checkout that has work awaiting
@@ -54,8 +55,8 @@ export type ReviewReadingSources = Readonly<{
     repoPath: string,
     gathered: ReviewGatherState & { reviewSet: ReviewSet },
   ): Promise<ReviewBuiltReview>
-  cachedReading(repoPath: string, key: string): FeatureReading | null
-  storeReading(repoPath: string, key: string, reading: FeatureReading): void
+  cachedReading(repoPath: string, key: string): ReviewReading | null
+  storeReading(repoPath: string, key: string, reading: ReviewReading): void
   /** A review set exists for that checkout — the inbox's only review signal. */
   hasReviewSet(repoPath: string): Promise<boolean>
 }>
@@ -73,7 +74,12 @@ export type ReviewFiles = Readonly<{
   readSource(repoPath: string, path: string): Promise<string | undefined>
 }>
 
-/** The Evidence chapter's current descriptor, read fresh outside the feature key. */
+/** The Evidence chapter's current descriptor, read fresh outside the review key. */
 export type ReviewEvidence = Readonly<{
   readSummary(repoPath: string): Promise<ReviewEvidenceSummary | null>
+}>
+
+/** The Intent document set — the first reading of the Review canvas. */
+export type ReviewIntent = Readonly<{
+  readDocs(repoPath: string): Promise<ReviewDoc[]>
 }>

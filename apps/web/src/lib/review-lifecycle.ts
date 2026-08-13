@@ -1,4 +1,4 @@
-import type { FeatureReading, ReadingFile } from '@porcelain/contracts/review'
+import type { ReadingFile, ReviewReading } from '@porcelain/contracts/review'
 
 /**
  * Shape helpers for the one active Review story of a repo. The lifecycle itself
@@ -6,7 +6,7 @@ import type { FeatureReading, ReadingFile } from '@porcelain/contracts/review'
  */
 
 /** Unique files across sections + more-files groups. */
-export function reviewOutlineFiles(reading: FeatureReading): ReadingFile[] {
+export function reviewOutlineFiles(reading: ReviewReading): ReadingFile[] {
   const seen = new Set<string>()
   const out: ReadingFile[] = []
   for (const file of [

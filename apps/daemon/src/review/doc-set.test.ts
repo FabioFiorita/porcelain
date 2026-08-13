@@ -250,18 +250,14 @@ describe('readActiveEvidenceResults', () => {
     expect(docs.map((d) => [d.file, d.label])).toEqual([['index.html', 'Sim loop']])
   })
 
-  it('renders both index.html files, with distinct keys and distinct labels', async () => {
+  it('renders results/index.html and ignores a retired root index.html', async () => {
     const results = projectEvidenceResultsDir(repo())
     await mkdir(results, { recursive: true })
     await writeFile(join(projectEvidenceDir(repo()), 'index.html'), '<p>old proof</p>')
     await writeFile(join(results, 'index.html'), '<p>modern report</p>')
     const docs = await readActiveEvidenceResults(repo())
-    expect(docs.map((d) => [d.file, d.label])).toEqual([
-      ['../index.html', 'Earlier report'],
-      ['index.html', 'Report'],
-    ])
-    expect(docs.map((d) => d.body)).toEqual(['<p>old proof</p>', '<p>modern report</p>'])
-    expect(new Set(docs.map((d) => d.file)).size).toBe(docs.length)
+    expect(docs.map((d) => [d.file, d.label])).toEqual([['index.html', 'Report']])
+    expect(docs.map((d) => d.body)).toEqual(['<p>modern report</p>'])
   })
 
   // `index.html` and `index.htm` are two files with the same default label, and
@@ -278,16 +274,13 @@ describe('readActiveEvidenceResults', () => {
     expect(docs.filter((d) => d.label === 'Report')).toHaveLength(1)
   })
 
-  it('surfaces a legacy index.html first, as "Report"', async () => {
+  it('never surfaces a retired root index.html beside the results set', async () => {
     const results = projectEvidenceResultsDir(repo())
     await mkdir(results, { recursive: true })
     await writeFile(join(projectEvidenceDir(repo()), 'index.html'), '<p>old proof</p>')
     await writeFile(join(results, 'run-log.md'), 'log')
     const docs = await readActiveEvidenceResults(repo())
-    expect(docs.map((d) => [d.file, d.label])).toEqual([
-      ['index.html', 'Report'],
-      ['run-log.md', 'Run log'],
-    ])
+    expect(docs.map((d) => [d.file, d.label])).toEqual([['run-log.md', 'Run log']])
   })
 
   it('keeps rendering loose documents left at the evidence root', async () => {

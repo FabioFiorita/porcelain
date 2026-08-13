@@ -1,19 +1,17 @@
 import { gitStatusQuery } from '@porcelain/client-runtime/git'
 import {
+  reviewActiveQuery,
   reviewArchivedQuery,
   reviewCommentsQuery,
   reviewEvidenceAssetQuery,
-  reviewEvidenceAssetsQuery,
-  reviewEvidenceDocsQuery,
-  reviewEvidenceHtmlQuery,
+  reviewEvidenceDocQuery,
   reviewEvidenceQuery,
   reviewExploreQuery,
   reviewedPathsQuery,
+  reviewInboxQuery,
   reviewIntentQuery,
   reviewPublishCostQuery,
   reviewReadingQuery,
-  reviewViewQuery,
-  worktreeInboxQuery,
 } from '@porcelain/client-runtime/review'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
 import { describe, expect, it } from 'vitest'
@@ -23,13 +21,11 @@ const DAEMON: DaemonScope = { host: '127.0.0.1:43118', version: '0.0.0-test' }
 const PROJECT = '/synthetic/repo'
 
 const identities = [
-  reviewViewQuery(PROJECT),
+  reviewActiveQuery(PROJECT),
   reviewReadingQuery(PROJECT),
   reviewIntentQuery(PROJECT),
   reviewEvidenceQuery(PROJECT),
-  reviewEvidenceHtmlQuery(PROJECT),
-  reviewEvidenceDocsQuery(PROJECT),
-  reviewEvidenceAssetsQuery(PROJECT),
+  reviewEvidenceDocQuery(PROJECT, 'results.md'),
   reviewEvidenceAssetQuery(PROJECT, 'shot.png'),
   reviewPublishCostQuery(PROJECT),
   reviewArchivedQuery(PROJECT),
@@ -38,7 +34,7 @@ const identities = [
 
 describe('reviewQueryKey', () => {
   it('puts the semantic identity first and the daemon scope second for every identity', () => {
-    expect(identities).toHaveLength(11)
+    expect(identities).toHaveLength(9)
     for (const identity of identities) {
       expect(reviewQueryKey(DAEMON, identity)).toEqual([identity, DAEMON])
     }
@@ -58,7 +54,7 @@ describe('reviewQueryKey', () => {
     expect(
       parseReviewQueryKey([{ domain: 'board', name: 'cards', projectPath: PROJECT }, DAEMON]),
     ).toBeNull()
-    expect(parseReviewQueryKey(['featureView', PROJECT])).toBeNull()
+    expect(parseReviewQueryKey(['activeReview', PROJECT])).toBeNull()
     expect(
       parseReviewQueryKey([
         { domain: 'review', name: 'not-a-review-read', projectPath: PROJECT },
@@ -69,10 +65,10 @@ describe('reviewQueryKey', () => {
 
   it('accepts the comments identity and the two Git-keyed Review identities', () => {
     // Both are members of `reviewQuerySchema`; comments still invalidate through their own
-    // owner, and `reviewed-paths` / `worktree-inbox` stay Git-keyed caches (REV-006 ruling 2).
+    // owner, and `reviewed-paths` / `inbox` stay Git-keyed caches (REV-006 ruling 2).
     expect(isReviewQueryKey(reviewQueryKey(DAEMON, reviewCommentsQuery(PROJECT)))).toBe(true)
     expect(isReviewQueryKey(reviewQueryKey(DAEMON, reviewedPathsQuery(PROJECT)))).toBe(true)
-    expect(isReviewQueryKey(reviewQueryKey(DAEMON, worktreeInboxQuery(PROJECT)))).toBe(true)
+    expect(isReviewQueryKey(reviewQueryKey(DAEMON, reviewInboxQuery(PROJECT)))).toBe(true)
   })
 
   it('rejects a Git workspace key', () => {

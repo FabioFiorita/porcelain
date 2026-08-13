@@ -51,11 +51,10 @@ describe('pack presence', () => {
       checks: [{ label: 'unit', status: 'pass' }],
       results: [],
       assets: [],
-      legacyReport: false,
     })
   })
 
-  it('reads a results-only, an assets-only, and a report-only pack, and an empty directory as null', async () => {
+  it('reads a results-only and an assets-only pack, and an empty or root-report-only directory as null', async () => {
     expect(await store.readPack(repo)).toBeNull()
     mkdirSync(projectEvidenceDir(repo), { recursive: true })
     expect(await store.readPack(repo)).toBeNull()
@@ -67,9 +66,10 @@ describe('pack presence', () => {
     write(projectEvidenceAssetsDir(repo), 'shot.png', 'png')
     expect(await store.readPack(repo)).toMatchObject({ assets: [{ file: 'shot.png' }] })
 
+    // The retired root `index.html` era is not a pack part any more.
     rmSync(projectEvidenceDir(repo), { recursive: true, force: true })
     write(projectEvidenceDir(repo), 'index.html', '<p>x</p>')
-    expect(await store.readPack(repo)).toMatchObject({ legacyReport: true, results: [] })
+    expect(await store.readPack(repo)).toBeNull()
   })
 
   it('keeps a half-written meta.json as an empty-checks pack and drops an over-cap checks list', async () => {
@@ -86,7 +86,7 @@ describe('pack presence', () => {
 })
 
 describe('results descriptors', () => {
-  it('are name-sorted, cover only results/, and carry file, label, medium, and bytes', async () => {
+  it('are name-sorted, cover only results/, and carry file, label, medium, bytes, and state', async () => {
     write(projectEvidenceResultsDir(repo), 'run-log.md', 'log')
     write(projectEvidenceResultsDir(repo), 'a-report.html', '<p>x</p>')
     write(projectEvidenceResultsDir(repo), 'notes.txt', 'not a document')
@@ -94,8 +94,8 @@ describe('results descriptors', () => {
     write(projectEvidenceDir(repo), 'loose.md', 'root level, not a Results descriptor')
 
     expect((await store.readPack(repo))?.results).toEqual([
-      { file: 'a-report.html', label: 'A report', medium: 'html', bytes: 8 },
-      { file: 'run-log.md', label: 'Run log', medium: 'markdown', bytes: 3 },
+      { file: 'a-report.html', label: 'A report', medium: 'html', bytes: 8, state: 'available' },
+      { file: 'run-log.md', label: 'Run log', medium: 'markdown', bytes: 3, state: 'available' },
     ])
   })
 
@@ -109,7 +109,6 @@ describe('results descriptors', () => {
     expect(Object.keys(pack ?? {}).sort()).toEqual([
       'assets',
       'checks',
-      'legacyReport',
       'results',
       'title',
       'updatedAt',
@@ -122,10 +121,20 @@ describe('results descriptors', () => {
     }
   })
 
-  it('marks a legacy root index.html without adding a results descriptor', async () => {
-    write(projectEvidenceDir(repo), 'index.html', '<p>report</p>')
+  it('describes an over-cap document as unavailable rather than dropping it', async () => {
+    write(projectEvidenceResultsDir(repo), 'huge.md', 'x'.repeat(2 * 1024 * 1024 + 1))
 
-    expect(await store.readPack(repo)).toMatchObject({ legacyReport: true, results: [] })
+    expect((await store.readPack(repo))?.results).toEqual([
+      {
+        file: 'huge.md',
+        label: 'Huge',
+        medium: 'markdown',
+        bytes: 2 * 1024 * 1024 + 1,
+        state: 'unavailable',
+        reason: 'too-large',
+        maxBytes: 2 * 1024 * 1024,
+      },
+    ])
   })
 })
 
@@ -144,12 +153,9 @@ describe('assets gallery', () => {
 })
 
 describe('updatedAt', () => {
-  it('is the newest of meta, the legacy report, and the files under results/ and assets/', async () => {
+  it('is the newest of meta and the files under results/ and assets/', async () => {
     writeMeta({ title: 'Pack', updatedAt: META_AT })
-    const reportAt = new Date('2026-07-18T00:00:00.000Z')
-    const report = write(projectEvidenceDir(repo), 'index.html', '<p>x</p>')
-    utimesSync(report, reportAt, reportAt)
-    expect((await store.readPack(repo))?.updatedAt).toBe(reportAt.toISOString())
+    expect((await store.readPack(repo))?.updatedAt).toBe(META_AT)
 
     const docAt = new Date('2026-07-19T00:00:00.000Z')
     const doc = write(projectEvidenceResultsDir(repo), 'run-log.md', 'log')
@@ -205,7 +211,7 @@ describe('readResults', () => {
     write(projectEvidenceResultsDir(repo), 'index.html', '<p>report</p>')
     write(projectEvidenceResultsDir(repo), 'run-log.md', 'log')
     write(projectEvidenceResultsDir(repo), 'huge.md', 'x'.repeat(2 * 1024 * 1024 + 1))
-    write(projectEvidenceDir(repo), 'index.html', '<p>legacy</p>')
+    write(projectEvidenceDir(repo), 'index.html', '<p>retired root report</p>')
     write(
       projectEvidenceResultsDir(repo),
       'meta.json',
@@ -213,7 +219,7 @@ describe('readResults', () => {
     )
 
     const docs = await store.readResults(repo)
-    expect(docs.map((doc) => doc.file)).toEqual(['../index.html', 'run-log.md', 'index.html'])
+    expect(docs.map((doc) => doc.file)).toEqual(['run-log.md', 'index.html'])
     expect(new Set(docs.map((doc) => doc.label)).size).toBe(docs.length)
   })
 })

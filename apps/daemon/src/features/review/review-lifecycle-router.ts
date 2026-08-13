@@ -19,17 +19,17 @@ export function createReviewLifecycleRouter(operations: ReviewLifecycleOperation
   return t.router({
     // Archive the active review (intent, comments, reviewed marks, evidence) under
     // .porcelain/reviews/<id>/ and clear the active slots → "No review yet".
-    clearFeatureReview: publicProcedure
-      .input(procedureCatalog.clearFeatureReview.input)
-      .output(procedureCatalog.clearFeatureReview.output)
+    archiveReview: publicProcedure
+      .input(procedureCatalog.archiveReview.input)
+      .output(procedureCatalog.archiveReview.output)
       .mutation(async ({ input }) => {
         return throwIfFailed(await operations.archiveReview({ projectPath: input }))
       }),
 
     /** Byte cost of publishing the active review, so the warning can be specific. */
-    reviewPublishCost: publicProcedure
-      .input(procedureCatalog.reviewPublishCost.input)
-      .output(procedureCatalog.reviewPublishCost.output)
+    publishCost: publicProcedure
+      .input(procedureCatalog.publishCost.input)
+      .output(procedureCatalog.publishCost.output)
       .query(async ({ input }) => {
         return throwIfFailed(await operations.publishCost({ projectPath: input }))
       }),

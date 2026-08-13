@@ -1,4 +1,4 @@
-import type { FeatureReading, ReadingFile } from '@porcelain/contracts/review'
+import type { ReadingFile, ReviewReading } from '@porcelain/contracts/review'
 import { type DiffMode, type DiffRow, toDiffRows } from '@/features/diff/diff-rows'
 import type { SourceRow } from '@/features/files'
 
@@ -35,7 +35,7 @@ export type ExecutionBlock = { id: string; title: string; fileCount: number }
  * repo. Doing it here as well keeps the rendered document honest for the same reason, and
  * keeps every row key unique, which a virtualized list requires.
  */
-export function executionBlocks(reading: FeatureReading): {
+export function executionBlocks(reading: ReviewReading): {
   blocks: ExecutionBlock[]
   filesByBlock: Map<string, ReadingFile[]>
 } {
@@ -79,7 +79,7 @@ export function executionBlocks(reading: FeatureReading): {
  * ranges as adjacent code, which is a lie about the file.
  */
 export function toExecutionRows(
-  reading: FeatureReading,
+  reading: ReviewReading,
   mode: DiffMode,
   /** Files whose body is folded away; their header stays so the set reads as a contents list. */
   collapsed?: ReadonlySet<string>,
@@ -163,7 +163,7 @@ export function blockRowIndex(rows: readonly ExecutionRow[], blockId: string): n
 }
 
 /** Files in the Execution document, deduped and in reading order. */
-export function executionPaths(reading: FeatureReading): string[] {
+export function executionPaths(reading: ReviewReading): string[] {
   const { blocks, filesByBlock } = executionBlocks(reading)
   return blocks.flatMap((block) => (filesByBlock.get(block.id) ?? []).map((file) => file.path))
 }

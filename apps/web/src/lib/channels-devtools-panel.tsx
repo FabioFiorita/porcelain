@@ -1,7 +1,7 @@
 import { useActions } from '@renderer/features/actions'
 import { useBoardCards } from '@renderer/features/board'
 import { useProjectNotes } from '@renderer/features/project-data'
-import { useReviewComments, useReviewView } from '@renderer/features/review'
+import { useActiveReview, useReviewComments } from '@renderer/features/review'
 import { useSkillsInfo } from '@renderer/hooks/use-skills'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 
@@ -16,7 +16,7 @@ import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 export function ChannelsDevtoolsPanel(): React.JSX.Element {
   const project = useProjectSelectionStore((s) => s.project)
   const skills = useSkillsInfo()
-  const { view } = useReviewView()
+  const { active } = useActiveReview()
   const comments = useReviewComments()
   const { cards } = useBoardCards()
   const actions = useActions()
@@ -26,7 +26,7 @@ export function ChannelsDevtoolsPanel(): React.JSX.Element {
     return <div style={WRAP}>No project open — the agent channels are project-keyed.</div>
   }
 
-  const reviewFiles = view?.groups.flatMap((g) => g.files) ?? []
+  const reviewFiles = active?.groups.flatMap((g) => g.files) ?? []
   const bySource = (s: 'changed' | 'context' | 'shipped'): number =>
     reviewFiles.filter((f) => f.source === s).length
   const byStatus = (s: 'todo' | 'doing' | 'done'): number =>
@@ -43,8 +43,8 @@ export function ChannelsDevtoolsPanel(): React.JSX.Element {
         <Row
           label="Files"
           value={
-            view
-              ? `${reviewFiles.length} · ${bySource('changed')} changed / ${bySource('context')} context / ${bySource('shipped')} shipped${view.fromAgent ? ' · agent-fed' : ''}`
+            active
+              ? `${reviewFiles.length} · ${bySource('changed')} changed / ${bySource('context')} context / ${bySource('shipped')} shipped${active.fromAgent ? ' · agent-fed' : ''}`
               : 'none set'
           }
         />

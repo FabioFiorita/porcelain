@@ -138,7 +138,7 @@ describe('runCli — flag parsing, help, repo resolution', () => {
   })
 })
 
-describe('runCli — review + feature + comments + reviewed', () => {
+describe('runCli — review + comments + reviewed', () => {
   it('review set writes a repo-keyed set', async () => {
     await runCli([
       'review',
@@ -260,9 +260,9 @@ describe('runCli — review + feature + comments + reviewed', () => {
     expect(read()?.sections).toHaveLength(1)
     expect(read()?.files).toHaveLength(2)
   })
-  it('review set defaults the name to "Feature view"', async () => {
+  it('review set defaults the name to "Active review"', async () => {
     await runCli(['review', 'set', ...repo, '--files', JSON.stringify([{ path: 'a.ts' }])])
-    expect(read()?.name).toBe('Feature view')
+    expect(read()?.name).toBe('Active review')
   })
   // The skill's standing rule is to open a unit with name + thesis before touching a file.
   it('review set starts Intent-first, with no --files at all', async () => {
@@ -279,14 +279,14 @@ describe('runCli — review + feature + comments + reviewed', () => {
     await runCli(['review', 'add', ...repo, '--files', JSON.stringify([{ path: 'b.ts' }])])
     expect(read()?.files).toEqual([{ path: 'a.ts' }, { path: 'b.ts' }])
   })
-  it('review clear removes the set and the loop-evidence directory', async () => {
+  it('review clear removes the set and the evidence directory', async () => {
     await runCli(['review', 'set', ...repo, '--files', JSON.stringify([{ path: 'a.ts' }])])
     await runCli(['evidence', 'set', ...repo, '--title', 'Old', '--html', doc])
     const evidenceDir = activeReview('evidence')
     const msg = await runCli(['review', 'clear', ...repo])
-    expect(msg).toContain('loop evidence')
+    expect(msg).toContain('its evidence')
     expect(() => read()).toThrow()
-    // evidenceDirForRepo hashes the path; whole loop-evidence root may still exist for other repos
+    // evidenceDirForRepo hashes the path; the whole evidence root may still exist for other repos
     const { readdirSync, existsSync } = await import('node:fs')
     if (existsSync(evidenceDir)) {
       const leftover = readdirSync(evidenceDir, { recursive: true }) as string[]
@@ -303,28 +303,17 @@ describe('runCli — review + feature + comments + reviewed', () => {
       '--files',
       JSON.stringify([{ path: 'a.ts' }]),
     ])
-    expect(await runCli(['review', 'get', ...repo])).toContain(`Feature review "X" for ${repoPath}`)
+    expect(await runCli(['review', 'get', ...repo])).toContain(`Review "X" for ${repoPath}`)
   })
   it('review get reports a thesis-only Intent-first start as a real review', async () => {
     await runCli(['review', 'set', ...repo, '--name', 'Unit', '--thesis', 'Why this change'])
-    expect(await runCli(['review', 'get', ...repo])).toContain(`Feature review "Unit"`)
+    expect(await runCli(['review', 'get', ...repo])).toContain(`Review "Unit"`)
   })
   it('review get still reports a truly empty set as absent', async () => {
     await runCli(['review', 'set', ...repo, '--name', 'Unit'])
-    expect(await runCli(['review', 'get', ...repo])).toContain('No feature review set')
+    expect(await runCli(['review', 'get', ...repo])).toContain('No review set')
   })
-  it('feature get describes the app-computed snapshot, or hints when absent', async () => {
-    ensurePorcelain()
-    writeFileSync(
-      porcelain('feature-view.json'),
-      JSON.stringify({ name: 'X', files: [{ path: 'a.ts', source: 'changed', layer: 'Pages' }] }),
-    )
-    expect(await runCli(['feature', 'get', ...repo])).toContain(`Feature view "X" for ${repoPath}`)
-    expect(await runCli(['feature', 'get', '--repo', '/other'])).toContain(
-      'No feature view computed',
-    )
-  })
-  it('comments list tags each comment with its feature-view source', async () => {
+  it('comments list tags each comment with its active-review source', async () => {
     ensurePorcelain()
     writeFileSync(
       activeReview('comments.json'),
@@ -336,7 +325,7 @@ describe('runCli — review + feature + comments + reviewed', () => {
       }),
     )
     writeFileSync(
-      porcelain('feature-view.json'),
+      porcelain('active-review.json'),
       JSON.stringify({
         name: 'X',
         files: [{ path: 'server/svc.ts', source: 'shipped', layer: 'Svc' }],

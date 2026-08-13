@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Permanent wire-truth gate. The ten canonical domain procedure records are the only source of
- * procedure names, kinds, and schemas; `procedureCatalog` composes them into exactly 113 unique
+ * procedure names, kinds, and schemas; `procedureCatalog` composes them into exactly 109 unique
  * entries. Every production daemon router procedure must bind its own catalog entry's input and
  * output exactly once, and the router and catalog name sets must be identical.
  */
@@ -38,16 +38,16 @@ export const PRODUCTION_ROUTER_FILES = [
   'features/review/comment-router.ts',
   'features/review/review-evidence-router.ts',
   'features/review/review-lifecycle-router.ts',
+  'features/review/review-marks-router.ts',
   'features/review/review-reading-router.ts',
   'features/search/search-router.ts',
   'features/terminal/terminal-router.ts',
   'router/git.ts',
   'router/repos.ts',
-  'router/review.ts',
   'router/settings.ts',
 ]
 
-export const PROCEDURE_COUNT = 113
+export const PROCEDURE_COUNT = 109
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -143,7 +143,7 @@ function directlyImportsProcedureCatalog(source) {
 }
 
 /**
- * The domain records compose exactly the 113-name catalog: canonical domains only, unique names,
+ * The domain records compose exactly the 109-name catalog: canonical domains only, unique names,
  * and one `query`/`mutation` kind per procedure.
  */
 export function checkDomainCatalog({ domainRecords, missingDomains = [] }) {

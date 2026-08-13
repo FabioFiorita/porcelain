@@ -4,7 +4,7 @@ import {
   reviewArchivedQuery,
   reviewEvidenceAssetQuery,
   reviewEvidenceAssetQueryFamily,
-  reviewEvidenceDocsQuery,
+  reviewEvidenceQuery,
   reviewedPathsQuery,
   reviewReadingQuery,
 } from '@porcelain/client-runtime/review'
@@ -82,7 +82,7 @@ describe('Mobile Review effect invalidation', () => {
     const shot = reviewQueryKey(ENVIRONMENT, reviewEvidenceAssetQuery(PROJECT, 'shot.png'))
     const trace = reviewQueryKey(ENVIRONMENT, reviewEvidenceAssetQuery(PROJECT, 'trace.png'))
     const other = reviewQueryKey(ENVIRONMENT, reviewEvidenceAssetQuery(OTHER_PROJECT, 'shot.png'))
-    const docs = reviewQueryKey(ENVIRONMENT, reviewEvidenceDocsQuery(PROJECT))
+    const docs = reviewQueryKey(ENVIRONMENT, reviewEvidenceQuery(PROJECT))
     for (const key of [shot, trace, other, docs]) queryClient.setQueryData(key, {})
 
     await invalidateReviewEffects(queryClient, ENVIRONMENT, [

@@ -20,7 +20,7 @@ import {
 } from '@renderer/components/ui/sidebar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { BoardList } from '@renderer/features/board'
-import { FeatureList } from '@renderer/features/review'
+import { ReviewList } from '@renderer/features/review'
 import { SearchList } from '@renderer/features/search'
 import { kbdLabel } from '@renderer/lib/keyboard'
 import { cn } from '@renderer/lib/utils'
@@ -53,8 +53,8 @@ import { SidebarResizeHandle } from './sidebar-resize-handle'
 const TABS: { id: SidebarTab; label: string; icon: typeof Files; shortcut: string }[] = [
   { id: 'files', label: 'Files', icon: Files, shortcut: kbdLabel('mod', '1') },
   { id: 'changes', label: 'Changes', icon: GitCompareArrows, shortcut: kbdLabel('mod', '2') },
-  // Product noun is "Review" (the agent-authored canvas) — not "Feature" (U5).
-  { id: 'feature', label: 'Review', icon: Waypoints, shortcut: kbdLabel('mod', '3') },
+  // Product noun is "Review" — the agent-authored canvas (U5).
+  { id: 'review', label: 'Review', icon: Waypoints, shortcut: kbdLabel('mod', '3') },
   { id: 'history', label: 'History', icon: History, shortcut: kbdLabel('mod', '4') },
   { id: 'search', label: 'Search', icon: Search, shortcut: kbdLabel('mod', '5') },
   { id: 'board', label: 'Board', icon: SquareKanban, shortcut: kbdLabel('mod', '6') },
@@ -66,7 +66,7 @@ const PANEL_TITLES: Record<SidebarTab, string> = {
   files: 'Files',
   changes: 'Changes',
   history: 'History',
-  feature: 'Review',
+  review: 'Review',
   board: 'Board',
   terminal: 'Terminal',
   search: 'Search',
@@ -164,7 +164,7 @@ export function AppSidebar(): React.JSX.Element {
           <SidebarMenu data-testid={TestIds.rail} className="items-center gap-1.5 pt-1.5 pb-2.5">
             {TABS.map((tab) => {
               const active = sidebarTab === tab.id
-              // An agent push while this tab was unvisited lights a dot (feature/
+              // An agent push while this tab was unvisited lights a dot (review/
               // board/terminal only); visiting the tab clears it (see unread.ts).
               const showDot = isUnreadTab(tab.id) && unread[tab.id]
               return (
@@ -299,7 +299,7 @@ export function AppSidebar(): React.JSX.Element {
                     </div>
                     {sidebarTab === 'changes' && <ChangesList />}
                     {sidebarTab === 'history' && <HistoryList />}
-                    {sidebarTab === 'feature' && <FeatureList />}
+                    {sidebarTab === 'review' && <ReviewList />}
                     {sidebarTab === 'board' && <BoardList />}
                     {sidebarTab === 'terminal' && <TerminalList />}
                     {sidebarTab === 'search' && <SearchList />}

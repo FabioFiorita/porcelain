@@ -48,7 +48,7 @@ describe('project data companion ownership', () => {
         'active-review/review.json',
         'active-review/comments.json',
         'active-review/reviewed.json',
-        'feature-view.json',
+        'active-review.json',
         'reviews/',
         'notes.md',
         'layers.json',

@@ -6,7 +6,7 @@
  * the product for humans and a11y tooling; tests do not depend on copy that
  * churns with intentional UI work.
  *
- * Naming: kebab-case, surface-first (`feature-canvas`, `rail-tab-changes`).
+ * Naming: kebab-case, surface-first (`active-review`, `rail-tab-changes`).
  * Dynamic IDs use a function so both product and e2e share one spelling.
  */
 
@@ -73,24 +73,23 @@ export const TestIds = {
   worktreeMenuItem: (branch: string): string => `worktree-item-${branch}`,
   branchSwitcher: 'branch-switcher',
 
-  // --- Review / Feature ---
+  // --- Review ---
   reviewInbox: 'review-inbox',
   reviewInboxRow: (branch: string): string => `review-inbox-row-${branch}`,
-  featureList: 'feature-list',
-  featureOpenReview: 'feature-open-review',
+  reviewList: 'review-list',
+  reviewOpen: 'review-open',
   /** Right-rail companion: archive the published Review + evidence (confirm first). */
-  featureClearReview: 'feature-clear-review',
+  reviewArchive: 'review-archive',
   /** Right-rail list of archived previous reviews. */
   previousReviews: 'previous-reviews',
   previousReviewRow: (id: string): string => `previous-review-${id}`,
   previousReviewRestore: (id: string): string => `previous-review-restore-${id}`,
   previousReviewDelete: (id: string): string => `previous-review-delete-${id}`,
-  featureOutlineEvidence: 'feature-outline-evidence',
-  featureCanvas: 'feature-canvas',
+  reviewOutlineEvidence: 'review-outline-evidence',
+  activeReview: 'active-review',
   /** Empty Review canvas — start-of-unit affordance. */
-  featureEmpty: 'feature-empty',
-  featureCanvasTab: (tab: 'intent' | 'execution' | 'evidence'): string =>
-    `feature-canvas-tab-${tab}`,
+  activeReviewEmpty: 'active-review-empty',
+  activeReviewTab: (tab: 'intent' | 'execution' | 'evidence'): string => `active-review-tab-${tab}`,
   evidencePanel: 'evidence-panel',
   evidenceClear: 'evidence-clear',
   evidenceIframe: 'evidence-iframe',

@@ -30,7 +30,7 @@ describe('Git notification effects', () => {
       'git/commit-conventions',
       'git/suggestions',
       'review/reading',
-      'review/view',
+      'review/active',
       'review/reviewed-paths',
     ])
   })
@@ -45,7 +45,7 @@ describe('Git notification effects', () => {
     ).toBe(true)
     expect(names(effects)).not.toContain('git/branches')
     expect(names(effects)).not.toContain('git/worktrees')
-    expect(names(effects)).not.toContain('review/worktree-inbox')
+    expect(names(effects)).not.toContain('review/inbox')
     expect(names(effects)).not.toContain('git/commit-models')
   })
 

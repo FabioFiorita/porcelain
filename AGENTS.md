@@ -15,7 +15,7 @@ Bare nouns resolve to exact regions of the product — act on them, don't re-ask
 
 | Term | Meaning |
 |---|---|
-| The Review | One unit-of-work story as a three-tab canvas: **Intent · Execution · Evidence**. Product language is Review; code may keep `feature` ids |
+| The Review | One unit-of-work story as a three-tab canvas: **Intent · Execution · Evidence**. Product language and code are both Review — REV-009 deleted the `feature` vocabulary and `lint-legacy-migrations` keeps it dead |
 | Evidence | Agent-authored proof the loop closed: checks + Results documents + an image gallery (`.porcelain/active-review/evidence/`) |
 | Viewer | The central panel of the app. Never "editor" |
 | Daemon | The headless Electron-free backend (`apps/daemon`); the shell spawns and babysits it |

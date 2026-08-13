@@ -1,4 +1,4 @@
-import type { FeatureView } from '../../review/feature-view'
+import type { ActiveReview } from '../../review/active-review'
 import type { ReviewReadingSources } from './review-reading-capabilities'
 
 /**
@@ -9,7 +9,7 @@ import type { ReviewReadingSources } from './review-reading-capabilities'
  * not list never appear here.
  */
 export function createReadActiveReview(deps: { sources: ReviewReadingSources }) {
-  return async ({ projectPath }: { projectPath: string }): Promise<FeatureView | null> => {
+  return async ({ projectPath }: { projectPath: string }): Promise<ActiveReview | null> => {
     const gathered = await deps.sources.gather(projectPath)
     if (!gathered.reviewSet) return null
     return (await deps.sources.build(projectPath, { ...gathered, reviewSet: gathered.reviewSet }))

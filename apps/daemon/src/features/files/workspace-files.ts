@@ -12,7 +12,6 @@ import { inlineLocalAssets } from '../../fs/evidence-assets'
 import { imageMimeForPath, isBinaryBuffer } from '../../fs/image-mime'
 import { moveToTrash as defaultMoveToTrash } from '../../fs/move-to-trash'
 import { exceedsReadLimit } from '../../fs/read-limits'
-import { MAX_HTML_BYTES } from '../../stores/evidence-store'
 import {
   joinLexical,
   resolveExisting,
@@ -23,6 +22,14 @@ import type { WorkspaceFiles } from './files-ports'
 import { entryExists, uniqueDuplicatePath } from './unique-duplicate-path'
 
 const MAX_DUPLICATE_CP_ATTEMPTS = 32
+
+/**
+ * Read-side cap on inlined HTML preview bytes — deliberately higher than the CLI
+ * `evidence set` payload cap (1.5 MB), because sibling screenshots are inlined as
+ * `data:` URIs here. Keep in lockstep with `READ_MAX_HTML_BYTES` in
+ * `apps/cli/src/evidence-file.ts`, which warns against the same ceiling.
+ */
+const MAX_HTML_BYTES = 4_194_304
 
 /** Host I/O surface used after containment — injectable for deterministic post-I/O errno tests. */
 export type WorkspaceFilesHostIo = {

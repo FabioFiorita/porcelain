@@ -24,7 +24,6 @@ const VIEW = {
           status: 'modified',
           additions: 3,
           deletions: 1,
-          connects: [],
         },
       ],
     },
@@ -39,7 +38,6 @@ const READING = {
     title: 'Evidence',
     updatedAt: '2026-08-11T00:00:00.000Z',
     checks: [{ label: 'pnpm lint', status: 'pass' }],
-    medium: 'html',
   },
 }
 
@@ -97,15 +95,15 @@ describe('review reading router mapping', () => {
     const calls: unknown[] = []
     const caller = createReviewReadingRouter(readingOps({}, calls)).createCaller(PUBLIC_CONTEXT)
 
-    expect(await caller.featureView(REPO)).toMatchObject({ name: 'Review', fromAgent: true })
-    expect(await caller.featureReading(REPO)).toMatchObject({
+    expect(await caller.activeReview(REPO)).toMatchObject({ name: 'Review', fromAgent: true })
+    expect(await caller.reviewReading(REPO)).toMatchObject({
       name: 'Review',
-      evidence: { title: 'Evidence', medium: 'html' },
+      evidence: { title: 'Evidence' },
     })
     expect(
-      await caller.exploreFeature({ repoPath: REPO, seed: { kind: 'file', path: 'src/alpha.ts' } }),
+      await caller.exploreReading({ repoPath: REPO, seed: { kind: 'file', path: 'src/alpha.ts' } }),
     ).toEqual(EXPLORATION)
-    expect(await caller.worktreeInbox(REPO)).toEqual([INBOX_ROW])
+    expect(await caller.reviewInbox(REPO)).toEqual([INBOX_ROW])
 
     expect(calls).toEqual([
       { projectPath: REPO },
@@ -123,8 +121,8 @@ describe('review reading router mapping', () => {
       }),
     ).createCaller(PUBLIC_CONTEXT)
 
-    expect(await caller.featureView(REPO)).toBeNull()
-    expect(await caller.featureReading(REPO)).toBeNull()
+    expect(await caller.activeReview(REPO)).toBeNull()
+    expect(await caller.reviewReading(REPO)).toBeNull()
   })
 
   it('rejects an exploration seed missing its symbol before any operation runs', async () => {
@@ -135,7 +133,7 @@ describe('review reading router mapping', () => {
       await rejected(() =>
         callTRPCProcedure({
           router,
-          path: 'exploreFeature',
+          path: 'exploreReading',
           type: 'query',
           ctx: PUBLIC_CONTEXT,
           getRawInput: async () => ({
@@ -156,7 +154,7 @@ describe('review reading router mapping', () => {
     const calls: unknown[] = []
     const router = createReviewReadingRouter(readingOps({}, calls))
 
-    for (const path of ['featureView', 'featureReading', 'worktreeInbox']) {
+    for (const path of ['activeReview', 'reviewReading', 'reviewInbox']) {
       expectPublicCode(
         await rejected(() =>
           callTRPCProcedure({
@@ -183,7 +181,7 @@ describe('review reading router mapping', () => {
       }),
     ).createCaller(PUBLIC_CONTEXT)
 
-    expectPublicCode(await rejected(() => caller.worktreeInbox(REPO)), 'internal.unexpected', true)
+    expectPublicCode(await rejected(() => caller.reviewInbox(REPO)), 'internal.unexpected', true)
   })
 
   it('surfaces a thrown adapter failure as internal.unexpected, unchanged from the legacy routers', async () => {
@@ -195,6 +193,6 @@ describe('review reading router mapping', () => {
       }),
     ).createCaller(PUBLIC_CONTEXT)
 
-    expectPublicCode(await rejected(() => caller.featureReading(REPO)), 'internal.unexpected', true)
+    expectPublicCode(await rejected(() => caller.reviewReading(REPO)), 'internal.unexpected', true)
   })
 })

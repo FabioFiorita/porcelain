@@ -31,7 +31,7 @@ export const PROJECT_DATA_DOMAIN_FILES: {
     ACTIVE_FILES.review,
     ACTIVE_FILES.comments,
     ACTIVE_FILES.reviewed,
-    PROJECT_FILES.featureView,
+    PROJECT_FILES.activeReview,
     `${PROJECT_REVIEWS_DIR}/`,
   ],
   'project-data': [

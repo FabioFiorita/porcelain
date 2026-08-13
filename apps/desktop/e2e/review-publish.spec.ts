@@ -49,9 +49,9 @@ test('CLI review set then evidence appears on the Review canvas', async ({
   await waitForShell(page)
   await selectTab(page, 'Review')
 
-  // Empty → start-of-unit canvas (open the feature tab if the list is empty).
-  await expect(loc.featureList(page)).toBeVisible({ timeout: 15_000 })
-  // Open canvas via empty list is passive; open a feature tab by selecting Review
+  // Empty → start-of-unit canvas (open the Review tab if the list is empty).
+  await expect(loc.reviewList(page)).toBeVisible({ timeout: 15_000 })
+  // Open canvas via empty list is passive; open the Review tab by selecting it
   // and using the viewer empty state — click the rail Review already selected.
   // Force open the canvas by writing Intent-only first via CLI, then Open Review.
 
@@ -80,13 +80,13 @@ test('CLI review set then evidence appears on the Review canvas', async ({
     repoDir,
   )
 
-  await expect(loc.featureOpenReview(page)).toBeVisible({ timeout: 15_000 })
-  await loc.featureOpenReview(page).click()
-  await expect(loc.featureCanvas(page)).toBeVisible({ timeout: 15_000 })
-  await expect(loc.featureCanvas(page)).toContainText('CLI Intent-only unit')
+  await expect(loc.reviewOpen(page)).toBeVisible({ timeout: 15_000 })
+  await loc.reviewOpen(page).click()
+  await expect(loc.activeReview(page)).toBeVisible({ timeout: 15_000 })
+  await expect(loc.activeReview(page)).toContainText('CLI Intent-only unit')
   // Intent-only: the chapter is on the canvas and Evidence has nothing to show yet.
-  await expect(loc.featureCanvas(page)).toContainText('Scope')
-  await expect(loc.featureCanvasTab(page, 'evidence')).toBeDisabled({ timeout: 10_000 })
+  await expect(loc.activeReview(page)).toContainText('Scope')
+  await expect(loc.activeReviewTab(page, 'evidence')).toBeDisabled({ timeout: 10_000 })
 
   // Grow Execution + Evidence (end of unit path).
   await runFixtureCli(
@@ -123,13 +123,13 @@ test('CLI review set then evidence appears on the Review canvas', async ({
   // it back rather than scraping the CLI's explainer text, which names the
   // three sub-tab paths in prose and is not a stable line to parse.
   const evidenceDir = join(repoDir, '.porcelain', 'active-review', 'evidence')
-  await mkdir(evidenceDir, { recursive: true })
-  await writeFile(join(evidenceDir, 'index.html'), EVIDENCE_HTML)
+  await mkdir(join(evidenceDir, 'results'), { recursive: true })
+  await writeFile(join(evidenceDir, 'results', 'index.html'), EVIDENCE_HTML)
 
-  await expect(loc.featureCanvas(page)).toContainText('CLI Intent-only unit', { timeout: 15_000 })
+  await expect(loc.activeReview(page)).toContainText('CLI Intent-only unit', { timeout: 15_000 })
   // Evidence tab becomes available once meta/html land.
-  await expect(loc.featureCanvasTab(page, 'evidence')).toBeEnabled({ timeout: 15_000 })
-  await loc.featureCanvasTab(page, 'evidence').click()
+  await expect(loc.activeReviewTab(page, 'evidence')).toBeEnabled({ timeout: 15_000 })
+  await loc.activeReviewTab(page, 'evidence').click()
   await expect(loc.evidencePanel(page)).toBeVisible({ timeout: 15_000 })
 
   const iframeEl = loc.evidenceIframe(page)
@@ -140,5 +140,5 @@ test('CLI review set then evidence appears on the Review canvas', async ({
   await expect(frame.locator('body')).not.toContainText('SCRIPT EXECUTED')
 
   // Execution landed too: the outline reports reading progress over the published file.
-  await expect(loc.featureList(page)).toContainText('0/1 reviewed', { timeout: 10_000 })
+  await expect(loc.reviewList(page)).toContainText('0/1 reviewed', { timeout: 10_000 })
 })

@@ -1,4 +1,4 @@
-import type { WorktreeInboxRow } from '@porcelain/contracts/review'
+import type { ReviewInboxRow } from '@porcelain/contracts/review'
 import { SidebarProvider } from '@renderer/components/ui/sidebar'
 import { useGitWorkspace } from '@renderer/features/git'
 import { useNewWindow } from '@renderer/hooks/use-new-window'
@@ -19,7 +19,7 @@ vi.mock('@renderer/hooks/use-new-window', () => ({ useNewWindow: vi.fn() }))
 // Base UI's tooltip positioner polls getAnimations on a timer; jsdom has none.
 Element.prototype.getAnimations ??= (): Animation[] => []
 
-function row(overrides: Partial<WorktreeInboxRow> = {}): WorktreeInboxRow {
+function row(overrides: Partial<ReviewInboxRow> = {}): ReviewInboxRow {
   return {
     path: '/repo-worktrees/feat',
     branch: 'feature/x',

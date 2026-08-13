@@ -1,23 +1,21 @@
 import { createClearEvidence } from './clear-evidence'
 import { createFsReviewEvidenceStore } from './fs-review-evidence-store'
-import { createListEvidenceAssets } from './list-evidence-assets'
 import { createReadEvidenceAsset } from './read-evidence-asset'
-import { createReadEvidenceResults } from './read-evidence-results'
-import { createReadEvidenceSummary } from './read-evidence-summary'
+import { createReadEvidenceDoc } from './read-evidence-doc'
+import { createReadEvidencePack } from './read-evidence-pack'
 import type { ReviewEvidenceStore } from './review-evidence-capabilities'
 
 export type ReviewEvidenceOperations = {
-  readEvidenceSummary: ReturnType<typeof createReadEvidenceSummary>
-  readEvidenceResults: ReturnType<typeof createReadEvidenceResults>
-  listEvidenceAssets: ReturnType<typeof createListEvidenceAssets>
+  readEvidencePack: ReturnType<typeof createReadEvidencePack>
+  readEvidenceDoc: ReturnType<typeof createReadEvidenceDoc>
   readEvidenceAsset: ReturnType<typeof createReadEvidenceAsset>
   clearEvidence: ReturnType<typeof createClearEvidence>
 }
 
 /**
- * The Review Evidence family. One store owns the pack directory, so the header count,
- * the gallery, the document set, and the clear all agree about what is on disk. No
- * operation calls another.
+ * The Review Evidence family. One store owns the pack directory, so the aggregate's
+ * descriptors, the document bodies, the image bytes, and the clear all agree about
+ * what is on disk. No operation calls another.
  */
 export function createReviewEvidenceOperations(options: {
   store?: ReviewEvidenceStore
@@ -25,9 +23,8 @@ export function createReviewEvidenceOperations(options: {
   const store = options.store ?? createFsReviewEvidenceStore()
 
   return Object.freeze({
-    readEvidenceSummary: createReadEvidenceSummary({ store }),
-    readEvidenceResults: createReadEvidenceResults({ store }),
-    listEvidenceAssets: createListEvidenceAssets({ store }),
+    readEvidencePack: createReadEvidencePack({ store }),
+    readEvidenceDoc: createReadEvidenceDoc({ store }),
     readEvidenceAsset: createReadEvidenceAsset({ store }),
     clearEvidence: createClearEvidence({ store }),
   })

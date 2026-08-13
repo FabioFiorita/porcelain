@@ -66,11 +66,11 @@ test('evidence renders as one pack over three sub-tabs', async ({ page }) => {
   await waitForShell(page)
   await selectTab(page, 'Review')
 
-  await expect(loc.featureOpenReview(page)).toBeVisible({ timeout: 15_000 })
-  await loc.featureOpenReview(page).click()
-  await expect(loc.featureCanvas(page)).toBeVisible({ timeout: 15_000 })
+  await expect(loc.reviewOpen(page)).toBeVisible({ timeout: 15_000 })
+  await loc.reviewOpen(page).click()
+  await expect(loc.activeReview(page)).toBeVisible({ timeout: 15_000 })
 
-  await loc.featureCanvasTab(page, 'evidence').click()
+  await loc.activeReviewTab(page, 'evidence').click()
   await expect(loc.evidencePanel(page)).toBeVisible({ timeout: 15_000 })
 
   // Checks: the agent's structured claim, native DOM — no iframe in this pane.
@@ -120,5 +120,5 @@ test('evidence renders as one pack over three sub-tabs', async ({ page }) => {
   await loc.evidenceClear(page).click()
   await expect(loc.evidencePanel(page)).not.toBeVisible({ timeout: 15_000 })
   // Intent canvas still has the review name / sections after clear of evidence only.
-  await expect(loc.featureCanvas(page)).toBeVisible()
+  await expect(loc.activeReview(page)).toBeVisible()
 })

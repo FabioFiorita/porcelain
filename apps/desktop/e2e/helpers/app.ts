@@ -63,12 +63,12 @@ interface SeedReviewSet {
 
 /**
  * The on-disk evidence pack an agent writes: `meta.json` (title + structured
- * checks), an optional legacy `index.html` report at the root, documents under
- * `results/`, and images under `assets/`.
+ * checks), documents under `results/` (including the canonical
+ * `results/index.html`), and images under `assets/`.
  */
 interface SeedEvidence {
   title: string
-  /** Legacy single-page report at the evidence root — the daemon surfaces it as "Report". */
+  /** The canonical single-page Results document, written to `results/index.html`. */
   html?: string
   checks?: { label: string; status: 'pass' | 'fail' | 'skip'; detail?: string }[]
   /** Documents under `evidence/results/` — `.md` and `.html` only. */
@@ -171,7 +171,8 @@ async function seedState(
       const evidenceDir = join(active, 'evidence')
       await mkdir(evidenceDir, { recursive: true })
       if (seedEvidence.html !== undefined) {
-        await writeFile(join(evidenceDir, 'index.html'), seedEvidence.html)
+        await mkdir(join(evidenceDir, 'results'), { recursive: true })
+        await writeFile(join(evidenceDir, 'results', 'index.html'), seedEvidence.html)
       }
       for (const doc of seedEvidence.results ?? []) {
         await mkdir(join(evidenceDir, 'results'), { recursive: true })
@@ -392,15 +393,7 @@ declare global {
   }
 }
 
-type TabName =
-  | 'Files'
-  | 'Search'
-  | 'Changes'
-  | 'History'
-  | 'Review'
-  | 'Feature' // alias — rail id is `feature`, label is Review
-  | 'Board'
-  | 'Terminal'
+type TabName = 'Files' | 'Search' | 'Changes' | 'History' | 'Review' | 'Board' | 'Terminal'
 
 /** Map human/product tab names to the sidebar store id used in `data-testid`. */
 function railTabId(tab: TabName): string {
@@ -410,8 +403,7 @@ function railTabId(tab: TabName): string {
     case 'Changes':
       return 'changes'
     case 'Review':
-    case 'Feature':
-      return 'feature'
+      return 'review'
     case 'History':
       return 'history'
     case 'Search':

@@ -118,7 +118,7 @@ const RESET_RECORD_CATALOG: readonly {
   { root: 'home', relativePath: 'comments.json', disposition: 'disposable' },
   { root: 'home', relativePath: 'reviewed.json', disposition: 'disposable' },
   { root: 'home', relativePath: 'review-sets.json', disposition: 'disposable' },
-  { root: 'home', relativePath: 'feature-view.json', disposition: 'disposable' },
+  { root: 'home', relativePath: 'active-review.json', disposition: 'disposable' },
   { root: 'home', relativePath: 'loop-evidence', disposition: 'disposable' },
   { root: 'userData', relativePath: 'config.json', disposition: 'material' },
   { root: 'userData', relativePath: 'projects-recents.json', disposition: 'material' },
@@ -130,7 +130,7 @@ const RESET_RECORD_CATALOG: readonly {
   { root: 'repoCompanion', relativePath: '.gitignore', disposition: 'material' },
   { root: 'repoCompanion', relativePath: 'active-review', disposition: 'material' },
   { root: 'repoCompanion', relativePath: 'reviews', disposition: 'material' },
-  { root: 'repoCompanion', relativePath: 'feature-view.json', disposition: 'disposable' },
+  { root: 'repoCompanion', relativePath: 'active-review.json', disposition: 'disposable' },
   { root: 'repoCompanion', relativePath: 'project-manifest.json', disposition: 'disposable' },
   { root: 'repoCompanion', relativePath: '.migrated-from-home', disposition: 'disposable' },
 ]

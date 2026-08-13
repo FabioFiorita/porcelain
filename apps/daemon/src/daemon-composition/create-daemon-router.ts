@@ -9,13 +9,13 @@ import {
   createReviewCommentRouter,
   createReviewEvidenceRouter,
   createReviewLifecycleRouter,
+  createReviewMarksRouter,
   createReviewReadingRouter,
 } from '../features/review'
 import { createSearchRouter } from '../features/search'
 import { createTerminalRouter } from '../features/terminal'
 import { createGitRouter } from '../router/git'
 import { createReposRouter } from '../router/repos'
-import { createReviewRouter } from '../router/review'
 import { createSettingsRouter } from '../router/settings'
 import { t } from '../trpc'
 import type { CreateDaemonRouterOptions } from './daemon-operations'
@@ -25,10 +25,10 @@ import type { CreateDaemonRouterOptions } from './daemon-operations'
  * domain router factory in the historical merge order and merges them with the
  * one shared `initTRPC` builder so procedure names stay flat on the wire.
  *
- * Project, Board, Review comment, lifecycle, reading (active review, document,
- * exploration, inbox), and Evidence, Files, Search, and Project Data procedures are
- * bound through `operations`; the remaining legacy routers are composition-only
- * until their migrations land.
+ * Project, Board, the whole Review domain (comments, lifecycle, reading, Evidence,
+ * reviewed marks), Files, Search, and Project Data procedures are bound through
+ * `operations`; the remaining legacy routers are composition-only until their
+ * migrations land.
  */
 export function createDaemonRouter({ operations }: CreateDaemonRouterOptions) {
   return t.mergeRouters(
@@ -40,11 +40,11 @@ export function createDaemonRouter({ operations }: CreateDaemonRouterOptions) {
     // Files feature eight first so flat merge position stays stable for the Search procedures.
     createFilesFeatureRouter(operations.files),
     createSearchRouter(operations.search),
-    createReviewRouter(),
     createReviewCommentRouter(operations.review),
     createReviewLifecycleRouter(operations.review),
     createReviewReadingRouter(operations.review),
     createReviewEvidenceRouter(operations.review),
+    createReviewMarksRouter(operations.review),
     createBoardRouter(operations.board),
     createActionsRouter(operations.actions),
     createProjectDataRouter(operations.projectData),

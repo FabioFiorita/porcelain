@@ -316,7 +316,7 @@ export async function seedDemoChannels(
   const evidenceDir = join(active, 'evidence')
   await mkdir(join(evidenceDir, 'results'), { recursive: true })
   await mkdir(join(evidenceDir, 'assets'), { recursive: true })
-  await writeFile(join(evidenceDir, 'index.html'), DEMO_EVIDENCE_HTML)
+  await writeFile(join(evidenceDir, 'results', 'index.html'), DEMO_EVIDENCE_HTML)
   await writeFile(join(evidenceDir, 'results', 'run-log.md'), DEMO_EVIDENCE_RUN_LOG)
   for (const [file, base64] of Object.entries(DEMO_EVIDENCE_ASSETS)) {
     await writeFile(join(evidenceDir, 'assets', file), Buffer.from(base64, 'base64'))

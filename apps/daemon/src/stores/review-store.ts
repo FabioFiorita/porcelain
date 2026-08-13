@@ -22,7 +22,7 @@ export function isRepoContained(repoPath: string, entryPath: string): boolean {
 
 /**
  * Active review set — `<repo>/.porcelain/review.json`. CLI authors; the app reads.
- * Archiving, publishing, and restoring live in the Review feature's lifecycle
+ * Archiving, publishing, and restoring live in the Review lifecycle operations
  * adapter, so this module reaches neither Git nor Project Data.
  */
 

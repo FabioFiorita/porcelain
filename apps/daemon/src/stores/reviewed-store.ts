@@ -26,23 +26,20 @@ export async function readReviewedMarks(repoPath: string): Promise<ReviewedMark[
   return channel.read(repoPath)
 }
 
-export async function readReviewedPaths(repoPath: string): Promise<string[]> {
-  return (await readReviewedMarks(repoPath)).map((m) => m.path)
-}
-
-export async function markReviewed(
+/**
+ * Remove exactly these marks — matched on path AND fingerprint, read-modify-write —
+ * so a mark another writer added between the caller's snapshot and this prune is
+ * never dropped along with the stale one it replaced.
+ */
+export async function removeReviewedMarks(
   repoPath: string,
-  path: string,
-  fingerprint: string,
+  marks: readonly ReviewedMark[],
 ): Promise<void> {
-  await channel.mutate(repoPath, (all) => {
-    const others = all.filter((m) => m.path !== path)
-    return [...others, { path, fingerprint }]
-  })
-}
-
-export async function unmarkReviewed(repoPath: string, path: string): Promise<void> {
-  await channel.mutate(repoPath, (all) => all.filter((m) => m.path !== path))
+  if (marks.length === 0) return
+  const stale = new Set(marks.map((m) => `${m.path}\0${m.fingerprint}`))
+  await channel.mutate(repoPath, (all) =>
+    all.filter((m) => !stale.has(`${m.path}\0${m.fingerprint}`)),
+  )
 }
 
 export async function clearReviewedPaths(repoPath: string, paths: string[]): Promise<void> {
@@ -53,33 +50,4 @@ export async function clearReviewedPaths(repoPath: string, paths: string[]): Pro
 
 export async function setReviewedMarks(repoPath: string, marks: ReviewedMark[]): Promise<void> {
   await channel.write(repoPath, dedupeByPath(marks))
-}
-
-export function reconcileMarks(
-  marks: ReviewedMark[],
-  currentFingerprints: Map<string, string>,
-): { marks: ReviewedMark[]; pruned: boolean } {
-  const survivors = marks.filter((m) => {
-    if (m.fingerprint === '') return false
-    const current = currentFingerprints.get(m.path)
-    return current === undefined || current === m.fingerprint
-  })
-  return { marks: survivors, pruned: survivors.length !== marks.length }
-}
-
-export async function reconcileReviewed(
-  repoPath: string,
-  snapshotMarks: ReviewedMark[],
-  currentFingerprints: Map<string, string>,
-): Promise<string[]> {
-  const { marks: survivors, pruned } = reconcileMarks(snapshotMarks, currentFingerprints)
-  if (pruned) {
-    const stale = new Set(
-      snapshotMarks.filter((m) => !survivors.includes(m)).map((m) => `${m.path}\0${m.fingerprint}`),
-    )
-    await channel.mutate(repoPath, (all) =>
-      all.filter((m) => !stale.has(`${m.path}\0${m.fingerprint}`)),
-    )
-  }
-  return readReviewedPaths(repoPath)
 }

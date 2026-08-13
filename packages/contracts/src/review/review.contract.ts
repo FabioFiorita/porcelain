@@ -1,24 +1,32 @@
 import { z } from 'zod'
 import { diffHunkSchema, fileStatusSchema } from '../git'
 
+/**
+ * The canonical Review models (REV-001, activated by REV-009).
+ *
+ * One wire, one vocabulary: these shapes are what `review.procedures.ts` composes into
+ * `procedure-catalog.ts` and what every router, client, and CLI caller binds. The
+ * Feature-era models and the HTML Evidence union they carried are gone.
+ */
+
 const MAX_DOCUMENTS = 12
-const MAX_EVIDENCE_DOCUMENTS = MAX_DOCUMENTS + 1
 const MAX_DOCUMENT_BYTES = 2 * 1024 * 1024
-const MAX_HTML_BYTES = 4_194_304
 const MAX_ASSETS = 60
 const MAX_ASSET_BYTES = 8 * 1024 * 1024
 const MAX_CHECKS = 32
 const MAX_CHECK_LABEL = 120
 const MAX_CHECK_DETAIL = 400
 const MAX_THESIS = 4096
+const MAX_SECTIONS = 30
 const MAX_SECTION_TITLE = 200
 const MAX_SECTION_PROSE = 32_768
 const MAX_SECTION_DIAGRAM = 262_144
 const MAX_SECTION_HTML = 524_288
 
+/* Reading primitives */
+
 export const fileSourceSchema = z.enum(['changed', 'context', 'shipped'])
 export type FileSource = z.infer<typeof fileSourceSchema>
-export type FileStatus = z.infer<typeof fileStatusSchema>
 
 export const sliceRangeSchema = z
   .object({
@@ -32,7 +40,7 @@ export type SliceRange = z.infer<typeof sliceRangeSchema>
 
 export const readingFileSchema = z
   .object({
-    path: z.string(),
+    path: z.string().min(1),
     source: fileSourceSchema,
     note: z.string().optional(),
     additions: z.number().optional(),
@@ -47,48 +55,16 @@ export const readingFileSchema = z
 
 export type ReadingFile = z.infer<typeof readingFileSchema>
 
-const featureFileSchema = z
-  .object({
-    path: z.string(),
-    source: fileSourceSchema,
-    status: fileStatusSchema.optional(),
-    note: z.string().optional(),
-    layer: z.string().optional(),
-    additions: z.number().optional(),
-    deletions: z.number().optional(),
-    connects: z.array(z.string()),
-  })
-  .strict()
-
-const featureGroupSchema = z
+export const readingGroupSchema = z
   .object({
     layer: z.string(),
-    files: z.array(featureFileSchema),
+    files: z.array(readingFileSchema),
   })
   .strict()
 
-const featureSectionOutlineSchema = z
-  .object({
-    title: z.string().min(1).max(MAX_SECTION_TITLE),
-    anchorCount: z.number().int().min(0).max(40),
-  })
-  .strict()
+export type ReadingGroup = z.infer<typeof readingGroupSchema>
 
-export const featureViewObjectSchema = z
-  .object({
-    name: z.string(),
-    fromAgent: z.boolean(),
-    thesis: z.string().max(MAX_THESIS).optional(),
-    sections: z.array(featureSectionOutlineSchema).max(30),
-    groups: z.array(featureGroupSchema),
-  })
-  .strict()
-
-export const featureViewSchema = featureViewObjectSchema.nullable()
-export type FeatureView = z.infer<typeof featureViewObjectSchema>
-export type FeatureViewOutput = z.infer<typeof featureViewSchema>
-
-const reviewSectionReadingSchema = z
+export const reviewSectionSchema = z
   .object({
     title: z.string().min(1).max(MAX_SECTION_TITLE),
     prose: z.string().max(MAX_SECTION_PROSE),
@@ -99,82 +75,35 @@ const reviewSectionReadingSchema = z
   })
   .strict()
 
-const readingGroupSchema = z
+export type ReviewSection = z.infer<typeof reviewSectionSchema>
+
+const sectionOutlineSchema = z
   .object({
-    layer: z.string(),
-    files: z.array(readingFileSchema),
+    title: z.string().min(1).max(MAX_SECTION_TITLE),
+    anchorCount: z.number().int().min(0).max(40),
   })
   .strict()
 
-export const reviewCanvasSchema = z.discriminatedUnion('medium', [
-  z
-    .object({
-      medium: z.literal('html'),
-      html: z.string().min(1).max(MAX_SECTION_HTML),
-    })
-    .strict(),
-])
+/* Active review */
 
-export type ReviewCanvas = z.infer<typeof reviewCanvasSchema>
-
-const featureReadingEvidenceSchema = z
-  .object({
-    title: z.string(),
-    updatedAt: z.string(),
-    checks: z
-      .array(
-        z
-          .object({
-            label: z.string().min(1).max(MAX_CHECK_LABEL),
-            status: z.enum(['pass', 'fail', 'skip']),
-            detail: z.string().max(MAX_CHECK_DETAIL).optional(),
-          })
-          .strict(),
-      )
-      .max(MAX_CHECKS),
-    medium: z.literal('html'),
-  })
-  .strict()
-
-export const featureReadingSchema = z
+export const activeReviewSchema = z
   .object({
     name: z.string(),
+    fromAgent: z.boolean(),
     thesis: z.string().max(MAX_THESIS).optional(),
-    sections: z.array(reviewSectionReadingSchema).max(30),
+    sections: z.array(sectionOutlineSchema).max(MAX_SECTIONS),
     groups: z.array(readingGroupSchema),
-    canvas: reviewCanvasSchema.optional(),
-    evidence: featureReadingEvidenceSchema.nullable(),
   })
   .strict()
 
-export const featureReadingOutputSchema = featureReadingSchema.nullable()
-export type FeatureReading = z.infer<typeof featureReadingSchema>
-export type FeatureReadingOutput = z.infer<typeof featureReadingOutputSchema>
+/** `null` is "no active review"; an object with empty `groups` is an empty one. */
+export const activeReviewOutputSchema = activeReviewSchema.nullable()
+export type ActiveReview = z.infer<typeof activeReviewSchema>
+export type ActiveReviewOutput = z.infer<typeof activeReviewOutputSchema>
 
-export const reviewDocSchema = z.discriminatedUnion('medium', [
-  z
-    .object({
-      file: z.string(),
-      label: z.string(),
-      medium: z.literal('markdown'),
-      body: z.string().max(MAX_DOCUMENT_BYTES),
-    })
-    .strict(),
-  z
-    .object({
-      file: z.string(),
-      label: z.string(),
-      medium: z.literal('html'),
-      body: z.string().max(MAX_DOCUMENT_BYTES),
-    })
-    .strict(),
-])
+/* Reading */
 
-export type ReviewDoc = z.infer<typeof reviewDocSchema>
-export const reviewIntentOutputSchema = z.array(reviewDocSchema).max(MAX_DOCUMENTS)
-export const reviewEvidenceDocsOutputSchema = z.array(reviewDocSchema).max(MAX_EVIDENCE_DOCUMENTS)
-
-const evidenceCheckSchema = z
+export const evidenceCheckSchema = z
   .object({
     label: z.string().min(1).max(MAX_CHECK_LABEL),
     status: z.enum(['pass', 'fail', 'skip']),
@@ -184,68 +113,143 @@ const evidenceCheckSchema = z
 
 export type EvidenceCheck = z.infer<typeof evidenceCheckSchema>
 
-export const evidenceMetaSchema = z
+export const reviewReadingEvidenceSchema = z
   .object({
     title: z.string(),
     updatedAt: z.string(),
     checks: z.array(evidenceCheckSchema).max(MAX_CHECKS),
-    dir: z.string().optional(),
-    medium: z.literal('html'),
-    results: z.number().optional(),
-    assets: z.number().optional(),
-    hasReport: z.boolean().optional(),
   })
   .strict()
 
-export type EvidenceMeta = z.infer<typeof evidenceMetaSchema>
+export const reviewReadingSchema = z
+  .object({
+    name: z.string(),
+    thesis: z.string().max(MAX_THESIS).optional(),
+    sections: z.array(reviewSectionSchema).max(MAX_SECTIONS),
+    groups: z.array(readingGroupSchema),
+    evidence: reviewReadingEvidenceSchema.nullable(),
+  })
+  .strict()
 
-const evidenceBaseShape = {
-  title: z.string(),
-  updatedAt: z.string(),
-  dir: z.string().optional(),
-  checks: z.array(evidenceCheckSchema).max(MAX_CHECKS),
-  medium: z.literal('html'),
+export const reviewReadingOutputSchema = reviewReadingSchema.nullable()
+export type ReviewReading = z.infer<typeof reviewReadingSchema>
+export type ReviewReadingOutput = z.infer<typeof reviewReadingOutputSchema>
+
+/* Documents — Intent and Evidence Results share the primitive */
+
+export const reviewDocSchema = z.discriminatedUnion('medium', [
+  z
+    .object({
+      file: z.string().min(1),
+      label: z.string(),
+      medium: z.literal('markdown'),
+      body: z.string().max(MAX_DOCUMENT_BYTES),
+    })
+    .strict(),
+  z
+    .object({
+      file: z.string().min(1),
+      label: z.string(),
+      medium: z.literal('html'),
+      body: z.string().max(MAX_DOCUMENT_BYTES),
+    })
+    .strict(),
+])
+
+export type ReviewDoc = z.infer<typeof reviewDocSchema>
+export const reviewIntentOutputSchema = z.array(reviewDocSchema).max(MAX_DOCUMENTS)
+
+/* Evidence descriptors */
+
+/**
+ * A descriptor names a plain file inside the evidence directory — never a traversal, a nested
+ * path, a dotfile, or an absolute path. This is the containment rule the daemon already
+ * enforces when it lists and reads evidence bytes.
+ */
+const evidenceFileNameSchema = z
+  .string()
+  .min(1)
+  .refine(
+    (value) => !value.includes('/') && !value.includes('\\') && !value.startsWith('.'),
+    'must be a plain file name inside the evidence directory',
+  )
+
+const unavailableShape = {
+  state: z.literal('unavailable'),
+  reason: z.literal('too-large'),
+  maxBytes: z.number().int().positive(),
 } as const
 
-const evidenceHtmlSchema = z
+export const evidenceDocDescriptorSchema = z.discriminatedUnion('state', [
+  z
+    .object({
+      file: evidenceFileNameSchema,
+      label: z.string(),
+      medium: z.enum(['markdown', 'html']),
+      bytes: z.number().int().nonnegative(),
+      state: z.literal('available'),
+    })
+    .strict(),
+  z
+    .object({
+      file: evidenceFileNameSchema,
+      label: z.string(),
+      medium: z.enum(['markdown', 'html']),
+      bytes: z.number().int().nonnegative(),
+      ...unavailableShape,
+    })
+    .strict(),
+])
+
+export type EvidenceDocDescriptor = z.infer<typeof evidenceDocDescriptorSchema>
+
+export const evidenceAssetDescriptorSchema = z.discriminatedUnion('state', [
+  z
+    .object({
+      file: evidenceFileNameSchema,
+      label: z.string(),
+      kind: z.literal('image'),
+      mime: z.string(),
+      bytes: z.number().int().nonnegative(),
+      state: z.literal('available'),
+    })
+    .strict(),
+  z
+    .object({
+      file: evidenceFileNameSchema,
+      label: z.string(),
+      kind: z.literal('image'),
+      mime: z.string(),
+      bytes: z.number().int().nonnegative(),
+      ...unavailableShape,
+    })
+    .strict(),
+])
+
+export type EvidenceAssetDescriptor = z.infer<typeof evidenceAssetDescriptorSchema>
+
+/**
+ * The one Evidence aggregate: checks plus descriptors. Bodies are fetched on demand, so no
+ * document text and no asset bytes travel here. A pack exists when any of checks, results, or
+ * assets is non-empty; the output is `null` when there is no pack at all.
+ */
+export const reviewEvidenceSchema = z
   .object({
-    ...evidenceBaseShape,
-    html: z.string().max(MAX_HTML_BYTES),
+    title: z.string(),
+    updatedAt: z.string(),
+    checks: z.array(evidenceCheckSchema).max(MAX_CHECKS),
+    results: z.array(evidenceDocDescriptorSchema).max(MAX_DOCUMENTS),
+    assets: z.array(evidenceAssetDescriptorSchema).max(MAX_ASSETS),
   })
   .strict()
 
-const evidenceUnavailableSchema = z
-  .object({
-    ...evidenceBaseShape,
-    htmlUnavailable: z
-      .object({
-        reason: z.literal('too-large'),
-        bytes: z.number(),
-        maxBytes: z.number(),
-      })
-      .strict(),
-  })
-  .strict()
-
-export const evidenceSchema = z.union([evidenceHtmlSchema, evidenceUnavailableSchema])
-export type Evidence = z.infer<typeof evidenceSchema>
-
-export const evidenceAssetSchema = z
-  .object({
-    file: z.string(),
-    label: z.string(),
-    kind: z.literal('image'),
-    mime: z.string(),
-    bytes: z.number(),
-  })
-  .strict()
-
-export type EvidenceAsset = z.infer<typeof evidenceAssetSchema>
-export const reviewEvidenceAssetsOutputSchema = z.array(evidenceAssetSchema).max(MAX_ASSETS)
+export const reviewEvidenceOutputSchema = reviewEvidenceSchema.nullable()
+export type ReviewEvidence = z.infer<typeof reviewEvidenceSchema>
+export type ReviewEvidenceOutput = z.infer<typeof reviewEvidenceOutputSchema>
 
 export const evidenceAssetBodySchema = z
   .object({
-    file: z.string(),
+    file: evidenceFileNameSchema,
     mime: z.string(),
     bytes: z.number().max(MAX_ASSET_BYTES),
     dataUrl: z.string(),
@@ -254,33 +258,7 @@ export const evidenceAssetBodySchema = z
 
 export type EvidenceAssetBody = z.infer<typeof evidenceAssetBodySchema>
 
-export const reviewCommentSchema = z
-  .object({
-    id: z.string(),
-    path: z.string().min(1),
-    startLine: z.number().int().positive().optional(),
-    endLine: z.number().int().positive().optional(),
-    anchorText: z.string().optional(),
-    body: z.string(),
-    resolved: z.boolean(),
-    createdAt: z.number(),
-    agentReply: z.object({ body: z.string(), createdAt: z.number() }).strict().optional(),
-  })
-  .strict()
-
-export type ReviewComment = z.infer<typeof reviewCommentSchema>
-
-export const worktreeInboxRowSchema = z
-  .object({
-    path: z.string(),
-    branch: z.string(),
-    changedCount: z.number(),
-    hasReview: z.boolean(),
-  })
-  .strict()
-
-export type WorktreeInboxRow = z.infer<typeof worktreeInboxRowSchema>
-export const worktreeInboxOutputSchema = z.array(worktreeInboxRowSchema)
+/* Lifecycle and archive */
 
 export const publishCostSchema = z.object({ bytes: z.number(), files: z.number() }).strict()
 export type PublishCost = z.infer<typeof publishCostSchema>
@@ -298,50 +276,84 @@ export const archivedReviewSchema = z
   .strict()
 
 export type ArchivedReview = z.infer<typeof archivedReviewSchema>
-export const archivedReviewsOutputSchema = z.array(archivedReviewSchema)
 
-export const exploreFeatureInputSchema = z
+/* Comments */
+
+export const reviewCommentSchema = z
   .object({
-    repoPath: z.string(),
-    seed: z.discriminatedUnion('kind', [
-      z.object({ kind: z.literal('file'), path: z.string() }).strict(),
-      z.object({ kind: z.literal('symbol'), path: z.string(), symbol: z.string() }).strict(),
-    ]),
+    id: z.string(),
+    path: z.string().min(1),
+    startLine: z.number().int().positive().optional(),
+    endLine: z.number().int().positive().optional(),
+    anchorText: z.string().optional(),
+    body: z.string(),
+    resolved: z.boolean(),
+    createdAt: z.number(),
+    agentReply: z.object({ body: z.string(), createdAt: z.number() }).strict().optional(),
   })
   .strict()
 
-export const reviewEvidenceAssetInputSchema = z
-  .object({ repoPath: z.string(), file: z.string().min(1) })
+export type ReviewComment = z.infer<typeof reviewCommentSchema>
+
+/* Inbox */
+
+export const reviewInboxRowSchema = z
+  .object({
+    path: z.string(),
+    branch: z.string(),
+    changedCount: z.number(),
+    hasReview: z.boolean(),
+  })
   .strict()
 
-export const worktreeInboxInputSchema = z.string()
-export const markReviewedInputSchema = z.object({ repoPath: z.string(), path: z.string() }).strict()
-export const unmarkReviewedInputSchema = markReviewedInputSchema
-export const reviewedPathsInputSchema = z.string()
-export const reviewedPathsOutputSchema = z.array(z.string())
+export type ReviewInboxRow = z.infer<typeof reviewInboxRowSchema>
+
+/* Inputs and the void output */
+
+export const repoPathInputSchema = z.string().min(1)
+export type RepoPathInput = z.infer<typeof repoPathInputSchema>
+
+/** Total: sets exactly `paths` to `reviewed`, so one bulk write stays one atomic call. */
 export const setReviewedInputSchema = z
-  .object({ repoPath: z.string(), paths: z.array(z.string()) })
+  .object({
+    repoPath: z.string().min(1),
+    paths: z.array(z.string().min(1)).min(1),
+    reviewed: z.boolean(),
+  })
   .strict()
+export type SetReviewedInput = z.infer<typeof setReviewedInputSchema>
 
-export const reviewRepoPathInputSchema = z.string()
-export const voidOutputSchema = z.void()
-export const restoreArchivedReviewInputSchema = z
-  .object({ repoPath: z.string(), id: z.string().min(1) })
+export const exploreReadingInputSchema = z
+  .object({
+    repoPath: z.string().min(1),
+    seed: z.discriminatedUnion('kind', [
+      z.object({ kind: z.literal('file'), path: z.string().min(1) }).strict(),
+      z
+        .object({ kind: z.literal('symbol'), path: z.string().min(1), symbol: z.string().min(1) })
+        .strict(),
+    ]),
+  })
   .strict()
-export const deleteArchivedReviewInputSchema = restoreArchivedReviewInputSchema
-export const editReviewCommentInputSchema = z
-  .object({ repoPath: z.string(), id: z.string().min(1), body: z.string().min(1) })
+export type ExploreReadingInput = z.infer<typeof exploreReadingInputSchema>
+
+export const reviewEvidenceDocInputSchema = z
+  .object({ repoPath: z.string().min(1), file: z.string().min(1) })
   .strict()
-export const deleteReviewCommentInputSchema = z
-  .object({ repoPath: z.string(), id: z.string().min(1) })
+export type ReviewEvidenceDocInput = z.infer<typeof reviewEvidenceDocInputSchema>
+
+export const reviewEvidenceAssetInputSchema = z
+  .object({ repoPath: z.string().min(1), file: z.string().min(1) })
   .strict()
-export const clearResolvedReviewCommentsInputSchema = z.object({ repoPath: z.string() }).strict()
-export const resolveReviewCommentInputSchema = z
-  .object({ repoPath: z.string(), id: z.string().min(1), resolved: z.boolean() })
+export type ReviewEvidenceAssetInput = z.infer<typeof reviewEvidenceAssetInputSchema>
+
+export const archivedReviewIdInputSchema = z
+  .object({ repoPath: z.string().min(1), id: z.string().min(1) })
   .strict()
+export type ArchivedReviewIdInput = z.infer<typeof archivedReviewIdInputSchema>
+
 export const addReviewCommentInputSchema = z
   .object({
-    repoPath: z.string(),
+    repoPath: z.string().min(1),
     path: z.string().min(1),
     startLine: z.number().int().positive().optional(),
     endLine: z.number().int().positive().optional(),
@@ -349,25 +361,31 @@ export const addReviewCommentInputSchema = z
     body: z.string().min(1),
   })
   .strict()
+export type AddReviewCommentInput = z.infer<typeof addReviewCommentInputSchema>
 
-export type WorktreeInboxInput = z.infer<typeof worktreeInboxInputSchema>
-export type ReviewedPathsInput = z.infer<typeof reviewedPathsInputSchema>
-export type ReviewedPathsOutput = z.infer<typeof reviewedPathsOutputSchema>
-export type MarkReviewedInput = z.infer<typeof markReviewedInputSchema>
-export type UnmarkReviewedInput = z.infer<typeof unmarkReviewedInputSchema>
-export type SetReviewedInput = z.infer<typeof setReviewedInputSchema>
-export type ReviewRepoPathInput = z.infer<typeof reviewRepoPathInputSchema>
-export type ReviewVoidOutput = z.infer<typeof voidOutputSchema>
-export type ReviewEvidenceAssetInput = z.infer<typeof reviewEvidenceAssetInputSchema>
-export type RestoreArchivedReviewInput = z.infer<typeof restoreArchivedReviewInputSchema>
-export type DeleteArchivedReviewInput = z.infer<typeof deleteArchivedReviewInputSchema>
+export const editReviewCommentInputSchema = z
+  .object({ repoPath: z.string().min(1), id: z.string().min(1), body: z.string().min(1) })
+  .strict()
 export type EditReviewCommentInput = z.infer<typeof editReviewCommentInputSchema>
+
+export const deleteReviewCommentInputSchema = z
+  .object({ repoPath: z.string().min(1), id: z.string().min(1) })
+  .strict()
 export type DeleteReviewCommentInput = z.infer<typeof deleteReviewCommentInputSchema>
+
+export const clearResolvedReviewCommentsInputSchema = z
+  .object({ repoPath: z.string().min(1) })
+  .strict()
 export type ClearResolvedReviewCommentsInput = z.infer<
   typeof clearResolvedReviewCommentsInputSchema
 >
+
+export const resolveReviewCommentInputSchema = z
+  .object({ repoPath: z.string().min(1), id: z.string().min(1), resolved: z.boolean() })
+  .strict()
 export type ResolveReviewCommentInput = z.infer<typeof resolveReviewCommentInputSchema>
-export type AddReviewCommentInput = z.infer<typeof addReviewCommentInputSchema>
-export type ExploreFeatureInput = z.infer<typeof exploreFeatureInputSchema>
+
+export const voidOutputSchema = z.void()
+export type VoidOutput = z.infer<typeof voidOutputSchema>
 
 export { reviewContractFixtures } from './review.fixtures'

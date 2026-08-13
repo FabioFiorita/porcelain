@@ -9,7 +9,7 @@ describe('useUnreadStore', () => {
   beforeEach(() => {
     useUnreadStore.setState({
       unread: {
-        feature: false,
+        review: false,
         board: false,
         terminal: false,
         changes: false,
@@ -36,15 +36,15 @@ describe('useUnreadStore', () => {
   })
 
   it('visiting a tab clears its dot (the one clearing site)', () => {
-    useUnreadStore.getState().mark('feature')
-    usePreferencesStore.getState().setSidebarTab('feature')
-    expect(useUnreadStore.getState().unread.feature).toBe(false)
+    useUnreadStore.getState().mark('review')
+    usePreferencesStore.getState().setSidebarTab('review')
+    expect(useUnreadStore.getState().unread.review).toBe(false)
   })
 })
 
 describe('unreadTabFor', () => {
   const cases: [SessionChange, UnreadTab | null][] = [
-    [{ kind: 'review.changed', projectPath: PROJECT }, 'feature'],
+    [{ kind: 'review.changed', projectPath: PROJECT }, 'review'],
     [{ kind: 'board.changed', projectPath: PROJECT }, 'board'],
     [{ kind: 'actions.changed', projectPath: PROJECT }, 'terminal'],
     [
@@ -65,7 +65,7 @@ describe('unreadTabFor', () => {
 
 describe('isUnreadTab', () => {
   it('accepts the unread-capable tabs', () => {
-    expect(isUnreadTab('feature')).toBe(true)
+    expect(isUnreadTab('review')).toBe(true)
     expect(isUnreadTab('board')).toBe(true)
     expect(isUnreadTab('terminal')).toBe(true)
     expect(isUnreadTab('changes')).toBe(true)

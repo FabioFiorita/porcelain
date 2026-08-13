@@ -9,6 +9,7 @@ import {
   readActions,
   updateAction,
 } from './action-file'
+import { readActiveReviewSnapshot, sourceByPath } from './active-review-file'
 import {
   createCard,
   deleteCard,
@@ -32,7 +33,6 @@ import {
   prepareEvidence,
   setEvidence,
 } from './evidence-file'
-import { describeFeatureView, readFeatureView, sourceByPath } from './feature-view-file'
 import { resolveToolHtml } from './html-input'
 import { listIntent, orderIntent, prepareIntent } from './intent-file'
 import { clearLayers, describeLayers, readLayers, setLayers, toLayers } from './layers-file'
@@ -141,7 +141,7 @@ function parseActionWhere(raw: string | undefined): ActionWhere | undefined {
 
 const FLAG_DESCRIPTIONS: Record<string, string> = {
   repo: 'Absolute repo path (default: the git repo containing the current directory)',
-  name: 'Feature name shown in Porcelain (default "Feature view")',
+  name: 'Review name shown in Porcelain (default "Active review")',
   files:
     "Review files as JSON: array of {path, source?: changed|context|shipped, note?, layer?}, in flow order (entry point → data); '-' reads stdin",
   thesis: 'One-paragraph markdown thesis shown at the top of the Review',
@@ -193,7 +193,7 @@ interface NounHelp {
 export const COMMANDS: NounHelp[] = [
   {
     noun: 'review',
-    blurb: 'the feature review set (the files and walkthrough that make up the Review)',
+    blurb: 'the review set (the files and walkthrough that make up the Review)',
     verbs: [
       {
         verb: 'set',
@@ -221,16 +221,10 @@ export const COMMANDS: NounHelp[] = [
     flags: ['name', 'thesis', 'files', 'sections', 'medium', 'html', 'html-file'],
   },
   {
-    noun: 'feature',
-    blurb: "Porcelain's computed feature view (declared set folded into git + imports)",
-    verbs: [{ verb: 'get', args: '', desc: 'Read the computed feature view' }],
-    flags: [],
-  },
-  {
     noun: 'comments',
     blurb: "the human reviewer's line/file comments",
     verbs: [
-      { verb: 'list', args: '', desc: 'List open comments, tagged with feature-view source' },
+      { verb: 'list', args: '', desc: 'List open comments, tagged with active-review source' },
       { verb: 'resolve', args: '--id <s>', desc: 'Mark a comment resolved' },
       { verb: 'answer', args: '--id <s> --body <s>', desc: 'Attach a short reply to a comment' },
     ],
@@ -443,7 +437,7 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<string
 
   switch (`${noun} ${verb}`) {
     case 'review set': {
-      const name = opt('name') ?? 'Feature view'
+      const name = opt('name') ?? 'Active review'
       // Intent-first starts declare a name and a thesis before any file is touched, so
       // --files is optional and defaults to empty. Passing it explicitly still validates.
       const rawFiles = readJson('files')
@@ -455,21 +449,21 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<string
       if (thesis !== undefined && thesis !== '') set.thesis = thesis
       setReview(repo, set)
       const extras = sections.length > 0 ? `, ${sections.length} section(s)` : ''
-      return `Set feature review "${name}" (${files.length} files${extras}) for ${repo}`
+      return `Set review "${name}" (${files.length} files${extras}) for ${repo}`
     }
     case 'review add': {
       const files = toReviewFiles(readJson('files'))
       const total = addReviewFiles(repo, files)
-      return `Added ${files.length} file(s); the feature review now has ${total} for ${repo}`
+      return `Added ${files.length} file(s); the review now has ${total} for ${repo}`
     }
     case 'review get':
       return describeReview(repo, readReview(repo))
     case 'review clear':
-      // Match app `clearFeatureReview`: drop the set AND the loop-evidence directory
-      // (index.html, screenshots, meta) so nothing from an old feature lingers on disk.
+      // Match the app's `archiveReview`: drop the set AND the evidence directory
+      // (results, screenshots, meta) so nothing from an old review lingers on disk.
       clearReview(repo)
       clearEvidence(repo)
-      return `Cleared the feature review and loop evidence for ${repo}`
+      return `Cleared the review and its evidence for ${repo}`
     case 'review set-canvas': {
       const medium = req('medium')
       if (medium === 'html') {
@@ -484,10 +478,12 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<string
       return clearReviewCanvas(repo)
         ? `Cleared the Overview canvas for ${repo} (structured document restored if sections exist)`
         : `No Overview canvas set for ${repo}`
-    case 'feature get':
-      return describeFeatureView(repo, readFeatureView(repo))
     case 'comments list':
-      return describeComments(repo, readComments(repo), sourceByPath(readFeatureView(repo)))
+      return describeComments(
+        repo,
+        readComments(repo),
+        sourceByPath(readActiveReviewSnapshot(repo)),
+      )
     case 'comments resolve': {
       const id = req('id')
       return resolveComment(repo, id)

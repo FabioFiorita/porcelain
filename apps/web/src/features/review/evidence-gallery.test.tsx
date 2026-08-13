@@ -1,4 +1,4 @@
-import type { EvidenceAsset, EvidenceAssetBody } from '@porcelain/contracts/review'
+import type { EvidenceAssetBody, EvidenceAssetDescriptor } from '@porcelain/contracts/review'
 import { TestIds } from '@shared/test-ids'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -10,9 +10,23 @@ vi.mock('./review-queries', () => ({
   useEvidenceAsset: vi.fn(),
 }))
 
-const assets: EvidenceAsset[] = [
-  { file: 'login.png', label: 'Login', kind: 'image', mime: 'image/png', bytes: 4096 },
-  { file: 'board.png', label: 'Board', kind: 'image', mime: 'image/png', bytes: 8192 },
+const assets: EvidenceAssetDescriptor[] = [
+  {
+    file: 'login.png',
+    label: 'Login',
+    kind: 'image',
+    mime: 'image/png',
+    bytes: 4096,
+    state: 'available',
+  },
+  {
+    file: 'board.png',
+    label: 'Board',
+    kind: 'image',
+    mime: 'image/png',
+    bytes: 8192,
+    state: 'available',
+  },
 ]
 
 const body = (file: string): EvidenceAssetBody => ({
@@ -68,18 +82,49 @@ describe('EvidenceGallery', () => {
     expect(within(zoom).getByAltText('Login')).toBeInTheDocument()
   })
 
-  it('names the size instead of guessing when a body is over the cap', () => {
+  it('names both sizes instead of guessing when the descriptor is over the cap', () => {
     vi.mocked(useEvidenceAsset).mockReturnValue({ asset: null, isLoading: false })
     render(
       <EvidenceGallery
         assets={[
-          { file: 'huge.png', label: 'Huge', kind: 'image', mime: 'image/png', bytes: 6_291_456 },
+          {
+            file: 'huge.png',
+            label: 'Huge',
+            kind: 'image',
+            mime: 'image/png',
+            bytes: 6_291_456,
+            state: 'unavailable',
+            reason: 'too-large',
+            maxBytes: 4_194_304,
+          },
         ]}
         active
       />,
     )
     expect(screen.getByTestId(TestIds.evidenceGalleryItem('huge.png'))).toHaveTextContent(
-      'Too large to preview (6.0 MB)',
+      'Too large to preview (6.0 MB > 4.0 MB)',
     )
+  })
+
+  it('never requests bytes for an over-cap descriptor', () => {
+    vi.mocked(useEvidenceAsset).mockReturnValue({ asset: null, isLoading: false })
+    render(
+      <EvidenceGallery
+        assets={[
+          {
+            file: 'huge.png',
+            label: 'Huge',
+            kind: 'image',
+            mime: 'image/png',
+            bytes: 6_291_456,
+            state: 'unavailable',
+            reason: 'too-large',
+            maxBytes: 4_194_304,
+          },
+        ]}
+        active
+      />,
+    )
+    expect(vi.mocked(useEvidenceAsset).mock.calls.every((call) => call[1] === false)).toBe(true)
   })
 })

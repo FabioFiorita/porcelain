@@ -14,7 +14,7 @@ const sidebarTabSchema = z.enum([
   'files',
   'changes',
   'history',
-  'feature',
+  'review',
   'board',
   'terminal',
   'search',

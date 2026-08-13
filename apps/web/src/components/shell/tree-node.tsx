@@ -156,7 +156,7 @@ function EntryContextMenu({
           {entry.kind === 'file' && (
             <ContextMenuItem onClick={() => exploreFlow()}>
               <Compass />
-              Explore feature flow
+              Explore code flow
             </ContextMenuItem>
           )}
           {entry.kind === 'file' && (

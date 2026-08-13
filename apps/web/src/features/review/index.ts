@@ -2,12 +2,12 @@
  * Web Review domain feature public entry point (RVC-003, REV-007).
  *
  * One owner for Review server state on Web: the key namespace, the effect filter, the
- * eleven reads, the five writes, the notification subscription, the two presentation
+ * nine reads, the five writes, the notification subscription, the two presentation
  * stores, and the Review surfaces. Other Web regions import this module only — never a
  * Review implementation file.
  */
 
-export { CanvasBody } from './canvas-body'
+export { ActiveReview } from './active-review'
 export {
   applyReviewCommentNotification,
   buildCommentIndex,
@@ -22,8 +22,6 @@ export {
 export { EvidenceGallery } from './evidence-gallery'
 export { EvidencePanel } from './evidence-panel'
 export { ExploreView } from './explore-view'
-export { FeatureList, SourceMarker } from './feature-list'
-export { FeatureView } from './feature-view'
 export { EvidenceChecksRow, EvidenceHeaderRow } from './reading-evidence-rows'
 export { ReadingSurfaceBody } from './reading-surface'
 export { ReviewDocBody } from './review-doc-body'
@@ -36,6 +34,7 @@ export {
   useReviewFocusStore,
 } from './review-focus-store'
 export { ReviewInbox } from './review-inbox'
+export { ReviewList, SourceMarker } from './review-list'
 export {
   useArchiveReview,
   useClearEvidence,
@@ -49,17 +48,15 @@ export {
   useReviewNotificationSubscription,
 } from './review-notifications'
 export {
+  useActiveReview,
   useArchivedReviews,
   useEvidenceAsset,
-  useEvidenceAssets,
-  useEvidenceHtml,
+  useEvidenceDoc,
   useExplore,
   useReviewEvidence,
-  useReviewEvidenceDocs,
   useReviewIntent,
   useReviewPublishCost,
   useReviewReading,
-  useReviewView,
 } from './review-queries'
 export {
   invalidateAllReviewQueries,

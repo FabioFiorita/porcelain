@@ -1,14 +1,14 @@
 import { type ReviewQuery, reviewProjectKey } from './review-queries'
 
 /**
- * The one broad freshness consequence Review declares when it cannot name the affected
- * dimension (REV-006). A change to the active review cannot say which evidence asset files
- * moved, and `reviewEvidenceAsset` is the only per-file Review read. A family is never a
- * cache key — only an effect (the `git-query-effects.ts` rule).
+ * The broad freshness consequences Review declares when it cannot name the affected
+ * dimension (REV-006). A change to the active review cannot say which evidence documents
+ * or images moved, and `reviewEvidenceDoc` / `reviewEvidenceAsset` are the per-file Review
+ * reads. A family is never a cache key — only an effect (the `git-query-effects.ts` rule).
  */
 type ReviewFamilyEffect = {
   readonly domain: 'review'
-  readonly name: 'evidence-asset-family'
+  readonly name: 'evidence-asset-family' | 'evidence-doc-family'
   readonly projectPath: string
 }
 
@@ -24,6 +24,15 @@ export function reviewEvidenceAssetQueryFamily(projectPath: string): ReviewFamil
   }
 }
 
+/** Semantic project family for every per-file `reviewEvidenceDoc` wire query. */
+export function reviewEvidenceDocQueryFamily(projectPath: string): ReviewFamilyEffect {
+  return {
+    domain: 'review',
+    name: 'evidence-doc-family',
+    projectPath: reviewProjectKey(projectPath),
+  }
+}
+
 /** Match one typed exact/family effect against one exact cached Review identity. */
 export function reviewQueryEffectMatchesQuery(
   query: ReviewQuery,
@@ -32,6 +41,7 @@ export function reviewQueryEffectMatchesQuery(
   if (query.domain !== effect.domain) return false
   if (query.projectPath !== effect.projectPath) return false
   if (effect.name === 'evidence-asset-family') return query.name === 'evidence-asset'
+  if (effect.name === 'evidence-doc-family') return query.name === 'evidence-doc'
   return reviewQueryEffectKey(query) === reviewQueryEffectKey(effect)
 }
 

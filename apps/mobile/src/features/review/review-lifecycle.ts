@@ -1,4 +1,4 @@
-import type { FeatureReading, FileSource, ReadingFile } from '@porcelain/contracts/review'
+import type { FileSource, ReadingFile, ReviewReading } from '@porcelain/contracts/review'
 
 /**
  * Shape helpers for the one active Review story of a repo — the twin of the web client's
@@ -7,8 +7,15 @@ import type { FeatureReading, FileSource, ReadingFile } from '@porcelain/contrac
  * both clients must agree on for the same `.porcelain/review.json`.
  */
 
+/**
+ * The evidence chapter as the reading carries it: the pack's title, when it was written, and
+ * the checks. Descriptors and bodies are the `reviewEvidence` aggregate's, not the reading's,
+ * so this type is deliberately the small half.
+ */
+export type ReviewReadingEvidence = NonNullable<ReviewReading['evidence']>
+
 /** Unique files across sections + more-files groups. */
-export function reviewOutlineFiles(reading: FeatureReading): ReadingFile[] {
+export function reviewOutlineFiles(reading: ReviewReading): ReadingFile[] {
   const seen = new Set<string>()
   const out: ReadingFile[] = []
   for (const file of [
@@ -29,7 +36,7 @@ export function reviewOutlineFiles(reading: FeatureReading): ReadingFile[] {
  * agent anchored to a section AND left in a group is one file, and counting it twice would
  * make this legend disagree with the desktop's for the same repo.
  */
-export function reviewSourceCounts(reading: FeatureReading): Record<FileSource, number> {
+export function reviewSourceCounts(reading: ReviewReading): Record<FileSource, number> {
   const counts: Record<FileSource, number> = { changed: 0, context: 0, shipped: 0 }
   for (const file of reviewOutlineFiles(reading)) counts[file.source] += 1
   return counts
@@ -37,7 +44,7 @@ export function reviewSourceCounts(reading: FeatureReading): Record<FileSource, 
 
 /** The share of the outline that has been ticked off. */
 export function reviewedFractionOf(
-  reading: FeatureReading,
+  reading: ReviewReading,
   reviewed: ReadonlySet<string>,
 ): { fraction: number; reviewedCount: number; total: number } {
   const outline = reviewOutlineFiles(reading)

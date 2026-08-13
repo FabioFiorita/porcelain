@@ -295,7 +295,7 @@ test('marketing shots — the seeded demo repo across every surface', async () =
     await settle(page)
     await shoot(page, 'glance.png')
 
-    // review.png — the Feature tab with the Review document opened into the viewer
+    // review.png — the Review tab with the Review document opened into the viewer
     // (thesis, walkthrough sections, flow diagram, anchored diff hunks). The outline
     // lives in the sidebar; clicking the review name opens the document at the top.
     await selectTab(page, 'Review')

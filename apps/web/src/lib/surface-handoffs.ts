@@ -33,8 +33,8 @@ export function openChanges(options: OpenChangesOptions = {}): void {
   if (options.continuousReview) {
     const key = reviewTabKey({ type: 'working' })
     openTab({
-      id: tabId('review', key),
-      kind: 'review',
+      id: tabId('changeset', key),
+      kind: 'changeset',
       title: 'All changes',
       path: key,
     })
@@ -44,12 +44,12 @@ export function openChanges(options: OpenChangesOptions = {}): void {
   }
 }
 
-/** Sidebar → Feature (Review list + inbox). Does not open the canvas tab. */
+/** Sidebar → Review (Review list + inbox). Does not open the canvas tab. */
 export function openReviewSidebar(): void {
-  usePreferencesStore.getState().setSidebarTab('feature')
+  usePreferencesStore.getState().setSidebarTab('review')
 }
 
-/** Sidebar → Feature and open the Review canvas for the current repo. */
+/** Sidebar → Review and open the Review canvas for the current repo. */
 export function openFeatureReview(options: OpenFeatureReviewOptions = {}): void {
   const repoPath = useProjectSelectionStore.getState().project?.path
   if (repoPath === undefined) return
@@ -58,8 +58,8 @@ export function openFeatureReview(options: OpenFeatureReviewOptions = {}): void 
   }
   openReviewSidebar()
   useTabsStore.getState().openTab({
-    id: tabId('feature', repoPath),
-    kind: 'feature',
+    id: tabId('review', repoPath),
+    kind: 'review',
     title: 'Review',
     path: repoPath,
   })

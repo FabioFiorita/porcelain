@@ -3,21 +3,19 @@ import { reviewCommentsQuery } from './comment-queries'
 import {
   type ReviewExploreSeed,
   ReviewIdentityError,
+  reviewActiveQuery,
   reviewArchivedQuery,
   reviewEvidenceAssetQuery,
-  reviewEvidenceAssetsQuery,
-  reviewEvidenceDocsQuery,
-  reviewEvidenceHtmlQuery,
+  reviewEvidenceDocQuery,
   reviewEvidenceQuery,
   reviewExploreQuery,
   reviewedPathsQuery,
+  reviewInboxQuery,
   reviewIntentQuery,
   reviewProjectKey,
   reviewPublishCostQuery,
   reviewQuerySchema,
   reviewReadingQuery,
-  reviewViewQuery,
-  worktreeInboxQuery,
 } from './review-queries'
 
 const PROJECT = '/synthetic/repo'
@@ -43,9 +41,9 @@ describe('reviewProjectKey', () => {
 
 describe('Review query identities', () => {
   it('gives every identity its exact object shape', () => {
-    expect(reviewViewQuery(PROJECT)).toEqual({
+    expect(reviewActiveQuery(PROJECT)).toEqual({
       domain: 'review',
-      name: 'view',
+      name: 'active',
       projectPath: PROJECT,
     })
     expect(reviewReadingQuery(PROJECT)).toEqual({
@@ -63,20 +61,11 @@ describe('Review query identities', () => {
       name: 'evidence',
       projectPath: PROJECT,
     })
-    expect(reviewEvidenceHtmlQuery(PROJECT)).toEqual({
+    expect(reviewEvidenceDocQuery(PROJECT, 'results.md')).toEqual({
       domain: 'review',
-      name: 'evidence-html',
+      name: 'evidence-doc',
       projectPath: PROJECT,
-    })
-    expect(reviewEvidenceDocsQuery(PROJECT)).toEqual({
-      domain: 'review',
-      name: 'evidence-docs',
-      projectPath: PROJECT,
-    })
-    expect(reviewEvidenceAssetsQuery(PROJECT)).toEqual({
-      domain: 'review',
-      name: 'evidence-assets',
-      projectPath: PROJECT,
+      file: 'results.md',
     })
     expect(reviewPublishCostQuery(PROJECT)).toEqual({
       domain: 'review',
@@ -111,9 +100,9 @@ describe('Review query identities', () => {
       name: 'reading',
       projectPath: PROJECT,
     })
-    expect(reviewViewQuery(PROJECT)).toEqual({
+    expect(reviewActiveQuery(PROJECT)).toEqual({
       domain: 'review',
-      name: 'view',
+      name: 'active',
       projectPath: PROJECT,
     })
     expect(reviewedPathsQuery(PROJECT)).toEqual({
@@ -121,15 +110,15 @@ describe('Review query identities', () => {
       name: 'reviewed-paths',
       projectPath: PROJECT,
     })
-    expect(worktreeInboxQuery(PROJECT)).toEqual({
+    expect(reviewInboxQuery(PROJECT)).toEqual({
       domain: 'review',
-      name: 'worktree-inbox',
+      name: 'inbox',
       projectPath: PROJECT,
     })
   })
 
   it('keeps identities distinct by project, asset file, and explore seed', () => {
-    expect(reviewViewQuery(PROJECT)).not.toEqual(reviewViewQuery(OTHER_PROJECT))
+    expect(reviewActiveQuery(PROJECT)).not.toEqual(reviewActiveQuery(OTHER_PROJECT))
     expect(reviewedPathsQuery(PROJECT)).not.toEqual(reviewedPathsQuery(OTHER_PROJECT))
     expect(reviewEvidenceAssetQuery(PROJECT, 'shot.png')).not.toEqual(
       reviewEvidenceAssetQuery(PROJECT, 'other.png'),
@@ -140,27 +129,28 @@ describe('Review query identities', () => {
     expect(reviewExploreQuery(PROJECT, FILE_SEED)).not.toEqual(
       reviewExploreQuery(PROJECT, SYMBOL_SEED),
     )
-    expect(reviewViewQuery(PROJECT)).not.toEqual(reviewReadingQuery(PROJECT))
-    expect(reviewEvidenceQuery(PROJECT)).not.toEqual(reviewEvidenceHtmlQuery(PROJECT))
+    expect(reviewActiveQuery(PROJECT)).not.toEqual(reviewReadingQuery(PROJECT))
+    expect(reviewEvidenceQuery(PROJECT)).not.toEqual(reviewEvidenceDocQuery(PROJECT, 'r.md'))
+    expect(reviewEvidenceDocQuery(PROJECT, 'a.md')).not.toEqual(
+      reviewEvidenceDocQuery(PROJECT, 'b.md'),
+    )
   })
 
   it('throws ReviewIdentityError from every constructor for an empty project path', () => {
     const constructors = [
-      (): unknown => reviewViewQuery(''),
+      (): unknown => reviewActiveQuery(''),
       (): unknown => reviewReadingQuery(''),
       (): unknown => reviewIntentQuery(''),
       (): unknown => reviewEvidenceQuery(''),
-      (): unknown => reviewEvidenceHtmlQuery(''),
-      (): unknown => reviewEvidenceDocsQuery(''),
-      (): unknown => reviewEvidenceAssetsQuery(''),
+      (): unknown => reviewEvidenceDocQuery('', 'results.md'),
       (): unknown => reviewEvidenceAssetQuery('', 'shot.png'),
       (): unknown => reviewPublishCostQuery(''),
       (): unknown => reviewArchivedQuery(''),
       (): unknown => reviewedPathsQuery(''),
-      (): unknown => worktreeInboxQuery(''),
+      (): unknown => reviewInboxQuery(''),
       (): unknown => reviewExploreQuery('', FILE_SEED),
     ]
-    expect(constructors).toHaveLength(13)
+    expect(constructors).toHaveLength(11)
     for (const construct of constructors) {
       expect(construct).toThrow(ReviewIdentityError)
     }
@@ -170,22 +160,20 @@ describe('Review query identities', () => {
 describe('reviewQuerySchema', () => {
   it('parses every constructor output and the comments identity', () => {
     const queries = [
-      reviewViewQuery(PROJECT),
+      reviewActiveQuery(PROJECT),
       reviewReadingQuery(PROJECT),
       reviewIntentQuery(PROJECT),
       reviewEvidenceQuery(PROJECT),
-      reviewEvidenceHtmlQuery(PROJECT),
-      reviewEvidenceDocsQuery(PROJECT),
-      reviewEvidenceAssetsQuery(PROJECT),
+      reviewEvidenceDocQuery(PROJECT, 'results.md'),
       reviewEvidenceAssetQuery(PROJECT, 'shot.png'),
       reviewPublishCostQuery(PROJECT),
       reviewArchivedQuery(PROJECT),
       reviewedPathsQuery(PROJECT),
-      worktreeInboxQuery(PROJECT),
+      reviewInboxQuery(PROJECT),
       reviewExploreQuery(PROJECT, FILE_SEED),
       reviewCommentsQuery(PROJECT),
     ]
-    expect(queries).toHaveLength(14)
+    expect(queries).toHaveLength(12)
     for (const query of queries) {
       expect(reviewQuerySchema.safeParse(query).success).toBe(true)
     }
@@ -199,7 +187,7 @@ describe('reviewQuerySchema', () => {
     expect(
       reviewQuerySchema.safeParse({
         domain: 'review',
-        name: 'view',
+        name: 'active',
         projectPath: PROJECT,
         extra: true,
       }).success,
@@ -216,7 +204,7 @@ describe('reviewQuerySchema', () => {
         .success,
     ).toBe(false)
     expect(
-      reviewQuerySchema.safeParse({ domain: 'review', name: 'view', projectPath: '' }).success,
+      reviewQuerySchema.safeParse({ domain: 'review', name: 'active', projectPath: '' }).success,
     ).toBe(false)
     expect(
       reviewQuerySchema.safeParse({ domain: 'git', name: 'view', projectPath: PROJECT }).success,

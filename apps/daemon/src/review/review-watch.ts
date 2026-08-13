@@ -42,7 +42,7 @@ const FILE_CHANGES: Record<string, SessionChange['kind']> = {
   [PROJECT_FILES.actions]: 'actions.changed',
   [PROJECT_FILES.layers]: 'review.changed',
   [PROJECT_FILES.scope]: 'files.scope-changed',
-  [PROJECT_FILES.featureView]: 'review.changed',
+  [PROJECT_FILES.activeReview]: 'review.changed',
   [PROJECT_FILES.notes]: 'review.changed',
 }
 

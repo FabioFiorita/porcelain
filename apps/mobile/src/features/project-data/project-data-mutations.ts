@@ -12,7 +12,7 @@ import { callProjectDataProcedure } from './use-project-data-transport'
  * Mobile Project Data writes (PDT-003).
  *
  * Success-only typed identity invalidation. Layers also regroup Git and refresh
- * leftover Review procedure keys (`featureView`, `featureReading`).
+ * leftover Review procedure keys (`activeReview`, `reviewReading`).
  */
 
 const setNotesProcedure = namedContractProcedure(
@@ -68,10 +68,10 @@ export async function saveProjectLayers(
   )
   await Promise.all([
     queryClient.invalidateQueries({
-      queryKey: ['daemon', environment.id, 'featureView'],
+      queryKey: ['daemon', environment.id, 'activeReview'],
     }),
     queryClient.invalidateQueries({
-      queryKey: ['daemon', environment.id, 'featureReading'],
+      queryKey: ['daemon', environment.id, 'reviewReading'],
     }),
   ])
   await invalidateGrouping(repoPath)

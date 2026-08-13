@@ -1,11 +1,11 @@
 import { boardCardsQuery } from '@porcelain/client-runtime/board'
 import { gitStatusQuery } from '@porcelain/client-runtime/git'
 import {
+  reviewActiveQuery,
   reviewEvidenceAssetQuery,
   reviewExploreQuery,
   reviewedPathsQuery,
   reviewIntentQuery,
-  reviewViewQuery,
 } from '@porcelain/client-runtime/review'
 import { PROTOCOL_VERSION } from '@porcelain/contracts'
 import { remoteContractFixtures } from '@porcelain/contracts/remote'
@@ -30,7 +30,7 @@ const DAEMON = { host: 'beelink', version: '0.52.1' }
 describe('applyReviewQueryNotification', () => {
   it('invalidates exactly the active-review identities for its project', async () => {
     const queryClient = new QueryClient()
-    const view = reviewQueryKey(DAEMON, reviewViewQuery(PROJECT))
+    const view = reviewQueryKey(DAEMON, reviewActiveQuery(PROJECT))
     const intent = reviewQueryKey(DAEMON, reviewIntentQuery(PROJECT))
     const asset = reviewQueryKey(DAEMON, reviewEvidenceAssetQuery(PROJECT, 'shot.png'))
     const reviewed = gitQueryKey(DAEMON, reviewedPathsQuery(PROJECT))
@@ -51,12 +51,12 @@ describe('applyReviewQueryNotification', () => {
 
   it('leaves explore, other domains, and another project alone', async () => {
     const queryClient = new QueryClient()
-    const view = reviewQueryKey(DAEMON, reviewViewQuery(PROJECT))
+    const view = reviewQueryKey(DAEMON, reviewActiveQuery(PROJECT))
     const explore = reviewQueryKey(
       DAEMON,
       reviewExploreQuery(PROJECT, { kind: 'file', path: 'src/a.ts' }),
     )
-    const otherProject = reviewQueryKey(DAEMON, reviewViewQuery(OTHER))
+    const otherProject = reviewQueryKey(DAEMON, reviewActiveQuery(OTHER))
     const status = gitQueryKey(DAEMON, gitStatusQuery(PROJECT))
     const board = [boardCardsQuery(PROJECT), DAEMON] as const
     for (const key of [view, explore, otherProject, status, board]) {

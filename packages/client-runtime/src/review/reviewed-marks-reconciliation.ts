@@ -1,8 +1,4 @@
-import type {
-  MarkReviewedInput,
-  SetReviewedInput,
-  UnmarkReviewedInput,
-} from '@porcelain/contracts/review'
+import type { SetReviewedInput } from '@porcelain/contracts/review'
 
 /**
  * Pure reviewed-marks optimistic transitions and rollback (REV-006).
@@ -17,17 +13,17 @@ export type ReviewedMarksSnapshot = {
   readonly paths: readonly string[]
 }
 
-export type ReviewedMarksMutationKey = 'markReviewed' | 'unmarkReviewed' | 'setReviewed'
+export type ReviewedMarksMutationKey = 'setReviewed'
 
 type ReviewedMarksInputByKey = {
-  markReviewed: MarkReviewedInput
-  unmarkReviewed: UnmarkReviewedInput
   setReviewed: SetReviewedInput
 }
 
 /**
- * Apply a pure reviewed-marks transition. An absent previous list reads as empty, marking
- * is idempotent and preserves first-seen order, and the input array is never mutated.
+ * Apply a pure reviewed-marks transition, mirroring the total `setReviewed` write: the
+ * named paths take the named state and every other mark is left alone. An absent previous
+ * list reads as empty, the transition is idempotent and preserves first-seen order, and
+ * the input array is never mutated.
  */
 export function applyReviewedMarksTransition<K extends ReviewedMarksMutationKey>(
   key: K,
@@ -36,18 +32,13 @@ export function applyReviewedMarksTransition<K extends ReviewedMarksMutationKey>
 ): readonly string[] {
   const paths = previous ?? []
   switch (key) {
-    case 'markReviewed': {
-      const markInput = input as MarkReviewedInput
-      if (paths.includes(markInput.path)) return paths.slice()
-      return [...paths, markInput.path]
-    }
-    case 'unmarkReviewed': {
-      const unmarkInput = input as UnmarkReviewedInput
-      return paths.filter((path) => path !== unmarkInput.path)
-    }
     case 'setReviewed': {
-      const setInput = input as SetReviewedInput
-      return setInput.paths.slice()
+      if (!input.reviewed) {
+        const dropped = new Set(input.paths)
+        return paths.filter((path) => !dropped.has(path))
+      }
+      const added = input.paths.filter((path) => !paths.includes(path))
+      return [...paths, ...new Set(added)]
     }
     default: {
       const _exhaustive: never = key

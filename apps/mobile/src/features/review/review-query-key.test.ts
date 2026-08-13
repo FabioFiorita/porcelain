@@ -1,20 +1,18 @@
 import { boardCardsQuery } from '@porcelain/client-runtime/board'
 import { gitHeadQuery } from '@porcelain/client-runtime/git'
 import {
+  reviewActiveQuery,
   reviewArchivedQuery,
   reviewCommentsQuery,
   reviewEvidenceAssetQuery,
-  reviewEvidenceAssetsQuery,
-  reviewEvidenceDocsQuery,
-  reviewEvidenceHtmlQuery,
+  reviewEvidenceDocQuery,
   reviewEvidenceQuery,
   reviewExploreQuery,
   reviewedPathsQuery,
+  reviewInboxQuery,
   reviewIntentQuery,
   reviewPublishCostQuery,
   reviewReadingQuery,
-  reviewViewQuery,
-  worktreeInboxQuery,
 } from '@porcelain/client-runtime/review'
 import { describe, expect, it } from 'vitest'
 
@@ -24,18 +22,16 @@ const ENVIRONMENT = 'env-review-test'
 const PROJECT = '/synthetic/repo'
 
 const IDENTITIES = [
-  reviewViewQuery(PROJECT),
+  reviewActiveQuery(PROJECT),
   reviewReadingQuery(PROJECT),
   reviewIntentQuery(PROJECT),
   reviewEvidenceQuery(PROJECT),
-  reviewEvidenceHtmlQuery(PROJECT),
-  reviewEvidenceDocsQuery(PROJECT),
-  reviewEvidenceAssetsQuery(PROJECT),
+  reviewEvidenceDocQuery(PROJECT, 'report.html'),
   reviewEvidenceAssetQuery(PROJECT, 'shot.png'),
   reviewPublishCostQuery(PROJECT),
   reviewArchivedQuery(PROJECT),
   reviewedPathsQuery(PROJECT),
-  worktreeInboxQuery(PROJECT),
+  reviewInboxQuery(PROJECT),
   reviewExploreQuery(PROJECT, { kind: 'file', path: 'src/main.ts' }),
 ] as const
 
@@ -53,7 +49,7 @@ describe('Mobile Review cache keys', () => {
     expect(parseReviewQueryKey(['daemon', ENVIRONMENT, gitHeadQuery(PROJECT)])).toBeNull()
     expect(parseReviewQueryKey(['daemon', ENVIRONMENT, boardCardsQuery(PROJECT)])).toBeNull()
     // The shape the provider's procedure-name cache entries still use.
-    expect(parseReviewQueryKey(['daemon', ENVIRONMENT, 'featureReading', PROJECT])).toBeNull()
+    expect(parseReviewQueryKey(['daemon', ENVIRONMENT, 'reviewReading', PROJECT])).toBeNull()
     expect(
       parseReviewQueryKey([
         'daemon',
@@ -62,7 +58,9 @@ describe('Mobile Review cache keys', () => {
       ]),
     ).toBeNull()
     // A key with a fourth element is a different key, not a Review key with an extra.
-    expect(isReviewQueryKey(['daemon', ENVIRONMENT, reviewViewQuery(PROJECT), 'extra'])).toBe(false)
+    expect(isReviewQueryKey(['daemon', ENVIRONMENT, reviewActiveQuery(PROJECT), 'extra'])).toBe(
+      false,
+    )
   })
 
   it('accepts the comments identity and rejects a Git workspace key', () => {

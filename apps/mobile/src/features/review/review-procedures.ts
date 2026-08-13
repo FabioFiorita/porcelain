@@ -7,13 +7,13 @@ import { namedContractMutation, namedContractQuery } from '@/lib/daemon/procedur
  * contracts (`features/git/workspace/git-queries.ts` idiom). No schema is declared here:
  * the name literal is the wire, and the shape comes from `@porcelain/contracts/review`.
  *
- * The names are LIVE-spelled — `featureReading` and `clearLoopEvidence` are wire history
- * from the Feature vocabulary, and renaming them is REV-009's job, not this file's.
+ * This is the single file in the mobile client that spells a Review procedure name, so the
+ * canonical vocabulary has exactly one binding point per procedure.
  */
 
-export const featureReadingProcedure = namedContractQuery(
-  'featureReading',
-  reviewProcedures.featureReading,
+export const reviewReadingProcedure = namedContractQuery(
+  'reviewReading',
+  reviewProcedures.reviewReading,
 )
 
 export const reviewIntentProcedure = namedContractQuery(
@@ -21,14 +21,16 @@ export const reviewIntentProcedure = namedContractQuery(
   reviewProcedures.reviewIntent,
 )
 
-export const reviewEvidenceDocsProcedure = namedContractQuery(
-  'reviewEvidenceDocs',
-  reviewProcedures.reviewEvidenceDocs,
+/** The one Evidence aggregate: checks, Results descriptors and Asset descriptors. */
+export const reviewEvidenceProcedure = namedContractQuery(
+  'reviewEvidence',
+  reviewProcedures.reviewEvidence,
 )
 
-export const reviewEvidenceAssetsProcedure = namedContractQuery(
-  'reviewEvidenceAssets',
-  reviewProcedures.reviewEvidenceAssets,
+/** One Results document's body, fetched by the descriptor's file name. */
+export const reviewEvidenceDocProcedure = namedContractQuery(
+  'reviewEvidenceDoc',
+  reviewProcedures.reviewEvidenceDoc,
 )
 
 export const reviewEvidenceAssetProcedure = namedContractQuery(
@@ -36,19 +38,16 @@ export const reviewEvidenceAssetProcedure = namedContractQuery(
   reviewProcedures.reviewEvidenceAsset,
 )
 
-export const reviewPublishCostProcedure = namedContractQuery(
-  'reviewPublishCost',
-  reviewProcedures.reviewPublishCost,
-)
+export const publishCostProcedure = namedContractQuery('publishCost', reviewProcedures.publishCost)
 
 export const archivedReviewsProcedure = namedContractQuery(
   'archivedReviews',
   reviewProcedures.archivedReviews,
 )
 
-export const clearFeatureReviewProcedure = namedContractMutation(
-  'clearFeatureReview',
-  reviewProcedures.clearFeatureReview,
+export const archiveReviewProcedure = namedContractMutation(
+  'archiveReview',
+  reviewProcedures.archiveReview,
 )
 
 export const publishReviewProcedure = namedContractMutation(
@@ -66,7 +65,7 @@ export const deleteArchivedReviewProcedure = namedContractMutation(
   reviewProcedures.deleteArchivedReview,
 )
 
-export const clearLoopEvidenceProcedure = namedContractMutation(
-  'clearLoopEvidence',
-  reviewProcedures.clearLoopEvidence,
+export const clearEvidenceProcedure = namedContractMutation(
+  'clearEvidence',
+  reviewProcedures.clearEvidence,
 )

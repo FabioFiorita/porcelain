@@ -1,8 +1,8 @@
-import type { FeatureReading } from '@porcelain/contracts/review'
+import type { ReviewReading } from '@porcelain/contracts/review'
 import { describe, expect, it } from 'vitest'
 import { reviewOutlineFiles } from './review-lifecycle'
 
-function reading(partial: Partial<FeatureReading> & Pick<FeatureReading, 'name'>): FeatureReading {
+function reading(partial: Partial<ReviewReading> & Pick<ReviewReading, 'name'>): ReviewReading {
   return {
     sections: [],
     groups: [],

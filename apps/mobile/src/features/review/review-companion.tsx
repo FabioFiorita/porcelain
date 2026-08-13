@@ -1,4 +1,4 @@
-import type { ArchivedReview, FeatureReading } from '@porcelain/contracts/review'
+import type { ArchivedReview, ReviewReading } from '@porcelain/contracts/review'
 import { useState } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import { ChromeGlyph } from '@/components/chrome-glyph'
@@ -21,7 +21,7 @@ import { useCompanionGitVisibility } from '@/features/project-data'
 import { cn } from '@/lib/utils'
 
 import { reviewedFractionOf } from './review-lifecycle'
-import { useArchivedReviews, useFeatureReading, useReviewPublishCost } from './use-review'
+import { useArchivedReviews, useReviewPublishCost, useReviewReading } from './use-review'
 import { useArchivedReviewActions, useReviewActions } from './use-review-actions'
 
 /**
@@ -33,7 +33,7 @@ import { useArchivedReviewActions, useReviewActions } from './use-review-actions
  * the two can never drift into different companions for one surface.
  */
 export function ReviewCompanion({ active }: { active: boolean }): React.JSX.Element {
-  const { reading } = useFeatureReading(active)
+  const { reading } = useReviewReading(active)
 
   return (
     <ScrollView
@@ -87,7 +87,7 @@ function ReviewCurrentCard({
   reading,
 }: {
   active: boolean
-  reading: FeatureReading
+  reading: ReviewReading
 }): React.JSX.Element {
   const { archive, isPending, publish } = useReviewActions()
   const [publishOpen, setPublishOpen] = useState(false)

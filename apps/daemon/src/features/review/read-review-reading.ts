@@ -1,5 +1,5 @@
 import type { DiffHunk } from '../../git/diff'
-import { buildFeatureReading, type FeatureReading } from '../../review/feature-view'
+import { buildReviewReading, type ReviewReading } from '../../review/active-review'
 import type { ReviewEvidence, ReviewGit, ReviewReadingSources } from './review-reading-capabilities'
 
 /**
@@ -19,17 +19,16 @@ export function createReadReviewReading(deps: {
   git: ReviewGit
   evidence: ReviewEvidence
 }) {
-  return async ({ projectPath }: { projectPath: string }): Promise<FeatureReading | null> => {
+  return async ({ projectPath }: { projectPath: string }): Promise<ReviewReading | null> => {
     const gathered = await deps.sources.gather(projectPath)
     if (!gathered.reviewSet) return null
     // Evidence meta is read fresh on every poll (a cheap stat-level read): it is
     // NOT part of the feature key, so a cached reading would otherwise pin a
     // stale/absent final chapter until the working tree changed.
     const evidence = await deps.evidence.readSummary(projectPath)
-    const canvas = gathered.reviewSet.canvas
     const cached = deps.sources.cachedReading(projectPath, gathered.key)
-    // Evidence + canvas can change without the feature key; always reattach them.
-    if (cached) return { ...cached, evidence, canvas }
+    // Evidence can change without the review key; always reattach it.
+    if (cached) return { ...cached, evidence }
     const { view, sources } = await deps.sources.build(projectPath, {
       ...gathered,
       reviewSet: gathered.reviewSet,
@@ -44,17 +43,16 @@ export function createReadReviewReading(deps: {
           diffs.set(file.path, await deps.git.fileHunks(projectPath, file.path))
         } catch {
           // file vanished/renamed between the status snapshot and this read —
-          // leave it out; buildFeatureReading falls back to an empty hunk list
+          // leave it out; buildReviewReading falls back to an empty hunk list
         }
       }),
     )
-    const reading = buildFeatureReading({
+    const reading = buildReviewReading({
       view,
       sections: gathered.reviewSet.sections,
       sources,
       diffs,
       evidence,
-      canvas,
     })
     deps.sources.storeReading(projectPath, gathered.key, reading)
     return reading
