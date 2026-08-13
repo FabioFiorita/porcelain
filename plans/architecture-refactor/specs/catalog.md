@@ -121,7 +121,7 @@ an external choice or authorization.
 | `PDT-004` | Landed | Recorded reset authorization, classification fixtures, and manual-only procedure |
 | `PDT-005` | Draft | Delete home and active-layout migrations after authorized clean-state path |
 | `PDT-006` | Draft | Corruption/atomicity/ownership proof and completed domain gate |
-| `REV-001` | Draft | Canonical active/archive/reading/intent/reviewed/inbox contracts |
+| `REV-001` | Ready | Canonical active/archive/reading/intent/reviewed/inbox contracts |
 | `REV-002` | Draft | Active Review/archive operations, rules, stores, and composition |
 | `REV-003` | Draft | Reading/explore/inbox operations over narrow Git/Files capabilities |
 | `REV-004` | Draft | Results/Assets-only Evidence contracts, containment, caps, and store |
