@@ -1,4 +1,4 @@
-import type { Evidence } from '@backend/stores/evidence-store'
+import type { Evidence } from '@porcelain/contracts/review'
 
 /** Format a byte count for human-facing over-cap copy (always MB, one decimal). */
 export function formatEvidenceMb(bytes: number): string {
@@ -15,10 +15,10 @@ export function formatEvidenceMb(bytes: number): string {
 export function evidenceHtmlEmptyMessage(evidence: Evidence | null | undefined): string | null {
   if (evidence === undefined) return 'Loading…'
   if (evidence === null) return 'Evidence was cleared.'
-  if (evidence.htmlUnavailable?.reason === 'too-large') {
+  if ('htmlUnavailable' in evidence && evidence.htmlUnavailable.reason === 'too-large') {
     const { bytes, maxBytes } = evidence.htmlUnavailable
     return `Evidence too large (${formatEvidenceMb(bytes)} > ${formatEvidenceMb(maxBytes)}) — shrink screenshots (e.g. JPEG ~540px) and rewrite index.html.`
   }
-  if (evidence.html) return null
+  if ('html' in evidence && evidence.html) return null
   return 'No evidence body.'
 }

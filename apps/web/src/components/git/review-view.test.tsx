@@ -1,4 +1,4 @@
-import type { FeatureReading } from '@backend/review/feature-view'
+import type { FeatureReading } from '@porcelain/contracts/review'
 import { useDiffReading } from '@renderer/features/git'
 import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -10,7 +10,14 @@ vi.mock('@renderer/features/git', () => ({
   useSetReviewed: () => () => {},
   useToggleReviewed: () => ({ mark: async () => {}, unmark: async () => {} }),
 }))
-// Reading surface pulls comments + reviewed + highlighter — stub the domain hooks.
+// Reading surface pulls comments + reviewed + highlighter — stub the domain hooks, and take the
+// surface itself from the real Review feature (this file only owns the scope chrome around it).
+vi.mock('@renderer/features/review', async () => {
+  const surface = await vi.importActual<typeof import('@renderer/features/review/reading-surface')>(
+    '@renderer/features/review/reading-surface',
+  )
+  return { ReadingSurfaceBody: surface.ReadingSurfaceBody }
+})
 vi.mock('@renderer/features/review/comments', () => ({
   useReviewComments: () => [],
   useCommentActions: () => ({ add: async () => {} }),

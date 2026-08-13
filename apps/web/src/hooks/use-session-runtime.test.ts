@@ -37,15 +37,8 @@ function recordingUtils(): { utils: SessionQueryUtils; invalidated: string[] } {
     },
     repoLayers: query('repoLayers'),
     projectData: query('projectData'),
-    featureView: query('featureView'),
-    featureReading: query('featureReading'),
-    exploreFeature: query('exploreFeature'),
+    review: query('review'),
     reviewComments: query('reviewComments'),
-    loopEvidence: query('loopEvidence'),
-    loopEvidenceHtml: query('loopEvidenceHtml'),
-    reviewEvidenceDocs: query('reviewEvidenceDocs'),
-    reviewEvidenceAssets: query('reviewEvidenceAssets'),
-    reviewEvidenceAsset: query('reviewEvidenceAsset'),
     boardCards: query('boardCards'),
     files: query('files'),
     actions: query('actions'),
@@ -78,20 +71,13 @@ describe('Session change invalidation mapping', () => {
     ).toEqual([])
   })
 
-  it('refreshes non-comments Review surfaces; comments are feature-owned', async () => {
-    expect(await invalidatedBy({ kind: 'review.changed', projectPath: PROJECT })).toEqual(
-      [
-        'exploreFeature',
-        'featureReading',
-        'featureView',
-        'loopEvidence',
-        'loopEvidenceHtml',
-        'repoLayers',
-        'reviewEvidenceAsset',
-        'reviewEvidenceAssets',
-        'reviewEvidenceDocs',
-      ].sort(),
-    )
+  it('leaves review.changed to the Review feature adapters but for the Project Data layers', async () => {
+    // REV-007: the Review key namespace, comments and the Git consequences each own their own
+    // subscription. The repo's layers are derived from the active review, so the Project Data
+    // slot is the only thing session-runtime still refreshes here.
+    expect(await invalidatedBy({ kind: 'review.changed', projectPath: PROJECT })).toEqual([
+      'repoLayers',
+    ])
   })
 
   it('leaves git.working-tree-changed entirely to the Git feature bridge', async () => {
@@ -141,7 +127,8 @@ describe('Session recovery invalidation', () => {
     expect(invalidated).not.toContain('readDir')
     expect(invalidated).not.toContain('readFile')
     expect(invalidated).toContain('boardCards')
-    expect(invalidated).toContain('featureReading')
+    expect(invalidated).toContain('review')
+    expect(invalidated).toContain('reviewComments')
     expect(invalidated).toContain('projectData')
     // Git recovers itself from the same requirement (GIT-006), so generic recovery must not
     // name a single Git query — otherwise every gap double-invalidates the Git caches.

@@ -1,7 +1,7 @@
 import { Badge } from '@renderer/components/ui/badge'
-import { useExplore } from '@renderer/hooks/use-explore'
 import { Compass } from 'lucide-react'
 import { ReadingSurfaceBody } from './reading-surface'
+import { useExplore } from './review-queries'
 
 // The viewer's `explore` tab: a read-only feature flow seeded from a symbol (or a
 // whole file), rendered through the same sliced reading surface as the feature read.

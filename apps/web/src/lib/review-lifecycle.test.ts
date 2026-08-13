@@ -1,4 +1,4 @@
-import type { FeatureReading } from '@backend/review/feature-view'
+import type { FeatureReading } from '@porcelain/contracts/review'
 import { describe, expect, it } from 'vitest'
 import { reviewOutlineFiles } from './review-lifecycle'
 

@@ -1,4 +1,4 @@
-import type { ReadingFile } from '@backend/review/feature-view'
+import type { ReadingFile } from '@porcelain/contracts/review'
 
 /** Inclusive 1-based line range to tint in the file viewer. */
 export interface HighlightRange {

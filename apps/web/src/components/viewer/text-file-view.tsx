@@ -2,7 +2,7 @@ import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-gro
 import { HtmlView, isHtmlPath } from '@renderer/components/viewer/html-view'
 import { isMarkdownPath, MarkdownView } from '@renderer/components/viewer/markdown-view'
 import { useFilePreview } from '@renderer/features/files'
-import { useCommentIndex } from '@renderer/features/review/comments'
+import { useCommentIndex } from '@renderer/features/review'
 import { relativeTo } from '@renderer/lib/paths'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'

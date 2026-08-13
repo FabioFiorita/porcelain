@@ -1,11 +1,11 @@
-import type { EvidenceAsset } from '@backend/review/evidence-assets-list'
+import type { EvidenceAsset } from '@porcelain/contracts/review'
 import { formatBytes } from '@renderer/components/shell/publish-review-button'
 import { Dialog, DialogContent, DialogTitle } from '@renderer/components/ui/dialog'
 import { Skeleton } from '@renderer/components/ui/skeleton'
-import { useEvidenceAsset } from '@renderer/hooks/use-evidence'
 import { formatEvidenceMb } from '@renderer/lib/evidence-message'
 import { TestIds } from '@shared/test-ids'
 import { useState } from 'react'
+import { useEvidenceAsset } from './review-queries'
 
 /**
  * The Assets sub-tab: `evidence/assets/` as a grid of screenshots.

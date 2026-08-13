@@ -7,7 +7,7 @@ import {
   invalidateAllProjectDataQueries,
   invalidateProjectDataLayers,
 } from '@renderer/features/project-data'
-import { invalidateAllReviewComments } from '@renderer/features/review/comments'
+import { invalidateAllReviewComments, invalidateAllReviewQueries } from '@renderer/features/review'
 import { type DaemonSession, primary } from '@renderer/lib/daemon'
 import { isBrowser } from '@renderer/lib/platform'
 import type { SessionConnectionStatus } from '@renderer/lib/session-browser-adapter'
@@ -28,7 +28,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
  * selection on that runtime so terminal traffic and change signals share one connection.
  *
  * Files notifications and watch interests are owned by the Files feature adapters (FIL-005);
- * Board and Review comments are feature-owned the same way. Files change arms here are no-ops.
+ * Board and Review are feature-owned the same way (BRD-004, RVC-003, REV-007). Files change arms
+ * here are no-ops.
  *
  * The contract of this module is that a notification is a *freshness signal*, never data
  * (decision 009). Nothing here writes a payload into the cache; every category maps to
@@ -53,42 +54,14 @@ export type SessionQueryUtils = {
   readonly invalidate: () => Promise<void>
   readonly repoLayers: QueryInvalidation
   readonly projectData: QueryInvalidation
-  readonly featureView: QueryInvalidation
-  readonly featureReading: QueryInvalidation
-  readonly exploreFeature: QueryInvalidation
+  /** Review cache — wired to the feature key predicate (REV-007), not a procedure name. */
+  readonly review: QueryInvalidation
   readonly reviewComments: QueryInvalidation
-  readonly loopEvidence: QueryInvalidation
-  readonly loopEvidenceHtml: QueryInvalidation
-  readonly reviewEvidenceDocs: QueryInvalidation
-  readonly reviewEvidenceAssets: QueryInvalidation
-  readonly reviewEvidenceAsset: QueryInvalidation
   /** Board cards cache — wired to the feature key predicate, not a procedure-name string. */
   readonly boardCards: QueryInvalidation
   /** Files cache — wired to the feature key predicate (FIL-005). */
   readonly files: QueryInvalidation
   readonly actions: QueryInvalidation
-}
-
-/**
- * The queries a Review change makes stale for non-comments Review surfaces: feature-view,
- * layers, and evidence. Comments are owned by the RVC-003 feature adapter (subscription +
- * recovery predicate), so they are not bulk-invalidated here. The Git consequences of a Review
- * change (flow, range flow, stacked diff reading) belong to the Git feature bridge (GIT-006).
- * The per-asset body is dropped too — an agent retrying a capture reuses `before.png`, so the
- * name is not a proxy for immutable bytes.
- */
-function invalidateReview(utils: SessionQueryUtils): Promise<unknown> {
-  return Promise.all([
-    utils.featureView.invalidate(),
-    utils.featureReading.invalidate(),
-    utils.exploreFeature.invalidate(),
-    utils.repoLayers.invalidate(),
-    utils.loopEvidence.invalidate(),
-    utils.loopEvidenceHtml.invalidate(),
-    utils.reviewEvidenceDocs.invalidate(),
-    utils.reviewEvidenceAssets.invalidate(),
-    utils.reviewEvidenceAsset.invalidate(),
-  ])
 }
 
 /**
@@ -114,7 +87,10 @@ export function invalidateForChange(
       // Git identities. Handled here only so the switch stays exhaustive over SessionChange.
       return Promise.resolve()
     case 'review.changed':
-      return invalidateReview(utils)
+      // Review owns its notification → identity mapping (REV-007 feature adapter) and comments
+      // own theirs (RVC-003). What is left here is the Project Data consequence REV-006 ruling 7
+      // assigned to Project Data: the repo's layers are derived from the active review.
+      return utils.repoLayers.invalidate()
     case 'board.changed':
       // Board owns its notification → cards-identity mapping (BRD-004 feature adapter).
       // Session runtime must not invalidate Board here; the feature subscription does.
@@ -150,7 +126,9 @@ export function invalidateForRecovery(
   }
   return Promise.all([
     utils.files.invalidate(),
-    invalidateReview(utils),
+    utils.repoLayers.invalidate(),
+    // Review freshness is feature-owned (REV-007); recovery still hits the predicate slot.
+    utils.review.invalidate(),
     // Comments freshness is feature-owned (RVC-003); recovery still hits the predicate slot.
     utils.reviewComments.invalidate(),
     utils.boardCards.invalidate(),
@@ -187,22 +165,15 @@ export function useSessionRuntime({
     session.updateRequiredFrame(),
   )
 
-  // Structural SessionQueryUtils: Board, comments, and Files recovery use feature key predicates
-  // so they invalidate domain caches, not tRPC procedure-name keys.
+  // Structural SessionQueryUtils: Board, Review, comments, and Files recovery use feature key
+  // predicates so they invalidate domain caches, not tRPC procedure-name keys.
   const utils: SessionQueryUtils = useMemo(
     () => ({
       invalidate: () => trpcUtils.invalidate(),
       repoLayers: { invalidate: () => invalidateProjectDataLayers(queryClient) },
       projectData: { invalidate: () => invalidateAllProjectDataQueries(queryClient) },
-      featureView: { invalidate: () => trpcUtils.featureView.invalidate() },
-      featureReading: { invalidate: () => trpcUtils.featureReading.invalidate() },
-      exploreFeature: { invalidate: () => trpcUtils.exploreFeature.invalidate() },
+      review: { invalidate: () => invalidateAllReviewQueries(queryClient) },
       reviewComments: { invalidate: () => invalidateAllReviewComments(queryClient) },
-      loopEvidence: { invalidate: () => trpcUtils.loopEvidence.invalidate() },
-      loopEvidenceHtml: { invalidate: () => trpcUtils.loopEvidenceHtml.invalidate() },
-      reviewEvidenceDocs: { invalidate: () => trpcUtils.reviewEvidenceDocs.invalidate() },
-      reviewEvidenceAssets: { invalidate: () => trpcUtils.reviewEvidenceAssets.invalidate() },
-      reviewEvidenceAsset: { invalidate: () => trpcUtils.reviewEvidenceAsset.invalidate() },
       boardCards: { invalidate: () => invalidateAllBoardCards(queryClient) },
       files: { invalidate: () => invalidateAllFilesQueries(queryClient) },
       actions: { invalidate: () => invalidateAllActionsQueries(queryClient) },

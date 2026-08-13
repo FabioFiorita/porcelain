@@ -1,22 +1,22 @@
-import type { FeatureReading } from '@backend/review/feature-view'
+import type { FeatureReading } from '@porcelain/contracts/review'
 import { SidebarProvider } from '@renderer/components/ui/sidebar'
-import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
-import { useReviewFocusStore } from '@renderer/stores/review-focus'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { FeatureList } from './feature-list'
+import { useReviewFocusStore } from './review-focus-store'
+import { useReviewReading } from './review-queries'
 
-// Same convention as changes-list: mock the domain hook, never tRPC. useFeatureReading
+// Same convention as changes-list: mock the domain hook, never tRPC. useReviewReading
 // hands back a FeatureReading shaped exactly like the real featureReading query.
-vi.mock('@renderer/hooks/use-feature-reading', () => ({
-  useFeatureReading: vi.fn(),
+vi.mock('./review-queries', () => ({
+  useReviewReading: vi.fn(),
 }))
 // FeatureList mounts CommentComposer (right-click → "Comment on file"), which uses the
 // comment hook — mock the domain hook, never the tRPC proxy (the component-test rule).
-vi.mock('@renderer/features/review/comments', () => ({
+vi.mock('@renderer/features/review', () => ({
   useCommentActions: () => ({ add: async () => {} }),
 }))
 // Reviewed marks (green check + strikethrough, Mark/Unmark menu) — mock the domain hook.
@@ -117,11 +117,11 @@ describe('FeatureList', () => {
       visiblePath: null,
       jump: null,
     })
-    vi.mocked(useFeatureReading).mockReturnValue({ reading, refresh: async () => {} })
+    vi.mocked(useReviewReading).mockReturnValue({ reading, refresh: async () => {} })
   })
 
   it('shows the start-a-Review empty state when no review set exists', () => {
-    vi.mocked(useFeatureReading).mockReturnValue({ reading: null, refresh: async () => {} })
+    vi.mocked(useReviewReading).mockReturnValue({ reading: null, refresh: async () => {} })
     renderList()
     expect(screen.getByText(/Start a Review/)).toBeInTheDocument()
   })

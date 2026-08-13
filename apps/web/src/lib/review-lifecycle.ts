@@ -1,4 +1,4 @@
-import type { FeatureReading, ReadingFile } from '@backend/review/feature-view'
+import type { FeatureReading, ReadingFile } from '@porcelain/contracts/review'
 
 /**
  * Shape helpers for the one active Review story of a repo. The lifecycle itself

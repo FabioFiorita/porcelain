@@ -1,42 +1,39 @@
-import type { FeatureReading } from '@backend/review/feature-view'
+import type { FeatureReading } from '@porcelain/contracts/review'
 import { SidebarProvider } from '@renderer/components/ui/sidebar'
-import { useReviewComments } from '@renderer/features/review/comments'
-import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
-import { useReviewFocusStore } from '@renderer/stores/review-focus'
+import { useReviewComments, useReviewFocusStore, useReviewReading } from '@renderer/features/review'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { firstProseLine, ReviewGroup } from './review-group'
 
-vi.mock('@renderer/hooks/use-feature-reading', () => ({
-  useFeatureReading: vi.fn(),
-}))
-vi.mock('@renderer/features/review/comments', () => ({
-  useReviewComments: vi.fn(),
-}))
 vi.mock('@renderer/features/git', () => ({
   useReviewedPaths: () => new Set<string>(),
 }))
 const clearSpy = vi.hoisted(() => vi.fn(async () => {}))
-vi.mock('@renderer/hooks/use-review-intent', () => ({
-  useReviewPublishCost: (): { bytes: number; files: number } => ({ bytes: 0, files: 0 }),
-  usePublishReview: (): { publish: () => Promise<null>; isPublishing: boolean } => ({
-    publish: async () => null,
-    isPublishing: false,
-  }),
-}))
+vi.mock('@renderer/features/review', async () => {
+  // The focus store is real presentation state the assertions drive; importing it from its own
+  // module avoids re-entering the mocked feature entry.
+  const focus = await vi.importActual<
+    typeof import('@renderer/features/review/review-focus-store')
+  >('@renderer/features/review/review-focus-store')
+  return {
+    useReviewFocusStore: focus.useReviewFocusStore,
+    useReviewReading: vi.fn(),
+    useReviewComments: vi.fn(),
+    useReviewPublishCost: (): { bytes: number; files: number } => ({ bytes: 0, files: 0 }),
+    usePublishReview: (): { publish: () => Promise<null>; isPublishing: boolean } => ({
+      publish: async () => null,
+      isPublishing: false,
+    }),
+    useArchiveReview: () => ({ archive: clearSpy, isArchiving: false }),
+    useArchivedReviews: () => [],
+    useRestoreArchivedReview: () => ({ restore: vi.fn(), isRestoring: false }),
+    useDeleteArchivedReview: () => ({ remove: vi.fn(), isRemoving: false }),
+  }
+})
 vi.mock('@renderer/features/project-data', () => ({
   useCompanionGitVisibility: (): { data: { hidden: boolean }; isPending: boolean } => ({
     data: { hidden: false },
     isPending: false,
-  }),
-}))
-vi.mock('@renderer/hooks/use-feature-view', () => ({
-  useClearFeatureReview: () => ({ clear: clearSpy, isClearing: false }),
-  useArchivedReviews: () => [],
-  useArchivedReviewActions: () => ({
-    restore: vi.fn(),
-    remove: vi.fn(),
-    isBusy: false,
   }),
 }))
 
@@ -80,11 +77,11 @@ describe('ReviewGroup', () => {
       jump: null,
     })
     vi.mocked(useReviewComments).mockReturnValue([])
-    vi.mocked(useFeatureReading).mockReturnValue({ reading, refresh: async () => {} })
+    vi.mocked(useReviewReading).mockReturnValue({ reading, refresh: async () => {} })
   })
 
   it('shows the empty companion when no review is published', () => {
-    vi.mocked(useFeatureReading).mockReturnValue({ reading: null, refresh: async () => {} })
+    vi.mocked(useReviewReading).mockReturnValue({ reading: null, refresh: async () => {} })
     renderGroup()
     expect(screen.getByText(/Start a unit/)).toBeInTheDocument()
     expect(screen.queryByText('Archive review & evidence')).not.toBeInTheDocument()
@@ -105,7 +102,7 @@ describe('ReviewGroup', () => {
   })
 
   it('shows Previous reviews in the empty-reading state too', () => {
-    vi.mocked(useFeatureReading).mockReturnValue({ reading: null, refresh: async () => {} })
+    vi.mocked(useReviewReading).mockReturnValue({ reading: null, refresh: async () => {} })
     renderGroup()
     expect(screen.getByText('Previous reviews')).toBeInTheDocument()
     expect(screen.getByText(/No previous reviews yet/)).toBeInTheDocument()

@@ -1,5 +1,7 @@
-import type { FeatureReading, ReadingFile } from '@backend/review/feature-view'
 import type { DiffLine } from '@porcelain/contracts/git'
+import type { FeatureReading, ReadingFile } from '@porcelain/contracts/review'
+import { type CommentAnchor, CommentComposer } from '@renderer/components/git/comment-composer'
+import { commentRowClass, LineDecorations } from '@renderer/components/git/comment-marker'
 import { Button } from '@renderer/components/ui/button'
 import {
   ContextMenu,
@@ -13,12 +15,6 @@ import { HtmlView } from '@renderer/components/viewer/html-view'
 import { MarkdownPre } from '@renderer/components/viewer/markdown-code-block'
 import { VirtualRows } from '@renderer/components/viewer/virtual-rows'
 import { useReviewedPaths, useToggleReviewed } from '@renderer/features/git'
-import {
-  buildCommentIndex,
-  type CommentIndex,
-  useReviewComments,
-} from '@renderer/features/review/comments'
-import { useEvidenceHtml } from '@renderer/hooks/use-evidence'
 import { useResolvedTheme } from '@renderer/hooks/use-theme'
 import { evidenceHtmlEmptyMessage } from '@renderer/lib/evidence-message'
 import {
@@ -35,11 +31,6 @@ import { cn } from '@renderer/lib/utils'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useRevealStore } from '@renderer/stores/reveal'
-import {
-  type ReviewFocusSection,
-  type ReviewJumpTarget,
-  useReviewFocusStore,
-} from '@renderer/stores/review-focus'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import type { EvidenceCheck } from '@shared/evidence-check'
 import { TestIds } from '@shared/test-ids'
@@ -55,10 +46,15 @@ import { useEffect, useMemo, useState } from 'react'
 import Markdown, { type ExtraProps } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { ThemedToken } from 'shiki'
-import { type CommentAnchor, CommentComposer } from './comment-composer'
-import { commentRowClass, LineDecorations } from './comment-marker'
+import { buildCommentIndex, type CommentIndex, useReviewComments } from './comments'
 import { SourceMarker } from './feature-list'
 import { EvidenceChecksRow, EvidenceHeaderRow } from './reading-evidence-rows'
+import {
+  type ReviewFocusSection,
+  type ReviewJumpTarget,
+  useReviewFocusStore,
+} from './review-focus-store'
+import { useEvidenceHtml } from './review-queries'
 
 export { EvidenceChecksRow, EvidenceHeaderRow } from './reading-evidence-rows'
 
@@ -588,13 +584,16 @@ function EvidenceBodyRow(): React.JSX.Element {
   const project = useProjectSelectionStore((s) => s.project)
   const { evidence } = useEvidenceHtml(project?.path ?? '')
   const empty = evidenceHtmlEmptyMessage(evidence)
+  // The contract's Evidence union is strict (no `?: never` arms), so the body arm is narrowed
+  // by presence rather than by optional chaining.
+  const body = evidence !== undefined && evidence !== null && 'html' in evidence ? evidence : null
   return (
     <div className="sticky left-0 max-w-[var(--vrows-vw)] px-3 py-2">
       <div className="h-[28rem] overflow-hidden rounded-md border">
         {empty ? (
           <p className="p-4 text-sm text-muted-foreground">{empty}</p>
-        ) : evidence?.html ? (
-          <HtmlView html={evidence.html} title={evidence.title} />
+        ) : body ? (
+          <HtmlView html={body.html} title={body.title} />
         ) : null}
       </div>
     </div>

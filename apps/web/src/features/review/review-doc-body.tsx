@@ -1,4 +1,4 @@
-import type { ReviewDoc } from '@backend/review/doc-set'
+import type { ReviewDoc } from '@porcelain/contracts/review'
 import { PaneErrorBoundary } from '@renderer/components/shell/error-boundary'
 import { HtmlView } from '@renderer/components/viewer/html-view'
 import { MarkdownView } from '@renderer/components/viewer/markdown-view'

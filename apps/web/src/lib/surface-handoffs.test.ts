@@ -57,7 +57,7 @@ describe('surface-handoffs', () => {
   })
 
   it('openFeatureReview with suggestedName stores a Board→Review prefill', async () => {
-    const { useReviewStartStore } = await import('@renderer/stores/review-start')
+    const { useReviewStartStore } = await import('@renderer/features/review')
     useReviewStartStore.setState({ suggestedName: null })
     openFeatureReview({ suggestedName: 'Fix null deref' })
     expect(useReviewStartStore.getState().suggestedName).toBe('Fix null deref')

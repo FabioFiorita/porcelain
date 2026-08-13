@@ -1,4 +1,4 @@
-import type { FeatureReading } from '@backend/review/feature-view'
+import type { FeatureReading } from '@porcelain/contracts/review'
 import type { EvidenceCheck } from '@shared/evidence-check'
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
@@ -14,7 +14,7 @@ import {
 
 // EvidenceHeaderRow's only hook is useClearEvidence (the Clear button) — stub it so
 // the header renders standalone without a tRPC/query provider.
-vi.mock('@renderer/hooks/use-evidence', () => ({
+vi.mock('./review-mutations', () => ({
   useClearEvidence: () => ({ clear: async () => {}, isClearing: false }),
 }))
 

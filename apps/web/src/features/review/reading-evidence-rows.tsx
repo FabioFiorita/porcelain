@@ -1,7 +1,6 @@
 import { Badge } from '@renderer/components/ui/badge'
 import { Button } from '@renderer/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
-import { useClearEvidence } from '@renderer/hooks/use-evidence'
 import { cn } from '@renderer/lib/utils'
 import { runUserAction } from '@shared/background'
 import {
@@ -11,6 +10,7 @@ import {
 } from '@shared/evidence-check'
 import { TestIds } from '@shared/test-ids'
 import { CircleCheck, CircleMinus, CircleX, Eraser, ShieldCheck } from 'lucide-react'
+import { useClearEvidence } from './review-mutations'
 
 export function EvidenceHeaderRow({
   title,

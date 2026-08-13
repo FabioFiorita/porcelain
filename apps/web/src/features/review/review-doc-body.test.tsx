@@ -1,4 +1,4 @@
-import type { ReviewDoc } from '@backend/review/doc-set'
+import type { ReviewDoc } from '@porcelain/contracts/review'
 import { TestIds } from '@shared/test-ids'
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'

@@ -1,8 +1,7 @@
 import { reviewTabKey } from '@renderer/components/git/review-view'
 import { useBoardCards } from '@renderer/features/board'
 import { useGitFlow, useGitWorkspace, type WorktreeInboxRow } from '@renderer/features/git'
-import { useReviewComments } from '@renderer/features/review/comments'
-import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
+import { useReviewComments, useReviewReading } from '@renderer/features/review'
 import { cn } from '@renderer/lib/utils'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
@@ -84,7 +83,7 @@ export function GlanceHome(): React.JSX.Element | null {
   const inbox = workspace.inbox
   const branch = workspace.branch
   const { groups } = useGitFlow()
-  const { reading } = useFeatureReading()
+  const { reading } = useReviewReading()
   const { cards } = useBoardCards()
   const comments = useReviewComments()
 

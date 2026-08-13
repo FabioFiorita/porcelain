@@ -136,16 +136,16 @@ export const OVERSIZED_PRODUCTION_FILES = Object.freeze({
   'apps/daemon/src/git/git.ts': 947,
   'apps/desktop/src/main/shell-api.ts': 741,
   'apps/web/src/components/git/changes-list.tsx': 468,
-  'apps/web/src/components/git/feature-view.tsx': 520,
-  'apps/web/src/components/git/reading-surface.tsx': 904,
+  'apps/web/src/features/review/feature-view.tsx': 520,
+  'apps/web/src/features/review/reading-surface.tsx': 904,
   'apps/web/src/lib/terminal-registry.ts': 602,
   'apps/web/src/terminal/ghostty/core.ts': 1240,
   'apps/web/src/terminal/ghostty/surface.ts': 1778,
 })
 
 export const WEB_SERVER_IMPORT_BASELINE = Object.freeze({
-  occurrences: 106,
-  files: 86,
+  occurrences: 11,
+  files: 10,
 })
 
 /**
@@ -166,10 +166,6 @@ export const TARGET_ROOT_DEEP_IMPORT_BASELINES = Object.freeze({
   'apps/mobile/src/features/comments': Object.freeze({
     occurrences: 28,
     files: 16,
-  }),
-  'apps/web/src/features/review': Object.freeze({
-    occurrences: 14,
-    files: 14,
   }),
   'packages/contracts/src/board': Object.freeze({
     occurrences: 3,

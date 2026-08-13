@@ -1,4 +1,4 @@
-import type { ReviewCanvas } from '@backend/review/review-set'
+import type { ReviewCanvas } from '@porcelain/contracts/review'
 import { PaneErrorBoundary } from '@renderer/components/shell/error-boundary'
 import { HtmlView } from '@renderer/components/viewer/html-view'
 

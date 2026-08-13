@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from '@renderer/components/ui/dialog'
 import { Textarea } from '@renderer/components/ui/textarea'
-import { type NewComment, useCommentActions } from '@renderer/features/review/comments'
+import { type NewComment, useCommentActions } from '@renderer/features/review'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { kbdLabel } from '@renderer/lib/keyboard'
 import { fileName } from '@renderer/lib/paths'

@@ -1,14 +1,8 @@
-import type { FeatureReading, ReadingFile } from '@backend/review/feature-view'
-import type { FileSource } from '@backend/review/review-set'
-import { CanvasBody } from '@renderer/components/git/canvas-body'
-import { EvidencePanel } from '@renderer/components/git/evidence-panel'
-import { ReviewDocBody } from '@renderer/components/git/review-doc-body'
+import type { FeatureReading, FileSource, ReadingFile } from '@porcelain/contracts/review'
 import { Button } from '@renderer/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@renderer/components/ui/tabs'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useDiffFileHoverPrefetch, useReviewedPaths } from '@renderer/features/git'
-import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
-import { useReviewIntent } from '@renderer/hooks/use-review-intent'
 import { compactButtonClass } from '@renderer/lib/controls'
 import {
   FEATURE_CANVAS_TABS,
@@ -20,15 +14,19 @@ import { isTerminalTarget, isTextEntry } from '@renderer/lib/keyboard'
 import { dirName, fileName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
-import { jumpTargets, nextTarget, useReviewFocusStore } from '@renderer/stores/review-focus'
-import { useReviewStartStore } from '@renderer/stores/review-start'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { useZenStore } from '@renderer/stores/zen'
 import { TestIds } from '@shared/test-ids'
 import { Check, Sparkles } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { CanvasBody } from './canvas-body'
+import { EvidencePanel } from './evidence-panel'
 import { SourceMarker } from './feature-list'
 import { ReadingSurfaceBody } from './reading-surface'
+import { ReviewDocBody } from './review-doc-body'
+import { jumpTargets, nextTarget, useReviewFocusStore } from './review-focus-store'
+import { useReviewIntent, useReviewReading } from './review-queries'
+import { useReviewStartStore } from './review-start-store'
 
 const SOURCE_LABEL: Record<FileSource, string> = {
   changed: 'changed',
@@ -145,7 +143,7 @@ function EmptyState(): React.JSX.Element {
  * Outline jumps pick the tab; J/K stay on Intent.
  */
 export function FeatureView(): React.JSX.Element {
-  const { reading } = useFeatureReading()
+  const { reading } = useReviewReading()
   const canvasTab = useReviewFocusStore((s) => s.canvasTab)
   const setCanvasTab = useReviewFocusStore((s) => s.setCanvasTab)
   const jump = useReviewFocusStore((s) => s.jump)

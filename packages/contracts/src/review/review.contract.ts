@@ -115,6 +115,8 @@ export const reviewCanvasSchema = z.discriminatedUnion('medium', [
     .strict(),
 ])
 
+export type ReviewCanvas = z.infer<typeof reviewCanvasSchema>
+
 const featureReadingEvidenceSchema = z
   .object({
     title: z.string(),

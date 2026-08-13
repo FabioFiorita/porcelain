@@ -1,8 +1,7 @@
 import { useActions } from '@renderer/features/actions'
 import { useBoardCards } from '@renderer/features/board'
 import { useProjectNotes } from '@renderer/features/project-data'
-import { useReviewComments } from '@renderer/features/review/comments'
-import { useFeatureView } from '@renderer/hooks/use-feature-view'
+import { useReviewComments, useReviewView } from '@renderer/features/review'
 import { useSkillsInfo } from '@renderer/hooks/use-skills'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 
@@ -17,7 +16,7 @@ import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 export function ChannelsDevtoolsPanel(): React.JSX.Element {
   const project = useProjectSelectionStore((s) => s.project)
   const skills = useSkillsInfo()
-  const { view } = useFeatureView()
+  const { view } = useReviewView()
   const comments = useReviewComments()
   const { cards } = useBoardCards()
   const actions = useActions()

@@ -1,5 +1,5 @@
-import type { ReadingFile } from '@backend/review/feature-view'
-import type { FileSource } from '@backend/review/review-set'
+import type { FileSource, ReadingFile } from '@porcelain/contracts/review'
+import { CommentComposer } from '@renderer/components/git/comment-composer'
 import { Button } from '@renderer/components/ui/button'
 import {
   ContextMenu,
@@ -12,24 +12,23 @@ import {
   useReviewedPaths,
   useToggleReviewed,
 } from '@renderer/features/git'
-import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
 import { compactButtonClass } from '@renderer/lib/controls'
 import { highlightRangesForFile } from '@renderer/lib/highlight-ranges'
 import { dirName, fileName } from '@renderer/lib/paths'
 import { reviewOutlineFiles } from '@renderer/lib/review-lifecycle'
 import { cn } from '@renderer/lib/utils'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
-import {
-  type ReviewFocusSection,
-  type ReviewJumpTarget,
-  useReviewFocusStore,
-} from '@renderer/stores/review-focus'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { TestIds } from '@shared/test-ids'
 import { Check, FileDiff, MessageSquarePlus, Square, SquareCheck } from 'lucide-react'
 import { memo, useState } from 'react'
-import { CommentComposer } from './comment-composer'
+import {
+  type ReviewFocusSection,
+  type ReviewJumpTarget,
+  useReviewFocusStore,
+} from './review-focus-store'
 import { ReviewInbox } from './review-inbox'
+import { useReviewReading } from './review-queries'
 
 // The legend marker for a file's source: a filled dot for a changed file, a
 // rotated square for an agent-shipped cross-seam file, a hollow ring for the
@@ -226,7 +225,7 @@ function FeatureOutline(): React.JSX.Element {
   const project = useProjectSelectionStore((s) => s.project)
   const openTab = useTabsStore((s) => s.openTab)
   // featureView / reading poll + agent channel events — no manual refresh.
-  const { reading } = useFeatureReading()
+  const { reading } = useReviewReading()
   const reviewed = useReviewedPaths()
   const requestJump = useReviewFocusStore((s) => s.requestJump)
   const activeSection = useReviewFocusStore((s) => s.activeSection)

@@ -1,22 +1,20 @@
-import type { ReviewDoc } from '@backend/review/doc-set'
-import type { EvidenceAsset } from '@backend/review/evidence-assets-list'
-import { useEvidenceAssets } from '@renderer/hooks/use-evidence'
-import { useReviewEvidenceDocs } from '@renderer/hooks/use-review-intent'
+import type { EvidenceAsset, ReviewDoc } from '@porcelain/contracts/review'
 import type { EvidenceCheck } from '@shared/evidence-check'
 import { TestIds } from '@shared/test-ids'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { EvidencePanel } from './evidence-panel'
+import { useEvidenceAssets, useReviewEvidenceDocs } from './review-queries'
 
 // Mock the domain hooks, never tRPC (the component-test rule). The gallery's own
 // per-asset bodies are covered by evidence-gallery.test.tsx.
-vi.mock('@renderer/hooks/use-evidence', () => ({
-  useClearEvidence: () => ({ clear: async () => {}, isClearing: false }),
+vi.mock('./review-queries', () => ({
   useEvidenceAssets: vi.fn(),
   useEvidenceAsset: () => ({ asset: null, isLoading: false }),
-}))
-vi.mock('@renderer/hooks/use-review-intent', () => ({
   useReviewEvidenceDocs: vi.fn(),
+}))
+vi.mock('./review-mutations', () => ({
+  useClearEvidence: () => ({ clear: async () => {}, isClearing: false }),
 }))
 
 const checks: EvidenceCheck[] = [

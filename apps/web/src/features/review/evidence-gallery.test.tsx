@@ -1,12 +1,12 @@
-import type { EvidenceAsset, EvidenceAssetBody } from '@backend/review/evidence-assets-list'
-import { useEvidenceAsset } from '@renderer/hooks/use-evidence'
+import type { EvidenceAsset, EvidenceAssetBody } from '@porcelain/contracts/review'
 import { TestIds } from '@shared/test-ids'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { EvidenceGallery } from './evidence-gallery'
+import { useEvidenceAsset } from './review-queries'
 
 // Mock the domain hook, never tRPC (the component-test rule).
-vi.mock('@renderer/hooks/use-evidence', () => ({
+vi.mock('./review-queries', () => ({
   useEvidenceAsset: vi.fn(),
 }))
 

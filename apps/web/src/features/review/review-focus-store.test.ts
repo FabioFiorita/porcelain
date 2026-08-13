@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { jumpTargets, nextTarget, type ReviewJumpTarget, useReviewFocusStore } from './review-focus'
+import {
+  jumpTargets,
+  nextTarget,
+  type ReviewJumpTarget,
+  useReviewFocusStore,
+} from './review-focus-store'
 
 describe('useReviewFocusStore', () => {
   beforeEach(() => {

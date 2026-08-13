@@ -8,7 +8,7 @@ import {
 } from '@renderer/components/ui/context-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useCommitDiff, useCommitFlow, useCommitMessage } from '@renderer/features/git'
-import { useCommentIndex } from '@renderer/features/review/comments'
+import { useCommentIndex } from '@renderer/features/review'
 import { type LineSelection, lineSelectionFromDom } from '@renderer/lib/line-selection'
 import { fileName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'

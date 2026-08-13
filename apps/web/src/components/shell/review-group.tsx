@@ -1,4 +1,4 @@
-import type { FeatureReading } from '@backend/review/feature-view'
+import type { FeatureReading } from '@porcelain/contracts/review'
 import { PublishReviewButton } from '@renderer/components/shell/publish-review-button'
 import {
   AlertDialog,
@@ -17,18 +17,20 @@ import {
   SidebarGroupLabel,
 } from '@renderer/components/ui/sidebar'
 import { useReviewedPaths } from '@renderer/features/git'
-import { useReviewComments } from '@renderer/features/review/comments'
-import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
 import {
-  useArchivedReviewActions,
+  type ReviewFocusSection,
   useArchivedReviews,
-  useClearFeatureReview,
-} from '@renderer/hooks/use-feature-view'
+  useArchiveReview,
+  useDeleteArchivedReview,
+  useRestoreArchivedReview,
+  useReviewComments,
+  useReviewFocusStore,
+  useReviewReading,
+} from '@renderer/features/review'
 import { rowActionClass } from '@renderer/lib/controls'
 import { reviewOutlineFiles } from '@renderer/lib/review-lifecycle'
 import { openFeatureReview } from '@renderer/lib/surface-handoffs'
 import { cn } from '@renderer/lib/utils'
-import { type ReviewFocusSection, useReviewFocusStore } from '@renderer/stores/review-focus'
 import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
 import { Archive, Trash2 } from 'lucide-react'
@@ -77,13 +79,15 @@ function formatArchivedAt(iso: string): string {
  * reviews restored from `<repo>/.porcelain/reviews/`.
  */
 export function ReviewGroup(): React.JSX.Element | null {
-  const { reading } = useFeatureReading()
+  const { reading } = useReviewReading()
   const activeSection = useReviewFocusStore((s) => s.activeSection)
   const comments = useReviewComments()
   const reviewed = useReviewedPaths()
-  const { clear, isClearing } = useClearFeatureReview()
+  const { archive, isArchiving } = useArchiveReview()
   const archived = useArchivedReviews()
-  const { restore, remove, isBusy } = useArchivedReviewActions()
+  const { isRestoring, restore } = useRestoreArchivedReview()
+  const { isRemoving, remove } = useDeleteArchivedReview()
+  const isBusy = isRestoring || isRemoving
   const [confirmClearOpen, setConfirmClearOpen] = useState(false)
   const [clearError, setClearError] = useState<string | null>(null)
   const [archiveError, setArchiveError] = useState<string | null>(null)
@@ -92,7 +96,7 @@ export function ReviewGroup(): React.JSX.Element | null {
     runUserAction(
       async () => {
         setClearError(null)
-        await clear()
+        await archive()
         setConfirmClearOpen(false)
       },
       (e) => {
@@ -238,7 +242,7 @@ export function ReviewGroup(): React.JSX.Element | null {
             variant="outline"
             size="sm"
             className={cn(rowActionClass, 'w-full justify-start text-destructive')}
-            disabled={isClearing}
+            disabled={isArchiving}
             data-testid={TestIds.featureClearReview}
             onClick={() => setConfirmClearOpen(true)}
           >
@@ -264,7 +268,7 @@ export function ReviewGroup(): React.JSX.Element | null {
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 variant="destructive"
-                disabled={isClearing}
+                disabled={isArchiving}
                 onClick={() => {
                   handleRunClear()
                 }}

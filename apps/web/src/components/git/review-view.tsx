@@ -1,5 +1,5 @@
 import { type DiffReadingScope, useDiffReading } from '@renderer/features/git'
-import { ReadingSurfaceBody } from './reading-surface'
+import { ReadingSurfaceBody } from '@renderer/features/review'
 
 /** Encode a review scope into the tab's path key (and parse it back). */
 export function reviewTabKey(scope: DiffReadingScope): string {

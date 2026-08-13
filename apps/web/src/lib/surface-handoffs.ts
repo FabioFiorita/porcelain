@@ -1,8 +1,8 @@
 import { reviewTabKey } from '@renderer/components/git/review-view'
+import { useReviewStartStore } from '@renderer/features/review'
 import { fileName } from '@renderer/lib/paths'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
-import { useReviewStartStore } from '@renderer/stores/review-start'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 
 /**

@@ -1,10 +1,9 @@
-import type { FeatureReading } from '@backend/review/feature-view'
 import type { FlowGroup } from '@backend/review/flow'
 import type { BoardCard } from '@porcelain/contracts/board'
+import type { FeatureReading } from '@porcelain/contracts/review'
 import { useBoardCards } from '@renderer/features/board'
 import { useGitFlow, useGitWorkspace, type WorktreeInboxRow } from '@renderer/features/git'
-import { useReviewComments } from '@renderer/features/review/comments'
-import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
+import { useReviewComments, useReviewReading } from '@renderer/features/review'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
@@ -18,9 +17,11 @@ vi.mock('@renderer/features/git', () => ({
   useGitFlow: vi.fn(),
   useGitWorkspace: vi.fn(),
 }))
-vi.mock('@renderer/hooks/use-feature-reading', () => ({ useFeatureReading: vi.fn() }))
 vi.mock('@renderer/features/board', () => ({ useBoardCards: vi.fn() }))
-vi.mock('@renderer/features/review/comments', () => ({ useReviewComments: vi.fn() }))
+vi.mock('@renderer/features/review', () => ({
+  useReviewReading: vi.fn(),
+  useReviewComments: vi.fn(),
+}))
 
 const switchToSpy = vi.fn(async () => {})
 
@@ -66,7 +67,7 @@ function mockEmpty(): void {
     worktrees: [],
   })
   vi.mocked(useGitFlow).mockReturnValue({ groups: [], refresh: async () => {} })
-  vi.mocked(useFeatureReading).mockReturnValue({ reading: null, refresh: async () => {} })
+  vi.mocked(useReviewReading).mockReturnValue({ reading: null, refresh: async () => {} })
   vi.mocked(useBoardCards).mockReturnValue({ cards: [], error: null, isLoaded: true })
   vi.mocked(useReviewComments).mockReturnValue([])
 }
@@ -113,7 +114,7 @@ describe('GlanceHome', () => {
 
   it('opens All changes for dirty tree and Review for a published set', () => {
     vi.mocked(useGitFlow).mockReturnValue({ groups: flowGroups, refresh: async () => {} })
-    vi.mocked(useFeatureReading).mockReturnValue({ reading, refresh: async () => {} })
+    vi.mocked(useReviewReading).mockReturnValue({ reading, refresh: async () => {} })
     render(<GlanceHome />)
     expect(screen.getByText('This checkout')).toBeInTheDocument()
     expect(screen.getByLabelText('Review published')).toBeInTheDocument()
