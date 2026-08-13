@@ -12,7 +12,7 @@
  * The rest is house style already followed by every commit in this repo's
  * history; `git log --format=%s` is the reference.
  *
- * Self-checked by decoys at the bottom, matching `lint-audit.mjs`.
+ * Self-checked by decoys at the bottom, matching the repository's other lint gates.
  */
 
 import { readFileSync } from 'node:fs'
@@ -166,7 +166,7 @@ if (messagePath) {
   for (const warning of warnings) console.error(`commit-msg: warning: ${warning}`)
 
   if (errors.length > 0) {
-    console.error('\nCommit message rejected (AGENTS.md · ship skill):\n')
+    console.error('\nCommit message rejected (AGENTS.md · commit-message policy):\n')
     for (const error of errors) console.error(`  • ${error}`)
     console.error(
       '\n  type(scope): imperative summary, no trailing period, <= 72 chars' +

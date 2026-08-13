@@ -24,7 +24,7 @@ import type { AuthIdentity } from './access-store'
  * wiring, the tailnet init, and the process lifecycle, and hands the resolved
  * inputs in here.
  *
- * SECURITY INVARIANTS (audit skill): every /trpc request is token-gated (Bearer),
+ * SECURITY INVARIANTS (Remote boundary): every /trpc request is token-gated (Bearer),
  * every /session WS upgrade is token-gated (the `porcelain.<token>` subprotocol),
  * both through the ONE `authenticate` function below. The host administrator is
  * compared constant-time over a sha256 digest; paired devices are validated
@@ -149,7 +149,7 @@ export function createRemoteHttp(opts: RemoteHttpOptions): RemoteHttp {
    * same contract the session handshake refuses a mismatched socket with. There is no
    * optional header, no inferred app version, and no per-route plain-text variant.
    *
-   * ORDER OF CHECKS (audit): this runs *after* the check each route already leads with —
+   * ORDER OF CHECKS (Remote boundary): this runs *after* the check each route already leads with —
    * the Bearer gate on /trpc, the rate limiter on POST /pair — and never reorders them.
    * Authentication stays the daemon's outermost fail-closed gate, so an anonymous caller
    * still gets `auth.unauthenticated` and cannot use a version reply to probe a daemon it

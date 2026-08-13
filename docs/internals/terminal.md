@@ -3,7 +3,8 @@
 A terminal is a live bidirectional byte stream, not request/response data.
 
 - **`node-pty` is the one native module**, reversing the old native-module-free property — a real PTY
-  has no pure-JS equivalent. Packaging consequences are `audit` invariants.
+  has no pure-JS equivalent. Packaging consequences are owned by `docs/internals/repo.md` and the
+  `releasing` procedure.
 - **The terminal rides the daemon WS session, NOT tRPC and NOT a preload channel.** Create/attach ride
   the WS; list/rename ride tRPC. Lifecycle control lives here, not in a hook — a terminal isn't
   TanStack-Query data. tRPC stays for Actions *definitions*, which are data.

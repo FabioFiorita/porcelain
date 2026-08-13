@@ -142,7 +142,7 @@ an external choice or authorization.
 | `E2E-001` | Landed | Name/reduce critical assembled wiring suite and relocate redundant tests |
 | `AGT-001` | Landed | Relocate every Ship responsibility and Audit invariant to current owners |
 | `AGT-002` | Landed | Remove mandatory Companion Review lifecycle and migration guidance |
-| `AGT-003` | Ready | Delete retired foundation routers and invariant-doc tree |
+| `AGT-003` | Landed | Delete retired foundation routers and invariant-doc tree |
 | `LCH-001` | Draft | Clean-v1 seed/reset and protocol match/mismatch launch rehearsal |
 | `LCH-002` | Draft | Remove final ledgers and prove canonical/fresh-agent discoverability |
 | `LCH-003` | Draft | Clean-checkout verify and named browser/Terminal/packaging evidence |

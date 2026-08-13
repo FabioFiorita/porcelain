@@ -1,6 +1,7 @@
 import { lstat, readdir, readFile, readlink } from 'node:fs/promises'
 import { join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { checkAgentFoundations } from './lint-agent-foundations.mjs'
 import { checkCompanionFoundation } from './lint-companion-foundations.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
@@ -82,6 +83,9 @@ async function main() {
   await checkSkillAdapters()
   for (const failure of checkCompanionFoundation(root)) {
     fail(`skills/porcelain-companion: ${failure}`)
+  }
+  for (const failure of checkAgentFoundations(root)) {
+    fail(`foundation discovery: ${failure}`)
   }
 
   const settings = JSON.parse(await readFile(join(root, '.claude', 'settings.json'), 'utf8'))

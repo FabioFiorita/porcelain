@@ -84,7 +84,7 @@ pnpm dev          # Electron shell against the same architecture
 |---|---|
 | `pnpm dev` | Run the Electron app in development |
 | `pnpm dev:daemon` | Dev daemon on 43118 (`~/.porcelain-dev`) — day-to-day product work |
-| `pnpm lint` | Cheap commit gate (Biome + escapes/audit/eas/agents) |
+| `pnpm lint` | Cheap commit gate (Biome + escapes/security-boundaries/eas/agents) |
 | `pnpm test` | Run the Vitest suite |
 | `pnpm test:e2e` | Playwright e2e (headless browser project) |
 | `pnpm build` | Type-check mobile + build desktop |

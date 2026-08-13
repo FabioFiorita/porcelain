@@ -40,7 +40,7 @@ import { createSession } from './session/live-session'
  * fetch adapter) and the per-window session channel over one WebSocket (`/session`,
  * see session/live-session.ts and @porcelain/contracts/session).
  *
- * SECURITY INVARIANTS live in the audit skill's listener rule and must hold here:
+ * SECURITY INVARIANTS live in the Remote boundary and must hold here:
  * binds are 127.0.0.1 ALWAYS plus, on opt-in, the enumerated Tailscale/RFC1918
  * addresses through these same handlers — never 0.0.0.0; every privileged request is
  * token-gated ALWAYS (`authorization: Bearer` on /trpc, the `porcelain.<token>`

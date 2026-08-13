@@ -56,8 +56,9 @@ npx porcelain-daemon@latest serve --port 43118 --lan
 The daemon deliberately never binds the wildcard address. `--lan`/`--tailnet` enumerate specific
 private interfaces and explicitly deny virtual/container/VPN interface names (Docker bridges,
 `veth`, `tun`, `wg`, …) so opting in to LAN access can't accidentally hand a shell to every
-container on a bridge. Range checks alone weren't trusted for this — see
-`docs/internals/audit/network-boundary.md` in the main repo for the full reasoning.
+container on a bridge. Range checks alone weren't trusted for this — see `docs/remote-setup.md`
+and the Remote owner/proof entries in `docs/internals/agent-foundations.md` in the main repo for
+the full reasoning.
 
 ### Cleartext-on-LAN tradeoff
 

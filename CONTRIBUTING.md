@@ -19,7 +19,7 @@ pnpm dev
 
 If Electron is missing after install (`Error: Electron uninstall`), run `node node_modules/electron/install.js` once (Electron may not download in `postinstall` on every platform).
 
-**Agents and this clone:** project hooks require `pnpm lint` before commit; run `pnpm verify` before push. Work on a fork, open a PR, and keep changes focused. Day-to-day product work uses the **dev** daemon (`pnpm dev:daemon`, port 43118, `~/.porcelain-dev`) — not a production install. See [AGENTS.md](AGENTS.md) and the `ship` skill.
+**Agents and this clone:** project hooks require `pnpm lint` before commit; run `pnpm verify` before push. Work on a fork, open a PR, and keep changes focused. Day-to-day product work uses the **dev** daemon (`pnpm dev:daemon`, port 43118, `~/.porcelain-dev`) — not a production install. See [AGENTS.md](AGENTS.md) and the focused procedures listed there.
 
 ## Verification
 

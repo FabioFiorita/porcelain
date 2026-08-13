@@ -14,7 +14,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const SELF = 'scripts/lint-docs.mjs'
 
 // Directories that once held agent-facing docs. Split so this file passes its own check.
-const STALE_PATHS = ['.agents/' + 'reference', '.agents/skills/audit/' + 'reference']
+const STALE_PATHS = ['.agents/' + 'reference']
 
 const SKIP_DIRS = new Set(['node_modules', '.git', 'out', 'dist', 'build', 'coverage'])
 

@@ -42,7 +42,7 @@ map to managed worktrees by slug (`work/<slug>`).
    intent is unclear or the fix isn't obvious, stop and ask the human — don't guess.
 3. **Verify in the worktree.** After any sync, review-driven fix, or conflict resolution:
    `pnpm verify` (or the scoped test run when the merge only touched lockfile/formatting), per the
-   `ship` gate. Push the merge commit with the allowlisted shape:
+   repository gate. Push the merge commit with the allowlisted shape:
    `git -C <worktree> push -u origin work/<slug>`.
 4. **Merge.** `gh pr merge <number> --squash` — squash keeps main linear; squash subject stays
    under the 1024-char commit cap. Skip `--delete-branch`: the local branch is still checked out

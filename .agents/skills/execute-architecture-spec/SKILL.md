@@ -31,7 +31,7 @@ executes it, and loops, with all other rules in this skill unchanged per unit.
 
 1. Read root `AGENTS.md`, `plans/architecture-refactor/specs/README.md`, and the selected recipe in
    full.
-2. Load `ship`. Load any other project skill only when its trigger matches the selected work.
+2. Load any other project skill only when its trigger matches the selected work.
 3. Read every governing decision and dependency named by the recipe.
 4. Inspect every current production path and symbol named under Current behavior and evidence.
    Treat runtime routers, implementation return types, persistence, and callers as evidence; do not

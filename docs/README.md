@@ -26,18 +26,11 @@ Contributor architecture. Start with `architecture.md`; the rest are deep dives.
 | [internals/nomenclature.md](internals/nomenclature.md) | Bare nouns: tab names → entry-point files |
 | [internals/repo.md](internals/repo.md) | Repo layout, aliases, packaging facts, shadcn re-apply |
 | [internals/architecture-dispatch.md](internals/architecture-dispatch.md) | Execution-group dispatcher: manifests, fresh Grok/Claude Personal processes, worktree base |
-| [internals/agent-foundations.md](internals/agent-foundations.md) | Current Ship/Audit owners, exact proof paths, and mechanical removal gates |
+| [internals/agent-foundations.md](internals/agent-foundations.md) | Cross-cutting foundation owners, exact proof paths, and mechanical removal gates |
 
-## Audit invariants
+## Security and correctness invariants
 
-Earned security/correctness/performance constraints. The `audit` skill routes agents here before
-risky edits; three of these rules are lint-enforced by `scripts/lint-audit.mjs`.
-
-| File | What |
-|------|------|
-| [internals/audit/network-boundary.md](internals/audit/network-boundary.md) | Main/renderer split, file reads, external URLs, daemon bind/auth/CORS/CSP, PTY env |
-| [internals/audit/agent-channels.md](internals/audit/agent-channels.md) | CLI, `~/.porcelain` channels, review content, loop evidence |
-| [internals/audit/git-and-config.md](internals/audit/git-and-config.md) | `config.json` / `json-store`, anything that spawns `git` |
-| [internals/audit/data-ipc.md](internals/audit/data-ipc.md) | tRPC, WS session, `utilityProcess` daemon lifecycle |
-| [internals/audit/performance.md](internals/audit/performance.md) | Viewer/diff virtualization, file tree, Vite pre-bundle, polling/watchers |
-| [internals/audit/packaging.md](internals/audit/packaging.md) | Dep placement, electron-builder/signing, `node-pty`, `trash` |
+Earned security/correctness/performance constraints live with their current domain owners and
+focused procedures. The mechanically enforceable boundary rules are checked by
+`scripts/lint-security-boundaries.mjs`; the owner/proof map is
+[`internals/agent-foundations.md`](internals/agent-foundations.md).

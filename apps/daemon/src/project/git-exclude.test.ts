@@ -22,7 +22,7 @@ const GIT_ENV = {
 
 function git(cwd: string, ...args: string[]): string {
   // gitEnv, not process.env: an inherited GIT_DIR would aim every fixture
-  // command at the real repository (audit skill, git plumbing).
+  // command at the real repository (Git boundary, synthetic fixture only).
   return execFileSync('git', args, {
     cwd,
     env: gitEnv(process.env, GIT_ENV),

@@ -11,7 +11,8 @@ and packaging: Vite (web), esbuild (daemon/cli), electron-vite (shell only). See
 
 - **Web (`apps/web`):** shadcn/ui on **Base UI** + Tailwind v4. Composition:
   `docs/internals/composition.md`.
-- **Daemon (`apps/daemon`):** Electron-free. Load **`audit`** before git/config/fs/URLs/channels.
+- **Daemon (`apps/daemon`):** Electron-free. Read the owning domain guidance in
+  `docs/internals/agent-foundations.md` before git/config/fs/URLs/channels changes.
   Types via `@backend/*`.
 - **Shell (`src/main`, `src/preload`):** windows, menu, updater, spawn/bind daemon, shell IPC only.
 - **CLI (`apps/cli`):** agent binary; Node builtins only.
@@ -34,4 +35,4 @@ and packaging: Vite (web), esbuild (daemon/cli), electron-vite (shell only). See
 | Shell / surfaces | `docs/internals/app-shell.md` |
 | Terminal | `docs/internals/terminal.md` |
 | Repo / packaging facts | `docs/internals/repo.md` |
-| Ship/Audit owner, proof, and gate map | `docs/internals/agent-foundations.md` |
+| Cross-cutting owner, proof, and gate map | `docs/internals/agent-foundations.md` |

@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, lstatSync, readFileSync, readlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { checkFoundationDiscovery } from './lint-agent-foundations.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 let failures = 0
@@ -35,6 +36,15 @@ console.log('Porcelain agent foundation doctor\n')
 
 const sync = command(process.execPath, ['scripts/sync-agent-foundations.mjs'])
 report(sync.status === 0 ? 'PASS' : 'FAIL', 'shared adapters', (sync.stdout || sync.stderr).trim())
+
+const discoveryFailures = checkFoundationDiscovery(root)
+report(
+  discoveryFailures.length === 0 ? 'PASS' : 'FAIL',
+  'foundation discovery',
+  discoveryFailures.length === 0
+    ? 'root loop + Companion + focused procedures'
+    : discoveryFailures.join('; '),
+)
 
 checkSymlink('CLAUDE.md', 'AGENTS.md')
 checkSymlink('.claude/hooks/git-guard.sh', '../../.agents/hooks/git-guard.sh')

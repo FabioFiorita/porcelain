@@ -70,7 +70,7 @@ function ActionRow({
         data-testid={TestIds.actionRun(action.title)}
         className="flex min-w-0 flex-1 items-center gap-2 text-left"
         // The full command is always visible before it runs — an agent can author
-        // actions, so the human must see exactly what a click executes (see audit skill).
+        // actions, so the human must see exactly what a click executes (see the Actions owner docs).
         title={
           unreviewed
             ? `Not run on this machine yet: ${action.command}`

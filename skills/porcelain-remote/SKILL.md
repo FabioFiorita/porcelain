@@ -72,7 +72,8 @@ daemon. Every request needs a bearer credential: the host administrator token
 by pairing. Pairing links (`pc_pair_…`) are single-use, expire in 15 minutes, and carry their
 secret only in the URL fragment (never sent to a server on GET). Each paired device gets its own
 revocable token; `access revoke` also closes that device's live sessions. Full detail:
-`docs/internals/audit/network-boundary.md` in the main repo, and
+`docs/remote-setup.md` and the Remote owner/proof entries in
+`docs/internals/agent-foundations.md` in the main repo, and
 [references/pairing.md](references/pairing.md) here.
 
 ## Standing rules

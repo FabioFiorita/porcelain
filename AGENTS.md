@@ -4,7 +4,7 @@ Where agent work becomes trusted work: a review layer for agentic coding (macOS 
 daemon-served browser + iOS client in progress). Agents keep writing where they already write;
 Porcelain is where you read, annotate, and sign off. Full product story: `docs/product.md`.
 
-Ship discipline: polish existing surfaces; releases are **patch** unless asked; 1.0 is far away.
+Delivery discipline: polish existing surfaces; releases are **patch** unless asked; 1.0 is far away.
 
 **Package map:** daemon · cli · web · shell · mobile — see `docs/internals/architecture.md`.
 
@@ -90,7 +90,7 @@ Don't memorize these — the gate catches you. Hooks run `pnpm lint` on every co
 | No inline `style` / `contentContainerStyle` in mobile src | `lint-mobile-nativewind` |
 | Mobile-local 450-line migration ledger (temporary overlap) | `lint-mobile-file-size` |
 | Components never import `lib/trpc` / `lib/daemon` | Biome |
-| External-URL guard, git env scrub, hook env scrub | `lint-audit` |
+| External-URL guard, git env scrub, hook env scrub | `lint-security-boundaries` |
 | EAS workflows stay dispatch-only | `lint-eas-triggers` |
 | Contracts package ↔ daemon routers 1:1 | `lint-procedure-contracts` |
 | Every `pnpm <script>` cited in skills or docs exists | `lint-skill-commands` |
@@ -125,9 +125,7 @@ Only each skill's description is ambient. Do not load a skill "just in case."
 
 | Skill | When |
 |-------|------|
-| `ship` | Changing code, testing, committing, or worktrees |
 | `execute-architecture-spec` | Landing exactly one reviewer-approved architecture recipe |
-| `audit` | Main process, IPC, config, git, file reads, external URLs, packaging, agent channels |
 | `mobile` | Building, installing, delivering, or proving `apps/mobile` |
 | `web-e2e` | Writing/debugging Playwright browser specs or taking browser proof for `apps/web` |
 | `merge-queue` | Landing selected `work/*` PRs and retiring their worktrees |
@@ -139,11 +137,11 @@ Two trees, split by tense. When lost, open `docs/README.md` — it indexes every
 
 For the cross-cutting owner/proof/gate map, open `docs/internals/agent-foundations.md`. It keeps
 the root loop discoverable here while naming the focused procedure or domain test that owns each
-Ship/Audit row.
+foundation row.
 
 | Tree | Tense | What goes there |
 |------|-------|-----------------|
-| `docs/` | What **is** | Product prose, contributor internals, audit invariants |
+| `docs/` | What **is** | Product prose, contributor internals, security and correctness invariants |
 | `plans/` | What **isn't yet** | Plans and backlogs; deleted when shipped, keepers distilled into `docs/` |
 
 Skills stay procedures; `AGENTS.md` files stay identity. A rule a machine can own goes in the

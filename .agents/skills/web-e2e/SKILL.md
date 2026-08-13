@@ -10,7 +10,7 @@ description: Playwright proof for the daemon-served apps/web client — the `app
 
 Specs live under `apps/desktop/e2e/` but they drive `apps/web` — the daemon serves the same built
 renderer the Electron window loads, over the same tRPC + WS path, so the `browser` Playwright
-project proves the client without a display server. This is the `ship` skill's "UI → browser on the
+project proves the client without a display server. This is root `AGENTS.md`'s "UI → browser on the
 **dev** daemon" rule, made concrete. `mobile/reference/android.md` is the sibling doc for the other
 platform; read this one for the same job on web.
 
@@ -99,7 +99,7 @@ test('Changes tab lists the working-tree changes', async ({ page }) => {
   `apps/web` edit is the most common "my fix isn't showing up" cause — rebuild before re-reading
   the failure.
 - **A successful run is not proof by itself.** Read what a `toHaveScreenshot` diff actually shows on
-  failure (`e2e/.artifacts`, gitignored, delete before stopping per `ship`) rather than re-running
+  failure (`e2e/.artifacts`, gitignored, delete before stopping per root instructions) rather than re-running
   and hoping it passes; a flaky-looking diff is usually a real layout change.
 
 ## CI

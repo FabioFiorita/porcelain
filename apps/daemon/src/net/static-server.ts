@@ -9,7 +9,7 @@ import { constants, createBrotliCompress, createGzip } from 'node:zlib'
  * that isn't /trpc or /session. Introduced in remote-envs Phase 3 so a plain
  * browser on the tailnet gets the same dist the Electron window loads.
  *
- * SECURITY (audit skill): the static assets are UNAUTHENTICATED by design — the
+ * SECURITY (renderer boundary): the static assets are UNAUTHENTICATED by design — the
  * app shell is not secret, and the real gate stays on the dynamic endpoints
  * (/trpc + /session keep the token). This server therefore MUST NOT widen the
  * attack surface: it only ever reads files INSIDE the renderer dist root

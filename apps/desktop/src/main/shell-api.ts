@@ -309,7 +309,7 @@ export const shellRouter = t.router({
    * The LOCAL child daemon's pair, plus whether this window is already bound to it.
    * Handing the renderer the local token is not a widening — the preload already gives
    * it to every LOCAL-bound window, and an Electron window always loads our own dist from
-   * disk (the audit skill records what would break that). It exists so a remote-bound
+   * disk (the shell boundary records what would break that). It exists so a remote-bound
    * window can ALSO open a terminal here: repo on the Beelink, simulator on this Mac.
    * `isLocal` hides the affordance when the window is already local.
    */

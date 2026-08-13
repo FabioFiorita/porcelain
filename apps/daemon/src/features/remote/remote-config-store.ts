@@ -11,7 +11,7 @@ export const appConfigSchema = z
     // Global (not per-repo): when true the daemon additionally listens on the
     // machine's RFC1918 private addresses (see remote-lan.ts + server.ts) so
     // devices on the home LAN can reach it, gated on the same authentication. Cleartext on
-    // the LAN — opt-in, default off (see the audit skill). Toggled from Settings.
+    // the LAN — opt-in, default off (see docs/remote-setup.md). Toggled from Settings.
     lanBind: z.boolean().optional(),
     // Public HTTPS reverse proxy managed through `tailscale funnel`.
     funnelBind: z.boolean().optional(),

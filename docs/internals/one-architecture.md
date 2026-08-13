@@ -24,9 +24,9 @@ so they can't drift, and pointing the client at a remote daemon needed no new tr
   backoff (give up after 3 rapid failures) and pushes the new url to **local-bound windows only**. A
   utility child has no stdin, so `PORCELAIN_NO_STDIN_WATCHDOG=1` is set and Electron owns its
   lifetime; standalone daemons under plain `node` keep the parent-death watchdog so they never
-  orphan. `utilityProcess.fork` is required — an `audit` invariant.
+  orphan. `utilityProcess.fork` is required by the Desktop daemon lifecycle boundary.
 - **Private listeners reconcile, not bind-once** — tailnet/LAN addresses appear *after* boot, so
-  enabled listeners re-scan every 5s and diff sockets. Bind/Funnel rules: `audit`.
+  enabled listeners re-scan every 5s and diff sockets. Bind/Funnel rules live in `docs/remote-setup.md`.
 - **The daemon serves the renderer to a plain browser.** Electron and browser use the SAME dist,
   split only at `lib/platform.ts`. Fingerprinted assets are immutable for a year; the host-rewritten
   shell stays `no-cache` so a release is discovered immediately.

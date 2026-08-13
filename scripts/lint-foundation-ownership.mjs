@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
- * AGT-001 — keep the Ship/Audit ownership map complete before either legacy foundation is removed.
+ * AGT-001 — keep the cross-cutting foundation ownership map complete before legacy routers retire.
  *
  * This checker owns the index shape only. It does not import lint-audit.mjs and therefore cannot
- * disappear or weaken when AGT-003 retires the generic Audit router.
+ * disappear or weaken when AGT-003 retires the generic foundation routers.
  */
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
@@ -214,10 +214,12 @@ export function checkOwnershipMap(markdown, root, options = {}) {
     checkLinkTargets(proof, mapPath, `${id} proof`, failures)
     if (status.toLowerCase() === 'complete') {
       if (sourceUsesRetiredFoundation(permanentSource)) {
-        failures.push(`${id}: Complete permanent source still relies on Ship/Audit material`)
+        failures.push(
+          `${id}: Complete permanent source still relies on retired foundation material`,
+        )
       }
       if (sourceUsesRetiredFoundation(proof)) {
-        failures.push(`${id}: Complete proof still relies on Ship/Audit material`)
+        failures.push(`${id}: Complete proof still relies on retired foundation material`)
       }
     }
   }
@@ -242,7 +244,7 @@ function main() {
   if (failures.length > 0) {
     console.error('Foundation ownership drift:\n')
     for (const failure of failures) console.error(`  ${failure}`)
-    console.error('\nEvery Ship/Audit row needs one current owner, proof, and executable gate.')
+    console.error('\nEvery foundation row needs one current owner, proof, and executable gate.')
     process.exit(1)
   }
   console.log(`lint-foundation-ownership: ok — ${ALL_IDS.length} current owner rows indexed`)

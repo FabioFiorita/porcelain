@@ -6,7 +6,7 @@ import { findTailscaleAddress } from './remote-tailnet'
 /**
  * The optional SECOND daemon listeners — bound to non-loopback private interfaces so
  * other devices the user trusts can reach the daemon, always behind the same token
- * gate as loopback and never 0.0.0.0 (audit skill + server.ts): the **tailnet**
+ * gate as loopback and never 0.0.0.0 (Remote boundary + server.ts): the **tailnet**
  * listener binds the Tailscale interface (100.64/10), the **LAN** listener binds the
  * machine's RFC1918 addresses. Same shape, so they are two instances of one factory
  * (`createIfaceListener`). The request/upgrade handlers live in server.ts and are

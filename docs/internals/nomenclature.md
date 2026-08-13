@@ -58,7 +58,7 @@ carries (`data-section.tsx`, every client); this Settings **Companion** tab is t
 installer only and is shell-only — do not confuse it with the right-panel **Companion** (⌘.) above.
 Mobile mirrors General · Data · Review · Environments.
 
-**Cross-cutting** (product meaning: `docs/product.md`; internals here and in `audit`)
+**Cross-cutting** (product meaning: `docs/product.md`; internals here and in the owner map)
 
 | Term | Meaning |
 |---|---|

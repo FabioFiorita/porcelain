@@ -63,4 +63,5 @@ A client token is equivalent to a shell on the host: arbitrary-path file read/wr
 spawn, the same as the token holder sitting at the machine. That's deliberate — the token holder
 *is* the user, from any network the daemon is reachable on. Treat every paired-device token, and
 the admin token, as exactly as sensitive as a login credential for this machine. Full model:
-`docs/internals/audit/network-boundary.md` in the main repo.
+`docs/remote-setup.md` and the Remote owner/proof entries in
+`docs/internals/agent-foundations.md` in the main repo.

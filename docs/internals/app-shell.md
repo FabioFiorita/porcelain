@@ -83,7 +83,8 @@
 - **Agent channels are watched JSON under `PORCELAIN_HOME`, driven by the dependency-free porcelain
   CLI.** Read `apps/cli/src/` and the daemon stores it mirrors for the current set — an enumeration here rots.
   **Do not re-add a Porcelain MCP server** without reopening the channel design. Channel write-safety
-  rules live in `audit` — read it before touching any channel file.
+  rules live with the CLI and Project Data owners; read `docs/internals/agent-foundations.md` before
+  touching any channel file.
 - **TRAP — the CLI's `DEFAULT_LAYERS` is a deliberate duplicate of `flow.ts`'s**, because the CLI may
   not import backend code. The duplication is *guarded* by a test asserting the two are identical, so
   edit both together.

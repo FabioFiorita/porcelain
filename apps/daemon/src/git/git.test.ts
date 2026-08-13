@@ -807,7 +807,7 @@ describe('gitDiffFile image/binary', () => {
 // Git's repository-local variables (GIT_DIR, GIT_INDEX_FILE, …) OVERRIDE cwd and are
 // exported to every hook, so a hook-spawned `pnpm verify` would point this suite at the
 // repository being committed — fixture repos silently commit, branch, and `init --bare`
-// the real checkout. See the audit skill's git-plumbing rule: the hook scrubs, and this
+// the real checkout. See the Git boundary rule: the hook scrubs, and this
 // pins the other half — a fixture repo is immune on its own.
 
 describe('inherited repository env', () => {

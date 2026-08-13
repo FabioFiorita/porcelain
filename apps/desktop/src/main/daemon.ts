@@ -22,7 +22,7 @@ import {
  * Fork and babysit the daemon child (`out/main/daemon/server.js`) — the Electron-free
  * backend the renderer talks to over HTTP/WS on 127.0.0.1. The fork goes through
  * `utilityProcess.fork` and must NEVER go back to child_process + the run-as-Node env
- * switch; the audit skill's fork rule records what that costs.
+ * switch; the Desktop daemon lifecycle boundary records what that costs.
  *
  * The daemon resolves userData from PORCELAIN_USER_DATA (the shell owns the dev `-dev`
  * suffix) and runs dev seeding under PORCELAIN_DEV; the rest of the env is inherited, so

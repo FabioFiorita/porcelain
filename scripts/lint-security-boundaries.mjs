@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Enforce the audit-skill invariants that are mechanically checkable.
+ * Enforce the security and process-boundary invariants that are mechanically checkable.
  *
  *   1. External URLs go through `isSafeExternalUrl` — any file reaching
  *      `shell.openExternal` / `setWindowOpenHandler` must also import the guard.
@@ -200,7 +200,7 @@ if (!hasOrderedGitHookEnvScrub(preCommitHook)) {
 }
 
 if (failures.length > 0) {
-  console.error('Audit-invariant drift (docs/internals/audit/):\n')
+  console.error('Security-boundary drift:\n')
   for (const f of failures) {
     console.error(`  ${f.file}:${f.line}  ${f.label}`)
     console.error(`    ${f.snippet}`)
@@ -209,4 +209,4 @@ if (failures.length > 0) {
   process.exit(1)
 }
 
-console.log('lint-audit: ok')
+console.log('lint-security-boundaries: ok')

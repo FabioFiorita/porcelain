@@ -272,7 +272,7 @@ export function rowIndexForTarget(
  * Wrap agent-authored inline SVG in a minimal srcdoc document for the sandboxed
  * iframe. The SVG is ACTIVE content (it can carry scripts/foreign objects), so it
  * renders ONLY through the `sandbox=""` + `srcdoc` path — never injected into the
- * app DOM (an `audit` invariant, same as evidence HTML).
+ * app DOM (the active-content containment invariant, same as evidence HTML).
  */
 export function svgDocument(svg: string): string {
   return `<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;padding:0;background:transparent;color-scheme:dark}svg{display:block;width:100%;height:auto}</style></head><body>${svg}</body></html>`
