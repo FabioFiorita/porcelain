@@ -145,7 +145,7 @@ an external choice or authorization.
 | `AGT-003` | Landed | Delete retired foundation routers and invariant-doc tree |
 | `LCH-001` | Landed | Clean-v1 seed/reset and protocol match/mismatch launch rehearsal |
 | `LCH-002` | Landed | Remove final ledgers and prove canonical/fresh-agent discoverability |
-| `LCH-003` | Ready | Clean-checkout verify and named browser/Terminal/packaging evidence |
+| `LCH-003` | Landed | Clean-checkout verify and named browser/Terminal/packaging evidence |
 
 There are 110 bounded units. Broad rows split if factual recipe authoring shows overlapping files or
 more than one reviewable commit; they never remain broad by asking an executor to make that split.
