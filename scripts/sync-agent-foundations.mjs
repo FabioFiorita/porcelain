@@ -1,6 +1,7 @@
 import { lstat, readdir, readFile, readlink } from 'node:fs/promises'
 import { join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { checkCompanionFoundation } from './lint-companion-foundations.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const write = process.argv.includes('--write')
@@ -79,6 +80,9 @@ async function main() {
     await expectSymlink(join(root, '.claude', 'hooks', hook), `../../.agents/hooks/${hook}`)
   }
   await checkSkillAdapters()
+  for (const failure of checkCompanionFoundation(root)) {
+    fail(`skills/porcelain-companion: ${failure}`)
+  }
 
   const settings = JSON.parse(await readFile(join(root, '.claude', 'settings.json'), 'utf8'))
   const settingsText = JSON.stringify(settings)

@@ -67,7 +67,9 @@ While the exclude is in place, **negation rules inside `.porcelain/.gitignore` d
 
 Reviews ignores the **contents** (`/reviews/*`), not the directory, precisely so a single review can be negated back in.
 
-Always ignored, no toggle: `/feature-view.json` (derived), `/active-review/` (the unit in flight), `/.migrated-from-home`, `*.tmp`, `*.corrupt-*`, and per-review evidence.
+Always ignored, no toggle: `/feature-view.json` (derived), `/active-review/` (the unit in flight),
+the current disposable `/.migrated-from-home` marker, `*.tmp`, `*.corrupt-*`, and per-review
+evidence.
 
 ## Layer 3 — publishing one review
 

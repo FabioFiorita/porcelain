@@ -11,9 +11,10 @@ Porcelain is where agent work becomes **trusted** work. It is a **review compani
 agent host and not the editor: you keep writing where you already write; you publish the Review
 here. You talk to Porcelain through one CLI; this skill is the manual.
 
-**The Review is the home for a unit of work** — not a post-hoc dump after shipping. Humans and
-agents **start** (Intent) and **end** (Execution + Evidence) here. Board is the queue of cards;
-Review is the **one active story** per repo.
+**The Review is the home for an intentionally published unit of work** — not a post-hoc dump after
+shipping. When a human requests Companion work or an agent deliberately publishes a Review, the
+story starts with Intent and ends with Execution + Evidence. Board is the queue of cards; Review is
+the **one active story** per repo. Ordinary code edits do not create, clear, or complete a Review.
 
 ## The CLI
 
@@ -52,7 +53,7 @@ references/
 node <skill>/scripts/check-evidence.mjs [--repo <abs path>]
 ```
 
-Run it before claiming a unit done. It reports an empty pack, missing CSS, `<script>` tags,
+Run `check-evidence.mjs` before claiming an intentionally published Review complete. It reports an empty pack, missing CSS, `<script>` tags,
 remote assets, broken image references (including `../assets/…`), the gallery count, and the
 inlined size against the 4 MB read cap — all of which fail **silently** in the sandboxed Evidence
 tab. Fix what it reports and run it again.
@@ -61,9 +62,9 @@ tab. Fix what it reports and run it again.
 
 | When | Do |
 |------|----|
-| **Start of session** / pick up a unit | `review clear` if the previous unit is done → `review set` with **name + thesis** |
-| **Mid-session** | Grow Execution (files/notes); light Intent updates; handle comments |
-| **End of session** / claim done | Complete Execution + real Evidence (checks · `results/` docs · `assets/` gallery); `check-evidence.mjs`; do not invent proof |
+| **Human requests Companion work / deliberate publication** | `review set` with **name + thesis**; clear an existing Review only for an explicitly requested replacement |
+| **During an intentionally published Review** | Grow Execution (files/notes); light Intent updates; handle comments |
+| **Claim an intentionally published Review complete** | Complete Execution + real Evidence (checks · `results/` docs · `assets/` gallery); `check-evidence.mjs`; do not invent proof |
 | Human left comments or asked what they reviewed | `comments list` / `answer` / `resolve`; `reviewed list` (read-only) |
 | Pick up queued work; capture follow-ups | **Board** list/create/move (queue only — not a second Review) |
 | Starting work; "check my notes" | `notes get` (human scratchpad — **read-only**) |
@@ -85,7 +86,7 @@ tab. Fix what it reports and run it again.
 # Context
 ~/.porcelain/porcelain notes get
 
-# The Review — clear → Intent-first start → grow → Evidence to finish
+# The Review — intentional start → grow → Evidence to finish
 ~/.porcelain/porcelain review clear
 ~/.porcelain/porcelain review set --name "…" --thesis "…"        # name + thesis is a full start
 ~/.porcelain/porcelain review set --name "…" --thesis "…" --files '[…]' --sections '[…]'
@@ -120,36 +121,40 @@ JSON
 
 ## Standing rules
 
-1. **Start of session** — If the previous unit is done (or this is a new unit), **`review clear`
-   first** (drops the active set **and** the evidence pack under `.porcelain/active-review/`;
-   the app **Archive** path keeps history under `.porcelain/reviews/`). Then `review set` with **name + thesis** — that alone is
-   a complete Intent-first start; `--files` and `--sections` are optional. Works for **bugs,
-   features, chores, and investigations** — not features only.
-2. **During** — Grow Execution as you touch files; Intent updates are fine. Human comments and
+1. **Explicit publication only** — Companion is an explicit product-surface procedure, not an
+   automatic session lifecycle. Do not clear another active Review automatically. Create or clear
+   a Review only when the human requests Companion work or the agent deliberately publishes a
+   Review. `review set` with **name + thesis** is a complete Intent-first start; `--files` and
+   `--sections` are optional. Works for **bugs, features, chores, and investigations** — not
+   features only.
+2. **Ordinary code edits** — Follow root `AGENTS.md`; do not create, clear, or complete a Review.
+3. **During an intentionally published Review** — Grow Execution as you touch files; Intent updates are fine. Human comments and
    reviewed marks are app → agent (`comments` / `reviewed list`).
-3. **End of session** — Complete Execution + **real Evidence** before claiming done: an
+4. **End of an intentionally published Review** — Complete Execution + **real Evidence** before claiming done: an
    `evidence check` per thing you ran, Results documents for what needs narrating, screenshots in
    `assets/`. Run `check-evidence.mjs`. Don't invent proof.
-4. **Clear before a new unit** — Never leave another agent's Intent or old evidence under a new
-   document. If the human still has a previous unit open, clear it (or ask) before starting.
-5. **Notes are the human's** — read only; put actionable work on the board.
-6. **Actions are human-executed** — never invent an `actions run`; you only CRUD definitions.
-7. **Hide/pin via `scope`** — same channel the app uses (`<repo>/.porcelain/scope.json`,
+5. **Intentional replacement** — Never leave another agent's Intent or old evidence under a new
+   document. If the human requests replacing an active Review, clear it before starting the
+   replacement; otherwise leave it untouched.
+6. **Notes are the human's** — read only; put actionable work on the board.
+7. **Actions are human-executed** — never invent an `actions run`; you only CRUD definitions.
+8. **Hide/pin via `scope`** — same channel the app uses (`<repo>/.porcelain/scope.json`,
    repo-relative paths).
-8. **No secrets** in board, notes, or evidence.
-9. **Board ≠ Review** — Board is a queue of cards; Review is one active story. Optional: move a
-   card to Doing, then start Review with that title as the name. Do not turn Review into a second
-   kanban.
+9. **No secrets** in board, notes, or evidence.
+10. **Board ≠ Review** — Board is a queue of cards; Review is one active story. Optional: move a
+    card to Doing, then start a Review only when publication is requested. Do not turn Review into
+    a second kanban.
 
 ## Lifecycle
 
-**Start:** `board move` → doing (if you started from a card) → **`review clear`** if the previous
-unit is done → **`review set --name "…" --thesis "…"`** → implement, keeping the board honest.
+**Start when publication is requested:** `board move` → doing (if you started from a card) →
+`review set --name "…" --thesis "…"`; if another Review is active, clear it only for an explicitly
+requested replacement → implement, keeping the board honest.
 
-**End:** **`review set`** again with full Execution (files + notes + sections that match what
-shipped) → validate → `evidence check` per thing you ran → `evidence prepare` → write `results/`
-documents + drop screenshots in `assets/` → `evidence results-order` → `check-evidence.mjs` →
-handle `comments list` → `board move` → done once the human has signed off → human Clear (or you
-`review clear` before the **next** unit).
+**End of an intentionally published Review:** **`review set`** again with full Execution (files +
+notes + sections that match what shipped) → validate → `evidence check` per thing you ran →
+`evidence prepare` → write `results/` documents + drop screenshots in `assets/` →
+`evidence results-order` → `check-evidence.mjs` → handle `comments list` → `board move` → done
+once the human has signed off.
 
 Full detail: [review.md](references/review.md).

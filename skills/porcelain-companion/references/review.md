@@ -58,20 +58,21 @@ from a clone, weeks later.
 
 | Phase | Agent does | UI cue |
 |-------|------------|--------|
-| **Start** | `review clear` (if previous unit done) → `review set` name + thesis | Empty → Intent appears; "In progress" while Execution/Evidence thin |
+| **Start when publication is requested** | `review set` name + thesis; clear an existing Review only for an explicitly requested replacement | Empty → Intent appears; "In progress" while Execution/Evidence thin |
 | **During** | Grow Execution; Intent updates OK; respond to comments | "In progress — Execution/Evidence still thin" |
 | **End** | Full Execution + real Evidence | "Ready to close" + handoff to Changes |
-| **After** | Human Clear (or you clear before next unit) | Empty / start again |
+| **After** | Human-controlled Clear, or an explicitly requested replacement | Empty / start again |
 
 **Board** is a queue of cards; **Review** is one active story per repo. Optional handoff: Doing
-card → Start Review (title prefilled). Do not turn Review into a second kanban — see
+card → Start Review (title prefilled) only when publication is requested. Do not turn Review into a second kanban — see
 [board.md](board.md).
 
 ### Publish flow
 
-0. **`review clear` first** when starting a **new** unit — removes the previous set **and** its
-   loop-evidence directory (HTML + images). Matches the app Clear control. Skipping this is how a
-   later agent leaves an old board under a new Intent document.
+0. **Explicit replacement only** — do not clear another active Review automatically. When the
+   human requests a replacement, `review clear` removes the previous set **and** its loop-evidence
+   directory (HTML + images), then the deliberate publication can start. Otherwise leave the active
+   Review untouched.
 1. **Intent-first** — one `review set` with name + thesis. `--files` and `--sections` are
    optional; omit them entirely at the start. A full `review set` replaces the structured set.
 2. **Execution grows** — re-`review set` with files + notes as you work.
@@ -82,7 +83,7 @@ card → Start Review (title prefilled). Do not turn Review into a second kanban
    `scripts/check-evidence.mjs` (below).
 
 ```bash
-# Always start clean when beginning a new unit (set + evidence HTML/images)
+# For an explicitly requested replacement, clear the old set and evidence HTML/images first
 ~/.porcelain/porcelain review clear
 
 # Start: Intent-first. Name + thesis is a complete opening move.
@@ -428,7 +429,8 @@ HTML document — that renders on every client, including mobile.
 
 ## What not to do
 
-- Don't publish a new unit without `review clear` first — old Intent/Evidence will mix in.
+- Don't clear another active Review automatically or publish over one without an explicit
+  replacement request.
 - Don't claim done without Evidence — only publish what you actually ran.
 - Don't invent evidence.
 - Don't ship Evidence HTML without CSS (sandboxed; Porcelain does not style it for you).

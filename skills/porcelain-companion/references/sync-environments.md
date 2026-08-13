@@ -36,11 +36,5 @@ There is **no** daemon-side “copy settings between remotes” or “seed workt
 path. Linked worktrees share whatever is on the checked-out revision of
 `.porcelain/` (same as any other project file).
 
-## One-way migrate from home (existing installs)
-
-Older Porcelain stored channels in `~/.porcelain/*.json` keyed by absolute path.
-On open, if the repo has no `.porcelain/` yet but home still has data for that
-path, Porcelain copies it into the repo once and **purges** the home keys. There
-is no move-back.
-
-Greenfield projects write `.porcelain/` on first companion write (CLI or app).
+Greenfield projects write `.porcelain/` on first companion write (CLI or app). Share or remap
+repo-local channels deliberately; machine secrets remain outside the repository.

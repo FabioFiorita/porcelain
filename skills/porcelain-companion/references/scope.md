@@ -15,7 +15,7 @@ Hide folders that are not yours; pin the ones you care about. Porcelain stays fa
 }
 ```
 
-Migrated once from daemon `config.json` on startup if you had hide/pin before this channel existed.
+Scope is read from the current project-relative channel; use the CLI below to inspect or change it.
 
 ## CLI
 
