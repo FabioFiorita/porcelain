@@ -72,6 +72,39 @@ Two caveats that are design, not decay:
 - **`apps/mobile` reads low** because screen tests belong in the native loop; the jsdom suite only
   globs the pure modules. See the `mobile` skill.
 
+## Mutation score: the metric that cannot be gamed
+
+`pnpm mutation` runs Stryker over one domain. It edits production code — flips a boolean, empties
+a string, drops a call — and reruns the tests. A mutant that survives is a change to your code
+that **no test noticed**.
+
+The pilot is `apps/daemon/src/features/git`, chosen because git is where a wrong guard loses a
+user's work and because it was among the best-covered code in the repo — the place coverage was
+most likely to be lying. 346 mutants, **33 seconds**. It is cheap.
+
+| File | Statement coverage | Mutation score |
+|---|---|---|
+| `git-router.ts` | 89.5% | **94.4%** |
+| `git-subprocess.ts` | **98.1%** | 73.0% |
+| `git-operations.ts` | 75.0% | 72.3% |
+| `git-adapters.ts` | 66.7% | 46.7% |
+
+Read the ordering, not the numbers. Coverage ranks `git-subprocess.ts` the best-tested file in the
+domain; mutation puts it mid-pack, 25 points lower. `git-router.ts` scores *higher* on mutation
+than on coverage — the parts it covers, it genuinely pins. **Coverage measures what the tests
+touch; mutation measures what they would notice.** Those are different files.
+
+Surviving mutants read like the masking problem in miniature:
+
+```
+[Survived] apps/daemon/src/features/git/git-subprocess.ts:65
+-   action === 'add-worktree' &&
++   true &&
+```
+
+That guard has no test. Coverage counted the line as covered because some other case ran through
+it. `thresholds.break` is set to the domain's measured score: it may rise, never fall.
+
 ## Coverage is a floor, never a target
 
 This is the one rule worth stating in prose, because getting it wrong makes the codebase worse.

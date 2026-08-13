@@ -46,6 +46,8 @@
     "test:coverage": "pnpm --dir apps/desktop test:coverage",
     "quality": "node scripts/quality/report.mjs",
     "quality:baseline": "node scripts/quality/report.mjs --fresh --write-baseline",
+    "quality:changed": "node scripts/quality/changed.mjs",
+    "mutation": "stryker run",
     "test:watch": "pnpm --dir apps/desktop test:watch",
     "test:e2e": "pnpm --dir apps/desktop test:e2e",
     "test:e2e:visual": "pnpm --dir apps/desktop test:e2e:visual",
@@ -66,6 +68,8 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.0",
+    "@stryker-mutator/core": "^9.6.1",
+    "@stryker-mutator/vitest-runner": "^9.6.1",
     "conventional-changelog": "^7.2.0",
     "conventional-changelog-conventionalcommits": "^9.3.1",
     "esbuild": "0.25.12",

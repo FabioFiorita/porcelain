@@ -9,7 +9,14 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { DOMAIN_KEYS } from './architecture/domains.mjs'
 
-const skippedDirectories = new Set(['node_modules', 'out', 'dist', 'build', 'coverage'])
+const skippedDirectories = new Set([
+  '.stryker-tmp',
+  'node_modules',
+  'out',
+  'dist',
+  'build',
+  'coverage',
+])
 
 const SUPPORTING_ROOTS = [
   'apps/web/src/components/shell',

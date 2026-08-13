@@ -19,7 +19,14 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const skippedDirectories = new Set(['node_modules', 'out', 'dist', 'build', 'coverage'])
+const skippedDirectories = new Set([
+  '.stryker-tmp',
+  'node_modules',
+  'out',
+  'dist',
+  'build',
+  'coverage',
+])
 
 /** Network modules the agent CLI must never import (node: prefix or package name). */
 const FORBIDDEN_NETWORK_MODULES = new Set([

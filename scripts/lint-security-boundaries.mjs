@@ -49,7 +49,7 @@ const GIT_LOCAL_ENV_UNSET =
 
 const isTest = (file) => /\.test\.tsx?$/.test(file)
 
-const SKIP_DIRS = new Set(['ui', 'node_modules', 'dist', 'out'])
+const SKIP_DIRS = new Set(['.stryker-tmp', 'ui', 'node_modules', 'dist', 'out'])
 
 function walk(dir, out = []) {
   for (const name of readdirSync(dir)) {

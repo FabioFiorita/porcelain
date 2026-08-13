@@ -120,7 +120,15 @@ const MOCK_MATCHERS = new Set([
 
 const TEST_NAMES = new Set(['it', 'test', 'fit', 'xit', 'xtest'])
 const SUITE_NAMES = new Set(['describe', 'xdescribe', 'fdescribe'])
-const SKIP_DIRS = new Set(['node_modules', 'out', 'dist', 'build', 'coverage', '.expo'])
+const SKIP_DIRS = new Set([
+  '.stryker-tmp',
+  'node_modules',
+  'out',
+  'dist',
+  'build',
+  'coverage',
+  '.expo',
+])
 
 function walk(directory, output = []) {
   if (!existsSync(directory) || !statSync(directory).isDirectory()) return output

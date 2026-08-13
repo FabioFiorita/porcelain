@@ -16,7 +16,15 @@ const SELF = 'scripts/lint-docs.mjs'
 // Directories that once held agent-facing docs. Split so this file passes its own check.
 const STALE_PATHS = ['.agents/' + 'reference']
 
-const SKIP_DIRS = new Set(['node_modules', '.git', 'out', 'dist', 'build', 'coverage'])
+const SKIP_DIRS = new Set([
+  '.stryker-tmp',
+  'node_modules',
+  '.git',
+  'out',
+  'dist',
+  'build',
+  'coverage',
+])
 
 function walk(dir, exts, out = []) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {

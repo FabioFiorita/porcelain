@@ -47,9 +47,16 @@ Every implementation session follows the same loop without waiting for a skill t
 4. Implement through accepted boundaries and the local idiom.
 5. Test each behavior at the lowest boundary that completely owns its risk.
 6. Produce proportional runtime evidence for user-visible or integration-sensitive behavior.
+   Run `pnpm quality:changed` and answer what it names — it reads only what you touched.
 7. Update durable docs or enforcement when current truth changes.
 8. Run the required gate and commit the completed unit.
 9. Stop before push or another outward-facing action unless the human authorized it.
+
+A passing test is not proof. A test that asserts nothing, or asserts only that a mock was called,
+runs green and reports as covered — the gates catch the hollow shapes, but only a written
+assertion catches a wrong one. When a test is meant to pin a guard, break the guard and watch the
+test fail before you believe it. `docs/internals/quality-metrics.md` has the numbers and the two
+traps that cost the most.
 
 Proof scales to the change; it never becomes “should work.” A documentation-only unit needs its
 documentation gate, not a product Review or screenshot. Use Porcelain Companion only when
@@ -80,11 +87,14 @@ intentionally operating Review, Board, Actions, comments, evidence, or other com
 ## What is machine-enforced
 
 Don't memorize these — the gate catches you. Hooks run `pnpm lint` on every commit; run
-`pnpm verify` (`lint && test && build && typecheck:e2e`) before push, and CI runs it on `main`.
+`pnpm verify` (`lint && test && build && typecheck:e2e && typecheck:tests`) before push, and CI
+runs it on `main`.
 
 | Rule | Owner |
 |---|---|
 | Ten canonical domains, runtime dependency direction, target feature names, 450-line repository ceiling, shrinking raw server imports | `lint-architecture` |
+| No test that cannot fail: `.only`, `.skip`/`.todo`, tautologies, bodies reaching no assertion | `lint:test-shape` |
+| Test files typecheck, against a shrink-only ledger | `typecheck:tests` |
 | Executor recipes match their catalog, required shape, dependency status, and no-placeholder rule | `lint-architecture-specs` |
 | No `as unknown as` outside exact allowlisted external test fakes; no promise-`void`; no bare floating `mutateAsync`/`invalidateQueries`/`*Async` expression statements; no async/Promise-returning `onX` JSX/object event handlers or `addEventListener` listeners; no syntactic no-op `runUserAction` error handlers — best-effort via `settleBackground(reason)`; user intent via total void hooks or `runUserAction` (required non-noop error handler; total boundary) | `lint-escapes` (+ fixture tests, TS AST); Biome `complexity/noVoid` + `nursery/noFloatingPromises` |
 | No inline `style` / `contentContainerStyle` in mobile src | `lint-mobile-nativewind` |

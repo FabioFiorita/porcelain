@@ -120,7 +120,7 @@ const TOOLBAR_OWNERS = new Set(['components/header-toolbar.tsx', 'components/scr
 const RENDERS_HEADER = /<(?:ScreenHeader|HeaderToolbar)\b/
 const TRAILING_TOOLBAR = /<Stack\.Toolbar\s+placement="right"/
 
-const SKIP_DIRS = new Set(['node_modules', 'dist', 'out', 'fixtures'])
+const SKIP_DIRS = new Set(['.stryker-tmp', 'node_modules', 'dist', 'out', 'fixtures'])
 /** Self-referential scanners/tests that intentionally embed the banned patterns as fixtures. */
 const SKIP_FILES_REL = new Set(['scripts/lint-escapes.mjs', 'scripts/lint-escapes.test.mjs'])
 // Vendored shadcn lives under apps/web; Biome also excludes it. Skip by path when present.

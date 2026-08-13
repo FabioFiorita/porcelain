@@ -49,7 +49,15 @@ const AREAS = [
   'packages/shared',
 ]
 
-const SKIP_DIRS = new Set(['node_modules', 'out', 'dist', 'build', 'coverage', '.expo'])
+const SKIP_DIRS = new Set([
+  '.stryker-tmp',
+  'node_modules',
+  'out',
+  'dist',
+  'build',
+  'coverage',
+  '.expo',
+])
 
 function note(message) {
   if (!asJson) process.stderr.write(`${message}\n`)

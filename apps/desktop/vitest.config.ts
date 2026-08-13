@@ -1,7 +1,14 @@
 import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { dirname, resolve as resolvePath } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vitest/config'
+
+// Anchor every path to THIS file, not to the working directory. `resolve()` alone was correct
+// only while the suite was launched from apps/desktop; a runner that starts elsewhere (Stryker
+// sandboxes, an editor task) silently resolved the monorepo root to the wrong directory.
+const here = dirname(fileURLToPath(import.meta.url))
+const resolve = (...segments: string[]): string => resolvePath(here, ...segments)
 
 // Mirror electron.vite.config.ts's build-time version define so daemon-version.ts
 // and the CLI resolve `__PORCELAIN_VERSION__` under test.

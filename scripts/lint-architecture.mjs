@@ -14,7 +14,15 @@ import {
   WEB_SERVER_IMPORT_BASELINE,
 } from './architecture/domains.mjs'
 
-const skippedDirectories = new Set(['node_modules', 'out', 'dist', 'build', 'coverage', '.expo'])
+const skippedDirectories = new Set([
+  '.stryker-tmp',
+  'node_modules',
+  'out',
+  'dist',
+  'build',
+  'coverage',
+  '.expo',
+])
 const genericFeatureFiles = new Set([
   'common.ts',
   'constants.ts',
