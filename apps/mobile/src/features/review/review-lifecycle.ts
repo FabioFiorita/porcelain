@@ -1,4 +1,4 @@
-import type { FeatureReading, FileSource, ReadingFile } from '@/lib/daemon/procedures/review'
+import type { FeatureReading, FileSource, ReadingFile } from '@porcelain/contracts/review'
 
 /**
  * Shape helpers for the one active Review story of a repo — the twin of the web client's

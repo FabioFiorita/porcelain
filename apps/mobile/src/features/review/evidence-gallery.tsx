@@ -1,13 +1,12 @@
+import type { EvidenceAsset } from '@porcelain/contracts/review'
 import { StatusBar } from 'expo-status-bar'
 import { useState } from 'react'
 import { FlatList, Image, Modal, Pressable, Text, useWindowDimensions, View } from 'react-native'
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context'
-
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { EmptyNote } from '@/components/panel-chrome'
 import { SurfaceList } from '@/components/surface-scroll'
 import { describeBytes, pathTestId } from '@/features/files'
-import type { EvidenceAsset } from '@/lib/daemon/procedures/review'
 
 import { useReviewEvidenceAsset } from './use-review'
 

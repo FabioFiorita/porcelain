@@ -1,10 +1,9 @@
+import type { EvidenceMeta } from '@porcelain/contracts/review'
 import { Pressable, ScrollView, Text, View } from 'react-native'
-
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { EmptyNote, ErrorNote, PanelLabel } from '@/components/panel-chrome'
 import { useReviewedPaths } from '@/features/changes/use-changes'
 import { pathTestId } from '@/features/files'
-import type { EvidenceMeta } from '@/lib/daemon/procedures/review'
 import { cn } from '@/lib/utils'
 
 import { executionBlocks } from './execution-rows'

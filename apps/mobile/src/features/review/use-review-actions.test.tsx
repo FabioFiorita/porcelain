@@ -1,15 +1,18 @@
+import {
+  reviewArchivedQuery,
+  reviewCommentsQuery,
+  reviewEvidenceAssetQuery,
+  reviewMutations,
+  reviewReadingQuery,
+} from '@porcelain/client-runtime/review'
 import { reviewContractFixtures } from '@porcelain/contracts/review'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import {
-  isReviewCommentsQueryKey,
-  reviewCommentsQueryKey,
-} from '@/features/comments/comment-query-key'
-
-import { useArchivedReviewActions, useReviewActions } from './use-review'
+import { parseReviewQueryKey, reviewQueryKey } from './review-query-key'
+import { useArchivedReviewActions, useReviewActions } from './use-review-actions'
 
 const REPO = reviewContractFixtures.publishReview.input
 const ENV_ID = 'env-review-lifecycle'
@@ -38,25 +41,34 @@ vi.mock('@/features/projects', () => ({
   useActiveProject: () => (ctx.repoPath === null ? null : { path: ctx.repoPath, name: 'repo' }),
 }))
 
+/**
+ * Ruling 5's `reviewed-paths` forward reaches `features/changes/use-changes`, which reads Git
+ * flows this test never renders. Stubbing the Git index keeps the graph off the native runtime;
+ * the reviewed-marks invalidation itself stays real.
+ */
+vi.mock('@/features/git', () => ({
+  useGitFlow: () => ({ error: null, groups: undefined, isLoading: false }),
+  useGitRangeFlow: () => ({ base: undefined, error: null, groups: undefined, isLoading: false }),
+}))
+
 vi.mock('@/features/comments', () => ({
   invalidateAllReviewComments: (queryClient: QueryClient, environmentId: string): Promise<void> =>
     queryClient.invalidateQueries({
       predicate: (query) => {
-        const key = query.queryKey
+        const parsed = parseReviewQueryKey(query.queryKey)
         return (
-          Array.isArray(key) &&
-          key[0] === 'daemon' &&
-          key[1] === environmentId &&
-          isReviewCommentsQueryKey(key)
+          parsed !== null &&
+          parsed.environmentId === environmentId &&
+          parsed.query.name === 'comments'
         )
       },
     }),
 }))
 
-vi.mock('@/features/remote', async () => ({
-  ...(await vi.importActual<typeof import('@/features/remote/remote-environment')>(
-    '@/features/remote/remote-environment',
-  )),
+vi.mock('@/features/remote', () => ({
+  // Pure identity the subject reads from the same feature index; the store half is faked below.
+  isPaired: (environment: { token: string | null } | null): boolean =>
+    environment !== null && environment.token !== null,
   useActiveEnvironment: () => ctx.env,
   environmentActions: {
     recordReachabilitySuccess: vi.fn(),
@@ -114,7 +126,7 @@ describe('Review lifecycle typed comments invalidation (RVC-004)', () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
     })
-    const commentsKey = reviewCommentsQueryKey(ENV_ID, REPO)
+    const commentsKey = reviewQueryKey(ENV_ID, reviewCommentsQuery(REPO))
     queryClient.setQueryData(commentsKey, reviewContractFixtures.reviewComments.output)
 
     const { result } = renderHook(() => useReviewActions(), {
@@ -134,7 +146,7 @@ describe('Review lifecycle typed comments invalidation (RVC-004)', () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
     })
-    const commentsKey = reviewCommentsQueryKey(ENV_ID, REPO)
+    const commentsKey = reviewQueryKey(ENV_ID, reviewCommentsQuery(REPO))
     queryClient.setQueryData(commentsKey, reviewContractFixtures.reviewComments.output)
 
     const { result } = renderHook(() => useReviewActions(), {
@@ -154,7 +166,7 @@ describe('Review lifecycle typed comments invalidation (RVC-004)', () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
     })
-    const commentsKey = reviewCommentsQueryKey(ENV_ID, REPO)
+    const commentsKey = reviewQueryKey(ENV_ID, reviewCommentsQuery(REPO))
     queryClient.setQueryData(commentsKey, reviewContractFixtures.reviewComments.output)
 
     const { result } = renderHook(() => useArchivedReviewActions(), {
@@ -183,7 +195,7 @@ describe('Review lifecycle typed comments invalidation (RVC-004)', () => {
   it('does not retain a reviewComments procedure-string invalidation path', async () => {
     const { readFileSync } = await import('node:fs')
     const { join } = await import('node:path')
-    const source = readFileSync(join(__dirname, 'use-review.ts'), 'utf8')
+    const source = readFileSync(join(__dirname, 'use-review-actions.ts'), 'utf8')
     expect(source).not.toMatch(/['"]reviewComments['"]/)
     expect(source).toContain('invalidateAllReviewComments')
   })
@@ -192,7 +204,7 @@ describe('Review lifecycle typed comments invalidation (RVC-004)', () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
     })
-    const commentsKey = reviewCommentsQueryKey(ENV_ID, REPO)
+    const commentsKey = reviewQueryKey(ENV_ID, reviewCommentsQuery(REPO))
     queryClient.setQueryData(commentsKey, reviewContractFixtures.reviewComments.output)
 
     ctx.mutationHandlers.set('publishReview', () => {
@@ -221,7 +233,7 @@ describe('Review lifecycle typed comments invalidation (RVC-004)', () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
     })
-    const commentsKey = reviewCommentsQueryKey(ENV_ID, REPO)
+    const commentsKey = reviewQueryKey(ENV_ID, reviewCommentsQuery(REPO))
     queryClient.setQueryData(commentsKey, reviewContractFixtures.reviewComments.output)
 
     ctx.mutationHandlers.set('restoreArchivedReview', () => {
@@ -244,5 +256,96 @@ describe('Review lifecycle typed comments invalidation (RVC-004)', () => {
       await expect(result.current.remove('archive-synthetic')).rejects.toThrow('remove failed')
     })
     expect(queryClient.getQueryState(commentsKey)?.isInvalidated).toBeFalsy()
+  })
+})
+
+describe('Review writes invalidate typed Review identities (REV-008)', () => {
+  it('publish invalidates every active-review identity and the Changes-owned marks', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+    const reading = reviewQueryKey(ENV_ID, reviewReadingQuery(REPO))
+    const archived = reviewQueryKey(ENV_ID, reviewArchivedQuery(REPO))
+    const asset = reviewQueryKey(ENV_ID, reviewEvidenceAssetQuery(REPO, 'shot.png'))
+    const reviewedPaths = ['daemon', ENV_ID, 'reviewedPaths', REPO] as const
+    const otherProject = reviewQueryKey(ENV_ID, reviewReadingQuery('/synthetic/other'))
+    for (const key of [reading, archived, asset, reviewedPaths, otherProject]) {
+      queryClient.setQueryData(key, {})
+    }
+
+    const { result } = renderHook(() => useReviewActions(), {
+      wrapper: createWrapper(queryClient),
+    })
+    await act(async () => {
+      await result.current.publish()
+    })
+
+    // Exactly `reviewMutations.publishReview.affectedQueries(REPO)` — no procedure-name sweep.
+    for (const effect of reviewMutations.publishReview.affectedQueries(REPO)) {
+      expect(effect.domain).toBe('review')
+    }
+    expect(queryClient.getQueryState(reading)?.isInvalidated).toBe(true)
+    expect(queryClient.getQueryState(archived)?.isInvalidated).toBe(true)
+    expect(queryClient.getQueryState(asset)?.isInvalidated).toBe(true)
+    expect(queryClient.getQueryState(reviewedPaths)?.isInvalidated).toBe(true)
+    expect(queryClient.getQueryState(otherProject)?.isInvalidated).toBeFalsy()
+  })
+
+  it('clearing evidence leaves the archive list alone', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+    const reading = reviewQueryKey(ENV_ID, reviewReadingQuery(REPO))
+    const archived = reviewQueryKey(ENV_ID, reviewArchivedQuery(REPO))
+    for (const key of [reading, archived]) queryClient.setQueryData(key, {})
+
+    const { result } = renderHook(() => useReviewActions(), {
+      wrapper: createWrapper(queryClient),
+    })
+    await act(async () => {
+      await result.current.clearEvidence()
+    })
+
+    expect(queryClient.getQueryState(reading)?.isInvalidated).toBe(true)
+    expect(queryClient.getQueryState(archived)?.isInvalidated).toBeFalsy()
+  })
+
+  it('deleting an archive invalidates only the archive list', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+    const reading = reviewQueryKey(ENV_ID, reviewReadingQuery(REPO))
+    const archived = reviewQueryKey(ENV_ID, reviewArchivedQuery(REPO))
+    for (const key of [reading, archived]) queryClient.setQueryData(key, {})
+
+    const { result } = renderHook(() => useArchivedReviewActions(), {
+      wrapper: createWrapper(queryClient),
+    })
+    await act(async () => {
+      await result.current.remove('archive-synthetic')
+    })
+
+    expect(queryClient.getQueryState(archived)?.isInvalidated).toBe(true)
+    expect(queryClient.getQueryState(reading)?.isInvalidated).toBeFalsy()
+  })
+
+  it('no-ops every write with no project selected', async () => {
+    ctx.repoPath = null
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+    const reading = reviewQueryKey(ENV_ID, reviewReadingQuery(REPO))
+    queryClient.setQueryData(reading, {})
+
+    const { result } = renderHook(() => useReviewActions(), {
+      wrapper: createWrapper(queryClient),
+    })
+    await act(async () => {
+      expect(await result.current.publish()).toBeNull()
+      await result.current.archive()
+      await result.current.clearEvidence()
+    })
+
+    expect(queryClient.getQueryState(reading)?.isInvalidated).toBeFalsy()
   })
 })

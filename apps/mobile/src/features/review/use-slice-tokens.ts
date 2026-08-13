@@ -5,11 +5,10 @@ import {
   themeNameFor,
   tokenizeLines,
 } from '@porcelain/client-runtime/highlight'
+import type { SliceRange } from '@porcelain/contracts/review'
 import { useMemo } from 'react'
 import type { ThemedToken } from 'shiki'
-
 import { useResolvedColorScheme } from '@/features/settings/theme-provider'
-import type { SliceRange } from '@/lib/daemon/procedures/review'
 import { useHighlighter } from '@/lib/highlight'
 
 /**

@@ -55,20 +55,10 @@ export function proceduresForChange(change: SessionChange): readonly string[] {
       // diff reading it also moves is a typed Git identity now.
       return []
     case 'review.changed':
-      // union of feature-view and evidence — comments owned by
-      // ReviewCommentNotificationBridge (RVC-004); layers owned by
-      // ProjectDataFreshnessBridge; Review's Git consequences are owned by
-      // GitNotificationBridge.
-      return [
-        'featureView',
-        'featureReading',
-        'worktreeInbox',
-        'loopEvidence',
-        'loopEvidenceHtml',
-        'reviewEvidenceDocs',
-        'reviewEvidenceAssets',
-        'reviewEvidenceAsset',
-      ]
+      // ReviewNotificationBridge owns exact Review identity invalidation (REV-008); comments
+      // are owned by ReviewCommentNotificationBridge (RVC-004), layers by
+      // ProjectDataFreshnessBridge, and Review's Git consequences by GitNotificationBridge.
+      return []
     case 'board.changed':
       // BoardNotificationBridge owns exact Board cards invalidation (BRD-005).
       return []

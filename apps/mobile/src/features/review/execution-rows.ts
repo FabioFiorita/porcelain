@@ -1,6 +1,6 @@
+import type { FeatureReading, ReadingFile } from '@porcelain/contracts/review'
 import { type DiffMode, type DiffRow, toDiffRows } from '@/features/diff/diff-rows'
 import type { SourceRow } from '@/features/files'
-import type { FeatureReading, ReadingFile } from '@/lib/daemon/procedures/review'
 
 /**
  * One row of the Execution canvas.

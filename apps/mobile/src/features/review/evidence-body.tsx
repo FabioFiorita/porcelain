@@ -1,9 +1,8 @@
+import type { EvidenceCheck, EvidenceMeta } from '@porcelain/contracts/review'
 import { Text, View } from 'react-native'
-
 import { ChromeGlyph, type ChromeIconName, type IconTone } from '@/components/chrome-glyph'
 import { EmptyNote, ErrorNote } from '@/components/panel-chrome'
 import { SurfaceScroll } from '@/components/surface-scroll'
-import type { EvidenceCheck, EvidenceMeta } from '@/lib/daemon/procedures/review'
 import { cn } from '@/lib/utils'
 
 import { IntentDocBody } from './doc-body'

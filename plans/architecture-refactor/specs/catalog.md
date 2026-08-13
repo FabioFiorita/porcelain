@@ -128,7 +128,7 @@ an external choice or authorization.
 | `REV-005` | Landed | Canonical Review CLI nouns and version-1 document writers |
 | `REV-006` | Landed | Shared Review query/mutation/notification semantics beyond comments |
 | `REV-007` | Landed | Web Review feature relocation and daemon-type removal |
-| `REV-008` | Ready | Mobile Review feature and local schema deletion |
+| `REV-008` | Landed | Mobile Review feature and local schema deletion |
 | `REV-009` | Draft | Delete Feature names, scene/root-index Evidence, deprecated readers/tests |
 | `REV-010` | Draft | Active-content/CSP/containment/resilience proof and completed domain gate |
 

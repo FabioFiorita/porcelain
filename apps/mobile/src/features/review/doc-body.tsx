@@ -1,6 +1,6 @@
+import type { ReviewDoc } from '@porcelain/contracts/review'
 import { markdownToHtml, PreviewView, previewDocument, readerDocument } from '@/features/files'
 import { useResolvedColorScheme } from '@/features/settings/theme-provider'
-import type { IntentDoc } from '@/lib/daemon/procedures/review'
 
 /**
  * One agent-authored document, rendered the way its medium wants to be read.
@@ -17,7 +17,7 @@ export function IntentDocBody({
   doc,
   testIDPrefix,
 }: {
-  doc: IntentDoc
+  doc: ReviewDoc
   testIDPrefix: string
 }): React.JSX.Element {
   const scheme = useResolvedColorScheme()

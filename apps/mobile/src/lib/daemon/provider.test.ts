@@ -26,26 +26,15 @@ vi.mock('react-native', () => ({
 
 const { proceduresForChange } = await import('./provider')
 
-describe('proceduresForChange review.changed cutover (RVC-004)', () => {
-  it('excludes reviewComments while keeping other Review procedure names', () => {
+describe('proceduresForChange review.changed cutover (REV-008)', () => {
+  it('leaves review.changed feature-owned (empty bulk list)', () => {
     const names = proceduresForChange({
       kind: 'review.changed',
       projectPath: '/synthetic/repo',
     })
-    expect(names).not.toContain('reviewComments')
-    expect(names).not.toContain('repoLayers')
-    expect(names).toEqual(
-      expect.arrayContaining([
-        'featureView',
-        'featureReading',
-        'worktreeInbox',
-        'loopEvidence',
-        'loopEvidenceHtml',
-        'reviewEvidenceDocs',
-        'reviewEvidenceAssets',
-        'reviewEvidenceAsset',
-      ]),
-    )
+    // ReviewNotificationBridge owns the typed Review identities; comments, layers and the
+    // Git consequences each keep their own bridge.
+    expect(names).toEqual([])
   })
 
   it('leaves the Git consequences of a Review change to the Git bridge (GIT-006)', () => {

@@ -2,17 +2,23 @@ import type { TokenMap } from '@porcelain/client-runtime/highlight'
 import { fileName } from '@porcelain/client-runtime/paths'
 import { intraLineEmphasis } from '@porcelain/client-runtime/word-diff-line'
 import type { DiffHunk } from '@porcelain/contracts/git'
+import type { FeatureReading, ReadingFile, SliceRange } from '@porcelain/contracts/review'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { type FlatList, Text, View } from 'react-native'
 import type { ThemedToken } from 'shiki'
 import { EmptyNote, IconAction, PanelLabel } from '@/components/panel-chrome'
 import { SurfaceList } from '@/components/surface-scroll'
 import { useReviewedPaths, useToggleReviewed } from '@/features/changes/use-changes'
-import { useCommentedLinesByPath, useReviewComments } from '@/features/comments'
-import { type CommentAnchor, CommentComposer } from '@/features/comments/comment-composer'
-import { rangeForPath, rangeOf } from '@/features/comments/line-range'
-import { SelectionBar } from '@/features/comments/selection-bar'
-import { useLineSelection } from '@/features/comments/use-line-selection'
+import {
+  type CommentAnchor,
+  CommentComposer,
+  rangeForPath,
+  rangeOf,
+  SelectionBar,
+  useCommentedLinesByPath,
+  useLineSelection,
+  useReviewComments,
+} from '@/features/comments'
 import { DiffRowView } from '@/features/diff/diff-lines'
 import { anchorTextFor } from '@/features/diff/diff-rows'
 import { StatusBadge } from '@/features/diff/status-badge'
@@ -20,7 +26,6 @@ import { useDiffTokens } from '@/features/diff/use-highlight'
 import { pathTestId, SourceLine, type SourceRow, sourceAnchorText } from '@/features/files'
 import { usePreferencesStore } from '@/features/settings/preferences-store'
 import { useBottomChrome } from '@/features/shell/bottom-chrome'
-import type { FeatureReading, ReadingFile, SliceRange } from '@/lib/daemon/procedures/review'
 import { cn } from '@/lib/utils'
 import { blockRowIndex, type ExecutionRow, toExecutionRows } from './execution-rows'
 import { FileNote, GapRow, SourceMarker } from './review-chrome'

@@ -1,6 +1,6 @@
+import type { ArchivedReview, FeatureReading } from '@porcelain/contracts/review'
 import { useState } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
-
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import {
   ConfirmDialog,
@@ -18,18 +18,11 @@ import { useReviewedPaths } from '@/features/changes/use-changes'
 import { useReviewComments } from '@/features/comments'
 import { pathTestId } from '@/features/files'
 import { useCompanionGitVisibility } from '@/features/project-data'
-import type { ArchivedReview, FeatureReading } from '@/lib/daemon/procedures/review'
 import { cn } from '@/lib/utils'
 
 import { reviewedFractionOf } from './review-lifecycle'
-
-import {
-  useArchivedReviewActions,
-  useArchivedReviews,
-  useFeatureReading,
-  useReviewActions,
-  useReviewPublishCost,
-} from './use-review'
+import { useArchivedReviews, useFeatureReading, useReviewPublishCost } from './use-review'
+import { useArchivedReviewActions, useReviewActions } from './use-review-actions'
 
 /**
  * The Review companion.

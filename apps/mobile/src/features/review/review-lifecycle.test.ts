@@ -1,6 +1,5 @@
+import type { FeatureReading } from '@porcelain/contracts/review'
 import { describe, expect, it } from 'vitest'
-
-import type { FeatureReading } from '@/lib/daemon/procedures/review'
 
 import { reviewedFractionOf, reviewOutlineFiles, reviewSourceCounts } from './review-lifecycle'
 

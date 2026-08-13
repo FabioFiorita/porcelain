@@ -1,9 +1,8 @@
+import type { FeatureReading, ReviewDoc } from '@porcelain/contracts/review'
 import { Text, View } from 'react-native'
-
 import { EmptyNote, ErrorNote } from '@/components/panel-chrome'
 import { markdownToHtml, PreviewView, previewDocument, readerDocument } from '@/features/files'
 import { useResolvedColorScheme } from '@/features/settings/theme-provider'
-import type { FeatureReading, IntentDoc } from '@/lib/daemon/procedures/review'
 
 import { IntentDocBody } from './doc-body'
 import { type DocTab, DocTabs } from './review-chrome'
@@ -87,12 +86,12 @@ export function IntentBody({
  */
 type IntentPane = DocTab &
   (
-    | { kind: 'doc'; doc: IntentDoc }
+    | { kind: 'doc'; doc: ReviewDoc }
     | { kind: 'html'; html: string }
     | { kind: 'markup'; markup: string }
   )
 
-function intentPanes(reading: FeatureReading, docs: readonly IntentDoc[]): IntentPane[] {
+function intentPanes(reading: FeatureReading, docs: readonly ReviewDoc[]): IntentPane[] {
   const panes: IntentPane[] = docs.map((doc) => ({
     doc,
     key: `doc:${doc.file}`,

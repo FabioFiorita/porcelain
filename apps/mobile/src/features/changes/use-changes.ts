@@ -1,11 +1,12 @@
 import type { DiffReadingScope } from '@porcelain/client-runtime/git'
 import { reviewProcedures } from '@porcelain/contracts/review'
+import type { QueryClient } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { type FlowGroup, useGitFlow, useGitRangeFlow } from '@/features/git'
 import { useActiveProject } from '@/features/projects'
 import { LIVE_POLL_MS } from '@/lib/daemon/poll'
 import { namedContractMutation, namedContractQuery } from '@/lib/daemon/procedure'
-import { useDaemonMutation, useDaemonQuery } from '@/lib/daemon/queries'
+import { daemonKeys, useDaemonMutation, useDaemonQuery } from '@/lib/daemon/queries'
 
 import { type ChangesScope, useChangesStore } from './changes-store'
 
@@ -67,6 +68,23 @@ export function useReviewedPaths(active: boolean): Set<string> {
 
 /** Reviewed marks are content-keyed daemon-side, so a write can un-tick other files too. */
 const REVIEWED_INVALIDATIONS = ['reviewedPaths'] as const
+
+/**
+ * Refresh the reviewed-marks cache entry this feature owns.
+ *
+ * The ticks are read here through `useDaemonQuery`, so their entry is still keyed by procedure
+ * name rather than by a typed identity. Review's typed `reviewed-paths` effect forwards to this
+ * helper instead of reaching into another feature's key, which keeps the one entry with exactly
+ * one owner and keeps the procedure name inside it.
+ */
+export function invalidateReviewedPaths(
+  queryClient: QueryClient,
+  environmentId: string,
+): Promise<void> {
+  return queryClient
+    .invalidateQueries({ queryKey: daemonKeys.procedure(environmentId, 'reviewedPaths') })
+    .then(() => undefined)
+}
 
 /**
  * Mark / unmark one file, or replace the whole reviewed set in a single write (the header's
