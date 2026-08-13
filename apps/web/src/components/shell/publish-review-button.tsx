@@ -10,19 +10,13 @@ import {
 } from '@renderer/components/ui/alert-dialog'
 import { Button } from '@renderer/components/ui/button'
 import { useCompanionGitVisibility } from '@renderer/features/project-data'
-import { usePublishReview, useReviewPublishCost } from '@renderer/features/review'
+import { formatBytes, usePublishReview, useReviewPublishCost } from '@renderer/features/review'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { cn } from '@renderer/lib/utils'
 import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
 import { Share2 } from 'lucide-react'
 import { useState } from 'react'
-
-export function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
 
 /**
  * Publish the active review: archive it under `.porcelain/reviews/<id>/` and

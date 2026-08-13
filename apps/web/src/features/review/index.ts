@@ -22,6 +22,7 @@ export {
 export { EvidenceGallery } from './evidence-gallery'
 export { EvidencePanel } from './evidence-panel'
 export { ExploreView } from './explore-view'
+export { formatBytes } from './format-bytes'
 export { EvidenceChecksRow, EvidenceHeaderRow } from './reading-evidence-rows'
 export { ReadingSurfaceBody } from './reading-surface'
 export { ReviewDocBody } from './review-doc-body'

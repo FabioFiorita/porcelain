@@ -14,7 +14,7 @@
   },
   "scripts": {
     "format": "biome format --write .",
-    "lint": "biome check . && pnpm lint:architecture && pnpm lint:cli && pnpm lint:architecture-dispatch && node scripts/lint-architecture-specs.mjs && node scripts/lint-mobile-nativewind.mjs && node scripts/lint-mobile-file-size.mjs && pnpm lint:escapes && node scripts/lint-audit.mjs && node scripts/lint-eas-triggers.mjs && node scripts/lint-legacy-realtime.mjs && node scripts/lint-legacy-migrations.mjs && pnpm lint:procedure-contracts && node scripts/lint-skill-commands.mjs && node scripts/lint-docs.mjs && node scripts/sync-versions.mjs --check && pnpm agents:check",
+    "lint": "biome check . && pnpm lint:architecture && pnpm lint:cli && pnpm lint:architecture-dispatch && node scripts/lint-architecture-specs.mjs && node scripts/lint-mobile-nativewind.mjs && node scripts/lint-mobile-file-size.mjs && pnpm lint:escapes && node scripts/lint-audit.mjs && node scripts/lint-eas-triggers.mjs && node scripts/lint-legacy-realtime.mjs && node scripts/lint-legacy-migrations.mjs && node scripts/lint-supporting-regions.test.mjs && node scripts/lint-supporting-regions.mjs && pnpm lint:procedure-contracts && node scripts/lint-skill-commands.mjs && node scripts/lint-docs.mjs && node scripts/sync-versions.mjs --check && pnpm agents:check",
     "lint:architecture": "node scripts/lint-architecture.test.mjs && node scripts/lint-architecture.mjs",
     "lint:architecture-dispatch": "node --test scripts/worktree-base.test.mjs scripts/architecture/dispatch.test.mjs",
     "lint:cli": "node scripts/lint-cli-boundary.test.mjs && node scripts/lint-cli-boundary.mjs",

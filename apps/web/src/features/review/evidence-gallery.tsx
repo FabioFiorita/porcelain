@@ -1,10 +1,10 @@
 import type { EvidenceAssetDescriptor } from '@porcelain/contracts/review'
-import { formatBytes } from '@renderer/components/shell/publish-review-button'
 import { Dialog, DialogContent, DialogTitle } from '@renderer/components/ui/dialog'
 import { Skeleton } from '@renderer/components/ui/skeleton'
 import { evidenceOverCapMessage } from '@renderer/lib/evidence-message'
 import { TestIds } from '@shared/test-ids'
 import { useState } from 'react'
+import { formatBytes } from './format-bytes'
 import { useEvidenceAsset } from './review-queries'
 
 /**

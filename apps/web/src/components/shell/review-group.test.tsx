@@ -15,7 +15,11 @@ vi.mock('@renderer/features/review', async () => {
   const focus = await vi.importActual<
     typeof import('@renderer/features/review/review-focus-store')
   >('@renderer/features/review/review-focus-store')
+  const bytes = await vi.importActual<typeof import('@renderer/features/review/format-bytes')>(
+    '@renderer/features/review/format-bytes',
+  )
   return {
+    formatBytes: bytes.formatBytes,
     useReviewFocusStore: focus.useReviewFocusStore,
     useReviewReading: vi.fn(),
     useReviewComments: vi.fn(),

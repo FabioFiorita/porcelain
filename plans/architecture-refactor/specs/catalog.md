@@ -136,7 +136,7 @@ an external choice or authorization.
 
 | ID | Status | Outcome |
 | --- | --- | --- |
-| `SUP-001` | Ready | Ratchet supporting-region composition and hoist the Review byte helper |
+| `SUP-001` | Landed | Ratchet supporting-region composition and hoist the Review byte helper |
 | `SUP-002` | Draft | Preserve Viewer virtualization/large-input/plain-text behavior |
 | `SUP-003` | Draft | Prove thin Desktop, one daemon, safe URLs, and packaging boundaries |
 | `E2E-001` | Draft | Name/reduce critical assembled wiring suite and relocate redundant tests |
