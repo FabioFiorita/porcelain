@@ -139,7 +139,7 @@ an external choice or authorization.
 | `SUP-001` | Landed | Ratchet supporting-region composition and hoist the Review byte helper |
 | `SUP-002` | Landed | Prove Viewer virtualization, large-input, and plain-text fallbacks |
 | `SUP-003` | Landed | Prove thin Desktop integration; keep the client address book |
-| `E2E-001` | Ready | Name/reduce critical assembled wiring suite and relocate redundant tests |
+| `E2E-001` | Landed | Name/reduce critical assembled wiring suite and relocate redundant tests |
 | `AGT-001` | Draft | Relocate every Ship responsibility and Audit invariant to current owners |
 | `AGT-002` | Draft | Remove mandatory Companion Review lifecycle and migration guidance |
 | `AGT-003` | Draft | Delete Ship/Audit and audit docs; strengthen foundation sync |

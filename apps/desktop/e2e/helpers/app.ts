@@ -156,8 +156,15 @@ async function seedState(
   const userData = `${udBase}-dev`
   await mkdir(userData, { recursive: true })
   await writeFile(
-    join(userData, 'config.json'),
-    JSON.stringify({ recentRepos: [seedRepo ? repoDir : ABSENT_REPO] }),
+    join(userData, 'projects-recents.json'),
+    JSON.stringify(
+      {
+        version: 1,
+        value: { paths: [seedRepo ? repoDir : ABSENT_REPO] },
+      },
+      null,
+      2,
+    ),
   )
   // Project companion lives in the fixture repo (same layout as production).
   if (seedRepo) {

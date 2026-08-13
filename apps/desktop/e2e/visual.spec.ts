@@ -46,6 +46,34 @@ test('quick access — changes', async ({ page }) => {
   await expect(panel).toHaveScreenshot('quick-access-changes.png')
 })
 
+/**
+ * The floating sidebar's outline is a `ring-1`, which Tailwind paints OUTSIDE the
+ * box — not a border inside it. Its container is `overflow-hidden`, so a card
+ * flush with the edge loses its ring to the clip.
+ */
+test('the floating sidebar card keeps its top outline inside the clip', async ({ page }) => {
+  await waitForShell(page)
+
+  const container = page.locator('[data-slot="sidebar-container"]').first()
+  const inner = page.locator('[data-slot="sidebar-inner"]').first()
+  const frame = await container.evaluate((el) => {
+    const card = el.querySelector('[data-slot="sidebar-inner"]')
+    if (card === null) throw new Error('sidebar inner not found')
+    const style = getComputedStyle(el)
+    return {
+      clips: style.overflow === 'hidden' || style.overflowY === 'hidden',
+      containerTop: el.getBoundingClientRect().top,
+      cardTop: card.getBoundingClientRect().top,
+      ringIsOutset: getComputedStyle(card).boxShadow.includes('0px 0px 0px 1px'),
+    }
+  })
+
+  expect(frame.clips, 'container still clips its overflow').toBe(true)
+  expect(frame.ringIsOutset, 'card outline is still an outset 1px ring').toBe(true)
+  expect(frame.cardTop).toBeGreaterThan(frame.containerTop)
+  await expect(inner).toBeVisible()
+})
+
 test('shell cards share one vertical frame', async ({ page }) => {
   await waitForShell(page)
   const left = page.locator(
