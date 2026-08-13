@@ -252,6 +252,79 @@ describe('actions operations', () => {
     expect(events).toEqual([`actions.changed:${PROJECT}`])
   })
 
+  it('a move re-planned as noop inside the transaction writes nothing and stays silent', async () => {
+    // Pre-read sees two actions (move is possible); the transaction sees only A
+    // (concurrent delete of B), so the in-transaction re-plan degrades to a noop.
+    const preRead: ActionsFileV1 = {
+      version: 1,
+      actions: [
+        { id: ID_A, title: 'A', command: 'echo a', order: 1, createdAt: 1 },
+        { id: ID_B, title: 'B', command: 'echo b', order: 2, createdAt: 2 },
+      ],
+    }
+    const inTransaction: ActionsFileV1 = {
+      version: 1,
+      actions: [{ id: ID_A, title: 'A', command: 'echo a', order: 1, createdAt: 1 }],
+    }
+    let writes = 0
+    const store: ActionsStore = {
+      async read() {
+        return { ok: true, value: structuredClone(preRead) }
+      },
+      async transact(_projectPath, change) {
+        const planned = change(structuredClone(inTransaction))
+        if (!planned.ok) return planned
+        writes += 1
+        return planned
+      },
+    }
+    const trust = memoryTrust()
+    const { changes, events } = recordingChanges()
+    const ops = createActionsOperations({
+      store,
+      trustStore: trust.trustStore,
+      changes,
+    })
+
+    expect(await ops.moveAction({ projectPath: PROJECT, id: ID_A, direction: 'down' })).toEqual({
+      ok: true,
+      value: undefined,
+    })
+    expect(writes).toBe(0)
+    expect(events).toEqual([])
+  })
+
+  it('auto-trusts the stored normalized command when the update input is untrimmed', async () => {
+    const mem = memoryStore({
+      version: 1,
+      actions: [{ id: ID_A, title: 'A', command: 'echo a', order: 1, createdAt: 1 }],
+    })
+    const trust = memoryTrust()
+    const { changes, events } = recordingChanges()
+    const ops = createActionsOperations({
+      store: mem.store,
+      trustStore: trust.trustStore,
+      changes,
+    })
+
+    const updated = await ops.updateAction({
+      projectPath: PROJECT,
+      id: ID_A,
+      command: '  make ship  ',
+    })
+    expect(updated).toEqual({ ok: true, value: undefined })
+    expect(trust.byProject.get(PROJECT)?.has(commandFingerprint('make ship'))).toBe(true)
+
+    const listed = await ops.listActions({ projectPath: PROJECT })
+    expect(listed.ok).toBe(true)
+    if (!listed.ok) return
+    expect(listed.value.find((a) => a.id === ID_A)).toMatchObject({
+      command: 'make ship',
+      trusted: true,
+    })
+    expect(events).toEqual([`actions.changed:${PROJECT}`])
+  })
+
   it('prepareActionRun returns not-found, untrusted, or success without notifying', async () => {
     const mem = memoryStore({
       version: 1,

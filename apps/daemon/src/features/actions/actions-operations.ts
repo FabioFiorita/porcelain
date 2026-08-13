@@ -170,7 +170,10 @@ export function createActionsOperations(options: {
     }
 
     if (input.command !== undefined) {
-      const trusted = await trustStore.trustCommands(input.projectPath, [input.command])
+      // Fingerprint the stored normalized command, not the raw input text.
+      const trusted = await trustStore.trustCommands(input.projectPath, [
+        result.value.action.command,
+      ])
       if (!trusted.ok) return trusted
     }
 
@@ -196,6 +199,7 @@ export function createActionsOperations(options: {
       return { ok: true, value: undefined }
     }
 
+    let concurrentNoop = false
     const result = await store.transact(input.projectPath, (file) => {
       const next = planMoveAction(file, {
         actionId: input.id,
@@ -203,17 +207,17 @@ export function createActionsOperations(options: {
       })
       if (!next.ok) return next
       if (next.kind === 'noop') {
-        // Concurrent change made this a no-op; still ok, no durable rewrite needed.
-        // Force a write of the current file is wasteful — treat as success without write by
-        // rejecting the transaction path. Re-read outcome: return not as change reject.
-        return {
-          ok: true,
-          value: { kind: 'move', file: next.file, action: next.action },
-        }
+        // Concurrent change made this a no-op: reject the transaction so nothing durable
+        // is written; the flag below converts the sentinel reject back into void success.
+        concurrentNoop = true
+        return { ok: false, error: { code: 'request.invalid' } }
       }
       return { ok: true, value: { kind: 'move', file: next.file, action: next.action } }
     })
 
+    if (concurrentNoop) {
+      return { ok: true, value: undefined }
+    }
     if (!result.ok) return result
     changes.publish({ type: 'actions.changed', projectPath: input.projectPath })
     return { ok: true, value: undefined }
