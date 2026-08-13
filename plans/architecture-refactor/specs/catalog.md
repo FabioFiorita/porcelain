@@ -125,7 +125,7 @@ an external choice or authorization.
 | `REV-002` | Landed | Active Review/archive operations, rules, stores, and composition |
 | `REV-003` | Landed | Reading/explore/inbox operations over narrow Git/Files capabilities |
 | `REV-004` | Landed | Evidence storage owner: Results, Assets, checks, containment, and caps |
-| `REV-005` | Draft | Canonical Review CLI nouns and version-1 document writers |
+| `REV-005` | Ready | Canonical Review CLI nouns and version-1 document writers |
 | `REV-006` | Draft | Shared Review query/mutation/notification semantics beyond comments |
 | `REV-007` | Draft | Web Review feature relocation and daemon-type removal |
 | `REV-008` | Draft | Mobile Review feature and local schema deletion |
