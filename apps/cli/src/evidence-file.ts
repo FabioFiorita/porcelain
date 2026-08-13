@@ -1,4 +1,5 @@
 import {
+  lstatSync,
   mkdirSync,
   readdirSync,
   readFileSync,
@@ -8,6 +9,14 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
+import {
+  type EvidenceCheck,
+  type EvidenceCheckStatus,
+  evidenceOverallStatus,
+  MAX_CHECK_DETAIL,
+  MAX_CHECK_LABEL,
+  MAX_CHECKS,
+} from '@shared/evidence-check'
 import {
   EVIDENCE_RESULTS_DIR,
   projectEvidenceAssetsDir,
@@ -28,8 +37,8 @@ import { ensureProjectDir } from './project-io'
 //
 // Agents SHOULD write those files with normal Write tools (no CLI payload limits).
 // `porcelain evidence prepare` with a title only makes the directories and returns
-// the paths. Keep in lockstep with apps/daemon/src/review/doc-set.ts and
-// apps/daemon/src/review/evidence-assets-list.ts.
+// the paths. The document-set manifest shape and the check shape/caps are owned by
+// @shared/doc-set-file and @shared/evidence-check, which the daemon reads back.
 
 /**
  * The CLI `set` payload cap stays small on purpose — it steers agents to the
@@ -39,10 +48,13 @@ import { ensureProjectDir } from './project-io'
  */
 export const MAX_HTML_BYTES = 1_572_864
 
+// One owner for the check shape, its caps and its derived status: @shared/evidence-check.
+export { evidenceOverallStatus } from '@shared/evidence-check'
+
 /**
- * Viewer read-side ceiling after data-URI inlining (lockstep with
- * `MAX_HTML_BYTES` in `apps/daemon/src/stores/evidence-store.ts`). Exceeding it makes the
- * app show "Evidence too large" instead of the HTML body.
+ * Viewer read-side ceiling after data-URI inlining (the `MAX_HTML_BYTES` in
+ * `apps/daemon/src/stores/evidence-store.ts`). Exceeding it makes the app show
+ * "Evidence too large" instead of the HTML body.
  */
 const READ_MAX_HTML_BYTES = 4_194_304
 
@@ -56,9 +68,9 @@ export interface Evidence {
 }
 
 /**
- * Gallery caps, duplicated from apps/daemon/src/review/evidence-assets-list.ts —
- * the same deliberate duplication as the check caps below, for the same reason
- * (this CLI takes no dependency on the daemon).
+ * Gallery caps, matching apps/daemon/src/review/evidence-assets-list.ts: the
+ * listing is a preview of what that lister will show, and this CLI takes no
+ * dependency on the daemon.
  */
 const MAX_ASSETS = 60
 const MAX_ASSET_BYTES = 8 * 1024 * 1024
@@ -76,21 +88,6 @@ const ASSET_EXTENSIONS = new Set([
   '.avif',
 ])
 
-// Structured verification checks. This CLI is dependency-free (Node builtins only,
-// no zod), so it DUPLICATES the shape + caps that packages/shared evidence-check owns
-// — same deliberate duplication as the path/key helpers above. Keep them in lockstep.
-type EvidenceCheckStatus = 'pass' | 'fail' | 'skip'
-
-export interface EvidenceCheck {
-  label: string
-  status: EvidenceCheckStatus
-  detail?: string
-}
-
-const MAX_CHECKS = 32
-const MAX_CHECK_LABEL = 120
-const MAX_CHECK_DETAIL = 400
-
 interface EvidenceMeta {
   title: string
   repoPath: string
@@ -100,13 +97,6 @@ interface EvidenceMeta {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
-}
-
-/** Derived overall status: any fail → 'fail'; all pass (≥1) → 'pass'; otherwise null. */
-export function evidenceOverallStatus(checks: EvidenceCheck[]): 'pass' | 'fail' | null {
-  if (checks.some((check) => check.status === 'fail')) return 'fail'
-  if (checks.some((check) => check.status === 'pass')) return 'pass'
-  return null
 }
 
 /**
@@ -212,6 +202,7 @@ export function checkEvidence(
   status: unknown,
   detail: unknown,
 ): { check: EvidenceCheck; checks: EvidenceCheck[]; title: string } {
+  ensureProjectDir(repoPath)
   const check = validateCheck(label, status, detail)
   const dir = evidenceDirForRepo(repoPath)
   const path = join(dir, 'meta.json')
@@ -401,15 +392,23 @@ export function listAssets(repoPath: string): EvidenceAssetEntry[] {
   let images = 0
   for (const file of names) {
     let bytes = 0
+    let symbolicLink = false
     try {
-      const info = statSync(join(dir, file))
-      if (!info.isFile()) continue
+      // lstat, not stat, exactly like the daemon's lister: a symlink named with
+      // an image extension must not preview as a real tile it will never be.
+      const info = lstatSync(join(dir, file))
+      symbolicLink = info.isSymbolicLink()
+      if (!symbolicLink && !info.isFile()) continue
       bytes = info.size
     } catch {
       continue
     }
     if (file.startsWith('.')) {
       out.push({ file, bytes, warning: 'dotfile — never listed' })
+      continue
+    }
+    if (symbolicLink) {
+      out.push({ file, bytes, warning: 'symlink — never listed by the gallery' })
       continue
     }
     if (!ASSET_EXTENSIONS.has(extensionOf(file))) {

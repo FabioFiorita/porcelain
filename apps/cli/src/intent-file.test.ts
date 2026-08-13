@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { parseDocSetFile } from '@shared/doc-set-file'
 import { INTENT_CANONICAL_TABS, INTENT_MANIFEST, projectIntentDir } from '@shared/project-porcelain'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { listIntent, orderIntent, prepareIntent } from './intent-file'
@@ -15,7 +16,7 @@ afterEach(() => {
   rmSync(repo, { recursive: true, force: true })
 })
 
-const readManifest = (): { tabs: Array<{ file: string; label?: string }> } =>
+const readManifest = (): { version: number; tabs: Array<{ file: string; label?: string }> } =>
   JSON.parse(readFileSync(join(projectIntentDir(repo), INTENT_MANIFEST), 'utf8'))
 
 describe('intent prepare', () => {
@@ -95,6 +96,25 @@ describe('intent order', () => {
   it('refuses a document that is not there yet', () => {
     prepareIntent(repo)
     expect(() => orderIntent(repo, ['ghost.md'])).toThrow(/write the documents first/)
+  })
+
+  // The manifest is a version-1 document owned by `@shared/doc-set-file` — the
+  // same module the daemon parses it with, so the writer cannot drift off the reader.
+  it('writes a version-1 manifest', () => {
+    prepareIntent(repo)
+    writeFileSync(join(projectIntentDir(repo), 'a.md'), 'a')
+    orderIntent(repo, ['a.md'])
+    expect(readManifest()).toEqual({ version: 1, tabs: [{ file: 'a.md' }] })
+  })
+
+  // The drift that cost the pinned order: a label over the daemon's 60-char cap
+  // made it drop the whole manifest. The derivation truncates instead.
+  it('keeps a derived label inside the 60-char cap', () => {
+    const file = `${'long-'.repeat(30)}name.md`
+    prepareIntent(repo, [file])
+    const label = readManifest().tabs[0]?.label ?? ''
+    expect(label.length).toBeLessThanOrEqual(60)
+    expect(parseDocSetFile(readManifest())).toEqual(readManifest())
   })
 
   it('refuses a path instead of a file name', () => {

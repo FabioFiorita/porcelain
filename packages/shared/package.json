@@ -11,6 +11,7 @@
     "./test-ids": "./src/test-ids.ts",
     "./board-file": "./src/board-file.ts",
     "./comments-file": "./src/comments-file.ts",
+    "./doc-set-file": "./src/doc-set-file.ts",
     "./actions-file": "./src/actions-file.ts",
     "./background": "./src/background.ts"
   },
@@ -36,6 +37,9 @@
       ],
       "comments-file": [
         "./src/comments-file.ts"
+      ],
+      "doc-set-file": [
+        "./src/doc-set-file.ts"
       ],
       "actions-file": [
         "./src/actions-file.ts"

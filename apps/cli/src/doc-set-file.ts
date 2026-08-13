@@ -1,5 +1,12 @@
 import { type Dirent, mkdirSync, readdirSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import {
+  type DocSetTab,
+  docSetLabelFor,
+  docSetMediumFor,
+  MAX_DOC_SET_TABS,
+  serializeDocSetFile,
+} from '@shared/doc-set-file'
 import { INTENT_MANIFEST } from '@shared/project-porcelain'
 
 /**
@@ -7,19 +14,19 @@ import { INTENT_MANIFEST } from '@shared/project-porcelain'
  * (`active-review/intent/`) and the Results sub-tab of Evidence
  * (`active-review/evidence/results/`).
  *
- * Both are "drop files in a directory, pin the tab order in `meta.json`", so the
- * validation and the atomic manifest write live here once rather than being
- * copied per noun — the daemon reads one shape (`{ tabs: [{ file, label? }] }`)
- * and a second hand-rolled writer is how the two drift.
+ * Both are "drop files in a directory, pin the tab order in `meta.json`". The
+ * manifest shape, its caps, the renderable media, and the label derivation are
+ * NOT described here: `@shared/doc-set-file` owns them, and the daemon reader
+ * parses what this writes with that same module. This file is only the Node
+ * half — the atomic write and the directory checks a browser could not do.
  */
 
-/** Lockstep with `MAX_DOCS` in apps/daemon/src/review/doc-set.ts. */
-export const MAX_TABS = 12
+export { MAX_DOC_SET_TABS } from '@shared/doc-set-file'
 
-export interface ManifestTab {
-  file: string
-  label?: string
-}
+export type ManifestTab = DocSetTab
+
+/** `why.md` → "Why"; `before-after.html` → "Before after". */
+export const labelFor = docSetLabelFor
 
 /**
  * A file name and nothing else. The manifest names reach `readFile` in the
@@ -35,10 +42,10 @@ function assertPlainNames(files: string[], where: string): void {
 
 /** Atomic like every other channel write — a half-written manifest reads as none. */
 export function writeManifest(dir: string, tabs: ManifestTab[]): string[] {
-  const capped = tabs.slice(0, MAX_TABS)
+  const capped = tabs.slice(0, MAX_DOC_SET_TABS)
   const path = join(dir, INTENT_MANIFEST)
   const tmp = `${path}.tmp`
-  writeFileSync(tmp, JSON.stringify({ tabs: capped }, null, 2))
+  writeFileSync(tmp, serializeDocSetFile(capped))
   renameSync(tmp, path)
   return capped.map((tab) => tab.file)
 }
@@ -67,12 +74,6 @@ export function orderDocSet(dir: string, files: string[], where: string): string
 }
 
 /**
- * The media a document set renders — lockstep with `MEDIUM_BY_EXT` in
- * apps/daemon/src/review/doc-set.ts. Anything else in the directory is not a tab.
- */
-const DOC_EXTENSIONS = /\.(md|markdown|html?)$/i
-
-/**
  * The renderable documents in the directory, name-sorted; a missing directory
  * lists as empty.
  *
@@ -91,15 +92,9 @@ export function listDocSet(dir: string): string[] {
   }
   return entries
     .filter(
-      (entry) => entry.isFile() && !entry.name.startsWith('.') && DOC_EXTENSIONS.test(entry.name),
+      (entry) =>
+        entry.isFile() && !entry.name.startsWith('.') && docSetMediumFor(entry.name) !== null,
     )
     .map((entry) => entry.name)
     .sort()
-}
-
-/** `why.md` → "Why"; `before-after.html` → "Before after". */
-export function labelFor(file: string): string {
-  const dot = file.lastIndexOf('.')
-  const base = (dot === -1 ? file : file.slice(0, dot)).replace(/[-_]+/g, ' ')
-  return base.charAt(0).toUpperCase() + base.slice(1)
 }

@@ -9,7 +9,7 @@ import {
 import {
   labelFor,
   listDocSet,
-  MAX_TABS,
+  MAX_DOC_SET_TABS,
   type ManifestTab,
   orderDocSet,
   writeManifest,
@@ -74,7 +74,7 @@ export function prepareIntent(repoPath: string, tabs?: string[]): PreparedIntent
   if (requested !== undefined && requested.length === 0) {
     throw new Error('--tabs needs at least one name, e.g. --tabs why,approach,decisions')
   }
-  const wanted = (requested ?? canonicalTabs()).slice(0, MAX_TABS)
+  const wanted = (requested ?? canonicalTabs()).slice(0, MAX_DOC_SET_TABS)
   const manifestPath = join(dir, INTENT_MANIFEST)
   if (existsSync(manifestPath)) {
     return { dir, assetsDir: join(dir, ASSETS_DIR), tabs: wanted, seeded: false }

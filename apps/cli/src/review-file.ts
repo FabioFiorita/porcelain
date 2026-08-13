@@ -2,7 +2,8 @@ import { unlinkSync } from 'node:fs'
 import { ACTIVE_FILES, projectPorcelainPath } from '@shared/project-porcelain'
 import { readProjectJson, writeProjectJson } from './project-io'
 
-// Builtins only — see cli.ts. Active review set at <repo>/.porcelain/review.json.
+// Builtins only — see cli.ts. Active review set at
+// <repo>/.porcelain/active-review/review.json (ACTIVE_FILES.review).
 // Daemon review-store.ts reads the same path.
 
 const FILE_SOURCES = new Set(['changed', 'context', 'shipped'])

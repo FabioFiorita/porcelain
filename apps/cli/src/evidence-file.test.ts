@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { INTENT_MANIFEST } from '@shared/project-porcelain'
@@ -82,6 +82,21 @@ describe('evidence directory channel', () => {
     expect(r.checks.map((c) => c.label)).toEqual(['a', 'b', 'c'])
   })
 
+  // `evidence check` is the one write that skipped the funnel: on a repo whose
+  // first CLI call is this, the pack that is ignored by default was not ignored.
+  it('checkEvidence seeds the managed .gitignore on a fresh repo', () => {
+    checkEvidence(repo, 'unit', 'pass', undefined)
+    const gitignore = readFileSync(join(repo, '.porcelain', '.gitignore'), 'utf8')
+    expect(gitignore).toContain('porcelain:managed')
+    expect(gitignore).toContain('/active-review/')
+  })
+
+  it('checkEvidence still refuses a label over the cap, with the same message', () => {
+    expect(() => checkEvidence(repo, 'x'.repeat(121), 'pass', undefined)).toThrow(
+      'label is 121 chars, over the 120-char limit',
+    )
+  })
+
   it('checkEvidence replaces a check with the same label', () => {
     checkEvidence(repo, 'a', 'fail', undefined)
     const r = checkEvidence(repo, 'a', 'pass', undefined)
@@ -124,9 +139,10 @@ describe('evidence results — the document set', () => {
     writeFileSync(join(resultsDir, 'b.html'), 'b')
     expect(orderResults(repo, ['b.html', 'a.md'])).toEqual(['b.html', 'a.md'])
     const manifest = JSON.parse(readFileSync(join(resultsDir, INTENT_MANIFEST), 'utf8')) as {
+      version: number
       tabs: Array<{ file: string }>
     }
-    expect(manifest.tabs.map((t) => t.file)).toEqual(['b.html', 'a.md'])
+    expect(manifest).toEqual({ version: 1, tabs: [{ file: 'b.html' }, { file: 'a.md' }] })
     // Atomic: the tmp file never survives a successful write.
     expect(existsSync(join(resultsDir, `${INTENT_MANIFEST}.tmp`))).toBe(false)
   })
@@ -174,6 +190,22 @@ describe('evidence assets — the gallery', () => {
     const { assetsDir } = prepareEvidence(repo, 'Loop')
     writeFileSync(join(assetsDir, 'run.log'), 'log')
     expect(listAssets(repo)[0]?.warning).toMatch(/not an image/)
+  })
+
+  // The daemon's lister lstats and skips symbolic links outright, so a symlinked
+  // image previewed here as a clean tile would never appear in the app.
+  it('warns about a symlink and keeps it out of the gallery count', () => {
+    const { assetsDir } = prepareEvidence(repo, 'Loop')
+    writeFileSync(join(repo, 'real.png'), 'png')
+    symlinkSync(join(repo, 'real.png'), join(assetsDir, 'linked.png'))
+    writeFileSync(join(assetsDir, 'shot.png'), 'png')
+
+    const assets = listAssets(repo)
+    expect(assets.find((a) => a.file === 'linked.png')?.warning).toBe(
+      'symlink — never listed by the gallery',
+    )
+    expect(assets.filter((a) => a.warning === undefined).map((a) => a.file)).toEqual(['shot.png'])
+    expect(describeEvidence(repo, getEvidence(repo))).toContain('Assets: 1 image(s) in the gallery')
   })
 
   it('warns about an image over the per-image cap', () => {

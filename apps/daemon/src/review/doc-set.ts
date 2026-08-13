@@ -1,12 +1,12 @@
 import { readdir, readFile, stat } from 'node:fs/promises'
 import { extname, join } from 'node:path'
+import { docSetMediumFor, MAX_DOC_SET_TABS, parseDocSetFile } from '@shared/doc-set-file'
 import {
   INTENT_MANIFEST,
   projectEvidenceDir,
   projectEvidenceResultsDir,
   projectIntentDir,
 } from '@shared/project-porcelain'
-import { z } from 'zod'
 import { inlineLocalAssets } from '../fs/evidence-assets'
 
 /**
@@ -33,7 +33,6 @@ import { inlineLocalAssets } from '../fs/evidence-assets'
  * else's JavaScript in your renderer, for a capability nothing needs yet.
  */
 
-const MAX_DOCS = 12
 const MAX_DOC_BYTES = 2 * 1024 * 1024
 const MAX_TOTAL_BYTES = 8 * 1024 * 1024
 
@@ -64,24 +63,6 @@ export type ReviewDoc =
   | (ReviewDocBase & { medium: 'markdown'; body: string })
   | (ReviewDocBase & { medium: 'html'; body: string })
 
-const manifestSchema = z.object({
-  tabs: z
-    .array(z.object({ file: z.string().min(1), label: z.string().min(1).max(60).optional() }))
-    .max(MAX_DOCS)
-    .default([]),
-})
-
-const MEDIUM_BY_EXT: Record<string, DocMedium> = {
-  '.md': 'markdown',
-  '.markdown': 'markdown',
-  '.html': 'html',
-  '.htm': 'html',
-}
-
-function mediumFor(file: string): DocMedium | null {
-  return MEDIUM_BY_EXT[extname(file).toLowerCase()] ?? null
-}
-
 /** `index.md` → "Index"; `data-flow.html` → "Data flow". */
 function labelFor(file: string): string {
   const base = file.slice(0, file.length - extname(file).length).replace(/[-_]+/g, ' ')
@@ -96,13 +77,13 @@ function isPlainFileName(name: string): boolean {
   return name !== '' && !name.includes('/') && !name.includes('\\') && !name.startsWith('.')
 }
 
+/**
+ * The pinned order, or none. A manifest that does not parse leaves tab order at
+ * name order rather than failing the read — a pack is still proof without it.
+ */
 async function readManifestOrder(dir: string): Promise<Array<{ file: string; label?: string }>> {
   try {
-    const parsed = manifestSchema.safeParse(
-      JSON.parse(await readFile(join(dir, INTENT_MANIFEST), 'utf8')),
-    )
-    if (!parsed.success) return []
-    return parsed.data.tabs.filter((tab) => isPlainFileName(tab.file))
+    return parseDocSetFile(JSON.parse(await readFile(join(dir, INTENT_MANIFEST), 'utf8'))).tabs
   } catch {
     return []
   }
@@ -116,7 +97,8 @@ async function renderableNames(dir: string, exclude: ReadonlySet<string>): Promi
     return []
   }
   return entries.filter(
-    (file) => isPlainFileName(file) && mediumFor(file) !== null && !exclude.has(file.toLowerCase()),
+    (file) =>
+      isPlainFileName(file) && docSetMediumFor(file) !== null && !exclude.has(file.toLowerCase()),
   )
 }
 
@@ -163,7 +145,7 @@ interface QueuedDoc {
  * follow in name order, so dropping a file in still shows up — an agent that
  * writes one `why.md` should not have to also write a manifest.
  *
- * Caps are per set: at most `MAX_DOCS` tabs, `MAX_DOC_BYTES` each,
+ * Caps are per set: at most `MAX_DOC_SET_TABS` tabs, `MAX_DOC_BYTES` each,
  * `MAX_TOTAL_BYTES` in total. Over-cap documents are dropped, never thrown.
  */
 export async function readDocSet(dir: string, options: DocSetOptions = {}): Promise<ReviewDoc[]> {
@@ -193,7 +175,7 @@ export async function readDocSet(dir: string, options: DocSetOptions = {}): Prom
   const docs: ReviewDoc[] = []
   let total = 0
   const defaults = options.defaultLabels ?? {}
-  for (const tab of queue.slice(0, MAX_DOCS)) {
+  for (const tab of queue.slice(0, MAX_DOC_SET_TABS)) {
     const labelled =
       tab.label === undefined ? { ...tab, label: defaults[tab.file.toLowerCase()] } : tab
     const doc = await readDoc(labelled, options.assetRoot, MAX_TOTAL_BYTES - total)
@@ -234,7 +216,7 @@ async function readDoc(
   assetRoot: string | undefined,
   remainingBytes: number,
 ): Promise<ReviewDoc | null> {
-  const medium = mediumFor(tab.file)
+  const medium = docSetMediumFor(tab.file)
   if (medium === null) return null
   const path = join(tab.dir, tab.file)
   try {

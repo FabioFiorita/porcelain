@@ -1,8 +1,14 @@
 // @vitest-environment node
 import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { PROJECT_FILES, projectPorcelainPath } from '@shared/project-porcelain'
+import {
+  PROJECT_COMPANION_FORMAT_VERSION,
+  PROJECT_COMPANION_LAYOUT,
+  PROJECT_FILES,
+  projectPorcelainPath,
+} from '@shared/project-porcelain'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { PERSISTED_FORMAT_VERSION } from '../../project-data/strict-json-document'
 import { withTemporaryDirectory } from '../../testing/temporary-directory'
 import {
   createProjectManifestDocument,
@@ -10,6 +16,17 @@ import {
   projectManifestPath,
   projectManifestValueSchema,
 } from './project-manifest'
+
+// The CLI cannot import this adapter (dependency-free, no zod), so it reads the
+// same two literals from `@porcelain/shared` to decide whether it may write into a
+// companion root. This is the ratchet that keeps the guard honest: if either
+// literal moves here without moving there, the CLI would refuse every write.
+describe('companion root drift ratchet', () => {
+  it('shares its layout and format version with the CLI-visible constants', () => {
+    expect(PROJECT_MANIFEST_LAYOUT).toBe(PROJECT_COMPANION_LAYOUT)
+    expect(PROJECT_COMPANION_FORMAT_VERSION).toBe(PERSISTED_FORMAT_VERSION)
+  })
+})
 
 describe('projectManifestValueSchema', () => {
   it('accepts only { layout: project-companion-v1 }', () => {

@@ -31,6 +31,14 @@ export const PROJECT_FILES = {
   manifest: 'project-manifest.json',
 } as const
 
+/**
+ * The two literals `project-manifest.json` carries. Project Data is the only
+ * writer; the CLI reads them to refuse a write into a companion root some newer
+ * Porcelain laid out differently, rather than silently converting it.
+ */
+export const PROJECT_COMPANION_LAYOUT = 'project-companion-v1' as const
+export const PROJECT_COMPANION_FORMAT_VERSION = 1 as const
+
 export const PROJECT_EVIDENCE_DIR = 'evidence'
 export const PROJECT_REVIEWS_DIR = 'reviews'
 

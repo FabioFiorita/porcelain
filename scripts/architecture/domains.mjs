@@ -131,7 +131,7 @@ export const ARCHITECTURE_LINE_CEILING = 450
 // be removed. Test fixtures and generated UI primitives are intentionally outside this ledger.
 export const OVERSIZED_PRODUCTION_FILES = Object.freeze({
   'apps/cli/src/cli.ts': 676,
-  'apps/cli/src/evidence-file.ts': 543,
+  'apps/cli/src/evidence-file.ts': 542,
   'apps/daemon/src/git/commit-generation.ts': 991,
   'apps/daemon/src/git/git.ts': 947,
   'apps/desktop/src/main/shell-api.ts': 741,

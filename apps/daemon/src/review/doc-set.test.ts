@@ -40,7 +40,10 @@ describe('document sets', () => {
     await writeFile(join(dir, 'c.md'), 'c')
     await writeFile(
       join(dir, INTENT_MANIFEST),
-      JSON.stringify({ tabs: [{ file: 'c.md', label: 'Last first' }, { file: 'b.md' }] }),
+      JSON.stringify({
+        version: 1,
+        tabs: [{ file: 'c.md', label: 'Last first' }, { file: 'b.md' }],
+      }),
     )
     const docs = await readDocSet(dir)
     expect(docs.map((d) => d.file)).toEqual(['c.md', 'b.md', 'a.md'])
@@ -86,6 +89,7 @@ describe('document sets', () => {
     await writeFile(
       join(dir, INTENT_MANIFEST),
       JSON.stringify({
+        version: 1,
         tabs: [
           { file: 'a.md', label: 'Proof' },
           { file: 'b.md', label: 'Proof' },
@@ -99,11 +103,24 @@ describe('document sets', () => {
     ])
   })
 
+  // The manifest is a version-1 document (`@shared/doc-set-file`). A pack written
+  // by an older CLI carries no `version`, and the pinned order is the ONLY thing
+  // it loses: the documents still render, in name order, rather than the read failing.
+  it('falls back to name order for an unversioned manifest', async () => {
+    await writeFile(join(dir, 'a.md'), 'a')
+    await writeFile(join(dir, 'b.md'), 'b')
+    await writeFile(
+      join(dir, INTENT_MANIFEST),
+      JSON.stringify({ tabs: [{ file: 'b.md' }, { file: 'a.md' }] }),
+    )
+    expect((await readDocSet(dir)).map((d) => d.file)).toEqual(['a.md', 'b.md'])
+  })
+
   it('refuses a manifest entry that tries to walk out of the directory', async () => {
     await writeFile(join(dir, 'index.md'), 'ok')
     await writeFile(
       join(dir, INTENT_MANIFEST),
-      JSON.stringify({ tabs: [{ file: '../../../etc/passwd' }, { file: 'index.md' }] }),
+      JSON.stringify({ version: 1, tabs: [{ file: '../../../etc/passwd' }, { file: 'index.md' }] }),
     )
     expect((await readDocSet(dir)).map((d) => d.file)).toEqual(['index.md'])
   })
@@ -227,7 +244,7 @@ describe('readActiveEvidenceResults', () => {
     await writeFile(join(results, 'index.html'), '<p>modern report</p>')
     await writeFile(
       join(results, INTENT_MANIFEST),
-      JSON.stringify({ tabs: [{ file: 'index.html', label: 'Sim loop' }] }),
+      JSON.stringify({ version: 1, tabs: [{ file: 'index.html', label: 'Sim loop' }] }),
     )
     const docs = await readActiveEvidenceResults(repo())
     expect(docs.map((d) => [d.file, d.label])).toEqual([['index.html', 'Sim loop']])

@@ -209,7 +209,7 @@ describe('readResults', () => {
     write(
       projectEvidenceResultsDir(repo),
       'meta.json',
-      JSON.stringify({ tabs: [{ file: 'run-log.md' }, { file: 'index.html' }] }),
+      JSON.stringify({ version: 1, tabs: [{ file: 'run-log.md' }, { file: 'index.html' }] }),
     )
 
     const docs = await store.readResults(repo)

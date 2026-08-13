@@ -1,12 +1,17 @@
 import { isAbsolute } from 'node:path'
-import { PROJECT_FILES, projectPorcelainPath } from '@shared/project-porcelain'
+import {
+  PROJECT_COMPANION_LAYOUT,
+  PROJECT_FILES,
+  projectPorcelainPath,
+} from '@shared/project-porcelain'
 import { z } from 'zod'
 import {
   createStrictJsonDocument,
   type StrictJsonDocument,
 } from '../../project-data/strict-json-document'
 
-export const PROJECT_MANIFEST_LAYOUT = 'project-companion-v1' as const
+/** One declaration of the layout literal, shared with the CLI's read-only guard. */
+export const PROJECT_MANIFEST_LAYOUT = PROJECT_COMPANION_LAYOUT
 export const PROJECT_MANIFEST_FILE_MAX_BYTES = 16 * 1024
 
 export const projectManifestValueSchema = z
