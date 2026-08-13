@@ -3,6 +3,7 @@ import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, expect, test, vi } from 'vitest'
+import { EDITABLE_MAX_LINES } from './editor-source'
 import { TextFileView } from './text-file-view'
 
 // EditorSource (rendered for short files) calls useWriteTextFile which reaches
@@ -60,4 +61,15 @@ test('Cmd+F opens the find bar only in the active pane (pane 0 active)', () => {
   )
   fireEvent.keyDown(window, { key: 'f', metaKey: true })
   expect(screen.getAllByLabelText('Find in file')).toHaveLength(1)
+})
+
+test('a file over EDITABLE_MAX_LINES does not mount EditorSource', () => {
+  const content = Array.from({ length: EDITABLE_MAX_LINES + 1 }, () => 'x').join('\n')
+  render(<TextFileView path="/repo/big.ts" content={content} paneIndex={0} />)
+  expect(screen.queryByLabelText('Edit /repo/big.ts')).toBeNull()
+})
+
+test('a one-line file mounts EditorSource', () => {
+  render(<TextFileView path="/repo/small.ts" content={'x'} paneIndex={0} />)
+  expect(screen.getByLabelText('Edit /repo/small.ts')).toBeTruthy()
 })
