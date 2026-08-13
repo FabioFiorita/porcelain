@@ -30,15 +30,11 @@ export interface ReviewSection {
   anchors: ReviewSectionAnchor[]
 }
 
-/** Freeform Overview canvas — html (mirrors backend review-set). */
-export type ReviewCanvas = { medium: 'html'; html: string }
-
 export interface ReviewSet {
   name: string
   thesis?: string
   files: ReviewFile[]
   sections: ReviewSection[]
-  canvas?: ReviewCanvas
 }
 
 // Caps mirrored from apps/daemon/src/review/review-set.ts (the zod schema Porcelain re-validates
@@ -225,35 +221,6 @@ export function mergeReviewFiles(
   return [...byPath.values()]
 }
 
-function parseReviewCanvas(value: unknown): ReviewCanvas | undefined {
-  if (!isRecord(value) || typeof value.medium !== 'string') return undefined
-  if (value.medium === 'html') {
-    if (typeof value.html !== 'string' || value.html.length === 0) return undefined
-    if (value.html.length > MAX_HTML_CHARS) return undefined
-    return { medium: 'html', html: value.html }
-  }
-  // Any other medium — including a scene canvas from before the media collapsed
-  // to HTML + Markdown — reads as no canvas. Lenient like every other row here.
-  return undefined
-}
-
-/**
- * Validate + build a canvas payload from CLI flags. Throws with an actionable
- * message (never silently drop).
- */
-export function toReviewCanvas(medium: string, opts: { html?: string }): ReviewCanvas {
-  if (medium === 'html') {
-    if (typeof opts.html !== 'string' || opts.html.length === 0) {
-      throw new Error('html medium requires --html or --html-file with non-empty content')
-    }
-    if (opts.html.length > MAX_HTML_CHARS) {
-      throw new Error(`html is ${opts.html.length} chars, over the ${MAX_HTML_CHARS}-char limit`)
-    }
-    return { medium: 'html', html: opts.html }
-  }
-  throw new Error('medium must be html')
-}
-
 function parseReviewSet(value: unknown): ReviewSet | null {
   if (!isRecord(value)) return null
   if (typeof value.name !== 'string' || value.name === '') return null
@@ -263,8 +230,6 @@ function parseReviewSet(value: unknown): ReviewSet | null {
     sections: parseReviewSections(value.sections),
   }
   if (typeof value.thesis === 'string') set.thesis = value.thesis
-  const canvas = parseReviewCanvas(value.canvas)
-  if (canvas) set.canvas = canvas
   return set
 }
 
@@ -281,9 +246,7 @@ function writeDisk(repoPath: string, set: ReviewSet | null): void {
 }
 
 export function setReview(repoPath: string, set: ReviewSet): void {
-  // Full replace. Do NOT keep a previous freeform canvas from an old unit.
-  // Clear first for a clean slate including evidence (app archives on clear).
-  writeDisk(repoPath, { ...set })
+  writeDisk(repoPath, set)
 }
 
 /** Merge files into the existing set; name/thesis/sections are whole-set (replaced by `review set`). */
@@ -292,21 +255,6 @@ export function addReviewFiles(repoPath: string, files: ReviewFile[]): number {
   const merged = mergeReviewFiles(current.files, files)
   writeDisk(repoPath, { ...current, files: merged })
   return merged.length
-}
-
-/** Attach or replace the freeform Overview canvas on an existing (or empty) set. */
-export function setReviewCanvas(repoPath: string, canvas: ReviewCanvas): void {
-  const current = readDisk(repoPath) ?? { name: 'Active review', files: [], sections: [] }
-  writeDisk(repoPath, { ...current, canvas })
-}
-
-/** Drop the freeform Overview canvas; thesis/sections/files stay. */
-export function clearReviewCanvas(repoPath: string): boolean {
-  const current = readDisk(repoPath)
-  if (!current?.canvas) return false
-  const { canvas: _drop, ...rest } = current
-  writeDisk(repoPath, rest)
-  return true
 }
 
 export function clearReview(repoPath: string): void {
@@ -339,7 +287,6 @@ export function describeReview(repoPath: string, review: ReviewSet | null): stri
     review !== null &&
     review.files.length === 0 &&
     review.sections.length === 0 &&
-    !review.canvas &&
     (review.thesis === undefined || review.thesis.trim() === '')
   if (!review || empty) {
     return `No review set for ${repoPath}. Porcelain shows the no-review empty state until one is pushed. Use \`porcelain review set\` to define one.`
@@ -352,9 +299,7 @@ export function describeReview(repoPath: string, review: ReviewSet | null): stri
   const breakdown = [...counts.entries()].map(([source, n]) => `${n} ${source}`).join(', ')
   const roundTrip: Record<string, unknown> = { files: review.files, sections: review.sections }
   if (review.thesis !== undefined) roundTrip.thesis = review.thesis
-  if (review.canvas !== undefined) roundTrip.canvas = { medium: review.canvas.medium }
   const json = JSON.stringify(roundTrip, null, 2)
   const fileCount = `${review.files.length} file(s)${breakdown ? ` (${breakdown})` : ''}`
-  const canvasNote = review.canvas ? `, overview canvas=${review.canvas.medium}` : ''
-  return `Review "${review.name}" for ${repoPath}: ${fileCount}, ${review.sections.length} section(s), thesis ${review.thesis ? 'set' : 'not set'}${canvasNote}. Execution shows only these listed files (in this order); listed dirty paths render as "changed".\n${json}`
+  return `Review "${review.name}" for ${repoPath}: ${fileCount}, ${review.sections.length} section(s), thesis ${review.thesis ? 'set' : 'not set'}. Execution shows only these listed files (in this order); listed dirty paths render as "changed".\n${json}`
 }

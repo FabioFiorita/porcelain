@@ -40,13 +40,10 @@ import { describeNotes, readNotes } from './notes-file'
 import {
   addReviewFiles,
   clearReview,
-  clearReviewCanvas,
   describeReview,
   type ReviewSet,
   readReview,
   setReview,
-  setReviewCanvas,
-  toReviewCanvas,
   toReviewFiles,
   toReviewSections,
 } from './review-file'
@@ -201,16 +198,6 @@ export const COMMANDS: NounHelp[] = [
         desc: 'Replace the review set (name + thesis alone is a valid Intent-first start)',
       },
       { verb: 'add', args: '--files <json|->', desc: 'Add files to the existing set' },
-      {
-        verb: 'set-canvas',
-        args: '--medium html (--html-file <p> | --html <s|->)',
-        desc: 'Set freeform Overview canvas (html); outline still uses files/sections',
-      },
-      {
-        verb: 'clear-canvas',
-        args: '',
-        desc: 'Remove the freeform Overview canvas (back to structured document)',
-      },
       { verb: 'get', args: '', desc: 'Read back the declared set' },
       {
         verb: 'clear',
@@ -218,7 +205,7 @@ export const COMMANDS: NounHelp[] = [
         desc: 'Clear the Review and loop evidence (set + on-disk HTML/images) — matches the app Clear button',
       },
     ],
-    flags: ['name', 'thesis', 'files', 'sections', 'medium', 'html', 'html-file'],
+    flags: ['name', 'thesis', 'files', 'sections', 'html', 'html-file'],
   },
   {
     noun: 'comments',
@@ -464,20 +451,6 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<string
       clearReview(repo)
       clearEvidence(repo)
       return `Cleared the review and its evidence for ${repo}`
-    case 'review set-canvas': {
-      const medium = req('medium')
-      if (medium === 'html') {
-        // Overview freeform HTML shares the section-html cap (512 KiB).
-        const html = resolveHtml(524_288)
-        setReviewCanvas(repo, toReviewCanvas('html', { html }))
-        return `Set Overview canvas (html) for ${repo}. Outline still uses thesis/sections/files.`
-      }
-      throw new Error('medium must be html')
-    }
-    case 'review clear-canvas':
-      return clearReviewCanvas(repo)
-        ? `Cleared the Overview canvas for ${repo} (structured document restored if sections exist)`
-        : `No Overview canvas set for ${repo}`
     case 'comments list':
       return describeComments(
         repo,

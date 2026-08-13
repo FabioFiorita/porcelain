@@ -89,7 +89,6 @@ tab. Fix what it reports and run it again.
 ~/.porcelain/porcelain review clear
 ~/.porcelain/porcelain review set --name "…" --thesis "…"        # name + thesis is a full start
 ~/.porcelain/porcelain review set --name "…" --thesis "…" --files '[…]' --sections '[…]'
-~/.porcelain/porcelain review set-canvas --medium html --html-file ./intent.html   # optional
 ~/.porcelain/porcelain intent prepare                 # seeds why/approach/decisions tabs
 ~/.porcelain/porcelain intent prepare --tabs why,approach,decisions   # or your own list
 ~/.porcelain/porcelain intent order --files why.md,approach.md

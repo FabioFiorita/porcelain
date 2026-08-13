@@ -313,6 +313,16 @@ describe('runCli — review + comments + reviewed', () => {
     await runCli(['review', 'set', ...repo, '--name', 'Unit'])
     expect(await runCli(['review', 'get', ...repo])).toContain('No review set')
   })
+  it('review set-canvas is an unknown command', async () => {
+    await expect(
+      runCli(['review', 'set-canvas', ...repo, '--medium', 'html', '--html', '<p>x</p>']),
+    ).rejects.toThrow('unknown command')
+  })
+  it('review --help does not list set-canvas or clear-canvas', async () => {
+    const text = await runCli(['review', '--help'])
+    expect(text).not.toContain('set-canvas')
+    expect(text).not.toContain('clear-canvas')
+  })
   it('comments list tags each comment with its active-review source', async () => {
     ensurePorcelain()
     writeFileSync(

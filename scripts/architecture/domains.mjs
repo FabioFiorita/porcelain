@@ -87,7 +87,8 @@ export const DOMAIN_MIGRATIONS = Object.freeze(
             key === 'actions' ||
             key === 'terminal' ||
             key === 'remote' ||
-            key === 'project-data'
+            key === 'project-data' ||
+            key === 'review'
               ? 'complete'
               : 'migrating',
           targetRoots: Object.freeze(targetRoots),

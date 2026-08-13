@@ -130,7 +130,7 @@ an external choice or authorization.
 | `REV-007` | Landed | Web Review feature relocation and daemon-type removal |
 | `REV-008` | Landed | Mobile Review feature and local schema deletion |
 | `REV-009` | Landed | Activate the target Review catalog and delete the Feature wire atomically |
-| `REV-010` | Ready | Active-content/CSP/containment/resilience proof and completed domain gate |
+| `REV-010` | Landed | Active-content/CSP/containment/resilience proof and completed domain gate |
 
 ## Batch 5 — supporting regions, foundations, and launch
 

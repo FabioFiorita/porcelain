@@ -7,7 +7,7 @@ a unit of work — feature, bug, chore, or investigation.
 
 - **Shape** — the three tabs, where a review lives on disk, publishing
 - **Lifecycle** — start / during / end / after, and the publish flow
-- **Intent** — thesis, sections, documents on disk, freeform canvas
+- **Intent** — thesis, sections, documents on disk
 - **Execution** — the curated file list, sources, notes, layers
 - **Evidence** — checks, the Results document set, the asset gallery, sandbox and CSS rules
 - **Medium policy** — what belongs on which surface
@@ -73,15 +73,12 @@ card → Start Review (title prefilled). Do not turn Review into a second kanban
    loop-evidence directory (HTML + images). Matches the app Clear control. Skipping this is how a
    later agent leaves an old board under a new Intent document.
 1. **Intent-first** — one `review set` with name + thesis. `--files` and `--sections` are
-   optional; omit them entirely at the start. A full `review set` replaces the structured set and
-   does **not** keep a previous freeform canvas.
-2. **Optional Intent board** — only if *this* unit needs one: `review set-canvas` (html).
-   Never `set-canvas` alone for a new unit without steps 0–1.
-3. **Execution grows** — re-`review set` with files + notes as you work.
-4. **Evidence** — after you validate, `evidence check` for each thing you ran, then
+   optional; omit them entirely at the start. A full `review set` replaces the structured set.
+2. **Execution grows** — re-`review set` with files + notes as you work.
+3. **Evidence** — after you validate, `evidence check` for each thing you ran, then
    `evidence prepare` + Results documents (**include CSS**) + screenshots in `assets/`.
    **Required to claim done.**
-5. Confirm with `review get` / `feature get` / `evidence get`, or run
+4. Confirm with `review get` / `feature get` / `evidence get`, or run
    `scripts/check-evidence.mjs` (below).
 
 ```bash
@@ -193,16 +190,6 @@ document should be simpler, or a diagram.
 **Caps:** 12 documents, 2 MB each, 8 MB total. Over-cap documents are dropped silently — check
 `intent list` if a tab is missing.
 
-### Freeform canvas
-
-```bash
-~/.porcelain/porcelain review set-canvas --medium html --html-file ./intent.html
-~/.porcelain/porcelain review clear-canvas
-```
-
-The outline still uses thesis / sections / files for Execution and chapter jumps. Canvas replaces
-only the Intent body when set.
-
 ### Choosing
 
 | Use… | When |
@@ -211,9 +198,8 @@ only the Intent body when set.
 | `--thesis` + `--sections` | Default. Ordered walkthrough with code anchors |
 | `intent prepare` + `.md` | The rationale is longer than a thesis and wants headings |
 | `intent prepare` + `.html` | A before/after, a table of measurements, a styled report, an architecture or data-flow map as inline SVG |
-| `set-canvas` | One board carries the whole idea and you want it full-height |
 
-Combining is fine — documents, board, and the structured walkthrough all appear as tabs.
+Combining is fine — documents and the structured walkthrough all appear as tabs.
 
 ## Execution — "What did the agent touch, and is the code right?"
 
@@ -426,7 +412,7 @@ That skeleton is an example only — rewrite the CSS per review.
 
 | Surface | Allowed mediums |
 |---------|-----------------|
-| **Intent** | Structured document (thesis + section prose/diagrams) **or** freeform HTML **or** markdown documents |
+| **Intent** | thesis + sections + Intent documents (`.md` / `.html`) |
 | **Execution** | Native app UI (exactly the files from `--files`, agent order) — not a freeform medium |
 | **Evidence** | Structured checks + `results/` documents (`.md` / `.html` + own CSS) + an `assets/` image gallery |
 
@@ -451,5 +437,4 @@ HTML document — that renders on every client, including mobile.
 - Don't duplicate every screenshot into a Results document; narrate the few that need narrating.
 - Don't leave Intent as a changelog — it is the brief, written as of before the work started.
 - Don't re-implement a second file browser in Intent; Execution + sidebar own the files.
-- Don't `set-canvas` alone as a "review" — that keeps the previous files/thesis.
 - Don't turn Review into a second kanban (Board owns the queue).
