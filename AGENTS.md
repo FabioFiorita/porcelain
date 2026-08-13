@@ -129,12 +129,17 @@ Only each skill's description is ambient. Do not load a skill "just in case."
 | `execute-architecture-spec` | Landing exactly one reviewer-approved architecture recipe |
 | `audit` | Main process, IPC, config, git, file reads, external URLs, packaging, agent channels |
 | `mobile` | Building, installing, delivering, or proving `apps/mobile` |
+| `web-e2e` | Writing/debugging Playwright browser specs or taking browser proof for `apps/web` |
 | `merge-queue` | Landing selected `work/*` PRs and retiring their worktrees |
 | `releasing` | Cutting a release or changing signing/notarization |
 
 ## Docs and plans
 
 Two trees, split by tense. When lost, open `docs/README.md` — it indexes everything.
+
+For the cross-cutting owner/proof/gate map, open `docs/internals/agent-foundations.md`. It keeps
+the root loop discoverable here while naming the focused procedure or domain test that owns each
+Ship/Audit row.
 
 | Tree | Tense | What goes there |
 |------|-------|-----------------|

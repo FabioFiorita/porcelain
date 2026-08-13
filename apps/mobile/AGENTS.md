@@ -3,6 +3,8 @@
 Applies under `apps/mobile/`. Read the **`mobile` skill** for the fingerprint-gated build/deliver
 loop and runtime traps. This file is platform law that must stay true without loading it.
 
+Cross-cutting owner/proof/gate index: `docs/internals/agent-foundations.md`.
+
 ## Non-negotiable
 
 - **iOS and Android** Expo SDK 57, Expo Router, and the EAS development client. Android is a

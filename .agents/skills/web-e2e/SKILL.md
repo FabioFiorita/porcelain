@@ -18,8 +18,7 @@ platform; read this one for the same job on web.
 
 ```bash
 pnpm test:e2e                 # build + run the browser project — the CI lane
-pnpm --dir apps/desktop test:e2e:prebuilt   # skip the build when `out/` is already fresh
-pnpm --dir apps/desktop test:e2e -- review-publish.spec.ts    # one file
+pnpm --dir apps/desktop test:e2e:prebuilt   # five-test lane; skip the build when `out/` is fresh
 pnpm --dir apps/desktop test:e2e:update     # regenerate `browser` snapshot baselines
 ```
 
@@ -35,9 +34,9 @@ Linux baseline and downloads nothing on the mac release runner unless you ask fo
 - **`repoDir` fixture** is a fresh fixture git repo at a **fixed path** (`porcelain-e2e-fixture`),
   recreated per test — fixed so screenshots get a stable project name, safe because
   `workers: 1` makes it single-owner. Never point a spec at the human's real repos or prod channels.
-- **`seedRepo` / `seedReviewSet` / `seedEvidence` options** (`test.use({ ... })`) seed the Review
-  canvas and evidence pack on disk before the app boots — see `review-publish.spec.ts` and
-  `evidence.spec.ts` for the shape. `seedRepo: false` lands on Welcome instead.
+- **`seedRepo`** (`test.use({ ... })`) controls whether the isolated fixture project is restored
+  before the app boots. `seedRepo: false` lands on Welcome instead. The five assembled assertions
+  and the lower-boundary relocation decisions live in `apps/desktop/e2e/critical-wiring.md`.
 - Fixtures tear themselves down (`rm` the repo, user data, kill the daemon on `SIGTERM`) — a spec
   that mutates the shared fixture repo must restore it, or leave a later test working from the
   wrong tree.
@@ -86,11 +85,9 @@ test('Changes tab lists the working-tree changes', async ({ page }) => {
   `context.conditions?.includes is not a function` on relative TS imports. e2e code uses relative +
   bare specifiers only — don't add a path alias here to "match the app."
 - **Don't parse CLI stdout prose for a filesystem path.** A CLI command's human-readable explainer
-  is not a stable contract — `review-publish.spec.ts` once scraped `evidence prepare`'s output for a
-  line containing `/evidence` and grabbed the wrong line when the copy grew multi-line. Compute the
-  path the same way the product does (e.g. `join(repoDir, '.porcelain', 'active-review', 'evidence')`
-  mirroring `projectEvidenceDir`) instead of reading it back from output.
-  See `e80fd57` for the fix.
+  is not a stable contract. Compute paths the same way the product does (for example,
+  `join(repoDir, '.porcelain', 'active-review', 'evidence')` mirroring `projectEvidenceDir`) instead
+  of reading them back from output.
 - **`fullyParallel: false`, `workers: 1`.** One app/daemon instance at a time keeps screenshots
   deterministic. Don't add `test.describe.parallel` or bump workers to "speed things up" — it will
   make screenshots and the fixed fixture path racy.

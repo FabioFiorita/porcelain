@@ -34,3 +34,4 @@ and packaging: Vite (web), esbuild (daemon/cli), electron-vite (shell only). See
 | Shell / surfaces | `docs/internals/app-shell.md` |
 | Terminal | `docs/internals/terminal.md` |
 | Repo / packaging facts | `docs/internals/repo.md` |
+| Ship/Audit owner, proof, and gate map | `docs/internals/agent-foundations.md` |

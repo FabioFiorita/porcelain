@@ -26,6 +26,7 @@ Contributor architecture. Start with `architecture.md`; the rest are deep dives.
 | [internals/nomenclature.md](internals/nomenclature.md) | Bare nouns: tab names → entry-point files |
 | [internals/repo.md](internals/repo.md) | Repo layout, aliases, packaging facts, shadcn re-apply |
 | [internals/architecture-dispatch.md](internals/architecture-dispatch.md) | Execution-group dispatcher: manifests, fresh Grok/Claude Personal processes, worktree base |
+| [internals/agent-foundations.md](internals/agent-foundations.md) | Current Ship/Audit owners, exact proof paths, and mechanical removal gates |
 
 ## Audit invariants
 
