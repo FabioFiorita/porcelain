@@ -137,7 +137,7 @@ an external choice or authorization.
 | ID | Status | Outcome |
 | --- | --- | --- |
 | `SUP-001` | Landed | Ratchet supporting-region composition and hoist the Review byte helper |
-| `SUP-002` | Draft | Preserve Viewer virtualization/large-input/plain-text behavior |
+| `SUP-002` | Ready | Prove Viewer virtualization, large-input, and plain-text fallbacks |
 | `SUP-003` | Draft | Prove thin Desktop, one daemon, safe URLs, and packaging boundaries |
 | `E2E-001` | Draft | Name/reduce critical assembled wiring suite and relocate redundant tests |
 | `AGT-001` | Draft | Relocate every Ship responsibility and Audit invariant to current owners |
