@@ -1,5 +1,11 @@
 import type { ReviewReading } from '@porcelain/contracts/review'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+
+vi.mock('@/features/comments', () => ({
+  isLineInRange: (range: { startLine: number; endLine: number } | null, line?: number): boolean =>
+    range !== null && line !== undefined && line >= range.startLine && line <= range.endLine,
+  MAX_ANCHOR_TEXT: 2_000,
+}))
 
 import { blockRowIndex, executionBlocks, executionPaths, toExecutionRows } from './execution-rows'
 

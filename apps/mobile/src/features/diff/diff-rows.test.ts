@@ -1,5 +1,13 @@
 import type { DiffHunk } from '@porcelain/contracts/git'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+
+// Keep this pure row suite on the public Comments boundary without loading its native
+// presentation exports under the desktop Vitest parser.
+vi.mock('@/features/comments', () => ({
+  isLineInRange: (range: { startLine: number; endLine: number } | null, line?: number): boolean =>
+    range !== null && line !== undefined && line >= range.startLine && line <= range.endLine,
+  MAX_ANCHOR_TEXT: 2_000,
+}))
 
 import {
   anchorLineOf,

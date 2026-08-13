@@ -1,5 +1,11 @@
 import type { DiffReadingOutput } from '@porcelain/contracts/git'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+
+vi.mock('@/features/comments', () => ({
+  isLineInRange: (range: { startLine: number; endLine: number } | null, line?: number): boolean =>
+    range !== null && line !== undefined && line >= range.startLine && line <= range.endLine,
+  MAX_ANCHOR_TEXT: 2_000,
+}))
 
 import { readingPaths, toReadingRows } from './reading-rows'
 
