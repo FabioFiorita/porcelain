@@ -76,17 +76,41 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
+    // The suite spans every package, so the project root is the monorepo — coverage `include`
+    // globs are resolved against this and silently match nothing when they climb out of it.
+    root: resolve('../..'),
     // One suite, one command. Mobile pure tests + daemon + cli + web + shared.
     // A screen test in jsdom with no native runtime fails loudly — correct signal
     // that it belongs in browser e2e, not here.
     include: [
-      'src/**/*.test.{ts,tsx}',
-      '../daemon/src/**/*.test.{ts,tsx}',
-      '../cli/src/**/*.test.{ts,tsx}',
-      '../web/src/**/*.test.{ts,tsx}',
-      '../../packages/*/src/**/*.test.{ts,tsx}',
-      '../mobile/src/**/*.test.{ts,tsx}',
+      'apps/desktop/src/**/*.test.{ts,tsx}',
+      'apps/daemon/src/**/*.test.{ts,tsx}',
+      'apps/cli/src/**/*.test.{ts,tsx}',
+      'apps/web/src/**/*.test.{ts,tsx}',
+      'packages/*/src/**/*.test.{ts,tsx}',
+      'apps/mobile/src/**/*.test.{ts,tsx}',
     ],
-    setupFiles: ['src/test-setup.ts'],
+    setupFiles: ['apps/desktop/src/test-setup.ts'],
+    // Measurement only — no thresholds. A number nobody has looked at makes a bad gate,
+    // so `pnpm quality` snapshots the baseline first and the ratchet lands after.
+    // `all` is the whole point: a file with no test must read 0%, not go missing.
+    coverage: {
+      provider: 'v8',
+      all: true,
+      reportsDirectory: resolve('coverage'),
+      reporter: ['json-summary', 'text-summary'],
+      include: ['apps/*/src/**/*.{ts,tsx}', 'packages/*/src/**/*.{ts,tsx}'],
+      exclude: [
+        '**/*.test.{ts,tsx}',
+        '**/*.d.ts',
+        '**/test-setup.ts',
+        // Test doubles and fixtures are scaffolding, not product surface.
+        '**/testing/**',
+        '**/__fixtures__/**',
+        // Generated shadcn primitives — re-applied from upstream, not authored here
+        // (Biome excludes them for the same reason).
+        '**/components/ui/**',
+      ],
+    },
   },
 })

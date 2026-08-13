@@ -2,7 +2,7 @@
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "workspaces": {
     ".": {
-      "entry": ["scripts/*.{mjs,js}"],
+      "entry": ["scripts/*.{mjs,js}", "scripts/*/*.mjs"],
       "project": ["scripts/**/*.{mjs,js}"],
       "ignoreBinaries": ["ss", "playwright", "vitest"]
     },
@@ -17,31 +17,104 @@
         "electron.vite.config.ts",
         "src/test-setup.ts"
       ],
-      "project": ["src/**/*.{ts,tsx}", "e2e/**/*.{ts,tsx}"]
+      "project": ["src/**/*.{ts,tsx}", "e2e/**/*.{ts,tsx}"],
+      "paths": {
+        "@renderer/*": ["../web/src/*"],
+        "@main/*": ["src/main/*"],
+        "@preload/*": ["src/preload/*"],
+        "@backend/*": ["../daemon/src/*"],
+        "@porcelain/daemon/*": ["../daemon/src/*"],
+        "@shared/*": ["../../packages/shared/src/*"],
+        "@porcelain/shared/*": ["../../packages/shared/src/*"],
+        "@porcelain/contracts": ["../../packages/contracts/src/index.ts"],
+        "@porcelain/contracts/*": ["../../packages/contracts/src/*"],
+        "@porcelain/client-runtime/*": ["../../packages/client-runtime/src/*"]
+      }
     },
     "apps/daemon": {
       "entry": ["src/server.ts!", "src/api.ts!"],
-      "project": ["src/**/*.{ts,tsx}"]
+      "project": ["src/**/*.{ts,tsx}"],
+      "paths": {
+        "@backend/*": ["src/*"],
+        "@porcelain/daemon/*": ["src/*"],
+        "@shared/*": ["../../packages/shared/src/*"],
+        "@porcelain/shared/*": ["../../packages/shared/src/*"],
+        "@porcelain/contracts": ["../../packages/contracts/src/index.ts"],
+        "@porcelain/contracts/*": ["../../packages/contracts/src/*"]
+      }
     },
     "apps/cli": {
       "entry": ["src/porcelain.ts!"],
-      "project": ["src/**/*.{ts,tsx}"]
+      "project": ["src/**/*.{ts,tsx}"],
+      "paths": {
+        "@backend/*": ["../daemon/src/*"],
+        "@shared/*": ["../../packages/shared/src/*"],
+        "@porcelain/shared/*": ["../../packages/shared/src/*"],
+        "@porcelain/contracts": ["../../packages/contracts/src/index.ts"],
+        "@porcelain/contracts/*": ["../../packages/contracts/src/*"]
+      }
     },
     "apps/web": {
       "entry": ["src/main.tsx!", "index.html!"],
       "project": ["src/**/*.{ts,tsx}"],
-      "ignore": ["src/components/ui/**"]
+      "ignore": ["src/components/ui/**"],
+      "paths": {
+        "@renderer/*": ["src/*"],
+        "@main/*": ["../desktop/src/main/*"],
+        "@preload/*": ["../desktop/src/preload/*"],
+        "@backend/*": ["../daemon/src/*"],
+        "@porcelain/daemon/*": ["../daemon/src/*"],
+        "@shared/*": ["../../packages/shared/src/*"],
+        "@porcelain/shared/*": ["../../packages/shared/src/*"],
+        "@porcelain/contracts": ["../../packages/contracts/src/index.ts"],
+        "@porcelain/contracts/*": ["../../packages/contracts/src/*"],
+        "@porcelain/client-runtime/*": ["../../packages/client-runtime/src/*"]
+      }
     },
     "apps/mobile": {
       "project": ["src/**/*.{ts,tsx}"],
+      "paths": {
+        "@/*": ["src/*"],
+        "@shared/*": ["../../packages/shared/src/*"],
+        "@porcelain/shared/*": ["../../packages/shared/src/*"],
+        "@porcelain/contracts": ["../../packages/contracts/src/index.ts"],
+        "@porcelain/contracts/*": ["../../packages/contracts/src/*"],
+        "@porcelain/client-runtime/*": ["../../packages/client-runtime/src/*"]
+      },
       "ignoreDependencies": [
         "expo-clipboard",
         "expo-haptics",
         "expo-notifications",
         "expo-task-manager"
       ]
+    },
+    "packages/contracts": {
+      "entry": ["src/index.ts!"],
+      "project": ["src/**/*.{ts,tsx}"],
+      "paths": {
+        "@shared/*": ["../shared/src/*"],
+        "@porcelain/shared/*": ["../shared/src/*"]
+      }
+    },
+    "packages/shared": {
+      "entry": ["src/*.ts!"],
+      "project": ["src/**/*.{ts,tsx}"]
+    },
+    "packages/client-runtime": {
+      "entry": ["src/*.ts!", "src/*/index.ts!", "src/*/*.ts!"],
+      "project": ["src/**/*.{ts,tsx}"],
+      "paths": {
+        "@shared/*": ["../shared/src/*"],
+        "@porcelain/shared/*": ["../shared/src/*"],
+        "@porcelain/contracts": ["../contracts/src/index.ts"],
+        "@porcelain/contracts/*": ["../contracts/src/*"]
+      }
+    },
+    "packages/ui": {
+      "project": ["src/**/*.css"]
     }
   },
+  "ignoreBinaries": ["vitest"],
   "ignoreDependencies": [
     "@fontsource-variable/geist",
     "@fontsource-variable/geist-mono",
@@ -55,6 +128,8 @@
     "@tailwindcss/typography",
     "tailwindcss",
     "conventional-changelog-conventionalcommits",
-    "@trpc/client"
+    "@trpc/client",
+    "vitest",
+    "@testing-library/react"
   ]
 }

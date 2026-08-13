@@ -27,6 +27,7 @@ Contributor architecture. Start with `architecture.md`; the rest are deep dives.
 | [internals/repo.md](internals/repo.md) | Repo layout, aliases, packaging facts, shadcn re-apply |
 | [internals/architecture-dispatch.md](internals/architecture-dispatch.md) | Execution-group dispatcher: manifests, fresh Grok/Claude Personal processes, worktree base |
 | [internals/agent-foundations.md](internals/agent-foundations.md) | Cross-cutting foundation owners, exact proof paths, and mechanical removal gates |
+| [internals/quality-metrics.md](internals/quality-metrics.md) | Coverage, complexity, dead code: what `pnpm quality` measures and why coverage is a floor |
 
 ## Security and correctness invariants
 
