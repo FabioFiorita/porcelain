@@ -24,6 +24,8 @@
     "test:watch": "vitest",
     "test:e2e": "pnpm build && PLAYWRIGHT_FORCE_ASYNC_LOADER=1 playwright test --project=browser e2e/critical-wiring.spec.ts",
     "test:e2e:prebuilt": "PLAYWRIGHT_FORCE_ASYNC_LOADER=1 playwright test --project=browser e2e/critical-wiring.spec.ts",
+    "test:e2e:visual": "pnpm build && PLAYWRIGHT_FORCE_ASYNC_LOADER=1 playwright test --project=browser e2e/visual.spec.ts",
+    "test:e2e:visual:prebuilt": "PLAYWRIGHT_FORCE_ASYNC_LOADER=1 playwright test --project=browser e2e/visual.spec.ts",
     "test:e2e:update": "pnpm build && PLAYWRIGHT_FORCE_ASYNC_LOADER=1 playwright test --project=browser e2e/visual.spec.ts --update-snapshots",
     "test:e2e:native": "pnpm build && PLAYWRIGHT_FORCE_ASYNC_LOADER=1 playwright test --project=electron e2e/terminal-native.spec.ts",
     "test:e2e:native:prebuilt": "PLAYWRIGHT_FORCE_ASYNC_LOADER=1 playwright test --project=electron e2e/terminal-native.spec.ts",

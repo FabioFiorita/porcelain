@@ -18,10 +18,23 @@ describe('settleBackground', () => {
   })
 
   it('absorbs rejection without becoming unhandled', async () => {
-    settleBackground(Promise.reject(new Error('boom')), 'invalidation')
-    await flushMicrotasks()
-    // If the rejection were unhandled, vitest would fail the suite.
-    expect(true).toBe(true)
+    // `expect(true).toBe(true)` stood here and could not fail, so nothing proved the catch was
+    // ever attached. Listen on `process`, not `window`: jsdom never bridges Node's unhandled
+    // rejection detection to the DOM event, so a window listener silently observes nothing.
+    // Detection also lands a macrotask later than the rejection, hence the timer flush.
+    const escaped: unknown[] = []
+    const onUnhandled = (error: unknown): void => {
+      escaped.push(error)
+    }
+    process.on('unhandledRejection', onUnhandled)
+    try {
+      settleBackground(Promise.reject(new Error('boom')), 'invalidation')
+      await flushMicrotasks()
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    } finally {
+      process.off('unhandledRejection', onUnhandled)
+    }
+    expect(escaped).toEqual([])
   })
 
   it('leaves fulfilled promises settled', async () => {

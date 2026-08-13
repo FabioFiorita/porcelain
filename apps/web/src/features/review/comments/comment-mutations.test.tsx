@@ -1,6 +1,6 @@
-import { publicErrorFixtures } from '@porcelain/contracts'
+import { type PorcelainError, publicErrorFixtures } from '@porcelain/contracts'
 import { remoteContractFixtures } from '@porcelain/contracts/remote'
-import { reviewContractFixtures } from '@porcelain/contracts/review'
+import { type ReviewComment, reviewContractFixtures } from '@porcelain/contracts/review'
 import { createValidatingTrpcHarness, deferred } from '@renderer/hooks/trpc-test-harness'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { act, renderHook, waitFor } from '@testing-library/react'
@@ -13,11 +13,16 @@ import { reviewCommentsKeyForProject } from './comment-query-key'
 vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
 
 const REPO = reviewContractFixtures.reviewComments.input
-const FIXTURE = reviewContractFixtures.reviewComments.output[0]
+const FIXTURE: ReviewComment | undefined = reviewContractFixtures.reviewComments.output[0]
 if (FIXTURE === undefined) throw new Error('Expected reviewComments fixture')
-const CREATED = reviewContractFixtures.addReviewComment.output
+// Widen to the contract type. The fixtures are `as const`, so inferring from the value pins
+// every field to a literal and each variant below reads as a type error rather than a case.
+const BASE: ReviewComment = FIXTURE
+const CREATED: ReviewComment = reviewContractFixtures.addReviewComment.output
 
-const UNAVAILABLE = publicErrorFixtures['review.unavailable']
+// Widened for the same reason as BASE: the fixture's `message` is a literal type, so a
+// test supplying its own failure message read as a type error.
+const UNAVAILABLE: PorcelainError = publicErrorFixtures['review.unavailable']
 
 type Combined = { list: ReturnType<typeof useReviewComments> } & ReturnType<
   typeof useCommentActions
@@ -28,8 +33,8 @@ type Combined = { list: ReturnType<typeof useReviewComments> } & ReturnType<
  * `refetch` so only the optimistic rollback can restore pre-mutation cache values
  * before the authoritative settle.
  */
-function comments(served: readonly (typeof FIXTURE)[]) {
-  const write = deferred<{ ok: true; value: unknown } | { ok: false; error: typeof UNAVAILABLE }>()
+function comments(served: readonly ReviewComment[]) {
+  const write = deferred<{ ok: true; value: unknown } | { ok: false; error: PorcelainError }>()
   const refetch = deferred<void>()
   const inputs: unknown[] = []
   let list = served.map((c) => ({ ...c }))
@@ -44,27 +49,27 @@ function comments(served: readonly (typeof FIXTURE)[]) {
     addReviewComment: async (input) => {
       inputs.push(input)
       return (await write.promise) as
-        | { ok: true; value: typeof CREATED }
-        | { ok: false; error: typeof UNAVAILABLE }
+        | { ok: true; value: ReviewComment }
+        | { ok: false; error: PorcelainError }
     },
     editReviewComment: async (input) => {
       inputs.push(input)
       return (await write.promise) as
         | { ok: true; value: undefined }
-        | { ok: false; error: typeof UNAVAILABLE }
+        | { ok: false; error: PorcelainError }
     },
     deleteReviewComment: async () =>
       (await write.promise) as
         | { ok: true; value: undefined }
-        | { ok: false; error: typeof UNAVAILABLE },
+        | { ok: false; error: PorcelainError },
     resolveReviewComment: async () =>
       (await write.promise) as
         | { ok: true; value: undefined }
-        | { ok: false; error: typeof UNAVAILABLE },
+        | { ok: false; error: PorcelainError },
     clearResolvedReviewComments: async () =>
       (await write.promise) as
         | { ok: true; value: undefined }
-        | { ok: false; error: typeof UNAVAILABLE },
+        | { ok: false; error: PorcelainError },
   })
 
   const mount = async (): Promise<{ current: Combined }> => {
@@ -85,7 +90,7 @@ function comments(served: readonly (typeof FIXTURE)[]) {
     write,
     refetch,
     mock,
-    setAuthoritative: (next: readonly (typeof FIXTURE)[]) => {
+    setAuthoritative: (next: readonly ReviewComment[]) => {
       list = next.map((c) => ({ ...c }))
     },
     mount,
@@ -99,7 +104,7 @@ beforeEach(() => {
 
 describe('useCommentActions optimism', () => {
   it('serializes overlapping writes for one comments identity before applying optimism', async () => {
-    const existing = { ...FIXTURE, body: 'original' }
+    const existing = { ...BASE, body: 'original' }
     const { inputs, write, refetch, setAuthoritative, mount } = comments([existing])
     const result = await mount()
 
@@ -125,7 +130,7 @@ describe('useCommentActions optimism', () => {
   })
 
   it('closes a comment in the cache before the server answers, then reconciles', async () => {
-    const open = { ...FIXTURE, resolved: false }
+    const open = { ...BASE, resolved: false }
     const { write, refetch, setAuthoritative, mount } = comments([open])
     const result = await mount()
 
@@ -143,7 +148,7 @@ describe('useCommentActions optimism', () => {
   })
 
   it('restores the previous list and toasts when resolve fails with review.unavailable', async () => {
-    const open = { ...FIXTURE, resolved: false }
+    const open = { ...BASE, resolved: false }
     const { write, refetch, mount } = comments([open])
     const result = await mount()
 
@@ -164,7 +169,7 @@ describe('useCommentActions optimism', () => {
   })
 
   it('prepends an added comment under a temporary id that is never sent to the daemon', async () => {
-    const existing = { ...FIXTURE }
+    const existing = { ...BASE }
     const { inputs, write, refetch, setAuthoritative, mount } = comments([existing])
     const result = await mount()
 
@@ -195,7 +200,7 @@ describe('useCommentActions optimism', () => {
   })
 
   it('reconciles the temporary id with the authoritative add result before refetch settles', async () => {
-    const existing = { ...FIXTURE }
+    const existing = { ...BASE }
     const { write, refetch, setAuthoritative, mount } = comments([existing])
     const result = await mount()
 
@@ -220,7 +225,7 @@ describe('useCommentActions optimism', () => {
   })
 
   it('drops the optimistic comment when the add fails', async () => {
-    const existing = { ...FIXTURE }
+    const existing = { ...BASE }
     const { write, refetch, mount } = comments([existing])
     const result = await mount()
 
@@ -239,8 +244,8 @@ describe('useCommentActions optimism', () => {
   })
 
   it('removes a comment and puts it back when the delete fails', async () => {
-    const existing = { ...FIXTURE, id: 'c1', createdAt: 1 }
-    const other = { ...FIXTURE, id: 'c2', createdAt: 5, body: 'other' }
+    const existing = { ...BASE, id: 'c1', createdAt: 1 }
+    const other = { ...BASE, id: 'c2', createdAt: 5, body: 'other' }
     const { write, refetch, mount } = comments([other, existing])
     const result = await mount()
 
@@ -259,7 +264,7 @@ describe('useCommentActions optimism', () => {
   })
 
   it('edits the body only in the cache before the server answers', async () => {
-    const open = { ...FIXTURE, body: 'original' }
+    const open = { ...BASE, body: 'original' }
     const { write, refetch, setAuthoritative, mount } = comments([open])
     const result = await mount()
 
@@ -277,8 +282,8 @@ describe('useCommentActions optimism', () => {
   })
 
   it('clears closed comments and restores them when the write fails', async () => {
-    const open = { ...FIXTURE, id: 'c1', resolved: false, createdAt: 1 }
-    const closed = { ...FIXTURE, id: 'c2', resolved: true, createdAt: 5 }
+    const open = { ...BASE, id: 'c1', resolved: false, createdAt: 1 }
+    const closed = { ...BASE, id: 'c2', resolved: true, createdAt: 5 }
     const { write, refetch, mount } = comments([closed, open])
     const result = await mount()
 
@@ -300,7 +305,7 @@ describe('useCommentActions optimism', () => {
 
   it('does not seed optimism when the comments list has never loaded', async () => {
     const write = deferred<
-      { ok: true; value: typeof CREATED } | { ok: false; error: typeof UNAVAILABLE }
+      { ok: true; value: ReviewComment } | { ok: false; error: PorcelainError }
     >()
     let fetches = 0
     const { wrapper } = createValidatingTrpcHarness({
@@ -342,7 +347,7 @@ describe('useCommentActions optimism', () => {
   })
 
   it('invalidates the exact comments Query key after settle', async () => {
-    const open = { ...FIXTURE, resolved: false }
+    const open = { ...BASE, resolved: false }
     const { write, refetch, setAuthoritative, mount, mock } = comments([open])
     const result = await mount()
 

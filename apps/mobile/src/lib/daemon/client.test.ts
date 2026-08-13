@@ -94,15 +94,24 @@ describe('createTimeoutFetch', () => {
   })
 
   it('does not fire the timeout once the response has already settled', async () => {
+    let capturedSignal: AbortSignal | undefined
     const response = new Response('{}', { status: 200 })
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => response),
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        capturedSignal = init?.signal ?? undefined
+        return response
+      }),
     )
 
     await createTimeoutFetch(PROBE_TIMEOUT_MS)('http://192.168.1.50:43117/trpc')
-    // The pending timer is cleared on settle; running it out must not throw unhandled.
+
+    // Settling must clear the pending abort timer, not merely outlive it. Asserting the timer
+    // count is what makes this test discriminate: without the `clearTimeout`, one timer stays
+    // armed here and the signal below aborts a request that already came back.
+    expect(vi.getTimerCount()).toBe(0)
     await vi.advanceTimersByTimeAsync(PROBE_TIMEOUT_MS * 2)
+    expect(capturedSignal?.aborted).toBe(false)
   })
 
   it('still honors an externally supplied AbortSignal (React Query cancellation)', async () => {

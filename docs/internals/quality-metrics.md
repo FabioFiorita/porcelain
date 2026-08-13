@@ -21,6 +21,7 @@ So: structure was measured, tests were not. This closes that.
 | Cognitive complexity | Biome `noExcessiveCognitiveComplexity`, run via `--only` | Which functions are too branchy to reason about or to test honestly |
 | Module size | `ARCHITECTURE_LINE_CEILING` (450) over production source | Same ceiling the architecture gate enforces, reported as a distribution |
 | Dead code | `knip` | Unused exports, files, and dependencies — the debt that inflates every other number |
+| Test shape | `scripts/quality/test-shape.mjs` (TS AST) | Tests that pass without proving anything |
 
 Run it:
 
@@ -28,7 +29,33 @@ Run it:
 pnpm quality            # scorecard; reuses a coverage report under an hour old
 pnpm quality:baseline   # fresh suite run, then snapshot to scripts/quality/baseline.json
 pnpm test:coverage      # coverage alone, no scorecard
+pnpm lint:test-shape    # the gate that runs on every commit
+node scripts/quality/test-shape.mjs --list   # every shape finding, not just the head
 ```
+
+## Test shape: the half coverage cannot see
+
+A test that renders a component and asserts nothing executes every line it touches and reports as
+**covered**. Coverage is structurally blind to it. The AST scan reads six shapes:
+
+| Kind | Gated | Why |
+|---|---|---|
+| `focused` | yes | `.only` silently skips every sibling in the file |
+| `disabled` | yes | `.skip` / `.todo` / `xit` — not a test |
+| `tautology` | yes | `expect(true).toBe(true)` cannot fail |
+| `no-assert` | yes | reaches no assertion, directly or through a file-local helper |
+| `weak-only` | no | only `toBeDefined` / `toBeTruthy` / bare `toHaveBeenCalled` |
+| `mock-only` | no | asserts mock call state, never a value or the DOM |
+
+The four gated kinds all measured **zero** when the gate landed; it exists so they stay there. The
+fix for a gated finding is to write the assertion or delete the test — never to skip it.
+
+`weak-only` and `mock-only` are deliberately *not* gated. They are judgment calls, and gating a
+judgment call teaches people to write around the gate rather than think. They are reported so a
+domain owner can look.
+
+Shape is a proxy, and it has a hard limit: it cannot see a spec that passes because a sibling left
+the fixture in the wrong state. That needs semantics, which is mutation testing's job.
 
 ## Read coverage by domain, not in total
 
@@ -82,3 +109,38 @@ Both of these were wrong on the first run, and both would have produced confiden
 
 If a leg of the scorecard cannot run, it reports **not measured** rather than zero. A metric that
 fails open is a metric that lies.
+
+## Two holes this found, and what closed them
+
+**The visual e2e lane had no runner.** `visual.spec.ts` holds nine tests — screenshot baselines
+plus real layout assertions like the sidebar ring geometry — and the only script that named it was
+`test:e2e:update`, which always passes `--update-snapshots`. Its baselines were rewritten on every
+run and never compared, so the regression net was cast exactly never. `test:e2e:visual` runs it as
+a check and CI runs it after `test:e2e`. Regenerate baselines deliberately with `test:e2e:update`,
+never as a way to make a red run green.
+
+**Test files were outside every TypeScript project.** `tsconfig.node.json` and `tsconfig.web.json`
+both excluded `**/*.test.ts`, and only `tsconfig.mobile-tests.json` included any tests at all. A
+`const x: number = 'string'` in a web test file passed `pnpm typecheck`, and an `expectTypeOf`
+assertion asserting something false passed both vitest and tsc — inert in every gate it appeared
+to satisfy.
+
+`apps/desktop/tsconfig.tests.json` is now the project that checks them, and `pnpm typecheck:tests`
+runs it as part of `pnpm verify`. Turning it on surfaced **127 errors across 47 files**, which is
+too many to clear in one sitting and far too many to leave a gate red over — so it uses the same
+shrink-only ledger shape as `OVERSIZED_PRODUCTION_FILES`: `scripts/quality/test-types-ledger.json`
+records each file's count, counts may shrink or hold, growth fails, and a file absent from the
+ledger must be clean. Re-record with `pnpm typecheck:tests:ledger` after fixing some.
+
+Nearly all of the backlog is two shapes, and both are the masking problem expressed in types:
+
+- **`as const` fixtures.** `reviewContractFixtures…output[0]` infers `body: "Synthetic comment."`,
+  so a test building a variant is a type error rather than a case. Widen to the contract type
+  (`ReviewComment`, `PorcelainError`) — never clone the fixture to dodge it.
+- **Untyped mocks.** `vi.fn(() => ({ ok: true, value: x }))` infers `{ ok: boolean }` and is handed
+  to a port that returns a discriminated union. A test asserting against that mock asserts against
+  a fiction, and stays green when production narrows away from it. Type the mock to the port.
+
+One defect this immediately caught: `terminal-stream-gateway.test.ts` imported `TerminalAttachValue`
+from `@porcelain/contracts/terminal`, which has never exported it. Type imports erase at runtime,
+so vitest was happy and no project typechecked the file.

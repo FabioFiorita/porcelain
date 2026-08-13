@@ -1,0 +1,53 @@
+{
+  // Test files were outside every TypeScript project: tsconfig.node.json and tsconfig.web.json
+  // both excluded `**/*.test.ts`, and only tsconfig.mobile-tests.json included any tests at all.
+  // A `const x: number = 'nope'` in a web test passed `pnpm typecheck`, and an `expectTypeOf`
+  // assertion asserting something false passed vitest AND tsc — inert in both gates it looked
+  // like it satisfied. This project is where a test's types are checked.
+  //
+  // Mobile tests keep their own project (tsconfig.mobile-tests.json) — they need the React Native
+  // and NativeWind ambient types, which would conflict with the DOM lib this one wants.
+  "extends": "./tsconfig.web.json",
+  "include": [
+    "../web/src/env.d.ts",
+    // `__PORCELAIN_VERSION__` is a build-time define; without its ambient declaration every
+    // file that reads the version looks broken here.
+    "src/shared/globals.d.ts",
+    "src/test-setup.ts",
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx",
+    "../daemon/src/**/*.test.ts",
+    "../cli/src/**/*.test.ts",
+    "../web/src/**/*.test.ts",
+    "../web/src/**/*.test.tsx",
+    "../../packages/contracts/src/**/*.test.ts",
+    "../../packages/shared/src/**/*.test.ts",
+    "../../packages/client-runtime/src/**/*.test.ts"
+  ],
+  "exclude": [],
+  "compilerOptions": {
+    "composite": false,
+    "noEmit": true,
+    "types": ["node"],
+    "paths": {
+      "@renderer/*": ["../web/src/*"],
+      "@main/*": ["src/main/*"],
+      "@preload/*": ["src/preload/*"],
+      "@backend/*": ["../daemon/src/*"],
+      "@porcelain/daemon/*": ["../daemon/src/*"],
+      "@shared/*": ["../../packages/shared/src/*"],
+      "@porcelain/shared/*": ["../../packages/shared/src/*"],
+      "@porcelain/contracts": ["../../packages/contracts/src/index.ts"],
+      "@porcelain/contracts/*": ["../../packages/contracts/src/*"],
+      "@porcelain/client-runtime": ["../../packages/client-runtime/src/index.ts"],
+      "@porcelain/client-runtime/*": ["../../packages/client-runtime/src/*"],
+      // The one Vitest install lives here and every package's tests run through it, so the
+      // packages that have no node_modules of their own resolve the runner from this project.
+      "vitest": ["./node_modules/vitest"],
+      "vitest/*": ["./node_modules/vitest/*"],
+      "@testing-library/react": ["./node_modules/@testing-library/react"],
+      "@testing-library/user-event": ["./node_modules/@testing-library/user-event"],
+      "@testing-library/jest-dom/*": ["./node_modules/@testing-library/jest-dom/*"]
+    }
+  }
+}

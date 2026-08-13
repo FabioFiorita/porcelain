@@ -1,10 +1,9 @@
-import {
-  type TerminalAttachValue,
-  terminalClientFrameSchema,
-  terminalServerFrameSchema,
-} from '@porcelain/contracts/terminal'
+import { terminalClientFrameSchema, terminalServerFrameSchema } from '@porcelain/contracts/terminal'
 import { describe, expect, it, vi } from 'vitest'
-import type { TerminalOperations, TerminalStreamSink } from './terminal-ports'
+// TerminalAttachValue is a daemon port type, not a contract type. It was imported from
+// @porcelain/contracts/terminal, which never exported it — type imports erase at runtime, so
+// vitest was happy and nothing typechecked the file.
+import type { TerminalAttachValue, TerminalOperations, TerminalStreamSink } from './terminal-ports'
 import { createTerminalStreamGateway } from './terminal-stream-gateway'
 
 const ATTACHMENT: TerminalAttachValue = {

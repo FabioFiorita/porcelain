@@ -1,0 +1,180 @@
+#!/usr/bin/env node
+/**
+ * Fixture tests for the test-shape analyzer.
+ *
+ * A detector for hollow tests that is itself untested would be the joke writing itself. Each
+ * fixture is the smallest source that must be caught — and, just as important, the smallest
+ * legitimate source that must NOT be, because a shape check that cries wolf gets ignored and
+ * then deleted.
+ */
+import assert from 'node:assert/strict'
+import { test } from 'node:test'
+import { analyzeTestFile } from './test-shape.mjs'
+
+const kinds = (source, fileName = 'fixture.test.ts') =>
+  analyzeTestFile(fileName, source).findings.map((finding) => finding.kind)
+
+test('flags a test that reaches no assertion', () => {
+  assert.deepEqual(
+    kinds(`it('does a thing', () => {
+      doTheThing()
+    })`),
+    ['no-assert'],
+  )
+})
+
+test('accepts a test that asserts through a file-local helper', () => {
+  assert.deepEqual(
+    kinds(`function expectRendered(node) {
+      expect(node).toHaveTextContent('ok')
+    }
+    it('renders', () => {
+      expectRendered(render())
+    })`),
+    [],
+  )
+})
+
+test('accepts an arrow-function local helper too', () => {
+  assert.deepEqual(
+    kinds(`const expectRendered = (node) => {
+      expect(node).toEqual({ ok: true })
+    }
+    it('renders', () => {
+      expectRendered(render())
+    })`),
+    [],
+  )
+})
+
+test('accepts an explicit assertion contract with no inline matcher', () => {
+  assert.deepEqual(
+    kinds(`it('rejects', async () => {
+      expect.assertions(1)
+      await run().catch((error) => {
+        expect(error.message).toBe('boom')
+      })
+    })`),
+    [],
+  )
+})
+
+test('flags a literal compared to itself', () => {
+  assert.deepEqual(
+    kinds(`it('absorbs', () => {
+      expect(true).toBe(true)
+    })`),
+    ['tautology'],
+  )
+})
+
+test('does not call a literal compared to a different literal a tautology', () => {
+  assert.deepEqual(
+    kinds(`it('computes', () => {
+      expect(add(1, 2)).toBe(3)
+    })`),
+    [],
+  )
+})
+
+test('flags skip, todo, and xit as disabled', () => {
+  assert.deepEqual(kinds(`it.skip('later', () => { expect(1).toBe(1) })`), ['disabled'])
+  assert.deepEqual(kinds(`it.todo('someday')`), ['disabled'])
+  assert.deepEqual(kinds(`xit('legacy', () => { expect(a).toBe(b) })`), ['disabled'])
+})
+
+test('flags a test inside a skipped suite', () => {
+  assert.deepEqual(
+    kinds(`describe.skip('suite', () => {
+      it('inner', () => { expect(a).toBe(b) })
+    })`),
+    ['disabled'],
+  )
+})
+
+test('flags .only, which silently skips every sibling', () => {
+  assert.deepEqual(kinds(`it.only('focused', () => { expect(a).toBe(b) })`), ['focused'])
+})
+
+test('flags a test whose only assertions are existence checks', () => {
+  assert.deepEqual(
+    kinds(`it('builds something', () => {
+      expect(build()).toBeDefined()
+      expect(build().parts).toBeTruthy()
+    })`),
+    ['weak-only'],
+  )
+})
+
+test('accepts a weak assertion standing beside a real one', () => {
+  assert.deepEqual(
+    kinds(`it('builds something', () => {
+      const result = build()
+      expect(result).toBeDefined()
+      expect(result.name).toBe('porcelain')
+    })`),
+    [],
+  )
+})
+
+test('flags a test that only inspects mock call state', () => {
+  assert.deepEqual(
+    kinds(`it('delegates to the port', () => {
+      operate()
+      expect(port.write).toHaveBeenCalledWith('payload')
+    })`),
+    ['mock-only'],
+  )
+})
+
+test('accepts a mock assertion paired with an observable result', () => {
+  assert.deepEqual(
+    kinds(`it('delegates and returns', () => {
+      const result = operate()
+      expect(port.write).toHaveBeenCalledWith('payload')
+      expect(result).toEqual({ ok: true })
+    })`),
+    [],
+  )
+})
+
+test('counts a type-level assertion as an assertion', () => {
+  assert.deepEqual(
+    kinds(`it('pins the union', () => {
+      expectTypeOf<ReadError>().toEqualTypeOf<'path-outside-project'>()
+    })`),
+    [],
+  )
+})
+
+test('walks it.each and tagged titles without losing the body', () => {
+  assert.deepEqual(
+    kinds(`it.each([1, 2])('case %i', (n) => {
+      runCase(n)
+    })`),
+    ['no-assert'],
+  )
+})
+
+test('handles tsx and counts every test in a file', () => {
+  const result = analyzeTestFile(
+    'fixture.test.tsx',
+    `it('a', () => { expect(<div />).toBeInTheDocument() })
+     it('b', () => { render(<div />) })`,
+  )
+  assert.equal(result.testCount, 2)
+  assert.deepEqual(
+    result.findings.map((finding) => finding.kind),
+    ['no-assert'],
+  )
+})
+
+test('reports the title and line so a finding can be opened', () => {
+  const [finding] = analyzeTestFile(
+    'fixture.test.ts',
+    `\n\nit('a hollow one', () => {\n  run()\n})`,
+  ).findings
+  assert.equal(finding.title, 'a hollow one')
+  assert.equal(finding.line, 3)
+  assert.equal(finding.file, 'fixture.test.ts')
+})

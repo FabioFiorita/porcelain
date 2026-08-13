@@ -44,3 +44,13 @@ jobs:
       - run: node apps/desktop/node_modules/electron/install.js
       - run: pnpm --dir apps/desktop exec playwright install --with-deps chromium
       - run: pnpm test:e2e
+      # The visual lane had no runner: the only script that touched visual.spec.ts passed
+      # --update-snapshots, so its baselines were rewritten and never compared. Reuses the
+      # build `test:e2e` just made.
+      - run: pnpm --dir apps/desktop test:e2e:visual:prebuilt
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-diffs
+          path: apps/desktop/e2e/.artifacts/
+          retention-days: 7

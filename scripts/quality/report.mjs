@@ -24,6 +24,7 @@ import {
   DOMAIN_KEYS,
   TARGET_DOMAIN_ROOTS,
 } from '../architecture/domains.mjs'
+import { GATED_KINDS, scanTestShape } from './test-shape.mjs'
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const BASELINE = path.join(root, 'scripts', 'quality', 'baseline.json')
@@ -298,7 +299,7 @@ function printScorecard(report) {
   const lines = []
   lines.push('')
   lines.push('  PORCELAIN QUALITY BASELINE')
-  lines.push('  ' + '─'.repeat(60))
+  lines.push(`  ${'─'.repeat(60)}`)
 
   if (report.coverage) {
     lines.push('')
@@ -327,7 +328,7 @@ function printScorecard(report) {
   }
 
   lines.push('')
-  lines.push('  ' + '─'.repeat(60))
+  lines.push(`  ${'─'.repeat(60)}`)
   if (report.complexity) {
     lines.push(
       `  Cognitive complexity  ${report.complexity.overCeiling} functions over ${report.complexity.ceiling}`,
@@ -359,8 +360,18 @@ function printScorecard(report) {
   }
 
   lines.push('')
-  lines.push('  ' + '─'.repeat(60))
-  lines.push('  Measurement only — nothing here fails a build yet.')
+  const quality = report.testQuality
+  lines.push(`  Test shape            ${quality.tests} tests across ${quality.files} files`)
+  for (const kind of ['focused', 'disabled', 'tautology', 'no-assert', 'weak-only', 'mock-only']) {
+    const count = quality.counts[kind] ?? 0
+    const gated = quality.gatedKinds.includes(kind) ? ' (gated)' : ''
+    lines.push(`    ${count.toString().padStart(4)}  ${kind}${gated}`)
+  }
+
+  lines.push('')
+  lines.push(`  ${'─'.repeat(60)}`)
+  lines.push('  Coverage, complexity, size, and dead code are measurement only.')
+  lines.push('  Test shape gates four always-wrong kinds; the rest is judgment.')
   lines.push('')
   process.stdout.write(lines.join('\n'))
 }
@@ -370,12 +381,24 @@ function printScorecard(report) {
 if (forceFresh || !coverageIsFresh()) runCoverage()
 else note('Reusing the existing coverage report (pass --fresh to re-run the suite).')
 
+const shape = scanTestShape(root)
+const shapeCounts = {}
+for (const finding of shape.findings) {
+  shapeCounts[finding.kind] = (shapeCounts[finding.kind] ?? 0) + 1
+}
+
 const report = {
   coverage: readCoverage(),
   complexity: readComplexity(),
   deadCode: readDeadCode(),
   moduleSizes: readModuleSizes(),
   testShape: readTestShape(),
+  testQuality: {
+    tests: shape.testCount,
+    files: shape.fileCount,
+    gatedKinds: GATED_KINDS,
+    counts: shapeCounts,
+  },
 }
 
 if (asJson) process.stdout.write(`${JSON.stringify(report, null, 2)}\n`)
