@@ -1,3 +1,9 @@
+import {
+  reviewedPathsQuery,
+  reviewReadingQuery,
+  reviewViewQuery,
+  worktreeInboxQuery,
+} from '@porcelain/client-runtime/review'
 import { describe, expect, it } from 'vitest'
 import {
   GitIdentityError,
@@ -20,11 +26,6 @@ import {
   gitSuggestionsQuery,
   gitWorkspaceQuerySchema,
   gitWorktreesQuery,
-  reviewedPathsQuery,
-  reviewReadingQuery,
-  reviewViewQuery,
-  reviewWorkspaceQuerySchema,
-  worktreeInboxQuery,
 } from './git-queries'
 import {
   dedupeGitQueryEffects,
@@ -110,7 +111,7 @@ describe('Git query identities', () => {
     )
   })
 
-  it('keeps Review workspace identities in their own strict schema', () => {
+  it('keeps the relocated Review workspace identities in gitWorkspaceQuerySchema', () => {
     const queries = [
       reviewReadingQuery(PROJECT),
       reviewViewQuery(PROJECT),
@@ -118,7 +119,6 @@ describe('Git query identities', () => {
       worktreeInboxQuery(PROJECT),
     ]
     for (const query of queries) {
-      expect(reviewWorkspaceQuerySchema.safeParse(query).success).toBe(true)
       expect(gitWorkspaceQuerySchema.safeParse(query).success).toBe(true)
     }
   })

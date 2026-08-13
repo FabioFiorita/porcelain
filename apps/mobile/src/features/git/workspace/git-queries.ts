@@ -3,8 +3,8 @@ import {
   gitHeadQuery,
   gitProjectKey,
   gitWorktreesQuery,
-  worktreeInboxQuery,
 } from '@porcelain/client-runtime/git'
+import { worktreeInboxQuery } from '@porcelain/client-runtime/review'
 import type { BranchRef, GitHead, Worktree } from '@porcelain/contracts/git'
 import { gitProcedures } from '@porcelain/contracts/git'
 import type { WorktreeInboxRow } from '@porcelain/contracts/review'

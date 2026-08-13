@@ -1,4 +1,4 @@
-import { reviewedPathsQuery } from '@porcelain/client-runtime/git'
+import { reviewedPathsQuery } from '@porcelain/client-runtime/review'
 import { onMutationError } from '@renderer/hooks/mutation-error'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import { trpc } from '@renderer/lib/trpc'

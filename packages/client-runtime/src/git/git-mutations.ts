@@ -6,6 +6,12 @@ import {
   filesTreeSubtreeEffect,
 } from '@porcelain/client-runtime/files'
 import {
+  reviewedPathsQuery,
+  reviewReadingQuery,
+  reviewViewQuery,
+  worktreeInboxQuery,
+} from '@porcelain/client-runtime/review'
+import {
   type GitAddWorktreeInput,
   type GitCheckoutInput,
   type GitCommitInput,
@@ -32,10 +38,6 @@ import {
   gitStatusQuery,
   gitSuggestionsQuery,
   gitWorktreesQuery,
-  reviewedPathsQuery,
-  reviewReadingQuery,
-  reviewViewQuery,
-  worktreeInboxQuery,
 } from './git-queries'
 import {
   dedupeGitQueryEffects,

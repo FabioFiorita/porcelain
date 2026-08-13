@@ -1,3 +1,9 @@
+import {
+  reviewedPathsQuerySchema,
+  reviewReadingQuerySchema,
+  reviewViewQuerySchema,
+  worktreeInboxQuerySchema,
+} from '@porcelain/client-runtime/review'
 import { z } from 'zod'
 
 /** Programmer error for an invalid Git project identity. */
@@ -9,7 +15,7 @@ const projectPathSchema = z.string().min(1)
 const pathDimensionSchema = z.string()
 const limitSchema = z.number().int().positive()
 
-/** Keep the project dimension shared by every Git and workspace Review identity. */
+/** Keep the project dimension shared by every Git identity. */
 export function gitProjectKey(projectPath: string): string {
   const parsed = projectPathSchema.safeParse(projectPath)
   if (!parsed.success) throw new GitIdentityError('git: project path must be non-empty')
@@ -170,38 +176,6 @@ const gitCommitModelsQuerySchema = z
   })
   .strict()
 
-const reviewReadingQuerySchema = z
-  .object({
-    domain: z.literal('review'),
-    name: z.literal('reading'),
-    projectPath: projectPathSchema,
-  })
-  .strict()
-
-const reviewViewQuerySchema = z
-  .object({
-    domain: z.literal('review'),
-    name: z.literal('view'),
-    projectPath: projectPathSchema,
-  })
-  .strict()
-
-const reviewedPathsQuerySchema = z
-  .object({
-    domain: z.literal('review'),
-    name: z.literal('reviewed-paths'),
-    projectPath: projectPathSchema,
-  })
-  .strict()
-
-const worktreeInboxQuerySchema = z
-  .object({
-    domain: z.literal('review'),
-    name: z.literal('worktree-inbox'),
-    projectPath: projectPathSchema,
-  })
-  .strict()
-
 /** Exact server-state identities. Family effects are deliberately not query keys. */
 export const gitQuerySchema = z.discriminatedUnion('name', [
   gitHeadQuerySchema,
@@ -221,13 +195,6 @@ export const gitQuerySchema = z.discriminatedUnion('name', [
   gitCommitConventionsQuerySchema,
   gitSuggestionsQuerySchema,
   gitCommitModelsQuerySchema,
-])
-
-export const reviewWorkspaceQuerySchema = z.discriminatedUnion('name', [
-  reviewReadingQuerySchema,
-  reviewViewQuerySchema,
-  reviewedPathsQuerySchema,
-  worktreeInboxQuerySchema,
 ])
 
 /** Exact identities used by workspace adapters, including the existing Review workspace reads. */
@@ -256,7 +223,6 @@ export const gitWorkspaceQuerySchema = z.discriminatedUnion('name', [
 ])
 
 export type GitQuery = Readonly<z.infer<typeof gitQuerySchema>>
-export type ReviewWorkspaceQuery = Readonly<z.infer<typeof reviewWorkspaceQuerySchema>>
 export type GitWorkspaceQuery = Readonly<z.infer<typeof gitWorkspaceQuerySchema>>
 
 export type GitHeadQuery = Readonly<z.infer<typeof gitHeadQuerySchema>>
@@ -276,10 +242,6 @@ export type GitCommitFlowQuery = Readonly<z.infer<typeof gitCommitFlowQuerySchem
 export type GitCommitConventionsQuery = Readonly<z.infer<typeof gitCommitConventionsQuerySchema>>
 export type GitSuggestionsQuery = Readonly<z.infer<typeof gitSuggestionsQuerySchema>>
 export type GitCommitModelsQuery = Readonly<z.infer<typeof gitCommitModelsQuerySchema>>
-export type ReviewReadingQuery = Readonly<z.infer<typeof reviewReadingQuerySchema>>
-export type ReviewViewQuery = Readonly<z.infer<typeof reviewViewQuerySchema>>
-export type ReviewedPathsQuery = Readonly<z.infer<typeof reviewedPathsQuerySchema>>
-export type WorktreeInboxQuery = Readonly<z.infer<typeof worktreeInboxQuerySchema>>
 
 export function gitHeadQuery(projectPath: string): GitHeadQuery {
   return { domain: 'git', name: 'head', projectPath: gitProjectKey(projectPath) }
@@ -394,20 +356,4 @@ export function gitSuggestionsQuery(projectPath: string): GitSuggestionsQuery {
 
 export function gitCommitModelsQuery(): GitCommitModelsQuery {
   return { domain: 'git', name: 'commit-models' }
-}
-
-export function reviewReadingQuery(projectPath: string): ReviewReadingQuery {
-  return { domain: 'review', name: 'reading', projectPath: gitProjectKey(projectPath) }
-}
-
-export function reviewViewQuery(projectPath: string): ReviewViewQuery {
-  return { domain: 'review', name: 'view', projectPath: gitProjectKey(projectPath) }
-}
-
-export function reviewedPathsQuery(projectPath: string): ReviewedPathsQuery {
-  return { domain: 'review', name: 'reviewed-paths', projectPath: gitProjectKey(projectPath) }
-}
-
-export function worktreeInboxQuery(projectPath: string): WorktreeInboxQuery {
-  return { domain: 'review', name: 'worktree-inbox', projectPath: gitProjectKey(projectPath) }
 }

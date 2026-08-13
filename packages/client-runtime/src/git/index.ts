@@ -54,16 +54,6 @@ export {
   gitSuggestionsQuery,
   gitWorkspaceQuerySchema,
   gitWorktreesQuery,
-  type ReviewedPathsQuery,
-  type ReviewReadingQuery,
-  type ReviewViewQuery,
-  type ReviewWorkspaceQuery,
-  reviewedPathsQuery,
-  reviewReadingQuery,
-  reviewViewQuery,
-  reviewWorkspaceQuerySchema,
-  type WorktreeInboxQuery,
-  worktreeInboxQuery,
 } from './git-queries'
 export {
   dedupeGitQueryEffects,

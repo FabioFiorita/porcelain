@@ -5,8 +5,8 @@ import {
   gitDiffReadingQuery,
   gitHeadQuery,
   gitStatusQuery,
-  reviewedPathsQuery,
 } from '@porcelain/client-runtime/git'
+import { reviewedPathsQuery } from '@porcelain/client-runtime/review'
 import { gitNotificationFixtures } from '@porcelain/contracts/git'
 import { QueryClient } from '@tanstack/react-query'
 import { waitFor } from '@testing-library/react'

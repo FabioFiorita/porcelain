@@ -1,3 +1,8 @@
+import {
+  reviewedPathsQuery,
+  reviewReadingQuery,
+  reviewViewQuery,
+} from '@porcelain/client-runtime/review'
 import type { GitChange } from '@porcelain/contracts/git'
 import type { ReviewChanged } from '@porcelain/contracts/review'
 import {
@@ -9,9 +14,6 @@ import {
   gitRangeFlowQuery,
   gitStatusQuery,
   gitSuggestionsQuery,
-  reviewedPathsQuery,
-  reviewReadingQuery,
-  reviewViewQuery,
 } from './git-queries'
 import {
   dedupeGitQueryEffects,
