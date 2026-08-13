@@ -5,7 +5,11 @@ import { createGitFeatureRouter } from '../features/git'
 import { createProjectDataRouter } from '../features/project-data'
 import { createProjectsRouter } from '../features/projects'
 import { createRemoteNetworkRouter, createRemoteRouter } from '../features/remote'
-import { createReviewCommentRouter, createReviewLifecycleRouter } from '../features/review'
+import {
+  createReviewCommentRouter,
+  createReviewLifecycleRouter,
+  createReviewReadingRouter,
+} from '../features/review'
 import { createSearchRouter } from '../features/search'
 import { createTerminalRouter } from '../features/terminal'
 import { createGitRouter } from '../router/git'
@@ -20,8 +24,8 @@ import type { CreateDaemonRouterOptions } from './daemon-operations'
  * domain router factory in the historical merge order and merges them with the
  * one shared `initTRPC` builder so procedure names stay flat on the wire.
  *
- * Project, Board, Review comment and lifecycle, Files, Search, and Project Data
- * procedures are
+ * Project, Board, Review comment, lifecycle, and reading (active review, document,
+ * exploration, inbox), Files, Search, and Project Data procedures are
  * bound through `operations`; the remaining legacy routers are composition-only
  * until their migrations land.
  */
@@ -38,6 +42,7 @@ export function createDaemonRouter({ operations }: CreateDaemonRouterOptions) {
     createReviewRouter(),
     createReviewCommentRouter(operations.review),
     createReviewLifecycleRouter(operations.review),
+    createReviewReadingRouter(operations.review),
     createBoardRouter(operations.board),
     createActionsRouter(operations.actions),
     createProjectDataRouter(operations.projectData),

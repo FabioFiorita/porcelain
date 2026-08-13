@@ -10,147 +10,96 @@ import { normalizePublicError } from '../daemon-composition/public-error'
 // behind the readings — is mocked with synthetic data, so nothing here touches a real
 // repository or channel. Lifecycle procedures live in the Review feature's own router
 // seam (`features/review/review-lifecycle-router.test.ts`).
-const { git, docSet, assets, featureBuild, explore, commentOps, evidence, layers, reviewed } =
-  vi.hoisted(() => {
-    const view = {
-      name: 'Review',
-      fromAgent: true,
-      sections: [],
-      groups: [
-        {
-          layer: 'source',
-          files: [
-            {
-              path: 'src/alpha.ts',
-              source: 'changed',
-              status: 'modified',
-              additions: 3,
-              deletions: 1,
-              connects: [],
-            },
-          ],
-        },
-      ],
-    }
-    return {
-      git: {
-        reviewedFingerprint: vi.fn(async () => 'fp-alpha'),
-        reviewedFingerprints: vi.fn(async () => new Map([['src/alpha.ts', 'fp-alpha']])),
-        gitDiffFile: vi.fn(async () => ({ hunks: [], status: 'modified' })),
-        gitListFiles: vi.fn(async () => ['src/alpha.ts']),
-      },
-      docSet: {
-        readActiveIntentDocs: vi.fn(async () => [
-          { file: 'intent.md', label: 'Intent', medium: 'markdown', body: '# Intent' },
-        ]),
-        readActiveEvidenceResults: vi.fn(async () => [
-          { file: 'index.html', label: 'Results', medium: 'html', body: '<p>green</p>' },
-        ]),
-      },
-      assets: {
-        listEvidenceAssets: vi.fn(async () => [
-          { file: 'shot.png', label: 'shot', kind: 'image', mime: 'image/png', bytes: 2048 },
-        ]),
-        readEvidenceAsset: vi.fn(async () => ({
-          file: 'shot.png',
-          mime: 'image/png',
-          bytes: 2048,
-          dataUrl: 'data:image/png;base64,AAAA',
-        })),
-      },
-      featureBuild: {
-        gatherFeature: vi.fn(async () => ({
-          files: [],
-          stats: [],
-          layers: [],
-          reviewSet: null as unknown,
-          key: 'key-1',
-        })),
-        getFeatureBuild: vi.fn(async () => ({ key: 'key-1', view, sources: new Map() })),
-        cachedFeatureReading: vi.fn(() => null),
-        storeFeatureReading: vi.fn(() => undefined),
-      },
-      explore: {
-        walkExplore: vi.fn(async () => []),
-        buildExploreReading: vi.fn(() => ({
-          name: 'alpha.ts',
-          sections: [],
-          groups: [],
-          evidence: null,
-        })),
-      },
-      commentOps: {
-        listReviewComments: vi.fn(async () => ({
-          ok: true as const,
-          value: [
-            {
-              id: 'c1',
-              path: 'src/alpha.ts',
-              startLine: 1,
-              endLine: 2,
-              body: 'Check this invariant',
-              resolved: false,
-              createdAt: 1_760_000_000_000,
-            },
-          ],
-        })),
-        addReviewComment: vi.fn(async () => ({
-          ok: true as const,
-          value: {
-            id: 'c2',
+const { git, docSet, assets, commentOps, evidence, reviewed } = vi.hoisted(() => {
+  return {
+    git: {
+      reviewedFingerprint: vi.fn(async () => 'fp-alpha'),
+      reviewedFingerprints: vi.fn(async () => new Map([['src/alpha.ts', 'fp-alpha']])),
+    },
+    docSet: {
+      readActiveIntentDocs: vi.fn(async () => [
+        { file: 'intent.md', label: 'Intent', medium: 'markdown', body: '# Intent' },
+      ]),
+      readActiveEvidenceResults: vi.fn(async () => [
+        { file: 'index.html', label: 'Results', medium: 'html', body: '<p>green</p>' },
+      ]),
+    },
+    assets: {
+      listEvidenceAssets: vi.fn(async () => [
+        { file: 'shot.png', label: 'shot', kind: 'image', mime: 'image/png', bytes: 2048 },
+      ]),
+      readEvidenceAsset: vi.fn(async () => ({
+        file: 'shot.png',
+        mime: 'image/png',
+        bytes: 2048,
+        dataUrl: 'data:image/png;base64,AAAA',
+      })),
+    },
+    commentOps: {
+      listReviewComments: vi.fn(async () => ({
+        ok: true as const,
+        value: [
+          {
+            id: 'c1',
             path: 'src/alpha.ts',
+            startLine: 1,
+            endLine: 2,
             body: 'Check this invariant',
             resolved: false,
-            createdAt: 1_760_000_000_001,
+            createdAt: 1_760_000_000_000,
           },
-        })),
-        editReviewComment: vi.fn(async () => ({ ok: true as const, value: undefined })),
-        deleteReviewComment: vi.fn(async () => ({ ok: true as const, value: undefined })),
-        resolveReviewComment: vi.fn(async () => ({ ok: true as const, value: undefined })),
-        clearResolvedReviewComments: vi.fn(async () => ({ ok: true as const, value: undefined })),
-      },
-      evidence: {
-        readEvidenceMeta: vi.fn(async () => ({
-          title: 'Evidence',
-          updatedAt: '2026-08-10T00:00:00.000Z',
-          checks: [{ label: 'pnpm verify', status: 'pass' }],
-          dir: '/synthetic/repo/.porcelain/active-review/evidence',
-          medium: 'html',
-          results: 1,
-          assets: 1,
-          hasReport: true,
-        })),
-        readEvidence: vi.fn(async () => ({
-          title: 'Evidence',
-          updatedAt: '2026-08-10T00:00:00.000Z',
-          dir: '/synthetic/repo/.porcelain/active-review/evidence',
-          checks: [{ label: 'pnpm verify', status: 'pass' }],
-          medium: 'html',
-          html: '<p>green</p>',
-        })),
-        clearEvidence: vi.fn(async () => undefined),
-      },
-      layers: { readLayers: vi.fn(async () => null) },
-      reviewed: {
-        markReviewed: vi.fn(async () => undefined),
-        unmarkReviewed: vi.fn(async () => undefined),
-        readReviewedMarks: vi.fn(async () => [{ path: 'src/alpha.ts', fingerprint: 'fp-alpha' }]),
-        reconcileReviewed: vi.fn(async () => ['src/alpha.ts']),
-        setReviewedMarks: vi.fn(async () => undefined),
-      },
-    }
-  })
+        ],
+      })),
+      addReviewComment: vi.fn(async () => ({
+        ok: true as const,
+        value: {
+          id: 'c2',
+          path: 'src/alpha.ts',
+          body: 'Check this invariant',
+          resolved: false,
+          createdAt: 1_760_000_000_001,
+        },
+      })),
+      editReviewComment: vi.fn(async () => ({ ok: true as const, value: undefined })),
+      deleteReviewComment: vi.fn(async () => ({ ok: true as const, value: undefined })),
+      resolveReviewComment: vi.fn(async () => ({ ok: true as const, value: undefined })),
+      clearResolvedReviewComments: vi.fn(async () => ({ ok: true as const, value: undefined })),
+    },
+    evidence: {
+      readEvidenceMeta: vi.fn(async () => ({
+        title: 'Evidence',
+        updatedAt: '2026-08-10T00:00:00.000Z',
+        checks: [{ label: 'pnpm verify', status: 'pass' }],
+        dir: '/synthetic/repo/.porcelain/active-review/evidence',
+        medium: 'html',
+        results: 1,
+        assets: 1,
+        hasReport: true,
+      })),
+      readEvidence: vi.fn(async () => ({
+        title: 'Evidence',
+        updatedAt: '2026-08-10T00:00:00.000Z',
+        dir: '/synthetic/repo/.porcelain/active-review/evidence',
+        checks: [{ label: 'pnpm verify', status: 'pass' }],
+        medium: 'html',
+        html: '<p>green</p>',
+      })),
+      clearEvidence: vi.fn(async () => undefined),
+    },
+    reviewed: {
+      markReviewed: vi.fn(async () => undefined),
+      unmarkReviewed: vi.fn(async () => undefined),
+      readReviewedMarks: vi.fn(async () => [{ path: 'src/alpha.ts', fingerprint: 'fp-alpha' }]),
+      reconcileReviewed: vi.fn(async () => ['src/alpha.ts']),
+      setReviewedMarks: vi.fn(async () => undefined),
+    },
+  }
+})
 
 vi.mock('../git/git', () => git)
 vi.mock('../review/doc-set', () => docSet)
 vi.mock('../review/evidence-assets-list', () => assets)
-vi.mock('../review/feature-build', () => featureBuild)
-vi.mock('../review/feature-explore', () => explore)
 vi.mock('../stores/evidence-store', () => evidence)
-vi.mock('../features/project-data', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../features/project-data')>()
-  return { ...actual, readLayers: layers.readLayers }
-})
 vi.mock('../stores/reviewed-store', () => reviewed)
 
 import { createReviewCommentRouter } from '../features/review'
@@ -162,12 +111,6 @@ const reviewRouter = t.mergeRouters(createReviewRouter(), createReviewCommentRou
 const REQUEST_ID = '00000000-0000-4000-8000-000000000117'
 const PUBLIC_CONTEXT = { auth: { kind: 'admin' }, requestId: REQUEST_ID } as const
 const REPO = '/synthetic/repo'
-
-const REVIEW_SET = {
-  name: 'Review',
-  files: [{ path: 'src/alpha.ts', source: 'changed' }],
-  sections: [],
-}
 
 function caller() {
   return reviewRouter.createCaller(PUBLIC_CONTEXT)
@@ -264,25 +207,6 @@ describe('review router contract input', () => {
     expectPublicCode(error, 'request.invalid', false)
     expect(assets.readEvidenceAsset).not.toHaveBeenCalled()
   })
-
-  it('rejects an exploration seed missing its symbol without walking the graph', async () => {
-    const error = await rejected(() =>
-      callWithRawInput('exploreFeature', 'query', {
-        repoPath: REPO,
-        seed: { kind: 'symbol', path: 'src/alpha.ts' },
-      }),
-    )
-
-    expectPublicCode(error, 'request.invalid', false)
-    expect(explore.walkExplore).not.toHaveBeenCalled()
-  })
-
-  it('rejects an object where a bare repo-path query is contracted', async () => {
-    const error = await rejected(() => callWithRawInput('featureView', 'query', { repoPath: REPO }))
-
-    expectPublicCode(error, 'request.invalid', false)
-    expect(featureBuild.gatherFeature).not.toHaveBeenCalled()
-  })
 })
 
 describe('review router contract output', () => {
@@ -293,45 +217,6 @@ describe('review router contract output', () => {
       [{ path: 'src/alpha.ts', fingerprint: 'fp-alpha' }],
       new Map([['src/alpha.ts', 'fp-alpha']]),
     )
-  })
-
-  it('serializes the Review view and reading as null without an agent review set', async () => {
-    expect(await caller().featureView(REPO)).toBeNull()
-    expect(await caller().featureReading(REPO)).toBeNull()
-    expect(featureBuild.getFeatureBuild).not.toHaveBeenCalled()
-  })
-
-  it('serializes the Review view and reading built from an agent review set', async () => {
-    featureBuild.gatherFeature.mockResolvedValue({
-      files: [],
-      stats: [],
-      layers: [],
-      reviewSet: REVIEW_SET,
-      key: 'key-1',
-    })
-
-    expect(await caller().featureView(REPO)).toMatchObject({ name: 'Review', fromAgent: true })
-
-    const reading = await caller().featureReading(REPO)
-    expect(reading).toMatchObject({
-      name: 'Review',
-      sections: [],
-      evidence: {
-        title: 'Evidence',
-        updatedAt: '2026-08-10T00:00:00.000Z',
-        checks: [{ label: 'pnpm verify', status: 'pass' }],
-        medium: 'html',
-      },
-    })
-    expect(featureBuild.storeFeatureReading).toHaveBeenCalled()
-
-    featureBuild.gatherFeature.mockResolvedValue({
-      files: [],
-      stats: [],
-      layers: [],
-      reviewSet: null,
-      key: 'key-1',
-    })
   })
 
   it('serializes Intent and Evidence document sets and the asset gallery', async () => {
@@ -402,20 +287,6 @@ describe('review router contract output', () => {
       startLine: undefined,
       endLine: undefined,
       anchorText: undefined,
-    })
-  })
-
-  it('serializes the exploration reading', async () => {
-    expect(
-      await caller().exploreFeature({
-        repoPath: REPO,
-        seed: { kind: 'file', path: 'src/alpha.ts' },
-      }),
-    ).toEqual({
-      name: 'alpha.ts',
-      sections: [],
-      groups: [],
-      evidence: null,
     })
   })
 

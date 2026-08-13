@@ -37,6 +37,7 @@ export const PRODUCTION_ROUTER_FILES = [
   'features/remote/remote-router.ts',
   'features/review/comment-router.ts',
   'features/review/review-lifecycle-router.ts',
+  'features/review/review-reading-router.ts',
   'features/search/search-router.ts',
   'features/terminal/terminal-router.ts',
   'router/git.ts',

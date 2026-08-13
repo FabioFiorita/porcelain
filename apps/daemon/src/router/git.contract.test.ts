@@ -4,7 +4,7 @@ import { callTRPCProcedure } from '@trpc/server'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { normalizePublicError } from '../daemon-composition/public-error'
 
-const { git, flow, inbox } = vi.hoisted(() => ({
+const { git, flow } = vi.hoisted(() => ({
   git: {
     gitRangeDiffFile: vi.fn(async () => ({ hunks: [], status: 'modified' })),
     gitDiffFile: vi.fn(async () => ({ hunks: [], status: 'modified' })),
@@ -24,16 +24,10 @@ const { git, flow, inbox } = vi.hoisted(() => ({
     loadRangeFlow: vi.fn(async () => ({ groups: [], base: 'main' })),
     loadCommitFlow: vi.fn(async () => []),
   },
-  inbox: {
-    worktreeInbox: vi.fn(async () => [
-      { path: '/synthetic/repo-work', branch: 'work/alpha', changedCount: 3, hasReview: true },
-    ]),
-  },
 }))
 
 vi.mock('../git/git', () => git)
 vi.mock('../review/flow-build', () => flow)
-vi.mock('../git/worktree-inbox', () => inbox)
 
 import { createGitRouter } from './git'
 
@@ -115,7 +109,7 @@ describe('residual Git router contract input', () => {
 })
 
 describe('residual Git router contract output', () => {
-  it('serializes flow, diff, history, and Review Inbox outputs', async () => {
+  it('serializes flow, diff, and history outputs', async () => {
     expect(await caller().gitFlow(REPO)).toEqual([
       { layer: 'source', files: [{ path: 'src/alpha.ts', status: 'modified', connects: [] }] },
     ])
@@ -144,9 +138,6 @@ describe('residual Git router contract output', () => {
       await caller().gitCommitDiff({ repoPath: REPO, hash: 'abc1234', filePath: 'src/alpha.ts' }),
     ).toEqual([{ header: '@@ -1 +1 @@', lines: [] }])
     expect(await caller().gitCommitFlow({ repoPath: REPO, hash: 'abc1234' })).toEqual([])
-    expect(await caller().worktreeInbox(REPO)).toEqual([
-      { path: '/synthetic/repo-work', branch: 'work/alpha', changedCount: 3, hasReview: true },
-    ])
   })
 
   it('refuses to serialize a residual diff row whose status violates its contract', async () => {
@@ -155,19 +146,5 @@ describe('residual Git router contract output', () => {
       await rejected(() => caller().gitDiffFile({ repoPath: REPO, filePath: 'src/alpha.ts' })),
       'internal.unexpected',
     )
-  })
-
-  it('refuses to serialize an inbox row with an unknown key', async () => {
-    inbox.worktreeInbox.mockResolvedValueOnce([
-      {
-        path: '/synthetic/repo-work',
-        branch: 'work/alpha',
-        changedCount: 3,
-        hasReview: true,
-        stale: false,
-      },
-    ] as never)
-
-    expectPublicCode(await rejected(() => caller().worktreeInbox(REPO)), 'internal.unexpected')
   })
 })

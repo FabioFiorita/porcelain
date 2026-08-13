@@ -7,7 +7,6 @@ import {
   gitLog,
   gitRangeDiffFile,
 } from '../git/git'
-import { worktreeInbox } from '../git/worktree-inbox'
 import type { FlowGroup } from '../review/flow'
 import { loadCommitFlow, loadRangeFlow, loadWorkingFlow } from '../review/flow-build'
 import { publicProcedure, t } from '../trpc'
@@ -33,11 +32,6 @@ export function createGitRouter() {
       .input(procedureCatalog.gitDiffFile.input)
       .output(procedureCatalog.gitDiffFile.output)
       .query(({ input }) => gitDiffFile(input.repoPath, input.filePath)),
-
-    worktreeInbox: publicProcedure
-      .input(procedureCatalog.worktreeInbox.input)
-      .output(procedureCatalog.worktreeInbox.output)
-      .query(({ input }) => worktreeInbox(input)),
 
     gitLog: publicProcedure
       .input(procedureCatalog.gitLog.input)

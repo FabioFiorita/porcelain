@@ -1,10 +1,6 @@
-import { readFile } from 'node:fs/promises'
-import { join } from 'node:path'
 import { procedureCatalog } from '@porcelain/contracts'
 import { projectEvidenceAssetsDir as evidenceAssetsDir } from '@shared/project-porcelain'
-import { DEFAULT_LAYERS, readLayers } from '../features/project-data'
-import type { DiffHunk } from '../git/diff'
-import { gitDiffFile, gitListFiles, reviewedFingerprint, reviewedFingerprints } from '../git/git'
+import { reviewedFingerprint, reviewedFingerprints } from '../git/git'
 import { type ReviewDoc, readActiveEvidenceResults, readActiveIntentDocs } from '../review/doc-set'
 import {
   type EvidenceAsset,
@@ -12,14 +8,6 @@ import {
   listEvidenceAssets,
   readEvidenceAsset,
 } from '../review/evidence-assets-list'
-import {
-  cachedFeatureReading,
-  gatherFeature,
-  getFeatureBuild,
-  storeFeatureReading,
-} from '../review/feature-build'
-import { buildExploreReading, walkExplore } from '../review/feature-explore'
-import { buildFeatureReading, type FeatureReading, type FeatureView } from '../review/feature-view'
 import {
   clearEvidence,
   type Evidence,
@@ -85,75 +73,6 @@ export function createReviewRouter() {
           input.repoPath,
           Array.from(fingerprints, ([path, fingerprint]) => ({ path, fingerprint })),
         )
-      }),
-
-    // The feature view (the Review's Execution outline): exactly the files the agent
-    // listed in the review set (porcelain CLI → <repo>/.porcelain/review.json), in
-    // agent order, with notes/layers/thesis/sections. Null without a set (the
-    // renderer shows the "No review yet" empty state). Working-tree changes that
-    // the agent did not list never appear here.
-    featureView: publicProcedure
-      .input(procedureCatalog.featureView.input)
-      .output(procedureCatalog.featureView.output)
-      .query(async ({ input }): Promise<FeatureView | null> => {
-        const g = await gatherFeature(input)
-        if (!g.reviewSet) return null
-        return (await getFeatureBuild(input, { ...g, reviewSet: g.reviewSet })).view
-      }),
-
-    // The Review document: thesis + walkthrough sections (prose/diagram + anchored
-    // code blocks) + the leftover files flow-grouped, with just the relevant lines
-    // (diff hunks for changed files, symbol slices for context/shipped) and the
-    // loop-evidence meta as the final chapter. Review-set-only — null without an
-    // agent review set, so the slice heuristic only ever runs on the agent's
-    // curated, annotated set.
-    featureReading: publicProcedure
-      .input(procedureCatalog.featureReading.input)
-      .output(procedureCatalog.featureReading.output)
-      .query(async ({ input }): Promise<FeatureReading | null> => {
-        const g = await gatherFeature(input)
-        if (!g.reviewSet) return null
-        // Evidence meta is read fresh on every poll (a cheap stat-level read): it is
-        // NOT part of the feature key, so a cached reading would otherwise pin a
-        // stale/absent final chapter until the working tree changed.
-        const meta = await readEvidenceMeta(input)
-        const evidence = meta
-          ? {
-              title: meta.title,
-              updatedAt: meta.updatedAt,
-              checks: meta.checks,
-              medium: meta.medium,
-            }
-          : null
-        const canvas = g.reviewSet.canvas
-        const cached = cachedFeatureReading(input, g.key)
-        // Evidence + canvas can change without the feature key; always reattach them.
-        if (cached) return { ...cached, evidence, canvas }
-        const { view, sources } = await getFeatureBuild(input, { ...g, reviewSet: g.reviewSet })
-        const changed = view.groups
-          .flatMap((group) => group.files)
-          .filter((f) => f.source === 'changed')
-        const diffs = new Map<string, DiffHunk[]>()
-        await Promise.all(
-          changed.map(async (file) => {
-            try {
-              diffs.set(file.path, (await gitDiffFile(input, file.path)).hunks)
-            } catch {
-              // file vanished/renamed between the status snapshot and this read —
-              // leave it out; buildFeatureReading falls back to an empty hunk list
-            }
-          }),
-        )
-        const reading = buildFeatureReading({
-          view,
-          sections: g.reviewSet.sections,
-          sources,
-          diffs,
-          evidence,
-          canvas,
-        })
-        storeFeatureReading(input, g.key, reading)
-        return reading
       }),
 
     /**
@@ -222,39 +141,6 @@ export function createReviewRouter() {
       .output(procedureCatalog.clearLoopEvidence.output)
       .mutation(async ({ input }) => {
         await clearEvidence(input)
-      }),
-
-    // Explore an existing feature read-only: seed from a symbol (or a whole file)
-    // and walk the import/reference graph into the SAME flow-ordered, sliced reading
-    // surface — no working-tree change, no agent. Files outside the working tree are
-    // read on demand (bounded by the walk's depth/file caps + the 10MB read limit).
-    exploreFeature: publicProcedure
-      .input(procedureCatalog.exploreFeature.input)
-      .output(procedureCatalog.exploreFeature.output)
-      .query(async ({ input }): Promise<FeatureReading> => {
-        const repoFiles = new Set(await gitListFiles(input.repoPath))
-        const sources = new Map<string, string>()
-        const readSource = async (path: string): Promise<string | undefined> => {
-          const cached = sources.get(path)
-          if (cached !== undefined) return cached
-          try {
-            const content = await readFile(join(input.repoPath, path), 'utf8')
-            if (content.length < 1024 * 1024) {
-              sources.set(path, content)
-              return content
-            }
-          } catch {
-            // unreadable / outside the repo — the walk just treats it as a leaf
-          }
-          return undefined
-        }
-        const nodes = await walkExplore(input.seed, readSource, repoFiles)
-        const layers = (await readLayers(input.repoPath)) ?? DEFAULT_LAYERS
-        const name =
-          input.seed.kind === 'symbol'
-            ? input.seed.symbol
-            : (input.seed.path.split('/').at(-1) ?? input.seed.path)
-        return buildExploreReading(name, nodes, sources, layers)
       }),
   })
 }

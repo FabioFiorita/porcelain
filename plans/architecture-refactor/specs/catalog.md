@@ -123,7 +123,7 @@ an external choice or authorization.
 | `PDT-006` | Draft | Corruption/atomicity/ownership proof and completed domain gate |
 | `REV-001` | Landed | Canonical active/archive/reading/intent/reviewed/inbox contracts |
 | `REV-002` | Landed | Active Review/archive operations, rules, stores, and composition |
-| `REV-003` | Ready | Reading/explore/inbox operations over narrow Git/Files capabilities |
+| `REV-003` | Landed | Reading/explore/inbox operations over narrow Git/Files capabilities |
 | `REV-004` | Draft | Results/Assets-only Evidence contracts, containment, caps, and store |
 | `REV-005` | Draft | Canonical Review CLI nouns and version-1 document writers |
 | `REV-006` | Draft | Shared Review query/mutation/notification semantics beyond comments |
