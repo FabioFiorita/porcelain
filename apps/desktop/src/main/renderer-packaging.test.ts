@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 const webViteConfig = resolve(__dirname, '../../../web/vite.config.ts')
 const builtIndex = resolve(__dirname, '../../out/renderer/index.html')
+const electronBuilderYml = resolve(__dirname, '../../electron-builder.yml')
 
 describe('renderer packaging (file:// safe base)', () => {
   it("apps/web vite sets base: './'", () => {
@@ -19,5 +20,11 @@ describe('renderer packaging (file:// safe base)', () => {
       if (href.startsWith('http') || href.startsWith('data:')) continue
       expect(href.startsWith('/'), `absolute root URL breaks file://: ${href}`).toBe(false)
     }
+  })
+
+  it('asarUnpack lists node-pty and trash', () => {
+    const yml = readFileSync(electronBuilderYml, 'utf8')
+    expect(yml).toContain('node_modules/node-pty/**')
+    expect(yml).toContain('node_modules/trash/**')
   })
 })

@@ -226,6 +226,14 @@ function awaitReadyLine(proc: UtilityProcess): Promise<number> {
   })
 }
 
+/** Packaged child script: always `daemon/server.js` under the main bundle dir. */
+export function daemonChildScript(mainDir: string): string {
+  return join(mainDir, 'daemon', 'server.js')
+}
+
+/** Empty argv — no renderer-supplied command or port. */
+export const DAEMON_CHILD_ARGV = Object.freeze([] as string[]) as string[]
+
 async function launch(): Promise<void> {
   const startedAt = Date.now()
   // Re-read the administrator file on every spawn so a repaired/replaced local
@@ -233,7 +241,7 @@ async function launch(): Promise<void> {
   token = await ensureAdminToken()
   // utilityProcess.fork — never child_process with the run-as-Node env switch:
   // see the fork-bomb note in the module doc above.
-  const proc = utilityProcess.fork(join(__dirname, 'daemon', 'server.js'), [], {
+  const proc = utilityProcess.fork(daemonChildScript(__dirname), DAEMON_CHILD_ARGV, {
     env: {
       ...process.env,
       PORCELAIN_USER_DATA: app.getPath('userData'),
