@@ -141,7 +141,7 @@ an external choice or authorization.
 | `SUP-003` | Landed | Prove thin Desktop integration; keep the client address book |
 | `E2E-001` | Landed | Name/reduce critical assembled wiring suite and relocate redundant tests |
 | `AGT-001` | Landed | Relocate every Ship responsibility and Audit invariant to current owners |
-| `AGT-002` | Draft | Remove mandatory Companion Review lifecycle and migration guidance |
+| `AGT-002` | Ready | Remove mandatory Companion Review lifecycle and migration guidance |
 | `AGT-003` | Draft | Delete Ship/Audit and audit docs; strengthen foundation sync |
 | `LCH-001` | Draft | Clean-v1 seed/reset and protocol match/mismatch launch rehearsal |
 | `LCH-002` | Draft | Remove final ledgers and prove canonical/fresh-agent discoverability |
