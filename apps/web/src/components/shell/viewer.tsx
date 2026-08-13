@@ -1,7 +1,7 @@
 import logo from '@renderer/assets/logo.png'
+import { ChangesetView } from '@renderer/components/git/changeset-view'
 import { CommitView } from '@renderer/components/git/commit-view'
 import { DiffView } from '@renderer/components/git/diff-view'
-import { ReviewView } from '@renderer/components/git/review-view'
 import { TerminalView } from '@renderer/components/terminal/terminal-view'
 import { Kbd } from '@renderer/components/ui/kbd'
 import { FileContent } from '@renderer/components/viewer/file-content'
@@ -105,7 +105,7 @@ function PaneView({ paneIndex }: { paneIndex: number }): React.JSX.Element {
     case 'commit':
       return <CommitView key={activeTab.path} hash={activeTab.path} />
     case 'changeset':
-      return <ReviewView key={activeTab.path} path={activeTab.path} />
+      return <ChangesetView key={activeTab.path} path={activeTab.path} />
     case 'search':
       return <SearchView key={activeTab.path} query={activeTab.path} />
     case 'review':

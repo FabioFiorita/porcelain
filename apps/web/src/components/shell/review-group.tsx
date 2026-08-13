@@ -29,7 +29,7 @@ import {
 } from '@renderer/features/review'
 import { rowActionClass } from '@renderer/lib/controls'
 import { reviewOutlineFiles } from '@renderer/lib/review-lifecycle'
-import { openFeatureReview } from '@renderer/lib/surface-handoffs'
+import { openReview } from '@renderer/lib/surface-handoffs'
 import { cn } from '@renderer/lib/utils'
 import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
@@ -132,7 +132,7 @@ export function ReviewGroup(): React.JSX.Element | null {
                   async () => {
                     setArchiveError(null)
                     await restore(row.id)
-                    openFeatureReview()
+                    openReview()
                   },
                   (e) => {
                     setArchiveError(e instanceof Error ? e.message : String(e))

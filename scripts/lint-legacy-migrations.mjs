@@ -6,7 +6,9 @@
  * PDT-005 retired the home→repo and active-review-layout migrations. REV-009 cut the Review wire
  * over to its canonical catalog and deleted the whole Feature-era vocabulary, the `loopEvidence*`
  * procedures, the per-path reviewed mutations, and the `hasReport`/`legacyReport`/`reviewCanvas`
- * markers; this gate is the ratchet that keeps them from regrowing.
+ * markers; this gate is the ratchet that keeps them from regrowing. A later residue pass
+ * renamed the Git change-set viewer (ReviewView/reviewTabKey → ChangesetView/changesetTabKey)
+ * and the openFeatureReview handoff (→ openReview).
  *
  * Historical mentions inside this script's own forbidden list are the only survivors.
  */
@@ -64,6 +66,15 @@ const FORBIDDEN = new RegExp(
     'review\\.target-',
     'reviewTargetProcedures',
     'REVIEW_TARGET_STALE',
+    // Change-set viewer renamed to changeset vocabulary (word-bounded: ReviewViewer,
+    // preview-view, and review-viewer stay legal).
+    'ReviewView\\b',
+    '\\breviewTabKey',
+    'ReviewTabKey',
+    '\\breview-view\\b',
+    // Feature-era Review-surface handoffs renamed to openReview / OpenReviewOptions.
+    'openFeatureReview',
+    'OpenFeatureReviewOptions',
   ].join('|'),
 )
 const ALLOWED_RELATIVE = new Set([

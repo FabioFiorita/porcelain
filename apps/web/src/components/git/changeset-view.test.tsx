@@ -2,7 +2,7 @@ import type { ReviewReading } from '@porcelain/contracts/review'
 import { useDiffReading } from '@renderer/features/git'
 import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { parseReviewTabKey, ReviewView, reviewTabKey } from './review-view'
+import { ChangesetView, changesetTabKey, parseChangesetTabKey } from './changeset-view'
 
 vi.mock('@renderer/features/git', () => ({
   useDiffReading: vi.fn(),
@@ -68,24 +68,24 @@ const reading: ReviewReading = {
   ],
 }
 
-describe('reviewTabKey / parseReviewTabKey', () => {
+describe('changesetTabKey / parseChangesetTabKey', () => {
   it('round-trips working, branch, and commit scopes', () => {
-    expect(reviewTabKey({ type: 'working' })).toBe('working')
-    expect(reviewTabKey({ type: 'branch' })).toBe('branch')
-    expect(reviewTabKey({ type: 'commit', hash: 'abc' })).toBe('commit:abc')
-    expect(parseReviewTabKey('working')).toEqual({ type: 'working' })
-    expect(parseReviewTabKey('branch')).toEqual({ type: 'branch' })
-    expect(parseReviewTabKey('commit:abc123')).toEqual({ type: 'commit', hash: 'abc123' })
+    expect(changesetTabKey({ type: 'working' })).toBe('working')
+    expect(changesetTabKey({ type: 'branch' })).toBe('branch')
+    expect(changesetTabKey({ type: 'commit', hash: 'abc' })).toBe('commit:abc')
+    expect(parseChangesetTabKey('working')).toEqual({ type: 'working' })
+    expect(parseChangesetTabKey('branch')).toEqual({ type: 'branch' })
+    expect(parseChangesetTabKey('commit:abc123')).toEqual({ type: 'commit', hash: 'abc123' })
   })
 })
 
-describe('ReviewView', () => {
+describe('ChangesetView', () => {
   beforeEach(() => {
     vi.mocked(useDiffReading).mockReturnValue({ reading, error: null })
   })
 
   it('renders the stacked reading surface for a scope key', () => {
-    render(<ReviewView path="working" />)
+    render(<ChangesetView path="working" />)
     expect(screen.getByText('app/page.tsx')).toBeInTheDocument()
     expect(screen.getByText('Pages')).toBeInTheDocument()
     expect(screen.getByText('hello')).toBeInTheDocument()
@@ -93,7 +93,7 @@ describe('ReviewView', () => {
 
   it('shows Loading while the reading is undefined', () => {
     vi.mocked(useDiffReading).mockReturnValue({ reading: undefined, error: null })
-    render(<ReviewView path="working" />)
+    render(<ChangesetView path="working" />)
     expect(screen.getByText('Loading…')).toBeInTheDocument()
   })
 
@@ -102,7 +102,7 @@ describe('ReviewView', () => {
       reading: { name: 'Changes', sections: [], groups: [], evidence: null },
       error: null,
     })
-    render(<ReviewView path="working" />)
+    render(<ChangesetView path="working" />)
     expect(screen.getByText('No changes to review')).toBeInTheDocument()
   })
 })

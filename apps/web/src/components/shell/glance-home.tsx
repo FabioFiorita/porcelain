@@ -1,4 +1,4 @@
-import { reviewTabKey } from '@renderer/components/git/review-view'
+import { changesetTabKey } from '@renderer/components/git/changeset-view'
 import { useBoardCards } from '@renderer/features/board'
 import { type ReviewInboxRow, useGitFlow, useGitWorkspace } from '@renderer/features/git'
 import { useReviewComments, useReviewReading } from '@renderer/features/review'
@@ -113,7 +113,7 @@ export function GlanceHome(): React.JSX.Element | null {
   // Continuous stacked diffs for the working tree (U3 — not the Review empty state).
   const handleOpenAllChanges = (): void => {
     setSidebarTab('changes')
-    const key = reviewTabKey({ type: 'working' })
+    const key = changesetTabKey({ type: 'working' })
     openTab({ id: tabId('changeset', key), kind: 'changeset', title: 'All changes', path: key })
   }
 

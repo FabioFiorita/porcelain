@@ -2,12 +2,12 @@ import { type DiffReadingScope, useDiffReading } from '@renderer/features/git'
 import { ReadingSurfaceBody } from '@renderer/features/review'
 
 /** Encode a review scope into the tab's path key (and parse it back). */
-export function reviewTabKey(scope: DiffReadingScope): string {
+export function changesetTabKey(scope: DiffReadingScope): string {
   if (scope.type === 'commit') return `commit:${scope.hash}`
   return scope.type
 }
 
-export function parseReviewTabKey(path: string): DiffReadingScope {
+export function parseChangesetTabKey(path: string): DiffReadingScope {
   if (path === 'working') return { type: 'working' }
   if (path === 'branch') return { type: 'branch' }
   if (path.startsWith('commit:')) return { type: 'commit', hash: path.slice('commit:'.length) }
@@ -20,8 +20,8 @@ export function parseReviewTabKey(path: string): DiffReadingScope {
  * Reuses the same ReadingSurfaceBody as the Review canvas and Explore; file-name rows carry
  * mark-reviewed (working/branch only), open-file, and collapse actions.
  */
-export function ReviewView({ path }: { path: string }): React.JSX.Element {
-  const scope = parseReviewTabKey(path)
+export function ChangesetView({ path }: { path: string }): React.JSX.Element {
+  const scope = parseChangesetTabKey(path)
   const { reading, error } = useDiffReading(scope)
 
   if (error) return <p className="p-4 text-sm text-destructive">{error.message}</p>

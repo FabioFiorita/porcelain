@@ -52,10 +52,10 @@ import {
 } from 'lucide-react'
 import { memo, useState } from 'react'
 import { ChangesScopeToggle } from './changes-scope-toggle'
+import { changesetTabKey } from './changeset-view'
 import { type CommentAnchor, CommentComposer } from './comment-composer'
 import { DiscardFileDialog } from './discard-file-dialog'
 import { ReviewAllToggle } from './review-all-toggle'
-import { reviewTabKey } from './review-view'
 
 const statusBadge: Record<FileStatus, { label: string; className: string }> = {
   modified: { label: 'M', className: 'text-warning' },
@@ -331,7 +331,7 @@ export function ChangesList(): React.JSX.Element {
   const handleOpenReviewAll = (): void => {
     const scope =
       changesScope === 'branch' ? ({ type: 'branch' } as const) : ({ type: 'working' } as const)
-    const key = reviewTabKey(scope)
+    const key = changesetTabKey(scope)
     openTab({
       id: tabId('changeset', key),
       kind: 'changeset',

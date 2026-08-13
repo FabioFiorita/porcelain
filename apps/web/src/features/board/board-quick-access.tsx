@@ -13,7 +13,7 @@ import {
 } from '@renderer/components/ui/sidebar'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { compactButtonClass } from '@renderer/lib/controls'
-import { openFeatureReview } from '@renderer/lib/surface-handoffs'
+import { openReview } from '@renderer/lib/surface-handoffs'
 import { cn } from '@renderer/lib/utils'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { runUserAction } from '@shared/background'
@@ -148,7 +148,7 @@ function CardDetail({
                 size="sm"
                 className={compactButtonClass}
                 data-testid={TestIds.boardStartReview}
-                onClick={() => openFeatureReview({ suggestedName: card.title })}
+                onClick={() => openReview({ suggestedName: card.title })}
                 aria-label="Start Review from this card"
               >
                 <Sparkles className="size-3.5" /> Start Review

@@ -1,4 +1,4 @@
-import { reviewTabKey } from '@renderer/components/git/review-view'
+import { changesetTabKey } from '@renderer/components/git/changeset-view'
 import { useReviewStartStore } from '@renderer/features/review'
 import { fileName } from '@renderer/lib/paths'
 import { usePreferencesStore } from '@renderer/stores/preferences'
@@ -18,7 +18,7 @@ export type OpenChangesOptions = {
   continuousReview?: boolean
 }
 
-export type OpenFeatureReviewOptions = {
+export type OpenReviewOptions = {
   /**
    * Prefill the empty-canvas start prompt (Board Doing → Review handoff).
    * Does not publish a Review — agents still run `review set`.
@@ -31,7 +31,7 @@ export function openChanges(options: OpenChangesOptions = {}): void {
   usePreferencesStore.getState().setSidebarTab('changes')
   const { openTab } = useTabsStore.getState()
   if (options.continuousReview) {
-    const key = reviewTabKey({ type: 'working' })
+    const key = changesetTabKey({ type: 'working' })
     openTab({
       id: tabId('changeset', key),
       kind: 'changeset',
@@ -50,7 +50,7 @@ export function openReviewSidebar(): void {
 }
 
 /** Sidebar → Review and open the Review canvas for the current repo. */
-export function openFeatureReview(options: OpenFeatureReviewOptions = {}): void {
+export function openReview(options: OpenReviewOptions = {}): void {
   const repoPath = useProjectSelectionStore.getState().project?.path
   if (repoPath === undefined) return
   if (options.suggestedName !== undefined && options.suggestedName.trim() !== '') {

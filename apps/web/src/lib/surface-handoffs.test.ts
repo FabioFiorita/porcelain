@@ -2,13 +2,7 @@ import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { beforeEach, describe, expect, it } from 'vitest'
-import {
-  openChanges,
-  openDiff,
-  openFeatureReview,
-  openFile,
-  openReviewSidebar,
-} from './surface-handoffs'
+import { openChanges, openDiff, openFile, openReview, openReviewSidebar } from './surface-handoffs'
 
 describe('surface-handoffs', () => {
   beforeEach(() => {
@@ -49,17 +43,17 @@ describe('surface-handoffs', () => {
     expect(pane?.tabs.some((t) => t.kind === 'file' && t.path === '/repo/src/a.ts')).toBe(true)
   })
 
-  it('openFeatureReview opens the Review sidebar and the review tab', () => {
-    openFeatureReview()
+  it('openReview opens the Review sidebar and the review tab', () => {
+    openReview()
     expect(usePreferencesStore.getState().sidebarTab).toBe('review')
     const pane = useTabsStore.getState().panes[0]
     expect(pane?.tabs.some((t) => t.kind === 'review' && t.path === '/repo')).toBe(true)
   })
 
-  it('openFeatureReview with suggestedName stores a Board→Review prefill', async () => {
+  it('openReview with suggestedName stores a Board→Review prefill', async () => {
     const { useReviewStartStore } = await import('@renderer/features/review')
     useReviewStartStore.setState({ suggestedName: null })
-    openFeatureReview({ suggestedName: 'Fix null deref' })
+    openReview({ suggestedName: 'Fix null deref' })
     expect(useReviewStartStore.getState().suggestedName).toBe('Fix null deref')
   })
 

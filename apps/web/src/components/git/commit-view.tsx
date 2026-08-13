@@ -18,10 +18,10 @@ import { useRevealStore } from '@renderer/stores/reveal'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { FileText, MessageSquarePlus, Rows3 } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { changesetTabKey } from './changeset-view'
 import { type CommentAnchor, CommentComposer } from './comment-composer'
 import { DiffModeToggle } from './diff-mode-toggle'
 import { HunksView } from './hunks-view'
-import { reviewTabKey } from './review-view'
 
 // A file row in the commit's flow list. Right-click matches the Changes list: "Open
 // file" (full file tab + flip to Files + reveal in the tree) and "Comment on file".
@@ -209,7 +209,7 @@ export function CommitView({ hash }: { hash: string }): React.JSX.Element {
   // Same continuous stacked-diff surface as Changes — one scroll for every file
   // in this commit, in the same flow order as the list below.
   const handleOpenReviewAll = (): void => {
-    const key = reviewTabKey({ type: 'commit', hash })
+    const key = changesetTabKey({ type: 'commit', hash })
     const title = (message ?? hash.slice(0, 12)).split('\n')[0]?.trim() || hash.slice(0, 12)
     openTab({
       id: tabId('changeset', key),
