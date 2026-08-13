@@ -3,11 +3,7 @@ import { readdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { withTemporaryDirectory } from '../../testing/temporary-directory'
-import {
-  commandFingerprint,
-  createJsonActionTrustStore,
-  trustMigratedCommands,
-} from './json-action-trust-store'
+import { commandFingerprint, createJsonActionTrustStore } from './json-action-trust-store'
 
 const PROJECT = '/synthetic/repo'
 
@@ -90,22 +86,6 @@ describe('createJsonActionTrustStore', () => {
         error: { code: 'actions.unavailable' },
       })
       expect(await readFile(path, 'utf8')).toBe(payload)
-    })
-  })
-
-  it('trustMigratedCommands is a no-op for empty lists and writes for non-empty', async () => {
-    await withTemporaryDirectory('porcelain-action-trust-migrate-', async (directory) => {
-      const path = join(directory, 'action-trust.json')
-      process.env.PORCELAIN_ACTION_TRUST_FILE = path
-      await trustMigratedCommands(PROJECT, [])
-      await expect(readFile(path, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
-
-      // trustMigratedCommands uses the module default store which honors the env path.
-      await trustMigratedCommands(PROJECT, ['pnpm test'])
-      const raw = JSON.parse(await readFile(path, 'utf8')) as {
-        projects: Record<string, string[]>
-      }
-      expect(raw.projects[PROJECT]).toEqual([commandFingerprint('pnpm test')])
     })
   })
 

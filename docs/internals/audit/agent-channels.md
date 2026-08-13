@@ -55,10 +55,9 @@
      commands is not a gate. It is home-only and repo-path-keyed, so it fails closed on rename.
   2. The fingerprint is over the **command**, not the title. A retitled action keeps trust (a label
      cannot execute); an edited command loses it, whoever edited it — agent, teammate, or hand.
-  3. App-authored commands (`addAction`/`updateAction`) are trusted **by the act of typing them**,
-     and the home→repo migration grandfathers what was already in `~/.porcelain`. Without both, every
-     existing user would face a wall of prompts for commands they wrote — which is exactly how a
-     trust prompt becomes a thing people click through.
+  3. App-authored commands (`addAction`/`updateAction`) are trusted **by the act of typing them**.
+     Without that, every user would face a wall of prompts for commands they wrote — which is
+     exactly how a trust prompt becomes a thing people click through.
   4. **Do not sell this as a sandbox.** A credential holder can already `terminal:create` with any
      input (see the network boundary's "the token holder IS the user"), so a daemon-side block would
      be theatre. What it defends is the human's attention: no one-click on a command they assumed was

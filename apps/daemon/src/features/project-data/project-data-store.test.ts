@@ -73,6 +73,36 @@ describe('createProjectDataStore ensureRoot', () => {
     })
   })
 
+  it('leaves a legacy flat companion byte-identical and only adds the v1 manifest', async () => {
+    await withTemporaryDirectory('porcelain-pdt-005-legacy-flat-', async (repoPath) => {
+      const companion = join(repoPath, '.porcelain')
+      await mkdir(companion, { recursive: true })
+      const seeded = {
+        'review.json': `${JSON.stringify({ name: 'Legacy review', files: [] }, null, 2)}\n`,
+        'comments.json': `${JSON.stringify({ comments: [] }, null, 2)}\n`,
+        '.migrated-from-home': '',
+      }
+      for (const [name, bytes] of Object.entries(seeded)) {
+        await writeFile(join(companion, name), bytes, 'utf8')
+      }
+
+      const store = createProjectDataStore()
+      expect(await store.ensureRoot(repoPath)).toEqual({ ok: true })
+
+      expect(JSON.parse(await readFile(projectManifestPath(repoPath), 'utf8'))).toEqual({
+        version: 1,
+        value: { layout: PROJECT_MANIFEST_LAYOUT },
+      })
+      for (const [name, bytes] of Object.entries(seeded)) {
+        expect(await readFile(join(companion, name), 'utf8')).toBe(bytes)
+      }
+      // No migration into the v1 active-review layout, and nothing removed.
+      await expect(stat(join(companion, 'active-review'))).rejects.toMatchObject({
+        code: 'ENOENT',
+      })
+    })
+  })
+
   it('returns manifest-corrupt without writing a default or touching other files', async () => {
     await withTemporaryDirectory('porcelain-pdt-001-corrupt-root-', async (repoPath) => {
       vi.spyOn(console, 'error').mockImplementation(() => undefined)

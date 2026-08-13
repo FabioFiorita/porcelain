@@ -8,7 +8,6 @@ import {
   pinnedPathsForRepo,
   pinPath,
   readRepoScope,
-  resolveScopePath,
   unhidePath,
   unpinPath,
 } from './scope-store'
@@ -22,20 +21,6 @@ beforeEach(() => {
 })
 afterEach(() => {
   rmSync(root, { recursive: true, force: true })
-})
-
-describe('resolveScopePath', () => {
-  it('joins relative paths under the repo', () => {
-    expect(resolveScopePath(repo, 'apps/web')).toBe(join(repo, 'apps/web'))
-  })
-
-  it('keeps absolute paths under the repo', () => {
-    expect(resolveScopePath(repo, join(repo, 'apps/web'))).toBe(join(repo, 'apps/web'))
-  })
-
-  it('rejects empty path', () => {
-    expect(() => resolveScopePath(repo, '  ')).toThrow('non-empty')
-  })
 })
 
 describe('scope-store mutations', () => {

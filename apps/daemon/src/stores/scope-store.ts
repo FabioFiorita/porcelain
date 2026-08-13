@@ -69,12 +69,6 @@ export async function pinnedPathsForRepo(repoPath: string): Promise<string[]> {
   return (await readRepoScope(repoPath)).pinnedPaths
 }
 
-/** @deprecated use toRelativeScopePath; kept for call sites that resolve then hide. */
-export function resolveScopePath(repoPath: string, path: string): string {
-  const rel = toRelativeScopePath(repoPath, path)
-  return toAbsoluteScopePath(repoPath, rel)
-}
-
 export async function hidePath(repoPath: string, path: string): Promise<void> {
   const rel = toRelativeScopePath(repoPath, path)
   if (rel === '') return

@@ -274,20 +274,3 @@ export function createJsonActionTrustStore(
     },
   }
 }
-
-const defaultTrustStore = createJsonActionTrustStore()
-
-/**
- * Grandfather a repo whose actions this human demonstrably wrote — home→repo migration only.
- * No-op on an empty command list.
- */
-export async function trustMigratedCommands(
-  projectPath: string,
-  commands: readonly string[],
-): Promise<void> {
-  if (commands.length === 0) return
-  const result = await defaultTrustStore.trustCommands(projectPath, commands)
-  if (!result.ok) {
-    throw new Error('action trust store unavailable during migration')
-  }
-}

@@ -111,7 +111,7 @@ export type EvidenceMeta = {
 }
 
 // Re-export path helpers so callers (review-watch, e2e) use one place.
-export { evidenceDirForRepo, loopEvidenceRoot } from '../fs/evidence-paths'
+export { evidenceDirForRepo } from '../fs/evidence-paths'
 
 async function readDiskMeta(repoPath: string): Promise<z.infer<typeof metaSchema> | null> {
   try {

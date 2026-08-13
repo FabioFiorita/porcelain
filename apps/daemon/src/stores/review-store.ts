@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { isAbsolute, relative, resolve } from 'node:path'
-import { ACTIVE_FILES, projectPorcelainPath } from '@shared/project-porcelain'
+import { ACTIVE_FILES } from '@shared/project-porcelain'
 import { z } from 'zod'
 import { createProjectChannel } from '../net/project-channel'
 import {
@@ -42,13 +42,6 @@ const channel = createProjectChannel({
 
 export function reviewPath(repoPath: string): string {
   return channel.path(repoPath)
-}
-
-/** @deprecated use reviewPath — kept name for older call sites during transition. */
-export function reviewSetsPath(repoPath?: string): string {
-  if (repoPath) return reviewPath(repoPath)
-  // Home path no longer holds review sets; tests should pass repoPath.
-  return projectPorcelainPath('', ACTIVE_FILES.review)
 }
 
 const MAX_SECTIONS = 30

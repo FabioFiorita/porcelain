@@ -119,7 +119,7 @@ an external choice or authorization.
 | `PDT-002` | Landed | Notes, dispositions, layers, visibility contracts/operations/adapters |
 | `PDT-003` | Landed | Web/mobile settings adapters over Project Data semantics |
 | `PDT-004` | Landed | Recorded reset authorization, classification fixtures, and manual-only procedure |
-| `PDT-005` | Ready | Delete home and active-layout migrations after authorized clean-state path |
+| `PDT-005` | Landed | Delete home and active-layout migrations after authorized clean-state path |
 | `PDT-006` | Draft | Corruption/atomicity/ownership proof and completed domain gate |
 | `REV-001` | Landed | Canonical active/archive/reading/intent/reviewed/inbox contracts |
 | `REV-002` | Landed | Active Review/archive operations, rules, stores, and composition |

@@ -25,8 +25,3 @@ export function evidenceIndexPath(repoPath: string): string {
 export function evidenceMetaPath(repoPath: string): string {
   return join(evidenceDirForRepo(repoPath), 'meta.json')
 }
-
-/** @deprecated home loop-evidence root is no longer used for active packs. */
-export function loopEvidenceRoot(): string {
-  return process.env.PORCELAIN_LOOP_EVIDENCE_DIR ?? ''
-}
