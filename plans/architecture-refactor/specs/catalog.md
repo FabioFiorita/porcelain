@@ -144,7 +144,7 @@ an external choice or authorization.
 | `AGT-002` | Landed | Remove mandatory Companion Review lifecycle and migration guidance |
 | `AGT-003` | Landed | Delete retired foundation routers and invariant-doc tree |
 | `LCH-001` | Landed | Clean-v1 seed/reset and protocol match/mismatch launch rehearsal |
-| `LCH-002` | Draft | Remove final ledgers and prove canonical/fresh-agent discoverability |
+| `LCH-002` | Ready | Remove final ledgers and prove canonical/fresh-agent discoverability |
 | `LCH-003` | Draft | Clean-checkout verify and named browser/Terminal/packaging evidence |
 
 There are 110 bounded units. Broad rows split if factual recipe authoring shows overlapping files or
