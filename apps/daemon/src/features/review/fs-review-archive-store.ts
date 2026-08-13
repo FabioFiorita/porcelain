@@ -135,6 +135,15 @@ export function createFsReviewArchiveStore(): ReviewArchiveStore {
     },
 
     /**
+     * Directory existence, not list visibility: an archive whose `meta.json` is
+     * corrupt is skipped by `list` yet still restorable, exactly as before.
+     */
+    async has(repoPath, id) {
+      assertArchiveId(id)
+      return pathExists(projectArchivedReviewDir(repoPath, id))
+    },
+
+    /**
      * Promote an archive into the active slots and drop the source entry. The
      * destinations are the ACTIVE-review paths, not the companion root: an archive
      * is shaped exactly like `active-review/`, and every reader (`ACTIVE_FILES` /

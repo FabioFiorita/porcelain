@@ -26,6 +26,7 @@ function recorder(
     activeCost?: () => { bytes: number; files: number }
     rejectOn?: string
     list?: ArchivedReviewMeta[]
+    has?: boolean
   } = {},
 ): Recorder {
   const calls: string[] = []
@@ -51,6 +52,10 @@ function recorder(
       async list() {
         guard('list')
         return overrides.list ?? []
+      },
+      async has(_repoPath, id) {
+        guard(`has:${id}`)
+        return overrides.has ?? true
       },
       async restore(_repoPath, id) {
         guard(`restore:${id}`)
@@ -136,8 +141,20 @@ describe('review lifecycle operations', () => {
     await expect(
       operations(fakes).restoreArchivedReview({ projectPath: PROJECT, id: 'old-1' }),
     ).resolves.toEqual({ ok: true, value: undefined })
-    expect(fakes.calls).toEqual(['archiveActive', 'restore:old-1'])
+    expect(fakes.calls).toEqual(['has:old-1', 'archiveActive', 'restore:old-1'])
     expect(fakes.archives).toEqual([{ id: 'archive-1', archivedAt: '2025-10-09T08:53:20.000Z' }])
+  })
+
+  // A restore that cannot land must leave the active review exactly where it was:
+  // the legacy store proved the source existed before it archived anything.
+  it('fails a restore of a missing archive without archiving the active review', async () => {
+    const fakes = recorder({ has: false })
+
+    await expect(
+      operations(fakes).restoreArchivedReview({ projectPath: PROJECT, id: 'gone' }),
+    ).resolves.toEqual({ ok: false, error: { code: 'review.unavailable' } })
+    expect(fakes.calls).toEqual(['has:gone'])
+    expect(fakes.archives).toEqual([])
   })
 
   it('stamps archive and restore archives from the same id and clock capabilities', async () => {
@@ -172,7 +189,7 @@ describe('review lifecycle operations', () => {
     await expect(
       operations(archiving).restoreArchivedReview({ projectPath: PROJECT, id: 'old-1' }),
     ).resolves.toEqual({ ok: false, error: { code: 'review.unavailable' } })
-    expect(archiving.calls).toEqual(['archiveActive'])
+    expect(archiving.calls).toEqual(['has:old-1', 'archiveActive'])
 
     const listing = recorder({ rejectOn: 'list' })
     await expect(operations(listing).archivedReviews({ projectPath: PROJECT })).resolves.toEqual({

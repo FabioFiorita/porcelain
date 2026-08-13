@@ -30,6 +30,8 @@ export type ReviewArchiveStore = {
   activeCost(repoPath: string): Promise<ReviewPublishCost>
   /** Newest first; unreadable or contract-violating `meta.json` entries are skipped. */
   list(repoPath: string): Promise<ArchivedReviewMeta[]>
+  /** Is this archive there to restore? Asked before a restore archives anything. */
+  has(repoPath: string, id: string): Promise<boolean>
   restore(repoPath: string, id: string): Promise<void>
   remove(repoPath: string, id: string): Promise<void>
   /** Relative path of an archive inside the repo, for publication staging. */

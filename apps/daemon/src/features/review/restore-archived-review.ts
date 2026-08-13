@@ -8,9 +8,10 @@ import type {
 export type RestoreArchivedReviewInput = { projectPath: string; id: string }
 
 /**
- * Promote an archived review back to active. Whatever is active now is archived
- * first — with the same id and timestamp shape any other archive gets — so no
- * review is ever overwritten by a restore.
+ * Promote an archived review back to active. The source is proven present first,
+ * so a restore that cannot land never disturbs the active review; only then is
+ * whatever is active archived — with the same id and timestamp shape any other
+ * archive gets — so no review is ever overwritten by a restore.
  */
 export function createRestoreArchivedReview(deps: {
   store: ReviewArchiveStore
@@ -21,6 +22,9 @@ export function createRestoreArchivedReview(deps: {
     input: RestoreArchivedReviewInput,
   ): Promise<ReviewLifecycleResult<void>> {
     try {
+      if (!(await deps.store.has(input.projectPath, input.id))) {
+        return { ok: false, error: { code: 'review.unavailable' } }
+      }
       await deps.store.archiveActive(
         input.projectPath,
         deps.ids.create(),

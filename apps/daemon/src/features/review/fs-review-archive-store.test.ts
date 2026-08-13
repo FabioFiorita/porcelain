@@ -167,6 +167,24 @@ describe('restore', () => {
   })
 })
 
+describe('has', () => {
+  it('sees a present archive, a missing one, and a corrupt-meta archive that is still restorable', async () => {
+    writeArchiveMeta('good', JSON.stringify({ id: 'good', name: 'Kept', archivedAt: AT }))
+    writeArchiveMeta('corrupt', '{ not json')
+
+    expect(await store.has(repo, 'good')).toBe(true)
+    expect(await store.has(repo, 'gone')).toBe(false)
+    // `list` skips it, but the directory is there and restoring it still works.
+    expect(await store.has(repo, 'corrupt')).toBe(true)
+  })
+
+  it('refuses a traversing or empty id like the write paths do', async () => {
+    for (const id of ['../escape', 'nested/child', '']) {
+      await expect(store.has(repo, id)).rejects.toThrow('invalid review id')
+    }
+  })
+})
+
 describe('archive id containment', () => {
   it('refuses traversal and empty ids before touching the filesystem', async () => {
     writeArchiveMeta('kept', JSON.stringify({ id: 'kept', name: 'Kept', archivedAt: AT }))
