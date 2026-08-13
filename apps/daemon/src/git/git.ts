@@ -7,7 +7,6 @@ import type { HeadRef } from '@porcelain/contracts'
 import { settleBackground } from '@porcelain/shared/background'
 import { imageMimeForPath, isBinaryBuffer, isGitBinaryDiff } from '../fs/image-mime'
 import { exceedsReadLimit } from '../fs/read-limits'
-import { type GitSuggestion, parseSuggestions } from '../search/suggestions'
 import {
   type ChangedFile,
   type CodeSearchFile,
@@ -29,6 +28,7 @@ import {
   type Worktree,
 } from './diff'
 import { gitEnv } from './git-env'
+import { type GitSuggestion, parseSuggestions } from './suggestions'
 
 const execFileAsync = promisify(execFile)
 
