@@ -177,7 +177,7 @@ describe('Terminal lifecycle operations', () => {
     expect(attached.value.scrollback.endsWith('😀')).toBe(true)
   })
 
-  it('returns typed failures, validates geometry, and never emits an exit for kill', () => {
+  it('returns typed failures, validates geometry, and removes a killed session', () => {
     const { operations, ptys } = makeHarness()
     const sink = makeSink()
 
@@ -195,8 +195,7 @@ describe('Terminal lifecycle operations', () => {
     expect(operations.write(created.value, 'input')).toEqual({ ok: true, value: undefined })
     expect(operations.resize(created.value, 120, 40)).toEqual({ ok: true, value: undefined })
     expect(operations.kill(created.value)).toEqual({ ok: true, value: undefined })
-    ptys[0]?.emitExit(0)
-    expect(sink.frames).toEqual([])
+    expect(operations.list()).toEqual([])
     expect(operations.write(created.value, 'late')).toEqual({
       ok: false,
       error: { code: 'terminal.not-found' },
@@ -205,6 +204,35 @@ describe('Terminal lifecycle operations', () => {
       ok: false,
       error: { code: 'terminal.not-found' },
     })
+    ptys[0]?.emitExit(0)
+    ptys[0]?.emitExit(0)
+    expect(sink.frames).toEqual([
+      { t: 'terminal:exit', id: created.value, exitCode: 0, epoch: 'epoch-1', sequence: 1 },
+    ])
+  })
+
+  it('fans out the exit to every attached sink when one client kills the session', () => {
+    const { operations, ptys } = makeHarness()
+    const killer = makeSink()
+    const observer = makeSink()
+    const created = operations.create({ name: 'shell', cwd: '/repo' }, killer)
+    if (!created.ok) throw new Error('expected a terminal')
+    expect(operations.attach(created.value, observer).ok).toBe(true)
+
+    expect(operations.kill(created.value)).toEqual({ ok: true, value: undefined })
+    expect(ptys[0]?.kills).toHaveBeenCalledOnce()
+    ptys[0]?.emitExit(0)
+
+    const exitFrame = {
+      t: 'terminal:exit',
+      id: created.value,
+      exitCode: 0,
+      epoch: 'epoch-1',
+      sequence: 1,
+    }
+    expect(observer.frames).toEqual([exitFrame])
+    expect(killer.frames).toEqual([exitFrame])
+    expect(operations.list()).toEqual([])
   })
 
   it('reports exited writes and resizes, trims names, and preserves roster shape', () => {

@@ -267,7 +267,9 @@ export function createTerminalOperations(
     })
     process.onExit((exitCode) => {
       clearInitialInput(session)
-      if (!sessions.has(id)) return
+      // Evicted sessions (kill, sweep) are already out of the roster, but attached
+      // sinks still need the exit frame so every client sees the session end.
+      if (session.status === 'exited') return
       session.status = 'exited'
       session.exitCode = exitCode
       session.exitedAt = clock.now()
