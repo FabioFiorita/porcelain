@@ -5,8 +5,7 @@ import { useState } from 'react'
 import { Alert, Text, View } from 'react-native'
 import { ConfirmDialog, IconAction, PanelLabel } from '@/components/panel-chrome'
 import { PANEL_CARD } from '@/components/surface-layout'
-import { useCommentActions, useReviewComments } from '@/features/comments'
-import { CommentComposer } from '@/features/comments/comment-composer'
+import { CommentComposer, useCommentActions, useReviewComments } from '@/features/comments'
 import { cn } from '@/lib/utils'
 
 /** "file.ts", "file.ts:12", or "file.ts:12–18" — the shortest thing that locates a comment. */

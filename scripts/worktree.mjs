@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 import { execFileSync, spawnSync } from 'node:child_process'
-import { createHash } from 'node:crypto'
 import {
   copyFileSync,
   existsSync,
@@ -825,63 +824,29 @@ function text(value, max) {
 }
 
 /**
- * Keys a published Review could be filed under. The porcelain CLI keys channels by
- * `git rev-parse --show-toplevel` from the session cwd, which may or may not be the
- * realpath we get from `git worktree list`; try both.
- */
-function channelKeys(worktreePath) {
-  const keys = new Set([worktreePath])
-  const result = spawnSync('git', ['rev-parse', '--show-toplevel'], {
-    cwd: worktreePath,
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'ignore'],
-    env: ENV,
-  })
-  const top = (result.stdout ?? '').trim()
-  if (result.status === 0 && top !== '') keys.add(top)
-  return [...keys]
-}
-
-/**
  * The worktree's active Review. Current daemons store it repo-locally under
- * `.porcelain/active-review/` (see the `.migrated-from-home` marker); the channel-home
- * `review-sets.json` is the pre-migration layout, kept as a fallback.
+ * `.porcelain/active-review/`; the worktree publisher reads that one current path.
  */
-function readReviewSet(worktreePath, home, keys) {
-  const local = readJsonFile(join(worktreePath, '.porcelain', 'active-review', 'review.json'))
-  if (local) return local
-  const all = readJsonFile(join(home, 'review-sets.json'))
-  if (!all) return null
-  for (const key of keys) {
-    const set = all[key]
-    if (set !== null && typeof set === 'object') return set
-  }
-  return null
+function readReviewSet(worktreePath) {
+  return readJsonFile(join(worktreePath, '.porcelain', 'active-review', 'review.json'))
 }
 
 const EVIDENCE_IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'webp', 'gif'])
 const MAX_EVIDENCE_IMAGES = 8
 
-/**
- * Image filenames from the pack's `assets/` gallery (current layout), falling back to the pack
- * root (legacy single-page packs), sorted, capped at `MAX_EVIDENCE_IMAGES`.
- */
+/** Image filenames from the pack's `assets/` gallery, sorted and capped. */
 function evidenceImageNames(dir) {
-  for (const candidate of [join(dir, 'assets'), dir]) {
-    let entries = []
-    try {
-      entries = readdirSync(candidate)
-    } catch {
-      continue
-    }
-    const images = entries
-      .filter((entry) => EVIDENCE_IMAGE_EXTENSIONS.has(entry.split('.').pop()?.toLowerCase() ?? ''))
-      .sort()
-      .slice(0, MAX_EVIDENCE_IMAGES)
-    if (images.length > 0)
-      return images.map((name) => (candidate === dir ? name : join('assets', name)))
+  let entries = []
+  try {
+    entries = readdirSync(join(dir, 'assets'))
+  } catch {
+    return []
   }
-  return []
+  return entries
+    .filter((entry) => EVIDENCE_IMAGE_EXTENSIONS.has(entry.split('.').pop()?.toLowerCase() ?? ''))
+    .sort()
+    .slice(0, MAX_EVIDENCE_IMAGES)
+    .map((name) => join('assets', name))
 }
 
 const EVIDENCE_RESULT_EXTENSIONS = new Set(['md', 'markdown', 'html', 'htm'])
@@ -914,38 +879,20 @@ function hasEvidenceAsset(dir) {
   )
 }
 
-/**
- * The worktree's evidence pack — repo-local `.porcelain/active-review/evidence/` first
- * (current layout), then the legacy channel-home `loop-evidence` keying
- * (see apps/daemon/src/fs/evidence-paths.ts).
- */
-function readEvidence(worktreePath, home, keys) {
-  const dirs = [
-    join(worktreePath, '.porcelain', 'active-review', 'evidence'),
-    ...keys.map((key) =>
-      join(home, 'loop-evidence', createHash('sha256').update(key).digest('hex').slice(0, 16)),
-    ),
-  ]
-  for (const dir of dirs) {
-    // A pack exists when its checks meta, a legacy report page, a Results document, or a
-    // gallery image is present — matching the daemon's widened presence rule (evidence is a
-    // pack now, not one HTML page, and a Results- or Assets-only pack is still evidence).
-    const hasPack =
-      existsSync(join(dir, 'meta.json')) ||
-      existsSync(join(dir, 'index.html')) ||
-      hasResultsDoc(dir) ||
-      hasEvidenceAsset(dir)
-    if (!hasPack) continue
-    const meta = readJsonFile(join(dir, 'meta.json')) ?? {}
-    return {
-      dir,
-      title: text(meta.title, 120) || 'Evidence',
-      updatedAt: text(meta.updatedAt, 64),
-      checks: Array.isArray(meta.checks) ? meta.checks.slice(0, 40) : [],
-      images: evidenceImageNames(dir),
-    }
+/** The worktree's current repo-local Evidence pack. */
+function readEvidence(worktreePath) {
+  const dir = join(worktreePath, '.porcelain', 'active-review', 'evidence')
+  // A pack exists when its checks meta, a Results document, or a gallery image is present.
+  const hasPack = existsSync(join(dir, 'meta.json')) || hasResultsDoc(dir) || hasEvidenceAsset(dir)
+  if (!hasPack) return null
+  const meta = readJsonFile(join(dir, 'meta.json')) ?? {}
+  return {
+    dir,
+    title: text(meta.title, 120) || 'Evidence',
+    updatedAt: text(meta.updatedAt, 64),
+    checks: Array.isArray(meta.checks) ? meta.checks.slice(0, 40) : [],
+    images: evidenceImageNames(dir),
   }
-  return null
 }
 
 const R2_EVIDENCE_PREFIX = 'porcelain/pr-evidence'
@@ -1000,7 +947,7 @@ function renderReviewBody(review, evidence, slug, publishedImages) {
   const lines = []
   if (review) {
     const thesis = text(review.thesis, 4000)
-    lines.push('## Intent', '', thesis || `_${text(review.name, 120) || 'Feature view'}_`, '')
+    lines.push('## Intent', '', thesis || `_${text(review.name, 120) || 'Review'}_`, '')
     const sections = Array.isArray(review.sections) ? review.sections.slice(0, 30) : []
     if (sections.length > 0) {
       lines.push('Walkthrough:', '')
@@ -1030,7 +977,7 @@ function renderReviewBody(review, evidence, slug, publishedImages) {
       if (evidence.images.length > 0) {
         lines.push(`screenshots (would upload): ${evidence.images.join(', ')}`, '')
       }
-      lines.push(`Pack: \`${join(evidence.dir, 'index.html')}\``, '')
+      lines.push(`Pack: \`${join(evidence.dir, 'results', 'index.html')}\``, '')
     } else if (Array.isArray(publishedImages) && publishedImages.length > 0) {
       lines.push('### Screenshots', '')
       for (const image of publishedImages) lines.push(`![${image.name}](${image.url})`)
@@ -1040,16 +987,15 @@ function renderReviewBody(review, evidence, slug, publishedImages) {
         '',
       )
     } else {
-      lines.push(`Pack: \`${join(evidence.dir, 'index.html')}\``, '')
+      lines.push(`Pack: \`${join(evidence.dir, 'results', 'index.html')}\``, '')
     }
   }
   return lines.join('\n')
 }
 
-function prBody(root, branch, worktreePath, home, slug, publishedImages) {
-  const keys = channelKeys(worktreePath)
-  const review = readReviewSet(worktreePath, home, keys)
-  const evidence = readEvidence(worktreePath, home, keys)
+function prBody(root, branch, worktreePath, slug, publishedImages) {
+  const review = readReviewSet(worktreePath)
+  const evidence = readEvidence(worktreePath)
   const commits = git(root, ['log', `main..${branch}`, '--oneline'])
   const commitSection = ['## Commits', '', '```', commits, '```', ''].join('\n')
   if (!review && !evidence) {
@@ -1103,15 +1049,13 @@ function pullRequest(slugArg, options) {
   const root = primaryRoot()
   const worktree = findManaged(root, slugArg)
   const { slug, branch } = worktree.config
-  const home = managedPaths(slug).home
-
   if (git(root, ['rev-list', '--count', `main..${branch}`]) === '0') {
     fail(`${branch} has no commits ahead of main; commit the unit before opening a PR`)
   }
 
   if (options.dryRun) {
     console.log(`title: ${options.title ?? git(root, ['log', '-1', '--format=%s', branch])}\n`)
-    console.log(prBody(root, branch, worktree.path, home, slug, 'dry-run'))
+    console.log(prBody(root, branch, worktree.path, slug, 'dry-run'))
     return
   }
 
@@ -1124,12 +1068,12 @@ function pullRequest(slugArg, options) {
 
   git(root, ['push', '-u', 'origin', branch], { inherit: true })
 
-  const evidence = readEvidence(worktree.path, home, channelKeys(worktree.path))
+  const evidence = readEvidence(worktree.path)
   const publishedImages =
     evidence && evidence.images.length > 0 ? publishEvidenceImages(slug, evidence) : []
 
   const title = options.title ?? git(root, ['log', '-1', '--format=%s', branch])
-  const body = prBody(root, branch, worktree.path, home, slug, publishedImages)
+  const body = prBody(root, branch, worktree.path, slug, publishedImages)
   const dir = mkdtempSync(join(tmpdir(), 'porcelain-pr-'))
   const bodyFile = join(dir, 'body.md')
   try {

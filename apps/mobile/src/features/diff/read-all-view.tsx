@@ -12,14 +12,17 @@ import {
   ScreenHeader,
 } from '@/components/panel-chrome'
 import { SurfaceList } from '@/components/surface-scroll'
-import { useCommentedLinesByPath, useReviewComments } from '@/features/comments'
-import { type CommentAnchor, CommentComposer } from '@/features/comments/comment-composer'
-import { rangeForPath, rangeOf } from '@/features/comments/line-range'
-import { SelectionBar } from '@/features/comments/selection-bar'
 import {
+  type CommentAnchor,
+  CommentComposer,
   type LineSelectionControls,
+  rangeForPath,
+  rangeOf,
+  SelectionBar,
+  useCommentedLinesByPath,
   useLineSelection,
-} from '@/features/comments/use-line-selection'
+  useReviewComments,
+} from '@/features/comments'
 import { type DiffReadingScope, useDiffReading } from '@/features/git'
 import { usePreferencesStore } from '@/features/settings/preferences-store'
 import { useBottomChrome } from '@/features/shell/bottom-chrome'

@@ -9,9 +9,6 @@
 // an over-cap one is dropped from the tabs, and a missing screenshot is a blank box.
 // Catching them here is the difference between evidence and a broken page.
 //
-// A pack written before Evidence had sub-tabs (a lone root `index.html`) still validates,
-// and still passes.
-//
 // Usage:  node check-evidence.mjs [--repo <abs path>]
 // Exit:   0 = ready to publish, 1 = problems listed on stdout.
 
@@ -19,12 +16,10 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { isAbsolute, join, relative, resolve } from 'node:path'
 
-// Lockstep with apps/daemon/src/review/doc-set.ts (the Results set) and
-// apps/daemon/src/stores/evidence-store.ts (the legacy single report). Base64 costs ~4
-// bytes per 3 raw bytes, so raw asset bytes are scaled by 4/3 to estimate the rendered doc.
+// Lockstep with apps/daemon/src/review/doc-set.ts (the Results set). Base64 costs ~4 bytes per
+// 3 raw bytes, so raw asset bytes are scaled by 4/3 to estimate the rendered doc.
 const MAX_DOC_BYTES = 2 * 1024 * 1024
 const MAX_TOTAL_BYTES = 8 * 1024 * 1024
-const LEGACY_READ_CAP_BYTES = 4 * 1024 * 1024
 const BASE64_OVERHEAD = 4 / 3
 
 // Lockstep with apps/daemon/src/review/evidence-assets-list.ts.
@@ -122,16 +117,12 @@ if (checks.length === 0) {
   notes.push('No checks recorded — `evidence check --label … --status pass|fail|skip`.')
 }
 
-// --- The documents: results/, plus a legacy root index.html --------------------------
+// --- The documents: results/ ---------------------------------------------------------
 const documents = []
 for (const file of walk(resultsDir)) {
   if (!file.includes('/') && DOC_EXTENSIONS.has(extensionOf(file))) {
     documents.push({ label: `results/${file}`, path: join(resultsDir, file), dir: resultsDir })
   }
-}
-const legacyIndex = join(dir, 'index.html')
-if (existsSync(legacyIndex)) {
-  documents.push({ label: 'index.html', path: legacyIndex, dir, legacy: true })
 }
 
 // --- The gallery ----------------------------------------------------------------------
@@ -230,14 +221,6 @@ for (const doc of documents) {
     }
   }
   inlinedEstimate += docBytes
-
-  if (doc.legacy && docBytes > LEGACY_READ_CAP_BYTES) {
-    problems.push(
-      `${doc.label} inlines to ~${asMb(docBytes)}, over the ${asMb(LEGACY_READ_CAP_BYTES)} legacy ` +
-        'report cap. The tab shows a size error instead of the report — shrink the screenshots, ' +
-        'or move the pack to results/ + assets/.',
-    )
-  }
 }
 
 function asMb(bytes) {

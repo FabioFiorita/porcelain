@@ -95,7 +95,7 @@ interface Options {
    * Seed evidence under `<repo>/.porcelain/active-review/evidence/` (default null → none).
    * Renders as the Review's Evidence tab (needs a `seedReviewSet`) — one pack over
    * three sub-tabs, so a seed can carry any part of it: `checks` in meta.json,
-   * `html` as the legacy root report, `results` as documents, `assets` as images.
+   * `html` as the canonical Results index, `results` as documents, `assets` as images.
    */
   seedEvidence: SeedEvidence | null
   /**

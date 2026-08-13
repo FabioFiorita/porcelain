@@ -159,22 +159,8 @@ export const WEB_SERVER_IMPORT_BASELINE = Object.freeze({
  * Cross-imports between two registered target roots remain an immediate rejection and are
  * never absorbed by these baselines.
  *
- * `apps/mobile/src/features/comments` is the RVC-004 presentation-module migration debt
- * (composer/line-range/selection remain deep-imported until a later unit rehomes them).
- * Other entries inventory pre-existing external deep imports so the gate can stay strict
- * without inventing a special waiver path.
+ * The catalog is intentionally empty after the completed public-boundary cutovers. Future
+ * inventoried migration debt may add a shrink-only row, but a row must be removed when its
+ * measured imports reach zero.
  */
-export const TARGET_ROOT_DEEP_IMPORT_BASELINES = Object.freeze({
-  'apps/mobile/src/features/comments': Object.freeze({
-    occurrences: 28,
-    files: 16,
-  }),
-  'packages/contracts/src/board': Object.freeze({
-    occurrences: 3,
-    files: 3,
-  }),
-  'packages/contracts/src/review': Object.freeze({
-    occurrences: 2,
-    files: 2,
-  }),
-})
+export const TARGET_ROOT_DEEP_IMPORT_BASELINES = Object.freeze({})

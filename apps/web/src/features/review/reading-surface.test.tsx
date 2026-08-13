@@ -92,7 +92,7 @@ describe('buildRows', () => {
 
 // The full Review document: thesis, a walkthrough section (prose + diagram +
 // anchored code), the unanchored files under the synthetic "More files" chapter,
-// and the loop-evidence final chapter.
+// and the Evidence final chapter.
 const document: ReviewReading = {
   name: 'The Review',
   thesis: 'One paragraph of intent.',

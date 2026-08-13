@@ -11,7 +11,7 @@ export {
   boardInvalidTitleErrorDetailsSchema,
   boardInvalidTitleErrorSchema,
   boardUnavailableErrorSchema,
-} from '../board/board.errors'
+} from '../board'
 export {
   filesAlreadyExistsErrorDetailsSchema,
   filesAlreadyExistsErrorSchema,
@@ -32,7 +32,7 @@ export {
   reviewCommentNotFoundErrorDetailsSchema,
   reviewCommentNotFoundErrorSchema,
   reviewUnavailableErrorSchema,
-} from '../review/review.errors'
+} from '../review'
 export {
   type TerminalPublicError,
   terminalCapacityErrorSchema,

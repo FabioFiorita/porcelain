@@ -4,7 +4,7 @@ import type { DiffHunk } from '@porcelain/contracts/git'
 import { memo } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import type { ThemedToken } from 'shiki'
-import { isLineInRange, type LineRange } from '@/features/comments/line-range'
+import { isLineInRange, type LineRange } from '@/features/comments'
 import { cn } from '@/lib/utils'
 import { anchorLineOf, cellAnchorLine, type DiffRow } from './diff-rows'
 

@@ -8,7 +8,7 @@ import {
   SURFACE_TOOLBAR,
   surfaceContentStyle,
 } from '@/components/surface-layout'
-import { type CommentAnchor, CommentComposer } from '@/features/comments/comment-composer'
+import { type CommentAnchor, CommentComposer } from '@/features/comments'
 import { type FlowFile, useDiscardFile, useFileStaging } from '@/features/git'
 import { useBottomChrome } from '@/features/shell/bottom-chrome'
 import { cn } from '@/lib/utils'

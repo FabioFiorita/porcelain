@@ -38,13 +38,6 @@ export const MAX_DOC_BYTES = 2 * 1024 * 1024
 const MAX_TOTAL_BYTES = 8 * 1024 * 1024
 
 /**
- * The retired root `index.html` era: the single page from before Evidence had
- * sub-tabs. REV-009 deleted its reader, so these names are excluded from the
- * loose-document scan at the evidence root rather than rendered as a tab.
- */
-const RETIRED_ROOT_REPORT_FILES = ['index.html', 'index.htm'] as const
-
-/**
  * What a pack's `index` document is called in the tab strip. `results/index.html`
  * reads as "Index" until a manifest renames it — a filename artifact nobody wrote.
  */
@@ -93,17 +86,14 @@ async function readManifestOrder(dir: string): Promise<Array<{ file: string; lab
   }
 }
 
-async function renderableNames(dir: string, exclude: ReadonlySet<string>): Promise<string[]> {
+async function renderableNames(dir: string): Promise<string[]> {
   let entries: string[]
   try {
     entries = await readdir(dir)
   } catch {
     return []
   }
-  return entries.filter(
-    (file) =>
-      isPlainFileName(file) && docSetMediumFor(file) !== null && !exclude.has(file.toLowerCase()),
-  )
+  return entries.filter((file) => isPlainFileName(file) && docSetMediumFor(file) !== null)
 }
 
 export interface DocSetOptions {
@@ -114,21 +104,6 @@ export interface DocSetOptions {
    * Resolution still starts at the document's directory.
    */
   assetRoot?: string
-  /**
-   * Extra directories scanned after `dir`, in order, for renderable files the
-   * primary directory does not already claim by name. Legacy packs wrote loose
-   * docs at the evidence root; they keep rendering without a migration.
-   */
-  alsoScan?: readonly string[]
-  /**
-   * File names skipped in the `alsoScan` directories only (case-insensitive).
-   *
-   * Deliberately NOT applied to `dir`: the caller excludes `index.html` so the
-   * legacy root report is not listed twice, and applying that to the primary
-   * directory silently swallowed a modern `evidence/results/index.html` — the
-   * most obvious name an agent would give its report.
-   */
-  excludeFromAlsoScan?: readonly string[]
   /**
    * Reader-facing labels for specific file names (case-insensitive), used only
    * when the manifest names no label. `index.html` is the most obvious name for
@@ -153,8 +128,7 @@ interface QueuedDoc {
  * `MAX_TOTAL_BYTES` in total. Over-cap documents are dropped, never thrown.
  */
 export async function readDocSet(dir: string, options: DocSetOptions = {}): Promise<ReviewDoc[]> {
-  const exclude = new Set((options.excludeFromAlsoScan ?? []).map((name) => name.toLowerCase()))
-  const renderable = await renderableNames(dir, new Set())
+  const renderable = await renderableNames(dir)
   const ordered = await readManifestOrder(dir)
   const seen = new Set<string>()
   const queue: QueuedDoc[] = []
@@ -168,14 +142,6 @@ export async function readDocSet(dir: string, options: DocSetOptions = {}): Prom
     seen.add(file)
     queue.push({ file, dir })
   }
-  for (const extra of options.alsoScan ?? []) {
-    for (const file of (await renderableNames(extra, exclude)).sort()) {
-      if (seen.has(file)) continue
-      seen.add(file)
-      queue.push({ file, dir: extra })
-    }
-  }
-
   const docs: ReviewDoc[] = []
   let total = 0
   const defaults = options.defaultLabels ?? {}
@@ -193,8 +159,8 @@ export async function readDocSet(dir: string, options: DocSetOptions = {}): Prom
 /**
  * Tab labels the human can tell apart. Two tabs reading "Report" is a strip
  * nobody can navigate, and the ways to get there are many: two default-labelled
- * files (`index.html` and `index.htm` in one pack), a manifest that names two
- * tabs the same, or a legacy report meeting a modern one. The rule is uniform —
+ * files (`index.html` and `index.htm` in one pack), or a manifest that names two
+ * tabs the same. The rule is uniform —
  * the first doc keeps the label, a later collision is qualified by its file name
  * — so no caller has to remember a special case.
  */
@@ -253,17 +219,14 @@ export function readActiveIntentDocs(repoPath: string): Promise<ReviewDoc[]> {
  * with the evidence directory as the asset root so `../assets/shot.png` — the
  * same image the Assets gallery lists — inlines into a sandboxed report.
  *
- * One legacy shape still renders, because a pack written last month is still
- * proof: loose `*.md` / `*.html` at the evidence root. The retired root
- * `index.html` is not among them — REV-009 deleted that reader with the legacy
- * HTML evidence procedure, so the name is excluded rather than surfaced as a tab.
+ * Only the current Results directory is read. An evidence root is a pack
+ * container, not a second document set; current writers place every document in
+ * `evidence/results/` and every image in `evidence/assets/`.
  */
 export function readActiveEvidenceResults(repoPath: string): Promise<ReviewDoc[]> {
   const evidenceDir = projectEvidenceDir(repoPath)
   return readDocSet(projectEvidenceResultsDir(repoPath), {
     assetRoot: evidenceDir,
-    alsoScan: [evidenceDir],
-    excludeFromAlsoScan: RETIRED_ROOT_REPORT_FILES,
     defaultLabels: { 'index.html': REPORT_LABEL, 'index.htm': REPORT_LABEL },
   })
 }

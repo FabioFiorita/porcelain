@@ -8,7 +8,7 @@ import {
   boardCardNotFoundErrorSchema,
   boardInvalidTitleErrorSchema,
   boardUnavailableErrorSchema,
-} from '../board/board.errors'
+} from '../board'
 import {
   filesAlreadyExistsErrorSchema,
   filesNotFoundErrorSchema,
@@ -26,10 +26,7 @@ import {
   projectsNotFoundErrorSchema,
   projectsUnavailableErrorSchema,
 } from '../projects'
-import {
-  reviewCommentNotFoundErrorSchema,
-  reviewUnavailableErrorSchema,
-} from '../review/review.errors'
+import { reviewCommentNotFoundErrorSchema, reviewUnavailableErrorSchema } from '../review'
 import {
   terminalCapacityErrorSchema,
   terminalExitedErrorSchema,

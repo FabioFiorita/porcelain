@@ -103,10 +103,9 @@ describe('document sets', () => {
     ])
   })
 
-  // The manifest is a version-1 document (`@shared/doc-set-file`). A pack written
-  // by an older CLI carries no `version`, and the pinned order is the ONLY thing
-  // it loses: the documents still render, in name order, rather than the read failing.
-  it('falls back to name order for an unversioned manifest', async () => {
+  // A malformed manifest must not hide valid documents or turn the document reader
+  // into an outage; the current files remain readable in name order.
+  it('falls back to name order for a malformed manifest', async () => {
     await writeFile(join(dir, 'a.md'), 'a')
     await writeFile(join(dir, 'b.md'), 'b')
     await writeFile(
@@ -176,40 +175,6 @@ describe('assetRoot', () => {
   })
 })
 
-describe('alsoScan', () => {
-  it('picks up documents from an extra directory, after the primary one', async () => {
-    const docs = join(dir, 'results')
-    await mkdir(docs, { recursive: true })
-    await writeFile(join(docs, 'b.md'), 'from results')
-    await writeFile(join(dir, 'a.md'), 'loose at the root')
-    const set = await readDocSet(docs, { alsoScan: [dir] })
-    expect(set.map((d) => d.file)).toEqual(['b.md', 'a.md'])
-    expect(set[1]?.body).toBe('loose at the root')
-  })
-
-  it('never surfaces an excluded name from an extra directory', async () => {
-    const docs = join(dir, 'results')
-    await mkdir(docs, { recursive: true })
-    await writeFile(join(dir, 'index.html'), '<p>legacy</p>')
-    await writeFile(join(dir, 'run-log.md'), 'log')
-    const set = await readDocSet(docs, { alsoScan: [dir], excludeFromAlsoScan: ['index.html'] })
-    expect(set.map((d) => d.file)).toEqual(['run-log.md'])
-  })
-
-  // The exclusion exists to stop the legacy root report being listed twice. It
-  // must never reach the primary directory, where `index.html` is just the most
-  // obvious name for a modern report.
-  it('keeps a primary-directory file the extra directories exclude', async () => {
-    const docs = join(dir, 'results')
-    await mkdir(docs, { recursive: true })
-    await writeFile(join(docs, 'index.html'), '<p>modern</p>')
-    await writeFile(join(dir, 'index.html'), '<p>legacy</p>')
-    const set = await readDocSet(docs, { alsoScan: [dir], excludeFromAlsoScan: ['index.html'] })
-    expect(set.map((d) => d.file)).toEqual(['index.html'])
-    expect(set[0]?.body).toBe('<p>modern</p>')
-  })
-})
-
 describe('readActiveEvidenceResults', () => {
   const repo = (): string => join(dir, 'repo')
 
@@ -227,9 +192,8 @@ describe('readActiveEvidenceResults', () => {
     expect(docs[0]?.body).toContain('data:image/png;base64,')
   })
 
-  // "Index" is a file name, not a name a human gave the tab; the legacy root file
-  // has always read "Report" and this is the same document one directory down.
-  it('renders results/index.html as "Report" — the exclusion is for the legacy root only', async () => {
+  // "Index" is a file name, not a name a human gave the tab.
+  it('renders results/index.html as "Report"', async () => {
     const results = projectEvidenceResultsDir(repo())
     await mkdir(results, { recursive: true })
     await writeFile(join(results, 'index.html'), '<p>modern report</p>')
@@ -250,16 +214,6 @@ describe('readActiveEvidenceResults', () => {
     expect(docs.map((d) => [d.file, d.label])).toEqual([['index.html', 'Sim loop']])
   })
 
-  it('renders results/index.html and ignores a retired root index.html', async () => {
-    const results = projectEvidenceResultsDir(repo())
-    await mkdir(results, { recursive: true })
-    await writeFile(join(projectEvidenceDir(repo()), 'index.html'), '<p>old proof</p>')
-    await writeFile(join(results, 'index.html'), '<p>modern report</p>')
-    const docs = await readActiveEvidenceResults(repo())
-    expect(docs.map((d) => [d.file, d.label])).toEqual([['index.html', 'Report']])
-    expect(docs.map((d) => d.body)).toEqual(['<p>modern report</p>'])
-  })
-
   // `index.html` and `index.htm` are two files with the same default label, and
   // the key-collision guard never fires — the keys differ. Only a label pass
   // over the whole strip keeps them apart.
@@ -272,21 +226,6 @@ describe('readActiveEvidenceResults', () => {
     expect(docs.map((d) => d.file).sort()).toEqual(['index.htm', 'index.html'])
     expect(new Set(docs.map((d) => d.label)).size).toBe(docs.length)
     expect(docs.filter((d) => d.label === 'Report')).toHaveLength(1)
-  })
-
-  it('never surfaces a retired root index.html beside the results set', async () => {
-    const results = projectEvidenceResultsDir(repo())
-    await mkdir(results, { recursive: true })
-    await writeFile(join(projectEvidenceDir(repo()), 'index.html'), '<p>old proof</p>')
-    await writeFile(join(results, 'run-log.md'), 'log')
-    const docs = await readActiveEvidenceResults(repo())
-    expect(docs.map((d) => [d.file, d.label])).toEqual([['run-log.md', 'Run log']])
-  })
-
-  it('keeps rendering loose documents left at the evidence root', async () => {
-    await mkdir(projectEvidenceDir(repo()), { recursive: true })
-    await writeFile(join(projectEvidenceDir(repo()), 'notes.md'), 'legacy note')
-    expect((await readActiveEvidenceResults(repo())).map((d) => d.file)).toEqual(['notes.md'])
   })
 
   it('is empty when there is no evidence at all', async () => {

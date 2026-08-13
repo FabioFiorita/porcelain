@@ -148,7 +148,7 @@ export function createFsReviewArchiveStore(): ReviewArchiveStore {
      * destinations are the ACTIVE-review paths, not the companion root: an archive
      * is shaped exactly like `active-review/`, and every reader (`ACTIVE_FILES` /
      * `activeReviewPath`) looks inside that directory — restoring to the flat legacy
-     * paths landed the files where nothing reads them, so a restored review came
+     * companion paths landed the files where nothing reads them, so a restored review came
      * back empty. Archiving whatever is currently active belongs to the operation.
      */
     async restore(repoPath, id) {

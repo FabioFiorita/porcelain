@@ -70,7 +70,7 @@ card → Start Review (title prefilled) only when publication is requested. Do n
 ### Publish flow
 
 0. **Explicit replacement only** — do not clear another active Review automatically. When the
-   human requests a replacement, `review clear` removes the previous set **and** its loop-evidence
+   human requests a replacement, `review clear` removes the previous set **and** its Evidence
    directory (HTML + images), then the deliberate publication can start. Otherwise leave the active
    Review untouched.
 1. **Intent-first** — one `review set` with name + thesis. `--files` and `--sections` are
@@ -79,7 +79,7 @@ card → Start Review (title prefilled) only when publication is requested. Do n
 3. **Evidence** — after you validate, `evidence check` for each thing you ran, then
    `evidence prepare` + Results documents (**include CSS**) + screenshots in `assets/`.
    **Required to claim done.**
-4. Confirm with `review get` / `feature get` / `evidence get`, or run
+4. Confirm with `review get` / `evidence get`, or run
    `scripts/check-evidence.mjs` (below).
 
 ```bash
@@ -237,7 +237,7 @@ inject extra paths from git status.
 ]'
 
 ~/.porcelain/porcelain review add --files '[{ "path": "src/new.ts" }]'
-~/.porcelain/porcelain feature get   # computed view after git tags listed dirty files
+~/.porcelain/porcelain review get    # computed view after git tags listed dirty files
 ```
 
 Files listed but not section-anchored still appear under **More files** / layer groups. Files you
@@ -328,8 +328,8 @@ Anything that needs interactivity to be understood should be simpler, or a diagr
 **Caps:** 12 documents, 2 MB each, 8 MB total. Over-cap documents are dropped silently — check
 `evidence results-list` if a tab is missing.
 
-A pack written before sub-tabs existed still renders: a root `index.html` shows up as a **Report**
-tab. Don't write one — `evidence set` now writes `results/index.html`.
+Evidence documents belong under `results/`; `evidence set` writes the canonical
+`results/index.html` document for the Results tab.
 
 ### Assets — the gallery
 

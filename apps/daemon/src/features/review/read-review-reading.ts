@@ -5,7 +5,7 @@ import type { ReviewEvidence, ReviewGit, ReviewReadingSources } from './review-r
 /**
  * The Review document: thesis + walkthrough sections (prose/diagram + anchored code
  * blocks) + the leftover files flow-grouped, with just the relevant lines (diff
- * hunks for changed files, symbol slices for context/shipped) and the loop-evidence
+ * hunks for changed files, symbol slices for context/shipped) and the Evidence
  * meta as the final chapter. Review-set-only — `null` without an agent review set,
  * so the slice heuristic only ever runs on the agent's curated, annotated set.
  *

@@ -9,7 +9,7 @@ import {
   ScreenHeader,
 } from '@/components/panel-chrome'
 import { PANEL_CARD, SURFACE_GUTTER, surfaceContentStyle } from '@/components/surface-layout'
-import { type CommentAnchor, CommentComposer } from '@/features/comments/comment-composer'
+import { type CommentAnchor, CommentComposer } from '@/features/comments'
 import { useCommitFlow, useCommitMessage } from '@/features/git'
 import { useBottomChrome } from '@/features/shell/bottom-chrome'
 import { cn } from '@/lib/utils'

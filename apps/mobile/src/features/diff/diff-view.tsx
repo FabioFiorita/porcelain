@@ -5,11 +5,17 @@ import { useMemo, useState } from 'react'
 import { Image, Text, View } from 'react-native'
 import { EmptyNote, ErrorNote, IconAction, ScreenHeader } from '@/components/panel-chrome'
 import { SurfaceList } from '@/components/surface-scroll'
-import { useCommentIndex, useReviewComments } from '@/features/comments'
-import { type CommentAnchor, CommentComposer } from '@/features/comments/comment-composer'
-import { describeRange, type LineRange, rangeForPath } from '@/features/comments/line-range'
-import { SelectionBar } from '@/features/comments/selection-bar'
-import { useLineSelection } from '@/features/comments/use-line-selection'
+import {
+  type CommentAnchor,
+  CommentComposer,
+  describeRange,
+  type LineRange,
+  rangeForPath,
+  SelectionBar,
+  useCommentIndex,
+  useLineSelection,
+  useReviewComments,
+} from '@/features/comments'
 import { type DiffSource, useDiffFile } from '@/features/git'
 import { usePreferencesStore } from '@/features/settings/preferences-store'
 import { useBottomChrome } from '@/features/shell/bottom-chrome'

@@ -71,10 +71,11 @@ horizontal paths may remain while inventoried. They may shrink, not grow.
 - New or migrated feature code uses the canonical domain paths.
 - A domain exposes one narrow `index.ts`; foreign domains do not deep-import its internals.
   Registered target roots (including domain-owned aliases such as mobile `features/comments`)
-  enforce that public-boundary rule: cross-root deep imports fail immediately; inventoried
-  external deep imports into a root may only shrink via `TARGET_ROOT_DEEP_IMPORT_BASELINES`
-  and must be removed when they reach zero. Existing presentation deep imports into mobile
-  comments are shrink-only migration debt, not proof that those modules are public-index clean.
+  enforce that public-boundary rule: cross-root deep imports fail immediately. During migration,
+  inventoried external deep imports into a root may only shrink via
+  `TARGET_ROOT_DEEP_IMPORT_BASELINES` and must be removed when they reach zero; the current
+  catalog has no external baseline rows for completed cutovers. Public presentation imports use
+  the owning index, including mobile comments.
 - Generic containers such as `service.ts`, `manager.ts`, `utils.ts`, `helpers.ts`, `common.ts`,
   `types.ts`, and `constants.ts` are not target feature names.
 - No allowlist or count is increased to make a change pass.

@@ -1,5 +1,5 @@
 import { actionsProcedures } from './actions'
-import { boardProcedures } from './board/board.procedures'
+import { boardProcedures } from './board'
 import { filesProcedures } from './files'
 import { gitProcedures } from './git'
 import { projectDataProcedures } from './project-data'

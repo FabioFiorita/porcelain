@@ -9,7 +9,7 @@ Porcelain stores **project companion data** in the repo:
   layers.json          # shared by default
   board.json           # local by default
   notes.md             # local by default
-  feature-view.json    # app-computed snapshot, never shared
+  active-review.json   # app-computed snapshot, never shared
   active-review/       # the unit in flight — always ignored
     review.json  intent/  evidence/  comments.json  reviewed.json
   reviews/<id>/        # archived units; local until published
