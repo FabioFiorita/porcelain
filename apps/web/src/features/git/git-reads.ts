@@ -31,8 +31,8 @@ import type {
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
 import { trpc } from '@renderer/lib/trpc'
+import { useHubRepoPath } from '@renderer/stores/hub-repo'
 import { usePreferencesStore } from '@renderer/stores/preferences'
-import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { settleBackground } from '@shared/background'
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
@@ -63,17 +63,17 @@ function projectPath(path: string | undefined): string {
 
 /** Working-tree flow. Changes constantly outside the app, so it stays live at a 3s poll. */
 export function useGitFlow(): { groups: FlowGroup[] | undefined; refresh: () => Promise<void> } {
-  const project = useProjectSelectionStore((state) => state.project)
+  const repoPath = useHubRepoPath()
   const identity = useDaemonIdentity()
   const daemon = daemonScope(identity)
   const queryClient = useQueryClient()
   const utils = trpc.useUtils()
-  const path = projectPath(project?.path)
+  const path = projectPath(repoPath ?? undefined)
   const query = useQuery({
-    enabled: project !== null,
+    enabled: repoPath !== null,
     queryFn: (): Promise<FlowGroup[]> => utils.client.gitFlow.query(path),
     queryKey: gitQueryKey(daemon, gitFlowQuery(path)),
-    refetchInterval: project === null ? false : 3000,
+    refetchInterval: repoPath === null ? false : 3000,
     staleTime: 0,
   })
 
@@ -96,13 +96,13 @@ export function useBranchFlow(enabled: boolean): {
   base: string | undefined
   refresh: () => Promise<void>
 } {
-  const project = useProjectSelectionStore((state) => state.project)
+  const repoPath = useHubRepoPath()
   const identity = useDaemonIdentity()
   const daemon = daemonScope(identity)
-  const path = projectPath(project?.path)
+  const path = projectPath(repoPath ?? undefined)
   const utils = trpc.useUtils()
   const query = useQuery({
-    enabled: enabled && project !== null,
+    enabled: enabled && repoPath !== null,
     queryFn: () => utils.client.gitRangeFlow.query(path),
     queryKey: gitQueryKey(daemon, gitRangeFlowQuery(path)),
     staleTime: Number.POSITIVE_INFINITY,
@@ -117,12 +117,12 @@ export function useBranchFlow(enabled: boolean): {
 }
 
 export function useGitStatus(): ChangedFile[] {
-  const project = useProjectSelectionStore((state) => state.project)
+  const repoPath = useHubRepoPath()
   const identity = useDaemonIdentity()
-  const path = projectPath(project?.path)
+  const path = projectPath(repoPath ?? undefined)
   const utils = trpc.useUtils()
   const query = useQuery({
-    enabled: project !== null,
+    enabled: repoPath !== null,
     queryFn: () => utils.client.gitStatus.query(path),
     queryKey: gitQueryKey(daemonScope(identity), gitStatusQuery(path)),
     staleTime: 0,
@@ -131,15 +131,15 @@ export function useGitStatus(): ChangedFile[] {
 }
 
 export function useGitSuggestions(): GitSuggestion[] {
-  const project = useProjectSelectionStore((state) => state.project)
+  const repoPath = useHubRepoPath()
   const identity = useDaemonIdentity()
-  const path = projectPath(project?.path)
+  const path = projectPath(repoPath ?? undefined)
   const utils = trpc.useUtils()
   const query = useQuery({
-    enabled: project !== null,
+    enabled: repoPath !== null,
     queryFn: () => utils.client.gitSuggestions.query(path),
     queryKey: gitQueryKey(daemonScope(identity), gitSuggestionsQuery(path)),
-    refetchInterval: project === null ? false : 5000,
+    refetchInterval: repoPath === null ? false : 5000,
     staleTime: 0,
   })
   return query.data ?? []
@@ -155,20 +155,20 @@ export function useDiffFile(
   binary: boolean
   error: { message: string } | null
 } {
-  const project = useProjectSelectionStore((state) => state.project)
+  const repoPath = useHubRepoPath()
   const identity = useDaemonIdentity()
   const daemon = daemonScope(identity)
-  const path = projectPath(project?.path)
+  const path = projectPath(repoPath ?? undefined)
   const utils = trpc.useUtils()
   const working = useQuery({
-    enabled: project !== null && base === undefined,
+    enabled: repoPath !== null && base === undefined,
     queryFn: () => utils.client.gitDiffFile.query({ repoPath: path, filePath }),
     queryKey: gitQueryKey(daemon, gitDiffFileQuery(path, filePath)),
     placeholderData: keepPreviousData,
     staleTime: 0,
   })
   const range = useQuery({
-    enabled: project !== null && base !== undefined,
+    enabled: repoPath !== null && base !== undefined,
     queryFn: () =>
       utils.client.gitRangeDiffFile.query({ base: base ?? '', filePath, repoPath: path }),
     queryKey: gitQueryKey(daemon, gitRangeDiffFileQuery(path, base ?? '', filePath)),
@@ -187,14 +187,14 @@ export function useDiffFile(
 
 /** Prefetch a file's diff (changes-list hover) so opening the diff tab feels instant. */
 export function useDiffFilePrefetch(): (filePath: string, base?: string) => Promise<void> {
-  const project = useProjectSelectionStore((state) => state.project)
+  const repoPath = useHubRepoPath()
   const identity = useDaemonIdentity()
   const daemon = daemonScope(identity)
   const queryClient = useQueryClient()
   const utils = trpc.useUtils()
   return async (filePath: string, base?: string): Promise<void> => {
-    if (project === null) return
-    const path = gitProjectKey(project.path)
+    if (repoPath === null) return
+    const path = gitProjectKey(repoPath)
     if (base === undefined) {
       await queryClient.prefetchQuery({
         queryFn: () => utils.client.gitDiffFile.query({ filePath, repoPath: path }),
@@ -226,12 +226,12 @@ export function useCommitDiff(
   hash: string,
   filePath: string,
 ): { hunks: DiffHunk[] | undefined; error: { message: string } | null } {
-  const project = useProjectSelectionStore((state) => state.project)
+  const repoPath = useHubRepoPath()
   const identity = useDaemonIdentity()
-  const path = projectPath(project?.path)
+  const path = projectPath(repoPath ?? undefined)
   const utils = trpc.useUtils()
   const query = useQuery({
-    enabled: project !== null,
+    enabled: repoPath !== null,
     queryFn: () => utils.client.gitCommitDiff.query({ filePath, hash, repoPath: path }),
     queryKey: gitQueryKey(daemonScope(identity), gitCommitDiffQuery(path, hash, filePath)),
     staleTime: Number.POSITIVE_INFINITY,
@@ -248,13 +248,13 @@ export function useDiffReading(scope: DiffReadingScope): {
   reading: DiffReadingOutput | undefined
   error: { message: string } | null
 } {
-  const project = useProjectSelectionStore((state) => state.project)
+  const repoPath = useHubRepoPath()
   const identity = useDaemonIdentity()
-  const path = projectPath(project?.path)
+  const path = projectPath(repoPath ?? undefined)
   const utils = trpc.useUtils()
   const live = scope.type === 'working'
   const query = useQuery({
-    enabled: project !== null,
+    enabled: repoPath !== null,
     queryFn: () => utils.client.diffReading.query({ repoPath: path, scope }),
     queryKey: gitQueryKey(daemonScope(identity), gitDiffReadingQuery(path, scope)),
     refetchInterval: live ? 3000 : false,
@@ -264,12 +264,12 @@ export function useDiffReading(scope: DiffReadingScope): {
 }
 
 export function useGitLog(limit = 200, enabled = true): Commit[] | undefined {
-  const project = useProjectSelectionStore((state) => state.project)
+  const repoPath = useHubRepoPath()
   const identity = useDaemonIdentity()
-  const path = projectPath(project?.path)
+  const path = projectPath(repoPath ?? undefined)
   const utils = trpc.useUtils()
   const query = useQuery({
-    enabled: enabled && project !== null,
+    enabled: enabled && repoPath !== null,
     queryFn: () => utils.client.gitLog.query({ limit, repoPath: path }),
     queryKey: gitQueryKey(daemonScope(identity), gitLogQuery(path, limit)),
     staleTime: 0,
@@ -283,13 +283,13 @@ export function useGitLog(limit = 200, enabled = true): Commit[] | undefined {
  * new commits as they land.
  */
 export function useFileLog(filePath: string | null, limit = 50): Commit[] | undefined {
-  const project = useProjectSelectionStore((state) => state.project)
+  const repoPath = useHubRepoPath()
   const identity = useDaemonIdentity()
-  const path = projectPath(project?.path)
+  const path = projectPath(repoPath ?? undefined)
   const utils = trpc.useUtils()
   const activePath = filePath ?? ''
   const query = useQuery({
-    enabled: project !== null && filePath !== null,
+    enabled: repoPath !== null && filePath !== null,
     queryFn: () => utils.client.gitFileLog.query({ filePath: activePath, limit, repoPath: path }),
     queryKey: gitQueryKey(daemonScope(identity), gitFileLogQuery(path, activePath, limit)),
     staleTime: 0,
@@ -298,12 +298,12 @@ export function useFileLog(filePath: string | null, limit = 50): Commit[] | unde
 }
 
 export function useCommitMessage(hash: string): string | undefined {
-  const project = useProjectSelectionStore((state) => state.project)
+  const repoPath = useHubRepoPath()
   const identity = useDaemonIdentity()
-  const path = projectPath(project?.path)
+  const path = projectPath(repoPath ?? undefined)
   const utils = trpc.useUtils()
   const query = useQuery({
-    enabled: project !== null,
+    enabled: repoPath !== null,
     queryFn: () => utils.client.gitCommitMessage.query({ hash, repoPath: path }),
     queryKey: gitQueryKey(daemonScope(identity), gitCommitMessageQuery(path, hash)),
     staleTime: Number.POSITIVE_INFINITY,
@@ -313,14 +313,14 @@ export function useCommitMessage(hash: string): string | undefined {
 
 /** Imperatively fetch a commit's full message (subject + body) — for copy actions. */
 export function useFetchCommitMessage(): (hash: string) => Promise<string> {
-  const project = useProjectSelectionStore((state) => state.project)
+  const repoPath = useHubRepoPath()
   const identity = useDaemonIdentity()
   const daemon = daemonScope(identity)
   const queryClient = useQueryClient()
   const utils = trpc.useUtils()
   return (hash: string): Promise<string> => {
-    if (project === null) return Promise.resolve('')
-    const path = gitProjectKey(project.path)
+    if (repoPath === null) return Promise.resolve('')
+    const path = gitProjectKey(repoPath)
     return queryClient.fetchQuery({
       queryFn: () => utils.client.gitCommitMessage.query({ hash, repoPath: path }),
       queryKey: gitQueryKey(daemon, gitCommitMessageQuery(path, hash)),
@@ -334,12 +334,12 @@ export function useFetchCommitMessage(): (hash: string) => Promise<string> {
  * never changes: staleTime Infinity, and no poll (unlike the live gitFlow).
  */
 export function useCommitFlow(hash: string): { groups: FlowGroup[] | undefined } {
-  const project = useProjectSelectionStore((state) => state.project)
+  const repoPath = useHubRepoPath()
   const identity = useDaemonIdentity()
-  const path = projectPath(project?.path)
+  const path = projectPath(repoPath ?? undefined)
   const utils = trpc.useUtils()
   const query = useQuery({
-    enabled: project !== null,
+    enabled: repoPath !== null,
     queryFn: () => utils.client.gitCommitFlow.query({ hash, repoPath: path }),
     queryKey: gitQueryKey(daemonScope(identity), gitCommitFlowQuery(path, hash)),
     staleTime: Number.POSITIVE_INFINITY,
@@ -348,12 +348,12 @@ export function useCommitFlow(hash: string): { groups: FlowGroup[] | undefined }
 }
 
 export function useCommitConventions(): CommitConventions | undefined {
-  const project = useProjectSelectionStore((state) => state.project)
+  const repoPath = useHubRepoPath()
   const identity = useDaemonIdentity()
-  const path = projectPath(project?.path)
+  const path = projectPath(repoPath ?? undefined)
   const utils = trpc.useUtils()
   const query = useQuery({
-    enabled: project !== null,
+    enabled: repoPath !== null,
     queryFn: () => utils.client.gitCommitConventions.query(path),
     queryKey: gitQueryKey(daemonScope(identity), gitCommitConventionsQuery(path)),
   })

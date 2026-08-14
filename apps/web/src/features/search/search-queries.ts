@@ -9,7 +9,7 @@ import type { CodeSearchResult, GrepMatch, SearchResult } from '@porcelain/contr
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
 import { trpc } from '@renderer/lib/trpc'
-import { useProjectSelectionStore } from '@renderer/stores/project-selection'
+import { useHubRepoPath } from '@renderer/stores/hub-repo'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 
 import { searchQueryKey } from './search-query-key'
@@ -44,10 +44,10 @@ export function useFileSearch(
   query: string,
   enabled: boolean,
 ): { results: SearchResult[]; isFetching: boolean } {
-  const project = useProjectSelectionStore((s) => s.project)
+  const checkout = useHubRepoPath()
   const daemon = daemonScopeFromIdentity(useDaemonIdentity())
   const utils = trpc.useUtils()
-  const projectPath = project === null ? null : searchProjectKey(project.path)
+  const projectPath = checkout === null ? null : searchProjectKey(checkout)
   const normalizedQuery = query.trim()
   const canRun = enabled && projectPath !== null && normalizedQuery !== ''
   const identity =
@@ -72,10 +72,10 @@ export function useTextSearch(
   error: { message: string } | null
   isFetching: boolean
 } {
-  const project = useProjectSelectionStore((s) => s.project)
+  const checkout = useHubRepoPath()
   const daemon = daemonScopeFromIdentity(useDaemonIdentity())
   const utils = trpc.useUtils()
-  const projectPath = project === null ? null : searchProjectKey(project.path)
+  const projectPath = checkout === null ? null : searchProjectKey(checkout)
   const normalizedQuery = query.trim()
   const canRun = enabled && projectPath !== null && normalizedQuery !== ''
   const identity =
@@ -105,10 +105,10 @@ export function useCodeSearch(
   error: { message: string } | null
   isFetching: boolean
 } {
-  const project = useProjectSelectionStore((s) => s.project)
+  const checkout = useHubRepoPath()
   const daemon = daemonScopeFromIdentity(useDaemonIdentity())
   const utils = trpc.useUtils()
-  const projectPath = project === null ? null : searchProjectKey(project.path)
+  const projectPath = checkout === null ? null : searchProjectKey(checkout)
   const normalizedOptions: SearchCodeOptions = { ...options, query: options.query.trim() }
   const canRun = enabled && projectPath !== null && normalizedOptions.query !== ''
   const identity =

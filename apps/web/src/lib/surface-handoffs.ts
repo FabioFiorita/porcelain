@@ -1,9 +1,10 @@
 import { changesetTabKey } from '@renderer/components/git/changeset-view'
 import { useReviewStartStore } from '@renderer/features/review'
 import { fileName } from '@renderer/lib/paths'
+import { targetedTab } from '@renderer/stores/hub-tabs'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
-import { tabId, useTabsStore } from '@renderer/stores/tabs'
+import { useTabsStore } from '@renderer/stores/tabs'
 
 /**
  * Connected-app handoffs: open the *canonical* surface for a concern.
@@ -32,12 +33,7 @@ export function openChanges(options: OpenChangesOptions = {}): void {
   const { openTab } = useTabsStore.getState()
   if (options.continuousReview) {
     const key = changesetTabKey({ type: 'working' })
-    openTab({
-      id: tabId('changeset', key),
-      kind: 'changeset',
-      title: 'All changes',
-      path: key,
-    })
+    openTab(targetedTab('changeset', key, { title: 'All changes' }))
   }
   if (options.path !== undefined && options.path !== '') {
     openDiff(options.path)
@@ -57,31 +53,17 @@ export function openReview(options: OpenReviewOptions = {}): void {
     useReviewStartStore.getState().setSuggestedName(options.suggestedName.trim())
   }
   openReviewSidebar()
-  useTabsStore.getState().openTab({
-    id: tabId('review', repoPath),
-    kind: 'review',
-    title: 'Review',
-    path: repoPath,
-  })
+  useTabsStore.getState().openTab(targetedTab('review', repoPath, { title: 'Review' }))
 }
 
 /** Open a working-tree diff tab for a repo-relative path. */
 export function openDiff(relPath: string): void {
-  useTabsStore.getState().openTab({
-    id: tabId('diff', relPath),
-    kind: 'diff',
-    title: fileName(relPath),
-    path: relPath,
-  })
+  useTabsStore.getState().openTab(targetedTab('diff', relPath, { title: fileName(relPath) }))
 }
 
 /** Open a file tab (absolute path). Preview by default (single-click semantics). */
 export function openFile(absolutePath: string, preview = true): void {
-  useTabsStore.getState().openTab({
-    id: tabId('file', absolutePath),
-    kind: 'file',
-    title: fileName(absolutePath),
-    path: absolutePath,
-    preview,
-  })
+  useTabsStore
+    .getState()
+    .openTab(targetedTab('file', absolutePath, { title: fileName(absolutePath), preview }))
 }

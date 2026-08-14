@@ -13,6 +13,7 @@ import { onMutationError } from '@renderer/hooks/mutation-error'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
 import { trpc } from '@renderer/lib/trpc'
+import { useHubRepoPath } from '@renderer/stores/hub-repo'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import type { QueryClient } from '@tanstack/react-query'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -190,7 +191,7 @@ export function useWriteTextFile(absolutePath: string): {
   isSaving: boolean
   error: { message: string } | null
 } {
-  const project = useProjectSelectionStore((s) => s.project)
+  const repoPath = useHubRepoPath()
   const daemon = useDaemonIdentity()
   const daemonScope = daemonScopeFromIdentity(daemon)
   const queryClient = useQueryClient()
@@ -221,12 +222,12 @@ export function useWriteTextFile(absolutePath: string): {
 
   return {
     save: (content: string, onSaved?: () => void): void => {
-      if (!project) return
-      const rel = projectRelativeFromAbsolute(project.path, absolutePath)
+      if (repoPath === null) return
+      const rel = projectRelativeFromAbsolute(repoPath, absolutePath)
       if (rel === null) return
       mutation.mutate(
         {
-          projectPath: normalizeProjectRoot(project.path),
+          projectPath: normalizeProjectRoot(repoPath),
           path: rel,
           content,
         },

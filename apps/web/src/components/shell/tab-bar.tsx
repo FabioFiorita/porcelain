@@ -71,6 +71,7 @@ function TabItem({
                     isActive ? 'text-foreground' : 'text-muted-foreground',
                   )}
                   data-active={isActive}
+                  data-hub-worktree={tab.target?.worktreeId}
                   data-pinned={tab.pinned ? 'true' : undefined}
                   onClick={() => activateTab(paneIndex, tab.id)}
                   onDoubleClick={() => pinTab(tab.id)}

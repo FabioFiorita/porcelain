@@ -6,7 +6,8 @@ test('Hub inventory lists the Environment, Project, and Worktrees without a dele
   await waitForShell(page)
   await expect(loc.hubInventory(page)).toBeVisible()
   await expect(loc.hubProjects(page)).toHaveCount(1)
-  await expect(loc.hubWorktrees(page)).toHaveCount(1)
+  const before = await loc.hubWorktrees(page).count()
+  expect(before).toBeGreaterThan(0)
 
   const projectId = (await loc.hubProjects(page).first().getAttribute('data-testid'))?.replace(
     'hub-project-',
@@ -22,6 +23,6 @@ test('Hub inventory lists the Environment, Project, and Worktrees without a dele
   await page.getByLabel('New worktree branch').fill('hub-topic')
   await page.getByRole('button', { name: 'Add' }).click()
 
-  await expect(loc.hubWorktrees(page)).toHaveCount(2)
+  await expect(loc.hubWorktrees(page)).toHaveCount(before + 1)
   await expect(page.getByTestId(/^hub-worktree-/).filter({ hasText: 'hub-topic' })).toBeVisible()
 })

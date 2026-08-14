@@ -4,22 +4,28 @@ import { Button } from '@renderer/components/ui/button'
 import { Input } from '@renderer/components/ui/input'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { cn } from '@renderer/lib/utils'
+import { useHubSelectionStore } from '@renderer/stores/hub-selection'
 import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
 import { FolderGit2, GitBranch, Laptop, Plus } from 'lucide-react'
-import { useState } from 'react'
-import { useCreateHubWorktree, useHubInventory, useOpenProject } from './project-data'
+import { useEffect, useState } from 'react'
+import {
+  useCreateHubWorktree,
+  useHubInventory,
+  useOpenProject,
+  useSelectedProject,
+} from './project-data'
 
 function WorktreeRow(props: {
   worktree: HubWorktree
-  openWorktree: (path: string) => void
+  openWorktree: (worktree: HubWorktree) => void
 }): React.JSX.Element {
   return (
     <button
       type="button"
       data-testid={TestIds.hubWorktree(props.worktree.id)}
       className="flex w-full items-center gap-2 rounded-md px-2 py-1 text-left hover:bg-accent/50"
-      onClick={() => props.openWorktree(props.worktree.path)}
+      onClick={() => props.openWorktree(props.worktree)}
     >
       <GitBranch className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
       <span className="min-w-0 truncate text-sm">{props.worktree.name}</span>
@@ -32,7 +38,8 @@ function WorktreeRow(props: {
 
 function ProjectBlock(props: {
   project: HubProject
-  openWorktree: (path: string) => void
+  openWorktree: (worktree: HubWorktree) => void
+  openProject: (project: HubProject) => void
   createWorktree: (projectId: string, branch: string) => Promise<void>
   creating: boolean
 }): React.JSX.Element {
@@ -52,7 +59,13 @@ function ProjectBlock(props: {
     <div data-testid={TestIds.hubProject(props.project.id)} className="flex flex-col gap-0.5">
       <div className="flex items-center gap-2 px-2 py-1">
         <FolderGit2 className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
-        <span className="min-w-0 flex-1 truncate text-sm font-medium">{props.project.name}</span>
+        <button
+          type="button"
+          className="min-w-0 flex-1 truncate text-left text-sm font-medium hover:underline"
+          onClick={() => props.openProject(props.project)}
+        >
+          {props.project.name}
+        </button>
         <Button
           type="button"
           variant="ghost"
@@ -96,12 +109,40 @@ export function HubTree(props: { className?: string }): React.JSX.Element | null
   const inventory = useHubInventory()
   const openProject = useOpenProject()
   const createWorktree = useCreateHubWorktree()
+  const selectHome = useHubSelectionStore((state) => state.selectHome)
+  const selectProject = useHubSelectionStore((state) => state.selectProject)
+  const selectWorktree = useHubSelectionStore((state) => state.selectWorktree)
+  const selection = useHubSelectionStore((state) => state.selection)
+  const selectedProject = useSelectedProject()
+
+  useEffect(() => {
+    if (selection.kind !== 'home' || selectedProject === null || inventory === null) return
+    for (const project of inventory.projects) {
+      const worktree = project.worktrees.find((entry) => entry.path === selectedProject.path)
+      if (worktree === undefined) continue
+      selectWorktree({
+        environmentId: inventory.environment.id,
+        projectId: project.id,
+        worktreeId: worktree.id,
+        path: worktree.path,
+        name: worktree.name,
+      })
+      return
+    }
+  }, [inventory, selectedProject, selection.kind, selectWorktree])
 
   if (inventory === null) return null
 
-  const open = (path: string): void => {
+  const open = (worktree: HubWorktree): void => {
+    selectWorktree({
+      environmentId: inventory.environment.id,
+      projectId: worktree.projectId,
+      worktreeId: worktree.id,
+      path: worktree.path,
+      name: worktree.name,
+    })
     runUserAction(
-      () => openProject.open(path),
+      () => openProject.open(worktree.path),
       (error) => toastUserActionError('Open worktree', error),
     )
   }
@@ -112,13 +153,15 @@ export function HubTree(props: { className?: string }): React.JSX.Element | null
         data-testid={TestIds.hubInventory}
         className={cn('flex w-full max-w-sm flex-col gap-3', props.className)}
       >
-        <div
+        <button
+          type="button"
           data-testid={TestIds.hubEnvironment(inventory.environment.id)}
           className="flex items-center gap-2 px-2 text-xs font-medium text-muted-foreground"
+          onClick={() => selectHome()}
         >
           <Laptop className="size-3.5 shrink-0" aria-hidden />
           <span className="truncate">{inventory.environment.name}</span>
-        </div>
+        </button>
         <p className="px-2 text-xs text-muted-foreground">
           Open a Git repository to add it to this Environment.
         </p>
@@ -131,7 +174,11 @@ export function HubTree(props: { className?: string }): React.JSX.Element | null
       inventory={inventory}
       className={props.className}
       creating={createWorktree.isPending}
+      selectHome={selectHome}
       openWorktree={open}
+      openProject={(project) =>
+        selectProject({ environmentId: project.environmentId, projectId: project.id })
+      }
       createWorktree={async (projectId, branch) => {
         await createWorktree.create({ projectId, branch })
       }}
@@ -141,8 +188,10 @@ export function HubTree(props: { className?: string }): React.JSX.Element | null
 
 export function HubTreeFromInventory(props: {
   inventory: HubInventory
-  openWorktree: (path: string) => void
+  openWorktree: (worktree: HubWorktree) => void
+  openProject: (project: HubProject) => void
   createWorktree: (projectId: string, branch: string) => Promise<void>
+  selectHome?: () => void
   creating?: boolean
   className?: string
 }): React.JSX.Element {
@@ -151,19 +200,22 @@ export function HubTreeFromInventory(props: {
       data-testid={TestIds.hubInventory}
       className={cn('flex w-full max-w-sm flex-col gap-3', props.className)}
     >
-      <div
+      <button
+        type="button"
         data-testid={TestIds.hubEnvironment(props.inventory.environment.id)}
-        className="flex items-center gap-2 px-2 text-xs font-medium text-muted-foreground"
+        className="flex items-center gap-2 px-2 text-xs font-medium text-muted-foreground hover:underline"
+        onClick={() => props.selectHome?.()}
       >
         <Laptop className="size-3.5 shrink-0" aria-hidden />
         <span className="truncate">{props.inventory.environment.name}</span>
-      </div>
+      </button>
       {groupEquivalentProjects([props.inventory]).flatMap((group) =>
         group.members.map((member) => (
           <ProjectBlock
             key={member.project.id}
             project={member.project}
             openWorktree={props.openWorktree}
+            openProject={props.openProject}
             createWorktree={props.createWorktree}
             creating={props.creating === true}
           />

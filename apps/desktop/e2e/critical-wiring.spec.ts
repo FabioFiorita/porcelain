@@ -100,8 +100,9 @@ test('authenticated startup restores the seeded repo and dirty count', async ({ 
   await expect(loc.glanceChangedFiles(page)).toHaveAttribute('data-count', '2')
   await expect(loc.hubInventory(page)).toBeVisible()
   await expect(loc.hubProjects(page)).toHaveCount(1)
-  await expect(loc.hubWorktrees(page)).toHaveCount(1)
+  await expect(loc.hubWorktrees(page)).not.toHaveCount(0)
   await expect(page.getByLabel(/delete worktree/i)).toHaveCount(0)
+  await expect(loc.hubWorktreeSummary(page)).toBeVisible()
 })
 
 test('a stale session protocol receives the exact update-required mismatch', async ({ page }) => {

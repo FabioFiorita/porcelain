@@ -12,10 +12,11 @@ import { useCommentIndex } from '@renderer/features/review'
 import { type LineSelection, lineSelectionFromDom } from '@renderer/lib/line-selection'
 import { fileName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'
+import { useHubRepoPath } from '@renderer/stores/hub-repo'
+import { targetedTab } from '@renderer/stores/hub-tabs'
 import { usePreferencesStore } from '@renderer/stores/preferences'
-import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useRevealStore } from '@renderer/stores/reveal'
-import { tabId, useTabsStore } from '@renderer/stores/tabs'
+import { useTabsStore } from '@renderer/stores/tabs'
 import { FileText, MessageSquarePlus, Rows3 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { changesetTabKey } from './changeset-view'
@@ -47,7 +48,7 @@ function CommitFileRow({
   // Files, and reveals the file in the tree — identical to the Changes list.
   const handleOpenFile = (): void => {
     const absolute = `${repoPath}/${file.path}`
-    openTab({ id: tabId('file', absolute), kind: 'file', title: name, path: absolute })
+    openTab(targetedTab('file', absolute, { title: name }))
     setSidebarTab('files')
     reveal(absolute)
   }
@@ -181,10 +182,10 @@ export function CommitView({ hash }: { hash: string }): React.JSX.Element {
   const [commentAnchor, setCommentAnchor] = useState<CommentAnchor | null>(null)
   const { groups } = useCommitFlow(hash)
   const message = useCommitMessage(hash)
-  const project = useProjectSelectionStore((s) => s.project)
+  const repoPath = useHubRepoPath()
   const openTab = useTabsStore((s) => s.openTab)
 
-  if (!project || groups === undefined) {
+  if (repoPath === null || groups === undefined) {
     return <p className="p-4 text-sm text-muted-foreground">Loading…</p>
   }
 
@@ -196,14 +197,8 @@ export function CommitView({ hash }: { hash: string }): React.JSX.Element {
   // button). Hidden for a deleted file — it no longer exists on disk.
   const handleOpenFile = (): void => {
     if (!selectedFile) return
-    const absolute = `${project.path}/${selectedFile}`
-    openTab({
-      id: tabId('file', absolute),
-      kind: 'file',
-      title: fileName(selectedFile),
-      path: absolute,
-      preview: true,
-    })
+    const absolute = `${repoPath}/${selectedFile}`
+    openTab(targetedTab('file', absolute, { title: fileName(selectedFile), preview: true }))
   }
 
   // Same continuous stacked-diff surface as Changes — one scroll for every file
@@ -211,12 +206,7 @@ export function CommitView({ hash }: { hash: string }): React.JSX.Element {
   const handleOpenReviewAll = (): void => {
     const key = changesetTabKey({ type: 'commit', hash })
     const title = (message ?? hash.slice(0, 12)).split('\n')[0]?.trim() || hash.slice(0, 12)
-    openTab({
-      id: tabId('changeset', key),
-      kind: 'changeset',
-      title,
-      path: key,
-    })
+    openTab(targetedTab('changeset', key, { title }))
   }
 
   return (
@@ -257,7 +247,7 @@ export function CommitView({ hash }: { hash: string }): React.JSX.Element {
               <CommitFileRow
                 key={file.path}
                 file={file}
-                repoPath={project.path}
+                repoPath={repoPath}
                 selected={file.path === selectedFile}
                 onSelect={setSelected}
                 onComment={(path: string): void => setCommentAnchor({ path })}

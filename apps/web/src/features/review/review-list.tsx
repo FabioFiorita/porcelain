@@ -17,8 +17,9 @@ import { highlightRangesForFile } from '@renderer/lib/highlight-ranges'
 import { dirName, fileName } from '@renderer/lib/paths'
 import { reviewOutlineFiles } from '@renderer/lib/review-lifecycle'
 import { cn } from '@renderer/lib/utils'
+import { targetedTab } from '@renderer/stores/hub-tabs'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
-import { tabId, useTabsStore } from '@renderer/stores/tabs'
+import { useTabsStore } from '@renderer/stores/tabs'
 import { TestIds } from '@shared/test-ids'
 import { Check, FileDiff, MessageSquarePlus, Square, SquareCheck } from 'lucide-react'
 import { memo, useState } from 'react'
@@ -62,18 +63,17 @@ function OutlineFileRowImpl({
   const handleOpenFile = (): void => {
     const absolute = `${repoPath}/${file.path}`
     const ranges = highlightRangesForFile(file)
-    openTab({
-      id: tabId('file', absolute),
-      kind: 'file',
-      title: name,
-      path: absolute,
-      line: ranges?.[0]?.start,
-      highlight: ranges,
-    })
+    openTab(
+      targetedTab('file', absolute, {
+        title: name,
+        line: ranges?.[0]?.start,
+        highlight: ranges,
+      }),
+    )
   }
 
   const handleOpenDiff = (): void => {
-    openTab({ id: tabId('diff', file.path), kind: 'diff', title: name, path: file.path })
+    openTab(targetedTab('diff', file.path, { title: name }))
   }
 
   // Changed → diff first (same as Changes list); context/shipped → file + highlights.
@@ -254,12 +254,7 @@ function ReviewOutline(): React.JSX.Element {
   // chapter — ActiveReview consumes jumps once mounted. Canvas tabs (Intent /
   // Execution / Evidence) live only in the viewer, not here.
   const handleOpenReview = (target?: ReviewJumpTarget): void => {
-    openTab({
-      id: tabId('review', project.path),
-      kind: 'review',
-      title: 'Review',
-      path: project.path,
-    })
+    openTab(targetedTab('review', project.path, { title: 'Review' }))
     if (target) requestJump(target)
   }
 

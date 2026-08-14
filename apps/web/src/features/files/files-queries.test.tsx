@@ -7,8 +7,10 @@ import {
 import { filesContractFixtures, fileViewFixtures } from '@porcelain/contracts/files'
 import { remoteContractFixtures } from '@porcelain/contracts/remote'
 import { createValidatingTrpcHarness } from '@renderer/hooks/trpc-test-harness'
+import { HubRepoProvider } from '@renderer/stores/hub-repo'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { renderHook, waitFor } from '@testing-library/react'
+import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
   useFileContent,
@@ -131,6 +133,23 @@ describe('useFileContent / useFilePreview / prefetch', () => {
 
     expect(mock.requests().some((r) => r.procedure === 'readFile')).toBe(true)
     expect(mock.requests().some((r) => r.procedure === 'previewHtml')).toBe(true)
+  })
+
+  it('reads the tab Worktree after a different Worktree is selected', async () => {
+    useProjectSelectionStore.setState({ project: { path: OTHER, name: 'other' } })
+    const { mock, wrapper: inner } = createValidatingTrpcHarness({
+      ...baseHandlers,
+      readFile: (input) => {
+        expect(input).toEqual({ projectPath: REPO, path: 'README.md' })
+        return { ok: true, value: fileViewFixtures.text }
+      },
+    })
+    const wrapper = ({ children }: { children: ReactNode }): React.JSX.Element => (
+      <HubRepoProvider repoPath={REPO}>{inner({ children })}</HubRepoProvider>
+    )
+    const { result } = renderHook(() => useFileContent(`${REPO}/README.md`), { wrapper })
+    await waitFor(() => expect(result.current.view).toEqual(fileViewFixtures.text))
+    expect(mock.requests().some((r) => r.procedure === 'readFile')).toBe(true)
   })
 
   it('disables content when path is outside the project', async () => {

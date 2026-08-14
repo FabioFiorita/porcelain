@@ -2,8 +2,9 @@ import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { useRevealInFinder } from '@renderer/hooks/use-reveal-in-finder'
 import { fileName, relativeTo } from '@renderer/lib/paths'
 import { copyText } from '@renderer/lib/utils'
-import { useProjectSelectionStore } from '@renderer/stores/project-selection'
-import { tabId, useTabsStore } from '@renderer/stores/tabs'
+import { useHubRepoPath } from '@renderer/stores/hub-repo'
+import { targetedTab } from '@renderer/stores/hub-tabs'
+import { useTabsStore } from '@renderer/stores/tabs'
 import { runUserAction } from '@shared/background'
 
 export function usePathActions(path: string): {
@@ -13,7 +14,7 @@ export function usePathActions(path: string): {
   findReferences: (text: string) => void
   exploreFlow: (symbol?: string) => void
 } {
-  const project = useProjectSelectionStore((s) => s.project)
+  const repoPath = useHubRepoPath() ?? undefined
   const openTab = useTabsStore((s) => s.openTab)
   const reveal = useRevealInFinder()
 
@@ -28,7 +29,7 @@ export function usePathActions(path: string): {
     },
     copyRelativePath: () => {
       runUserAction(
-        () => copyText(relativeTo(project?.path, path)),
+        () => copyText(relativeTo(repoPath, path)),
         (error) => {
           toastUserActionError('Copy relative path', error)
         },
@@ -38,21 +39,21 @@ export function usePathActions(path: string): {
     findReferences: (text: string) => {
       const query = text.trim()
       if (query === '') return
-      openTab({ id: tabId('search', query), kind: 'search', title: query, path: query })
+      openTab(targetedTab('search', query, { title: query }))
     },
     // Open a read-only flow exploration seeded from this file (whole-file) or a
     // symbol in it. The seed path is project-relative — the walk resolves against the
     // project file list, not absolute paths.
     exploreFlow: (symbol?: string) => {
-      const relative = relativeTo(project?.path, path)
+      const relative = relativeTo(repoPath, path)
       const seed = symbol?.trim()
-      openTab({
-        id: tabId('explore', seed ? `${relative}#${seed}` : relative),
-        kind: 'explore',
-        title: seed ? `Flow: ${seed}` : `Flow: ${fileName(relative)}`,
-        path: relative,
-        symbol: seed,
-      })
+      openTab(
+        targetedTab('explore', relative, {
+          title: seed ? `Flow: ${seed}` : `Flow: ${fileName(relative)}`,
+          key: seed ? `${relative}#${seed}` : relative,
+          symbol: seed,
+        }),
+      )
     },
   }
 }

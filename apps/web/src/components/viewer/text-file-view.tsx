@@ -4,8 +4,8 @@ import { isMarkdownPath, MarkdownView } from '@renderer/components/viewer/markdo
 import { useFilePreview } from '@renderer/features/files'
 import { useCommentIndex } from '@renderer/features/review'
 import { relativeTo } from '@renderer/lib/paths'
+import { useHubRepoPath } from '@renderer/stores/hub-repo'
 import { usePreferencesStore } from '@renderer/stores/preferences'
-import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { useEffect, useState } from 'react'
 import { EDITABLE_MAX_LINES, EditorSource } from './editor-source'
@@ -71,7 +71,7 @@ export function TextFileView({
   highlightRanges?: { start: number; end: number }[]
   paneIndex: number
 }): React.JSX.Element {
-  const project = useProjectSelectionStore((s) => s.project)
+  const repoPath = useHubRepoPath() ?? undefined
   const markdownMode = usePreferencesStore((s) => s.markdownMode)
   const htmlMode = usePreferencesStore((s) => s.htmlMode) ?? 'preview'
   const [finding, setFinding] = useState(false)
@@ -92,7 +92,7 @@ export function TextFileView({
   const scrollLine = line ?? effectiveHighlight?.[0]?.start
   const highlightLine = finding && findLine !== undefined ? findLine : scrollLine
   // Comments key on project-relative paths; the viewer holds an absolute one.
-  const commentIndex = useCommentIndex(relativeTo(project?.path, path))
+  const commentIndex = useCommentIndex(relativeTo(repoPath, path))
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent): void => {
@@ -112,7 +112,7 @@ export function TextFileView({
     <div className="flex h-full flex-col">
       <div className="flex h-9 items-center justify-between gap-2 border-b px-3">
         <span className="truncate font-mono text-xs text-muted-foreground">
-          {relativeTo(project?.path, path)}
+          {relativeTo(repoPath, path)}
         </span>
         {markdown && <MarkdownModeToggle />}
         {html && <HtmlModeToggle />}

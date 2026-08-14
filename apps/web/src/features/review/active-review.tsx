@@ -13,8 +13,9 @@ import { highlightRangesForFile } from '@renderer/lib/highlight-ranges'
 import { isTerminalTarget, isTextEntry } from '@renderer/lib/keyboard'
 import { dirName, fileName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'
-import { useProjectSelectionStore } from '@renderer/stores/project-selection'
-import { tabId, useTabsStore } from '@renderer/stores/tabs'
+import { useHubRepoPath } from '@renderer/stores/hub-repo'
+import { targetedTab } from '@renderer/stores/hub-tabs'
+import { useTabsStore } from '@renderer/stores/tabs'
 import { useZenStore } from '@renderer/stores/zen'
 import { TestIds } from '@shared/test-ids'
 import { Check, Sparkles } from 'lucide-react'
@@ -372,12 +373,12 @@ function IntentBody({ reading }: { reading: ReviewReading }): React.JSX.Element 
  * semantics as the sidebar outline (diff for changed, file for context/shipped).
  */
 function ExecutionBody({ reading }: { reading: ReviewReading }): React.JSX.Element {
-  const project = useProjectSelectionStore((s) => s.project)
+  const repoPath = useHubRepoPath()
   const openTab = useTabsStore((s) => s.openTab)
   const prefetchDiff = useDiffFileHoverPrefetch()
   const reviewed = useReviewedPaths()
 
-  if (!project) {
+  if (repoPath === null) {
     return <p className="p-4 text-sm text-muted-foreground">No project open.</p>
   }
 
@@ -401,25 +402,19 @@ function ExecutionBody({ reading }: { reading: ReviewReading }): React.JSX.Eleme
   }
 
   const handleOpenFile = (file: ReadingFile): void => {
-    const absolute = `${project.path}/${file.path}`
+    const absolute = `${repoPath}/${file.path}`
     const ranges = highlightRangesForFile(file)
-    openTab({
-      id: tabId('file', absolute),
-      kind: 'file',
-      title: fileName(file.path),
-      path: absolute,
-      line: ranges?.[0]?.start,
-      highlight: ranges,
-    })
+    openTab(
+      targetedTab('file', absolute, {
+        title: fileName(file.path),
+        line: ranges?.[0]?.start,
+        highlight: ranges,
+      }),
+    )
   }
 
   const handleOpenDiff = (file: ReadingFile): void => {
-    openTab({
-      id: tabId('diff', file.path),
-      kind: 'diff',
-      title: fileName(file.path),
-      path: file.path,
-    })
+    openTab(targetedTab('diff', file.path, { title: fileName(file.path) }))
   }
 
   const handlePrimaryOpen = (file: ReadingFile): void => {

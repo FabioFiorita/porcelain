@@ -1,8 +1,9 @@
 import type { BoardCard } from '@porcelain/contracts/board'
 import { SidebarHeaderActions } from '@renderer/components/shell/sidebar-header-actions'
 import { Button } from '@renderer/components/ui/button'
+import { targetedTab } from '@renderer/stores/hub-tabs'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
-import { tabId, useTabsStore } from '@renderer/stores/tabs'
+import { useTabsStore } from '@renderer/stores/tabs'
 import { Columns3, Plus } from 'lucide-react'
 import { BOARD_COLUMNS } from './board-columns'
 import { useBoardCards } from './board-queries'
@@ -23,7 +24,7 @@ export function BoardList(): React.JSX.Element {
 
   const handleOpenBoard = (): void => {
     if (!project) return
-    openTab({ id: tabId('board', project.path), kind: 'board', title: 'Board', path: project.path })
+    openTab(targetedTab('board', project.path, { title: 'Board' }))
   }
 
   return (

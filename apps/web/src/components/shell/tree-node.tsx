@@ -37,11 +37,12 @@ import { isBrowser } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
 import { useFilePromptStore } from '@renderer/stores/file-prompt'
 import { useFileTreeStore } from '@renderer/stores/file-tree'
+import { targetedTab } from '@renderer/stores/hub-tabs'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useRevealStore } from '@renderer/stores/reveal'
 import { useSelectionStore } from '@renderer/stores/selection'
-import { tabId, useTabsStore } from '@renderer/stores/tabs'
+import { useTabsStore } from '@renderer/stores/tabs'
 import { useTreeDirsStore } from '@renderer/stores/tree-dirs'
 import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
@@ -112,7 +113,9 @@ function EntryContextMenu({
   const trashEntry = (): void =>
     scopeAct('Delete', async () => {
       if (await trash(entry.path))
-        useTabsStore.getState().closeTabEverywhere(tabId('file', entry.path))
+        useTabsStore
+          .getState()
+          .closeTabEverywhere(targetedTab('file', entry.path, { title: entry.name }).id)
     })
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [commentAnchor, setCommentAnchor] = useState<CommentAnchor | null>(null)
@@ -140,14 +143,7 @@ function EntryContextMenu({
           <ContextMenuSeparator />
           {entry.kind === 'file' && !isMobile && (
             <ContextMenuItem
-              onClick={() =>
-                openTabToSide({
-                  id: tabId('file', entry.path),
-                  kind: 'file',
-                  title: entry.name,
-                  path: entry.path,
-                })
-              }
+              onClick={() => openTabToSide(targetedTab('file', entry.path, { title: entry.name }))}
             >
               <Columns2 />
               Open to the Side
@@ -301,15 +297,9 @@ function TreeNodeImpl({
                 toggleSelection(entry.path)
                 return
               }
-              openTab({
-                id: tabId('file', entry.path),
-                kind: 'file',
-                title: entry.name,
-                path: entry.path,
-                preview: true,
-              })
+              openTab(targetedTab('file', entry.path, { title: entry.name, preview: true }))
             }}
-            onDoubleClick={() => pinTab(tabId('file', entry.path))}
+            onDoubleClick={() => pinTab(targetedTab('file', entry.path, { title: entry.name }).id)}
           >
             <FileTypeIcon name={entry.name} />
             <span className="truncate font-mono">{entry.name}</span>

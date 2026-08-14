@@ -29,6 +29,11 @@ export const loc = {
     byId(page, TestIds.hubCreateWorktree(projectId)),
   hubWorktrees: (page: Page): Locator => page.locator('[data-testid^="hub-worktree-"]'),
   hubProjects: (page: Page): Locator => page.locator('[data-testid^="hub-project-"]'),
+  hubHome: (page: Page): Locator => byId(page, TestIds.hubHome),
+  hubProjectSummary: (page: Page): Locator => byId(page, TestIds.hubProjectSummary),
+  hubWorktreeSummary: (page: Page): Locator => byId(page, TestIds.hubWorktreeSummary),
+  hubTabTargets: (page: Page, worktreeId: string): Locator =>
+    page.locator(`[data-hub-worktree="${worktreeId}"]`),
   glance: (page: Page): Locator => byId(page, TestIds.glance),
   glanceChangedFiles: (page: Page): Locator => byId(page, TestIds.glanceChangedFiles),
 

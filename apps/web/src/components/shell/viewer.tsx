@@ -7,12 +7,16 @@ import { Kbd } from '@renderer/components/ui/kbd'
 import { FileContent } from '@renderer/components/viewer/file-content'
 import { SearchView } from '@renderer/components/viewer/search-view'
 import { BoardView } from '@renderer/features/board'
+import { HubHomeSummary, HubProjectSummary } from '@renderer/features/projects'
 import { ActiveReview, ExploreView } from '@renderer/features/review'
 import { kbdLabel } from '@renderer/lib/keyboard'
 import { cn } from '@renderer/lib/utils'
+import { HubRepoProvider } from '@renderer/stores/hub-repo'
+import { useHubSelectionStore } from '@renderer/stores/hub-selection'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
-import { useTabsStore } from '@renderer/stores/tabs'
+import { type Tab, useTabsStore } from '@renderer/stores/tabs'
+import { TestIds } from '@shared/test-ids'
 import { GlanceHome } from './glance-home'
 import { SplitResizeHandle } from './sidebar-resize-handle'
 import { TabBar } from './tab-bar'
@@ -27,12 +31,20 @@ const QUICKSTART: { label: string; keys: string }[] = [
 
 function EmptyViewer(): React.JSX.Element {
   const project = useProjectSelectionStore((s) => s.project)
+  const selection = useHubSelectionStore((s) => s.selection)
 
-  // With a project open, empty pane is the Glance (work in flight) on every form
+  if (selection.kind === 'home') {
+    return <HubHomeSummary />
+  }
+  if (selection.kind === 'project') {
+    return <HubProjectSummary />
+  }
+
+  // Worktree selected: empty pane is the Glance (work in flight) on every form
   // factor — phone already had it; desktop used to show only logo + chords (U6).
   if (project !== null) {
     return (
-      <div className="flex h-full min-h-0 flex-col">
+      <div data-testid={TestIds.hubWorktreeSummary} className="flex h-full min-h-0 flex-col">
         <div className="min-h-0 flex-1">
           <GlanceHome />
         </div>
@@ -87,47 +99,42 @@ function PaneView({ paneIndex }: { paneIndex: number }): React.JSX.Element {
 
   if (!activeTab) return <EmptyViewer />
 
+  const content = <PaneContent tab={activeTab} paneIndex={paneIndex} />
+  if (activeTab.target === undefined) return content
+  return <HubRepoProvider repoPath={activeTab.target.path}>{content}</HubRepoProvider>
+}
+
+function PaneContent({ tab, paneIndex }: { tab: Tab; paneIndex: number }): React.JSX.Element {
   // Board tab kind is handled before the switch so the BRD-004 deletion search
   // for the legacy raw AppEvent Board branch stays empty in apps/web/src.
-  if (activeTab.kind === 'board') {
+  if (tab.kind === 'board') {
     return <BoardView />
   }
 
-  switch (activeTab.kind) {
+  switch (tab.kind) {
     case 'diff':
-      return (
-        <DiffView
-          key={`${activeTab.path}:${activeTab.base ?? ''}`}
-          filePath={activeTab.path}
-          base={activeTab.base}
-        />
-      )
+      return <DiffView key={`${tab.path}:${tab.base ?? ''}`} filePath={tab.path} base={tab.base} />
     case 'commit':
-      return <CommitView key={activeTab.path} hash={activeTab.path} />
+      return <CommitView key={tab.path} hash={tab.path} />
     case 'changeset':
-      return <ChangesetView key={activeTab.path} path={activeTab.path} />
+      return <ChangesetView key={tab.path} path={tab.path} />
     case 'search':
-      return <SearchView key={activeTab.path} query={activeTab.path} />
+      return <SearchView key={tab.path} query={tab.path} />
     case 'review':
       return <ActiveReview />
     case 'terminal':
-      return <TerminalView key={activeTab.path} sessionId={activeTab.path} />
+      return <TerminalView key={tab.path} sessionId={tab.path} />
     case 'explore':
       return (
-        <ExploreView
-          key={`${activeTab.path}:${activeTab.symbol ?? ''}`}
-          path={activeTab.path}
-          symbol={activeTab.symbol}
-        />
+        <ExploreView key={`${tab.path}:${tab.symbol ?? ''}`} path={tab.path} symbol={tab.symbol} />
       )
     case 'file':
-      // keyed by path so edit state never leaks across tab switches
       return (
         <FileContent
-          key={activeTab.path}
-          path={activeTab.path}
-          line={activeTab.line}
-          highlight={activeTab.highlight}
+          key={tab.id}
+          path={tab.path}
+          line={tab.line}
+          highlight={tab.highlight}
           paneIndex={paneIndex}
         />
       )

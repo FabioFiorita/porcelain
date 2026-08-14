@@ -78,11 +78,8 @@ export const useProjectSelectionStore = create<ProjectSelectionStore>((set, get)
   },
   switchProject: async (path: ProjectPath) => {
     if (path === get().project?.path) return
-    // cross-store getState() from a store action is the sanctioned pattern. `reset` only
-    // clears this window's terminal views — the PTYs survive the switch (explicit kill
-    // only) and re-hydrate if the repo comes back; `use-terminals` re-filters the roster
-    // to the new Project after its authoritative open resolves.
-    get().resetProjectPresentation()
+    // Hub navigation must not close or retarget existing Viewer tabs. PTYs already
+    // outlive the selected checkout; `use-terminals` re-filters the roster after open.
     set({ project: await openProjectOnDaemon(trpcClient, path) })
   },
   toggleShowHidden: () => set((s) => ({ showHidden: !s.showHidden })),

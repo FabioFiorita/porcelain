@@ -1,6 +1,7 @@
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@renderer/components/ui/sidebar'
 import { useGitLog } from '@renderer/features/git'
-import { tabId, useTabsStore } from '@renderer/stores/tabs'
+import { targetedTab } from '@renderer/stores/hub-tabs'
+import { useTabsStore } from '@renderer/stores/tabs'
 import { CommitContextMenu } from './commit-context-menu'
 
 export function HistoryList(): React.JSX.Element {
@@ -30,12 +31,7 @@ export function HistoryList(): React.JSX.Element {
             <SidebarMenuButton
               className="h-auto py-1 text-sm-minus"
               onClick={() =>
-                openTab({
-                  id: tabId('commit', commit.hash),
-                  kind: 'commit',
-                  title: commit.subject.slice(0, 32),
-                  path: commit.hash,
-                })
+                openTab(targetedTab('commit', commit.hash, { title: commit.subject.slice(0, 32) }))
               }
             >
               <div className="flex min-w-0 flex-col items-start">

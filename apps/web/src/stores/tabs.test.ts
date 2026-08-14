@@ -23,6 +23,22 @@ describe('tabId', () => {
   it('distinguishes the same key across kinds', () => {
     expect(tabId('file', 'a.ts')).not.toBe(tabId('diff', 'a.ts'))
   })
+
+  it('keeps the same path as two tabs when the Worktree target differs', () => {
+    const main = {
+      environmentId: 'env',
+      projectId: 'proj',
+      worktreeId: 'wt-main',
+      path: '/repos/alpha',
+    }
+    const topic = {
+      environmentId: 'env',
+      projectId: 'proj',
+      worktreeId: 'wt-topic',
+      path: '/repos/alpha-worktrees/topic',
+    }
+    expect(tabId('file', 'README.md', main)).not.toBe(tabId('file', 'README.md', topic))
+  })
 })
 
 describe('useTabsStore', () => {
@@ -64,6 +80,33 @@ describe('useTabsStore', () => {
       line: 10,
       highlight: [{ start: 10, end: 12 }],
     })
+  })
+
+  it('retains a tab target when another Worktree is selected later', () => {
+    const main = {
+      environmentId: 'env',
+      projectId: 'proj',
+      worktreeId: 'wt-main',
+      path: '/repos/alpha',
+    }
+    const path = '/repos/alpha/README.md'
+    useTabsStore.getState().openTab({
+      id: tabId('file', path, main),
+      kind: 'file',
+      title: 'README.md',
+      path,
+      target: main,
+    })
+    expect(pane().tabs[0]?.target).toEqual(main)
+    useTabsStore.getState().openTab({
+      id: tabId('file', path, { ...main, worktreeId: 'wt-topic' }),
+      kind: 'file',
+      title: 'README.md',
+      path,
+      target: { ...main, worktreeId: 'wt-topic' },
+    })
+    expect(pane().tabs).toHaveLength(2)
+    expect(pane().tabs[0]?.target?.worktreeId).toBe('wt-main')
   })
 
   it('keeps a file and a diff of the same path as distinct tabs', () => {

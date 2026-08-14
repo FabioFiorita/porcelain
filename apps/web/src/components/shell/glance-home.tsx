@@ -3,9 +3,10 @@ import { useBoardCards } from '@renderer/features/board'
 import { type ReviewInboxRow, useGitFlow, useGitWorkspace } from '@renderer/features/git'
 import { useReviewComments, useReviewReading } from '@renderer/features/review'
 import { cn } from '@renderer/lib/utils'
+import { targetedTab } from '@renderer/stores/hub-tabs'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
-import { tabId, useTabsStore } from '@renderer/stores/tabs'
+import { useTabsStore } from '@renderer/stores/tabs'
 import { TestIds } from '@shared/test-ids'
 import {
   Columns3,
@@ -102,24 +103,19 @@ export function GlanceHome(): React.JSX.Element | null {
   // Agent-published Review canvas (the Review tab).
   const handleOpenFeatureReview = (): void => {
     setSidebarTab('review')
-    openTab({
-      id: tabId('review', project.path),
-      kind: 'review',
-      title: 'Review',
-      path: project.path,
-    })
+    openTab(targetedTab('review', project.path, { title: 'Review' }))
   }
 
   // Continuous stacked diffs for the working tree (U3 — not the Review empty state).
   const handleOpenAllChanges = (): void => {
     setSidebarTab('changes')
     const key = changesetTabKey({ type: 'working' })
-    openTab({ id: tabId('changeset', key), kind: 'changeset', title: 'All changes', path: key })
+    openTab(targetedTab('changeset', key, { title: 'All changes' }))
   }
 
   const handleOpenBoard = (): void => {
     setSidebarTab('board')
-    openTab({ id: tabId('board', project.path), kind: 'board', title: 'Board', path: project.path })
+    openTab(targetedTab('board', project.path, { title: 'Board' }))
   }
 
   const handleOpenTerminal = (): void => {

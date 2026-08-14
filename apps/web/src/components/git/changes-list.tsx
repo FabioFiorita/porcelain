@@ -29,12 +29,13 @@ import { toastingAction } from '@renderer/hooks/mutation-error'
 import { layersSetupPrompt } from '@renderer/lib/agent-setup-prompts'
 import { dirName, fileName } from '@renderer/lib/paths'
 import { cn, copyText } from '@renderer/lib/utils'
+import { targetedTab } from '@renderer/stores/hub-tabs'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useRevealStore } from '@renderer/stores/reveal'
 import { useSettingsDialogStore } from '@renderer/stores/settings-dialog'
 import { useSetupTipsStore } from '@renderer/stores/setup-tips'
-import { tabId, useTabsStore } from '@renderer/stores/tabs'
+import { useTabsStore } from '@renderer/stores/tabs'
 import { TestIds } from '@shared/test-ids'
 import {
   Check,
@@ -98,7 +99,7 @@ function FileRowImpl({
   // file tab is keyed by the absolute path.
   const handleOpenFile = (): void => {
     const absolute = `${repoPath}/${file.path}`
-    openTab({ id: tabId('file', absolute), kind: 'file', title: name, path: absolute })
+    openTab(targetedTab('file', absolute, { title: name }))
     setSidebarTab('files')
     reveal(absolute)
   }
@@ -116,13 +117,13 @@ function FileRowImpl({
               data-testid={TestIds.changesFile(name)}
               data-path={file.path}
               onClick={() =>
-                openTab({
-                  id: tabId('diff', base ? `${base}:${file.path}` : file.path),
-                  kind: 'diff',
-                  title: name,
-                  path: file.path,
-                  ...(base ? { base } : {}),
-                })
+                openTab(
+                  targetedTab('diff', file.path, {
+                    title: name,
+                    key: base ? `${base}:${file.path}` : file.path,
+                    base,
+                  }),
+                )
               }
               onMouseEnter={() => prefetchDiff(file.path, base)}
             />
@@ -226,12 +227,7 @@ function FileRowImpl({
           {file.status !== 'deleted' && (
             <ContextMenuItem
               onClick={() => {
-                openTab({
-                  id: tabId('explore', file.path),
-                  kind: 'explore',
-                  title: `Flow: ${name}`,
-                  path: file.path,
-                })
+                openTab(targetedTab('explore', file.path, { title: `Flow: ${name}` }))
               }}
             >
               <Compass />
@@ -332,12 +328,11 @@ export function ChangesList(): React.JSX.Element {
     const scope =
       changesScope === 'branch' ? ({ type: 'branch' } as const) : ({ type: 'working' } as const)
     const key = changesetTabKey(scope)
-    openTab({
-      id: tabId('changeset', key),
-      kind: 'changeset',
-      title: scope.type === 'branch' ? `All changes · vs ${base ?? 'base'}` : 'All changes',
-      path: key,
-    })
+    openTab(
+      targetedTab('changeset', key, {
+        title: scope.type === 'branch' ? `All changes · vs ${base ?? 'base'}` : 'All changes',
+      }),
+    )
   }
 
   return (

@@ -43,7 +43,6 @@ import { TabBar } from './tab-bar'
 import { TitleBar } from './title-bar'
 import { useAppShortcuts } from './use-app-shortcuts'
 import { Viewer } from './viewer'
-import { Welcome } from './welcome'
 
 interface LeftSidebarHandle {
   collapsed: boolean
@@ -195,7 +194,6 @@ function RepoShell(): React.JSX.Element {
 }
 
 export function AppShell(): React.JSX.Element {
-  const project = useProjectSelectionStore((s) => s.project)
   const sidebarWidth = usePreferencesStore((s) => s.sidebarWidth)
   const restoring = useProjectSelectionStore((s) => s.restoring)
   const boot = useProjectSelectionStore((s) => s.boot)
@@ -241,20 +239,6 @@ export function AppShell(): React.JSX.Element {
   // The gear triggers (sidebar rail + welcome) only open the store.
   // Safe-area padding keeps the browser client clear of the iPhone notch / home bar
   // (viewport-fit=cover in index.html); inert on desktop Electron (env() → 0).
-  if (!project) {
-    return (
-      <div className="flex h-dvh flex-col bg-background pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] text-foreground">
-        <div className="app-drag h-12 shrink-0" />
-        <div className="min-h-0 flex-1">
-          <Welcome />
-        </div>
-        <ProjectPickerDialog />
-        <SettingsDialog />
-        <Toaster />
-      </div>
-    )
-  }
-
   return (
     // The window titlebar (traffic lights + centered search) spans the top; the
     // three tiles fill the row below it over the app background.

@@ -1,3 +1,5 @@
+import type { HubTarget } from '@porcelain/client-runtime/projects'
+import { hubTabKey } from '@porcelain/client-runtime/projects'
 import { create } from 'zustand'
 
 export type TabKind =
@@ -14,8 +16,8 @@ export type TabKind =
 // The tabs store is the router: a tab id is its kind plus its key (file path,
 // commit hash, or search query). Every opener must build ids through this so
 // the same target always maps to the same tab.
-export function tabId(kind: TabKind, key: string): string {
-  return `${kind}:${key}`
+export function tabId(kind: TabKind, key: string, target: HubTarget | null = null): string {
+  return hubTabKey(kind, key, target)
 }
 
 export interface Tab {
@@ -37,6 +39,8 @@ export interface Tab {
   symbol?: string
   /** Diff tabs only: the range base ref. Omitted ⇒ a working-tree diff. */
   base?: string
+  /** The Environment + Project + Worktree this tab stays bound to. */
+  target?: HubTarget
   /** Preview tabs (single-click) are replaced by the next preview; double-click pins
    *  (clears this flag via `pinTab`). Distinct from sticky `pinned` below. */
   preview?: boolean
@@ -97,6 +101,7 @@ function addTab(pane: Pane, tab: Tab): Pane {
             ...t,
             line: tab.line ?? t.line,
             highlight: tab.highlight ?? t.highlight,
+            target: tab.target ?? t.target,
             preview: t.preview === true && tab.preview === true,
           }
         : t,

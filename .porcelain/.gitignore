@@ -4,9 +4,10 @@
 # >>> porcelain:managed — Settings › Data owns these lines
 /notes.md
 /board.json
-/feature-view.json
+/active-review.json
 /active-review/
 /.migrated-from-home
+/project-manifest.json
 *.tmp
 *.corrupt-*
 reviews/*/evidence/

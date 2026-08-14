@@ -18,8 +18,9 @@ import {
 import { useCommentActions, useReviewComments } from '@renderer/features/review'
 import { fileName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'
+import { targetedTab } from '@renderer/stores/hub-tabs'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
-import { tabId, useTabsStore } from '@renderer/stores/tabs'
+import { useTabsStore } from '@renderer/stores/tabs'
 import { Check, Eraser, RotateCcw, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -40,13 +41,12 @@ function CommentRow({ comment }: { comment: ReviewComment }): React.JSX.Element 
   const handleOpen = (): void => {
     if (!project) return
     const absolute = `${project.path}/${comment.path}`
-    openTab({
-      id: tabId('file', absolute),
-      kind: 'file',
-      title: fileName(comment.path),
-      path: absolute,
-      ...(comment.startLine ? { line: comment.startLine } : {}),
-    })
+    openTab(
+      targetedTab('file', absolute, {
+        title: fileName(comment.path),
+        line: comment.startLine,
+      }),
+    )
   }
 
   return (

@@ -21,7 +21,7 @@ import type {
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
 import { trpc } from '@renderer/lib/trpc'
-import { useProjectSelectionStore } from '@renderer/stores/project-selection'
+import { useHubRepoPath } from '@renderer/stores/hub-repo'
 import { useQuery } from '@tanstack/react-query'
 
 import { reviewQueryKey } from './review-query-key'
@@ -53,12 +53,12 @@ export function useActiveReview(): {
   active: ActiveReview | null | undefined
   refresh: () => Promise<void>
 } {
-  const project = useProjectSelectionStore((s) => s.project)
+  const repoPath = useHubRepoPath()
   const daemon = useDaemonScope()
   const utils = trpc.useUtils()
-  const path = project?.path ?? NO_PROJECT
+  const path = repoPath ?? NO_PROJECT
   const { data: active, refetch } = useQuery({
-    enabled: project !== null,
+    enabled: repoPath !== null,
     queryFn: () => utils.client.activeReview.query(path),
     queryKey: reviewQueryKey(daemon, reviewActiveQuery(path)),
     refetchInterval: 3000,
@@ -81,12 +81,12 @@ export function useReviewReading(): {
   reading: ReviewReading | null | undefined
   refresh: () => Promise<void>
 } {
-  const project = useProjectSelectionStore((s) => s.project)
+  const repoPath = useHubRepoPath()
   const daemon = useDaemonScope()
   const utils = trpc.useUtils()
-  const path = project?.path ?? NO_PROJECT
+  const path = repoPath ?? NO_PROJECT
   const { data: reading, refetch } = useQuery({
-    enabled: project !== null,
+    enabled: repoPath !== null,
     queryFn: () => utils.client.reviewReading.query(path),
     queryKey: reviewQueryKey(daemon, reviewReadingQuery(path)),
     refetchInterval: 3000,
@@ -102,12 +102,12 @@ export function useReviewReading(): {
 
 /** Intent documents the agent wrote under `.porcelain/intent/`, in tab order. */
 export function useReviewIntent(): ReviewDoc[] {
-  const project = useProjectSelectionStore((s) => s.project)
+  const repoPath = useHubRepoPath()
   const daemon = useDaemonScope()
   const utils = trpc.useUtils()
-  const path = project?.path ?? NO_PROJECT
+  const path = repoPath ?? NO_PROJECT
   const { data } = useQuery({
-    enabled: project !== null,
+    enabled: repoPath !== null,
     queryFn: () => utils.client.reviewIntent.query(path),
     queryKey: reviewQueryKey(daemon, reviewIntentQuery(path)),
   })
@@ -116,12 +116,12 @@ export function useReviewIntent(): ReviewDoc[] {
 
 /** Bytes and file count publishing the active review would add to git history. */
 export function useReviewPublishCost(enabled: boolean): PublishCost | undefined {
-  const project = useProjectSelectionStore((s) => s.project)
+  const repoPath = useHubRepoPath()
   const daemon = useDaemonScope()
   const utils = trpc.useUtils()
-  const path = project?.path ?? NO_PROJECT
+  const path = repoPath ?? NO_PROJECT
   const { data } = useQuery({
-    enabled: enabled && project !== null,
+    enabled: enabled && repoPath !== null,
     queryFn: () => utils.client.publishCost.query(path),
     queryKey: reviewQueryKey(daemon, reviewPublishCostQuery(path)),
   })
@@ -134,12 +134,12 @@ export function useReviewPublishCost(enabled: boolean): PublishCost | undefined 
  * the whole pack is cheap enough to hold and refresh on the Review notification.
  */
 export function useReviewEvidence(): ReviewEvidence | null | undefined {
-  const project = useProjectSelectionStore((s) => s.project)
+  const repoPath = useHubRepoPath()
   const daemon = useDaemonScope()
   const utils = trpc.useUtils()
-  const path = project?.path ?? NO_PROJECT
+  const path = repoPath ?? NO_PROJECT
   const { data } = useQuery({
-    enabled: project !== null,
+    enabled: repoPath !== null,
     queryFn: () => utils.client.reviewEvidence.query(path),
     queryKey: reviewQueryKey(daemon, reviewEvidenceQuery(path)),
   })
@@ -155,12 +155,12 @@ export function useEvidenceDoc(
   file: string,
   enabled: boolean,
 ): { doc: ReviewDoc | null | undefined; isLoading: boolean } {
-  const project = useProjectSelectionStore((s) => s.project)
+  const repoPath = useHubRepoPath()
   const daemon = useDaemonScope()
   const utils = trpc.useUtils()
-  const path = project?.path ?? NO_PROJECT
+  const path = repoPath ?? NO_PROJECT
   const { data, isPending } = useQuery({
-    enabled: enabled && project !== null,
+    enabled: enabled && repoPath !== null,
     queryFn: () => utils.client.reviewEvidenceDoc.query({ file, repoPath: path }),
     queryKey: reviewQueryKey(daemon, reviewEvidenceDocQuery(path, file)),
     staleTime: Number.POSITIVE_INFINITY,
@@ -181,12 +181,12 @@ export function useEvidenceAsset(
   file: string,
   enabled: boolean,
 ): { asset: EvidenceAssetBody | null | undefined; isLoading: boolean } {
-  const project = useProjectSelectionStore((s) => s.project)
+  const repoPath = useHubRepoPath()
   const daemon = useDaemonScope()
   const utils = trpc.useUtils()
-  const path = project?.path ?? NO_PROJECT
+  const path = repoPath ?? NO_PROJECT
   const { data, isPending } = useQuery({
-    enabled: enabled && project !== null,
+    enabled: enabled && repoPath !== null,
     queryFn: () => utils.client.reviewEvidenceAsset.query({ file, repoPath: path }),
     queryKey: reviewQueryKey(daemon, reviewEvidenceAssetQuery(path, file)),
     staleTime: Number.POSITIVE_INFINITY,
@@ -196,12 +196,12 @@ export function useEvidenceAsset(
 
 /** Reviews already archived under `.porcelain/reviews/<id>/`, newest first. */
 export function useArchivedReviews(): ArchivedReview[] {
-  const project = useProjectSelectionStore((s) => s.project)
+  const repoPath = useHubRepoPath()
   const daemon = useDaemonScope()
   const utils = trpc.useUtils()
-  const path = project?.path ?? NO_PROJECT
+  const path = repoPath ?? NO_PROJECT
   const { data } = useQuery({
-    enabled: project !== null,
+    enabled: repoPath !== null,
     queryFn: () => utils.client.archivedReviews.query(path),
     queryKey: reviewQueryKey(daemon, reviewArchivedQuery(path)),
     refetchInterval: 5000,
@@ -220,13 +220,13 @@ export function useExplore(
   path: string,
   symbol?: string,
 ): { reading: ReviewReading | undefined; refresh: () => Promise<void> } {
-  const project = useProjectSelectionStore((s) => s.project)
+  const checkout = useHubRepoPath()
   const daemon = useDaemonScope()
   const utils = trpc.useUtils()
-  const repoPath = project?.path ?? NO_PROJECT
+  const repoPath = checkout ?? NO_PROJECT
   const seed = symbol ? { kind: 'symbol' as const, path, symbol } : { kind: 'file' as const, path }
   const { data: reading, refetch } = useQuery({
-    enabled: project !== null && path !== '',
+    enabled: checkout !== null && path !== '',
     queryFn: () => utils.client.exploreReading.query({ repoPath, seed }),
     queryKey: reviewQueryKey(daemon, reviewExploreQuery(repoPath, seed)),
     staleTime: 60_000,

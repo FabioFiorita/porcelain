@@ -54,7 +54,7 @@ export function ProjectSwitcherMenu({
 
   const switchProject = (path: string): void => {
     runUserAction(
-      () => openProject.open(path, { resetPresentation: true }),
+      () => openProject.open(path),
       (error) => toastUserActionError('Switch project', error),
     )
   }

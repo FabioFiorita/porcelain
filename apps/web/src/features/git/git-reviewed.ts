@@ -2,7 +2,7 @@ import { reviewedPathsQuery } from '@porcelain/client-runtime/review'
 import { onMutationError } from '@renderer/hooks/mutation-error'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import { trpc } from '@renderer/lib/trpc'
-import { useProjectSelectionStore } from '@renderer/stores/project-selection'
+import { useHubRepoPath } from '@renderer/stores/hub-repo'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo } from 'react'
 
@@ -17,15 +17,15 @@ function daemonScope(identity: { host: string | null; version: string | null }) 
 }
 
 export function useReviewedPaths(): Set<string> {
-  const project = useProjectSelectionStore((state) => state.project)
+  const repoPath = useHubRepoPath()
   const identity = useDaemonIdentity()
   const utils = trpc.useUtils()
-  const path = project?.path ?? '/__porcelain-disabled-reviewed-paths__'
+  const path = repoPath ?? '/__porcelain-disabled-reviewed-paths__'
   const query = useQuery({
-    enabled: project !== null,
+    enabled: repoPath !== null,
     queryFn: () => utils.client.reviewedPaths.query(path),
     queryKey: gitQueryKey(daemonScope(identity), reviewedPathsQuery(path)),
-    refetchInterval: project === null ? false : 3000,
+    refetchInterval: repoPath === null ? false : 3000,
     staleTime: 0,
   })
   return useMemo(() => new Set(query.data ?? []), [query.data])
@@ -36,10 +36,10 @@ function useReviewedMutation(
   title: string,
   update: (previous: string[] | undefined, input: SetVariables) => string[],
 ): ReturnType<typeof useMutation<void, Error, SetVariables>> {
-  const project = useProjectSelectionStore((state) => state.project)
+  const repoPath = useHubRepoPath()
   const identity = useDaemonIdentity()
   const queryClient = useQueryClient()
-  const path = project?.path ?? '/__porcelain-disabled-reviewed-paths__'
+  const path = repoPath ?? '/__porcelain-disabled-reviewed-paths__'
   const queryKey = gitQueryKey(daemonScope(identity), reviewedPathsQuery(path))
   return useMutation<void, Error, SetVariables, MutationContext>({
     mutationFn: execute,
@@ -83,16 +83,15 @@ export function useToggleReviewed(): {
   mark: (path: string) => void
   unmark: (path: string) => void
 } {
-  const project = useProjectSelectionStore((state) => state.project)
+  const repoPath = useHubRepoPath()
   const mutation = useSetReviewedMutation()
   return {
     mark: (path: string): void => {
-      if (project !== null)
-        mutation.mutate({ paths: [path], repoPath: project.path, reviewed: true })
+      if (repoPath !== null) mutation.mutate({ paths: [path], repoPath, reviewed: true })
     },
     unmark: (path: string): void => {
-      if (project !== null) {
-        mutation.mutate({ paths: [path], repoPath: project.path, reviewed: false })
+      if (repoPath !== null) {
+        mutation.mutate({ paths: [path], repoPath, reviewed: false })
       }
     },
   }
@@ -100,11 +99,11 @@ export function useToggleReviewed(): {
 
 /** Bulk "mark all / unmark all" — one atomic write over the named paths. */
 export function useSetReviewed(): (paths: string[], reviewed: boolean) => void {
-  const project = useProjectSelectionStore((state) => state.project)
+  const repoPath = useHubRepoPath()
   const mutation = useSetReviewedMutation()
   return (paths: string[], reviewed: boolean): void => {
-    if (project !== null && paths.length > 0) {
-      mutation.mutate({ paths, repoPath: project.path, reviewed })
+    if (repoPath !== null && paths.length > 0) {
+      mutation.mutate({ paths, repoPath, reviewed })
     }
   }
 }

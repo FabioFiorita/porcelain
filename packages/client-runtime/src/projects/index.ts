@@ -10,6 +10,13 @@ export {
   visibleHubInventories,
 } from './hub-grouping'
 export {
+  type HubSelection,
+  type HubTarget,
+  hubTabKey,
+  hubTargetOf,
+  sameHubTarget,
+} from './hub-target'
+export {
   createHubWorktree,
   openProject,
   type ProjectMutationDefinition,

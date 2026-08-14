@@ -287,6 +287,9 @@ export function AppSidebar(): React.JSX.Element {
             </div>
           </SidebarHeader>
           <SidebarContent data-testid={TestIds.sidebarPanel} className="overflow-hidden">
+            <div className="shrink-0 border-b border-sidebar-border px-1 py-1">
+              <HubTree className="max-w-none" />
+            </div>
             {project ? (
               <div className="min-h-0 flex-1 overflow-auto">
                 <SidebarGroup>
@@ -296,7 +299,6 @@ export function AppSidebar(): React.JSX.Element {
                         state, so unmounting would collapse everything the user
                         had opened. The other tabs keep conditional rendering. */}
                     <div className={cn(sidebarTab !== 'files' && 'hidden')}>
-                      <HubTree className="max-w-none px-1 pt-1" />
                       <FileTree rootPath={project.path} />
                     </div>
                     {sidebarTab === 'changes' && <ChangesList />}
@@ -309,7 +311,9 @@ export function AppSidebar(): React.JSX.Element {
                 </SidebarGroup>
               </div>
             ) : (
-              <p className="p-2 text-sm text-muted-foreground">No repository open</p>
+              <p className="p-2 text-sm text-muted-foreground">
+                Select a Worktree to browse files.
+              </p>
             )}
           </SidebarContent>
           {/* Branch picker (in-place checkout) on the left, worktree switcher on the right. */}

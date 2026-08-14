@@ -1,6 +1,6 @@
 import { hubInventorySchema, projectsContractFixtures } from '@porcelain/contracts/projects'
 import { TestIds } from '@shared/test-ids'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { HubTreeFromInventory } from './hub-tree'
 
@@ -12,6 +12,7 @@ describe('Hub inventory tree', () => {
       <HubTreeFromInventory
         inventory={inventory}
         openWorktree={vi.fn()}
+        openProject={vi.fn()}
         createWorktree={vi.fn(async () => undefined)}
       />,
     )
@@ -25,5 +26,20 @@ describe('Hub inventory tree', () => {
     expect(screen.getByTestId(TestIds.hubCreateWorktree('proj-alpha'))).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /delete worktree/i })).toBeNull()
     expect(screen.queryByLabelText(/delete worktree/i)).toBeNull()
+  })
+
+  it('selects Home from the Environment row', () => {
+    const selectHome = vi.fn()
+    render(
+      <HubTreeFromInventory
+        inventory={inventory}
+        openWorktree={vi.fn()}
+        openProject={vi.fn()}
+        createWorktree={vi.fn(async () => undefined)}
+        selectHome={selectHome}
+      />,
+    )
+    fireEvent.click(screen.getByTestId(TestIds.hubEnvironment(inventory.environment.id)))
+    expect(selectHome).toHaveBeenCalledTimes(1)
   })
 })

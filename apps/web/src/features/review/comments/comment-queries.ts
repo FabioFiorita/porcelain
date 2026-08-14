@@ -2,7 +2,7 @@ import type { ReviewComment } from '@porcelain/contracts/review'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
 import { trpc } from '@renderer/lib/trpc'
-import { useProjectSelectionStore } from '@renderer/stores/project-selection'
+import { useHubRepoPath } from '@renderer/stores/hub-repo'
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { buildCommentIndex, type CommentIndex } from './comment-index'
@@ -18,9 +18,8 @@ import { reviewCommentsKeyForProject } from './comment-query-key'
 
 /** All review comments for the current Project (newest first; live-refreshed). */
 export function useReviewComments(): ReviewComment[] {
-  const project = useProjectSelectionStore((s) => s.project)
+  const projectPath = useHubRepoPath()
   const daemon = useDaemonIdentity()
-  const projectPath = project?.path ?? null
   const daemonScope: DaemonScope = { host: daemon.host, version: daemon.version }
   const utils = trpc.useUtils()
 

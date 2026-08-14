@@ -1,6 +1,7 @@
 /** Web Projects data boundary for the shell's switcher and directory picker. */
 
 export type { ProjectSummary } from '@porcelain/client-runtime/projects'
+export { HubHomeSummary, HubProjectSummary } from './hub-summaries'
 export { HubTree } from './hub-tree'
 export {
   isProjectsQueryKey,

@@ -13,9 +13,10 @@ import { compactButtonClass } from '@renderer/lib/controls'
 import { type LineSelection, lineSelectionFromDom } from '@renderer/lib/line-selection'
 import { fileName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'
+import { useHubRepoPath } from '@renderer/stores/hub-repo'
+import { activeTabTarget, targetedTab } from '@renderer/stores/hub-tabs'
 import { usePreferencesStore } from '@renderer/stores/preferences'
-import { useProjectSelectionStore } from '@renderer/stores/project-selection'
-import { tabId, useTabsStore } from '@renderer/stores/tabs'
+import { useTabsStore } from '@renderer/stores/tabs'
 import { FileText, MessageSquarePlus, Square, SquareCheck } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { type CommentAnchor, CommentComposer } from './comment-composer'
@@ -33,7 +34,7 @@ export function DiffView({
   // Split needs two code columns — force unified on phone for a readable glance.
   const isMobile = useIsMobile()
   const diffMode = isMobile ? 'unified' : prefDiffMode
-  const project = useProjectSelectionStore((s) => s.project)
+  const repoPath = useHubRepoPath()
   const openTab = useTabsStore((s) => s.openTab)
   const { hunks, status, image, binary, error } = useDiffFile(filePath, base)
   const reviewed = useReviewedPaths()
@@ -63,15 +64,16 @@ export function DiffView({
   // "Open file"). Hidden for a deleted file — it no longer exists on disk, so
   // there's nothing to open.
   const handleOpenFile = (): void => {
-    if (!project) return
-    const absolute = `${project.path}/${filePath}`
-    openTab({
-      id: tabId('file', absolute),
-      kind: 'file',
-      title: fileName(filePath),
-      path: absolute,
-      preview: true,
-    })
+    if (repoPath === null) return
+    const absolute = `${repoPath}/${filePath}`
+    openTab(
+      targetedTab(
+        'file',
+        absolute,
+        { title: fileName(filePath), preview: true },
+        activeTabTarget(),
+      ),
+    )
   }
 
   if (error) return <p className="p-4 text-sm text-destructive">{error.message}</p>

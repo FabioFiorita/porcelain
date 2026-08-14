@@ -2,7 +2,7 @@ import type { BoardCard } from '@porcelain/contracts/board'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
 import { trpc } from '@renderer/lib/trpc'
-import { useProjectSelectionStore } from '@renderer/stores/project-selection'
+import { useHubRepoPath } from '@renderer/stores/hub-repo'
 import { useQuery } from '@tanstack/react-query'
 import { boardCardsKeyForProject } from './board-query-key'
 
@@ -33,9 +33,8 @@ function readErrorMessage(error: unknown): string {
 
 /** All board cards for the current Project (live-refreshed via Board notifications). */
 export function useBoardCards(): BoardCardsView {
-  const project = useProjectSelectionStore((s) => s.project)
+  const projectPath = useHubRepoPath()
   const daemon = useDaemonIdentity()
-  const projectPath = project?.path ?? null
   const daemonScope: DaemonScope = { host: daemon.host, version: daemon.version }
   const utils = trpc.useUtils()
 

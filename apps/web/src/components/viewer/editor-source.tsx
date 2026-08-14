@@ -126,7 +126,11 @@ export function EditorSource({
   const handleEdit = (next: string): void => {
     setContent(next)
     // an edited preview tab must not be silently replaced
-    useTabsStore.getState().pinTab(tabId('file', path))
+    const existing = useTabsStore
+      .getState()
+      .panes.flatMap((pane) => pane.tabs)
+      .find((tab) => tab.kind === 'file' && tab.path === path)
+    useTabsStore.getState().pinTab(existing?.id ?? tabId('file', path))
     if (timerRef.current) clearTimeout(timerRef.current)
     timerRef.current = setTimeout(() => flushSave(), AUTOSAVE_DELAY_MS)
   }
