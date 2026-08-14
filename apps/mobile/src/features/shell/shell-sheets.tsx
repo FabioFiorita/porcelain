@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native'
-import { ChromeGlyph } from '@/components/chrome-glyph'
+import { useEffect, useState } from 'react'
+import { Pressable, Text, useWindowDimensions, View } from 'react-native'
 import { ShellModal, ShellModalScroll } from '@/components/shell-modal'
 import { SURFACE_GUTTER } from '@/components/surface-layout'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Text as UiText } from '@/components/ui/text'
+import { QuickOpenSheet } from '@/features/quick-open/quick-open-sheet'
 import {
   DataSettings,
   EnvironmentsSettings,
@@ -77,7 +76,7 @@ export function ShellSheets({ variant = 'tablet' }: ShellSheetsProps): React.JSX
         <ProjectSheetBody open={sheet === 'project'} />
       </ShellModal>
 
-      <SearchCommandSheet open={sheet === 'search'} onClose={closeSheet} maxWidth={searchMaxW} />
+      <QuickOpenSheet open={sheet === 'search'} onClose={closeSheet} maxWidth={searchMaxW} />
 
       <ShellModal
         open={sheet === 'branch'}
@@ -170,193 +169,6 @@ function CompanionSheetBody(): React.JSX.Element {
         </Button>
       </View>
     </View>
-  )
-}
-
-/** Command-palette search — RN Modal + input + grouped list (web Command shape). */
-function SearchCommandSheet({
-  open,
-  onClose,
-  maxWidth,
-}: {
-  open: boolean
-  onClose: () => void
-  maxWidth: number
-}): React.JSX.Element {
-  const [query, setQuery] = useState('')
-  const { sheetMaxH } = useSheetMetrics()
-  const q = query.trim().toLowerCase()
-
-  const files = useMemo(
-    () =>
-      [
-        { id: 'f1', label: 'apps/mobile/src/app/_layout.tsx', detail: 'File' },
-        { id: 'f2', label: 'apps/mobile/src/features/shell/tablet-shell.tsx', detail: 'File' },
-        { id: 'f3', label: 'apps/web/src/components/shell/title-bar.tsx', detail: 'File' },
-        { id: 'f4', label: 'packages/contracts/src/index.ts', detail: 'File' },
-        { id: 'f5', label: '.agents/skills/mobile/SKILL.md', detail: 'File' },
-        { id: 'f6', label: 'apps/mobile/src/features/shell/shell-sheets.tsx', detail: 'File' },
-      ].filter((row) => q === '' || row.label.toLowerCase().includes(q)),
-    [q],
-  )
-
-  const commands = useMemo(
-    () =>
-      [
-        { id: 'c1', label: 'pnpm verify', detail: 'Saved action' },
-        { id: 'c2', label: 'pnpm --dir apps/mobile typecheck', detail: 'Saved action' },
-        { id: 'c3', label: 'eas fingerprint:compare', detail: 'Saved action' },
-      ].filter(
-        (row) =>
-          q === '' || row.label.toLowerCase().includes(q) || row.detail.toLowerCase().includes(q),
-      ),
-    [q],
-  )
-
-  const commits = useMemo(
-    () =>
-      [
-        { id: 'h1', label: 'a3f2c01', detail: 'Shell: tablet SplitView POC' },
-        { id: 'h2', label: '91be440', detail: 'Mobile: NativeWind reusables pass' },
-        { id: 'h3', label: '0e12ab9', detail: 'Daemon: environments store' },
-      ].filter(
-        (row) =>
-          q === '' || row.label.toLowerCase().includes(q) || row.detail.toLowerCase().includes(q),
-      ),
-    [q],
-  )
-
-  const empty = files.length === 0 && commands.length === 0 && commits.length === 0
-
-  return (
-    <ShellModal
-      bare
-      hideHeader
-      open={open}
-      onClose={() => {
-        setQuery('')
-        onClose()
-      }}
-      contentStyle={{ width: maxWidth, maxHeight: sheetMaxH }}
-    >
-      <View className="flex-row items-center gap-2 border-b border-border px-3 py-1 pr-12">
-        <ChromeGlyph name="search" size={16} />
-        <Input
-          autoFocus={open}
-          className="native:h-12 flex-1 border-0 bg-transparent px-0 text-base shadow-none dark:bg-transparent"
-          onChangeText={setQuery}
-          placeholder="Search files, folders, commands, commits…"
-          returnKeyType="search"
-          value={query}
-        />
-      </View>
-
-      <ScrollView
-        keyboardShouldPersistTaps="handled"
-        nestedScrollEnabled
-        showsVerticalScrollIndicator
-        style={{ maxHeight: sheetMaxH - 72 }}
-        contentContainerClassName="py-1.5 pb-3"
-      >
-        {empty ? (
-          <Text className="px-4 py-8 text-center text-sm text-muted-foreground">
-            No results{q ? ` for “${query.trim()}”` : ''}.
-          </Text>
-        ) : null}
-
-        {files.length > 0 ? (
-          <CommandGroup heading="Files">
-            {files.map((row) => (
-              <CommandItem
-                key={row.id}
-                label={row.label}
-                detail={row.detail}
-                onPress={() => {
-                  setQuery('')
-                  onClose()
-                }}
-              />
-            ))}
-          </CommandGroup>
-        ) : null}
-
-        {commands.length > 0 ? (
-          <CommandGroup heading="Commands">
-            {commands.map((row) => (
-              <CommandItem
-                key={row.id}
-                label={row.label}
-                detail={row.detail}
-                onPress={() => {
-                  setQuery('')
-                  onClose()
-                }}
-              />
-            ))}
-          </CommandGroup>
-        ) : null}
-
-        {commits.length > 0 ? (
-          <CommandGroup heading="Commits">
-            {commits.map((row) => (
-              <CommandItem
-                key={row.id}
-                label={row.label}
-                detail={row.detail}
-                onPress={() => {
-                  setQuery('')
-                  onClose()
-                }}
-              />
-            ))}
-          </CommandGroup>
-        ) : null}
-      </ScrollView>
-    </ShellModal>
-  )
-}
-
-function CommandGroup({
-  heading,
-  children,
-}: {
-  heading: string
-  children: React.ReactNode
-}): React.JSX.Element {
-  return (
-    <View className="gap-0.5 px-1 py-1">
-      <Text className="px-3 py-1.5 text-3xs font-semibold uppercase tracking-widest text-muted-foreground">
-        {heading}
-      </Text>
-      {children}
-    </View>
-  )
-}
-
-function CommandItem({
-  label,
-  detail,
-  onPress,
-}: {
-  label: string
-  detail: string
-  onPress: () => void
-}): React.JSX.Element {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      className="mx-1 flex-row items-center gap-3 rounded-lg px-3 py-2.5 active:bg-accent"
-      onPress={onPress}
-    >
-      <View className="min-w-0 flex-1 gap-0.5">
-        <Text className="text-sm font-medium text-foreground" numberOfLines={1}>
-          {label}
-        </Text>
-        <Text className="text-xs text-muted-foreground" numberOfLines={1}>
-          {detail}
-        </Text>
-      </View>
-    </Pressable>
   )
 }
 

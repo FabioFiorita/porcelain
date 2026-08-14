@@ -78,21 +78,35 @@ export function PhoneHeader({
           </Text>
 
           {companion ? (
-            <Pressable
-              accessibilityLabel="Companion"
-              accessibilityRole="button"
-              /* panel-card-allow: a 40pt control, not a card. */
-              className="size-10 shrink-0 items-center justify-center rounded-xl border border-border bg-card active:bg-accent"
-              testID="porcelain-phone-bolt"
-              onPress={() => {
-                if (companionSurface !== undefined) {
-                  setActiveSurface(companionSurface)
-                }
-                openSheet('companion')
-              }}
-            >
-              <ChromeGlyph name="companion" size={17} tone="foreground" />
-            </Pressable>
+            <View className="shrink-0 flex-row items-center gap-2">
+              <Pressable
+                accessibilityLabel="Quick open"
+                accessibilityRole="button"
+                /* panel-card-allow: a 40pt control, not a card. */
+                className="size-10 items-center justify-center rounded-xl border border-border bg-card active:bg-accent"
+                testID="porcelain-phone-search"
+                onPress={() => {
+                  openSheet('search')
+                }}
+              >
+                <ChromeGlyph name="search" size={17} tone="foreground" />
+              </Pressable>
+              <Pressable
+                accessibilityLabel="Companion"
+                accessibilityRole="button"
+                /* panel-card-allow: a 40pt control, not a card. */
+                className="size-10 items-center justify-center rounded-xl border border-border bg-card active:bg-accent"
+                testID="porcelain-phone-bolt"
+                onPress={() => {
+                  if (companionSurface !== undefined) {
+                    setActiveSurface(companionSurface)
+                  }
+                  openSheet('companion')
+                }}
+              >
+                <ChromeGlyph name="companion" size={17} tone="foreground" />
+              </Pressable>
+            </View>
           ) : null}
         </View>
 

@@ -113,10 +113,11 @@ export const SUPPORTING_REGIONS = [
   'desktop',
   'native',
   'infrastructure',
+  'quick-open',
 ]
 
 export const LEGACY_FEATURE_DIRECTORIES = Object.freeze({
-  'apps/mobile/src/features': ['changes', 'diff', 'history', 'settings', 'shell'],
+  'apps/mobile/src/features': ['changes', 'diff', 'history', 'quick-open', 'settings', 'shell'],
   'apps/web/src/features': [],
 })
 

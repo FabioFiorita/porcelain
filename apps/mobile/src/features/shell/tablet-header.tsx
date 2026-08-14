@@ -25,27 +25,25 @@ export function TabletHeader(_props: { platformLabel: string }): React.JSX.Eleme
     <View className="border-b border-border bg-background px-3 pb-2 pt-1.5">
       <View className="relative h-12">
         {/* True window center — independent of asymmetric left/right chrome. */}
-        {__DEV__ ? (
-          <View
-            pointerEvents="box-none"
-            className="absolute inset-0 z-0 items-center justify-center px-14"
+        <View
+          pointerEvents="box-none"
+          className="absolute inset-0 z-0 items-center justify-center px-14"
+        >
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Quick open files, folders, commands, commits"
+            className="h-10 w-full max-w-[27.5rem] flex-row items-center gap-2 rounded-xl border border-border/70 bg-muted px-3 active:bg-accent"
+            testID="porcelain-tablet-search"
+            onPress={() => {
+              openSheet('search')
+            }}
           >
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Search files, folders, commands, commits"
-              className="h-10 w-full max-w-[27.5rem] flex-row items-center gap-2 rounded-xl border border-border/70 bg-muted px-3 active:bg-accent"
-              testID="porcelain-tablet-search"
-              onPress={() => {
-                openSheet('search')
-              }}
-            >
-              <ChromeGlyph name="search" size={15} />
-              <Text className="min-w-0 flex-1 text-sm text-muted-foreground" numberOfLines={1}>
-                Search files, folders, commands…
-              </Text>
-            </Pressable>
-          </View>
-        ) : null}
+            <ChromeGlyph name="search" size={15} />
+            <Text className="min-w-0 flex-1 text-sm text-muted-foreground" numberOfLines={1}>
+              Quick open files, commands, commits…
+            </Text>
+          </Pressable>
+        </View>
 
         {/* Left: avatar project + branch + worktree (content-width, above search layer). */}
         <View

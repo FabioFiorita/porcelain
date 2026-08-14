@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils'
 import { useActionRun } from './action-run'
 import { useTrustAction } from './actions-mutations'
 import { useActions } from './actions-queries'
+import { useActionsSelectionStore } from './actions-selection-store'
 
 /**
  * Saved actions — the project's curated commands.
@@ -29,6 +30,8 @@ export function ActionsCompanion({ active }: { active: boolean }): React.JSX.Ele
   const { actions, error } = useActions(active)
   const runAction = useActionRun()
   const trust = useTrustAction()
+  const selectedActionId = useActionsSelectionStore((state) => state.selectedActionId)
+  const clearSelectedAction = useActionsSelectionStore((state) => state.clearSelectedAction)
   const [pendingTrust, setPendingTrust] = useState<ActionView | null>(null)
   const [failure, setFailure] = useState<string | null>(null)
 
@@ -69,9 +72,11 @@ export function ActionsCompanion({ active }: { active: boolean }): React.JSX.Ele
               key={action.id}
               action={action}
               onPress={() => {
+                clearSelectedAction()
                 if (action.trusted) run(action)
                 else setPendingTrust(action)
               }}
+              selected={action.id === selectedActionId}
             />
           ))}
         </View>
@@ -112,18 +117,22 @@ export function ActionsCompanion({ active }: { active: boolean }): React.JSX.Ele
 function ActionRow({
   action,
   onPress,
+  selected,
 }: {
   action: ActionView
   onPress: () => void
+  selected: boolean
 }): React.JSX.Element {
   return (
     <Pressable
       accessibilityLabel={`Run ${action.title}`}
       accessibilityRole="button"
+      accessibilityState={{ selected }}
       /* panel-card-allow: a quick-command chip, not a panel card — its radius belongs to the
          40pt control family the header chips set, not to the card family. */
       className={cn(
         'min-h-12 flex-row items-center gap-2.5 rounded-xl border border-border bg-card px-3 py-2.5 active:bg-accent',
+        selected && 'border-primary bg-primary/10',
       )}
       testID={`porcelain-terminal-action-${action.id}`}
       onPress={onPress}
