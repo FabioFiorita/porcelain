@@ -1,8 +1,13 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { dirname, join } from 'node:path'
 import { test } from 'node:test'
+import { fileURLToPath } from 'node:url'
 import {
   checkDomainCatalog,
+  checkProcedureContracts,
   checkRouterCatalogBinding,
   DOMAIN_KEYS,
   extractRouterProcedures,
@@ -275,6 +280,28 @@ test('rejects a router that reaches for a deleted horizontal contract path', () 
         ),
       ),
     )
+  }
+})
+
+test('accepts a clean checkout without the deleted horizontal router directory', async () => {
+  const sourceRoot = join(dirname(fileURLToPath(import.meta.url)), '..')
+  const fixtureRoot = await mkdtemp(join(tmpdir(), 'porcelain-procedure-contracts-'))
+
+  try {
+    const files = [
+      ...PRODUCTION_ROUTER_FILES.map((relativePath) => `apps/daemon/src/${relativePath}`),
+      ...DOMAIN_KEYS.map((domain) => `packages/contracts/src/${domain}/${domain}.procedures.ts`),
+    ]
+
+    for (const relativePath of files) {
+      const target = join(fixtureRoot, relativePath)
+      await mkdir(dirname(target), { recursive: true })
+      await writeFile(target, await readFile(join(sourceRoot, relativePath)))
+    }
+
+    assert.deepEqual(checkProcedureContracts(fixtureRoot), [])
+  } finally {
+    await rm(fixtureRoot, { recursive: true, force: true })
   }
 })
 

@@ -76,11 +76,13 @@ function readRouterProcedures(repositoryRoot) {
   }
   // Discover unexpected horizontal routers so the canonical router boundary cannot regress.
   const routerDir = join(daemonSrc, 'router')
-  for (const name of readdirSync(routerDir)
-    .filter((entry) => entry.endsWith('.ts') && !entry.endsWith('.test.ts'))
-    .sort()) {
-    const relativePath = `router/${name}`
-    if (!files.includes(relativePath)) files.push(relativePath)
+  if (existsSync(routerDir)) {
+    for (const name of readdirSync(routerDir)
+      .filter((entry) => entry.endsWith('.ts') && !entry.endsWith('.test.ts'))
+      .sort()) {
+      const relativePath = `router/${name}`
+      if (!files.includes(relativePath)) files.push(relativePath)
+    }
   }
   return { files, procedures, sources }
 }
