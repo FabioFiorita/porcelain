@@ -28,6 +28,13 @@ Contributor architecture. Start with `architecture.md`; the rest are deep dives.
 | [internals/agent-foundations.md](internals/agent-foundations.md) | Cross-cutting foundation owners, exact proof paths, and mechanical removal gates |
 | [internals/quality-metrics.md](internals/quality-metrics.md) | Coverage, complexity, dead code: what `pnpm quality` measures and why coverage is a floor |
 
+## Architecture decisions
+
+| File | What |
+|------|------|
+| [adr/0001-one-window-multi-environment-hub.md](adr/0001-one-window-multi-environment-hub.md) | One persistent Hub across local and remote Environments |
+| [adr/0002-daemon-root-project-store.md](adr/0002-daemon-root-project-store.md) | Daemon-root project data with explicit Git promotion |
+
 ## Security and correctness invariants
 
 Earned security/correctness/performance constraints live with their current domain owners and

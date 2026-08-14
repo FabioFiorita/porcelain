@@ -1,0 +1,5 @@
+# Daemon-root project store with explicit Git promotion
+
+Porcelain will store default project data in the owning Environment daemon's `$PORCELAIN_HOME`, under stable Project records rather than in every repository's working tree. Those records contain private Canvases, assets, Actions, and Worktree metadata; Tasks remain daemon-wide. A repo-local `.porcelain/` is optional and appears only when the user explicitly promotes portable Canvases or project/Worktree overrides into Git. Promoted files are the tracked source of truth and the daemon indexes them without maintaining a second editable copy. Personal UI state remains client-local, and separate Environment daemons do not synchronize private project data automatically.
+
+This keeps agent-created explanation and evidence alive when ephemeral Worktrees are deleted, avoids silently writing application state into repositories, and makes portability an intentional Git operation. Project records use stable identifiers and retain Worktree references so paths can change without confusing one Project or Worktree with another.
