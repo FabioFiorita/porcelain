@@ -3,7 +3,7 @@ import { useRevealInFinder } from '@renderer/hooks/use-reveal-in-finder'
 import { fileName, relativeTo } from '@renderer/lib/paths'
 import { copyText } from '@renderer/lib/utils'
 import { useHubRepoPath } from '@renderer/stores/hub-repo'
-import { targetedTab } from '@renderer/stores/hub-tabs'
+import { activeTabTarget, targetedTab } from '@renderer/stores/hub-tabs'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { runUserAction } from '@shared/background'
 
@@ -39,7 +39,7 @@ export function usePathActions(path: string): {
     findReferences: (text: string) => {
       const query = text.trim()
       if (query === '') return
-      openTab(targetedTab('search', query, { title: query }))
+      openTab(targetedTab('search', query, { title: query }, activeTabTarget()))
     },
     // Open a read-only flow exploration seeded from this file (whole-file) or a
     // symbol in it. The seed path is project-relative — the walk resolves against the
@@ -48,11 +48,16 @@ export function usePathActions(path: string): {
       const relative = relativeTo(repoPath, path)
       const seed = symbol?.trim()
       openTab(
-        targetedTab('explore', relative, {
-          title: seed ? `Flow: ${seed}` : `Flow: ${fileName(relative)}`,
-          key: seed ? `${relative}#${seed}` : relative,
-          symbol: seed,
-        }),
+        targetedTab(
+          'explore',
+          relative,
+          {
+            title: seed ? `Flow: ${seed}` : `Flow: ${fileName(relative)}`,
+            key: seed ? `${relative}#${seed}` : relative,
+            symbol: seed,
+          },
+          activeTabTarget(),
+        ),
       )
     },
   }

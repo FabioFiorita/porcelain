@@ -11,8 +11,9 @@ import { FileTypeIcon } from '@renderer/components/viewer/file-icon'
 import { compactInputClass } from '@renderer/lib/controls'
 import { dirName, fileName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'
+import { activeTabTarget, targetedTab } from '@renderer/stores/hub-tabs'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
-import { tabId, useTabsStore } from '@renderer/stores/tabs'
+import { useTabsStore } from '@renderer/stores/tabs'
 import { CaseSensitive, ChevronRight, Regex, SlidersHorizontal } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
@@ -79,7 +80,7 @@ function FileGroup({
 
   const handleOpen = (line: number): void => {
     const absolute = `${repoPath}/${file.path}`
-    openTab({ id: tabId('file', absolute), kind: 'file', title: name, path: absolute, line })
+    openTab(targetedTab('file', absolute, { title: name, line }, activeTabTarget()))
   }
 
   return (

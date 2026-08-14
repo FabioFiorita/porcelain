@@ -14,7 +14,7 @@ import { isTerminalTarget, isTextEntry } from '@renderer/lib/keyboard'
 import { dirName, fileName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'
 import { useHubRepoPath } from '@renderer/stores/hub-repo'
-import { targetedTab } from '@renderer/stores/hub-tabs'
+import { activeTabTarget, targetedTab } from '@renderer/stores/hub-tabs'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { useZenStore } from '@renderer/stores/zen'
 import { TestIds } from '@shared/test-ids'
@@ -405,16 +405,21 @@ function ExecutionBody({ reading }: { reading: ReviewReading }): React.JSX.Eleme
     const absolute = `${repoPath}/${file.path}`
     const ranges = highlightRangesForFile(file)
     openTab(
-      targetedTab('file', absolute, {
-        title: fileName(file.path),
-        line: ranges?.[0]?.start,
-        highlight: ranges,
-      }),
+      targetedTab(
+        'file',
+        absolute,
+        {
+          title: fileName(file.path),
+          line: ranges?.[0]?.start,
+          highlight: ranges,
+        },
+        activeTabTarget(),
+      ),
     )
   }
 
   const handleOpenDiff = (file: ReadingFile): void => {
-    openTab(targetedTab('diff', file.path, { title: fileName(file.path) }))
+    openTab(targetedTab('diff', file.path, { title: fileName(file.path) }, activeTabTarget()))
   }
 
   const handlePrimaryOpen = (file: ReadingFile): void => {

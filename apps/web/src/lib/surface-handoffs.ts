@@ -1,7 +1,7 @@
 import { changesetTabKey } from '@renderer/components/git/changeset-view'
 import { useReviewStartStore } from '@renderer/features/review'
 import { fileName } from '@renderer/lib/paths'
-import { targetedTab } from '@renderer/stores/hub-tabs'
+import { activeTabTarget, targetedTab } from '@renderer/stores/hub-tabs'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useTabsStore } from '@renderer/stores/tabs'
@@ -33,7 +33,7 @@ export function openChanges(options: OpenChangesOptions = {}): void {
   const { openTab } = useTabsStore.getState()
   if (options.continuousReview) {
     const key = changesetTabKey({ type: 'working' })
-    openTab(targetedTab('changeset', key, { title: 'All changes' }))
+    openTab(targetedTab('changeset', key, { title: 'All changes' }, activeTabTarget()))
   }
   if (options.path !== undefined && options.path !== '') {
     openDiff(options.path)
@@ -53,17 +53,28 @@ export function openReview(options: OpenReviewOptions = {}): void {
     useReviewStartStore.getState().setSuggestedName(options.suggestedName.trim())
   }
   openReviewSidebar()
-  useTabsStore.getState().openTab(targetedTab('review', repoPath, { title: 'Review' }))
+  useTabsStore
+    .getState()
+    .openTab(targetedTab('review', repoPath, { title: 'Review' }, activeTabTarget()))
 }
 
 /** Open a working-tree diff tab for a repo-relative path. */
 export function openDiff(relPath: string): void {
-  useTabsStore.getState().openTab(targetedTab('diff', relPath, { title: fileName(relPath) }))
+  useTabsStore
+    .getState()
+    .openTab(targetedTab('diff', relPath, { title: fileName(relPath) }, activeTabTarget()))
 }
 
 /** Open a file tab (absolute path). Preview by default (single-click semantics). */
 export function openFile(absolutePath: string, preview = true): void {
   useTabsStore
     .getState()
-    .openTab(targetedTab('file', absolutePath, { title: fileName(absolutePath), preview }))
+    .openTab(
+      targetedTab(
+        'file',
+        absolutePath,
+        { title: fileName(absolutePath), preview },
+        activeTabTarget(),
+      ),
+    )
 }

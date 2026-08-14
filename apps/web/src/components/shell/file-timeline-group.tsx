@@ -8,7 +8,8 @@ import {
 } from '@renderer/components/ui/sidebar'
 import { useFileLog } from '@renderer/features/git'
 import { fileName } from '@renderer/lib/paths'
-import { tabId, useTabsStore } from '@renderer/stores/tabs'
+import { activeTabTarget, targetedTab } from '@renderer/stores/hub-tabs'
+import { useTabsStore } from '@renderer/stores/tabs'
 import { CommitContextMenu } from '../git/commit-context-menu'
 
 // The timeline tracks whatever file you're viewing: file and diff tabs carry a
@@ -55,12 +56,14 @@ export function FileTimelineGroup(): React.JSX.Element {
                     <SidebarMenuButton
                       className="h-auto py-1 text-sm-minus"
                       onClick={() =>
-                        openTab({
-                          id: tabId('commit', commit.hash),
-                          kind: 'commit',
-                          title: commit.subject.slice(0, 32),
-                          path: commit.hash,
-                        })
+                        openTab(
+                          targetedTab(
+                            'commit',
+                            commit.hash,
+                            { title: commit.subject.slice(0, 32) },
+                            activeTabTarget(),
+                          ),
+                        )
                       }
                     >
                       <div className="flex min-w-0 flex-col items-start">

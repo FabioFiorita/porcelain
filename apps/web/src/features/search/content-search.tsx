@@ -8,8 +8,9 @@ import {
   CommandList,
 } from '@renderer/components/ui/command'
 import { fileName } from '@renderer/lib/paths'
+import { activeTabTarget, targetedTab } from '@renderer/stores/hub-tabs'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
-import { tabId, useTabsStore } from '@renderer/stores/tabs'
+import { useTabsStore } from '@renderer/stores/tabs'
 import { useEffect, useState } from 'react'
 
 import { useTextSearch } from './search-queries'
@@ -52,13 +53,9 @@ export function ContentSearch(): React.JSX.Element {
   const handleSelect = (path: string, line: number): void => {
     if (!project) return
     const name = fileName(path)
-    openTab({
-      id: tabId('file', `${project.path}/${path}`),
-      kind: 'file',
-      title: name,
-      path: `${project.path}/${path}`,
-      line,
-    })
+    openTab(
+      targetedTab('file', `${project.path}/${path}`, { title: name, line }, activeTabTarget()),
+    )
     setOpen(false)
     setQuery('')
   }

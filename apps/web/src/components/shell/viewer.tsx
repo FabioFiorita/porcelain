@@ -113,21 +113,21 @@ function PaneContent({ tab, paneIndex }: { tab: Tab; paneIndex: number }): React
 
   switch (tab.kind) {
     case 'diff':
-      return <DiffView key={`${tab.path}:${tab.base ?? ''}`} filePath={tab.path} base={tab.base} />
+      // `base` isn't part of tab identity (`tab.id`), so a re-open with a new base
+      // updates the same tab entry — remount on that change too, or the old diff lingers.
+      return <DiffView key={`${tab.id}:${tab.base ?? ''}`} filePath={tab.path} base={tab.base} />
     case 'commit':
-      return <CommitView key={tab.path} hash={tab.path} />
+      return <CommitView key={tab.id} hash={tab.path} />
     case 'changeset':
-      return <ChangesetView key={tab.path} path={tab.path} />
+      return <ChangesetView key={tab.id} path={tab.path} />
     case 'search':
-      return <SearchView key={tab.path} query={tab.path} />
+      return <SearchView key={tab.id} query={tab.path} />
     case 'review':
       return <ActiveReview />
     case 'terminal':
-      return <TerminalView key={tab.path} sessionId={tab.path} />
+      return <TerminalView key={tab.id} sessionId={tab.path} />
     case 'explore':
-      return (
-        <ExploreView key={`${tab.path}:${tab.symbol ?? ''}`} path={tab.path} symbol={tab.symbol} />
-      )
+      return <ExploreView key={tab.id} path={tab.path} symbol={tab.symbol} />
     case 'file':
       return (
         <FileContent

@@ -13,7 +13,7 @@ import { type LineSelection, lineSelectionFromDom } from '@renderer/lib/line-sel
 import { fileName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'
 import { useHubRepoPath } from '@renderer/stores/hub-repo'
-import { targetedTab } from '@renderer/stores/hub-tabs'
+import { activeTabTarget, targetedTab } from '@renderer/stores/hub-tabs'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRevealStore } from '@renderer/stores/reveal'
 import { useTabsStore } from '@renderer/stores/tabs'
@@ -48,7 +48,7 @@ function CommitFileRow({
   // Files, and reveals the file in the tree — identical to the Changes list.
   const handleOpenFile = (): void => {
     const absolute = `${repoPath}/${file.path}`
-    openTab(targetedTab('file', absolute, { title: name }))
+    openTab(targetedTab('file', absolute, { title: name }, activeTabTarget()))
     setSidebarTab('files')
     reveal(absolute)
   }
@@ -198,7 +198,14 @@ export function CommitView({ hash }: { hash: string }): React.JSX.Element {
   const handleOpenFile = (): void => {
     if (!selectedFile) return
     const absolute = `${repoPath}/${selectedFile}`
-    openTab(targetedTab('file', absolute, { title: fileName(selectedFile), preview: true }))
+    openTab(
+      targetedTab(
+        'file',
+        absolute,
+        { title: fileName(selectedFile), preview: true },
+        activeTabTarget(),
+      ),
+    )
   }
 
   // Same continuous stacked-diff surface as Changes — one scroll for every file
@@ -206,7 +213,7 @@ export function CommitView({ hash }: { hash: string }): React.JSX.Element {
   const handleOpenReviewAll = (): void => {
     const key = changesetTabKey({ type: 'commit', hash })
     const title = (message ?? hash.slice(0, 12)).split('\n')[0]?.trim() || hash.slice(0, 12)
-    openTab(targetedTab('changeset', key, { title }))
+    openTab(targetedTab('changeset', key, { title }, activeTabTarget()))
   }
 
   return (

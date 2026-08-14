@@ -1,7 +1,7 @@
 import { useTextSearch } from '@renderer/features/search'
 import { fileName } from '@renderer/lib/paths'
 import { useHubRepoPath } from '@renderer/stores/hub-repo'
-import { targetedTab } from '@renderer/stores/hub-tabs'
+import { activeTabTarget, targetedTab } from '@renderer/stores/hub-tabs'
 import { useTabsStore } from '@renderer/stores/tabs'
 
 /** Repo-wide literal search results (git grep); rows open the file at the line. */
@@ -18,7 +18,7 @@ export function SearchView({ query }: { query: string }): React.JSX.Element {
   const handleOpen = (path: string, line: number): void => {
     if (repoPath === null) return
     const name = fileName(path)
-    openTab(targetedTab('file', `${repoPath}/${path}`, { title: name, line }))
+    openTab(targetedTab('file', `${repoPath}/${path}`, { title: name, line }, activeTabTarget()))
   }
 
   return (

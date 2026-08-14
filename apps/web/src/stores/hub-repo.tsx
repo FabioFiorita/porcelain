@@ -17,6 +17,11 @@ export function HubRepoProvider({
 /**
  * Checkout path for daemon queries. Inside a Viewer pane this is the tab's
  * Worktree; everywhere else it is the selected Worktree.
+ *
+ * The context value is three-state: `undefined` means no `HubRepoProvider` is
+ * mounted above (fall through to the selected Worktree), while `null` means a
+ * provider IS mounted but its tab has no Worktree path yet (stay null — do not
+ * fall through to selection, or a target-bound tab would silently borrow it).
  */
 export function useHubRepoPath(): string | null {
   const override = useContext(HubRepoContext)

@@ -45,6 +45,11 @@ export function useActionRun(): (
     }
 
     const id = await useTerminalsStore.getState().create({ cwd, name, initialInput })
+    // Terminal tabs stay untargeted: the session roster has no per-Worktree identity
+    // yet (the whole roster resets on repo switch), and `openTab`'s terminal dedup
+    // matches by exact tab id — a target computed from "whichever tab is focused right
+    // now" would make the same session collide with a different id per caller instead
+    // of refocusing the one open tab.
     useTabsStore.getState().openTab({
       id: tabId('terminal', id),
       kind: 'terminal',

@@ -18,10 +18,11 @@ import { commandGroupHeadingClass } from '@renderer/lib/controls'
 import { isTerminalTarget } from '@renderer/lib/keyboard'
 import { dirName, fileName } from '@renderer/lib/paths'
 import { useFileFinderStore } from '@renderer/stores/file-finder'
+import { activeTabTarget, targetedTab } from '@renderer/stores/hub-tabs'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useRevealStore } from '@renderer/stores/reveal'
-import { tabId, useTabsStore } from '@renderer/stores/tabs'
+import { useTabsStore } from '@renderer/stores/tabs'
 import { runUserAction } from '@shared/background'
 import { GitCommitHorizontal, Play } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -114,7 +115,7 @@ export function FileFinder(): React.JSX.Element {
       reveal(absolute)
     } else {
       const name = fileName(result.path)
-      openTab({ id: tabId('file', absolute), kind: 'file', title: name, path: absolute })
+      openTab(targetedTab('file', absolute, { title: name }, activeTabTarget()))
     }
     setOpen(false)
     setQuery('')
@@ -148,12 +149,9 @@ export function FileFinder(): React.JSX.Element {
   const handleOpenCommit = (commit: Commit): void => {
     // "Go to the History tab and find it": surface the History tab + open the commit view.
     setSidebarTab('history')
-    openTab({
-      id: tabId('commit', commit.hash),
-      kind: 'commit',
-      title: commit.subject.slice(0, 32),
-      path: commit.hash,
-    })
+    openTab(
+      targetedTab('commit', commit.hash, { title: commit.subject.slice(0, 32) }, activeTabTarget()),
+    )
     setOpen(false)
     setQuery('')
   }

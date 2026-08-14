@@ -1,5 +1,8 @@
 import type { FlowGroup } from '@backend/review/flow'
+import type { HubTarget } from '@porcelain/client-runtime/projects'
 import { useCommitFlow, useCommitMessage } from '@renderer/features/git'
+import { useHubSelectionStore } from '@renderer/stores/hub-selection'
+import { targetedTab } from '@renderer/stores/hub-tabs'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
@@ -57,6 +60,19 @@ const groups: FlowGroup[] = [
 
 const HASH = 'abc123def456'
 
+const TARGET_A: HubTarget = {
+  environmentId: 'env-1',
+  projectId: 'proj-1',
+  worktreeId: 'wt-a',
+  path: '/repo-a',
+}
+const TARGET_B: HubTarget = {
+  environmentId: 'env-1',
+  projectId: 'proj-1',
+  worktreeId: 'wt-b',
+  path: '/repo-b',
+}
+
 function renderView(): void {
   render(<CommitView hash={HASH} />)
 }
@@ -64,6 +80,7 @@ function renderView(): void {
 describe('CommitView', () => {
   beforeEach(() => {
     useTabsStore.setState({ panes: [{ tabs: [], activeTabId: null }], activePaneIndex: 0 })
+    useHubSelectionStore.setState({ selection: { kind: 'home' } })
     useProjectSelectionStore.setState({ project: { path: '/repo', name: 'repo' } })
     usePreferencesStore.setState({ diffMode: 'unified' })
     vi.mocked(useCommitFlow).mockReturnValue({ groups })
@@ -132,5 +149,37 @@ describe('CommitView', () => {
     vi.mocked(useCommitFlow).mockReturnValue({ groups: [] })
     renderView()
     expect(screen.queryByLabelText('All changes')).not.toBeInTheDocument()
+  })
+
+  // Regression: this commit tab was opened against Worktree A. The Hub selection has
+  // since moved to Worktree B (the user switched away), but this tab is still the
+  // focused one — its own children must stay pinned to A, not silently follow B.
+  it("opens the file and the changeset review against this commit tab's own target, not the currently selected Worktree", () => {
+    const commitTab = targetedTab('commit', HASH, { title: 'commit' }, TARGET_A)
+    useTabsStore.setState({
+      panes: [{ tabs: [commitTab], activeTabId: commitTab.id }],
+      activePaneIndex: 0,
+    })
+    useHubSelectionStore.setState({
+      selection: {
+        kind: 'worktree',
+        environmentId: TARGET_B.environmentId,
+        projectId: TARGET_B.projectId,
+        worktreeId: TARGET_B.worktreeId,
+        path: TARGET_B.path,
+      },
+    })
+    renderView()
+
+    fireEvent.click(screen.getByLabelText('Open file'))
+    fireEvent.click(screen.getByLabelText('All changes'))
+
+    const pane = useTabsStore.getState().panes[0]
+    if (pane === undefined) throw new Error('expected pane 0')
+    const opened = pane.tabs.filter((t) => t.id !== commitTab.id)
+    expect(opened).toHaveLength(2)
+    for (const tab of opened) {
+      expect(tab.target).toEqual(TARGET_A)
+    }
   })
 })

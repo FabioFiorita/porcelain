@@ -28,10 +28,11 @@ import {
 import { type LineSelection, lineSelectionForFile } from '@renderer/lib/line-selection'
 import { fileName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'
+import { activeTabTarget, targetedTab } from '@renderer/stores/hub-tabs'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useRevealStore } from '@renderer/stores/reveal'
-import { tabId, useTabsStore } from '@renderer/stores/tabs'
+import { useTabsStore } from '@renderer/stores/tabs'
 import type { EvidenceCheck } from '@shared/evidence-check'
 import { TestIds } from '@shared/test-ids'
 import {
@@ -419,13 +420,14 @@ function FileHeaderRow({
   const handleOpenFile = (): void => {
     if (!project || !canOpenFile) return
     const absolute = `${project.path}/${file.path}`
-    openTab({
-      id: tabId('file', absolute),
-      kind: 'file',
-      title: fileName(file.path),
-      path: absolute,
-      preview: true,
-    })
+    openTab(
+      targetedTab(
+        'file',
+        absolute,
+        { title: fileName(file.path), preview: true },
+        activeTabTarget(),
+      ),
+    )
     setSidebarTab('files')
     reveal(absolute)
   }

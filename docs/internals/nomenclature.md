@@ -55,7 +55,7 @@ parens is the **entry point**; read it for mechanics.
 Suggested/Commands render only on Changes and History — Review does not get them (it gets Current/Previous review instead).
 
 **Overlays:** file finder (⌘P) · find bar (⌘F) · Settings (`settings-dialog.tsx` — General · **Data**
-· Companion · Share · Remotes · Review flow · Updates) · welcome screen. **Data** owns what git
+· Companion · Share · Remotes · Review flow · Updates). **Data** owns what git
 carries (`data-section.tsx`, every client); this Settings **Companion** tab is the agent-skill
 installer only and is shell-only — do not confuse it with the right-panel **Companion** (⌘.) above.
 Mobile mirrors General · Data · Review · Environments.
