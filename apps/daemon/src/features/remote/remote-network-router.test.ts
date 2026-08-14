@@ -34,21 +34,21 @@ const FUNNEL = {
   envForced: false,
 }
 
-const operations: RemoteOperations = {
-  daemonInfo: vi.fn(() => ({
+const operations = {
+  daemonInfo: vi.fn<RemoteOperations['daemonInfo']>(() => ({
     version: '0.52.1',
     protocolVersion: PROTOCOL_VERSION,
     host: 'workstation',
     platform: 'linux',
     arch: 'x64',
   })),
-  accessStatus: vi.fn(async () => ({
+  accessStatus: vi.fn<RemoteOperations['accessStatus']>(async () => ({
     pairings: [],
     clients: [],
     connected: 0,
     adminTokenPath: '~/.porcelain/admin-token',
   })),
-  issuePairingLink: vi.fn(async () => ({
+  issuePairingLink: vi.fn<RemoteOperations['issuePairingLink']>(async () => ({
     ok: true as const,
     value: {
       id: 'pairing-id',
@@ -59,16 +59,25 @@ const operations: RemoteOperations = {
       url: 'https://porcelain.example/pair#token=pc_pair_pairing-id_secret',
     },
   })),
-  revokePairingLink: vi.fn(async () => ({ ok: true as const, value: undefined })),
-  revokeAuthorizedClient: vi.fn(async () => ({ ok: true as const, value: undefined })),
-  revokeCurrentClient: vi.fn(async () => ({ ok: true as const, value: undefined })),
-  tailnetStatus: vi.fn(async () => TAILNET),
-  setTailnetBind: vi.fn(async () => TAILNET),
-  lanStatus: vi.fn(async () => LAN),
-  setLanBind: vi.fn(async () => LAN),
-  funnelStatus: vi.fn(async () => FUNNEL),
-  setFunnelBind: vi.fn(async () => FUNNEL),
-}
+  revokePairingLink: vi.fn<RemoteOperations['revokePairingLink']>(async () => ({
+    ok: true as const,
+    value: undefined,
+  })),
+  revokeAuthorizedClient: vi.fn<RemoteOperations['revokeAuthorizedClient']>(async () => ({
+    ok: true as const,
+    value: undefined,
+  })),
+  revokeCurrentClient: vi.fn<RemoteOperations['revokeCurrentClient']>(async () => ({
+    ok: true as const,
+    value: undefined,
+  })),
+  tailnetStatus: vi.fn<RemoteOperations['tailnetStatus']>(async () => TAILNET),
+  setTailnetBind: vi.fn<RemoteOperations['setTailnetBind']>(async () => TAILNET),
+  lanStatus: vi.fn<RemoteOperations['lanStatus']>(async () => LAN),
+  setLanBind: vi.fn<RemoteOperations['setLanBind']>(async () => LAN),
+  funnelStatus: vi.fn<RemoteOperations['funnelStatus']>(async () => FUNNEL),
+  setFunnelBind: vi.fn<RemoteOperations['setFunnelBind']>(async () => FUNNEL),
+} satisfies RemoteOperations
 
 const router = createRemoteNetworkRouter(operations)
 

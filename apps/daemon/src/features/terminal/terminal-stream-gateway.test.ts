@@ -16,18 +16,24 @@ const ATTACHMENT: TerminalAttachValue = {
 
 function makeOperations(): TerminalOperations {
   return {
-    create: vi.fn(() => ({ ok: true, value: 'terminal-1' })),
-    attach: vi.fn(() => ({ ok: true, value: ATTACHMENT })),
-    detach: vi.fn(() => ({ ok: true, value: undefined })),
-    write: vi.fn(() => ({ ok: true, value: undefined })),
-    resize: vi.fn(() => ({ ok: true, value: undefined })),
-    kill: vi.fn(() => ({ ok: true, value: undefined })),
-    pasteImage: vi.fn(async () => ({ ok: true, value: { result: 'ok' } })),
-    pasteFile: vi.fn(async () => ({ ok: true, value: { result: 'ok' } })),
-    list: vi.fn(() => []),
-    rename: vi.fn(),
-    detachSink: vi.fn(),
-    sweep: vi.fn(),
+    create: vi.fn<TerminalOperations['create']>(() => ({ ok: true, value: 'terminal-1' })),
+    attach: vi.fn<TerminalOperations['attach']>(() => ({ ok: true, value: ATTACHMENT })),
+    detach: vi.fn<TerminalOperations['detach']>(() => ({ ok: true, value: undefined })),
+    write: vi.fn<TerminalOperations['write']>(() => ({ ok: true, value: undefined })),
+    resize: vi.fn<TerminalOperations['resize']>(() => ({ ok: true, value: undefined })),
+    kill: vi.fn<TerminalOperations['kill']>(() => ({ ok: true, value: undefined })),
+    pasteImage: vi.fn<TerminalOperations['pasteImage']>(async () => ({
+      ok: true,
+      value: { result: 'ok' },
+    })),
+    pasteFile: vi.fn<TerminalOperations['pasteFile']>(async () => ({
+      ok: true,
+      value: { result: 'ok' },
+    })),
+    list: vi.fn<TerminalOperations['list']>(() => []),
+    rename: vi.fn<TerminalOperations['rename']>(),
+    detachSink: vi.fn<TerminalOperations['detachSink']>(),
+    sweep: vi.fn<TerminalOperations['sweep']>(),
   }
 }
 

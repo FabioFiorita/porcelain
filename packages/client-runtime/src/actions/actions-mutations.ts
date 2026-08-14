@@ -22,7 +22,7 @@ import {
  * `optimistic` field. Transport and React stay in adapters (ACT-003).
  */
 
-type ActionsMutationProcedureName =
+export type ActionsMutationProcedureName =
   | 'trustActions'
   | 'addAction'
   | 'updateAction'

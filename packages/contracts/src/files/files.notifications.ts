@@ -76,8 +76,19 @@ export const filesChangeSchema = z.discriminatedUnion('kind', [
 ])
 export type FilesChange = z.infer<typeof filesChangeSchema>
 
-/** Representative Files change values used by boundary tests and client mocks. */
-export const filesNotificationFixtures = {
+/**
+ * Representative Files change values used by boundary tests and client mocks.
+ *
+ * Typed per member rather than left to `as const`. A frozen literal is never checked against the
+ * schema it claims to represent, and its `readonly` arrays are not assignable to the contract
+ * type — so every consumer had to widen, and a fixture could drift from `filesChangeSchema`
+ * without anything failing.
+ */
+export const filesNotificationFixtures: {
+  'files.scope-changed': FilesScopeChanged
+  'files.tree-changed': FilesTreeChanged
+  'files.content-changed': FilesContentChanged
+} = {
   'files.scope-changed': {
     kind: 'files.scope-changed',
     projectPath: '/synthetic/repo',
@@ -92,4 +103,4 @@ export const filesNotificationFixtures = {
     projectPath: '/synthetic/repo',
     paths: ['src/open-document.ts'],
   },
-} as const
+}

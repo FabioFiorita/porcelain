@@ -31,6 +31,17 @@ beforeEach(() => {
   useProjectSelectionStore.setState({ project: { path: REPO, name: 'repo' }, showHidden: false })
 })
 
+/**
+ * Index the declared affected-queries list, failing loudly when it is shorter than the test
+ * assumes. `affectedQueries(...)[0]` is `T | undefined`, and silently seeding cache data under
+ * an `undefined` identity would make the invalidation assertions below meaningless.
+ */
+function affected<T>(queries: readonly T[], index: number): T {
+  const query = queries[index]
+  if (query === undefined) throw new Error(`expected an affected query at index ${index}`)
+  return query
+}
+
 function seedIdentities(
   queryClient: ReturnType<typeof useQueryClient>,
   daemon: { host: string | null; version: string | null },
@@ -45,27 +56,33 @@ function seedIdentities(
   const layersInput = fixtures.setRepoLayers.input
   const notes = projectDataQueryKey(
     daemon,
-    projectDataMutations.setRepoNotes.affectedQueries(notesInput)[0],
+    affected(projectDataMutations.setRepoNotes.affectedQueries(notesInput), 0),
   )
   const layers = projectDataQueryKey(
     daemon,
-    projectDataMutations.setRepoLayers.affectedQueries(layersInput)[0],
+    affected(projectDataMutations.setRepoLayers.affectedQueries(layersInput), 0),
   )
   const visibility = projectDataQueryKey(
     daemon,
-    projectDataMutations.setCompanionGitVisibility.affectedQueries(
-      fixtures.setCompanionGitVisibility.input,
-    )[0],
+    affected(
+      projectDataMutations.setCompanionGitVisibility.affectedQueries(
+        fixtures.setCompanionGitVisibility.input,
+      ),
+      0,
+    ),
   )
   const dispositions = projectDataQueryKey(
     daemon,
-    projectDataMutations.setCompanionGitVisibility.affectedQueries(
-      fixtures.setCompanionGitVisibility.input,
-    )[1],
+    affected(
+      projectDataMutations.setCompanionGitVisibility.affectedQueries(
+        fixtures.setCompanionGitVisibility.input,
+      ),
+      1,
+    ),
   )
   const otherNotes = projectDataQueryKey(
     daemon,
-    projectDataMutations.setRepoNotes.affectedQueries({ repoPath: OTHER, notes: 'x' })[0],
+    affected(projectDataMutations.setRepoNotes.affectedQueries({ repoPath: OTHER, notes: 'x' }), 0),
   )
   queryClient.setQueryData(notes, 'old')
   queryClient.setQueryData(layers, { layers: [], custom: false })

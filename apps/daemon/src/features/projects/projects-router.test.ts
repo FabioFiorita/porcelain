@@ -11,12 +11,24 @@ const PUBLIC_CONTEXT = { auth: { kind: 'admin' as const }, requestId: REQUEST_ID
 const PROJECT = { path: '/projects/alpha', name: 'alpha' }
 const BROWSE = { path: '/projects', parent: '/', entries: [] }
 
-const operations: ProjectsOperations = {
-  openProject: vi.fn(async () => ({ ok: true as const, value: PROJECT })),
-  listRecentProjects: vi.fn(async () => ({ ok: true as const, value: [PROJECT] })),
-  removeRecentProject: vi.fn(async () => ({ ok: true as const, value: undefined })),
-  browseProjectDirectories: vi.fn(async () => ({ ok: true as const, value: BROWSE })),
-}
+const operations = {
+  openProject: vi.fn<ProjectsOperations['openProject']>(async () => ({
+    ok: true as const,
+    value: PROJECT,
+  })),
+  listRecentProjects: vi.fn<ProjectsOperations['listRecentProjects']>(async () => ({
+    ok: true as const,
+    value: [PROJECT],
+  })),
+  removeRecentProject: vi.fn<ProjectsOperations['removeRecentProject']>(async () => ({
+    ok: true as const,
+    value: undefined,
+  })),
+  browseProjectDirectories: vi.fn<ProjectsOperations['browseProjectDirectories']>(async () => ({
+    ok: true as const,
+    value: BROWSE,
+  })),
+} satisfies ProjectsOperations
 
 const router = createProjectsRouter(operations)
 

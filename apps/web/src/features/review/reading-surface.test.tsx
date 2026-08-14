@@ -125,7 +125,6 @@ const document: ReviewReading = {
     title: 'Loop closed',
     updatedAt: '2026-07-18T00:00:00.000Z',
     checks: [],
-    medium: 'html',
   },
 }
 
@@ -226,7 +225,6 @@ describe('buildRows (evidence checks)', () => {
       title: 'Loop closed',
       updatedAt: '2026-07-18T00:00:00.000Z',
       checks: list,
-      medium: 'html',
     },
   })
 

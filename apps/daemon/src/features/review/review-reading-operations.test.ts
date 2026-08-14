@@ -36,7 +36,6 @@ const SUMMARY: ReviewEvidenceSummary = {
   title: 'Evidence',
   updatedAt: '2026-08-11T00:00:00.000Z',
   checks: [{ label: 'pnpm lint', status: 'pass' }],
-  medium: 'html',
 }
 
 const VIEW: ActiveReview = {

@@ -21,33 +21,51 @@ import type { ProjectsOperations } from '../projects'
 import type { TerminalOperations } from '../terminal'
 import { createRemoteHttp, initConfigDir, type RemoteHttp, type RemoteHttpOptions } from '.'
 
-const terminalOperations: TerminalOperations = {
-  create: vi.fn(() => ({ ok: true, value: 'term-1' })),
-  attach: vi.fn((id) => ({
+// Each mock is typed to the port method it stands in for. Bare `vi.fn(() => ({ ok: true, … }))`
+// infers `{ ok: boolean }`, which collapses the TerminalResult discriminated union — the fake
+// then stays assignable while production narrows away from it, and the tests never notice.
+const terminalOperations = {
+  create: vi.fn<TerminalOperations['create']>(() => ({ ok: true, value: 'term-1' })),
+  attach: vi.fn<TerminalOperations['attach']>((id) => ({
     ok: false,
     error: { code: id === 'ghost' ? 'terminal.not-found' : 'terminal.exited' },
   })),
-  detach: vi.fn(() => ({ ok: true, value: undefined })),
-  write: vi.fn(() => ({ ok: true, value: undefined })),
-  resize: vi.fn(() => ({ ok: true, value: undefined })),
-  kill: vi.fn(() => ({ ok: true, value: undefined })),
-  pasteImage: vi.fn(async () => ({ ok: true, value: { result: 'ok' } })),
-  pasteFile: vi.fn(async () => ({ ok: true, value: { result: 'ok' } })),
-  list: vi.fn(() => []),
-  rename: vi.fn(),
-  detachSink: vi.fn(),
-  sweep: vi.fn(),
-}
+  detach: vi.fn<TerminalOperations['detach']>(() => ({ ok: true, value: undefined })),
+  write: vi.fn<TerminalOperations['write']>(() => ({ ok: true, value: undefined })),
+  resize: vi.fn<TerminalOperations['resize']>(() => ({ ok: true, value: undefined })),
+  kill: vi.fn<TerminalOperations['kill']>(() => ({ ok: true, value: undefined })),
+  pasteImage: vi.fn<TerminalOperations['pasteImage']>(async () => ({
+    ok: true,
+    value: { result: 'ok' },
+  })),
+  pasteFile: vi.fn<TerminalOperations['pasteFile']>(async () => ({
+    ok: true,
+    value: { result: 'ok' },
+  })),
+  list: vi.fn<TerminalOperations['list']>(() => []),
+  rename: vi.fn<TerminalOperations['rename']>(),
+  detachSink: vi.fn<TerminalOperations['detachSink']>(),
+  sweep: vi.fn<TerminalOperations['sweep']>(),
+} satisfies TerminalOperations
 
-const projectsOperations: ProjectsOperations = {
-  openProject: vi.fn(async () => ({ ok: false, error: { code: 'projects.not-found' } })),
-  listRecentProjects: vi.fn(async () => ({ ok: true, value: [] })),
-  removeRecentProject: vi.fn(async () => ({ ok: true, value: undefined })),
-  browseProjectDirectories: vi.fn(async () => ({
+const projectsOperations = {
+  openProject: vi.fn<ProjectsOperations['openProject']>(async () => ({
+    ok: false,
+    error: { code: 'projects.not-found' },
+  })),
+  listRecentProjects: vi.fn<ProjectsOperations['listRecentProjects']>(async () => ({
+    ok: true,
+    value: [],
+  })),
+  removeRecentProject: vi.fn<ProjectsOperations['removeRecentProject']>(async () => ({
+    ok: true,
+    value: undefined,
+  })),
+  browseProjectDirectories: vi.fn<ProjectsOperations['browseProjectDirectories']>(async () => ({
     ok: false,
     error: { code: 'projects.unavailable' },
   })),
-}
+} satisfies ProjectsOperations
 
 const router = createDaemonRouter({
   operations: createDaemonOperations({

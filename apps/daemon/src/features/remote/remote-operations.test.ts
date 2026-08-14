@@ -27,18 +27,21 @@ const IDENTITY: RemoteIdentityValue = { host: 'workstation', platform: 'linux', 
 
 function fakeAccess(overrides: Partial<RemoteAccess> = {}): RemoteAccess {
   return {
-    snapshot: vi.fn(async () => ({ pairings: [], clients: [] })),
-    issuePairingGrant: vi.fn(async (label: string) => ({ ...GRANT, label })),
-    revokePairingGrant: vi.fn(async () => false),
-    revokeAuthorizedClient: vi.fn(async () => false),
+    snapshot: vi.fn<RemoteAccess['snapshot']>(async () => ({ pairings: [], clients: [] })),
+    issuePairingGrant: vi.fn<RemoteAccess['issuePairingGrant']>(async (label: string) => ({
+      ...GRANT,
+      label,
+    })),
+    revokePairingGrant: vi.fn<RemoteAccess['revokePairingGrant']>(async () => false),
+    revokeAuthorizedClient: vi.fn<RemoteAccess['revokeAuthorizedClient']>(async () => false),
     ...overrides,
   }
 }
 
 function fakeSessions(overrides: Partial<RemoteSessions> = {}): RemoteSessions {
   return {
-    clientSessionCount: vi.fn(() => 0),
-    closeClientSessions: vi.fn(),
+    clientSessionCount: vi.fn<RemoteSessions['clientSessionCount']>(() => 0),
+    closeClientSessions: vi.fn<RemoteSessions['closeClientSessions']>(),
     ...overrides,
   }
 }
@@ -46,8 +49,8 @@ function fakeSessions(overrides: Partial<RemoteSessions> = {}): RemoteSessions {
 function fakeConfig(initial: RemoteNetworkFlags = {}): RemoteNetworkConfig {
   let flags: RemoteNetworkFlags = { ...initial }
   return {
-    load: vi.fn(async () => ({ ...flags })),
-    update: vi.fn(async (fn) => {
+    load: vi.fn<RemoteNetworkConfig['load']>(async () => ({ ...flags })),
+    update: vi.fn<RemoteNetworkConfig['update']>(async (fn) => {
       flags = fn(flags)
       return { ...flags }
     }),
@@ -56,16 +59,20 @@ function fakeConfig(initial: RemoteNetworkFlags = {}): RemoteNetworkConfig {
 
 function fakeListeners(overrides: Partial<RemoteListeners> = {}): RemoteListeners {
   return {
-    tailnetUrl: vi.fn(() => 'http://workstation.example:43118'),
-    tailnetBindError: vi.fn(() => null),
-    startTailnetListener: vi.fn(async () => 'http://workstation.example:43118'),
-    stopTailnetListener: vi.fn(async () => undefined),
-    lanUrl: vi.fn(() => 'http://workstation.local:43118'),
-    lanNumericUrl: vi.fn(() => 'http://192.168.1.10:43118'),
-    lanBindError: vi.fn(() => null),
-    startLanListener: vi.fn(async () => 'http://workstation.local:43118'),
-    stopLanListener: vi.fn(async () => undefined),
-    ifaceListenerPort: vi.fn(() => 43118),
+    tailnetUrl: vi.fn<RemoteListeners['tailnetUrl']>(() => 'http://workstation.example:43118'),
+    tailnetBindError: vi.fn<RemoteListeners['tailnetBindError']>(() => null),
+    startTailnetListener: vi.fn<RemoteListeners['startTailnetListener']>(
+      async () => 'http://workstation.example:43118',
+    ),
+    stopTailnetListener: vi.fn<RemoteListeners['stopTailnetListener']>(async () => undefined),
+    lanUrl: vi.fn<RemoteListeners['lanUrl']>(() => 'http://workstation.local:43118'),
+    lanNumericUrl: vi.fn<RemoteListeners['lanNumericUrl']>(() => 'http://192.168.1.10:43118'),
+    lanBindError: vi.fn<RemoteListeners['lanBindError']>(() => null),
+    startLanListener: vi.fn<RemoteListeners['startLanListener']>(
+      async () => 'http://workstation.local:43118',
+    ),
+    stopLanListener: vi.fn<RemoteListeners['stopLanListener']>(async () => undefined),
+    ifaceListenerPort: vi.fn<RemoteListeners['ifaceListenerPort']>(() => 43118),
     ...overrides,
   }
 }
@@ -86,18 +93,18 @@ const FUNNEL_ON: RemoteFunnelState = {
 
 function fakeFunnel(overrides: Partial<RemoteFunnel> = {}): RemoteFunnel {
   return {
-    status: vi.fn(async () => FUNNEL_OFF),
-    start: vi.fn(async () => FUNNEL_ON),
-    stop: vi.fn(async () => FUNNEL_OFF),
+    status: vi.fn<RemoteFunnel['status']>(async () => FUNNEL_OFF),
+    start: vi.fn<RemoteFunnel['start']>(async () => FUNNEL_ON),
+    stop: vi.fn<RemoteFunnel['stop']>(async () => FUNNEL_OFF),
     ...overrides,
   }
 }
 
 function fakeEnv(overrides: Partial<RemoteNetworkEnv> = {}): RemoteNetworkEnv {
   return {
-    tailnetBindForced: vi.fn(() => false),
-    lanBindForced: vi.fn(() => false),
-    funnelBindForced: vi.fn(() => false),
+    tailnetBindForced: vi.fn<RemoteNetworkEnv['tailnetBindForced']>(() => false),
+    lanBindForced: vi.fn<RemoteNetworkEnv['lanBindForced']>(() => false),
+    funnelBindForced: vi.fn<RemoteNetworkEnv['funnelBindForced']>(() => false),
     ...overrides,
   }
 }

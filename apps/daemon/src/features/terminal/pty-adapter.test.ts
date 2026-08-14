@@ -19,9 +19,9 @@ function fakePty(): FakePty {
   let dataListener: ((data: string) => void) | undefined
   let exitListener: ((event: { exitCode: number }) => void) | undefined
   return {
-    write: vi.fn(),
-    resize: vi.fn(),
-    kill: vi.fn(),
+    write: vi.fn<FakePty['write']>(),
+    resize: vi.fn<FakePty['resize']>(),
+    kill: vi.fn<FakePty['kill']>(),
     onData: (listener) => {
       dataListener = listener
     },

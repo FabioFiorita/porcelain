@@ -5,8 +5,13 @@ import {
   actionsContractFixtures,
   actionsProcedures,
 } from '@porcelain/contracts/actions'
+import { mutableFixture } from '@porcelain/contracts/testing'
 import { describe, expect, it } from 'vitest'
-import { actionsMutations } from './actions-mutations'
+import {
+  type ActionsMutationDefinition,
+  type ActionsMutationProcedureName,
+  actionsMutations,
+} from './actions-mutations'
 import { actionsQuery, actionTrustQuery } from './actions-queries'
 
 const fixtures = actionsContractFixtures
@@ -37,25 +42,38 @@ describe('actionsMutations', () => {
   })
 
   it('affects list then trust for the input repoPath only', () => {
-    const cases = [
-      { definition: actionsMutations.trust, input: fixtures.trustActions.input },
-      { definition: actionsMutations.add, input: fixtures.addAction.input },
-      { definition: actionsMutations.update, input: fixtures.updateAction.input },
-      { definition: actionsMutations.move, input: fixtures.moveAction.input },
-      { definition: actionsMutations.delete, input: fixtures.deleteAction.input },
-    ] as const
+    // Resolved where the pairing still holds. Carrying `{ definition, input }` through an array
+    // loses it: TypeScript unions the two fields independently, so `definition.affectedQueries`
+    // ends up demanding the intersection of every input shape and no fixture satisfies it.
+    const bind = <Name extends ActionsMutationProcedureName, Input extends { repoPath: string }>(
+      definition: ActionsMutationDefinition<Name, Input>,
+      input: Input,
+    ) => ({
+      affected: definition.affectedQueries(input),
+      repoPath: input.repoPath,
+      requiresAuthoritativeRefetch: definition.requiresAuthoritativeRefetch,
+      declaresOptimistic: Object.hasOwn(definition, 'optimistic'),
+      declaresOptimisticTransition: Object.hasOwn(definition, 'optimisticTransition'),
+    })
 
-    for (const { definition, input } of cases) {
-      const affected = definition.affectedQueries(input)
-      const key = input.repoPath
-      expect(affected).toEqual([actionsQuery(key), actionTrustQuery(key)])
-      expect(affected).toHaveLength(2)
-      expect(affected[0].name).toBe('list')
-      expect(affected[1].name).toBe('trust')
-      expect(affected).not.toEqual([actionsQuery(OTHER_PATH), actionTrustQuery(OTHER_PATH)])
-      expect(definition.requiresAuthoritativeRefetch).toBe(true)
-      expect(Object.hasOwn(definition, 'optimistic')).toBe(false)
-      expect(Object.hasOwn(definition, 'optimisticTransition')).toBe(false)
+    const cases = [
+      bind(actionsMutations.trust, mutableFixture(fixtures.trustActions.input)),
+      bind(actionsMutations.add, mutableFixture(fixtures.addAction.input)),
+      bind(actionsMutations.update, mutableFixture(fixtures.updateAction.input)),
+      bind(actionsMutations.move, mutableFixture(fixtures.moveAction.input)),
+      bind(actionsMutations.delete, mutableFixture(fixtures.deleteAction.input)),
+    ]
+
+    for (const bound of cases) {
+      const key = bound.repoPath
+      expect(bound.affected).toEqual([actionsQuery(key), actionTrustQuery(key)])
+      expect(bound.affected).toHaveLength(2)
+      expect(bound.affected[0].name).toBe('list')
+      expect(bound.affected[1].name).toBe('trust')
+      expect(bound.affected).not.toEqual([actionsQuery(OTHER_PATH), actionTrustQuery(OTHER_PATH)])
+      expect(bound.requiresAuthoritativeRefetch).toBe(true)
+      expect(bound.declaresOptimistic).toBe(false)
+      expect(bound.declaresOptimisticTransition).toBe(false)
     }
   })
 

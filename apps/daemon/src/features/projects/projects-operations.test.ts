@@ -10,25 +10,39 @@ const BROWSE: BrowseDirsOutput = { path: '/projects', parent: '/', entries: [] }
 
 function harness() {
   const events: string[] = []
-  const projects: ProjectsPort = {
-    inspectProject: vi.fn(async (path: string) => ({
+  const projects = {
+    inspectProject: vi.fn<ProjectsPort['inspectProject']>(async (path: string) => ({
       ok: true as const,
       value: { path, name: path.split('/').at(-1) ?? '' },
     })),
-    browseDirectories: vi.fn(async () => ({ ok: true as const, value: BROWSE })),
-  }
-  const recents: ProjectsRecentsStore = {
-    readPaths: vi.fn(async () => ({ ok: true as const, value: ['/projects/alpha'] })),
-    addPath: vi.fn(async () => ({ ok: true as const, value: undefined })),
-    removePath: vi.fn(async () => ({ ok: true as const, value: undefined })),
-  }
-  const worktree: ProjectsWorktree = {
-    isLinkedWorktree: vi.fn(async () => false),
-  }
-  const effects: ProjectsEffects = {
-    watchProjectCompanion: vi.fn(() => events.push('watch')),
-    warmFileList: vi.fn(() => events.push('warm')),
-  }
+    browseDirectories: vi.fn<ProjectsPort['browseDirectories']>(async () => ({
+      ok: true as const,
+      value: BROWSE,
+    })),
+  } satisfies ProjectsPort
+  const recents = {
+    readPaths: vi.fn<ProjectsRecentsStore['readPaths']>(async () => ({
+      ok: true as const,
+      value: ['/projects/alpha'],
+    })),
+    addPath: vi.fn<ProjectsRecentsStore['addPath']>(async () => ({
+      ok: true as const,
+      value: undefined,
+    })),
+    removePath: vi.fn<ProjectsRecentsStore['removePath']>(async () => ({
+      ok: true as const,
+      value: undefined,
+    })),
+  } satisfies ProjectsRecentsStore
+  const worktree = {
+    isLinkedWorktree: vi.fn<ProjectsWorktree['isLinkedWorktree']>(async () => false),
+  } satisfies ProjectsWorktree
+  const effects = {
+    watchProjectCompanion: vi.fn<ProjectsEffects['watchProjectCompanion']>(() =>
+      events.push('watch'),
+    ),
+    warmFileList: vi.fn<ProjectsEffects['warmFileList']>(() => events.push('warm')),
+  } satisfies ProjectsEffects
   return {
     events,
     projects,

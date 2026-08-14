@@ -1,29 +1,42 @@
 // @vitest-environment node
-import type { WatchListener } from 'node:fs'
 import type { SessionChange } from '@porcelain/contracts/session'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createSessionFilesWatches, FILES_TREE_DEBOUNCE_MS, isGitChurn } from './files-watches'
+import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
+import {
+  createSessionFilesWatches,
+  FILES_TREE_DEBOUNCE_MS,
+  type FilesWatchHost,
+  isGitChurn,
+} from './files-watches'
+
+/** The listener shape the host actually hands a watcher. */
+type HostWatchListener = Parameters<FilesWatchHost['watch']>[1]
 
 const PROJECT = '/synthetic/repo'
 
+// `ReturnType<typeof vi.fn>` is `Mock<Procedure | Constructable>`, which is not callable as
+// `() => void` — the fake could never satisfy FilesWatchHost. Real signatures inside Mock keep
+// the call assertions and make the fake assignable to the port it stands in for.
 type FakeWatcher = {
-  close: ReturnType<typeof vi.fn>
-  on: ReturnType<typeof vi.fn>
+  close: Mock<() => void>
+  on: Mock<(event: string, handler: () => void) => FakeWatcher>
   emitError: () => void
 }
 
 function createHarness() {
   const published: SessionChange[] = []
   const watchers = new Map<string, FakeWatcher>()
-  const listeners = new Map<string, WatchListener<string>>()
-  const watch = vi.fn((dir: string, listener: WatchListener<string>) => {
+  // Typed to the port, not to node:fs. `WatchListener<string>` narrows `event` to
+  // 'rename' | 'change', so the fake was not assignable to a host that passes `string` — and
+  // the mismatch was invisible while test files went untypechecked.
+  const listeners = new Map<string, HostWatchListener>()
+  const watch = vi.fn<FilesWatchHost['watch']>((dir, listener) => {
     let errorHandler: (() => void) | undefined
     const fake: FakeWatcher = {
       close: vi.fn(() => {
         watchers.delete(dir)
         listeners.delete(dir)
       }),
-      on: vi.fn((event: string, handler: () => void) => {
+      on: vi.fn((event: string, handler: () => void): FakeWatcher => {
         if (event === 'error') errorHandler = handler
         return fake
       }),

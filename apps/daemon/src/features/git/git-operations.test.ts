@@ -36,10 +36,13 @@ const WORKTREE_INPUT: GitAddWorktreeInput = {
 }
 const REPO = '/synthetic/repo'
 
+// Each mock carries the port method's own type. Bare `vi.fn(async () => ({ ok: true, … }))`
+// infers `{ ok: boolean }`, collapsing the Git*Result discriminated unions — the fake stays
+// assignable while production narrows away from it, and no test notices.
 function workspace(overrides: Partial<GitWorkspacePort> = {}): GitWorkspacePort {
   return {
-    checkout: vi.fn(async () => ({ ok: true, value: undefined })),
-    addWorktree: vi.fn(async () => ({
+    checkout: vi.fn<GitWorkspacePort['checkout']>(async () => ({ ok: true, value: undefined })),
+    addWorktree: vi.fn<GitWorkspacePort['addWorktree']>(async () => ({
       ok: true,
       value: { path: '/synthetic/repo-worktrees/feature-x', branch: 'feature/x' },
     })),
@@ -49,39 +52,45 @@ function workspace(overrides: Partial<GitWorkspacePort> = {}): GitWorkspacePort 
 
 function projectGit(overrides: Partial<ProjectGit> = {}): ProjectGit {
   return {
-    quickCommand: vi.fn(async () => 'On branch main'),
-    push: vi.fn(async () => 'Everything up-to-date'),
-    stageAll: vi.fn(async () => undefined),
-    unstageAll: vi.fn(async () => undefined),
-    stageFile: vi.fn(async () => undefined),
-    unstageFile: vi.fn(async () => undefined),
-    fileInHead: vi.fn(async () => true),
-    restoreFromHead: vi.fn(async () => undefined),
-    resetPath: vi.fn(async () => undefined),
-    commit: vi.fn(async () => undefined),
-    commitFiles: vi.fn(async () => [{ path: 'src/alpha.ts', status: 'modified' }]),
-    status: vi.fn(
+    quickCommand: vi.fn<ProjectGit['quickCommand']>(async () => 'On branch main'),
+    push: vi.fn<ProjectGit['push']>(async () => 'Everything up-to-date'),
+    stageAll: vi.fn<ProjectGit['stageAll']>(async () => undefined),
+    unstageAll: vi.fn<ProjectGit['unstageAll']>(async () => undefined),
+    stageFile: vi.fn<ProjectGit['stageFile']>(async () => undefined),
+    unstageFile: vi.fn<ProjectGit['unstageFile']>(async () => undefined),
+    fileInHead: vi.fn<ProjectGit['fileInHead']>(async () => true),
+    restoreFromHead: vi.fn<ProjectGit['restoreFromHead']>(async () => undefined),
+    resetPath: vi.fn<ProjectGit['resetPath']>(async () => undefined),
+    commit: vi.fn<ProjectGit['commit']>(async () => undefined),
+    commitFiles: vi.fn<ProjectGit['commitFiles']>(async () => [
+      { path: 'src/alpha.ts', status: 'modified' },
+    ]),
+    status: vi.fn<ProjectGit['status']>(
       async (): Promise<GitProjectResult<ChangedFile[]>> => ({
         ok: true,
         value: [],
       }),
     ),
-    suggestions: vi.fn(async (): Promise<GitSuggestion[]> => []),
-    head: vi.fn(async (): Promise<GitHead> => ({ branch: 'main', detachedSha: null })),
-    branches: vi.fn(
+    suggestions: vi.fn<ProjectGit['suggestions']>(async (): Promise<GitSuggestion[]> => []),
+    head: vi.fn<ProjectGit['head']>(
+      async (): Promise<GitHead> => ({ branch: 'main', detachedSha: null }),
+    ),
+    branches: vi.fn<ProjectGit['branches']>(
       async (): Promise<GitProjectResult<BranchRef[]>> => ({
         ok: true,
         value: [],
       }),
     ),
-    createBranch: vi.fn(async () => undefined),
-    worktrees: vi.fn(
+    createBranch: vi.fn<ProjectGit['createBranch']>(async () => undefined),
+    worktrees: vi.fn<ProjectGit['worktrees']>(
       async (): Promise<GitProjectResult<Worktree[]>> => ({
         ok: true,
         value: [],
       }),
     ),
-    log: vi.fn(async (): Promise<import('@porcelain/contracts/git').Commit[]> => []),
+    log: vi.fn<ProjectGit['log']>(
+      async (): Promise<import('@porcelain/contracts/git').Commit[]> => [],
+    ),
     ...overrides,
   }
 }
@@ -103,13 +112,18 @@ const SAMPLE_HUNK: DiffHunk = {
 
 function diffReadingSources(overrides: Partial<GitDiffReadingSources> = {}): GitDiffReadingSources {
   return {
-    loadWorkingFlow: vi.fn(async () => FLOW_GROUPS),
-    loadRangeFlow: vi.fn(async () => ({ groups: FLOW_GROUPS, base: 'main' })),
-    loadCommitFlow: vi.fn(async () => FLOW_GROUPS),
-    workingHunks: vi.fn(async () => [SAMPLE_HUNK]),
-    rangeHunks: vi.fn(async () => [SAMPLE_HUNK]),
-    commitHunks: vi.fn(async () => [SAMPLE_HUNK]),
-    commitMessage: vi.fn(async () => 'feat(git): land\n\nbody'),
+    loadWorkingFlow: vi.fn<GitDiffReadingSources['loadWorkingFlow']>(async () => FLOW_GROUPS),
+    loadRangeFlow: vi.fn<GitDiffReadingSources['loadRangeFlow']>(async () => ({
+      groups: FLOW_GROUPS,
+      base: 'main',
+    })),
+    loadCommitFlow: vi.fn<GitDiffReadingSources['loadCommitFlow']>(async () => FLOW_GROUPS),
+    workingHunks: vi.fn<GitDiffReadingSources['workingHunks']>(async () => [SAMPLE_HUNK]),
+    rangeHunks: vi.fn<GitDiffReadingSources['rangeHunks']>(async () => [SAMPLE_HUNK]),
+    commitHunks: vi.fn<GitDiffReadingSources['commitHunks']>(async () => [SAMPLE_HUNK]),
+    commitMessage: vi.fn<GitDiffReadingSources['commitMessage']>(
+      async () => 'feat(git): land\n\nbody',
+    ),
     ...overrides,
   }
 }
@@ -134,7 +148,9 @@ function dependencies(
       ({
         generateMessage: vi.fn(async (_input: GitGenerateCommitMessageInput) => 'generated'),
         generateGroups: vi.fn(async (): Promise<GitGenerateCommitGroupsOutput['groups']> => []),
-        listModels: vi.fn(async () => [{ id: 'luna', label: 'Luna', provider: 'claude' }]),
+        listModels: vi.fn<CommitGeneration['listModels']>(async () => [
+          { id: 'luna', label: 'Luna', provider: 'claude' },
+        ]),
       } satisfies CommitGeneration),
     workspaceTrash:
       overrides.workspaceTrash ??
@@ -188,8 +204,8 @@ describe('Git operations', () => {
 
     for (const error of errors) {
       const port = workspace({
-        checkout: vi.fn(async () => ({ ok: false, error })),
-        addWorktree: vi.fn(async () => ({ ok: false, error })),
+        checkout: vi.fn<GitWorkspacePort['checkout']>(async () => ({ ok: false, error })),
+        addWorktree: vi.fn<GitWorkspacePort['addWorktree']>(async () => ({ ok: false, error })),
       })
       const operations = createGitOperations(dependencies({ workspace: port }))
 
@@ -268,10 +284,12 @@ describe('Git operations', () => {
   it('commits, clears cache, clears reviewed marks, then publishes', async () => {
     const events: string[] = []
     const git = projectGit({
-      commit: async () => events.push('commit'),
+      commit: async () => {
+        events.push('commit')
+      },
       commitFiles: async () => {
         events.push('files')
-        return [{ path: 'src/a.ts', status: 'modified' }]
+        return [{ path: 'src/a.ts', status: 'modified' as const }]
       },
     })
     const cache = { clear: vi.fn(() => events.push('cache')) }

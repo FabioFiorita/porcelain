@@ -32,12 +32,19 @@ function tokenize(text: string): Token[] {
 function lcsTable(before: Token[], after: Token[]): Int32Array {
   const width = after.length + 1
   const table = new Int32Array((before.length + 1) * width)
+  // The `?? 0` and the `continue` guards are type-level only: every index below is inside the
+  // (before.length + 1) * width table by construction. This file sat outside every tsconfig, so
+  // `noUncheckedIndexedAccess` never saw it.
   for (let row = before.length - 1; row >= 0; row -= 1) {
+    const beforeToken = before[row]
+    if (beforeToken === undefined) continue
     for (let column = after.length - 1; column >= 0; column -= 1) {
+      const afterToken = after[column]
+      if (afterToken === undefined) continue
       table[row * width + column] =
-        before[row].text === after[column].text
-          ? table[(row + 1) * width + column + 1] + 1
-          : Math.max(table[(row + 1) * width + column], table[row * width + column + 1])
+        beforeToken.text === afterToken.text
+          ? (table[(row + 1) * width + column + 1] ?? 0) + 1
+          : Math.max(table[(row + 1) * width + column] ?? 0, table[row * width + column + 1] ?? 0)
     }
   }
   return table
@@ -89,12 +96,15 @@ export function wordDiff(before: string, after: string): WordDiff {
   let row = 0
   let column = 0
   while (row < beforeTokens.length && column < afterTokens.length) {
-    if (beforeTokens[row].text === afterTokens[column].text) {
+    const beforeToken = beforeTokens[row]
+    const afterToken = afterTokens[column]
+    if (beforeToken === undefined || afterToken === undefined) break
+    if (beforeToken.text === afterToken.text) {
       beforeChanged[row] = false
       afterChanged[column] = false
       row += 1
       column += 1
-    } else if (table[(row + 1) * width + column] >= table[row * width + column + 1]) {
+    } else if ((table[(row + 1) * width + column] ?? 0) >= (table[row * width + column + 1] ?? 0)) {
       row += 1
     } else {
       column += 1

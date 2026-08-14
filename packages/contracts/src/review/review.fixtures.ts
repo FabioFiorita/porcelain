@@ -106,6 +106,11 @@ const reviewComment = {
 } as const
 
 /** Representative Review wire values used by boundary tests and client mocks. */
+/**
+ * Fixtures used as procedure INPUTS as well as outputs. `as const` froze every array to a
+ * readonly tuple, so a test handing one to the procedure it describes was a type error — the
+ * fixture could not be used for the thing it exists for. Left inferred and mutable.
+ */
 export const reviewContractFixtures = {
   reviewInbox: {
     input: '/synthetic/repo',
@@ -209,4 +214,4 @@ export const reviewContractFixtures = {
     },
     output: reviewReading,
   },
-} as const
+}

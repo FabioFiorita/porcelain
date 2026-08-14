@@ -1,5 +1,9 @@
 import { PROTOCOL_VERSION } from '@porcelain/contracts'
-import { terminalStreamFixtures } from '@porcelain/contracts/terminal'
+import {
+  type TerminalClientFrame,
+  terminalClientFrameSchema,
+  terminalStreamFixtures,
+} from '@porcelain/contracts/terminal'
 import { createDaemonSession } from '@renderer/lib/daemon'
 import type { SessionSocket, SessionSocketHandlers } from '@renderer/lib/session-browser-adapter'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -76,8 +80,20 @@ function harness(options: BrowserTerminalAdapterOptions = {}): Harness {
   return { adapter, sockets, retries, socket, connect, deliver }
 }
 
-function sentFrames(socket: FakeSocket): Array<{ t: string; [key: string]: unknown }> {
-  return socket.sent.map((payload) => JSON.parse(payload) as { t: string; [key: string]: unknown })
+/**
+ * Parse what the adapter put on the wire as the contract's own client-frame union.
+ *
+ * This used to return `{ t: string; [key: string]: unknown }`, so narrowing on `t` gave back a
+ * bag of `unknown` and every field read was untyped — the test could assert `reqId` on a frame
+ * that has none. Validating against the schema also makes a frame that drifts from the contract
+ * fail here rather than at runtime.
+ */
+function sentFrames(socket: FakeSocket): TerminalClientFrame[] {
+  // The socket also carries session frames; keep only what the terminal contract recognises.
+  return socket.sent
+    .map((payload) => terminalClientFrameSchema.safeParse(JSON.parse(payload)))
+    .filter((parsed) => parsed.success)
+    .map((parsed) => parsed.data)
 }
 
 function attachReply(reqId: string, id = 'term-1', sequence = 0): object {

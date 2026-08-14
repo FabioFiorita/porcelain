@@ -52,30 +52,41 @@ const COMMIT_MODELS = [{ id: 'luna', label: 'Luna', provider: 'claude' as const 
 
 function operations(overrides: Partial<GitOperations> = {}): GitOperations {
   return {
-    checkoutGit: vi.fn(async () => ({ ok: true, value: undefined })),
-    addGitWorktree: vi.fn(async () => ({
+    checkoutGit: vi.fn<GitOperations['checkoutGit']>(async () => ({ ok: true, value: undefined })),
+    addGitWorktree: vi.fn<GitOperations['addGitWorktree']>(async () => ({
       ok: true,
       value: { path: '/synthetic/repo-worktrees/feature-x', branch: 'feature/x' },
     })),
-    quickCommandGit: vi.fn(async () => 'On branch main'),
-    pushGit: vi.fn(async () => 'Everything up-to-date'),
-    stageAllGit: vi.fn(async () => undefined),
-    unstageAllGit: vi.fn(async () => undefined),
-    stageFileGit: vi.fn(async () => undefined),
-    unstageFileGit: vi.fn(async () => undefined),
-    discardFileGit: vi.fn(async () => undefined),
-    commitGit: vi.fn(async () => undefined),
-    generateCommitMessageGit: vi.fn(async () => 'generated'),
-    generateCommitGroupsGit: vi.fn(async () => []),
-    commitConventionsGit: vi.fn(async () => ({ types: ['feat'], scopes: ['git'] })),
-    statusGit: vi.fn(async (): Promise<GitProjectResult<never[]>> => ({ ok: true, value: [] })),
-    suggestionsGit: vi.fn(async () => []),
-    headGit: vi.fn(async () => ({ branch: 'main', detachedSha: null })),
-    branchesGit: vi.fn(async (): Promise<GitProjectResult<never[]>> => ({ ok: true, value: [] })),
-    createBranchGit: vi.fn(async () => undefined),
-    worktreesGit: vi.fn(async (): Promise<GitProjectResult<never[]>> => ({ ok: true, value: [] })),
-    commitModelsGit: vi.fn(async () => COMMIT_MODELS),
-    diffReadingGit: vi.fn(async () => DIFF_READING),
+    quickCommandGit: vi.fn<GitOperations['quickCommandGit']>(async () => 'On branch main'),
+    pushGit: vi.fn<GitOperations['pushGit']>(async () => 'Everything up-to-date'),
+    stageAllGit: vi.fn<GitOperations['stageAllGit']>(async () => undefined),
+    unstageAllGit: vi.fn<GitOperations['unstageAllGit']>(async () => undefined),
+    stageFileGit: vi.fn<GitOperations['stageFileGit']>(async () => undefined),
+    unstageFileGit: vi.fn<GitOperations['unstageFileGit']>(async () => undefined),
+    discardFileGit: vi.fn<GitOperations['discardFileGit']>(async () => undefined),
+    commitGit: vi.fn<GitOperations['commitGit']>(async () => undefined),
+    generateCommitMessageGit: vi.fn<GitOperations['generateCommitMessageGit']>(
+      async () => 'generated',
+    ),
+    generateCommitGroupsGit: vi.fn<GitOperations['generateCommitGroupsGit']>(async () => []),
+    commitConventionsGit: vi.fn<GitOperations['commitConventionsGit']>(async () => ({
+      types: ['feat'],
+      scopes: ['git'],
+    })),
+    statusGit: vi.fn<GitOperations['statusGit']>(
+      async (): Promise<GitProjectResult<never[]>> => ({ ok: true, value: [] }),
+    ),
+    suggestionsGit: vi.fn<GitOperations['suggestionsGit']>(async () => []),
+    headGit: vi.fn<GitOperations['headGit']>(async () => ({ branch: 'main', detachedSha: null })),
+    branchesGit: vi.fn<GitOperations['branchesGit']>(
+      async (): Promise<GitProjectResult<never[]>> => ({ ok: true, value: [] }),
+    ),
+    createBranchGit: vi.fn<GitOperations['createBranchGit']>(async () => undefined),
+    worktreesGit: vi.fn<GitOperations['worktreesGit']>(
+      async (): Promise<GitProjectResult<never[]>> => ({ ok: true, value: [] }),
+    ),
+    commitModelsGit: vi.fn<GitOperations['commitModelsGit']>(async () => COMMIT_MODELS),
+    diffReadingGit: vi.fn<GitOperations['diffReadingGit']>(async () => DIFF_READING),
     ...overrides,
   }
 }
