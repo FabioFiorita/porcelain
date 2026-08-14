@@ -66,6 +66,7 @@ describe('CommitGroup', () => {
     vi.mocked(useFileStaging).mockReturnValue({
       stageFile: async () => {},
       unstageFile: async () => {},
+      isStaging: false,
     })
     vi.mocked(useStageAll).mockReturnValue({
       stageAll: async () => {},

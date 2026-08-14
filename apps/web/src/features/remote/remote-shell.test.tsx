@@ -4,6 +4,7 @@ import { shellTrpc } from '@renderer/lib/trpc'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import type { Operation, OperationResultObservable, TRPCLink } from '@trpc/client'
+import { TRPCClientError } from '@trpc/client'
 import { observable } from '@trpc/server/observable'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -32,8 +33,12 @@ function stubLink(handle: ShellHandle): TRPCLink<ShellRouter> {
             observer.next({ result: { data } })
             observer.complete()
           },
-          (error: Error) => {
-            observer.error(error)
+          (error: unknown) => {
+            observer.error(
+              error instanceof TRPCClientError
+                ? error
+                : new TRPCClientError(error instanceof Error ? error.message : String(error)),
+            )
           },
         )
       })

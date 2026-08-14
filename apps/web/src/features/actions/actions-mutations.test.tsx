@@ -102,10 +102,11 @@ describe('useActionMutations', () => {
     expect(result.current.queryClient.getQueryState(projectKey)?.isInvalidated).toBe(true)
     expect(result.current.queryClient.getQueryState(otherKey)?.isInvalidated).toBeFalsy()
     // Dual identities collapse: one list key, not a trust-only row.
-    expect(actionsMutations.add.affectedQueries({ repoPath: REPO }).map((i) => i.name)).toEqual([
-      'list',
-      'trust',
-    ])
+    expect(
+      actionsMutations.add
+        .affectedQueries({ repoPath: REPO, title: 'Build', command: 'make build' })
+        .map((i) => i.name),
+    ).toEqual(['list', 'trust'])
   })
 
   it('rejects without toasting on mutation failure', async () => {

@@ -1,6 +1,7 @@
 import { projectDataMutations } from '@porcelain/client-runtime/project-data'
 import { projectDataContractFixtures } from '@porcelain/contracts/project-data'
 import { remoteContractFixtures } from '@porcelain/contracts/remote'
+import { mutableFixture } from '@porcelain/contracts/testing'
 import { createValidatingTrpcHarness } from '@renderer/hooks/trpc-test-harness'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
@@ -53,7 +54,7 @@ function seedIdentities(
   otherNotes: readonly unknown[]
 } {
   const notesInput = fixtures.setRepoNotes.input
-  const layersInput = fixtures.setRepoLayers.input
+  const layersInput = mutableFixture(fixtures.setRepoLayers.input)
   const notes = projectDataQueryKey(
     daemon,
     affected(projectDataMutations.setRepoNotes.affectedQueries(notesInput), 0),

@@ -8,7 +8,12 @@ import {
 const fixtures = reviewContractFixtures
 const MARK_INPUT = fixtures.setReviewed.input
 const UNMARK_INPUT = { ...MARK_INPUT, reviewed: false } as const
+// Destructuring gives `string | undefined` under noUncheckedIndexedAccess. Assert the fixture
+// actually carries the two paths every case below assumes, rather than propagating undefined.
 const [FIRST, SECOND] = MARK_INPUT.paths
+if (FIRST === undefined || SECOND === undefined) {
+  throw new Error('expected setReviewed fixture to name two paths')
+}
 const UNRELATED = 'src/unrelated.ts'
 
 describe('applyReviewedMarksTransition', () => {

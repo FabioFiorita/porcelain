@@ -48,7 +48,9 @@ const docFile = F.reviewEvidenceDoc.input.file
 const seed = { kind: 'file' as const, path: 'src/changed.ts' }
 
 /** The nine reads, each with the canonical procedure it must reach exactly once. */
-const reads = [
+// `() => unknown` on the hook slot: renderHook only needs it to run, and without it the table's
+// nine different return types union into a shape no single hook satisfies.
+const reads: readonly [string, string, () => unknown][] = [
   ['useActiveReview', 'activeReview', () => useActiveReview()],
   ['useReviewReading', 'reviewReading', () => useReviewReading()],
   ['useReviewIntent', 'reviewIntent', () => useReviewIntent()],

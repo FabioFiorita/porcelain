@@ -25,19 +25,26 @@ export type FilesForeignDependency =
   | { readonly domain: 'search'; readonly name: 'path-index' }
   | { readonly domain: 'search'; readonly name: 'content-index' }
 
-/** Stable foreign token constants (object identity + structural equality). */
-export const FILES_FOREIGN_WORKING_TREE: FilesForeignDependency = {
+/**
+ * Stable foreign token constants (object identity + structural equality).
+ *
+ * `as const satisfies` rather than a `: FilesForeignDependency` annotation: the annotation
+ * widened each constant to the whole union, so a search-owned token no longer satisfied
+ * `SearchForeignDependency`, which is `Extract<…, { domain: 'search' }>`. Membership is still
+ * checked; the narrowing survives.
+ */
+export const FILES_FOREIGN_WORKING_TREE = {
   domain: 'git',
   name: 'working-tree',
-}
-export const FILES_FOREIGN_PATH_INDEX: FilesForeignDependency = {
+} as const satisfies FilesForeignDependency
+export const FILES_FOREIGN_PATH_INDEX = {
   domain: 'search',
   name: 'path-index',
-}
-export const FILES_FOREIGN_CONTENT_INDEX: FilesForeignDependency = {
+} as const satisfies FilesForeignDependency
+export const FILES_FOREIGN_CONTENT_INDEX = {
   domain: 'search',
   name: 'content-index',
-}
+} as const satisfies FilesForeignDependency
 
 export function filesExactEffect(query: FilesQuery): FilesQueryEffect {
   return { type: 'exact', query }

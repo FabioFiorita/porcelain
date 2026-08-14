@@ -82,12 +82,20 @@ function readingOps(
       calls.push(input)
       return EXPLORATION as never
     },
+    // Was supplied only by `...overrides`, so the base fake was incomplete and every caller
+    // that did not override it handed the router an `undefined` operation.
+    readReviewIntent: async (input) => {
+      calls.push(input)
+      return []
+    },
     listReviewInbox: async (input) => {
       calls.push(input)
       return [INBOX_ROW]
     },
-    ...overrides,
-  }
+    // Spread of a Partial makes every key optional again; `satisfies` on the base keeps the
+    // full shape checked while the result stays assignable to the operations type.
+    ...(overrides as Partial<ReviewReadingOperations>),
+  } satisfies ReviewReadingOperations
 }
 
 describe('review reading router mapping', () => {

@@ -1,11 +1,13 @@
 import type { ActionView } from '@porcelain/contracts/actions'
+import type { spawnLocalTerminal as spawnLocalTerminalModule } from '@renderer/lib/terminal-actions'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const create = vi.fn(async () => 'term-1')
 const openTab = vi.fn()
-const spawnLocalTerminal = vi.fn(async () => {})
+
+const spawnLocalTerminal = vi.fn<typeof spawnLocalTerminalModule>(async () => {})
 
 vi.mock('@renderer/stores/terminals', () => ({
   useTerminalsStore: {
@@ -21,7 +23,10 @@ vi.mock('@renderer/stores/tabs', () => ({
 }))
 
 vi.mock('@renderer/lib/terminal-actions', () => ({
-  spawnLocalTerminal: (...args: unknown[]) => spawnLocalTerminal(...args),
+  // Typed forwarder: `(...args: unknown[])` cannot spread into a typed parameter list, and
+  // an untyped mock would not notice the real signature changing under it.
+  spawnLocalTerminal: (...args: Parameters<typeof spawnLocalTerminalModule>) =>
+    spawnLocalTerminal(...args),
 }))
 
 import { useActionRun } from './action-run'

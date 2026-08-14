@@ -115,8 +115,10 @@ describe('LCH-001 clean-v1 launch fixture', () => {
         received: PROTOCOL_VERSION + 1,
       },
     })
-    expect(sessionMismatchFrameSchema.parse(mismatched.frame)).toEqual(mismatched.frame)
-    expect(mismatched.frame.t).not.toBe('session:ready')
-    expect(mismatched.frame.code).toBe('protocol.update-required')
+    // Narrow through the schema rather than reading `code` off the ready|mismatch union.
+    const mismatchFrame = sessionMismatchFrameSchema.parse(mismatched.frame)
+    expect(mismatchFrame).toEqual(mismatched.frame)
+    expect(mismatchFrame.t).not.toBe('session:ready')
+    expect(mismatchFrame.code).toBe('protocol.update-required')
   })
 })

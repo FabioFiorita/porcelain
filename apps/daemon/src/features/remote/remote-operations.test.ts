@@ -265,7 +265,7 @@ describe('Remote operations', () => {
         tailnetBindError: vi.fn(() => null),
         lanUrl: vi.fn(() => null),
         lanNumericUrl: vi.fn(() => null),
-        lanBindError: vi.fn(() => 'in-use'),
+        lanBindError: vi.fn(() => 'in-use' as const),
       },
       env: { lanBindForced: vi.fn(() => true) },
     })

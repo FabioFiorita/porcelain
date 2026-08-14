@@ -4,6 +4,7 @@ import {
   sessionWatchesFixtures,
   sessionWatchesFrameSchema,
 } from '@porcelain/contracts/session'
+import { mutableFixture } from '@porcelain/contracts/testing'
 import { describe, expect, it, vi } from 'vitest'
 import { createSessionWatchInterests, resolveSessionWatchInterests } from './session-watches'
 
@@ -39,7 +40,7 @@ function watchSinkSpy() {
 
 describe('Session watch interests', () => {
   it('accepts the contract fixture as-is', () => {
-    const interests = resolved(sessionWatchesFixtures.watches)
+    const interests = resolved(mutableFixture(sessionWatchesFixtures.watches))
 
     expect(interests.files).toEqual(['/synthetic/repo/src/open-document.ts'])
     expect(interests.dirs).toEqual(['/synthetic/repo/src'])

@@ -32,8 +32,13 @@ function memoryStore(initial: ReviewedMark[] = []): ReviewMarksStore & { marks: 
 function fixedGit(fingerprints: Record<string, string>): ReviewMarksGit {
   return {
     fingerprints: async (_repo, paths) =>
+      // `path in fingerprints` does not narrow the index read, so filter+map produced a
+      // Map<string, string | undefined>. flatMap drops the miss and keeps the value narrowed.
       new Map(
-        paths.filter((path) => path in fingerprints).map((path) => [path, fingerprints[path]]),
+        paths.flatMap((path) => {
+          const fingerprint = fingerprints[path]
+          return fingerprint === undefined ? [] : [[path, fingerprint] as const]
+        }),
       ),
   }
 }

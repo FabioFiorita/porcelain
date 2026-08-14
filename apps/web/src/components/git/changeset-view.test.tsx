@@ -1,4 +1,4 @@
-import type { ReviewReading } from '@porcelain/contracts/review'
+import type { DiffReadingOutput } from '@porcelain/contracts/git'
 import { useDiffReading } from '@renderer/features/git'
 import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -43,7 +43,9 @@ vi.mock('@renderer/components/viewer/virtual-rows', () => ({
   ),
 }))
 
-const reading: ReviewReading = {
+// Typed to what `useDiffReading` actually returns. It was annotated `ReviewReading`, a
+// wider shape whose `source` union the diff reading does not accept.
+const reading: DiffReadingOutput = {
   name: 'Changes',
   sections: [],
   evidence: null,

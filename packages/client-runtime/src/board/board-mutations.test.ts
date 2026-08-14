@@ -5,8 +5,10 @@ import {
   boardProcedures,
   boardProjectPathSchema,
 } from '@porcelain/contracts/board'
+import { mutableFixture } from '@porcelain/contracts/testing'
 import { describe, expect, it } from 'vitest'
 import { boardMutations } from './board-mutations'
+import type { BoardCardsQuery } from './board-queries'
 import { boardCardsQuery } from './board-queries'
 
 const OTHER_PATH = boardProjectPathSchema.parse('/synthetic/other-repo')
@@ -37,35 +39,35 @@ describe('boardMutations', () => {
   })
 
   it('affects only the cards identity for the input Project path', () => {
-    const cases = [
-      {
-        definition: boardMutations.create,
-        input: fixtures.createBoardCard.input,
+    // Resolved where the definition and its input are still paired. Carrying them through an
+    // array unions the two fields independently, so `affectedQueries` ends up demanding the
+    // intersection of every input shape and no fixture satisfies it.
+    const bind = <Input extends { projectPath: string }>(
+      definition: {
+        readonly affectedQueries: (input: Input) => readonly BoardCardsQuery[]
+        readonly requiresAuthoritativeRefetch: boolean
       },
-      {
-        definition: boardMutations.update,
-        input: fixtures.updateBoardCard.input,
-      },
-      {
-        definition: boardMutations.move,
-        input: fixtures.moveBoardCard.input,
-      },
-      {
-        definition: boardMutations.delete,
-        input: fixtures.deleteBoardCard.input,
-      },
-      {
-        definition: boardMutations.clearColumn,
-        input: fixtures.clearBoardColumn.input,
-      },
-    ] as const
+      input: Input,
+    ) => ({
+      affected: definition.affectedQueries(input),
+      projectPath: input.projectPath,
+      requiresAuthoritativeRefetch: definition.requiresAuthoritativeRefetch,
+    })
 
-    for (const { definition, input } of cases) {
-      const affected = definition.affectedQueries(input)
-      expect(affected).toEqual([boardCardsQuery(input.projectPath)])
+    const cases = [
+      bind(boardMutations.create, mutableFixture(fixtures.createBoardCard.input)),
+      bind(boardMutations.update, mutableFixture(fixtures.updateBoardCard.input)),
+      bind(boardMutations.move, mutableFixture(fixtures.moveBoardCard.input)),
+      bind(boardMutations.delete, mutableFixture(fixtures.deleteBoardCard.input)),
+      bind(boardMutations.clearColumn, mutableFixture(fixtures.clearBoardColumn.input)),
+    ]
+
+    for (const bound of cases) {
+      const affected = bound.affected
+      expect(affected).toEqual([boardCardsQuery(bound.projectPath)])
       expect(affected).toHaveLength(1)
       expect(affected[0]).not.toEqual(boardCardsQuery(OTHER_PATH))
-      expect(definition.requiresAuthoritativeRefetch).toBe(true)
+      expect(bound.requiresAuthoritativeRefetch).toBe(true)
     }
   })
 

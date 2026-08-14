@@ -236,15 +236,16 @@ describe('contractValidationLink', () => {
 
   it('unsubscribes a synchronous invalid next and ignores later emissions', async () => {
     const cleanup = vi.fn()
-    let sourceObserver: {
-      next: (value: Envelope) => void
-      complete: () => void
-    } | null = null
+    // Held in an object, not a `let`. TypeScript cannot see that the observable callback ran,
+    // so a `let` narrows to `null` — and then to `never` — at the reads below.
+    const source: {
+      observer: { next: (value: Envelope) => void; complete: () => void } | null
+    } = { observer: null }
 
     const next = vi.fn(
       (_op: Operation): Results =>
         observable<Envelope, TRPCClientError<AnyTRPCRouter>>((observer) => {
-          sourceObserver = observer
+          source.observer = observer
           // Synchronous invalid data — fires before subscribe() returns to the link.
           observer.next({ result: { data: 42 } })
           return cleanup
@@ -268,8 +269,8 @@ describe('contractValidationLink', () => {
     expect(cleanup).toHaveBeenCalledTimes(1)
 
     // Later source activity must not reach the outer observer after the terminal error.
-    sourceObserver?.next({ result: { data: 'the notes' } })
-    sourceObserver?.complete()
+    source.observer?.next({ result: { data: 'the notes' } })
+    source.observer?.complete()
     expect(outerNext).not.toHaveBeenCalled()
     expect(outerComplete).not.toHaveBeenCalled()
   })

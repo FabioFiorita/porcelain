@@ -117,15 +117,34 @@ So coverage is only ever used as a ratchet: it may not drop. It is never a goal 
 that resists that pressure is mutation score, because the only way to raise it is to write an
 assertion that pins behavior — and that is the intended next unit here, not a coverage percentage.
 
-## Measurement only, for now
+## What gates, and what only reports
 
-Nothing on this page fails a build. That is deliberate: a threshold chosen before anyone has read
-the distribution is either toothless or permanently in the way. `scripts/quality/baseline.json` is
-the committed snapshot the ratchet will be written against, and it is regenerated with
-`pnpm quality:baseline` — never hand-edited.
+Three things fail a build. Everything else is reported so a human can look, because a threshold
+chosen before anyone has read the distribution is either toothless or permanently in the way.
 
-When the ratchet lands it follows the shape already used by `OVERSIZED_PRODUCTION_FILES` in
+| Gate | Runs on | Holds at |
+|---|---|---|
+| `lint:test-shape` | every commit | zero focused / disabled / tautology / no-assert |
+| `typecheck:tests` | `pnpm verify` | zero, via an empty per-file ledger |
+| `mutation` `thresholds.break` | on demand | the git domain's measured score |
+
+Coverage, complexity, module size, and dead code report only. `scripts/quality/baseline.json` is
+their committed snapshot, regenerated with `pnpm quality:baseline` — never hand-edited. When a
+ratchet lands for them it follows the shape already used by `OVERSIZED_PRODUCTION_FILES` in
 `scripts/architecture/domains.mjs`: a per-entry ledger that may shrink and may not grow.
+
+## Before you call a unit done
+
+```bash
+pnpm quality:changed    # reads only what the working tree touched
+```
+
+It names changed production files that no test reaches and hollow tests among the ones you wrote.
+It deliberately emits no score: a number is the one thing an agent optimises directly, and the way
+to optimise a coverage number is to write tests that execute lines without asserting anything.
+
+When a test exists to pin a guard, break the guard and watch the test fail before believing it.
+Two fixes in this file's own history looked right and did not discriminate until checked that way.
 
 ## Keeping the instruments honest
 
@@ -143,7 +162,7 @@ Both of these were wrong on the first run, and both would have produced confiden
 If a leg of the scorecard cannot run, it reports **not measured** rather than zero. A metric that
 fails open is a metric that lies.
 
-## Two holes this found, and what closed them
+## What turning these on actually found
 
 **The visual e2e lane had no runner.** `visual.spec.ts` holds nine tests — screenshot baselines
 plus real layout assertions like the sidebar ring geometry — and the only script that named it was
@@ -158,22 +177,39 @@ both excluded `**/*.test.ts`, and only `tsconfig.mobile-tests.json` included any
 assertion asserting something false passed both vitest and tsc — inert in every gate it appeared
 to satisfy.
 
-`apps/desktop/tsconfig.tests.json` is now the project that checks them, and `pnpm typecheck:tests`
-runs it as part of `pnpm verify`. Turning it on surfaced **127 errors across 47 files**, which is
-too many to clear in one sitting and far too many to leave a gate red over — so it uses the same
-shrink-only ledger shape as `OVERSIZED_PRODUCTION_FILES`: `scripts/quality/test-types-ledger.json`
-records each file's count, counts may shrink or hold, growth fails, and a file absent from the
-ledger must be clean. Re-record with `pnpm typecheck:tests:ledger` after fixing some.
+`apps/desktop/tsconfig.tests.json` is the project that checks them, and `pnpm typecheck:tests`
+runs it as part of `pnpm verify`. Turning it on surfaced **127 errors across 47 files**; those are
+now **zero**, and `scripts/quality/test-types-ledger.json` is empty. It stays as the ratchet: the
+gate compares against it per file, so an empty ledger means any new test type error fails. There
+is no row to add — fix the test.
 
-Nearly all of the backlog is two shapes, and both are the masking problem expressed in types:
+Nearly the whole backlog was two shapes, and both are the masking problem expressed in types:
 
 - **`as const` fixtures.** `reviewContractFixtures…output[0]` infers `body: "Synthetic comment."`,
-  so a test building a variant is a type error rather than a case. Widen to the contract type
-  (`ReviewComment`, `PorcelainError`) — never clone the fixture to dodge it.
+  so a test building a variant is a type error rather than a case — and the fixture is never
+  checked against its own schema. Widen to the contract type, or use `mutableFixture` from
+  `@porcelain/contracts/testing`, which copies rather than casts so a callee that mutates its
+  input cannot leak state into the next test.
 - **Untyped mocks.** `vi.fn(() => ({ ok: true, value: x }))` infers `{ ok: boolean }` and is handed
-  to a port that returns a discriminated union. A test asserting against that mock asserts against
-  a fiction, and stays green when production narrows away from it. Type the mock to the port.
+  to a port returning a discriminated union. A test asserting against that mock asserts against a
+  fiction, and stays green when production narrows away from it. Write `vi.fn<Port['method']>(…)`,
+  and use `satisfies Port` on the enclosing object when the test needs `.mockImplementationOnce`
+  (a `: Port` annotation erases the Mock type).
 
-One defect this immediately caught: `terminal-stream-gateway.test.ts` imported `TerminalAttachValue`
-from `@porcelain/contracts/terminal`, which has never exported it. Type imports erase at runtime,
-so vitest was happy and no project typechecked the file.
+Four real defects fell out of turning it on:
+
+- `terminal-stream-gateway.test.ts` imported `TerminalAttachValue` from
+  `@porcelain/contracts/terminal`, which has never exported it. Type imports erase at runtime.
+- Six evidence fixtures carried a `medium` field that `reviewEvidenceSchema.strict()` rejects —
+  they described a payload the daemon would refuse.
+- `review-reading-router.test.ts`'s fake was missing `readReviewIntent` entirely; `...overrides`
+  hid it, so every caller that did not override it handed the router an `undefined` operation.
+- `apps/desktop/src/preload/index.d.ts` was **dead**. TypeScript shadows a `foo.d.ts` sitting
+  beside a `foo.ts`, treating it as that file's emitted declaration, so the `Window` globals it
+  declared were invisible to every project and the preload leaned on `@ts-expect-error` instead.
+  It is now `preload-globals.d.ts` and both directives are gone.
+
+`packages/client-runtime/src` is still in no tsconfig `include` — its modules are checked only
+where something imports them, which is how `word-diff-tokens.ts` accumulated eight unchecked
+index accesses. Its test files are covered by this project; its unimported production modules
+are not.

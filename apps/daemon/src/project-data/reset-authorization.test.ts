@@ -109,7 +109,9 @@ describe('parseResetAuthorization', () => {
   })
 
   it('refuses a target without rootDisposition', () => {
-    const { rootDisposition: _rootDisposition, ...incomplete } = GRANTED_RESET_TARGETS[0]
+    const [granted] = GRANTED_RESET_TARGETS
+    if (granted === undefined) throw new Error('expected a granted reset target fixture')
+    const { rootDisposition: _rootDisposition, ...incomplete } = granted
     expect(
       parseResetAuthorization(
         authorizationWith({

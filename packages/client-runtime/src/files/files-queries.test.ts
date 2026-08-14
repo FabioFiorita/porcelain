@@ -99,9 +99,9 @@ describe('query identity builders', () => {
   })
 
   it('rejects invalid tree paths and content/preview root marker', () => {
-    expect(() => filesTreeQuery(REPO, '')).toThrow('files: invalid tree path')
-    expect(() => filesTreeQuery(REPO, '/abs')).toThrow('files: invalid tree path')
-    expect(() => filesTreeQuery(REPO, 'a/../b')).toThrow('files: invalid tree path')
+    expect(() => filesTreeQuery(REPO, '', false)).toThrow('files: invalid tree path')
+    expect(() => filesTreeQuery(REPO, '/abs', false)).toThrow('files: invalid tree path')
+    expect(() => filesTreeQuery(REPO, 'a/../b', false)).toThrow('files: invalid tree path')
     expect(() => fileContentQuery(REPO, '.')).toThrow('files: invalid content path')
     expect(() => filePreviewQuery(REPO, '.')).toThrow('files: invalid content path')
     expect(() => fileContentQuery(REPO, '')).toThrow('files: invalid content path')

@@ -93,12 +93,15 @@ function operations(overrides: Partial<GitOperations> = {}): GitOperations {
 
 describe('Git feature router', () => {
   it('calls one bound operation and returns contract-shaped success values', async () => {
-    const checkoutGit = vi.fn(async () => ({ ok: true, value: undefined }))
-    const addGitWorktree = vi.fn(async () => ({
+    const checkoutGit = vi.fn<GitOperations['checkoutGit']>(async () => ({
+      ok: true,
+      value: undefined,
+    }))
+    const addGitWorktree = vi.fn<GitOperations['addGitWorktree']>(async () => ({
       ok: true,
       value: { path: '/synthetic/repo-worktrees/feature-x', branch: 'feature/x' },
     }))
-    const stageAllGit = vi.fn(async () => undefined)
+    const stageAllGit = vi.fn<GitOperations['stageAllGit']>(async () => undefined)
     const router = createGitFeatureRouter(operations({ checkoutGit, addGitWorktree, stageAllGit }))
     const caller = router.createCaller(PUBLIC_CONTEXT)
 

@@ -33,7 +33,13 @@ describe('invalidateReviewEffects', () => {
       reviewQueryKey(DAEMON, reviewEvidenceAssetQuery(PROJECT, 'b.png')),
     )
     const theirs = seed(client, reviewQueryKey(DAEMON, reviewEvidenceAssetQuery(OTHER, 'a.png')))
-    const listing = seed(client, reviewQueryKey(DAEMON, reviewEvidenceAssetQueryFamily(PROJECT)))
+    // A family is an effect, never a cache key — `reviewQueryKey` rightly refuses one, so the
+    // key is built by hand here. The point of the entry is to prove the family invalidation
+    // does not sweep a family-shaped key in as if it were a real identity.
+    const listing = seed(client, [
+      reviewEvidenceAssetQueryFamily(PROJECT),
+      { host: DAEMON.host, version: DAEMON.version },
+    ])
 
     await invalidateReviewEffects(client, DAEMON, [reviewEvidenceAssetQueryFamily(PROJECT)])
 

@@ -1,14 +1,17 @@
 // @vitest-environment node
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, type Mock, vi } from 'vitest'
 
 vi.mock('node-pty', () => ({ spawn: vi.fn() }))
 
 import { createPtyAdapter } from './pty-adapter'
 
+// `ReturnType<typeof vi.fn>` is `Mock<Procedure | Constructable>`, which is not callable as a
+// concrete signature — the fake could never satisfy the adapter's spawn port. Real signatures
+// inside Mock keep the call assertions and make the fake assignable.
 type FakePty = {
-  write: ReturnType<typeof vi.fn>
-  resize: ReturnType<typeof vi.fn>
-  kill: ReturnType<typeof vi.fn>
+  write: Mock<(data: string) => void>
+  resize: Mock<(columns: number, rows: number) => void>
+  kill: Mock<() => void>
   onData: (listener: (data: string) => void) => void
   onExit: (listener: (event: { exitCode: number }) => void) => void
   emitData: (data: string) => void

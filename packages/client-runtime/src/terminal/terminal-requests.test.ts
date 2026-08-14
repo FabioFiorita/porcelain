@@ -67,7 +67,9 @@ describe('Terminal request registry', () => {
     const error = {
       ...terminalStreamFixtures.error,
       reqId: pending.reqId,
-      id: pending.frame.id,
+      // Read from the fixture, not from `pending.frame`: TerminalRequest['frame'] is the whole
+      // client-frame union and only some members carry an id.
+      id: terminalStreamFixtures.lifecycle.attach.id,
     }
     expect(registry.settle(error)).toMatchObject({
       kind: 'failed',

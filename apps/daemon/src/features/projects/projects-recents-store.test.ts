@@ -56,7 +56,9 @@ describe('Projects recents store', () => {
 
     expect(await store.removePath('/projects/3')).toEqual({ ok: true, value: undefined })
     expect(await store.removePath('/projects/missing')).toEqual({ ok: true, value: undefined })
-    expect((await store.readPaths()).value).not.toContain('/projects/3')
+    const afterRemoval = await store.readPaths()
+    if (!afterRemoval.ok) throw new Error('expected readPaths to succeed')
+    expect(afterRemoval.value).not.toContain('/projects/3')
   })
 
   it('backs up malformed content and reports unavailable', async () => {

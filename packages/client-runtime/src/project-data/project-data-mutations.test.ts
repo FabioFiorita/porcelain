@@ -7,6 +7,7 @@ import {
   projectDataContractFixtures,
   projectDataProcedures,
 } from '@porcelain/contracts/project-data'
+import { mutableFixture } from '@porcelain/contracts/testing'
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import { projectDataMutations } from './project-data-mutations'
@@ -55,7 +56,9 @@ describe('projectDataMutations', () => {
       projectDataNotesQuery(path),
     ])
     expect(
-      projectDataMutations.setRepoLayers.affectedQueries(fixtures.setRepoLayers.input),
+      projectDataMutations.setRepoLayers.affectedQueries(
+        mutableFixture(fixtures.setRepoLayers.input),
+      ),
     ).toEqual([projectDataLayersQuery(path)])
     expect(
       projectDataMutations.setCompanionGitVisibility.affectedQueries(

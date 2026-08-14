@@ -1,8 +1,10 @@
 import { createValidatingDaemonMock } from '@porcelain/client-runtime/testing/daemon-mock'
 import { publicErrorSchema } from '@porcelain/contracts'
 import { reviewContractFixtures, reviewProcedures } from '@porcelain/contracts/review'
+import { mutableFixture } from '@porcelain/contracts/testing'
 import { describe, expect, it } from 'vitest'
 import { reviewCommentMutations } from './comment-mutations'
+import type { ReviewCommentsQuery } from './comment-queries'
 import { reviewCommentsQuery } from './comment-queries'
 
 const OTHER_PATH = '/synthetic/other-repo'
@@ -41,35 +43,38 @@ describe('reviewCommentMutations', () => {
   })
 
   it('affects only the comments identity for the input repoPath', () => {
-    const cases = [
-      {
-        definition: reviewCommentMutations.add,
-        input: fixtures.addReviewComment.input,
+    // Resolved where the definition and its input are still paired. Carrying them through an
+    // array unions the two fields independently, so `affectedQueries` ends up demanding the
+    // intersection of every input shape and no fixture satisfies it.
+    const bind = <Input extends { repoPath: string }>(
+      definition: {
+        readonly affectedQueries: (input: Input) => readonly ReviewCommentsQuery[]
+        readonly requiresAuthoritativeRefetch: boolean
       },
-      {
-        definition: reviewCommentMutations.edit,
-        input: fixtures.editReviewComment.input,
-      },
-      {
-        definition: reviewCommentMutations.delete,
-        input: fixtures.deleteReviewComment.input,
-      },
-      {
-        definition: reviewCommentMutations.setResolved,
-        input: fixtures.resolveReviewComment.input,
-      },
-      {
-        definition: reviewCommentMutations.clearResolved,
-        input: fixtures.clearResolvedReviewComments.input,
-      },
-    ] as const
+      input: Input,
+    ) => ({
+      affected: definition.affectedQueries(input),
+      repoPath: input.repoPath,
+      requiresAuthoritativeRefetch: definition.requiresAuthoritativeRefetch,
+    })
 
-    for (const { definition, input } of cases) {
-      const affected = definition.affectedQueries(input)
-      expect(affected).toEqual([reviewCommentsQuery(input.repoPath)])
+    const cases = [
+      bind(reviewCommentMutations.add, mutableFixture(fixtures.addReviewComment.input)),
+      bind(reviewCommentMutations.edit, mutableFixture(fixtures.editReviewComment.input)),
+      bind(reviewCommentMutations.delete, mutableFixture(fixtures.deleteReviewComment.input)),
+      bind(reviewCommentMutations.setResolved, mutableFixture(fixtures.resolveReviewComment.input)),
+      bind(
+        reviewCommentMutations.clearResolved,
+        mutableFixture(fixtures.clearResolvedReviewComments.input),
+      ),
+    ]
+
+    for (const bound of cases) {
+      const affected = bound.affected
+      expect(affected).toEqual([reviewCommentsQuery(bound.repoPath)])
       expect(affected).toHaveLength(1)
       expect(affected[0]).not.toEqual(reviewCommentsQuery(OTHER_PATH))
-      expect(definition.requiresAuthoritativeRefetch).toBe(true)
+      expect(bound.requiresAuthoritativeRefetch).toBe(true)
     }
   })
 
