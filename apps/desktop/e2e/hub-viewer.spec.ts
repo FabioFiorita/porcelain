@@ -53,3 +53,29 @@ test('switching Worktree keeps existing tabs on their original target', async ({
   await expect(loc.viewerCard(page)).toContainText('A fixture repo for Porcelain e2e tests.')
   await expect(loc.viewerCard(page)).not.toContainText(DIVERTED)
 })
+
+test('Home and Project selections render progressively scoped summaries', async ({ page }) => {
+  await waitForShell(page)
+  await expect(loc.hubWorktreeSummary(page)).toBeVisible()
+
+  const environmentId = await loc
+    .hubInventory(page)
+    .locator('[data-testid^="hub-environment-"]')
+    .first()
+    .getAttribute('data-testid')
+  expect(environmentId).toBeTruthy()
+  if (environmentId === null) return
+
+  const projectId = (await loc.hubProjects(page).first().getAttribute('data-testid'))?.replace(
+    'hub-project-',
+    '',
+  )
+  expect(projectId).toBeTruthy()
+  if (projectId === undefined || projectId === '') return
+
+  await loc.hubProject(page, projectId).getByRole('button').first().click()
+  await expect(loc.hubProjectSummary(page)).toBeVisible()
+
+  await page.getByTestId(environmentId).click()
+  await expect(loc.hubHome(page)).toBeVisible()
+})
