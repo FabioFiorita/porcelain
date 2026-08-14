@@ -76,8 +76,9 @@ intentionally operating Review, Board, Actions, comments, evidence, or other com
 
 ## Rules that stay prose
 
-- **Match the owning idiom.** Naming, tests, layout, commits: read the domain boundary and its
-  landed exemplar. During migration, nearby legacy layout is evidence, not permission to extend it.
+- **Match the owning idiom.** Naming, tests, layout, and commits follow the owning domain boundary
+  and its landed exemplar. Read [`docs/internals/domain-architecture.md`](docs/internals/domain-architecture.md)
+  before adding a cross-package slice.
 - **Type-safety drives design.** When types fight you, change the design (the escape hatches
   themselves are lint-blocked).
 - **UI primitives follow the client tree.** Web (and Electron shell loading it): shadcn/Base UI.
@@ -95,10 +96,9 @@ runs it on `main`.
 | Ten canonical domains, runtime dependency direction, target feature names, 450-line repository ceiling, shrinking raw server imports | `lint-architecture` |
 | No test that cannot fail: `.only`, `.skip`/`.todo`, tautologies, bodies reaching no assertion | `lint:test-shape` |
 | Test files typecheck, against a shrink-only ledger | `typecheck:tests` |
-| Executor recipes match their catalog, required shape, dependency status, and no-placeholder rule | `lint-architecture-specs` |
 | No `as unknown as` outside exact allowlisted external test fakes; no promise-`void`; no bare floating `mutateAsync`/`invalidateQueries`/`*Async` expression statements; no async/Promise-returning `onX` JSX/object event handlers or `addEventListener` listeners; no syntactic no-op `runUserAction` error handlers — best-effort via `settleBackground(reason)`; user intent via total void hooks or `runUserAction` (required non-noop error handler; total boundary) | `lint-escapes` (+ fixture tests, TS AST); Biome `complexity/noVoid` + `nursery/noFloatingPromises` |
 | No inline `style` / `contentContainerStyle` in mobile src | `lint-mobile-nativewind` |
-| Mobile-local 450-line migration ledger (temporary overlap) | `lint-mobile-file-size` |
+| Mobile 450-line source ceiling | `lint-mobile-file-size` |
 | Components never import `lib/trpc` / `lib/daemon` | Biome |
 | External-URL guard, git env scrub, hook env scrub | `lint-security-boundaries` |
 | EAS workflows stay dispatch-only | `lint-eas-triggers` |
@@ -135,7 +135,6 @@ Only each skill's description is ambient. Do not load a skill "just in case."
 
 | Skill | When |
 |-------|------|
-| `execute-architecture-spec` | Landing exactly one reviewer-approved architecture recipe |
 | `mobile` | Building, installing, delivering, or proving `apps/mobile` |
 | `web-e2e` | Writing/debugging Playwright browser specs or taking browser proof for `apps/web` |
 | `merge-queue` | Landing selected `work/*` PRs and retiring their worktrees |
@@ -179,11 +178,6 @@ Vendor-neutral sources are canonical; host directories are adapters.
 | Commit gate | `.husky/pre-commit`, `.husky/commit-msg` | yes | yes | yes |
 
 `pnpm agents:check` catches adapter drift; `pnpm agents:doctor` proves local activation.
-
-Architecture-refactor executors must also read
-`plans/architecture-refactor/specs/README.md` before accepting a recipe. A recipe is executable only
-when it is **Ready**, or **Queued** with every dependency now **Landed**; the existence of a Draft
-recipe is not authorization to fill in its missing judgment.
 
 Work on `main` by default. Use a managed worktree (`pnpm worktree create <slug>`) when isolation
 helps — parallel tasks, risky experiments, or a PR boundary. Preference, not law.

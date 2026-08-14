@@ -91,6 +91,9 @@ function projectGit(overrides: Partial<ProjectGit> = {}): ProjectGit {
     log: vi.fn<ProjectGit['log']>(
       async (): Promise<import('@porcelain/contracts/git').Commit[]> => [],
     ),
+    fileLog: vi.fn<ProjectGit['fileLog']>(
+      async (): Promise<import('@porcelain/contracts/git').Commit[]> => [],
+    ),
     ...overrides,
   }
 }
@@ -120,6 +123,14 @@ function diffReadingSources(overrides: Partial<GitDiffReadingSources> = {}): Git
     loadCommitFlow: vi.fn<GitDiffReadingSources['loadCommitFlow']>(async () => FLOW_GROUPS),
     workingHunks: vi.fn<GitDiffReadingSources['workingHunks']>(async () => [SAMPLE_HUNK]),
     rangeHunks: vi.fn<GitDiffReadingSources['rangeHunks']>(async () => [SAMPLE_HUNK]),
+    diffFile: vi.fn<GitDiffReadingSources['diffFile']>(async () => ({
+      hunks: [SAMPLE_HUNK],
+      status: 'modified',
+    })),
+    rangeDiffFile: vi.fn<GitDiffReadingSources['rangeDiffFile']>(async () => ({
+      hunks: [SAMPLE_HUNK],
+      status: 'modified',
+    })),
     commitHunks: vi.fn<GitDiffReadingSources['commitHunks']>(async () => [SAMPLE_HUNK]),
     commitMessage: vi.fn<GitDiffReadingSources['commitMessage']>(
       async () => 'feat(git): land\n\nbody',
@@ -348,6 +359,49 @@ describe('Git operations', () => {
       pullMode: 'merge',
     })
     expect(changes.publishWorkingTreeChanged).toHaveBeenCalledWith(REPO)
+  })
+
+  it('delegates the moved flow, diff, and history reads to their ports', async () => {
+    const sources = diffReadingSources()
+    const git = projectGit()
+    const operations = createGitOperations(
+      dependencies({ projectGit: git, diffReadingSources: sources }),
+    )
+
+    await expect(operations.flowGit(REPO)).resolves.toEqual(FLOW_GROUPS)
+    await expect(operations.rangeFlowGit(REPO)).resolves.toEqual({
+      groups: FLOW_GROUPS,
+      base: 'main',
+    })
+    await expect(
+      operations.rangeDiffFileGit({ repoPath: REPO, base: 'main', filePath: 'src/a.ts' }),
+    ).resolves.toEqual({ hunks: [SAMPLE_HUNK], status: 'modified' })
+    await expect(operations.diffFileGit({ repoPath: REPO, filePath: 'src/a.ts' })).resolves.toEqual(
+      { hunks: [SAMPLE_HUNK], status: 'modified' },
+    )
+    await expect(operations.logGit({ repoPath: REPO, limit: 20 })).resolves.toEqual([])
+    await expect(
+      operations.commitMessageGit({ repoPath: REPO, hash: 'abcdef123456' }),
+    ).resolves.toBe('feat(git): land\n\nbody')
+    await expect(
+      operations.fileLogGit({ repoPath: REPO, filePath: 'src/a.ts', limit: 20 }),
+    ).resolves.toEqual([])
+    await expect(
+      operations.commitDiffGit({ repoPath: REPO, hash: 'abcdef123456', filePath: 'src/a.ts' }),
+    ).resolves.toEqual([SAMPLE_HUNK])
+    await expect(
+      operations.commitFlowGit({ repoPath: REPO, hash: 'abcdef123456' }),
+    ).resolves.toEqual(FLOW_GROUPS)
+
+    expect(sources.loadWorkingFlow).toHaveBeenCalledWith(REPO)
+    expect(sources.loadRangeFlow).toHaveBeenCalledWith(REPO)
+    expect(sources.rangeDiffFile).toHaveBeenCalledWith(REPO, 'main', 'src/a.ts')
+    expect(sources.diffFile).toHaveBeenCalledWith(REPO, 'src/a.ts')
+    expect(git.log).toHaveBeenCalledWith(REPO, 20)
+    expect(sources.commitMessage).toHaveBeenCalledWith(REPO, 'abcdef123456')
+    expect(git.fileLog).toHaveBeenCalledWith(REPO, 'src/a.ts', 20)
+    expect(sources.commitHunks).toHaveBeenCalledWith(REPO, 'abcdef123456', 'src/a.ts')
+    expect(sources.loadCommitFlow).toHaveBeenCalledWith(REPO, 'abcdef123456')
   })
 
   it('delegates commitModelsGit to listModels once', async () => {

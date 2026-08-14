@@ -9,6 +9,7 @@ export {
   type FilesOperations,
 } from './files-operations'
 export { createFilesFeatureRouter } from './files-router'
+export { createFilesScope } from './files-scope'
 export {
   createSessionFilesWatches,
   type SessionFilesWatches,

@@ -25,6 +25,42 @@ afterEach(() => {
 })
 
 describe('createNodeWorkspaceFiles', () => {
+  it('reads a sorted tree and omits vanished pinned entries', async () => {
+    await withTemporaryDirectory('porcelain-files-tree-', async (dir) => {
+      await mkdir(join(dir, 'src'))
+      await writeFile(join(dir, 'readme.md'), '# tree\n', 'utf8')
+      await writeFile(join(dir, '.env'), 'secret\n', 'utf8')
+      await writeFile(join(dir, '.DS_Store'), '', 'utf8')
+
+      const hiddenPath = join(dir, '.env')
+      const srcPath = join(dir, 'src')
+      await expect(
+        files.readDir({
+          path: dir,
+          showHidden: false,
+          hiddenPaths: new Set([hiddenPath]),
+          pinnedPaths: new Set([srcPath]),
+        }),
+      ).resolves.toEqual([
+        { name: 'src', path: srcPath, kind: 'dir', hidden: false, pinned: true },
+        {
+          name: 'readme.md',
+          path: join(dir, 'readme.md'),
+          kind: 'file',
+          hidden: false,
+          pinned: false,
+        },
+      ])
+
+      await expect(
+        files.pinnedEntries({
+          hiddenPaths: new Set<string>(),
+          pinnedPaths: [srcPath, join(dir, 'vanished')],
+        }),
+      ).resolves.toEqual([{ name: 'src', path: srcPath, kind: 'dir', hidden: false, pinned: true }])
+    })
+  })
+
   it('throws on unusable project root (missing or file)', async () => {
     await withTemporaryDirectory('porcelain-files-root-', async (dir) => {
       const fileRoot = join(dir, 'not-a-dir')

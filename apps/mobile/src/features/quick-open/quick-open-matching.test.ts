@@ -47,10 +47,10 @@ describe('quick-open matching', () => {
   })
 
   it('caps commit matches and labels groups only when needed', () => {
-    const commits = Array.from({ length: 7 }, (_, index) => commit(`abcdef${index}123456`))
+    const commits = Array.from({ length: 7 }, (_, index) => commit(`abcdef0${index}123456`))
 
     expect(matchCommits('abcdef', commits)).toEqual([])
-    expect(matchCommits('abcdef0', commits)).toHaveLength(1)
+    expect(matchCommits('abcdef0', commits)).toHaveLength(5)
     expect(groupsLabelled(1)).toBe(false)
     expect(groupsLabelled(2)).toBe(true)
   })

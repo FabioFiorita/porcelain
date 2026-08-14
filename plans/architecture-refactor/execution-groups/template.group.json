@@ -1,9 +1,0 @@
-{
-  "version": 1,
-  "id": "example-group",
-  "slug": "arch-example-group",
-  "base": "main",
-  "executor": "grok",
-  "recipes": ["EXAMPLE-001"],
-  "dependsOn": []
-}

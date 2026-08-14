@@ -55,8 +55,8 @@ import { hiddenPathsForRepo } from '../stores/scope-store'
 
 /**
  * Process-wide bound operation catalog constructed once at daemon startup.
- * Each domain migration adds a required non-optional property and converts its
- * router factory to receive that narrow slice in the same change.
+ * Each canonical domain contributes a required non-optional property, and its
+ * router factory receives only that narrow slice.
  */
 export type DaemonOperations = Readonly<{
   remote: RemoteOperations

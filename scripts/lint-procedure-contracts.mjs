@@ -23,8 +23,8 @@ export const DOMAIN_KEYS = [
 ]
 
 /**
- * Production router sources relative to `apps/daemon/src`. Horizontal routers stay under
- * `router/`; migrated domains (Board first) live under `features/<domain>/`.
+ * Production router sources relative to `apps/daemon/src`. Every procedure router lives under
+ * its canonical domain feature; composition only merges these factories.
  */
 export const PRODUCTION_ROUTER_FILES = [
   'features/actions/actions-router.ts',
@@ -42,9 +42,6 @@ export const PRODUCTION_ROUTER_FILES = [
   'features/review/review-reading-router.ts',
   'features/search/search-router.ts',
   'features/terminal/terminal-router.ts',
-  'router/git.ts',
-  'router/repos.ts',
-  'router/settings.ts',
 ]
 
 export const PROCEDURE_COUNT = 109
@@ -77,7 +74,7 @@ function readRouterProcedures(repositoryRoot) {
       procedures.push({ ...procedure, source: `apps/daemon/src/${relativePath}` })
     }
   }
-  // Discover unexpected router/*.ts files that are not on the production list.
+  // Discover unexpected horizontal routers so the canonical router boundary cannot regress.
   const routerDir = join(daemonSrc, 'router')
   for (const name of readdirSync(routerDir)
     .filter((entry) => entry.endsWith('.ts') && !entry.endsWith('.test.ts'))

@@ -1,171 +1,131 @@
-# The one architecture
+# Data flow and runtime traps
 
-Package ownership (see `architecture.md`): daemon · cli · web · shell · mobile are separate apps.
-Production builds: esbuild (daemon/cli), Vite (web), electron-vite (shell only). Dev HMR for web
-still goes through electron-vite.
+The domain ownership rules live in [`domain-architecture.md`](domain-architecture.md). This page
+keeps the cross-surface details that are easy to break: daemon transport, shell lifecycle, session
+recovery, Web navigation, mobile transport, and state ownership.
 
+## The daemon is always a server
+
+```text
+contracts catalog
+  → daemon composition root
+    → canonical domain router
+      → operation → rules/ports → adapters
+        → HTTP procedure result or WS notification/stream
+          → client-runtime semantics
+            → Web/mobile feature adapter → presentation
 ```
-daemon (apps/daemon/src/api.ts procedures + pure logic in own modules; Electron-free, HTTP/WS on 127.0.0.1)
-  → apps/web lib/trpc.ts (appRouter client) + lib/daemon.ts (the WS session) — imports restricted to hooks/ and stores/
-    → hooks/use-<domain>.ts (queries, mutations, invalidation)
-      → components/<area>/*.tsx (UI only; consume hooks + stores)
-stores/ (zustand: client-only state — tabs, repo, preferences, selection)
 
-shell (apps/desktop/src/main/shell-api.ts) — a SEPARATE thin surface: the few Electron-native procedures
-  (dialogs, windows, updater) over tRPC-over-IPC, its own client (shellTrpc)
-```
+The renderer never calls daemon code in-process. Local and remote use the same HTTP/WS path, so
+transport behavior cannot diverge merely because the daemon is on the same machine. The daemon
+serves the Web client to both a plain browser and Electron; only platform integration differs.
 
-## The daemon — client/server always, even fully local
+The daemon prints one `{"port": N}` line at boot. Desktop owns its child lifecycle through
+`utilityProcess.fork`, capped restart backoff, and local-window URL updates. Standalone daemons
+retain their parent-death watchdog unless launched with `--no-watchdog`. Private LAN/Tailscale
+listeners reconcile enabled sockets over time because interfaces can appear after boot. Exposure,
+pairing, and token policy belongs to the Remote domain and
+[`remote-setup.md`](../remote-setup.md).
 
-The renderer never touches the backend in-process. Deliberate: local and remote are ONE code path,
-so they can't drift, and pointing the client at a remote daemon needed no new transport.
+## Shell and environment bindings
 
-- **Spawn/restart.** The daemon prints ONE stdout line `{"port": N}`. A crash restarts with capped
-  backoff (give up after 3 rapid failures) and pushes the new url to **local-bound windows only**. A
-  utility child has no stdin, so `PORCELAIN_NO_STDIN_WATCHDOG=1` is set and Electron owns its
-  lifetime; standalone daemons under plain `node` keep the parent-death watchdog so they never
-  orphan. `utilityProcess.fork` is required by the Desktop daemon lifecycle boundary.
-- **Private listeners reconcile, not bind-once** — tailnet/LAN addresses appear *after* boot, so
-  enabled listeners re-scan every 5s and diff sockets. Bind/Funnel rules live in `docs/remote-setup.md`.
-- **The daemon serves the renderer to a plain browser.** Electron and browser use the SAME dist,
-  split only at `lib/platform.ts`. Fingerprinted assets are immutable for a year; the host-rewritten
-  shell stays `no-cache` so a release is discovered immediately.
-- **The standalone `porcelain-daemon` package** is plain Node with renderer + agent CLI + host CLI;
-  share control is CLI-first for headless hosts. **Deliberately no SSH launch** — the host process is
-  started manually or supervised (`--no-watchdog`). Every `serve` refreshes the bundled agent CLI.
-- **Each WINDOW binds to a daemon**, from a list persisted **shell-side** (the shell owns it, so it
-  cannot live in the daemon's own config). Bindings key off `webContents.id`, so one window can be
-  local while another is remote, and the local child keeps running underneath for instant
-  switch-back. Tokens never cross to the renderer. **A switch is a main-process
-  `webContents.reload()` landing on welcome** — a renderer `location.reload()` after invalidate
-  raced and left shell chrome on one daemon while appRouter talked to the other; welcome is forced
-  because restoring a path from the previous disk is wrong.
-- **The one AUTOMATIC settings seed is worktree-local, never overwrites, and fails silently.**
-  Companion data is keyed by absolute path, so a linked worktree of a configured project would open
-  blank; seeding runs only when the target has no settings at all, and a create/open must never fail
-  because a channel file was unreadable. Cross-host carry stays explicit and agent-driven.
-- **Environments announce themselves.** `daemonInfo` returns the required `host`/`platform`/`arch`
-  identity alongside `version` and the literal `protocolVersion` the daemon speaks, so a missing or
-  malformed response is a contract error rather than a partial identity. **`unauthorized` is a distinct state from `offline`** (answering and rejecting
-  the token means re-pair, not wake). One network call per environment, so the hook is deliberately
-  lazy.
-- **One environment, many endpoints.** (1) **Kind is derived from the address, preference stored by
-  kind** — "prefer the LAN here" then survives a DHCP lease change. (2) **Failover is sequential and
-  preference-ordered, not a race**: on the home LAN the tailnet address still *works*, just slower,
-  so "first to answer" picks the worse route; `unauthorized` short-circuits the walk. (3)
-  **Reachability never moves the preference**, only the last-known-good url. Identity comes from the
-  daemon's reported `host`, never what the human typed, so a known host MERGES as another endpoint.
-  **TRAP — `environmentStatuses` is a WRITER that probes for seconds first:** a load→mutate→save
-  after that await resurrects an environment (token and all) removed meanwhile, so every writer goes
-  through `updateRemoteEnvironmentState` keyed by id, never an index into a pre-await snapshot.
-- **The renderer's WS session is an INSTANCE, not a module singleton** (`primary` is the window's
-  binding; flat exports delegate, so call sites are unchanged). *Why:* a remote-bound window must
-  still run a terminal on the machine in front of the human — a SECOND live connection, not a
-  re-point. Each instance owns its socket, listeners, pendings, backoff. **Don't add a second session
-  for anything else** — the window's repo lives on `primary`'s machine.
-- **TRAP — the tailnet browser client is an INSECURE context** (plain HTTP on a non-localhost
-  origin; WireGuard encrypts the wire, so no TLS by design). `crypto.randomUUID` and
-  `navigator.clipboard` **do not exist** there, but do on localhost and in Electron — so this only
-  bites the tailnet client. Use `randomId()` / `copyText()` in `lib/utils.ts`. `clipboard.readText`
-  has no polyfill (context-menu Paste no-ops; native Cmd/Ctrl+V still works).
-- **`ws-protocol.ts` is the single `AppEvent` source** — add an event once, there; both ends validate.
-- **`packages/contracts` vs `packages/shared` vs type-only `@backend`.** `@porcelain/contracts` holds
-  shapes that cross a **client** boundary (WS protocol, procedure I/O catalog). `@porcelain/shared`
-  is pure cross-cutting helpers (home, platform, test-ids, …) any app may import. Domain/result types
-  that only the web client needs for typing still live on the daemon and are imported **type-only**
-  via `@backend/*` (aliases to `apps/daemon/src`) — don't bulk-migrate them into contracts; move a
-  shape when a second client needs it on the wire. *Traps:* contracts is resolved by **alias** where
-  the dependency-free CLI must stay free of bare `require("@porcelain/contracts")`. The contracts
-  default entry stays zod-only: the AppRouter type lives on the daemon (`@backend/api`) because it
-  drags Node typings into anything that imports it, which Expo's tsconfig rejects.
+The Electron shell is a thin platform boundary. It owns windows, menus, updater, local process
+startup, and the shell-only IPC surface; it does not become a second application backend. A window
+binding is keyed by `webContents.id`, so different windows may use different daemon environments.
+Tokens remain in the main process and never cross into the renderer.
 
-## Routing — the tabs store IS the router
+An environment has one identity with multiple endpoints. Endpoint kind is derived from the address
+while preference is stored by kind. Failover is sequential and preference-ordered, not a race;
+unauthorized stops immediately because it means re-pair, not wake. Reachability updates last-known-
+good only; it never moves the user's preference. Writers that probe before saving must update by
+environment id after the await, never write an old array snapshot that can resurrect a removed
+environment.
 
-No URL routing, no router library: the active tab's `(kind, path, line)` in `stores/tabs.ts` is the
-whole navigation state. `Tab.path` is overloaded per kind. Ids are ALWAYS `tabId(kind, key)`, never
-hand-built strings. `Viewer` dispatches with an **exhaustive `switch`** — no default, so a missing
-case is a compile error.
+The renderer session is an instance, not a module-global socket. Each instance owns its socket,
+listeners, pending requests, and reconnect backoff. A remote-bound window may still need a local
+Terminal, so it can own the separate local session; do not add extra sessions for ordinary data.
+The active window's project belongs to the primary session's machine.
 
-- **Preview and pinned are different things.** Preview = single-click, italic, replaced by the next;
-  cleared by double-click/edit/non-preview re-open (`pinTab`). Sticky `Tab.pinned` fixes a tab at the
-  left of the bar. `pinTab` never sets `pinned`.
-- **Split view = panes, not extra tab state.** The invariant: **`openTab`/`pinTab`/`cycleTab`/
-  `closeAllTabs` keep their signatures and always act on the active pane**, so every opener stayed
-  pane-agnostic. `openTabToSide` targets the other pane; pane-scoped ops take `(paneIndex, id)`.
-- **Recipe — new screen/tab kind**, in order: pure logic in `apps/daemon/src/<thing>.ts` + sibling test →
-  procedure in `api.ts` (only a genuinely Electron-native one goes on `shellRouter`) → hook →
-  `TabKind` → view component (one public export, key as a single prop, data via the hook) → opener
-  calls `openTab` → `case` in `Viewer` (the compiler forces it) → keyboard binding if needed.
-- **Opening a repo is a DAEMON-side directory browser, not a native dialog** — repos are daemon
-  paths, so with a remote daemon a Mac dialog picks the wrong machine's. Repo switching is one store
-  action (`switchTo`); never clear tabs ad hoc. Both switchers carry a per-row "open in new window"
-  leaving this window and its terminals untouched (worktrees get worked side by side).
-- **A linked worktree is NOT a project:** `recentRepos` drops paths whose `.git` is a file (one
-  `stat`, never a git spawn — the endpoint is hot), so a checkout has one home; they stay in the
-  strict Projects-recents document so quitting inside a worktree reopens there.
-- **HEAD is reported structurally, never as a label:** `gitHead` returns `{ branch, detachedSha }`
-  and the ONE rendering is `headLabel` — that's why nothing string-sniffs `'HEAD'` or invents a
-  second "(detached)".
+## Session protocol
 
-## Data hooks, state, components
+`packages/contracts` is the single source for session frame shapes and `AppEvent` definitions. The
+`/session` WebSocket carries application notifications and Terminal lifecycle/data frames; it is
+not tRPC. On a reconnect, resend session hello, file/directory watches, and Terminal attachments:
+server-side session state ends with the socket.
 
-- One module per domain — **read the directory; an enumerated list here went stale before.** Query
-  options live in the hook, not the component.
-- **Hooks own invalidation:** each mutation lists targeted invalidations in `onSuccess`. The ONLY
-  blanket `utils.invalidate()` is `useQuickCommand` (pull/stash change everything — a documented
-  escape hatch). **No tRPC subscriptions**; push arrives from the daemon WS session and the tiny
-  `shell-event` IPC channel under one renderer-facing union.
-- **Enforced:** importing `lib/trpc` or `lib/daemon` from `components/**` is a Biome error.
+Notifications are recoverable signals. A client invalidates or reconciles the affected query family,
+then reads server truth. They do not carry a second mutable copy of the domain. Terminal output is
+the exception: it is an ordered bounded stream with request ids, epochs, sequence/lifecycle rules,
+detach/attach behavior, and bounded scrollback. Do not reduce it to cache invalidation.
 
-| State kind | Home |
+The browser client may use a polling backstop for selected expensive/recoverable reads. Mobile polls
+only while a relevant screen is focused and uses the same freshness semantics to respect battery and
+cellular limits.
+
+## Web navigation and state
+
+Web navigation is held by the tabs store rather than URL routing. A tab's `(kind, path, line)` is
+the navigation state; ids are always produced by `tabId(kind, key)`. Viewer dispatch is exhaustive,
+so adding a Web tab kind requires a compiler-visible Viewer case. Preview tabs are replaced by the
+next single-click, while pinned tabs are sticky; split view is pane state, not a second tab model.
+
+Mobile has its own native navigation and screen model. It shares contracts, client-runtime
+semantics, and daemon transport with Web, but does not copy Web tab state or UI components. A
+mobile feature owns its transport hook at the `src/lib/daemon` seam, uses NativeWind v5, and
+exposes stable test ids/accessibility labels for runtime proof.
+
+When adding a Web tab, add pure rules and tests, the domain procedure if needed, client-runtime
+semantics, the feature adapter/hook, `TabKind`, the view, the opener, the exhaustive Viewer case,
+and any keyboard binding. When adding a mobile surface, keep it in the owning feature or registered
+supporting region; compose existing domain queries rather than creating a parallel procedure.
+
+Quick Open is the landed example of that supporting-region rule. Its mobile sheet composes Files,
+Actions, and Git queries locally, debounces file search, filters non-local actions, and hands
+selection to existing viewer/Terminal navigation. It is not content search, a new daemon domain, or
+a second action executor.
+
+## Query and mutation boundaries
+
+Client components render data and intent. They do not import transport clients. In Web, imports of
+`lib/trpc` and `lib/daemon` from `components/**` are prohibited; domain hooks/stores and feature
+adapters are the seam. In mobile, `src/lib/daemon` is the only daemon seam; feature hooks use
+client-runtime query/mutation definitions and the native adapter.
+
+| Concern | Owner |
 |---|---|
-| Server / git / fs | TanStack Query via domain hooks, nowhere else |
-| Cross-component UI | a zustand store, one per concern; fine-grained selectors at the leaf, no prop-drilling (sole exception `LeftSidebarHandle`, forced by nested SidebarProviders) |
-| Prefs surviving reload | the single persisted `preferences` store. **Nothing else persists** |
-| Everything else | component-local `useState` — never for state another component reads |
+| Daemon/server truth | client-runtime query definitions + client query cache |
+| Mutation invalidation and foreign effects | client-runtime mutation definitions or an explicit cross-domain feature workflow |
+| Realtime freshness | client-runtime notification effects + a session bridge |
+| Cross-component UI | one focused store |
+| Reload-persistent preferences | the preferences store only |
+| Local presentation | component state |
 
-**Component authoring** (beyond what the surrounding files show). One public component per file;
-co-location exceptions are inseparable variant pairs, a component + its companion hook, and mutually
-recursive components. Props typed **inline**; a named `XProps` interface only for generic components.
-Handlers named by intent (`run`, `save`), **never `handleX`** — prose-only, because Biome can't ban a
-prefix. **No app-authored React context** and no boolean-prop variant proliferation: composition is
-prop-driven components + zustand, `children` wrappers for menu/boundary shells, render-props only for
-generic virtualized lists, Base UI's `render` to merge shadcn triggers.
+Mutations invalidate the smallest affected families. A whole-cache invalidation is valid only for a
+command such as pull or stash whose effect is genuinely global. Cross-domain effects are explicit;
+they are not hidden in an event handler or a recursive operation call.
 
-## Keyboard shortcuts — tiered ownership (deliberate; don't "centralize")
+## Browser and tailnet traps
 
-Main-process `before-input-event` **only** to override an OS/Electron default (⌘W) → app-global store
-bindings in `use-app-shortcuts.ts` → a component's own listener for its own local state → element
-`onKeyDown` for focused-element chords → `SidebarProvider`'s `shortcut` prop.
+The tailnet browser client is an insecure HTTP context by design: WireGuard protects the wire, but
+browser APIs such as `crypto.randomUUID` and `navigator.clipboard` are unavailable there. Use the
+shared `randomId()` and `copyText()` helpers. Context-menu paste has no polyfill; native keyboard
+paste remains the browser's responsibility.
 
-- **A shortcut firing a tRPC mutation can't live in `use-app-shortcuts.ts`** — that hook sits under
-  `components/**` where importing `lib/trpc` is a lint error, so the Files fs-shortcuts live in a
-  dedicated always-mounted `file-commands.tsx`.
-- **The browser client remaps the primary modifier to Ctrl** (`lib/keyboard.ts`, keyed off
-  `isBrowser || isLinuxShell`): browsers own ⌘1–7/⌘T/⌘N/⌘W/⌘P, but Ctrl chords *are*
-  page-interceptable. Over a focused PTY the ⌘T/⌘N spawn keys yield to the shell (Ctrl+T/N are
-  readline's); ⌘K clear and `terminalEditBytes` stay meta-only so they go dormant in the browser and
-  readline owns the equivalents. Labels use the ⌃ glyph, not the word — the OS may still be macOS;
-  the trigger is the client, not the platform.
-- **`isTextEntry` deliberately excludes the Ghostty host** (its hidden textarea reports as editable, yet
-  ⌘T/⌘N must still spawn while a PTY is focused). `FileCommands` guards with the inverse
-  (`isTerminalTarget`) so destructive ⌘D/⌘⌫ never fire over a terminal.
-- **Terminal editing chords are translated in the Ghostty registry**, not by window listeners. **⌘K
-  clears, never Ctrl-K** (= readline kill-to-end-of-line, which must reach the shell); the rest is
-  the pure, unit-tested `terminalEditBytes`. ⌥+letter is left alone so Option-compose types accents.
-- **"Compose intent" surfaces share a tiny store with ONE dialog mounted in `AppShell`** — mounting
-  once avoids two stacked modals when a sidebar list and the viewer board are both mounted.
+Keyboard ownership is tiered: Electron `before-input-event` only overrides an OS default; app-global
+bindings live in the Web shortcut hook; component listeners own local state; focused controls own
+their chords. Terminal editing is translated in the Terminal registry, not by global window
+listeners. Browser modifier remapping follows the client platform, and terminal focus must not
+trigger destructive file shortcuts.
 
-## Testing
+## Proof and change discipline
 
-**Most coverage lives in pure daemon-side unit tests — keep logic pure and daemon-side.** Component
-tests mock the **domain hooks**, never the tRPC proxy, and shape mock data with `@main` types so drift
-breaks the build. No snapshot tests. `src/test-setup.ts`'s stubs are non-obvious: `window.matchMedia`
-(any `SidebarProvider` mount needs it), `document.elementFromPoint` (TipTap), and an explicit
-`afterEach(cleanup)` because globals are off.
+Pure daemon rules and operations carry most regression coverage. Adapter tests prove real host
+representations; contract tests prove exact wire shapes; router tests prove one-operation binding
+and public error mapping; client-runtime tests prove query/mutation/freshness/session behavior; Web
+and mobile feature tests mock the domain seam, not tRPC internals. Playwright runs against the
+browser client and an isolated development daemon; it is not proof against the installed app or
+the production daemon.
 
-**Playwright:** the **browser** project is day-to-day; the **electron** project is optional (manual
-workflow), not a per-push or pre-cut gate. The browser fixture boots an isolated daemon + temp
-channels, never the human's prod `~/.porcelain`. Gotchas: `PLAYWRIGHT_FORCE_ASYNC_LOADER=1` is
-required; `e2e/tsconfig.json` is self-contained; screenshots are DOM-only, per-project/platform;
-prefer element-scoped baselines when a column is tight.
+Run `pnpm quality:changed` for touched files and `pnpm verify` for the completed unit. Runtime proof
+is proportional to user-visible risk, but every change closes the chain from intention to test,
+gate, and durable documentation.

@@ -3,20 +3,29 @@ import type { CommitModelOption } from '@porcelain/contracts'
 import type {
   BranchRef,
   ChangedFile,
+  Commit,
   CommitConventions,
+  DiffFileResult,
   DiffReadingInput,
   DiffReadingOutput,
   GitAddWorktreeInput,
   GitCheckoutInput,
+  GitCommitDiffInput,
+  GitCommitFlowInput,
   GitCommitInput,
+  GitCommitMessageInput,
   GitCreateBranchInput,
+  GitDiffFileInput,
   GitDiscardFileInput,
+  GitFileLogInput,
   GitGenerateCommitGroupsInput,
   GitGenerateCommitGroupsOutput,
   GitGenerateCommitMessageInput,
   GitHead,
+  GitLogInput,
   GitPushInput,
   GitQuickCommandInput,
+  GitRangeDiffFileInput,
   GitStageAllInput,
   GitStageFileInput,
   GitSuggestion,
@@ -69,6 +78,15 @@ export type GitOperations = Readonly<{
   branchesGit(repoPath: string): Promise<GitProjectResult<BranchRef[]>>
   createBranchGit(input: GitCreateBranchInput): Promise<void>
   worktreesGit(repoPath: string): Promise<GitProjectResult<Worktree[]>>
+  flowGit(repoPath: string): Promise<FlowGroup[]>
+  rangeFlowGit(repoPath: string): Promise<{ groups: FlowGroup[]; base: string }>
+  rangeDiffFileGit(input: GitRangeDiffFileInput): Promise<DiffFileResult>
+  diffFileGit(input: GitDiffFileInput): Promise<DiffFileResult>
+  logGit(input: GitLogInput): Promise<Commit[]>
+  commitMessageGit(input: GitCommitMessageInput): Promise<string>
+  fileLogGit(input: GitFileLogInput): Promise<Commit[]>
+  commitDiffGit(input: GitCommitDiffInput): Promise<DiffHunk[]>
+  commitFlowGit(input: GitCommitFlowInput): Promise<FlowGroup[]>
   commitModelsGit(): Promise<CommitModelOption[]>
   diffReadingGit(input: DiffReadingInput): Promise<DiffReadingOutput>
 }>
@@ -181,6 +199,30 @@ export function createGitOperations(dependencies: GitOperationDependencies): Git
       projectGit.createBranch(input.repoPath, input.branch),
 
     worktreesGit: (repoPath: string) => projectGit.worktrees(repoPath),
+
+    flowGit: (repoPath: string) => diffReadingSources.loadWorkingFlow(repoPath),
+
+    rangeFlowGit: (repoPath: string) => diffReadingSources.loadRangeFlow(repoPath),
+
+    rangeDiffFileGit: (input: GitRangeDiffFileInput) =>
+      diffReadingSources.rangeDiffFile(input.repoPath, input.base, input.filePath),
+
+    diffFileGit: (input: GitDiffFileInput) =>
+      diffReadingSources.diffFile(input.repoPath, input.filePath),
+
+    logGit: (input: GitLogInput) => projectGit.log(input.repoPath, input.limit),
+
+    commitMessageGit: (input: GitCommitMessageInput) =>
+      diffReadingSources.commitMessage(input.repoPath, input.hash),
+
+    fileLogGit: (input: GitFileLogInput) =>
+      projectGit.fileLog(input.repoPath, input.filePath, input.limit),
+
+    commitDiffGit: (input: GitCommitDiffInput) =>
+      diffReadingSources.commitHunks(input.repoPath, input.hash, input.filePath),
+
+    commitFlowGit: (input: GitCommitFlowInput) =>
+      diffReadingSources.loadCommitFlow(input.repoPath, input.hash),
 
     commitModelsGit: () => commitGeneration.listModels(),
 

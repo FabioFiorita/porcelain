@@ -149,6 +149,51 @@ export function createGitFeatureRouter(operations: GitOperations) {
       .output(procedureCatalog.gitWorktrees.output)
       .query(async ({ input }) => throwIfProjectReadFailed(await operations.worktreesGit(input))),
 
+    gitFlow: publicProcedure
+      .input(procedureCatalog.gitFlow.input)
+      .output(procedureCatalog.gitFlow.output)
+      .query(({ input }) => operations.flowGit(input)),
+
+    gitRangeFlow: publicProcedure
+      .input(procedureCatalog.gitRangeFlow.input)
+      .output(procedureCatalog.gitRangeFlow.output)
+      .query(({ input }) => operations.rangeFlowGit(input)),
+
+    gitRangeDiffFile: publicProcedure
+      .input(procedureCatalog.gitRangeDiffFile.input)
+      .output(procedureCatalog.gitRangeDiffFile.output)
+      .query(({ input }) => operations.rangeDiffFileGit(input)),
+
+    gitDiffFile: publicProcedure
+      .input(procedureCatalog.gitDiffFile.input)
+      .output(procedureCatalog.gitDiffFile.output)
+      .query(({ input }) => operations.diffFileGit(input)),
+
+    gitLog: publicProcedure
+      .input(procedureCatalog.gitLog.input)
+      .output(procedureCatalog.gitLog.output)
+      .query(({ input }) => operations.logGit(input)),
+
+    gitCommitMessage: publicProcedure
+      .input(procedureCatalog.gitCommitMessage.input)
+      .output(procedureCatalog.gitCommitMessage.output)
+      .query(({ input }) => operations.commitMessageGit(input)),
+
+    gitFileLog: publicProcedure
+      .input(procedureCatalog.gitFileLog.input)
+      .output(procedureCatalog.gitFileLog.output)
+      .query(({ input }) => operations.fileLogGit(input)),
+
+    gitCommitDiff: publicProcedure
+      .input(procedureCatalog.gitCommitDiff.input)
+      .output(procedureCatalog.gitCommitDiff.output)
+      .query(({ input }) => operations.commitDiffGit(input)),
+
+    gitCommitFlow: publicProcedure
+      .input(procedureCatalog.gitCommitFlow.input)
+      .output(procedureCatalog.gitCommitFlow.output)
+      .query(({ input }) => operations.commitFlowGit(input)),
+
     diffReading: publicProcedure
       .input(procedureCatalog.diffReading.input)
       .output(procedureCatalog.diffReading.output)

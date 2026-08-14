@@ -25,6 +25,7 @@ import {
   gitCreateBranch,
   gitDiffFile,
   gitFileInHead,
+  gitFileLog,
   gitHead,
   gitLog,
   gitPush,
@@ -118,6 +119,8 @@ export function createProjectGit(): ProjectGit {
     worktrees: (repoPath: string): Promise<GitProjectResult<Worktree[]>> =>
       repositoryRead(() => gitWorktrees(repoPath)),
     log: (repoPath: string, limit: number): Promise<Commit[]> => gitLog(repoPath, limit),
+    fileLog: (repoPath: string, filePath: string, limit: number): Promise<Commit[]> =>
+      gitFileLog(repoPath, filePath, limit),
   })
 }
 
@@ -142,6 +145,8 @@ export function createGitDiffReadingSources(): GitDiffReadingSources {
       gitDiffFile(repoPath, path).then((result) => result.hunks),
     rangeHunks: (repoPath: string, base: string, path: string) =>
       gitRangeDiffFile(repoPath, base, path).then((result) => result.hunks),
+    diffFile: gitDiffFile,
+    rangeDiffFile: gitRangeDiffFile,
     commitHunks: gitCommitDiff,
     commitMessage: gitCommitMessage,
   })

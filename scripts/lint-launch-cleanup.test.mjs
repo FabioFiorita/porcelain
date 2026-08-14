@@ -106,12 +106,12 @@ test('a known compatibility reader/path is rejected', () => {
   )
 })
 
-test('fresh-agent discovery requires the focused architecture procedure', () => {
+test('fresh-agent discovery requires current docs and focused procedures', () => {
   withFixture(
-    (root) => rmSync(path.join(root, '.agents/skills/execute-architecture-spec/SKILL.md')),
+    (root) => rmSync(path.join(root, 'docs/README.md')),
     (root) => {
       const failures = checkLaunchCleanup(root, cleanOptions)
-      assert.ok(failures.some((failure) => failure.includes('execute-architecture-spec')))
+      assert.ok(failures.some((failure) => failure.includes('docs/README.md')))
     },
   )
 })

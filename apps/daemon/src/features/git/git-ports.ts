@@ -3,6 +3,7 @@ import type {
   BranchRef,
   ChangedFile,
   Commit,
+  DiffFileResult,
   GitGenerateCommitGroupsInput,
   GitGenerateCommitGroupsOutput,
   GitGenerateCommitMessageInput,
@@ -56,6 +57,7 @@ export type ProjectGit = Readonly<{
   createBranch(repoPath: string, branch: string): Promise<void>
   worktrees(repoPath: string): Promise<GitProjectResult<Worktree[]>>
   log(repoPath: string, limit: number): Promise<Commit[]>
+  fileLog(repoPath: string, filePath: string, limit: number): Promise<Commit[]>
 }>
 
 export type CommitGeneration = Readonly<{
@@ -73,6 +75,8 @@ export type GitDiffReadingSources = Readonly<{
   loadCommitFlow(repoPath: string, hash: string): Promise<FlowGroup[]>
   workingHunks(repoPath: string, path: string): Promise<DiffHunk[]>
   rangeHunks(repoPath: string, base: string, path: string): Promise<DiffHunk[]>
+  diffFile(repoPath: string, path: string): Promise<DiffFileResult>
+  rangeDiffFile(repoPath: string, base: string, path: string): Promise<DiffFileResult>
   commitHunks(repoPath: string, hash: string, path: string): Promise<DiffHunk[]>
   commitMessage(repoPath: string, hash: string): Promise<string>
 }>

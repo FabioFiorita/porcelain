@@ -1,6 +1,6 @@
 # Daemon API — the mobile client's contract
 
-The native app is a fourth client of the same daemon the browser client talks to; everything below is what that client actually uses. Router: `apps/daemon/src/api.ts` (single flat tRPC v11 router, ~99 procedures). Transport pipeline: `apps/daemon/src/net/daemon-http.ts`. When this doc and the code disagree, the code wins — update this doc in the same commit.
+The native app is a fourth client of the same daemon the browser client talks to; everything below is what that client actually uses. Router: `apps/daemon/src/api.ts` (single flat tRPC v11 router, 109 procedures composed from the ten domain routers). Transport pipeline: `apps/daemon/src/net/daemon-http.ts`. When this doc and the code disagree, the code wins — update this doc in the same commit.
 
 ## Transport
 
@@ -60,7 +60,19 @@ All flat names; Q = query, M = mutation. No tRPC subscriptions exist.
 - `previewHtml` Q `{projectPath, path}` → inlined HTML string or `null`
 - `writeTextFile` M `{projectPath, path, content}` (debounced autosave edits)
 - fs mutations (all `{projectPath, …}` + relative targets): `createFile`, `createFolder`, `renamePath`, `duplicatePath` (returns **relative** new path), `trashPath`
-- `readDir` / pin / hide still absolute/`repoPath` until a later Files migration
+
+`readDir`, scope mutations, `repoScope`, and `pinnedEntries` use absolute daemon-side paths. The
+eight host-filesystem procedures use `projectPath` plus project-relative targets. All of them are
+owned by the canonical Files feature router; there is no separate repository/settings router.
+
+### Quick Open
+
+Quick Open is a mobile presentation surface, not a daemon procedure. It combines the existing
+`searchFiles`, `actions`, and `gitLog` queries locally, with a 150 ms file-search debounce. It
+groups file matches, runnable Actions, recent commits, and local go-to destinations; actions marked
+non-local are omitted, commit hashes accept 7–40-character prefixes, and a selected action or file
+hands off to the existing terminal or viewer navigation. Content search remains a separate
+`searchText`/`searchCode` flow.
 
 ### Changes tab
 - `gitStatus` Q, `gitFlow` Q (layer-grouped working tree), `gitRangeFlow` Q (vs merge-base)
@@ -98,7 +110,9 @@ All flat names; Q = query, M = mutation. No tRPC subscriptions exist.
 ## Mobile-side cautions
 
 - Heavy payloads: `readFile` inlines images as data URLs; `reviewEvidenceDoc` returns a whole HTML document; `diffReading`/`reviewReading` can carry up to ~200 files of hunks. Fine on LAN/tailnet; cap or defer on a Funnel/cellular path.
-- Paths are **daemon-side**. The eight host-fs procedures take an absolute `projectPath` plus project-relative targets (no `~` expansion on those). `readDir`/scope still use absolute host paths. Never touch the phone's filesystem for repo content.
+- Paths are **daemon-side**. The eight host-fs procedures take an absolute `projectPath` plus
+  project-relative targets (no `~` expansion on those). `readDir`/scope use absolute host paths.
+  Never touch the phone's filesystem for repo content.
 - The mobile client and daemon are developed and delivered together. A missing procedure or
   malformed payload is an error; do not feature-detect alternate daemon contracts or silently
   degrade.

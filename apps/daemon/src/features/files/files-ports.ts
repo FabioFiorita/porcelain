@@ -1,4 +1,4 @@
-import type { FileView } from '@porcelain/contracts/files'
+import type { DirEntry, FileView, RepoScope } from '@porcelain/contracts/files'
 
 /** Shared outside predicate — NEVER use startsWith('..') alone; NEVER string-prefix root checks. */
 export type FilesPathOutsideError = { code: 'path-outside-project'; path: string }
@@ -64,6 +64,18 @@ export type FilesOperationResult<T> =
     }
 
 export type WorkspaceFiles = {
+  readDir(input: {
+    path: string
+    showHidden: boolean
+    hiddenPaths: ReadonlySet<string>
+    pinnedPaths: ReadonlySet<string>
+  }): Promise<DirEntry[]>
+
+  pinnedEntries(input: {
+    hiddenPaths: ReadonlySet<string>
+    pinnedPaths: readonly string[]
+  }): Promise<DirEntry[]>
+
   readFile(input: {
     projectPath: string
     path: string
@@ -120,6 +132,15 @@ export type WorkspaceFiles = {
     | { ok: false; error: FilesPathOutsideError | FilesNotFoundError }
   >
 }
+
+/** Files' repo-local visibility and pin scope. The operation composes this with host-fs reads. */
+export type FilesScope = Readonly<{
+  read(repoPath: string): Promise<RepoScope>
+  hidePath(repoPath: string, path: string): Promise<void>
+  unhidePath(repoPath: string, path: string): Promise<void>
+  pinPath(repoPath: string, path: string): Promise<void>
+  unpinPath(repoPath: string, path: string): Promise<void>
+}>
 
 export type FilesChangeFact =
   | {

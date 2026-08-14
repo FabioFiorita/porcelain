@@ -10,7 +10,7 @@ import type {
   FilesPathOutsideError,
 } from './files-ports'
 
-/** Files feature router — eight host-fs procedures only. */
+/** Files feature router — tree, scope, and host-fs procedures. */
 
 /** Full public error set for exhaustive mapping — callers may pass narrower per-op unions. */
 type FilesMappedError =
@@ -42,6 +42,41 @@ function throwIfFailed<T>(
 
 export function createFilesFeatureRouter(operations: FilesOperations) {
   return t.router({
+    readDir: publicProcedure
+      .input(procedureCatalog.readDir.input)
+      .output(procedureCatalog.readDir.output)
+      .query(({ input }) => operations.readDir(input)),
+
+    hidePath: publicProcedure
+      .input(procedureCatalog.hidePath.input)
+      .output(procedureCatalog.hidePath.output)
+      .mutation(({ input }) => operations.hidePath(input.repoPath, input.path)),
+
+    unhidePath: publicProcedure
+      .input(procedureCatalog.unhidePath.input)
+      .output(procedureCatalog.unhidePath.output)
+      .mutation(({ input }) => operations.unhidePath(input.repoPath, input.path)),
+
+    pinPath: publicProcedure
+      .input(procedureCatalog.pinPath.input)
+      .output(procedureCatalog.pinPath.output)
+      .mutation(({ input }) => operations.pinPath(input.repoPath, input.path)),
+
+    unpinPath: publicProcedure
+      .input(procedureCatalog.unpinPath.input)
+      .output(procedureCatalog.unpinPath.output)
+      .mutation(({ input }) => operations.unpinPath(input.repoPath, input.path)),
+
+    pinnedEntries: publicProcedure
+      .input(procedureCatalog.pinnedEntries.input)
+      .output(procedureCatalog.pinnedEntries.output)
+      .query(({ input }) => operations.pinnedEntries(input)),
+
+    repoScope: publicProcedure
+      .input(procedureCatalog.repoScope.input)
+      .output(procedureCatalog.repoScope.output)
+      .query(({ input }) => operations.repoScope(input)),
+
     readFile: publicProcedure
       .input(procedureCatalog.readFile.input)
       .output(procedureCatalog.readFile.output)

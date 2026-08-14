@@ -31,6 +31,23 @@ function expectPublicCode(error: unknown, code: string, unexpected = false): voi
   })
 }
 
+async function callWithRawInput(
+  router: ReturnType<typeof createGitFeatureRouter>,
+  path: string,
+  type: 'query' | 'mutation',
+  input: unknown,
+): Promise<unknown> {
+  return callTRPCProcedure({
+    router,
+    path,
+    type,
+    ctx: PUBLIC_CONTEXT,
+    getRawInput: async () => input,
+    signal: undefined,
+    batchIndex: 0,
+  })
+}
+
 const DIFF_READING = {
   name: 'Changes',
   sections: [] as [],
@@ -85,6 +102,21 @@ function operations(overrides: Partial<GitOperations> = {}): GitOperations {
     worktreesGit: vi.fn<GitOperations['worktreesGit']>(
       async (): Promise<GitProjectResult<never[]>> => ({ ok: true, value: [] }),
     ),
+    flowGit: vi.fn<GitOperations['flowGit']>(async () => []),
+    rangeFlowGit: vi.fn<GitOperations['rangeFlowGit']>(async () => ({ groups: [], base: 'main' })),
+    rangeDiffFileGit: vi.fn<GitOperations['rangeDiffFileGit']>(async () => ({
+      hunks: [],
+      status: 'modified',
+    })),
+    diffFileGit: vi.fn<GitOperations['diffFileGit']>(async () => ({
+      hunks: [],
+      status: 'modified',
+    })),
+    logGit: vi.fn<GitOperations['logGit']>(async () => []),
+    commitMessageGit: vi.fn<GitOperations['commitMessageGit']>(async () => 'feat: test'),
+    fileLogGit: vi.fn<GitOperations['fileLogGit']>(async () => []),
+    commitDiffGit: vi.fn<GitOperations['commitDiffGit']>(async () => []),
+    commitFlowGit: vi.fn<GitOperations['commitFlowGit']>(async () => []),
     commitModelsGit: vi.fn<GitOperations['commitModelsGit']>(async () => COMMIT_MODELS),
     diffReadingGit: vi.fn<GitOperations['diffReadingGit']>(async () => DIFF_READING),
     ...overrides,
@@ -156,6 +188,28 @@ describe('Git feature router', () => {
       caller.gitCreateBranch({ repoPath: REPO, branch: 'feature/new' }),
     ).resolves.toBeUndefined()
     await expect(caller.gitWorktrees(REPO)).resolves.toEqual([])
+    await expect(caller.gitFlow(REPO)).resolves.toEqual([])
+    await expect(caller.gitRangeFlow(REPO)).resolves.toEqual({ groups: [], base: 'main' })
+    await expect(
+      caller.gitRangeDiffFile({ repoPath: REPO, base: 'main', filePath: 'src/a.ts' }),
+    ).resolves.toEqual({ hunks: [], status: 'modified' })
+    await expect(caller.gitDiffFile({ repoPath: REPO, filePath: 'src/a.ts' })).resolves.toEqual({
+      hunks: [],
+      status: 'modified',
+    })
+    await expect(caller.gitLog({ repoPath: REPO, limit: 20 })).resolves.toEqual([])
+    await expect(caller.gitCommitMessage({ repoPath: REPO, hash: 'abcdef123456' })).resolves.toBe(
+      'feat: test',
+    )
+    await expect(
+      caller.gitFileLog({ repoPath: REPO, filePath: 'src/a.ts', limit: 20 }),
+    ).resolves.toEqual([])
+    await expect(
+      caller.gitCommitDiff({ repoPath: REPO, hash: 'abcdef123456', filePath: 'src/a.ts' }),
+    ).resolves.toEqual([])
+    await expect(caller.gitCommitFlow({ repoPath: REPO, hash: 'abcdef123456' })).resolves.toEqual(
+      [],
+    )
     await expect(caller.commitModels()).resolves.toEqual(COMMIT_MODELS)
     await expect(
       caller.diffReading({ repoPath: REPO, scope: { type: 'working' } }),
@@ -178,6 +232,27 @@ describe('Git feature router', () => {
     expect(bound.branchesGit).toHaveBeenCalled()
     expect(bound.createBranchGit).toHaveBeenCalled()
     expect(bound.worktreesGit).toHaveBeenCalled()
+    expect(bound.flowGit).toHaveBeenCalledWith(REPO)
+    expect(bound.rangeFlowGit).toHaveBeenCalledWith(REPO)
+    expect(bound.rangeDiffFileGit).toHaveBeenCalledWith({
+      repoPath: REPO,
+      base: 'main',
+      filePath: 'src/a.ts',
+    })
+    expect(bound.diffFileGit).toHaveBeenCalledWith({ repoPath: REPO, filePath: 'src/a.ts' })
+    expect(bound.logGit).toHaveBeenCalledWith({ repoPath: REPO, limit: 20 })
+    expect(bound.commitMessageGit).toHaveBeenCalledWith({ repoPath: REPO, hash: 'abcdef123456' })
+    expect(bound.fileLogGit).toHaveBeenCalledWith({
+      repoPath: REPO,
+      filePath: 'src/a.ts',
+      limit: 20,
+    })
+    expect(bound.commitDiffGit).toHaveBeenCalledWith({
+      repoPath: REPO,
+      hash: 'abcdef123456',
+      filePath: 'src/a.ts',
+    })
+    expect(bound.commitFlowGit).toHaveBeenCalledWith({ repoPath: REPO, hash: 'abcdef123456' })
     expect(bound.commitModelsGit).toHaveBeenCalledTimes(1)
     expect(bound.diffReadingGit).toHaveBeenCalledTimes(1)
     expect(bound.diffReadingGit).toHaveBeenCalledWith({
@@ -244,6 +319,78 @@ describe('Git feature router', () => {
 
     expectPublicCode(error, 'request.invalid')
     expect(stageAllGit).not.toHaveBeenCalled()
+  })
+
+  it('applies history defaults and enforces the contract limits', async () => {
+    const bound = operations()
+    const router = createGitFeatureRouter(bound)
+
+    await callWithRawInput(router, 'gitLog', 'query', { repoPath: REPO })
+    await callWithRawInput(router, 'gitFileLog', 'query', {
+      repoPath: REPO,
+      filePath: 'src/a.ts',
+    })
+    expect(bound.logGit).toHaveBeenCalledWith({ repoPath: REPO, limit: 200 })
+    expect(bound.fileLogGit).toHaveBeenCalledWith({
+      repoPath: REPO,
+      filePath: 'src/a.ts',
+      limit: 50,
+    })
+
+    expectPublicCode(
+      await rejected(() =>
+        callWithRawInput(router, 'gitLog', 'query', { repoPath: REPO, limit: 501 }),
+      ),
+      'request.invalid',
+    )
+    expectPublicCode(
+      await rejected(() =>
+        callWithRawInput(router, 'gitFileLog', 'query', {
+          repoPath: REPO,
+          filePath: 'src/a.ts',
+          limit: 201,
+        }),
+      ),
+      'request.invalid',
+    )
+  })
+
+  it('rejects malformed moved Git input before invoking its operation', async () => {
+    const diffFileGit = vi.fn<GitOperations['diffFileGit']>(async () => ({
+      hunks: [],
+      status: 'modified',
+    }))
+    const router = createGitFeatureRouter(operations({ diffFileGit }))
+
+    expectPublicCode(
+      await rejected(() =>
+        callWithRawInput(router, 'gitDiffFile', 'query', {
+          repoPath: REPO,
+          filePath: 42,
+        }),
+      ),
+      'request.invalid',
+    )
+    expect(diffFileGit).not.toHaveBeenCalled()
+  })
+
+  it('redacts an invalid moved diff result at the output boundary', async () => {
+    const router = createGitFeatureRouter(
+      operations({
+        diffFileGit: async () => ({ hunks: [], status: 'exploded' }) as never,
+      }),
+    )
+
+    expectPublicCode(
+      await rejected(() =>
+        router.createCaller(PUBLIC_CONTEXT).gitDiffFile({
+          repoPath: REPO,
+          filePath: 'src/a.ts',
+        }),
+      ),
+      'internal.unexpected',
+      true,
+    )
   })
 
   it('lets unexpected operation errors reach centralized internal mapping', async () => {

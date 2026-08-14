@@ -1,11 +1,13 @@
 // @vitest-environment node
 import { describe, expect, expectTypeOf, it, vi } from 'vitest'
 import { createFilesOperations, type FilesOperations } from './files-operations'
-import type { FilesChangeFact, FilesChanges, WorkspaceFiles } from './files-ports'
+import type { FilesChangeFact, FilesChanges, FilesScope, WorkspaceFiles } from './files-ports'
 
 function fakeWorkspace(overrides: Partial<WorkspaceFiles> = {}): WorkspaceFiles {
   const reject: never = undefined as never
   return {
+    readDir: async () => reject,
+    pinnedEntries: async () => reject,
     readFile: async () => reject,
     previewHtml: async () => reject,
     writeTextFile: async () => reject,
@@ -52,6 +54,49 @@ describe('createFilesOperations', () => {
     await expect(ops.createFile({ projectPath: PROJECT, path: 'docs/empty.txt' })).resolves.toEqual(
       { ok: true, value: undefined },
     )
+  })
+
+  it('composes scope state with directory reads and delegates scope mutations', async () => {
+    const readDir = vi.fn<WorkspaceFiles['readDir']>(async () => [])
+    const pinnedEntries = vi.fn<WorkspaceFiles['pinnedEntries']>(async () => [])
+    const scope: FilesScope = {
+      read: vi.fn(async () => ({
+        hiddenPaths: ['/synthetic/repo/.env'],
+        pinnedPaths: ['/synthetic/repo/src'],
+      })),
+      hidePath: vi.fn(async () => undefined),
+      unhidePath: vi.fn(async () => undefined),
+      pinPath: vi.fn(async () => undefined),
+      unpinPath: vi.fn(async () => undefined),
+    }
+    const ops = createFilesOperations({
+      workspaceFiles: fakeWorkspace({ readDir, pinnedEntries }),
+      scope,
+    })
+
+    await ops.readDir({ repoPath: PROJECT, path: PROJECT, showHidden: false })
+    await ops.pinnedEntries(PROJECT)
+    await ops.hidePath(PROJECT, '/synthetic/repo/.env')
+    await ops.unhidePath(PROJECT, '/synthetic/repo/.env')
+    await ops.pinPath(PROJECT, '/synthetic/repo/src')
+    await ops.unpinPath(PROJECT, '/synthetic/repo/src')
+    await ops.repoScope(PROJECT)
+
+    expect(readDir).toHaveBeenCalledWith({
+      path: PROJECT,
+      showHidden: false,
+      hiddenPaths: new Set(['/synthetic/repo/.env']),
+      pinnedPaths: new Set(['/synthetic/repo/src']),
+    })
+    expect(pinnedEntries).toHaveBeenCalledWith({
+      hiddenPaths: new Set(['/synthetic/repo/.env']),
+      pinnedPaths: ['/synthetic/repo/src'],
+    })
+    expect(scope.hidePath).toHaveBeenCalledWith(PROJECT, '/synthetic/repo/.env')
+    expect(scope.unhidePath).toHaveBeenCalledWith(PROJECT, '/synthetic/repo/.env')
+    expect(scope.pinPath).toHaveBeenCalledWith(PROJECT, '/synthetic/repo/src')
+    expect(scope.unpinPath).toHaveBeenCalledWith(PROJECT, '/synthetic/repo/src')
+    expect(scope.read).toHaveBeenCalledTimes(3)
   })
 
   it('maps already-exists, not-found, and destination-exists 1:1', async () => {

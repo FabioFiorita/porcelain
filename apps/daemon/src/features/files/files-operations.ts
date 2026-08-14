@@ -1,6 +1,7 @@
 import type { SessionChange } from '@porcelain/contracts/session'
 import { createFilesChangesPublisher } from './files-notifications'
-import type { FilesChanges, WorkspaceFiles } from './files-ports'
+import type { FilesChanges, FilesScope, WorkspaceFiles } from './files-ports'
+import { createFilesScope } from './files-scope'
 import { createNodeWorkspaceFiles } from './workspace-files'
 
 /**
@@ -9,6 +10,17 @@ import { createNodeWorkspaceFiles } from './workspace-files'
  * create/rename-only errors and publish undeclared contract codes at the router.
  */
 export type FilesOperations = {
+  readDir: (input: {
+    repoPath: string
+    path: string
+    showHidden: boolean
+  }) => ReturnType<WorkspaceFiles['readDir']>
+  hidePath: (repoPath: string, path: string) => Promise<void>
+  unhidePath: (repoPath: string, path: string) => Promise<void>
+  pinPath: (repoPath: string, path: string) => Promise<void>
+  unpinPath: (repoPath: string, path: string) => Promise<void>
+  pinnedEntries: (repoPath: string) => ReturnType<WorkspaceFiles['pinnedEntries']>
+  repoScope: FilesScope['read']
   readFile: WorkspaceFiles['readFile']
   previewHtml: WorkspaceFiles['previewHtml']
   writeTextFile: WorkspaceFiles['writeTextFile']
@@ -38,16 +50,39 @@ function uniquePaths(paths: readonly string[]): string[] {
 export function createFilesOperations(
   options: {
     workspaceFiles?: WorkspaceFiles
+    scope?: FilesScope
     changes?: FilesChanges
     publishSessionChange?: (change: SessionChange) => void
   } = {},
 ): FilesOperations {
   const workspaceFiles = options.workspaceFiles ?? createNodeWorkspaceFiles()
+  const scope = options.scope ?? createFilesScope()
   const changes =
     options.changes ??
     createFilesChangesPublisher(options.publishSessionChange ?? (() => undefined))
 
   return Object.freeze({
+    async readDir(input) {
+      const stored = await scope.read(input.repoPath)
+      return workspaceFiles.readDir({
+        hiddenPaths: new Set(stored.hiddenPaths),
+        path: input.path,
+        pinnedPaths: new Set(stored.pinnedPaths),
+        showHidden: input.showHidden,
+      })
+    },
+    hidePath: (repoPath, path) => scope.hidePath(repoPath, path),
+    unhidePath: (repoPath, path) => scope.unhidePath(repoPath, path),
+    pinPath: (repoPath, path) => scope.pinPath(repoPath, path),
+    unpinPath: (repoPath, path) => scope.unpinPath(repoPath, path),
+    async pinnedEntries(repoPath) {
+      const stored = await scope.read(repoPath)
+      return workspaceFiles.pinnedEntries({
+        hiddenPaths: new Set(stored.hiddenPaths),
+        pinnedPaths: stored.pinnedPaths,
+      })
+    },
+    repoScope: (repoPath) => scope.read(repoPath),
     readFile: (input) => workspaceFiles.readFile(input),
     previewHtml: (input) => workspaceFiles.previewHtml(input),
     async writeTextFile(input) {

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Assemble `dist-daemon/` — a self-contained, npm-publishable copy of the
 // Porcelain daemon that runs under PLAIN Node (no Electron, no pnpm workspace)
-// on another machine (the Beelink mini-PC; plans/remote-environments.md Phase 4).
+// on another machine (see docs/remote-setup.md for the supported deployment path).
 //
 // Primary UX (t3-style):
 //   npx porcelain-daemon@latest serve --tailnet

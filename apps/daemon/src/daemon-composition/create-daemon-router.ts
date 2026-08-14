@@ -14,9 +14,6 @@ import {
 } from '../features/review'
 import { createSearchRouter } from '../features/search'
 import { createTerminalRouter } from '../features/terminal'
-import { createGitRouter } from '../router/git'
-import { createReposRouter } from '../router/repos'
-import { createSettingsRouter } from '../router/settings'
 import { t } from '../trpc'
 import type { CreateDaemonRouterOptions } from './daemon-operations'
 
@@ -27,17 +24,14 @@ import type { CreateDaemonRouterOptions } from './daemon-operations'
  *
  * Remote, Projects, Git, Files, Search, the whole Review domain (comments,
  * lifecycle, reading, Evidence, reviewed marks), Board, Actions, Project Data,
- * and Terminal procedures are bound through `operations`; only the residual
- * repos/git/settings routers remain composition-only until their migrations land.
+ * and Terminal procedures are bound through `operations`; no horizontal procedure router
+ * remains outside a canonical domain feature.
  */
 export function createDaemonRouter({ operations }: CreateDaemonRouterOptions) {
   return t.mergeRouters(
     createRemoteRouter(operations.remote),
     createProjectsRouter(operations.projects),
-    createReposRouter(),
     createGitFeatureRouter(operations.git),
-    createGitRouter(),
-    // Files feature eight first so flat merge position stays stable for the Search procedures.
     createFilesFeatureRouter(operations.files),
     createSearchRouter(operations.search),
     createReviewCommentRouter(operations.review),
@@ -48,7 +42,6 @@ export function createDaemonRouter({ operations }: CreateDaemonRouterOptions) {
     createBoardRouter(operations.board),
     createActionsRouter(operations.actions),
     createProjectDataRouter(operations.projectData),
-    createSettingsRouter(),
     createRemoteNetworkRouter(operations.remote),
     createTerminalRouter(operations.terminal),
   )

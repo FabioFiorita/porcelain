@@ -1,110 +1,141 @@
-# Domain architecture and migration rules
+# Domain architecture
 
-Porcelain is migrating from horizontal technical folders to one domain-first architecture without
-changing its runtime topology. The accepted target and its inventories live under
-`plans/architecture-refactor/`; this page states the rules that are already active for contributors
-and agents while that migration is in progress.
+Porcelain's domain-first architecture is landed. The codebase has ten canonical product domains;
+the old architecture-refactor plans and their execution machinery are gone. This page is the
+current source for ownership, dependency direction, state ownership, and proof expectations.
 
-## Start with one of ten domains
+## Ten canonical domains
 
-The canonical product keys are:
+Use the same key in contracts, daemon, client-runtime, Web, mobile, tests, and target paths:
 
 ```text
-projects · files · git · search · review · board
-actions · terminal · project-data · remote
+projects · files · git · search · review
+board · actions · terminal · project-data · remote
 ```
 
-Use the same key in contracts, daemon, client-runtime, Web, mobile, CLI, tests, and target paths.
-Shell, Viewer, Settings, UI, daemon composition, Desktop, native integration, and infrastructure are
-supporting regions, not extra product domains. Settings assembles controls; it does not own the
-behavior behind them.
+Shell, Viewer, Settings, UI, daemon composition, Desktop, native integration, infrastructure, and
+Quick Open are supporting regions, not extra product domains. Settings assembles controls; it does
+not own the behavior behind them. Quick Open composes existing domain queries and navigation; it
+does not create a second search or command domain.
 
-Current synonyms remain visible in legacy code: `feature` often means Review, `repo` or `workspace`
-often means Project, Changes/History belong to Git, Comments belong to Review, and saved commands
-belong to Actions rather than Terminal. Do not extend these aliases. A completed cutover deletes them
-atomically instead of adding compatibility.
+Current product language is authoritative: Review replaces the old `feature` vocabulary; Project
+replaces repo/workspace ownership; Changes and History are Git surfaces; Comments are Review; saved
+commands are Actions rather than Terminal. Do not add compatibility names when extending a slice.
 
-The naming authority and full ownership table are
-[`plans/architecture-refactor/domain-registry.md`](../../plans/architecture-refactor/domain-registry.md).
-
-## Follow one intention through the same boundaries
+## One path from wire to UI
 
 ```text
-contract
-    ↓
-router — authenticate, parse, invoke one operation, map result
-    ↓
-application operation — complete orchestration for one intention
-    ↓
-pure rules + capability ports
-    ↓
+contracts procedure catalog
+        ↓
+canonical daemon feature router
+        ↓
+application operation — one complete intention
+        ↓
+pure rules + narrow capability ports
+        ↓
 composition-injected adapters
-    ↓
-typed notification or stream consequence
-    ↓
-client-runtime semantics
-    ↓
-Web/mobile feature adapter and presentation
+        ↓
+typed notification or ordered stream consequence
+        ↓
+client-runtime query/mutation/realtime semantics
+        ↓
+Web or mobile feature adapter and presentation
 ```
 
-Every public procedure has one operation, including simple reads. Operations do not call operations.
-A cross-domain operation visibly depends on narrow capabilities exported by the participating
-domains; required work is never hidden behind events. Routers contain no product decisions and
-domain rules perform no I/O.
+Every public procedure has one operation, including simple reads. A router authenticates, parses,
+invokes that operation, and maps its declared result; it contains no product decisions. Operations
+own intention and orchestration. They do not call other operations recursively. Cross-domain work
+uses explicit narrow capabilities from the participating domains, so required work cannot be hidden
+behind an event.
 
-Runtime packages remain hard boundaries. Contracts own exhaustive runtime-validated wire shapes and
-never import applications. Daemon never imports clients. Web and mobile never import daemon source
-or one another. Client-runtime owns shared nonvisual query, mutation, notification, error, and
-session semantics without importing React, DOM, browser, or native APIs.
+The daemon composition root is the only place that assembles the flat tRPC router. The contracts
+package owns strict, runtime-validated wire shapes and the exact procedure catalog; it never
+imports an application. Daemon code never imports clients. Client-runtime owns shared nonvisual
+query, mutation, notification, error, and session semantics without importing React, DOM, browser,
+or native APIs. Web and mobile adapt those semantics to their own transport and UI primitives.
 
-The exact target file shapes, error model, realtime categories, persistence rules, and test matrix
-are in
-[`plans/architecture-refactor/target-architecture.md`](../../plans/architecture-refactor/target-architecture.md).
+## Repository boundaries
 
-## Treat migration as a ratchet
+Each registered domain root has one narrow `index.ts` public boundary. Import another domain through
+that boundary; do not deep-import its internals. The canonical domain paths are:
 
-The architecture registry records each domain's migration stage and target roots. Contract roots are
-currently staged as `migrating` while product behavior remains in its inventoried horizontal paths;
-later bounded specifications advance the domain only as each cross-package cutover lands. Existing
-horizontal paths may remain while inventoried. They may shrink, not grow.
+| Layer | Path | Owns |
+|---|---|---|
+| Wire | `packages/contracts/src/<domain>` | schemas, procedure definitions, errors, notifications |
+| Server | `apps/daemon/src/features/<domain>` | router, operation, rules, ports, adapters, stores |
+| Shared client | `packages/client-runtime/src/<domain>` | query keys, mutation effects, freshness, recovery |
+| Web | `apps/web/src/features/<domain>` | browser transport adapter and presentation |
+| Mobile | `apps/mobile/src/features/<domain>` | native transport adapter and presentation |
 
-- New or migrated feature code uses the canonical domain paths.
-- A domain exposes one narrow `index.ts`; foreign domains do not deep-import its internals.
-  Registered target roots (including domain-owned aliases such as mobile `features/comments`)
-  enforce that public-boundary rule: cross-root deep imports fail immediately. During migration,
-  inventoried external deep imports into a root may only shrink via
-  `TARGET_ROOT_DEEP_IMPORT_BASELINES` and must be removed when they reach zero; the current
-  catalog has no external baseline rows for completed cutovers. Public presentation imports use
-  the owning index, including mobile comments.
-- Generic containers such as `service.ts`, `manager.ts`, `utils.ts`, `helpers.ts`, `common.ts`,
-  `types.ts`, and `constants.ts` are not target feature names.
-- No allowlist or count is increased to make a change pass.
-- A migration updates contracts, daemon, shared client semantics, Web/mobile/CLI callers, tests, and
-  legacy deletion as one preplanned cutover.
-- There is one version-1 wire/storage path. Historical aliases, dual reads/writes, migrations, and
-  old-shape fallbacks are deleted; genuine reconnect, corruption, resource, security, and platform
-  resilience remains.
+Supporting-region aliases are intentional and registered: mobile Comments belongs to Review, and
+mobile Quick Open belongs to the supporting surface layer. They are not permission to invent another
+domain tree.
 
-`scripts/lint-architecture.mjs` enforces the rules that are objective today: the domain registry,
-package direction, target feature naming, a repository-wide authored production file ceiling, and
-shrink-only baselines for existing raw Web/server imports and oversized files. More gates become
-strict as each domain lands; execution agents never mark a domain complete or edit its baseline
-without the specification that removes the corresponding legacy path.
+The dependency direction is:
 
-`scripts/lint-architecture-specs.mjs` keeps the migration executable by less architecture-aware
-agents. It checks recipe/catalog identity and status, required executor sections and order, known
-dependencies, dependency cycles, complete recipe coverage for non-landed work,
-Ready-versus-Landed prerequisites, primary-exemplar metadata, and placeholder language that
-delegates an unresolved choice.
+```text
+desktop → daemon, web, contracts, shared
+web     → client-runtime, contracts, shared
+mobile  → client-runtime, contracts, shared
+daemon  → contracts, shared
+cli     → shared
+contracts → nothing under apps/
+client-runtime → contracts
+shared → no product package
+```
 
-## Test the owner of the risk
+There is one version-1 wire and storage path. Do not retain historical aliases, dual reads/writes,
+or old-shape fallbacks. Reconnect, corruption, resource, security, and platform resilience are
+real behavior and remain typed rather than being treated as compatibility migration.
 
-Operation tests are the daemon regression backbone. Pure-rule tests prove decisions; adapter
-integration tests prove real filesystem, Git, storage, process, and platform representations;
-contracts prove the wire; router tests prove transport mapping and safe errors; client-runtime tests
-prove query/mutation/realtime semantics; Web/mobile features use contract-valid daemon mocks. E2E is
-reserved for a small named set of assembled startup, authentication, transport, reconnect, Terminal,
-and packaging risks.
+## State, errors, and realtime
 
-When fixing a bug, add the smallest failing test at the boundary that owned the defect. A higher test
-is added only when the bug escaped because the integration between boundaries lacked proof.
+- Server truth lives in client-runtime query definitions and the owning client query cache. A
+  component does not mirror server data in a second store.
+- Mutations declare targeted invalidations and foreign dependencies. A blanket invalidation is
+  reserved for commands whose effects genuinely span the whole working tree.
+- Notifications are typed freshness signals: they invalidate or reconcile the affected query
+  family. They are recoverable hints, not a second source of truth.
+- Terminal output is different: it is an ordered, bounded stream with sequence/lifecycle rules;
+  it is not modeled as a cache invalidation event.
+- Expected failures are typed at the operation/adapter boundary, validated at the router, and
+  mapped to the public error contract with request correlation. Unexpected errors are centralized,
+  redacted, and never leak host paths or secrets.
+- Each client state has one owner: query cache for daemon state, a focused store for cross-component
+  UI state, persisted preferences only for preferences, and local component state otherwise.
+
+## Proof at the owning boundary
+
+Use the smallest test that completely owns the risk:
+
+| Boundary | Proof |
+|---|---|
+| Contract | schema/procedure tests, exact input/output catalog |
+| Pure rule | deterministic unit tests |
+| Adapter | filesystem, Git, storage, process, or platform integration tests |
+| Operation | orchestration, failure, and notification tests |
+| Router | one-operation binding, contract serialization, public error mapping |
+| Client-runtime | query/mutation/realtime/session semantics |
+| Web/mobile feature | hook/transport mocks and user-facing behavior |
+| Assembled startup/transport/Terminal/package risk | named E2E lane only |
+
+A test must be able to fail: no skipped tests, tautologies, empty assertion bodies, or assertions
+that merely observe a mock call. After changing code, run `pnpm quality:changed`; then run the
+required gate (`pnpm verify` for a complete implementation unit). Runtime evidence scales with the
+risk, but “implemented, should work” is never proof.
+
+## Permanent enforcement
+
+The live registry is `scripts/architecture/domains.mjs`; all ten domains are complete, with empty
+legacy ledgers and no deep-import debt. The gates that protect this architecture are:
+
+- `lint-architecture`: domain paths, package direction, public indexes, file-size ceiling, and
+  shrink-only raw-import baselines;
+- `lint-procedure-contracts`: the 109 contract procedures and 109 canonical daemon routes match
+  one-to-one;
+- `lint-escapes`, `lint-security-boundaries`, and the mobile NativeWind/file-size gates;
+- `lint-docs`, `lint-skill-commands`, `typecheck:tests`, and the repository quality gates.
+
+If a rule is objective and enforceable, update the gate. If it is judgment about ownership or
+design, keep the explanation here and in the owning domain code. New work starts from this landed
+architecture; there is no migration ledger or recipe queue to advance.

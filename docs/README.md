@@ -18,14 +18,13 @@ Contributor architecture. Start with `architecture.md`; the rest are deep dives.
 | File | What |
 |------|------|
 | [internals/architecture.md](internals/architecture.md) | Package charter: daemon · cli · web · shell · mobile, surfaces, boundaries |
-| [internals/domain-architecture.md](internals/domain-architecture.md) | Active domain-first migration rules, boundaries, ratchets, and testing ownership |
+| [internals/domain-architecture.md](internals/domain-architecture.md) | Landed domain architecture, boundaries, state ownership, and testing rules |
 | [internals/one-architecture.md](internals/one-architecture.md) | Daemon procedures → hooks → components, WS, tabs, data-flow traps |
 | [internals/app-shell.md](internals/app-shell.md) | Multi-window Electron shell, stateless daemon router, window chrome |
 | [internals/terminal.md](internals/terminal.md) | Terminal / PTY — the deliberate bend in the one architecture |
 | [internals/composition.md](internals/composition.md) | Renderer JSX defaults (shadcn on Base UI) |
 | [internals/nomenclature.md](internals/nomenclature.md) | Bare nouns: tab names → entry-point files |
 | [internals/repo.md](internals/repo.md) | Repo layout, aliases, packaging facts, shadcn re-apply |
-| [internals/architecture-dispatch.md](internals/architecture-dispatch.md) | Execution-group dispatcher: manifests, fresh Grok/Claude Personal processes, worktree base |
 | [internals/agent-foundations.md](internals/agent-foundations.md) | Cross-cutting foundation owners, exact proof paths, and mechanical removal gates |
 | [internals/quality-metrics.md](internals/quality-metrics.md) | Coverage, complexity, dead code: what `pnpm quality` measures and why coverage is a floor |
 

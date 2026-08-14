@@ -1,47 +1,49 @@
 # Architecture charter
 
-Product surfaces and package boundaries. For data-flow traps inside a surface, see
-`one-architecture.md`.
+Porcelain is a review layer for agentic coding. The daemon owns project work and serves one flat
+wire surface; Web, Desktop, and mobile are clients of that daemon. The package and domain rules in
+[`domain-architecture.md`](domain-architecture.md) are landed and enforced.
 
 ## Product surfaces
 
 | Surface | Role | Runs without |
 |---------|------|----------------|
-| **Daemon** | Headless runtime: git, fs, review, board, PTY, share, HTTP/WS | Electron, any UI |
-| **CLI** | Agent channel (`porcelain` binary, Node builtins only) | App UI |
-| **Web** | React human UI (browser and Electron load the same client) | Electron shell |
-| **Shell** | Electron: windows, menu, updater, spawn local daemon, load web | Business logic |
-| **Mobile** | iOS client against the same daemon | Desktop shell |
+| **Daemon** | Headless runtime for Projects, Files, Git, Review, Board, Actions, Terminal, sharing, HTTP/WS | Electron and every UI |
+| **CLI** | Agent channel and project companion tooling | App UI |
+| **Web** | React client used directly in a browser and loaded by Electron | Electron shell |
+| **Shell** | Thin Electron lifecycle, windows, menus, updater, and local-daemon process owner | Business logic |
+| **Mobile** | Native client against the same daemon and contract catalog | Desktop shell |
 
-Linux first-class path: **daemon + web** (browser). Mac can add the shell. Mobile is a peer client.
+Linux's first-class path is daemon + Web in a browser. Mac can add the shell. Mobile is a peer
+client, not a second backend.
 
 ## Package map
 
-```
+```text
 apps/
-  daemon/     @porcelain/daemon     plain Node runtime (+ porcelain-daemon npm)
-  cli/        @porcelain/cli        agent CLI (installed by daemon into home)
-  web/        @porcelain/web        React client (Vite)
-  desktop/    @porcelain/desktop    thin Electron shell + Mac package only
-  mobile/     @porcelain/mobile     Expo iOS
+  daemon/     @porcelain/daemon     plain Node runtime and HTTP/WS server
+  cli/        @porcelain/cli        dependency-light agent CLI
+  web/        @porcelain/web        React/Vite client
+  desktop/    @porcelain/desktop    thin Electron shell
+  mobile/     @porcelain/mobile     Expo native client
 
 packages/
-  contracts/       wire protocol + ten-domain procedure catalog (109 exact I/O schemas)
-  client-runtime/  non-UI client core (session protocol, keys, word-diff)
-  shared/          pure cross-cutting helpers (home, platform, ids, …)
+  contracts/       wire protocol and ten-domain procedure catalog
+  client-runtime/  nonvisual query, mutation, realtime, session, and pure UI semantics
+  shared/          pure cross-cutting helpers
 ```
 
 | Package | Build |
-|---------|--------|
-| `apps/daemon` | `pnpm build:daemon` — esbuild → `desktop/out/main/daemon/server.js` |
-| `apps/cli` | `pnpm build:cli` — esbuild single-file CJS → `desktop/out/main/cli/porcelain.js` |
-| `apps/web` | `pnpm build:web` — Vite → `desktop/out/renderer` |
-| `apps/desktop` | electron-vite **shell only** on prod; HMR web source under `pnpm dev` |
-| Full product | `pnpm build` — mobile typecheck + web + shell + node runtime |
+|---------|-------|
+| `apps/daemon` | `pnpm build:daemon` — esbuild Node output |
+| `apps/cli` | `pnpm build:cli` — dependency-light single-file CLI |
+| `apps/web` | `pnpm build:web` — Vite output |
+| `apps/desktop` | electron-vite shell; development loads the Web client |
+| Full product | `pnpm build` — mobile typecheck plus Desktop/Web build |
 
 ## Dependency direction
 
-```
+```text
 desktop  →  daemon, web, contracts, shared
 web      →  client-runtime, contracts, shared
 mobile   →  client-runtime, contracts, shared
@@ -50,45 +52,73 @@ cli      →  shared
 
 contracts      →  nothing under apps/
 client-runtime →  contracts
-shared         →  (none)
+shared         →  no product package
 ```
+
+The contracts package owns the exact 109-procedure catalog and all cross-client wire shapes. The
+daemon's composition root merges canonical domain routers into that flat surface. No in-process
+Desktop backend exists, so local and remote clients follow the same daemon path. Components do not
+import transport clients; Web and mobile feature adapters/hooks own transport access, while
+client-runtime owns shared nonvisual semantics.
 
 Hard rules:
 
-1. **Contracts never import apps.** Procedure I/O lives in contracts.
-2. **One wire.** Clients share the ten domain records composed into `procedureCatalog`; drift linted.
-3. **Daemon always.** Local and remote share one code path. No in-process shell backend.
-4. **Independent builds.** Daemon and CLI without electron-vite; web has its own Vite pipeline.
-5. **One terminal-native exception.** `apps/mobile/modules/porcelain-terminal` is the sole native
-   rendering exception: it owns only Ghostty terminal cells and input, while the React Native
-   terminal feature retains the daemon/PTY transport and all app chrome. It is not a reusable
-   native UI layer or precedent for platform-specific screens.
+1. Contracts never import applications.
+2. Every public procedure has one operation and one canonical domain router.
+3. Routers validate, invoke, and map; product decisions live in operations and pure rules.
+4. Cross-domain operations compose explicit narrow capabilities, never recursive operation calls.
+5. Each registered domain has one public `index.ts`; foreign code does not deep-import internals.
+6. Notifications invalidate or reconcile server queries; Terminal streams retain their own ordered
+   lifecycle and sequence semantics.
+7. All expected failures are typed and public errors carry request correlation; unexpected errors
+   are redacted centrally.
 
-## Versioning
+The only deliberate native rendering exception is
+`apps/mobile/modules/porcelain-terminal`: it owns Ghostty terminal cells and input only. The
+React Native Terminal feature still owns daemon/PTY transport and app chrome; this is not a general
+platform-specific UI precedent.
 
-**One product version everywhere.** `scripts/sync-versions.mjs` (+ lint `--check`).
-Canonical stamp: `apps/desktop/package.json` (electron-builder) until release prefers
-`apps/daemon`. Mobile `app.config` reads `package.json.version`.
+## Versioning and runtime topology
 
-## Definition of done (refactor program)
+One product version is synchronized across packages and authored skills by
+`scripts/sync-versions.mjs`. The daemon is Electron-free and serves both the browser and the
+renderer client. The shell owns local process lifecycle and window bindings, while tokens stay out
+of the renderer. Remote listener and pairing policy is documented in
+[`../remote-setup.md`](../remote-setup.md).
 
-| # | Criterion | Status |
-|---|-----------|--------|
-| 1 | No daemon / CLI / web business logic under `apps/desktop` | **Done** (only main/preload/packaging) |
-| 2 | Daemon and CLI build without electron-vite | **Done** (`build-node.mjs`) |
-| 3 | Web builds with its own Vite pipeline | **Done** (`apps/web` vite) |
-| 4 | Contracts: no application imports; exhaustive exact procedure I/O | **Done** (ten domain records compose 109 exact input/output schemas; no horizontal names list, fallback I/O, or app-type tombstone remains) |
-| 5 | client-runtime shared nonvisual semantics; platform adapters stay per app | **In progress** (pure protocol/keys/word-diff leaves exist; query, mutation, notification, error, and session state semantics are not shared yet) |
-| 6 | All package versions identical via sync-versions | **Done** |
-| 7 | Linux default = daemon + web | **Done** (docs + packaging story) |
-| 8 | Agent docs match tree; verify green | **Done** when `pnpm verify` passes on this revision |
+The daemon has one flat tRPC API and one `/session` WebSocket protocol. HTTP procedures are for
+request/response state; typed notifications are recoverable freshness signals; Terminal output is
+an ordered bounded stream. Reconnect restores session hello, watches, and attached Terminal
+sessions because server-side session state ends with a socket.
 
-Residual (not blockers for resuming product work):
+## Client state ownership
 
-- Mobile still has local Zod procedure mirrors. They are deleted by domain cutovers, not extended.
-- Two word-diff algorithms in client-runtime (line vs tokens) — intentional presentation split.
-- Runtime artifacts still land under `apps/desktop/out/` for shell spawn + dist-daemon layout.
+| State | Owner |
+|---|---|
+| Server, Git, Files, Review, Board, Actions, Project Data | client-runtime definitions plus the client's query cache |
+| Cross-component UI | one focused client store per concern |
+| Preferences surviving reload | the persisted preferences store only |
+| Local presentation state | the component |
 
-## Non-goals (closed)
+Mutations declare targeted invalidations and foreign dependencies. A component does not mirror
+server truth, and a notification is not treated as durable data. Mobile uses NativeWind v5,
+Tailwind CSS v4, and React Native Reusables; Web and Electron use the Web client tree and Base UI /
+shadcn primitives.
 
-Effect rewrite, procedure rename, Android, merging mobile UI into web, in-process desktop backend.
+## Verification
+
+The normal delivery gate is `pnpm verify`:
+
+```text
+lint → test → build → typecheck:e2e → typecheck:tests
+```
+
+For a changed slice, `pnpm quality:changed` answers the touched-file quality obligations first.
+Operation, adapter, router, client-runtime, and feature tests own the risks at their respective
+boundaries; E2E is reserved for named startup, authentication, transport, reconnect, Terminal,
+and packaging risks. A passing test is evidence only when it asserts the behavior that could be
+wrong.
+
+The project intentionally closes with a clean pre-launch architecture: no speculative effect
+rewrite, procedure rename, Android client, or Web/mobile UI merge. Those are product decisions, not
+unfinished architecture work.

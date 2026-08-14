@@ -2,12 +2,13 @@ import {
   cp as defaultCp,
   lstat as defaultLstat,
   mkdir as defaultMkdir,
+  readdir as defaultReaddir,
   readFile as defaultReadFile,
   rename as defaultRename,
   stat as defaultStat,
   writeFile as defaultWriteFile,
 } from 'node:fs/promises'
-import { dirname, relative } from 'node:path'
+import { basename, dirname, join, relative } from 'node:path'
 import { inlineLocalAssets } from '../../fs/evidence-assets'
 import { imageMimeForPath, isBinaryBuffer } from '../../fs/image-mime'
 import { moveToTrash as defaultMoveToTrash } from '../../fs/move-to-trash'
@@ -40,6 +41,7 @@ export type WorkspaceFilesHostIo = {
   readFile: typeof defaultReadFile
   stat: typeof defaultStat
   lstat: typeof defaultLstat
+  readdir: typeof defaultReaddir
   moveToTrash: typeof defaultMoveToTrash
 }
 
@@ -66,9 +68,50 @@ export function createNodeWorkspaceFiles(
   const readFile = hostIo.readFile ?? defaultReadFile
   const stat = hostIo.stat ?? defaultStat
   const lstat = hostIo.lstat ?? defaultLstat
+  const readdir = hostIo.readdir ?? defaultReaddir
   const moveToTrash = hostIo.moveToTrash ?? defaultMoveToTrash
 
   return {
+    async readDir(input) {
+      const entries = await readdir(input.path, { withFileTypes: true })
+      return entries
+        .filter((entry) => entry.name !== '.DS_Store')
+        .map((entry) => {
+          const path = join(input.path, entry.name)
+          return {
+            name: entry.name,
+            path,
+            kind: entry.isDirectory() ? ('dir' as const) : ('file' as const),
+            hidden: input.hiddenPaths.has(path),
+            pinned: input.pinnedPaths.has(path),
+          }
+        })
+        .filter((entry) => input.showHidden || !entry.hidden)
+        .sort((a, b) =>
+          a.kind === b.kind ? a.name.localeCompare(b.name) : a.kind === 'dir' ? -1 : 1,
+        )
+    },
+
+    async pinnedEntries(input) {
+      const entries = await Promise.all(
+        input.pinnedPaths.map(async (path) => {
+          try {
+            const info = await stat(path)
+            return {
+              name: basename(path),
+              path,
+              kind: info.isDirectory() ? ('dir' as const) : ('file' as const),
+              hidden: input.hiddenPaths.has(path),
+              pinned: true,
+            }
+          } catch {
+            return null
+          }
+        }),
+      )
+      return entries.filter((entry): entry is NonNullable<typeof entry> => entry !== null)
+    },
+
     async readFile(input) {
       const projectRootReal = await requireRoot(input.projectPath)
       const resolved = await resolveExisting(projectRootReal, input.path)

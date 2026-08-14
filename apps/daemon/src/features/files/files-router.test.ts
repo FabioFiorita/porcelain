@@ -27,6 +27,13 @@ async function rejected(run: () => Promise<unknown>): Promise<unknown> {
 
 function stubOps(overrides: Partial<FilesOperations> = {}): FilesOperations {
   return {
+    readDir: async () => [],
+    hidePath: async () => undefined,
+    unhidePath: async () => undefined,
+    pinPath: async () => undefined,
+    unpinPath: async () => undefined,
+    pinnedEntries: async () => [],
+    repoScope: async () => ({ hiddenPaths: [], pinnedPaths: [] }),
     readFile: async () => ({ ok: true, value: { type: 'not-found' } }),
     previewHtml: async () => ({ ok: true, value: null }),
     writeTextFile: async () => ({ ok: true, value: undefined }),
@@ -128,5 +135,80 @@ describe('files feature router', () => {
         .createCaller(PUBLIC_CONTEXT)
         .duplicatePath({ projectPath: PROJECT, path: 'docs/guide.md' }),
     ).resolves.toBe('docs/guide copy.md')
+  })
+
+  it('binds tree and scope procedures to the Files operations surface', async () => {
+    const calls: unknown[] = []
+    const bound = stubOps({
+      readDir: async (input) => {
+        calls.push(['readDir', input])
+        return [
+          {
+            name: 'src',
+            path: `${PROJECT}/src`,
+            kind: 'dir' as const,
+            hidden: false,
+            pinned: true,
+          },
+        ]
+      },
+      hidePath: async (...input) => {
+        calls.push(['hidePath', input])
+      },
+      unhidePath: async (...input) => {
+        calls.push(['unhidePath', input])
+      },
+      pinPath: async (...input) => {
+        calls.push(['pinPath', input])
+      },
+      unpinPath: async (...input) => {
+        calls.push(['unpinPath', input])
+      },
+      pinnedEntries: async (input) => {
+        calls.push(['pinnedEntries', input])
+        return []
+      },
+      repoScope: async (input) => {
+        calls.push(['repoScope', input])
+        return { hiddenPaths: [], pinnedPaths: [] }
+      },
+    })
+    const caller = createFilesFeatureRouter(bound).createCaller(PUBLIC_CONTEXT)
+
+    await expect(
+      caller.readDir({ repoPath: PROJECT, path: PROJECT, showHidden: false }),
+    ).resolves.toEqual([
+      {
+        name: 'src',
+        path: `${PROJECT}/src`,
+        kind: 'dir',
+        hidden: false,
+        pinned: true,
+      },
+    ])
+    await expect(
+      caller.hidePath({ repoPath: PROJECT, path: `${PROJECT}/src` }),
+    ).resolves.toBeUndefined()
+    await expect(
+      caller.unhidePath({ repoPath: PROJECT, path: `${PROJECT}/src` }),
+    ).resolves.toBeUndefined()
+    await expect(
+      caller.pinPath({ repoPath: PROJECT, path: `${PROJECT}/src` }),
+    ).resolves.toBeUndefined()
+    await expect(
+      caller.unpinPath({ repoPath: PROJECT, path: `${PROJECT}/src` }),
+    ).resolves.toBeUndefined()
+    await expect(caller.pinnedEntries(PROJECT)).resolves.toEqual([])
+    await expect(caller.repoScope(PROJECT)).resolves.toEqual({ hiddenPaths: [], pinnedPaths: [] })
+
+    expect(calls).toEqual([
+      ['readDir', { repoPath: PROJECT, path: PROJECT, showHidden: false }],
+      ['hidePath', [PROJECT, `${PROJECT}/src`]],
+      ['unhidePath', [PROJECT, `${PROJECT}/src`]],
+      ['pinPath', [PROJECT, `${PROJECT}/src`]],
+      ['unpinPath', [PROJECT, `${PROJECT}/src`]],
+      ['pinnedEntries', PROJECT],
+      ['repoScope', PROJECT],
+    ])
   })
 })

@@ -1,4 +1,0 @@
-interface:
-  display_name: "Execute Architecture Spec"
-  short_description: "Land the next reviewed refactor recipe"
-  default_prompt: "Use $execute-architecture-spec to execute the next Ready architecture recipe and stop for review."

@@ -14,6 +14,5 @@ Rules that keep it honest:
 
 Active efforts:
 
-- [`architecture-refactor/`](architecture-refactor/) — decide Porcelain's target feature
-  architecture, turn accepted decisions into executable migration specifications, then retire the
-  plan as each rule becomes true and moves into contributor documentation or enforcement.
+None. Landed work is represented by the current code, `docs/`, `AGENTS.md`, and the permanent
+mechanical gates; shipped plans are removed from this tree.
