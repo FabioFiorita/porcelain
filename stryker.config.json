@@ -42,7 +42,7 @@
   "clearTextReporter": {
     "maxTestsToLog": 0
   },
-  "tempDirName": ".stryker-tmp",
+  "tempDirName": "/tmp/porcelain-stryker",
   "cleanTempDir": true,
   "timeoutMS": 30000,
   "thresholds": {
@@ -50,5 +50,6 @@
     "low": 70,
     "break": 69
   },
-  "_thresholds": "break is today's measured score for this domain, rounded down. Mutation score may rise; it may not fall. Raise the floor when the domain improves \u2014 never lower it to make a run green."
+  "_thresholds": "break is today's measured score for this domain, rounded down. Mutation score may rise; it may not fall. Raise the floor when the domain improves \u2014 never lower it to make a run green.",
+  "_tempDir": "Absolute, outside the repo. A sandbox under the working tree is a full mirror of the project, and every lint script that walks the tree then scans the copy \u2014 a leftover sandbox failed the architecture ceiling and the docs gate on files that are not really there."
 }

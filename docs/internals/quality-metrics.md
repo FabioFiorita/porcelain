@@ -30,6 +30,8 @@ pnpm quality            # scorecard; reuses a coverage report under an hour old
 pnpm quality:baseline   # fresh suite run, then snapshot to scripts/quality/baseline.json
 pnpm test:coverage      # coverage alone, no scorecard
 pnpm lint:test-shape    # the gate that runs on every commit
+pnpm mutation           # mutation over the domains you touched
+pnpm quality:changed    # per-change verdict
 node scripts/quality/test-shape.mjs --list   # every shape finding, not just the head
 ```
 
@@ -78,9 +80,22 @@ Two caveats that are design, not decay:
 a string, drops a call — and reruns the tests. A mutant that survives is a change to your code
 that **no test noticed**.
 
+`pnpm mutation` aims it at the domains your working tree touched, because whole-repo mutation is
+not viable here — measured, not guessed:
+
+| Scope | Mutants | Wall clock |
+|---|---|---|
+| `apps/daemon/src/features/git` (daemon slice) | 346 | **33s** |
+| `board` across all five domain roots | 1,232 | **~11 min** |
+| daemon features + client-runtime + shared | — | **>35 min, abandoned** |
+
+Cost tracks the *test environment*, not the mutant count: daemon slices run in node, while a
+cross-root domain drags in jsdom component tests. So mutation is an on-demand deep check, never a
+commit gate. `pnpm mutation --domain <name>` aims it by hand; `--all` uses the committed config.
+
 The pilot is `apps/daemon/src/features/git`, chosen because git is where a wrong guard loses a
 user's work and because it was among the best-covered code in the repo — the place coverage was
-most likely to be lying. 346 mutants, **33 seconds**. It is cheap.
+most likely to be lying.
 
 | File | Statement coverage | Mutation score |
 |---|---|---|

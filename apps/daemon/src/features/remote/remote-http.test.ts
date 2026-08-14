@@ -735,12 +735,15 @@ async function readySession(ws: WebSocket): Promise<void> {
 }
 
 describe('daemon ws surface — the /session upgrade gate + dispatch', () => {
+  // `rejects.toBeDefined()` stood here and passed on any rejection at all — including
+  // `connect`'s own 4s timeout, so a daemon that simply never answered read as a refusal.
+  // These pin the HTTP-level refusal the upgrade gate is supposed to produce.
   it('rejects a /session upgrade with no subprotocol', async () => {
-    await expect(connect()).rejects.toBeDefined()
+    await expect(connect()).rejects.toThrow('unexpected-response')
   })
 
   it('rejects a /session upgrade with a wrong-token subprotocol', async () => {
-    await expect(connect('porcelain.wrong-token')).rejects.toBeDefined()
+    await expect(connect('porcelain.wrong-token')).rejects.toThrow('unexpected-response')
   })
 
   it('closes every live socket on closeAllSessions', async () => {
@@ -776,7 +779,9 @@ describe('daemon ws surface — the /session upgrade gate + dispatch', () => {
           reject(new Error('rejected'))
         })
       }),
-    ).rejects.toBeDefined()
+      // Not `toBeDefined()`: the promise above also rejects on its own 4s timeout, so the
+      // loose form passed whether the wrong path was refused or merely never answered.
+    ).rejects.toThrow('rejected')
   })
 
   it('accepts the right subprotocol and answers terminal:create after ready', async () => {

@@ -353,10 +353,16 @@ export function analyzeTestFile(fileName, sourceText) {
         const { matchers, declaresAssertions, tautology } = collectAssertions(callback)
         if (tautology) report('tautology', 'compares a literal to itself; cannot fail')
 
+        // A test delegating to `expectPublicCode(...)` is asserting, and what that helper checks
+        // is invisible here — so it disqualifies the weak/mock verdicts too, not just no-assert.
+        const delegates = callsAnyHelper(callback, helpers)
+
         if (matchers.length === 0) {
-          if (!declaresAssertions && !callsAnyHelper(callback, helpers)) {
+          if (!declaresAssertions && !delegates) {
             report('no-assert', 'reaches no assertion')
           }
+        } else if (delegates || declaresAssertions) {
+          // Nothing to say: the visible matchers are only part of the proof.
         } else {
           const strong = matchers.filter((m) => STRONG_MATCHERS.has(m))
           const weak = matchers.filter((m) => WEAK_MATCHERS.has(m))

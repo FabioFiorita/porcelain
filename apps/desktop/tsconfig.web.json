@@ -5,6 +5,9 @@
     "src/shared/**/*",
     "../../packages/contracts/src/**/*",
     "../../packages/shared/src/**/*",
+    // Included explicitly. Reachable-only checking left its unimported modules unchecked, which
+    // is how word-diff-tokens.ts accumulated eight noUncheckedIndexedAccess violations.
+    "../../packages/client-runtime/src/**/*",
     "../daemon/src/**/*",
     "../web/src/**/*",
     "../web/src/**/*.tsx",
@@ -14,6 +17,7 @@
   "exclude": [
     "../../packages/contracts/src/**/*.test.ts",
     "../../packages/shared/src/**/*.test.ts",
+    "../../packages/client-runtime/src/**/*.test.ts",
     "../daemon/src/**/*.test.ts",
     "../web/src/**/*.test.ts",
     "../web/src/**/*.test.tsx"

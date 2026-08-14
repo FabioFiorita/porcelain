@@ -47,7 +47,7 @@
     "quality": "node scripts/quality/report.mjs",
     "quality:baseline": "node scripts/quality/report.mjs --fresh --write-baseline",
     "quality:changed": "node scripts/quality/changed.mjs",
-    "mutation": "stryker run",
+    "mutation": "node scripts/quality/mutate.mjs",
     "test:watch": "pnpm --dir apps/desktop test:watch",
     "test:e2e": "pnpm --dir apps/desktop test:e2e",
     "test:e2e:visual": "pnpm --dir apps/desktop test:e2e:visual",

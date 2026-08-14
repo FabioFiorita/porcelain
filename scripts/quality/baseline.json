@@ -3,7 +3,7 @@
     "total": {
       "statements": 59.9,
       "branches": 51.2,
-      "statementCount": 26167
+      "statementCount": 26178
     },
     "areas": {
       "apps/daemon": {
@@ -34,12 +34,12 @@
       "packages/contracts": {
         "statements": 100,
         "branches": 96.7,
-        "statementCount": 553
+        "statementCount": 554
       },
       "packages/client-runtime": {
-        "statements": 93.9,
-        "branches": 90.4,
-        "statementCount": 1300
+        "statements": 93.7,
+        "branches": 89.5,
+        "statementCount": 1310
       },
       "packages/shared": {
         "statements": 90.8,
@@ -960,7 +960,7 @@
   },
   "complexity": {
     "ceiling": 15,
-    "overCeiling": 95,
+    "overCeiling": 96,
     "worst": [
       {
         "file": "apps/web/src/terminal/ghostty/renderer.ts",
@@ -1015,14 +1015,13 @@
     ]
   },
   "deadCode": {
-    "total": 407,
+    "total": 406,
     "byCategory": {
       "files": 4,
       "dependencies": 9,
       "devDependencies": 22,
       "unlisted": 1,
       "binaries": 2,
-      "unresolved": 1,
       "exports": 223,
       "types": 126,
       "duplicates": 19
@@ -1107,6 +1106,15 @@
     "packages/shared": {
       "sources": 10,
       "tests": 8
+    }
+  },
+  "testQuality": {
+    "tests": 3304,
+    "files": 467,
+    "gatedKinds": ["focused", "disabled", "tautology", "no-assert"],
+    "counts": {
+      "mock-only": 54,
+      "weak-only": 32
     }
   }
 }

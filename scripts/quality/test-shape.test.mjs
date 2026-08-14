@@ -127,6 +127,21 @@ test('flags a test that only inspects mock call state', () => {
   )
 })
 
+test('stays quiet when the proof is delegated to a helper', () => {
+  // A helper's assertions are invisible here, so the visible matchers are only part of the
+  // proof — calling one disqualifies the weak/mock verdicts, not just no-assert.
+  assert.deepEqual(
+    kinds(`function expectRejected(error) {
+      expect(error.code).toBe('request.invalid')
+    }
+    it('rejects before dispatching', () => {
+      expectRejected(run())
+      expect(port.write).not.toHaveBeenCalled()
+    })`),
+    [],
+  )
+})
+
 test('accepts a mock assertion paired with an observable result', () => {
   assert.deepEqual(
     kinds(`it('delegates and returns', () => {
