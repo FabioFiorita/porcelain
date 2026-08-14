@@ -10,8 +10,8 @@
  * `apps/daemon/src/features/git`, and it mutates exactly that. Nothing changed there, and it
  * says so instead of quietly mutating the whole repo.
  *
- *   pnpm mutation                      # domains touched since the merge base with main
- *   pnpm mutation --domain git         # one named domain, whatever the diff says
+ *   pnpm mutation                      # just the production files you changed
+ *   pnpm mutation --domain git         # a whole domain, across all five of its roots
  *   pnpm mutation --all                # the committed stryker.config.json scope
  */
 import { execFileSync, spawnSync } from 'node:child_process'
@@ -49,18 +49,20 @@ function changedFiles() {
   return [...new Set(groups.join('\n').split('\n').filter(Boolean))]
 }
 
-/** Domains with a changed, non-test production file under one of their roots. */
-function touchedDomains() {
-  const touched = new Set()
-  for (const file of changedFiles()) {
-    if (/\.test\.tsx?$/.test(file)) continue
-    if (!/\.tsx?$/.test(file)) continue
-    const domainRoot = TARGET_DOMAIN_ROOTS.find((candidate) => file.startsWith(`${candidate}/`))
-    if (domainRoot === undefined) continue
-    const domain = file.slice(domainRoot.length + 1).split('/')[0]
-    if (DOMAIN_KEYS.includes(domain)) touched.add(domain)
-  }
-  return [...touched]
+/**
+ * Changed production files worth mutating.
+ *
+ * Files, not the whole domain they live in: a domain spans five roots and costs minutes, while
+ * the question an agent is actually asking is "do the tests notice what *I* just wrote". Reach
+ * for `--domain` when the question is about the domain instead.
+ */
+function touchedFiles() {
+  return changedFiles().filter((file) => {
+    if (/\.test\.tsx?$/.test(file)) return false
+    if (!/\.tsx?$/.test(file)) return false
+    if (file.endsWith('/index.ts') || file.includes('/testing/')) return false
+    return TARGET_DOMAIN_ROOTS.some((candidate) => file.startsWith(`${candidate}/`))
+  })
 }
 
 /** Every root a domain spans — a domain is not one directory. */
@@ -88,26 +90,31 @@ if (runAll) {
   run(CONFIG)
 }
 
-const domains = namedDomain === null ? touchedDomains() : [namedDomain]
-
 if (namedDomain !== null && !DOMAIN_KEYS.includes(namedDomain)) {
   process.stderr.write(`Unknown domain "${namedDomain}". Known: ${DOMAIN_KEYS.join(', ')}\n`)
   process.exit(1)
 }
 
-if (domains.length === 0) {
+const targets = namedDomain === null ? touchedFiles() : globsFor([namedDomain])
+
+if (targets.length === 0) {
   process.stdout.write(
     'No domain production file changed — nothing to mutate.\n' +
-      'Pass --domain <name> to aim it anyway, or --all for the committed scope.\n',
+      'Pass --domain <name> to aim it at a whole domain, or --all for the committed scope.\n',
   )
   process.exit(0)
 }
 
-process.stdout.write(`Mutating ${domains.length} touched domain(s): ${domains.join(', ')}\n`)
+if (namedDomain === null) {
+  process.stdout.write(`Mutating ${targets.length} changed file(s):\n`)
+  for (const file of targets) process.stdout.write(`  ${file}\n`)
+} else {
+  process.stdout.write(`Mutating the ${namedDomain} domain across all of its roots.\n`)
+}
 
 // A temp config so the committed scope and threshold stay the reference point.
 const base = JSON.parse(readFileSync(CONFIG, 'utf8'))
-const scoped = { ...base, mutate: globsFor(domains) }
+const scoped = { ...base, mutate: targets }
 // The committed `break` is the measured score of the committed `mutate` glob — the daemon slice
 // of git. A scoped run covers a different set of files (a domain spans five roots), so that
 // number is not its floor. Only `--all` is held to it.

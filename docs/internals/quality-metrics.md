@@ -80,8 +80,8 @@ Two caveats that are design, not decay:
 a string, drops a call — and reruns the tests. A mutant that survives is a change to your code
 that **no test noticed**.
 
-`pnpm mutation` aims it at the domains your working tree touched, because whole-repo mutation is
-not viable here — measured, not guessed:
+`pnpm mutation` mutates the production files **you changed**, because whole-repo mutation is not
+viable here — measured, not guessed:
 
 | Scope | Mutants | Wall clock |
 |---|---|---|
@@ -90,8 +90,22 @@ not viable here — measured, not guessed:
 | daemon features + client-runtime + shared | — | **>35 min, abandoned** |
 
 Cost tracks the *test environment*, not the mutant count: daemon slices run in node, while a
-cross-root domain drags in jsdom component tests. So mutation is an on-demand deep check, never a
-commit gate. `pnpm mutation --domain <name>` aims it by hand; `--all` uses the committed config.
+cross-root domain drags in jsdom component tests. So mutation is an on-demand check, never a
+commit gate — and the default scope is your diff, which usually costs seconds.
+`pnpm mutation --domain <name>` widens it to a whole domain; `--all` uses the committed config.
+
+What that feels like on a real change. A four-line function with two tests that reach every line:
+
+```
+coverage         100%      "every changed production file is exercised"
+test shape       2 findings — both tests are weak-only
+mutation score   45.45%    6 survived, 5 seconds
+                           `if (ttlMs <= 0)` → `if (false)` survived
+                           `age > ttlMs`     → `age >= ttlMs` survived
+```
+
+Rewriting the two tests to pin the boundary and the disabled-ttl case, with coverage unchanged at
+100%: **90.91%**, still 5 seconds. That gap is the whole argument for the metric.
 
 The pilot is `apps/daemon/src/features/git`, chosen because git is where a wrong guard loses a
 user's work and because it was among the best-covered code in the repo — the place coverage was
