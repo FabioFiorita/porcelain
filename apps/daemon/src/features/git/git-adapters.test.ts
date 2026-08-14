@@ -12,6 +12,9 @@ import {
   createGitChangesPublisher,
   createGitDiffReadingSources,
   createProjectGit,
+  isNotARepository,
+  nativeOutput,
+  repositoryRead,
 } from './git-adapters'
 
 const GIT_ENV = {
@@ -141,5 +144,79 @@ describe('CommitGeneration and GitDiffReadingSources adapters', () => {
       const message = await sources.commitMessage(repo, 'HEAD')
       expect(message).toContain('root')
     })
+  })
+})
+
+/**
+ * These two decide whether a thrown Git failure becomes `git.not-a-repository` or is rethrown to
+ * the caller. Mutation testing found every branch unproven: the whole object guard could be
+ * replaced with `if (false)` and the suite stayed green. Misclassifying here either swallows a
+ * real Git error or reports a healthy repo as missing.
+ */
+describe('nativeOutput', () => {
+  it('prefers the process streams over the error object itself', () => {
+    expect(nativeOutput({ stderr: 'fatal: bad thing\n' })).toBe('fatal: bad thing\n')
+    expect(nativeOutput({ stdout: 'on branch main' })).toBe('on branch main')
+  })
+
+  it('joins stderr before stdout when Git wrote both', () => {
+    expect(nativeOutput({ stderr: 'err', stdout: 'out' })).toBe('err\nout')
+  })
+
+  it('ignores stream properties that are not strings', () => {
+    expect(nativeOutput({ stderr: Buffer.from('bytes') })).toBe('[object Object]')
+    expect(nativeOutput({ stdout: 7 })).toBe('[object Object]')
+  })
+
+  it('falls back to stringifying anything without usable streams', () => {
+    expect(nativeOutput('plain failure')).toBe('plain failure')
+    expect(nativeOutput(null)).toBe('null')
+    expect(nativeOutput(undefined)).toBe('undefined')
+    expect(nativeOutput(new Error('boom'))).toBe('Error: boom')
+    expect(nativeOutput({})).toBe('[object Object]')
+  })
+
+  it('treats an empty stream as no output rather than an empty answer', () => {
+    // `parts.length > 0` is the guard: an empty string is pushed, so the join wins over String().
+    expect(nativeOutput({ stderr: '' })).toBe('')
+  })
+})
+
+describe('isNotARepository', () => {
+  it('recognises the Git message wherever it appears and whatever its case', () => {
+    expect(isNotARepository({ stderr: 'fatal: not a git repository (or any parent)' })).toBe(true)
+    expect(isNotARepository({ stderr: 'FATAL: NOT A GIT REPOSITORY' })).toBe(true)
+    expect(isNotARepository('not a git repository')).toBe(true)
+  })
+
+  it('does not claim unrelated Git failures', () => {
+    expect(isNotARepository({ stderr: 'fatal: your branch is behind' })).toBe(false)
+    expect(isNotARepository(new Error('EACCES: permission denied'))).toBe(false)
+    expect(isNotARepository(null)).toBe(false)
+  })
+})
+
+describe('repositoryRead', () => {
+  it('passes a successful read straight through', async () => {
+    await expect(repositoryRead(async () => 'value')).resolves.toEqual({ ok: true, value: 'value' })
+  })
+
+  it('converts only the missing-repository failure into a typed result', async () => {
+    await expect(
+      repositoryRead(async () => {
+        throw { stderr: 'fatal: not a git repository' }
+      }),
+    ).resolves.toEqual({ ok: false, error: { code: 'git.not-a-repository' } })
+  })
+
+  it('rethrows every other failure instead of mislabelling it', async () => {
+    // The guard that makes this pass is `if (!isNotARepository(error)) throw error`. Drop it and
+    // a permission error reports as a missing repository — a wrong diagnosis, not a lost one.
+    const denied = new Error('EACCES: permission denied')
+    await expect(
+      repositoryRead(async () => {
+        throw denied
+      }),
+    ).rejects.toBe(denied)
   })
 })

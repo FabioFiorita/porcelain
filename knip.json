@@ -72,6 +72,7 @@
       }
     },
     "apps/mobile": {
+      "entry": ["src/app/**/*.{ts,tsx}", "app.config.ts", "metro.config.js", "postcss.config.mjs"],
       "project": ["src/**/*.{ts,tsx}"],
       "paths": {
         "@/*": ["src/*"],

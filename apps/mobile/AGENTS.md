@@ -26,10 +26,11 @@ Cross-cutting owner/proof/gate index: `docs/internals/agent-foundations.md`.
   NativeWind entrypoint and carries the mobile-only overrides — fonts, `--spacing`, and the two
   smallest type rungs, all pinned to points because the native runtime rem is 14.
 - `src/components/ui/` is **not** the vocabulary. It holds the handful of React Native Reusables
-  files the app actually adopted — button, text, input, textarea, badge, separator, collapsible,
-  and modal-backdrop. `tabs` left with settings' switcher: `SegmentedControl` is the one
-  single-select shape. The rest of the registry was deleted for having no importer; do not re-add
-  a file from the Reusables CLI unless a screen is using it in the same change.
+  files the app actually adopted — button, text, input, textarea, collapsible, and
+  modal-backdrop. `tabs` left with settings' switcher: `SegmentedControl` is the one single-select
+  shape; `badge` and `separator` left once knip found no importer. The rest of the registry was
+  deleted for the same reason; do not re-add a file from the Reusables CLI unless a screen is
+  using it in the same change.
 - The v5 setup does not use the NativeWind v4 Babel preset or a `tailwind.config.js`. Keep
   `components.json` for Reusables CLI metadata and make CSS imports the source of truth.
 - **`src/lib/daemon/` is the only daemon seam.** Never import the desktop daemon's `AppRouter`.

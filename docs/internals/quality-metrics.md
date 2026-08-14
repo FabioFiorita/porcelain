@@ -20,7 +20,7 @@ So: structure was measured, tests were not. This closes that.
 | Statement / branch coverage | `@vitest/coverage-v8`, per domain and per package | Which code the suite *reaches* — a floor, never a target |
 | Cognitive complexity | Biome `noExcessiveCognitiveComplexity`, run via `--only` | Which functions are too branchy to reason about or to test honestly |
 | Module size | `ARCHITECTURE_LINE_CEILING` (450) over production source | Same ceiling the architecture gate enforces, reported as a distribution |
-| Dead code | `knip` | Unused exports, files, and dependencies — the debt that inflates every other number |
+| Dead code | `knip`, shrink-only ledger | Unused exports, files, and dependencies — the debt that inflates every other number |
 | Test shape | `scripts/quality/test-shape.mjs` (TS AST) | Tests that pass without proving anything |
 
 Run it:
@@ -38,23 +38,38 @@ node scripts/quality/test-shape.mjs --list   # every shape finding, not just the
 ## Test shape: the half coverage cannot see
 
 A test that renders a component and asserts nothing executes every line it touches and reports as
-**covered**. Coverage is structurally blind to it. The AST scan reads six shapes:
+**covered**. Coverage is structurally blind to it. The AST scan reads five shapes, all gated, all
+at zero:
 
-| Kind | Gated | Why |
-|---|---|---|
-| `focused` | yes | `.only` silently skips every sibling in the file |
-| `disabled` | yes | `.skip` / `.todo` / `xit` — not a test |
-| `tautology` | yes | `expect(true).toBe(true)` cannot fail |
-| `no-assert` | yes | reaches no assertion, directly or through a file-local helper |
-| `weak-only` | no | only `toBeDefined` / `toBeTruthy` / bare `toHaveBeenCalled` |
-| `mock-only` | no | asserts mock call state, never a value or the DOM |
+| Kind | Why it can never be right |
+|---|---|
+| `focused` | `.only` silently skips every sibling in the file |
+| `disabled` | `.skip` / `.todo` / `xit` — not a test |
+| `tautology` | `expect(true).toBe(true)` cannot fail |
+| `no-assert` | reaches no assertion, directly or through a file-local helper |
+| `weak-only` | claims something exists without saying what it is |
 
-The four gated kinds all measured **zero** when the gate landed; it exists so they stay there. The
-fix for a gated finding is to write the assertion or delete the test — never to skip it.
+The fix for a finding is to write the assertion or delete the test — never to skip it.
 
-`weak-only` and `mock-only` are deliberately *not* gated. They are judgment calls, and gating a
-judgment call teaches people to write around the gate rather than think. They are reported so a
-domain owner can look.
+### Why the detector is worth trusting
+
+A shape check that cries wolf gets ignored and then deleted, so the false-positive classes were
+hunted before `weak-only` was allowed to gate anything. It started at 48 findings; **two** were
+real. The rest were the detector's fault:
+
+- **Delegation.** A test calling a local `expectPublicCode(...)` helper is asserting; the helper's
+  matchers are invisible to a per-test scan.
+- **Throwing queries.** `screen.getByRole(...)` fails the test by itself when the element is
+  absent, so `expect(...).toBeTruthy()` around it is noise, not a hollow proof. `queryBy*` returns
+  null and really is weak — the detector distinguishes them.
+- **Negation.** `toHaveBeenCalled()` says something happened and proves little;
+  `not.toHaveBeenCalled()` says this exact thing did not, which is the assertion that catches
+  over-eager behaviour.
+
+A sixth kind, `mock-only`, was deleted rather than fixed. All 54 of its findings pinned arguments
+or a call count, and none were the bare `toHaveBeenCalled()` that `weak-only` already catches —
+for a port-shaped unit ("150 dirs → 150 watchers") the call count *is* the observable behaviour.
+It reported 54 correct tests and zero defects. Measure your own metric before trusting it.
 
 Shape is a proxy, and it has a hard limit: it cannot see a spec that passes because a sibling left
 the fixture in the wrong state. That needs semantics, which is mutation testing's job.
@@ -155,6 +170,7 @@ chosen before anyone has read the distribution is either toothless or permanentl
 |---|---|---|
 | `lint:test-shape` | every commit | zero focused / disabled / tautology / no-assert |
 | `typecheck:tests` | `pnpm verify` | zero, via an empty per-file ledger |
+| `lint:dead-code` | every commit | knip counts may shrink, never grow |
 | `mutation` `thresholds.break` | on demand | the git domain's measured score |
 
 Coverage, complexity, module size, and dead code report only. `scripts/quality/baseline.json` is

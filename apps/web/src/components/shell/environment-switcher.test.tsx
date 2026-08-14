@@ -176,7 +176,10 @@ describe('EnvironmentSwitcher menu', () => {
     render(<EnvironmentSwitcher />)
     fireEvent.click(screen.getByLabelText('Environment: Beelink'))
     fireEvent.click(screen.getByText('MacBook-Pro'))
-    expect(disconnect).toHaveBeenCalled()
+    // Going local is a disconnect and nothing else. Asserting only that `disconnect` fired left
+    // a window where the row also connected somewhere, which is the bug this guards.
+    expect(disconnect).toHaveBeenCalledTimes(1)
+    expect(connect).not.toHaveBeenCalled()
   })
 
   it('routes Manage remotes to Settings → Remotes (add lives there, not in the menu)', () => {

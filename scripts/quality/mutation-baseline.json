@@ -1,8 +1,8 @@
 {
   "apps/daemon/src/features/git/git-adapters.ts": {
-    "score": 47.19,
-    "killed": 42,
-    "survived": 47,
+    "score": 77.53,
+    "killed": 69,
+    "survived": 20,
     "noCoverage": 1
   },
   "apps/daemon/src/features/git/git-operations.ts": {

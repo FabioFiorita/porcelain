@@ -117,13 +117,15 @@ test('accepts a weak assertion standing beside a real one', () => {
   )
 })
 
-test('flags a test that only inspects mock call state', () => {
+test('accepts a port assertion as real proof', () => {
+  // For a port-shaped unit the call IS the observable behaviour. There was a `mock-only` kind
+  // that flagged this; measuring it found 54 correct tests and zero defects, so it was deleted.
   assert.deepEqual(
     kinds(`it('delegates to the port', () => {
       operate()
       expect(port.write).toHaveBeenCalledWith('payload')
     })`),
-    ['mock-only'],
+    [],
   )
 })
 
@@ -150,6 +152,56 @@ test('accepts a mock assertion paired with an observable result', () => {
       expect(result).toEqual({ ok: true })
     })`),
     [],
+  )
+})
+
+test('treats a negated weak matcher as a real assertion', () => {
+  // `not.toHaveBeenCalled()` pins that a specific thing did not happen — the assertion that
+  // catches over-eager behaviour. Only the un-negated form is hollow.
+  assert.deepEqual(
+    kinds(`it('ignores mouse pointers', () => {
+      drive()
+      expect(scrollLines).not.toHaveBeenCalled()
+    })`),
+    [],
+  )
+  assert.deepEqual(
+    kinds(`it('reports nothing', () => {
+      run()
+      expect(observer).toHaveBeenCalled()
+    })`),
+    ['weak-only'],
+  )
+})
+
+test('counts a negated strong matcher beside a weak one', () => {
+  assert.deepEqual(
+    kinds(`it('busts the memo', () => {
+      expect(second).not.toBe(first)
+      expect(fileAt(second, 'b.ts')).toBeDefined()
+    })`),
+    [],
+  )
+})
+
+test('does not call a throwing Testing Library query weak', () => {
+  // `getByRole` fails the test by itself when the element is absent, so the weak matcher around
+  // it is noise, not a hollow proof.
+  assert.deepEqual(
+    kinds(`it('renders the button', () => {
+      expect(screen.getByRole('button', { name: 'Commit' })).toBeTruthy()
+    })`),
+    [],
+  )
+})
+
+test('still flags a weak matcher on a non-throwing query', () => {
+  // `queryByRole` returns null instead of throwing, so here the matcher is the whole assertion.
+  assert.deepEqual(
+    kinds(`it('renders the button', () => {
+      expect(screen.queryByRole('button', { name: 'Commit' })).toBeTruthy()
+    })`),
+    ['weak-only'],
   )
 })
 

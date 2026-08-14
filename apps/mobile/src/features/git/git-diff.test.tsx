@@ -82,11 +82,14 @@ describe('Mobile Git diff reads', () => {
     })
 
     await waitFor(() => expect(result.current.hunks).toBeDefined())
+    // `toBeDefined()` on both sides proved only that something arrived somewhere. The claim is
+    // that *this* payload landed under *this* identity, so compare against the fixture.
+    expect(result.current.hunks).toEqual(gitContractFixtures.gitDiffFile.output.hunks)
     expect(
       queryClient.getQueryData(
         gitQueryKey('env-git-diff', gitDiffFileQuery('/synthetic/repo', 'src/main.ts')),
       ),
-    ).toBeDefined()
+    ).toEqual(gitContractFixtures.gitDiffFile.output)
   })
 
   it('waits instead of reading the working tree while a branch base is unknown', () => {

@@ -12,8 +12,13 @@
  *   focused     `.only` — silently skips every sibling in the file
  *   no-assert   zero assertions reached, directly or through a local helper
  *   weak-only   every assertion is `toBeDefined` / `toBeTruthy` / bare `toHaveBeenCalled`
- *   mock-only   every assertion inspects mock call state; nothing asserts a value or the DOM
  *   tautology   `expect(true).toBe(true)` and friends — always green
+ *
+ * There was a `mock-only` kind too — every assertion inspecting a test double. It was deleted
+ * after measuring it: all 54 findings pinned arguments or a call count, and none were the bare
+ * `toHaveBeenCalled()` that `weak-only` already catches. For a port-shaped unit ("150 dirs → 150
+ * watchers") the call count IS the observable behaviour, so the kind reported 54 correct tests
+ * and zero defects. A report that is mostly wrong teaches people to skip the report.
  *
  * This is a *shape* check, and shape is a proxy. It cannot see the failure the human actually
  * described — a spec that passes because a sibling left the fixture in the wrong state — because
@@ -106,18 +111,6 @@ const WEAK_MATCHERS = new Set([
   'toBeCalled',
 ])
 
-/** Matchers that inspect a test double rather than the system's observable result. */
-const MOCK_MATCHERS = new Set([
-  'toHaveBeenCalled',
-  'toHaveBeenCalledWith',
-  'toHaveBeenCalledTimes',
-  'toHaveBeenNthCalledWith',
-  'toHaveBeenLastCalledWith',
-  'toHaveReturned',
-  'toHaveReturnedWith',
-  'toBeCalled',
-])
-
 const TEST_NAMES = new Set(['it', 'test', 'fit', 'xit', 'xtest'])
 const SUITE_NAMES = new Set(['describe', 'xdescribe', 'fdescribe'])
 const SKIP_DIRS = new Set([
@@ -191,6 +184,7 @@ function collectAssertions(node) {
   const matchers = []
   let declaresAssertions = false
   let tautology = false
+  let throwingQuery = false
 
   const visit = (current) => {
     if (ts.isCallExpression(current)) {
@@ -201,11 +195,20 @@ function collectAssertions(node) {
       }
       if (base === 'expect' && modifiers.length > 0) {
         const matcher = modifiers[modifiers.length - 1]
-        if (matcher === 'assertions' || matcher === 'hasAssertions') declaresAssertions = true
-        else matchers.push(matcher)
+        if (matcher === 'assertions' || matcher === 'hasAssertions') {
+          declaresAssertions = true
+        } else if (modifiers.includes('not')) {
+          // Negation flips strength. `toHaveBeenCalled()` says "something happened" and proves
+          // little; `not.toHaveBeenCalled()` says this exact thing did not happen, which is the
+          // assertion that catches over-eager behaviour. Same for `not.toBeDefined()`.
+          matchers.push(`not.${matcher}`)
+        } else {
+          matchers.push(matcher)
+        }
 
         // `expect(<literal>).toBe(<identical literal>)` can never fail.
         const subject = findExpectSubject(current.expression)
+        if (isThrowingQuery(subject)) throwingQuery = true
         const argument = current.arguments[0]
         if (
           subject !== null &&
@@ -221,7 +224,28 @@ function collectAssertions(node) {
     ts.forEachChild(current, visit)
   }
   visit(node)
-  return { matchers, declaresAssertions, tautology }
+  return { matchers, declaresAssertions, tautology, throwingQuery }
+}
+
+/**
+ * Whether `expect(...)`'s subject is a Testing Library query that throws on a miss.
+ *
+ * `screen.getByRole('button')` fails the test by itself when the button is absent, so
+ * `expect(...).toBeTruthy()` around it is noise rather than a hollow proof. `queryBy*` is the
+ * opposite — it returns null, so a weak matcher there really is the whole assertion.
+ */
+function isThrowingQuery(node) {
+  if (node === null || node === undefined) return false
+  let current = node
+  if (ts.isAwaitExpression(current)) current = current.expression
+  if (!ts.isCallExpression(current)) return false
+  const callee = current.expression
+  const name = ts.isPropertyAccessExpression(callee)
+    ? callee.name.text
+    : ts.isIdentifier(callee)
+      ? callee.text
+      : ''
+  return /^(?:get|find)(?:All)?By[A-Z]/.test(name)
 }
 
 /** The `x` in `expect(x).not.toBe(...)`, reached through however many property accesses. */
@@ -350,12 +374,13 @@ export function analyzeTestFile(fileName, sourceText) {
           return
         }
 
-        const { matchers, declaresAssertions, tautology } = collectAssertions(callback)
+        const { matchers, declaresAssertions, tautology, throwingQuery } =
+          collectAssertions(callback)
         if (tautology) report('tautology', 'compares a literal to itself; cannot fail')
 
         // A test delegating to `expectPublicCode(...)` is asserting, and what that helper checks
         // is invisible here — so it disqualifies the weak/mock verdicts too, not just no-assert.
-        const delegates = callsAnyHelper(callback, helpers)
+        const delegates = callsAnyHelper(callback, helpers) || throwingQuery
 
         if (matchers.length === 0) {
           if (!declaresAssertions && !delegates) {
@@ -364,12 +389,11 @@ export function analyzeTestFile(fileName, sourceText) {
         } else if (delegates || declaresAssertions) {
           // Nothing to say: the visible matchers are only part of the proof.
         } else {
-          const strong = matchers.filter((m) => STRONG_MATCHERS.has(m))
+          // Any `not.` matcher is a precise claim, whichever matcher it negates.
+          const strong = matchers.filter((m) => m.startsWith('not.') || STRONG_MATCHERS.has(m))
           const weak = matchers.filter((m) => WEAK_MATCHERS.has(m))
           if (strong.length === 0 && weak.length > 0) {
             report('weak-only', `only ${[...new Set(weak)].join(', ')}`)
-          } else if (matchers.every((m) => MOCK_MATCHERS.has(m))) {
-            report('mock-only', 'asserts mock call state, never a value or the DOM')
           }
         }
         return
@@ -402,14 +426,17 @@ export function scanTestShape(baseDirectory) {
 }
 
 /**
- * Kinds with no defensible instance. `weak-only` and `mock-only` are judgment calls and stay out
- * — gating a judgment call trains people to write around the gate. These four are not: a focused
- * test hides its siblings, a disabled one is not a test, a tautology cannot fail, and a body that
- * reaches no assertion proves nothing while reporting as covered.
+ * Kinds with no defensible instance. A focused test hides its siblings, a disabled one is not a
+ * test, a tautology cannot fail, a body that reaches no assertion proves nothing while reporting
+ * as covered, and a `weak-only` body claims something exists without saying what it is.
  *
- * All four measured zero when the gate landed. It exists so they stay there.
+ * `weak-only` joined the list only once it stopped crying wolf. It started at 48 findings, of
+ * which nearly all were the detector's fault: a test delegating to a local `expect…` helper, a
+ * `getBy*` query that throws on a miss and is therefore its own assertion, and `not.` negations,
+ * which are precise claims rather than vague ones. With those understood the real count was two,
+ * both fixed. All five kinds measure zero; the gate exists so they stay there.
  */
-export const GATED_KINDS = ['focused', 'disabled', 'tautology', 'no-assert']
+export const GATED_KINDS = ['focused', 'disabled', 'tautology', 'no-assert', 'weak-only']
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const args = new Set(process.argv.slice(2))
@@ -444,7 +471,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       group.push(finding)
       byKind[finding.kind] = group
     }
-    const order = ['focused', 'tautology', 'no-assert', 'disabled', 'weak-only', 'mock-only']
+    const order = ['focused', 'tautology', 'no-assert', 'disabled', 'weak-only']
     const out = ['', '  TEST SHAPE', `  ${'─'.repeat(60)}`]
     out.push(`  ${result.testCount} tests across ${result.fileCount} files`)
     out.push('')
@@ -461,8 +488,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       }
     }
     out.push('')
-    out.push('  Shape is a proxy. mock-only and weak-only are prompts to look, not verdicts;')
-    out.push('  focused, tautology, and disabled are defects on sight.')
+    out.push('  Shape is a proxy. weak-only is a prompt to look, not a verdict; focused,')
+    out.push('  tautology, disabled, and no-assert are defects on sight.')
     out.push('')
     process.stdout.write(out.join('\n'))
   }

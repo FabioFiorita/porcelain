@@ -10,7 +10,6 @@
     "@porcelain/ui": "workspace:*",
     "@rn-primitives/collapsible": "^1.5.2",
     "@rn-primitives/portal": "^1.5.2",
-    "@rn-primitives/separator": "^1.5.2",
     "@rn-primitives/slot": "^1.5.2",
     "@shikijs/langs": "^4.2.0",
     "@shikijs/themes": "^4.2.0",

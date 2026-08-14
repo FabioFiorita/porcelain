@@ -48,8 +48,8 @@
   "thresholds": {
     "high": 85,
     "low": 70,
-    "break": 69
+    "break": 77
   },
-  "_thresholds": "break is today's measured score for this domain, rounded down. Mutation score may rise; it may not fall. Raise the floor when the domain improves \u2014 never lower it to make a run green.",
+  "_thresholds": "Today's measured score for the committed scope, rounded down. It may rise; it may not fall. Raise the floor when the domain improves \u2014 never lower it to make a run green.",
   "_tempDir": "Absolute, outside the repo. A sandbox under the working tree is a full mirror of the project, and every lint script that walks the tree then scans the copy \u2014 a leftover sandbox failed the architecture ceiling and the docs gate on files that are not really there."
 }

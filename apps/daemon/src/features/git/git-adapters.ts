@@ -54,7 +54,15 @@ import type {
   WorkspaceTrash,
 } from './git-ports'
 
-function nativeOutput(error: unknown): string {
+/**
+ * The text a thrown Git error actually carries.
+ *
+ * Exported for its own test: every branch here decides whether a failure is classified as
+ * `git.not-a-repository` or rethrown, and mutation testing found the whole function unproven —
+ * `if (error !== null && typeof error === 'object')` could be replaced with `if (false)` and
+ * nothing failed.
+ */
+export function nativeOutput(error: unknown): string {
   if (error !== null && typeof error === 'object') {
     const parts: string[] = []
     if ('stderr' in error && typeof error.stderr === 'string') parts.push(error.stderr)
@@ -64,11 +72,21 @@ function nativeOutput(error: unknown): string {
   return String(error)
 }
 
-function isNotARepository(error: unknown): boolean {
+/** Whether a thrown Git error is the "this path is not a repository" failure. */
+export function isNotARepository(error: unknown): boolean {
   return nativeOutput(error).toLowerCase().includes('not a git repository')
 }
 
-async function repositoryRead<Value>(read: () => Promise<Value>): Promise<GitProjectResult<Value>> {
+/**
+ * Run a read, converting only the "not a repository" failure into a typed result.
+ *
+ * Exported for its own test: without one, `if (!isNotARepository(error)) throw error` could be
+ * replaced with `if (false)` and nothing failed — every Git error would silently become
+ * `git.not-a-repository`, hiding permission and corruption failures behind a wrong diagnosis.
+ */
+export async function repositoryRead<Value>(
+  read: () => Promise<Value>,
+): Promise<GitProjectResult<Value>> {
   try {
     return { ok: true, value: await read() }
   } catch (error) {
