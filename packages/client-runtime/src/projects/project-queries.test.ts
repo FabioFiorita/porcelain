@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  hubInventoryQuery,
   projectDirectoriesQuery,
   projectsQuerySchema,
   recentProjectsQuery,
@@ -51,6 +52,10 @@ describe('Project query identities', () => {
     ).toBe(false)
     expect(
       projectsQuerySchema.safeParse({ domain: 'projects', name: 'directories', path: 42 }).success,
+    ).toBe(false)
+    expect(hubInventoryQuery()).toEqual({ domain: 'projects', name: 'inventory' })
+    expect(
+      projectsQuerySchema.safeParse({ domain: 'projects', name: 'inventory', extra: true }).success,
     ).toBe(false)
   })
 })

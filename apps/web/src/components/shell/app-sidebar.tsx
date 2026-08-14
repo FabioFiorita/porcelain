@@ -20,6 +20,7 @@ import {
 } from '@renderer/components/ui/sidebar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { BoardList } from '@renderer/features/board'
+import { HubTree } from '@renderer/features/projects'
 import { ReviewList } from '@renderer/features/review'
 import { SearchList } from '@renderer/features/search'
 import { kbdLabel } from '@renderer/lib/keyboard'
@@ -295,6 +296,7 @@ export function AppSidebar(): React.JSX.Element {
                         state, so unmounting would collapse everything the user
                         had opened. The other tabs keep conditional rendering. */}
                     <div className={cn(sidebarTab !== 'files' && 'hidden')}>
+                      <HubTree className="max-w-none px-1 pt-1" />
                       <FileTree rootPath={project.path} />
                     </div>
                     {sidebarTab === 'changes' && <ChangesList />}

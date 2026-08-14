@@ -55,7 +55,7 @@ client-runtime →  contracts
 shared         →  no product package
 ```
 
-The contracts package owns the exact 109-procedure catalog and all cross-client wire shapes. The
+The contracts package owns the exact 111-procedure catalog and all cross-client wire shapes. The
 daemon's composition root merges canonical domain routers into that flat surface. No in-process
 Desktop backend exists, so local and remote clients follow the same daemon path. Components do not
 import transport clients; Web and mobile feature adapters/hooks own transport access, while

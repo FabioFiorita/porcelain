@@ -31,6 +31,11 @@ export const TestIds = {
   // --- Welcome / glance ---
   welcome: 'welcome',
   welcomeOpenRepo: 'welcome-open-repo',
+  hubInventory: 'hub-inventory',
+  hubEnvironment: (id: string): string => `hub-environment-${id}`,
+  hubProject: (id: string): string => `hub-project-${id}`,
+  hubWorktree: (id: string): string => `hub-worktree-${id}`,
+  hubCreateWorktree: (projectId: string): string => `hub-create-worktree-${projectId}`,
   glance: 'glance',
   glanceChangedFiles: 'glance-changed-files',
   glanceJumpChanges: 'glance-jump-changes',

@@ -1,11 +1,15 @@
 import { createHash } from 'node:crypto'
-import { porcelainHomePath } from '@shared/porcelain-home'
+import { porcelainHome, porcelainHomePath } from '@shared/porcelain-home'
 import { createDaemonOperations, createDaemonRouter } from './api'
 import { ensureCli } from './cli-install'
 import { seedDevConfig } from './dev-config'
+import { createGitSubprocess } from './features/git'
 import {
+  createHubGitPort,
   createNodeProjectsPort,
   createProjectsOperations,
+  initEnvironmentIdentityStore,
+  initHubInventoryStore,
   initProjectsRecentsDir,
 } from './features/projects'
 import {
@@ -29,6 +33,7 @@ import {
 import { warmFileList } from './git/git'
 import { isLinkedWorktree } from './git/linked-worktree'
 import { ensureAdminToken } from './net/admin-token'
+import { daemonIdentity } from './net/daemon-identity'
 import { rendererDistExists, serveStatic } from './net/static-server'
 import { watchAgentChannels, watchProjectCompanion } from './review/review-watch'
 import { createSession } from './session/live-session'
@@ -63,6 +68,13 @@ if (userData === undefined || userData === '') {
 }
 initConfigDir(userData)
 const projectsRecents = initProjectsRecentsDir(userData)
+const porcelainHomeDir = porcelainHome()
+const identity = daemonIdentity()
+const environmentIdentity = initEnvironmentIdentityStore({
+  directory: porcelainHomeDir,
+  defaultName: identity.host,
+})
+const hubInventory = initHubInventoryStore(porcelainHomeDir)
 
 // The single daemon shutdown path. Every shutdown route (SIGTERM from the shell's
 // utilityProcess.kill, SIGINT at a TTY, or the stdin-EOF watchdog) converges here.
@@ -123,6 +135,12 @@ async function main(): Promise<void> {
     recents: projectsRecents,
     worktree: { isLinkedWorktree },
     effects: { watchProjectCompanion, warmFileList },
+    hub: {
+      environment: environmentIdentity,
+      inventory: hubInventory,
+      git: createHubGitPort(createGitSubprocess()),
+      daemon: identity,
+    },
   })
   const operations = createDaemonOperations({ projects, terminal })
   const router = createDaemonRouter({ operations })

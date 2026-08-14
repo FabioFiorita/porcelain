@@ -1,14 +1,15 @@
 import {
+  type CreateHubWorktreeInput,
   type OpenRepoPathInput,
   projectsProcedures,
   type RemoveRecentRepoInput,
 } from '@porcelain/contracts/projects'
-import { type ProjectsQuery, recentProjectsQuery } from './project-queries'
+import { hubInventoryQuery, type ProjectsQuery, recentProjectsQuery } from './project-queries'
 
 export type ProjectSelectionEffect = 'select-result' | 'clear-if-selected-input'
 
 export type ProjectMutationDefinition<
-  TName extends 'openRepoPath' | 'removeRecentRepo',
+  TName extends 'openRepoPath' | 'removeRecentRepo' | 'createHubWorktree',
   TInput,
   TSelectionEffect extends ProjectSelectionEffect,
 > = {
@@ -21,7 +22,7 @@ export type ProjectMutationDefinition<
 }
 
 function recentProjectQueries(): readonly ProjectsQuery[] {
-  return [recentProjectsQuery(false), recentProjectsQuery(true)]
+  return [recentProjectsQuery(false), recentProjectsQuery(true), hubInventoryQuery()]
 }
 
 /** Open is authoritative: the daemon's returned summary becomes the selected Project. */
@@ -47,4 +48,19 @@ export const removeRecentProject = {
   'removeRecentRepo',
   RemoveRecentRepoInput,
   'clear-if-selected-input'
+>
+
+/** Creating a Worktree refreshes the Hub inventory and recent lists. */
+export const createHubWorktree = {
+  procedure: projectsProcedures.createHubWorktree,
+  procedureName: 'createHubWorktree',
+  affectedQueries: (_input: CreateHubWorktreeInput): readonly ProjectsQuery[] =>
+    recentProjectQueries(),
+  optimistic: false,
+  requiresAuthoritativeRefetch: true,
+  selectionEffect: 'select-result',
+} as const satisfies ProjectMutationDefinition<
+  'createHubWorktree',
+  CreateHubWorktreeInput,
+  'select-result'
 >

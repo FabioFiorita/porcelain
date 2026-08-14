@@ -1,20 +1,13 @@
 import logo from '@renderer/assets/logo.png'
 import { SettingsButton } from '@renderer/components/settings/settings-dialog'
 import { Button } from '@renderer/components/ui/button'
-import {
-  useOpenProject,
-  useRecentProjects,
-  useRemoveRecentProject,
-} from '@renderer/features/projects'
+import { HubTree } from '@renderer/features/projects'
 import { useDisconnectRemoteEnvironment, useRemoteEnvironments } from '@renderer/features/remote'
-import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { isBrowser } from '@renderer/lib/platform'
-import { cn } from '@renderer/lib/utils'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useSettingsDialogStore } from '@renderer/stores/settings-dialog'
-import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
-import { Cloud, Folder, FolderOpen, Laptop, Unplug, X } from 'lucide-react'
+import { Cloud, FolderOpen, Laptop, Unplug } from 'lucide-react'
 
 /**
  * Always-visible environment identity on the landing page: which daemon this
@@ -88,29 +81,12 @@ function EnvironmentBanner(): React.JSX.Element | null {
 
 export function Welcome(): React.JSX.Element {
   const openProjectPicker = useProjectSelectionStore((s) => s.openProjectPicker)
-  const openProject = useOpenProject()
-  const removeRecent = useRemoveRecentProject()
-  const recents = useRecentProjects()
   const remote = useRemoteEnvironments()
   const onRemote = !isBrowser && remote != null && remote.activeId != null
   const remoteName =
     onRemote && remote != null
       ? (remote.environments.find((env) => env.id === remote.activeId)?.name ?? 'remote')
       : null
-
-  const openRecent = (path: string): void => {
-    runUserAction(
-      () => openProject.open(path),
-      (error) => toastUserActionError('Open project', error),
-    )
-  }
-
-  const remove = (path: string): void => {
-    runUserAction(
-      () => removeRecent.remove(path),
-      (error) => toastUserActionError('Remove project', error),
-    )
-  }
 
   return (
     <div
@@ -139,48 +115,7 @@ export function Welcome(): React.JSX.Element {
         <FolderOpen />
         {onRemote ? `Open project on ${remoteName}` : 'Open project'}
       </Button>
-      {recents.length > 0 && (
-        <div className="flex w-80 flex-col gap-0.5">
-          <p className="px-2 pb-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
-            {onRemote ? `Recent on ${remoteName}` : 'Recent on this device'}
-          </p>
-          {recents.map((project) => (
-            // A button can't nest a button, so the remove affordance is an overlaid
-            // sibling revealed on hover (or keyboard focus) rather than a child.
-            <div key={project.path} className="group relative">
-              <Button
-                variant="ghost"
-                className="h-auto w-full justify-start gap-2.5 py-1.5 pr-9"
-                onClick={() => openRecent(project.path)}
-              >
-                <Folder className="size-4 shrink-0 text-muted-foreground" />
-                <span className="flex min-w-0 flex-col items-start">
-                  <span className="truncate text-sm">{project.name}</span>
-                  <span
-                    className="max-w-full truncate font-mono text-xs text-muted-foreground"
-                    dir="rtl"
-                  >
-                    {project.path}
-                  </span>
-                </span>
-              </Button>
-              <button
-                type="button"
-                aria-label="Remove from projects"
-                className={cn(
-                  'absolute right-1.5 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground',
-                  'opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100',
-                  'hover:bg-accent/50 hover:text-foreground',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
-                )}
-                onClick={() => remove(project.path)}
-              >
-                <X className="size-3.5" />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
+      <HubTree className="w-80" />
     </div>
   )
 }

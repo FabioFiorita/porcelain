@@ -9,6 +9,7 @@ parens is the **entry point**; read it for mechanics.
 |---|---|---|
 | Top bar | `title-bar.tsx` | The full-width titlebar. **Not** the viewer's header (`TopBar` in `app-shell.tsx`) |
 | Environment switcher | `environment-switcher.tsx` | **Always rendered, local or remote** — a Remote-only chip couldn't be how you *go* remote. Static label in the browser |
+| Hub inventory | `hub-tree.tsx` | Live Environment → Project → Worktree tree. Identities survive path changes; there is no Delete Worktree control |
 | Sidebar (unqualified = left) | `app-sidebar.tsx` | Icon rail + content panel (⌘B); footer = branch chip + worktrees picker |
 | Viewer | `shell/viewer.tsx` | The central panel. **Never "editor"** |
 | Companion | `right-sidebar.tsx` | The right panel (⌘.); statically titled "Companion" on every tab — no more per-tab retitling. Orientation comes from section labels, which follow the active sidebar tab. Three other things share the word: the Settings tab, the mobile column/sheet, and the repo-local `.porcelain/` project companion — see the Overlays row and Cross-cutting table below |

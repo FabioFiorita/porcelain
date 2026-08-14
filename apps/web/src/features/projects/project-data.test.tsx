@@ -10,6 +10,7 @@ import { createValidatingTrpcHarness, type DaemonMockHandlers } from '../../hook
 import {
   isProjectsQueryKey,
   projectsQueryKey,
+  useHubInventory,
   useOpenProject,
   useProjectDirectories,
   useRecentProjects,
@@ -19,6 +20,7 @@ import {
 const alpha = projectsContractFixtures.openRepoPath.output
 const beta = { path: '/synthetic/projects/beta', name: 'beta' }
 const browse = projectsContractFixtures.browseDirs.output
+const inventory = projectsContractFixtures.hubInventory.output
 const daemonInfo = remoteContractFixtures.daemonInfo.output
 const daemon = { host: daemonInfo.host, version: daemonInfo.version }
 
@@ -29,6 +31,7 @@ function handlers(overrides: DaemonMockHandlers = {}): DaemonMockHandlers {
     openRepoPath: () => ({ ok: true, value: beta }),
     removeRecentRepo: () => ({ ok: true, value: undefined }),
     browseDirs: () => ({ ok: true, value: browse }),
+    hubInventory: () => ({ ok: true, value: inventory }),
     ...overrides,
   }
 }
@@ -152,5 +155,24 @@ describe('Web Projects adapter', () => {
         input: undefined,
       })
     })
+  })
+
+  it('returns live Hub inventory and omits the Environment when the query fails', async () => {
+    const success = renderHook(() => useHubInventory(), {
+      wrapper: createValidatingTrpcHarness(handlers()).wrapper,
+    })
+    await waitFor(() => expect(success.result.current).toEqual(inventory))
+
+    const failure = renderHook(() => useHubInventory(), {
+      wrapper: createValidatingTrpcHarness(
+        handlers({
+          hubInventory: () => ({
+            ok: false,
+            error: publicErrorFixtures['projects.unavailable'],
+          }),
+        }),
+      ).wrapper,
+    })
+    await waitFor(() => expect(failure.result.current).toBeNull())
   })
 })

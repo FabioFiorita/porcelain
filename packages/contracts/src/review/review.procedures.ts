@@ -29,7 +29,7 @@ import {
 
 /**
  * The canonical Review catalog (REV-001, activated by REV-009): 23 procedures — 12 queries,
- * 11 mutations. It is the Review record of the 109-name `procedure-catalog.ts`.
+ * 11 mutations. It is the Review record of the 111-name `procedure-catalog.ts`.
  *
  * Only the six comment procedures declare public codes: transport authentication, malformed
  * input, and unexpected defects are boundary system errors that no procedure repeats

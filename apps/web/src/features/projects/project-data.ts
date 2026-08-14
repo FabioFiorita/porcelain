@@ -1,4 +1,6 @@
 import {
+  createHubWorktree,
+  hubInventoryQuery,
   openProject,
   type ProjectPath,
   type ProjectSummary,
@@ -7,8 +9,9 @@ import {
   projectsQuerySchema,
   recentProjectsQuery,
   removeRecentProject,
+  visibleHubInventories,
 } from '@porcelain/client-runtime/projects'
-import type { BrowseDirsOutput } from '@porcelain/contracts/projects'
+import type { BrowseDirsOutput, HubInventory, HubWorktree } from '@porcelain/contracts/projects'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import { type DaemonScope, daemonScopeSchema } from '@renderer/lib/daemon-scope'
 import { trpc } from '@renderer/lib/trpc'
@@ -18,6 +21,8 @@ import { z } from 'zod'
 
 import {
   browseProjectDirectoriesOnDaemon,
+  createHubWorktreeOnDaemon,
+  hubInventoryOnDaemon,
   openProjectOnDaemon,
   recentProjectsOnDaemon,
   removeRecentProjectOnDaemon,
@@ -152,4 +157,38 @@ export function useProjectDirectories(
 /** Selected Project presentation state; the recent list remains Query data. */
 export function useSelectedProject(): ProjectSummary | null {
   return useProjectSelectionStore((state) => state.project)
+}
+
+/**
+ * Live Hub inventory for the bound Environment. A failed or pending read is
+ * treated as offline: the Hub omits the Environment rather than showing stale children.
+ */
+export function useHubInventory(): HubInventory | null {
+  const daemon = useDaemonIdentity()
+  const client = trpc.useUtils().client
+  const identity = hubInventoryQuery()
+  const query = useQuery({
+    queryFn: async (): Promise<HubInventory> => hubInventoryOnDaemon(client),
+    queryKey: projectsQueryKey(daemon, identity),
+  })
+  if (query.isError || query.data === undefined) return null
+  return visibleHubInventories([{ online: true, inventory: query.data }])[0] ?? null
+}
+
+/** Create a Worktree on a Hub Project and refresh inventory. */
+export function useCreateHubWorktree(): {
+  create: (input: { projectId: string; branch: string }) => Promise<HubWorktree>
+  isPending: boolean
+} {
+  const daemon = useDaemonIdentity()
+  const client = trpc.useUtils().client
+  const queryClient = useQueryClient()
+  const mutation = useMutation({
+    mutationFn: async (input: { projectId: string; branch: string }): Promise<HubWorktree> =>
+      createHubWorktreeOnDaemon(client, input),
+    onSuccess: async (_result, input) => {
+      await invalidateProjectQueries(queryClient, daemon, createHubWorktree.affectedQueries(input))
+    },
+  })
+  return { create: mutation.mutateAsync, isPending: mutation.isPending }
 }

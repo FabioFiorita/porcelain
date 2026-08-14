@@ -13,6 +13,12 @@ function throwIfFailed<Value>(result: ProjectOperationResult<Value>): Value {
       throw toTrpcError(expectedFailure('projects.not-a-directory'))
     case 'projects.unavailable':
       throw toTrpcError(expectedFailure('projects.unavailable'))
+    case 'git.not-a-repository':
+      throw toTrpcError(expectedFailure('git.not-a-repository'))
+    case 'git.branch-already-exists':
+      throw toTrpcError(expectedFailure('git.branch-already-exists'))
+    case 'git.worktree-conflict':
+      throw toTrpcError(expectedFailure('git.worktree-conflict'))
   }
 }
 
@@ -43,5 +49,15 @@ export function createProjectsRouter(operations: ProjectsOperations) {
       .input(procedureCatalog.browseDirs.input)
       .output(procedureCatalog.browseDirs.output)
       .query(async ({ input }) => throwIfFailed(await operations.browseProjectDirectories(input))),
+
+    hubInventory: publicProcedure
+      .input(procedureCatalog.hubInventory.input)
+      .output(procedureCatalog.hubInventory.output)
+      .query(async () => throwIfFailed(await operations.listHubInventory())),
+
+    createHubWorktree: publicProcedure
+      .input(procedureCatalog.createHubWorktree.input)
+      .output(procedureCatalog.createHubWorktree.output)
+      .mutation(async ({ input }) => throwIfFailed(await operations.createHubWorktree(input))),
   })
 }

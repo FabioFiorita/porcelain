@@ -21,6 +21,14 @@ export const loc = {
 
   welcome: (page: Page): Locator => byId(page, TestIds.welcome),
   welcomeOpenRepo: (page: Page): Locator => byId(page, TestIds.welcomeOpenRepo),
+  hubInventory: (page: Page): Locator => byId(page, TestIds.hubInventory),
+  hubEnvironment: (page: Page, id: string): Locator => byId(page, TestIds.hubEnvironment(id)),
+  hubProject: (page: Page, id: string): Locator => byId(page, TestIds.hubProject(id)),
+  hubWorktree: (page: Page, id: string): Locator => byId(page, TestIds.hubWorktree(id)),
+  hubCreateWorktree: (page: Page, projectId: string): Locator =>
+    byId(page, TestIds.hubCreateWorktree(projectId)),
+  hubWorktrees: (page: Page): Locator => page.locator('[data-testid^="hub-worktree-"]'),
+  hubProjects: (page: Page): Locator => page.locator('[data-testid^="hub-project-"]'),
   glance: (page: Page): Locator => byId(page, TestIds.glance),
   glanceChangedFiles: (page: Page): Locator => byId(page, TestIds.glanceChangedFiles),
 

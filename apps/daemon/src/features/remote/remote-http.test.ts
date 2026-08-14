@@ -65,6 +65,14 @@ const projectsOperations = {
     ok: false,
     error: { code: 'projects.unavailable' },
   })),
+  listHubInventory: vi.fn<ProjectsOperations['listHubInventory']>(async () => ({
+    ok: false,
+    error: { code: 'projects.unavailable' },
+  })),
+  createHubWorktree: vi.fn<ProjectsOperations['createHubWorktree']>(async () => ({
+    ok: false,
+    error: { code: 'projects.not-found' },
+  })),
 } satisfies ProjectsOperations
 
 const router = createDaemonRouter({

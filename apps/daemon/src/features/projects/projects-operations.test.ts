@@ -1,6 +1,9 @@
 // @vitest-environment node
 import type { BrowseDirsOutput, ProjectInfo } from '@porcelain/contracts/projects'
 import { describe, expect, it, vi } from 'vitest'
+import type { EnvironmentIdentityStore } from './environment-identity-store'
+import type { HubGitPort } from './hub-git-port'
+import type { HubInventoryStore } from './hub-inventory-store'
 import { createProjectsOperations } from './projects-operations'
 import type { ProjectsEffects, ProjectsPort, ProjectsWorktree } from './projects-ports'
 import type { ProjectsRecentsStore } from './projects-recents-store'
@@ -43,13 +46,59 @@ function harness() {
     ),
     warmFileList: vi.fn<ProjectsEffects['warmFileList']>(() => events.push('warm')),
   } satisfies ProjectsEffects
+  const environment = {
+    read: vi.fn<EnvironmentIdentityStore['read']>(async () => ({
+      ok: true as const,
+      value: { id: 'env-1', name: 'synthetic' },
+    })),
+  } satisfies EnvironmentIdentityStore
+  const inventory = {
+    readProjects: vi.fn<HubInventoryStore['readProjects']>(async () => ({
+      ok: true as const,
+      value: [],
+    })),
+    writeProjects: vi.fn<HubInventoryStore['writeProjects']>(async () => ({
+      ok: true as const,
+      value: undefined,
+    })),
+  } satisfies HubInventoryStore
+  const git = {
+    discoverProject: vi.fn<HubGitPort['discoverProject']>(async () => ({
+      ok: false as const,
+      error: 'not-a-repository',
+    })),
+    listWorktrees: vi.fn<HubGitPort['listWorktrees']>(async () => ({
+      ok: true as const,
+      value: [],
+    })),
+    pathExists: vi.fn<HubGitPort['pathExists']>(async () => true),
+    addWorktree: vi.fn<HubGitPort['addWorktree']>(async () => ({
+      ok: true as const,
+      value: { path: '/projects/alpha-worktrees/topic', branch: 'topic' },
+    })),
+  } satisfies HubGitPort
   return {
     events,
     projects,
     recents,
     worktree,
     effects,
-    operations: createProjectsOperations({ projects, recents, worktree, effects }),
+    environment,
+    inventory,
+    git,
+    operations: createProjectsOperations({
+      projects,
+      recents,
+      worktree,
+      effects,
+      hub: {
+        environment,
+        inventory,
+        git,
+        daemon: { host: 'synthetic', platform: 'linux', arch: 'x64' },
+        createId: () => 'generated',
+      },
+    }),
   }
 }
 
@@ -143,5 +192,126 @@ describe('Project operations', () => {
       value: BROWSE,
     })
     expect(h.projects.browseDirectories).toHaveBeenCalledWith(null)
+  })
+
+  it('lists live Worktrees under a stable Environment and Project identity', async () => {
+    const h = harness()
+    h.git.discoverProject.mockResolvedValue({
+      ok: true,
+      value: {
+        commonGitDir: '/projects/alpha/.git',
+        groupingKey: 'ssh://git@example/acme/alpha',
+        name: 'alpha',
+        worktrees: [
+          {
+            path: '/projects/alpha',
+            gitDir: '/projects/alpha/.git',
+            branch: 'main',
+            isPrimary: true,
+          },
+          {
+            path: '/projects/alpha-worktrees/topic',
+            gitDir: '/projects/alpha/.git/worktrees/topic',
+            branch: 'topic',
+            isPrimary: false,
+          },
+        ],
+      },
+    })
+    h.git.listWorktrees.mockImplementation(async () => ({
+      ok: true,
+      value: [
+        {
+          path: '/projects/alpha',
+          gitDir: '/projects/alpha/.git',
+          branch: 'main',
+          isPrimary: true,
+        },
+        {
+          path: '/projects/alpha-worktrees/topic',
+          gitDir: '/projects/alpha/.git/worktrees/topic',
+          branch: 'topic',
+          isPrimary: false,
+        },
+      ],
+    }))
+
+    const listed = await h.operations.listHubInventory()
+    expect(listed.ok).toBe(true)
+    if (!listed.ok) return
+    expect(listed.value.environment).toEqual({
+      id: 'env-1',
+      name: 'synthetic',
+      host: 'synthetic',
+      platform: 'linux',
+      arch: 'x64',
+    })
+    expect(listed.value.projects).toHaveLength(1)
+    const project = listed.value.projects[0]
+    expect(project?.id).toBe('generated')
+    expect(project?.groupingKey).toBe('ssh://git@example/acme/alpha')
+    expect(project?.worktrees.map((worktree) => worktree.branch)).toEqual(['main', 'topic'])
+    expect(h.inventory.writeProjects).toHaveBeenCalled()
+  })
+
+  it('creates a Worktree through the Hub and returns the stored identity', async () => {
+    const h = harness()
+    const live = [
+      {
+        path: '/projects/alpha',
+        gitDir: '/projects/alpha/.git',
+        branch: 'main',
+        isPrimary: true,
+      },
+    ]
+    h.git.discoverProject.mockResolvedValue({
+      ok: true,
+      value: {
+        commonGitDir: '/projects/alpha/.git',
+        groupingKey: 'name:alpha',
+        name: 'alpha',
+        worktrees: live,
+      },
+    })
+    h.git.listWorktrees.mockResolvedValueOnce({ ok: true, value: live }).mockResolvedValueOnce({
+      ok: true,
+      value: [
+        ...live,
+        {
+          path: '/projects/alpha-worktrees/topic',
+          gitDir: '/projects/alpha/.git/worktrees/topic',
+          branch: 'topic',
+          isPrimary: false,
+        },
+      ],
+    })
+
+    const created = await h.operations.createHubWorktree({
+      projectId: 'generated',
+      branch: 'topic',
+    })
+    expect(created).toEqual({
+      ok: true,
+      value: {
+        id: 'generated',
+        projectId: 'generated',
+        path: '/projects/alpha-worktrees/topic',
+        name: 'topic',
+        branch: 'topic',
+        isPrimary: false,
+      },
+    })
+    expect(h.git.addWorktree).toHaveBeenCalledWith('/projects/alpha', 'topic')
+  })
+
+  it('rejects Worktree creation for an unknown Project', async () => {
+    const h = harness()
+    expect(await h.operations.createHubWorktree({ projectId: 'missing', branch: 'topic' })).toEqual(
+      {
+        ok: false,
+        error: { code: 'projects.not-found' },
+      },
+    )
+    expect(h.git.addWorktree).not.toHaveBeenCalled()
   })
 })

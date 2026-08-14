@@ -1,12 +1,22 @@
 import type { ProjectPath, ProjectSummary } from '@porcelain/client-runtime/projects'
-import type { BrowseDirsOutput } from '@porcelain/contracts/projects'
+import type {
+  BrowseDirsOutput,
+  CreateHubWorktreeInput,
+  HubInventory,
+  HubWorktree,
+} from '@porcelain/contracts/projects'
 import { projectsProcedures } from '@porcelain/contracts/projects'
 
 import type { trpcClient } from '@renderer/lib/trpc'
 
 type ProjectsClient = Pick<
   typeof trpcClient,
-  'browseDirs' | 'openRepoPath' | 'recentRepos' | 'removeRecentRepo'
+  | 'browseDirs'
+  | 'openRepoPath'
+  | 'recentRepos'
+  | 'removeRecentRepo'
+  | 'hubInventory'
+  | 'createHubWorktree'
 >
 
 /** Read the daemon's authoritative Project summary through the Projects boundary. */
@@ -42,4 +52,19 @@ export async function browseProjectDirectoriesOnDaemon(
   path: string | null,
 ): Promise<BrowseDirsOutput> {
   return projectsProcedures.browseDirs.output.parse(await client.browseDirs.query(path))
+}
+
+/** Read this Environment daemon's live Hub inventory. */
+export async function hubInventoryOnDaemon(client: ProjectsClient): Promise<HubInventory> {
+  return projectsProcedures.hubInventory.output.parse(await client.hubInventory.query())
+}
+
+/** Create a Git Worktree for a Hub Project and return its stable identity. */
+export async function createHubWorktreeOnDaemon(
+  client: ProjectsClient,
+  input: CreateHubWorktreeInput,
+): Promise<HubWorktree> {
+  return projectsProcedures.createHubWorktree.output.parse(
+    await client.createHubWorktree.mutate(input),
+  )
 }

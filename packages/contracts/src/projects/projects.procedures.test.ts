@@ -7,6 +7,8 @@ const expectedKinds = {
   recentRepos: 'query',
   removeRecentRepo: 'mutation',
   browseDirs: 'query',
+  hubInventory: 'query',
+  createHubWorktree: 'mutation',
 } as const
 
 const expectedErrors = {
@@ -14,6 +16,14 @@ const expectedErrors = {
   recentRepos: ['projects.unavailable'],
   removeRecentRepo: ['projects.unavailable'],
   browseDirs: ['projects.not-found', 'projects.not-a-directory', 'projects.unavailable'],
+  hubInventory: ['projects.unavailable'],
+  createHubWorktree: [
+    'projects.not-found',
+    'projects.unavailable',
+    'git.not-a-repository',
+    'git.branch-already-exists',
+    'git.worktree-conflict',
+  ],
 } as const
 
 const invalidInputs = {
@@ -21,6 +31,8 @@ const invalidInputs = {
   recentRepos: { includeWorktrees: 'true' },
   removeRecentRepo: 42,
   browseDirs: 42,
+  hubInventory: {},
+  createHubWorktree: { projectId: 'proj-alpha', branch: '' },
 } as const
 
 const invalidOutputs = {
@@ -32,10 +44,12 @@ const invalidOutputs = {
     parent: '/synthetic',
     entries: [{ name: 'alpha', path: '/synthetic/projects/alpha', isRepo: 'true' }],
   },
+  hubInventory: { environment: { id: 'env' }, projects: [] },
+  createHubWorktree: { id: 'wt', projectId: 'proj', path: '/x', name: 'x', branch: 'x' },
 } as const
 
 describe('Projects procedure contracts', () => {
-  it('declares all four procedures with their router kinds', () => {
+  it('declares all six procedures with their router kinds', () => {
     expect(Object.keys(projectsProcedures).sort()).toEqual(Object.keys(expectedKinds).sort())
     for (const [name, kind] of Object.entries(expectedKinds)) {
       expect(projectsProcedures[name as keyof typeof projectsProcedures].kind).toBe(kind)

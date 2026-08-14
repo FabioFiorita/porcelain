@@ -28,6 +28,30 @@ const operations = {
     ok: true as const,
     value: BROWSE,
   })),
+  listHubInventory: vi.fn<ProjectsOperations['listHubInventory']>(async () => ({
+    ok: true as const,
+    value: {
+      environment: {
+        id: 'env-1',
+        name: 'synthetic',
+        host: 'synthetic',
+        platform: 'linux',
+        arch: 'x64',
+      },
+      projects: [],
+    },
+  })),
+  createHubWorktree: vi.fn<ProjectsOperations['createHubWorktree']>(async () => ({
+    ok: true as const,
+    value: {
+      id: 'wt-1',
+      projectId: 'proj-1',
+      path: '/projects/alpha-worktrees/topic',
+      name: 'topic',
+      branch: 'topic',
+      isPrimary: false,
+    },
+  })),
 } satisfies ProjectsOperations
 
 const router = createProjectsRouter(operations)
@@ -62,12 +86,30 @@ beforeEach(() => {
 })
 
 describe('Projects router contract boundary', () => {
-  it('binds all four procedures to the catalog and returns strict outputs', async () => {
+  it('binds all six procedures to the catalog and returns strict outputs', async () => {
     expect(await caller().openRepoPath('/projects/alpha')).toEqual(PROJECT)
     expect(await caller().recentRepos()).toEqual([PROJECT])
     expect(await caller().removeRecentRepo('/projects/old')).toBeUndefined()
     expect(await caller().browseDirs(null)).toEqual(BROWSE)
-    expect(Object.keys(procedureCatalog)).toContain('openRepoPath')
+    expect(await caller().hubInventory()).toEqual({
+      environment: {
+        id: 'env-1',
+        name: 'synthetic',
+        host: 'synthetic',
+        platform: 'linux',
+        arch: 'x64',
+      },
+      projects: [],
+    })
+    expect(await caller().createHubWorktree({ projectId: 'proj-1', branch: 'topic' })).toEqual({
+      id: 'wt-1',
+      projectId: 'proj-1',
+      path: '/projects/alpha-worktrees/topic',
+      name: 'topic',
+      branch: 'topic',
+      isPrimary: false,
+    })
+    expect(Object.keys(procedureCatalog)).toContain('hubInventory')
   })
 
   it('rejects unknown wire input before invoking the operation', async () => {

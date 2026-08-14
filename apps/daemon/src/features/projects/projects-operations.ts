@@ -1,4 +1,17 @@
-import type { BrowseDirsOutput, ProjectInfo } from '@porcelain/contracts/projects'
+import type {
+  BrowseDirsOutput,
+  CreateHubWorktreeInput,
+  HubInventory,
+  HubWorktree,
+  ProjectInfo,
+} from '@porcelain/contracts/projects'
+import type { EnvironmentIdentityStore } from './environment-identity-store'
+import type { HubGitPort } from './hub-git-port'
+import {
+  createHubInventoryOperations,
+  type HubInventoryOperations,
+} from './hub-inventory-operations'
+import type { HubInventoryStore } from './hub-inventory-store'
 import type {
   ProjectsEffects,
   ProjectsPort,
@@ -6,15 +19,9 @@ import type {
   ProjectsWorktree,
 } from './projects-ports'
 import type { ProjectsRecentsStore } from './projects-recents-store'
+import type { ProjectOperationResult, ProjectsOperationError } from './projects-results'
 
-export type ProjectsOperationError =
-  | { readonly code: 'projects.not-found' }
-  | { readonly code: 'projects.not-a-directory' }
-  | { readonly code: 'projects.unavailable' }
-
-export type ProjectOperationResult<Value> =
-  | { readonly ok: true; readonly value: Value }
-  | { readonly ok: false; readonly error: ProjectsOperationError }
+export type { ProjectOperationResult, ProjectsOperationError } from './projects-results'
 
 export type ProjectsOperations = Readonly<{
   openProject: (path: string) => Promise<ProjectOperationResult<ProjectInfo>>
@@ -25,6 +32,8 @@ export type ProjectsOperations = Readonly<{
   browseProjectDirectories: (
     path: string | null,
   ) => Promise<ProjectOperationResult<BrowseDirsOutput>>
+  listHubInventory: () => Promise<ProjectOperationResult<HubInventory>>
+  createHubWorktree: (input: CreateHubWorktreeInput) => Promise<ProjectOperationResult<HubWorktree>>
 }>
 
 function failure(error: ProjectsOperationError): ProjectOperationResult<never> {
@@ -54,7 +63,23 @@ export function createProjectsOperations(options: {
   recents: ProjectsRecentsStore
   worktree: ProjectsWorktree
   effects: ProjectsEffects
+  hub: {
+    environment: EnvironmentIdentityStore
+    inventory: HubInventoryStore
+    git: HubGitPort
+    daemon: { host: string; platform: string; arch: string }
+    createId?: () => string
+  }
 }): ProjectsOperations {
+  const hub: HubInventoryOperations = createHubInventoryOperations({
+    environment: options.hub.environment,
+    inventory: options.hub.inventory,
+    recents: options.recents,
+    git: options.hub.git,
+    daemon: options.hub.daemon,
+    createId: options.hub.createId,
+  })
+
   return Object.freeze({
     async openProject(path: string): Promise<ProjectOperationResult<ProjectInfo>> {
       const inspected = await options.projects.inspectProject(path)
@@ -65,6 +90,7 @@ export function createProjectsOperations(options: {
 
       options.effects.watchProjectCompanion(path)
       options.effects.warmFileList(path)
+      await hub.registerPath(path)
       return { ok: true, value: inspected.value }
     },
 
@@ -103,5 +129,8 @@ export function createProjectsOperations(options: {
       if (!browsed.ok) return failure(mapPortError(browsed.error))
       return { ok: true, value: browsed.value }
     },
+
+    listHubInventory: hub.listHubInventory,
+    createHubWorktree: hub.createHubWorktree,
   })
 }

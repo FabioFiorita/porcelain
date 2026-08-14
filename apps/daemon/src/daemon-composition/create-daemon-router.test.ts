@@ -46,6 +46,8 @@ function projectsOperations(): ProjectsOperations {
     listRecentProjects: async () => ({ ok: true, value: [] }),
     removeRecentProject: async () => ({ ok: true, value: undefined }),
     browseProjectDirectories: async () => ({ ok: false, error: { code: 'projects.unavailable' } }),
+    listHubInventory: async () => ({ ok: false, error: { code: 'projects.unavailable' } }),
+    createHubWorktree: async () => ({ ok: false, error: { code: 'projects.not-found' } }),
   }
 }
 
