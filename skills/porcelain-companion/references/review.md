@@ -79,7 +79,7 @@ card → Start Review (title prefilled) only when publication is requested. Do n
    optional; omit them entirely at the start. A full `review set` replaces the structured set.
 2. **Process + Execution grow** — re-`review set` with sections, files, and notes as you work.
 3. **Evidence** — after you validate, `evidence check` for each thing you ran, then
-   `evidence prepare` + Results documents (**include CSS**) + screenshots in `assets/`.
+   `evidence prepare` + Results documents (**include CSS**) + screenshots or recordings in `assets/`.
    **Required to claim done.**
 4. Confirm with `review get` / `evidence get`, or run
    `scripts/check-evidence.mjs` (below).
@@ -179,9 +179,9 @@ touches an existing `meta.json`, so your own order and labels survive.
 | `.md` / `.markdown` | Prose | Escaped markdown — a raw `<script>` shows as text, not markup |
 | `.html` / `.htm` | Sandboxed page | Sibling `.css` and images are **inlined for you**, so relative paths work. No scripts, ever |
 
-Those two are the whole media story, on every client — web, desktop shell, and mobile. Anything
+Those two are the whole document story, on every client — web, desktop shell, and mobile. Anything
 else in the directory is skipped. A diagram is inline SVG inside an `.html` document (or a section
-`diagram`), not a third format.
+`diagram`), not a third document format.
 
 Images live in `.porcelain/active-review/intent/assets/` and are referenced relatively:
 
@@ -274,7 +274,7 @@ Evidence is **one pack, three sub-tabs**, all under
 |---|---|---|
 | **Checks** | `meta.json` (`evidence check`) | The summary a human reads in one second |
 | **Results** | `results/*.md` / `*.html` + `results/meta.json` | The narrated proof, as ordered tabs |
-| **Assets** | `assets/*.png` … | Raw screenshots, rendered as a native gallery |
+| **Assets** | `assets/*.png`, `*.mp4`, `*.url` … | Raw screenshots, recordings, and safe external links, rendered as a native gallery |
 
 ```bash
 ~/.porcelain/porcelain evidence prepare --title "…"   # makes the pack, prints all three paths
@@ -284,11 +284,17 @@ Evidence is **one pack, three sub-tabs**, all under
 `evidence clear` also wipes the whole pack, standalone — no new one is written, and Intent/Execution
 are untouched. Independent of `review clear`, which cascades into wiping Evidence too.
 
-**Screenshots yes, video no.** Images (`.png`, `.jpg`, `.webp`, `.gif`, `.svg`) are inlined as
-data URIs. Video would mean widening the CSP that backstops agent-authored HTML, or serving the
-review over HTTP and losing that CSP entirely. A short sequence of stills says the same thing and
-survives being committed. If a recording is genuinely the only proof, link to where it lives and
-put the stills here.
+**Screenshots and recordings.** Images (`.png`, `.jpg`, `.webp`, `.gif`, `.svg`) and common video
+files (`.mp4`, `.m4v`, `.mov`, `.ogv`, `.webm`) stay inside the owning Evidence assets namespace
+and travel through the authenticated daemon channel as bounded data URLs. The Web/Electron gallery
+shows video controls; mobile opens a video in its dedicated media-enabled document host. Results HTML may
+also reference a local video with `../assets/…`, which the daemon inlines without permitting remote
+loads. Capture method remains the agent's choice.
+
+**Links.** A `.url` file contains one `http:`, `https:`, or `mailto:` URL, for example
+`assets/reference.url`. It becomes an external-link card in the gallery; Porcelain never fetches the
+URL and does not permit `file:`, `data:`, `javascript:`, or custom schemes. Link files are capped at
+8 KB and count toward the 60-asset gallery cap.
 
 **Size is not free.** Evidence is git-ignored by default, but a **published** review carries it
 into history permanently. Prefer WebP over PNG and keep a pack in the low single-digit MB.
@@ -340,15 +346,17 @@ Evidence documents belong under `results/`; `evidence set` writes the canonical
 
 ### Assets — the gallery
 
-Drop raw screenshots in `assets/`; Porcelain renders the gallery natively in both clients, so a
-screenshot needs no HTML around it. Anything you want **narrated** also gets an `<img>` in a
-Results document; anything that is just **proof** can live in the gallery alone.
+Drop raw screenshots, recordings, or `.url` link files in `assets/`; Porcelain renders the gallery natively in both
+clients, so an asset needs no HTML around it. Anything you want **narrated** can also get an
+`<img>` or `<video controls>` reference in a Results document; anything that is just **proof** can
+live in the gallery alone.
 
 ```bash
 ~/.porcelain/porcelain evidence assets-list   # names, sizes, and what will not render
 ```
 
-**Caps:** 60 images, 8 MB each. Non-images in `assets/` are skipped, not tiles.
+**Caps:** 60 gallery assets; media files are 8 MB each and `.url` files are 8 KB each. Unsupported
+files or unsafe links in `assets/` are skipped, not tiles.
 
 ### Validate before claiming done
 
@@ -423,7 +431,7 @@ That skeleton is an example only — rewrite the CSS per review.
 | **Intent** | thesis + authored Intent documents (`.md` / `.html`) |
 | **Process** | structured walkthrough sections, diagrams, and embeds |
 | **Execution** | Native app UI (exactly the files from `--files`, agent order) — not a freeform medium |
-| **Evidence** | Structured checks + `results/` documents (`.md` / `.html` + own CSS) + an `assets/` image gallery |
+| **Evidence** | Structured checks + `results/` documents (`.md` / `.html` + own CSS) + an `assets/` image/video/link gallery |
 
 **Bias:** structured Intent + HTML Evidence. Two media, everywhere: HTML and markdown. When a
 spatial map (architecture, data flow) is the clearest way to say it, draw it as inline SVG in an

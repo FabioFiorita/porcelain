@@ -36,6 +36,31 @@ const body = (file: string): EvidenceAssetBody => ({
   dataUrl: `data:image/png;base64,${file}`,
 })
 
+const videoAsset: EvidenceAssetDescriptor = {
+  file: 'capture.mp4',
+  label: 'Capture',
+  kind: 'video',
+  mime: 'video/mp4',
+  bytes: 12_288,
+  state: 'available',
+}
+
+const videoBody: EvidenceAssetBody = {
+  file: videoAsset.file,
+  mime: videoAsset.mime,
+  bytes: videoAsset.bytes,
+  dataUrl: 'data:video/mp4;base64,AAAA',
+}
+
+const linkAsset: EvidenceAssetDescriptor = {
+  file: 'reference.url',
+  label: 'Reference',
+  kind: 'link',
+  href: 'https://example.com/evidence',
+  bytes: 31,
+  state: 'available',
+}
+
 describe('EvidenceGallery', () => {
   beforeEach(() => {
     vi.mocked(useEvidenceAsset).mockReset()
@@ -104,6 +129,33 @@ describe('EvidenceGallery', () => {
     expect(screen.getByTestId(TestIds.evidenceGalleryItem('huge.png'))).toHaveTextContent(
       'Too large to preview (6.0 MB > 4.0 MB)',
     )
+  })
+
+  it('renders a video tile and enables controls in the zoom view', () => {
+    vi.mocked(useEvidenceAsset).mockImplementation((file: string) => ({
+      asset: file === videoAsset.file ? videoBody : body(file),
+      isLoading: false,
+    }))
+    render(<EvidenceGallery assets={[videoAsset]} active />)
+
+    const tile = screen.getByTestId(TestIds.evidenceGalleryItem(videoAsset.file))
+    expect(
+      within(tile).getByTestId(`${TestIds.evidenceGalleryItem(videoAsset.file)}-video`),
+    ).toHaveAttribute('src', videoBody.dataUrl)
+    fireEvent.click(tile)
+    const zoom = screen.getByTestId(TestIds.evidenceGalleryZoom)
+    expect(
+      within(zoom).getByTestId(`${TestIds.evidenceGalleryItem(videoAsset.file)}-video`),
+    ).toHaveAttribute('controls')
+  })
+
+  it('renders a link asset as an external link card without requesting bytes', () => {
+    render(<EvidenceGallery assets={[linkAsset]} active />)
+    const link = screen.getByTestId(TestIds.evidenceGalleryItem(linkAsset.file))
+    expect(link.tagName).toBe('A')
+    expect(link).toHaveAttribute('href', linkAsset.href)
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(vi.mocked(useEvidenceAsset)).not.toHaveBeenCalled()
   })
 
   it('never requests bytes for an over-cap descriptor', () => {

@@ -19,6 +19,7 @@ export {
   previewDocument,
   readerDocument,
 } from './preview-document'
+export { openPreviewExternalLink } from './preview-open-link'
 export { PreviewView } from './preview-view'
 export { SourceLine } from './source-lines'
 export type { SourceRow } from './source-rows'

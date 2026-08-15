@@ -130,7 +130,7 @@ export function useReviewPublishCost(enabled: boolean): PublishCost | undefined 
 
 /**
  * The one Evidence aggregate: title, timestamp, checks, plus the Results and Assets
- * descriptors. Descriptors only — no document text and no image bytes ride here, so
+ * descriptors. Descriptors only — no document text and no media bytes ride here, so
  * the whole pack is cheap enough to hold and refresh on the Review notification.
  */
 export function useReviewEvidence(): ReviewEvidence | null | undefined {
@@ -169,7 +169,7 @@ export function useEvidenceDoc(
 }
 
 /**
- * One gallery image as a data URL. `enabled` is the laziness: a tile's bytes can
+ * One gallery media asset as a data URL. `enabled` is the laziness: a tile's bytes can
  * be megabytes, so the Assets sub-tab passes false until it is the visible pane
  * — nobody pays for a gallery they never open.
  *

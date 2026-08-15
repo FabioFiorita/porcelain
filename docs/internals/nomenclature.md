@@ -66,7 +66,7 @@ Mobile mirrors General · Data · Review · Environments.
 |---|---|
 | Flow / flow layers | Architectural-layer grouping of changes (entry-point → data); the heart of "review as a story" |
 | The Review (active review / review set) | One unit-of-work story as a four-tab canvas: **Intent** (thesis + authored intent documents, optional freeform HTML), **Process** (walkthrough prose and diagrams), **Execution** (agent-listed files + notes, not the working tree), **Evidence**. Files tagged **changed** / **context** / **shipped**. Active: `<repo>/.porcelain/review.json`; archives under `.porcelain/reviews/<id>/`. Product language and code are both **Review**: REV-009 cut the wire, the clients, and the CLI over to one canonical vocabulary (`activeReview`, `reviewReading`, `reviewInbox`, `archiveReview`, `publishCost`, `reviewEvidence`, `clearEvidence`, `setReviewed`) and `scripts/lint-legacy-migrations.mjs` fails the build if a Feature-era name regrows |
-| Evidence | Agent-authored *proof the loop closed*: structured checks + a Results document set + an image gallery under `<repo>/.porcelain/active-review/evidence/` (gitignored by default); archives with the review |
+| Evidence | Agent-authored *proof the loop closed*: structured checks + a Results document set + an image/video/link gallery under `<repo>/.porcelain/active-review/evidence/` (gitignored by default); archives with the review |
 | Review comments | The reviewer's line/file notes (`.porcelain/comments.json`), app→agent via the CLI |
 | Reviewed marks | Per-file "reviewed" checkboxes (`.porcelain/reviewed.json`), app→agent, read-only like notes |
 | Project board | Per-repo todo/doing/done (`.porcelain/board.json`), two-way via the CLI; share via git |

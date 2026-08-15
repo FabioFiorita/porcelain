@@ -180,6 +180,14 @@ const unavailableShape = {
   maxBytes: z.number().int().positive(),
 } as const
 
+const safeExternalUrlSchema = z
+  .string()
+  .url()
+  .refine((value) => {
+    const protocol = new URL(value).protocol
+    return protocol === 'http:' || protocol === 'https:' || protocol === 'mailto:'
+  }, 'must use http, https, or mailto')
+
 export const evidenceDocDescriptorSchema = z.discriminatedUnion('state', [
   z
     .object({
@@ -203,12 +211,12 @@ export const evidenceDocDescriptorSchema = z.discriminatedUnion('state', [
 
 export type EvidenceDocDescriptor = z.infer<typeof evidenceDocDescriptorSchema>
 
-export const evidenceAssetDescriptorSchema = z.discriminatedUnion('state', [
+const evidenceMediaDescriptorSchema = z.discriminatedUnion('state', [
   z
     .object({
       file: evidenceFileNameSchema,
       label: z.string(),
-      kind: z.literal('image'),
+      kind: z.enum(['image', 'video']),
       mime: z.string(),
       bytes: z.number().int().nonnegative(),
       state: z.literal('available'),
@@ -218,12 +226,28 @@ export const evidenceAssetDescriptorSchema = z.discriminatedUnion('state', [
     .object({
       file: evidenceFileNameSchema,
       label: z.string(),
-      kind: z.literal('image'),
+      kind: z.enum(['image', 'video']),
       mime: z.string(),
       bytes: z.number().int().nonnegative(),
       ...unavailableShape,
     })
     .strict(),
+])
+
+const evidenceLinkDescriptorSchema = z
+  .object({
+    file: evidenceFileNameSchema,
+    label: z.string(),
+    kind: z.literal('link'),
+    href: safeExternalUrlSchema,
+    bytes: z.number().int().nonnegative(),
+    state: z.literal('available'),
+  })
+  .strict()
+
+export const evidenceAssetDescriptorSchema = z.union([
+  evidenceMediaDescriptorSchema,
+  evidenceLinkDescriptorSchema,
 ])
 
 export type EvidenceAssetDescriptor = z.infer<typeof evidenceAssetDescriptorSchema>

@@ -139,6 +139,21 @@ describe('results descriptors', () => {
 })
 
 describe('assets gallery', () => {
+  it('publishes safe URL files as available link descriptors', async () => {
+    write(projectEvidenceAssetsDir(repo), 'reference.url', 'https://example.com/evidence\n')
+
+    expect((await store.readPack(repo))?.assets).toEqual([
+      {
+        file: 'reference.url',
+        label: 'Reference',
+        kind: 'link',
+        href: 'https://example.com/evidence',
+        bytes: Buffer.byteLength('https://example.com/evidence\n'),
+        state: 'available',
+      },
+    ])
+  })
+
   it('is the capped, symlink-free gallery list', async () => {
     for (let n = 0; n < MAX_ASSETS + 1; n += 1) {
       write(projectEvidenceAssetsDir(repo), `shot-${String(n).padStart(3, '0')}.png`, 'png')
@@ -174,10 +189,11 @@ describe('updatedAt', () => {
 })
 
 describe('readAsset', () => {
-  it('is null for a traversal, an absolute name, a dotfile, a symlink, a non-image, and an over-cap image', async () => {
+  it('is null for a traversal, an absolute name, a dotfile, a symlink, a link, an unsupported file, and an over-cap image', async () => {
     write(projectEvidenceAssetsDir(repo), 'shot.png', 'png-bytes')
     write(projectEvidenceAssetsDir(repo), '.secret.png', 'png')
     write(projectEvidenceAssetsDir(repo), 'notes.txt', 'text')
+    write(projectEvidenceAssetsDir(repo), 'reference.url', 'https://example.com')
     write(projectEvidenceAssetsDir(repo), 'huge.png', Buffer.alloc(MAX_ASSET_BYTES + 1))
     const outside = write(root, 'outside.png', 'png')
     symlinkSync(outside, join(projectEvidenceAssetsDir(repo), 'link.png'))
@@ -188,6 +204,7 @@ describe('readAsset', () => {
       '.secret.png',
       'link.png',
       'notes.txt',
+      'reference.url',
       'huge.png',
       'gone.png',
     ]) {

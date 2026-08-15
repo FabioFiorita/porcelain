@@ -1,15 +1,17 @@
 import { lstat, readdir, readFile } from 'node:fs/promises'
 import { extname, isAbsolute, join, relative, resolve } from 'node:path'
+import { isSafeExternalUrl } from '../fs/external-url'
 import { imageMimeForPath } from '../fs/image-mime'
 
 /**
  * The Assets sub-tab of Evidence: `active-review/evidence/assets/` read as a
- * plain directory of images, rendered as a native gallery.
+ * plain directory of images, videos, and `.url` link files, rendered as a native
+ * gallery.
  *
- * A screenshot is not a document. Wrapping one in HTML just to show it costs an
- * iframe, a manifest, and a base64 copy inside a report — so the gallery reads
- * the directory directly and each image is fetched on demand, one procedure call
- * per image, as a data URL over tRPC.
+ * A captured media file is not a document. Wrapping one in HTML just to show it
+ * costs an iframe, a manifest, and another base64 copy inside a report — so the
+ * gallery reads the directory directly and each asset is fetched on demand, one
+ * procedure call per asset, as a data URL over tRPC.
  *
  * **There is deliberately no HTTP route for these bytes.** The daemon's static
  * server serves the renderer dist and nothing else, unauthenticated by design;
@@ -21,21 +23,36 @@ import { imageMimeForPath } from '../fs/image-mime'
 export const MAX_ASSETS = 60
 
 /**
- * Per-image ceiling for the data URL. Matches the doc-set total: an image that
+ * Per-asset ceiling for the data URL. Matches the doc-set total: media that
  * cannot be served still LISTS (name, size, type) so the gallery says what is
  * there rather than pretending the pack is smaller than it is.
  */
 export const MAX_ASSET_BYTES = 8 * 1024 * 1024
 
-export interface EvidenceAsset {
+/** Link files are intentionally tiny: one URL, not an arbitrary text payload. */
+export const MAX_LINK_BYTES = 8 * 1024
+
+export type EvidenceAssetKind = 'image' | 'video' | 'link'
+
+export interface EvidenceMediaAsset {
   /** File name — the gallery key and the `readEvidenceAsset` argument. */
   file: string
   label: string
   mime: string
-  /** Only images today; the field exists so a second kind is additive. */
-  kind: 'image'
+  kind: 'image' | 'video'
   bytes: number
 }
+
+export interface EvidenceLinkAsset {
+  /** File name — the gallery key and the `readEvidenceAsset` argument. */
+  file: string
+  label: string
+  kind: 'link'
+  href: string
+  bytes: number
+}
+
+export type EvidenceAsset = EvidenceMediaAsset | EvidenceLinkAsset
 
 export interface EvidenceAssetBody {
   file: string
@@ -58,6 +75,29 @@ function labelFor(file: string): string {
   return base.charAt(0).toUpperCase() + base.slice(1)
 }
 
+const VIDEO_MIME: Record<string, string> = {
+  mp4: 'video/mp4',
+  m4v: 'video/x-m4v',
+  mov: 'video/quicktime',
+  ogv: 'video/ogg',
+  webm: 'video/webm',
+}
+
+function mediaForPath(file: string): { kind: 'image' | 'video'; mime: string } | null {
+  const imageMime = imageMimeForPath(file)
+  if (imageMime !== null) return { kind: 'image', mime: imageMime }
+
+  const base = file.split(/[/\\]/).at(-1) ?? file
+  const dot = base.lastIndexOf('.')
+  if (dot <= 0) return null
+  const mime = VIDEO_MIME[base.slice(dot + 1).toLowerCase()]
+  return mime === undefined ? null : { kind: 'video', mime }
+}
+
+function isLinkFile(file: string): boolean {
+  return extname(file).toLowerCase() === '.url'
+}
+
 /**
  * Resolve a client-supplied name inside `dir`. Two checks, not one: the name
  * shape, and the resolved path — the directory is agent-authored and the name
@@ -73,7 +113,7 @@ function assetPath(dir: string, file: string): string | null {
 }
 
 /**
- * The images in an evidence assets directory, name-sorted. Non-images are
+ * The assets in an evidence assets directory, name-sorted. Unsupported files are
  * silently ignored (a stray `notes.txt` is not a broken tile), and a missing
  * directory reads as an empty gallery.
  */
@@ -89,14 +129,23 @@ export async function listEvidenceAssets(dir: string): Promise<EvidenceAsset[]> 
   for (const file of entries.sort()) {
     if (assets.length >= MAX_ASSETS) break
     if (!isPlainFileName(file)) continue
-    const mime = imageMimeForPath(file)
-    if (mime === null) continue
+    const media = mediaForPath(file)
+    const link = isLinkFile(file)
+    if (media === null && !link) continue
     try {
       // lstat, not stat: a symlink named with an image extension must not be
       // listed as a real tile just because its target happens to be one.
       const info = await lstat(join(dir, file))
       if (info.isSymbolicLink() || !info.isFile()) continue
-      assets.push({ file, label: labelFor(file), mime, kind: 'image', bytes: info.size })
+      if (media !== null) {
+        assets.push({ file, label: labelFor(file), ...media, bytes: info.size })
+        continue
+      }
+      if (info.size > MAX_LINK_BYTES) continue
+      const href = (await readFile(join(dir, file), 'utf8')).trim()
+      if (isSafeExternalUrl(href)) {
+        assets.push({ file, label: labelFor(file), kind: 'link', href, bytes: info.size })
+      }
     } catch {
       // vanished mid-listing — the gallery is a snapshot, not a lock
     }
@@ -105,8 +154,8 @@ export async function listEvidenceAssets(dir: string): Promise<EvidenceAsset[]> 
 }
 
 /**
- * One image as a data URL, or null when it is missing, not an image, over the
- * cap, or the name does not resolve inside `dir`.
+ * One media asset as a data URL, or null when it is missing, unsupported, over
+ * the cap, or the name does not resolve inside `dir`.
  */
 export async function readEvidenceAsset(
   dir: string,
@@ -114,8 +163,8 @@ export async function readEvidenceAsset(
 ): Promise<EvidenceAssetBody | null> {
   const path = assetPath(dir, file)
   if (path === null) return null
-  const mime = imageMimeForPath(file)
-  if (mime === null) return null
+  const media = mediaForPath(file)
+  if (media === null) return null
   try {
     // lstat, not stat: `assetPath` only validates the resolved path lexically,
     // so a symlink inside `dir` would otherwise let `readFile` follow it
@@ -128,9 +177,9 @@ export async function readEvidenceAsset(
     const bytes = await readFile(path)
     return {
       file,
-      mime,
+      mime: media.mime,
       bytes: bytes.byteLength,
-      dataUrl: `data:${mime};base64,${bytes.toString('base64')}`,
+      dataUrl: `data:${media.mime};base64,${bytes.toString('base64')}`,
     }
   } catch {
     return null

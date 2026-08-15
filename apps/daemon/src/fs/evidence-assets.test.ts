@@ -32,6 +32,14 @@ describe('inlineLocalAssets', () => {
     expect(out).not.toContain('<link rel="stylesheet" href="styles.css">')
   })
 
+  it('inlines a relative video source for a sandboxed HTML document', async () => {
+    writeFileSync(join(dir, 'capture.mp4'), Buffer.from('video-bytes'))
+    const html = '<video controls src="capture.mp4"></video>'
+    const out = await inlineLocalAssets(dir, html)
+    expect(out).toMatch(/src="data:video\/mp4;base64,/)
+    expect(out).not.toContain('src="capture.mp4"')
+  })
+
   it('leaves remote and missing stylesheets alone', async () => {
     const html =
       '<link rel="stylesheet" href="https://example.com/styles.css"><link rel="stylesheet" href="missing.css">'

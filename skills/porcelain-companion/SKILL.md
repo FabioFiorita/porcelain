@@ -54,7 +54,7 @@ node <skill>/scripts/check-evidence.mjs [--repo <abs path>]
 ```
 
 Run `check-evidence.mjs` before claiming an intentionally published Review complete. It reports an empty pack, missing CSS, `<script>` tags,
-remote assets, broken image references (including `../assets/…`), the gallery count, and the
+remote assets, broken local media references (including `../assets/…`), invalid `.url` gallery links, the gallery count, and the
 inlined size against the 4 MB read cap — all of which fail **silently** in the sandboxed Evidence
 tab. Fix what it reports and run it again.
 
@@ -131,8 +131,8 @@ JSON
 3. **During an intentionally published Review** — Grow Execution as you touch files; Intent updates are fine. Human comments and
    reviewed marks are app → agent (`comments` / `reviewed list`).
 4. **End of an intentionally published Review** — Complete Execution + **real Evidence** before claiming done: an
-   `evidence check` per thing you ran, Results documents for what needs narrating, screenshots in
-   `assets/`. Run `check-evidence.mjs`. Don't invent proof.
+   `evidence check` per thing you ran, Results documents for what needs narrating, screenshots or
+   recordings in `assets/`. Run `check-evidence.mjs`. Don't invent proof.
 5. **Intentional replacement** — Never leave another agent's Intent or old evidence under a new
    document. If the human requests replacing an active Review, clear it before starting the
    replacement; otherwise leave it untouched.
@@ -153,7 +153,7 @@ requested replacement → implement, keeping the board honest.
 
 **End of an intentionally published Review:** **`review set`** again with full Execution (files +
 notes + sections that match what shipped) → validate → `evidence check` per thing you ran →
-`evidence prepare` → write `results/` documents + drop screenshots in `assets/` →
+`evidence prepare` → write `results/` documents + drop screenshots or recordings in `assets/` →
 `evidence results-order` → `check-evidence.mjs` → handle `comments list` → `board move` → done
 once the human has signed off.
 

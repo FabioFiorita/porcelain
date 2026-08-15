@@ -28,10 +28,13 @@ import { useBottomChrome } from '@/features/shell/bottom-chrome'
  */
 export function PreviewView({
   document,
+  mediaPlayback = false,
   testID,
 }: {
   /** A complete HTML document — see `preview-document`, which is what builds them. */
   document: string
+  /** Opt into native video controls only for the dedicated evidence video viewer. */
+  mediaPlayback?: boolean
   testID: string
 }): React.JSX.Element {
   const bottomInset = useBottomChrome()
@@ -39,8 +42,8 @@ export function PreviewView({
     <WebView
       // No baseUrl: the document resolves nothing relative, so a stray `src` cannot reach the
       // file system or the network even before the CSP is consulted.
-      allowsFullscreenVideo={false}
-      allowsInlineMediaPlayback={false}
+      allowsFullscreenVideo={mediaPlayback}
+      allowsInlineMediaPlayback={mediaPlayback}
       contentInset={{ bottom: bottomInset }}
       // Ours is the only inset; iOS adding its own on top is the double reservation this
       // whole seam exists to stop.

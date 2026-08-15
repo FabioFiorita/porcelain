@@ -39,6 +39,11 @@ const MIME: Record<string, string> = {
   '.webp': 'image/webp',
   '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon',
+  '.mp4': 'video/mp4',
+  '.m4v': 'video/x-m4v',
+  '.mov': 'video/quicktime',
+  '.ogv': 'video/ogg',
+  '.webm': 'video/webm',
 }
 
 function mimeFor(filePath: string): string {

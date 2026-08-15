@@ -82,6 +82,7 @@ const CHROME_SYMBOLS = {
   eye: { ios: 'eye' as SFSymbol, android: 'visibility' as AndroidSymbol },
   eyeOff: { ios: 'eye.slash' as SFSymbol, android: 'visibility_off' as AndroidSymbol },
   image: { ios: 'photo' as SFSymbol, android: 'image' as AndroidSymbol },
+  play: { ios: 'play.fill' as SFSymbol, android: 'play_arrow' as AndroidSymbol },
   code: { ios: 'curlybraces' as SFSymbol, android: 'code' as AndroidSymbol },
   comment: { ios: 'bubble.left' as SFSymbol, android: 'chat_bubble' as AndroidSymbol },
   /** History's commit menu: copy the SHA, copy the message. */

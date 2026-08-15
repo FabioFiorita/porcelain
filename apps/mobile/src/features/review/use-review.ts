@@ -97,7 +97,7 @@ export function useReviewIntentDocs(enabled: boolean): {
 
 /**
  * The whole evidence pack in one read: the checks, the Results document descriptors and the
- * Assets descriptors. No document text and no image bytes travel here, which is what makes a
+ * Assets descriptors. No document text and no media bytes travel here, which is what makes a
  * single aggregate cheap enough for the Evidence canvas to open on — the bodies are fetched
  * one at a time by the panes that actually show them.
  */
@@ -137,12 +137,12 @@ export function useReviewEvidenceDoc(
 }
 
 /**
- * One gallery image as a data URL.
+ * One gallery media asset as a data URL.
  *
  * The heaviest read on this surface and the most granular: a pack can be tens of
  * megabytes, so `enabled` is the Assets sub-tab being up — not the Evidence canvas —
  * and each tile pays only for itself. The identity carries the file, so two tiles never
- * share a cache entry. `null` data is the daemon's per-image cap; the gallery says so
+ * share a cache entry. `null` data is the daemon's per-asset cap; the gallery says so
  * from the listing's byte count rather than showing a blank tile.
  */
 export function useReviewEvidenceAsset(

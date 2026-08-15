@@ -1,13 +1,4 @@
-import {
-  lstatSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  renameSync,
-  rmSync,
-  statSync,
-  writeFileSync,
-} from 'node:fs'
+import { mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
 import {
   type EvidenceCheck,
@@ -24,15 +15,18 @@ import {
   projectEvidenceResultsDir,
 } from '@shared/project-porcelain'
 import { listDocSet, orderDocSet } from './doc-set-file'
+import { listAssets } from './evidence-assets'
 import { htmlPreview } from './html-input'
 import { ensureProjectDir } from './project-io'
+
+export { listAssets } from './evidence-assets'
 
 // Builtins only — see cli.ts. Evidence is a **three-part pack on disk**:
 //
 //   <repo>/.porcelain/active-review/evidence/
 //     meta.json    — { title, repoPath, updatedAt, checks[] }   → the Checks sub-tab
 //     results/     — an ordered .md/.html document set (meta.json {tabs})  → Results
-//     assets/      — a flat directory of images, rendered natively  → Assets gallery
+//     assets/      — a flat directory of media and safe .url links, rendered natively  → Assets gallery
 //
 // Agents SHOULD write those files with normal Write tools (no CLI payload limits).
 // `porcelain evidence prepare` with a title only makes the directories and returns
@@ -65,27 +59,6 @@ export interface Evidence {
   /** Where the report was found, relative to `dir` — always `results/index.html`. */
   file: string
 }
-
-/**
- * Gallery caps, matching apps/daemon/src/review/evidence-assets-list.ts: the
- * listing is a preview of what that lister will show, and this CLI takes no
- * dependency on the daemon.
- */
-const MAX_ASSETS = 60
-const MAX_ASSET_BYTES = 8 * 1024 * 1024
-
-/** Extensions the gallery renders; anything else in `assets/` is not a tile. */
-const ASSET_EXTENSIONS = new Set([
-  '.png',
-  '.jpg',
-  '.jpeg',
-  '.gif',
-  '.webp',
-  '.svg',
-  '.ico',
-  '.bmp',
-  '.avif',
-])
 
 interface EvidenceMeta {
   title: string
@@ -355,77 +328,6 @@ export function listResults(repoPath: string): string[] {
   return listDocSet(projectEvidenceResultsDir(repoPath))
 }
 
-export interface EvidenceAssetEntry {
-  file: string
-  bytes: number
-  /** Why this file will not appear as a gallery tile, when it will not. */
-  warning?: string
-}
-
-function extensionOf(file: string): string {
-  const dot = file.lastIndexOf('.')
-  return dot <= 0 ? '' : file.slice(dot).toLowerCase()
-}
-
-/**
- * The gallery as the daemon will see it: name-sorted, with a per-file warning for
- * anything that will be skipped (not an image) or refused (over the per-image cap),
- * plus the over-count tail. Warning, not error — a stray `notes.txt` is not a
- * broken pack, it just is not a tile.
- */
-export function listAssets(repoPath: string): EvidenceAssetEntry[] {
-  const dir = projectEvidenceAssetsDir(repoPath)
-  let names: string[]
-  try {
-    names = readdirSync(dir).sort()
-  } catch {
-    return []
-  }
-  const out: EvidenceAssetEntry[] = []
-  let images = 0
-  for (const file of names) {
-    let bytes = 0
-    let symbolicLink = false
-    try {
-      // lstat, not stat, exactly like the daemon's lister: a symlink named with
-      // an image extension must not preview as a real tile it will never be.
-      const info = lstatSync(join(dir, file))
-      symbolicLink = info.isSymbolicLink()
-      if (!symbolicLink && !info.isFile()) continue
-      bytes = info.size
-    } catch {
-      continue
-    }
-    if (file.startsWith('.')) {
-      out.push({ file, bytes, warning: 'dotfile — never listed' })
-      continue
-    }
-    if (symbolicLink) {
-      out.push({ file, bytes, warning: 'symlink — never listed by the gallery' })
-      continue
-    }
-    if (!ASSET_EXTENSIONS.has(extensionOf(file))) {
-      out.push({ file, bytes, warning: 'not an image — skipped by the gallery' })
-      continue
-    }
-    images++
-    if (bytes > MAX_ASSET_BYTES) {
-      out.push({
-        file,
-        bytes,
-        warning: `${formatMb(bytes)} is over the ${formatMb(MAX_ASSET_BYTES)} per-image cap — it lists but will not load`,
-      })
-      continue
-    }
-    if (images > MAX_ASSETS) {
-      out.push({ file, bytes, warning: `past the ${MAX_ASSETS}-image gallery cap — not shown` })
-      continue
-    }
-    out.push({ file, bytes })
-  }
-  return out
-}
-
 interface LocalRef {
   /** Exactly as the document wrote it, so the warning names what to fix. */
   raw: string
@@ -502,7 +404,7 @@ function packSummary(repoPath: string): string {
     results.length === 0
       ? `\nResults: (none) — write .md / .html into ${projectEvidenceResultsDir(repoPath)}`
       : `\nResults: ${results.length} document(s): ${results.join(', ')}`,
-    `\nAssets: ${galleryCount} image(s) in the gallery${assets.length > galleryCount ? ` (${assets.length - galleryCount} not shown)` : ''}`,
+    `\nAssets: ${galleryCount} asset(s) in the gallery${assets.length > galleryCount ? ` (${assets.length - galleryCount} not shown)` : ''}`,
   ]
   for (const asset of assets) {
     if (asset.warning !== undefined)

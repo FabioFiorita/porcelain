@@ -116,7 +116,7 @@ export const TestIds = {
   evidencePanel: 'evidence-panel',
   evidenceClear: 'evidence-clear',
   evidenceIframe: 'evidence-iframe',
-  /** Evidence is one pack over three sub-tabs: Checks · Results · Assets. */
+  /** Evidence is one pack over three sub-tabs: Checks · Results · Assets (media). */
   evidenceSubTab: (id: 'checks' | 'results' | 'assets'): string => `evidence-sub-tab-${id}`,
   evidenceChecksPane: 'evidence-checks-pane',
   evidenceResultsPane: 'evidence-results-pane',

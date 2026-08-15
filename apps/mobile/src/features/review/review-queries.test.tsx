@@ -276,7 +276,7 @@ describe('Mobile Review reads', () => {
 
   it('reads one asset once its gate opens, and shows null as the over-cap case', async () => {
     const { mock, wrapper } = harness({
-      // The daemon answers `null` for an image past its per-image cap.
+      // The daemon answers `null` for media past its per-asset cap.
       reviewEvidenceAsset: () => ({ ok: true, value: null }),
     })
 
