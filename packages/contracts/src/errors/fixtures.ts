@@ -141,6 +141,20 @@ export const publicErrorFixtures = {
     retryable: true,
     requestId: '00000000-0000-4000-8000-00000000001d',
   },
+  'canvas.not-found': {
+    code: 'canvas.not-found',
+    category: 'not-found',
+    message: 'The Canvas was not found.',
+    retryable: false,
+    requestId: '00000000-0000-4000-8000-00000000001e',
+  },
+  'canvas.unavailable': {
+    code: 'canvas.unavailable',
+    category: 'unavailable',
+    message: 'The Canvas is unavailable.',
+    retryable: true,
+    requestId: '00000000-0000-4000-8000-00000000001f',
+  },
   'files.already-exists': {
     code: 'files.already-exists',
     category: 'conflict',

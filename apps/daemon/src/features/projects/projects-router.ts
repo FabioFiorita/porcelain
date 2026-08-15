@@ -19,6 +19,10 @@ function throwIfFailed<Value>(result: ProjectOperationResult<Value>): Value {
       throw toTrpcError(expectedFailure('git.branch-already-exists'))
     case 'git.worktree-conflict':
       throw toTrpcError(expectedFailure('git.worktree-conflict'))
+    case 'canvas.not-found':
+      throw toTrpcError(expectedFailure('canvas.not-found'))
+    case 'canvas.unavailable':
+      throw toTrpcError(expectedFailure('canvas.unavailable'))
   }
 }
 
@@ -69,5 +73,15 @@ export function createProjectsRouter(operations: ProjectsOperations) {
       .input(procedureCatalog.createHubWorktree.input)
       .output(procedureCatalog.createHubWorktree.output)
       .mutation(async ({ input }) => throwIfFailed(await operations.createHubWorktree(input))),
+
+    listCanvases: publicProcedure
+      .input(procedureCatalog.listCanvases.input)
+      .output(procedureCatalog.listCanvases.output)
+      .query(async ({ input }) => throwIfFailed(await operations.listCanvases(input))),
+
+    readCanvas: publicProcedure
+      .input(procedureCatalog.readCanvas.input)
+      .output(procedureCatalog.readCanvas.output)
+      .query(async ({ input }) => throwIfFailed(await operations.readCanvas(input))),
   })
 }

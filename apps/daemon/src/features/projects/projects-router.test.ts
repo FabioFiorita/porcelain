@@ -10,6 +10,14 @@ const REQUEST_ID = '00000000-0000-4000-8000-000000000077'
 const PUBLIC_CONTEXT = { auth: { kind: 'admin' as const }, requestId: REQUEST_ID }
 const PROJECT = { path: '/projects/alpha', name: 'alpha' }
 const BROWSE = { path: '/projects', parent: '/', entries: [] }
+const CANVAS_RECORD = {
+  id: 'canvas-1',
+  worktreeId: 'wt-1',
+  title: 'Intent',
+  kind: 'html' as const,
+  createdAt: '2026-08-15T00:00:00.000Z',
+  updatedAt: '2026-08-15T00:00:00.000Z',
+}
 
 const operations = {
   openProject: vi.fn<ProjectsOperations['openProject']>(async () => ({
@@ -60,6 +68,14 @@ const operations = {
       isPrimary: false,
     },
   })),
+  listCanvases: vi.fn<ProjectsOperations['listCanvases']>(async () => ({
+    ok: true as const,
+    value: [CANVAS_RECORD],
+  })),
+  readCanvas: vi.fn<ProjectsOperations['readCanvas']>(async () => ({
+    ok: true as const,
+    value: { record: CANVAS_RECORD, content: '<p>hi</p>' },
+  })),
 } satisfies ProjectsOperations
 
 const router = createProjectsRouter(operations)
@@ -94,7 +110,7 @@ beforeEach(() => {
 })
 
 describe('Projects router contract boundary', () => {
-  it('binds all eight procedures to the catalog and returns strict outputs', async () => {
+  it('binds all ten procedures to the catalog and returns strict outputs', async () => {
     expect(await caller().openRepoPath('/projects/alpha')).toEqual(PROJECT)
     expect(await caller().recentRepos()).toEqual([PROJECT])
     expect(await caller().removeRecentRepo('/projects/old')).toBeUndefined()
@@ -120,6 +136,11 @@ describe('Projects router contract boundary', () => {
       name: 'topic',
       branch: 'topic',
       isPrimary: false,
+    })
+    expect(await caller().listCanvases({ projectId: 'proj-1' })).toEqual([CANVAS_RECORD])
+    expect(await caller().readCanvas({ projectId: 'proj-1', canvasId: 'canvas-1' })).toEqual({
+      record: CANVAS_RECORD,
+      content: '<p>hi</p>',
     })
     expect(Object.keys(procedureCatalog)).toContain('hubInventory')
   })
@@ -152,6 +173,12 @@ describe('Projects router contract boundary', () => {
       'browseProjectDirectories',
       'projects.not-a-directory',
       () => caller().browseDirs('/file'),
+    ],
+    [
+      'readCanvas',
+      'readCanvas',
+      'canvas.not-found',
+      () => caller().readCanvas({ projectId: 'proj-1', canvasId: 'missing' }),
     ],
   ] as const)('maps %s operation failures to typed public errors', async (_procedure, operation, code, run) => {
     const method = operations[operation]

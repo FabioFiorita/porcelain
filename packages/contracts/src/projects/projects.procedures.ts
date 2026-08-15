@@ -6,8 +6,12 @@ import {
   hubInventoryInputSchema,
   hubInventorySchema,
   hubWorktreeSchema,
+  listCanvasesInputSchema,
+  listCanvasesOutputSchema,
   openRepoPathInputSchema,
   openRepoPathOutputSchema,
+  readCanvasInputSchema,
+  readCanvasOutputSchema,
   recentReposInputSchema,
   recentReposOutputSchema,
   removeHubProjectInputSchema,
@@ -77,6 +81,18 @@ const projectsProcedureDefinitions = {
       'git.branch-already-exists',
       'git.worktree-conflict',
     ],
+  },
+  listCanvases: {
+    kind: 'query',
+    input: listCanvasesInputSchema,
+    output: listCanvasesOutputSchema,
+    errors: ['canvas.unavailable'],
+  },
+  readCanvas: {
+    kind: 'query',
+    input: readCanvasInputSchema,
+    output: readCanvasOutputSchema,
+    errors: ['canvas.not-found', 'canvas.unavailable'],
   },
 } as const
 

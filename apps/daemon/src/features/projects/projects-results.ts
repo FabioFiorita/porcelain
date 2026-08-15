@@ -5,6 +5,8 @@ export type ProjectsOperationError =
   | { readonly code: 'git.not-a-repository' }
   | { readonly code: 'git.branch-already-exists' }
   | { readonly code: 'git.worktree-conflict' }
+  | { readonly code: 'canvas.not-found' }
+  | { readonly code: 'canvas.unavailable' }
 
 export type ProjectOperationResult<Value> =
   | { readonly ok: true; readonly value: Value }

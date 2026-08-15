@@ -22,6 +22,8 @@ import {
   gitWorktreeConflictErrorSchema,
 } from '../git'
 import {
+  canvasNotFoundErrorSchema,
+  canvasUnavailableErrorSchema,
   projectsNotADirectoryErrorSchema,
   projectsNotFoundErrorSchema,
   projectsUnavailableErrorSchema,
@@ -79,6 +81,8 @@ export const publicErrorSchema = z.discriminatedUnion('code', [
   projectsNotFoundErrorSchema,
   projectsNotADirectoryErrorSchema,
   projectsUnavailableErrorSchema,
+  canvasNotFoundErrorSchema,
+  canvasUnavailableErrorSchema,
   filesAlreadyExistsErrorSchema,
   filesPathOutsideProjectErrorSchema,
   filesNotFoundErrorSchema,

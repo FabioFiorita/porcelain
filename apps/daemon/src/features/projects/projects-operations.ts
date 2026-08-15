@@ -1,11 +1,16 @@
 import type {
   BrowseDirsOutput,
+  CanvasRecord,
   CreateHubWorktreeInput,
   HubInventory,
   HubWorktree,
+  ListCanvasesInput,
   ProjectInfo,
+  ReadCanvasInput,
   RemoveHubWorktreeInput,
 } from '@porcelain/contracts/projects'
+import { createCanvasOperations } from './canvas-operations'
+import type { CanvasStore } from './canvas-store'
 import type { EnvironmentIdentityStore } from './environment-identity-store'
 import type { HubGitPort } from './hub-git-port'
 import {
@@ -37,6 +42,10 @@ export type ProjectsOperations = Readonly<{
   ) => Promise<ProjectOperationResult<BrowseDirsOutput>>
   listHubInventory: () => Promise<ProjectOperationResult<HubInventory>>
   createHubWorktree: (input: CreateHubWorktreeInput) => Promise<ProjectOperationResult<HubWorktree>>
+  listCanvases: (input: ListCanvasesInput) => Promise<ProjectOperationResult<CanvasRecord[]>>
+  readCanvas: (
+    input: ReadCanvasInput,
+  ) => Promise<ProjectOperationResult<{ record: CanvasRecord; content: string }>>
 }>
 
 function failure(error: ProjectsOperationError): ProjectOperationResult<never> {
@@ -73,6 +82,7 @@ export function createProjectsOperations(options: {
     daemon: { host: string; platform: string; arch: string }
     createId?: () => string
   }
+  canvas: CanvasStore
 }): ProjectsOperations {
   const hub: HubInventoryOperations = createHubInventoryOperations({
     environment: options.hub.environment,
@@ -82,6 +92,7 @@ export function createProjectsOperations(options: {
     daemon: options.hub.daemon,
     createId: options.hub.createId,
   })
+  const canvas = createCanvasOperations({ store: options.canvas })
 
   return Object.freeze({
     async openProject(path: string): Promise<ProjectOperationResult<ProjectInfo>> {
@@ -138,5 +149,7 @@ export function createProjectsOperations(options: {
 
     listHubInventory: hub.listHubInventory,
     createHubWorktree: hub.createHubWorktree,
+    listCanvases: canvas.listCanvases,
+    readCanvas: canvas.readCanvas,
   })
 }

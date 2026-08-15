@@ -5,6 +5,7 @@ import { ensureCli } from './cli-install'
 import { seedDevConfig } from './dev-config'
 import { createGitSubprocess } from './features/git'
 import {
+  createCanvasStore,
   createHubGitPort,
   createNodeProjectsPort,
   createProjectsOperations,
@@ -75,6 +76,7 @@ const environmentIdentity = initEnvironmentIdentityStore({
   defaultName: identity.host,
 })
 const hubInventory = initHubInventoryStore(porcelainHomeDir)
+const canvasStore = createCanvasStore({ homeDir: porcelainHomeDir })
 
 // The single daemon shutdown path. Every shutdown route (SIGTERM from the shell's
 // utilityProcess.kill, SIGINT at a TTY, or the stdin-EOF watchdog) converges here.
@@ -141,6 +143,7 @@ async function main(): Promise<void> {
       git: createHubGitPort(createGitSubprocess()),
       daemon: identity,
     },
+    canvas: canvasStore,
   })
   const operations = createDaemonOperations({ projects, terminal })
   const router = createDaemonRouter({ operations })
