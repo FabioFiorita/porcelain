@@ -7,7 +7,7 @@ import {
 } from '@renderer/components/ui/empty'
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@renderer/components/ui/sidebar'
 import { useHubTarget } from '@renderer/stores/hub-selection'
-import { activeTabTarget, targetedTab } from '@renderer/stores/hub-tabs'
+import { targetedTab } from '@renderer/stores/hub-tabs'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { TestIds } from '@shared/test-ids'
 import { LayoutPanelTop } from 'lucide-react'
@@ -52,7 +52,10 @@ export function CanvasList(): React.JSX.Element {
             data-testid={TestIds.canvasListItem(canvas.id)}
             className="h-auto py-1 text-sm-minus"
             onClick={() =>
-              openTab(targetedTab('canvas', canvas.id, { title: canvas.title }, activeTabTarget()))
+              // The exact target this list was scoped to — not activeTabTarget(),
+              // which resolves to the focused Viewer tab's own target first and can
+              // diverge from the selected Worktree this sidebar is showing.
+              openTab(targetedTab('canvas', canvas.id, { title: canvas.title }, target))
             }
           >
             <div className="flex min-w-0 flex-col items-start">

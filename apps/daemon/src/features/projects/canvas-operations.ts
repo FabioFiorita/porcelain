@@ -83,7 +83,7 @@ export function createCanvasOperations(options: {
       // "safe relative asset access" criterion is scoped to HTML Canvases).
       const rendered =
         record.kind === 'html'
-          ? `${await inlineLocalAssets(bundleDir, content, bundleDir)}${EXTERNAL_LINK_BRIDGE}`
+          ? `${await inlineLocalAssets(bundleDir, content, bundleDir, true)}${EXTERNAL_LINK_BRIDGE}`
           : content
       return { ok: true, value: { record: toPublicRecord(record), content: rendered } }
     },

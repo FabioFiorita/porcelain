@@ -1,6 +1,6 @@
 import { readFile, realpath, stat } from 'node:fs/promises'
-import { isAbsolute, relative, resolve, sep } from 'node:path'
-import { canvasBundleDir, canvasIndexPath } from '@shared/canvas-porcelain'
+import { resolve } from 'node:path'
+import { canvasBundleDir, canvasIndexPath, isInsideDir } from '@shared/canvas-porcelain'
 import { z } from 'zod'
 import {
   createStrictJsonDocument,
@@ -82,12 +82,6 @@ function reportUnavailable(
   console.error(
     `porcelain: canvas index is ${result.byteLength} bytes (> ${CANVAS_INDEX_FILE_MAX_BYTES})`,
   )
-}
-
-/** Exact outside rule — never startsWith('..') alone (false-positives a name like `..foo`). */
-function isInsideDir(dir: string, candidate: string): boolean {
-  const rel = relative(dir, candidate)
-  return rel !== '' && rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel)
 }
 
 export function createCanvasStore(options: { homeDir: string }): CanvasStore {

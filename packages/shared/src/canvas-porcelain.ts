@@ -1,4 +1,4 @@
-import { join } from 'node:path'
+import { isAbsolute, join, relative, sep } from 'node:path'
 
 /**
  * Daemon-root Canvas storage layout: `<homeDir>/projects/<projectId>/canvases/`.
@@ -26,4 +26,16 @@ export function canvasIndexPath(homeDir: string, projectId: string): string {
 /** The bundle directory for one Canvas: its entry file plus sibling assets. */
 export function canvasBundleDir(homeDir: string, projectId: string, canvasId: string): string {
   return join(projectCanvasesDir(homeDir, projectId), canvasId)
+}
+
+/**
+ * Exact "is `candidate` inside `dir`" containment check — never `startsWith('..')`
+ * alone, which false-positives a name like `..foo`. Shared by the daemon's
+ * canvas-store.ts (the real gate, also realpath-checked there) and the CLI's
+ * canvas-file.ts (a lexical pre-gate only — canvas-store.ts's own read is what
+ * actually enforces this for a Canvas the CLI writes).
+ */
+export function isInsideDir(dir: string, candidate: string): boolean {
+  const rel = relative(dir, candidate)
+  return rel !== '' && rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel)
 }

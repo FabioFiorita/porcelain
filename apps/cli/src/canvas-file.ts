@@ -10,8 +10,8 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs'
-import { dirname, isAbsolute, relative, resolve, sep } from 'node:path'
-import { canvasBundleDir, canvasIndexPath } from '@shared/canvas-porcelain'
+import { dirname, isAbsolute, resolve } from 'node:path'
+import { canvasBundleDir, canvasIndexPath, isInsideDir } from '@shared/canvas-porcelain'
 import { porcelainHome, porcelainHomePath } from '@shared/porcelain-home'
 
 /**
@@ -126,12 +126,6 @@ function writeIndex(homeDir: string, projectId: string, canvases: CanvasRecord[]
   const envelope: CanvasIndexEnvelope = { version: 1, value: { canvases } }
   writeFileSync(tmp, `${JSON.stringify(envelope, null, 2)}\n`)
   renameSync(tmp, path)
-}
-
-/** Lexical containment only — the daemon's own read (canvas-store.ts) is the real guard. */
-function isInsideDir(dir: string, candidate: string): boolean {
-  const rel = relative(dir, candidate)
-  return rel !== '' && rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel)
 }
 
 export function listCanvasesForRepo(repoPath: string): CanvasRecord[] {

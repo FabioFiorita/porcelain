@@ -125,11 +125,19 @@ async function readContainedAsset(
  * Expand local relative image sources into data URIs. References resolve
  * against `dir`; `root` (defaulting to `dir`) is the boundary they may not
  * leave. Best-effort: a missing sibling is left as-is (broken img in the viewer).
+ *
+ * `inlineScripts` defaults false: this function is shared with doc-set.ts
+ * (Intent/Evidence), which renders through `sandbox=""` — no allow-scripts,
+ * so an inlined `<script>` there could never run, but leaving one in the
+ * markup anyway would be a capability doc-set.ts never asked for and its own
+ * "no script medium" comment says isn't there. Only Canvas (canvas-
+ * operations.ts), whose iframe actually has allow-scripts, opts in.
  */
 export async function inlineLocalAssets(
   dir: string,
   html: string,
   rootDir: string = dir,
+  inlineScripts = false,
 ): Promise<string> {
   const base = resolve(dir)
   const root = resolve(rootDir)
@@ -145,25 +153,28 @@ export async function inlineLocalAssets(
   // `src` attribute is gone, the generic image pass below can no longer mistake
   // it for an `<img>` reference. A script whose file can't be read is left
   // exactly as authored, `src` intact, so ordering never double-processes it.
-  const scriptMatches = [...html.matchAll(SCRIPT_SRC_TAG)]
-  const scriptPaths = new Set<string>()
-  for (const m of scriptMatches) {
-    const raw = m[2]?.trim()
-    if (raw) scriptPaths.add(raw)
+  let output = html
+  if (inlineScripts) {
+    const scriptMatches = [...html.matchAll(SCRIPT_SRC_TAG)]
+    const scriptPaths = new Set<string>()
+    for (const m of scriptMatches) {
+      const raw = m[2]?.trim()
+      if (raw) scriptPaths.add(raw)
+    }
+    const scripts = new Map<string, string>()
+    await Promise.all(
+      [...scriptPaths].map(async (raw) => {
+        const asset = await readContainedAsset(base, root, rootReal, raw)
+        if (asset === null) return
+        scripts.set(raw, asset.bytes.toString('utf8'))
+      }),
+    )
+    output = html.replace(SCRIPT_SRC_TAG, (full, _quote: string, raw: string) => {
+      const script = scripts.get(raw.trim())
+      if (script === undefined) return full
+      return `<script>${escapeScriptText(script)}</script>`
+    })
   }
-  const scripts = new Map<string, string>()
-  await Promise.all(
-    [...scriptPaths].map(async (raw) => {
-      const asset = await readContainedAsset(base, root, rootReal, raw)
-      if (asset === null) return
-      scripts.set(raw, asset.bytes.toString('utf8'))
-    }),
-  )
-  let output = html.replace(SCRIPT_SRC_TAG, (full, _quote: string, raw: string) => {
-    const script = scripts.get(raw.trim())
-    if (script === undefined) return full
-    return `<script>${escapeScriptText(script)}</script>`
-  })
 
   const stylesheetMatches = [...output.matchAll(LINK_TAG)]
   const stylesheetPaths = new Set<string>()

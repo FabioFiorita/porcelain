@@ -70,4 +70,32 @@ describe('CanvasList', () => {
     expect(tab?.title).toBe('Intent')
     expect(tab?.target).toEqual(TARGET)
   })
+
+  it("opens against the list's own selected Worktree, not an unrelated focused tab's target", () => {
+    // A file tab focused on a DIFFERENT Worktree than the one this sidebar is
+    // scoped to — regression guard for using activeTabTarget() (focused-tab-first)
+    // instead of the list's own target here.
+    const otherTarget: HubTarget = { ...TARGET, worktreeId: 'wt-other', path: '/repo-other' }
+    const otherTab = {
+      id: 'file:other',
+      kind: 'file' as const,
+      title: 'other.ts',
+      path: 'other.ts',
+      target: otherTarget,
+    }
+    useTabsStore.setState({
+      panes: [{ tabs: [otherTab], activeTabId: otherTab.id }],
+      activePaneIndex: 0,
+    })
+    useHubSelectionStore.setState({ selection: { kind: 'worktree', ...TARGET } })
+    vi.mocked(useCanvasList).mockReturnValue([RECORD])
+    renderList()
+
+    fireEvent.click(screen.getByTestId(TestIds.canvasListItem('canvas-1')))
+
+    const pane = useTabsStore.getState().panes[0]
+    if (pane === undefined) throw new Error('expected pane 0')
+    const opened = pane.tabs.find((t) => t.kind === 'canvas')
+    expect(opened?.target).toEqual(TARGET)
+  })
 })
