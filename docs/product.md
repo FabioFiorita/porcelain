@@ -33,7 +33,12 @@ through the CLI. Do not rebuild an in-app agent runner.
 - **The Review** — Intent · Process · Execution · Evidence canvas for one unit of work; agent-authored via
   porcelain CLI. Board is the queue; Review is the active story.
 - **Explore a flow** — read-only comprehension of existing code (symbol or file seed).
-- **Review comments / board / notes / actions** — companion surfaces; human runs Actions.
+- **Tasks** — one daemon-owned table per Environment for work that spans Projects: configurable
+  columns, explicit Project/Environment/Worktree references, Quick Add with copied-file
+  attachments and links. The Hub aggregates the Environments it can reach and omits the ones it
+  cannot; every write names the Environment it targets. Retires the per-repository Board (#28).
+- **Review comments / board / notes / actions** — companion surfaces; human runs Actions. The
+  per-repository Board is retiring in favor of Tasks.
 - **Terminal** — real PTY next to review; remote-bound windows can also shell on This device.
 - **Remote / environments** — one daemon, many clients; per-device credentials; LAN / Tailscale /
   opt-in Funnel.
@@ -49,7 +54,9 @@ through the CLI. Do not rebuild an in-app agent runner.
   previews hand off, never second Diff/commit UXes.
 - **Local by default** — machine secrets on the daemon host under `~/.porcelain/`; project
   companion data (reviews, board, scope, actions, …) lives in `<repo>/.porcelain/` and is
-  shareable via git when you choose to track it. No Porcelain cloud for your code, no telemetry.
+  shareable via git when you choose to track it. Tasks are the deliberate exception: they belong
+  to the machine, not a checkout, so they live in `$PORCELAIN_HOME/tasks/` and never appear in a
+  repository. No Porcelain cloud for your code, no telemetry.
 
 Open this file when designing features, prioritizing, or writing public identity copy. Day-to-day
 implementation does not need it if root `AGENTS.md` is enough.
