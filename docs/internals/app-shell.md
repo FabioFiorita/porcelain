@@ -55,11 +55,22 @@
   client; each Project header carries the current Environment name as a non-interactive badge.
   Project headers only expand or collapse; Worktree rows are the navigation targets. Each Project's
   branch-plus control opens the ref-aware New Worktree dialog, and the old branch/worktree footer
-  controls are gone. Files, Git, Review, Search, and Terminal are the visible right-side surfaces;
-  Board remains daemon-backed compatibility until its planned daemon-owned shell work lands.
-  Surface list rows open detail in the central Viewer, while Actions and Git Commands are exposed
-  from the Viewer header. Canvas remains out of this shell slice until daemon-root storage lands
-  with #21.
+  controls are gone. Files, Changes, Review, History, Search, and Canvas are the visible right-side
+  surfaces; Board remains daemon-backed compatibility until its planned daemon-owned shell work
+  lands. Surface list rows open detail in the central Viewer, while Actions and Git Commands are
+  exposed from the Viewer header.
+- **Canvas is a daemon-root surface, not a repo one.** `CanvasList`
+  (`features/projects/canvas-list.tsx`) lists the selected Project's Canvases in the surfaces
+  sidebar, and a row opens a `canvas` tab whose Viewer content is `CanvasView`
+  (`features/projects/canvas-view.tsx`). A markdown Canvas renders through `MarkdownView`; an HTML
+  one loads a freshly minted `GET /canvas/<token>` URL in an iframe with `sandbox="allow-scripts"`
+  and nothing else — no `allow-same-origin`, so the document gets an opaque origin with no reach
+  into the app's storage or daemon token. That sandbox also denies top-level navigation and popups,
+  so the frame's bootstrap `postMessage`s every link click up to `CanvasView`, which opens the href
+  with `window.open` — the shell navigates, never the frame. The records themselves live in the
+  daemon's `$PORCELAIN_HOME` (`apps/daemon/src/features/projects/canvas-store.ts`, ADR 0002), so a
+  Canvas outlives the checkout that authored it; agents write them with `porcelain canvas set` /
+  `porcelain canvas list` (`apps/cli/src/canvas-file.ts`).
 - **Phone is "quick look", not a full workspace** (iPad ≥768 keeps the desktop floating layout).
   Below 768px both sidebars become Sheets. The left navigation sheet auto-closes when the active
   viewer tab changes; force unified diffs (split needs two columns); the browser has no native

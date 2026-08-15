@@ -13,7 +13,6 @@ import {
   removeHubProject,
   removeHubWorktree,
   removeRecentProject,
-  visibleHubInventories,
 } from '@porcelain/client-runtime/projects'
 import type {
   BrowseDirsOutput,
@@ -25,7 +24,8 @@ import type {
 } from '@porcelain/contracts/projects'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import { type DaemonScope, daemonScopeSchema } from '@renderer/lib/daemon-scope'
-import { trpc } from '@renderer/lib/trpc'
+import { isBrowser } from '@renderer/lib/platform'
+import { shellTrpcClient, trpc } from '@renderer/lib/trpc'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
@@ -45,6 +45,13 @@ import {
 } from './project-transport'
 
 export type ProjectsDaemonScope = DaemonScope
+
+/** One live inventory plus the shell identity needed to route its actions safely. */
+export type HubInventoryView = Readonly<{
+  environmentId: string | null
+  current: boolean
+  inventory: HubInventory
+}>
 
 const projectsQueryKeySchema = z.tuple([projectsQuerySchema, daemonScopeSchema])
 
@@ -217,20 +224,32 @@ export function useSelectedProject(): ProjectSummary | null {
   return useProjectSelectionStore((state) => state.project)
 }
 
-/**
- * Live Hub inventory for the bound Environment. A failed or pending read is
- * treated as offline: the Hub omits the Environment rather than showing stale children.
- */
-export function useHubInventory(): HubInventory | null {
+/** Live Hub inventories: shell aggregation in Electron, one daemon in the browser client. */
+export function useHubInventories(): readonly HubInventoryView[] {
   const daemon = useDaemonIdentity()
   const client = trpc.useUtils().client
   const identity = hubInventoryQuery()
-  const query = useQuery({
+  const browserQuery = useQuery({
+    enabled: isBrowser,
     queryFn: async (): Promise<HubInventory> => hubInventoryOnDaemon(client),
     queryKey: projectsQueryKey(daemon, identity),
   })
-  if (query.isError || query.data === undefined) return null
-  return visibleHubInventories([{ online: true, inventory: query.data }])[0] ?? null
+  const shellQuery = useQuery({
+    enabled: !isBrowser,
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
+    queryKey: ['shell', 'hubInventories'],
+    queryFn: async (): Promise<readonly HubInventoryView[]> =>
+      shellTrpcClient.hubInventories.query(),
+  })
+  if (!isBrowser) return shellQuery.data ?? []
+  if (browserQuery.isError || browserQuery.data === undefined) return []
+  return [{ environmentId: null, current: true, inventory: browserQuery.data }]
+}
+
+/** The inventory for this window's bound Environment, retained for narrow callers. */
+export function useHubInventory(): HubInventory | null {
+  return useHubInventories().find((source) => source.current)?.inventory ?? null
 }
 
 /** Create a Worktree on a Hub Project and refresh inventory. */

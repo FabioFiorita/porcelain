@@ -5,7 +5,13 @@ import { describe, expect, it, vi } from 'vitest'
 import { HubHomeSummary, HubProjectSummary } from './hub-summaries'
 
 vi.mock('./project-data', () => ({
-  useHubInventory: () => projectsContractFixtures.hubInventory.output,
+  useHubInventories: () => [
+    {
+      environmentId: null,
+      current: true,
+      inventory: projectsContractFixtures.hubInventory.output,
+    },
+  ],
 }))
 
 vi.mock('@renderer/stores/hub-selection', () => ({

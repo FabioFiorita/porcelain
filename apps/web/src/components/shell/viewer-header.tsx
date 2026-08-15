@@ -2,13 +2,10 @@ import { Button } from '@renderer/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@renderer/components/ui/popover'
 import { useSidebar } from '@renderer/components/ui/sidebar'
 import { ActionsGroup } from '@renderer/features/actions'
-import { useHubInventory } from '@renderer/features/projects'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { isModExclusive, isTextEntry, kbdLabel } from '@renderer/lib/keyboard'
 import { toggleTerminalPanel } from '@renderer/lib/terminal-actions'
 import { cn } from '@renderer/lib/utils'
-import { useHubSelectionStore } from '@renderer/stores/hub-selection'
-import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { useTerminalsStore } from '@renderer/stores/terminals'
 import { runUserAction } from '@shared/background'
@@ -26,42 +23,11 @@ import { CommitGroup } from './commit-group'
 import { QuickCommandsGroup } from './quick-commands-group'
 import { ShortcutTooltip } from './shortcut-tooltip'
 import { TabBar } from './tab-bar'
-
-interface Breadcrumb {
-  id: string
-  label: string
-}
+import { useViewerBreadcrumb } from './use-viewer-breadcrumb'
 
 interface LeftSidebarHandle {
   collapsed: boolean
   toggle: () => void
-}
-
-function useViewerBreadcrumb(): Breadcrumb[] {
-  const inventory = useHubInventory()
-  const selection = useHubSelectionStore((s) => s.selection)
-  const selectedProject = useProjectSelectionStore((s) => s.project)
-  const activeTab = useTabsStore((s) => {
-    const pane = s.panes[s.activePaneIndex]
-    return pane?.tabs.find((tab) => tab.id === pane.activeTabId) ?? null
-  })
-
-  const target = activeTab?.target
-  const projectId =
-    target?.projectId ?? (selection.kind === 'worktree' ? selection.projectId : null)
-  const worktreeId =
-    target?.worktreeId ?? (selection.kind === 'worktree' ? selection.worktreeId : null)
-  const project = inventory?.projects.find((item) => item.id === projectId)
-  const worktree = project?.worktrees.find((item) => item.id === worktreeId)
-  const segments: Breadcrumb[] = []
-  if (project?.name !== undefined) segments.push({ id: 'project', label: project.name })
-  if (worktree?.branch !== undefined) segments.push({ id: 'worktree', label: worktree.branch })
-
-  if (segments.length === 0 && selectedProject !== null) {
-    segments.push({ id: 'selected-project', label: selectedProject.name })
-  }
-  if (activeTab !== null) segments.push({ id: 'tab', label: activeTab.title })
-  return segments
 }
 
 function HeaderPopover({

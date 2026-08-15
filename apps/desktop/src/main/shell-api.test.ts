@@ -1,4 +1,5 @@
 import { PROTOCOL_VERSION, PROTOCOL_VERSION_HEADER } from '@porcelain/contracts'
+import { projectsContractFixtures } from '@porcelain/contracts/projects'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { RemoteEnvironment, RemoteEnvironmentState } from './remote-daemon'
@@ -71,6 +72,7 @@ const GRANT = `pc_pair_3f2a1c88-0f4d-4b6e-9a11-2c7d5e8b0a34_${'a'.repeat(64)}`
 const DAEMON_INFO = {
   result: { data: { version: '1.0.0', host: 'synthetic-host', platform: 'linux', arch: 'x64' } },
 }
+const HUB_INVENTORY = { result: { data: projectsContractFixtures.hubInventory.output } }
 
 interface SeenRequest {
   url: string
@@ -101,8 +103,16 @@ function stubDaemon(): void {
           { status: 200 },
         )
       }
+      if (url.includes('unauthorized.synthetic')) return new Response('', { status: 401 })
+      if (url.includes('offline.synthetic')) throw new Error('offline')
       if (url.includes('/trpc/daemonInfo')) {
         return new Response(JSON.stringify(DAEMON_INFO), { status: 200 })
+      }
+      if (url.includes('/trpc/hubInventory')) {
+        return new Response(JSON.stringify(HUB_INVENTORY), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        })
       }
       if (url.includes('/trpc/revokeCurrentClient')) {
         return new Response(JSON.stringify({ result: { data: null } }), {
@@ -208,5 +218,34 @@ describe('shell daemon requests', () => {
     const identity = request('/trpc/daemonInfo')
     expect(identity.headers.get('authorization')).toBe('Bearer pc_admin_local')
     expectsProtocol(identity)
+  })
+
+  it('fans out live Hub inventories and omits offline or unauthorized Environments', async () => {
+    const environment = (id: string, url: string): RemoteEnvironment => ({
+      id,
+      name: id,
+      url,
+      token: `pc_client_${id}`,
+      endpoints: [url],
+      preferredEndpoint: url,
+    })
+    state = {
+      activeId: null,
+      environments: [
+        environment('env-online', 'http://online.synthetic'),
+        environment('env-offline', 'http://offline.synthetic'),
+        environment('env-unauthorized', 'http://unauthorized.synthetic'),
+      ],
+    }
+
+    const inventories = await caller().hubInventories()
+
+    expect(inventories).toHaveLength(2)
+    expect(inventories.map((source) => source.environmentId)).toEqual([null, 'env-online'])
+    expect(inventories.map((source) => source.current)).toEqual([true, false])
+    expect(seen.filter((entry) => entry.url.includes('/trpc/hubInventory'))).toHaveLength(2)
+    for (const entry of seen.filter((request) => request.url.includes('/trpc/hubInventory'))) {
+      expectsProtocol(entry)
+    }
   })
 })

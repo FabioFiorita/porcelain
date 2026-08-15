@@ -7,10 +7,10 @@ export { HubHomeSummary, HubProjectSummary } from './hub-summaries'
 export { HubTree } from './hub-tree'
 export {
   isProjectsQueryKey,
-  type ProjectsDaemonScope,
   projectsQueryKey,
   useCanvas,
   useCanvasList,
+  useHubInventories,
   useHubInventory,
   useMintCanvasAccessToken,
   useOpenProject,

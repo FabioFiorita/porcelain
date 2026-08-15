@@ -2,7 +2,7 @@ import type { HubInventory, HubProject } from '@porcelain/contracts/projects'
 import { useHubSelectionStore } from '@renderer/stores/hub-selection'
 import { TestIds } from '@shared/test-ids'
 import { FolderGit2, GitBranch, Laptop } from 'lucide-react'
-import { useHubInventory } from './project-data'
+import { useHubInventories } from './project-data'
 
 function EnvironmentBlock(props: { inventory: HubInventory }): React.JSX.Element {
   return (
@@ -60,7 +60,7 @@ function ProjectLine(props: { project: HubProject }): React.JSX.Element {
 }
 
 export function HubHomeSummary(): React.JSX.Element {
-  const inventory = useHubInventory()
+  const inventories = useHubInventories()
   return (
     <div data-testid={TestIds.hubHome} className="mx-auto flex max-w-lg flex-col gap-6 px-6 py-10">
       <div>
@@ -70,10 +70,15 @@ export function HubHomeSummary(): React.JSX.Element {
           terminals.
         </p>
       </div>
-      {inventory === null ? (
+      {inventories.length === 0 ? (
         <p className="text-sm text-muted-foreground">No Environments are online.</p>
       ) : (
-        <EnvironmentBlock inventory={inventory} />
+        inventories.map((inventory) => (
+          <EnvironmentBlock
+            key={inventory.inventory.environment.id}
+            inventory={inventory.inventory}
+          />
+        ))
       )}
     </div>
   )
@@ -81,7 +86,12 @@ export function HubHomeSummary(): React.JSX.Element {
 
 export function HubProjectSummary(): React.JSX.Element {
   const selection = useHubSelectionStore((state) => state.selection)
-  const inventory = useHubInventory()
+  const inventories = useHubInventories()
+  const inventory =
+    selection.kind === 'project'
+      ? (inventories.find((source) => source.inventory.environment.id === selection.environmentId)
+          ?.inventory ?? null)
+      : null
   const project =
     selection.kind === 'project'
       ? (inventory?.projects.find((entry) => entry.id === selection.projectId) ?? null)

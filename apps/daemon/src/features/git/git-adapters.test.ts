@@ -52,7 +52,8 @@ describe('ProjectGit adapter', () => {
       await writeFile(join(repo, 'tracked.ts'), 'export const value = 1\n')
       await projectGit.stageAll(repo)
       await projectGit.commit(repo, 'add tracked')
-      expect(await projectGit.quickCommand(input)).toContain('On branch main')
+      // Git status prose follows the host's locale; the branch name is the stable contract.
+      expect(await projectGit.quickCommand(input)).toContain('main')
       expect(await projectGit.head(repo)).toEqual({ branch: 'main', detachedSha: null })
 
       git(repo, 'branch', 'feature')

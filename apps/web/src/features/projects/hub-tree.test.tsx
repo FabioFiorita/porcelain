@@ -1,100 +1,120 @@
+import type { HubInventory } from '@porcelain/contracts/projects'
 import { hubInventorySchema, projectsContractFixtures } from '@porcelain/contracts/projects'
+import { useHubSelectionStore } from '@renderer/stores/hub-selection'
 import { TestIds } from '@shared/test-ids'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
-import { HubTreeFromInventory } from './hub-tree'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const inventory = hubInventorySchema.parse(projectsContractFixtures.hubInventory.output)
-const createdWorktree = inventory.projects[0]?.worktrees[1]
+const local = hubInventorySchema.parse(projectsContractFixtures.hubInventory.output)
+const remote = hubInventorySchema.parse({
+  ...local,
+  environment: { ...local.environment, id: 'env-remote', name: 'remote' },
+  projects: local.projects.map((project) => ({
+    ...project,
+    id: `remote-${project.id}`,
+    environmentId: 'env-remote',
+    worktrees: project.worktrees.map((worktree) => ({
+      ...worktree,
+      id: `remote-${worktree.id}`,
+      projectId: `remote-${project.id}`,
+    })),
+  })),
+})
 
-if (createdWorktree === undefined) {
-  throw new Error('Hub inventory fixture must include a secondary Worktree')
+interface Source {
+  environmentId: string | null
+  current: boolean
+  inventory: HubInventory
 }
 
-describe('Hub inventory tree', () => {
-  it('keeps the environment badge and project header separate from clickable Worktrees', () => {
-    const openWorktree = vi.fn()
-    render(
-      <HubTreeFromInventory
-        inventory={inventory}
-        openWorktree={openWorktree}
-        createWorktree={vi.fn(async () => createdWorktree)}
-        removeProject={vi.fn(async () => undefined)}
-        removeWorktree={vi.fn(async () => undefined)}
-      />,
-    )
+let inventories: readonly Source[] = []
+const openProject = vi.fn(async () => undefined)
+const openWindow = vi.fn()
 
-    expect(screen.getByTestId(TestIds.hubInventory)).toBeInTheDocument()
-    expect(screen.queryByTestId(TestIds.hubEnvironment(inventory.environment.id))).toBeNull()
-    expect(screen.getByTestId(TestIds.hubProject('proj-alpha'))).toHaveTextContent('alpha')
+vi.mock('./project-data', () => ({
+  useHubInventories: () => inventories,
+  useCreateHubWorktree: () => ({ create: vi.fn(), isPending: false }),
+  useOpenProject: () => ({ open: openProject }),
+  useRemoveHubProject: () => ({ remove: vi.fn(async () => undefined) }),
+  useRemoveHubWorktree: () => ({ remove: vi.fn(async () => undefined) }),
+  useSelectedProject: () => null,
+}))
+
+vi.mock('@renderer/hooks/use-new-window', () => ({
+  useNewWindow: () => ({ openWindow }),
+}))
+
+const { HubTree } = await import('./hub-tree')
+
+const localWorktree = local.projects[0]?.worktrees[0]
+
+if (localWorktree === undefined) {
+  throw new Error('Hub inventory fixture must include a Worktree')
+}
+
+beforeEach(() => {
+  vi.clearAllMocks()
+  useHubSelectionStore.getState().selectHome()
+  inventories = [
+    { environmentId: null, current: true, inventory: local },
+    { environmentId: 'env-remote', current: false, inventory: remote },
+  ]
+})
+
+describe('HubTree', () => {
+  it('renders every live Environment as its own Project block', () => {
+    render(<HubTree />)
+
     expect(screen.getByTestId(TestIds.hubProject('proj-alpha'))).toHaveTextContent('synthetic')
-    expect(screen.getByTestId(TestIds.hubWorktree('wt-alpha-main'))).toHaveTextContent('alpha')
-    expect(screen.getByTestId(TestIds.hubCreateWorktree('proj-alpha'))).toBeInTheDocument()
-    fireEvent.contextMenu(screen.getByRole('button', { name: 'Collapse project alpha' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Configure worktree setup' }))
-    expect(screen.getByTestId(TestIds.hubWorktreeSetupDialog)).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
-    expect(screen.getByRole('button', { name: 'Collapse project alpha' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /delete worktree/i })).toBeNull()
-    expect(screen.queryByLabelText(/delete worktree/i)).toBeNull()
-
-    fireEvent.contextMenu(screen.getByRole('button', { name: 'Collapse project alpha' }))
-    expect(screen.getByRole('menuitem', { name: 'Copy project path' })).toBeInTheDocument()
-    expect(screen.getByRole('menuitem', { name: 'Remove project' })).toBeInTheDocument()
-
-    fireEvent.contextMenu(screen.getByTestId(TestIds.hubWorktree('wt-alpha-main')))
-    expect(screen.queryByRole('menuitem', { name: 'Remove worktree' })).toBeNull()
-
-    fireEvent.click(screen.getByTestId(TestIds.hubWorktree('wt-alpha-main')))
-    expect(openWorktree).toHaveBeenCalledTimes(1)
-
-    fireEvent.contextMenu(screen.getByTestId(TestIds.hubWorktree('wt-alpha-topic')))
-    expect(screen.getByRole('menuitem', { name: 'Copy name' })).toBeInTheDocument()
-    expect(screen.getByRole('menuitem', { name: 'Copy path' })).toBeInTheDocument()
-    expect(screen.getByRole('menuitem', { name: 'Remove worktree' })).toBeInTheDocument()
+    expect(screen.getByTestId(TestIds.hubProject('remote-proj-alpha'))).toHaveTextContent('remote')
   })
 
-  it('confirms removal of a non-primary Worktree before invoking the mutation', async () => {
-    const removeWorktree = vi.fn(async () => undefined)
-    render(
-      <HubTreeFromInventory
-        inventory={inventory}
-        openWorktree={vi.fn()}
-        createWorktree={vi.fn(async () => createdWorktree)}
-        removeProject={vi.fn(async () => undefined)}
-        removeWorktree={removeWorktree}
-      />,
-    )
+  it('selects a Worktree in this window when it belongs to the bound Environment', async () => {
+    render(<HubTree />)
 
-    fireEvent.contextMenu(screen.getByTestId(TestIds.hubWorktree('wt-alpha-topic')))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Remove worktree' }))
-    expect(screen.getByRole('alertdialog')).toHaveTextContent('uncommitted changes')
-    fireEvent.click(screen.getByRole('button', { name: 'Remove worktree' }))
+    fireEvent.click(screen.getByTestId(TestIds.hubWorktree(localWorktree.id)))
 
-    await waitFor(() => {
-      expect(removeWorktree).toHaveBeenCalledWith({
-        projectId: 'proj-alpha',
-        worktreeId: 'wt-alpha-topic',
-      })
+    expect(useHubSelectionStore.getState().selection).toEqual({
+      kind: 'worktree',
+      environmentId: local.environment.id,
+      projectId: localWorktree.projectId,
+      worktreeId: localWorktree.id,
+      path: localWorktree.path,
     })
+    await waitFor(() => expect(openProject).toHaveBeenCalledWith(localWorktree.path))
+    expect(openWindow).not.toHaveBeenCalled()
   })
 
-  it('collapses a Project without selecting it', () => {
-    render(
-      <HubTreeFromInventory
-        inventory={inventory}
-        openWorktree={vi.fn()}
-        createWorktree={vi.fn(async () => createdWorktree)}
-        removeProject={vi.fn(async () => undefined)}
-        removeWorktree={vi.fn(async () => undefined)}
-      />,
-    )
+  /**
+   * A window is bound to exactly one Environment, so a remote Worktree cannot be opened in place —
+   * selecting it would point this window's Viewer, terminals, and Review at a path the bound daemon
+   * has never heard of. It has to travel to a window bound to the owning Environment.
+   */
+  it('opens a Worktree from another Environment in a window bound to that Environment', async () => {
+    render(<HubTree />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Collapse project alpha' }))
-    expect(screen.queryByTestId(TestIds.hubWorktree('wt-alpha-main'))).toBeNull()
-    expect(screen.queryByRole('button', { name: 'alpha' })).toBeNull()
+    fireEvent.click(screen.getByTestId(TestIds.hubWorktree(`remote-${localWorktree.id}`)))
 
-    fireEvent.click(screen.getByRole('button', { name: 'Expand project alpha' }))
-    expect(screen.getByTestId(TestIds.hubWorktree('wt-alpha-main'))).toBeInTheDocument()
+    await waitFor(() => expect(openWindow).toHaveBeenCalledWith(localWorktree.path, 'env-remote'))
+    expect(useHubSelectionStore.getState().selection).toEqual({ kind: 'home' })
+    expect(openProject).not.toHaveBeenCalled()
+  })
+
+  it('renders nothing while no Environment is live', () => {
+    inventories = []
+    render(<HubTree />)
+
+    expect(screen.queryByTestId(TestIds.hubInventory)).toBeNull()
+  })
+
+  it('invites the human to open a repository when every live Environment is empty', () => {
+    inventories = [
+      { environmentId: null, current: true, inventory: { ...local, projects: [] } },
+      { environmentId: 'env-remote', current: false, inventory: { ...remote, projects: [] } },
+    ]
+    render(<HubTree />)
+
+    expect(screen.getByTestId(TestIds.hubInventory)).toHaveTextContent('Open a Git repository')
+    expect(screen.queryByTestId(TestIds.hubProject('proj-alpha'))).toBeNull()
   })
 })
