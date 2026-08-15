@@ -117,4 +117,50 @@ describe('inlineLocalAssets', () => {
     expect(await inlineLocalAssets(dir, html)).toBe(html)
     rmSync(outside, { recursive: true, force: true })
   })
+
+  it('inlines an empty external script tag as inline JS text', async () => {
+    writeFileSync(join(dir, 'app.js'), 'console.log("hi")')
+    const html = '<script src="app.js"></script>'
+    const out = await inlineLocalAssets(dir, html)
+    expect(out).toBe('<script>console.log("hi")</script>')
+  })
+
+  it('escapes a literal closing tag inside inlined script text', async () => {
+    writeFileSync(join(dir, 'app.js'), 'document.write("</script><script>evil()</script>")')
+    const out = await inlineLocalAssets(dir, '<script src="app.js"></script>')
+    expect(out).toBe('<script>document.write("<\\/script><script>evil()<\\/script>")</script>')
+  })
+
+  it('leaves a script tag with a body untouched even when it also has src', async () => {
+    writeFileSync(join(dir, 'app.js'), 'console.log("hi")')
+    const html = '<script src="app.js">// ignored by the browser anyway</script>'
+    expect(await inlineLocalAssets(dir, html)).toBe(html)
+  })
+
+  it('leaves remote and missing scripts alone', async () => {
+    const html =
+      '<script src="https://example.com/app.js"></script><script src="missing.js"></script>'
+    expect(await inlineLocalAssets(dir, html)).toBe(html)
+  })
+
+  it('leaves a script symlink escape alone', async () => {
+    const outside = join(tmpdir(), 'porcelain-evidence-assets-js-outside')
+    rmSync(outside, { recursive: true, force: true })
+    mkdirSync(outside, { recursive: true })
+    writeFileSync(join(outside, 'evil.js'), 'evil()')
+    symlinkSync(join(outside, 'evil.js'), join(dir, 'escape.js'))
+    const html = '<script src="escape.js"></script>'
+    expect(await inlineLocalAssets(dir, html)).toBe(html)
+    rmSync(outside, { recursive: true, force: true })
+  })
+
+  it('inlines an image sibling to an already-inlined script with no double-processing', async () => {
+    writeFileSync(join(dir, 'app.js'), 'noop()')
+    writeFileSync(join(dir, 'shot.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47]))
+    const html = '<script src="app.js"></script><img src="shot.png">'
+    const out = await inlineLocalAssets(dir, html)
+    expect(out).toContain('<script>noop()</script>')
+    expect(out).toMatch(/<img src="data:image\/png;base64,[^"]+">/)
+    expect(out).not.toContain('src="app.js"')
+  })
 })
