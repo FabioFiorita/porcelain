@@ -6,6 +6,7 @@
   "exports": {
     "./porcelain-home": "./src/porcelain-home.ts",
     "./project-porcelain": "./src/project-porcelain.ts",
+    "./canvas-porcelain": "./src/canvas-porcelain.ts",
     "./platform": "./src/platform.ts",
     "./evidence-check": "./src/evidence-check.ts",
     "./test-ids": "./src/test-ids.ts",
@@ -22,6 +23,9 @@
       ],
       "project-porcelain": [
         "./src/project-porcelain.ts"
+      ],
+      "canvas-porcelain": [
+        "./src/canvas-porcelain.ts"
       ],
       "platform": [
         "./src/platform.ts"

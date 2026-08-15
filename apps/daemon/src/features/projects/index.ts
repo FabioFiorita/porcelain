@@ -1,3 +1,12 @@
+export {
+  type CanvasEntry,
+  type CanvasKind,
+  type CanvasStore,
+  type CanvasStoreError,
+  type CanvasStoreResult,
+  createCanvasStore,
+  type StoredCanvas,
+} from './canvas-store'
 export { initEnvironmentIdentityStore } from './environment-identity-store'
 export { createHubGitPort } from './hub-git-port'
 export { initHubInventoryStore } from './hub-inventory-store'
