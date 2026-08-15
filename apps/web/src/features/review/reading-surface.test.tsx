@@ -146,7 +146,7 @@ describe('buildRows (Review document)', () => {
     ])
   })
 
-  it('omits the evidence chapter when includeEvidence is false (Overview canvas)', () => {
+  it('omits the evidence chapter when includeEvidence is false (Process canvas)', () => {
     expect(
       buildRows(document, null, undefined, { includeEvidence: false }).map((r) => r.type),
     ).toEqual([
@@ -318,7 +318,7 @@ describe('buildRowFocus', () => {
 describe('rowIndexForTarget', () => {
   const rows = buildRows(document, null)
 
-  it('resolves top, section, and evidence targets to row indexes', () => {
+  it('resolves top, Process section, and evidence targets to row indexes', () => {
     expect(rowIndexForTarget(rows, { kind: 'top' })).toBe(0)
     expect(rowIndexForTarget(rows, { kind: 'section', index: 1 })).toBe(7)
     expect(rowIndexForTarget(rows, { kind: 'evidence' })).toBe(10)

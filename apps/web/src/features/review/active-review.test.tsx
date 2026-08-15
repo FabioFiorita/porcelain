@@ -1,8 +1,9 @@
 import type { ReviewReading } from '@porcelain/contracts/review'
 import { TestIds } from '@shared/test-ids'
 import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ActiveReview } from './active-review'
+import { useReviewFocusStore } from './review-focus-store'
 import { useReviewReading } from './review-queries'
 
 // Mock the domain hook, never tRPC (the component-test rule).
@@ -16,6 +17,16 @@ vi.mock('./review-queries', () => ({
 vi.mock('./review-mutations', () => ({
   useClearEvidence: () => ({ clear: async () => {}, isClearing: false }),
 }))
+vi.mock('./reading-surface', () => ({
+  ReadingSurfaceBody: ({ reading }: { reading: ReviewReading }) => (
+    <div data-testid="review-reading-surface">
+      {reading.thesis}
+      {reading.sections.map((section) => (
+        <div key={section.title}>{section.prose}</div>
+      ))}
+    </div>
+  ),
+}))
 vi.mock('@renderer/features/git', () => ({
   useDiffFileHoverPrefetch: () => () => {},
   useReviewedPaths: () => new Set<string>(),
@@ -25,6 +36,15 @@ vi.mock('@renderer/features/git', () => ({
 // exercised without a query provider (the panel's own tests cover the sub-tabs).
 
 describe('ActiveReview', () => {
+  beforeEach(() => {
+    useReviewFocusStore.setState({
+      canvasTab: 'intent',
+      activeSection: null,
+      visiblePath: null,
+      jump: null,
+    })
+  })
+
   it('shows a loading line while the reading is in flight', () => {
     vi.mocked(useReviewReading).mockReturnValue({ reading: undefined, refresh: async () => {} })
     render(<ActiveReview />)
@@ -69,6 +89,29 @@ describe('ActiveReview', () => {
     expect(tab).toHaveAttribute('aria-disabled', 'true')
     fireEvent.click(tab)
     expect(screen.queryByTestId(TestIds.evidencePanel)).not.toBeInTheDocument()
+  })
+
+  it('keeps Intent and Process explicit and moves walkthrough sections to Process', () => {
+    vi.mocked(useReviewReading).mockReturnValue({
+      reading: {
+        name: 'Canvas split',
+        thesis: 'The intent stays concise.',
+        sections: [{ title: 'Approach', prose: 'Follow the bounded flow.', files: [] }],
+        groups: [],
+        evidence: null,
+      },
+      refresh: async () => {},
+    })
+    render(<ActiveReview />)
+
+    expect(screen.getByRole('tab', { name: 'Intent' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Process' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Execution' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Evidence' })).toBeInTheDocument()
+    expect(screen.getByText('The intent stays concise.')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId(TestIds.activeReviewTab('process')))
+    expect(screen.getByText('Follow the bounded flow.')).toBeInTheDocument()
   })
 })
 

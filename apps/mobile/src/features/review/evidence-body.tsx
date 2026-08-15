@@ -33,7 +33,7 @@ const CHECK_FACE: Record<EvidenceCheck['status'], { glyph: ChromeIconName; tone:
  * without checks lands on a document rather than a dead pane.
  *
  * The documents are panes in their own right rather than a "Results" pane you then choose
- * inside. That grouping cost a whole extra level of tabs: the canvas' own Intent · Execution ·
+ * inside. That grouping cost a whole extra level of tabs: the canvas' own Intent · Process · Execution ·
  * Evidence switch, a second full-width segmented control under it that looked exactly like the
  * first, and a THIRD strip inside Results as soon as a pack published two documents. Intent
  * already treats its documents, its board and its narrative as one flat set (`intentPanes`);

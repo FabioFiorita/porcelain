@@ -81,7 +81,7 @@ lower test is the owner of that invariant at its smallest complete boundary.
 
 | ID | Source assertion | Disposition and replacement |
 | --- | --- | --- |
-| RP-01 | `:44-90` — CLI Intent-only set appears; name and Scope render; Evidence is disabled before a pack | `CW-04` owns the live CLI-to-Review arrival; `apps/cli/src/cli.test.ts:142-314`, `apps/web/src/features/review/review-list.test.tsx:123-168`, and `apps/web/src/features/review/active-review.test.tsx:34-67` own CLI shape, outline, and evidence availability. Retired from broad browser |
+| RP-01 | `:44-95` — CLI Intent-only set appears; all four Canvas tabs render; Process opens the Scope walkthrough; Evidence is disabled before a pack | `CW-04` owns the live CLI-to-Review arrival; `apps/cli/src/cli.test.ts:142-314`, `apps/web/src/features/review/review-list.test.tsx:123-168`, and `apps/web/src/features/review/active-review.test.tsx:34-118` own CLI shape, outline, and evidence availability. |
 | RP-02 | `:91-131` — second CLI set plus `evidence prepare` and Results HTML update changes the same active Review | `CW-04` owns the watcher path; `apps/daemon/src/review/review-watch.test.ts:36-56`, `apps/cli/src/evidence-file.test.ts:31-63`, and `apps/web/src/features/review/review-notifications.test.tsx:31-116` own file preparation and invalidation |
 | RP-03 | `:133-143` — Evidence enables, iframe is sandboxed, heading renders, script does not execute, progress is shown | `apps/web/src/components/viewer/html-view.test.tsx:15-23`, `apps/web/src/features/review/reading-surface.test.tsx:233-299`, `apps/web/src/features/review/review-list.test.tsx:239-247`, and the evidence pack rows below own these boundaries. Retired from broad browser |
 

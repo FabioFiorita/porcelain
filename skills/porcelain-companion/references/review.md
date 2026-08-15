@@ -1,13 +1,14 @@
-# The Review — Intent · Execution · Evidence
+# The Review — Intent · Process · Execution · Evidence
 
 The one active story per repo, start to finish. Read this file whenever you open, grow, or close
 a unit of work — feature, bug, chore, or investigation.
 
 ## Contents
 
-- **Shape** — the three tabs, where a review lives on disk, publishing
+- **Shape** — the four tabs, where a review lives on disk, publishing
 - **Lifecycle** — start / during / end / after, and the publish flow
-- **Intent** — thesis, sections, documents on disk
+- **Intent** — thesis and authored intent documents on disk
+- **Process** — walkthrough sections, prose, diagrams, and embeds
 - **Execution** — the curated file list, sources, notes, layers
 - **Evidence** — checks, the Results document set, the asset gallery, sandbox and CSS rules
 - **Medium policy** — what belongs on which surface
@@ -17,15 +18,16 @@ a unit of work — feature, bug, chore, or investigation.
 ## Shape
 
 Porcelain is where agent work becomes trusted work. The **Review** sidebar tab is the home for a
-unit of work: the three-part story the human uses to understand and sign off.
+unit of work: the four-part story the human uses to understand and sign off.
 
 | Tab | Job | Human question |
 |-----|-----|----------------|
 | **Intent** | Why / plan / shape of the unit | *What is this, and what's the idea?* |
+| **Process** | Walkthrough prose, diagrams, and embeds | *How does this work, and what should I follow?* |
 | **Execution** | Agent-curated files, notes, diffs (not every dirty path) | *What did the agent touch, and is the code right?* |
 | **Evidence** | Proof the loop closed | *Did it actually work?* |
 
-**Viewer:** the same three tabs, each with the human question as a tooltip.
+**Viewer:** the same four tabs, each with the human question as a tooltip.
 **Sidebar:** name + progress + Open Review; Clear is also on the right-rail companion. The file
 outline is Execution.
 
@@ -58,8 +60,8 @@ from a clone, weeks later.
 
 | Phase | Agent does | UI cue |
 |-------|------------|--------|
-| **Start when publication is requested** | `review set` name + thesis; clear an existing Review only for an explicitly requested replacement | Empty → Intent appears; "In progress" while Execution/Evidence thin |
-| **During** | Grow Execution; Intent updates OK; respond to comments | "In progress — Execution/Evidence still thin" |
+| **Start when publication is requested** | `review set` name + thesis; clear an existing Review only for an explicitly requested replacement | Empty → Intent appears; "In progress" while Process/Execution/Evidence thin |
+| **During** | Grow Process + Execution; Intent updates OK; respond to comments | "In progress — Process/Execution/Evidence still thin" |
 | **End** | Full Execution + real Evidence | "Ready to close" + handoff to Changes |
 | **After** | Human-controlled Clear, or an explicitly requested replacement | Empty / start again |
 
@@ -75,7 +77,7 @@ card → Start Review (title prefilled) only when publication is requested. Do n
    Review untouched.
 1. **Intent-first** — one `review set` with name + thesis. `--files` and `--sections` are
    optional; omit them entirely at the start. A full `review set` replaces the structured set.
-2. **Execution grows** — re-`review set` with files + notes as you work.
+2. **Process + Execution grow** — re-`review set` with sections, files, and notes as you work.
 3. **Evidence** — after you validate, `evidence check` for each thing you ran, then
    `evidence prepare` + Results documents (**include CSS**) + screenshots in `assets/`.
    **Required to claim done.**
@@ -108,6 +110,11 @@ the proof (Evidence). Publish it first; Execution may still be thin.
 to understand (for a bug: symptom + suspected cause). The opening line a senior engineer would
 give before the walkthrough.
 
+## Process — "How does this work, and what should I follow?"
+
+The walkthrough sections are rendered in the Process tab. They explain the flow without turning
+the Intent tab into a second file browser; anchored files and groups remain visible in Execution.
+
 ### Sections (walkthrough prose)
 
 `--sections` — array in flow order (entry point → data):
@@ -135,7 +142,7 @@ give before the walkthrough.
 
 Keep sections tight: enough steps to tell the whole unit, not a section per file.
 
-### Documents on disk
+## Intent documents on disk
 
 Reach for these when prose alone won't carry it.
 
@@ -149,7 +156,7 @@ Reach for these when prose alone won't carry it.
 Each document becomes a **tab**. One document renders bare with no chrome, so a lone `index.md`
 costs nothing.
 
-#### The three tabs we recommend
+#### The three Intent documents we recommend
 
 `intent prepare` seeds this order; `--tabs why,approach,decisions` (or any other list) overrides it.
 
@@ -413,7 +420,8 @@ That skeleton is an example only — rewrite the CSS per review.
 
 | Surface | Allowed mediums |
 |---------|-----------------|
-| **Intent** | thesis + sections + Intent documents (`.md` / `.html`) |
+| **Intent** | thesis + authored Intent documents (`.md` / `.html`) |
+| **Process** | structured walkthrough sections, diagrams, and embeds |
 | **Execution** | Native app UI (exactly the files from `--files`, agent order) — not a freeform medium |
 | **Evidence** | Structured checks + `results/` documents (`.md` / `.html` + own CSS) + an `assets/` image gallery |
 

@@ -79,7 +79,7 @@ export const loc = {
   reviewOpen: (page: Page): Locator => byId(page, TestIds.reviewOpen),
   activeReview: (page: Page): Locator => byId(page, TestIds.activeReview),
   activeReviewEmpty: (page: Page): Locator => byId(page, TestIds.activeReviewEmpty),
-  activeReviewTab: (page: Page, tab: 'intent' | 'execution' | 'evidence'): Locator =>
+  activeReviewTab: (page: Page, tab: 'intent' | 'process' | 'execution' | 'evidence'): Locator =>
     byId(page, TestIds.activeReviewTab(tab)),
   evidencePanel: (page: Page): Locator => byId(page, TestIds.evidencePanel),
   evidenceClear: (page: Page): Locator => byId(page, TestIds.evidenceClear),

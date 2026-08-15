@@ -111,7 +111,8 @@ export const TestIds = {
   activeReview: 'active-review',
   /** Empty Review canvas — start-of-unit affordance. */
   activeReviewEmpty: 'active-review-empty',
-  activeReviewTab: (tab: 'intent' | 'execution' | 'evidence'): string => `active-review-tab-${tab}`,
+  activeReviewTab: (tab: 'intent' | 'process' | 'execution' | 'evidence'): string =>
+    `active-review-tab-${tab}`,
   evidencePanel: 'evidence-panel',
   evidenceClear: 'evidence-clear',
   evidenceIframe: 'evidence-iframe',

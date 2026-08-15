@@ -216,7 +216,7 @@ function uniqueFiles(files: readonly ReadingFile[]): ReadingFile[] {
 
 // The Review sidebar tab: the Review inbox (cross-worktree work awaiting review)
 // above THIS checkout's outline — open the canvas with one button; the list is the
-// Execution file outline. Intent / Execution / Evidence tabs live only in the viewer.
+// Execution file outline. Intent / Process / Execution / Evidence tabs live only in the viewer.
 export function ReviewList(): React.JSX.Element {
   return (
     <div data-testid={TestIds.reviewList} className="flex flex-col gap-1 pt-2">
@@ -257,9 +257,9 @@ function ReviewOutline(): React.JSX.Element {
     )
   }
 
-  // Open the Review canvas (one tab per project) and optionally jump to an Intent
+  // Open the Review canvas (one tab per project) and optionally jump to a Process
   // chapter — ActiveReview consumes jumps once mounted. Canvas tabs (Intent /
-  // Execution / Evidence) live only in the viewer, not here.
+  // Process / Execution / Evidence) live only in the viewer, not here.
   const handleOpenReview = (target?: ReviewJumpTarget): void => {
     openTab(targetedTab('review', project.path, { title: 'Review' }))
     if (target) requestJump(target)
@@ -310,7 +310,7 @@ function ReviewOutline(): React.JSX.Element {
           <div key={key}>
             <ChapterButton
               label={section.title}
-              active={canvasTab === 'intent' && isActive(index)}
+              active={canvasTab === 'process' && isActive(index)}
               onJump={() => handleOpenReview({ kind: 'section', index })}
             />
             {uniqueFiles(section.files).map((file) => (

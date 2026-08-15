@@ -6,7 +6,7 @@ import { PhoneHeader } from '@/features/shell/phone-header'
 import { ReviewCanvas } from './review-canvas'
 
 /**
- * The Review tab root on phone: the header and the canvas, with its own Intent · Execution ·
+ * The Review tab root on phone: the header and the canvas, with its own Intent · Process · Execution ·
  * Evidence switch.
  *
  * No pushed routes, unlike Changes and Files. The Review has no per-item detail to open — a

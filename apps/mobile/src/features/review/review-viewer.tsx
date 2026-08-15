@@ -1,7 +1,7 @@
 import { ReviewCanvas } from './review-canvas'
 
 /**
- * The tablet's viewer column: the Review canvas, on whichever of its three tabs the outline
+ * The tablet's viewer column: the Review canvas, on whichever of its four tabs the outline
  * or the tab strip last chose.
  *
  * Tablet-only. This column is always on screen beside the outline, so it has no back

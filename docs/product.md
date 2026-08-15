@@ -15,7 +15,7 @@ not an IDE; not a second agent host.
 
 ## Pillars (priority order)
 
-1. **Review depth** (the moat): the Review (Intent · Execution · Evidence), flow-ordered diffs,
+1. **Review depth** (the moat): the Review (Intent · Process · Execution · Evidence), flow-ordered diffs,
    comments both ways, explore-a-flow, monorepo hide/pin.
 2. **Remote as a product** (second moat): one token-gated daemon; local app, remote environment, or
    any browser. State and PTYs daemon-side.
@@ -30,7 +30,7 @@ through the CLI. Do not rebuild an in-app agent runner.
 - **Scoped navigation** — hide/pin folders in huge monorepos (CLI `scope`).
 - **Git** — diffs, worktrees, history, staging, commit composer without a terminal.
 - **Flow-ordered review** — layers as a timeline of connected work, agent-managed per tree.
-- **The Review** — Intent · Execution · Evidence canvas for one unit of work; agent-authored via
+- **The Review** — Intent · Process · Execution · Evidence canvas for one unit of work; agent-authored via
   porcelain CLI. Board is the queue; Review is the active story.
 - **Explore a flow** — read-only comprehension of existing code (symbol or file seed).
 - **Review comments / board / notes / actions** — companion surfaces; human runs Actions.

@@ -25,8 +25,9 @@ export function ReviewEmptyState(): React.JSX.Element {
         </View>
         <Text className="text-xs leading-5 text-muted-foreground">
           The Review is where a unit begins and ends — bug, feature, chore, or investigation. Ask
-          your agent to publish Intent first (name + thesis); Execution and Evidence grow as the
-          work finishes. Archive the previous unit before starting a new one.
+          your agent to publish Intent first (name + thesis); Process and Execution grow as the work
+          finishes, with Evidence closing the loop. Archive the previous unit before starting a new
+          one.
         </Text>
         {suggestedName === null ? null : (
           <View

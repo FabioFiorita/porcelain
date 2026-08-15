@@ -168,6 +168,11 @@ test('a CLI review publish appears in the already-running Review canvas', async 
   await expect(loc.reviewOpen(page)).toBeVisible({ timeout: 15_000 })
   await loc.reviewOpen(page).click()
   await expect(loc.activeReview(page)).toContainText('CLI watcher unit', { timeout: 15_000 })
+  for (const tab of ['intent', 'process', 'execution', 'evidence'] as const) {
+    await expect(loc.activeReviewTab(page, tab)).toBeVisible()
+  }
+  await expect(loc.activeReviewTab(page, 'evidence')).toHaveAttribute('aria-disabled', 'true')
+  await loc.activeReviewTab(page, 'process').click()
   await expect(loc.activeReview(page)).toContainText('Scope')
 })
 

@@ -23,7 +23,7 @@ mistake.
 | Installed via | `npx porcelain-daemon@latest` (npm package) | Auto-installed by the daemon/app on launch — never `npm install` it yourself |
 | Covered by | **This skill** | The `porcelain-companion` skill |
 
-If the human wants Intent/Execution/Evidence, the board, or notes — that's `porcelain-companion`,
+If the human wants Intent/Process/Execution/Evidence, the board, or notes — that's `porcelain-companion`,
 not this skill. This skill is exclusively about getting a daemon **running and reachable**.
 
 ## References

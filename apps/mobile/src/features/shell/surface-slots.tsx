@@ -95,9 +95,9 @@ const SURFACE_SLOTS: Record<SurfaceId, SurfaceSlots> = {
     phone: HistoryPhoneScreen,
     viewer: HistoryViewer,
   },
-  // The Review's three canvas tabs live inside its own body, not in the shell, so the list is
-  // an outline that jumps the canvas rather than a route switcher — Intent, Execution and
-  // Evidence are one unit of work seen three ways, never three destinations.
+  // The Review's four canvas tabs live inside its own body, not in the shell, so the list is
+  // an outline that jumps the canvas rather than a route switcher — Intent, Process, Execution,
+  // and Evidence are one unit of work seen four ways, never four destinations.
   review: {
     companion: ReviewCompanion,
     list: ReviewList,

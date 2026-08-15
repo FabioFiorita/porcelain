@@ -1,6 +1,6 @@
 ---
 name: porcelain-companion
-description: Drive Porcelain — the review layer for agentic coding — via the bundled CLI (~/.porcelain/porcelain). Use for the Review (Intent · Execution · Evidence) as the start and end of a unit of work (features, bugs, chores, investigations), project board, saved terminal actions, repo notes, review-flow layers, review comments, and syncing companion setup across local/remote environments. Use whenever the human mentions Porcelain, the Review/Board/Terminal tabs, review comments, monorepo hide/pin, or you need to publish a review and close the loop.
+description: Drive Porcelain — the review layer for agentic coding — via the bundled CLI (~/.porcelain/porcelain). Use for the Review (Intent · Process · Execution · Evidence) as the start and end of a unit of work (features, bugs, chores, investigations), project board, saved terminal actions, repo notes, review-flow layers, review comments, and syncing companion setup across local/remote environments. Use whenever the human mentions Porcelain, the Review/Board/Terminal tabs, review comments, monorepo hide/pin, or you need to publish a review and close the loop.
 version: 0.52.1
 license: MIT
 ---
@@ -13,7 +13,7 @@ here. You talk to Porcelain through one CLI; this skill is the manual.
 
 **The Review is the home for an intentionally published unit of work** — not a post-hoc dump after
 shipping. When a human requests Companion work or an agent deliberately publishes a Review, the
-story starts with Intent and ends with Execution + Evidence. Board is the queue of cards; Review is
+story starts with Intent, grows through Process and Execution, and ends with Evidence. Board is the queue of cards; Review is
 the **one active story** per repo. Ordinary code edits do not create, clear, or complete a Review.
 
 ## The CLI
@@ -35,7 +35,7 @@ Read one when you need depth for that surface. Each is complete on its own.
 
 ```
 references/
-  review.md            The Review end to end: Intent · Execution · Evidence, lifecycle,
+  review.md            The Review end to end: Intent · Process · Execution · Evidence, lifecycle,
                        publish flow, mediums, comments, reviewed marks
   board.md             The queue of cards (todo/doing/done)
   actions.md           Saved terminal commands you curate and the human runs

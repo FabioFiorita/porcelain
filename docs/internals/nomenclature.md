@@ -24,7 +24,7 @@ parens is the **entry point**; read it for mechanics.
 | Search list | `search-list.tsx` | `gitSearchCode`; distinct from the ⌘⇧F `ContentSearch` overlay (`gitGrep`) |
 | Changes list | `changes-list.tsx` | Grouped by flow layer |
 | History list | `history-list.tsx` | |
-| Review list | `review-list.tsx` | Header + file outline. **Intent/Execution/Evidence live only in the viewer canvas** |
+| Review list | `review-list.tsx` | Header + file outline. **Intent/Process/Execution/Evidence live only in the viewer canvas** |
 | Review inbox | `review-inbox.tsx` | Other worktrees with work awaiting review; rows from `reviewInbox` (`list-review-inbox.ts`) |
 | Board list | `board-list.tsx` | todo/doing/done cards |
 | Terminal list | `terminal-list.tsx` | Roster of **sessions** — they outlive their tabs |
@@ -65,7 +65,7 @@ Mobile mirrors General · Data · Review · Environments.
 | Term | Meaning |
 |---|---|
 | Flow / flow layers | Architectural-layer grouping of changes (entry-point → data); the heart of "review as a story" |
-| The Review (active review / review set) | One unit-of-work story as a three-tab canvas: **Intent** (thesis + walkthrough prose, optional freeform HTML), **Execution** (agent-listed files + notes, not the working tree), **Evidence**. Files tagged **changed** / **context** / **shipped**. Active: `<repo>/.porcelain/review.json`; archives under `.porcelain/reviews/<id>/`. Product language and code are both **Review**: REV-009 cut the wire, the clients, and the CLI over to one canonical vocabulary (`activeReview`, `reviewReading`, `reviewInbox`, `archiveReview`, `publishCost`, `reviewEvidence`, `clearEvidence`, `setReviewed`) and `scripts/lint-legacy-migrations.mjs` fails the build if a Feature-era name regrows |
+| The Review (active review / review set) | One unit-of-work story as a four-tab canvas: **Intent** (thesis + authored intent documents, optional freeform HTML), **Process** (walkthrough prose and diagrams), **Execution** (agent-listed files + notes, not the working tree), **Evidence**. Files tagged **changed** / **context** / **shipped**. Active: `<repo>/.porcelain/review.json`; archives under `.porcelain/reviews/<id>/`. Product language and code are both **Review**: REV-009 cut the wire, the clients, and the CLI over to one canonical vocabulary (`activeReview`, `reviewReading`, `reviewInbox`, `archiveReview`, `publishCost`, `reviewEvidence`, `clearEvidence`, `setReviewed`) and `scripts/lint-legacy-migrations.mjs` fails the build if a Feature-era name regrows |
 | Evidence | Agent-authored *proof the loop closed*: structured checks + a Results document set + an image gallery under `<repo>/.porcelain/active-review/evidence/` (gitignored by default); archives with the review |
 | Review comments | The reviewer's line/file notes (`.porcelain/comments.json`), app→agent via the CLI |
 | Reviewed marks | Per-file "reviewed" checkboxes (`.porcelain/reviewed.json`), app→agent, read-only like notes |
