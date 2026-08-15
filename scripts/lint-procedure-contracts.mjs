@@ -47,7 +47,7 @@ export const PRODUCTION_ROUTER_FILES = [
   'features/terminal/terminal-router.ts',
 ]
 
-export const PROCEDURE_COUNT = 128
+export const PROCEDURE_COUNT = 129
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 

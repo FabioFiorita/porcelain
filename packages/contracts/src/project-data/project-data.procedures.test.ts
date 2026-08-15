@@ -15,6 +15,7 @@ const expectedKinds = {
   setCompanionDisposition: 'mutation',
   repoLayers: 'query',
   setRepoLayers: 'mutation',
+  migrateCompanion: 'mutation',
 } as const
 
 const invalidInputs = {
@@ -26,6 +27,7 @@ const invalidInputs = {
   setCompanionDisposition: { repoPath: '/synthetic/repo', key: '', disposition: 'local' },
   repoLayers: 42,
   setRepoLayers: { repoPath: '/synthetic/repo', layers: [] },
+  migrateCompanion: { projectId: '', path: '/synthetic/repo' },
 } as const
 
 const invalidOutputs = {
@@ -39,10 +41,11 @@ const invalidOutputs = {
   setCompanionDisposition: { untracked: '.porcelain/board.json', revealed: false },
   repoLayers: { layers: [{ label: 'Docs', pattern: 42 }], custom: true },
   setRepoLayers: null,
+  migrateCompanion: { projectId: 'project-1', repoPath: '/synthetic/repo', dryRun: true },
 } as const
 
 describe('Project Data procedure contracts', () => {
-  it('declares exactly eight procedures with their router kinds', () => {
+  it('declares exactly nine procedures with their router kinds', () => {
     expect(Object.keys(projectDataProcedures).sort()).toEqual(Object.keys(expectedKinds).sort())
     for (const [name, kind] of Object.entries(expectedKinds)) {
       expect(projectDataProcedures[name as keyof typeof projectDataProcedures].kind).toBe(kind)

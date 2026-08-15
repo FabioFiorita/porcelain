@@ -1,6 +1,10 @@
 // @vitest-environment node
 import { publicErrorSchema } from '@porcelain/contracts'
-import type { ChannelDispositionValue, Layer } from '@porcelain/contracts/project-data'
+import type {
+  ChannelDispositionValue,
+  Layer,
+  MigrationReportValue,
+} from '@porcelain/contracts/project-data'
 import { callTRPCProcedure } from '@trpc/server'
 import { describe, expect, it, vi } from 'vitest'
 import { normalizePublicError } from '../../daemon-composition/public-error'
@@ -22,6 +26,15 @@ const CHANNEL: ChannelDispositionValue = {
 
 const CUSTOM_LAYERS: Layer[] = [{ label: 'Specs', pattern: '(^|/)plans/' }]
 
+const MIGRATION_REPORT: MigrationReportValue = {
+  projectId: 'project-1',
+  repoPath: REPO,
+  dryRun: false,
+  ranAt: '2026-08-15T12:00:00.000Z',
+  items: [{ kind: 'review', source: '.porcelain/active-review', outcome: 'converted' }],
+  counts: { converted: 1, alreadyMigrated: 0, unsupported: 0, failed: 0 },
+}
+
 function stubOperations(overrides: Partial<ProjectDataOperations> = {}): ProjectDataOperations {
   return {
     repoNotes: vi.fn(async () => ''),
@@ -33,6 +46,7 @@ function stubOperations(overrides: Partial<ProjectDataOperations> = {}): Project
     setCompanionGitVisibility: vi.fn(async () => ({ changed: true })),
     setCompanionDisposition: vi.fn(async () => ({ untracked: [], revealed: false })),
     recordPublishedReview: vi.fn(async () => undefined),
+    migrateCompanion: vi.fn(async () => ({ ok: true as const, value: MIGRATION_REPORT })),
     ...overrides,
   }
 }
@@ -70,11 +84,12 @@ function expectPublicCode(error: unknown, code: string, unexpected: boolean) {
 }
 
 describe('Project Data router', () => {
-  it('exposes exactly the eight Project Data procedures', () => {
+  it('exposes exactly the nine Project Data procedures', () => {
     const router = createProjectDataRouter(stubOperations())
     expect(Object.keys(router._def.procedures).sort()).toEqual([
       'companionDispositions',
       'companionGitVisibility',
+      'migrateCompanion',
       'repoLayers',
       'repoNotes',
       'setCompanionDisposition',
@@ -82,6 +97,35 @@ describe('Project Data router', () => {
       'setRepoLayers',
       'setRepoNotes',
     ])
+  })
+
+  it('returns the migration report and refuses an ambiguous target as request.invalid', async () => {
+    const router = createProjectDataRouter(stubOperations())
+    expect(
+      await callWithRawInput(router, 'migrateCompanion', 'mutation', {
+        projectId: 'project-1',
+        path: REPO,
+      }),
+    ).toEqual(MIGRATION_REPORT)
+
+    const refusing = createProjectDataRouter(
+      stubOperations({
+        migrateCompanion: vi.fn(async () => ({
+          ok: false as const,
+          error: { code: 'request.invalid' as const },
+        })),
+      }),
+    )
+    expectPublicCode(
+      await rejected(() =>
+        callWithRawInput(refusing, 'migrateCompanion', 'mutation', {
+          projectId: 'project-1',
+          path: '/elsewhere',
+        }),
+      ),
+      'request.invalid',
+      false,
+    )
   })
 
   it('rejects an object where a bare repository-path query is contracted', async () => {

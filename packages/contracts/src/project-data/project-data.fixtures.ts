@@ -54,4 +54,29 @@ export const projectDataContractFixtures = {
     },
     output: undefined,
   },
+  migrateCompanion: {
+    input: { projectId: 'project-1', path: '/synthetic/repo', dryRun: true },
+    output: {
+      projectId: 'project-1',
+      repoPath: '/synthetic/repo',
+      dryRun: true,
+      ranAt: '2026-08-15T09:00:00.000Z',
+      items: [
+        {
+          kind: 'review',
+          source: '.porcelain/active-review',
+          outcome: 'converted',
+          createdId: 'canvas-1',
+          detail: 'Canvas "Ship the review layer" (html, 1 asset(s))',
+        },
+        {
+          kind: 'retired',
+          source: '.porcelain/notes.md',
+          outcome: 'unsupported',
+          detail: 'repo notes are retired; agent instructions belong in AGENTS.md',
+        },
+      ],
+      counts: { converted: 1, alreadyMigrated: 0, unsupported: 1, failed: 0 },
+    },
+  },
 } as const

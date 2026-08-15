@@ -120,4 +120,69 @@ export const setRepoLayersOutputSchema = z.void()
 export type SetRepoLayersInput = z.infer<typeof setRepoLayersInputSchema>
 export type SetRepoLayersOutput = z.infer<typeof setRepoLayersOutputSchema>
 
+/**
+ * The one-time companion migration (#27). One report shape for both entry points —
+ * `porcelain migrate apply` and this procedure — so a human reading the CLI output
+ * and a client rendering the wire value are looking at the same record.
+ */
+export const migrationOutcomeSchema = z.enum([
+  'converted',
+  'already-migrated',
+  'unsupported',
+  'failed',
+])
+export type MigrationOutcomeValue = z.infer<typeof migrationOutcomeSchema>
+
+export const migrationItemKindSchema = z.enum(['review', 'task', 'action', 'overrides', 'retired'])
+
+export const migrationItemSchema = z
+  .object({
+    kind: migrationItemKindSchema,
+    /** The legacy source, repo-relative — `.porcelain/board.json#<cardId>`. */
+    source: z.string().min(1),
+    outcome: migrationOutcomeSchema,
+    /** Why it was skipped, retired, or failed. Present whenever there is a reason. */
+    detail: z.string().optional(),
+    /** The id minted in the new owner (Canvas id, Task id, Action id). */
+    createdId: z.string().optional(),
+  })
+  .strict()
+export type MigrationItemValue = z.infer<typeof migrationItemSchema>
+
+export const migrateCompanionOutputSchema = z
+  .object({
+    projectId: z.string().min(1),
+    repoPath: z.string().min(1),
+    /** True when nothing was written — the plan, produced by the same code path. */
+    dryRun: z.boolean(),
+    ranAt: z.string().min(1),
+    items: z.array(migrationItemSchema),
+    counts: z
+      .object({
+        converted: z.int().nonnegative(),
+        alreadyMigrated: z.int().nonnegative(),
+        unsupported: z.int().nonnegative(),
+        failed: z.int().nonnegative(),
+      })
+      .strict(),
+  })
+  .strict()
+export type MigrationReportValue = z.infer<typeof migrateCompanionOutputSchema>
+
+/**
+ * Migration takes an EXPLICIT Project id and checkout path. There is no "the
+ * current repo" default: the daemon serves several Projects at once and a
+ * migration that guessed its target could write one repository's Board into
+ * another Project's Tasks table.
+ */
+export const migrateCompanionInputSchema = z
+  .object({
+    projectId: z.string().min(1),
+    path: z.string().min(1),
+    dryRun: z.boolean().optional(),
+  })
+  .strict()
+export type MigrateCompanionInput = z.infer<typeof migrateCompanionInputSchema>
+export type MigrateCompanionOutput = z.infer<typeof migrateCompanionOutputSchema>
+
 export { projectDataContractFixtures } from './project-data.fixtures'

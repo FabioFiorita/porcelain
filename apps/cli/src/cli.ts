@@ -43,6 +43,7 @@ import {
 import { resolveToolHtml } from './html-input'
 import { describePrepareIntent, listIntent, orderIntent } from './intent-file'
 import { clearLayers, describeLayers, readLayers, setLayers, toLayers } from './layers-file'
+import { describeMigrate, MIGRATE_COMMANDS } from './migrate-file'
 import { describeNotes, readNotes } from './notes-file'
 import { describePromoteOverrides, PROJECT_COMMANDS } from './overlay-file'
 import {
@@ -82,7 +83,7 @@ interface CliDeps {
   readStdin?: () => string
 }
 
-const BOOLEAN_FLAGS = new Set(['help', 'version', 'tracked'])
+const BOOLEAN_FLAGS = new Set(['help', 'version', 'tracked', 'dry-run'])
 
 interface ParsedArgs {
   positionals: string[]
@@ -334,6 +335,7 @@ export const COMMANDS: NounHelp[] = [
   },
   CANVAS_COMMANDS,
   PROJECT_COMMANDS,
+  MIGRATE_COMMANDS,
   {
     noun: 'notes',
     blurb: "the human's per-repo project notes (read-only)",
@@ -656,6 +658,11 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<string
     case 'scope clear':
       clearScope(repo)
       return `Cleared hide/pin scope for ${repo}`
+    case 'migrate apply':
+      return await describeMigrate(repo, {
+        dryRun: flags.has('dry-run'),
+        reportPath: opt('report'),
+      })
     default:
       throw new Error(`unknown command: "${noun} ${verb}" — try "porcelain help"`)
   }

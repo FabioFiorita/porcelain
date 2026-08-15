@@ -20,7 +20,12 @@ import {
   createWorkspaceTrash,
   type GitOperations,
 } from '../features/git'
-import { createProjectDataOperations, type ProjectDataOperations } from '../features/project-data'
+import {
+  createCompanionMigration,
+  createProjectDataOperations,
+  type MigrationWorktrees,
+  type ProjectDataOperations,
+} from '../features/project-data'
 import type { ProjectsOperations } from '../features/projects'
 import {
   accessSnapshot,
@@ -104,6 +109,26 @@ function actionsProjectsCapability(projects: ProjectsOperations): ActionsProject
   }
 }
 
+/**
+ * The live Worktrees of one Project, for the companion migration's explicit
+ * target check. Same inventory the Actions capability above reads — one source
+ * of truth for "is this path really a checkout of this Project".
+ */
+function migrationWorktreesCapability(projects: ProjectsOperations): MigrationWorktrees {
+  return {
+    async listWorktrees(projectId) {
+      const inventory = await projects.listHubInventory()
+      if (!inventory.ok) return { ok: false }
+      const project = inventory.value.projects.find((entry) => entry.id === projectId)
+      if (project === undefined) return { ok: false }
+      return {
+        ok: true,
+        value: project.worktrees.map((worktree) => ({ id: worktree.id, path: worktree.path })),
+      }
+    },
+  }
+}
+
 export function createDaemonOperations(options: {
   projects: ProjectsOperations
   /** Daemon-root Tasks adapters; only the entry point may resolve `$PORCELAIN_HOME`. */
@@ -182,7 +207,12 @@ export function createDaemonOperations(options: {
       },
       scope: { hiddenPaths: hiddenPathsForRepo },
     }),
-    projectData: createProjectDataOperations(),
+    projectData: createProjectDataOperations({
+      migration: createCompanionMigration({
+        homeDir: options.homeDir,
+        worktrees: migrationWorktreesCapability(options.projects),
+      }),
+    }),
     projects: options.projects,
     terminal: options.terminal,
   })

@@ -20,9 +20,32 @@ export function projectStoreDir(homeDir: string, projectId: string): string {
 /** Files that live directly in one Project's store directory. */
 export const PROJECT_STORE_FILES = {
   actions: 'actions.json',
+  overrides: 'project.json',
+  migration: 'migration.json',
 } as const
 
 /** The saved-commands document for one Project — daemon-owned, never repo-local. */
 export function projectActionsPath(homeDir: string, projectId: string): string {
   return join(projectStoreDir(homeDir, projectId), PROJECT_STORE_FILES.actions)
+}
+
+/**
+ * The PRIVATE project defaults (hidden/pinned paths, Worktree setup) — the
+ * daemon-root counterpart of the tracked `<repo>/.porcelain/project.json` overlay.
+ *
+ * Same file name on purpose: the two documents hold the same `ProjectOverrides`
+ * shape and differ only in who owns them, so promotion (#26) is a copy rather
+ * than a translation, and the tracked one wins wherever both exist.
+ */
+export function projectOverridesPath(homeDir: string, projectId: string): string {
+  return join(projectStoreDir(homeDir, projectId), PROJECT_STORE_FILES.overrides)
+}
+
+/**
+ * The one-time companion migration's ledger for this Project (#27): which legacy
+ * sources have already been converted, and what they became. It lives beside the
+ * data it describes so a Project record carries its own migration history.
+ */
+export function projectMigrationLedgerPath(homeDir: string, projectId: string): string {
+  return join(projectStoreDir(homeDir, projectId), PROJECT_STORE_FILES.migration)
 }

@@ -74,6 +74,8 @@ export type CanvasRecord = {
   entryFile: string
   createdAt: string
   updatedAt: string
+  /** The structured template this bundle follows; only the migration sets it (#27). */
+  template?: 'review'
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

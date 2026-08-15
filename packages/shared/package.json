@@ -16,7 +16,11 @@
     "./doc-set-file": "./src/doc-set-file.ts",
     "./actions-file": "./src/actions-file.ts",
     "./background": "./src/background.ts",
-    "./tasks-porcelain": "./src/tasks-porcelain.ts"
+    "./tasks-porcelain": "./src/tasks-porcelain.ts",
+    "./companion-migration": "./src/companion-migration.ts",
+    "./companion-migration-records": "./src/companion-migration-records.ts",
+    "./companion-migration-review": "./src/companion-migration-review.ts",
+    "./companion-migration-store": "./src/companion-migration-store.ts"
   },
   "typesVersions": {
     "*": {
@@ -58,6 +62,18 @@
       ],
       "tasks-porcelain": [
         "./src/tasks-porcelain.ts"
+      ],
+      "companion-migration": [
+        "./src/companion-migration.ts"
+      ],
+      "companion-migration-records": [
+        "./src/companion-migration-records.ts"
+      ],
+      "companion-migration-review": [
+        "./src/companion-migration-review.ts"
+      ],
+      "companion-migration-store": [
+        "./src/companion-migration-store.ts"
       ]
     }
   }
