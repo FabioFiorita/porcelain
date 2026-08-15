@@ -19,6 +19,12 @@ import {
   readCards,
   updateCard,
 } from './board-file'
+import {
+  CANVAS_COMMANDS,
+  describeCanvases,
+  describeSetCanvas,
+  listCanvasesForRepo,
+} from './canvas-file'
 import { answerComment, describeComments, readComments, resolveComment } from './comment-file'
 import {
   checkEvidence,
@@ -60,7 +66,9 @@ import {
 
 // Porcelain's agent CLI: a dependency-free command that reads and writes project
 // companion channels under <repo>/.porcelain/ (review, board, actions, notes, layers,
-// evidence, comments, reviewed marks, scope). One fresh process per invocation does a
+// evidence, comments, reviewed marks, scope) — plus Canvas, the one noun that instead
+// writes the daemon-root Project store under $PORCELAIN_HOME (ADR 0002), since Canvases
+// outlive the checkout that authored them. One fresh process per invocation does a
 // single synchronous read-modify-write. Node builtins only; the built bundle is
 // installed to ~/.porcelain/porcelain.js and run under plain `node`.
 
@@ -161,6 +169,11 @@ const FLAG_DESCRIPTIONS: Record<string, string> = {
   label: 'Short label for the verification check, e.g. "pnpm test"',
   detail: 'Optional result detail for the check, e.g. "1348 passed"',
   tabs: 'Comma-separated starting tabs (default: why,approach,decisions); a bare name gets .md',
+  kind: 'Canvas kind: html | markdown',
+  'source-dir':
+    'Absolute path to a local directory holding the Canvas entry file and its siblings (images, CSS, JS) — copied wholesale into the bundle',
+  entry:
+    'Entry file name inside --source-dir (default: index.html for html, index.md for markdown)',
 }
 
 interface VerbHelp {
@@ -314,6 +327,7 @@ export const COMMANDS: NounHelp[] = [
     ],
     flags: ['title', 'command', 'where', 'id'],
   },
+  CANVAS_COMMANDS,
   {
     noun: 'notes',
     blurb: "the human's per-repo project notes (read-only)",
@@ -602,6 +616,16 @@ Write the documents with your normal file tools. .md renders as prose; .html ren
         ? `Deleted action ${id} for ${repo}`
         : `No action ${id} for ${repo}`
     }
+    case 'canvas list':
+      return describeCanvases(listCanvasesForRepo(repo))
+    case 'canvas set':
+      return describeSetCanvas(repo, {
+        title: req('title'),
+        kind: req('kind'),
+        sourceDir: req('source-dir'),
+        entryFile: opt('entry'),
+        id: opt('id'),
+      })
     case 'notes get':
       return describeNotes(repo, readNotes(repo))
     case 'layers get':
