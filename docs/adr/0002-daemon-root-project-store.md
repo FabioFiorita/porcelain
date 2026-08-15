@@ -33,3 +33,32 @@ Two consequences worth stating plainly. Opening a repository never creates or mo
 `.porcelain/`: the companion watcher no longer materializes the evidence tree until a review is
 actually in flight. And personal UI state — pins, tab order, split layout — remains client-local;
 the tracked `hiddenPaths`/`pinnedPaths` are project *defaults* the client merges under its own state.
+
+## Migrating from the repo-local companion
+
+**Status: migration landed (#27).** Moving to the daemon-root store does not strand the work
+already in a repository. One explicit command converts it:
+
+```bash
+porcelain migrate apply --dry-run          # print the plan; write nothing
+porcelain migrate apply --report /tmp/m.json
+```
+
+The same routine is `project-data.migrateCompanion({ projectId, path })` on the daemon. It lives in
+`packages/shared/src/companion-migration*.ts` because the CLI has no daemon transport
+(`scripts/lint-cli-boundary.mjs`) — one implementation, two entry points, no chance of two
+migrations disagreeing about what a Board card becomes. There is no startup hook: a one-time store
+rewrite that fires because a process restarted is a rewrite nobody chose.
+
+| Legacy source | New owner |
+|---|---|
+| `active-review/` and `reviews/<id>/` | A Canvas bundle per review, `template: 'review'`, four sections (Intent ← thesis + `intent/`; Process ← walkthrough sections; Execution ← declared files; Evidence ← checks + `results/` + gallery). Evidence and intent assets are copied into the bundle's own `assets/`. |
+| `board.json` | Tasks, keeping the card id as the Task id, with the Project reference and a Worktree reference inferred from an exact branch or path mention. An unknown column lands in `todo`, tagged `migrated`. |
+| `actions.json` | `$PORCELAIN_HOME/projects/<id>/actions.json`, skipping ids and titles already there. Trust records are untouched — a migrated Action arrives unreviewed and still meets the trust prompt. |
+| `scope.json` | `$PORCELAIN_HOME/projects/<id>/project.json`, the PRIVATE counterpart of the tracked overlay. Never the tracked `.porcelain/project.json`: promoting a personal hide/pin list into someone's working tree is the exact failure this ADR exists to prevent. |
+| `layers.json`, `notes.md`, terminal image passthrough | Reported as retired. No new owner, so they are named in the report rather than copied. |
+
+Two properties make it safe to run twice. `$PORCELAIN_HOME/projects/<id>/migration.json` is a ledger
+written after **every** item, so a crash resumes instead of restarting; and every writer reads its
+destination and merges, so even a lost ledger cannot duplicate a row. Nothing legacy is deleted —
+the report is what tells the human it is safe to remove `.porcelain/` themselves.

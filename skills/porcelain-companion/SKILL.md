@@ -47,6 +47,8 @@ references/
                        Canvas or Project defaults into it, plus .gitignore and info/exclude
   sync-environments.md Seeding companion data across Mac ↔ remote
   worktrees.md         Working in a harness worktree
+  migrate.md           The one-time move of a repo's legacy .porcelain/ companion into the
+                       daemon-root Project store (Canvases, Tasks, Actions, hide/pin)
 ```
 
 ## Scripts
