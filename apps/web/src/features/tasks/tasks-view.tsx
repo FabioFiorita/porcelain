@@ -5,16 +5,15 @@ import {
   TASK_REQUIRED_COLUMN_IDS,
 } from '@porcelain/client-runtime/tasks'
 import type { TaskStatus } from '@porcelain/contracts/tasks'
-import { Button } from '@renderer/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from '@renderer/components/ui/dropdown-menu'
 import { toastingAction } from '@renderer/hooks/mutation-error'
-import { compactButtonClass } from '@renderer/lib/controls'
 import { TestIds } from '@shared/test-ids'
 import { Columns3 } from 'lucide-react'
 import { useTaskColumnsStore, visibleTaskColumns } from './tasks-columns-store'
@@ -59,28 +58,34 @@ export function TasksView(): React.JSX.Element {
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
-              <Button
-                variant="ghost"
-                className={compactButtonClass}
+              <button
+                type="button"
                 data-testid={TestIds.tasksColumnsMenu}
+                aria-label="Choose columns"
+                className="flex h-7 shrink-0 items-center gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
               >
-                <Columns3 /> Columns
-              </Button>
+                <Columns3 className="size-3.5" />
+                Columns
+              </button>
             }
           />
           <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Columns</DropdownMenuLabel>
-            {TASK_COLUMN_IDS.map((column) => (
-              <DropdownMenuCheckboxItem
-                key={column}
-                data-testid={TestIds.tasksColumnToggle(column)}
-                checked={!hidden.includes(column)}
-                disabled={TASK_REQUIRED_COLUMN_IDS.includes(column)}
-                onCheckedChange={() => toggle(column)}
-              >
-                {TASK_COLUMN_LABELS[column]}
-              </DropdownMenuCheckboxItem>
-            ))}
+            {/* Base UI requires a GroupLabel to sit inside its Group. */}
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Columns</DropdownMenuLabel>
+              {TASK_COLUMN_IDS.map((column) => (
+                <DropdownMenuCheckboxItem
+                  key={column}
+                  data-testid={TestIds.tasksColumnToggle(column)}
+                  closeOnClick={false}
+                  checked={!hidden.includes(column)}
+                  disabled={TASK_REQUIRED_COLUMN_IDS.includes(column)}
+                  onCheckedChange={() => toggle(column)}
+                >
+                  {TASK_COLUMN_LABELS[column]}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

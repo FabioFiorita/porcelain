@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { createHash } from 'node:crypto'
-import { mkdtemp } from 'node:fs/promises'
+import { mkdtempSync } from 'node:fs'
+import { mkdtemp, rm } from 'node:fs/promises'
 import { type IncomingMessage, request, type ServerResponse } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
@@ -18,6 +19,7 @@ import {
   sessionCount,
 } from '../../session/live-session'
 import type { ProjectsOperations } from '../projects'
+import { createTasksAttachments, createTasksStore } from '../tasks'
 import type { TerminalOperations } from '../terminal'
 import { createRemoteHttp, initConfigDir, type RemoteHttp, type RemoteHttpOptions } from '.'
 
@@ -95,9 +97,17 @@ const projectsOperations = {
   })),
 } satisfies ProjectsOperations
 
+// Daemon-root Tasks adapters over a throwaway home, the way `server.ts` resolves them from
+// `$PORCELAIN_HOME`; the HTTP boundary tests never touch a real Tasks index.
+const tasksHome = mkdtempSync(join(tmpdir(), 'porcelain-remote-http-tasks-'))
+
 const router = createDaemonRouter({
   operations: createDaemonOperations({
     projects: projectsOperations,
+    tasks: {
+      store: createTasksStore({ homeDir: tasksHome }),
+      attachments: createTasksAttachments({ homeDir: tasksHome }),
+    },
     terminal: terminalOperations,
   }),
 })
@@ -252,6 +262,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await stopTestDaemon(daemon)
+  await rm(tasksHome, { recursive: true, force: true })
 })
 
 describe('daemon http surface — the token gate + CORS scope', () => {

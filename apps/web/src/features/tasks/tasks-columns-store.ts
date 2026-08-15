@@ -1,8 +1,8 @@
 import {
   DEFAULT_HIDDEN_TASK_COLUMN_IDS,
-  DEFAULT_TASK_COLUMN_ORDER,
   resolveHiddenTaskColumns,
   resolveTaskColumnOrder,
+  TASK_COLUMN_IDS,
   TASK_REQUIRED_COLUMN_IDS,
   type TaskColumnId,
 } from '@porcelain/client-runtime/tasks'
@@ -31,7 +31,7 @@ interface TaskColumnsStore {
 export const useTaskColumnsStore = create<TaskColumnsStore>()(
   persist(
     (set) => ({
-      order: [...DEFAULT_TASK_COLUMN_ORDER],
+      order: [...TASK_COLUMN_IDS],
       hidden: [...DEFAULT_HIDDEN_TASK_COLUMN_IDS],
       toggle: (id) =>
         set((state) => {
@@ -43,7 +43,7 @@ export const useTaskColumnsStore = create<TaskColumnsStore>()(
         }),
       reset: () =>
         set({
-          order: [...DEFAULT_TASK_COLUMN_ORDER],
+          order: [...TASK_COLUMN_IDS],
           hidden: [...DEFAULT_HIDDEN_TASK_COLUMN_IDS],
         }),
     }),
@@ -53,7 +53,7 @@ export const useTaskColumnsStore = create<TaskColumnsStore>()(
         const stored = persisted as Partial<{ order: string[]; hidden: string[] }> | undefined
         return {
           ...current,
-          order: resolveTaskColumnOrder(stored?.order ?? [...DEFAULT_TASK_COLUMN_ORDER]),
+          order: resolveTaskColumnOrder(stored?.order ?? [...TASK_COLUMN_IDS]),
           hidden: resolveHiddenTaskColumns(stored?.hidden ?? [...DEFAULT_HIDDEN_TASK_COLUMN_IDS]),
         }
       },

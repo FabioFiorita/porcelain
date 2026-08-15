@@ -83,11 +83,11 @@ export const TASKS_COMMANDS = {
   },
 }
 
-export const TASK_STATUSES = ['todo', 'doing', 'done', 'blocked'] as const
+const TASK_STATUSES = ['todo', 'doing', 'done', 'blocked'] as const
 export type TaskStatus = (typeof TASK_STATUSES)[number]
 
-export type TaskReferences = { projectId?: string; worktreeId?: string }
-export type TaskLink = { url: string; label: string }
+type TaskReferences = { projectId?: string; worktreeId?: string }
+type TaskLink = { url: string; label: string }
 export type TaskAttachment = {
   id: string
   name: string
@@ -200,7 +200,7 @@ export function attachFile(taskId: string, sourcePath: string): TaskAttachment {
  * for this checkout. A repo Porcelain has never opened has no Project id — a Task is still
  * a perfectly good Task without one, so that degrades to no references rather than failing.
  */
-export function defaultReferences(repoPath: string): TaskReferences {
+function defaultReferences(repoPath: string): TaskReferences {
   try {
     const identity = resolveHubIdentity(repoPath)
     return identity.worktreeId === null

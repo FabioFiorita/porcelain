@@ -24,6 +24,7 @@ export function TasksList(): React.JSX.Element {
           <Button
             variant="ghost"
             size="icon-sm"
+            data-testid={TestIds.tasksOpen}
             aria-label="Open Tasks"
             onClick={() => openTab(targetedTab('tasks', 'tasks', { title: 'Tasks' }, null))}
           >
@@ -43,7 +44,7 @@ export function TasksList(): React.JSX.Element {
         {rows.map((row) => (
           <li
             key={`${row.environmentId ?? 'local'}:${row.task.id}`}
-            data-testid={TestIds.tasksRow(row.task.id)}
+            data-testid={TestIds.tasksListRow(row.task.id)}
             className="flex flex-col gap-0.5 px-3 py-1.5 hover:bg-accent/40"
           >
             <span className="truncate text-xs text-foreground">{row.task.title}</span>

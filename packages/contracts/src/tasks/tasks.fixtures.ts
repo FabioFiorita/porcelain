@@ -1,14 +1,12 @@
 import { defineContractFixture } from '../testing'
 import {
   createTaskInputSchema,
-  createTaskOutputSchema,
   deleteTaskInputSchema,
   deleteTaskOutputSchema,
   listTasksOutputSchema,
   type Task,
   taskSchema,
   updateTaskInputSchema,
-  updateTaskOutputSchema,
 } from './tasks.contract'
 import { tasksChangedSchema } from './tasks.notifications'
 
@@ -80,7 +78,7 @@ export const tasksContractFixtures = {
       references: { projectId: PROJECT_ID },
       links: [{ url: 'https://example.invalid/issue/23', label: 'Issue 23' }],
     }),
-    output: defineContractFixture(createTaskOutputSchema, {
+    output: defineContractFixture(taskSchema, {
       ...taskFixture({ id: ADDED_ID, title: 'Capture the follow-up' }),
       notes: 'Notes are markdown and optional.',
       tags: ['follow-up'],
@@ -94,7 +92,7 @@ export const tasksContractFixtures = {
       status: 'done' as const,
       tags: ['release'],
     }),
-    output: defineContractFixture(updateTaskOutputSchema, {
+    output: defineContractFixture(taskSchema, {
       ...openTask,
       status: 'done',
       tags: ['release'],

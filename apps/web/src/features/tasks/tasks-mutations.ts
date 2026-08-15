@@ -1,8 +1,4 @@
-import {
-  resolveTasksTarget,
-  tasksMutations,
-  tasksTableQuery,
-} from '@porcelain/client-runtime/tasks'
+import { resolveTasksTarget, tasksMutations } from '@porcelain/client-runtime/tasks'
 import type {
   CreateTaskInput,
   DeleteTaskInput,
@@ -154,9 +150,4 @@ export function useTaskActions(): {
     },
     isPending: create.isPending || update.isPending || remove.isPending,
   }
-}
-
-/** The table identity a caller should invalidate after an out-of-band change. */
-export function taskTableIdentity(environmentId: string | null) {
-  return tasksTableQuery(environmentId)
 }

@@ -17,7 +17,7 @@ import { isTasksTableQueryKey, tasksTableQueryKey } from './tasks-query-key'
  * those daemons, so it cannot be told when they change and must not pretend otherwise.
  */
 
-export function applyTasksNotification(
+function applyTasksNotification(
   notification: TasksChanged,
   options: { queryClient: QueryClient; daemon: DaemonScope },
 ): void {
@@ -36,7 +36,12 @@ export function applyTasksNotification(
   )
 }
 
-/** Invalidate every Tasks table cache entry (session/environment recovery). */
+/**
+ * Invalidate every Tasks table cache entry. Session recovery calls this: after a reconnect or
+ * a replaced daemon, nothing this client holds about any Environment's table is proven, and
+ * the per-Environment identity is not enough because the gap could have hidden a change on
+ * any of them.
+ */
 export function invalidateAllTasks(queryClient: QueryClient): Promise<void> {
   return queryClient.invalidateQueries({
     predicate: (query) => isTasksTableQueryKey(query.queryKey),

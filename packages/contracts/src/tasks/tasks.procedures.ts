@@ -1,13 +1,12 @@
 import type { ProcedureContract } from '../procedure-contract'
 import {
   createTaskInputSchema,
-  createTaskOutputSchema,
   deleteTaskInputSchema,
   deleteTaskOutputSchema,
   listTasksInputSchema,
   listTasksOutputSchema,
+  taskSchema,
   updateTaskInputSchema,
-  updateTaskOutputSchema,
 } from './tasks.contract'
 
 /**
@@ -28,13 +27,13 @@ export const tasksProcedures = {
   createTask: {
     kind: 'mutation',
     input: createTaskInputSchema,
-    output: createTaskOutputSchema,
+    output: taskSchema,
     errors: ['tasks.unavailable', 'tasks.invalid-title', 'tasks.attachment-rejected'],
   },
   updateTask: {
     kind: 'mutation',
     input: updateTaskInputSchema,
-    output: updateTaskOutputSchema,
+    output: taskSchema,
     errors: ['tasks.unavailable', 'tasks.not-found', 'tasks.invalid-title'],
   },
   deleteTask: {

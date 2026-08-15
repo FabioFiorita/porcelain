@@ -29,21 +29,25 @@ export const TASK_COLUMN_LABELS: Readonly<Record<TaskColumnId, string>> = {
   updated: 'Updated',
 }
 
+/**
+ * `TASK_COLUMN_IDS` IS the default order — there is no separate default constant, because two
+ * lists that must stay identical eventually will not.
+ */
+
 /** Title is not optional: a row with no title column is not a table, it is a puzzle. */
 export const TASK_REQUIRED_COLUMN_IDS: readonly TaskColumnId[] = ['title']
-
-export const DEFAULT_TASK_COLUMN_ORDER: readonly TaskColumnId[] = TASK_COLUMN_IDS
 
 export const DEFAULT_HIDDEN_TASK_COLUMN_IDS: readonly TaskColumnId[] = ['worktree']
 
 /**
  * Reconcile a persisted column preference against the current vocabulary: unknown ids are
- * dropped (a build that removed a column must not resurrect it) and newly added ids append
- * in their canonical position, so an upgrade shows the new column rather than hiding it.
+ * dropped (a build that removed a column must not resurrect it), a repeated id is kept once
+ * (a duplicate would render the same column twice), and newly added ids append in their
+ * canonical position, so an upgrade shows the new column rather than hiding it.
  */
 export function resolveTaskColumnOrder(persisted: readonly string[]): TaskColumnId[] {
   const known = new Set<string>(TASK_COLUMN_IDS)
-  const kept = persisted.filter((id): id is TaskColumnId => known.has(id))
+  const kept = [...new Set(persisted.filter((id): id is TaskColumnId => known.has(id)))]
   const seen = new Set<TaskColumnId>(kept)
   return [...kept, ...TASK_COLUMN_IDS.filter((id) => !seen.has(id))]
 }

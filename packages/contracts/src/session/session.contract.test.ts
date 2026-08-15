@@ -5,7 +5,9 @@ import { FILES_CHANGE_KINDS } from '../files'
 import { GIT_CHANGE_KINDS } from '../git'
 import { PROTOCOL_VERSION } from '../protocol'
 import { REVIEW_CHANGE_KINDS } from '../review'
+import { TASKS_CHANGE_KINDS } from '../tasks'
 import {
+  type SessionChange,
   sessionChangeFrameSchema,
   sessionChangeSchema,
   sessionContractFixtures,
@@ -19,10 +21,15 @@ const everyChangeKind = [
   ...GIT_CHANGE_KINDS,
   ...REVIEW_CHANGE_KINDS,
   ...BOARD_CHANGE_KINDS,
+  ...TASKS_CHANGE_KINDS,
   ...ACTIONS_CHANGE_KINDS,
 ]
 
-const changeFixtures = {
+/**
+ * Every project-scoped kind's fixture. `tasks.changed` is deliberately absent: the Tasks
+ * table is daemon-wide, so its change carries no project and cannot be built here.
+ */
+const projectScopedChangeFixtures = {
   'files.scope-changed': { kind: 'files.scope-changed', projectPath: '/synthetic/repo' },
   'files.tree-changed': {
     kind: 'files.tree-changed',
@@ -41,14 +48,46 @@ const changeFixtures = {
   'review.changed': { kind: 'review.changed', projectPath: '/synthetic/repo' },
   'board.changed': { kind: 'board.changed', projectPath: '/synthetic/repo' },
   'actions.changed': { kind: 'actions.changed', projectPath: '/synthetic/repo' },
-} as const
+} as const satisfies Record<Exclude<SessionChange['kind'], 'tasks.changed'>, SessionChange>
+
+const changeFixtures: Record<SessionChange['kind'], SessionChange> = {
+  ...projectScopedChangeFixtures,
+  'tasks.changed': { kind: 'tasks.changed' },
+}
+
+const projectScopedChangeKinds = Object.keys(projectScopedChangeFixtures) as Array<
+  keyof typeof projectScopedChangeFixtures
+>
 
 describe('Session change envelope', () => {
-  it('composes exactly the seven domain change categories', () => {
+  it('composes exactly the eight domain change kinds', () => {
     expect(sessionChangeSchema.options.map((option) => option.shape.kind.value).sort()).toEqual(
       [...everyChangeKind].sort(),
     )
-    expect(everyChangeKind).toHaveLength(7)
+    expect(everyChangeKind).toHaveLength(8)
+    expect(projectScopedChangeKinds).toHaveLength(7)
+  })
+
+  it('keeps tasks.changed daemon-wide: strict, carrying only kind', () => {
+    // The daemon's delivery rule reads "no projectPath" as "reaches every subscription",
+    // so a Tasks change that could carry a project would silently become project-scoped.
+    const tasksOption = sessionChangeSchema.options.find(
+      (option) => option.shape.kind.value === 'tasks.changed',
+    )
+    expect(Object.keys(tasksOption?.shape ?? {})).toEqual(['kind'])
+    expect(sessionChangeSchema.parse({ kind: 'tasks.changed' })).toEqual({ kind: 'tasks.changed' })
+    expect(
+      sessionChangeSchema.safeParse({ kind: 'tasks.changed', projectPath: '/synthetic/repo' })
+        .success,
+    ).toBe(false)
+    expect(
+      sessionChangeFrameSchema.safeParse({
+        t: 'session:change',
+        epoch: 'synthetic-epoch',
+        sequence: 7,
+        change: { kind: 'tasks.changed', projectPath: '/synthetic/repo' },
+      }).success,
+    ).toBe(false)
   })
 
   for (const kind of everyChangeKind) {
@@ -61,9 +100,11 @@ describe('Session change envelope', () => {
       }
       expect(sessionChangeFrameSchema.parse(frame)).toEqual(frame)
     })
+  }
 
+  for (const kind of projectScopedChangeKinds) {
     it(`rejects ${kind} inside a frame when projectPath is missing`, () => {
-      const { projectPath: _dropped, ...change } = changeFixtures[kind]
+      const { projectPath: _dropped, ...change } = projectScopedChangeFixtures[kind]
       expect(
         sessionChangeFrameSchema.safeParse({
           t: 'session:change',

@@ -145,7 +145,10 @@ export function RightSidebar(): React.JSX.Element {
 
   const hasOpenTabs = openTabs.length > 0
   const activeTab = openTabs.includes(sidebarTab) ? sidebarTab : (openTabs[0] ?? null)
-  const hasActionRow = hasOpenTabs && activeTab !== null && activeTab === 'board'
+  // Surfaces that portal controls into the header action row. Board opens the wide board;
+  // Tasks opens the daemon-wide table.
+  const hasActionRow =
+    hasOpenTabs && activeTab !== null && (activeTab === 'board' || activeTab === 'tasks')
 
   return (
     <Sidebar

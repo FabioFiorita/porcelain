@@ -42,6 +42,7 @@ function recordingUtils(): { utils: SessionQueryUtils; invalidated: string[] } {
     boardCards: query('boardCards'),
     files: query('files'),
     actions: query('actions'),
+    tasks: query('tasks'),
   }
   return { utils, invalidated }
 }
@@ -86,8 +87,9 @@ describe('Session change invalidation mapping', () => {
     )
   })
 
-  it('leaves board.changed and actions.changed to their feature adapters', async () => {
+  it('leaves board.changed, tasks.changed, and actions.changed to their feature adapters', async () => {
     expect(await invalidatedBy({ kind: 'board.changed', projectPath: PROJECT })).toEqual([])
+    expect(await invalidatedBy({ kind: 'tasks.changed' })).toEqual([])
     expect(await invalidatedBy({ kind: 'actions.changed', projectPath: PROJECT })).toEqual([])
   })
 })
@@ -103,11 +105,13 @@ describe('Session recovery invalidation', () => {
       '*',
       'reviewComments',
       'boardCards',
+      'tasks',
       'files',
       'projectData',
       '*',
       'reviewComments',
       'boardCards',
+      'tasks',
       'files',
       'projectData',
     ])
@@ -127,6 +131,9 @@ describe('Session recovery invalidation', () => {
     expect(invalidated).not.toContain('readDir')
     expect(invalidated).not.toContain('readFile')
     expect(invalidated).toContain('boardCards')
+    // Tasks are daemon-wide: a project-scoped gap could have swallowed a `tasks.changed`,
+    // which carries no project to narrow the recovery by.
+    expect(invalidated).toContain('tasks')
     expect(invalidated).toContain('review')
     expect(invalidated).toContain('reviewComments')
     expect(invalidated).toContain('projectData')

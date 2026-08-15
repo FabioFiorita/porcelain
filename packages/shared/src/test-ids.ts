@@ -192,11 +192,14 @@ export const TestIds = {
   cardComposer: 'card-composer',
 
   // --- Tasks (the daemon-wide table) ---
+  tasksOpen: 'tasks-open',
   tasksView: 'tasks-view',
   tasksTable: 'tasks-table',
   tasksEmpty: 'tasks-empty',
   tasksError: 'tasks-error',
   tasksRow: (id: string): string => `tasks-row-${id}`,
+  /** The compact sidebar list entry — distinct from the Viewer table row above. */
+  tasksListRow: (id: string): string => `tasks-list-row-${id}`,
   tasksRowStatus: (id: string): string => `tasks-row-status-${id}`,
   tasksRowDelete: (id: string): string => `tasks-row-delete-${id}`,
   tasksColumnsMenu: 'tasks-columns-menu',

@@ -8,6 +8,7 @@ import {
   invalidateProjectDataLayers,
 } from '@renderer/features/project-data'
 import { invalidateAllReviewComments, invalidateAllReviewQueries } from '@renderer/features/review'
+import { invalidateAllTasks } from '@renderer/features/tasks'
 import { type DaemonSession, primary } from '@renderer/lib/daemon'
 import { isBrowser } from '@renderer/lib/platform'
 import type { SessionConnectionStatus } from '@renderer/lib/session-browser-adapter'
@@ -62,6 +63,8 @@ export type SessionQueryUtils = {
   /** Files cache — wired to the feature key predicate (FIL-005). */
   readonly files: QueryInvalidation
   readonly actions: QueryInvalidation
+  /** Tasks cache — daemon-wide, so recovery invalidates every Environment's table. */
+  readonly tasks: QueryInvalidation
 }
 
 /**
@@ -124,6 +127,7 @@ export function invalidateForRecovery(
       utils.invalidate(),
       utils.reviewComments.invalidate(),
       utils.boardCards.invalidate(),
+      utils.tasks.invalidate(),
       utils.files.invalidate(),
       utils.projectData.invalidate(),
     ])
@@ -136,6 +140,9 @@ export function invalidateForRecovery(
     // Comments freshness is feature-owned (RVC-003); recovery still hits the predicate slot.
     utils.reviewComments.invalidate(),
     utils.boardCards.invalidate(),
+    // Tasks are daemon-wide, so a project-scoped gap still leaves them unproven: the gap
+    // could have swallowed a `tasks.changed`, which carries no project to narrow by.
+    utils.tasks.invalidate(),
     utils.actions.invalidate(),
     utils.projectData.invalidate(),
   ])
@@ -181,6 +188,7 @@ export function useSessionRuntime({
       boardCards: { invalidate: () => invalidateAllBoardCards(queryClient) },
       files: { invalidate: () => invalidateAllFilesQueries(queryClient) },
       actions: { invalidate: () => invalidateAllActionsQueries(queryClient) },
+      tasks: { invalidate: () => invalidateAllTasks(queryClient) },
     }),
     [trpcUtils, queryClient],
   )

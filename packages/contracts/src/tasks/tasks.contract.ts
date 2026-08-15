@@ -105,9 +105,9 @@ export const createTaskInputSchema = z
     attachmentPaths: taskAttachmentSourcesSchema.optional(),
   })
   .strict()
-export const createTaskOutputSchema = taskSchema
 export type CreateTaskInput = z.infer<typeof createTaskInputSchema>
-export type CreateTaskOutput = z.infer<typeof createTaskOutputSchema>
+/** The created row, exactly as `taskSchema` describes it — no second output shape. */
+export type CreateTaskOutput = Task
 
 // --- updateTask ---
 
@@ -132,9 +132,8 @@ export const updateTaskInputSchema = z
       value.links !== undefined,
     { message: 'updateTask requires at least one field to change' },
   )
-export const updateTaskOutputSchema = taskSchema
 export type UpdateTaskInput = z.infer<typeof updateTaskInputSchema>
-export type UpdateTaskOutput = z.infer<typeof updateTaskOutputSchema>
+export type UpdateTaskOutput = Task
 
 // --- deleteTask ---
 

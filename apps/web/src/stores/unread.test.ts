@@ -11,6 +11,7 @@ describe('useUnreadStore', () => {
       unread: {
         review: false,
         board: false,
+        tasks: false,
         terminal: false,
         changes: false,
       },
@@ -46,6 +47,8 @@ describe('unreadTabFor', () => {
   const cases: [SessionChange, UnreadTab | null][] = [
     [{ kind: 'review.changed', projectPath: PROJECT }, 'review'],
     [{ kind: 'board.changed', projectPath: PROJECT }, 'board'],
+    // Daemon-wide: the Tasks change carries no project and still marks the Tasks tab.
+    [{ kind: 'tasks.changed' }, 'tasks'],
     [{ kind: 'actions.changed', projectPath: PROJECT }, 'terminal'],
     [
       { kind: 'files.content-changed', projectPath: PROJECT, paths: [`${PROJECT}/a.ts`] },
@@ -67,6 +70,7 @@ describe('isUnreadTab', () => {
   it('accepts the unread-capable tabs', () => {
     expect(isUnreadTab('review')).toBe(true)
     expect(isUnreadTab('board')).toBe(true)
+    expect(isUnreadTab('tasks')).toBe(true)
     expect(isUnreadTab('terminal')).toBe(true)
     expect(isUnreadTab('changes')).toBe(true)
   })

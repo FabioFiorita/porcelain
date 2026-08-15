@@ -8,7 +8,6 @@
 
 export {
   DEFAULT_HIDDEN_TASK_COLUMN_IDS,
-  DEFAULT_TASK_COLUMN_ORDER,
   resolveHiddenTaskColumns,
   resolveTaskColumnOrder,
   TASK_COLUMN_IDS,

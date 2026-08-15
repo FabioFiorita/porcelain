@@ -20,10 +20,15 @@ function change(projectPath: string): SessionChange {
   return { kind: 'board.changed', projectPath }
 }
 
+/** The daemon-wide change: its contract carries no project, which is what makes it global. */
+const DAEMON_WIDE_CHANGE: SessionChange = { kind: 'tasks.changed' }
+
 /** One valid change per contract kind, so tests cover the union without hand-listing it. */
 function changesForEveryKind(projectPath: string): SessionChange[] {
   return sessionChangeSchema.options.map((option) => {
     const kind = option.shape.kind.value
+    // `tasks.changed` is strict and daemon-wide: adding projectPath would fail the contract.
+    if (kind === 'tasks.changed') return sessionChangeSchema.parse({ kind })
     return sessionChangeSchema.parse(
       kind === 'files.tree-changed' || kind === 'files.content-changed'
         ? { kind, projectPath, paths: ['a.ts'] }
@@ -112,6 +117,46 @@ describe('Session change publisher', () => {
     expect(frames).toEqual([])
   })
 
+  it('delivers a daemon-wide change to every open subscription', () => {
+    // A change whose contract carries no projectPath belongs to the daemon, not a checkout:
+    // withholding it would leave the one deliberately global surface unable to refresh.
+    const publisher = createSessionChangePublisher({ epoch: EPOCH })
+    const scoped = subscriberSpy()
+    const elsewhere = subscriberSpy()
+    const unscoped = subscriberSpy()
+    publisher.subscribe(scoped.subscriber).scopeToProject(PROJECT)
+    publisher.subscribe(elsewhere.subscriber).scopeToProject(OTHER_PROJECT)
+    publisher.subscribe(unscoped.subscriber)
+
+    expect(publisher.publish(DAEMON_WIDE_CHANGE)).toEqual({ ok: true, delivered: 3 })
+
+    for (const spy of [scoped, elsewhere, unscoped]) {
+      expect(spy.frames.map((frame) => frame.change)).toEqual([DAEMON_WIDE_CHANGE])
+      expect(spy.frames.map((frame) => frame.sequence)).toEqual([0])
+    }
+  })
+
+  it('keeps a project-scoped change scoped while daemon-wide changes reach everyone', () => {
+    const publisher = createSessionChangePublisher({ epoch: EPOCH })
+    const scoped = subscriberSpy()
+    const elsewhere = subscriberSpy()
+    const unscoped = subscriberSpy()
+    publisher.subscribe(scoped.subscriber).scopeToProject(PROJECT)
+    publisher.subscribe(elsewhere.subscriber).scopeToProject(OTHER_PROJECT)
+    publisher.subscribe(unscoped.subscriber)
+
+    expect(publisher.publish(change(PROJECT))).toEqual({ ok: true, delivered: 1 })
+    expect(publisher.publish(DAEMON_WIDE_CHANGE)).toEqual({ ok: true, delivered: 3 })
+
+    expect(scoped.frames.map((frame) => frame.change)).toEqual([
+      change(PROJECT),
+      DAEMON_WIDE_CHANGE,
+    ])
+    expect(scoped.frames.map((frame) => frame.sequence)).toEqual([0, 1])
+    expect(elsewhere.frames.map((frame) => frame.change)).toEqual([DAEMON_WIDE_CHANGE])
+    expect(unscoped.frames.map((frame) => frame.change)).toEqual([DAEMON_WIDE_CHANGE])
+  })
+
   it('rejects a change the contract does not accept', () => {
     const publisher = createSessionChangePublisher({ epoch: EPOCH })
     const { frames, subscriber } = subscriberSpy()
@@ -162,6 +207,14 @@ describe('Session change publisher', () => {
 
   describe('source-to-category mapping', () => {
     it('maps every contract change kind to a declared category', () => {
+      expect([...SESSION_CHANGE_CATEGORIES]).toEqual([
+        'files',
+        'git',
+        'review',
+        'board',
+        'actions',
+        'tasks',
+      ])
       const changes = changesForEveryKind(PROJECT)
       const categories = changes.map((observed) => sessionChangeCategory(observed))
 
