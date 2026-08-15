@@ -1,6 +1,7 @@
 import { changesetTabKey } from '@renderer/components/git/changeset-view'
 import { type ReviewInboxRow, useGitFlow, useGitWorkspace } from '@renderer/features/git'
 import { useReviewComments, useReviewReading } from '@renderer/features/review'
+import { DevServersSection } from '@renderer/features/terminal'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { openTerminalPanel } from '@renderer/lib/terminal-actions'
 import { targetedTab } from '@renderer/stores/hub-tabs'
@@ -205,6 +206,9 @@ export function GlanceHome(): React.JSX.Element | null {
             )}
           </GlanceSection>
         )}
+
+        {/* Daemon-owned processes for this Worktree — durable across navigation. */}
+        <DevServersSection />
 
         {/* Always-on shortcuts so the landing page is useful even when clean. */}
         <GlanceSection label="Jump to">

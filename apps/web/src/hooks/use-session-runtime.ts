@@ -99,6 +99,10 @@ export function invalidateForChange(
       // Actions owns its notification → list-identity mapping (ACT-003 feature adapter).
       // Session runtime must not invalidate Actions here; the feature subscription does.
       return Promise.resolve()
+    case 'terminal.dev-servers-changed':
+      // Terminal owns its notification → dev-servers-identity mapping (the feature
+      // subscription in features/terminal). Handled here only for exhaustiveness.
+      return Promise.resolve()
   }
 }
 

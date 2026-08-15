@@ -1,4 +1,7 @@
 import type {
+  DevServer,
+  DevServersInput,
+  StartDevServerInput,
   TerminalInfo,
   TerminalServerFrame,
   TerminalStatus,
@@ -51,16 +54,29 @@ export type TerminalStreamSink = Readonly<{
   send(frame: TerminalServerFrame): void
 }>
 
-export type TerminalFailure =
+/** What a PTY frame can fail with. The stream's error frame carries exactly these. */
+export type TerminalStreamFailure =
   | { readonly code: 'terminal.not-found' }
   | { readonly code: 'terminal.exited' }
   | { readonly code: 'terminal.capacity' }
   | { readonly code: 'terminal.invalid-size' }
   | { readonly code: 'terminal.paste-unavailable' }
 
-export type TerminalResult<Value> =
+/**
+ * What a development-server command can fail with: its own record failures plus whatever
+ * spawning the underlying session can fail with, since `start` forwards that verbatim.
+ */
+export type DevServerFailure =
+  | TerminalStreamFailure
+  | { readonly code: 'terminal.dev-server-not-found' }
+  | { readonly code: 'terminal.dev-server-target' }
+  | { readonly code: 'terminal.dev-server-running' }
+
+export type TerminalFailure = DevServerFailure
+
+export type TerminalResult<Value, Failure = TerminalFailure> =
   | { readonly ok: true; readonly value: Value }
-  | { readonly ok: false; readonly error: TerminalFailure }
+  | { readonly ok: false; readonly error: Failure }
 
 export type TerminalCreateInput = Readonly<{
   name: string
@@ -84,26 +100,68 @@ export type TerminalPasteSuccess = Readonly<{
   path?: string
 }>
 
+/**
+ * How a daemon-side owner watches the session it spawned. A development-server record uses
+ * it to learn when its command actually reached the shell, what the process printed (URL
+ * detection), and that it ended — without pretending to be a client sink.
+ */
+export type TerminalSessionObserver = Readonly<{
+  onCommandSent(): void
+  onData(data: string): void
+  onExit(exitCode: number): void
+}>
+
+/**
+ * The narrow slice of session machinery a development server needs: spawn something nothing
+ * may reap, and end it on request. Deliberately not the whole TerminalOperations surface —
+ * a server record has no business writing to, resizing, or renaming its own PTY.
+ */
+export type DevServerHost = Readonly<{
+  createRetained(
+    input: TerminalCreateInput,
+    observer: TerminalSessionObserver,
+  ): TerminalResult<string, TerminalStreamFailure>
+  kill(id: string): TerminalResult<void, TerminalStreamFailure>
+}>
+
+export type DevServerOperations = Readonly<{
+  list(input: DevServersInput): DevServer[]
+  start(input: StartDevServerInput): TerminalResult<DevServer, DevServerFailure>
+  stop(id: string): TerminalResult<DevServer, DevServerFailure>
+  dismiss(id: string): TerminalResult<void, DevServerFailure>
+}>
+
 export type TerminalOperations = Readonly<{
-  create(input: TerminalCreateInput, sink: TerminalStreamSink): TerminalResult<string>
-  attach(id: string, sink: TerminalStreamSink): TerminalResult<TerminalAttachValue>
-  detach(id: string, sink: TerminalStreamSink): TerminalResult<void>
-  write(id: string, data: string): TerminalResult<void>
-  resize(id: string, cols: number, rows: number): TerminalResult<void>
-  kill(id: string): TerminalResult<void>
+  create(
+    input: TerminalCreateInput,
+    sink: TerminalStreamSink,
+  ): TerminalResult<string, TerminalStreamFailure>
+  createRetained(
+    input: TerminalCreateInput,
+    observer: TerminalSessionObserver,
+  ): TerminalResult<string, TerminalStreamFailure>
+  devServers: DevServerOperations
+  attach(
+    id: string,
+    sink: TerminalStreamSink,
+  ): TerminalResult<TerminalAttachValue, TerminalStreamFailure>
+  detach(id: string, sink: TerminalStreamSink): TerminalResult<void, TerminalStreamFailure>
+  write(id: string, data: string): TerminalResult<void, TerminalStreamFailure>
+  resize(id: string, cols: number, rows: number): TerminalResult<void, TerminalStreamFailure>
+  kill(id: string): TerminalResult<void, TerminalStreamFailure>
   pasteImage(input: {
     id: string
     mime: string
     dataBase64: string
     insert?: boolean
-  }): Promise<TerminalResult<TerminalPasteSuccess>>
+  }): Promise<TerminalResult<TerminalPasteSuccess, TerminalStreamFailure>>
   pasteFile(input: {
     id: string
     filename: string
     mime: string
     dataBase64: string
     insert?: boolean
-  }): Promise<TerminalResult<TerminalPasteSuccess>>
+  }): Promise<TerminalResult<TerminalPasteSuccess, TerminalStreamFailure>>
   list(): TerminalInfo[]
   rename(id: string, name: string): void
   detachSink(sink: TerminalStreamSink): void

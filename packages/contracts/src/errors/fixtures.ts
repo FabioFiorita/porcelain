@@ -249,4 +249,25 @@ export const publicErrorFixtures = {
     retryable: true,
     requestId: '00000000-0000-4000-8000-00000000001a',
   },
+  'terminal.dev-server-not-found': {
+    code: 'terminal.dev-server-not-found',
+    category: 'not-found',
+    message: 'The development server was not found.',
+    retryable: false,
+    requestId: '00000000-0000-4000-8000-00000000001b',
+  },
+  'terminal.dev-server-target': {
+    code: 'terminal.dev-server-target',
+    category: 'invalid-request',
+    message: 'A development server needs an explicit Project and Worktree target.',
+    retryable: false,
+    requestId: '00000000-0000-4000-8000-00000000001c',
+  },
+  'terminal.dev-server-running': {
+    code: 'terminal.dev-server-running',
+    category: 'conflict',
+    message: 'Stop the development server before dismissing it.',
+    retryable: false,
+    requestId: '00000000-0000-4000-8000-00000000001d',
+  },
 } as const satisfies Record<PublicErrorCode, PorcelainError>

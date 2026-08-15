@@ -5,6 +5,7 @@ import { FILES_CHANGE_KINDS } from '../files'
 import { GIT_CHANGE_KINDS } from '../git'
 import { PROTOCOL_VERSION } from '../protocol'
 import { REVIEW_CHANGE_KINDS } from '../review'
+import { TERMINAL_CHANGE_KINDS } from '../terminal'
 import {
   sessionChangeFrameSchema,
   sessionChangeSchema,
@@ -20,6 +21,7 @@ const everyChangeKind = [
   ...REVIEW_CHANGE_KINDS,
   ...BOARD_CHANGE_KINDS,
   ...ACTIONS_CHANGE_KINDS,
+  ...TERMINAL_CHANGE_KINDS,
 ]
 
 const changeFixtures = {
@@ -41,14 +43,20 @@ const changeFixtures = {
   'review.changed': { kind: 'review.changed', projectPath: '/synthetic/repo' },
   'board.changed': { kind: 'board.changed', projectPath: '/synthetic/repo' },
   'actions.changed': { kind: 'actions.changed', projectPath: '/synthetic/repo' },
+  'terminal.dev-servers-changed': {
+    kind: 'terminal.dev-servers-changed',
+    projectPath: '/synthetic/repo',
+    projectId: 'project-1',
+    worktreeId: 'worktree-1',
+  },
 } as const
 
 describe('Session change envelope', () => {
-  it('composes exactly the seven domain change categories', () => {
+  it('composes exactly the eight domain change categories', () => {
     expect(sessionChangeSchema.options.map((option) => option.shape.kind.value).sort()).toEqual(
       [...everyChangeKind].sort(),
     )
-    expect(everyChangeKind).toHaveLength(7)
+    expect(everyChangeKind).toHaveLength(8)
   })
 
   for (const kind of everyChangeKind) {

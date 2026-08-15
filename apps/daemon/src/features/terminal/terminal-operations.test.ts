@@ -339,6 +339,94 @@ describe('Terminal retention and capacity policy', () => {
   })
 })
 
+describe('Retained sessions (the development-server lifetime)', () => {
+  function makeObserver() {
+    const commandSent = vi.fn()
+    const data = vi.fn()
+    const exits = vi.fn()
+    return {
+      observer: { onCommandSent: commandSent, onData: data, onExit: exits },
+      commandSent,
+      data,
+      exits,
+    }
+  }
+
+  it('spawns with nobody attached and reports output and exit to its owner', () => {
+    const { operations, ptys } = makeHarness()
+    const { observer, data, exits } = makeObserver()
+
+    const created = operations.createRetained({ name: 'web', cwd: '/repo' }, observer)
+    if (!created.ok) throw new Error('expected a retained session')
+    ptys[0]?.emitData('listening')
+    ptys[0]?.emitExit(3)
+
+    expect(data).toHaveBeenCalledWith('listening')
+    expect(exits).toHaveBeenCalledWith(3)
+  })
+
+  it('tells its owner when the command actually reached the shell', () => {
+    const { operations, ptys } = makeHarness()
+    const { observer, commandSent } = makeObserver()
+
+    operations.createRetained({ name: 'web', cwd: '/repo', initialInput: 'pnpm dev' }, observer)
+    ptys[0]?.emitData('$ ')
+    vi.advanceTimersByTime(QUIET_AFTER_PROMPT_MS)
+
+    expect(ptys[0]?.writes).toHaveBeenCalledWith('pnpm dev\r')
+    expect(commandSent).toHaveBeenCalledOnce()
+  })
+
+  it('is never reaped by the detached-idle window an ordinary shell obeys', () => {
+    const { operations, ptys } = makeHarness()
+    operations.createRetained({ name: 'web', cwd: '/repo' }, makeObserver().observer)
+
+    operations.sweep(1_700_000_000_000 + DETACHED_IDLE_MS * 10)
+
+    expect(operations.list()).toHaveLength(1)
+    expect(ptys[0]?.kills).not.toHaveBeenCalled()
+  })
+
+  it('keeps a retained session past the exited-retention window so its output survives', () => {
+    const { operations, ptys } = makeHarness()
+    operations.createRetained({ name: 'web', cwd: '/repo' }, makeObserver().observer)
+    ptys[0]?.emitExit(1)
+
+    operations.sweep(1_700_000_000_000 + EXITED_RETENTION_MS * 10)
+
+    expect(operations.list()).toHaveLength(1)
+  })
+
+  it('is never the session evicted to make room for a new one', () => {
+    const { operations, ptys } = makeHarness()
+    const detached = makeSink()
+    operations.createRetained({ name: 'web', cwd: '/repo' }, makeObserver().observer)
+    for (let index = 0; index < MAX_SESSIONS - 1; index += 1) {
+      operations.create({ name: `shell-${index}`, cwd: '/repo' }, detached)
+    }
+    operations.detachSink(detached)
+
+    const fresh = operations.create({ name: 'fresh', cwd: '/repo' }, makeSink())
+
+    expect(fresh.ok).toBe(true)
+    expect(ptys[0]?.kills).not.toHaveBeenCalled()
+    expect(ptys[1]?.kills).toHaveBeenCalledOnce()
+  })
+
+  it('still ends on an explicit kill — stop is the one thing that reaches it', () => {
+    const { operations, ptys } = makeHarness()
+    const created = operations.createRetained(
+      { name: 'web', cwd: '/repo' },
+      makeObserver().observer,
+    )
+    if (!created.ok) throw new Error('expected a retained session')
+
+    expect(operations.kill(created.value)).toEqual({ ok: true, value: undefined })
+    expect(ptys[0]?.kills).toHaveBeenCalledOnce()
+    expect(operations.list()).toEqual([])
+  })
+})
+
 describe('Terminal paste operations', () => {
   it('uses the image/file caps, prompt references, and upload-only mode', async () => {
     const { operations, paste, ptys } = makeHarness()

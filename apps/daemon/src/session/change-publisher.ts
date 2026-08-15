@@ -37,7 +37,14 @@ import {
  * The change categories a source is allowed to produce, keyed by the domain prefix the
  * contract union already discriminates on.
  */
-export const SESSION_CHANGE_CATEGORIES = ['files', 'git', 'review', 'board', 'actions'] as const
+export const SESSION_CHANGE_CATEGORIES = [
+  'files',
+  'git',
+  'review',
+  'board',
+  'actions',
+  'terminal',
+] as const
 export type SessionChangeCategory = (typeof SESSION_CHANGE_CATEGORIES)[number]
 
 /**
@@ -54,6 +61,7 @@ const CATEGORY_BY_CHANGE_KIND = {
   'review.changed': 'review',
   'board.changed': 'board',
   'actions.changed': 'actions',
+  'terminal.dev-servers-changed': 'terminal',
 } satisfies Record<SessionChange['kind'], SessionChangeCategory>
 
 /** Which source category a change belongs to. Total over the contract union. */

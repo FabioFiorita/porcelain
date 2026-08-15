@@ -4,6 +4,12 @@ import { publicErrorFor } from '../../daemon-composition/public-error'
 import { createRequestId } from '../../daemon-composition/request-id'
 import type { TerminalFailure, TerminalOperations, TerminalStreamSink } from './terminal-ports'
 
+/**
+ * The failures a PTY frame can actually produce. Development-server failures answer tRPC
+ * calls, never this stream, so they are excluded here rather than widening the error frame.
+ */
+type TerminalStreamFailure = Exclude<TerminalFailure, { code: `terminal.dev-server-${string}` }>
+
 export type TerminalStreamGateway = Readonly<{
   receive(frame: TerminalClientFrame): void
   detach(): void
@@ -12,7 +18,7 @@ export type TerminalStreamGateway = Readonly<{
 function sendFailure(
   sink: TerminalStreamSink,
   reqId: string,
-  failure: TerminalFailure,
+  failure: TerminalStreamFailure,
   id?: string,
 ): void {
   const error = publicErrorFor(failure.code, createRequestId())

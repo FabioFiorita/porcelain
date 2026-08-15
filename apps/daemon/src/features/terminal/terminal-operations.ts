@@ -1,25 +1,23 @@
 import { randomUUID } from 'node:crypto'
-import {
-  MAX_PASTE_FILE_BYTES,
-  MAX_PASTE_IMAGE_BYTES,
-  type TerminalInfo,
-  terminalFilePromptReference,
-  terminalImagePromptReference,
-} from '@porcelain/contracts/terminal'
+import type { SessionChange } from '@porcelain/contracts/session'
+import type { TerminalInfo } from '@porcelain/contracts/terminal'
 import { settleBackground } from '@porcelain/shared/background'
+import { createDevServerOperations } from './dev-server-operations'
+import { createTerminalPasteOperations } from './terminal-paste-operations'
 import type {
   PtyPort,
   TerminalAttachValue,
   TerminalClock,
   TerminalCreateInput,
-  TerminalFailure,
   TerminalIds,
   TerminalOperations,
   TerminalPastePort,
-  TerminalPasteSuccess,
   TerminalResult,
+  TerminalSessionObserver,
+  TerminalStreamFailure,
   TerminalStreamSink,
 } from './terminal-ports'
+import { ScrollbackBuffer } from './terminal-scrollback'
 
 export const EXITED_RETENTION_MS = 10 * 60_000
 export const DETACHED_IDLE_MS = 12 * 60 * 60_000
@@ -28,45 +26,6 @@ export const QUIET_AFTER_PROMPT_MS = 300
 export const QUIET_AFTER_NEWLINE_MS = 2_000
 const SCROLLBACK_BYTES = 64 * 1024
 const SWEEP_INTERVAL_MS = 60_000
-
-function trimUtf8Tail(value: string, cap: number): string {
-  const bytes = Buffer.from(value)
-  if (bytes.byteLength <= cap) return value
-  let start = bytes.byteLength - cap
-  while (start < bytes.byteLength) {
-    const byte = bytes[start]
-    if (byte === undefined || (byte & 0xc0) !== 0x80) break
-    start += 1
-  }
-  return bytes.subarray(start).toString('utf8')
-}
-
-class ScrollbackBuffer {
-  private readonly chunks: string[] = []
-  private bytes = 0
-
-  constructor(private readonly cap: number) {}
-
-  append(chunk: string): void {
-    this.chunks.push(chunk)
-    this.bytes += Buffer.byteLength(chunk)
-    while (this.bytes > this.cap && this.chunks.length > 1) {
-      const dropped = this.chunks.shift()
-      if (dropped !== undefined) this.bytes -= Buffer.byteLength(dropped)
-    }
-    if (this.bytes > this.cap && this.chunks.length === 1) {
-      const [only] = this.chunks
-      if (only !== undefined) {
-        this.chunks[0] = trimUtf8Tail(only, this.cap)
-        this.bytes = Buffer.byteLength(this.chunks[0])
-      }
-    }
-  }
-
-  snapshot(): string {
-    return this.chunks.join('')
-  }
-}
 
 function initialInputQuietDelay(chunk: string): number {
   return chunk.endsWith('\n') ? QUIET_AFTER_NEWLINE_MS : QUIET_AFTER_PROMPT_MS
@@ -88,6 +47,13 @@ type Session = {
   sequence: number
   initialTimer?: ReturnType<typeof setTimeout>
   sendInitialInput: (() => void) | null
+  /**
+   * A retained session is owned by a daemon record (today: a development server), not by
+   * whoever is watching it. None of the three lifecycle bounds may reap it — that is the
+   * whole point of the record — so its owner is the only thing that can end it.
+   */
+  retained: boolean
+  observer?: TerminalSessionObserver
 }
 
 type CreateTerminalOperationsOptions = Readonly<{
@@ -95,6 +61,8 @@ type CreateTerminalOperationsOptions = Readonly<{
   paste: TerminalPastePort
   clock?: TerminalClock
   ids?: TerminalIds
+  /** Session-channel publisher for development-server roster freshness; absent = no clients. */
+  publishChange?: (change: SessionChange) => void
 }>
 
 function defaultClock(): TerminalClock {
@@ -110,15 +78,10 @@ function defaultIds(): TerminalIds {
   return { create: randomUUID, epoch: randomUUID }
 }
 
-function failure(code: TerminalFailure['code']): TerminalResult<never> {
+function failure(
+  code: TerminalStreamFailure['code'],
+): TerminalResult<never, TerminalStreamFailure> {
   return { ok: false, error: { code } }
-}
-
-const MIME_EXTENSIONS: Record<string, string> = {
-  'image/gif': 'gif',
-  'image/jpeg': 'jpg',
-  'image/png': 'png',
-  'image/webp': 'webp',
 }
 
 export function createTerminalOperations(
@@ -155,6 +118,9 @@ export function createTerminalOperations(
 
   function sweep(now = clock.now()): void {
     for (const [id, session] of sessions) {
+      // A development server you return to next week must still be there, and its final
+      // output must still explain why it died. Its record owns that lifetime, not the sweep.
+      if (session.retained) continue
       if (session.attached.size > 0) continue
       if (session.status === 'exited') {
         if (session.exitedAt !== undefined && now - session.exitedAt > EXITED_RETENTION_MS) {
@@ -175,17 +141,17 @@ export function createTerminalOperations(
     sweepTimer.unref()
   }
 
-  function makeRoom(now: number): TerminalResult<void> {
+  function makeRoom(now: number): TerminalResult<void, TerminalStreamFailure> {
     if (sessions.size < MAX_SESSIONS) return { ok: true, value: undefined }
     sweep(now)
     for (const [id] of oldestFirst(
-      (session) => session.status === 'exited' && session.attached.size === 0,
+      (session) => !session.retained && session.status === 'exited' && session.attached.size === 0,
     )) {
       if (sessions.size < MAX_SESSIONS) break
       sessions.delete(id)
     }
     const [oldestIdle] = oldestFirst(
-      (session) => session.status === 'running' && session.attached.size === 0,
+      (session) => !session.retained && session.status === 'running' && session.attached.size === 0,
     )
     if (sessions.size >= MAX_SESSIONS && oldestIdle !== undefined) {
       evict(oldestIdle[0], oldestIdle[1])
@@ -209,7 +175,10 @@ export function createTerminalOperations(
     markDetachedIfEmpty(session)
   }
 
-  function create(input: TerminalCreateInput, sink: TerminalStreamSink): TerminalResult<string> {
+  function spawnSession(
+    input: TerminalCreateInput,
+    owner: { sink?: TerminalStreamSink; retained?: boolean; observer?: TerminalSessionObserver },
+  ): TerminalResult<string, TerminalStreamFailure> {
     const cols = input.cols ?? 80
     const rows = input.rows ?? 24
     if (!Number.isInteger(cols) || !Number.isInteger(rows) || cols <= 0 || rows <= 0) {
@@ -228,18 +197,23 @@ export function createTerminalOperations(
       createdAt: clock.now(),
       status: 'running',
       scrollback: new ScrollbackBuffer(SCROLLBACK_BYTES),
-      attached: new Set([sink]),
+      attached: new Set(owner.sink === undefined ? [] : [owner.sink]),
       epoch,
       sequence: 0,
       sendInitialInput: null,
+      retained: owner.retained === true,
+      observer: owner.observer,
     }
     sessions.set(id, session)
+    markDetachedIfEmpty(session)
 
     if (input.initialInput !== undefined && input.initialInput !== '') {
       const command = input.initialInput
       session.sendInitialInput = () => {
         clearInitialInput(session)
-        if (sessions.has(id)) process.write(`${command}\r`)
+        if (!sessions.has(id)) return
+        process.write(`${command}\r`)
+        session.observer?.onCommandSent()
       }
       session.initialTimer = clock.setTimeout(
         () => session.sendInitialInput?.(),
@@ -264,6 +238,7 @@ export function createTerminalOperations(
         epoch: session.epoch,
         sequence: session.sequence,
       }))
+      session.observer?.onData(data)
     })
     process.onExit((exitCode) => {
       clearInitialInput(session)
@@ -281,11 +256,34 @@ export function createTerminalOperations(
         epoch: session.epoch,
         sequence: session.sequence,
       }))
+      session.observer?.onExit(exitCode)
     })
     return { ok: true, value: id }
   }
 
-  function attach(id: string, sink: TerminalStreamSink): TerminalResult<TerminalAttachValue> {
+  function create(
+    input: TerminalCreateInput,
+    sink: TerminalStreamSink,
+  ): TerminalResult<string, TerminalStreamFailure> {
+    return spawnSession(input, { sink })
+  }
+
+  /**
+   * Spawn a session nobody is watching yet. The caller (a development-server record) owns its
+   * lifetime and receives output through `observer`; a human attaches to the same session
+   * later through the ordinary Terminal path and sees the scrollback replayed.
+   */
+  function createRetained(
+    input: TerminalCreateInput,
+    observer: TerminalSessionObserver,
+  ): TerminalResult<string, TerminalStreamFailure> {
+    return spawnSession(input, { retained: true, observer })
+  }
+
+  function attach(
+    id: string,
+    sink: TerminalStreamSink,
+  ): TerminalResult<TerminalAttachValue, TerminalStreamFailure> {
     const session = sessions.get(id)
     if (session === undefined) return failure('terminal.not-found')
     session.attached.add(sink)
@@ -303,7 +301,10 @@ export function createTerminalOperations(
     }
   }
 
-  function detach(id: string, sink: TerminalStreamSink): TerminalResult<void> {
+  function detach(
+    id: string,
+    sink: TerminalStreamSink,
+  ): TerminalResult<void, TerminalStreamFailure> {
     const session = sessions.get(id)
     if (session === undefined) return failure('terminal.not-found')
     session.attached.delete(sink)
@@ -311,7 +312,7 @@ export function createTerminalOperations(
     return { ok: true, value: undefined }
   }
 
-  function write(id: string, data: string): TerminalResult<void> {
+  function write(id: string, data: string): TerminalResult<void, TerminalStreamFailure> {
     const session = sessions.get(id)
     if (session === undefined) return failure('terminal.not-found')
     if (session.status === 'exited') return failure('terminal.exited')
@@ -319,7 +320,11 @@ export function createTerminalOperations(
     return { ok: true, value: undefined }
   }
 
-  function resize(id: string, cols: number, rows: number): TerminalResult<void> {
+  function resize(
+    id: string,
+    cols: number,
+    rows: number,
+  ): TerminalResult<void, TerminalStreamFailure> {
     if (!Number.isInteger(cols) || !Number.isInteger(rows) || cols <= 0 || rows <= 0) {
       return failure('terminal.invalid-size')
     }
@@ -330,57 +335,11 @@ export function createTerminalOperations(
     return { ok: true, value: undefined }
   }
 
-  function kill(id: string): TerminalResult<void> {
+  function kill(id: string): TerminalResult<void, TerminalStreamFailure> {
     const session = sessions.get(id)
     if (session === undefined) return failure('terminal.not-found')
     evict(id, session)
     return { ok: true, value: undefined }
-  }
-
-  async function pasteAttachment(input: {
-    id: string
-    filename: string
-    dataBase64: string
-    maxBytes: number
-    insert?: boolean
-    prompt: (path: string) => string
-  }): Promise<TerminalResult<TerminalPasteSuccess>> {
-    const session = sessions.get(input.id)
-    if (session === undefined) return failure('terminal.not-found')
-    if (session.status === 'exited') return failure('terminal.exited')
-    const saved = await pasteStore.save(input)
-    if (!saved.ok) return saved
-    if (input.insert !== false) session.pty.write(input.prompt(saved.value.path))
-    return { ok: true, value: { result: 'ok', path: saved.value.path } }
-  }
-
-  async function pasteImage(input: {
-    id: string
-    mime: string
-    dataBase64: string
-    insert?: boolean
-  }): Promise<TerminalResult<TerminalPasteSuccess>> {
-    const extension = MIME_EXTENSIONS[input.mime] ?? 'bin'
-    return pasteAttachment({
-      ...input,
-      filename: `image.${extension}`,
-      maxBytes: MAX_PASTE_IMAGE_BYTES,
-      prompt: terminalImagePromptReference,
-    })
-  }
-
-  async function pasteFile(input: {
-    id: string
-    filename: string
-    mime: string
-    dataBase64: string
-    insert?: boolean
-  }): Promise<TerminalResult<TerminalPasteSuccess>> {
-    return pasteAttachment({
-      ...input,
-      maxBytes: MAX_PASTE_FILE_BYTES,
-      prompt: terminalFilePromptReference,
-    })
   }
 
   function list(): TerminalInfo[] {
@@ -408,8 +367,26 @@ export function createTerminalOperations(
     }
   }
 
+  const { pasteFile, pasteImage } = createTerminalPasteOperations({
+    store: pasteStore,
+    session: (id) => {
+      const session = sessions.get(id)
+      if (session === undefined) return undefined
+      return { status: session.status, write: (data) => session.pty.write(data) }
+    },
+  })
+
+  const devServers = createDevServerOperations({
+    host: { createRetained, kill },
+    publish: options.publishChange ?? (() => {}),
+    clock,
+    ids: { create: ids.create },
+  })
+
   return Object.freeze({
     create,
+    createRetained,
+    devServers,
     attach,
     detach,
     write,

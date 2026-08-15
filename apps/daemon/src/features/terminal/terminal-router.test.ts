@@ -8,6 +8,8 @@ import { createTerminalRouter } from './terminal-router'
 // Terminal residual surface only: roster + rename. Actions live on the Actions feature router.
 const terminal = {
   create: vi.fn(),
+  createRetained: vi.fn(),
+  devServers: { list: vi.fn(), start: vi.fn(), stop: vi.fn(), dismiss: vi.fn() },
   attach: vi.fn(),
   detach: vi.fn(),
   write: vi.fn(),

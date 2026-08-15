@@ -17,6 +17,25 @@ const ATTACHMENT: TerminalAttachValue = {
 function makeOperations(): TerminalOperations {
   return {
     create: vi.fn<TerminalOperations['create']>(() => ({ ok: true, value: 'terminal-1' })),
+    createRetained: vi.fn<TerminalOperations['createRetained']>(() => ({
+      ok: true,
+      value: 'terminal-retained',
+    })),
+    devServers: {
+      list: vi.fn<TerminalOperations['devServers']['list']>(() => []),
+      start: vi.fn<TerminalOperations['devServers']['start']>(() => ({
+        ok: false,
+        error: { code: 'terminal.dev-server-target' },
+      })),
+      stop: vi.fn<TerminalOperations['devServers']['stop']>(() => ({
+        ok: false,
+        error: { code: 'terminal.dev-server-not-found' },
+      })),
+      dismiss: vi.fn<TerminalOperations['devServers']['dismiss']>(() => ({
+        ok: false,
+        error: { code: 'terminal.dev-server-not-found' },
+      })),
+    },
     attach: vi.fn<TerminalOperations['attach']>(() => ({ ok: true, value: ATTACHMENT })),
     detach: vi.fn<TerminalOperations['detach']>(() => ({ ok: true, value: undefined })),
     write: vi.fn<TerminalOperations['write']>(() => ({ ok: true, value: undefined })),

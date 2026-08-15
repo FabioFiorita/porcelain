@@ -1,5 +1,14 @@
 import type { ProcedureContract } from '../procedure-contract'
 import {
+  devServerSchema,
+  devServersInputSchema,
+  devServersOutputSchema,
+  dismissDevServerInputSchema,
+  dismissDevServerOutputSchema,
+  startDevServerInputSchema,
+  stopDevServerInputSchema,
+} from './dev-server.contract'
+import {
   renameTerminalInputSchema,
   renameTerminalOutputSchema,
   terminalSessionsInputSchema,
@@ -18,6 +27,30 @@ const terminalProcedureDefinitions = {
     input: renameTerminalInputSchema,
     output: renameTerminalOutputSchema,
     errors: [],
+  },
+  devServers: {
+    kind: 'query',
+    input: devServersInputSchema,
+    output: devServersOutputSchema,
+    errors: [],
+  },
+  startDevServer: {
+    kind: 'mutation',
+    input: startDevServerInputSchema,
+    output: devServerSchema,
+    errors: ['terminal.dev-server-target', 'terminal.capacity'],
+  },
+  stopDevServer: {
+    kind: 'mutation',
+    input: stopDevServerInputSchema,
+    output: devServerSchema,
+    errors: ['terminal.dev-server-not-found'],
+  },
+  dismissDevServer: {
+    kind: 'mutation',
+    input: dismissDevServerInputSchema,
+    output: dismissDevServerOutputSchema,
+    errors: ['terminal.dev-server-not-found', 'terminal.dev-server-running'],
   },
 } as const
 

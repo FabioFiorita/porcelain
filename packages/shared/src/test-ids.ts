@@ -133,6 +133,19 @@ export const TestIds = {
   generateCommitMessage: 'generate-commit-message',
   generateCommitGroups: 'generate-commit-groups',
 
+  // --- Development servers (daemon-owned, per Worktree) ---
+  devServers: 'dev-servers',
+  devServersEmpty: 'dev-servers-empty',
+  devServerRow: (id: string): string => `dev-server-${id}`,
+  devServerUrl: (id: string): string => `dev-server-url-${id}`,
+  devServerAttach: (id: string): string => `dev-server-attach-${id}`,
+  devServerStop: (id: string): string => `dev-server-stop-${id}`,
+  devServerDismiss: (id: string): string => `dev-server-dismiss-${id}`,
+  devServerNew: 'dev-server-new',
+  devServerLabelInput: 'dev-server-label-input',
+  devServerCommandInput: 'dev-server-command-input',
+  devServerSubmit: 'dev-server-submit',
+
   // --- Terminal ---
   terminalNew: 'terminal-new',
   terminalList: 'terminal-list',

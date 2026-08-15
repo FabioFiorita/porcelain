@@ -5,6 +5,10 @@
  * consequence (TRM-006). Adapters bind transport and React.
  */
 
+export type { DevServerMutationDefinition } from './dev-server-mutations'
+export { devServerMutations, devServersNotificationEffects } from './dev-server-mutations'
+export type { DevServersQuery } from './dev-server-queries'
+export { devServersQuery, devServersQuerySchema } from './dev-server-queries'
 export type { TerminalMutation, TerminalMutationDefinition } from './terminal-mutations'
 export { terminalMutations } from './terminal-mutations'
 export type { TerminalIdentity, TerminalSessionsQuery } from './terminal-queries'

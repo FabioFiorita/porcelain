@@ -55,6 +55,7 @@ usePreferencesStore.subscribe((state, prev) => {
  * - `review.changed` → Review
  * - `board.changed` → Board
  * - `actions.changed` → Terminal
+ * - `terminal.dev-servers-changed` → no dot (the Servers list is already live)
  * - tree / working-tree / content → Changes
  * - scope-only config → no dot
  */
@@ -73,6 +74,10 @@ export function unreadTabFor(change: SessionChange): UnreadTab | null {
       return 'changes'
     case 'files.scope-changed':
       // Nav/grouping config — live-refresh without a rail unread dot.
+      return null
+    case 'terminal.dev-servers-changed':
+      // A server you started yourself starting, printing a URL, or dying is not an unread
+      // message — the Servers list is already live. No rail dot.
       return null
   }
 }

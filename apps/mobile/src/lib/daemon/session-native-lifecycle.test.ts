@@ -33,6 +33,17 @@ function readyFrame(epoch = EPOCH) {
   return { t: 'session:ready', protocolVersion: PROTOCOL_VERSION, epoch }
 }
 
+/** One valid change of the requested kind — the extra fields some kinds require included. */
+function buildChange(kind: SessionChange['kind'], projectPath: string): SessionChange {
+  if (kind === 'files.tree-changed' || kind === 'files.content-changed') {
+    return { kind, projectPath, paths: [`${projectPath}/src`] }
+  }
+  if (kind === 'terminal.dev-servers-changed') {
+    return { kind, projectPath, projectId: 'project-1', worktreeId: 'worktree-1' }
+  }
+  return { kind, projectPath }
+}
+
 function changeFrame({
   epoch = EPOCH,
   sequence,
@@ -44,10 +55,7 @@ function changeFrame({
   kind?: SessionChange['kind']
   projectPath?: string
 }): unknown {
-  const change: SessionChange =
-    kind === 'files.tree-changed' || kind === 'files.content-changed'
-      ? { kind, projectPath, paths: [`${projectPath}/src`] }
-      : { kind, projectPath }
+  const change: SessionChange = buildChange(kind, projectPath)
   return { t: 'session:change', epoch, sequence, change }
 }
 

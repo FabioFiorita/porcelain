@@ -40,7 +40,7 @@ import { handleCanvasRequest } from './net/canvas-http'
 import { daemonIdentity } from './net/daemon-identity'
 import { rendererDistExists, serveStatic } from './net/static-server'
 import { watchAgentChannels, watchProjectCompanion } from './review/review-watch'
-import { createSession } from './session/live-session'
+import { createSession, publishSessionChange } from './session/live-session'
 
 /**
  * The daemon entry point — the Electron-free half of Porcelain, forked by the shell
@@ -141,6 +141,7 @@ async function main(): Promise<void> {
   const terminal = createTerminalOperations({
     pty: createPtyAdapter({ environment: terminalEnvironment }),
     paste: createTerminalPasteAdapter({ root: porcelainHomePath('terminal-pastes') }),
+    publishChange: publishSessionChange,
   })
   const projects = createProjectsOperations({
     projects: createNodeProjectsPort(),

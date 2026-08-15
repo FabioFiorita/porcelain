@@ -68,6 +68,11 @@ export function terminalPasteFailureMessage(error: unknown, kind: 'image' | 'fil
     case 'terminal.invalid-size':
       return tooLarge
     case 'terminal.paste-unavailable':
+    case 'terminal.dev-server-not-found':
+    case 'terminal.dev-server-target':
+    case 'terminal.dev-server-running':
+      // Development-server failures answer tRPC calls, never a paste. Listed so the switch
+      // stays exhaustive over the Terminal error union.
       return writeFailed
   }
 }

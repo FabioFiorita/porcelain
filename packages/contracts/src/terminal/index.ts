@@ -1,4 +1,6 @@
+export * from './dev-server.contract'
 export * from './terminal.contract'
 export * from './terminal.errors'
+export * from './terminal.notifications'
 export { type TerminalProcedureName, terminalProcedures } from './terminal.procedures'
 export * from './terminal.stream'

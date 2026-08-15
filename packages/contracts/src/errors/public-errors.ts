@@ -30,6 +30,9 @@ import {
 } from '../projects'
 import { reviewCommentNotFoundErrorSchema, reviewUnavailableErrorSchema } from '../review'
 import {
+  devServerNotFoundErrorSchema,
+  devServerRunningErrorSchema,
+  devServerTargetErrorSchema,
   terminalCapacityErrorSchema,
   terminalExitedErrorSchema,
   terminalInvalidSizeErrorSchema,
@@ -96,6 +99,9 @@ export const publicErrorSchema = z.discriminatedUnion('code', [
   terminalCapacityErrorSchema,
   terminalInvalidSizeErrorSchema,
   terminalPasteUnavailableErrorSchema,
+  devServerNotFoundErrorSchema,
+  devServerTargetErrorSchema,
+  devServerRunningErrorSchema,
 ])
 
 export type PorcelainError = z.infer<typeof publicErrorSchema>

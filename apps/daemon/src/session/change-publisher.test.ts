@@ -24,11 +24,18 @@ function change(projectPath: string): SessionChange {
 function changesForEveryKind(projectPath: string): SessionChange[] {
   return sessionChangeSchema.options.map((option) => {
     const kind = option.shape.kind.value
-    return sessionChangeSchema.parse(
-      kind === 'files.tree-changed' || kind === 'files.content-changed'
-        ? { kind, projectPath, paths: ['a.ts'] }
-        : { kind, projectPath },
-    )
+    if (kind === 'files.tree-changed' || kind === 'files.content-changed') {
+      return sessionChangeSchema.parse({ kind, projectPath, paths: ['a.ts'] })
+    }
+    if (kind === 'terminal.dev-servers-changed') {
+      return sessionChangeSchema.parse({
+        kind,
+        projectPath,
+        projectId: 'project-1',
+        worktreeId: 'worktree-1',
+      })
+    }
+    return sessionChangeSchema.parse({ kind, projectPath })
   })
 }
 
