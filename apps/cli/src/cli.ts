@@ -22,6 +22,7 @@ import {
 import {
   CANVAS_COMMANDS,
   describeCanvases,
+  describePromoteCanvas,
   describeSetCanvas,
   listCanvasesForRepo,
 } from './canvas-file'
@@ -29,11 +30,11 @@ import { answerComment, describeComments, readComments, resolveComment } from '.
 import {
   checkEvidence,
   clearEvidence,
+  describeAssets,
   describeEvidence,
   MAX_HTML_BYTES as EVIDENCE_MAX_HTML_BYTES,
   evidenceOverallStatus,
   getEvidence,
-  listAssets,
   listResults,
   orderResults,
   prepareEvidence,
@@ -43,6 +44,7 @@ import { resolveToolHtml } from './html-input'
 import { describePrepareIntent, listIntent, orderIntent } from './intent-file'
 import { clearLayers, describeLayers, readLayers, setLayers, toLayers } from './layers-file'
 import { describeNotes, readNotes } from './notes-file'
+import { describePromoteOverrides, PROJECT_COMMANDS } from './overlay-file'
 import {
   addReviewFiles,
   clearReview,
@@ -80,7 +82,7 @@ interface CliDeps {
   readStdin?: () => string
 }
 
-const BOOLEAN_FLAGS = new Set(['help', 'version'])
+const BOOLEAN_FLAGS = new Set(['help', 'version', 'tracked'])
 
 interface ParsedArgs {
   positionals: string[]
@@ -330,6 +332,7 @@ export const COMMANDS: NounHelp[] = [
     flags: ['title', 'command', 'where', 'id'],
   },
   CANVAS_COMMANDS,
+  PROJECT_COMMANDS,
   {
     noun: 'notes',
     blurb: "the human's per-repo project notes (read-only)",
@@ -531,20 +534,8 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<string
         ? `No Results documents for ${repo}. Run \`evidence prepare --title "…"\` first, then write .md / .html there.`
         : `Results documents for ${repo}:\n${files.map((f) => `  ${f}`).join('\n')}`
     }
-    case 'evidence assets-list': {
-      const assets = listAssets(repo)
-      if (assets.length === 0) {
-        return `No evidence assets for ${repo}. Drop screenshots in the pack's assets/ directory — \`evidence prepare\` prints the path.`
-      }
-      const rows = assets
-        .map(
-          (a) =>
-            `  ${a.file}  ${(a.bytes / 1024).toFixed(0)} KB${a.warning === undefined ? '' : `  — WARNING: ${a.warning}`}`,
-        )
-        .join('\n')
-      const shown = assets.filter((a) => a.warning === undefined).length
-      return `Evidence assets for ${repo} (${shown} in the gallery of ${assets.length} file(s)):\n${rows}`
-    }
+    case 'evidence assets-list':
+      return describeAssets(repo)
     case 'evidence check': {
       const result = checkEvidence(repo, req('label'), req('status'), opt('detail'))
       const overall = evidenceOverallStatus(result.checks)
@@ -618,6 +609,14 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<string
         sourceDir: req('source-dir'),
         entryFile: opt('entry'),
         id: opt('id'),
+        tracked: flags.has('tracked'),
+      })
+    case 'canvas promote':
+      return describePromoteCanvas(repo, { id: req('id'), worktree: opt('worktree') })
+    case 'project promote-overrides':
+      return describePromoteOverrides(repo, {
+        hidden: splitList(opt('hidden')),
+        pinned: splitList(opt('pinned')),
       })
     case 'notes get':
       return describeNotes(repo, readNotes(repo))

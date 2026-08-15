@@ -1,12 +1,21 @@
 import {
   type CreateHubWorktreeInput,
   type OpenRepoPathInput,
+  type PromoteCanvasInput,
+  type PromoteOverridesInput,
   projectsProcedures,
   type RemoveHubProjectInput,
   type RemoveHubWorktreeInput,
   type RemoveRecentRepoInput,
 } from '@porcelain/contracts/projects'
-import { hubInventoryQuery, type ProjectsQuery, recentProjectsQuery } from './project-queries'
+import {
+  hubInventoryQuery,
+  listCanvasesQuery,
+  overlayQuery,
+  type ProjectsQuery,
+  readCanvasQuery,
+  recentProjectsQuery,
+} from './project-queries'
 
 export type ProjectSelectionEffect = 'select-result' | 'clear-if-selected-input' | 'none'
 
@@ -16,7 +25,9 @@ export type ProjectMutationDefinition<
     | 'removeRecentRepo'
     | 'removeHubProject'
     | 'removeHubWorktree'
-    | 'createHubWorktree',
+    | 'createHubWorktree'
+    | 'promoteCanvas'
+    | 'promoteOverrides',
   TInput,
   TSelectionEffect extends ProjectSelectionEffect,
 > = {
@@ -93,3 +104,35 @@ export const createHubWorktree = {
   CreateHubWorktreeInput,
   'select-result'
 >
+
+/**
+ * Promotion rewrites what the addressed checkout resolves for this Canvas —
+ * tracked wins over the private record on the same id — so both the targeted
+ * list and the untargeted private list go stale, along with the Canvas itself
+ * and that checkout's overlay listing.
+ */
+export const promoteCanvas = {
+  procedure: projectsProcedures.promoteCanvas,
+  procedureName: 'promoteCanvas',
+  affectedQueries: (input: PromoteCanvasInput): readonly ProjectsQuery[] => [
+    listCanvasesQuery(input.projectId, input.path),
+    listCanvasesQuery(input.projectId),
+    readCanvasQuery(input.projectId, input.canvasId, input.path),
+    overlayQuery(input.path),
+  ],
+  optimistic: false,
+  requiresAuthoritativeRefetch: true,
+  selectionEffect: 'none',
+} as const satisfies ProjectMutationDefinition<'promoteCanvas', PromoteCanvasInput, 'none'>
+
+/** Tracking project defaults changes only what that checkout's overlay carries. */
+export const promoteOverrides = {
+  procedure: projectsProcedures.promoteOverrides,
+  procedureName: 'promoteOverrides',
+  affectedQueries: (input: PromoteOverridesInput): readonly ProjectsQuery[] => [
+    overlayQuery(input.path),
+  ],
+  optimistic: false,
+  requiresAuthoritativeRefetch: true,
+  selectionEffect: 'none',
+} as const satisfies ProjectMutationDefinition<'promoteOverrides', PromoteOverridesInput, 'none'>

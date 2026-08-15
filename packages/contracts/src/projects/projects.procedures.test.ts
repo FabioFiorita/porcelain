@@ -14,6 +14,9 @@ const expectedKinds = {
   listCanvases: 'query',
   readCanvas: 'query',
   mintCanvasAccessToken: 'mutation',
+  promoteCanvas: 'mutation',
+  promoteOverrides: 'mutation',
+  listOverlay: 'query',
 } as const
 
 const expectedErrors = {
@@ -39,6 +42,9 @@ const expectedErrors = {
   listCanvases: ['canvas.unavailable'],
   readCanvas: ['canvas.not-found', 'canvas.unavailable'],
   mintCanvasAccessToken: ['canvas.not-found', 'canvas.unavailable'],
+  promoteCanvas: ['canvas.not-found', 'canvas.unavailable', 'projects.overlay-target-invalid'],
+  promoteOverrides: ['projects.unavailable', 'projects.overlay-target-invalid'],
+  listOverlay: ['projects.unavailable'],
 } as const
 
 const invalidInputs = {
@@ -53,6 +59,11 @@ const invalidInputs = {
   listCanvases: { projectId: '' },
   readCanvas: { projectId: 'proj-alpha' },
   mintCanvasAccessToken: { projectId: 'proj-alpha' },
+  // Every promotion needs an explicit target checkout — a missing `path` is a
+  // rejected request, never a guessed one.
+  promoteCanvas: { projectId: 'proj-alpha', canvasId: 'canvas-intent' },
+  promoteOverrides: { projectId: 'proj-alpha' },
+  listOverlay: { path: '' },
 } as const
 
 const invalidOutputs = {
@@ -71,10 +82,13 @@ const invalidOutputs = {
   listCanvases: [{ id: 'canvas-a', title: 'Intent', kind: 'pdf' }],
   readCanvas: { record: { id: 'canvas-a' }, content: 42 },
   mintCanvasAccessToken: { token: 42 },
+  promoteCanvas: { record: { id: 'canvas-a' }, bundlePath: 42 },
+  promoteOverrides: { hiddenPaths: ['a'], pinnedPaths: [], worktrees: { main: {} } },
+  listOverlay: { path: '/x', present: 'yes', canvases: [], overrides: null },
 } as const
 
 describe('Projects procedure contracts', () => {
-  it('declares all eleven procedures with their router kinds', () => {
+  it('declares every Projects procedure with its router kind', () => {
     expect(Object.keys(projectsProcedures).sort()).toEqual(Object.keys(expectedKinds).sort())
     for (const [name, kind] of Object.entries(expectedKinds)) {
       expect(projectsProcedures[name as keyof typeof projectsProcedures].kind).toBe(kind)

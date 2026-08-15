@@ -6,6 +6,7 @@ import { canvasBundleDir, canvasIndexPath } from '@shared/canvas-porcelain'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createCanvasAccessTokens } from './canvas-access-tokens'
 import { type CanvasOperations, createCanvasOperations } from './canvas-operations'
+import { createCanvasOverlayStore } from './canvas-overlay-store'
 import { createCanvasStore, type StoredCanvas } from './canvas-store'
 
 let homeDir = ''
@@ -41,7 +42,9 @@ beforeEach(async () => {
   homeDir = await mkdtemp(join(tmpdir(), 'porcelain-canvas-ops-'))
   operations = createCanvasOperations({
     store: createCanvasStore({ homeDir }),
+    overlay: createCanvasOverlayStore(),
     accessTokens: createCanvasAccessTokens(),
+    worktrees: { listWorktrees: async () => ({ ok: true, value: [] }) },
   })
   vi.spyOn(console, 'error').mockImplementation(() => undefined)
 })
@@ -65,6 +68,7 @@ describe('Canvas operations', () => {
           kind: 'html',
           createdAt: '2026-08-15T00:00:00.000Z',
           updatedAt: '2026-08-15T09:00:00.000Z',
+          tracked: false,
         },
         {
           id: 'canvas-md',
@@ -73,6 +77,7 @@ describe('Canvas operations', () => {
           kind: 'markdown',
           createdAt: '2026-08-15T00:00:00.000Z',
           updatedAt: '2026-08-15T01:00:00.000Z',
+          tracked: false,
         },
       ],
     })
@@ -103,6 +108,7 @@ describe('Canvas operations', () => {
           kind: 'markdown',
           createdAt: '2026-08-15T00:00:00.000Z',
           updatedAt: '2026-08-15T01:00:00.000Z',
+          tracked: false,
         },
         content: '# Notes\n\n![shot](shot.png)',
       },

@@ -5,6 +5,11 @@ import type {
   CreateHubWorktreeInput,
   HubInventory,
   HubWorktree,
+  ListOverlayOutput,
+  ProjectOverrides,
+  PromoteCanvasInput,
+  PromoteCanvasOutput,
+  PromoteOverridesInput,
   ReadCanvasOutput,
   RemoveHubProjectInput,
   RemoveHubWorktreeInput,
@@ -26,6 +31,9 @@ type ProjectsClient = Pick<
   | 'listCanvases'
   | 'readCanvas'
   | 'mintCanvasAccessToken'
+  | 'promoteCanvas'
+  | 'promoteOverrides'
+  | 'listOverlay'
 >
 
 /** Read the daemon's authoritative Project summary through the Projects boundary. */
@@ -94,20 +102,26 @@ export async function createHubWorktreeOnDaemon(
   )
 }
 
-/** List the Canvases recorded for one Project, newest-updated first. */
+/**
+ * List the Canvases recorded for one Project, newest-updated first. With
+ * `worktreePath` the addressed checkout's tracked overlay is merged over the
+ * private records (tracked wins on the same id); without it only private
+ * records are listed.
+ */
 export async function listCanvasesOnDaemon(
   client: ProjectsClient,
   projectId: string,
+  worktreePath?: string,
 ): Promise<readonly CanvasRecord[]> {
   return projectsProcedures.listCanvases.output.parse(
-    await client.listCanvases.query({ projectId }),
+    await client.listCanvases.query({ projectId, worktreePath }),
   )
 }
 
 /** Read one Canvas — HTML content is already server-inlined (images/CSS/scripts). */
 export async function readCanvasOnDaemon(
   client: ProjectsClient,
-  input: { projectId: string; canvasId: string },
+  input: { projectId: string; canvasId: string; worktreePath?: string },
 ): Promise<ReadCanvasOutput> {
   return projectsProcedures.readCanvas.output.parse(await client.readCanvas.query(input))
 }
@@ -115,10 +129,40 @@ export async function readCanvasOnDaemon(
 /** Mint the short-lived token the sandboxed Canvas iframe's GET /canvas/<token> needs. */
 export async function mintCanvasAccessTokenOnDaemon(
   client: ProjectsClient,
-  input: { projectId: string; canvasId: string },
+  input: { projectId: string; canvasId: string; worktreePath?: string },
 ): Promise<string> {
   const result = projectsProcedures.mintCanvasAccessToken.output.parse(
     await client.mintCanvasAccessToken.mutate(input),
   )
   return result.token
+}
+
+/**
+ * Promote one private Canvas into the explicitly addressed checkout's Git
+ * overlay. `path` is never guessed by the daemon: a path that is not a live
+ * Worktree of this Project is rejected (`projects.overlay-target-invalid`).
+ */
+export async function promoteCanvasOnDaemon(
+  client: ProjectsClient,
+  input: PromoteCanvasInput,
+): Promise<PromoteCanvasOutput> {
+  return projectsProcedures.promoteCanvas.output.parse(await client.promoteCanvas.mutate(input))
+}
+
+/** Track the current project defaults into the addressed checkout's `.porcelain/`. */
+export async function promoteOverridesOnDaemon(
+  client: ProjectsClient,
+  input: PromoteOverridesInput,
+): Promise<ProjectOverrides> {
+  return projectsProcedures.promoteOverrides.output.parse(
+    await client.promoteOverrides.mutate(input),
+  )
+}
+
+/** Read what one checkout's tracked `.porcelain/` overlay currently carries. */
+export async function listOverlayOnDaemon(
+  client: ProjectsClient,
+  path: string,
+): Promise<ListOverlayOutput> {
+  return projectsProcedures.listOverlay.output.parse(await client.listOverlay.query({ path }))
 }

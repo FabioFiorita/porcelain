@@ -7,6 +7,7 @@ Companion data lives in `<repo>/.porcelain/`. **Where it lives never changes; on
 ## Contents
 
 - **The three layers** — the whole model in one table
+- **Layer 0 — the Git overlay**: what promotion puts in the repo, and the verbs that do it
 - **Layer 1 — the clone exclude** (`info/exclude`), and how to lift it
 - **Layer 2 — the managed block** in `.porcelain/.gitignore`
 - **Layer 3 — publishing one review** past the ignore rule
@@ -17,11 +18,52 @@ Companion data lives in `<repo>/.porcelain/`. **Where it lives never changes; on
 
 | Layer | Where | Scope | Question |
 |---|---|---|---|
+| **Git overlay** | `.porcelain/canvases/`, `.porcelain/project.json` | Per promoted item | What did someone deliberately put in the repo? |
 | **Clone exclude** | `$GIT_COMMON_DIR/info/exclude` | Whole clone, every worktree | Is Porcelain visible to git here at all? |
 | **Managed block** | `.porcelain/.gitignore` | Per channel | Once visible, what is shared? |
 | **Always-ignored** | same file, same block | Fixed | Derived + in-flight state, never shared |
 
 Later rules win, and **git cannot re-include a path whose parent directory is excluded** — that single fact explains most of the layout below.
+
+## Layer 0 — the Git overlay
+
+Canvases and Project defaults live in the **daemon's private store**, not in the repo. `.porcelain/`
+appears in a working tree only when someone **promotes** something into it. Promotion is always
+explicit, always names a target checkout, and always writes plain files — it never runs `git add`
+and never commits. You decide when the result enters history.
+
+| Promoted | Path | Verb |
+|---|---|---|
+| A Canvas bundle | `.porcelain/canvases/<id>/` (files + `canvas.json`) | `canvas promote --id <id>` |
+| Project defaults | `.porcelain/project.json` (`hiddenPaths`, `pinnedPaths`, `worktrees`) | `project promote-overrides` |
+
+```bash
+# Move one private Canvas into this checkout's overlay (default target: this repo)
+~/.porcelain/porcelain canvas promote --id <canvas-id>
+~/.porcelain/porcelain canvas promote --id <canvas-id> --worktree /abs/path/to/checkout
+
+# Track the current hidden/pinned defaults so a clone starts focused the same way
+~/.porcelain/porcelain project promote-overrides
+~/.porcelain/porcelain project promote-overrides --hidden apps/legacy --pinned apps/web,apps/api
+
+# Update a Canvas that is ALREADY tracked — writes the tracked path on purpose
+~/.porcelain/porcelain canvas set --tracked --id <canvas-id> \
+  --title 'Architecture' --kind html --source-dir /abs/dir
+```
+
+**A promoted Canvas is canonical.** Promotion *moves* the bundle: the private copy is deleted, so a
+tracked and a private version can never drift apart. Tracked wins over private for the same id, and
+Porcelain never writes back into a tracked bundle on its own — `canvas set --tracked` is the only
+way to change one, and it is something you do deliberately.
+
+Two consequences worth remembering:
+
+- **Opening a repository creates nothing.** If you have not promoted, `.porcelain/` does not exist
+  and `git status` is untouched. Do not create it by hand to "set things up".
+- **A promoted Canvas is third-party code once it can be cloned.** Porcelain serves it with
+  `script-src` pinned to its own link bridge, so author scripts in a tracked Canvas do not run.
+  Keep tracked Canvases to markup, CSS, images, and links; put anything interactive in a private
+  Canvas instead.
 
 ## Layer 1 — the clone exclude
 
@@ -35,10 +77,17 @@ grep -n porcelain "$(git rev-parse --git-common-dir)/info/exclude"
 **To start sharing, remove that line.** Either edit the file, or let the human flip any channel to Shared in Settings › Data, which removes it for them.
 
 ```bash
-# Make the companion visible to git in this clone (idempotent)
+# Make the WHOLE companion visible to git in this clone (idempotent)
 EX="$(git rev-parse --git-common-dir)/info/exclude"
-grep -v '^\.porcelain/$' "$EX" > "$EX.tmp" && mv "$EX.tmp" "$EX"
+grep -vE '^\.porcelain/?\*?$|^!\.porcelain/' "$EX" > "$EX.tmp" && mv "$EX.tmp" "$EX"
 ```
+
+**Promotion rewrites this line rather than removing it.** The blanket `.porcelain/` becomes
+`.porcelain/*` plus one negation per overlay path (`!.porcelain/canvases/`,
+`!.porcelain/project.json`). Git will not descend into an excluded *directory*, so no negation under
+the blanket form could ever be reached; excluding the contents instead makes the promoted paths
+visible while every other channel stays exactly as hidden as before. A repo that already tracks its
+companion is left alone.
 
 While the exclude is in place, **negation rules inside `.porcelain/.gitignore` do nothing** — the parent is excluded, so git never descends to read them. `git add -f` still reaches through, which is how publishing one review works from an otherwise hidden companion.
 

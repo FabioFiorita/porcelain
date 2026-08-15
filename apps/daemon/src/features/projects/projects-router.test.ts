@@ -17,7 +17,11 @@ const CANVAS_RECORD = {
   kind: 'html' as const,
   createdAt: '2026-08-15T00:00:00.000Z',
   updatedAt: '2026-08-15T00:00:00.000Z',
+  tracked: false,
 }
+
+const TRACKED_RECORD = { ...CANVAS_RECORD, worktreeId: null, tracked: true }
+const OVERRIDES = { hiddenPaths: ['apps/legacy'], pinnedPaths: [], worktrees: {} }
 
 const operations = {
   openProject: vi.fn<ProjectsOperations['openProject']>(async () => ({
@@ -80,6 +84,23 @@ const operations = {
     ok: true as const,
     value: { token: 'synthetic-token' },
   })),
+  promoteCanvas: vi.fn<ProjectsOperations['promoteCanvas']>(async () => ({
+    ok: true as const,
+    value: { record: TRACKED_RECORD, bundlePath: '/projects/alpha/.porcelain/canvases/canvas-1' },
+  })),
+  promoteOverrides: vi.fn<ProjectsOperations['promoteOverrides']>(async () => ({
+    ok: true as const,
+    value: OVERRIDES,
+  })),
+  listOverlay: vi.fn<ProjectsOperations['listOverlay']>(async () => ({
+    ok: true as const,
+    value: {
+      path: '/projects/alpha',
+      present: true,
+      canvases: [TRACKED_RECORD],
+      overrides: OVERRIDES,
+    },
+  })),
 } satisfies ProjectsOperations
 
 const router = createProjectsRouter(operations)
@@ -114,7 +135,7 @@ beforeEach(() => {
 })
 
 describe('Projects router contract boundary', () => {
-  it('binds all eleven procedures to the catalog and returns strict outputs', async () => {
+  it('binds every Projects procedure to the catalog and returns strict outputs', async () => {
     expect(await caller().openRepoPath('/projects/alpha')).toEqual(PROJECT)
     expect(await caller().recentRepos()).toEqual([PROJECT])
     expect(await caller().removeRecentRepo('/projects/old')).toBeUndefined()
@@ -149,6 +170,25 @@ describe('Projects router contract boundary', () => {
     expect(
       await caller().mintCanvasAccessToken({ projectId: 'proj-1', canvasId: 'canvas-1' }),
     ).toEqual({ token: 'synthetic-token' })
+    expect(
+      await caller().promoteCanvas({
+        projectId: 'proj-1',
+        canvasId: 'canvas-1',
+        path: '/projects/alpha',
+      }),
+    ).toEqual({
+      record: TRACKED_RECORD,
+      bundlePath: '/projects/alpha/.porcelain/canvases/canvas-1',
+    })
+    expect(
+      await caller().promoteOverrides({ projectId: 'proj-1', path: '/projects/alpha' }),
+    ).toEqual(OVERRIDES)
+    expect(await caller().listOverlay({ path: '/projects/alpha' })).toEqual({
+      path: '/projects/alpha',
+      present: true,
+      canvases: [TRACKED_RECORD],
+      overrides: OVERRIDES,
+    })
     expect(Object.keys(procedureCatalog)).toContain('hubInventory')
   })
 
@@ -186,6 +226,17 @@ describe('Projects router contract boundary', () => {
       'readCanvas',
       'canvas.not-found',
       () => caller().readCanvas({ projectId: 'proj-1', canvasId: 'missing' }),
+    ],
+    [
+      'promoteCanvas',
+      'promoteCanvas',
+      'projects.overlay-target-invalid',
+      () =>
+        caller().promoteCanvas({
+          projectId: 'proj-1',
+          canvasId: 'canvas-1',
+          path: '/somewhere/else',
+        }),
     ],
   ] as const)('maps %s operation failures to typed public errors', async (_procedure, operation, code, run) => {
     const method = operations[operation]

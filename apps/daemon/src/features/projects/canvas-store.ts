@@ -1,29 +1,13 @@
-import { readFile, realpath, stat } from 'node:fs/promises'
-import { resolve } from 'node:path'
-import { canvasBundleDir, canvasIndexPath, isInsideDir } from '@shared/canvas-porcelain'
+import { rm } from 'node:fs/promises'
+import { canvasBundleDir, canvasIndexPath } from '@shared/canvas-porcelain'
 import { z } from 'zod'
 import {
   createStrictJsonDocument,
   type ReadStrictJsonDocument,
 } from '../../project-data/strict-json-document'
+import { readCanvasBundleEntry, type StoredCanvas, storedCanvasSchema } from './canvas-bundle'
 
 export const CANVAS_INDEX_FILE_MAX_BYTES = 512 * 1024
-
-const canvasKindSchema = z.enum(['html', 'markdown'])
-
-const storedCanvasSchema = z
-  .object({
-    id: z.string().min(1),
-    // null: not scoped to the Worktree that authored it — Canvases outlive a
-    // deleted checkout (ADR 0002), so a Worktree-scoped one must degrade gracefully.
-    worktreeId: z.string().min(1).nullable(),
-    title: z.string().min(1),
-    kind: canvasKindSchema,
-    entryFile: z.string().min(1),
-    createdAt: z.string().min(1),
-    updatedAt: z.string().min(1),
-  })
-  .strict()
 
 const canvasIndexValueSchema = z
   .object({
@@ -31,8 +15,8 @@ const canvasIndexValueSchema = z
   })
   .strict()
 
-export type CanvasKind = z.infer<typeof canvasKindSchema>
-export type StoredCanvas = z.infer<typeof storedCanvasSchema>
+export type { CanvasKind, StoredCanvas } from './canvas-bundle'
+
 type CanvasIndexValue = z.infer<typeof canvasIndexValueSchema>
 
 export type CanvasStoreError =
@@ -54,6 +38,16 @@ export type CanvasEntry = Readonly<{
 export type CanvasStore = Readonly<{
   listCanvases: (projectId: string) => Promise<CanvasStoreResult<StoredCanvas[]>>
   readCanvasEntry: (projectId: string, canvasId: string) => Promise<CanvasStoreResult<CanvasEntry>>
+  /** The private bundle directory — promotion's move source (canvas-overlay-store.ts). */
+  bundleDirFor: (projectId: string, canvasId: string) => string
+  /**
+   * Forget one private Canvas: drop its index record and delete its bundle.
+   *
+   * Promotion calls this AFTER the tracked copy is in place, which is what makes
+   * the tracked file canonical rather than a second editable copy free to
+   * diverge from a private one (ADR 0002 / #26).
+   */
+  forgetCanvas: (projectId: string, canvasId: string) => Promise<CanvasStoreResult<void>>
 }>
 
 function unavailable(): CanvasStoreResult<never> {
@@ -62,10 +56,6 @@ function unavailable(): CanvasStoreResult<never> {
 
 function notFound(): CanvasStoreResult<never> {
   return { ok: false, error: { code: 'canvas.not-found' } }
-}
-
-function outsideBundle(): CanvasStoreResult<never> {
-  return { ok: false, error: { code: 'canvas.entry-outside-bundle' } }
 }
 
 function reportUnavailable(
@@ -85,15 +75,18 @@ function reportUnavailable(
 }
 
 export function createCanvasStore(options: { homeDir: string }): CanvasStore {
-  async function readCanvases(projectId: string): Promise<CanvasStoreResult<StoredCanvas[]>> {
-    const document = createStrictJsonDocument({
+  function indexDocument(projectId: string) {
+    return createStrictJsonDocument({
       path: canvasIndexPath(options.homeDir, projectId),
       valueSchema: canvasIndexValueSchema,
       maxBytes: CANVAS_INDEX_FILE_MAX_BYTES,
     })
+  }
+
+  async function readCanvases(projectId: string): Promise<CanvasStoreResult<StoredCanvas[]>> {
     let result: ReadStrictJsonDocument<CanvasIndexValue>
     try {
-      result = await document.read()
+      result = await indexDocument(projectId).read()
     } catch {
       return unavailable()
     }
@@ -108,6 +101,10 @@ export function createCanvasStore(options: { homeDir: string }): CanvasStore {
   return Object.freeze({
     listCanvases: readCanvases,
 
+    bundleDirFor(projectId: string, canvasId: string): string {
+      return canvasBundleDir(options.homeDir, projectId, canvasId)
+    },
+
     async readCanvasEntry(
       projectId: string,
       canvasId: string,
@@ -117,36 +114,33 @@ export function createCanvasStore(options: { homeDir: string }): CanvasStore {
       const record = listed.value.find((canvas) => canvas.id === canvasId)
       if (record === undefined) return notFound()
 
-      const bundleDirLexical = resolve(canvasBundleDir(options.homeDir, projectId, canvasId))
-      let bundleDirReal: string
-      try {
-        bundleDirReal = await realpath(bundleDirLexical)
-      } catch {
-        return notFound()
+      const bundle = await readCanvasBundleEntry(
+        canvasBundleDir(options.homeDir, projectId, canvasId),
+        record.entryFile,
+      )
+      if (!bundle.ok) {
+        return bundle.error === 'entry-outside-bundle'
+          ? { ok: false, error: { code: 'canvas.entry-outside-bundle' } }
+          : notFound()
       }
+      return { ok: true, value: { record, ...bundle.value } }
+    },
 
-      // Lexical pre-gate against the declared bundle dir, THEN a realpath check
-      // against the resolved bundle dir — a symlinked entryFile cannot smuggle a
-      // read outside the bundle even if it passes the first check.
-      const entryLexical = resolve(bundleDirLexical, record.entryFile)
-      if (!isInsideDir(bundleDirLexical, entryLexical)) return outsideBundle()
-
-      let entryReal: string
+    async forgetCanvas(projectId: string, canvasId: string): Promise<CanvasStoreResult<void>> {
+      const listed = await readCanvases(projectId)
+      if (!listed.ok) return listed
+      const remaining = listed.value.filter((canvas) => canvas.id !== canvasId)
+      if (remaining.length === listed.value.length) return notFound()
       try {
-        entryReal = await realpath(entryLexical)
+        await indexDocument(projectId).write({ canvases: remaining })
+        await rm(canvasBundleDir(options.homeDir, projectId, canvasId), {
+          recursive: true,
+          force: true,
+        })
       } catch {
-        return notFound()
+        return unavailable()
       }
-      if (!isInsideDir(bundleDirReal, entryReal)) return outsideBundle()
-
-      try {
-        const info = await stat(entryReal)
-        if (!info.isFile()) return notFound()
-        const content = await readFile(entryReal, 'utf8')
-        return { ok: true, value: { record, bundleDir: bundleDirReal, content } }
-      } catch {
-        return notFound()
-      }
+      return { ok: true, value: undefined }
     },
   })
 }

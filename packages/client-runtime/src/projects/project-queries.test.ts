@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   hubInventoryQuery,
   listCanvasesQuery,
+  overlayQuery,
   projectDirectoriesQuery,
   projectsQuerySchema,
   readCanvasQuery,
@@ -66,6 +67,7 @@ describe('Project query identities', () => {
       domain: 'projects',
       name: 'canvases',
       projectId: 'proj-1',
+      worktreePath: null,
     })
     expect(listCanvasesQuery('proj-1')).not.toEqual(listCanvasesQuery('proj-2'))
   })
@@ -76,13 +78,40 @@ describe('Project query identities', () => {
       name: 'canvas',
       projectId: 'proj-1',
       canvasId: 'canvas-1',
+      worktreePath: null,
     })
+  })
+
+  it('separates the same Canvas addressed through different checkouts', () => {
+    expect(listCanvasesQuery('proj-1', '/repo-a')).not.toEqual(
+      listCanvasesQuery('proj-1', '/repo-b'),
+    )
+    expect(listCanvasesQuery('proj-1', '/repo-a')).not.toEqual(listCanvasesQuery('proj-1'))
+    expect(readCanvasQuery('proj-1', 'canvas-1', '/repo-a')).not.toEqual(
+      readCanvasQuery('proj-1', 'canvas-1', '/repo-b'),
+    )
+    expect(readCanvasQuery('proj-1', 'canvas-1', '/repo-a').worktreePath).toBe('/repo-a')
+  })
+
+  it('builds the overlay identity from the checkout path alone', () => {
+    expect(overlayQuery('/repo-a')).toEqual({
+      domain: 'projects',
+      name: 'overlay',
+      path: '/repo-a',
+    })
+    expect(
+      projectsQuerySchema.safeParse({ domain: 'projects', name: 'overlay', path: '' }).success,
+    ).toBe(false)
   })
 
   it('rejects an empty Project or Canvas id on the Canvas identities', () => {
     expect(
-      projectsQuerySchema.safeParse({ domain: 'projects', name: 'canvases', projectId: '' })
-        .success,
+      projectsQuerySchema.safeParse({
+        domain: 'projects',
+        name: 'canvases',
+        projectId: '',
+        worktreePath: null,
+      }).success,
     ).toBe(false)
     expect(
       projectsQuerySchema.safeParse({
@@ -90,6 +119,22 @@ describe('Project query identities', () => {
         name: 'canvas',
         projectId: 'proj-1',
         canvasId: '',
+        worktreePath: null,
+      }).success,
+    ).toBe(false)
+  })
+
+  it('rejects a Canvas identity that omits or empties the checkout dimension', () => {
+    expect(
+      projectsQuerySchema.safeParse({ domain: 'projects', name: 'canvases', projectId: 'proj-1' })
+        .success,
+    ).toBe(false)
+    expect(
+      projectsQuerySchema.safeParse({
+        domain: 'projects',
+        name: 'canvases',
+        projectId: 'proj-1',
+        worktreePath: '',
       }).success,
     ).toBe(false)
   })

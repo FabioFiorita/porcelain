@@ -123,7 +123,14 @@ function PaneContent({ tab, paneIndex }: { tab: Tab; paneIndex: number }): React
       if (tab.target === undefined) {
         return <p className="p-4 text-sm text-muted-foreground">This Canvas tab has no target.</p>
       }
-      return <CanvasView key={tab.id} projectId={tab.target.projectId} canvasId={tab.path} />
+      return (
+        <CanvasView
+          key={tab.id}
+          projectId={tab.target.projectId}
+          canvasId={tab.path}
+          worktreePath={tab.target.path}
+        />
+      )
   }
 }
 

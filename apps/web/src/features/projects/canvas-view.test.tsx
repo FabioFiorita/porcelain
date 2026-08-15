@@ -16,6 +16,7 @@ const HTML_RECORD: ReadCanvasOutput['record'] = {
   kind: 'html',
   createdAt: '2026-08-15T00:00:00.000Z',
   updatedAt: '2026-08-15T09:00:00.000Z',
+  tracked: false,
 }
 
 const MARKDOWN_RECORD: ReadCanvasOutput['record'] = { ...HTML_RECORD, kind: 'markdown' }

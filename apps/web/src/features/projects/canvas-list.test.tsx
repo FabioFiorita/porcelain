@@ -1,15 +1,30 @@
 import type { HubTarget } from '@porcelain/client-runtime/projects'
 import type { CanvasRecord } from '@porcelain/contracts/projects'
 import { SidebarProvider } from '@renderer/components/ui/sidebar'
+import { useFilesScope } from '@renderer/features/files'
 import { useHubSelectionStore } from '@renderer/stores/hub-selection'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { TestIds } from '@shared/test-ids'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { CanvasList } from './canvas-list'
-import { useCanvasList } from './project-data'
+import {
+  useCanvasList,
+  useProjectOverlay,
+  usePromoteCanvas,
+  usePromoteProjectOverrides,
+} from './project-data'
 
-vi.mock('./project-data', () => ({ useCanvasList: vi.fn() }))
+// The domain seam: the Projects data hooks. Transport, tRPC, and the daemon
+// stay behind it — this file is about what the human can and cannot do.
+vi.mock('./project-data', () => ({
+  useCanvasList: vi.fn(),
+  useProjectOverlay: vi.fn(),
+  usePromoteCanvas: vi.fn(),
+  usePromoteProjectOverrides: vi.fn(),
+}))
+
+vi.mock('@renderer/features/files', () => ({ useFilesScope: vi.fn() }))
 
 function renderList(): void {
   render(
@@ -33,12 +48,30 @@ const RECORD: CanvasRecord = {
   kind: 'html',
   createdAt: '2026-08-15T00:00:00.000Z',
   updatedAt: '2026-08-15T09:00:00.000Z',
+  tracked: false,
 }
 
+const TRACKED: CanvasRecord = { ...RECORD, id: 'canvas-2', title: 'Shipped', tracked: true }
+
 describe('CanvasList', () => {
+  const promoteCanvas = vi.fn(async () => ({ record: TRACKED, bundlePath: '/repo/.porcelain' }))
+  const promoteOverrides = vi.fn(async () => ({
+    hiddenPaths: [],
+    pinnedPaths: [],
+    worktrees: {},
+  }))
+
   beforeEach(() => {
+    vi.clearAllMocks()
     useTabsStore.setState({ panes: [{ tabs: [], activeTabId: null }], activePaneIndex: 0 })
     useHubSelectionStore.setState({ selection: { kind: 'home' } })
+    vi.mocked(useProjectOverlay).mockReturnValue(undefined)
+    vi.mocked(useFilesScope).mockReturnValue({ hiddenPaths: ['apps/legacy'], pinnedPaths: [] })
+    vi.mocked(usePromoteCanvas).mockReturnValue({ promote: promoteCanvas, isPending: false })
+    vi.mocked(usePromoteProjectOverrides).mockReturnValue({
+      promote: promoteOverrides,
+      isPending: false,
+    })
   })
 
   it('asks the user to select a Worktree with no Hub target', () => {
@@ -97,5 +130,85 @@ describe('CanvasList', () => {
     if (pane === undefined) throw new Error('expected pane 0')
     const opened = pane.tabs.find((t) => t.kind === 'canvas')
     expect(opened?.target).toEqual(TARGET)
+  })
+
+  it('reads the Canvas list through the selected Worktree checkout', () => {
+    useHubSelectionStore.setState({ selection: { kind: 'worktree', ...TARGET } })
+    vi.mocked(useCanvasList).mockReturnValue([RECORD])
+    renderList()
+    expect(useCanvasList).toHaveBeenCalledWith('proj-1', '/repo')
+  })
+
+  it('badges a tracked Canvas and offers it no promotion', () => {
+    useHubSelectionStore.setState({ selection: { kind: 'worktree', ...TARGET } })
+    vi.mocked(useCanvasList).mockReturnValue([TRACKED])
+    renderList()
+
+    expect(screen.getByTestId(TestIds.canvasListTracked('canvas-2'))).toHaveTextContent('Tracked')
+    expect(screen.queryByTestId(TestIds.canvasListMenu('canvas-2'))).toBeNull()
+    expect(screen.queryByTestId(TestIds.canvasListPromote('canvas-2'))).toBeNull()
+  })
+
+  it('offers promotion on a private Canvas and never badges it tracked', async () => {
+    useHubSelectionStore.setState({ selection: { kind: 'worktree', ...TARGET } })
+    vi.mocked(useCanvasList).mockReturnValue([RECORD])
+    renderList()
+
+    expect(screen.queryByTestId(TestIds.canvasListTracked('canvas-1'))).toBeNull()
+    fireEvent.click(screen.getByTestId(TestIds.canvasListMenu('canvas-1')))
+    expect(await screen.findByTestId(TestIds.canvasListPromote('canvas-1'))).toBeInTheDocument()
+  })
+
+  it('promotes only after an explicit confirmation naming the target checkout', async () => {
+    useHubSelectionStore.setState({ selection: { kind: 'worktree', ...TARGET } })
+    vi.mocked(useCanvasList).mockReturnValue([RECORD])
+    renderList()
+
+    fireEvent.click(screen.getByTestId(TestIds.canvasListMenu('canvas-1')))
+    fireEvent.click(await screen.findByTestId(TestIds.canvasListPromote('canvas-1')))
+    // Opening the confirmation must not have promoted anything on its own.
+    expect(promoteCanvas).not.toHaveBeenCalled()
+
+    const confirm = await screen.findByTestId(TestIds.canvasPromoteConfirm)
+    expect(confirm).toHaveTextContent('/repo')
+    fireEvent.click(confirm)
+
+    await waitFor(() =>
+      expect(promoteCanvas).toHaveBeenCalledWith({
+        projectId: 'proj-1',
+        canvasId: 'canvas-1',
+        path: '/repo',
+        worktreeId: 'wt-1',
+      }),
+    )
+  })
+
+  it('offers no promotion affordance at all without a selected Worktree', () => {
+    vi.mocked(useCanvasList).mockReturnValue([RECORD])
+    renderList()
+
+    expect(screen.queryByTestId(TestIds.canvasListMenu('canvas-1'))).toBeNull()
+    expect(screen.queryByTestId(TestIds.canvasListPromote('canvas-1'))).toBeNull()
+    expect(screen.queryByTestId(TestIds.canvasTrackDefaults)).toBeNull()
+  })
+
+  it('tracks the current project defaults into the selected checkout on confirm', async () => {
+    useHubSelectionStore.setState({ selection: { kind: 'worktree', ...TARGET } })
+    vi.mocked(useCanvasList).mockReturnValue([RECORD])
+    renderList()
+
+    fireEvent.click(screen.getByTestId(TestIds.canvasTrackDefaults))
+    expect(promoteOverrides).not.toHaveBeenCalled()
+
+    fireEvent.click(await screen.findByTestId(TestIds.canvasTrackDefaultsConfirm))
+
+    await waitFor(() =>
+      expect(promoteOverrides).toHaveBeenCalledWith({
+        projectId: 'proj-1',
+        path: '/repo',
+        hiddenPaths: ['apps/legacy'],
+        pinnedPaths: [],
+      }),
+    )
   })
 })

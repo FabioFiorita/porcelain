@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { createServer, type Server } from 'node:http'
 import { describe, expect, it, vi } from 'vitest'
+import { CANVAS_BRIDGE_SCRIPT_HASH } from '../features/projects'
 import { type CanvasHttpDeps, canvasTokenFromUrl, handleCanvasRequest } from './canvas-http'
 
 describe('canvasTokenFromUrl', () => {
@@ -33,11 +34,16 @@ describe('handleCanvasRequest', () => {
     kind: 'html' as const,
     createdAt: '2026-08-15T00:00:00.000Z',
     updatedAt: '2026-08-15T00:00:00.000Z',
+    tracked: false,
   }
 
   function deps(overrides: Partial<CanvasHttpDeps> = {}): CanvasHttpDeps {
     return {
-      resolveAccessToken: () => ({ projectId: 'proj-1', canvasId: 'canvas-1' }),
+      resolveAccessToken: () => ({
+        projectId: 'proj-1',
+        canvasId: 'canvas-1',
+        worktreePath: null,
+      }),
       readCanvas: async () => ({
         ok: true,
         value: { record: HTML_RECORD, content: '<script>console.log(1)</script>' },
@@ -76,6 +82,49 @@ describe('handleCanvasRequest', () => {
       expect(csp).toContain("script-src 'unsafe-inline'")
       expect(res.headers.get('content-type')).toContain('text/html')
       expect(await res.text()).toBe('<script>console.log(1)</script>')
+    })
+  })
+
+  it('pins script-src to the link bridge alone for a promoted Canvas', async () => {
+    // A tracked Canvas can arrive by clone from another repository (ADR 0002),
+    // so the browser — not a server-side sanitizer — refuses its author scripts.
+    const routeDeps = deps({
+      readCanvas: async () => ({
+        ok: true,
+        value: {
+          record: { ...HTML_RECORD, tracked: true },
+          content: '<script>console.log(1)</script>',
+        },
+      }),
+    })
+    await withServer(routeDeps, async (base) => {
+      const csp = (await fetch(`${base}/canvas/tok`)).headers.get('content-security-policy')
+      expect(csp).toContain(`script-src ${CANVAS_BRIDGE_SCRIPT_HASH}`)
+      expect(csp).not.toContain("script-src 'unsafe-inline'")
+    })
+  })
+
+  it('carries the addressed checkout from the grant into the Canvas read', async () => {
+    // A promoted and a private Canvas can share an id; the token says which one.
+    const readCanvas = vi.fn<CanvasHttpDeps['readCanvas']>(async () => ({
+      ok: true as const,
+      value: { record: HTML_RECORD, content: '<p>hi</p>' },
+    }))
+    const routeDeps = deps({
+      resolveAccessToken: () => ({
+        projectId: 'proj-1',
+        canvasId: 'canvas-1',
+        worktreePath: '/projects/alpha',
+      }),
+      readCanvas,
+    })
+    await withServer(routeDeps, async (base) => {
+      await fetch(`${base}/canvas/tok`)
+    })
+    expect(readCanvas).toHaveBeenCalledWith({
+      projectId: 'proj-1',
+      canvasId: 'canvas-1',
+      worktreePath: '/projects/alpha',
     })
   })
 
@@ -140,7 +189,11 @@ describe('handleCanvasRequest', () => {
     }))
     await withServer(
       deps({
-        resolveAccessToken: () => ({ projectId: 'proj-9', canvasId: 'canvas-9' }),
+        resolveAccessToken: () => ({
+          projectId: 'proj-9',
+          canvasId: 'canvas-9',
+          worktreePath: null,
+        }),
         readCanvas,
       }),
       async (base) => {

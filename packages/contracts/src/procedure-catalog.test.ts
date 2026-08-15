@@ -27,10 +27,10 @@ const domainProcedures = {
   'project-data': projectDataProcedures,
 } as const
 
-const PROCEDURE_COUNT = 124
+const PROCEDURE_COUNT = 127
 
 describe('procedure catalog', () => {
-  it('is frozen and composes exactly 124 unique names in domain order', () => {
+  it('is frozen and composes exactly one entry per domain procedure, in domain order', () => {
     const names = Object.keys(procedureCatalog)
     expect(Object.isFrozen(procedureCatalog)).toBe(true)
     expect(names).toHaveLength(PROCEDURE_COUNT)

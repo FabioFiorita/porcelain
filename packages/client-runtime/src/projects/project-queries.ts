@@ -27,11 +27,21 @@ const hubInventoryQuerySchema = z
   })
   .strict()
 
+/**
+ * The addressed checkout whose tracked `.porcelain/` overlay is merged over the
+ * private records (#26). Part of the cache identity, never a detail: the same
+ * Canvas id resolves to different bytes in different checkouts, so a shared key
+ * would serve one Worktree's promoted copy to another. `null` is the honest
+ * "no checkout addressed" identity — only private records.
+ */
+const worktreePathIdentitySchema = z.string().min(1).nullable()
+
 const listCanvasesQuerySchema = z
   .object({
     domain: z.literal('projects'),
     name: z.literal('canvases'),
     projectId: z.string().min(1),
+    worktreePath: worktreePathIdentitySchema,
   })
   .strict()
 
@@ -41,6 +51,15 @@ const readCanvasQuerySchema = z
     name: z.literal('canvas'),
     projectId: z.string().min(1),
     canvasId: z.string().min(1),
+    worktreePath: worktreePathIdentitySchema,
+  })
+  .strict()
+
+const overlayQuerySchema = z
+  .object({
+    domain: z.literal('projects'),
+    name: z.literal('overlay'),
+    path: z.string().min(1),
   })
   .strict()
 
@@ -49,12 +68,14 @@ export type ProjectDirectoriesQuery = Readonly<z.infer<typeof projectDirectories
 export type HubInventoryQuery = Readonly<z.infer<typeof hubInventoryQuerySchema>>
 export type ListCanvasesQuery = Readonly<z.infer<typeof listCanvasesQuerySchema>>
 export type ReadCanvasQuery = Readonly<z.infer<typeof readCanvasQuerySchema>>
+export type OverlayQuery = Readonly<z.infer<typeof overlayQuerySchema>>
 export type ProjectsQuery = Readonly<
   | z.infer<typeof recentProjectsQuerySchema>
   | z.infer<typeof projectDirectoriesQuerySchema>
   | z.infer<typeof hubInventoryQuerySchema>
   | z.infer<typeof listCanvasesQuerySchema>
   | z.infer<typeof readCanvasQuerySchema>
+  | z.infer<typeof overlayQuerySchema>
 >
 
 export const projectsQuerySchema = z.discriminatedUnion('name', [
@@ -63,6 +84,7 @@ export const projectsQuerySchema = z.discriminatedUnion('name', [
   hubInventoryQuerySchema,
   listCanvasesQuerySchema,
   readCanvasQuerySchema,
+  overlayQuerySchema,
 ])
 
 /** Build the recent-project identity; the worktree flag is part of the cache identity. */
@@ -80,12 +102,24 @@ export function hubInventoryQuery(): HubInventoryQuery {
   return { domain: 'projects', name: 'inventory' }
 }
 
-/** Build the Canvas list identity for one Project. */
-export function listCanvasesQuery(projectId: string): ListCanvasesQuery {
-  return { domain: 'projects', name: 'canvases', projectId }
+/** Build the Canvas list identity for one Project, scoped to the addressed checkout. */
+export function listCanvasesQuery(
+  projectId: string,
+  worktreePath: string | null = null,
+): ListCanvasesQuery {
+  return { domain: 'projects', name: 'canvases', projectId, worktreePath }
 }
 
-/** Build the single-Canvas read identity. */
-export function readCanvasQuery(projectId: string, canvasId: string): ReadCanvasQuery {
-  return { domain: 'projects', name: 'canvas', projectId, canvasId }
+/** Build the single-Canvas read identity, scoped to the addressed checkout. */
+export function readCanvasQuery(
+  projectId: string,
+  canvasId: string,
+  worktreePath: string | null = null,
+): ReadCanvasQuery {
+  return { domain: 'projects', name: 'canvas', projectId, canvasId, worktreePath }
+}
+
+/** Build the identity for what one checkout's tracked `.porcelain/` overlay carries. */
+export function overlayQuery(path: string): OverlayQuery {
+  return { domain: 'projects', name: 'overlay', path }
 }

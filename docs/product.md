@@ -57,6 +57,10 @@ through the CLI. Do not rebuild an in-app agent runner.
   shareable via git when you choose to track it. Tasks are the deliberate exception: they belong
   to the machine, not a checkout, so they live in `$PORCELAIN_HOME/tasks/` and never appear in a
   repository. No Porcelain cloud for your code, no telemetry.
+- **Your repository is yours** — Canvases and Project defaults live in the daemon's private store,
+  not in your working tree. `<repo>/.porcelain/` appears only when you **promote** something into
+  it, and a promoted file is then the one canonical copy: Porcelain indexes it in place, never
+  keeps a competing private version, and never runs `git add` for you.
 
 Open this file when designing features, prioritizing, or writing public identity copy. Day-to-day
 implementation does not need it if root `AGENTS.md` is enough.

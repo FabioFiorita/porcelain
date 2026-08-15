@@ -138,7 +138,7 @@ empty legacy ledgers and no deep-import debt. The gates that protect this archit
 
 - `lint-architecture`: domain paths, package direction, public indexes, file-size ceiling, and
   shrink-only raw-import baselines;
-- `lint-procedure-contracts`: the 120 contract procedures and 120 canonical daemon routes match
+- `lint-procedure-contracts`: the contract procedures and canonical daemon routes match
   one-to-one;
 - `lint-escapes`, `lint-security-boundaries`, and the mobile NativeWind/file-size gates;
 - `lint-docs`, `lint-skill-commands`, `typecheck:tests`, and the repository quality gates.

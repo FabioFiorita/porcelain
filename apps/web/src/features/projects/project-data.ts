@@ -3,11 +3,14 @@ import {
   hubInventoryQuery,
   listCanvasesQuery,
   openProject,
+  overlayQuery,
   type ProjectPath,
   type ProjectSummary,
   type ProjectsQuery,
   projectDirectoriesQuery,
   projectsQuerySchema,
+  promoteCanvas,
+  promoteOverrides,
   readCanvasQuery,
   recentProjectsQuery,
   removeHubProject,
@@ -20,6 +23,11 @@ import type {
   CreateHubWorktreeInput,
   HubInventory,
   HubWorktree,
+  ListOverlayOutput,
+  ProjectOverrides,
+  PromoteCanvasInput,
+  PromoteCanvasOutput,
+  PromoteOverridesInput,
   ReadCanvasOutput,
 } from '@porcelain/contracts/projects'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
@@ -35,8 +43,11 @@ import {
   createHubWorktreeOnDaemon,
   hubInventoryOnDaemon,
   listCanvasesOnDaemon,
+  listOverlayOnDaemon,
   mintCanvasAccessTokenOnDaemon,
   openProjectOnDaemon,
+  promoteCanvasOnDaemon,
+  promoteOverridesOnDaemon,
   readCanvasOnDaemon,
   recentProjectsOnDaemon,
   removeHubProjectOnDaemon,
@@ -270,15 +281,22 @@ export function useCreateHubWorktree(): {
   return { create: mutation.mutateAsync, isPending: mutation.isPending }
 }
 
-/** Canvases for one Project, newest-updated first — the right sidebar's list. */
-export function useCanvasList(projectId: string | null): readonly CanvasRecord[] {
+/**
+ * Canvases for one Project, newest-updated first — the right sidebar's list.
+ * `worktreePath` addresses the checkout whose tracked `.porcelain/` overlay is
+ * merged over the private records, and is part of the cache identity.
+ */
+export function useCanvasList(
+  projectId: string | null,
+  worktreePath: string | null = null,
+): readonly CanvasRecord[] {
   const daemon = useDaemonIdentity()
   const client = trpc.useUtils().client
-  const identity = listCanvasesQuery(projectId ?? '')
+  const identity = listCanvasesQuery(projectId ?? '', worktreePath)
   const query = useQuery({
     enabled: projectId !== null,
     queryFn: async (): Promise<readonly CanvasRecord[]> =>
-      listCanvasesOnDaemon(client, projectId ?? ''),
+      listCanvasesOnDaemon(client, projectId ?? '', worktreePath ?? undefined),
     queryKey: projectsQueryKey(daemon, identity),
   })
   return query.data ?? []
@@ -291,15 +309,20 @@ export function useCanvasList(projectId: string | null): readonly CanvasRecord[]
 export function useCanvas(
   projectId: string | null,
   canvasId: string | null,
+  worktreePath: string | null = null,
 ): { canvas: ReadCanvasOutput | undefined; isLoading: boolean } {
   const daemon = useDaemonIdentity()
   const client = trpc.useUtils().client
   const enabled = projectId !== null && canvasId !== null
-  const identity = readCanvasQuery(projectId ?? '', canvasId ?? '')
+  const identity = readCanvasQuery(projectId ?? '', canvasId ?? '', worktreePath)
   const query = useQuery({
     enabled,
     queryFn: async (): Promise<ReadCanvasOutput> =>
-      readCanvasOnDaemon(client, { projectId: projectId ?? '', canvasId: canvasId ?? '' }),
+      readCanvasOnDaemon(client, {
+        projectId: projectId ?? '',
+        canvasId: canvasId ?? '',
+        worktreePath: worktreePath ?? undefined,
+      }),
     queryKey: projectsQueryKey(daemon, identity),
   })
   return { canvas: query.data, isLoading: enabled && query.isLoading }
@@ -311,12 +334,67 @@ export function useCanvas(
  * gets its own fresh grant, and the daemon sweeps expired ones lazily.
  */
 export function useMintCanvasAccessToken(): {
-  mint: (input: { projectId: string; canvasId: string }) => Promise<string>
+  mint: (input: { projectId: string; canvasId: string; worktreePath?: string }) => Promise<string>
 } {
   const client = trpc.useUtils().client
   const mutation = useMutation({
-    mutationFn: (input: { projectId: string; canvasId: string }) =>
+    mutationFn: (input: { projectId: string; canvasId: string; worktreePath?: string }) =>
       mintCanvasAccessTokenOnDaemon(client, input),
   })
   return { mint: mutation.mutateAsync }
+}
+
+/**
+ * Promote one Canvas into an explicitly addressed checkout's Git overlay. The
+ * caller supplies `path`; there is no "current" checkout to fall back to, and
+ * the daemon rejects a path that is not a live Worktree of this Project.
+ */
+export function usePromoteCanvas(): {
+  promote: (input: PromoteCanvasInput) => Promise<PromoteCanvasOutput>
+  isPending: boolean
+} {
+  const daemon = useDaemonIdentity()
+  const client = trpc.useUtils().client
+  const queryClient = useQueryClient()
+  const mutation = useMutation({
+    mutationFn: async (input: PromoteCanvasInput): Promise<PromoteCanvasOutput> =>
+      promoteCanvasOnDaemon(client, input),
+    onSuccess: async (_result, input) => {
+      await invalidateProjectQueries(queryClient, daemon, promoteCanvas.affectedQueries(input))
+    },
+  })
+  return { isPending: mutation.isPending, promote: mutation.mutateAsync }
+}
+
+/** Track the current project defaults into the addressed checkout's `.porcelain/`. */
+export function usePromoteProjectOverrides(): {
+  promote: (input: PromoteOverridesInput) => Promise<ProjectOverrides>
+  isPending: boolean
+} {
+  const daemon = useDaemonIdentity()
+  const client = trpc.useUtils().client
+  const queryClient = useQueryClient()
+  const mutation = useMutation({
+    mutationFn: async (input: PromoteOverridesInput): Promise<ProjectOverrides> =>
+      promoteOverridesOnDaemon(client, input),
+    onSuccess: async (_result, input) => {
+      await invalidateProjectQueries(queryClient, daemon, promoteOverrides.affectedQueries(input))
+    },
+  })
+  return { isPending: mutation.isPending, promote: mutation.mutateAsync }
+}
+
+/**
+ * What one checkout's tracked `.porcelain/` overlay currently carries. The path
+ * is required: an overlay belongs to a checkout, and there is no daemon-root
+ * fallback to read instead.
+ */
+export function useProjectOverlay(path: string): ListOverlayOutput | undefined {
+  const daemon = useDaemonIdentity()
+  const client = trpc.useUtils().client
+  const query = useQuery({
+    queryFn: async (): Promise<ListOverlayOutput> => listOverlayOnDaemon(client, path),
+    queryKey: projectsQueryKey(daemon, overlayQuery(path)),
+  })
+  return query.data
 }

@@ -31,10 +31,12 @@ function CanvasHtmlFrame({
   projectId,
   canvasId,
   title,
+  worktreePath,
 }: {
   projectId: string
   canvasId: string
   title: string
+  worktreePath: string | undefined
 }): React.JSX.Element {
   const { mint } = useMintCanvasAccessToken()
   const [src, setSrc] = useState<string | null>(null)
@@ -45,7 +47,7 @@ function CanvasHtmlFrame({
     setSrc(null)
     // A failed mint leaves src null — the loading state (never a broken iframe).
     settleBackground(
-      mint({ projectId, canvasId }).then((token) => {
+      mint({ projectId, canvasId, worktreePath }).then((token) => {
         if (!cancelled) setSrc(`${daemonBaseUrl()}/canvas/${token}`)
       }),
       'fallback',
@@ -53,7 +55,7 @@ function CanvasHtmlFrame({
     return () => {
       cancelled = true
     }
-  }, [projectId, canvasId, mint])
+  }, [projectId, canvasId, worktreePath, mint])
 
   useEffect(() => {
     function onMessage(event: MessageEvent): void {
@@ -82,15 +84,21 @@ function CanvasHtmlFrame({
   )
 }
 
-/** Viewer content for a 'canvas' tab. `canvasId` is the tab's `path`. */
+/**
+ * Viewer content for a 'canvas' tab. `canvasId` is the tab's `path`.
+ * `worktreePath` is the tab's target checkout: a promoted Canvas must open from
+ * the tracked source, not the private record it shadows.
+ */
 export function CanvasView({
   projectId,
   canvasId,
+  worktreePath,
 }: {
   projectId: string
   canvasId: string
+  worktreePath?: string
 }): React.JSX.Element {
-  const { canvas, isLoading } = useCanvas(projectId, canvasId)
+  const { canvas, isLoading } = useCanvas(projectId, canvasId, worktreePath ?? null)
 
   if (isLoading || canvas === undefined) {
     return <div className="p-4 text-sm text-muted-foreground">Loading…</div>
@@ -98,5 +106,12 @@ export function CanvasView({
   if (canvas.record.kind === 'markdown') {
     return <MarkdownView content={canvas.content} />
   }
-  return <CanvasHtmlFrame projectId={projectId} canvasId={canvasId} title={canvas.record.title} />
+  return (
+    <CanvasHtmlFrame
+      projectId={projectId}
+      canvasId={canvasId}
+      title={canvas.record.title}
+      worktreePath={worktreePath}
+    />
+  )
 }

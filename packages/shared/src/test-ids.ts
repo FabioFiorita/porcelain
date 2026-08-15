@@ -245,6 +245,17 @@ export const TestIds = {
   canvasList: 'canvas-list',
   canvasListEmpty: 'canvas-list-empty',
   canvasListItem: (id: string): string => `canvas-list-item-${id}`,
+  /** Badge on a Canvas promoted into the checkout's tracked `.porcelain/` overlay (#26). */
+  canvasListTracked: (id: string): string => `canvas-list-tracked-${id}`,
+  /** Per-row actions trigger; only private (untracked) Canvases have one. */
+  canvasListMenu: (id: string): string => `canvas-list-menu-${id}`,
+  /** "Promote to Git…" menu item — opens the explicit-target confirmation. */
+  canvasListPromote: (id: string): string => `canvas-list-promote-${id}`,
+  /** The confirm control that actually promotes, naming the target checkout. */
+  canvasPromoteConfirm: 'canvas-promote-confirm',
+  /** Sidebar entry that tracks the Project's hidden/pinned defaults into the checkout. */
+  canvasTrackDefaults: 'canvas-track-defaults',
+  canvasTrackDefaultsConfirm: 'canvas-track-defaults-confirm',
   /** Sandboxed HTML Canvas iframe — sandbox="allow-scripts", no allow-same-origin. */
   canvasIframe: 'canvas-iframe',
 

@@ -41,6 +41,11 @@ function toRelative(repoPath: string, path: string): string {
   return trimmed.replace(/^\.\//, '')
 }
 
+/** Any accepted path form → the repo-relative form scope.json (and project.json) store. */
+export function relativeScopePath(repoPath: string, path: string): string {
+  return toRelative(repoPath, path)
+}
+
 /** Relative → absolute under repo for display / app parity. */
 export function resolveScopePath(repoPath: string, path: string): string {
   const rel = toRelative(repoPath, path)
@@ -53,6 +58,11 @@ function readDisk(repoPath: string): RepoScope {
 
 function writeDisk(repoPath: string, scope: RepoScope): void {
   writeProjectJson(repoPath, PROJECT_FILES.scope, scope)
+}
+
+/** Scope exactly as stored: repo-relative, which is also project.json's shape. */
+export function readRelativeScope(repoPath: string): RepoScope {
+  return readDisk(repoPath)
 }
 
 /** Scope with absolute paths (for describe / compatibility). */

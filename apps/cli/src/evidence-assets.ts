@@ -126,3 +126,19 @@ export function listAssets(repoPath: string): EvidenceAssetEntry[] {
   }
   return out
 }
+
+/** cli.ts's `evidence assets-list` case body, pulled in whole to keep that file lean. */
+export function describeAssets(repoPath: string): string {
+  const assets = listAssets(repoPath)
+  if (assets.length === 0) {
+    return `No evidence assets for ${repoPath}. Drop screenshots in the pack's assets/ directory — \`evidence prepare\` prints the path.`
+  }
+  const rows = assets
+    .map(
+      (a) =>
+        `  ${a.file}  ${(a.bytes / 1024).toFixed(0)} KB${a.warning === undefined ? '' : `  — WARNING: ${a.warning}`}`,
+    )
+    .join('\n')
+  const shown = assets.filter((a) => a.warning === undefined).length
+  return `Evidence assets for ${repoPath} (${shown} in the gallery of ${assets.length} file(s)):\n${rows}`
+}
