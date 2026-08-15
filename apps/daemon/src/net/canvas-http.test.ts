@@ -1,42 +1,7 @@
 // @vitest-environment node
-import type { IncomingMessage, ServerResponse } from 'node:http'
+import { createServer, type Server } from 'node:http'
 import { describe, expect, it, vi } from 'vitest'
 import { type CanvasHttpDeps, canvasTokenFromUrl, handleCanvasRequest } from './canvas-http'
-
-function fakeReq(method: string, url: string): IncomingMessage {
-  return { method, url } as IncomingMessage
-}
-
-function fakeRes(): ServerResponse & {
-  statusCode: number
-  headers: Record<string, string>
-  body: string
-} {
-  const state = { statusCode: 0, headers: {} as Record<string, string>, body: '' }
-  return {
-    writeHead: vi.fn((status: number, headers?: Record<string, string>) => {
-      state.statusCode = status
-      if (headers) state.headers = headers
-      return state as unknown as ServerResponse
-    }),
-    end: vi.fn((chunk?: string) => {
-      if (typeof chunk === 'string') state.body = chunk
-    }),
-    get statusCode() {
-      return state.statusCode
-    },
-    get headers() {
-      return state.headers
-    },
-    get body() {
-      return state.body
-    },
-  } as unknown as ServerResponse & {
-    statusCode: number
-    headers: Record<string, string>
-    body: string
-  }
-}
 
 describe('canvasTokenFromUrl', () => {
   it('extracts the token from the exact route shape', () => {
@@ -81,67 +46,107 @@ describe('handleCanvasRequest', () => {
     }
   }
 
+  async function withServer(
+    routeDeps: CanvasHttpDeps,
+    run: (base: string) => Promise<void>,
+  ): Promise<void> {
+    const server: Server = createServer((req, res) => {
+      handleCanvasRequest(req, res, routeDeps).catch((error: unknown) => {
+        res.destroy(error instanceof Error ? error : new Error(String(error)))
+      })
+    })
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+    try {
+      const address = server.address()
+      if (address === null || typeof address === 'string') throw new Error('missing test port')
+      await run(`http://127.0.0.1:${address.port}`)
+    } finally {
+      await new Promise<void>((resolve, reject) =>
+        server.close((error) => (error ? reject(error) : resolve())),
+      )
+    }
+  }
+
   it('serves the inlined HTML with a locked-down CSP header', async () => {
-    const res = fakeRes()
-    await handleCanvasRequest(fakeReq('GET', '/canvas/tok'), res, deps())
-    expect(res.statusCode).toBe(200)
-    expect(res.headers['content-security-policy']).toContain("connect-src 'none'")
-    expect(res.headers['content-security-policy']).toContain("script-src 'unsafe-inline'")
-    expect(res.headers['content-type']).toContain('text/html')
-    expect(res.body).toBe('<script>console.log(1)</script>')
+    await withServer(deps(), async (base) => {
+      const res = await fetch(`${base}/canvas/tok`)
+      expect(res.status).toBe(200)
+      const csp = res.headers.get('content-security-policy')
+      expect(csp).toContain("connect-src 'none'")
+      expect(csp).toContain("script-src 'unsafe-inline'")
+      expect(res.headers.get('content-type')).toContain('text/html')
+      expect(await res.text()).toBe('<script>console.log(1)</script>')
+    })
   })
 
   it('rejects a non-GET/HEAD method', async () => {
-    const res = fakeRes()
-    await handleCanvasRequest(fakeReq('POST', '/canvas/tok'), res, deps())
-    expect(res.statusCode).toBe(405)
+    await withServer(deps(), async (base) => {
+      const res = await fetch(`${base}/canvas/tok`, { method: 'POST' })
+      expect(res.status).toBe(405)
+    })
   })
 
   it('404s a malformed route', async () => {
-    const res = fakeRes()
-    await handleCanvasRequest(fakeReq('GET', '/canvas/'), res, deps())
-    expect(res.statusCode).toBe(404)
+    await withServer(deps(), async (base) => {
+      const res = await fetch(`${base}/canvas/`)
+      expect(res.status).toBe(404)
+    })
   })
 
   it('401s an unresolvable (expired or unknown) token', async () => {
-    const res = fakeRes()
-    await handleCanvasRequest(
-      fakeReq('GET', '/canvas/tok'),
-      res,
-      deps({ resolveAccessToken: () => null }),
-    )
-    expect(res.statusCode).toBe(401)
+    await withServer(deps({ resolveAccessToken: () => null }), async (base) => {
+      const res = await fetch(`${base}/canvas/tok`)
+      expect(res.status).toBe(401)
+    })
   })
 
   it('404s when the resolved Canvas no longer exists', async () => {
-    const res = fakeRes()
-    await handleCanvasRequest(
-      fakeReq('GET', '/canvas/tok'),
-      res,
+    await withServer(
       deps({ readCanvas: async () => ({ ok: false, error: { code: 'canvas.not-found' } }) }),
+      async (base) => {
+        const res = await fetch(`${base}/canvas/tok`)
+        expect(res.status).toBe(404)
+      },
     )
-    expect(res.statusCode).toBe(404)
   })
 
   it('404s a Markdown-kind Canvas — this route is HTML-only', async () => {
-    const res = fakeRes()
-    await handleCanvasRequest(
-      fakeReq('GET', '/canvas/tok'),
-      res,
+    await withServer(
       deps({
         readCanvas: async () => ({
           ok: true,
           value: { record: { ...HTML_RECORD, kind: 'markdown' }, content: '# hi' },
         }),
       }),
+      async (base) => {
+        const res = await fetch(`${base}/canvas/tok`)
+        expect(res.status).toBe(404)
+      },
     )
-    expect(res.statusCode).toBe(404)
   })
 
   it('answers HEAD with no body', async () => {
-    const res = fakeRes()
-    await handleCanvasRequest(fakeReq('HEAD', '/canvas/tok'), res, deps())
-    expect(res.statusCode).toBe(200)
-    expect(res.body).toBe('')
+    await withServer(deps(), async (base) => {
+      const res = await fetch(`${base}/canvas/tok`, { method: 'HEAD' })
+      expect(res.status).toBe(200)
+      expect(await res.text()).toBe('')
+    })
+  })
+
+  it('calls readCanvas with the token-resolved scope, not caller-supplied values', async () => {
+    const readCanvas = vi.fn<CanvasHttpDeps['readCanvas']>(async () => ({
+      ok: true,
+      value: { record: HTML_RECORD, content: '<p>hi</p>' },
+    }))
+    await withServer(
+      deps({
+        resolveAccessToken: () => ({ projectId: 'proj-9', canvasId: 'canvas-9' }),
+        readCanvas,
+      }),
+      async (base) => {
+        await fetch(`${base}/canvas/tok`)
+        expect(readCanvas).toHaveBeenCalledWith({ projectId: 'proj-9', canvasId: 'canvas-9' })
+      },
+    )
   })
 })

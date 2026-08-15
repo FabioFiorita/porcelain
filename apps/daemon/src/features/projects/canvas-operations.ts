@@ -33,6 +33,20 @@ function fromStoreError(error: CanvasStoreError): ProjectOperationResult<never> 
   return error.code === 'canvas.unavailable' ? unavailable() : notFound()
 }
 
+/**
+ * The Canvas iframe has neither `allow-top-navigation` nor `allow-popups` (see
+ * canvas-view.tsx), so a link inside it cannot go anywhere on its own — this
+ * is the ONLY way one can. Document-level click capture (works regardless of
+ * load order, including content the Canvas's own scripts add later) turns
+ * every non-fragment `<a href>` click into a postMessage the parent Web app
+ * relays through the same target=_blank → shell.openExternal path ordinary
+ * Markdown links already use (canvas-view.tsx). Appended, not prepended, so
+ * it runs after whatever the Canvas's own inline scripts execute — capture-
+ * phase delegation means load order doesn't otherwise matter, but this keeps
+ * the served bytes in intent order: content first, bootstrap last.
+ */
+const EXTERNAL_LINK_BRIDGE = `<script>document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a[href]');if(!a)return;var href=a.getAttribute('href');if(!href||href.charAt(0)==='#')return;e.preventDefault();parent.postMessage({source:'porcelain-canvas',href:href},'*')},true)</script>`
+
 function toPublicRecord(record: StoredCanvas): CanvasRecord {
   return {
     id: record.id,
@@ -68,7 +82,9 @@ export function createCanvasOperations(options: {
       // presentation. Only HTML gets server-side asset inlining (ticket #21's
       // "safe relative asset access" criterion is scoped to HTML Canvases).
       const rendered =
-        record.kind === 'html' ? await inlineLocalAssets(bundleDir, content, bundleDir) : content
+        record.kind === 'html'
+          ? `${await inlineLocalAssets(bundleDir, content, bundleDir)}${EXTERNAL_LINK_BRIDGE}`
+          : content
       return { ok: true, value: { record: toPublicRecord(record), content: rendered } }
     },
 

@@ -204,6 +204,13 @@ export const TestIds = {
   /** Publish dialog warning shown when `.porcelain/` is hidden from git in this clone. */
   reviewPublishVisibilityNote: 'review-publish-visibility-note',
 
+  // --- Canvas (daemon-root Project store, ADR 0002) ---
+  canvasList: 'canvas-list',
+  canvasListEmpty: 'canvas-list-empty',
+  canvasListItem: (id: string): string => `canvas-list-item-${id}`,
+  /** Sandboxed HTML Canvas iframe — sandbox="allow-scripts", no allow-same-origin. */
+  canvasIframe: 'canvas-iframe',
+
   // --- Saved action trust ---
   actionTrustDialog: 'action-trust-dialog',
   actionTrustCommand: 'action-trust-command',

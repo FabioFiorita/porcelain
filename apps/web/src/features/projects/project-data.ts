@@ -1,12 +1,14 @@
 import {
   createHubWorktree,
   hubInventoryQuery,
+  listCanvasesQuery,
   openProject,
   type ProjectPath,
   type ProjectSummary,
   type ProjectsQuery,
   projectDirectoriesQuery,
   projectsQuerySchema,
+  readCanvasQuery,
   recentProjectsQuery,
   removeHubProject,
   removeHubWorktree,
@@ -15,9 +17,11 @@ import {
 } from '@porcelain/client-runtime/projects'
 import type {
   BrowseDirsOutput,
+  CanvasRecord,
   CreateHubWorktreeInput,
   HubInventory,
   HubWorktree,
+  ReadCanvasOutput,
 } from '@porcelain/contracts/projects'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import { type DaemonScope, daemonScopeSchema } from '@renderer/lib/daemon-scope'
@@ -30,7 +34,10 @@ import {
   browseProjectDirectoriesOnDaemon,
   createHubWorktreeOnDaemon,
   hubInventoryOnDaemon,
+  listCanvasesOnDaemon,
+  mintCanvasAccessTokenOnDaemon,
   openProjectOnDaemon,
+  readCanvasOnDaemon,
   recentProjectsOnDaemon,
   removeHubProjectOnDaemon,
   removeHubWorktreeOnDaemon,
@@ -242,4 +249,55 @@ export function useCreateHubWorktree(): {
     },
   })
   return { create: mutation.mutateAsync, isPending: mutation.isPending }
+}
+
+/** Canvases for one Project, newest-updated first — the right sidebar's list. */
+export function useCanvasList(projectId: string | null): readonly CanvasRecord[] {
+  const daemon = useDaemonIdentity()
+  const client = trpc.useUtils().client
+  const identity = listCanvasesQuery(projectId ?? '')
+  const query = useQuery({
+    enabled: projectId !== null,
+    queryFn: async (): Promise<readonly CanvasRecord[]> =>
+      listCanvasesOnDaemon(client, projectId ?? ''),
+    queryKey: projectsQueryKey(daemon, identity),
+  })
+  return query.data ?? []
+}
+
+/**
+ * One Canvas — HTML content already server-inlined, Markdown raw. Read-only:
+ * Canvases are agent-owned in v1 (see canvas-view.tsx for how each kind renders).
+ */
+export function useCanvas(
+  projectId: string | null,
+  canvasId: string | null,
+): { canvas: ReadCanvasOutput | undefined; isLoading: boolean } {
+  const daemon = useDaemonIdentity()
+  const client = trpc.useUtils().client
+  const enabled = projectId !== null && canvasId !== null
+  const identity = readCanvasQuery(projectId ?? '', canvasId ?? '')
+  const query = useQuery({
+    enabled,
+    queryFn: async (): Promise<ReadCanvasOutput> =>
+      readCanvasOnDaemon(client, { projectId: projectId ?? '', canvasId: canvasId ?? '' }),
+    queryKey: projectsQueryKey(daemon, identity),
+  })
+  return { canvas: query.data, isLoading: enabled && query.isLoading }
+}
+
+/**
+ * Mints the short-lived token an HTML Canvas's sandboxed iframe navigates
+ * with (GET /canvas/<token> — see canvas-http.ts). Not cached: every mount
+ * gets its own fresh grant, and the daemon sweeps expired ones lazily.
+ */
+export function useMintCanvasAccessToken(): {
+  mint: (input: { projectId: string; canvasId: string }) => Promise<string>
+} {
+  const client = trpc.useUtils().client
+  const mutation = useMutation({
+    mutationFn: (input: { projectId: string; canvasId: string }) =>
+      mintCanvasAccessTokenOnDaemon(client, input),
+  })
+  return { mint: mutation.mutateAsync }
 }

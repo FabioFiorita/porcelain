@@ -1,9 +1,11 @@
 import type { ProjectPath, ProjectSummary } from '@porcelain/client-runtime/projects'
 import type {
   BrowseDirsOutput,
+  CanvasRecord,
   CreateHubWorktreeInput,
   HubInventory,
   HubWorktree,
+  ReadCanvasOutput,
   RemoveHubProjectInput,
   RemoveHubWorktreeInput,
 } from '@porcelain/contracts/projects'
@@ -21,6 +23,9 @@ type ProjectsClient = Pick<
   | 'createHubWorktree'
   | 'removeHubProject'
   | 'removeHubWorktree'
+  | 'listCanvases'
+  | 'readCanvas'
+  | 'mintCanvasAccessToken'
 >
 
 /** Read the daemon's authoritative Project summary through the Projects boundary. */
@@ -87,4 +92,33 @@ export async function createHubWorktreeOnDaemon(
   return projectsProcedures.createHubWorktree.output.parse(
     await client.createHubWorktree.mutate(input),
   )
+}
+
+/** List the Canvases recorded for one Project, newest-updated first. */
+export async function listCanvasesOnDaemon(
+  client: ProjectsClient,
+  projectId: string,
+): Promise<readonly CanvasRecord[]> {
+  return projectsProcedures.listCanvases.output.parse(
+    await client.listCanvases.query({ projectId }),
+  )
+}
+
+/** Read one Canvas — HTML content is already server-inlined (images/CSS/scripts). */
+export async function readCanvasOnDaemon(
+  client: ProjectsClient,
+  input: { projectId: string; canvasId: string },
+): Promise<ReadCanvasOutput> {
+  return projectsProcedures.readCanvas.output.parse(await client.readCanvas.query(input))
+}
+
+/** Mint the short-lived token the sandboxed Canvas iframe's GET /canvas/<token> needs. */
+export async function mintCanvasAccessTokenOnDaemon(
+  client: ProjectsClient,
+  input: { projectId: string; canvasId: string },
+): Promise<string> {
+  const result = projectsProcedures.mintCanvasAccessToken.output.parse(
+    await client.mintCanvasAccessToken.mutate(input),
+  )
+  return result.token
 }

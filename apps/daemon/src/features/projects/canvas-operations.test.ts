@@ -122,6 +122,28 @@ describe('Canvas operations', () => {
     expect(result.value.content).toContain('data:image/png;base64,')
     expect(result.value.content).not.toContain('src="shot.png"')
   })
+
+  it('appends the external-link bridge script to HTML content only', async () => {
+    await writeIndex('proj-1', [htmlRecord, markdownRecord])
+    await mkdir(canvasBundleDir(homeDir, 'proj-1', 'canvas-html'), { recursive: true })
+    await writeFile(
+      join(canvasBundleDir(homeDir, 'proj-1', 'canvas-html'), 'index.html'),
+      '<a href="https://example.com">out</a>',
+      'utf8',
+    )
+    await mkdir(canvasBundleDir(homeDir, 'proj-1', 'canvas-md'), { recursive: true })
+    await writeFile(
+      join(canvasBundleDir(homeDir, 'proj-1', 'canvas-md'), 'index.md'),
+      '[out](https://example.com)',
+      'utf8',
+    )
+
+    const html = await operations.readCanvas({ projectId: 'proj-1', canvasId: 'canvas-html' })
+    const markdown = await operations.readCanvas({ projectId: 'proj-1', canvasId: 'canvas-md' })
+    if (!html.ok || !markdown.ok) throw new Error('expected ok')
+    expect(html.value.content).toContain("source:'porcelain-canvas'")
+    expect(markdown.value.content).not.toContain('porcelain-canvas')
+  })
 })
 
 describe('mintCanvasAccessToken', () => {

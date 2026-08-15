@@ -10,7 +10,10 @@ import { createValidatingTrpcHarness, type DaemonMockHandlers } from '../../hook
 import {
   isProjectsQueryKey,
   projectsQueryKey,
+  useCanvas,
+  useCanvasList,
   useHubInventory,
+  useMintCanvasAccessToken,
   useOpenProject,
   useProjectDirectories,
   useRecentProjects,
@@ -174,5 +177,65 @@ describe('Web Projects adapter', () => {
       ).wrapper,
     })
     await waitFor(() => expect(failure.result.current).toBeNull())
+  })
+
+  it('lists Canvases for a Project and skips the call when unset', async () => {
+    const list = projectsContractFixtures.listCanvases.output
+    const { mock, wrapper } = createValidatingTrpcHarness(
+      handlers({ listCanvases: () => ({ ok: true, value: list }) }),
+    )
+    const hook = renderHook(
+      ({ projectId }: { projectId: string | null }) => useCanvasList(projectId),
+      {
+        initialProps: { projectId: null },
+        wrapper,
+      },
+    )
+    expect(hook.result.current).toEqual([])
+    expect(mock.requests().map((r) => r.procedure)).not.toContain('listCanvases')
+
+    hook.rerender({ projectId: 'proj-alpha' })
+    await waitFor(() => expect(hook.result.current).toEqual(list))
+    expect(mock.requests()).toContainEqual({
+      procedure: 'listCanvases',
+      kind: 'query',
+      input: { projectId: 'proj-alpha' },
+    })
+  })
+
+  it('reads a single Canvas only once both ids are known', async () => {
+    const read = projectsContractFixtures.readCanvas.output
+    const { mock, wrapper } = createValidatingTrpcHarness(
+      handlers({ readCanvas: () => ({ ok: true, value: read }) }),
+    )
+    const hook = renderHook(() => useCanvas('proj-alpha', 'canvas-intent'), { wrapper })
+    expect(hook.result.current.isLoading).toBe(true)
+
+    await waitFor(() => expect(hook.result.current.canvas).toEqual(read))
+    expect(mock.requests()).toContainEqual({
+      procedure: 'readCanvas',
+      kind: 'query',
+      input: { projectId: 'proj-alpha', canvasId: 'canvas-intent' },
+    })
+  })
+
+  it('mints a Canvas access token through the daemon', async () => {
+    const minted = projectsContractFixtures.mintCanvasAccessToken.output
+    const { mock, wrapper } = createValidatingTrpcHarness(
+      handlers({ mintCanvasAccessToken: () => ({ ok: true, value: minted }) }),
+    )
+    const hook = renderHook(() => useMintCanvasAccessToken(), { wrapper })
+
+    let token = ''
+    await act(async () => {
+      token = await hook.result.current.mint({ projectId: 'proj-alpha', canvasId: 'canvas-intent' })
+    })
+
+    expect(token).toBe(minted.token)
+    expect(mock.requests()).toContainEqual({
+      procedure: 'mintCanvasAccessToken',
+      kind: 'mutation',
+      input: { projectId: 'proj-alpha', canvasId: 'canvas-intent' },
+    })
   })
 })
