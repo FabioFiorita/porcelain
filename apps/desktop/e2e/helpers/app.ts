@@ -445,6 +445,24 @@ export async function selectTab(page: Page, tab: TabName): Promise<void> {
 }
 
 /**
+ * Open a surface whether or not it is already on the strip. `selectTab` finds a `railTab` id in
+ * two places only: the boot picker (nothing open yet) and the open-surface strip. Once one surface
+ * is open the picker is gone and every remaining surface lives behind the "Open a surface"
+ * dropdown, whose items carry no test id — hence the role locator here and nowhere else.
+ */
+export async function openSurface(page: Page, tab: TabName): Promise<void> {
+  const rail = loc.railTab(page, railTabId(tab))
+  if (await rail.isVisible()) {
+    await rail.click()
+    return
+  }
+  await page.getByLabel('Open a surface').click()
+  // The item's accessible name is the label plus its shortcut Kbd, so this is a prefix match.
+  await page.getByRole('menuitem', { name: new RegExp(`^${tab}\\b`) }).click()
+  await rail.waitFor()
+}
+
+/**
  * Assert a terminal's on-screen text contains `text`. The Ghostty canvas has no text DOM,
  * so we poll its test serialization through `__porcelainTerminalText` (installed by the
  * registry under e2e). `index` is terminal creation order (0 = first).

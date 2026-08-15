@@ -20,8 +20,8 @@ test('Hub inventory lists the Environment, Project, and Worktrees without a dele
   await expect(page.getByLabel(/delete worktree/i)).toHaveCount(0)
 
   await loc.hubCreateWorktree(page, projectId).click()
-  await page.getByLabel('New worktree branch').fill('hub-topic')
-  await page.getByRole('button', { name: 'Add' }).click()
+  await loc.hubCreateWorktreeBranch(page).fill('hub-topic')
+  await loc.hubCreateWorktreeSubmit(page).click()
 
   await expect(loc.hubWorktrees(page)).toHaveCount(before + 1)
   await expect(page.getByTestId(/^hub-worktree-/).filter({ hasText: 'hub-topic' })).toBeVisible()
