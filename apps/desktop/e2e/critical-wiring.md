@@ -18,7 +18,7 @@ was redundant after the named owner was verified; it does not mean the behavior 
 | CW-02 | No former browser equivalent; protocol coverage was lower-only | `critical-wiring.spec.ts:108-116` | Real authenticated `/session` WebSocket returns exact `session:mismatch` / `protocol.update-required` for `PROTOCOL_VERSION + 1` and closes |
 | CW-03 | `live-refresh.spec.ts:10-30` — an open clean file adopts an external disk rewrite | `critical-wiring.spec.ts:119-133` | Real fixture filesystem → daemon watcher → session frame → browser editor |
 | CW-04 | `review-publish.spec.ts:44-143` — built CLI review write reaches an already-running Review canvas | `critical-wiring.spec.ts:136-172` | Built CLI → companion file watcher → daemon session → browser Review; lower review/CLI tests own file shape and invalidation |
-| CW-05 | `terminal.spec.ts:6-24` plus the reconnect/scrollback contract from `terminal` lower tests | `critical-wiring.spec.ts:174-195` | Real PTY create, >64 KiB output, browser session detach, daemon-owned session retention, roster hydration, attach, and tail replay |
+| CW-05 | `terminal.spec.ts:6-24` plus the reconnect/scrollback contract from `terminal` lower tests | `critical-wiring.spec.ts:174-201` | Real PTY create, >64 KiB output, browser session detach, daemon-owned session retention, roster hydration, attach, and tail replay |
 
 The five tests above are the only normal browser functional gate. The terminal test deliberately
 asserts the tail after reload; the exact byte/unit cap and frame ordering remain owned by

@@ -41,6 +41,7 @@ export const loc = {
     page.locator(`[data-hub-worktree="${worktreeId}"]`),
   glance: (page: Page): Locator => byId(page, TestIds.glance),
   glanceChangedFiles: (page: Page): Locator => byId(page, TestIds.glanceChangedFiles),
+  glanceJumpTerminal: (page: Page): Locator => byId(page, TestIds.glanceJumpTerminal),
 
   canvasList: (page: Page): Locator => byId(page, TestIds.canvasList),
   canvasListEmpty: (page: Page): Locator => byId(page, TestIds.canvasListEmpty),
@@ -99,6 +100,10 @@ export const loc = {
   commitGroup: (page: Page): Locator => byId(page, TestIds.commitGroup),
 
   terminalNew: (page: Page): Locator => byId(page, TestIds.terminalNew),
+  terminalSession: (page: Page, name: string): Locator =>
+    byId(page, TestIds.terminalPanel)
+      .locator('button')
+      .filter({ hasText: new RegExp(`^${name}$`) }),
   terminalKeyBar: (page: Page): Locator => byId(page, TestIds.terminalKeyBar),
   terminalKey: (page: Page, label: string): Locator => byId(page, TestIds.terminalKey(label)),
   terminalContextMenu: (page: Page): Locator => byId(page, TestIds.terminalContextMenu),

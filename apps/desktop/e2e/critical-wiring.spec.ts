@@ -175,8 +175,8 @@ test('a PTY survives browser detach, reconnects, and replays its bounded tail', 
   page,
 }) => {
   await waitForShell(page)
-  await selectTab(page, 'Terminal')
-  await loc.terminalNew(page).click()
+  await loc.glanceJumpTerminal(page).click()
+  await loc.terminalNew(page).waitFor()
 
   const input = page.locator('.porcelain-ghostty-input').first()
   await input.waitFor()
@@ -190,8 +190,11 @@ test('a PTY survives browser detach, reconnects, and replays its bounded tail', 
   // The fresh roster hydration then opens the existing row and attaches a new Ghostty stream.
   await page.reload()
   await waitForShell(page)
-  await selectTab(page, 'Terminal')
-  const existing = page.getByRole('button', { name: 'Terminal 1', exact: true })
+  const existing = loc.terminalSession(page, 'Terminal 1')
+  // The panel is persistent but hidden after reload; this structural locator can observe its
+  // hydrated row without requiring the panel to be visible or triggering a new PTY.
+  await existing.waitFor({ state: 'attached', timeout: 15_000 })
+  await loc.glanceJumpTerminal(page).click()
   await existing.waitFor({ timeout: 15_000 })
   await existing.click()
   await expectTerminalText(page, 0, 'SCROLLBACK_TAIL_64K', 45_000)
