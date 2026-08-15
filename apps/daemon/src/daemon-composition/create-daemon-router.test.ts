@@ -13,6 +13,7 @@ vi.mock('../review/review-watch', () => ({
 }))
 
 import type { ProjectsOperations } from '../features/projects'
+import { createTasksAttachments, createTasksStore } from '../features/tasks'
 import type { TerminalOperations } from '../features/terminal'
 import { createDaemonRouter } from './create-daemon-router'
 import { createDaemonOperations } from './daemon-operations'
@@ -63,13 +64,26 @@ function projectsOperations(): ProjectsOperations {
   }
 }
 
+/** The four canonical Tasks names the eleventh domain contributes to the flat router. */
+const TASKS_PROCEDURE_KEYS = ['listTasks', 'createTask', 'updateTask', 'deleteTask'] as const
+
 describe('createDaemonRouter composition', () => {
   let root = ''
   let repo = ''
+  let tasksHome = ''
+
+  /** Daemon-root Tasks adapters over a temp home, the way `server.ts` resolves them. */
+  function tasksAdapters() {
+    return {
+      store: createTasksStore({ homeDir: tasksHome }),
+      attachments: createTasksAttachments({ homeDir: tasksHome }),
+    }
+  }
 
   beforeAll(async () => {
     root = await mkdtemp(join(tmpdir(), 'porcelain-daemon-composition-'))
     repo = join(root, 'repo')
+    tasksHome = join(root, 'tasks-home')
   })
 
   afterAll(async () => {
@@ -80,11 +94,13 @@ describe('createDaemonRouter composition', () => {
     const operations = createDaemonOperations({
       publishSessionChange: () => undefined,
       projects: projectsOperations(),
+      tasks: tasksAdapters(),
       terminal: terminalOperations(),
     })
     expect(Object.isFrozen(operations)).toBe(true)
     expect(operations.remote).toBeDefined()
     expect(operations.board).toBeDefined()
+    expect(operations.tasks).toBeDefined()
     expect(operations.actions).toBeDefined()
     expect(operations.review).toBeDefined()
     expect(operations.files).toBeDefined()
@@ -99,12 +115,14 @@ describe('createDaemonRouter composition', () => {
 
     expect(keys).toEqual(EXPECTED_PROCEDURE_KEYS)
     expect(keys).toHaveLength(EXPECTED_PROCEDURE_KEYS.length)
+    for (const name of TASKS_PROCEDURE_KEYS) expect(keys).toContain(name)
   })
 
   it('calls listBoardCards through the composed router against a temporary project board', async () => {
     const operations = createDaemonOperations({
       publishSessionChange: () => undefined,
       projects: projectsOperations(),
+      tasks: tasksAdapters(),
       terminal: terminalOperations(),
     })
     const router = createDaemonRouter({ operations })
@@ -126,11 +144,13 @@ describe('createDaemonRouter composition', () => {
     const first = createDaemonOperations({
       publishSessionChange: () => undefined,
       projects: projectsOperations(),
+      tasks: tasksAdapters(),
       terminal: terminalOperations(),
     })
     const second = createDaemonOperations({
       publishSessionChange: () => undefined,
       projects: projectsOperations(),
+      tasks: tasksAdapters(),
       terminal: terminalOperations(),
     })
     expect(first).not.toBe(second)

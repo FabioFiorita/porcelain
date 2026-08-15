@@ -8,6 +8,7 @@ import { SearchView } from '@renderer/components/viewer/search-view'
 import { BoardView } from '@renderer/features/board'
 import { CanvasView, HubHomeSummary, HubProjectSummary } from '@renderer/features/projects'
 import { ActiveReview, ExploreView } from '@renderer/features/review'
+import { TasksView } from '@renderer/features/tasks'
 import { cn } from '@renderer/lib/utils'
 import { HubRepoProvider } from '@renderer/stores/hub-repo'
 import { useHubSelectionStore } from '@renderer/stores/hub-selection'
@@ -98,6 +99,10 @@ function PaneContent({ tab, paneIndex }: { tab: Tab; paneIndex: number }): React
       return <SearchView key={tab.id} query={tab.path} />
     case 'review':
       return <ActiveReview />
+    case 'tasks':
+      // Deliberately target-free: the table spans every Environment, so it renders the
+      // same thing whichever Worktree the Hub happens to have selected.
+      return <TasksView />
     case 'terminal':
       return <TerminalView key={tab.id} sessionId={tab.path} />
     case 'explore':

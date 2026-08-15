@@ -1,17 +1,24 @@
 # Domain architecture
 
-Porcelain's domain-first architecture is landed. The codebase has ten canonical product domains;
-the old architecture-refactor plans and their execution machinery are gone. This page is the
-current source for ownership, dependency direction, state ownership, and proof expectations.
+Porcelain's domain-first architecture is landed. The codebase has eleven canonical product
+domains; the old architecture-refactor plans and their execution machinery are gone. This page is
+the current source for ownership, dependency direction, state ownership, and proof expectations.
 
-## Ten canonical domains
+## Eleven canonical domains
 
 Use the same key in contracts, daemon, client-runtime, Web, mobile, tests, and target paths:
 
 ```text
 projects · files · git · search · review
-board · actions · terminal · project-data · remote
+board · tasks · actions · terminal · project-data · remote
 ```
+
+`tasks` is the newest and the only one with no repo-local storage at all: the Tasks table belongs
+to the Environment daemon (`$PORCELAIN_HOME/tasks/`), not to a checkout, so it has no
+`project-data` companion file and no `.porcelain/` presence. It also has no mobile root yet —
+mobile joins on the same contracts in a later slice, which is why its registry entry lists three
+target roots rather than four. `board` is retiring in favor of it (#28) and stays registered until
+that cutover lands.
 
 Shell, Viewer, Settings, UI, daemon composition, Desktop, native integration, infrastructure, and
 Quick Open are supporting regions, not extra product domains. Settings assembles controls; it does
@@ -126,12 +133,12 @@ risk, but “implemented, should work” is never proof.
 
 ## Permanent enforcement
 
-The live registry is `scripts/architecture/domains.mjs`; all ten domains are complete, with empty
-legacy ledgers and no deep-import debt. The gates that protect this architecture are:
+The live registry is `scripts/architecture/domains.mjs`; all eleven domains are complete, with
+empty legacy ledgers and no deep-import debt. The gates that protect this architecture are:
 
 - `lint-architecture`: domain paths, package direction, public indexes, file-size ceiling, and
   shrink-only raw-import baselines;
-- `lint-procedure-contracts`: the 111 contract procedures and 111 canonical daemon routes match
+- `lint-procedure-contracts`: the 120 contract procedures and 120 canonical daemon routes match
   one-to-one;
 - `lint-escapes`, `lint-security-boundaries`, and the mobile NativeWind/file-size gates;
 - `lint-docs`, `lint-skill-commands`, `typecheck:tests`, and the repository quality gates.

@@ -117,12 +117,17 @@ export function createSessionFreshnessTracker(): SessionFreshnessTracker {
       const expected = lastSequence === undefined ? frame.sequence : lastSequence + 1
       if (frame.sequence > expected) {
         lastSequence = frame.sequence
+        // A project-scoped change names the project whose data is now unproven. A
+        // DAEMON-WIDE change (no `projectPath` in its contract, e.g. `tasks.changed`) names
+        // none, and narrowing the recovery to one project would leave the global surface
+        // stale — so the gap widens to the whole session, which is the honest scope.
+        const scope: FreshnessScope =
+          'projectPath' in frame.change
+            ? { kind: 'project', projectPath: frame.change.projectPath }
+            : SESSION_SCOPE
         return {
           change: frame.change,
-          requirement: {
-            reason: 'sequence-gap',
-            scope: { kind: 'project', projectPath: frame.change.projectPath },
-          },
+          requirement: { reason: 'sequence-gap', scope },
         }
       }
 

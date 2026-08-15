@@ -177,12 +177,14 @@ export function checkArchitecture(
   const migrationKeys = migrationsAreRecords ? Object.keys(migrations) : []
   const uniqueDomainKeys = new Set(DOMAIN_KEYS)
   if (
-    uniqueDomainKeys.size !== 10 ||
-    migrationKeys.length !== 10 ||
-    new Set(migrationKeys).size !== 10 ||
+    uniqueDomainKeys.size !== 11 ||
+    migrationKeys.length !== 11 ||
+    new Set(migrationKeys).size !== 11 ||
     !DOMAIN_KEYS.every((key) => migrationKeys.includes(key))
   ) {
-    fail('DOMAIN_MIGRATIONS must define exactly one record for each of the ten canonical domains')
+    fail(
+      'DOMAIN_MIGRATIONS must define exactly one record for each of the eleven canonical domains',
+    )
   }
   if (SUPPORTING_REGIONS.some((region) => uniqueDomainKeys.has(region))) {
     fail('a supporting region is also registered as a product domain')
@@ -560,7 +562,7 @@ function main() {
   }
 
   console.log(
-    `lint-architecture: ok — 10 domains; ${Object.keys(OVERSIZED_PRODUCTION_FILES).length} oversized files remain`,
+    `lint-architecture: ok — ${DOMAIN_KEYS.length} domains; ${Object.keys(OVERSIZED_PRODUCTION_FILES).length} oversized files remain`,
   )
 }
 

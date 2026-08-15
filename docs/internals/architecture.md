@@ -8,7 +8,7 @@ wire surface; Web, Desktop, and mobile are clients of that daemon. The package a
 
 | Surface | Role | Runs without |
 |---------|------|----------------|
-| **Daemon** | Headless runtime for Projects, Files, Git, Review, Board, Actions, Terminal, sharing, HTTP/WS | Electron and every UI |
+| **Daemon** | Headless runtime for Projects, Files, Git, Review, Board, Tasks, Actions, Terminal, sharing, HTTP/WS | Electron and every UI |
 | **CLI** | Agent channel and project companion tooling | App UI |
 | **Web** | React client used directly in a browser and loaded by Electron | Electron shell |
 | **Shell** | Thin Electron lifecycle, windows, menus, updater, and local-daemon process owner | Business logic |
@@ -28,7 +28,7 @@ apps/
   mobile/     @porcelain/mobile     Expo native client
 
 packages/
-  contracts/       wire protocol and ten-domain procedure catalog
+  contracts/       wire protocol and eleven-domain procedure catalog
   client-runtime/  nonvisual query, mutation, realtime, session, and pure UI semantics
   shared/          pure cross-cutting helpers
 ```
@@ -55,7 +55,7 @@ client-runtime →  contracts
 shared         →  no product package
 ```
 
-The contracts package owns the exact 111-procedure catalog and all cross-client wire shapes. The
+The contracts package owns the exact 120-procedure catalog and all cross-client wire shapes. The
 daemon's composition root merges canonical domain routers into that flat surface. No in-process
 Desktop backend exists, so local and remote clients follow the same daemon path. Components do not
 import transport clients; Web and mobile feature adapters/hooks own transport access, while
@@ -95,7 +95,7 @@ sessions because server-side session state ends with a socket.
 
 | State | Owner |
 |---|---|
-| Server, Git, Files, Review, Board, Actions, Project Data | client-runtime definitions plus the client's query cache |
+| Server, Git, Files, Review, Board, Tasks, Actions, Project Data | client-runtime definitions plus the client's query cache |
 | Cross-component UI | one focused client store per concern |
 | Preferences surviving reload | the persisted preferences store only |
 | Local presentation state | the component |

@@ -757,3 +757,64 @@ describe('runCli — board + actions', () => {
     expect(empty).toContain('(none)')
   })
 })
+
+describe('runCli — tasks (daemon-wide table)', () => {
+  // The Tasks table lives under $PORCELAIN_HOME, not in the repo, so this block points
+  // the daemon home at the same temp root the rest of the suite tears down.
+  const prevHome = process.env.PORCELAIN_HOME
+  beforeEach(() => {
+    process.env.PORCELAIN_HOME = join(root, 'home')
+  })
+  afterEach(() => {
+    if (prevHome === undefined) delete process.env.PORCELAIN_HOME
+    else process.env.PORCELAIN_HOME = prevHome
+  })
+
+  const taskIds = (): string[] =>
+    (
+      JSON.parse(readFileSync(join(root, 'home', 'tasks', 'tasks.json'), 'utf8')) as {
+        value: { tasks: Array<{ id: string }> }
+      }
+    ).value.tasks.map((task) => task.id)
+
+  it('tasks add writes a Task the list reports back', async () => {
+    const created = await runCli([
+      'tasks',
+      'add',
+      ...repo,
+      '--title',
+      'Chase the flake',
+      '--tags',
+      'infra, flaky',
+      '--status',
+      'doing',
+    ])
+    expect(created).toContain('Created Task')
+    const list = await runCli(['tasks', 'list', ...repo])
+    expect(list).toContain('(doing) Chase the flake')
+    expect(list).toContain('[infra, flaky]')
+  })
+
+  it('tasks update and tasks done change one Task, and report an unknown id', async () => {
+    await runCli(['tasks', 'add', ...repo, '--title', 'Ship it'])
+    const id = taskIds()[0] as string
+    expect(await runCli(['tasks', 'update', ...repo, '--id', id, '--title', 'Ship it well'])).toBe(
+      `Updated Task ${id}`,
+    )
+    expect(await runCli(['tasks', 'done', ...repo, '--id', id])).toBe(`Marked Task ${id} done`)
+    expect(await runCli(['tasks', 'list', ...repo])).toContain('(done) Ship it well')
+    expect(await runCli(['tasks', 'done', ...repo, '--id', 'no-such-task'])).toContain('No Task')
+  })
+
+  it('tasks add rejects an unknown status', async () => {
+    await expect(
+      runCli(['tasks', 'add', ...repo, '--title', 'Bad', '--status', 'backlog']),
+    ).rejects.toThrow(/todo\|doing\|done\|blocked/)
+  })
+
+  it('tasks --help documents the verbs and the noun-specific flags', async () => {
+    const text = await runCli(['tasks', '--help'])
+    expect(text).toContain('--attach')
+    expect(text).toContain("Absolute path to a file copied into the daemon's Task attachment store")
+  })
+})

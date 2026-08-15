@@ -27,6 +27,7 @@ import {
   startLanListener,
   startTailnetListener,
 } from './features/remote'
+import { createTasksAttachments, createTasksStore } from './features/tasks'
 import {
   createPtyAdapter,
   createTerminalEnvironment,
@@ -156,7 +157,14 @@ async function main(): Promise<void> {
     },
     canvas: canvasOperations,
   })
-  const operations = createDaemonOperations({ projects, terminal })
+  const operations = createDaemonOperations({
+    projects,
+    tasks: {
+      store: createTasksStore({ homeDir: porcelainHomeDir }),
+      attachments: createTasksAttachments({ homeDir: porcelainHomeDir }),
+    },
+    terminal,
+  })
   const router = createDaemonRouter({ operations })
   daemon = createRemoteHttp({
     adminTokenHash: tokenHash,

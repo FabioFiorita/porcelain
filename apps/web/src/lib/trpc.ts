@@ -142,5 +142,12 @@ export const shellTrpc = createTRPCReact<ShellRouter>({ context: shellTrpcContex
 /** Client for the shell router's React-query integration. */
 export const shellClient = shellTrpc.createClient({ links: shellLinks() })
 
+/**
+ * A link for the shell router, named here so a test harness can stub the shell transport
+ * without importing `@main/*` itself — this module is already the Web boundary that owns
+ * that import, and the architecture gate counts every other one.
+ */
+export type ShellTrpcLink = TRPCLink<ShellRouter>
+
 /** Vanilla shell-router client — zustand stores and non-React code. */
 export const shellTrpcClient = createTRPCClient<ShellRouter>({ links: shellLinks() })

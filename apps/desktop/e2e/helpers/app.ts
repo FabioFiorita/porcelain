@@ -407,6 +407,7 @@ type TabName =
   | 'History'
   | 'Review'
   | 'Board'
+  | 'Tasks'
   | 'Terminal'
   | 'Canvas'
 
@@ -425,6 +426,8 @@ function railTabId(tab: TabName): string {
       return 'search'
     case 'Board':
       return 'board'
+    case 'Tasks':
+      return 'tasks'
     case 'Terminal':
       return 'terminal'
     case 'Canvas':

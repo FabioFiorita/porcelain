@@ -13,6 +13,7 @@ import {
   createReviewReadingRouter,
 } from '../features/review'
 import { createSearchRouter } from '../features/search'
+import { createTasksRouter } from '../features/tasks'
 import { createDevServerRouter, createTerminalRouter } from '../features/terminal'
 import { t } from '../trpc'
 import type { CreateDaemonRouterOptions } from './daemon-operations'
@@ -23,8 +24,8 @@ import type { CreateDaemonRouterOptions } from './daemon-operations'
  * one shared `initTRPC` builder so procedure names stay flat on the wire.
  *
  * Remote, Projects, Git, Files, Search, the whole Review domain (comments,
- * lifecycle, reading, Evidence, reviewed marks), Board, Actions, Project Data,
- * and Terminal procedures are bound through `operations`; no horizontal procedure router
+ * lifecycle, reading, Evidence, reviewed marks), Board, Tasks, Actions, Project
+ * Data, and Terminal procedures are bound through `operations`; no horizontal procedure router
  * remains outside a canonical domain feature.
  */
 export function createDaemonRouter({ operations }: CreateDaemonRouterOptions) {
@@ -40,6 +41,7 @@ export function createDaemonRouter({ operations }: CreateDaemonRouterOptions) {
     createReviewEvidenceRouter(operations.review),
     createReviewMarksRouter(operations.review),
     createBoardRouter(operations.board),
+    createTasksRouter(operations.tasks),
     createActionsRouter(operations.actions),
     createProjectDataRouter(operations.projectData),
     createRemoteNetworkRouter(operations.remote),

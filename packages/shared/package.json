@@ -14,7 +14,8 @@
     "./comments-file": "./src/comments-file.ts",
     "./doc-set-file": "./src/doc-set-file.ts",
     "./actions-file": "./src/actions-file.ts",
-    "./background": "./src/background.ts"
+    "./background": "./src/background.ts",
+    "./tasks-porcelain": "./src/tasks-porcelain.ts"
   },
   "typesVersions": {
     "*": {
@@ -50,6 +51,9 @@
       ],
       "background": [
         "./src/background.ts"
+      ],
+      "tasks-porcelain": [
+        "./src/tasks-porcelain.ts"
       ]
     }
   }

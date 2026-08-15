@@ -83,6 +83,28 @@ export function prepareIntent(repoPath: string, tabs?: string[]): PreparedIntent
   return { dir, assetsDir: join(dir, ASSETS_DIR), tabs: wanted, seeded: true }
 }
 
+/**
+ * cli.ts's `intent prepare` case body, pulled in whole to keep that shrink-only file lean
+ * (same reason as canvas-file's `describeSetCanvas`). This is the text an agent reads when
+ * it starts an Intent-first unit, so it teaches the convention, not just the paths.
+ */
+export function describePrepareIntent(repoPath: string, tabs?: string[]): string {
+  const prepared = prepareIntent(repoPath, tabs)
+  const pinned = prepared.tabs.map((tab) => `  ${tab.file}`).join('\n')
+  const seeded = prepared.seeded
+    ? `Seeded the tab order:\n${pinned}`
+    : `Left the existing meta.json alone (its order and labels are yours):\n${pinned}\n…is what a fresh prepare would have written. Re-pin with \`intent order --files …\` if you want it.`
+  return `Intent directory ready at:\n${prepared.dir}\n\n${seeded}
+
+The three tabs we recommend — a convention, not a schema:
+  why.md        Why — the motivation and problem as understood BEFORE work started
+  approach.md   Approach — the solution shape that was agreed
+  decisions.md  Decisions — trade-offs taken, alternatives rejected, scope cut
+Add or drop tabs freely and re-pin with \`intent order --files a.md,b.html\`; a file the manifest names but nobody wrote is simply not a tab.
+
+Write the documents with your normal file tools. .md renders as prose; .html renders in a sandboxed frame (its sibling .css and images are inlined for you, so relative paths work). Scripts never run; do not ship a .js. Images go in ${prepared.assetsDir} and are referenced relatively, e.g. <img src="assets/before.png">.`
+}
+
 /** Pin the intent tab order (see `orderDocSet`). */
 export function orderIntent(repoPath: string, files: string[]): string[] {
   if (files.length > 0) ensureProjectDir(repoPath)

@@ -16,6 +16,7 @@ const sidebarTabSchema = z.enum([
   'history',
   'review',
   'board',
+  'tasks',
   'search',
   'canvas',
 ])

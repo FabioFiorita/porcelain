@@ -10,6 +10,7 @@
     "./files": "./src/files/index.ts",
     "./git": "./src/git/index.ts",
     "./search": "./src/search/index.ts",
+    "./tasks": "./src/tasks/index.ts",
     "./projects": "./src/projects/index.ts",
     "./project-data": "./src/project-data/index.ts",
     "./review": "./src/review/index.ts",

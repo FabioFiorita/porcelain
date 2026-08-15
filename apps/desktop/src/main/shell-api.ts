@@ -11,7 +11,7 @@ import {
   setWindowRemoteEndpoint,
   windowEnvironmentId,
 } from './daemon'
-import { daemonHeaders, protocolHeaders } from './daemon-headers'
+import { daemonHeaders } from './daemon-headers'
 import {
   loadLocalTerminalPaths,
   localTerminalPathKey,
@@ -22,7 +22,6 @@ import {
   endpointKind,
   endpointsOf,
   loadRemoteEnvironmentState,
-  normalizeDaemonUrl,
   orderedEndpoints,
   type RemoteEnvironment,
   updateRemoteEnvironmentState,
@@ -32,6 +31,12 @@ import {
 } from './remote-daemon'
 import { probeEnvironment, readEnvironmentStatuses } from './shell-environments'
 import { readHubInventories } from './shell-hub-inventory'
+import { exchangePairingLink } from './shell-pairing'
+import {
+  environmentTaskMutationInput,
+  environmentTasks,
+  mutateEnvironmentTask,
+} from './shell-tasks'
 import { SKILLS_VERSION, skillsInstallCommand, skillsUpgradeCommand } from './skills-assets'
 import { checkForUpdates, installUpdate, type UpdateStatus, updateStatus } from './updater'
 import { createWindow, switchWindowEnvironment, type WindowInit, windowInitFor } from './window'
@@ -43,63 +48,6 @@ interface ShellTrpcContext {
   sender: WebContents
 }
 const t = initTRPC.context<ShellTrpcContext>().create({ isServer: true })
-
-const pairingResponseSchema = z.object({
-  token: z.string().min(1),
-  client: z.object({
-    id: z.string(),
-    label: z.string(),
-    createdAt: z.string(),
-  }),
-})
-
-async function exchangePairingLink(link: string): Promise<{ url: string; token: string }> {
-  let parsed: URL
-  try {
-    parsed = new URL(link.trim())
-  } catch {
-    throw new Error('That is not a valid Porcelain connection link')
-  }
-  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-    throw new Error('Connection links must use HTTP or HTTPS')
-  }
-  if (parsed.username !== '' || parsed.password !== '') {
-    throw new Error('Connection links cannot contain URL credentials')
-  }
-  if (parsed.pathname !== '/pair' || parsed.search !== '') {
-    throw new Error('That is not a valid Porcelain connection link')
-  }
-  const credential = new URLSearchParams(parsed.hash.slice(1)).get('token')
-  if (credential === null || credential === '') {
-    throw new Error('That connection link has no pairing credential')
-  }
-  parsed.hash = ''
-  parsed.search = ''
-  parsed.pathname = ''
-  const url = normalizeDaemonUrl(parsed.toString())
-  let response: Response
-  try {
-    response = await fetch(`${url}/pair`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', ...protocolHeaders },
-      body: JSON.stringify({ credential }),
-      signal: AbortSignal.timeout(5000),
-    })
-  } catch {
-    throw new Error(`Could not reach the daemon in that connection link`)
-  }
-  if (response.status === 401) {
-    throw new Error('That connection link is expired, already used, or revoked')
-  }
-  if (!response.ok) throw new Error(`Pairing failed with status ${response.status}`)
-  let body: unknown
-  try {
-    body = await response.json()
-  } catch {
-    throw new Error('The daemon returned an invalid pairing response')
-  }
-  return { url, token: pairingResponseSchema.parse(body).token }
-}
 
 /** Thrown by `probeDaemon` when the daemon is reachable but rejects the token. */
 class DaemonUnauthorizedError extends Error {}
@@ -392,6 +340,14 @@ export const shellRouter = t.router({
       }
     },
   ),
+
+  // Cross-Environment Tasks. Implementation lives in shell-tasks.ts; see the fan-out and
+  // explicit-target rules there.
+  environmentTasks: t.procedure.query(() => environmentTasks()),
+
+  environmentTaskMutation: t.procedure
+    .input(environmentTaskMutationInput)
+    .mutation(({ input }) => mutateEnvironmentTask(input)),
 
   environmentStatuses: t.procedure.query(() => readEnvironmentStatuses()),
 

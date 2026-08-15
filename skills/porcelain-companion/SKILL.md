@@ -1,6 +1,6 @@
 ---
 name: porcelain-companion
-description: Drive Porcelain — the review layer for agentic coding — via the bundled CLI (~/.porcelain/porcelain). Use for the Review (Intent · Process · Execution · Evidence) as the start and end of a unit of work (features, bugs, chores, investigations), project board, saved terminal actions, repo notes, review-flow layers, review comments, and syncing companion setup across local/remote environments. Use whenever the human mentions Porcelain, the Review/Board/Terminal tabs, review comments, monorepo hide/pin, or you need to publish a review and close the loop.
+description: Drive Porcelain — the review layer for agentic coding — via the bundled CLI (~/.porcelain/porcelain). Use for the Review (Intent · Process · Execution · Evidence) as the start and end of a unit of work (features, bugs, chores, investigations), the global Tasks table, project board, saved terminal actions, repo notes, review-flow layers, review comments, and syncing companion setup across local/remote environments. Use whenever the human mentions Porcelain, the Review/Tasks/Board/Terminal tabs, review comments, monorepo hide/pin, or you need to publish a review and close the loop.
 version: 0.52.1
 license: MIT
 ---
@@ -37,7 +37,8 @@ Read one when you need depth for that surface. Each is complete on its own.
 references/
   review.md            The Review end to end: Intent · Process · Execution · Evidence, lifecycle,
                        publish flow, mediums, comments, reviewed marks
-  board.md             The queue of cards (todo/doing/done)
+  tasks.md             The daemon-wide table of work across Projects (replaces Board)
+  board.md             The retiring per-repo queue of cards (todo/doing/done)
   actions.md           Saved terminal commands you curate and the human runs
   notes.md             The human's per-repo scratchpad (read-only)
   layers.md            Repo-wide Changes-tab flow grouping (regex layers)

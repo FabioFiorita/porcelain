@@ -40,7 +40,7 @@ import {
   setEvidence,
 } from './evidence-file'
 import { resolveToolHtml } from './html-input'
-import { listIntent, orderIntent, prepareIntent } from './intent-file'
+import { describePrepareIntent, listIntent, orderIntent } from './intent-file'
 import { clearLayers, describeLayers, readLayers, setLayers, toLayers } from './layers-file'
 import { describeNotes, readNotes } from './notes-file'
 import {
@@ -63,6 +63,7 @@ import {
   unhidePath as unhideScopePath,
   unpinPath as unpinScopePath,
 } from './scope-file'
+import { describeTasksCommand, TASKS_COMMANDS } from './tasks-file'
 
 // Porcelain's agent CLI: a dependency-free command that reads and writes project
 // companion channels under <repo>/.porcelain/ (review, board, actions, notes, layers,
@@ -308,6 +309,7 @@ export const COMMANDS: NounHelp[] = [
     ],
     flags: ['title', 'body', 'status', 'id'],
   },
+  TASKS_COMMANDS,
   {
     noun: 'actions',
     blurb: 'saved actions — named shell commands the human runs in the terminal',
@@ -486,22 +488,8 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<string
     }
     case 'reviewed list':
       return describeReviewed(repo, readReviewed(repo))
-    case 'intent prepare': {
-      const prepared = prepareIntent(repo, splitList(opt('tabs')))
-      const pinned = prepared.tabs.map((tab) => `  ${tab.file}`).join('\n')
-      const seeded = prepared.seeded
-        ? `Seeded the tab order:\n${pinned}`
-        : `Left the existing meta.json alone (its order and labels are yours):\n${pinned}\n…is what a fresh prepare would have written. Re-pin with \`intent order --files …\` if you want it.`
-      return `Intent directory ready at:\n${prepared.dir}\n\n${seeded}
-
-The three tabs we recommend — a convention, not a schema:
-  why.md        Why — the motivation and problem as understood BEFORE work started
-  approach.md   Approach — the solution shape that was agreed
-  decisions.md  Decisions — trade-offs taken, alternatives rejected, scope cut
-Add or drop tabs freely and re-pin with \`intent order --files a.md,b.html\`; a file the manifest names but nobody wrote is simply not a tab.
-
-Write the documents with your normal file tools. .md renders as prose; .html renders in a sandboxed frame (its sibling .css and images are inlined for you, so relative paths work). Scripts never run; do not ship a .js. Images go in ${prepared.assetsDir} and are referenced relatively, e.g. <img src="assets/before.png">.`
-    }
+    case 'intent prepare':
+      return describePrepareIntent(repo, splitList(opt('tabs')))
     case 'intent order': {
       const ordered = orderIntent(repo, splitList(opt('files')) ?? [])
       return `Intent tab order for ${repo}: ${ordered.join(' → ')}`
@@ -593,6 +581,11 @@ Write the documents with your normal file tools. .md renders as prose; .html ren
       const id = req('id')
       return deleteCard(repo, id) ? `Deleted card ${id} for ${repo}` : `No card ${id} for ${repo}`
     }
+    case 'tasks list':
+    case 'tasks add':
+    case 'tasks update':
+    case 'tasks done':
+      return describeTasksCommand(verb, repo, flags)
     case 'actions list':
       return describeActions(repo, readActions(repo))
     case 'actions create': {

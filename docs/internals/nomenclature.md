@@ -15,8 +15,8 @@ parens is the **entry point**; read it for mechanics.
 | Viewer | `shell/viewer.tsx` | The central panel. **Never "editor"** |
 | Companion | `right-sidebar.tsx` | The right panel (⌘.); statically titled "Companion" on every tab — no more per-tab retitling. Orientation comes from section labels, which follow the active sidebar tab. Three other things share the word: the Settings tab, the mobile column/sheet, and the repo-local `.porcelain/` project companion — see the Overlays row and Cross-cutting table below |
 
-**Sidebar tabs** — Files · Changes · Review · History · Search · Board · Terminal (review-loop order,
-⌘1–7; the Review tab's stored pref id is `review`).
+**Sidebar tabs** — Files · Changes · Review · History · Search · Tasks · Board · Terminal
+(review-loop order, ⌘1–7; the Review tab's stored pref id is `review`).
 
 | Term | Entry | Note |
 |---|---|---|
@@ -26,7 +26,8 @@ parens is the **entry point**; read it for mechanics.
 | History list | `history-list.tsx` | |
 | Review list | `review-list.tsx` | Header + file outline. **Intent/Process/Execution/Evidence live only in the viewer canvas** |
 | Review inbox | `review-inbox.tsx` | Other worktrees with work awaiting review; rows from `reviewInbox` (`list-review-inbox.ts`) |
-| Board list | `board-list.tsx` | todo/doing/done cards |
+| Tasks list | `tasks-list.tsx` | Compact read of the daemon-wide table; opens the Viewer table |
+| Board list | `board-list.tsx` | todo/doing/done cards — **retiring**, replaced by Tasks (#28) |
 | Terminal list | `terminal-list.tsx` | Roster of **sessions** — they outlive their tabs |
 | Key bar | `terminal-key-bar.tsx` | Above the terminal pane; coarse-touch only, never a Settings option |
 | Selection Copy | `terminal-selection-toolbar.tsx` | Host clipboard via `copyText`, not OSC 52 |
@@ -38,7 +39,8 @@ parens is the **entry point**; read it for mechanics.
 | Glance | `glance-home.tsx` | Companion home an empty pane renders with a repo open |
 | Tab bar / Tab | `tab-bar.tsx` | Preview = single-click, italic, replaced; pinned = double-click/edit |
 | Split view / pane | `stores/tabs.ts` | Two panes, each its own tabs; "Open to the Side" |
-| Tab kinds | `viewer.tsx` switch | file / source / markdown reader / html preview / diff / commit / review / search / explore / board / terminal. **The `review` tab kind IS the Review canvas** |
+| Tab kinds | `viewer.tsx` switch | file / source / markdown reader / html preview / diff / commit / review / search / explore / board / tasks / terminal / canvas. **The `review` tab kind IS the Review canvas**; the `tasks` tab kind carries NO Hub target — the table spans every Environment |
+| Tasks table | `tasks-view.tsx` | Quick Add · column picker · the table. Rows are labelled with the Environment that owns them; every mutation names that Environment |
 
 **Inside Companion** (sections follow the sidebar tab; the panel title itself never changes)
 
@@ -48,6 +50,7 @@ parens is the **entry point**; read it for mechanics.
 | Changes | Suggested · Commands · Commit · Comments |
 | History | Suggested · Commands · File timeline (`gitFileLog --follow`) |
 | Review | **Current review · Previous reviews** (`review-group.tsx`; always rendered, empty note when there are none) · Comments — archive the active unit; restore or trash archives under `.porcelain/reviews/` |
+| Tasks | (none — the table is the whole surface; Quick Add lives above it, not in Companion) |
 | Board | Focus — full detail of the selected card; card status shows inside the card, not a Board-tab-only affordance. Selection is client-only, **not** a second kanban |
 | Terminal | Saved commands — the "Actions" feature (`.porcelain/actions.json`, see Cross-cutting below) surfaced under this section label |
 | Search | Recent searches |

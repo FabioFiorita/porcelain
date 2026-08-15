@@ -5,6 +5,7 @@ export const DOMAIN_KEYS = [
   'search',
   'review',
   'board',
+  'tasks',
   'actions',
   'terminal',
   'project-data',
@@ -21,6 +22,13 @@ export const DOMAIN_MIGRATIONS = Object.freeze(
         targetRoots.push('packages/client-runtime/src/board')
         targetRoots.push('apps/web/src/features/board')
         targetRoots.push('apps/mobile/src/features/board')
+      }
+      // Tasks is daemon-wide (issue #23): no repo-local companion file and, for now, no
+      // mobile client — mobile joins on the shared contracts in a later slice.
+      if (key === 'tasks') {
+        targetRoots.push('apps/daemon/src/features/tasks')
+        targetRoots.push('packages/client-runtime/src/tasks')
+        targetRoots.push('apps/web/src/features/tasks')
       }
       if (key === 'actions') {
         targetRoots.push('apps/daemon/src/features/actions')
@@ -128,7 +136,7 @@ export const OVERSIZED_PRODUCTION_FILES = Object.freeze({
   'apps/cli/src/cli.ts': 672,
   'apps/daemon/src/git/commit-generation.ts': 991,
   'apps/daemon/src/git/git.ts': 947,
-  'apps/desktop/src/main/shell-api.ts': 741,
+  'apps/desktop/src/main/shell-api.ts': 697,
   'apps/web/src/components/git/changes-list.tsx': 468,
   'apps/web/src/features/review/active-review.tsx': 508,
   'apps/web/src/features/review/reading-surface.tsx': 904,
