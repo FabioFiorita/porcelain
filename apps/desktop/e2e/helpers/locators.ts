@@ -41,6 +41,12 @@ export const loc = {
     page.locator(`[data-hub-worktree="${worktreeId}"]`),
   glance: (page: Page): Locator => byId(page, TestIds.glance),
   glanceChangedFiles: (page: Page): Locator => byId(page, TestIds.glanceChangedFiles),
+  glanceJumpTerminal: (page: Page): Locator => byId(page, TestIds.glanceJumpTerminal),
+
+  canvasList: (page: Page): Locator => byId(page, TestIds.canvasList),
+  canvasListEmpty: (page: Page): Locator => byId(page, TestIds.canvasListEmpty),
+  canvasListItem: (page: Page, id: string): Locator => byId(page, TestIds.canvasListItem(id)),
+  canvasIframe: (page: Page): Locator => byId(page, TestIds.canvasIframe),
 
   settingsDialog: (page: Page): Locator => byId(page, TestIds.settingsDialog),
   settingsHeading: (page: Page): Locator => byId(page, TestIds.settingsHeading),
@@ -73,7 +79,7 @@ export const loc = {
   reviewOpen: (page: Page): Locator => byId(page, TestIds.reviewOpen),
   activeReview: (page: Page): Locator => byId(page, TestIds.activeReview),
   activeReviewEmpty: (page: Page): Locator => byId(page, TestIds.activeReviewEmpty),
-  activeReviewTab: (page: Page, tab: 'intent' | 'execution' | 'evidence'): Locator =>
+  activeReviewTab: (page: Page, tab: 'intent' | 'process' | 'execution' | 'evidence'): Locator =>
     byId(page, TestIds.activeReviewTab(tab)),
   evidencePanel: (page: Page): Locator => byId(page, TestIds.evidencePanel),
   evidenceClear: (page: Page): Locator => byId(page, TestIds.evidenceClear),
@@ -94,6 +100,10 @@ export const loc = {
   commitGroup: (page: Page): Locator => byId(page, TestIds.commitGroup),
 
   terminalNew: (page: Page): Locator => byId(page, TestIds.terminalNew),
+  terminalSession: (page: Page, name: string): Locator =>
+    byId(page, TestIds.terminalPanel)
+      .locator('button')
+      .filter({ hasText: new RegExp(`^${name}$`) }),
   terminalKeyBar: (page: Page): Locator => byId(page, TestIds.terminalKeyBar),
   terminalKey: (page: Page, label: string): Locator => byId(page, TestIds.terminalKey(label)),
   terminalContextMenu: (page: Page): Locator => byId(page, TestIds.terminalContextMenu),

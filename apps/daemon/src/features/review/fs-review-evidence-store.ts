@@ -28,11 +28,11 @@ import type {
 /**
  * Evidence — **files on disk are the source of truth**. The pack is three sub-tabs
  * over one directory (`…/active-review/evidence/`): **Checks** (`meta.json`),
- * **Results** (`results/`, a document set), and **Assets** (`assets/`, the gallery).
+ * **Results** (`results/`, a document set), and **Assets** (`assets/`, the media gallery).
  * Any ONE of them makes a pack: an agent that ran the suite and recorded four passes
  * has evidence even without writing a page saying so.
  *
- * Nothing this adapter returns is a host path. Bodies and images are read by the two
+ * Nothing this adapter returns is a host path. Bodies and media are read by the two
  * modules that own their caps and containment (`review/doc-set.ts` and
  * `review/evidence-assets-list.ts`); this module owns presence, freshness, and the
  * descriptors the feature reads.
@@ -188,7 +188,7 @@ export function createFsReviewEvidenceStore(): ReviewEvidenceStore {
         fileExists(metaPath(repoPath)),
       ])
       // A pack exists when ANY of its parts does: recorded checks (`meta.json`), a
-      // Results document, or a gallery image.
+      // Results document, or a gallery media asset.
       if (!hasMeta && results.docs.length === 0 && assets.length === 0) return null
 
       const meta = await readDiskMeta(repoPath)
@@ -206,10 +206,14 @@ export function createFsReviewEvidenceStore(): ReviewEvidenceStore {
         if (at > updatedAt) updatedAt = at
       }
 
-      const assetDescriptors: ReviewEvidenceAssetDescriptor[] = assets.map((asset) => ({
-        ...asset,
-        ...stateFor(asset.bytes, MAX_ASSET_BYTES),
-      }))
+      const assetDescriptors: ReviewEvidenceAssetDescriptor[] = assets.map((asset) =>
+        asset.kind === 'link'
+          ? { ...asset, state: 'available' as const }
+          : {
+              ...asset,
+              ...stateFor(asset.bytes, MAX_ASSET_BYTES),
+            },
+      )
 
       return {
         title: meta?.title?.trim() || 'Evidence',

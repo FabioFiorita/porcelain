@@ -21,7 +21,7 @@ export function createReviewEvidenceRouter(operations: ReviewEvidenceOperations)
      * The Evidence pack in one read: **Checks** (`meta.json`), **Results**
      * (`evidence/results/` described as documents), and **Assets**
      * (`evidence/assets/` described as a gallery). Descriptors only — bodies and
-     * image bytes are fetched separately, only while the Evidence chapter is on
+     * media bytes are fetched separately, only while the Evidence chapter is on
      * screen — so the header can never promise a tab that is not there.
      */
     reviewEvidence: publicProcedure
@@ -47,7 +47,7 @@ export function createReviewEvidenceRouter(operations: ReviewEvidenceOperations)
       ),
 
     /**
-     * One gallery image as a data URL. Deliberately a procedure and not an HTTP
+     * One gallery media asset as a data URL. Deliberately a procedure and not an HTTP
      * route: the daemon's static server serves the renderer dist unauthenticated,
      * and user files must never leave through it. Null when missing or over cap.
      */

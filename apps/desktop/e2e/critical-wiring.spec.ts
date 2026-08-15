@@ -1,10 +1,39 @@
 import { spawn } from 'node:child_process'
-import { writeFile } from 'node:fs/promises'
+import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { PROTOCOL_VERSION } from '@porcelain/contracts'
 import { expect, expectTerminalText, loc, selectTab, test, waitForShell } from './helpers/app'
 
 const CLI = join(__dirname, '..', 'out', 'main', 'cli', 'porcelain.js')
+
+const PNG_1PX = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+  'base64',
+)
+// Two black 16×16 H.264 frames in an MP4 container, generated once for the
+// fixture so the browser has real media bytes rather than only a video-shaped
+// data URL.
+const VIDEO_BYTES = Buffer.from(
+  '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',
+  'base64',
+)
+
+async function seedFixtureEvidence(repoDir: string): Promise<void> {
+  const evidence = join(repoDir, '.porcelain', 'active-review', 'evidence')
+  await mkdir(join(evidence, 'assets'), { recursive: true })
+  await writeFile(join(evidence, 'assets', 'shot.png'), PNG_1PX)
+  await writeFile(join(evidence, 'assets', 'capture.mp4'), VIDEO_BYTES)
+  await writeFile(join(evidence, 'assets', 'reference.url'), 'https://example.com/evidence\n')
+  await writeFile(
+    join(evidence, 'meta.json'),
+    JSON.stringify({
+      title: 'CLI watcher evidence',
+      repoPath: repoDir,
+      updatedAt: '2026-08-15T00:00:00.000Z',
+      checks: [{ label: 'browser proof', status: 'pass' }],
+    }),
+  )
+}
 
 interface SessionMismatch {
   t: 'session:mismatch'
@@ -165,18 +194,36 @@ test('a CLI review publish appears in the already-running Review canvas', async 
     repoDir,
   )
 
+  await seedFixtureEvidence(repoDir)
+
   await expect(loc.reviewOpen(page)).toBeVisible({ timeout: 15_000 })
   await loc.reviewOpen(page).click()
   await expect(loc.activeReview(page)).toContainText('CLI watcher unit', { timeout: 15_000 })
+  for (const tab of ['intent', 'process', 'execution', 'evidence'] as const) {
+    await expect(loc.activeReviewTab(page, tab)).toBeVisible()
+  }
+  await expect(loc.activeReviewTab(page, 'evidence')).not.toHaveAttribute('aria-disabled', 'true')
+  await loc.activeReviewTab(page, 'process').click()
   await expect(loc.activeReview(page)).toContainText('Scope')
+  await loc.activeReviewTab(page, 'evidence').click()
+  await expect(loc.evidencePanel(page)).toBeVisible()
+  await loc.evidenceSubTab(page, 'assets').click()
+  await expect(loc.evidenceGallery(page)).toBeVisible()
+  await expect(loc.evidenceGalleryItem(page, 'shot.png')).toBeVisible()
+  await expect(loc.evidenceGalleryItem(page, 'capture.mp4')).toBeVisible()
+  await expect(loc.evidenceGalleryItem(page, 'reference.url')).toHaveAttribute(
+    'href',
+    'https://example.com/evidence',
+  )
+  await expect(page.locator('video')).toHaveAttribute('src', /^data:video\/mp4;base64,/)
 })
 
 test('a PTY survives browser detach, reconnects, and replays its bounded tail', async ({
   page,
 }) => {
   await waitForShell(page)
-  await selectTab(page, 'Terminal')
-  await loc.terminalNew(page).click()
+  await loc.glanceJumpTerminal(page).click()
+  await loc.terminalNew(page).waitFor()
 
   const input = page.locator('.porcelain-ghostty-input').first()
   await input.waitFor()
@@ -190,8 +237,11 @@ test('a PTY survives browser detach, reconnects, and replays its bounded tail', 
   // The fresh roster hydration then opens the existing row and attaches a new Ghostty stream.
   await page.reload()
   await waitForShell(page)
-  await selectTab(page, 'Terminal')
-  const existing = page.getByRole('button', { name: 'Terminal 1', exact: true })
+  const existing = loc.terminalSession(page, 'Terminal 1')
+  // The panel is persistent but hidden after reload; this structural locator can observe its
+  // hydrated row without requiring the panel to be visible or triggering a new PTY.
+  await existing.waitFor({ state: 'attached', timeout: 15_000 })
+  await loc.glanceJumpTerminal(page).click()
   await existing.waitFor({ timeout: 15_000 })
   await existing.click()
   await expectTerminalText(page, 0, 'SCROLLBACK_TAIL_64K', 45_000)

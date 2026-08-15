@@ -28,12 +28,16 @@ export {
 export {
   type HubInventoryQuery,
   hubInventoryQuery,
+  type ListCanvasesQuery,
+  listCanvasesQuery,
   type ProjectDirectoriesQuery,
   type ProjectSummary,
   type ProjectsQuery,
   projectDirectoriesQuery,
   projectsQuerySchema,
+  type ReadCanvasQuery,
   type RecentProjectsQuery,
+  readCanvasQuery,
   recentProjectsQuery,
 } from './project-queries'
 

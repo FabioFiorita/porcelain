@@ -19,3 +19,17 @@ export const projectsUnavailableErrorSchema = definePublicError({
   category: 'unavailable',
   retryable: true,
 })
+
+/** Canvas failures — the daemon-root Project store's agent-authored explanation surface. */
+
+export const canvasNotFoundErrorSchema = definePublicError({
+  code: 'canvas.not-found',
+  category: 'not-found',
+  retryable: false,
+})
+
+export const canvasUnavailableErrorSchema = definePublicError({
+  code: 'canvas.unavailable',
+  category: 'unavailable',
+  retryable: true,
+})

@@ -111,11 +111,12 @@ export const TestIds = {
   activeReview: 'active-review',
   /** Empty Review canvas — start-of-unit affordance. */
   activeReviewEmpty: 'active-review-empty',
-  activeReviewTab: (tab: 'intent' | 'execution' | 'evidence'): string => `active-review-tab-${tab}`,
+  activeReviewTab: (tab: 'intent' | 'process' | 'execution' | 'evidence'): string =>
+    `active-review-tab-${tab}`,
   evidencePanel: 'evidence-panel',
   evidenceClear: 'evidence-clear',
   evidenceIframe: 'evidence-iframe',
-  /** Evidence is one pack over three sub-tabs: Checks · Results · Assets. */
+  /** Evidence is one pack over three sub-tabs: Checks · Results · Assets (media). */
   evidenceSubTab: (id: 'checks' | 'results' | 'assets'): string => `evidence-sub-tab-${id}`,
   evidenceChecksPane: 'evidence-checks-pane',
   evidenceResultsPane: 'evidence-results-pane',
@@ -203,6 +204,13 @@ export const TestIds = {
   reviewPublishCost: 'review-publish-cost',
   /** Publish dialog warning shown when `.porcelain/` is hidden from git in this clone. */
   reviewPublishVisibilityNote: 'review-publish-visibility-note',
+
+  // --- Canvas (daemon-root Project store, ADR 0002) ---
+  canvasList: 'canvas-list',
+  canvasListEmpty: 'canvas-list-empty',
+  canvasListItem: (id: string): string => `canvas-list-item-${id}`,
+  /** Sandboxed HTML Canvas iframe — sandbox="allow-scripts", no allow-same-origin. */
+  canvasIframe: 'canvas-iframe',
 
   // --- Saved action trust ---
   actionTrustDialog: 'action-trust-dialog',

@@ -32,14 +32,28 @@ export type ReviewEvidenceDocDescriptor = {
   bytes: number
 } & ({ state: 'available' } | EvidenceUnavailable)
 
-/** One gallery image, described without its bytes. */
-export type ReviewEvidenceAssetDescriptor = {
+/** One gallery media asset, described without its bytes. */
+type ReviewEvidenceMediaDescriptor = {
   file: string
   label: string
-  kind: 'image'
+  kind: 'image' | 'video'
   mime: string
   bytes: number
 } & ({ state: 'available' } | EvidenceUnavailable)
+
+/** A tiny `.url` file, rendered as a safe external link card rather than fetched by the daemon. */
+type ReviewEvidenceLinkDescriptor = {
+  file: string
+  label: string
+  kind: 'link'
+  href: string
+  bytes: number
+  state: 'available'
+}
+
+export type ReviewEvidenceAssetDescriptor =
+  | ReviewEvidenceMediaDescriptor
+  | ReviewEvidenceLinkDescriptor
 
 /**
  * A pack as the Review feature sees it: checks, Results descriptors, and Assets
@@ -59,7 +73,7 @@ export type ReviewEvidenceStore = Readonly<{
   readPack(repoPath: string): Promise<ReviewEvidencePack | null>
   /** Results bodies, ordered and capped, for the Results sub-tab. */
   readResults(repoPath: string): Promise<ReviewDoc[]>
-  /** One gallery image as a data URL; `null` when missing, uncontained, or over cap. */
+  /** One gallery media asset as a data URL; links never request a body. */
   readAsset(repoPath: string, file: string): Promise<EvidenceAssetBody | null>
   /** Delete the pack directory; absent is success. */
   clear(repoPath: string): Promise<void>

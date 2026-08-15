@@ -81,6 +81,18 @@ const projectsOperations = {
     ok: false,
     error: { code: 'projects.not-found' },
   })),
+  listCanvases: vi.fn<ProjectsOperations['listCanvases']>(async () => ({
+    ok: true,
+    value: [],
+  })),
+  readCanvas: vi.fn<ProjectsOperations['readCanvas']>(async () => ({
+    ok: false,
+    error: { code: 'canvas.not-found' },
+  })),
+  mintCanvasAccessToken: vi.fn<ProjectsOperations['mintCanvasAccessToken']>(async () => ({
+    ok: false,
+    error: { code: 'canvas.not-found' },
+  })),
 } satisfies ProjectsOperations
 
 const router = createDaemonRouter({
@@ -120,13 +132,17 @@ const exchangeTestPairing: RemoteHttpOptions['exchangePairing'] = async (provide
     : null
 
 type TestDaemonOverrides = Partial<
-  Pick<RemoteHttpOptions, 'authenticateClient' | 'exchangePairing' | 'router'>
+  Pick<RemoteHttpOptions, 'authenticateClient' | 'exchangePairing' | 'router' | 'serveCanvas'>
 >
 
 function testDaemonOptions({
   authenticateClient = authenticateTestClient,
   exchangePairing = exchangeTestPairing,
   router: testRouter = router,
+  serveCanvas = async (_req: IncomingMessage, res: ServerResponse) => {
+    res.writeHead(404)
+    res.end()
+  },
 }: TestDaemonOverrides = {}): RemoteHttpOptions {
   return {
     adminTokenHash: createHash('sha256').update(TOKEN).digest(),
@@ -139,6 +155,7 @@ function testDaemonOptions({
       res.writeHead(req.url === '/pair' ? 200 : 404)
       res.end()
     },
+    serveCanvas,
   }
 }
 
@@ -306,6 +323,29 @@ describe('daemon http surface — the token gate + CORS scope', () => {
   it('serves the app shell for a pairing-link navigation', async () => {
     const res = await fetch(`${base}/pair`)
     expect(res.status).toBe(200)
+  })
+
+  it('dispatches /canvas/<token> to serveCanvas, not serveStatic, with no Bearer required', async () => {
+    const serveCanvas = vi.fn(async (_req: IncomingMessage, res: ServerResponse) => {
+      res.writeHead(200, { 'content-type': 'text/html' })
+      res.end('<p>canvas</p>')
+    })
+    const isolated = await startTestDaemon({ serveCanvas })
+
+    try {
+      const res = await fetch(`${isolated.base}/canvas/some-token`)
+      expect(res.status).toBe(200)
+      expect(await res.text()).toBe('<p>canvas</p>')
+      expect(serveCanvas).toHaveBeenCalledOnce()
+    } finally {
+      await stopTestDaemon(isolated.daemon)
+    }
+  })
+
+  it('answers /canvas OPTIONS with no CORS headers (never fetched cross-origin)', async () => {
+    const res = await fetch(`${base}/canvas/some-token`, { method: 'OPTIONS' })
+    expect(res.status).toBe(204)
+    expect(res.headers.get('access-control-allow-origin')).toBeNull()
   })
 
   it('returns a public unauthenticated error for an exhausted pairing grant', async () => {

@@ -65,8 +65,8 @@ function StartUnitCard(): React.JSX.Element {
       <View className="gap-2 rounded-2xl border border-dashed border-border bg-muted/30 p-3">
         <Text className="text-2xs leading-4 text-muted-foreground">
           No active unit. Ask your agent to start one — it publishes Intent first (name + thesis),
-          then grows Execution and Evidence. Archive a finished unit and it stays in Previous
-          reviews.
+          then grows Process and Execution, with Evidence closing the loop. Archive a finished unit
+          and it stays in Previous reviews.
         </Text>
       </View>
     </View>

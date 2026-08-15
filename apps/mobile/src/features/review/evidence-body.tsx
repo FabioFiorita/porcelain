@@ -27,13 +27,13 @@ const CHECK_FACE: Record<EvidenceCheck['status'], { glyph: ChromeIconName; tone:
  * Evidence: what the agent actually ran, and the proof of it.
  *
  * One pack read as a flat set of panes: **Checks**, the agent's structured claim; then each
- * document it wrote to back that claim (`evidence/results/`); then **Assets**, the screenshots.
+ * document it wrote to back that claim (`evidence/results/`); then **Assets**, the screenshots and recordings.
  * A pane with nothing behind it stays visible and dimmed, so the shape of a pack is legible
  * before you tap — and the first pane that has anything is the one that opens, so a pack
  * without checks lands on a document rather than a dead pane.
  *
  * The documents are panes in their own right rather than a "Results" pane you then choose
- * inside. That grouping cost a whole extra level of tabs: the canvas' own Intent · Execution ·
+ * inside. That grouping cost a whole extra level of tabs: the canvas' own Intent · Process · Execution ·
  * Evidence switch, a second full-width segmented control under it that looked exactly like the
  * first, and a THIRD strip inside Results as soon as a pack published two documents. Intent
  * already treats its documents, its board and its narrative as one flat set (`intentPanes`);
@@ -43,7 +43,7 @@ const CHECK_FACE: Record<EvidenceCheck['status'], { glyph: ChromeIconName; tone:
  * one-line pass/fail.
  *
  * The listing is one cheap aggregate — checks plus descriptors, no bodies — and it is gated on
- * this canvas being up. A document's text and an image's bytes are fetched one at a time by
+ * this canvas being up. A document's text and a media asset's bytes are fetched one at a time by
  * the pane that shows them, so a pack running to megabytes never lands on a tab nobody opened.
  */
 export function EvidenceBody({
@@ -99,7 +99,7 @@ export function EvidenceBody({
 }
 
 /**
- * The pack as one flat strip: the claim, each document behind it, then the screenshots.
+ * The pack as one flat strip: the claim, each document behind it, then the media assets.
  *
  * Ordered claim → argument → exhibits, which is the order the proof is read in. The counts are
  * the aggregate's own descriptors — the reading carries the chapter's checks and nothing else,
@@ -286,7 +286,7 @@ function ResultsDoc({ descriptor }: { descriptor: EvidenceDocDescriptor }): Reac
   return <IntentDocBody doc={doc} testIDPrefix="porcelain-review-evidence-doc" />
 }
 
-/** Assets: the screenshots, native. The listing is cheap; the bytes are not, so they wait. */
+/** Assets: screenshots and recordings, native where possible. The listing is cheap; the bytes are not, so they wait. */
 function AssetsPane(): React.JSX.Element {
   const { error, evidence, isLoading } = useReviewEvidence(true)
 

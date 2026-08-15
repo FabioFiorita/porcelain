@@ -5,6 +5,7 @@ import { Kbd } from '@renderer/components/ui/kbd'
 import { SidebarGroupLabel } from '@renderer/components/ui/sidebar'
 import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-group'
 import { BoardList, BoardQuickAccess } from '@renderer/features/board'
+import { CanvasList } from '@renderer/features/projects'
 import { ReviewList } from '@renderer/features/review'
 import { SearchList } from '@renderer/features/search'
 import { kbdLabel } from '@renderer/lib/keyboard'
@@ -20,6 +21,7 @@ import {
   FileText,
   GitCompareArrows,
   History,
+  LayoutPanelTop,
   Search,
   SquareKanban,
   Waypoints,
@@ -64,6 +66,13 @@ export const SURFACES: SurfaceDefinition[] = [
     icon: History,
   },
   { id: 'search', label: 'Search', hint: 'Search code and files', shortcut: '5', icon: Search },
+  {
+    id: 'canvas',
+    label: 'Canvas',
+    hint: 'Agent-authored explanation for this Project',
+    shortcut: '7',
+    icon: LayoutPanelTop,
+  },
 ]
 
 export function surfaceDefinition(id: SidebarTab): SurfaceDefinition {
@@ -157,6 +166,7 @@ export function SurfaceContent({
       )}
       {active === 'history' && <HistorySurface />}
       {active === 'search' && <SearchList />}
+      {active === 'canvas' && <CanvasList />}
       {active === 'board' && (
         <>
           <BoardList />

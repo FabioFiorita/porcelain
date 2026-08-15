@@ -32,6 +32,14 @@ describe('inlineLocalAssets', () => {
     expect(out).not.toContain('<link rel="stylesheet" href="styles.css">')
   })
 
+  it('inlines a relative video source for a sandboxed HTML document', async () => {
+    writeFileSync(join(dir, 'capture.mp4'), Buffer.from('video-bytes'))
+    const html = '<video controls src="capture.mp4"></video>'
+    const out = await inlineLocalAssets(dir, html)
+    expect(out).toMatch(/src="data:video\/mp4;base64,/)
+    expect(out).not.toContain('src="capture.mp4"')
+  })
+
   it('leaves remote and missing stylesheets alone', async () => {
     const html =
       '<link rel="stylesheet" href="https://example.com/styles.css"><link rel="stylesheet" href="missing.css">'
@@ -116,5 +124,68 @@ describe('inlineLocalAssets', () => {
     const html = '<link rel="stylesheet" href="escape.css">'
     expect(await inlineLocalAssets(dir, html)).toBe(html)
     rmSync(outside, { recursive: true, force: true })
+  })
+
+  it('leaves a script tag alone by default — inlineScripts opts in', async () => {
+    writeFileSync(join(dir, 'app.js'), 'console.log("hi")')
+    const html = '<script src="app.js"></script>'
+    // No 4th arg: doc-set.ts (Intent/Evidence, sandbox="" — no allow-scripts)
+    // shares this function and never asks for scripts, so the default must
+    // leave them exactly as authored, not silently start inlining them.
+    expect(await inlineLocalAssets(dir, html)).toBe(html)
+  })
+
+  it('inlines an empty external script tag as inline JS text when opted in', async () => {
+    writeFileSync(join(dir, 'app.js'), 'console.log("hi")')
+    const html = '<script src="app.js"></script>'
+    const out = await inlineLocalAssets(dir, html, dir, true)
+    expect(out).toBe('<script>console.log("hi")</script>')
+  })
+
+  it('escapes a literal closing tag inside inlined script text', async () => {
+    writeFileSync(join(dir, 'app.js'), 'document.write("</script><script>evil()</script>")')
+    const out = await inlineLocalAssets(dir, '<script src="app.js"></script>', dir, true)
+    expect(out).toBe('<script>document.write("<\\/script><script>evil()<\\/script>")</script>')
+  })
+
+  it('leaves a script tag with a body untouched even when it also has src', async () => {
+    writeFileSync(join(dir, 'app.js'), 'console.log("hi")')
+    const html = '<script src="app.js">// ignored by the browser anyway</script>'
+    expect(await inlineLocalAssets(dir, html, dir, true)).toBe(html)
+  })
+
+  it('leaves remote and missing scripts alone', async () => {
+    const html =
+      '<script src="https://example.com/app.js"></script><script src="missing.js"></script>'
+    expect(await inlineLocalAssets(dir, html, dir, true)).toBe(html)
+  })
+
+  it('leaves a script symlink escape alone', async () => {
+    const outside = join(tmpdir(), 'porcelain-evidence-assets-js-outside')
+    rmSync(outside, { recursive: true, force: true })
+    mkdirSync(outside, { recursive: true })
+    writeFileSync(join(outside, 'evil.js'), 'evil()')
+    symlinkSync(join(outside, 'evil.js'), join(dir, 'escape.js'))
+    const html = '<script src="escape.js"></script>'
+    expect(await inlineLocalAssets(dir, html, dir, true)).toBe(html)
+    rmSync(outside, { recursive: true, force: true })
+  })
+
+  it('inlines an image sibling to an already-inlined script with no double-processing', async () => {
+    writeFileSync(join(dir, 'app.js'), 'noop()')
+    writeFileSync(join(dir, 'shot.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47]))
+    const html = '<script src="app.js"></script><img src="shot.png">'
+    const out = await inlineLocalAssets(dir, html, dir, true)
+    expect(out).toContain('<script>noop()</script>')
+    expect(out).toMatch(/<img src="data:image\/png;base64,[^"]+">/)
+    expect(out).not.toContain('src="app.js"')
+  })
+
+  it('still excludes an untouched (inlineScripts=false) script src from the generic image pass', async () => {
+    writeFileSync(join(dir, 'shot.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47]))
+    const html = '<script src="app.js"></script><img src="shot.png">'
+    const out = await inlineLocalAssets(dir, html)
+    expect(out).toContain('<script src="app.js"></script>')
+    expect(out).toMatch(/<img src="data:image\/png;base64,[^"]+">/)
   })
 })

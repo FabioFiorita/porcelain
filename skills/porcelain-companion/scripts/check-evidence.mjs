@@ -2,7 +2,7 @@
 // Validate an evidence pack before claiming a unit done.
 //
 // Evidence is three parts under `.porcelain/active-review/evidence/`: structured checks
-// (`meta.json`), a Results document set (`results/*.md|*.html`), and an image gallery
+// (`meta.json`), a Results document set (`results/*.md|*.html`), and an asset gallery
 // (`assets/`). Results HTML renders in a fully sandboxed iframe (sandbox="", no
 // allow-scripts) with no Porcelain theme, and the daemon refuses to render past its caps.
 // Every failure mode below is silent in the app — an unstyled document just looks broken,
@@ -25,6 +25,7 @@ const BASE64_OVERHEAD = 4 / 3
 // Lockstep with apps/daemon/src/review/evidence-assets-list.ts.
 const MAX_ASSETS = 60
 const MAX_ASSET_BYTES = 8 * 1024 * 1024
+const MAX_LINK_BYTES = 8 * 1024
 
 const IMAGE_EXTENSIONS = new Set([
   '.png',
@@ -37,7 +38,11 @@ const IMAGE_EXTENSIONS = new Set([
   '.bmp',
   '.avif',
 ])
-const INLINED_EXTENSIONS = new Set([...IMAGE_EXTENSIONS, '.css'])
+const VIDEO_EXTENSIONS = new Set(['.mp4', '.m4v', '.mov', '.ogv', '.webm'])
+const LINK_EXTENSIONS = new Set(['.url'])
+const MEDIA_EXTENSIONS = new Set([...IMAGE_EXTENSIONS, ...VIDEO_EXTENSIONS])
+const GALLERY_EXTENSIONS = new Set([...MEDIA_EXTENSIONS, ...LINK_EXTENSIONS])
+const INLINED_EXTENSIONS = new Set([...MEDIA_EXTENSIONS, '.css'])
 const DOC_EXTENSIONS = new Set(['.md', '.markdown', '.html', '.htm'])
 
 function resolveRepo(argv) {
@@ -73,6 +78,15 @@ function walk(dir, base = dir) {
 function extensionOf(path) {
   const dot = path.lastIndexOf('.')
   return dot === -1 ? '' : path.slice(dot).toLowerCase()
+}
+
+function isSafeExternalUrl(value) {
+  try {
+    const protocol = new URL(value).protocol
+    return protocol === 'http:' || protocol === 'https:' || protocol === 'mailto:'
+  } catch {
+    return false
+  }
 }
 
 /** Local relative refs from src=""/href="" — skips data:, http(s):, protocol-relative, absolute. */
@@ -127,31 +141,47 @@ for (const file of walk(resultsDir)) {
 
 // --- The gallery ----------------------------------------------------------------------
 const galleryFiles = walk(assetsDir).filter((file) => !file.includes('/'))
-const galleryImages = galleryFiles.filter((file) => IMAGE_EXTENSIONS.has(extensionOf(file)))
+const galleryAssets = galleryFiles.filter((file) => GALLERY_EXTENSIONS.has(extensionOf(file)))
 for (const file of galleryFiles) {
-  if (!IMAGE_EXTENSIONS.has(extensionOf(file))) {
-    notes.push(`assets/${file} is not an image — the gallery skips it.`)
+  const extension = extensionOf(file)
+  if (!GALLERY_EXTENSIONS.has(extension)) {
+    notes.push(`assets/${file} is not supported gallery content — the gallery skips it.`)
     continue
   }
   const bytes = statSync(join(assetsDir, file)).size
-  if (bytes > MAX_ASSET_BYTES) {
+  if (LINK_EXTENSIONS.has(extension)) {
+    if (bytes > MAX_LINK_BYTES) {
+      problems.push(
+        `assets/${file} is ${asMb(bytes)}, over the ${MAX_LINK_BYTES}-byte link cap — ` +
+          'keep .url files to one small URL.',
+      )
+      continue
+    }
+    const href = readFileSync(join(assetsDir, file), 'utf8').trim()
+    if (!isSafeExternalUrl(href)) {
+      problems.push(
+        `assets/${file} does not contain a safe http, https, or mailto URL — ` +
+          'the gallery will skip it.',
+      )
+    }
+  } else if (bytes > MAX_ASSET_BYTES) {
     problems.push(
-      `assets/${file} is ${asMb(bytes)}, over the ${asMb(MAX_ASSET_BYTES)} per-image cap — ` +
-        'it lists in the gallery but will not load. Shrink it (JPEG/WebP ~540px).',
+      `assets/${file} is ${asMb(bytes)}, over the ${asMb(MAX_ASSET_BYTES)} per-asset cap — ` +
+        'it lists in the gallery but will not load. Shrink the asset before publishing.',
     )
   }
 }
-if (galleryImages.length > MAX_ASSETS) {
+if (galleryAssets.length > MAX_ASSETS) {
   problems.push(
-    `${galleryImages.length} images in assets/, over the ${MAX_ASSETS}-image gallery cap — ` +
+    `${galleryAssets.length} assets in assets/, over the ${MAX_ASSETS}-file gallery cap — ` +
       'the tail is not shown. Drop the ones that prove nothing.',
   )
 }
 
-if (documents.length === 0 && galleryImages.length === 0) {
+if (documents.length === 0 && galleryAssets.length === 0) {
   problems.push(
-    'Empty pack: no documents in results/ and no images in assets/. Write the proof — ' +
-      'a Results document, a screenshot, or both.',
+    'Empty pack: no documents in results/ and no supported assets in assets/. Write the proof — ' +
+      'a Results document, a screenshot, a recording, or any combination.',
   )
 }
 
@@ -255,7 +285,7 @@ if (orphans.length > 0) {
 console.log(`Evidence at ${dir}`)
 console.log(
   `  ${checks.length} check(s), ${documents.length} document(s) ~${asMb(inlinedEstimate)} inlined, ` +
-    `${galleryImages.length} gallery image(s)\n`,
+    `${galleryAssets.length} gallery asset(s)\n`,
 )
 for (const problem of problems) console.log(`  FAIL  ${problem}`)
 for (const note of notes) console.log(`  NOTE  ${note}`)

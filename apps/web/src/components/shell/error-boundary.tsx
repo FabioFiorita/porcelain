@@ -39,7 +39,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBound
  * Review content is agent-authored and arrives from outside the app — markup an
  * agent wrote, or a review received from a clone. One unrenderable document must
  * cost the human that document, not the whole app — they still need the other
- * Intent tabs, the file list, and the evidence to finish the review.
+ * Review tabs, the file list, and the evidence to finish the review.
  */
 export class PaneErrorBoundary extends Component<
   { children: ReactNode; label: string },

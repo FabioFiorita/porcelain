@@ -14,7 +14,7 @@ export type ReviewEvidenceOperations = {
 
 /**
  * The Review Evidence family. One store owns the pack directory, so the aggregate's
- * descriptors, the document bodies, the image bytes, and the clear all agree about
+ * descriptors, the document bodies, the media bytes, and the clear all agree about
  * what is on disk. No operation calls another.
  */
 export function createReviewEvidenceOperations(options: {

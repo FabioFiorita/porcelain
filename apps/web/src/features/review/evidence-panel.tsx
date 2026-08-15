@@ -25,7 +25,7 @@ const SUB_TABS: ReadonlyArray<{ id: SubTab; label: string }> = [
 const SUB_TAB_EMPTY: Record<SubTab, string> = {
   checks: 'No checks in this pack',
   results: 'No documents in evidence/results/',
-  assets: 'No images in evidence/assets/',
+  assets: 'No media in evidence/assets/',
 }
 
 /**

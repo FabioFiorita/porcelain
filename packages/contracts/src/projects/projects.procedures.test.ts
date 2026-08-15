@@ -11,6 +11,9 @@ const expectedKinds = {
   browseDirs: 'query',
   hubInventory: 'query',
   createHubWorktree: 'mutation',
+  listCanvases: 'query',
+  readCanvas: 'query',
+  mintCanvasAccessToken: 'mutation',
 } as const
 
 const expectedErrors = {
@@ -33,6 +36,9 @@ const expectedErrors = {
     'git.branch-already-exists',
     'git.worktree-conflict',
   ],
+  listCanvases: ['canvas.unavailable'],
+  readCanvas: ['canvas.not-found', 'canvas.unavailable'],
+  mintCanvasAccessToken: ['canvas.not-found', 'canvas.unavailable'],
 } as const
 
 const invalidInputs = {
@@ -44,6 +50,9 @@ const invalidInputs = {
   browseDirs: 42,
   hubInventory: {},
   createHubWorktree: { projectId: 'proj-alpha', branch: '' },
+  listCanvases: { projectId: '' },
+  readCanvas: { projectId: 'proj-alpha' },
+  mintCanvasAccessToken: { projectId: 'proj-alpha' },
 } as const
 
 const invalidOutputs = {
@@ -59,10 +68,13 @@ const invalidOutputs = {
   },
   hubInventory: { environment: { id: 'env' }, projects: [] },
   createHubWorktree: { id: 'wt', projectId: 'proj', path: '/x', name: 'x', branch: 'x' },
+  listCanvases: [{ id: 'canvas-a', title: 'Intent', kind: 'pdf' }],
+  readCanvas: { record: { id: 'canvas-a' }, content: 42 },
+  mintCanvasAccessToken: { token: 42 },
 } as const
 
 describe('Projects procedure contracts', () => {
-  it('declares all eight procedures with their router kinds', () => {
+  it('declares all eleven procedures with their router kinds', () => {
     expect(Object.keys(projectsProcedures).sort()).toEqual(Object.keys(expectedKinds).sort())
     for (const [name, kind] of Object.entries(expectedKinds)) {
       expect(projectsProcedures[name as keyof typeof projectsProcedures].kind).toBe(kind)

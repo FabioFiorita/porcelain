@@ -48,36 +48,34 @@ describe('useReviewFocusStore', () => {
   })
 
   it('shares canvasTab between sidebar and viewer', () => {
+    useReviewFocusStore.getState().setCanvasTab('process')
+    expect(useReviewFocusStore.getState().canvasTab).toBe('process')
     useReviewFocusStore.getState().setCanvasTab('execution')
     expect(useReviewFocusStore.getState().canvasTab).toBe('execution')
   })
 })
 
 describe('jumpTargets', () => {
-  it('walks Intent sections and More files (evidence is its own canvas tab)', () => {
-    expect(jumpTargets({ sectionCount: 2, hasMoreFiles: true, hasEvidence: true })).toEqual<
-      ReviewJumpTarget[]
-    >([
+  it('walks Process sections only (file groups belong to Execution)', () => {
+    expect(jumpTargets({ sectionCount: 2 })).toEqual<ReviewJumpTarget[]>([
       { kind: 'section', index: 0 },
       { kind: 'section', index: 1 },
-      { kind: 'section', index: 2 }, // the synthetic "More files" chapter
     ])
   })
 
-  it('has no More files stop in a section-less document (no headers to stop at)', () => {
-    expect(jumpTargets({ sectionCount: 0, hasMoreFiles: true, hasEvidence: true })).toEqual([])
-    expect(jumpTargets({ sectionCount: 0, hasMoreFiles: true, hasEvidence: false })).toEqual([])
+  it('has no stops in a section-less Process document', () => {
+    expect(jumpTargets({ sectionCount: 0 })).toEqual([])
   })
 })
 
 describe('nextTarget', () => {
-  const targets = jumpTargets({ sectionCount: 2, hasMoreFiles: false, hasEvidence: true })
+  const targets = jumpTargets({ sectionCount: 2 })
 
   it('J from the top goes to the first section', () => {
     expect(nextTarget(targets, null, 1)).toEqual({ kind: 'section', index: 0 })
   })
 
-  it('J walks forward and stops at the last Intent chapter', () => {
+  it('J walks forward and stops at the last Process chapter', () => {
     expect(nextTarget(targets, 0, 1)).toEqual({ kind: 'section', index: 1 })
     expect(nextTarget(targets, 1, 1)).toBeNull()
   })

@@ -1,11 +1,16 @@
 import type {
   BrowseDirsOutput,
+  CanvasRecord,
   CreateHubWorktreeInput,
   HubInventory,
   HubWorktree,
+  ListCanvasesInput,
+  MintCanvasAccessTokenInput,
   ProjectInfo,
+  ReadCanvasInput,
   RemoveHubWorktreeInput,
 } from '@porcelain/contracts/projects'
+import type { CanvasOperations } from './canvas-operations'
 import type { EnvironmentIdentityStore } from './environment-identity-store'
 import type { HubGitPort } from './hub-git-port'
 import {
@@ -37,6 +42,13 @@ export type ProjectsOperations = Readonly<{
   ) => Promise<ProjectOperationResult<BrowseDirsOutput>>
   listHubInventory: () => Promise<ProjectOperationResult<HubInventory>>
   createHubWorktree: (input: CreateHubWorktreeInput) => Promise<ProjectOperationResult<HubWorktree>>
+  listCanvases: (input: ListCanvasesInput) => Promise<ProjectOperationResult<CanvasRecord[]>>
+  readCanvas: (
+    input: ReadCanvasInput,
+  ) => Promise<ProjectOperationResult<{ record: CanvasRecord; content: string }>>
+  mintCanvasAccessToken: (
+    input: MintCanvasAccessTokenInput,
+  ) => Promise<ProjectOperationResult<{ token: string }>>
 }>
 
 function failure(error: ProjectsOperationError): ProjectOperationResult<never> {
@@ -73,6 +85,9 @@ export function createProjectsOperations(options: {
     daemon: { host: string; platform: string; arch: string }
     createId?: () => string
   }
+  /** Pre-built, not raw stores: the daemon-root HTTP route (canvas-http.ts) shares this
+   *  exact instance so a token minted through tRPC resolves against the same in-memory map. */
+  canvas: CanvasOperations
 }): ProjectsOperations {
   const hub: HubInventoryOperations = createHubInventoryOperations({
     environment: options.hub.environment,
@@ -82,6 +97,7 @@ export function createProjectsOperations(options: {
     daemon: options.hub.daemon,
     createId: options.hub.createId,
   })
+  const canvas = options.canvas
 
   return Object.freeze({
     async openProject(path: string): Promise<ProjectOperationResult<ProjectInfo>> {
@@ -138,5 +154,8 @@ export function createProjectsOperations(options: {
 
     listHubInventory: hub.listHubInventory,
     createHubWorktree: hub.createHubWorktree,
+    listCanvases: canvas.listCanvases,
+    readCanvas: canvas.readCanvas,
+    mintCanvasAccessToken: canvas.mintCanvasAccessToken,
   })
 }

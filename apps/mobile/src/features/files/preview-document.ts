@@ -41,13 +41,13 @@ const THEME = {
 /**
  * Everything the preview is allowed to do, declared in the document itself.
  *
- * `default-src 'none'` with only inline styles, data-URI images and data-URI fonts is the
+ * `default-src 'none'` with only inline styles, data-URI images, data-URI media, and data-URI fonts is the
  * mobile twin of the renderer's `sandbox=""` iframe: no network, no scripts, no frames. The
  * daemon has already inlined a previewed file's local images as data URIs (`previewHtml`), so
  * this blocks exactly the remote fetches that would turn opening a repo file into a beacon.
  */
 const CSP =
-  "default-src 'none'; img-src data:; style-src 'unsafe-inline'; font-src data:; base-uri 'none'; form-action 'none'"
+  "default-src 'none'; img-src data:; media-src data:; style-src 'unsafe-inline'; font-src data:; base-uri 'none'; form-action 'none'"
 
 function styles(scheme: 'light' | 'dark'): string {
   const t = THEME[scheme]

@@ -71,6 +71,24 @@ const assetDescriptorUnavailable = {
   maxBytes: 8 * 1024 * 1024,
 } as const
 
+const videoAssetDescriptor = {
+  file: 'capture.mp4',
+  label: 'Capture',
+  kind: 'video',
+  mime: 'video/mp4',
+  bytes: 4096,
+  state: 'available',
+} as const
+
+const linkAssetDescriptor = {
+  file: 'reference.url',
+  label: 'Reference',
+  kind: 'link',
+  href: 'https://example.com/evidence',
+  bytes: 31,
+  state: 'available',
+} as const
+
 const evidence = {
   title: 'Evidence',
   updatedAt,
@@ -102,7 +120,15 @@ describe('Evidence aggregate', () => {
     expect(evidenceDocDescriptorSchema.safeParse(docDescriptor).success).toBe(true)
     expect(evidenceDocDescriptorSchema.safeParse(docDescriptorUnavailable).success).toBe(true)
     expect(evidenceAssetDescriptorSchema.safeParse(assetDescriptor).success).toBe(true)
+    expect(evidenceAssetDescriptorSchema.safeParse(videoAssetDescriptor).success).toBe(true)
+    expect(evidenceAssetDescriptorSchema.safeParse(linkAssetDescriptor).success).toBe(true)
     expect(evidenceAssetDescriptorSchema.safeParse(assetDescriptorUnavailable).success).toBe(true)
+
+    for (const href of ['javascript:alert(1)', 'file:///etc/passwd', 'data:text/plain,hello']) {
+      expect(
+        evidenceAssetDescriptorSchema.safeParse({ ...linkAssetDescriptor, href }).success,
+      ).toBe(false)
+    }
 
     const { reason: _reason, ...withoutReason } = docDescriptorUnavailable
     expect(evidenceDocDescriptorSchema.safeParse(withoutReason).success).toBe(false)

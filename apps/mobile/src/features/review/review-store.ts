@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 
-/** The Review's three canvases, in the order they answer their questions. */
-export type ReviewCanvasTab = 'intent' | 'execution' | 'evidence'
+/** The Review's four canvases, in the order they answer their questions. */
+export type ReviewCanvasTab = 'intent' | 'process' | 'execution' | 'evidence'
 
 /**
  * A block of the Execution outline: one walkthrough section, or one "More files" group.

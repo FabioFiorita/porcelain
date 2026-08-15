@@ -6,7 +6,7 @@ import { TerminalView } from '@renderer/components/terminal/terminal-view'
 import { FileContent } from '@renderer/components/viewer/file-content'
 import { SearchView } from '@renderer/components/viewer/search-view'
 import { BoardView } from '@renderer/features/board'
-import { HubHomeSummary, HubProjectSummary } from '@renderer/features/projects'
+import { CanvasView, HubHomeSummary, HubProjectSummary } from '@renderer/features/projects'
 import { ActiveReview, ExploreView } from '@renderer/features/review'
 import { cn } from '@renderer/lib/utils'
 import { HubRepoProvider } from '@renderer/stores/hub-repo'
@@ -112,6 +112,13 @@ function PaneContent({ tab, paneIndex }: { tab: Tab; paneIndex: number }): React
           paneIndex={paneIndex}
         />
       )
+    case 'canvas':
+      // A canvas tab is only ever opened with an explicit target (CanvasList);
+      // an untargeted one has nothing to resolve a Project id from.
+      if (tab.target === undefined) {
+        return <p className="p-4 text-sm text-muted-foreground">This Canvas tab has no target.</p>
+      }
+      return <CanvasView key={tab.id} projectId={tab.target.projectId} canvasId={tab.path} />
   }
 }
 

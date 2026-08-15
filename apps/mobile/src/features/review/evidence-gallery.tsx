@@ -1,24 +1,40 @@
-import type { EvidenceAssetDescriptor } from '@porcelain/contracts/review'
+import type { EvidenceAssetBody, EvidenceAssetDescriptor } from '@porcelain/contracts/review'
 import { StatusBar } from 'expo-status-bar'
 import { useState } from 'react'
-import { FlatList, Image, Modal, Pressable, Text, useWindowDimensions, View } from 'react-native'
+import {
+  Alert,
+  FlatList,
+  Image,
+  Linking,
+  Modal,
+  Pressable,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native'
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { EmptyNote } from '@/components/panel-chrome'
 import { SurfaceList } from '@/components/surface-scroll'
-import { describeBytes, pathTestId } from '@/features/files'
+import {
+  describeBytes,
+  openPreviewExternalLink,
+  PreviewView,
+  pathTestId,
+  previewDocument,
+} from '@/features/files'
 
 import { useReviewEvidenceAsset } from './use-review'
 
 const TILE_TEST_ID = 'porcelain-review-evidence-asset'
 
 /**
- * The Assets sub-tab: `evidence/assets/` as a native grid of screenshots.
+ * The Assets sub-tab: `evidence/assets/` as a native grid of screenshots and videos.
  *
- * Native, not a WebView. A screenshot has a native form — a grid of images and a
- * full-screen pager — and the one sanctioned WebView host exists for documents that
- * do not. Wrapping an image in HTML to show it would cost a base64 copy inside a
- * report for nothing.
+ * Images stay native: a grid of images and a full-screen pager. Videos use the one
+ * sanctioned WebView host only in the zoom view because the current mobile dependency
+ * set has no media player. Wrapping every image in HTML would cost a base64 copy and a
+ * WebView per tile for nothing.
  *
  * Bytes ride the authenticated daemon channel one image at a time, because the daemon
  * serves no user files over HTTP. This whole component is only mounted while its
@@ -31,13 +47,16 @@ export function EvidenceGallery({
   assets: EvidenceAssetDescriptor[]
 }): React.JSX.Element {
   const [zoomed, setZoomed] = useState<number | null>(null)
+  const zoomableAssets = assets.filter(
+    (asset): asset is Exclude<EvidenceAssetDescriptor, { kind: 'link' }> => asset.kind !== 'link',
+  )
 
   if (assets.length === 0) {
     return (
       <EmptyNote
-        body="Screenshots your agent writes to evidence/assets/ show here as a gallery."
+        body="Images and videos your agent writes to evidence/assets/ show here as a gallery."
         testID="porcelain-review-evidence-assets-empty"
-        title="No images in this pack"
+        title="No media in this pack"
       />
     )
   }
@@ -49,18 +68,19 @@ export function EvidenceGallery({
         keyExtractor={(asset) => asset.file}
         numColumns={3}
         paddingTop={8}
-        renderItem={({ index, item }) => (
+        renderItem={({ item }) => (
           <GalleryTile
             asset={item}
             onPress={() => {
-              setZoomed(index)
+              if (item.kind === 'link') return
+              setZoomed(zoomableAssets.findIndex((asset) => asset.file === item.file))
             }}
           />
         )}
       />
       {zoomed === null ? null : (
         <GalleryZoom
-          assets={assets}
+          assets={zoomableAssets}
           index={zoomed}
           onClose={() => {
             setZoomed(null)
@@ -79,6 +99,53 @@ function GalleryTile({
   asset: EvidenceAssetDescriptor
   onPress: () => void
 }): React.JSX.Element {
+  if (asset.kind === 'link') {
+    return <LinkTile asset={asset} />
+  }
+  return <MediaTile asset={asset} onPress={onPress} />
+}
+
+function LinkTile({
+  asset,
+}: {
+  asset: Extract<EvidenceAssetDescriptor, { kind: 'link' }>
+}): React.JSX.Element {
+  const open = (): void => {
+    openPreviewExternalLink(
+      asset.href,
+      (href) => Linking.openURL(href),
+      (error) => {
+        Alert.alert('Could not open link', error instanceof Error ? error.message : String(error))
+      },
+    )
+  }
+
+  return (
+    <Pressable
+      accessibilityLabel={`${asset.label}, ${asset.href}`}
+      accessibilityRole="link"
+      className="w-1/3 p-1"
+      testID={pathTestId(TILE_TEST_ID, asset.file)}
+      onPress={open}
+    >
+      <View className="aspect-square items-center justify-center overflow-hidden rounded-lg border border-border bg-muted p-1">
+        <ChromeGlyph name="arrowUpFromLine" size={22} tone="primary" />
+        <Text className="pt-1 text-center text-[9px] text-muted-foreground">Open link</Text>
+      </View>
+      <Text className="pt-1 text-[9px] text-muted-foreground" numberOfLines={1}>
+        {asset.label}
+      </Text>
+    </Pressable>
+  )
+}
+
+function MediaTile({
+  asset,
+  onPress,
+}: {
+  asset: Exclude<EvidenceAssetDescriptor, { kind: 'link' }>
+  onPress: () => void
+}): React.JSX.Element {
   const { asset: body, isLoading } = useReviewEvidenceAsset(asset.file, true)
 
   return (
@@ -95,6 +162,11 @@ function GalleryTile({
             <Text className="text-center text-[9px] leading-3 text-muted-foreground">
               {isLoading ? '…' : overCap(asset)}
             </Text>
+          </View>
+        ) : asset.kind === 'video' ? (
+          <View className="flex-1 items-center justify-center gap-1">
+            <ChromeGlyph name="play" size={22} tone="primary" />
+            <Text className="text-[9px] text-muted-foreground">Video</Text>
           </View>
         ) : (
           <Image className="size-full" resizeMode="cover" source={{ uri: body.dataUrl }} />
@@ -232,6 +304,8 @@ function ZoomPage({
           >
             {isLoading ? 'Loading the image…' : overCap(asset)}
           </Text>
+        ) : asset.kind === 'video' ? (
+          <VideoPreview asset={asset} body={body} />
         ) : (
           <Image
             accessibilityLabel={asset.label}
@@ -253,7 +327,28 @@ function ZoomPage({
   )
 }
 
-/** Over the daemon's per-image cap — the size comes from the listing, not the body. */
+function VideoPreview({
+  asset,
+  body,
+}: {
+  asset: EvidenceAssetDescriptor
+  body: EvidenceAssetBody
+}): React.JSX.Element {
+  // The filename is already available to native accessibility chrome; keep it out of
+  // this HTML string so a legal filename containing quotes cannot become markup.
+  const html = `<video controls playsinline preload="metadata" src="${body.dataUrl}" style="width:100%;height:100%;background:#000"></video>`
+  return (
+    <View className="flex-1" testID={`porcelain-review-evidence-video-${asset.file}`}>
+      <PreviewView
+        document={previewDocument(html)}
+        mediaPlayback
+        testID="porcelain-review-evidence-video-player"
+      />
+    </View>
+  )
+}
+
+/** Over the daemon's per-asset cap — the size comes from the listing, not the body. */
 function overCap(asset: EvidenceAssetDescriptor): string {
   return `Too large to preview (${describeBytes(asset.bytes)})`
 }

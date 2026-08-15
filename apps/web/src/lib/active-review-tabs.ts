@@ -1,10 +1,10 @@
 /**
- * The Review is a three-tab canvas — Intent → Execution → Evidence — matching the
+ * The Review is a four-tab canvas — Intent → Process → Execution → Evidence — matching the
  * human review questions. Shared by the viewer chrome and the Review sidebar so
  * labels, subtitles, and jump targets stay one source.
  */
 
-export type ActiveReviewTab = 'intent' | 'execution' | 'evidence'
+export type ActiveReviewTab = 'intent' | 'process' | 'execution' | 'evidence'
 
 export interface ActiveReviewTabMeta {
   id: ActiveReviewTab
@@ -21,6 +21,11 @@ export const ACTIVE_REVIEW_TABS: readonly ActiveReviewTabMeta[] = [
     question: 'What is this, and what’s the idea?',
   },
   {
+    id: 'process',
+    label: 'Process',
+    question: 'How does this work, and what should I follow?',
+  },
+  {
     id: 'execution',
     label: 'Execution',
     question: 'What did the agent touch, and is the code right?',
@@ -33,5 +38,5 @@ export const ACTIVE_REVIEW_TABS: readonly ActiveReviewTabMeta[] = [
 ] as const
 
 export function isActiveReviewTab(value: string): value is ActiveReviewTab {
-  return value === 'intent' || value === 'execution' || value === 'evidence'
+  return value === 'intent' || value === 'process' || value === 'execution' || value === 'evidence'
 }

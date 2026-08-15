@@ -457,7 +457,7 @@ describe('runCli — evidence (html input)', () => {
     ).rejects.toThrow('write the documents first')
   })
 
-  it('evidence assets-list reports sizes and warns about a non-image', async () => {
+  it('evidence assets-list reports sizes and warns about unsupported content', async () => {
     await runCli(['evidence', 'prepare', ...repo, '--title', 'Pack'])
     const assets = activeReview('evidence', 'assets')
     writeFileSync(join(assets, 'shot.png'), 'x'.repeat(2048))
@@ -465,7 +465,7 @@ describe('runCli — evidence (html input)', () => {
     const msg = await runCli(['evidence', 'assets-list', ...repo])
     expect(msg).toContain('1 in the gallery of 2 file(s)')
     expect(msg).toContain('shot.png  2 KB')
-    expect(msg).toContain('WARNING: not an image')
+    expect(msg).toContain('WARNING: not supported gallery content')
   })
 
   it('evidence results-list and assets-list say what to do when the pack is empty', async () => {

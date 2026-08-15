@@ -2,10 +2,11 @@ import { readFile, realpath } from 'node:fs/promises'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
 
 /**
- * Inline relative image sources and stylesheet links for a document that lives
- * in a review directory. Keeps the viewer on a fully sandboxed `srcdoc` while
- * letting agents drop real PNG/JPEG/CSS siblings beside the document instead of
- * base64-inlining them through the porcelain CLI.
+ * Inline relative image sources, stylesheet links, and empty external script
+ * tags for a document that lives in a review or Canvas directory. Keeps the
+ * viewer on a fully sandboxed `srcdoc` while letting agents drop real
+ * PNG/JPEG/CSS/JS siblings beside the document instead of base64-inlining them
+ * through the porcelain CLI.
  *
  * Two roots, deliberately: references resolve relative to the document's own
  * directory, but containment is checked against `root`. A Results document sits
@@ -22,6 +23,13 @@ import { isAbsolute, relative, resolve, sep } from 'node:path'
 
 const SRC_ATTR = /\bsrc\s*=\s*(["'])([^"']+)\1/gi
 const LINK_TAG = /<link\b[^>]*>/gi
+// Only an EMPTY external script element (the only form a browser actually runs
+// off `src`) — a tag authored with both `src` and a body is left untouched, same
+// as any other reference this function can't confidently rewrite.
+const SCRIPT_SRC_TAG = /<script\b[^>]*\bsrc\s*=\s*(["'])([^"']+)\1[^>]*>\s*<\/script\s*>/gi
+// Any script OPENING tag with a `src`, body or not — used only to keep the
+// generic image pass below from mistaking a script's `src` for an `<img>` one.
+const SCRIPT_TAG_OPEN = /<script\b[^>]*>/gi
 
 const MIME: Record<string, string> = {
   '.png': 'image/png',
@@ -31,6 +39,11 @@ const MIME: Record<string, string> = {
   '.webp': 'image/webp',
   '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon',
+  '.mp4': 'video/mp4',
+  '.m4v': 'video/x-m4v',
+  '.mov': 'video/quicktime',
+  '.ogv': 'video/ogg',
+  '.webm': 'video/webm',
 }
 
 function mimeFor(filePath: string): string {
@@ -66,6 +79,16 @@ function localAssetPath(base: string, root: string, raw: string): string | null 
   return isInsideDir(root, candidate) ? candidate : null
 }
 
+/** `src` values already spoken for by a `<script>` tag — a body or a failed read both leave one. */
+function scriptTagSrcValues(html: string): Set<string> {
+  const values = new Set<string>()
+  for (const match of html.matchAll(SCRIPT_TAG_OPEN)) {
+    const raw = attributeValue(match[0], 'src')?.trim()
+    if (raw) values.add(raw)
+  }
+  return values
+}
+
 function stylesheetHref(tag: string): string | null {
   const rel = attributeValue(tag, 'rel')
   if (!rel?.split(/\s+/).some((value) => value.toLowerCase() === 'stylesheet')) return null
@@ -76,6 +99,11 @@ function escapeStyleText(css: string): string {
   // A literal closing tag in a stylesheet would terminate the injected raw-text
   // element before the rest of the CSS reaches the sandboxed document.
   return css.replace(/<\/style/gi, '<\\/style')
+}
+
+function escapeScriptText(js: string): string {
+  // Same trap as escapeStyleText, one raw-text element over.
+  return js.replace(/<\/script/gi, '<\\/script')
 }
 
 async function readContainedAsset(
@@ -102,11 +130,19 @@ async function readContainedAsset(
  * Expand local relative image sources into data URIs. References resolve
  * against `dir`; `root` (defaulting to `dir`) is the boundary they may not
  * leave. Best-effort: a missing sibling is left as-is (broken img in the viewer).
+ *
+ * `inlineScripts` defaults false: this function is shared with doc-set.ts
+ * (Intent/Evidence), which renders through `sandbox=""` — no allow-scripts,
+ * so an inlined `<script>` there could never run, but leaving one in the
+ * markup anyway would be a capability doc-set.ts never asked for and its own
+ * "no script medium" comment says isn't there. Only Canvas (canvas-
+ * operations.ts), whose iframe actually has allow-scripts, opts in.
  */
 export async function inlineLocalAssets(
   dir: string,
   html: string,
   rootDir: string = dir,
+  inlineScripts = false,
 ): Promise<string> {
   const base = resolve(dir)
   const root = resolve(rootDir)
@@ -118,25 +154,34 @@ export async function inlineLocalAssets(
     return html
   }
 
-  const matches = [...html.matchAll(SRC_ATTR)]
-  const stylesheetMatches = [...html.matchAll(LINK_TAG)]
-
-  // Unique relative paths to load once.
-  const paths = new Set<string>()
-  for (const m of matches) {
-    const raw = m[2]?.trim()
-    if (raw) paths.add(raw)
+  // Scripts inline FIRST and rewrite `output`, not `html`: once a matched tag's
+  // `src` attribute is gone, the generic image pass below can no longer mistake
+  // it for an `<img>` reference. A script whose file can't be read is left
+  // exactly as authored, `src` intact, so ordering never double-processes it.
+  let output = html
+  if (inlineScripts) {
+    const scriptMatches = [...html.matchAll(SCRIPT_SRC_TAG)]
+    const scriptPaths = new Set<string>()
+    for (const m of scriptMatches) {
+      const raw = m[2]?.trim()
+      if (raw) scriptPaths.add(raw)
+    }
+    const scripts = new Map<string, string>()
+    await Promise.all(
+      [...scriptPaths].map(async (raw) => {
+        const asset = await readContainedAsset(base, root, rootReal, raw)
+        if (asset === null) return
+        scripts.set(raw, asset.bytes.toString('utf8'))
+      }),
+    )
+    output = html.replace(SCRIPT_SRC_TAG, (full, _quote: string, raw: string) => {
+      const script = scripts.get(raw.trim())
+      if (script === undefined) return full
+      return `<script>${escapeScriptText(script)}</script>`
+    })
   }
 
-  const dataUris = new Map<string, string>()
-  await Promise.all(
-    [...paths].map(async (raw) => {
-      const asset = await readContainedAsset(base, root, rootReal, raw)
-      if (asset === null) return
-      dataUris.set(raw, `data:${mimeFor(asset.lexical)};base64,${asset.bytes.toString('base64')}`)
-    }),
-  )
-
+  const stylesheetMatches = [...output.matchAll(LINK_TAG)]
   const stylesheetPaths = new Set<string>()
   for (const match of stylesheetMatches) {
     const raw = stylesheetHref(match[0] ?? '')
@@ -152,16 +197,39 @@ export async function inlineLocalAssets(
     }),
   )
 
-  let output = html.replace(LINK_TAG, (full) => {
+  output = output.replace(LINK_TAG, (full) => {
     const raw = stylesheetHref(full)
     const stylesheet = raw === null ? undefined : stylesheets.get(raw)
     if (stylesheet === undefined) return full
     return `<style data-porcelain-inlined-stylesheet="true">${escapeStyleText(stylesheet)}</style>`
   })
 
+  // Whatever `<script src>` survived inlining (a body, or a failed read) still
+  // carries `src` — exclude those values so this generic pass never mistakes a
+  // script reference for an image one.
+  const scriptSrcValues = scriptTagSrcValues(output)
+
+  const matches = [...output.matchAll(SRC_ATTR)]
+  const paths = new Set<string>()
+  for (const m of matches) {
+    const raw = m[2]?.trim()
+    if (raw && !scriptSrcValues.has(raw)) paths.add(raw)
+  }
+
+  const dataUris = new Map<string, string>()
+  await Promise.all(
+    [...paths].map(async (raw) => {
+      const asset = await readContainedAsset(base, root, rootReal, raw)
+      if (asset === null) return
+      dataUris.set(raw, `data:${mimeFor(asset.lexical)};base64,${asset.bytes.toString('base64')}`)
+    }),
+  )
+
   if (dataUris.size > 0) {
     output = output.replace(SRC_ATTR, (full, quote: string, raw: string) => {
-      const uri = dataUris.get(raw.trim())
+      const trimmed = raw.trim()
+      if (scriptSrcValues.has(trimmed)) return full
+      const uri = dataUris.get(trimmed)
       if (!uri) return full
       return `src=${quote}${uri}${quote}`
     })

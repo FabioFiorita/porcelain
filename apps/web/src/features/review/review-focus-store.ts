@@ -5,12 +5,12 @@ import { create } from 'zustand'
  * Where the Review document is, and where to send it next. One concern: the review
  * surface publishes the topmost visible chapter + file on scroll, the outline
  * (the Review list) and Quick Access subscribe, and either side can request a jump
- * that the surface consumes by scrolling itself. Canvas tab (Intent / Execution /
- * Evidence) is shared so the sidebar pills and the viewer stay in lockstep.
+ * that the surface consumes by scrolling itself. Canvas tab (Intent / Process /
+ * Execution / Evidence) is shared so the sidebar pills and the viewer stay in lockstep.
  */
 
 /**
- * The active chapter of the Intent document: a section index (where
+ * The active chapter of the Process document: a section index (where
  * `sections.length` is the synthetic "More files" chapter), `'evidence'` for the
  * evidence tab focus, or `null` above the first section header.
  */
@@ -24,9 +24,9 @@ export type ReviewJumpTarget =
   | { kind: 'evidence' }
 
 interface ReviewFocusState {
-  /** Active Review canvas tab (Intent / Execution / Evidence). */
+  /** Active Review canvas tab (Intent / Process / Execution / Evidence). */
   canvasTab: ActiveReviewTab
-  /** Topmost visible chapter, published by the Intent reading surface on scroll. */
+  /** Topmost visible chapter, published by the Process reading surface on scroll. */
   activeSection: ReviewFocusSection
   /** Repo-relative path of the topmost visible file block (null between files). */
   visiblePath: string | null
@@ -60,22 +60,15 @@ export const useReviewFocusStore = create<ReviewFocusState>((set) => ({
 /** The shape of the Review document the J/K navigation walks (derived from the reading). */
 export interface ReviewDocShape {
   sectionCount: number
-  /** Unanchored files exist — the synthetic "More files" chapter renders. */
-  hasMoreFiles: boolean
-  hasEvidence: boolean
 }
 
 /**
- * The ordered J/K stops of the Intent narrative: each section, then "More files"
- * when it exists as a chapter header. Evidence is its own canvas tab (not a J/K
- * stop). `hasEvidence` is accepted for call-site stability and ignored.
+ * The ordered J/K stops of the Process narrative: each walkthrough section. File groups belong
+ * to Execution, and Evidence is its own canvas tab, so neither creates a Process stop.
  */
 export function jumpTargets(doc: ReviewDocShape): ReviewJumpTarget[] {
   const targets: ReviewJumpTarget[] = []
   for (let i = 0; i < doc.sectionCount; i++) targets.push({ kind: 'section', index: i })
-  if (doc.hasMoreFiles && doc.sectionCount > 0) {
-    targets.push({ kind: 'section', index: doc.sectionCount })
-  }
   return targets
 }
 

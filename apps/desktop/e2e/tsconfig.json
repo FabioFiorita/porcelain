@@ -12,5 +12,10 @@
       "@shared/*": ["../../../packages/shared/src/*"]
     }
   },
-  "include": ["**/*.ts", "../playwright.config.ts", "../../../packages/shared/src/test-ids.ts"]
+  "include": [
+    "**/*.ts",
+    "../playwright.config.ts",
+    "../../../packages/shared/src/test-ids.ts",
+    "../../../packages/shared/src/canvas-porcelain.ts"
+  ]
 }

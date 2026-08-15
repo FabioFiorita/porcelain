@@ -40,7 +40,7 @@ cd "$WORKTREE" && git rev-parse --show-toplevel
 A worktree exists so a unit of work can be reviewed on its own. Keep the whole loop inside it:
 
 1. **Publish the Review in the worktree checkout** — run `review set` / `evidence prepare` with the session cwd inside the worktree (or `--repo "$WORKTREE"`). `active-review/` is per checkout, so a Review written in the primary is not the one the worktree window shows.
-2. **Push the branch and open a PR** into the integration branch. Put the Review in the PR body: Intent (thesis), Execution (what changed and why), Evidence (the checks that actually ran, with their real output). The PR body is the version of the Review that survives the worktree being deleted.
+2. **Push the branch and open a PR** into the integration branch. Put the Review in the PR body: Intent (thesis), Process (the walkthrough), Execution (what changed and why), Evidence (the checks that actually ran, with their real output). The PR body is the version of the Review that survives the worktree being deleted.
 3. **Approve from wherever you are** — GitHub on a phone for a small change, or Porcelain when the human wants the diff as a story rather than a file list.
 4. **Merge, then delete the worktree.** The active review is gitignored, so it dies with the directory unless the human **publishes** it (which archives it to `reviews/<id>/` and re-includes that folder so it can be committed). That, or the PR body, is what survives — which is why step 2 exists.
 

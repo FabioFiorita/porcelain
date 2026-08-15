@@ -188,7 +188,23 @@ describe('evidence assets — the gallery', () => {
   it('warns about a non-image the gallery will skip', () => {
     const { assetsDir } = prepareEvidence(repo, 'Loop')
     writeFileSync(join(assetsDir, 'run.log'), 'log')
-    expect(listAssets(repo)[0]?.warning).toMatch(/not an image/)
+    expect(listAssets(repo)[0]?.warning).toMatch(/not supported gallery content/)
+  })
+
+  it('lists videos and safe URL links as gallery assets', () => {
+    const { assetsDir } = prepareEvidence(repo, 'Loop')
+    writeFileSync(join(assetsDir, 'capture.mp4'), 'video')
+    writeFileSync(join(assetsDir, 'reference.url'), 'https://example.com/evidence\n')
+    expect(listAssets(repo)).toEqual([
+      { file: 'capture.mp4', bytes: 5 },
+      { file: 'reference.url', bytes: Buffer.byteLength('https://example.com/evidence\n') },
+    ])
+  })
+
+  it('warns about unsafe URL links', () => {
+    const { assetsDir } = prepareEvidence(repo, 'Loop')
+    writeFileSync(join(assetsDir, 'reference.url'), 'javascript:alert(1)')
+    expect(listAssets(repo)[0]?.warning).toMatch(/unsafe or empty URL/)
   })
 
   // The daemon's lister lstats and skips symbolic links outright, so a symlinked
@@ -204,13 +220,13 @@ describe('evidence assets — the gallery', () => {
       'symlink — never listed by the gallery',
     )
     expect(assets.filter((a) => a.warning === undefined).map((a) => a.file)).toEqual(['shot.png'])
-    expect(describeEvidence(repo, getEvidence(repo))).toContain('Assets: 1 image(s) in the gallery')
+    expect(describeEvidence(repo, getEvidence(repo))).toContain('Assets: 1 asset(s) in the gallery')
   })
 
-  it('warns about an image over the per-image cap', () => {
+  it('warns about media over the per-media cap', () => {
     const { assetsDir } = prepareEvidence(repo, 'Loop')
     writeFileSync(join(assetsDir, 'huge.png'), Buffer.alloc(8 * 1024 * 1024 + 1))
-    expect(listAssets(repo)[0]?.warning).toMatch(/per-image cap/)
+    expect(listAssets(repo)[0]?.warning).toMatch(/per-media cap/)
   })
 
   it('describeEvidence reports the Results tabs, the gallery count, and the warnings', () => {
@@ -220,7 +236,7 @@ describe('evidence assets — the gallery', () => {
     writeFileSync(join(assetsDir, 'run.log'), 'log')
     const text = describeEvidence(repo, getEvidence(repo))
     expect(text).toContain('Results: 1 document(s): index.html')
-    expect(text).toContain('Assets: 1 image(s) in the gallery')
+    expect(text).toContain('Assets: 1 asset(s) in the gallery')
     expect(text).toContain('run.log')
   })
 

@@ -1,6 +1,7 @@
-import type { HubSelection } from '@porcelain/client-runtime/projects'
+import type { HubSelection, HubTarget } from '@porcelain/client-runtime/projects'
 import { hubTargetOf } from '@porcelain/client-runtime/projects'
 import { create } from 'zustand'
+import { useShallow } from 'zustand/react/shallow'
 import { useProjectSelectionStore } from './project-selection'
 
 interface HubSelectionStore {
@@ -48,4 +49,14 @@ export const useHubSelectionStore = create<HubSelectionStore>((set) => ({
 
 export function currentHubTarget() {
   return hubTargetOf(useHubSelectionStore.getState().selection)
+}
+
+/**
+ * Reactive counterpart to currentHubTarget — null unless a Worktree is selected.
+ * `useShallow`: hubTargetOf builds a fresh object every call, and useSyncExternalStore
+ * (what zustand's hook is built on) requires a snapshot that's referentially stable
+ * when nothing changed, or React loops re-rendering forever.
+ */
+export function useHubTarget(): HubTarget | null {
+  return useHubSelectionStore(useShallow((s) => hubTargetOf(s.selection)))
 }

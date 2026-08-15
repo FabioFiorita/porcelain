@@ -125,6 +125,60 @@ export const createHubWorktreeInputSchema = z
 export type CreateHubWorktreeInput = z.infer<typeof createHubWorktreeInputSchema>
 export type CreateHubWorktreeOutput = HubWorktree
 
+/** Agent-authored HTML or Markdown. Read-only to the human in v1 (ADR 0002). */
+export const canvasKindSchema = z.enum(['html', 'markdown'])
+export type CanvasKind = z.infer<typeof canvasKindSchema>
+
+/**
+ * A Canvas owned by the stable Project record — it survives the Worktree that
+ * authored it. `worktreeId` is `null` once that Worktree is gone or the Canvas
+ * was never scoped to one.
+ */
+export const canvasRecordSchema = z
+  .object({
+    id: z.string().min(1),
+    worktreeId: z.string().min(1).nullable(),
+    title: z.string().min(1),
+    kind: canvasKindSchema,
+    createdAt: z.string().min(1),
+    updatedAt: z.string().min(1),
+  })
+  .strict()
+export type CanvasRecord = z.infer<typeof canvasRecordSchema>
+
+export const listCanvasesInputSchema = z.object({ projectId: z.string().min(1) }).strict()
+export const listCanvasesOutputSchema = z.array(canvasRecordSchema)
+export type ListCanvasesInput = z.infer<typeof listCanvasesInputSchema>
+export type ListCanvasesOutput = z.infer<typeof listCanvasesOutputSchema>
+
+export const readCanvasInputSchema = z
+  .object({ projectId: z.string().min(1), canvasId: z.string().min(1) })
+  .strict()
+/**
+ * `content` is already server-inlined for `kind: 'html'` — relative images,
+ * stylesheets, and scripts are resolved and embedded (see inlineLocalAssets),
+ * so the Viewer never fetches a second asset request. Markdown Canvases carry
+ * their raw text; the Viewer's existing Markdown renderer owns presentation.
+ */
+export const readCanvasOutputSchema = z
+  .object({ record: canvasRecordSchema, content: z.string() })
+  .strict()
+export type ReadCanvasInput = z.infer<typeof readCanvasInputSchema>
+export type ReadCanvasOutput = z.infer<typeof readCanvasOutputSchema>
+
+/**
+ * A short-lived capability for the `GET /canvas/<token>` route the Viewer's
+ * sandboxed iframe navigates to — a plain iframe `src` carries no
+ * Authorization header, so the URL itself must carry the credential. Narrow
+ * on purpose: one Project+Canvas, minutes-long TTL, never the admin token.
+ */
+export const mintCanvasAccessTokenInputSchema = z
+  .object({ projectId: z.string().min(1), canvasId: z.string().min(1) })
+  .strict()
+export const mintCanvasAccessTokenOutputSchema = z.object({ token: z.string().min(1) }).strict()
+export type MintCanvasAccessTokenInput = z.infer<typeof mintCanvasAccessTokenInputSchema>
+export type MintCanvasAccessTokenOutput = z.infer<typeof mintCanvasAccessTokenOutputSchema>
+
 const hubInventoryFixture = {
   environment: {
     id: 'env-synthetic',
@@ -196,5 +250,36 @@ export const projectsContractFixtures = {
   createHubWorktree: {
     input: { projectId: 'proj-alpha', branch: 'topic' },
     output: hubInventoryFixture.projects[0].worktrees[1],
+  },
+  listCanvases: {
+    input: { projectId: 'proj-alpha' },
+    output: [
+      {
+        id: 'canvas-intent',
+        worktreeId: 'wt-alpha-main',
+        title: 'Intent',
+        kind: 'html',
+        createdAt: '2026-08-15T00:00:00.000Z',
+        updatedAt: '2026-08-15T00:00:00.000Z',
+      },
+    ],
+  },
+  readCanvas: {
+    input: { projectId: 'proj-alpha', canvasId: 'canvas-intent' },
+    output: {
+      record: {
+        id: 'canvas-intent',
+        worktreeId: 'wt-alpha-main',
+        title: 'Intent',
+        kind: 'html',
+        createdAt: '2026-08-15T00:00:00.000Z',
+        updatedAt: '2026-08-15T00:00:00.000Z',
+      },
+      content: '<p>hi</p>',
+    },
+  },
+  mintCanvasAccessToken: {
+    input: { projectId: 'proj-alpha', canvasId: 'canvas-intent' },
+    output: { token: 'synthetic-token' },
   },
 } as const

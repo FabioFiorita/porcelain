@@ -18,7 +18,7 @@ was redundant after the named owner was verified; it does not mean the behavior 
 | CW-02 | No former browser equivalent; protocol coverage was lower-only | `critical-wiring.spec.ts:108-116` | Real authenticated `/session` WebSocket returns exact `session:mismatch` / `protocol.update-required` for `PROTOCOL_VERSION + 1` and closes |
 | CW-03 | `live-refresh.spec.ts:10-30` — an open clean file adopts an external disk rewrite | `critical-wiring.spec.ts:119-133` | Real fixture filesystem → daemon watcher → session frame → browser editor |
 | CW-04 | `review-publish.spec.ts:44-143` — built CLI review write reaches an already-running Review canvas | `critical-wiring.spec.ts:136-172` | Built CLI → companion file watcher → daemon session → browser Review; lower review/CLI tests own file shape and invalidation |
-| CW-05 | `terminal.spec.ts:6-24` plus the reconnect/scrollback contract from `terminal` lower tests | `critical-wiring.spec.ts:174-195` | Real PTY create, >64 KiB output, browser session detach, daemon-owned session retention, roster hydration, attach, and tail replay |
+| CW-05 | `terminal.spec.ts:6-24` plus the reconnect/scrollback contract from `terminal` lower tests | `critical-wiring.spec.ts:174-201` | Real PTY create, >64 KiB output, browser session detach, daemon-owned session retention, roster hydration, attach, and tail replay |
 
 The five tests above are the only normal browser functional gate. The terminal test deliberately
 asserts the tail after reload; the exact byte/unit cap and frame ordering remain owned by
@@ -81,7 +81,7 @@ lower test is the owner of that invariant at its smallest complete boundary.
 
 | ID | Source assertion | Disposition and replacement |
 | --- | --- | --- |
-| RP-01 | `:44-90` — CLI Intent-only set appears; name and Scope render; Evidence is disabled before a pack | `CW-04` owns the live CLI-to-Review arrival; `apps/cli/src/cli.test.ts:142-314`, `apps/web/src/features/review/review-list.test.tsx:123-168`, and `apps/web/src/features/review/active-review.test.tsx:34-67` own CLI shape, outline, and evidence availability. Retired from broad browser |
+| RP-01 | `:44-95` — CLI Intent-only set appears; all four Canvas tabs render; Process opens the Scope walkthrough; a local Evidence pack enables the tab and serves image/video/link assets | `CW-04` owns the live CLI-to-Review arrival and authenticated asset reads; `apps/cli/src/cli.test.ts:142-314`, `apps/web/src/features/review/review-list.test.tsx:123-168`, and `apps/web/src/features/review/active-review.test.tsx:34-118` own CLI shape, outline, and evidence availability. |
 | RP-02 | `:91-131` — second CLI set plus `evidence prepare` and Results HTML update changes the same active Review | `CW-04` owns the watcher path; `apps/daemon/src/review/review-watch.test.ts:36-56`, `apps/cli/src/evidence-file.test.ts:31-63`, and `apps/web/src/features/review/review-notifications.test.tsx:31-116` own file preparation and invalidation |
 | RP-03 | `:133-143` — Evidence enables, iframe is sandboxed, heading renders, script does not execute, progress is shown | `apps/web/src/components/viewer/html-view.test.tsx:15-23`, `apps/web/src/features/review/reading-surface.test.tsx:233-299`, `apps/web/src/features/review/review-list.test.tsx:239-247`, and the evidence pack rows below own these boundaries. Retired from broad browser |
 

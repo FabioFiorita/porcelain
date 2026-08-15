@@ -400,7 +400,15 @@ declare global {
   }
 }
 
-type TabName = 'Files' | 'Search' | 'Changes' | 'History' | 'Review' | 'Board' | 'Terminal'
+type TabName =
+  | 'Files'
+  | 'Search'
+  | 'Changes'
+  | 'History'
+  | 'Review'
+  | 'Board'
+  | 'Terminal'
+  | 'Canvas'
 
 /** Map human/product tab names to the sidebar store id used in `data-testid`. */
 function railTabId(tab: TabName): string {
@@ -419,6 +427,8 @@ function railTabId(tab: TabName): string {
       return 'board'
     case 'Terminal':
       return 'terminal'
+    case 'Canvas':
+      return 'canvas'
   }
 }
 

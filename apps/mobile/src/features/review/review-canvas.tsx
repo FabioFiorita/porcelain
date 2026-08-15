@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 import { EvidenceBody } from './evidence-body'
 import { ExecutionBody } from './execution-body'
 import { IntentBody } from './intent-body'
+import { ProcessBody } from './process-body'
 import { SourceCounts } from './review-chrome'
 import { ReviewEmptyState } from './review-empty'
 import { reviewedFractionOf, reviewSourceCounts } from './review-lifecycle'
@@ -16,13 +17,14 @@ import { useReviewReading } from './use-review'
 
 const CANVAS_TABS: readonly { value: ReviewCanvasTab; label: string; testID: string }[] = [
   { label: 'Intent', testID: 'porcelain-review-tab-intent', value: 'intent' },
+  { label: 'Process', testID: 'porcelain-review-tab-process', value: 'process' },
   { label: 'Execution', testID: 'porcelain-review-tab-execution', value: 'execution' },
   { label: 'Evidence', testID: 'porcelain-review-tab-evidence', value: 'evidence' },
 ]
 
 /**
- * The Review canvas: the unit's name and source legend, and the three tabs that answer its
- * three questions — why (Intent), what (Execution), proof (Evidence).
+ * The Review canvas: the unit's name and source legend, and the four tabs that answer its
+ * four questions — why (Intent), how (Process), what (Execution), proof (Evidence).
  *
  * One component for both hosts, the way the companions are: the tablet gives it the viewer
  * column beside the outline, the phone gives it the whole tab body under its header. Two
@@ -30,7 +32,7 @@ const CANVAS_TABS: readonly { value: ReviewCanvasTab; label: string; testID: str
  * says.
  *
  * Only the visible tab's body is mounted, which is also what makes the lazy reads lazy — a
- * hidden Intent or Evidence pane has no query in flight at all.
+ * hidden Intent, Process, or Evidence pane has no query in flight at all.
  */
 export function ReviewCanvas({ active }: { active: boolean }): React.JSX.Element {
   const { error, isLoading, reading } = useReviewReading(active)
@@ -107,6 +109,8 @@ export function ReviewCanvas({ active }: { active: boolean }): React.JSX.Element
           a disabled segment, so the tab tells you what is missing instead of refusing the tap. */}
       {tab === 'intent' ? (
         <IntentBody active={active} reading={reading} />
+      ) : tab === 'process' ? (
+        <ProcessBody reading={reading} />
       ) : tab === 'execution' ? (
         <ExecutionBody active={active} reading={reading} />
       ) : (

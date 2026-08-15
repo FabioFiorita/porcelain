@@ -1,6 +1,6 @@
 ---
 name: porcelain-companion
-description: Drive Porcelain — the review layer for agentic coding — via the bundled CLI (~/.porcelain/porcelain). Use for the Review (Intent · Execution · Evidence) as the start and end of a unit of work (features, bugs, chores, investigations), project board, saved terminal actions, repo notes, review-flow layers, review comments, and syncing companion setup across local/remote environments. Use whenever the human mentions Porcelain, the Review/Board/Terminal tabs, review comments, monorepo hide/pin, or you need to publish a review and close the loop.
+description: Drive Porcelain — the review layer for agentic coding — via the bundled CLI (~/.porcelain/porcelain). Use for the Review (Intent · Process · Execution · Evidence) as the start and end of a unit of work (features, bugs, chores, investigations), project board, saved terminal actions, repo notes, review-flow layers, review comments, and syncing companion setup across local/remote environments. Use whenever the human mentions Porcelain, the Review/Board/Terminal tabs, review comments, monorepo hide/pin, or you need to publish a review and close the loop.
 version: 0.52.1
 license: MIT
 ---
@@ -13,7 +13,7 @@ here. You talk to Porcelain through one CLI; this skill is the manual.
 
 **The Review is the home for an intentionally published unit of work** — not a post-hoc dump after
 shipping. When a human requests Companion work or an agent deliberately publishes a Review, the
-story starts with Intent and ends with Execution + Evidence. Board is the queue of cards; Review is
+story starts with Intent, grows through Process and Execution, and ends with Evidence. Board is the queue of cards; Review is
 the **one active story** per repo. Ordinary code edits do not create, clear, or complete a Review.
 
 ## The CLI
@@ -35,7 +35,7 @@ Read one when you need depth for that surface. Each is complete on its own.
 
 ```
 references/
-  review.md            The Review end to end: Intent · Execution · Evidence, lifecycle,
+  review.md            The Review end to end: Intent · Process · Execution · Evidence, lifecycle,
                        publish flow, mediums, comments, reviewed marks
   board.md             The queue of cards (todo/doing/done)
   actions.md           Saved terminal commands you curate and the human runs
@@ -54,7 +54,7 @@ node <skill>/scripts/check-evidence.mjs [--repo <abs path>]
 ```
 
 Run `check-evidence.mjs` before claiming an intentionally published Review complete. It reports an empty pack, missing CSS, `<script>` tags,
-remote assets, broken image references (including `../assets/…`), the gallery count, and the
+remote assets, broken local media references (including `../assets/…`), invalid `.url` gallery links, the gallery count, and the
 inlined size against the 4 MB read cap — all of which fail **silently** in the sandboxed Evidence
 tab. Fix what it reports and run it again.
 
@@ -131,8 +131,8 @@ JSON
 3. **During an intentionally published Review** — Grow Execution as you touch files; Intent updates are fine. Human comments and
    reviewed marks are app → agent (`comments` / `reviewed list`).
 4. **End of an intentionally published Review** — Complete Execution + **real Evidence** before claiming done: an
-   `evidence check` per thing you ran, Results documents for what needs narrating, screenshots in
-   `assets/`. Run `check-evidence.mjs`. Don't invent proof.
+   `evidence check` per thing you ran, Results documents for what needs narrating, screenshots or
+   recordings in `assets/`. Run `check-evidence.mjs`. Don't invent proof.
 5. **Intentional replacement** — Never leave another agent's Intent or old evidence under a new
    document. If the human requests replacing an active Review, clear it before starting the
    replacement; otherwise leave it untouched.
@@ -153,7 +153,7 @@ requested replacement → implement, keeping the board honest.
 
 **End of an intentionally published Review:** **`review set`** again with full Execution (files +
 notes + sections that match what shipped) → validate → `evidence check` per thing you ran →
-`evidence prepare` → write `results/` documents + drop screenshots in `assets/` →
+`evidence prepare` → write `results/` documents + drop screenshots or recordings in `assets/` →
 `evidence results-order` → `check-evidence.mjs` → handle `comments list` → `board move` → done
 once the human has signed off.
 

@@ -76,7 +76,7 @@ export type DocTab = {
  * between them stops being tappable at four.
  *
  * It is also deliberately NOT a `SegmentedControl`: this is second-level navigation, under the
- * canvas' own Intent · Execution · Evidence switch. Evidence used to answer with a second
+ * canvas' own Intent · Process · Execution · Evidence switch. Evidence used to answer with a second
  * full-width segmented control, and two identical bars stacked read as two peer navigations
  * rather than a thing and its parts. Left-aligned, content-width pills under a divider are
  * what subordinate reads as here.

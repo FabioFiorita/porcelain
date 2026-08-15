@@ -13,8 +13,8 @@ import { useReviewReading } from './use-review'
 /**
  * The Review outline — the tablet's supplementary column.
  *
- * A table of contents for the one active unit, not a list of units: the walkthrough sections
- * the agent wrote, the "More files" groups under them, and the two chapters that bracket
+ * A table of contents for the one active unit, not a list of units: the Process walkthrough,
+ * the Execution "More files" groups under it, and the chapters that bracket
  * them. Tapping a row moves the canvas beside it — a chapter switches tab, a block switches to
  * Execution and scrolls to that block.
  *
@@ -100,6 +100,16 @@ export function ReviewList({ active }: { active: boolean }): React.JSX.Element {
           onPress={setCanvasTab}
         />
 
+        <ChapterRow
+          glyph="readAll"
+          label="Process"
+          detail="How this unit fits together"
+          selected={canvasTab === 'process'}
+          tab="process"
+          testID="porcelain-review-outline-process"
+          onPress={setCanvasTab}
+        />
+
         <View className="pb-1 pt-3">
           <PanelLabel>Execution</PanelLabel>
         </View>
@@ -167,7 +177,7 @@ function evidenceDetail(meta: ReviewReadingEvidence | null): string {
     : `${checks.length} ${checks.length === 1 ? 'check' : 'checks'} passed`
 }
 
-/** Intent and Evidence are chapters, not blocks: they own a canvas rather than a scroll spot. */
+/** Intent, Process, and Evidence are chapters, not blocks: they own a canvas rather than a scroll spot. */
 function ChapterRow({
   detail,
   glyph,
@@ -178,7 +188,7 @@ function ChapterRow({
   testID,
 }: {
   detail: string
-  glyph: 'notebook' | 'circleCheck'
+  glyph: 'notebook' | 'readAll' | 'circleCheck'
   label: string
   onPress: (tab: ReviewCanvasTab) => void
   selected: boolean

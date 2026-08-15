@@ -30,7 +30,12 @@ import type { AuthIdentity } from './access-store'
  * compared constant-time over a sha256 digest; paired devices are validated
  * individually by the access store. POST /pair is the only unauthenticated
  * mutation, and accepts rate-limited, size-capped one-time credentials. Static
- * assets are public by design; CORS is scoped, never `*`.
+ * assets are public by design; CORS is scoped, never `*`. GET /canvas/<token> is
+ * gated too, but NOT through `authenticate` — a plain `<iframe src>` navigation
+ * carries no Authorization header, so a short-lived, Project+Canvas-scoped
+ * capability token (minted only to an already-Bearer-authenticated tRPC caller
+ * — canvas-access-tokens.ts) is the credential there; see canvas-http.ts for
+ * why the route exists at all.
  *
  * Both dispatching routes also require the exact wire protocol this build speaks
  * (`rejectProtocolMismatch` below): the daemon serves independently updated clients
@@ -53,6 +58,8 @@ export interface RemoteHttpOptions {
   onSession: (ws: WebSocket, identity: AuthIdentity) => void
   /** Serves the renderer dist for non-/trpc GET/HEAD (unauthenticated). */
   serveStatic: (req: IncomingMessage, res: ServerResponse) => Promise<void>
+  /** Serves GET /canvas/<token> — see canvas-http.ts. Token-gated, not Bearer-gated. */
+  serveCanvas: (req: IncomingMessage, res: ServerResponse) => Promise<void>
 }
 
 export interface RemoteHttp {
@@ -81,7 +88,7 @@ function announcedProtocolVersion(req: IncomingMessage): number | null {
 }
 
 export function createRemoteHttp(opts: RemoteHttpOptions): RemoteHttp {
-  const { allowedOrigin, router, onSession, serveStatic } = opts
+  const { allowedOrigin, router, onSession, serveStatic, serveCanvas } = opts
   const adminTokenHash = Buffer.from(opts.adminTokenHash)
 
   /**
@@ -289,6 +296,19 @@ export function createRemoteHttp(opts: RemoteHttpOptions): RemoteHttp {
       } catch (error) {
         writeUnexpectedRequestFailure(res, cors, error, requestId)
       }
+      return
+    }
+    if (url.startsWith('/canvas/')) {
+      // A distinct token-gated route, not the Bearer gate below — see canvas-http.ts
+      // and the SECURITY INVARIANTS note above. No CORS headers: this route is only
+      // ever loaded as an iframe navigation (no fetch/XHR caller needs it), and it
+      // sets its own tight per-response CSP that CORS would add nothing to.
+      if (req.method === 'OPTIONS') {
+        res.writeHead(204)
+        res.end()
+        return
+      }
+      await serveCanvas(req, res)
       return
     }
     if (!url.startsWith('/trpc')) {

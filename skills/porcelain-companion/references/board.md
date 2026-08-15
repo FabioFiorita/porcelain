@@ -15,5 +15,5 @@ Talk to Porcelain through the bundled CLI at `~/.porcelain/porcelain` — instal
 ## How to use it
 
 - When the human says "what's on my board", "what should I build next", or asks you to pick up queued work, run `board list` first.
-- When you start a card, `board move` it to "doing". Open the **Review** (Intent-first `review set`) only with explicit publication intent; when you finish the intentionally published Review's Execution + Evidence, move the card to "done" — keep the board honest so the human sees real-time progress.
+- When you start a card, `board move` it to "doing". Open the **Review** (Intent-first `review set`) only with explicit publication intent; when you finish the intentionally published Review's Process + Execution + Evidence, move the card to "done" — keep the board honest so the human sees real-time progress.
 - Capture follow-ups and tasks you discover with `board create` so nothing gets lost in the conversation.

@@ -19,13 +19,15 @@ import { useTabsStore } from '@renderer/stores/tabs'
 import { useZenStore } from '@renderer/stores/zen'
 import { TestIds } from '@shared/test-ids'
 import { Check, Sparkles } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { EvidencePanel } from './evidence-panel'
+import { ProcessBody } from './process-body'
 import { ReadingSurfaceBody } from './reading-surface'
 import { ReviewDocBody } from './review-doc-body'
 import { jumpTargets, nextTarget, useReviewFocusStore } from './review-focus-store'
 import { SourceMarker } from './review-list'
 import { useReviewIntent, useReviewReading } from './review-queries'
+import { readingForIntent } from './review-reading-projections'
 import { useReviewStartStore } from './review-start-store'
 
 const SOURCE_LABEL: Record<FileSource, string> = {
@@ -33,7 +35,6 @@ const SOURCE_LABEL: Record<FileSource, string> = {
   context: 'context',
   shipped: 'shipped',
 }
-
 /** Unique-file counts per source, across sections and groups (a file anchored twice counts once). */
 function sourceCounts(reading: ReviewReading): Record<FileSource, number> {
   const seen = new Map<string, FileSource>()
@@ -61,7 +62,7 @@ function uniqueFiles(files: ReadingFile[]): ReadingFile[] {
 }
 
 // Plain-key document navigation, registered only while the Review is mounted:
-// J/K jump Intent chapters, Z toggles zen. Execution/Evidence leave J/K alone.
+// J/K jump Process chapters, Z toggles zen. Intent/Execution/Evidence leave J/K alone.
 function useReviewKeys(
   reading: ReviewReading | null | undefined,
   canvasTab: ActiveReviewTab,
@@ -86,14 +87,10 @@ function useReviewKeys(
         return
       }
       if (key !== 'j' && key !== 'k') return
-      if (canvasTabRef.current !== 'intent') return
+      if (canvasTabRef.current !== 'process') return
       const doc = readingRef.current
       if (!doc) return
-      const targets = jumpTargets({
-        sectionCount: doc.sections.length,
-        hasMoreFiles: doc.groups.length > 0,
-        hasEvidence: false,
-      })
+      const targets = jumpTargets({ sectionCount: doc.sections.length })
       const active = useReviewFocusStore.getState().activeSection
       const target = nextTarget(targets, active, key === 'j' ? 1 : -1)
       if (target) {
@@ -125,8 +122,8 @@ function EmptyState(): React.JSX.Element {
         <p className="mb-3 text-sm text-muted-foreground">
           The Review is where a unit begins and ends — bug, feature, chore, or investigation. Your
           agent starts one through the porcelain-companion skill: Intent first (name + thesis), then
-          Execution and Evidence as work finishes. Clear any previous unit before starting a new
-          one.
+          Process and Execution, with Evidence closing the loop. Clear any previous unit before
+          starting a new one.
         </p>
         {suggestedName && (
           <p className="rounded-md border border-border/60 bg-muted/40 px-2.5 py-1.5 text-xs text-foreground">
@@ -140,10 +137,10 @@ function EmptyState(): React.JSX.Element {
 
 /**
  * The viewer's `review` tab: the Review canvas — header (name + source counts)
- * over three tabs: **Intent** (narrative / freeform board), **Execution** (files +
- * notes), **Evidence** (the pack: checks, results, assets). Human questions appear as
- * tab hover tooltips.
- * Outline jumps pick the tab; J/K stay on Intent.
+ * over four tabs: **Intent** (thesis and authored intent documents), **Process**
+ * (walkthrough sections), **Execution** (files + notes), and **Evidence** (the pack:
+ * checks, results, assets). Human questions appear as tab hover tooltips.
+ * Outline jumps pick the tab; J/K stay on Process.
  */
 export function ActiveReview(): React.JSX.Element {
   const { reading } = useReviewReading()
@@ -160,7 +157,7 @@ export function ActiveReview(): React.JSX.Element {
     return () => useReviewFocusStore.getState().setVisible(null, null)
   }, [])
 
-  // Outline / pill / shortcut jumps: set canvas tab; section/top stay on Intent
+  // Outline / pill / shortcut jumps: set canvas tab; section/top stay on Process
   // and still scroll the narrative virtualizer.
   useEffect(() => {
     if (!jump) return
@@ -182,8 +179,8 @@ export function ActiveReview(): React.JSX.Element {
       clearJump()
       return
     }
-    // section | top → Intent (ReadingSurfaceBody consumes the jump for scroll).
-    setCanvasTab('intent')
+    // section | top → Process (ReadingSurfaceBody consumes the jump for scroll).
+    setCanvasTab('process')
   }, [jump, clearJump, setVisible, setCanvasTab])
 
   // Evidence cleared while on that tab → fall back to Intent.
@@ -267,6 +264,9 @@ export function ActiveReview(): React.JSX.Element {
         <TabsContent value="intent" className="min-h-0 flex-1 outline-none">
           <IntentBody reading={reading} />
         </TabsContent>
+        <TabsContent value="process" className="min-h-0 flex-1 outline-none">
+          <ProcessBody reading={reading} />
+        </TabsContent>
         <TabsContent value="execution" className="min-h-0 flex-1 outline-none">
           <ExecutionBody reading={reading} />
         </TabsContent>
@@ -301,8 +301,8 @@ export function ActiveReview(): React.JSX.Element {
  */
 function IntentBody({ reading }: { reading: ReviewReading }): React.JSX.Element {
   const docs = useReviewIntent()
-  const hasDoc =
-    reading.sections.length > 0 || (reading.thesis !== undefined && reading.thesis.trim() !== '')
+  const hasThesis = reading.thesis !== undefined && reading.thesis.trim() !== ''
+  const intentReading = useMemo(() => readingForIntent(reading), [reading])
 
   const panes: Array<{ key: string; label: string; render: () => React.JSX.Element }> = [
     ...docs.map((doc) => ({
@@ -310,15 +310,14 @@ function IntentBody({ reading }: { reading: ReviewReading }): React.JSX.Element 
       label: doc.label,
       render: (): React.JSX.Element => <ReviewDocBody doc={doc} />,
     })),
-    ...(hasDoc
+    ...(hasThesis
       ? [
           {
             key: 'document',
             label: 'Document',
             render: (): React.JSX.Element => (
               <ReadingSurfaceBody
-                reading={reading}
-                trackFocus
+                reading={intentReading}
                 includeEvidence={false}
                 includeAnchors={false}
               />
@@ -336,7 +335,8 @@ function IntentBody({ reading }: { reading: ReviewReading }): React.JSX.Element 
       <div className="flex h-full items-center justify-center p-8">
         <p className="max-w-sm text-center text-sm text-muted-foreground">
           No Intent yet — a document under <span className="font-mono">.porcelain/intent/</span>, a
-          thesis, walkthrough sections, or a freeform board. Files live on the Execution tab.
+          thesis, or a freeform board. Walkthrough sections live on the Process tab; files live on
+          Execution.
         </p>
       </div>
     )

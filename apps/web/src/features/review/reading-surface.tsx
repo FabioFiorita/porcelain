@@ -144,14 +144,14 @@ function pushFileRows(
 
 export interface BuildRowsOptions {
   /**
-   * When false, omit the evidence chapter rows (the Review's Intent tab — evidence is
+   * When false, omit the evidence chapter rows (the Review's Process tab — evidence is
    * its own canvas tab). Default true so Changes/History continuous review and
    * Explore stay identical.
    */
   includeEvidence?: boolean
   /**
    * When false, omit anchored code / file blocks and "More files" groups (the Review's
-   * Intent narrative — Execution owns the file list). Default true.
+   * Process narrative — Execution owns the file list). Default true.
    */
   includeAnchors?: boolean
   /** Omit a file's body while keeping its header visible. State is client-local. */
@@ -162,8 +162,8 @@ export interface BuildRowsOptions {
  * Flatten the whole Review document into rows: thesis, then each walkthrough
  * section (header, prose, optional diagram, optional anchored code), then the
  * unanchored files under "More files", then the evidence chapter (opt-out via
- * `includeEvidence: false` for the Review's Intent). Intent also opts out of anchors
- * via `includeAnchors: false`.
+ * `includeEvidence: false` for the Review's Process). The Review's Intent and Process surfaces
+ * opt out of anchors via `includeAnchors: false`.
  */
 export function buildRows(
   reading: ReviewReading,
@@ -256,7 +256,9 @@ export function rowIndexForTarget(
   rows: readonly ReadingRow[],
   target: ReviewJumpTarget,
 ): number | null {
-  if (target.kind === 'top' || target.kind === 'intent') return rows.length > 0 ? 0 : null
+  if (target.kind === 'top' || target.kind === 'intent') {
+    return rows.length > 0 ? 0 : null
+  }
   // Execution is a canvas tab only (ActiveReview) — no row in the reading surface.
   if (target.kind === 'execution') return null
   // Evidence: continuous review still embeds an evidence chapter; ActiveReview
@@ -780,7 +782,8 @@ function ReadingRowView({
  * fixed `ROW_HEIGHT` (fine here — this list is short and sliced, unlike the full
  * file/diff viewers). `fileActions` adds mark-reviewed/open-file chrome
  * (Changes/History only); `trackFocus` (Review doc only) drives the
- * review-focus store; the Review's Intent passes `includeEvidence`/`includeAnchors` false.
+ * review-focus store; the Review's Intent and Process surfaces pass
+ * `includeEvidence`/`includeAnchors` false.
  */
 export function ReadingSurfaceBody({
   reading,

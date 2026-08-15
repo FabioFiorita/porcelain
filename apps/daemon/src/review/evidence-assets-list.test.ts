@@ -6,10 +6,12 @@ import {
   listEvidenceAssets,
   MAX_ASSET_BYTES,
   MAX_ASSETS,
+  MAX_LINK_BYTES,
   readEvidenceAsset,
 } from './evidence-assets-list'
 
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47])
+const MP4 = Buffer.from('fake-mp4-bytes')
 
 let dir = ''
 
@@ -41,14 +43,56 @@ describe('listEvidenceAssets', () => {
     await writeFile(join(dir, 'a.jpg'), PNG)
     await writeFile(join(dir, 'b.webp'), PNG)
     await writeFile(join(dir, 'c.svg'), '<svg/>')
-    expect((await listEvidenceAssets(dir)).map((a) => a.mime)).toEqual([
-      'image/jpeg',
-      'image/webp',
-      'image/svg+xml',
+    expect(
+      (await listEvidenceAssets(dir))
+        .filter((asset) => asset.kind !== 'link')
+        .map((asset) => asset.mime),
+    ).toEqual(['image/jpeg', 'image/webp', 'image/svg+xml'])
+  })
+
+  it('lists supported video assets alongside images', async () => {
+    await writeFile(join(dir, 'capture.webm'), MP4)
+    await writeFile(join(dir, 'recording.MP4'), MP4)
+
+    expect(await listEvidenceAssets(dir)).toEqual([
+      {
+        file: 'capture.webm',
+        label: 'Capture',
+        kind: 'video',
+        mime: 'video/webm',
+        bytes: MP4.byteLength,
+      },
+      {
+        file: 'recording.MP4',
+        label: 'Recording',
+        kind: 'video',
+        mime: 'video/mp4',
+        bytes: MP4.byteLength,
+      },
     ])
   })
 
-  it('ignores non-images, dotfiles and sub-directories', async () => {
+  it('lists safe .url files as links without reading remote content', async () => {
+    await writeFile(join(dir, 'reference.url'), 'https://example.com/evidence\n')
+    expect(await listEvidenceAssets(dir)).toEqual([
+      {
+        file: 'reference.url',
+        label: 'Reference',
+        kind: 'link',
+        href: 'https://example.com/evidence',
+        bytes: Buffer.byteLength('https://example.com/evidence\n'),
+      },
+    ])
+  })
+
+  it('skips unsafe, empty, and oversized .url files', async () => {
+    await writeFile(join(dir, 'bad.url'), 'javascript:alert(1)')
+    await writeFile(join(dir, 'empty.url'), '')
+    await writeFile(join(dir, 'huge.url'), Buffer.alloc(MAX_LINK_BYTES + 1, 0x61))
+    expect(await listEvidenceAssets(dir)).toEqual([])
+  })
+
+  it('ignores unsupported files, dotfiles and sub-directories', async () => {
     await writeFile(join(dir, 'notes.txt'), 'nope')
     await writeFile(join(dir, '.hidden.png'), PNG)
     await mkdir(join(dir, 'nested.png'), { recursive: true })
@@ -95,6 +139,16 @@ describe('readEvidenceAsset', () => {
     })
   })
 
+  it('returns a video data URL with the video MIME', async () => {
+    await writeFile(join(dir, 'capture.mp4'), MP4)
+    expect(await readEvidenceAsset(dir, 'capture.mp4')).toEqual({
+      file: 'capture.mp4',
+      mime: 'video/mp4',
+      bytes: MP4.byteLength,
+      dataUrl: `data:video/mp4;base64,${MP4.toString('base64')}`,
+    })
+  })
+
   it('refuses traversal, absolute paths and dotfiles', async () => {
     await writeFile(join(dir, '.secret.png'), PNG)
     await writeFile(join(dir, 'sibling.png'), PNG)
@@ -109,10 +163,12 @@ describe('readEvidenceAsset', () => {
     }
   })
 
-  it('returns null for a missing file and for a non-image', async () => {
+  it('returns null for a missing file and for an unsupported file', async () => {
     await writeFile(join(dir, 'notes.txt'), 'nope')
     expect(await readEvidenceAsset(dir, 'notes.txt')).toBeNull()
     expect(await readEvidenceAsset(dir, 'gone.png')).toBeNull()
+    await writeFile(join(dir, 'reference.url'), 'https://example.com')
+    expect(await readEvidenceAsset(dir, 'reference.url')).toBeNull()
   })
 
   it('refuses a symlink even when its target resolves inside dir and is a real image', async () => {
