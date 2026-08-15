@@ -18,6 +18,8 @@ export const loc = {
   viewerCard: (page: Page): Locator => byId(page, TestIds.viewerCard),
   toggleLeftSidebar: (page: Page): Locator => byId(page, TestIds.toggleLeftSidebar),
   toggleRightSidebar: (page: Page): Locator => byId(page, TestIds.toggleRightSidebar),
+  actionsMenu: (page: Page): Locator => byId(page, TestIds.actionsMenu),
+  commandsMenu: (page: Page): Locator => byId(page, TestIds.commandsMenu),
 
   welcome: (page: Page): Locator => byId(page, TestIds.welcome),
   welcomeOpenRepo: (page: Page): Locator => byId(page, TestIds.welcomeOpenRepo),
@@ -27,7 +29,10 @@ export const loc = {
   hubWorktree: (page: Page, id: string): Locator => byId(page, TestIds.hubWorktree(id)),
   hubCreateWorktree: (page: Page, projectId: string): Locator =>
     byId(page, TestIds.hubCreateWorktree(projectId)),
-  hubWorktrees: (page: Page): Locator => page.locator('[data-testid^="hub-worktree-"]'),
+  hubCreateWorktreeBranch: (page: Page): Locator => byId(page, TestIds.hubCreateWorktreeBranch),
+  hubCreateWorktreeSubmit: (page: Page): Locator => byId(page, TestIds.hubCreateWorktreeSubmit),
+  hubWorktrees: (page: Page): Locator =>
+    page.locator('[data-testid^="hub-worktree-"]:not([data-testid="hub-worktree-summary"])'),
   hubProjects: (page: Page): Locator => page.locator('[data-testid^="hub-project-"]'),
   hubHome: (page: Page): Locator => byId(page, TestIds.hubHome),
   hubProjectSummary: (page: Page): Locator => byId(page, TestIds.hubProjectSummary),

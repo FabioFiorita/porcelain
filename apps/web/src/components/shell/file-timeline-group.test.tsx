@@ -55,7 +55,8 @@ describe('FileTimelineGroup', () => {
     openFileTab('/repo/src/foo/bar.ts')
     vi.mocked(useFileLog).mockReturnValue([])
     renderGroup()
-    expect(screen.getByText('No history for this file yet.')).toBeInTheDocument()
+    expect(screen.getByText('No history yet')).toBeInTheDocument()
+    expect(screen.getByText('No history yet').closest('[data-slot="empty"]')).not.toBeNull()
   })
 
   it('opens a commit tab keyed by hash when a timeline row is clicked', () => {

@@ -46,6 +46,10 @@ function workspace(overrides: Partial<GitWorkspacePort> = {}): GitWorkspacePort 
       ok: true,
       value: { path: '/synthetic/repo-worktrees/feature-x', branch: 'feature/x' },
     })),
+    removeWorktree: vi.fn<GitWorkspacePort['removeWorktree']>(async () => ({
+      ok: true,
+      value: undefined,
+    })),
     ...overrides,
   }
 }

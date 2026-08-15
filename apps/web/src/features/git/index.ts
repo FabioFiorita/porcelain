@@ -50,4 +50,4 @@ export {
 export { useReviewedPaths, useSetReviewed, useToggleReviewed } from './git-reviewed'
 export type { GitMutationAction } from './workspace/git-mutations'
 export { useGitAddWorktree, useGitCheckout, useGitCreateBranch } from './workspace/git-mutations'
-export { useGitWorkspace } from './workspace/git-queries'
+export { useGitBranches, useGitWorkspace } from './workspace/git-queries'

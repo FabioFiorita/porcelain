@@ -46,6 +46,7 @@ describe('Hub git discovery', () => {
           ok: true,
           value: { path: worktree, branch: 'topic' },
         }),
+        removeWorktree: async () => ({ ok: true, value: undefined }),
       })
       const discovered = await port.discoverProject(worktree)
       expect(discovered.ok).toBe(true)
@@ -73,6 +74,7 @@ describe('Hub git discovery', () => {
           ok: true,
           value: { path: plain, branch: 'unused' },
         }),
+        removeWorktree: async () => ({ ok: true, value: undefined }),
       })
       expect(await port.discoverProject(plain)).toEqual({ ok: false, error: 'not-a-repository' })
     })

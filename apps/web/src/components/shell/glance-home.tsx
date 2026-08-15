@@ -1,21 +1,15 @@
 import { changesetTabKey } from '@renderer/components/git/changeset-view'
-import { useBoardCards } from '@renderer/features/board'
 import { type ReviewInboxRow, useGitFlow, useGitWorkspace } from '@renderer/features/git'
 import { useReviewComments, useReviewReading } from '@renderer/features/review'
-import { cn } from '@renderer/lib/utils'
+import { toastUserActionError } from '@renderer/hooks/mutation-error'
+import { openTerminalPanel } from '@renderer/lib/terminal-actions'
 import { targetedTab } from '@renderer/stores/hub-tabs'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useTabsStore } from '@renderer/stores/tabs'
+import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
-import {
-  Columns3,
-  FileDiff,
-  GitBranch,
-  MessageSquare,
-  SquareTerminal,
-  Waypoints,
-} from 'lucide-react'
+import { FileDiff, GitBranch, MessageSquare, SquareTerminal, Waypoints } from 'lucide-react'
 
 // One tap-target recipe for every Glance row: full-width, touch-comfortable
 // height, the app's one hover/pressed fill. Rows stay flat on the viewer
@@ -72,7 +66,7 @@ function InboxGlanceRow({ row }: { row: ReviewInboxRow }): React.JSX.Element {
 
 /**
  * The Glance: home when no tab is open — work in flight (inbox, dirty tree,
- * published Review, board, open comments) plus always-visible jump rows so an
+ * published Review, open comments) plus always-visible jump rows so an
  * empty checkout is still a useful landing page. Phone and desktop empty panes
  * both use it (U6).
  */
@@ -85,20 +79,16 @@ export function GlanceHome(): React.JSX.Element | null {
   const branch = workspace.branch
   const { groups } = useGitFlow()
   const { reading } = useReviewReading()
-  const { cards } = useBoardCards()
   const comments = useReviewComments()
 
   if (!project) return null
 
   const changedCount = groups?.reduce((n, group) => n + group.files.length, 0) ?? 0
   const hasReview = reading !== null && reading !== undefined
-  const doing = cards.filter((card) => card.status === 'doing')
-  const todo = cards.filter((card) => card.status === 'todo')
   const openComments = comments.filter((c) => !c.resolved)
 
   const showCheckout = changedCount > 0 || hasReview || openComments.length > 0
-  const showBoard = doing.length > 0 || todo.length > 0
-  const hasWork = inbox.length > 0 || showCheckout || showBoard
+  const hasWork = inbox.length > 0 || showCheckout
 
   // Agent-published Review canvas (the Review tab).
   const handleOpenFeatureReview = (): void => {
@@ -113,25 +103,16 @@ export function GlanceHome(): React.JSX.Element | null {
     openTab(targetedTab('changeset', key, { title: 'All changes' }))
   }
 
-  const handleOpenBoard = (): void => {
-    setSidebarTab('board')
-    openTab(targetedTab('board', project.path, { title: 'Board' }))
-  }
-
   const handleOpenTerminal = (): void => {
-    setSidebarTab('terminal')
+    runUserAction(
+      () => openTerminalPanel(),
+      (error) => toastUserActionError('Open terminal', error),
+    )
   }
 
   const handleOpenCommentsRail = (): void => {
     setSidebarTab(hasReview ? 'review' : 'changes')
   }
-
-  const boardSummary = [
-    doing.length > 0 && `${doing.length} doing`,
-    todo.length > 0 && `${todo.length} to do`,
-  ]
-    .filter(Boolean)
-    .join(' · ')
 
   const reviewSubtitle = (() => {
     if (!hasReview || !reading) return null
@@ -225,38 +206,6 @@ export function GlanceHome(): React.JSX.Element | null {
           </GlanceSection>
         )}
 
-        {showBoard && (
-          <GlanceSection label="Board">
-            <button
-              type="button"
-              onClick={handleOpenBoard}
-              className={cn(rowClass, 'flex-col items-stretch gap-1')}
-            >
-              <span className="flex items-center gap-2">
-                <Columns3 className="size-3.5 shrink-0 text-muted-foreground" />
-                <span className="min-w-0 flex-1 truncate text-sm">{boardSummary}</span>
-              </span>
-              {doing.slice(0, 3).map((card) => (
-                <span
-                  key={card.id}
-                  className="truncate pl-[1.375rem] text-xs text-muted-foreground"
-                >
-                  {card.title}
-                </span>
-              ))}
-              {doing.length === 0 &&
-                todo.slice(0, 2).map((card) => (
-                  <span
-                    key={card.id}
-                    className="truncate pl-[1.375rem] text-xs text-muted-foreground"
-                  >
-                    {card.title}
-                  </span>
-                ))}
-            </button>
-          </GlanceSection>
-        )}
-
         {/* Always-on shortcuts so the landing page is useful even when clean. */}
         <GlanceSection label="Jump to">
           <button
@@ -281,18 +230,6 @@ export function GlanceHome(): React.JSX.Element | null {
             <span className="min-w-0 flex-1 truncate text-sm">Review</span>
             <span className="shrink-0 text-2xs text-muted-foreground/60">
               {hasReview ? 'Open canvas' : 'No review yet'}
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={handleOpenBoard}
-            className={rowClass}
-            data-testid={TestIds.glanceJumpBoard}
-          >
-            <Columns3 className="size-3.5 shrink-0 text-muted-foreground" />
-            <span className="min-w-0 flex-1 truncate text-sm">Board</span>
-            <span className="shrink-0 text-2xs text-muted-foreground/60">
-              {boardSummary || 'Plan'}
             </span>
           </button>
           <button

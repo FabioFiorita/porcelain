@@ -68,11 +68,25 @@ function CommandDialog({
 
 function CommandInput({
   className,
+  variant = "default",
   ...props
-}: React.ComponentProps<typeof CommandPrimitive.Input>) {
+}: React.ComponentProps<typeof CommandPrimitive.Input> & {
+  variant?: "default" | "palette"
+}) {
+  const palette = variant === "palette"
+
   return (
-    <div data-slot="command-input-wrapper" className="p-1 pb-0">
-      <InputGroup className="h-8! rounded-lg! border-input/30 bg-input/30 shadow-none! *:data-[slot=input-group-addon]:pl-2!">
+    <div
+      data-slot="command-input-wrapper"
+      className={cn(palette ? "border-b border-border/60 px-3 py-2" : "p-1 pb-0")}
+    >
+      <InputGroup
+        className={cn(
+          "h-8! rounded-lg! border-input/30 bg-input/30 shadow-none! *:data-[slot=input-group-addon]:pl-2!",
+          palette &&
+            "h-8! rounded-none! border-0! bg-transparent! shadow-none! focus-within:ring-0",
+        )}
+      >
         <CommandPrimitive.Input
           data-slot="command-input"
           className={cn(

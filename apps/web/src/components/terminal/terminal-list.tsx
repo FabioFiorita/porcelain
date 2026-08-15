@@ -1,9 +1,9 @@
-import { SidebarHeaderActions } from '@renderer/components/shell/sidebar-header-actions'
 import {
   LocalPathDialog,
   type LocalPathDialogMode,
 } from '@renderer/components/terminal/local-path-dialog'
 import { TerminalRenameDialog } from '@renderer/components/terminal/terminal-rename-dialog'
+import { TerminalView } from '@renderer/components/terminal/terminal-view'
 import { Button } from '@renderer/components/ui/button'
 import {
   ContextMenu,
@@ -23,47 +23,51 @@ import { useLocalDaemon, useLocalTerminalPath } from '@renderer/hooks/use-local-
 import { spawnLocalTerminal, spawnTerminal } from '@renderer/lib/terminal-actions'
 import { cn } from '@renderer/lib/utils'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
-import { tabId, useTabsStore } from '@renderer/stores/tabs'
+import { useTabsStore } from '@renderer/stores/tabs'
 import { useTerminalsStore } from '@renderer/stores/terminals'
 import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
-import { Cloud, FolderPen, Monitor, PenLine, Plus, SquareTerminal, X } from 'lucide-react'
-import { useState } from 'react'
+import {
+  Cloud,
+  FolderPen,
+  Monitor,
+  PanelBottomClose,
+  PenLine,
+  Plus,
+  SquareTerminal,
+  X,
+} from 'lucide-react'
+import { useEffect, useState } from 'react'
 
 /**
- * The Terminal sidebar tab body: the roster of open terminal sessions. "+" spawns a
- * new shell and opens it; a row click opens/focuses its viewer tab; "x" kills the PTY.
- * Sessions are independent of tabs — closing a tab keeps the session here (a background
- * dev server keeps running), so this roster is how you get back to it. Mirrors the
- * Board/Review tabs: a list here, the live surface in the viewer.
- *
- * When the window is bound to a remote daemon, the header gains a folder icon (set the
- * local clone path for "This device" shells) and "+" becomes a menu (this window's
- * machine vs This device). Local windows keep a plain "+" that just opens a shell.
+ * The persistent terminal panel at the bottom of the Viewer. Terminal sessions are tabs
+ * in this panel, while the PTY remains daemon-owned when the panel is closed or the
+ * browser reconnects. This keeps the live shell beside the document it supports.
  */
-export function TerminalList(): React.JSX.Element {
+export function TerminalPanel(): React.JSX.Element {
   const sessions = useTerminalsStore((s) => s.sessions)
+  const panelOpen = useTerminalsStore((s) => s.panelOpen)
+  const panelSessionId = useTerminalsStore((s) => s.panelSessionId)
   const closeTerminal = useTerminalsStore((s) => s.close)
+  const openPanel = useTerminalsStore((s) => s.openPanel)
+  const closePanel = useTerminalsStore((s) => s.closePanel)
+  const setPanelSession = useTerminalsStore((s) => s.setPanelSession)
   const renameTerminal = useTerminalsStore((s) => s.rename)
-  const project = useProjectSelectionStore((s) => s.project)
-  const openTab = useTabsStore((s) => s.openTab)
   const retitleTerminalTab = useTabsStore((s) => s.retitleTerminalTab)
-  const activeTabId = useTabsStore((s) => {
-    const pane = s.panes[s.activePaneIndex]
-    return pane?.activeTabId ?? null
-  })
-  // The session being renamed (id + its current label to prefill), or null when no
-  // rename is in flight. Single-surface, so it's plain component state (unlike the
-  // file prompt, which is opened from two surfaces and lives in a store).
+  const project = useProjectSelectionStore((s) => s.project)
   const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null)
-  // "This device" terminals exist only when this window is on ANOTHER machine; on a local
-  // window the option would just be a second way to spawn the same shell.
+  const [mappingMode, setMappingMode] = useState<LocalPathDialogMode | null>(null)
   const localDaemon = useLocalDaemon()
   const canSpawnLocal = localDaemon !== undefined && !localDaemon.isLocal && project !== null
   const mappedLocalPath = useLocalTerminalPath(project?.path ?? null)
   const identity = useDaemonIdentity()
-  // Path dialog: 'spawn' also opens a terminal after save; 'edit' only updates the map.
-  const [mappingMode, setMappingMode] = useState<LocalPathDialogMode | null>(null)
+  const activeSession = sessions.find((session) => session.id === panelSessionId) ?? null
+
+  useEffect(() => {
+    if (panelOpen && activeSession === null && sessions[0] !== undefined) {
+      setPanelSession(sessions[0].id)
+    }
+  }, [activeSession, panelOpen, sessions, setPanelSession])
 
   const handleSpawnLocal = (): void => {
     if (!project) return
@@ -88,10 +92,6 @@ export function TerminalList(): React.JSX.Element {
     )
   }
 
-  const handleOpen = (id: string, name: string): void => {
-    openTab({ id: tabId('terminal', id), kind: 'terminal', title: name, path: id })
-  }
-
   const handleRename = (id: string, name: string): void => {
     const trimmed = name.trim()
     if (trimmed === '') return
@@ -102,139 +102,146 @@ export function TerminalList(): React.JSX.Element {
   const hasMappedPath = mappedLocalPath != null && mappedLocalPath !== ''
 
   return (
-    <div data-testid={TestIds.terminalList} className="flex flex-col gap-1.5">
-      <div className="flex items-center justify-end px-2">
-        <SidebarHeaderActions>
-          {canSpawnLocal && (
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={() => setMappingMode('edit')}
-              aria-label={hasMappedPath ? 'Change this device folder' : 'Set this device folder'}
-              title={
-                hasMappedPath
-                  ? `This device folder: ${mappedLocalPath}`
-                  : 'Set this device folder (local clone of this project)'
+    <div
+      data-testid={TestIds.terminalPanel}
+      className={cn('flex h-72 min-h-0 shrink-0 flex-col border-t', !panelOpen && 'hidden')}
+    >
+      <div className="flex min-h-10 shrink-0 items-center gap-1 px-2">
+        <div className="min-w-0 flex-1 overflow-x-auto">
+          <div className="flex min-w-max items-center gap-1">
+            {sessions.map((session) => {
+              const isActive = panelSessionId === session.id
+              return (
+                <ContextMenu key={session.id}>
+                  <ContextMenuTrigger
+                    render={
+                      <div
+                        className={cn(
+                          'group/term flex h-7 max-w-48 shrink-0 items-center gap-1 rounded-md pl-2 text-xs',
+                          isActive
+                            ? 'bg-accent text-accent-foreground'
+                            : 'text-muted-foreground hover:bg-accent/50',
+                        )}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPanelSession(session.id)
+                            openPanel(session.id)
+                          }}
+                          onDoubleClick={() => setRenaming({ id: session.id, name: session.name })}
+                          title={
+                            session.origin === 'local'
+                              ? `${session.name} — this device`
+                              : session.name
+                          }
+                          className="flex min-w-0 items-center gap-1.5 text-left"
+                        >
+                          {session.origin === 'local' ? (
+                            <Monitor className="size-3.5 shrink-0" />
+                          ) : (
+                            <SquareTerminal className="size-3.5 shrink-0" />
+                          )}
+                          <span className="truncate">{session.name}</span>
+                        </button>
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          className="size-5 shrink-0 opacity-0 group-hover/term:opacity-100 [@media(hover:none)]:opacity-100"
+                          aria-label={`Close ${session.name}`}
+                          onClick={() => closeTerminal(session.id)}
+                        >
+                          <X />
+                        </Button>
+                      </div>
+                    }
+                  />
+                  <ContextMenuContent>
+                    <ContextMenuItem
+                      onClick={() => setRenaming({ id: session.id, name: session.name })}
+                    >
+                      <PenLine />
+                      Rename
+                    </ContextMenuItem>
+                  </ContextMenuContent>
+                </ContextMenu>
+              )
+            })}
+          </div>
+        </div>
+        {canSpawnLocal && (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => setMappingMode('edit')}
+            aria-label={hasMappedPath ? 'Change this device folder' : 'Set this device folder'}
+            title={
+              hasMappedPath
+                ? `This device folder: ${mappedLocalPath}`
+                : 'Set this device folder (local clone of this project)'
+            }
+            data-testid={TestIds.localTerminalPathButton}
+            disabled={!project}
+          >
+            <FolderPen />
+          </Button>
+        )}
+        {canSpawnLocal ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="New terminal"
+                  data-testid={TestIds.terminalNew}
+                >
+                  <Plus />
+                </Button>
               }
-              data-testid={TestIds.localTerminalPathButton}
-              disabled={!project}
-            >
-              <FolderPen />
-            </Button>
-          )}
-          {canSpawnLocal ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="New terminal"
-                    data-testid={TestIds.terminalNew}
-                  >
-                    <Plus />
-                  </Button>
-                }
-              />
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  onClick={handleSpawnRemote}
-                  data-testid={TestIds.terminalNewRemote}
-                >
-                  <Cloud />
-                  {identity.host ?? 'This window’s machine'}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleSpawnLocal} data-testid={TestIds.terminalNewLocal}>
-                  <Monitor />
-                  This device
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={handleSpawnRemote}
-              aria-label="New terminal"
-              data-testid={TestIds.terminalNew}
-              disabled={!project}
-            >
-              <Plus />
-            </Button>
-          )}
-        </SidebarHeaderActions>
+            />
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleSpawnRemote} data-testid={TestIds.terminalNewRemote}>
+                <Cloud />
+                {identity.host ?? 'This window’s machine'}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleSpawnLocal} data-testid={TestIds.terminalNewLocal}>
+                <Monitor />
+                This device
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={handleSpawnRemote}
+            aria-label="New terminal"
+            data-testid={TestIds.terminalNew}
+            disabled={!project}
+          >
+            <Plus />
+          </Button>
+        )}
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={closePanel}
+          aria-label="Close terminal panel"
+          title="Close terminal panel"
+        >
+          <PanelBottomClose />
+        </Button>
       </div>
-      <div className="flex flex-col gap-0.5 px-2">
-        {sessions.map((session) => {
-          const isActive = activeTabId === tabId('terminal', session.id)
-          return (
-            <ContextMenu key={session.id}>
-              <ContextMenuTrigger
-                render={
-                  <div
-                    className={cn(
-                      'group/term flex h-7 items-center gap-2 rounded-md px-2 text-sm-minus',
-                      isActive
-                        ? 'bg-sidebar-accent text-foreground'
-                        : 'text-muted-foreground hover:bg-sidebar-accent/50',
-                    )}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => handleOpen(session.id, session.name)}
-                      onDoubleClick={() => setRenaming({ id: session.id, name: session.name })}
-                      title={
-                        session.origin === 'local' ? `${session.name} — this device` : session.name
-                      }
-                      className="flex min-w-0 flex-1 items-center gap-2 text-left"
-                    >
-                      {/* The icon carries local-vs-remote (same Monitor/Cloud language as
-                          the environment switcher). A text badge said it more loudly but
-                          squeezed the name to "Termina…" in a 192px panel — the row's job
-                          is the name. */}
-                      {session.origin === 'local' ? (
-                        <Monitor className="size-3.5 shrink-0" />
-                      ) : (
-                        <SquareTerminal className="size-3.5 shrink-0" />
-                      )}
-                      <span className="min-w-0 flex-1 truncate">{session.name}</span>
-                    </button>
-                    {session.status === 'exited' ? (
-                      <span className="shrink-0 text-2xs uppercase tracking-wider text-muted-foreground/60">
-                        exited
-                      </span>
-                    ) : (
-                      <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" aria-hidden />
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      className="size-5 shrink-0 opacity-0 group-hover/term:opacity-100 [@media(hover:none)]:opacity-100"
-                      aria-label={`Close ${session.name}`}
-                      onClick={() => closeTerminal(session.id)}
-                    >
-                      <X />
-                    </Button>
-                  </div>
-                }
-              />
-              <ContextMenuContent>
-                <ContextMenuItem
-                  onClick={() => setRenaming({ id: session.id, name: session.name })}
-                >
-                  <PenLine />
-                  Rename
-                </ContextMenuItem>
-              </ContextMenuContent>
-            </ContextMenu>
-          )
-        })}
-        {sessions.length === 0 && (
-          <div className="px-3 py-10 text-center">
-            <p className="text-xs font-medium text-foreground">No terminals</p>
-            <p className="mx-auto mt-1 max-w-[15rem] text-xs text-muted-foreground">
-              Add one with +, or run an action from Quick access.
-            </p>
+      <div className="min-h-0 flex-1">
+        {activeSession ? (
+          <TerminalView key={activeSession.id} sessionId={activeSession.id} />
+        ) : (
+          <div className="flex h-full items-center justify-center px-3 text-center">
+            <div>
+              <p className="text-xs font-medium text-foreground">No terminals</p>
+              <p className="mt-1 text-xs text-muted-foreground">Add one with +.</p>
+            </div>
           </div>
         )}
       </div>
@@ -252,9 +259,6 @@ export function TerminalList(): React.JSX.Element {
           repoPath={project.path}
           initialPath={mappedLocalPath ?? null}
           mode={mappingMode}
-          // Spawn mode opens a terminal from the just-saved value (query invalidation
-          // hasn't landed yet). Edit mode only updates the map — the human asked for a
-          // setting, not a shell.
           onSaved={(localPath: string): void => {
             if (mappingMode === 'spawn') {
               runUserAction(

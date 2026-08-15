@@ -1,5 +1,6 @@
 import type { FileSource, ReadingFile } from '@porcelain/contracts/review'
 import { CommentComposer } from '@renderer/components/git/comment-composer'
+import { FileCommentButton } from '@renderer/components/git/file-comment-button'
 import { Button } from '@renderer/components/ui/button'
 import {
   ContextMenu,
@@ -88,46 +89,52 @@ function OutlineFileRowImpl({
         <SourceMarker source={file.source} />
       </span>
       <ContextMenu>
-        <ContextMenuTrigger
-          render={
-            <button
-              type="button"
-              onClick={handleOpen}
-              onMouseEnter={() => {
-                if (file.source === 'changed') prefetchDiff(file.path)
-              }}
-              className="flex w-full flex-col items-start gap-0.5 rounded-md px-2 py-1 text-left hover:bg-sidebar-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-            />
-          }
-        >
-          <span className="flex max-w-full items-center gap-1.5">
-            {isReviewed && (
-              <Check className="size-3 shrink-0 self-center text-success" aria-label="Reviewed" />
-            )}
-            <span
-              className={cn(
-                'truncate font-mono text-sm-minus',
-                (file.source !== 'changed' || isReviewed) && 'text-muted-foreground',
-                isReviewed && 'line-through',
+        <div className="relative">
+          <ContextMenuTrigger
+            render={
+              <button
+                type="button"
+                onClick={handleOpen}
+                onMouseEnter={() => {
+                  if (file.source === 'changed') prefetchDiff(file.path)
+                }}
+                className="flex w-full flex-col items-start gap-0.5 rounded-md px-2 py-1 pr-8 text-left hover:bg-sidebar-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+              />
+            }
+          >
+            <span className="flex max-w-full items-center gap-1.5">
+              {isReviewed && (
+                <Check className="size-3 shrink-0 self-center text-success" aria-label="Reviewed" />
               )}
-            >
-              {name}
+              <span
+                className={cn(
+                  'truncate font-mono text-sm-minus',
+                  (file.source !== 'changed' || isReviewed) && 'text-muted-foreground',
+                  isReviewed && 'line-through',
+                )}
+              >
+                {name}
+              </span>
+              {file.additions !== undefined && file.additions > 0 && (
+                <span className="shrink-0 font-mono text-2xs text-success">+{file.additions}</span>
+              )}
+              {file.deletions !== undefined && file.deletions > 0 && (
+                <span className="shrink-0 font-mono text-2xs text-destructive">
+                  −{file.deletions}
+                </span>
+              )}
             </span>
-            {file.additions !== undefined && file.additions > 0 && (
-              <span className="shrink-0 font-mono text-2xs text-success">+{file.additions}</span>
-            )}
-            {file.deletions !== undefined && file.deletions > 0 && (
-              <span className="shrink-0 font-mono text-2xs text-destructive">
-                −{file.deletions}
+            {dir && (
+              <span
+                className="max-w-full truncate font-mono text-xs text-muted-foreground"
+                dir="rtl"
+              >
+                {dir}
               </span>
             )}
-          </span>
-          {dir && (
-            <span className="max-w-full truncate font-mono text-xs text-muted-foreground" dir="rtl">
-              {dir}
-            </span>
-          )}
-        </ContextMenuTrigger>
+          </ContextMenuTrigger>
+          <FileCommentButton path={file.path} />
+        </div>
         <ContextMenuContent className="w-48">
           {file.source === 'changed' ? (
             <ContextMenuItem onClick={handleOpenFile}>
@@ -212,7 +219,7 @@ function uniqueFiles(files: readonly ReadingFile[]): ReadingFile[] {
 // Execution file outline. Intent / Execution / Evidence tabs live only in the viewer.
 export function ReviewList(): React.JSX.Element {
   return (
-    <div data-testid={TestIds.reviewList} className="flex flex-col gap-1">
+    <div data-testid={TestIds.reviewList} className="flex flex-col gap-1 pt-2">
       <ReviewInbox />
       <ReviewOutline />
     </div>

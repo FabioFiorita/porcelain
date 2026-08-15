@@ -19,7 +19,9 @@ export type HubGitPort = Readonly<{
   addWorktree: (
     repoPath: string,
     branch: string,
+    baseRef?: string,
   ) => Promise<GitWorkspaceResult<{ path: string; branch: string }>>
+  removeWorktree: (repoPath: string, worktreePath: string) => Promise<GitWorkspaceResult<void>>
 }>
 
 async function runGitDir(gitDir: string, args: string[]): Promise<string> {
@@ -77,7 +79,9 @@ async function discoverWorktrees(commonGitDir: string): Promise<DiscoveredWorktr
   return worktrees
 }
 
-export function createHubGitPort(workspace: Pick<GitWorkspacePort, 'addWorktree'>): HubGitPort {
+export function createHubGitPort(
+  workspace: Pick<GitWorkspacePort, 'addWorktree' | 'removeWorktree'>,
+): HubGitPort {
   return Object.freeze({
     async discoverProject(path: string): Promise<HubGitResult<DiscoveredProject>> {
       const gitDir = await resolveGitDir(path)
@@ -123,8 +127,12 @@ export function createHubGitPort(workspace: Pick<GitWorkspacePort, 'addWorktree'
       }
     },
 
-    addWorktree(repoPath: string, branch: string) {
-      return workspace.addWorktree(repoPath, branch)
+    addWorktree(repoPath: string, branch: string, baseRef?: string) {
+      return workspace.addWorktree(repoPath, branch, baseRef)
+    },
+
+    removeWorktree(repoPath: string, worktreePath: string) {
+      return workspace.removeWorktree(repoPath, worktreePath)
     },
   })
 }

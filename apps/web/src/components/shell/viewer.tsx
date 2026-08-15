@@ -3,13 +3,11 @@ import { ChangesetView } from '@renderer/components/git/changeset-view'
 import { CommitView } from '@renderer/components/git/commit-view'
 import { DiffView } from '@renderer/components/git/diff-view'
 import { TerminalView } from '@renderer/components/terminal/terminal-view'
-import { Kbd } from '@renderer/components/ui/kbd'
 import { FileContent } from '@renderer/components/viewer/file-content'
 import { SearchView } from '@renderer/components/viewer/search-view'
 import { BoardView } from '@renderer/features/board'
 import { HubHomeSummary, HubProjectSummary } from '@renderer/features/projects'
 import { ActiveReview, ExploreView } from '@renderer/features/review'
-import { kbdLabel } from '@renderer/lib/keyboard'
 import { cn } from '@renderer/lib/utils'
 import { HubRepoProvider } from '@renderer/stores/hub-repo'
 import { useHubSelectionStore } from '@renderer/stores/hub-selection'
@@ -20,14 +18,6 @@ import { TestIds } from '@shared/test-ids'
 import { GlanceHome } from './glance-home'
 import { SplitResizeHandle } from './sidebar-resize-handle'
 import { TabBar } from './tab-bar'
-
-// Keyboard quick-start under the Glance (desktop). Chords match the rail order:
-// Files ⌘1 · Changes ⌘2 · Review ⌘3 (U1).
-const QUICKSTART: { label: string; keys: string }[] = [
-  { label: 'Changes', keys: kbdLabel('mod', '2') },
-  { label: 'Review', keys: kbdLabel('mod', '3') },
-  { label: 'Search files', keys: kbdLabel('mod', 'P') },
-]
 
 function EmptyViewer(): React.JSX.Element {
   const project = useProjectSelectionStore((s) => s.project)
@@ -47,22 +37,6 @@ function EmptyViewer(): React.JSX.Element {
       <div data-testid={TestIds.hubWorktreeSummary} className="flex h-full min-h-0 flex-col">
         <div className="min-h-0 flex-1">
           <GlanceHome />
-        </div>
-        <div className="hidden shrink-0 border-t border-border/60 px-4 py-3 [@media(hover:hover)]:block">
-          <div className="mx-auto flex max-w-md flex-col">
-            {QUICKSTART.map((item, i) => (
-              <div
-                key={item.keys}
-                className={cn(
-                  'flex items-center justify-between py-1 text-xs text-muted-foreground',
-                  i > 0 && 'border-t border-border/40',
-                )}
-              >
-                <span>{item.label}</span>
-                <Kbd>{item.keys}</Kbd>
-              </div>
-            ))}
-          </div>
         </div>
       </div>
     )
@@ -142,7 +116,8 @@ function PaneContent({ tab, paneIndex }: { tab: Tab; paneIndex: number }): React
 }
 
 // One column of a split viewer: its own tab bar + content. Clicking anywhere in
-// the pane focuses it so new opens land here.
+// the pane focuses it so new opens land here. The unsplit tab bar lives in the
+// ViewerHeader so it shares the header row with the active file context/actions.
 function SplitPane({ paneIndex }: { paneIndex: number }): React.JSX.Element {
   const isActive = useTabsStore((s) => s.activePaneIndex === paneIndex)
   const setActivePane = useTabsStore((s) => s.setActivePane)
@@ -157,12 +132,7 @@ function SplitPane({ paneIndex }: { paneIndex: number }): React.JSX.Element {
       )}
       onMouseDown={() => setActivePane(paneIndex)}
     >
-      <div
-        className={cn(
-          'flex h-9 shrink-0 items-center border-b px-1.5',
-          isActive ? 'border-b-primary/40' : 'border-b-border',
-        )}
-      >
+      <div className={cn('flex h-9 shrink-0 items-center px-1.5', isActive && 'bg-muted/20')}>
         <TabBar paneIndex={paneIndex} />
       </div>
       <div className="min-h-0 flex-1">
@@ -176,9 +146,15 @@ export function Viewer(): React.JSX.Element {
   const paneCount = useTabsStore((s) => s.panes.length)
   const splitRatio = usePreferencesStore((s) => s.splitRatio)
 
-  // Unsplit: the tab bar lives in the chrome top bar, so the viewer is just the
-  // single pane's content (no inline tab bar).
-  if (paneCount === 1) return <PaneView paneIndex={0} />
+  // Unsplit: the header owns both shell actions and the tab strip. Split panes
+  // retain their local tab bars so the existing split-view mechanics stay intact.
+  if (paneCount === 1) {
+    return (
+      <div className="h-full min-h-0">
+        <PaneView paneIndex={0} />
+      </div>
+    )
+  }
 
   return (
     <div

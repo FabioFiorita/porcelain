@@ -8,10 +8,17 @@ import {
   projectDirectoriesQuery,
   projectsQuerySchema,
   recentProjectsQuery,
+  removeHubProject,
+  removeHubWorktree,
   removeRecentProject,
   visibleHubInventories,
 } from '@porcelain/client-runtime/projects'
-import type { BrowseDirsOutput, HubInventory, HubWorktree } from '@porcelain/contracts/projects'
+import type {
+  BrowseDirsOutput,
+  CreateHubWorktreeInput,
+  HubInventory,
+  HubWorktree,
+} from '@porcelain/contracts/projects'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import { type DaemonScope, daemonScopeSchema } from '@renderer/lib/daemon-scope'
 import { trpc } from '@renderer/lib/trpc'
@@ -25,6 +32,8 @@ import {
   hubInventoryOnDaemon,
   openProjectOnDaemon,
   recentProjectsOnDaemon,
+  removeHubProjectOnDaemon,
+  removeHubWorktreeOnDaemon,
   removeRecentProjectOnDaemon,
 } from './project-transport'
 
@@ -133,6 +142,48 @@ export function useRemoveRecentProject(): {
   return { isPending: mutation.isPending, remove: mutation.mutateAsync }
 }
 
+/** Remove a Hub Project from the daemon inventory without deleting its repository. */
+export function useRemoveHubProject(): {
+  remove: (projectId: string) => Promise<void>
+  isPending: boolean
+} {
+  const daemon = useDaemonIdentity()
+  const client = trpc.useUtils().client
+  const queryClient = useQueryClient()
+  const mutation = useMutation({
+    mutationFn: async (projectId: string): Promise<void> =>
+      removeHubProjectOnDaemon(client, projectId),
+    onSuccess: async (_result, projectId) => {
+      await invalidateProjectQueries(
+        queryClient,
+        daemon,
+        removeHubProject.affectedQueries(projectId),
+      )
+    },
+  })
+
+  return { isPending: mutation.isPending, remove: mutation.mutateAsync }
+}
+
+/** Remove one linked Worktree from Git and refresh the Hub inventory. */
+export function useRemoveHubWorktree(): {
+  remove: (input: { projectId: string; worktreeId: string }) => Promise<void>
+  isPending: boolean
+} {
+  const daemon = useDaemonIdentity()
+  const client = trpc.useUtils().client
+  const queryClient = useQueryClient()
+  const mutation = useMutation({
+    mutationFn: async (input: { projectId: string; worktreeId: string }): Promise<void> =>
+      removeHubWorktreeOnDaemon(client, input),
+    onSuccess: async (_result, input) => {
+      await invalidateProjectQueries(queryClient, daemon, removeHubWorktree.affectedQueries(input))
+    },
+  })
+
+  return { isPending: mutation.isPending, remove: mutation.mutateAsync }
+}
+
 /** Browse daemon directories with the same nullable-root and keep-previous-data behavior. */
 export function useProjectDirectories(
   path: string | null,
@@ -177,14 +228,14 @@ export function useHubInventory(): HubInventory | null {
 
 /** Create a Worktree on a Hub Project and refresh inventory. */
 export function useCreateHubWorktree(): {
-  create: (input: { projectId: string; branch: string }) => Promise<HubWorktree>
+  create: (input: CreateHubWorktreeInput) => Promise<HubWorktree>
   isPending: boolean
 } {
   const daemon = useDaemonIdentity()
   const client = trpc.useUtils().client
   const queryClient = useQueryClient()
   const mutation = useMutation({
-    mutationFn: async (input: { projectId: string; branch: string }): Promise<HubWorktree> =>
+    mutationFn: async (input: CreateHubWorktreeInput): Promise<HubWorktree> =>
       createHubWorktreeOnDaemon(client, input),
     onSuccess: async (_result, input) => {
       await invalidateProjectQueries(queryClient, daemon, createHubWorktree.affectedQueries(input))

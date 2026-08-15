@@ -2,7 +2,6 @@ import { prepareActionRun } from '@porcelain/client-runtime/actions'
 import type { ActionView } from '@porcelain/contracts/actions'
 import { spawnLocalTerminal } from '@renderer/lib/terminal-actions'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
-import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { useTerminalsStore } from '@renderer/stores/terminals'
 
 /**
@@ -45,17 +44,7 @@ export function useActionRun(): (
     }
 
     const id = await useTerminalsStore.getState().create({ cwd, name, initialInput })
-    // Terminal tabs stay untargeted: the session roster has no per-Worktree identity
-    // yet (the whole roster resets on repo switch), and `openTab`'s terminal dedup
-    // matches by exact tab id — a target computed from "whichever tab is focused right
-    // now" would make the same session collide with a different id per caller instead
-    // of refocusing the one open tab.
-    useTabsStore.getState().openTab({
-      id: tabId('terminal', id),
-      kind: 'terminal',
-      title: name,
-      path: id,
-    })
+    useTerminalsStore.getState().openPanel(id)
     return 'ran'
   }
 }

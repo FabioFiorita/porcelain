@@ -104,6 +104,46 @@ describe('Git subprocess adapter', () => {
     })
   })
 
+  it('creates a new worktree branch from an explicit base ref', async () => {
+    await withTemporaryDirectory('porcelain-git-subprocess-', async (root) => {
+      const repo = await makeRepo(root)
+      git(repo, 'checkout', '-b', 'development')
+      await writeFile(join(repo, 'tracked.ts'), 'export const value = 2\n')
+      git(repo, 'add', 'tracked.ts')
+      git(repo, '-c', 'commit.gpgsign=false', 'commit', '-m', 'development change')
+      git(repo, 'checkout', 'main')
+
+      const result = await createGitSubprocess().addWorktree(
+        repo,
+        'feature/from-development',
+        'development',
+      )
+
+      expect(result).toMatchObject({
+        ok: true,
+        value: { branch: 'feature/from-development' },
+      })
+      expect(git(repo, 'show', 'feature/from-development:tracked.ts')).toBe(
+        'export const value = 2\n',
+      )
+    })
+  })
+
+  it('removes a linked worktree and returns a void success value', async () => {
+    await withTemporaryDirectory('porcelain-git-subprocess-', async (root) => {
+      const repo = await makeRepo(root)
+      const worktree = join(dirname(repo), `${basename(repo)}-worktrees`, 'topic')
+      await mkdir(dirname(worktree), { recursive: true })
+      git(repo, 'worktree', 'add', '-b', 'topic', worktree)
+
+      await expect(createGitSubprocess().removeWorktree(repo, worktree)).resolves.toEqual({
+        ok: true,
+        value: undefined,
+      })
+      expect(git(repo, 'worktree', 'list', '--porcelain')).not.toContain(worktree)
+    })
+  })
+
   it('normalizes existing branches and worktree path/branch conflicts', async () => {
     await withTemporaryDirectory('porcelain-git-subprocess-', async (root) => {
       const repo = await makeRepo(root)

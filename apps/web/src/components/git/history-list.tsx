@@ -1,7 +1,15 @@
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '@renderer/components/ui/empty'
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@renderer/components/ui/sidebar'
 import { useGitLog } from '@renderer/features/git'
 import { targetedTab } from '@renderer/stores/hub-tabs'
 import { useTabsStore } from '@renderer/stores/tabs'
+import { History as HistoryIcon } from 'lucide-react'
 import { CommitContextMenu } from './commit-context-menu'
 
 export function HistoryList(): React.JSX.Element {
@@ -14,12 +22,15 @@ export function HistoryList(): React.JSX.Element {
 
   if (commits.length === 0) {
     return (
-      <div className="px-3 py-10 text-center">
-        <p className="text-xs font-medium text-foreground">No commits yet</p>
-        <p className="mx-auto mt-1 max-w-[15rem] text-xs text-muted-foreground">
-          Commits on this branch will show up here as you work.
-        </p>
-      </div>
+      <Empty className="mx-2 mt-1 min-h-36 border-none bg-muted/20 px-4 py-8">
+        <EmptyMedia>
+          <HistoryIcon />
+        </EmptyMedia>
+        <EmptyHeader>
+          <EmptyTitle>No commits yet</EmptyTitle>
+          <EmptyDescription>Commits on this branch will show up here as you work.</EmptyDescription>
+        </EmptyHeader>
+      </Empty>
     )
   }
 

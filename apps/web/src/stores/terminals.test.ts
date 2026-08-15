@@ -50,7 +50,8 @@ const session = (
   origin: 'primary',
 })
 
-const seed = (...sessions: TerminalSession[]): void => useTerminalsStore.setState({ sessions })
+const seed = (...sessions: TerminalSession[]): void =>
+  useTerminalsStore.setState({ sessions, panelOpen: false, panelSessionId: null })
 
 const sessions = (): TerminalSession[] => useTerminalsStore.getState().sessions
 
@@ -108,6 +109,19 @@ describe('useTerminalsStore.close vs hydrate race', () => {
     expect(sessions().map((s) => s.id)).toEqual(['t2'])
   })
 
+  it('does not resurrect a deleted middle tab when an older cache snapshot arrives later', () => {
+    seed(session('t1', 'zsh'), session('t2', 'bash'), session('t3', 'fish'))
+    useTerminalsStore.getState().close('t2')
+
+    // The fresh roster confirms the delete, then an older cached three-session response arrives.
+    useTerminalsStore.getState().hydrate([session('t1', 'zsh'), session('t3', 'fish')])
+    useTerminalsStore
+      .getState()
+      .hydrate([session('t1', 'zsh'), session('t2', 'bash'), session('t3', 'fish')])
+
+    expect(sessions().map((s) => s.id)).toEqual(['t1', 't3'])
+  })
+
   it('ignores markExited for a closed id (no EXITED flash after X)', () => {
     seed(session('t1', 'zsh'))
     useTerminalsStore.getState().close('t1')
@@ -126,5 +140,26 @@ describe('useTerminalsStore.close vs hydrate race', () => {
     useTerminalsStore.getState().close('t1')
     useTerminalsStore.getState().hydrate([session('t-new', 'Terminal 2')])
     expect(sessions().map((s) => s.id)).toEqual(['t-new'])
+  })
+})
+
+describe('useTerminalsStore bottom panel', () => {
+  beforeEach(() => {
+    seed()
+    __resetTerminalTombstonesForTests()
+  })
+
+  it('opens the first available session when toggled on', () => {
+    seed(session('t1', 'zsh'), session('t2', 'bash'))
+    useTerminalsStore.getState().togglePanel()
+    expect(useTerminalsStore.getState()).toMatchObject({ panelOpen: true, panelSessionId: 't1' })
+  })
+
+  it('keeps the selected session while hiding and reopening the panel', () => {
+    seed(session('t1', 'zsh'), session('t2', 'bash'))
+    useTerminalsStore.getState().openPanel('t2')
+    useTerminalsStore.getState().closePanel()
+    useTerminalsStore.getState().togglePanel()
+    expect(useTerminalsStore.getState()).toMatchObject({ panelOpen: true, panelSessionId: 't2' })
   })
 })

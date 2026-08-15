@@ -20,13 +20,16 @@
 - **macOS menu:** keep the `editMenu` role (a custom menu strips ⌘C/V from inputs) and keep
   reload/devtools **dev-gated** (prod deliberately ignores ⌘R). `electron-devtools-installer` stays a
   **devDependency** — it must not ship.
-- **Chrome heights are coupled.** Titlebar, rail/panel headers, viewer header, right-sidebar header
-  are all `h-12`, and `trafficLightPosition` is tuned to that 48px titlebar. Change it and the traffic
-  lights drift.
-- **The two floating sidebars are pushed below the titlebar with `md:` classes, never an inline
-  style** — shadcn pins their container to the full viewport, and the mobile Sheet reuses the same
-  props, so an inline offset makes the drawer begin 3rem below the viewport. The center
-  `SidebarInset` is `h-full`, not `h-screen` (which overflowed 48px past the bottom).
+- **Chrome heights are coupled in Electron.** The native shell titlebar, navigation/surface
+  headers, and viewer header are `h-12`, and `trafficLightPosition` is tuned to that 48px row. The
+  browser client has no duplicate titlebar row: its navigation starts at the top. The Viewer tab
+  strip is a separate `h-9` row below the header. Change the Electron titlebar height and the
+  traffic lights drift.
+- **The two floating sidebars are pushed below the native titlebar only in Electron, with `md:`
+  classes and never an inline style** — shadcn pins their container to the full viewport, and the
+  mobile Sheet reuses the same props, so an inline offset makes the drawer begin 3rem below the
+  viewport. The browser variant starts at the top. The center `SidebarInset` is `h-full`, not
+  `h-screen` (which overflowed 48px past the bottom).
 - **Window chrome is platform-split; traffic lights are macOS-only.** Linux/Windows get
   `frame: false` and a renderer-drawn `WindowControls` calling shell procedures that act on the
   calling window. The maximize glyph must track OS-driven state (WM shortcut, drag-region
@@ -42,17 +45,26 @@
   `dynamicHeight`, used only by the small, sliced reading surface; it also publishes the viewport
   width as `--vrows-vw` straight to the DOM in a `ResizeObserver` (the resize-handle trick) so a
   wrapping row sizes to the viewport, not the `w-max` content. Don't enable it on a large surface.
-- **Two nested SidebarProviders**; the inner takes `shortcut="."` so both don't grab ⌘B. The two
-  `TopBar` toggle icons are **deliberately different** (`PanelLeft` / `Zap`) — never mirror-image
-  icons. **Both toggles must call that provider's `toggleSidebar`**, not write the open preference
-  alone: below the mobile breakpoint the shell is a Sheet driven by `openMobile`, and flipping only
-  the desktop flag leaves it closed.
+- **Two nested SidebarProviders**; the inner takes `shortcut="."` so both don't grab ⌘B. The Viewer
+  header's two toggle icons are **deliberately directional** (`PanelLeft` / `PanelRight`) and
+  each toggle must drive its own provider (`toggleSidebar` for the left navigation, the inner
+  provider's toggle for the right surfaces). Do not write only the desktop preference: below the
+  mobile breakpoint the shell is a Sheet driven by `openMobile`, and flipping only the desktop
+  flag leaves it closed.
+- **The left navigation is navigation-only.** There is no standalone Environment row in the web
+  client; each Project header carries the current Environment name as a non-interactive badge.
+  Project headers only expand or collapse; Worktree rows are the navigation targets. Each Project's
+  branch-plus control opens the ref-aware New Worktree dialog, and the old branch/worktree footer
+  controls are gone. Files, Git, Review, Search, and Terminal are the visible right-side surfaces;
+  Board remains daemon-backed compatibility until its planned daemon-owned shell work lands.
+  Surface list rows open detail in the central Viewer, while Actions and Git Commands are exposed
+  from the Viewer header. Canvas remains out of this shell slice until daemon-root storage lands
+  with #21.
 - **Phone is "quick look", not a full workspace** (iPad ≥768 keeps the desktop floating layout).
-  Below 768px the Sidebar becomes a Sheet, and because our left shell is a dual-rail the mobile body
-  must be **`flex-row`** (the default `flex-col` stacked the rail on the list). Also: auto-close the
-  left sheet when the active viewer tab changes; force unified diffs (split needs two columns); drop
-  traffic-light spacers in the browser titlebar; safe-area padding. Deliberately **not** a touch
-  redesign of every surface — glanceable review, not an iPhone IDE.
+  Below 768px both sidebars become Sheets. The left navigation sheet auto-closes when the active
+  viewer tab changes; force unified diffs (split needs two columns); the browser has no native
+  titlebar row; safe-area padding. Deliberately **not** a touch redesign of every surface —
+  glanceable review, not an iPhone IDE.
 - **One opaque design — the glaze glass system is DELETED.** The app targets a plain browser as a
   first-class client, and neither it nor Linux Electron can do macOS vibrancy — a glass design that
   works on one target isn't one design. `.glaze-*`, the `--surface-*`/`--hover-fill`/`--selected-fill`

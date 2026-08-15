@@ -21,6 +21,9 @@ export const TestIds = {
   viewerCard: 'viewer-card',
   toggleLeftSidebar: 'toggle-left-sidebar',
   toggleRightSidebar: 'toggle-right-sidebar',
+  toggleTerminalPanel: 'toggle-terminal-panel',
+  actionsMenu: 'actions-menu',
+  commandsMenu: 'commands-menu',
   environmentSwitcher: 'environment-switcher',
   /** Titlebar install chip — only present when an update is downloaded (Electron). */
   updateButton: 'update-button',
@@ -35,7 +38,17 @@ export const TestIds = {
   hubEnvironment: (id: string): string => `hub-environment-${id}`,
   hubProject: (id: string): string => `hub-project-${id}`,
   hubWorktree: (id: string): string => `hub-worktree-${id}`,
+  hubAddProject: 'hub-add-project',
   hubCreateWorktree: (projectId: string): string => `hub-create-worktree-${projectId}`,
+  hubWorktreeSetup: (projectId: string): string => `hub-worktree-setup-${projectId}`,
+  hubCreateWorktreeDialog: 'hub-create-worktree-dialog',
+  hubCreateWorktreeBranch: 'hub-create-worktree-branch',
+  hubCreateWorktreeBase: 'hub-create-worktree-base',
+  hubCreateWorktreeSubmit: 'hub-create-worktree-submit',
+  hubWorktreeSetupDialog: 'hub-worktree-setup-dialog',
+  hubWorktreeSetupStart: 'hub-worktree-setup-start',
+  hubWorktreeSetupDispose: 'hub-worktree-setup-dispose',
+  hubWorktreeSetupSave: 'hub-worktree-setup-save',
   hubHome: 'hub-home',
   hubProjectSummary: 'hub-project-summary',
   hubWorktreeSummary: 'hub-worktree-summary',
@@ -122,6 +135,7 @@ export const TestIds = {
   // --- Terminal ---
   terminalNew: 'terminal-new',
   terminalList: 'terminal-list',
+  terminalPanel: 'terminal-panel',
   /** The key bar above a terminal pane on touch (Esc/Tab/Ctrl/arrows a soft keyboard lacks). */
   terminalKeyBar: 'terminal-key-bar',
   terminalKey: (label: string): string =>
@@ -153,6 +167,9 @@ export const TestIds = {
   actionCommandInput: 'action-command-input',
   actionWhere: 'action-where',
   actionSave: 'action-save',
+
+  // --- File comments ---
+  fileComments: (path: string): string => `file-comments-${path}`,
 
   // --- Viewer tabs ---
   viewerTab: (title: string): string =>

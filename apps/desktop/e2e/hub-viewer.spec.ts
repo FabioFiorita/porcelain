@@ -1,7 +1,7 @@
 import { writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { expect, loc, test, waitForShell } from './helpers/app'
+import { expect, loc, selectTab, test, waitForShell } from './helpers/app'
 
 const DIVERTED = 'HUB-VIEWER-DIVERGED-README'
 
@@ -9,8 +9,22 @@ test('switching Worktree keeps existing tabs on their original target', async ({
   await waitForShell(page)
   await expect(loc.hubInventory(page)).toBeVisible()
   await expect(loc.hubWorktreeSummary(page)).toBeVisible()
+  await selectTab(page, 'Files')
+  await expect(page.getByText('Pinned', { exact: true })).toBeVisible()
+  await expect(page.getByText('All Files', { exact: true })).toBeVisible()
+  await expect(page.getByText('Notes', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Collapse all folders' })).toBeVisible()
   await loc.treeEntry(page, 'README.md').click()
   await expect(loc.viewerCard(page)).toContainText('A fixture repo for Porcelain e2e tests.')
+  const tab = loc.viewerTab(page, 'README.md')
+  const task = loc.viewerCard(page).getByRole('button', { name: 'Task', exact: true })
+  await expect(tab).toBeVisible()
+  await expect(task).toBeVisible()
+  const tabBox = await tab.boundingBox()
+  const taskBox = await task.boundingBox()
+  if (tabBox === null || taskBox === null) throw new Error('expected header tab and task button')
+  expect(Math.abs(tabBox.y - taskBox.y)).toBeLessThanOrEqual(1)
+  expect(tabBox.x + tabBox.width).toBeLessThan(taskBox.x)
 
   const originalWorktreeId = await page
     .locator('[data-hub-worktree]')
@@ -28,8 +42,8 @@ test('switching Worktree keeps existing tabs on their original target', async ({
 
   const before = await loc.hubWorktrees(page).count()
   await loc.hubCreateWorktree(page, projectId).click()
-  await page.getByLabel('New worktree branch').fill('hub-viewer')
-  await page.getByRole('button', { name: 'Add' }).click()
+  await loc.hubCreateWorktreeBranch(page).fill('hub-viewer')
+  await loc.hubCreateWorktreeSubmit(page).click()
   await expect(loc.hubWorktrees(page)).toHaveCount(before + 1)
 
   await writeFile(
@@ -54,28 +68,18 @@ test('switching Worktree keeps existing tabs on their original target', async ({
   await expect(loc.viewerCard(page)).not.toContainText(DIVERTED)
 })
 
-test('Home and Project selections render progressively scoped summaries', async ({ page }) => {
+test('Project headers collapse without becoming navigation targets', async ({ page }) => {
   await waitForShell(page)
   await expect(loc.hubWorktreeSummary(page)).toBeVisible()
 
-  const environmentId = await loc
-    .hubInventory(page)
-    .locator('[data-testid^="hub-environment-"]')
-    .first()
-    .getAttribute('data-testid')
-  expect(environmentId).toBeTruthy()
-  if (environmentId === null) return
+  const project = loc.hubProjects(page).first()
+  const worktrees = loc.hubWorktrees(page)
+  const before = await worktrees.count()
 
-  const projectId = (await loc.hubProjects(page).first().getAttribute('data-testid'))?.replace(
-    'hub-project-',
-    '',
-  )
-  expect(projectId).toBeTruthy()
-  if (projectId === undefined || projectId === '') return
+  await project.getByRole('button', { name: /Collapse project/ }).click()
+  await expect(worktrees.first()).toBeHidden()
+  await expect(loc.hubWorktreeSummary(page)).toBeVisible()
 
-  await loc.hubProject(page, projectId).getByRole('button').first().click()
-  await expect(loc.hubProjectSummary(page)).toBeVisible()
-
-  await page.getByTestId(environmentId).click()
-  await expect(loc.hubHome(page)).toBeVisible()
+  await project.getByRole('button', { name: /Expand project/ }).click()
+  await expect(worktrees).toHaveCount(before)
 })

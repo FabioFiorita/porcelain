@@ -1,6 +1,6 @@
 // Pure decision logic for the responsive app shell: given the window/panel
 // widths and the current open states, decide whether the left sidebar and the
-// right Quick Access panel should give way so the center viewer keeps a usable
+// right surface panel should give way so the center viewer keeps a usable
 // minimum width. The DOM listener that feeds this lives in
 // `hooks/use-responsive-shell.ts`; everything below is side-effect-free so it can
 // be unit-tested on its own.
@@ -10,9 +10,9 @@ export interface ShellWidths {
   windowWidth: number
   /** Horizontal space the left sidebar reserves with its content panel open. */
   leftPanelWidth: number
-  /** Horizontal space the left sidebar reserves collapsed to the icon rail. */
+  /** Horizontal space the left sidebar reserves when closed. */
   leftRailWidth: number
-  /** Horizontal space the right Quick Access panel reserves when open. */
+  /** Horizontal space the right surface panel reserves when open. */
   rightPanelWidth: number
   /** Fixed chrome (inter-tile gaps) outside the three columns. */
   chrome: number
@@ -41,7 +41,7 @@ export function viewerWidth(widths: ShellWidths, leftOpen: boolean, rightOpen: b
 
 /**
  * Decide the next panel layout. Narrowing (or first measurement, `prevWidth === null`):
- * give way in order — right Quick Access closes, then left sidebar collapses — until the
+ * give way in order — the right surface panel closes, then the left navigation closes — until the
  * viewer meets its minimum, flagging each auto-closed panel for later restore. Widening:
  * restore only flagged panels, left before right, only while the viewer keeps its minimum.
  * Same width (a toggle or width-var change, not a resize): no automatic change — a panel
@@ -57,7 +57,7 @@ export function decideResponsiveLayout(
     viewerWidth(widths, l, r) >= widths.viewerMinWidth
 
   if (prevWidth !== null && widths.windowWidth > prevWidth) {
-    // Widening — restore, left panel before right Quick Access.
+    // Widening — restore, left navigation before the right surface panel.
     if (autoCollapsedLeft && fits(true, rightOpen)) {
       leftOpen = true
       autoCollapsedLeft = false
@@ -67,7 +67,7 @@ export function decideResponsiveLayout(
       autoClosedRight = false
     }
   } else if (prevWidth === null || widths.windowWidth < prevWidth) {
-    // Narrowing / first run — give way, right Quick Access before left panel.
+    // Narrowing / first run — give way, right surface panel before left navigation.
     if (!fits(leftOpen, rightOpen) && rightOpen) {
       rightOpen = false
       autoClosedRight = true

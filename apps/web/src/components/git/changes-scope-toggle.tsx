@@ -11,11 +11,12 @@ export function ChangesScopeToggle(): React.JSX.Element {
         const scope = value[0]
         if (scope === 'working' || scope === 'branch') setChangesScope(scope)
       }}
+      className="w-full"
     >
-      <ToggleGroupItem value="working" size="sm">
+      <ToggleGroupItem value="working" size="sm" className="min-w-0 flex-1">
         Working
       </ToggleGroupItem>
-      <ToggleGroupItem value="branch" size="sm">
+      <ToggleGroupItem value="branch" size="sm" className="min-w-0 flex-1">
         Branch
       </ToggleGroupItem>
     </ToggleGroup>

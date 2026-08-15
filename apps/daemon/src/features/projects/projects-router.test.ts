@@ -24,6 +24,14 @@ const operations = {
     ok: true as const,
     value: undefined,
   })),
+  removeHubProject: vi.fn<ProjectsOperations['removeHubProject']>(async () => ({
+    ok: true as const,
+    value: undefined,
+  })),
+  removeHubWorktree: vi.fn<ProjectsOperations['removeHubWorktree']>(async () => ({
+    ok: true as const,
+    value: undefined,
+  })),
   browseProjectDirectories: vi.fn<ProjectsOperations['browseProjectDirectories']>(async () => ({
     ok: true as const,
     value: BROWSE,
@@ -86,10 +94,14 @@ beforeEach(() => {
 })
 
 describe('Projects router contract boundary', () => {
-  it('binds all six procedures to the catalog and returns strict outputs', async () => {
+  it('binds all eight procedures to the catalog and returns strict outputs', async () => {
     expect(await caller().openRepoPath('/projects/alpha')).toEqual(PROJECT)
     expect(await caller().recentRepos()).toEqual([PROJECT])
     expect(await caller().removeRecentRepo('/projects/old')).toBeUndefined()
+    expect(await caller().removeHubProject('proj-1')).toBeUndefined()
+    expect(
+      await caller().removeHubWorktree({ projectId: 'proj-1', worktreeId: 'wt-1' }),
+    ).toBeUndefined()
     expect(await caller().browseDirs(null)).toEqual(BROWSE)
     expect(await caller().hubInventory()).toEqual({
       environment: {

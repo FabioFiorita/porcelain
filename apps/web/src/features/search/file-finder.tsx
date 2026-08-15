@@ -9,22 +9,36 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
+  CommandShortcut,
 } from '@renderer/components/ui/command'
+import { Kbd, KbdGroup } from '@renderer/components/ui/kbd'
 import { FileTypeIcon, FolderIcon } from '@renderer/components/viewer/file-icon'
 import { useActionRun, useActionRunStore, useActions } from '@renderer/features/actions'
 import { useGitLog } from '@renderer/features/git'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { commandGroupHeadingClass } from '@renderer/lib/controls'
-import { isTerminalTarget } from '@renderer/lib/keyboard'
+import { isTerminalTarget, kbdLabel } from '@renderer/lib/keyboard'
 import { dirName, fileName } from '@renderer/lib/paths'
+import { openTerminalPanel } from '@renderer/lib/terminal-actions'
 import { useFileFinderStore } from '@renderer/stores/file-finder'
 import { activeTabTarget, targetedTab } from '@renderer/stores/hub-tabs'
-import { usePreferencesStore } from '@renderer/stores/preferences'
+import { type SidebarTab, usePreferencesStore } from '@renderer/stores/preferences'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useRevealStore } from '@renderer/stores/reveal'
+import { useSettingsDialogStore } from '@renderer/stores/settings-dialog'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { runUserAction } from '@shared/background'
-import { GitCommitHorizontal, Play } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+import {
+  FileDiff,
+  FileText,
+  GitCommitHorizontal,
+  History,
+  Play,
+  Search,
+  Settings,
+  Waypoints,
+} from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { useFileSearch } from './search-queries'
@@ -51,12 +65,29 @@ function matchCommits(query: string, commits: Commit[]): Commit[] {
   return commits.filter((c) => c.hash.toLowerCase().startsWith(q)).slice(0, 5)
 }
 
+interface FinderAction {
+  id: string
+  label: string
+  description: string
+  keywords: string
+  icon: LucideIcon
+  shortcut?: string
+  onSelect: () => void
+}
+
+function matchesFinderAction(action: FinderAction, query: string): boolean {
+  const q = query.trim().toLowerCase()
+  if (q === '') return true
+  return `${action.label} ${action.description} ${action.keywords}`.toLowerCase().includes(q)
+}
+
 export function FileFinder(): React.JSX.Element {
   const project = useProjectSelectionStore((s) => s.project)
   const openTab = useTabsStore((s) => s.openTab)
   const setSidebarTab = usePreferencesStore((s) => s.setSidebarTab)
   const reveal = useRevealStore((s) => s.reveal)
-  // Open state lives in a store so the titlebar search bar can raise the popup too.
+  const openSettings = useSettingsDialogStore((s) => s.openTo)
+  // Open state lives in a store so the navigation search trigger can raise the popup too.
   const open = useFileFinderStore((s) => s.open)
   const setOpen = useFileFinderStore((s) => s.setOpen)
   const runAction = useActionRun()
@@ -80,7 +111,7 @@ export function FileFinder(): React.JSX.Element {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent): void => {
       if (!(e.metaKey || e.ctrlKey)) return
-      // ⌘P always; ⌘K mirrors the titlebar search bar, but over a focused terminal
+      // ⌘P always; ⌘K mirrors the navigation search trigger, but over a focused terminal
       // ⌘K stays the shell's clear-screen (handled in the Ghostty registry).
       if (e.key === 'p' || (e.key === 'k' && !isTerminalTarget(e.target))) {
         e.preventDefault()
@@ -97,11 +128,93 @@ export function FileFinder(): React.JSX.Element {
   const commands = matchCommands(query, useActions(open))
   const commits = matchCommits(query, useGitLog(200, open) ?? [])
   const searching = isFetching || query !== debouncedQuery
-  const empty = files.length === 0 && commands.length === 0 && commits.length === 0
+  const closeFinder = (): void => {
+    setOpen(false)
+    setQuery('')
+  }
+
+  const openSurface = (tab: SidebarTab): void => {
+    setSidebarTab(tab)
+    closeFinder()
+  }
+
+  const openDocumentSurface = (tab: 'review', title: string): void => {
+    setSidebarTab(tab)
+    if (project) openTab(targetedTab(tab, project.path, { title }))
+    closeFinder()
+  }
+
+  const paletteActions: FinderAction[] = [
+    {
+      id: 'files',
+      label: 'Browse project files',
+      description: 'Open the project tree',
+      keywords: 'files folders tree',
+      icon: FileText,
+      shortcut: kbdLabel('mod', '1'),
+      onSelect: () => openSurface('files'),
+    },
+    {
+      id: 'search',
+      label: 'Search project contents',
+      description: 'Search text across files',
+      keywords: 'search code text contents grep',
+      icon: Search,
+      shortcut: kbdLabel('mod', 'shift', 'F'),
+      onSelect: () => openSurface('search'),
+    },
+    {
+      id: 'changes',
+      label: 'Open changes',
+      description: 'Review working-tree changes',
+      keywords: 'git diff modified files',
+      icon: FileDiff,
+      shortcut: kbdLabel('mod', '2'),
+      onSelect: () => openSurface('changes'),
+    },
+    {
+      id: 'review',
+      label: 'Open Review',
+      description: 'Read the current Review',
+      keywords: 'canvas intent execution evidence',
+      icon: Waypoints,
+      shortcut: kbdLabel('mod', '3'),
+      onSelect: () => openDocumentSurface('review', 'Review'),
+    },
+    {
+      id: 'history',
+      label: 'Open history',
+      description: 'Inspect commit history',
+      keywords: 'commits log git',
+      icon: History,
+      shortcut: kbdLabel('mod', '4'),
+      onSelect: () => openSurface('history'),
+    },
+    {
+      id: 'settings',
+      label: 'Open settings',
+      description: 'Configure Porcelain',
+      keywords: 'preferences options configuration',
+      icon: Settings,
+      onSelect: () => {
+        closeFinder()
+        openSettings()
+      },
+    },
+  ].filter((action) => matchesFinderAction(action, query))
+
+  const empty =
+    files.length === 0 &&
+    commands.length === 0 &&
+    commits.length === 0 &&
+    paletteActions.length === 0
   // Label the groups only when more than one kind is present; a plain file search
   // (the common case) stays heading-less, as before.
   const kinds =
-    (files.length > 0 ? 1 : 0) + (commands.length > 0 ? 1 : 0) + (commits.length > 0 ? 1 : 0)
+    (files.length > 0 ? 1 : 0) +
+    (commands.length > 0 ? 1 : 0) +
+    (commits.length > 0 ? 1 : 0) +
+    (paletteActions.length > 0 ? 1 : 0)
   const labelled = kinds > 1
 
   const handleOpenFile = (result: SearchResult): void => {
@@ -117,27 +230,25 @@ export function FileFinder(): React.JSX.Element {
       const name = fileName(result.path)
       openTab(targetedTab('file', absolute, { title: name }, activeTabTarget()))
     }
-    setOpen(false)
-    setQuery('')
+    closeFinder()
   }
 
   const requestLocalRun = useActionRunStore((s) => s.requestLocalRun)
   const handleRunCommand = (action: ActionView): void => {
-    setOpen(false)
-    setQuery('')
+    closeFinder()
     runUserAction(
       async () => {
         const result = await runAction(action)
         if (result === 'needs-local-path') {
-          // ActionsGroup owns the path dialog — flip to Terminal so it mounts, and hand
+          // ActionsGroup owns the path dialog — open the bottom terminal panel, and hand
           // the pending action through the compose-intent store.
-          setSidebarTab('terminal')
+          await openTerminalPanel()
           requestLocalRun(action)
         }
         if (result === 'needs-trust') {
-          // Trust dialog lives on ActionsGroup; surface the Terminal companion so the
+          // Trust dialog lives on ActionsGroup; open the terminal companion so the
           // human can accept the command from the list (unreviewed shield).
-          setSidebarTab('terminal')
+          await openTerminalPanel()
         }
       },
       (error) => {
@@ -152,25 +263,49 @@ export function FileFinder(): React.JSX.Element {
     openTab(
       targetedTab('commit', commit.hash, { title: commit.subject.slice(0, 32) }, activeTabTarget()),
     )
-    setOpen(false)
-    setQuery('')
+    closeFinder()
   }
 
   return (
     <CommandDialog
       open={open}
       onOpenChange={setOpen}
-      title="Go to file, command, or commit"
-      className="sm:max-w-2xl"
+      title="Search commands, projects, files, and commits"
+      className="sm:max-w-2xl gap-0"
     >
-      <Command shouldFilter={false}>
+      <Command shouldFilter={false} className="rounded-none! bg-transparent! p-0">
         <CommandInput
-          placeholder="Search files, folders, commands, commits…"
+          variant="palette"
+          placeholder="Search commands, projects, files, and commits…"
           value={query}
           onValueChange={setQuery}
           className="text-sm-minus"
         />
         <CommandList>
+          {paletteActions.length > 0 && (
+            <CommandGroup heading="Actions" className={commandGroupHeadingClass}>
+              {paletteActions.map((action) => {
+                const Icon = action.icon
+                return (
+                  <CommandItem
+                    key={`action:${action.id}`}
+                    value={`action:${action.id}`}
+                    onSelect={action.onSelect}
+                    className="min-h-10"
+                  >
+                    <Icon className="shrink-0 text-muted-foreground" />
+                    <span className="flex min-w-0 flex-1 flex-col">
+                      <span className="truncate text-sm-minus">{action.label}</span>
+                      <span className="truncate text-xs text-muted-foreground">
+                        {action.description}
+                      </span>
+                    </span>
+                    {action.shortcut && <CommandShortcut>{action.shortcut}</CommandShortcut>}
+                  </CommandItem>
+                )
+              })}
+            </CommandGroup>
+          )}
           {query.trim() !== '' &&
             empty &&
             (searching ? (
@@ -254,6 +389,21 @@ export function FileFinder(): React.JSX.Element {
           )}
         </CommandList>
       </Command>
+      <div className="flex items-center gap-3 border-t bg-muted/20 px-3 py-2 text-2xs text-muted-foreground">
+        <KbdGroup>
+          <Kbd>↑</Kbd>
+          <Kbd>↓</Kbd>
+          <span>Navigate</span>
+        </KbdGroup>
+        <KbdGroup>
+          <Kbd>Enter</Kbd>
+          <span>Select</span>
+        </KbdGroup>
+        <KbdGroup>
+          <Kbd>Esc</Kbd>
+          <span>Close</span>
+        </KbdGroup>
+      </div>
     </CommandDialog>
   )
 }

@@ -52,7 +52,7 @@ function handle(event: ShellEvent, shellUtils: ShellUtils): Promise<unknown> {
       return spawnTerminal()
     case 'quick-open':
       // File > Quick Open… (menu.ts) — open the same popup ⌘P toggles, mirroring the
-      // titlebar search bar's use of this store.
+      // navigation search trigger's use of this store.
       useFileFinderStore.getState().setOpen(true)
       return Promise.resolve()
     case 'split-pane': {

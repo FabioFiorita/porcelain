@@ -138,7 +138,7 @@ function CommitTokenSelect({
 
 export function CommitGroup(): React.JSX.Element {
   // The draft is keyed by repo path and lives in a persisted store so it survives the
-  // Quick Access section unmounting on sidebar-tab switches (and a reload).
+  // Commands popover unmounting on surface switches (and a reload).
   const repoPath = useProjectSelectionStore((s) => s.project?.path ?? '')
   const message = useCommitDraftStore((s) => s.messages[repoPath] ?? '')
   const setMessage = useCommitDraftStore((s) => s.setMessage)

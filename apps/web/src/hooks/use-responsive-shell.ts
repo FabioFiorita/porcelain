@@ -6,16 +6,16 @@ import { useEffect, useRef } from 'react'
 // open. 24rem clears the h-12 chrome and leaves the floating tab capsule room
 // for a few tabs before panels start giving way.
 const VIEWER_MIN_WIDTH = 384 // 24rem
-// The icon rail is `--sidebar-width-icon` (4rem = 64px); the collapsed floating
-// gap adds spacing(4) = 16px (see the sidebar primitive's gap width).
-const LEFT_RAIL_WIDTH = 80 // 64 + 16
+// The reconstructed left navigation is off-canvas when closed; it leaves no
+// navigation panel behind. The center still keeps the small outer shell gap below.
+const LEFT_RAIL_WIDTH = 0
 // The ~8px gap on each side of the center tile (floating-tile padding / margin)
 // sits outside the three column widths. Approximate — a few px of slop here only
 // shifts the collapse threshold slightly.
 const SHELL_CHROME = 16
 
 interface Params {
-  /** The left sidebar's open state, from the outer (left) SidebarProvider. */
+  /** The left navigation's open state, from the outer (left) SidebarProvider. */
   leftOpen: boolean
   /** Drives the left sidebar open/collapsed (the provider's `setOpen`). */
   setLeftOpen: (open: boolean) => void
@@ -23,8 +23,8 @@ interface Params {
 
 /**
  * Keep the center viewer usable: when the window is too narrow to honor its
- * minimum width with both side panels open, close the right Quick Access first,
- * then collapse the left sidebar to its rail; restore them (only the ones the
+ * minimum width with both side panels open, close the right surface panel first,
+ * then close the left navigation; restore them (only the ones the
  * system collapsed) as the window widens. The give-way / restore semantics live
  * in `decideResponsiveLayout`; this hook is the thin DOM layer — it observes the
  * window width, reconciles user toggles, and drives the two providers.

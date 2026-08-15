@@ -76,6 +76,10 @@ function harness() {
       ok: true as const,
       value: { path: '/projects/alpha-worktrees/topic', branch: 'topic' },
     })),
+    removeWorktree: vi.fn<HubGitPort['removeWorktree']>(async () => ({
+      ok: true as const,
+      value: undefined,
+    })),
   } satisfies HubGitPort
   return {
     events,
@@ -289,6 +293,7 @@ describe('Project operations', () => {
     const created = await h.operations.createHubWorktree({
       projectId: 'generated',
       branch: 'topic',
+      baseRef: 'origin/main',
     })
     expect(created).toEqual({
       ok: true,
@@ -301,7 +306,7 @@ describe('Project operations', () => {
         isPrimary: false,
       },
     })
-    expect(h.git.addWorktree).toHaveBeenCalledWith('/projects/alpha', 'topic')
+    expect(h.git.addWorktree).toHaveBeenCalledWith('/projects/alpha', 'topic', 'origin/main')
   })
 
   it('rejects Worktree creation for an unknown Project', async () => {
@@ -313,5 +318,127 @@ describe('Project operations', () => {
       },
     )
     expect(h.git.addWorktree).not.toHaveBeenCalled()
+  })
+
+  it('removes a linked Worktree but protects the primary checkout', async () => {
+    const h = harness()
+    const live = [
+      {
+        path: '/projects/alpha',
+        gitDir: '/projects/alpha/.git',
+        branch: 'main',
+        isPrimary: true,
+      },
+      {
+        path: '/projects/alpha-worktrees/topic',
+        gitDir: '/projects/alpha/.git/worktrees/topic',
+        branch: 'topic',
+        isPrimary: false,
+      },
+    ]
+    let remaining = live
+    h.inventory.readProjects.mockResolvedValue({
+      ok: true,
+      value: [
+        {
+          id: 'generated',
+          commonGitDir: '/projects/alpha/.git',
+          groupingKey: 'name:alpha',
+          name: 'alpha',
+          worktrees: [
+            { id: 'main-id', gitDir: '/projects/alpha/.git' },
+            { id: 'topic-id', gitDir: '/projects/alpha/.git/worktrees/topic' },
+          ],
+        },
+      ],
+    })
+    h.recents.readPaths.mockResolvedValue({
+      ok: true,
+      value: ['/projects/alpha', '/projects/alpha-worktrees/topic'],
+    })
+    h.git.discoverProject.mockResolvedValue({
+      ok: true,
+      value: {
+        commonGitDir: '/projects/alpha/.git',
+        groupingKey: 'name:alpha',
+        name: 'alpha',
+        worktrees: remaining,
+      },
+    })
+    h.git.listWorktrees.mockImplementation(async () => ({ ok: true, value: remaining }))
+    h.git.removeWorktree.mockImplementation(async (_repoPath, worktreePath) => {
+      remaining = remaining.filter((worktree) => worktree.path !== worktreePath)
+      return { ok: true, value: undefined }
+    })
+
+    expect(
+      await h.operations.removeHubWorktree({ projectId: 'generated', worktreeId: 'topic-id' }),
+    ).toEqual({ ok: true, value: undefined })
+    expect(h.git.removeWorktree).toHaveBeenCalledWith(
+      '/projects/alpha',
+      '/projects/alpha-worktrees/topic',
+    )
+    expect(h.recents.removePath).toHaveBeenCalledWith('/projects/alpha-worktrees/topic')
+
+    remaining = live
+    expect(
+      await h.operations.removeHubWorktree({ projectId: 'generated', worktreeId: 'main-id' }),
+    ).toEqual({ ok: false, error: { code: 'git.worktree-conflict' } })
+    expect(h.git.removeWorktree).toHaveBeenCalledTimes(1)
+  })
+
+  it('removes a Project from the Hub without deleting its repository', async () => {
+    const h = harness()
+    h.inventory.readProjects.mockResolvedValue({
+      ok: true,
+      value: [
+        {
+          id: 'generated',
+          commonGitDir: '/projects/alpha/.git',
+          groupingKey: 'name:alpha',
+          name: 'alpha',
+          worktrees: [{ id: 'main-id', gitDir: '/projects/alpha/.git' }],
+        },
+      ],
+    })
+    h.recents.readPaths.mockResolvedValue({
+      ok: true,
+      value: ['/projects/alpha'],
+    })
+    h.git.discoverProject.mockResolvedValue({
+      ok: true,
+      value: {
+        commonGitDir: '/projects/alpha/.git',
+        groupingKey: 'name:alpha',
+        name: 'alpha',
+        worktrees: [
+          {
+            path: '/projects/alpha',
+            gitDir: '/projects/alpha/.git',
+            branch: 'main',
+            isPrimary: true,
+          },
+        ],
+      },
+    })
+    h.git.listWorktrees.mockResolvedValue({
+      ok: true,
+      value: [
+        {
+          path: '/projects/alpha',
+          gitDir: '/projects/alpha/.git',
+          branch: 'main',
+          isPrimary: true,
+        },
+      ],
+    })
+
+    expect(await h.operations.removeHubProject('generated')).toEqual({
+      ok: true,
+      value: undefined,
+    })
+    expect(h.git.removeWorktree).not.toHaveBeenCalled()
+    expect(h.recents.removePath).toHaveBeenCalledWith('/projects/alpha')
+    expect(h.inventory.writeProjects).toHaveBeenLastCalledWith([])
   })
 })

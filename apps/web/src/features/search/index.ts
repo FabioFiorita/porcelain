@@ -31,5 +31,4 @@ export {
   parseSearchQueryKey,
   searchQueryKey,
 } from './search-query-key'
-export { SearchQuickAccess } from './search-quick-access'
 export { useSearchStore } from './search-store'

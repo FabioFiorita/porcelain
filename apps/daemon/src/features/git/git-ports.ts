@@ -28,7 +28,12 @@ export type GitWorkspaceResult<Value> =
 
 export type GitWorkspacePort = Readonly<{
   checkout(repoPath: string, branch: string): Promise<GitWorkspaceResult<void>>
-  addWorktree(repoPath: string, branch: string): Promise<GitWorkspaceResult<Worktree>>
+  addWorktree(
+    repoPath: string,
+    branch: string,
+    baseRef?: string,
+  ): Promise<GitWorkspaceResult<Worktree>>
+  removeWorktree(repoPath: string, worktreePath: string): Promise<GitWorkspaceResult<void>>
 }>
 
 export type GitProjectError = Readonly<{ code: 'git.not-a-repository' }>

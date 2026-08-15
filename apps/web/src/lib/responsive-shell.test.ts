@@ -6,13 +6,13 @@ import {
   viewerWidth,
 } from './responsive-shell'
 
-// A realistic-ish set of widths: 256px left panel, 80px rail, 272px right panel,
+// A realistic-ish set of widths: 256px left panel, no collapsed rail, 272px right panel,
 // 16px chrome, 384px viewer minimum. With both panels open the viewer needs
 // 256 + 272 + 16 + 384 = 928px of window to stay at its minimum.
 const widths = (windowWidth: number): ShellWidths => ({
   windowWidth,
   leftPanelWidth: 256,
-  leftRailWidth: 80,
+  leftRailWidth: 0,
   rightPanelWidth: 272,
   chrome: 16,
   viewerMinWidth: 384,
@@ -27,11 +27,11 @@ const state = (partial: Partial<PanelState> = {}): PanelState => ({
 })
 
 describe('viewerWidth', () => {
-  it('subtracts the open panels and chrome; rail width when the left is collapsed', () => {
+  it('subtracts the open panels and chrome; no width when the left is closed', () => {
     expect(viewerWidth(widths(1000), true, true)).toBe(1000 - 256 - 272 - 16)
-    expect(viewerWidth(widths(1000), false, true)).toBe(1000 - 80 - 272 - 16)
+    expect(viewerWidth(widths(1000), false, true)).toBe(1000 - 0 - 272 - 16)
     expect(viewerWidth(widths(1000), true, false)).toBe(1000 - 256 - 0 - 16)
-    expect(viewerWidth(widths(1000), false, false)).toBe(1000 - 80 - 0 - 16)
+    expect(viewerWidth(widths(1000), false, false)).toBe(1000 - 0 - 0 - 16)
   })
 })
 
@@ -62,7 +62,7 @@ describe('decideResponsiveLayout — narrowing gives way in order', () => {
   })
 
   it('lets the viewer squeeze below min once both panels are already given (tiny window)', () => {
-    // 400px: rail + no right = 400-80-16 = 304 (< 384), but nothing left to give.
+    // 400px: no left + no right = 400-0-16 = 384, exactly at the minimum.
     const next = decideResponsiveLayout(widths(400), state(), 800)
     expect(next.leftOpen).toBe(false)
     expect(next.rightOpen).toBe(false)

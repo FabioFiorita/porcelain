@@ -1,6 +1,5 @@
 import type { FileStatus, FlowFile } from '@porcelain/contracts/git'
 import { SetupTip } from '@renderer/components/shell/setup-tip'
-import { SidebarHeaderActions } from '@renderer/components/shell/sidebar-header-actions'
 import { Button } from '@renderer/components/ui/button'
 import {
   ContextMenu,
@@ -52,10 +51,12 @@ import {
   Undo2,
 } from 'lucide-react'
 import { memo, useState } from 'react'
+import { ChangesEmptyState } from './changes-empty-state'
 import { ChangesScopeToggle } from './changes-scope-toggle'
 import { changesetTabKey } from './changeset-view'
 import { type CommentAnchor, CommentComposer } from './comment-composer'
 import { DiscardFileDialog } from './discard-file-dialog'
+import { FileCommentButton } from './file-comment-button'
 import { ReviewAllToggle } from './review-all-toggle'
 
 const statusBadge: Record<FileStatus, { label: string; className: string }> = {
@@ -110,101 +111,106 @@ function FileRowImpl({
         {/* The whole row IS the trigger, so right-click anywhere on it opens the
             menu and left-click opens the diff. The status letter leads the row
             (left), next to the name, rather than floating in a detached badge. */}
-        <ContextMenuTrigger
-          render={
-            <SidebarMenuButton
-              className="h-auto py-1"
-              data-testid={TestIds.changesFile(name)}
-              data-path={file.path}
-              onClick={() =>
-                openTab(
-                  targetedTab('diff', file.path, {
-                    title: name,
-                    key: base ? `${base}:${file.path}` : file.path,
-                    base,
-                  }),
-                )
-              }
-              onMouseEnter={() => prefetchDiff(file.path, base)}
-            />
-          }
-        >
-          <div className="flex min-w-0 items-start gap-2">
-            <Tooltip>
-              <TooltipTrigger
-                render={
+        <div className="relative">
+          <ContextMenuTrigger
+            render={
+              <SidebarMenuButton
+                className="h-auto py-1 pr-8"
+                data-testid={TestIds.changesFile(name)}
+                data-path={file.path}
+                onClick={() =>
+                  openTab(
+                    targetedTab('diff', file.path, {
+                      title: name,
+                      key: base ? `${base}:${file.path}` : file.path,
+                      base,
+                    }),
+                  )
+                }
+                onMouseEnter={() => prefetchDiff(file.path, base)}
+              />
+            }
+          >
+            <div className="flex min-w-0 items-start gap-2">
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <span
+                      role="img"
+                      aria-label={file.status}
+                      className={cn(
+                        'mt-px w-3 shrink-0 text-center font-mono text-xs font-semibold',
+                        statusBadge[file.status].className,
+                      )}
+                    >
+                      {statusBadge[file.status].label}
+                    </span>
+                  }
+                />
+                <TooltipContent>{file.status}</TooltipContent>
+              </Tooltip>
+              <div className="flex min-w-0 flex-col items-start">
+                <span className="flex max-w-full items-baseline gap-1.5">
+                  {file.staged && (
+                    <Tooltip>
+                      <TooltipTrigger
+                        render={
+                          <span
+                            role="img"
+                            aria-label={file.unstaged ? 'Partially staged' : 'Staged'}
+                            className={cn(
+                              'size-1.5 shrink-0 self-center rounded-full',
+                              file.unstaged ? 'bg-warning' : 'bg-success',
+                            )}
+                          />
+                        }
+                      />
+                      <TooltipContent>
+                        {file.unstaged ? 'Partially staged' : 'Staged'}
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                  {isReviewed && (
+                    <Check
+                      className="size-3 shrink-0 self-center text-success"
+                      aria-label="Reviewed"
+                    />
+                  )}
                   <span
-                    role="img"
-                    aria-label={file.status}
                     className={cn(
-                      'mt-px w-3 shrink-0 text-center font-mono text-xs font-semibold',
-                      statusBadge[file.status].className,
+                      'truncate font-mono text-sm-minus',
+                      isReviewed && 'text-muted-foreground line-through',
                     )}
                   >
-                    {statusBadge[file.status].label}
+                    {name}
                   </span>
-                }
-              />
-              <TooltipContent>{file.status}</TooltipContent>
-            </Tooltip>
-            <div className="flex min-w-0 flex-col items-start">
-              <span className="flex max-w-full items-baseline gap-1.5">
-                {file.staged && (
-                  <Tooltip>
-                    <TooltipTrigger
-                      render={
-                        <span
-                          role="img"
-                          aria-label={file.unstaged ? 'Partially staged' : 'Staged'}
-                          className={cn(
-                            'size-1.5 shrink-0 self-center rounded-full',
-                            file.unstaged ? 'bg-warning' : 'bg-success',
-                          )}
-                        />
-                      }
-                    />
-                    <TooltipContent>{file.unstaged ? 'Partially staged' : 'Staged'}</TooltipContent>
-                  </Tooltip>
-                )}
-                {isReviewed && (
-                  <Check
-                    className="size-3 shrink-0 self-center text-success"
-                    aria-label="Reviewed"
-                  />
-                )}
-                <span
-                  className={cn(
-                    'truncate font-mono text-sm-minus',
-                    isReviewed && 'text-muted-foreground line-through',
+                  {file.additions !== undefined && (
+                    <span className="shrink-0 font-mono text-2xs text-success">
+                      +{file.additions}
+                    </span>
                   )}
+                  {file.deletions !== undefined && (
+                    <span className="shrink-0 font-mono text-2xs text-destructive">
+                      −{file.deletions}
+                    </span>
+                  )}
+                </span>
+                <span
+                  className="max-w-full truncate font-mono text-xs text-muted-foreground"
+                  dir="rtl"
                 >
-                  {name}
+                  {dirName(file.path)}
                 </span>
-                {file.additions !== undefined && (
-                  <span className="shrink-0 font-mono text-2xs text-success">
-                    +{file.additions}
+                {connects && (
+                  <span className="max-w-full truncate font-mono text-xs text-muted-foreground/70">
+                    → {connects}
                   </span>
                 )}
-                {file.deletions !== undefined && (
-                  <span className="shrink-0 font-mono text-2xs text-destructive">
-                    −{file.deletions}
-                  </span>
-                )}
-              </span>
-              <span
-                className="max-w-full truncate font-mono text-xs text-muted-foreground"
-                dir="rtl"
-              >
-                {dirName(file.path)}
-              </span>
-              {connects && (
-                <span className="max-w-full truncate font-mono text-xs text-muted-foreground/70">
-                  → {connects}
-                </span>
-              )}
+              </div>
             </div>
-          </div>
-        </ContextMenuTrigger>
+          </ContextMenuTrigger>
+          <FileCommentButton path={file.path} />
+        </div>
         <ContextMenuContent>
           {isReviewed ? (
             <ContextMenuItem onClick={() => unmark(file.path)}>
@@ -336,67 +342,63 @@ export function ChangesList(): React.JSX.Element {
   }
 
   return (
-    <div data-testid={TestIds.changesList} className="flex flex-col gap-1">
-      {/* Two rows so a long "N changed files · vs base · N reviewed" line and the
-          Working/Branch picker never fight for width in the narrow panel. */}
-      <div className="flex flex-col gap-1 px-2">
-        <div className="flex items-start justify-between gap-1">
-          {total > 0 && reviewedCount === total ? (
-            // Completion moment: the whole change set has been reviewed — the
-            // story is read end to end, so the count gives way to a clear signal.
-            <span
-              data-testid={TestIds.changesSummary}
-              data-count={total}
-              className="flex min-w-0 items-start gap-1 text-xs text-success"
-            >
-              <Check className="mt-0.5 size-3 shrink-0" />
-              All {total} {total === 1 ? 'file' : 'files'} reviewed{base && ` · vs ${base}`}
-            </span>
-          ) : (
-            <span
-              data-testid={TestIds.changesSummary}
-              data-count={total}
-              className="min-w-0 text-xs text-muted-foreground"
-            >
-              {total} changed {total === 1 ? 'file' : 'files'}
-              {base && ` · vs ${base}`}
-              {reviewedCount > 0 && ` · ${reviewedCount} reviewed`}
-            </span>
+    <div data-testid={TestIds.changesList} className="flex flex-col gap-2 p-2">
+      <ChangesScopeToggle />
+      <div className="flex items-center justify-between gap-1">
+        {total > 0 && reviewedCount === total ? (
+          // Completion moment: the whole change set has been reviewed — the
+          // story is read end to end, so the count gives way to a clear signal.
+          <span
+            data-testid={TestIds.changesSummary}
+            data-count={total}
+            className="flex min-w-0 items-start gap-1 text-xs text-success"
+          >
+            <Check className="mt-0.5 size-3.5 shrink-0" />
+            All {total} {total === 1 ? 'file' : 'files'} reviewed{base && ` · vs ${base}`}
+          </span>
+        ) : (
+          <span
+            data-testid={TestIds.changesSummary}
+            data-count={total}
+            className="min-w-0 text-xs text-muted-foreground"
+          >
+            {total} changed {total === 1 ? 'file' : 'files'}
+            {base && ` · vs ${base}`}
+            {reviewedCount > 0 && ` · ${reviewedCount} reviewed`}
+          </span>
+        )}
+        <div className="flex shrink-0 items-center gap-0.5">
+          {total > 0 && (
+            <ReviewAllToggle
+              paths={groups.flatMap((g) => g.files.map((f) => f.path))}
+              allReviewed={reviewedCount === total}
+            />
           )}
-          <SidebarHeaderActions>
-            {total > 0 && (
-              <ReviewAllToggle
-                paths={groups.flatMap((g) => g.files.map((f) => f.path))}
-                allReviewed={reviewedCount === total}
+          {total > 0 && (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    className="shrink-0"
+                    onClick={handleOpenReviewAll}
+                    aria-label="All changes"
+                  >
+                    <Rows3 className="size-3" />
+                  </Button>
+                }
               />
-            )}
-            {total > 0 && (
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      className="shrink-0"
-                      onClick={handleOpenReviewAll}
-                      aria-label="All changes"
-                    >
-                      <Rows3 />
-                    </Button>
-                  }
-                />
-                <TooltipContent>All changes</TooltipContent>
-              </Tooltip>
-            )}
-          </SidebarHeaderActions>
+              <TooltipContent>All changes</TooltipContent>
+            </Tooltip>
+          )}
         </div>
-        <ChangesScopeToggle />
       </div>
       {showLayersKickoff && (
         <SetupTip
           testId={TestIds.changesLayersSetup}
           dismissTestId={TestIds.changesLayersSetupDismiss}
-          className="mx-2"
+          className="mx-0"
           onDismiss={() => dismissTip(project.path, 'layers-kickoff')}
           actions={
             <>
@@ -432,16 +434,11 @@ export function ChangesList(): React.JSX.Element {
         </SetupTip>
       )}
       {total === 0 ? (
-        <div className="px-3 py-10 text-center">
-          <p className="text-xs font-medium text-foreground">No changes to review</p>
-          <p className="mx-auto mt-1 max-w-[15rem] text-xs text-muted-foreground">
-            Your working tree is clean.
-          </p>
-        </div>
+        <ChangesEmptyState />
       ) : (
         groups.map((group) => (
           <div key={group.layer}>
-            <SidebarGroupLabel className="h-6 px-2 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
+            <SidebarGroupLabel className="h-6 px-0 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
               {group.layer}
             </SidebarGroupLabel>
             <SidebarMenu>

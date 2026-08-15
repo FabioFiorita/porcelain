@@ -110,7 +110,7 @@ export function TextFileView({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex h-9 items-center justify-between gap-2 border-b px-3">
+      <div className="flex h-9 items-center justify-between gap-2 px-3">
         <span className="truncate font-mono text-xs text-muted-foreground">
           {relativeTo(repoPath, path)}
         </span>

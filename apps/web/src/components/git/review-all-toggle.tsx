@@ -1,4 +1,5 @@
 import { Button } from '@renderer/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useSetReviewed } from '@renderer/features/git'
 import { ListChecks, ListX } from 'lucide-react'
 
@@ -15,15 +16,23 @@ export function ReviewAllToggle({
   allReviewed: boolean
 }): React.JSX.Element {
   const setReviewed = useSetReviewed()
+  const label = allReviewed ? 'Unmark all reviewed' : 'Mark all reviewed'
   return (
-    <Button
-      variant="ghost"
-      size="icon-sm"
-      className="shrink-0"
-      aria-label={allReviewed ? 'Unmark all reviewed' : 'Mark all reviewed'}
-      onClick={() => setReviewed(paths, !allReviewed)}
-    >
-      {allReviewed ? <ListX /> : <ListChecks />}
-    </Button>
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            className="shrink-0"
+            aria-label={label}
+            onClick={() => setReviewed(paths, !allReviewed)}
+          >
+            {allReviewed ? <ListX className="size-3" /> : <ListChecks className="size-3" />}
+          </Button>
+        }
+      />
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
   )
 }

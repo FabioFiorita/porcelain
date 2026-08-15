@@ -11,7 +11,7 @@ import { reviewProcedures } from './review'
 import { searchProcedures } from './search'
 import { terminalProcedures } from './terminal'
 
-/** The ten domain records that currently compose the 111-name live catalog. */
+/** The ten domain records that currently compose the 113-name live catalog. */
 const domainProcedures = {
   remote: remoteProcedures,
   projects: projectsProcedures,
@@ -25,10 +25,10 @@ const domainProcedures = {
   'project-data': projectDataProcedures,
 } as const
 
-const PROCEDURE_COUNT = 111
+const PROCEDURE_COUNT = 113
 
 describe('procedure catalog', () => {
-  it('is frozen and composes exactly 111 unique names in domain order', () => {
+  it('is frozen and composes exactly 113 unique names in domain order', () => {
     const names = Object.keys(procedureCatalog)
     expect(Object.isFrozen(procedureCatalog)).toBe(true)
     expect(names).toHaveLength(PROCEDURE_COUNT)

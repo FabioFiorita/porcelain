@@ -53,4 +53,12 @@ describe('HistoryList', () => {
     })
     expect(activeTabId).toBe(tabId('commit', 'aaa1111'))
   })
+
+  it('renders the Empty state when the branch has no commits', () => {
+    vi.mocked(useGitLog).mockReturnValue([])
+    renderList()
+
+    expect(screen.getByText('No commits yet')).toBeInTheDocument()
+    expect(screen.getByText('No commits yet').closest('[data-slot="empty"]')).not.toBeNull()
+  })
 })

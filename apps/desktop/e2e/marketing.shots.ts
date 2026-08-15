@@ -374,12 +374,15 @@ test('marketing shots — the seeded demo repo across every surface', async () =
     await shoot(page, 'terminal.png')
 
     // feat-search.png — the finder overlay with a query showing mixed results
-    // (files + a saved command). Raise it from the titlebar search (not ⌘K over the
+    // (files + a saved command). Raise it from the navigation search (not ⌘K over the
     // terminal, where it's clear-screen), type a query, shoot just the dialog.
     await selectTab(page, 'Files')
-    await page.getByRole('button', { name: 'Search files, folders, commands, commits' }).click()
+    await page
+      .getByRole('button', { name: 'Search commands, projects, files, and commits' })
+      .first()
+      .click()
     const finder = page.getByRole('dialog')
-    await finder.getByPlaceholder('Search files, folders, commands, commits…').fill('orders')
+    await finder.getByPlaceholder('Search commands, projects, files, and commits…').fill('orders')
     await expect(finder.getByText('OrdersPage.tsx').first()).toBeVisible({ timeout: 10_000 })
     await expect(finder.getByText('Run orders tests')).toBeVisible()
     await settle(page)

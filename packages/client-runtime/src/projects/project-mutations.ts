@@ -2,14 +2,21 @@ import {
   type CreateHubWorktreeInput,
   type OpenRepoPathInput,
   projectsProcedures,
+  type RemoveHubProjectInput,
+  type RemoveHubWorktreeInput,
   type RemoveRecentRepoInput,
 } from '@porcelain/contracts/projects'
 import { hubInventoryQuery, type ProjectsQuery, recentProjectsQuery } from './project-queries'
 
-export type ProjectSelectionEffect = 'select-result' | 'clear-if-selected-input'
+export type ProjectSelectionEffect = 'select-result' | 'clear-if-selected-input' | 'none'
 
 export type ProjectMutationDefinition<
-  TName extends 'openRepoPath' | 'removeRecentRepo' | 'createHubWorktree',
+  TName extends
+    | 'openRepoPath'
+    | 'removeRecentRepo'
+    | 'removeHubProject'
+    | 'removeHubWorktree'
+    | 'createHubWorktree',
   TInput,
   TSelectionEffect extends ProjectSelectionEffect,
 > = {
@@ -49,6 +56,28 @@ export const removeRecentProject = {
   RemoveRecentRepoInput,
   'clear-if-selected-input'
 >
+
+/** Remove a Hub Project from this daemon without touching its repository files. */
+export const removeHubProject = {
+  procedure: projectsProcedures.removeHubProject,
+  procedureName: 'removeHubProject',
+  affectedQueries: (_input: RemoveHubProjectInput): readonly ProjectsQuery[] =>
+    recentProjectQueries(),
+  optimistic: false,
+  requiresAuthoritativeRefetch: true,
+  selectionEffect: 'none',
+} as const satisfies ProjectMutationDefinition<'removeHubProject', RemoveHubProjectInput, 'none'>
+
+/** Remove one linked Worktree from Git after an explicit destructive confirmation. */
+export const removeHubWorktree = {
+  procedure: projectsProcedures.removeHubWorktree,
+  procedureName: 'removeHubWorktree',
+  affectedQueries: (_input: RemoveHubWorktreeInput): readonly ProjectsQuery[] =>
+    recentProjectQueries(),
+  optimistic: false,
+  requiresAuthoritativeRefetch: true,
+  selectionEffect: 'none',
+} as const satisfies ProjectMutationDefinition<'removeHubWorktree', RemoveHubWorktreeInput, 'none'>
 
 /** Creating a Worktree refreshes the Hub inventory and recent lists. */
 export const createHubWorktree = {

@@ -34,6 +34,7 @@ vi.mock('@renderer/features/git', () => ({
 // domain hook so the list renders without a tRPC provider (same convention above).
 vi.mock('@renderer/features/review', () => ({
   useCommentActions: () => ({ add: async () => {} }),
+  useCommentIndex: () => ({ byLine: new Map(), fileLevel: [] }),
 }))
 
 const groups: FlowGroup[] = [
@@ -150,6 +151,11 @@ describe('ChangesList', () => {
     expect(screen.queryByLabelText('Partially staged')).not.toBeInTheDocument()
   })
 
+  it('does not render an add-comment button for files without comments', () => {
+    renderList()
+    expect(screen.queryByRole('button', { name: /Add comment to/i })).not.toBeInTheDocument()
+  })
+
   it('opens a diff tab keyed by path when a file row is clicked', () => {
     renderList()
     screen.getByText('widget.tsx').click()
@@ -244,6 +250,14 @@ describe('ChangesList', () => {
   it('renders the scope toggle with a "Branch" item', () => {
     renderList()
     expect(screen.getByText('Branch')).toBeInTheDocument()
+  })
+
+  it('renders the Empty state when there are no changes', () => {
+    vi.mocked(useGitFlow).mockReturnValue({ groups: [], refresh: async () => {} })
+    renderList()
+
+    expect(screen.getByText('No changes to review')).toBeInTheDocument()
+    expect(screen.getByText('No changes to review').closest('[data-slot="empty"]')).not.toBeNull()
   })
 
   it('branch mode renders the file list and shows the base label in the header', () => {

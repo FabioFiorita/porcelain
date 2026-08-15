@@ -1,333 +1,83 @@
-import { BranchSwitcher } from '@renderer/components/git/branch-switcher'
-import { ChangesList } from '@renderer/components/git/changes-list'
-import { HistoryList } from '@renderer/components/git/history-list'
-import { WorktreeSwitcher } from '@renderer/components/git/worktree-switcher'
+import logo from '@renderer/assets/logo.png'
 import { SettingsButton } from '@renderer/components/settings/settings-dialog'
-import { TerminalList } from '@renderer/components/terminal/terminal-list'
 import { Button } from '@renderer/components/ui/button'
 import { Kbd } from '@renderer/components/ui/kbd'
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
   SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
   useSidebar,
 } from '@renderer/components/ui/sidebar'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
-import { BoardList } from '@renderer/features/board'
 import { HubTree } from '@renderer/features/projects'
-import { ReviewList } from '@renderer/features/review'
-import { SearchList } from '@renderer/features/search'
 import { kbdLabel } from '@renderer/lib/keyboard'
+import { isBrowser } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
-import { useFileTreeStore } from '@renderer/stores/file-tree'
-import { type SidebarTab, usePreferencesStore } from '@renderer/stores/preferences'
-import { useProjectSelectionStore } from '@renderer/stores/project-selection'
-import { useTabsStore } from '@renderer/stores/tabs'
-import { isUnreadTab, useUnreadStore } from '@renderer/stores/unread'
+import { useFileFinderStore } from '@renderer/stores/file-finder'
+import { useProjectPickerStore } from '@renderer/stores/project-picker'
 import { TestIds } from '@shared/test-ids'
-import {
-  ChevronsDownUp,
-  Eye,
-  EyeOff,
-  Files,
-  GitCompareArrows,
-  History,
-  Search,
-  SquareKanban,
-  SquareTerminal,
-  Waypoints,
-} from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
-import { FileTree } from './file-tree'
-import { ProjectSwitcher } from './project-switcher'
-import { SidebarHeaderActionsProvider } from './sidebar-header-actions'
+import { Plus, Search } from 'lucide-react'
 import { SidebarResizeHandle } from './sidebar-resize-handle'
 
-// Rail order follows the agentic loop: navigate → review diffs → Review canvas →
-// history → find → plan → shell. Cmd+1–7 match this order.
-const TABS: { id: SidebarTab; label: string; icon: typeof Files; shortcut: string }[] = [
-  { id: 'files', label: 'Files', icon: Files, shortcut: kbdLabel('mod', '1') },
-  { id: 'changes', label: 'Changes', icon: GitCompareArrows, shortcut: kbdLabel('mod', '2') },
-  // Product noun is "Review" — the agent-authored canvas (U5).
-  { id: 'review', label: 'Review', icon: Waypoints, shortcut: kbdLabel('mod', '3') },
-  { id: 'history', label: 'History', icon: History, shortcut: kbdLabel('mod', '4') },
-  { id: 'search', label: 'Search', icon: Search, shortcut: kbdLabel('mod', '5') },
-  { id: 'board', label: 'Board', icon: SquareKanban, shortcut: kbdLabel('mod', '6') },
-  { id: 'terminal', label: 'Terminal', icon: SquareTerminal, shortcut: kbdLabel('mod', '7') },
-]
-
-// Panel titles match rail labels (U5/U17) so one vocabulary trains across chrome.
-const PANEL_TITLES: Record<SidebarTab, string> = {
-  files: 'Files',
-  changes: 'Changes',
-  history: 'History',
-  review: 'Review',
-  board: 'Board',
-  terminal: 'Terminal',
-  search: 'Search',
-}
-
+/**
+ * The left shell is deliberately navigation-only. Project/worktree selection is
+ * owned by the Hub tree; files, Git, terminals, Review, and Board live in the
+ * right surface sidebar and open their detail in the central Viewer.
+ */
 export function AppSidebar(): React.JSX.Element {
-  const project = useProjectSelectionStore((s) => s.project)
-  const showHidden = useProjectSelectionStore((s) => s.showHidden)
-  const toggleShowHidden = useProjectSelectionStore((s) => s.toggleShowHidden)
-  const sidebarTab = usePreferencesStore((s) => s.sidebarTab)
-  const setSidebarTab = usePreferencesStore((s) => s.setSidebarTab)
-  const unread = useUnreadStore((s) => s.unread)
-  const collapseAll = useFileTreeStore((s) => s.collapseAll)
-  const { state, setOpen, isMobile, setOpenMobile } = useSidebar()
-  const [actionsSlot, setActionsSlot] = useState<HTMLElement | null>(null)
-
-  // Phone quick-look: when the user opens a file/diff/commit/etc. from the drawer,
-  // dismiss it so the viewer is visible. Switching only the rail tab keeps it open.
-  const activeTabId = useTabsStore((s) => {
-    const pane = s.panes[s.activePaneIndex]
-    return pane?.activeTabId ?? null
-  })
-  const prevActiveTabId = useRef(activeTabId)
-  useEffect(() => {
-    if (!isMobile) {
-      prevActiveTabId.current = activeTabId
-      return
-    }
-    if (prevActiveTabId.current !== activeTabId) {
-      prevActiveTabId.current = activeTabId
-      if (activeTabId !== null) setOpenMobile(false)
-    }
-  }, [activeTabId, isMobile, setOpenMobile])
-
-  // Picking a tab always reveals its panel — switching while collapsed to the
-  // rail would otherwise change the selection with nothing visible to show for it.
-  // On phone the panel is a sheet (`openMobile`), not the desktop `open` flag.
-  const handleSelectTab = (tab: SidebarTab): void => {
-    setSidebarTab(tab)
-    if (isMobile) setOpenMobile(true)
-    else setOpen(true)
-  }
+  const { state, isMobile } = useSidebar()
+  const setFinderOpen = useFileFinderStore((s) => s.setOpen)
 
   return (
-    // The inner tile becomes a row of two panes — the icon rail and the content
-    // panel; collapsing to icon width clips the panel away, leaving just the rail.
     <Sidebar
       variant="floating"
-      collapsible="icon"
-      className="overflow-hidden md:top-[calc(3rem+env(safe-area-inset-top))] md:h-[calc(100dvh-3rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] md:pt-px *:data-[sidebar=sidebar]:flex-row"
-      // shadcn pins the desktop floating container to the full viewport. Offset
-      // it below the h-12 titlebar and both safe areas so its card shares the
-      // viewer's exact vertical frame. These are responsive classes, not inline
-      // styles: the phone Sheet must remain full-height.
-      // pt-px, NOT pt-0: the floating card's outline is a `ring-1`, which Tailwind
-      // paints OUTSIDE the box. Flush against this `overflow-hidden` container the
-      // top ring is clipped away and the card reads as open-topped. One pixel of
-      // padding gives it room — and lands it on the same row as the viewer tile's
-      // own 1px border, so the two still start together.
-      // --sidebar-width-icon = the rail width: 4rem (64px) matches the mockup's
-      // spacious rail (a preset re-apply resets the vendored 3rem default — set it
-      // here, on the non-vendored shell, so it survives).
-      style={
-        {
-          '--sidebar-width-icon': '4rem',
-        } as React.CSSProperties
-      }
+      collapsible="offcanvas"
+      className={cn(
+        'overflow-hidden md:pt-[9px] md:pb-[9px]',
+        isBrowser
+          ? 'md:top-[env(safe-area-inset-top)] md:h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom))]'
+          : 'md:top-[calc(3rem+env(safe-area-inset-top))] md:h-[calc(100dvh-3rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))]',
+      )}
     >
-      {/* Resizing a bare rail makes no sense — the handle only exists when expanded.
-          Phone sheets are fixed-width drawers; the drag handle is pointer-only. */}
       {state === 'expanded' && !isMobile && <SidebarResizeHandle />}
-
-      {/* Icon rail — project avatar on top, then the rail tabs (monochrome,
-          icon-only), settings at the bottom. The right border runs the FULL rail
-          height (on the rail itself, not its content) so the rail reads as one
-          clean vertical strip — the panel's own header/footer hairlines start at
-          this edge rather than crossing into the rail (matches the mockup). When
-          collapsed to just the rail, there's no panel to divide from, so the
-          border is dropped — otherwise it doubles against the floating tile's own
-          rounded edge and reads as a stray divider. */}
-      <Sidebar
-        collapsible="none"
-        className={cn(
-          'w-(--sidebar-width-icon) shrink-0 bg-transparent',
-          state === 'expanded' && 'border-r border-sidebar-border',
-        )}
-      >
-        {/* The project switcher avatar heads the icon column as the same 40px
-            chip as the tab icons — no fixed-height header, no divider; the even
-            gap-1.5 rhythm alone sets it off from the tabs. Draggable around it. */}
-        <SidebarHeader className="app-drag flex shrink-0 items-center justify-center p-0 pt-2.5">
-          <ProjectSwitcher />
-        </SidebarHeader>
-        <SidebarContent className="overflow-hidden">
-          <SidebarMenu data-testid={TestIds.rail} className="items-center gap-1.5 pt-1.5 pb-2.5">
-            {TABS.map((tab) => {
-              const active = sidebarTab === tab.id
-              // An agent push while this tab was unvisited lights a dot (review/
-              // board/terminal only); visiting the tab clears it (see unread.ts).
-              const showDot = isUnreadTab(tab.id) && unread[tab.id]
-              return (
-                <SidebarMenuItem key={tab.id}>
-                  <Tooltip>
-                    <TooltipTrigger
-                      render={
-                        <SidebarMenuButton
-                          isActive={active}
-                          onClick={() => handleSelectTab(tab.id)}
-                          aria-label={tab.label}
-                          data-testid={TestIds.railTab(tab.id)}
-                          // The selected tab is filled with the accent surface; a
-                          // resting tab is muted and warms to the same accent on
-                          // hover.
-                          // The vendored sidebarMenuButtonVariants shrink the
-                          // button to size-8/p-2 with !important once the outer
-                          // sidebar collapses to the rail — re-assert size-10/p-0
-                          // (also !important) so the rail icons stay the same size
-                          // collapsed or expanded.
-                          className={cn(
-                            'relative size-10 justify-center p-0 [&_svg]:size-5',
-                            'group-data-[collapsible=icon]:size-10! group-data-[collapsible=icon]:p-0!',
-                            active
-                              ? 'bg-accent text-accent-foreground'
-                              : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-                          )}
-                        >
-                          <tab.icon />
-                          {showDot && (
-                            <span
-                              aria-hidden
-                              className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-foreground/70"
-                            />
-                          )}
-                        </SidebarMenuButton>
-                      }
-                    />
-                    <TooltipContent side="right" className="flex items-center gap-1.5">
-                      {tab.label} <Kbd>{tab.shortcut}</Kbd>
-                    </TooltipContent>
-                  </Tooltip>
-                </SidebarMenuItem>
-              )
-            })}
-          </SidebarMenu>
-        </SidebarContent>
-        {/* Settings sits clean at the rail bottom — no top hairline. The footer
-            line belongs to the panel only; the rail's full-height right border is
-            what separates this from the branch/worktree footer beside it. h-12
-            still keeps it vertically aligned with that footer. */}
-        <SidebarFooter className="h-12 items-center justify-center p-0">
-          <SettingsButton
-            className="app-no-drag size-10 text-muted-foreground [&_svg]:size-5"
-            data-testid={TestIds.railSettings}
-          />
-        </SidebarFooter>
-      </Sidebar>
-
-      {/* Content panel — contextual header + active list + branch/worktree footer. */}
-      <SidebarHeaderActionsProvider value={actionsSlot}>
-        <Sidebar collapsible="none" className="min-w-0 flex-1 bg-transparent">
-          {/* Contextual title bar. The traffic lights now live in the window
-            titlebar, so the panel header is free of them — no left inset needed. */}
-          <SidebarHeader
-            className={cn(
-              'app-drag h-12 flex-row items-center gap-1 py-0 pr-1 pl-3',
-              state === 'expanded' && 'border-b',
-            )}
+      <SidebarHeader className="app-drag h-12 shrink-0 flex-row items-center gap-2 border-b py-0 px-3">
+        <img src={logo} alt="" draggable={false} className="size-6 shrink-0" />
+        <span className="truncate text-sm font-semibold text-foreground">Porcelain</span>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="app-no-drag ml-auto shrink-0 text-muted-foreground"
+          aria-label="Add project"
+          data-testid={TestIds.hubAddProject}
+          onClick={() => useProjectPickerStore.getState().show()}
+        >
+          <Plus />
+        </Button>
+      </SidebarHeader>
+      <SidebarContent className="gap-0">
+        <div className="app-no-drag px-2 pt-2">
+          <Button
+            variant="outline"
+            className="h-8 w-full justify-start gap-2 px-2 text-xs text-muted-foreground"
+            onClick={() => setFinderOpen(true)}
+            aria-label="Search commands, projects, files, and commits"
           >
-            <span
-              data-testid={TestIds.sidebarPanelTitle}
-              className="min-w-0 flex-1 truncate text-xs font-semibold text-foreground"
-            >
-              {PANEL_TITLES[sidebarTab]}
-            </span>
-            {/* One actions region for every tab. Files renders its tree controls
-              inline here; the other tabs portal their header buttons into the
-              slot below (see SidebarHeaderActions) so no tab grows a second
-              toolbar row beneath the title. */}
-            <div className="app-no-drag flex shrink-0 items-center text-muted-foreground">
-              {sidebarTab === 'files' && (
-                <>
-                  <Tooltip>
-                    <TooltipTrigger
-                      render={
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={collapseAll}
-                          aria-label="Collapse all folders"
-                        >
-                          <ChevronsDownUp />
-                        </Button>
-                      }
-                    />
-                    <TooltipContent>Collapse all folders</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger
-                      render={
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={toggleShowHidden}
-                          aria-label={showHidden ? 'Conceal hidden entries' : 'Show hidden entries'}
-                        >
-                          {showHidden ? <Eye /> : <EyeOff />}
-                        </Button>
-                      }
-                    />
-                    <TooltipContent>
-                      {showHidden ? 'Conceal hidden entries' : 'Show hidden entries'}
-                    </TooltipContent>
-                  </Tooltip>
-                </>
-              )}
-              <div ref={setActionsSlot} className="flex items-center" />
-            </div>
-          </SidebarHeader>
-          <SidebarContent data-testid={TestIds.sidebarPanel} className="overflow-hidden">
-            <div className="shrink-0 border-b border-sidebar-border px-1 py-1">
-              <HubTree className="max-w-none" />
-            </div>
-            {project ? (
-              <div className="min-h-0 flex-1 overflow-auto">
-                <SidebarGroup>
-                  <SidebarGroupContent>
-                    {/* The tree stays MOUNTED across tab switches (hidden via CSS,
-                        not unmounted) — folder expansion is per-DirNode local
-                        state, so unmounting would collapse everything the user
-                        had opened. The other tabs keep conditional rendering. */}
-                    <div className={cn(sidebarTab !== 'files' && 'hidden')}>
-                      <FileTree rootPath={project.path} />
-                    </div>
-                    {sidebarTab === 'changes' && <ChangesList />}
-                    {sidebarTab === 'history' && <HistoryList />}
-                    {sidebarTab === 'review' && <ReviewList />}
-                    {sidebarTab === 'board' && <BoardList />}
-                    {sidebarTab === 'terminal' && <TerminalList />}
-                    {sidebarTab === 'search' && <SearchList />}
-                  </SidebarGroupContent>
-                </SidebarGroup>
-              </div>
-            ) : (
-              <p className="p-2 text-sm text-muted-foreground">
-                Select a Worktree to browse files.
-              </p>
-            )}
-          </SidebarContent>
-          {/* Branch picker (in-place checkout) on the left, worktree switcher on the right. */}
-          <SidebarFooter
-            className={cn(
-              'h-12 flex-row items-center justify-between gap-2 px-2 py-0',
-              state === 'expanded' && 'border-t',
-            )}
-          >
-            <BranchSwitcher />
-            <WorktreeSwitcher />
-          </SidebarFooter>
-        </Sidebar>
-      </SidebarHeaderActionsProvider>
+            <Search className="size-3.5" />
+            <span className="min-w-0 flex-1 truncate text-left">Search</span>
+            <Kbd>{kbdLabel('mod', 'K')}</Kbd>
+          </Button>
+        </div>
+        <div className="app-no-drag px-2 pt-3">
+          <HubTree className="max-w-none" />
+        </div>
+      </SidebarContent>
+      <SidebarFooter className="shrink-0 border-t px-2 py-2">
+        <SettingsButton
+          showLabel
+          className="app-no-drag h-8 w-full justify-start gap-2 px-2 text-xs text-muted-foreground"
+          data-testid={TestIds.railSettings}
+        />
+      </SidebarFooter>
     </Sidebar>
   )
 }

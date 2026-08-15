@@ -5,6 +5,7 @@ import type {
   HubInventory,
   HubProject,
   HubWorktree,
+  RemoveHubWorktreeInput,
 } from '@porcelain/contracts/projects'
 import type { GitWorkspaceError } from '../git'
 import type { EnvironmentIdentityStore } from './environment-identity-store'
@@ -23,6 +24,8 @@ import type { ProjectOperationResult, ProjectsOperationError } from './projects-
 export type HubInventoryOperations = Readonly<{
   listHubInventory: () => Promise<ProjectOperationResult<HubInventory>>
   createHubWorktree: (input: CreateHubWorktreeInput) => Promise<ProjectOperationResult<HubWorktree>>
+  removeHubProject: (projectId: string) => Promise<ProjectOperationResult<void>>
+  removeHubWorktree: (input: RemoveHubWorktreeInput) => Promise<ProjectOperationResult<void>>
   registerPath: (path: string) => Promise<void>
 }>
 
@@ -180,6 +183,51 @@ export function createHubInventoryOperations(options: {
     return { ok: true, value: { environment: environment.value, stored: nextStored, live } }
   }
 
+  async function removeHubProject(projectId: string): Promise<ProjectOperationResult<void>> {
+    const rebuilt = await rebuild()
+    if (!rebuilt.ok) return rebuilt
+    const stored = rebuilt.value.stored.find((project) => project.id === projectId)
+    if (stored === undefined) return notFound()
+    const live = rebuilt.value.live.find((project) => project.id === projectId)
+    const livePaths = new Set(live?.worktrees.map((worktree) => worktree.path) ?? [])
+    const recents = await options.recents.readPaths()
+    if (!recents.ok) return unavailable()
+
+    for (const path of recents.value) {
+      const discovered = livePaths.has(path)
+        ? { ok: true as const, value: { commonGitDir: stored.commonGitDir } }
+        : await options.git.discoverProject(path)
+      if (!discovered.ok || discovered.value.commonGitDir !== stored.commonGitDir) continue
+      const removed = await options.recents.removePath(path)
+      if (!removed.ok) return unavailable()
+    }
+
+    const written = await options.inventory.writeProjects(
+      rebuilt.value.stored.filter((project) => project.id !== projectId),
+    )
+    if (!written.ok) return unavailable()
+    return { ok: true, value: undefined }
+  }
+
+  async function removeHubWorktree(
+    input: RemoveHubWorktreeInput,
+  ): Promise<ProjectOperationResult<void>> {
+    const rebuilt = await rebuild()
+    if (!rebuilt.ok) return rebuilt
+    const project = rebuilt.value.live.find((entry) => entry.id === input.projectId)
+    const worktree = project?.worktrees.find((entry) => entry.id === input.worktreeId)
+    if (project === undefined || worktree === undefined) return notFound()
+    if (worktree.isPrimary) return { ok: false, error: { code: 'git.worktree-conflict' } }
+
+    const removed = await options.git.removeWorktree(project.path, worktree.path)
+    if (!removed.ok) return { ok: false, error: mapGitWorkspaceError(removed.error) }
+    const removedRecent = await options.recents.removePath(worktree.path)
+    if (!removedRecent.ok) return unavailable()
+    const refreshed = await rebuild()
+    if (!refreshed.ok) return refreshed
+    return { ok: true, value: undefined }
+  }
+
   return Object.freeze({
     async listHubInventory(): Promise<ProjectOperationResult<HubInventory>> {
       const rebuilt = await rebuild()
@@ -198,7 +246,10 @@ export function createHubInventoryOperations(options: {
       const project = rebuilt.value.live.find((entry) => entry.id === input.projectId)
       if (project === undefined) return notFound()
 
-      const added = await options.git.addWorktree(project.path, input.branch)
+      const added =
+        input.baseRef === undefined
+          ? await options.git.addWorktree(project.path, input.branch)
+          : await options.git.addWorktree(project.path, input.branch, input.baseRef)
       if (!added.ok) {
         return { ok: false, error: mapGitWorkspaceError(added.error) }
       }
@@ -211,6 +262,9 @@ export function createHubInventoryOperations(options: {
       if (created === undefined) return unavailable()
       return { ok: true, value: created }
     },
+
+    removeHubProject,
+    removeHubWorktree,
 
     async registerPath(path: string): Promise<void> {
       const discovered = await options.git.discoverProject(path)

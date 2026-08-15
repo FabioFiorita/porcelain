@@ -4,6 +4,7 @@ import type {
   HubInventory,
   HubWorktree,
   ProjectInfo,
+  RemoveHubWorktreeInput,
 } from '@porcelain/contracts/projects'
 import type { EnvironmentIdentityStore } from './environment-identity-store'
 import type { HubGitPort } from './hub-git-port'
@@ -29,6 +30,8 @@ export type ProjectsOperations = Readonly<{
     includeWorktrees: boolean
   }) => Promise<ProjectOperationResult<ProjectInfo[]>>
   removeRecentProject: (path: string) => Promise<ProjectOperationResult<void>>
+  removeHubProject: (projectId: string) => Promise<ProjectOperationResult<void>>
+  removeHubWorktree: (input: RemoveHubWorktreeInput) => Promise<ProjectOperationResult<void>>
   browseProjectDirectories: (
     path: string | null,
   ) => Promise<ProjectOperationResult<BrowseDirsOutput>>
@@ -121,6 +124,9 @@ export function createProjectsOperations(options: {
       if (!removed.ok) return mapUnavailable(removed)
       return { ok: true, value: undefined }
     },
+
+    removeHubProject: hub.removeHubProject,
+    removeHubWorktree: hub.removeHubWorktree,
 
     async browseProjectDirectories(
       path: string | null,

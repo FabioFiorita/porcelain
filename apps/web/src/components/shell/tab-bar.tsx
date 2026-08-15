@@ -66,9 +66,10 @@ function TabItem({
                 <div
                   ref={ref}
                   className={cn(
-                    'app-no-drag group flex h-7 shrink-0 cursor-default items-center gap-1 rounded-md border border-transparent px-3 text-sm-minus transition-all',
-                    'data-active:bg-background dark:data-active:border-input dark:data-active:bg-input/30',
-                    isActive ? 'text-foreground' : 'text-muted-foreground',
+                    'app-no-drag group flex h-7 shrink-0 cursor-default items-center gap-1 rounded-md pr-1 pl-2 text-xs transition-colors',
+                    isActive
+                      ? 'bg-accent text-accent-foreground'
+                      : 'text-muted-foreground hover:bg-accent/40',
                   )}
                   data-active={isActive}
                   data-hub-worktree={tab.target?.worktreeId}
@@ -105,7 +106,7 @@ function TabItem({
                   </span>
                   <Button
                     variant="ghost"
-                    size="icon-sm"
+                    size="icon-xs"
                     // Hover-revealed on pointer devices; always visible where hover doesn't
                     // exist (touch — iPad Safari), so the close button stays tappable there.
                     className="size-5 opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
@@ -176,7 +177,13 @@ function TabItem({
   )
 }
 
-export function TabBar({ paneIndex }: { paneIndex: number }): React.JSX.Element {
+export function TabBar({
+  paneIndex,
+  reserveScrollbarSpace = false,
+}: {
+  paneIndex: number
+  reserveScrollbarSpace?: boolean
+}): React.JSX.Element {
   const tabs = useTabsStore((s) => s.panes[paneIndex]?.tabs ?? [])
   const pinned = tabs.filter((t) => t.pinned)
   const unpinned = tabs.filter((t) => !t.pinned)
@@ -193,7 +200,7 @@ export function TabBar({ paneIndex }: { paneIndex: number }): React.JSX.Element 
         </div>
       ) : null}
       <ScrollArea orientation="horizontal" className="min-w-0 flex-1 self-stretch">
-        <div className="flex h-full items-center gap-1">
+        <div className={cn('flex h-full items-center gap-1', reserveScrollbarSpace && 'py-2.5')}>
           {unpinned.map((tab) => (
             <TabItem key={tab.id} tab={tab} paneIndex={paneIndex} isLast={tab.id === lastId} />
           ))}

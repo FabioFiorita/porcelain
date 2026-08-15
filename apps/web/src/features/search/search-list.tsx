@@ -4,6 +4,13 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@renderer/components/ui/collapsible'
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '@renderer/components/ui/empty'
 import { Input } from '@renderer/components/ui/input'
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@renderer/components/ui/input-group'
 import { Toggle } from '@renderer/components/ui/toggle'
@@ -14,7 +21,14 @@ import { cn } from '@renderer/lib/utils'
 import { activeTabTarget, targetedTab } from '@renderer/stores/hub-tabs'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useTabsStore } from '@renderer/stores/tabs'
-import { CaseSensitive, ChevronRight, Regex, SlidersHorizontal } from 'lucide-react'
+import {
+  CaseSensitive,
+  ChevronRight,
+  Regex,
+  Search,
+  SearchX,
+  SlidersHorizontal,
+} from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { useCodeSearch } from './search-queries'
@@ -255,22 +269,32 @@ export function SearchList(): React.JSX.Element {
       {error ? (
         <p className="px-3 py-2 text-xs break-words text-destructive">{error.message}</p>
       ) : query.trim() === '' ? (
-        <div className="px-3 py-10 text-center">
-          <p className="text-xs font-medium text-foreground">Search this repository</p>
-          <p className="mx-auto mt-1 max-w-[15rem] text-xs text-muted-foreground">
-            Search the repository for text or a regular expression.
-          </p>
-        </div>
+        <Empty className="mx-2 mt-1 min-h-36 border-none bg-muted/20 px-4 py-8">
+          <EmptyMedia>
+            <Search />
+          </EmptyMedia>
+          <EmptyHeader>
+            <EmptyTitle>Search this repository</EmptyTitle>
+            <EmptyDescription>
+              Search the repository for text or a regular expression.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       ) : !result || result.files.length === 0 ? (
         searching ? (
           <p className="px-3 py-2 text-sm-minus text-muted-foreground">Searching…</p>
         ) : (
-          <div className="px-3 py-10 text-center">
-            <p className="text-xs font-medium text-foreground">No results</p>
-            <p className="mx-auto mt-1 max-w-[15rem] text-xs text-muted-foreground">
-              No matches for this search — try different terms or filters.
-            </p>
-          </div>
+          <Empty className="mx-2 mt-1 min-h-36 border-none bg-muted/20 px-4 py-8">
+            <EmptyMedia>
+              <SearchX />
+            </EmptyMedia>
+            <EmptyHeader>
+              <EmptyTitle>No results</EmptyTitle>
+              <EmptyDescription>
+                No matches for this search — try different terms or filters.
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         )
       ) : (
         <div className="flex flex-col">

@@ -5,20 +5,13 @@ import { renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const create = vi.fn(async () => 'term-1')
-const openTab = vi.fn()
+const openPanel = vi.fn()
 
 const spawnLocalTerminal = vi.fn<typeof spawnLocalTerminalModule>(async () => {})
 
 vi.mock('@renderer/stores/terminals', () => ({
   useTerminalsStore: {
-    getState: () => ({ create }),
-  },
-}))
-
-vi.mock('@renderer/stores/tabs', () => ({
-  tabId: (kind: string, id: string) => `${kind}:${id}`,
-  useTabsStore: {
-    getState: () => ({ openTab }),
+    getState: () => ({ create, openPanel }),
   },
 }))
 
@@ -59,7 +52,7 @@ const untrusted: ActionView = {
 beforeEach(() => {
   create.mockReset()
   create.mockResolvedValue('term-1')
-  openTab.mockReset()
+  openPanel.mockReset()
   spawnLocalTerminal.mockReset()
   spawnLocalTerminal.mockResolvedValue(undefined)
   useProjectSelectionStore.setState({ project: { path: REPO, name: 'repo' }, showHidden: false })
@@ -71,7 +64,7 @@ describe('useActionRun', () => {
     await expect(result.current(untrusted)).resolves.toBe('needs-trust')
     expect(create).not.toHaveBeenCalled()
     expect(spawnLocalTerminal).not.toHaveBeenCalled()
-    expect(openTab).not.toHaveBeenCalled()
+    expect(openPanel).not.toHaveBeenCalled()
   })
 
   it('returns needs-local-path for local actions without a mapped path', async () => {
@@ -85,7 +78,7 @@ describe('useActionRun', () => {
     expect(spawnLocalTerminal).not.toHaveBeenCalled()
   })
 
-  it('primary success creates once with prepared fields and opens a terminal tab', async () => {
+  it('primary success creates once with prepared fields and opens the terminal panel', async () => {
     const { result } = renderHook(() => useActionRun())
     await expect(result.current(trustedPrimary)).resolves.toBe('ran')
     expect(create).toHaveBeenCalledTimes(1)
@@ -94,13 +87,8 @@ describe('useActionRun', () => {
       name: 'Build',
       initialInput: 'make build',
     })
-    expect(openTab).toHaveBeenCalledTimes(1)
-    expect(openTab).toHaveBeenCalledWith({
-      id: 'terminal:term-1',
-      kind: 'terminal',
-      title: 'Build',
-      path: 'term-1',
-    })
+    expect(openPanel).toHaveBeenCalledTimes(1)
+    expect(openPanel).toHaveBeenCalledWith('term-1')
     expect(spawnLocalTerminal).not.toHaveBeenCalled()
   })
 

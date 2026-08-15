@@ -124,16 +124,16 @@ export function SplitResizeHandle(): React.JSX.Element {
 }
 
 /**
- * Horizontal divider between the pinned list and the notes card. Drives the
- * `--notes-height` CSS var on the enclosing files panel directly during the
- * drag (same no-re-render trick as the width handles) and persists on release.
+ * Horizontal divider above the notes card. Drives the `--notes-height` CSS var
+ * on the enclosing Files surface directly during the drag (same no-re-render
+ * trick as the width handles) and persists on release.
  */
 export function NotesResizeHandle(): React.JSX.Element {
   const setNotesHeight = usePreferencesStore((s) => s.setNotesHeight)
 
   const handleStartResize = (event: React.MouseEvent): void => {
     event.preventDefault()
-    const panel = event.currentTarget.closest<HTMLElement>('[data-slot="files-quick-access"]')
+    const panel = event.currentTarget.closest<HTMLElement>('[data-slot="files-surface"]')
     const startY = event.clientY
     const startHeight = usePreferencesStore.getState().notesHeight
     let height = startHeight

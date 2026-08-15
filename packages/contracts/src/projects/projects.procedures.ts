@@ -10,6 +10,10 @@ import {
   openRepoPathOutputSchema,
   recentReposInputSchema,
   recentReposOutputSchema,
+  removeHubProjectInputSchema,
+  removeHubProjectOutputSchema,
+  removeHubWorktreeInputSchema,
+  removeHubWorktreeOutputSchema,
   removeRecentRepoInputSchema,
   removeRecentRepoOutputSchema,
 } from './projects.contract'
@@ -32,6 +36,23 @@ const projectsProcedureDefinitions = {
     input: removeRecentRepoInputSchema,
     output: removeRecentRepoOutputSchema,
     errors: ['projects.unavailable'],
+  },
+  removeHubProject: {
+    kind: 'mutation',
+    input: removeHubProjectInputSchema,
+    output: removeHubProjectOutputSchema,
+    errors: ['projects.not-found', 'projects.unavailable'],
+  },
+  removeHubWorktree: {
+    kind: 'mutation',
+    input: removeHubWorktreeInputSchema,
+    output: removeHubWorktreeOutputSchema,
+    errors: [
+      'projects.not-found',
+      'projects.unavailable',
+      'git.not-a-repository',
+      'git.worktree-conflict',
+    ],
   },
   browseDirs: {
     kind: 'query',

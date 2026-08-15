@@ -7,11 +7,11 @@ parens is the **entry point**; read it for mechanics.
 
 | Term | Entry | Note |
 |---|---|---|
-| Top bar | `title-bar.tsx` | The full-width titlebar. **Not** the viewer's header (`TopBar` in `app-shell.tsx`) |
-| Environment switcher | `environment-switcher.tsx` | **Always rendered, local or remote** — a Remote-only chip couldn't be how you *go* remote. Static label in the browser |
-| Hub inventory | `hub-tree.tsx` | Live Environment → Project → Worktree tree. Identities survive path changes; there is no Delete Worktree control |
+| Top bar | `title-bar.tsx` | Electron-only native shell titlebar. Browser clients start with the navigation sidebar; this is **not** the viewer header |
+| Environment switcher | `environment-switcher.tsx` | Native-shell control for moving between Environments. The browser has one bound Environment and identifies it with a badge on each Project header |
+| Hub inventory | `hub-tree.tsx` | Live Project → Worktree tree with the current Environment shown as a Project badge. Project headers collapse; Worktree rows navigate; there is no Delete Worktree control |
 | Hub selection | `hub-selection.ts` | Home · Project · Worktree. Viewer empty state shows the matching summary; open tabs keep the Worktree they were opened against and read that checkout, not the newly selected one |
-| Sidebar (unqualified = left) | `app-sidebar.tsx` | Icon rail + content panel (⌘B); footer = branch chip + worktrees picker |
+| Sidebar (unqualified = left) | `app-sidebar.tsx` | Navigation-only Project → Worktree tree (⌘B); Settings is in the footer |
 | Viewer | `shell/viewer.tsx` | The central panel. **Never "editor"** |
 | Companion | `right-sidebar.tsx` | The right panel (⌘.); statically titled "Companion" on every tab — no more per-tab retitling. Orientation comes from section labels, which follow the active sidebar tab. Three other things share the word: the Settings tab, the mobile column/sheet, and the repo-local `.porcelain/` project companion — see the Overlays row and Cross-cutting table below |
 

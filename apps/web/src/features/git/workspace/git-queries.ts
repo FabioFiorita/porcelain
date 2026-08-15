@@ -17,6 +17,38 @@ import { gitQueryKey } from '../git-query-key'
 
 const DISABLED_PROJECT = '/__porcelain-disabled-git-workspace__'
 
+/** Branch refs for a specific Project, used by controls that can target a Project
+ * before one of its Worktrees is selected in this window. */
+export function useGitBranches(
+  projectPath: string | null,
+  enabled = true,
+): {
+  branches: BranchRef[]
+  refreshBranches: () => Promise<void>
+  isFetching: boolean
+} {
+  const daemon = useDaemonIdentity()
+  const utils = trpc.useUtils()
+  const queryPath = projectPath === null ? DISABLED_PROJECT : gitProjectKey(projectPath)
+  const query = useQuery({
+    enabled: enabled && projectPath !== null,
+    queryFn: (): Promise<BranchRef[]> => utils.client.gitBranches.query(queryPath),
+    queryKey: gitQueryKey(
+      { host: daemon.host, version: daemon.version },
+      gitBranchesQuery(queryPath),
+    ),
+    staleTime: 0,
+  })
+
+  return {
+    branches: query.data ?? [],
+    isFetching: query.isFetching,
+    refreshBranches: async (): Promise<void> => {
+      await query.refetch()
+    },
+  }
+}
+
 /** The four workspace reads shared by the Web header, switchers, inbox, and Glance. */
 export function useGitWorkspace(): {
   branch: string | undefined

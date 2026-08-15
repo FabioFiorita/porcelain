@@ -6,28 +6,27 @@ import {
   isTerminalTarget,
   isTextEntry,
 } from '@renderer/lib/keyboard'
-import { spawnTerminal } from '@renderer/lib/terminal-actions'
+import { spawnTerminal, toggleTerminalPanel } from '@renderer/lib/terminal-actions'
 import { type SidebarTab, usePreferencesStore } from '@renderer/stores/preferences'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { runUserAction } from '@shared/background'
 import { useEffect } from 'react'
 
-// Must match the rail order in app-sidebar.tsx (agentic loop: Files → Changes →
-// Review → History → Search → Board → Terminal).
+// Must match the visible surface order in surface-sidebar.tsx (Files → Changes →
+// Review → History → Search). Board remains daemon-owned and has no shell shortcut.
 const SIDEBAR_TAB_KEYS: Record<string, SidebarTab | undefined> = {
   '1': 'files',
   '2': 'changes',
   '3': 'review',
   '4': 'history',
   '5': 'search',
-  '6': 'board',
-  '7': 'terminal',
 }
 
 /**
  * Window-level shortcuts: close-tab (Ctrl+W here on Linux/Windows, yielding to a focused
  * terminal; macOS Cmd+W goes via main's before-input-event instead), Ctrl+Tab cycling,
- * Cmd+1–7 sidebar tabs, and the context-aware "new" shortcuts for Board/Terminal (⌘N)
+ * Cmd+1–5 sidebar tabs, Cmd+6 for the bottom terminal panel, and the context-aware "new"
+ * shortcut for Board (⌘N)
  * plus ⌘T for a terminal anywhere. Files' ⌘N/⌘⇧N/⌘D/⌘⌫ live in a dedicated component
  * (FileCommands) instead — those go through tRPC hooks, which only a component may touch.
  */
@@ -66,15 +65,24 @@ export function useAppShortcuts(): void {
         return
       }
       if (isModExclusive(e) && !e.altKey && !e.shiftKey) {
+        if (e.key === '6') {
+          e.preventDefault()
+          runUserAction(
+            () => toggleTerminalPanel(),
+            (error) => toastUserActionError('Open terminal', error),
+          )
+          return
+        }
         const tab = SIDEBAR_TAB_KEYS[e.key]
         if (tab) {
           e.preventDefault()
           usePreferencesStore.getState().setSidebarTab(tab)
+          usePreferencesStore.getState().setRightSidebarOpen(true)
           return
         }
       }
       // Context-aware "new". ⌘T always spawns a terminal; ⌘N follows the active sidebar
-      // tab (Board → new card, Terminal → new terminal). Files' ⌘N is owned by
+      // tab (Board → new card). Files' ⌘N is owned by
       // FileCommands. Skipped while typing in a real field (but not the terminal).
       if ((e.metaKey || e.ctrlKey) && !e.altKey && !isTextEntry(e.target)) {
         // In the browser client the primary modifier is Ctrl, which the shell itself uses
@@ -98,16 +106,6 @@ export function useAppShortcuts(): void {
           if (sidebarTab === 'board') {
             e.preventDefault()
             useCardDraftStore.getState().open({ title: '', body: '', status: 'todo' })
-            return
-          }
-          if (sidebarTab === 'terminal') {
-            e.preventDefault()
-            runUserAction(
-              () => spawnTerminal(),
-              (error) => {
-                toastUserActionError('Open terminal', error)
-              },
-            )
             return
           }
         }

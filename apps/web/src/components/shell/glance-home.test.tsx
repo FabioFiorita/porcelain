@@ -1,12 +1,11 @@
 import type { FlowGroup } from '@backend/review/flow'
-import type { BoardCard } from '@porcelain/contracts/board'
 import type { ReviewReading } from '@porcelain/contracts/review'
-import { useBoardCards } from '@renderer/features/board'
 import { type ReviewInboxRow, useGitFlow, useGitWorkspace } from '@renderer/features/git'
 import { useReviewComments, useReviewReading } from '@renderer/features/review'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
+import { useTerminalsStore } from '@renderer/stores/terminals'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { GlanceHome } from './glance-home'
@@ -17,11 +16,12 @@ vi.mock('@renderer/features/git', () => ({
   useGitFlow: vi.fn(),
   useGitWorkspace: vi.fn(),
 }))
-vi.mock('@renderer/features/board', () => ({ useBoardCards: vi.fn() }))
 vi.mock('@renderer/features/review', () => ({
   useReviewReading: vi.fn(),
   useReviewComments: vi.fn(),
 }))
+const openTerminalPanel = vi.hoisted(() => vi.fn(async () => {}))
+vi.mock('@renderer/lib/terminal-actions', () => ({ openTerminalPanel }))
 
 const switchToSpy = vi.fn(async () => {})
 
@@ -49,13 +49,6 @@ const reading: ReviewReading = {
   evidence: null,
 }
 
-const card = (over: Partial<BoardCard> & { id: string; title: string }): BoardCard => ({
-  status: 'todo',
-  order: 0,
-  createdAt: 0,
-  ...over,
-})
-
 /** Reset every mock to a fully empty repo; tests layer their data on top. */
 function mockEmpty(): void {
   vi.mocked(useGitWorkspace).mockReturnValue({
@@ -68,19 +61,22 @@ function mockEmpty(): void {
   })
   vi.mocked(useGitFlow).mockReturnValue({ groups: [], refresh: async () => {} })
   vi.mocked(useReviewReading).mockReturnValue({ reading: null, refresh: async () => {} })
-  vi.mocked(useBoardCards).mockReturnValue({ cards: [], error: null, isLoaded: true })
   vi.mocked(useReviewComments).mockReturnValue([])
 }
 
 describe('GlanceHome', () => {
   beforeEach(() => {
     switchToSpy.mockClear()
+    openTerminalPanel.mockImplementation(async () => {
+      useTerminalsStore.getState().openPanel()
+    })
     useTabsStore.setState({ panes: [{ tabs: [], activeTabId: null }], activePaneIndex: 0 })
     useProjectSelectionStore.setState({
       project: { path: '/repo', name: 'repo' },
       switchProject: switchToSpy,
     })
     usePreferencesStore.setState({ sidebarTab: 'files' })
+    useTerminalsStore.setState({ sessions: [], panelOpen: false, panelSessionId: null })
     mockEmpty()
   })
 
@@ -91,7 +87,7 @@ describe('GlanceHome', () => {
     expect(screen.getByText('Jump to')).toBeInTheDocument()
     expect(screen.getByTestId('glance-jump-changes')).toBeInTheDocument()
     expect(screen.getByTestId('glance-jump-review')).toBeInTheDocument()
-    expect(screen.getByTestId('glance-jump-board')).toBeInTheDocument()
+    expect(screen.queryByTestId('glance-jump-board')).not.toBeInTheDocument()
     expect(screen.getByTestId('glance-jump-terminal')).toBeInTheDocument()
   })
 
@@ -134,30 +130,6 @@ describe('GlanceHome', () => {
     expect(usePreferencesStore.getState().sidebarTab).toBe('review')
   })
 
-  it('renders the board summary with doing titles and tapping opens the board tab', () => {
-    vi.mocked(useBoardCards).mockReturnValue({
-      cards: [
-        card({ id: 'c1', title: 'Ship the Glance', status: 'doing' }),
-        card({ id: 'c2', title: 'Later thing' }),
-        card({ id: 'c3', title: 'Another later thing' }),
-      ],
-      error: null,
-      isLoaded: true,
-    })
-    render(<GlanceHome />)
-    // Section label + Jump to row both say "Board"; summary also appears twice
-    // (Board section + Jump to Board subtitle).
-    expect(screen.getAllByText('Board').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getAllByText('1 doing · 2 to do').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getByText('Ship the Glance')).toBeInTheDocument()
-    // queued titles are not listed under doing — only doing cards expand
-    expect(screen.queryByText('Later thing')).not.toBeInTheDocument()
-    fireEvent.click(screen.getByText('Ship the Glance'))
-    const pane = useTabsStore.getState().panes[0]
-    if (pane === undefined) throw new Error('expected pane 0')
-    expect(pane.tabs[0]).toMatchObject({ id: tabId('board', '/repo'), kind: 'board' })
-  })
-
   it('shows a quiet empty line when nothing is in flight, but keeps Jump to', () => {
     render(<GlanceHome />)
     expect(screen.getByText(/Nothing in flight/)).toBeInTheDocument()
@@ -181,9 +153,10 @@ describe('GlanceHome', () => {
     expect(screen.getByText('1 open review comment')).toBeInTheDocument()
   })
 
-  it('Jump to Terminal focuses the Terminal sidebar tab', () => {
+  it('Jump to Terminal opens the bottom terminal panel', () => {
     render(<GlanceHome />)
     fireEvent.click(screen.getByTestId('glance-jump-terminal'))
-    expect(usePreferencesStore.getState().sidebarTab).toBe('terminal')
+    expect(openTerminalPanel).toHaveBeenCalledOnce()
+    expect(useTerminalsStore.getState().panelOpen).toBe(true)
   })
 })

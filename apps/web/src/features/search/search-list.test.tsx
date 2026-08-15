@@ -57,6 +57,7 @@ describe('SearchList', () => {
   it('prompts before a query is entered', () => {
     render(<SearchList />)
     expect(screen.getByText(/Search the repository/)).toBeInTheDocument()
+    expect(screen.getByText(/Search the repository/).closest('[data-slot="empty"]')).not.toBeNull()
   })
 
   it('renders the match grouped under its file and opens it at the line on click', () => {
@@ -90,6 +91,7 @@ describe('SearchList', () => {
     useSearchStore.setState({ query: 'doThing' })
     render(<SearchList />)
     expect(screen.getByText('No results')).toBeInTheDocument()
+    expect(screen.getByText('No results').closest('[data-slot="empty"]')).not.toBeNull()
   })
 
   it('shows the error message (e.g. an invalid regex)', () => {

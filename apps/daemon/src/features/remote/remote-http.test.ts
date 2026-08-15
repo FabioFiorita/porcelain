@@ -61,6 +61,14 @@ const projectsOperations = {
     ok: true,
     value: undefined,
   })),
+  removeHubProject: vi.fn<ProjectsOperations['removeHubProject']>(async () => ({
+    ok: true,
+    value: undefined,
+  })),
+  removeHubWorktree: vi.fn<ProjectsOperations['removeHubWorktree']>(async () => ({
+    ok: true,
+    value: undefined,
+  })),
   browseProjectDirectories: vi.fn<ProjectsOperations['browseProjectDirectories']>(async () => ({
     ok: false,
     error: { code: 'projects.unavailable' },

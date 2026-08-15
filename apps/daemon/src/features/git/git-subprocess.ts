@@ -24,7 +24,7 @@ export type GitSubprocessHost = Readonly<{
   sourceEnv?: NodeJS.ProcessEnv
 }>
 
-type GitAction = 'checkout' | 'add-worktree'
+type GitAction = 'checkout' | 'add-worktree' | 'remove-worktree'
 
 const defaultExecute: GitExecute = async (args, options) => {
   const { stdout } = await execFileAsync('git', [...args], options)
@@ -70,6 +70,12 @@ function classifyNativeFailure(action: GitAction, error: unknown): GitWorkspaceE
   if (action === 'checkout' && output.includes('would be overwritten by checkout')) {
     return { code: 'git.working-tree-conflict' }
   }
+  if (
+    action === 'remove-worktree' &&
+    (output.includes('is not a working tree') || output.includes('is not a worktree'))
+  ) {
+    return { code: 'git.worktree-conflict' }
+  }
   return undefined
 }
 
@@ -106,6 +112,7 @@ export function createGitSubprocess(host: GitSubprocessHost = {}): GitWorkspaceP
   async function addWorktree(
     repoPath: string,
     branch: string,
+    baseRef?: string,
   ): Promise<GitWorkspaceResult<Worktree>> {
     const sanitizedBranch = branch.replace(/[/\\:<>"|?*]+/g, '-')
     const parent = join(dirname(repoPath), `${basename(repoPath)}-worktrees`)
@@ -113,10 +120,9 @@ export function createGitSubprocess(host: GitSubprocessHost = {}): GitWorkspaceP
     await makeDirectory(parent)
 
     try {
-      await execute(
-        ['worktree', 'add', '-b', branch, directory],
-        commandOptions(repoPath, sourceEnv),
-      )
+      const args = ['worktree', 'add', '-b', branch, directory]
+      if (baseRef !== undefined) args.push(baseRef)
+      await execute(args, commandOptions(repoPath, sourceEnv))
     } catch (error) {
       const result = failed<Worktree>('add-worktree', error)
       if (result !== undefined) return result
@@ -132,5 +138,22 @@ export function createGitSubprocess(host: GitSubprocessHost = {}): GitWorkspaceP
     }
   }
 
-  return Object.freeze({ checkout, addWorktree })
+  async function removeWorktree(
+    repoPath: string,
+    worktreePath: string,
+  ): Promise<GitWorkspaceResult<void>> {
+    try {
+      await execute(
+        ['worktree', 'remove', '--force', worktreePath],
+        commandOptions(repoPath, sourceEnv),
+      )
+      return { ok: true, value: undefined }
+    } catch (error) {
+      const result = failed<void>('remove-worktree', error)
+      if (result !== undefined) return result
+      throw error
+    }
+  }
+
+  return Object.freeze({ checkout, addWorktree, removeWorktree })
 }

@@ -21,6 +21,8 @@ export {
   openProject,
   type ProjectMutationDefinition,
   type ProjectSelectionEffect,
+  removeHubProject,
+  removeHubWorktree,
   removeRecentProject,
 } from './project-mutations'
 export {

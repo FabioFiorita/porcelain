@@ -4,6 +4,8 @@ import type {
   CreateHubWorktreeInput,
   HubInventory,
   HubWorktree,
+  RemoveHubProjectInput,
+  RemoveHubWorktreeInput,
 } from '@porcelain/contracts/projects'
 import { projectsProcedures } from '@porcelain/contracts/projects'
 
@@ -17,6 +19,8 @@ type ProjectsClient = Pick<
   | 'removeRecentRepo'
   | 'hubInventory'
   | 'createHubWorktree'
+  | 'removeHubProject'
+  | 'removeHubWorktree'
 >
 
 /** Read the daemon's authoritative Project summary through the Projects boundary. */
@@ -44,6 +48,22 @@ export async function removeRecentProjectOnDaemon(
   projectsProcedures.removeRecentRepo.output.parse(
     await client.removeRecentRepo.mutate(projectPath),
   )
+}
+
+/** Remove a Hub Project from the daemon inventory and recent paths. */
+export async function removeHubProjectOnDaemon(
+  client: ProjectsClient,
+  projectId: RemoveHubProjectInput,
+): Promise<void> {
+  projectsProcedures.removeHubProject.output.parse(await client.removeHubProject.mutate(projectId))
+}
+
+/** Remove one linked Worktree from Git through the Hub Projects boundary. */
+export async function removeHubWorktreeOnDaemon(
+  client: ProjectsClient,
+  input: RemoveHubWorktreeInput,
+): Promise<void> {
+  projectsProcedures.removeHubWorktree.output.parse(await client.removeHubWorktree.mutate(input))
 }
 
 /** Browse the daemon's filesystem with a nullable Project-directory root. */

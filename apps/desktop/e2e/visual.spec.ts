@@ -19,31 +19,45 @@ test('changes tab', async ({ page }) => {
   await expect(page).toHaveScreenshot('changes-tab.png')
 })
 
-// The rail is exactly these seven, in this order — the ⌘1–7 contract.
-const RAIL_TABS = ['files', 'changes', 'review', 'history', 'search', 'board', 'terminal']
+// The surface launcher is exactly these six, in this order — the ⌘1–6 contract.
+const RAIL_TABS = ['files', 'changes', 'review', 'history', 'search', 'terminal']
 
-// Element-scoped baseline for the icon rail. Framing just the rail makes a tab
+// Element-scoped baseline for the surface launcher. Framing just the launcher makes a tab
 // restyle fail where full-page 2% tolerance would swallow it.
-test('sidebar icon rail', async ({ page }) => {
+test('surface launcher', async ({ page }) => {
   await waitForShell(page)
   const rail = loc.rail(page)
   for (const tab of RAIL_TABS) {
     await expect(loc.railTab(page, tab)).toBeVisible()
   }
+  await expect(loc.railTab(page, 'board')).toHaveCount(0)
   // Count too: a tab coming back would still pass the per-id loop above.
   await expect(loc.railTabs(page)).toHaveCount(RAIL_TABS.length)
-  await expect(rail).toHaveScreenshot('sidebar-rail.png')
+  await expect(rail).toHaveScreenshot('surface-launcher.png')
 })
 
-// Element-scoped companion to the full-page `changes tab` shot.
-test('quick access — changes', async ({ page }) => {
+// Element-scoped surface beside the Viewer.
+test('surface sidebar — changes', async ({ page }) => {
   await waitForShell(page)
   await selectTab(page, 'Changes')
   const panel = page.locator(
     '[data-slot="sidebar-container"][data-side="right"] [data-slot="sidebar-inner"]',
   )
+  await expect(loc.changesSummary(page)).toHaveAttribute('data-count', '2')
+  await expect(panel).toHaveScreenshot('surface-changes.png')
+})
+
+test('header commands expose commit controls', async ({ page }) => {
+  await waitForShell(page)
+  await selectTab(page, 'Changes')
+  await loc.commandsMenu(page).click()
   await expect(loc.commitButton(page)).toBeVisible()
-  await expect(panel).toHaveScreenshot('quick-access-changes.png')
+})
+
+test('header actions expose saved commands', async ({ page }) => {
+  await waitForShell(page)
+  await loc.actionsMenu(page).click()
+  await expect(page.getByText('Saved commands', { exact: true })).toBeVisible()
 })
 
 /**
@@ -104,11 +118,14 @@ test('shell cards share one vertical frame', async ({ page }) => {
 
   expect(await paintedTop(left)).toBe(await paintedTop(viewer))
   expect(await paintedTop(right)).toBe(await paintedTop(viewer))
-  // Bottoms are still compared by box: the outset ring also paints a pixel BELOW
-  // each sidebar card, so their painted bottoms sit one row under the viewer's.
-  // Same root cause as the tops, left alone here rather than papered over.
-  expect(leftBox.y + leftBox.height).toBe(viewerBox.y + viewerBox.height)
-  expect(rightBox.y + rightBox.height).toBe(viewerBox.y + viewerBox.height)
+  const paintedBottom = async (card: Locator): Promise<number> =>
+    card.evaluate((el) => {
+      const bottom = el.getBoundingClientRect().bottom
+      return getComputedStyle(el).boxShadow.includes('0px 0px 0px 1px') ? bottom + 1 : bottom
+    })
+
+  expect(await paintedBottom(left)).toBe(await paintedBottom(viewer))
+  expect(await paintedBottom(right)).toBe(await paintedBottom(viewer))
 })
 
 test('settings dialog', async ({ page }) => {
@@ -118,13 +135,13 @@ test('settings dialog', async ({ page }) => {
   await expect(loc.settingsDialog(page)).toHaveScreenshot('settings-general.png')
 })
 
-// Phone Settings: horizontal section chips + stacked preference rows (not the
-// dual-pane rail that left ~200px for toggles). Boot at desktop so the shell is
-// visible, then shrink — rail Settings lives in the mobile sheet when closed.
+// Phone Settings: horizontal section chips + stacked preference rows. Boot at
+// desktop so the shell is visible, then shrink — Settings lives in the mobile
+// navigation sheet when closed.
 test('settings dialog — phone', async ({ page, appMode }) => {
   await waitForShell(page)
   await page.setViewportSize({ width: 390, height: 844 })
-  // Dual-rail sheet closes at the mobile breakpoint; open it for the gear.
+  // The navigation sheet closes at the mobile breakpoint; open it for the gear.
   if (!(await loc.railSettings(page).isVisible())) {
     await loc.toggleLeftSidebar(page).click()
     await expect(loc.railSettings(page)).toBeVisible({ timeout: 10_000 })
@@ -178,7 +195,7 @@ test.describe('without a seeded repo', () => {
   test.use({ seedRepo: false })
 
   test('welcome screen', async ({ page }) => {
-    await expect(loc.welcomeOpenRepo(page)).toBeVisible()
+    await expect(loc.hubHome(page)).toBeVisible()
     await expect(page.getByRole('button', { name: 'Remote daemon settings' })).toHaveCount(0)
     await expect(page).toHaveScreenshot('welcome.png')
   })

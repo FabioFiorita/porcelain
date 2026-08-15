@@ -1,10 +1,8 @@
 import { createContext, useContext } from 'react'
 import { createPortal } from 'react-dom'
 
-// The contextual panel header (in app-sidebar) owns one actions region; each tab
-// body portals its header icon-buttons into it instead of rendering a second
-// toolbar row below the title. This keeps every tab's actions in the header
-// (matching the Files tab) while letting each list keep its own hooks/state.
+// The contextual surface toolbar owns one actions region below the surface tabs;
+// each tab body portals its icon-buttons into it while keeping its hooks/state local.
 const SidebarHeaderActionsContext = createContext<HTMLElement | null>(null)
 
 export const SidebarHeaderActionsProvider: React.Provider<HTMLElement | null> =

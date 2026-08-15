@@ -47,6 +47,21 @@ export const removeRecentRepoOutputSchema = z.void()
 export type RemoveRecentRepoInput = z.infer<typeof removeRecentRepoInputSchema>
 export type RemoveRecentRepoOutput = z.infer<typeof removeRecentRepoOutputSchema>
 
+export const removeHubProjectInputSchema = z.string().min(1)
+export const removeHubProjectOutputSchema = z.void()
+export type RemoveHubProjectInput = z.infer<typeof removeHubProjectInputSchema>
+export type RemoveHubProjectOutput = z.infer<typeof removeHubProjectOutputSchema>
+
+export const removeHubWorktreeInputSchema = z
+  .object({
+    projectId: z.string().min(1),
+    worktreeId: z.string().min(1),
+  })
+  .strict()
+export const removeHubWorktreeOutputSchema = z.void()
+export type RemoveHubWorktreeInput = z.infer<typeof removeHubWorktreeInputSchema>
+export type RemoveHubWorktreeOutput = z.infer<typeof removeHubWorktreeOutputSchema>
+
 export const browseDirsInputSchema = z.string().nullable()
 export type BrowseDirsInput = z.infer<typeof browseDirsInputSchema>
 
@@ -104,6 +119,7 @@ export const createHubWorktreeInputSchema = z
   .object({
     projectId: z.string().min(1),
     branch: z.string().trim().min(1),
+    baseRef: z.string().trim().min(1).optional(),
   })
   .strict()
 export type CreateHubWorktreeInput = z.infer<typeof createHubWorktreeInputSchema>
@@ -160,6 +176,11 @@ export const projectsContractFixtures = {
     ],
   },
   removeRecentRepo: { input: '/synthetic/projects/old', output: undefined },
+  removeHubProject: { input: 'proj-alpha', output: undefined },
+  removeHubWorktree: {
+    input: { projectId: 'proj-alpha', worktreeId: 'wt-alpha-topic' },
+    output: undefined,
+  },
   browseDirs: {
     input: null,
     output: {

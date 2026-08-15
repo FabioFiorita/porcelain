@@ -45,6 +45,16 @@ export function createProjectsRouter(operations: ProjectsOperations) {
       .output(procedureCatalog.removeRecentRepo.output)
       .mutation(async ({ input }) => throwIfFailed(await operations.removeRecentProject(input))),
 
+    removeHubProject: publicProcedure
+      .input(procedureCatalog.removeHubProject.input)
+      .output(procedureCatalog.removeHubProject.output)
+      .mutation(async ({ input }) => throwIfFailed(await operations.removeHubProject(input))),
+
+    removeHubWorktree: publicProcedure
+      .input(procedureCatalog.removeHubWorktree.input)
+      .output(procedureCatalog.removeHubWorktree.output)
+      .mutation(async ({ input }) => throwIfFailed(await operations.removeHubWorktree(input))),
+
     browseDirs: publicProcedure
       .input(procedureCatalog.browseDirs.input)
       .output(procedureCatalog.browseDirs.output)

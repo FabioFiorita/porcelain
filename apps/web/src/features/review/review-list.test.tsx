@@ -18,6 +18,7 @@ vi.mock('./review-queries', () => ({
 // comment hook — mock the domain hook, never the tRPC proxy (the component-test rule).
 vi.mock('@renderer/features/review', () => ({
   useCommentActions: () => ({ add: async () => {} }),
+  useCommentIndex: () => ({ byLine: new Map(), fileLevel: [] }),
 }))
 // Reviewed marks (green check + strikethrough, Mark/Unmark menu) — mock the domain hook.
 // reviewedPaths is swapped per-test; the toggle spies record mark/unmark calls.

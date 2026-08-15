@@ -66,6 +66,7 @@ import {
 } from 'lucide-react'
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { type CommentAnchor, CommentComposer } from '../git/comment-composer'
+import { FileCommentButton } from '../git/file-comment-button'
 
 // A reveal highlight lingers this long after the row scrolls into view, then the
 // target is cleared so a later Files-tab remount doesn't re-expand its ancestors.
@@ -257,6 +258,7 @@ function TreeNodeImpl({
   const isSelected = useSelectionStore((s) => s.selected.has(entry.path))
   const toggleSelection = useSelectionStore((s) => s.toggle)
   const setActive = useSelectionStore((s) => s.setActive)
+  const project = useProjectSelectionStore((s) => s.project)
   const prefetchFile = usePrefetchFileContent()
   // A file opened from outside the tree (Changes → Open file) sets the reveal
   // target; the matching row scrolls into view and shows the accent highlight.
@@ -278,32 +280,41 @@ function TreeNodeImpl({
   }, [isRevealed, isTreeVisible, clearReveal])
 
   if (entry.kind === 'file') {
+    const commentPath =
+      project && entry.path.startsWith(`${project.path}/`)
+        ? entry.path.slice(project.path.length + 1)
+        : entry.path
     return (
       <SidebarMenuItem>
         <EntryContextMenu entry={entry}>
-          <SidebarMenuButton
-            ref={ref}
-            data-testid={TestIds.treeEntry(entry.name)}
-            data-path={entry.path}
-            className={cn(
-              'text-sm-minus',
-              entry.hidden && 'opacity-50',
-              (isSelected || isRevealed) && 'bg-sidebar-accent',
-            )}
-            onMouseEnter={() => prefetchFile(entry.path)}
-            onClick={(e: React.MouseEvent<HTMLButtonElement>): void => {
-              setActive({ path: entry.path, kind: 'file' })
-              if (e.metaKey || e.ctrlKey) {
-                toggleSelection(entry.path)
-                return
+          <div className="relative">
+            <SidebarMenuButton
+              ref={ref}
+              data-testid={TestIds.treeEntry(entry.name)}
+              data-path={entry.path}
+              className={cn(
+                'pr-8 text-sm-minus',
+                entry.hidden && 'opacity-50',
+                (isSelected || isRevealed) && 'bg-sidebar-accent',
+              )}
+              onMouseEnter={() => prefetchFile(entry.path)}
+              onClick={(e: React.MouseEvent<HTMLButtonElement>): void => {
+                setActive({ path: entry.path, kind: 'file' })
+                if (e.metaKey || e.ctrlKey) {
+                  toggleSelection(entry.path)
+                  return
+                }
+                openTab(targetedTab('file', entry.path, { title: entry.name, preview: true }))
+              }}
+              onDoubleClick={() =>
+                pinTab(targetedTab('file', entry.path, { title: entry.name }).id)
               }
-              openTab(targetedTab('file', entry.path, { title: entry.name, preview: true }))
-            }}
-            onDoubleClick={() => pinTab(targetedTab('file', entry.path, { title: entry.name }).id)}
-          >
-            <FileTypeIcon name={entry.name} />
-            <span className="truncate font-mono">{entry.name}</span>
-          </SidebarMenuButton>
+            >
+              <FileTypeIcon name={entry.name} />
+              <span className="truncate font-mono">{entry.name}</span>
+            </SidebarMenuButton>
+            <FileCommentButton path={commentPath} />
+          </div>
         </EntryContextMenu>
       </SidebarMenuItem>
     )

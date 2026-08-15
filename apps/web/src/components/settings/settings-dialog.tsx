@@ -119,21 +119,24 @@ const ALL_SECTIONS: {
  */
 export function SettingsButton({
   className,
+  showLabel = false,
   'data-testid': dataTestId,
 }: {
   className?: string
+  showLabel?: boolean
   'data-testid'?: string
 }): React.JSX.Element {
   return (
     <Button
       variant="ghost"
-      size="icon"
+      size={showLabel ? 'default' : 'icon'}
       className={className}
       aria-label="Settings"
       data-testid={dataTestId}
       onClick={() => useSettingsDialogStore.getState().openTo()}
     >
       <Settings2 />
+      {showLabel && <span>Settings</span>}
     </Button>
   )
 }
@@ -231,7 +234,7 @@ export function SettingsDialog(): React.JSX.Element | null {
               <SidebarContent>
                 <SidebarGroup>
                   <SidebarGroupContent>
-                    <SidebarMenu>
+                    <SidebarMenu className="gap-1 px-2">
                       {sections.map((s) => (
                         <SidebarMenuItem key={s.id}>
                           <SidebarMenuButton

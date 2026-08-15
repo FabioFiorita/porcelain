@@ -7,6 +7,13 @@ import {
   DropdownMenuTrigger,
 } from '@renderer/components/ui/dropdown-menu'
 import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '@renderer/components/ui/empty'
+import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -23,6 +30,7 @@ import {
   ChevronDown,
   Circle,
   CircleDot,
+  ClipboardList,
   PenLine,
   Sparkles,
   Trash2,
@@ -70,15 +78,18 @@ export function BoardQuickAccess(): React.JSX.Element {
         <SidebarGroupLabel className="px-3 pt-2 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
           Focus
         </SidebarGroupLabel>
-        <div
+        <Empty
           data-testid={TestIds.boardFocus}
-          className="flex flex-1 flex-col items-center justify-center gap-1 px-4 py-8 text-center"
+          className="mx-2 min-h-36 flex-1 border-none bg-muted/20 px-4 py-8"
         >
-          <p className="text-xs text-muted-foreground">No cards yet</p>
-          <p className="text-2xs text-muted-foreground/80">
-            Add one from the Board list — it will open here.
-          </p>
-        </div>
+          <EmptyMedia>
+            <ClipboardList />
+          </EmptyMedia>
+          <EmptyHeader>
+            <EmptyTitle>No cards yet</EmptyTitle>
+            <EmptyDescription>Add one from the Board list — it will open here.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       </SidebarGroup>
     )
   }

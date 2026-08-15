@@ -46,6 +46,10 @@ export interface TerminalSession {
 
 interface TerminalsState {
   sessions: TerminalSession[]
+  /** Whether the Viewer-bottom terminal panel is visible. */
+  panelOpen: boolean
+  /** Session shown in the active bottom-panel tab. */
+  panelSessionId: string | null
   /** Replace the roster with the daemon-owned sessions for the current repo (idempotent). */
   hydrate: (sessions: TerminalSession[]) => void
   /**
@@ -64,6 +68,10 @@ interface TerminalsState {
   rename: (id: string, name: string) => void
   /** Mark a session exited (its PTY closed on its own) — kept in the roster, not removed. */
   markExited: (id: string, exitCode: number) => void
+  openPanel: (sessionId?: string) => void
+  closePanel: () => void
+  togglePanel: () => void
+  setPanelSession: (sessionId: string) => void
   /** Kill the PTY, dispose its terminal, and drop it from the roster. */
   close: (id: string) => void
   /** Local teardown on repo switch: dispose Ghostty instances + clear the roster. Does NOT
@@ -73,9 +81,9 @@ interface TerminalsState {
 
 /**
  * Ids the human closed (X) that a stale `terminalSessions` poll must not resurrect.
- * Cleared once the daemon no longer lists them (or after TOMBSTONE_MS). Without this,
- * close → optimistic drop → 5s poll still lists the PTY → hydrate REPLACES and the
- * row pops back (often as "exited" when kill's onExit races in).
+ * Retain them through the short roster-cache race: a fresh response can omit the id before
+ * an older cached response containing it arrives. The TTL bounds the local protection while
+ * still allowing a genuinely new daemon roster to become authoritative.
  */
 const closedTombstones = new Map<string, number>()
 const TOMBSTONE_MS = 15_000
@@ -85,15 +93,17 @@ export function __resetTerminalTombstonesForTests(): void {
   closedTombstones.clear()
 }
 
-function pruneTombstones(daemonIds: Set<string>): void {
+function pruneTombstones(): void {
   const now = Date.now()
   for (const [id, at] of closedTombstones) {
-    if (!daemonIds.has(id) || now - at > TOMBSTONE_MS) closedTombstones.delete(id)
+    if (now - at > TOMBSTONE_MS) closedTombstones.delete(id)
   }
 }
 
 export const useTerminalsStore = create<TerminalsState>((set, get) => ({
   sessions: [],
+  panelOpen: false,
+  panelSessionId: null,
   // The daemon owns the roster, so hydrate REPLACES: the incoming repo-filtered list is
   // authoritative (a session killed in another window drops out here on the next poll).
   // `create` still appends optimistically for zero-latency feedback; the vanishingly
@@ -103,10 +113,13 @@ export const useTerminalsStore = create<TerminalsState>((set, get) => ({
   // that would instead resurrect a cross-window-killed row forever — except we DO filter
   // closedTombstones so a stale poll can't undo this window's close click.
   hydrate: (incoming: TerminalSession[]) => {
-    const daemonIds = new Set(incoming.map((s) => s.id))
-    pruneTombstones(daemonIds)
+    pruneTombstones()
     const sessions = incoming.filter((s) => !closedTombstones.has(s.id))
-    set({ sessions })
+    const currentPanelSession = get().panelSessionId
+    const panelSessionId = sessions.some((session) => session.id === currentPanelSession)
+      ? currentPanelSession
+      : (sessions[0]?.id ?? null)
+    set({ sessions, panelSessionId })
   },
   create: async ({
     cwd,
@@ -139,7 +152,11 @@ export const useTerminalsStore = create<TerminalsState>((set, get) => ({
     // action, the first keystroke) as soon as the view mounts, and it routes by this map.
     if (origin === 'local') markLocalTerminal(id)
     closedTombstones.delete(id)
-    set((state) => ({ sessions: [...state.sessions, { id, name, status: 'running', origin }] }))
+    set((state) => ({
+      sessions: [...state.sessions, { id, name, status: 'running', origin }],
+      panelOpen: true,
+      panelSessionId: id,
+    }))
     return id
   },
   rename: (id: string, name: string) => {
@@ -172,6 +189,28 @@ export const useTerminalsStore = create<TerminalsState>((set, get) => ({
       }
     })
   },
+  openPanel: (sessionId?: string) =>
+    set((state) => ({
+      panelOpen: true,
+      panelSessionId:
+        sessionId !== undefined && state.sessions.some((session) => session.id === sessionId)
+          ? sessionId
+          : (state.panelSessionId ?? state.sessions[0]?.id ?? null),
+    })),
+  closePanel: () => set({ panelOpen: false }),
+  togglePanel: () =>
+    set((state) => ({
+      panelOpen: !state.panelOpen,
+      panelSessionId: state.panelOpen
+        ? state.panelSessionId
+        : (state.panelSessionId ?? state.sessions[0]?.id ?? null),
+    })),
+  setPanelSession: (sessionId: string) =>
+    set((state) =>
+      state.sessions.some((session) => session.id === sessionId)
+        ? { panelSessionId: sessionId, panelOpen: true }
+        : state,
+    ),
   close: (id: string) => {
     closedTombstones.set(id, Date.now())
     terminalAdapterFor(id).killTerminal(id)
@@ -181,7 +220,15 @@ export const useTerminalsStore = create<TerminalsState>((set, get) => ({
     // the pane doesn't render a dead terminal. (Cross-store getState() from a store
     // action is the sanctioned pattern — see repo.switchProject.)
     useTabsStore.getState().closeTabEverywhere(tabId('terminal', id))
-    set((state) => ({ sessions: state.sessions.filter((s) => s.id !== id) }))
+    set((state) => {
+      const sessions = state.sessions.filter((s) => s.id !== id)
+      return {
+        sessions,
+        panelOpen: sessions.length > 0 ? state.panelOpen : false,
+        panelSessionId:
+          state.panelSessionId === id ? (sessions[0]?.id ?? null) : state.panelSessionId,
+      }
+    })
   },
   reset: () => {
     // Local-only teardown on repo switch: detach from each PTY (so its live stream stops
@@ -192,6 +239,6 @@ export const useTerminalsStore = create<TerminalsState>((set, get) => ({
       terminalAdapterFor(session.id).detachTerminal(session.id)
       disposeTerminal(session.id)
     }
-    set({ sessions: [] })
+    set({ sessions: [], panelOpen: false, panelSessionId: null })
   },
 }))

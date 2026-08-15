@@ -5,6 +5,14 @@ import { useCommentActions } from '@renderer/features/review'
 import { cn } from '@renderer/lib/utils'
 import { Check, MessageSquare, RotateCcw, Trash2 } from 'lucide-react'
 
+function anchorLabel(comment: ReviewComment): string {
+  if (comment.startLine === undefined) return 'File comment'
+  if (comment.endLine !== undefined && comment.endLine !== comment.startLine) {
+    return `Lines ${comment.startLine}–${comment.endLine}`
+  }
+  return `Line ${comment.startLine}`
+}
+
 // One comment inside the marker popover: the body, the agent's reply (mirroring the
 // sidebar CommentsGroup styling), and resolve/delete actions. Read-only on the body —
 // editing lives in the sidebar; here you read, resolve, and delete where the line is.
@@ -12,6 +20,9 @@ function CommentCard({ comment }: { comment: ReviewComment }): React.JSX.Element
   const { remove, setResolved } = useCommentActions()
   return (
     <div className={cn('flex flex-col gap-1', comment.resolved && 'opacity-55')}>
+      <span className="text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
+        {anchorLabel(comment)}
+      </span>
       <div className="flex items-start gap-1">
         <p
           className={cn(
