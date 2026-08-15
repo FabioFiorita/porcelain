@@ -99,6 +99,7 @@ const router = createDaemonRouter({
   operations: createDaemonOperations({
     projects: projectsOperations,
     terminal: terminalOperations,
+    homeDir: join(tmpdir(), 'porcelain-remote-http-home'),
   }),
 })
 

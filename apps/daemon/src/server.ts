@@ -155,7 +155,7 @@ async function main(): Promise<void> {
     },
     canvas: canvasOperations,
   })
-  const operations = createDaemonOperations({ projects, terminal })
+  const operations = createDaemonOperations({ projects, terminal, homeDir: porcelainHomeDir })
   const router = createDaemonRouter({ operations })
   daemon = createRemoteHttp({
     adminTokenHash: tokenHash,

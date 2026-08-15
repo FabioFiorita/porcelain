@@ -86,8 +86,6 @@ describe('proceduresForChange Git cutover (GIT-006)', () => {
 
 describe('proceduresForChange Actions cutover (ACT-003)', () => {
   it('leaves actions.changed feature-owned (empty bulk list)', () => {
-    expect(
-      proceduresForChange({ kind: 'actions.changed', projectPath: '/synthetic/repo' }),
-    ).toEqual([])
+    expect(proceduresForChange({ kind: 'actions.changed', projectId: 'proj-alpha' })).toEqual([])
   })
 })

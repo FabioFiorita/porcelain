@@ -2,9 +2,9 @@ import type { ActionView } from '@porcelain/contracts/actions'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
 import { trpc } from '@renderer/lib/trpc'
-import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useQuery } from '@tanstack/react-query'
 import { actionsListKeyForProject } from './actions-query-key'
+import { useSelectedProjectId } from './actions-scope'
 
 /**
  * Actions list read adapter (ACT-003).
@@ -13,23 +13,26 @@ import { actionsListKeyForProject } from './actions-query-key'
  * `actions` procedure through the vanilla tRPC client. Procedure-name keys are never used.
  */
 
-/** All saved actions for the current project (live-refreshed when the agent curates them). */
-export function useActions(enabled = true): ActionView[] {
-  const project = useProjectSelectionStore((s) => s.project)
+/**
+ * Saved commands for one Project on this window's daemon. Defaults to the Project the
+ * Hub selection names; a caller that already resolved a Project id passes it explicitly.
+ */
+export function useActions(enabled = true, projectId?: string | null): ActionView[] {
+  const selectedProjectId = useSelectedProjectId()
+  const resolvedProjectId = projectId === undefined ? selectedProjectId : projectId
   const daemon = useDaemonIdentity()
-  const projectPath = project?.path ?? null
   const daemonScope: DaemonScope = { host: daemon.host, version: daemon.version }
   const utils = trpc.useUtils()
 
   const query = useQuery({
-    queryKey: projectPath
-      ? actionsListKeyForProject(daemonScope, projectPath)
-      : ([{ domain: 'actions', name: 'list', projectPath: '' }, daemonScope] as const),
+    queryKey: resolvedProjectId
+      ? actionsListKeyForProject(daemonScope, resolvedProjectId)
+      : ([{ domain: 'actions', name: 'list', projectId: '' }, daemonScope] as const),
     queryFn: async (): Promise<ActionView[]> => {
-      if (projectPath === null) return []
-      return utils.client.actions.query(projectPath)
+      if (resolvedProjectId === null) return []
+      return utils.client.actions.query({ projectId: resolvedProjectId })
     },
-    enabled: enabled && projectPath !== null,
+    enabled: enabled && resolvedProjectId !== null,
   })
 
   return query.data ?? []

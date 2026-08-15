@@ -1,16 +1,29 @@
 import { actionsMutations } from '@porcelain/client-runtime/actions'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, renderHook } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import {
+  daemonDispatch,
+  ENV_ID,
+  hubInventoryKey,
+  OTHER_PROJECT_ID,
+  PROJECT_ID,
+  REPO_PATH,
+  UNKNOWN_PATH,
+} from './test-support'
+
 const ctx = vi.hoisted(() => ({
   callDaemon: vi.fn(),
-  environment: { id: 'env-actions-mut', token: 'paired' } as {
+  environment: { id: 'env-actions-test', token: 'paired' } as {
     id: string
     token: string | null
   } | null,
-  project: { name: 'repo', path: '/synthetic/repo' } as { name: string; path: string } | null,
+  project: { name: 'alpha', path: '/synthetic/projects/alpha' } as {
+    name: string
+    path: string
+  } | null,
 }))
 
 vi.mock('@/features/remote', () => ({
@@ -33,32 +46,36 @@ vi.mock('@/lib/daemon/procedure', async (importOriginal) => {
 import { useTrustAction } from './actions-mutations'
 import { actionsListKeyForProject } from './actions-query-key'
 
-const REPO = '/synthetic/repo'
-const OTHER = '/synthetic/other'
-const ENV = 'env-actions-mut'
-
 function wrapper(queryClient: QueryClient) {
   return function Wrapper({ children }: { children: ReactNode }): React.JSX.Element {
     return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   }
 }
 
+function trustCalls(): unknown[] {
+  return ctx.callDaemon.mock.calls.filter(
+    (call: unknown[]) => (call[1] as { name: string }).name === 'trustActions',
+  )
+}
+
 beforeEach(() => {
-  ctx.environment = { id: ENV, token: 'paired' }
-  ctx.project = { name: 'repo', path: REPO }
+  ctx.environment = { id: ENV_ID, token: 'paired' }
+  ctx.project = { name: 'alpha', path: REPO_PATH }
   ctx.callDaemon.mockReset()
-  ctx.callDaemon.mockResolvedValue(undefined)
+  ctx.callDaemon.mockImplementation(daemonDispatch({ trustActions: () => undefined }))
 })
 
 describe('mobile useTrustAction', () => {
-  it('trusts via contract procedure and invalidates list identity only', async () => {
+  it('trusts the owning Project and invalidates that list identity only', async () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    const projectKey = actionsListKeyForProject(ENV, REPO)
-    const otherKey = actionsListKeyForProject(ENV, OTHER)
+    const projectKey = actionsListKeyForProject(ENV_ID, PROJECT_ID)
+    const otherKey = actionsListKeyForProject(ENV_ID, OTHER_PROJECT_ID)
     queryClient.setQueryData(projectKey, [])
     queryClient.setQueryData(otherKey, [])
 
     const { result } = renderHook(() => useTrustAction(), { wrapper: wrapper(queryClient) })
+    // The target comes from the Hub inventory read; wait for it before trusting.
+    await waitFor(() => expect(queryClient.getQueryData(hubInventoryKey(ENV_ID))).toBeDefined())
     await act(async () => {
       await result.current('action-serve')
     })
@@ -66,16 +83,33 @@ describe('mobile useTrustAction', () => {
     expect(ctx.callDaemon).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ name: 'trustActions' }),
-      { repoPath: REPO, ids: ['action-serve'] },
+      { projectId: PROJECT_ID, ids: ['action-serve'] },
     )
     expect(queryClient.getQueryState(projectKey)?.isInvalidated).toBe(true)
     expect(queryClient.getQueryState(otherKey)?.isInvalidated).toBeFalsy()
 
     // Must not use procedure-name invalidation arrays.
     const affected = actionsMutations.trust.affectedQueries({
-      repoPath: REPO,
+      projectId: PROJECT_ID,
       ids: ['action-serve'],
     })
     expect(affected.map((i) => i.name)).toEqual(['list', 'trust'])
+    expect(affected.every((i) => i.projectId === PROJECT_ID)).toBe(true)
+  })
+
+  it('trusts nothing when the checkout matches no Worktree the daemon knows', async () => {
+    ctx.project = { name: 'stray', path: UNKNOWN_PATH }
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const projectKey = actionsListKeyForProject(ENV_ID, PROJECT_ID)
+    queryClient.setQueryData(projectKey, [])
+
+    const { result } = renderHook(() => useTrustAction(), { wrapper: wrapper(queryClient) })
+    await waitFor(() => expect(queryClient.getQueryData(hubInventoryKey(ENV_ID))).toBeDefined())
+    await act(async () => {
+      await result.current('action-serve')
+    })
+
+    expect(trustCalls()).toEqual([])
+    expect(queryClient.getQueryState(projectKey)?.isInvalidated).toBeFalsy()
   })
 })

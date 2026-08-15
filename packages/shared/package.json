@@ -7,6 +7,7 @@
     "./porcelain-home": "./src/porcelain-home.ts",
     "./project-porcelain": "./src/project-porcelain.ts",
     "./canvas-porcelain": "./src/canvas-porcelain.ts",
+    "./project-store": "./src/project-store.ts",
     "./platform": "./src/platform.ts",
     "./evidence-check": "./src/evidence-check.ts",
     "./test-ids": "./src/test-ids.ts",
@@ -26,6 +27,9 @@
       ],
       "canvas-porcelain": [
         "./src/canvas-porcelain.ts"
+      ],
+      "project-store": [
+        "./src/project-store.ts"
       ],
       "platform": [
         "./src/platform.ts"

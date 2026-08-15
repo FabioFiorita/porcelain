@@ -250,6 +250,11 @@ export function FileFinder(): React.JSX.Element {
           // human can accept the command from the list (unreviewed shield).
           await openTerminalPanel()
         }
+        if (result === 'needs-target') {
+          // No Worktree is selected, so there is no checkout to run in. Say so rather
+          // than silently doing nothing or picking one (#24).
+          throw new Error('Select a Worktree first — a command needs a checkout to run in.')
+        }
       },
       (error) => {
         toastUserActionError('Run command', error)

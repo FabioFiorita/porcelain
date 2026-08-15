@@ -310,7 +310,8 @@ export const COMMANDS: NounHelp[] = [
   },
   {
     noun: 'actions',
-    blurb: 'saved actions — named shell commands the human runs in the terminal',
+    blurb:
+      'saved actions — named shell commands the human runs in the terminal; daemon-root, outlives the checkout',
     verbs: [
       { verb: 'list', args: '', desc: 'List saved actions' },
       {

@@ -1,4 +1,5 @@
 import { PROTOCOL_VERSION, PROTOCOL_VERSION_HEADER } from '@porcelain/contracts'
+import { actionsContractFixtures } from '@porcelain/contracts/actions'
 import { projectsContractFixtures } from '@porcelain/contracts/projects'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -73,6 +74,7 @@ const DAEMON_INFO = {
   result: { data: { version: '1.0.0', host: 'synthetic-host', platform: 'linux', arch: 'x64' } },
 }
 const HUB_INVENTORY = { result: { data: projectsContractFixtures.hubInventory.output } }
+const PROJECT_ACTIONS = { result: { data: actionsContractFixtures.actions.output } }
 
 interface SeenRequest {
   url: string
@@ -110,6 +112,12 @@ function stubDaemon(): void {
       }
       if (url.includes('/trpc/hubInventory')) {
         return new Response(JSON.stringify(HUB_INVENTORY), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        })
+      }
+      if (url.includes('/trpc/actions')) {
+        return new Response(JSON.stringify(PROJECT_ACTIONS), {
           status: 200,
           headers: { 'content-type': 'application/json' },
         })
@@ -247,5 +255,60 @@ describe('shell daemon requests', () => {
     for (const entry of seen.filter((request) => request.url.includes('/trpc/hubInventory'))) {
       expectsProtocol(entry)
     }
+  })
+
+  it('reads one Project roster from the Environment the caller named', async () => {
+    state = {
+      activeId: null,
+      environments: [
+        {
+          id: 'env-online',
+          name: 'env-online',
+          url: 'http://online.synthetic',
+          token: 'pc_client_env-online',
+          endpoints: ['http://online.synthetic'],
+          preferredEndpoint: 'http://online.synthetic',
+        },
+      ],
+    }
+
+    const actions = await caller().projectActions({
+      groupId: 'env-online',
+      projectId: 'proj-alpha',
+    })
+
+    expect(actions.map((action) => action.id)).toEqual(
+      actionsContractFixtures.actions.output.map((action) => action.id),
+    )
+    const asked = request('http://online.synthetic/trpc/actions')
+    // The remote Environment's own credential, never This device's admin token.
+    expect(asked.headers.get('authorization')).toBe('Bearer pc_client_env-online')
+    // A query goes out as GET with its input encoded in the URL.
+    expect(decodeURIComponent(asked.url)).toContain('"projectId":"proj-alpha"')
+    expectsProtocol(asked)
+  })
+
+  it('omits an Environment that went offline instead of surfacing a stale roster', async () => {
+    state = {
+      activeId: null,
+      environments: [
+        {
+          id: 'env-offline',
+          name: 'env-offline',
+          url: 'http://offline.synthetic',
+          token: 'pc_client_env-offline',
+          endpoints: ['http://offline.synthetic'],
+          preferredEndpoint: 'http://offline.synthetic',
+        },
+      ],
+    }
+
+    expect(
+      await caller().projectActions({ groupId: 'env-offline', projectId: 'proj-alpha' }),
+    ).toEqual([])
+    expect(
+      await caller().projectActions({ groupId: 'env-unknown', projectId: 'proj-alpha' }),
+    ).toEqual([])
+    expect(seen.filter((entry) => entry.url.includes('/trpc/actions'))).toHaveLength(0)
   })
 })

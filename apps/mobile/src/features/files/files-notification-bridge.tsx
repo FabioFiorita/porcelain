@@ -1,4 +1,5 @@
 import type { FilesChange } from '@porcelain/contracts/files'
+import type { SessionChange } from '@porcelain/contracts/session'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { useActiveProject } from '@/features/projects'
@@ -7,21 +8,13 @@ import { subscribeSessionChanges } from '@/lib/daemon/session'
 
 import { applyFilesFreshnessRequirement, applyFilesNotification } from './files-notifications'
 
-function filesChangeFromSessionChange(change: {
-  kind: 'files.scope-changed' | 'files.tree-changed' | 'files.content-changed' | string
-  projectPath: string
-  paths?: readonly string[]
-}): FilesChange | null {
+function filesChangeFromSessionChange(change: SessionChange): FilesChange | null {
   switch (change.kind) {
     case 'files.scope-changed':
       return { kind: 'files.scope-changed', projectPath: change.projectPath }
     case 'files.tree-changed':
     case 'files.content-changed':
-      return {
-        kind: change.kind === 'files.tree-changed' ? 'files.tree-changed' : 'files.content-changed',
-        paths: [...(change.paths ?? [])],
-        projectPath: change.projectPath,
-      }
+      return { kind: change.kind, paths: [...change.paths], projectPath: change.projectPath }
     default:
       return null
   }

@@ -10,14 +10,24 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { withTemporaryDirectory } from '../../testing/temporary-directory'
 import { ACTIONS_FILE_MAX_BYTES, createJsonActionsStore } from './json-actions-store'
 
-vi.mock('../../project/git-exclude', () => ({
-  ensureCompanionHidden: vi.fn(async () => undefined),
-}))
-vi.mock('../../review/review-watch', () => ({
-  watchProjectCompanion: vi.fn(),
-}))
-
 const ID = 'action-aa'
+const PROJECT = 'proj-alpha'
+
+/** `<homeDir>/projects/<projectId>/` — the daemon-root Project store (ADR 0002). */
+function projectDir(homeDir: string): string {
+  return join(homeDir, 'projects', PROJECT)
+}
+
+function storePath(homeDir: string): string {
+  return join(projectDir(homeDir), 'actions.json')
+}
+
+async function seed(homeDir: string, body: string): Promise<string> {
+  await mkdir(projectDir(homeDir), { recursive: true })
+  const path = storePath(homeDir)
+  await writeFile(path, body)
+  return path
+}
 
 describe('createJsonActionsStore', () => {
   afterEach(() => {
@@ -25,17 +35,17 @@ describe('createJsonActionsStore', () => {
   })
 
   it('returns empty v1 for an absent file and does not create it on read', async () => {
-    await withTemporaryDirectory('porcelain-actions-absent-', async (directory) => {
-      const store = createJsonActionsStore()
-      const result = await store.read(directory)
+    await withTemporaryDirectory('porcelain-actions-absent-', async (homeDir) => {
+      const store = createJsonActionsStore({ homeDir })
+      const result = await store.read(PROJECT)
       expect(result).toEqual({ ok: true, value: emptyActionsFileV1() })
-      expect(await readdir(directory)).toEqual([])
+      expect(await readdir(homeDir)).toEqual([])
     })
   })
 
-  it('round-trips a strict v1 document atomically', async () => {
-    await withTemporaryDirectory('porcelain-actions-roundtrip-', async (directory) => {
-      const store = createJsonActionsStore()
+  it('round-trips a strict v1 document atomically under the Project store', async () => {
+    await withTemporaryDirectory('porcelain-actions-roundtrip-', async (homeDir) => {
+      const store = createJsonActionsStore({ homeDir })
       const action = {
         id: ID,
         title: 'Ship',
@@ -43,7 +53,7 @@ describe('createJsonActionsStore', () => {
         order: 1,
         createdAt: 1,
       }
-      const written = await store.transact(directory, () => ({
+      const written = await store.transact(PROJECT, () => ({
         ok: true,
         value: {
           kind: 'create',
@@ -53,45 +63,54 @@ describe('createJsonActionsStore', () => {
       }))
       expect(written.ok).toBe(true)
 
-      const path = join(directory, '.porcelain', 'actions.json')
-      const raw = await readFile(path, 'utf8')
+      const raw = await readFile(storePath(homeDir), 'utf8')
       expect(raw).toBe(serializeActionsFileV1({ version: 1, actions: [action] }))
       expect(parseActionsFileV1(JSON.parse(raw)).actions).toHaveLength(1)
 
-      const read = await store.read(directory)
+      const read = await store.read(PROJECT)
       expect(read.ok).toBe(true)
       if (!read.ok) return
       expect(read.value.actions).toEqual([action])
 
-      const tmpLeft = (await readdir(join(directory, '.porcelain'))).filter((name) =>
+      const tmpLeft = (await readdir(projectDir(homeDir))).filter((name) =>
         name.startsWith('.tmp-'),
       )
       expect(tmpLeft).toEqual([])
     })
   })
 
-  it('rejects top-level arrays and incompatible versions without deleting incompat files', async () => {
-    await withTemporaryDirectory('porcelain-actions-array-', async (directory) => {
-      await mkdir(join(directory, '.porcelain'), { recursive: true })
-      const path = join(directory, '.porcelain', 'actions.json')
-      await writeFile(path, JSON.stringify([{ id: 'a', title: 't', command: 'c' }]))
+  it('keeps two Projects in separate documents', async () => {
+    await withTemporaryDirectory('porcelain-actions-scoped-', async (homeDir) => {
+      const store = createJsonActionsStore({ homeDir })
+      const action = { id: ID, title: 'Ship', command: 'make ship', order: 1, createdAt: 1 }
+      await store.transact(PROJECT, () => ({
+        ok: true,
+        value: { kind: 'create', file: { version: 1, actions: [action] }, action },
+      }))
 
-      const store = createJsonActionsStore()
-      expect(await store.read(directory)).toEqual({
+      const other = await store.read('proj-beta')
+      expect(other).toEqual({ ok: true, value: emptyActionsFileV1() })
+    })
+  })
+
+  it('rejects top-level arrays and incompatible versions without deleting incompat files', async () => {
+    await withTemporaryDirectory('porcelain-actions-array-', async (homeDir) => {
+      await seed(homeDir, JSON.stringify([{ id: 'a', title: 't', command: 'c' }]))
+
+      const store = createJsonActionsStore({ homeDir })
+      expect(await store.read(PROJECT)).toEqual({
         ok: false,
         error: { code: 'actions.unavailable' },
       })
-      const entries = await readdir(join(directory, '.porcelain'))
+      const entries = await readdir(projectDir(homeDir))
       expect(entries.some((name) => name.startsWith('actions.json.corrupt-'))).toBe(true)
     })
 
-    await withTemporaryDirectory('porcelain-actions-incompat-', async (directory) => {
-      await mkdir(join(directory, '.porcelain'), { recursive: true })
-      const path = join(directory, '.porcelain', 'actions.json')
-      await writeFile(path, `${JSON.stringify({ version: 99, actions: [] }, null, 2)}\n`)
+    await withTemporaryDirectory('porcelain-actions-incompat-', async (homeDir) => {
+      const path = await seed(homeDir, `${JSON.stringify({ version: 99, actions: [] }, null, 2)}\n`)
 
-      const store = createJsonActionsStore()
-      expect(await store.read(directory)).toEqual({
+      const store = createJsonActionsStore({ homeDir })
+      expect(await store.read(PROJECT)).toEqual({
         ok: false,
         error: { code: 'actions.unavailable' },
       })
@@ -100,29 +119,25 @@ describe('createJsonActionsStore', () => {
   })
 
   it('backs up malformed content and reports unavailable', async () => {
-    await withTemporaryDirectory('porcelain-actions-corrupt-', async (directory) => {
-      await mkdir(join(directory, '.porcelain'), { recursive: true })
-      const path = join(directory, '.porcelain', 'actions.json')
-      await writeFile(path, '{not-json')
+    await withTemporaryDirectory('porcelain-actions-corrupt-', async (homeDir) => {
+      await seed(homeDir, '{not-json')
 
-      const store = createJsonActionsStore()
-      expect(await store.read(directory)).toEqual({
+      const store = createJsonActionsStore({ homeDir })
+      expect(await store.read(PROJECT)).toEqual({
         ok: false,
         error: { code: 'actions.unavailable' },
       })
-      const entries = await readdir(join(directory, '.porcelain'))
+      const entries = await readdir(projectDir(homeDir))
       expect(entries.some((name) => name.startsWith('actions.json.corrupt-'))).toBe(true)
     })
   })
 
   it('reports oversize without rewriting the source', async () => {
-    await withTemporaryDirectory('porcelain-actions-large-', async (directory) => {
-      await mkdir(join(directory, '.porcelain'), { recursive: true })
-      const path = join(directory, '.porcelain', 'actions.json')
+    await withTemporaryDirectory('porcelain-actions-large-', async (homeDir) => {
       const payload = 'x'.repeat(200)
-      await writeFile(path, payload)
-      const store = createJsonActionsStore({ maxBytes: 50 })
-      expect(await store.read(directory)).toEqual({
+      const path = await seed(homeDir, payload)
+      const store = createJsonActionsStore({ homeDir, maxBytes: 50 })
+      expect(await store.read(PROJECT)).toEqual({
         ok: false,
         error: { code: 'actions.unavailable' },
       })
@@ -132,12 +147,12 @@ describe('createJsonActionsStore', () => {
   })
 
   it('serializes concurrent mutations on the same project', async () => {
-    await withTemporaryDirectory('porcelain-actions-concurrent-', async (directory) => {
-      const store = createJsonActionsStore()
+    await withTemporaryDirectory('porcelain-actions-concurrent-', async (homeDir) => {
+      const store = createJsonActionsStore({ homeDir })
       let counter = 0
       await Promise.all(
         Array.from({ length: 8 }, () =>
-          store.transact(directory, (current) => {
+          store.transact(PROJECT, (current) => {
             counter += 1
             const action = {
               id: `action-${counter}`,
@@ -157,7 +172,7 @@ describe('createJsonActionsStore', () => {
           }),
         ),
       )
-      const read = await store.read(directory)
+      const read = await store.read(PROJECT)
       expect(read.ok).toBe(true)
       if (!read.ok) return
       expect(read.value.actions).toHaveLength(8)
@@ -165,10 +180,10 @@ describe('createJsonActionsStore', () => {
   })
 
   it('does not write when the change rejects', async () => {
-    await withTemporaryDirectory('porcelain-actions-reject-', async (directory) => {
-      const store = createJsonActionsStore()
+    await withTemporaryDirectory('porcelain-actions-reject-', async (homeDir) => {
+      const store = createJsonActionsStore({ homeDir })
       expect(
-        await store.transact(directory, () => ({
+        await store.transact(PROJECT, () => ({
           ok: false,
           error: { code: 'actions.not-found', actionId: ID },
         })),
@@ -176,28 +191,27 @@ describe('createJsonActionsStore', () => {
         ok: false,
         error: { code: 'actions.not-found', actionId: ID },
       })
-      expect(await readdir(directory)).toEqual([])
+      expect(await readdir(homeDir)).toEqual([])
     })
   })
 
-  it('rejects relative project paths', async () => {
-    const store = createJsonActionsStore()
-    expect(await store.read('relative/path')).toEqual({
-      ok: false,
-      error: { code: 'actions.unavailable' },
+  it('rejects a blank Project id', async () => {
+    await withTemporaryDirectory('porcelain-actions-blank-', async (homeDir) => {
+      const store = createJsonActionsStore({ homeDir })
+      expect(await store.read('   ')).toEqual({
+        ok: false,
+        error: { code: 'actions.unavailable' },
+      })
     })
   })
 
   it('normalizes permission failures to actions.unavailable', async () => {
-    await withTemporaryDirectory('porcelain-actions-perm-', async (directory) => {
-      const porcelain = join(directory, '.porcelain')
-      await mkdir(porcelain, { recursive: true })
-      const path = join(porcelain, 'actions.json')
-      await writeFile(path, serializeActionsFileV1({ version: 1, actions: [] }))
-      await chmod(porcelain, 0o500)
+    await withTemporaryDirectory('porcelain-actions-perm-', async (homeDir) => {
+      await seed(homeDir, serializeActionsFileV1({ version: 1, actions: [] }))
+      await chmod(projectDir(homeDir), 0o500)
 
-      const store = createJsonActionsStore()
-      const result = await store.transact(directory, (current) => ({
+      const store = createJsonActionsStore({ homeDir })
+      const result = await store.transact(PROJECT, (current) => ({
         ok: true,
         value: {
           kind: 'delete',
@@ -206,7 +220,7 @@ describe('createJsonActionsStore', () => {
         },
       }))
       expect(result).toEqual({ ok: false, error: { code: 'actions.unavailable' } })
-      await chmod(porcelain, 0o700)
+      await chmod(projectDir(homeDir), 0o700)
     })
   })
 })

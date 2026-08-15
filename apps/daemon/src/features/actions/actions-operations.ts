@@ -1,7 +1,14 @@
 import { randomUUID } from 'node:crypto'
-import type { Action, ActionView } from '@porcelain/contracts/actions'
+import { resolve } from 'node:path'
+import type {
+  Action,
+  ActionRunTarget,
+  ActionView,
+  PrepareActionRunOutput,
+} from '@porcelain/contracts/actions'
 import type { SessionChange } from '@porcelain/contracts/session'
 import {
+  type ActionsFileAction,
   planCreateAction,
   planDeleteAction,
   planMoveAction,
@@ -14,78 +21,100 @@ import type {
   ActionsClock,
   ActionsIds,
   ActionsOperationResult,
+  ActionsProjects,
+  ActionsSource,
   ActionsStore,
+  ActionsStoreResult,
   ActionTrustStore,
 } from './actions-ports'
-import { commandFingerprint, createJsonActionTrustStore } from './json-action-trust-store'
-import { createJsonActionsStore } from './json-actions-store'
+import { commandFingerprint } from './json-action-trust-store'
 
 export type ActionsOperations = {
-  listActions: (input: { projectPath: string }) => Promise<ActionsOperationResult<ActionView[]>>
+  listActions: (input: { projectId: string }) => Promise<ActionsOperationResult<ActionView[]>>
   trustActions: (input: {
-    projectPath: string
+    projectId: string
     ids: string[]
   }) => Promise<ActionsOperationResult<void>>
   addAction: (input: {
-    projectPath: string
+    projectId: string
     title: string
     command: string
     where?: 'primary' | 'local'
   }) => Promise<ActionsOperationResult<Action>>
   updateAction: (input: {
-    projectPath: string
+    projectId: string
     id: string
     title?: string
     command?: string
     where?: 'primary' | 'local'
   }) => Promise<ActionsOperationResult<void>>
   moveAction: (input: {
-    projectPath: string
+    projectId: string
     id: string
     direction: 'up' | 'down'
   }) => Promise<ActionsOperationResult<void>>
-  deleteAction: (input: {
-    projectPath: string
-    id: string
-  }) => Promise<ActionsOperationResult<void>>
-  prepareActionRun: (input: { projectPath: string; actionId: string }) => Promise<
-    ActionsOperationResult<{
-      id: string
-      title: string
-      command: string
-      where: 'primary' | 'local'
-      projectPath: string
-    }>
-  >
+  deleteAction: (input: { projectId: string; id: string }) => Promise<ActionsOperationResult<void>>
+  prepareActionRun: (input: {
+    actionId: string
+    target: ActionRunTarget
+  }) => Promise<ActionsOperationResult<PrepareActionRunOutput>>
 }
 
 export function createActionsOperations(options: {
-  store?: ActionsStore
-  trustStore?: ActionTrustStore
+  /** Read order; the `private` daemon-root store is the only writable one today. */
+  sources: readonly ActionsSource[]
+  trustStore: ActionTrustStore
+  projects: ActionsProjects
   clock?: ActionsClock
   ids?: ActionsIds
   changes?: ActionsChanges
   publishSessionChange?: (change: SessionChange) => void
 }): ActionsOperations {
-  const store = options.store ?? createJsonActionsStore()
-  const trustStore = options.trustStore ?? createJsonActionTrustStore()
+  const writable = options.sources.find((source) => source.kind === 'private')
+  if (writable === undefined) {
+    throw new Error('actions: a writable private source is required')
+  }
+  const store: ActionsStore = writable.store
+  const trustStore = options.trustStore
   const clock = options.clock ?? { now: () => Date.now() }
   const ids = options.ids ?? { create: () => randomUUID() }
   const changes =
     options.changes ??
     createActionsChangesPublisher(options.publishSessionChange ?? (() => undefined))
 
+  /**
+   * Every configured source in order, first claim of an id winning. With one source
+   * this is the private store's own list; #26's tracked overlay slots in beside it
+   * without the read path changing shape.
+   */
+  async function readAllSources(
+    projectId: string,
+  ): Promise<ActionsStoreResult<ActionsFileAction[]>> {
+    const merged: ActionsFileAction[] = []
+    const seen = new Set<string>()
+    for (const source of options.sources) {
+      const read = await source.store.read(projectId)
+      if (!read.ok) return read
+      for (const action of read.value.actions) {
+        if (seen.has(action.id)) continue
+        seen.add(action.id)
+        merged.push(action)
+      }
+    }
+    return { ok: true, value: merged }
+  }
+
   async function listActions(input: {
-    projectPath: string
+    projectId: string
   }): Promise<ActionsOperationResult<ActionView[]>> {
-    const [fileResult, trustResult] = await Promise.all([
-      store.read(input.projectPath),
-      trustStore.readFingerprints(input.projectPath),
+    const [actionsResult, trustResult] = await Promise.all([
+      readAllSources(input.projectId),
+      trustStore.readFingerprints(input.projectId),
     ])
-    if (!fileResult.ok) return fileResult
+    if (!actionsResult.ok) return actionsResult
     if (!trustResult.ok) return trustResult
 
-    const views: ActionView[] = sortActions(fileResult.value.actions).map((action) => ({
+    const views: ActionView[] = sortActions(actionsResult.value).map((action) => ({
       ...action,
       trusted: trustResult.value.has(commandFingerprint(action.command)),
     }))
@@ -93,26 +122,26 @@ export function createActionsOperations(options: {
   }
 
   async function trustActions(input: {
-    projectPath: string
+    projectId: string
     ids: string[]
   }): Promise<ActionsOperationResult<void>> {
-    const fileResult = await store.read(input.projectPath)
-    if (!fileResult.ok) return fileResult
+    const actionsResult = await readAllSources(input.projectId)
+    if (!actionsResult.ok) return actionsResult
 
     const wanted = new Set(input.ids)
-    const commands = fileResult.value.actions
+    const commands = actionsResult.value
       .filter((action) => wanted.has(action.id))
       .map((action) => action.command)
 
-    const trusted = await trustStore.trustCommands(input.projectPath, commands)
+    const trusted = await trustStore.trustCommands(input.projectId, commands)
     if (!trusted.ok) return trusted
 
-    changes.publish({ type: 'actions.changed', projectPath: input.projectPath })
+    changes.publish({ type: 'actions.changed', projectId: input.projectId })
     return { ok: true, value: undefined }
   }
 
   async function addAction(input: {
-    projectPath: string
+    projectId: string
     title: string
     command: string
     where?: 'primary' | 'local'
@@ -120,7 +149,7 @@ export function createActionsOperations(options: {
     const now = clock.now()
     const id = ids.create()
 
-    const result = await store.transact(input.projectPath, (current) => {
+    const result = await store.transact(input.projectId, (current) => {
       const planned = planCreateAction(current, {
         id,
         title: input.title,
@@ -139,21 +168,21 @@ export function createActionsOperations(options: {
     }
 
     // Human-authored through the app — auto-trust the new command text.
-    const trusted = await trustStore.trustCommands(input.projectPath, [result.value.action.command])
+    const trusted = await trustStore.trustCommands(input.projectId, [result.value.action.command])
     if (!trusted.ok) return trusted
 
-    changes.publish({ type: 'actions.changed', projectPath: input.projectPath })
+    changes.publish({ type: 'actions.changed', projectId: input.projectId })
     return { ok: true, value: result.value.action }
   }
 
   async function updateAction(input: {
-    projectPath: string
+    projectId: string
     id: string
     title?: string
     command?: string
     where?: 'primary' | 'local'
   }): Promise<ActionsOperationResult<void>> {
-    const result = await store.transact(input.projectPath, (current) => {
+    const result = await store.transact(input.projectId, (current) => {
       const planned = planUpdateAction(current, {
         actionId: input.id,
         title: input.title,
@@ -171,23 +200,21 @@ export function createActionsOperations(options: {
 
     if (input.command !== undefined) {
       // Fingerprint the stored normalized command, not the raw input text.
-      const trusted = await trustStore.trustCommands(input.projectPath, [
-        result.value.action.command,
-      ])
+      const trusted = await trustStore.trustCommands(input.projectId, [result.value.action.command])
       if (!trusted.ok) return trusted
     }
 
-    changes.publish({ type: 'actions.changed', projectPath: input.projectPath })
+    changes.publish({ type: 'actions.changed', projectId: input.projectId })
     return { ok: true, value: undefined }
   }
 
   async function moveAction(input: {
-    projectPath: string
+    projectId: string
     id: string
     direction: 'up' | 'down'
   }): Promise<ActionsOperationResult<void>> {
     // End-of-list no-ops must not write or notify — plan first via a read.
-    const current = await store.read(input.projectPath)
+    const current = await store.read(input.projectId)
     if (!current.ok) return current
 
     const planned = planMoveAction(current.value, {
@@ -200,7 +227,7 @@ export function createActionsOperations(options: {
     }
 
     let concurrentNoop = false
-    const result = await store.transact(input.projectPath, (file) => {
+    const result = await store.transact(input.projectId, (file) => {
       const next = planMoveAction(file, {
         actionId: input.id,
         direction: input.direction,
@@ -219,15 +246,15 @@ export function createActionsOperations(options: {
       return { ok: true, value: undefined }
     }
     if (!result.ok) return result
-    changes.publish({ type: 'actions.changed', projectPath: input.projectPath })
+    changes.publish({ type: 'actions.changed', projectId: input.projectId })
     return { ok: true, value: undefined }
   }
 
   async function deleteAction(input: {
-    projectPath: string
+    projectId: string
     id: string
   }): Promise<ActionsOperationResult<void>> {
-    const result = await store.transact(input.projectPath, (current) => {
+    const result = await store.transact(input.projectId, (current) => {
       const planned = planDeleteAction(current, { actionId: input.id })
       if (!planned.ok) return planned
       return {
@@ -237,30 +264,42 @@ export function createActionsOperations(options: {
     })
 
     if (!result.ok) return result
-    changes.publish({ type: 'actions.changed', projectPath: input.projectPath })
+    changes.publish({ type: 'actions.changed', projectId: input.projectId })
     return { ok: true, value: undefined }
   }
 
-  async function prepareActionRun(input: { projectPath: string; actionId: string }): Promise<
-    ActionsOperationResult<{
-      id: string
-      title: string
-      command: string
-      where: 'primary' | 'local'
-      projectPath: string
-    }>
-  > {
-    const [fileResult, trustResult] = await Promise.all([
-      store.read(input.projectPath),
-      trustStore.readFingerprints(input.projectPath),
+  /**
+   * Authorize exactly one run. Three independent gates, all of them the daemon's:
+   * the Action exists in this Project, the target names a checkout this daemon
+   * currently lists for that Project, and the command text is trusted on this
+   * machine. Nothing is spawned here — the client creates the terminal the human
+   * then watches, so a curated Action still cannot execute without a human press.
+   */
+  async function prepareActionRun(input: {
+    actionId: string
+    target: ActionRunTarget
+  }): Promise<ActionsOperationResult<PrepareActionRunOutput>> {
+    const projectId = input.target.projectId
+    const [actionsResult, trustResult, worktreeResult] = await Promise.all([
+      readAllSources(projectId),
+      trustStore.readFingerprints(projectId),
+      options.projects.listWorktreePaths(projectId),
     ])
-    if (!fileResult.ok) return fileResult
+    if (!actionsResult.ok) return actionsResult
     if (!trustResult.ok) return trustResult
+    if (!worktreeResult.ok) return worktreeResult
 
-    const action = fileResult.value.actions.find((row) => row.id === input.actionId)
+    const action = actionsResult.value.find((row) => row.id === input.actionId)
     if (action === undefined) {
       return { ok: false, error: { code: 'actions.not-found', actionId: input.actionId } }
     }
+
+    const cwd = resolve(input.target.path)
+    const known = worktreeResult.value.some((path) => resolve(path) === cwd)
+    if (!known) {
+      return { ok: false, error: { code: 'actions.target-invalid', actionId: input.actionId } }
+    }
+
     if (!trustResult.value.has(commandFingerprint(action.command))) {
       return { ok: false, error: { code: 'actions.untrusted', actionId: input.actionId } }
     }
@@ -272,7 +311,7 @@ export function createActionsOperations(options: {
         title: action.title,
         command: action.command,
         where: action.where === 'local' ? 'local' : 'primary',
-        projectPath: input.projectPath,
+        cwd,
       },
     }
   }

@@ -2,12 +2,12 @@ import type { ActionView } from '@porcelain/contracts/actions'
 import { actionsProcedures } from '@porcelain/contracts/actions'
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
-import { useActiveProject } from '@/features/projects'
 import { isPaired, useActiveEnvironment } from '@/features/remote'
 import type { DaemonError } from '@/lib/daemon/errors'
 import { namedContractProcedure } from '@/lib/daemon/procedure'
 
 import { actionsListKeyForProject } from './actions-query-key'
+import { useActionsTarget } from './actions-target'
 import { callActionsProcedure } from './use-actions-transport'
 
 /**
@@ -22,27 +22,27 @@ const listActionsProcedure = namedContractProcedure('actions', actionsProcedures
 const DISABLED_LIST = {
   domain: 'actions' as const,
   name: 'list' as const,
-  projectPath: '/',
+  projectId: 'none',
 }
 
 export function useActions(active: boolean): {
   actions: ActionView[]
   error: DaemonError | null
 } {
-  const project = useActiveProject()
+  const target = useActionsTarget()
   const environment = useActiveEnvironment()
   const environmentId = environment?.id ?? 'none'
-  const projectPath = project?.path ?? null
-  const enabled = active && project !== null && isPaired(environment)
+  const projectId = target?.projectId ?? null
+  const enabled = active && projectId !== null && isPaired(environment)
 
   const query = useQuery({
     enabled,
-    queryKey: projectPath
-      ? actionsListKeyForProject(environmentId, projectPath)
+    queryKey: projectId
+      ? actionsListKeyForProject(environmentId, projectId)
       : (['daemon', environmentId, DISABLED_LIST] as const),
     queryFn: async (): Promise<ActionView[]> => {
-      if (projectPath === null) return []
-      return callActionsProcedure(environment, listActionsProcedure, projectPath)
+      if (projectId === null) return []
+      return callActionsProcedure(environment, listActionsProcedure, { projectId })
     },
   })
 

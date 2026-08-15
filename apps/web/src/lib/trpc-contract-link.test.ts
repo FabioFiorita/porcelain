@@ -184,7 +184,7 @@ describe('contractValidationLink', () => {
       // order, createdAt, trusted omitted — schema defaults apply
     }
     const settled = await run(
-      operation({ type: 'query', path: 'actions', input: '/synthetic/repo' }),
+      operation({ type: 'query', path: 'actions', input: { projectId: 'proj-alpha' } }),
       [wireAction],
     )
 

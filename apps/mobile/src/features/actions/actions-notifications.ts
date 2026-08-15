@@ -4,7 +4,7 @@ import type { ActionsChanged } from '@porcelain/contracts/actions'
 import { settleBackground } from '@porcelain/shared/background'
 import type { QueryClient } from '@tanstack/react-query'
 
-import { invalidateActionsIdentities } from './actions-query-key'
+import { invalidateActionsIdentities, invalidateAllActionsQueries } from './actions-query-key'
 
 /**
  * Mobile Actions notification adapter (ACT-003).
@@ -32,14 +32,15 @@ export function applyActionsNotification(
   )
 }
 
-/** Recover Actions for a project-scoped sequence gap. */
+/**
+ * Recover Actions after a sequence gap. Actions are keyed by Project id while a
+ * freshness scope names a checkout path, and one path cannot be turned back into the
+ * Project that owns it from here — so any gap refetches every Actions list this client
+ * holds rather than guessing which Project went stale.
+ */
 export function applyActionsFreshnessRequirement(
-  requirement: FreshnessRequirement,
+  _requirement: FreshnessRequirement,
   options: ApplyActionsNotificationOptions,
 ): void {
-  if (requirement.scope.kind !== 'project') return
-  applyActionsNotification(
-    { kind: 'actions.changed', projectPath: requirement.scope.projectPath },
-    options,
-  )
+  settleBackground(invalidateAllActionsQueries(options.queryClient), 'notification')
 }

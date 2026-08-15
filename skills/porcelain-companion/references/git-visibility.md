@@ -58,7 +58,7 @@ While the exclude is in place, **negation rules inside `.porcelain/.gitignore` d
 
 | Channel | Pattern | Default |
 |---|---|---|
-| Saved actions | `/actions.json` | Shared |
+| Saved actions (daemon-owned; the toggle only affects a promoted copy) | `/actions.json` | Shared |
 | Repo notes | `/notes.md` | Local |
 | Hidden & pinned paths | `/scope.json` | Shared |
 | Flow layers | `/layers.json` | Shared |

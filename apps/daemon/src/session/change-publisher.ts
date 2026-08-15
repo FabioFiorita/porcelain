@@ -151,9 +151,16 @@ export function createSessionChangePublisher({ epoch }: { epoch: string }): Sess
     const parsed = sessionChangeSchema.safeParse(change)
     if (!parsed.success) return { ok: false, error: { code: 'session.invalid-change' } }
 
+    // Most changes name the checkout they happened in and go only to sessions scoped
+    // to it. A Project-scoped change (Actions, which the daemon stores per Project id,
+    // not per checkout) has no such path, so it goes to every open session; each client
+    // invalidates by Project id, which is a no-op for clients not showing that Project.
+    const scopePath = 'projectPath' in parsed.data ? parsed.data.projectPath : null
+
     let delivered = 0
     for (const state of subscriptions) {
-      if (!state.open || state.projectPath !== parsed.data.projectPath) continue
+      if (!state.open) continue
+      if (scopePath !== null && state.projectPath !== scopePath) continue
       if (deliverTo(state, parsed.data)) delivered += 1
     }
     return { ok: true, delivered }

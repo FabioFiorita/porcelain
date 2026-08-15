@@ -20,10 +20,16 @@ function change(projectPath: string): SessionChange {
   return { kind: 'board.changed', projectPath }
 }
 
-/** One valid change per contract kind, so tests cover the union without hand-listing it. */
+/**
+ * One valid change per contract kind, so tests cover the union without hand-listing it.
+ * `actions.changed` is Project-scoped (a Project id, ADR 0002) rather than checkout-scoped.
+ */
 function changesForEveryKind(projectPath: string): SessionChange[] {
   return sessionChangeSchema.options.map((option) => {
     const kind = option.shape.kind.value
+    if (kind === 'actions.changed') {
+      return sessionChangeSchema.parse({ kind, projectId: 'proj-alpha' })
+    }
     return sessionChangeSchema.parse(
       kind === 'files.tree-changed' || kind === 'files.content-changed'
         ? { kind, projectPath, paths: ['a.ts'] }
@@ -80,6 +86,26 @@ describe('Session change publisher', () => {
 
     expect(first.frames.map((frame) => frame.sequence)).toEqual([0, 1])
     expect(second.frames.map((frame) => frame.sequence)).toEqual([0])
+  })
+
+  it('delivers a Project-scoped change to every session, not just one checkout', () => {
+    // Actions belong to a Project, not to the checkout the session happens to be scoped
+    // to (ADR 0002). Filtering it by projectPath would silently deliver it to nobody.
+    const publisher = createSessionChangePublisher({ epoch: EPOCH })
+    const first = subscriberSpy()
+    const second = subscriberSpy()
+    publisher.subscribe(first.subscriber).scopeToProject(PROJECT)
+    publisher.subscribe(second.subscriber).scopeToProject(OTHER_PROJECT)
+
+    const outcome = publisher.publish({ kind: 'actions.changed', projectId: 'proj-alpha' })
+
+    expect(outcome).toEqual({ ok: true, delivered: 2 })
+    expect(first.frames.map((frame) => frame.change)).toEqual([
+      { kind: 'actions.changed', projectId: 'proj-alpha' },
+    ])
+    expect(second.frames.map((frame) => frame.change)).toEqual([
+      { kind: 'actions.changed', projectId: 'proj-alpha' },
+    ])
   })
 
   it('restarts sequences under a new epoch', () => {

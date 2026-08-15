@@ -1,10 +1,10 @@
 import { actionsMutations, actionsProjectKey } from '@porcelain/client-runtime/actions'
 import { useQueryClient } from '@tanstack/react-query'
-import { useActiveProject } from '@/features/projects'
 import { useActiveEnvironment } from '@/features/remote'
 import { namedContractProcedure } from '@/lib/daemon/procedure'
 
 import { invalidateActionsIdentities } from './actions-query-key'
+import { useActionsTarget } from './actions-target'
 import { callActionsProcedure } from './use-actions-transport'
 
 /**
@@ -19,13 +19,13 @@ const trustProcedure = namedContractProcedure(
 
 /** Accept a command this daemon's machine has not run before. */
 export function useTrustAction(): (id: string) => Promise<void> {
-  const project = useActiveProject()
+  const target = useActionsTarget()
   const environment = useActiveEnvironment()
   const queryClient = useQueryClient()
 
   return async (id: string): Promise<void> => {
-    if (project === null) return
-    const wire = { repoPath: actionsProjectKey(project.path), ids: [id] }
+    if (target === null) return
+    const wire = { projectId: actionsProjectKey(target.projectId), ids: [id] }
     await callActionsProcedure(environment, trustProcedure, wire)
     if (environment === null) return
     await invalidateActionsIdentities(

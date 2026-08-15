@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   actionsNotFoundErrorSchema,
+  actionsTargetInvalidErrorSchema,
   actionsUnavailableErrorSchema,
   actionsUntrustedErrorSchema,
 } from '../actions'
@@ -62,6 +63,7 @@ const memberSchemas = {
   'actions.unavailable': actionsUnavailableErrorSchema,
   'actions.not-found': actionsNotFoundErrorSchema,
   'actions.untrusted': actionsUntrustedErrorSchema,
+  'actions.target-invalid': actionsTargetInvalidErrorSchema,
   'review.unavailable': reviewUnavailableErrorSchema,
   'review.comment-not-found': reviewCommentNotFoundErrorSchema,
   'projects.not-found': projectsNotFoundErrorSchema,
@@ -107,6 +109,12 @@ const expectedMembers = [
   { code: 'actions.unavailable', category: 'unavailable', retryable: true, hasDetails: false },
   { code: 'actions.not-found', category: 'not-found', retryable: false, hasDetails: true },
   { code: 'actions.untrusted', category: 'conflict', retryable: false, hasDetails: true },
+  {
+    code: 'actions.target-invalid',
+    category: 'conflict',
+    retryable: false,
+    hasDetails: true,
+  },
   { code: 'review.unavailable', category: 'unavailable', retryable: true, hasDetails: false },
   {
     code: 'review.comment-not-found',

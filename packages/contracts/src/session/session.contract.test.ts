@@ -40,7 +40,7 @@ const changeFixtures = {
   },
   'review.changed': { kind: 'review.changed', projectPath: '/synthetic/repo' },
   'board.changed': { kind: 'board.changed', projectPath: '/synthetic/repo' },
-  'actions.changed': { kind: 'actions.changed', projectPath: '/synthetic/repo' },
+  'actions.changed': { kind: 'actions.changed', projectId: 'proj-alpha' },
 } as const
 
 describe('Session change envelope', () => {
@@ -62,8 +62,13 @@ describe('Session change envelope', () => {
       expect(sessionChangeFrameSchema.parse(frame)).toEqual(frame)
     })
 
-    it(`rejects ${kind} inside a frame when projectPath is missing`, () => {
-      const { projectPath: _dropped, ...change } = changeFixtures[kind]
+    it(`rejects ${kind} inside a frame when its scope key is missing`, () => {
+      // Actions are scoped by the stable Project id (ADR 0002); every other
+      // category still names the checkout it happened in.
+      const fixture: Record<string, unknown> = { ...changeFixtures[kind] }
+      const scopeKey = 'projectId' in fixture ? 'projectId' : 'projectPath'
+      delete fixture[scopeKey]
+      const change = fixture
       expect(
         sessionChangeFrameSchema.safeParse({
           t: 'session:change',

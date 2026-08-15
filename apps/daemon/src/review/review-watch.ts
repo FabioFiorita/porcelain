@@ -34,19 +34,26 @@ type WatchedRepo = {
 
 const watched = new Map<string, WatchedRepo>()
 
-/** Map a companion file basename to the domain change kind it makes stale. */
-const FILE_CHANGES: Record<string, SessionChange['kind']> = {
+/**
+ * Map a companion file basename to the domain change kind it makes stale.
+ *
+ * `actions.json` is deliberately absent: saved commands moved to the daemon-root
+ * Project store (ADR 0002), so the Actions operations publish that change themselves.
+ * A repo-local `actions.json` is a tracked overlay (#26), not a live companion file.
+ */
+type CheckoutScopedChangeKind = Exclude<SessionChange['kind'], 'actions.changed'>
+
+const FILE_CHANGES: Record<string, CheckoutScopedChangeKind> = {
   [PROJECT_FILES.review]: 'review.changed',
   [PROJECT_FILES.comments]: 'review.changed',
   [PROJECT_FILES.board]: 'board.changed',
-  [PROJECT_FILES.actions]: 'actions.changed',
   [PROJECT_FILES.layers]: 'review.changed',
   [PROJECT_FILES.scope]: 'files.scope-changed',
   [PROJECT_FILES.activeReview]: 'review.changed',
   [PROJECT_FILES.notes]: 'review.changed',
 }
 
-function publish(kind: SessionChange['kind'], projectPath: string): void {
+function publish(kind: CheckoutScopedChangeKind, projectPath: string): void {
   if (kind === 'files.tree-changed' || kind === 'files.content-changed') {
     publishSessionChange({ kind, projectPath, paths: ['.'] })
     return

@@ -3,9 +3,9 @@ import type { ActionWhere } from '@porcelain/contracts/actions'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
 import { trpc } from '@renderer/lib/trpc'
-import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useQueryClient } from '@tanstack/react-query'
 import { invalidateActionsIdentities } from './actions-query-key'
+import { useSelectedProjectId } from './actions-scope'
 
 /**
  * Actions mutation adapter (ACT-003).
@@ -36,7 +36,7 @@ export function useActionMutations(): {
   move: (id: string, direction: 'up' | 'down') => Promise<void>
   remove: (id: string) => Promise<void>
 } {
-  const project = useProjectSelectionStore((s) => s.project)
+  const projectId = useSelectedProjectId()
   const daemon = useDaemonIdentity()
   const daemonScope = daemonScopeFromIdentity(daemon)
   const queryClient = useQueryClient()
@@ -44,9 +44,9 @@ export function useActionMutations(): {
 
   return {
     add: async (input: NewActionInput): Promise<void> => {
-      if (!project) return
+      if (projectId === null) return
       const wire = {
-        repoPath: actionsProjectKey(project.path),
+        projectId: actionsProjectKey(projectId),
         title: input.title,
         command: input.command,
         where: input.where,
@@ -59,9 +59,9 @@ export function useActionMutations(): {
       )
     },
     update: async (id: string, fields: NewActionInput): Promise<void> => {
-      if (!project) return
+      if (projectId === null) return
       const wire = {
-        repoPath: actionsProjectKey(project.path),
+        projectId: actionsProjectKey(projectId),
         id,
         title: fields.title,
         command: fields.command,
@@ -75,9 +75,9 @@ export function useActionMutations(): {
       )
     },
     move: async (id: string, direction: 'up' | 'down'): Promise<void> => {
-      if (!project) return
+      if (projectId === null) return
       const wire = {
-        repoPath: actionsProjectKey(project.path),
+        projectId: actionsProjectKey(projectId),
         id,
         direction,
       }
@@ -89,9 +89,9 @@ export function useActionMutations(): {
       )
     },
     remove: async (id: string): Promise<void> => {
-      if (!project) return
+      if (projectId === null) return
       const wire = {
-        repoPath: actionsProjectKey(project.path),
+        projectId: actionsProjectKey(projectId),
         id,
       }
       await client.deleteAction.mutate(wire)
@@ -109,15 +109,15 @@ export function useActionMutations(): {
  * command TEXT on this machine only. Rejects rather than toasting: the trust dialog owns failure.
  */
 export function useTrustAction(): (id: string) => Promise<void> {
+  const projectId = useSelectedProjectId()
   const daemon = useDaemonIdentity()
   const daemonScope = daemonScopeFromIdentity(daemon)
   const queryClient = useQueryClient()
   const client = trpc.useUtils().client
 
   return async (id: string): Promise<void> => {
-    const repoPath = useProjectSelectionStore.getState().project?.path
-    if (!repoPath) return
-    const wire = { repoPath: actionsProjectKey(repoPath), ids: [id] }
+    if (projectId === null) return
+    const wire = { projectId: actionsProjectKey(projectId), ids: [id] }
     await client.trustActions.mutate(wire)
     await invalidateActionsIdentities(
       queryClient,

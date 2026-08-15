@@ -1,3 +1,4 @@
+import type { HubTarget } from '@porcelain/client-runtime/projects'
 import type { ActionView } from '@porcelain/contracts/actions'
 import {
   LocalPathDialog,
@@ -5,222 +6,125 @@ import {
 } from '@renderer/components/terminal/local-path-dialog'
 import { Button } from '@renderer/components/ui/button'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@renderer/components/ui/dropdown-menu'
-import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
 } from '@renderer/components/ui/sidebar'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { useLocalDaemon, useLocalTerminalPath } from '@renderer/hooks/use-local-terminal'
-import { useProjectSelectionStore } from '@renderer/stores/project-selection'
+import { useHubSelectionStore } from '@renderer/stores/hub-selection'
 import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
-import {
-  ArrowDown,
-  ArrowUp,
-  Cloud,
-  Monitor,
-  MoreHorizontal,
-  PenLine,
-  Play,
-  Plus,
-  ShieldQuestion,
-  Trash2,
-} from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { ActionComposer, type ActionDraft, draftFromAction } from './action-composer'
+import { ActionRow } from './action-row'
 import { useActionRun } from './action-run'
 import { useActionRunStore } from './action-run-store'
+import { ActionTargetPicker } from './action-target-picker'
 import { ActionTrustDialog } from './action-trust-dialog'
-import { useActionMutations, useTrustAction } from './actions-mutations'
+import { useTrustAction } from './actions-mutations'
 import { useActions } from './actions-queries'
+import { type ActionsScope, useActionsScopes, useSiblingActions } from './actions-scope'
 
-function ActionRow({
-  action,
-  onEdit,
-  onRun,
-  showWhere,
-  isFirst,
-  isLast,
-}: {
-  action: ActionView
-  onEdit: (action: ActionView) => void
-  onRun: (action: ActionView) => void
-  /** When true, surface a small Cloud/Monitor cue so Play’s target is obvious. */
-  showWhere: boolean
-  isFirst: boolean
-  isLast: boolean
-}): React.JSX.Element {
-  const { move, remove } = useActionMutations()
-  const isLocal = action.where === 'local'
-  // Unreviewed commands still show their full text and still sit under one click —
-  // the click just lands on the accept step instead of a shell.
-  const unreviewed = !action.trusted
+/** One other Environment that has the same Project — listed, never run from here. */
+function SiblingEnvironment({ scope }: { scope: ActionsScope }): React.JSX.Element | null {
+  const actions = useSiblingActions(scope)
+  if (actions.length === 0) return null
   return (
-    <div className="group/action flex items-center gap-1 rounded-xl border bg-card p-2">
-      <button
-        type="button"
-        onClick={() => onRun(action)}
-        data-testid={TestIds.actionRun(action.title)}
-        className="flex min-w-0 flex-1 items-center gap-2 text-left"
-        // The full command is always visible before it runs — an agent can author
-        // actions, so the human must see exactly what a click executes (see the Actions owner docs).
-        title={
-          unreviewed
-            ? `Not run on this machine yet: ${action.command}`
-            : isLocal
-              ? `Run on this device: ${action.command}`
-              : `Run: ${action.command}`
-        }
-      >
-        {unreviewed ? (
-          <ShieldQuestion
-            className="size-3.5 shrink-0 text-muted-foreground"
-            aria-label="Not run on this machine yet"
-            data-testid={TestIds.actionUnreviewed(action.title)}
-          />
-        ) : (
-          <Play className="size-3.5 shrink-0 text-muted-foreground" />
-        )}
-        <span className="min-w-0 flex-1">
-          <span className="flex min-w-0 items-center gap-1.5">
-            <span className="block truncate text-xs font-medium">{action.title}</span>
-            {showWhere &&
-              (isLocal ? (
-                <Monitor
-                  className="size-3 shrink-0 text-muted-foreground"
-                  aria-label="Runs on this device"
-                />
-              ) : (
-                <Cloud
-                  className="size-3 shrink-0 text-muted-foreground"
-                  aria-label="Runs on this window’s machine"
-                />
-              ))}
-          </span>
-          <span className="block truncate font-mono text-2xs text-muted-foreground">
-            {action.command}
-          </span>
-        </span>
-      </button>
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="size-5 shrink-0 opacity-0 group-hover/action:opacity-100 [@media(hover:none)]:opacity-100"
-              aria-label="Action options"
-            >
-              <MoreHorizontal />
-            </Button>
-          }
+    <div
+      className="flex flex-col gap-1.5 px-1 pt-2"
+      data-testid={TestIds.actionsEnvironment(scope.environmentId)}
+    >
+      <span className="px-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
+        {scope.environmentName}
+      </span>
+      {actions.map((action, index) => (
+        <ActionRow
+          key={action.id}
+          action={action}
+          readOnly
+          onEdit={() => undefined}
+          onRun={() => undefined}
+          showWhere={false}
+          isFirst={index === 0}
+          isLast={index === actions.length - 1}
         />
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => onEdit(action)}>
-            <PenLine />
-            Edit
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            disabled={isFirst}
-            onClick={() => {
-              runUserAction(
-                () => move(action.id, 'up'),
-                (error) => {
-                  toastUserActionError('Move action', error)
-                },
-              )
-            }}
-          >
-            <ArrowUp />
-            Move up
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            disabled={isLast}
-            onClick={() => {
-              runUserAction(
-                () => move(action.id, 'down'),
-                (error) => {
-                  toastUserActionError('Move action', error)
-                },
-              )
-            }}
-          >
-            <ArrowDown />
-            Move down
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            variant="destructive"
-            onClick={() => {
-              runUserAction(
-                () => remove(action.id),
-                (error) => {
-                  toastUserActionError('Delete action', error)
-                },
-              )
-            }}
-          >
-            <Trash2 />
-            Delete
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      ))}
+      <p className="px-1 text-2xs text-muted-foreground">
+        Connect this window to {scope.environmentName} to run these.
+      </p>
     </div>
   )
 }
 
 /**
- * The Actions Quick Access section (Terminal tab active): the project's saved
- * commands, one click from running. The agent curates these via the porcelain
- * CLI; the human runs them. Mirrors the Comments/Board sections.
+ * The Hub's top-corner Actions menu: the selected Project's saved commands, one click
+ * from running — in a Worktree the human named. The agent curates these through the
+ * porcelain CLI; the human runs them, and nothing runs without an explicit
+ * Environment + Worktree target (#24).
  *
- * On a remote-bound window, each action can target This device instead of the
- * primary daemon — same dual-machine model as the Terminal list's + menu.
+ * When the same Project exists on more than one Environment the menu groups by
+ * Environment, so "which machine" is never a guess the reader has to make.
  */
 export function ActionsGroup(): React.JSX.Element {
-  const actions = useActions()
+  const { selected, siblings } = useActionsScopes()
+  const actions = useActions(true, selected?.projectId ?? null)
   const runAction = useActionRun()
-  const project = useProjectSelectionStore((s) => s.project)
+  const selection = useHubSelectionStore((s) => s.selection)
   const localDaemon = useLocalDaemon()
-  const canSpawnLocal = localDaemon !== undefined && !localDaemon.isLocal && project !== null
-  const mappedLocalPath = useLocalTerminalPath(project?.path ?? null)
+  const canSpawnLocal = localDaemon !== undefined && !localDaemon.isLocal && selected !== null
   const [draft, setDraft] = useState<ActionDraft | null>(null)
-  // When a local-targeted action needs the folder map first: hold the action and open
-  // the path dialog in 'run' mode; on save, run with the just-saved path. Also fed by
-  // the file finder via useActionRunStore (compose-intent).
-  const [pendingLocal, setPendingLocal] = useState<ActionView | null>(null)
+  // Held while the human answers "which checkout?" for an action with no target yet.
+  const [pendingTarget, setPendingTarget] = useState<ActionView | null>(null)
+  // When a local-targeted action needs the folder map first. Also fed by the file
+  // finder via useActionRunStore (compose-intent).
+  const [pendingLocal, setPendingLocal] = useState<{
+    action: ActionView
+    target: HubTarget
+  } | null>(null)
   // Held while the human reads a command they have not run here before.
   const [pendingTrust, setPendingTrust] = useState<ActionView | null>(null)
   const trustAction = useTrustAction()
   const [mappingMode, setMappingMode] = useState<LocalPathDialogMode | null>(null)
   const storePending = useActionRunStore((s) => s.pendingLocal)
   const clearStorePending = useActionRunStore((s) => s.clearPendingLocal)
+  const mappedLocalPath = useLocalTerminalPath(pendingLocal?.target.path ?? null)
+
+  /**
+   * The selection is a usable target only when it names a Worktree of the Project
+   * this menu is showing — selecting a sibling Project must never retarget a run.
+   */
+  const selectionTarget: HubTarget | null =
+    selection.kind === 'worktree' && selection.projectId === selected?.projectId
+      ? {
+          environmentId: selection.environmentId,
+          projectId: selection.projectId,
+          worktreeId: selection.worktreeId,
+          path: selection.path,
+        }
+      : null
 
   useEffect(() => {
     if (storePending === null) return
-    setPendingLocal(storePending)
-    setMappingMode('run')
+    if (selectionTarget === null) {
+      setPendingTarget(storePending)
+    } else {
+      setPendingLocal({ action: storePending, target: selectionTarget })
+      setMappingMode('run')
+    }
     clearStorePending()
-  }, [storePending, clearStorePending])
+  }, [storePending, clearStorePending, selectionTarget])
 
-  const spawn = (action: ActionView, localPath?: string | null): void => {
+  const spawn = (action: ActionView, target: HubTarget, localPath?: string | null): void => {
     runUserAction(
       async () => {
-        const result = await runAction(action, {
-          localPath: localPath ?? mappedLocalPath,
-        })
+        const result = await runAction(action, { target, localPath })
         if (result === 'needs-local-path') {
-          setPendingLocal(action)
+          setPendingLocal({ action, target })
           setMappingMode('run')
         }
-        // needs-trust is handled by handleRun / trust dialog before prepare.
+        if (result === 'needs-target') setPendingTarget(action)
       },
       (error) => {
         toastUserActionError('Run command', error)
@@ -229,33 +133,52 @@ export function ActionsGroup(): React.JSX.Element {
   }
 
   /**
-   * A command this machine has never accepted goes to the review step instead of
-   * a shell. Everything already accepted runs exactly as before — the gate must
-   * cost nothing on the path people use fifty times a day, or it trains them to
-   * click through it.
+   * A command this machine has never accepted goes to the review step instead of a
+   * shell; a run with no Worktree goes to the picker. Everything already accepted and
+   * targeted runs exactly as before — the gates must cost nothing on the path people
+   * use fifty times a day, or they train people to click through them.
    */
-  const handleRun = (action: ActionView, localPath?: string | null): void => {
+  const handleRun = (action: ActionView): void => {
     if (!action.trusted) {
       setPendingTrust(action)
       return
     }
-    spawn(action, localPath)
+    if (selectionTarget === null) {
+      setPendingTarget(action)
+      return
+    }
+    spawn(action, selectionTarget)
+  }
+
+  if (selected === null) {
+    return (
+      <SidebarGroup className="px-3">
+        <p
+          className="px-1 py-2 text-xs text-muted-foreground"
+          data-testid={TestIds.actionsNoProject}
+        >
+          Select a Project to see its saved commands.
+        </p>
+      </SidebarGroup>
+    )
   }
 
   return (
     <SidebarGroup className="px-3">
       <SidebarGroupLabel className="flex items-center justify-between px-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
-        Saved commands
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          className="size-5"
-          aria-label="Add action"
-          data-testid={TestIds.actionsAdd}
-          onClick={() => setDraft({ title: '', command: '', where: 'primary' })}
-        >
-          <Plus />
-        </Button>
+        {selected.projectName} · {selected.environmentName}
+        {selected.current && (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="size-5"
+            aria-label="Add action"
+            data-testid={TestIds.actionsAdd}
+            onClick={() => setDraft({ title: '', command: '', where: 'primary' })}
+          >
+            <Plus />
+          </Button>
+        )}
       </SidebarGroupLabel>
       <SidebarGroupContent className="flex flex-col gap-1.5 px-1">
         {actions.length === 0 ? (
@@ -268,6 +191,7 @@ export function ActionsGroup(): React.JSX.Element {
             <ActionRow
               key={action.id}
               action={action}
+              readOnly={!selected.current}
               onEdit={(a: ActionView): void => setDraft(draftFromAction(a))}
               onRun={handleRun}
               showWhere={canSpawnLocal}
@@ -277,6 +201,27 @@ export function ActionsGroup(): React.JSX.Element {
           ))
         )}
       </SidebarGroupContent>
+      {siblings.map((scope) => (
+        <SiblingEnvironment key={scope.environmentId} scope={scope} />
+      ))}
+      <ActionTargetPicker
+        open={pendingTarget !== null}
+        actionTitle={pendingTarget?.title ?? ''}
+        environmentName={selected.environmentName}
+        worktrees={selected.worktrees}
+        onCancel={() => setPendingTarget(null)}
+        onPick={(worktree) => {
+          const action = pendingTarget
+          setPendingTarget(null)
+          if (action === null) return
+          spawn(action, {
+            environmentId: selected.environmentId,
+            projectId: selected.projectId,
+            worktreeId: worktree.id,
+            path: worktree.path,
+          })
+        }}
+      />
       <ActionTrustDialog
         action={pendingTrust}
         onCancel={() => setPendingTrust(null)}
@@ -285,8 +230,10 @@ export function ActionsGroup(): React.JSX.Element {
           runUserAction(
             async () => {
               await trustAction(action.id)
-              // List refetch is async; prepare requires trusted — pass explicit true.
-              spawn({ ...action, trusted: true })
+              // List refetch is async; the run path requires trusted — pass explicit true.
+              const trusted = { ...action, trusted: true }
+              if (selectionTarget === null) setPendingTarget(trusted)
+              else spawn(trusted, selectionTarget)
             },
             (error) => {
               toastUserActionError('Accept command', error)
@@ -302,17 +249,17 @@ export function ActionsGroup(): React.JSX.Element {
           if (!open) setDraft(null)
         }}
       />
-      {mappingMode && project && pendingLocal && (
+      {mappingMode && pendingLocal && (
         <LocalPathDialog
-          key={`run:${pendingLocal.id}`}
-          repoPath={project.path}
+          key={`run:${pendingLocal.action.id}`}
+          repoPath={pendingLocal.target.path}
           initialPath={mappedLocalPath ?? null}
           mode={mappingMode}
           onSaved={(localPath: string): void => {
-            const action = pendingLocal
+            const pending = pendingLocal
             setPendingLocal(null)
             setMappingMode(null)
-            spawn(action, localPath)
+            spawn(pending.action, pending.target, localPath)
           }}
           onClose={() => {
             setPendingLocal(null)

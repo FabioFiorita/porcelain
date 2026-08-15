@@ -19,17 +19,17 @@ describe('Actions change notifications', () => {
     )
   })
 
-  it('rejects actions.changed without projectPath', () => {
-    const { projectPath: _dropped, ...withoutProject } =
+  it('rejects actions.changed without projectId', () => {
+    const { projectId: _dropped, ...withoutProject } =
       actionsNotificationFixtures['actions.changed']
     expect(actionsChangeSchema.safeParse(withoutProject).success).toBe(false)
   })
 
-  it('rejects actions.changed with an empty projectPath', () => {
+  it('rejects actions.changed with an empty projectId', () => {
     expect(
       actionsChangeSchema.safeParse({
         ...actionsNotificationFixtures['actions.changed'],
-        projectPath: '',
+        projectId: '',
       }).success,
     ).toBe(false)
   })
@@ -45,7 +45,7 @@ describe('Actions change notifications', () => {
 
   it('rejects a generic changed kind', () => {
     expect(
-      actionsChangeSchema.safeParse({ kind: 'changed', projectPath: '/synthetic/repo' }).success,
+      actionsChangeSchema.safeParse({ kind: 'changed', projectId: 'proj-alpha' }).success,
     ).toBe(false)
   })
 })

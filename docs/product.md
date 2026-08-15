@@ -33,7 +33,8 @@ through the CLI. Do not rebuild an in-app agent runner.
 - **The Review** — Intent · Process · Execution · Evidence canvas for one unit of work; agent-authored via
   porcelain CLI. Board is the queue; Review is the active story.
 - **Explore a flow** — read-only comprehension of existing code (symbol or file seed).
-- **Review comments / board / notes / actions** — companion surfaces; human runs Actions.
+- **Review comments / board / notes / actions** — companion surfaces; the human runs Actions, always
+  against an explicit Environment + Worktree.
 - **Terminal** — real PTY next to review; remote-bound windows can also shell on This device.
 - **Remote / environments** — one daemon, many clients; per-device credentials; LAN / Tailscale /
   opt-in Funnel.
@@ -47,9 +48,10 @@ through the CLI. Do not rebuild an in-app agent runner.
   Public copy sells Porcelain's surfaces, not transport debates or third-party brand lists.
 - **Connected, not siloed** — one home per concern (Changes, Review, Files, Board, Terminal);
   previews hand off, never second Diff/commit UXes.
-- **Local by default** — machine secrets on the daemon host under `~/.porcelain/`; project
-  companion data (reviews, board, scope, actions, …) lives in `<repo>/.porcelain/` and is
-  shareable via git when you choose to track it. No Porcelain cloud for your code, no telemetry.
+- **Local by default** — machine secrets and default Project data (Canvases, Actions, assets) live
+  on the daemon host under `~/.porcelain/`, keyed by a stable Project id (ADR 0002), so opening a
+  repository adds nothing to its working tree. A repo-local `.porcelain/` is an explicit git
+  promotion, not the default database. No Porcelain cloud for your code, no telemetry.
 
 Open this file when designing features, prioritizing, or writing public identity copy. Day-to-day
 implementation does not need it if root `AGENTS.md` is enough.

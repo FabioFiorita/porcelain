@@ -17,19 +17,26 @@ const localAction = {
   trusted: false,
 } as const
 
+const runTarget = {
+  environmentId: 'env-local',
+  projectId: 'proj-alpha',
+  worktreeId: 'wt-alpha-main',
+  path: '/synthetic/projects/alpha',
+} as const
+
 /** Representative Actions wire values used by boundary tests and client mocks. */
 export const actionsContractFixtures = {
   actions: {
-    input: '/synthetic/repo',
+    input: { projectId: 'proj-alpha' },
     output: [primaryAction, localAction],
   },
   trustActions: {
-    input: { repoPath: '/synthetic/repo', ids: ['action-serve'] },
+    input: { projectId: 'proj-alpha', ids: ['action-serve'] },
     output: undefined,
   },
   addAction: {
     input: {
-      repoPath: '/synthetic/repo',
+      projectId: 'proj-alpha',
       title: 'Run checks',
       command: 'make check',
       where: 'local',
@@ -45,7 +52,7 @@ export const actionsContractFixtures = {
   },
   updateAction: {
     input: {
-      repoPath: '/synthetic/repo',
+      projectId: 'proj-alpha',
       id: 'action-build',
       title: 'Build everything',
       command: 'make build-all',
@@ -54,11 +61,21 @@ export const actionsContractFixtures = {
     output: undefined,
   },
   moveAction: {
-    input: { repoPath: '/synthetic/repo', id: 'action-serve', direction: 'up' },
+    input: { projectId: 'proj-alpha', id: 'action-serve', direction: 'up' },
     output: undefined,
   },
   deleteAction: {
-    input: { repoPath: '/synthetic/repo', id: 'action-serve' },
+    input: { projectId: 'proj-alpha', id: 'action-serve' },
     output: undefined,
+  },
+  prepareActionRun: {
+    input: { actionId: 'action-build', target: runTarget },
+    output: {
+      id: 'action-build',
+      title: 'Build',
+      command: 'make build',
+      where: 'primary',
+      cwd: '/synthetic/projects/alpha',
+    },
   },
 } as const

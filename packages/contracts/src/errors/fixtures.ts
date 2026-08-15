@@ -105,6 +105,14 @@ export const publicErrorFixtures = {
     requestId: '00000000-0000-4000-8000-000000000020',
     details: { actionId: 'action-synthetic-001' },
   },
+  'actions.target-invalid': {
+    code: 'actions.target-invalid',
+    category: 'conflict',
+    message: 'The action run target is not a Worktree of this Project.',
+    retryable: false,
+    requestId: '00000000-0000-4000-8000-000000000041',
+    details: { actionId: 'action-synthetic-001' },
+  },
   'review.unavailable': {
     code: 'review.unavailable',
     category: 'unavailable',

@@ -1,5 +1,5 @@
 import { mkdir, open, readFile, rename, stat, unlink } from 'node:fs/promises'
-import { dirname, isAbsolute, join } from 'node:path'
+import { dirname, join } from 'node:path'
 import {
   ACTIONS_FILE_MAX_BYTES,
   ActionsFileParseError,
@@ -8,9 +8,7 @@ import {
   parseActionsFileV1,
   serializeActionsFileV1,
 } from '@porcelain/shared/actions-file'
-import { PROJECT_FILES, projectPorcelainPath } from '@shared/project-porcelain'
-import { watchProjectCompanion } from '../../review/review-watch'
-import { ensureProjectDataRoot } from '../project-data'
+import { projectActionsPath } from '@shared/project-store'
 import type { ActionsStore, ActionsStoreResult, ActionsTransactResult } from './actions-ports'
 
 export { ACTIONS_FILE_MAX_BYTES }
@@ -25,8 +23,8 @@ function isEnoent(error: unknown): boolean {
   return isNodeError(error) && error.code === 'ENOENT'
 }
 
-function actionsFilePath(projectPath: string): string {
-  return projectPorcelainPath(projectPath, PROJECT_FILES.actions)
+function isBlank(value: string): boolean {
+  return value.trim() === ''
 }
 
 function corruptTimestamp(): string {
@@ -51,12 +49,6 @@ async function moveToCorruptBackup(sourcePath: string): Promise<string> {
   }
 }
 
-async function ensureProjectRoot(projectPath: string): Promise<void> {
-  const root = await ensureProjectDataRoot(projectPath)
-  if (!root.ok) throw new Error(`project-data: ${root.error.code}`)
-  watchProjectCompanion(projectPath)
-}
-
 async function fsyncPath(targetPath: string): Promise<void> {
   const handle = await open(targetPath, 'r')
   try {
@@ -67,18 +59,26 @@ async function fsyncPath(targetPath: string): Promise<void> {
 }
 
 /**
- * JSON Actions store: one strict v1 document per project path, serialized read-modify-write,
- * atomic temp+rename, corruption backup, size bound. Does not call home migration.
+ * JSON Actions store: one strict v1 document per Project, at
+ * `<homeDir>/projects/<projectId>/actions.json` (ADR 0002). Serialized
+ * read-modify-write, atomic temp+rename, corruption backup, size bound.
+ *
+ * The document is daemon-owned, not repo-local: it must survive `git worktree remove`
+ * of the checkout an agent authored it from, and opening a repository must never add
+ * application state to someone's working tree.
  */
-export function createJsonActionsStore(options: { maxBytes?: number } = {}): ActionsStore {
+export function createJsonActionsStore(options: {
+  homeDir: string
+  maxBytes?: number
+}): ActionsStore {
   const maxBytes = options.maxBytes ?? ACTIONS_FILE_MAX_BYTES
   const chains = new Map<string, Promise<void>>()
 
-  async function readDocument(projectPath: string): Promise<ActionsStoreResult<ActionsFileV1>> {
-    if (!isAbsolute(projectPath)) {
+  async function readDocument(projectId: string): Promise<ActionsStoreResult<ActionsFileV1>> {
+    if (isBlank(projectId)) {
       return { ok: false, error: { code: 'actions.unavailable' } }
     }
-    const path = actionsFilePath(projectPath)
+    const path = projectActionsPath(options.homeDir, projectId)
 
     let fileStat: Awaited<ReturnType<typeof stat>>
     try {
@@ -132,15 +132,14 @@ export function createJsonActionsStore(options: { maxBytes?: number } = {}): Act
   }
 
   async function writeDocument(
-    projectPath: string,
+    projectId: string,
     file: ActionsFileV1,
   ): Promise<ActionsStoreResult<void>> {
-    if (!isAbsolute(projectPath)) {
+    if (isBlank(projectId)) {
       return { ok: false, error: { code: 'actions.unavailable' } }
     }
     try {
-      await ensureProjectRoot(projectPath)
-      const path = actionsFilePath(projectPath)
+      const path = projectActionsPath(options.homeDir, projectId)
       const parent = dirname(path)
       await mkdir(parent, { recursive: true })
       tempNameCounter += 1
@@ -163,29 +162,29 @@ export function createJsonActionsStore(options: { maxBytes?: number } = {}): Act
     }
   }
 
-  function serialize(projectPath: string, run: () => Promise<void>): Promise<void> {
-    const prev = chains.get(projectPath) ?? Promise.resolve()
+  function serialize(projectId: string, run: () => Promise<void>): Promise<void> {
+    const prev = chains.get(projectId) ?? Promise.resolve()
     const next = prev.then(run, run)
     chains.set(
-      projectPath,
+      projectId,
       Promise.allSettled([next]).then(() => undefined),
     )
     return next
   }
 
   return {
-    read(projectPath) {
-      return readDocument(projectPath)
+    read(projectId) {
+      return readDocument(projectId)
     },
 
-    async transact(projectPath, change) {
+    async transact(projectId, change) {
       let outcome: ActionsTransactResult = {
         ok: false,
         error: { code: 'actions.unavailable' },
       }
 
-      await serialize(projectPath, async () => {
-        const current = await readDocument(projectPath)
+      await serialize(projectId, async () => {
+        const current = await readDocument(projectId)
         if (!current.ok) {
           outcome = current
           return
@@ -197,7 +196,7 @@ export function createJsonActionsStore(options: { maxBytes?: number } = {}): Act
           return
         }
 
-        const written = await writeDocument(projectPath, planned.value.file)
+        const written = await writeDocument(projectId, planned.value.file)
         if (!written.ok) {
           outcome = written
           return

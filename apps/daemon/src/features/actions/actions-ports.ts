@@ -7,6 +7,9 @@ export type ActionsNotFoundError = { code: 'actions.not-found'; actionId: string
 
 export type ActionsUntrustedError = { code: 'actions.untrusted'; actionId: string }
 
+/** The caller named a checkout this Project does not own — refuse, never re-aim. */
+export type ActionsTargetInvalidError = { code: 'actions.target-invalid'; actionId: string }
+
 export type ActionsRequestInvalidError = { code: 'request.invalid' }
 
 export type ActionsStoreResult<T> =
@@ -35,18 +38,44 @@ export type ActionsTransactResult =
       error: ActionsUnavailableError | ActionsNotFoundError | ActionsRequestInvalidError
     }
 
+/** Storage for one Project's saved commands, keyed by the stable Project id (ADR 0002). */
 export type ActionsStore = {
-  read(projectPath: string): Promise<ActionsStoreResult<ActionsFileV1>>
+  read(projectId: string): Promise<ActionsStoreResult<ActionsFileV1>>
   transact(
-    projectPath: string,
+    projectId: string,
     change: (current: ActionsFileV1) => ActionsChangeResult,
   ): Promise<ActionsTransactResult>
 }
 
-/** Machine-local trust. Keys are absolute project paths. */
+/**
+ * Where a Project's Actions come from.
+ *
+ * Only `private` exists today: the daemon-root Project store, which is also the only
+ * writable source. #26 layers a second, read-only `tracked` source over a promoted
+ * repo-local `.porcelain/actions.json`. Listing already walks the source list in order
+ * and lets the first source that claims an id win, so adding that source is a
+ * composition change rather than a reshaping of the read path.
+ */
+export type ActionsSourceKind = 'private'
+
+export type ActionsSource = {
+  readonly kind: ActionsSourceKind
+  readonly store: ActionsStore
+}
+
+/** Machine-local trust. Keys are stable Project ids. */
 export type ActionTrustStore = {
-  readFingerprints(projectPath: string): Promise<ActionsStoreResult<ReadonlySet<string>>>
-  trustCommands(projectPath: string, commands: readonly string[]): Promise<ActionsStoreResult<void>>
+  readFingerprints(projectId: string): Promise<ActionsStoreResult<ReadonlySet<string>>>
+  trustCommands(projectId: string, commands: readonly string[]): Promise<ActionsStoreResult<void>>
+}
+
+/**
+ * The narrow Projects capability Actions needs: which checkouts this Environment's
+ * daemon currently knows for one Project. Actions never discovers Worktrees itself —
+ * the Projects domain owns that truth, and a run target is checked against it.
+ */
+export type ActionsProjects = {
+  listWorktreePaths(projectId: string): Promise<ActionsStoreResult<readonly string[]>>
 }
 
 export type ActionsClock = { now(): number }
@@ -54,7 +83,7 @@ export type ActionsIds = { create(): string }
 
 /** Domain-facing change fact. The publisher maps `type` onto the RT-001 `kind` wire. */
 export type ActionsChanges = {
-  publish(change: { type: 'actions.changed'; projectPath: string }): void
+  publish(change: { type: 'actions.changed'; projectId: string }): void
 }
 
 export type ActionsOperationResult<T> =
@@ -65,6 +94,7 @@ export type ActionsOperationResult<T> =
         | ActionsUnavailableError
         | ActionsNotFoundError
         | ActionsUntrustedError
+        | ActionsTargetInvalidError
         | ActionsRequestInvalidError
     }
 

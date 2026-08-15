@@ -1,41 +1,53 @@
 import { prepareActionRun } from '@porcelain/client-runtime/actions'
+import type { HubTarget } from '@porcelain/client-runtime/projects'
 import type { ActionView } from '@porcelain/contracts/actions'
 import { spawnLocalTerminal } from '@renderer/lib/terminal-actions'
-import { useProjectSelectionStore } from '@renderer/stores/project-selection'
+import { trpc } from '@renderer/lib/trpc'
+import { currentHubTarget } from '@renderer/stores/hub-selection'
 import { useTerminalsStore } from '@renderer/stores/terminals'
 
 /**
- * Prepare → Terminal create (ACT-003).
+ * Authorize → Terminal create (ACT-003).
  *
- * Uses real ACT-002 `prepareActionRun` then exactly one platform create with
- * prepared `name` / `cwd` / `initialInput`. Never `terminal:write` for the command.
+ * The run target is explicit: Environment + Project + Worktree + checkout path. Nothing
+ * here infers it — a caller that has no Worktree selected gets `'needs-target'` back and
+ * must ask the human which checkout to run in (#24). The daemon re-checks the target,
+ * the Action, and machine trust before it hands back a command; this adapter only turns
+ * that authorization into exactly one terminal create.
  */
 
-export type RunActionResult = 'ran' | 'needs-local-path' | 'needs-trust'
+export type RunActionResult = 'ran' | 'needs-local-path' | 'needs-trust' | 'needs-target'
 
-/**
- * Run a saved action: prepare, then create a new terminal (always a new session).
- * No project → silent `'ran'` (current guard). Terminal create failures reject to the caller.
- */
+export type RunActionOptions = {
+  /** Explicit run target; defaults to the current Hub Worktree selection. */
+  target?: HubTarget | null
+  localPath?: string | null
+}
+
+/** Run a saved action against an explicit target (always a new terminal session). */
 export function useActionRun(): (
   action: ActionView,
-  opts?: { localPath?: string | null },
+  opts?: RunActionOptions,
 ) => Promise<RunActionResult> {
-  return async (
-    action: ActionView,
-    opts?: { localPath?: string | null },
-  ): Promise<RunActionResult> => {
-    const project = useProjectSelectionStore.getState().project
-    if (!project) return 'ran'
+  const client = trpc.useUtils().client
 
-    const prepared = prepareActionRun(action, {
-      projectPath: project.path,
-      localPath: opts?.localPath,
+  return async (action: ActionView, opts?: RunActionOptions): Promise<RunActionResult> => {
+    const target = opts?.target === undefined ? currentHubTarget() : opts.target
+    if (target === null) return 'needs-target'
+    if (!action.trusted) return 'needs-trust'
+
+    const authorized = await client.prepareActionRun.mutate({
+      actionId: action.id,
+      target: {
+        environmentId: target.environmentId,
+        projectId: target.projectId,
+        worktreeId: target.worktreeId,
+        path: target.path,
+      },
     })
-    if (!prepared.ok) {
-      if (prepared.error.code === 'actions.untrusted') return 'needs-trust'
-      return 'needs-local-path'
-    }
+
+    const prepared = prepareActionRun(authorized, { localPath: opts?.localPath })
+    if (!prepared.ok) return 'needs-local-path'
 
     const { where, cwd, name, initialInput } = prepared.value
     if (where === 'local') {

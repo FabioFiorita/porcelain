@@ -27,10 +27,23 @@ import {
  */
 
 const PROJECT = '/synthetic/repo'
+const PROJECT_ID = 'proj-alpha'
 const EPOCH = 'synthetic-epoch'
 
 function readyFrame(epoch = EPOCH) {
   return { t: 'session:ready', protocolVersion: PROTOCOL_VERSION, epoch }
+}
+
+/**
+ * Build one domain change. Actions changes carry the stable Project id rather than a
+ * checkout path — one Project owns many Worktrees, so a path could not name it (#24).
+ */
+function sessionChange(kind: SessionChange['kind'], projectPath: string): SessionChange {
+  if (kind === 'actions.changed') return { kind, projectId: PROJECT_ID }
+  if (kind === 'files.tree-changed' || kind === 'files.content-changed') {
+    return { kind, projectPath, paths: [`${projectPath}/src`] }
+  }
+  return { kind, projectPath }
 }
 
 function changeFrame({
@@ -44,11 +57,7 @@ function changeFrame({
   kind?: SessionChange['kind']
   projectPath?: string
 }): unknown {
-  const change: SessionChange =
-    kind === 'files.tree-changed' || kind === 'files.content-changed'
-      ? { kind, projectPath, paths: [`${projectPath}/src`] }
-      : { kind, projectPath }
-  return { t: 'session:change', epoch, sequence, change }
+  return { t: 'session:change', epoch, sequence, change: sessionChange(kind, projectPath) }
 }
 
 type ProtocolHarness = {
@@ -264,14 +273,17 @@ describe('Session native lifecycle — mobile binding', () => {
         t: 'session:change',
         epoch: EPOCH,
         sequence: 5,
-        change: { kind: 'actions.changed', projectPath: PROJECT },
+        change: { kind: 'actions.changed', projectId: PROJECT_ID },
       }),
     )
 
-    expect(changes.map((change) => change.kind)).toEqual(['board.changed', 'actions.changed'])
-    expect(requirements).toEqual([
-      { reason: 'sequence-gap', scope: { kind: 'project', projectPath: PROJECT } },
+    expect(changes).toEqual([
+      { kind: 'board.changed', projectPath: PROJECT },
+      { kind: 'actions.changed', projectId: PROJECT_ID },
     ])
+    // The gap surfaced on a Project-scoped Actions change, which names no checkout — so the
+    // requirement widens to the whole session instead of guessing a path (#24).
+    expect(requirements).toEqual([{ reason: 'sequence-gap', scope: { kind: 'session' } }])
     expect(sent[0]).toContain('session:hello')
     stop()
   })

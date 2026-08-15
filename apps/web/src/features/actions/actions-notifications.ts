@@ -54,7 +54,7 @@ export function useActionsNotificationSubscription(): void {
     return primary.onChange((change) => {
       if (change.kind !== 'actions.changed') return
       applyActionsNotification(
-        { kind: 'actions.changed', projectPath: change.projectPath },
+        { kind: 'actions.changed', projectId: change.projectId },
         { queryClient, daemon: daemonScope },
       )
     })
@@ -64,11 +64,11 @@ export function useActionsNotificationSubscription(): void {
 /** @internal — expose collapse helper for tests that assert key shape. */
 export function actionsNotificationListKey(
   daemon: DaemonScope,
-  projectPath: string,
+  projectId: string,
 ): ReturnType<typeof actionsCacheKeyForIdentity> {
   return actionsCacheKeyForIdentity(daemon, {
     domain: 'actions',
     name: 'list',
-    projectPath,
+    projectId,
   })
 }

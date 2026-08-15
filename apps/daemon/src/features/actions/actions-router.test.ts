@@ -10,7 +10,13 @@ import { createActionsRouter } from './actions-router'
 const REQUEST_ID = '00000000-0000-4000-8000-000000000018'
 const PUBLIC_CONTEXT = { auth: { kind: 'admin' as const }, requestId: REQUEST_ID }
 const ID = 'action-a'
-const REPO = '/synthetic/repo'
+const PROJECT = 'proj-alpha'
+const TARGET = {
+  environmentId: 'env-local',
+  projectId: PROJECT,
+  worktreeId: 'wt-alpha-main',
+  path: '/synthetic/projects/alpha',
+} as const
 
 function expectPublicCode(error: unknown, code: string, unexpected: boolean) {
   const normalized = normalizePublicError(error, REQUEST_ID)
@@ -64,7 +70,9 @@ describe('actions feature router', () => {
       }),
     )
 
-    await expect(router.createCaller(PUBLIC_CONTEXT).actions(REPO)).resolves.toEqual([
+    await expect(
+      router.createCaller(PUBLIC_CONTEXT).actions({ projectId: PROJECT }),
+    ).resolves.toEqual([
       {
         id: ID,
         title: 'Ship',
@@ -74,7 +82,7 @@ describe('actions feature router', () => {
         trusted: true,
       },
     ])
-    expect(calls).toEqual([{ projectPath: REPO }])
+    expect(calls).toEqual([{ projectId: PROJECT }])
   })
 
   it('maps addAction and returns the stored action without trusted', async () => {
@@ -99,7 +107,7 @@ describe('actions feature router', () => {
 
     await expect(
       router.createCaller(PUBLIC_CONTEXT).addAction({
-        repoPath: REPO,
+        projectId: PROJECT,
         title: 'Ship',
         command: 'make ship',
         where: 'local',
@@ -107,7 +115,7 @@ describe('actions feature router', () => {
     ).resolves.toMatchObject({ id: ID, title: 'Ship', command: 'make ship' })
     expect(calls).toEqual([
       {
-        projectPath: REPO,
+        projectId: PROJECT,
         title: 'Ship',
         command: 'make ship',
         where: 'local',
@@ -129,16 +137,16 @@ describe('actions feature router', () => {
     )
     const caller = router.createCaller(PUBLIC_CONTEXT)
 
-    await expect(caller.trustActions({ repoPath: REPO, ids: [ID] })).resolves.toBeUndefined()
+    await expect(caller.trustActions({ projectId: PROJECT, ids: [ID] })).resolves.toBeUndefined()
     expectPublicCode(
-      await rejected(() => caller.updateAction({ repoPath: REPO, id: ID, title: 'x' })),
+      await rejected(() => caller.updateAction({ projectId: PROJECT, id: ID, title: 'x' })),
       'actions.not-found',
       false,
     )
     await expect(
-      caller.moveAction({ repoPath: REPO, id: ID, direction: 'up' }),
+      caller.moveAction({ projectId: PROJECT, id: ID, direction: 'up' }),
     ).resolves.toBeUndefined()
-    await expect(caller.deleteAction({ repoPath: REPO, id: ID })).resolves.toBeUndefined()
+    await expect(caller.deleteAction({ projectId: PROJECT, id: ID })).resolves.toBeUndefined()
   })
 
   it('surfaces actions.unavailable and request.invalid', async () => {
@@ -150,7 +158,7 @@ describe('actions feature router', () => {
     expectPublicCode(
       await rejected(() =>
         routerUnavailable.createCaller(PUBLIC_CONTEXT).addAction({
-          repoPath: REPO,
+          projectId: PROJECT,
           title: 'x',
           command: 'y',
         }),
@@ -167,7 +175,7 @@ describe('actions feature router', () => {
     expectPublicCode(
       await rejected(() =>
         routerInvalid.createCaller(PUBLIC_CONTEXT).addAction({
-          repoPath: REPO,
+          projectId: PROJECT,
           title: 'y',
           command: 'z',
         }),
@@ -193,7 +201,7 @@ describe('actions feature router', () => {
         path: 'addAction',
         type: 'mutation',
         ctx: PUBLIC_CONTEXT,
-        getRawInput: async () => ({ repoPath: REPO, title: '', command: 'make' }),
+        getRawInput: async () => ({ projectId: PROJECT, title: '', command: 'make' }),
         signal: undefined,
         batchIndex: 0,
       }),
@@ -210,11 +218,89 @@ describe('actions feature router', () => {
         },
       }),
     )
-    const error = await rejected(() => router.createCaller(PUBLIC_CONTEXT).actions(REPO))
+    const error = await rejected(() =>
+      router.createCaller(PUBLIC_CONTEXT).actions({ projectId: PROJECT }),
+    )
     const normalized = normalizePublicError(error, REQUEST_ID)
     expect(normalized.unexpected).toBe(true)
     expect(publicErrorSchema.parse(normalized.error).code).toBe('internal.unexpected')
     expect(JSON.stringify(normalized.error)).not.toContain('/home/user/secret')
+  })
+
+  it('binds prepareActionRun to the operation and passes the explicit target through', async () => {
+    const calls: unknown[] = []
+    const router = createActionsRouter(
+      unavailableOps({
+        prepareActionRun: async (input) => {
+          calls.push(input)
+          return {
+            ok: true,
+            value: {
+              id: ID,
+              title: 'Ship',
+              command: 'make ship',
+              where: 'primary',
+              cwd: TARGET.path,
+            },
+          }
+        },
+      }),
+    )
+
+    await expect(
+      router.createCaller(PUBLIC_CONTEXT).prepareActionRun({ actionId: ID, target: TARGET }),
+    ).resolves.toEqual({
+      id: ID,
+      title: 'Ship',
+      command: 'make ship',
+      where: 'primary',
+      cwd: TARGET.path,
+    })
+    expect(calls).toEqual([{ actionId: ID, target: TARGET }])
+  })
+
+  it('maps a refused run target onto the public actions.target-invalid error', async () => {
+    const router = createActionsRouter(
+      unavailableOps({
+        prepareActionRun: async () => ({
+          ok: false,
+          error: { code: 'actions.target-invalid', actionId: ID },
+        }),
+      }),
+    )
+    expectPublicCode(
+      await rejected(() =>
+        router.createCaller(PUBLIC_CONTEXT).prepareActionRun({ actionId: ID, target: TARGET }),
+      ),
+      'actions.target-invalid',
+      false,
+    )
+  })
+
+  it('rejects a run whose target is missing a coordinate before the operation runs', async () => {
+    let called = false
+    const router = createActionsRouter(
+      unavailableOps({
+        prepareActionRun: async () => {
+          called = true
+          return { ok: false, error: { code: 'actions.unavailable' } }
+        },
+      }),
+    )
+    const { worktreeId: _dropped, ...partialTarget } = TARGET
+    const error = await rejected(() =>
+      callTRPCProcedure({
+        router,
+        path: 'prepareActionRun',
+        type: 'mutation',
+        ctx: PUBLIC_CONTEXT,
+        getRawInput: async () => ({ actionId: ID, target: partialTarget }),
+        signal: undefined,
+        batchIndex: 0,
+      }),
+    )
+    expectPublicCode(error, 'request.invalid', false)
+    expect(called).toBe(false)
   })
 
   it('keeps expectedFailure helper available for correlation fixtures', () => {

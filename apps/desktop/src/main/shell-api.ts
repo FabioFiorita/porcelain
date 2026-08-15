@@ -30,6 +30,7 @@ import {
   withEndpoint,
   withoutEndpoint,
 } from './remote-daemon'
+import { readProjectActions } from './shell-actions'
 import { probeEnvironment, readEnvironmentStatuses } from './shell-environments'
 import { readHubInventories } from './shell-hub-inventory'
 import { SKILLS_VERSION, skillsInstallCommand, skillsUpgradeCommand } from './skills-assets'
@@ -394,6 +395,11 @@ export const shellRouter = t.router({
   ),
 
   environmentStatuses: t.procedure.query(() => readEnvironmentStatuses()),
+
+  /** One Project's saved commands on any connected Environment (read-only fan-out). */
+  projectActions: t.procedure
+    .input(z.object({ groupId: z.string().nullable(), projectId: z.string().min(1) }))
+    .query(({ input }) => readProjectActions(input)),
 
   /** Live Hub inventory across This device and every saved Environment. */
   hubInventories: t.procedure.query(({ ctx }) =>

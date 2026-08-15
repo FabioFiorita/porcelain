@@ -49,7 +49,7 @@ parens is the **entry point**; read it for mechanics.
 | History | Suggested · Commands · File timeline (`gitFileLog --follow`) |
 | Review | **Current review · Previous reviews** (`review-group.tsx`; always rendered, empty note when there are none) · Comments — archive the active unit; restore or trash archives under `.porcelain/reviews/` |
 | Board | Focus — full detail of the selected card; card status shows inside the card, not a Board-tab-only affordance. Selection is client-only, **not** a second kanban |
-| Terminal | Saved commands — the "Actions" feature (`.porcelain/actions.json`, see Cross-cutting below) surfaced under this section label |
+| Terminal | Saved commands — the "Actions" feature (see Cross-cutting below), reachable from the Hub's top-corner Actions menu |
 | Search | Recent searches |
 
 Suggested/Commands render only on Changes and History — Review does not get them (it gets Current/Previous review instead).
@@ -70,7 +70,7 @@ Mobile mirrors General · Data · Review · Environments.
 | Review comments | The reviewer's line/file notes (`.porcelain/comments.json`), app→agent via the CLI |
 | Reviewed marks | Per-file "reviewed" checkboxes (`.porcelain/reviewed.json`), app→agent, read-only like notes |
 | Project board | Per-repo todo/doing/done (`.porcelain/board.json`), two-way via the CLI; share via git |
-| Actions | Saved named commands (`.porcelain/actions.json`); agent curates, **human runs** |
-| Project companion | Repo-local `.porcelain/` (board, actions, scope, layers, notes, reviews) — the third "companion": distinct from the right-panel **Companion** and the Settings **Companion** tab above. Machine secrets stay in `~/.porcelain` / `PORCELAIN_HOME` |
+| Actions | Saved named commands, stored per Project in the owning daemon (`$PORCELAIN_HOME/projects/<projectId>/actions.json`, ADR 0002); agent curates, **human runs** against an explicit Environment + Worktree |
+| Project companion | Repo-local `.porcelain/` (board, scope, layers, notes, reviews) — the third "companion": distinct from the right-panel **Companion** and the Settings **Companion** tab above. Machine secrets stay in `~/.porcelain` / `PORCELAIN_HOME` |
 | Daemon | The headless Electron-free backend (`apps/daemon/src/server.ts`) the web client reaches over HTTP + one WS; the shell spawns and babysits it (`apps/desktop/src/main/daemon.ts`). "The daemon" always resolves here |
 | Surface language | The opaque design: raised = cards, recessed = wells, hover/selected = `bg-accent`/`bg-accent/50`. Menus are the one translucent exception. ONE design serves Electron and the browser alike |

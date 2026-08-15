@@ -88,7 +88,7 @@ describe('Session change invalidation mapping', () => {
 
   it('leaves board.changed and actions.changed to their feature adapters', async () => {
     expect(await invalidatedBy({ kind: 'board.changed', projectPath: PROJECT })).toEqual([])
-    expect(await invalidatedBy({ kind: 'actions.changed', projectPath: PROJECT })).toEqual([])
+    expect(await invalidatedBy({ kind: 'actions.changed', projectId: 'proj-alpha' })).toEqual([])
   })
 })
 

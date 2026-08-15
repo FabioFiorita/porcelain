@@ -4,7 +4,6 @@ Porcelain stores **project companion data** in the repo:
 
 ```text
 <repo>/.porcelain/
-  actions.json         # shared by default
   scope.json           # shared by default
   layers.json          # shared by default
   board.json           # local by default
@@ -15,6 +14,9 @@ Porcelain stores **project companion data** in the repo:
   reviews/<id>/        # archived units; local until published
   .gitignore
 ```
+
+Saved **actions** are not here: they belong to the Project record in the owning daemon
+(`$PORCELAIN_HOME/projects/<projectId>/actions.json`, ADR 0002) so they outlive any one checkout.
 
 Machine secrets (daemon token, remotes, UI prefs) stay under `~/.porcelain` (or
 `PORCELAIN_HOME` for the dev stack). They are never copied into the work tree. Setting up the

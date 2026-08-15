@@ -38,8 +38,8 @@ export type ActionsMutationDefinition<TName extends ActionsMutationProcedureName
   readonly requiresAuthoritativeRefetch: true
 }
 
-function dualIdentities(repoPath: string): readonly [ActionsQuery, ActionTrustQuery] {
-  const key = actionsProjectKey(repoPath)
+function dualIdentities(projectId: string): readonly [ActionsQuery, ActionTrustQuery] {
+  const key = actionsProjectKey(projectId)
   return [actionsQuery(key), actionTrustQuery(key)]
 }
 
@@ -48,35 +48,35 @@ export const actionsMutations = {
     procedure: actionsProcedures.trustActions,
     procedureName: 'trustActions',
     affectedQueries: (input: TrustActionsInput): readonly [ActionsQuery, ActionTrustQuery] =>
-      dualIdentities(input.repoPath),
+      dualIdentities(input.projectId),
     requiresAuthoritativeRefetch: true,
   },
   add: {
     procedure: actionsProcedures.addAction,
     procedureName: 'addAction',
     affectedQueries: (input: AddActionInput): readonly [ActionsQuery, ActionTrustQuery] =>
-      dualIdentities(input.repoPath),
+      dualIdentities(input.projectId),
     requiresAuthoritativeRefetch: true,
   },
   update: {
     procedure: actionsProcedures.updateAction,
     procedureName: 'updateAction',
     affectedQueries: (input: UpdateActionInput): readonly [ActionsQuery, ActionTrustQuery] =>
-      dualIdentities(input.repoPath),
+      dualIdentities(input.projectId),
     requiresAuthoritativeRefetch: true,
   },
   move: {
     procedure: actionsProcedures.moveAction,
     procedureName: 'moveAction',
     affectedQueries: (input: MoveActionInput): readonly [ActionsQuery, ActionTrustQuery] =>
-      dualIdentities(input.repoPath),
+      dualIdentities(input.projectId),
     requiresAuthoritativeRefetch: true,
   },
   delete: {
     procedure: actionsProcedures.deleteAction,
     procedureName: 'deleteAction',
     affectedQueries: (input: DeleteActionInput): readonly [ActionsQuery, ActionTrustQuery] =>
-      dualIdentities(input.repoPath),
+      dualIdentities(input.projectId),
     requiresAuthoritativeRefetch: true,
   },
 } as const satisfies {

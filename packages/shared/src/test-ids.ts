@@ -168,6 +168,13 @@ export const TestIds = {
   actionCommandInput: 'action-command-input',
   actionWhere: 'action-where',
   actionSave: 'action-save',
+  /** Shown instead of the list when no Project is selected — nothing to aim at. */
+  actionsNoProject: 'actions-no-project',
+  /** One Environment heading inside the menu when the Project exists on several. */
+  actionsEnvironment: (environmentId: string): string => `actions-environment-${environmentId}`,
+  /** Worktree chooser raised when a run has no explicit Worktree target yet. */
+  actionsTargetPicker: 'actions-target-picker',
+  actionsTargetOption: (worktreeId: string): string => `actions-target-option-${worktreeId}`,
 
   // --- File comments ---
   fileComments: (path: string): string => `file-comments-${path}`,

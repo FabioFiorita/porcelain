@@ -21,7 +21,9 @@ import type { SessionChange, SessionChangeFrame } from '@porcelain/contracts/ses
  *    comparable, and no sequence relationship survives it.
  * 3. **Sequence gap.** Sequences are contiguous within one subscription for one epoch, so a jump
  *    proves a notification was lost. A subscription is scoped to exactly one project, so the
- *    stale scope is that project rather than everything this client holds.
+ *    stale scope is usually that project rather than everything this client holds — unless the
+ *    frame is Project-scoped rather than checkout-scoped (Actions, ADR 0002), which names no
+ *    path to narrow to and therefore widens the requirement to the whole session.
  *
  * Because a reconnect resets the counter, the first frame of a connection sets the baseline and
  * can never read as a gap. That is not a hole in the coverage: the reconnect that preceded it
@@ -121,7 +123,12 @@ export function createSessionFreshnessTracker(): SessionFreshnessTracker {
           change: frame.change,
           requirement: {
             reason: 'sequence-gap',
-            scope: { kind: 'project', projectPath: frame.change.projectPath },
+            // A Project-scoped change (Actions) names no checkout, so a gap around it
+            // cannot be narrowed to one Project path — recover the whole session.
+            scope:
+              'projectPath' in frame.change
+                ? { kind: 'project', projectPath: frame.change.projectPath }
+                : SESSION_SCOPE,
           },
         }
       }

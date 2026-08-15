@@ -46,7 +46,7 @@ describe('unreadTabFor', () => {
   const cases: [SessionChange, UnreadTab | null][] = [
     [{ kind: 'review.changed', projectPath: PROJECT }, 'review'],
     [{ kind: 'board.changed', projectPath: PROJECT }, 'board'],
-    [{ kind: 'actions.changed', projectPath: PROJECT }, 'terminal'],
+    [{ kind: 'actions.changed', projectId: 'proj-alpha' }, 'terminal'],
     [
       { kind: 'files.content-changed', projectPath: PROJECT, paths: [`${PROJECT}/a.ts`] },
       'changes',
