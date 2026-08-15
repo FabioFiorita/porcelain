@@ -18,9 +18,14 @@ import {
  * 1. **Parsed at the boundary.** A change is untrusted until `sessionChangeSchema` accepts it,
  *    and the assembled frame is parsed again before it leaves — the daemon proves it still
  *    honors its own wire contract instead of trusting a TypeScript type (decision 010).
- * 2. **Scoped, never broadcast.** A subscription delivers only changes for the project it is
- *    scoped to, and an unscoped subscription receives nothing. Fail closed: a session that has
- *    not declared a project has not earned another project's change stream.
+ * 2. **Scoped, never broadcast.** A project-scoped change (one carrying `projectPath`) reaches
+ *    only subscriptions scoped to that project, and an unscoped subscription receives none of
+ *    them. Fail closed: a session that has not declared a project has not earned another
+ *    project's change stream. A DAEMON-WIDE change — one whose contract carries no
+ *    `projectPath` at all, today only `tasks.changed` — reaches every open subscription,
+ *    because there is no project whose data it could leak: the Tasks table belongs to the
+ *    Environment, not to a checkout, and withholding it would leave the one surface that is
+ *    deliberately global unable to refresh.
  * 3. **Sequenced per subscription.** `epoch` identifies this daemon instance; `sequence` is
  *    monotonic and gapless *within one subscription* for that epoch. A single daemon-wide
  *    counter would look like a permanent gap to every client (decision 009 reads a gap as
@@ -37,7 +42,14 @@ import {
  * The change categories a source is allowed to produce, keyed by the domain prefix the
  * contract union already discriminates on.
  */
-export const SESSION_CHANGE_CATEGORIES = ['files', 'git', 'review', 'board', 'actions'] as const
+export const SESSION_CHANGE_CATEGORIES = [
+  'files',
+  'git',
+  'review',
+  'board',
+  'actions',
+  'tasks',
+] as const
 export type SessionChangeCategory = (typeof SESSION_CHANGE_CATEGORIES)[number]
 
 /**
@@ -54,7 +66,16 @@ const CATEGORY_BY_CHANGE_KIND = {
   'review.changed': 'review',
   'board.changed': 'board',
   'actions.changed': 'actions',
+  'tasks.changed': 'tasks',
 } satisfies Record<SessionChange['kind'], SessionChangeCategory>
+
+/**
+ * The project a change is scoped to, or `undefined` when it is daemon-wide. Total over the
+ * contract union: a kind either declares `projectPath` in its schema or is global.
+ */
+export function sessionChangeProjectPath(change: SessionChange): string | undefined {
+  return 'projectPath' in change ? change.projectPath : undefined
+}
 
 /** Which source category a change belongs to. Total over the contract union. */
 export function sessionChangeCategory(change: SessionChange): SessionChangeCategory {
@@ -151,9 +172,13 @@ export function createSessionChangePublisher({ epoch }: { epoch: string }): Sess
     const parsed = sessionChangeSchema.safeParse(change)
     if (!parsed.success) return { ok: false, error: { code: 'session.invalid-change' } }
 
+    // `projectPath` absent from the parsed change IS the daemon-wide signal; the strict
+    // contract schemas mean a project-scoped kind can never arrive without it.
+    const scopedTo = sessionChangeProjectPath(parsed.data)
     let delivered = 0
     for (const state of subscriptions) {
-      if (!state.open || state.projectPath !== parsed.data.projectPath) continue
+      if (!state.open) continue
+      if (scopedTo !== undefined && state.projectPath !== scopedTo) continue
       if (deliverTo(state, parsed.data)) delivered += 1
     }
     return { ok: true, delivered }

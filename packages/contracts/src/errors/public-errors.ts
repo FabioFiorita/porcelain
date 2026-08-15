@@ -30,6 +30,12 @@ import {
 } from '../projects'
 import { reviewCommentNotFoundErrorSchema, reviewUnavailableErrorSchema } from '../review'
 import {
+  tasksAttachmentRejectedErrorSchema,
+  tasksInvalidTitleErrorSchema,
+  tasksNotFoundErrorSchema,
+  tasksUnavailableErrorSchema,
+} from '../tasks'
+import {
   terminalCapacityErrorSchema,
   terminalExitedErrorSchema,
   terminalInvalidSizeErrorSchema,
@@ -73,6 +79,10 @@ export const publicErrorSchema = z.discriminatedUnion('code', [
   boardUnavailableErrorSchema,
   boardCardNotFoundErrorSchema,
   boardInvalidTitleErrorSchema,
+  tasksUnavailableErrorSchema,
+  tasksNotFoundErrorSchema,
+  tasksInvalidTitleErrorSchema,
+  tasksAttachmentRejectedErrorSchema,
   actionsUnavailableErrorSchema,
   actionsNotFoundErrorSchema,
   actionsUntrustedErrorSchema,

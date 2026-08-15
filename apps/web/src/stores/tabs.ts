@@ -11,6 +11,7 @@ export type TabKind =
   | 'review'
   | 'explore'
   | 'board'
+  | 'tasks'
   | 'terminal'
   | 'canvas'
 

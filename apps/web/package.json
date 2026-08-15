@@ -24,6 +24,7 @@
     "@tanstack/react-devtools": "0.10.5",
     "@tanstack/react-query": "^5.101.0",
     "@tanstack/react-query-devtools": "5.101.0",
+    "@tanstack/react-table": "^9.1.2",
     "@tanstack/react-virtual": "^3.14.2",
     "@tiptap/core": "^3.26.1",
     "@tiptap/extension-placeholder": "^3.26.1",

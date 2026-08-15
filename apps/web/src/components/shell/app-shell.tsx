@@ -15,6 +15,7 @@ import {
   FileFinder,
   useSearchNotificationSubscription,
 } from '@renderer/features/search'
+import { useTasksNotificationSubscription } from '@renderer/features/tasks'
 import { useTerminalRoster } from '@renderer/features/terminal'
 import { useDocumentTitle } from '@renderer/hooks/use-document-title'
 import { useResponsiveShell } from '@renderer/hooks/use-responsive-shell'
@@ -132,6 +133,7 @@ export function AppShell(): React.JSX.Element {
   useSessionRuntime()
   // Board notifications own their cards-identity invalidation (BRD-004); not session-runtime.
   useBoardNotificationSubscription()
+  useTasksNotificationSubscription()
   // Git workspace notifications own typed Git identities; session-runtime handles only residual
   // non-Git recovery and Review/Files cross-domain concerns.
   useGitNotificationSubscription()

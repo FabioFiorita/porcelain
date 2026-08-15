@@ -34,6 +34,15 @@ export {
   reviewUnavailableErrorSchema,
 } from '../review'
 export {
+  tasksAttachmentRejectedErrorDetailsSchema,
+  tasksAttachmentRejectedErrorSchema,
+  tasksInvalidTitleErrorDetailsSchema,
+  tasksInvalidTitleErrorSchema,
+  tasksNotFoundErrorDetailsSchema,
+  tasksNotFoundErrorSchema,
+  tasksUnavailableErrorSchema,
+} from '../tasks'
+export {
   type TerminalPublicError,
   terminalCapacityErrorSchema,
   terminalExitedErrorSchema,

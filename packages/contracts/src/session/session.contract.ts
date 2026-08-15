@@ -9,6 +9,7 @@ import { filesChangeSchema } from '../files'
 import { gitChangeSchema } from '../git'
 import { PROTOCOL_VERSION, protocolVersionSchema } from '../protocol'
 import { reviewChangeSchema } from '../review'
+import { tasksChangeSchema } from '../tasks'
 
 /**
  * The session channel's cross-domain envelope: the handshake that opens it and the frame
@@ -29,6 +30,7 @@ export const sessionChangeSchema = z.discriminatedUnion('kind', [
   ...gitChangeSchema.options,
   ...reviewChangeSchema.options,
   ...boardChangeSchema.options,
+  ...tasksChangeSchema.options,
   ...actionsChangeSchema.options,
 ])
 export type SessionChange = z.infer<typeof sessionChangeSchema>

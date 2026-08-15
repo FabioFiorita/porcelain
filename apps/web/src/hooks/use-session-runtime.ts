@@ -86,6 +86,10 @@ export function invalidateForChange(
       // The Git feature bridge owns it (GIT-006): one subscription maps the change to typed
       // Git identities. Handled here only so the switch stays exhaustive over SessionChange.
       return Promise.resolve()
+    case 'tasks.changed':
+      // Tasks owns its notification → identity mapping (the Web Tasks feature adapter).
+      // Handled here only so the switch stays exhaustive over SessionChange.
+      return Promise.resolve()
     case 'review.changed':
       // Review owns its notification → identity mapping (REV-007 feature adapter) and comments
       // own theirs (RVC-003). What is left here is the Project Data consequence REV-006 ruling 7

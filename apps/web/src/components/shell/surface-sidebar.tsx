@@ -8,6 +8,7 @@ import { BoardList, BoardQuickAccess } from '@renderer/features/board'
 import { CanvasList } from '@renderer/features/projects'
 import { ReviewList } from '@renderer/features/review'
 import { SearchList } from '@renderer/features/search'
+import { TasksList } from '@renderer/features/tasks'
 import { kbdLabel } from '@renderer/lib/keyboard'
 import { cn } from '@renderer/lib/utils'
 import { useFileTreeStore } from '@renderer/stores/file-tree'
@@ -24,6 +25,7 @@ import {
   LayoutPanelTop,
   Search,
   SquareKanban,
+  Table2,
   Waypoints,
 } from 'lucide-react'
 import { useState } from 'react'
@@ -66,6 +68,13 @@ export const SURFACES: SurfaceDefinition[] = [
     icon: History,
   },
   { id: 'search', label: 'Search', hint: 'Search code and files', shortcut: '5', icon: Search },
+  {
+    id: 'tasks',
+    label: 'Tasks',
+    hint: 'Work across every Environment',
+    shortcut: '6',
+    icon: Table2,
+  },
   {
     id: 'canvas',
     label: 'Canvas',
@@ -144,7 +153,9 @@ export function SurfaceContent({
 }): React.JSX.Element {
   const project = useProjectSelectionStore((s) => s.project)
 
-  if (project === null && active !== 'search') {
+  // Tasks and Search are the two surfaces that do not need a Worktree: Tasks is
+  // daemon-wide by design, and Search opens its own scope.
+  if (project === null && active !== 'search' && active !== 'tasks') {
     return (
       <p className="p-3 text-sm text-muted-foreground">
         Select a Worktree from Projects to open this surface.
@@ -166,6 +177,7 @@ export function SurfaceContent({
       )}
       {active === 'history' && <HistorySurface />}
       {active === 'search' && <SearchList />}
+      {active === 'tasks' && <TasksList />}
       {active === 'canvas' && <CanvasList />}
       {active === 'board' && (
         <>

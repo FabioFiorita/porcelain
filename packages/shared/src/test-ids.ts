@@ -191,6 +191,26 @@ export const TestIds = {
   cardComposerSave: 'card-composer-save',
   cardComposer: 'card-composer',
 
+  // --- Tasks (the daemon-wide table) ---
+  tasksView: 'tasks-view',
+  tasksTable: 'tasks-table',
+  tasksEmpty: 'tasks-empty',
+  tasksError: 'tasks-error',
+  tasksRow: (id: string): string => `tasks-row-${id}`,
+  tasksRowStatus: (id: string): string => `tasks-row-status-${id}`,
+  tasksRowDelete: (id: string): string => `tasks-row-delete-${id}`,
+  tasksColumnsMenu: 'tasks-columns-menu',
+  tasksColumnToggle: (column: string): string => `tasks-column-toggle-${column}`,
+  tasksQuickAdd: 'tasks-quick-add',
+  tasksQuickAddTitle: 'tasks-quick-add-title',
+  tasksQuickAddStatus: 'tasks-quick-add-status',
+  tasksQuickAddTags: 'tasks-quick-add-tags',
+  tasksQuickAddEnvironment: 'tasks-quick-add-environment',
+  tasksQuickAddLinkUrl: 'tasks-quick-add-link-url',
+  tasksQuickAddLinkLabel: 'tasks-quick-add-link-label',
+  tasksQuickAddAttachment: 'tasks-quick-add-attachment',
+  tasksQuickAddSubmit: 'tasks-quick-add-submit',
+
   // --- Review documents (Intent panes and Evidence Results) ---
   intentDocTabs: 'intent-doc-tabs',
   intentDocTab: (label: string): string =>
