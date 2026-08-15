@@ -81,6 +81,18 @@ const projectsOperations = {
     ok: false,
     error: { code: 'projects.not-found' },
   })),
+  listCanvases: vi.fn<ProjectsOperations['listCanvases']>(async () => ({
+    ok: true,
+    value: [],
+  })),
+  readCanvas: vi.fn<ProjectsOperations['readCanvas']>(async () => ({
+    ok: false,
+    error: { code: 'canvas.not-found' },
+  })),
+  mintCanvasAccessToken: vi.fn<ProjectsOperations['mintCanvasAccessToken']>(async () => ({
+    ok: false,
+    error: { code: 'canvas.not-found' },
+  })),
 } satisfies ProjectsOperations
 
 const router = createDaemonRouter({

@@ -42,6 +42,11 @@ export const loc = {
   glance: (page: Page): Locator => byId(page, TestIds.glance),
   glanceChangedFiles: (page: Page): Locator => byId(page, TestIds.glanceChangedFiles),
 
+  canvasList: (page: Page): Locator => byId(page, TestIds.canvasList),
+  canvasListEmpty: (page: Page): Locator => byId(page, TestIds.canvasListEmpty),
+  canvasListItem: (page: Page, id: string): Locator => byId(page, TestIds.canvasListItem(id)),
+  canvasIframe: (page: Page): Locator => byId(page, TestIds.canvasIframe),
+
   settingsDialog: (page: Page): Locator => byId(page, TestIds.settingsDialog),
   settingsHeading: (page: Page): Locator => byId(page, TestIds.settingsHeading),
   shareStatus: (page: Page): Locator => byId(page, TestIds.shareStatus),

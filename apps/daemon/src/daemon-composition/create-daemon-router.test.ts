@@ -50,6 +50,9 @@ function projectsOperations(): ProjectsOperations {
     browseProjectDirectories: async () => ({ ok: false, error: { code: 'projects.unavailable' } }),
     listHubInventory: async () => ({ ok: false, error: { code: 'projects.unavailable' } }),
     createHubWorktree: async () => ({ ok: false, error: { code: 'projects.not-found' } }),
+    listCanvases: async () => ({ ok: true, value: [] }),
+    readCanvas: async () => ({ ok: false, error: { code: 'canvas.not-found' } }),
+    mintCanvasAccessToken: async () => ({ ok: false, error: { code: 'canvas.not-found' } }),
   }
 }
 

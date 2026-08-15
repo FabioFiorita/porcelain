@@ -187,7 +187,7 @@ describe('Web Projects adapter', () => {
     const hook = renderHook(
       ({ projectId }: { projectId: string | null }) => useCanvasList(projectId),
       {
-        initialProps: { projectId: null },
+        initialProps: { projectId: null as string | null },
         wrapper,
       },
     )
