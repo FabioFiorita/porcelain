@@ -8,20 +8,16 @@ import { subscribeSessionChanges } from '@/lib/daemon/session'
 
 import { applyFilesFreshnessRequirement, applyFilesNotification } from './files-notifications'
 
-// Takes the whole SessionChange union: some kinds are daemon-wide and carry no
-// `projectPath` at all (`tasks.changed`), so a parameter shape that demanded one
-// would silently exclude them from the union instead of returning null for them.
+// Takes the whole SessionChange union: some kinds carry no `projectPath` at all
+// (daemon-wide `tasks.changed`, Project-scoped `actions.changed`), so a parameter shape
+// that demanded one would silently exclude them from the union instead of returning null.
 function filesChangeFromSessionChange(change: SessionChange): FilesChange | null {
   switch (change.kind) {
     case 'files.scope-changed':
       return { kind: 'files.scope-changed', projectPath: change.projectPath }
     case 'files.tree-changed':
     case 'files.content-changed':
-      return {
-        kind: change.kind === 'files.tree-changed' ? 'files.tree-changed' : 'files.content-changed',
-        paths: [...change.paths],
-        projectPath: change.projectPath,
-      }
+      return { kind: change.kind, paths: [...change.paths], projectPath: change.projectPath }
     default:
       return null
   }

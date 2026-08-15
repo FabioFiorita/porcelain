@@ -1,17 +1,21 @@
-import type { ActionView } from '@porcelain/contracts/actions'
-import { actionsProjectKey } from './actions-queries'
+import type { PrepareActionRunOutput } from '@porcelain/contracts/actions'
 
 /**
- * Pure client Actions run preparation (ACT-002).
+ * Turn one daemon-authorized run into Terminal-create fields (ACT-002).
  *
- * Distinct from the daemon internal operation of the same name (store+trust re-check by
- * actionId). Runs against an already-fetched ActionView plus adapter-supplied context.
+ * Authorization is the daemon's: the `prepareActionRun` procedure is what checks that
+ * the Action exists in that Project, that the explicit target names a Worktree the
+ * daemon itself knows, and that the command text is trusted on that machine (#24). This
+ * function never re-decides any of that — it only answers "which cwd does this client
+ * spawn in", which is the one thing the daemon cannot know: a `where: 'local'` action
+ * runs on THIS device, in the folder the human mapped, not in the daemon's checkout.
+ *
  * Yields Terminal-create field names (`name`, `cwd`, `initialInput`) as plain strings —
  * never imports Terminal runtime. No I/O, no spawn, no trust write.
  */
 
 export type PrepareActionRunContext = {
-  readonly projectPath: string
+  /** This device's mapping of the target checkout; required only for `where: 'local'`. */
   readonly localPath?: string | null
 }
 
@@ -20,8 +24,7 @@ export type PreparedActionRun = {
   readonly title: string
   readonly command: string
   readonly where: 'primary' | 'local'
-  readonly projectPath: string
-  /** Absolute cwd for the platform terminal create call (project root or This-device path). */
+  /** Absolute cwd for the platform terminal create call (verified Worktree or This-device path). */
   readonly cwd: string
   /** Terminal session name — always the action title. */
   readonly name: string
@@ -30,71 +33,41 @@ export type PreparedActionRun = {
 }
 
 /**
- * Client-prepare-only refusal codes. `actions.needs-local-path` is NOT a member of
- * `publicErrorSchema`. `actions.untrusted` reuses the public code string for vocabulary
- * alignment but is returned as a plain object, not a transport-mapped public error.
+ * Client-prepare-only refusal. `actions.needs-local-path` is NOT a member of
+ * `publicErrorSchema`: it is this device's missing folder mapping, not a daemon outcome.
  */
-export type PrepareActionRunRefusal =
-  | { readonly code: 'actions.untrusted'; readonly actionId: string }
-  | { readonly code: 'actions.needs-local-path'; readonly actionId: string }
+export type PrepareActionRunRefusal = {
+  readonly code: 'actions.needs-local-path'
+  readonly actionId: string
+}
 
 export type PrepareActionRunResult =
   | { readonly ok: true; readonly value: PreparedActionRun }
   | { readonly ok: false; readonly error: PrepareActionRunRefusal }
 
-/**
- * Prepare a trusted ActionView for an explicit Actions → Terminal create transition.
- * Throws `ActionsIdentityError` when `context.projectPath` is empty (even for local runs).
- */
+/** Bind a daemon-authorized run to the cwd this client will actually spawn in. */
 export function prepareActionRun(
-  action: ActionView,
-  context: PrepareActionRunContext,
+  authorized: PrepareActionRunOutput,
+  context: PrepareActionRunContext = {},
 ): PrepareActionRunResult {
-  // Project identity is always required — validate before any outcome branch.
-  const projectPath = actionsProjectKey(context.projectPath)
-
-  if (action.trusted !== true) {
-    return {
-      ok: false,
-      error: { code: 'actions.untrusted', actionId: action.id },
-    }
+  const shared = {
+    id: authorized.id,
+    title: authorized.title,
+    command: authorized.command,
+    name: authorized.title,
+    initialInput: authorized.command,
   }
 
-  if (action.where === 'local') {
+  if (authorized.where === 'local') {
     const localPath = context.localPath
     if (localPath == null || localPath === '') {
       return {
         ok: false,
-        error: { code: 'actions.needs-local-path', actionId: action.id },
+        error: { code: 'actions.needs-local-path', actionId: authorized.id },
       }
     }
-    return {
-      ok: true,
-      value: {
-        id: action.id,
-        title: action.title,
-        command: action.command,
-        where: 'local',
-        projectPath,
-        cwd: localPath,
-        name: action.title,
-        initialInput: action.command,
-      },
-    }
+    return { ok: true, value: { ...shared, where: 'local', cwd: localPath } }
   }
 
-  // `where` is 'primary' or omitted/undefined → project root.
-  return {
-    ok: true,
-    value: {
-      id: action.id,
-      title: action.title,
-      command: action.command,
-      where: 'primary',
-      projectPath,
-      cwd: projectPath,
-      name: action.title,
-      initialInput: action.command,
-    },
-  }
+  return { ok: true, value: { ...shared, where: 'primary', cwd: authorized.cwd } }
 }

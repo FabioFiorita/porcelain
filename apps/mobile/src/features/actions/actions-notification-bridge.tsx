@@ -21,7 +21,7 @@ export function ActionsNotificationBridge(): null {
       onChange: (change) => {
         if (change.kind !== 'actions.changed') return
         applyActionsNotification(
-          { kind: 'actions.changed', projectPath: change.projectPath },
+          { kind: 'actions.changed', projectId: change.projectId },
           { queryClient, environmentId },
         )
       },

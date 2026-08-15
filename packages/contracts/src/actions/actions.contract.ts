@@ -8,7 +8,11 @@ export const ACTION_MOVE_DIRECTIONS = ['up', 'down'] as const
 export const actionMoveDirectionSchema = z.enum(ACTION_MOVE_DIRECTIONS)
 export type ActionMoveDirection = z.infer<typeof actionMoveDirectionSchema>
 
-/** The stored action as it lives in `<repo>/.porcelain/actions.json`. */
+/**
+ * The stored action as it lives in the owning daemon's Project store
+ * (`$PORCELAIN_HOME/projects/<projectId>/actions.json`, ADR 0002) — never in the
+ * checkout, so an Action outlives the Worktree an agent created it from.
+ */
 export const actionSchema = z
   .object({
     id: z.string(),
@@ -35,14 +39,32 @@ export const actionViewSchema = actionSchema
 
 export type ActionView = z.infer<typeof actionViewSchema>
 
-export const actionsInputSchema = z.string()
+/**
+ * The explicit Environment + Project + Worktree an Action runs against. Actions are
+ * stored per Project but a Project has many checkouts, so nothing may infer which one
+ * a command executes in: the caller states it and the daemon verifies it (#24).
+ */
+export const actionRunTargetSchema = z
+  .object({
+    environmentId: z.string().min(1),
+    projectId: z.string().min(1),
+    worktreeId: z.string().min(1),
+    /** Absolute Worktree checkout path; must be a live Worktree of `projectId`. */
+    path: z.string().min(1),
+  })
+  .strict()
+export type ActionRunTarget = z.infer<typeof actionRunTargetSchema>
+
+const projectIdSchema = z.string().min(1)
+
+export const actionsInputSchema = z.object({ projectId: projectIdSchema }).strict()
 export const actionsOutputSchema = z.array(actionViewSchema)
 export type ActionsInput = z.infer<typeof actionsInputSchema>
 export type ActionsOutput = z.infer<typeof actionsOutputSchema>
 
 export const trustActionsInputSchema = z
   .object({
-    repoPath: z.string(),
+    projectId: projectIdSchema,
     ids: z.array(z.string()).min(1),
   })
   .strict()
@@ -52,7 +74,7 @@ export type TrustActionsOutput = z.infer<typeof trustActionsOutputSchema>
 
 export const addActionInputSchema = z
   .object({
-    repoPath: z.string(),
+    projectId: projectIdSchema,
     title: z.string().trim().min(1),
     command: z.string().trim().min(1),
     where: actionWhereSchema.optional(),
@@ -64,7 +86,7 @@ export type AddActionOutput = z.infer<typeof addActionOutputSchema>
 
 export const updateActionInputSchema = z
   .object({
-    repoPath: z.string(),
+    projectId: projectIdSchema,
     id: z.string(),
     title: z.string().trim().min(1).optional(),
     command: z.string().trim().min(1).optional(),
@@ -77,7 +99,7 @@ export type UpdateActionOutput = z.infer<typeof updateActionOutputSchema>
 
 export const moveActionInputSchema = z
   .object({
-    repoPath: z.string(),
+    projectId: projectIdSchema,
     id: z.string(),
     direction: actionMoveDirectionSchema,
   })
@@ -88,12 +110,38 @@ export type MoveActionOutput = z.infer<typeof moveActionOutputSchema>
 
 export const deleteActionInputSchema = z
   .object({
-    repoPath: z.string(),
+    projectId: projectIdSchema,
     id: z.string(),
   })
   .strict()
 export const deleteActionOutputSchema = z.void()
 export type DeleteActionInput = z.infer<typeof deleteActionInputSchema>
 export type DeleteActionOutput = z.infer<typeof deleteActionOutputSchema>
+
+/**
+ * Ask the owning daemon to authorize one run: the Action must exist in that
+ * Project, its command text must be trusted on that machine, and `target` must
+ * name a Worktree the daemon itself knows for that Project. The daemon returns
+ * the command and the absolute `cwd` the client then spawns a terminal in — it
+ * never spawns anything itself (the human presses Run).
+ */
+export const prepareActionRunInputSchema = z
+  .object({
+    actionId: z.string().min(1),
+    target: actionRunTargetSchema,
+  })
+  .strict()
+export const prepareActionRunOutputSchema = z
+  .object({
+    id: z.string(),
+    title: z.string(),
+    command: z.string(),
+    where: actionWhereSchema,
+    /** Verified Worktree checkout the command runs in. */
+    cwd: z.string(),
+  })
+  .strict()
+export type PrepareActionRunInput = z.infer<typeof prepareActionRunInputSchema>
+export type PrepareActionRunOutput = z.infer<typeof prepareActionRunOutputSchema>
 
 export { actionsContractFixtures } from './actions.fixtures'

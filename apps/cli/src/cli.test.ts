@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -7,13 +7,48 @@ import { COMMANDS, runCli } from './cli'
 
 const root = join(tmpdir(), 'porcelain-cli-test')
 const repoPath = join(root, 'repo')
+const homeDir = join(root, 'home')
+const prevHome = process.env.PORCELAIN_HOME
+const PROJECT_ID = 'proj-cli'
+
+/**
+ * Actions and Canvases live in the daemon-root Project store keyed by a Project id the
+ * daemon minted (ADR 0002), so the CLI needs the same `hub-inventory.json` the daemon
+ * wrote. A temp PORCELAIN_HOME also keeps these tests off the real machine's channels.
+ */
+function seedHubInventory(): void {
+  const commonGitDir = realpathSync(join(repoPath, '.git'))
+  mkdirSync(homeDir, { recursive: true })
+  writeFileSync(
+    join(homeDir, 'hub-inventory.json'),
+    JSON.stringify({
+      version: 1,
+      value: {
+        projects: [
+          {
+            id: PROJECT_ID,
+            commonGitDir,
+            groupingKey: 'name:repo',
+            name: 'repo',
+            worktrees: [{ id: 'wt-cli', gitDir: commonGitDir }],
+          },
+        ],
+      },
+    }),
+  )
+}
 
 beforeEach(() => {
   rmSync(root, { recursive: true, force: true })
   mkdirSync(repoPath, { recursive: true })
+  execFileSync('git', ['init', '--initial-branch=main'], { cwd: repoPath })
+  process.env.PORCELAIN_HOME = homeDir
+  seedHubInventory()
 })
 afterEach(() => {
   rmSync(root, { recursive: true, force: true })
+  if (prevHome === undefined) delete process.env.PORCELAIN_HOME
+  else process.env.PORCELAIN_HOME = prevHome
 })
 // A plausible self-contained document: has a `<` tag and clears the MIN_HTML_BYTES floor,
 // so it survives resolveToolHtml's plausibility guard (unlike tiny test fragments).
@@ -41,8 +76,11 @@ const readBoard = (): unknown[] => {
   }
   return raw.cards
 }
+/** Saved actions are daemon-root Project data, not repo-local companion data. */
 const readActions = (): unknown[] => {
-  const raw = JSON.parse(readFileSync(porcelain('actions.json'), 'utf8')) as {
+  const raw = JSON.parse(
+    readFileSync(join(homeDir, 'projects', PROJECT_ID, 'actions.json'), 'utf8'),
+  ) as {
     version: number
     actions: unknown[]
   }

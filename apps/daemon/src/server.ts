@@ -165,6 +165,7 @@ async function main(): Promise<void> {
       attachments: createTasksAttachments({ homeDir: porcelainHomeDir }),
     },
     terminal,
+    homeDir: porcelainHomeDir,
   })
   const router = createDaemonRouter({ operations })
   daemon = createRemoteHttp({

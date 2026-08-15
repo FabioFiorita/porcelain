@@ -7,6 +7,7 @@ import type { ActionsStoreResult, ActionTrustStore } from './actions-ports'
 export const ACTION_TRUST_FILE_MAX_BYTES = 512 * 1024
 export const ACTION_TRUST_FILE_VERSION = 1 as const
 
+/** `projects` is keyed by the stable Project id (ADR 0002), not a checkout path. */
 export type ActionTrustFileV1 = {
   version: typeof ACTION_TRUST_FILE_VERSION
   projects: Record<string, string[]>
@@ -85,7 +86,7 @@ function parseTrustDocument(value: unknown): ActionTrustFileV1 {
     throw new Error('malformed')
   }
   const projects: Record<string, string[]> = {}
-  for (const [projectPath, fingerprints] of Object.entries(value.projects)) {
+  for (const [projectId, fingerprints] of Object.entries(value.projects)) {
     if (!Array.isArray(fingerprints)) throw new Error('malformed')
     const next: string[] = []
     for (const fingerprint of fingerprints) {
@@ -94,7 +95,7 @@ function parseTrustDocument(value: unknown): ActionTrustFileV1 {
       }
       next.push(fingerprint)
     }
-    projects[projectPath] = next
+    projects[projectId] = next
   }
   return { version: ACTION_TRUST_FILE_VERSION, projects }
 }
@@ -120,7 +121,7 @@ type TrustReadOutcome =
   | { status: 'unavailable' }
 
 /**
- * Machine-local action trust: strict v1 home document keyed by absolute project path.
+ * Machine-local action trust: strict v1 home document keyed by stable Project id.
  * Fail closed on trust reads (empty set) so listing still works after corruption.
  */
 export function createJsonActionTrustStore(
@@ -212,7 +213,7 @@ export function createJsonActionTrustStore(
   }
 
   return {
-    async readFingerprints(projectPath) {
+    async readFingerprints(projectId) {
       let outcome: ActionsStoreResult<ReadonlySet<string>> = {
         ok: true,
         value: new Set(),
@@ -222,7 +223,7 @@ export function createJsonActionTrustStore(
         if (read.status === 'ok') {
           outcome = {
             ok: true,
-            value: new Set(read.value.projects[projectPath] ?? []),
+            value: new Set(read.value.projects[projectId] ?? []),
           }
           return
         }
@@ -240,7 +241,7 @@ export function createJsonActionTrustStore(
       return outcome
     },
 
-    async trustCommands(projectPath, commands) {
+    async trustCommands(projectId, commands) {
       let outcome: ActionsStoreResult<void> = {
         ok: false,
         error: { code: 'actions.unavailable' },
@@ -257,7 +258,7 @@ export function createJsonActionTrustStore(
         }
 
         const current = read.status === 'ok' ? read.value : emptyTrustDoc()
-        const existing = new Set(current.projects[projectPath] ?? [])
+        const existing = new Set(current.projects[projectId] ?? [])
         for (const command of commands) {
           existing.add(commandFingerprint(command))
         }
@@ -265,7 +266,7 @@ export function createJsonActionTrustStore(
           version: ACTION_TRUST_FILE_VERSION,
           projects: {
             ...current.projects,
-            [projectPath]: [...existing],
+            [projectId]: [...existing],
           },
         }
         outcome = await writeDocument(next)

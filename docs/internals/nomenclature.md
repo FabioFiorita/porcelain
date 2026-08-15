@@ -52,7 +52,7 @@ parens is the **entry point**; read it for mechanics.
 | Review | **Current review · Previous reviews** (`review-group.tsx`; always rendered, empty note when there are none) · Comments — archive the active unit; restore or trash archives under `.porcelain/reviews/` |
 | Tasks | (none — the table is the whole surface; Quick Add lives above it, not in Companion) |
 | Board | Focus — full detail of the selected card; card status shows inside the card, not a Board-tab-only affordance. Selection is client-only, **not** a second kanban |
-| Terminal | Saved commands — the "Actions" feature (`.porcelain/actions.json`, see Cross-cutting below) surfaced under this section label |
+| Terminal | Saved commands — the "Actions" feature (see Cross-cutting below), reachable from the Hub's top-corner Actions menu |
 | Search | Recent searches |
 
 Suggested/Commands render only on Changes and History — Review does not get them (it gets Current/Previous review instead).
@@ -73,8 +73,8 @@ Mobile mirrors General · Data · Review · Environments.
 | Review comments | The reviewer's line/file notes (`.porcelain/comments.json`), app→agent via the CLI |
 | Reviewed marks | Per-file "reviewed" checkboxes (`.porcelain/reviewed.json`), app→agent, read-only like notes |
 | Project board | Per-repo todo/doing/done (`.porcelain/board.json`), two-way via the CLI; share via git |
-| Actions | Saved named commands (`.porcelain/actions.json`); agent curates, **human runs** |
-| Project companion | Repo-local `.porcelain/` (board, actions, scope, layers, notes, reviews) — the third "companion": distinct from the right-panel **Companion** and the Settings **Companion** tab above. Machine secrets stay in `~/.porcelain` / `PORCELAIN_HOME` |
+| Actions | Saved named commands, stored per Project in the owning daemon (`$PORCELAIN_HOME/projects/<projectId>/actions.json`, ADR 0002); agent curates, **human runs** against an explicit Environment + Worktree |
+| Project companion | Repo-local `.porcelain/` (board, scope, layers, notes, reviews) — the third "companion": distinct from the right-panel **Companion** and the Settings **Companion** tab above. Machine secrets stay in `~/.porcelain` / `PORCELAIN_HOME` |
 | Git overlay | The **promoted** half of `.porcelain/`: `canvases/<id>/` (bundle + `canvas.json`) and `project.json` (tracked `hiddenPaths`/`pinnedPaths`/`worktrees` defaults). Written only by an explicit promotion — `projects.promoteCanvas` / `promoteOverrides`, or `porcelain canvas promote` — never by opening a repo. Tracked wins over private for the same Canvas id, the daemon never writes back into it, and promotion writes plain files without staging or committing (ADR 0002, #26) |
 | Promotion | Moving one private daemon-root Canvas, or the current Project defaults, into the Git overlay of an **explicitly named** Worktree checkout. The private copy is removed, not duplicated, so a tracked and a private version can never diverge. An ambiguous target is rejected (`projects.overlay-target-invalid`), never guessed |
 | Daemon | The headless Electron-free backend (`apps/daemon/src/server.ts`) the web client reaches over HTTP + one WS; the shell spawns and babysits it (`apps/desktop/src/main/daemon.ts`). "The daemon" always resolves here |

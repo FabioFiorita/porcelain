@@ -40,7 +40,7 @@ One folder per review, and the unit in flight has the **same shape** as an archi
 
 ```
 .porcelain/
-  actions.json  board.json  layers.json  scope.json  notes.md   ← durable project data
+  board.json  layers.json  scope.json  notes.md   ← durable project data
   active-review/          ← the unit in flight
     review.json  intent/  evidence/{results/,assets/}  comments.json  reviewed.json
   reviews/<id>/           ← history, same shape + meta.json

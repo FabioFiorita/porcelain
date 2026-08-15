@@ -8,6 +8,8 @@ import {
   deleteActionOutputSchema,
   moveActionInputSchema,
   moveActionOutputSchema,
+  prepareActionRunInputSchema,
+  prepareActionRunOutputSchema,
   trustActionsInputSchema,
   trustActionsOutputSchema,
   updateActionInputSchema,
@@ -50,6 +52,17 @@ const actionsProcedureDefinitions = {
     input: deleteActionInputSchema,
     output: deleteActionOutputSchema,
     errors: ['actions.unavailable', 'actions.not-found'],
+  },
+  prepareActionRun: {
+    kind: 'mutation',
+    input: prepareActionRunInputSchema,
+    output: prepareActionRunOutputSchema,
+    errors: [
+      'actions.unavailable',
+      'actions.not-found',
+      'actions.untrusted',
+      'actions.target-invalid',
+    ],
   },
 } as const
 

@@ -10,7 +10,7 @@ export function createActionsChangesPublisher(
 ): ActionsChanges {
   return {
     publish(change) {
-      publish({ kind: 'actions.changed', projectPath: change.projectPath })
+      publish({ kind: 'actions.changed', projectId: change.projectId })
     },
   }
 }

@@ -28,10 +28,12 @@ const everyChangeKind = [
 ]
 
 /**
- * Every project-scoped kind's fixture. `tasks.changed` is deliberately absent: the Tasks
- * table is daemon-wide, so its change carries no project and cannot be built here.
+ * Every scoped kind's fixture: the checkout-scoped ones keyed by `projectPath`, plus
+ * `actions.changed`, which names the stable Project id instead (ADR 0002). `tasks.changed`
+ * is deliberately absent: the Tasks table is daemon-wide, so its change carries no scope key
+ * at all and cannot be built here.
  */
-const projectScopedChangeFixtures = {
+const scopedChangeFixtures = {
   'files.scope-changed': { kind: 'files.scope-changed', projectPath: '/synthetic/repo' },
   'files.tree-changed': {
     kind: 'files.tree-changed',
@@ -49,7 +51,7 @@ const projectScopedChangeFixtures = {
   },
   'review.changed': { kind: 'review.changed', projectPath: '/synthetic/repo' },
   'board.changed': { kind: 'board.changed', projectPath: '/synthetic/repo' },
-  'actions.changed': { kind: 'actions.changed', projectPath: '/synthetic/repo' },
+  'actions.changed': { kind: 'actions.changed', projectId: 'proj-alpha' },
   'terminal.dev-servers-changed': {
     kind: 'terminal.dev-servers-changed',
     projectPath: '/synthetic/repo',
@@ -59,12 +61,12 @@ const projectScopedChangeFixtures = {
 } as const satisfies Record<Exclude<SessionChange['kind'], 'tasks.changed'>, SessionChange>
 
 const changeFixtures: Record<SessionChange['kind'], SessionChange> = {
-  ...projectScopedChangeFixtures,
+  ...scopedChangeFixtures,
   'tasks.changed': { kind: 'tasks.changed' },
 }
 
-const projectScopedChangeKinds = Object.keys(projectScopedChangeFixtures) as Array<
-  keyof typeof projectScopedChangeFixtures
+const scopedChangeKinds = Object.keys(scopedChangeFixtures) as Array<
+  keyof typeof scopedChangeFixtures
 >
 
 describe('Session change envelope', () => {
@@ -73,7 +75,7 @@ describe('Session change envelope', () => {
       [...everyChangeKind].sort(),
     )
     expect(everyChangeKind).toHaveLength(9)
-    expect(projectScopedChangeKinds).toHaveLength(8)
+    expect(scopedChangeKinds).toHaveLength(8)
   })
 
   it('keeps tasks.changed daemon-wide: strict, carrying only kind', () => {
@@ -110,9 +112,14 @@ describe('Session change envelope', () => {
     })
   }
 
-  for (const kind of projectScopedChangeKinds) {
-    it(`rejects ${kind} inside a frame when projectPath is missing`, () => {
-      const { projectPath: _dropped, ...change } = projectScopedChangeFixtures[kind]
+  for (const kind of scopedChangeKinds) {
+    it(`rejects ${kind} inside a frame when its scope key is missing`, () => {
+      // Actions are scoped by the stable Project id (ADR 0002); every other scoped
+      // category still names the checkout it happened in.
+      const fixture: Record<string, unknown> = { ...scopedChangeFixtures[kind] }
+      const scopeKey = 'projectPath' in fixture ? 'projectPath' : 'projectId'
+      delete fixture[scopeKey]
+      const change = fixture
       expect(
         sessionChangeFrameSchema.safeParse({
           t: 'session:change',

@@ -6,7 +6,7 @@ import type { ActionsOperations } from './actions-operations'
 import type { ActionsOperationResult } from './actions-ports'
 
 /**
- * Actions feature router — six flat wire names bound to actionsProcedures.
+ * Actions feature router — seven flat wire names bound to actionsProcedures.
  * Each procedure is parse → invoke one operation → map authoritative outputs.
  */
 
@@ -15,6 +15,9 @@ function throwIfFailed<T>(result: ActionsOperationResult<T>): T {
   const error = result.error
   if (error.code === 'actions.not-found') {
     throw toTrpcError(expectedFailure('actions.not-found', { actionId: error.actionId }))
+  }
+  if (error.code === 'actions.target-invalid') {
+    throw toTrpcError(expectedFailure('actions.target-invalid', { actionId: error.actionId }))
   }
   if (error.code === 'actions.untrusted') {
     throw toTrpcError(expectedFailure('actions.untrusted', { actionId: error.actionId }))
@@ -31,7 +34,7 @@ export function createActionsRouter(operations: ActionsOperations) {
       .input(procedureCatalog.actions.input)
       .output(procedureCatalog.actions.output)
       .query(async ({ input }) => {
-        const result = await operations.listActions({ projectPath: input })
+        const result = await operations.listActions({ projectId: input.projectId })
         return throwIfFailed(result)
       }),
 
@@ -40,7 +43,7 @@ export function createActionsRouter(operations: ActionsOperations) {
       .output(procedureCatalog.trustActions.output)
       .mutation(async ({ input }) => {
         const result = await operations.trustActions({
-          projectPath: input.repoPath,
+          projectId: input.projectId,
           ids: input.ids,
         })
         throwIfFailed(result)
@@ -51,7 +54,7 @@ export function createActionsRouter(operations: ActionsOperations) {
       .output(procedureCatalog.addAction.output)
       .mutation(async ({ input }) => {
         const result = await operations.addAction({
-          projectPath: input.repoPath,
+          projectId: input.projectId,
           title: input.title,
           command: input.command,
           where: input.where,
@@ -64,7 +67,7 @@ export function createActionsRouter(operations: ActionsOperations) {
       .output(procedureCatalog.updateAction.output)
       .mutation(async ({ input }) => {
         const result = await operations.updateAction({
-          projectPath: input.repoPath,
+          projectId: input.projectId,
           id: input.id,
           title: input.title,
           command: input.command,
@@ -78,7 +81,7 @@ export function createActionsRouter(operations: ActionsOperations) {
       .output(procedureCatalog.moveAction.output)
       .mutation(async ({ input }) => {
         const result = await operations.moveAction({
-          projectPath: input.repoPath,
+          projectId: input.projectId,
           id: input.id,
           direction: input.direction,
         })
@@ -90,10 +93,21 @@ export function createActionsRouter(operations: ActionsOperations) {
       .output(procedureCatalog.deleteAction.output)
       .mutation(async ({ input }) => {
         const result = await operations.deleteAction({
-          projectPath: input.repoPath,
+          projectId: input.projectId,
           id: input.id,
         })
         throwIfFailed(result)
+      }),
+
+    prepareActionRun: publicProcedure
+      .input(procedureCatalog.prepareActionRun.input)
+      .output(procedureCatalog.prepareActionRun.output)
+      .mutation(async ({ input }) => {
+        const result = await operations.prepareActionRun({
+          actionId: input.actionId,
+          target: input.target,
+        })
+        return throwIfFailed(result)
       }),
   })
 }

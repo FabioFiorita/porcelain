@@ -3,7 +3,7 @@ import { actionsContractFixtures } from '@porcelain/contracts/actions'
 import { remoteContractFixtures } from '@porcelain/contracts/remote'
 import { createValidatingTrpcHarness } from '@renderer/hooks/trpc-test-harness'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
-import { useProjectSelectionStore } from '@renderer/stores/project-selection'
+import { useHubSelectionStore } from '@renderer/stores/hub-selection'
 import { useQueryClient } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { toast } from 'sonner'
@@ -13,8 +13,8 @@ import { actionsListKeyForProject } from './actions-query-key'
 
 vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
 
-const REPO = actionsContractFixtures.actions.input
-const OTHER = '/synthetic/other'
+const PROJECT_ID = 'proj-alpha'
+const OTHER_PROJECT_ID = 'proj-beta'
 
 const baseHandlers = {
   daemonInfo: () => ({ ok: true as const, value: remoteContractFixtures.daemonInfo.output }),
@@ -22,7 +22,15 @@ const baseHandlers = {
 
 beforeEach(() => {
   vi.mocked(toast.error).mockReset()
-  useProjectSelectionStore.setState({ project: { path: REPO, name: 'repo' }, showHidden: false })
+  useHubSelectionStore.setState({
+    selection: {
+      kind: 'worktree',
+      environmentId: 'env-local',
+      projectId: PROJECT_ID,
+      worktreeId: 'wt-main',
+      path: '/synthetic/projects/alpha',
+    },
+  })
 })
 
 describe('useActionMutations', () => {
@@ -50,8 +58,8 @@ describe('useActionMutations', () => {
       host: result.current.daemon.host,
       version: result.current.daemon.version,
     }
-    const projectKey = actionsListKeyForProject(daemon, REPO)
-    const otherKey = actionsListKeyForProject(daemon, OTHER)
+    const projectKey = actionsListKeyForProject(daemon, PROJECT_ID)
+    const otherKey = actionsListKeyForProject(daemon, OTHER_PROJECT_ID)
     result.current.queryClient.setQueryData(projectKey, [{ id: 'a' }])
     result.current.queryClient.setQueryData(otherKey, [{ id: 'b' }])
 
@@ -104,7 +112,7 @@ describe('useActionMutations', () => {
     // Dual identities collapse: one list key, not a trust-only row.
     expect(
       actionsMutations.add
-        .affectedQueries({ repoPath: REPO, title: 'Build', command: 'make build' })
+        .affectedQueries({ projectId: PROJECT_ID, title: 'Build', command: 'make build' })
         .map((i) => i.name),
     ).toEqual(['list', 'trust'])
   })
@@ -156,8 +164,8 @@ describe('useTrustAction', () => {
       host: result.current.daemon.host,
       version: result.current.daemon.version,
     }
-    const projectKey = actionsListKeyForProject(daemon, REPO)
-    const otherKey = actionsListKeyForProject(daemon, OTHER)
+    const projectKey = actionsListKeyForProject(daemon, PROJECT_ID)
+    const otherKey = actionsListKeyForProject(daemon, OTHER_PROJECT_ID)
     result.current.queryClient.setQueryData(projectKey, [])
     result.current.queryClient.setQueryData(otherKey, [])
 
@@ -168,7 +176,7 @@ describe('useTrustAction', () => {
     expect(mock.requests().filter((r) => r.procedure === 'trustActions')).toContainEqual({
       procedure: 'trustActions',
       kind: 'mutation',
-      input: { repoPath: REPO, ids: ['action-serve'] },
+      input: { projectId: PROJECT_ID, ids: ['action-serve'] },
     })
     expect(result.current.queryClient.getQueryState(projectKey)?.isInvalidated).toBe(true)
     expect(result.current.queryClient.getQueryState(otherKey)?.isInvalidated).toBeFalsy()

@@ -12,7 +12,7 @@ import { searchProcedures } from './search'
 import { tasksProcedures } from './tasks'
 import { terminalProcedures } from './terminal'
 
-/** The eleven domain records that currently compose the 124-name live catalog. */
+/** The eleven domain records that currently compose the live catalog. */
 const domainProcedures = {
   remote: remoteProcedures,
   projects: projectsProcedures,
@@ -27,7 +27,7 @@ const domainProcedures = {
   'project-data': projectDataProcedures,
 } as const
 
-const PROCEDURE_COUNT = 127
+const PROCEDURE_COUNT = 128
 
 describe('procedure catalog', () => {
   it('is frozen and composes exactly one entry per domain procedure, in domain order', () => {

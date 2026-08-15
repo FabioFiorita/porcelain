@@ -4,8 +4,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { applyActionsNotification } from './actions-notifications'
 import { actionsListKeyForProject } from './actions-query-key'
 
-const PROJECT = '/synthetic/repo'
-const OTHER = '/synthetic/other'
+const PROJECT = 'proj-alpha'
+const OTHER = 'proj-beta'
 const DAEMON = { host: 'beelink', version: '0.52.1' }
 
 describe('applyActionsNotification', () => {
@@ -44,7 +44,7 @@ describe('applyActionsNotification', () => {
     queryClient.setQueryData(otherKey, ['other'])
 
     applyActionsNotification(
-      { kind: 'actions.changed', projectPath: OTHER },
+      { kind: 'actions.changed', projectId: OTHER },
       { queryClient, daemon: DAEMON },
     )
 

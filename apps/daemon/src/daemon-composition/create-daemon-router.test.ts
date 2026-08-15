@@ -105,6 +105,7 @@ describe('createDaemonRouter composition', () => {
       projects: projectsOperations(),
       tasks: tasksAdapters(),
       terminal: terminalOperations(),
+      homeDir: join(root, 'home'),
     })
     expect(Object.isFrozen(operations)).toBe(true)
     expect(operations.remote).toBeDefined()
@@ -133,6 +134,7 @@ describe('createDaemonRouter composition', () => {
       projects: projectsOperations(),
       tasks: tasksAdapters(),
       terminal: terminalOperations(),
+      homeDir: join(root, 'home'),
     })
     const router = createDaemonRouter({ operations })
     const caller = router.createCaller(PUBLIC_CONTEXT)
@@ -155,12 +157,14 @@ describe('createDaemonRouter composition', () => {
       projects: projectsOperations(),
       tasks: tasksAdapters(),
       terminal: terminalOperations(),
+      homeDir: join(root, 'home'),
     })
     const second = createDaemonOperations({
       publishSessionChange: () => undefined,
       projects: projectsOperations(),
       tasks: tasksAdapters(),
       terminal: terminalOperations(),
+      homeDir: join(root, 'home'),
     })
     expect(first).not.toBe(second)
     expect(Object.isFrozen(first)).toBe(true)

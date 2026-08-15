@@ -30,23 +30,23 @@ export function actionsListQueryKey(
   return [query, { host: daemon.host, version: daemon.version }] as const
 }
 
-/** Build list key for a project path. */
+/** Build list key for a Project id. */
 export function actionsListKeyForProject(
   daemon: ActionsDaemonScope,
-  projectPath: string,
+  projectId: string,
 ): readonly [ActionsQuery, ActionsDaemonScope] {
-  return actionsListQueryKey(daemon, actionsQuery(projectPath))
+  return actionsListQueryKey(daemon, actionsQuery(projectId))
 }
 
 /**
- * Map any ACT-002 identity to the cache key that holds ActionView[] for that project.
- * list → list key; trust → list key for the same projectPath (collapse).
+ * Map any ACT-002 identity to the cache key that holds ActionView[] for that Project.
+ * list → list key; trust → list key for the same projectId (collapse).
  */
 export function actionsCacheKeyForIdentity(
   daemon: ActionsDaemonScope,
   identity: ActionsIdentity,
 ): readonly [ActionsQuery, ActionsDaemonScope] {
-  return actionsListKeyForProject(daemon, identity.projectPath)
+  return actionsListKeyForProject(daemon, identity.projectId)
 }
 
 /** True when a React Query key is an Actions identity (list or trust) + daemon scope. */
@@ -62,7 +62,7 @@ export function invalidateAllActionsQueries(queryClient: QueryClient): Promise<v
 }
 
 /**
- * Invalidate list cache keys for the given identities, deduped by projectPath.
+ * Invalidate list cache keys for the given identities, deduped by projectId.
  * Trust identities collapse to the same list key as list identities for that project.
  */
 export function invalidateActionsIdentities(
@@ -73,8 +73,8 @@ export function invalidateActionsIdentities(
   const seen = new Set<string>()
   const tasks: Promise<void>[] = []
   for (const identity of identities) {
-    if (seen.has(identity.projectPath)) continue
-    seen.add(identity.projectPath)
+    if (seen.has(identity.projectId)) continue
+    seen.add(identity.projectId)
     tasks.push(
       queryClient.invalidateQueries({
         queryKey: actionsCacheKeyForIdentity(daemon, identity),

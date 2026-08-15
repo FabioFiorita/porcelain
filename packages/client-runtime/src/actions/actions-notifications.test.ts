@@ -10,8 +10,8 @@ import { describe, expect, it } from 'vitest'
 import { actionsNotificationEffects } from './actions-notifications'
 import { actionsQuery, actionTrustQuery } from './actions-queries'
 
-const PROJECT = '/synthetic/repo'
-const OTHER = '/synthetic/other'
+const PROJECT = 'proj-alpha'
+const OTHER = 'proj-other'
 
 const actionsCatalog = {
   procedures: {
@@ -51,16 +51,18 @@ describe('actionsNotificationEffects', () => {
     expect(daemon.emit(valid)).toEqual(valid)
     expect(seen).toEqual([[actionsQuery(PROJECT), actionTrustQuery(PROJECT)]])
 
-    // Missing projectPath
+    // Missing projectId
     expect(() => daemon.emit({ kind: 'actions.changed' })).toThrow()
-    // Empty projectPath
-    expect(() => daemon.emit({ kind: 'actions.changed', projectPath: '' })).toThrow()
+    // Empty projectId
+    expect(() => daemon.emit({ kind: 'actions.changed', projectId: '' })).toThrow()
+    // A checkout path instead of a Project id is no longer the wire shape
+    expect(() => daemon.emit({ kind: 'actions.changed', projectPath: '/synthetic/repo' })).toThrow()
     // Unknown field
     expect(() =>
-      daemon.emit({ kind: 'actions.changed', projectPath: PROJECT, payload: true }),
+      daemon.emit({ kind: 'actions.changed', projectId: PROJECT, payload: true }),
     ).toThrow()
     // Unrelated kind
-    expect(() => daemon.emit({ kind: 'board.changed', projectPath: PROJECT })).toThrow()
+    expect(() => daemon.emit({ kind: 'board.changed', projectId: PROJECT })).toThrow()
     // Raw legacy event string envelope
     expect(() => daemon.emit({ type: 'actions' })).toThrow()
 

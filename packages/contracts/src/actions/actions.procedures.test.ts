@@ -15,6 +15,7 @@ const expectedKinds = {
   updateAction: 'mutation',
   moveAction: 'mutation',
   deleteAction: 'mutation',
+  prepareActionRun: 'mutation',
 } as const
 
 const expectedErrors = {
@@ -24,15 +25,25 @@ const expectedErrors = {
   updateAction: ['actions.unavailable', 'actions.not-found', 'request.invalid'],
   moveAction: ['actions.unavailable', 'actions.not-found'],
   deleteAction: ['actions.unavailable', 'actions.not-found'],
+  prepareActionRun: [
+    'actions.unavailable',
+    'actions.not-found',
+    'actions.untrusted',
+    'actions.target-invalid',
+  ],
 } as const
 
 const invalidInputs = {
   actions: 42,
-  trustActions: { repoPath: '/synthetic/repo', ids: [] },
-  addAction: { repoPath: '/synthetic/repo', title: ' ', command: 'make build' },
-  updateAction: { repoPath: '/synthetic/repo', id: 'action-build', command: '  ' },
-  moveAction: { repoPath: '/synthetic/repo', id: 'action-build', direction: 'sideways' },
-  deleteAction: { repoPath: '/synthetic/repo' },
+  prepareActionRun: {
+    actionId: 'action-build',
+    target: { environmentId: 'env-local', projectId: 'proj-alpha', worktreeId: 'wt-alpha-main' },
+  },
+  trustActions: { projectId: 'proj-alpha', ids: [] },
+  addAction: { projectId: 'proj-alpha', title: ' ', command: 'make build' },
+  updateAction: { projectId: 'proj-alpha', id: 'action-build', command: '  ' },
+  moveAction: { projectId: 'proj-alpha', id: 'action-build', direction: 'sideways' },
+  deleteAction: { projectId: 'proj-alpha' },
 } as const
 
 const invalidOutputs = {
@@ -42,10 +53,11 @@ const invalidOutputs = {
   updateAction: null,
   moveAction: null,
   deleteAction: null,
+  prepareActionRun: { ...actionsContractFixtures.prepareActionRun.output, where: 'remote' },
 } as const
 
 describe('Actions procedure contracts', () => {
-  it('declares exactly six procedures with their router kinds and allowed errors', () => {
+  it('declares exactly seven procedures with their router kinds and allowed errors', () => {
     expect(Object.keys(actionsProcedures).sort()).toEqual(Object.keys(expectedKinds).sort())
     for (const [name, kind] of Object.entries(expectedKinds)) {
       const procedure = actionsProcedures[name as keyof typeof actionsProcedures]
@@ -75,7 +87,7 @@ describe('Actions procedure contracts', () => {
     for (const where of ACTION_WHERE_VALUES) {
       expect(
         actionsProcedures.addAction.input.safeParse({
-          repoPath: '/synthetic/repo',
+          projectId: 'proj-alpha',
           title: 'An action',
           command: 'make check',
           where,
@@ -83,7 +95,7 @@ describe('Actions procedure contracts', () => {
       ).toBe(true)
       expect(
         actionsProcedures.updateAction.input.safeParse({
-          repoPath: '/synthetic/repo',
+          projectId: 'proj-alpha',
           id: 'action-build',
           where,
         }).success,
@@ -92,7 +104,7 @@ describe('Actions procedure contracts', () => {
     for (const direction of ACTION_MOVE_DIRECTIONS) {
       expect(
         actionsProcedures.moveAction.input.safeParse({
-          repoPath: '/synthetic/repo',
+          projectId: 'proj-alpha',
           id: 'action-build',
           direction,
         }).success,
@@ -104,28 +116,28 @@ describe('Actions procedure contracts', () => {
     for (const value of ['', '   ']) {
       expect(
         actionsProcedures.addAction.input.safeParse({
-          repoPath: '/synthetic/repo',
+          projectId: 'proj-alpha',
           title: value,
           command: 'make check',
         }).success,
       ).toBe(false)
       expect(
         actionsProcedures.addAction.input.safeParse({
-          repoPath: '/synthetic/repo',
+          projectId: 'proj-alpha',
           title: 'An action',
           command: value,
         }).success,
       ).toBe(false)
       expect(
         actionsProcedures.updateAction.input.safeParse({
-          repoPath: '/synthetic/repo',
+          projectId: 'proj-alpha',
           id: 'action-build',
           title: value,
         }).success,
       ).toBe(false)
       expect(
         actionsProcedures.updateAction.input.safeParse({
-          repoPath: '/synthetic/repo',
+          projectId: 'proj-alpha',
           id: 'action-build',
           command: value,
         }).success,
@@ -136,16 +148,16 @@ describe('Actions procedure contracts', () => {
   it('requires at least one trust id but no other trust field', () => {
     expect(
       actionsProcedures.trustActions.input.safeParse({
-        repoPath: '/synthetic/repo',
+        projectId: 'proj-alpha',
         ids: ['action-build', 'action-serve'],
       }).success,
     ).toBe(true)
     expect(
-      actionsProcedures.trustActions.input.safeParse({ repoPath: '/synthetic/repo' }).success,
+      actionsProcedures.trustActions.input.safeParse({ projectId: 'proj-alpha' }).success,
     ).toBe(false)
     expect(
       actionsProcedures.trustActions.input.safeParse({
-        repoPath: '/synthetic/repo',
+        projectId: 'proj-alpha',
         ids: ['action-build'],
         commands: ['make build'],
       }).success,
@@ -170,13 +182,18 @@ describe('Actions procedure contracts', () => {
     ])
   })
 
-  it('preserves the current unbounded path, id, order, and time shapes', () => {
-    expect(actionsProcedures.actions.input.safeParse('').success).toBe(true)
-    expect(actionsProcedures.deleteAction.input.safeParse({ repoPath: '', id: '' }).success).toBe(
-      true,
-    )
+  it('requires a Project id on every procedure and rejects a bare path', () => {
+    expect(actionsProcedures.actions.input.safeParse('/synthetic/repo').success).toBe(false)
+    expect(actionsProcedures.actions.input.safeParse({ projectId: '' }).success).toBe(false)
     expect(
-      actionsProcedures.trustActions.input.safeParse({ repoPath: '', ids: [''] }).success,
+      actionsProcedures.deleteAction.input.safeParse({ projectId: '', id: 'action-build' }).success,
+    ).toBe(false)
+    expect(
+      actionsProcedures.deleteAction.input.safeParse({ projectId: 'proj-alpha', id: '' }).success,
+    ).toBe(true)
+    expect(
+      actionsProcedures.trustActions.input.safeParse({ projectId: 'proj-alpha', ids: [''] })
+        .success,
     ).toBe(true)
     expect(
       actionSchema.safeParse({
@@ -189,10 +206,10 @@ describe('Actions procedure contracts', () => {
     ).toBe(true)
     expect(
       actionsProcedures.updateAction.input.parse({
-        repoPath: '/synthetic/repo',
+        projectId: 'proj-alpha',
         id: 'action-build',
       }),
-    ).toEqual({ repoPath: '/synthetic/repo', id: 'action-build' })
+    ).toEqual({ projectId: 'proj-alpha', id: 'action-build' })
   })
 
   it('rejects unknown fields at strict input and nested action boundaries', () => {
@@ -229,6 +246,28 @@ describe('Actions procedure contracts', () => {
       actionsProcedures.addAction.output.safeParse({
         ...actionsContractFixtures.addAction.output,
         extra: true,
+      }).success,
+    ).toBe(false)
+  })
+
+  it('rejects a run whose target is missing a coordinate', () => {
+    const { input } = actionsContractFixtures.prepareActionRun
+    for (const missing of ['environmentId', 'projectId', 'worktreeId', 'path'] as const) {
+      const { [missing]: _dropped, ...partial } = input.target
+      expect(
+        actionsProcedures.prepareActionRun.input.safeParse({ ...input, target: partial }).success,
+      ).toBe(false)
+      expect(
+        actionsProcedures.prepareActionRun.input.safeParse({
+          ...input,
+          target: { ...input.target, [missing]: '' },
+        }).success,
+      ).toBe(false)
+    }
+    expect(
+      actionsProcedures.prepareActionRun.input.safeParse({
+        ...input,
+        target: { ...input.target, extra: true },
       }).success,
     ).toBe(false)
   })

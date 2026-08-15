@@ -158,6 +158,12 @@ export const loc = {
   actionTitleInput: (page: Page): Locator => byId(page, TestIds.actionTitleInput),
   actionCommandInput: (page: Page): Locator => byId(page, TestIds.actionCommandInput),
   actionSave: (page: Page): Locator => byId(page, TestIds.actionSave),
+  actionsNoProject: (page: Page): Locator => byId(page, TestIds.actionsNoProject),
+  actionUnreviewed: (page: Page, title: string): Locator =>
+    byId(page, TestIds.actionUnreviewed(title)),
+  actionTrustDialog: (page: Page): Locator => byId(page, TestIds.actionTrustDialog),
+  actionTrustConfirm: (page: Page): Locator => byId(page, TestIds.actionTrustConfirm),
+  actionsTargetPicker: (page: Page): Locator => byId(page, TestIds.actionsTargetPicker),
 
   viewerTab: (page: Page, title: string): Locator => byId(page, TestIds.viewerTab(title)),
   viewerTabOpenToSide: (page: Page): Locator => byId(page, TestIds.viewerTabOpenToSide),

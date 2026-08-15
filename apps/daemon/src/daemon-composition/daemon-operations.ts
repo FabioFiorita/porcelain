@@ -1,5 +1,11 @@
 import type { SessionChange } from '@porcelain/contracts/session'
-import { type ActionsOperations, createActionsOperations } from '../features/actions'
+import {
+  type ActionsOperations,
+  type ActionsProjects,
+  createActionsOperations,
+  createJsonActionsStore,
+  createJsonActionTrustStore,
+} from '../features/actions'
 import { type BoardOperations, createBoardOperations } from '../features/board'
 import { createFilesOperations, type FilesOperations } from '../features/files'
 import {
@@ -82,11 +88,29 @@ export interface CreateDaemonRouterOptions {
   operations: DaemonOperations
 }
 
+/**
+ * Actions asks the Projects domain — through one narrow read — which checkouts this
+ * Environment currently has for a Project, so an explicit run target can be verified
+ * instead of trusted. Actions never enumerates Worktrees itself.
+ */
+function actionsProjectsCapability(projects: ProjectsOperations): ActionsProjects {
+  return {
+    async listWorktreePaths(projectId) {
+      const inventory = await projects.listHubInventory()
+      if (!inventory.ok) return { ok: false, error: { code: 'actions.unavailable' } }
+      const project = inventory.value.projects.find((entry) => entry.id === projectId)
+      return { ok: true, value: project?.worktrees.map((worktree) => worktree.path) ?? [] }
+    },
+  }
+}
+
 export function createDaemonOperations(options: {
   projects: ProjectsOperations
   /** Daemon-root Tasks adapters; only the entry point may resolve `$PORCELAIN_HOME`. */
   tasks: { store: TasksStore; attachments: TasksAttachments }
   terminal: TerminalOperations
+  /** Resolved `porcelainHome()` — the daemon-root Project store lives beneath it. */
+  homeDir: string
   publishSessionChange?: (change: SessionChange) => void
 }): DaemonOperations {
   const publish = options.publishSessionChange ?? publishSessionChange
@@ -131,6 +155,9 @@ export function createDaemonOperations(options: {
       publishSessionChange: publish,
     }),
     actions: createActionsOperations({
+      sources: [{ kind: 'private', store: createJsonActionsStore({ homeDir: options.homeDir }) }],
+      trustStore: createJsonActionTrustStore(),
+      projects: actionsProjectsCapability(options.projects),
       publishSessionChange: publish,
     }),
     review: createReviewOperations({

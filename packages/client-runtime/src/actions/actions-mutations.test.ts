@@ -15,7 +15,7 @@ import {
 import { actionsQuery, actionTrustQuery } from './actions-queries'
 
 const fixtures = actionsContractFixtures
-const OTHER_PATH = '/synthetic/other-repo'
+const OTHER_PROJECT = 'proj-other'
 
 const actionsCatalog = {
   procedures: actionsProcedures,
@@ -41,16 +41,16 @@ describe('actionsMutations', () => {
     expect(actionsMutations.delete.procedureName).toBe('deleteAction')
   })
 
-  it('affects list then trust for the input repoPath only', () => {
+  it('affects list then trust for the input projectId only', () => {
     // Resolved where the pairing still holds. Carrying `{ definition, input }` through an array
     // loses it: TypeScript unions the two fields independently, so `definition.affectedQueries`
     // ends up demanding the intersection of every input shape and no fixture satisfies it.
-    const bind = <Name extends ActionsMutationProcedureName, Input extends { repoPath: string }>(
+    const bind = <Name extends ActionsMutationProcedureName, Input extends { projectId: string }>(
       definition: ActionsMutationDefinition<Name, Input>,
       input: Input,
     ) => ({
       affected: definition.affectedQueries(input),
-      repoPath: input.repoPath,
+      projectId: input.projectId,
       requiresAuthoritativeRefetch: definition.requiresAuthoritativeRefetch,
       declaresOptimistic: Object.hasOwn(definition, 'optimistic'),
       declaresOptimisticTransition: Object.hasOwn(definition, 'optimisticTransition'),
@@ -65,12 +65,15 @@ describe('actionsMutations', () => {
     ]
 
     for (const bound of cases) {
-      const key = bound.repoPath
+      const key = bound.projectId
       expect(bound.affected).toEqual([actionsQuery(key), actionTrustQuery(key)])
       expect(bound.affected).toHaveLength(2)
       expect(bound.affected[0].name).toBe('list')
       expect(bound.affected[1].name).toBe('trust')
-      expect(bound.affected).not.toEqual([actionsQuery(OTHER_PATH), actionTrustQuery(OTHER_PATH)])
+      expect(bound.affected).not.toEqual([
+        actionsQuery(OTHER_PROJECT),
+        actionTrustQuery(OTHER_PROJECT),
+      ])
       expect(bound.requiresAuthoritativeRefetch).toBe(true)
       expect(bound.declaresOptimistic).toBe(false)
       expect(bound.declaresOptimisticTransition).toBe(false)

@@ -140,6 +140,7 @@ const router = createDaemonRouter({
       attachments: createTasksAttachments({ homeDir: tasksHome }),
     },
     terminal: terminalOperations,
+    homeDir: join(tmpdir(), 'porcelain-remote-http-home'),
   }),
 })
 

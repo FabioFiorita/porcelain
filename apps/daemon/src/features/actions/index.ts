@@ -6,6 +6,7 @@ export {
   type ActionsOperations,
   createActionsOperations,
 } from './actions-operations'
+export type { ActionsProjects, ActionsSource } from './actions-ports'
 export { createActionsRouter } from './actions-router'
 export { commandFingerprint, createJsonActionTrustStore } from './json-action-trust-store'
 export { createJsonActionsStore } from './json-actions-store'

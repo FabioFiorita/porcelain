@@ -8,8 +8,9 @@ import { z } from 'zod'
  * consequences can name both slots; adapters may collapse them onto one cache key until a
  * separate trust read exists.
  *
- * No absolute-path, host, or trailing-slash policy — Actions wire has none. Empty path is a
- * programmer error (`ActionsIdentityError`), not a public Actions error code.
+ * The project dimension is the stable Project id the owning daemon minted (ADR 0002), not a
+ * checkout path: one Project has many Worktrees and they all share one saved-command roster.
+ * An empty id is a programmer error (`ActionsIdentityError`), not a public Actions error code.
  */
 
 /** Programmer error for an invalid Actions project identity. */
@@ -17,13 +18,13 @@ export class ActionsIdentityError extends Error {
   override readonly name = 'ActionsIdentityError'
 }
 
-const projectPathSchema = z.string().min(1)
+const projectIdSchema = z.string().min(1)
 
 /** Normalize the project dimension shared by every Actions identity. */
-export function actionsProjectKey(projectPath: string): string {
-  const parsed = projectPathSchema.safeParse(projectPath)
+export function actionsProjectKey(projectId: string): string {
+  const parsed = projectIdSchema.safeParse(projectId)
   if (!parsed.success) {
-    throw new ActionsIdentityError('actions: project path must be non-empty')
+    throw new ActionsIdentityError('actions: project id must be non-empty')
   }
   return parsed.data
 }
@@ -32,7 +33,7 @@ export const actionsQuerySchema = z
   .object({
     domain: z.literal('actions'),
     name: z.literal('list'),
-    projectPath: projectPathSchema,
+    projectId: projectIdSchema,
   })
   .strict()
 
@@ -40,7 +41,7 @@ export const actionTrustQuerySchema = z
   .object({
     domain: z.literal('actions'),
     name: z.literal('trust'),
-    projectPath: projectPathSchema,
+    projectId: projectIdSchema,
   })
   .strict()
 
@@ -54,20 +55,20 @@ export type ActionsQuery = Readonly<z.infer<typeof actionsQuerySchema>>
 export type ActionTrustQuery = Readonly<z.infer<typeof actionTrustQuerySchema>>
 export type ActionsIdentity = Readonly<z.infer<typeof actionsIdentitySchema>>
 
-/** Build the Actions list query identity for a Project path. */
-export function actionsQuery(projectPath: string): ActionsQuery {
+/** Build the Actions list query identity for a Project id. */
+export function actionsQuery(projectId: string): ActionsQuery {
   return {
     domain: 'actions',
     name: 'list',
-    projectPath: actionsProjectKey(projectPath),
+    projectId: actionsProjectKey(projectId),
   }
 }
 
-/** Build the Actions trust query identity for a Project path. */
-export function actionTrustQuery(projectPath: string): ActionTrustQuery {
+/** Build the Actions trust query identity for a Project id. */
+export function actionTrustQuery(projectId: string): ActionTrustQuery {
   return {
     domain: 'actions',
     name: 'trust',
-    projectPath: actionsProjectKey(projectPath),
+    projectId: actionsProjectKey(projectId),
   }
 }

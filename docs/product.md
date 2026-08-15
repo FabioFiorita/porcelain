@@ -37,8 +37,9 @@ through the CLI. Do not rebuild an in-app agent runner.
   columns, explicit Project/Environment/Worktree references, Quick Add with copied-file
   attachments and links. The Hub aggregates the Environments it can reach and omits the ones it
   cannot; every write names the Environment it targets. Retires the per-repository Board (#28).
-- **Review comments / board / notes / actions** — companion surfaces; human runs Actions. The
-  per-repository Board is retiring in favor of Tasks.
+- **Review comments / board / notes / actions** — companion surfaces; the human runs Actions, always
+  against an explicit Environment + Worktree. The per-repository Board is retiring in favor of
+  Tasks.
 - **Terminal** — real PTY next to review; remote-bound windows can also shell on This device.
 - **Remote / environments** — one daemon, many clients; per-device credentials; LAN / Tailscale /
   opt-in Funnel.
@@ -52,13 +53,15 @@ through the CLI. Do not rebuild an in-app agent runner.
   Public copy sells Porcelain's surfaces, not transport debates or third-party brand lists.
 - **Connected, not siloed** — one home per concern (Changes, Review, Files, Board, Terminal);
   previews hand off, never second Diff/commit UXes.
-- **Local by default** — machine secrets on the daemon host under `~/.porcelain/`; project
-  companion data (reviews, board, scope, actions, …) lives in `<repo>/.porcelain/` and is
-  shareable via git when you choose to track it. Tasks are the deliberate exception: they belong
-  to the machine, not a checkout, so they live in `$PORCELAIN_HOME/tasks/` and never appear in a
-  repository. No Porcelain cloud for your code, no telemetry.
+- **Local by default** — machine secrets and default Project data (Canvases, Actions, assets) live
+  on the daemon host under `~/.porcelain/`, keyed by a stable Project id (ADR 0002), so opening a
+  repository adds nothing to its working tree. Project companion data that stays with the code
+  (reviews, board, scope, notes) lives in `<repo>/.porcelain/` and is shareable via git when you
+  choose to track it. Tasks belong to the machine, not a checkout, so they live in
+  `$PORCELAIN_HOME/tasks/` and never appear in a repository. No Porcelain cloud for your code, no
+  telemetry.
 - **Your repository is yours** — Canvases and Project defaults live in the daemon's private store,
-  not in your working tree. `<repo>/.porcelain/` appears only when you **promote** something into
+  not in your working tree. `<repo>/.porcelain/` grows only when you **promote** something into
   it, and a promoted file is then the one canonical copy: Porcelain indexes it in place, never
   keeps a competing private version, and never runs `git add` for you.
 

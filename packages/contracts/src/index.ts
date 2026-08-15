@@ -28,6 +28,8 @@ export {
 export {
   actionsNotFoundErrorDetailsSchema,
   actionsNotFoundErrorSchema,
+  actionsTargetInvalidErrorDetailsSchema,
+  actionsTargetInvalidErrorSchema,
   actionsUnavailableErrorSchema,
   actionsUntrustedErrorDetailsSchema,
   actionsUntrustedErrorSchema,

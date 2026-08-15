@@ -19,6 +19,6 @@ import {
 export function actionsNotificationEffects(
   notification: ActionsChanged,
 ): readonly [ActionsQuery, ActionTrustQuery] {
-  const key = actionsProjectKey(notification.projectPath)
+  const key = actionsProjectKey(notification.projectId)
   return [actionsQuery(key), actionTrustQuery(key)]
 }

@@ -4,6 +4,7 @@ import { dirname } from 'node:path'
 import {
   type ActionsFileAction,
   ActionsFileParseError,
+  type ActionsFileV1,
   type ActionsFileWhere,
   emptyActionsFileV1,
   parseActionsFileV1,
@@ -13,16 +14,29 @@ import {
   serializeActionsFileV1,
   sortActions,
 } from '@porcelain/shared/actions-file'
-import { PROJECT_FILES, projectPorcelainPath } from '@shared/project-porcelain'
-import { ensureProjectDir } from './project-io'
+import { porcelainHome } from '@shared/porcelain-home'
+import { projectActionsPath } from '@shared/project-store'
+import { resolveHubIdentity } from './canvas-file'
 
-// Builtins + @porcelain/shared only — see cli.ts. Project actions are strict v1 JSON.
+/**
+ * Saved actions live in the owning daemon's Project store —
+ * `$PORCELAIN_HOME/projects/<projectId>/actions.json` (ADR 0002) — not in the
+ * checkout. Two reasons: an agent's `git worktree remove` must not take the
+ * project's saved commands with it, and opening a repository in Porcelain must
+ * not add application state to someone's working tree.
+ *
+ * The Project id comes from the same `hub-inventory.json` the daemon wrote when
+ * the repo was first opened, matched through git plumbing — see
+ * `resolveHubIdentity` in canvas-file.ts. A repository Porcelain has never
+ * opened has no Project id yet, so writes fail with a clear message instead of
+ * inventing one. Builtins + @porcelain/shared only (see cli.ts).
+ */
 
 export type ActionWhere = ActionsFileWhere
 export type Action = ActionsFileAction
 
 function actionsPath(repoPath: string): string {
-  return projectPorcelainPath(repoPath, PROJECT_FILES.actions)
+  return projectActionsPath(porcelainHome(), resolveHubIdentity(repoPath).projectId)
 }
 
 function isEnoent(error: unknown): boolean {
@@ -34,10 +48,10 @@ function isEnoent(error: unknown): boolean {
   )
 }
 
-function readActionsFile(repoPath: string): ReturnType<typeof emptyActionsFileV1> {
+function readActionsFile(path: string): ActionsFileV1 {
   let raw: string
   try {
-    raw = readFileSync(actionsPath(repoPath), 'utf8')
+    raw = readFileSync(path, 'utf8')
   } catch (error) {
     if (isEnoent(error)) return emptyActionsFileV1()
     throw error
@@ -61,9 +75,7 @@ function readActionsFile(repoPath: string): ReturnType<typeof emptyActionsFileV1
   return parseActionsFileV1(parsed)
 }
 
-function writeActionsFile(repoPath: string, file: ReturnType<typeof emptyActionsFileV1>): void {
-  ensureProjectDir(repoPath)
-  const path = actionsPath(repoPath)
+function writeActionsFile(path: string, file: ActionsFileV1): void {
   mkdirSync(dirname(path), { recursive: true })
   const tmp = `${path}.tmp`
   writeFileSync(tmp, serializeActionsFileV1(file))
@@ -71,7 +83,7 @@ function writeActionsFile(repoPath: string, file: ReturnType<typeof emptyActions
 }
 
 export function readActions(repoPath: string): Action[] {
-  return sortActions(readActionsFile(repoPath).actions)
+  return sortActions(readActionsFile(actionsPath(repoPath)).actions)
 }
 
 export function createAction(
@@ -80,8 +92,9 @@ export function createAction(
   command: string,
   where: ActionWhere | undefined,
 ): Action {
+  const path = actionsPath(repoPath)
   const now = Date.now()
-  const planned = planCreateAction(readActionsFile(repoPath), {
+  const planned = planCreateAction(readActionsFile(path), {
     id: randomUUID(),
     title,
     command,
@@ -96,7 +109,7 @@ export function createAction(
         : 'could not create action',
     )
   }
-  writeActionsFile(repoPath, planned.file)
+  writeActionsFile(path, planned.file)
   return planned.action
 }
 
@@ -105,7 +118,8 @@ export function updateAction(
   id: string,
   fields: { title?: string; command?: string; where?: ActionWhere },
 ): boolean {
-  const planned = planUpdateAction(readActionsFile(repoPath), {
+  const path = actionsPath(repoPath)
+  const planned = planUpdateAction(readActionsFile(path), {
     actionId: id,
     title: fields.title,
     command: fields.command,
@@ -115,20 +129,21 @@ export function updateAction(
     if (planned.error.code === 'actions.not-found') return false
     throw new Error('title or command is invalid (blank or too long)')
   }
-  writeActionsFile(repoPath, planned.file)
+  writeActionsFile(path, planned.file)
   return true
 }
 
 export function deleteAction(repoPath: string, id: string): boolean {
-  const planned = planDeleteAction(readActionsFile(repoPath), { actionId: id })
+  const path = actionsPath(repoPath)
+  const planned = planDeleteAction(readActionsFile(path), { actionId: id })
   if (!planned.ok) return false
-  writeActionsFile(repoPath, planned.file)
+  writeActionsFile(path, planned.file)
   return true
 }
 
 export function describeActions(repoPath: string, actions: Action[]): string {
   if (actions.length === 0) {
-    return `No saved actions for ${repoPath}. Actions are named commands the human runs in Porcelain's embedded terminal; add useful ones here (.porcelain/actions.json).`
+    return `No saved actions for ${repoPath}. Actions are named commands the human runs in Porcelain's embedded terminal, stored with this Project in the daemon (not in the repo); add useful ones here.`
   }
   const lines: string[] = [`Saved actions for ${repoPath} (${actions.length}):`]
   for (const action of actions) {

@@ -1,4 +1,5 @@
 import { isAbsolute, join, relative, sep } from 'node:path'
+import { projectStoreDir } from './project-store'
 
 /**
  * Daemon-root Canvas storage layout: `<homeDir>/projects/<projectId>/canvases/`.
@@ -15,7 +16,7 @@ import { isAbsolute, join, relative, sep } from 'node:path'
 export const CANVAS_INDEX_FILE = 'index.json'
 
 export function projectCanvasesDir(homeDir: string, projectId: string): string {
-  return join(homeDir, 'projects', projectId, 'canvases')
+  return join(projectStoreDir(homeDir, projectId), 'canvases')
 }
 
 /** The manifest listing every Canvas record for one Project. */

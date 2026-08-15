@@ -49,7 +49,8 @@ describe('unreadTabFor', () => {
     [{ kind: 'board.changed', projectPath: PROJECT }, 'board'],
     // Daemon-wide: the Tasks change carries no project and still marks the Tasks tab.
     [{ kind: 'tasks.changed' }, 'tasks'],
-    [{ kind: 'actions.changed', projectPath: PROJECT }, 'terminal'],
+    // Project-scoped: the Actions change names a Project id, never a checkout path.
+    [{ kind: 'actions.changed', projectId: 'proj-alpha' }, 'terminal'],
     [
       { kind: 'files.content-changed', projectPath: PROJECT, paths: [`${PROJECT}/a.ts`] },
       'changes',

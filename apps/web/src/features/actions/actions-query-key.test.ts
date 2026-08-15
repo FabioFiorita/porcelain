@@ -7,8 +7,8 @@ import {
   isActionsQueryKey,
 } from './actions-query-key'
 
-const PROJECT = '/synthetic/repo'
-const OTHER = '/synthetic/other'
+const PROJECT = 'proj-alpha'
+const OTHER = 'proj-beta'
 const DAEMON = { host: 'beelink', version: '0.52.1' }
 const OTHER_DAEMON = { host: 'mac', version: '0.52.1' }
 
@@ -20,7 +20,7 @@ describe('actionsListQueryKey', () => {
       { host: DAEMON.host, version: DAEMON.version },
     ])
     expect(actionsListKeyForProject(DAEMON, PROJECT)).toEqual([
-      { domain: 'actions', name: 'list', projectPath: PROJECT },
+      { domain: 'actions', name: 'list', projectId: PROJECT },
       { host: DAEMON.host, version: DAEMON.version },
     ])
     expect(actionsListKeyForProject(DAEMON, OTHER)[0]).not.toEqual(
@@ -35,7 +35,7 @@ describe('actionsListQueryKey', () => {
     const listKey = actionsCacheKeyForIdentity(DAEMON, actionsQuery(PROJECT))
     const trustKey = actionsCacheKeyForIdentity(DAEMON, actionTrustQuery(PROJECT))
     expect(trustKey).toEqual(listKey)
-    expect(trustKey[0]).toEqual({ domain: 'actions', name: 'list', projectPath: PROJECT })
+    expect(trustKey[0]).toEqual({ domain: 'actions', name: 'list', projectId: PROJECT })
   })
 })
 
@@ -55,11 +55,18 @@ describe('isActionsQueryKey', () => {
     expect(isActionsQueryKey([LIST, null])).toBe(false)
     expect(isActionsQueryKey([LIST])).toBe(false)
     expect(isActionsQueryKey([{ domain: 'actions', name: 'list' }, DAEMON])).toBe(false)
-    expect(isActionsQueryKey([{ domain: 'actions', name: 'list', projectPath: '' }, DAEMON])).toBe(
+    expect(isActionsQueryKey([{ domain: 'actions', name: 'list', projectId: '' }, DAEMON])).toBe(
       false,
     )
+    // A path-keyed cache row is not an Actions key any more (ADR 0002 Project ids).
     expect(
-      isActionsQueryKey([{ domain: 'board', name: 'cards', projectPath: PROJECT }, DAEMON]),
+      isActionsQueryKey([
+        { domain: 'actions', name: 'list', projectPath: '/synthetic/repo' },
+        DAEMON,
+      ]),
+    ).toBe(false)
+    expect(
+      isActionsQueryKey([{ domain: 'board', name: 'cards', projectId: PROJECT }, DAEMON]),
     ).toBe(false)
     expect(isActionsQueryKey(['daemon', 'env-1', LIST])).toBe(false)
     expect(isActionsQueryKey([LIST, DAEMON, 'extra'])).toBe(false)

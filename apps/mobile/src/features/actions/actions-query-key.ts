@@ -14,11 +14,11 @@ import { z } from 'zod'
  * onto the same project list key.
  */
 
-function listIdentity(projectPath: string): ActionsQuery {
+function listIdentity(projectId: string): ActionsQuery {
   return {
     domain: 'actions',
     name: 'list',
-    projectPath: actionsProjectKey(projectPath),
+    projectId: actionsProjectKey(projectId),
   }
 }
 
@@ -26,7 +26,7 @@ const listIdentitySchema = z
   .object({
     domain: z.literal('actions'),
     name: z.literal('list'),
-    projectPath: z.string().min(1),
+    projectId: z.string().min(1),
   })
   .strict()
 
@@ -42,9 +42,9 @@ export function actionsListQueryKey(
 
 export function actionsListKeyForProject(
   environmentId: string,
-  projectPath: string,
+  projectId: string,
 ): readonly ['daemon', string, ActionsQuery] {
-  return actionsListQueryKey(environmentId, listIdentity(projectPath))
+  return actionsListQueryKey(environmentId, listIdentity(projectId))
 }
 
 /**
@@ -55,7 +55,7 @@ export function actionsCacheKeyForIdentity(
   environmentId: string,
   identity: ActionsIdentity,
 ): readonly ['daemon', string, ActionsQuery] {
-  return actionsListKeyForProject(environmentId, identity.projectPath)
+  return actionsListKeyForProject(environmentId, identity.projectId)
 }
 
 export function isActionsQueryKey(queryKey: readonly unknown[]): boolean {
@@ -68,7 +68,7 @@ export function invalidateAllActionsQueries(queryClient: QueryClient): Promise<v
   })
 }
 
-/** Invalidate list keys for identities, deduped by projectPath. */
+/** Invalidate list keys for identities, deduped by Project id. */
 export function invalidateActionsIdentities(
   queryClient: QueryClient,
   environmentId: string,
@@ -77,8 +77,8 @@ export function invalidateActionsIdentities(
   const seen = new Set<string>()
   const tasks: Promise<void>[] = []
   for (const identity of identities) {
-    if (seen.has(identity.projectPath)) continue
-    seen.add(identity.projectPath)
+    if (seen.has(identity.projectId)) continue
+    seen.add(identity.projectId)
     tasks.push(
       queryClient.invalidateQueries({
         queryKey: actionsCacheKeyForIdentity(environmentId, identity),

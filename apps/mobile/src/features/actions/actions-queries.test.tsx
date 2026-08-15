@@ -4,13 +4,18 @@ import { renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { daemonDispatch, ENV_ID, PROJECT_ID, REPO_PATH, UNKNOWN_PATH } from './test-support'
+
 const ctx = vi.hoisted(() => ({
   callDaemon: vi.fn(),
-  environment: { id: 'env-actions-query', token: 'paired' } as {
+  environment: { id: 'env-actions-test', token: 'paired' } as {
     id: string
     token: string | null
   } | null,
-  project: { name: 'repo', path: '/synthetic/repo' } as { name: string; path: string } | null,
+  project: { name: 'repo', path: '/synthetic/projects/alpha' } as {
+    name: string
+    path: string
+  } | null,
 }))
 
 vi.mock('@/features/remote', () => ({
@@ -39,15 +44,23 @@ function wrapper(queryClient: QueryClient) {
   }
 }
 
+function listCalls(): unknown[] {
+  return ctx.callDaemon.mock.calls.filter(
+    (call: unknown[]) => (call[1] as { name: string }).name === 'actions',
+  )
+}
+
 beforeEach(() => {
-  ctx.environment = { id: 'env-actions-query', token: 'paired' }
-  ctx.project = { name: 'repo', path: '/synthetic/repo' }
+  ctx.environment = { id: ENV_ID, token: 'paired' }
+  ctx.project = { name: 'alpha', path: REPO_PATH }
   ctx.callDaemon.mockReset()
-  ctx.callDaemon.mockResolvedValue([...actionsContractFixtures.actions.output])
+  ctx.callDaemon.mockImplementation(
+    daemonDispatch({ actions: () => [...actionsContractFixtures.actions.output] }),
+  )
 })
 
 describe('mobile useActions', () => {
-  it('filters where === local and uses the list identity key', async () => {
+  it('reads the Project the active checkout belongs to and filters where === local', async () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     const { result } = renderHook(() => useActions(true), { wrapper: wrapper(queryClient) })
 
@@ -56,28 +69,51 @@ describe('mobile useActions', () => {
     expect(result.current.actions.some((a) => a.id === 'action-build')).toBe(true)
     expect(result.current.actions.some((a) => a.id === 'action-serve')).toBe(false)
 
+    // The checkout path resolved through the Hub inventory into the stable Project id (#24).
     expect(ctx.callDaemon).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ name: 'actions' }),
-      '/synthetic/repo',
+      { projectId: PROJECT_ID },
     )
 
-    const key = actionsListKeyForProject('env-actions-query', '/synthetic/repo')
+    const key = actionsListKeyForProject(ENV_ID, PROJECT_ID)
     expect(key[2]).toEqual({
       domain: 'actions',
       name: 'list',
-      projectPath: '/synthetic/repo',
+      projectId: PROJECT_ID,
     })
+    expect(queryClient.getQueryData(key)).toEqual([...actionsContractFixtures.actions.output])
+  })
+
+  it('never guesses a Project for a checkout the Hub does not know', async () => {
+    ctx.project = { name: 'stray', path: UNKNOWN_PATH }
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const { result } = renderHook(() => useActions(true), { wrapper: wrapper(queryClient) })
+
+    await waitFor(() => expect(ctx.callDaemon).toHaveBeenCalled())
+    await waitFor(() =>
+      expect(
+        ctx.callDaemon.mock.calls.some(
+          (call: unknown[]) => (call[1] as { name: string }).name === 'hubInventory',
+        ),
+      ).toBe(true),
+    )
+    expect(listCalls()).toEqual([])
+    expect(result.current.actions).toEqual([])
+    expect(result.current.error).toBeNull()
   })
 
   it('gates inactive and unpaired reads', async () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     const inactive = renderHook(() => useActions(false), { wrapper: wrapper(queryClient) })
     expect(inactive.result.current.actions).toEqual([])
-    expect(ctx.callDaemon).not.toHaveBeenCalled()
+    expect(listCalls()).toEqual([])
 
-    ctx.environment = { id: 'env-actions-query', token: null }
-    const unpaired = renderHook(() => useActions(true), { wrapper: wrapper(queryClient) })
+    ctx.environment = { id: ENV_ID, token: null }
+    ctx.callDaemon.mockClear()
+    const unpairedClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const unpaired = renderHook(() => useActions(true), { wrapper: wrapper(unpairedClient) })
     expect(unpaired.result.current.actions).toEqual([])
+    expect(ctx.callDaemon).not.toHaveBeenCalled()
   })
 })

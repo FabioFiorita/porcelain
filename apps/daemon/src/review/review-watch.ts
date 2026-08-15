@@ -40,10 +40,14 @@ const watched = new Map<string, WatchedRepo>()
  * nothing but its project path. Deliberately narrower than `SessionChange['kind']` — a change
  * with its own identity fields (a development-server roster, say) is published by its owning
  * operation, never inferred from a file write.
+ *
+ * `actions.json` is deliberately absent: saved commands moved to the daemon-root Project store
+ * (ADR 0002), so the Actions operations publish that change themselves, and a repo-local
+ * `actions.json` is a tracked overlay (#26) rather than a live companion file.
  */
 type CompanionChangeKind = Extract<
   SessionChange,
-  { kind: `files.${string}` | 'review.changed' | 'board.changed' | 'actions.changed' }
+  { kind: `files.${string}` | 'review.changed' | 'board.changed' }
 >['kind']
 
 /** Map a companion file basename to the domain change kind it makes stale. */
@@ -51,7 +55,6 @@ const FILE_CHANGES: Record<string, CompanionChangeKind> = {
   [PROJECT_FILES.review]: 'review.changed',
   [PROJECT_FILES.comments]: 'review.changed',
   [PROJECT_FILES.board]: 'board.changed',
-  [PROJECT_FILES.actions]: 'actions.changed',
   [PROJECT_FILES.layers]: 'review.changed',
   [PROJECT_FILES.scope]: 'files.scope-changed',
   [PROJECT_FILES.activeReview]: 'review.changed',
