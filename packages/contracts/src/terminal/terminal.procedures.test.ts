@@ -6,24 +6,48 @@ import {
 } from './terminal.contract'
 import { terminalProcedures } from './terminal.procedures'
 
+const devServerTargetFixture = terminalContractFixtures.startDevServer.input.target
+
 const expectedKinds = {
   terminalSessions: 'query',
   renameTerminal: 'mutation',
+  devServers: 'query',
+  startDevServer: 'mutation',
+  stopDevServer: 'mutation',
+  dismissDevServer: 'mutation',
+} as const
+
+/** The public failures each procedure is allowed to answer with. */
+const expectedErrors = {
+  terminalSessions: [],
+  renameTerminal: [],
+  devServers: [],
+  startDevServer: ['terminal.dev-server-target', 'terminal.capacity'],
+  stopDevServer: ['terminal.dev-server-not-found'],
+  dismissDevServer: ['terminal.dev-server-not-found', 'terminal.dev-server-running'],
 } as const
 
 const invalidInputs = {
   terminalSessions: 'every-session',
   renameTerminal: { id: 'terminal-1' },
+  devServers: { target: { projectId: 'project-1' } },
+  startDevServer: { target: devServerTargetFixture, label: 'web' },
+  stopDevServer: { id: '' },
+  dismissDevServer: {},
 } as const
 
 const invalidOutputs = {
   terminalSessions: [{ ...terminalContractFixtures.terminalSessions.output[0], status: 'paused' }],
   renameTerminal: null,
+  devServers: [{ ...terminalContractFixtures.devServers.output[0], status: 'paused' }],
+  startDevServer: { ...terminalContractFixtures.startDevServer.output, terminalId: '' },
+  stopDevServer: null,
+  dismissDevServer: null,
 } as const
 const EMPTY_ID = ''
 
 describe('Terminal procedure contracts', () => {
-  it('declares exactly two procedures with their router kinds', () => {
+  it('declares exactly the six procedures with their router kinds', () => {
     expect(Object.keys(terminalProcedures).sort()).toEqual(Object.keys(expectedKinds).sort())
     for (const [name, kind] of Object.entries(expectedKinds)) {
       expect(terminalProcedures[name as keyof typeof terminalProcedures].kind).toBe(kind)
@@ -36,7 +60,7 @@ describe('Terminal procedure contracts', () => {
       const procedure = terminalProcedures[name]
       expect(procedure.input.safeParse(fixture.input).success).toBe(true)
       expect(procedure.output.safeParse(fixture.output).success).toBe(true)
-      expect(procedure.errors).toEqual([])
+      expect(procedure.errors).toEqual([...expectedErrors[name]])
     })
 
     it(`rejects invalid ${name} input and output fixtures`, () => {

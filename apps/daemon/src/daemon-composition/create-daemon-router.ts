@@ -13,7 +13,7 @@ import {
   createReviewReadingRouter,
 } from '../features/review'
 import { createSearchRouter } from '../features/search'
-import { createTerminalRouter } from '../features/terminal'
+import { createDevServerRouter, createTerminalRouter } from '../features/terminal'
 import { t } from '../trpc'
 import type { CreateDaemonRouterOptions } from './daemon-operations'
 
@@ -44,5 +44,6 @@ export function createDaemonRouter({ operations }: CreateDaemonRouterOptions) {
     createProjectDataRouter(operations.projectData),
     createRemoteNetworkRouter(operations.remote),
     createTerminalRouter(operations.terminal),
+    createDevServerRouter(operations.terminal.devServers),
   )
 }

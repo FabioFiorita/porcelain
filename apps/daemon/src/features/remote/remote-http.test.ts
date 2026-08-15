@@ -26,6 +26,25 @@ import { createRemoteHttp, initConfigDir, type RemoteHttp, type RemoteHttpOption
 // then stays assignable while production narrows away from it, and the tests never notice.
 const terminalOperations = {
   create: vi.fn<TerminalOperations['create']>(() => ({ ok: true, value: 'term-1' })),
+  createRetained: vi.fn<TerminalOperations['createRetained']>(() => ({
+    ok: true,
+    value: 'term-retained',
+  })),
+  devServers: {
+    list: vi.fn<TerminalOperations['devServers']['list']>(() => []),
+    start: vi.fn<TerminalOperations['devServers']['start']>(() => ({
+      ok: false,
+      error: { code: 'terminal.dev-server-target' },
+    })),
+    stop: vi.fn<TerminalOperations['devServers']['stop']>(() => ({
+      ok: false,
+      error: { code: 'terminal.dev-server-not-found' },
+    })),
+    dismiss: vi.fn<TerminalOperations['devServers']['dismiss']>(() => ({
+      ok: false,
+      error: { code: 'terminal.dev-server-not-found' },
+    })),
+  },
   attach: vi.fn<TerminalOperations['attach']>((id) => ({
     ok: false,
     error: { code: id === 'ghost' ? 'terminal.not-found' : 'terminal.exited' },

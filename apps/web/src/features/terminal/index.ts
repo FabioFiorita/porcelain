@@ -1,5 +1,7 @@
 /** Web Terminal public boundary: transport adapter, roster binding, and recovery copy. */
 
+export { useDevServersNotificationSubscription } from './dev-servers'
+export { DevServersSection } from './dev-servers-section'
 export { applyTerminalRecovery, terminalPasteFailureMessage } from './terminal-notifications'
 export {
   invalidateTerminalSessionsQueries,

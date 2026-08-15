@@ -34,6 +34,32 @@ A terminal is a live bidirectional byte stream, not request/response data.
   sender) must start the idle clock, or a session detaches invisibly and never expires. The cap's throw
   is answered as `terminal:created { id: '' }` — that message has no error channel, and an unsettled
   create would wedge the client's pending promise.
+- **A development server is a RETAINED session plus a daemon-owned record — the one deliberate
+  exception to the three bounds above.** `.devServers` (`features/terminal/dev-server-*.ts`) holds
+  `{ id, target { projectId, worktreeId, path }, label, command, status, exitCode?, detectedUrl?,
+  terminalId }` in daemon memory; the Environment is implicit because the daemon answering the call
+  IS the Environment. The record owns the process, so **the sweep, the 12h idle window, and
+  `MAX_SESSIONS` eviction all skip a retained session** — detach, Worktree switch, browser reload,
+  socket loss, and window closure are client events that never reach it. Only `stopDevServer` kills;
+  `dismissDevServer` forgets a *finished* record (and refuses a live one, which would orphan the
+  process); an undismissed finished record expires after 24h so a long-lived daemon stays bounded.
+  Records are memory-only **on purpose** — the daemon dying ends the processes too, so a persisted
+  record could only describe something that no longer exists. `createRetained` spawns with an empty
+  `attached` set and reports to a `TerminalSessionObserver` instead of a client sink; a human attaches
+  to the same `terminalId` through the ordinary path and gets the scrollback replayed. The command
+  rides `initialInput`, so it obeys the prompt-quiet law like every other typed command.
+- **`detectedUrl` is best-effort output parsing and REQUIRES an explicit port.** The shell echoes the
+  command before running it, so a server whose command mentions a URL
+  (`console.log("http://127.0.0.1:" + port)`) would otherwise be "detected" with the port truncated at
+  the quote — a link to nothing, shown confidently. A wildcard bind (`0.0.0.0`, `[::]`) is rewritten to
+  loopback because that is what the human can actually open. No match is normal; a wrong match is not.
+- **The roster is data, so it rides tRPC and a typed notification — not the byte stream.**
+  `devServers` / `startDevServer` / `stopDevServer` / `dismissDevServer` are request/response, and
+  `terminal.dev-servers-changed` (carrying `projectPath` for session routing plus the Project +
+  Worktree identity) invalidates exactly that Worktree's cache row. The client never mirrors "is it
+  running" in a store, and the Servers section renders **nothing** rather than "nothing is running"
+  until the daemon has answered — a flash of the opposite truth about your own processes is the one
+  failure this surface must not have.
 - **Nerd Font fallback, not a font swap:** Geist Mono *then* `"Symbols Nerd Font Mono"` (vendored MIT)
   so text renders in Geist Mono and powerline/devicon glyphs fill per-glyph instead of tofu.
   Terminal-only; the **Mono** variant is required (single-cell, aligns to the grid).

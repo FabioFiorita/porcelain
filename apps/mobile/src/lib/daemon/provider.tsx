@@ -65,6 +65,10 @@ export function proceduresForChange(change: SessionChange): readonly string[] {
     case 'actions.changed':
       // ActionsNotificationBridge owns exact Actions list invalidation (ACT-003).
       return []
+    case 'terminal.dev-servers-changed':
+      // Mobile does not surface development servers yet; the Hub client owns that roster.
+      // Listed so the switch stays exhaustive rather than silently dropping a new signal.
+      return []
   }
 }
 

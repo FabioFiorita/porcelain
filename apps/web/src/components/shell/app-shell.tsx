@@ -15,7 +15,10 @@ import {
   FileFinder,
   useSearchNotificationSubscription,
 } from '@renderer/features/search'
-import { useTerminalRoster } from '@renderer/features/terminal'
+import {
+  useDevServersNotificationSubscription,
+  useTerminalRoster,
+} from '@renderer/features/terminal'
 import { useDocumentTitle } from '@renderer/hooks/use-document-title'
 import { useResponsiveShell } from '@renderer/hooks/use-responsive-shell'
 import { useSessionRuntime } from '@renderer/hooks/use-session-runtime'
@@ -152,6 +155,7 @@ export function AppShell(): React.JSX.Element {
   useThemeSync()
   useDocumentTitle()
   useTerminalRoster()
+  useDevServersNotificationSubscription()
 
   useEffect(() => {
     boot()

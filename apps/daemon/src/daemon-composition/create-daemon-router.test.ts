@@ -26,6 +26,13 @@ const EXPECTED_PROCEDURE_KEYS = Object.keys(procedureCatalog).sort()
 function terminalOperations(): TerminalOperations {
   return {
     create: () => ({ ok: true, value: 'term-1' }),
+    createRetained: () => ({ ok: true, value: 'term-retained' }),
+    devServers: {
+      list: () => [],
+      start: () => ({ ok: false, error: { code: 'terminal.dev-server-target' } }),
+      stop: () => ({ ok: false, error: { code: 'terminal.dev-server-not-found' } }),
+      dismiss: () => ({ ok: false, error: { code: 'terminal.dev-server-not-found' } }),
+    },
     attach: () => ({ ok: false, error: { code: 'terminal.not-found' } }),
     detach: () => ({ ok: false, error: { code: 'terminal.not-found' } }),
     write: () => ({ ok: false, error: { code: 'terminal.not-found' } }),

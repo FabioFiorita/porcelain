@@ -20,6 +20,11 @@ vi.mock('@renderer/features/review', () => ({
   useReviewReading: vi.fn(),
   useReviewComments: vi.fn(),
 }))
+// The Servers section is a daemon-backed feature with its own suite; here it stands in as a
+// marker so the Glance's own composition stays assertable without a tRPC provider.
+vi.mock('@renderer/features/terminal', () => ({
+  DevServersSection: (): React.JSX.Element => <div data-testid="dev-servers-stub" />,
+}))
 const openTerminalPanel = vi.hoisted(() => vi.fn(async () => {}))
 vi.mock('@renderer/lib/terminal-actions', () => ({ openTerminalPanel }))
 
@@ -89,6 +94,8 @@ describe('GlanceHome', () => {
     expect(screen.getByTestId('glance-jump-review')).toBeInTheDocument()
     expect(screen.queryByTestId('glance-jump-board')).not.toBeInTheDocument()
     expect(screen.getByTestId('glance-jump-terminal')).toBeInTheDocument()
+    // The Worktree's daemon-owned servers belong on the landing page, not behind a tab.
+    expect(screen.getByTestId('dev-servers-stub')).toBeInTheDocument()
   })
 
   it('renders inbox rows with their changed count, and tapping one switches to that worktree', () => {

@@ -34,8 +34,19 @@ type WatchedRepo = {
 
 const watched = new Map<string, WatchedRepo>()
 
+/**
+ * The change kinds this watcher can emit: the `.porcelain/` companion facts, each carrying
+ * nothing but its project path. Deliberately narrower than `SessionChange['kind']` — a change
+ * with its own identity fields (a development-server roster, say) is published by its owning
+ * operation, never inferred from a file write.
+ */
+type CompanionChangeKind = Extract<
+  SessionChange,
+  { kind: `files.${string}` | 'review.changed' | 'board.changed' | 'actions.changed' }
+>['kind']
+
 /** Map a companion file basename to the domain change kind it makes stale. */
-const FILE_CHANGES: Record<string, SessionChange['kind']> = {
+const FILE_CHANGES: Record<string, CompanionChangeKind> = {
   [PROJECT_FILES.review]: 'review.changed',
   [PROJECT_FILES.comments]: 'review.changed',
   [PROJECT_FILES.board]: 'board.changed',
@@ -46,7 +57,7 @@ const FILE_CHANGES: Record<string, SessionChange['kind']> = {
   [PROJECT_FILES.notes]: 'review.changed',
 }
 
-function publish(kind: SessionChange['kind'], projectPath: string): void {
+function publish(kind: CompanionChangeKind, projectPath: string): void {
   if (kind === 'files.tree-changed' || kind === 'files.content-changed') {
     publishSessionChange({ kind, projectPath, paths: ['.'] })
     return
