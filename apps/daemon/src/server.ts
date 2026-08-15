@@ -5,6 +5,8 @@ import { ensureCli } from './cli-install'
 import { seedDevConfig } from './dev-config'
 import { createGitSubprocess } from './features/git'
 import {
+  createCanvasAccessTokens,
+  createCanvasOperations,
   createCanvasStore,
   createHubGitPort,
   createNodeProjectsPort,
@@ -34,6 +36,7 @@ import {
 import { warmFileList } from './git/git'
 import { isLinkedWorktree } from './git/linked-worktree'
 import { ensureAdminToken } from './net/admin-token'
+import { handleCanvasRequest } from './net/canvas-http'
 import { daemonIdentity } from './net/daemon-identity'
 import { rendererDistExists, serveStatic } from './net/static-server'
 import { watchAgentChannels, watchProjectCompanion } from './review/review-watch'
@@ -76,7 +79,14 @@ const environmentIdentity = initEnvironmentIdentityStore({
   defaultName: identity.host,
 })
 const hubInventory = initHubInventoryStore(porcelainHomeDir)
-const canvasStore = createCanvasStore({ homeDir: porcelainHomeDir })
+// One shared accessTokens instance: a token minted through tRPC (mintCanvasAccessToken)
+// must resolve against the SAME in-memory grant map the GET /canvas/<token> route reads
+// from (canvasOperations only exposes mint, not resolve — that's this route's own concern).
+const canvasAccessTokens = createCanvasAccessTokens()
+const canvasOperations = createCanvasOperations({
+  store: createCanvasStore({ homeDir: porcelainHomeDir }),
+  accessTokens: canvasAccessTokens,
+})
 
 // The single daemon shutdown path. Every shutdown route (SIGTERM from the shell's
 // utilityProcess.kill, SIGINT at a TTY, or the stdin-EOF watchdog) converges here.
@@ -143,7 +153,7 @@ async function main(): Promise<void> {
       git: createHubGitPort(createGitSubprocess()),
       daemon: identity,
     },
-    canvas: canvasStore,
+    canvas: canvasOperations,
   })
   const operations = createDaemonOperations({ projects, terminal })
   const router = createDaemonRouter({ operations })
@@ -155,6 +165,11 @@ async function main(): Promise<void> {
     router,
     onSession: (socket, identity) => createSession(socket, identity, terminal),
     serveStatic,
+    serveCanvas: (req, res) =>
+      handleCanvasRequest(req, res, {
+        resolveAccessToken: canvasAccessTokens.resolve,
+        readCanvas: canvasOperations.readCanvas,
+      }),
   })
 
   // Hand the shared handlers to the second-listener module so its optional

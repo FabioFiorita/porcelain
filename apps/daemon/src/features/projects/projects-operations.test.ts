@@ -1,7 +1,7 @@
 // @vitest-environment node
 import type { BrowseDirsOutput, ProjectInfo } from '@porcelain/contracts/projects'
 import { describe, expect, it, vi } from 'vitest'
-import type { CanvasStore } from './canvas-store'
+import type { CanvasOperations } from './canvas-operations'
 import type { EnvironmentIdentityStore } from './environment-identity-store'
 import type { HubGitPort } from './hub-git-port'
 import type { HubInventoryStore } from './hub-inventory-store'
@@ -83,12 +83,16 @@ function harness() {
     })),
   } satisfies HubGitPort
   const canvas = {
-    listCanvases: vi.fn<CanvasStore['listCanvases']>(async () => ({ ok: true, value: [] })),
-    readCanvasEntry: vi.fn<CanvasStore['readCanvasEntry']>(async () => ({
+    listCanvases: vi.fn<CanvasOperations['listCanvases']>(async () => ({ ok: true, value: [] })),
+    readCanvas: vi.fn<CanvasOperations['readCanvas']>(async () => ({
       ok: false,
       error: { code: 'canvas.not-found' },
     })),
-  } satisfies CanvasStore
+    mintCanvasAccessToken: vi.fn<CanvasOperations['mintCanvasAccessToken']>(async () => ({
+      ok: false,
+      error: { code: 'canvas.not-found' },
+    })),
+  } satisfies CanvasOperations
   return {
     events,
     projects,

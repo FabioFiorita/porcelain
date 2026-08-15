@@ -1,4 +1,10 @@
 export {
+  type CanvasAccessScope,
+  type CanvasAccessTokens,
+  createCanvasAccessTokens,
+} from './canvas-access-tokens'
+export { type CanvasOperations, createCanvasOperations } from './canvas-operations'
+export {
   type CanvasEntry,
   type CanvasKind,
   type CanvasStore,

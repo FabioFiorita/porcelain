@@ -83,5 +83,10 @@ export function createProjectsRouter(operations: ProjectsOperations) {
       .input(procedureCatalog.readCanvas.input)
       .output(procedureCatalog.readCanvas.output)
       .query(async ({ input }) => throwIfFailed(await operations.readCanvas(input))),
+
+    mintCanvasAccessToken: publicProcedure
+      .input(procedureCatalog.mintCanvasAccessToken.input)
+      .output(procedureCatalog.mintCanvasAccessToken.output)
+      .mutation(async ({ input }) => throwIfFailed(await operations.mintCanvasAccessToken(input))),
   })
 }

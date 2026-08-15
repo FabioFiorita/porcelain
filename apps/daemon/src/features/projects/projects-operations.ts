@@ -5,12 +5,12 @@ import type {
   HubInventory,
   HubWorktree,
   ListCanvasesInput,
+  MintCanvasAccessTokenInput,
   ProjectInfo,
   ReadCanvasInput,
   RemoveHubWorktreeInput,
 } from '@porcelain/contracts/projects'
-import { createCanvasOperations } from './canvas-operations'
-import type { CanvasStore } from './canvas-store'
+import type { CanvasOperations } from './canvas-operations'
 import type { EnvironmentIdentityStore } from './environment-identity-store'
 import type { HubGitPort } from './hub-git-port'
 import {
@@ -46,6 +46,9 @@ export type ProjectsOperations = Readonly<{
   readCanvas: (
     input: ReadCanvasInput,
   ) => Promise<ProjectOperationResult<{ record: CanvasRecord; content: string }>>
+  mintCanvasAccessToken: (
+    input: MintCanvasAccessTokenInput,
+  ) => Promise<ProjectOperationResult<{ token: string }>>
 }>
 
 function failure(error: ProjectsOperationError): ProjectOperationResult<never> {
@@ -82,7 +85,9 @@ export function createProjectsOperations(options: {
     daemon: { host: string; platform: string; arch: string }
     createId?: () => string
   }
-  canvas: CanvasStore
+  /** Pre-built, not raw stores: the daemon-root HTTP route (canvas-http.ts) shares this
+   *  exact instance so a token minted through tRPC resolves against the same in-memory map. */
+  canvas: CanvasOperations
 }): ProjectsOperations {
   const hub: HubInventoryOperations = createHubInventoryOperations({
     environment: options.hub.environment,
@@ -92,7 +97,7 @@ export function createProjectsOperations(options: {
     daemon: options.hub.daemon,
     createId: options.hub.createId,
   })
-  const canvas = createCanvasOperations({ store: options.canvas })
+  const canvas = options.canvas
 
   return Object.freeze({
     async openProject(path: string): Promise<ProjectOperationResult<ProjectInfo>> {
@@ -151,5 +156,6 @@ export function createProjectsOperations(options: {
     createHubWorktree: hub.createHubWorktree,
     listCanvases: canvas.listCanvases,
     readCanvas: canvas.readCanvas,
+    mintCanvasAccessToken: canvas.mintCanvasAccessToken,
   })
 }

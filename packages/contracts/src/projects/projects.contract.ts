@@ -166,6 +166,19 @@ export const readCanvasOutputSchema = z
 export type ReadCanvasInput = z.infer<typeof readCanvasInputSchema>
 export type ReadCanvasOutput = z.infer<typeof readCanvasOutputSchema>
 
+/**
+ * A short-lived capability for the `GET /canvas/<token>` route the Viewer's
+ * sandboxed iframe navigates to — a plain iframe `src` carries no
+ * Authorization header, so the URL itself must carry the credential. Narrow
+ * on purpose: one Project+Canvas, minutes-long TTL, never the admin token.
+ */
+export const mintCanvasAccessTokenInputSchema = z
+  .object({ projectId: z.string().min(1), canvasId: z.string().min(1) })
+  .strict()
+export const mintCanvasAccessTokenOutputSchema = z.object({ token: z.string().min(1) }).strict()
+export type MintCanvasAccessTokenInput = z.infer<typeof mintCanvasAccessTokenInputSchema>
+export type MintCanvasAccessTokenOutput = z.infer<typeof mintCanvasAccessTokenOutputSchema>
+
 const hubInventoryFixture = {
   environment: {
     id: 'env-synthetic',
@@ -264,5 +277,9 @@ export const projectsContractFixtures = {
       },
       content: '<p>hi</p>',
     },
+  },
+  mintCanvasAccessToken: {
+    input: { projectId: 'proj-alpha', canvasId: 'canvas-intent' },
+    output: { token: 'synthetic-token' },
   },
 } as const

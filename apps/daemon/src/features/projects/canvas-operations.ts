@@ -1,9 +1,11 @@
 import type {
   CanvasRecord,
   ListCanvasesInput,
+  MintCanvasAccessTokenInput,
   ReadCanvasInput,
 } from '@porcelain/contracts/projects'
 import { inlineLocalAssets } from '../../fs/evidence-assets'
+import type { CanvasAccessTokens } from './canvas-access-tokens'
 import type { CanvasStore, CanvasStoreError, StoredCanvas } from './canvas-store'
 import type { ProjectOperationResult } from './projects-results'
 
@@ -12,6 +14,10 @@ export type CanvasOperations = Readonly<{
   readCanvas: (
     input: ReadCanvasInput,
   ) => Promise<ProjectOperationResult<{ record: CanvasRecord; content: string }>>
+  /** For the HTML iframe's authenticated GET route (canvas-http.ts) — see its docstring. */
+  mintCanvasAccessToken: (
+    input: MintCanvasAccessTokenInput,
+  ) => Promise<ProjectOperationResult<{ token: string }>>
 }>
 
 function unavailable(): ProjectOperationResult<never> {
@@ -38,7 +44,10 @@ function toPublicRecord(record: StoredCanvas): CanvasRecord {
   }
 }
 
-export function createCanvasOperations(options: { store: CanvasStore }): CanvasOperations {
+export function createCanvasOperations(options: {
+  store: CanvasStore
+  accessTokens: CanvasAccessTokens
+}): CanvasOperations {
   return Object.freeze({
     async listCanvases(input) {
       const listed = await options.store.listCanvases(input.projectId)
@@ -61,6 +70,18 @@ export function createCanvasOperations(options: { store: CanvasStore }): CanvasO
       const rendered =
         record.kind === 'html' ? await inlineLocalAssets(bundleDir, content, bundleDir) : content
       return { ok: true, value: { record: toPublicRecord(record), content: rendered } }
+    },
+
+    async mintCanvasAccessToken(input) {
+      const listed = await options.store.listCanvases(input.projectId)
+      if (!listed.ok) return fromStoreError(listed.error)
+      const exists = listed.value.some((canvas) => canvas.id === input.canvasId)
+      if (!exists) return notFound()
+      const token = options.accessTokens.mint({
+        projectId: input.projectId,
+        canvasId: input.canvasId,
+      })
+      return { ok: true, value: { token } }
     },
   })
 }

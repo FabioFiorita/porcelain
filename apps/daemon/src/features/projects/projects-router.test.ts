@@ -76,6 +76,10 @@ const operations = {
     ok: true as const,
     value: { record: CANVAS_RECORD, content: '<p>hi</p>' },
   })),
+  mintCanvasAccessToken: vi.fn<ProjectsOperations['mintCanvasAccessToken']>(async () => ({
+    ok: true as const,
+    value: { token: 'synthetic-token' },
+  })),
 } satisfies ProjectsOperations
 
 const router = createProjectsRouter(operations)
@@ -110,7 +114,7 @@ beforeEach(() => {
 })
 
 describe('Projects router contract boundary', () => {
-  it('binds all ten procedures to the catalog and returns strict outputs', async () => {
+  it('binds all eleven procedures to the catalog and returns strict outputs', async () => {
     expect(await caller().openRepoPath('/projects/alpha')).toEqual(PROJECT)
     expect(await caller().recentRepos()).toEqual([PROJECT])
     expect(await caller().removeRecentRepo('/projects/old')).toBeUndefined()
@@ -142,6 +146,9 @@ describe('Projects router contract boundary', () => {
       record: CANVAS_RECORD,
       content: '<p>hi</p>',
     })
+    expect(
+      await caller().mintCanvasAccessToken({ projectId: 'proj-1', canvasId: 'canvas-1' }),
+    ).toEqual({ token: 'synthetic-token' })
     expect(Object.keys(procedureCatalog)).toContain('hubInventory')
   })
 

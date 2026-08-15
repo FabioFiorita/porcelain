@@ -8,6 +8,8 @@ import {
   hubWorktreeSchema,
   listCanvasesInputSchema,
   listCanvasesOutputSchema,
+  mintCanvasAccessTokenInputSchema,
+  mintCanvasAccessTokenOutputSchema,
   openRepoPathInputSchema,
   openRepoPathOutputSchema,
   readCanvasInputSchema,
@@ -92,6 +94,12 @@ const projectsProcedureDefinitions = {
     kind: 'query',
     input: readCanvasInputSchema,
     output: readCanvasOutputSchema,
+    errors: ['canvas.not-found', 'canvas.unavailable'],
+  },
+  mintCanvasAccessToken: {
+    kind: 'mutation',
+    input: mintCanvasAccessTokenInputSchema,
+    output: mintCanvasAccessTokenOutputSchema,
     errors: ['canvas.not-found', 'canvas.unavailable'],
   },
 } as const

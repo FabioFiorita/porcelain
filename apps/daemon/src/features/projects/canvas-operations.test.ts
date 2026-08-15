@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { canvasBundleDir, canvasIndexPath } from '@shared/canvas-porcelain'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { createCanvasAccessTokens } from './canvas-access-tokens'
 import { type CanvasOperations, createCanvasOperations } from './canvas-operations'
 import { createCanvasStore, type StoredCanvas } from './canvas-store'
 
@@ -38,7 +39,10 @@ async function writeIndex(projectId: string, canvases: StoredCanvas[]): Promise<
 
 beforeEach(async () => {
   homeDir = await mkdtemp(join(tmpdir(), 'porcelain-canvas-ops-'))
-  operations = createCanvasOperations({ store: createCanvasStore({ homeDir }) })
+  operations = createCanvasOperations({
+    store: createCanvasStore({ homeDir }),
+    accessTokens: createCanvasAccessTokens(),
+  })
   vi.spyOn(console, 'error').mockImplementation(() => undefined)
 })
 
@@ -117,5 +121,39 @@ describe('Canvas operations', () => {
     if (!result.ok) throw new Error('expected ok')
     expect(result.value.content).toContain('data:image/png;base64,')
     expect(result.value.content).not.toContain('src="shot.png"')
+  })
+})
+
+describe('mintCanvasAccessToken', () => {
+  it('mints a resolvable token scoped to the Project and Canvas', async () => {
+    await writeIndex('proj-1', [htmlRecord])
+    const result = await operations.mintCanvasAccessToken({
+      projectId: 'proj-1',
+      canvasId: 'canvas-html',
+    })
+    expect(result.ok).toBe(true)
+    if (!result.ok) throw new Error('expected ok')
+    expect(result.value.token.length).toBeGreaterThan(0)
+  })
+
+  it('reports canvas.not-found for an unknown canvas id', async () => {
+    await writeIndex('proj-1', [])
+    expect(
+      await operations.mintCanvasAccessToken({ projectId: 'proj-1', canvasId: 'nope' }),
+    ).toEqual({ ok: false, error: { code: 'canvas.not-found' } })
+  })
+
+  it('mints distinct tokens on repeated calls for the same Canvas', async () => {
+    await writeIndex('proj-1', [htmlRecord])
+    const first = await operations.mintCanvasAccessToken({
+      projectId: 'proj-1',
+      canvasId: 'canvas-html',
+    })
+    const second = await operations.mintCanvasAccessToken({
+      projectId: 'proj-1',
+      canvasId: 'canvas-html',
+    })
+    if (!first.ok || !second.ok) throw new Error('expected ok')
+    expect(first.value.token).not.toBe(second.value.token)
   })
 })
