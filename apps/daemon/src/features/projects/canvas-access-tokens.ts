@@ -13,9 +13,23 @@ import { randomBytes } from 'node:crypto'
 const CANVAS_TOKEN_TTL_MS = 5 * 60 * 1000
 const CANVAS_TOKEN_BYTES = 24
 
-type CanvasAccessGrant = Readonly<{ projectId: string; canvasId: string; expiresAt: number }>
+type CanvasAccessGrant = Readonly<{
+  projectId: string
+  canvasId: string
+  worktreePath: string | null
+  expiresAt: number
+}>
 
-export type CanvasAccessScope = Readonly<{ projectId: string; canvasId: string }>
+/**
+ * `worktreePath` is part of the grant, not a lookup the route redoes: the token
+ * must resolve to the exact Canvas the Viewer asked for, and a promoted Canvas
+ * and a private one can share an id (#26). Null means "private store only".
+ */
+export type CanvasAccessScope = Readonly<{
+  projectId: string
+  canvasId: string
+  worktreePath: string | null
+}>
 
 export type CanvasAccessTokens = Readonly<{
   mint: (scope: CanvasAccessScope, now?: number) => string
@@ -46,7 +60,11 @@ export function createCanvasAccessTokens(): CanvasAccessTokens {
         grants.delete(token)
         return null
       }
-      return { projectId: grant.projectId, canvasId: grant.canvasId }
+      return {
+        projectId: grant.projectId,
+        canvasId: grant.canvasId,
+        worktreePath: grant.worktreePath,
+      }
     },
   })
 }

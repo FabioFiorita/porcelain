@@ -53,6 +53,15 @@ function projectsOperations(): ProjectsOperations {
     listCanvases: async () => ({ ok: true, value: [] }),
     readCanvas: async () => ({ ok: false, error: { code: 'canvas.not-found' } }),
     mintCanvasAccessToken: async () => ({ ok: false, error: { code: 'canvas.not-found' } }),
+    promoteCanvas: async () => ({ ok: false, error: { code: 'canvas.not-found' } }),
+    promoteOverrides: async () => ({
+      ok: false,
+      error: { code: 'projects.overlay-target-invalid' },
+    }),
+    listOverlay: async () => ({
+      ok: true,
+      value: { path: '/projects/alpha', present: false, canvases: [], overrides: null },
+    }),
   }
 }
 

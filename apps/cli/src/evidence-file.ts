@@ -19,7 +19,7 @@ import { listAssets } from './evidence-assets'
 import { htmlPreview } from './html-input'
 import { ensureProjectDir } from './project-io'
 
-export { listAssets } from './evidence-assets'
+export { describeAssets, listAssets } from './evidence-assets'
 
 // Builtins only — see cli.ts. Evidence is a **three-part pack on disk**:
 //

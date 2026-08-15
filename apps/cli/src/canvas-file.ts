@@ -10,9 +10,15 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs'
-import { dirname, isAbsolute, resolve } from 'node:path'
+import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { canvasBundleDir, canvasIndexPath, isInsideDir } from '@shared/canvas-porcelain'
 import { porcelainHome, porcelainHomePath } from '@shared/porcelain-home'
+import {
+  OVERLAY_CANVAS_MANIFEST_FILE,
+  projectOverlayCanvasBundleDir,
+  projectOverlayCanvasManifestPath,
+} from '@shared/project-porcelain'
+import { revealCompanionOverlay } from './git-exclude'
 
 /**
  * Writes daemon-root Canvas bundles the same way the daemon's canvas-store
@@ -40,11 +46,22 @@ export const CANVAS_COMMANDS = {
     { verb: 'list', args: '', desc: 'List Canvases for this Project' },
     {
       verb: 'set',
-      args: '--title <s> --kind html|markdown --source-dir <abs dir> [--entry <file>] [--id <s>]',
+      args: '--title <s> --kind html|markdown --source-dir <abs dir> [--entry <file>] [--id <s>] [--tracked]',
       desc: 'Create (omit --id) or replace (pass --id) a Canvas bundle from a local directory',
     },
+    {
+      verb: 'promote',
+      args: '--id <s> [--worktree <abs path>]',
+      desc: 'Move a private Canvas into the checkout as a tracked file (writes files; never git add)',
+    },
   ],
-  flags: ['title', 'kind', 'source-dir', 'entry', 'id'],
+  flags: ['title', 'kind', 'source-dir', 'entry', 'id', 'tracked', 'worktree'],
+  flagOverrides: {
+    tracked:
+      'Write the bundle to <repo>/.porcelain/canvases/<id>/ (the tracked overlay) instead of the private daemon-root store',
+    worktree:
+      'Absolute path of the checkout to promote into (default: the repo this command resolved)',
+  },
 }
 
 export type CanvasKind = 'html' | 'markdown'
@@ -152,7 +169,14 @@ function parseCanvasKind(raw: string): CanvasKind {
 /** cli.ts's `canvas set` case body, pulled in whole to keep that shrink-only file lean. */
 export function describeSetCanvas(
   repoPath: string,
-  flags: { title: string; kind: string; sourceDir: string; entryFile?: string; id?: string },
+  flags: {
+    title: string
+    kind: string
+    sourceDir: string
+    entryFile?: string
+    id?: string
+    tracked?: boolean
+  },
 ): string {
   const record = setCanvas({
     repoPath,
@@ -161,8 +185,60 @@ export function describeSetCanvas(
     sourceDir: flags.sourceDir,
     entryFile: flags.entryFile,
     id: flags.id,
+    tracked: flags.tracked,
   })
-  return `Set Canvas ${record.id} "${record.title}" (${record.kind}, entry ${record.entryFile}) for ${repoPath}`
+  const where =
+    flags.tracked === true ? `tracked at ${projectOverlayCanvasBundleDir(repoPath, record.id)}` : ''
+  const suffix = where === '' ? '' : ` — ${where}`
+  return `Set Canvas ${record.id} "${record.title}" (${record.kind}, entry ${record.entryFile}) for ${repoPath}${suffix}`
+}
+
+/**
+ * Copy a whole bundle into `destDir`, staged beside it and renamed into place so
+ * a reader never sees a half-written bundle. `manifest`, when given, is the
+ * tracked overlay's `canvas.json` — written inside the staging directory, so it
+ * arrives with the bytes it describes rather than after them.
+ */
+function stageBundle(destDir: string, sourceDir: string, manifest?: CanvasRecord): void {
+  const staging = `${destDir}.tmp-${randomUUID()}`
+  mkdirSync(dirname(staging), { recursive: true })
+  cpSync(sourceDir, staging, { recursive: true })
+  if (manifest !== undefined) {
+    writeFileSync(
+      join(staging, OVERLAY_CANVAS_MANIFEST_FILE),
+      `${JSON.stringify(manifest, null, 2)}\n`,
+    )
+  }
+  rmSync(destDir, { recursive: true, force: true })
+  renameSync(staging, destDir)
+}
+
+/** The tracked manifest for `<repo>/.porcelain/canvases/<id>/`, or null when there is none. */
+function readTrackedManifest(repoPath: string, canvasId: string): CanvasRecord | null {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(readFileSync(projectOverlayCanvasManifestPath(repoPath, canvasId), 'utf8'))
+  } catch {
+    return null
+  }
+  // The directory name is the identity that addressed this bundle; a manifest
+  // claiming another id names a Canvas this path has no right to speak for.
+  if (!isRecord(parsed) || parsed.id !== canvasId) return null
+  // Field by field, like resolveHubIdentity: this file arrives by `git clone`
+  // from someone else's repository, so it is parsed, never trusted. Anything
+  // short of the full record reads as "no tracked Canvas here".
+  const text = (value: unknown): string | null =>
+    typeof value === 'string' && value !== '' ? value : null
+  const title = text(parsed.title)
+  const entryFile = text(parsed.entryFile)
+  const createdAt = text(parsed.createdAt)
+  const updatedAt = text(parsed.updatedAt)
+  const kind = parsed.kind === 'html' || parsed.kind === 'markdown' ? parsed.kind : null
+  if (kind === null || title === null || entryFile === null) return null
+  if (createdAt === null || updatedAt === null) return null
+  // worktreeId is Environment-local, so a tracked manifest always reads as null
+  // no matter what the clone it travelled from wrote there.
+  return { id: canvasId, worktreeId: null, title, kind, entryFile, createdAt, updatedAt }
 }
 
 export function setCanvas(options: {
@@ -172,6 +248,8 @@ export function setCanvas(options: {
   sourceDir: string
   entryFile?: string
   id?: string
+  /** Write the tracked overlay under the checkout instead of the daemon-root store. */
+  tracked?: boolean
 }): CanvasRecord {
   if (!isAbsolute(options.sourceDir)) {
     throw new Error('--source-dir must be an absolute path')
@@ -197,6 +275,39 @@ export function setCanvas(options: {
     throw new Error(`entry file not found in --source-dir: ${entryFile}`)
   }
 
+  const now = new Date().toISOString()
+
+  if (options.tracked === true) {
+    // The tracked overlay is addressed by path alone: no Project id, no Worktree
+    // id (both are Environment-local and mean nothing in a clone), and the
+    // daemon-root index is never touched. Updating a tracked Canvas is this
+    // explicit write and nothing else — there is no two-way merge.
+    const existingTracked =
+      options.id === undefined ? null : readTrackedManifest(options.repoPath, options.id)
+    if (options.id !== undefined && existingTracked === null) {
+      throw new Error(
+        `no tracked Canvas ${options.id} in ${options.repoPath} — omit --id to create a new one`,
+      )
+    }
+    const trackedId = options.id ?? randomUUID()
+    const trackedRecord: CanvasRecord = {
+      id: trackedId,
+      worktreeId: null,
+      title: options.title,
+      kind: options.kind,
+      entryFile,
+      createdAt: existingTracked?.createdAt ?? now,
+      updatedAt: now,
+    }
+    stageBundle(
+      projectOverlayCanvasBundleDir(options.repoPath, trackedId),
+      options.sourceDir,
+      trackedRecord,
+    )
+    revealCompanionOverlay(options.repoPath)
+    return trackedRecord
+  }
+
   const homeDir = porcelainHome()
   const { projectId, worktreeId } = resolveHubIdentity(options.repoPath)
   const canvases = readIndex(homeDir, projectId)
@@ -205,16 +316,10 @@ export function setCanvas(options: {
     throw new Error(`no Canvas ${options.id} for this Project — omit --id to create a new one`)
   }
   const id = existing?.id ?? randomUUID()
-  const now = new Date().toISOString()
 
   // Wholesale replace, staged then renamed into place so a reader never sees a
   // half-written bundle (matches the tmp+rename idiom the other nouns use).
-  const bundleDir = canvasBundleDir(homeDir, projectId, id)
-  const staging = `${bundleDir}.tmp-${randomUUID()}`
-  mkdirSync(dirname(staging), { recursive: true })
-  cpSync(options.sourceDir, staging, { recursive: true })
-  rmSync(bundleDir, { recursive: true, force: true })
-  renameSync(staging, bundleDir)
+  stageBundle(canvasBundleDir(homeDir, projectId, id), options.sourceDir)
 
   const record: CanvasRecord = {
     id,
@@ -229,4 +334,71 @@ export function setCanvas(options: {
     existing === undefined ? [...canvases, record] : canvases.map((c) => (c.id === id ? record : c))
   writeIndex(homeDir, projectId, next)
   return record
+}
+
+/** cli.ts's `canvas promote` case body, kept here with the rest of the noun. */
+export function describePromoteCanvas(
+  repoPath: string,
+  flags: { id: string; worktree?: string },
+): string {
+  const { record, bundlePath } = promoteCanvas({
+    repoPath,
+    id: flags.id,
+    worktreePath: flags.worktree,
+  })
+  return `Promoted Canvas ${record.id} "${record.title}" to ${bundlePath}. It is a tracked file now — commit it when you want it in history (promotion never runs git add). The private copy is gone, so this checkout is the only editable one.`
+}
+
+/**
+ * Move ONE private daemon-root bundle into a checkout's tracked overlay.
+ *
+ * A move, never a copy: the tracked bytes land first and only then does the
+ * private bundle (and its index record) go, so a crash leaves a promoted Canvas
+ * or an unpromoted one — never two editable copies of the same Canvas that can
+ * drift apart. Plain files only; entering git history stays the human's call.
+ */
+export function promoteCanvas(options: {
+  repoPath: string
+  id: string
+  /** The checkout to promote into. Default: the repo this command resolved. */
+  worktreePath?: string
+}): { record: CanvasRecord; bundlePath: string } {
+  const target = options.worktreePath ?? options.repoPath
+  if (!isAbsolute(target)) throw new Error('--worktree must be an absolute path')
+  try {
+    if (!statSync(target).isDirectory()) throw new Error('not a directory')
+  } catch {
+    throw new Error(`--worktree is not an existing directory: ${target}`)
+  }
+
+  const homeDir = porcelainHome()
+  const { projectId } = resolveHubIdentity(options.repoPath)
+  const canvases = readIndex(homeDir, projectId)
+  const record = canvases.find((c) => c.id === options.id)
+  if (record === undefined) {
+    throw new Error(
+      `no private Canvas ${options.id} for this Project — \`canvas list\` shows what can be promoted`,
+    )
+  }
+  const sourceDir = canvasBundleDir(homeDir, projectId, record.id)
+  try {
+    if (!statSync(sourceDir).isDirectory()) throw new Error('not a directory')
+  } catch {
+    throw new Error(`Canvas ${record.id} has no bundle on disk at ${sourceDir}`)
+  }
+
+  // worktreeId is Environment-local: it would name nothing in the clone this
+  // bundle now travels with, so a tracked manifest always carries null.
+  const tracked: CanvasRecord = { ...record, worktreeId: null }
+  const bundlePath = projectOverlayCanvasBundleDir(target, record.id)
+  stageBundle(bundlePath, sourceDir, tracked)
+  revealCompanionOverlay(target)
+
+  rmSync(sourceDir, { recursive: true, force: true })
+  writeIndex(
+    homeDir,
+    projectId,
+    canvases.filter((c) => c.id !== record.id),
+  )
+  return { record: tracked, bundlePath }
 }

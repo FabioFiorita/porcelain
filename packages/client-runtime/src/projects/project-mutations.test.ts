@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { createHubWorktree, openProject, removeRecentProject } from './project-mutations'
+import {
+  createHubWorktree,
+  openProject,
+  promoteCanvas,
+  promoteOverrides,
+  removeRecentProject,
+} from './project-mutations'
 
 describe('Project mutation effects', () => {
   it('binds open to the canonical procedure and both recent identities', () => {
@@ -37,5 +43,46 @@ describe('Project mutation effects', () => {
         { domain: 'projects', name: 'inventory' },
       ],
     )
+  })
+
+  it('binds Canvas promotion to both checkout-scoped and private Canvas identities', () => {
+    expect(promoteCanvas.procedureName).toBe('promoteCanvas')
+    expect(
+      promoteCanvas.affectedQueries({
+        projectId: 'proj-alpha',
+        canvasId: 'canvas-intent',
+        path: '/synthetic/projects/alpha',
+      }),
+    ).toEqual([
+      {
+        domain: 'projects',
+        name: 'canvases',
+        projectId: 'proj-alpha',
+        worktreePath: '/synthetic/projects/alpha',
+      },
+      { domain: 'projects', name: 'canvases', projectId: 'proj-alpha', worktreePath: null },
+      {
+        domain: 'projects',
+        name: 'canvas',
+        projectId: 'proj-alpha',
+        canvasId: 'canvas-intent',
+        worktreePath: '/synthetic/projects/alpha',
+      },
+      { domain: 'projects', name: 'overlay', path: '/synthetic/projects/alpha' },
+    ])
+    expect(promoteCanvas.optimistic).toBe(false)
+    expect(promoteCanvas.selectionEffect).toBe('none')
+  })
+
+  it('binds tracked project defaults to that checkout overlay alone', () => {
+    expect(promoteOverrides.procedureName).toBe('promoteOverrides')
+    expect(
+      promoteOverrides.affectedQueries({
+        projectId: 'proj-alpha',
+        path: '/synthetic/projects/alpha',
+        hiddenPaths: ['apps/legacy'],
+      }),
+    ).toEqual([{ domain: 'projects', name: 'overlay', path: '/synthetic/projects/alpha' }])
+    expect(promoteOverrides.requiresAuthoritativeRefetch).toBe(true)
   })
 })

@@ -142,17 +142,39 @@ export const canvasRecordSchema = z
     kind: canvasKindSchema,
     createdAt: z.string().min(1),
     updatedAt: z.string().min(1),
+    /**
+     * True when this Canvas was promoted into the addressed checkout's
+     * `.porcelain/` Git overlay (#26). Tracked is canonical: it wins over a
+     * private record with the same id, the daemon never writes back into it,
+     * and the Canvas list badges it so the human knows it travels with a clone.
+     */
+    tracked: z.boolean(),
   })
   .strict()
 export type CanvasRecord = z.infer<typeof canvasRecordSchema>
 
-export const listCanvasesInputSchema = z.object({ projectId: z.string().min(1) }).strict()
+/**
+ * The Worktree checkout to read the Git overlay from. Optional because a Canvas
+ * is owned by the Project, not a checkout: omit it and only private daemon-root
+ * Canvases are listed. Pass it and the tracked overlay in that ONE checkout is
+ * merged over the private records — never a scan of every Worktree, which would
+ * make "which copy did I open" depend on branch checkout order.
+ */
+const worktreePathSchema = z.string().min(1).optional()
+
+export const listCanvasesInputSchema = z
+  .object({ projectId: z.string().min(1), worktreePath: worktreePathSchema })
+  .strict()
 export const listCanvasesOutputSchema = z.array(canvasRecordSchema)
 export type ListCanvasesInput = z.infer<typeof listCanvasesInputSchema>
 export type ListCanvasesOutput = z.infer<typeof listCanvasesOutputSchema>
 
 export const readCanvasInputSchema = z
-  .object({ projectId: z.string().min(1), canvasId: z.string().min(1) })
+  .object({
+    projectId: z.string().min(1),
+    canvasId: z.string().min(1),
+    worktreePath: worktreePathSchema,
+  })
   .strict()
 /**
  * `content` is already server-inlined for `kind: 'html'` — relative images,
@@ -173,11 +195,96 @@ export type ReadCanvasOutput = z.infer<typeof readCanvasOutputSchema>
  * on purpose: one Project+Canvas, minutes-long TTL, never the admin token.
  */
 export const mintCanvasAccessTokenInputSchema = z
-  .object({ projectId: z.string().min(1), canvasId: z.string().min(1) })
+  .object({
+    projectId: z.string().min(1),
+    canvasId: z.string().min(1),
+    worktreePath: worktreePathSchema,
+  })
   .strict()
 export const mintCanvasAccessTokenOutputSchema = z.object({ token: z.string().min(1) }).strict()
 export type MintCanvasAccessTokenInput = z.infer<typeof mintCanvasAccessTokenInputSchema>
 export type MintCanvasAccessTokenOutput = z.infer<typeof mintCanvasAccessTokenOutputSchema>
+
+/**
+ * Promoted project/Worktree defaults — `<repo>/.porcelain/project.json`.
+ *
+ * The field names are deliberately the ones the private surfaces already use
+ * (`hiddenPaths`/`pinnedPaths` from `scope.json`, `startScript`/`disposeScript`
+ * from the client's Worktree setup store) so the #27 migration is a rename of
+ * the file, not a reshaping of its contents. These are project DEFAULTS: the
+ * client merges them UNDER its own client-local personal state, which is never
+ * written into the repository (ADR 0002).
+ */
+export const worktreeSetupOverrideSchema = z
+  .object({
+    startScript: z.string(),
+    disposeScript: z.string(),
+  })
+  .strict()
+export type WorktreeSetupOverride = z.infer<typeof worktreeSetupOverrideSchema>
+
+export const projectOverridesSchema = z
+  .object({
+    /** Repo-relative, exactly as `scope.json` stores them. */
+    hiddenPaths: z.array(z.string()),
+    pinnedPaths: z.array(z.string()),
+    /** Keyed by branch (or another stable Worktree key), never by absolute path. */
+    worktrees: z.record(z.string(), z.object({ setup: worktreeSetupOverrideSchema }).strict()),
+  })
+  .strict()
+export type ProjectOverrides = z.infer<typeof projectOverridesSchema>
+
+/**
+ * Promotion moves ONE private Canvas bundle into `path`'s Git overlay. `path`
+ * is the explicit target — there is no "current" checkout to guess at, and an
+ * ambiguous or foreign path is rejected rather than resolved. `worktreeId`, when
+ * given, must name the same checkout; it lets a client prove the path it cached
+ * still belongs to the Worktree it thinks it does.
+ *
+ * Promotion writes plain files. It never runs `git add` or commits — the human
+ * or agent decides when the promoted Canvas enters history.
+ */
+export const promoteCanvasInputSchema = z
+  .object({
+    projectId: z.string().min(1),
+    canvasId: z.string().min(1),
+    path: z.string().min(1),
+    worktreeId: z.string().min(1).optional(),
+  })
+  .strict()
+export const promoteCanvasOutputSchema = z
+  .object({ record: canvasRecordSchema, bundlePath: z.string().min(1) })
+  .strict()
+export type PromoteCanvasInput = z.infer<typeof promoteCanvasInputSchema>
+export type PromoteCanvasOutput = z.infer<typeof promoteCanvasOutputSchema>
+
+/** Track the current project defaults. Every field replaces wholesale; omitted fields keep. */
+export const promoteOverridesInputSchema = z
+  .object({
+    projectId: z.string().min(1),
+    path: z.string().min(1),
+    hiddenPaths: z.array(z.string()).optional(),
+    pinnedPaths: z.array(z.string()).optional(),
+    worktrees: projectOverridesSchema.shape.worktrees.optional(),
+  })
+  .strict()
+export type PromoteOverridesInput = z.infer<typeof promoteOverridesInputSchema>
+/** The whole tracked document, not a delta — the caller sees exactly what is on disk. */
+export type PromoteOverridesOutput = ProjectOverrides
+
+/** What one checkout's `.porcelain/` overlay currently carries — one entry per channel. */
+export const listOverlayInputSchema = z.object({ path: z.string().min(1) }).strict()
+export const listOverlayOutputSchema = z
+  .object({
+    path: z.string().min(1),
+    /** False when `.porcelain/` does not exist — the untouched, never-promoted repo. */
+    present: z.boolean(),
+    canvases: z.array(canvasRecordSchema),
+    overrides: projectOverridesSchema.nullable(),
+  })
+  .strict()
+export type ListOverlayInput = z.infer<typeof listOverlayInputSchema>
+export type ListOverlayOutput = z.infer<typeof listOverlayOutputSchema>
 
 const hubInventoryFixture = {
   environment: {
@@ -261,6 +368,7 @@ export const projectsContractFixtures = {
         kind: 'html',
         createdAt: '2026-08-15T00:00:00.000Z',
         updatedAt: '2026-08-15T00:00:00.000Z',
+        tracked: false,
       },
     ],
   },
@@ -274,6 +382,7 @@ export const projectsContractFixtures = {
         kind: 'html',
         createdAt: '2026-08-15T00:00:00.000Z',
         updatedAt: '2026-08-15T00:00:00.000Z',
+        tracked: false,
       },
       content: '<p>hi</p>',
     },
@@ -281,5 +390,54 @@ export const projectsContractFixtures = {
   mintCanvasAccessToken: {
     input: { projectId: 'proj-alpha', canvasId: 'canvas-intent' },
     output: { token: 'synthetic-token' },
+  },
+  promoteCanvas: {
+    input: {
+      projectId: 'proj-alpha',
+      canvasId: 'canvas-intent',
+      path: '/synthetic/projects/alpha',
+    },
+    output: {
+      record: {
+        id: 'canvas-intent',
+        // Null once tracked: a Worktree id is Environment-local, and a promoted
+        // Canvas travels to clones where it would name nothing.
+        worktreeId: null,
+        title: 'Intent',
+        kind: 'html',
+        createdAt: '2026-08-15T00:00:00.000Z',
+        updatedAt: '2026-08-15T00:00:00.000Z',
+        tracked: true,
+      },
+      bundlePath: '/synthetic/projects/alpha/.porcelain/canvases/canvas-intent',
+    },
+  },
+  promoteOverrides: {
+    input: {
+      projectId: 'proj-alpha',
+      path: '/synthetic/projects/alpha',
+      hiddenPaths: ['apps/legacy'],
+      pinnedPaths: ['apps/web'],
+    },
+    output: { hiddenPaths: ['apps/legacy'], pinnedPaths: ['apps/web'], worktrees: {} },
+  },
+  listOverlay: {
+    input: { path: '/synthetic/projects/alpha' },
+    output: {
+      path: '/synthetic/projects/alpha',
+      present: true,
+      canvases: [
+        {
+          id: 'canvas-intent',
+          worktreeId: null,
+          title: 'Intent',
+          kind: 'html',
+          createdAt: '2026-08-15T00:00:00.000Z',
+          updatedAt: '2026-08-15T00:00:00.000Z',
+          tracked: true,
+        },
+      ],
+      overrides: { hiddenPaths: ['apps/legacy'], pinnedPaths: ['apps/web'], worktrees: {} },
+    },
   },
 } as const

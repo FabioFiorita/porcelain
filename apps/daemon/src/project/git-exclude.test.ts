@@ -10,6 +10,7 @@ import {
   hideCompanion,
   isCompanionHidden,
   resetCompanionHiddenMemo,
+  revealCompanionOverlay,
   unhideCompanion,
 } from './git-exclude'
 
@@ -101,6 +102,57 @@ describe('hiding the companion from git', () => {
     await mkdir(plain, { recursive: true })
     expect(await hideCompanion(plain)).toBe(false)
     expect(await isCompanionHidden(plain)).toBe(false)
+  })
+})
+
+describe('revealing the promoted Git overlay', () => {
+  it('shows a promoted Canvas to git while every other companion file stays hidden', async () => {
+    await hideCompanion(repo)
+    await writeCompanionFile('board.json')
+    await mkdir(join(projectPorcelainDir(repo), 'canvases', 'c1'), { recursive: true })
+    await writeFile(join(projectPorcelainDir(repo), 'canvases', 'c1', 'index.html'), '<p>hi</p>')
+
+    expect(await revealCompanionOverlay(repo)).toBe(true)
+
+    const status = git(repo, 'status', '--porcelain=v1', '-uall')
+    expect(status).toContain('.porcelain/canvases/c1/index.html')
+    expect(status).not.toContain('board.json')
+  })
+
+  it('shows promoted project overrides too', async () => {
+    await hideCompanion(repo)
+    await writeCompanionFile('project.json', '{"hiddenPaths":[],"pinnedPaths":[],"worktrees":{}}')
+    await writeCompanionFile('notes.md', 'private')
+
+    await revealCompanionOverlay(repo)
+
+    const status = git(repo, 'status', '--porcelain=v1', '-uall')
+    expect(status).toContain('.porcelain/project.json')
+    expect(status).not.toContain('notes.md')
+  })
+
+  it('still reads as hidden, so a later companion write never re-adds the blanket rule', async () => {
+    await hideCompanion(repo)
+    await revealCompanionOverlay(repo)
+    expect(await isCompanionHidden(repo)).toBe(true)
+    expect(await hideCompanion(repo)).toBe(false)
+  })
+
+  it('is idempotent and keeps the human own rules', async () => {
+    await writeFile(excludePath(), '# mine\nscratch/\n')
+    await hideCompanion(repo)
+    expect(await revealCompanionOverlay(repo)).toBe(true)
+    expect(await revealCompanionOverlay(repo)).toBe(false)
+    const text = await readFile(excludePath(), 'utf8')
+    expect(text).toContain('scratch/')
+    expect(text.split('\n').filter((l) => l.trim() === '.porcelain/*')).toHaveLength(1)
+  })
+
+  it('leaves a repo that already tracks its companion completely alone', async () => {
+    // Nothing hidden means someone deliberately shares the companion; widening
+    // it here would change what their repo tracks without being asked.
+    expect(await revealCompanionOverlay(repo)).toBe(false)
+    expect(await readFile(excludePath(), 'utf8').catch(() => '')).not.toContain('.porcelain')
   })
 })
 

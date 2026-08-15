@@ -28,6 +28,7 @@ import { publishSessionChange } from '../session/live-session'
 
 type WatchedRepo = {
   activeReview: boolean
+  evidence: boolean
   closers: Array<() => void>
   close: () => void
 }
@@ -66,6 +67,40 @@ async function isDirectory(path: string): Promise<boolean> {
   }
 }
 
+/**
+ * The evidence tree, watched only once a review is actually in flight.
+ *
+ * Watching is a read; `mkdir` is a WRITE into the human's repository. #26 made
+ * `.porcelain/` something a human opts into by promoting a Canvas, so a promoted
+ * repo that has never run a review must not sprout `active-review/evidence/`
+ * merely because it was opened. Attached from `attachActiveReviewWatcher`, which
+ * the root watcher re-runs the moment `active-review/` appears — exactly when
+ * the tree is wanted.
+ */
+function attachEvidenceWatchers(repoPath: string, state: WatchedRepo): void {
+  if (state.evidence) return
+  state.evidence = true
+  for (const dirToWatch of [
+    projectEvidenceDir(repoPath),
+    projectEvidenceResultsDir(repoPath),
+    projectEvidenceAssetsDir(repoPath),
+  ]) {
+    settleBackground(
+      mkdir(dirToWatch, { recursive: true }).then(() => {
+        try {
+          const w = watch(dirToWatch, () => {
+            publishReview(repoPath)
+          })
+          state.closers.push(() => w.close())
+        } catch {
+          // unsupported FS
+        }
+      }),
+      'watcher',
+    )
+  }
+}
+
 function attachActiveReviewWatcher(repoPath: string, state: WatchedRepo): void {
   if (state.activeReview) return
   try {
@@ -77,6 +112,9 @@ function attachActiveReviewWatcher(repoPath: string, state: WatchedRepo): void {
     })
     state.closers.push(() => active.close())
     state.activeReview = true
+    // The active review exists, so its evidence tree is wanted; creating it now
+    // is part of a review the human already started, not an unasked-for write.
+    attachEvidenceWatchers(repoPath, state)
   } catch {
     // The root watcher retries when active-review is created or another companion event arrives.
   }
@@ -96,6 +134,7 @@ async function watchRepo(repoPath: string): Promise<void> {
   const closers: Array<() => void> = []
   const state: WatchedRepo = {
     activeReview: false,
+    evidence: false,
     closers,
     close: () => {
       for (const close of closers) close()
@@ -127,27 +166,6 @@ async function watchRepo(repoPath: string): Promise<void> {
   }
 
   attachActiveReviewWatcher(repoPath, state)
-
-  const evidenceDir = projectEvidenceDir(repoPath)
-  for (const dirToWatch of [
-    evidenceDir,
-    projectEvidenceResultsDir(repoPath),
-    projectEvidenceAssetsDir(repoPath),
-  ]) {
-    settleBackground(
-      mkdir(dirToWatch, { recursive: true }).then(() => {
-        try {
-          const w = watch(dirToWatch, () => {
-            publishReview(repoPath)
-          })
-          closers.push(() => w.close())
-        } catch {
-          // unsupported FS
-        }
-      }),
-      'watcher',
-    )
-  }
 }
 
 export async function watchAgentChannels(): Promise<void> {

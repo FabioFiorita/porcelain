@@ -141,6 +141,13 @@ export const publicErrorFixtures = {
     retryable: true,
     requestId: '00000000-0000-4000-8000-00000000001d',
   },
+  'projects.overlay-target-invalid': {
+    code: 'projects.overlay-target-invalid',
+    category: 'invalid-request',
+    message: 'The Git promotion target is not a Worktree of this Project.',
+    retryable: false,
+    requestId: '00000000-0000-4000-8000-000000000021',
+  },
   'canvas.not-found': {
     code: 'canvas.not-found',
     category: 'not-found',

@@ -93,6 +93,18 @@ const projectsOperations = {
     ok: false,
     error: { code: 'canvas.not-found' },
   })),
+  promoteCanvas: vi.fn<ProjectsOperations['promoteCanvas']>(async () => ({
+    ok: false,
+    error: { code: 'canvas.not-found' },
+  })),
+  promoteOverrides: vi.fn<ProjectsOperations['promoteOverrides']>(async () => ({
+    ok: false,
+    error: { code: 'projects.overlay-target-invalid' },
+  })),
+  listOverlay: vi.fn<ProjectsOperations['listOverlay']>(async () => ({
+    ok: true,
+    value: { path: '/projects/alpha', present: false, canvases: [], overrides: null },
+  })),
 } satisfies ProjectsOperations
 
 const router = createDaemonRouter({

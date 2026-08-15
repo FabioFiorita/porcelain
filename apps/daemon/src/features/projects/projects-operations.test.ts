@@ -1,7 +1,12 @@
 // @vitest-environment node
+
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import type { BrowseDirsOutput, ProjectInfo } from '@porcelain/contracts/projects'
 import { describe, expect, it, vi } from 'vitest'
-import type { CanvasOperations } from './canvas-operations'
+import { createCanvasAccessTokens } from './canvas-access-tokens'
+import { createCanvasOverlayStore } from './canvas-overlay-store'
+import { createCanvasStore } from './canvas-store'
 import type { EnvironmentIdentityStore } from './environment-identity-store'
 import type { HubGitPort } from './hub-git-port'
 import type { HubInventoryStore } from './hub-inventory-store'
@@ -82,17 +87,14 @@ function harness() {
       value: undefined,
     })),
   } satisfies HubGitPort
+  // Real Canvas storage aimed at a directory that does not exist: these cases
+  // are about Project orchestration, and an absent store reads as "no Canvases"
+  // rather than needing a mock that could drift from the real one.
   const canvas = {
-    listCanvases: vi.fn<CanvasOperations['listCanvases']>(async () => ({ ok: true, value: [] })),
-    readCanvas: vi.fn<CanvasOperations['readCanvas']>(async () => ({
-      ok: false,
-      error: { code: 'canvas.not-found' },
-    })),
-    mintCanvasAccessToken: vi.fn<CanvasOperations['mintCanvasAccessToken']>(async () => ({
-      ok: false,
-      error: { code: 'canvas.not-found' },
-    })),
-  } satisfies CanvasOperations
+    store: createCanvasStore({ homeDir: join(tmpdir(), 'porcelain-ops-no-canvas-home') }),
+    overlay: createCanvasOverlayStore(),
+    accessTokens: createCanvasAccessTokens(),
+  }
   return {
     events,
     projects,

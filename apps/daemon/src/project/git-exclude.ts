@@ -1,6 +1,6 @@
 import { readFile, writeFile } from 'node:fs/promises'
 import { isAbsolute, join, resolve } from 'node:path'
-import { PROJECT_PORCELAIN_DIR } from '@shared/project-porcelain'
+import { OVERLAY_CHANNELS, PROJECT_PORCELAIN_DIR } from '@shared/project-porcelain'
 import { gitCommonDir, gitTrackedUnder } from '../git/git'
 
 /**
@@ -28,6 +28,33 @@ const EXCLUDE_LINE = `${PROJECT_PORCELAIN_DIR}/`
 
 const MARKER = '# Porcelain companion — hidden from git in this clone only.'
 
+/**
+ * The promotion form (#26). `EXCLUDE_LINE` hides the companion DIRECTORY, and
+ * git will not descend into an excluded directory — so a promoted Canvas under
+ * it could never become visible, no matter what a negation said. Excluding the
+ * *contents* (`.porcelain/*`, one level, `*` never crossing `/`) leaves the
+ * directory itself included, which is what makes the negations below reachable
+ * and what keeps every other companion channel exactly as invisible as before.
+ *
+ * One negation per `OVERLAY_CHANNELS` entry: adding Actions later adds a line
+ * here and nothing else.
+ */
+const OVERLAY_EXCLUDE_LINE = `${PROJECT_PORCELAIN_DIR}/*`
+const OVERLAY_NEGATIONS = OVERLAY_CHANNELS.map((channel) =>
+  channel.kind === 'directory'
+    ? `!${PROJECT_PORCELAIN_DIR}/${channel.path}/`
+    : `!${PROJECT_PORCELAIN_DIR}/${channel.path}`,
+)
+
+/** Every line this module owns — removed wholesale before a rewrite. */
+const MANAGED_LINES = new Set<string>([
+  MARKER,
+  EXCLUDE_LINE,
+  PROJECT_PORCELAIN_DIR,
+  OVERLAY_EXCLUDE_LINE,
+  ...OVERLAY_NEGATIONS,
+])
+
 async function excludeFilePath(repoPath: string): Promise<string | null> {
   const common = await gitCommonDir(repoPath)
   if (common === null) return null
@@ -46,8 +73,25 @@ async function readLines(path: string): Promise<string[]> {
 function hasLine(lines: string[]): boolean {
   return lines.some((line) => {
     const trimmed = line.trim()
-    return trimmed === EXCLUDE_LINE || trimmed === PROJECT_PORCELAIN_DIR
+    return (
+      trimmed === EXCLUDE_LINE ||
+      trimmed === PROJECT_PORCELAIN_DIR ||
+      trimmed === OVERLAY_EXCLUDE_LINE
+    )
   })
+}
+
+function hasOverlayLines(lines: string[]): boolean {
+  const present = new Set(lines.map((line) => line.trim()))
+  return present.has(OVERLAY_EXCLUDE_LINE) && OVERLAY_NEGATIONS.every((line) => present.has(line))
+}
+
+/** Replace this module's managed lines with `managed`, preserving every other rule. */
+async function rewriteManagedLines(path: string, managed: readonly string[]): Promise<void> {
+  const kept = (await readLines(path)).filter((line) => !MANAGED_LINES.has(line.trim()))
+  const body = kept.join('\n').replace(/\n+$/, '')
+  const block = managed.join('\n')
+  await writeFile(path, body === '' ? `${block}\n` : `${body}\n${block}\n`)
 }
 
 /** True when git is currently blind to `.porcelain/` in this clone. */
@@ -61,12 +105,26 @@ export async function isCompanionHidden(repoPath: string): Promise<boolean> {
 export async function hideCompanion(repoPath: string): Promise<boolean> {
   const path = await excludeFilePath(repoPath)
   if (path === null) return false
+  if (hasLine(await readLines(path))) return false
+  await rewriteManagedLines(path, [MARKER, EXCLUDE_LINE])
+  return true
+}
+
+/**
+ * Make the promoted Git overlay — and ONLY the overlay — visible to git again.
+ *
+ * Called by promotion, never by opening a repo. A repo that never hid its
+ * companion (someone deliberately tracks it: see `ensureCompanionHidden`) is
+ * left completely alone, so this can never widen what an opted-in repo shares.
+ * Returns true when it changed the exclude file.
+ */
+export async function revealCompanionOverlay(repoPath: string): Promise<boolean> {
+  const path = await excludeFilePath(repoPath)
+  if (path === null) return false
   const lines = await readLines(path)
-  if (hasLine(lines)) return false
-  const body = lines.join('\n').replace(/\n+$/, '')
-  const next =
-    body === '' ? `${MARKER}\n${EXCLUDE_LINE}\n` : `${body}\n${MARKER}\n${EXCLUDE_LINE}\n`
-  await writeFile(path, next)
+  if (!hasLine(lines)) return false
+  if (hasOverlayLines(lines)) return false
+  await rewriteManagedLines(path, [MARKER, OVERLAY_EXCLUDE_LINE, ...OVERLAY_NEGATIONS])
   return true
 }
 
@@ -79,10 +137,7 @@ export async function unhideCompanion(repoPath: string): Promise<boolean> {
   if (path === null) return false
   const lines = await readLines(path)
   if (!hasLine(lines)) return false
-  const kept = lines.filter((line) => {
-    const trimmed = line.trim()
-    return trimmed !== EXCLUDE_LINE && trimmed !== PROJECT_PORCELAIN_DIR && trimmed !== MARKER
-  })
+  const kept = lines.filter((line) => !MANAGED_LINES.has(line.trim()))
   const body = kept.join('\n').replace(/\n+$/, '')
   await writeFile(path, body === '' ? '' : `${body}\n`)
   return true

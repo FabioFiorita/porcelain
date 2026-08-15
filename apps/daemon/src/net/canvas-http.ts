@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { CanvasRecord } from '@porcelain/contracts/projects'
-import type { ProjectOperationResult } from '../features/projects'
+import { CANVAS_BRIDGE_SCRIPT_HASH, type ProjectOperationResult } from '../features/projects'
 
 const CANVAS_ROUTE_PREFIX = '/canvas/'
 
@@ -15,11 +15,26 @@ const CANVAS_ROUTE_PREFIX = '/canvas/'
 const CANVAS_DOCUMENT_CSP =
   "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; form-action 'none'"
 
+/**
+ * A PROMOTED Canvas is stricter still. ADR 0002 makes this an explicit decision
+ * rather than an inherited one: an unpromoted Canvas was written on this machine
+ * by an agent the user already trusts with a shell, while a promoted one is a
+ * tracked file `git clone` can deliver from someone else's repository. So the
+ * only script permitted to run is Porcelain's own external-link bridge, pinned
+ * by hash — every author script, inline or external, is refused by the browser,
+ * which does not depend on a server-side sanitizer being complete. Styles,
+ * images, and links still work, which is the whole point of promoting a Canvas.
+ */
+const TRACKED_CANVAS_DOCUMENT_CSP = `default-src 'none'; script-src ${CANVAS_BRIDGE_SCRIPT_HASH}; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; form-action 'none'`
+
 export type CanvasHttpDeps = Readonly<{
-  resolveAccessToken: (token: string) => Readonly<{ projectId: string; canvasId: string }> | null
+  resolveAccessToken: (
+    token: string,
+  ) => Readonly<{ projectId: string; canvasId: string; worktreePath: string | null }> | null
   readCanvas: (input: {
     projectId: string
     canvasId: string
+    worktreePath?: string
   }) => Promise<ProjectOperationResult<{ record: CanvasRecord; content: string }>>
 }>
 
@@ -80,7 +95,14 @@ export async function handleCanvasRequest(
     writePlainText(res, 401, 'expired or unknown Canvas access token')
     return
   }
-  const result = await deps.readCanvas(scope)
+  // The grant carries the checkout the Viewer addressed, so a promoted Canvas
+  // is served from the tracked bundle the human is actually looking at rather
+  // than from a private record that happens to share its id (#26).
+  const result = await deps.readCanvas({
+    projectId: scope.projectId,
+    canvasId: scope.canvasId,
+    ...(scope.worktreePath === null ? {} : { worktreePath: scope.worktreePath }),
+  })
   if (!result.ok || result.value.record.kind !== 'html') {
     writePlainText(res, 404, 'not found')
     return
@@ -88,7 +110,9 @@ export async function handleCanvasRequest(
 
   const headers = {
     'content-type': 'text/html; charset=utf-8',
-    'content-security-policy': CANVAS_DOCUMENT_CSP,
+    'content-security-policy': result.value.record.tracked
+      ? TRACKED_CANVAS_DOCUMENT_CSP
+      : CANVAS_DOCUMENT_CSP,
     'cache-control': 'no-store',
   }
   if (req.method === 'HEAD') {

@@ -6,7 +6,7 @@ import { seedDevConfig } from './dev-config'
 import { createGitSubprocess } from './features/git'
 import {
   createCanvasAccessTokens,
-  createCanvasOperations,
+  createCanvasOverlayStore,
   createCanvasStore,
   createHubGitPort,
   createNodeProjectsPort,
@@ -81,12 +81,13 @@ const environmentIdentity = initEnvironmentIdentityStore({
 const hubInventory = initHubInventoryStore(porcelainHomeDir)
 // One shared accessTokens instance: a token minted through tRPC (mintCanvasAccessToken)
 // must resolve against the SAME in-memory grant map the GET /canvas/<token> route reads
-// from (canvasOperations only exposes mint, not resolve — that's this route's own concern).
+// from (the Canvas operations only expose mint, not resolve — that's this route's own concern).
 const canvasAccessTokens = createCanvasAccessTokens()
-const canvasOperations = createCanvasOperations({
+const canvasStores = {
   store: createCanvasStore({ homeDir: porcelainHomeDir }),
+  overlay: createCanvasOverlayStore(),
   accessTokens: canvasAccessTokens,
-})
+}
 
 // The single daemon shutdown path. Every shutdown route (SIGTERM from the shell's
 // utilityProcess.kill, SIGINT at a TTY, or the stdin-EOF watchdog) converges here.
@@ -153,7 +154,7 @@ async function main(): Promise<void> {
       git: createHubGitPort(createGitSubprocess()),
       daemon: identity,
     },
-    canvas: canvasOperations,
+    canvas: canvasStores,
   })
   const operations = createDaemonOperations({ projects, terminal })
   const router = createDaemonRouter({ operations })
@@ -168,7 +169,7 @@ async function main(): Promise<void> {
     serveCanvas: (req, res) =>
       handleCanvasRequest(req, res, {
         resolveAccessToken: canvasAccessTokens.resolve,
-        readCanvas: canvasOperations.readCanvas,
+        readCanvas: projects.readCanvas,
       }),
   })
 

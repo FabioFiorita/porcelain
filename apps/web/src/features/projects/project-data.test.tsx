@@ -1,6 +1,6 @@
 import { recentProjectsQuery } from '@porcelain/client-runtime/projects'
 import { publicErrorFixtures } from '@porcelain/contracts'
-import { projectsContractFixtures } from '@porcelain/contracts/projects'
+import { projectsContractFixtures, projectsProcedures } from '@porcelain/contracts/projects'
 import { remoteContractFixtures } from '@porcelain/contracts/remote'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useQueryClient } from '@tanstack/react-query'
@@ -19,6 +19,7 @@ import {
   useRecentProjects,
   useRemoveRecentProject,
 } from './index'
+import { usePromoteCanvas, usePromoteProjectOverrides } from './project-data'
 
 const alpha = projectsContractFixtures.openRepoPath.output
 const beta = { path: '/synthetic/projects/beta', name: 'beta' }
@@ -216,6 +217,92 @@ describe('Web Projects adapter', () => {
       procedure: 'readCanvas',
       kind: 'query',
       input: { projectId: 'proj-alpha', canvasId: 'canvas-intent' },
+    })
+  })
+
+  it('addresses the Canvas list and read at a specific checkout', async () => {
+    const list = projectsContractFixtures.listCanvases.output
+    const read = projectsContractFixtures.readCanvas.output
+    const { mock, wrapper } = createValidatingTrpcHarness(
+      handlers({
+        listCanvases: () => ({ ok: true, value: list }),
+        readCanvas: () => ({ ok: true, value: read }),
+      }),
+    )
+    const hook = renderHook(
+      () => ({
+        list: useCanvasList('proj-alpha', '/synthetic/projects/alpha'),
+        canvas: useCanvas('proj-alpha', 'canvas-intent', '/synthetic/projects/alpha'),
+      }),
+      { wrapper },
+    )
+
+    await waitFor(() => expect(hook.result.current.canvas.canvas).toEqual(read))
+    expect(mock.requests()).toContainEqual({
+      procedure: 'listCanvases',
+      kind: 'query',
+      input: { projectId: 'proj-alpha', worktreePath: '/synthetic/projects/alpha' },
+    })
+    expect(mock.requests()).toContainEqual({
+      procedure: 'readCanvas',
+      kind: 'query',
+      input: {
+        projectId: 'proj-alpha',
+        canvasId: 'canvas-intent',
+        worktreePath: '/synthetic/projects/alpha',
+      },
+    })
+  })
+
+  it('promotes a Canvas to the explicitly addressed checkout', async () => {
+    const promoted = projectsProcedures.promoteCanvas.output.parse(
+      projectsContractFixtures.promoteCanvas.output,
+    )
+    const input = projectsProcedures.promoteCanvas.input.parse(
+      projectsContractFixtures.promoteCanvas.input,
+    )
+    const { mock, wrapper } = createValidatingTrpcHarness(
+      handlers({ promoteCanvas: () => ({ ok: true, value: promoted }) }),
+    )
+    const hook = renderHook(() => usePromoteCanvas(), { wrapper })
+
+    let result: typeof promoted | null = null
+    await act(async () => {
+      result = await hook.result.current.promote(input)
+    })
+
+    expect(result).toEqual(promoted)
+    expect(mock.requests()).toContainEqual({
+      procedure: 'promoteCanvas',
+      kind: 'mutation',
+      input,
+    })
+  })
+
+  it('tracks project defaults into the addressed checkout', async () => {
+    // Parsed, not spread: the fixture is `as const`, and the hook takes the
+    // contract's own mutable input/output types.
+    const overrides = projectsProcedures.promoteOverrides.output.parse(
+      projectsContractFixtures.promoteOverrides.output,
+    )
+    const input = projectsProcedures.promoteOverrides.input.parse(
+      projectsContractFixtures.promoteOverrides.input,
+    )
+    const { mock, wrapper } = createValidatingTrpcHarness(
+      handlers({ promoteOverrides: () => ({ ok: true, value: overrides }) }),
+    )
+    const hook = renderHook(() => usePromoteProjectOverrides(), { wrapper })
+
+    let result: typeof overrides | null = null
+    await act(async () => {
+      result = await hook.result.current.promote(input)
+    })
+
+    expect(result).toEqual(overrides)
+    expect(mock.requests()).toContainEqual({
+      procedure: 'promoteOverrides',
+      kind: 'mutation',
+      input,
     })
   })
 

@@ -3,7 +3,13 @@ export {
   type CanvasAccessTokens,
   createCanvasAccessTokens,
 } from './canvas-access-tokens'
-export { type CanvasOperations, createCanvasOperations } from './canvas-operations'
+export {
+  CANVAS_BRIDGE_SCRIPT_HASH,
+  type CanvasOperations,
+  type CanvasWorktrees,
+  createCanvasOperations,
+} from './canvas-operations'
+export { type CanvasOverlayStore, createCanvasOverlayStore } from './canvas-overlay-store'
 export {
   type CanvasEntry,
   type CanvasKind,

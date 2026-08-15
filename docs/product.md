@@ -50,6 +50,10 @@ through the CLI. Do not rebuild an in-app agent runner.
 - **Local by default** — machine secrets on the daemon host under `~/.porcelain/`; project
   companion data (reviews, board, scope, actions, …) lives in `<repo>/.porcelain/` and is
   shareable via git when you choose to track it. No Porcelain cloud for your code, no telemetry.
+- **Your repository is yours** — Canvases and Project defaults live in the daemon's private store,
+  not in your working tree. `<repo>/.porcelain/` appears only when you **promote** something into
+  it, and a promoted file is then the one canonical copy: Porcelain indexes it in place, never
+  keeps a competing private version, and never runs `git add` for you.
 
 Open this file when designing features, prioritizing, or writing public identity copy. Day-to-day
 implementation does not need it if root `AGENTS.md` is enough.

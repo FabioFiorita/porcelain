@@ -1,13 +1,38 @@
+import { createHash } from 'node:crypto'
+import { realpath } from 'node:fs/promises'
+import { resolve } from 'node:path'
 import type {
   CanvasRecord,
   ListCanvasesInput,
+  ListOverlayInput,
+  ListOverlayOutput,
   MintCanvasAccessTokenInput,
+  ProjectOverrides,
+  PromoteCanvasInput,
+  PromoteCanvasOutput,
+  PromoteOverridesInput,
   ReadCanvasInput,
 } from '@porcelain/contracts/projects'
 import { inlineLocalAssets } from '../../fs/evidence-assets'
 import type { CanvasAccessTokens } from './canvas-access-tokens'
-import type { CanvasStore, CanvasStoreError, StoredCanvas } from './canvas-store'
+import type { StoredCanvas } from './canvas-bundle'
+import type { CanvasOverlayStore } from './canvas-overlay-store'
+import type { CanvasEntry, CanvasStore, CanvasStoreError, CanvasStoreResult } from './canvas-store'
 import type { ProjectOperationResult } from './projects-results'
+
+/**
+ * Live checkouts of one Project — promotion's only legal targets.
+ *
+ * A narrow capability rather than a call into the Hub inventory operation: the
+ * single question Canvas promotion needs answered is "is this path really a
+ * Worktree of this Project", and answering it anywhere looser would let a
+ * caller write an agent's Canvas into an unrelated repository.
+ */
+export type CanvasWorktrees = Readonly<{
+  listWorktrees: (
+    projectId: string,
+  ) => Promise<ProjectOperationResult<readonly { id: string; path: string }[]>>
+}>
 
 export type CanvasOperations = Readonly<{
   listCanvases: (input: ListCanvasesInput) => Promise<ProjectOperationResult<CanvasRecord[]>>
@@ -18,6 +43,11 @@ export type CanvasOperations = Readonly<{
   mintCanvasAccessToken: (
     input: MintCanvasAccessTokenInput,
   ) => Promise<ProjectOperationResult<{ token: string }>>
+  promoteCanvas: (input: PromoteCanvasInput) => Promise<ProjectOperationResult<PromoteCanvasOutput>>
+  promoteOverrides: (
+    input: PromoteOverridesInput,
+  ) => Promise<ProjectOperationResult<ProjectOverrides>>
+  listOverlay: (input: ListOverlayInput) => Promise<ProjectOperationResult<ListOverlayOutput>>
 }>
 
 function unavailable(): ProjectOperationResult<never> {
@@ -26,6 +56,10 @@ function unavailable(): ProjectOperationResult<never> {
 
 function notFound(): ProjectOperationResult<never> {
   return { ok: false, error: { code: 'canvas.not-found' } }
+}
+
+function targetInvalid(): ProjectOperationResult<never> {
+  return { ok: false, error: { code: 'projects.overlay-target-invalid' } }
 }
 
 /** `entry-outside-bundle` is a storage-integrity detail, not a distinct public outcome. */
@@ -45,9 +79,27 @@ function fromStoreError(error: CanvasStoreError): ProjectOperationResult<never> 
  * phase delegation means load order doesn't otherwise matter, but this keeps
  * the served bytes in intent order: content first, bootstrap last.
  */
-const EXTERNAL_LINK_BRIDGE = `<script>document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a[href]');if(!a)return;var href=a.getAttribute('href');if(!href||href.charAt(0)==='#')return;e.preventDefault();parent.postMessage({source:'porcelain-canvas',href:href},'*')},true)</script>`
+const BRIDGE_SOURCE = `document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a[href]');if(!a)return;var href=a.getAttribute('href');if(!href||href.charAt(0)==='#')return;e.preventDefault();parent.postMessage({source:'porcelain-canvas',href:href},'*')},true)`
 
-function toPublicRecord(record: StoredCanvas): CanvasRecord {
+const EXTERNAL_LINK_BRIDGE = `<script>${BRIDGE_SOURCE}</script>`
+
+/**
+ * The CSP source expression that lets ONLY the bridge above execute.
+ *
+ * ADR 0002 requires promotion to decide the script question rather than inherit
+ * the unpromoted policy: an unpromoted Canvas is agent-authored on this machine
+ * by an agent the user already trusts with a shell, but a promoted one arrives
+ * through `git clone` from somebody else's repository. So a tracked Canvas is
+ * served with `script-src` pinned to this one hash — the browser refuses every
+ * author script, inline or external, and no server-side sanitizer has to be
+ * complete for that to hold. Styles, images, and links keep working, which is
+ * the point of promoting a Canvas at all.
+ */
+export const CANVAS_BRIDGE_SCRIPT_HASH = `'sha256-${createHash('sha256')
+  .update(BRIDGE_SOURCE, 'utf8')
+  .digest('base64')}'`
+
+function toPublicRecord(record: StoredCanvas, tracked: boolean): CanvasRecord {
   return {
     id: record.id,
     worktreeId: record.worktreeId,
@@ -55,49 +107,211 @@ function toPublicRecord(record: StoredCanvas): CanvasRecord {
     kind: record.kind,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
+    tracked,
   }
+}
+
+/** Newest-updated first — the sidebar's natural order with no client-side sort. */
+function byUpdatedDesc(a: CanvasRecord, b: CanvasRecord): number {
+  return b.updatedAt.localeCompare(a.updatedAt)
 }
 
 export function createCanvasOperations(options: {
   store: CanvasStore
+  overlay: CanvasOverlayStore
+  worktrees: CanvasWorktrees
   accessTokens: CanvasAccessTokens
 }): CanvasOperations {
+  /**
+   * Resolve the explicit promotion target. `path` must be a live Worktree of
+   * `projectId`; a `worktreeId`, when given, must name that same checkout.
+   * Compared through realpath so a symlinked-but-equivalent path is accepted and
+   * a lookalike one is not. Anything else is rejected, never guessed.
+   */
+  async function resolveTarget(input: {
+    projectId: string
+    path: string
+    worktreeId?: string
+  }): Promise<ProjectOperationResult<string>> {
+    const listed = await options.worktrees.listWorktrees(input.projectId)
+    if (!listed.ok) return listed
+
+    let requested: string
+    try {
+      requested = await realpath(resolve(input.path))
+    } catch {
+      return targetInvalid()
+    }
+
+    for (const worktree of listed.value) {
+      let candidate: string
+      try {
+        candidate = await realpath(resolve(worktree.path))
+      } catch {
+        continue
+      }
+      if (candidate !== requested) continue
+      if (input.worktreeId !== undefined && input.worktreeId !== worktree.id) return targetInvalid()
+      return { ok: true, value: worktree.path }
+    }
+    return targetInvalid()
+  }
+
+  /**
+   * Tracked wins over private for the same id: a promoted Canvas IS the Canvas,
+   * and the private bundle that produced it was moved rather than kept. A
+   * private record still carrying a promoted id can only mean a half-finished
+   * promotion, and honouring the tracked bytes is the recovery.
+   */
+  async function mergedRecords(
+    input: ListCanvasesInput,
+  ): Promise<ProjectOperationResult<CanvasRecord[]>> {
+    const privateRecords = await options.store.listCanvases(input.projectId)
+    if (!privateRecords.ok) return fromStoreError(privateRecords.error)
+    const asPrivate = (records: readonly StoredCanvas[]): CanvasRecord[] =>
+      records.map((record) => toPublicRecord(record, false))
+    if (input.worktreePath === undefined) {
+      return { ok: true, value: asPrivate(privateRecords.value).sort(byUpdatedDesc) }
+    }
+
+    const tracked = await options.overlay.listOverlayCanvases(input.worktreePath)
+    if (!tracked.ok) return fromStoreError(tracked.error)
+
+    const trackedIds = new Set(tracked.value.map((record) => record.id))
+    const records = [
+      ...tracked.value.map((record) => toPublicRecord(record, true)),
+      ...asPrivate(privateRecords.value.filter((record) => !trackedIds.has(record.id))),
+    ]
+    return { ok: true, value: records.sort(byUpdatedDesc) }
+  }
+
+  /** The tracked bundle first, then the private one — the same precedence as the list. */
+  async function resolveEntry(
+    input: ReadCanvasInput,
+  ): Promise<ProjectOperationResult<{ entry: CanvasEntry; tracked: boolean }>> {
+    if (input.worktreePath !== undefined) {
+      const tracked: CanvasStoreResult<CanvasEntry> = await options.overlay.readOverlayCanvasEntry(
+        input.worktreePath,
+        input.canvasId,
+      )
+      if (tracked.ok) return { ok: true, value: { entry: tracked.value, tracked: true } }
+      if (tracked.error.code === 'canvas.unavailable') return fromStoreError(tracked.error)
+    }
+    const stored = await options.store.readCanvasEntry(input.projectId, input.canvasId)
+    if (!stored.ok) return fromStoreError(stored.error)
+    return { ok: true, value: { entry: stored.value, tracked: false } }
+  }
+
   return Object.freeze({
-    async listCanvases(input) {
-      const listed = await options.store.listCanvases(input.projectId)
-      if (!listed.ok) return fromStoreError(listed.error)
-      const records = listed.value
-        .map(toPublicRecord)
-        // Newest-updated first — the sidebar's natural order with no client-side sort.
-        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-      return { ok: true, value: records }
-    },
+    listCanvases: mergedRecords,
 
     async readCanvas(input) {
-      const entry = await options.store.readCanvasEntry(input.projectId, input.canvasId)
-      if (!entry.ok) return fromStoreError(entry.error)
+      const resolved = await resolveEntry(input)
+      if (!resolved.ok) return resolved
 
-      const { record, bundleDir, content } = entry.value
+      const { entry, tracked } = resolved.value
       // Markdown stays raw text — the Viewer's existing Markdown renderer owns
-      // presentation. Only HTML gets server-side asset inlining (ticket #21's
-      // "safe relative asset access" criterion is scoped to HTML Canvases).
+      // presentation. Only HTML gets server-side asset inlining, rooted at the
+      // symlink-resolved bundle directory, so a promoted bundle can reach its
+      // own assets and nothing else in the repository it now lives in.
+      // Tracked HTML never has its author scripts inlined either: refusing to
+      // embed third-party code is cheap, and the hash-pinned `script-src` above
+      // is what actually guarantees it could not have run.
       const rendered =
-        record.kind === 'html'
-          ? `${await inlineLocalAssets(bundleDir, content, bundleDir, true)}${EXTERNAL_LINK_BRIDGE}`
-          : content
-      return { ok: true, value: { record: toPublicRecord(record), content: rendered } }
+        entry.record.kind === 'html'
+          ? `${await inlineLocalAssets(entry.bundleDir, entry.content, entry.bundleDir, !tracked)}${EXTERNAL_LINK_BRIDGE}`
+          : entry.content
+      return {
+        ok: true,
+        value: { record: toPublicRecord(entry.record, tracked), content: rendered },
+      }
     },
 
     async mintCanvasAccessToken(input) {
-      const listed = await options.store.listCanvases(input.projectId)
-      if (!listed.ok) return fromStoreError(listed.error)
+      const listed = await mergedRecords({
+        projectId: input.projectId,
+        worktreePath: input.worktreePath,
+      })
+      if (!listed.ok) return listed
       const exists = listed.value.some((canvas) => canvas.id === input.canvasId)
       if (!exists) return notFound()
       const token = options.accessTokens.mint({
         projectId: input.projectId,
         canvasId: input.canvasId,
+        worktreePath: input.worktreePath ?? null,
       })
       return { ok: true, value: { token } }
+    },
+
+    async promoteCanvas(input) {
+      const target = await resolveTarget(input)
+      if (!target.ok) return target
+
+      const entry = await options.store.readCanvasEntry(input.projectId, input.canvasId)
+      if (!entry.ok) return fromStoreError(entry.error)
+
+      const written = await options.overlay.writeOverlayCanvas({
+        repoPath: target.value,
+        // `worktreeId: null`: this record is about to live in a file that travels
+        // to other machines, where an Environment-local Worktree id names nothing.
+        record: { ...entry.value.record, worktreeId: null },
+        sourceBundleDir: options.store.bundleDirFor(input.projectId, input.canvasId),
+      })
+      if (!written.ok) return fromStoreError(written.error)
+
+      // Only once the tracked bytes are on disk: one canonical copy, never two.
+      const forgotten = await options.store.forgetCanvas(input.projectId, input.canvasId)
+      if (!forgotten.ok) return fromStoreError(forgotten.error)
+
+      return {
+        ok: true,
+        value: {
+          record: toPublicRecord(written.value.record, true),
+          bundlePath: written.value.bundlePath,
+        },
+      }
+    },
+
+    async promoteOverrides(input) {
+      const target = await resolveTarget(input)
+      if (!target.ok) return target
+
+      const current = await options.overlay.readOverrides(target.value)
+      if (!current.ok) return fromStoreError(current.error)
+      const base = current.value ?? { hiddenPaths: [], pinnedPaths: [], worktrees: {} }
+      const next: ProjectOverrides = {
+        hiddenPaths: input.hiddenPaths ?? base.hiddenPaths,
+        pinnedPaths: input.pinnedPaths ?? base.pinnedPaths,
+        worktrees: input.worktrees ?? base.worktrees,
+      }
+      const written = await options.overlay.writeOverrides(target.value, next)
+      if (!written.ok) return fromStoreError(written.error)
+      return { ok: true, value: written.value }
+    },
+
+    async listOverlay(input) {
+      const present = await options.overlay.overlayPresent(input.path)
+      if (!present) {
+        return {
+          ok: true,
+          value: { path: input.path, present: false, canvases: [], overrides: null },
+        }
+      }
+      const canvases = await options.overlay.listOverlayCanvases(input.path)
+      if (!canvases.ok) return fromStoreError(canvases.error)
+      const overrides = await options.overlay.readOverrides(input.path)
+      if (!overrides.ok) return fromStoreError(overrides.error)
+      return {
+        ok: true,
+        value: {
+          path: input.path,
+          present: true,
+          canvases: canvases.value
+            .map((record) => toPublicRecord(record, true))
+            .sort(byUpdatedDesc),
+          overrides: overrides.value,
+        },
+      }
     },
   })
 }

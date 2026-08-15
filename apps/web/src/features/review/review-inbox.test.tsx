@@ -8,7 +8,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ReviewInbox } from './review-inbox'
 
 // Shell path: open-in-new-window is hidden when isBrowser is true (jsdom default).
-vi.mock('@renderer/lib/platform', () => ({ isBrowser: false, isE2E: false }))
+vi.mock('@renderer/lib/platform', () => ({ isBrowser: false, isE2E: false, isLinuxShell: false }))
 
 // Repo idiom: mock the domain hook, never tRPC.
 vi.mock('@renderer/features/git', () => ({

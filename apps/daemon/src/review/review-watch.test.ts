@@ -2,9 +2,12 @@
 import { describe, expect, it, vi } from 'vitest'
 
 const REPO = '/synthetic/repo'
+/** A second Project, so each test gets a watcher registry entry of its own. */
+const OTHER_REPO = '/synthetic/other-repo'
 const callbacks = vi.hoisted(() => new Map<string, (event: string, filename: string) => void>())
 const state = vi.hoisted(() => ({ activeReviewExists: false }))
 const publishSessionChange = vi.hoisted(() => vi.fn())
+const mkdir = vi.hoisted(() => vi.fn(async (_path: string) => undefined))
 
 vi.mock('node:fs', () => ({
   watch: vi.fn((path: string, callback: (event: string, filename: string) => void) => {
@@ -17,9 +20,12 @@ vi.mock('node:fs', () => ({
 }))
 
 vi.mock('node:fs/promises', () => ({
-  mkdir: vi.fn(async () => undefined),
+  mkdir,
   stat: vi.fn(async (path: string) => {
-    if (path === REPO || path === `${REPO}/.porcelain`) return { isDirectory: () => true }
+    const roots = [REPO, OTHER_REPO]
+    if (roots.some((root) => path === root || path === `${root}/.porcelain`)) {
+      return { isDirectory: () => true }
+    }
     throw new Error('ENOENT')
   }),
 }))
@@ -53,5 +59,24 @@ describe('review companion watcher', () => {
       kind: 'review.changed',
       projectPath: REPO,
     })
+  })
+
+  it('creates no evidence directories until a review is actually in flight', async () => {
+    // Watching an opened Project is a read. #26 made `.porcelain/` something a
+    // human opts into by promoting, so a promoted repo that has never run a
+    // review must not sprout `active-review/evidence/` just from being opened.
+    mkdir.mockClear()
+    state.activeReviewExists = false
+
+    await syncProjectWatches(OTHER_REPO)
+    expect(mkdir).not.toHaveBeenCalled()
+
+    state.activeReviewExists = true
+    callbacks.get(`${OTHER_REPO}/.porcelain`)?.('rename', 'active-review')
+    expect(mkdir.mock.calls.map(([path]) => path)).toEqual([
+      `${OTHER_REPO}/.porcelain/active-review/evidence`,
+      `${OTHER_REPO}/.porcelain/active-review/evidence/results`,
+      `${OTHER_REPO}/.porcelain/active-review/evidence/assets`,
+    ])
   })
 })

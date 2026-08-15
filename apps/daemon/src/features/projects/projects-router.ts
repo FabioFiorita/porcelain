@@ -13,6 +13,8 @@ function throwIfFailed<Value>(result: ProjectOperationResult<Value>): Value {
       throw toTrpcError(expectedFailure('projects.not-a-directory'))
     case 'projects.unavailable':
       throw toTrpcError(expectedFailure('projects.unavailable'))
+    case 'projects.overlay-target-invalid':
+      throw toTrpcError(expectedFailure('projects.overlay-target-invalid'))
     case 'git.not-a-repository':
       throw toTrpcError(expectedFailure('git.not-a-repository'))
     case 'git.branch-already-exists':
@@ -88,5 +90,20 @@ export function createProjectsRouter(operations: ProjectsOperations) {
       .input(procedureCatalog.mintCanvasAccessToken.input)
       .output(procedureCatalog.mintCanvasAccessToken.output)
       .mutation(async ({ input }) => throwIfFailed(await operations.mintCanvasAccessToken(input))),
+
+    promoteCanvas: publicProcedure
+      .input(procedureCatalog.promoteCanvas.input)
+      .output(procedureCatalog.promoteCanvas.output)
+      .mutation(async ({ input }) => throwIfFailed(await operations.promoteCanvas(input))),
+
+    promoteOverrides: publicProcedure
+      .input(procedureCatalog.promoteOverrides.input)
+      .output(procedureCatalog.promoteOverrides.output)
+      .mutation(async ({ input }) => throwIfFailed(await operations.promoteOverrides(input))),
+
+    listOverlay: publicProcedure
+      .input(procedureCatalog.listOverlay.input)
+      .output(procedureCatalog.listOverlay.output)
+      .query(async ({ input }) => throwIfFailed(await operations.listOverlay(input))),
   })
 }

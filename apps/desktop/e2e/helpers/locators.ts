@@ -47,6 +47,13 @@ export const loc = {
   canvasListEmpty: (page: Page): Locator => byId(page, TestIds.canvasListEmpty),
   canvasListItem: (page: Page, id: string): Locator => byId(page, TestIds.canvasListItem(id)),
   canvasIframe: (page: Page): Locator => byId(page, TestIds.canvasIframe),
+  canvasListTracked: (page: Page, id: string): Locator => byId(page, TestIds.canvasListTracked(id)),
+  canvasListMenu: (page: Page, id: string): Locator => byId(page, TestIds.canvasListMenu(id)),
+  canvasListPromote: (page: Page, id: string): Locator => byId(page, TestIds.canvasListPromote(id)),
+  canvasPromoteConfirm: (page: Page): Locator => byId(page, TestIds.canvasPromoteConfirm),
+  canvasTrackDefaults: (page: Page): Locator => byId(page, TestIds.canvasTrackDefaults),
+  canvasTrackDefaultsConfirm: (page: Page): Locator =>
+    byId(page, TestIds.canvasTrackDefaultsConfirm),
 
   settingsDialog: (page: Page): Locator => byId(page, TestIds.settingsDialog),
   settingsHeading: (page: Page): Locator => byId(page, TestIds.settingsHeading),

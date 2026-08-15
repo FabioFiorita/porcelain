@@ -756,4 +756,43 @@ describe('runCli — board + actions', () => {
     const empty = await runCli(['scope', 'list', ...repo])
     expect(empty).toContain('(none)')
   })
+  it('project promote-overrides writes the repo-relative overlay file', async () => {
+    await runCli(['scope', 'hide', ...repo, '--path', 'apps/legacy'])
+    const result = await runCli(['project', 'promote-overrides', ...repo, '--pinned', 'apps/web'])
+    expect(result).toContain('apps/legacy')
+    const overrides = JSON.parse(readFileSync(porcelain('project.json'), 'utf8')) as unknown
+    expect(overrides).toEqual({
+      hiddenPaths: ['apps/legacy'],
+      pinnedPaths: ['apps/web'],
+      worktrees: {},
+    })
+  })
+  it('canvas set --tracked writes the tracked bundle without a daemon-root Project id', async () => {
+    const source = join(root, 'canvas-source')
+    mkdirSync(source, { recursive: true })
+    writeFileSync(join(source, 'index.html'), doc)
+    const result = await runCli([
+      'canvas',
+      'set',
+      ...repo,
+      '--tracked',
+      '--title',
+      'Docs',
+      '--kind',
+      'html',
+      '--source-dir',
+      source,
+    ])
+    expect(result).toContain('tracked at')
+    const id = /Set Canvas (\S+) /.exec(result)?.[1] as string
+    const manifest = JSON.parse(readFileSync(porcelain('canvases', id, 'canvas.json'), 'utf8')) as {
+      id: string
+      worktreeId: null
+      title: string
+    }
+    expect(manifest.id).toBe(id)
+    expect(manifest.worktreeId).toBe(null)
+    expect(manifest.title).toBe('Docs')
+    expect(readFileSync(porcelain('canvases', id, 'index.html'), 'utf8')).toBe(doc)
+  })
 })

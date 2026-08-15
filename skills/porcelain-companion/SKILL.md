@@ -42,7 +42,8 @@ references/
   notes.md             The human's per-repo scratchpad (read-only)
   layers.md            Repo-wide Changes-tab flow grouping (regex layers)
   scope.md             Monorepo hide/pin
-  git-visibility.md    What git carries, .porcelain/.gitignore and info/exclude
+  git-visibility.md    What git carries: the opt-in .porcelain/ Git overlay and how to promote a
+                       Canvas or Project defaults into it, plus .gitignore and info/exclude
   sync-environments.md Seeding companion data across Mac ↔ remote
   worktrees.md         Working in a harness worktree
 ```
