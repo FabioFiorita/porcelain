@@ -2,6 +2,26 @@ import { z } from 'zod'
 import type { ShellEvent } from '../main/shell-events'
 
 /**
+ * No JIT in this module — MUST stay above the schema definitions below.
+ *
+ * Zod compiles an object schema's fast path with `new Function`, and it decides whether it
+ * may at CONSTRUCTION time by probing `new Function('')` once and caching the answer. The
+ * preload is the one place where that probe lies: it runs at document-start, BEFORE the
+ * renderer document's `<meta http-equiv="Content-Security-Policy">` (apps/web/index.html,
+ * `script-src 'self' 'wasm-unsafe-eval'` — no `unsafe-eval`) is in force. So the probe
+ * succeeds, the fast path is armed, and every later `safeParse` throws
+ * `EvalError: Code generation from strings disallowed for this context` — which surfaces
+ * in the renderer as a `TRPCClientError` on EVERY shell-router call, taking window init,
+ * environment status, and new windows down with it (v0.53.0 regression).
+ *
+ * Only the preload needs this. Measured in the built shell: `new Function` in the renderer's
+ * own world still answers ALLOWED, so the schemas in `apps/web` are unaffected — it is the
+ * preload's isolated world that inherits the document policy, and only after the preload has
+ * already run and cached its answer.
+ */
+z.config({ jitless: true })
+
+/**
  * The serialized-HTTP shuttle the shell tRPC channel rides over Electron IPC.
  *
  * Shell-local, not a public wire contract: nothing here leaves the process, so these
