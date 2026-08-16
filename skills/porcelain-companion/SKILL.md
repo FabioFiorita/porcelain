@@ -1,6 +1,6 @@
 ---
 name: porcelain-companion
-description: Drive Porcelain's daemon-root Review Canvas, Tasks, Actions, comments, and explicit Canvas/project overlays through the bundled CLI. Use when the human asks to publish or inspect a Review, record Tasks or Actions, promote daemon data, or close the evidence loop.
+description: Drive Porcelain's daemon-root Review Canvas, Tasks, Actions, and explicit Canvas/project overlays through the bundled CLI. Use when the human asks to publish or inspect a Review, record Tasks or Actions, promote daemon data, or close the evidence loop.
 version: 0.52.1
 license: MIT
 ---
@@ -72,8 +72,7 @@ and evidence paths. Those names are migration vocabulary, not current commands o
    changes. The Review is a Canvas with four tabs, not a queue and not an editor.
 3. Close the loop with real Evidence: checks, Results documents, and an image gallery. Evidence
    belongs to the daemon-root Canvas bundle and is shown by the Evidence tab.
-4. Read comments and reviewed marks when the human asks for review follow-up. Record unrelated
-   follow-ups as Tasks.
+4. Record follow-ups that are outside the Canvas story as daemon-owned Tasks.
 
 ## Rules
 

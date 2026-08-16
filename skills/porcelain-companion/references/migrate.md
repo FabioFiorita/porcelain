@@ -19,7 +19,7 @@ where they are. Deleting `.porcelain/` afterwards is the human's call, made afte
 |---|---|
 | `active-review/`, `reviews/<id>/` | One Canvas per review, Review template, four sections: Intent (thesis + `intent/`), Process (walkthrough sections), Execution (declared files), Evidence (checks + `results/` + gallery). Images and video are copied into the Canvas bundle's `assets/`. |
 | `board.json` | Tasks, keeping the card id, referencing this Project and — when a card names a branch or checkout path exactly — that Worktree. An unrecognised column becomes `todo` with a `migrated` tag. |
-| `actions.json` | The Project's Actions in the daemon store. Ids and titles already present are skipped. A migrated Action is **unreviewed**: the human still sees the trust prompt before it runs. |
+| `actions.json` | The Project's Actions in the daemon store. Ids and titles already present are skipped. A migrated Action still requires human acceptance before it runs. |
 | `scope.json` | The Project's private hide/pin defaults in the daemon store. Never the tracked `.porcelain/project.json` — that one is only ever written by an explicit `project promote-overrides`. |
 | `layers.json`, `notes.md`, terminal images | Retired. Named in the report, never copied. |
 

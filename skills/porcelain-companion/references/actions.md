@@ -26,7 +26,7 @@ A command the human has not accepted **on this machine** does not run on one cli
 
 What this means for you:
 
-- **An action you create starts unreviewed.** That is expected, not an error. Tell the human you added it so they know why it is asking.
+- **An action you create requires human acceptance before it runs.** That is expected, not an error. Tell the human you added it so they know why it is asking.
 - **Editing an existing command withdraws its acceptance.** Do not rewrite a command the human already trusts just to tidy it — change it when the command is actually wrong, and say so.
 - **Retitling is free** — trust is keyed to the command text, not the label.
 - **Never** try to work around the gate (no wrapper action that runs another, no encoding the real command elsewhere). It exists so the human is never surprised by what a click does.

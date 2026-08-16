@@ -18,6 +18,9 @@ import { createFixtureRepo } from './helpers/fixture-repo'
 import { PNG_1PX, runFixtureCli } from './helpers/review-fixture'
 
 const MIGRATED_CARD = '22222222-2222-4222-8222-222222222222'
+const SECONDARY_BRANCH = 'composed-secondary-only'
+const SECONDARY_ONLY_FILE = 'secondary-only.txt'
+const SECONDARY_ONLY_CONTENT = 'SECONDARY-DAEMON-ONLY-CONTENT'
 
 async function waitForProject(homeDir: string): Promise<{ projectId: string; worktreeId: string }> {
   const inventoryPath = join(homeDir, 'hub-inventory.json')
@@ -165,6 +168,8 @@ test('composed daemon proof: targets, Canvas Review, migration, Tasks, Actions, 
   let secondaryChild: Awaited<ReturnType<typeof spawnDaemon>>['child'] | null = null
   try {
     await createFixtureRepo(secondaryRepo)
+    await writeFile(join(secondaryRepo, SECONDARY_ONLY_FILE), `${SECONDARY_ONLY_CONTENT}\n`)
+    execFileSync('git', ['switch', '-c', SECONDARY_BRANCH], { cwd: secondaryRepo })
     secondarySeed = await seedRemoteDaemon(secondaryRepo)
     const secondary = await spawnDaemon(secondarySeed, {
       port: 43220,
@@ -250,12 +255,19 @@ test('composed daemon proof: targets, Canvas Review, migration, Tasks, Actions, 
     await loc.hubWorktree(page, secondaryWorktreeId).click()
     // Ordinary repo surfaces must follow the selected secondary Environment too: the
     // Files tree/content and Git working-tree query are not allowed to fall back to primary.
+    await expect(loc.glance(page).getByText(SECONDARY_BRANCH, { exact: true })).toBeVisible()
     await openSurface(page, 'Files')
+    await expect(loc.treeEntry(page, SECONDARY_ONLY_FILE)).toBeVisible()
+    await loc.treeEntry(page, SECONDARY_ONLY_FILE).click()
+    await expect(loc.viewerCard(page)).toContainText(SECONDARY_ONLY_CONTENT)
     await expect(loc.treeEntry(page, 'README.md')).toBeVisible()
     await loc.treeEntry(page, 'README.md').click()
     await expect(loc.viewerCard(page)).toContainText('A fixture repo for Porcelain e2e tests.')
     await openSurface(page, 'Changes')
     await expect(page.getByTestId(TestIds.changesList)).toBeVisible()
+    const secondaryChange = loc.changesFile(page, SECONDARY_ONLY_FILE)
+    await expect(secondaryChange).toBeVisible()
+    await expect(secondaryChange.getByRole('img', { name: 'untracked' })).toBeVisible()
     await openSurface(page, 'Canvas')
     await expect(
       loc.canvasListItems(page).filter({ hasText: 'Migrated Review Canvas' }),

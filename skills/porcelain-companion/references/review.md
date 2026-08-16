@@ -56,12 +56,6 @@ Evidence must be proportional to the change and real. A passing unit test does n
 browser-visible change; include browser proof for UI work and the relevant command output for
 integration work. Never claim a check that did not run.
 
-## Comments and reviewed marks
-
-Comments and reviewed marks are app-owned annotations on the daemon-root Review/Canvas. Read and
-answer them in the client when the human asks for follow-up. They are not repo-local files and do
-not change the Canvas's Intent, Process, Execution, or Evidence content.
-
 ## Targeting
 
 The Review is Project-owned, while file anchors and actions can name a Worktree. When working in a
