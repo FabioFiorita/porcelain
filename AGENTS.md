@@ -21,7 +21,7 @@ Bare nouns resolve to exact regions of the product — act on them, don't re-ask
 | Daemon | The headless Electron-free backend (`apps/daemon`); the shell spawns and babysits it |
 | Project companion | Repo-local `.porcelain/` for migration-era inputs and remaining agent conveniences; canonical Review data is daemon-root Canvas metadata |
 | Project board | Retired repo-local migration input; shipped work lives in daemon-owned Tasks |
-| Playground | Throwaway repo that dev daemons operate on — never a real checkout |
+| Playground | Throwaway repo that dev daemons operate on — never a real checkout. `pnpm playground` builds a **fleet** of them, each with a shape (dirty, staged, conflicted, history, monorepo, worktrees) |
 | Surface language | Raised = cards, recessed = wells; ONE opaque design serves Electron and the browser alike |
 
 ## How we work together
@@ -88,7 +88,7 @@ intentionally operating Review Canvas, Tasks, Actions, comments, evidence, or ot
 ## What is machine-enforced
 
 Don't memorize these — the gate catches you. Hooks run `pnpm lint` on every commit; run
-`pnpm verify` (`lint && test && build && typecheck:e2e && typecheck:tests`) before push, and CI
+`pnpm verify` (`lint && test && test:scripts && build && typecheck:e2e && typecheck:tests`) before push, and CI
 runs it on `main`.
 
 | Rule | Owner |
@@ -119,12 +119,19 @@ known-good manual run.
 | Port | **43117** | Primary **43118**; worktrees **43200–43999** |
 | Data / channels | `~/.local/share/porcelain` · `~/.porcelain` | `porcelain-dev` / `.porcelain-dev`; per-slug worktree homes |
 | Agents on product work | **Never** | **Always** |
-| Repos | Real worktrees | Playground only |
+| Repos | Real worktrees | Playground fleet only |
 
 ```bash
-pnpm build && pnpm dev:daemon   # dev daemon on 43118
+pnpm build && pnpm dev:daemon   # dev daemon on 43118 — prints a ready-to-open pairing URL
+pnpm dev:pair                   # another one-time link (15-minute expiry)
+pnpm playground new dirty       # a fixture with a shape; `shapes` lists them, `rm` deletes
 pnpm porcelain <noun> <verb>    # CLI → ~/.porcelain-dev
 ```
+
+A dev daemon opens **only** the playground family — the boundary is the daemon's, armed by
+`PORCELAIN_DEV` from `scripts/dev-env.mjs`. Never hand-plant a token into `localStorage`; the
+launcher prints a pairing URL. One fixture proves nothing about adding, removing, or switching
+projects — make the fleet match the flow under test.
 
 **Debris:** delete session-local junk (`.playwright-mcp/`, `test-results/`, `playwright-report/`,
 `apps/desktop/e2e/.artifacts/`) before stopping. `scripts/agent-scratch/` is gitignored.

@@ -104,6 +104,11 @@ export function devEnv(extra = {}) {
   const token = process.env.PORCELAIN_ADMIN_TOKEN || ensureDevAdminToken()
   return {
     ...process.env,
+    // The daemon gates two dev-only behaviors on this flag: the playground boundary that
+    // stops a dev daemon opening the host's real checkouts, and dev seeding. Only the
+    // Electron shell used to set it, so `pnpm dev:daemon` — the path every agent takes —
+    // ran with the boundary disabled and would happily open this very repository.
+    PORCELAIN_DEV: '1',
     PORCELAIN_HOME: DEV_HOME,
     PORCELAIN_USER_DATA: DEV_USER_DATA,
     PORCELAIN_DAEMON_PORT: String(DEV_PORT),
@@ -135,7 +140,8 @@ export function printDevEnv() {
   CLI:        pnpm porcelain <noun> <verb>
   browser:    http://127.0.0.1:${DEV_PORT}/
               http://<host>.local:${DEV_PORT}/   # with --host
-  pair:       node scripts/daemon-cli.js access issue --name "Dev browser" --base-url http://127.0.0.1:${DEV_PORT}
+  pair:       pnpm dev:pair                          # one-time URL; dev:daemon prints one at boot
+  fixtures:   pnpm playground list
 
   Not the published package — that is:  npx porcelain-daemon@latest serve
   Rebuild after code changes:           pnpm build && pnpm dev:daemon

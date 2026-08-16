@@ -14,5 +14,9 @@ Rules that keep it honest:
 
 Active efforts:
 
-None. Landed work is represented by the current code, `docs/`, `AGENTS.md`, and the permanent
+- [`agent-dev-foundations.md`](agent-dev-foundations.md) — make the agent development loop
+  reproducible: paired environment in one command, a playground fleet, seeded daemon state,
+  remote-environment proof, and the surface walk that catches "worked on the path I tested".
+
+Landed work is represented by the current code, `docs/`, `AGENTS.md`, and the permanent
 mechanical gates; shipped plans are removed from this tree.

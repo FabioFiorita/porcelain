@@ -39,6 +39,7 @@ import {
   devEnv,
   ensureDevAdminToken,
 } from './dev-env.mjs'
+import { devAccessStatus, issueDevPairingUrl, waitForDaemon } from './dev-pair.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const serverEntry = join(root, 'apps', 'desktop', 'out', 'main', 'daemon', 'server.js')
@@ -240,6 +241,26 @@ function acquireDaemonRecord(path, value) {
   }
 }
 
+/**
+ * Print a ready-to-open pairing URL once the daemon is listening.
+ *
+ * Minted on every boot, deliberately. Authorized clients do survive a restart, but a fresh
+ * session's browser is rarely among them — this stack had twenty stale clients and none of
+ * them belonged to the agent about to work. Pairing links expire in fifteen minutes, so an
+ * unused one costs nothing, while a missing one costs a hand-planted token.
+ */
+async function announcePairing(port) {
+  await waitForDaemon(port)
+  const url = issueDevPairingUrl({ port })
+  const authorized = devAccessStatus(port)?.clients?.length
+  const known = authorized === undefined ? '' : `  (${authorized} client(s) already authorized)`
+  console.log(`
+  pair        ${url}${known}
+              One-time link, expires in 15 minutes: open it OR hand it over, never both.
+              Another: pnpm dev:pair
+`)
+}
+
 function printBanner(opts) {
   const profile = DEV_PROFILE.slug ? `worktree ${DEV_PROFILE.slug}` : 'primary checkout'
   const lanLine = opts.host
@@ -257,7 +278,7 @@ ${tailnetLine}
   browser     http://127.0.0.1:${opts.port}/
   admin file  ${DEV_ADMIN_TOKEN_FILE}
   CLI         pnpm porcelain <noun> <verb>
-  pair        node scripts/daemon-cli.js access issue --name "Dev browser" --base-url http://127.0.0.1:${opts.port}
+  pair        printed below once the daemon is listening (or \`pnpm dev:pair\`)
 
   Rebuild after code changes:  pnpm build && pnpm dev:daemon -- …
 `)
@@ -323,6 +344,13 @@ async function main() {
     cwd: root,
     env,
     stdio: 'inherit',
+  })
+
+  // Pairing is an announcement, never a gate: a failure here must not take the daemon with it.
+  announcePairing(opts.port).catch((error) => {
+    console.error(
+      `[dev:daemon] could not mint a pairing link (${error instanceof Error ? error.message : String(error)}) — run \`pnpm dev:pair\``,
+    )
   })
 
   child.on('exit', (code, signal) => {
