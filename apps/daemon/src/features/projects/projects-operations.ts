@@ -87,6 +87,18 @@ function mapUnavailable<Value>(result: {
   return { ok: false, error: result.error }
 }
 
+type AllowedPath = boolean | string | null
+
+/** Normalize the dev boundary's canonical-path result while retaining test/fake boolean callers. */
+function allowedPath(
+  path: string,
+  predicate: ((path: string) => AllowedPath) | undefined,
+): string | null {
+  if (predicate === undefined) return path
+  const result = predicate(path)
+  return typeof result === 'string' ? result : result === true ? path : null
+}
+
 export function createProjectsOperations(options: {
   projects: ProjectsPort
   recents: ProjectsRecentsStore
@@ -98,7 +110,7 @@ export function createProjectsOperations(options: {
     git: HubGitPort
     daemon: { host: string; platform: string; arch: string }
     createId?: () => string
-    pathAllowed?: (path: string) => boolean
+    pathAllowed?: (path: string) => AllowedPath
   }
   /**
    * Canvas storage plus the grant map. Built here rather than handed in already
@@ -141,17 +153,18 @@ export function createProjectsOperations(options: {
 
   return Object.freeze({
     async openProject(path: string): Promise<ProjectOperationResult<ProjectInfo>> {
-      if (options.hub.pathAllowed !== undefined && !options.hub.pathAllowed(path)) {
+      const allowed = allowedPath(path, options.hub.pathAllowed)
+      if (allowed === null) {
         return failure({ code: 'projects.dev-repo-forbidden' })
       }
-      const inspected = await options.projects.inspectProject(path)
+      const inspected = await options.projects.inspectProject(allowed)
       if (!inspected.ok) return failure(mapPortError(inspected.error))
 
-      const added = await options.recents.addPath(path)
+      const added = await options.recents.addPath(allowed)
       if (!added.ok) return mapUnavailable(added)
 
-      options.effects.warmFileList(path)
-      await hub.registerPath(path)
+      options.effects.warmFileList(allowed)
+      await hub.registerPath(allowed)
       return { ok: true, value: inspected.value }
     },
 
@@ -163,7 +176,10 @@ export function createProjectsOperations(options: {
 
       const projects = await Promise.all(
         recentPaths.value
-          .filter((path) => options.hub.pathAllowed?.(path) ?? true)
+          .flatMap((path) => {
+            const allowed = allowedPath(path, options.hub.pathAllowed)
+            return allowed === null ? [] : [allowed]
+          })
           .map(async (path): Promise<ProjectInfo | null> => {
             const inspected = await options.projects.inspectProject(path)
             if (!inspected.ok) return null

@@ -13,12 +13,13 @@ import type { DaemonScope } from '@renderer/lib/daemon-scope'
 import {
   daemonScopeForEnvironment,
   liveEnvironmentSessions,
+  useEnvironmentSessionsRevision,
 } from '@renderer/lib/environment-sessions'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { settleBackground } from '@shared/background'
 import type { QueryClient } from '@tanstack/react-query'
 import { useQueryClient } from '@tanstack/react-query'
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 
 import {
   invalidateAllSearchQueries,
@@ -101,9 +102,11 @@ export function useSearchNotificationSubscription(): void {
   const host = daemon.host
   const version = daemon.version
   const activeProjectPath = useProjectSelectionStore((s) => s.project?.path ?? null)
+  const sessionRevision = useEnvironmentSessionsRevision()
+  const sessions = useMemo(() => liveEnvironmentSessions(sessionRevision), [sessionRevision])
 
   useEffect(() => {
-    const cleanups = liveEnvironmentSessions().map((entry) => {
+    const cleanups = sessions.map((entry) => {
       const options: ApplySearchNotificationOptions = {
         // A notification from a secondary daemon is already scoped to its owner. The primary
         // selection guard remains useful to avoid refreshing an unrelated checkout.
@@ -135,5 +138,5 @@ export function useSearchNotificationSubscription(): void {
     return () => {
       for (const cleanup of cleanups) cleanup()
     }
-  }, [activeProjectPath, host, queryClient, version])
+  }, [activeProjectPath, host, queryClient, sessions, version])
 }

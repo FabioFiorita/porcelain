@@ -11,12 +11,13 @@ import type { DaemonScope } from '@renderer/lib/daemon-scope'
 import {
   daemonScopeForEnvironment,
   liveEnvironmentSessions,
+  useEnvironmentSessionsRevision,
 } from '@renderer/lib/environment-sessions'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { settleBackground } from '@shared/background'
 import type { QueryClient } from '@tanstack/react-query'
 import { useQueryClient } from '@tanstack/react-query'
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { applyFilesForeignDependencies } from './files-mutations'
 import { invalidateAllFilesQueries, invalidateFilesEffects } from './files-query-filter'
 
@@ -79,11 +80,11 @@ export function useFilesNotificationSubscription(): void {
   const host = daemon.host
   const version = daemon.version
   const repoPath = useProjectSelectionStore((s) => s.project?.path ?? null)
+  const sessionRevision = useEnvironmentSessionsRevision()
+  const sessions = useMemo(() => liveEnvironmentSessions(sessionRevision), [sessionRevision])
 
   useEffect(() => {
-    const secondarySessions = liveEnvironmentSessions().filter(
-      (entry) => entry.connectionId !== null,
-    )
+    const secondarySessions = sessions.filter((entry) => entry.connectionId !== null)
     const subscribe = (
       session: typeof primary,
       daemonScope: DaemonScope,
@@ -143,5 +144,5 @@ export function useFilesNotificationSubscription(): void {
     return () => {
       for (const cleanup of cleanups) cleanup()
     }
-  }, [queryClient, host, repoPath, version])
+  }, [host, queryClient, repoPath, sessions, version])
 }

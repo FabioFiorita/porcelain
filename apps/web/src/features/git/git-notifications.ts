@@ -8,11 +8,12 @@ import type { DaemonScope } from '@renderer/lib/daemon-scope'
 import {
   daemonScopeForEnvironment,
   liveEnvironmentSessions,
+  useEnvironmentSessionsRevision,
 } from '@renderer/lib/environment-sessions'
 import { settleBackground } from '@shared/background'
 import type { QueryClient } from '@tanstack/react-query'
 import { useQueryClient } from '@tanstack/react-query'
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 
 import {
   invalidateAllGitQueries,
@@ -61,11 +62,13 @@ export function useGitNotificationSubscription(session?: DaemonSession): void {
   const daemonIdentity = useDaemonIdentity()
   const host = daemonIdentity.host
   const version = daemonIdentity.version
+  const sessionRevision = useEnvironmentSessionsRevision()
+  const sessions = useMemo(() => liveEnvironmentSessions(sessionRevision), [sessionRevision])
 
   useEffect(() => {
-    const sessions =
+    const ownedSessions =
       session === undefined
-        ? liveEnvironmentSessions()
+        ? sessions
         : [
             {
               environmentId: null,
@@ -73,7 +76,7 @@ export function useGitNotificationSubscription(session?: DaemonSession): void {
               session,
             },
           ]
-    const cleanups = sessions.map((entry) => {
+    const cleanups = ownedSessions.map((entry) => {
       const daemon: DaemonScope = daemonScopeForEnvironment(
         entry.connectionId === null ? null : entry.environmentId,
         { host, version },
@@ -95,5 +98,5 @@ export function useGitNotificationSubscription(session?: DaemonSession): void {
     return () => {
       for (const cleanup of cleanups) cleanup()
     }
-  }, [host, queryClient, session, version])
+  }, [host, queryClient, session, sessions, version])
 }

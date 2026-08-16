@@ -5,11 +5,12 @@ import type { DaemonScope } from '@renderer/lib/daemon-scope'
 import {
   daemonScopeForEnvironment,
   liveEnvironmentSessions,
+  useEnvironmentSessionsRevision,
 } from '@renderer/lib/environment-sessions'
 import { settleBackground } from '@shared/background'
 import type { QueryClient } from '@tanstack/react-query'
 import { useQueryClient } from '@tanstack/react-query'
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import {
   actionsCacheKeyForIdentity,
   invalidateActionsIdentities,
@@ -51,9 +52,11 @@ export function useActionsNotificationSubscription(): void {
   const daemon = useDaemonIdentity()
   const host = daemon.host
   const version = daemon.version
+  const sessionRevision = useEnvironmentSessionsRevision()
+  const sessions = useMemo(() => liveEnvironmentSessions(sessionRevision), [sessionRevision])
 
   useEffect(() => {
-    const cleanups = liveEnvironmentSessions().map((entry) => {
+    const cleanups = sessions.map((entry) => {
       const daemonScope: DaemonScope = daemonScopeForEnvironment(
         entry.connectionId === null ? null : entry.environmentId,
         { host, version },
@@ -70,7 +73,7 @@ export function useActionsNotificationSubscription(): void {
     return () => {
       for (const cleanup of cleanups) cleanup()
     }
-  }, [queryClient, host, version])
+  }, [host, queryClient, sessions, version])
 }
 
 /** @internal — expose collapse helper for tests that assert key shape. */

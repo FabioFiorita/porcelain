@@ -96,4 +96,22 @@ describe('devRepoPath', () => {
       await rm(root, { recursive: true, force: true })
     }
   })
+
+  it('rejects a symlinked managed worktree root even when its child is reachable', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'porcelain-dev-root-link-'))
+    try {
+      const primary = join(root, 'code', 'porcelain-playground')
+      const managedRoot = join(root, 'code', 'porcelain-playgrounds')
+      const productionRoot = join(root, 'production-worktrees')
+      await mkdir(primary, { recursive: true })
+      await mkdir(productionRoot, { recursive: true })
+      await symlink(productionRoot, managedRoot, 'dir')
+      const escaped = join(managedRoot, 'agent-worktree')
+      await mkdir(join(productionRoot, 'agent-worktree'), { recursive: true })
+
+      expect(isRecognizedDevPlayground(escaped, primary)).toBe(false)
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
 })

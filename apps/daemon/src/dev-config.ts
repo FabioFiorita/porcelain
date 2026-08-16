@@ -15,7 +15,14 @@ export function devRepoPath(source: NodeJS.ProcessEnv = process.env, home = home
  * share the `porcelain-playgrounds` parent; the primary profile uses the
  * singular `porcelain-playground` path.
  */
-export function isRecognizedDevPlayground(path: string, primaryPath: string): boolean {
+/**
+ * Return the canonical path when a path belongs to the disposable playground family.
+ *
+ * The string form matters at the project-operation boundary: callers must inspect, warm, and
+ * register the same canonical path they just authorized. A boolean-only check leaves a symlink
+ * race between validation and the first filesystem operation.
+ */
+export function recognizedDevPlaygroundPath(path: string, primaryPath: string): string | null {
   // Canonicalize both sides before applying containment. A lexical check alone lets a symlink
   // inside the playground point at a production checkout. Missing paths are valid inputs while
   // opening a project (the operation will report `not-found`); canonicalize their deepest
@@ -40,8 +47,17 @@ export function isRecognizedDevPlayground(path: string, primaryPath: string): bo
 
   const candidate = canonical(path)
   const primary = canonical(primaryPath)
-  if (candidate === null || primary === null) return false
-  if (candidate === primary) return true
+  if (candidate === null || primary === null) return null
+  // The configured primary playground is itself a managed root. Existing symlinks here would
+  // make the apparent dev home point at an arbitrary checkout, so reject them instead of
+  // treating their canonical target as the sandbox.
+  try {
+    if (realpathSync(resolve(primaryPath)) !== resolve(primaryPath)) return null
+  } catch {
+    // Missing primary paths are valid during first-run setup; their canonical ancestors were
+    // already checked above.
+  }
+  if (candidate === primary) return candidate
 
   const primaryParent = dirname(primary)
   const managedRoots = [
@@ -54,17 +70,35 @@ export function isRecognizedDevPlayground(path: string, primaryPath: string): bo
       ? primaryParent
       : join(primaryParent, 'porcelain-playground-worktrees'),
   ]
-  return managedRoots.some((managedRoot) => {
-    const canonicalRoot = canonical(managedRoot)
-    if (canonicalRoot === null) return false
+  for (const managedRoot of managedRoots) {
+    // A managed root is itself a trust boundary. If the root is a symlink, accepting its
+    // canonical target would silently turn a dev root into an arbitrary host directory.
+    let canonicalRoot: string
+    try {
+      canonicalRoot = realpathSync(managedRoot)
+    } catch {
+      // A managed root is allowed to be created later. In that case its existing ancestors must
+      // already be canonical; `canonical` preserves the lexical missing suffix for this check.
+      const unresolved = canonical(managedRoot)
+      if (unresolved === null || unresolved !== resolve(managedRoot)) continue
+      canonicalRoot = unresolved
+    }
+    if (resolve(managedRoot) !== canonicalRoot) continue
     const withinManagedRoot = relative(canonicalRoot, candidate)
-    return (
+    if (
       withinManagedRoot !== '' &&
       !isAbsolute(withinManagedRoot) &&
       withinManagedRoot !== '..' &&
       !withinManagedRoot.startsWith(`..${sep}`)
-    )
-  })
+    ) {
+      return candidate
+    }
+  }
+  return null
+}
+
+export function isRecognizedDevPlayground(path: string, primaryPath: string): boolean {
+  return recognizedDevPlaygroundPath(path, primaryPath) !== null
 }
 
 /**

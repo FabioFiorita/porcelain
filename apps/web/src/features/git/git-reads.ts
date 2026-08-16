@@ -30,7 +30,7 @@ import type {
 } from '@porcelain/contracts/git'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
-import { environmentClientFor } from '@renderer/lib/environment-sessions'
+import { daemonScopeForEnvironment, environmentClientFor } from '@renderer/lib/environment-sessions'
 import { trpc } from '@renderer/lib/trpc'
 import { useHubRepoPath, useHubRepoTarget } from '@renderer/stores/hub-repo'
 import { usePreferencesStore } from '@renderer/stores/preferences'
@@ -54,10 +54,6 @@ export type { DiffReadingScope }
 
 const DISABLED_PROJECT = '/__porcelain-disabled-git-reads__'
 
-function daemonScope(identity: { host: string | null; version: string | null }): DaemonScope {
-  return { host: identity.host, version: identity.version }
-}
-
 function projectPath(path: string | undefined): string {
   return path === undefined ? DISABLED_PROJECT : gitProjectKey(path)
 }
@@ -79,11 +75,15 @@ function useGitOwner(): ReturnType<typeof environmentClientFor> {
     : environmentClientFor(target.environmentId, primary)
 }
 
+function useGitDaemonScope(): DaemonScope {
+  const target = useHubRepoTarget()
+  return daemonScopeForEnvironment(target?.environmentId, useDaemonIdentity())
+}
+
 /** Working-tree flow. Changes constantly outside the app, so it stays live at a 3s poll. */
 export function useGitFlow(): { groups: FlowGroup[] | undefined; refresh: () => Promise<void> } {
   const repoPath = useHubRepoPath()
-  const identity = useDaemonIdentity()
-  const daemon = daemonScope(identity)
+  const daemon = useGitDaemonScope()
   const queryClient = useQueryClient()
   const owner = useGitOwner()
   const path = projectPath(repoPath ?? undefined)
@@ -115,8 +115,7 @@ export function useBranchFlow(enabled: boolean): {
   refresh: () => Promise<void>
 } {
   const repoPath = useHubRepoPath()
-  const identity = useDaemonIdentity()
-  const daemon = daemonScope(identity)
+  const daemon = useGitDaemonScope()
   const path = projectPath(repoPath ?? undefined)
   const owner = useGitOwner()
   const query = useQuery({
@@ -136,13 +135,13 @@ export function useBranchFlow(enabled: boolean): {
 
 export function useGitStatus(): ChangedFile[] {
   const repoPath = useHubRepoPath()
-  const identity = useDaemonIdentity()
+  const daemon = useGitDaemonScope()
   const path = projectPath(repoPath ?? undefined)
   const owner = useGitOwner()
   const query = useQuery({
     enabled: repoPath !== null,
     queryFn: () => ownerClient(owner).gitStatus.query(path),
-    queryKey: gitQueryKey(daemonScope(identity), gitStatusQuery(path)),
+    queryKey: gitQueryKey(daemon, gitStatusQuery(path)),
     staleTime: 0,
   })
   return query.data ?? []
@@ -150,13 +149,13 @@ export function useGitStatus(): ChangedFile[] {
 
 export function useGitSuggestions(): GitSuggestion[] {
   const repoPath = useHubRepoPath()
-  const identity = useDaemonIdentity()
+  const daemon = useGitDaemonScope()
   const path = projectPath(repoPath ?? undefined)
   const owner = useGitOwner()
   const query = useQuery({
     enabled: repoPath !== null,
     queryFn: () => ownerClient(owner).gitSuggestions.query(path),
-    queryKey: gitQueryKey(daemonScope(identity), gitSuggestionsQuery(path)),
+    queryKey: gitQueryKey(daemon, gitSuggestionsQuery(path)),
     refetchInterval: repoPath === null ? false : 5000,
     staleTime: 0,
   })
@@ -174,8 +173,7 @@ export function useDiffFile(
   error: { message: string } | null
 } {
   const repoPath = useHubRepoPath()
-  const identity = useDaemonIdentity()
-  const daemon = daemonScope(identity)
+  const daemon = useGitDaemonScope()
   const path = projectPath(repoPath ?? undefined)
   const owner = useGitOwner()
   const working = useQuery({
@@ -206,8 +204,7 @@ export function useDiffFile(
 /** Prefetch a file's diff (changes-list hover) so opening the diff tab feels instant. */
 export function useDiffFilePrefetch(): (filePath: string, base?: string) => Promise<void> {
   const repoPath = useHubRepoPath()
-  const identity = useDaemonIdentity()
-  const daemon = daemonScope(identity)
+  const daemon = useGitDaemonScope()
   const queryClient = useQueryClient()
   const owner = useGitOwner()
   return async (filePath: string, base?: string): Promise<void> => {
@@ -245,13 +242,13 @@ export function useCommitDiff(
   filePath: string,
 ): { hunks: DiffHunk[] | undefined; error: { message: string } | null } {
   const repoPath = useHubRepoPath()
-  const identity = useDaemonIdentity()
+  const daemon = useGitDaemonScope()
   const path = projectPath(repoPath ?? undefined)
   const owner = useGitOwner()
   const query = useQuery({
     enabled: repoPath !== null,
     queryFn: () => ownerClient(owner).gitCommitDiff.query({ filePath, hash, repoPath: path }),
-    queryKey: gitQueryKey(daemonScope(identity), gitCommitDiffQuery(path, hash, filePath)),
+    queryKey: gitQueryKey(daemon, gitCommitDiffQuery(path, hash, filePath)),
     staleTime: Number.POSITIVE_INFINITY,
   })
   return { error: query.error, hunks: query.data }
@@ -267,14 +264,14 @@ export function useDiffReading(scope: DiffReadingScope): {
   error: { message: string } | null
 } {
   const repoPath = useHubRepoPath()
-  const identity = useDaemonIdentity()
+  const daemon = useGitDaemonScope()
   const path = projectPath(repoPath ?? undefined)
   const owner = useGitOwner()
   const live = scope.type === 'working'
   const query = useQuery({
     enabled: repoPath !== null,
     queryFn: () => ownerClient(owner).diffReading.query({ repoPath: path, scope }),
-    queryKey: gitQueryKey(daemonScope(identity), gitDiffReadingQuery(path, scope)),
+    queryKey: gitQueryKey(daemon, gitDiffReadingQuery(path, scope)),
     refetchInterval: live ? 3000 : false,
     staleTime: live ? 0 : Number.POSITIVE_INFINITY,
   })
@@ -283,13 +280,13 @@ export function useDiffReading(scope: DiffReadingScope): {
 
 export function useGitLog(limit = 200, enabled = true): Commit[] | undefined {
   const repoPath = useHubRepoPath()
-  const identity = useDaemonIdentity()
+  const daemon = useGitDaemonScope()
   const path = projectPath(repoPath ?? undefined)
   const owner = useGitOwner()
   const query = useQuery({
     enabled: enabled && repoPath !== null,
     queryFn: () => ownerClient(owner).gitLog.query({ limit, repoPath: path }),
-    queryKey: gitQueryKey(daemonScope(identity), gitLogQuery(path, limit)),
+    queryKey: gitQueryKey(daemon, gitLogQuery(path, limit)),
     staleTime: 0,
   })
   return query.data
@@ -302,7 +299,7 @@ export function useGitLog(limit = 200, enabled = true): Commit[] | undefined {
  */
 export function useFileLog(filePath: string | null, limit = 50): Commit[] | undefined {
   const repoPath = useHubRepoPath()
-  const identity = useDaemonIdentity()
+  const daemon = useGitDaemonScope()
   const path = projectPath(repoPath ?? undefined)
   const owner = useGitOwner()
   const activePath = filePath ?? ''
@@ -310,7 +307,7 @@ export function useFileLog(filePath: string | null, limit = 50): Commit[] | unde
     enabled: repoPath !== null && filePath !== null,
     queryFn: () =>
       ownerClient(owner).gitFileLog.query({ filePath: activePath, limit, repoPath: path }),
-    queryKey: gitQueryKey(daemonScope(identity), gitFileLogQuery(path, activePath, limit)),
+    queryKey: gitQueryKey(daemon, gitFileLogQuery(path, activePath, limit)),
     staleTime: 0,
   })
   return query.data
@@ -318,13 +315,13 @@ export function useFileLog(filePath: string | null, limit = 50): Commit[] | unde
 
 export function useCommitMessage(hash: string): string | undefined {
   const repoPath = useHubRepoPath()
-  const identity = useDaemonIdentity()
+  const daemon = useGitDaemonScope()
   const path = projectPath(repoPath ?? undefined)
   const owner = useGitOwner()
   const query = useQuery({
     enabled: repoPath !== null,
     queryFn: () => ownerClient(owner).gitCommitMessage.query({ hash, repoPath: path }),
-    queryKey: gitQueryKey(daemonScope(identity), gitCommitMessageQuery(path, hash)),
+    queryKey: gitQueryKey(daemon, gitCommitMessageQuery(path, hash)),
     staleTime: Number.POSITIVE_INFINITY,
   })
   return query.data
@@ -333,8 +330,7 @@ export function useCommitMessage(hash: string): string | undefined {
 /** Imperatively fetch a commit's full message (subject + body) — for copy actions. */
 export function useFetchCommitMessage(): (hash: string) => Promise<string> {
   const repoPath = useHubRepoPath()
-  const identity = useDaemonIdentity()
-  const daemon = daemonScope(identity)
+  const daemon = useGitDaemonScope()
   const queryClient = useQueryClient()
   const owner = useGitOwner()
   return (hash: string): Promise<string> => {
@@ -354,13 +350,13 @@ export function useFetchCommitMessage(): (hash: string) => Promise<string> {
  */
 export function useCommitFlow(hash: string): { groups: FlowGroup[] | undefined } {
   const repoPath = useHubRepoPath()
-  const identity = useDaemonIdentity()
+  const daemon = useGitDaemonScope()
   const path = projectPath(repoPath ?? undefined)
   const owner = useGitOwner()
   const query = useQuery({
     enabled: repoPath !== null,
     queryFn: () => ownerClient(owner).gitCommitFlow.query({ hash, repoPath: path }),
-    queryKey: gitQueryKey(daemonScope(identity), gitCommitFlowQuery(path, hash)),
+    queryKey: gitQueryKey(daemon, gitCommitFlowQuery(path, hash)),
     staleTime: Number.POSITIVE_INFINITY,
   })
   return { groups: query.data }
@@ -368,13 +364,13 @@ export function useCommitFlow(hash: string): { groups: FlowGroup[] | undefined }
 
 export function useCommitConventions(): CommitConventions | undefined {
   const repoPath = useHubRepoPath()
-  const identity = useDaemonIdentity()
+  const daemon = useGitDaemonScope()
   const path = projectPath(repoPath ?? undefined)
   const owner = useGitOwner()
   const query = useQuery({
     enabled: repoPath !== null,
     queryFn: () => ownerClient(owner).gitCommitConventions.query(path),
-    queryKey: gitQueryKey(daemonScope(identity), gitCommitConventionsQuery(path)),
+    queryKey: gitQueryKey(daemon, gitCommitConventionsQuery(path)),
   })
   return query.data
 }
@@ -387,13 +383,13 @@ export function useCommitModels(): {
   models: CommitModelOption[]
   isLoading: boolean
 } {
-  const identity = useDaemonIdentity()
+  const daemon = useGitDaemonScope()
   const owner = useGitOwner()
   const commitModel = usePreferencesStore((state) => state.commitModel)
   const setCommitModel = usePreferencesStore((state) => state.setCommitModel)
   const query = useQuery({
     queryFn: () => ownerClient(owner).commitModels.query(),
-    queryKey: gitQueryKey(daemonScope(identity), gitCommitModelsQuery()),
+    queryKey: gitQueryKey(daemon, gitCommitModelsQuery()),
     refetchInterval: 60_000,
     staleTime: 30_000,
   })

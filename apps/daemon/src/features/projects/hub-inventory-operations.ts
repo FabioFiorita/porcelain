@@ -37,6 +37,17 @@ function notFound(): ProjectOperationResult<never> {
   return { ok: false, error: { code: 'projects.not-found' } }
 }
 
+type AllowedPath = boolean | string | null
+
+function allowedPath(
+  path: string,
+  predicate: ((path: string) => AllowedPath) | undefined,
+): string | null {
+  if (predicate === undefined) return path
+  const result = predicate(path)
+  return typeof result === 'string' ? result : result === true ? path : null
+}
+
 function mapGitWorkspaceError(error: GitWorkspaceError): ProjectsOperationError {
   switch (error.code) {
     case 'git.not-a-repository':
@@ -103,7 +114,7 @@ export function createHubInventoryOperations(options: {
   git: HubGitPort
   daemon: { host: string; platform: string; arch: string }
   /** Optional development-daemon boundary; production has no path restriction. */
-  pathAllowed?: (path: string) => boolean
+  pathAllowed?: (path: string) => AllowedPath
   createId?: () => string
 }): HubInventoryOperations {
   const createId = options.createId ?? randomUUID
@@ -166,8 +177,9 @@ export function createHubInventoryOperations(options: {
 
     let working = [...storedResult.value]
     for (const path of recents.value) {
-      if (options.pathAllowed !== undefined && !options.pathAllowed(path)) continue
-      const discovered = await options.git.discoverProject(path)
+      const allowed = allowedPath(path, options.pathAllowed)
+      if (allowed === null) continue
+      const discovered = await options.git.discoverProject(allowed)
       if (!discovered.ok) continue
       working = await registerDiscovered(working, discovered.value)
     }
@@ -176,12 +188,23 @@ export function createHubInventoryOperations(options: {
     const nextStored: StoredHubProject[] = []
     for (const project of working) {
       const refreshed = await refreshProject(project)
-      const hasAllowedWorktree =
-        options.pathAllowed === undefined ||
-        refreshed.live.some((worktree) => options.pathAllowed?.(worktree.path))
-      if (!hasAllowedWorktree) continue
-      nextStored.push(refreshed.stored)
-      const hubProject = toHubProject(environment.value.id, refreshed.stored, refreshed.live)
+      // A single Git project can contain worktrees from multiple families. Filter each live
+      // entry before mapping it into the public inventory; checking only `some()` and then
+      // passing the complete list would leak a production checkout beside a playground one.
+      const allowedLive = refreshed.live.flatMap((worktree) => {
+        const path = allowedPath(worktree.path, options.pathAllowed)
+        return path === null ? [] : [{ ...worktree, path }]
+      })
+      if (allowedLive.length === 0) continue
+      const liveGitDirs = new Set(allowedLive.map((worktree) => worktree.gitDir))
+      const stored = {
+        ...refreshed.stored,
+        worktrees: refreshed.stored.worktrees.filter((worktree) =>
+          liveGitDirs.has(worktree.gitDir),
+        ),
+      }
+      nextStored.push(stored)
+      const hubProject = toHubProject(environment.value.id, stored, allowedLive)
       if (hubProject !== null) live.push(hubProject)
     }
 
@@ -203,7 +226,12 @@ export function createHubInventoryOperations(options: {
     for (const path of recents.value) {
       const discovered = livePaths.has(path)
         ? { ok: true as const, value: { commonGitDir: stored.commonGitDir } }
-        : await options.git.discoverProject(path)
+        : await (() => {
+            const allowed = allowedPath(path, options.pathAllowed)
+            return allowed === null
+              ? Promise.resolve({ ok: false as const, error: 'not-a-repository' as const })
+              : options.git.discoverProject(allowed)
+          })()
       if (!discovered.ok || discovered.value.commonGitDir !== stored.commonGitDir) continue
       const removed = await options.recents.removePath(path)
       if (!removed.ok) return unavailable()
@@ -274,8 +302,9 @@ export function createHubInventoryOperations(options: {
     removeHubWorktree,
 
     async registerPath(path: string): Promise<void> {
-      if (options.pathAllowed !== undefined && !options.pathAllowed(path)) return
-      const discovered = await options.git.discoverProject(path)
+      const allowed = allowedPath(path, options.pathAllowed)
+      if (allowed === null) return
+      const discovered = await options.git.discoverProject(allowed)
       if (!discovered.ok) return
       const stored = await options.inventory.readProjects()
       if (!stored.ok) return

@@ -5,6 +5,7 @@ import {
   ensureEnvironmentSession,
   environmentSessionFor,
   liveEnvironmentSessions,
+  registerEnvironmentAlias,
   setBrowserEnvironmentConnections,
   setPrimaryEnvironmentId,
 } from './environment-sessions'
@@ -64,5 +65,24 @@ describe('browser Environment session hub', () => {
       host: 'env-secondary',
       version: '0.52.1',
     })
+  })
+
+  it('reactively adopts announced UUIDs and removes aliases with their connection', () => {
+    const connection = {
+      id: 'connection-secondary',
+      name: 'Secondary',
+      url: 'http://127.0.0.1:43220',
+      token: 'pc_client_secondary_secret',
+    }
+    setBrowserEnvironmentConnections([connection])
+    expect(liveEnvironmentSessions()[1]?.environmentId).toBe('connection-secondary')
+
+    registerEnvironmentAlias('uuid-secondary', connection.id)
+    expect(liveEnvironmentSessions()[1]?.environmentId).toBe('uuid-secondary')
+    expect(environmentSessionFor('uuid-secondary')).not.toBeNull()
+
+    setBrowserEnvironmentConnections([])
+    expect(environmentSessionFor('uuid-secondary')).toBeNull()
+    expect(liveEnvironmentSessions()).toHaveLength(1)
   })
 })

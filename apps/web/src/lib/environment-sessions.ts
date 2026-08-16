@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from 'react'
 import { createDaemonSession, type DaemonEndpoint, type DaemonSession, primary } from './daemon'
 import { createAppClientFor } from './trpc'
 
@@ -53,6 +54,32 @@ export function daemonScopeForEnvironment(
 }
 
 const STORAGE_KEY = 'porcelain-browser-environments'
+let environmentSessionRevision = 0
+const environmentSessionListeners = new Set<() => void>()
+
+function notifyEnvironmentSessionChange(): void {
+  environmentSessionRevision += 1
+  for (const listener of environmentSessionListeners) listener()
+}
+
+/** React subscription edge for alias/session topology changes discovered asynchronously. */
+function subscribeEnvironmentSessions(listener: () => void): () => void {
+  environmentSessionListeners.add(listener)
+  return () => environmentSessionListeners.delete(listener)
+}
+
+function environmentSessionsRevision(): number {
+  return environmentSessionRevision
+}
+
+export function useEnvironmentSessionsRevision(): number {
+  return useSyncExternalStore(
+    subscribeEnvironmentSessions,
+    environmentSessionsRevision,
+    environmentSessionsRevision,
+  )
+}
+
 const connectionShape = (value: unknown): value is BrowserEnvironmentConnection => {
   if (typeof value !== 'object' || value === null) return false
   const record = value as Record<string, unknown>
@@ -71,13 +98,21 @@ const connectionShape = (value: unknown): value is BrowserEnvironmentConnection 
 /** Read explicit browser connections. Malformed client-local state is ignored safely. */
 export function browserEnvironmentConnections(): readonly BrowserEnvironmentConnection[] {
   if (typeof window === 'undefined') return []
+  let connections: readonly BrowserEnvironmentConnection[] = []
   try {
     const parsed: unknown = JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? '[]')
-    if (!Array.isArray(parsed)) return []
-    return parsed.filter(connectionShape)
+    if (Array.isArray(parsed)) connections = parsed.filter(connectionShape)
   } catch {
-    return []
+    connections = []
   }
+  const ids = new Set(connections.map((connection) => connection.id))
+  for (const [environmentId, connectionId] of environmentAliases) {
+    if (!ids.has(connectionId)) environmentAliases.delete(environmentId)
+  }
+  for (const connectionId of secondarySessions.keys()) {
+    if (!ids.has(connectionId)) secondarySessions.delete(connectionId)
+  }
+  return connections
 }
 
 /** Persist browser connections; useful to pairing/settings surfaces and isolated proof fixtures. */
@@ -86,7 +121,15 @@ export function setBrowserEnvironmentConnections(
 ): void {
   if (typeof window === 'undefined') return
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(connections))
+  const ids = new Set(connections.map((connection) => connection.id))
+  for (const [environmentId, connectionId] of environmentAliases) {
+    if (!ids.has(connectionId)) environmentAliases.delete(environmentId)
+  }
+  for (const connectionId of secondarySessions.keys()) {
+    if (!ids.has(connectionId)) secondarySessions.delete(connectionId)
+  }
   for (const connection of connections) ensureEnvironmentSession(connection)
+  notifyEnvironmentSessionChange()
 }
 
 const secondarySessions = new Map<string, EnvironmentSession>()
@@ -101,12 +144,22 @@ function primaryAppClient(): ReturnType<typeof createAppClientFor> {
 
 /** Record the daemon-announced identity used to resolve the primary target. */
 export function setPrimaryEnvironmentId(id: string | null): void {
+  if (primaryEnvironmentId === id) return
   primaryEnvironmentId = id
+  notifyEnvironmentSessionChange()
 }
 
 /** Associate a daemon-announced identity with the client-local connection label. */
 export function registerEnvironmentAlias(environmentId: string, connectionId: string): void {
+  let changed = environmentAliases.get(environmentId) !== connectionId
+  for (const [knownEnvironmentId, knownConnectionId] of environmentAliases) {
+    if (knownEnvironmentId !== environmentId && knownConnectionId === connectionId) {
+      environmentAliases.delete(knownEnvironmentId)
+      changed = true
+    }
+  }
   environmentAliases.set(environmentId, connectionId)
+  if (changed) notifyEnvironmentSessionChange()
 }
 
 function endpointFor(connection: BrowserEnvironmentConnection): DaemonEndpoint {
@@ -137,7 +190,9 @@ export function ensureEnvironmentSession(
 }
 
 /** Snapshot the live session set for notification bridges and watch-interest ownership. */
-export function liveEnvironmentSessions(): readonly LiveEnvironmentSession[] {
+export function liveEnvironmentSessions(
+  _revision = environmentSessionRevision,
+): readonly LiveEnvironmentSession[] {
   const primaryEntry: LiveEnvironmentSession = {
     environmentId: primaryEnvironmentId,
     connectionId: null,
@@ -187,6 +242,7 @@ export function environmentSessionFor(environmentId: string | null): Environment
  * refused rather than silently routed to the primary daemon. */
 export function environmentSessionForHubTarget(
   environmentId: string | null,
+  _revision = environmentSessionRevision,
 ): EnvironmentSession | null {
   const direct = environmentSessionFor(environmentId)
   if (direct !== null || environmentId === null || primaryEnvironmentId !== null) return direct

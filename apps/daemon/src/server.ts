@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { porcelainHome, porcelainHomePath } from '@shared/porcelain-home'
 import { createDaemonOperations, createDaemonRouter } from './api'
 import { ensureCli } from './cli-install'
-import { devRepoPath, isRecognizedDevPlayground, seedDevConfig } from './dev-config'
+import { devRepoPath, recognizedDevPlaygroundPath, seedDevConfig } from './dev-config'
 import { createGitSubprocess } from './features/git'
 import {
   createCanvasAccessTokens,
@@ -159,7 +159,7 @@ async function main(): Promise<void> {
       // so this boundary cannot change their project behavior.
       pathAllowed:
         process.env.PORCELAIN_DEV === '1'
-          ? (path: string): boolean => isRecognizedDevPlayground(path, devRepoPath())
+          ? (path: string): string | null => recognizedDevPlaygroundPath(path, devRepoPath())
           : undefined,
     },
     canvas: canvasStores,
