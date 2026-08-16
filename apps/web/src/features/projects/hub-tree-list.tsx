@@ -57,44 +57,42 @@ function WorktreeRow(props: {
   }
 
   return (
-    <>
-      <ContextMenu>
-        <ContextMenuTrigger
-          render={
-            <button
-              type="button"
-              data-testid={TestIds.hubWorktree(props.worktree.id)}
-              data-hub-environment={props.environmentId}
-              data-hub-project={props.projectId}
-              aria-current={selected ? 'page' : undefined}
-              className={cn(
-                'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-accent/50',
-                selected && 'bg-accent/60',
-              )}
-              onClick={() => props.openWorktree(props.worktree)}
-            />
-          }
-        >
-          <GitBranch className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
-          <span className="flex min-w-0 flex-1 flex-col">
-            <span className="truncate font-mono text-xs">{props.worktree.branch}</span>
-            {props.worktree.name !== props.worktree.branch && (
-              <span className="truncate text-2xs text-muted-foreground">{props.worktree.name}</span>
+    <ContextMenu>
+      <ContextMenuTrigger
+        render={
+          <button
+            type="button"
+            data-testid={TestIds.hubWorktree(props.worktree.id)}
+            data-hub-environment={props.environmentId}
+            data-hub-project={props.projectId}
+            aria-current={selected ? 'page' : undefined}
+            className={cn(
+              'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-accent/50',
+              selected && 'bg-accent/60',
             )}
-          </span>
-        </ContextMenuTrigger>
-        <ContextMenuContent>
-          <ContextMenuItem onClick={() => copy('Copy worktree name', props.worktree.name)}>
-            <Copy />
-            Copy name
-          </ContextMenuItem>
-          <ContextMenuItem onClick={() => copy('Copy worktree path', props.worktree.path)}>
-            <Copy />
-            Copy path
-          </ContextMenuItem>
-        </ContextMenuContent>
-      </ContextMenu>
-    </>
+            onClick={() => props.openWorktree(props.worktree)}
+          />
+        }
+      >
+        <GitBranch className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="truncate font-mono text-xs">{props.worktree.branch}</span>
+          {props.worktree.name !== props.worktree.branch && (
+            <span className="truncate text-2xs text-muted-foreground">{props.worktree.name}</span>
+          )}
+        </span>
+      </ContextMenuTrigger>
+      <ContextMenuContent>
+        <ContextMenuItem onClick={() => copy('Copy worktree name', props.worktree.name)}>
+          <Copy />
+          Copy name
+        </ContextMenuItem>
+        <ContextMenuItem onClick={() => copy('Copy worktree path', props.worktree.path)}>
+          <Copy />
+          Copy path
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   )
 }
 

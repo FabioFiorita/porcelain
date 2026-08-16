@@ -82,6 +82,8 @@ vi.mock('@renderer/hooks/use-daemon-identity', () => ({
 }))
 vi.mock('@renderer/lib/daemon', () => ({ primary: doubles.primarySession }))
 vi.mock('@renderer/lib/local-daemon', () => ({
+  registerTerminalSession: vi.fn(),
+  resetTerminalSessions: vi.fn(),
   localDaemonSession: () => doubles.localSession,
   markLocalTerminal: vi.fn(),
 }))

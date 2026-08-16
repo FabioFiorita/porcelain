@@ -7,10 +7,17 @@ import {
 } from '@renderer/hooks/use-local-terminal'
 import { type DaemonSession, primary } from '@renderer/lib/daemon'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
-import { localDaemonSession, markLocalTerminal } from '@renderer/lib/local-daemon'
+import { environmentClientFor } from '@renderer/lib/environment-sessions'
+import {
+  localDaemonSession,
+  markLocalTerminal,
+  registerTerminalSession,
+  resetTerminalSessions,
+} from '@renderer/lib/local-daemon'
 import { receiveData, receiveExit, receiveScrollback } from '@renderer/lib/terminal-registry'
 import { trpc } from '@renderer/lib/trpc'
-import { useProjectSelectionStore } from '@renderer/stores/project-selection'
+import { useHubRepoPath } from '@renderer/stores/hub-repo'
+import { useHubTarget } from '@renderer/stores/hub-selection'
 import { type TerminalSession, useTerminalsStore } from '@renderer/stores/terminals'
 import { settleBackground } from '@shared/background'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -46,21 +53,33 @@ function useResolvedLocalSession(localPath: string | null): DaemonSession | null
 export function useTerminalRoster(): void {
   const markExited = useTerminalsStore((state) => state.markExited)
   const hydrate = useTerminalsStore((state) => state.hydrate)
-  const repoPath = useProjectSelectionStore((state) => state.project?.path ?? null)
+  const repoPath = useHubRepoPath()
+  const target = useHubTarget()
   const daemon = useDaemonIdentity()
-  const daemonScope: DaemonScope = { host: daemon.host, version: daemon.version }
   const utils = trpc.useUtils()
-  const primaryRoster = useQuery({
+  const owner =
+    target === null && repoPath !== null
+      ? { client: utils.client, session: primary }
+      : environmentClientFor(target?.environmentId ?? null, utils.client)
+  const daemonScope: DaemonScope = {
+    host: target?.environmentId ?? daemon.host,
+    version: daemon.version,
+  }
+  const ownerRoster = useQuery({
     queryKey: terminalSessionsQueryKey(daemonScope, terminalSessionsQuery()),
-    queryFn: () => listTerminalSessionsOnDaemon(utils.client),
-    enabled: repoPath !== null,
+    queryFn: async () => {
+      if (owner === null) throw new Error('The target Environment is offline.')
+      return listTerminalSessionsOnDaemon(owner.client)
+    },
+    enabled: repoPath !== null && owner !== null,
     refetchInterval: 5000,
   })
   const queryClient = useQueryClient()
 
-  const localDaemon = useLocalDaemon()
+  const localDaemonState = useLocalDaemon()
+  const localDaemon = target === null ? localDaemonState : null
   const mappedPath = useLocalTerminalPath(repoPath)
-  const localPath = localDaemon?.isLocal === false ? (mappedPath ?? null) : null
+  const localPath = target === null && localDaemon?.isLocal === false ? (mappedPath ?? null) : null
   const localSessions = useLocalTerminalSessions(localPath)
   const localSession = useResolvedLocalSession(localPath)
 
@@ -74,11 +93,11 @@ export function useTerminalRoster(): void {
       },
       onRecovery: (recovery): void => {
         applyTerminalRecovery(recovery, {
-          refetchRoster: () => primaryRoster.refetch(),
+          refetchRoster: () => ownerRoster.refetch(),
         })
       },
     }),
-    [markExited, primaryRoster.refetch],
+    [markExited, ownerRoster.refetch],
   )
   const localListeners = useMemo<TerminalStreamListeners>(
     () => ({
@@ -98,12 +117,13 @@ export function useTerminalRoster(): void {
     [localPath, markExited, queryClient],
   )
 
-  const primaryAdapter = useTerminalStream(primary, primaryListeners)
+  const ownerSession = target === null ? primary : (owner?.session ?? null)
+  const ownerAdapter = useTerminalStream(ownerSession, primaryListeners)
   const localAdapter = useTerminalStream(localSession, localListeners)
 
   useEffect(() => {
-    if (repoPath === null || primaryRoster.data === undefined) return
-    const inRepo = primaryRoster.data.filter(
+    if (repoPath === null || ownerRoster.data === undefined) return
+    const inRepo = ownerRoster.data.filter(
       (session) => session.cwd === repoPath || session.cwd.startsWith(`${repoPath}/`),
     )
     const rows: TerminalSession[] = [
@@ -123,17 +143,21 @@ export function useTerminalRoster(): void {
       })),
     ]
 
+    resetTerminalSessions()
+    if (ownerSession !== null) {
+      for (const session of inRepo) registerTerminalSession(session.id, ownerSession)
+    }
     for (const session of localSessions) markLocalTerminal(session.id)
     hydrate(rows)
 
     for (const session of inRepo) {
-      if (primaryAdapter === null || primaryAdapter.isTerminalAttached(session.id)) continue
-      settleBackground(primaryAdapter.attachTerminal(session.id), 'lifecycle')
+      if (ownerAdapter === null || ownerAdapter.isTerminalAttached(session.id)) continue
+      settleBackground(ownerAdapter.attachTerminal(session.id), 'lifecycle')
     }
     if (localAdapter === null) return
     for (const session of localSessions) {
       if (localAdapter.isTerminalAttached(session.id)) continue
       settleBackground(localAdapter.attachTerminal(session.id), 'lifecycle')
     }
-  }, [hydrate, localAdapter, localSessions, primaryAdapter, primaryRoster.data, repoPath])
+  }, [hydrate, localAdapter, localSessions, ownerAdapter, ownerRoster.data, ownerSession, repoPath])
 }

@@ -13,7 +13,7 @@ import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
 import { environmentClientFor } from '@renderer/lib/environment-sessions'
 import { trpc } from '@renderer/lib/trpc'
-import { useHubRepoTarget } from '@renderer/stores/hub-repo'
+import { useHubRepoPath, useHubRepoTarget } from '@renderer/stores/hub-repo'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { settleBackground } from '@shared/background'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -44,6 +44,7 @@ function useFilesOwner(): {
   daemon: DaemonScope
 } {
   const target = useHubRepoTarget()
+  const repoPath = useHubRepoPath()
   const identity = useDaemonIdentity()
   const primary = trpc.useUtils().client
   return {
@@ -51,8 +52,11 @@ function useFilesOwner(): {
       host: target?.environmentId ?? identity.host,
       version: identity.version,
     },
-    owner: environmentClientFor(target?.environmentId ?? null, primary),
-    repoPath: target?.path ?? null,
+    owner:
+      target === null && repoPath !== null
+        ? { client: primary, session: null }
+        : environmentClientFor(target?.environmentId ?? null, primary),
+    repoPath,
   }
 }
 

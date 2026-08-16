@@ -2,9 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { primary } from './daemon'
 import {
   forgetLocalTerminal,
+  forgetTerminalSession,
   isLocalTerminal,
   localDaemonSession,
   markLocalTerminal,
+  registerTerminalSession,
   sessionForTerminal,
   setLocalDaemonEndpoint,
 } from './local-daemon'
@@ -38,6 +40,14 @@ describe('sessionForTerminal', () => {
     markLocalTerminal('t-local')
     expect(sessionForTerminal('t-local')).toBe(local)
     expect(sessionForTerminal('t-remote')).toBe(primary)
+  })
+
+  it('routes an explicitly registered id to its Environment session', () => {
+    const remote = setLocalDaemonEndpoint({ url: 'http://127.0.0.1:2345', token: 'remote' })
+    registerTerminalSession('t-environment', remote)
+    expect(sessionForTerminal('t-environment')).toBe(remote)
+    forgetTerminalSession('t-environment')
+    expect(sessionForTerminal('t-environment')).toBe(primary)
   })
 
   it('falls back to primary for a marked id when no local session exists', () => {

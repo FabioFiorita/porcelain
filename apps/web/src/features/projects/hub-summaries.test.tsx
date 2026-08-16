@@ -20,6 +20,7 @@ vi.mock('@renderer/stores/hub-selection', () => ({
   useHubSelectionStore: (
     selector: (state: {
       selection: { kind: 'project'; environmentId: string; projectId: string }
+      selectProject: (input: { environmentId: string; projectId: string }) => void
       selectWorktree: () => void
     }) => unknown,
   ) =>

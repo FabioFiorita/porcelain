@@ -16,10 +16,12 @@ vi.mock('@renderer/lib/trpc', () => ({
   trpcClient: { renameTerminal: { mutate: vi.fn().mockResolvedValue(undefined) } },
 }))
 vi.mock('@renderer/lib/local-daemon', () => ({
+  forgetTerminalSession: vi.fn(),
   forgetLocalTerminal: vi.fn(),
   localDaemonClient: vi.fn(() => null),
   localDaemonSession: vi.fn(() => null),
   markLocalTerminal: vi.fn(),
+  terminalClientFor: vi.fn(() => ({ renameTerminal: { mutate: vi.fn() } })),
 }))
 vi.mock('@renderer/features/terminal', () => ({
   terminalAdapterFor: vi.fn(() => ({ killTerminal, detachTerminal })),

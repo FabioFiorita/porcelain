@@ -12,9 +12,9 @@ import {
 import { onMutationError } from '@renderer/hooks/mutation-error'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
+import { environmentClientFor } from '@renderer/lib/environment-sessions'
 import { trpc } from '@renderer/lib/trpc'
-import { useHubRepoPath } from '@renderer/stores/hub-repo'
-import { useProjectSelectionStore } from '@renderer/stores/project-selection'
+import { useHubRepoPath, useHubRepoTarget } from '@renderer/stores/hub-repo'
 import type { QueryClient } from '@tanstack/react-query'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -97,20 +97,24 @@ export function useFilesActions(): {
   /** True only when the daemon mutation and its success effects completed. */
   trash: (absolutePath: string) => Promise<boolean>
 } {
-  const project = useProjectSelectionStore((s) => s.project)
+  const repoPath = useHubRepoPath()
+  const target = useHubRepoTarget()
   const daemon = useDaemonIdentity()
   const daemonScope = daemonScopeFromIdentity(daemon)
   const queryClient = useQueryClient()
   const utils = trpc.useUtils()
-  const client = utils.client
+  const owner =
+    target === null && repoPath !== null
+      ? { client: utils.client }
+      : environmentClientFor(target?.environmentId ?? null, utils.client)
 
   return {
     createFile: async (absolutePath: string): Promise<void> => {
-      if (!project) return
-      const rel = projectRelativeFromAbsolute(project.path, absolutePath)
+      if (repoPath === null || owner === null) return
+      const rel = projectRelativeFromAbsolute(repoPath, absolutePath)
       if (rel === null) return
-      const input = { projectPath: filesProjectKey(project.path), path: rel }
-      await client.createFile.mutate(input)
+      const input = { projectPath: filesProjectKey(repoPath), path: rel }
+      await owner.client.createFile.mutate(input)
       await applyMutationSuccess(
         queryClient,
         daemonScope,
@@ -119,11 +123,11 @@ export function useFilesActions(): {
       )
     },
     createFolder: async (absolutePath: string): Promise<void> => {
-      if (!project) return
-      const rel = projectRelativeFromAbsolute(project.path, absolutePath)
+      if (repoPath === null || owner === null) return
+      const rel = projectRelativeFromAbsolute(repoPath, absolutePath)
       if (rel === null) return
-      const input = { projectPath: filesProjectKey(project.path), path: rel }
-      await client.createFolder.mutate(input)
+      const input = { projectPath: filesProjectKey(repoPath), path: rel }
+      await owner.client.createFolder.mutate(input)
       await applyMutationSuccess(
         queryClient,
         daemonScope,
@@ -132,16 +136,16 @@ export function useFilesActions(): {
       )
     },
     rename: async (fromAbsolute: string, toAbsolute: string): Promise<void> => {
-      if (!project) return
-      const fromRel = projectRelativeFromAbsolute(project.path, fromAbsolute)
-      const toRel = projectRelativeFromAbsolute(project.path, toAbsolute)
+      if (repoPath === null || owner === null) return
+      const fromRel = projectRelativeFromAbsolute(repoPath, fromAbsolute)
+      const toRel = projectRelativeFromAbsolute(repoPath, toAbsolute)
       if (fromRel === null || toRel === null) return
       const input = {
-        projectPath: filesProjectKey(project.path),
+        projectPath: filesProjectKey(repoPath),
         from: fromRel,
         to: toRel,
       }
-      await client.renamePath.mutate(input)
+      await owner.client.renamePath.mutate(input)
       await applyMutationSuccess(
         queryClient,
         daemonScope,
@@ -150,26 +154,26 @@ export function useFilesActions(): {
       )
     },
     duplicate: async (absolutePath: string): Promise<string | null> => {
-      if (!project) return null
-      const rel = projectRelativeFromAbsolute(project.path, absolutePath)
+      if (repoPath === null || owner === null) return null
+      const rel = projectRelativeFromAbsolute(repoPath, absolutePath)
       if (rel === null) return null
-      const input = { projectPath: filesProjectKey(project.path), path: rel }
-      const output = await client.duplicatePath.mutate(input)
+      const input = { projectPath: filesProjectKey(repoPath), path: rel }
+      const output = await owner.client.duplicatePath.mutate(input)
       await applyMutationSuccess(
         queryClient,
         daemonScope,
         filesMutations.duplicate.affectedEffectsForResult(input, output),
         filesMutations.duplicate.foreignDependencies(input),
       )
-      return projectAbsoluteFromRelative(project.path, output)
+      return projectAbsoluteFromRelative(repoPath, output)
     },
     trash: async (absolutePath: string): Promise<boolean> => {
-      if (!project) return false
-      const rel = projectRelativeFromAbsolute(project.path, absolutePath)
+      if (repoPath === null || owner === null) return false
+      const rel = projectRelativeFromAbsolute(repoPath, absolutePath)
       if (rel === null) return false
-      const input = { projectPath: filesProjectKey(project.path), path: rel }
+      const input = { projectPath: filesProjectKey(repoPath), path: rel }
       try {
-        await client.trashPath.mutate(input)
+        await owner.client.trashPath.mutate(input)
       } catch (error) {
         onMutationError('Delete')({ message: mutationErrorMessage(error) })
         return false
@@ -192,10 +196,15 @@ export function useWriteTextFile(absolutePath: string): {
   error: { message: string } | null
 } {
   const repoPath = useHubRepoPath()
+  const target = useHubRepoTarget()
   const daemon = useDaemonIdentity()
   const daemonScope = daemonScopeFromIdentity(daemon)
   const queryClient = useQueryClient()
   const utils = trpc.useUtils()
+  const owner =
+    target === null && repoPath !== null
+      ? { client: utils.client }
+      : environmentClientFor(target?.environmentId ?? null, utils.client)
 
   const mutation = useMutation({
     mutationFn: async (vars: {
@@ -203,7 +212,8 @@ export function useWriteTextFile(absolutePath: string): {
       path: string
       content: string
     }): Promise<void> => {
-      await utils.client.writeTextFile.mutate(vars)
+      if (owner === null) throw new Error('The target Environment is offline.')
+      await owner.client.writeTextFile.mutate(vars)
     },
     onSuccess: async (_data, variables): Promise<void> => {
       const input = {
@@ -222,7 +232,7 @@ export function useWriteTextFile(absolutePath: string): {
 
   return {
     save: (content: string, onSaved?: () => void): void => {
-      if (repoPath === null) return
+      if (repoPath === null || owner === null) return
       const rel = projectRelativeFromAbsolute(repoPath, absolutePath)
       if (rel === null) return
       mutation.mutate(
@@ -250,23 +260,27 @@ export function useFilesScopeActions(): {
   pin: (absolutePaths: readonly string[]) => Promise<void>
   unpin: (absolutePaths: readonly string[]) => Promise<void>
 } {
-  const project = useProjectSelectionStore((s) => s.project)
+  const repoPath = useHubRepoPath()
+  const target = useHubRepoTarget()
   const daemon = useDaemonIdentity()
   const daemonScope = daemonScopeFromIdentity(daemon)
   const queryClient = useQueryClient()
   const utils = trpc.useUtils()
-  const client = utils.client
+  const owner =
+    target === null && repoPath !== null
+      ? { client: utils.client }
+      : environmentClientFor(target?.environmentId ?? null, utils.client)
 
   const runBatch = async (
     absolutePaths: readonly string[],
     kind: 'hide' | 'unhide' | 'pin' | 'unpin',
   ): Promise<void> => {
-    if (!project) return
+    if (repoPath === null || owner === null) return
     for (const absolutePath of absolutePaths) {
-      const input = { repoPath: project.path, path: absolutePath }
+      const input = { repoPath, path: absolutePath }
       switch (kind) {
         case 'hide':
-          await client.hidePath.mutate(input)
+          await owner.client.hidePath.mutate(input)
           await applyMutationSuccess(
             queryClient,
             daemonScope,
@@ -275,7 +289,7 @@ export function useFilesScopeActions(): {
           )
           break
         case 'unhide':
-          await client.unhidePath.mutate(input)
+          await owner.client.unhidePath.mutate(input)
           await applyMutationSuccess(
             queryClient,
             daemonScope,
@@ -284,7 +298,7 @@ export function useFilesScopeActions(): {
           )
           break
         case 'pin':
-          await client.pinPath.mutate(input)
+          await owner.client.pinPath.mutate(input)
           await applyMutationSuccess(
             queryClient,
             daemonScope,
@@ -293,7 +307,7 @@ export function useFilesScopeActions(): {
           )
           break
         case 'unpin':
-          await client.unpinPath.mutate(input)
+          await owner.client.unpinPath.mutate(input)
           await applyMutationSuccess(
             queryClient,
             daemonScope,

@@ -1,7 +1,7 @@
 import type { AppRouter } from '@backend/api'
 import type { createTRPCClient } from '@trpc/client'
 import { createDaemonSession, type DaemonEndpoint, type DaemonSession, primary } from './daemon'
-import { createAppClientFor } from './trpc'
+import { createAppClientFor, trpcClient } from './trpc'
 
 /**
  * The SECOND daemon connection: the machine running the app, while the window works on a
@@ -30,6 +30,8 @@ let client: ReturnType<typeof createTRPCClient<AppRouter>> | null = null
 // Re-seeded on every roster hydrate (see useTerminalRoster), so a reload doesn't
 // misroute a session that outlived the window.
 const localTerminalIds = new Set<string>()
+const terminalSessions = new Map<string, DaemonSession>()
+const terminalClients = new Map<DaemonSession, ReturnType<typeof createAppClientFor>>()
 
 /** Create or re-point the local session. Returns it so a caller can use it immediately. */
 export function setLocalDaemonEndpoint(endpoint: DaemonEndpoint): DaemonSession {
@@ -66,6 +68,21 @@ export function forgetLocalTerminal(id: string): void {
   localTerminalIds.delete(id)
 }
 
+/** Register a terminal id with the explicit Environment session that owns it. */
+export function registerTerminalSession(id: string, owner: DaemonSession): void {
+  terminalSessions.set(id, owner)
+}
+
+/** Forget ownership after a terminal is closed or a roster is replaced. */
+export function forgetTerminalSession(id: string): void {
+  terminalSessions.delete(id)
+}
+
+/** Clear the current roster's ownership map before hydrating a new Hub target. */
+export function resetTerminalSessions(): void {
+  terminalSessions.clear()
+}
+
 export function isLocalTerminal(id: string): boolean {
   return localTerminalIds.has(id)
 }
@@ -76,5 +93,18 @@ export function isLocalTerminal(id: string): boolean {
  * exactly as it did before local terminals existed.
  */
 export function sessionForTerminal(id: string): DaemonSession {
+  const explicit = terminalSessions.get(id)
+  if (explicit !== undefined) return explicit
   return isLocalTerminal(id) && session !== null ? session : primary
+}
+
+/** Vanilla tRPC client for the daemon that owns one terminal id. */
+export function terminalClientFor(id: string): ReturnType<typeof createAppClientFor> {
+  const owner = sessionForTerminal(id)
+  if (owner === primary) return trpcClient
+  const existing = terminalClients.get(owner)
+  if (existing !== undefined) return existing
+  const created = createAppClientFor(owner)
+  terminalClients.set(owner, created)
+  return created
 }

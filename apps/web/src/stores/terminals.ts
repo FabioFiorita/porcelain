@@ -6,12 +6,13 @@ import {
 import { primary } from '@renderer/lib/daemon'
 import {
   forgetLocalTerminal,
+  forgetTerminalSession,
   localDaemonClient,
   localDaemonSession,
   markLocalTerminal,
+  terminalClientFor,
 } from '@renderer/lib/local-daemon'
 import { disposeTerminal } from '@renderer/lib/terminal-registry'
-import { trpcClient } from '@renderer/lib/trpc'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { settleBackground } from '@shared/background'
 import { create } from 'zustand'
@@ -166,7 +167,9 @@ export const useTerminalsStore = create<TerminalsState>((set, get) => ({
     // (the roster is daemon-owned); optimistically update the row too. Fire-and-forget:
     // the five-second roster poll remains the backstop (no mandatory invalidation).
     const client =
-      get().sessions.find((s) => s.id === id)?.origin === 'local' ? localDaemonClient() : trpcClient
+      get().sessions.find((s) => s.id === id)?.origin === 'local'
+        ? localDaemonClient()
+        : terminalClientFor(id)
     if (client !== null) {
       settleBackground(renameTerminalOnDaemon(client, { id, name: trimmed }), 'fallback')
     }
@@ -215,6 +218,7 @@ export const useTerminalsStore = create<TerminalsState>((set, get) => ({
     closedTombstones.set(id, Date.now())
     terminalAdapterFor(id).killTerminal(id)
     forgetLocalTerminal(id)
+    forgetTerminalSession(id)
     disposeTerminal(id)
     // The PTY and its Ghostty are gone; close any viewer tab still pointing at it so
     // the pane doesn't render a dead terminal. (Cross-store getState() from a store
@@ -237,6 +241,7 @@ export const useTerminalsStore = create<TerminalsState>((set, get) => ({
     // re-attach (and replay scrollback into a fresh Ghostty) if the repo comes back.
     for (const session of get().sessions) {
       terminalAdapterFor(session.id).detachTerminal(session.id)
+      forgetTerminalSession(session.id)
       disposeTerminal(session.id)
     }
     set({ sessions: [], panelOpen: false, panelSessionId: null })

@@ -8,8 +8,9 @@ import {
 import type { CodeSearchResult, GrepMatch, SearchResult } from '@porcelain/contracts/search'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
+import { environmentClientFor } from '@renderer/lib/environment-sessions'
 import { trpc } from '@renderer/lib/trpc'
-import { useHubRepoPath } from '@renderer/stores/hub-repo'
+import { useHubRepoPath, useHubRepoTarget } from '@renderer/stores/hub-repo'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 
 import { searchQueryKey } from './search-query-key'
@@ -45,11 +46,16 @@ export function useFileSearch(
   enabled: boolean,
 ): { results: SearchResult[]; isFetching: boolean } {
   const checkout = useHubRepoPath()
+  const target = useHubRepoTarget()
   const daemon = daemonScopeFromIdentity(useDaemonIdentity())
   const utils = trpc.useUtils()
+  const owner =
+    target === null
+      ? { client: utils.client }
+      : environmentClientFor(target.environmentId, utils.client)
   const projectPath = checkout === null ? null : searchProjectKey(checkout)
   const normalizedQuery = query.trim()
-  const canRun = enabled && projectPath !== null && normalizedQuery !== ''
+  const canRun = enabled && owner !== null && projectPath !== null && normalizedQuery !== ''
   const identity =
     canRun && projectPath !== null ? fileSearchQuery(projectPath, normalizedQuery) : DISABLED_FILES
   const result = useQuery({
@@ -57,7 +63,8 @@ export function useFileSearch(
     placeholderData: keepPreviousData,
     queryFn: async (): Promise<SearchResult[]> => {
       if (!canRun || projectPath === null) throw new Error('Search file query is disabled')
-      return utils.client.searchFiles.query({ query: identity.query, repoPath: projectPath })
+      if (owner === null) throw new Error('The target Environment is offline.')
+      return owner.client.searchFiles.query({ query: identity.query, repoPath: projectPath })
     },
     queryKey: searchQueryKey(daemon, identity),
   })
@@ -73,11 +80,16 @@ export function useTextSearch(
   isFetching: boolean
 } {
   const checkout = useHubRepoPath()
+  const target = useHubRepoTarget()
   const daemon = daemonScopeFromIdentity(useDaemonIdentity())
   const utils = trpc.useUtils()
+  const owner =
+    target === null
+      ? { client: utils.client }
+      : environmentClientFor(target.environmentId, utils.client)
   const projectPath = checkout === null ? null : searchProjectKey(checkout)
   const normalizedQuery = query.trim()
-  const canRun = enabled && projectPath !== null && normalizedQuery !== ''
+  const canRun = enabled && owner !== null && projectPath !== null && normalizedQuery !== ''
   const identity =
     canRun && projectPath !== null ? textSearchQuery(projectPath, normalizedQuery) : DISABLED_TEXT
   const result = useQuery({
@@ -85,7 +97,8 @@ export function useTextSearch(
     placeholderData: keepPreviousData,
     queryFn: async (): Promise<GrepMatch[]> => {
       if (!canRun || projectPath === null) throw new Error('Search text query is disabled')
-      return utils.client.searchText.query({ query: identity.query, repoPath: projectPath })
+      if (owner === null) throw new Error('The target Environment is offline.')
+      return owner.client.searchText.query({ query: identity.query, repoPath: projectPath })
     },
     queryKey: searchQueryKey(daemon, identity),
   })
@@ -106,11 +119,16 @@ export function useCodeSearch(
   isFetching: boolean
 } {
   const checkout = useHubRepoPath()
+  const target = useHubRepoTarget()
   const daemon = daemonScopeFromIdentity(useDaemonIdentity())
   const utils = trpc.useUtils()
+  const owner =
+    target === null
+      ? { client: utils.client }
+      : environmentClientFor(target.environmentId, utils.client)
   const projectPath = checkout === null ? null : searchProjectKey(checkout)
   const normalizedOptions: SearchCodeOptions = { ...options, query: options.query.trim() }
-  const canRun = enabled && projectPath !== null && normalizedOptions.query !== ''
+  const canRun = enabled && owner !== null && projectPath !== null && normalizedOptions.query !== ''
   const identity =
     canRun && projectPath !== null ? codeSearchQuery(projectPath, normalizedOptions) : DISABLED_CODE
   const result = useQuery({
@@ -118,7 +136,8 @@ export function useCodeSearch(
     placeholderData: keepPreviousData,
     queryFn: async (): Promise<CodeSearchResult> => {
       if (!canRun || projectPath === null) throw new Error('Search code query is disabled')
-      return utils.client.searchCode.query({
+      if (owner === null) throw new Error('The target Environment is offline.')
+      return owner.client.searchCode.query({
         caseSensitive: identity.caseSensitive,
         exclude: identity.exclude,
         include: identity.include,
