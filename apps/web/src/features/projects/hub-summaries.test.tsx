@@ -1,6 +1,6 @@
 import { projectsContractFixtures } from '@porcelain/contracts/projects'
 import { TestIds } from '@shared/test-ids'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { HubHomeSummary, HubProjectSummary } from './hub-summaries'
 
@@ -13,6 +13,8 @@ vi.mock('./project-data', () => ({
     },
   ],
 }))
+
+const { selectProject } = vi.hoisted(() => ({ selectProject: vi.fn() }))
 
 vi.mock('@renderer/stores/hub-selection', () => ({
   useHubSelectionStore: (
@@ -27,6 +29,7 @@ vi.mock('@renderer/stores/hub-selection', () => ({
         environmentId: 'env-synthetic',
         projectId: 'proj-alpha',
       },
+      selectProject,
       selectWorktree: vi.fn(),
     }),
 }))
@@ -43,5 +46,14 @@ describe('Hub summaries', () => {
     render(<HubProjectSummary />)
     expect(screen.getByTestId(TestIds.hubProjectSummary)).toHaveTextContent('alpha')
     expect(screen.getByTestId(TestIds.hubProjectSummary)).toHaveTextContent('2 Worktrees')
+  })
+
+  it('navigates Home to a Project summary target', () => {
+    render(<HubHomeSummary />)
+    within(screen.getByTestId(TestIds.hubHome)).getAllByRole('button')[0]?.click()
+    expect(selectProject).toHaveBeenCalledWith({
+      environmentId: 'env-synthetic',
+      projectId: 'proj-alpha',
+    })
   })
 })

@@ -111,6 +111,7 @@ function ProjectBlock(props: {
   const [expanded, setExpanded] = useState(true)
   const [createOpen, setCreateOpen] = useState(false)
   const [setupOpen, setSetupOpen] = useState(false)
+  const selectProject = useHubSelectionStore((state) => state.selectProject)
   const setup = useWorktreeSetupStore(
     (state) => state.setups[props.project.id] ?? EMPTY_WORKTREE_SETUP,
   )
@@ -161,6 +162,9 @@ function ProjectBlock(props: {
             <CollapsibleTrigger
               aria-expanded={expanded}
               aria-label={`${expanded ? 'Collapse' : 'Expand'} project ${props.project.name}`}
+              onClick={() =>
+                selectProject({ environmentId: props.environmentId, projectId: props.project.id })
+              }
               className="flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-1 py-1 text-left hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
             >
               <ChevronDown

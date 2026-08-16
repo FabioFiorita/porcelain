@@ -23,16 +23,23 @@ function EnvironmentBlock(props: { inventory: HubInventory }): React.JSX.Element
 }
 
 function ProjectLine(props: { project: HubProject }): React.JSX.Element {
+  const selectProject = useHubSelectionStore((state) => state.selectProject)
   const selectWorktree = useHubSelectionStore((state) => state.selectWorktree)
   return (
     <div className="flex flex-col gap-1 pl-5">
-      <div className="flex items-center gap-2 text-sm">
+      <button
+        type="button"
+        className="flex items-center gap-2 rounded-md px-1 py-0.5 text-left text-sm hover:bg-accent/50"
+        onClick={() =>
+          selectProject({ environmentId: props.project.environmentId, projectId: props.project.id })
+        }
+      >
         <FolderGit2 className="size-3.5 text-muted-foreground" aria-hidden />
         <span className="truncate">{props.project.name}</span>
         <span className="text-2xs text-muted-foreground">
           {props.project.worktrees.length} worktree{props.project.worktrees.length === 1 ? '' : 's'}
         </span>
-      </div>
+      </button>
       {props.project.worktrees.map((worktree) => (
         <button
           key={worktree.id}
