@@ -19,8 +19,10 @@ Use the Playwright browser lane only when Browser is unavailable or the delivera
 automated regression/CI spec. A passing Playwright run can support that regression artifact, but it
 does not replace Browser proof when Browser is available.
 
-The dev daemon must bind `0.0.0.0`; open it as `http://beelink:<port>`. Use an isolated development
-home and a Playground repo. Production port 43117 and real repos are outside the proof boundary.
+Start the dev daemon with `pnpm dev:daemon` (or `pnpm dev:daemon -- --host`), which enables its
+secure RFC1918 LAN listeners on the configured port. Open the proof at `http://beelink:<port>`;
+use `--loopback` only for proof that stays on this machine. Use an isolated development home and
+a Playground repo. Production port 43117 and real repos are outside the proof boundary.
 
 Specs live under `apps/desktop/e2e/` but they drive `apps/web` — the daemon serves the same built
 renderer the Electron window loads, over the same tRPC + WS path, so the `browser` Playwright
