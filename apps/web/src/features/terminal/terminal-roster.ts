@@ -117,7 +117,7 @@ export function useTerminalRoster(): void {
     [localPath, markExited, queryClient],
   )
 
-  const ownerSession = target === null ? primary : (owner?.session ?? null)
+  const ownerSession = owner === null ? null : (owner.session ?? primary)
   const ownerAdapter = useTerminalStream(ownerSession, primaryListeners)
   const localAdapter = useTerminalStream(localSession, localListeners)
 
