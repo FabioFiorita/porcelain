@@ -1,6 +1,6 @@
-import { type ChildProcess, spawn } from 'node:child_process'
+import { type ChildProcess, execFileSync, spawn } from 'node:child_process'
 import { createHash, randomBytes } from 'node:crypto'
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
@@ -18,6 +18,7 @@ import { TestIds } from './test-ids'
 
 const MAIN_ENTRY = join(__dirname, '..', '..', 'out', 'main', 'index.js')
 const DAEMON_ENTRY = join(__dirname, '..', '..', 'out', 'main', 'daemon', 'server.js')
+const CLI_ENTRY = join(__dirname, '..', '..', 'out', 'main', 'cli', 'porcelain.js')
 
 // Seed one browser client identity directly in the isolated access store, then
 // plant its plaintext token in the same localStorage slot TokenGate uses. Minted
@@ -52,6 +53,7 @@ function launchEnv(extra: Record<string, string>): Record<string, string> {
 /** The on-disk review-set shape `porcelain review set` writes (see src/cli/review-file.ts). */
 interface SeedReviewSet {
   name: string
+  thesis?: string
   files: { path: string; source?: string; note?: string; layer?: string }[]
   sections?: {
     title: string
@@ -166,15 +168,73 @@ async function seedState(
       2,
     ),
   )
-  // Project companion lives in the fixture repo (same layout as production).
+  // Review is authored through the shipped CLI, exactly like an agent does. The
+  // fixture supplies the daemon's already-minted inventory so the CLI can resolve
+  // the stable Project identity before the daemon starts.
   if (seedRepo) {
-    // The unit in flight lives in its own directory (same layout as production).
-    const active = join(repoDir, '.porcelain', 'active-review')
-    await mkdir(active, { recursive: true })
     if (seedReviewSet) {
-      await writeFile(join(active, 'review.json'), JSON.stringify(seedReviewSet, null, 2))
+      const commonGitDir = await realpath(
+        join(
+          repoDir,
+          execFileSync('git', ['rev-parse', '--git-common-dir'], {
+            cwd: repoDir,
+            encoding: 'utf8',
+          }).trim(),
+        ),
+      )
+      await writeFile(
+        join(udBase, 'hub-inventory.json'),
+        JSON.stringify({
+          version: 1,
+          value: {
+            projects: [
+              {
+                id: 'e2e-project',
+                commonGitDir,
+                groupingKey: 'name:porcelain-e2e-fixture',
+                name: 'porcelain-e2e-fixture',
+                worktrees: [{ id: 'e2e-worktree', gitDir: commonGitDir }],
+              },
+            ],
+          },
+        }),
+      )
+      const args = [
+        CLI_ENTRY,
+        'review',
+        'set',
+        '--repo',
+        repoDir,
+        '--name',
+        seedReviewSet.name,
+        '--files',
+        JSON.stringify(seedReviewSet.files),
+      ]
+      if (seedReviewSet.thesis !== undefined) {
+        args.push('--thesis', seedReviewSet.thesis)
+      }
+      if (seedReviewSet.sections !== undefined) {
+        args.push('--sections', JSON.stringify(seedReviewSet.sections))
+      }
+      await new Promise<void>((resolve, reject) => {
+        const child = spawn(process.execPath, args, {
+          cwd: repoDir,
+          env: { ...process.env, PORCELAIN_HOME: udBase },
+          stdio: ['ignore', 'pipe', 'pipe'],
+        })
+        let stderr = ''
+        child.stderr?.on('data', (chunk: Buffer) => {
+          stderr += chunk.toString()
+        })
+        child.on('error', reject)
+        child.on('exit', (code) =>
+          code === 0 ? resolve() : reject(new Error(`review seed CLI exited ${code}: ${stderr}`)),
+        )
+      })
     }
     if (seedEvidence) {
+      const active = join(repoDir, '.porcelain', 'active-review')
+      await mkdir(active, { recursive: true })
       const evidenceDir = join(active, 'evidence')
       await mkdir(evidenceDir, { recursive: true })
       if (seedEvidence.html !== undefined) {

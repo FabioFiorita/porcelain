@@ -126,7 +126,7 @@ export async function migrateReviews(
         worktreeId: input.worktreeId ?? null,
         title: conversion.title,
         kind: conversion.kind,
-        entryFile: conversion.entryFile,
+        entryFile: conversion.bundle.entryFile,
         createdAt: stamp,
         updatedAt: stamp,
         template: 'review',

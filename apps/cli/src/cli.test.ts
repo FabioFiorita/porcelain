@@ -3,6 +3,7 @@ import { mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { listCanvasesForRepo, privateCanvasBundlePath } from './canvas-file'
 import { COMMANDS, runCli } from './cli'
 
 const root = join(tmpdir(), 'porcelain-cli-test')
@@ -68,7 +69,13 @@ const read = (): {
   thesis?: string
   files: unknown[]
   sections?: unknown[]
-} => JSON.parse(readFileSync(activeReview('review.json'), 'utf8'))
+} => {
+  const canvas = listCanvasesForRepo(repoPath).find((entry) => entry.template === 'review')
+  if (canvas === undefined) throw new Error('No Review Canvas')
+  return JSON.parse(
+    readFileSync(join(privateCanvasBundlePath(repoPath, canvas.id), 'review.json'), 'utf8'),
+  )
+}
 const readBoard = (): unknown[] => {
   const raw = JSON.parse(readFileSync(porcelain('board.json'), 'utf8')) as {
     version: number

@@ -152,6 +152,26 @@ export function listCanvasesForRepo(repoPath: string): CanvasRecord[] {
   return readIndex(porcelainHome(), projectId)
 }
 
+/** Resolve a private Canvas bundle for another CLI noun (Review's template metadata). */
+export function privateCanvasBundlePath(repoPath: string, canvasId: string): string {
+  const { projectId } = resolveHubIdentity(repoPath)
+  return canvasBundleDir(porcelainHome(), projectId, canvasId)
+}
+
+/** Remove one private Canvas and its index record; tracked overlays are untouched. */
+export function removeCanvas(repoPath: string, canvasId: string): void {
+  const { projectId } = resolveHubIdentity(repoPath)
+  const homeDir = porcelainHome()
+  const canvases = readIndex(homeDir, projectId)
+  if (!canvases.some((canvas) => canvas.id === canvasId)) return
+  rmSync(canvasBundleDir(homeDir, projectId, canvasId), { recursive: true, force: true })
+  writeIndex(
+    homeDir,
+    projectId,
+    canvases.filter((canvas) => canvas.id !== canvasId),
+  )
+}
+
 export function describeCanvases(records: CanvasRecord[]): string {
   if (records.length === 0) {
     return 'No Canvases for this Project yet. Run `canvas set --title … --kind html|markdown --source-dir <abs dir>`.'
@@ -252,6 +272,7 @@ export function setCanvas(options: {
   id?: string
   /** Write the tracked overlay under the checkout instead of the daemon-root store. */
   tracked?: boolean
+  template?: 'review'
 }): CanvasRecord {
   if (!isAbsolute(options.sourceDir)) {
     throw new Error('--source-dir must be an absolute path')
@@ -300,6 +321,7 @@ export function setCanvas(options: {
       entryFile,
       createdAt: existingTracked?.createdAt ?? now,
       updatedAt: now,
+      ...(options.template === undefined ? {} : { template: options.template }),
     }
     stageBundle(
       projectOverlayCanvasBundleDir(options.repoPath, trackedId),
@@ -331,6 +353,7 @@ export function setCanvas(options: {
     entryFile,
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
+    ...(options.template === undefined ? {} : { template: options.template }),
   }
   const next =
     existing === undefined ? [...canvases, record] : canvases.map((c) => (c.id === id ? record : c))

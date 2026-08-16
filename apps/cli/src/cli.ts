@@ -49,10 +49,11 @@ import { describePromoteOverrides, PROJECT_COMMANDS } from './overlay-file'
 import {
   addReviewFiles,
   clearReview,
+  clearReviewCanvas,
   describeReview,
   type ReviewSet,
   readReview,
-  setReview,
+  setReviewCanvas,
   toReviewFiles,
   toReviewSections,
 } from './review-file'
@@ -456,7 +457,7 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<string
       const set: ReviewSet = { name, files, sections }
       const thesis = opt('thesis')
       if (thesis !== undefined && thesis !== '') set.thesis = thesis
-      setReview(repo, set)
+      setReviewCanvas(repo, set)
       const extras = sections.length > 0 ? `, ${sections.length} section(s)` : ''
       return `Set review "${name}" (${files.length} files${extras}) for ${repo}`
     }
@@ -470,6 +471,7 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<string
     case 'review clear':
       // Match the app's `archiveReview`: drop the set AND the evidence directory
       // (results, screenshots, meta) so nothing from an old review lingers on disk.
+      clearReviewCanvas(repo)
       clearReview(repo)
       clearEvidence(repo)
       return `Cleared the review and its evidence for ${repo}`

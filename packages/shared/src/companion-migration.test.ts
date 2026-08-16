@@ -9,13 +9,13 @@ import {
   renderMigrationReport,
 } from './companion-migration'
 import { inferWorktree } from './companion-migration-records'
-import { htmlFragment } from './companion-migration-review'
 import { readMigrationLedger } from './companion-migration-store'
 import {
   projectActionsPath,
   projectMigrationLedgerPath,
   projectOverridesPath,
 } from './project-store'
+import { htmlFragment } from './review-canvas'
 import { tasksIndexPath } from './tasks-porcelain'
 
 const PROJECT_ID = 'project-under-test'

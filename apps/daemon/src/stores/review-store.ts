@@ -1,5 +1,8 @@
+import { readFileSync, realpathSync, statSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
-import { isAbsolute, relative, resolve } from 'node:path'
+import { isAbsolute, join, relative, resolve } from 'node:path'
+import { canvasBundleDir, canvasIndexPath } from '@shared/canvas-porcelain'
+import { porcelainHome } from '@shared/porcelain-home'
 import { ACTIVE_FILES } from '@shared/project-porcelain'
 import { z } from 'zod'
 import { createProjectChannel } from '../net/project-channel'
@@ -67,8 +70,82 @@ function sanitizeReview(repoPath: string, set: z.infer<typeof lenientReviewSetSc
   }
 }
 
+/** Find the daemon-root Project identity the CLI used for this checkout. */
+function projectIdentity(repoPath: string): { projectId: string } | null {
+  try {
+    const dotGit = resolve(repoPath, '.git')
+    const dotGitStat = statSync(dotGit)
+    const gitDir = dotGitStat.isFile()
+      ? resolve(
+          repoPath,
+          readFileSync(dotGit, 'utf8')
+            .trim()
+            .replace(/^gitdir:\s*/i, ''),
+        )
+      : dotGit
+    const commonDirFile = resolve(gitDir, 'commondir')
+    const commonDir = (() => {
+      try {
+        return resolve(gitDir, readFileSync(commonDirFile, 'utf8').trim())
+      } catch {
+        return gitDir
+      }
+    })()
+    const commonGitDir = realpathSync(commonDir)
+    const inventory = JSON.parse(
+      readFileSync(join(porcelainHome(), 'hub-inventory.json'), 'utf8'),
+    ) as { value?: { projects?: unknown[] } }
+    const projects = inventory.value?.projects ?? []
+    const project = projects.find(
+      (entry): entry is { id: string; commonGitDir: string } =>
+        typeof entry === 'object' &&
+        entry !== null &&
+        typeof (entry as { id?: unknown }).id === 'string' &&
+        (entry as { commonGitDir?: unknown }).commonGitDir === commonGitDir,
+    )
+    return project === undefined ? null : { projectId: project.id }
+  } catch {
+    return null
+  }
+}
+
+/** Read the Review template metadata carried by the Project-owned Canvas. */
+async function readCanvasReviewSet(repoPath: string): Promise<ReviewSet | null> {
+  const identity = projectIdentity(repoPath)
+  if (identity === null) return null
+  try {
+    const index = JSON.parse(
+      await readFile(canvasIndexPath(porcelainHome(), identity.projectId), 'utf8'),
+    ) as {
+      value?: { canvases?: unknown[] }
+    }
+    const candidates = (index.value?.canvases ?? []).filter(
+      (entry): entry is { id: string; template?: string; updatedAt?: string } =>
+        typeof entry === 'object' &&
+        entry !== null &&
+        typeof (entry as { id?: unknown }).id === 'string',
+    )
+    const record = candidates
+      .filter((entry) => entry.template === 'review')
+      .sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))[0]
+    if (record === undefined) return null
+    const raw = JSON.parse(
+      await readFile(
+        join(canvasBundleDir(porcelainHome(), identity.projectId, record.id), 'review.json'),
+        'utf8',
+      ),
+    )
+    const parsed = reviewSetSchema.safeParse(raw)
+    return parsed.success ? parsed.data : null
+  } catch {
+    return null
+  }
+}
+
 /** The active agent-fed review set, or null if none / empty name. */
 export async function readReviewSet(repoPath: string): Promise<ReviewSet | null> {
+  const canvas = await readCanvasReviewSet(repoPath)
+  if (canvas !== null) return sanitizeReview(repoPath, lenientReviewSetSchema.parse(canvas))
   try {
     const raw = await readFile(reviewPath(repoPath), 'utf8')
     const set = lenientReviewSetSchema.parse(JSON.parse(raw))

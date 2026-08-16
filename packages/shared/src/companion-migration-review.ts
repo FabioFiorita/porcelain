@@ -1,4 +1,3 @@
-import { copyFile, mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import {
   type AssetCandidate,
@@ -12,6 +11,19 @@ import {
   PROJECT_EVIDENCE_DIR,
   PROJECT_INTENT_DIR,
 } from './project-porcelain'
+import {
+  buildReviewCanvas,
+  escapeHtml,
+  htmlFragment,
+  joinReviewBlocks,
+  type ReviewCanvasBundle,
+  type ReviewCheckRow,
+  type ReviewSectionId,
+  renderReviewChecks,
+  renderReviewFiles,
+  renderReviewGallery,
+  writeReviewCanvasBundle,
+} from './review-canvas'
 
 /**
  * Legacy Review → Canvas bundle (#27, decision 2a).
@@ -34,9 +46,6 @@ import {
  * Viewer with no reference back into a checkout that #28 will empty out.
  */
 
-const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'avif'])
-const VIDEO_EXTENSIONS = new Set(['mp4', 'mov', 'webm'])
-
 export type ReviewSourceKind = 'active' | 'archived'
 
 export type ReviewCanvasSource = {
@@ -51,8 +60,8 @@ export type ReviewConversion = {
   title: string
   /** `html` when any source document or section carried HTML; `markdown` otherwise. */
   kind: 'html' | 'markdown'
-  entryFile: string
-  content: string
+  /** The rendered bundle: entry document plus the four section files. */
+  bundle: ReviewCanvasBundle
   /** Assets to copy into `<bundle>/assets/`, already confinement-checked. */
   assets: AssetCandidate[]
   /** Legacy asset names the copier refused, with the reason, for the report. */
@@ -71,7 +80,6 @@ type ReviewSet = {
   files?: ReviewFile[]
   sections?: ReviewSection[]
 }
-type EvidenceCheckRow = { label: string; status: string; detail?: string }
 type Document = { file: string; label: string; body: string; html: boolean }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -115,9 +123,9 @@ function parseReviewSet(raw: unknown): ReviewSet {
   return { name: text(raw.name), thesis: text(raw.thesis), files, sections }
 }
 
-function parseChecks(raw: unknown): EvidenceCheckRow[] {
+function parseChecks(raw: unknown): ReviewCheckRow[] {
   if (!isRecord(raw) || !Array.isArray(raw.checks)) return []
-  const out: EvidenceCheckRow[] = []
+  const out: ReviewCheckRow[] = []
   for (const entry of raw.checks) {
     if (!isRecord(entry)) continue
     const label = text(entry.label)
@@ -180,94 +188,9 @@ async function readDocSet(dir: string): Promise<Document[]> {
   return docs
 }
 
-export function escapeHtml(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-}
-
-/**
- * The renderable part of a legacy HTML document.
- *
- * Agents wrote self-contained pages here, so most of these carry `<html>` and
- * `<head>`. Nesting a whole document inside the Canvas entry would put a second
- * `<head>` in the middle of the body, so the `<body>` contents are lifted out
- * when there is one and the input is used as-is when there is not.
- */
-export function htmlFragment(document: string): string {
-  const match = /<body\b[^>]*>([\s\S]*)<\/body>/i.exec(document)
-  return (match?.[1] ?? document).trim()
-}
-
 /** Legacy intent assets lived in `intent/assets/`; the bundle has one flat `assets/`. */
 function rewriteAssetPaths(body: string): string {
   return body.replaceAll(`${PROJECT_INTENT_DIR}/${ASSETS_DIR}/`, `${ASSETS_DIR}/`)
-}
-
-function renderGallery(assets: readonly AssetCandidate[], html: boolean): string {
-  const lines: string[] = []
-  for (const asset of assets) {
-    const extension = extensionOf(asset.name)
-    const src = `${ASSETS_DIR}/${asset.name}`
-    if (IMAGE_EXTENSIONS.has(extension)) {
-      lines.push(
-        html
-          ? `<figure><img src="${escapeHtml(src)}" alt="${escapeHtml(asset.name)}"><figcaption>${escapeHtml(asset.name)}</figcaption></figure>`
-          : `![${asset.name}](${src})`,
-      )
-      continue
-    }
-    if (VIDEO_EXTENSIONS.has(extension)) {
-      lines.push(
-        html
-          ? `<figure><video src="${escapeHtml(src)}" controls></video><figcaption>${escapeHtml(asset.name)}</figcaption></figure>`
-          : `[${asset.name}](${src})`,
-      )
-      continue
-    }
-    lines.push(
-      html
-        ? `<p><a href="${escapeHtml(src)}">${escapeHtml(asset.name)}</a></p>`
-        : `- [${asset.name}](${src})`,
-    )
-  }
-  return lines.join('\n')
-}
-
-function renderChecks(checks: readonly EvidenceCheckRow[], html: boolean): string {
-  if (checks.length === 0) return ''
-  if (!html) {
-    const rows = checks.map(
-      (check) => `| ${check.label} | ${check.status} | ${check.detail ?? ''} |`,
-    )
-    return ['| Check | Status | Detail |', '| --- | --- | --- |', ...rows].join('\n')
-  }
-  const rows = checks.map(
-    (check) =>
-      `<tr><td>${escapeHtml(check.label)}</td><td>${escapeHtml(check.status)}</td><td>${escapeHtml(check.detail ?? '')}</td></tr>`,
-  )
-  return `<table><thead><tr><th>Check</th><th>Status</th><th>Detail</th></tr></thead><tbody>${rows.join('')}</tbody></table>`
-}
-
-function renderFiles(files: readonly ReviewFile[], html: boolean): string {
-  if (files.length === 0) return ''
-  return files
-    .map((file) => {
-      const suffix = [file.source, file.note].filter((part) => part !== undefined).join(' — ')
-      return html
-        ? `<li><code>${escapeHtml(file.path)}</code>${suffix === '' ? '' : ` — ${escapeHtml(suffix)}`}</li>`
-        : `- \`${file.path}\`${suffix === '' ? '' : ` — ${suffix}`}`
-    })
-    .join('\n')
-}
-
-function joinBlocks(blocks: readonly string[], html: boolean): string {
-  const kept = blocks.map((block) => block.trim()).filter((block) => block !== '')
-  if (kept.length === 0)
-    return html ? '<p><em>Nothing was recorded here.</em></p>' : '_Nothing was recorded here._'
-  return kept.join(html ? '\n' : '\n\n')
 }
 
 function documentBlocks(docs: readonly Document[], html: boolean): string[] {
@@ -294,32 +217,6 @@ function sectionBlocks(sections: readonly ReviewSection[], html: boolean): strin
     }
     return `### ${section.title}\n\n${section.prose}`
   })
-}
-
-const SECTION_TITLES = ['Intent', 'Process', 'Execution', 'Evidence'] as const
-
-function renderEntry(title: string, bodies: readonly string[], html: boolean): string {
-  if (!html) {
-    const parts = SECTION_TITLES.map((name, index) => `## ${name}\n\n${bodies[index] ?? ''}`)
-    return `# ${title}\n\n${parts.join('\n\n')}\n`
-  }
-  const nav = SECTION_TITLES.map((name) => `<a href="#${name.toLowerCase()}">${name}</a>`).join(
-    ' · ',
-  )
-  const parts = SECTION_TITLES.map(
-    (name, index) =>
-      `<section id="${name.toLowerCase()}"><h2>${name}</h2>\n${bodies[index] ?? ''}\n</section>`,
-  )
-  return `<!doctype html>
-<html lang="en">
-<head><meta charset="utf-8"><title>${escapeHtml(title)}</title></head>
-<body>
-<h1>${escapeHtml(title)}</h1>
-<nav>${nav}</nav>
-${parts.join('\n')}
-</body>
-</html>
-`
 }
 
 /** Read one legacy review directory and build everything the bundle writer needs. */
@@ -354,6 +251,7 @@ export async function readReviewConversion(source: ReviewCanvasSource): Promise<
     ) ||
     intentDocs.some((doc) => doc.html) ||
     resultDocs.some((doc) => doc.html)
+  const kind = html ? 'html' : 'markdown'
 
   const title =
     set.name ??
@@ -362,29 +260,27 @@ export async function readReviewConversion(source: ReviewCanvasSource): Promise<
 
   const thesisBlock =
     set.thesis === undefined ? '' : html ? `<p>${escapeHtml(set.thesis)}</p>` : set.thesis
-  const bodies = [
-    joinBlocks([thesisBlock, ...documentBlocks(intentDocs, html)], html),
-    joinBlocks(sectionBlocks(set.sections ?? [], html), html),
-    joinBlocks([renderFiles(set.files ?? [], html)], html),
-    joinBlocks(
+  const bodies: Record<ReviewSectionId, string> = {
+    intent: joinReviewBlocks([thesisBlock, ...documentBlocks(intentDocs, html)], kind),
+    process: joinReviewBlocks(sectionBlocks(set.sections ?? [], html), kind),
+    execution: joinReviewBlocks([renderReviewFiles(set.files ?? [], kind)], kind),
+    evidence: joinReviewBlocks(
       [
-        renderChecks(checks, html),
+        renderReviewChecks(checks, kind),
         ...documentBlocks(resultDocs, html),
-        renderGallery(assets, html),
+        renderReviewGallery(assets, kind),
       ],
-      html,
+      kind,
     ),
-  ]
+  }
 
-  const entryFile = html ? 'index.html' : 'index.md'
-  const content = renderEntry(title, bodies, html)
+  const bundle = buildReviewCanvas({ title, kind, bodies })
   const archivedAt = isRecord(archivedMeta) ? text(archivedMeta.archivedAt) : undefined
   return {
     ...(archivedAt === undefined ? {} : { archivedAt }),
     title,
-    kind: html ? 'html' : 'markdown',
-    entryFile,
-    content,
+    kind,
+    bundle,
     assets,
     rejectedAssets,
     fingerprintParts: [
@@ -397,18 +293,10 @@ export async function readReviewConversion(source: ReviewCanvasSource): Promise<
   }
 }
 
-/** Write the bundle: entry document plus every copied asset under `assets/`. */
+/** Write the bundle through the one Review Canvas writer both authors share. */
 export async function writeReviewBundle(
   bundleDir: string,
   conversion: ReviewConversion,
 ): Promise<void> {
-  await mkdir(bundleDir, { recursive: true })
-  const { writeFile } = await import('node:fs/promises')
-  await writeFile(join(bundleDir, conversion.entryFile), conversion.content)
-  if (conversion.assets.length === 0) return
-  const assetsDir = join(bundleDir, ASSETS_DIR)
-  await mkdir(assetsDir, { recursive: true })
-  for (const asset of conversion.assets) {
-    await copyFile(asset.path, join(assetsDir, asset.name))
-  }
+  await writeReviewCanvasBundle(bundleDir, conversion.bundle, conversion.assets)
 }

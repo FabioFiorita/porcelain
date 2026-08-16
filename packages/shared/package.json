@@ -20,7 +20,8 @@
     "./companion-migration": "./src/companion-migration.ts",
     "./companion-migration-records": "./src/companion-migration-records.ts",
     "./companion-migration-review": "./src/companion-migration-review.ts",
-    "./companion-migration-store": "./src/companion-migration-store.ts"
+    "./companion-migration-store": "./src/companion-migration-store.ts",
+    "./review-canvas": "./src/review-canvas.ts"
   },
   "typesVersions": {
     "*": {
@@ -74,6 +75,9 @@
       ],
       "companion-migration-store": [
         "./src/companion-migration-store.ts"
+      ],
+      "review-canvas": [
+        "./src/review-canvas.ts"
       ]
     }
   }

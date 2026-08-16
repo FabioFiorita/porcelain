@@ -1,10 +1,24 @@
-import { unlinkSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { ACTIVE_FILES, projectPorcelainPath } from '@shared/project-porcelain'
+import {
+  buildReviewCanvas,
+  emptySectionBody,
+  type ReviewSectionId,
+  renderReviewFiles,
+} from '@shared/review-canvas'
+import {
+  type CanvasRecord,
+  listCanvasesForRepo,
+  privateCanvasBundlePath,
+  removeCanvas,
+  setCanvas,
+} from './canvas-file'
 import { readProjectJson, writeProjectJson } from './project-io'
 
-// Builtins only — see cli.ts. Active review set at
-// <repo>/.porcelain/active-review/review.json (ACTIVE_FILES.review).
-// Daemon review-store.ts reads the same path.
+// Builtins only — see cli.ts. `review set` writes the Review template as a
+// daemon-root Canvas; the low-level helpers below remain for migration reads.
 
 const FILE_SOURCES = new Set(['changed', 'context', 'shipped'])
 
@@ -35,6 +49,80 @@ export interface ReviewSet {
   thesis?: string
   files: ReviewFile[]
   sections: ReviewSection[]
+}
+
+/** The file carried inside a Review Canvas so the daemon can build its typed view. */
+const REVIEW_CANVAS_METADATA = 'review.json'
+
+function reviewKind(set: ReviewSet): 'html' | 'markdown' {
+  return set.sections.some((section) => section.html !== undefined || section.diagram !== undefined)
+    ? 'html'
+    : 'markdown'
+}
+
+function reviewBodies(set: ReviewSet): {
+  kind: 'html' | 'markdown'
+  bodies: Readonly<Record<ReviewSectionId, string>>
+} {
+  const kind = reviewKind(set)
+  const html = kind === 'html'
+  const intent =
+    set.thesis === undefined ? '' : html ? `<p>${escapeHtml(set.thesis)}</p>` : set.thesis
+  const process = set.sections
+    .map((section) => {
+      if (!html) return `### ${section.title}\n\n${section.prose}`
+      const parts = [
+        `<h3>${escapeHtml(section.title)}</h3>`,
+        section.prose === '' ? '' : `<pre>${escapeHtml(section.prose)}</pre>`,
+        section.diagram ?? '',
+        section.html === undefined ? '' : htmlFragment(section.html),
+      ]
+      return parts.filter((part) => part !== '').join('\n')
+    })
+    .join(html ? '\n' : '\n\n')
+  return {
+    kind,
+    bodies: {
+      intent: intent === '' ? emptySectionBody(kind) : intent,
+      process: process === '' ? emptySectionBody(kind) : process,
+      execution: renderReviewFiles(set.files, kind),
+      evidence: emptySectionBody(kind),
+    },
+  }
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+}
+
+function htmlFragment(document: string): string {
+  const match = /<body\b[^>]*>([\s\S]*)<\/body>/i.exec(document)
+  return (match?.[1] ?? document).trim()
+}
+
+function reviewCanvas(repoPath: string): { id?: string; metadata: ReviewSet | null } {
+  let record: CanvasRecord | undefined
+  try {
+    record = listCanvasesForRepo(repoPath).find((canvas) => canvas.template === 'review')
+  } catch {
+    return { metadata: null }
+  }
+  if (record === undefined) return { metadata: null }
+  try {
+    const metadata = JSON.parse(
+      readFileSync(
+        join(privateCanvasBundlePath(repoPath, record.id), REVIEW_CANVAS_METADATA),
+        'utf8',
+      ),
+    )
+    return { id: record.id, metadata: isRecord(metadata) ? (metadata as ReviewSet) : null }
+  } catch {
+    return { id: record.id, metadata: null }
+  }
 }
 
 // Caps mirrored from apps/daemon/src/review/review-set.ts (the zod schema Porcelain re-validates
@@ -245,15 +333,61 @@ function writeDisk(repoPath: string, set: ReviewSet | null): void {
   writeProjectJson(repoPath, ACTIVE_FILES.review, set)
 }
 
+/**
+ * Write the Review template as the Project-owned Canvas. The temporary source
+ * directory is only a CLI staging area; `setCanvas` atomically copies it into
+ * `$PORCELAIN_HOME/projects/<id>/canvases/<canvas-id>` and updates the daemon
+ * index, so no repo-local active-review lifecycle remains on this path.
+ */
+export function setReviewCanvas(repoPath: string, set: ReviewSet): void {
+  const { kind, bodies } = reviewBodies(set)
+  const bundle = buildReviewCanvas({ title: set.name, kind, bodies })
+  const sourceDir = mkdtempSync(join(tmpdir(), 'porcelain-review-canvas-'))
+  try {
+    writeFileSync(join(sourceDir, bundle.entryFile), bundle.entryContent)
+    for (const section of bundle.sections) {
+      const path = join(sourceDir, section.file)
+      mkdirSync(join(sourceDir, 'sections'), { recursive: true })
+      writeFileSync(path, section.content)
+    }
+    writeFileSync(join(sourceDir, REVIEW_CANVAS_METADATA), `${JSON.stringify(set, null, 2)}\n`)
+    const existing = listCanvasesForRepo(repoPath).find((canvas) => canvas.template === 'review')
+    setCanvas({
+      repoPath,
+      title: set.name,
+      kind,
+      sourceDir,
+      id: existing?.id,
+      template: 'review',
+    })
+  } finally {
+    rmSync(sourceDir, { recursive: true, force: true })
+  }
+}
+
+/** Remove the private Review Canvas, if one has been published by this CLI. */
+export function clearReviewCanvas(repoPath: string): void {
+  let existing: CanvasRecord | undefined
+  try {
+    existing = listCanvasesForRepo(repoPath).find((canvas) => canvas.template === 'review')
+  } catch {
+    return
+  }
+  if (existing === undefined) return
+  removeCanvas(repoPath, existing.id)
+}
+
 export function setReview(repoPath: string, set: ReviewSet): void {
   writeDisk(repoPath, set)
 }
 
 /** Merge files into the existing set; name/thesis/sections are whole-set (replaced by `review set`). */
 export function addReviewFiles(repoPath: string, files: ReviewFile[]): number {
-  const current = readDisk(repoPath) ?? { name: 'Active review', files: [], sections: [] }
+  const current = readReview(repoPath) ?? { name: 'Active review', files: [], sections: [] }
   const merged = mergeReviewFiles(current.files, files)
-  writeDisk(repoPath, { ...current, files: merged })
+  const next = { ...current, files: merged }
+  if (reviewCanvas(repoPath).metadata !== null) setReviewCanvas(repoPath, next)
+  else writeDisk(repoPath, next)
   return merged.length
 }
 
@@ -269,7 +403,8 @@ export function clearReview(repoPath: string): void {
 
 /** Read back the stored review set for a repo (null when none is set). */
 export function readReview(repoPath: string): ReviewSet | null {
-  return readDisk(repoPath)
+  const canvas = reviewCanvas(repoPath)
+  return canvas.metadata ?? readDisk(repoPath)
 }
 
 /**

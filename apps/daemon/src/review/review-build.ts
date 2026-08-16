@@ -3,7 +3,6 @@ import { join } from 'node:path'
 import { DEFAULT_LAYERS, readLayers } from '../features/project-data'
 import type { ChangedFile, DiffStat } from '../git/diff'
 import { workingTreeSnapshot } from '../git/working-tree'
-import { writeActiveReviewSnapshot } from '../stores/active-review-snapshot-store'
 import { readReviewSet } from '../stores/review-store'
 import { type ActiveReview, buildActiveReview, type ReviewReading } from './active-review'
 import type { Layer } from './flow'
@@ -114,15 +113,6 @@ export async function getReviewBuild(
   const { view, sources } = await buildActiveReviewFromGather(input, g)
   const entry = { key: g.key, view, sources }
   reviewBuildCache.set(input, entry)
-  // Snapshot the computed view to the app→agent channel so the agent can read (via
-  // the porcelain CLI) which files are actually `changed` (diffed) vs context/shipped
-  // — git truth the dependency-free CLI can't derive itself. Skipped when unchanged.
-  await writeActiveReviewSnapshot(input, {
-    name: view.name,
-    files: view.groups.flatMap((group) =>
-      group.files.map((file) => ({ path: file.path, source: file.source, layer: group.layer })),
-    ),
-  })
   return entry
 }
 
