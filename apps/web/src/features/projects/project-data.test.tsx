@@ -5,13 +5,15 @@ import { remoteContractFixtures } from '@porcelain/contracts/remote'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useQueryClient } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createValidatingTrpcHarness, type DaemonMockHandlers } from '../../hooks/trpc-test-harness'
+import { setBrowserEnvironmentConnections } from '../../lib/environment-sessions'
 import {
   isProjectsQueryKey,
   projectsQueryKey,
   useCanvas,
   useCanvasList,
+  useHubInventories,
   useHubInventory,
   useMintCanvasAccessToken,
   useOpenProject,
@@ -42,6 +44,12 @@ function handlers(overrides: DaemonMockHandlers = {}): DaemonMockHandlers {
 
 beforeEach(() => {
   useProjectSelectionStore.setState({ project: alpha })
+  setBrowserEnvironmentConnections([])
+})
+
+afterEach(() => {
+  setBrowserEnvironmentConnections([])
+  vi.unstubAllGlobals()
 })
 
 describe('Web Projects adapter', () => {
@@ -178,6 +186,59 @@ describe('Web Projects adapter', () => {
       ).wrapper,
     })
     await waitFor(() => expect(failure.result.current).toBeNull())
+  })
+
+  it('updates Hub inventories when browser Environment topology changes', async () => {
+    const secondaryConnection = {
+      id: 'connection-secondary',
+      name: 'Secondary',
+      url: 'http://127.0.0.1:43220',
+      token: 'pc_client_secondary_secret',
+    }
+    const secondaryInventory = {
+      ...inventory,
+      environment: { ...inventory.environment, id: 'env-secondary', name: 'Secondary' },
+      projects: [],
+    }
+    vi.stubGlobal(
+      'WebSocket',
+      class {
+        onopen: (() => void) | undefined
+        onmessage: ((event: MessageEvent) => void) | undefined
+        onclose: (() => void) | undefined
+        send(): void {}
+        close(): void {}
+      },
+    )
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify([{ result: { data: secondaryInventory } }]), {
+            headers: { 'content-type': 'application/json' },
+          }),
+      ),
+    )
+    setBrowserEnvironmentConnections([])
+    const hook = renderHook(() => useHubInventories(), {
+      wrapper: createValidatingTrpcHarness(handlers()).wrapper,
+    })
+    await waitFor(() => expect(hook.result.current).toHaveLength(1))
+
+    await act(async () => {
+      setBrowserEnvironmentConnections([secondaryConnection])
+    })
+    await waitFor(() => expect(hook.result.current).toHaveLength(2))
+    expect(hook.result.current.map((entry) => entry.inventory.environment.name)).toEqual([
+      inventory.environment.name,
+      secondaryInventory.environment.name,
+    ])
+
+    await act(async () => {
+      setBrowserEnvironmentConnections([])
+    })
+    await waitFor(() => expect(hook.result.current).toHaveLength(1))
+    expect(hook.result.current[0]?.inventory.environment.name).toBe(inventory.environment.name)
   })
 
   it('lists Canvases for a Project and skips the call when unset', async () => {

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   browserEnvironmentConnections,
   daemonScopeForEnvironment,
@@ -84,5 +84,22 @@ describe('browser Environment session hub', () => {
     setBrowserEnvironmentConnections([])
     expect(environmentSessionFor('uuid-secondary')).toBeNull()
     expect(liveEnvironmentSessions()).toHaveLength(1)
+  })
+
+  it('stops and removes a session when its browser connection is deleted', () => {
+    const connection = {
+      id: 'connection-secondary',
+      name: 'Secondary',
+      url: 'http://127.0.0.1:43220',
+      token: 'pc_client_secondary_secret',
+    }
+    setBrowserEnvironmentConnections([connection])
+    const session = ensureEnvironmentSession(connection).session
+    const stop = vi.spyOn(session, 'stop')
+
+    setBrowserEnvironmentConnections([])
+
+    expect(stop).toHaveBeenCalledOnce()
+    expect(environmentSessionFor(connection.id)).toBeNull()
   })
 })

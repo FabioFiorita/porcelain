@@ -72,6 +72,15 @@ function environmentSessionsRevision(): number {
   return environmentSessionRevision
 }
 
+function removeStaleEnvironmentSessions(ids: ReadonlySet<string>): void {
+  for (const [connectionId, entry] of secondarySessions) {
+    if (!ids.has(connectionId)) {
+      entry.session.stop()
+      secondarySessions.delete(connectionId)
+    }
+  }
+}
+
 export function useEnvironmentSessionsRevision(): number {
   return useSyncExternalStore(
     subscribeEnvironmentSessions,
@@ -96,7 +105,9 @@ const connectionShape = (value: unknown): value is BrowserEnvironmentConnection 
 }
 
 /** Read explicit browser connections. Malformed client-local state is ignored safely. */
-export function browserEnvironmentConnections(): readonly BrowserEnvironmentConnection[] {
+export function browserEnvironmentConnections(
+  _revision = environmentSessionRevision,
+): readonly BrowserEnvironmentConnection[] {
   if (typeof window === 'undefined') return []
   let connections: readonly BrowserEnvironmentConnection[] = []
   try {
@@ -109,9 +120,7 @@ export function browserEnvironmentConnections(): readonly BrowserEnvironmentConn
   for (const [environmentId, connectionId] of environmentAliases) {
     if (!ids.has(connectionId)) environmentAliases.delete(environmentId)
   }
-  for (const connectionId of secondarySessions.keys()) {
-    if (!ids.has(connectionId)) secondarySessions.delete(connectionId)
-  }
+  removeStaleEnvironmentSessions(ids)
   return connections
 }
 
@@ -125,9 +134,7 @@ export function setBrowserEnvironmentConnections(
   for (const [environmentId, connectionId] of environmentAliases) {
     if (!ids.has(connectionId)) environmentAliases.delete(environmentId)
   }
-  for (const connectionId of secondarySessions.keys()) {
-    if (!ids.has(connectionId)) secondarySessions.delete(connectionId)
-  }
+  removeStaleEnvironmentSessions(ids)
   for (const connection of connections) ensureEnvironmentSession(connection)
   notifyEnvironmentSessionChange()
 }

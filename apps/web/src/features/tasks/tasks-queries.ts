@@ -5,6 +5,7 @@ import type { DaemonScope } from '@renderer/lib/daemon-scope'
 import {
   browserEnvironmentConnections,
   ensureEnvironmentSession,
+  useEnvironmentSessionsRevision,
 } from '@renderer/lib/environment-sessions'
 import { isBrowser } from '@renderer/lib/platform'
 import { shellTrpc, trpc } from '@renderer/lib/trpc'
@@ -44,6 +45,7 @@ function useLocalTasks(enabled: boolean): {
   isPending: boolean
 } {
   const daemon = useDaemonIdentity()
+  const environmentSessionsRevision = useEnvironmentSessionsRevision()
   const daemonScope: DaemonScope = { host: daemon.host, version: daemon.version }
   const utils = trpc.useUtils()
   const name = daemon.host ?? 'This device'
@@ -55,8 +57,8 @@ function useLocalTasks(enabled: boolean): {
   })
 
   const secondaryConnections = useMemo(
-    () => (enabled ? browserEnvironmentConnections() : []),
-    [enabled],
+    () => (enabled ? browserEnvironmentConnections(environmentSessionsRevision) : []),
+    [enabled, environmentSessionsRevision],
   )
   const secondarySessions = useMemo(
     () => secondaryConnections.map((connection) => ensureEnvironmentSession(connection)),

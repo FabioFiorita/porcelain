@@ -60,6 +60,8 @@ export interface DaemonSession {
   runtime: SessionClientRuntime
   /** Open the session socket (idempotent). Called lazily by terminal APIs and on shell mount. */
   start: () => void
+  /** Close the session socket and cancel reconnect work when its owner is removed. */
+  stop: () => void
   /** Browser adapter connection status for UI chrome. */
   status: () => SessionConnectionStatus
   /** REM-003 health for this session (never walk-exhausted on the single-URL adapter). */
@@ -223,6 +225,7 @@ export function createDaemonSession(
     },
     runtime,
     start: ensureSession,
+    stop: () => adapter.stop(),
     status: () => connectionStatus,
     health: () => health.status(),
     updateRequiredFrame: () => updateRequired,

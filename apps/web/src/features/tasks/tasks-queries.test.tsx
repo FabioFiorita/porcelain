@@ -1,6 +1,7 @@
 import { deferred } from '@renderer/hooks/trpc-test-harness'
-import { renderHook, waitFor } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { act, renderHook, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { setBrowserEnvironmentConnections } from '../../lib/environment-sessions'
 import { useTasks } from './tasks-queries'
 import { createTasksHarness, DAEMON_HOST, TASKS, taskAt } from './test-support'
 
@@ -9,6 +10,15 @@ import { createTasksHarness, DAEMON_HOST, TASKS, taskAt } from './test-support'
  * off the one daemon that served the page and labels every row with its host.
  */
 describe('useTasks in the browser runtime', () => {
+  beforeEach(() => {
+    setBrowserEnvironmentConnections([])
+  })
+
+  afterEach(() => {
+    setBrowserEnvironmentConnections([])
+    vi.unstubAllGlobals()
+  })
+
   it('renders the daemon table as rows labelled with the daemon host', async () => {
     const { mock, wrapper, shellOperations } = createTasksHarness()
     const { result } = renderHook(() => useTasks(), { wrapper })
@@ -83,5 +93,58 @@ describe('useTasks in the browser runtime', () => {
     expect(failedHook.result.current.rows).toEqual([])
     expect(failedHook.result.current.environments).toEqual([])
     expect(failedHook.result.current.error).toContain('Tasks are unavailable.')
+  })
+
+  it('adds and removes a secondary Environment without remounting', async () => {
+    const secondaryTask = { ...taskAt(0), id: '00000000-0000-4000-8000-000000000099' }
+    const secondaryConnection = {
+      id: 'connection-secondary',
+      name: 'Secondary',
+      url: 'http://127.0.0.1:43220',
+      token: 'pc_client_secondary_secret',
+    }
+    vi.stubGlobal(
+      'WebSocket',
+      class {
+        onopen: (() => void) | undefined
+        onmessage: ((event: MessageEvent) => void) | undefined
+        onclose: (() => void) | undefined
+        send(): void {}
+        close(): void {}
+      },
+    )
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify([{ result: { data: [secondaryTask] } }]), {
+            headers: { 'content-type': 'application/json' },
+          }),
+      ),
+    )
+    const harness = createTasksHarness()
+    const hook = renderHook(() => useTasks(), { wrapper: harness.wrapper })
+    await waitFor(() => expect(hook.result.current.isLoaded).toBe(true))
+    expect(hook.result.current.environments).toEqual([{ id: null, name: DAEMON_HOST }])
+
+    await act(async () => {
+      setBrowserEnvironmentConnections([secondaryConnection])
+    })
+    await waitFor(() => expect(vi.mocked(fetch)).toHaveBeenCalled())
+    await waitFor(() =>
+      expect(hook.result.current.environments).toEqual([
+        { id: null, name: DAEMON_HOST },
+        { id: secondaryConnection.id, name: secondaryConnection.name },
+      ]),
+    )
+    expect(hook.result.current.rows.some((row) => row.task.id === secondaryTask.id)).toBe(true)
+
+    await act(async () => {
+      setBrowserEnvironmentConnections([])
+    })
+    await waitFor(() =>
+      expect(hook.result.current.environments).toEqual([{ id: null, name: DAEMON_HOST }]),
+    )
+    expect(hook.result.current.rows.some((row) => row.task.id === secondaryTask.id)).toBe(false)
   })
 })

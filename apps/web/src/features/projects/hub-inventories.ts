@@ -6,6 +6,7 @@ import {
   ensureEnvironmentSession,
   registerEnvironmentAlias,
   setPrimaryEnvironmentId,
+  useEnvironmentSessionsRevision,
 } from '@renderer/lib/environment-sessions'
 import { isBrowser } from '@renderer/lib/platform'
 import { shellTrpcClient, trpc } from '@renderer/lib/trpc'
@@ -23,6 +24,7 @@ export type HubInventoryView = Readonly<{
 /** Live Hub inventories: shell fan-out in Electron and one session per browser Environment. */
 export function useHubInventories(): readonly HubInventoryView[] {
   const daemon = useDaemonIdentity()
+  const environmentSessionsRevision = useEnvironmentSessionsRevision()
   const client = trpc.useUtils().client
   const identity = hubInventoryQuery()
   const browserQuery = useQuery({
@@ -38,7 +40,10 @@ export function useHubInventories(): readonly HubInventoryView[] {
     queryFn: async (): Promise<readonly HubInventoryView[]> =>
       shellTrpcClient.hubInventories.query(),
   })
-  const browserConnections = useMemo(() => (isBrowser ? browserEnvironmentConnections() : []), [])
+  const browserConnections = useMemo(
+    () => (isBrowser ? browserEnvironmentConnections(environmentSessionsRevision) : []),
+    [environmentSessionsRevision],
+  )
   const browserSessions = useMemo(
     () => browserConnections.map((connection) => ensureEnvironmentSession(connection)),
     [browserConnections],
