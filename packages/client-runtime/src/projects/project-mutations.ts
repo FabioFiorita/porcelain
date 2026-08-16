@@ -5,7 +5,6 @@ import {
   type PromoteOverridesInput,
   projectsProcedures,
   type RemoveHubProjectInput,
-  type RemoveHubWorktreeInput,
   type RemoveRecentRepoInput,
 } from '@porcelain/contracts/projects'
 import {
@@ -24,7 +23,6 @@ export type ProjectMutationDefinition<
     | 'openRepoPath'
     | 'removeRecentRepo'
     | 'removeHubProject'
-    | 'removeHubWorktree'
     | 'createHubWorktree'
     | 'promoteCanvas'
     | 'promoteOverrides',
@@ -78,17 +76,6 @@ export const removeHubProject = {
   requiresAuthoritativeRefetch: true,
   selectionEffect: 'none',
 } as const satisfies ProjectMutationDefinition<'removeHubProject', RemoveHubProjectInput, 'none'>
-
-/** Remove one linked Worktree from Git after an explicit destructive confirmation. */
-export const removeHubWorktree = {
-  procedure: projectsProcedures.removeHubWorktree,
-  procedureName: 'removeHubWorktree',
-  affectedQueries: (_input: RemoveHubWorktreeInput): readonly ProjectsQuery[] =>
-    recentProjectQueries(),
-  optimistic: false,
-  requiresAuthoritativeRefetch: true,
-  selectionEffect: 'none',
-} as const satisfies ProjectMutationDefinition<'removeHubWorktree', RemoveHubWorktreeInput, 'none'>
 
 /** Creating a Worktree refreshes the Hub inventory and recent lists. */
 export const createHubWorktree = {

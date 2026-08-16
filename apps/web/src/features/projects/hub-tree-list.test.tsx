@@ -1,6 +1,6 @@
 import { hubInventorySchema, projectsContractFixtures } from '@porcelain/contracts/projects'
 import { TestIds } from '@shared/test-ids'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { HubTreeFromInventories, HubTreeFromInventory } from './hub-tree-list'
 
@@ -37,7 +37,6 @@ describe('Hub inventory tree', () => {
         openWorktree={openWorktree}
         createWorktree={vi.fn(async () => createdWorktree)}
         removeProject={vi.fn(async () => undefined)}
-        removeWorktree={vi.fn(async () => undefined)}
       />,
     )
 
@@ -64,7 +63,6 @@ describe('Hub inventory tree', () => {
         openWorktree={openWorktree}
         createWorktree={vi.fn(async () => createdWorktree)}
         removeProject={vi.fn(async () => undefined)}
-        removeWorktree={vi.fn(async () => undefined)}
       />,
     )
 
@@ -95,32 +93,22 @@ describe('Hub inventory tree', () => {
     fireEvent.contextMenu(screen.getByTestId(TestIds.hubWorktree('wt-alpha-topic')))
     expect(screen.getByRole('menuitem', { name: 'Copy name' })).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: 'Copy path' })).toBeInTheDocument()
-    expect(screen.getByRole('menuitem', { name: 'Remove worktree' })).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: /remove worktree/i })).toBeNull()
   })
 
-  it('confirms removal of a non-primary Worktree before invoking the mutation', async () => {
-    const removeWorktree = vi.fn(async () => undefined)
+  it('does not expose destructive Worktree removal in the actual context menu', () => {
     render(
       <HubTreeFromInventory
         inventory={inventory}
         openWorktree={vi.fn()}
         createWorktree={vi.fn(async () => createdWorktree)}
         removeProject={vi.fn(async () => undefined)}
-        removeWorktree={removeWorktree}
       />,
     )
-
     fireEvent.contextMenu(screen.getByTestId(TestIds.hubWorktree('wt-alpha-topic')))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Remove worktree' }))
-    expect(screen.getByRole('alertdialog')).toHaveTextContent('uncommitted changes')
-    fireEvent.click(screen.getByRole('button', { name: 'Remove worktree' }))
-
-    await waitFor(() => {
-      expect(removeWorktree).toHaveBeenCalledWith({
-        projectId: 'proj-alpha',
-        worktreeId: 'wt-alpha-topic',
-      })
-    })
+    const menu = screen.getByRole('menu')
+    expect(within(menu).queryByRole('menuitem', { name: /remove worktree/i })).toBeNull()
+    expect(within(menu).queryByRole('menuitem', { name: /delete worktree/i })).toBeNull()
   })
 
   it('collapses a Project without selecting it', () => {
@@ -130,7 +118,6 @@ describe('Hub inventory tree', () => {
         openWorktree={vi.fn()}
         createWorktree={vi.fn(async () => createdWorktree)}
         removeProject={vi.fn(async () => undefined)}
-        removeWorktree={vi.fn(async () => undefined)}
       />,
     )
 

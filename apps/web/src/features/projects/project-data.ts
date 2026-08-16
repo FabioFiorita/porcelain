@@ -13,7 +13,6 @@ import {
   readCanvasQuery,
   recentProjectsQuery,
   removeHubProject,
-  removeHubWorktree,
   removeRecentProject,
 } from '@porcelain/client-runtime/projects'
 import type {
@@ -51,7 +50,6 @@ import {
   readCanvasOnDaemon,
   recentProjectsOnDaemon,
   removeHubProjectOnDaemon,
-  removeHubWorktreeOnDaemon,
   removeRecentProjectOnDaemon,
 } from './project-transport'
 
@@ -196,25 +194,6 @@ export function useRemoveHubProject(): {
         daemon,
         removeHubProject.affectedQueries(projectId),
       )
-    },
-  })
-
-  return { isPending: mutation.isPending, remove: mutation.mutateAsync }
-}
-
-/** Remove one linked Worktree from Git and refresh the Hub inventory. */
-export function useRemoveHubWorktree(): {
-  remove: (input: { projectId: string; worktreeId: string }) => Promise<void>
-  isPending: boolean
-} {
-  const daemon = useDaemonIdentity()
-  const client = trpc.useUtils().client
-  const queryClient = useQueryClient()
-  const mutation = useMutation({
-    mutationFn: async (input: { projectId: string; worktreeId: string }): Promise<void> =>
-      removeHubWorktreeOnDaemon(client, input),
-    onSuccess: async (_result, input) => {
-      await invalidateProjectQueries(queryClient, daemon, removeHubWorktree.affectedQueries(input))
     },
   })
 

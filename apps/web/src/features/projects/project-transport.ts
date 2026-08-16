@@ -12,7 +12,6 @@ import type {
   PromoteOverridesInput,
   ReadCanvasOutput,
   RemoveHubProjectInput,
-  RemoveHubWorktreeInput,
 } from '@porcelain/contracts/projects'
 import { projectsProcedures } from '@porcelain/contracts/projects'
 
@@ -27,7 +26,6 @@ type ProjectsClient = Pick<
   | 'hubInventory'
   | 'createHubWorktree'
   | 'removeHubProject'
-  | 'removeHubWorktree'
   | 'listCanvases'
   | 'readCanvas'
   | 'mintCanvasAccessToken'
@@ -69,14 +67,6 @@ export async function removeHubProjectOnDaemon(
   projectId: RemoveHubProjectInput,
 ): Promise<void> {
   projectsProcedures.removeHubProject.output.parse(await client.removeHubProject.mutate(projectId))
-}
-
-/** Remove one linked Worktree from Git through the Hub Projects boundary. */
-export async function removeHubWorktreeOnDaemon(
-  client: ProjectsClient,
-  input: RemoveHubWorktreeInput,
-): Promise<void> {
-  projectsProcedures.removeHubWorktree.output.parse(await client.removeHubWorktree.mutate(input))
 }
 
 /** Browse the daemon's filesystem with a nullable Project-directory root. */

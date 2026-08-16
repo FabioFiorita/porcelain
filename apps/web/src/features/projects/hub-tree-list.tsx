@@ -5,16 +5,6 @@ import type {
   HubProject,
   HubWorktree,
 } from '@porcelain/contracts/projects'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@renderer/components/ui/alert-dialog'
 import { Badge } from '@renderer/components/ui/badge'
 import { Button } from '@renderer/components/ui/button'
 import {
@@ -55,34 +45,14 @@ function WorktreeRow(props: {
   environmentId: string
   projectId: string
   openWorktree: (worktree: HubWorktree) => void
-  removeWorktree: (input: { projectId: string; worktreeId: string }) => Promise<void>
-  mutable: boolean
 }): React.JSX.Element {
   const selection = useHubSelectionStore((state) => state.selection)
   const selected = selection.kind === 'worktree' && selection.worktreeId === props.worktree.id
-  const [confirmRemove, setConfirmRemove] = useState(false)
 
   const copy = (label: string, value: string): void => {
     runUserAction(
       () => copyText(value),
       (error) => toastUserActionError(label, error),
-    )
-  }
-
-  const remove = (): void => {
-    setConfirmRemove(false)
-    runUserAction(
-      async () => {
-        await props.removeWorktree({
-          projectId: props.worktree.projectId,
-          worktreeId: props.worktree.id,
-        })
-        const current = useHubSelectionStore.getState().selection
-        if (current.kind === 'worktree' && current.worktreeId === props.worktree.id) {
-          useHubSelectionStore.getState().selectHome()
-        }
-      },
-      (error) => toastUserActionError('Remove worktree', error),
     )
   }
 
@@ -122,34 +92,8 @@ function WorktreeRow(props: {
             <Copy />
             Copy path
           </ContextMenuItem>
-          {props.mutable && !props.worktree.isPrimary && (
-            <>
-              <ContextMenuSeparator />
-              <ContextMenuItem variant="destructive" onClick={() => setConfirmRemove(true)}>
-                <Trash2 />
-                Remove worktree
-              </ContextMenuItem>
-            </>
-          )}
         </ContextMenuContent>
       </ContextMenu>
-      <AlertDialog open={confirmRemove} onOpenChange={setConfirmRemove}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove worktree {props.worktree.name}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This permanently deletes the worktree directory and any uncommitted changes in it. The
-              repository and branch will remain.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" onClick={remove}>
-              Remove worktree
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   )
 }
@@ -162,7 +106,6 @@ function ProjectBlock(props: {
   openWorktree: (worktree: HubWorktree) => void
   createWorktree: (input: CreateHubWorktreeInput) => Promise<HubWorktree>
   removeProject: (projectId: string) => Promise<void>
-  removeWorktree: (input: { projectId: string; worktreeId: string }) => Promise<void>
   creating: boolean
 }): React.JSX.Element {
   const [expanded, setExpanded] = useState(true)
@@ -281,8 +224,6 @@ function ProjectBlock(props: {
             environmentId={props.environmentId}
             projectId={props.project.id}
             openWorktree={props.openWorktree}
-            removeWorktree={props.removeWorktree}
-            mutable={props.mutable}
           />
         ))}
       </CollapsibleContent>
@@ -313,7 +254,6 @@ export function HubTreeFromInventory(props: {
   openWorktree: (worktree: HubWorktree) => void
   createWorktree: (input: CreateHubWorktreeInput) => Promise<HubWorktree>
   removeProject: (projectId: string) => Promise<void>
-  removeWorktree: (input: { projectId: string; worktreeId: string }) => Promise<void>
   creating?: boolean
   className?: string
 }): React.JSX.Element {
@@ -323,7 +263,6 @@ export function HubTreeFromInventory(props: {
       openWorktree={(_source, worktree) => props.openWorktree(worktree)}
       createWorktree={props.createWorktree}
       removeProject={props.removeProject}
-      removeWorktree={props.removeWorktree}
       creating={props.creating}
       className={props.className}
     />
@@ -335,7 +274,6 @@ export function HubTreeFromInventories(props: {
   openWorktree: (source: HubInventoryView, worktree: HubWorktree) => void
   createWorktree: (input: CreateHubWorktreeInput) => Promise<HubWorktree>
   removeProject: (projectId: string) => Promise<void>
-  removeWorktree: (input: { projectId: string; worktreeId: string }) => Promise<void>
   creating?: boolean
   className?: string
 }): React.JSX.Element {
@@ -364,7 +302,6 @@ export function HubTreeFromInventories(props: {
                 openWorktree={(worktree) => props.openWorktree(source, worktree)}
                 createWorktree={props.createWorktree}
                 removeProject={props.removeProject}
-                removeWorktree={props.removeWorktree}
                 creating={props.creating === true}
               />
             )

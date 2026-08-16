@@ -14,7 +14,6 @@ import {
   useHubInventories,
   useOpenProject,
   useRemoveHubProject,
-  useRemoveHubWorktree,
   useSelectedProject,
 } from './project-data'
 
@@ -23,7 +22,6 @@ export function HubTree(props: { className?: string }): React.JSX.Element | null
   const createWorktree = useCreateHubWorktree()
   const openProject = useOpenProject()
   const removeProject = useRemoveHubProject()
-  const removeWorktree = useRemoveHubWorktree()
   const newWindow = useNewWindow()
   const selectWorktree = useHubSelectionStore((state) => state.selectWorktree)
   const selection = useHubSelectionStore((state) => state.selection)
@@ -93,7 +91,6 @@ export function HubTree(props: { className?: string }): React.JSX.Element | null
       className={props.className}
       creating={createWorktree.isPending}
       removeProject={removeProject.remove}
-      removeWorktree={removeWorktree.remove}
       openWorktree={open}
       createWorktree={async (input) => {
         return createWorktree.create(input)

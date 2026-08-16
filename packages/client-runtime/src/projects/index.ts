@@ -24,7 +24,6 @@ export {
   promoteCanvas,
   promoteOverrides,
   removeHubProject,
-  removeHubWorktree,
   removeRecentProject,
 } from './project-mutations'
 export {
