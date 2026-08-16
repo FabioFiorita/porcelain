@@ -21,17 +21,8 @@ import { isBrowser } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
 import { type SettingsSection, useSettingsDialogStore } from '@renderer/stores/settings-dialog'
 import { TestIds } from '@shared/test-ids'
-import {
-  BookOpen,
-  Cloud,
-  Database,
-  Download,
-  Settings2,
-  Share2,
-  SlidersHorizontal,
-} from 'lucide-react'
+import { BookOpen, Cloud, Download, Settings2, Share2, SlidersHorizontal } from 'lucide-react'
 import { CompanionSection } from './companion-section'
-import { DataSection } from './data-section'
 import { GeneralSection } from './general-section'
 import { RemotesSection } from './remotes-section'
 import { ShareSection } from './share-section'
@@ -56,15 +47,6 @@ const ALL_SECTIONS: {
     icon: SlidersHorizontal,
     title: 'General',
     blurb: 'Viewer preferences, saved on this machine.',
-  },
-  {
-    id: 'data',
-    label: 'Data',
-    icon: Database,
-    title: 'Data',
-    // Not shell-only: what git carries is a property of the REPO, so it has to be
-    // reachable from the browser client and a remote daemon too.
-    blurb: "This project's companion data, and what git carries between clones.",
   },
   {
     id: 'companion',
@@ -269,7 +251,6 @@ function SettingsSectionBody({ activeId }: { activeId: SettingsSection }): React
   return (
     <>
       {activeId === 'general' && <GeneralSection />}
-      {activeId === 'data' && <DataSection />}
       {activeId === 'companion' && <CompanionSection />}
       {activeId === 'share' && <ShareSection />}
       {activeId === 'remotes' && <RemotesSection />}

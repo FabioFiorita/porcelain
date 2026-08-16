@@ -2,17 +2,16 @@ import {
   createHubWorktree,
   listCanvasesQuery,
   openProject,
-  overlayQuery,
   type ProjectPath,
   type ProjectSummary,
   type ProjectsQuery,
   projectDirectoriesQuery,
   projectsQuerySchema,
   promoteCanvas,
-  promoteOverrides,
   readCanvasQuery,
   recentProjectsQuery,
   removeHubProject,
+  removeHubWorktree,
   removeRecentProject,
 } from '@porcelain/client-runtime/projects'
 import type {
@@ -20,12 +19,10 @@ import type {
   CanvasRecord,
   CreateHubWorktreeInput,
   HubWorktree,
-  ListOverlayOutput,
-  ProjectOverrides,
   PromoteCanvasInput,
   PromoteCanvasOutput,
-  PromoteOverridesInput,
   ReadCanvasOutput,
+  RemoveHubWorktreeInput,
 } from '@porcelain/contracts/projects'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import { type DaemonScope, daemonScopeSchema } from '@renderer/lib/daemon-scope'
@@ -39,14 +36,13 @@ import {
   browseProjectDirectoriesOnDaemon,
   createHubWorktreeOnDaemon,
   listCanvasesOnDaemon,
-  listOverlayOnDaemon,
   mintCanvasAccessTokenOnDaemon,
   openProjectOnDaemon,
   promoteCanvasOnDaemon,
-  promoteOverridesOnDaemon,
   readCanvasOnDaemon,
   recentProjectsOnDaemon,
   removeHubProjectOnDaemon,
+  removeHubWorktreeOnDaemon,
   removeRecentProjectOnDaemon,
 } from './project-transport'
 
@@ -201,6 +197,44 @@ export function useRemoveHubProject(): {
     isPending: mutation.isPending,
     remove: (projectId, environmentId) => mutation.mutateAsync({ projectId, environmentId }),
   }
+}
+
+/**
+ * Remove a Worktree. Unlike removing a Project — which only forgets it — this runs
+ * `git worktree remove` on the daemon and takes the checkout off the disk, so the caller
+ * must confirm with the human first.
+ */
+export function useRemoveHubWorktree(): {
+  remove: (input: RemoveHubWorktreeInput & { environmentId?: string | null }) => Promise<void>
+  isPending: boolean
+} {
+  const daemon = useDaemonIdentity()
+  const client = trpc.useUtils().client
+  const queryClient = useQueryClient()
+  const mutation = useMutation({
+    mutationFn: async (
+      variables: RemoveHubWorktreeInput & { environmentId?: string | null },
+    ): Promise<void> => {
+      const owner =
+        variables.environmentId === undefined || variables.environmentId === null
+          ? { client }
+          : environmentSessionFor(variables.environmentId)
+      if (owner === null) throw new Error('The target Environment is offline.')
+      await removeHubWorktreeOnDaemon(owner.client, {
+        projectId: variables.projectId,
+        worktreeId: variables.worktreeId,
+      })
+    },
+    onSuccess: async (_result, variables) => {
+      await invalidateProjectQueries(
+        queryClient,
+        daemon,
+        removeHubWorktree.affectedQueries(variables),
+      )
+    },
+  })
+
+  return { isPending: mutation.isPending, remove: mutation.mutateAsync }
 }
 
 export function useProjectDirectories(
@@ -374,60 +408,4 @@ export function usePromoteCanvas(): {
     },
   })
   return { isPending: mutation.isPending, promote: mutation.mutateAsync }
-}
-
-export function usePromoteProjectOverrides(): {
-  promote: (
-    input: PromoteOverridesInput & { environmentId?: string | null },
-  ) => Promise<ProjectOverrides>
-  isPending: boolean
-} {
-  const daemon = useDaemonIdentity()
-  const client = trpc.useUtils().client
-  const queryClient = useQueryClient()
-  const mutation = useMutation({
-    mutationFn: async (
-      input: PromoteOverridesInput & { environmentId?: string | null },
-    ): Promise<ProjectOverrides> => {
-      const owner =
-        input.environmentId === undefined || input.environmentId === null
-          ? { client }
-          : environmentSessionFor(input.environmentId)
-      if (owner === null) throw new Error('The target Environment is offline.')
-      return promoteOverridesOnDaemon(owner.client, {
-        hiddenPaths: input.hiddenPaths,
-        path: input.path,
-        pinnedPaths: input.pinnedPaths,
-        projectId: input.projectId,
-      })
-    },
-    onSuccess: async (_result, input) => {
-      for (const query of promoteOverrides.affectedQueries(input)) {
-        await queryClient.invalidateQueries({
-          exact: true,
-          queryKey: [...projectsQueryKey(daemon, query), input.environmentId ?? null],
-        })
-      }
-    },
-  })
-  return { isPending: mutation.isPending, promote: mutation.mutateAsync }
-}
-
-export function useProjectOverlay(
-  path: string,
-  environmentId: string | null = null,
-): ListOverlayOutput | undefined {
-  const daemon = useDaemonIdentity()
-  const defaultClient = trpc.useUtils().client
-  const owner =
-    environmentId === null ? { client: defaultClient } : environmentSessionFor(environmentId)
-  const query = useQuery({
-    enabled: owner !== null,
-    queryFn: async (): Promise<ListOverlayOutput> => {
-      if (owner === null) throw new Error('The target Environment is offline.')
-      return listOverlayOnDaemon(owner.client, path)
-    },
-    queryKey: [...projectsQueryKey(daemon, overlayQuery(path)), environmentId],
-  })
-  return query.data
 }

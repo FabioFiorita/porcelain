@@ -20,7 +20,6 @@ export {
 export {
   gitQueryKey,
   invalidateAllGitQueries,
-  invalidateGitEffects,
   invalidateGitProject,
   invalidateGitWorkingTree,
   isGitQueryKey,

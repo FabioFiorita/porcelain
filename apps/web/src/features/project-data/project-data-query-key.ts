@@ -33,27 +33,3 @@ export function invalidateAllProjectDataQueries(queryClient: QueryClient): Promi
     predicate: (query) => isProjectDataQueryKey(query.queryKey),
   })
 }
-
-/**
- * Invalidate exact cache keys for the given identities, deduped by name+projectPath.
- */
-export function invalidateProjectDataIdentities(
-  queryClient: QueryClient,
-  daemon: DaemonScope,
-  identities: readonly ProjectDataQuery[],
-): Promise<void> {
-  const seen = new Set<string>()
-  const tasks: Promise<void>[] = []
-  for (const identity of identities) {
-    const key = `${identity.name}\0${identity.projectPath}`
-    if (seen.has(key)) continue
-    seen.add(key)
-    tasks.push(
-      queryClient.invalidateQueries({
-        queryKey: projectDataQueryKey(daemon, identity),
-        exact: true,
-      }),
-    )
-  }
-  return Promise.all(tasks).then(() => undefined)
-}

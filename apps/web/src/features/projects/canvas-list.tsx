@@ -9,7 +9,7 @@ import { SidebarMenu } from '@renderer/components/ui/sidebar'
 import { useHubTarget } from '@renderer/stores/hub-selection'
 import { TestIds } from '@shared/test-ids'
 import { LayoutPanelTop } from 'lucide-react'
-import { CanvasListRow, TrackProjectDefaults } from './canvas-list-row'
+import { CanvasListRow } from './canvas-list-row'
 import { useCanvasList } from './project-data'
 
 /**
@@ -33,34 +33,28 @@ export function CanvasList(): React.JSX.Element {
 
   if (canvases.length === 0) {
     return (
-      <>
-        <Empty
-          data-testid={TestIds.canvasListEmpty}
-          className="mx-2 mt-1 min-h-36 border-none bg-muted/20 px-4 py-8"
-        >
-          <EmptyMedia>
-            <LayoutPanelTop />
-          </EmptyMedia>
-          <EmptyHeader>
-            <EmptyTitle>No Canvases yet</EmptyTitle>
-            <EmptyDescription>
-              Agent-authored explanation shows up here once written (`porcelain canvas set`).
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-        <TrackProjectDefaults target={target} />
-      </>
+      <Empty
+        data-testid={TestIds.canvasListEmpty}
+        className="mx-2 mt-1 min-h-36 border-none bg-muted/20 px-4 py-8"
+      >
+        <EmptyMedia>
+          <LayoutPanelTop />
+        </EmptyMedia>
+        <EmptyHeader>
+          <EmptyTitle>No Canvases yet</EmptyTitle>
+          <EmptyDescription>
+            Agent-authored explanation shows up here once written (`porcelain canvas set`).
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
     )
   }
 
   return (
-    <>
-      <SidebarMenu data-testid={TestIds.canvasList}>
-        {canvases.map((canvas) => (
-          <CanvasListRow key={canvas.id} canvas={canvas} target={target} />
-        ))}
-      </SidebarMenu>
-      <TrackProjectDefaults target={target} />
-    </>
+    <SidebarMenu data-testid={TestIds.canvasList}>
+      {canvases.map((canvas) => (
+        <CanvasListRow key={canvas.id} canvas={canvas} target={target} />
+      ))}
+    </SidebarMenu>
   )
 }

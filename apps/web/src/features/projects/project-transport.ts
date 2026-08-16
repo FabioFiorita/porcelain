@@ -5,13 +5,11 @@ import type {
   CreateHubWorktreeInput,
   HubInventory,
   HubWorktree,
-  ListOverlayOutput,
-  ProjectOverrides,
   PromoteCanvasInput,
   PromoteCanvasOutput,
-  PromoteOverridesInput,
   ReadCanvasOutput,
   RemoveHubProjectInput,
+  RemoveHubWorktreeInput,
 } from '@porcelain/contracts/projects'
 import { projectsProcedures } from '@porcelain/contracts/projects'
 
@@ -26,12 +24,11 @@ type ProjectsClient = Pick<
   | 'hubInventory'
   | 'createHubWorktree'
   | 'removeHubProject'
+  | 'removeHubWorktree'
   | 'listCanvases'
   | 'readCanvas'
   | 'mintCanvasAccessToken'
   | 'promoteCanvas'
-  | 'promoteOverrides'
-  | 'listOverlay'
 >
 
 /** Read the daemon's authoritative Project summary through the Projects boundary. */
@@ -67,6 +64,14 @@ export async function removeHubProjectOnDaemon(
   projectId: RemoveHubProjectInput,
 ): Promise<void> {
   projectsProcedures.removeHubProject.output.parse(await client.removeHubProject.mutate(projectId))
+}
+
+/** Remove a Worktree: the daemon runs `git worktree remove`, so the checkout leaves the disk. */
+export async function removeHubWorktreeOnDaemon(
+  client: ProjectsClient,
+  input: RemoveHubWorktreeInput,
+): Promise<void> {
+  projectsProcedures.removeHubWorktree.output.parse(await client.removeHubWorktree.mutate(input))
 }
 
 /** Browse the daemon's filesystem with a nullable Project-directory root. */
@@ -137,22 +142,4 @@ export async function promoteCanvasOnDaemon(
   input: PromoteCanvasInput,
 ): Promise<PromoteCanvasOutput> {
   return projectsProcedures.promoteCanvas.output.parse(await client.promoteCanvas.mutate(input))
-}
-
-/** Track the current project defaults into the addressed checkout's `.porcelain/`. */
-export async function promoteOverridesOnDaemon(
-  client: ProjectsClient,
-  input: PromoteOverridesInput,
-): Promise<ProjectOverrides> {
-  return projectsProcedures.promoteOverrides.output.parse(
-    await client.promoteOverrides.mutate(input),
-  )
-}
-
-/** Read what one checkout's tracked `.porcelain/` overlay currently carries. */
-export async function listOverlayOnDaemon(
-  client: ProjectsClient,
-  path: string,
-): Promise<ListOverlayOutput> {
-  return projectsProcedures.listOverlay.output.parse(await client.listOverlay.query({ path }))
 }

@@ -1,30 +1,20 @@
 import type { HubTarget } from '@porcelain/client-runtime/projects'
 import type { CanvasRecord } from '@porcelain/contracts/projects'
 import { SidebarProvider } from '@renderer/components/ui/sidebar'
-import { useFilesScope } from '@renderer/features/files'
 import { useHubSelectionStore } from '@renderer/stores/hub-selection'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { TestIds } from '@shared/test-ids'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { CanvasList } from './canvas-list'
-import {
-  useCanvasList,
-  useProjectOverlay,
-  usePromoteCanvas,
-  usePromoteProjectOverrides,
-} from './project-data'
+import { useCanvasList, usePromoteCanvas } from './project-data'
 
 // The domain seam: the Projects data hooks. Transport, tRPC, and the daemon
 // stay behind it — this file is about what the human can and cannot do.
 vi.mock('./project-data', () => ({
   useCanvasList: vi.fn(),
-  useProjectOverlay: vi.fn(),
   usePromoteCanvas: vi.fn(),
-  usePromoteProjectOverrides: vi.fn(),
 }))
-
-vi.mock('@renderer/features/files', () => ({ useFilesScope: vi.fn() }))
 
 function renderList(): void {
   render(
@@ -55,23 +45,12 @@ const TRACKED: CanvasRecord = { ...RECORD, id: 'canvas-2', title: 'Shipped', tra
 
 describe('CanvasList', () => {
   const promoteCanvas = vi.fn(async () => ({ record: TRACKED, bundlePath: '/repo/.porcelain' }))
-  const promoteOverrides = vi.fn(async () => ({
-    hiddenPaths: [],
-    pinnedPaths: [],
-    worktrees: {},
-  }))
 
   beforeEach(() => {
     vi.clearAllMocks()
     useTabsStore.setState({ panes: [{ tabs: [], activeTabId: null }], activePaneIndex: 0 })
     useHubSelectionStore.setState({ selection: { kind: 'home' } })
-    vi.mocked(useProjectOverlay).mockReturnValue(undefined)
-    vi.mocked(useFilesScope).mockReturnValue({ hiddenPaths: ['apps/legacy'], pinnedPaths: [] })
     vi.mocked(usePromoteCanvas).mockReturnValue({ promote: promoteCanvas, isPending: false })
-    vi.mocked(usePromoteProjectOverrides).mockReturnValue({
-      promote: promoteOverrides,
-      isPending: false,
-    })
   })
 
   it('asks the user to select a Worktree with no Hub target', () => {
@@ -191,26 +170,5 @@ describe('CanvasList', () => {
     expect(screen.queryByTestId(TestIds.canvasListMenu('canvas-1'))).toBeNull()
     expect(screen.queryByTestId(TestIds.canvasListPromote('canvas-1'))).toBeNull()
     expect(screen.queryByTestId(TestIds.canvasTrackDefaults)).toBeNull()
-  })
-
-  it('tracks the current project defaults into the selected checkout on confirm', async () => {
-    useHubSelectionStore.setState({ selection: { kind: 'worktree', ...TARGET } })
-    vi.mocked(useCanvasList).mockReturnValue([RECORD])
-    renderList()
-
-    fireEvent.click(screen.getByTestId(TestIds.canvasTrackDefaults))
-    expect(promoteOverrides).not.toHaveBeenCalled()
-
-    fireEvent.click(await screen.findByTestId(TestIds.canvasTrackDefaultsConfirm))
-
-    await waitFor(() =>
-      expect(promoteOverrides).toHaveBeenCalledWith({
-        projectId: 'proj-1',
-        path: '/repo',
-        hiddenPaths: ['apps/legacy'],
-        pinnedPaths: [],
-        environmentId: 'env-1',
-      }),
-    )
   })
 })

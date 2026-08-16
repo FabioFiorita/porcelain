@@ -5,6 +5,16 @@ import type {
   HubProject,
   HubWorktree,
 } from '@porcelain/contracts/projects'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@renderer/components/ui/alert-dialog'
 import { Badge } from '@renderer/components/ui/badge'
 import { Button } from '@renderer/components/ui/button'
 import {
@@ -44,10 +54,13 @@ function WorktreeRow(props: {
   worktree: HubWorktree
   environmentId: string
   projectId: string
+  mutable: boolean
   openWorktree: (worktree: HubWorktree) => void
+  removeWorktree: (input: { projectId: string; worktreeId: string }) => Promise<void>
 }): React.JSX.Element {
   const selection = useHubSelectionStore((state) => state.selection)
   const selected = selection.kind === 'worktree' && selection.worktreeId === props.worktree.id
+  const [confirmOpen, setConfirmOpen] = useState(false)
 
   const copy = (label: string, value: string): void => {
     runUserAction(
@@ -56,43 +69,104 @@ function WorktreeRow(props: {
     )
   }
 
-  return (
-    <ContextMenu>
-      <ContextMenuTrigger
-        render={
-          <button
-            type="button"
-            data-testid={TestIds.hubWorktree(props.worktree.id)}
-            data-hub-environment={props.environmentId}
-            data-hub-project={props.projectId}
-            aria-current={selected ? 'page' : undefined}
-            className={cn(
-              'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-accent/50',
-              selected && 'bg-accent/60',
-            )}
-            onClick={() => props.openWorktree(props.worktree)}
-          />
+  // Removing a Worktree takes its checkout off the disk, so the selection can be left
+  // pointing at a directory that is gone — send it home when it was this one.
+  const remove = (): void => {
+    setConfirmOpen(false)
+    runUserAction(
+      async () => {
+        await props.removeWorktree({
+          projectId: props.projectId,
+          worktreeId: props.worktree.id,
+        })
+        const current = useHubSelectionStore.getState().selection
+        if (current.kind === 'worktree' && current.worktreeId === props.worktree.id) {
+          useHubSelectionStore.getState().selectHome()
         }
-      >
-        <GitBranch className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
-        <span className="flex min-w-0 flex-1 flex-col">
-          <span className="truncate font-mono text-xs">{props.worktree.branch}</span>
-          {props.worktree.name !== props.worktree.branch && (
-            <span className="truncate text-2xs text-muted-foreground">{props.worktree.name}</span>
+      },
+      (error) => toastUserActionError('Remove worktree', error),
+    )
+  }
+
+  // The primary checkout is the Project itself: git refuses to remove it, and offering the
+  // item anyway would only ever produce an error toast.
+  const removable = props.mutable && !props.worktree.isPrimary
+
+  return (
+    <>
+      <ContextMenu>
+        <ContextMenuTrigger
+          render={
+            <button
+              type="button"
+              data-testid={TestIds.hubWorktree(props.worktree.id)}
+              data-hub-environment={props.environmentId}
+              data-hub-project={props.projectId}
+              aria-current={selected ? 'page' : undefined}
+              className={cn(
+                'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-accent/50',
+                selected && 'bg-accent/60',
+              )}
+              onClick={() => props.openWorktree(props.worktree)}
+            />
+          }
+        >
+          <GitBranch className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+          <span className="flex min-w-0 flex-1 flex-col">
+            <span className="truncate font-mono text-xs">{props.worktree.branch}</span>
+            {props.worktree.name !== props.worktree.branch && (
+              <span className="truncate text-2xs text-muted-foreground">{props.worktree.name}</span>
+            )}
+          </span>
+        </ContextMenuTrigger>
+        <ContextMenuContent>
+          <ContextMenuItem onClick={() => copy('Copy worktree name', props.worktree.name)}>
+            <Copy />
+            Copy name
+          </ContextMenuItem>
+          <ContextMenuItem onClick={() => copy('Copy worktree path', props.worktree.path)}>
+            <Copy />
+            Copy path
+          </ContextMenuItem>
+          {removable && (
+            <>
+              <ContextMenuSeparator />
+              <ContextMenuItem
+                variant="destructive"
+                data-testid={TestIds.hubRemoveWorktree(props.worktree.id)}
+                onClick={() => setConfirmOpen(true)}
+              >
+                <Trash2 />
+                Remove worktree…
+              </ContextMenuItem>
+            </>
           )}
-        </span>
-      </ContextMenuTrigger>
-      <ContextMenuContent>
-        <ContextMenuItem onClick={() => copy('Copy worktree name', props.worktree.name)}>
-          <Copy />
-          Copy name
-        </ContextMenuItem>
-        <ContextMenuItem onClick={() => copy('Copy worktree path', props.worktree.path)}>
-          <Copy />
-          Copy path
-        </ContextMenuItem>
-      </ContextMenuContent>
-    </ContextMenu>
+        </ContextMenuContent>
+      </ContextMenu>
+      {/* Sibling of the menu, never a child: a closing menu unmounts its content, and a
+          dialog mounted inside it would close in the same frame it was asked to open. */}
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent data-testid={TestIds.hubRemoveWorktreeDialog}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove worktree {props.worktree.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Deletes the checkout at {props.worktree.path}, along with any uncommitted work in it.
+              The branch and the repository stay.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              data-testid={TestIds.hubRemoveWorktreeConfirm}
+              onClick={remove}
+            >
+              Remove worktree
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }
 
@@ -106,6 +180,8 @@ function ProjectBlock(props: {
     input: CreateHubWorktreeInput & { environmentId?: string | null },
   ) => Promise<HubWorktree>
   removeProject: (projectId: string, environmentId?: string | null) => Promise<void>
+  removeWorktree: (input: { projectId: string; worktreeId: string }) => Promise<void>
+  showEnvironment: boolean
   creating: boolean
 }): React.JSX.Element {
   const [expanded, setExpanded] = useState(true)
@@ -176,12 +252,14 @@ function ProjectBlock(props: {
               <span className="shrink-0 text-2xs tabular-nums text-muted-foreground/70">
                 {props.project.worktrees.length}
               </span>
-              <Badge
-                variant="outline"
-                className="max-w-24 rounded-md border-border/60 bg-muted/30 px-1.5 text-2xs font-medium text-muted-foreground"
-              >
-                {props.environmentName}
-              </Badge>
+              {props.showEnvironment && (
+                <Badge
+                  variant="outline"
+                  className="max-w-24 rounded-md border-border/60 bg-muted/30 px-1.5 text-2xs font-medium text-muted-foreground"
+                >
+                  {props.environmentName}
+                </Badge>
+              )}
             </CollapsibleTrigger>
             {props.mutable && (
               <Button
@@ -227,7 +305,9 @@ function ProjectBlock(props: {
             worktree={worktree}
             environmentId={props.environmentId}
             projectId={props.project.id}
+            mutable={props.mutable}
             openWorktree={props.openWorktree}
+            removeWorktree={props.removeWorktree}
           />
         ))}
       </CollapsibleContent>
@@ -260,6 +340,7 @@ export function HubTreeFromInventory(props: {
     input: CreateHubWorktreeInput & { environmentId?: string | null },
   ) => Promise<HubWorktree>
   removeProject: (projectId: string, environmentId?: string | null) => Promise<void>
+  removeWorktree: (input: { projectId: string; worktreeId: string }) => Promise<void>
   creating?: boolean
   className?: string
 }): React.JSX.Element {
@@ -269,6 +350,7 @@ export function HubTreeFromInventory(props: {
       openWorktree={(_source, worktree) => props.openWorktree(worktree)}
       createWorktree={props.createWorktree}
       removeProject={props.removeProject}
+      removeWorktree={props.removeWorktree}
       creating={props.creating}
       className={props.className}
     />
@@ -280,6 +362,7 @@ export function HubTreeFromInventories(props: {
   openWorktree: (source: HubInventoryView, worktree: HubWorktree) => void
   createWorktree: (input: CreateHubWorktreeInput) => Promise<HubWorktree>
   removeProject: (projectId: string) => Promise<void>
+  removeWorktree: (input: { projectId: string; worktreeId: string }) => Promise<void>
   creating?: boolean
   className?: string
 }): React.JSX.Element {
@@ -287,6 +370,10 @@ export function HubTreeFromInventories(props: {
     props.sources.map((source) => [source.inventory.environment.id, source] as const),
   )
   const groups = groupEquivalentProjects(props.sources.map((source) => source.inventory))
+  // The Environment is only worth naming when there is more than one to tell apart. A
+  // browser client is served by exactly one daemon, so the badge there repeated the host
+  // name on every row and told the reader nothing.
+  const showEnvironment = props.sources.length > 1
 
   return (
     <div
@@ -308,6 +395,8 @@ export function HubTreeFromInventories(props: {
                 openWorktree={(worktree) => props.openWorktree(source, worktree)}
                 createWorktree={props.createWorktree}
                 removeProject={props.removeProject}
+                removeWorktree={props.removeWorktree}
+                showEnvironment={showEnvironment}
                 creating={props.creating === true}
               />
             )
