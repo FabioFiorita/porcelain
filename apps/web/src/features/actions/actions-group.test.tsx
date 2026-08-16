@@ -3,6 +3,7 @@ import type { HubInventory } from '@porcelain/contracts/projects'
 import { hubInventorySchema, projectsContractFixtures } from '@porcelain/contracts/projects'
 import { remoteContractFixtures } from '@porcelain/contracts/remote'
 import { createValidatingTrpcHarness } from '@renderer/hooks/trpc-test-harness'
+import { setPrimaryEnvironmentId } from '@renderer/lib/environment-sessions'
 import type { spawnLocalTerminal as spawnLocalTerminalModule } from '@renderer/lib/terminal-actions'
 import { useHubSelectionStore } from '@renderer/stores/hub-selection'
 import { TestIds } from '@shared/test-ids'
@@ -116,6 +117,7 @@ function harness(): {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  setPrimaryEnvironmentId(inventory.environment.id)
   create.mockResolvedValue('term-1')
   spawnLocalTerminal.mockResolvedValue(undefined)
   inventories = [{ environmentId: null, current: true, inventory }]

@@ -1,7 +1,7 @@
 import type { ActionView } from '@porcelain/contracts/actions'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
-import { environmentSessionFor } from '@renderer/lib/environment-sessions'
+import { environmentClientFor } from '@renderer/lib/environment-sessions'
 import { trpc } from '@renderer/lib/trpc'
 import { useQuery } from '@tanstack/react-query'
 import { actionsListKeyForProject } from './actions-query-key'
@@ -29,9 +29,9 @@ export function useActions(
   const daemonScope: DaemonScope = { host: daemon.host, version: daemon.version }
   const utils = trpc.useUtils()
   const owner =
-    environmentId === undefined || environmentId === null
+    environmentId === undefined
       ? { client: utils.client }
-      : environmentSessionFor(environmentId)
+      : environmentClientFor(environmentId, utils.client)
   const client = owner?.client ?? utils.client
 
   const query = useQuery({
@@ -40,9 +40,10 @@ export function useActions(
       : ([{ domain: 'actions', name: 'list', projectId: '' }, daemonScope] as const),
     queryFn: async (): Promise<ActionView[]> => {
       if (resolvedProjectId === null) return []
+      if (owner === null) throw new Error('The target Environment is offline.')
       return client.actions.query({ projectId: resolvedProjectId })
     },
-    enabled: enabled && resolvedProjectId !== null,
+    enabled: enabled && resolvedProjectId !== null && owner !== null,
   })
   return query.data ?? []
 }
