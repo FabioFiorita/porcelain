@@ -19,6 +19,7 @@
  *   pnpm dev:seed one-review
  *   pnpm dev:seed busy
  *   pnpm dev:seed evidence-heavy
+ *   pnpm dev:seed everything      # every shape registered, every surface carrying state
  *   pnpm dev:seed empty           # strip seeded state and land on Welcome
  *   pnpm dev:seed --list
  */
@@ -29,7 +30,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { adminMutation, adminQuery, assertDaemonReachable } from './dev-daemon-client.mjs'
 import { devEnv } from './dev-env.mjs'
-import { createPlayground, fleetMemberPath } from './playground.mjs'
+import { createPlayground, fleetMemberPath, SHAPES } from './playground.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const cli = join(root, 'apps', 'desktop', 'out', 'main', 'cli', 'porcelain.js')
@@ -120,6 +121,13 @@ function seedReview(repo, review) {
   ])
 }
 
+/** The gallery a seeded Evidence Canvas carries — three shots so a row has something to wrap. */
+const GALLERY = [
+  { file: 'shot-wide.png', alt: 'The Review, four tabs', width: 320, height: 160 },
+  { file: 'shot-tall.png', alt: 'The Changes tab', width: 160, height: 240 },
+  { file: 'shot-square.png', alt: 'The Evidence checks', width: 200, height: 200 },
+]
+
 /**
  * Evidence is a Canvas bundle, so it needs real files on disk. Written to a temp directory
  * the daemon copies from, then removed — the bundle lives in daemon-root state afterwards.
@@ -133,14 +141,12 @@ async function seedEvidenceCanvas(repo, title) {
   const source = mkdtempSync(join(tmpdir(), 'porcelain-seed-evidence-'))
   try {
     mkdirSync(join(source, 'assets'), { recursive: true })
-    // A 1x1 PNG: enough for the gallery to have something real to lay out.
-    writeFileSync(
-      join(source, 'assets', 'shot.png'),
-      Buffer.from(
-        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
-        'base64',
-      ),
+    // 1x1 PNGs at three declared sizes: one image cannot show how the gallery lays a row out.
+    const pixel = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+      'base64',
     )
+    for (const shot of GALLERY) writeFileSync(join(source, 'assets', shot.file), pixel)
     writeFileSync(
       join(source, 'index.html'),
       `<!doctype html>
@@ -156,7 +162,10 @@ async function seedEvidenceCanvas(repo, title) {
 <h2>Results</h2>
 <p>The seeded run closed its loop: every check above ran against this fixture.</p>
 <h2>Gallery</h2>
-<img src="assets/shot.png" alt="Seeded screenshot" width="240" height="120">
+${GALLERY.map(
+  (shot) =>
+    `<img src="assets/${shot.file}" alt="${shot.alt}" width="${shot.width}" height="${shot.height}">`,
+).join('\n')}
 `,
     )
     porcelain([
@@ -206,6 +215,37 @@ const REVIEW = {
   ],
 }
 
+/** A Review against a deep tree: the two-file fixture proves nothing about path handling. */
+const WORKSPACE_REVIEW = {
+  name: 'Workspace review',
+  thesis:
+    'The same Review shape against nested workspace packages, so file rows, path elision and ' +
+    'the walkthrough are read against a tree deeper than one src/ directory.',
+  files: [
+    {
+      path: 'packages/core/src/index.ts',
+      source: 'context',
+      note: 'The package everything imports',
+    },
+    { path: 'packages/ui/src/index.ts', source: 'context', note: 'The rendering layer' },
+    { path: 'apps/web/src/index.ts', source: 'context', note: 'The consumer' },
+    { path: 'pnpm-workspace.yaml', source: 'context', note: 'What makes these one workspace' },
+  ],
+  sections: [
+    {
+      title: 'Intent',
+      prose: 'Read one exported name through three packages without leaving the Review.',
+      anchors: [{ path: 'packages/core/src/index.ts', startLine: 1, endLine: 1 }],
+    },
+    {
+      title: 'Walkthrough',
+      prose:
+        'core declares the name, ui re-declares its own, web consumes. Deliberately shallow logic — the tree, not the code, is the fixture.',
+      anchors: [{ path: 'apps/web/src/index.ts', startLine: 1, endLine: 1 }],
+    },
+  ],
+}
+
 /**
  * One list drives both writing and purging. Keeping the purge set separate invited the drift
  * where a new Action is seeded but never reclaimed, so every re-run stacks another copy.
@@ -213,8 +253,42 @@ const REVIEW = {
 const SEEDED_ACTIONS = [
   { title: 'Run the fixture tests', command: 'echo "no tests in a fixture" && exit 0' },
   { title: 'Show the working tree', command: 'git status --short' },
+  { title: 'Read the last five commits', command: 'git log --oneline -5' },
+  { title: 'Fail on purpose', command: 'echo "this action is meant to fail" && exit 3' },
 ]
 const SEEDED_ACTION_TITLES = new Set(SEEDED_ACTIONS.map((action) => action.title))
+
+/**
+ * Which Review lands on which shape, and which paths each project pins and hides. Declared
+ * rather than inlined because every path here must exist in that shape's fixture: a pin or
+ * an anchor pointed at a file the shape never writes fails silently — the surface renders,
+ * just without the state the seed claims to have made. `dev-seed.test.mjs` builds the
+ * shapes and checks each path.
+ */
+const SEEDED_REVIEWS = [
+  { shape: 'dirty', title: 'Seeded evidence', review: REVIEW },
+  { shape: 'monorepo', title: 'Workspace evidence', review: WORKSPACE_REVIEW },
+]
+const SEEDED_SCOPES = [
+  { shape: 'dirty', pinned: ['src/greeting.ts'], hidden: ['.gitignore'] },
+  {
+    shape: 'monorepo',
+    pinned: ['packages/core/src/index.ts', 'pnpm-workspace.yaml'],
+    hidden: ['package.json'],
+  },
+]
+/** Shapes that carry the saved Actions — more than one, so the list is not a single-project surface. */
+const ACTION_SHAPES = ['dirty', 'monorepo', 'history']
+
+/**
+ * Pin and hide real paths so a project's file scope is not its default shape. Both writes
+ * are set-valued on the daemon side, so a re-run lands on the same scope rather than
+ * stacking — nothing here needs reclaiming by the purge.
+ */
+async function seedScope(repo, { pinned = [], hidden = [] }) {
+  for (const path of pinned) await adminMutation('pinPath', { repoPath: repo, path })
+  for (const path of hidden) await adminMutation('hidePath', { repoPath: repo, path })
+}
 
 async function seedActionsFor(path) {
   const projectId = await projectIdFor(path)
@@ -273,6 +347,60 @@ const SCENARIOS = {
       await seedTask({ title: 'Read the Evidence tab', status: 'doing' })
     },
   },
+  everything: {
+    summary: 'every shape registered, two Reviews, Evidence, Tasks in every status, pins and hides',
+    run: async () => {
+      // Every shape, so no surface is empty for want of a fixture: the switcher has eight
+      // rows, Worktrees has a linked checkout, and the deep tree has somewhere to go.
+      const repos = {}
+      for (const shape of Object.keys(SHAPES)) {
+        repos[shape] = playground(shape)
+        await registerProject(repos[shape])
+      }
+
+      for (const { shape, title, review } of SEEDED_REVIEWS) {
+        seedReview(repos[shape], review)
+        await seedEvidenceCanvas(repos[shape], title)
+      }
+      for (const shape of ACTION_SHAPES) await seedActionsFor(repos[shape])
+      // Pins and hides are per-project file scope: without them the tree only ever renders
+      // its default shape, and the pinned well never appears.
+      for (const scope of SEEDED_SCOPES) await seedScope(repos[scope.shape], scope)
+
+      const dirtyId = await projectIdFor(repos.dirty)
+      const monorepoId = await projectIdFor(repos.monorepo)
+      await seedTask({
+        title: 'Read the seeded Review end to end',
+        status: 'doing',
+        notes: 'Intent → Process → Execution → Evidence. Every tab should carry something.',
+        tags: ['review'],
+        references: { projectId: dirtyId },
+      })
+      await seedTask({
+        title: 'Compare the workspace Review against the deep tree',
+        status: 'todo',
+        tags: ['review', 'monorepo'],
+        references: { projectId: monorepoId },
+      })
+      await seedTask({
+        title: 'Resolve the conflicted fixture',
+        status: 'blocked',
+        notes: 'The merge is stopped on purpose — this is the conflict surface fixture.',
+        tags: ['git'],
+      })
+      await seedTask({
+        title: 'Open the staged fixture and read the split',
+        status: 'todo',
+        tags: ['git', 'diff'],
+      })
+      await seedTask({
+        title: 'Walk the deep history',
+        status: 'todo',
+        links: [{ url: 'https://git-scm.com/docs/git-log', label: 'git log' }],
+      })
+      await seedTask({ title: 'Register every playground shape', status: 'done', tags: ['setup'] })
+    },
+  },
 }
 
 const HELP = `Porcelain dev seeding — state worth looking at, written through the shipped CLI
@@ -321,4 +449,12 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   })
 }
 
-export { SCENARIOS, SEED_TAG, SEEDED_ACTION_TITLES, SEEDED_ACTIONS }
+export {
+  ACTION_SHAPES,
+  SCENARIOS,
+  SEED_TAG,
+  SEEDED_ACTION_TITLES,
+  SEEDED_ACTIONS,
+  SEEDED_REVIEWS,
+  SEEDED_SCOPES,
+}

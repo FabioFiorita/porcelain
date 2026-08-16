@@ -126,7 +126,7 @@ pnpm build && pnpm dev:daemon   # dev daemon on 43118 — the browser needs no p
 pnpm dev:daemon -- --no-auto-auth  # require pairing links (use when testing pairing itself)
 pnpm dev:pair                   # one-time link for another device (15-minute expiry)
 pnpm playground new dirty       # a fixture with a shape; `shapes` lists them, `rm` deletes
-pnpm dev:seed busy              # Projects, Reviews, Tasks, Actions, Evidence worth looking at
+pnpm dev:seed everything        # every shape registered; Reviews, Tasks, Actions, Evidence, pins
 pnpm porcelain <noun> <verb>    # CLI → ~/.porcelain-dev
 ```
 
