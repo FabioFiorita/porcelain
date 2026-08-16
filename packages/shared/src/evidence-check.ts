@@ -5,9 +5,8 @@
  * agent-protocol): this node-free leaf lets the RENDERER import the shape + the
  * pure overall-status helper without runtime-importing `@backend/*` and pulling
  * evidence-store's `node:fs` graph into the browser bundle. `evidence-store.ts`
- * re-exports these so backend/test callers still use one entry point, and the
- * dependency-free CLI (`apps/cli/src/evidence-file.ts`) imports them from here —
- * one declaration of the shape and the caps, no copy to keep in step.
+ * re-exports these so backend/test callers still use one entry point — one
+ * declaration of the shape and the caps, no copy to keep in step.
  */
 export type EvidenceCheckStatus = 'pass' | 'fail' | 'skip'
 

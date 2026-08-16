@@ -51,19 +51,11 @@ afterEach(() => {
   if (prevHome === undefined) delete process.env.PORCELAIN_HOME
   else process.env.PORCELAIN_HOME = prevHome
 })
-// A plausible self-contained document: has a `<` tag and clears the MIN_HTML_BYTES floor,
-// so it survives resolveToolHtml's plausibility guard (unlike tiny test fragments).
-const doc = `<main>${'x'.repeat(600)}</main>`
-
 // Every command targets a real temp repo path.
 const repo = ['--repo', repoPath]
 
 const porcelain = (...parts: string[]): string => join(repoPath, '.porcelain', ...parts)
-/** The unit in flight lives in its own directory, shaped like an archived one. */
-const activeReview = (...parts: string[]): string => porcelain('active-review', ...parts)
-const ensurePorcelain = (): void => {
-  mkdirSync(activeReview(), { recursive: true })
-}
+const doc = `<main>${'x'.repeat(600)}</main>`
 const read = (): {
   name: string
   thesis?: string
@@ -108,7 +100,7 @@ describe('COMMANDS registry matches the dispatch switch', () => {
     expect([...documented].filter((cmd) => !dispatched.has(cmd))).toEqual([])
   })
   it('found the switch at all (guards the regex itself)', () => {
-    expect(dispatched.size).toBeGreaterThan(20)
+    expect(dispatched.size).toBeGreaterThan(10)
   })
   // CLI-001: the agent channel never grows a shell-exec `run` verb; process
   // execution belongs to Actions + Terminal, not this filesystem writer.
@@ -164,19 +156,9 @@ describe('runCli — flag parsing, help, repo resolution', () => {
     await runCli(['review', 'set', ...repo, '--files', '-'], { readStdin })
     expect(read()?.files).toEqual([{ path: 'a.ts' }])
   })
-  it('reads --layers from stdin when passed "-"', async () => {
-    const readStdin = (): string => JSON.stringify([{ label: 'Pages', pattern: '(^|/)pages/' }])
-    await runCli(['layers', 'set', ...repo, '--layers', '-'], { readStdin })
-    expect(await runCli(['layers', 'get', ...repo])).toContain('Pages')
-  })
-  it('reads --html from stdin when passed "-"', async () => {
-    const readStdin = (): string => doc
-    await runCli(['evidence', 'set', ...repo, '--title', 'Piped', '--html', '-'], { readStdin })
-    expect(await runCli(['evidence', 'get', ...repo])).toContain(`Evidence "Piped" for ${repoPath}`)
-  })
 })
 
-describe('runCli — review + comments + reviewed', () => {
+describe('runCli — review', () => {
   it('review set writes a repo-keyed set', async () => {
     await runCli([
       'review',
@@ -317,19 +299,11 @@ describe('runCli — review + comments + reviewed', () => {
     await runCli(['review', 'add', ...repo, '--files', JSON.stringify([{ path: 'b.ts' }])])
     expect(read()?.files).toEqual([{ path: 'a.ts' }, { path: 'b.ts' }])
   })
-  it('review clear removes the set and the evidence directory', async () => {
+  it('review clear removes the daemon-root Review Canvas', async () => {
     await runCli(['review', 'set', ...repo, '--files', JSON.stringify([{ path: 'a.ts' }])])
-    await runCli(['evidence', 'set', ...repo, '--title', 'Old', '--html', doc])
-    const evidenceDir = activeReview('evidence')
     const msg = await runCli(['review', 'clear', ...repo])
-    expect(msg).toContain('its evidence')
+    expect(msg).toContain('Review Canvas')
     expect(() => read()).toThrow()
-    // evidenceDirForRepo hashes the path; the whole evidence root may still exist for other repos
-    const { readdirSync, existsSync } = await import('node:fs')
-    if (existsSync(evidenceDir)) {
-      const leftover = readdirSync(evidenceDir, { recursive: true }) as string[]
-      expect(leftover.filter((n) => String(n).endsWith('index.html'))).toEqual([])
-    }
   })
   it('review get describes the stored set', async () => {
     await runCli([
@@ -360,319 +334,6 @@ describe('runCli — review + comments + reviewed', () => {
     const text = await runCli(['review', '--help'])
     expect(text).not.toContain('set-canvas')
     expect(text).not.toContain('clear-canvas')
-  })
-  it('comments list tags each comment with its active-review source', async () => {
-    ensurePorcelain()
-    writeFileSync(
-      activeReview('comments.json'),
-      JSON.stringify({
-        version: 1,
-        comments: [
-          { id: 'c1', path: 'server/svc.ts', body: 'check', resolved: false, createdAt: 1 },
-        ],
-      }),
-    )
-    writeFileSync(
-      porcelain('active-review.json'),
-      JSON.stringify({
-        name: 'X',
-        files: [{ path: 'server/svc.ts', source: 'shipped', layer: 'Svc' }],
-      }),
-    )
-    expect(await runCli(['comments', 'list', ...repo])).toContain('[c1] server/svc.ts')
-  })
-  it('comments answer attaches a reply, found/not-found by id', async () => {
-    ensurePorcelain()
-    writeFileSync(
-      activeReview('comments.json'),
-      JSON.stringify({
-        version: 1,
-        comments: [{ id: 'c1', path: 'a.ts', body: 'why?', resolved: false, createdAt: 1 }],
-      }),
-    )
-    expect(
-      await runCli(['comments', 'answer', ...repo, '--id', 'c1', '--body', 'because']),
-    ).toContain('Answered comment c1')
-    const stored = JSON.parse(readFileSync(activeReview('comments.json'), 'utf8')) as {
-      version: number
-      comments: Array<{ agentReply?: { body: string } }>
-    }
-    expect(stored.version).toBe(1)
-    expect(stored.comments[0]?.agentReply?.body).toBe('because')
-    expect(await runCli(['comments', 'answer', ...repo, '--id', 'nope', '--body', 'x'])).toContain(
-      'No comment nope',
-    )
-  })
-  it('comments answer requires id and body', async () => {
-    await expect(runCli(['comments', 'answer', ...repo, '--body', 'x'])).rejects.toThrow(
-      'id is required',
-    )
-    await expect(runCli(['comments', 'answer', ...repo, '--id', 'c1'])).rejects.toThrow(
-      'body is required',
-    )
-  })
-  it('reviewed list lists the human-reviewed paths', async () => {
-    ensurePorcelain()
-    writeFileSync(
-      activeReview('reviewed.json'),
-      JSON.stringify([
-        { path: 'src/a.ts', fingerprint: 'a' },
-        { path: 'src/b.ts', fingerprint: 'b' },
-      ]),
-    )
-    const text = await runCli(['reviewed', 'list', ...repo])
-    expect(text).toContain('src/a.ts')
-    expect(text).toContain('src/b.ts')
-    expect(await runCli(['reviewed', 'list', '--repo', '/other'])).toContain(
-      'No files marked reviewed',
-    )
-  })
-})
-
-describe('runCli — evidence (html input)', () => {
-  it('evidence set rejects both --html and --html-file', async () => {
-    ensurePorcelain()
-    const htmlPath = join(root, 'evidence.html')
-    writeFileSync(htmlPath, doc)
-    await expect(
-      runCli(['evidence', 'set', ...repo, '--title', 'X', '--html', doc, '--html-file', htmlPath]),
-    ).rejects.toThrow('not both')
-  })
-  it('evidence set rejects neither --html nor --html-file', async () => {
-    await expect(runCli(['evidence', 'set', ...repo, '--title', 'X'])).rejects.toThrow(
-      '--html or --html-file is required',
-    )
-  })
-
-  it('evidence prepare prepares the three-part pack and teaches it', async () => {
-    const msg = await runCli(['evidence', 'prepare', ...repo, '--title', 'SPA redirect'])
-    expect(msg).toContain('Evidence pack ready')
-    expect(msg).toContain('Checks')
-    expect(msg).toContain('../assets/shot.png')
-    expect(msg).toMatch(/\.porcelain\/active-review\/evidence\/results/)
-    expect(msg).toMatch(/\.porcelain\/active-review\/evidence\/assets/)
-  })
-  it('evidence prepare rejects a missing title', async () => {
-    await expect(runCli(['evidence', 'prepare', ...repo])).rejects.toThrow(
-      'title must be a non-empty string',
-    )
-  })
-  it('evidence set/get/clear with html writes results/index.html under the pack', async () => {
-    await runCli(['evidence', 'set', ...repo, '--title', 'Vite loop', '--html', doc])
-    expect(await runCli(['evidence', 'get', ...repo])).toContain(
-      `Evidence "Vite loop" for ${repoPath}`,
-    )
-    expect(await runCli(['evidence', 'get', ...repo])).toContain('results/index.html')
-    expect(readFileSync(activeReview('evidence', 'results', 'index.html'), 'utf8')).toBe(doc)
-    await runCli(['evidence', 'clear', ...repo])
-    expect(await runCli(['evidence', 'get', ...repo])).toContain('No evidence')
-  })
-
-  it('evidence results-order pins the tab order and results-list reads it back', async () => {
-    await runCli(['evidence', 'prepare', ...repo, '--title', 'Pack'])
-    const results = activeReview('evidence', 'results')
-    writeFileSync(join(results, 'summary.md'), 'summary')
-    writeFileSync(join(results, 'report.html'), '<p>report</p>')
-    const msg = await runCli([
-      'evidence',
-      'results-order',
-      ...repo,
-      '--files',
-      'report.html,summary.md',
-    ])
-    expect(msg).toContain('report.html → summary.md')
-    const manifest = JSON.parse(readFileSync(join(results, 'meta.json'), 'utf8')) as {
-      tabs: Array<{ file: string }>
-    }
-    expect(manifest.tabs.map((t) => t.file)).toEqual(['report.html', 'summary.md'])
-    expect(await runCli(['evidence', 'results-list', ...repo])).toContain('summary.md')
-  })
-
-  it('evidence results-order refuses a document nobody wrote', async () => {
-    await runCli(['evidence', 'prepare', ...repo, '--title', 'Pack'])
-    await expect(
-      runCli(['evidence', 'results-order', ...repo, '--files', 'ghost.md']),
-    ).rejects.toThrow('write the documents first')
-  })
-
-  it('evidence assets-list reports sizes and warns about unsupported content', async () => {
-    await runCli(['evidence', 'prepare', ...repo, '--title', 'Pack'])
-    const assets = activeReview('evidence', 'assets')
-    writeFileSync(join(assets, 'shot.png'), 'x'.repeat(2048))
-    writeFileSync(join(assets, 'run.log'), 'log')
-    const msg = await runCli(['evidence', 'assets-list', ...repo])
-    expect(msg).toContain('1 in the gallery of 2 file(s)')
-    expect(msg).toContain('shot.png  2 KB')
-    expect(msg).toContain('WARNING: not supported gallery content')
-  })
-
-  it('evidence results-list and assets-list say what to do when the pack is empty', async () => {
-    expect(await runCli(['evidence', 'results-list', ...repo])).toContain('No Results documents')
-    expect(await runCli(['evidence', 'assets-list', ...repo])).toContain('No evidence assets')
-  })
-  it('evidence set rejects a missing title', async () => {
-    await expect(runCli(['evidence', 'set', ...repo, '--html', doc])).rejects.toThrow(
-      'title must be a non-empty string',
-    )
-  })
-  it('evidence check records a check (creating meta) and get shows the summary', async () => {
-    const msg = await runCli([
-      'evidence',
-      'check',
-      ...repo,
-      '--label',
-      'pnpm test',
-      '--status',
-      'pass',
-      '--detail',
-      '1348 passed',
-    ])
-    expect(msg).toContain('Recorded check "pnpm test" = pass')
-    expect(msg).toContain('→ PASS')
-    const got = await runCli(['evidence', 'get', ...repo])
-    expect(got).toContain('Checks: 1')
-    expect(got).toContain('PASS')
-  })
-  it('evidence check rejects an unknown status', async () => {
-    await expect(
-      runCli(['evidence', 'check', ...repo, '--label', 'x', '--status', 'bogus']),
-    ).rejects.toThrow('pass|fail|skip')
-  })
-  it('evidence set rejects a file path pasted into --html', async () => {
-    await expect(
-      runCli([
-        'evidence',
-        'set',
-        ...repo,
-        '--title',
-        'Redirect',
-        '--html',
-        'filePath:/tmp/x/loop.html',
-      ]),
-    ).rejects.toThrow(/html-file/)
-  })
-  it('evidence set rejects a missing --html-file', async () => {
-    await expect(
-      runCli([
-        'evidence',
-        'set',
-        ...repo,
-        '--title',
-        'Redirect',
-        '--html-file',
-        join(root, 'nope.html'),
-      ]),
-    ).rejects.toThrow('not found or unreadable')
-  })
-  it('evidence get includes a content preview of what was stored', async () => {
-    await runCli([
-      'evidence',
-      'set',
-      ...repo,
-      '--title',
-      'Vite loop',
-      '--html',
-      `<h1>Marker heading</h1>${'x'.repeat(600)}`,
-    ])
-    const text = await runCli(['evidence', 'get', ...repo])
-    expect(text).toContain('Preview:')
-    expect(text).toContain('Marker heading')
-  })
-  it('evidence set accepts --html-file and writes the evidence dir', async () => {
-    ensurePorcelain()
-    const htmlPath = join(root, 'evidence.html')
-    writeFileSync(htmlPath, doc)
-    const msg = await runCli([
-      'evidence',
-      'set',
-      ...repo,
-      '--title',
-      'Disk evidence',
-      '--html-file',
-      htmlPath,
-    ])
-    expect(msg).toContain('index.html')
-    expect(await runCli(['evidence', 'get', ...repo])).toContain('Disk evidence')
-  })
-})
-
-describe('runCli — intent', () => {
-  it('intent prepare teaches the three recommended tabs and the media rules', async () => {
-    const msg = await runCli(['intent', 'prepare', ...repo])
-    expect(msg).toMatch(/\.porcelain\/active-review\/intent/)
-    expect(msg).toContain('why.md')
-    expect(msg).toContain('BEFORE work started')
-    expect(msg).toContain('a convention, not a schema')
-    expect(msg).toContain('sandboxed frame')
-    expect(msg).toContain('assets')
-    const manifest = JSON.parse(readFileSync(activeReview('intent', 'meta.json'), 'utf8')) as {
-      tabs: Array<{ file: string }>
-    }
-    expect(manifest.tabs.map((t) => t.file)).toEqual(['why.md', 'approach.md', 'decisions.md'])
-  })
-
-  it('intent prepare --tabs overrides the seed, and a second run keeps it', async () => {
-    await runCli(['intent', 'prepare', ...repo, '--tabs', 'why,measurements.html'])
-    const msg = await runCli(['intent', 'prepare', ...repo])
-    expect(msg).toContain('Left the existing meta.json alone')
-    const manifest = JSON.parse(readFileSync(activeReview('intent', 'meta.json'), 'utf8')) as {
-      tabs: Array<{ file: string }>
-    }
-    expect(manifest.tabs.map((t) => t.file)).toEqual(['why.md', 'measurements.html'])
-  })
-
-  it('intent order pins the tab order and list reads it back', async () => {
-    await runCli(['intent', 'prepare', ...repo])
-    writeFileSync(activeReview('intent', 'why.md'), 'why')
-    expect(await runCli(['intent', 'order', ...repo, '--files', 'why.md'])).toContain('why.md')
-    expect(await runCli(['intent', 'list', ...repo])).toContain('why.md')
-  })
-})
-
-describe('runCli — notes + layers', () => {
-  it('retired notes and board nouns are not exposed by the CLI', async () => {
-    await expect(runCli(['notes', 'get', ...repo])).rejects.toThrow('unknown command')
-    await expect(runCli(['board', 'list', ...repo])).rejects.toThrow('unknown command')
-  })
-  it('layers get shows the starters when none are custom', async () => {
-    const text = await runCli(['layers', 'get', ...repo])
-    expect(text).toContain('starter groups')
-    expect(text).toContain('Docs')
-    expect(text).toContain('Agents')
-  })
-  it('layers set writes a repo-keyed ordered set', async () => {
-    await runCli([
-      'layers',
-      'set',
-      ...repo,
-      '--layers',
-      JSON.stringify([{ label: 'Pages', pattern: '(^|/)pages/' }]),
-    ])
-    const text = await runCli(['layers', 'get', ...repo])
-    expect(text).toContain('Custom flow layers')
-    expect(text).toContain('Pages')
-  })
-  it('layers set rejects an invalid regex', async () => {
-    await expect(
-      runCli([
-        'layers',
-        'set',
-        ...repo,
-        '--layers',
-        JSON.stringify([{ label: 'Bad', pattern: '(' }]),
-      ]),
-    ).rejects.toThrow('valid regular expression')
-  })
-  it('layers reset drops the custom set', async () => {
-    await runCli([
-      'layers',
-      'set',
-      ...repo,
-      '--layers',
-      JSON.stringify([{ label: 'Pages', pattern: '(^|/)pages/' }]),
-    ])
-    await runCli(['layers', 'reset', ...repo])
-    expect(await runCli(['layers', 'get', ...repo])).toContain('starter groups')
   })
 })
 

@@ -16,28 +16,10 @@ import {
   describeSetCanvas,
   listCanvasesForRepo,
 } from './canvas-file'
-import { answerComment, describeComments, readComments, resolveComment } from './comment-file'
-import {
-  checkEvidence,
-  clearEvidence,
-  describeAssets,
-  describeEvidence,
-  MAX_HTML_BYTES as EVIDENCE_MAX_HTML_BYTES,
-  evidenceOverallStatus,
-  getEvidence,
-  listResults,
-  orderResults,
-  prepareEvidence,
-  setEvidence,
-} from './evidence-file'
-import { resolveToolHtml } from './html-input'
-import { describePrepareIntent, listIntent, orderIntent } from './intent-file'
-import { clearLayers, describeLayers, readLayers, setLayers, toLayers } from './layers-file'
 import { describeMigrate, MIGRATE_COMMANDS } from './migrate-file'
 import { describePromoteOverrides, PROJECT_COMMANDS } from './overlay-file'
 import {
   addReviewFiles,
-  clearReview,
   clearReviewCanvas,
   describeReview,
   type ReviewSet,
@@ -46,21 +28,17 @@ import {
   toReviewFiles,
   toReviewSections,
 } from './review-file'
-import { describeReviewed, readReviewed } from './reviewed-file'
 import { describeTasksCommand, TASKS_COMMANDS } from './tasks-file'
 
-// Porcelain's agent CLI: a dependency-free command that reads and writes project
-// companion channels under <repo>/.porcelain/ (review, actions, layers,
-// evidence, comments, reviewed marks) — plus Canvas, the one noun that instead
-// writes the daemon-root Project store under $PORCELAIN_HOME (ADR 0002), since Canvases
-// outlive the checkout that authored them. One fresh process per invocation does a
-// single synchronous read-modify-write. Node builtins only; the built bundle is
-// installed to ~/.porcelain/porcelain.js and run under plain `node`.
+// Porcelain's agent CLI writes daemon-root Project data (Tasks, Actions, and Review
+// Canvases). One fresh process per invocation does a single synchronous read-modify-write.
+// Node builtins only; the built bundle is installed to ~/.porcelain/porcelain.js and run under
+// plain `node`.
 
 interface CliDeps {
   /** Directory to resolve the repo from when --repo is absent. Default: process.cwd(). */
   cwd?: string
-  /** Reads all of stdin (for the `-` sentinel on --files/--layers/--html). Mockable. */
+  /** Reads all of stdin (for the `-` sentinel on --files/--sections). Mockable. */
   readStdin?: () => string
 }
 
@@ -139,21 +117,12 @@ const FLAG_DESCRIPTIONS: Record<string, string> = {
     "Walkthrough sections as JSON: array of {title, prose (markdown), diagram? (inline SVG), anchors?: [{path, startLine?, endLine?}]}, in flow order; '-' reads stdin",
   title: 'Short title for the item',
   body: 'Body / details text',
-  medium: 'Canvas medium — html is the only one',
-  html: "The complete self-contained HTML document, inline; '-' reads stdin",
-  'html-file':
-    'Absolute path to a local HTML file to read (prefer over --html for large docs with embedded screenshots)',
   id: 'The item id (from the matching list/get command)',
   status: 'Column: todo | doing | done',
   command: 'The shell command to run',
   where:
     "Where the human's click runs the command: primary (this window's machine, default) | local (This device, when the window is remote)",
-  layers:
-    "Flow layers as JSON: array of {label, pattern} in order (entry point → data); '-' reads stdin",
   path: 'Repo-relative folder or file path (absolute under the repo also accepted)',
-  label: 'Short label for the verification check, e.g. "pnpm test"',
-  detail: 'Optional result detail for the check, e.g. "1348 passed"',
-  tabs: 'Comma-separated starting tabs (default: why,approach,decisions); a bare name gets .md',
   kind: 'Canvas kind: html | markdown',
   'source-dir':
     'Absolute path to a local directory holding the Canvas entry file and its siblings (images, CSS, JS) — copied wholesale into the bundle',
@@ -173,10 +142,7 @@ interface NounHelp {
   verbs: VerbHelp[]
   /** Flags whose descriptions are shown under `porcelain <noun> --help`. */
   flags: string[]
-  /**
-   * Per-noun descriptions that override the shared FLAG_DESCRIPTIONS — for a flag whose
-   * meaning differs by noun (e.g. evidence's `--status` is a check result, board's a column).
-   */
+  /** Per-noun descriptions that override the shared FLAG_DESCRIPTIONS. */
   flagOverrides?: Record<string, string>
 }
 
@@ -200,82 +166,10 @@ export const COMMANDS: NounHelp[] = [
       {
         verb: 'clear',
         args: '',
-        desc: 'Clear the Review and loop evidence (set + on-disk HTML/images) — matches the app Clear button',
+        desc: 'Remove the daemon-root Review Canvas',
       },
     ],
-    flags: ['name', 'thesis', 'files', 'sections', 'html', 'html-file'],
-  },
-  {
-    noun: 'comments',
-    blurb: "the human reviewer's line/file comments",
-    verbs: [
-      { verb: 'list', args: '', desc: 'List open comments with their project source' },
-      { verb: 'resolve', args: '--id <s>', desc: 'Mark a comment resolved' },
-      { verb: 'answer', args: '--id <s> --body <s>', desc: 'Attach a short reply to a comment' },
-    ],
-    flags: ['id', 'body'],
-  },
-  {
-    noun: 'reviewed',
-    blurb: 'the files the human has checked off as reviewed (read-only)',
-    verbs: [{ verb: 'list', args: '', desc: 'List the reviewed file paths' }],
-    flags: [],
-  },
-  {
-    noun: 'intent',
-    blurb: 'intent — the case for the change, as documents the human can read',
-    verbs: [
-      {
-        verb: 'prepare',
-        args: '[--tabs why,approach,decisions]',
-        desc: 'Make the intent dir + assets/, seed the recommended tabs, print the paths',
-      },
-      {
-        verb: 'order',
-        args: '--files <a.md,b.html>',
-        desc: 'Pin the tab order (comma-separated, left to right)',
-      },
-      { verb: 'list', args: '', desc: 'List the intent documents on disk' },
-    ],
-    flags: ['files', 'tabs'],
-    flagOverrides: {
-      files: 'Document file names inside intent/, comma-separated, in tab order',
-    },
-  },
-  {
-    noun: 'evidence',
-    blurb: 'evidence — proof the loop closed (checks + Results documents + an image gallery)',
-    verbs: [
-      {
-        verb: 'prepare',
-        args: '--title <s>',
-        desc: 'Make the pack (results/ + assets/); write the documents there yourself',
-      },
-      {
-        verb: 'set',
-        args: '--title <s> (--html <s|-> | --html-file <p>)',
-        desc: 'Write results/index.html (small single-document packs only)',
-      },
-      {
-        verb: 'check',
-        args: '--label <s> --status pass|fail|skip [--detail <s>]',
-        desc: 'Record a verification check (append, or update the same label)',
-      },
-      {
-        verb: 'results-order',
-        args: '--files <a.md,b.html>',
-        desc: 'Pin the Results tab order (comma-separated, left to right)',
-      },
-      { verb: 'results-list', args: '', desc: 'List the Results documents on disk' },
-      { verb: 'assets-list', args: '', desc: 'List the gallery images with sizes and warnings' },
-      { verb: 'get', args: '', desc: 'Read back the pack (checks, Results, gallery, preview)' },
-      { verb: 'clear', args: '', desc: 'Remove the evidence' },
-    ],
-    flags: ['title', 'html', 'html-file', 'label', 'status', 'detail', 'files'],
-    flagOverrides: {
-      status: 'Check result: pass | fail | skip',
-      files: 'Document file names inside evidence/results/, comma-separated, in tab order',
-    },
+    flags: ['name', 'thesis', 'files', 'sections'],
   },
   TASKS_COMMANDS,
   {
@@ -301,16 +195,6 @@ export const COMMANDS: NounHelp[] = [
   CANVAS_COMMANDS,
   PROJECT_COMMANDS,
   MIGRATE_COMMANDS,
-  {
-    noun: 'layers',
-    blurb: 'the repo-wide review-flow layers (Changes-tab grouping)',
-    verbs: [
-      { verb: 'get', args: '', desc: 'Read the effective layers (custom or defaults)' },
-      { verb: 'set', args: '--layers <json|->', desc: 'Replace the full ordered layer set' },
-      { verb: 'reset', args: '', desc: 'Drop the custom set (back to the defaults)' },
-    ],
-    flags: ['layers'],
-  },
 ]
 
 const HEADER = "porcelain — read and write Porcelain's agent channels for a repo"
@@ -379,15 +263,6 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<string
     if (raw === undefined) return undefined
     return JSON.parse(raw === '-' ? readStdin() : raw)
   }
-  const resolveHtml = (maxBytes: number): string => {
-    const args: Record<string, unknown> = {}
-    const html = flags.get('html')
-    if (html !== undefined) args.html = html === '-' ? readStdin() : html
-    const htmlFile = flags.get('html-file')
-    if (htmlFile !== undefined) args.htmlFile = htmlFile
-    return resolveToolHtml(args, maxBytes)
-  }
-
   const repo = resolveRepo(flags, cwd)
 
   switch (`${noun} ${verb}`) {
@@ -415,82 +290,7 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<string
       return describeReview(repo, readReview(repo))
     case 'review clear':
       clearReviewCanvas(repo)
-      clearReview(repo)
-      clearEvidence(repo)
-      return `Cleared the review and its evidence for ${repo}`
-    case 'comments list':
-      return describeComments(repo, readComments(repo), new Map())
-    case 'comments resolve': {
-      const id = req('id')
-      return resolveComment(repo, id)
-        ? `Resolved comment ${id} for ${repo}`
-        : `No open comment ${id} for ${repo}`
-    }
-    case 'comments answer': {
-      const id = req('id')
-      const body = req('body')
-      return answerComment(repo, id, body)
-        ? `Answered comment ${id} for ${repo}`
-        : `No comment ${id} for ${repo}`
-    }
-    case 'reviewed list':
-      return describeReviewed(repo, readReviewed(repo))
-    case 'intent prepare':
-      return describePrepareIntent(repo, splitList(opt('tabs')))
-    case 'intent order': {
-      const ordered = orderIntent(repo, splitList(opt('files')) ?? [])
-      return `Intent tab order for ${repo}: ${ordered.join(' → ')}`
-    }
-    case 'intent list': {
-      const files = listIntent(repo)
-      return files.length === 0
-        ? `No intent documents for ${repo}. Run \`intent prepare\` first, then write .md / .html there.`
-        : `Intent documents for ${repo}:\n${files.map((f) => `  ${f}`).join('\n')}`
-    }
-    case 'evidence prepare': {
-      const prepared = prepareEvidence(repo, opt('title'))
-      return `Evidence pack ready for "${prepared.title}". Three parts, three sub-tabs:
-
-  Checks   \`evidence check --label … --status pass|fail|skip\` → ${prepared.dir}/meta.json
-           The one-second summary a human reads first. Record what you actually ran.
-  Results  ${prepared.resultsDir}
-           An ordered .md / .html document set — the narrated proof. Pin the order with
-           \`evidence results-order --files a.md,b.html\`.
-  Assets   ${prepared.assetsDir}
-           Drop raw screenshots here; Porcelain renders them as a native gallery, no HTML
-           needed. A shot you also want narrated is referenced from a Results document as
-           <img src="../assets/shot.png"> — it stays in the gallery too.
-
-.md renders as prose; .html renders in a sandboxed frame with its local CSS and images inlined. Scripts never run. For large documents write the files yourself rather than passing --html.`
-    }
-    case 'evidence set': {
-      const html = resolveHtml(EVIDENCE_MAX_HTML_BYTES)
-      const evidence = setEvidence(repo, opt('title'), html)
-      return `Wrote evidence "${evidence.title}" to ${evidence.dir}/${evidence.file} for ${repo}. Porcelain renders it as a Results tab. For anything bigger than one document prefer "evidence prepare" + writing the files yourself.`
-    }
-    case 'evidence results-order': {
-      const ordered = orderResults(repo, splitList(opt('files')) ?? [])
-      return `Evidence Results tab order for ${repo}: ${ordered.join(' → ')}`
-    }
-    case 'evidence results-list': {
-      const files = listResults(repo)
-      return files.length === 0
-        ? `No Results documents for ${repo}. Run \`evidence prepare --title "…"\` first, then write .md / .html there.`
-        : `Results documents for ${repo}:\n${files.map((f) => `  ${f}`).join('\n')}`
-    }
-    case 'evidence assets-list':
-      return describeAssets(repo)
-    case 'evidence check': {
-      const result = checkEvidence(repo, req('label'), req('status'), opt('detail'))
-      const overall = evidenceOverallStatus(result.checks)
-      const verdict = overall ? ` → ${overall.toUpperCase()}` : ''
-      return `Recorded check "${result.check.label}" = ${result.check.status}; ${result.checks.length} check(s)${verdict} for ${repo}.`
-    }
-    case 'evidence get':
-      return describeEvidence(repo, getEvidence(repo))
-    case 'evidence clear':
-      clearEvidence(repo)
-      return `Cleared the loop evidence for ${repo}`
+      return `Cleared the Review Canvas for ${repo}`
     case 'tasks list':
     case 'tasks add':
     case 'tasks update':
@@ -537,16 +337,6 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<string
         hidden: splitList(opt('hidden')),
         pinned: splitList(opt('pinned')),
       })
-    case 'layers get':
-      return describeLayers(repo, readLayers(repo))
-    case 'layers set': {
-      const layers = toLayers(readJson('layers'))
-      setLayers(repo, layers)
-      return `Set ${layers.length} flow layer(s) for ${repo}: ${layers.map((l) => l.label).join(' → ')}`
-    }
-    case 'layers reset':
-      clearLayers(repo)
-      return `Reset flow layers to the Docs + Agents starters for ${repo}`
     case 'migrate apply':
       return await describeMigrate(repo, {
         dryRun: flags.has('dry-run'),

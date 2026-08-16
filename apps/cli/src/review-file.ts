@@ -372,10 +372,6 @@ export function addReviewFiles(repoPath: string, files: ReviewFile[]): number {
   return merged.length
 }
 
-export function clearReview(repoPath: string): void {
-  clearReviewCanvas(repoPath)
-}
-
 /** Read back the stored review set for a repo (null when none is set). */
 export function readReview(repoPath: string): ReviewSet | null {
   const canvas = reviewCanvas(repoPath)
