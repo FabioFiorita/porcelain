@@ -6,8 +6,10 @@ import type {
   UpdateTaskInput,
 } from '@porcelain/contracts/tasks'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
-import type { DaemonScope } from '@renderer/lib/daemon-scope'
-import { environmentSessionFor } from '@renderer/lib/environment-sessions'
+import {
+  daemonScopeForEnvironment,
+  environmentSessionFor,
+} from '@renderer/lib/environment-sessions'
 import { isBrowser } from '@renderer/lib/platform'
 import { shellTrpc, trpc } from '@renderer/lib/trpc'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -57,15 +59,15 @@ export function useTaskActions(): {
   isPending: boolean
 } {
   const daemon = useDaemonIdentity()
-  const daemonScope: DaemonScope = { host: daemon.host, version: daemon.version }
   const queryClient = useQueryClient()
   const client = trpc.useUtils().client
   const shellClient = shellTrpc.useUtils().client
 
   const invalidate = async (environmentId: string | null): Promise<void> => {
+    const targetDaemonScope = daemonScopeForEnvironment(environmentId, daemon)
     for (const identity of tasksMutations.create.affectedQueries({ environmentId })) {
       await queryClient.invalidateQueries({
-        queryKey: tasksTableQueryKey(daemonScope, identity),
+        queryKey: tasksTableQueryKey(targetDaemonScope, identity),
         exact: true,
       })
     }

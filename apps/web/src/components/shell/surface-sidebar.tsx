@@ -50,15 +50,15 @@ export const SURFACES: SurfaceDefinition[] = [
     id: 'history',
     label: 'History',
     hint: 'Inspect commit history',
-    shortcut: '4',
+    shortcut: '3',
     icon: History,
   },
-  { id: 'search', label: 'Search', hint: 'Search code and files', shortcut: '5', icon: Search },
+  { id: 'search', label: 'Search', hint: 'Search code and files', shortcut: '4', icon: Search },
   {
     id: 'tasks',
     label: 'Tasks',
     hint: 'Work across every Environment',
-    shortcut: '6',
+    shortcut: '5',
     icon: Table2,
   },
   {

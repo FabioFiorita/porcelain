@@ -3,8 +3,8 @@ import type { Task } from '@porcelain/contracts/tasks'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
 import {
-  browserEnvironmentConnections,
-  ensureEnvironmentSession,
+  daemonScopeForEnvironment,
+  liveEnvironmentSessions,
   useEnvironmentSessionsRevision,
 } from '@renderer/lib/environment-sessions'
 import { isBrowser } from '@renderer/lib/platform'
@@ -56,18 +56,22 @@ function useLocalTasks(enabled: boolean): {
     enabled,
   })
 
-  const secondaryConnections = useMemo(
-    () => (enabled ? browserEnvironmentConnections(environmentSessionsRevision) : []),
-    [enabled, environmentSessionsRevision],
-  )
   const secondarySessions = useMemo(
-    () => secondaryConnections.map((connection) => ensureEnvironmentSession(connection)),
-    [secondaryConnections],
+    () =>
+      (enabled ? liveEnvironmentSessions(environmentSessionsRevision) : []).flatMap((entry) =>
+        entry.connectionId === null || entry.environmentId === null ? [] : [entry],
+      ),
+    [enabled, environmentSessionsRevision],
   )
   const secondaryQueries = useQueries({
     queries: secondarySessions.map((entry) => ({
       enabled,
-      queryKey: ['browser', 'tasks', entry.id],
+      // Secondary tables use the same canonical identity as mutations, notifications, and
+      // recovery. The Environment daemon scope prevents two remote tables from colliding.
+      queryKey: tasksKeyForEnvironment(
+        daemonScopeForEnvironment(entry.environmentId, daemon),
+        entry.environmentId,
+      ),
       queryFn: async (): Promise<Task[]> => entry.client.listTasks.query(),
     })),
   })
@@ -76,10 +80,10 @@ function useLocalTasks(enabled: boolean): {
   }, [secondarySessions])
 
   const secondary = secondaryQueries.flatMap((remote, index) => {
-    const connection = secondaryConnections[index]
-    return remote.data === undefined || connection === undefined
+    const entry = secondarySessions[index]
+    return remote.data === undefined || entry === undefined
       ? []
-      : [{ id: connection.id, name: connection.name, tasks: remote.data }]
+      : [{ id: entry.environmentId, name: entry.name, tasks: remote.data }]
   })
   const data =
     query.data === undefined ? undefined : [{ id: null, name, tasks: query.data }, ...secondary]
