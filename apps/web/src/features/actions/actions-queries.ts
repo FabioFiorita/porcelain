@@ -32,6 +32,7 @@ export function useActions(
     environmentId === undefined || environmentId === null
       ? { client: utils.client }
       : environmentSessionFor(environmentId)
+  const client = owner?.client ?? utils.client
 
   const query = useQuery({
     queryKey: resolvedProjectId
@@ -39,11 +40,9 @@ export function useActions(
       : ([{ domain: 'actions', name: 'list', projectId: '' }, daemonScope] as const),
     queryFn: async (): Promise<ActionView[]> => {
       if (resolvedProjectId === null) return []
-      if (owner === null) return []
-      return owner.client.actions.query({ projectId: resolvedProjectId })
+      return client.actions.query({ projectId: resolvedProjectId })
     },
     enabled: enabled && resolvedProjectId !== null,
   })
-
   return query.data ?? []
 }

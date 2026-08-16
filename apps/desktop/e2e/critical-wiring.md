@@ -6,9 +6,9 @@ so a reviewer can audit the complete assertion set even after the broad specs ar
 
 The browser functional gate includes the five assembled wiring risks in
 `critical-wiring.spec.ts` plus the daemon-backed composed acceptance proof in
-`composed-proof.spec.ts`. The composed scenario covers multiple Worktrees, target-aware tabs
-and splits, the Review Canvas migration (including Evidence), Tasks, Actions, and a daemon-owned
-process surviving reload. Visual assertions stay in `visual.spec.ts`; Electron-only host
+`composed-proof.spec.ts`. The composed scenario covers two Environment daemons in one browser
+page, Projects and Worktrees from both, target-aware tabs and splits, the Review Canvas migration
+(including Evidence), Tasks, Actions, and a daemon-owned process surviving reload. Visual assertions stay in `visual.spec.ts`; Electron-only host
 clipboard proof stays in `terminal-native.spec.ts`. All other assertions have a lower-boundary
 owner below. “Retired” means the old browser route was redundant after the named owner was
 verified; it does not mean the behavior was discarded.
@@ -20,7 +20,7 @@ verified; it does not mean the behavior was discarded.
 | CW-01 | `smoke.spec.ts:3-7` — seeded repo restores into the shell and reports two dirty files | `critical-wiring.spec.ts:103-106` | Built daemon + browser client startup, auth, project recents, and first query |
 | CW-02 | No former browser equivalent; protocol coverage was lower-only | `critical-wiring.spec.ts:108-116` | Real authenticated `/session` WebSocket returns exact `session:mismatch` / `protocol.update-required` for `PROTOCOL_VERSION + 1` and closes |
 | CW-03 | `live-refresh.spec.ts:10-30` — an open clean file adopts an external disk rewrite | `critical-wiring.spec.ts:119-133` | Real fixture filesystem → daemon watcher → session frame → browser editor |
-| CW-04 | `review-publish.spec.ts:44-143` — built CLI review write reaches an already-running Review canvas | `composed-proof.spec.ts` | Legacy active-review input is read once by migration and rendered as a daemon-root Review Canvas with Evidence; lower review/CLI tests own file shape and invalidation |
+| CW-04 | `review-publish.spec.ts:44-143` — built CLI review write reaches an already-running Review canvas | `composed-proof.spec.ts` | Legacy migration input is read once and rendered as a daemon-root Review Canvas with Evidence in both Environment-targeted browser flows; CLI and Canvas contract tests own file shape |
 | CW-05 | `terminal.spec.ts:6-24` plus the reconnect/scrollback contract from `terminal` lower tests | `critical-wiring.spec.ts:174-201` | Real PTY create, >64 KiB output, browser session detach, daemon-owned session retention, roster hydration, attach, and tail replay |
 
 The five tests above remain the critical browser lane. The composed proof is the cross-feature
@@ -44,7 +44,7 @@ lower test is the owner of that invariant at its smallest complete boundary.
 | SM-01 | `:3-7` — shell boot, seeded project, `data-count=2` | `CW-01`; assembled startup proof |
 | SM-02 | `:9-15` — Changes count is 2 and `Home.tsx` / `Card.tsx` rows exist | Lower `apps/web/src/components/git/changes-list.test.tsx:134-150` owns grouped rows/count; `apps/web/src/components/shell/glance-home.test.tsx:115-135` owns dirty-tree handoff. Retired from browser as duplicate startup/status coverage |
 | SM-03 | `:17-37` — All changes opens, Home diff collapses/expands, reviewed mark collapses it | `apps/web/src/features/review/reading-surface.test.tsx:84-92` owns collapsed row omission and `apps/web/src/components/git/changes-list.test.tsx:191-237` owns reviewed state/count/completion. Retired from browser after lower ownership |
-| SM-04 | `:40-47` — Changes and Board preserve the Quick Access toggle | `apps/web/src/features/board/board-quick-access.test.tsx:8-23` owns Focus rail controls; `apps/web/src/lib/responsive-shell.test.ts:44-64` owns give-way ordering. Retired from browser |
+| SM-04 | `:40-47` — Changes preserves the Quick Access toggle | `apps/web/src/lib/responsive-shell.test.ts:44-64` owns give-way ordering. Retired from browser; the former Board surface no longer ships |
 | SM-05 | `:49-53` — Settings opens at General | `apps/web/src/components/settings/general-section.test.tsx:10-22` owns General composition; visual screenshot remains in `visual.spec.ts`. Retired from browser |
 | SM-06 | `:55-62` — no seeded repo lands on Welcome | `apps/web/src/stores/project-selection.test.ts:33-62` owns open/restore/welcome modes; visual Welcome remains in `visual.spec.ts`. Retired from browser |
 
@@ -72,7 +72,7 @@ lower test is the owner of that invariant at its smallest complete boundary.
 | --- | --- | --- |
 | SH-01 | `:6-11` — Meta-T creates a visible Terminal 1 from the current tab | `apps/web/src/lib/keyboard.test.ts:43-69` owns terminal-host shortcut targeting; `apps/web/src/lib/terminal-actions.test.ts:5-26` owns deterministic naming; `CW-05` owns real PTY creation. Retired from browser |
 | SH-02 | `:13-32` — Meta-N on Terminal creates a PTY; command runs; Meta-K clears only the local viewport | `apps/web/src/lib/terminal-actions.test.ts:5-26`, `apps/web/src/components/terminal/terminal-context-menu.test.tsx:57-87`, and `CW-05` own the action, clear, and real stream boundaries. Retired from browser |
-| SH-03 | `:35-47` — Meta-N opens Board composer and Meta-S saves a card | `apps/web/src/features/board/card-composer.test.tsx:12-45` owns draft/save; `apps/web/src/lib/keyboard.test.ts:74-130` owns modifier semantics. Retired from browser |
+| SH-03 | `:35-47` — Meta-N opened the retired Board composer and Meta-S saved a card | Daemon-owned Tasks and their mutations own current work capture; `apps/web/src/lib/keyboard.test.ts:74-130` owns modifier semantics. Retired from browser |
 | SH-04 | `:49-72` — Meta-N file, Meta-Shift-N folder, Meta-D duplicate, Meta-Backspace trash | `apps/web/src/features/files/files-mutations.test.tsx:33-80` owns create/duplicate/trash mutation contracts and authoritative invalidation; `apps/daemon/src/features/files/files-operations.test.ts:50-180` owns filesystem facts. Retired from browser |
 
 ### `live-refresh.spec.ts`
@@ -85,9 +85,9 @@ lower test is the owner of that invariant at its smallest complete boundary.
 
 | ID | Source assertion | Disposition and replacement |
 | --- | --- | --- |
-| RP-01 | `:44-95` — CLI Intent-only set appears; all four Canvas tabs render; Process opens the Scope walkthrough; a local Evidence pack enables the tab and serves image/video/link assets | `CW-04` owns the live CLI-to-Review arrival and authenticated asset reads; `apps/cli/src/cli.test.ts:142-314`, `apps/web/src/features/review/review-list.test.tsx:123-168`, and `apps/web/src/features/review/active-review.test.tsx:34-118` own CLI shape, outline, and evidence availability. |
-| RP-02 | `:91-131` — second CLI set plus `evidence prepare` and Results HTML update changes the same active Review | `CW-04` owns the watcher path; `apps/daemon/src/review/review-watch.test.ts:36-56`, `apps/cli/src/evidence-file.test.ts:31-63`, and `apps/web/src/features/review/review-notifications.test.tsx:31-116` own file preparation and invalidation |
-| RP-03 | `:133-143` — Evidence enables, iframe is sandboxed, heading renders, script does not execute, progress is shown | `apps/web/src/components/viewer/html-view.test.tsx:15-23`, `apps/web/src/features/review/reading-surface.test.tsx:233-299`, `apps/web/src/features/review/review-list.test.tsx:239-247`, and the evidence pack rows below own these boundaries. Retired from broad browser |
+| RP-01 | `:44-95` — CLI Intent-only set appears; all four Canvas sections render with Evidence | `CW-04` owns the live CLI-to-Review-Canvas arrival and authenticated Canvas reads; `apps/cli/src/cli.test.ts:142-314` and the Projects Canvas contract tests own CLI shape and Canvas availability. |
+| RP-02 | `:91-131` — second CLI set updates the same daemon-root Review Canvas | `CW-04` owns the composed migration and Canvas proof; CLI Canvas tests own replacement and invalidation shape |
+| RP-03 | `:133-143` — Review Canvas Evidence renders in a sandboxed iframe with image proof | `CW-04` and `apps/daemon/src/net/canvas-http.test.ts` own the browser and HTTP containment boundaries. Retired from broad browser |
 
 ### `companion-data.spec.ts`
 
@@ -100,10 +100,10 @@ lower test is the owner of that invariant at its smallest complete boundary.
 
 | ID | Source assertion | Disposition and replacement |
 | --- | --- | --- |
-| EV-01 | `:65-81` — one pack opens over Checks, check labels/details render, empty Results iframe is absent | `apps/web/src/features/review/evidence-panel.test.tsx:77-117` owns pack counts, sub-tab selection, and empty-state disablement; `apps/web/src/features/review/active-review.test.tsx:45-67` owns Evidence enablement. Retired from browser |
-| EV-02 | `:83-102` — Results iframe uses `sandbox=""`, renders heading/pass, never runs script; markdown pill replaces iframe | `apps/web/src/components/viewer/html-view.test.tsx:15-23`, `apps/web/src/components/viewer/html-view.test.tsx:15-23`, and `apps/web/src/features/review/reading-surface.test.tsx:233-299` own sandbox/reading rows; `apps/cli/src/evidence-file.test.ts:41-63` owns result file shape. Retired from browser |
-| EV-03 | `:104-117` — Assets lists both images, zoom opens a data URL and Escape closes it | `apps/web/src/features/review/evidence-gallery.test.tsx:1-140` owns gallery item/zoom behavior; `apps/daemon/src/fs/evidence-assets.test.ts:18-110` owns safe data-URI materialization. Retired from browser |
-| EV-04 | `:119-123` — clearing the pack hides Evidence while keeping the active Review | `apps/web/src/features/review/review-mutations.test.tsx:145-164` and `apps/web/src/features/review/active-review.test.tsx:34-67` own clear invalidation and Review survival. Retired from browser |
+| EV-01 | `:65-81` — Review Canvas Evidence renders checks and Results | `CW-04` owns the composed Canvas Evidence proof. Retired from browser |
+| EV-02 | `:83-102` — Canvas iframe is sandboxed and renders the agent-authored document | `apps/daemon/src/net/canvas-http.test.ts` and `CW-04` own the Canvas response and browser containment. Retired from browser |
+| EV-03 | `:104-117` — Evidence image gallery renders agent-authored assets | `CW-04` and `apps/daemon/src/fs/evidence-assets.test.ts:18-110` own Canvas asset materialization. Retired from browser |
+| EV-04 | `:119-123` — removing a legacy pack does not remove the daemon-root Canvas | Migration and Projects Canvas contract tests own one-time conversion and Canvas persistence. Retired from browser |
 
 ### `share.spec.ts`
 

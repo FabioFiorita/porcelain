@@ -810,204 +810,31 @@ async function remove(slugArg, options = {}) {
 `)
 }
 
-function readJsonFile(path) {
-  try {
-    const value = JSON.parse(readFileSync(path, 'utf8'))
-    return value !== null && typeof value === 'object' ? value : null
-  } catch {
-    return null
-  }
+function readCanvasList(root, worktreePath) {
+  const cli = join(root, 'apps', 'desktop', 'out', 'main', 'cli', 'porcelain.js')
+  const result = spawnSync(process.execPath, [cli, 'canvas', 'list', '--repo', worktreePath], {
+    cwd: worktreePath,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'ignore'],
+    env: ENV,
+  })
+  return result.status === 0 ? result.stdout.trim() : ''
 }
 
-function text(value, max) {
-  return typeof value === 'string' ? value.trim().slice(0, max) : ''
-}
-
-/**
- * The worktree's active Review. Current daemons store it repo-locally under
- * `.porcelain/active-review/`; the worktree publisher reads that one current path.
- */
-function readReviewSet(worktreePath) {
-  return readJsonFile(join(worktreePath, '.porcelain', 'active-review', 'review.json'))
-}
-
-const EVIDENCE_IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'webp', 'gif'])
-const MAX_EVIDENCE_IMAGES = 8
-
-/** Image filenames from the pack's `assets/` gallery, sorted and capped. */
-function evidenceImageNames(dir) {
-  let entries = []
-  try {
-    entries = readdirSync(join(dir, 'assets'))
-  } catch {
-    return []
-  }
-  return entries
-    .filter((entry) => EVIDENCE_IMAGE_EXTENSIONS.has(entry.split('.').pop()?.toLowerCase() ?? ''))
-    .sort()
-    .slice(0, MAX_EVIDENCE_IMAGES)
-    .map((name) => join('assets', name))
-}
-
-const EVIDENCE_RESULT_EXTENSIONS = new Set(['md', 'markdown', 'html', 'htm'])
-
-/** Any renderable Results document — mirrors doc-set.ts's `isResultDoc`. */
-function hasResultsDoc(dir) {
-  let entries = []
-  try {
-    entries = readdirSync(join(dir, 'results'))
-  } catch {
-    return false
-  }
-  return entries.some(
-    (entry) =>
-      !entry.startsWith('.') &&
-      EVIDENCE_RESULT_EXTENSIONS.has(entry.split('.').pop()?.toLowerCase() ?? ''),
-  )
-}
-
-/** Any gallery image under `assets/` — mirrors evidence-assets-list.ts's listing filter. */
-function hasEvidenceAsset(dir) {
-  let entries = []
-  try {
-    entries = readdirSync(join(dir, 'assets'))
-  } catch {
-    return false
-  }
-  return entries.some((entry) =>
-    EVIDENCE_IMAGE_EXTENSIONS.has(entry.split('.').pop()?.toLowerCase() ?? ''),
-  )
-}
-
-/** The worktree's current repo-local Evidence pack. */
-function readEvidence(worktreePath) {
-  const dir = join(worktreePath, '.porcelain', 'active-review', 'evidence')
-  // A pack exists when its checks meta, a Results document, or a gallery image is present.
-  const hasPack = existsSync(join(dir, 'meta.json')) || hasResultsDoc(dir) || hasEvidenceAsset(dir)
-  if (!hasPack) return null
-  const meta = readJsonFile(join(dir, 'meta.json')) ?? {}
-  return {
-    dir,
-    title: text(meta.title, 120) || 'Evidence',
-    updatedAt: text(meta.updatedAt, 64),
-    checks: Array.isArray(meta.checks) ? meta.checks.slice(0, 40) : [],
-    images: evidenceImageNames(dir),
-  }
-}
-
-const R2_EVIDENCE_PREFIX = 'porcelain/pr-evidence'
-
-/**
- * Publishes an evidence pack's screenshots to R2 so a GitHub PR body can embed them — a local
- * pack path means nothing to GitHub. Non-fatal: a missing rclone or a failed upload/link just
- * drops that image and warns to stderr, since the local pack path stays available as a fallback.
- */
-function publishEvidenceImages(slug, evidence) {
-  if (spawnSync('rclone', ['version'], { stdio: 'ignore', env: ENV }).error) {
-    console.error('worktree · evidence upload skipped: rclone is not installed')
-    return []
-  }
-
-  const published = []
-  for (const name of evidence.images) {
-    const remote = `r2:beelink/${R2_EVIDENCE_PREFIX}/${slug}/${name}`
-    const upload = spawnSync('rclone', ['copyto', join(evidence.dir, name), remote], {
-      stdio: ['ignore', 'pipe', 'pipe'],
-      env: ENV,
-    })
-    if (upload.status !== 0) {
-      console.error(
-        `worktree · evidence upload failed for ${name}: ${upload.stderr?.toString().trim() || 'unknown error'}`,
-      )
-      continue
-    }
-    const link = spawnSync('rclone', ['link', remote, '--expire', '2h'], {
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-      env: ENV,
-    })
-    if (link.status !== 0) {
-      console.error(
-        `worktree · evidence upload failed for ${name}: ${link.stderr?.toString().trim() || 'unknown error'}`,
-      )
-      continue
-    }
-    published.push({ name, url: link.stdout.trim() })
-  }
-  return published
-}
-
-const CHECK_MARKS = { pass: '✓', fail: '✗', skip: '–' }
-
-/**
- * `publishedImages` is `'dry-run'` (show would-upload names from `evidence.images`), an array of
- * `{ name, url }` already published to R2, or omitted (no evidence, or nothing to publish).
- */
-function renderReviewBody(review, evidence, slug, publishedImages) {
-  const lines = []
-  if (review) {
-    const thesis = text(review.thesis, 4000)
-    lines.push('## Intent', '', thesis || `_${text(review.name, 120) || 'Review'}_`, '')
-    const sections = Array.isArray(review.sections) ? review.sections.slice(0, 30) : []
-    if (sections.length > 0) {
-      lines.push('Walkthrough:', '')
-      for (const section of sections) {
-        const title = text(section?.title, 200)
-        if (title !== '') lines.push(`- **${title}**`)
-      }
-      lines.push('')
-    }
-    const files = Array.isArray(review.files) ? review.files : []
-    if (files.length > 0) {
-      lines.push(`Execution: ${files.length} file(s) in the Review.`, '')
-    }
-  }
-  if (evidence) {
-    const when = evidence.updatedAt === '' ? '' : ` · updated ${evidence.updatedAt}`
-    lines.push('## Evidence', '', `**${evidence.title}**${when}`, '')
-    for (const check of evidence.checks) {
-      const label = text(check?.label, 200)
-      if (label === '') continue
-      const mark = CHECK_MARKS[check?.status] ?? '·'
-      const detail = text(check?.detail, 400)
-      lines.push(`- ${mark} ${label}${detail === '' ? '' : ` — \`${detail}\``}`)
-    }
-    lines.push('')
-    if (publishedImages === 'dry-run') {
-      if (evidence.images.length > 0) {
-        lines.push(`screenshots (would upload): ${evidence.images.join(', ')}`, '')
-      }
-      lines.push(`Pack: \`${join(evidence.dir, 'results', 'index.html')}\``, '')
-    } else if (Array.isArray(publishedImages) && publishedImages.length > 0) {
-      lines.push('### Screenshots', '')
-      for (const image of publishedImages) lines.push(`![${image.name}](${image.url})`)
-      lines.push(
-        '',
-        `Links expire in ~2 hours; durable copies live at \`r2:beelink/${R2_EVIDENCE_PREFIX}/${slug}/\`.`,
-        '',
-      )
-    } else {
-      lines.push(`Pack: \`${join(evidence.dir, 'results', 'index.html')}\``, '')
-    }
-  }
-  return lines.join('\n')
-}
-
-function prBody(root, branch, worktreePath, slug, publishedImages) {
-  const review = readReviewSet(worktreePath)
-  const evidence = readEvidence(worktreePath)
+function prBody(root, branch, worktreePath) {
   const commits = git(root, ['log', `main..${branch}`, '--oneline'])
   const commitSection = ['## Commits', '', '```', commits, '```', ''].join('\n')
-  if (!review && !evidence) {
+  const canvases = readCanvasList(root, worktreePath)
+  if (canvases === '') {
     return [
-      `_No published Review found for \`${worktreePath}\`._`,
+      `_No daemon-root Canvas found for \`${worktreePath}\`._`,
       '',
-      'Publish one with `pnpm porcelain review set` / `porcelain evidence prepare`.',
+      'Publish one with `pnpm porcelain review set` / `porcelain canvas set`.',
       '',
       commitSection,
     ].join('\n')
   }
-  return `${renderReviewBody(review, evidence, slug, publishedImages)}\n${commitSection}`
+  return `## Review Canvas\n\n${canvases}\n\n${commitSection}`
 }
 
 function requireGh(root) {
@@ -1048,14 +875,14 @@ function openPullRequest(root, branch) {
 function pullRequest(slugArg, options) {
   const root = primaryRoot()
   const worktree = findManaged(root, slugArg)
-  const { slug, branch } = worktree.config
+  const { branch } = worktree.config
   if (git(root, ['rev-list', '--count', `main..${branch}`]) === '0') {
     fail(`${branch} has no commits ahead of main; commit the unit before opening a PR`)
   }
 
   if (options.dryRun) {
     console.log(`title: ${options.title ?? git(root, ['log', '-1', '--format=%s', branch])}\n`)
-    console.log(prBody(root, branch, worktree.path, slug, 'dry-run'))
+    console.log(prBody(root, branch, worktree.path))
     return
   }
 
@@ -1068,12 +895,8 @@ function pullRequest(slugArg, options) {
 
   git(root, ['push', '-u', 'origin', branch], { inherit: true })
 
-  const evidence = readEvidence(worktree.path)
-  const publishedImages =
-    evidence && evidence.images.length > 0 ? publishEvidenceImages(slug, evidence) : []
-
   const title = options.title ?? git(root, ['log', '-1', '--format=%s', branch])
-  const body = prBody(root, branch, worktree.path, slug, publishedImages)
+  const body = prBody(root, branch, worktree.path)
   const dir = mkdtempSync(join(tmpdir(), 'porcelain-pr-'))
   const bodyFile = join(dir, 'body.md')
   try {

@@ -81,23 +81,31 @@ describe('HubTree', () => {
       worktreeId: localWorktree.id,
       path: localWorktree.path,
     })
-    await waitFor(() => expect(openProject).toHaveBeenCalledWith(localWorktree.path))
+    await waitFor(() =>
+      expect(openProject).toHaveBeenCalledWith(localWorktree.path, {
+        environmentId: local.environment.id,
+      }),
+    )
     expect(openWindow).not.toHaveBeenCalled()
   })
 
-  /**
-   * A window is bound to exactly one Environment, so a remote Worktree cannot be opened in place —
-   * selecting it would point this window's Viewer, terminals, and Review at a path the bound daemon
-   * has never heard of. It has to travel to a window bound to the owning Environment.
-   */
-  it('opens a Worktree from another Environment in a window bound to that Environment', async () => {
+  it('opens a Worktree from another Environment in this browser page with its owner target', async () => {
     render(<HubTree />)
 
     fireEvent.click(screen.getByTestId(TestIds.hubWorktree(`remote-${localWorktree.id}`)))
 
-    await waitFor(() => expect(openWindow).toHaveBeenCalledWith(localWorktree.path, 'env-remote'))
-    expect(useHubSelectionStore.getState().selection).toEqual({ kind: 'home' })
-    expect(openProject).not.toHaveBeenCalled()
+    await waitFor(() =>
+      expect(openProject).toHaveBeenCalledWith(localWorktree.path, {
+        environmentId: 'env-remote',
+      }),
+    )
+    expect(useHubSelectionStore.getState().selection).toMatchObject({
+      kind: 'worktree',
+      environmentId: 'env-remote',
+      projectId: `remote-${localWorktree.projectId}`,
+      worktreeId: `remote-${localWorktree.id}`,
+    })
+    expect(openWindow).not.toHaveBeenCalled()
   })
 
   it('renders nothing while no Environment is live', () => {

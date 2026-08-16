@@ -182,16 +182,18 @@ export function resolveStaticPath(root: string, urlPath: string): string | null 
 
 /**
  * Rewrite index.html's CSP meta so the browser client can reach the daemon it was
- * served from: `connect-src` becomes `'self' ws://<host> wss://<host>` (<host> = the
- * request's Host header). Same-origin HTTP is covered by 'self'; the explicit ws
- * entries cover Safari's stricter ws origin matching. It touches connect-src ONLY —
+ * served from: `connect-src` keeps the configured HTTP(S)/WS(S) daemon schemes and adds
+ * `'self' ws://<host> wss://<host>` (<host> = the request's Host header). Same-origin HTTP
+ * is covered by 'self'; the explicit ws entries cover Safari's stricter ws origin matching.
+ * Keeping the scheme sources lets one browser Hub connect to explicitly configured secondary
+ * Environment daemons. It touches connect-src ONLY —
  * never default-src/img-src, which are the agent-HTML-exfil backstop (audit
  * invariant). Pure + tested; a host with no matching connect-src left is a no-op.
  */
 export function rewriteCsp(html: string, host: string): string {
   return html.replace(
     /connect-src 'self' http:\/\/127\.0\.0\.1:\* ws:\/\/127\.0\.0\.1:\*(?: http: https: ws: wss:)?/,
-    `connect-src 'self' ws://${host} wss://${host}`,
+    `connect-src 'self' ws://${host} wss://${host} http: https: ws: wss:`,
   )
 }
 

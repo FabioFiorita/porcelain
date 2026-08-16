@@ -65,22 +65,6 @@ interface SeedReviewSet {
   }[]
 }
 
-/**
- * The on-disk evidence pack an agent writes: `meta.json` (title + structured
- * checks), documents under `results/` (including the canonical
- * `results/index.html`), and images under `assets/`.
- */
-interface SeedEvidence {
-  title: string
-  /** The canonical single-page Results document, written to `results/index.html`. */
-  html?: string
-  checks?: { label: string; status: 'pass' | 'fail' | 'skip'; detail?: string }[]
-  /** Documents under `evidence/results/` — `.md` and `.html` only. */
-  results?: { file: string; body: string }[]
-  /** Images under `evidence/assets/`, base64 so a fixture stays a text file. */
-  assets?: { file: string; base64: string }[]
-}
-
 /** Which runtime hosts the suite: the built Electron app, or headless Chromium on the daemon-served browser client. Picked per Playwright project. */
 export type AppMode = 'electron' | 'browser'
 
@@ -91,17 +75,10 @@ interface Options {
    */
   seedRepo: boolean
   /**
-   * Seed the active review under `<repo>/.porcelain/active-review/review.json` (default null →
-   * the Review's empty state). Written as if the porcelain CLI had pushed it.
+   * Seed a daemon-root Review Canvas through the shipped CLI (default null → the Canvas empty
+   * state). Written as an agent would publish it.
    */
   seedReviewSet: SeedReviewSet | null
-  /**
-   * Seed evidence under `<repo>/.porcelain/active-review/evidence/` (default null → none).
-   * Renders as the Review's Evidence tab (needs a `seedReviewSet`) — one pack over
-   * three sub-tabs, so a seed can carry any part of it: `checks` in meta.json,
-   * `html` as the canonical Results index, `results` as documents, `assets` as images.
-   */
-  seedEvidence: SeedEvidence | null
   /**
    * Present the renderer with a multi-touch screen (default false → a desktop
    * pointer, which is what both runtimes really are). Set it for the surfaces
@@ -154,7 +131,6 @@ export async function seedIsolatedState(
   repoDir: string,
   seedRepo: boolean,
   seedReviewSet: SeedReviewSet | null,
-  seedEvidence: SeedEvidence | null,
 ): Promise<Seeded> {
   const udBase = await mkdtemp(join(tmpdir(), 'porcelain-e2e-ud-'))
   const userData = `${udBase}-dev`
@@ -234,36 +210,6 @@ export async function seedIsolatedState(
         )
       })
     }
-    if (seedEvidence) {
-      const active = join(repoDir, '.porcelain', 'active-review')
-      await mkdir(active, { recursive: true })
-      const evidenceDir = join(active, 'evidence')
-      await mkdir(evidenceDir, { recursive: true })
-      if (seedEvidence.html !== undefined) {
-        await mkdir(join(evidenceDir, 'results'), { recursive: true })
-        await writeFile(join(evidenceDir, 'results', 'index.html'), seedEvidence.html)
-      }
-      for (const doc of seedEvidence.results ?? []) {
-        await mkdir(join(evidenceDir, 'results'), { recursive: true })
-        await writeFile(join(evidenceDir, 'results', doc.file), doc.body)
-      }
-      for (const asset of seedEvidence.assets ?? []) {
-        await mkdir(join(evidenceDir, 'assets'), { recursive: true })
-        await writeFile(
-          join(evidenceDir, 'assets', asset.file),
-          Buffer.from(asset.base64, 'base64'),
-        )
-      }
-      await writeFile(
-        join(evidenceDir, 'meta.json'),
-        JSON.stringify({
-          title: seedEvidence.title,
-          repoPath: repoDir,
-          updatedAt: '2024-01-01T12:00:00.000Z',
-          checks: seedEvidence.checks ?? [],
-        }),
-      )
-    }
   }
   const adminTokenFile = join(udBase, 'admin-token')
   await writeFile(adminTokenFile, ADMIN_TOKEN, { mode: 0o600 })
@@ -302,7 +248,7 @@ export async function seedIsolatedState(
 /** Spawn the headless daemon on an OS-assigned loopback port and resolve the port from its one stdout line. */
 export async function spawnDaemon(
   seeded: Seeded,
-  options: { port?: number; host?: string } = {},
+  options: { port?: number; host?: string; allowedOrigin?: string } = {},
 ): Promise<{ child: ChildProcess; port: number }> {
   const child = spawn(process.execPath, [DAEMON_ENTRY], {
     env: launchEnv({
@@ -311,6 +257,9 @@ export async function spawnDaemon(
       PORCELAIN_ADMIN_TOKEN: ADMIN_TOKEN,
       ...(options.port === undefined ? {} : { PORCELAIN_DAEMON_PORT: String(options.port) }),
       ...(options.host === undefined ? {} : { PORCELAIN_DAEMON_HOST: options.host }),
+      ...(options.allowedOrigin === undefined
+        ? {}
+        : { PORCELAIN_ALLOWED_ORIGIN: options.allowedOrigin }),
       // Playwright hands the child /dev/null stdin (EOF at once) — without the
       // opt-out the parent-death watchdog would kill the daemon on boot.
       PORCELAIN_NO_STDIN_WATCHDOG: '1',
@@ -346,7 +295,6 @@ export async function spawnDaemon(
 export const test = baseTest.extend<Options & Fixtures, WorkerOptions & WorkerFixtures>({
   seedRepo: [true, { option: true }],
   seedReviewSet: [null, { option: true }],
-  seedEvidence: [null, { option: true }],
   touchDevice: [false, { option: true }],
   // Worker-scoped so the shared Chromium can key off it; set per Playwright project.
   appMode: ['electron', { option: true, scope: 'worker' }],
@@ -378,8 +326,8 @@ export const test = baseTest.extend<Options & Fixtures, WorkerOptions & WorkerFi
     { scope: 'worker' },
   ],
 
-  seeded: async ({ repoDir, seedRepo, seedReviewSet, seedEvidence }, use) => {
-    const seeded = await seedIsolatedState(repoDir, seedRepo, seedReviewSet, seedEvidence)
+  seeded: async ({ repoDir, seedRepo, seedReviewSet }, use) => {
+    const seeded = await seedIsolatedState(repoDir, seedRepo, seedReviewSet)
     await use(seeded)
     await rm(seeded.udBase, { recursive: true, force: true })
     await rm(seeded.userData, { recursive: true, force: true })
@@ -473,7 +421,6 @@ type TabName =
   | 'Changes'
   | 'History'
   | 'Review'
-  | 'Board'
   | 'Tasks'
   | 'Terminal'
   | 'Canvas'
@@ -491,8 +438,6 @@ function railTabId(tab: TabName): string {
       return 'history'
     case 'Search':
       return 'search'
-    case 'Board':
-      return 'board'
     case 'Tasks':
       return 'tasks'
     case 'Terminal':

@@ -30,7 +30,10 @@ import type {
 } from '@porcelain/contracts/projects'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import { type DaemonScope, daemonScopeSchema } from '@renderer/lib/daemon-scope'
-import { environmentSessionFor } from '@renderer/lib/environment-sessions'
+import {
+  browserEnvironmentConnections,
+  environmentSessionFor,
+} from '@renderer/lib/environment-sessions'
 import { trpc } from '@renderer/lib/trpc'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -340,8 +343,14 @@ export function useMintCanvasAccessToken(): {
         input.environmentId === undefined || input.environmentId === null
           ? { client: defaultClient }
           : environmentSessionFor(input.environmentId)
-      if (owner === null) throw new Error('The target Environment is offline.')
-      return mintCanvasAccessTokenOnDaemon(owner.client, input)
+      if (owner === null && browserEnvironmentConnections().length > 0) {
+        throw new Error('The target Environment is offline.')
+      }
+      return mintCanvasAccessTokenOnDaemon(owner?.client ?? defaultClient, {
+        projectId: input.projectId,
+        canvasId: input.canvasId,
+        worktreePath: input.worktreePath,
+      })
     },
   })
   return { mint: mutation.mutateAsync }
@@ -353,17 +362,37 @@ export function useMintCanvasAccessToken(): {
  * the daemon rejects a path that is not a live Worktree of this Project.
  */
 export function usePromoteCanvas(): {
-  promote: (input: PromoteCanvasInput) => Promise<PromoteCanvasOutput>
+  promote: (
+    input: PromoteCanvasInput & { environmentId?: string | null },
+  ) => Promise<PromoteCanvasOutput>
   isPending: boolean
 } {
   const daemon = useDaemonIdentity()
   const client = trpc.useUtils().client
   const queryClient = useQueryClient()
   const mutation = useMutation({
-    mutationFn: async (input: PromoteCanvasInput): Promise<PromoteCanvasOutput> =>
-      promoteCanvasOnDaemon(client, input),
+    mutationFn: async (
+      input: PromoteCanvasInput & { environmentId?: string | null },
+    ): Promise<PromoteCanvasOutput> => {
+      const owner =
+        input.environmentId === undefined || input.environmentId === null
+          ? { client }
+          : environmentSessionFor(input.environmentId)
+      if (owner === null) throw new Error('The target Environment is offline.')
+      return promoteCanvasOnDaemon(owner.client, {
+        projectId: input.projectId,
+        canvasId: input.canvasId,
+        path: input.path,
+        worktreeId: input.worktreeId,
+      })
+    },
     onSuccess: async (_result, input) => {
-      await invalidateProjectQueries(queryClient, daemon, promoteCanvas.affectedQueries(input))
+      for (const query of promoteCanvas.affectedQueries(input)) {
+        await queryClient.invalidateQueries({
+          exact: true,
+          queryKey: [...projectsQueryKey(daemon, query), input.environmentId ?? null],
+        })
+      }
     },
   })
   return { isPending: mutation.isPending, promote: mutation.mutateAsync }

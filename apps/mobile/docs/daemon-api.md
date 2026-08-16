@@ -1,6 +1,6 @@
 # Daemon API — the mobile client's contract
 
-The native app is a fourth client of the same daemon the browser client talks to; everything below is what that client actually uses. Router: `apps/daemon/src/api.ts` (single flat tRPC v11 router, 111 procedures composed from the ten domain routers). Transport pipeline: `apps/daemon/src/net/daemon-http.ts`. When this doc and the code disagree, the code wins — update this doc in the same commit.
+The native app is a fourth client of the same daemon the browser client talks to; everything below is what that client actually uses. Router: `apps/daemon/src/api.ts` (single flat tRPC v11 router, 114 procedures composed from the ten domain routers). Transport pipeline: `apps/daemon/src/features/remote/remote-http.ts`. When this doc and the code disagree, the code wins — update this doc in the same commit.
 
 ## Transport
 
@@ -45,7 +45,7 @@ This is why the app ships `NSAllowsArbitraryLoads` / `usesCleartextTraffic` (see
 
 ## Live updates
 
-Daemon-owned Review Canvas, comments, layers, scope, actions, working-tree, and file-tree changes surface through the typed session stream. Mobile should poll Review reading lazily (screen-focused only) to respect battery/cellular.
+Daemon-owned Canvas, Tasks, Actions, scope, working-tree, and file-tree changes surface through the typed session stream. Canvas records are daemon-root and are read through the Projects procedures below; there is no repo-local Review reading lifecycle. Mobile should poll screen-focused data lazily to respect battery/cellular.
 
 ## Procedure catalog by feature area
 
@@ -84,8 +84,10 @@ hands off to the existing terminal or viewer navigation. Content search remains 
 - reviewed marks: `setReviewed` M `{repoPath, paths, reviewed}` (total and idempotent — one call marks or unmarks a whole set), `reviewedPaths` Q
 - History (inside Changes): `gitLog` Q `{limit≤500}`, `gitCommitFlow` Q, `gitCommitMessage` Q, `gitFileLog` Q (`--follow`)
 
-### Review tab
-- comments: `reviewComments` Q, `addReviewComment` M `{path, startLine?, endLine?, anchorText?, body}`, `editReviewComment`/`deleteReviewComment`/`resolveReviewComment` M, `clearResolvedReviewComments` M
+### Canvas, Tasks, and Actions
+- Canvas: `listCanvases` Q `{projectId, worktreePath?}`, `readCanvas` Q `{projectId, canvasId, worktreePath?}`, `mintCanvasAccessToken` M `{projectId, canvasId, worktreePath?}`
+- Tasks: `listTasks` Q, `createTask`/`updateTask`/`deleteTask` M — daemon-wide work across Environments
+- Actions: `actions` Q `{projectId}`, `addAction`/`updateAction`/`moveAction`/`deleteAction` M, `prepareActionRun` M — every mutation names its Project and Worktree target
 
 ### Terminal tab
 - Roster via tRPC: `terminalSessions` Q → `{id,name,cwd,status,exitCode}[]`, `renameTerminal` M

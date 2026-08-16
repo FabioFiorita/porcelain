@@ -61,6 +61,7 @@ export function CanvasListRow({
           canvasId: canvas.id,
           path: target.path,
           worktreeId: target.worktreeId,
+          environmentId: target.environmentId,
         })
       },
       (error) => toastUserActionError('Promote canvas', error),

@@ -37,7 +37,7 @@ parens is the **entry point**; read it for mechanics.
 | Glance | `glance-home.tsx` | Companion home an empty pane renders with a repo open |
 | Tab bar / Tab | `tab-bar.tsx` | Preview = single-click, italic, replaced; pinned = double-click/edit |
 | Split view / pane | `stores/tabs.ts` | Two panes, each its own tabs; "Open to the Side" |
-| Tab kinds | `viewer.tsx` switch | file / source / markdown reader / html preview / diff / commit / review / search / explore / board / tasks / terminal / canvas. **The `review` tab kind IS the Review canvas**; the `tasks` tab kind carries NO Hub target — the table spans every Environment |
+| Tab kinds | `viewer.tsx` switch | file / source / markdown reader / html preview / diff / commit / search / explore / tasks / terminal / canvas. **The Review is the structured Canvas template**; the `tasks` tab kind carries NO Hub target — the table spans every Environment |
 | Tasks table | `tasks-view.tsx` | Quick Add · column picker · the table. Rows are labelled with the Environment that owns them; every mutation names that Environment |
 
 **Inside Companion** (sections follow the sidebar tab; the panel title itself never changes)

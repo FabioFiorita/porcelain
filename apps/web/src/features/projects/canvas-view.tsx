@@ -39,10 +39,10 @@ function CanvasHtmlFrame({
   canvasId: string
   title: string
   worktreePath: string | undefined
-  environmentId: string
+  environmentId: string | undefined
 }): React.JSX.Element {
   const { mint } = useMintCanvasAccessToken()
-  const environment = environmentSessionFor(environmentId)
+  const environment = environmentSessionFor(environmentId ?? null)
   const environmentBaseUrl = environment?.session.baseUrl() ?? daemonBaseUrl()
   const [src, setSrc] = useState<string | null>(null)
   const iframeRef = useRef<HTMLIFrameElement>(null)
@@ -51,8 +51,14 @@ function CanvasHtmlFrame({
     let cancelled = false
     setSrc(null)
     // A failed mint leaves src null — the loading state (never a broken iframe).
+    const input = {
+      projectId,
+      canvasId,
+      ...(worktreePath === undefined ? {} : { worktreePath }),
+      ...(environmentId === undefined ? {} : { environmentId }),
+    }
     settleBackground(
-      mint({ projectId, canvasId, worktreePath, environmentId }).then((token) => {
+      mint(input).then((token) => {
         if (!cancelled) {
           setSrc(`${environmentBaseUrl}/canvas/${token}`)
         }
@@ -126,7 +132,7 @@ export function CanvasView({
       canvasId={canvasId}
       title={canvas.record.title}
       worktreePath={worktreePath}
-      environmentId={environmentId ?? 'primary'}
+      environmentId={environmentId}
     />
   )
 }

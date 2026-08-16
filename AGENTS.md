@@ -20,7 +20,7 @@ Bare nouns resolve to exact regions of the product — act on them, don't re-ask
 | Viewer | The central panel of the app. Never "editor" |
 | Daemon | The headless Electron-free backend (`apps/daemon`); the shell spawns and babysits it |
 | Project companion | Repo-local `.porcelain/` for migration-era inputs and remaining agent conveniences; canonical Review data is daemon-root Canvas metadata |
-| Project board | Per-repo todo/doing/done (`.porcelain/board.json`), two-way via the CLI |
+| Project board | Retired repo-local migration input; shipped work lives in daemon-owned Tasks |
 | Playground | Throwaway repo that dev daemons operate on — never a real checkout |
 | Surface language | Raised = cards, recessed = wells; ONE opaque design serves Electron and the browser alike |
 
@@ -60,7 +60,7 @@ traps that cost the most.
 
 Proof scales to the change; it never becomes “should work.” A documentation-only unit needs its
 documentation gate, not a product Review or screenshot. Use Porcelain Companion only when
-intentionally operating Review, Board, Actions, comments, evidence, or other companion surfaces.
+intentionally operating Review Canvas, Tasks, Actions, comments, evidence, or other companion surfaces.
 
 ## The four ways to hurt yourself
 

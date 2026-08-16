@@ -87,9 +87,11 @@ describe('rewriteCsp', () => {
   // remote daemon (LAN/tailnet) is reachable from the packaged app (Phase 4).
   const ORIGINAL = "connect-src 'self' http://127.0.0.1:* ws://127.0.0.1:* http: https: ws: wss:"
 
-  it('rewrites connect-src to same-origin ws for the request host', () => {
+  it('adds same-origin ws while retaining configured daemon schemes', () => {
     const out = rewriteCsp(META(ORIGINAL), '100.64.0.1:43117')
-    expect(out).toBe(META("connect-src 'self' ws://100.64.0.1:43117 wss://100.64.0.1:43117"))
+    expect(out).toBe(
+      META("connect-src 'self' ws://100.64.0.1:43117 wss://100.64.0.1:43117 http: https: ws: wss:"),
+    )
   })
 
   it('leaves default-src, script-src, style-src, and img-src byte-identical', () => {
@@ -104,7 +106,7 @@ describe('rewriteCsp', () => {
     const doc = `<html><head>${META(ORIGINAL)}</head><body>x</body></html>`
     const out = rewriteCsp(doc, 'host:1234')
     expect(out).toBe(
-      `<html><head>${META("connect-src 'self' ws://host:1234 wss://host:1234")}</head><body>x</body></html>`,
+      `<html><head>${META("connect-src 'self' ws://host:1234 wss://host:1234 http: https: ws: wss:")}</head><body>x</body></html>`,
     )
   })
 

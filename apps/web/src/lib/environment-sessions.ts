@@ -58,9 +58,14 @@ export function setBrowserEnvironmentConnections(
 }
 
 const secondarySessions = new Map<string, EnvironmentSession>()
-const primaryClient = createAppClientFor(primary)
+let primaryClient: ReturnType<typeof createAppClientFor> | null = null
 const environmentAliases = new Map<string, string>()
 let primaryEnvironmentId: string | null = null
+
+function primaryAppClient(): ReturnType<typeof createAppClientFor> {
+  primaryClient ??= createAppClientFor(primary)
+  return primaryClient
+}
 
 /** Record the daemon-announced identity used to resolve the primary target. */
 export function setPrimaryEnvironmentId(id: string | null): void {
@@ -106,10 +111,11 @@ export function environmentSessionFor(environmentId: string | null): Environment
       id: primaryEnvironmentId ?? 'primary',
       name: 'This device',
       session: primary,
-      client: primaryClient,
+      client: primaryAppClient(),
     }
   }
   const connectionId = environmentAliases.get(environmentId) ?? environmentId
-  const connection = browserEnvironmentConnections().find((item) => item.id === connectionId)
+  const connections = browserEnvironmentConnections()
+  const connection = connections.find((item) => item.id === connectionId)
   return connection === undefined ? null : ensureEnvironmentSession(connection)
 }
