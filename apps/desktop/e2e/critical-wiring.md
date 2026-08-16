@@ -4,7 +4,7 @@ This is the source-of-truth map for the browser-suite reduction in E2E-001. The 
 references are the pre-migration files at commit `96c543f7` (the E2E-001 preflight commit),
 so a reviewer can audit the complete assertion set even after the broad specs are removed.
 
-The browser functional gate includes the five assembled wiring risks in
+The browser functional gate includes the four assembled wiring risks in
 `critical-wiring.spec.ts` plus the daemon-backed composed acceptance proof in
 `composed-proof.spec.ts`. The composed scenario covers two Environment daemons in one browser
 page, Projects and Worktrees from both, target-aware tabs and splits, the Review Canvas migration
@@ -23,8 +23,9 @@ verified; it does not mean the behavior was discarded.
 | CW-04 | `review-publish.spec.ts:44-143` — built CLI review write reaches an already-running Review canvas | `composed-proof.spec.ts` | Legacy migration input is read once and rendered as a daemon-root Review Canvas with Evidence in both Environment-targeted browser flows; CLI and Canvas contract tests own file shape |
 | CW-05 | `terminal.spec.ts:6-24` plus the reconnect/scrollback contract from `terminal` lower tests | `critical-wiring.spec.ts:174-201` | Real PTY create, >64 KiB output, browser session detach, daemon-owned session retention, roster hydration, attach, and tail replay |
 
-The five tests above remain the critical browser lane. The composed proof is the cross-feature
-browser lane. The terminal test deliberately
+The four critical tests above remain the wiring lane. The composed proof is the cross-feature
+browser lane, and the acceptance command also runs the Canvas, migration, Tasks, Actions, Hub,
+and promotion specs. The terminal test deliberately
 asserts the tail after reload; the exact byte/unit cap and frame ordering remain owned by
 `apps/daemon/src/features/terminal/terminal-operations.test.ts:118-178`,
 `apps/daemon/src/features/terminal/terminal-stream-gateway.test.ts:50-135`,
@@ -146,7 +147,7 @@ lower test is the owner of that invariant at its smallest complete boundary.
 | Former risk | New owner |
 | --- | --- |
 | `helpers/app.ts:158-161` wrote obsolete `{ recentRepos: [...] }` to `config.json`, so a strict-v1 daemon treated seeded startup as empty | `helpers/app.ts:158-170` writes `{ version: 1, value: { paths: [...] } }` to the isolated `projects-recents.json` document |
-| Normal browser command ran every functional and visual spec | `apps/desktop/package.json` `test:e2e` and `test:e2e:prebuilt` run only `e2e/critical-wiring.spec.ts`; `test:e2e:update` is visual-only |
+| Normal browser command ran every functional and visual spec | `apps/desktop/package.json` `test:e2e` and `test:e2e:prebuilt` run the 18-test functional acceptance lane; `test:e2e:update` is visual-only |
 | Native clipboard proof was skipped in browser but lived beside browser assertions | `terminal-native.spec.ts` and native scripts target the Electron project explicitly |
 | A layout geometry assertion lived in the functional browser list | `visual.spec.ts` owns it beside screenshot proof |
 | Fixture daemon could touch a developer daemon/home if a test leaked paths | `helpers/app.ts` keeps per-test `PORCELAIN_HOME`, `PORCELAIN_USER_DATA`, access file, admin token, loopback OS-assigned port, and fixture repo; no production port or personal companion is used |
@@ -157,7 +158,7 @@ The relocation is complete only when all of the following are true:
 
 - `pnpm --dir apps/desktop typecheck:e2e` passes.
 - `pnpm --dir apps/desktop test:e2e` runs the built browser client against its per-test daemon,
-  including the five critical tests and the composed/migration/task/action/worktree lanes.
+  including the four critical tests and the composed/migration/task/action/worktree/Hub lanes.
 - Focused lower-boundary tests named in this ledger pass.
 - `pnpm lint` and `git diff --check` pass.
 - The old broad functional specs are absent, while `visual.spec.ts`, `terminal-native.spec.ts`, and this ledger remain.
@@ -169,8 +170,8 @@ The relocation is complete only when all of the following are true:
   obsolete `config.json`; the daemon ignored it and the browser waited for the shell rail while
   the Welcome surface remained mounted. No product daemon or personal data was involved.
 - `pnpm --dir apps/desktop typecheck:e2e` — passed.
-- `pnpm --dir apps/desktop test:e2e:prebuilt` — 15/15 browser tests passed in 21.1s, including
-  `composed-proof.spec.ts`.
+- `pnpm --dir apps/desktop test:e2e:prebuilt` — 18/18 browser tests passed, including
+  `composed-proof.spec.ts`, `hub-inventory.spec.ts`, and `hub-viewer.spec.ts`.
 - `pnpm --dir apps/desktop test` — 466 test files / 3,623 tests passed (the repository test
   script ran the complete Vitest workspace while the lower-boundary command was exercised).
 - `pnpm lint` — passed; `git diff --check` — passed; architecture-spec validator — passed.

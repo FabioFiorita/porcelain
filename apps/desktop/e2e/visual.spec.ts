@@ -19,8 +19,8 @@ test('changes tab', async ({ page }) => {
   await expect(page).toHaveScreenshot('changes-tab.png')
 })
 
-// The surface launcher is exactly these six, in this order — the ⌘1–6 contract.
-const RAIL_TABS = ['files', 'changes', 'review', 'history', 'search', 'terminal']
+// The surface launcher is exactly these six, in this order — the ⌘1,2,4–7 contract.
+const RAIL_TABS = ['files', 'changes', 'history', 'search', 'tasks', 'canvas']
 
 // Element-scoped baseline for the surface launcher. Framing just the launcher makes a tab
 // restyle fail where full-page 2% tolerance would swallow it.
@@ -170,24 +170,10 @@ test('settings dialog — phone', async ({ page, appMode }) => {
   const sBox = await system.boundingBox()
   if (aBox === null || sBox === null) throw new Error('expected Appearance and System boxes')
   expect(sBox.y).toBeGreaterThan(aBox.y + aBox.height - 4)
-  await dialog.getByRole('button', { name: 'Review', exact: true }).click()
-  await expect(loc.settingsHeading(page)).toHaveText('Review layers')
-  // Force the same constrained-height case as a long user-defined layer list.
-  await page.setViewportSize({ width: 390, height: 600 })
-  const body = dialog.locator('main')
-  await expect
-    .poll(() => body.evaluate((element) => element.scrollHeight > element.clientHeight))
-    .toBe(true)
-  await body.evaluate((element) => {
-    element.scrollTop = element.scrollHeight
-  })
-  await expect(dialog.getByRole('button', { name: 'Save' })).toBeVisible()
-  await page.setViewportSize({ width: 390, height: 844 })
+  await dialog.getByRole('button', { name: 'Data', exact: true }).click()
+  await expect(loc.settingsHeading(page)).toHaveText('Data')
   await dialog.getByRole('button', { name: 'General' }).click()
   await expect(loc.settingsHeading(page)).toHaveText('General')
-  await body.evaluate((element) => {
-    element.scrollTop = 0
-  })
   await expect(dialog).toHaveScreenshot('settings-general-mobile.png')
 })
 

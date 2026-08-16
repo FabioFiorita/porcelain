@@ -1,6 +1,6 @@
 ---
 name: porcelain-companion
-description: Drive Porcelain's daemon-root Review Canvas, Tasks, Actions, project scope, flow layers, comments, and Canvas overlays through the bundled CLI. Use when the human asks to publish or inspect a Review, record Tasks or Actions, change hide/pin defaults, or close the evidence loop.
+description: Drive Porcelain's daemon-root Review Canvas, Tasks, Actions, comments, and explicit Canvas/project overlays through the bundled CLI. Use when the human asks to publish or inspect a Review, record Tasks or Actions, promote daemon data, or close the evidence loop.
 version: 0.52.1
 license: MIT
 ---
@@ -28,8 +28,6 @@ Load the reference that matches the task:
 references/review.md             Review Canvas: Intent · Process · Execution · Evidence
 references/tasks.md              daemon-wide Tasks
 references/actions.md            Project Actions (definitions; the human runs them)
-references/layers.md              Changes-tab flow layers
-references/scope.md               Project hide/pin state and overrides
 references/git-visibility.md      private state and tracked Canvas/project overlays
 references/worktrees.md           targeting a Worktree from a harness checkout
 references/migrate.md             one-time migration of legacy repo-local channels
@@ -60,15 +58,6 @@ and evidence paths. Those names are migration vocabulary, not current commands o
 ~/.porcelain/porcelain actions update --id <id> [--title "…"] [--command "…"]
 ~/.porcelain/porcelain actions delete --id <id>
 
-# Project scope and flow
-~/.porcelain/porcelain scope list
-~/.porcelain/porcelain scope hide --path apps/legacy
-~/.porcelain/porcelain scope pin --path apps/web
-~/.porcelain/porcelain layers get
-~/.porcelain/porcelain layers set --layers - <<'JSON'
-[ { "label": "Routes", "pattern": "(^|/)routes/" } ]
-JSON
-
 # Explicit tracked overlays
 ~/.porcelain/porcelain canvas list
 ~/.porcelain/porcelain canvas promote --id <canvas-id>
@@ -95,9 +84,9 @@ JSON
 - Clear or replace a Review only when the human explicitly requests replacement.
 - A Task is a daemon-wide work row; it is not a Review and is not a per-repo board.
 - Actions are definitions. Never invent an execute verb or bypass the human acceptance gate.
-- Hide and pin through `scope`; project defaults are read from private state and explicit tracked
-  `.porcelain/project.json` overrides. Promote a Canvas deliberately when the team should receive
-  it in git; promotion never commits.
+- Hide and pin through the app's Files surface; project defaults are private daemon state until an
+  explicit `project promote-overrides` writes `.porcelain/project.json`. Promote a Canvas
+  deliberately when the team should receive it in git; promotion never commits.
 - Keep secrets out of Canvas, Tasks, Actions, and project overrides.
 - Work in an isolated Playground for development daemons. Never aim proof at production port 43117
   or a real checkout.

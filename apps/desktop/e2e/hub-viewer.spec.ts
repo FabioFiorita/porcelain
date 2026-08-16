@@ -12,7 +12,6 @@ test('switching Worktree keeps existing tabs on their original target', async ({
   await selectTab(page, 'Files')
   await expect(page.getByText('Pinned', { exact: true })).toBeVisible()
   await expect(page.getByText('All Files', { exact: true })).toBeVisible()
-  await expect(page.getByText('Notes', { exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Collapse all folders' })).toBeVisible()
   await loc.treeEntry(page, 'README.md').click()
   await expect(loc.viewerCard(page)).toContainText('A fixture repo for Porcelain e2e tests.')
@@ -78,7 +77,6 @@ test('Project headers collapse without becoming navigation targets', async ({ pa
 
   await project.getByRole('button', { name: /Collapse project/ }).click()
   await expect(worktrees.first()).toBeHidden()
-  await expect(loc.hubWorktreeSummary(page)).toBeVisible()
 
   await project.getByRole('button', { name: /Expand project/ }).click()
   await expect(worktrees).toHaveCount(before)

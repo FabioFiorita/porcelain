@@ -14,7 +14,7 @@ import { History } from 'lucide-react'
 import { CommitContextMenu } from '../git/commit-context-menu'
 
 // The timeline tracks whatever file you're viewing: file and diff tabs carry a
-// file path, every other tab kind (commit/board/terminal/…) has nothing to time.
+// file path, every other tab kind (commit/terminal/…) has nothing to time.
 function useActiveFilePath(): string | null {
   return useTabsStore((s) => {
     const pane = s.panes[s.activePaneIndex]

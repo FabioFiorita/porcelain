@@ -36,10 +36,10 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBound
 /**
  * Pane-level: contains a crash to one pane instead of taking the window down.
  *
- * Review content is agent-authored and arrives from outside the app — markup an
+ * Canvas content is agent-authored and arrives from outside the app — markup an
  * agent wrote, or a review received from a clone. One unrenderable document must
  * cost the human that document, not the whole app — they still need the other
- * Review tabs, the file list, and the evidence to finish the review.
+ * Canvas tabs, the file list, and the evidence to finish the review.
  */
 export class PaneErrorBoundary extends Component<
   { children: ReactNode; label: string },
@@ -64,7 +64,7 @@ export class PaneErrorBoundary extends Component<
         >
           <p className="text-sm font-medium">{this.props.label} could not be displayed</p>
           <p className="max-w-md text-center text-xs text-muted-foreground">
-            The rest of this review still works — switch tabs to keep reading.
+            The rest of this Canvas still works — switch tabs to keep reading.
           </p>
           <pre className="mt-1 max-h-32 max-w-full overflow-auto rounded-md bg-muted/50 p-3 text-2xs text-muted-foreground">
             {this.state.error.message}

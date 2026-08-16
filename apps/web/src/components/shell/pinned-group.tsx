@@ -22,7 +22,7 @@ export function PinnedGroup({ compact = false }: { compact?: boolean }): React.J
 
   // Empty: the label still orients the panel; a centered treatment (short line + the
   // existing hint) sits below it so the panel doesn't read as an orphan header over a
-  // void — the Notes card then sits below it naturally.
+  // void — the rest of the file-tree content then sits below it naturally.
   if (entries === undefined || entries.length === 0) {
     return (
       <SidebarGroup className={groupClass}>

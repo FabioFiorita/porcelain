@@ -31,7 +31,7 @@ is the sibling doc for the other platform.
 
 ```bash
 pnpm test:e2e                 # build + run the browser project — the CI lane
-pnpm --dir apps/desktop test:e2e:prebuilt   # five-test lane; skip the build when `out/` is fresh
+pnpm --dir apps/desktop test:e2e:prebuilt   # expanded 18-test lane; skip the build when `out/` is fresh
 pnpm --dir apps/desktop test:e2e:update     # regenerate `browser` snapshot baselines
 ```
 
@@ -48,8 +48,9 @@ Linux baseline and downloads nothing on the mac release runner unless you ask fo
   recreated per test — fixed so screenshots get a stable project name, safe because
   `workers: 1` makes it single-owner. Never point a spec at the human's real repos or prod channels.
 - **`seedRepo`** (`test.use({ ... })`) controls whether the isolated fixture project is restored
-  before the app boots. `seedRepo: false` lands on Welcome instead. The five assembled assertions
-  and the lower-boundary relocation decisions live in `apps/desktop/e2e/critical-wiring.md`.
+  before the app boots. `seedRepo: false` lands on Welcome instead. The four critical assertions,
+  expanded acceptance lane, and lower-boundary relocation decisions live in
+  `apps/desktop/e2e/critical-wiring.md`.
 - Fixtures tear themselves down (`rm` the repo, user data, kill the daemon on `SIGTERM`) — a spec
   that mutates the shared fixture repo must restore it, or leave a later test working from the
   wrong tree.

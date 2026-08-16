@@ -58,7 +58,7 @@ function RepoShell(): React.JSX.Element {
   // them as the window widens (see useResponsiveShell / decideResponsiveLayout).
   useResponsiveShell({ leftOpen: state === 'expanded', setLeftOpen: setOpen })
 
-  // Zen mode (Z in the Review document): collapse both sidebars, restoring their
+  // Zen mode (Z in the Canvas document): collapse both sidebars, restoring their
   // previous open state on the second Z. Consumed HERE because this is the one
   // place both SidebarProviders are reachable — the left one's setOpen via the
   // outer useSidebar, the right one via its controlling preference. Desktop-only:
@@ -131,7 +131,7 @@ export function AppShell(): React.JSX.Element {
   useSessionRuntime()
   useTasksNotificationSubscription()
   // Git workspace notifications own typed Git identities; session-runtime handles only residual
-  // non-Git recovery and Review/Files cross-domain concerns.
+  // non-Git recovery and Canvas/Files cross-domain concerns.
   useGitNotificationSubscription()
   // Files notifications + watch interests (FIL-005); session-runtime Files arms are no-ops.
   useFilesNotificationSubscription()

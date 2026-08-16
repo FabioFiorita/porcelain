@@ -94,7 +94,7 @@ function TabItem({
                     <Pin className="size-3 shrink-0 text-muted-foreground" aria-hidden />
                   ) : null}
                   {/* File/diff tab titles are file names → mono (matching the tree + file
-                      header); Review/Board/Terminal/etc. carry labels → sans.
+                      header); Canvas/Tasks/Terminal/etc. carry labels → sans.
                       pr-0.5 on the italic case: truncate's overflow:hidden would otherwise
                       shear the slanted top-right overhang of the last glyph (e.g. the x in .tsx). */}
                   <span

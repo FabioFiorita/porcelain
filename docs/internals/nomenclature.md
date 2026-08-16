@@ -15,8 +15,8 @@ parens is the **entry point**; read it for mechanics.
 | Viewer | `shell/viewer.tsx` | The central panel. **Never "editor"** |
 | Companion | `right-sidebar.tsx` | The right panel (⌘.); statically titled "Companion" on every tab — no more per-tab retitling. Orientation comes from section labels, which follow the active sidebar tab. Three other things share the word: the Settings tab, the mobile column/sheet, and the repo-local `.porcelain/` project companion — see the Overlays row and Cross-cutting table below |
 
-**Sidebar tabs** — Files · Changes · Review · History · Search · Tasks · Canvas · Terminal
-(review-loop order, ⌘1–7; the Review tab's stored pref id is `review`).
+**Surface tabs** — Files · Changes · History · Search · Tasks · Canvas
+(⌘1–5, ⌘7; Terminal is a bottom panel, not a sidebar surface).
 
 | Term | Entry | Note |
 |---|---|---|
@@ -24,7 +24,6 @@ parens is the **entry point**; read it for mechanics.
 | Search list | `search-list.tsx` | `gitSearchCode`; distinct from the ⌘⇧F `ContentSearch` overlay (`gitGrep`) |
 | Changes list | `changes-list.tsx` | Grouped by flow layer |
 | History list | `history-list.tsx` | |
-| Review list | `review-list.tsx` | Header + file outline. **Intent/Process/Execution/Evidence live only in the viewer canvas** |
 | Tasks list | `tasks-list.tsx` | Compact read of the daemon-wide table; opens the Viewer table |
 | Terminal list | `terminal-list.tsx` | Roster of **sessions** — they outlive their tabs |
 | Key bar | `terminal-key-bar.tsx` | Above the terminal pane; coarse-touch only, never a Settings option |
@@ -47,15 +46,14 @@ parens is the **entry point**; read it for mechanics.
 | Files | Pinned |
 | Changes | Suggested · Commands · Commit |
 | History | Suggested · Commands · File timeline (`gitFileLog --follow`) |
-| Review | **Current review · Previous reviews** (`review-group.tsx`; always rendered, empty note when there are none) |
 | Tasks | (none — the table is the whole surface; Quick Add lives above it, not in Companion) |
 | Terminal | Saved commands — the "Actions" feature (see Cross-cutting below), reachable from the Hub's top-corner Actions menu |
 | Search | Recent searches |
 
-Suggested/Commands render only on Changes and History — Review does not get them (it gets Current/Previous review instead).
+Suggested/Commands render only on Changes and History.
 
 **Overlays:** file finder (⌘P) · find bar (⌘F) · Settings (`settings-dialog.tsx` — General · **Data**
-· Companion · Share · Remotes · Review flow · Updates). **Data** owns what git
+· Companion · Share · Remotes · Updates). **Data** owns what git
 carries (`data-section.tsx`, every client); this Settings **Companion** tab is the agent-skill
 installer only and is shell-only — do not confuse it with the right-panel **Companion** (⌘.) above.
 Mobile mirrors General · Data · Environments.

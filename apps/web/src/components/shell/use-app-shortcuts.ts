@@ -12,7 +12,7 @@ import { runUserAction } from '@shared/background'
 import { useEffect } from 'react'
 
 // Must match the visible surface order in surface-sidebar.tsx (Files → Changes →
-// History → Search). Board remains daemon-owned and has no shell shortcut.
+// History → Search). Canvas is a document surface, not a sidebar shortcut.
 const SIDEBAR_TAB_KEYS: Record<string, SidebarTab | undefined> = {
   '1': 'files',
   '2': 'changes',
@@ -24,7 +24,7 @@ const SIDEBAR_TAB_KEYS: Record<string, SidebarTab | undefined> = {
  * Window-level shortcuts: close-tab (Ctrl+W here on Linux/Windows, yielding to a focused
  * terminal; macOS Cmd+W goes via main's before-input-event instead), Ctrl+Tab cycling,
  * Cmd+1–5 sidebar tabs, Cmd+6 for the bottom terminal panel, and the context-aware "new"
- * shortcut for Board (⌘N)
+ * shortcut for files (⌘N)
  * plus ⌘T for a terminal anywhere. Files' ⌘N/⌘⇧N/⌘D/⌘⌫ live in a dedicated component
  * (FileCommands) instead — those go through tRPC hooks, which only a component may touch.
  */

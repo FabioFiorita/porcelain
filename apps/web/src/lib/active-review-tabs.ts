@@ -1,14 +1,14 @@
 /**
  * The Review is a four-tab canvas — Intent → Process → Execution → Evidence — matching the
- * human review questions. Shared by the viewer chrome and the Review sidebar so
- * labels, subtitles, and jump targets stay one source.
+ * human review questions. Shared by the Canvas viewer chrome so labels, subtitles,
+ * and jump targets stay one source.
  */
 
 export type ActiveReviewTab = 'intent' | 'process' | 'execution' | 'evidence'
 
 export interface ActiveReviewTabMeta {
   id: ActiveReviewTab
-  /** Short tab label in the viewer + sidebar pills. */
+  /** Short tab label in the Canvas viewer. */
   label: string
   /** Human question — shown as the tab subtitle so the job is obvious. */
   question: string

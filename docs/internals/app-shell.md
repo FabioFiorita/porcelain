@@ -56,7 +56,7 @@
   Project headers only expand or collapse; Worktree rows are the navigation targets. Each Project's
   branch-plus control opens the ref-aware New Worktree dialog, and the old branch/worktree footer
   controls are gone. Files, Changes, Review, History, Search, Tasks, and Canvas are the visible right-side
-  surfaces; retired Board and Notes data is migration-only and has no shell surface. Surface list rows open detail in the central Viewer, while Actions and Git Commands are
+  surfaces; Review is the structured Canvas template rather than a sidebar surface. Retired Board and Notes data is migration-only and has no shell surface. Surface list rows open detail in the central Viewer, while Actions and Git Commands are
   exposed from the Viewer header.
 - **Canvas is a daemon-root surface, not a repo one.** `CanvasList`
   (`features/projects/canvas-list.tsx`) lists the selected Project's Canvases in the surfaces
@@ -110,6 +110,6 @@
   **Do not re-add a Porcelain MCP server** without reopening the channel design. Channel write-safety
   rules live with the CLI and Project Data owners; read `docs/internals/agent-foundations.md` before
   touching any channel file.
-- Flow grouping is built into the daemon; there is no repo-local layer file or CLI layer command.
+- Flow grouping is built into the daemon; there is no repo-local layer file.
 - **Explore's flow reading is a heuristic, not an index** — relative imports only, so it won't cross
   the client→server seam. That gap is what the agent's `shipped` files fill.

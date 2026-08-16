@@ -22,8 +22,8 @@ import { SidebarResizeHandle } from './sidebar-resize-handle'
 
 /**
  * The left shell is deliberately navigation-only. Project/worktree selection is
- * owned by the Hub tree; files, Git, terminals, Review, and Board live in the
- * right surface sidebar and open their detail in the central Viewer.
+ * owned by the Hub tree; files, Git, Tasks, Canvas, and terminal surfaces live
+ * in the right shell areas and open their detail in the central Viewer.
  */
 export function AppSidebar(): React.JSX.Element {
   const { state, isMobile } = useSidebar()

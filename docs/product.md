@@ -27,7 +27,7 @@ through the CLI. Do not rebuild an in-app agent runner.
 
 - **File viewer** — fast, always-editable single files, not an IDE (no autocomplete, multi-file
   refactor, format-on-save). Markdown Reader/Source; split is two panes only.
-- **Scoped navigation** — hide/pin folders in huge monorepos (CLI `scope`).
+- **Scoped navigation** — hide/pin folders in huge monorepos, with private daemon state and explicit Git promotion.
 - **Git** — diffs, worktrees, history, staging, commit composer without a terminal.
 - **Flow-ordered review** — layers as a timeline of connected work, agent-managed per tree.
 - **The Review template** — Intent · Process · Execution · Evidence sections in the daemon-root Canvas;
@@ -50,7 +50,7 @@ through the CLI. Do not rebuild an in-app agent runner.
 - **Performance is a feature** — stay fast on large monorepos.
 - **Companion, not competitor** — integrate with the editor and agent host; don't replace them.
   Public copy sells Porcelain's surfaces, not transport debates or third-party brand lists.
-- **Connected, not siloed** — one home per concern (Changes, Review, Files, Tasks, Terminal);
+- **Connected, not siloed** — one home per concern (Changes, Files, Tasks, Canvas, Terminal);
   previews hand off, never second Diff/commit UXes.
 - **Local by default** — machine secrets and default Project data (Canvases, Actions, assets) live
   on the daemon host under `~/.porcelain/`, keyed by a stable Project id (ADR 0002), so opening a

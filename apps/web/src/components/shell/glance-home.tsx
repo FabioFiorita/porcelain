@@ -56,7 +56,7 @@ export function GlanceHome(): React.JSX.Element | null {
   const showCheckout = changedCount > 0
   const hasWork = showCheckout
 
-  // Continuous stacked diffs for the working tree (U3 — not the Review empty state).
+  // Continuous stacked diffs for the working tree (U3 — not a Canvas document).
   const handleOpenAllChanges = (): void => {
     setSidebarTab('changes')
     const key = changesetTabKey({ type: 'working' })

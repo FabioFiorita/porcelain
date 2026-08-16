@@ -4,7 +4,7 @@ import { X } from 'lucide-react'
 
 /**
  * One-time onboarding tip card: short copy, action buttons, dismiss (X).
- * Used on Changes / Files / Settings starter tips — not the Review empty canvas.
+ * Used on Changes / Files / Settings starter tips — not the Canvas document.
  */
 export function SetupTip({
   children,
