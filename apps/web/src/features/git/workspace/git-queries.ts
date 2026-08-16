@@ -7,8 +7,9 @@ import {
 import { headLabel } from '@porcelain/contracts'
 import type { BranchRef, GitHead, Worktree } from '@porcelain/contracts/git'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
+import { environmentClientFor } from '@renderer/lib/environment-sessions'
 import { trpc } from '@renderer/lib/trpc'
-import { useProjectSelectionStore } from '@renderer/stores/project-selection'
+import { useHubRepoPath, useHubRepoTarget } from '@renderer/stores/hub-repo'
 import { useQuery } from '@tanstack/react-query'
 
 import { gitQueryKey } from '../git-query-key'
@@ -27,12 +28,21 @@ export function useGitBranches(
 } {
   const daemon = useDaemonIdentity()
   const utils = trpc.useUtils()
+  const target = useHubRepoTarget()
+  const repoPath = useHubRepoPath()
+  const owner =
+    target === null && repoPath !== null
+      ? { client: utils.client }
+      : environmentClientFor(target?.environmentId ?? null, utils.client)
   const queryPath = projectPath === null ? DISABLED_PROJECT : gitProjectKey(projectPath)
   const query = useQuery({
-    enabled: enabled && projectPath !== null,
-    queryFn: (): Promise<BranchRef[]> => utils.client.gitBranches.query(queryPath),
+    enabled: enabled && projectPath !== null && owner !== null,
+    queryFn: (): Promise<BranchRef[]> => {
+      if (owner === null) return Promise.reject(new Error('The target Environment is offline.'))
+      return owner.client.gitBranches.query(queryPath)
+    },
     queryKey: gitQueryKey(
-      { host: daemon.host, version: daemon.version },
+      { host: target?.environmentId ?? daemon.host, version: daemon.version },
       gitBranchesQuery(queryPath),
     ),
     staleTime: 0,
@@ -55,29 +65,43 @@ export function useGitWorkspace(): {
   worktrees: Worktree[]
   head: GitHead | undefined
 } {
-  const project = useProjectSelectionStore((state) => state.project)
+  const repoPath = useHubRepoPath()
+  const target = useHubRepoTarget()
   const daemon = useDaemonIdentity()
-  const daemonScope = { host: daemon.host, version: daemon.version }
   const utils = trpc.useUtils()
-  const enabled = project !== null
-  const projectPath = project === null ? DISABLED_PROJECT : gitProjectKey(project.path)
+  const owner =
+    target === null && repoPath !== null
+      ? { client: utils.client }
+      : environmentClientFor(target?.environmentId ?? null, utils.client)
+  const daemonScope = { host: target?.environmentId ?? daemon.host, version: daemon.version }
+  const enabled = repoPath !== null && owner !== null
+  const projectPath = repoPath === null ? DISABLED_PROJECT : gitProjectKey(repoPath)
 
   const head = useQuery({
     enabled,
-    queryFn: (): Promise<GitHead> => utils.client.gitHead.query(projectPath),
+    queryFn: (): Promise<GitHead> => {
+      if (owner === null) return Promise.reject(new Error('The target Environment is offline.'))
+      return owner.client.gitHead.query(projectPath)
+    },
     queryKey: gitQueryKey(daemonScope, gitHeadQuery(projectPath)),
     refetchInterval: enabled ? 5_000 : false,
     staleTime: 0,
   })
   const branches = useQuery({
     enabled,
-    queryFn: (): Promise<BranchRef[]> => utils.client.gitBranches.query(projectPath),
+    queryFn: (): Promise<BranchRef[]> => {
+      if (owner === null) return Promise.reject(new Error('The target Environment is offline.'))
+      return owner.client.gitBranches.query(projectPath)
+    },
     queryKey: gitQueryKey(daemonScope, gitBranchesQuery(projectPath)),
     staleTime: 0,
   })
   const worktrees = useQuery({
     enabled,
-    queryFn: (): Promise<Worktree[]> => utils.client.gitWorktrees.query(projectPath),
+    queryFn: (): Promise<Worktree[]> => {
+      if (owner === null) return Promise.reject(new Error('The target Environment is offline.'))
+      return owner.client.gitWorktrees.query(projectPath)
+    },
     queryKey: gitQueryKey(daemonScope, gitWorktreesQuery(projectPath)),
     refetchInterval: enabled ? 15_000 : false,
   })

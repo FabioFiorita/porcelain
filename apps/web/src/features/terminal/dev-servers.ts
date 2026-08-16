@@ -8,7 +8,7 @@ import type { DevServer, DevServerTarget } from '@porcelain/contracts/terminal'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import { primary } from '@renderer/lib/daemon'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
-import { environmentClientFor } from '@renderer/lib/environment-sessions'
+import { environmentClientFor, environmentSessionFor } from '@renderer/lib/environment-sessions'
 import { trpc } from '@renderer/lib/trpc'
 import { useHubTarget } from '@renderer/stores/hub-selection'
 import { settleBackground } from '@shared/background'
@@ -120,15 +120,18 @@ export function useDevServersNotificationSubscription(): void {
   const daemon = useDaemonIdentity()
   const host = daemon.host
   const version = daemon.version
+  const target = useHubTarget()
+  const sessionOwner = environmentSessionFor(target?.environmentId ?? null)
 
   useEffect(() => {
+    if (sessionOwner === null) return
     const scope: DaemonScope = { host, version }
-    return primary.onChange((change) => {
+    return (sessionOwner.session ?? primary).onChange((change) => {
       if (change.kind !== 'terminal.dev-servers-changed') return
       settleBackground(
         invalidateDevServerQueries(queryClient, scope, devServersNotificationEffects(change)),
         'notification',
       )
     })
-  }, [queryClient, host, version])
+  }, [queryClient, host, sessionOwner, version])
 }

@@ -1,6 +1,7 @@
 import type { HubTarget } from '@porcelain/client-runtime/projects'
 import type { ActionView, PrepareActionRunInput } from '@porcelain/contracts/actions'
 import { createValidatingTrpcHarness } from '@renderer/hooks/trpc-test-harness'
+import { setPrimaryEnvironmentId } from '@renderer/lib/environment-sessions'
 import type { spawnLocalTerminal as spawnLocalTerminalModule } from '@renderer/lib/terminal-actions'
 import { useHubSelectionStore } from '@renderer/stores/hub-selection'
 import { renderHook } from '@testing-library/react'
@@ -92,6 +93,7 @@ function harness(): {
 }
 
 beforeEach(() => {
+  setPrimaryEnvironmentId('env-local')
   create.mockReset()
   create.mockResolvedValue('term-1')
   openPanel.mockReset()
@@ -144,17 +146,14 @@ describe('useActionRun', () => {
     expect(spawnLocalTerminal).not.toHaveBeenCalled()
   })
 
-  it('sends an explicit target instead of the selection when one is given', async () => {
+  it('refuses an explicit target whose Environment is offline', async () => {
     const { wrapper, inputs } = harness()
     const { result } = renderHook(() => useActionRun(), { wrapper })
-    await expect(result.current(trustedPrimary, { target: explicitTarget })).resolves.toBe('ran')
-
-    expect(inputs).toEqual([{ actionId: 'a1', target: explicitTarget }])
-    expect(create).toHaveBeenCalledWith({
-      cwd: explicitTarget.path,
-      name: 'Build',
-      initialInput: 'make build',
-    })
+    await expect(result.current(trustedPrimary, { target: explicitTarget })).rejects.toThrow(
+      'offline',
+    )
+    expect(inputs).toEqual([])
+    expect(create).not.toHaveBeenCalled()
   })
 
   it('returns needs-local-path for a local action with no folder mapping on this device', async () => {

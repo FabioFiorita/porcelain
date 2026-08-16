@@ -3,6 +3,7 @@ import { actionsContractFixtures } from '@porcelain/contracts/actions'
 import { remoteContractFixtures } from '@porcelain/contracts/remote'
 import { createValidatingTrpcHarness } from '@renderer/hooks/trpc-test-harness'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
+import { setPrimaryEnvironmentId } from '@renderer/lib/environment-sessions'
 import { useHubSelectionStore } from '@renderer/stores/hub-selection'
 import { useQueryClient } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
@@ -21,6 +22,7 @@ const baseHandlers = {
 }
 
 beforeEach(() => {
+  setPrimaryEnvironmentId('env-local')
   vi.mocked(toast.error).mockReset()
   useHubSelectionStore.setState({
     selection: {

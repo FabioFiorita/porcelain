@@ -14,9 +14,10 @@ import type {
 import { invalidateFilesEffects } from '@renderer/features/files'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
+import { environmentClientFor } from '@renderer/lib/environment-sessions'
 import { trpc } from '@renderer/lib/trpc'
+import { useHubRepoPath, useHubRepoTarget } from '@renderer/stores/hub-repo'
 import { usePreferencesStore } from '@renderer/stores/preferences'
-import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 
@@ -31,8 +32,26 @@ import { invalidateGitEffects } from './git-query-filter'
  * no hook here toasts, because the edge the human touched owns the failure.
  */
 
-function daemonScope(identity: { host: string | null; version: string | null }): DaemonScope {
-  return { host: identity.host, version: identity.version }
+function useGitOwner(): {
+  daemon: DaemonScope
+  owner: ReturnType<typeof environmentClientFor>
+  repoPath: string | null
+} {
+  const repoPath = useHubRepoPath()
+  const target = useHubRepoTarget()
+  const identity = useDaemonIdentity()
+  const client = trpc.useUtils().client
+  return {
+    daemon: {
+      host: target?.environmentId ?? identity.host,
+      version: identity.version,
+    },
+    owner:
+      target === null && repoPath !== null
+        ? { client, session: null }
+        : environmentClientFor(target?.environmentId ?? null, client),
+    repoPath,
+  }
 }
 
 async function invalidateMutationEffects(
@@ -51,13 +70,13 @@ export function useCommit(onCommitted?: () => void): {
   isCommitting: boolean
   error: { message: string } | null
 } {
-  const project = useProjectSelectionStore((state) => state.project)
-  const identity = useDaemonIdentity()
-  const daemon = daemonScope(identity)
+  const { daemon, owner, repoPath } = useGitOwner()
   const queryClient = useQueryClient()
-  const utils = trpc.useUtils()
   const mutation = useMutation<void, Error, GitCommitInput>({
-    mutationFn: (input) => utils.client.gitCommit.mutate(input),
+    mutationFn: async (input) => {
+      if (owner === null) throw new Error('The target Environment is offline.')
+      return owner.client.gitCommit.mutate(input)
+    },
     onSuccess: async (_value, input): Promise<void> => {
       onCommitted?.()
       await invalidateMutationEffects(
@@ -70,8 +89,8 @@ export function useCommit(onCommitted?: () => void): {
   })
   return {
     commit: (message: string): void => {
-      if (project === null) return
-      mutation.mutate({ message, repoPath: project.path })
+      if (repoPath === null || owner === null) return
+      mutation.mutate({ message, repoPath })
     },
     error: mutation.error,
     isCommitting: mutation.isPending,
@@ -79,18 +98,23 @@ export function useCommit(onCommitted?: () => void): {
 }
 
 function useGitVoidMutation<TInput>(
-  execute: (input: TInput) => Promise<void>,
+  execute: (
+    client: NonNullable<ReturnType<typeof environmentClientFor>>['client'],
+    input: TInput,
+  ) => Promise<void>,
   affectedQueries: (input: TInput) => readonly GitQueryEffect[],
   filesEffects: (input: TInput) => Parameters<typeof invalidateFilesEffects>[2],
 ): {
   run: (input: TInput) => Promise<void>
   isPending: boolean
 } {
-  const identity = useDaemonIdentity()
-  const daemon = daemonScope(identity)
+  const { daemon, owner } = useGitOwner()
   const queryClient = useQueryClient()
   const mutation = useMutation<void, Error, TInput>({
-    mutationFn: execute,
+    mutationFn: async (input) => {
+      if (owner === null) throw new Error('The target Environment is offline.')
+      return execute(owner.client, input)
+    },
     onSuccess: async (_value, input): Promise<void> => {
       await invalidateMutationEffects(
         queryClient,
@@ -109,27 +133,26 @@ export function useStageAll(): {
   unstageAll: () => Promise<void>
   isStaging: boolean
 } {
-  const project = useProjectSelectionStore((state) => state.project)
-  const utils = trpc.useUtils()
+  const { repoPath, owner } = useGitOwner()
   const stage = useGitVoidMutation<GitStageAllInput>(
-    (input) => utils.client.gitStageAll.mutate(input),
+    (client, input) => client.gitStageAll.mutate(input),
     gitMutations.stageAll.affectedQueries,
     gitMutations.stageAll.filesEffects,
   )
   const unstage = useGitVoidMutation<GitUnstageAllInput>(
-    (input) => utils.client.gitUnstageAll.mutate(input),
+    (client, input) => client.gitUnstageAll.mutate(input),
     gitMutations.unstageAll.affectedQueries,
     gitMutations.unstageAll.filesEffects,
   )
   return {
     isStaging: stage.isPending || unstage.isPending,
     stageAll: async (): Promise<void> => {
-      if (project === null) return
-      await stage.run({ repoPath: project.path })
+      if (repoPath === null || owner === null) return
+      await stage.run({ repoPath })
     },
     unstageAll: async (): Promise<void> => {
-      if (project === null) return
-      await unstage.run({ repoPath: project.path })
+      if (repoPath === null || owner === null) return
+      await unstage.run({ repoPath })
     },
   }
 }
@@ -146,27 +169,26 @@ export function useFileStaging(): {
   unstageFile: (path: string) => Promise<void>
   isStaging: boolean
 } {
-  const project = useProjectSelectionStore((state) => state.project)
-  const utils = trpc.useUtils()
+  const { repoPath, owner } = useGitOwner()
   const stage = useGitVoidMutation<GitStageFileInput>(
-    (input) => utils.client.gitStageFile.mutate(input),
+    (client, input) => client.gitStageFile.mutate(input),
     gitMutations.stageFile.affectedQueries,
     gitMutations.stageFile.filesEffects,
   )
   const unstage = useGitVoidMutation<GitUnstageFileInput>(
-    (input) => utils.client.gitUnstageFile.mutate(input),
+    (client, input) => client.gitUnstageFile.mutate(input),
     gitMutations.unstageFile.affectedQueries,
     gitMutations.unstageFile.filesEffects,
   )
   return {
     isStaging: stage.isPending || unstage.isPending,
     stageFile: async (path: string): Promise<void> => {
-      if (project === null) return
-      await stage.run({ path, repoPath: project.path })
+      if (repoPath === null || owner === null) return
+      await stage.run({ path, repoPath })
     },
     unstageFile: async (path: string): Promise<void> => {
-      if (project === null) return
-      await unstage.run({ path, repoPath: project.path })
+      if (repoPath === null || owner === null) return
+      await unstage.run({ path, repoPath })
     },
   }
 }
@@ -178,16 +200,15 @@ export function useFileStaging(): {
  * than toasts — the confirm dialog that triggered it owns the failure.
  */
 export function useDiscardFile(): (path: string) => Promise<void> {
-  const project = useProjectSelectionStore((state) => state.project)
-  const utils = trpc.useUtils()
+  const { repoPath, owner } = useGitOwner()
   const discard = useGitVoidMutation<{ repoPath: string; path: string }>(
-    (input) => utils.client.gitDiscardFile.mutate(input),
+    (client, input) => client.gitDiscardFile.mutate(input),
     gitMutations.discardFile.affectedQueries,
     gitMutations.discardFile.filesEffects,
   )
   return async (path: string): Promise<void> => {
-    if (project === null) return
-    await discard.run({ path, repoPath: project.path })
+    if (repoPath === null || owner === null) return
+    await discard.run({ path, repoPath })
     useTabsStore.getState().closeTabEverywhere(tabId('diff', path))
   }
 }
@@ -197,13 +218,13 @@ export function usePush(): {
   push: () => Promise<string>
   isPushing: boolean
 } {
-  const project = useProjectSelectionStore((state) => state.project)
-  const identity = useDaemonIdentity()
-  const daemon = daemonScope(identity)
+  const { daemon, owner, repoPath } = useGitOwner()
   const queryClient = useQueryClient()
-  const utils = trpc.useUtils()
   const mutation = useMutation<string, Error, GitPushInput>({
-    mutationFn: (input) => utils.client.gitPush.mutate(input),
+    mutationFn: async (input) => {
+      if (owner === null) throw new Error('The target Environment is offline.')
+      return owner.client.gitPush.mutate(input)
+    },
     onSuccess: async (_value, input): Promise<void> => {
       await invalidateMutationEffects(
         queryClient,
@@ -216,8 +237,8 @@ export function usePush(): {
   return {
     isPushing: mutation.isPending,
     push: async (): Promise<string> => {
-      if (project === null) return ''
-      return mutation.mutateAsync({ repoPath: project.path })
+      if (repoPath === null || owner === null) return ''
+      return mutation.mutateAsync({ repoPath })
     },
   }
 }
@@ -233,25 +254,28 @@ export function useCommitGeneration(): {
   generateGroups: () => Promise<CommitGroupGenerationGroup[]>
   isGenerating: boolean
 } {
-  const project = useProjectSelectionStore((state) => state.project)
+  const { repoPath, owner } = useGitOwner()
   const model = usePreferencesStore((state) => state.commitModel)
-  const utils = trpc.useUtils()
   const message = useMutation({
-    mutationFn: (input: GitGenerateCommitMessageInput) =>
-      utils.client.gitGenerateCommitMessage.mutate(input),
+    mutationFn: async (input: GitGenerateCommitMessageInput) => {
+      if (owner === null) throw new Error('The target Environment is offline.')
+      return owner.client.gitGenerateCommitMessage.mutate(input)
+    },
   })
   const groups = useMutation({
-    mutationFn: (input: GitGenerateCommitGroupsInput) =>
-      utils.client.gitGenerateCommitGroups.mutate(input),
+    mutationFn: async (input: GitGenerateCommitGroupsInput) => {
+      if (owner === null) throw new Error('The target Environment is offline.')
+      return owner.client.gitGenerateCommitGroups.mutate(input)
+    },
   })
   return {
     generateGroups: async (): Promise<CommitGroupGenerationGroup[]> => {
-      if (project === null) return []
-      return (await groups.mutateAsync({ model, repoPath: project.path })).groups
+      if (repoPath === null || owner === null) return []
+      return (await groups.mutateAsync({ model, repoPath })).groups
     },
     generateMessage: async (): Promise<string> => {
-      if (project === null) return ''
-      return (await message.mutateAsync({ model, repoPath: project.path })).message
+      if (repoPath === null || owner === null) return ''
+      return (await message.mutateAsync({ model, repoPath })).message
     },
     isGenerating: message.isPending || groups.isPending,
   }
@@ -266,13 +290,13 @@ export type QuickCommandId =
 
 /** Quick command with the contract's per-command effects — never a broad cache flush. */
 export function useQuickCommand(): (commandId: QuickCommandId) => Promise<string> {
-  const project = useProjectSelectionStore((state) => state.project)
-  const identity = useDaemonIdentity()
-  const daemon = daemonScope(identity)
+  const { daemon, owner, repoPath } = useGitOwner()
   const queryClient = useQueryClient()
-  const utils = trpc.useUtils()
   const mutation = useMutation<string, Error, GitQuickCommandInput>({
-    mutationFn: (input) => utils.client.gitQuickCommand.mutate(input),
+    mutationFn: async (input) => {
+      if (owner === null) throw new Error('The target Environment is offline.')
+      return owner.client.gitQuickCommand.mutate(input)
+    },
     onSuccess: async (_value, input): Promise<void> => {
       await invalidateMutationEffects(
         queryClient,
@@ -283,11 +307,11 @@ export function useQuickCommand(): (commandId: QuickCommandId) => Promise<string
     },
   })
   return async (commandId: QuickCommandId): Promise<string> => {
-    if (project === null) return ''
+    if (repoPath === null || owner === null) return ''
     return mutation.mutateAsync({
       command: commandId,
       pullMode: usePreferencesStore.getState().pullMode,
-      repoPath: project.path,
+      repoPath,
     })
   }
 }

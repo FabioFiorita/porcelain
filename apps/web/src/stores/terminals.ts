@@ -3,13 +3,14 @@ import {
   terminalAdapterFor,
   terminalAdapterForSession,
 } from '@renderer/features/terminal'
-import { primary } from '@renderer/lib/daemon'
+import { type DaemonSession, primary } from '@renderer/lib/daemon'
 import {
   forgetLocalTerminal,
   forgetTerminalSession,
   localDaemonClient,
   localDaemonSession,
   markLocalTerminal,
+  registerTerminalSession,
   terminalClientFor,
 } from '@renderer/lib/local-daemon'
 import { disposeTerminal } from '@renderer/lib/terminal-registry'
@@ -63,6 +64,7 @@ interface TerminalsState {
     name: string
     initialInput?: string
     origin?: TerminalOrigin
+    session?: DaemonSession
   }) => Promise<string>
   /** Rename a session's roster label (trimmed; empty and unknown ids are ignored). The
    *  caller retitles any open terminal tab(s) — this store doesn't reach into tabs. */
@@ -127,13 +129,15 @@ export const useTerminalsStore = create<TerminalsState>((set, get) => ({
     name,
     initialInput,
     origin = 'primary',
+    session: explicitSession,
   }: {
     cwd: string
     name: string
     initialInput?: string
     origin?: TerminalOrigin
+    session?: DaemonSession
   }) => {
-    const session = origin === 'local' ? localDaemonSession() : primary
+    const session = explicitSession ?? (origin === 'local' ? localDaemonSession() : primary)
     if (session === null) {
       // Only reachable if a caller asks for a local terminal before the endpoint resolved
       // — the UI awaits it, so this is a programming error, not a user-facing state.
@@ -152,6 +156,7 @@ export const useTerminalsStore = create<TerminalsState>((set, get) => ({
     // Register BEFORE the row exists: the registry may write to this id (an initialInput
     // action, the first keystroke) as soon as the view mounts, and it routes by this map.
     if (origin === 'local') markLocalTerminal(id)
+    else if (session !== primary) registerTerminalSession(id, session)
     closedTombstones.delete(id)
     set((state) => ({
       sessions: [...state.sessions, { id, name, status: 'running', origin }],

@@ -1,7 +1,7 @@
 import { prepareActionRun } from '@porcelain/client-runtime/actions'
 import type { HubTarget } from '@porcelain/client-runtime/projects'
 import type { ActionView } from '@porcelain/contracts/actions'
-import { environmentSessionFor } from '@renderer/lib/environment-sessions'
+import { environmentClientFor } from '@renderer/lib/environment-sessions'
 import { spawnLocalTerminal } from '@renderer/lib/terminal-actions'
 import { trpc } from '@renderer/lib/trpc'
 import { currentHubTarget } from '@renderer/stores/hub-selection'
@@ -37,8 +37,15 @@ export function useActionRun(): (
     if (target === null) return 'needs-target'
     if (!action.trusted) return 'needs-trust'
 
-    const owner = environmentSessionFor(target.environmentId)
-    const client = owner?.client ?? defaultClient
+    const owner = environmentClientFor(target.environmentId, defaultClient)
+    const client =
+      target.environmentId === null
+        ? defaultClient
+        : owner === null
+          ? (() => {
+              throw new Error('The target Environment is offline.')
+            })()
+          : owner.client
 
     const authorized = await client.prepareActionRun.mutate({
       actionId: action.id,
@@ -59,7 +66,12 @@ export function useActionRun(): (
       return 'ran'
     }
 
-    const id = await useTerminalsStore.getState().create({ cwd, name, initialInput })
+    const id = await useTerminalsStore.getState().create({
+      cwd,
+      name,
+      initialInput,
+      session: owner?.session ?? undefined,
+    })
     useTerminalsStore.getState().openPanel(id)
     return 'ran'
   }

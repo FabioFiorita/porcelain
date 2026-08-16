@@ -102,8 +102,10 @@ function ProjectBlock(props: {
   environmentName: string
   mutable: boolean
   openWorktree: (worktree: HubWorktree) => void
-  createWorktree: (input: CreateHubWorktreeInput) => Promise<HubWorktree>
-  removeProject: (projectId: string) => Promise<void>
+  createWorktree: (
+    input: CreateHubWorktreeInput & { environmentId?: string | null },
+  ) => Promise<HubWorktree>
+  removeProject: (projectId: string, environmentId?: string | null) => Promise<void>
   creating: boolean
 }): React.JSX.Element {
   const [expanded, setExpanded] = useState(true)
@@ -125,7 +127,7 @@ function ProjectBlock(props: {
   const removeProject = (): void => {
     runUserAction(
       async () => {
-        await props.removeProject(props.project.id)
+        await props.removeProject(props.project.id, props.environmentId)
         const current = useHubSelectionStore.getState().selection
         if (current.kind !== 'home' && current.projectId === props.project.id) {
           useHubSelectionStore.getState().selectHome()
@@ -136,7 +138,7 @@ function ProjectBlock(props: {
   }
 
   const createWorktree = async (input: CreateHubWorktreeInput): Promise<HubWorktree> => {
-    const worktree = await props.createWorktree(input)
+    const worktree = await props.createWorktree({ ...input, environmentId: props.environmentId })
     const startScript = setup.startScript.trim()
     if (startScript !== '') {
       await spawnTerminalAt(worktree.path, {
@@ -254,8 +256,10 @@ function ProjectBlock(props: {
 export function HubTreeFromInventory(props: {
   inventory: HubInventory
   openWorktree: (worktree: HubWorktree) => void
-  createWorktree: (input: CreateHubWorktreeInput) => Promise<HubWorktree>
-  removeProject: (projectId: string) => Promise<void>
+  createWorktree: (
+    input: CreateHubWorktreeInput & { environmentId?: string | null },
+  ) => Promise<HubWorktree>
+  removeProject: (projectId: string, environmentId?: string | null) => Promise<void>
   creating?: boolean
   className?: string
 }): React.JSX.Element {

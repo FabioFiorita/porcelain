@@ -2,7 +2,7 @@ import { actionsMutations, actionsProjectKey } from '@porcelain/client-runtime/a
 import type { ActionWhere } from '@porcelain/contracts/actions'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
-import { environmentSessionFor } from '@renderer/lib/environment-sessions'
+import { environmentClientFor } from '@renderer/lib/environment-sessions'
 import { trpc } from '@renderer/lib/trpc'
 import { useHubSelectionStore } from '@renderer/stores/hub-selection'
 import { useQueryClient } from '@tanstack/react-query'
@@ -46,7 +46,13 @@ export function useActionMutations(): {
   const environmentId = useHubSelectionStore((state) =>
     state.selection.kind === 'home' ? null : state.selection.environmentId,
   )
-  const owner = environmentSessionFor(environmentId)
+  const owner = environmentClientFor(environmentId, client)
+
+  const ownerClient = () => {
+    if (environmentId === null) return client
+    if (owner === null) throw new Error('The target Environment is offline.')
+    return owner.client
+  }
 
   return {
     add: async (input: NewActionInput): Promise<void> => {
@@ -57,7 +63,7 @@ export function useActionMutations(): {
         command: input.command,
         where: input.where,
       }
-      await (owner?.client ?? client).addAction.mutate(wire)
+      await ownerClient().addAction.mutate(wire)
       await invalidateActionsIdentities(
         queryClient,
         daemonScope,
@@ -73,7 +79,7 @@ export function useActionMutations(): {
         command: fields.command,
         where: fields.where,
       }
-      await (owner?.client ?? client).updateAction.mutate(wire)
+      await ownerClient().updateAction.mutate(wire)
       await invalidateActionsIdentities(
         queryClient,
         daemonScope,
@@ -87,7 +93,7 @@ export function useActionMutations(): {
         id,
         direction,
       }
-      await (owner?.client ?? client).moveAction.mutate(wire)
+      await ownerClient().moveAction.mutate(wire)
       await invalidateActionsIdentities(
         queryClient,
         daemonScope,
@@ -100,7 +106,7 @@ export function useActionMutations(): {
         projectId: actionsProjectKey(projectId),
         id,
       }
-      await (owner?.client ?? client).deleteAction.mutate(wire)
+      await ownerClient().deleteAction.mutate(wire)
       await invalidateActionsIdentities(
         queryClient,
         daemonScope,
@@ -123,12 +129,19 @@ export function useTrustAction(): (id: string) => Promise<void> {
   const environmentId = useHubSelectionStore((state) =>
     state.selection.kind === 'home' ? null : state.selection.environmentId,
   )
-  const owner = environmentSessionFor(environmentId)
+  const owner = environmentClientFor(environmentId, client)
 
   return async (id: string): Promise<void> => {
     if (projectId === null) return
     const wire = { projectId: actionsProjectKey(projectId), ids: [id] }
-    await (owner?.client ?? client).trustActions.mutate(wire)
+    const ownerClient =
+      environmentId === null
+        ? client
+        : (owner?.client ??
+          (() => {
+            throw new Error('The target Environment is offline.')
+          })())
+    await ownerClient.trustActions.mutate(wire)
     await invalidateActionsIdentities(
       queryClient,
       daemonScope,

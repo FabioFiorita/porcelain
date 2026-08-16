@@ -57,7 +57,6 @@ export { useHubInventories, useHubInventory } from './hub-inventories'
 
 const projectsQueryKeySchema = z.tuple([projectsQuerySchema, daemonScopeSchema])
 
-/** The only Web Query key shape for Project server data. */
 export function projectsQueryKey(
   daemon: ProjectsDaemonScope,
   query: ProjectsQuery,
@@ -65,7 +64,6 @@ export function projectsQueryKey(
   return [query, { host: daemon.host, version: daemon.version }] as const
 }
 
-/** True when a cache key carries a strict Project identity and a daemon scope. */
 export function isProjectsQueryKey(queryKey: readonly unknown[]): boolean {
   return projectsQueryKeySchema.safeParse(queryKey).success
 }
@@ -89,7 +87,6 @@ async function invalidateProjectQueries(
   }
 }
 
-/** Recent Projects for the welcome surface and Project switcher. */
 export function useRecentProjects(enabled = true): readonly ProjectSummary[] {
   const daemon = useDaemonIdentity()
   const client = trpc.useUtils().client
@@ -103,7 +100,6 @@ export function useRecentProjects(enabled = true): readonly ProjectSummary[] {
   return query.data ?? []
 }
 
-/** Open a Project and apply its authoritative summary to the existing Web selection boundary. */
 export function useOpenProject(): {
   open: (
     path: ProjectPath,
@@ -152,7 +148,6 @@ export function useOpenProject(): {
   }
 }
 
-/** Remove a recent Project and clear selection only when it is the selected Project. */
 export function useRemoveRecentProject(): {
   remove: (path: string) => Promise<void>
   isPending: boolean
@@ -174,30 +169,40 @@ export function useRemoveRecentProject(): {
   return { isPending: mutation.isPending, remove: mutation.mutateAsync }
 }
 
-/** Remove a Hub Project from the daemon inventory without deleting its repository. */
 export function useRemoveHubProject(): {
-  remove: (projectId: string) => Promise<void>
+  remove: (projectId: string, environmentId?: string | null) => Promise<void>
   isPending: boolean
 } {
   const daemon = useDaemonIdentity()
   const client = trpc.useUtils().client
   const queryClient = useQueryClient()
   const mutation = useMutation({
-    mutationFn: async (projectId: string): Promise<void> =>
-      removeHubProjectOnDaemon(client, projectId),
-    onSuccess: async (_result, projectId) => {
+    mutationFn: async (variables: {
+      projectId: string
+      environmentId?: string | null
+    }): Promise<void> => {
+      const owner =
+        variables.environmentId === undefined || variables.environmentId === null
+          ? { client }
+          : environmentSessionFor(variables.environmentId)
+      if (owner === null) throw new Error('The target Environment is offline.')
+      await removeHubProjectOnDaemon(owner.client, variables.projectId)
+    },
+    onSuccess: async (_result, variables) => {
       await invalidateProjectQueries(
         queryClient,
         daemon,
-        removeHubProject.affectedQueries(projectId),
+        removeHubProject.affectedQueries(variables.projectId),
       )
     },
   })
 
-  return { isPending: mutation.isPending, remove: mutation.mutateAsync }
+  return {
+    isPending: mutation.isPending,
+    remove: (projectId, environmentId) => mutation.mutateAsync({ projectId, environmentId }),
+  }
 }
 
-/** Browse daemon directories with the same nullable-root and keep-previous-data behavior. */
 export function useProjectDirectories(
   path: string | null,
   enabled: boolean,
@@ -218,22 +223,34 @@ export function useProjectDirectories(
   return { error: errorView(query.error), isFetching: query.isFetching, result: query.data }
 }
 
-/** Selected Project presentation state; the recent list remains Query data. */
 export function useSelectedProject(): ProjectSummary | null {
   return useProjectSelectionStore((state) => state.project)
 }
 
-/** Create a Worktree on a Hub Project and refresh inventory. */
 export function useCreateHubWorktree(): {
-  create: (input: CreateHubWorktreeInput) => Promise<HubWorktree>
+  create: (
+    input: CreateHubWorktreeInput & { environmentId?: string | null },
+  ) => Promise<HubWorktree>
   isPending: boolean
 } {
   const daemon = useDaemonIdentity()
   const client = trpc.useUtils().client
   const queryClient = useQueryClient()
   const mutation = useMutation({
-    mutationFn: async (input: CreateHubWorktreeInput): Promise<HubWorktree> =>
-      createHubWorktreeOnDaemon(client, input),
+    mutationFn: async (
+      input: CreateHubWorktreeInput & { environmentId?: string | null },
+    ): Promise<HubWorktree> => {
+      const owner =
+        input.environmentId === undefined || input.environmentId === null
+          ? { client }
+          : environmentSessionFor(input.environmentId)
+      if (owner === null) throw new Error('The target Environment is offline.')
+      return createHubWorktreeOnDaemon(owner.client, {
+        branch: input.branch,
+        baseRef: input.baseRef,
+        projectId: input.projectId,
+      })
+    },
     onSuccess: async (_result, input) => {
       await invalidateProjectQueries(queryClient, daemon, createHubWorktree.affectedQueries(input))
     },
@@ -241,11 +258,6 @@ export function useCreateHubWorktree(): {
   return { create: mutation.mutateAsync, isPending: mutation.isPending }
 }
 
-/**
- * Canvases for one Project, newest-updated first — the right sidebar's list.
- * `worktreePath` addresses the checkout whose tracked `.porcelain/` overlay is
- * merged over the private records, and is part of the cache identity.
- */
 export function useCanvasList(
   projectId: string | null,
   worktreePath: string | null = null,
@@ -267,10 +279,6 @@ export function useCanvasList(
   return query.data ?? []
 }
 
-/**
- * One Canvas — HTML content already server-inlined, Markdown raw. Read-only:
- * Canvases are agent-owned in v1 (see canvas-view.tsx for how each kind renders).
- */
 export function useCanvas(
   projectId: string | null,
   canvasId: string | null,
@@ -298,11 +306,6 @@ export function useCanvas(
   return { canvas: query.data, isLoading: enabled && owner !== null && query.isLoading }
 }
 
-/**
- * Mints the short-lived token an HTML Canvas's sandboxed iframe navigates
- * with (GET /canvas/<token> — see canvas-http.ts). Not cached: every mount
- * gets its own fresh grant, and the daemon sweeps expired ones lazily.
- */
 export function useMintCanvasAccessToken(): {
   mint: (input: {
     projectId: string
@@ -336,11 +339,6 @@ export function useMintCanvasAccessToken(): {
   return { mint: mutation.mutateAsync }
 }
 
-/**
- * Promote one Canvas into an explicitly addressed checkout's Git overlay. The
- * caller supplies `path`; there is no "current" checkout to fall back to, and
- * the daemon rejects a path that is not a live Worktree of this Project.
- */
 export function usePromoteCanvas(): {
   promote: (
     input: PromoteCanvasInput & { environmentId?: string | null },
@@ -378,7 +376,6 @@ export function usePromoteCanvas(): {
   return { isPending: mutation.isPending, promote: mutation.mutateAsync }
 }
 
-/** Track the current project defaults into the addressed checkout's `.porcelain/`. */
 export function usePromoteProjectOverrides(): {
   promote: (
     input: PromoteOverridesInput & { environmentId?: string | null },
@@ -416,11 +413,6 @@ export function usePromoteProjectOverrides(): {
   return { isPending: mutation.isPending, promote: mutation.mutateAsync }
 }
 
-/**
- * What one checkout's tracked `.porcelain/` overlay currently carries. The path
- * is required: an overlay belongs to a checkout, and there is no daemon-root
- * fallback to read instead.
- */
 export function useProjectOverlay(
   path: string,
   environmentId: string | null = null,

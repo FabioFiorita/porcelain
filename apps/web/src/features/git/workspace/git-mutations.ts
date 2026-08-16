@@ -7,8 +7,9 @@ import type {
 } from '@porcelain/contracts/git'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
+import { type EnvironmentClient, environmentClientFor } from '@renderer/lib/environment-sessions'
 import { trpc } from '@renderer/lib/trpc'
-import { useProjectSelectionStore } from '@renderer/stores/project-selection'
+import { useHubRepoPath, useHubRepoTarget } from '@renderer/stores/hub-repo'
 import { type UseMutationResult, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { invalidateGitEffects } from '../git-query-filter'
@@ -21,31 +22,42 @@ export type GitMutationAction<TOutput> = {
 }
 
 function useGitWorkspaceMutation<TInput extends GitWorkspaceInput, TOutput>(
-  execute: (input: TInput) => Promise<TOutput>,
+  execute: (client: EnvironmentClient['client'], input: TInput) => Promise<TOutput>,
   affectedQueries: (input: TInput) => readonly GitQueryEffect[],
 ): {
   mutation: UseMutationResult<TOutput, Error, TInput>
   repoPath: string | null
   daemon: DaemonScope
 } {
-  const project = useProjectSelectionStore((state) => state.project)
+  const repoPath = useHubRepoPath()
+  const target = useHubRepoTarget()
   const daemonIdentity = useDaemonIdentity()
-  const daemon: DaemonScope = { host: daemonIdentity.host, version: daemonIdentity.version }
+  const daemon: DaemonScope = {
+    host: target?.environmentId ?? daemonIdentity.host,
+    version: daemonIdentity.version,
+  }
+  const utils = trpc.useUtils()
+  const owner =
+    target === null && repoPath !== null
+      ? { client: utils.client }
+      : environmentClientFor(target?.environmentId ?? null, utils.client)
   const queryClient = useQueryClient()
   const mutation = useMutation<TOutput, Error, TInput>({
-    mutationFn: execute,
+    mutationFn: async (input): Promise<TOutput> => {
+      if (owner === null) throw new Error('The target Environment is offline.')
+      return execute(owner.client, input)
+    },
     onSuccess: async (_value, input): Promise<void> => {
       await invalidateGitEffects(queryClient, daemon, affectedQueries(input))
     },
   })
 
-  return { daemon, mutation, repoPath: project?.path ?? null }
+  return { daemon, mutation, repoPath }
 }
 
 export function useGitCheckout(): GitMutationAction<void> {
-  const utils = trpc.useUtils()
   const { mutation, repoPath } = useGitWorkspaceMutation<GitCheckoutInput, void>(
-    (input) => utils.client.gitCheckout.mutate(input),
+    (client, input) => client.gitCheckout.mutate(input),
     (input) => gitMutations.checkout.affectedQueries(input),
   )
 
@@ -57,9 +69,8 @@ export function useGitCheckout(): GitMutationAction<void> {
 }
 
 export function useGitCreateBranch(): GitMutationAction<void> {
-  const utils = trpc.useUtils()
   const { mutation, repoPath } = useGitWorkspaceMutation<GitCreateBranchInput, void>(
-    (input) => utils.client.gitCreateBranch.mutate(input),
+    (client, input) => client.gitCreateBranch.mutate(input),
     (input) => gitMutations.createBranch.affectedQueries(input),
   )
 
@@ -71,9 +82,8 @@ export function useGitCreateBranch(): GitMutationAction<void> {
 }
 
 export function useGitAddWorktree(): GitMutationAction<Worktree> {
-  const utils = trpc.useUtils()
   const { mutation, repoPath } = useGitWorkspaceMutation<GitAddWorktreeInput, Worktree>(
-    (input) => utils.client.gitAddWorktree.mutate(input),
+    (client, input) => client.gitAddWorktree.mutate(input),
     (input) => gitMutations.addWorktree.affectedQueries(input),
   )
 
