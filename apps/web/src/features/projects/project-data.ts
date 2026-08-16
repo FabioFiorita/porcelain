@@ -405,7 +405,12 @@ export function usePromoteProjectOverrides(): {
       })
     },
     onSuccess: async (_result, input) => {
-      await invalidateProjectQueries(queryClient, daemon, promoteOverrides.affectedQueries(input))
+      for (const query of promoteOverrides.affectedQueries(input)) {
+        await queryClient.invalidateQueries({
+          exact: true,
+          queryKey: [...projectsQueryKey(daemon, query), input.environmentId ?? null],
+        })
+      }
     },
   })
   return { isPending: mutation.isPending, promote: mutation.mutateAsync }
