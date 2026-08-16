@@ -46,8 +46,8 @@ const ALL_SECTIONS: {
   icon: typeof SlidersHorizontal
   title: string
   blurb: string
-  // Shell-only: Companion (skills install), Remotes (remote-daemon.json), Updates
-  // (electron-updater). Hidden in the browser client — no shell router there.
+  // Shell-only: Companion (skills install) and Updates (electron-updater). Remotes has a
+  // browser-owned connection manager as well as the Electron pairing surface.
   shellOnly?: boolean
 }[] = [
   {
@@ -88,8 +88,7 @@ const ALL_SECTIONS: {
     label: 'Remotes',
     icon: Cloud,
     title: 'Remotes',
-    blurb: 'Each window can use a different daemon. Add one with a connection link.',
-    shellOnly: true,
+    blurb: 'Connect this browser to another daemon with a client token.',
   },
   {
     id: 'updates',

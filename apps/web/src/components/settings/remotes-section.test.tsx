@@ -25,6 +25,8 @@ vi.mock('@renderer/features/remote', () => ({
   useRemoveRemoteEnvironment: () => ({ remove: removeGroup, pendingId: null }),
 }))
 
+vi.mock('@renderer/lib/platform', () => ({ isBrowser: false }))
+
 const status: EnvironmentStatus = {
   endpoint: 'http://192.168.1.50:43117',
   host: 'beelink',

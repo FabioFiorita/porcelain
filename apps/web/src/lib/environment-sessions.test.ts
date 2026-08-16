@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  addBrowserEnvironmentConnection,
   browserEnvironmentConnections,
   daemonScopeForEnvironment,
   ensureEnvironmentSession,
@@ -101,5 +102,56 @@ describe('browser Environment session hub', () => {
 
     expect(stop).toHaveBeenCalledOnce()
     expect(environmentSessionFor(connection.id)).toBeNull()
+  })
+
+  it('rejects administrator credentials before any connection is persisted', async () => {
+    await expect(
+      addBrowserEnvironmentConnection({
+        name: 'Host',
+        url: 'http://127.0.0.1:43220',
+        token: 'admin-secret',
+      }),
+    ).rejects.toThrow('paired client token')
+    expect(browserEnvironmentConnections()).toEqual([])
+  })
+
+  it('verifies daemon identity before saving a browser connection', async () => {
+    const response = new Response(
+      JSON.stringify([
+        {
+          result: {
+            data: {
+              version: '0.52.1',
+              protocolVersion: 1,
+              host: 'secondary-box',
+              platform: 'linux',
+              arch: 'x64',
+            },
+          },
+        },
+      ]),
+      { headers: { 'content-type': 'application/json' } },
+    )
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => response.clone()),
+    )
+
+    await expect(
+      addBrowserEnvironmentConnection({
+        name: 'Secondary',
+        url: 'http://127.0.0.1:43220/',
+        token: 'pc_client_secondary_secret',
+      }),
+    ).resolves.toMatchObject({ host: 'secondary-box', platform: 'linux', version: '0.52.1' })
+
+    const saved = browserEnvironmentConnections()
+    expect(saved).toHaveLength(1)
+    expect(saved[0]).toMatchObject({
+      name: 'Secondary',
+      url: 'http://127.0.0.1:43220',
+      token: 'pc_client_secondary_secret',
+    })
+    vi.unstubAllGlobals()
   })
 })

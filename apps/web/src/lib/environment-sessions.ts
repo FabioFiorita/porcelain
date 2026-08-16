@@ -14,6 +14,18 @@ export type BrowserEnvironmentConnection = Readonly<{
   token: string
 }>
 
+export type BrowserEnvironmentConnectionInput = Readonly<{
+  name: string
+  url: string
+  token: string
+}>
+
+export type BrowserEnvironmentIdentity = Readonly<{
+  host: string
+  platform: string
+  version: string
+}>
+
 export type EnvironmentSession = Readonly<{
   id: string
   name: string
@@ -137,6 +149,70 @@ export function setBrowserEnvironmentConnections(
   removeStaleEnvironmentSessions(ids)
   for (const connection of connections) ensureEnvironmentSession(connection)
   notifyEnvironmentSessionChange()
+}
+
+function connectionId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  return `browser-${Date.now()}-${Math.random().toString(36).slice(2)}`
+}
+
+function connectionFailure(error: unknown): Error {
+  const code =
+    error !== null && typeof error === 'object' && 'data' in error
+      ? (error as { data?: { code?: unknown } }).data?.code
+      : undefined
+  if (code === 'UNAUTHORIZED' || code === 'FORBIDDEN') {
+    return new Error('The daemon rejected this client token. Use a paired client token.')
+  }
+  return new Error('Could not reach that daemon. Check the URL and that it is shared.')
+}
+
+/**
+ * Verify a browser connection against the daemon before it enters client-local storage.
+ * The format check deliberately rejects the host administrator token: browser connections
+ * are scoped to revocable `pc_client_…` credentials only.
+ */
+export async function addBrowserEnvironmentConnection(
+  input: BrowserEnvironmentConnectionInput,
+): Promise<BrowserEnvironmentIdentity> {
+  const name = input.name.trim()
+  const token = input.token.trim()
+  let url: URL
+  try {
+    url = new URL(input.url.trim())
+  } catch {
+    throw new Error('Enter a valid daemon URL.')
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    throw new Error('Daemon URL must use http or https.')
+  }
+  if (name.length === 0 || name.length > 80) throw new Error('Enter a label up to 80 characters.')
+  if (!token.startsWith('pc_client_')) {
+    throw new Error('Use a paired client token, not the host administrator token.')
+  }
+
+  const connection: BrowserEnvironmentConnection = {
+    id: connectionId(),
+    name,
+    url: url.toString().replace(/\/$/, ''),
+    token,
+  }
+  const session = createDaemonSession(endpointFor(connection))
+  const client = createAppClientFor(session)
+  try {
+    const identity = await client.daemonInfo.query()
+    setBrowserEnvironmentConnections([...browserEnvironmentConnections(), connection])
+    return identity
+  } catch (error) {
+    session.stop()
+    throw connectionFailure(error)
+  }
+}
+
+export function removeBrowserEnvironmentConnection(id: string): void {
+  setBrowserEnvironmentConnections(browserEnvironmentConnections().filter((item) => item.id !== id))
 }
 
 const secondarySessions = new Map<string, EnvironmentSession>()
