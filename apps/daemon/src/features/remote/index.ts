@@ -4,6 +4,7 @@ export {
   type AuthorizedClient,
   accessSnapshot,
   authenticateClientToken,
+  ensureDevClientToken,
   exchangePairingGrant,
   issuePairingGrant,
   type PairingGrant,

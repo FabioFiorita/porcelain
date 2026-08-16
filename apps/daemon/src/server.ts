@@ -18,6 +18,7 @@ import {
 import {
   authenticateClientToken,
   createRemoteHttp,
+  ensureDevClientToken,
   exchangePairingGrant,
   initConfigDir,
   initIfaceHandlers,
@@ -54,7 +55,10 @@ import { createSession, publishSessionChange } from './session/live-session'
  * addresses through these same handlers — never 0.0.0.0; every privileged request is
  * token-gated ALWAYS (`authorization: Bearer` on /trpc, the `porcelain.<token>`
  * subprotocol on the WS upgrade — chosen over `?token=`, which would leak the token
- * into logs and proxies); `POST /pair` is the one unauthenticated route.
+ * into logs and proxies); `POST /pair` is the one unauthenticated route in production.
+ * A development daemon (PORCELAIN_DEV) also exposes `GET /dev-auth`, which hands the
+ * browser a real client token so the pairing step is not repeated per browser context.
+ * The Bearer gate still runs on every request behind it; production never wires it.
  *
  * Contract with the shell: exactly ONE stdout line, `{"port": N}`, once listening
  * (everything else goes to stderr, and the token is NEVER printed), and self-exit
@@ -191,6 +195,15 @@ async function main(): Promise<void> {
         resolveAccessToken: canvasAccessTokens.resolve,
         readCanvas: projects.readCanvas,
       }),
+    // A dev daemon hands its browser a real client token instead of demanding a pairing
+    // link every context — the same provisioning the e2e harness already does, and the
+    // Bearer gate still runs on every request afterwards. Production omits the option, so
+    // the route does not exist there. `--no-auto-auth` (PORCELAIN_DEV_AUTO_AUTH=0) restores
+    // the pairing flow for when the pairing flow itself is what needs proving.
+    devAutoAuth:
+      process.env.PORCELAIN_DEV === '1' && process.env.PORCELAIN_DEV_AUTO_AUTH !== '0'
+        ? ensureDevClientToken
+        : undefined,
   })
 
   // Hand the shared handlers to the second-listener module so its optional

@@ -271,6 +271,34 @@ holding port 43118 — the launcher forwards `SIGINT`/`SIGTERM` to its child, bu
 it. Orphaned daemons on the dev port are exactly the confusion the lifecycle rules are meant to
 prevent, so W6 should fix the handoff rather than only document it.
 
+### W1b — the browser stops asking (done)
+
+Pairing was never per launch — authorized clients persist in `access.json` and survive a
+restart. It was per **browser context**, which is why twenty accumulated: every fresh Playwright
+context, every new profile, every reset counted as a new device. A human opening the dev daemon
+had to interrupt an agent to get a link minted.
+
+A dev daemon now serves `GET /dev-auth`, which returns a stable client credential
+(`ensureDevClientToken`, reconciled in both directions because a hash cannot be reversed). The
+gate collects it when its probe fails, which also self-heals a stale stored token.
+
+This is provisioning, not a bypass, and the distinction is load-bearing: the Bearer check still
+runs on every request behind it, and the route only exists when `server.ts` passes `devAutoAuth`
+— which it does only under `PORCELAIN_DEV`. What it removes is the pairing handshake.
+
+Removing a handshake from the daily path makes it unproven, so `apps/desktop/e2e/pairing.spec.ts`
+now walks it for real against a live daemon: gate held, link exchanged, replay refused,
+malformed link rejected. The replay guard was deleted and watched to fail. `--no-auto-auth`
+restores the pairing flow when pairing itself is what is under test.
+
+A dev daemon binds LAN by default, so anyone on that network can claim a dev credential. That is
+an accepted development trade — dev daemons open playgrounds only — recorded here rather than
+rediscovered later.
+
+Two test-hygiene bugs surfaced: `vi.restoreAllMocks()` undoes neither `vi.stubGlobal` nor a
+persistent `mockRejectedValue`, so a stubbed `fetch` was answering requests a later case never
+made. Both now reset in `afterEach`.
+
 ## Next
 
 W3 (seeded daemon state) is the next payer: the fleet now gives it repositories with shape, and

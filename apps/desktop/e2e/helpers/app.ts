@@ -29,6 +29,8 @@ const BROWSER_TOKEN = `pc_client_e2e-client_${BROWSER_SECRET}`
 /** Token planted into each disposable browser daemon's access store for contract-level probes. */
 export const E2E_BROWSER_TOKEN = BROWSER_TOKEN
 const ADMIN_TOKEN = randomBytes(32).toString('hex')
+/** The isolated daemon's host-administrator credential — the only way to mint a pairing link. */
+export const E2E_ADMIN_TOKEN = ADMIN_TOKEN
 
 // A fixed basename so the project switcher shows a stable repo name in
 // screenshots (mkdtemp's random suffix would change every run). workers=1 makes
@@ -86,6 +88,12 @@ interface Options {
    * that only exist on a tablet/phone — the terminal key bar.
    */
   touchDevice: boolean
+  /**
+   * Plant this browser's client credential before the first page script (default true).
+   * Set false to face the real token gate — the only way to prove the pairing exchange,
+   * which every other spec deliberately skips.
+   */
+  plantToken: boolean
 }
 
 /**
@@ -308,6 +316,7 @@ export const test = baseTest.extend<Options & Fixtures, WorkerOptions & WorkerFi
   seedRepo: [true, { option: true }],
   seedReviewSet: [null, { option: true }],
   touchDevice: [false, { option: true }],
+  plantToken: [true, { option: true }],
   // Worker-scoped so the shared Chromium can key off it; set per Playwright project.
   appMode: ['electron', { option: true, scope: 'worker' }],
 
@@ -360,7 +369,7 @@ export const test = baseTest.extend<Options & Fixtures, WorkerOptions & WorkerFi
     await app.close()
   },
 
-  page: async ({ appMode, app, sharedBrowser, seeded, touchDevice }, use) => {
+  page: async ({ appMode, app, sharedBrowser, seeded, touchDevice, plantToken }, use) => {
     if (appMode === 'electron') {
       if (app === null) throw new Error('electron mode without an app fixture')
       const page = await app.firstWindow()
@@ -398,10 +407,16 @@ export const test = baseTest.extend<Options & Fixtures, WorkerOptions & WorkerFi
         // stays the boot color in captures while the DOM (and headed Chromium,
         // and real clients) are correct. Don't chase it as an app bug.
       })
-      await context.addInitScript((token) => {
-        localStorage.setItem('porcelain-client-token', token)
-        localStorage.setItem('porcelain-e2e', '1')
-      }, BROWSER_TOKEN)
+      if (plantToken) {
+        await context.addInitScript((token) => {
+          localStorage.setItem('porcelain-client-token', token)
+          localStorage.setItem('porcelain-e2e', '1')
+        }, BROWSER_TOKEN)
+      } else {
+        await context.addInitScript(() => {
+          localStorage.setItem('porcelain-e2e', '1')
+        })
+      }
       if (touchDevice) await context.addInitScript(installTouch)
       const page = await context.newPage()
       await page.goto(`http://127.0.0.1:${port}/`)

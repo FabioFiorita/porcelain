@@ -178,7 +178,12 @@ const exchangeTestPairing: RemoteHttpOptions['exchangePairing'] = async (provide
 type TestDaemonOverrides = Partial<
   Pick<
     RemoteHttpOptions,
-    'authenticateClient' | 'exchangePairing' | 'router' | 'serveCanvas' | 'allowedOrigin'
+    | 'authenticateClient'
+    | 'exchangePairing'
+    | 'router'
+    | 'serveCanvas'
+    | 'allowedOrigin'
+    | 'devAutoAuth'
   >
 >
 
@@ -191,6 +196,7 @@ function testDaemonOptions({
     res.writeHead(404)
     res.end()
   },
+  devAutoAuth,
 }: TestDaemonOverrides = {}): RemoteHttpOptions {
   return {
     adminTokenHash: createHash('sha256').update(TOKEN).digest(),
@@ -204,6 +210,7 @@ function testDaemonOptions({
       res.end()
     },
     serveCanvas,
+    devAutoAuth,
   }
 }
 
@@ -711,6 +718,62 @@ const protocolMismatches: Array<
     PROTOCOL_VERSION + 1,
   ],
 ]
+
+describe('daemon http surface — development auto-authorization', () => {
+  it('does not expose /dev-auth when the option is absent', async () => {
+    const { base, daemon: testDaemon } = await startTestDaemon()
+    try {
+      const response = await fetch(`${base}/dev-auth`)
+      // No route: the request falls through to the static handler, which 404s.
+      expect(response.status).toBe(404)
+      expect(response.headers.get('content-type')).not.toBe('application/json')
+    } finally {
+      await stopTestDaemon(testDaemon)
+    }
+  })
+
+  it('serves an uncacheable client token when the option is present', async () => {
+    const devAutoAuth = vi.fn(async () => 'pc_client_dev-auto-auth_secret')
+    const { base, daemon: testDaemon } = await startTestDaemon({ devAutoAuth })
+    try {
+      const response = await fetch(`${base}/dev-auth`)
+      expect(response.status).toBe(200)
+      expect(response.headers.get('cache-control')).toBe('no-store')
+      expect(await response.json()).toEqual({ token: 'pc_client_dev-auto-auth_secret' })
+      expect(devAutoAuth).toHaveBeenCalledTimes(1)
+    } finally {
+      await stopTestDaemon(testDaemon)
+    }
+  })
+
+  it('still gates /trpc behind the Bearer check the dev token has to satisfy', async () => {
+    // The route hands out a credential; it does not make the daemon anonymous. A caller
+    // that skips the Authorization header is refused exactly as in production.
+    const { base, daemon: testDaemon } = await startTestDaemon({
+      devAutoAuth: async () => 'pc_client_dev-auto-auth_secret',
+    })
+    try {
+      const response = await fetch(`${base}/trpc/recentRepos`, {
+        headers: { [PROTOCOL_VERSION_HEADER]: String(PROTOCOL_VERSION) },
+      })
+      await expectPublicHttpFailure(response, 401, 'auth.unauthenticated')
+    } finally {
+      await stopTestDaemon(testDaemon)
+    }
+  })
+
+  it('rejects a write to the dev route', async () => {
+    const { base, daemon: testDaemon } = await startTestDaemon({
+      devAutoAuth: async () => 'pc_client_dev-auto-auth_secret',
+    })
+    try {
+      const response = await fetch(`${base}/dev-auth`, { method: 'POST' })
+      expect(response.status).toBe(405)
+    } finally {
+      await stopTestDaemon(testDaemon)
+    }
+  })
+})
 
 describe('daemon http surface — the protocol gate', () => {
   it.each(

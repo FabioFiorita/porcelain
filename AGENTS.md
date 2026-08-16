@@ -122,16 +122,20 @@ known-good manual run.
 | Repos | Real worktrees | Playground fleet only |
 
 ```bash
-pnpm build && pnpm dev:daemon   # dev daemon on 43118 — prints a ready-to-open pairing URL
-pnpm dev:pair                   # another one-time link (15-minute expiry)
+pnpm build && pnpm dev:daemon   # dev daemon on 43118 — the browser needs no pairing
+pnpm dev:daemon -- --no-auto-auth  # require pairing links (use when testing pairing itself)
+pnpm dev:pair                   # one-time link for another device (15-minute expiry)
 pnpm playground new dirty       # a fixture with a shape; `shapes` lists them, `rm` deletes
 pnpm porcelain <noun> <verb>    # CLI → ~/.porcelain-dev
 ```
 
 A dev daemon opens **only** the playground family — the boundary is the daemon's, armed by
-`PORCELAIN_DEV` from `scripts/dev-env.mjs`. Never hand-plant a token into `localStorage`; the
-launcher prints a pairing URL. One fixture proves nothing about adding, removing, or switching
-projects — make the fleet match the flow under test.
+`PORCELAIN_DEV` from `scripts/dev-env.mjs`. That same flag mounts `GET /dev-auth`, which hands
+the browser a real client token so no context has to be paired by hand; every request behind it
+is still Bearer-gated, production never mounts the route, and `apps/desktop/e2e/pairing.spec.ts`
+keeps the skipped handshake proven. Never hand-plant a token into `localStorage`. One fixture
+proves nothing about adding, removing, or switching projects — make the fleet match the flow
+under test.
 
 **Debris:** delete session-local junk (`.playwright-mcp/`, `test-results/`, `playwright-report/`,
 `apps/desktop/e2e/.artifacts/`) before stopping. `scripts/agent-scratch/` is gitignored.

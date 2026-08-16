@@ -1,7 +1,7 @@
 import { createHash, timingSafeEqual } from 'node:crypto'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import type { Duplex } from 'node:stream'
-import { PROTOCOL_VERSION, PROTOCOL_VERSION_HEADER } from '@porcelain/contracts'
+import { PROTOCOL_VERSION_HEADER } from '@porcelain/contracts'
 import { MAX_SESSION_MESSAGE_BYTES } from '@porcelain/contracts/terminal'
 import type { AnyRouter } from '@trpc/server'
 import { fetchRequestHandler } from '@trpc/server/adapters/fetch'
@@ -14,7 +14,9 @@ import {
 } from '../../daemon-composition/public-error'
 import { createRequestId } from '../../daemon-composition/request-id'
 import type { AuthIdentity } from './access-store'
+import { handleDevAuthRequest } from './dev-auth-http'
 import { parseAllowedOrigins } from './remote-origins'
+import { rejectProtocolMismatch } from './remote-protocol'
 
 export { parseAllowedOrigins } from './remote-origins'
 
@@ -39,6 +41,10 @@ export { parseAllowedOrigins } from './remote-origins'
  * capability token (minted only to an already-Bearer-authenticated tRPC caller
  * — canvas-access-tokens.ts) is the credential there; see canvas-http.ts for
  * why the route exists at all.
+ *
+ * GET /dev-auth is the one deliberate hole, mounted ONLY when the caller passes
+ * `devAutoAuth` (server.ts does so only under PORCELAIN_DEV) — see dev-auth-http.ts for
+ * what it hands out and why the Bearer gate below still applies to everything behind it.
  *
  * Both dispatching routes also require the exact wire protocol this build speaks
  * (`rejectProtocolMismatch` below): the daemon serves independently updated clients
@@ -67,6 +73,8 @@ export interface RemoteHttpOptions {
   serveStatic: (req: IncomingMessage, res: ServerResponse) => Promise<void>
   /** Serves GET /canvas/<token> — see canvas-http.ts. Token-gated, not Bearer-gated. */
   serveCanvas: (req: IncomingMessage, res: ServerResponse) => Promise<void>
+  /** DEVELOPMENT ONLY — see dev-auth-http.ts. Omitted in production; the route then does not exist. */
+  devAutoAuth?: () => Promise<string>
 }
 
 export interface RemoteHttp {
@@ -79,20 +87,6 @@ export interface RemoteHttp {
 }
 
 const WS_PROTOCOL_PREFIX = 'porcelain.'
-
-/**
- * A protocol announcement is exactly one decimal integer — no sign, space, exponent,
- * fraction, or repeated header. Anything else announced no version this build can compare
- * against, so it is reported back as `received: null` rather than guessed into a number.
- */
-const PROTOCOL_VERSION_PATTERN = /^(?:0|[1-9]\d*)$/
-
-function announcedProtocolVersion(req: IncomingMessage): number | null {
-  const raw = req.headers[PROTOCOL_VERSION_HEADER]
-  if (typeof raw !== 'string' || !PROTOCOL_VERSION_PATTERN.test(raw)) return null
-  const announced = Number(raw)
-  return Number.isSafeInteger(announced) ? announced : null
-}
 
 export function createRemoteHttp(opts: RemoteHttpOptions): RemoteHttp {
   const allowedOrigins = parseAllowedOrigins([
@@ -180,26 +174,6 @@ export function createRemoteHttp(opts: RemoteHttpOptions): RemoteHttp {
    *
    * Returns true when it has already written the response.
    */
-  function rejectProtocolMismatch(
-    req: IncomingMessage,
-    res: ServerResponse,
-    cors: Record<string, string>,
-    requestId: string,
-  ): boolean {
-    const received = announcedProtocolVersion(req)
-    if (received === PROTOCOL_VERSION) return false
-    writePublicError(
-      res,
-      409,
-      cors,
-      publicErrorFor('protocol.update-required', requestId, {
-        expected: PROTOCOL_VERSION,
-        received,
-      }),
-    )
-    return true
-  }
-
   const pairingAttempts = new Map<string, { windowStartedAt: number; count: number }>()
 
   function pairingRateLimited(req: IncomingMessage): boolean {
@@ -309,6 +283,11 @@ export function createRemoteHttp(opts: RemoteHttpOptions): RemoteHttp {
       } catch (error) {
         writeUnexpectedRequestFailure(res, cors, error, requestId)
       }
+      return
+    }
+    // Development auto-authorization. Absent in production: no option, no route.
+    if (url === '/dev-auth' && opts.devAutoAuth !== undefined) {
+      await handleDevAuthRequest(req, res, cors, opts.devAutoAuth)
       return
     }
     if (url.startsWith('/canvas/')) {

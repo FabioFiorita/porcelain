@@ -55,6 +55,8 @@ Options:
   --loopback, --no-host
                        Loopback only (127.0.0.1) — no LAN share
   --tailnet            Also bind Tailscale (100.64/10) on the same port
+  --no-auto-auth       Require a pairing link in the browser (default: auto)
+                       Use when the pairing flow itself is what you are testing.
   --port <n>           Listen port (default ${DEV_PORT})
   -h, --help           Show this help
 
@@ -75,6 +77,7 @@ function parseArgs(argv) {
   const opts = {
     host: true, // LAN on by default for Mac ↔ Beelink dev
     tailnet: false,
+    autoAuth: true,
     port: DEV_PORT,
     help: false,
   }
@@ -98,6 +101,11 @@ function parseArgs(argv) {
     }
     if (arg === '--tailnet') {
       opts.tailnet = true
+      i += 1
+      continue
+    }
+    if (arg === '--no-auto-auth') {
+      opts.autoAuth = false
       i += 1
       continue
     }
@@ -242,20 +250,28 @@ function acquireDaemonRecord(path, value) {
 }
 
 /**
- * Print a ready-to-open pairing URL once the daemon is listening.
+ * Report how a client gets in, once the daemon is listening.
  *
- * Minted on every boot, deliberately. Authorized clients do survive a restart, but a fresh
- * session's browser is rarely among them — this stack had twenty stale clients and none of
- * them belonged to the agent about to work. Pairing links expire in fifteen minutes, so an
- * unused one costs nothing, while a missing one costs a hand-planted token.
+ * With auto-auth on, the browser needs nothing — it collects a real client token from the
+ * daemon and every request is still Bearer-gated behind it. Other clients (a simulator, a
+ * phone) still pair by link, so print one when this profile has no authorized client yet;
+ * otherwise say so rather than minting a link nobody asked for.
  */
-async function announcePairing(port) {
+async function announcePairing(port, autoAuth) {
   await waitForDaemon(port)
-  const url = issueDevPairingUrl({ port })
   const authorized = devAccessStatus(port)?.clients?.length
-  const known = authorized === undefined ? '' : `  (${authorized} client(s) already authorized)`
+  if (autoAuth && authorized !== undefined && authorized > 0) {
+    console.log(`
+  auth        auto — open http://127.0.0.1:${port}/ and the browser is in
+              ${authorized} client(s) authorized · link for another device: pnpm dev:pair
+              Testing the pairing flow itself? pnpm dev:daemon -- --no-auto-auth
+`)
+    return
+  }
+  const url = issueDevPairingUrl({ port })
   console.log(`
-  pair        ${url}${known}
+  auth        ${autoAuth ? 'auto for the browser; link below for other devices' : 'pairing link required (--no-auto-auth)'}
+  pair        ${url}
               One-time link, expires in 15 minutes: open it OR hand it over, never both.
               Another: pnpm dev:pair
 `)
@@ -278,6 +294,7 @@ ${tailnetLine}
   browser     http://127.0.0.1:${opts.port}/
   admin file  ${DEV_ADMIN_TOKEN_FILE}
   CLI         pnpm porcelain <noun> <verb>
+  auth        ${opts.autoAuth ? 'auto (browser needs no pairing)' : 'pairing link required'}
   pair        printed below once the daemon is listening (or \`pnpm dev:pair\`)
 
   Rebuild after code changes:  pnpm build && pnpm dev:daemon -- …
@@ -337,6 +354,7 @@ async function main() {
     PORCELAIN_DAEMON_PORT: String(opts.port),
     PORCELAIN_ADMIN_TOKEN: tokenOut,
     PORCELAIN_LAN_BIND: opts.host ? '1' : '',
+    PORCELAIN_DEV_AUTO_AUTH: opts.autoAuth ? '1' : '0',
     PORCELAIN_TAILNET_BIND: opts.tailnet ? '1' : '',
   })
 
@@ -347,7 +365,7 @@ async function main() {
   })
 
   // Pairing is an announcement, never a gate: a failure here must not take the daemon with it.
-  announcePairing(opts.port).catch((error) => {
+  announcePairing(opts.port, opts.autoAuth).catch((error) => {
     console.error(
       `[dev:daemon] could not mint a pairing link (${error instanceof Error ? error.message : String(error)}) — run \`pnpm dev:pair\``,
     )

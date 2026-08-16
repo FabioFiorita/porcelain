@@ -61,6 +61,24 @@ function pairingToken(body: unknown): string | null {
 }
 
 /**
+ * Development daemons serve a client token from `/dev-auth` so a browser context does not
+ * have to be paired by hand. Production daemons never mount the route, so this 404s and
+ * the gate stays locked exactly as before — the caller only reaches here after a failed
+ * probe, which also makes it the self-heal for a stale credential in localStorage.
+ */
+async function devAutoAuthToken(): Promise<string | null> {
+  try {
+    const response = await fetch('/dev-auth', {
+      headers: { [PROTOCOL_VERSION_HEADER]: String(PROTOCOL_VERSION) },
+    })
+    if (!response.ok) return null
+    return pairingToken(await response.json())
+  } catch {
+    return null
+  }
+}
+
+/**
  * Guards the browser client behind its device credential: on mount it probes with the
  * persisted credential (localStorage), and until that succeeds the caller renders a
  * lock screen instead of the app. Electron has no gate — the token rides the preload
@@ -117,9 +135,20 @@ export function useTokenGate(): TokenGate {
           return
         }
       }
-      const ok = await probe()
+      if (await probe()) {
+        if (active) setStatus('open')
+        return
+      }
+      // Hold 'checking' across the dev attempt: flashing the pairing form before we know
+      // whether this daemon auto-authorizes is the exact interruption it exists to remove.
+      const devToken = await devAutoAuthToken()
       if (!active) return
-      setStatus(ok ? 'open' : 'locked')
+      if (devToken === null) {
+        setStatus('locked')
+        return
+      }
+      setBrowserDaemonToken(devToken)
+      setStatus((await probe()) ? 'open' : 'locked')
     }
     settleBackground(run(), 'lifecycle')
     return () => {

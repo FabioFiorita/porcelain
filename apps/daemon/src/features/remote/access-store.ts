@@ -214,6 +214,53 @@ export async function authenticateClientToken(value: string): Promise<AuthIdenti
   return { kind: 'client', clientId: client.id, label: client.label }
 }
 
+const DEV_CLIENT_ID = 'dev-auto-auth'
+const DEV_CLIENT_LABEL = 'Dev auto-auth'
+
+const devTokenPath = (): string =>
+  process.env.PORCELAIN_DEV_CLIENT_TOKEN_FILE ?? porcelainHomePath('dev-client-token')
+
+/**
+ * Find-or-create the development client credential, returning its plaintext token.
+ *
+ * A client record stores only a hash, so the plaintext cannot be recovered — it is kept
+ * beside the admin token at 0600 and the two are reconciled in both directions on every
+ * call: a missing or mismatched hash regenerates both, and a missing file re-mints even
+ * though the record looks healthy. Anything less hands the browser a token the daemon
+ * will reject, which is worse than no token at all.
+ *
+ * Dev only. `server.ts` decides whether this is ever reachable; the store just owns the
+ * single-writer mutation, as it does for every other access change.
+ */
+export async function ensureDevClientToken(now = Date.now()): Promise<string> {
+  const existing = await readFile(devTokenPath(), 'utf8')
+    .then((value) => value.trim())
+    .catch(() => '')
+  const parsed = existing === '' ? null : parseToken(existing, 'pc_client')
+  if (parsed !== null && parsed.id === DEV_CLIENT_ID) {
+    const client = (await readAccess()).clients.find((candidate) => candidate.id === DEV_CLIENT_ID)
+    if (client !== undefined && secretsMatch(client.secretHash, parsed.secret)) return existing
+  }
+
+  const secret = randomBytes(TOKEN_SECRET_BYTES).toString('hex')
+  const minted = await mutateAccess((value) => {
+    value.clients = value.clients.filter((client) => client.id !== DEV_CLIENT_ID)
+    value.clients.push({
+      id: DEV_CLIENT_ID,
+      label: DEV_CLIENT_LABEL,
+      secretHash: secretHash(secret),
+      createdAt: new Date(now).toISOString(),
+    })
+    return token('pc_client', DEV_CLIENT_ID, secret)
+  })
+  const path = devTokenPath()
+  await mkdir(dirname(path), { recursive: true })
+  const temporary = `${path}.tmp`
+  await writeFile(temporary, minted, { encoding: 'utf8', mode: 0o600 })
+  await rename(temporary, path)
+  return minted
+}
+
 export async function revokePairingGrant(id: string): Promise<boolean> {
   return mutateAccess((value) => {
     const previous = value.pairings.length
