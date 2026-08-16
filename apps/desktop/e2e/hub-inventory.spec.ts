@@ -24,5 +24,13 @@ test('Hub inventory lists the Environment, Project, and Worktrees without a dele
   await loc.hubCreateWorktreeSubmit(page).click()
 
   await expect(loc.hubWorktrees(page)).toHaveCount(before + 1)
-  await expect(page.getByTestId(/^hub-worktree-/).filter({ hasText: 'hub-topic' })).toBeVisible()
+  const created = page.getByTestId(/^hub-worktree-/).filter({ hasText: 'hub-topic' })
+  await expect(created).toBeVisible()
+
+  // Open the actual row context menu: checking for hidden labels alone misses
+  // a destructive action that is only mounted after this interaction.
+  await created.click({ button: 'right' })
+  const menu = page.getByRole('menu')
+  await expect(menu.getByRole('menuitem', { name: /remove worktree/i })).toHaveCount(0)
+  await expect(menu.getByRole('menuitem', { name: /delete worktree/i })).toHaveCount(0)
 })
