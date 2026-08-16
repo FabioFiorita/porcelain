@@ -8,6 +8,7 @@ import type { FilesChange } from '@porcelain/contracts/files'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import { primary } from '@renderer/lib/daemon'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
+import { useHubTarget } from '@renderer/stores/hub-selection'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { settleBackground } from '@shared/background'
 import type { QueryClient } from '@tanstack/react-query'
@@ -75,9 +76,10 @@ export function useFilesNotificationSubscription(): void {
   const host = daemon.host
   const version = daemon.version
   const repoPath = useProjectSelectionStore((s) => s.project?.path ?? null)
+  const target = useHubTarget()
 
   useEffect(() => {
-    const daemonScope: DaemonScope = { host, version }
+    const daemonScope: DaemonScope = { host: target?.environmentId ?? host, version }
     return primary.onChange((change) => {
       // Kind guard: only the three Files kinds reach the mapper (Board pattern).
       let notification: FilesChange
@@ -110,5 +112,5 @@ export function useFilesNotificationSubscription(): void {
           applyFilesForeignDependencies(queryClient, daemonScope, repoPath, dependencies),
       })
     })
-  }, [queryClient, host, repoPath, version])
+  }, [queryClient, host, repoPath, target?.environmentId, version])
 }
