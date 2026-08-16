@@ -57,7 +57,7 @@ test('header commands expose commit controls', async ({ page }) => {
 test('header actions expose saved commands', async ({ page }) => {
   await waitForShell(page)
   await loc.actionsMenu(page).click()
-  await expect(page.getByText('Saved commands', { exact: true })).toBeVisible()
+  await expect(loc.actionsAdd(page)).toBeVisible()
 })
 
 /**
