@@ -4,8 +4,7 @@ import {
   type FilesInterestHandle,
 } from '@porcelain/client-runtime/files'
 import { primary } from '@renderer/lib/daemon'
-import { environmentSessionFor } from '@renderer/lib/environment-sessions'
-import { useHubRepoPath, useHubRepoTarget } from '@renderer/stores/hub-repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { type Pane, useTabsStore } from '@renderer/stores/tabs'
 import { useTreeDirsStore } from '@renderer/stores/tree-dirs'
 import { useEffect, useMemo, useRef } from 'react'
@@ -27,9 +26,7 @@ function openFilePaths(panes: readonly Pane[]): string[] {
  * Mounted once from AppShell. Session runtime no longer registers watch interests.
  */
 export function useFilesInterestBridge(): void {
-  const repoPath = useHubRepoPath()
-  const target = useHubRepoTarget()
-  const owner = environmentSessionFor(target?.environmentId ?? null)
+  const repoPath = useProjectSelectionStore((s) => s.project?.path ?? null)
   // Reactive selectors — never snapshot-only getState(); tab open / dir expand must recompute.
   const panes = useTabsStore((s) => s.panes)
   const dirs = useTreeDirsStore((s) => s.dirs)
@@ -58,11 +55,10 @@ export function useFilesInterestBridge(): void {
     facadeRef.current?.dispose()
     facadeRef.current = null
 
-    if (repoPath === null || owner === null) return
+    if (repoPath === null) return
 
     facadeRef.current = createFilesInterest(repoPath, {
-      registerWatchInterest: (interest) =>
-        (owner.session?.runtime ?? primary.runtime).registerWatchInterest(interest),
+      registerWatchInterest: (interest) => primary.runtime.registerWatchInterest(interest),
     })
 
     return () => {
@@ -71,7 +67,7 @@ export function useFilesInterestBridge(): void {
       facadeRef.current?.dispose()
       facadeRef.current = null
     }
-  }, [owner, repoPath])
+  }, [repoPath])
 
   // Recompute interests when open files or expanded dirs change.
   useEffect(() => {

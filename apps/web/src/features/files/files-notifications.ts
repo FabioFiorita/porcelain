@@ -8,8 +8,7 @@ import type { FilesChange } from '@porcelain/contracts/files'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import { primary } from '@renderer/lib/daemon'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
-import { environmentSessionFor } from '@renderer/lib/environment-sessions'
-import { useHubRepoPath, useHubRepoTarget } from '@renderer/stores/hub-repo'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { settleBackground } from '@shared/background'
 import type { QueryClient } from '@tanstack/react-query'
 import { useQueryClient } from '@tanstack/react-query'
@@ -75,14 +74,11 @@ export function useFilesNotificationSubscription(): void {
   const daemon = useDaemonIdentity()
   const host = daemon.host
   const version = daemon.version
-  const repoPath = useHubRepoPath()
-  const target = useHubRepoTarget()
-  const owner = environmentSessionFor(target?.environmentId ?? null)
+  const repoPath = useProjectSelectionStore((s) => s.project?.path ?? null)
 
   useEffect(() => {
     const daemonScope: DaemonScope = { host, version }
-    if (owner === null) return
-    return (owner.session ?? primary).onChange((change) => {
+    return primary.onChange((change) => {
       // Kind guard: only the three Files kinds reach the mapper (Board pattern).
       let notification: FilesChange
       switch (change.kind) {
@@ -114,5 +110,5 @@ export function useFilesNotificationSubscription(): void {
           applyFilesForeignDependencies(queryClient, daemonScope, repoPath, dependencies),
       })
     })
-  }, [queryClient, host, owner, repoPath, version])
+  }, [queryClient, host, repoPath, version])
 }
