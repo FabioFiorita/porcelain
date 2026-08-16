@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { devRepoPath, isRecognizedDevPlayground, seedDevConfig } from './dev-config'
-import { initProjectsRecentsDir } from './features/projects'
+import { initHubInventoryStore, initProjectsRecentsDir } from './features/projects'
 
 describe('devRepoPath', () => {
   it('keeps the primary development playground by default', () => {
@@ -35,7 +35,24 @@ describe('devRepoPath', () => {
       const playground = join(root, 'code', 'porcelain-playground')
       await mkdir(playground, { recursive: true })
       const recents = join(root, 'projects-recents.json')
+      const inventory = initHubInventoryStore(root)
       initProjectsRecentsDir(root)
+      await inventory.writeProjects([
+        {
+          id: 'porcelain',
+          commonGitDir: join(root, 'code', 'porcelain', '.git'),
+          groupingKey: 'name:porcelain',
+          name: 'porcelain',
+          worktrees: [],
+        },
+        {
+          id: 'playground',
+          commonGitDir: join(playground, '.git'),
+          groupingKey: 'name:playground',
+          name: 'playground',
+          worktrees: [],
+        },
+      ])
       await writeFile(
         recents,
         JSON.stringify({
@@ -50,6 +67,8 @@ describe('devRepoPath', () => {
         value: { paths: string[] }
       }
       expect(value.value.paths).toEqual([playground])
+      const catalog = await inventory.readProjects()
+      expect(catalog.ok && catalog.value.map((project) => project.id)).toEqual(['playground'])
     } finally {
       await rm(root, { recursive: true, force: true })
     }

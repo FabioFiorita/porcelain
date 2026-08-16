@@ -21,7 +21,7 @@ export {
 } from './canvas-store'
 export { initEnvironmentIdentityStore } from './environment-identity-store'
 export { createHubGitPort } from './hub-git-port'
-export { initHubInventoryStore } from './hub-inventory-store'
+export { configuredHubInventoryStore, initHubInventoryStore } from './hub-inventory-store'
 export {
   createProjectsOperations,
   type ProjectOperationResult,

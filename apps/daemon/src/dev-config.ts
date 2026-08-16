@@ -1,7 +1,7 @@
 import { stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
-import { configuredProjectsRecentsStore } from './features/projects'
+import { configuredHubInventoryStore, configuredProjectsRecentsStore } from './features/projects'
 
 export function devRepoPath(source: NodeJS.ProcessEnv = process.env, home = homedir()): string {
   return source.PORCELAIN_DEV_PLAYGROUND ?? join(home, 'code', 'porcelain-playground')
@@ -42,6 +42,16 @@ export async function seedDevConfig(
   home = homedir(),
 ): Promise<void> {
   const devRepo = devRepoPath(source, home)
+  const inventory = configuredHubInventoryStore()
+  const stored = await inventory.readProjects()
+  if (stored.ok) {
+    const filtered = stored.value.filter(
+      (project) =>
+        isRecognizedDevPlayground(project.commonGitDir, devRepo) ||
+        isRecognizedDevPlayground(dirname(project.commonGitDir), devRepo),
+    )
+    if (filtered.length !== stored.value.length) await inventory.writeProjects(filtered)
+  }
   const recents = configuredProjectsRecentsStore()
   const current = await recents.readPaths()
   if (!current.ok) return
