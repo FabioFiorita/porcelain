@@ -56,7 +56,6 @@ export const TestIds = {
   glance: 'glance',
   glanceChangedFiles: 'glance-changed-files',
   glanceJumpChanges: 'glance-jump-changes',
-  glanceJumpReview: 'glance-jump-review',
   glanceJumpTerminal: 'glance-jump-terminal',
 
   // --- Settings ---
