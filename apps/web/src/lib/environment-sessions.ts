@@ -25,6 +25,33 @@ export type EnvironmentClient = Readonly<{
   session: DaemonSession | null
 }>
 
+/** Every daemon this browser has configured and can currently keep live. The primary session is
+ * always first; secondary entries are client-local connections, never guessed from a Hub row. */
+export type LiveEnvironmentSession = Readonly<{
+  environmentId: string | null
+  connectionId: string | null
+  name: string
+  session: DaemonSession
+  client: EnvironmentSession['client']
+}>
+
+/** Cache scope for an owner: the primary daemon keeps its announced host, while secondary
+ * sessions use their Environment id so independent daemon caches cannot collide. */
+export function daemonScopeForEnvironment(
+  environmentId: string | null | undefined,
+  identity: { host: string | null; version: string | null },
+): { host: string | null; version: string | null } {
+  return {
+    host:
+      environmentId === undefined ||
+      environmentId === null ||
+      environmentId === primaryEnvironmentId
+        ? identity.host
+        : environmentId,
+    version: identity.version,
+  }
+}
+
 const STORAGE_KEY = 'porcelain-browser-environments'
 const connectionShape = (value: unknown): value is BrowserEnvironmentConnection => {
   if (typeof value !== 'object' || value === null) return false
@@ -109,6 +136,35 @@ export function ensureEnvironmentSession(
   return existing
 }
 
+/** Snapshot the live session set for notification bridges and watch-interest ownership. */
+export function liveEnvironmentSessions(): readonly LiveEnvironmentSession[] {
+  const primaryEntry: LiveEnvironmentSession = {
+    environmentId: primaryEnvironmentId,
+    connectionId: null,
+    name: 'This device',
+    session: primary,
+    client: primaryAppClient(),
+  }
+  const secondary = browserEnvironmentConnections().map((connection) => {
+    const entry = ensureEnvironmentSession(connection)
+    return {
+      environmentId: environmentAliasesForConnection(connection.id) ?? connection.id,
+      connectionId: connection.id,
+      name: connection.name,
+      session: entry.session,
+      client: entry.client,
+    }
+  })
+  return [primaryEntry, ...secondary]
+}
+
+function environmentAliasesForConnection(connectionId: string): string | null {
+  for (const [environmentId, alias] of environmentAliases) {
+    if (alias === connectionId) return environmentId
+  }
+  return null
+}
+
 /** Resolve the session that owns an explicit Environment target. `null` is this page's daemon. */
 export function environmentSessionFor(environmentId: string | null): EnvironmentSession | null {
   if (environmentId === null || environmentId === primaryEnvironmentId) {
@@ -123,6 +179,26 @@ export function environmentSessionFor(environmentId: string | null): Environment
   const connections = browserEnvironmentConnections()
   const connection = connections.find((item) => item.id === connectionId)
   return connection === undefined ? null : ensureEnvironmentSession(connection)
+}
+
+/** Resolve a Hub target during the short primary-identity bootstrap window. Hub rows can carry
+ * the serving daemon's announced Environment id before `daemonInfo` has published that id to
+ * this client; those rows still belong to the primary session. Unknown ids after bootstrap are
+ * refused rather than silently routed to the primary daemon. */
+export function environmentSessionForHubTarget(
+  environmentId: string | null,
+): EnvironmentSession | null {
+  const direct = environmentSessionFor(environmentId)
+  if (direct !== null || environmentId === null || primaryEnvironmentId !== null) return direct
+  if (browserEnvironmentConnections().some((connection) => connection.id === environmentId)) {
+    return null
+  }
+  return {
+    id: 'primary',
+    name: 'This device',
+    session: primary,
+    client: primaryAppClient(),
+  }
 }
 
 /** Resolve an explicit target to its owning client; unknown Environment ids refuse. */

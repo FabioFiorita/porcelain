@@ -1,7 +1,7 @@
 import type { ActionView } from '@porcelain/contracts/actions'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
-import { environmentClientFor } from '@renderer/lib/environment-sessions'
+import { daemonScopeForEnvironment, environmentClientFor } from '@renderer/lib/environment-sessions'
 import { trpc } from '@renderer/lib/trpc'
 import { useQuery } from '@tanstack/react-query'
 import { actionsListKeyForProject } from './actions-query-key'
@@ -26,7 +26,10 @@ export function useActions(
   const selectedProjectId = useSelectedProjectId()
   const resolvedProjectId = projectId === undefined ? selectedProjectId : projectId
   const daemon = useDaemonIdentity()
-  const daemonScope: DaemonScope = { host: daemon.host, version: daemon.version }
+  // Secondary Environment rows are served by that Environment's daemon. Keep the cache
+  // identity identical to mutations/notifications instead of appending an ad-hoc environment
+  // segment that the canonical invalidator cannot see.
+  const daemonScope: DaemonScope = daemonScopeForEnvironment(environmentId, daemon)
   const utils = trpc.useUtils()
   const owner =
     environmentId === undefined
@@ -36,7 +39,7 @@ export function useActions(
 
   const query = useQuery({
     queryKey: resolvedProjectId
-      ? [...actionsListKeyForProject(daemonScope, resolvedProjectId), environmentId ?? null]
+      ? actionsListKeyForProject(daemonScope, resolvedProjectId)
       : ([{ domain: 'actions', name: 'list', projectId: '' }, daemonScope] as const),
     queryFn: async (): Promise<ActionView[]> => {
       if (resolvedProjectId === null) return []

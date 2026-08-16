@@ -1,115 +1,116 @@
 {
   "coverage": {
     "total": {
-      "statements": 59.9,
-      "branches": 51.2,
-      "statementCount": 26178
+      "statements": 59.6,
+      "branches": 52.4,
+      "statementCount": 24475
     },
     "areas": {
       "apps/daemon": {
-        "statements": 84.2,
-        "branches": 76.4,
-        "statementCount": 5775
+        "statements": 81.3,
+        "branches": 73.3,
+        "statementCount": 5995
       },
       "apps/cli": {
-        "statements": 88.8,
-        "branches": 79.6,
-        "statementCount": 1040
+        "statements": 88.3,
+        "branches": 79.7,
+        "statementCount": 843
       },
       "apps/web": {
-        "statements": 49.5,
-        "branches": 44.2,
-        "statementCount": 9495
+        "statements": 47.9,
+        "branches": 44.4,
+        "statementCount": 8730
       },
       "apps/desktop": {
-        "statements": 26.9,
-        "branches": 21.4,
-        "statementCount": 654
+        "statements": 39.1,
+        "branches": 36.1,
+        "statementCount": 763
       },
       "apps/mobile": {
-        "statements": 39.3,
-        "branches": 31.2,
-        "statementCount": 6689
+        "statements": 35.1,
+        "branches": 29.4,
+        "statementCount": 5258
       },
       "packages/contracts": {
-        "statements": 100,
-        "branches": 96.7,
-        "statementCount": 554
+        "statements": 92.5,
+        "branches": 87.2,
+        "statementCount": 570
       },
       "packages/client-runtime": {
-        "statements": 93.7,
-        "branches": 89.5,
-        "statementCount": 1310
+        "statements": 92.8,
+        "branches": 88.6,
+        "statementCount": 1201
       },
       "packages/shared": {
-        "statements": 90.8,
-        "branches": 87.7,
-        "statementCount": 661
+        "statements": 90.4,
+        "branches": 83.9,
+        "statementCount": 1115
       }
     },
     "domains": {
       "projects": {
-        "statements": 82.6,
-        "branches": 78.7,
-        "statementCount": 304
+        "statements": 79.3,
+        "branches": 68.5,
+        "statementCount": 1398
       },
       "files": {
-        "statements": 66.2,
-        "branches": 53.9,
-        "statementCount": 1975
+        "statements": 68.9,
+        "branches": 56.8,
+        "statementCount": 1918
       },
       "git": {
-        "statements": 65.7,
-        "branches": 53.9,
-        "statementCount": 1192
+        "statements": 66.1,
+        "branches": 54.2,
+        "statementCount": 1171
       },
       "search": {
-        "statements": 63,
-        "branches": 57.3,
-        "statementCount": 694
+        "statements": 70.5,
+        "branches": 60.5,
+        "statementCount": 719
       },
       "review": {
-        "statements": 69.8,
-        "branches": 54.7,
-        "statementCount": 2342
+        "statements": 67,
+        "branches": 67.3,
+        "statementCount": 276
+      },
+      "tasks": {
+        "statements": 87.5,
+        "branches": 78.7,
+        "statementCount": 554
       },
       "actions": {
-        "statements": 71.4,
-        "branches": 61.6,
-        "statementCount": 739
+        "statements": 76.1,
+        "branches": 65.4,
+        "statementCount": 912
       },
       "terminal": {
-        "statements": 54.7,
-        "branches": 51.6,
-        "statementCount": 1940
+        "statements": 58.7,
+        "branches": 54.4,
+        "statementCount": 2124
       },
       "project-data": {
-        "statements": 80.9,
-        "branches": 69.7,
-        "statementCount": 513
+        "statements": 50.7,
+        "branches": 50,
+        "statementCount": 369
       },
       "remote": {
         "statements": 75.7,
-        "branches": 63.8,
-        "statementCount": 1306
+        "branches": 63.7,
+        "statementCount": 1313
       }
     },
     "untestedFiles": [
       {
         "file": "apps/web/src/components/shell/tree-node.tsx",
-        "statements": 156
+        "statements": 149
       },
       {
         "file": "apps/mobile/src/features/terminal/terminal-engine.ts",
         "statements": 135
       },
       {
-        "file": "apps/web/src/components/settings/flow-layers-section.tsx",
-        "statements": 118
-      },
-      {
-        "file": "apps/mobile/src/features/review/execution-body.tsx",
-        "statements": 100
+        "file": "apps/mobile/src/features/quick-open/use-quick-open.ts",
+        "statements": 122
       },
       {
         "file": "apps/mobile/src/features/changes/commit-card.tsx",
@@ -120,43 +121,23 @@
         "statements": 83
       },
       {
-        "file": "apps/web/src/components/shell/sidebar-resize-handle.tsx",
-        "statements": 83
-      },
-      {
-        "file": "apps/mobile/src/features/terminal/terminal-command-composer.tsx",
-        "statements": 81
-      },
-      {
         "file": "apps/mobile/src/features/terminal/xterm-terminal-view.tsx",
         "statements": 79
       },
       {
         "file": "apps/daemon/src/server.ts",
-        "statements": 71
+        "statements": 78
       },
       {
-        "file": "apps/web/src/features/actions/actions-group.tsx",
+        "file": "apps/mobile/src/features/terminal/terminal-command-composer.tsx",
+        "statements": 69
+      },
+      {
+        "file": "apps/web/src/components/terminal/terminal-list.tsx",
         "statements": 67
       },
       {
-        "file": "apps/mobile/src/features/files/files-companion.tsx",
-        "statements": 65
-      },
-      {
-        "file": "apps/web/src/components/shell/app-shell.tsx",
-        "statements": 63
-      },
-      {
         "file": "apps/mobile/src/features/diff/read-all-view.tsx",
-        "statements": 61
-      },
-      {
-        "file": "apps/mobile/src/features/review/review-companion.tsx",
-        "statements": 61
-      },
-      {
-        "file": "apps/mobile/src/features/shell/shell-sheets.tsx",
         "statements": 61
       },
       {
@@ -164,16 +145,8 @@
         "statements": 61
       },
       {
-        "file": "apps/web/src/components/terminal/terminal-list.tsx",
-        "statements": 58
-      },
-      {
-        "file": "apps/mobile/src/features/review/evidence-body.tsx",
-        "statements": 57
-      },
-      {
-        "file": "apps/web/src/components/shell/use-app-shortcuts.ts",
-        "statements": 57
+        "file": "apps/web/src/components/shell/sidebar-resize-handle.tsx",
+        "statements": 61
       },
       {
         "file": "apps/desktop/src/main/index.ts",
@@ -188,8 +161,20 @@
         "statements": 52
       },
       {
-        "file": "apps/mobile/src/features/changes/changes-list.tsx",
-        "statements": 50
+        "file": "apps/web/src/components/shell/app-shell.tsx",
+        "statements": 52
+      },
+      {
+        "file": "apps/web/src/components/shell/use-app-shortcuts.ts",
+        "statements": 52
+      },
+      {
+        "file": "apps/web/src/components/git/changes-list.tsx",
+        "statements": 51
+      },
+      {
+        "file": "apps/web/src/hooks/use-session-runtime.ts",
+        "statements": 51
       },
       {
         "file": "apps/mobile/src/features/terminal/use-terminal-roster.ts",
@@ -204,11 +189,11 @@
         "statements": 49
       },
       {
-        "file": "apps/web/src/features/git/git-reviewed.ts",
-        "statements": 47
+        "file": "apps/mobile/src/features/settings/preferences-store.ts",
+        "statements": 46
       },
       {
-        "file": "apps/mobile/src/features/settings/preferences-store.ts",
+        "file": "apps/web/src/components/shell/viewer.tsx",
         "statements": 46
       },
       {
@@ -216,7 +201,7 @@
         "statements": 45
       },
       {
-        "file": "apps/web/src/components/git/diff-view.tsx",
+        "file": "apps/web/src/components/shell/right-sidebar.tsx",
         "statements": 44
       },
       {
@@ -228,12 +213,16 @@
         "statements": 43
       },
       {
-        "file": "apps/mobile/src/features/files/test-support.tsx",
+        "file": "apps/mobile/src/features/remote/remote-pair.ts",
         "statements": 42
       },
       {
-        "file": "apps/mobile/src/features/remote/remote-pair.ts",
+        "file": "packages/contracts/src/review/review.contract.ts",
         "statements": 42
+      },
+      {
+        "file": "apps/mobile/src/features/changes/changes-list.tsx",
+        "statements": 41
       },
       {
         "file": "apps/mobile/src/features/diff/diff-lines.tsx",
@@ -244,8 +233,8 @@
         "statements": 41
       },
       {
-        "file": "apps/web/src/components/shell/app-sidebar.tsx",
-        "statements": 40
+        "file": "apps/mobile/src/features/project-data/project-data-settings.ts",
+        "statements": 39
       },
       {
         "file": "apps/mobile/src/features/terminal/native-terminal-view.tsx",
@@ -256,20 +245,8 @@
         "statements": 38
       },
       {
-        "file": "apps/mobile/src/features/review/intent-body.tsx",
-        "statements": 38
-      },
-      {
-        "file": "apps/mobile/src/features/settings/use-review-editor.ts",
-        "statements": 38
-      },
-      {
         "file": "apps/web/src/components/settings/share-section.tsx",
         "statements": 38
-      },
-      {
-        "file": "apps/web/src/components/shell/viewer.tsx",
-        "statements": 37
       },
       {
         "file": "apps/web/src/hooks/use-responsive-shell.ts",
@@ -284,20 +261,16 @@
         "statements": 35
       },
       {
-        "file": "apps/mobile/src/features/comments/comment-composer.tsx",
-        "statements": 34
-      },
-      {
         "file": "apps/mobile/src/features/files/files-browser.tsx",
         "statements": 34
       },
       {
-        "file": "apps/web/src/components/settings/settings-dialog.tsx",
-        "statements": 33
+        "file": "apps/mobile/src/features/shell/shell-sheets.tsx",
+        "statements": 34
       },
       {
-        "file": "apps/web/src/components/shell/file-tree.tsx",
-        "statements": 33
+        "file": "apps/mobile/src/features/actions/actions-companion.tsx",
+        "statements": 32
       },
       {
         "file": "apps/mobile/src/features/history/history-companion.tsx",
@@ -308,28 +281,12 @@
         "statements": 32
       },
       {
-        "file": "apps/web/src/components/shell/welcome.tsx",
-        "statements": 32
-      },
-      {
         "file": "apps/desktop/src/main/updater.ts",
         "statements": 31
       },
       {
-        "file": "apps/mobile/src/features/changes/file-row.tsx",
+        "file": "apps/web/src/components/settings/settings-dialog.tsx",
         "statements": 31
-      },
-      {
-        "file": "apps/mobile/src/features/review/review-list.tsx",
-        "statements": 31
-      },
-      {
-        "file": "apps/mobile/src/features/terminal/terminal-key-bar.tsx",
-        "statements": 31
-      },
-      {
-        "file": "apps/mobile/src/features/changes/comments-card.tsx",
-        "statements": 30
       },
       {
         "file": "apps/mobile/src/features/shell/tablet-shell.tsx",
@@ -340,6 +297,14 @@
         "statements": 30
       },
       {
+        "file": "apps/web/src/components/shell/viewer-header.tsx",
+        "statements": 30
+      },
+      {
+        "file": "apps/mobile/src/features/changes/file-row.tsx",
+        "statements": 29
+      },
+      {
         "file": "apps/mobile/src/features/changes/quick-commands-card.tsx",
         "statements": 29
       },
@@ -348,20 +313,32 @@
         "statements": 29
       },
       {
-        "file": "apps/mobile/src/features/settings/review-panel.tsx",
+        "file": "apps/mobile/src/features/shell/workspace-create-form.tsx",
         "statements": 29
       },
       {
-        "file": "apps/mobile/src/features/shell/workspace-create-form.tsx",
+        "file": "apps/web/src/components/shell/surface-sidebar.tsx",
         "statements": 29
+      },
+      {
+        "file": "apps/web/src/features/git/git-notifications.ts",
+        "statements": 28
+      },
+      {
+        "file": "apps/web/src/features/project-data/project-data-mutations.ts",
+        "statements": 28
       },
       {
         "file": "apps/web/src/hooks/use-shell-events.ts",
         "statements": 28
       },
       {
-        "file": "apps/mobile/src/features/actions/actions-companion.tsx",
-        "statements": 27
+        "file": "apps/mobile/src/features/files/files-companion.tsx",
+        "statements": 26
+      },
+      {
+        "file": "apps/mobile/src/features/quick-open/quick-open-sheet.tsx",
+        "statements": 26
       },
       {
         "file": "apps/mobile/src/features/search/content-results.tsx",
@@ -372,8 +349,8 @@
         "statements": 26
       },
       {
-        "file": "apps/mobile/src/features/review/use-slice-tokens.ts",
-        "statements": 25
+        "file": "apps/web/src/components/shell/glance-home.tsx",
+        "statements": 26
       },
       {
         "file": "apps/mobile/src/features/settings/environments-panel.tsx",
@@ -381,6 +358,10 @@
       },
       {
         "file": "apps/web/src/components/shell/quick-commands-group.tsx",
+        "statements": 25
+      },
+      {
+        "file": "apps/web/src/features/project-data/project-data-queries.ts",
         "statements": 25
       },
       {
@@ -392,11 +373,7 @@
         "statements": 23
       },
       {
-        "file": "apps/web/src/lib/channels-devtools-panel.tsx",
-        "statements": 23
-      },
-      {
-        "file": "apps/mobile/src/features/review/evidence-gallery.tsx",
+        "file": "apps/mobile/src/features/project-data/project-data-mutations.ts",
         "statements": 22
       },
       {
@@ -406,6 +383,10 @@
       {
         "file": "apps/mobile/src/features/settings/data-panel.tsx",
         "statements": 21
+      },
+      {
+        "file": "apps/mobile/src/features/git/git-notifications.ts",
+        "statements": 20
       },
       {
         "file": "apps/mobile/src/features/history/commit-view.tsx",
@@ -424,6 +405,14 @@
         "statements": 19
       },
       {
+        "file": "apps/web/src/components/git/diff-view.tsx",
+        "statements": 19
+      },
+      {
+        "file": "apps/web/src/stores/unread.ts",
+        "statements": 19
+      },
+      {
         "file": "apps/mobile/src/components/shell-modal.tsx",
         "statements": 18
       },
@@ -436,11 +425,11 @@
         "statements": 18
       },
       {
-        "file": "apps/mobile/src/features/shell/phone-shell.tsx",
+        "file": "apps/mobile/src/features/shell/project-sheet.tsx",
         "statements": 18
       },
       {
-        "file": "apps/mobile/src/features/shell/project-sheet.tsx",
+        "file": "apps/mobile/src/features/terminal/terminal-key-bar.tsx",
         "statements": 18
       },
       {
@@ -464,15 +453,11 @@
         "statements": 17
       },
       {
-        "file": "apps/web/src/components/viewer/search-view.tsx",
-        "statements": 17
-      },
-      {
-        "file": "apps/mobile/src/features/review/review-canvas.tsx",
+        "file": "apps/mobile/src/features/shell/tablet-header.tsx",
         "statements": 16
       },
       {
-        "file": "apps/mobile/src/features/shell/tablet-header.tsx",
+        "file": "apps/web/src/components/viewer/search-view.tsx",
         "statements": 16
       },
       {
@@ -484,7 +469,15 @@
         "statements": 15
       },
       {
+        "file": "apps/mobile/src/features/shell/phone-header.tsx",
+        "statements": 15
+      },
+      {
         "file": "apps/web/src/components/terminal/terminal-rename-dialog.tsx",
+        "statements": 15
+      },
+      {
+        "file": "apps/web/src/features/tasks/tasks-notifications.ts",
         "statements": 15
       },
       {
@@ -492,15 +485,7 @@
         "statements": 14
       },
       {
-        "file": "apps/mobile/src/features/review/review-chrome.tsx",
-        "statements": 14
-      },
-      {
-        "file": "apps/mobile/src/features/shell/phone-header.tsx",
-        "statements": 14
-      },
-      {
-        "file": "apps/mobile/src/features/shell/surface-screen.tsx",
+        "file": "apps/mobile/src/features/shell/phone-shell.tsx",
         "statements": 14
       },
       {
@@ -520,6 +505,10 @@
         "statements": 13
       },
       {
+        "file": "apps/web/src/components/shell/file-tree.tsx",
+        "statements": 13
+      },
+      {
         "file": "apps/desktop/src/main/menu.ts",
         "statements": 12
       },
@@ -528,15 +517,15 @@
         "statements": 12
       },
       {
-        "file": "apps/mobile/src/features/board/board-notification-bridge.tsx",
-        "statements": 12
-      },
-      {
         "file": "apps/mobile/src/features/changes/changes-viewer.tsx",
         "statements": 12
       },
       {
-        "file": "apps/mobile/src/features/project-data/project-data-freshness-bridge.tsx",
+        "file": "apps/mobile/src/features/comments/index.ts",
+        "statements": 12
+      },
+      {
+        "file": "apps/mobile/src/features/shell/surface-screen.tsx",
         "statements": 12
       },
       {
@@ -552,15 +541,15 @@
         "statements": 11
       },
       {
-        "file": "apps/mobile/src/features/shell/tab-faces.ts",
-        "statements": 11
-      },
-      {
         "file": "apps/mobile/src/features/shell/tab-root-focus.ts",
         "statements": 11
       },
       {
         "file": "apps/web/src/components/shell/token-gate.tsx",
+        "statements": 11
+      },
+      {
+        "file": "apps/web/src/lib/terminal-clipboard.ts",
         "statements": 11
       },
       {
@@ -576,11 +565,11 @@
         "statements": 10
       },
       {
-        "file": "apps/web/src/features/search/search-quick-access.tsx",
+        "file": "apps/web/src/hooks/use-updates.ts",
         "statements": 10
       },
       {
-        "file": "apps/web/src/hooks/use-updates.ts",
+        "file": "apps/web/src/lib/channels-devtools-panel.tsx",
         "statements": 10
       },
       {
@@ -600,15 +589,15 @@
         "statements": 9
       },
       {
-        "file": "apps/mobile/src/features/comments/use-line-selection.ts",
-        "statements": 9
-      },
-      {
         "file": "apps/mobile/src/features/files/files-list.tsx",
         "statements": 9
       },
       {
         "file": "apps/mobile/src/features/files/use-file-highlight.ts",
+        "statements": 9
+      },
+      {
+        "file": "apps/mobile/src/features/project-data/project-data-freshness-bridge.tsx",
         "statements": 9
       },
       {
@@ -644,7 +633,11 @@
         "statements": 8
       },
       {
-        "file": "apps/mobile/src/features/review/review-store.ts",
+        "file": "apps/mobile/src/features/changes/use-changes.ts",
+        "statements": 8
+      },
+      {
+        "file": "apps/mobile/src/features/shell/tab-faces.ts",
         "statements": 8
       },
       {
@@ -656,12 +649,16 @@
         "statements": 8
       },
       {
-        "file": "apps/mobile/src/lib/daemon/watch.ts",
+        "file": "apps/web/src/components/git/changes-scope-toggle.tsx",
         "statements": 8
       },
       {
         "file": "apps/web/src/hooks/use-window-controls.ts",
         "statements": 8
+      },
+      {
+        "file": "apps/mobile/src/features/changes/changes-summary.ts",
+        "statements": 7
       },
       {
         "file": "apps/mobile/src/features/changes/commit-draft-store.ts",
@@ -673,6 +670,10 @@
       },
       {
         "file": "apps/web/src/components/settings/updates-section.tsx",
+        "statements": 7
+      },
+      {
+        "file": "apps/web/src/components/shell/pinned-group.tsx",
         "statements": 7
       },
       {
@@ -688,7 +689,11 @@
         "statements": 6
       },
       {
-        "file": "apps/web/src/features/review/explore-view.tsx",
+        "file": "apps/web/src/components/shell/app-sidebar.tsx",
+        "statements": 6
+      },
+      {
+        "file": "apps/web/src/features/tasks/tasks-list.tsx",
         "statements": 6
       },
       {
@@ -704,15 +709,11 @@
         "statements": 5
       },
       {
-        "file": "apps/mobile/src/features/board/board-list.tsx",
-        "statements": 5
-      },
-      {
-        "file": "apps/mobile/src/features/changes/changes-diff-view.tsx",
-        "statements": 5
-      },
-      {
         "file": "apps/mobile/src/features/changes/changes-phone-screen.tsx",
+        "statements": 5
+      },
+      {
+        "file": "apps/mobile/src/features/changes/changes-store.ts",
         "statements": 5
       },
       {
@@ -721,10 +722,6 @@
       },
       {
         "file": "apps/mobile/src/features/search/search-phone-screen.tsx",
-        "statements": 5
-      },
-      {
-        "file": "apps/mobile/src/features/settings/pattern-builder.tsx",
         "statements": 5
       },
       {
@@ -744,14 +741,6 @@
         "statements": 5
       },
       {
-        "file": "apps/web/src/components/shell/files-quick-access.tsx",
-        "statements": 5
-      },
-      {
-        "file": "apps/web/src/components/shell/pinned-group.tsx",
-        "statements": 5
-      },
-      {
         "file": "apps/web/src/components/shell/window-controls.tsx",
         "statements": 5
       },
@@ -768,19 +757,11 @@
         "statements": 4
       },
       {
-        "file": "apps/mobile/src/features/changes/changes-read-all-view.tsx",
-        "statements": 4
-      },
-      {
         "file": "apps/mobile/src/features/files/file-viewer.tsx",
         "statements": 4
       },
       {
         "file": "apps/mobile/src/features/history/history-phone-screen.tsx",
-        "statements": 4
-      },
-      {
-        "file": "apps/mobile/src/features/review/doc-body.tsx",
         "statements": 4
       },
       {
@@ -796,7 +777,7 @@
         "statements": 4
       },
       {
-        "file": "apps/web/src/components/shell/right-sidebar.tsx",
+        "file": "apps/web/src/components/shell/sidebar-header-actions.tsx",
         "statements": 4
       },
       {
@@ -805,6 +786,10 @@
       },
       {
         "file": "apps/web/src/stores/file-tree.ts",
+        "statements": 4
+      },
+      {
+        "file": "apps/web/src/stores/zen.ts",
         "statements": 4
       },
       {
@@ -820,23 +805,11 @@
         "statements": 3
       },
       {
-        "file": "apps/mobile/src/features/review/review-empty.tsx",
-        "statements": 3
-      },
-      {
         "file": "apps/mobile/src/features/settings/environment-chrome.tsx",
         "statements": 3
       },
       {
         "file": "apps/mobile/src/features/shell/shell-icon.tsx",
-        "statements": 3
-      },
-      {
-        "file": "apps/mobile/src/features/shell/surfaces.ts",
-        "statements": 3
-      },
-      {
-        "file": "apps/web/src/components/git/review-all-toggle.tsx",
         "statements": 3
       },
       {
@@ -852,10 +825,6 @@
         "statements": 2
       },
       {
-        "file": "apps/mobile/src/features/review/review-phone-screen.tsx",
-        "statements": 2
-      },
-      {
         "file": "apps/mobile/src/features/settings/theme-vars.ts",
         "statements": 2
       },
@@ -868,15 +837,15 @@
         "statements": 2
       },
       {
-        "file": "apps/mobile/src/app/board.tsx",
-        "statements": 1
+        "file": "apps/web/src/lib/active-review-tabs.ts",
+        "statements": 2
+      },
+      {
+        "file": "packages/client-runtime/src/git/git-notifications.ts",
+        "statements": 2
       },
       {
         "file": "apps/mobile/src/app/history.tsx",
-        "statements": 1
-      },
-      {
-        "file": "apps/mobile/src/app/review.tsx",
         "statements": 1
       },
       {
@@ -916,15 +885,15 @@
         "statements": 1
       },
       {
-        "file": "apps/mobile/src/features/comments/selection-bar.tsx",
+        "file": "apps/mobile/src/features/changes/changes-diff-view.tsx",
+        "statements": 1
+      },
+      {
+        "file": "apps/mobile/src/features/changes/changes-read-all-view.tsx",
         "statements": 1
       },
       {
         "file": "apps/mobile/src/features/files/file-viewer-header.tsx",
-        "statements": 1
-      },
-      {
-        "file": "apps/mobile/src/features/review/review-viewer.tsx",
         "statements": 1
       },
       {
@@ -948,14 +917,34 @@
         "statements": 1
       },
       {
+        "file": "apps/web/src/components/git/changes-empty-state.tsx",
+        "statements": 1
+      },
+      {
+        "file": "apps/web/src/components/git/discard-file-dialog.tsx",
+        "statements": 1
+      },
+      {
+        "file": "apps/web/src/components/shell/setup-tip.tsx",
+        "statements": 1
+      },
+      {
+        "file": "apps/web/src/components/shell/shortcut-tooltip.tsx",
+        "statements": 1
+      },
+      {
         "file": "apps/web/src/lib/devtools-shell.tsx",
+        "statements": 1
+      },
+      {
+        "file": "packages/contracts/src/review/review.procedures.ts",
         "statements": 1
       }
     ]
   },
   "complexity": {
     "ceiling": 15,
-    "overCeiling": 96,
+    "overCeiling": 95,
     "worst": [
       {
         "file": "apps/web/src/terminal/ghostty/renderer.ts",
@@ -963,24 +952,24 @@
         "score": 84
       },
       {
-        "file": "apps/web/src/components/shell/use-app-shortcuts.ts",
-        "line": 36,
-        "score": 57
-      },
-      {
         "file": "apps/web/src/components/shell/file-commands.tsx",
         "line": 24,
         "score": 50
       },
       {
-        "file": "apps/cli/src/cli.ts",
-        "line": 383,
-        "score": 47
+        "file": "apps/web/src/components/shell/use-app-shortcuts.ts",
+        "line": 33,
+        "score": 48
       },
       {
         "file": "apps/daemon/src/features/files/files-path-resolve.ts",
         "line": 167,
         "score": 45
+      },
+      {
+        "file": "apps/daemon/src/features/remote/remote-http.ts",
+        "line": 284,
+        "score": 40
       },
       {
         "file": "apps/daemon/src/features/files/files-watches.ts",
@@ -994,7 +983,7 @@
       },
       {
         "file": "apps/daemon/src/features/files/workspace-files.ts",
-        "line": 204,
+        "line": 247,
         "score": 36
       },
       {
@@ -1003,29 +992,29 @@
         "score": 36
       },
       {
-        "file": "apps/daemon/src/features/remote/remote-http.ts",
-        "line": 277,
-        "score": 35
+        "file": "packages/shared/src/companion-migration-review.ts",
+        "line": 146,
+        "score": 36
       }
     ]
   },
   "deadCode": {
-    "total": 406,
+    "total": 358,
     "byCategory": {
-      "files": 4,
-      "dependencies": 9,
-      "devDependencies": 22,
+      "files": 1,
+      "dependencies": 7,
+      "devDependencies": 17,
       "unlisted": 1,
-      "binaries": 2,
-      "exports": 223,
-      "types": 126,
-      "duplicates": 19
+      "binaries": 1,
+      "exports": 198,
+      "types": 116,
+      "duplicates": 17
     }
   },
   "moduleSizes": {
     "ceiling": 450,
-    "productionFiles": 921,
-    "overCeiling": 14,
+    "productionFiles": 826,
+    "overCeiling": 10,
     "worst": [
       {
         "file": "apps/web/src/terminal/ghostty/surface.ts",
@@ -1045,67 +1034,68 @@
       },
       {
         "file": "apps/web/src/features/review/reading-surface.tsx",
-        "lines": 899
+        "lines": 680
       },
       {
         "file": "apps/desktop/src/main/shell-api.ts",
-        "lines": 741
+        "lines": 568
       },
       {
-        "file": "apps/cli/src/cli.ts",
-        "lines": 645
+        "file": "apps/desktop/e2e/helpers/app.ts",
+        "lines": 505
       },
       {
         "file": "apps/web/src/lib/terminal-registry.ts",
-        "lines": 562
+        "lines": 488
       },
       {
-        "file": "apps/cli/src/evidence-file.ts",
-        "lines": 535
+        "file": "apps/desktop/e2e/marketing.shots.ts",
+        "lines": 474
+      },
+      {
+        "file": "apps/desktop/e2e/helpers/demo-repo.ts",
+        "lines": 472
       }
     ]
   },
   "testShape": {
     "apps/daemon": {
-      "sources": 185,
-      "tests": 118
+      "sources": 142,
+      "tests": 104
     },
     "apps/cli": {
-      "sources": 16,
-      "tests": 15
-    },
-    "apps/web": {
-      "sources": 251,
-      "tests": 141
-    },
-    "apps/desktop": {
-      "sources": 30,
-      "tests": 7
-    },
-    "apps/mobile": {
-      "sources": 301,
-      "tests": 102
-    },
-    "packages/contracts": {
-      "sources": 65,
-      "tests": 23
-    },
-    "packages/client-runtime": {
-      "sources": 63,
-      "tests": 53
-    },
-    "packages/shared": {
       "sources": 10,
       "tests": 8
+    },
+    "apps/web": {
+      "sources": 240,
+      "tests": 119
+    },
+    "apps/desktop": {
+      "sources": 45,
+      "tests": 9
+    },
+    "apps/mobile": {
+      "sources": 246,
+      "tests": 74
+    },
+    "packages/contracts": {
+      "sources": 64,
+      "tests": 18
+    },
+    "packages/client-runtime": {
+      "sources": 59,
+      "tests": 43
+    },
+    "packages/shared": {
+      "sources": 20,
+      "tests": 11
     }
   },
   "testQuality": {
-    "tests": 3304,
-    "files": 467,
-    "gatedKinds": ["focused", "disabled", "tautology", "no-assert"],
-    "counts": {
-      "mock-only": 54,
-      "weak-only": 32
-    }
+    "tests": 2876,
+    "files": 386,
+    "gatedKinds": ["focused", "disabled", "tautology", "no-assert", "weak-only"],
+    "counts": {}
   }
 }

@@ -2,7 +2,7 @@ import { actionsMutations, actionsProjectKey } from '@porcelain/client-runtime/a
 import type { ActionWhere } from '@porcelain/contracts/actions'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
-import { environmentClientFor } from '@renderer/lib/environment-sessions'
+import { daemonScopeForEnvironment, environmentClientFor } from '@renderer/lib/environment-sessions'
 import { trpc } from '@renderer/lib/trpc'
 import { useHubSelectionStore } from '@renderer/stores/hub-selection'
 import { useQueryClient } from '@tanstack/react-query'
@@ -40,12 +40,12 @@ export function useActionMutations(): {
 } {
   const projectId = useSelectedProjectId()
   const daemon = useDaemonIdentity()
-  const daemonScope = daemonScopeFromIdentity(daemon)
   const queryClient = useQueryClient()
   const client = trpc.useUtils().client
   const environmentId = useHubSelectionStore((state) =>
     state.selection.kind === 'home' ? null : state.selection.environmentId,
   )
+  const daemonScope = daemonScopeFromIdentity(daemonScopeForEnvironment(environmentId, daemon))
   const owner = environmentClientFor(environmentId, client)
 
   const ownerClient = () => {
@@ -123,12 +123,12 @@ export function useActionMutations(): {
 export function useTrustAction(): (id: string) => Promise<void> {
   const projectId = useSelectedProjectId()
   const daemon = useDaemonIdentity()
-  const daemonScope = daemonScopeFromIdentity(daemon)
   const queryClient = useQueryClient()
   const client = trpc.useUtils().client
   const environmentId = useHubSelectionStore((state) =>
     state.selection.kind === 'home' ? null : state.selection.environmentId,
   )
+  const daemonScope = daemonScopeFromIdentity(daemonScopeForEnvironment(environmentId, daemon))
   const owner = environmentClientFor(environmentId, client)
 
   return async (id: string): Promise<void> => {

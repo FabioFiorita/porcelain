@@ -7,7 +7,7 @@ import {
 import { headLabel } from '@porcelain/contracts'
 import type { BranchRef, GitHead, Worktree } from '@porcelain/contracts/git'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
-import { environmentClientFor } from '@renderer/lib/environment-sessions'
+import { daemonScopeForEnvironment, environmentClientFor } from '@renderer/lib/environment-sessions'
 import { trpc } from '@renderer/lib/trpc'
 import { useHubRepoPath, useHubRepoTarget } from '@renderer/stores/hub-repo'
 import { useQuery } from '@tanstack/react-query'
@@ -42,7 +42,7 @@ export function useGitBranches(
       return owner.client.gitBranches.query(queryPath)
     },
     queryKey: gitQueryKey(
-      { host: target?.environmentId ?? daemon.host, version: daemon.version },
+      daemonScopeForEnvironment(target?.environmentId, daemon),
       gitBranchesQuery(queryPath),
     ),
     staleTime: 0,
@@ -73,7 +73,7 @@ export function useGitWorkspace(): {
     target === null && repoPath !== null
       ? { client: utils.client }
       : environmentClientFor(target?.environmentId ?? null, utils.client)
-  const daemonScope = { host: target?.environmentId ?? daemon.host, version: daemon.version }
+  const daemonScope = daemonScopeForEnvironment(target?.environmentId, daemon)
   const enabled = repoPath !== null && owner !== null
   const projectPath = repoPath === null ? DISABLED_PROJECT : gitProjectKey(repoPath)
 

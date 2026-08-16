@@ -3,12 +3,12 @@
 - **One Hub window.** The shell stays up with Home, Project, or Worktree selected. Viewer tabs
   keep an explicit Environment + Project + Worktree target **and** query that Worktree's checkout;
   switching selection retargets the sidebar (Files, Changes) but does not close or retarget open
-  tabs. This window talks to one bound daemon — a tab whose Environment is not that daemon cannot
-  be served until multi-session lands. The daemon router is still stateless — procedures take
-  `repoPath` — and per-connection concerns live on the WS **session** (one socket per window)
-  keyed by a structural sender, not a `WebContents`. The lone procedure needing the calling
-  window (`windowInit`) lives on the shellRouter. Ordinary context switching does not open a new
-  window.
+  tabs. The browser keeps a live session for the serving daemon plus every configured Environment;
+  each target's Files, Git, Search, Actions, and terminal traffic stays on its owner's session.
+  The daemon router is still stateless — procedures take `repoPath` — and per-connection concerns
+  live on the WS **session** keyed by a structural sender, not a `WebContents`. The lone procedure
+  needing the calling window (`windowInit`) lives on the shellRouter. Ordinary context switching
+  does not open a new window.
 - **Window-targeted vs broadcast:** watcher events target the session that registered the watch;
   agent-channel app-events **broadcast**, because each window invalidates only its own repo-keyed
   query so cross-window delivery is a harmless no-op refetch. **Don't add a window→repo registry to

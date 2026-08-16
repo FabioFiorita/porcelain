@@ -11,7 +11,7 @@ import {
 import type { DirEntry, FileView, RepoScope } from '@porcelain/contracts/files'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
-import { environmentClientFor } from '@renderer/lib/environment-sessions'
+import { daemonScopeForEnvironment, environmentClientFor } from '@renderer/lib/environment-sessions'
 import { trpc } from '@renderer/lib/trpc'
 import { useHubRepoPath, useHubRepoTarget } from '@renderer/stores/hub-repo'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
@@ -48,10 +48,7 @@ function useFilesOwner(): {
   const identity = useDaemonIdentity()
   const primary = trpc.useUtils().client
   return {
-    daemon: {
-      host: target?.environmentId ?? identity.host,
-      version: identity.version,
-    },
+    daemon: daemonScopeForEnvironment(target?.environmentId, identity),
     owner:
       target === null && repoPath !== null
         ? { client: primary, session: null }

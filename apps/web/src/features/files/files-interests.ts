@@ -4,6 +4,8 @@ import {
   type FilesInterestHandle,
 } from '@porcelain/client-runtime/files'
 import { primary } from '@renderer/lib/daemon'
+import { environmentSessionForHubTarget } from '@renderer/lib/environment-sessions'
+import { useHubTarget } from '@renderer/stores/hub-selection'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { type Pane, useTabsStore } from '@renderer/stores/tabs'
 import { useTreeDirsStore } from '@renderer/stores/tree-dirs'
@@ -26,7 +28,13 @@ function openFilePaths(panes: readonly Pane[]): string[] {
  * Mounted once from AppShell. Session runtime no longer registers watch interests.
  */
 export function useFilesInterestBridge(): void {
+  const target = useHubTarget()
+  const targetEnvironmentId = target?.environmentId
   const repoPath = useProjectSelectionStore((s) => s.project?.path ?? null)
+  const owner = useMemo(
+    () => environmentSessionForHubTarget(targetEnvironmentId ?? null),
+    [targetEnvironmentId],
+  )
   // Reactive selectors — never snapshot-only getState(); tab open / dir expand must recompute.
   const panes = useTabsStore((s) => s.panes)
   const dirs = useTreeDirsStore((s) => s.dirs)
@@ -56,9 +64,16 @@ export function useFilesInterestBridge(): void {
     facadeRef.current = null
 
     if (repoPath === null) return
+    // An explicit remote target without a live owner must never fall back to the primary daemon;
+    // doing so would register a watch for the wrong checkout. Wait for that Environment to be
+    // configured/reachable instead.
+    if (targetEnvironmentId !== undefined && targetEnvironmentId !== null && owner === null) {
+      return
+    }
 
     facadeRef.current = createFilesInterest(repoPath, {
-      registerWatchInterest: (interest) => primary.runtime.registerWatchInterest(interest),
+      registerWatchInterest: (interest) =>
+        (owner?.session ?? primary).runtime.registerWatchInterest(interest),
     })
 
     return () => {
@@ -67,7 +82,7 @@ export function useFilesInterestBridge(): void {
       facadeRef.current?.dispose()
       facadeRef.current = null
     }
-  }, [repoPath])
+  }, [owner, repoPath, targetEnvironmentId])
 
   // Recompute interests when open files or expanded dirs change.
   useEffect(() => {

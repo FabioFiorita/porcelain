@@ -1,4 +1,4 @@
-import { ACTIVE_FILES, PROJECT_FILES, projectPorcelainPath } from '@shared/project-porcelain'
+import { PROJECT_FILES, projectPorcelainPath } from '@shared/project-porcelain'
 import type { ReadStrictJsonDocument } from '../../project-data/strict-json-document'
 import type { ProjectManifestValue } from './project-manifest'
 
@@ -20,7 +20,8 @@ export const PROJECT_DATA_DOMAIN_FILES: {
 } = {
   actions: [PROJECT_FILES.actions],
   files: [],
-  review: [ACTIVE_FILES.comments, ACTIVE_FILES.reviewed],
+  // Review annotations are legacy migration inputs, not a live project-data channel.
+  review: [],
   'project-data': [PROJECT_FILES.layers, PROJECT_FILES.gitignore, PROJECT_FILES.manifest],
   projects: [],
   git: [],

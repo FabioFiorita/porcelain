@@ -1,9 +1,9 @@
 {
-  "binaries": 2,
+  "binaries": 1,
   "dependencies": 7,
   "devDependencies": 17,
   "duplicates": 17,
-  "exports": 205,
+  "exports": 198,
   "files": 1,
   "types": 116,
   "unlisted": 1

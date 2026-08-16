@@ -8,7 +8,10 @@ import type { FilesChange } from '@porcelain/contracts/files'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import { primary } from '@renderer/lib/daemon'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
-import { useHubTarget } from '@renderer/stores/hub-selection'
+import {
+  daemonScopeForEnvironment,
+  liveEnvironmentSessions,
+} from '@renderer/lib/environment-sessions'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { settleBackground } from '@shared/background'
 import type { QueryClient } from '@tanstack/react-query'
@@ -76,41 +79,69 @@ export function useFilesNotificationSubscription(): void {
   const host = daemon.host
   const version = daemon.version
   const repoPath = useProjectSelectionStore((s) => s.project?.path ?? null)
-  const target = useHubTarget()
 
   useEffect(() => {
-    const daemonScope: DaemonScope = { host: target?.environmentId ?? host, version }
-    return primary.onChange((change) => {
-      // Kind guard: only the three Files kinds reach the mapper (Board pattern).
-      let notification: FilesChange
-      switch (change.kind) {
-        case 'files.scope-changed':
-          notification = { kind: 'files.scope-changed', projectPath: change.projectPath }
-          break
-        case 'files.tree-changed':
-          notification = {
-            kind: 'files.tree-changed',
-            projectPath: change.projectPath,
-            paths: change.paths,
-          }
-          break
-        case 'files.content-changed':
-          notification = {
-            kind: 'files.content-changed',
-            projectPath: change.projectPath,
-            paths: change.paths,
-          }
-          break
-        default:
-          return
-      }
-      applyFilesNotification(notification, {
-        queryClient,
-        daemon: daemonScope,
-        activeProjectPath: repoPath,
-        applyForeignDependencies: (dependencies) =>
-          applyFilesForeignDependencies(queryClient, daemonScope, repoPath, dependencies),
+    const secondarySessions = liveEnvironmentSessions().filter(
+      (entry) => entry.connectionId !== null,
+    )
+    const subscribe = (
+      session: typeof primary,
+      daemonScope: DaemonScope,
+      activeProjectPath: string | null,
+      foreignProjectPath: string,
+      acceptAnyProject = false,
+    ): (() => void) =>
+      session.onChange((change) => {
+        // Kind guard: only the three Files kinds reach the mapper (Board pattern).
+        let notification: FilesChange
+        switch (change.kind) {
+          case 'files.scope-changed':
+            notification = { kind: 'files.scope-changed', projectPath: change.projectPath }
+            break
+          case 'files.tree-changed':
+            notification = {
+              kind: 'files.tree-changed',
+              projectPath: change.projectPath,
+              paths: change.paths,
+            }
+            break
+          case 'files.content-changed':
+            notification = {
+              kind: 'files.content-changed',
+              projectPath: change.projectPath,
+              paths: change.paths,
+            }
+            break
+          default:
+            return
+        }
+        applyFilesNotification(notification, {
+          queryClient,
+          daemon: daemonScope,
+          activeProjectPath: acceptAnyProject ? notification.projectPath : activeProjectPath,
+          applyForeignDependencies: (dependencies) =>
+            applyFilesForeignDependencies(
+              queryClient,
+              daemonScope,
+              foreignProjectPath || notification.projectPath,
+              dependencies,
+            ),
+        })
       })
-    })
-  }, [queryClient, host, repoPath, target?.environmentId, version])
+
+    const cleanups = [
+      subscribe(primary, { host, version }, repoPath, repoPath ?? ''),
+      ...secondarySessions.map((entry) => {
+        const daemonScope: DaemonScope = daemonScopeForEnvironment(entry.environmentId, {
+          host,
+          version,
+        })
+        entry.session.start()
+        return subscribe(entry.session, daemonScope, null, '', true)
+      }),
+    ]
+    return () => {
+      for (const cleanup of cleanups) cleanup()
+    }
+  }, [queryClient, host, repoPath, version])
 }

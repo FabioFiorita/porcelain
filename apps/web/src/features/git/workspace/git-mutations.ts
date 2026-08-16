@@ -7,7 +7,11 @@ import type {
 } from '@porcelain/contracts/git'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
-import { type EnvironmentClient, environmentClientFor } from '@renderer/lib/environment-sessions'
+import {
+  daemonScopeForEnvironment,
+  type EnvironmentClient,
+  environmentClientFor,
+} from '@renderer/lib/environment-sessions'
 import { trpc } from '@renderer/lib/trpc'
 import { useHubRepoPath, useHubRepoTarget } from '@renderer/stores/hub-repo'
 import { type UseMutationResult, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -32,10 +36,7 @@ function useGitWorkspaceMutation<TInput extends GitWorkspaceInput, TOutput>(
   const repoPath = useHubRepoPath()
   const target = useHubRepoTarget()
   const daemonIdentity = useDaemonIdentity()
-  const daemon: DaemonScope = {
-    host: target?.environmentId ?? daemonIdentity.host,
-    version: daemonIdentity.version,
-  }
+  const daemon: DaemonScope = daemonScopeForEnvironment(target?.environmentId, daemonIdentity)
   const utils = trpc.useUtils()
   const owner =
     target === null && repoPath !== null

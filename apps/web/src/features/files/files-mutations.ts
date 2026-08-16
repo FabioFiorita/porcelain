@@ -12,7 +12,7 @@ import {
 import { onMutationError } from '@renderer/hooks/mutation-error'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
-import { environmentClientFor } from '@renderer/lib/environment-sessions'
+import { daemonScopeForEnvironment, environmentClientFor } from '@renderer/lib/environment-sessions'
 import { trpc } from '@renderer/lib/trpc'
 import { useHubRepoPath, useHubRepoTarget } from '@renderer/stores/hub-repo'
 import type { QueryClient } from '@tanstack/react-query'
@@ -100,7 +100,9 @@ export function useFilesActions(): {
   const repoPath = useHubRepoPath()
   const target = useHubRepoTarget()
   const daemon = useDaemonIdentity()
-  const daemonScope = daemonScopeFromIdentity(daemon)
+  const daemonScope = daemonScopeFromIdentity(
+    daemonScopeForEnvironment(target?.environmentId, daemon),
+  )
   const queryClient = useQueryClient()
   const utils = trpc.useUtils()
   const owner =
@@ -198,7 +200,9 @@ export function useWriteTextFile(absolutePath: string): {
   const repoPath = useHubRepoPath()
   const target = useHubRepoTarget()
   const daemon = useDaemonIdentity()
-  const daemonScope = daemonScopeFromIdentity(daemon)
+  const daemonScope = daemonScopeFromIdentity(
+    daemonScopeForEnvironment(target?.environmentId, daemon),
+  )
   const queryClient = useQueryClient()
   const utils = trpc.useUtils()
   const owner =
@@ -263,7 +267,9 @@ export function useFilesScopeActions(): {
   const repoPath = useHubRepoPath()
   const target = useHubRepoTarget()
   const daemon = useDaemonIdentity()
-  const daemonScope = daemonScopeFromIdentity(daemon)
+  const daemonScope = daemonScopeFromIdentity(
+    daemonScopeForEnvironment(target?.environmentId, daemon),
+  )
   const queryClient = useQueryClient()
   const utils = trpc.useUtils()
   const owner =

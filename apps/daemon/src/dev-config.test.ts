@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -72,6 +72,26 @@ describe('devRepoPath', () => {
       expect(value.value.paths).toEqual([playground])
       const catalog = await inventory.readProjects()
       expect(catalog.ok && catalog.value.map((project) => project.id)).toEqual(['playground'])
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects a symlinked playground path that resolves outside the sandbox', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'porcelain-dev-symlink-'))
+    try {
+      const playground = join(root, 'playground')
+      const production = join(root, 'production')
+      await mkdir(playground, { recursive: true })
+      await mkdir(production, { recursive: true })
+      const escaped = join(playground, 'linked-repo')
+      await symlink(production, escaped, 'dir')
+
+      expect(isRecognizedDevPlayground(escaped, playground)).toBe(false)
+      // Missing children are handled without throwing and remain outside the single primary
+      // playground repo; the project operation never warms or registers them.
+      expect(isRecognizedDevPlayground(join(playground, 'new-repo'), playground)).toBe(false)
+      expect(isRecognizedDevPlayground(join(escaped, 'missing'), playground)).toBe(false)
     } finally {
       await rm(root, { recursive: true, force: true })
     }

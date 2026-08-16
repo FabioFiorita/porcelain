@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { ACTIVE_FILES, PROJECT_FILES, projectPorcelainPath } from '@shared/project-porcelain'
+import { PROJECT_FILES, projectPorcelainPath } from '@shared/project-porcelain'
 import { describe, expect, it } from 'vitest'
 import {
   PROJECT_DATA_DOMAIN_FILES,
@@ -40,14 +40,7 @@ describe('project data companion ownership', () => {
       PROJECT_DATA_DOMAIN_KEYS.flatMap((key) => [...PROJECT_DATA_DOMAIN_FILES[key]]),
     )
     expect(claimed).toEqual(
-      new Set([
-        'actions.json',
-        'active-review/comments.json',
-        'active-review/reviewed.json',
-        'layers.json',
-        '.gitignore',
-        'project-manifest.json',
-      ]),
+      new Set(['actions.json', 'layers.json', '.gitignore', 'project-manifest.json']),
     )
   })
 
@@ -58,7 +51,7 @@ describe('project data companion ownership', () => {
       PROJECT_FILES.gitignore,
       PROJECT_FILES.manifest,
     ])
-    for (const foreign of [ACTIVE_FILES.comments, ACTIVE_FILES.reviewed, PROJECT_FILES.actions]) {
+    for (const foreign of [PROJECT_FILES.actions]) {
       expect(claimed).not.toContain(foreign)
     }
   })

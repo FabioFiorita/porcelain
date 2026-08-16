@@ -8,7 +8,7 @@ import {
 import type { CodeSearchResult, GrepMatch, SearchResult } from '@porcelain/contracts/search'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
-import { environmentClientFor } from '@renderer/lib/environment-sessions'
+import { daemonScopeForEnvironment, environmentClientFor } from '@renderer/lib/environment-sessions'
 import { trpc } from '@renderer/lib/trpc'
 import { useHubRepoPath, useHubRepoTarget } from '@renderer/stores/hub-repo'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
@@ -26,11 +26,11 @@ const DISABLED_CODE = codeSearchQuery(DISABLED_PROJECT, {
   regex: false,
 })
 
-function daemonScopeFromIdentity(daemon: {
-  host: string | null
-  version: string | null
-}): DaemonScope {
-  return { host: daemon.host, version: daemon.version }
+function daemonScopeFromIdentity(
+  daemon: { host: string | null; version: string | null },
+  environmentId?: string | null,
+): DaemonScope {
+  return daemonScopeForEnvironment(environmentId, daemon)
 }
 
 function errorValue(error: unknown): { message: string } | null {
@@ -47,7 +47,7 @@ export function useFileSearch(
 ): { results: SearchResult[]; isFetching: boolean } {
   const checkout = useHubRepoPath()
   const target = useHubRepoTarget()
-  const daemon = daemonScopeFromIdentity(useDaemonIdentity())
+  const daemon = daemonScopeFromIdentity(useDaemonIdentity(), target?.environmentId)
   const utils = trpc.useUtils()
   const owner =
     target === null
@@ -81,7 +81,7 @@ export function useTextSearch(
 } {
   const checkout = useHubRepoPath()
   const target = useHubRepoTarget()
-  const daemon = daemonScopeFromIdentity(useDaemonIdentity())
+  const daemon = daemonScopeFromIdentity(useDaemonIdentity(), target?.environmentId)
   const utils = trpc.useUtils()
   const owner =
     target === null
@@ -120,7 +120,7 @@ export function useCodeSearch(
 } {
   const checkout = useHubRepoPath()
   const target = useHubRepoTarget()
-  const daemon = daemonScopeFromIdentity(useDaemonIdentity())
+  const daemon = daemonScopeFromIdentity(useDaemonIdentity(), target?.environmentId)
   const utils = trpc.useUtils()
   const owner =
     target === null

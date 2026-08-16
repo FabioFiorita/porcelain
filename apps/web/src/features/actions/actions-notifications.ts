@@ -1,8 +1,11 @@
 import { actionsNotificationEffects } from '@porcelain/client-runtime/actions'
 import type { ActionsChanged } from '@porcelain/contracts/actions'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
-import { primary } from '@renderer/lib/daemon'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
+import {
+  daemonScopeForEnvironment,
+  liveEnvironmentSessions,
+} from '@renderer/lib/environment-sessions'
 import { settleBackground } from '@shared/background'
 import type { QueryClient } from '@tanstack/react-query'
 import { useQueryClient } from '@tanstack/react-query'
@@ -50,14 +53,23 @@ export function useActionsNotificationSubscription(): void {
   const version = daemon.version
 
   useEffect(() => {
-    const daemonScope: DaemonScope = { host, version }
-    return primary.onChange((change) => {
-      if (change.kind !== 'actions.changed') return
-      applyActionsNotification(
-        { kind: 'actions.changed', projectId: change.projectId },
-        { queryClient, daemon: daemonScope },
+    const cleanups = liveEnvironmentSessions().map((entry) => {
+      const daemonScope: DaemonScope = daemonScopeForEnvironment(
+        entry.connectionId === null ? null : entry.environmentId,
+        { host, version },
       )
+      entry.session.start()
+      return entry.session.onChange((change) => {
+        if (change.kind !== 'actions.changed') return
+        applyActionsNotification(
+          { kind: 'actions.changed', projectId: change.projectId },
+          { queryClient, daemon: daemonScope },
+        )
+      })
     })
+    return () => {
+      for (const cleanup of cleanups) cleanup()
+    }
   }, [queryClient, host, version])
 }
 

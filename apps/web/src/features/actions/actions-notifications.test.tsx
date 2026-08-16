@@ -7,6 +7,7 @@ import { actionsListKeyForProject } from './actions-query-key'
 const PROJECT = 'proj-alpha'
 const OTHER = 'proj-beta'
 const DAEMON = { host: 'beelink', version: '0.52.1' }
+const SECONDARY_DAEMON = { host: 'env-secondary', version: '0.52.1' }
 
 describe('applyActionsNotification', () => {
   it('invalidates only the project list key for a valid actions.changed', () => {
@@ -51,5 +52,21 @@ describe('applyActionsNotification', () => {
     expect(queryClient.getQueryData(projectKey)).toEqual(['project'])
     expect(queryClient.getQueryState(otherKey)?.isInvalidated).toBe(true)
     expect(queryClient.getQueryState(projectKey)?.isInvalidated).toBeFalsy()
+  })
+
+  it('refreshes the selected secondary daemon list without touching the primary list', () => {
+    const queryClient = new QueryClient()
+    const primaryKey = actionsListKeyForProject(DAEMON, PROJECT)
+    const secondaryKey = actionsListKeyForProject(SECONDARY_DAEMON, PROJECT)
+    queryClient.setQueryData(primaryKey, ['primary'])
+    queryClient.setQueryData(secondaryKey, ['secondary'])
+
+    applyActionsNotification(
+      { kind: 'actions.changed', projectId: PROJECT },
+      { queryClient, daemon: SECONDARY_DAEMON },
+    )
+
+    expect(queryClient.getQueryState(secondaryKey)?.isInvalidated).toBe(true)
+    expect(queryClient.getQueryState(primaryKey)?.isInvalidated).toBeFalsy()
   })
 })

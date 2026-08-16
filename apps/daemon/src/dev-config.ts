@@ -1,3 +1,4 @@
+import { realpathSync } from 'node:fs'
 import { stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
@@ -15,8 +16,31 @@ export function devRepoPath(source: NodeJS.ProcessEnv = process.env, home = home
  * singular `porcelain-playground` path.
  */
 export function isRecognizedDevPlayground(path: string, primaryPath: string): boolean {
-  const candidate = resolve(path)
-  const primary = resolve(primaryPath)
+  // Canonicalize both sides before applying containment. A lexical check alone lets a symlink
+  // inside the playground point at a production checkout. Missing paths are valid inputs while
+  // opening a project (the operation will report `not-found`); canonicalize their deepest
+  // existing ancestor and append the still-missing suffix so this guard remains synchronous and
+  // fail-closed without turning a normal missing-path response into an exception.
+  const canonical = (value: string): string | null => {
+    const lexical = resolve(value)
+    let cursor = lexical
+    const suffix: string[] = []
+    while (true) {
+      try {
+        const root = realpathSync(cursor)
+        return suffix.length === 0 ? root : resolve(root, ...suffix.reverse())
+      } catch {
+        const parent = dirname(cursor)
+        if (parent === cursor) return null
+        suffix.push(basename(cursor))
+        cursor = parent
+      }
+    }
+  }
+
+  const candidate = canonical(path)
+  const primary = canonical(primaryPath)
+  if (candidate === null || primary === null) return false
   if (candidate === primary) return true
 
   const primaryParent = dirname(primary)
@@ -31,7 +55,9 @@ export function isRecognizedDevPlayground(path: string, primaryPath: string): bo
       : join(primaryParent, 'porcelain-playground-worktrees'),
   ]
   return managedRoots.some((managedRoot) => {
-    const withinManagedRoot = relative(managedRoot, candidate)
+    const canonicalRoot = canonical(managedRoot)
+    if (canonicalRoot === null) return false
+    const withinManagedRoot = relative(canonicalRoot, candidate)
     return (
       withinManagedRoot !== '' &&
       !isAbsolute(withinManagedRoot) &&

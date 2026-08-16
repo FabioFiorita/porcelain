@@ -3,8 +3,12 @@ import type { FreshnessRequirement } from '@porcelain/client-runtime/session/rec
 import type { GitChange } from '@porcelain/contracts/git'
 import type { SessionChange } from '@porcelain/contracts/session'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
-import { type DaemonSession, primary } from '@renderer/lib/daemon'
+import type { DaemonSession } from '@renderer/lib/daemon'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
+import {
+  daemonScopeForEnvironment,
+  liveEnvironmentSessions,
+} from '@renderer/lib/environment-sessions'
 import { settleBackground } from '@shared/background'
 import type { QueryClient } from '@tanstack/react-query'
 import { useQueryClient } from '@tanstack/react-query'
@@ -52,25 +56,44 @@ export function applyGitFreshnessRequirement(
 }
 
 /** Install the one Web Git notification/recovery adapter at the session boundary. */
-export function useGitNotificationSubscription(session: DaemonSession = primary): void {
+export function useGitNotificationSubscription(session?: DaemonSession): void {
   const queryClient = useQueryClient()
   const daemonIdentity = useDaemonIdentity()
   const host = daemonIdentity.host
   const version = daemonIdentity.version
 
   useEffect(() => {
-    const daemon: DaemonScope = { host, version }
-    const options: ApplyGitNotificationOptions = { daemon, queryClient }
-    const offChange = session.onChange((change) => {
-      const gitNotification = gitChangeFromSessionChange(change)
-      if (gitNotification !== null) applyGitNotification(gitNotification, options)
-    })
-    const offFreshness = session.onFreshnessRequired((requirement) => {
-      applyGitFreshnessRequirement(requirement, options)
+    const sessions =
+      session === undefined
+        ? liveEnvironmentSessions()
+        : [
+            {
+              environmentId: null,
+              connectionId: null,
+              session,
+            },
+          ]
+    const cleanups = sessions.map((entry) => {
+      const daemon: DaemonScope = daemonScopeForEnvironment(
+        entry.connectionId === null ? null : entry.environmentId,
+        { host, version },
+      )
+      const options: ApplyGitNotificationOptions = { daemon, queryClient }
+      entry.session.start()
+      const offChange = entry.session.onChange((change) => {
+        const gitNotification = gitChangeFromSessionChange(change)
+        if (gitNotification !== null) applyGitNotification(gitNotification, options)
+      })
+      const offFreshness = entry.session.onFreshnessRequired((requirement) => {
+        applyGitFreshnessRequirement(requirement, options)
+      })
+      return () => {
+        offChange()
+        offFreshness()
+      }
     })
     return () => {
-      offChange()
-      offFreshness()
+      for (const cleanup of cleanups) cleanup()
     }
   }, [host, queryClient, session, version])
 }
