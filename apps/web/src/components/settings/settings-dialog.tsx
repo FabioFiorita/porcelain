@@ -190,6 +190,7 @@ export function SettingsDialog(): React.JSX.Element | null {
                       size="sm"
                       className="h-8 shrink-0 gap-1.5 text-xs"
                       aria-current={selected ? 'page' : undefined}
+                      data-testid={TestIds.settingsSection(s.id)}
                       onClick={() => setSection(s.id)}
                     >
                       <s.icon className="size-3.5" />
@@ -228,6 +229,7 @@ export function SettingsDialog(): React.JSX.Element | null {
                         <SidebarMenuItem key={s.id}>
                           <SidebarMenuButton
                             isActive={activeId === s.id}
+                            data-testid={TestIds.settingsSection(s.id)}
                             onClick={() => setSection(s.id)}
                             className="text-sm-minus"
                           >

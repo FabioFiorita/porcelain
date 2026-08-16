@@ -62,6 +62,14 @@ app's **Settings → Remotes**. It's a one-time link: single use, expires in 15 
 becomes an individually revocable credential for just that device. The host administrator token
 is never part of this exchange.
 
+For a browser that is already connected to one daemon, open **Settings → Remotes** in that tab
+to add another Environment. Enter the daemon URL, a human label, and the `pc_client_…` token
+issued by pairing. The browser calls `daemonInfo` first and saves the connection only after the
+URL and client token are accepted; the token remains client-local and is never shown in the saved
+connection card. Unreachable configured connections stay visible with an offline status, while
+their Environment inventories are omitted until the daemon is reachable again. The host
+administrator token is intentionally rejected by this form.
+
 Manage devices from the host CLI (or the Mac app's **Settings → Share**):
 
 ```sh

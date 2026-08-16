@@ -9,6 +9,7 @@ import {
   useEnvironmentSessionsRevision,
 } from '@renderer/lib/environment-sessions'
 import { runUserAction } from '@shared/background'
+import { TestIds } from '@shared/test-ids'
 import { useQueries } from '@tanstack/react-query'
 import { RefreshCw, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
@@ -107,7 +108,7 @@ export function BrowserRemotesSection(): React.JSX.Element {
   }
 
   return (
-    <div className="flex flex-col gap-3" data-testid="browser-environment-connections">
+    <div className="flex flex-col gap-3" data-testid={TestIds.browserEnvironmentConnections}>
       <div className="rounded-md border border-border/60 p-3">
         <p className="text-sm-minus font-medium">This device</p>
         <p className="text-xs text-muted-foreground">The daemon serving this browser tab</p>
@@ -122,7 +123,11 @@ export function BrowserRemotesSection(): React.JSX.Element {
             const query = queries[index]
             const state = query === undefined ? 'checking' : stateFor(query)
             return (
-              <li key={connection.id} className="flex items-start justify-between gap-3 p-3">
+              <li
+                key={connection.id}
+                className="flex items-start justify-between gap-3 p-3"
+                data-testid={TestIds.browserEnvironmentConnection(connection.id)}
+              >
                 <div className="min-w-0">
                   <p className="text-sm-minus font-medium">{connection.name}</p>
                   <p className="truncate font-mono text-2xs-plus text-muted-foreground">
@@ -179,6 +184,7 @@ export function BrowserRemotesSection(): React.JSX.Element {
           saved and is never displayed after this form is cleared.
         </p>
         <Input
+          data-testid={TestIds.browserEnvironmentLabel}
           aria-label="Connection label"
           placeholder="Label (for example, Beelink)"
           value={name}
@@ -189,6 +195,7 @@ export function BrowserRemotesSection(): React.JSX.Element {
           maxLength={80}
         />
         <Input
+          data-testid={TestIds.browserEnvironmentUrl}
           aria-label="Daemon URL"
           placeholder="https://beelink.example.ts.net:43117"
           value={url}
@@ -200,6 +207,7 @@ export function BrowserRemotesSection(): React.JSX.Element {
           autoComplete="url"
         />
         <Input
+          data-testid={TestIds.browserEnvironmentToken}
           aria-label="Client token"
           placeholder="pc_client_…"
           type="password"
@@ -210,7 +218,12 @@ export function BrowserRemotesSection(): React.JSX.Element {
           disabled={adding}
           autoComplete="off"
         />
-        <Button type="submit" className="self-start" disabled={adding}>
+        <Button
+          type="submit"
+          className="self-start"
+          disabled={adding}
+          data-testid={TestIds.browserEnvironmentAdd}
+        >
           {adding ? 'Verifying…' : 'Verify and add'}
         </Button>
         {error !== null && (

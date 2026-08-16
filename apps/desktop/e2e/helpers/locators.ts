@@ -99,6 +99,14 @@ export const loc = {
 
   settingsDialog: (page: Page): Locator => byId(page, TestIds.settingsDialog),
   settingsHeading: (page: Page): Locator => byId(page, TestIds.settingsHeading),
+  settingsSection: (page: Page, section: string): Locator =>
+    byId(page, TestIds.settingsSection(section)),
+  browserEnvironmentConnections: (page: Page): Locator =>
+    byId(page, TestIds.browserEnvironmentConnections),
+  browserEnvironmentLabel: (page: Page): Locator => byId(page, TestIds.browserEnvironmentLabel),
+  browserEnvironmentUrl: (page: Page): Locator => byId(page, TestIds.browserEnvironmentUrl),
+  browserEnvironmentToken: (page: Page): Locator => byId(page, TestIds.browserEnvironmentToken),
+  browserEnvironmentAdd: (page: Page): Locator => byId(page, TestIds.browserEnvironmentAdd),
   shareStatus: (page: Page): Locator => byId(page, TestIds.shareStatus),
   appearance: (page: Page, mode: 'light' | 'dark' | 'system'): Locator =>
     byId(

@@ -61,6 +61,13 @@ export const TestIds = {
   // --- Settings ---
   settingsDialog: 'settings-dialog',
   settingsHeading: 'settings-heading',
+  settingsSection: (section: string): string => `settings-section-${section}`,
+  browserEnvironmentConnections: 'browser-environment-connections',
+  browserEnvironmentLabel: 'browser-environment-label',
+  browserEnvironmentUrl: 'browser-environment-url',
+  browserEnvironmentToken: 'browser-environment-token',
+  browserEnvironmentAdd: 'browser-environment-add',
+  browserEnvironmentConnection: (id: string): string => `browser-environment-${id}`,
   settingsAppearanceLight: 'settings-appearance-light',
   settingsAppearanceDark: 'settings-appearance-dark',
   settingsAppearanceSystem: 'settings-appearance-system',

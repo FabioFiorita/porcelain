@@ -183,19 +183,29 @@ test('composed daemon proof: targets, Canvas Review, migration, Tasks, Actions, 
       secondaryIdentity.projectId,
       secondaryIdentity.worktreeId,
     )
-    await page.evaluate(
-      ({ token, url }) => {
-        localStorage.setItem('porcelain-client-token', token)
-        localStorage.setItem('porcelain-e2e', '1')
-        localStorage.setItem(
-          'porcelain-browser-environments',
-          JSON.stringify([{ id: 'e2e-secondary', name: 'e2e-secondary', url, token }]),
-        )
-      },
-      { token: E2E_BROWSER_TOKEN, url: `http://127.0.0.1:${secondary.port}` },
-    )
-    await page.reload()
     await waitForShell(page)
+    // Configure the secondary Environment through the shipped browser Remotes UI. This
+    // deliberately exercises URL/token verification and client-local persistence rather than
+    // planting the connection in localStorage, which would only prove a test fixture seam.
+    await loc.railSettings(page).click()
+    await loc.settingsDialog(page).waitFor()
+    await loc.settingsSection(page, 'remotes').click()
+    await expect(loc.settingsHeading(page)).toHaveText('Remotes')
+    await loc.browserEnvironmentLabel(page).fill('e2e-secondary')
+    await loc.browserEnvironmentUrl(page).fill(`http://127.0.0.1:${secondary.port}`)
+    await loc.browserEnvironmentToken(page).fill(E2E_BROWSER_TOKEN)
+    await loc.browserEnvironmentAdd(page).click()
+    const configuredSecondary = loc.browserEnvironmentConnections(page).getByText('e2e-secondary', {
+      exact: true,
+    })
+    await expect(configuredSecondary).toBeVisible()
+    await expect(loc.browserEnvironmentConnections(page)).toContainText(
+      /e2e-secondary · linux · daemon/,
+    )
+    // The saved token is never rendered back into the connection card or page text.
+    await expect(page.getByText(E2E_BROWSER_TOKEN, { exact: true })).toHaveCount(0)
+    await expect(loc.browserEnvironmentToken(page)).toHaveValue('')
+    await loc.settingsDialog(page).getByRole('button', { name: 'Close' }).click()
     // Process lifetime: start this while the default Glance surface owns the
     // daemon-backed process section, then prove it survives the renderer reload.
     await expect(loc.devServers(page)).toBeVisible()
@@ -389,11 +399,6 @@ test('composed daemon proof: targets, Canvas Review, migration, Tasks, Actions, 
     await loc.actionsMenu(page).click()
     await expect(loc.actionRun(page, 'Migrated action')).toBeVisible()
   } finally {
-    try {
-      await page.evaluate(() => localStorage.removeItem('porcelain-browser-environments'))
-    } catch {
-      // The fixture may already be tearing down after a failed browser assertion.
-    }
     if (secondaryChild !== null && secondaryChild.exitCode === null) {
       const exited = new Promise<void>((resolve) => secondaryChild?.once('exit', () => resolve()))
       secondaryChild.kill('SIGTERM')
