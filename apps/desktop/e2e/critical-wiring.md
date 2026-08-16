@@ -4,11 +4,14 @@ This is the source-of-truth map for the browser-suite reduction in E2E-001. The 
 references are the pre-migration files at commit `96c543f7` (the E2E-001 preflight commit),
 so a reviewer can audit the complete assertion set even after the broad specs are removed.
 
-The browser functional gate is now `critical-wiring.spec.ts`: it proves the five assembled
-wiring risks that cannot be owned by a component or protocol unit test. Visual assertions stay
-in `visual.spec.ts`; Electron-only host clipboard proof stays in `terminal-native.spec.ts`.
-All other assertions have a lower-boundary owner below. “Retired” means the old browser route
-was redundant after the named owner was verified; it does not mean the behavior was discarded.
+The browser functional gate includes the five assembled wiring risks in
+`critical-wiring.spec.ts` plus the daemon-backed composed acceptance proof in
+`composed-proof.spec.ts`. The composed scenario covers multiple Worktrees, target-aware tabs
+and splits, the Review Canvas migration (including Evidence), Tasks, Actions, and a daemon-owned
+process surviving reload. Visual assertions stay in `visual.spec.ts`; Electron-only host
+clipboard proof stays in `terminal-native.spec.ts`. All other assertions have a lower-boundary
+owner below. “Retired” means the old browser route was redundant after the named owner was
+verified; it does not mean the behavior was discarded.
 
 ## Critical assembled browser proof
 
@@ -17,10 +20,11 @@ was redundant after the named owner was verified; it does not mean the behavior 
 | CW-01 | `smoke.spec.ts:3-7` — seeded repo restores into the shell and reports two dirty files | `critical-wiring.spec.ts:103-106` | Built daemon + browser client startup, auth, project recents, and first query |
 | CW-02 | No former browser equivalent; protocol coverage was lower-only | `critical-wiring.spec.ts:108-116` | Real authenticated `/session` WebSocket returns exact `session:mismatch` / `protocol.update-required` for `PROTOCOL_VERSION + 1` and closes |
 | CW-03 | `live-refresh.spec.ts:10-30` — an open clean file adopts an external disk rewrite | `critical-wiring.spec.ts:119-133` | Real fixture filesystem → daemon watcher → session frame → browser editor |
-| CW-04 | `review-publish.spec.ts:44-143` — built CLI review write reaches an already-running Review canvas | `critical-wiring.spec.ts:136-172` | Built CLI → companion file watcher → daemon session → browser Review; lower review/CLI tests own file shape and invalidation |
+| CW-04 | `review-publish.spec.ts:44-143` — built CLI review write reaches an already-running Review canvas | `composed-proof.spec.ts` | Legacy active-review input is read once by migration and rendered as a daemon-root Review Canvas with Evidence; lower review/CLI tests own file shape and invalidation |
 | CW-05 | `terminal.spec.ts:6-24` plus the reconnect/scrollback contract from `terminal` lower tests | `critical-wiring.spec.ts:174-201` | Real PTY create, >64 KiB output, browser session detach, daemon-owned session retention, roster hydration, attach, and tail replay |
 
-The five tests above are the only normal browser functional gate. The terminal test deliberately
+The five tests above remain the critical browser lane. The composed proof is the cross-feature
+browser lane. The terminal test deliberately
 asserts the tail after reload; the exact byte/unit cap and frame ordering remain owned by
 `apps/daemon/src/features/terminal/terminal-operations.test.ts:118-178`,
 `apps/daemon/src/features/terminal/terminal-stream-gateway.test.ts:50-135`,
@@ -152,7 +156,8 @@ lower test is the owner of that invariant at its smallest complete boundary.
 The relocation is complete only when all of the following are true:
 
 - `pnpm --dir apps/desktop typecheck:e2e` passes.
-- `pnpm --dir apps/desktop test:e2e` runs exactly the five `critical-wiring.spec.ts` tests against the built browser client and its per-test daemon.
+- `pnpm --dir apps/desktop test:e2e` runs the built browser client against its per-test daemon,
+  including the five critical tests and the composed/migration/task/action/worktree lanes.
 - Focused lower-boundary tests named in this ledger pass.
 - `pnpm lint` and `git diff --check` pass.
 - The old broad functional specs are absent, while `visual.spec.ts`, `terminal-native.spec.ts`, and this ledger remain.
@@ -164,8 +169,8 @@ The relocation is complete only when all of the following are true:
   obsolete `config.json`; the daemon ignored it and the browser waited for the shell rail while
   the Welcome surface remained mounted. No product daemon or personal data was involved.
 - `pnpm --dir apps/desktop typecheck:e2e` — passed.
-- `pnpm --dir apps/desktop test:e2e` — build passed; 5/5 critical browser tests passed in 6.5s.
-- `pnpm --dir apps/desktop test:e2e:prebuilt` — 5/5 critical browser tests passed in 5.7s.
+- `pnpm --dir apps/desktop test:e2e:prebuilt` — 15/15 browser tests passed in 21.1s, including
+  `composed-proof.spec.ts`.
 - `pnpm --dir apps/desktop test` — 466 test files / 3,623 tests passed (the repository test
   script ran the complete Vitest workspace while the lower-boundary command was exercised).
 - `pnpm lint` — passed; `git diff --check` — passed; architecture-spec validator — passed.

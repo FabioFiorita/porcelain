@@ -38,7 +38,7 @@ function DualFacePhoneSurface({
   const face = useTabFaces((state) => {
     if (slot === 'files') return state.files
     if (slot === 'changes') return state.changes
-    return state.review
+    return state.files
   })
 
   const surfaceId: SurfaceId =
@@ -46,10 +46,8 @@ function DualFacePhoneSurface({
       ? face === 'search'
         ? 'search'
         : primary
-      : slot === 'changes'
-        ? face === 'history'
-          ? 'history'
-          : primary
+      : face === 'history'
+        ? 'history'
         : primary
 
   return <PhoneSurfaceBody surfaceId={surfaceId} />

@@ -37,7 +37,6 @@ import {
   Play,
   Search,
   Settings,
-  Waypoints,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
@@ -138,12 +137,6 @@ export function FileFinder(): React.JSX.Element {
     closeFinder()
   }
 
-  const openDocumentSurface = (tab: 'review', title: string): void => {
-    setSidebarTab(tab)
-    if (project) openTab(targetedTab(tab, project.path, { title }))
-    closeFinder()
-  }
-
   const paletteActions: FinderAction[] = [
     {
       id: 'files',
@@ -171,15 +164,6 @@ export function FileFinder(): React.JSX.Element {
       icon: FileDiff,
       shortcut: kbdLabel('mod', '2'),
       onSelect: () => openSurface('changes'),
-    },
-    {
-      id: 'review',
-      label: 'Open Review',
-      description: 'Read the current Review',
-      keywords: 'canvas intent execution evidence',
-      icon: Waypoints,
-      shortcut: kbdLabel('mod', '3'),
-      onSelect: () => openDocumentSurface('review', 'Review'),
     },
     {
       id: 'history',

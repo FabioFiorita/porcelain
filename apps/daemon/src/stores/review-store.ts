@@ -3,9 +3,7 @@ import { readFile } from 'node:fs/promises'
 import { isAbsolute, join, relative, resolve } from 'node:path'
 import { canvasBundleDir, canvasIndexPath } from '@shared/canvas-porcelain'
 import { porcelainHome } from '@shared/porcelain-home'
-import { ACTIVE_FILES } from '@shared/project-porcelain'
 import { z } from 'zod'
-import { createProjectChannel } from '../net/project-channel'
 import {
   type ReviewSection,
   type ReviewSet,
@@ -24,28 +22,14 @@ export function isRepoContained(repoPath: string, entryPath: string): boolean {
 }
 
 /**
- * Active review set — `<repo>/.porcelain/review.json`. CLI authors; the app reads.
- * Archiving, publishing, and restoring live in the Review lifecycle operations
- * adapter, so this module reaches neither Git nor Project Data.
+ * Review template metadata is read from the daemon-root Canvas bundle. Legacy
+ * repo-local review files are consumed only by the one-time migration reader;
+ * they are deliberately not part of the live daemon surface.
  */
 
 const lenientReviewSetSchema = reviewSetSchema.extend({
   sections: z.array(z.unknown()).default([]),
 })
-
-const channel = createProjectChannel({
-  fileName: ACTIVE_FILES.review,
-  schema: lenientReviewSetSchema,
-  empty: (): z.infer<typeof lenientReviewSetSchema> => ({
-    name: '',
-    files: [],
-    sections: [],
-  }),
-})
-
-export function reviewPath(repoPath: string): string {
-  return channel.path(repoPath)
-}
 
 const MAX_SECTIONS = 30
 
@@ -142,16 +126,9 @@ async function readCanvasReviewSet(repoPath: string): Promise<ReviewSet | null> 
   }
 }
 
-/** The active agent-fed review set, or null if none / empty name. */
+/** The Review Canvas template metadata, or null when no template is present. */
 export async function readReviewSet(repoPath: string): Promise<ReviewSet | null> {
   const canvas = await readCanvasReviewSet(repoPath)
   if (canvas !== null) return sanitizeReview(repoPath, lenientReviewSetSchema.parse(canvas))
-  try {
-    const raw = await readFile(reviewPath(repoPath), 'utf8')
-    const set = lenientReviewSetSchema.parse(JSON.parse(raw))
-    if (!set.name) return null
-    return sanitizeReview(repoPath, set)
-  } catch {
-    return null
-  }
+  return null
 }

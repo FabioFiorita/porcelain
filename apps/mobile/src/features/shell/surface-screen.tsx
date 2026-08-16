@@ -27,9 +27,6 @@ export function SurfaceScreen({ surface }: SurfaceScreenProps): React.JSX.Elemen
   if (surface === 'changes') {
     return <PhoneSurface slot="changes" surface="changes" />
   }
-  if (surface === 'review') {
-    return <PhoneSurface slot="review" surface="review" />
-  }
   if (surface === 'terminal') {
     return <PhoneSurface surface="terminal" />
   }

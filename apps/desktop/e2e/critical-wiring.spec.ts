@@ -2,7 +2,6 @@ import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { PROTOCOL_VERSION } from '@porcelain/contracts'
 import { expect, expectTerminalText, loc, selectTab, test, waitForShell } from './helpers/app'
-import { publishFixtureReview, seedFixtureEvidence } from './helpers/review-fixture'
 
 interface SessionMismatch {
   t: 'session:mismatch'
@@ -98,44 +97,6 @@ test('an external fixture edit refreshes the open file', async ({ page, repoDir 
     '// SENTINEL_REFRESHED_ON_DISK\nexport const Button = () => null\n',
   )
   await expect(editor).toHaveValue(/SENTINEL_REFRESHED_ON_DISK/, { timeout: 15_000 })
-})
-
-test('a CLI review publish appears in the already-running Review canvas', async ({
-  page,
-  repoDir,
-  seeded,
-}) => {
-  await waitForShell(page)
-  await selectTab(page, 'Review')
-  await publishFixtureReview(repoDir, seeded.env, {
-    name: 'CLI watcher unit',
-    thesis: 'The browser observes a review written by the built CLI.',
-    sectionTitle: 'Scope',
-    sectionProse: 'The companion watcher delivered this publish to the live canvas.',
-  })
-
-  await seedFixtureEvidence(repoDir)
-
-  await expect(loc.reviewOpen(page)).toBeVisible({ timeout: 15_000 })
-  await loc.reviewOpen(page).click()
-  await expect(loc.activeReview(page)).toContainText('CLI watcher unit', { timeout: 15_000 })
-  for (const tab of ['intent', 'process', 'execution', 'evidence'] as const) {
-    await expect(loc.activeReviewTab(page, tab)).toBeVisible()
-  }
-  await expect(loc.activeReviewTab(page, 'evidence')).not.toHaveAttribute('aria-disabled', 'true')
-  await loc.activeReviewTab(page, 'process').click()
-  await expect(loc.activeReview(page)).toContainText('Scope')
-  await loc.activeReviewTab(page, 'evidence').click()
-  await expect(loc.evidencePanel(page)).toBeVisible()
-  await loc.evidenceSubTab(page, 'assets').click()
-  await expect(loc.evidenceGallery(page)).toBeVisible()
-  await expect(loc.evidenceGalleryItem(page, 'shot.png')).toBeVisible()
-  await expect(loc.evidenceGalleryItem(page, 'capture.mp4')).toBeVisible()
-  await expect(loc.evidenceGalleryItem(page, 'reference.url')).toHaveAttribute(
-    'href',
-    'https://example.com/evidence',
-  )
-  await expect(page.locator('video')).toHaveAttribute('src', /^data:video\/mp4;base64,/)
 })
 
 test('a PTY survives browser detach, reconnects, and replays its bounded tail', async ({

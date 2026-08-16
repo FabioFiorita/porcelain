@@ -11,8 +11,7 @@ import { callProjectDataProcedure } from './use-project-data-transport'
 /**
  * Mobile Project Data writes (PDT-003).
  *
- * Success-only typed identity invalidation. Layers also regroup Git and refresh
- * leftover Review procedure keys (`activeReview`, `reviewReading`).
+ * Success-only typed identity invalidation. Layers also regroup Git after a write.
  */
 
 const setLayersProcedure = namedContractProcedure(
@@ -46,14 +45,6 @@ export async function saveProjectLayers(
     environment.id,
     projectDataMutations.setRepoLayers.affectedQueries(wire),
   )
-  await Promise.all([
-    queryClient.invalidateQueries({
-      queryKey: ['daemon', environment.id, 'activeReview'],
-    }),
-    queryClient.invalidateQueries({
-      queryKey: ['daemon', environment.id, 'reviewReading'],
-    }),
-  ])
   await invalidateGrouping(repoPath)
 }
 

@@ -25,7 +25,7 @@ export function WorktreeSwitcher(): React.JSX.Element | null {
   const project = useProjectSelectionStore((s) => s.project)
   const switchProject = useProjectSelectionStore((s) => s.switchProject)
   const newWindow = useNewWindow()
-  const { inbox, worktrees } = useGitWorkspace()
+  const { worktrees } = useGitWorkspace()
   const [menuOpen, setMenuOpen] = useState(false)
 
   if (!project) return null
@@ -33,20 +33,11 @@ export function WorktreeSwitcher(): React.JSX.Element | null {
   const current = worktrees.find((w) => w.path === project.path)
   // Which checkout you're on (U20); full count lives in the tooltip.
   const chipLabel = current?.branch ?? project.name
-  const inboxCount = inbox.length
-  // Inbox badge (U15): other worktrees await review — full list is on Review sidebar.
   const chipTitle =
     worktrees.length <= 1
-      ? inboxCount > 0
-        ? `This checkout · ${inboxCount} other worktree${inboxCount === 1 ? '' : 's'} need review`
-        : 'This checkout'
-      : inboxCount > 0
-        ? `${worktrees.length} worktrees — ${inboxCount} need review`
-        : `${worktrees.length} worktrees — ${current?.path ?? project.path}`
-  const chipAria =
-    inboxCount > 0
-      ? `Worktrees: ${chipLabel}, ${inboxCount} need review`
-      : `Worktrees: ${chipLabel}`
+      ? 'This checkout'
+      : `${worktrees.length} worktrees — ${current?.path ?? project.path}`
+  const chipAria = `Worktrees: ${chipLabel}`
 
   return (
     <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
@@ -58,19 +49,10 @@ export function WorktreeSwitcher(): React.JSX.Element | null {
             aria-label={chipAria}
             data-testid={TestIds.worktreeSwitcher}
             data-branch={chipLabel}
-            data-inbox-count={inboxCount > 0 ? String(inboxCount) : undefined}
             className="app-no-drag flex min-w-0 max-w-36 shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
           >
             <Folder className="size-3.5 shrink-0" />
             <span className="min-w-0 truncate font-mono">{chipLabel}</span>
-            {inboxCount > 0 && (
-              <span
-                role="img"
-                aria-hidden
-                title={`${inboxCount} need review`}
-                className="size-1.5 shrink-0 rounded-full bg-info"
-              />
-            )}
             <ChevronsUpDown className="size-3 shrink-0" />
           </button>
         }

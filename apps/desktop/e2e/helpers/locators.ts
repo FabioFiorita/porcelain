@@ -112,15 +112,12 @@ export const loc = {
     byId(page, TestIds.worktreeMenuItem(branch)),
   branchSwitcher: (page: Page): Locator => byId(page, TestIds.branchSwitcher),
 
-  reviewInbox: (page: Page): Locator => byId(page, TestIds.reviewInbox),
-  reviewInboxRow: (page: Page, branch: string): Locator =>
-    byId(page, TestIds.reviewInboxRow(branch)),
   reviewList: (page: Page): Locator => byId(page, TestIds.reviewList),
   reviewOpen: (page: Page): Locator => byId(page, TestIds.reviewOpen),
-  activeReview: (page: Page): Locator => byId(page, TestIds.activeReview),
-  activeReviewEmpty: (page: Page): Locator => byId(page, TestIds.activeReviewEmpty),
-  activeReviewTab: (page: Page, tab: 'intent' | 'process' | 'execution' | 'evidence'): Locator =>
-    byId(page, TestIds.activeReviewTab(tab)),
+  reviewCanvas: (page: Page): Locator => byId(page, TestIds.reviewCanvas),
+  reviewCanvasEmpty: (page: Page): Locator => byId(page, TestIds.reviewCanvasEmpty),
+  reviewCanvasTab: (page: Page, tab: 'intent' | 'process' | 'execution' | 'evidence'): Locator =>
+    byId(page, TestIds.reviewCanvasTab(tab)),
   evidencePanel: (page: Page): Locator => byId(page, TestIds.evidencePanel),
   evidenceClear: (page: Page): Locator => byId(page, TestIds.evidenceClear),
   evidenceIframe: (page: Page): Locator => byId(page, TestIds.evidenceIframe),
@@ -133,8 +130,6 @@ export const loc = {
   evidenceGalleryItem: (page: Page, file: string): Locator =>
     byId(page, TestIds.evidenceGalleryItem(file)),
   evidenceGalleryZoom: (page: Page): Locator => byId(page, TestIds.evidenceGalleryZoom),
-  reviewArchive: (page: Page): Locator => byId(page, TestIds.reviewArchive),
-  boardStartReview: (page: Page): Locator => byId(page, TestIds.boardStartReview),
 
   commitButton: (page: Page): Locator => byId(page, TestIds.commitButton),
   commitGroup: (page: Page): Locator => byId(page, TestIds.commitGroup),

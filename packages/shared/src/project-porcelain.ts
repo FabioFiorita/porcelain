@@ -26,7 +26,6 @@ export const PROJECT_FILES = {
   review: 'review.json',
   comments: 'comments.json',
   reviewed: 'reviewed.json',
-  activeReview: 'active-review.json',
   gitignore: '.gitignore',
   manifest: 'project-manifest.json',
 } as const
@@ -154,14 +153,11 @@ export const COMPANION_CHANNELS: readonly CompanionChannel[] = [
  * Always ignored, no toggle. Anchored (leading `/`) so a rule meant for the
  * companion root never swallows the same filename inside `reviews/<id>/`.
  *
- * - `active-review.json` is a render snapshot, derived and stale on arrival.
- * - `active-review/` is the unit in flight — per branch, per worktree, and
- *   rewritten constantly. Publishing is what shares a review: it copies the
- *   directory to `reviews/<id>/` and re-includes that one folder. Tracking the
- *   live directory would put every agent's work-in-progress and every
- *   screenshot it took into everyone else's diff. The directory glob already
- *   covers everything the evidence pack grew — checks, `results/`, `assets/` —
- *   so no rule needs to name them.
+ * - `active-review.json` and `active-review/` are legacy repo-local inputs. They
+ *   are retained only so the one-time companion migration can recognize old
+ *   Intent/Evidence files; live Review Canvas metadata is daemon-root state.
+ *   The legacy directory glob covers checks, `results/`, and `assets/` without
+ *   making those migration inputs part of a current companion contract.
  * - `.migrated-from-home` is a machine artifact from the home→repo migration.
  * - `project-manifest.json` is a per-checkout v1 root marker recreated on first
  *   write; it is not a `COMPANION_CHANNELS` toggle.
@@ -300,12 +296,12 @@ export function projectReviewsDir(repoPath: string): string {
   return projectPorcelainPath(repoPath, PROJECT_REVIEWS_DIR)
 }
 
-/** `<repo>/.porcelain/active-review` — the unit currently in flight. */
+/** Legacy `<repo>/.porcelain/active-review` directory used by migration readers. */
 export function projectActiveReviewDir(repoPath: string): string {
   return projectPorcelainPath(repoPath, PROJECT_ACTIVE_DIR)
 }
 
-/** A file inside the active review (`review.json`, `comments.json`, …). */
+/** A file inside a legacy active-review input (`comments.json`, `intent/`, …). */
 export function activeReviewPath(repoPath: string, ...parts: string[]): string {
   return join(projectActiveReviewDir(repoPath), ...parts)
 }
@@ -314,17 +310,17 @@ export function projectIntentDir(repoPath: string): string {
   return activeReviewPath(repoPath, PROJECT_INTENT_DIR)
 }
 
-/** `…/active-review/evidence/results` — the Results document set. */
+/** Legacy `…/active-review/evidence/results` document set for migration/read-only evidence. */
 export function projectEvidenceResultsDir(repoPath: string): string {
   return join(projectEvidenceDir(repoPath), EVIDENCE_RESULTS_DIR)
 }
 
-/** `…/active-review/evidence/assets` — the images the gallery lists. */
+/** Legacy `…/active-review/evidence/assets` gallery inputs. */
 export function projectEvidenceAssetsDir(repoPath: string): string {
   return join(projectEvidenceDir(repoPath), ASSETS_DIR)
 }
 
-/** `…/active-review/intent/assets` — images an intent document references. */
+/** Legacy `…/active-review/intent/assets` inputs. */
 export function projectIntentAssetsDir(repoPath: string): string {
   return join(projectIntentDir(repoPath), ASSETS_DIR)
 }

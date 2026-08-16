@@ -9,7 +9,6 @@ import {
   readActions,
   updateAction,
 } from './action-file'
-import { readActiveReviewSnapshot, sourceByPath } from './active-review-file'
 import {
   CANVAS_COMMANDS,
   describeCanvases,
@@ -210,7 +209,7 @@ export const COMMANDS: NounHelp[] = [
     noun: 'comments',
     blurb: "the human reviewer's line/file comments",
     verbs: [
-      { verb: 'list', args: '', desc: 'List open comments, tagged with active-review source' },
+      { verb: 'list', args: '', desc: 'List open comments with their project source' },
       { verb: 'resolve', args: '--id <s>', desc: 'Mark a comment resolved' },
       { verb: 'answer', args: '--id <s> --body <s>', desc: 'Attach a short reply to a comment' },
     ],
@@ -415,18 +414,12 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<string
     case 'review get':
       return describeReview(repo, readReview(repo))
     case 'review clear':
-      // Match the app's `archiveReview`: drop the set AND the evidence directory
-      // (results, screenshots, meta) so nothing from an old review lingers on disk.
       clearReviewCanvas(repo)
       clearReview(repo)
       clearEvidence(repo)
       return `Cleared the review and its evidence for ${repo}`
     case 'comments list':
-      return describeComments(
-        repo,
-        readComments(repo),
-        sourceByPath(readActiveReviewSnapshot(repo)),
-      )
+      return describeComments(repo, readComments(repo), new Map())
     case 'comments resolve': {
       const id = req('id')
       return resolveComment(repo, id)

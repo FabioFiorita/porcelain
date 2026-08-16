@@ -1,8 +1,7 @@
 import type { ReadingFile, ReviewReading } from '@porcelain/contracts/review'
 
 /**
- * Shape helpers for the one active Review story of a repo. The lifecycle itself
- * — start, continue, close — is agent-side; the app only reads what was published.
+ * Shape helpers for the Review Canvas outline.
  */
 
 /** Unique files across sections + more-files groups. */

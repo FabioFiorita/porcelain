@@ -63,7 +63,6 @@ export function useQuickOpen(open: boolean, onClose: () => void): QuickOpenModel
   const setSearchMode = useSearchStore((state) => state.setSearchMode)
   const setFilesFace = useTabFaces((state) => state.setFiles)
   const setChangesFace = useTabFaces((state) => state.setChanges)
-  const setReviewFace = useTabFaces((state) => state.setReview)
 
   const [query, setQuery] = useState('')
   const [settledQuery, setSettledQuery] = useState('')
@@ -139,16 +138,12 @@ export function useQuickOpen(open: boolean, onClose: () => void): QuickOpenModel
           setChangesFace('history')
           router.navigate('/changes')
           return
-        case 'review':
-          setReviewFace('review')
-          router.navigate('/review')
-          return
         case 'terminal':
           router.navigate('/terminal')
           return
       }
     },
-    [router, setActiveSurface, setChangesFace, setFilesFace, setReviewFace],
+    [router, setActiveSurface, setChangesFace, setFilesFace],
   )
 
   const openFile = useCallback(

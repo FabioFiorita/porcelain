@@ -1,8 +1,4 @@
-import {
-  reviewActiveQuery,
-  reviewedPathsQuery,
-  reviewReadingQuery,
-} from '@porcelain/client-runtime/review'
+import { reviewedPathsQuery } from '@porcelain/client-runtime/review'
 import type { GitChange } from '@porcelain/contracts/git'
 import type { ReviewChanged } from '@porcelain/contracts/review'
 import {
@@ -40,8 +36,6 @@ export function gitNotificationEffects(notification: GitChange): readonly GitQue
     gitFileLogQueryFamily(projectPath),
     gitCommitConventionsQuery(projectPath),
     gitSuggestionsQuery(projectPath),
-    reviewReadingQuery(projectPath),
-    reviewActiveQuery(projectPath),
     reviewedPathsQuery(projectPath),
   ]
 }

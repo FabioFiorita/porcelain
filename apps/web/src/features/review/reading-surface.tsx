@@ -13,7 +13,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui
 import { CodeLine, useHighlighter } from '@renderer/components/viewer/code-line'
 import { HtmlView } from '@renderer/components/viewer/html-view'
 import { MarkdownPre } from '@renderer/components/viewer/markdown-code-block'
-import { MarkdownView } from '@renderer/components/viewer/markdown-view'
 import { VirtualRows } from '@renderer/components/viewer/virtual-rows'
 import { useReviewedPaths, useToggleReviewed } from '@renderer/features/git'
 import { useResolvedTheme } from '@renderer/hooks/use-theme'
@@ -54,8 +53,12 @@ import {
   type ReviewJumpTarget,
   useReviewFocusStore,
 } from './review-focus-store'
-import { SourceMarker } from './review-list'
-import { useEvidenceDoc, useReviewEvidence } from './review-queries'
+
+function SourceMarker({ source }: { source: ReadingFile['source'] }): React.JSX.Element {
+  if (source === 'changed') return <span className="size-2 shrink-0 rounded-full bg-primary" />
+  if (source === 'shipped') return <span className="size-[7px] shrink-0 rotate-45 bg-info" />
+  return <span className="size-2 shrink-0 rounded-full border border-muted-foreground/70" />
+}
 
 export { EvidenceChecksRow, EvidenceHeaderRow } from './reading-evidence-rows'
 
@@ -71,7 +74,7 @@ export interface ReadingFileActions {
   showSource?: boolean
 }
 
-// The shared inline reading surface: the Review document (`active-review.tsx`), the
+// The shared inline reading surface: the Review Canvas, the
 // pure-diff continuous review (`changeset-view.tsx`), and the read-only explore view
 // (`explore-view.tsx`) all render through this. Everything flattens into a single
 // VirtualRows (the house pattern — same as HunksView flattening hunks); code rows
@@ -259,9 +262,9 @@ export function rowIndexForTarget(
   if (target.kind === 'top' || target.kind === 'intent') {
     return rows.length > 0 ? 0 : null
   }
-  // Execution is a canvas tab only (ActiveReview) — no row in the reading surface.
+  // Execution is a canvas tab only (ReviewCanvas) — no row in the reading surface.
   if (target.kind === 'execution') return null
-  // Evidence: continuous review still embeds an evidence chapter; ActiveReview
+  // Evidence: continuous review still embeds an evidence chapter; ReviewCanvas
   // intercepts the jump for its own Evidence tab first.
   if (target.kind === 'evidence') {
     const index = rows.findIndex((row) => row.type === 'evidenceHeader')
@@ -578,27 +581,15 @@ function MarkdownBlock({ md }: { md: string }): React.JSX.Element {
   )
 }
 
-// The pack's leading Results document, fetched lazily — the row only mounts when scrolled
-// near (virtualization), so a multi-megabyte body never rides the 3s reading poll. HTML takes
-// the same fully-sandboxed iframe path as the diagram rows; fixed height, scrolls inside. Kept
-// for the surfaces that flatten evidence into rows (includeEvidence default true) — the
-// Review's Intent opts out, and its Evidence canvas tab uses EvidencePanel for the whole pack.
+// Legacy evidence rows can still occur in a migrated reading payload, but daemon-root Canvas is
+// now the only live Review surface. Do not fetch repo-local Results here.
 function EvidenceBodyRow(): React.JSX.Element {
-  const pack = useReviewEvidence()
-  const lead = pack?.results.find((entry) => entry.state === 'available') ?? null
-  const { doc, isLoading } = useEvidenceDoc(lead?.file ?? '', lead !== null)
-  const missing = lead === null ? 'No documents in evidence/results/.' : 'No document body.'
-  const empty = pack === undefined || isLoading ? 'Loading…' : doc ? null : missing
   return (
     <div className="sticky left-0 max-w-[var(--vrows-vw)] px-3 py-2">
       <div className="h-[28rem] overflow-hidden rounded-md border">
-        {empty !== null || !doc ? (
-          <p className="p-4 text-sm text-muted-foreground">{empty}</p>
-        ) : doc.medium === 'html' ? (
-          <HtmlView html={doc.body} title={doc.label} />
-        ) : (
-          <MarkdownView content={doc.body} />
-        )}
+        <p className="p-4 text-sm text-muted-foreground">
+          Evidence is available in the Review Canvas.
+        </p>
       </div>
     </div>
   )

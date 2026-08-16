@@ -25,7 +25,6 @@ parens is the **entry point**; read it for mechanics.
 | Changes list | `changes-list.tsx` | Grouped by flow layer |
 | History list | `history-list.tsx` | |
 | Review list | `review-list.tsx` | Header + file outline. **Intent/Process/Execution/Evidence live only in the viewer canvas** |
-| Review inbox | `review-inbox.tsx` | Other worktrees with work awaiting review; rows from `reviewInbox` (`list-review-inbox.ts`) |
 | Tasks list | `tasks-list.tsx` | Compact read of the daemon-wide table; opens the Viewer table |
 | Terminal list | `terminal-list.tsx` | Roster of **sessions** — they outlive their tabs |
 | Key bar | `terminal-key-bar.tsx` | Above the terminal pane; coarse-touch only, never a Settings option |
@@ -67,7 +66,7 @@ Mobile mirrors General · Data · Review · Environments.
 |---|---|
 | Flow / flow layers | Architectural-layer grouping of changes (entry-point → data); the heart of "review as a story" |
 | The Review template | The default Canvas template with four sections: **Intent**, **Process**, **Execution**, and **Evidence**. It is not an active lifecycle or repo-local storage model; `porcelain review set` writes the daemon-root Canvas. |
-| Evidence | Agent-authored *proof the loop closed*: structured checks + a Results document set + an image/video/link gallery under `<repo>/.porcelain/active-review/evidence/` (gitignored by default); archives with the review |
+| Evidence | The Review Canvas template's fourth section: agent-authored checks, Results, and image/video/link proof kept in the daemon-root Canvas bundle |
 | Review comments | The reviewer's line/file notes (`.porcelain/comments.json`), app→agent via the CLI |
 | Reviewed marks | Per-file "reviewed" checkboxes (`.porcelain/reviewed.json`), app→agent, read-only like notes |
 | Tasks | The daemon-owned table for work across Projects and Environments; the shipped vocabulary replacing Board |

@@ -3,11 +3,10 @@
  * dependency-free CLI writer. No Zod, no Node APIs: pure parse, serialize, and
  * the two derivations (medium, label) a document set needs.
  *
- * One primitive, two users: Intent (`active-review/intent/`) and the Results
- * sub-tab of Evidence (`active-review/evidence/results/`). Both are "drop files
- * in a directory, pin the tab order in `meta.json`", and the writer and the
- * reader used to describe that file twice — which is how a label the CLI emitted
- * grew past the cap the daemon enforced and silently cost the pinned order.
+ * One primitive, two legacy migration inputs: Intent (`active-review/intent/`)
+ * and the Results sub-tab of Evidence (`active-review/evidence/results/`). Both
+ * are "drop files in a directory, pin the tab order in `meta.json`". New Review
+ * Canvas state is daemon-root data; these paths remain for one-time conversion.
  */
 
 export const DOC_SET_FILE_VERSION = 1 as const

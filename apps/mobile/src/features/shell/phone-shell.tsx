@@ -65,11 +65,6 @@ export function PhoneShell(): React.JSX.Element {
           ) : null}
         </NativeTabs.Trigger>
 
-        <NativeTabs.Trigger name="review" listeners={{}}>
-          <NativeTabs.Trigger.Icon sf="checkmark.bubble.fill" md="rate_review" />
-          <NativeTabs.Trigger.Label>Review</NativeTabs.Trigger.Label>
-        </NativeTabs.Trigger>
-
         <NativeTabs.Trigger name="terminal">
           <NativeTabs.Trigger.Icon sf="terminal.fill" md="terminal" />
           <NativeTabs.Trigger.Label>Terminal</NativeTabs.Trigger.Label>

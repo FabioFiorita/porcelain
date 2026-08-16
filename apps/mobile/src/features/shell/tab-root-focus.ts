@@ -11,7 +11,7 @@ type TabRootFocusState = {
 
 /** True only while that tab’s *root* screen is focused (enables re-tap → alternate). */
 export const useTabRootFocus = create<TabRootFocusState>()((set) => ({
-  roots: { files: false, changes: false, review: false },
+  roots: { files: false, changes: false },
   setRoot: (tab, focused) => {
     set((state) => ({ roots: { ...state.roots, [tab]: focused } }))
   },

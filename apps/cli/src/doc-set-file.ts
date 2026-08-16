@@ -10,9 +10,9 @@ import {
 import { INTENT_MANIFEST } from '@shared/project-porcelain'
 
 /**
- * The document-set primitive, shared by the two directories that use it: Intent
+ * The document-set primitive for the two legacy migration inputs: Intent
  * (`active-review/intent/`) and the Results sub-tab of Evidence
- * (`active-review/evidence/results/`).
+ * (`active-review/evidence/results/`). Review Canvas writes are daemon-root.
  *
  * Both are "drop files in a directory, pin the tab order in `meta.json`". The
  * manifest shape, its caps, the renderable media, and the label derivation are

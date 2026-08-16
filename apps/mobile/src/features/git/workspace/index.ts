@@ -1,5 +1,4 @@
 export type { BranchRef, GitHead, Worktree } from '@porcelain/contracts/git'
-export type { ReviewInboxRow } from '@porcelain/contracts/review'
 export type { GitMutationAction } from './git-mutations'
 export { useGitAddWorktree, useGitCheckout, useGitCreateBranch } from './git-mutations'
 export type { GitWorkspaceOptions, GitWorkspaceQueryResult } from './git-queries'

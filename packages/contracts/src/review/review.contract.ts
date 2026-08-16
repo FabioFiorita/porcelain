@@ -77,30 +77,6 @@ export const reviewSectionSchema = z
 
 export type ReviewSection = z.infer<typeof reviewSectionSchema>
 
-const sectionOutlineSchema = z
-  .object({
-    title: z.string().min(1).max(MAX_SECTION_TITLE),
-    anchorCount: z.number().int().min(0).max(40),
-  })
-  .strict()
-
-/* Active review */
-
-export const activeReviewSchema = z
-  .object({
-    name: z.string(),
-    fromAgent: z.boolean(),
-    thesis: z.string().max(MAX_THESIS).optional(),
-    sections: z.array(sectionOutlineSchema).max(MAX_SECTIONS),
-    groups: z.array(readingGroupSchema),
-  })
-  .strict()
-
-/** `null` is "no active review"; an object with empty `groups` is an empty one. */
-export const activeReviewOutputSchema = activeReviewSchema.nullable()
-export type ActiveReview = z.infer<typeof activeReviewSchema>
-export type ActiveReviewOutput = z.infer<typeof activeReviewOutputSchema>
-
 /* Reading */
 
 export const evidenceCheckSchema = z
@@ -282,25 +258,6 @@ export const evidenceAssetBodySchema = z
 
 export type EvidenceAssetBody = z.infer<typeof evidenceAssetBodySchema>
 
-/* Lifecycle and archive */
-
-export const publishCostSchema = z.object({ bytes: z.number(), files: z.number() }).strict()
-export type PublishCost = z.infer<typeof publishCostSchema>
-
-export const publishResultSchema = z.object({ id: z.string(), cost: publishCostSchema }).strict()
-export type PublishResult = z.infer<typeof publishResultSchema>
-
-export const archivedReviewSchema = z
-  .object({
-    id: z.string(),
-    name: z.string(),
-    thesis: z.string().max(MAX_THESIS).optional(),
-    archivedAt: z.string(),
-  })
-  .strict()
-
-export type ArchivedReview = z.infer<typeof archivedReviewSchema>
-
 /* Comments */
 
 export const reviewCommentSchema = z
@@ -318,19 +275,6 @@ export const reviewCommentSchema = z
   .strict()
 
 export type ReviewComment = z.infer<typeof reviewCommentSchema>
-
-/* Inbox */
-
-export const reviewInboxRowSchema = z
-  .object({
-    path: z.string(),
-    branch: z.string(),
-    changedCount: z.number(),
-    hasReview: z.boolean(),
-  })
-  .strict()
-
-export type ReviewInboxRow = z.infer<typeof reviewInboxRowSchema>
 
 /* Inputs and the void output */
 
@@ -369,11 +313,6 @@ export const reviewEvidenceAssetInputSchema = z
   .object({ repoPath: z.string().min(1), file: z.string().min(1) })
   .strict()
 export type ReviewEvidenceAssetInput = z.infer<typeof reviewEvidenceAssetInputSchema>
-
-export const archivedReviewIdInputSchema = z
-  .object({ repoPath: z.string().min(1), id: z.string().min(1) })
-  .strict()
-export type ArchivedReviewIdInput = z.infer<typeof archivedReviewIdInputSchema>
 
 export const addReviewCommentInputSchema = z
   .object({

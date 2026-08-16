@@ -1,9 +1,4 @@
-import {
-  ACTIVE_FILES,
-  PROJECT_FILES,
-  PROJECT_REVIEWS_DIR,
-  projectPorcelainPath,
-} from '@shared/project-porcelain'
+import { ACTIVE_FILES, PROJECT_FILES, projectPorcelainPath } from '@shared/project-porcelain'
 import type { ReadStrictJsonDocument } from '../../project-data/strict-json-document'
 import type { ProjectManifestValue } from './project-manifest'
 
@@ -25,13 +20,7 @@ export const PROJECT_DATA_DOMAIN_FILES: {
 } = {
   actions: [PROJECT_FILES.actions],
   files: [],
-  review: [
-    ACTIVE_FILES.review,
-    ACTIVE_FILES.comments,
-    ACTIVE_FILES.reviewed,
-    PROJECT_FILES.activeReview,
-    `${PROJECT_REVIEWS_DIR}/`,
-  ],
+  review: [ACTIVE_FILES.comments, ACTIVE_FILES.reviewed],
   'project-data': [PROJECT_FILES.layers, PROJECT_FILES.gitignore, PROJECT_FILES.manifest],
   projects: [],
   git: [],

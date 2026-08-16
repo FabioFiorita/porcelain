@@ -1,6 +1,6 @@
 import { changesetTabKey } from '@renderer/components/git/changeset-view'
-import { type ReviewInboxRow, useGitFlow, useGitWorkspace } from '@renderer/features/git'
-import { useReviewComments, useReviewReading } from '@renderer/features/review'
+import { useGitFlow, useGitWorkspace } from '@renderer/features/git'
+import { useReviewComments } from '@renderer/features/review'
 import { DevServersSection } from '@renderer/features/terminal'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { openTerminalPanel } from '@renderer/lib/terminal-actions'
@@ -10,7 +10,7 @@ import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
-import { FileDiff, GitBranch, MessageSquare, SquareTerminal, Waypoints } from 'lucide-react'
+import { FileDiff, GitBranch, MessageSquare, SquareTerminal } from 'lucide-react'
 
 // One tap-target recipe for every Glance row: full-width, touch-comfortable
 // height, the app's one hover/pressed fill. Rows stay flat on the viewer
@@ -37,37 +37,9 @@ function GlanceSection({
   )
 }
 
-/** One inbox row — the review-inbox row content on the Glance's tap-target recipe.
- *  Tap switches THIS window to that worktree (same call as review-inbox rows). */
-function InboxGlanceRow({ row }: { row: ReviewInboxRow }): React.JSX.Element {
-  const switchProject = useProjectSelectionStore((s) => s.switchProject)
-
-  const handleOpenWorktree = (): void => {
-    switchProject(row.path)
-  }
-
-  return (
-    <button type="button" onClick={handleOpenWorktree} className={rowClass}>
-      <GitBranch className="size-3.5 shrink-0 text-muted-foreground" />
-      <span className="min-w-0 flex-1 truncate font-mono text-sm-minus">{row.branch}</span>
-      {row.hasReview && (
-        <span
-          role="img"
-          aria-label="Review pushed"
-          title="Review pushed"
-          className="size-1.5 shrink-0 rounded-full bg-info"
-        />
-      )}
-      <span className="shrink-0 text-2xs tabular-nums text-muted-foreground/60">
-        {row.changedCount}
-      </span>
-    </button>
-  )
-}
-
 /**
- * The Glance: home when no tab is open — work in flight (inbox, dirty tree,
- * published Review, open comments) plus always-visible jump rows so an
+ * The Glance: home when no tab is open — work in flight (dirty tree, open comments)
+ * plus always-visible jump rows so an
  * empty checkout is still a useful landing page. Phone and desktop empty panes
  * both use it (U6).
  */
@@ -76,26 +48,17 @@ export function GlanceHome(): React.JSX.Element | null {
   const openTab = useTabsStore((s) => s.openTab)
   const setSidebarTab = usePreferencesStore((s) => s.setSidebarTab)
   const workspace = useGitWorkspace()
-  const inbox = workspace.inbox
   const branch = workspace.branch
   const { groups } = useGitFlow()
-  const { reading } = useReviewReading()
   const comments = useReviewComments()
 
   if (!project) return null
 
   const changedCount = groups?.reduce((n, group) => n + group.files.length, 0) ?? 0
-  const hasReview = reading !== null && reading !== undefined
   const openComments = comments.filter((c) => !c.resolved)
 
-  const showCheckout = changedCount > 0 || hasReview || openComments.length > 0
-  const hasWork = inbox.length > 0 || showCheckout
-
-  // Agent-published Review canvas (the Review tab).
-  const handleOpenFeatureReview = (): void => {
-    setSidebarTab('review')
-    openTab(targetedTab('review', project.path, { title: 'Review' }))
-  }
+  const showCheckout = changedCount > 0 || openComments.length > 0
+  const hasWork = showCheckout
 
   // Continuous stacked diffs for the working tree (U3 — not the Review empty state).
   const handleOpenAllChanges = (): void => {
@@ -112,20 +75,8 @@ export function GlanceHome(): React.JSX.Element | null {
   }
 
   const handleOpenCommentsRail = (): void => {
-    setSidebarTab(hasReview ? 'review' : 'changes')
+    setSidebarTab('changes')
   }
-
-  const reviewSubtitle = (() => {
-    if (!hasReview || !reading) return null
-    const fileCount =
-      reading.sections.reduce((n, s) => n + s.files.length, 0) +
-      reading.groups.reduce((n, g) => n + g.files.length, 0)
-    const parts = [
-      fileCount > 0 && `${fileCount} file${fileCount === 1 ? '' : 's'}`,
-      reading.evidence && 'Evidence',
-    ].filter(Boolean)
-    return parts.length > 0 ? parts.join(' · ') : 'Published Review'
-  })()
 
   return (
     <div data-testid={TestIds.glance} className="h-full overflow-y-auto">
@@ -143,18 +94,10 @@ export function GlanceHome(): React.JSX.Element | null {
           )}
           {!hasWork && (
             <p className="mt-1 text-xs text-muted-foreground">
-              Nothing in flight — open Changes, the Review, or a terminal when you start.
+              Nothing in flight — open Changes, Canvas, or a terminal when you start.
             </p>
           )}
         </header>
-
-        {inbox.length > 0 && (
-          <GlanceSection label="Review inbox">
-            {inbox.map((row) => (
-              <InboxGlanceRow key={row.path} row={row} />
-            ))}
-          </GlanceSection>
-        )}
 
         {showCheckout && (
           <GlanceSection label="This checkout">
@@ -173,25 +116,6 @@ export function GlanceHome(): React.JSX.Element | null {
                 <span className="shrink-0 text-2xs tabular-nums text-muted-foreground/60">
                   Review
                 </span>
-              </button>
-            )}
-            {hasReview && (
-              <button type="button" onClick={handleOpenFeatureReview} className={rowClass}>
-                <Waypoints className="size-3.5 shrink-0 text-muted-foreground" />
-                <span className="min-w-0 flex-1 truncate text-sm">
-                  {reading?.name?.trim() || 'Review'}
-                </span>
-                <span
-                  role="img"
-                  aria-label="Review published"
-                  title="Agent Review published"
-                  className="size-1.5 shrink-0 rounded-full bg-info"
-                />
-                {reviewSubtitle && (
-                  <span className="hidden shrink-0 text-2xs text-muted-foreground/60 sm:inline">
-                    {reviewSubtitle}
-                  </span>
-                )}
               </button>
             )}
             {openComments.length > 0 && (
@@ -222,18 +146,6 @@ export function GlanceHome(): React.JSX.Element | null {
             <span className="min-w-0 flex-1 truncate text-sm">Changes</span>
             <span className="shrink-0 text-2xs text-muted-foreground/60">
               {changedCount > 0 ? `${changedCount}` : 'Working tree'}
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={handleOpenFeatureReview}
-            className={rowClass}
-            data-testid={TestIds.glanceJumpReview}
-          >
-            <Waypoints className="size-3.5 shrink-0 text-muted-foreground" />
-            <span className="min-w-0 flex-1 truncate text-sm">Review</span>
-            <span className="shrink-0 text-2xs text-muted-foreground/60">
-              {hasReview ? 'Open canvas' : 'No review yet'}
             </span>
           </button>
           <button

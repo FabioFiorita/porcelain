@@ -4,10 +4,8 @@ import {
   gitProjectKey,
   gitWorktreesQuery,
 } from '@porcelain/client-runtime/git'
-import { reviewInboxQuery } from '@porcelain/client-runtime/review'
 import { headLabel } from '@porcelain/contracts'
 import type { BranchRef, GitHead, Worktree } from '@porcelain/contracts/git'
-import type { ReviewInboxRow } from '@porcelain/contracts/review'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import { trpc } from '@renderer/lib/trpc'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
@@ -49,13 +47,12 @@ export function useGitBranches(
   }
 }
 
-/** The four workspace reads shared by the Web header, switchers, inbox, and Glance. */
+/** Workspace reads shared by the Web header, switchers, and Glance. */
 export function useGitWorkspace(): {
   branch: string | undefined
   branches: BranchRef[]
   refreshBranches: () => Promise<void>
   worktrees: Worktree[]
-  inbox: ReviewInboxRow[]
   head: GitHead | undefined
 } {
   const project = useProjectSelectionStore((state) => state.project)
@@ -84,19 +81,12 @@ export function useGitWorkspace(): {
     queryKey: gitQueryKey(daemonScope, gitWorktreesQuery(projectPath)),
     refetchInterval: enabled ? 15_000 : false,
   })
-  const inbox = useQuery({
-    enabled,
-    queryFn: (): Promise<ReviewInboxRow[]> => utils.client.reviewInbox.query(projectPath),
-    queryKey: gitQueryKey(daemonScope, reviewInboxQuery(projectPath)),
-    refetchInterval: enabled ? 15_000 : false,
-  })
   const refetchBranches = branches.refetch
 
   return {
     branch: head.data === undefined ? undefined : headLabel(head.data),
     branches: branches.data ?? [],
     head: head.data,
-    inbox: inbox.data ?? [],
     refreshBranches: async (): Promise<void> => {
       await refetchBranches()
     },

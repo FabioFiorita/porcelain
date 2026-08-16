@@ -45,7 +45,7 @@ This is why the app ships `NSAllowsArbitraryLoads` / `usesCleartextTraffic` (see
 
 ## Live updates
 
-File-watched channels under `~/.porcelain/` (review sets, comments, board, actions, layers, scope, notes, evidence) surface as WS `{t:'app-event', event}` pushes, where `event ∈ active-review|comments|board|actions|layers|evidence|scope|working-tree|file-tree`. Handle by invalidating the matching React Query keys. The browser client also keeps a polling backstop (3 s for activeReview/reviewReading/gitFlow/reviewedPaths/diffReading; 5 s for range flow/worktrees; 15 s for inbox) — mobile should poll more lazily (screen-focused only) to respect battery/cellular.
+Daemon-owned Review Canvas, comments, layers, scope, actions, working-tree, and file-tree changes surface through the typed session stream. Mobile should poll Review reading lazily (screen-focused only) to respect battery/cellular.
 
 ## Procedure catalog by feature area
 
@@ -85,12 +85,7 @@ hands off to the existing terminal or viewer navigation. Content search remains 
 - History (inside Changes): `gitLog` Q `{limit≤500}`, `gitCommitFlow` Q, `gitCommitMessage` Q, `gitFileLog` Q (`--follow`)
 
 ### Review tab
-- `activeReview` Q → review set or `null` ("No review yet")
-- `reviewReading` Q → full document: thesis, walkthrough sections with anchors, `evidence` meta
-- `reviewEvidence` Q → one pack: checks + Results document descriptors + Assets descriptors; `reviewEvidenceDoc` Q `{repoPath, file}` → one document body (HTML arrives self-contained — render in a WebView with `sandbox`-equivalent settings), `reviewEvidenceAsset` Q → one image as a data URL; `clearEvidence` M, `archiveReview` M
 - comments: `reviewComments` Q, `addReviewComment` M `{path, startLine?, endLine?, anchorText?, body}`, `editReviewComment`/`deleteReviewComment`/`resolveReviewComment` M, `clearResolvedReviewComments` M
-- `exploreReading` Q `{seed: file|symbol}` → read-only flow reading
-- `reviewInbox` Q — sibling worktrees with agent work awaiting review
 
 ### Terminal tab
 - Roster via tRPC: `terminalSessions` Q → `{id,name,cwd,status,exitCode}[]`, `renameTerminal` M
@@ -102,12 +97,11 @@ hands off to the existing terminal or viewer navigation. Content search remains 
 
 ### Cross-cutting
 - `repoLayers` Q / `setRepoLayers` M (flow-layer config)
-- `archivedReviews` Q / `restoreArchivedReview` / `deleteArchivedReview` M — previous reviews under `.porcelain/reviews/`
 - `removeRecentRepo` M
 
 ## Mobile-side cautions
 
-- Heavy payloads: `readFile` inlines images as data URLs; `reviewEvidenceDoc` returns a whole HTML document; `diffReading`/`reviewReading` can carry up to ~200 files of hunks. Fine on LAN/tailnet; cap or defer on a Funnel/cellular path.
+- Heavy payloads: `readFile` inlines images as data URLs; `diffReading` can carry up to ~200 files of hunks. Fine on LAN/tailnet; cap or defer on a Funnel/cellular path.
 - Paths are **daemon-side**. The eight host-fs procedures take an absolute `projectPath` plus
   project-relative targets (no `~` expansion on those). `readDir`/scope use absolute host paths.
   Never touch the phone's filesystem for repo content.

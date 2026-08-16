@@ -6,7 +6,7 @@ import {
   invalidateAllProjectDataQueries,
   invalidateProjectDataLayers,
 } from '@renderer/features/project-data'
-import { invalidateAllReviewComments, invalidateAllReviewQueries } from '@renderer/features/review'
+import { invalidateAllReviewComments } from '@renderer/features/review'
 import { invalidateAllTasks } from '@renderer/features/tasks'
 import { type DaemonSession, primary } from '@renderer/lib/daemon'
 import { isBrowser } from '@renderer/lib/platform'
@@ -54,8 +54,6 @@ export type SessionQueryUtils = {
   readonly invalidate: () => Promise<void>
   readonly repoLayers: QueryInvalidation
   readonly projectData: QueryInvalidation
-  /** Review cache — wired to the feature key predicate (REV-007), not a procedure name. */
-  readonly review: QueryInvalidation
   readonly reviewComments: QueryInvalidation
   /** Files cache — wired to the feature key predicate (FIL-005). */
   readonly files: QueryInvalidation
@@ -73,7 +71,7 @@ export type SessionQueryUtils = {
  */
 export function invalidateForChange(
   change: SessionChange,
-  utils: SessionQueryUtils,
+  _utils: SessionQueryUtils,
 ): Promise<unknown> {
   switch (change.kind) {
     case 'files.scope-changed':
@@ -91,10 +89,8 @@ export function invalidateForChange(
       // Handled here only so the switch stays exhaustive over SessionChange.
       return Promise.resolve()
     case 'review.changed':
-      // Review owns its notification → identity mapping (REV-007 feature adapter) and comments
-      // own theirs (RVC-003). What is left here is the Project Data consequence REV-006 ruling 7
-      // assigned to Project Data: the repo's layers are derived from the active review.
-      return utils.repoLayers.invalidate()
+      // Legacy repo-local Review changes no longer drive a live client surface.
+      return Promise.resolve()
     case 'actions.changed':
       // Actions owns its notification → list-identity mapping (ACT-003 feature adapter).
       // Session runtime must not invalidate Actions here; the feature subscription does.
@@ -131,8 +127,6 @@ export function invalidateForRecovery(
   return Promise.all([
     utils.files.invalidate(),
     utils.repoLayers.invalidate(),
-    // Review freshness is feature-owned (REV-007); recovery still hits the predicate slot.
-    utils.review.invalidate(),
     // Comments freshness is feature-owned (RVC-003); recovery still hits the predicate slot.
     utils.reviewComments.invalidate(),
     // Tasks are daemon-wide, so a project-scoped gap still leaves them unproven: the gap
@@ -171,14 +165,13 @@ export function useSessionRuntime({
     session.updateRequiredFrame(),
   )
 
-  // Structural SessionQueryUtils: Review, comments, and Files recovery use feature key
+  // Structural SessionQueryUtils: comments and Files recovery use feature key
   // predicates so they invalidate domain caches, not tRPC procedure-name keys.
   const utils: SessionQueryUtils = useMemo(
     () => ({
       invalidate: () => trpcUtils.invalidate(),
       repoLayers: { invalidate: () => invalidateProjectDataLayers(queryClient) },
       projectData: { invalidate: () => invalidateAllProjectDataQueries(queryClient) },
-      review: { invalidate: () => invalidateAllReviewQueries(queryClient) },
       reviewComments: { invalidate: () => invalidateAllReviewComments(queryClient) },
       files: { invalidate: () => invalidateAllFilesQueries(queryClient) },
       actions: { invalidate: () => invalidateAllActionsQueries(queryClient) },

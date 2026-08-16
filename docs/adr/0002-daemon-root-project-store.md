@@ -52,7 +52,7 @@ rewrite that fires because a process restarted is a rewrite nobody chose.
 
 | Legacy source | New owner |
 |---|---|
-| `active-review/` and `reviews/<id>/` | A Canvas bundle per review, `template: 'review'`, four sections (Intent ← thesis + `intent/`; Process ← walkthrough sections; Execution ← declared files; Evidence ← checks + `results/` + gallery). Evidence and intent assets are copied into the bundle's own `assets/`. |
+| Legacy `active-review/` and `reviews/<id>/` | A Canvas bundle per review, `template: 'review'`, four sections (Intent ← thesis + `intent/`; Process ← walkthrough sections; Execution ← declared files; Evidence ← checks + `results/` + gallery). Evidence and intent assets are copied into the bundle's own `assets/`; no active lifecycle is retained. |
 | `board.json` | Tasks, keeping the card id as the Task id, with the Project reference and a Worktree reference inferred from an exact branch or path mention. An unknown column lands in `todo`, tagged `migrated`. |
 | `actions.json` | `$PORCELAIN_HOME/projects/<id>/actions.json`, skipping ids and titles already there. Trust records are untouched — a migrated Action arrives unreviewed and still meets the trust prompt. |
 | `scope.json` | `$PORCELAIN_HOME/projects/<id>/project.json`, the PRIVATE counterpart of the tracked overlay. Never the tracked `.porcelain/project.json`: promoting a personal hide/pin list into someone's working tree is the exact failure this ADR exists to prevent. |

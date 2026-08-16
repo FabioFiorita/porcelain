@@ -42,11 +42,8 @@ describe('project data companion ownership', () => {
     expect(claimed).toEqual(
       new Set([
         'actions.json',
-        'active-review/review.json',
         'active-review/comments.json',
         'active-review/reviewed.json',
-        'active-review.json',
-        'reviews/',
         'layers.json',
         '.gitignore',
         'project-manifest.json',
@@ -61,12 +58,7 @@ describe('project data companion ownership', () => {
       PROJECT_FILES.gitignore,
       PROJECT_FILES.manifest,
     ])
-    for (const foreign of [
-      ACTIVE_FILES.review,
-      ACTIVE_FILES.comments,
-      ACTIVE_FILES.reviewed,
-      PROJECT_FILES.actions,
-    ]) {
+    for (const foreign of [ACTIVE_FILES.comments, ACTIVE_FILES.reviewed, PROJECT_FILES.actions]) {
       expect(claimed).not.toContain(foreign)
     }
   })

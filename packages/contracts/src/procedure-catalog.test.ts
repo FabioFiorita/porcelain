@@ -25,7 +25,7 @@ const domainProcedures = {
   'project-data': projectDataProcedures,
 } as const
 
-const PROCEDURE_COUNT = 121
+const PROCEDURE_COUNT = 106
 
 describe('procedure catalog', () => {
   it('is frozen and composes exactly one entry per domain procedure, in domain order', () => {

@@ -1,9 +1,4 @@
-import {
-  reviewActiveQuerySchema,
-  reviewedPathsQuerySchema,
-  reviewInboxQuerySchema,
-  reviewReadingQuerySchema,
-} from '@porcelain/client-runtime/review'
+import { reviewedPathsQuerySchema } from '@porcelain/client-runtime/review'
 import { z } from 'zod'
 
 /** Programmer error for an invalid Git project identity. */
@@ -216,10 +211,7 @@ export const gitWorkspaceQuerySchema = z.discriminatedUnion('name', [
   gitCommitConventionsQuerySchema,
   gitSuggestionsQuerySchema,
   gitCommitModelsQuerySchema,
-  reviewReadingQuerySchema,
-  reviewActiveQuerySchema,
   reviewedPathsQuerySchema,
-  reviewInboxQuerySchema,
 ])
 
 export type GitQuery = Readonly<z.infer<typeof gitQuerySchema>>

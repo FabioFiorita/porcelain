@@ -5,12 +5,7 @@ import {
   filesProjectKey,
   filesTreeSubtreeEffect,
 } from '@porcelain/client-runtime/files'
-import {
-  reviewActiveQuery,
-  reviewedPathsQuery,
-  reviewInboxQuery,
-  reviewReadingQuery,
-} from '@porcelain/client-runtime/review'
+import { reviewedPathsQuery } from '@porcelain/client-runtime/review'
 import {
   type GitAddWorktreeInput,
   type GitCheckoutInput,
@@ -89,10 +84,7 @@ function projectQueries(projectPath: string): readonly GitQueryEffect[] {
     gitFileLogQueryFamily(key),
     gitCommitConventionsQuery(key),
     gitSuggestionsQuery(key),
-    reviewReadingQuery(key),
-    reviewActiveQuery(key),
     reviewedPathsQuery(key),
-    reviewInboxQuery(key),
   ]
 }
 
@@ -117,8 +109,6 @@ function historyQueries(projectPath: string): readonly GitQueryEffect[] {
     gitFileLogQueryFamily(key),
     gitCommitConventionsQuery(key),
     gitSuggestionsQuery(key),
-    reviewReadingQuery(key),
-    reviewActiveQuery(key),
     reviewedPathsQuery(key),
   ]
 }
@@ -282,7 +272,7 @@ export const gitMutations = {
     procedureName: 'gitAddWorktree',
     affectedQueries: (input: GitAddWorktreeInput): readonly GitQueryEffect[] => {
       const key = gitProjectKey(input.repoPath)
-      return [gitBranchesQuery(key), gitWorktreesQuery(key), reviewInboxQuery(key)]
+      return [gitBranchesQuery(key), gitWorktreesQuery(key)]
     },
     filesEffects: noFilesEffects<GitAddWorktreeInput>,
     optimistic: false,

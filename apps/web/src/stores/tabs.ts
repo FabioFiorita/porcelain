@@ -8,7 +8,6 @@ export type TabKind =
   | 'commit'
   | 'changeset'
   | 'search'
-  | 'review'
   | 'explore'
   | 'tasks'
   | 'terminal'

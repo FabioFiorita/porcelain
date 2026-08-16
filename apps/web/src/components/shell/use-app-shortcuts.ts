@@ -12,13 +12,12 @@ import { runUserAction } from '@shared/background'
 import { useEffect } from 'react'
 
 // Must match the visible surface order in surface-sidebar.tsx (Files → Changes →
-// Review → History → Search). Board remains daemon-owned and has no shell shortcut.
+// History → Search). Board remains daemon-owned and has no shell shortcut.
 const SIDEBAR_TAB_KEYS: Record<string, SidebarTab | undefined> = {
   '1': 'files',
   '2': 'changes',
-  '3': 'review',
-  '4': 'history',
-  '5': 'search',
+  '3': 'history',
+  '4': 'search',
 }
 
 /**

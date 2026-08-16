@@ -1,9 +1,4 @@
-import {
-  reviewActiveQuery,
-  reviewedPathsQuery,
-  reviewInboxQuery,
-  reviewReadingQuery,
-} from '@porcelain/client-runtime/review'
+import { reviewedPathsQuery } from '@porcelain/client-runtime/review'
 import { describe, expect, it } from 'vitest'
 import {
   GitIdentityError,
@@ -111,13 +106,8 @@ describe('Git query identities', () => {
     )
   })
 
-  it('keeps the relocated Review workspace identities in gitWorkspaceQuerySchema', () => {
-    const queries = [
-      reviewReadingQuery(PROJECT),
-      reviewActiveQuery(PROJECT),
-      reviewedPathsQuery(PROJECT),
-      reviewInboxQuery(PROJECT),
-    ]
+  it('keeps the relocated reviewed-path identity in gitWorkspaceQuerySchema', () => {
+    const queries = [reviewedPathsQuery(PROJECT)]
     for (const query of queries) {
       expect(gitWorkspaceQuerySchema.safeParse(query).success).toBe(true)
     }

@@ -14,7 +14,6 @@ import { HistoryCompanion } from '@/features/history/history-companion'
 import { HistoryList } from '@/features/history/history-list'
 import { HistoryPhoneScreen } from '@/features/history/history-phone-screen'
 import { HistoryViewer } from '@/features/history/history-viewer'
-import { ReviewCompanion, ReviewList, ReviewPhoneScreen, ReviewViewer } from '@/features/review'
 import { SearchCompanion, SearchList, SearchPhoneScreen } from '@/features/search'
 import { TerminalList, TerminalPhoneScreen, TerminalViewer } from '@/features/terminal'
 
@@ -87,15 +86,6 @@ const SURFACE_SLOTS: Record<SurfaceId, SurfaceSlots> = {
     list: HistoryList,
     phone: HistoryPhoneScreen,
     viewer: HistoryViewer,
-  },
-  // The Review's four canvas tabs live inside its own body, not in the shell, so the list is
-  // an outline that jumps the canvas rather than a route switcher — Intent, Process, Execution,
-  // and Evidence are one unit of work seen four ways, never four destinations.
-  review: {
-    companion: ReviewCompanion,
-    list: ReviewList,
-    phone: ReviewPhoneScreen,
-    viewer: ReviewViewer,
   },
   terminal: {
     companion: ActionsCompanion,

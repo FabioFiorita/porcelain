@@ -29,8 +29,6 @@ describe('Git notification effects', () => {
       'git/file-log-family',
       'git/commit-conventions',
       'git/suggestions',
-      'review/reading',
-      'review/active',
       'review/reviewed-paths',
     ])
   })

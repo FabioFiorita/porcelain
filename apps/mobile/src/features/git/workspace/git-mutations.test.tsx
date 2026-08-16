@@ -110,8 +110,8 @@ describe('Mobile Git workspace mutations', () => {
         repoPath: ctx.project.path,
       },
     })
-    // Three typed effects, one predicate pass each — no legacy procedure-key bridge left.
-    expect(invalidate).toHaveBeenCalledTimes(3)
+    // Two typed effects, one predicate pass each — no legacy procedure-key bridge left.
+    expect(invalidate).toHaveBeenCalledTimes(2)
   })
 
   it('stays pending without invalidating, then rejects without post-failure effects', async () => {

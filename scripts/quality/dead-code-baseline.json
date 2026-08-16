@@ -1,10 +1,10 @@
 {
   "binaries": 2,
-  "dependencies": 8,
-  "devDependencies": 22,
-  "duplicates": 19,
-  "exports": 221,
+  "dependencies": 7,
+  "devDependencies": 17,
+  "duplicates": 17,
+  "exports": 205,
   "files": 1,
-  "types": 125,
+  "types": 116,
   "unlisted": 1
 }

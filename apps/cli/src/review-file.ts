@@ -1,7 +1,6 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { ACTIVE_FILES, projectPorcelainPath } from '@shared/project-porcelain'
 import {
   buildReviewCanvas,
   emptySectionBody,
@@ -15,7 +14,6 @@ import {
   removeCanvas,
   setCanvas,
 } from './canvas-file'
-import { readProjectJson, writeProjectJson } from './project-io'
 
 // Builtins only — see cli.ts. `review set` writes the Review template as a
 // daemon-root Canvas; the low-level helpers below remain for migration reads.
@@ -321,18 +319,6 @@ function parseReviewSet(value: unknown): ReviewSet | null {
   return set
 }
 
-function readDisk(repoPath: string): ReviewSet | null {
-  return parseReviewSet(readProjectJson(repoPath, ACTIVE_FILES.review))
-}
-
-function writeDisk(repoPath: string, set: ReviewSet | null): void {
-  if (set === null) {
-    writeProjectJson(repoPath, ACTIVE_FILES.review, { name: '', files: [], sections: [] })
-    return
-  }
-  writeProjectJson(repoPath, ACTIVE_FILES.review, set)
-}
-
 /**
  * Write the Review template as the Project-owned Canvas. The temporary source
  * directory is only a CLI staging area; `setCanvas` atomically copies it into
@@ -377,34 +363,23 @@ export function clearReviewCanvas(repoPath: string): void {
   removeCanvas(repoPath, existing.id)
 }
 
-export function setReview(repoPath: string, set: ReviewSet): void {
-  writeDisk(repoPath, set)
-}
-
 /** Merge files into the existing set; name/thesis/sections are whole-set (replaced by `review set`). */
 export function addReviewFiles(repoPath: string, files: ReviewFile[]): number {
   const current = readReview(repoPath) ?? { name: 'Active review', files: [], sections: [] }
   const merged = mergeReviewFiles(current.files, files)
   const next = { ...current, files: merged }
-  if (reviewCanvas(repoPath).metadata !== null) setReviewCanvas(repoPath, next)
-  else writeDisk(repoPath, next)
+  setReviewCanvas(repoPath, next)
   return merged.length
 }
 
 export function clearReview(repoPath: string): void {
-  // CLI clear drops the active set (does not archive — that is the app's
-  // `archiveReview`). Agents starting a new unit should clear first.
-  try {
-    unlinkSync(projectPorcelainPath(repoPath, ACTIVE_FILES.review))
-  } catch {
-    // absent
-  }
+  clearReviewCanvas(repoPath)
 }
 
 /** Read back the stored review set for a repo (null when none is set). */
 export function readReview(repoPath: string): ReviewSet | null {
   const canvas = reviewCanvas(repoPath)
-  return canvas.metadata ?? readDisk(repoPath)
+  return canvas.metadata
 }
 
 /**

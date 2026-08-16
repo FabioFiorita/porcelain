@@ -1,5 +1,5 @@
 import { useActions } from '@renderer/features/actions'
-import { useActiveReview, useReviewComments } from '@renderer/features/review'
+import { useReviewComments } from '@renderer/features/review'
 import { useSkillsInfo } from '@renderer/hooks/use-skills'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 
@@ -14,7 +14,6 @@ import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 export function ChannelsDevtoolsPanel(): React.JSX.Element {
   const project = useProjectSelectionStore((s) => s.project)
   const skills = useSkillsInfo()
-  const { active } = useActiveReview()
   const comments = useReviewComments()
   const actions = useActions()
 
@@ -22,26 +21,11 @@ export function ChannelsDevtoolsPanel(): React.JSX.Element {
     return <div style={WRAP}>No project open — the agent channels are project-keyed.</div>
   }
 
-  const reviewFiles = active?.groups.flatMap((g) => g.files) ?? []
-  const bySource = (s: 'changed' | 'context' | 'shipped'): number =>
-    reviewFiles.filter((f) => f.source === s).length
-
   return (
     <div style={WRAP}>
       <Section title="Skills (skills.sh)">
         <Row label="Version" value={skills?.version ?? '—'} />
         <Row label="Install" value={skills?.installCommand ?? '—'} />
-      </Section>
-
-      <Section title="Review set (agent → app)">
-        <Row
-          label="Files"
-          value={
-            active
-              ? `${reviewFiles.length} · ${bySource('changed')} changed / ${bySource('context')} context / ${bySource('shipped')} shipped${active.fromAgent ? ' · agent-fed' : ''}`
-              : 'none set'
-          }
-        />
       </Section>
 
       <Section title="Comments (app → agent)">

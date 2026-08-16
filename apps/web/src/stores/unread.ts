@@ -7,9 +7,9 @@ import { usePreferencesStore } from './preferences'
  * other tabs (files/search/changes/history) get no agent-push signal (see the
  * event→tab mapping below and plan 035's decisions).
  */
-export type UnreadTab = 'review' | 'tasks' | 'terminal' | 'changes'
+export type UnreadTab = 'tasks' | 'terminal' | 'changes'
 
-const UNREAD_TABS: readonly UnreadTab[] = ['review', 'tasks', 'terminal', 'changes']
+const UNREAD_TABS: readonly UnreadTab[] = ['tasks', 'terminal', 'changes']
 
 export function isUnreadTab(tab: string): tab is UnreadTab {
   return (UNREAD_TABS as readonly string[]).includes(tab)
@@ -24,7 +24,6 @@ interface UnreadState {
 
 export const useUnreadStore = create<UnreadState>((set) => ({
   unread: {
-    review: false,
     tasks: false,
     terminal: false,
     changes: false,
@@ -52,7 +51,6 @@ usePreferencesStore.subscribe((state, prev) => {
 /**
  * Which rail dot a session change lights, or `null` for signals that carry no
  * attention cue (plan 035, decision 2):
- * - `review.changed` → Review
  * - `tasks.changed` → Tasks
  * - `actions.changed` → Terminal
  * - `terminal.dev-servers-changed` → no dot (the Servers list is already live)
@@ -62,7 +60,7 @@ usePreferencesStore.subscribe((state, prev) => {
 export function unreadTabFor(change: SessionChange): UnreadTab | null {
   switch (change.kind) {
     case 'review.changed':
-      return 'review'
+      return null
     case 'tasks.changed':
       return 'tasks'
     case 'actions.changed':

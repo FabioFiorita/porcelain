@@ -34,7 +34,6 @@ describe('BranchSwitcher', () => {
       branch: 'main',
       branches: [{ name: 'main', remote: null }],
       head: undefined,
-      inbox: [],
       refreshBranches: refresh,
       worktrees: [],
     })

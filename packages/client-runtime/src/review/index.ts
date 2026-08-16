@@ -1,5 +1,5 @@
 /**
- * Shared Review client semantics (RVC-002 comments, REV-006 everything else).
+ * Shared Review client semantics for comments and reviewed marks.
  *
  * Framework-neutral query identities, mutation consequences, pure optimistic transitions,
  * and `review.changed` notification mappings. Web and mobile adapters bind these
@@ -32,45 +32,18 @@ export {
   type ReviewMutationDefinition,
   reviewMutations,
 } from './review-mutations'
-export { reviewNotificationEffects } from './review-notifications'
 export {
-  type ReviewActiveQuery,
-  type ReviewArchivedQuery,
-  type ReviewEvidenceAssetQuery,
-  type ReviewEvidenceDocQuery,
-  type ReviewEvidenceQuery,
-  type ReviewExploreQuery,
-  type ReviewExploreSeed,
   type ReviewedPathsQuery,
   ReviewIdentityError,
-  type ReviewInboxQuery,
-  type ReviewIntentQuery,
-  type ReviewPublishCostQuery,
   type ReviewQuery,
-  type ReviewReadingQuery,
-  reviewActiveQuery,
-  reviewActiveQuerySchema,
-  reviewArchivedQuery,
-  reviewEvidenceAssetQuery,
-  reviewEvidenceDocQuery,
-  reviewEvidenceQuery,
-  reviewExploreQuery,
   reviewedPathsQuery,
   reviewedPathsQuerySchema,
-  reviewInboxQuery,
-  reviewInboxQuerySchema,
-  reviewIntentQuery,
   reviewProjectKey,
-  reviewPublishCostQuery,
   reviewQuerySchema,
-  reviewReadingQuery,
-  reviewReadingQuerySchema,
 } from './review-queries'
 export {
   dedupeReviewQueryEffects,
   type ReviewQueryEffect,
-  reviewEvidenceAssetQueryFamily,
-  reviewEvidenceDocQueryFamily,
   reviewQueryEffectMatchesQuery,
 } from './review-query-effects'
 export {

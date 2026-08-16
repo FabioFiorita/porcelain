@@ -8,7 +8,6 @@ import type { SurfaceId } from './surfaces'
 const SURFACE_SYMBOLS: Record<SurfaceId, { ios: SFSymbol; android: AndroidSymbol }> = {
   files: { ios: 'folder.fill', android: 'folder' },
   changes: { ios: 'arrow.triangle.branch', android: 'account_tree' },
-  review: { ios: 'checkmark.bubble.fill', android: 'rate_review' },
   history: { ios: 'clock.arrow.circlepath', android: 'history' },
   search: { ios: 'magnifyingglass', android: 'search' },
   terminal: { ios: 'terminal.fill', android: 'terminal' },

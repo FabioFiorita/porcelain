@@ -46,8 +46,7 @@ describe('gitMutations', () => {
     const addWorktree = gitMutations.addWorktree.affectedQueries(CHECKOUT_INPUT)
     expect(names(checkout)).toContain('git/diff')
     expect(names(checkout)).toContain('git/range-diff')
-    expect(names(checkout)).toContain('review/inbox')
-    expect(names(addWorktree)).toEqual(['git/branches', 'git/worktrees', 'review/inbox'])
+    expect(names(addWorktree)).toEqual(['git/branches', 'git/worktrees'])
     expect(gitMutations.checkout.filesEffects(CHECKOUT_INPUT)).toEqual([])
   })
 
@@ -96,8 +95,6 @@ describe('gitMutations', () => {
       'git/log-family',
       'git/file-log-family',
       'git/commit-conventions',
-      'review/reading',
-      'review/active',
       'review/reviewed-paths',
     ])
     expect(new Set(effects).size).toBe(effects.length - 1)
@@ -109,8 +106,6 @@ describe('gitMutations', () => {
       'git/file-log-family',
       'git/commit-conventions',
       'git/suggestions',
-      'review/reading',
-      'review/active',
       'review/reviewed-paths',
     ])
     expect(

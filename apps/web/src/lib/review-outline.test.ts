@@ -1,6 +1,6 @@
 import type { ReviewReading } from '@porcelain/contracts/review'
 import { describe, expect, it } from 'vitest'
-import { reviewOutlineFiles } from './review-lifecycle'
+import { reviewOutlineFiles } from './review-outline'
 
 function reading(partial: Partial<ReviewReading> & Pick<ReviewReading, 'name'>): ReviewReading {
   return {

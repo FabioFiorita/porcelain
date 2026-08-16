@@ -41,7 +41,6 @@ export const DOMAIN_MIGRATIONS = Object.freeze(
         targetRoots.push('packages/client-runtime/src/review')
         targetRoots.push('apps/web/src/features/review')
         targetRoots.push('apps/mobile/src/features/comments')
-        targetRoots.push('apps/mobile/src/features/review')
       }
       if (key === 'files') {
         targetRoots.push('apps/daemon/src/features/files')
@@ -130,7 +129,6 @@ export const OVERSIZED_PRODUCTION_FILES = Object.freeze({
   'apps/daemon/src/git/git.ts': 947,
   'apps/desktop/src/main/shell-api.ts': 697,
   'apps/web/src/components/git/changes-list.tsx': 468,
-  'apps/web/src/features/review/active-review.tsx': 508,
   'apps/web/src/features/review/reading-surface.tsx': 904,
   'apps/web/src/lib/terminal-registry.ts': 602,
   'apps/web/src/terminal/ghostty/core.ts': 1240,

@@ -379,7 +379,7 @@ describe('runCli — review + comments + reviewed', () => {
         files: [{ path: 'server/svc.ts', source: 'shipped', layer: 'Svc' }],
       }),
     )
-    expect(await runCli(['comments', 'list', ...repo])).toContain('[c1] server/svc.ts (shipped)')
+    expect(await runCli(['comments', 'list', ...repo])).toContain('[c1] server/svc.ts')
   })
   it('comments answer attaches a reply, found/not-found by id', async () => {
     ensurePorcelain()

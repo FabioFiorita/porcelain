@@ -1062,10 +1062,6 @@
       {
         "file": "apps/cli/src/evidence-file.ts",
         "lines": 535
-      },
-      {
-        "file": "apps/web/src/features/review/active-review.tsx",
-        "lines": 508
       }
     ]
   },

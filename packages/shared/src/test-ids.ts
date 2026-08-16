@@ -96,23 +96,14 @@ export const TestIds = {
   branchSwitcher: 'branch-switcher',
 
   // --- Review ---
-  reviewInbox: 'review-inbox',
-  reviewInboxRow: (branch: string): string => `review-inbox-row-${branch}`,
   reviewList: 'review-list',
   reviewOpen: 'review-open',
-  /** Right-rail companion: archive the published Review + evidence (confirm first). */
-  reviewArchive: 'review-archive',
-  /** Right-rail list of archived previous reviews. */
-  previousReviews: 'previous-reviews',
-  previousReviewRow: (id: string): string => `previous-review-${id}`,
-  previousReviewRestore: (id: string): string => `previous-review-restore-${id}`,
-  previousReviewDelete: (id: string): string => `previous-review-delete-${id}`,
   reviewOutlineEvidence: 'review-outline-evidence',
-  activeReview: 'active-review',
-  /** Empty Review canvas — start-of-unit affordance. */
-  activeReviewEmpty: 'active-review-empty',
-  activeReviewTab: (tab: 'intent' | 'process' | 'execution' | 'evidence'): string =>
-    `active-review-tab-${tab}`,
+  reviewCanvas: 'review-canvas',
+  /** Empty Review Canvas — no daemon-root template has been published. */
+  reviewCanvasEmpty: 'review-canvas-empty',
+  reviewCanvasTab: (tab: 'intent' | 'process' | 'execution' | 'evidence'): string =>
+    `review-canvas-tab-${tab}`,
   evidencePanel: 'evidence-panel',
   evidenceClear: 'evidence-clear',
   evidenceIframe: 'evidence-iframe',
@@ -124,8 +115,6 @@ export const TestIds = {
   /** One gallery tile, keyed by its file name inside `evidence/assets/`. */
   evidenceGalleryItem: (file: string): string => `evidence-gallery-item-${file}`,
   evidenceGalleryZoom: 'evidence-gallery-zoom',
-  /** Board Focus → open Review with title prefilled for the start prompt. */
-  boardStartReview: 'board-start-review',
 
   // --- Commit companion ---
   commitButton: 'commit-button',

@@ -6,7 +6,6 @@ import { TerminalView } from '@renderer/components/terminal/terminal-view'
 import { FileContent } from '@renderer/components/viewer/file-content'
 import { SearchView } from '@renderer/components/viewer/search-view'
 import { CanvasView, HubHomeSummary, HubProjectSummary } from '@renderer/features/projects'
-import { ActiveReview, ExploreView } from '@renderer/features/review'
 import { TasksView } from '@renderer/features/tasks'
 import { cn } from '@renderer/lib/utils'
 import { HubRepoProvider } from '@renderer/stores/hub-repo'
@@ -90,8 +89,6 @@ function PaneContent({ tab, paneIndex }: { tab: Tab; paneIndex: number }): React
       return <ChangesetView key={tab.id} path={tab.path} />
     case 'search':
       return <SearchView key={tab.id} query={tab.path} />
-    case 'review':
-      return <ActiveReview />
     case 'tasks':
       // Deliberately target-free: the table spans every Environment, so it renders the
       // same thing whichever Worktree the Hub happens to have selected.
@@ -99,7 +96,7 @@ function PaneContent({ tab, paneIndex }: { tab: Tab; paneIndex: number }): React
     case 'terminal':
       return <TerminalView key={tab.id} sessionId={tab.path} />
     case 'explore':
-      return <ExploreView key={tab.id} path={tab.path} symbol={tab.symbol} />
+      return <p className="p-4 text-sm text-muted-foreground">Flow exploration is unavailable.</p>
     case 'file':
       return (
         <FileContent

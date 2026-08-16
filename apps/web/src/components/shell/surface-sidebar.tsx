@@ -5,7 +5,6 @@ import { Kbd } from '@renderer/components/ui/kbd'
 import { SidebarGroupLabel } from '@renderer/components/ui/sidebar'
 import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-group'
 import { CanvasList } from '@renderer/features/projects'
-import { ReviewList } from '@renderer/features/review'
 import { SearchList } from '@renderer/features/search'
 import { TasksList } from '@renderer/features/tasks'
 import { kbdLabel } from '@renderer/lib/keyboard'
@@ -24,13 +23,11 @@ import {
   LayoutPanelTop,
   Search,
   Table2,
-  Waypoints,
 } from 'lucide-react'
 import { useState } from 'react'
 import { FileTimelineGroup } from './file-timeline-group'
 import { FileTree } from './file-tree'
 import { PinnedGroup } from './pinned-group'
-import { ReviewGroup } from './review-group'
 
 interface SurfaceDefinition {
   id: SidebarTab
@@ -48,13 +45,6 @@ export const SURFACES: SurfaceDefinition[] = [
     hint: 'Review working-tree changes',
     shortcut: '2',
     icon: GitCompareArrows,
-  },
-  {
-    id: 'review',
-    label: 'Review',
-    hint: 'Open the current Review',
-    shortcut: '3',
-    icon: Waypoints,
   },
   {
     id: 'history',
@@ -155,12 +145,6 @@ export function SurfaceContent({
         <FilesSurface projectPath={project.path} active={active} />
       )}
       {active === 'changes' && <ChangesList />}
-      {active === 'review' && (
-        <>
-          <ReviewGroup />
-          <ReviewList />
-        </>
-      )}
       {active === 'history' && <HistorySurface />}
       {active === 'search' && <SearchList />}
       {active === 'tasks' && <TasksList />}

@@ -5,10 +5,7 @@ import { useActionsNotificationSubscription } from '@renderer/features/actions'
 import { useFilesInterestBridge, useFilesNotificationSubscription } from '@renderer/features/files'
 import { useGitNotificationSubscription } from '@renderer/features/git'
 import { useEnvironmentStatuses } from '@renderer/features/remote'
-import {
-  useReviewCommentNotificationSubscription,
-  useReviewNotificationSubscription,
-} from '@renderer/features/review'
+import { useReviewCommentNotificationSubscription } from '@renderer/features/review'
 import {
   ContentSearch,
   FileFinder,
@@ -140,9 +137,6 @@ export function AppShell(): React.JSX.Element {
   // Comments notifications own their comments-identity invalidation (RVC-003); bulk review.changed
   // in session-runtime no longer touches comments.
   useReviewCommentNotificationSubscription()
-  // Review notifications own the Review key namespace (REV-007); session-runtime keeps only
-  // the Project Data consequence of review.changed.
-  useReviewNotificationSubscription()
   // Files notifications + watch interests (FIL-005); session-runtime Files arms are no-ops.
   useFilesNotificationSubscription()
   // Search owns its typed Search identities, Files facts, and recovery invalidation.
