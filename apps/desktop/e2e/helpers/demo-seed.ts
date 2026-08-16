@@ -1,5 +1,15 @@
+import { execFileSync } from 'node:child_process'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { canvasBundleDir, canvasIndexPath } from '@shared/canvas-porcelain'
+import { projectActionsPath } from '@shared/project-store'
+import {
+  buildReviewCanvas,
+  renderReviewChecks,
+  renderReviewFiles,
+  renderReviewGallery,
+  writeReviewCanvasBundle,
+} from '@shared/review-canvas'
 
 interface Action {
   id: string
@@ -9,11 +19,8 @@ interface Action {
   createdAt: number
 }
 
-// The agent-channel content behind the marketing screenshots: the published Review,
-// the project board, the human's review comments, and loop evidence — written to the
-// same on-disk channels the porcelain CLI writes (keyed by absolute repo path), so
-// every seeded surface renders exactly as a real agent hand-off would.
-// Shapes mirror src/cli/*-file.ts (re-validated by the app's zod on read).
+// The agent-authored content behind the marketing screenshots: a daemon-root Review Canvas,
+// Actions, and loop evidence, so every seeded surface renders like a real Environment hand-off.
 
 interface ReviewFile {
   path: string
@@ -34,17 +41,6 @@ interface ReviewSet {
   thesis?: string
   files: ReviewFile[]
   sections: ReviewSection[]
-}
-
-interface Comment {
-  id: string
-  path: string
-  startLine?: number
-  endLine?: number
-  anchorText?: string
-  body: string
-  resolved: boolean
-  createdAt: number
 }
 
 // A dark, self-contained flow diagram (inline SVG) — the agent renders its own
@@ -136,26 +132,6 @@ export const DEMO_REVIEW_SET: ReviewSet = {
 
 const T0 = Date.UTC(2024, 4, 2, 9, 15, 0)
 
-export const DEMO_COMMENTS: Comment[] = [
-  {
-    id: 'cmt-1',
-    path: 'src/routes/orders.route.ts',
-    startLine: 8,
-    endLine: 8,
-    anchorText: '  const status = parseStatus(req.query.status)',
-    body: 'parseStatus dropping unknown values to “all” is safe, but should we 400 on a bad status instead of silently widening the result?',
-    resolved: false,
-    createdAt: T0 + 7000,
-  },
-  {
-    id: 'cmt-2',
-    path: 'src/services/orders.service.ts',
-    body: 'Good call gating the where-clause on status — keeps the unfiltered query plan unchanged.',
-    resolved: false,
-    createdAt: T0 + 8000,
-  },
-]
-
 // Saved actions the human runs one-click in the embedded terminal. Seeded so the
 // Cmd+P finder shows mixed results (files + commands) on a query like "orders", and
 // the terminal tab's Actions companion isn't an empty state.
@@ -241,41 +217,96 @@ const DEMO_EVIDENCE_ASSETS: Record<string, string> = {
     'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAFklEQVR4nGOwbvpGEmIY1TCqYfhqAACHB7MQtEO1oAAAAABJRU5ErkJggg==',
 }
 
-/**
- * Write demo companion data into `<repo>/.porcelain/` (review parts under
- * `active-review/`) and return home env for the
- * daemon (token home only — channels are project-local).
- */
+const DEMO_PROJECT_ID = 'marketing-orders-project'
+export const DEMO_WORKTREE_ID = 'marketing-orders-worktree'
+export const DEMO_REVIEW_CANVAS_ID = 'marketing-review'
+
+/** Write marketing data into daemon-root Project stores, exactly as the live client reads it. */
 export async function seedDemoChannels(
   udBase: string,
   repoDir: string,
 ): Promise<Record<string, string>> {
-  const project = join(repoDir, '.porcelain')
-  // The unit in flight lives in its own directory, shaped like an archived one.
-  const active = join(project, 'active-review')
-  await mkdir(active, { recursive: true })
-  await writeFile(join(active, 'review.json'), JSON.stringify(DEMO_REVIEW_SET, null, 2))
-  await writeFile(join(active, 'comments.json'), JSON.stringify(DEMO_COMMENTS, null, 2))
-  await writeFile(join(project, 'actions.json'), JSON.stringify(DEMO_ACTIONS, null, 2))
-
-  // Evidence is one pack over three sub-tabs, so the shots seed all three:
-  // checks in meta.json, the report + a run log as documents, captures as images.
-  const evidenceDir = join(active, 'evidence')
-  await mkdir(join(evidenceDir, 'results'), { recursive: true })
-  await mkdir(join(evidenceDir, 'assets'), { recursive: true })
-  await writeFile(join(evidenceDir, 'results', 'index.html'), DEMO_EVIDENCE_HTML)
-  await writeFile(join(evidenceDir, 'results', 'run-log.md'), DEMO_EVIDENCE_RUN_LOG)
-  for (const [file, base64] of Object.entries(DEMO_EVIDENCE_ASSETS)) {
-    await writeFile(join(evidenceDir, 'assets', file), Buffer.from(base64, 'base64'))
-  }
+  const commonGitDir = execFileSync('git', ['rev-parse', '--git-common-dir'], {
+    cwd: repoDir,
+    encoding: 'utf8',
+  }).trim()
+  const gitDir = execFileSync('git', ['rev-parse', '--git-dir'], {
+    cwd: repoDir,
+    encoding: 'utf8',
+  }).trim()
   await writeFile(
-    join(evidenceDir, 'meta.json'),
+    join(udBase, 'hub-inventory.json'),
     JSON.stringify({
-      title: EVIDENCE_TITLE,
-      repoPath: repoDir,
-      updatedAt: '2024-05-02T09:15:00.000Z',
-      checks: DEMO_EVIDENCE_CHECKS,
+      version: 1,
+      value: {
+        projects: [
+          {
+            id: DEMO_PROJECT_ID,
+            commonGitDir: join(repoDir, commonGitDir),
+            groupingKey: 'name:northwind-orders',
+            name: 'northwind-orders',
+            worktrees: [{ id: DEMO_WORKTREE_ID, gitDir: join(repoDir, gitDir) }],
+          },
+        ],
+      },
     }),
+  )
+  const reviewAssetDir = join(udBase, 'marketing-review-assets')
+  await mkdir(reviewAssetDir, { recursive: true })
+  for (const [file, base64] of Object.entries(DEMO_EVIDENCE_ASSETS)) {
+    await writeFile(join(reviewAssetDir, file), Buffer.from(base64, 'base64'))
+  }
+  const bundle = buildReviewCanvas({
+    title: DEMO_REVIEW_SET.name,
+    kind: 'html',
+    bodies: {
+      intent: `<p>${DEMO_REVIEW_SET.thesis ?? ''}</p>`,
+      process: DEMO_REVIEW_SET.sections
+        .slice(0, 2)
+        .map((section) => `<h3>${section.title}</h3><p>${section.prose}</p>`)
+        .join('\n'),
+      execution: renderReviewFiles(DEMO_REVIEW_SET.files, 'html'),
+      evidence: `${renderReviewChecks(DEMO_EVIDENCE_CHECKS, 'html')}\n${DEMO_EVIDENCE_HTML}\n<pre>${DEMO_EVIDENCE_RUN_LOG}</pre>\n${renderReviewGallery(
+        Object.keys(DEMO_EVIDENCE_ASSETS).map((name) => ({
+          name,
+          path: join(reviewAssetDir, name),
+        })),
+        'html',
+      )}`,
+    },
+  })
+  await writeReviewCanvasBundle(
+    canvasBundleDir(udBase, DEMO_PROJECT_ID, DEMO_REVIEW_CANVAS_ID),
+    bundle,
+    Object.keys(DEMO_EVIDENCE_ASSETS).map((name) => ({
+      name,
+      path: join(reviewAssetDir, name),
+    })),
+  )
+  await writeFile(
+    canvasIndexPath(udBase, DEMO_PROJECT_ID),
+    JSON.stringify({
+      version: 1,
+      value: {
+        canvases: [
+          {
+            id: DEMO_REVIEW_CANVAS_ID,
+            worktreeId: DEMO_WORKTREE_ID,
+            title: DEMO_REVIEW_SET.name,
+            kind: 'html',
+            entryFile: bundle.entryFile,
+            template: 'review',
+            createdAt: new Date(T0).toISOString(),
+            updatedAt: new Date(T0).toISOString(),
+          },
+        ],
+      },
+    }),
+  )
+  await mkdir(join(udBase, 'projects', DEMO_PROJECT_ID), { recursive: true })
+  await writeFile(
+    projectActionsPath(udBase, DEMO_PROJECT_ID),
+    JSON.stringify({ version: 1, actions: DEMO_ACTIONS }),
   )
   return { PORCELAIN_HOME: udBase }
 }

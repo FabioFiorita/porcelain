@@ -20,6 +20,7 @@ export const loc = {
   toggleRightSidebar: (page: Page): Locator => byId(page, TestIds.toggleRightSidebar),
   actionsMenu: (page: Page): Locator => byId(page, TestIds.actionsMenu),
   commandsMenu: (page: Page): Locator => byId(page, TestIds.commandsMenu),
+  environmentSwitcher: (page: Page): Locator => byId(page, TestIds.environmentSwitcher),
 
   welcome: (page: Page): Locator => byId(page, TestIds.welcome),
   welcomeOpenRepo: (page: Page): Locator => byId(page, TestIds.welcomeOpenRepo),
@@ -39,6 +40,13 @@ export const loc = {
   hubWorktreeSummary: (page: Page): Locator => byId(page, TestIds.hubWorktreeSummary),
   hubTabTargets: (page: Page, worktreeId: string): Locator =>
     page.locator(`[data-hub-worktree="${worktreeId}"]`),
+  hubTabTarget: (
+    page: Page,
+    target: { environmentId: string; projectId: string; worktreeId: string },
+  ): Locator =>
+    page.locator(
+      `[data-hub-environment="${target.environmentId}"][data-hub-project="${target.projectId}"][data-hub-worktree="${target.worktreeId}"]`,
+    ),
   devServers: (page: Page): Locator => byId(page, TestIds.devServers),
   devServersEmpty: (page: Page): Locator => byId(page, TestIds.devServersEmpty),
   devServerRows: (page: Page): Locator => page.locator('[data-testid^="dev-server-"][data-status]'),
@@ -77,6 +85,7 @@ export const loc = {
   tasksQuickAddSubmit: (page: Page): Locator => byId(page, TestIds.tasksQuickAddSubmit),
 
   canvasList: (page: Page): Locator => byId(page, TestIds.canvasList),
+  canvasListItems: (page: Page): Locator => page.locator('[data-testid^="canvas-list-item-"]'),
   canvasListEmpty: (page: Page): Locator => byId(page, TestIds.canvasListEmpty),
   canvasListItem: (page: Page, id: string): Locator => byId(page, TestIds.canvasListItem(id)),
   canvasIframe: (page: Page): Locator => byId(page, TestIds.canvasIframe),
@@ -160,6 +169,7 @@ export const loc = {
   actionsTargetPicker: (page: Page): Locator => byId(page, TestIds.actionsTargetPicker),
 
   viewerTab: (page: Page, title: string): Locator => byId(page, TestIds.viewerTab(title)),
+  viewerTabs: (page: Page): Locator => page.locator('[data-testid^="viewer-tab-"]'),
   viewerTabOpenToSide: (page: Page): Locator => byId(page, TestIds.viewerTabOpenToSide),
 
   treeEntry: (page: Page, name: string): Locator => byId(page, TestIds.treeEntry(name)),

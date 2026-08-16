@@ -2,9 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdir, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { PROTOCOL_VERSION, PROTOCOL_VERSION_HEADER } from '@porcelain/contracts'
 import { canvasBundleDir, canvasIndexPath } from '@shared/canvas-porcelain'
-import { createTRPCUntypedClient, httpBatchLink } from '@trpc/client'
 import {
   E2E_BROWSER_TOKEN,
   expect,
@@ -122,32 +120,6 @@ async function seedCanvas(homeDir: string, projectId: string, worktreeId: string
   )
 }
 
-/**
- * Use the same authenticated HTTP/tRPC boundary as the browser client, but from the Node test
- * process so a second daemon can be observed without pretending the browser shell can fan out.
- * Browser clients intentionally own exactly one daemon session; Electron's shell is the
- * multi-Environment aggregator. The response is still the real daemon contract, not a fixture.
- */
-async function daemonQuery<Value>(
-  url: string,
-  token: string,
-  procedure: string,
-  input?: unknown,
-): Promise<Value> {
-  const client = createTRPCUntypedClient({
-    links: [
-      httpBatchLink({
-        url: `${url}/trpc`,
-        headers: {
-          authorization: `Bearer ${token}`,
-          [PROTOCOL_VERSION_HEADER]: String(PROTOCOL_VERSION),
-        },
-      }),
-    ],
-  })
-  return (await client.query(procedure, input)) as Value
-}
-
 async function seedRemoteDaemon(repoDir: string) {
   const seeded = await seedIsolatedState(repoDir, true, null, null)
   const commonGitDir = await realpathGitCommonDir(repoDir)
@@ -224,73 +196,59 @@ test('composed daemon proof: targets, Canvas Review, migration, Tasks, Actions, 
   const migratedReview = migratedIndex.value.canvases.find((canvas) => canvas.template === 'review')
   if (migratedReview === undefined) throw new Error('migration did not create a Review Canvas')
 
-  // Two actual Environment daemons are alive together. The browser renderer intentionally
-  // cannot aggregate them (that is Electron shell responsibility), so observe both through
-  // their authenticated daemon contracts in this same composed run. Each side has an isolated
-  // Playground, home, identity, migrated Canvas, Task, and Action records.
+  // Two actual Environment daemons are alive together. Each one gets its own browser context,
+  // authenticated session socket, React Query cache, and target-aware Viewer state. This keeps
+  // the proof at the same UI boundary a human uses; Node is only allowed to prepare the isolated
+  // Playground and daemon-root records above.
   try {
     await createFixtureRepo(secondaryRepo)
     secondarySeed = await seedRemoteDaemon(secondaryRepo)
     const secondary = await spawnDaemon(secondarySeed, { port: 43220, host: 'e2e-secondary' })
     secondaryChild = secondary.child
     const secondaryUrl = `http://127.0.0.1:${secondary.port}`
-    const primaryUrl = new URL(page.url()).origin
-    const [primaryIdentity, secondaryIdentity] = await Promise.all([
-      daemonQuery<{ host: string }>(primaryUrl, E2E_BROWSER_TOKEN, 'daemonInfo'),
-      daemonQuery<{ host: string }>(secondaryUrl, E2E_BROWSER_TOKEN, 'daemonInfo'),
-    ])
-    expect(primaryIdentity.host).not.toBe(secondaryIdentity.host)
-    expect(secondaryIdentity.host).toBe('e2e-secondary')
-    const [primaryInventory, secondaryInventory] = await Promise.all([
-      daemonQuery<{
-        environment: { id: string; name: string }
-        projects: { id: string; environmentId: string; worktrees: { id: string }[] }[]
-      }>(primaryUrl, E2E_BROWSER_TOKEN, 'hubInventory'),
-      daemonQuery<{
-        environment: { id: string; name: string }
-        projects: { id: string; environmentId: string; worktrees: { id: string }[] }[]
-      }>(secondaryUrl, E2E_BROWSER_TOKEN, 'hubInventory'),
-    ])
-    expect(primaryInventory.environment.id).not.toBe(secondaryInventory.environment.id)
-    expect(primaryInventory.projects[0]?.environmentId).toBe(primaryInventory.environment.id)
-    expect(secondaryInventory.projects[0]?.environmentId).toBe(secondaryInventory.environment.id)
-    expect(secondaryInventory.projects[0]?.id).toBe('e2e-secondary-project')
+    const browser = page.context().browser()
+    if (browser === null) throw new Error('browser proof requires a Playwright browser')
+    const secondaryContext = await browser.newContext({
+      viewport: { width: 1400, height: 900 },
+      colorScheme: 'dark',
+    })
+    await secondaryContext.addInitScript((token) => {
+      localStorage.setItem('porcelain-client-token', token)
+      localStorage.setItem('porcelain-e2e', '1')
+    }, E2E_BROWSER_TOKEN)
+    const secondaryPage = await secondaryContext.newPage()
+    await secondaryPage.goto(`${secondaryUrl}/`)
+    await waitForShell(secondaryPage)
 
-    const remoteTasks = await daemonQuery<{ id: string; title: string }[]>(
-      secondaryUrl,
-      E2E_BROWSER_TOKEN,
-      'listTasks',
+    // Both identities are visible in the actual EnvironmentSwitcher badge, and both pages show
+    // real content from their own authenticated daemon session.
+    const primaryIdentity = loc.environmentSwitcher(page).locator('[role="img"]')
+    const secondaryIdentity = loc.environmentSwitcher(secondaryPage).locator('[role="img"]')
+    await expect(primaryIdentity).toHaveAttribute('aria-label', /^Environment: /)
+    await expect(secondaryIdentity).toHaveAttribute('aria-label', 'Environment: e2e-secondary')
+    expect(await primaryIdentity.getAttribute('aria-label')).not.toBe(
+      await secondaryIdentity.getAttribute('aria-label'),
     )
-    const remoteActions = await daemonQuery<{ title: string }[]>(
-      secondaryUrl,
-      E2E_BROWSER_TOKEN,
-      'actions',
-      { projectId: 'e2e-secondary-project' },
+    await openReadme(page)
+    await openReadme(secondaryPage)
+    await expect(loc.viewerCard(page)).toContainText('A fixture repo for Porcelain e2e tests.')
+    await expect(loc.viewerCard(secondaryPage)).toContainText(
+      'A fixture repo for Porcelain e2e tests.',
     )
-    const remoteCanvases = await daemonQuery<{ id: string; title: string }[]>(
-      secondaryUrl,
-      E2E_BROWSER_TOKEN,
-      'listCanvases',
-      { projectId: 'e2e-secondary-project' },
-    )
-    expect(remoteTasks).toEqual(
-      expect.arrayContaining([expect.objectContaining({ title: 'Migrated task' })]),
-    )
-    expect(remoteActions).toEqual(
-      expect.arrayContaining([expect.objectContaining({ title: 'Migrated action' })]),
-    )
-    const remoteReview = remoteCanvases.find((canvas) => canvas.title === 'Migrated Review Canvas')
-    expect(remoteReview).toBeDefined()
-    if (remoteReview === undefined)
-      throw new Error('secondary daemon lost its migrated Review Canvas')
-    const remoteReviewContent = await daemonQuery<{ content: string }>(
-      secondaryUrl,
-      E2E_BROWSER_TOKEN,
-      'readCanvas',
-      { projectId: 'e2e-secondary-project', canvasId: remoteReview.id },
-    )
-    expect(remoteReviewContent.content).toContain('Migrated Review Canvas')
-    expect(remoteReviewContent.content).toContain('migration proof')
+
+    // The second Environment's daemon-root Canvas, migrated Task, and Action are all rendered by
+    // its UI as well. This catches a token/session mismatch that direct tRPC setup checks miss.
+    await openSurface(secondaryPage, 'Canvas')
+    await loc.canvasListItems(secondaryPage).filter({ hasText: 'Migrated Review Canvas' }).click()
+    const remoteReviewFrame = secondaryPage.frameLocator(`[data-testid="${TestIds.canvasIframe}"]`)
+    await expect(remoteReviewFrame.locator('h1')).toHaveText('Migrated Review Canvas')
+    await expect(remoteReviewFrame.locator('#evidence')).toContainText('migration proof')
+    await openSurface(secondaryPage, 'Tasks')
+    await loc.tasksOpen(secondaryPage).click()
+    await expect(loc.tasksRow(secondaryPage, MIGRATED_CARD)).toContainText('Migrated task')
+    await loc.actionsMenu(secondaryPage).click()
+    await expect(loc.actionRun(secondaryPage, 'Migrated action')).toBeVisible()
+    await secondaryContext.close()
   } finally {
     if (secondaryChild !== null && secondaryChild.exitCode === null) {
       const exited = new Promise<void>((resolve) => secondaryChild?.once('exit', () => resolve()))
@@ -324,9 +282,54 @@ test('composed daemon proof: targets, Canvas Review, migration, Tasks, Actions, 
     )
   const other = worktreeIds.find((id) => id !== original)
   if (other === undefined) throw new Error('second Worktree did not appear')
-  await loc.hubWorktree(page, original.replace('hub-worktree-', '')).click()
-  await selectFilesAndSplit(page)
-  await expect(loc.hubTabTargets(page, original.replace('hub-worktree-', ''))).toHaveCount(2)
+  const originalWorktreeId = original.replace('hub-worktree-', '')
+  const otherWorktreeId = other.replace('hub-worktree-', '')
+  const originalTarget = {
+    environmentId:
+      (await loc.hubWorktree(page, originalWorktreeId).getAttribute('data-hub-environment')) ?? '',
+    projectId:
+      (await loc.hubWorktree(page, originalWorktreeId).getAttribute('data-hub-project')) ?? '',
+    worktreeId: originalWorktreeId,
+  }
+  const otherTarget = {
+    environmentId:
+      (await loc.hubWorktree(page, otherWorktreeId).getAttribute('data-hub-environment')) ?? '',
+    projectId:
+      (await loc.hubWorktree(page, otherWorktreeId).getAttribute('data-hub-project')) ?? '',
+    worktreeId: otherWorktreeId,
+  }
+  expect(originalTarget.environmentId).not.toBe('')
+  expect(originalTarget.projectId).toBe(project)
+  expect(otherTarget).toMatchObject({
+    environmentId: originalTarget.environmentId,
+    projectId: project,
+  })
+  await loc.hubWorktree(page, originalWorktreeId).click()
+  await openReadme(page)
+  await expect(loc.hubTabTarget(page, originalTarget)).toHaveCount(1)
+  await loc.viewerTab(page, 'README.md').dblclick()
+  await loc.viewerTab(page, 'README.md').click({ button: 'right' })
+  await loc.viewerTabOpenToSide(page).click()
+  await loc.hubWorktree(page, otherWorktreeId).click()
+  await openReadme(page)
+  const duplicateOriginal = loc.hubTabTarget(page, originalTarget).last()
+  await duplicateOriginal.locator('button[aria-label^="Close "]').click()
+  const renderedTargets = await loc.viewerTabs(page).evaluateAll((nodes) =>
+    nodes.map((node) => ({
+      environment: node.getAttribute('data-hub-environment'),
+      project: node.getAttribute('data-hub-project'),
+      worktree: node.getAttribute('data-hub-worktree'),
+    })),
+  )
+  if (renderedTargets.length !== 2)
+    throw new Error(`expected two tabs: ${JSON.stringify(renderedTargets)}`)
+  const originalTabCount = await loc.hubTabTarget(page, originalTarget).count()
+  const otherTabCount = await loc.hubTabTarget(page, otherTarget).count()
+  if (originalTabCount !== 1 || otherTabCount !== 1) {
+    throw new Error(
+      `split tabs lost target identity: ${JSON.stringify({ originalTarget, otherTarget, renderedTargets })}`,
+    )
+  }
 
   // Review is the structured Canvas template, and its Evidence is visible after migration.
   await openSurface(page, 'Canvas')
@@ -353,11 +356,8 @@ test('composed daemon proof: targets, Canvas Review, migration, Tasks, Actions, 
   await expect(loc.actionRun(page, 'Migrated action')).toBeVisible()
 })
 
-async function selectFilesAndSplit(page: Parameters<typeof waitForShell>[0]): Promise<void> {
+async function openReadme(page: Parameters<typeof waitForShell>[0]): Promise<void> {
   await openSurface(page, 'Files')
   await loc.treeEntry(page, 'README.md').click()
-  await expect(loc.viewerTab(page, 'README.md')).toBeVisible()
-  await loc.viewerTab(page, 'README.md').click({ button: 'right' })
-  await loc.viewerTabOpenToSide(page).click()
-  await expect(page.locator('[data-hub-worktree]').first()).toBeVisible()
+  await expect(loc.viewerTab(page, 'README.md').last()).toBeVisible()
 }

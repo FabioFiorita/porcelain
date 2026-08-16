@@ -52,6 +52,8 @@ import { WorktreeSetupDialog } from './worktree-setup-dialog'
 
 function WorktreeRow(props: {
   worktree: HubWorktree
+  environmentId: string
+  projectId: string
   openWorktree: (worktree: HubWorktree) => void
   removeWorktree: (input: { projectId: string; worktreeId: string }) => Promise<void>
   mutable: boolean
@@ -92,6 +94,8 @@ function WorktreeRow(props: {
             <button
               type="button"
               data-testid={TestIds.hubWorktree(props.worktree.id)}
+              data-hub-environment={props.environmentId}
+              data-hub-project={props.projectId}
               aria-current={selected ? 'page' : undefined}
               className={cn(
                 'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-accent/50',
@@ -152,6 +156,7 @@ function WorktreeRow(props: {
 
 function ProjectBlock(props: {
   project: HubProject
+  environmentId: string
   environmentName: string
   mutable: boolean
   openWorktree: (worktree: HubWorktree) => void
@@ -273,6 +278,8 @@ function ProjectBlock(props: {
           <WorktreeRow
             key={worktree.id}
             worktree={worktree}
+            environmentId={props.environmentId}
+            projectId={props.project.id}
             openWorktree={props.openWorktree}
             removeWorktree={props.removeWorktree}
             mutable={props.mutable}
@@ -351,6 +358,7 @@ export function HubTreeFromInventories(props: {
               <ProjectBlock
                 key={`${member.environment.id}:${member.project.id}`}
                 project={member.project}
+                environmentId={member.environment.id}
                 environmentName={member.environment.name}
                 mutable={source.current}
                 openWorktree={(worktree) => props.openWorktree(source, worktree)}

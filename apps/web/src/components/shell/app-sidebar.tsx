@@ -17,6 +17,7 @@ import { useFileFinderStore } from '@renderer/stores/file-finder'
 import { useProjectPickerStore } from '@renderer/stores/project-picker'
 import { TestIds } from '@shared/test-ids'
 import { Plus, Search } from 'lucide-react'
+import { EnvironmentSwitcher } from './environment-switcher'
 import { SidebarResizeHandle } from './sidebar-resize-handle'
 
 /**
@@ -43,6 +44,7 @@ export function AppSidebar(): React.JSX.Element {
       <SidebarHeader className="app-drag h-12 shrink-0 flex-row items-center gap-2 border-b py-0 px-3">
         <img src={logo} alt="" draggable={false} className="size-6 shrink-0" />
         <span className="truncate text-sm font-semibold text-foreground">Porcelain</span>
+        {isBrowser && <EnvironmentSwitcher />}
         <Button
           variant="ghost"
           size="icon-sm"

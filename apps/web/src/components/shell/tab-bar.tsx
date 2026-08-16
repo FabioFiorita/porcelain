@@ -72,6 +72,8 @@ function TabItem({
                       : 'text-muted-foreground hover:bg-accent/40',
                   )}
                   data-active={isActive}
+                  data-hub-environment={tab.target?.environmentId}
+                  data-hub-project={tab.target?.projectId}
                   data-hub-worktree={tab.target?.worktreeId}
                   data-pinned={tab.pinned ? 'true' : undefined}
                   onClick={() => activateTab(paneIndex, tab.id)}

@@ -12,15 +12,15 @@ import {
   type Page,
   test,
 } from '@playwright/test'
-import { expectTerminalText, selectTab, TestIds, waitForShell } from './helpers/app'
+import { expectTerminalText, openSurface, TestIds, waitForShell } from './helpers/app'
 import { createDemoRepo } from './helpers/demo-repo'
-import { seedDemoChannels } from './helpers/demo-seed'
+import { DEMO_REVIEW_CANVAS_ID, DEMO_WORKTREE_ID, seedDemoChannels } from './helpers/demo-seed'
 import { byId } from './helpers/locators'
 
 // The autonomous marketing-screenshot pipeline (pnpm shots): headless Chromium at
 // Retina density (deviceScaleFactor 2) driving the daemon-served web client — the
 // SAME renderer bundle the Mac app loads — against a seeded demo repo with a full
-// agent hand-off (published Review, comments, loop evidence). NOT a baseline
+// agent hand-off (published Review Canvas, Actions, loop evidence). NOT a baseline
 // test: it's excluded from the normal e2e run (playwright.shots.config.ts matches
 // only this file) and writes PNGs to marketing/shots/ (gitignored).
 //
@@ -289,45 +289,42 @@ test('marketing shots — the seeded demo repo across every surface', async () =
     // ── Phase 1 — the default layout: full-window surfaces + centered overlays. ──
     const { context, page } = await openShotPage(browser, port)
 
-    // glance.png — empty viewer = the Glance (work in flight + jump rows). Landing
-    // home for a repo with no tab open; the marketing hero app shot.
-    await expect(byId(page, TestIds.glance)).toBeVisible({ timeout: 20_000 })
+    // glance.png — the Home hub, showing the connected Environment and its Project.
+    await expect(byId(page, TestIds.hubHome)).toBeVisible({ timeout: 20_000 })
+    await byId(page, TestIds.hubWorktree(DEMO_WORKTREE_ID)).click()
     await settle(page)
     await shoot(page, 'glance.png')
 
-    // review.png — the Review tab with the Review document opened into the viewer
-    // (thesis, walkthrough sections, flow diagram, anchored diff hunks). The outline
-    // lives in the sidebar; clicking the review name opens the document at the top.
-    await selectTab(page, 'Review')
-    await page.getByRole('button', { name: 'Filter orders by status' }).first().click()
-    const review = page.getByRole('main')
-    await expect(review.getByRole('heading', { name: 'Filter orders by status' })).toBeVisible({
+    // review.png — the daemon-root Review Canvas template opened into the viewer.
+    await openSurface(page, 'Canvas')
+    await byId(page, TestIds.canvasListItem(DEMO_REVIEW_CANVAS_ID)).click()
+    const review = page.frameLocator(`[data-testid="${TestIds.canvasIframe}"]`)
+    await expect(review.locator('h1', { hasText: 'Filter orders by status' })).toBeVisible({
       timeout: 20_000,
     })
-    await expect(review.getByText('Thread the filter from the screen')).toBeVisible()
     // Extra settle for the sandboxed SVG diagram iframe to paint.
     await settle(page)
     await settle(page)
     await shoot(page, 'review.png')
 
     // changes-flow.png — the Changes tab: the uncommitted diff grouped into flow layers.
-    await selectTab(page, 'Changes')
+    await openSurface(page, 'Changes')
     await expect(page.getByTestId('changes-summary')).toBeVisible({ timeout: 15_000 })
     await settle(page)
     await shoot(page, 'changes-flow.png')
 
     // viewer.png — a source file open with syntax highlighting.
-    await selectTab(page, 'Files')
-    await page.getByRole('button', { name: 'src', exact: true }).click()
-    await page.getByRole('button', { name: 'pages', exact: true }).click()
-    await page.getByRole('button', { name: 'OrdersPage.tsx', exact: true }).click()
+    await openSurface(page, 'Files')
+    await byId(page, TestIds.treeEntry('src')).click()
+    await byId(page, TestIds.treeEntry('pages')).click()
+    await byId(page, TestIds.treeEntry('OrdersPage.tsx')).click()
     await expect(page.getByText('OrdersPage.tsx').first()).toBeVisible({ timeout: 15_000 })
     await settle(page)
     await shoot(page, 'viewer.png')
 
     // terminal.png — a real PTY round-trip showing the repo's git state + history.
-    await selectTab(page, 'Terminal')
-    await page.getByRole('button', { name: 'New terminal' }).click()
+    await byId(page, TestIds.toggleTerminalPanel).click()
+    await byId(page, TestIds.terminalNew).click()
     const input = page.locator('.porcelain-ghostty-input').first()
     await input.waitFor()
     await input.focus()
@@ -363,7 +360,7 @@ test('marketing shots — the seeded demo repo across every surface', async () =
     // feat-search.png — the finder overlay with a query showing mixed results
     // (files + a saved command). Raise it from the navigation search (not ⌘K over the
     // terminal, where it's clear-screen), type a query, shoot just the dialog.
-    await selectTab(page, 'Files')
+    await openSurface(page, 'Files')
     await page
       .getByRole('button', { name: 'Search commands, projects, files, and commits' })
       .first()
@@ -378,7 +375,7 @@ test('marketing shots — the seeded demo repo across every surface', async () =
 
     // feat-comment.png — the Add comment dialog over a diff, anchored to a line range.
     // Open a changed file's diff, select a few lines, right-click → Add comment.
-    await selectTab(page, 'Changes')
+    await openSurface(page, 'Changes')
     await expect(page.getByTestId('changes-summary')).toBeVisible({ timeout: 15_000 })
     await sidebarCard(page, 'left').getByText('orders.service.ts', { exact: true }).click()
     const lines = page.locator('[data-line]')
@@ -417,7 +414,7 @@ test('marketing shots — the seeded demo repo across every surface', async () =
     })
 
     // grouped-panel.png — the Source-control sidebar: the flow-layer-grouped file list.
-    await selectTab(wide, 'Changes')
+    await openSurface(wide, 'Changes')
     await expect(wide.getByTestId('changes-summary')).toBeVisible({ timeout: 15_000 })
     await settle(wide)
     await shootClip(wide, 'grouped-panel.png', await panelClip(wide, 'left'))
@@ -430,13 +427,13 @@ test('marketing shots — the seeded demo repo across every surface', async () =
     await shootClip(wide, 'feat-commit.png', await panelClip(wide, 'right'))
 
     // feat-history.png — the History sidebar list with the demo repo's commits.
-    await selectTab(wide, 'History')
+    await openSurface(wide, 'History')
     await expect(wide.getByText('relabel the pagination control')).toBeVisible({ timeout: 15_000 })
     await settle(wide)
     await shootClip(wide, 'feat-history.png', await panelClip(wide, 'left'))
 
     // pin-compact.png — the Workspace companion with pinned content (a folder + a file).
-    await selectTab(wide, 'Files')
+    await openSurface(wide, 'Files')
     await expect(wide.getByText('Pinned', { exact: true })).toBeVisible({ timeout: 15_000 })
     // Expand the pinned folder so the crop shows a nested tree (taller, more portrait).
     await sidebarCard(wide, 'right').getByText('hooks').click()
