@@ -55,9 +55,8 @@
   client; each Project header carries the current Environment name as a non-interactive badge.
   Project headers only expand or collapse; Worktree rows are the navigation targets. Each Project's
   branch-plus control opens the ref-aware New Worktree dialog, and the old branch/worktree footer
-  controls are gone. Files, Changes, Review, History, Search, and Canvas are the visible right-side
-  surfaces; Board remains daemon-backed compatibility until its planned daemon-owned shell work
-  lands. Surface list rows open detail in the central Viewer, while Actions and Git Commands are
+  controls are gone. Files, Changes, Review, History, Search, Tasks, and Canvas are the visible right-side
+  surfaces; Board and Notes are migration-only compatibility channels, not shell surfaces. Surface list rows open detail in the central Viewer, while Actions and Git Commands are
   exposed from the Viewer header.
 - **Canvas is a daemon-root surface, not a repo one.** `CanvasList`
   (`features/projects/canvas-list.tsx`) lists the selected Project's Canvases in the surfaces
@@ -93,9 +92,8 @@
   block, so a re-apply is safe. Never invent a fresh opaque shade. `--muted` backs *static* surfaces.
 - **No decorative accent — color only for meaning.** The only surviving color is functional: git +/−,
   file-type icons, folder/status hues, terminal ANSI. Don't reintroduce a CTA accent.
-- **TipTap is a scoped exception, allowed ONLY in the Notes card.** The file viewer stays a plain
-  textarea over a Shiki backdrop — no CodeMirror/Monaco, no autocomplete/rename/format (those make it
-  an editor).
+- The file viewer stays a plain textarea over a Shiki backdrop — no CodeMirror/Monaco,
+  autocomplete/rename/format (those make it an editor).
 - **The editor adopts external file changes ONLY when clean** — `EditorSource` reloads from a changed
   prop only if there are no unsaved edits; mid-edit the user's text wins. Don't make it always adopt
   (clobbers edits) or never adopt (the stale-view bug this fixed).

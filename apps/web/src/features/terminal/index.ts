@@ -14,7 +14,6 @@ export {
   createBrowserTerminalAdapter,
   type TerminalAdapterFailure,
   type TerminalAttachResult,
-  type TerminalPasteResult,
   type TerminalStreamListeners,
   terminalAdapterFor,
   terminalAdapterForSession,

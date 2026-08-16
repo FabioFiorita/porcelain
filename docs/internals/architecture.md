@@ -8,7 +8,7 @@ wire surface; Web, Desktop, and mobile are clients of that daemon. The package a
 
 | Surface | Role | Runs without |
 |---------|------|----------------|
-| **Daemon** | Headless runtime for Projects, Files, Git, Review, Board, Tasks, Actions, Terminal, sharing, HTTP/WS | Electron and every UI |
+| **Daemon** | Headless runtime for Projects, Files, Git, Review template, Tasks, Actions, Terminal, sharing, HTTP/WS | Electron and every UI |
 | **CLI** | Agent channel and project companion tooling | App UI |
 | **Web** | React client used directly in a browser and loaded by Electron | Electron shell |
 | **Shell** | Thin Electron lifecycle, windows, menus, updater, and local-daemon process owner | Business logic |

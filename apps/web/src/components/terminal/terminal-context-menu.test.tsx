@@ -6,7 +6,6 @@ import { TerminalContextMenu } from './terminal-context-menu'
 const selectionText = vi.fn()
 const copySelection = vi.fn().mockResolvedValue(undefined)
 const pasteClipboard = vi.fn().mockResolvedValue(undefined)
-const pasteImage = vi.fn().mockResolvedValue(undefined)
 const chooseFiles = vi.fn()
 const selectAll = vi.fn()
 const clearViewport = vi.fn()
@@ -15,7 +14,6 @@ vi.mock('@renderer/lib/terminal-registry', () => ({
   terminalSelectionText: (): ReturnType<typeof selectionText> => selectionText(),
   copyTerminalSelection: (...args: unknown[]) => copySelection(...args),
   pasteTerminalClipboard: (...args: unknown[]) => pasteClipboard(...args),
-  pasteTerminalImage: (...args: unknown[]) => pasteImage(...args),
   chooseTerminalFiles: (...args: unknown[]) => chooseFiles(...args),
   selectAllTerminal: (...args: unknown[]) => selectAll(...args),
   clearTerminalViewport: (...args: unknown[]) => clearViewport(...args),
@@ -65,14 +63,12 @@ describe('TerminalContextMenu', () => {
     await screen.findByTestId(TestIds.terminalContextMenu)
     fireEvent.click(screen.getByTestId(TestIds.terminalContextCopy))
     fireEvent.click(screen.getByTestId(TestIds.terminalContextPaste))
-    fireEvent.click(screen.getByTestId(TestIds.terminalContextPasteImage))
     fireEvent.click(screen.getByTestId(TestIds.terminalContextAttachFile))
     fireEvent.click(screen.getByTestId(TestIds.terminalContextSelectAll))
     fireEvent.click(screen.getByTestId(TestIds.terminalContextClear))
 
     expect(copySelection).toHaveBeenCalledWith('s1')
     expect(pasteClipboard).toHaveBeenCalledWith('s1')
-    expect(pasteImage).toHaveBeenCalledWith('s1')
     expect(chooseFiles).toHaveBeenCalledWith('s1')
     expect(selectAll).toHaveBeenCalledWith('s1')
     expect(clearViewport).toHaveBeenCalledWith('s1')

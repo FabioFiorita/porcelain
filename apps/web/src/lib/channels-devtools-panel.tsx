@@ -1,13 +1,11 @@
 import { useActions } from '@renderer/features/actions'
-import { useBoardCards } from '@renderer/features/board'
-import { useProjectNotes } from '@renderer/features/project-data'
 import { useActiveReview, useReviewComments } from '@renderer/features/review'
 import { useSkillsInfo } from '@renderer/hooks/use-skills'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 
 /**
  * A product-specific devtools panel that inspects Porcelain's agent channels — the
- * five surfaced here (review set, comments, board, actions, notes) plus the bundled
+ * three surfaced here (review set, comments, actions) plus the bundled
  * skills version. Each channel is a `~/.porcelain/*.json` file the porcelain CLI
  * (`src/cli/`) reads/writes; the renderer sees them through the same domain hooks
  * the UI uses, so this panel is a live mirror of what the agent can currently
@@ -18,9 +16,7 @@ export function ChannelsDevtoolsPanel(): React.JSX.Element {
   const skills = useSkillsInfo()
   const { active } = useActiveReview()
   const comments = useReviewComments()
-  const { cards } = useBoardCards()
   const actions = useActions()
-  const notes = useProjectNotes()
 
   if (!project) {
     return <div style={WRAP}>No project open — the agent channels are project-keyed.</div>
@@ -29,8 +25,6 @@ export function ChannelsDevtoolsPanel(): React.JSX.Element {
   const reviewFiles = active?.groups.flatMap((g) => g.files) ?? []
   const bySource = (s: 'changed' | 'context' | 'shipped'): number =>
     reviewFiles.filter((f) => f.source === s).length
-  const byStatus = (s: 'todo' | 'doing' | 'done'): number =>
-    cards.filter((c) => c.status === s).length
 
   return (
     <div style={WRAP}>
@@ -57,19 +51,8 @@ export function ChannelsDevtoolsPanel(): React.JSX.Element {
         />
       </Section>
 
-      <Section title="Board (two-way)">
-        <Row
-          label="Cards"
-          value={`${cards.length} · ${byStatus('todo')} todo / ${byStatus('doing')} doing / ${byStatus('done')} done`}
-        />
-      </Section>
-
       <Section title="Actions (two-way)">
         <Row label="Saved" value={String(actions.length)} />
-      </Section>
-
-      <Section title="Notes (app → agent, read-only)">
-        <Row label="Length" value={notes ? `${notes.length} chars` : 'empty'} />
       </Section>
     </div>
   )

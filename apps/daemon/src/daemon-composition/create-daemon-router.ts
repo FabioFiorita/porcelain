@@ -24,7 +24,7 @@ import type { CreateDaemonRouterOptions } from './daemon-operations'
  * one shared `initTRPC` builder so procedure names stay flat on the wire.
  *
  * Remote, Projects, Git, Files, Search, the whole Review domain (comments,
- * lifecycle, reading, Evidence, reviewed marks), Board, Tasks, Actions, Project
+ * lifecycle, reading, Evidence, reviewed marks), Tasks, Actions, Project
  * Data, and Terminal procedures are bound through `operations`; no horizontal procedure router
  * remains outside a canonical domain feature.
  */
@@ -40,6 +40,8 @@ export function createDaemonRouter({ operations }: CreateDaemonRouterOptions) {
     createReviewReadingRouter(operations.review),
     createReviewEvidenceRouter(operations.review),
     createReviewMarksRouter(operations.review),
+    // Kept as a migration-only wire reader until old clients age out; no shipped
+    // shell or CLI surface links to this router anymore.
     createBoardRouter(operations.board),
     createTasksRouter(operations.tasks),
     createActionsRouter(operations.actions),

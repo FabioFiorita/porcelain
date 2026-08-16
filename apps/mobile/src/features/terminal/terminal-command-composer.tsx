@@ -4,7 +4,6 @@ import { Alert, Pressable, Text, type TextInput, View } from 'react-native'
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { Textarea } from '@/components/ui/textarea'
 import { useIsTablet } from '@/features/shell/use-app-window'
-import { getImage, hasImage } from '@/lib/clipboard'
 import { cn } from '@/lib/utils'
 import { pickTerminalFiles } from './terminal-attachments'
 import {
@@ -53,30 +52,6 @@ export function TerminalCommandComposer({
     }
   }, [current.expanded, isTablet, sessionId, setExpanded])
 
-  const addClipboardImage = useCallback((): void => {
-    runUserAction(
-      async () => {
-        if (!(await hasImage())) {
-          Alert.alert('No image on clipboard', 'Copy a screenshot or photo first, then try again.')
-          return
-        }
-        const image = await getImage()
-        if (image === null) {
-          Alert.alert('Could not read the clipboard image', 'Try copying it again.')
-          return
-        }
-        addAttachment(sessionId, { ...image, filename: 'clipboard.png', kind: 'image' })
-        setExpanded(sessionId, true)
-      },
-      (cause) => {
-        Alert.alert(
-          'Could not read the clipboard image',
-          cause instanceof Error ? cause.message : String(cause),
-        )
-      },
-    )
-  }, [addAttachment, sessionId, setExpanded])
-
   const addFiles = useCallback((): void => {
     runUserAction(
       async () => {
@@ -122,20 +97,13 @@ export function TerminalCommandComposer({
             },
             {
               upload: (attachment) =>
-                attachment.kind === 'image'
-                  ? mobileTerminalAdapter().pasteImageToTerminal({
-                      dataBase64: attachment.base64,
-                      id: sessionId,
-                      mime: attachment.mime,
-                      insert: false,
-                    })
-                  : mobileTerminalAdapter().pasteFileToTerminal({
-                      dataBase64: attachment.base64,
-                      filename: attachment.filename,
-                      id: sessionId,
-                      insert: false,
-                      mime: attachment.mime,
-                    }),
+                mobileTerminalAdapter().pasteFileToTerminal({
+                  dataBase64: attachment.base64,
+                  filename: attachment.filename,
+                  id: sessionId,
+                  insert: false,
+                  mime: attachment.mime,
+                }),
               write: (bytes) => {
                 sendTerminalBytesAtomically(sessionId, bytes)
               },
@@ -201,13 +169,6 @@ export function TerminalCommandComposer({
             </Text>
           )}
         </Pressable>
-        <ComposerButton
-          accessibilityLabel="Add image from clipboard"
-          disabled={delivering}
-          glyph="image"
-          testID="porcelain-terminal-composer-add-image"
-          onPress={addClipboardImage}
-        />
         <ComposerButton
           accessibilityLabel="Attach files"
           disabled={delivering}

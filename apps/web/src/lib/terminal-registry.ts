@@ -1,8 +1,4 @@
-import {
-  type TerminalPasteResult,
-  terminalAdapterFor,
-  terminalPasteFailureMessage,
-} from '@renderer/features/terminal'
+import { terminalAdapterFor } from '@renderer/features/terminal'
 import {
   attachTerminalFiles,
   chooseTerminalFiles,
@@ -15,13 +11,7 @@ import { GhosttyTerminalSurface } from '@renderer/terminal/ghostty/surface'
 import { runUserAction, settleBackground } from '@shared/background'
 import { toast } from 'sonner'
 import { isBrowser, isCoarseTouch, isE2E } from './platform'
-import {
-  blobToBase64,
-  imageFromClipboardItems,
-  isTerminalImageMime,
-  type TerminalClipboardContents,
-  terminalPasteKind,
-} from './terminal-clipboard'
+import { type TerminalClipboardContents, terminalPasteKind } from './terminal-clipboard'
 import {
   type ArrowDirection,
   controlByte,
@@ -162,10 +152,9 @@ function ensureSurface(instance: Instance): Promise<GhosttyTerminalSurface> | nu
       pasteBrowserClipboardEvent(
         instance.id,
         event.clipboardData?.getData('text/plain') ?? '',
-        event.clipboardData ? imageFromClipboardItems(event.clipboardData.items) : null,
       ).catch(() => {
         toast.error('Could not paste from the clipboard', {
-          description: 'Try copying the text or image again.',
+          description: 'Try copying text again.',
         })
       })
     },
@@ -239,16 +228,6 @@ function beforeTerminalKey(instance: Instance, event: KeyboardEvent): boolean {
   ) {
     event.preventDefault()
     copyTerminalSelection(id).catch(() => toast.error('Could not copy the selection'))
-    return false
-  }
-  if (modifier && event.shiftKey && key === 'v') {
-    event.preventDefault()
-    runUserAction(
-      () => pasteTerminalImage(id),
-      () => {
-        toast.error('Could not paste image')
-      },
-    )
     return false
   }
   if (!isBrowser && modifier && key === 'v') {
@@ -404,14 +383,6 @@ export function sendTerminalInput(id: string, data: string): void {
   instances.get(id)?.surface?.scrollToBottom()
 }
 
-export function pasteImageToTerminal(
-  id: string,
-  mime: 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp',
-  dataBase64: string,
-): Promise<TerminalPasteResult> {
-  return terminalAdapterFor(id).pasteImageToTerminal({ id, mime, dataBase64 })
-}
-
 export { attachTerminalFiles, chooseTerminalFiles, PASTE_FILE_TOO_LARGE_MESSAGE }
 
 async function pasteTerminalContents(
@@ -432,29 +403,13 @@ async function pasteTerminalContents(
     else instance.pasteQueue.push(contents.text)
     return
   }
-  const image = contents.image
-  if (image === null) return
-  try {
-    await pasteImageToTerminal(id, image.mime, image.dataBase64)
-  } catch (error: unknown) {
-    toast.error('Could not attach the image', {
-      description: terminalPasteFailureMessage(error, 'image'),
-    })
-  }
+  // Image clipboard passthrough is intentionally retired. Files remain available
+  // through the explicit Attach file action, which gives the daemon a stable name
+  // and avoids treating a clipboard blob as a terminal command attachment.
 }
 
-async function pasteBrowserClipboardEvent(
-  id: string,
-  text: string,
-  image: Blob | null,
-): Promise<void> {
-  await pasteTerminalContents(id, {
-    text,
-    image:
-      image !== null && isTerminalImageMime(image.type)
-        ? { mime: image.type, dataBase64: await blobToBase64(image) }
-        : null,
-  })
+async function pasteBrowserClipboardEvent(id: string, text: string): Promise<void> {
+  await pasteTerminalContents(id, { text, image: null })
 }
 
 async function readBrowserClipboard(): Promise<TerminalClipboardContents> {
@@ -464,9 +419,7 @@ async function readBrowserClipboard(): Promise<TerminalClipboardContents> {
     for (const item of items) {
       if (text === '' && item.types.includes('text/plain'))
         text = await (await item.getType('text/plain')).text()
-      const mime = item.types.find(isTerminalImageMime)
-      if (mime !== undefined)
-        return { text, image: { mime, dataBase64: await blobToBase64(await item.getType(mime)) } }
+      // Do not transfer image clipboard bytes through the terminal protocol.
     }
     return { text, image: null }
   }

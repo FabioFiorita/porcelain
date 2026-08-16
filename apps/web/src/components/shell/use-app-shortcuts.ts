@@ -1,4 +1,3 @@
-import { useCardDraftStore } from '@renderer/features/board'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import {
   ctrlIsPrimary,
@@ -81,8 +80,7 @@ export function useAppShortcuts(): void {
           return
         }
       }
-      // Context-aware "new". ⌘T always spawns a terminal; ⌘N follows the active sidebar
-      // tab (Board → new card). Files' ⌘N is owned by
+      // Context-aware "new". ⌘T always spawns a terminal. Files' ⌘N is owned by
       // FileCommands. Skipped while typing in a real field (but not the terminal).
       if ((e.metaKey || e.ctrlKey) && !e.altKey && !isTextEntry(e.target)) {
         // In the browser client the primary modifier is Ctrl, which the shell itself uses
@@ -100,14 +98,6 @@ export function useAppShortcuts(): void {
             },
           )
           return
-        }
-        if (key === 'n' && !e.shiftKey) {
-          const sidebarTab = usePreferencesStore.getState().sidebarTab
-          if (sidebarTab === 'board') {
-            e.preventDefault()
-            useCardDraftStore.getState().open({ title: '', body: '', status: 'todo' })
-            return
-          }
         }
       }
     }

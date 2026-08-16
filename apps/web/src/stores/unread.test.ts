@@ -10,7 +10,6 @@ describe('useUnreadStore', () => {
     useUnreadStore.setState({
       unread: {
         review: false,
-        board: false,
         tasks: false,
         terminal: false,
         changes: false,
@@ -20,20 +19,20 @@ describe('useUnreadStore', () => {
   })
 
   it('mark sets the dot', () => {
-    useUnreadStore.getState().mark('board')
-    expect(useUnreadStore.getState().unread.board).toBe(true)
+    useUnreadStore.getState().mark('tasks')
+    expect(useUnreadStore.getState().unread.tasks).toBe(true)
   })
 
   it('clear unsets the dot', () => {
-    useUnreadStore.getState().mark('board')
-    useUnreadStore.getState().clear('board')
-    expect(useUnreadStore.getState().unread.board).toBe(false)
+    useUnreadStore.getState().mark('tasks')
+    useUnreadStore.getState().clear('tasks')
+    expect(useUnreadStore.getState().unread.tasks).toBe(false)
   })
 
   it('mark on the active tab no-ops', () => {
-    usePreferencesStore.setState({ sidebarTab: 'board' })
-    useUnreadStore.getState().mark('board')
-    expect(useUnreadStore.getState().unread.board).toBe(false)
+    usePreferencesStore.setState({ sidebarTab: 'tasks' })
+    useUnreadStore.getState().mark('tasks')
+    expect(useUnreadStore.getState().unread.tasks).toBe(false)
   })
 
   it('visiting a tab clears its dot (the one clearing site)', () => {
@@ -46,7 +45,7 @@ describe('useUnreadStore', () => {
 describe('unreadTabFor', () => {
   const cases: [SessionChange, UnreadTab | null][] = [
     [{ kind: 'review.changed', projectPath: PROJECT }, 'review'],
-    [{ kind: 'board.changed', projectPath: PROJECT }, 'board'],
+    [{ kind: 'board.changed', projectPath: PROJECT }, null],
     // Daemon-wide: the Tasks change carries no project and still marks the Tasks tab.
     [{ kind: 'tasks.changed' }, 'tasks'],
     // Project-scoped: the Actions change names a Project id, never a checkout path.
@@ -70,7 +69,6 @@ describe('unreadTabFor', () => {
 describe('isUnreadTab', () => {
   it('accepts the unread-capable tabs', () => {
     expect(isUnreadTab('review')).toBe(true)
-    expect(isUnreadTab('board')).toBe(true)
     expect(isUnreadTab('tasks')).toBe(true)
     expect(isUnreadTab('terminal')).toBe(true)
     expect(isUnreadTab('changes')).toBe(true)

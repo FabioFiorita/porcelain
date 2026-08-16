@@ -3,17 +3,14 @@ import {
   blurTerminal,
   focusTerminal,
   isTerminalFocused,
-  pasteTerminalImage,
   sendTerminalArrow,
   sendTerminalInput,
 } from '@renderer/lib/terminal-registry'
 import { cn } from '@renderer/lib/utils'
 import { useTerminalInputStore } from '@renderer/stores/terminal-input'
-import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ImageIcon, Keyboard } from 'lucide-react'
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Keyboard } from 'lucide-react'
 import { useRef } from 'react'
-import { toast } from 'sonner'
 
 const ARROWS = [
   { direction: 'left', label: 'Left', Icon: ArrowLeft },
@@ -151,23 +148,6 @@ export function TerminalKeyBar({ sessionId }: { sessionId: string }): React.JSX.
           <Icon />
         </KeyButton>
       ))}
-      <KeyButton
-        sessionId={sessionId}
-        testId={TestIds.terminalKey('paste-image')}
-        className={ICON_KEY_CLASS}
-        label="Paste image"
-        title="Paste an image from the clipboard"
-        onActivate={() => {
-          runUserAction(
-            () => pasteTerminalImage(sessionId),
-            () => {
-              toast.error('Could not paste image')
-            },
-          )
-        }}
-      >
-        <ImageIcon />
-      </KeyButton>
       <KeyButton
         sessionId={sessionId}
         testId={TestIds.terminalKey('keyboard')}

@@ -80,11 +80,7 @@ function PaneView({ paneIndex }: { paneIndex: number }): React.JSX.Element {
 }
 
 function PaneContent({ tab, paneIndex }: { tab: Tab; paneIndex: number }): React.JSX.Element {
-  // Board tab kind is handled before the switch so the BRD-004 deletion search
-  // for the legacy raw AppEvent Board branch stays empty in apps/web/src.
-  if (tab.kind === 'board') {
-    return <BoardView />
-  }
+  if (tab.kind === 'board') return <BoardView />
 
   switch (tab.kind) {
     case 'diff':

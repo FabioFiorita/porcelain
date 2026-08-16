@@ -4,7 +4,6 @@ import { Button } from '@renderer/components/ui/button'
 import { Kbd } from '@renderer/components/ui/kbd'
 import { SidebarGroupLabel } from '@renderer/components/ui/sidebar'
 import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-group'
-import { BoardList, BoardQuickAccess } from '@renderer/features/board'
 import { CanvasList } from '@renderer/features/projects'
 import { ReviewList } from '@renderer/features/review'
 import { SearchList } from '@renderer/features/search'
@@ -12,7 +11,7 @@ import { TasksList } from '@renderer/features/tasks'
 import { kbdLabel } from '@renderer/lib/keyboard'
 import { cn } from '@renderer/lib/utils'
 import { useFileTreeStore } from '@renderer/stores/file-tree'
-import { type SidebarTab, usePreferencesStore } from '@renderer/stores/preferences'
+import type { SidebarTab } from '@renderer/stores/preferences'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { TestIds } from '@shared/test-ids'
 import {
@@ -24,17 +23,14 @@ import {
   History,
   LayoutPanelTop,
   Search,
-  SquareKanban,
   Table2,
   Waypoints,
 } from 'lucide-react'
 import { useState } from 'react'
 import { FileTimelineGroup } from './file-timeline-group'
 import { FileTree } from './file-tree'
-import { NotesCard } from './notes-card'
 import { PinnedGroup } from './pinned-group'
 import { ReviewGroup } from './review-group'
-import { NotesResizeHandle } from './sidebar-resize-handle'
 
 interface SurfaceDefinition {
   id: SidebarTab
@@ -85,17 +81,7 @@ export const SURFACES: SurfaceDefinition[] = [
 ]
 
 export function surfaceDefinition(id: SidebarTab): SurfaceDefinition {
-  const definition =
-    SURFACES.find((surface) => surface.id === id) ??
-    (id === 'board'
-      ? {
-          id: 'board' as const,
-          label: 'Board',
-          hint: 'Track project cards',
-          shortcut: '',
-          icon: SquareKanban,
-        }
-      : undefined)
+  const definition = SURFACES.find((surface) => surface.id === id)
   if (definition === undefined) throw new Error(`Unknown surface: ${id}`)
   return definition
 }
@@ -179,14 +165,6 @@ export function SurfaceContent({
       {active === 'search' && <SearchList />}
       {active === 'tasks' && <TasksList />}
       {active === 'canvas' && <CanvasList />}
-      {active === 'board' && (
-        <>
-          <BoardList />
-          <div className="border-t">
-            <BoardQuickAccess />
-          </div>
-        </>
-      )}
     </div>
   )
 }
@@ -225,13 +203,10 @@ function FilesSurface({
   projectPath: string
   active: SidebarTab
 }): React.JSX.Element {
-  const notesHeight = usePreferencesStore((s) => s.notesHeight)
-
   return (
     <div
       data-slot="files-surface"
       className={cn('flex h-full min-h-0 flex-col', active !== 'files' && 'hidden')}
-      style={{ '--notes-height': `${notesHeight}px` } as React.CSSProperties}
     >
       <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
         <div className="shrink-0">
@@ -246,10 +221,6 @@ function FilesSurface({
           </div>
           <FileTree rootPath={projectPath} />
         </div>
-      </div>
-      <NotesResizeHandle />
-      <div className="h-(--notes-height) shrink-0 border-t">
-        <NotesCard key={projectPath} projectPath={projectPath} />
       </div>
     </div>
   )

@@ -2,7 +2,6 @@ import { TerminalPanel } from '@renderer/components/terminal/terminal-list'
 import { SidebarInset, SidebarProvider, useSidebar } from '@renderer/components/ui/sidebar'
 import { Toaster } from '@renderer/components/ui/sonner'
 import { useActionsNotificationSubscription } from '@renderer/features/actions'
-import { CardComposer, useBoardNotificationSubscription } from '@renderer/features/board'
 import { useFilesInterestBridge, useFilesNotificationSubscription } from '@renderer/features/files'
 import { useGitNotificationSubscription } from '@renderer/features/git'
 import { useEnvironmentStatuses } from '@renderer/features/remote'
@@ -134,8 +133,6 @@ export function AppShell(): React.JSX.Element {
   // One session runtime for the window: domain change invalidation, watch interests,
   // project selection, and reconnect recovery. Terminal traffic shares the same socket.
   useSessionRuntime()
-  // Board notifications own their cards-identity invalidation (BRD-004); not session-runtime.
-  useBoardNotificationSubscription()
   useTasksNotificationSubscription()
   // Git workspace notifications own typed Git identities; session-runtime handles only residual
   // non-Git recovery and Review/Files cross-domain concerns.
@@ -196,7 +193,6 @@ export function AppShell(): React.JSX.Element {
         <FileCommands />
         <FilePromptDialog />
         <ProjectPickerDialog />
-        <CardComposer />
         <SkillsUpdateToast />
         <SettingsDialog />
         <AppSidebar />

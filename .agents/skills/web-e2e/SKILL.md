@@ -3,18 +3,31 @@ name: web-e2e
 version: 0.50.0
 metadata:
   internal: true
-description: Playwright proof for the daemon-served apps/web client — the `apps/desktop/e2e` browser lane, fixtures, locators, and the traps that cost an hour without this doc. Load when writing or debugging a Playwright spec, chasing an e2e failure, or taking UI evidence for apps/web.
+description: Browser proof for the daemon-served apps/web client, with Playwright as the automated-regression fallback. Load when proving apps/web behavior, writing or debugging an e2e spec, or chasing an e2e failure.
 ---
 
-# Web e2e (Playwright, browser lane)
+# Web e2e
+
+## Choose the proof surface
+
+Use the in-app Browser for interactive runtime proof: open the dev-daemon URL, inspect visible and
+interactive state, drive the flow, and capture screenshots there. Load and follow the
+`browser:control-in-app-browser` skill before browser work. It owns browser selection, setup, and
+interaction; this skill owns Porcelain-specific targets and fallback traps.
+
+Use the Playwright browser lane only when Browser is unavailable or the deliverable itself is an
+automated regression/CI spec. A passing Playwright run can support that regression artifact, but it
+does not replace Browser proof when Browser is available.
+
+The dev daemon must bind `0.0.0.0`; open it as `http://beelink:<port>`. Use an isolated development
+home and a Playground repo. Production port 43117 and real repos are outside the proof boundary.
 
 Specs live under `apps/desktop/e2e/` but they drive `apps/web` — the daemon serves the same built
 renderer the Electron window loads, over the same tRPC + WS path, so the `browser` Playwright
-project proves the client without a display server. This is root `AGENTS.md`'s "UI → browser on the
-**dev** daemon" rule, made concrete. `mobile/reference/android.md` is the sibling doc for the other
-platform; read this one for the same job on web.
+project is the headless automated fallback against the same client. `mobile/reference/android.md`
+is the sibling doc for the other platform.
 
-## Quick loop
+## Playwright fallback loop
 
 ```bash
 pnpm test:e2e                 # build + run the browser project — the CI lane

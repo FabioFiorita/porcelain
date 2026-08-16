@@ -119,7 +119,7 @@ function reviewCanvas(repoPath: string): { id?: string; metadata: ReviewSet | nu
         'utf8',
       ),
     )
-    return { id: record.id, metadata: isRecord(metadata) ? (metadata as ReviewSet) : null }
+    return { id: record.id, metadata: parseReviewSet(metadata) }
   } catch {
     return { id: record.id, metadata: null }
   }

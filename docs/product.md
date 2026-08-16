@@ -30,16 +30,15 @@ through the CLI. Do not rebuild an in-app agent runner.
 - **Scoped navigation** — hide/pin folders in huge monorepos (CLI `scope`).
 - **Git** — diffs, worktrees, history, staging, commit composer without a terminal.
 - **Flow-ordered review** — layers as a timeline of connected work, agent-managed per tree.
-- **The Review** — Intent · Process · Execution · Evidence canvas for one unit of work; agent-authored via
-  porcelain CLI. Board is the queue; Review is the active story.
+- **The Review template** — Intent · Process · Execution · Evidence sections in the daemon-root Canvas;
+  Review is a template, not an active repository lifecycle.
 - **Explore a flow** — read-only comprehension of existing code (symbol or file seed).
 - **Tasks** — one daemon-owned table per Environment for work that spans Projects: configurable
   columns, explicit Project/Environment/Worktree references, Quick Add with copied-file
   attachments and links. The Hub aggregates the Environments it can reach and omits the ones it
   cannot; every write names the Environment it targets. Retires the per-repository Board (#28).
-- **Review comments / board / notes / actions** — companion surfaces; the human runs Actions, always
-  against an explicit Environment + Worktree. The per-repository Board is retiring in favor of
-  Tasks.
+- **Review comments / actions** — companion capabilities; the human runs Actions, always against an
+  explicit Environment + Worktree. Tasks is the daemon-owned work table.
 - **Terminal** — real PTY next to review; remote-bound windows can also shell on This device.
 - **Remote / environments** — one daemon, many clients; per-device credentials; LAN / Tailscale /
   opt-in Funnel.
@@ -51,13 +50,12 @@ through the CLI. Do not rebuild an in-app agent runner.
 - **Performance is a feature** — stay fast on large monorepos.
 - **Companion, not competitor** — integrate with the editor and agent host; don't replace them.
   Public copy sells Porcelain's surfaces, not transport debates or third-party brand lists.
-- **Connected, not siloed** — one home per concern (Changes, Review, Files, Board, Terminal);
+- **Connected, not siloed** — one home per concern (Changes, Review, Files, Tasks, Terminal);
   previews hand off, never second Diff/commit UXes.
 - **Local by default** — machine secrets and default Project data (Canvases, Actions, assets) live
   on the daemon host under `~/.porcelain/`, keyed by a stable Project id (ADR 0002), so opening a
-  repository adds nothing to its working tree. Project companion data that stays with the code
-  (reviews, board, scope, notes) lives in `<repo>/.porcelain/` and is shareable via git when you
-  choose to track it. Tasks belong to the machine, not a checkout, so they live in
+  repository adds nothing to its working tree. Explicitly promoted Canvas and project overrides
+  are the only current data that stays with the code in `<repo>/.porcelain/`. Tasks belong to the machine, not a checkout, so they live in
   `$PORCELAIN_HOME/tasks/` and never appear in a repository. No Porcelain cloud for your code, no
   telemetry.
 - **Your repository is yours** — Canvases and Project defaults live in the daemon's private store,

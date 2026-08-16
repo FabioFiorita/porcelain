@@ -1,12 +1,16 @@
+import { readFile } from 'node:fs/promises'
 import { join, relative } from 'node:path'
-import { PROJECT_FILES } from '@shared/project-porcelain'
+import { projectOverridesSchema } from '@porcelain/contracts/projects'
+import { PROJECT_FILES, projectOverlayOverridesPath } from '@shared/project-porcelain'
 import { z } from 'zod'
 import { createProjectChannel } from '../net/project-channel'
 
 /**
- * Monorepo hide/pin scope — `<repo>/.porcelain/scope.json`.
+ * Personal hide/pin scope — `<repo>/.porcelain/scope.json`.
  * Paths are stored **repo-relative** on disk; API surfaces absolute paths under
- * the repo for tree matching. TWO-WAY: app + CLI. Git-shareable when tracked.
+ * the repo for tree matching. The tracked project overlay is a second, read-only
+ * source of project defaults. Reads merge both sources; writes stay personal so
+ * merely changing navigation never edits a checkout's tracked bytes.
  */
 
 const repoScopeSchema = z.object({
@@ -58,7 +62,22 @@ function expandScope(repoPath: string, scope: RepoScope): RepoScope {
 }
 
 export async function readRepoScope(repoPath: string): Promise<RepoScope> {
-  return expandScope(repoPath, await channel.read(repoPath))
+  const privateScope = await channel.read(repoPath)
+  let tracked: RepoScope = emptyRepo()
+  try {
+    const parsed = projectOverridesSchema.safeParse(
+      JSON.parse(await readFile(projectOverlayOverridesPath(repoPath), 'utf8')),
+    )
+    if (parsed.success) tracked = parsed.data
+  } catch {
+    // An absent or malformed tracked overlay is ignored. The overlay reader is
+    // deliberately best-effort so an unrelated corrupt project.json cannot hide
+    // the user's private Files tree.
+  }
+  return expandScope(repoPath, {
+    hiddenPaths: [...new Set([...privateScope.hiddenPaths, ...tracked.hiddenPaths])],
+    pinnedPaths: [...new Set([...privateScope.pinnedPaths, ...tracked.pinnedPaths])],
+  })
 }
 
 export async function hiddenPathsForRepo(repoPath: string): Promise<Set<string>> {

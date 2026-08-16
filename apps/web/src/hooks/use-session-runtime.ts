@@ -1,7 +1,6 @@
 import type { FreshnessRequirement } from '@porcelain/client-runtime/session/recovery'
 import type { SessionChange, SessionMismatchFrame } from '@porcelain/contracts/session'
 import { invalidateAllActionsQueries } from '@renderer/features/actions'
-import { invalidateAllBoardCards } from '@renderer/features/board'
 import { invalidateAllFilesQueries } from '@renderer/features/files'
 import {
   invalidateAllProjectDataQueries,
@@ -29,7 +28,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
  * selection on that runtime so terminal traffic and change signals share one connection.
  *
  * Files notifications and watch interests are owned by the Files feature adapters (FIL-005);
- * Board and Review are feature-owned the same way (BRD-004, RVC-003, REV-007). Files change arms
+ * Review is feature-owned the same way (RVC-003, REV-007). Files change arms
  * here are no-ops.
  *
  * The contract of this module is that a notification is a *freshness signal*, never data
@@ -58,8 +57,8 @@ export type SessionQueryUtils = {
   /** Review cache — wired to the feature key predicate (REV-007), not a procedure name. */
   readonly review: QueryInvalidation
   readonly reviewComments: QueryInvalidation
-  /** Board cards cache — wired to the feature key predicate, not a procedure-name string. */
-  readonly boardCards: QueryInvalidation
+  /** Legacy compatibility slot; Board is no longer a shipped surface. */
+  readonly boardCards?: QueryInvalidation
   /** Files cache — wired to the feature key predicate (FIL-005). */
   readonly files: QueryInvalidation
   readonly actions: QueryInvalidation
@@ -99,8 +98,7 @@ export function invalidateForChange(
       // assigned to Project Data: the repo's layers are derived from the active review.
       return utils.repoLayers.invalidate()
     case 'board.changed':
-      // Board owns its notification → cards-identity mapping (BRD-004 feature adapter).
-      // Session runtime must not invalidate Board here; the feature subscription does.
+      // Retained only so older daemons can finish a session stream during migration.
       return Promise.resolve()
     case 'actions.changed':
       // Actions owns its notification → list-identity mapping (ACT-003 feature adapter).
@@ -130,7 +128,7 @@ export function invalidateForRecovery(
     return Promise.all([
       utils.invalidate(),
       utils.reviewComments.invalidate(),
-      utils.boardCards.invalidate(),
+      ...(utils.boardCards === undefined ? [] : [utils.boardCards.invalidate()]),
       utils.tasks.invalidate(),
       utils.files.invalidate(),
       utils.projectData.invalidate(),
@@ -143,7 +141,7 @@ export function invalidateForRecovery(
     utils.review.invalidate(),
     // Comments freshness is feature-owned (RVC-003); recovery still hits the predicate slot.
     utils.reviewComments.invalidate(),
-    utils.boardCards.invalidate(),
+    ...(utils.boardCards === undefined ? [] : [utils.boardCards.invalidate()]),
     // Tasks are daemon-wide, so a project-scoped gap still leaves them unproven: the gap
     // could have swallowed a `tasks.changed`, which carries no project to narrow by.
     utils.tasks.invalidate(),
@@ -180,7 +178,7 @@ export function useSessionRuntime({
     session.updateRequiredFrame(),
   )
 
-  // Structural SessionQueryUtils: Board, Review, comments, and Files recovery use feature key
+  // Structural SessionQueryUtils: Review, comments, and Files recovery use feature key
   // predicates so they invalidate domain caches, not tRPC procedure-name keys.
   const utils: SessionQueryUtils = useMemo(
     () => ({
@@ -189,7 +187,6 @@ export function useSessionRuntime({
       projectData: { invalidate: () => invalidateAllProjectDataQueries(queryClient) },
       review: { invalidate: () => invalidateAllReviewQueries(queryClient) },
       reviewComments: { invalidate: () => invalidateAllReviewComments(queryClient) },
-      boardCards: { invalidate: () => invalidateAllBoardCards(queryClient) },
       files: { invalidate: () => invalidateAllFilesQueries(queryClient) },
       actions: { invalidate: () => invalidateAllActionsQueries(queryClient) },
       tasks: { invalidate: () => invalidateAllTasks(queryClient) },

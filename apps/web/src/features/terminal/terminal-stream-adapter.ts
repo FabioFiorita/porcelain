@@ -37,7 +37,7 @@ export type TerminalAttachResult = Pick<
   'scrollback' | 'status' | 'exitCode' | 'epoch' | 'sequence'
 >
 
-export type TerminalPasteResult = Pick<TerminalImagePastedFrame, 'result' | 'path'>
+type TerminalPasteResult = Pick<TerminalImagePastedFrame, 'result' | 'path'>
 
 export type TerminalAdapterFailure = TerminalRequestFailure | { readonly reason: 'not-requestable' }
 

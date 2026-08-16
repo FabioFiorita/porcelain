@@ -15,7 +15,7 @@ parens is the **entry point**; read it for mechanics.
 | Viewer | `shell/viewer.tsx` | The central panel. **Never "editor"** |
 | Companion | `right-sidebar.tsx` | The right panel (⌘.); statically titled "Companion" on every tab — no more per-tab retitling. Orientation comes from section labels, which follow the active sidebar tab. Three other things share the word: the Settings tab, the mobile column/sheet, and the repo-local `.porcelain/` project companion — see the Overlays row and Cross-cutting table below |
 
-**Sidebar tabs** — Files · Changes · Review · History · Search · Tasks · Board · Terminal
+**Sidebar tabs** — Files · Changes · Review · History · Search · Tasks · Canvas · Terminal
 (review-loop order, ⌘1–7; the Review tab's stored pref id is `review`).
 
 | Term | Entry | Note |
@@ -27,7 +27,6 @@ parens is the **entry point**; read it for mechanics.
 | Review list | `review-list.tsx` | Header + file outline. **Intent/Process/Execution/Evidence live only in the viewer canvas** |
 | Review inbox | `review-inbox.tsx` | Other worktrees with work awaiting review; rows from `reviewInbox` (`list-review-inbox.ts`) |
 | Tasks list | `tasks-list.tsx` | Compact read of the daemon-wide table; opens the Viewer table |
-| Board list | `board-list.tsx` | todo/doing/done cards — **retiring**, replaced by Tasks (#28) |
 | Terminal list | `terminal-list.tsx` | Roster of **sessions** — they outlive their tabs |
 | Key bar | `terminal-key-bar.tsx` | Above the terminal pane; coarse-touch only, never a Settings option |
 | Selection Copy | `terminal-selection-toolbar.tsx` | Host clipboard via `copyText`, not OSC 52 |
@@ -46,12 +45,11 @@ parens is the **entry point**; read it for mechanics.
 
 | Sidebar tab | Companion sections |
 |---|---|
-| Files | Pinned · Notes |
+| Files | Pinned |
 | Changes | Suggested · Commands · Commit · Comments |
 | History | Suggested · Commands · File timeline (`gitFileLog --follow`) |
 | Review | **Current review · Previous reviews** (`review-group.tsx`; always rendered, empty note when there are none) · Comments — archive the active unit; restore or trash archives under `.porcelain/reviews/` |
 | Tasks | (none — the table is the whole surface; Quick Add lives above it, not in Companion) |
-| Board | Focus — full detail of the selected card; card status shows inside the card, not a Board-tab-only affordance. Selection is client-only, **not** a second kanban |
 | Terminal | Saved commands — the "Actions" feature (see Cross-cutting below), reachable from the Hub's top-corner Actions menu |
 | Search | Recent searches |
 
@@ -68,13 +66,13 @@ Mobile mirrors General · Data · Review · Environments.
 | Term | Meaning |
 |---|---|
 | Flow / flow layers | Architectural-layer grouping of changes (entry-point → data); the heart of "review as a story" |
-| The Review (active review / review set) | One unit-of-work story as a four-tab canvas: **Intent** (thesis + authored intent documents, optional freeform HTML), **Process** (walkthrough prose and diagrams), **Execution** (agent-listed files + notes, not the working tree), **Evidence**. Files tagged **changed** / **context** / **shipped**. Active: `<repo>/.porcelain/review.json`; archives under `.porcelain/reviews/<id>/`. Product language and code are both **Review**: REV-009 cut the wire, the clients, and the CLI over to one canonical vocabulary (`activeReview`, `reviewReading`, `reviewInbox`, `archiveReview`, `publishCost`, `reviewEvidence`, `clearEvidence`, `setReviewed`) and `scripts/lint-legacy-migrations.mjs` fails the build if a Feature-era name regrows |
+| The Review template | The default Canvas template with four sections: **Intent**, **Process**, **Execution**, and **Evidence**. It is not an active lifecycle or repo-local storage model; `porcelain review set` writes the daemon-root Canvas. |
 | Evidence | Agent-authored *proof the loop closed*: structured checks + a Results document set + an image/video/link gallery under `<repo>/.porcelain/active-review/evidence/` (gitignored by default); archives with the review |
 | Review comments | The reviewer's line/file notes (`.porcelain/comments.json`), app→agent via the CLI |
 | Reviewed marks | Per-file "reviewed" checkboxes (`.porcelain/reviewed.json`), app→agent, read-only like notes |
-| Project board | Per-repo todo/doing/done (`.porcelain/board.json`), two-way via the CLI; share via git |
+| Tasks | The daemon-owned table for work across Projects and Environments; the shipped vocabulary replacing Board |
 | Actions | Saved named commands, stored per Project in the owning daemon (`$PORCELAIN_HOME/projects/<projectId>/actions.json`, ADR 0002); agent curates, **human runs** against an explicit Environment + Worktree |
-| Project companion | Repo-local `.porcelain/` (board, scope, layers, notes, reviews) — the third "companion": distinct from the right-panel **Companion** and the Settings **Companion** tab above. Machine secrets stay in `~/.porcelain` / `PORCELAIN_HOME` |
+| Project companion | Repo-local `.porcelain/` only for explicit Git overlays and migration reads; default Project data stays in the daemon-root store |
 | Git overlay | The **promoted** half of `.porcelain/`: `canvases/<id>/` (bundle + `canvas.json`) and `project.json` (tracked `hiddenPaths`/`pinnedPaths`/`worktrees` defaults). Written only by an explicit promotion — `projects.promoteCanvas` / `promoteOverrides`, or `porcelain canvas promote` — never by opening a repo. Tracked wins over private for the same Canvas id, the daemon never writes back into it, and promotion writes plain files without staging or committing (ADR 0002, #26) |
 | Promotion | Moving one private daemon-root Canvas, or the current Project defaults, into the Git overlay of an **explicitly named** Worktree checkout. The private copy is removed, not duplicated, so a tracked and a private version can never diverge. An ambiguous target is rejected (`projects.overlay-target-invalid`), never guessed |
 | Daemon | The headless Electron-free backend (`apps/daemon/src/server.ts`) the web client reaches over HTTP + one WS; the shell spawns and babysits it (`apps/desktop/src/main/daemon.ts`). "The daemon" always resolves here |

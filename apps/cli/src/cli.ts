@@ -11,15 +11,6 @@ import {
 } from './action-file'
 import { readActiveReviewSnapshot, sourceByPath } from './active-review-file'
 import {
-  createCard,
-  deleteCard,
-  describeBoard,
-  moveCard,
-  normalizeStatus,
-  readCards,
-  updateCard,
-} from './board-file'
-import {
   CANVAS_COMMANDS,
   describeCanvases,
   describePromoteCanvas,
@@ -44,7 +35,6 @@ import { resolveToolHtml } from './html-input'
 import { describePrepareIntent, listIntent, orderIntent } from './intent-file'
 import { clearLayers, describeLayers, readLayers, setLayers, toLayers } from './layers-file'
 import { describeMigrate, MIGRATE_COMMANDS } from './migrate-file'
-import { describeNotes, readNotes } from './notes-file'
 import { describePromoteOverrides, PROJECT_COMMANDS } from './overlay-file'
 import {
   addReviewFiles,
@@ -70,7 +60,7 @@ import {
 import { describeTasksCommand, TASKS_COMMANDS } from './tasks-file'
 
 // Porcelain's agent CLI: a dependency-free command that reads and writes project
-// companion channels under <repo>/.porcelain/ (review, board, actions, notes, layers,
+// companion channels under <repo>/.porcelain/ (review, actions, layers,
 // evidence, comments, reviewed marks, scope) — plus Canvas, the one noun that instead
 // writes the daemon-root Project store under $PORCELAIN_HOME (ADR 0002), since Canvases
 // outlive the checkout that authored them. One fresh process per invocation does a
@@ -297,22 +287,6 @@ export const COMMANDS: NounHelp[] = [
       files: 'Document file names inside evidence/results/, comma-separated, in tab order',
     },
   },
-  {
-    noun: 'board',
-    blurb: 'the project board (todo/doing/done cards)',
-    verbs: [
-      { verb: 'list', args: '', desc: 'List cards grouped by column' },
-      {
-        verb: 'create',
-        args: '--title <s> [--body <s>] [--status <s>]',
-        desc: 'Add a card (defaults to todo)',
-      },
-      { verb: 'update', args: '--id <s> [--title <s>] [--body <s>]', desc: "Edit a card's fields" },
-      { verb: 'move', args: '--id <s> --status <s>', desc: 'Move a card to a column' },
-      { verb: 'delete', args: '--id <s>', desc: 'Remove a card' },
-    ],
-    flags: ['title', 'body', 'status', 'id'],
-  },
   TASKS_COMMANDS,
   {
     noun: 'actions',
@@ -337,12 +311,6 @@ export const COMMANDS: NounHelp[] = [
   CANVAS_COMMANDS,
   PROJECT_COMMANDS,
   MIGRATE_COMMANDS,
-  {
-    noun: 'notes',
-    blurb: "the human's per-repo project notes (read-only)",
-    verbs: [{ verb: 'get', args: '', desc: 'Read the project notes' }],
-    flags: [],
-  },
   {
     noun: 'layers',
     blurb: 'the repo-wide review-flow layers (Changes-tab grouping)',
@@ -552,31 +520,6 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<string
     case 'evidence clear':
       clearEvidence(repo)
       return `Cleared the loop evidence for ${repo}`
-    case 'board list':
-      return describeBoard(repo, readCards(repo))
-    case 'board create': {
-      const title = req('title')
-      const status = normalizeStatus(opt('status')) ?? 'todo'
-      const card = createCard(repo, title, opt('body'), status)
-      return `Created card ${card.id} "${title}" in ${status} for ${repo}`
-    }
-    case 'board update': {
-      const id = req('id')
-      const found = updateCard(repo, id, { title: opt('title'), body: opt('body') })
-      return found ? `Updated card ${id} for ${repo}` : `No card ${id} for ${repo}`
-    }
-    case 'board move': {
-      const id = req('id')
-      const status = normalizeStatus(opt('status'))
-      if (!status) throw new Error('status must be one of todo|doing|done')
-      return moveCard(repo, id, status)
-        ? `Moved card ${id} to ${status} for ${repo}`
-        : `No card ${id} for ${repo}`
-    }
-    case 'board delete': {
-      const id = req('id')
-      return deleteCard(repo, id) ? `Deleted card ${id} for ${repo}` : `No card ${id} for ${repo}`
-    }
     case 'tasks list':
     case 'tasks add':
     case 'tasks update':
@@ -623,8 +566,6 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<string
         hidden: splitList(opt('hidden')),
         pinned: splitList(opt('pinned')),
       })
-    case 'notes get':
-      return describeNotes(repo, readNotes(repo))
     case 'layers get':
       return describeLayers(repo, readLayers(repo))
     case 'layers set': {

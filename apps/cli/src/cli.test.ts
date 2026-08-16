@@ -76,13 +76,6 @@ const read = (): {
     readFileSync(join(privateCanvasBundlePath(repoPath, canvas.id), 'review.json'), 'utf8'),
   )
 }
-const readBoard = (): unknown[] => {
-  const raw = JSON.parse(readFileSync(porcelain('board.json'), 'utf8')) as {
-    version: number
-    cards: unknown[]
-  }
-  return raw.cards
-}
 /** Saved actions are daemon-root Project data, not repo-local companion data. */
 const readActions = (): unknown[] => {
   const raw = JSON.parse(
@@ -637,12 +630,9 @@ describe('runCli — intent', () => {
 })
 
 describe('runCli — notes + layers', () => {
-  it('notes get reads the human notes scratchpad', async () => {
-    ensurePorcelain()
-    ensurePorcelain()
-    writeFileSync(porcelain('notes.md'), '# conventions\n- no any')
-    expect(await runCli(['notes', 'get', ...repo])).toContain('# conventions')
-    expect(await runCli(['notes', 'get', '--repo', '/other'])).toContain('No project notes')
+  it('retired notes and board nouns are not exposed by the CLI', async () => {
+    await expect(runCli(['notes', 'get', ...repo])).rejects.toThrow('unknown command')
+    await expect(runCli(['board', 'list', ...repo])).rejects.toThrow('unknown command')
   })
   it('layers get shows the starters when none are custom', async () => {
     const text = await runCli(['layers', 'get', ...repo])
@@ -686,73 +676,7 @@ describe('runCli — notes + layers', () => {
   })
 })
 
-describe('runCli — board + actions', () => {
-  it('board create with a title writes a card in todo by default', async () => {
-    await runCli(['board', 'create', ...repo, '--title', 'Ship it'])
-    const cards = readBoard() as Array<{ title: string; status: string }>
-    expect(cards).toHaveLength(1)
-    expect(cards[0]?.title).toBe('Ship it')
-    expect(cards[0]?.status).toBe('todo')
-  })
-  it('board create without --title rejects with "title is required"', async () => {
-    await expect(runCli(['board', 'create', ...repo])).rejects.toThrow('title is required')
-  })
-  it('board update edits the title and body of an existing card', async () => {
-    await runCli(['board', 'create', ...repo, '--title', 'Old'])
-    const id = (readBoard() as Array<{ id: string }>)[0]?.id as string
-    const result = await runCli([
-      'board',
-      'update',
-      ...repo,
-      '--id',
-      id,
-      '--title',
-      'New',
-      '--body',
-      'detail',
-    ])
-    expect(result).toContain('Updated card')
-    const cards = readBoard() as Array<{ title: string; body: string }>
-    expect(cards[0]?.title).toBe('New')
-    expect(cards[0]?.body).toBe('detail')
-  })
-  it('board move to a valid status moves it', async () => {
-    await runCli(['board', 'create', ...repo, '--title', 'Task'])
-    const id = (readBoard() as Array<{ id: string }>)[0]?.id as string
-    const result = await runCli(['board', 'move', ...repo, '--id', id, '--status', 'doing'])
-    expect(result).toContain('Moved card')
-    expect((readBoard() as Array<{ status: string }>)[0]?.status).toBe('doing')
-  })
-  it('board move with a bad status rejects', async () => {
-    await runCli(['board', 'create', ...repo, '--title', 'Task'])
-    const id = (readBoard() as Array<{ id: string }>)[0]?.id as string
-    await expect(
-      runCli(['board', 'move', ...repo, '--id', id, '--status', 'invalid']),
-    ).rejects.toThrow('status must be one of todo|doing|done')
-  })
-  it('board move for a missing id returns the "No card" string without throwing', async () => {
-    const result = await runCli([
-      'board',
-      'move',
-      ...repo,
-      '--id',
-      'no-such-id',
-      '--status',
-      'done',
-    ])
-    expect(result).toContain('No card')
-  })
-  it('board delete removes the card', async () => {
-    await runCli(['board', 'create', ...repo, '--title', 'Gone'])
-    const id = (readBoard() as Array<{ id: string }>)[0]?.id as string
-    const result = await runCli(['board', 'delete', ...repo, '--id', id])
-    expect(result).toContain('Deleted card')
-    expect((readBoard() as unknown[]).length).toBe(0)
-  })
-  it('board list groups by column', async () => {
-    await runCli(['board', 'create', ...repo, '--title', 'Task'])
-    expect(await runCli(['board', 'list', ...repo])).toContain('Task')
-  })
+describe('runCli — actions', () => {
   it('actions create with title+command writes an action', async () => {
     await runCli(['actions', 'create', ...repo, '--title', 'Dev', '--command', 'pnpm dev'])
     const actions = readActions() as Array<{ title: string; command: string }>

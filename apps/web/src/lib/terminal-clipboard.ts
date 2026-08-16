@@ -59,13 +59,3 @@ export function blobToBase64(blob: Blob): Promise<string> {
     reader.readAsDataURL(blob)
   })
 }
-
-/** First supported image made available by a browser paste event, if any. */
-export function imageFromClipboardItems(items: DataTransferItemList): Blob | null {
-  for (const item of items) {
-    if (item.kind !== 'file' || !isTerminalImageMime(item.type)) continue
-    const file = item.getAsFile()
-    if (file !== null) return file
-  }
-  return null
-}

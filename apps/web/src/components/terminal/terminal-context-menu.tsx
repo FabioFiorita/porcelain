@@ -14,13 +14,12 @@ import {
   clearTerminalViewport,
   copyTerminalSelection,
   pasteTerminalClipboard,
-  pasteTerminalImage,
   selectAllTerminal,
   terminalSelectionText,
 } from '@renderer/lib/terminal-registry'
 import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
-import { ClipboardPaste, Copy, Eraser, FilePlus2, ImageIcon, TextSelect } from 'lucide-react'
+import { ClipboardPaste, Copy, Eraser, FilePlus2, TextSelect } from 'lucide-react'
 import { useState } from 'react'
 
 /**
@@ -79,24 +78,6 @@ export function TerminalContextMenu({
           <ClipboardPaste /> Paste
           <ContextMenuShortcut>
             <Kbd>{kbdLabel('mod', 'V')}</Kbd>
-          </ContextMenuShortcut>
-        </ContextMenuItem>
-        <ContextMenuItem
-          data-testid={TestIds.terminalContextPasteImage}
-          onClick={() => {
-            runUserAction(
-              async () => {
-                await pasteTerminalImage(sessionId)
-              },
-              (error) => {
-                toastUserActionError('Paste image', error)
-              },
-            )
-          }}
-        >
-          <ImageIcon /> Paste image
-          <ContextMenuShortcut>
-            <Kbd>{kbdLabel('mod', 'shift', 'V')}</Kbd>
           </ContextMenuShortcut>
         </ContextMenuItem>
         <ContextMenuItem
