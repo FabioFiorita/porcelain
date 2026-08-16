@@ -7,6 +7,7 @@ import type {
 } from '@porcelain/contracts/tasks'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
+import { environmentSessionFor } from '@renderer/lib/environment-sessions'
 import { isBrowser } from '@renderer/lib/platform'
 import { shellTrpc, trpc } from '@renderer/lib/trpc'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -45,16 +46,10 @@ function requireTarget(environmentId: TaskEnvironmentTarget): string | null {
 }
 
 /**
- * The browser client is served BY its Environment and can only speak to that one. A row
- * belonging to another Environment must not be writable from here — refusing is honest;
- * routing it to the local daemon would silently move the Task.
+ * The browser client is served by one Environment but may hold explicit client-local sessions
+ * for others. A row belonging to another Environment is sent through that exact session;
+ * unknown or offline targets are refused rather than guessed.
  */
-function assertReachable(environmentId: string | null): void {
-  if (isBrowser && environmentId !== null) {
-    throw new MissingEnvironmentTargetError()
-  }
-}
-
 export function useTaskActions(): {
   add: (environmentId: TaskEnvironmentTarget, input: CreateTaskInput) => Promise<Task>
   update: (environmentId: TaskEnvironmentTarget, input: UpdateTaskInput) => Promise<void>
@@ -84,7 +79,14 @@ export function useTaskActions(): {
 
   const create = useMutation({
     mutationFn: async (variables: CreateVariables): Promise<Task> => {
-      if (isBrowser) return client.createTask.mutate(variables.input)
+      if (isBrowser) {
+        const owner =
+          variables.environmentId === null
+            ? { client }
+            : environmentSessionFor(variables.environmentId)
+        if (owner === null) throw new MissingEnvironmentTargetError()
+        return owner.client.createTask.mutate(variables.input)
+      }
       const result = await shellClient.environmentTaskMutation.mutate({
         kind: 'create',
         environmentId: variables.environmentId,
@@ -101,7 +103,12 @@ export function useTaskActions(): {
   const update = useMutation({
     mutationFn: async (variables: UpdateVariables): Promise<void> => {
       if (isBrowser) {
-        await client.updateTask.mutate(variables.input)
+        const owner =
+          variables.environmentId === null
+            ? { client }
+            : environmentSessionFor(variables.environmentId)
+        if (owner === null) throw new MissingEnvironmentTargetError()
+        await owner.client.updateTask.mutate(variables.input)
         return
       }
       await shellClient.environmentTaskMutation.mutate({
@@ -118,7 +125,12 @@ export function useTaskActions(): {
   const remove = useMutation({
     mutationFn: async (variables: DeleteVariables): Promise<void> => {
       if (isBrowser) {
-        await client.deleteTask.mutate(variables.input)
+        const owner =
+          variables.environmentId === null
+            ? { client }
+            : environmentSessionFor(variables.environmentId)
+        if (owner === null) throw new MissingEnvironmentTargetError()
+        await owner.client.deleteTask.mutate(variables.input)
         return
       }
       await shellClient.environmentTaskMutation.mutate({
@@ -135,17 +147,14 @@ export function useTaskActions(): {
   return {
     add: async (environmentId, input) => {
       const target = requireTarget(environmentId)
-      assertReachable(target)
       return create.mutateAsync({ environmentId: target, input })
     },
     update: async (environmentId, input) => {
       const target = requireTarget(environmentId)
-      assertReachable(target)
       await update.mutateAsync({ environmentId: target, input })
     },
     remove: async (environmentId, taskId) => {
       const target = requireTarget(environmentId)
-      assertReachable(target)
       await remove.mutateAsync({ environmentId: target, input: { taskId } })
     },
     isPending: create.isPending || update.isPending || remove.isPending,

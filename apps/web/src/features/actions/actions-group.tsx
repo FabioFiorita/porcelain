@@ -69,7 +69,7 @@ function SiblingEnvironment({ scope }: { scope: ActionsScope }): React.JSX.Eleme
  */
 export function ActionsGroup(): React.JSX.Element {
   const { selected, siblings } = useActionsScopes()
-  const actions = useActions(true, selected?.projectId ?? null)
+  const actions = useActions(true, selected?.projectId ?? null, selected?.environmentId ?? null)
   const runAction = useActionRun()
   const selection = useHubSelectionStore((s) => s.selection)
   const localDaemon = useLocalDaemon()

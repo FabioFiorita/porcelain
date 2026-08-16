@@ -19,7 +19,11 @@ import { useCanvasList } from './project-data'
  */
 export function CanvasList(): React.JSX.Element {
   const target = useHubTarget()
-  const canvases = useCanvasList(target?.projectId ?? null, target?.path ?? null)
+  const canvases = useCanvasList(
+    target?.projectId ?? null,
+    target?.path ?? null,
+    target?.environmentId ?? null,
+  )
 
   if (target === null) {
     return (

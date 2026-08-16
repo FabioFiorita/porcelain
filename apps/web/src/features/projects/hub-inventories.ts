@@ -1,0 +1,86 @@
+import { hubInventoryQuery } from '@porcelain/client-runtime/projects'
+import type { HubInventory } from '@porcelain/contracts/projects'
+import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
+import {
+  browserEnvironmentConnections,
+  ensureEnvironmentSession,
+  registerEnvironmentAlias,
+  setPrimaryEnvironmentId,
+} from '@renderer/lib/environment-sessions'
+import { isBrowser } from '@renderer/lib/platform'
+import { shellTrpcClient, trpc } from '@renderer/lib/trpc'
+import { useQueries, useQuery } from '@tanstack/react-query'
+import { useEffect, useMemo } from 'react'
+import { hubInventoryOnDaemon } from './project-transport'
+
+/** One live inventory plus the shell identity needed to route its actions safely. */
+export type HubInventoryView = Readonly<{
+  environmentId: string | null
+  current: boolean
+  inventory: HubInventory
+}>
+
+/** Live Hub inventories: shell fan-out in Electron and one session per browser Environment. */
+export function useHubInventories(): readonly HubInventoryView[] {
+  const daemon = useDaemonIdentity()
+  const client = trpc.useUtils().client
+  const identity = hubInventoryQuery()
+  const browserQuery = useQuery({
+    enabled: isBrowser,
+    queryFn: async (): Promise<HubInventory> => hubInventoryOnDaemon(client),
+    queryKey: [identity, { host: daemon.host, version: daemon.version }],
+  })
+  const shellQuery = useQuery({
+    enabled: !isBrowser,
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
+    queryKey: ['shell', 'hubInventories'],
+    queryFn: async (): Promise<readonly HubInventoryView[]> =>
+      shellTrpcClient.hubInventories.query(),
+  })
+  const browserConnections = useMemo(() => (isBrowser ? browserEnvironmentConnections() : []), [])
+  const browserSessions = useMemo(
+    () => browserConnections.map((connection) => ensureEnvironmentSession(connection)),
+    [browserConnections],
+  )
+  const secondaryQueries = useQueries({
+    queries: browserSessions.map((entry) => ({
+      enabled: isBrowser,
+      staleTime: 30_000,
+      refetchOnWindowFocus: true,
+      queryKey: ['browser', 'hubInventory', entry.id],
+      queryFn: async (): Promise<HubInventory> => hubInventoryOnDaemon(entry.client),
+    })),
+  })
+  useEffect(() => {
+    if (!isBrowser) return
+    for (const entry of browserSessions) entry.session.start()
+  }, [browserSessions])
+  useEffect(() => {
+    if (browserQuery.data !== undefined) setPrimaryEnvironmentId(browserQuery.data.environment.id)
+  }, [browserQuery.data])
+  useEffect(() => {
+    for (const [index, query] of secondaryQueries.entries()) {
+      const entry = browserSessions[index]
+      if (entry !== undefined && query.data !== undefined) {
+        registerEnvironmentAlias(query.data.environment.id, entry.id)
+      }
+    }
+  }, [browserSessions, secondaryQueries])
+  if (!isBrowser) return shellQuery.data ?? []
+  const primarySource =
+    browserQuery.isError || browserQuery.data === undefined
+      ? []
+      : [{ environmentId: null, current: true, inventory: browserQuery.data }]
+  const secondarySources = secondaryQueries.flatMap((query) =>
+    query.isError || query.data === undefined
+      ? []
+      : [{ environmentId: query.data.environment.id, current: false, inventory: query.data }],
+  )
+  return [...primarySource, ...secondarySources]
+}
+
+/** The inventory for this window's bound Environment, retained for narrow callers. */
+export function useHubInventory(): HubInventory | null {
+  return useHubInventories().find((source) => source.current)?.inventory ?? null
+}

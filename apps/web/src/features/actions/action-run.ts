@@ -1,6 +1,7 @@
 import { prepareActionRun } from '@porcelain/client-runtime/actions'
 import type { HubTarget } from '@porcelain/client-runtime/projects'
 import type { ActionView } from '@porcelain/contracts/actions'
+import { environmentSessionFor } from '@renderer/lib/environment-sessions'
 import { spawnLocalTerminal } from '@renderer/lib/terminal-actions'
 import { trpc } from '@renderer/lib/trpc'
 import { currentHubTarget } from '@renderer/stores/hub-selection'
@@ -29,12 +30,15 @@ export function useActionRun(): (
   action: ActionView,
   opts?: RunActionOptions,
 ) => Promise<RunActionResult> {
-  const client = trpc.useUtils().client
+  const defaultClient = trpc.useUtils().client
 
   return async (action: ActionView, opts?: RunActionOptions): Promise<RunActionResult> => {
     const target = opts?.target === undefined ? currentHubTarget() : opts.target
     if (target === null) return 'needs-target'
     if (!action.trusted) return 'needs-trust'
+
+    const owner = environmentSessionFor(target.environmentId)
+    const client = owner?.client ?? defaultClient
 
     const authorized = await client.prepareActionRun.mutate({
       actionId: action.id,

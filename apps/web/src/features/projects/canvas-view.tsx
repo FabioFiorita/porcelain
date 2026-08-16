@@ -1,5 +1,6 @@
 import { MarkdownView } from '@renderer/components/viewer/markdown-view'
 import { daemonBaseUrl } from '@renderer/lib/daemon'
+import { environmentSessionFor } from '@renderer/lib/environment-sessions'
 import { settleBackground } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
 import { useEffect, useRef, useState } from 'react'
@@ -32,13 +33,17 @@ function CanvasHtmlFrame({
   canvasId,
   title,
   worktreePath,
+  environmentId,
 }: {
   projectId: string
   canvasId: string
   title: string
   worktreePath: string | undefined
+  environmentId: string
 }): React.JSX.Element {
   const { mint } = useMintCanvasAccessToken()
+  const environment = environmentSessionFor(environmentId)
+  const environmentBaseUrl = environment?.session.baseUrl() ?? daemonBaseUrl()
   const [src, setSrc] = useState<string | null>(null)
   const iframeRef = useRef<HTMLIFrameElement>(null)
 
@@ -47,15 +52,17 @@ function CanvasHtmlFrame({
     setSrc(null)
     // A failed mint leaves src null — the loading state (never a broken iframe).
     settleBackground(
-      mint({ projectId, canvasId, worktreePath }).then((token) => {
-        if (!cancelled) setSrc(`${daemonBaseUrl()}/canvas/${token}`)
+      mint({ projectId, canvasId, worktreePath, environmentId }).then((token) => {
+        if (!cancelled) {
+          setSrc(`${environmentBaseUrl}/canvas/${token}`)
+        }
       }),
       'fallback',
     )
     return () => {
       cancelled = true
     }
-  }, [projectId, canvasId, worktreePath, mint])
+  }, [projectId, canvasId, worktreePath, environmentId, environmentBaseUrl, mint])
 
   useEffect(() => {
     function onMessage(event: MessageEvent): void {
@@ -93,12 +100,19 @@ export function CanvasView({
   projectId,
   canvasId,
   worktreePath,
+  environmentId,
 }: {
   projectId: string
   canvasId: string
   worktreePath?: string
+  environmentId?: string
 }): React.JSX.Element {
-  const { canvas, isLoading } = useCanvas(projectId, canvasId, worktreePath ?? null)
+  const { canvas, isLoading } = useCanvas(
+    projectId,
+    canvasId,
+    worktreePath ?? null,
+    environmentId ?? null,
+  )
 
   if (isLoading || canvas === undefined) {
     return <div className="p-4 text-sm text-muted-foreground">Loading…</div>
@@ -112,6 +126,7 @@ export function CanvasView({
       canvasId={canvasId}
       title={canvas.record.title}
       worktreePath={worktreePath}
+      environmentId={environmentId ?? 'primary'}
     />
   )
 }

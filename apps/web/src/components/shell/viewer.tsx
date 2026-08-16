@@ -119,6 +119,7 @@ function PaneContent({ tab, paneIndex }: { tab: Tab; paneIndex: number }): React
           projectId={tab.target.projectId}
           canvasId={tab.path}
           worktreePath={tab.target.path}
+          environmentId={tab.target.environmentId}
         />
       )
   }

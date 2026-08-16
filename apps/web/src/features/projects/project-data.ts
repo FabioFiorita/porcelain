@@ -1,6 +1,5 @@
 import {
   createHubWorktree,
-  hubInventoryQuery,
   listCanvasesQuery,
   openProject,
   overlayQuery,
@@ -21,7 +20,6 @@ import type {
   BrowseDirsOutput,
   CanvasRecord,
   CreateHubWorktreeInput,
-  HubInventory,
   HubWorktree,
   ListOverlayOutput,
   ProjectOverrides,
@@ -32,8 +30,8 @@ import type {
 } from '@porcelain/contracts/projects'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import { type DaemonScope, daemonScopeSchema } from '@renderer/lib/daemon-scope'
-import { isBrowser } from '@renderer/lib/platform'
-import { shellTrpcClient, trpc } from '@renderer/lib/trpc'
+import { environmentSessionFor } from '@renderer/lib/environment-sessions'
+import { trpc } from '@renderer/lib/trpc'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
@@ -41,7 +39,6 @@ import { z } from 'zod'
 import {
   browseProjectDirectoriesOnDaemon,
   createHubWorktreeOnDaemon,
-  hubInventoryOnDaemon,
   listCanvasesOnDaemon,
   listOverlayOnDaemon,
   mintCanvasAccessTokenOnDaemon,
@@ -57,12 +54,8 @@ import {
 
 export type ProjectsDaemonScope = DaemonScope
 
-/** One live inventory plus the shell identity needed to route its actions safely. */
-export type HubInventoryView = Readonly<{
-  environmentId: string | null
-  current: boolean
-  inventory: HubInventory
-}>
+export type { HubInventoryView } from './hub-inventories'
+export { useHubInventories, useHubInventory } from './hub-inventories'
 
 const projectsQueryKeySchema = z.tuple([projectsQuerySchema, daemonScopeSchema])
 
@@ -114,22 +107,38 @@ export function useRecentProjects(enabled = true): readonly ProjectSummary[] {
 
 /** Open a Project and apply its authoritative summary to the existing Web selection boundary. */
 export function useOpenProject(): {
-  open: (path: ProjectPath, options?: { resetPresentation?: boolean }) => Promise<void>
+  open: (
+    path: ProjectPath,
+    options?: { resetPresentation?: boolean; environmentId?: string | null },
+  ) => Promise<void>
   isPending: boolean
 } {
   const daemon = useDaemonIdentity()
-  const client = trpc.useUtils().client
+  const defaultClient = trpc.useUtils().client
   const queryClient = useQueryClient()
   const selectProject = useProjectSelectionStore((state) => state.selectProject)
   const resetProjectPresentation = useProjectSelectionStore(
     (state) => state.resetProjectPresentation,
   )
   const mutation = useMutation({
-    mutationFn: async (path: ProjectPath): Promise<ProjectSummary> =>
-      openProjectOnDaemon(client, path),
-    onSuccess: async (project, path) => {
+    mutationFn: async (variables: {
+      path: ProjectPath
+      environmentId: string | null
+    }): Promise<ProjectSummary> => {
+      const owner =
+        variables.environmentId === null
+          ? { client: defaultClient }
+          : environmentSessionFor(variables.environmentId)
+      if (owner === null) throw new Error('The target Environment is offline.')
+      return openProjectOnDaemon(owner.client, variables.path)
+    },
+    onSuccess: async (project, variables) => {
       selectProject(project)
-      await invalidateProjectQueries(queryClient, daemon, openProject.affectedQueries(path))
+      await invalidateProjectQueries(
+        queryClient,
+        daemon,
+        openProject.affectedQueries(variables.path),
+      )
     },
   })
 
@@ -140,7 +149,7 @@ export function useOpenProject(): {
       if (options?.resetPresentation && selected?.path !== path) {
         resetProjectPresentation()
       }
-      await mutation.mutateAsync(path)
+      await mutation.mutateAsync({ path, environmentId: options?.environmentId ?? null })
     },
   }
 }
@@ -235,34 +244,6 @@ export function useSelectedProject(): ProjectSummary | null {
   return useProjectSelectionStore((state) => state.project)
 }
 
-/** Live Hub inventories: shell aggregation in Electron, one daemon in the browser client. */
-export function useHubInventories(): readonly HubInventoryView[] {
-  const daemon = useDaemonIdentity()
-  const client = trpc.useUtils().client
-  const identity = hubInventoryQuery()
-  const browserQuery = useQuery({
-    enabled: isBrowser,
-    queryFn: async (): Promise<HubInventory> => hubInventoryOnDaemon(client),
-    queryKey: projectsQueryKey(daemon, identity),
-  })
-  const shellQuery = useQuery({
-    enabled: !isBrowser,
-    staleTime: 30_000,
-    refetchOnWindowFocus: true,
-    queryKey: ['shell', 'hubInventories'],
-    queryFn: async (): Promise<readonly HubInventoryView[]> =>
-      shellTrpcClient.hubInventories.query(),
-  })
-  if (!isBrowser) return shellQuery.data ?? []
-  if (browserQuery.isError || browserQuery.data === undefined) return []
-  return [{ environmentId: null, current: true, inventory: browserQuery.data }]
-}
-
-/** The inventory for this window's bound Environment, retained for narrow callers. */
-export function useHubInventory(): HubInventory | null {
-  return useHubInventories().find((source) => source.current)?.inventory ?? null
-}
-
 /** Create a Worktree on a Hub Project and refresh inventory. */
 export function useCreateHubWorktree(): {
   create: (input: CreateHubWorktreeInput) => Promise<HubWorktree>
@@ -289,15 +270,18 @@ export function useCreateHubWorktree(): {
 export function useCanvasList(
   projectId: string | null,
   worktreePath: string | null = null,
+  environmentId: string | null = null,
 ): readonly CanvasRecord[] {
   const daemon = useDaemonIdentity()
-  const client = trpc.useUtils().client
+  const defaultClient = trpc.useUtils().client
+  const owner = environmentId === null ? null : environmentSessionFor(environmentId)
+  const client = owner?.client ?? defaultClient
   const identity = listCanvasesQuery(projectId ?? '', worktreePath)
   const query = useQuery({
     enabled: projectId !== null,
     queryFn: async (): Promise<readonly CanvasRecord[]> =>
       listCanvasesOnDaemon(client, projectId ?? '', worktreePath ?? undefined),
-    queryKey: projectsQueryKey(daemon, identity),
+    queryKey: [...projectsQueryKey(daemon, identity), environmentId],
   })
   return query.data ?? []
 }
@@ -310,9 +294,12 @@ export function useCanvas(
   projectId: string | null,
   canvasId: string | null,
   worktreePath: string | null = null,
+  environmentId: string | null = null,
 ): { canvas: ReadCanvasOutput | undefined; isLoading: boolean } {
   const daemon = useDaemonIdentity()
-  const client = trpc.useUtils().client
+  const defaultClient = trpc.useUtils().client
+  const owner = environmentId === null ? null : environmentSessionFor(environmentId)
+  const client = owner?.client ?? defaultClient
   const enabled = projectId !== null && canvasId !== null
   const identity = readCanvasQuery(projectId ?? '', canvasId ?? '', worktreePath)
   const query = useQuery({
@@ -323,7 +310,7 @@ export function useCanvas(
         canvasId: canvasId ?? '',
         worktreePath: worktreePath ?? undefined,
       }),
-    queryKey: projectsQueryKey(daemon, identity),
+    queryKey: [...projectsQueryKey(daemon, identity), environmentId],
   })
   return { canvas: query.data, isLoading: enabled && query.isLoading }
 }
@@ -334,12 +321,28 @@ export function useCanvas(
  * gets its own fresh grant, and the daemon sweeps expired ones lazily.
  */
 export function useMintCanvasAccessToken(): {
-  mint: (input: { projectId: string; canvasId: string; worktreePath?: string }) => Promise<string>
+  mint: (input: {
+    projectId: string
+    canvasId: string
+    worktreePath?: string
+    environmentId?: string | null
+  }) => Promise<string>
 } {
-  const client = trpc.useUtils().client
+  const defaultClient = trpc.useUtils().client
   const mutation = useMutation({
-    mutationFn: (input: { projectId: string; canvasId: string; worktreePath?: string }) =>
-      mintCanvasAccessTokenOnDaemon(client, input),
+    mutationFn: (input: {
+      projectId: string
+      canvasId: string
+      worktreePath?: string
+      environmentId?: string | null
+    }) => {
+      const owner =
+        input.environmentId === undefined || input.environmentId === null
+          ? { client: defaultClient }
+          : environmentSessionFor(input.environmentId)
+      if (owner === null) throw new Error('The target Environment is offline.')
+      return mintCanvasAccessTokenOnDaemon(owner.client, input)
+    },
   })
   return { mint: mutation.mutateAsync }
 }

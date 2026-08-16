@@ -2,7 +2,9 @@ import { actionsMutations, actionsProjectKey } from '@porcelain/client-runtime/a
 import type { ActionWhere } from '@porcelain/contracts/actions'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
+import { environmentSessionFor } from '@renderer/lib/environment-sessions'
 import { trpc } from '@renderer/lib/trpc'
+import { useHubSelectionStore } from '@renderer/stores/hub-selection'
 import { useQueryClient } from '@tanstack/react-query'
 import { invalidateActionsIdentities } from './actions-query-key'
 import { useSelectedProjectId } from './actions-scope'
@@ -41,6 +43,10 @@ export function useActionMutations(): {
   const daemonScope = daemonScopeFromIdentity(daemon)
   const queryClient = useQueryClient()
   const client = trpc.useUtils().client
+  const environmentId = useHubSelectionStore((state) =>
+    state.selection.kind === 'home' ? null : state.selection.environmentId,
+  )
+  const owner = environmentSessionFor(environmentId)
 
   return {
     add: async (input: NewActionInput): Promise<void> => {
@@ -51,7 +57,7 @@ export function useActionMutations(): {
         command: input.command,
         where: input.where,
       }
-      await client.addAction.mutate(wire)
+      await (owner?.client ?? client).addAction.mutate(wire)
       await invalidateActionsIdentities(
         queryClient,
         daemonScope,
@@ -67,7 +73,7 @@ export function useActionMutations(): {
         command: fields.command,
         where: fields.where,
       }
-      await client.updateAction.mutate(wire)
+      await (owner?.client ?? client).updateAction.mutate(wire)
       await invalidateActionsIdentities(
         queryClient,
         daemonScope,
@@ -81,7 +87,7 @@ export function useActionMutations(): {
         id,
         direction,
       }
-      await client.moveAction.mutate(wire)
+      await (owner?.client ?? client).moveAction.mutate(wire)
       await invalidateActionsIdentities(
         queryClient,
         daemonScope,
@@ -94,7 +100,7 @@ export function useActionMutations(): {
         projectId: actionsProjectKey(projectId),
         id,
       }
-      await client.deleteAction.mutate(wire)
+      await (owner?.client ?? client).deleteAction.mutate(wire)
       await invalidateActionsIdentities(
         queryClient,
         daemonScope,
@@ -114,11 +120,15 @@ export function useTrustAction(): (id: string) => Promise<void> {
   const daemonScope = daemonScopeFromIdentity(daemon)
   const queryClient = useQueryClient()
   const client = trpc.useUtils().client
+  const environmentId = useHubSelectionStore((state) =>
+    state.selection.kind === 'home' ? null : state.selection.environmentId,
+  )
+  const owner = environmentSessionFor(environmentId)
 
   return async (id: string): Promise<void> => {
     if (projectId === null) return
     const wire = { projectId: actionsProjectKey(projectId), ids: [id] }
-    await client.trustActions.mutate(wire)
+    await (owner?.client ?? client).trustActions.mutate(wire)
     await invalidateActionsIdentities(
       queryClient,
       daemonScope,

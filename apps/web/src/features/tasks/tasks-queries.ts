@@ -2,19 +2,21 @@ import { aggregateTaskRows, type TaskRow } from '@porcelain/client-runtime/tasks
 import type { Task } from '@porcelain/contracts/tasks'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
+import {
+  browserEnvironmentConnections,
+  ensureEnvironmentSession,
+} from '@renderer/lib/environment-sessions'
 import { isBrowser } from '@renderer/lib/platform'
 import { shellTrpc, trpc } from '@renderer/lib/trpc'
-import { useQuery } from '@tanstack/react-query'
-import { useMemo } from 'react'
+import { useQueries, useQuery } from '@tanstack/react-query'
+import { useEffect, useMemo } from 'react'
 import { tasksKeyForEnvironment } from './tasks-query-key'
 
 /**
  * Reading the Tasks table.
  *
- * Two runtimes, one view. In the BROWSER there is exactly one Environment — the daemon
- * that served this page — so the client reads `listTasks` straight off it and labels the
- * rows with that daemon's host. In the ELECTRON shell the Hub can see several machines, so
- * the read goes through the shell's `environmentTasks` fan-out, which omits every
+ * Two runtimes, one view. The browser reads the serving daemon plus each explicit client-local
+ * Environment session. The Electron shell uses its main-process fan-out. Every path omits an
  * Environment that did not answer instead of showing rows nobody can write to.
  */
 
@@ -52,10 +54,38 @@ function useLocalTasks(enabled: boolean): {
     enabled,
   })
 
+  const secondaryConnections = useMemo(
+    () => (enabled ? browserEnvironmentConnections() : []),
+    [enabled],
+  )
+  const secondarySessions = useMemo(
+    () => secondaryConnections.map((connection) => ensureEnvironmentSession(connection)),
+    [secondaryConnections],
+  )
+  const secondaryQueries = useQueries({
+    queries: secondarySessions.map((entry) => ({
+      enabled,
+      queryKey: ['browser', 'tasks', entry.id],
+      queryFn: async (): Promise<Task[]> => entry.client.listTasks.query(),
+    })),
+  })
+  useEffect(() => {
+    for (const entry of secondarySessions) entry.session.start()
+  }, [secondarySessions])
+
+  const secondary = secondaryQueries.flatMap((remote, index) => {
+    const connection = secondaryConnections[index]
+    return remote.data === undefined || connection === undefined
+      ? []
+      : [{ id: connection.id, name: connection.name, tasks: remote.data }]
+  })
+  const data =
+    query.data === undefined ? undefined : [{ id: null, name, tasks: query.data }, ...secondary]
+
   return {
-    data: query.data === undefined ? undefined : [{ id: null, name, tasks: query.data }],
-    error: query.isError ? query.error : null,
-    isPending: query.isPending,
+    data,
+    error: query.isError || secondaryQueries.some((remote) => remote.isError) ? query.error : null,
+    isPending: query.isPending || secondaryQueries.some((remote) => remote.isPending),
   }
 }
 

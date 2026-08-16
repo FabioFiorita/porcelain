@@ -1,5 +1,6 @@
 import type { ActionView } from '@porcelain/contracts/actions'
 import { useHubInventories } from '@renderer/features/projects'
+import { environmentSessionFor } from '@renderer/lib/environment-sessions'
 import { isBrowser } from '@renderer/lib/platform'
 import { shellTrpcClient } from '@renderer/lib/trpc'
 import { useHubSelectionStore } from '@renderer/stores/hub-selection'
@@ -26,7 +27,7 @@ export type ActionsWorktree = Readonly<{
 export type ActionsScope = Readonly<{
   /** Environment identity id — the same id Hub selections and Viewer tabs carry. */
   environmentId: string
-  /** Shell environment-group id; null is This device. Browser clients have one daemon. */
+  /** Shell environment-group id; null is This device. Browser connections use local ids. */
   groupId: string | null
   environmentName: string
   /** True when this Environment is the one this window's daemon serves. */
@@ -39,7 +40,7 @@ export type ActionsScope = Readonly<{
 export type ActionsScopes = Readonly<{
   /** The Project the Hub selection names, or null when nothing is selected. */
   selected: ActionsScope | null
-  /** Equivalent Projects on other live Environments (Electron multi-Environment only). */
+  /** Equivalent Projects on other live Environments that answered this Hub's sessions. */
   siblings: readonly ActionsScope[]
 }>
 
@@ -92,18 +93,22 @@ export function useActionsScopes(): ActionsScopes {
  * Saved commands for one Project on an Environment this window's daemon does NOT
  * serve. Only the Electron shell can reach another Environment's daemon, so this
  * query exists only when the Hub actually found the Project on more than one
- * machine; the browser client always has exactly one Environment.
+ * machine; browser sessions read sibling Projects directly through their own clients.
  */
 export function useSiblingActions(scope: ActionsScope | null): readonly ActionView[] {
+  const owner = scope === null ? null : environmentSessionFor(scope.environmentId)
   const query = useQuery({
-    enabled: !isBrowser && scope !== null,
+    enabled: scope !== null && (isBrowser ? owner !== null : true),
     staleTime: 30_000,
     queryKey: ['shell', 'projectActions', scope?.groupId ?? null, scope?.projectId ?? ''],
-    queryFn: async (): Promise<readonly ActionView[]> =>
-      shellTrpcClient.projectActions.query({
-        groupId: scope?.groupId ?? null,
-        projectId: scope?.projectId ?? '',
-      }),
+    queryFn: async (): Promise<readonly ActionView[]> => {
+      if (scope === null) return []
+      if (isBrowser) return owner?.client.actions.query({ projectId: scope.projectId }) ?? []
+      return shellTrpcClient.projectActions.query({
+        groupId: scope.groupId,
+        projectId: scope.projectId,
+      })
+    },
   })
   return query.data ?? []
 }
