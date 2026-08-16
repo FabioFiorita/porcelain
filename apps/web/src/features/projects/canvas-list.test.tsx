@@ -169,6 +169,5 @@ describe('CanvasList', () => {
 
     expect(screen.queryByTestId(TestIds.canvasListMenu('canvas-1'))).toBeNull()
     expect(screen.queryByTestId(TestIds.canvasListPromote('canvas-1'))).toBeNull()
-    expect(screen.queryByTestId(TestIds.canvasTrackDefaults)).toBeNull()
   })
 })

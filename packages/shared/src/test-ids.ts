@@ -248,8 +248,6 @@ export const TestIds = {
   /** The confirm control that actually promotes, naming the target checkout. */
   canvasPromoteConfirm: 'canvas-promote-confirm',
   /** Sidebar entry that tracks the Project's hidden/pinned defaults into the checkout. */
-  canvasTrackDefaults: 'canvas-track-defaults',
-  canvasTrackDefaultsConfirm: 'canvas-track-defaults-confirm',
   /** Sandboxed HTML Canvas iframe — sandbox="allow-scripts", no allow-same-origin. */
   canvasIframe: 'canvas-iframe',
 
