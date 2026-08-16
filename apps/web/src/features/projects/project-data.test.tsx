@@ -21,7 +21,7 @@ import {
   useRecentProjects,
   useRemoveRecentProject,
 } from './index'
-import { usePromoteCanvas, usePromoteProjectOverrides } from './project-data'
+import { usePromoteCanvas } from './project-data'
 
 const alpha = projectsContractFixtures.openRepoPath.output
 const beta = { path: '/synthetic/projects/beta', name: 'beta' }
@@ -335,33 +335,6 @@ describe('Web Projects adapter', () => {
     expect(result).toEqual(promoted)
     expect(mock.requests()).toContainEqual({
       procedure: 'promoteCanvas',
-      kind: 'mutation',
-      input,
-    })
-  })
-
-  it('tracks project defaults into the addressed checkout', async () => {
-    // Parsed, not spread: the fixture is `as const`, and the hook takes the
-    // contract's own mutable input/output types.
-    const overrides = projectsProcedures.promoteOverrides.output.parse(
-      projectsContractFixtures.promoteOverrides.output,
-    )
-    const input = projectsProcedures.promoteOverrides.input.parse(
-      projectsContractFixtures.promoteOverrides.input,
-    )
-    const { mock, wrapper } = createValidatingTrpcHarness(
-      handlers({ promoteOverrides: () => ({ ok: true, value: overrides }) }),
-    )
-    const hook = renderHook(() => usePromoteProjectOverrides(), { wrapper })
-
-    let result: typeof overrides | null = null
-    await act(async () => {
-      result = await hook.result.current.promote(input)
-    })
-
-    expect(result).toEqual(overrides)
-    expect(mock.requests()).toContainEqual({
-      procedure: 'promoteOverrides',
       kind: 'mutation',
       input,
     })

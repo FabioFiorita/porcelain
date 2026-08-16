@@ -1,17 +1,9 @@
 /**
  * Web Project Data feature public entry point (PDT-003).
  *
- * Settings, Files companion, Changes, and Review publish import this module only —
- * never a Project Data implementation file. Layer / ChannelDispositionValue types
- * come from `@porcelain/contracts/project-data`.
+ * All that remains on the client is query-key invalidation: the companion disposition
+ * and git-visibility surfaces were removed with Settings → Data, and their daemon
+ * procedures are reached through the CLI (`porcelain project …`), not the browser.
  */
 
-export {
-  useSetCompanionDisposition,
-  useSetCompanionGitVisibility,
-} from './project-data-mutations'
-export {
-  useCompanionDispositions,
-  useCompanionGitVisibility,
-} from './project-data-queries'
 export { invalidateAllProjectDataQueries } from './project-data-query-key'

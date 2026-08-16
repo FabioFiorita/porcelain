@@ -215,28 +215,3 @@ test('a tracked Canvas wins over a private one with the same id', async ({
   const frame = page.frameLocator(`[data-testid="${TestIds.canvasIframe}"]`)
   await expect(frame.locator('#proof')).toHaveText('tracked bytes')
 })
-
-test('tracking the project defaults writes one file the human can commit', async ({
-  page,
-  repoDir,
-  seeded,
-}) => {
-  await waitForShell(page)
-  const { worktreeId } = await waitForProjectAndWorktree(seeded.udBase)
-
-  await loc.hubWorktree(page, worktreeId).click()
-  await openSurface(page, 'Canvas')
-
-  const before = gitStatus(repoDir)
-  await loc.canvasTrackDefaults(page).click()
-  await loc.canvasTrackDefaultsConfirm(page).click()
-
-  await expect
-    .poll(() => statusDelta(before, gitStatus(repoDir)), { timeout: 15_000 })
-    .toEqual(['?? .porcelain/project.json'])
-
-  const overrides = JSON.parse(
-    await readFile(join(repoDir, '.porcelain', 'project.json'), 'utf8'),
-  ) as { hiddenPaths: string[]; pinnedPaths: string[]; worktrees: Record<string, unknown> }
-  expect(overrides).toEqual({ hiddenPaths: [], pinnedPaths: [], worktrees: {} })
-})

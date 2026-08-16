@@ -90,12 +90,11 @@ export const loc = {
   canvasListItem: (page: Page, id: string): Locator => byId(page, TestIds.canvasListItem(id)),
   canvasIframe: (page: Page): Locator => byId(page, TestIds.canvasIframe),
   canvasListTracked: (page: Page, id: string): Locator => byId(page, TestIds.canvasListTracked(id)),
+  hubRemoveWorktreeDialog: (page: Page): Locator => byId(page, TestIds.hubRemoveWorktreeDialog),
+  hubRemoveWorktreeConfirm: (page: Page): Locator => byId(page, TestIds.hubRemoveWorktreeConfirm),
   canvasListMenu: (page: Page, id: string): Locator => byId(page, TestIds.canvasListMenu(id)),
   canvasListPromote: (page: Page, id: string): Locator => byId(page, TestIds.canvasListPromote(id)),
   canvasPromoteConfirm: (page: Page): Locator => byId(page, TestIds.canvasPromoteConfirm),
-  canvasTrackDefaults: (page: Page): Locator => byId(page, TestIds.canvasTrackDefaults),
-  canvasTrackDefaultsConfirm: (page: Page): Locator =>
-    byId(page, TestIds.canvasTrackDefaultsConfirm),
 
   settingsDialog: (page: Page): Locator => byId(page, TestIds.settingsDialog),
   settingsHeading: (page: Page): Locator => byId(page, TestIds.settingsHeading),

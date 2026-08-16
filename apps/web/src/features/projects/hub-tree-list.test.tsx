@@ -1,6 +1,6 @@
 import { hubInventorySchema, projectsContractFixtures } from '@porcelain/contracts/projects'
 import { TestIds } from '@shared/test-ids'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { HubTreeFromInventories, HubTreeFromInventory } from './hub-tree-list'
 
@@ -37,6 +37,7 @@ describe('Hub inventory tree', () => {
         openWorktree={openWorktree}
         createWorktree={vi.fn(async () => createdWorktree)}
         removeProject={vi.fn(async () => undefined)}
+        removeWorktree={vi.fn(async () => undefined)}
       />,
     )
 
@@ -63,13 +64,16 @@ describe('Hub inventory tree', () => {
         openWorktree={openWorktree}
         createWorktree={vi.fn(async () => createdWorktree)}
         removeProject={vi.fn(async () => undefined)}
+        removeWorktree={vi.fn(async () => undefined)}
       />,
     )
 
     expect(screen.getByTestId(TestIds.hubInventory)).toBeInTheDocument()
     expect(screen.queryByTestId(TestIds.hubEnvironment(inventory.environment.id))).toBeNull()
     expect(screen.getByTestId(TestIds.hubProject('proj-alpha'))).toHaveTextContent('alpha')
-    expect(screen.getByTestId(TestIds.hubProject('proj-alpha'))).toHaveTextContent('synthetic')
+    // One Environment names nothing: the badge only earns its space when there are two to
+    // tell apart, which the multi-source case above asserts.
+    expect(screen.getByTestId(TestIds.hubProject('proj-alpha'))).not.toHaveTextContent('synthetic')
     expect(screen.getByTestId(TestIds.hubWorktree('wt-alpha-main'))).toHaveTextContent('alpha')
     expect(screen.getByTestId(TestIds.hubCreateWorktree('proj-alpha'))).toBeInTheDocument()
     fireEvent.contextMenu(screen.getByRole('button', { name: 'Collapse project alpha' }))
@@ -85,7 +89,8 @@ describe('Hub inventory tree', () => {
     expect(screen.getByRole('menuitem', { name: 'Remove project' })).toBeInTheDocument()
 
     fireEvent.contextMenu(screen.getByTestId(TestIds.hubWorktree('wt-alpha-main')))
-    expect(screen.queryByRole('menuitem', { name: 'Remove worktree' })).toBeNull()
+    // The primary checkout is the Project itself — git refuses to remove it.
+    expect(screen.queryByRole('menuitem', { name: /remove worktree/i })).toBeNull()
 
     fireEvent.click(screen.getByTestId(TestIds.hubWorktree('wt-alpha-main')))
     expect(openWorktree).toHaveBeenCalledTimes(1)
@@ -93,22 +98,57 @@ describe('Hub inventory tree', () => {
     fireEvent.contextMenu(screen.getByTestId(TestIds.hubWorktree('wt-alpha-topic')))
     expect(screen.getByRole('menuitem', { name: 'Copy name' })).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: 'Copy path' })).toBeInTheDocument()
-    expect(screen.queryByRole('menuitem', { name: /remove worktree/i })).toBeNull()
   })
 
-  it('does not expose destructive Worktree removal in the actual context menu', () => {
+  it('removes a Worktree only after the human confirms the deletion', async () => {
+    const removeWorktree = vi.fn(async () => undefined)
     render(
       <HubTreeFromInventory
         inventory={inventory}
         openWorktree={vi.fn()}
         createWorktree={vi.fn(async () => createdWorktree)}
         removeProject={vi.fn(async () => undefined)}
+        removeWorktree={removeWorktree}
       />,
     )
+
     fireEvent.contextMenu(screen.getByTestId(TestIds.hubWorktree('wt-alpha-topic')))
-    const menu = screen.getByRole('menu')
-    expect(within(menu).queryByRole('menuitem', { name: /remove worktree/i })).toBeNull()
-    expect(within(menu).queryByRole('menuitem', { name: /delete worktree/i })).toBeNull()
+    fireEvent.click(screen.getByTestId(TestIds.hubRemoveWorktree('wt-alpha-topic')))
+
+    // The dialog must survive the menu closing around it — mounted inside the menu it
+    // would be unmounted in the same frame it opened, which is how this control shipped
+    // dead once already.
+    const dialog = await screen.findByTestId(TestIds.hubRemoveWorktreeDialog)
+    expect(dialog).toBeInTheDocument()
+    expect(removeWorktree).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByTestId(TestIds.hubRemoveWorktreeConfirm))
+    await waitFor(() =>
+      expect(removeWorktree).toHaveBeenCalledWith({
+        projectId: 'proj-alpha',
+        worktreeId: 'wt-alpha-topic',
+      }),
+    )
+  })
+
+  it('leaves the Worktree in place when the confirmation is cancelled', async () => {
+    const removeWorktree = vi.fn(async () => undefined)
+    render(
+      <HubTreeFromInventory
+        inventory={inventory}
+        openWorktree={vi.fn()}
+        createWorktree={vi.fn(async () => createdWorktree)}
+        removeProject={vi.fn(async () => undefined)}
+        removeWorktree={removeWorktree}
+      />,
+    )
+
+    fireEvent.contextMenu(screen.getByTestId(TestIds.hubWorktree('wt-alpha-topic')))
+    fireEvent.click(screen.getByTestId(TestIds.hubRemoveWorktree('wt-alpha-topic')))
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancel' }))
+
+    await waitFor(() => expect(screen.queryByTestId(TestIds.hubRemoveWorktreeDialog)).toBeNull())
+    expect(removeWorktree).not.toHaveBeenCalled()
   })
 
   it('collapses a Project without selecting it', () => {
@@ -118,6 +158,7 @@ describe('Hub inventory tree', () => {
         openWorktree={vi.fn()}
         createWorktree={vi.fn(async () => createdWorktree)}
         removeProject={vi.fn(async () => undefined)}
+        removeWorktree={vi.fn(async () => undefined)}
       />,
     )
 

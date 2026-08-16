@@ -10,7 +10,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@renderer/components/ui/alert-dialog'
-import { Button } from '@renderer/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,7 +22,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@renderer/components/ui/sidebar'
-import { useFilesScope } from '@renderer/features/files'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { targetedTab } from '@renderer/stores/hub-tabs'
 import { useTabsStore } from '@renderer/stores/tabs'
@@ -31,7 +29,7 @@ import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
 import { GitBranch, MoreHorizontal } from 'lucide-react'
 import { useState } from 'react'
-import { useProjectOverlay, usePromoteCanvas, usePromoteProjectOverrides } from './project-data'
+import { usePromoteCanvas } from './project-data'
 
 /**
  * One Canvas row. A tracked Canvas is already canonical in the repository — it
@@ -133,62 +131,5 @@ export function CanvasListRow({
         </AlertDialogContent>
       </AlertDialog>
     </SidebarMenuItem>
-  )
-}
-
-/** Track this Project's current hidden/pinned defaults into the selected checkout. */
-export function TrackProjectDefaults({ target }: { target: HubTarget }): React.JSX.Element {
-  const scope = useFilesScope()
-  const overlay = useProjectOverlay(target.path, target.environmentId)
-  const { promote } = usePromoteProjectOverrides()
-  const [confirmOpen, setConfirmOpen] = useState(false)
-
-  const track = (): void => {
-    setConfirmOpen(false)
-    runUserAction(
-      async () => {
-        await promote({
-          projectId: target.projectId,
-          path: target.path,
-          hiddenPaths: [...(scope?.hiddenPaths ?? [])],
-          pinnedPaths: [...(scope?.pinnedPaths ?? [])],
-          environmentId: target.environmentId,
-        })
-      },
-      (error) => toastUserActionError('Track project defaults', error),
-    )
-  }
-
-  return (
-    <>
-      <Button
-        variant="ghost"
-        size="sm"
-        data-testid={TestIds.canvasTrackDefaults}
-        className="mx-2 justify-start text-xs text-muted-foreground"
-        onClick={() => setConfirmOpen(true)}
-      >
-        <GitBranch />
-        Track project defaults
-      </Button>
-      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Track project defaults in Git?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {overlay?.present === true
-                ? `Replaces the defaults already tracked in ${target.path}.`
-                : `Writes the hidden and pinned paths into ${target.path} so a clone starts focused the same way.`}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction data-testid={TestIds.canvasTrackDefaultsConfirm} onClick={track}>
-              Track defaults
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
   )
 }
