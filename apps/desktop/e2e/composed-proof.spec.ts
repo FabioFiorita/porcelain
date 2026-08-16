@@ -248,6 +248,14 @@ test('composed daemon proof: targets, Canvas Review, migration, Tasks, Actions, 
     )?.replace('hub-worktree-', '')
     if (secondaryWorktreeId === undefined) throw new Error('secondary Worktree did not render')
     await loc.hubWorktree(page, secondaryWorktreeId).click()
+    // Ordinary repo surfaces must follow the selected secondary Environment too: the
+    // Files tree/content and Git working-tree query are not allowed to fall back to primary.
+    await openSurface(page, 'Files')
+    await expect(loc.treeEntry(page, 'README.md')).toBeVisible()
+    await loc.treeEntry(page, 'README.md').click()
+    await expect(loc.viewerCard(page)).toContainText('A fixture repo for Porcelain e2e tests.')
+    await openSurface(page, 'Changes')
+    await expect(page.getByTestId(TestIds.changesList)).toBeVisible()
     await openSurface(page, 'Canvas')
     await expect(
       loc.canvasListItems(page).filter({ hasText: 'Migrated Review Canvas' }),
