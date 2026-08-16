@@ -209,6 +209,7 @@ describe('CanvasList', () => {
         path: '/repo',
         hiddenPaths: ['apps/legacy'],
         pinnedPaths: [],
+        environmentId: 'env-1',
       }),
     )
   })

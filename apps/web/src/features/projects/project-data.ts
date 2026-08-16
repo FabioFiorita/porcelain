@@ -29,10 +29,7 @@ import type {
 } from '@porcelain/contracts/projects'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import { type DaemonScope, daemonScopeSchema } from '@renderer/lib/daemon-scope'
-import {
-  browserEnvironmentConnections,
-  environmentSessionFor,
-} from '@renderer/lib/environment-sessions'
+import { environmentSessionFor } from '@renderer/lib/environment-sessions'
 import { trpc } from '@renderer/lib/trpc'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -256,13 +253,15 @@ export function useCanvasList(
 ): readonly CanvasRecord[] {
   const daemon = useDaemonIdentity()
   const defaultClient = trpc.useUtils().client
-  const owner = environmentId === null ? null : environmentSessionFor(environmentId)
-  const client = owner?.client ?? defaultClient
+  const owner =
+    environmentId === null ? { client: defaultClient } : environmentSessionFor(environmentId)
   const identity = listCanvasesQuery(projectId ?? '', worktreePath)
   const query = useQuery({
-    enabled: projectId !== null,
-    queryFn: async (): Promise<readonly CanvasRecord[]> =>
-      listCanvasesOnDaemon(client, projectId ?? '', worktreePath ?? undefined),
+    enabled: projectId !== null && owner !== null,
+    queryFn: async (): Promise<readonly CanvasRecord[]> => {
+      if (owner === null) throw new Error('The target Environment is offline.')
+      return listCanvasesOnDaemon(owner.client, projectId ?? '', worktreePath ?? undefined)
+    },
     queryKey: [...projectsQueryKey(daemon, identity), environmentId],
   })
   return query.data ?? []
@@ -280,21 +279,23 @@ export function useCanvas(
 ): { canvas: ReadCanvasOutput | undefined; isLoading: boolean } {
   const daemon = useDaemonIdentity()
   const defaultClient = trpc.useUtils().client
-  const owner = environmentId === null ? null : environmentSessionFor(environmentId)
-  const client = owner?.client ?? defaultClient
+  const owner =
+    environmentId === null ? { client: defaultClient } : environmentSessionFor(environmentId)
   const enabled = projectId !== null && canvasId !== null
   const identity = readCanvasQuery(projectId ?? '', canvasId ?? '', worktreePath)
   const query = useQuery({
-    enabled,
-    queryFn: async (): Promise<ReadCanvasOutput> =>
-      readCanvasOnDaemon(client, {
+    enabled: enabled && owner !== null,
+    queryFn: async (): Promise<ReadCanvasOutput> => {
+      if (owner === null) throw new Error('The target Environment is offline.')
+      return readCanvasOnDaemon(owner.client, {
         projectId: projectId ?? '',
         canvasId: canvasId ?? '',
         worktreePath: worktreePath ?? undefined,
-      }),
+      })
+    },
     queryKey: [...projectsQueryKey(daemon, identity), environmentId],
   })
-  return { canvas: query.data, isLoading: enabled && query.isLoading }
+  return { canvas: query.data, isLoading: enabled && owner !== null && query.isLoading }
 }
 
 /**
@@ -322,10 +323,10 @@ export function useMintCanvasAccessToken(): {
         input.environmentId === undefined || input.environmentId === null
           ? { client: defaultClient }
           : environmentSessionFor(input.environmentId)
-      if (owner === null && browserEnvironmentConnections().length > 0) {
+      if (owner === null) {
         throw new Error('The target Environment is offline.')
       }
-      return mintCanvasAccessTokenOnDaemon(owner?.client ?? defaultClient, {
+      return mintCanvasAccessTokenOnDaemon(owner.client, {
         projectId: input.projectId,
         canvasId: input.canvasId,
         worktreePath: input.worktreePath,
@@ -379,15 +380,30 @@ export function usePromoteCanvas(): {
 
 /** Track the current project defaults into the addressed checkout's `.porcelain/`. */
 export function usePromoteProjectOverrides(): {
-  promote: (input: PromoteOverridesInput) => Promise<ProjectOverrides>
+  promote: (
+    input: PromoteOverridesInput & { environmentId?: string | null },
+  ) => Promise<ProjectOverrides>
   isPending: boolean
 } {
   const daemon = useDaemonIdentity()
   const client = trpc.useUtils().client
   const queryClient = useQueryClient()
   const mutation = useMutation({
-    mutationFn: async (input: PromoteOverridesInput): Promise<ProjectOverrides> =>
-      promoteOverridesOnDaemon(client, input),
+    mutationFn: async (
+      input: PromoteOverridesInput & { environmentId?: string | null },
+    ): Promise<ProjectOverrides> => {
+      const owner =
+        input.environmentId === undefined || input.environmentId === null
+          ? { client }
+          : environmentSessionFor(input.environmentId)
+      if (owner === null) throw new Error('The target Environment is offline.')
+      return promoteOverridesOnDaemon(owner.client, {
+        hiddenPaths: input.hiddenPaths,
+        path: input.path,
+        pinnedPaths: input.pinnedPaths,
+        projectId: input.projectId,
+      })
+    },
     onSuccess: async (_result, input) => {
       await invalidateProjectQueries(queryClient, daemon, promoteOverrides.affectedQueries(input))
     },
@@ -400,12 +416,21 @@ export function usePromoteProjectOverrides(): {
  * is required: an overlay belongs to a checkout, and there is no daemon-root
  * fallback to read instead.
  */
-export function useProjectOverlay(path: string): ListOverlayOutput | undefined {
+export function useProjectOverlay(
+  path: string,
+  environmentId: string | null = null,
+): ListOverlayOutput | undefined {
   const daemon = useDaemonIdentity()
-  const client = trpc.useUtils().client
+  const defaultClient = trpc.useUtils().client
+  const owner =
+    environmentId === null ? { client: defaultClient } : environmentSessionFor(environmentId)
   const query = useQuery({
-    queryFn: async (): Promise<ListOverlayOutput> => listOverlayOnDaemon(client, path),
-    queryKey: projectsQueryKey(daemon, overlayQuery(path)),
+    enabled: owner !== null,
+    queryFn: async (): Promise<ListOverlayOutput> => {
+      if (owner === null) throw new Error('The target Environment is offline.')
+      return listOverlayOnDaemon(owner.client, path)
+    },
+    queryKey: [...projectsQueryKey(daemon, overlayQuery(path)), environmentId],
   })
   return query.data
 }

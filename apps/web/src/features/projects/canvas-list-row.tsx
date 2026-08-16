@@ -139,7 +139,7 @@ export function CanvasListRow({
 /** Track this Project's current hidden/pinned defaults into the selected checkout. */
 export function TrackProjectDefaults({ target }: { target: HubTarget }): React.JSX.Element {
   const scope = useFilesScope()
-  const overlay = useProjectOverlay(target.path)
+  const overlay = useProjectOverlay(target.path, target.environmentId)
   const { promote } = usePromoteProjectOverrides()
   const [confirmOpen, setConfirmOpen] = useState(false)
 
@@ -152,6 +152,7 @@ export function TrackProjectDefaults({ target }: { target: HubTarget }): React.J
           path: target.path,
           hiddenPaths: [...(scope?.hiddenPaths ?? [])],
           pinnedPaths: [...(scope?.pinnedPaths ?? [])],
+          environmentId: target.environmentId,
         })
       },
       (error) => toastUserActionError('Track project defaults', error),
