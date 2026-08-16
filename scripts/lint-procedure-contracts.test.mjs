@@ -71,13 +71,13 @@ test('rejects a non-canonical domain and an invalid kind', () => {
 
 function procedureSource({
   catalogImport = "import { procedureCatalog } from '@porcelain/contracts'",
-  input = '.input(procedureCatalog.boardCards.input)',
-  output = '.output(procedureCatalog.boardCards.output)',
+  input = '.input(procedureCatalog.taskList.input)',
+  output = '.output(procedureCatalog.taskList.output)',
   kind = 'query',
 } = {}) {
   return `${catalogImport}
 export const router = t.router({
-  boardCards: publicProcedure
+  taskList: publicProcedure
     ${input}
     ${output}
     .${kind}(() => undefined),
@@ -85,48 +85,48 @@ export const router = t.router({
 `
 }
 
-/** One board procedure spread across the full production router file set. */
+/** One Tasks procedure spread across the full production router file set. */
 function routerFixture(options = {}) {
-  const boardSource = procedureSource(options)
+  const tasksSource = procedureSource(options)
   const emptySource = "import { procedureCatalog } from '@porcelain/contracts'\n"
   const routerSources = Object.fromEntries(
     PRODUCTION_ROUTER_FILES.map((filename) => [
       filename,
-      filename === 'features/board/board-router.ts' ? boardSource : emptySource,
+      filename === 'features/tasks/tasks-router.ts' ? tasksSource : emptySource,
     ]),
   )
   return {
     routerFiles: [...PRODUCTION_ROUTER_FILES],
-    routerProcedures: extractRouterProcedures(boardSource, 'features/board/board-router.ts'),
+    routerProcedures: extractRouterProcedures(tasksSource, 'features/tasks/tasks-router.ts'),
     routerSources,
     domainRecords: [
-      { domain: 'board', name: 'boardCards', kind: 'query', source: 'board.procedures.ts' },
+      { domain: 'tasks', name: 'taskList', kind: 'query', source: 'tasks.procedures.ts' },
     ],
   }
 }
 
 test('retains each router filename and complete procedure source block', () => {
-  const [procedure] = extractRouterProcedures(procedureSource(), 'features/board/board-router.ts')
-  assert.equal(procedure.filename, 'features/board/board-router.ts')
-  assert.match(procedure.block, /procedureCatalog\.boardCards\.input/)
-  assert.match(procedure.block, /procedureCatalog\.boardCards\.output/)
+  const [procedure] = extractRouterProcedures(procedureSource(), 'features/tasks/tasks-router.ts')
+  assert.equal(procedure.filename, 'features/tasks/tasks-router.ts')
+  assert.match(procedure.block, /procedureCatalog\.taskList\.input/)
+  assert.match(procedure.block, /procedureCatalog\.taskList\.output/)
 })
 
 test('extracts procedures from a create*Router factory body', () => {
   const factorySource = `import { procedureCatalog } from '@porcelain/contracts'
-export function createBoardRouter() {
+export function createTasksRouter() {
   return t.router({
-    boardCards: publicProcedure
-      .input(procedureCatalog.boardCards.input)
-      .output(procedureCatalog.boardCards.output)
+    taskList: publicProcedure
+      .input(procedureCatalog.taskList.input)
+      .output(procedureCatalog.taskList.output)
       .query(() => undefined),
   })
 }
 `
-  const [procedure] = extractRouterProcedures(factorySource, 'features/board/board-router.ts')
-  assert.equal(procedure.name, 'boardCards')
+  const [procedure] = extractRouterProcedures(factorySource, 'features/tasks/tasks-router.ts')
+  assert.equal(procedure.name, 'taskList')
   assert.equal(procedure.kind, 'query')
-  assert.match(procedure.block, /procedureCatalog\.boardCards\.input/)
+  assert.match(procedure.block, /procedureCatalog\.taskList\.input/)
 })
 
 test('accepts a router bound to its exact catalog input and output', () => {
@@ -135,13 +135,13 @@ test('accepts a router bound to its exact catalog input and output', () => {
 
 test('rejects an unknown router filename and a test file treated as a router', () => {
   const fixture = routerFixture()
-  fixture.routerFiles = [...fixture.routerFiles, 'unknown.ts', 'router/board.contract.test.ts']
+  fixture.routerFiles = [...fixture.routerFiles, 'unknown.ts', 'router/tasks.contract.test.ts']
   const failures = checkRouterCatalogBinding(fixture)
   assert.ok(failures.some((failure) => failure.includes('unknown production router filename')))
   assert.ok(
     failures.some((failure) =>
       failure.includes(
-        'router filename is not a production router file: router/board.contract.test.ts',
+        'router filename is not a production router file: router/tasks.contract.test.ts',
       ),
     ),
   )
@@ -164,7 +164,7 @@ test('rejects a catalog identifier not imported directly from the contracts root
   assert.ok(
     checkRouterCatalogBinding(fixture).some((failure) =>
       failure.includes(
-        'router must import procedureCatalog directly from @porcelain/contracts: features/board/board-router.ts',
+        'router must import procedureCatalog directly from @porcelain/contracts: features/tasks/tasks-router.ts',
       ),
     ),
   )
@@ -174,13 +174,13 @@ test('rejects missing, wrong, and duplicate canonical inputs', () => {
   const cases = [
     { options: { input: '' }, expected: 'router procedure input is missing' },
     {
-      options: { input: '.input(procedureCatalog.addBoardCard.input)' },
+      options: { input: '.input(procedureCatalog.addTask.input)' },
       expected: 'router procedure input is wrong',
     },
     {
       options: {
         input:
-          '.input(procedureCatalog.boardCards.input)\n    .input(procedureCatalog.boardCards.input)',
+          '.input(procedureCatalog.taskList.input)\n    .input(procedureCatalog.taskList.input)',
       },
       expected: 'router procedure input is duplicated',
     },
@@ -198,13 +198,13 @@ test('rejects missing, wrong, and duplicate canonical outputs', () => {
   const cases = [
     { options: { output: '' }, expected: 'router procedure output is missing' },
     {
-      options: { output: '.output(procedureCatalog.addBoardCard.output)' },
+      options: { output: '.output(procedureCatalog.addTask.output)' },
       expected: 'router procedure output is wrong',
     },
     {
       options: {
         output:
-          '.output(procedureCatalog.boardCards.output)\n    .output(procedureCatalog.boardCards.output)',
+          '.output(procedureCatalog.taskList.output)\n    .output(procedureCatalog.taskList.output)',
       },
       expected: 'router procedure output is duplicated',
     },
@@ -223,7 +223,7 @@ test('rejects a router procedure with no domain contract record', () => {
   fixture.domainRecords = []
   assert.ok(
     checkRouterCatalogBinding(fixture).some((failure) =>
-      failure.includes('router procedure has no domain contract record: boardCards'),
+      failure.includes('router procedure has no domain contract record: taskList'),
     ),
   )
 })
@@ -232,11 +232,11 @@ test('rejects a contract procedure absent from every router', () => {
   const fixture = routerFixture()
   fixture.domainRecords = [
     ...fixture.domainRecords,
-    { domain: 'board', name: 'addBoardCard', kind: 'mutation', source: 'board.procedures.ts' },
+    { domain: 'tasks', name: 'addTask', kind: 'mutation', source: 'tasks.procedures.ts' },
   ]
   assert.ok(
     checkRouterCatalogBinding(fixture).some((failure) =>
-      failure.includes('contract procedure is absent from routers: addBoardCard'),
+      failure.includes('contract procedure is absent from routers: addTask'),
     ),
   )
 })
@@ -245,7 +245,7 @@ test('rejects a router kind that drifts from its contract record', () => {
   const fixture = routerFixture({ kind: 'mutation' })
   assert.ok(
     checkRouterCatalogBinding(fixture).some((failure) =>
-      failure.includes('procedure kind drift for boardCards: router=mutation record=query'),
+      failure.includes('procedure kind drift for taskList: router=mutation record=query'),
     ),
   )
 })
@@ -255,7 +255,7 @@ test('rejects a duplicated router procedure name', () => {
   fixture.routerProcedures = [...fixture.routerProcedures, ...fixture.routerProcedures]
   assert.ok(
     checkRouterCatalogBinding(fixture).some((failure) =>
-      failure.includes('daemon procedure appears more than once: boardCards'),
+      failure.includes('daemon procedure appears more than once: taskList'),
     ),
   )
 })
@@ -276,7 +276,7 @@ test('rejects a router that reaches for a deleted horizontal contract path', () 
     assert.ok(
       checkRouterCatalogBinding(fixture).some((failure) =>
         failure.includes(
-          'router must import procedureCatalog directly from @porcelain/contracts: features/board/board-router.ts',
+          'router must import procedureCatalog directly from @porcelain/contracts: features/tasks/tasks-router.ts',
         ),
       ),
     )

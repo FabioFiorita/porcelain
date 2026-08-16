@@ -13,7 +13,6 @@ import {
   type TerminalAttachFrame,
   type TerminalCreateFrame,
   type TerminalPasteFileFrame,
-  type TerminalPasteImageFrame,
   type TerminalRequest,
   type TerminalRequestOutcome,
   type TerminalRequestRegistry,
@@ -35,7 +34,6 @@ function requestTarget(request: TerminalRequest): string | undefined {
     case 'terminal:create':
       return undefined
     case 'terminal:attach':
-    case 'terminal:paste-image':
     case 'terminal:paste-file':
     case 'terminal:detach':
     case 'terminal:write':
@@ -63,11 +61,7 @@ function requestEffect(outcome: TerminalRequestOutcome): TerminalStreamEffect | 
 function requestRecord(
   registry: TerminalRequestRegistry,
   kind: TerminalRequest['kind'],
-  frame:
-    | TerminalCreateFrame
-    | TerminalAttachFrame
-    | TerminalPasteImageFrame
-    | TerminalPasteFileFrame,
+  frame: TerminalCreateFrame | TerminalAttachFrame | TerminalPasteFileFrame,
   requestId: string,
   deadline: number,
 ): TerminalRequest | undefined {
@@ -126,7 +120,6 @@ export function createTerminalStreamState(): TerminalStreamState {
         })
         return true
       }
-      case 'terminal:image-pasted':
       case 'terminal:file-pasted':
         return true
     }
@@ -221,8 +214,8 @@ export function createTerminalStreamState(): TerminalStreamState {
   }
 
   const requestPaste = (
-    kind: 'paste-image' | 'paste-file',
-    frame: TerminalPasteImageFrame | TerminalPasteFileFrame,
+    kind: 'paste-file',
+    frame: TerminalPasteFileFrame,
     requestId: string,
     deadline: number,
   ): TerminalRequest | undefined => {
@@ -270,10 +263,6 @@ export function createTerminalStreamState(): TerminalStreamState {
         session.attachRequestId = undefined
       }
       return undefined
-    },
-
-    requestPasteImage(input, requestId, deadline) {
-      return requestPaste('paste-image', { ...input, reqId: requestId }, requestId, deadline)
     },
 
     requestPasteFile(input, requestId, deadline) {

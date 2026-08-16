@@ -1,9 +1,4 @@
-import {
-  MAX_PASTE_FILE_BYTES,
-  MAX_PASTE_IMAGE_BYTES,
-  terminalFilePromptReference,
-  terminalImagePromptReference,
-} from '@porcelain/contracts/terminal'
+import { MAX_PASTE_FILE_BYTES, terminalFilePromptReference } from '@porcelain/contracts/terminal'
 import type {
   TerminalPastePort,
   TerminalPasteSuccess,
@@ -17,13 +12,6 @@ import type {
  * not lifetime — the manager only lends it the two things it needs from a session.
  */
 
-const MIME_EXTENSIONS: Record<string, string> = {
-  'image/gif': 'gif',
-  'image/jpeg': 'jpg',
-  'image/png': 'png',
-  'image/webp': 'webp',
-}
-
 /** What a paste needs from the session it targets: whether it is alive, and how to type. */
 export type PasteTargetSession = Readonly<{
   status: 'running' | 'exited'
@@ -31,12 +19,6 @@ export type PasteTargetSession = Readonly<{
 }>
 
 export type TerminalPasteOperations = Readonly<{
-  pasteImage(input: {
-    id: string
-    mime: string
-    dataBase64: string
-    insert?: boolean
-  }): Promise<TerminalResult<TerminalPasteSuccess, TerminalStreamFailure>>
   pasteFile(input: {
     id: string
     filename: string
@@ -70,13 +52,6 @@ export function createTerminalPasteOperations(options: {
   }
 
   return Object.freeze({
-    pasteImage: (input) =>
-      pasteAttachment({
-        ...input,
-        filename: `image.${MIME_EXTENSIONS[input.mime] ?? 'bin'}`,
-        maxBytes: MAX_PASTE_IMAGE_BYTES,
-        prompt: terminalImagePromptReference,
-      }),
     pasteFile: (input) =>
       pasteAttachment({
         ...input,

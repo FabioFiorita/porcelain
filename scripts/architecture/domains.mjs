@@ -4,7 +4,6 @@ export const DOMAIN_KEYS = [
   'git',
   'search',
   'review',
-  'board',
   'tasks',
   'actions',
   'terminal',
@@ -16,13 +15,6 @@ export const DOMAIN_MIGRATIONS = Object.freeze(
   Object.fromEntries(
     DOMAIN_KEYS.map((key) => {
       const targetRoots = [`packages/contracts/src/${key}`]
-      // Board is the primary exemplar: contracts (BRD-001), daemon (BRD-002), client-runtime (BRD-003).
-      if (key === 'board') {
-        targetRoots.push('apps/daemon/src/features/board')
-        targetRoots.push('packages/client-runtime/src/board')
-        targetRoots.push('apps/web/src/features/board')
-        targetRoots.push('apps/mobile/src/features/board')
-      }
       // Tasks is daemon-wide (issue #23): no repo-local companion file and, for now, no
       // mobile client — mobile joins on the shared contracts in a later slice.
       if (key === 'tasks') {

@@ -6,7 +6,7 @@ import { type TasksTableQuery, tasksTableQuery } from './tasks-queries'
  * Tasks mutation consequence definitions.
  *
  * Every entry binds exactly one canonical procedure and the table identity it affects.
- * Unlike Board, the affected identity is NOT derivable from the input: the input carries no
+ * Unlike project-scoped domains, the affected identity is NOT derivable from the input: the input carries no
  * Environment (the daemon that answers is the Environment), so the caller must state which
  * Environment it is writing to. That is the point — a global table must never guess the
  * machine, and `mustTarget` below is how an adapter refuses to.

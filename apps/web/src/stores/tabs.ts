@@ -10,7 +10,6 @@ export type TabKind =
   | 'search'
   | 'review'
   | 'explore'
-  | 'board'
   | 'tasks'
   | 'terminal'
   | 'canvas'

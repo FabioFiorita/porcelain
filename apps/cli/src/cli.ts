@@ -48,20 +48,11 @@ import {
   toReviewSections,
 } from './review-file'
 import { describeReviewed, readReviewed } from './reviewed-file'
-import {
-  clearScope,
-  describeScope,
-  hidePath as hideScopePath,
-  pinPath as pinScopePath,
-  readScope,
-  unhidePath as unhideScopePath,
-  unpinPath as unpinScopePath,
-} from './scope-file'
 import { describeTasksCommand, TASKS_COMMANDS } from './tasks-file'
 
 // Porcelain's agent CLI: a dependency-free command that reads and writes project
 // companion channels under <repo>/.porcelain/ (review, actions, layers,
-// evidence, comments, reviewed marks, scope) — plus Canvas, the one noun that instead
+// evidence, comments, reviewed marks) — plus Canvas, the one noun that instead
 // writes the daemon-root Project store under $PORCELAIN_HOME (ADR 0002), since Canvases
 // outlive the checkout that authored them. One fresh process per invocation does a
 // single synchronous read-modify-write. Node builtins only; the built bundle is
@@ -321,19 +312,6 @@ export const COMMANDS: NounHelp[] = [
     ],
     flags: ['layers'],
   },
-  {
-    noun: 'scope',
-    blurb: 'monorepo hide/pin — folders hidden from the tree or pinned in Quick Access',
-    verbs: [
-      { verb: 'list', args: '', desc: 'List hidden and pinned paths' },
-      { verb: 'hide', args: '--path <p>', desc: 'Hide a folder/file from the tree' },
-      { verb: 'unhide', args: '--path <p>', desc: 'Stop hiding a path' },
-      { verb: 'pin', args: '--path <p>', desc: 'Pin a path in Quick Access' },
-      { verb: 'unpin', args: '--path <p>', desc: 'Remove a pin' },
-      { verb: 'clear', args: '', desc: 'Drop all hidden and pinned paths for this repo' },
-    ],
-    flags: ['path'],
-  },
 ]
 
 const HEADER = "porcelain — read and write Porcelain's agent channels for a repo"
@@ -576,31 +554,6 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<string
     case 'layers reset':
       clearLayers(repo)
       return `Reset flow layers to the Docs + Agents starters for ${repo}`
-    case 'scope list':
-      return describeScope(repo, readScope(repo))
-    case 'scope hide': {
-      const path = req('path')
-      hideScopePath(repo, path)
-      return `Hidden ${path} for ${repo}`
-    }
-    case 'scope unhide': {
-      const path = req('path')
-      unhideScopePath(repo, path)
-      return `Unhid ${path} for ${repo}`
-    }
-    case 'scope pin': {
-      const path = req('path')
-      pinScopePath(repo, path)
-      return `Pinned ${path} for ${repo}`
-    }
-    case 'scope unpin': {
-      const path = req('path')
-      unpinScopePath(repo, path)
-      return `Unpinned ${path} for ${repo}`
-    }
-    case 'scope clear':
-      clearScope(repo)
-      return `Cleared hide/pin scope for ${repo}`
     case 'migrate apply':
       return await describeMigrate(repo, {
         dryRun: flags.has('dry-run'),

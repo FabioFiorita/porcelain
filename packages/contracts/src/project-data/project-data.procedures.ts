@@ -8,31 +8,15 @@ import {
   migrateCompanionOutputSchema,
   repoLayersInputSchema,
   repoLayersOutputSchema,
-  repoNotesInputSchema,
-  repoNotesOutputSchema,
   setCompanionDispositionInputSchema,
   setCompanionDispositionOutputSchema,
   setCompanionGitVisibilityInputSchema,
   setCompanionGitVisibilityOutputSchema,
   setRepoLayersInputSchema,
   setRepoLayersOutputSchema,
-  setRepoNotesInputSchema,
-  setRepoNotesOutputSchema,
 } from './project-data.contract'
 
 const projectDataProcedureDefinitions = {
-  repoNotes: {
-    kind: 'query',
-    input: repoNotesInputSchema,
-    output: repoNotesOutputSchema,
-    errors: [],
-  },
-  setRepoNotes: {
-    kind: 'mutation',
-    input: setRepoNotesInputSchema,
-    output: setRepoNotesOutputSchema,
-    errors: [],
-  },
   companionDispositions: {
     kind: 'query',
     input: companionDispositionsInputSchema,

@@ -1,16 +1,11 @@
-import { settleBackground } from '@porcelain/shared/background'
 import { useRouter } from 'expo-router'
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { IconAction, PanelLabel, StatusNote } from '@/components/panel-chrome'
-import { Textarea } from '@/components/ui/textarea'
-import { useProjectNotes } from '@/features/project-data'
-import { useActiveProject } from '@/features/projects'
 import { useShellStore } from '@/features/shell/shell-store'
 import { useIsTablet } from '@/features/shell/use-app-window'
-import { cn } from '@/lib/utils'
 
 import { pathSegments, pathTestId } from './file-paths'
 import { type FileEntry, usePathScope, usePinnedEntries } from './files-data'
@@ -23,8 +18,6 @@ import { useFilesStore } from './files-store'
  * two can never drift into different companions for the same surface.
  */
 export function FilesCompanion({ active }: { active: boolean }): React.JSX.Element {
-  const project = useActiveProject()
-
   return (
     <ScrollView
       className="flex-1"
@@ -35,9 +28,6 @@ export function FilesCompanion({ active }: { active: boolean }): React.JSX.Eleme
       testID="porcelain-files-companion"
     >
       <PinnedCard active={active} />
-      {/* Remount per project so the editor loads that project's notes rather than carrying a draft
-          across a project switch. */}
-      <NotesCard key={project?.path ?? 'none'} active={active} />
     </ScrollView>
   )
 }
@@ -134,98 +124,6 @@ function PinnedCard({ active }: { active: boolean }): React.JSX.Element {
 
       {actionError === null ? null : (
         <StatusNote failed testID="porcelain-files-pinned-error" text={actionError} />
-      )}
-    </View>
-  )
-}
-
-/** How long a pause in typing counts as "done", before the note is written to the daemon. */
-const AUTOSAVE_DELAY_MS = 800
-
-/**
- * Per-project quick notes.
- *
- * A plain textarea persisting the same markdown string the desktop's rich editor writes — the
- * two are the same note, and a phone has no room for a formatting toolbar. Autosaved on a
- * pause and flushed on unmount, so nothing is lost to a tab switch.
- */
-function NotesCard({ active }: { active: boolean }): React.JSX.Element {
-  const { error, isSaving, notes, save } = useProjectNotes(active)
-  const [draft, setDraft] = useState<string | null>(null)
-  const [failure, setFailure] = useState<string | null>(null)
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  // What the daemon last confirmed, so a flush can tell a real edit from a no-op.
-  const saved = useRef<string | null>(null)
-  // Read by the unmount cleanup, which must not re-run per keystroke to see the latest text.
-  const pending = useRef<string | null>(null)
-  // `save` closes over the mutation and is a fresh function every render; the cleanup reads it
-  // through a ref so unmount-flush stays a mount-only effect instead of running on each render.
-  const saveRef = useRef(save)
-  saveRef.current = save
-
-  // Adopt the daemon's copy once, on first read. Later pushes are not adopted: overwriting a
-  // half-typed note with the version that was on disk before it is the one unforgivable bug
-  // for a notes field.
-  useEffect(() => {
-    if (notes !== undefined && saved.current === null) {
-      saved.current = notes
-      setDraft(notes)
-    }
-  }, [notes])
-
-  // Nothing typed may be lost to a tab switch, a sheet dismissal, or a project change — all of
-  // which unmount this card while the debounce is still pending.
-  useEffect(() => {
-    return () => {
-      if (timer.current !== null) clearTimeout(timer.current)
-      const next = pending.current
-      if (next === null || next === saved.current) return
-      saved.current = next
-      pending.current = null
-      // Nothing is mounted to report to any more; the draft stays on the daemon's last copy.
-      settleBackground(saveRef.current(next), 'teardown')
-    }
-  }, [])
-
-  const handleChange = (next: string): void => {
-    setDraft(next)
-    pending.current = next
-    setFailure(null)
-    if (timer.current !== null) clearTimeout(timer.current)
-    timer.current = setTimeout(() => {
-      if (next === saved.current) return
-      saved.current = next
-      pending.current = null
-      save(next).catch((cause: unknown) => {
-        setFailure(cause instanceof Error ? cause.message : String(cause))
-      })
-    }, AUTOSAVE_DELAY_MS)
-  }
-
-  const message = failure ?? (error === null ? null : error.message)
-
-  return (
-    <View className="gap-2" testID="porcelain-files-notes">
-      <View className="flex-row items-center justify-between gap-1">
-        <PanelLabel>Notes</PanelLabel>
-        {isSaving ? <Text className="text-3xs text-muted-foreground">Saving…</Text> : null}
-      </View>
-
-      {notes === undefined && draft === null ? (
-        <Text className="text-2xs leading-4 text-muted-foreground">Loading…</Text>
-      ) : (
-        <Textarea
-          accessibilityLabel="Repo notes"
-          className={cn('min-h-28 font-mono text-xs')}
-          placeholder="Write a note…"
-          testID="porcelain-files-notes-input"
-          value={draft ?? ''}
-          onChangeText={handleChange}
-        />
-      )}
-
-      {message === null ? null : (
-        <StatusNote failed testID="porcelain-files-notes-error" text={message} />
       )}
     </View>
   )

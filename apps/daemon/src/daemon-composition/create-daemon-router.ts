@@ -1,5 +1,4 @@
 import { createActionsRouter } from '../features/actions'
-import { createBoardRouter } from '../features/board'
 import { createFilesFeatureRouter } from '../features/files'
 import { createGitFeatureRouter } from '../features/git'
 import { createProjectDataRouter } from '../features/project-data'
@@ -40,9 +39,6 @@ export function createDaemonRouter({ operations }: CreateDaemonRouterOptions) {
     createReviewReadingRouter(operations.review),
     createReviewEvidenceRouter(operations.review),
     createReviewMarksRouter(operations.review),
-    // Kept as a migration-only wire reader until old clients age out; no shipped
-    // shell or CLI surface links to this router anymore.
-    createBoardRouter(operations.board),
     createTasksRouter(operations.tasks),
     createActionsRouter(operations.actions),
     createProjectDataRouter(operations.projectData),

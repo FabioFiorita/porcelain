@@ -3,13 +3,11 @@ import {
   type SetCompanionDispositionInput,
   type SetCompanionGitVisibilityInput,
   type SetRepoLayersInput,
-  type SetRepoNotesInput,
 } from '@porcelain/contracts/project-data'
 import {
   type ProjectDataQuery,
   projectDataDispositionsQuery,
   projectDataLayersQuery,
-  projectDataNotesQuery,
   projectDataProjectKey,
   projectDataVisibilityQuery,
 } from './project-data-queries'
@@ -23,7 +21,6 @@ import {
  */
 
 type ProjectDataMutationProcedureName =
-  | 'setRepoNotes'
   | 'setRepoLayers'
   | 'setCompanionGitVisibility'
   | 'setCompanionDisposition'
@@ -39,14 +36,6 @@ export type ProjectDataMutationDefinition<
 }
 
 export const projectDataMutations = {
-  setRepoNotes: {
-    procedure: projectDataProcedures.setRepoNotes,
-    procedureName: 'setRepoNotes',
-    affectedQueries: (input: SetRepoNotesInput): readonly ProjectDataQuery[] => [
-      projectDataNotesQuery(projectDataProjectKey(input.repoPath)),
-    ],
-    requiresAuthoritativeRefetch: true,
-  },
   setRepoLayers: {
     procedure: projectDataProcedures.setRepoLayers,
     procedureName: 'setRepoLayers',
@@ -74,7 +63,6 @@ export const projectDataMutations = {
     requiresAuthoritativeRefetch: true,
   },
 } as const satisfies {
-  readonly setRepoNotes: ProjectDataMutationDefinition<'setRepoNotes', SetRepoNotesInput>
   readonly setRepoLayers: ProjectDataMutationDefinition<'setRepoLayers', SetRepoLayersInput>
   readonly setCompanionGitVisibility: ProjectDataMutationDefinition<
     'setCompanionGitVisibility',

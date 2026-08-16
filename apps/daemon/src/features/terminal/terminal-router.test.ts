@@ -15,7 +15,6 @@ const terminal = {
   write: vi.fn(),
   resize: vi.fn(),
   kill: vi.fn(),
-  pasteImage: vi.fn(),
   pasteFile: vi.fn(),
   list: vi.fn(),
   rename: vi.fn(),

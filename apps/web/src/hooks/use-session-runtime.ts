@@ -57,8 +57,6 @@ export type SessionQueryUtils = {
   /** Review cache — wired to the feature key predicate (REV-007), not a procedure name. */
   readonly review: QueryInvalidation
   readonly reviewComments: QueryInvalidation
-  /** Legacy compatibility slot; Board is no longer a shipped surface. */
-  readonly boardCards?: QueryInvalidation
   /** Files cache — wired to the feature key predicate (FIL-005). */
   readonly files: QueryInvalidation
   readonly actions: QueryInvalidation
@@ -97,9 +95,6 @@ export function invalidateForChange(
       // own theirs (RVC-003). What is left here is the Project Data consequence REV-006 ruling 7
       // assigned to Project Data: the repo's layers are derived from the active review.
       return utils.repoLayers.invalidate()
-    case 'board.changed':
-      // Retained only so older daemons can finish a session stream during migration.
-      return Promise.resolve()
     case 'actions.changed':
       // Actions owns its notification → list-identity mapping (ACT-003 feature adapter).
       // Session runtime must not invalidate Actions here; the feature subscription does.
@@ -128,7 +123,6 @@ export function invalidateForRecovery(
     return Promise.all([
       utils.invalidate(),
       utils.reviewComments.invalidate(),
-      ...(utils.boardCards === undefined ? [] : [utils.boardCards.invalidate()]),
       utils.tasks.invalidate(),
       utils.files.invalidate(),
       utils.projectData.invalidate(),
@@ -141,7 +135,6 @@ export function invalidateForRecovery(
     utils.review.invalidate(),
     // Comments freshness is feature-owned (RVC-003); recovery still hits the predicate slot.
     utils.reviewComments.invalidate(),
-    ...(utils.boardCards === undefined ? [] : [utils.boardCards.invalidate()]),
     // Tasks are daemon-wide, so a project-scoped gap still leaves them unproven: the gap
     // could have swallowed a `tasks.changed`, which carries no project to narrow by.
     utils.tasks.invalidate(),

@@ -271,17 +271,11 @@ export const shellRouter = t.router({
     shell.showItemInFolder(input)
   }),
 
-  // Electron's own clipboard, not the web Clipboard API: terminal paste must work when
-  // the PTY is on a remote Linux host with no GUI clipboard at all. A mutation, not a
-  // query — TanStack caches a query's result, which would replay stale clipboard contents.
+  // Electron's own clipboard, not the web Clipboard API: terminal text paste must work when
+  // the PTY is on a remote Linux host with no GUI clipboard at all. A mutation, not a query —
+  // TanStack caches a query's result, which would replay stale clipboard contents.
   readTerminalClipboard: t.procedure.mutation(() => {
-    const image = clipboard.readImage()
-    return {
-      text: clipboard.readText(),
-      image: image.isEmpty()
-        ? null
-        : { dataBase64: image.toPNG().toString('base64'), mime: 'image/png' as const },
-    }
+    return { text: clipboard.readText() }
   }),
 
   // Deliberately stays in the shell router: Electron reliably writes the macOS system

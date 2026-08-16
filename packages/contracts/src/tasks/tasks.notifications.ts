@@ -3,7 +3,7 @@ import { z } from 'zod'
 /**
  * Tasks change notification.
  *
- * The table is daemon-wide, so — unlike `board.changed` — there is no path or scope to
+ * The table is daemon-wide, so there is no path or scope to
  * carry: one flat "the Tasks on this daemon are stale" signal says everything a client
  * needs, and the list query stays authoritative for the rows themselves.
  */

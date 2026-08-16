@@ -16,13 +16,6 @@ import { terminalPublicErrorSchema } from './terminal.errors'
  */
 
 /**
- * The real cap for a pasted image, decoded. The daemon's paste handler enforces it, not the
- * schema below: a schema-level failure would drop the frame before `reqId` could be answered,
- * leaving the client's pending paste promise hanging forever.
- */
-export const MAX_PASTE_IMAGE_BYTES = 4_194_304
-
-/**
  * A generic terminal attachment is deliberately modest: it crosses a WebSocket before the
  * daemon can put it on disk, and the terminal is not a bulk-file-transfer channel.
  */
@@ -38,24 +31,14 @@ export const MAX_TERMINAL_SCROLLBACK_CODE_UNITS = 64 * 1024
 export const MAX_SESSION_MESSAGE_BYTES = 12 * 1024 * 1024
 
 /**
- * Coarse memory-sink backstops on the encoded payloads, roomy above the decoded caps to
- * survive base64's ~4/3 blowup. They are not the real limits — see `MAX_PASTE_IMAGE_BYTES`.
+ * Coarse memory-sink backstop on the encoded payload, roomy above the decoded cap to survive
+ * base64's ~4/3 blowup. It is not the real limit — see `MAX_PASTE_FILE_BYTES`.
  */
-export const MAX_PASTE_IMAGE_BASE64_CODE_UNITS = 8_388_608
 export const MAX_PASTE_FILE_BASE64_CODE_UNITS = 11_184_812
 
 /** Attachment display names the daemon turns into a path it mints itself. */
 export const MAX_PASTE_FILENAME_CODE_UNITS = 255
 export const MAX_PASTE_MIME_CODE_UNITS = 255
-
-export const PASTE_IMAGE_MIME_TYPES = [
-  'image/png',
-  'image/jpeg',
-  'image/gif',
-  'image/webp',
-] as const
-export const pasteImageMimeSchema = z.enum(PASTE_IMAGE_MIME_TYPES)
-export type PasteImageMime = z.infer<typeof pasteImageMimeSchema>
 
 export const PASTE_RESULTS = ['ok'] as const
 export const pasteResultSchema = z.enum(PASTE_RESULTS)
@@ -197,22 +180,6 @@ export const terminalWriteSchema = z
   .strict()
 
 /**
- * A pasted image, client → daemon. `insert` omitted preserves immediate paste; `false`
- * uploads without mutating the prompt, so a multi-image composer can await every upload and
- * issue one complete terminal write.
- */
-export const terminalPasteImageSchema = z
-  .object({
-    t: z.literal('terminal:paste-image'),
-    id: terminalIdSchema,
-    reqId: terminalRequestIdSchema,
-    mime: pasteImageMimeSchema,
-    dataBase64: z.string().max(MAX_PASTE_IMAGE_BASE64_CODE_UNITS),
-    insert: z.boolean().optional(),
-  })
-  .strict()
-
-/**
  * Generic attachments use the same daemon-owned scratch area as images. The client never
  * sends a local path: it sends bytes plus a display name, and the daemon mints the path.
  */
@@ -233,16 +200,6 @@ export const terminalPasteFileSchema = z
  * present when the daemon wrote an attachment to its scratch area. Expected failures use the
  * correlated terminal:error frame.
  */
-export const terminalImagePastedSchema = z
-  .object({
-    t: z.literal('terminal:image-pasted'),
-    reqId: terminalRequestIdSchema,
-    id: terminalIdSchema,
-    result: pasteResultSchema,
-    path: z.string().optional(),
-  })
-  .strict()
-
 export const terminalFilePastedSchema = z
   .object({
     t: z.literal('terminal:file-pasted'),
@@ -255,9 +212,7 @@ export const terminalFilePastedSchema = z
 
 export const terminalInputFrameSchema = z.discriminatedUnion('t', [
   terminalWriteSchema,
-  terminalPasteImageSchema,
   terminalPasteFileSchema,
-  terminalImagePastedSchema,
   terminalFilePastedSchema,
 ])
 export type TerminalInputFrame = z.infer<typeof terminalInputFrameSchema>
@@ -269,7 +224,6 @@ export const terminalClientFrameSchema = z.discriminatedUnion('t', [
   terminalResizeSchema,
   terminalKillSchema,
   terminalWriteSchema,
-  terminalPasteImageSchema,
   terminalPasteFileSchema,
 ])
 export type TerminalClientFrame = z.infer<typeof terminalClientFrameSchema>
@@ -289,17 +243,10 @@ export const terminalServerFrameSchema = z.discriminatedUnion('t', [
   terminalAttachedSchema,
   terminalDataSchema,
   terminalExitSchema,
-  terminalImagePastedSchema,
   terminalFilePastedSchema,
   terminalErrorFrameSchema,
 ])
 export type TerminalServerFrame = z.infer<typeof terminalServerFrameSchema>
-
-/** Prompt text that makes one daemon-stored image visible to an agent. */
-export function terminalImagePromptReference(path: string): string {
-  const quotedPath = path.includes(' ') ? `"${path}"` : path
-  return `Analyze this image: ${quotedPath} `
-}
 
 /** Prompt text that makes one daemon-stored non-image attachment visible to an agent. */
 export function terminalFilePromptReference(path: string): string {
@@ -338,13 +285,6 @@ export const terminalStreamFixtures = {
   },
   input: {
     write: { t: 'terminal:write', reqId: 'req-8', id: 'term-1', data: 'pnpm lint\r' },
-    pasteImage: {
-      t: 'terminal:paste-image',
-      id: 'term-1',
-      reqId: 'req-3',
-      mime: 'image/png',
-      dataBase64: 'aW1hZ2U=',
-    },
     pasteFile: {
       t: 'terminal:paste-file',
       id: 'term-1',
@@ -352,13 +292,6 @@ export const terminalStreamFixtures = {
       filename: 'evidence.txt',
       mime: 'text/plain',
       dataBase64: 'ZmlsZQ==',
-    },
-    imagePasted: {
-      t: 'terminal:image-pasted',
-      reqId: 'req-3',
-      id: 'term-1',
-      result: 'ok',
-      path: '/synthetic/scratch/pasted.png',
     },
     filePasted: {
       t: 'terminal:file-pasted',

@@ -23,26 +23,23 @@ describe('Terminal recovery notifications', () => {
   })
 
   it('maps typed adapter and contract failures to the existing paste copy', () => {
-    expect(terminalPasteFailureMessage({ reason: 'not-requestable' }, 'image')).toBe(
+    expect(terminalPasteFailureMessage({ reason: 'not-requestable' })).toBe(
       'This terminal is no longer available.',
     )
-    expect(terminalPasteFailureMessage({ reason: 'deadline' }, 'file')).toBe(
+    expect(terminalPasteFailureMessage({ reason: 'deadline' })).toBe(
       'The daemon could not save the file. Try again.',
     )
     expect(
-      terminalPasteFailureMessage(
-        {
-          reason: 'server',
-          error: {
-            code: 'terminal.capacity',
-            category: 'capacity',
-            message: 'too large',
-            retryable: false,
-            requestId: 'request-1',
-          },
+      terminalPasteFailureMessage({
+        reason: 'server',
+        error: {
+          code: 'terminal.capacity',
+          category: 'capacity',
+          message: 'too large',
+          retryable: false,
+          requestId: 'request-1',
         },
-        'image',
-      ),
-    ).toBe('That image is too large to paste.')
+      }),
+    ).toBe('That file is too large to attach (8 MiB limit).')
   })
 })

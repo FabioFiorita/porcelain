@@ -17,7 +17,6 @@ describe('Terminal request registry', () => {
     const requests: readonly TerminalRequest[] = [
       request('create', terminalStreamFixtures.lifecycle.create),
       request('attach', terminalStreamFixtures.lifecycle.attach),
-      request('paste-image', terminalStreamFixtures.input.pasteImage),
       request('paste-file', terminalStreamFixtures.input.pasteFile),
     ]
 
@@ -31,13 +30,9 @@ describe('Terminal request registry', () => {
       kind: 'succeeded',
       request: requests[1],
     })
-    expect(registry.settle(terminalStreamFixtures.input.imagePasted)).toMatchObject({
-      kind: 'succeeded',
-      request: requests[2],
-    })
     expect(registry.settle(terminalStreamFixtures.input.filePasted)).toMatchObject({
       kind: 'succeeded',
-      request: requests[3],
+      request: requests[2],
     })
   })
 

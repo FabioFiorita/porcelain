@@ -112,7 +112,7 @@ function changeFrame({
     t: 'session:change',
     epoch,
     sequence,
-    change: { kind: 'board.changed', projectPath },
+    change: { kind: 'files.scope-changed', projectPath },
   }
 }
 
@@ -178,8 +178,8 @@ describe('Session client runtime change stream', () => {
     context.deliver(changeFrame({ sequence: 1 }))
 
     expect(context.changes).toEqual([
-      { kind: 'board.changed', projectPath: PROJECT },
-      { kind: 'board.changed', projectPath: PROJECT },
+      { kind: 'files.scope-changed', projectPath: PROJECT },
+      { kind: 'files.scope-changed', projectPath: PROJECT },
     ])
     expect(context.requirements).toEqual([])
   })
@@ -194,7 +194,7 @@ describe('Session client runtime change stream', () => {
       { reason: 'sequence-gap', scope: { kind: 'project', projectPath: PROJECT } },
     ])
     // Stale first, then the signal — never a reconstruction of what the gap hid.
-    expect(context.log.slice(-2)).toEqual(['freshness:sequence-gap', 'change:board.changed'])
+    expect(context.log.slice(-2)).toEqual(['freshness:sequence-gap', 'change:files.scope-changed'])
     expect(context.changes).toHaveLength(2)
   })
 
@@ -285,10 +285,10 @@ describe('Session client runtime terminal stream', () => {
       'sent:session:hello',
       'sent:session:watches',
       'terminal:terminal:attached',
-      'change:board.changed',
+      'change:files.scope-changed',
       'terminal:terminal:data',
       'terminal:terminal:exit',
-      'change:board.changed',
+      'change:files.scope-changed',
     ])
   })
 

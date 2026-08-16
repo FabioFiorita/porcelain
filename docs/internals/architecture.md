@@ -95,7 +95,7 @@ sessions because server-side session state ends with a socket.
 
 | State | Owner |
 |---|---|
-| Server, Git, Files, Review, Board, Tasks, Actions, Project Data | client-runtime definitions plus the client's query cache |
+| Server, Git, Files, Review, Tasks, Actions, Project Data | client-runtime definitions plus the client's query cache |
 | Cross-component UI | one focused client store per concern |
 | Preferences surviving reload | the persisted preferences store only |
 | Local presentation state | the component |

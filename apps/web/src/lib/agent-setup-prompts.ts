@@ -24,22 +24,3 @@ export function layersSetupPrompt(): string {
     'Run from inside the repo (or pass --repo <absolute path>).',
   ].join('\n')
 }
-
-/** Empty/noisy monorepo tree: agent suggests hide/pin via the scope CLI. */
-export function scopeSetupPrompt(): string {
-  return [
-    'Configure Porcelain monorepo focus (hide/pin) for this repository (porcelain-companion skill → scope).',
-    'Hide folders that are not in play; pin the ones the human cares about so the tree stays fast and legible.',
-    '',
-    '1. Inspect layout: top-level packages/apps, tsconfig project references, recent commits, and (if useful) git author identity for “what this human usually touches”.',
-    '2. Propose hide paths for sibling apps / packages not in play, and pin paths for the active product roots.',
-    '3. Apply via the porcelain CLI (repo-relative --path preferred):',
-    '   porcelain scope list',
-    '   porcelain scope hide --path <rel>',
-    '   porcelain scope pin --path <rel>',
-    '4. Confirm `porcelain scope list` and that the Files tree looks focused (show-hidden toggle reveals hidden rows).',
-    '',
-    'Same channel as the app tree context menu (~/.porcelain/scope.json). scope clear drops both lists for the repo.',
-    'Run from inside the repo (or pass --repo <absolute path>).',
-  ].join('\n')
-}

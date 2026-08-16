@@ -4,7 +4,6 @@ import type {
   TerminalDetach,
   TerminalKill,
   TerminalPasteFileInput,
-  TerminalPasteImageInput,
   TerminalRequest,
   TerminalRequestFailure,
   TerminalRequestSuccessFrame,
@@ -59,11 +58,6 @@ export type TerminalStreamState = {
   ) => TerminalRequest | undefined
   readonly requestAttach: (
     id: string,
-    requestId: string,
-    deadline: number,
-  ) => TerminalRequest | undefined
-  readonly requestPasteImage: (
-    input: TerminalPasteImageInput,
     requestId: string,
     deadline: number,
   ) => TerminalRequest | undefined

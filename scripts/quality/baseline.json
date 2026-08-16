@@ -73,11 +73,6 @@
         "branches": 54.7,
         "statementCount": 2342
       },
-      "board": {
-        "statements": 82.5,
-        "branches": 72,
-        "statementCount": 1000
-      },
       "actions": {
         "statements": 71.4,
         "branches": 61.6,

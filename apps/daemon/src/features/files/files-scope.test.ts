@@ -9,7 +9,7 @@ const scopeStore = vi.hoisted(() => ({
   unpinPath: vi.fn(async () => undefined),
 }))
 
-vi.mock('../../stores/scope-store', () => scopeStore)
+vi.mock('../../stores/scope-store', () => ({ createScopeStore: () => scopeStore }))
 
 import { createFilesScope } from './files-scope'
 
@@ -17,7 +17,10 @@ const REPO = '/repo'
 
 describe('createFilesScope', () => {
   it('exposes the scope store through the Files capability boundary', async () => {
-    const scope = createFilesScope()
+    const scope = createFilesScope({
+      homeDir: '/synthetic/home',
+      projectIdForRepo: async () => 'project-1',
+    })
 
     await expect(scope.read(REPO)).resolves.toEqual({
       hiddenPaths: ['/repo/.env'],

@@ -428,24 +428,11 @@ describe('Retained sessions (the development-server lifetime)', () => {
 })
 
 describe('Terminal paste operations', () => {
-  it('uses the image/file caps, prompt references, and upload-only mode', async () => {
+  it('uses the file cap, prompt reference, and upload-only mode', async () => {
     const { operations, paste, ptys } = makeHarness()
     const created = operations.create({ name: 'shell', cwd: '/repo' }, makeSink())
     if (!created.ok) throw new Error('expected a terminal')
 
-    await expect(
-      operations.pasteImage({
-        id: created.value,
-        mime: 'image/png',
-        dataBase64: 'YWJj',
-      }),
-    ).resolves.toMatchObject({ ok: true, value: { result: 'ok' } })
-    expect(paste.save).toHaveBeenCalledWith(
-      expect.objectContaining({ id: created.value, maxBytes: 4_194_304 }),
-    )
-    expect(ptys[0]?.writes).toHaveBeenCalledWith(expect.stringContaining('Analyze this image:'))
-
-    ptys[0]?.writes.mockClear()
     await expect(
       operations.pasteFile({
         id: created.value,
@@ -459,9 +446,5 @@ describe('Terminal paste operations', () => {
       expect.objectContaining({ id: created.value, maxBytes: 8_388_608 }),
     )
     expect(ptys[0]?.writes).not.toHaveBeenCalled()
-
-    await expect(
-      operations.pasteImage({ id: 'missing', mime: 'image/png', dataBase64: 'YWJj' }),
-    ).resolves.toEqual({ ok: false, error: { code: 'terminal.not-found' } })
   })
 })

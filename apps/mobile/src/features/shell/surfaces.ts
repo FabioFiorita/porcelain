@@ -10,7 +10,7 @@
  * titled.
  */
 
-export type SurfaceId = 'files' | 'changes' | 'review' | 'history' | 'search' | 'board' | 'terminal'
+export type SurfaceId = 'files' | 'changes' | 'review' | 'history' | 'search' | 'terminal'
 
 export type Surface = {
   readonly id: SurfaceId
@@ -26,7 +26,6 @@ export const SURFACES: readonly Surface[] = [
   { id: 'review', label: 'Review', listTitle: 'Review' },
   { id: 'history', label: 'History', listTitle: 'History' },
   { id: 'search', label: 'Search', listTitle: 'Search' },
-  { id: 'board', label: 'Board', listTitle: 'Board' },
   { id: 'terminal', label: 'Terminal', listTitle: 'Terminal' },
 ]
 

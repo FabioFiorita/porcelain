@@ -44,10 +44,10 @@ describe('proceduresForChange review.changed cutover (REV-008)', () => {
     }
   })
 
-  it('leaves board.changed feature-owned (empty bulk list)', () => {
-    expect(proceduresForChange({ kind: 'board.changed', projectPath: '/synthetic/repo' })).toEqual(
-      [],
-    )
+  it('leaves files.scope-changed feature-owned (empty bulk list)', () => {
+    expect(
+      proceduresForChange({ kind: 'files.scope-changed', projectPath: '/synthetic/repo' }),
+    ).toEqual([])
   })
 })
 

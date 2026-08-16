@@ -143,10 +143,6 @@ export function useQuickOpen(open: boolean, onClose: () => void): QuickOpenModel
           setReviewFace('review')
           router.navigate('/review')
           return
-        case 'board':
-          setReviewFace('board')
-          router.navigate('/review')
-          return
         case 'terminal':
           router.navigate('/terminal')
           return

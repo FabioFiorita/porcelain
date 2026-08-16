@@ -7,10 +7,7 @@
 
 export { applyProjectDataFreshnessRequirement } from './project-data-freshness'
 export { ProjectDataFreshnessBridge } from './project-data-freshness-bridge'
-export {
-  useCompanionGitVisibility,
-  useProjectNotes,
-} from './project-data-queries'
+export { useCompanionGitVisibility } from './project-data-queries'
 export { invalidateAllProjectDataQueries } from './project-data-query-key'
 export {
   type CompanionData,

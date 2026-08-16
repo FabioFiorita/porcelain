@@ -177,13 +177,13 @@ export function checkArchitecture(
   const migrationKeys = migrationsAreRecords ? Object.keys(migrations) : []
   const uniqueDomainKeys = new Set(DOMAIN_KEYS)
   if (
-    uniqueDomainKeys.size !== 11 ||
-    migrationKeys.length !== 11 ||
-    new Set(migrationKeys).size !== 11 ||
+    uniqueDomainKeys.size !== DOMAIN_KEYS.length ||
+    migrationKeys.length !== DOMAIN_KEYS.length ||
+    new Set(migrationKeys).size !== DOMAIN_KEYS.length ||
     !DOMAIN_KEYS.every((key) => migrationKeys.includes(key))
   ) {
     fail(
-      'DOMAIN_MIGRATIONS must define exactly one record for each of the eleven canonical domains',
+      `DOMAIN_MIGRATIONS must define exactly one record for each of the ${DOMAIN_KEYS.length} canonical domains`,
     )
   }
   if (SUPPORTING_REGIONS.some((region) => uniqueDomainKeys.has(region))) {

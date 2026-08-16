@@ -55,10 +55,6 @@ const terminalOperations = {
   write: vi.fn<TerminalOperations['write']>(() => ({ ok: true, value: undefined })),
   resize: vi.fn<TerminalOperations['resize']>(() => ({ ok: true, value: undefined })),
   kill: vi.fn<TerminalOperations['kill']>(() => ({ ok: true, value: undefined })),
-  pasteImage: vi.fn<TerminalOperations['pasteImage']>(async () => ({
-    ok: true,
-    value: { result: 'ok' },
-  })),
   pasteFile: vi.fn<TerminalOperations['pasteFile']>(async () => ({
     ok: true,
     value: { result: 'ok' },

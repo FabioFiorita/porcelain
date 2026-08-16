@@ -15,7 +15,6 @@ import { useTabRootFocus } from './tab-root-focus'
 export function PhoneShell(): React.JSX.Element {
   const filesFace = useTabFaces((state) => state.files)
   const changesFace = useTabFaces((state) => state.changes)
-  const reviewFace = useTabFaces((state) => state.review)
   // The badge is the live working-tree count — a fixed number here would be a lie the moment
   // the agent writes anything.
   const changedFiles = useChangedFileCount()
@@ -66,21 +65,9 @@ export function PhoneShell(): React.JSX.Element {
           ) : null}
         </NativeTabs.Trigger>
 
-        <NativeTabs.Trigger
-          name="review"
-          listeners={{
-            tabPress: () => {
-              toggleFaceIfRoot('review')
-            },
-          }}
-        >
-          <NativeTabs.Trigger.Icon
-            sf={reviewFace === 'board' ? 'rectangle.split.3x1.fill' : 'checkmark.bubble.fill'}
-            md={reviewFace === 'board' ? 'view_kanban' : 'rate_review'}
-          />
-          <NativeTabs.Trigger.Label>
-            {reviewFace === 'board' ? 'Board' : 'Review'}
-          </NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger name="review" listeners={{}}>
+          <NativeTabs.Trigger.Icon sf="checkmark.bubble.fill" md="rate_review" />
+          <NativeTabs.Trigger.Label>Review</NativeTabs.Trigger.Label>
         </NativeTabs.Trigger>
 
         <NativeTabs.Trigger name="terminal">
@@ -105,5 +92,4 @@ function toggleFaceIfRoot(tab: DualTabSlot): void {
   if (!useTabRootFocus.getState().roots[tab]) return
   if (tab === 'files') useTabFaces.getState().toggleFiles()
   else if (tab === 'changes') useTabFaces.getState().toggleChanges()
-  else useTabFaces.getState().toggleReview()
 }

@@ -3,13 +3,10 @@ import {
   MAX_PASTE_FILE_BASE64_CODE_UNITS,
   MAX_PASTE_FILE_BYTES,
   MAX_PASTE_FILENAME_CODE_UNITS,
-  MAX_PASTE_IMAGE_BASE64_CODE_UNITS,
-  MAX_PASTE_IMAGE_BYTES,
   MAX_PASTE_MIME_CODE_UNITS,
   MAX_SESSION_MESSAGE_BYTES,
   MAX_TERMINAL_SCROLLBACK_CODE_UNITS,
   MAX_TERMINAL_WRITE_CODE_UNITS,
-  PASTE_IMAGE_MIME_TYPES,
   PASTE_RESULTS,
   terminalClientFrameSchema,
   terminalInputFrameSchema,
@@ -21,7 +18,6 @@ import {
 
 const EMPTY_ID = ''
 const FOUND_FIELD = 'found'
-const LEGACY_PASTE_RESULT = ['too', 'large'].join('-')
 
 /**
  * Caps are self-owned by this module. Literals below are the wire contract; they are not
@@ -31,10 +27,8 @@ describe('Terminal stream caps', () => {
   it('owns every current cap exactly', () => {
     expect(MAX_TERMINAL_WRITE_CODE_UNITS).toBe(65_536)
     expect(MAX_SESSION_MESSAGE_BYTES).toBe(12 * 1024 * 1024)
-    expect(MAX_PASTE_IMAGE_BYTES).toBe(4_194_304)
     expect(MAX_PASTE_FILE_BYTES).toBe(8_388_608)
     expect(MAX_TERMINAL_SCROLLBACK_CODE_UNITS).toBe(64 * 1024)
-    expect(MAX_PASTE_IMAGE_BASE64_CODE_UNITS).toBe(8_388_608)
     expect(MAX_PASTE_FILE_BASE64_CODE_UNITS).toBe(11_184_812)
     expect(MAX_PASTE_FILENAME_CODE_UNITS).toBe(255)
     expect(MAX_PASTE_MIME_CODE_UNITS).toBe(255)
@@ -67,15 +61,8 @@ describe('Terminal stream caps', () => {
     expect(terminalOutputFrameSchema.safeParse(burst).success).toBe(true)
   })
 
-  it('keeps the encoded paste backstops above their decoded caps', () => {
-    expect(MAX_PASTE_IMAGE_BASE64_CODE_UNITS).toBeGreaterThan(MAX_PASTE_IMAGE_BYTES)
+  it('keeps the encoded paste backstop above its decoded cap', () => {
     expect(MAX_PASTE_FILE_BASE64_CODE_UNITS).toBeGreaterThan(MAX_PASTE_FILE_BYTES)
-    expect(
-      terminalInputFrameSchema.safeParse({
-        ...terminalStreamFixtures.input.pasteImage,
-        dataBase64: 'a'.repeat(MAX_PASTE_IMAGE_BASE64_CODE_UNITS + 1),
-      }).success,
-    ).toBe(false)
     expect(
       terminalInputFrameSchema.safeParse({
         ...terminalStreamFixtures.input.pasteFile,
@@ -132,13 +119,11 @@ describe('Terminal lifecycle frames', () => {
       terminalStreamFixtures.lifecycle.resize,
       terminalStreamFixtures.lifecycle.kill,
       terminalStreamFixtures.input.write,
-      terminalStreamFixtures.input.pasteImage,
       terminalStreamFixtures.input.pasteFile,
     ]
     for (const command of commands) {
       const schema =
-        't' in command &&
-        ['terminal:paste-image', 'terminal:paste-file', 'terminal:write'].includes(command.t)
+        't' in command && ['terminal:paste-file', 'terminal:write'].includes(command.t)
           ? terminalInputFrameSchema
           : terminalLifecycleFrameSchema
       expect(schema.safeParse({ ...command, reqId: '' }).success).toBe(false)
@@ -225,38 +210,12 @@ describe('Terminal input frames', () => {
     })
   }
 
-  it('accepts every current paste mime and result, and no others', () => {
-    expect([...PASTE_IMAGE_MIME_TYPES]).toEqual([
-      'image/png',
-      'image/jpeg',
-      'image/gif',
-      'image/webp',
-    ])
+  it('accepts the current paste result and no others', () => {
     expect([...PASTE_RESULTS]).toEqual(['ok'])
-    for (const mime of PASTE_IMAGE_MIME_TYPES) {
-      expect(
-        terminalInputFrameSchema.safeParse({
-          ...terminalStreamFixtures.input.pasteImage,
-          mime,
-        }).success,
-      ).toBe(true)
-    }
     expect(
       terminalInputFrameSchema.safeParse({
-        ...terminalStreamFixtures.input.pasteImage,
-        mime: 'image/svg+xml',
-      }).success,
-    ).toBe(false)
-    expect(
-      terminalInputFrameSchema.safeParse({
-        ...terminalStreamFixtures.input.imagePasted,
+        ...terminalStreamFixtures.input.pasteFile,
         result: 'unknown',
-      }).success,
-    ).toBe(false)
-    expect(
-      terminalInputFrameSchema.safeParse({
-        ...terminalStreamFixtures.input.imagePasted,
-        result: LEGACY_PASTE_RESULT,
       }).success,
     ).toBe(false)
   })
@@ -285,12 +244,12 @@ describe('Terminal input frames', () => {
   it('treats insert as an optional upload-without-prompt flag', () => {
     expect(
       terminalInputFrameSchema.parse({
-        ...terminalStreamFixtures.input.pasteImage,
+        ...terminalStreamFixtures.input.pasteFile,
         insert: false,
       }),
     ).toHaveProperty('insert', false)
     expect(
-      terminalInputFrameSchema.parse(terminalStreamFixtures.input.pasteImage),
+      terminalInputFrameSchema.parse(terminalStreamFixtures.input.pasteFile),
     ).not.toHaveProperty('insert')
   })
 })
@@ -304,7 +263,6 @@ describe('Terminal client frames', () => {
       terminalStreamFixtures.lifecycle.resize,
       terminalStreamFixtures.lifecycle.kill,
       terminalStreamFixtures.input.write,
-      terminalStreamFixtures.input.pasteImage,
       terminalStreamFixtures.input.pasteFile,
     ]
     for (const command of commands) {
@@ -329,7 +287,6 @@ describe('Terminal server frames', () => {
       terminalStreamFixtures.lifecycle.attached,
       terminalStreamFixtures.output.data,
       terminalStreamFixtures.lifecycle.exit,
-      terminalStreamFixtures.input.imagePasted,
       terminalStreamFixtures.input.filePasted,
       terminalStreamFixtures.error,
     ]

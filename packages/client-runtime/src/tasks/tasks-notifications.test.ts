@@ -53,7 +53,9 @@ describe('tasksNotificationEffects', () => {
     // A scope the flat signal does not carry
     expect(() => daemon.emit({ kind: 'tasks.changed', projectPath: '/synthetic/repo' })).toThrow()
     // Another domain's change
-    expect(() => daemon.emit({ kind: 'board.changed', projectPath: '/synthetic/repo' })).toThrow()
+    expect(() =>
+      daemon.emit({ kind: 'files.scope-changed', projectPath: '/synthetic/repo' }),
+    ).toThrow()
     // Raw legacy event string envelope
     expect(() => daemon.emit({ type: 'tasks' })).toThrow()
 

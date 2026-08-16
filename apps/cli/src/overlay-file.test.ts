@@ -14,7 +14,6 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { type CanvasRecord, promoteCanvas, setCanvas } from './canvas-file'
 import { revealCompanionOverlay } from './git-exclude'
 import { promoteOverrides, readOverrides } from './overlay-file'
-import { hidePath, pinPath } from './scope-file'
 
 /**
  * The CLI half of the Git overlay (#26), proved against real temp checkouts and
@@ -170,7 +169,6 @@ describe('promoteCanvas', () => {
   })
 
   it('leaves the promoted bundle visible to git while the rest of the companion stays hidden', () => {
-    hidePath(repoPath, 'apps/legacy')
     const record = setCanvas({ repoPath, title: 'Intent', kind: 'html', sourceDir })
     expect(gitStatus(repoPath)).toBe('')
 
@@ -256,11 +254,11 @@ describe('setCanvas --tracked', () => {
 })
 
 describe('promoteOverrides', () => {
-  it('promotes the current repo-local scope as repo-relative paths', () => {
-    hidePath(repoPath, 'apps/legacy')
-    pinPath(repoPath, join(repoPath, 'apps/web'))
-
-    const overrides = promoteOverrides(repoPath)
+  it('promotes explicit hide/pin paths as repo-relative paths', () => {
+    const overrides = promoteOverrides(repoPath, {
+      hidden: ['apps/legacy'],
+      pinned: [join(repoPath, 'apps/web')],
+    })
 
     expect(overrides).toEqual({
       hiddenPaths: ['apps/legacy'],
@@ -275,8 +273,6 @@ describe('promoteOverrides', () => {
   })
 
   it('adds extra paths without dropping the promoted scope, and dedupes', () => {
-    hidePath(repoPath, 'apps/legacy')
-
     const overrides = promoteOverrides(repoPath, {
       hidden: ['apps/legacy', 'docs/old'],
       pinned: ['apps/web'],
@@ -296,9 +292,7 @@ describe('promoteOverrides', () => {
         worktrees: { main: { setup: { startScript: 'pnpm i', disposeScript: 'rm -rf out' } } },
       }),
     )
-    hidePath(repoPath, 'apps/legacy')
-
-    const overrides = promoteOverrides(repoPath)
+    const overrides = promoteOverrides(repoPath, { hidden: ['apps/legacy'] })
 
     expect(overrides.worktrees).toEqual({
       main: { setup: { startScript: 'pnpm i', disposeScript: 'rm -rf out' } },

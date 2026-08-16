@@ -41,11 +41,11 @@ describe('DataSection', () => {
         trackedPaths: ['.porcelain/actions.json'],
       },
       {
-        key: 'board',
-        label: 'Board',
-        hint: 'A live work queue.',
+        key: 'layers',
+        label: 'Flow layers',
+        hint: 'How files group into a story.',
         disposition: 'local',
-        trackedPaths: [],
+        trackedPaths: ['.porcelain/layers.json'],
       },
     ])
   })
@@ -53,7 +53,7 @@ describe('DataSection', () => {
   it('renders a disposition per channel', () => {
     render(<DataSection />)
     expect(screen.getByText('Saved actions')).toBeTruthy()
-    expect(screen.getByText('Board')).toBeTruthy()
+    expect(screen.getByText('Flow layers')).toBeTruthy()
   })
 
   it('flips a channel to local', async () => {
@@ -91,7 +91,7 @@ describe('DataSection', () => {
 
   it('says a local channel keeps its file in this clone', () => {
     render(<DataSection />)
-    expect(screen.getByTestId(TestIds.companionDispositionState('board')).textContent).toContain(
+    expect(screen.getByTestId(TestIds.companionDispositionState('layers')).textContent).toContain(
       'stays in this clone',
     )
   })

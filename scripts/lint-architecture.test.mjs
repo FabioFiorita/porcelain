@@ -47,7 +47,7 @@ test('a canonical-named legacy directory remains allowed until it exposes a publ
     (root) => {
       writeFixtureFile(
         root,
-        'apps/mobile/src/features/board/board-column.tsx',
+        'apps/mobile/src/features/tasks/tasks-column.tsx',
         'export const x = 1\n',
       )
     },
@@ -61,13 +61,13 @@ test('a canonical-named legacy directory remains allowed until it exposes a publ
 test('an unregistered target domain directory fails once it exposes a public index.ts', () => {
   withFixtureRepo(
     (root) => {
-      writeFixtureFile(root, 'apps/daemon/src/features/board/index.ts', 'export const board = 1\n')
+      writeFixtureFile(root, 'apps/daemon/src/features/tasks/index.ts', 'export const tasks = 1\n')
     },
     (root) => {
       const failures = checkArchitecture(root, buildMigrations())
       assert.ok(
         failures.some((failure) =>
-          /index\.ts exists but is not a registered target root for domain board/.test(failure),
+          /index\.ts exists but is not a registered target root for domain tasks/.test(failure),
         ),
       )
     },
@@ -77,13 +77,13 @@ test('an unregistered target domain directory fails once it exposes a public ind
 test('a registered migrating root with its public index.ts passes', () => {
   withFixtureRepo(
     (root) => {
-      writeFixtureFile(root, 'apps/daemon/src/features/board/index.ts', 'export const board = 1\n')
+      writeFixtureFile(root, 'apps/daemon/src/features/tasks/index.ts', 'export const tasks = 1\n')
     },
     (root) => {
       const migrations = buildMigrations({
-        board: {
+        tasks: {
           status: 'migrating',
-          targetRoots: ['apps/daemon/src/features/board'],
+          targetRoots: ['apps/daemon/src/features/tasks'],
           legacyPaths: [],
         },
       })
@@ -123,13 +123,13 @@ test('an explicitly registered alias root is owned by its domain and allowed in 
 test('an alias root cannot claim another canonical domain name', () => {
   withFixtureRepo(
     (root) => {
-      writeFixtureFile(root, 'apps/mobile/src/features/board/index.ts', 'export const board = 1\n')
+      writeFixtureFile(root, 'apps/mobile/src/features/tasks/index.ts', 'export const tasks = 1\n')
     },
     (root) => {
       const migrations = buildMigrations({
         review: {
           status: 'migrating',
-          targetRoots: ['apps/mobile/src/features/board'],
+          targetRoots: ['apps/mobile/src/features/tasks'],
           legacyPaths: [],
         },
       })
@@ -137,7 +137,7 @@ test('an alias root cannot claim another canonical domain name', () => {
       assert.ok(
         failures.some((failure) =>
           failure.includes(
-            'review target root apps/mobile/src/features/board claims the canonical board domain name',
+            'review target root apps/mobile/src/features/tasks claims the canonical tasks domain name',
           ),
         ),
       )
@@ -150,17 +150,17 @@ test('a deep relative import across a foreign registered root fails', () => {
     (root) => {
       writeFixtureFile(
         root,
-        'apps/daemon/src/features/board/index.ts',
-        "import { deep } from '../git/deep'\nexport const board = 1\n",
+        'apps/daemon/src/features/tasks/index.ts',
+        "import { deep } from '../git/deep'\nexport const tasks = 1\n",
       )
       writeFixtureFile(root, 'apps/daemon/src/features/git/index.ts', 'export const git = 1\n')
       writeFixtureFile(root, 'apps/daemon/src/features/git/deep.ts', 'export const deep = 1\n')
     },
     (root) => {
       const migrations = buildMigrations({
-        board: {
+        tasks: {
           status: 'migrating',
-          targetRoots: ['apps/daemon/src/features/board'],
+          targetRoots: ['apps/daemon/src/features/tasks'],
           legacyPaths: [],
         },
         git: {
@@ -180,16 +180,16 @@ test('a relative import that resolves to the foreign root index.ts passes', () =
     (root) => {
       writeFixtureFile(
         root,
-        'apps/daemon/src/features/board/index.ts',
-        "import { git } from '../git'\nexport const board = 1\n",
+        'apps/daemon/src/features/tasks/index.ts',
+        "import { git } from '../git'\nexport const tasks = 1\n",
       )
       writeFixtureFile(root, 'apps/daemon/src/features/git/index.ts', 'export const git = 1\n')
     },
     (root) => {
       const migrations = buildMigrations({
-        board: {
+        tasks: {
           status: 'migrating',
-          targetRoots: ['apps/daemon/src/features/board'],
+          targetRoots: ['apps/daemon/src/features/tasks'],
           legacyPaths: [],
         },
         git: {
@@ -237,17 +237,17 @@ for (const { targetRoot, alias } of aliasTargetRoots) {
       (root) => {
         writeFixtureFile(
           root,
-          `${targetRoot}/board/index.ts`,
-          `import { deep } from '${alias}git/deep'\nexport const board = deep\n`,
+          `${targetRoot}/tasks/index.ts`,
+          `import { deep } from '${alias}git/deep'\nexport const tasks = deep\n`,
         )
         writeFixtureFile(root, `${targetRoot}/git/index.ts`, 'export const git = 1\n')
         writeFixtureFile(root, `${targetRoot}/git/deep.ts`, 'export const deep = 1\n')
       },
       (root) => {
         const migrations = buildMigrations({
-          board: {
+          tasks: {
             status: 'migrating',
-            targetRoots: [`${targetRoot}/board`],
+            targetRoots: [`${targetRoot}/tasks`],
             legacyPaths: [],
           },
           git: {
@@ -261,8 +261,8 @@ for (const { targetRoot, alias } of aliasTargetRoots) {
 
         writeFixtureFile(
           root,
-          `${targetRoot}/board/index.ts`,
-          `import { git } from '${alias}git'\nexport const board = git\n`,
+          `${targetRoot}/tasks/index.ts`,
+          `import { git } from '${alias}git'\nexport const tasks = git\n`,
         )
         const publicEntryFailures = checkArchitecture(root, migrations)
         assert.ok(!publicEntryFailures.some((failure) => failure.includes('deep-imports')))
@@ -276,7 +276,7 @@ test('malformed migration records and path lists fail without crashing', () => {
     () => {},
     (root) => {
       const migrations = buildMigrations()
-      migrations.board = null
+      migrations.tasks = null
       migrations.git = {
         status: 'migrating',
         targetRoots: 'apps/daemon/src/features/git',
@@ -291,7 +291,7 @@ test('malformed migration records and path lists fail without crashing', () => {
       const failures = checkArchitecture(root, migrations)
       assert.ok(
         failures.some((failure) =>
-          failure.includes('domain board migration record must be an object'),
+          failure.includes('domain tasks migration record must be an object'),
         ),
       )
       assert.ok(
@@ -309,7 +309,7 @@ test('migration paths must be unique normalized repository-relative POSIX string
     () => {},
     (root) => {
       const migrations = buildMigrations({
-        board: {
+        tasks: {
           status: 'legacy',
           targetRoots: [],
           legacyPaths: [
@@ -393,13 +393,13 @@ test('a complete domain fails while its recorded legacy path still exists', () =
   )
 })
 
-test('a registered Board root deep-importing a foreign Review-owned comments alias fails immediately', () => {
+test('a registered Tasks root deep-importing a foreign Review-owned comments alias fails immediately', () => {
   withFixtureRepo(
     (root) => {
       writeFixtureFile(
         root,
-        'apps/mobile/src/features/board/index.ts',
-        "import { deep } from '@/features/comments/comment-composer'\nexport const board = deep\n",
+        'apps/mobile/src/features/tasks/index.ts',
+        "import { deep } from '@/features/comments/comment-composer'\nexport const tasks = deep\n",
       )
       writeFixtureFile(
         root,
@@ -414,9 +414,9 @@ test('a registered Board root deep-importing a foreign Review-owned comments ali
     },
     (root) => {
       const migrations = buildMigrations({
-        board: {
+        tasks: {
           status: 'migrating',
-          targetRoots: ['apps/mobile/src/features/board'],
+          targetRoots: ['apps/mobile/src/features/tasks'],
           legacyPaths: [],
         },
         review: {
@@ -713,7 +713,7 @@ test('production-mode rejects baseline roots that are no longer registered; fixt
           legacyPaths: [],
         },
       })
-      const staleRoot = 'apps/mobile/src/features/board'
+      const staleRoot = 'apps/mobile/src/features/tasks'
       const baselines = {
         'apps/mobile/src/features/comments': { occurrences: 1, files: 1 },
         [staleRoot]: { occurrences: 3, files: 2 },

@@ -24,7 +24,7 @@ function operation(overrides: Partial<Operation>): Operation {
   return {
     id: 1,
     type: 'query',
-    path: 'repoNotes',
+    path: 'companionGitVisibility',
     input: '/synthetic/repo',
     context: {},
     signal: null,
@@ -66,10 +66,10 @@ function run(op: Operation, data: unknown): Promise<Settled> {
 
 describe('contractValidationLink', () => {
   it('passes a valid query through and hands back its data unchanged', async () => {
-    const settled = await run(operation({}), 'the notes')
+    const settled = await run(operation({}), { hidden: true })
     expect(settled.error).toBeUndefined()
     expect(settled.completed).toBe(true)
-    expect(settled.value).toBe('the notes')
+    expect(settled.value).toEqual({ hidden: true })
     expect(settled.dispatched).toBe(1)
   })
 
@@ -77,10 +77,10 @@ describe('contractValidationLink', () => {
     const settled = await run(
       operation({
         type: 'mutation',
-        path: 'setRepoNotes',
-        input: { repoPath: '/synthetic/repo', notes: 'hi' },
+        path: 'setCompanionGitVisibility',
+        input: { repoPath: '/synthetic/repo', hidden: false },
       }),
-      undefined,
+      { changed: true },
     )
     expect(settled.error).toBeUndefined()
     expect(settled.completed).toBe(true)
@@ -93,10 +93,10 @@ describe('contractValidationLink', () => {
     const voidOut = await run(
       operation({
         type: 'mutation',
-        path: 'setRepoNotes',
-        input: { repoPath: '/synthetic/repo', notes: '' },
+        path: 'setCompanionGitVisibility',
+        input: { repoPath: '/synthetic/repo', hidden: true },
       }),
-      undefined,
+      { changed: true },
     )
     expect(voidOut.error).toBeUndefined()
     expect(voidOut.completed).toBe(true)
@@ -114,13 +114,17 @@ describe('contractValidationLink', () => {
   it('never dispatches an operation whose input breaks the contract', async () => {
     const invalid: Operation[] = [
       operation({ input: 42 }),
-      operation({ type: 'mutation', path: 'setRepoNotes', input: { repoPath: '/r' } }),
       operation({
         type: 'mutation',
-        path: 'setRepoNotes',
-        input: { repoPath: '/r', notes: 'hi', extra: true },
+        path: 'setCompanionGitVisibility',
+        input: { repoPath: '/r' },
       }),
-      operation({ type: 'mutation', path: 'setRepoNotes', input: undefined }),
+      operation({
+        type: 'mutation',
+        path: 'setCompanionGitVisibility',
+        input: { repoPath: '/r', hidden: true, extra: true },
+      }),
+      operation({ type: 'mutation', path: 'setCompanionGitVisibility', input: undefined }),
     ]
 
     for (const op of invalid) {
@@ -133,7 +137,7 @@ describe('contractValidationLink', () => {
   })
 
   it('rejects a successful result whose data breaks the contract', async () => {
-    for (const data of [42, null, { notes: 'the notes' }]) {
+    for (const data of [42, null, { hidden: 'yes' }]) {
       const settled = await run(operation({}), data)
       expect(settled.error, JSON.stringify(data)).toBeInstanceOf(TRPCClientError)
       expect(String(settled.error)).toContain('returned data outside its contract')
@@ -269,7 +273,7 @@ describe('contractValidationLink', () => {
     expect(cleanup).toHaveBeenCalledTimes(1)
 
     // Later source activity must not reach the outer observer after the terminal error.
-    source.observer?.next({ result: { data: 'the notes' } })
+    source.observer?.next({ result: { data: { hidden: true } } })
     source.observer?.complete()
     expect(outerNext).not.toHaveBeenCalled()
     expect(outerComplete).not.toHaveBeenCalled()

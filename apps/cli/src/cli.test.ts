@@ -715,19 +715,16 @@ describe('runCli — actions', () => {
     expect(result).toContain('Deleted action')
     expect((readActions() as unknown[]).length).toBe(0)
   })
-  it('scope hide/pin list and clear', async () => {
-    await runCli(['scope', 'hide', ...repo, '--path', 'apps/legacy'])
-    await runCli(['scope', 'pin', ...repo, '--path', 'apps/web'])
-    const list = await runCli(['scope', 'list', ...repo])
-    expect(list).toContain('apps/legacy')
-    expect(list).toContain('apps/web')
-    await runCli(['scope', 'clear', ...repo])
-    const empty = await runCli(['scope', 'list', ...repo])
-    expect(empty).toContain('(none)')
-  })
   it('project promote-overrides writes the repo-relative overlay file', async () => {
-    await runCli(['scope', 'hide', ...repo, '--path', 'apps/legacy'])
-    const result = await runCli(['project', 'promote-overrides', ...repo, '--pinned', 'apps/web'])
+    const result = await runCli([
+      'project',
+      'promote-overrides',
+      ...repo,
+      '--hidden',
+      'apps/legacy',
+      '--pinned',
+      'apps/web',
+    ])
     expect(result).toContain('apps/legacy')
     const overrides = JSON.parse(readFileSync(porcelain('project.json'), 'utf8')) as unknown
     expect(overrides).toEqual({

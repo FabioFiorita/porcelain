@@ -160,7 +160,6 @@ export const TestIds = {
   terminalContextMenu: 'terminal-context-menu',
   terminalContextCopy: 'terminal-context-copy',
   terminalContextPaste: 'terminal-context-paste',
-  terminalContextPasteImage: 'terminal-context-paste-image',
   terminalContextAttachFile: 'terminal-context-attach-file',
   terminalContextSelectAll: 'terminal-context-select-all',
   terminalContextClear: 'terminal-context-clear',

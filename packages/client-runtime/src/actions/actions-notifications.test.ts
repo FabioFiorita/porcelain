@@ -62,7 +62,7 @@ describe('actionsNotificationEffects', () => {
       daemon.emit({ kind: 'actions.changed', projectId: PROJECT, payload: true }),
     ).toThrow()
     // Unrelated kind
-    expect(() => daemon.emit({ kind: 'board.changed', projectId: PROJECT })).toThrow()
+    expect(() => daemon.emit({ kind: 'files.scope-changed', projectPath: PROJECT })).toThrow()
     // Raw legacy event string envelope
     expect(() => daemon.emit({ type: 'actions' })).toThrow()
 

@@ -41,10 +41,6 @@ function makeOperations(): TerminalOperations {
     write: vi.fn<TerminalOperations['write']>(() => ({ ok: true, value: undefined })),
     resize: vi.fn<TerminalOperations['resize']>(() => ({ ok: true, value: undefined })),
     kill: vi.fn<TerminalOperations['kill']>(() => ({ ok: true, value: undefined })),
-    pasteImage: vi.fn<TerminalOperations['pasteImage']>(async () => ({
-      ok: true,
-      value: { result: 'ok' },
-    })),
     pasteFile: vi.fn<TerminalOperations['pasteFile']>(async () => ({
       ok: true,
       value: { result: 'ok' },
@@ -141,20 +137,11 @@ describe('Terminal stream gateway', () => {
     )
   })
 
-  it('returns async image/file paste results and correlates async failures', async () => {
+  it('returns async file paste results and correlates failures', async () => {
     const operations = makeOperations()
     const sink = makeSink()
     const gateway = createTerminalStreamGateway({ operations, sink })
 
-    gateway.receive(
-      command({
-        t: 'terminal:paste-image',
-        reqId: 'image-1',
-        id: 'terminal-1',
-        mime: 'image/png',
-        dataBase64: 'YWJj',
-      }),
-    )
     gateway.receive(
       command({
         t: 'terminal:paste-file',
@@ -168,28 +155,28 @@ describe('Terminal stream gateway', () => {
     await flushBackgroundWork()
 
     expect(sink.frames).toEqual([
-      { t: 'terminal:image-pasted', reqId: 'image-1', id: 'terminal-1', result: 'ok' },
       { t: 'terminal:file-pasted', reqId: 'file-1', id: 'terminal-1', result: 'ok' },
     ])
     for (const frame of sink.frames) terminalServerFrameSchema.parse(frame)
 
-    vi.mocked(operations.pasteImage).mockResolvedValueOnce({
+    vi.mocked(operations.pasteFile).mockResolvedValueOnce({
       ok: false,
       error: { code: 'terminal.paste-unavailable' },
     })
     gateway.receive(
       command({
-        t: 'terminal:paste-image',
-        reqId: 'image-2',
+        t: 'terminal:paste-file',
+        reqId: 'file-2',
         id: 'terminal-1',
-        mime: 'image/png',
+        filename: 'report.pdf',
+        mime: 'application/pdf',
         dataBase64: 'YWJj',
       }),
     )
     await flushBackgroundWork()
     expect(sink.frames.at(-1)).toMatchObject({
       t: 'terminal:error',
-      reqId: 'image-2',
+      reqId: 'file-2',
       id: 'terminal-1',
       error: { code: 'terminal.paste-unavailable' },
     })

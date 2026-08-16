@@ -16,7 +16,7 @@ describe('terminal command composer drafts', () => {
     store.addAttachment('composer-one', {
       base64: 'one',
       filename: 'one.png',
-      kind: 'image',
+      kind: 'file',
       mime: 'image/png',
     })
     store.setText('composer-two', 'pnpm test')
@@ -27,13 +27,13 @@ describe('terminal command composer drafts', () => {
     expect(drafts['composer-two']).toMatchObject({ attachments: [], text: 'pnpm test' })
   })
 
-  it('removes one queued image without reusing its local identity', () => {
+  it('removes one queued file without reusing its local identity', () => {
     const store = useTerminalComposerStore.getState()
     store.clear('composer-remove')
     store.addAttachment('composer-remove', {
       base64: 'first',
       filename: 'first.png',
-      kind: 'image',
+      kind: 'file',
       mime: 'image/png',
     })
     store.addAttachment('composer-remove', {
@@ -50,7 +50,7 @@ describe('terminal command composer drafts', () => {
     store.addAttachment('composer-remove', {
       base64: 'third',
       filename: 'third.png',
-      kind: 'image',
+      kind: 'file',
       mime: 'image/png',
     })
 
@@ -83,7 +83,7 @@ describe('terminal command composer bytes', () => {
 })
 
 describe('terminal command composer attachment delivery', () => {
-  it('uploads every image in order, then writes all references and the command once', async () => {
+  it('uploads every file in order, then writes all references and the command once', async () => {
     const events: string[] = []
     const result = await deliverComposerDraft(
       {
@@ -92,7 +92,7 @@ describe('terminal command composer attachment delivery', () => {
             base64: 'first',
             filename: 'first.png',
             id: 'image-1',
-            kind: 'image',
+            kind: 'file',
             mime: 'image/png',
           },
           {
@@ -122,11 +122,11 @@ describe('terminal command composer attachment delivery', () => {
     expect(events).toEqual([
       'upload:image-1',
       'upload:image-2',
-      'write:Analyze this image: /daemon/image-1.png Analyze this file: /daemon/image-2.png describe this\r',
+      'write:Analyze this file: /daemon/image-1.png Analyze this file: /daemon/image-2.png describe this\r',
     ])
   })
 
-  it('does not write anything when the second image upload fails, so retry is safe', async () => {
+  it('does not write anything when the second file upload fails, so retry is safe', async () => {
     const write = vi.fn()
     const uploads: string[] = []
     const result = await deliverComposerDraft(
@@ -136,14 +136,14 @@ describe('terminal command composer attachment delivery', () => {
             base64: 'first',
             filename: 'first.png',
             id: 'image-1',
-            kind: 'image',
+            kind: 'file',
             mime: 'image/png',
           },
           {
             base64: 'too-big',
             filename: 'second.png',
             id: 'image-2',
-            kind: 'image',
+            kind: 'file',
             mime: 'image/png',
           },
         ],
@@ -165,7 +165,7 @@ describe('terminal command composer attachment delivery', () => {
 
     expect(result).toEqual({
       failure: { error: publicErrorFixtures['terminal.capacity'], reason: 'server' },
-      kind: 'image',
+      kind: 'file',
       result: 'attachment-failed',
     })
     expect(uploads).toEqual(['image-1', 'image-2'])
@@ -180,14 +180,14 @@ describe('terminal command composer attachment delivery', () => {
           base64: 'first',
           filename: 'first.png',
           id: 'image-1',
-          kind: 'image' as const,
+          kind: 'file' as const,
           mime: 'image/png' as const,
         },
         {
           base64: 'second',
           filename: 'second.png',
           id: 'image-2',
-          kind: 'image' as const,
+          kind: 'file' as const,
           mime: 'image/png' as const,
         },
       ],
@@ -203,7 +203,7 @@ describe('terminal command composer attachment delivery', () => {
 
     await expect(deliverComposerDraft(delivery, { upload, write })).resolves.toEqual({
       failure: new Error('disk full'),
-      kind: 'image',
+      kind: 'file',
       result: 'attachment-failed',
     })
     await expect(deliverComposerDraft(delivery, { upload, write })).resolves.toEqual({
@@ -212,11 +212,11 @@ describe('terminal command composer attachment delivery', () => {
 
     expect(write).toHaveBeenCalledTimes(1)
     expect(write).toHaveBeenCalledWith(
-      'Analyze this image: /daemon/image-1.png Analyze this image: /daemon/image-2.png inspect both',
+      'Analyze this file: /daemon/image-1.png Analyze this file: /daemon/image-2.png inspect both',
     )
   })
 
-  it('keeps the command unsent when the image request rejects', async () => {
+  it('keeps the command unsent when the file request rejects', async () => {
     const write = vi.fn()
     const result = await deliverComposerDraft(
       {
@@ -225,7 +225,7 @@ describe('terminal command composer attachment delivery', () => {
             base64: 'unavailable',
             filename: 'one.png',
             id: 'image-1',
-            kind: 'image',
+            kind: 'file',
             mime: 'image/png',
           },
         ],
@@ -241,7 +241,7 @@ describe('terminal command composer attachment delivery', () => {
 
     expect(result).toEqual({
       failure: new Error('offline'),
-      kind: 'image',
+      kind: 'file',
       result: 'attachment-failed',
     })
     expect(write).not.toHaveBeenCalled()

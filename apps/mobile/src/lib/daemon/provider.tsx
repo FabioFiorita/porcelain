@@ -59,9 +59,6 @@ export function proceduresForChange(change: SessionChange): readonly string[] {
       // are owned by ReviewCommentNotificationBridge (RVC-004), layers by
       // ProjectDataFreshnessBridge, and Review's Git consequences by GitNotificationBridge.
       return []
-    case 'board.changed':
-      // BoardNotificationBridge owns exact Board cards invalidation (BRD-005).
-      return []
     case 'actions.changed':
       // ActionsNotificationBridge owns exact Actions list invalidation (ACT-003).
       return []
@@ -92,7 +89,6 @@ export function proceduresForRecovery(
     'files.tree-changed',
     'files.content-changed',
     'review.changed',
-    'board.changed',
     'actions.changed',
   ]
   const names = new Set<string>()

@@ -17,7 +17,6 @@ describe('project data companion ownership', () => {
       'git',
       'search',
       'review',
-      'board',
       'actions',
       'terminal',
       'project-data',
@@ -42,15 +41,12 @@ describe('project data companion ownership', () => {
     )
     expect(claimed).toEqual(
       new Set([
-        'board.json',
         'actions.json',
-        'scope.json',
         'active-review/review.json',
         'active-review/comments.json',
         'active-review/reviewed.json',
         'active-review.json',
         'reviews/',
-        'notes.md',
         'layers.json',
         '.gitignore',
         'project-manifest.json',
@@ -58,10 +54,9 @@ describe('project data companion ownership', () => {
     )
   })
 
-  it('gives project-data the durable files and no Review, Board, Actions, or Files payload', () => {
+  it('gives project-data the durable files and no Review, Actions, or Files payload', () => {
     const claimed = PROJECT_DATA_DOMAIN_FILES['project-data']
     expect([...claimed]).toEqual([
-      PROJECT_FILES.notes,
       PROJECT_FILES.layers,
       PROJECT_FILES.gitignore,
       PROJECT_FILES.manifest,
@@ -70,9 +65,7 @@ describe('project data companion ownership', () => {
       ACTIVE_FILES.review,
       ACTIVE_FILES.comments,
       ACTIVE_FILES.reviewed,
-      PROJECT_FILES.board,
       PROJECT_FILES.actions,
-      PROJECT_FILES.scope,
     ]) {
       expect(claimed).not.toContain(foreign)
     }
@@ -96,11 +89,8 @@ describe('project data companion ownership', () => {
   })
 
   it('refuses a file the named domain does not claim', () => {
-    expect(() => projectDataFilesForDomain('project-data').path(REPO, PROJECT_FILES.board)).toThrow(
-      'project-data: board.json is not a project-data companion file',
-    )
-    expect(() => projectDataFilesForDomain('review').path(REPO, PROJECT_FILES.notes)).toThrow(
-      'project-data: notes.md is not a review companion file',
+    expect(() => projectDataFilesForDomain('review').path(REPO, PROJECT_FILES.layers)).toThrow(
+      'project-data: layers.json is not a review companion file',
     )
   })
 })

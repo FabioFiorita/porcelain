@@ -6,8 +6,7 @@ import {
   createJsonActionsStore,
   createJsonActionTrustStore,
 } from '../features/actions'
-import { type BoardOperations, createBoardOperations } from '../features/board'
-import { createFilesOperations, type FilesOperations } from '../features/files'
+import { createFilesOperations, createFilesScope, type FilesOperations } from '../features/files'
 import {
   createCommitGeneration,
   createGitChangesPublisher,
@@ -68,7 +67,7 @@ import {
   closeClientSessions,
   publishSessionChange,
 } from '../session/live-session'
-import { hiddenPathsForRepo } from '../stores/scope-store'
+import { createScopeStore } from '../stores/scope-store'
 
 /**
  * Process-wide bound operation catalog constructed once at daemon startup.
@@ -77,7 +76,6 @@ import { hiddenPathsForRepo } from '../stores/scope-store'
  */
 export type DaemonOperations = Readonly<{
   remote: RemoteOperations
-  board: BoardOperations
   tasks: TasksOperations
   actions: ActionsOperations
   review: ReviewOperations
@@ -139,6 +137,16 @@ export function createDaemonOperations(options: {
   publishSessionChange?: (change: SessionChange) => void
 }): DaemonOperations {
   const publish = options.publishSessionChange ?? publishSessionChange
+  const projectIdForRepo = async (repoPath: string): Promise<string | null> => {
+    const inventory = await options.projects.listHubInventory()
+    if (!inventory.ok) return null
+    for (const project of inventory.value.projects) {
+      if (project.worktrees.some((worktree) => worktree.path === repoPath)) return project.id
+    }
+    return null
+  }
+  const scope = createScopeStore({ homeDir: options.homeDir, projectIdForRepo })
+  const filesScope = createFilesScope({ homeDir: options.homeDir, projectIdForRepo })
   return Object.freeze({
     remote: createRemoteOperations({
       access: {
@@ -171,9 +179,6 @@ export function createDaemonOperations(options: {
         funnelBindForced: () => process.env.PORCELAIN_FUNNEL_BIND === '1',
       },
     }),
-    board: createBoardOperations({
-      publishSessionChange: publish,
-    }),
     tasks: createTasksOperations({
       store: options.tasks.store,
       attachments: options.tasks.attachments,
@@ -188,7 +193,7 @@ export function createDaemonOperations(options: {
     review: createReviewOperations({
       publishSessionChange: publish,
     }),
-    files: createFilesOperations({ publishSessionChange: publish }),
+    files: createFilesOperations({ scope: filesScope, publishSessionChange: publish }),
     git: createGitOperations({
       workspace: createGitSubprocess(),
       projectGit: createProjectGit(),
@@ -205,7 +210,7 @@ export function createDaemonOperations(options: {
         searchText: gitGrep,
         searchCode: gitSearchCode,
       },
-      scope: { hiddenPaths: hiddenPathsForRepo },
+      scope: { hiddenPaths: scope.hiddenPathsForRepo },
     }),
     projectData: createProjectDataOperations({
       migration: createCompanionMigration({

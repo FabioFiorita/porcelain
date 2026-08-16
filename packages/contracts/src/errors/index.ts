@@ -8,13 +8,6 @@ export {
   actionsUntrustedErrorSchema,
 } from '../actions'
 export {
-  boardCardNotFoundErrorDetailsSchema,
-  boardCardNotFoundErrorSchema,
-  boardInvalidTitleErrorDetailsSchema,
-  boardInvalidTitleErrorSchema,
-  boardUnavailableErrorSchema,
-} from '../board'
-export {
   filesAlreadyExistsErrorDetailsSchema,
   filesAlreadyExistsErrorSchema,
 } from '../files'

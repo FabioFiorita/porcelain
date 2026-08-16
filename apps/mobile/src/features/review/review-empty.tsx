@@ -1,10 +1,8 @@
-import { useState } from 'react'
 import { Text, View } from 'react-native'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
 // The Board hands a card's title over when it sends you here to start the unit. Consumed
 // once, so the name stays stable while you read it.
-import { useReviewHandoffStore } from '@/features/board'
 
 /**
  * The start of a unit of work.
@@ -14,7 +12,7 @@ import { useReviewHandoffStore } from '@/features/board'
  * agent has to publish first; the lifecycle itself is driven agent-side.
  */
 export function ReviewEmptyState(): React.JSX.Element {
-  const [suggestedName] = useState(() => useReviewHandoffStore.getState().consume())
+  const suggestedName = null
 
   return (
     <View className="flex-1 items-center justify-center p-6" testID="porcelain-review-empty">

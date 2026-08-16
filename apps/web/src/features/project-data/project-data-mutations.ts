@@ -14,7 +14,7 @@ import { invalidateProjectDataIdentities } from './project-data-query-key'
  * Web Project Data mutation adapter (PDT-003).
  *
  * Non-optimistic: vanilla client mutate, then exact identity invalidation plus
- * the ruling-3 Git/Review refresh. Notes `save` stays void (`mutate`).
+ * the ruling-3 Git/Review refresh. Layer writes stay void (`mutate`).
  */
 
 function daemonScopeFromIdentity(daemon: {
@@ -22,31 +22,6 @@ function daemonScopeFromIdentity(daemon: {
   version: string | null
 }): DaemonScope {
   return { host: daemon.host, version: daemon.version }
-}
-
-export function useSetProjectNotes(): {
-  save: (projectPath: string | undefined, notes: string) => void
-} {
-  const daemon = useDaemonIdentity()
-  const daemonScope = daemonScopeFromIdentity(daemon)
-  const queryClient = useQueryClient()
-  const client = trpc.useUtils().client
-  const mutation = useMutation({
-    mutationFn: (input: { repoPath: string; notes: string }) => client.setRepoNotes.mutate(input),
-    onSuccess: (_data, input) =>
-      invalidateProjectDataIdentities(
-        queryClient,
-        daemonScope,
-        projectDataMutations.setRepoNotes.affectedQueries(input),
-      ),
-    onError: onMutationError('Save notes'),
-  })
-  return {
-    save: (projectPath: string | undefined, notes: string): void => {
-      if (!projectPath) return
-      mutation.mutate({ repoPath: projectDataProjectKey(projectPath), notes })
-    },
-  }
 }
 
 export function useSetProjectLayers(): {

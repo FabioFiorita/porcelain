@@ -209,7 +209,7 @@ export type MintCanvasAccessTokenOutput = z.infer<typeof mintCanvasAccessTokenOu
  * Promoted project/Worktree defaults — `<repo>/.porcelain/project.json`.
  *
  * The field names are deliberately the ones the private surfaces already use
- * (`hiddenPaths`/`pinnedPaths` from `scope.json`, `startScript`/`disposeScript`
+ * (`hiddenPaths`/`pinnedPaths` from the private Project store, `startScript`/`disposeScript`
  * from the client's Worktree setup store) so the #27 migration is a rename of
  * the file, not a reshaping of its contents. These are project DEFAULTS: the
  * client merges them UNDER its own client-local personal state, which is never
@@ -225,7 +225,7 @@ export type WorktreeSetupOverride = z.infer<typeof worktreeSetupOverrideSchema>
 
 export const projectOverridesSchema = z
   .object({
-    /** Repo-relative, exactly as `scope.json` stores them. */
+    /** Repo-relative paths shared as project defaults. */
     hiddenPaths: z.array(z.string()),
     pinnedPaths: z.array(z.string()),
     /** Keyed by branch (or another stable Worktree key), never by absolute path. */

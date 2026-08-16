@@ -58,8 +58,6 @@ describe('companion dispositions', () => {
       const state = await readChannelDispositions(repo)
       const byKey = Object.fromEntries(state.map((c) => [c.key, c.disposition]))
       expect(byKey.actions).toBe('shared')
-      expect(byKey.notes).toBe('local')
-      expect(byKey.board).toBe('local')
       expect(byKey.reviews).toBe('local')
     })
   })
@@ -85,18 +83,20 @@ describe('companion dispositions', () => {
 
   it('is idempotent when the channel was never tracked', async () => {
     await withDispositionRepo(async (repo) => {
-      const result = await setChannelDisposition(repo, 'board', 'local')
+      const result = await setChannelDisposition(repo, 'actions', 'local')
       expect(result.untracked).toEqual([])
     })
   })
 
   it('going shared removes the ignore without staging anything', async () => {
     await withDispositionRepo(async (repo) => {
-      await setChannelDisposition(repo, 'board', 'shared')
+      await setChannelDisposition(repo, 'actions', 'shared')
       const state = await readChannelDispositions(repo)
-      expect(state.find((c) => c.key === 'board')?.disposition).toBe('shared')
+      expect(state.find((c) => c.key === 'actions')?.disposition).toBe('shared')
       // Staging stays the human's act, exactly like gitCommit never auto-staging.
-      expect(git(repo, 'status', '--porcelain=v1').includes('A  .porcelain/board.json')).toBe(false)
+      expect(git(repo, 'status', '--porcelain=v1').includes('A  .porcelain/actions.json')).toBe(
+        false,
+      )
     })
   })
 
@@ -117,7 +117,7 @@ describe('companion dispositions', () => {
     await withDispositionRepo(async (repo) => {
       const path = projectPorcelainPath(repo, PROJECT_FILES.gitignore)
       await writeFile(path, `${DEFAULT_PROJECT_GITIGNORE}\n# mine\nscratch/\n`)
-      await setChannelDisposition(repo, 'board', 'shared')
+      await setChannelDisposition(repo, 'actions', 'shared')
       const text = await readFile(path, 'utf8')
       expect(text).toContain('# mine')
       expect(text).toContain('scratch/')
@@ -151,7 +151,7 @@ describe('publishing a review', () => {
     await withDispositionRepo(async (repo) => {
       await recordPublishedReview(repo, 'r1')
       await recordPublishedReview(repo, 'r1')
-      await setChannelDisposition(repo, 'board', 'shared')
+      await setChannelDisposition(repo, 'actions', 'shared')
       const text = await readFile(projectPorcelainPath(repo, PROJECT_FILES.gitignore), 'utf8')
       expect(text.split('\n').filter((l) => l.trim() === '!/reviews/r1/')).toHaveLength(1)
     })

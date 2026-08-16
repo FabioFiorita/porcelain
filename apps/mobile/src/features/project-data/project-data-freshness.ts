@@ -1,7 +1,6 @@
 import {
   projectDataDispositionsQuery,
   projectDataLayersQuery,
-  projectDataNotesQuery,
   projectDataVisibilityQuery,
 } from '@porcelain/client-runtime/project-data'
 import type { FreshnessRequirement } from '@porcelain/client-runtime/session/recovery'
@@ -14,7 +13,7 @@ export type ApplyProjectDataFreshnessOptions = {
   readonly environmentId: string
 }
 
-/** `review.changed` still refreshes layers only — never notes. */
+/** `review.changed` still refreshes layers only. */
 export function applyProjectDataReviewChange(
   projectPath: string,
   options: ApplyProjectDataFreshnessOptions,
@@ -24,7 +23,7 @@ export function applyProjectDataReviewChange(
   ])
 }
 
-/** Project-scoped recovery invalidates all four identities for that path. */
+/** Project-scoped recovery invalidates all three identities for that path. */
 export function applyProjectDataFreshnessRequirement(
   requirement: FreshnessRequirement,
   options: ApplyProjectDataFreshnessOptions,
@@ -32,7 +31,6 @@ export function applyProjectDataFreshnessRequirement(
   if (requirement.scope.kind !== 'project') return Promise.resolve()
   const projectPath = requirement.scope.projectPath
   return invalidateProjectDataIdentities(options.queryClient, options.environmentId, [
-    projectDataNotesQuery(projectPath),
     projectDataLayersQuery(projectPath),
     projectDataDispositionsQuery(projectPath),
     projectDataVisibilityQuery(projectPath),

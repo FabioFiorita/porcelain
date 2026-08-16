@@ -1,7 +1,6 @@
 import {
   projectDataDispositionsQuery,
   projectDataLayersQuery,
-  projectDataNotesQuery,
   projectDataVisibilityQuery,
 } from '@porcelain/client-runtime/project-data'
 import type { ChannelDispositionValue, Layer } from '@porcelain/contracts/project-data'
@@ -26,12 +25,6 @@ function daemonScopeFromIdentity(daemon: {
   return { host: daemon.host, version: daemon.version }
 }
 
-const DISABLED_NOTES = {
-  domain: 'project-data',
-  name: 'notes',
-  projectPath: '/',
-} as const
-
 const DISABLED_LAYERS = {
   domain: 'project-data',
   name: 'layers',
@@ -49,28 +42,6 @@ const DISABLED_VISIBILITY = {
   name: 'visibility',
   projectPath: '/',
 } as const
-
-/** Per-project quick notes (markdown string). Missing notes read as `''`. */
-export function useProjectNotes(): string | undefined {
-  const project = useProjectSelectionStore((s) => s.project)
-  const daemon = useDaemonIdentity()
-  const daemonScope = daemonScopeFromIdentity(daemon)
-  const projectPath = project?.path ?? null
-  const client = trpc.useUtils().client
-
-  const query = useQuery({
-    queryKey: projectPath
-      ? projectDataQueryKey(daemonScope, projectDataNotesQuery(projectPath))
-      : projectDataQueryKey(daemonScope, DISABLED_NOTES),
-    queryFn: async (): Promise<string> => {
-      if (projectPath === null) return ''
-      return client.repoNotes.query(projectPath)
-    },
-    enabled: project !== null,
-  })
-
-  return query.data
-}
 
 export function useProjectLayers(): { layers: Layer[]; custom: boolean } | undefined {
   const project = useProjectSelectionStore((s) => s.project)

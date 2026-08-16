@@ -5,7 +5,6 @@ import { DiffView } from '@renderer/components/git/diff-view'
 import { TerminalView } from '@renderer/components/terminal/terminal-view'
 import { FileContent } from '@renderer/components/viewer/file-content'
 import { SearchView } from '@renderer/components/viewer/search-view'
-import { BoardView } from '@renderer/features/board'
 import { CanvasView, HubHomeSummary, HubProjectSummary } from '@renderer/features/projects'
 import { ActiveReview, ExploreView } from '@renderer/features/review'
 import { TasksView } from '@renderer/features/tasks'
@@ -80,8 +79,6 @@ function PaneView({ paneIndex }: { paneIndex: number }): React.JSX.Element {
 }
 
 function PaneContent({ tab, paneIndex }: { tab: Tab; paneIndex: number }): React.JSX.Element {
-  if (tab.kind === 'board') return <BoardView />
-
   switch (tab.kind) {
     case 'diff':
       // `base` isn't part of tab identity (`tab.id`), so a re-open with a new base

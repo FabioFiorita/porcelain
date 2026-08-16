@@ -10,13 +10,11 @@ export {
   useSetCompanionDisposition,
   useSetCompanionGitVisibility,
   useSetProjectLayers,
-  useSetProjectNotes,
 } from './project-data-mutations'
 export {
   useCompanionDispositions,
   useCompanionGitVisibility,
   useProjectLayers,
-  useProjectNotes,
 } from './project-data-queries'
 export {
   invalidateAllProjectDataQueries,

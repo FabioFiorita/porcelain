@@ -149,7 +149,6 @@ export const loc = {
   terminalContextMenu: (page: Page): Locator => byId(page, TestIds.terminalContextMenu),
   terminalContextCopy: (page: Page): Locator => byId(page, TestIds.terminalContextCopy),
   terminalContextPaste: (page: Page): Locator => byId(page, TestIds.terminalContextPaste),
-  terminalContextPasteImage: (page: Page): Locator => byId(page, TestIds.terminalContextPasteImage),
   terminalContextAttachFile: (page: Page): Locator => byId(page, TestIds.terminalContextAttachFile),
   terminalContextSelectAll: (page: Page): Locator => byId(page, TestIds.terminalContextSelectAll),
   terminalContextClear: (page: Page): Locator => byId(page, TestIds.terminalContextClear),

@@ -367,7 +367,7 @@ export function createTerminalOperations(
     }
   }
 
-  const { pasteFile, pasteImage } = createTerminalPasteOperations({
+  const { pasteFile } = createTerminalPasteOperations({
     store: pasteStore,
     session: (id) => {
       const session = sessions.get(id)
@@ -392,7 +392,6 @@ export function createTerminalOperations(
     write,
     resize,
     kill,
-    pasteImage,
     pasteFile,
     list,
     rename,

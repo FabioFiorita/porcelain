@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Permanent wire-truth gate. The eleven canonical domain procedure records are the only source of
+ * Permanent wire-truth gate. The ten canonical domain procedure records are the only source of
  * procedure names, kinds, and schemas; `procedureCatalog` composes them into exactly 124 unique
  * entries. Every production daemon router procedure must bind its own catalog entry's input and
  * output exactly once, and the router and catalog name sets must be identical.
@@ -16,7 +16,6 @@ export const DOMAIN_KEYS = [
   'search',
   'git',
   'review',
-  'board',
   'tasks',
   'actions',
   'terminal',
@@ -29,7 +28,6 @@ export const DOMAIN_KEYS = [
  */
 export const PRODUCTION_ROUTER_FILES = [
   'features/actions/actions-router.ts',
-  'features/board/board-router.ts',
   'features/files/files-router.ts',
   'features/git/git-router.ts',
   'features/project-data/project-data-router.ts',
@@ -47,7 +45,7 @@ export const PRODUCTION_ROUTER_FILES = [
   'features/terminal/terminal-router.ts',
 ]
 
-export const PROCEDURE_COUNT = 129
+export const PROCEDURE_COUNT = 121
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 

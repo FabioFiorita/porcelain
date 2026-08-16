@@ -1,7 +1,6 @@
 import {
   projectDataDispositionsQuery,
   projectDataLayersQuery,
-  projectDataNotesQuery,
   projectDataVisibilityQuery,
 } from '@porcelain/client-runtime/project-data'
 import { QueryClient } from '@tanstack/react-query'
@@ -17,7 +16,6 @@ const OTHER = '/synthetic/other'
 const ENV = 'env-project-data-fresh'
 
 function seed(queryClient: QueryClient, projectPath: string): void {
-  queryClient.setQueryData(projectDataQueryKey(ENV, projectDataNotesQuery(projectPath)), '')
   queryClient.setQueryData(projectDataQueryKey(ENV, projectDataLayersQuery(projectPath)), {
     layers: [],
     custom: false,
@@ -41,10 +39,6 @@ describe('Project Data freshness', () => {
         ?.isInvalidated,
     ).toBe(true)
     expect(
-      queryClient.getQueryState(projectDataQueryKey(ENV, projectDataNotesQuery(PROJECT)))
-        ?.isInvalidated,
-    ).toBeFalsy()
-    expect(
       queryClient.getQueryState(projectDataQueryKey(ENV, projectDataDispositionsQuery(PROJECT)))
         ?.isInvalidated,
     ).toBeFalsy()
@@ -58,7 +52,7 @@ describe('Project Data freshness', () => {
     ).toBeFalsy()
   })
 
-  it('project freshness invalidates all four identities and leaves a foreign project', async () => {
+  it('project freshness invalidates all three identities and leaves a foreign project', async () => {
     const queryClient = new QueryClient()
     seed(queryClient, PROJECT)
     seed(queryClient, OTHER)
@@ -68,10 +62,6 @@ describe('Project Data freshness', () => {
       { environmentId: ENV, queryClient },
     )
 
-    expect(
-      queryClient.getQueryState(projectDataQueryKey(ENV, projectDataNotesQuery(PROJECT)))
-        ?.isInvalidated,
-    ).toBe(true)
     expect(
       queryClient.getQueryState(projectDataQueryKey(ENV, projectDataLayersQuery(PROJECT)))
         ?.isInvalidated,
@@ -84,9 +74,5 @@ describe('Project Data freshness', () => {
       queryClient.getQueryState(projectDataQueryKey(ENV, projectDataVisibilityQuery(PROJECT)))
         ?.isInvalidated,
     ).toBe(true)
-    expect(
-      queryClient.getQueryState(projectDataQueryKey(ENV, projectDataNotesQuery(OTHER)))
-        ?.isInvalidated,
-    ).toBeFalsy()
   })
 })

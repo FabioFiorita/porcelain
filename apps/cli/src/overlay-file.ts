@@ -1,13 +1,13 @@
 import { randomUUID } from 'node:crypto'
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { relative } from 'node:path'
 import { projectOverlayOverridesPath, projectPorcelainDir } from '@shared/project-porcelain'
 import { revealCompanionOverlay } from './git-exclude'
-import { readRelativeScope, relativeScopePath } from './scope-file'
 
 /**
  * `<repo>/.porcelain/project.json` — the tracked half of the Git overlay
- * (ADR 0002 / #26): the project defaults a team shares, as opposed to the
- * per-clone `scope.json` each person keeps to themselves.
+ * (ADR 0002 / #26): the project defaults a team shares. Personal hide/pin state
+ * stays in the daemon-root private Project store and is never written here.
  *
  * Shape is `projectOverridesSchema` (packages/contracts/src/projects) exactly:
  * repo-RELATIVE hide/pin paths (an absolute path would name nothing in anyone
@@ -20,6 +20,19 @@ import { readRelativeScope, relativeScopePath } from './scope-file'
  */
 
 type WorktreeOverrides = Record<string, { setup: { startScript: string; disposeScript: string } }>
+
+function relativeScopePath(repoPath: string, path: string): string {
+  const trimmed = path.trim()
+  if (trimmed === '') throw new Error('path must be non-empty')
+  if (trimmed === repoPath || trimmed === '.') return ''
+  if (trimmed.startsWith(`${repoPath}/`)) return trimmed.slice(repoPath.length + 1)
+  if (trimmed.startsWith('/')) {
+    const rel = relative(repoPath, trimmed)
+    if (rel.startsWith('..') || rel === '') throw new Error(`path must be inside the repo: ${path}`)
+    return rel
+  }
+  return trimmed.replace(/^\.\//, '')
+}
 
 export interface ProjectOverrides {
   hiddenPaths: string[]
@@ -84,7 +97,7 @@ function unique(paths: string[]): string[] {
 }
 
 /**
- * Promote this checkout's private hide/pin scope into the tracked overlay.
+ * Promote explicit hide/pin paths into the tracked overlay.
  *
  * Additive by design: extra `--hidden` / `--pinned` paths join the promoted
  * scope rather than replacing it, and existing Worktree setup entries survive,
@@ -94,12 +107,15 @@ export function promoteOverrides(
   repoPath: string,
   extra: { hidden?: string[]; pinned?: string[] } = {},
 ): ProjectOverrides {
-  const scope = readRelativeScope(repoPath)
   const existing = readOverrides(repoPath)
   const rel = (paths: string[]): string[] => paths.map((p) => relativeScopePath(repoPath, p))
   const overrides: ProjectOverrides = {
-    hiddenPaths: unique([...scope.hiddenPaths, ...rel(extra.hidden ?? [])]).filter((p) => p !== ''),
-    pinnedPaths: unique([...scope.pinnedPaths, ...rel(extra.pinned ?? [])]).filter((p) => p !== ''),
+    hiddenPaths: unique([...existing.hiddenPaths, ...rel(extra.hidden ?? [])]).filter(
+      (p) => p !== '',
+    ),
+    pinnedPaths: unique([...existing.pinnedPaths, ...rel(extra.pinned ?? [])]).filter(
+      (p) => p !== '',
+    ),
     worktrees: existing.worktrees,
   }
 

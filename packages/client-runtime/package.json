@@ -6,7 +6,6 @@
   "type": "module",
   "exports": {
     "./actions": "./src/actions/index.ts",
-    "./board": "./src/board/index.ts",
     "./files": "./src/files/index.ts",
     "./git": "./src/git/index.ts",
     "./search": "./src/search/index.ts",

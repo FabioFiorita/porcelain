@@ -11,7 +11,6 @@ const SURFACE_SYMBOLS: Record<SurfaceId, { ios: SFSymbol; android: AndroidSymbol
   review: { ios: 'checkmark.bubble.fill', android: 'rate_review' },
   history: { ios: 'clock.arrow.circlepath', android: 'history' },
   search: { ios: 'magnifyingglass', android: 'search' },
-  board: { ios: 'rectangle.split.3x1.fill', android: 'view_kanban' },
   terminal: { ios: 'terminal.fill', android: 'terminal' },
 }
 

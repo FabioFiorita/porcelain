@@ -50,9 +50,7 @@ function DualFacePhoneSurface({
         ? face === 'history'
           ? 'history'
           : primary
-        : face === 'board'
-          ? 'board'
-          : primary
+        : primary
 
   return <PhoneSurfaceBody surfaceId={surfaceId} />
 }

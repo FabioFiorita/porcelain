@@ -1,7 +1,4 @@
-import {
-  projectDataLayersQuery,
-  projectDataNotesQuery,
-} from '@porcelain/client-runtime/project-data'
+import { projectDataLayersQuery } from '@porcelain/client-runtime/project-data'
 import { projectDataContractFixtures } from '@porcelain/contracts/project-data'
 import { QueryClient } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -45,11 +42,10 @@ vi.mock('@/lib/daemon/procedure', async (importOriginal) => {
   return { ...actual, callDaemon: ctx.callDaemon }
 })
 
-import { saveProjectLayers, saveProjectNotes } from './project-data-mutations'
+import { saveProjectLayers } from './project-data-mutations'
 import { projectDataQueryKey } from './project-data-query-key'
 
 const REPO = '/synthetic/repo'
-const OTHER = '/synthetic/other'
 
 beforeEach(() => {
   ctx.environment = pairedEnvironment()
@@ -58,32 +54,6 @@ beforeEach(() => {
 })
 
 describe('mobile Project Data writes', () => {
-  it('invalidates the notes identity, not a procedure-name repoNotes key', async () => {
-    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    const notesKey = projectDataQueryKey(ENV, projectDataNotesQuery(REPO))
-    const procedureKey = ['daemon', ENV, 'repoNotes'] as const
-    const otherKey = projectDataQueryKey(ENV, projectDataNotesQuery(OTHER))
-    queryClient.setQueryData(notesKey, 'old')
-    queryClient.setQueryData(procedureKey, 'legacy')
-    queryClient.setQueryData(otherKey, 'other')
-
-    await saveProjectNotes(
-      ctx.environment,
-      queryClient,
-      REPO,
-      projectDataContractFixtures.setRepoNotes.input.notes,
-    )
-
-    expect(ctx.callDaemon).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ name: 'setRepoNotes' }),
-      projectDataContractFixtures.setRepoNotes.input,
-    )
-    expect(queryClient.getQueryState(notesKey)?.isInvalidated).toBe(true)
-    expect(queryClient.getQueryState(procedureKey)?.isInvalidated).toBeFalsy()
-    expect(queryClient.getQueryState(otherKey)?.isInvalidated).toBeFalsy()
-  })
-
   it('invalidates the layers identity, not a procedure-name repoLayers key', async () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     const layersKey = projectDataQueryKey(ENV, projectDataLayersQuery(REPO))

@@ -6,7 +6,7 @@ import { z } from 'zod'
  * Adapters compose this with daemon/environment identity into a TanStack Query key.
  * It is the only Review-comments server-state identity; procedure names and cache
  * strings stay out. Wire inputs still use `repoPath`; this identity uses product
- * language `projectPath` (Board pattern).
+ * language `projectPath`.
  *
  * The strict schema is what adapters parse a generic `unknown[]` cache key against.
  * `projectPath` stays an unconstrained string: the constructor validates nothing today

@@ -5,26 +5,6 @@ export const companionDispositionSchema = z.enum(COMPANION_DISPOSITION_VALUES)
 export type CompanionDispositionValue = z.infer<typeof companionDispositionSchema>
 
 /**
- * Notes are a single repo-scoped document. A repository without notes reads as the empty
- * string rather than null — the read helper maps an absent file to `''`, so the wire never carries
- * an absence the renderer would have to special-case.
- */
-export const repoNotesInputSchema = z.string()
-export const repoNotesOutputSchema = z.string()
-export type RepoNotesInput = z.infer<typeof repoNotesInputSchema>
-export type RepoNotesOutput = z.infer<typeof repoNotesOutputSchema>
-
-export const setRepoNotesInputSchema = z
-  .object({
-    repoPath: z.string(),
-    notes: z.string(),
-  })
-  .strict()
-export const setRepoNotesOutputSchema = z.void()
-export type SetRepoNotesInput = z.infer<typeof setRepoNotesInputSchema>
-export type SetRepoNotesOutput = z.infer<typeof setRepoNotesOutputSchema>
-
-/**
  * One companion channel as the daemon reports it. `key` is open: the channel catalog grows,
  * and a closed enum here would reject a newer daemon's channel instead of rendering it.
  * `trackedPaths` is what git tracks for the channel right now, empty when git carries nothing.

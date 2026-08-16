@@ -149,12 +149,6 @@ export type TerminalOperations = Readonly<{
   write(id: string, data: string): TerminalResult<void, TerminalStreamFailure>
   resize(id: string, cols: number, rows: number): TerminalResult<void, TerminalStreamFailure>
   kill(id: string): TerminalResult<void, TerminalStreamFailure>
-  pasteImage(input: {
-    id: string
-    mime: string
-    dataBase64: string
-    insert?: boolean
-  }): Promise<TerminalResult<TerminalPasteSuccess, TerminalStreamFailure>>
   pasteFile(input: {
     id: string
     filename: string

@@ -1,7 +1,6 @@
 import {
   MAX_TERMINAL_WRITE_CODE_UNITS,
   terminalFilePromptReference,
-  terminalImagePromptReference,
 } from '@porcelain/contracts/terminal'
 import { create } from 'zustand'
 
@@ -13,16 +12,12 @@ type TerminalComposerAttachmentBase = {
   id: string
 }
 
-export type TerminalComposerAttachment =
-  | (TerminalComposerAttachmentBase & {
-      kind: 'image'
-      mime: 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp'
-    })
-  | (TerminalComposerAttachmentBase & { kind: 'file'; mime: string })
+export type TerminalComposerAttachment = TerminalComposerAttachmentBase & {
+  kind: 'file'
+  mime: string
+}
 
-export type NewTerminalComposerAttachment =
-  | Omit<Extract<TerminalComposerAttachment, { kind: 'image' }>, 'id'>
-  | Omit<Extract<TerminalComposerAttachment, { kind: 'file' }>, 'id'>
+export type NewTerminalComposerAttachment = Omit<TerminalComposerAttachment, 'id'>
 
 export type TerminalComposerDraft = {
   attachments: TerminalComposerAttachment[]
@@ -55,13 +50,10 @@ export const useTerminalComposerStore = create<TerminalComposerState>()((set) =>
   addAttachment: (id, attachment) => {
     set((state) => {
       const draft = draftFor(state, id)
-      // The id is only local UI identity. Image bytes remain the source of truth until the
+      // The id is only local UI identity. Attachment bytes remain the source of truth until the
       // daemon accepts them, so no timestamp/random value has product meaning here.
       const localId = `attachment-${state.nextAttachmentId}`
-      const withId: TerminalComposerAttachment =
-        attachment.kind === 'image'
-          ? { ...attachment, id: localId }
-          : { ...attachment, id: localId }
+      const withId: TerminalComposerAttachment = { ...attachment, id: localId }
       return {
         drafts: {
           ...state.drafts,
@@ -113,7 +105,7 @@ export type ComposerDelivery = {
 
 export type ComposerDeliveryResult =
   | { result: 'ok' }
-  | { result: 'attachment-failed'; failure: unknown; kind: 'image' | 'file' }
+  | { result: 'attachment-failed'; failure: unknown; kind: 'file' }
   | { result: 'too-large' }
 
 export type ComposerDeliveryDependencies = {
@@ -158,11 +150,7 @@ export async function deliverComposerDraft(
     if (outcome.path === undefined) {
       return { failure: undefined, kind: attachment.kind, result: 'attachment-failed' }
     }
-    references.push(
-      attachment.kind === 'image'
-        ? terminalImagePromptReference(outcome.path)
-        : terminalFilePromptReference(outcome.path),
-    )
+    references.push(terminalFilePromptReference(outcome.path))
   }
   const bytes = `${references.join('')}${composerDeliveryBytes(delivery)}`
   if (bytes.length > MAX_TERMINAL_WRITE_CODE_UNITS) return { result: 'too-large' }

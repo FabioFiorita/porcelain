@@ -15,10 +15,6 @@ import { callProjectDataProcedure } from './use-project-data-transport'
  * leftover Review procedure keys (`activeReview`, `reviewReading`).
  */
 
-const setNotesProcedure = namedContractProcedure(
-  projectDataMutations.setRepoNotes.procedureName,
-  projectDataMutations.setRepoNotes.procedure,
-)
 const setLayersProcedure = namedContractProcedure(
   projectDataMutations.setRepoLayers.procedureName,
   projectDataMutations.setRepoLayers.procedure,
@@ -31,22 +27,6 @@ const setDispositionProcedure = namedContractProcedure(
   projectDataMutations.setCompanionDisposition.procedureName,
   projectDataMutations.setCompanionDisposition.procedure,
 )
-
-export async function saveProjectNotes(
-  environment: Parameters<typeof callProjectDataProcedure>[0],
-  queryClient: ReturnType<typeof useQueryClient>,
-  repoPath: string,
-  notes: string,
-): Promise<void> {
-  const wire = { notes, repoPath: projectDataProjectKey(repoPath) }
-  await callProjectDataProcedure(environment, setNotesProcedure, wire)
-  if (environment === null) return
-  await invalidateProjectDataIdentities(
-    queryClient,
-    environment.id,
-    projectDataMutations.setRepoNotes.affectedQueries(wire),
-  )
-}
 
 export async function saveProjectLayers(
   environment: Parameters<typeof callProjectDataProcedure>[0],

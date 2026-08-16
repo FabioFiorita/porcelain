@@ -1,5 +1,4 @@
 import { ActionsCompanion } from '@/features/actions'
-import { BoardCompanion, BoardList, BoardPhoneScreen, BoardViewer } from '@/features/board'
 import { ChangesCompanion } from '@/features/changes/changes-companion'
 import { ChangesList } from '@/features/changes/changes-list'
 import { ChangesPhoneScreen } from '@/features/changes/changes-phone-screen'
@@ -61,12 +60,6 @@ export type SurfaceSlots = {
 const SURFACE_SLOTS: Record<SurfaceId, SurfaceSlots> = {
   // Board is the Review tab's other face on phone and its own rail destination on tablet, so
   // it owns all four panels: the columns read the same cards whichever way you arrive.
-  board: {
-    companion: BoardCompanion,
-    list: BoardList,
-    phone: BoardPhoneScreen,
-    viewer: BoardViewer,
-  },
   changes: {
     companion: ChangesCompanion,
     list: ChangesList,

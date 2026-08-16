@@ -18,7 +18,7 @@ function changeFrame({
     t: 'session:change',
     epoch,
     sequence,
-    change: { kind: 'board.changed', projectPath },
+    change: { kind: 'files.scope-changed', projectPath },
   })
 }
 
@@ -38,7 +38,7 @@ describe('Session freshness tracker', () => {
     for (const sequence of [0, 1, 2]) {
       const observed = tracker.observe(changeFrame({ sequence }))
       expect(observed.requirement).toBeUndefined()
-      expect(observed.change).toEqual({ kind: 'board.changed', projectPath: PROJECT })
+      expect(observed.change).toEqual({ kind: 'files.scope-changed', projectPath: PROJECT })
     }
     expect(tracker.sequence()).toBe(2)
   })
@@ -55,7 +55,7 @@ describe('Session freshness tracker', () => {
       scope: { kind: 'project', projectPath: PROJECT },
     })
     // The change is still applied; recovery replaces nothing it did not see.
-    expect(observed.change).toEqual({ kind: 'board.changed', projectPath: PROJECT })
+    expect(observed.change).toEqual({ kind: 'files.scope-changed', projectPath: PROJECT })
     expect(tracker.sequence()).toBe(4)
   })
 

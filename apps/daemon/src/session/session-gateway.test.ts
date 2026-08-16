@@ -161,15 +161,15 @@ describe('Session gateway', () => {
     })
     expect(onProjectScopeChanged).toHaveBeenLastCalledWith(PROJECT)
 
-    publisher.publish({ kind: 'board.changed', projectPath: PROJECT })
-    publisher.publish({ kind: 'board.changed', projectPath: '/synthetic/other-repo' })
+    publisher.publish({ kind: 'files.scope-changed', projectPath: PROJECT })
+    publisher.publish({ kind: 'files.scope-changed', projectPath: '/synthetic/other-repo' })
 
     expect(changeFrames(sent)).toEqual([
       {
         t: 'session:change',
         epoch: EPOCH,
         sequence: 0,
-        change: { kind: 'board.changed', projectPath: PROJECT },
+        change: { kind: 'files.scope-changed', projectPath: PROJECT },
       },
     ])
   })
@@ -204,7 +204,7 @@ describe('Session gateway', () => {
   it('receives nothing until it declares a project', () => {
     const { publisher, sent } = openedSession()
 
-    publisher.publish({ kind: 'board.changed', projectPath: PROJECT })
+    publisher.publish({ kind: 'files.scope-changed', projectPath: PROJECT })
 
     expect(changeFrames(sent)).toEqual([])
   })
@@ -214,9 +214,9 @@ describe('Session gateway', () => {
     session.receive(JSON.stringify(sessionWatchesFixtures.watches))
 
     session.receive(JSON.stringify(terminalStreamFixtures.input.write))
-    publisher.publish({ kind: 'board.changed', projectPath: PROJECT })
+    publisher.publish({ kind: 'files.scope-changed', projectPath: PROJECT })
     session.sendTerminalFrame(terminalStreamFixtures.output.data)
-    publisher.publish({ kind: 'board.changed', projectPath: PROJECT })
+    publisher.publish({ kind: 'files.scope-changed', projectPath: PROJECT })
 
     expect(received).toEqual([terminalStreamFixtures.input.write])
     // Terminal output keeps its own order beside the change stream and consumes no sequence.
@@ -225,14 +225,14 @@ describe('Session gateway', () => {
         t: 'session:change',
         epoch: EPOCH,
         sequence: 0,
-        change: { kind: 'board.changed', projectPath: PROJECT },
+        change: { kind: 'files.scope-changed', projectPath: PROJECT },
       },
       terminalStreamFixtures.output.data,
       {
         t: 'session:change',
         epoch: EPOCH,
         sequence: 1,
-        change: { kind: 'board.changed', projectPath: PROJECT },
+        change: { kind: 'files.scope-changed', projectPath: PROJECT },
       },
     ])
   })
@@ -262,7 +262,7 @@ describe('Session gateway', () => {
     expect(terminal.detach).toHaveBeenCalledTimes(1)
     expect(session.isOpen()).toBe(false)
 
-    publisher.publish({ kind: 'board.changed', projectPath: PROJECT })
+    publisher.publish({ kind: 'files.scope-changed', projectPath: PROJECT })
     session.receive(JSON.stringify(terminalStreamFixtures.input.write))
     session.sendTerminalFrame(terminalStreamFixtures.output.data)
 

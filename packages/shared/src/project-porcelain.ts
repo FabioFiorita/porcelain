@@ -1,8 +1,8 @@
 import { join } from 'node:path'
 
 /**
- * Repo-local companion data lives under `<repo>/.porcelain/` — board, actions,
- * scope, layers, notes, the active Review, and archived reviews. Machine secrets
+ * Repo-local companion data lives under `<repo>/.porcelain/` — actions, layers,
+ * the active Review, and archived reviews. Machine secrets
  * (daemon token, remotes, UI prefs) stay in `~/.porcelain` / `PORCELAIN_HOME`.
  *
  * Users choose what to share with git via `.porcelain/.gitignore`. Evidence is
@@ -133,32 +133,11 @@ export const COMPANION_CHANNELS: readonly CompanionChannel[] = [
     defaultDisposition: 'shared',
   },
   {
-    key: 'notes',
-    label: 'Repo notes',
-    hint: 'Your standing brief for agents.',
-    patterns: ['/notes.md'],
-    defaultDisposition: 'local',
-  },
-  {
-    key: 'scope',
-    label: 'Hidden & pinned paths',
-    hint: 'Which parts of a monorepo matter.',
-    patterns: ['/scope.json'],
-    defaultDisposition: 'shared',
-  },
-  {
     key: 'layers',
     label: 'Flow layers',
     hint: 'How files group into a story.',
     patterns: ['/layers.json'],
     defaultDisposition: 'shared',
-  },
-  {
-    key: 'board',
-    label: 'Board',
-    hint: 'A live work queue.',
-    patterns: ['/board.json'],
-    defaultDisposition: 'local',
   },
   {
     key: 'reviews',

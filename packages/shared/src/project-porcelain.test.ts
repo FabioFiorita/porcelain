@@ -31,8 +31,8 @@ describe('companion root marker', () => {
 describe('project-porcelain paths', () => {
   it('roots companion data under <repo>/.porcelain', () => {
     expect(projectPorcelainDir('/repo')).toBe(join('/repo', PROJECT_PORCELAIN_DIR))
-    expect(projectPorcelainPath('/repo', PROJECT_FILES.board)).toBe(
-      join('/repo', PROJECT_PORCELAIN_DIR, 'board.json'),
+    expect(projectPorcelainPath('/repo', PROJECT_FILES.actions)).toBe(
+      join('/repo', PROJECT_PORCELAIN_DIR, 'actions.json'),
     )
   })
 
@@ -79,10 +79,7 @@ describe('companion dispositions', () => {
     const parsed = parseDispositions(DEFAULT_PROJECT_GITIGNORE)
     expect(parsed).toEqual({
       actions: 'shared',
-      notes: 'local',
-      scope: 'shared',
       layers: 'shared',
-      board: 'local',
       reviews: 'local',
     })
   })
@@ -96,24 +93,24 @@ describe('companion dispositions', () => {
 
   it('keeps the human lines and rewrites only the managed block', () => {
     const withCustom = `# mine\nsecrets.json\n\n${DEFAULT_PROJECT_GITIGNORE}\n# trailing note\n`
-    const next = renderGitignore(withCustom, { board: 'shared', reviews: 'shared' })
+    const next = renderGitignore(withCustom, { actions: 'local', reviews: 'shared' })
     expect(next).toContain('# mine')
     expect(next).toContain('secrets.json')
     expect(next).toContain('# trailing note')
-    expect(parseDispositions(next).board).toBe('shared')
+    expect(parseDispositions(next).reviews).toBe('shared')
     // The always-ignored set survives a rewrite — it is inside the block.
     expect(next).toContain('/active-review.json')
   })
 
   it('appends a managed block when the file has none', () => {
-    const next = renderGitignore('# hand written\nevidence/\n', { board: 'local' })
+    const next = renderGitignore('# hand written\nevidence/\n', { actions: 'local' })
     expect(next).toContain('# hand written')
-    expect(next).toContain('/board.json')
-    expect(parseDispositions(next).board).toBe('local')
+    expect(next).toContain('/actions.json')
+    expect(parseDispositions(next).actions).toBe('local')
   })
 
   it('honours a hand-written unanchored pattern as local', () => {
-    expect(parseDispositions('board.json\n').board).toBe('local')
+    expect(parseDispositions('actions.json\n').actions).toBe('local')
   })
 
   it('leaves an unmanaged file readable as all-shared', () => {
@@ -155,7 +152,7 @@ describe('publishing one review', () => {
     const published = renderGitignore(DEFAULT_PROJECT_GITIGNORE, { reviews: 'local' }, ['keep'])
     const afterToggle = renderGitignore(published, {
       ...parseDispositions(published),
-      board: 'shared',
+      actions: 'local',
     })
     expect(parsePublishedReviews(afterToggle)).toEqual(['keep'])
   })

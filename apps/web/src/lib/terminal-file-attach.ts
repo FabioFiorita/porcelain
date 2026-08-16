@@ -27,7 +27,7 @@ async function attachTerminalFile(id: string, file: File): Promise<void> {
     })
   } catch (error: unknown) {
     toast.error('Could not attach the file', {
-      description: terminalPasteFailureMessage(error, 'file'),
+      description: terminalPasteFailureMessage(error),
     })
   }
 }

@@ -23,7 +23,7 @@ const sampleSchema = z.object({ name: z.string() }).strict()
 
 function sampleChannel() {
   return createProjectChannel({
-    fileName: PROJECT_FILES.scope,
+    fileName: PROJECT_FILES.layers,
     schema: sampleSchema,
     empty: () => ({ name: '' }),
   })

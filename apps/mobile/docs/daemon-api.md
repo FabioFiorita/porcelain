@@ -90,7 +90,6 @@ hands off to the existing terminal or viewer navigation. Content search remains 
 - `reviewEvidence` Q → one pack: checks + Results document descriptors + Assets descriptors; `reviewEvidenceDoc` Q `{repoPath, file}` → one document body (HTML arrives self-contained — render in a WebView with `sandbox`-equivalent settings), `reviewEvidenceAsset` Q → one image as a data URL; `clearEvidence` M, `archiveReview` M
 - comments: `reviewComments` Q, `addReviewComment` M `{path, startLine?, endLine?, anchorText?, body}`, `editReviewComment`/`deleteReviewComment`/`resolveReviewComment` M, `clearResolvedReviewComments` M
 - `exploreReading` Q `{seed: file|symbol}` → read-only flow reading
-- Board (inside Review): `boardCards` Q, `addBoardCard`/`updateBoardCard`/`moveBoardCard`/`deleteBoardCard`/`clearBoardCards` M
 - `reviewInbox` Q — sibling worktrees with agent work awaiting review
 
 ### Terminal tab
@@ -102,7 +101,6 @@ hands off to the existing terminal or viewer navigation. Content search remains 
 - Actions (definitions only — the daemon never executes them): `actions` Q, `addAction`/`updateAction`/`moveAction`/`deleteAction` M
 
 ### Cross-cutting
-- `repoNotes` Q / `setRepoNotes` M (Notes is the human's scratchpad — mobile read-only surface)
 - `repoLayers` Q / `setRepoLayers` M (flow-layer config)
 - `archivedReviews` Q / `restoreArchivedReview` / `deleteArchivedReview` M — previous reviews under `.porcelain/reviews/`
 - `removeRecentRepo` M

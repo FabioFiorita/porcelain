@@ -439,11 +439,11 @@ describe('Session native adapter frame delivery', () => {
       t: 'session:change',
       epoch: 'epoch-1',
       sequence: 0,
-      change: { kind: 'board.changed', projectPath: PROJECT },
+      change: { kind: 'files.scope-changed', projectPath: PROJECT },
     })
     context.deliver(terminalStreamFixtures.output.data)
 
-    expect(context.changes).toEqual([{ kind: 'board.changed', projectPath: PROJECT }])
+    expect(context.changes).toEqual([{ kind: 'files.scope-changed', projectPath: PROJECT }])
     expect(context.terminal.map((frame) => frame.t)).toEqual(['terminal:data'])
     expect(context.requirements).toEqual([])
   })

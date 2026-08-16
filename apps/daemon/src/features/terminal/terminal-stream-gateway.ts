@@ -77,25 +77,10 @@ export function createTerminalStreamGateway(options: {
         if (!result.ok) sendFailure(sink, frame.reqId, result.error, frame.id)
         return
       }
-      case 'terminal:paste-image': {
-        settleBackground(handlePasteImage(frame), 'fallback')
-        return
-      }
       case 'terminal:paste-file': {
         settleBackground(handlePasteFile(frame), 'fallback')
         return
       }
-    }
-  }
-
-  async function handlePasteImage(
-    frame: Extract<TerminalClientFrame, { t: 'terminal:paste-image' }>,
-  ): Promise<void> {
-    const result = await operations.pasteImage(frame)
-    if (result.ok) {
-      sink.send({ t: 'terminal:image-pasted', reqId: frame.reqId, id: frame.id, ...result.value })
-    } else {
-      sendFailure(sink, frame.reqId, result.error, frame.id)
     }
   }
 

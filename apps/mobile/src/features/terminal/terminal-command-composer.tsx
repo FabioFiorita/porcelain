@@ -112,7 +112,7 @@ export function TerminalCommandComposer({
           if (result.result === 'attachment-failed') {
             Alert.alert(
               `Could not attach the ${result.kind}`,
-              terminalPasteFailureMessage(result.failure, result.kind),
+              terminalPasteFailureMessage(result.failure),
             )
             return
           }
@@ -183,7 +183,7 @@ export function TerminalCommandComposer({
           delivering={delivering}
           draft={current}
           inputRef={inputRef}
-          onRemoveImage={(attachmentId) => {
+          onRemoveFile={(attachmentId) => {
             removeAttachment(sessionId, attachmentId)
           }}
           onBlur={onBlur}
@@ -209,7 +209,7 @@ function ExpandedComposer({
   delivering,
   draft,
   inputRef,
-  onRemoveImage,
+  onRemoveFile,
   onBlur,
   onFocus,
   onInsert,
@@ -219,7 +219,7 @@ function ExpandedComposer({
   delivering: boolean
   draft: TerminalComposerDraft
   inputRef: React.RefObject<TextInput | null>
-  onRemoveImage: (attachmentId: string) => void
+  onRemoveFile: (attachmentId: string) => void
   onBlur: () => void
   onFocus: () => void
   onInsert: () => void
@@ -233,25 +233,21 @@ function ExpandedComposer({
           {draft.attachments.map((attachment) => (
             <View
               key={attachment.id}
-              accessibilityLabel={`${attachment.kind === 'image' ? 'Image' : 'File'} queued for terminal`}
+              accessibilityLabel="File queued for terminal"
               accessibilityRole="text"
               className="flex-row items-center gap-1 rounded-md bg-secondary px-2 py-1"
             >
-              <ChromeGlyph
-                name={attachment.kind === 'image' ? 'image' : 'file'}
-                size={13}
-                tone="muted"
-              />
+              <ChromeGlyph name="file" size={13} tone="muted" />
               <Text className="text-xs text-secondary-foreground" numberOfLines={1}>
                 {attachment.filename}
               </Text>
               <Pressable
-                accessibilityLabel={`Remove queued ${attachment.kind}`}
+                accessibilityLabel="Remove queued file"
                 accessibilityRole="button"
                 className="-mr-1 rounded-sm px-1 py-0.5 active:bg-accent"
-                testID={`porcelain-terminal-composer-remove-${attachment.kind}-${attachment.id}`}
+                testID={`porcelain-terminal-composer-remove-file-${attachment.id}`}
                 onPress={() => {
-                  onRemoveImage(attachment.id)
+                  onRemoveFile(attachment.id)
                 }}
               >
                 <ChromeGlyph name="close" size={13} tone="muted" />
@@ -307,7 +303,7 @@ function ComposerButton({
 }: {
   accessibilityLabel: string
   disabled?: boolean
-  glyph?: 'file' | 'image'
+  glyph?: 'file'
   label?: string
   onPress: () => void
   primary?: boolean

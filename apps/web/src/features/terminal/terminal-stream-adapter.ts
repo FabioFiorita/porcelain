@@ -18,13 +18,9 @@ import { randomId } from '@renderer/lib/utils'
 import { useEffect, useMemo } from 'react'
 
 type TerminalAttachedFrame = Extract<TerminalServerFrame, { t: 'terminal:attached' }>
-type TerminalImagePastedFrame = Extract<TerminalServerFrame, { t: 'terminal:image-pasted' }>
+type TerminalFilePastedFrame = Extract<TerminalServerFrame, { t: 'terminal:file-pasted' }>
 type TerminalCreateInput = Omit<
   Extract<TerminalClientFrame, { t: 'terminal:create' }>,
-  'reqId' | 't'
->
-type TerminalPasteImageInput = Omit<
-  Extract<TerminalClientFrame, { t: 'terminal:paste-image' }>,
   'reqId' | 't'
 >
 type TerminalPasteFileInput = Omit<
@@ -37,7 +33,7 @@ export type TerminalAttachResult = Pick<
   'scrollback' | 'status' | 'exitCode' | 'epoch' | 'sequence'
 >
 
-type TerminalPasteResult = Pick<TerminalImagePastedFrame, 'result' | 'path'>
+type TerminalPasteResult = Pick<TerminalFilePastedFrame, 'result' | 'path'>
 
 export type TerminalAdapterFailure = TerminalRequestFailure | { readonly reason: 'not-requestable' }
 
@@ -72,7 +68,7 @@ type PendingRequest =
       readonly reject: (failure: TerminalAdapterFailure) => void
     }
   | {
-      readonly kind: 'paste-image' | 'paste-file'
+      readonly kind: 'paste-file'
       readonly timer: TimerHandle
       readonly resolve: (result: TerminalPasteResult) => void
       readonly reject: (failure: TerminalAdapterFailure) => void
@@ -88,7 +84,6 @@ export type BrowserTerminalAdapter = {
   readonly writeTerminal: (id: string, data: string) => void
   readonly resizeTerminal: (id: string, cols: number, rows: number) => void
   readonly killTerminal: (id: string) => void
-  readonly pasteImageToTerminal: (input: TerminalPasteImageInput) => Promise<TerminalPasteResult>
   readonly pasteFileToTerminal: (input: TerminalPasteFileInput) => Promise<TerminalPasteResult>
   readonly subscribe: (listeners: TerminalStreamListeners) => () => void
   readonly dispose: () => void
@@ -206,10 +201,6 @@ export function createBrowserTerminalAdapter(
           sequence: effect.frame.sequence,
         })
         return
-      case 'paste-image':
-        if (effect.frame.t === 'terminal:image-pasted')
-          entry.resolve({ result: effect.frame.result, path: effect.frame.path })
-        return
       case 'paste-file':
         if (effect.frame.t === 'terminal:file-pasted')
           entry.resolve({ result: effect.frame.result, path: effect.frame.path })
@@ -278,12 +269,6 @@ export function createBrowserTerminalAdapter(
       const frame = state.kill(id, settings.requestId())
       if (frame !== undefined && session.runtime.status() === 'open') session.runtime.send(frame)
     },
-    pasteImageToTerminal: (input) =>
-      startRequest(
-        (requestId, deadline) =>
-          state.requestPasteImage({ t: 'terminal:paste-image', ...input }, requestId, deadline),
-        (resolve, reject) => ({ kind: 'paste-image', resolve, reject }),
-      ),
     pasteFileToTerminal: (input) =>
       startRequest(
         (requestId, deadline) =>

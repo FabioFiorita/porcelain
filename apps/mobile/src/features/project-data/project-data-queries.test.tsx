@@ -33,7 +33,7 @@ vi.mock('@/lib/daemon/procedure', async (importOriginal) => {
   return { ...actual, callDaemon: ctx.callDaemon }
 })
 
-import { useCompanionGitVisibility, useProjectNotes } from './project-data-queries'
+import { useCompanionGitVisibility } from './project-data-queries'
 
 function wrapper(queryClient: QueryClient) {
   return function Wrapper({ children }: { children: ReactNode }): React.JSX.Element {
@@ -45,33 +45,22 @@ beforeEach(() => {
   ctx.environment = { id: 'env-project-data-query', token: 'paired' }
   ctx.project = { name: 'repo', path: '/synthetic/repo' }
   ctx.callDaemon.mockReset()
-  ctx.callDaemon.mockResolvedValue(projectDataContractFixtures.repoNotes.output)
 })
 
-describe('mobile useProjectNotes / visibility gating', () => {
-  it('loads notes when active and a project is selected', async () => {
-    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    const { result } = renderHook(() => useProjectNotes(true), { wrapper: wrapper(queryClient) })
-
-    await waitFor(() =>
-      expect(result.current.notes).toBe(projectDataContractFixtures.repoNotes.output),
-    )
-    expect(ctx.callDaemon).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ name: 'repoNotes' }),
-      '/synthetic/repo',
-    )
-  })
-
+describe('mobile Project Data visibility gating', () => {
   it('does not query when inactive or no project is selected', async () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    const inactive = renderHook(() => useProjectNotes(false), { wrapper: wrapper(queryClient) })
-    expect(inactive.result.current.notes).toBeUndefined()
+    const inactive = renderHook(() => useCompanionGitVisibility(false), {
+      wrapper: wrapper(queryClient),
+    })
+    expect(inactive.result.current.hidden).toBeUndefined()
     expect(ctx.callDaemon).not.toHaveBeenCalled()
 
     ctx.project = null
-    const missing = renderHook(() => useProjectNotes(true), { wrapper: wrapper(queryClient) })
-    expect(missing.result.current.notes).toBeUndefined()
+    const missing = renderHook(() => useCompanionGitVisibility(true), {
+      wrapper: wrapper(queryClient),
+    })
+    expect(missing.result.current.hidden).toBeUndefined()
     expect(ctx.callDaemon).not.toHaveBeenCalled()
   })
 

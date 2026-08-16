@@ -53,7 +53,6 @@ usePreferencesStore.subscribe((state, prev) => {
  * Which rail dot a session change lights, or `null` for signals that carry no
  * attention cue (plan 035, decision 2):
  * - `review.changed` → Review
- * - `board.changed` → Board
  * - `tasks.changed` → Tasks
  * - `actions.changed` → Terminal
  * - `terminal.dev-servers-changed` → no dot (the Servers list is already live)
@@ -64,8 +63,6 @@ export function unreadTabFor(change: SessionChange): UnreadTab | null {
   switch (change.kind) {
     case 'review.changed':
       return 'review'
-    case 'board.changed':
-      return null
     case 'tasks.changed':
       return 'tasks'
     case 'actions.changed':

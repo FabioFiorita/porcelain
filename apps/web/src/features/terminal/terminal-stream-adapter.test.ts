@@ -149,16 +149,17 @@ describe('Browser Terminal stream adapter', () => {
     context.deliver(attachReply(attachFrame.reqId, 'term-2'))
     await expect(attach).resolves.toMatchObject({ scrollback: '$ pnpm lint\n', status: 'running' })
 
-    const paste = context.adapter.pasteImageToTerminal({
+    const paste = context.adapter.pasteFileToTerminal({
       id: 'term-1',
-      mime: 'image/png',
-      dataBase64: 'aW1hZ2U=',
+      filename: 'evidence.txt',
+      mime: 'text/plain',
+      dataBase64: 'ZmlsZQ==',
     })
-    const pasteFrame = sentFrames(socket).find((frame) => frame.t === 'terminal:paste-image')
-    expect(pasteFrame).toMatchObject({ t: 'terminal:paste-image', reqId: 'req-3' })
-    if (pasteFrame?.t !== 'terminal:paste-image') throw new Error('expected paste frame')
-    context.deliver({ ...terminalStreamFixtures.input.imagePasted, reqId: pasteFrame.reqId })
-    await expect(paste).resolves.toEqual({ result: 'ok', path: '/synthetic/scratch/pasted.png' })
+    const pasteFrame = sentFrames(socket).find((frame) => frame.t === 'terminal:paste-file')
+    expect(pasteFrame).toMatchObject({ t: 'terminal:paste-file', reqId: 'req-3' })
+    if (pasteFrame?.t !== 'terminal:paste-file') throw new Error('expected paste frame')
+    context.deliver({ ...terminalStreamFixtures.input.filePasted, reqId: pasteFrame.reqId })
+    await expect(paste).resolves.toEqual({ result: 'ok', path: '/synthetic/scratch/evidence.txt' })
   })
 
   it('routes attach scrollback before accepted live data and chunks bounded writes', async () => {

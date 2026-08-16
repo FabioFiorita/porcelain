@@ -4,11 +4,6 @@ import type {
   Layer,
 } from '@porcelain/contracts/project-data'
 
-export type NotesDocument = {
-  read(repoPath: string): Promise<string>
-  write(repoPath: string, notes: string): Promise<void>
-}
-
 export type LayersDocument = {
   read(repoPath: string): Promise<Layer[] | null>
   write(repoPath: string, layers: Layer[] | null): Promise<void>

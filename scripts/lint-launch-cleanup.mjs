@@ -45,7 +45,7 @@ const EXCLUDED_RELATIVE_FILES = new Set([
   'apps/daemon/src/project-data/reset-authorization.test.ts',
   'apps/daemon/src/project-data/reset-authorization.ts',
   'apps/daemon/src/features/project-data/companion-policy.test.ts',
-  'apps/daemon/src/features/project-data/project-data-store.test.ts',
+  'apps/daemon/src/features/project-data/project-data-ports.test.ts',
   'packages/contracts/src/procedure-catalog.test.ts',
   'packages/contracts/src/review/review.contract.test.ts',
   'packages/contracts/src/review/review.procedures.test.ts',

@@ -6,7 +6,6 @@ import type {
 
 export type TerminalCreateFrame = Extract<TerminalClientFrame, { t: 'terminal:create' }>
 export type TerminalAttachFrame = Extract<TerminalClientFrame, { t: 'terminal:attach' }>
-export type TerminalPasteImageFrame = Extract<TerminalClientFrame, { t: 'terminal:paste-image' }>
 export type TerminalPasteFileFrame = Extract<TerminalClientFrame, { t: 'terminal:paste-file' }>
 export type TerminalDetach = Extract<TerminalClientFrame, { t: 'terminal:detach' }>
 export type TerminalWrite = Extract<TerminalClientFrame, { t: 'terminal:write' }>
@@ -14,20 +13,17 @@ export type TerminalResize = Extract<TerminalClientFrame, { t: 'terminal:resize'
 export type TerminalKill = Extract<TerminalClientFrame, { t: 'terminal:kill' }>
 
 export type TerminalCreateInput = Omit<TerminalCreateFrame, 'reqId'>
-export type TerminalPasteImageInput = Omit<TerminalPasteImageFrame, 'reqId'>
 export type TerminalPasteFileInput = Omit<TerminalPasteFileFrame, 'reqId'>
 
 export type TerminalCreatedFrame = Extract<TerminalServerFrame, { t: 'terminal:created' }>
 export type TerminalAttachedFrame = Extract<TerminalServerFrame, { t: 'terminal:attached' }>
-export type TerminalImagePastedFrame = Extract<TerminalServerFrame, { t: 'terminal:image-pasted' }>
 export type TerminalFilePastedFrame = Extract<TerminalServerFrame, { t: 'terminal:file-pasted' }>
 export type TerminalRequestSuccessFrame =
   | TerminalCreatedFrame
   | TerminalAttachedFrame
-  | TerminalImagePastedFrame
   | TerminalFilePastedFrame
 
-export type TerminalRequestKind = 'create' | 'attach' | 'paste-image' | 'paste-file'
+export type TerminalRequestKind = 'create' | 'attach' | 'paste-file'
 
 export type TerminalRequest = {
   readonly kind: TerminalRequestKind
@@ -67,8 +63,6 @@ function successKind(kind: TerminalRequestKind): TerminalRequestSuccessFrame['t'
       return 'terminal:created'
     case 'attach':
       return 'terminal:attached'
-    case 'paste-image':
-      return 'terminal:image-pasted'
     case 'paste-file':
       return 'terminal:file-pasted'
   }
@@ -83,7 +77,6 @@ function targetForFrame(frame: TerminalClientFrame): string | undefined {
     case 'terminal:write':
     case 'terminal:resize':
     case 'terminal:kill':
-    case 'terminal:paste-image':
     case 'terminal:paste-file':
       return frame.id
   }
@@ -94,7 +87,6 @@ function targetForReply(frame: TerminalRequestSuccessFrame): string | undefined 
     case 'terminal:created':
       return undefined
     case 'terminal:attached':
-    case 'terminal:image-pasted':
     case 'terminal:file-pasted':
       return frame.id
   }
@@ -104,7 +96,6 @@ function isSuccessFrame(frame: TerminalServerFrame): frame is TerminalRequestSuc
   return (
     frame.t === 'terminal:created' ||
     frame.t === 'terminal:attached' ||
-    frame.t === 'terminal:image-pasted' ||
     frame.t === 'terminal:file-pasted'
   )
 }

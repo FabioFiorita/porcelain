@@ -148,8 +148,6 @@ describe('files notification contract mock rejection', () => {
     expect(() =>
       daemon.emit({ kind: 'files.content-changed', projectPath: PROJECT, paths: [] }),
     ).toThrow()
-    expect(() => daemon.emit({ kind: 'board.changed', projectPath: PROJECT })).toThrow()
-
     expect(seen).toHaveLength(1)
   })
 })

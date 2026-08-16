@@ -3,8 +3,8 @@ import { z } from 'zod'
 /**
  * Typed Project Data query identities (PDT-003).
  *
- * Four product-distinct reads — notes, layers, dispositions, visibility — share a Project
- * path and nothing else. No absolute-path, host, or trailing-slash policy; the wire has none.
+ * Three product-distinct reads — layers, dispositions, visibility — share a Project path and
+ * nothing else. No absolute-path, host, or trailing-slash policy; the wire has none.
  * Empty path is a programmer error (`ProjectDataIdentityError`), not a public error code.
  */
 
@@ -23,14 +23,6 @@ export function projectDataProjectKey(projectPath: string): string {
   }
   return parsed.data
 }
-
-export const projectDataNotesQuerySchema = z
-  .object({
-    domain: z.literal('project-data'),
-    name: z.literal('notes'),
-    projectPath: projectPathSchema,
-  })
-  .strict()
 
 export const projectDataLayersQuerySchema = z
   .object({
@@ -58,22 +50,12 @@ export const projectDataVisibilityQuerySchema = z
 
 /** Any Project Data server-state identity, discriminated by `name`. */
 export const projectDataQuerySchema = z.discriminatedUnion('name', [
-  projectDataNotesQuerySchema,
   projectDataLayersQuerySchema,
   projectDataDispositionsQuerySchema,
   projectDataVisibilityQuerySchema,
 ])
 
 export type ProjectDataQuery = Readonly<z.infer<typeof projectDataQuerySchema>>
-
-/** Build the notes identity for a Project path. */
-export function projectDataNotesQuery(projectPath: string): ProjectDataQuery {
-  return {
-    domain: 'project-data',
-    name: 'notes',
-    projectPath: projectDataProjectKey(projectPath),
-  }
-}
 
 /** Build the layers identity for a Project path. */
 export function projectDataLayersQuery(projectPath: string): ProjectDataQuery {

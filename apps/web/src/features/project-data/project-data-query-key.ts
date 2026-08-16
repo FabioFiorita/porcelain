@@ -9,7 +9,7 @@ import { z } from 'zod'
 /**
  * Web React Query keys for Project Data (PDT-003).
  *
- * Cache rows hold notes / layers / dispositions / visibility under their typed identities.
+ * Cache rows hold layers / dispositions / visibility under their typed identities.
  * Procedure-name strings never appear here.
  */
 

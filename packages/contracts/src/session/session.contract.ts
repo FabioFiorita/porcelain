@@ -1,6 +1,5 @@
 import { z } from 'zod'
 import { actionsChangeSchema } from '../actions'
-import { boardChangeSchema } from '../board'
 import {
   protocolUpdateRequiredErrorDetailsSchema,
   protocolUpdateRequiredErrorSchema,
@@ -30,7 +29,6 @@ export const sessionChangeSchema = z.discriminatedUnion('kind', [
   ...filesChangeSchema.options,
   ...gitChangeSchema.options,
   ...reviewChangeSchema.options,
-  ...boardChangeSchema.options,
   ...tasksChangeSchema.options,
   ...actionsChangeSchema.options,
   ...terminalChangeSchema.options,
@@ -117,6 +115,6 @@ export const sessionContractFixtures = {
     t: 'session:change',
     epoch: 'synthetic-epoch',
     sequence: 0,
-    change: { kind: 'board.changed', projectPath: '/synthetic/repo' },
+    change: { kind: 'files.scope-changed', projectPath: '/synthetic/repo' },
   },
 } as const

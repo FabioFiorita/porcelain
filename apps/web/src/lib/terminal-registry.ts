@@ -11,7 +11,7 @@ import { GhosttyTerminalSurface } from '@renderer/terminal/ghostty/surface'
 import { runUserAction, settleBackground } from '@shared/background'
 import { toast } from 'sonner'
 import { isBrowser, isCoarseTouch, isE2E } from './platform'
-import { type TerminalClipboardContents, terminalPasteKind } from './terminal-clipboard'
+import type { TerminalClipboardContents } from './terminal-clipboard'
 import {
   type ArrowDirection,
   controlByte,
@@ -388,28 +388,18 @@ export { attachTerminalFiles, chooseTerminalFiles, PASTE_FILE_TOO_LARGE_MESSAGE 
 async function pasteTerminalContents(
   id: string,
   contents: TerminalClipboardContents,
-  imageOnly = false,
 ): Promise<void> {
-  const kind = terminalPasteKind(contents, imageOnly)
-  if (kind === 'empty') {
-    toast.error(imageOnly ? 'No image on clipboard' : 'Nothing to paste', {
-      description: imageOnly ? 'Copy a screenshot or image first, then try again.' : undefined,
-    })
+  if (contents.text === '') {
+    toast.error('Nothing to paste')
     return
   }
-  if (kind === 'text') {
-    const instance = recordFor(id)
-    if (instance.surface) instance.surface.paste(contents.text)
-    else instance.pasteQueue.push(contents.text)
-    return
-  }
-  // Image clipboard passthrough is intentionally retired. Files remain available
-  // through the explicit Attach file action, which gives the daemon a stable name
-  // and avoids treating a clipboard blob as a terminal command attachment.
+  const instance = recordFor(id)
+  if (instance.surface) instance.surface.paste(contents.text)
+  else instance.pasteQueue.push(contents.text)
 }
 
 async function pasteBrowserClipboardEvent(id: string, text: string): Promise<void> {
-  await pasteTerminalContents(id, { text, image: null })
+  await pasteTerminalContents(id, { text })
 }
 
 async function readBrowserClipboard(): Promise<TerminalClipboardContents> {
@@ -419,12 +409,11 @@ async function readBrowserClipboard(): Promise<TerminalClipboardContents> {
     for (const item of items) {
       if (text === '' && item.types.includes('text/plain'))
         text = await (await item.getType('text/plain')).text()
-      // Do not transfer image clipboard bytes through the terminal protocol.
     }
-    return { text, image: null }
+    return { text }
   }
   if (navigator.clipboard?.readText !== undefined)
-    return { text: await navigator.clipboard.readText(), image: null }
+    return { text: await navigator.clipboard.readText() }
   throw new Error('Clipboard API unavailable')
 }
 
@@ -439,22 +428,6 @@ export async function pasteTerminalClipboard(id: string): Promise<void> {
   } catch {
     toast.error('Cannot read the clipboard', {
       description: 'Paste in this browser requires clipboard permission.',
-    })
-  }
-}
-
-export async function pasteTerminalImage(id: string): Promise<void> {
-  try {
-    await pasteTerminalContents(
-      id,
-      isBrowser
-        ? await readBrowserClipboard()
-        : await shellTrpcClient.readTerminalClipboard.mutate(),
-      true,
-    )
-  } catch {
-    toast.error('Cannot read the clipboard', {
-      description: 'This connection cannot read images from the clipboard.',
     })
   }
 }

@@ -13,7 +13,6 @@ export const PROJECT_DATA_DOMAIN_KEYS = [
   'git',
   'search',
   'review',
-  'board',
   'actions',
   'terminal',
   'project-data',
@@ -24,9 +23,8 @@ export type ProjectDataDomainKey = (typeof PROJECT_DATA_DOMAIN_KEYS)[number]
 export const PROJECT_DATA_DOMAIN_FILES: {
   readonly [K in ProjectDataDomainKey]: readonly string[]
 } = {
-  board: [PROJECT_FILES.board],
   actions: [PROJECT_FILES.actions],
-  files: [PROJECT_FILES.scope],
+  files: [],
   review: [
     ACTIVE_FILES.review,
     ACTIVE_FILES.comments,
@@ -34,12 +32,7 @@ export const PROJECT_DATA_DOMAIN_FILES: {
     PROJECT_FILES.activeReview,
     `${PROJECT_REVIEWS_DIR}/`,
   ],
-  'project-data': [
-    PROJECT_FILES.notes,
-    PROJECT_FILES.layers,
-    PROJECT_FILES.gitignore,
-    PROJECT_FILES.manifest,
-  ],
+  'project-data': [PROJECT_FILES.layers, PROJECT_FILES.gitignore, PROJECT_FILES.manifest],
   projects: [],
   git: [],
   search: [],

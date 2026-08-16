@@ -175,16 +175,17 @@ describe('Mobile Terminal stream adapter', () => {
     context.deliver(attachReply(attachFrame.reqId, 'term-2'))
     await expect(attach).resolves.toMatchObject({ status: 'running' })
 
-    const paste = context.adapter.pasteImageToTerminal({
-      dataBase64: 'aW1hZ2U=',
+    const paste = context.adapter.pasteFileToTerminal({
+      dataBase64: 'ZmlsZQ==',
+      filename: 'evidence.txt',
       id: 'term-1',
-      mime: 'image/png',
+      mime: 'text/plain',
     })
-    const pasteFrame = frames(context, 'terminal:paste-image').at(-1)
-    if (pasteFrame?.t !== 'terminal:paste-image') throw new Error('expected paste frame')
-    context.deliver({ ...terminalStreamFixtures.input.imagePasted, reqId: pasteFrame.reqId })
+    const pasteFrame = frames(context, 'terminal:paste-file').at(-1)
+    if (pasteFrame?.t !== 'terminal:paste-file') throw new Error('expected paste frame')
+    context.deliver({ ...terminalStreamFixtures.input.filePasted, reqId: pasteFrame.reqId })
     await expect(paste).resolves.toEqual({
-      path: '/synthetic/scratch/pasted.png',
+      path: '/synthetic/scratch/evidence.txt',
       result: 'ok',
     })
   })

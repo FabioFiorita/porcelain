@@ -28,16 +28,10 @@ function isTerminalFailure(error: unknown): error is TerminalAdapterFailure {
 }
 
 /** Preserve the existing paste UX while exposing typed Terminal failures to callers. */
-export function terminalPasteFailureMessage(error: unknown, kind: 'image' | 'file'): string {
+export function terminalPasteFailureMessage(error: unknown): string {
   const unavailable = 'This terminal is no longer available.'
-  const tooLarge =
-    kind === 'image'
-      ? 'That image is too large to paste.'
-      : 'That file is too large to attach (8 MiB limit).'
-  const writeFailed =
-    kind === 'image'
-      ? 'The daemon could not save the image. Try again.'
-      : 'The daemon could not save the file. Try again.'
+  const tooLarge = 'That file is too large to attach (8 MiB limit).'
+  const writeFailed = 'The daemon could not save the file. Try again.'
   if (!isTerminalFailure(error)) return writeFailed
   if (error.reason === 'not-requestable' || error.reason === 'closed') return unavailable
   if (error.reason === 'deadline') return writeFailed

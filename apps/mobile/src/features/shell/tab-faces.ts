@@ -9,7 +9,7 @@ import { create } from 'zustand'
  */
 export type FilesTabFace = 'files' | 'search'
 export type ChangesTabFace = 'changes' | 'history'
-export type ReviewTabFace = 'review' | 'board'
+export type ReviewTabFace = 'review'
 
 export type DualTabSlot = 'files' | 'changes' | 'review'
 
@@ -22,7 +22,6 @@ type TabFacesState = {
   setReview: (face: ReviewTabFace) => void
   toggleFiles: () => void
   toggleChanges: () => void
-  toggleReview: () => void
 }
 
 export const useTabFaces = create<TabFacesState>()((set) => ({
@@ -46,11 +45,6 @@ export const useTabFaces = create<TabFacesState>()((set) => ({
   toggleChanges: () => {
     set((state) => ({
       changes: state.changes === 'changes' ? 'history' : 'changes',
-    }))
-  },
-  toggleReview: () => {
-    set((state) => ({
-      review: state.review === 'review' ? 'board' : 'review',
     }))
   },
 }))

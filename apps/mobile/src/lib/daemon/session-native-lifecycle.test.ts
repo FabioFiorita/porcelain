@@ -53,7 +53,7 @@ function buildChange(kind: SessionChange['kind'], projectPath: string): SessionC
 function changeFrame({
   epoch = EPOCH,
   sequence,
-  kind = 'board.changed' as const,
+  kind = 'files.scope-changed' as const,
   projectPath = PROJECT,
 }: {
   epoch?: string
@@ -270,7 +270,7 @@ describe('Session native lifecycle — mobile binding', () => {
         t: 'session:change',
         epoch: EPOCH,
         sequence: 0,
-        change: { kind: 'board.changed', projectPath: PROJECT },
+        change: { kind: 'files.scope-changed', projectPath: PROJECT },
       }),
     )
     runtime.receive(
@@ -283,7 +283,7 @@ describe('Session native lifecycle — mobile binding', () => {
     )
 
     expect(changes).toEqual([
-      { kind: 'board.changed', projectPath: PROJECT },
+      { kind: 'files.scope-changed', projectPath: PROJECT },
       { kind: 'actions.changed', projectId: PROJECT_ID },
     ])
     // The gap surfaced on a Project-scoped Actions change, which names no checkout — so the

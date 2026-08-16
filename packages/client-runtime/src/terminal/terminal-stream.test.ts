@@ -22,7 +22,7 @@ function data(sequence: number, epoch = 'epoch-1'): TerminalServerFrame {
 }
 
 describe('Terminal stream requests and attachment state', () => {
-  it('builds strict create and paste requests without generating ids or time', () => {
+  it('builds strict create and paste-file requests without generating ids or time', () => {
     const state = createTerminalStreamState()
     const create = state.requestCreate(
       { t: 'terminal:create', name: 'zsh', cwd: '/synthetic/repo' },
@@ -46,21 +46,22 @@ describe('Terminal stream requests and attachment state', () => {
     ])
     state.receive(data(1))
 
-    const paste = state.requestPasteImage(
+    const paste = state.requestPasteFile(
       {
-        t: 'terminal:paste-image',
+        t: 'terminal:paste-file',
         id: 'term-1',
-        mime: 'image/png',
-        dataBase64: 'aW1hZ2U=',
+        filename: 'evidence.txt',
+        mime: 'text/plain',
+        dataBase64: 'ZmlsZQ==',
       },
       'req-3',
       200,
     )
     expect(paste).toMatchObject({
-      kind: 'paste-image',
+      kind: 'paste-file',
       reqId: 'req-3',
       deadline: 200,
-      frame: { t: 'terminal:paste-image', reqId: 'req-3', id: 'term-1' },
+      frame: { t: 'terminal:paste-file', reqId: 'req-3', id: 'term-1' },
     })
   })
 
@@ -161,12 +162,13 @@ describe('Terminal stream requests and attachment state', () => {
 
   it('turns expiry and socket close into typed failures while preserving established intent', () => {
     const state = runningState()
-    state.requestPasteImage(
+    state.requestPasteFile(
       {
-        t: 'terminal:paste-image',
+        t: 'terminal:paste-file',
         id: 'term-1',
-        mime: 'image/png',
-        dataBase64: 'aW1hZ2U=',
+        filename: 'evidence.txt',
+        mime: 'text/plain',
+        dataBase64: 'ZmlsZQ==',
       },
       'req-3',
       10,

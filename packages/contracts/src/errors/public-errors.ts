@@ -6,11 +6,6 @@ import {
   actionsUntrustedErrorSchema,
 } from '../actions'
 import {
-  boardCardNotFoundErrorSchema,
-  boardInvalidTitleErrorSchema,
-  boardUnavailableErrorSchema,
-} from '../board'
-import {
   filesAlreadyExistsErrorSchema,
   filesNotFoundErrorSchema,
   filesPathOutsideProjectErrorSchema,
@@ -81,9 +76,6 @@ export const publicErrorSchema = z.discriminatedUnion('code', [
   resourceUnavailableErrorSchema,
   internalUnexpectedErrorSchema,
   protocolUpdateRequiredErrorSchema,
-  boardUnavailableErrorSchema,
-  boardCardNotFoundErrorSchema,
-  boardInvalidTitleErrorSchema,
   tasksUnavailableErrorSchema,
   tasksNotFoundErrorSchema,
   tasksInvalidTitleErrorSchema,

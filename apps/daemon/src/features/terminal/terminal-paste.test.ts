@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { chmod, readFile, stat, utimes, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { MAX_PASTE_FILE_BYTES, MAX_PASTE_IMAGE_BYTES } from '@porcelain/contracts/terminal'
+import { MAX_PASTE_FILE_BYTES } from '@porcelain/contracts/terminal'
 import { describe, expect, it } from 'vitest'
 import { withTemporaryDirectory } from '../../testing/temporary-directory'
 import { createTerminalPasteAdapter, PASTE_RETENTION_MS, safePasteFilename } from './terminal-paste'
@@ -39,7 +39,7 @@ describe('createTerminalPasteAdapter', () => {
     })
   })
 
-  it('maps invalid ids and decoded oversize image/file payloads to a typed failure', async () => {
+  it('maps invalid ids and decoded oversize file payloads to a typed failure', async () => {
     await withTemporaryDirectory('porcelain-terminal-paste-failure-', async (root) => {
       const adapter = createTerminalPasteAdapter({ root })
       await expect(
@@ -47,14 +47,6 @@ describe('createTerminalPasteAdapter', () => {
       ).resolves.toEqual({ ok: false, error: { code: 'terminal.paste-unavailable' } })
       await expect(
         adapter.save({ id: '..', filename: 'a.txt', dataBase64: DATA_BASE64, maxBytes: 100 }),
-      ).resolves.toEqual({ ok: false, error: { code: 'terminal.paste-unavailable' } })
-      await expect(
-        adapter.save({
-          id: 'terminal-1',
-          filename: 'image.png',
-          dataBase64: Buffer.alloc(MAX_PASTE_IMAGE_BYTES + 1).toString('base64'),
-          maxBytes: MAX_PASTE_IMAGE_BYTES,
-        }),
       ).resolves.toEqual({ ok: false, error: { code: 'terminal.paste-unavailable' } })
       await expect(
         adapter.save({

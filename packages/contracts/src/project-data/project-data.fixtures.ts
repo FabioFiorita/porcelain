@@ -1,29 +1,21 @@
 const sharedChannel = {
-  key: 'notes',
-  label: 'Notes',
-  hint: 'Repository notes',
+  key: 'actions',
+  label: 'Saved actions',
+  hint: 'Named commands for this project.',
   disposition: 'shared',
-  trackedPaths: ['.porcelain/notes.md'],
+  trackedPaths: ['.porcelain/actions.json'],
 } as const
 
 const localChannel = {
-  key: 'board',
-  label: 'Board',
-  hint: 'Project board',
+  key: 'layers',
+  label: 'Flow layers',
+  hint: 'How files group into a story.',
   disposition: 'local',
-  trackedPaths: [],
+  trackedPaths: ['.porcelain/layers.json'],
 } as const
 
 /** Representative Project Data wire values used by boundary tests and client mocks. */
 export const projectDataContractFixtures = {
-  repoNotes: {
-    input: '/synthetic/repo',
-    output: 'Ship the review layer.',
-  },
-  setRepoNotes: {
-    input: { repoPath: '/synthetic/repo', notes: 'Ship the review layer.' },
-    output: undefined,
-  },
   companionDispositions: {
     input: '/synthetic/repo',
     output: [sharedChannel, localChannel],
@@ -37,8 +29,8 @@ export const projectDataContractFixtures = {
     output: { changed: true },
   },
   setCompanionDisposition: {
-    input: { repoPath: '/synthetic/repo', key: 'board', disposition: 'local' },
-    output: { untracked: ['.porcelain/board.json'], revealed: false },
+    input: { repoPath: '/synthetic/repo', key: 'actions', disposition: 'local' },
+    output: { untracked: ['.porcelain/actions.json'], revealed: false },
   },
   repoLayers: {
     input: '/synthetic/repo',
