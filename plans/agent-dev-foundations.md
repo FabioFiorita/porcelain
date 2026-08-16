@@ -1,6 +1,6 @@
 # Agent development foundations
 
-**Status:** W1 and W2 landed; W3–W7 proposed. See "Landed" at the end for what changed and what
+**Status:** W1, W1b, W2 and W3 landed; W4–W7 proposed. See "Landed" at the end for what changed and what
 the runtime proof showed.
 
 Post-0.53.0 the Mac app is visibly broken in ways the repo's own gates ran green on: a project
@@ -299,8 +299,35 @@ Two test-hygiene bugs surfaced: `vi.restoreAllMocks()` undoes neither `vi.stubGl
 persistent `mockRejectedValue`, so a stubbed `fetch` was answering requests a later case never
 made. Both now reset in `afterEach`.
 
+### W3 — seeded daemon state (done)
+
+`pnpm dev:seed [scenario]` with four scenarios — `empty` (Welcome), `one-review`, `busy` (four
+projects in different shapes, Tasks in every status, Actions), `evidence-heavy` (a Canvas with
+checks, results prose, and a gallery image). Missing fleet playgrounds are created on demand, so
+seeding needs no setup step.
+
+Writes go through the **shipped CLI**, the same commands an agent runs; reads go through the
+daemon's typed procedures (`scripts/dev-daemon-client.mjs`), never by parsing CLI prose — that
+distinction is the repo's own rule and it held up: the human-readable Task list would have been
+the tempting parse.
+
+Re-running is safe. Seeded Tasks carry a `dev-seed` tag and are reclaimed first; Actions are
+matched by title; a Canvas is replaced through `--id` rather than stacked; a Review set is a
+replace by definition. A Task the human added by hand is never in scope. One list now drives
+both writing and purging Actions, so the drift where a new Action is seeded but never reclaimed
+cannot happen.
+
+Two bugs surfaced while proving it, both of the same kind — silent success:
+
+- `hubInventory` projects carry `path`, not `root`, so the first run reported success while
+  creating no Actions at all. `projectIdFor` now fails loudly instead of returning null.
+- The Canvas write was documented as idempotent before it was, and would have stacked a second
+  "Seeded evidence" on every run.
+
+Proven end to end against the live dev daemon: `busy` twice (Task count stable at 5, Actions not
+duplicated), `evidence-heavy` twice (one Canvas, not two), and `empty` → `busy` round trip.
+
 ## Next
 
-W3 (seeded daemon state) is the next payer: the fleet now gives it repositories with shape, and
-Reviews/Tasks/Evidence are still built by hand every session. W4 (a second daemon) is what makes
-the remote-environment regressions reproducible at all.
+W4 (a second daemon) is what makes the remote-environment regressions reproducible at all, and
+is deferred to its own session. W5–W7 remain as written.

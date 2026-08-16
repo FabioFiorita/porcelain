@@ -126,6 +126,7 @@ pnpm build && pnpm dev:daemon   # dev daemon on 43118 — the browser needs no p
 pnpm dev:daemon -- --no-auto-auth  # require pairing links (use when testing pairing itself)
 pnpm dev:pair                   # one-time link for another device (15-minute expiry)
 pnpm playground new dirty       # a fixture with a shape; `shapes` lists them, `rm` deletes
+pnpm dev:seed busy              # Projects, Reviews, Tasks, Actions, Evidence worth looking at
 pnpm porcelain <noun> <verb>    # CLI → ~/.porcelain-dev
 ```
 
@@ -135,7 +136,8 @@ the browser a real client token so no context has to be paired by hand; every re
 is still Bearer-gated, production never mounts the route, and `apps/desktop/e2e/pairing.spec.ts`
 keeps the skipped handshake proven. Never hand-plant a token into `localStorage`. One fixture
 proves nothing about adding, removing, or switching projects — make the fleet match the flow
-under test.
+under test, and seed state through `pnpm dev:seed` rather than hand-building a Review every
+session (it writes through the shipped CLI and is safe to re-run).
 
 **Debris:** delete session-local junk (`.playwright-mcp/`, `test-results/`, `playwright-report/`,
 `apps/desktop/e2e/.artifacts/`) before stopping. `scripts/agent-scratch/` is gitignored.
