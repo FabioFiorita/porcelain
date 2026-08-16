@@ -8,7 +8,9 @@ import type { DevServer, DevServerTarget } from '@porcelain/contracts/terminal'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import { primary } from '@renderer/lib/daemon'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
+import { environmentClientFor } from '@renderer/lib/environment-sessions'
 import { trpc } from '@renderer/lib/trpc'
+import { useHubTarget } from '@renderer/stores/hub-selection'
 import { settleBackground } from '@shared/background'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
@@ -50,6 +52,7 @@ export type DevServerRoster = Readonly<{
 export function useDevServers(target: HubTarget | null): DevServerRoster {
   const daemon = useDaemonScope()
   const utils = trpc.useUtils()
+  const owner = environmentClientFor(target?.environmentId ?? null, utils.client)
   const identity =
     target === null
       ? devServersQuery({ projectId: 'none', worktreeId: 'none' })
@@ -59,9 +62,10 @@ export function useDevServers(target: HubTarget | null): DevServerRoster {
     queryKey: devServersQueryKey(daemon, identity),
     queryFn: async (): Promise<DevServer[]> => {
       if (target === null) return []
-      return utils.client.devServers.query({ target: devServerTargetOf(target) })
+      if (owner === null) throw new Error('The target Environment is offline.')
+      return owner.client.devServers.query({ target: devServerTargetOf(target) })
     },
-    enabled: target !== null,
+    enabled: target !== null && owner !== null,
   })
 
   return { servers: query.data ?? [], loaded: target === null || query.isSuccess }
@@ -81,6 +85,8 @@ export function useDevServerCommands(): DevServerCommands {
   const daemon = useDaemonScope()
   const queryClient = useQueryClient()
   const utils = trpc.useUtils()
+  const target = useHubTarget()
+  const owner = environmentClientFor(target?.environmentId ?? null, utils.client)
 
   async function settle(queries: readonly ReturnType<typeof devServersQuery>[]): Promise<void> {
     await invalidateDevServerQueries(queryClient, daemon, queries)
@@ -88,15 +94,18 @@ export function useDevServerCommands(): DevServerCommands {
 
   return {
     start: async (input) => {
-      await utils.client.startDevServer.mutate(input)
+      if (owner === null) throw new Error('The target Environment is offline.')
+      await owner.client.startDevServer.mutate(input)
       await settle(devServerMutations.start.affectedQueries(input))
     },
     stop: async (server) => {
-      await utils.client.stopDevServer.mutate({ id: server.id })
+      if (owner === null) throw new Error('The target Environment is offline.')
+      await owner.client.stopDevServer.mutate({ id: server.id })
       await settle(devServerMutations.stop.affectedQueries({ id: server.id, ...server.target }))
     },
     dismiss: async (server) => {
-      await utils.client.dismissDevServer.mutate({ id: server.id })
+      if (owner === null) throw new Error('The target Environment is offline.')
+      await owner.client.dismissDevServer.mutate({ id: server.id })
       await settle(devServerMutations.dismiss.affectedQueries({ id: server.id, ...server.target }))
     },
   }

@@ -30,8 +30,9 @@ import type {
 } from '@porcelain/contracts/git'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
+import { environmentClientFor } from '@renderer/lib/environment-sessions'
 import { trpc } from '@renderer/lib/trpc'
-import { useHubRepoPath } from '@renderer/stores/hub-repo'
+import { useHubRepoPath, useHubRepoTarget } from '@renderer/stores/hub-repo'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { settleBackground } from '@shared/background'
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -61,17 +62,34 @@ function projectPath(path: string | undefined): string {
   return path === undefined ? DISABLED_PROJECT : gitProjectKey(path)
 }
 
+function ownerClient(
+  owner: ReturnType<typeof environmentClientFor>,
+): NonNullable<ReturnType<typeof environmentClientFor>>['client'] {
+  if (owner === null) throw new Error('The target Environment is offline.')
+  return owner.client
+}
+
+function useGitOwner(): ReturnType<typeof environmentClientFor> {
+  const target = useHubRepoTarget()
+  const primary = trpc.useUtils().client
+  // A missing target is the legacy implicit local Changes surface; only an
+  // explicit Environment id is subject to the strict refusal boundary.
+  return target === null
+    ? { client: primary, session: null }
+    : environmentClientFor(target.environmentId, primary)
+}
+
 /** Working-tree flow. Changes constantly outside the app, so it stays live at a 3s poll. */
 export function useGitFlow(): { groups: FlowGroup[] | undefined; refresh: () => Promise<void> } {
   const repoPath = useHubRepoPath()
   const identity = useDaemonIdentity()
   const daemon = daemonScope(identity)
   const queryClient = useQueryClient()
-  const utils = trpc.useUtils()
+  const owner = useGitOwner()
   const path = projectPath(repoPath ?? undefined)
   const query = useQuery({
     enabled: repoPath !== null,
-    queryFn: (): Promise<FlowGroup[]> => utils.client.gitFlow.query(path),
+    queryFn: (): Promise<FlowGroup[]> => ownerClient(owner).gitFlow.query(path),
     queryKey: gitQueryKey(daemon, gitFlowQuery(path)),
     refetchInterval: repoPath === null ? false : 3000,
     staleTime: 0,
@@ -100,10 +118,10 @@ export function useBranchFlow(enabled: boolean): {
   const identity = useDaemonIdentity()
   const daemon = daemonScope(identity)
   const path = projectPath(repoPath ?? undefined)
-  const utils = trpc.useUtils()
+  const owner = useGitOwner()
   const query = useQuery({
     enabled: enabled && repoPath !== null,
-    queryFn: () => utils.client.gitRangeFlow.query(path),
+    queryFn: () => ownerClient(owner).gitRangeFlow.query(path),
     queryKey: gitQueryKey(daemon, gitRangeFlowQuery(path)),
     staleTime: Number.POSITIVE_INFINITY,
   })
@@ -120,10 +138,10 @@ export function useGitStatus(): ChangedFile[] {
   const repoPath = useHubRepoPath()
   const identity = useDaemonIdentity()
   const path = projectPath(repoPath ?? undefined)
-  const utils = trpc.useUtils()
+  const owner = useGitOwner()
   const query = useQuery({
     enabled: repoPath !== null,
-    queryFn: () => utils.client.gitStatus.query(path),
+    queryFn: () => ownerClient(owner).gitStatus.query(path),
     queryKey: gitQueryKey(daemonScope(identity), gitStatusQuery(path)),
     staleTime: 0,
   })
@@ -134,10 +152,10 @@ export function useGitSuggestions(): GitSuggestion[] {
   const repoPath = useHubRepoPath()
   const identity = useDaemonIdentity()
   const path = projectPath(repoPath ?? undefined)
-  const utils = trpc.useUtils()
+  const owner = useGitOwner()
   const query = useQuery({
     enabled: repoPath !== null,
-    queryFn: () => utils.client.gitSuggestions.query(path),
+    queryFn: () => ownerClient(owner).gitSuggestions.query(path),
     queryKey: gitQueryKey(daemonScope(identity), gitSuggestionsQuery(path)),
     refetchInterval: repoPath === null ? false : 5000,
     staleTime: 0,
@@ -159,10 +177,10 @@ export function useDiffFile(
   const identity = useDaemonIdentity()
   const daemon = daemonScope(identity)
   const path = projectPath(repoPath ?? undefined)
-  const utils = trpc.useUtils()
+  const owner = useGitOwner()
   const working = useQuery({
     enabled: repoPath !== null && base === undefined,
-    queryFn: () => utils.client.gitDiffFile.query({ repoPath: path, filePath }),
+    queryFn: () => ownerClient(owner).gitDiffFile.query({ repoPath: path, filePath }),
     queryKey: gitQueryKey(daemon, gitDiffFileQuery(path, filePath)),
     placeholderData: keepPreviousData,
     staleTime: 0,
@@ -170,7 +188,7 @@ export function useDiffFile(
   const range = useQuery({
     enabled: repoPath !== null && base !== undefined,
     queryFn: () =>
-      utils.client.gitRangeDiffFile.query({ base: base ?? '', filePath, repoPath: path }),
+      ownerClient(owner).gitRangeDiffFile.query({ base: base ?? '', filePath, repoPath: path }),
     queryKey: gitQueryKey(daemon, gitRangeDiffFileQuery(path, base ?? '', filePath)),
     placeholderData: keepPreviousData,
     staleTime: Number.POSITIVE_INFINITY,
@@ -191,20 +209,20 @@ export function useDiffFilePrefetch(): (filePath: string, base?: string) => Prom
   const identity = useDaemonIdentity()
   const daemon = daemonScope(identity)
   const queryClient = useQueryClient()
-  const utils = trpc.useUtils()
+  const owner = useGitOwner()
   return async (filePath: string, base?: string): Promise<void> => {
     if (repoPath === null) return
     const path = gitProjectKey(repoPath)
     if (base === undefined) {
       await queryClient.prefetchQuery({
-        queryFn: () => utils.client.gitDiffFile.query({ filePath, repoPath: path }),
+        queryFn: () => ownerClient(owner).gitDiffFile.query({ filePath, repoPath: path }),
         queryKey: gitQueryKey(daemon, gitDiffFileQuery(path, filePath)),
         staleTime: 2000,
       })
       return
     }
     await queryClient.prefetchQuery({
-      queryFn: () => utils.client.gitRangeDiffFile.query({ base, filePath, repoPath: path }),
+      queryFn: () => ownerClient(owner).gitRangeDiffFile.query({ base, filePath, repoPath: path }),
       queryKey: gitQueryKey(daemon, gitRangeDiffFileQuery(path, base, filePath)),
       staleTime: 2000,
     })
@@ -229,10 +247,10 @@ export function useCommitDiff(
   const repoPath = useHubRepoPath()
   const identity = useDaemonIdentity()
   const path = projectPath(repoPath ?? undefined)
-  const utils = trpc.useUtils()
+  const owner = useGitOwner()
   const query = useQuery({
     enabled: repoPath !== null,
-    queryFn: () => utils.client.gitCommitDiff.query({ filePath, hash, repoPath: path }),
+    queryFn: () => ownerClient(owner).gitCommitDiff.query({ filePath, hash, repoPath: path }),
     queryKey: gitQueryKey(daemonScope(identity), gitCommitDiffQuery(path, hash, filePath)),
     staleTime: Number.POSITIVE_INFINITY,
   })
@@ -251,11 +269,11 @@ export function useDiffReading(scope: DiffReadingScope): {
   const repoPath = useHubRepoPath()
   const identity = useDaemonIdentity()
   const path = projectPath(repoPath ?? undefined)
-  const utils = trpc.useUtils()
+  const owner = useGitOwner()
   const live = scope.type === 'working'
   const query = useQuery({
     enabled: repoPath !== null,
-    queryFn: () => utils.client.diffReading.query({ repoPath: path, scope }),
+    queryFn: () => ownerClient(owner).diffReading.query({ repoPath: path, scope }),
     queryKey: gitQueryKey(daemonScope(identity), gitDiffReadingQuery(path, scope)),
     refetchInterval: live ? 3000 : false,
     staleTime: live ? 0 : Number.POSITIVE_INFINITY,
@@ -267,10 +285,10 @@ export function useGitLog(limit = 200, enabled = true): Commit[] | undefined {
   const repoPath = useHubRepoPath()
   const identity = useDaemonIdentity()
   const path = projectPath(repoPath ?? undefined)
-  const utils = trpc.useUtils()
+  const owner = useGitOwner()
   const query = useQuery({
     enabled: enabled && repoPath !== null,
-    queryFn: () => utils.client.gitLog.query({ limit, repoPath: path }),
+    queryFn: () => ownerClient(owner).gitLog.query({ limit, repoPath: path }),
     queryKey: gitQueryKey(daemonScope(identity), gitLogQuery(path, limit)),
     staleTime: 0,
   })
@@ -286,11 +304,12 @@ export function useFileLog(filePath: string | null, limit = 50): Commit[] | unde
   const repoPath = useHubRepoPath()
   const identity = useDaemonIdentity()
   const path = projectPath(repoPath ?? undefined)
-  const utils = trpc.useUtils()
+  const owner = useGitOwner()
   const activePath = filePath ?? ''
   const query = useQuery({
     enabled: repoPath !== null && filePath !== null,
-    queryFn: () => utils.client.gitFileLog.query({ filePath: activePath, limit, repoPath: path }),
+    queryFn: () =>
+      ownerClient(owner).gitFileLog.query({ filePath: activePath, limit, repoPath: path }),
     queryKey: gitQueryKey(daemonScope(identity), gitFileLogQuery(path, activePath, limit)),
     staleTime: 0,
   })
@@ -301,10 +320,10 @@ export function useCommitMessage(hash: string): string | undefined {
   const repoPath = useHubRepoPath()
   const identity = useDaemonIdentity()
   const path = projectPath(repoPath ?? undefined)
-  const utils = trpc.useUtils()
+  const owner = useGitOwner()
   const query = useQuery({
     enabled: repoPath !== null,
-    queryFn: () => utils.client.gitCommitMessage.query({ hash, repoPath: path }),
+    queryFn: () => ownerClient(owner).gitCommitMessage.query({ hash, repoPath: path }),
     queryKey: gitQueryKey(daemonScope(identity), gitCommitMessageQuery(path, hash)),
     staleTime: Number.POSITIVE_INFINITY,
   })
@@ -317,12 +336,12 @@ export function useFetchCommitMessage(): (hash: string) => Promise<string> {
   const identity = useDaemonIdentity()
   const daemon = daemonScope(identity)
   const queryClient = useQueryClient()
-  const utils = trpc.useUtils()
+  const owner = useGitOwner()
   return (hash: string): Promise<string> => {
     if (repoPath === null) return Promise.resolve('')
     const path = gitProjectKey(repoPath)
     return queryClient.fetchQuery({
-      queryFn: () => utils.client.gitCommitMessage.query({ hash, repoPath: path }),
+      queryFn: () => ownerClient(owner).gitCommitMessage.query({ hash, repoPath: path }),
       queryKey: gitQueryKey(daemon, gitCommitMessageQuery(path, hash)),
       staleTime: Number.POSITIVE_INFINITY,
     })
@@ -337,10 +356,10 @@ export function useCommitFlow(hash: string): { groups: FlowGroup[] | undefined }
   const repoPath = useHubRepoPath()
   const identity = useDaemonIdentity()
   const path = projectPath(repoPath ?? undefined)
-  const utils = trpc.useUtils()
+  const owner = useGitOwner()
   const query = useQuery({
     enabled: repoPath !== null,
-    queryFn: () => utils.client.gitCommitFlow.query({ hash, repoPath: path }),
+    queryFn: () => ownerClient(owner).gitCommitFlow.query({ hash, repoPath: path }),
     queryKey: gitQueryKey(daemonScope(identity), gitCommitFlowQuery(path, hash)),
     staleTime: Number.POSITIVE_INFINITY,
   })
@@ -351,10 +370,10 @@ export function useCommitConventions(): CommitConventions | undefined {
   const repoPath = useHubRepoPath()
   const identity = useDaemonIdentity()
   const path = projectPath(repoPath ?? undefined)
-  const utils = trpc.useUtils()
+  const owner = useGitOwner()
   const query = useQuery({
     enabled: repoPath !== null,
-    queryFn: () => utils.client.gitCommitConventions.query(path),
+    queryFn: () => ownerClient(owner).gitCommitConventions.query(path),
     queryKey: gitQueryKey(daemonScope(identity), gitCommitConventionsQuery(path)),
   })
   return query.data
@@ -369,11 +388,11 @@ export function useCommitModels(): {
   isLoading: boolean
 } {
   const identity = useDaemonIdentity()
-  const utils = trpc.useUtils()
+  const owner = useGitOwner()
   const commitModel = usePreferencesStore((state) => state.commitModel)
   const setCommitModel = usePreferencesStore((state) => state.setCommitModel)
   const query = useQuery({
-    queryFn: () => utils.client.commitModels.query(),
+    queryFn: () => ownerClient(owner).commitModels.query(),
     queryKey: gitQueryKey(daemonScope(identity), gitCommitModelsQuery()),
     refetchInterval: 60_000,
     staleTime: 30_000,

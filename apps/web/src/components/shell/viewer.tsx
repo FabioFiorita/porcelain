@@ -74,7 +74,7 @@ function PaneView({ paneIndex }: { paneIndex: number }): React.JSX.Element {
 
   const content = <PaneContent tab={activeTab} paneIndex={paneIndex} />
   if (activeTab.target === undefined) return content
-  return <HubRepoProvider repoPath={activeTab.target.path}>{content}</HubRepoProvider>
+  return <HubRepoProvider target={activeTab.target}>{content}</HubRepoProvider>
 }
 
 function PaneContent({ tab, paneIndex }: { tab: Tab; paneIndex: number }): React.JSX.Element {

@@ -1,6 +1,7 @@
 import { remoteContractFixtures } from '@porcelain/contracts/remote'
 import { terminalContractFixtures } from '@porcelain/contracts/terminal'
 import { createValidatingTrpcHarness } from '@renderer/hooks/trpc-test-harness'
+import { setPrimaryEnvironmentId } from '@renderer/lib/environment-sessions'
 import { useHubSelectionStore } from '@renderer/stores/hub-selection'
 import { useTerminalsStore } from '@renderer/stores/terminals'
 import { TestIds } from '@shared/test-ids'
@@ -27,6 +28,7 @@ function selectWorktree(): void {
 }
 
 beforeEach(() => {
+  setPrimaryEnvironmentId('environment-1')
   useHubSelectionStore.setState({ selection: { kind: 'home' } })
   useTerminalsStore.getState().reset()
 })

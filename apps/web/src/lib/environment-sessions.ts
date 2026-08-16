@@ -20,6 +20,11 @@ export type EnvironmentSession = Readonly<{
   client: ReturnType<typeof createAppClientFor>
 }>
 
+export type EnvironmentClient = Readonly<{
+  client: EnvironmentSession['client']
+  session: DaemonSession | null
+}>
+
 const STORAGE_KEY = 'porcelain-browser-environments'
 const connectionShape = (value: unknown): value is BrowserEnvironmentConnection => {
   if (typeof value !== 'object' || value === null) return false
@@ -118,4 +123,16 @@ export function environmentSessionFor(environmentId: string | null): Environment
   const connections = browserEnvironmentConnections()
   const connection = connections.find((item) => item.id === connectionId)
   return connection === undefined ? null : ensureEnvironmentSession(connection)
+}
+
+/** Resolve an explicit target to its owning client; unknown Environment ids refuse. */
+export function environmentClientFor(
+  environmentId: string | null,
+  primary: EnvironmentSession['client'],
+): EnvironmentClient | null {
+  if (environmentId === null || environmentId === primaryEnvironmentId) {
+    return { client: primary, session: null }
+  }
+  const owner = environmentSessionFor(environmentId)
+  return owner === null ? null : { client: owner.client, session: owner.session }
 }

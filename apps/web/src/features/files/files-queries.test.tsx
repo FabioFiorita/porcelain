@@ -7,7 +7,9 @@ import {
 import { filesContractFixtures, fileViewFixtures } from '@porcelain/contracts/files'
 import { remoteContractFixtures } from '@porcelain/contracts/remote'
 import { createValidatingTrpcHarness } from '@renderer/hooks/trpc-test-harness'
+import { setPrimaryEnvironmentId } from '@renderer/lib/environment-sessions'
 import { HubRepoProvider } from '@renderer/stores/hub-repo'
+import { useHubSelectionStore } from '@renderer/stores/hub-selection'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
@@ -30,7 +32,17 @@ const baseHandlers = {
 }
 
 beforeEach(() => {
+  setPrimaryEnvironmentId('env-primary')
   useProjectSelectionStore.setState({ project: { path: REPO, name: 'repo' }, showHidden: false })
+  useHubSelectionStore.setState({
+    selection: {
+      kind: 'worktree',
+      environmentId: 'env-primary',
+      projectId: 'project-repo',
+      worktreeId: 'worktree-repo',
+      path: REPO,
+    },
+  })
 })
 
 describe('useFilesTree', () => {
@@ -54,6 +66,7 @@ describe('useFilesTree', () => {
 
   it('is disabled without a repo and never calls the daemon', async () => {
     useProjectSelectionStore.setState({ project: null })
+    useHubSelectionStore.setState({ selection: { kind: 'home' } })
     const { mock, wrapper } = createValidatingTrpcHarness({
       ...baseHandlers,
       readDir: () => ({ ok: true, value: [] }),
@@ -145,7 +158,16 @@ describe('useFileContent / useFilePreview / prefetch', () => {
       },
     })
     const wrapper = ({ children }: { children: ReactNode }): React.JSX.Element => (
-      <HubRepoProvider repoPath={REPO}>{inner({ children })}</HubRepoProvider>
+      <HubRepoProvider
+        target={{
+          environmentId: 'env-primary',
+          projectId: 'project-repo',
+          worktreeId: 'worktree-repo',
+          path: REPO,
+        }}
+      >
+        {inner({ children })}
+      </HubRepoProvider>
     )
     const { result } = renderHook(() => useFileContent(`${REPO}/README.md`), { wrapper })
     await waitFor(() => expect(result.current.view).toEqual(fileViewFixtures.text))
