@@ -17,7 +17,7 @@ import type { ProjectsRecentsStore } from './projects-recents-store'
 const PROJECT: ProjectInfo = { path: '/projects/alpha', name: 'alpha' }
 const BROWSE: BrowseDirsOutput = { path: '/projects', parent: '/', entries: [] }
 
-function harness() {
+function harness(pathAllowed?: (path: string) => boolean) {
   const events: string[] = []
   const projects = {
     inspectProject: vi.fn<ProjectsPort['inspectProject']>(async (path: string) => ({
@@ -112,6 +112,7 @@ function harness() {
         inventory,
         git,
         daemon: { host: 'synthetic', platform: 'linux', arch: 'x64' },
+        pathAllowed,
         createId: () => 'generated',
       },
       canvas,
@@ -120,6 +121,27 @@ function harness() {
 }
 
 describe('Project operations', () => {
+  it('blocks real repositories at the development-daemon boundary', async () => {
+    const h = harness((path) => path.startsWith('/playground'))
+
+    expect(await h.operations.openProject('/home/fabiofiorita/code/porcelain')).toEqual({
+      ok: false,
+      error: { code: 'projects.dev-repo-forbidden' },
+    })
+    expect(h.projects.inspectProject).not.toHaveBeenCalled()
+    expect(h.recents.addPath).not.toHaveBeenCalled()
+  })
+
+  it('keeps recognized playgrounds available under the same boundary', async () => {
+    const h = harness((path) => path.startsWith('/playground'))
+
+    expect(await h.operations.openProject('/playground/fix-review')).toEqual({
+      ok: true,
+      value: { path: '/playground/fix-review', name: 'fix-review' },
+    })
+    expect(h.recents.addPath).toHaveBeenCalledWith('/playground/fix-review')
+  })
+
   it('validates, persists, watches, and warms in the exact open order', async () => {
     const h = harness()
     h.projects.inspectProject.mockImplementationOnce(async (path) => {

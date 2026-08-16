@@ -35,7 +35,12 @@ const projectsProcedureDefinitions = {
     kind: 'mutation',
     input: openRepoPathInputSchema,
     output: openRepoPathOutputSchema,
-    errors: ['projects.not-found', 'projects.not-a-directory', 'projects.unavailable'],
+    errors: [
+      'projects.not-found',
+      'projects.not-a-directory',
+      'projects.unavailable',
+      'projects.dev-repo-forbidden',
+    ],
   },
   recentRepos: {
     kind: 'query',

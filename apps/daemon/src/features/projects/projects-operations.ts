@@ -98,6 +98,7 @@ export function createProjectsOperations(options: {
     git: HubGitPort
     daemon: { host: string; platform: string; arch: string }
     createId?: () => string
+    pathAllowed?: (path: string) => boolean
   }
   /**
    * Canvas storage plus the grant map. Built here rather than handed in already
@@ -120,6 +121,7 @@ export function createProjectsOperations(options: {
     recents: options.recents,
     git: options.hub.git,
     daemon: options.hub.daemon,
+    pathAllowed: options.hub.pathAllowed,
     createId: options.hub.createId,
   })
   const canvas: CanvasOperations = createCanvasOperations({
@@ -139,6 +141,9 @@ export function createProjectsOperations(options: {
 
   return Object.freeze({
     async openProject(path: string): Promise<ProjectOperationResult<ProjectInfo>> {
+      if (options.hub.pathAllowed !== undefined && !options.hub.pathAllowed(path)) {
+        return failure({ code: 'projects.dev-repo-forbidden' })
+      }
       const inspected = await options.projects.inspectProject(path)
       if (!inspected.ok) return failure(mapPortError(inspected.error))
 
@@ -157,14 +162,16 @@ export function createProjectsOperations(options: {
       if (!recentPaths.ok) return mapUnavailable(recentPaths)
 
       const projects = await Promise.all(
-        recentPaths.value.map(async (path): Promise<ProjectInfo | null> => {
-          const inspected = await options.projects.inspectProject(path)
-          if (!inspected.ok) return null
-          if (!input.includeWorktrees && (await options.worktree.isLinkedWorktree(path))) {
-            return null
-          }
-          return inspected.value
-        }),
+        recentPaths.value
+          .filter((path) => options.hub.pathAllowed?.(path) ?? true)
+          .map(async (path): Promise<ProjectInfo | null> => {
+            const inspected = await options.projects.inspectProject(path)
+            if (!inspected.ok) return null
+            if (!input.includeWorktrees && (await options.worktree.isLinkedWorktree(path))) {
+              return null
+            }
+            return inspected.value
+          }),
       )
       return {
         ok: true,

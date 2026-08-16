@@ -20,6 +20,7 @@ import {
 import {
   canvasNotFoundErrorSchema,
   canvasUnavailableErrorSchema,
+  projectsDevRepoForbiddenErrorSchema,
   projectsNotADirectoryErrorSchema,
   projectsNotFoundErrorSchema,
   projectsOverlayTargetInvalidErrorSchema,
@@ -83,6 +84,7 @@ export const publicErrorSchema = z.discriminatedUnion('code', [
   actionsNotFoundErrorSchema,
   actionsUntrustedErrorSchema,
   actionsTargetInvalidErrorSchema,
+  projectsDevRepoForbiddenErrorSchema,
   projectsNotFoundErrorSchema,
   projectsNotADirectoryErrorSchema,
   projectsUnavailableErrorSchema,

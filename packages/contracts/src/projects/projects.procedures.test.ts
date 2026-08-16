@@ -20,7 +20,12 @@ const expectedKinds = {
 } as const
 
 const expectedErrors = {
-  openRepoPath: ['projects.not-found', 'projects.not-a-directory', 'projects.unavailable'],
+  openRepoPath: [
+    'projects.not-found',
+    'projects.not-a-directory',
+    'projects.unavailable',
+    'projects.dev-repo-forbidden',
+  ],
   recentRepos: ['projects.unavailable'],
   removeRecentRepo: ['projects.unavailable'],
   removeHubProject: ['projects.not-found', 'projects.unavailable'],

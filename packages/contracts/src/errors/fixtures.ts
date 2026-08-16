@@ -142,6 +142,13 @@ export const publicErrorFixtures = {
     retryable: true,
     requestId: '00000000-0000-4000-8000-00000000001d',
   },
+  'projects.dev-repo-forbidden': {
+    code: 'projects.dev-repo-forbidden',
+    category: 'invalid-request',
+    message: 'Development daemons accept playgrounds only; real repositories are blocked.',
+    retryable: false,
+    requestId: '00000000-0000-4000-8000-000000000022',
+  },
   'projects.overlay-target-invalid': {
     code: 'projects.overlay-target-invalid',
     category: 'invalid-request',

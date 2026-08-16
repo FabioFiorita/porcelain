@@ -19,6 +19,7 @@ export {
   gitWorktreeConflictErrorSchema,
 } from '../git'
 export {
+  projectsDevRepoForbiddenErrorSchema,
   projectsNotADirectoryErrorSchema,
   projectsNotFoundErrorSchema,
   projectsUnavailableErrorSchema,

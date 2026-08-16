@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { porcelainHome, porcelainHomePath } from '@shared/porcelain-home'
 import { createDaemonOperations, createDaemonRouter } from './api'
 import { ensureCli } from './cli-install'
-import { seedDevConfig } from './dev-config'
+import { devRepoPath, isRecognizedDevPlayground, seedDevConfig } from './dev-config'
 import { createGitSubprocess } from './features/git'
 import {
   createCanvasAccessTokens,
@@ -154,6 +154,13 @@ async function main(): Promise<void> {
       inventory: hubInventory,
       git: createHubGitPort(createGitSubprocess()),
       daemon: identity,
+      // A development daemon is an agent playground, never a way to open the
+      // host's real checkouts. Production daemons omit PORCELAIN_DEV entirely,
+      // so this boundary cannot change their project behavior.
+      pathAllowed:
+        process.env.PORCELAIN_DEV === '1'
+          ? (path: string): boolean => isRecognizedDevPlayground(path, devRepoPath())
+          : undefined,
     },
     canvas: canvasStores,
   })

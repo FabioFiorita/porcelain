@@ -13,6 +13,8 @@ function throwIfFailed<Value>(result: ProjectOperationResult<Value>): Value {
       throw toTrpcError(expectedFailure('projects.not-a-directory'))
     case 'projects.unavailable':
       throw toTrpcError(expectedFailure('projects.unavailable'))
+    case 'projects.dev-repo-forbidden':
+      throw toTrpcError(expectedFailure('projects.dev-repo-forbidden'))
     case 'projects.overlay-target-invalid':
       throw toTrpcError(expectedFailure('projects.overlay-target-invalid'))
     case 'git.not-a-repository':

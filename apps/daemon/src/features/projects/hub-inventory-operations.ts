@@ -102,6 +102,8 @@ export function createHubInventoryOperations(options: {
   recents: ProjectsRecentsStore
   git: HubGitPort
   daemon: { host: string; platform: string; arch: string }
+  /** Optional development-daemon boundary; production has no path restriction. */
+  pathAllowed?: (path: string) => boolean
   createId?: () => string
 }): HubInventoryOperations {
   const createId = options.createId ?? randomUUID
@@ -164,6 +166,7 @@ export function createHubInventoryOperations(options: {
 
     let working = [...storedResult.value]
     for (const path of recents.value) {
+      if (options.pathAllowed !== undefined && !options.pathAllowed(path)) continue
       const discovered = await options.git.discoverProject(path)
       if (!discovered.ok) continue
       working = await registerDiscovered(working, discovered.value)
@@ -173,6 +176,10 @@ export function createHubInventoryOperations(options: {
     const nextStored: StoredHubProject[] = []
     for (const project of working) {
       const refreshed = await refreshProject(project)
+      const hasAllowedWorktree =
+        options.pathAllowed === undefined ||
+        refreshed.live.some((worktree) => options.pathAllowed?.(worktree.path))
+      if (!hasAllowedWorktree) continue
       nextStored.push(refreshed.stored)
       const hubProject = toHubProject(environment.value.id, refreshed.stored, refreshed.live)
       if (hubProject !== null) live.push(hubProject)
@@ -267,6 +274,7 @@ export function createHubInventoryOperations(options: {
     removeHubWorktree,
 
     async registerPath(path: string): Promise<void> {
+      if (options.pathAllowed !== undefined && !options.pathAllowed(path)) return
       const discovered = await options.git.discoverProject(path)
       if (!discovered.ok) return
       const stored = await options.inventory.readProjects()

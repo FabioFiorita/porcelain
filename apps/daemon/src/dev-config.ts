@@ -20,17 +20,25 @@ export function isRecognizedDevPlayground(path: string, primaryPath: string): bo
   if (candidate === primary) return true
 
   const primaryParent = dirname(primary)
-  const managedRoot =
+  const managedRoots = [
     basename(primaryParent) === 'porcelain-playgrounds'
       ? primaryParent
-      : join(primaryParent, 'porcelain-playgrounds')
-  const withinManagedRoot = relative(managedRoot, candidate)
-  return (
-    withinManagedRoot !== '' &&
-    !isAbsolute(withinManagedRoot) &&
-    withinManagedRoot !== '..' &&
-    !withinManagedRoot.startsWith(`..${sep}`)
-  )
+      : join(primaryParent, 'porcelain-playgrounds'),
+    // Hub-created Worktrees use the Git adapter's sibling convention, while
+    // managed worktrees use the plural playground root.
+    basename(primaryParent) === 'porcelain-playground-worktrees'
+      ? primaryParent
+      : join(primaryParent, 'porcelain-playground-worktrees'),
+  ]
+  return managedRoots.some((managedRoot) => {
+    const withinManagedRoot = relative(managedRoot, candidate)
+    return (
+      withinManagedRoot !== '' &&
+      !isAbsolute(withinManagedRoot) &&
+      withinManagedRoot !== '..' &&
+      !withinManagedRoot.startsWith(`..${sep}`)
+    )
+  })
 }
 
 /**

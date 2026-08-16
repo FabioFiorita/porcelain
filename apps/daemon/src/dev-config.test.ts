@@ -25,6 +25,9 @@ describe('devRepoPath', () => {
     expect(
       isRecognizedDevPlayground('/home/test/code/porcelain-playgrounds/fix-review', primary),
     ).toBe(true)
+    expect(
+      isRecognizedDevPlayground('/home/test/code/porcelain-playground-worktrees/topic', primary),
+    ).toBe(true)
     expect(isRecognizedDevPlayground('/home/test/code/porcelain', primary)).toBe(false)
     expect(isRecognizedDevPlayground('/home/test/code/soaphealth', primary)).toBe(false)
   })

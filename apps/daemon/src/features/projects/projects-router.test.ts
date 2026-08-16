@@ -208,6 +208,12 @@ describe('Projects router contract boundary', () => {
 
   it.each([
     ['openRepoPath', 'openProject', 'projects.not-found', () => caller().openRepoPath('/missing')],
+    [
+      'openRepoPath',
+      'openProject',
+      'projects.dev-repo-forbidden',
+      () => caller().openRepoPath('/home/fabiofiorita/code/porcelain'),
+    ],
     ['recentRepos', 'listRecentProjects', 'projects.unavailable', () => caller().recentRepos()],
     [
       'removeRecentRepo',

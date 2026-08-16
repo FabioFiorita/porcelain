@@ -45,6 +45,7 @@ export {
   PUBLIC_ERROR_CATEGORY_VALUES,
   type PublicErrorCategory,
   type PublicErrorCode,
+  projectsDevRepoForbiddenErrorSchema,
   protocolUpdateRequiredErrorDetailsSchema,
   protocolUpdateRequiredErrorSchema,
   publicErrorCategorySchema,

@@ -20,6 +20,13 @@ export const projectsUnavailableErrorSchema = definePublicError({
   retryable: true,
 })
 
+/** Development daemons are intentionally restricted to disposable playgrounds. */
+export const projectsDevRepoForbiddenErrorSchema = definePublicError({
+  code: 'projects.dev-repo-forbidden',
+  category: 'invalid-request',
+  retryable: false,
+})
+
 /** Canvas failures — the daemon-root Project store's agent-authored explanation surface. */
 
 export const canvasNotFoundErrorSchema = definePublicError({
