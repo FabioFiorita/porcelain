@@ -1,7 +1,22 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { execFileSync } from 'node:child_process'
+import { mkdir, readFile, realpath, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { PROTOCOL_VERSION, PROTOCOL_VERSION_HEADER } from '@porcelain/contracts'
 import { canvasBundleDir, canvasIndexPath } from '@shared/canvas-porcelain'
-import { expect, loc, openSurface, TestIds, test, waitForShell } from './helpers/app'
+import { createTRPCUntypedClient, httpBatchLink } from '@trpc/client'
+import {
+  E2E_BROWSER_TOKEN,
+  expect,
+  loc,
+  openSurface,
+  seedIsolatedState,
+  spawnDaemon,
+  TestIds,
+  test,
+  waitForShell,
+} from './helpers/app'
+import { createFixtureRepo } from './helpers/fixture-repo'
 import { PNG_1PX, runFixtureCli } from './helpers/review-fixture'
 
 const MIGRATED_CARD = '22222222-2222-4222-8222-222222222222'
@@ -107,6 +122,65 @@ async function seedCanvas(homeDir: string, projectId: string, worktreeId: string
   )
 }
 
+/**
+ * Use the same authenticated HTTP/tRPC boundary as the browser client, but from the Node test
+ * process so a second daemon can be observed without pretending the browser shell can fan out.
+ * Browser clients intentionally own exactly one daemon session; Electron's shell is the
+ * multi-Environment aggregator. The response is still the real daemon contract, not a fixture.
+ */
+async function daemonQuery<Value>(
+  url: string,
+  token: string,
+  procedure: string,
+  input?: unknown,
+): Promise<Value> {
+  const client = createTRPCUntypedClient({
+    links: [
+      httpBatchLink({
+        url: `${url}/trpc`,
+        headers: {
+          authorization: `Bearer ${token}`,
+          [PROTOCOL_VERSION_HEADER]: String(PROTOCOL_VERSION),
+        },
+      }),
+    ],
+  })
+  return (await client.query(procedure, input)) as Value
+}
+
+async function seedRemoteDaemon(repoDir: string) {
+  const seeded = await seedIsolatedState(repoDir, true, null, null)
+  const commonGitDir = await realpathGitCommonDir(repoDir)
+  await writeFile(
+    join(seeded.udBase, 'hub-inventory.json'),
+    JSON.stringify({
+      version: 1,
+      value: {
+        projects: [
+          {
+            id: 'e2e-secondary-project',
+            commonGitDir,
+            groupingKey: 'name:porcelain-e2e-secondary',
+            name: 'porcelain-e2e-secondary',
+            worktrees: [{ id: 'e2e-secondary-worktree', gitDir: commonGitDir }],
+          },
+        ],
+      },
+    }),
+  )
+  await seedLegacy(repoDir)
+  await runFixtureCli(['migrate', 'apply', '--repo', repoDir], seeded.env, repoDir)
+  return seeded
+}
+
+async function realpathGitCommonDir(repoDir: string): Promise<string> {
+  const relative = execFileSync('git', ['rev-parse', '--git-common-dir'], {
+    cwd: repoDir,
+    encoding: 'utf8',
+  }).trim()
+  return realpath(join(repoDir, relative))
+}
+
 test.setTimeout(120_000)
 
 test('composed daemon proof: targets, Canvas Review, migration, Tasks, Actions, and process lifetime', async ({
@@ -114,6 +188,9 @@ test('composed daemon proof: targets, Canvas Review, migration, Tasks, Actions, 
   repoDir,
   seeded,
 }) => {
+  const secondaryRepo = join(tmpdir(), 'porcelain-e2e-secondary')
+  let secondarySeed: Awaited<ReturnType<typeof seedIsolatedState>> | null = null
+  let secondaryChild: Awaited<ReturnType<typeof spawnDaemon>>['child'] | null = null
   await waitForShell(page)
   // Process lifetime: start this while the default Glance surface owns the
   // daemon-backed process section, then prove it survives the renderer reload.
@@ -146,6 +223,86 @@ test('composed daemon proof: targets, Canvas Review, migration, Tasks, Actions, 
   }
   const migratedReview = migratedIndex.value.canvases.find((canvas) => canvas.template === 'review')
   if (migratedReview === undefined) throw new Error('migration did not create a Review Canvas')
+
+  // Two actual Environment daemons are alive together. The browser renderer intentionally
+  // cannot aggregate them (that is Electron shell responsibility), so observe both through
+  // their authenticated daemon contracts in this same composed run. Each side has an isolated
+  // Playground, home, identity, migrated Canvas, Task, and Action records.
+  try {
+    await createFixtureRepo(secondaryRepo)
+    secondarySeed = await seedRemoteDaemon(secondaryRepo)
+    const secondary = await spawnDaemon(secondarySeed, { port: 43220, host: 'e2e-secondary' })
+    secondaryChild = secondary.child
+    const secondaryUrl = `http://127.0.0.1:${secondary.port}`
+    const primaryUrl = new URL(page.url()).origin
+    const [primaryIdentity, secondaryIdentity] = await Promise.all([
+      daemonQuery<{ host: string }>(primaryUrl, E2E_BROWSER_TOKEN, 'daemonInfo'),
+      daemonQuery<{ host: string }>(secondaryUrl, E2E_BROWSER_TOKEN, 'daemonInfo'),
+    ])
+    expect(primaryIdentity.host).not.toBe(secondaryIdentity.host)
+    expect(secondaryIdentity.host).toBe('e2e-secondary')
+    const [primaryInventory, secondaryInventory] = await Promise.all([
+      daemonQuery<{
+        environment: { id: string; name: string }
+        projects: { id: string; environmentId: string; worktrees: { id: string }[] }[]
+      }>(primaryUrl, E2E_BROWSER_TOKEN, 'hubInventory'),
+      daemonQuery<{
+        environment: { id: string; name: string }
+        projects: { id: string; environmentId: string; worktrees: { id: string }[] }[]
+      }>(secondaryUrl, E2E_BROWSER_TOKEN, 'hubInventory'),
+    ])
+    expect(primaryInventory.environment.id).not.toBe(secondaryInventory.environment.id)
+    expect(primaryInventory.projects[0]?.environmentId).toBe(primaryInventory.environment.id)
+    expect(secondaryInventory.projects[0]?.environmentId).toBe(secondaryInventory.environment.id)
+    expect(secondaryInventory.projects[0]?.id).toBe('e2e-secondary-project')
+
+    const remoteTasks = await daemonQuery<{ id: string; title: string }[]>(
+      secondaryUrl,
+      E2E_BROWSER_TOKEN,
+      'listTasks',
+    )
+    const remoteActions = await daemonQuery<{ title: string }[]>(
+      secondaryUrl,
+      E2E_BROWSER_TOKEN,
+      'actions',
+      { projectId: 'e2e-secondary-project' },
+    )
+    const remoteCanvases = await daemonQuery<{ id: string; title: string }[]>(
+      secondaryUrl,
+      E2E_BROWSER_TOKEN,
+      'listCanvases',
+      { projectId: 'e2e-secondary-project' },
+    )
+    expect(remoteTasks).toEqual(
+      expect.arrayContaining([expect.objectContaining({ title: 'Migrated task' })]),
+    )
+    expect(remoteActions).toEqual(
+      expect.arrayContaining([expect.objectContaining({ title: 'Migrated action' })]),
+    )
+    const remoteReview = remoteCanvases.find((canvas) => canvas.title === 'Migrated Review Canvas')
+    expect(remoteReview).toBeDefined()
+    if (remoteReview === undefined)
+      throw new Error('secondary daemon lost its migrated Review Canvas')
+    const remoteReviewContent = await daemonQuery<{ content: string }>(
+      secondaryUrl,
+      E2E_BROWSER_TOKEN,
+      'readCanvas',
+      { projectId: 'e2e-secondary-project', canvasId: remoteReview.id },
+    )
+    expect(remoteReviewContent.content).toContain('Migrated Review Canvas')
+    expect(remoteReviewContent.content).toContain('migration proof')
+  } finally {
+    if (secondaryChild !== null && secondaryChild.exitCode === null) {
+      const exited = new Promise<void>((resolve) => secondaryChild?.once('exit', () => resolve()))
+      secondaryChild.kill('SIGTERM')
+      await exited
+    }
+    if (secondarySeed !== null) {
+      await rm(secondarySeed.udBase, { recursive: true, force: true })
+      await rm(secondarySeed.userData, { recursive: true, force: true })
+    }
+    await rm(secondaryRepo, { recursive: true, force: true })
+  }
   await page.reload()
   await waitForShell(page)
 

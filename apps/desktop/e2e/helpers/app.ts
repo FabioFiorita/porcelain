@@ -25,6 +25,8 @@ const CLI_ENTRY = join(__dirname, '..', '..', 'out', 'main', 'cli', 'porcelain.j
 // per run because the fixture exposes a real loopback listener.
 const BROWSER_SECRET = randomBytes(32).toString('hex')
 const BROWSER_TOKEN = `pc_client_e2e-client_${BROWSER_SECRET}`
+/** Token planted into each disposable browser daemon's access store for contract-level probes. */
+export const E2E_BROWSER_TOKEN = BROWSER_TOKEN
 const ADMIN_TOKEN = randomBytes(32).toString('hex')
 
 // A fixed basename so the project switcher shows a stable repo name in
@@ -148,7 +150,7 @@ interface WorkerFixtures {
  * Write isolated userData (daemon token/access) + project companion files under
  * the fixture repo's `.porcelain/`. Machine home stays empty of companion channels.
  */
-async function seedState(
+export async function seedIsolatedState(
   repoDir: string,
   seedRepo: boolean,
   seedReviewSet: SeedReviewSet | null,
@@ -298,12 +300,17 @@ async function seedState(
 }
 
 /** Spawn the headless daemon on an OS-assigned loopback port and resolve the port from its one stdout line. */
-async function spawnDaemon(seeded: Seeded): Promise<{ child: ChildProcess; port: number }> {
+export async function spawnDaemon(
+  seeded: Seeded,
+  options: { port?: number; host?: string } = {},
+): Promise<{ child: ChildProcess; port: number }> {
   const child = spawn(process.execPath, [DAEMON_ENTRY], {
     env: launchEnv({
       ...seeded.env,
       PORCELAIN_USER_DATA: seeded.userData,
       PORCELAIN_ADMIN_TOKEN: ADMIN_TOKEN,
+      ...(options.port === undefined ? {} : { PORCELAIN_DAEMON_PORT: String(options.port) }),
+      ...(options.host === undefined ? {} : { PORCELAIN_DAEMON_HOST: options.host }),
       // Playwright hands the child /dev/null stdin (EOF at once) — without the
       // opt-out the parent-death watchdog would kill the daemon on boot.
       PORCELAIN_NO_STDIN_WATCHDOG: '1',
@@ -372,7 +379,7 @@ export const test = baseTest.extend<Options & Fixtures, WorkerOptions & WorkerFi
   ],
 
   seeded: async ({ repoDir, seedRepo, seedReviewSet, seedEvidence }, use) => {
-    const seeded = await seedState(repoDir, seedRepo, seedReviewSet, seedEvidence)
+    const seeded = await seedIsolatedState(repoDir, seedRepo, seedReviewSet, seedEvidence)
     await use(seeded)
     await rm(seeded.udBase, { recursive: true, force: true })
     await rm(seeded.userData, { recursive: true, force: true })
