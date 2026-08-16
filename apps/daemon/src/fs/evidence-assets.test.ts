@@ -129,9 +129,8 @@ describe('inlineLocalAssets', () => {
   it('leaves a script tag alone by default — inlineScripts opts in', async () => {
     writeFileSync(join(dir, 'app.js'), 'console.log("hi")')
     const html = '<script src="app.js"></script>'
-    // No 4th arg: doc-set.ts (Intent/Evidence, sandbox="" — no allow-scripts)
-    // shares this function and never asks for scripts, so the default must
-    // leave them exactly as authored, not silently start inlining them.
+    // Normal document readers use a sandbox with no allow-scripts, so the
+    // default must leave scripts exactly as authored, never inline them.
     expect(await inlineLocalAssets(dir, html)).toBe(html)
   })
 

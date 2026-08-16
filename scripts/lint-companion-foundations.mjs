@@ -12,7 +12,6 @@ import { fileURLToPath } from 'node:url'
 export const COMPANION_FOUNDATION_FILES = Object.freeze([
   'skills/porcelain-companion/SKILL.md',
   'skills/porcelain-companion/references/review.md',
-  'skills/porcelain-companion/references/board.md',
   'skills/porcelain-companion/references/sync-environments.md',
   'skills/porcelain-companion/references/scope.md',
   'skills/porcelain-companion/references/git-visibility.md',
@@ -28,11 +27,11 @@ const EXPLICIT_POLICY = Object.freeze([
   ],
   [
     'skill leaves ordinary code edits outside Review lifecycle',
-    'ordinary code edits follow root agents md do not create clear or complete a review',
+    'ordinary code edits follow root agents md they do not create clear or complete a review',
   ],
   [
     'skill scopes evidence validation to published Reviews',
-    'check evidence mjs before claiming an intentionally published review complete',
+    'complete evidence validation before claiming an intentionally published review complete',
   ],
 ])
 
@@ -97,14 +96,10 @@ export function checkCompanionFoundation(root) {
   const sources = readSources(root, failures)
   const skill = normalize(sources.get('skills/porcelain-companion/SKILL.md') ?? '')
   const review = normalize(sources.get('skills/porcelain-companion/references/review.md') ?? '')
-  const board = normalize(sources.get('skills/porcelain-companion/references/board.md') ?? '')
   const syncEnvironments = normalize(
     sources.get('skills/porcelain-companion/references/sync-environments.md') ?? '',
   )
   const scope = normalize(sources.get('skills/porcelain-companion/references/scope.md') ?? '')
-  const gitVisibility = normalize(
-    sources.get('skills/porcelain-companion/references/git-visibility.md') ?? '',
-  )
   const adapter = normalize(sources.get('skills/porcelain-companion/agents/openai.yaml') ?? '')
   const allSources = [...sources.values()].map(normalize).join(' ')
 
@@ -118,20 +113,14 @@ export function checkCompanionFoundation(root) {
   if (!hasPhrase(review, 'explicit replacement')) {
     failures.push('Review reference does not describe explicit replacement')
   }
-  if (!hasPhrase(board, 'only when publication is requested')) {
-    failures.push('Board reference does not keep Review publication explicit')
-  }
   if (!hasPhrase(adapter, 'human requests Companion work or you deliberately publish a Review')) {
     failures.push('OpenAI adapter prompt does not describe explicit publication')
   }
-  if (!hasPhrase(syncEnvironments, 'repo local channels deliberately')) {
+  if (!hasPhrase(syncEnvironments, 'share tracked repo local overlays deliberately')) {
     failures.push('environment reference does not describe deliberate repo-local sharing')
   }
   if (!hasPhrase(scope, 'current project relative channel')) {
     failures.push('scope reference does not describe the current project-relative channel')
-  }
-  if (!hasPhrase(gitVisibility, 'current disposable migrated from home marker')) {
-    failures.push('git visibility does not explain the retained disposable marker')
   }
 
   for (const [label, pattern] of FORBIDDEN_LIFECYCLE) {

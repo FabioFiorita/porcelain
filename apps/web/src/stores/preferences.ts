@@ -10,15 +10,7 @@ const diffModeSchema = z.enum(['unified', 'split'])
 const markdownModeSchema = z.enum(['reader', 'source'])
 const htmlModeSchema = z.enum(['preview', 'source'])
 const pullModeSchema = z.enum(['merge', 'rebase'])
-const sidebarTabSchema = z.enum([
-  'files',
-  'changes',
-  'history',
-  'board',
-  'tasks',
-  'search',
-  'canvas',
-])
+const sidebarTabSchema = z.enum(['files', 'changes', 'history', 'tasks', 'search', 'canvas'])
 
 export type ChangesScope = z.infer<typeof changesScopeSchema>
 export type ThemeMode = z.infer<typeof themeModeSchema>

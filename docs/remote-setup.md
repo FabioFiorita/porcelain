@@ -4,7 +4,7 @@ Porcelain's UI is a client of a daemon. Usually that daemon runs on the same mac
 sitting at. This page walks through running it on a **different** machine instead — a home
 server, a mini-PC, a cloud box — so your Mac app, browser, and phone can all point at one place.
 
-If you only want the everyday workflow (Review, board, notes), you don't need this page — see
+If you only want the everyday workflow (Review Canvas, Tasks, Actions, scope), you don't need this page — see
 [product.md](product.md). This is for the one-time setup of the daemon itself.
 
 ## Two command-line tools
@@ -13,8 +13,8 @@ Porcelain ships two separate CLIs. They do different jobs and neither substitute
 
 - **`porcelain-daemon`** — the host CLI. Installs, starts, and administers the daemon: `serve`,
   `access issue/list/revoke`, `share status`. This is what this page is about.
-- **`~/.porcelain/porcelain`** — the companion CLI an agent uses to read and write a repo's Review,
-  board, and notes once a daemon is already running. Auto-installed on every launch; you never
+- **`~/.porcelain/porcelain`** — the companion CLI an agent uses to read and write daemon-root
+  Review Canvas, Tasks, Actions, and project scope once a daemon is already running. Auto-installed on every launch; you never
   `npm install` it yourself.
 
 ## Install and start

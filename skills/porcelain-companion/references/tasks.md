@@ -1,14 +1,12 @@
 # Tasks
 
-Tasks are Porcelain's **daemon-wide** table: one per Environment, shared by every Project on that
-machine. Unlike the Board — which is per repository and lives in `<repo>/.porcelain/board.json` —
-Tasks live in the daemon's own home (`$PORCELAIN_HOME/tasks/tasks.json`) and never enter a
-repository. That is the point: coordination outlives, precedes, and spans checkouts, so a Task
-about a repo you have not cloned yet, or about two repos at once, still has a home.
+Tasks are Porcelain's **daemon-wide** table: rows shared by every Project on that Environment.
+They live in the daemon's own home (`$PORCELAIN_HOME/tasks/tasks.json`) and never enter a
+repository. Coordination therefore outlives, precedes, and spans checkouts, so a Task about a
+repo you have not cloned yet, or about two repos at once, still has a home.
 
-**Tasks vs Board:** Tasks is the machine-wide table and is where new work should be captured.
-Board is the older per-repo queue and is retiring. **Tasks vs Review:** Review is still the one
-active story per repo; a Task is a row, not a story.
+**Tasks vs Review:** Tasks are work rows; Review is the daemon-root Canvas story with Intent,
+Process, Execution, and Evidence. A Task is not a second Review.
 
 Talk to Porcelain through the bundled CLI at `~/.porcelain/porcelain`. Run it from **inside the
 repo** and Tasks you create pick up that checkout's Project and Worktree references automatically;

@@ -18,12 +18,12 @@ mistake.
 
 | | `porcelain-daemon` | `~/.porcelain/porcelain` |
 |---|---|---|
-| What | The **host CLI** — installs, starts, and administers the daemon itself | The **companion CLI** — an agent talks to a *running* daemon's project data (Review, board, notes) |
+| What | The **host CLI** — installs, starts, and administers the daemon itself | The **companion CLI** — an agent talks to a *running* daemon's Project data (Review Canvas, Tasks, Actions, scope) |
 | Runs on | The remote host, once, to bring the daemon up | Any machine with a repo, once the daemon is already running |
 | Installed via | `npx porcelain-daemon@latest` (npm package) | Auto-installed by the daemon/app on launch — never `npm install` it yourself |
 | Covered by | **This skill** | The `porcelain-companion` skill |
 
-If the human wants Intent/Process/Execution/Evidence, the board, or notes — that's `porcelain-companion`,
+If the human wants the Review Canvas (Intent/Process/Execution/Evidence), Tasks, Actions, or scope — that's `porcelain-companion`,
 not this skill. This skill is exclusively about getting a daemon **running and reachable**.
 
 ## References

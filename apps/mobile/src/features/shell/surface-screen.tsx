@@ -31,6 +31,6 @@ export function SurfaceScreen({ surface }: SurfaceScreenProps): React.JSX.Elemen
     return <PhoneSurface surface="terminal" />
   }
 
-  // Orphan routes (history/search/board) still render their face if navigated to.
+  // Orphan routes (history/search) still render their face if navigated to.
   return <PhoneSurface surface={surface} />
 }

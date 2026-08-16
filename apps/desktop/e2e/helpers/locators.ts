@@ -165,9 +165,4 @@ export const loc = {
   treeEntry: (page: Page, name: string): Locator => byId(page, TestIds.treeEntry(name)),
   filePromptName: (page: Page): Locator => byId(page, TestIds.filePromptName),
   fileEditor: (page: Page): Locator => byId(page, TestIds.fileEditor),
-
-  boardCard: (page: Page, title: string): Locator => byId(page, TestIds.boardCard(title)),
-  cardTitleInput: (page: Page): Locator => byId(page, TestIds.cardTitleInput),
-  cardComposer: (page: Page): Locator => byId(page, TestIds.cardComposer),
-  cardComposerSave: (page: Page): Locator => byId(page, TestIds.cardComposerSave),
 }

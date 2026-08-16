@@ -25,18 +25,17 @@ one-line route that default-exports it. File names are kebab-case.
 
 | Form | Role |
 |------|------|
-| **iPhone / Android phone** | Companion to Mac / iPad / browser — glance, review, stage/commit, terminal, light board |
+| **iPhone / Android phone** | Companion to Mac / iPad / browser — files, changes, history/search, terminal, and settings |
 | **iPad / Android tablet** | Full workstation alternative — web-like chrome with primary · supplementary · viewer · companion |
 
 ## The tab shell (iPhone + Android phone)
 
-Five tabs — uses the iOS ceiling. Android phones share the same shell.
+Four tabs — uses the iOS ceiling. Android phones share the same shell.
 
 | Tab slot | Faces (re-tap root to flip) | Chrome |
 |----------|------------------------------|--------|
 | **Files** | Files · **Search** | full header; Search field is passive until the user taps it; stay until re-tap |
 | **Changes** | Changes · **History** | same header; no back chevron |
-| **Review** | Review · **Board** | same |
 | **Terminal** | Terminal | full header |
 | **Settings** | Settings | header without workspace chips |
 
@@ -50,7 +49,7 @@ title + workspace for vertical space.
 | Surface | Placement |
 |---------|-----------|
 | Companion | Form sheet from header bolt (right-rail analogue) |
-| Board / History / Search | Dual-face alternates of Review / Changes / Files |
+| History / Search | Dual-face alternates of Changes / Files |
 | Repo / branch / worktree pickers | Form sheets from the workspace line |
 
 NativeTabs has no long-press menu API; **re-tap while focused on the tab root** opens the
@@ -73,9 +72,9 @@ Root entry: `features/shell/tablet-shell` — **no bottom tab bar**.
 
 | Column | Role |
 |--------|------|
-| **Primary** | Destinations: Files, Changes, Review, History, Search, Board, Terminal |
+| **Primary** | Destinations: Files, Changes, History, Search, Terminal |
 | **Supplementary** | List / controls for the active destination |
-| **Secondary (viewer)** | File · diff · review · history · search results · board · terminal canvas |
+| **Secondary (viewer)** | File · diff · history · search results · terminal canvas |
 | **Companion (inspector)** | Right rail; content follows active surface |
 
 **iOS:** `expo-router/unstable-split-view` (primary + supplementary columns, auto Slot secondary,
@@ -90,18 +89,16 @@ is iOS-only; non-iOS SplitView degrades to Slot).
 
 Project, search, branch, worktree, and settings open **mock sheets** today; daemon wiring later.
 Settings is **never** a primary-rail destination — gear / footer control → sheet with **General ·
-Review · Environments**.
+Environments**.
 
 ### Companion titles (match web)
 
 | Surface | Companion |
 |---------|-----------|
-| Files | Pinned & notes |
+| Files | Pinned paths |
 | Changes | Commit (+ quick commands, comments) |
-| Review | Now reading (+ comments) |
 | History | Timeline (+ git commands) |
 | Search | Recent searches |
-| Board | Focus |
 | Terminal | Actions |
 
 ### Outer layer vs inner features
@@ -111,8 +108,8 @@ supplementary lists, viewer canvases, and companion sections without inventing a
 
 ## Glance
 
-When Review has no published unit of work, the tab shows **Glance** — work in flight and jump
-rows (desktop empty-viewer home, phone-sized).
+When the selected Project has no open detail, the viewer shows **Glance** — work in flight and
+jump rows (desktop empty-viewer home, phone-sized).
 
 ## Daemon seam
 

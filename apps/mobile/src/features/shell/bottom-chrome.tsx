@@ -13,10 +13,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
  * hook that always returned the phone's answer, and then threading the number down through as
  * many as five layers of props. Two failure modes fell out of it, and both shipped:
  *
- *   - The hook lied off-phone. `ReviewCanvas` is shared by the phone tab and the iPad viewer
- *     column, so every body that called the hook directly reserved ~86pt for a tab bar the
+ *   - The hook lied off-phone. A shared viewer body was mounted by the phone tab and the iPad
+ *     viewer column, so every body that called the hook directly reserved ~86pt for a tab bar the
  *     iPad does not have.
- *   - A prop and the hook could disagree on the same screen. `ReviewCanvas` took a
+ *   - A prop and the hook could disagree on the same screen. A viewer took a
  *     `bottomInset` prop but forwarded it to only one of its three bodies; the other two
  *     called the hook. Nothing made them agree, and nothing noticed when they didn't.
  *

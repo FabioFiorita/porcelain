@@ -131,12 +131,9 @@ async function readContainedAsset(
  * against `dir`; `root` (defaulting to `dir`) is the boundary they may not
  * leave. Best-effort: a missing sibling is left as-is (broken img in the viewer).
  *
- * `inlineScripts` defaults false: this function is shared with doc-set.ts
- * (Intent/Evidence), which renders through `sandbox=""` — no allow-scripts,
- * so an inlined `<script>` there could never run, but leaving one in the
- * markup anyway would be a capability doc-set.ts never asked for and its own
- * "no script medium" comment says isn't there. Only Canvas (canvas-
- * operations.ts), whose iframe actually has allow-scripts, opts in.
+ * `inlineScripts` defaults false. Normal document readers render through a
+ * sandbox with no allow-scripts; only Canvas (canvas-operations.ts), whose
+ * iframe actually has allow-scripts, opts in.
  */
 export async function inlineLocalAssets(
   dir: string,

@@ -12,7 +12,7 @@ import { type FileEntry, usePathScope, usePinnedEntries } from './files-data'
 import { useFilesStore } from './files-store'
 
 /**
- * The Files companion — "Pinned & notes", the same pair the web rail carries.
+ * The Files companion — pinned paths for quick access.
  *
  * One component for both hosts, the tablet inspector column and the phone's bolt sheet, so the
  * two can never drift into different companions for the same surface.

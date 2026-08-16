@@ -57,8 +57,6 @@ export type SurfaceSlots = {
 }
 
 const SURFACE_SLOTS: Record<SurfaceId, SurfaceSlots> = {
-  // Board is the Review tab's other face on phone and its own rail destination on tablet, so
-  // it owns all four panels: the columns read the same cards whichever way you arrive.
   changes: {
     companion: ChangesCompanion,
     list: ChangesList,

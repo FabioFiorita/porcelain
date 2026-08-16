@@ -49,9 +49,11 @@ src/features/   one folder per feature
 src/lib/daemon/ only daemon seam — no AppRouter import, no barrels
 ```
 
-iPhone and Android phone = **five** bottom tabs (Files · Changes · Review · Terminal · Settings);
-History / Search / Board are **re-tap dual faces** (store, not URL); Companion is a sheet from the
-bolt. Tablet (iPad + Android) = primary · supplementary · viewer · companion (`features/shell`);
+iPhone and Android phone = **four** bottom tabs (Files · Changes · Terminal · Settings);
+History / Search are **re-tap dual faces** (store, not URL); Companion is a sheet from the bolt.
+The daemon-root Review Canvas is currently a Web/Desktop surface; mobile's shell does not expose a
+repo-local Review or Board route. Tablet (iPad + Android) = primary · supplementary · viewer ·
+companion (`features/shell`);
 Settings is a sheet on tablet, a tab on phone. iOS uses root `SplitView` + inspector; Android tablet
 uses the shared multi-column shell. Full IA: `reference/client.md`.
 

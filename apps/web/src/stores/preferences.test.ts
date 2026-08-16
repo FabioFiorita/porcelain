@@ -42,7 +42,7 @@ describe('hydratePreferences', () => {
         commitModel: 'opus',
         rightSidebarOpen: false,
         rightSidebarWidth: 400,
-        sidebarTab: 'board',
+        sidebarTab: 'canvas',
         sidebarWidth: 360,
         notesHeight: 300,
         splitRatio: 0.35,
@@ -58,7 +58,7 @@ describe('hydratePreferences', () => {
       commitModel: 'opus',
       rightSidebarOpen: false,
       rightSidebarWidth: 400,
-      sidebarTab: 'board',
+      sidebarTab: 'canvas',
       sidebarWidth: 360,
       notesHeight: 300,
       splitRatio: 0.35,
@@ -87,7 +87,10 @@ describe('hydratePreferences', () => {
     ).toEqual({ diffMode: 'split', notesHeight: 300 })
   })
 
-  it('ignores a stale vocabulary and keys from another build', () => {
+  it('falls back from retired sidebar tabs and ignores unknown keys', () => {
+    expect(hydratePreferences({ sidebarTab: 'board', pullMode: 'rebase' })).toEqual({
+      pullMode: 'rebase',
+    })
     expect(hydratePreferences({ sidebarTab: 'evidence', pullMode: 'rebase' })).toEqual({
       pullMode: 'rebase',
     })

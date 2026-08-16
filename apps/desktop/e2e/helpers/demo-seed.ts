@@ -36,15 +36,6 @@ interface ReviewSet {
   sections: ReviewSection[]
 }
 
-interface BoardCard {
-  id: string
-  title: string
-  body?: string
-  status: 'todo' | 'doing' | 'done'
-  order: number
-  createdAt: number
-}
-
 interface Comment {
   id: string
   path: string
@@ -144,49 +135,6 @@ export const DEMO_REVIEW_SET: ReviewSet = {
 }
 
 const T0 = Date.UTC(2024, 4, 2, 9, 15, 0)
-
-export const DEMO_BOARD: BoardCard[] = [
-  {
-    id: 'card-scaffold',
-    title: 'Scaffold the orders module',
-    body: 'List view, single-page fetch, Prisma model.',
-    status: 'done',
-    order: 1,
-    createdAt: T0,
-  },
-  {
-    id: 'card-paginate',
-    title: 'Paginate the orders list',
-    body: 'Page-size 20, newest first.',
-    status: 'done',
-    order: 2,
-    createdAt: T0 + 1000,
-  },
-  {
-    id: 'card-filter',
-    title: 'Filter orders by status',
-    body: 'Thread a status param from the page down to the query. Shared OrderStatus enum.',
-    status: 'doing',
-    order: 3,
-    createdAt: T0 + 2000,
-  },
-  {
-    id: 'card-csv',
-    title: 'Export the current view as CSV',
-    body: 'Respect the active status filter and page.',
-    status: 'todo',
-    order: 4,
-    createdAt: T0 + 3000,
-  },
-  {
-    id: 'card-daterange',
-    title: 'Add a date-range filter',
-    body: 'From/to on createdAt, alongside the status filter.',
-    status: 'todo',
-    order: 5,
-    createdAt: T0 + 4000,
-  },
-]
 
 export const DEMO_COMMENTS: Comment[] = [
   {
@@ -308,7 +256,6 @@ export async function seedDemoChannels(
   await mkdir(active, { recursive: true })
   await writeFile(join(active, 'review.json'), JSON.stringify(DEMO_REVIEW_SET, null, 2))
   await writeFile(join(active, 'comments.json'), JSON.stringify(DEMO_COMMENTS, null, 2))
-  await writeFile(join(project, 'board.json'), JSON.stringify(DEMO_BOARD, null, 2))
   await writeFile(join(project, 'actions.json'), JSON.stringify(DEMO_ACTIONS, null, 2))
 
   // Evidence is one pack over three sub-tabs, so the shots seed all three:

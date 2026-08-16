@@ -1,42 +1,40 @@
-# Sync environments (project companion)
+# Sync Environments
 
-Porcelain stores **project companion data** in the repo:
+Porcelain keeps the canonical Review Canvas, Tasks, and Actions in the daemon-root store. An
+Environment is a daemon connection; a Project identifies a repository family and its Worktrees.
+The browser and desktop clients always name the Environment and Worktree they are showing.
+
+## What travels in git
+
+Most daemon state is private to the Environment. A human can deliberately promote two overlays
+into a checkout:
 
 ```text
-<repo>/.porcelain/
-  scope.json           # shared by default
-  layers.json          # shared by default
-  board.json           # local by default
-  notes.md             # local by default
-  active-review.json   # app-computed snapshot, never shared
-  active-review/       # the unit in flight — always ignored
-    review.json  intent/  evidence/  comments.json  reviewed.json
-  reviews/<id>/        # archived units; local until published
-  .gitignore
+.porcelain/
+  canvases/<id>/       # a promoted Canvas bundle
+  project.json         # promoted hide/pin and Worktree defaults
 ```
 
-Saved **actions** are not here: they belong to the Project record in the owning daemon
-(`$PORCELAIN_HOME/projects/<projectId>/actions.json`, ADR 0002) so they outlive any one checkout.
+Use `canvas promote` and `project promote-overrides`; promotion never stages or commits. The
+project's managed git rules keep private daemon state out of normal status while allowing these
+explicit overlays to be tracked. Read [git-visibility.md](git-visibility.md) for the exact
+rules.
 
-Machine secrets (daemon token, remotes, UI prefs) stay under `~/.porcelain` (or
-`PORCELAIN_HOME` for the dev stack). They are never copied into the work tree. Setting up the
-daemon itself on a remote host — install, exposure, pairing, always-on — is the
-`porcelain-remote` skill, not this one.
+## Moving between Environments
 
-## Share with a teammate or another machine
+Open or pair the destination daemon, then let its Hub inventory discover the same Project and
+Worktrees. Recreate private Actions or Canvas content in that Environment through the CLI when
+the human wants it there; do not copy daemon databases by hand. Use tracked overlays when the
+team should receive the same Canvas or project defaults from git.
 
-1. Lift the clone-wide exclude if it is still there — Porcelain hides
-   `.porcelain/` from git until you share something. See
-   [git-visibility.md](git-visibility.md).
-2. Pick what to share (Settings › Data, or edit the managed block in
-   `.porcelain/.gitignore` directly).
-3. Commit and push.
-4. Teammate (or remote clone) pulls — the shared channels are present. A clone
-   that already tracks a companion is never re-hidden.
+Share tracked repo-local overlays deliberately; private daemon state remains with its Environment.
 
-There is **no** daemon-side “copy settings between remotes” or “seed worktree”
-path. Linked worktrees share whatever is on the checked-out revision of
-`.porcelain/` (same as any other project file).
+Machine credentials and UI preferences stay in the daemon's user-data directory. They never enter
+the checkout or an evidence bundle.
 
-Greenfield projects write `.porcelain/` on first companion write (CLI or app). Share or remap
-repo-local channels deliberately; machine secrets remain outside the repository.
+## Migration
+
+For an old checkout containing repo-local companion files, run the one-time migration documented
+in [migrate.md](migrate.md). It converts legacy Review, Board, Actions, and scope inputs into
+daemon-root data. After the migration, current clients read the Canvas, Tasks, Actions, and scope
+overrides from the daemon/project stores.

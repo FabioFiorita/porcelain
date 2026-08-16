@@ -24,8 +24,8 @@ function validSources() {
         'Companion is an explicit product-surface procedure, not an automatic session lifecycle.',
         'Do not clear another active Review automatically.',
         'Create or clear a Review only when the human requests Companion work or the agent deliberately publishes a Review.',
-        'Ordinary code edits follow root AGENTS.md; do not create, clear, or complete a Review.',
-        'Run check-evidence.mjs before claiming an intentionally published Review complete.',
+        'Ordinary code edits follow root AGENTS.md; they do not create, clear, or complete a Review.',
+        'Complete Evidence validation before claiming an intentionally published Review complete.',
       ].join('\n'),
     ],
     [
@@ -33,12 +33,8 @@ function validSources() {
       'Explicit replacement: do not clear another active Review automatically.',
     ],
     [
-      'skills/porcelain-companion/references/board.md',
-      'Start a Review only when publication is requested.',
-    ],
-    [
       'skills/porcelain-companion/references/sync-environments.md',
-      'Share repo-local channels deliberately.',
+      'Share tracked repo-local overlays deliberately.',
     ],
     [
       'skills/porcelain-companion/references/scope.md',
@@ -110,7 +106,7 @@ test('missing authored source fails closed', () => {
   withFixture(
     (_) => {},
     (root) => {
-      const missingPath = path.join(root, 'skills/porcelain-companion/references/board.md')
+      const missingPath = path.join(root, 'skills/porcelain-companion/references/review.md')
       rmSync(missingPath)
       assert.ok(
         checkCompanionFoundation(root).some((failure) =>

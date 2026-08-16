@@ -28,7 +28,7 @@ apps/
   mobile/     @porcelain/mobile     Expo native client
 
 packages/
-  contracts/       wire protocol and eleven-domain procedure catalog
+  contracts/       wire protocol and ten-domain procedure catalog
   client-runtime/  nonvisual query, mutation, realtime, session, and pure UI semantics
   shared/          pure cross-cutting helpers
 ```
@@ -55,7 +55,7 @@ client-runtime →  contracts
 shared         →  no product package
 ```
 
-The contracts package owns the exact 120-procedure catalog and all cross-client wire shapes. The
+The contracts package owns the exact 96-procedure catalog and all cross-client wire shapes. The
 daemon's composition root merges canonical domain routers into that flat surface. No in-process
 Desktop backend exists, so local and remote clients follow the same daemon path. Components do not
 import transport clients; Web and mobile feature adapters/hooks own transport access, while

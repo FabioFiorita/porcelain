@@ -90,10 +90,10 @@ a record of Phase 3b debt and may only shrink; adding an entry is never the fix.
   happened.
 - **Reviewed shared-optimism exception:** architecture-reviewed feature adapters may bind
   `@porcelain/client-runtime` reversible optimistic transitions plus authoritative refetch on the
-  existing `callDaemon` transport and React Query owner. Today that is Board
-  (`features/board/`) and Review comments (`features/comments/`). Those adapters own typed Query
-  identities, load-gated or domain-approved optimism, and notification bridges — they do not invent
-  a second fetch/retry layer or a second transport.
+  existing `callDaemon` transport and React Query owner. No current mobile surface uses this
+  exception; add one only with an owning-domain review and the same typed Query identities,
+  load-gated transitions, and notification bridge. Do not invent a second fetch/retry layer or a
+  second transport.
 - The terminal tombstone in `features/terminal/terminal-store.ts` remains a separate session-state
   exception: closing a session writes a local tombstone so a poll in flight cannot resurrect the
   row. That is session state, not repo state.

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Permanent wire-truth gate. The ten canonical domain procedure records are the only source of
- * procedure names, kinds, and schemas; `procedureCatalog` composes them into exactly 106 unique
+ * procedure names, kinds, and schemas; `procedureCatalog` composes them into exactly 96 unique
  * entries. Every production daemon router procedure must bind its own catalog entry's input and
  * output exactly once, and the router and catalog name sets must be identical.
  */

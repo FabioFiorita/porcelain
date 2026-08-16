@@ -20,7 +20,7 @@ import { byId } from './helpers/locators'
 // The autonomous marketing-screenshot pipeline (pnpm shots): headless Chromium at
 // Retina density (deviceScaleFactor 2) driving the daemon-served web client — the
 // SAME renderer bundle the Mac app loads — against a seeded demo repo with a full
-// agent hand-off (published Review, board, comments, loop evidence). NOT a baseline
+// agent hand-off (published Review, comments, loop evidence). NOT a baseline
 // test: it's excluded from the normal e2e run (playwright.shots.config.ts matches
 // only this file) and writes PNGs to marketing/shots/ (gitignored).
 //
@@ -315,19 +315,6 @@ test('marketing shots — the seeded demo repo across every surface', async () =
     await expect(page.getByTestId('changes-summary')).toBeVisible({ timeout: 15_000 })
     await settle(page)
     await shoot(page, 'changes-flow.png')
-
-    // board.png — the wide kanban in the viewer.
-    await selectTab(page, 'Board')
-    await page.getByRole('button', { name: 'Open board' }).click()
-    // Test ids scoped to the viewer, not getByText on <main>: the Focus companion
-    // repeats the selected card's title, and the Board panel repeats every card.
-    const board = page.getByRole('main')
-    await expect(byId(board, TestIds.boardCard('Filter orders by status'))).toBeVisible({
-      timeout: 15_000,
-    })
-    await expect(byId(board, TestIds.boardCard('Export the current view as CSV'))).toBeVisible()
-    await settle(page)
-    await shoot(page, 'board.png')
 
     // viewer.png — a source file open with syntax highlighting.
     await selectTab(page, 'Files')

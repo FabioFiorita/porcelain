@@ -8,7 +8,7 @@ import { useTabFaces } from './tab-faces'
 import { useTabRootFocus } from './tab-root-focus'
 
 /**
- * Phone outer shell — five tabs; Files / Changes / Review are dual-face.
+ * Phone outer shell — four tabs; Files / Changes are dual-face.
  * Face state is store-driven so sheets never reset the tab bar identity.
  * Settings is a tab (not a gear). Bolt companion is a sheet from the header.
  */

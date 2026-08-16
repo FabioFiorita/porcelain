@@ -23,7 +23,7 @@ function filesChangeFromSessionChange(change: SessionChange): FilesChange | null
   }
 }
 
-/** The single mobile Files bridge, mounted beside Board and Review bridges. */
+/** The single mobile Files bridge for tree and scope freshness. */
 export function FilesNotificationBridge(): null {
   const queryClient = useQueryClient()
   const environment = useActiveEnvironment()

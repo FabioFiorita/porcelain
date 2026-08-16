@@ -9,7 +9,7 @@ import { tasksProcedures } from './tasks'
 import { terminalProcedures } from './terminal'
 
 /**
- * The only public procedure truth: the eleven domain records composed into one flat frozen catalog.
+ * The only public procedure truth: the ten domain records composed into one flat frozen catalog.
  * Names, kinds, and schemas are owned by the domain records; nothing here is manufactured locally.
  *
  */

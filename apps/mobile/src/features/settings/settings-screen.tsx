@@ -30,9 +30,9 @@ const SECTIONS: { value: SettingsSection; label: string; testID: string }[] = [
  * Phone Settings tab — full-screen (not a sheet). The section switcher lives in the header
  * band so one divider sits under the chrome, not a double line.
  *
- * It is the same `SegmentedControl` Board, Changes, Review and Files use. Settings had the
- * app's only `ui/tabs` switcher, which meant one screen answering a tap with a different
- * shape, a different height, and a different selected fill than the other four.
+ * It is the same `SegmentedControl` Changes and Files use. Settings had the app's only
+ * `ui/tabs` switcher, which meant one screen answering a tap with a different shape,
+ * height, and selected fill than the other surfaces.
  */
 export function SettingsScreen(): React.JSX.Element {
   const section = useShellStore((state) => state.settingsSection)

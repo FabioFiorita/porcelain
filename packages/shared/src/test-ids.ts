@@ -6,7 +6,7 @@
  * the product for humans and a11y tooling; tests do not depend on copy that
  * churns with intentional UI work.
  *
- * Naming: kebab-case, surface-first (`active-review`, `rail-tab-changes`).
+ * Naming: kebab-case, surface-first (`rail-tab-changes`).
  * Dynamic IDs use a function so both product and e2e share one spelling.
  */
 
@@ -57,7 +57,6 @@ export const TestIds = {
   glanceChangedFiles: 'glance-changed-files',
   glanceJumpChanges: 'glance-jump-changes',
   glanceJumpReview: 'glance-jump-review',
-  glanceJumpBoard: 'glance-jump-board',
   glanceJumpTerminal: 'glance-jump-terminal',
 
   // --- Settings ---
@@ -189,15 +188,6 @@ export const TestIds = {
   treeEntry: (name: string): string => `tree-entry-${name}`,
   filePromptName: 'file-prompt-name',
   fileEditor: 'file-editor',
-
-  // --- Board ---
-  boardCard: (title: string): string =>
-    `board-card-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
-  /** Right-rail Focus companion (selected / default Doing card detail). */
-  boardFocus: 'board-focus',
-  cardTitleInput: 'card-title-input',
-  cardComposerSave: 'card-composer-save',
-  cardComposer: 'card-composer',
 
   // --- Tasks (the daemon-wide table) ---
   tasksOpen: 'tasks-open',

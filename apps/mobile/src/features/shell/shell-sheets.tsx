@@ -122,7 +122,7 @@ export function ShellSheets({ variant = 'tablet' }: ShellSheetsProps): React.JSX
           open={sheet === 'settings'}
           onClose={closeSheet}
           title="Settings"
-          description="General, Review, and Environments for this client."
+          description="General and Environments for this client."
           contentStyle={{ width: settingsMaxW, maxHeight: settingsMaxH }}
         >
           <SettingsSheetBody settingsMaxH={settingsMaxH} />
