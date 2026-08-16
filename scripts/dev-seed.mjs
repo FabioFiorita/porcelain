@@ -100,6 +100,22 @@ async function seedTask(fields) {
   await adminMutation('createTask', { ...fields, tags: [...(fields.tags ?? []), SEED_TAG] })
 }
 
+/**
+ * A Task with a real file attached. The daemon copies the source into its own attachment
+ * store, so the temp file is only needed for the length of the call — but it must exist:
+ * an attachment chip with nothing behind it is exactly the state a seed must not fake.
+ */
+async function seedTaskWithAttachment(fields, attachment) {
+  const dir = mkdtempSync(join(tmpdir(), 'porcelain-seed-attachment-'))
+  try {
+    const file = join(dir, attachment.name)
+    writeFileSync(file, attachment.contents)
+    await seedTask({ ...fields, attachmentPaths: [file] })
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
+
 async function seedAction(projectId, title, command) {
   await adminMutation('addAction', { projectId, title, command })
 }
@@ -393,11 +409,14 @@ const SCENARIOS = {
         status: 'todo',
         tags: ['git', 'diff'],
       })
-      await seedTask({
-        title: 'Walk the deep history',
-        status: 'todo',
-        links: [{ url: 'https://git-scm.com/docs/git-log', label: 'git log' }],
-      })
+      await seedTaskWithAttachment(
+        {
+          title: 'Walk the deep history',
+          status: 'todo',
+          links: [{ url: 'https://git-scm.com/docs/git-log', label: 'git log' }],
+        },
+        { name: 'history-notes.md', contents: '# Deep history\n\n12 commits, one side branch.\n' },
+      )
       await seedTask({ title: 'Register every playground shape', status: 'done', tags: ['setup'] })
     },
   },
