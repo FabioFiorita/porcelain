@@ -3,7 +3,6 @@ export {
   createGitChangesPublisher,
   createGitDiffReadingSources,
   createProjectGit,
-  createReviewMarks,
   createWorkingTreeCache,
   createWorkspaceTrash,
 } from './git-adapters'
@@ -22,7 +21,6 @@ export type {
   GitWorkspacePort,
   GitWorkspaceResult,
   ProjectGit,
-  ReviewMarks,
   WorkingTreeCache,
   WorkspaceTrash,
 } from './git-ports'

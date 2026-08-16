@@ -9,7 +9,7 @@ import { z } from 'zod'
 /**
  * Web React Query keys for Project Data (PDT-003).
  *
- * Cache rows hold layers / dispositions / visibility under their typed identities.
+ * Cache rows hold dispositions / visibility under their typed identities.
  * Procedure-name strings never appear here.
  */
 
@@ -25,15 +25,6 @@ export function projectDataQueryKey(
 /** True when a React Query key is a Project Data identity + daemon scope. */
 export function isProjectDataQueryKey(queryKey: readonly unknown[]): boolean {
   return projectDataQueryKeySchema.safeParse(queryKey).success
-}
-
-function parseProjectDataQueryKey(
-  queryKey: readonly unknown[],
-): { query: ProjectDataQuery; daemon: DaemonScope } | null {
-  const parsed = projectDataQueryKeySchema.safeParse(queryKey)
-  if (!parsed.success) return null
-  const [query, daemon] = parsed.data
-  return { query, daemon }
 }
 
 /** Invalidate every Project Data cache entry (session/project recovery). */
@@ -65,14 +56,4 @@ export function invalidateProjectDataIdentities(
     )
   }
   return Promise.all(tasks).then(() => undefined)
-}
-
-/** Invalidate every layers identity (review.changed). */
-export function invalidateProjectDataLayers(queryClient: QueryClient): Promise<void> {
-  return queryClient.invalidateQueries({
-    predicate: (query) => {
-      const parsed = parseProjectDataQueryKey(query.queryKey)
-      return parsed !== null && parsed.query.name === 'layers'
-    },
-  })
 }

@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
-import { join, relative } from 'node:path'
+import { join } from 'node:path'
 import { projectOverridesSchema } from '@porcelain/contracts/projects'
+import { projectOverridePath } from '@shared/project-overrides'
 import { projectOverlayOverridesPath } from '@shared/project-porcelain'
 import { projectOverridesPath } from '@shared/project-store'
 import { z } from 'zod'
@@ -38,21 +39,7 @@ export type ScopeStoreOptions = Readonly<{
 }>
 
 /** Normalize user/agent input to a repo-relative path for storage. */
-export function toRelativeScopePath(repoPath: string, path: string): string {
-  const trimmed = path.trim()
-  if (trimmed === '') throw new Error('path must be non-empty')
-  if (trimmed === repoPath || trimmed === '.') return ''
-  if (trimmed.startsWith(`${repoPath}/`)) return trimmed.slice(repoPath.length + 1)
-  if (trimmed.startsWith('/')) {
-    const rel = relative(repoPath, trimmed)
-    if (rel.startsWith('..') || rel === '') {
-      throw new Error(`path must be inside the repo: ${path}`)
-    }
-    return rel
-  }
-  // already relative
-  return trimmed.replace(/^\.\//, '')
-}
+export const toRelativeScopePath = projectOverridePath
 
 /** Absolute path under repo for a stored relative path. */
 export function toAbsoluteScopePath(repoPath: string, rel: string): string {

@@ -45,7 +45,6 @@ import type {
   GitWorkspacePort,
   GitWorkspaceResult,
   ProjectGit,
-  ReviewMarks,
   WorkingTreeCache,
   WorkspaceTrash,
 } from './git-ports'
@@ -96,7 +95,6 @@ export type GitOperationDependencies = Readonly<{
   projectGit: ProjectGit
   commitGeneration: CommitGeneration
   workspaceTrash: WorkspaceTrash
-  reviewMarks: ReviewMarks
   workingTreeCache: WorkingTreeCache
   changes: GitChanges
   diffReadingSources: GitDiffReadingSources
@@ -108,7 +106,6 @@ export function createGitOperations(dependencies: GitOperationDependencies): Git
     projectGit,
     commitGeneration,
     workspaceTrash,
-    reviewMarks,
     workingTreeCache,
     changes,
     diffReadingSources,
@@ -168,11 +165,7 @@ export function createGitOperations(dependencies: GitOperationDependencies): Git
     async commitGit(input: GitCommitInput): Promise<void> {
       await projectGit.commit(input.repoPath, input.message)
       workingTreeCache.clear(input.repoPath)
-      const committed = await projectGit.commitFiles(input.repoPath, 'HEAD')
-      await reviewMarks.clear(
-        input.repoPath,
-        committed.map((file) => file.path),
-      )
+      await projectGit.commitFiles(input.repoPath, 'HEAD')
       changes.publishWorkingTreeChanged(input.repoPath)
     },
 

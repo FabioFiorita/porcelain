@@ -7,11 +7,9 @@ describe('setup-tips store', () => {
   })
 
   it('dismisses per repo and tip', () => {
-    expect(useSetupTipsStore.getState().isDismissed('/a', 'layers-kickoff')).toBe(false)
-    useSetupTipsStore.getState().dismiss('/a', 'layers-kickoff')
-    expect(useSetupTipsStore.getState().isDismissed('/a', 'layers-kickoff')).toBe(true)
     expect(useSetupTipsStore.getState().isDismissed('/a', 'scope-kickoff')).toBe(false)
-    expect(useSetupTipsStore.getState().isDismissed('/b', 'layers-kickoff')).toBe(false)
+    useSetupTipsStore.getState().dismiss('/a', 'scope-kickoff')
+    expect(useSetupTipsStore.getState().isDismissed('/a', 'scope-kickoff')).toBe(true)
   })
 })
 
@@ -19,10 +17,10 @@ describe('hydrateSetupTips', () => {
   it('keeps a valid dismissal map', () => {
     expect(
       hydrateSetupTips({
-        dismissed: { '/a': { 'layers-kickoff': true }, '/b': { 'scope-kickoff': true } },
+        dismissed: { '/a': { 'scope-kickoff': true }, '/b': { 'scope-kickoff': true } },
       }),
     ).toEqual({
-      dismissed: { '/a': { 'layers-kickoff': true }, '/b': { 'scope-kickoff': true } },
+      dismissed: { '/a': { 'scope-kickoff': true }, '/b': { 'scope-kickoff': true } },
     })
     expect(hydrateSetupTips({ dismissed: {} })).toEqual({ dismissed: {} })
   })
@@ -39,19 +37,19 @@ describe('hydrateSetupTips', () => {
       expect(hydrateSetupTips(corrupt), JSON.stringify(corrupt ?? null)).toEqual({})
     }
     // `=== true` must never be accidental.
-    expect(hydrateSetupTips({ dismissed: { '/a': { 'layers-kickoff': 1 } } })).toEqual({})
-    expect(hydrateSetupTips({ dismissed: { '/a': { 'layers-kickoff': false } } })).toEqual({})
+    expect(hydrateSetupTips({ dismissed: { '/a': { 'scope-kickoff': 1 } } })).toEqual({})
+    expect(hydrateSetupTips({ dismissed: { '/a': { 'scope-kickoff': false } } })).toEqual({})
   })
 
   it('drops a retired tip id without un-dismissing its neighbours', () => {
     expect(
       hydrateSetupTips({
         dismissed: {
-          '/a': { 'layers-kickoff': true, 'review-kickoff': true },
-          '/b': { 'review-kickoff': true },
+          '/a': { 'scope-kickoff': true, 'retired-tip': true },
+          '/b': { 'retired-tip': true },
         },
       }),
-    ).toEqual({ dismissed: { '/a': { 'layers-kickoff': true } } })
+    ).toEqual({ dismissed: { '/a': { 'scope-kickoff': true } } })
   })
 
   it('ignores keys from another build and a missing map', () => {

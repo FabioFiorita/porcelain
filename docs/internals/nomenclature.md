@@ -45,9 +45,9 @@ parens is the **entry point**; read it for mechanics.
 | Sidebar tab | Companion sections |
 |---|---|
 | Files | Pinned |
-| Changes | Suggested · Commands · Commit · Comments |
+| Changes | Suggested · Commands · Commit |
 | History | Suggested · Commands · File timeline (`gitFileLog --follow`) |
-| Review | **Current review · Previous reviews** (`review-group.tsx`; always rendered, empty note when there are none) · Comments — archive the active unit; restore or trash archives under `.porcelain/reviews/` |
+| Review | **Current review · Previous reviews** (`review-group.tsx`; always rendered, empty note when there are none) |
 | Tasks | (none — the table is the whole surface; Quick Add lives above it, not in Companion) |
 | Terminal | Saved commands — the "Actions" feature (see Cross-cutting below), reachable from the Hub's top-corner Actions menu |
 | Search | Recent searches |
@@ -58,17 +58,16 @@ Suggested/Commands render only on Changes and History — Review does not get th
 · Companion · Share · Remotes · Review flow · Updates). **Data** owns what git
 carries (`data-section.tsx`, every client); this Settings **Companion** tab is the agent-skill
 installer only and is shell-only — do not confuse it with the right-panel **Companion** (⌘.) above.
-Mobile mirrors General · Data · Review · Environments.
+Mobile mirrors General · Data · Environments.
 
 **Cross-cutting** (product meaning: `docs/product.md`; internals here and in the owner map)
 
 | Term | Meaning |
 |---|---|
-| Flow / flow layers | Architectural-layer grouping of changes (entry-point → data); the heart of "review as a story" |
+| Flow grouping | Built-in architectural grouping of Changes (entry-point → data); it is not a repo-local companion channel |
 | The Review template | The default Canvas template with four sections: **Intent**, **Process**, **Execution**, and **Evidence**. It is not an active lifecycle or repo-local storage model; `porcelain review set` writes the daemon-root Canvas. |
 | Evidence | The Review Canvas template's fourth section: agent-authored checks, Results, and image/video/link proof kept in the daemon-root Canvas bundle |
-| Review comments | The reviewer's line/file notes (`.porcelain/comments.json`), app→agent via the CLI |
-| Reviewed marks | Per-file "reviewed" checkboxes (`.porcelain/reviewed.json`), app→agent, read-only like notes |
+| Review annotations | Historical migration inputs only; shipped clients use the structured daemon-root Canvas |
 | Tasks | The daemon-owned table for work across Projects and Environments; the shipped vocabulary replacing Board |
 | Actions | Saved named commands, stored per Project in the owning daemon (`$PORCELAIN_HOME/projects/<projectId>/actions.json`, ADR 0002); agent curates, **human runs** against an explicit Environment + Worktree |
 | Project companion | Repo-local `.porcelain/` only for explicit Git overlays and migration reads; default Project data stays in the daemon-root store |

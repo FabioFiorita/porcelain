@@ -1,13 +1,7 @@
 import type {
   ChannelDispositionValue,
   CompanionDispositionValue,
-  Layer,
 } from '@porcelain/contracts/project-data'
-
-export type LayersDocument = {
-  read(repoPath: string): Promise<Layer[] | null>
-  write(repoPath: string, layers: Layer[] | null): Promise<void>
-}
 
 export type CompanionDispositionsPort = {
   read(repoPath: string): Promise<ChannelDispositionValue[]>

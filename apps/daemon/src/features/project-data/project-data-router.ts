@@ -6,16 +6,6 @@ import type { ProjectDataOperations } from './project-data-operations'
 
 export function createProjectDataRouter(operations: ProjectDataOperations) {
   return t.router({
-    repoLayers: publicProcedure
-      .input(procedureCatalog.repoLayers.input)
-      .output(procedureCatalog.repoLayers.output)
-      .query(({ input }) => operations.repoLayers(input)),
-
-    setRepoLayers: publicProcedure
-      .input(procedureCatalog.setRepoLayers.input)
-      .output(procedureCatalog.setRepoLayers.output)
-      .mutation(({ input }) => operations.setRepoLayers(input)),
-
     companionDispositions: publicProcedure
       .input(procedureCatalog.companionDispositions.input)
       .output(procedureCatalog.companionDispositions.output)

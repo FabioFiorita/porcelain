@@ -36,7 +36,6 @@ export {
 export {
   applyGitFreshnessRequirement,
   applyGitNotification,
-  applyGitReviewNotification,
   GitNotificationBridge,
 } from './git-notifications'
 export type {

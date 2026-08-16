@@ -1,10 +1,10 @@
 /**
  * Shared Project Data client semantics (PDT-003).
  *
- * Framework-neutral layers/disposition/visibility identities, three
+ * Framework-neutral disposition/visibility identities, two
  * refetch-only mutation consequence definitions, and `describeDisposition`.
  * Web and mobile adapters bind these definitions. No notifications module —
- * mutations refetch; `review.changed` still refreshes layers from the adapters.
+ * mutations refetch; no legacy review notification bridge is involved.
  */
 
 export { type Disposition, describeDisposition } from './describe-disposition'
@@ -17,7 +17,6 @@ export {
   ProjectDataIdentityError,
   type ProjectDataQuery,
   projectDataDispositionsQuery,
-  projectDataLayersQuery,
   projectDataProjectKey,
   projectDataQuerySchema,
   projectDataVisibilityQuery,

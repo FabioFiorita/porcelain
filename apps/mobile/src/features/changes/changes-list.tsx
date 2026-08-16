@@ -8,14 +8,13 @@ import {
   SURFACE_TOOLBAR,
   surfaceContentStyle,
 } from '@/components/surface-layout'
-import { type CommentAnchor, CommentComposer } from '@/features/comments'
 import { type FlowFile, useDiscardFile, useFileStaging } from '@/features/git'
 import { useBottomChrome } from '@/features/shell/bottom-chrome'
 import { cn } from '@/lib/utils'
 import { type ChangesScope, useChangesStore } from './changes-store'
-import { changedPaths, summarizeChanges } from './changes-summary'
+import { summarizeChanges } from './changes-summary'
 import { FileRow, type FileRowActions } from './file-row'
-import { useChangesFlow, useReviewedPaths, useToggleReviewed } from './use-changes'
+import { useChangesFlow } from './use-changes'
 
 /**
  * The Changes list: the flow-grouped change set for the active scope, with the header that
@@ -46,17 +45,11 @@ export function ChangesList({
   const openAll = onOpenAll ?? selectAll
 
   const { base, error, groups, isLoading } = useChangesFlow(active)
-  const reviewed = useReviewedPaths(active)
-  const { setReviewed, error: reviewedError } = useToggleReviewed()
   const { stageFile, unstageFile } = useFileStaging()
   const { discardFile } = useDiscardFile()
-  const [anchor, setAnchor] = useState<CommentAnchor | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
 
-  const summary = useMemo(
-    () => summarizeChanges(groups ?? [], reviewed, base),
-    [base, groups, reviewed],
-  )
+  const summary = useMemo(() => summarizeChanges(groups ?? [], base), [base, groups])
   const sections = useMemo(
     () => (groups ?? []).map((group) => ({ data: group.files, layer: group.layer })),
     [groups],
@@ -72,20 +65,12 @@ export function ChangesList({
   }
 
   const actions: FileRowActions = {
-    onComment: (path) => {
-      setAnchor({ path })
-    },
     onDiscard: (path) => {
       guard('Discard failed', () => discardFile(path))
     },
     onOpen: openFile,
     onStage: (path) => {
       guard('Stage failed', () => stageFile(path))
-    },
-    onToggleReviewed: (path, next) => {
-      // Total void: failure is on useToggleReviewed().error (reviewedError below).
-      setActionError(null)
-      setReviewed([path], next)
     },
     onUnstage: (path) => {
       guard('Unstage failed', () => unstageFile(path))
@@ -96,22 +81,16 @@ export function ChangesList({
   // Until the first read lands there is no honest count to print — "0 changed files" would
   // read as a clean tree.
   const pending = isLoading && groups === undefined
-  const failure = actionError ?? (reviewedError === null ? null : reviewedError.message)
+  const failure = actionError
 
   return (
     <View className="flex-1" testID="porcelain-changes-list">
       <ChangesHeader
-        allReviewed={summary.allReviewed}
         label={pending ? 'Loading changes…' : summary.label}
         scope={scope}
         total={summary.total}
         onReadAll={openAll}
         onScopeChange={setScope}
-        onToggleAll={() => {
-          // Total void: failure is on useToggleReviewed().error.
-          setActionError(null)
-          setReviewed(changedPaths(groups ?? []), !summary.allReviewed)
-        }}
       />
 
       {failure === null ? null : (
@@ -151,7 +130,6 @@ export function ChangesList({
             <FileRow
               actions={actions}
               file={item}
-              isReviewed={reviewed.has(item.path)}
               selected={item.path === selectedPath}
               working={scope === 'working'}
             />
@@ -168,31 +146,20 @@ export function ChangesList({
           testID="porcelain-changes-rows"
         />
       )}
-
-      <CommentComposer
-        anchor={anchor}
-        onClose={() => {
-          setAnchor(null)
-        }}
-      />
     </View>
   )
 }
 
 function ChangesHeader({
-  allReviewed,
   label,
   onReadAll,
   onScopeChange,
-  onToggleAll,
   scope,
   total,
 }: {
-  allReviewed: boolean
   label: string
   onReadAll: () => void
   onScopeChange: (scope: ChangesScope) => void
-  onToggleAll: () => void
   scope: ChangesScope
   total: number
 }): React.JSX.Element {
@@ -200,7 +167,7 @@ function ChangesHeader({
     <View className={cn(SURFACE_TOOLBAR, SURFACE_STACK_GAP)}>
       <View className="flex-row items-center gap-1">
         <Text
-          className={`min-w-0 flex-1 text-xs ${allReviewed ? 'text-success' : 'text-muted-foreground'}`}
+          className="min-w-0 flex-1 text-xs text-muted-foreground"
           testID="porcelain-changes-summary"
         >
           {label}
@@ -209,13 +176,6 @@ function ChangesHeader({
             leaves the glyph 9pt inside it. The cluster hangs out to put the glyph on the
             gutter instead — the alignment the eye reads is the mark's, not the box's. */}
         <View className="-mr-2 flex-row items-center">
-          <IconAction
-            accessibilityLabel={allReviewed ? 'Unmark all reviewed' : 'Mark all reviewed'}
-            disabled={total === 0}
-            glyph={allReviewed ? 'checklistOff' : 'checklist'}
-            testID="porcelain-changes-review-all"
-            onPress={onToggleAll}
-          />
           <IconAction
             accessibilityLabel="Read all changes"
             disabled={total === 0}

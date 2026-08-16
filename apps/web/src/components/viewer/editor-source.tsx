@@ -1,5 +1,3 @@
-import type { ReviewComment } from '@porcelain/contracts/review'
-import { CommentMarker } from '@renderer/components/git/comment-marker'
 import { Badge } from '@renderer/components/ui/badge'
 import {
   ContextMenu,
@@ -11,15 +9,12 @@ import {
 } from '@renderer/components/ui/context-menu'
 import { Kbd } from '@renderer/components/ui/kbd'
 import { CodeLine, useTokenizedLines } from '@renderer/components/viewer/code-line'
-import { ROW_HEIGHT } from '@renderer/components/viewer/virtual-rows'
 import { useWriteTextFile } from '@renderer/features/files'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { languageFor } from '@renderer/lib/highlight'
 import { lineInHighlightRanges } from '@renderer/lib/highlight-ranges'
 import { kbdLabel } from '@renderer/lib/keyboard'
-import { lineRangeFromOffsets } from '@renderer/lib/line-selection'
 import { cn, copyText } from '@renderer/lib/utils'
-import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
@@ -30,13 +25,10 @@ import {
   FileSymlink,
   FolderOpen,
   Link2,
-  MessageSquarePlus,
   Scissors,
   Search,
 } from 'lucide-react'
-import { memo, useDeferredValue, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
-import { type CommentAnchor, CommentComposer } from '../git/comment-composer'
-import { commentRowClass } from '../git/comment-marker'
+import { memo, useDeferredValue, useEffect, useEffectEvent, useRef, useState } from 'react'
 import { usePathActions } from './use-path-actions'
 
 // Above this many lines the viewer falls back to the read-only virtualized
@@ -52,31 +44,21 @@ const STATUS_PILL =
 // Memoized so a line only re-renders when its own tokens change.
 const EditorLine = memo(CodeLine)
 
-// The editor mirror is padded `py-2` (8px) above the first line; each line is
-// ROW_HEIGHT tall (leading-5), so line N's top is PADDING_TOP + (N-1)*ROW_HEIGHT. The
-// clickable marker overlay reuses this to sit each glyph on its line.
-const PADDING_TOP = 8
-
 export function EditorSource({
   path,
   initialContent,
   highlightLine,
   highlightRanges,
-  commentsByLine,
 }: {
   path: string
   initialContent: string
   highlightLine?: number
   /** Agent-changed lines (Review outline). Diff-token tint, not find highlight. */
   highlightRanges?: { start: number; end: number }[]
-  commentsByLine?: Map<number, ReviewComment[]>
 }): React.JSX.Element {
   const [content, setContent] = useState(initialContent)
   const [savedContent, setSavedContent] = useState(initialContent)
   const [selection, setSelection] = useState('')
-  const [menuOpen, setMenuOpen] = useState(false)
-  const [commentAnchor, setCommentAnchor] = useState<CommentAnchor | null>(null)
-  const [lineRange, setLineRange] = useState<{ startLine: number; endLine: number } | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -85,32 +67,6 @@ export function EditorSource({
   const tokenLines = useTokenizedLines(deferredContent, lang)
   const { findReferences, exploreFlow, copyPath, copyRelativePath, reveal } = usePathActions(path)
   const { save, isSaving, error: saveError } = useWriteTextFile(path)
-  const project = useProjectSelectionStore((s) => s.project)
-
-  // Comments store project-relative paths; the viewer holds an absolute one.
-  const relativePath =
-    project && path.startsWith(`${project.path}/`) ? path.slice(project.path.length + 1) : path
-
-  // While the composer is open on a range in this file, tint those lines so the anchor
-  // stays visible after the dialog steals focus (killing the DOM selection).
-  const pendingLines = useMemo(() => {
-    if (!commentAnchor || commentAnchor.startLine === undefined) return null
-    const lines = new Set<number>()
-    const end = commentAnchor.endLine ?? commentAnchor.startLine
-    for (let line = commentAnchor.startLine; line <= end; line++) lines.add(line)
-    return lines
-  }, [commentAnchor])
-
-  // While the context menu is open on a selection, tint those lines too — the menu
-  // takes focus (killing the DOM selection), so this keeps what's selected visible.
-  // Gate on a non-empty selection: lineRange is also set for a collapsed cursor, and
-  // a plain right-click must not tint the cursor line.
-  const menuLines = useMemo(() => {
-    if (!menuOpen || selection === '' || !lineRange) return null
-    const lines = new Set<number>()
-    for (let line = lineRange.startLine; line <= lineRange.endLine; line++) lines.add(line)
-    return lines
-  }, [menuOpen, selection, lineRange])
 
   const flushSave = useEffectEvent((): void => {
     if (timerRef.current) clearTimeout(timerRef.current)
@@ -203,220 +159,162 @@ export function EditorSource({
   const dirty = content !== savedContent
 
   return (
-    <>
-      <ContextMenu
-        onOpenChange={(open: boolean): void => {
-          // capture on open: nothing re-renders this component when the user
-          // selects text, so reading the selection at render time goes stale
-          setMenuOpen(open)
-          if (open) {
-            setSelection(selectedText())
-            const el = textareaRef.current
-            setLineRange(
-              el ? lineRangeFromOffsets(el.value, el.selectionStart, el.selectionEnd) : null,
-            )
-          }
-        }}
-      >
-        <ContextMenuTrigger className="relative block h-full select-text overflow-hidden">
-          {/* ONE scroll container holds both layers, so the native selection can
+    <ContextMenu
+      onOpenChange={(open: boolean): void => {
+        // capture on open: nothing re-renders this component when the user
+        // selects text, so reading the selection at render time goes stale
+        if (open) {
+          setSelection(selectedText())
+        }
+      }}
+    >
+      <ContextMenuTrigger className="relative block h-full select-text overflow-hidden">
+        {/* ONE scroll container holds both layers, so the native selection can
             never drift from the highlighted text. (The old design scrolled the
             textarea and its mirror separately and synced them in JS — that lag
             put selection boxes over the wrong lines after a scroll.) The
             textarea sizes to its content via field-sizing, so the container —
             not the textarea — owns the single scroll for both layers. */}
-          <div ref={scrollRef} className="h-full overflow-auto">
-            <div className="relative min-h-full w-max min-w-full">
-              {/* Highlighted mirror; the textarea on top has transparent text so
+        <div ref={scrollRef} className="h-full overflow-auto">
+          <div className="relative min-h-full w-max min-w-full">
+            {/* Highlighted mirror; the textarea on top has transparent text so
                 the native caret/selection sit over these colors. */}
-              <div
-                aria-hidden
-                className="pointer-events-none absolute inset-0 z-0 px-4 py-2 font-mono text-xs leading-5"
-              >
-                <div className="w-max min-w-full">
-                  {content.split('\n').map((line, i) => {
-                    const ln = i + 1
-                    const pending =
-                      (pendingLines?.has(ln) ?? false) || (menuLines?.has(ln) ?? false)
-                    // Comment / pending / menu tint wins over agent-changed tint.
-                    // Row background (not an absolute overlay) so opaque accent
-                    // never covers the mirror text — see commentRowClass.
-                    const tint =
-                      commentRowClass(commentsByLine?.get(ln), pending) ??
-                      (ln === highlightLine ? 'bg-primary/15' : undefined)
-                    const isChanged = !tint && lineInHighlightRanges(ln, highlightRanges)
-                    return (
-                      <div
-                        // biome-ignore lint/suspicious/noArrayIndexKey: lines have no stable identity
-                        key={i}
-                        className={cn(
-                          'flex',
-                          tint,
-                          isChanged && 'border-l-2 border-l-diff-add bg-diff-add/10',
-                        )}
-                      >
-                        <span className="w-10 shrink-0 select-none pr-3 text-right text-muted-foreground/50">
-                          {ln}
-                        </span>
-                        <EditorLine tokens={tokenLines?.[i] ?? null} text={line} />
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-              {/* Clickable comment glyphs, above the transparent textarea (z-10) so the
-                popover opens on click; the layer is pass-through except the glyphs, so
-                typing elsewhere is unaffected. Positioned per line, not virtualized (the
-                editor already renders every line). */}
-              {commentsByLine && commentsByLine.size > 0 && (
-                <div className="pointer-events-none absolute inset-0 z-20 font-mono text-xs leading-5">
-                  {[...commentsByLine.entries()].map(([ln, comments]) => (
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0 z-0 px-4 py-2 font-mono text-xs leading-5"
+            >
+              <div className="w-max min-w-full">
+                {content.split('\n').map((line, i) => {
+                  const ln = i + 1
+                  const tint = ln === highlightLine ? 'bg-primary/15' : undefined
+                  const isChanged = !tint && lineInHighlightRanges(ln, highlightRanges)
+                  return (
                     <div
-                      key={ln}
-                      className="pointer-events-auto absolute left-1 flex h-5 items-center"
-                      style={{ top: PADDING_TOP + (ln - 1) * ROW_HEIGHT }}
+                      // biome-ignore lint/suspicious/noArrayIndexKey: lines have no stable identity
+                      key={i}
+                      className={cn(
+                        'flex',
+                        tint,
+                        isChanged && 'border-l-2 border-l-diff-add bg-diff-add/10',
+                      )}
                     >
-                      <CommentMarker comments={comments} />
+                      <span className="w-10 shrink-0 select-none pr-3 text-right text-muted-foreground/50">
+                        {ln}
+                      </span>
+                      <EditorLine tokens={tokenLines?.[i] ?? null} text={line} />
                     </div>
-                  ))}
-                </div>
-              )}
-              <textarea
-                ref={textareaRef}
-                value={content}
-                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>): void =>
-                  handleEdit(e.target.value)
-                }
-                onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
-                  if (e.key === 's' && (e.metaKey || e.ctrlKey)) {
-                    e.preventDefault()
-                    flushSave()
-                  }
-                }}
-                spellCheck={false}
-                wrap="off"
-                aria-label={`Edit ${path}`}
-                data-testid={TestIds.fileEditor}
-                className="relative z-10 block min-h-full min-w-full resize-none whitespace-pre bg-transparent py-2 pl-14 pr-4 font-mono text-xs leading-5 text-transparent caret-foreground outline-none field-sizing-content"
-              />
+                  )
+                })}
+              </div>
             </div>
+            <textarea
+              ref={textareaRef}
+              value={content}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>): void =>
+                handleEdit(e.target.value)
+              }
+              onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
+                if (e.key === 's' && (e.metaKey || e.ctrlKey)) {
+                  e.preventDefault()
+                  flushSave()
+                }
+              }}
+              spellCheck={false}
+              wrap="off"
+              aria-label={`Edit ${path}`}
+              data-testid={TestIds.fileEditor}
+              className="relative z-10 block min-h-full min-w-full resize-none whitespace-pre bg-transparent py-2 pl-14 pr-4 font-mono text-xs leading-5 text-transparent caret-foreground outline-none field-sizing-content"
+            />
           </div>
-          {saveError ? (
-            <Badge variant="outline" className={cn(STATUS_PILL, 'text-destructive')}>
-              {saveError.message}
-            </Badge>
-          ) : isSaving ? (
-            <Badge variant="outline" className={cn(STATUS_PILL, 'text-muted-foreground')}>
-              Saving…
-            </Badge>
-          ) : dirty ? (
-            <Badge variant="outline" className={cn(STATUS_PILL, 'text-muted-foreground')}>
-              Unsaved <Kbd className="[@media(hover:none)]:hidden">{kbdLabel('mod', 'S')}</Kbd>
-            </Badge>
-          ) : null}
-        </ContextMenuTrigger>
-        <ContextMenuContent className="w-60">
-          <ContextMenuItem
-            disabled={selection === ''}
-            onClick={() => {
-              runUserAction(
-                async () => {
-                  await copyText(selection)
-                  insertAtCursor('')
-                },
-                (error) => {
-                  toastUserActionError('Cut', error)
-                },
-              )
-            }}
-          >
-            <Scissors /> Cut
-            <ContextMenuShortcut>
-              <Kbd>{kbdLabel('mod', 'X')}</Kbd>
-            </ContextMenuShortcut>
-          </ContextMenuItem>
-          <ContextMenuItem
-            disabled={selection === ''}
-            onClick={() => {
-              runUserAction(
-                () => copyText(selection),
-                (error) => {
-                  toastUserActionError('Copy', error)
-                },
-              )
-            }}
-          >
-            <Copy /> Copy
-            <ContextMenuShortcut>
-              <Kbd>{kbdLabel('mod', 'C')}</Kbd>
-            </ContextMenuShortcut>
-          </ContextMenuItem>
-          <ContextMenuItem onClick={() => handlePaste()}>
-            <ClipboardPaste /> Paste
-            <ContextMenuShortcut>
-              <Kbd>{kbdLabel('mod', 'V')}</Kbd>
-            </ContextMenuShortcut>
-          </ContextMenuItem>
-          <ContextMenuItem
-            disabled={selection.trim() === ''}
-            onClick={() => findReferences(selection)}
-          >
-            <Search /> Find references
-          </ContextMenuItem>
-          <ContextMenuItem
-            disabled={selection.trim() === ''}
-            onClick={() => exploreFlow(selection)}
-          >
-            <Compass /> Explore flow from “{selection.trim().slice(0, 24)}”
-          </ContextMenuItem>
-          <ContextMenuItem
-            disabled={selection === ''}
-            onClick={() => {
-              if (!lineRange) return
-              setCommentAnchor({
-                path: relativePath,
-                startLine: lineRange.startLine,
-                endLine: lineRange.endLine,
-                anchorText: selection.slice(0, 2000),
-              })
-            }}
-          >
-            <MessageSquarePlus /> Add comment
-          </ContextMenuItem>
-          <ContextMenuSeparator />
-          <ContextMenuItem onClick={() => setCommentAnchor({ path: relativePath })}>
-            <MessageSquarePlus /> Comment on file
-          </ContextMenuItem>
-          <ContextMenuItem
-            onClick={() => {
-              copyPath()
-            }}
-          >
-            <Link2 /> Copy path
-          </ContextMenuItem>
-          <ContextMenuItem
-            onClick={() => {
-              copyRelativePath()
-            }}
-          >
-            <FileSymlink /> Copy relative path
-          </ContextMenuItem>
-          <ContextMenuItem
-            onClick={() => {
-              reveal()
-            }}
-          >
-            <FolderOpen /> Reveal in Finder
-          </ContextMenuItem>
-        </ContextMenuContent>
-      </ContextMenu>
-      <CommentComposer
-        anchor={commentAnchor}
-        open={commentAnchor !== null}
-        onOpenChange={(open: boolean): void => {
-          if (!open) setCommentAnchor(null)
-        }}
-      />
-    </>
+        </div>
+        {saveError ? (
+          <Badge variant="outline" className={cn(STATUS_PILL, 'text-destructive')}>
+            {saveError.message}
+          </Badge>
+        ) : isSaving ? (
+          <Badge variant="outline" className={cn(STATUS_PILL, 'text-muted-foreground')}>
+            Saving…
+          </Badge>
+        ) : dirty ? (
+          <Badge variant="outline" className={cn(STATUS_PILL, 'text-muted-foreground')}>
+            Unsaved <Kbd className="[@media(hover:none)]:hidden">{kbdLabel('mod', 'S')}</Kbd>
+          </Badge>
+        ) : null}
+      </ContextMenuTrigger>
+      <ContextMenuContent className="w-60">
+        <ContextMenuItem
+          disabled={selection === ''}
+          onClick={() => {
+            runUserAction(
+              async () => {
+                await copyText(selection)
+                insertAtCursor('')
+              },
+              (error) => {
+                toastUserActionError('Cut', error)
+              },
+            )
+          }}
+        >
+          <Scissors /> Cut
+          <ContextMenuShortcut>
+            <Kbd>{kbdLabel('mod', 'X')}</Kbd>
+          </ContextMenuShortcut>
+        </ContextMenuItem>
+        <ContextMenuItem
+          disabled={selection === ''}
+          onClick={() => {
+            runUserAction(
+              () => copyText(selection),
+              (error) => {
+                toastUserActionError('Copy', error)
+              },
+            )
+          }}
+        >
+          <Copy /> Copy
+          <ContextMenuShortcut>
+            <Kbd>{kbdLabel('mod', 'C')}</Kbd>
+          </ContextMenuShortcut>
+        </ContextMenuItem>
+        <ContextMenuItem onClick={() => handlePaste()}>
+          <ClipboardPaste /> Paste
+          <ContextMenuShortcut>
+            <Kbd>{kbdLabel('mod', 'V')}</Kbd>
+          </ContextMenuShortcut>
+        </ContextMenuItem>
+        <ContextMenuItem
+          disabled={selection.trim() === ''}
+          onClick={() => findReferences(selection)}
+        >
+          <Search /> Find references
+        </ContextMenuItem>
+        <ContextMenuItem disabled={selection.trim() === ''} onClick={() => exploreFlow(selection)}>
+          <Compass /> Explore flow from “{selection.trim().slice(0, 24)}”
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem
+          onClick={() => {
+            copyPath()
+          }}
+        >
+          <Link2 /> Copy path
+        </ContextMenuItem>
+        <ContextMenuItem
+          onClick={() => {
+            copyRelativePath()
+          }}
+        >
+          <FileSymlink /> Copy relative path
+        </ContextMenuItem>
+        <ContextMenuItem
+          onClick={() => {
+            reveal()
+          }}
+        >
+          <FolderOpen /> Reveal in Finder
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   )
 }

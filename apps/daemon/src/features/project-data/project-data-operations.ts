@@ -1,22 +1,16 @@
 import type {
   ChannelDispositionValue,
   CompanionDispositionValue,
-  Layer,
   MigrateCompanionInput,
 } from '@porcelain/contracts/project-data'
 import type { CompanionMigration, CompanionMigrationResult } from './companion-migration-operation'
-import { DEFAULT_LAYERS } from './default-layers'
 import { createCompanionGitVisibility, createGitignoreDispositions } from './gitignore-dispositions'
-import { createJsonLayersDocument } from './json-layers-document'
 import type {
   CompanionDispositionsPort,
   CompanionGitVisibilityPort,
-  LayersDocument,
 } from './project-data-capabilities'
 
 export type ProjectDataOperations = {
-  repoLayers: (repoPath: string) => Promise<{ layers: Layer[]; custom: boolean }>
-  setRepoLayers: (input: { repoPath: string; layers: Layer[] | null }) => Promise<void>
   companionDispositions: (repoPath: string) => Promise<ChannelDispositionValue[]>
   companionGitVisibility: (repoPath: string) => Promise<{ hidden: boolean }>
   setCompanionGitVisibility: (input: {
@@ -38,21 +32,14 @@ export type ProjectDataOperations = {
 }
 
 export function createProjectDataOperations(options?: {
-  layers?: LayersDocument
   dispositions?: CompanionDispositionsPort
   visibility?: CompanionGitVisibilityPort
   migration?: CompanionMigration
 }): ProjectDataOperations {
-  const layers = options?.layers ?? createJsonLayersDocument()
   const dispositions = options?.dispositions ?? createGitignoreDispositions()
   const visibility = options?.visibility ?? createCompanionGitVisibility()
 
   return Object.freeze({
-    async repoLayers(repoPath) {
-      const stored = await layers.read(repoPath)
-      return { layers: stored ?? DEFAULT_LAYERS, custom: stored !== null }
-    },
-    setRepoLayers: (input) => layers.write(input.repoPath, input.layers),
     companionDispositions: (repoPath) => dispositions.read(repoPath),
     companionGitVisibility: (repoPath) => visibility.read(repoPath),
     setCompanionGitVisibility: (input) => visibility.set(input.repoPath, input.hidden),

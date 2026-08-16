@@ -78,7 +78,7 @@ describe('gitMutations', () => {
     )
   })
 
-  it('refreshes the working, range, history and Review surfaces after a commit', () => {
+  it('refreshes the working, range, and history surfaces after a commit', () => {
     const effects = names(
       gitMutations.commit.affectedQueries({ message: 'feat: x', repoPath: PROJECT }),
     )
@@ -95,7 +95,6 @@ describe('gitMutations', () => {
       'git/log-family',
       'git/file-log-family',
       'git/commit-conventions',
-      'review/reviewed-paths',
     ])
     expect(new Set(effects).size).toBe(effects.length - 1)
     expect(names(gitMutations.push.affectedQueries({ repoPath: PROJECT }))).toEqual([
@@ -106,7 +105,6 @@ describe('gitMutations', () => {
       'git/file-log-family',
       'git/commit-conventions',
       'git/suggestions',
-      'review/reviewed-paths',
     ])
     expect(
       names(gitMutations.quickCommand.affectedQueries({ command: 'fetch', repoPath: PROJECT })),

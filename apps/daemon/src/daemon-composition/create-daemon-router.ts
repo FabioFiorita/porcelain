@@ -4,7 +4,6 @@ import { createGitFeatureRouter } from '../features/git'
 import { createProjectDataRouter } from '../features/project-data'
 import { createProjectsRouter } from '../features/projects'
 import { createRemoteNetworkRouter, createRemoteRouter } from '../features/remote'
-import { createReviewCommentRouter, createReviewMarksRouter } from '../features/review'
 import { createSearchRouter } from '../features/search'
 import { createTasksRouter } from '../features/tasks'
 import { createDevServerRouter, createTerminalRouter } from '../features/terminal'
@@ -16,8 +15,8 @@ import type { CreateDaemonRouterOptions } from './daemon-operations'
  * domain router factory in the historical merge order and merges them with the
  * one shared `initTRPC` builder so procedure names stay flat on the wire.
  *
- * Remote, Projects, Git, Files, Search, Review comments/marks, Tasks, Actions, Project
- * Data, and Terminal procedures are bound through `operations`; no horizontal procedure router
+ * Remote, Projects, Git, Files, Search, Tasks, Actions, Project Data, and Terminal procedures
+ * are bound through `operations`; no horizontal procedure router
  * remains outside a canonical domain feature.
  */
 export function createDaemonRouter({ operations }: CreateDaemonRouterOptions) {
@@ -27,8 +26,6 @@ export function createDaemonRouter({ operations }: CreateDaemonRouterOptions) {
     createGitFeatureRouter(operations.git),
     createFilesFeatureRouter(operations.files),
     createSearchRouter(operations.search),
-    createReviewCommentRouter(operations.review),
-    createReviewMarksRouter(operations.review),
     createTasksRouter(operations.tasks),
     createActionsRouter(operations.actions),
     createProjectDataRouter(operations.projectData),

@@ -70,7 +70,6 @@ export function ChangesetView({ path }: { path: string }): React.JSX.Element {
         <ReadingSurfaceBody
           reading={reading}
           fileActions={{
-            reviewed: true,
             openFile: true,
             showSource: false,
             collapsible: true,

@@ -41,7 +41,7 @@ describe('Web Git workspace mutations', () => {
       kind: 'mutation',
       input: { branch: 'topic/synthetic', repoPath: REPO },
     })
-    expect(invalidate).toHaveBeenCalledTimes(15)
+    expect(invalidate).toHaveBeenCalledTimes(14)
   })
 
   it('keeps add-worktree consequences narrower than checkout', async () => {

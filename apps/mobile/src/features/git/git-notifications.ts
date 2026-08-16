@@ -1,7 +1,6 @@
-import { gitNotificationEffects, gitReviewNotificationEffects } from '@porcelain/client-runtime/git'
+import { gitNotificationEffects } from '@porcelain/client-runtime/git'
 import type { FreshnessRequirement } from '@porcelain/client-runtime/session/recovery'
 import type { GitChange } from '@porcelain/contracts/git'
-import type { ReviewChanged } from '@porcelain/contracts/review'
 import type { SessionChange } from '@porcelain/contracts/session'
 import { settleBackground } from '@porcelain/shared/background'
 import type { QueryClient } from '@tanstack/react-query'
@@ -37,21 +36,6 @@ export function applyGitNotification(
   )
 }
 
-/** Changed Review layers regroup the flows and stacked diffs Git renders. */
-export function applyGitReviewNotification(
-  notification: ReviewChanged,
-  options: ApplyGitNotificationOptions,
-): void {
-  settleBackground(
-    invalidateGitEffects(
-      options.queryClient,
-      options.environmentId,
-      gitReviewNotificationEffects(notification),
-    ),
-    'notification',
-  )
-}
-
 /**
  * Recovery the runtime asked for: a reconnect or replaced daemon invalidates every Git
  * identity (the daemon-scoped commit-model list included); a sequence gap invalidates only
@@ -81,9 +65,6 @@ function applySessionChange(change: SessionChange, options: ApplyGitNotification
       options,
     )
     return
-  }
-  if (change.kind === 'review.changed') {
-    applyGitReviewNotification({ kind: 'review.changed', projectPath: change.projectPath }, options)
   }
 }
 

@@ -16,7 +16,7 @@ not an IDE; not a second agent host.
 ## Pillars (priority order)
 
 1. **Review depth** (the moat): the Review (Intent · Process · Execution · Evidence), flow-ordered diffs,
-   comments both ways, explore-a-flow, monorepo hide/pin.
+   Canvas evidence, explore-a-flow, monorepo hide/pin.
 2. **Remote as a product** (second moat): one token-gated daemon; local app, remote environment, or
    any browser. State and PTYs daemon-side.
 
@@ -37,7 +37,7 @@ through the CLI. Do not rebuild an in-app agent runner.
   columns, explicit Project/Environment/Worktree references, Quick Add with copied-file
   attachments and links. The Hub aggregates the Environments it can reach and omits the ones it
   cannot; every write names the Environment it targets. Retires the per-repository Board (#28).
-- **Review comments / actions** — companion capabilities; the human runs Actions, always against an
+- **Review Canvas / actions** — daemon-root Canvas evidence and companion capabilities; the human runs Actions, always against an
   explicit Environment + Worktree. Tasks is the daemon-owned work table.
 - **Terminal** — real PTY next to review; remote-bound windows can also shell on This device.
 - **Remote / environments** — one daemon, many clients; per-device credentials; LAN / Tailscale /

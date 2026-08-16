@@ -1,11 +1,10 @@
 import { useActions } from '@renderer/features/actions'
-import { useReviewComments } from '@renderer/features/review'
 import { useSkillsInfo } from '@renderer/hooks/use-skills'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 
 /**
  * A product-specific devtools panel that inspects Porcelain's agent channels — the
- * three surfaced here (review set, comments, actions) plus the bundled
+ * two surfaced here (review set, actions) plus the bundled
  * skills version. Each channel is a `~/.porcelain/*.json` file the porcelain CLI
  * (`src/cli/`) reads/writes; the renderer sees them through the same domain hooks
  * the UI uses, so this panel is a live mirror of what the agent can currently
@@ -14,7 +13,6 @@ import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 export function ChannelsDevtoolsPanel(): React.JSX.Element {
   const project = useProjectSelectionStore((s) => s.project)
   const skills = useSkillsInfo()
-  const comments = useReviewComments()
   const actions = useActions()
 
   if (!project) {
@@ -26,13 +24,6 @@ export function ChannelsDevtoolsPanel(): React.JSX.Element {
       <Section title="Skills (skills.sh)">
         <Row label="Version" value={skills?.version ?? '—'} />
         <Row label="Install" value={skills?.installCommand ?? '—'} />
-      </Section>
-
-      <Section title="Comments (app → agent)">
-        <Row
-          label="Total"
-          value={`${comments.length} · ${comments.filter((c) => c.resolved).length} resolved`}
-        />
       </Section>
 
       <Section title="Actions (two-way)">

@@ -96,7 +96,6 @@ hands off to the existing terminal or viewer navigation. Content search remains 
 - Actions (definitions only — the daemon never executes them): `actions` Q, `addAction`/`updateAction`/`moveAction`/`deleteAction` M
 
 ### Cross-cutting
-- `repoLayers` Q / `setRepoLayers` M (flow-layer config)
 - `removeRecentRepo` M
 
 ## Mobile-side cautions

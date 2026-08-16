@@ -167,7 +167,7 @@ test('composed daemon proof: targets, Canvas Review, migration, Tasks, Actions, 
     )
   const other = worktreeIds.find((id) => id !== original)
   if (other === undefined) throw new Error('second Worktree did not appear')
-  await page.getByTestId(original).click()
+  await loc.hubWorktree(page, original.replace('hub-worktree-', '')).click()
   await selectFilesAndSplit(page)
   await expect(loc.hubTabTargets(page, original.replace('hub-worktree-', ''))).toHaveCount(2)
 

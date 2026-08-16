@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
-import { relative } from 'node:path'
+import { projectOverridePath } from '@shared/project-overrides'
 import { projectOverlayOverridesPath, projectPorcelainDir } from '@shared/project-porcelain'
 import { revealCompanionOverlay } from './git-exclude'
 
@@ -20,19 +20,6 @@ import { revealCompanionOverlay } from './git-exclude'
  */
 
 type WorktreeOverrides = Record<string, { setup: { startScript: string; disposeScript: string } }>
-
-function relativeScopePath(repoPath: string, path: string): string {
-  const trimmed = path.trim()
-  if (trimmed === '') throw new Error('path must be non-empty')
-  if (trimmed === repoPath || trimmed === '.') return ''
-  if (trimmed.startsWith(`${repoPath}/`)) return trimmed.slice(repoPath.length + 1)
-  if (trimmed.startsWith('/')) {
-    const rel = relative(repoPath, trimmed)
-    if (rel.startsWith('..') || rel === '') throw new Error(`path must be inside the repo: ${path}`)
-    return rel
-  }
-  return trimmed.replace(/^\.\//, '')
-}
 
 export interface ProjectOverrides {
   hiddenPaths: string[]
@@ -108,7 +95,7 @@ export function promoteOverrides(
   extra: { hidden?: string[]; pinned?: string[] } = {},
 ): ProjectOverrides {
   const existing = readOverrides(repoPath)
-  const rel = (paths: string[]): string[] => paths.map((p) => relativeScopePath(repoPath, p))
+  const rel = (paths: string[]): string[] => paths.map((p) => projectOverridePath(repoPath, p))
   const overrides: ProjectOverrides = {
     hiddenPaths: unique([...existing.hiddenPaths, ...rel(extra.hidden ?? [])]).filter(
       (p) => p !== '',

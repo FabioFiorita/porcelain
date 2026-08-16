@@ -1,5 +1,6 @@
-import type { Layer } from '@porcelain/contracts/project-data'
+import type { Layer } from './flow'
 
+/** Stable built-in grouping for Changes; no repo-local layer channel is persisted. */
 export const DEFAULT_LAYERS: Layer[] = [
   {
     label: 'Docs',

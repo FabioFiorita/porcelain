@@ -145,7 +145,6 @@ export function createProjectsOperations(options: {
       const added = await options.recents.addPath(path)
       if (!added.ok) return mapUnavailable(added)
 
-      options.effects.watchProjectCompanion(path)
       options.effects.warmFileList(path)
       await hub.registerPath(path)
       return { ok: true, value: inspected.value }

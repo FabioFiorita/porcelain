@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import {
   ProjectDataIdentityError,
   projectDataDispositionsQuery,
-  projectDataLayersQuery,
   projectDataProjectKey,
   projectDataQuerySchema,
   projectDataVisibilityQuery,
@@ -24,12 +23,7 @@ describe('projectDataProjectKey', () => {
 })
 
 describe('Project Data query identities', () => {
-  it('isolates the three identities by name for the same project path', () => {
-    expect(projectDataLayersQuery(PATH_A)).toEqual({
-      domain: 'project-data',
-      name: 'layers',
-      projectPath: PATH_A,
-    })
+  it('isolates the two identities by name for the same project path', () => {
     expect(projectDataDispositionsQuery(PATH_A)).toEqual({
       domain: 'project-data',
       name: 'dispositions',
@@ -40,19 +34,15 @@ describe('Project Data query identities', () => {
       name: 'visibility',
       projectPath: PATH_A,
     })
-    expect(projectDataLayersQuery(PATH_A)).not.toEqual(projectDataDispositionsQuery(PATH_A))
-    expect(projectDataLayersQuery(PATH_A)).not.toEqual(projectDataVisibilityQuery(PATH_A))
     expect(projectDataDispositionsQuery(PATH_A)).not.toEqual(projectDataVisibilityQuery(PATH_A))
   })
 
   it('isolates the same identity name across project paths', () => {
-    expect(projectDataLayersQuery(PATH_A)).not.toEqual(projectDataLayersQuery(PATH_B))
     expect(projectDataDispositionsQuery(PATH_A)).not.toEqual(projectDataDispositionsQuery(PATH_B))
     expect(projectDataVisibilityQuery(PATH_A)).not.toEqual(projectDataVisibilityQuery(PATH_B))
   })
 
   it('throws ProjectDataIdentityError for empty project paths', () => {
-    expect(() => projectDataLayersQuery('')).toThrow(ProjectDataIdentityError)
     expect(() => projectDataDispositionsQuery('')).toThrow(ProjectDataIdentityError)
     expect(() => projectDataVisibilityQuery('')).toThrow(ProjectDataIdentityError)
   })
@@ -60,7 +50,6 @@ describe('Project Data query identities', () => {
 
 describe('projectDataQuerySchema', () => {
   it('accepts the identities their constructors produce', () => {
-    expect(projectDataQuerySchema.safeParse(projectDataLayersQuery(PATH_A)).success).toBe(true)
     expect(projectDataQuerySchema.safeParse(projectDataDispositionsQuery(PATH_A)).success).toBe(
       true,
     )

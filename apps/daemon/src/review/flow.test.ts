@@ -1,7 +1,7 @@
-import type { Layer } from '@porcelain/contracts/project-data'
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_LAYERS } from '../features/project-data'
 import type { ChangedFile } from '../git/diff'
+import { DEFAULT_LAYERS } from './default-layers'
+import type { Layer } from './flow'
 import {
   buildFlow,
   groupByLayer,

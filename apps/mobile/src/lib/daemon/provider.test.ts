@@ -26,31 +26,6 @@ vi.mock('react-native', () => ({
 
 const { proceduresForChange } = await import('./provider')
 
-describe('proceduresForChange review.changed cutover (REV-008)', () => {
-  it('leaves review.changed feature-owned (empty bulk list)', () => {
-    const names = proceduresForChange({
-      kind: 'review.changed',
-      projectPath: '/synthetic/repo',
-    })
-    // ReviewNotificationBridge owns the typed Review identities; comments, layers and the
-    // Git consequences each keep their own bridge.
-    expect(names).toEqual([])
-  })
-
-  it('leaves the Git consequences of a Review change to the Git bridge (GIT-006)', () => {
-    const names = proceduresForChange({ kind: 'review.changed', projectPath: '/synthetic/repo' })
-    for (const git of ['gitFlow', 'gitRangeFlow', 'gitCommitFlow', 'diffReading']) {
-      expect(names).not.toContain(git)
-    }
-  })
-
-  it('leaves files.scope-changed feature-owned (empty bulk list)', () => {
-    expect(
-      proceduresForChange({ kind: 'files.scope-changed', projectPath: '/synthetic/repo' }),
-    ).toEqual([])
-  })
-})
-
 describe('proceduresForChange Files cutover (FIL-006)', () => {
   it('leaves Files identities to the typed bridge', () => {
     expect(

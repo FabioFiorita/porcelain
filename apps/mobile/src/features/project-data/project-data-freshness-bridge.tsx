@@ -5,10 +5,7 @@ import { useEffect } from 'react'
 import { useActiveEnvironment } from '@/features/remote'
 import { subscribeSessionChanges } from '@/lib/daemon/session'
 
-import {
-  applyProjectDataFreshnessRequirement,
-  applyProjectDataReviewChange,
-} from './project-data-freshness'
+import { applyProjectDataFreshnessRequirement } from './project-data-freshness'
 
 /**
  * Subscribe once to the configured mobile daemon session and apply Project Data freshness.
@@ -22,13 +19,7 @@ export function ProjectDataFreshnessBridge(): null {
   useEffect(() => {
     if (environmentId === null) return
     return subscribeSessionChanges({
-      onChange: (change) => {
-        if (change.kind !== 'review.changed') return
-        settleBackground(
-          applyProjectDataReviewChange(change.projectPath, { queryClient, environmentId }),
-          'notification',
-        )
-      },
+      onChange: () => {},
       onFreshnessRequired: (requirement) => {
         settleBackground(
           applyProjectDataFreshnessRequirement(requirement, { queryClient, environmentId }),

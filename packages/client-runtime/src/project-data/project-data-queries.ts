@@ -3,7 +3,7 @@ import { z } from 'zod'
 /**
  * Typed Project Data query identities (PDT-003).
  *
- * Three product-distinct reads — layers, dispositions, visibility — share a Project path and
+ * Two product-distinct reads — dispositions, visibility — share a Project path and
  * nothing else. No absolute-path, host, or trailing-slash policy; the wire has none.
  * Empty path is a programmer error (`ProjectDataIdentityError`), not a public error code.
  */
@@ -24,14 +24,6 @@ export function projectDataProjectKey(projectPath: string): string {
   return parsed.data
 }
 
-export const projectDataLayersQuerySchema = z
-  .object({
-    domain: z.literal('project-data'),
-    name: z.literal('layers'),
-    projectPath: projectPathSchema,
-  })
-  .strict()
-
 export const projectDataDispositionsQuerySchema = z
   .object({
     domain: z.literal('project-data'),
@@ -50,21 +42,11 @@ export const projectDataVisibilityQuerySchema = z
 
 /** Any Project Data server-state identity, discriminated by `name`. */
 export const projectDataQuerySchema = z.discriminatedUnion('name', [
-  projectDataLayersQuerySchema,
   projectDataDispositionsQuerySchema,
   projectDataVisibilityQuerySchema,
 ])
 
 export type ProjectDataQuery = Readonly<z.infer<typeof projectDataQuerySchema>>
-
-/** Build the layers identity for a Project path. */
-export function projectDataLayersQuery(projectPath: string): ProjectDataQuery {
-  return {
-    domain: 'project-data',
-    name: 'layers',
-    projectPath: projectDataProjectKey(projectPath),
-  }
-}
 
 /** Build the companion-dispositions identity for a Project path. */
 export function projectDataDispositionsQuery(projectPath: string): ProjectDataQuery {

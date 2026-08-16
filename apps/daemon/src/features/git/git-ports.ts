@@ -90,10 +90,6 @@ export type WorkspaceTrash = Readonly<{
   moveToTrash(path: string): Promise<void>
 }>
 
-export type ReviewMarks = Readonly<{
-  clear(repoPath: string, paths: string[]): Promise<void>
-}>
-
 export type WorkingTreeCache = Readonly<{
   clear(repoPath: string): void
 }>

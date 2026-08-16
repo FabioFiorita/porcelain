@@ -22,14 +22,6 @@ vi.mock('./use-path-actions', () => ({
   }),
 }))
 
-// EditorSource mounts CommentComposer (context-menu → "Comment on file"), which reaches
-// tRPC via useCommentActions; mock the domain hook so it renders without a tRPC provider
-// (the component-test rule — never mock the tRPC proxy).
-vi.mock('@renderer/features/review', () => ({
-  useCommentActions: () => ({ add: async () => {} }),
-  useCommentIndex: () => ({ byLine: new Map(), fileLevel: [] }),
-}))
-
 // Import AFTER mocks are declared (Vitest hoists vi.mock to the top of the module).
 import { EditorSource } from './editor-source'
 
@@ -46,41 +38,8 @@ afterEach(() => {
 const ta = (): HTMLTextAreaElement =>
   screen.getByLabelText('Edit /repo/a.ts') as HTMLTextAreaElement
 
-// The highlighted mirror rows (one per line), in order. `aria-hidden` uniquely tags
-// the mirror layer; its rows carry the `bg-primary/15` tint.
-const mirrorRows = (container: HTMLElement): HTMLElement[] => {
-  const mirror = container.querySelector('[aria-hidden]')?.firstElementChild
-  return Array.from(mirror?.children ?? []) as HTMLElement[]
-}
-
-const rowAt = (rows: readonly HTMLElement[], index: number): HTMLElement => {
-  const row = rows[index]
-  if (row === undefined) throw new Error(`expected mirror row ${index}`)
-  return row
-}
-
 // The autosave debounce (AUTOSAVE_DELAY_MS = 800) plus a margin.
 const AUTOSAVE_DELAY_MS = 800
-
-test('right-clicking a selection tints the selected lines while the menu is open', () => {
-  const { container } = render(<EditorSource path="/repo/a.ts" initialContent={'aaa\nbbb\nccc'} />)
-  ta().setSelectionRange(4, 7) // "bbb" — line 2
-  fireEvent.contextMenu(
-    container.querySelector('[data-slot="context-menu-trigger"]') as HTMLElement,
-  )
-  const rows = mirrorRows(container)
-  expect(rowAt(rows, 1).className).toContain('bg-primary/15') // selected line stays visible under the menu
-  expect(rowAt(rows, 0).className).not.toContain('bg-primary/15') // unselected line untouched
-})
-
-test('a plain right-click (collapsed cursor) tints nothing', () => {
-  const { container } = render(<EditorSource path="/repo/a.ts" initialContent={'aaa\nbbb\nccc'} />)
-  ta().setSelectionRange(5, 5) // collapsed cursor on line 2
-  fireEvent.contextMenu(
-    container.querySelector('[data-slot="context-menu-trigger"]') as HTMLElement,
-  )
-  expect(rowAt(mirrorRows(container), 1).className).not.toContain('bg-primary/15')
-})
 
 test('clean adoption still works (regression guard): external rewrite on a clean buffer', () => {
   const { rerender } = render(<EditorSource path="/repo/a.ts" initialContent="V1" />)

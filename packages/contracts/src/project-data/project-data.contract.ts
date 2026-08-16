@@ -61,45 +61,6 @@ export const setCompanionDispositionOutputSchema = z
 export type SetCompanionDispositionInput = z.infer<typeof setCompanionDispositionInputSchema>
 export type SetCompanionDispositionOutput = z.infer<typeof setCompanionDispositionOutputSchema>
 
-export const layerSchema = z.object({ label: z.string(), pattern: z.string() }).strict()
-export type Layer = z.infer<typeof layerSchema>
-
-function isValidPattern(pattern: string): boolean {
-  try {
-    new RegExp(pattern)
-    return true
-  } catch {
-    return false
-  }
-}
-
-export const repoLayersInputSchema = z.string()
-export const repoLayersOutputSchema = z
-  .object({ layers: z.array(layerSchema), custom: z.boolean() })
-  .strict()
-export type RepoLayersInput = z.infer<typeof repoLayersInputSchema>
-export type RepoLayersOutput = z.infer<typeof repoLayersOutputSchema>
-
-export const setRepoLayersInputSchema = z
-  .object({
-    repoPath: z.string(),
-    layers: z
-      .array(
-        z
-          .object({
-            label: z.string().trim().min(1),
-            pattern: z.string().min(1).refine(isValidPattern, 'invalid regular expression'),
-          })
-          .strict(),
-      )
-      .min(1)
-      .nullable(),
-  })
-  .strict()
-export const setRepoLayersOutputSchema = z.void()
-export type SetRepoLayersInput = z.infer<typeof setRepoLayersInputSchema>
-export type SetRepoLayersOutput = z.infer<typeof setRepoLayersOutputSchema>
-
 /**
  * The one-time companion migration (#27). One report shape for both entry points —
  * `porcelain migrate apply` and this procedure — so a human reading the CLI output

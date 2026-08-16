@@ -1,6 +1,5 @@
 import { changesetTabKey } from '@renderer/components/git/changeset-view'
 import { useGitFlow, useGitWorkspace } from '@renderer/features/git'
-import { useReviewComments } from '@renderer/features/review'
 import { DevServersSection } from '@renderer/features/terminal'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { openTerminalPanel } from '@renderer/lib/terminal-actions'
@@ -10,7 +9,7 @@ import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
-import { FileDiff, GitBranch, MessageSquare, SquareTerminal } from 'lucide-react'
+import { FileDiff, GitBranch, SquareTerminal } from 'lucide-react'
 
 // One tap-target recipe for every Glance row: full-width, touch-comfortable
 // height, the app's one hover/pressed fill. Rows stay flat on the viewer
@@ -38,7 +37,7 @@ function GlanceSection({
 }
 
 /**
- * The Glance: home when no tab is open — work in flight (dirty tree, open comments)
+ * The Glance: home when no tab is open — work in flight (dirty tree)
  * plus always-visible jump rows so an
  * empty checkout is still a useful landing page. Phone and desktop empty panes
  * both use it (U6).
@@ -50,14 +49,11 @@ export function GlanceHome(): React.JSX.Element | null {
   const workspace = useGitWorkspace()
   const branch = workspace.branch
   const { groups } = useGitFlow()
-  const comments = useReviewComments()
 
   if (!project) return null
 
   const changedCount = groups?.reduce((n, group) => n + group.files.length, 0) ?? 0
-  const openComments = comments.filter((c) => !c.resolved)
-
-  const showCheckout = changedCount > 0 || openComments.length > 0
+  const showCheckout = changedCount > 0
   const hasWork = showCheckout
 
   // Continuous stacked diffs for the working tree (U3 — not the Review empty state).
@@ -72,10 +68,6 @@ export function GlanceHome(): React.JSX.Element | null {
       () => openTerminalPanel(),
       (error) => toastUserActionError('Open terminal', error),
     )
-  }
-
-  const handleOpenCommentsRail = (): void => {
-    setSidebarTab('changes')
   }
 
   return (
@@ -115,16 +107,6 @@ export function GlanceHome(): React.JSX.Element | null {
                 </span>
                 <span className="shrink-0 text-2xs tabular-nums text-muted-foreground/60">
                   Review
-                </span>
-              </button>
-            )}
-            {openComments.length > 0 && (
-              <button type="button" onClick={handleOpenCommentsRail} className={rowClass}>
-                <MessageSquare className="size-3.5 shrink-0 text-muted-foreground" />
-                <span className="min-w-0 flex-1 truncate text-sm">
-                  {openComments.length === 1
-                    ? '1 open review comment'
-                    : `${openComments.length} open review comments`}
                 </span>
               </button>
             )}

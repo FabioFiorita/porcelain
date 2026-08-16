@@ -5,7 +5,6 @@ import { useActionsNotificationSubscription } from '@renderer/features/actions'
 import { useFilesInterestBridge, useFilesNotificationSubscription } from '@renderer/features/files'
 import { useGitNotificationSubscription } from '@renderer/features/git'
 import { useEnvironmentStatuses } from '@renderer/features/remote'
-import { useReviewCommentNotificationSubscription } from '@renderer/features/review'
 import {
   ContentSearch,
   FileFinder,
@@ -134,9 +133,6 @@ export function AppShell(): React.JSX.Element {
   // Git workspace notifications own typed Git identities; session-runtime handles only residual
   // non-Git recovery and Review/Files cross-domain concerns.
   useGitNotificationSubscription()
-  // Comments notifications own their comments-identity invalidation (RVC-003); bulk review.changed
-  // in session-runtime no longer touches comments.
-  useReviewCommentNotificationSubscription()
   // Files notifications + watch interests (FIL-005); session-runtime Files arms are no-ops.
   useFilesNotificationSubscription()
   // Search owns its typed Search identities, Files facts, and recovery invalidation.

@@ -9,7 +9,6 @@ import {
   DataSettings,
   EnvironmentsSettings,
   GeneralSettings,
-  ReviewSettings,
 } from '@/features/settings/settings-screen'
 import { cn } from '@/lib/utils'
 import { BranchSheetBody } from './branch-sheet'
@@ -179,7 +178,6 @@ function SettingsSheetBody({ settingsMaxH }: { settingsMaxH: number }): React.JS
   const sections: { id: SettingsSection; label: string }[] = [
     { id: 'general', label: 'General' },
     { id: 'data', label: 'Data' },
-    { id: 'review', label: 'Review' },
     { id: 'environments', label: 'Environments' },
   ]
 
@@ -226,7 +224,6 @@ function SettingsSheetBody({ settingsMaxH }: { settingsMaxH: number }): React.JS
         <View className="w-full gap-3 pr-1">
           {section === 'general' ? <GeneralSettings /> : null}
           {section === 'data' ? <DataSettings /> : null}
-          {section === 'review' ? <ReviewSettings /> : null}
           {section === 'environments' ? <EnvironmentsSettings /> : null}
         </View>
       </ShellModalScroll>

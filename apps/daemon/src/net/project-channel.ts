@@ -3,12 +3,10 @@ import { dirname } from 'node:path'
 import { projectPorcelainPath } from '@shared/project-porcelain'
 import type { ZodType } from 'zod'
 import { ensureProjectDataRoot } from '../features/project-data'
-import { watchProjectCompanion } from '../review/review-watch'
 
 async function ensureProjectRoot(repoPath: string): Promise<void> {
   const root = await ensureProjectDataRoot(repoPath)
   if (!root.ok) throw new Error(`project-data: ${root.error.code}`)
-  watchProjectCompanion(repoPath)
 }
 
 export interface ProjectChannel<T> {

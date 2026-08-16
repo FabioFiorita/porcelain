@@ -7,7 +7,6 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 
 import { ActionsNotificationBridge } from '@/features/actions'
-import { ReviewCommentNotificationBridge } from '@/features/comments'
 import { FilesNotificationBridge } from '@/features/files'
 import { GitNotificationBridge } from '@/features/git'
 import { ProjectDataFreshnessBridge } from '@/features/project-data'
@@ -38,7 +37,6 @@ function ThemedApp(): React.JSX.Element {
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <DaemonProvider>
-        <ReviewCommentNotificationBridge />
         <FilesNotificationBridge />
         <SearchNotificationBridge />
         <GitNotificationBridge />

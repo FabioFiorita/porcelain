@@ -40,7 +40,6 @@ import { ensureAdminToken } from './net/admin-token'
 import { handleCanvasRequest } from './net/canvas-http'
 import { daemonIdentity } from './net/daemon-identity'
 import { rendererDistExists, serveStatic } from './net/static-server'
-import { watchAgentChannels, watchProjectCompanion } from './review/review-watch'
 import { createSession, publishSessionChange } from './session/live-session'
 
 /**
@@ -149,7 +148,7 @@ async function main(): Promise<void> {
     projects: createNodeProjectsPort(),
     recents: projectsRecents,
     worktree: { isLinkedWorktree },
-    effects: { watchProjectCompanion, warmFileList },
+    effects: { warmFileList },
     hub: {
       environment: environmentIdentity,
       inventory: hubInventory,
@@ -215,10 +214,6 @@ async function main(): Promise<void> {
   } catch (error) {
     console.error('[daemon] CLI refresh failed:', error)
   }
-
-  // Watch the agent channels so CLI-pushed review sets / resolved comments refresh
-  // the open views — published as project-scoped session change facts.
-  await watchAgentChannels()
 
   // Port 0 = OS-assigned (the default); PORCELAIN_DAEMON_PORT pins it (e2e/debugging).
   const requestedPort = Number(process.env.PORCELAIN_DAEMON_PORT ?? '') || 0

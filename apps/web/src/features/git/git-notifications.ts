@@ -1,7 +1,6 @@
-import { gitNotificationEffects, gitReviewNotificationEffects } from '@porcelain/client-runtime/git'
+import { gitNotificationEffects } from '@porcelain/client-runtime/git'
 import type { FreshnessRequirement } from '@porcelain/client-runtime/session/recovery'
 import type { GitChange } from '@porcelain/contracts/git'
-import type { ReviewChanged } from '@porcelain/contracts/review'
 import type { SessionChange } from '@porcelain/contracts/session'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import { type DaemonSession, primary } from '@renderer/lib/daemon'
@@ -28,32 +27,12 @@ function gitChangeFromSessionChange(change: SessionChange): GitChange | null {
     : null
 }
 
-function reviewChangeFromSessionChange(change: SessionChange): ReviewChanged | null {
-  return change.kind === 'review.changed'
-    ? { kind: 'review.changed', projectPath: change.projectPath }
-    : null
-}
-
 export function applyGitNotification(
   notification: GitChange,
   options: ApplyGitNotificationOptions,
 ): void {
   settleBackground(
     invalidateGitEffects(options.queryClient, options.daemon, gitNotificationEffects(notification)),
-    'notification',
-  )
-}
-
-export function applyReviewNotification(
-  notification: ReviewChanged,
-  options: ApplyGitNotificationOptions,
-): void {
-  settleBackground(
-    invalidateGitEffects(
-      options.queryClient,
-      options.daemon,
-      gitReviewNotificationEffects(notification),
-    ),
     'notification',
   )
 }
@@ -85,8 +64,6 @@ export function useGitNotificationSubscription(session: DaemonSession = primary)
     const offChange = session.onChange((change) => {
       const gitNotification = gitChangeFromSessionChange(change)
       if (gitNotification !== null) applyGitNotification(gitNotification, options)
-      const reviewNotification = reviewChangeFromSessionChange(change)
-      if (reviewNotification !== null) applyReviewNotification(reviewNotification, options)
     })
     const offFreshness = session.onFreshnessRequired((requirement) => {
       applyGitFreshnessRequirement(requirement, options)

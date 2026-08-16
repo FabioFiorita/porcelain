@@ -10,17 +10,15 @@ import { type SettingsSection, useShellStore } from '../shell/shell-store'
 import { DataSettings } from './data-panel'
 import { EnvironmentsSettings } from './environments-panel'
 import { GeneralSettings } from './general-panel'
-import { ReviewSettings } from './review-panel'
 
 /**
- * Four sections share a 390pt phone, so "Environments" gets ~85pt. `SegmentedControl`
+ * Three sections share a 390pt phone, so "Environments" gets ~85pt. `SegmentedControl`
  * already gives every segment `flex-1` and one line of `text-xs`, which is the geometry
  * the hand-tuned `TabsTrigger` was reaching for.
  */
 const SECTIONS: { value: SettingsSection; label: string; testID: string }[] = [
   { value: 'general', label: 'General', testID: 'porcelain-settings-section-general' },
   { value: 'data', label: 'Data', testID: 'porcelain-settings-section-data' },
-  { value: 'review', label: 'Review', testID: 'porcelain-settings-section-review' },
   {
     value: 'environments',
     label: 'Environments',
@@ -63,7 +61,6 @@ export function SettingsScreen(): React.JSX.Element {
       >
         {section === 'general' ? <GeneralSettings /> : null}
         {section === 'data' ? <DataSettings /> : null}
-        {section === 'review' ? <ReviewSettings /> : null}
         {section === 'environments' ? <EnvironmentsSettings /> : null}
       </SurfaceScroll>
     </View>
@@ -71,4 +68,4 @@ export function SettingsScreen(): React.JSX.Element {
 }
 
 // Re-export panels for the tablet settings sheet.
-export { DataSettings, EnvironmentsSettings, GeneralSettings, ReviewSettings }
+export { DataSettings, EnvironmentsSettings, GeneralSettings }

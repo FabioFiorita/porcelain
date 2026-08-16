@@ -8,7 +8,7 @@ import { z } from 'zod'
 /**
  * Mobile React Query keys for Project Data (PDT-003).
  *
- * Cache rows hold layers / dispositions / visibility under their typed identities.
+ * Cache rows hold dispositions / visibility under their typed identities.
  */
 
 const projectDataQueryKeySchema = z.tuple([

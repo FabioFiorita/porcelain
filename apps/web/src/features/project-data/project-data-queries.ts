@@ -1,9 +1,8 @@
 import {
   projectDataDispositionsQuery,
-  projectDataLayersQuery,
   projectDataVisibilityQuery,
 } from '@porcelain/client-runtime/project-data'
-import type { ChannelDispositionValue, Layer } from '@porcelain/contracts/project-data'
+import type { ChannelDispositionValue } from '@porcelain/contracts/project-data'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
 import { trpc } from '@renderer/lib/trpc'
@@ -25,12 +24,6 @@ function daemonScopeFromIdentity(daemon: {
   return { host: daemon.host, version: daemon.version }
 }
 
-const DISABLED_LAYERS = {
-  domain: 'project-data',
-  name: 'layers',
-  projectPath: '/',
-} as const
-
 const DISABLED_DISPOSITIONS = {
   domain: 'project-data',
   name: 'dispositions',
@@ -42,27 +35,6 @@ const DISABLED_VISIBILITY = {
   name: 'visibility',
   projectPath: '/',
 } as const
-
-export function useProjectLayers(): { layers: Layer[]; custom: boolean } | undefined {
-  const project = useProjectSelectionStore((s) => s.project)
-  const daemon = useDaemonIdentity()
-  const daemonScope = daemonScopeFromIdentity(daemon)
-  const projectPath = project?.path ?? null
-  const client = trpc.useUtils().client
-
-  const query = useQuery({
-    queryKey: projectPath
-      ? projectDataQueryKey(daemonScope, projectDataLayersQuery(projectPath))
-      : projectDataQueryKey(daemonScope, DISABLED_LAYERS),
-    queryFn: async (): Promise<{ layers: Layer[]; custom: boolean }> => {
-      if (projectPath === null) return { layers: [], custom: false }
-      return client.repoLayers.query(projectPath)
-    },
-    enabled: project !== null,
-  })
-
-  return query.data
-}
 
 export function useCompanionDispositions(): ChannelDispositionValue[] | undefined {
   const project = useProjectSelectionStore((s) => s.project)

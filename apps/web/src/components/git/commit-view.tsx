@@ -8,8 +8,6 @@ import {
 } from '@renderer/components/ui/context-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useCommitDiff, useCommitFlow, useCommitMessage } from '@renderer/features/git'
-import { useCommentIndex } from '@renderer/features/review'
-import { type LineSelection, lineSelectionFromDom } from '@renderer/lib/line-selection'
 import { fileName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'
 import { useHubRepoPath } from '@renderer/stores/hub-repo'
@@ -17,10 +15,9 @@ import { activeTabTarget, targetedTab } from '@renderer/stores/hub-tabs'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRevealStore } from '@renderer/stores/reveal'
 import { useTabsStore } from '@renderer/stores/tabs'
-import { FileText, MessageSquarePlus, Rows3 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { FileText, Rows3 } from 'lucide-react'
+import { useState } from 'react'
 import { changesetTabKey } from './changeset-view'
-import { type CommentAnchor, CommentComposer } from './comment-composer'
 import { DiffModeToggle } from './diff-mode-toggle'
 import { HunksView } from './hunks-view'
 
@@ -31,13 +28,11 @@ function CommitFileRow({
   repoPath,
   selected,
   onSelect,
-  onComment,
 }: {
   file: FlowFile
   repoPath: string
   selected: boolean
   onSelect: (path: string) => void
-  onComment: (path: string) => void
 }): React.JSX.Element {
   const openTab = useTabsStore((s) => s.openTab)
   const setSidebarTab = usePreferencesStore((s) => s.setSidebarTab)
@@ -79,107 +74,32 @@ function CommitFileRow({
             Open file
           </ContextMenuItem>
         )}
-        {/* file.path is project-relative — exactly what a comment anchors to. The
-            composer is a single instance lifted to CommitView (one per view, not
-            per row), so the row just reports the path to comment on. */}
-        <ContextMenuItem onClick={() => onComment(file.path)}>
-          <MessageSquarePlus />
-          Comment on file
-        </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>
   )
 }
 
-// The commit's diff for one file — read-only, but line/file comments anchor here
-// exactly like the working-tree diff (DiffView): right-click to add a comment, and
-// existing comments render as gutter markers.
+// The commit's diff for one file — read-only.
 function CommitFileDiff({ hash, filePath }: { hash: string; filePath: string }): React.JSX.Element {
   const diffMode = usePreferencesStore((s) => s.diffMode)
   const { hunks, error } = useCommitDiff(hash, filePath)
-  const [lineSel, setLineSel] = useState<LineSelection | null>(null)
-  const [commentAnchor, setCommentAnchor] = useState<CommentAnchor | null>(null)
-  // Tradeoff: comments anchor to the new-side line numbers of the diff they were
-  // authored on, so on a historical commit's diff an existing marker can land on
-  // the wrong line (and a comment authored here can mislocate on the working-tree
-  // diff). Accepted — the markers are low-stakes tints, and anchorText carries the
-  // real anchor for the agent.
-  const commentIndex = useCommentIndex(filePath)
-
-  // While the composer is open on a line range in THIS file, tint those lines so the
-  // anchor stays visible after the DOM selection dies (the dialog steals focus).
-  const pendingLines = useMemo(() => {
-    if (
-      !commentAnchor ||
-      commentAnchor.path !== filePath ||
-      commentAnchor.startLine === undefined
-    ) {
-      return undefined
-    }
-    const lines = new Set<number>()
-    const end = commentAnchor.endLine ?? commentAnchor.startLine
-    for (let line = commentAnchor.startLine; line <= end; line++) lines.add(line)
-    return lines
-  }, [commentAnchor, filePath])
 
   if (error) return <p className="p-4 text-sm text-destructive">{error.message}</p>
   if (hunks === undefined) return <p className="p-4 text-sm text-muted-foreground">Loading…</p>
 
   return (
     <div className="flex h-full flex-col">
-      <ContextMenu
-        onOpenChange={(open: boolean): void => {
-          if (open) setLineSel(lineSelectionFromDom())
-        }}
-      >
-        {/* select-text so the diff stays selectable (the ui trigger defaults to
-            select-none) — selecting lines is how you anchor a comment. */}
+      <ContextMenu>
         <ContextMenuTrigger className="block min-h-0 flex-1 select-text">
-          <HunksView
-            hunks={hunks}
-            filePath={filePath}
-            diffMode={diffMode}
-            commentIndex={commentIndex}
-            pendingLines={pendingLines}
-          />
+          <HunksView hunks={hunks} filePath={filePath} diffMode={diffMode} />
         </ContextMenuTrigger>
-        <ContextMenuContent className="w-52">
-          {lineSel ? (
-            <ContextMenuItem
-              onClick={() =>
-                setCommentAnchor({
-                  path: filePath,
-                  startLine: lineSel.startLine,
-                  endLine: lineSel.endLine,
-                  anchorText: lineSel.text.slice(0, 2000),
-                })
-              }
-            >
-              <MessageSquarePlus /> Add comment
-            </ContextMenuItem>
-          ) : (
-            <ContextMenuItem onClick={() => setCommentAnchor({ path: filePath })}>
-              <MessageSquarePlus /> Comment on file
-            </ContextMenuItem>
-          )}
-        </ContextMenuContent>
       </ContextMenu>
-      <CommentComposer
-        anchor={commentAnchor}
-        open={commentAnchor !== null}
-        onOpenChange={(open: boolean): void => {
-          if (!open) setCommentAnchor(null)
-        }}
-      />
     </div>
   )
 }
 
 export function CommitView({ hash }: { hash: string }): React.JSX.Element {
   const [selected, setSelected] = useState<string | null>(null)
-  // A single composer for the whole file list — rows report which path to comment
-  // on rather than each mounting their own (a 50-file commit would mount 50).
-  const [commentAnchor, setCommentAnchor] = useState<CommentAnchor | null>(null)
   const { groups } = useCommitFlow(hash)
   const message = useCommitMessage(hash)
   const repoPath = useHubRepoPath()
@@ -257,7 +177,6 @@ export function CommitView({ hash }: { hash: string }): React.JSX.Element {
                 repoPath={repoPath}
                 selected={file.path === selectedFile}
                 onSelect={setSelected}
-                onComment={(path: string): void => setCommentAnchor({ path })}
               />
             ))}
           </div>
@@ -299,13 +218,6 @@ export function CommitView({ hash }: { hash: string }): React.JSX.Element {
           )}
         </div>
       </div>
-      <CommentComposer
-        anchor={commentAnchor}
-        open={commentAnchor !== null}
-        onOpenChange={(open: boolean): void => {
-          if (!open) setCommentAnchor(null)
-        }}
-      />
     </div>
   )
 }

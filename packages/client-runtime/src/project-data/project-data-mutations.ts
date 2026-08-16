@@ -2,12 +2,10 @@ import {
   projectDataProcedures,
   type SetCompanionDispositionInput,
   type SetCompanionGitVisibilityInput,
-  type SetRepoLayersInput,
 } from '@porcelain/contracts/project-data'
 import {
   type ProjectDataQuery,
   projectDataDispositionsQuery,
-  projectDataLayersQuery,
   projectDataProjectKey,
   projectDataVisibilityQuery,
 } from './project-data-queries'
@@ -20,10 +18,7 @@ import {
  * Cross-domain cache refresh stays in the feature adapters.
  */
 
-type ProjectDataMutationProcedureName =
-  | 'setRepoLayers'
-  | 'setCompanionGitVisibility'
-  | 'setCompanionDisposition'
+type ProjectDataMutationProcedureName = 'setCompanionGitVisibility' | 'setCompanionDisposition'
 
 export type ProjectDataMutationDefinition<
   TName extends ProjectDataMutationProcedureName,
@@ -36,14 +31,6 @@ export type ProjectDataMutationDefinition<
 }
 
 export const projectDataMutations = {
-  setRepoLayers: {
-    procedure: projectDataProcedures.setRepoLayers,
-    procedureName: 'setRepoLayers',
-    affectedQueries: (input: SetRepoLayersInput): readonly ProjectDataQuery[] => [
-      projectDataLayersQuery(projectDataProjectKey(input.repoPath)),
-    ],
-    requiresAuthoritativeRefetch: true,
-  },
   setCompanionGitVisibility: {
     procedure: projectDataProcedures.setCompanionGitVisibility,
     procedureName: 'setCompanionGitVisibility',
@@ -63,7 +50,6 @@ export const projectDataMutations = {
     requiresAuthoritativeRefetch: true,
   },
 } as const satisfies {
-  readonly setRepoLayers: ProjectDataMutationDefinition<'setRepoLayers', SetRepoLayersInput>
   readonly setCompanionGitVisibility: ProjectDataMutationDefinition<
     'setCompanionGitVisibility',
     SetCompanionGitVisibilityInput

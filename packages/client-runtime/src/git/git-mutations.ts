@@ -5,7 +5,6 @@ import {
   filesProjectKey,
   filesTreeSubtreeEffect,
 } from '@porcelain/client-runtime/files'
-import { reviewedPathsQuery } from '@porcelain/client-runtime/review'
 import {
   type GitAddWorktreeInput,
   type GitCheckoutInput,
@@ -84,7 +83,6 @@ function projectQueries(projectPath: string): readonly GitQueryEffect[] {
     gitFileLogQueryFamily(key),
     gitCommitConventionsQuery(key),
     gitSuggestionsQuery(key),
-    reviewedPathsQuery(key),
   ]
 }
 
@@ -109,7 +107,6 @@ function historyQueries(projectPath: string): readonly GitQueryEffect[] {
     gitFileLogQueryFamily(key),
     gitCommitConventionsQuery(key),
     gitSuggestionsQuery(key),
-    reviewedPathsQuery(key),
   ]
 }
 

@@ -1,6 +1,5 @@
 import { DiffView } from '@/features/diff/diff-view'
 import { changesDiffSource } from '@/features/git'
-import { useReviewedPaths, useToggleReviewed } from './use-changes'
 
 /**
  * The Changes tab's binding of the shared diff surface: the working tree or the branch range,
@@ -25,21 +24,10 @@ export function ChangesDiffView({
   onOpenFile?: (path: string) => void
   topInset?: number
 }): React.JSX.Element {
-  const reviewedPaths = useReviewedPaths(active)
-  const { setReviewed } = useToggleReviewed()
-  const isReviewed = reviewedPaths.has(filePath)
-
   return (
     <DiffView
       active={active}
       filePath={filePath}
-      reviewed={{
-        isReviewed,
-        // setReviewed is total void (React Query owns error + pending).
-        onToggle: () => {
-          setReviewed([filePath], !isReviewed)
-        },
-      }}
       source={changesDiffSource(base)}
       testID="porcelain-changes-diff"
       topInset={topInset}

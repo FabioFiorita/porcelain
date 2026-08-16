@@ -1,20 +1,11 @@
 import type { DiffLine } from '@porcelain/contracts/git'
 import type { ReadingFile, ReviewReading } from '@porcelain/contracts/review'
-import { type CommentAnchor, CommentComposer } from '@renderer/components/git/comment-composer'
-import { commentRowClass, LineDecorations } from '@renderer/components/git/comment-marker'
 import { Button } from '@renderer/components/ui/button'
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-} from '@renderer/components/ui/context-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { CodeLine, useHighlighter } from '@renderer/components/viewer/code-line'
 import { HtmlView } from '@renderer/components/viewer/html-view'
 import { MarkdownPre } from '@renderer/components/viewer/markdown-code-block'
 import { VirtualRows } from '@renderer/components/viewer/virtual-rows'
-import { useReviewedPaths, useToggleReviewed } from '@renderer/features/git'
 import { useResolvedTheme } from '@renderer/hooks/use-theme'
 import {
   HIGHLIGHT_THEMES,
@@ -24,7 +15,6 @@ import {
   tokenizeHunks,
   tokenizeLines,
 } from '@renderer/lib/highlight'
-import { type LineSelection, lineSelectionForFile } from '@renderer/lib/line-selection'
 import { fileName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'
 import { activeTabTarget, targetedTab } from '@renderer/stores/hub-tabs'
@@ -34,19 +24,11 @@ import { useRevealStore } from '@renderer/stores/reveal'
 import { useTabsStore } from '@renderer/stores/tabs'
 import type { EvidenceCheck } from '@shared/evidence-check'
 import { TestIds } from '@shared/test-ids'
-import {
-  ChevronDown,
-  ChevronRight,
-  FileText,
-  MessageSquarePlus,
-  Square,
-  SquareCheck,
-} from 'lucide-react'
+import { ChevronDown, ChevronRight, FileText } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import Markdown, { type ExtraProps } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { ThemedToken } from 'shiki'
-import { buildCommentIndex, type CommentIndex, useReviewComments } from './comments'
 import { EvidenceChecksRow, EvidenceHeaderRow } from './reading-evidence-rows'
 import {
   type ReviewFocusSection,
@@ -64,8 +46,6 @@ export { EvidenceChecksRow, EvidenceHeaderRow } from './reading-evidence-rows'
 
 /** Optional chrome on each file-name row in a pure-diff continuous review. */
 export interface ReadingFileActions {
-  /** Show mark/unmark reviewed on the file header (working-tree / branch review). */
-  reviewed?: boolean
   /** Show open-file control (hidden for deleted files via `ReadingFile.status`). */
   openFile?: boolean
   /** Show the per-file collapse/expand control in a continuous diff review. */
@@ -325,100 +305,25 @@ function svgDimension(tag: string, name: string): number | null {
 // the DOM selection CLAMPED to this file (rows carry data-file), so a multi-line
 // drag-select anchors to the whole range; otherwise it falls back to the single line.
 // Optional `fileActions` add mark-reviewed / open-file on the pure-diff continuous review.
-function CommentMenu({
-  path,
-  line,
-  onComment,
-  fileActions,
-  isReviewed,
-  onToggleReviewed,
-  onOpenFile,
-  canOpenFile,
-  children,
-}: {
-  path: string
-  line?: { lineNo: number; text: string }
-  onComment: (anchor: CommentAnchor) => void
-  fileActions?: ReadingFileActions
-  isReviewed?: boolean
-  onToggleReviewed?: () => void
-  onOpenFile?: () => void
-  canOpenFile?: boolean
-  children: React.ReactNode
-}): React.JSX.Element {
-  const [selection, setSelection] = useState<LineSelection | null>(null)
-  const lineAnchor: CommentAnchor | null = selection
-    ? {
-        path,
-        startLine: selection.startLine,
-        endLine: selection.endLine,
-        anchorText: selection.text,
-      }
-    : line
-      ? { path, startLine: line.lineNo, endLine: line.lineNo, anchorText: line.text.slice(0, 2000) }
-      : null
-  const spanned = selection ? selection.endLine - selection.startLine + 1 : 0
-  return (
-    <ContextMenu
-      onOpenChange={(open: boolean): void => setSelection(open ? lineSelectionForFile(path) : null)}
-    >
-      <ContextMenuTrigger className="block select-text">{children}</ContextMenuTrigger>
-      <ContextMenuContent className="w-48">
-        {lineAnchor && (
-          <ContextMenuItem onClick={() => onComment(lineAnchor)}>
-            <MessageSquarePlus /> Add comment{spanned > 1 ? ` (${spanned} lines)` : ''}
-          </ContextMenuItem>
-        )}
-        {fileActions?.reviewed && onToggleReviewed && (
-          <ContextMenuItem onClick={() => onToggleReviewed()}>
-            {isReviewed ? <Square /> : <SquareCheck />}
-            {isReviewed ? 'Unmark reviewed' : 'Mark reviewed'}
-          </ContextMenuItem>
-        )}
-        {fileActions?.openFile && canOpenFile && onOpenFile && (
-          <ContextMenuItem onClick={onOpenFile}>
-            <FileText />
-            Open file
-          </ContextMenuItem>
-        )}
-        <ContextMenuItem onClick={() => onComment({ path })}>
-          <MessageSquarePlus /> Comment on file
-        </ContextMenuItem>
-      </ContextMenuContent>
-    </ContextMenu>
-  )
-}
-
-/** Whether the open composer is anchored to `line` in `path` (for the pending tint). */
-function isPending(anchor: CommentAnchor | null, path: string, line: number | undefined): boolean {
-  if (!anchor || line === undefined || anchor.path !== path || anchor.startLine === undefined) {
-    return false
-  }
-  return line >= anchor.startLine && line <= (anchor.endLine ?? anchor.startLine)
+function ReadingContext({ children }: { children: React.ReactNode }): React.JSX.Element {
+  return <div className="block select-text">{children}</div>
 }
 
 function FileHeaderRow({
   file,
-  onComment,
   fileActions,
   collapsed,
   onToggleCollapsed,
-  onCollapse,
 }: {
   file: ReadingFile
-  onComment: (anchor: CommentAnchor) => void
   fileActions?: ReadingFileActions
   collapsed: boolean
   onToggleCollapsed: () => void
-  onCollapse: () => void
 }): React.JSX.Element {
   const project = useProjectSelectionStore((s) => s.project)
   const openTab = useTabsStore((s) => s.openTab)
   const setSidebarTab = usePreferencesStore((s) => s.setSidebarTab)
   const reveal = useRevealStore((s) => s.reveal)
-  const reviewed = useReviewedPaths()
-  const { mark, unmark } = useToggleReviewed()
-  const isReviewed = reviewed.has(file.path)
   const canOpenFile = file.status !== 'deleted'
   const showSource = fileActions?.showSource !== false
 
@@ -437,25 +342,8 @@ function FileHeaderRow({
     reveal(absolute)
   }
 
-  const handleToggleReviewed = (): void => {
-    if (isReviewed) {
-      unmark(file.path)
-      return
-    }
-    mark(file.path)
-    if (fileActions?.collapsible) onCollapse()
-  }
-
   return (
-    <CommentMenu
-      path={file.path}
-      onComment={onComment}
-      fileActions={fileActions}
-      isReviewed={isReviewed}
-      onToggleReviewed={fileActions?.reviewed ? handleToggleReviewed : undefined}
-      onOpenFile={fileActions?.openFile ? handleOpenFile : undefined}
-      canOpenFile={canOpenFile}
-    >
+    <div className="block select-text">
       <div className="flex h-5 items-center gap-2 border-t border-border bg-card px-2">
         {showSource && <SourceMarker source={file.source} />}
         {fileActions?.collapsible && (
@@ -481,12 +369,7 @@ function FileHeaderRow({
             <TooltipContent>{collapsed ? 'Expand diff' : 'Collapse diff'}</TooltipContent>
           </Tooltip>
         )}
-        <span
-          className={cn(
-            'min-w-0 flex-1 truncate font-mono text-xs font-medium',
-            isReviewed && fileActions?.reviewed && 'text-muted-foreground line-through',
-          )}
-        >
+        <span className={cn('min-w-0 flex-1 truncate font-mono text-xs font-medium')}>
           {file.path}
         </span>
         {file.additions ? (
@@ -496,35 +379,6 @@ function FileHeaderRow({
           <span className="font-mono text-2xs text-destructive">−{file.deletions}</span>
         ) : null}
         {file.whole && <span className="text-2xs text-muted-foreground/50">whole file</span>}
-        {fileActions?.reviewed && (
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-2xs"
-                  onClick={(e: React.MouseEvent<HTMLButtonElement>): void => {
-                    e.stopPropagation()
-                    handleToggleReviewed()
-                  }}
-                  className={cn(
-                    'shrink-0',
-                    isReviewed ? 'text-success' : 'text-muted-foreground hover:text-foreground',
-                  )}
-                  aria-label={isReviewed ? 'Unmark reviewed' : 'Mark reviewed'}
-                  data-testid={TestIds.diffReviewed(file.path)}
-                >
-                  {isReviewed ? (
-                    <SquareCheck className="size-3.5" />
-                  ) : (
-                    <Square className="size-3.5" />
-                  )}
-                </Button>
-              }
-            />
-            <TooltipContent>{isReviewed ? 'Unmark reviewed' : 'Mark reviewed'}</TooltipContent>
-          </Tooltip>
-        )}
         {fileActions?.openFile && canOpenFile && (
           <Tooltip>
             <TooltipTrigger
@@ -547,7 +401,7 @@ function FileHeaderRow({
           </Tooltip>
         )}
       </div>
-    </CommentMenu>
+    </div>
   )
 }
 
@@ -629,22 +483,14 @@ function EmbedRow({ row }: { row: { html: string; height?: number } }): React.JS
 
 function ReadingRowView({
   row,
-  onComment,
-  commentIndexByPath,
-  pendingAnchor,
   fileActions,
   collapsedPaths,
   onToggleCollapsed,
-  onCollapse,
 }: {
   row: ReadingRow
-  onComment: (anchor: CommentAnchor) => void
-  commentIndexByPath: Map<string, CommentIndex>
-  pendingAnchor: CommentAnchor | null
   fileActions?: ReadingFileActions
   collapsedPaths: ReadonlySet<string>
   onToggleCollapsed: (path: string) => void
-  onCollapse: (path: string) => void
 }): React.JSX.Element {
   switch (row.type) {
     case 'thesis':
@@ -676,11 +522,9 @@ function ReadingRowView({
       return (
         <FileHeaderRow
           file={row.file}
-          onComment={onComment}
           fileActions={fileActions}
           collapsed={collapsedPaths.has(row.file.path)}
           onToggleCollapsed={(): void => onToggleCollapsed(row.file.path)}
-          onCollapse={(): void => onCollapse(row.file.path)}
         />
       )
     case 'note':
@@ -700,33 +544,22 @@ function ReadingRowView({
     case 'hunkHeader':
       return <p className="h-5 bg-muted/40 px-2 leading-5 text-muted-foreground">{row.text}</p>
     case 'diff': {
-      const newLine = row.line.newLine
       const anchorLine = row.line.newLine ?? row.line.oldLine ?? undefined
-      const comments =
-        anchorLine !== undefined
-          ? commentIndexByPath.get(row.path)?.byLine.get(anchorLine)
-          : undefined
-      const tint = commentRowClass(comments, isPending(pendingAnchor, row.path, anchorLine))
       return (
-        <CommentMenu
-          path={row.path}
-          line={newLine === null ? undefined : { lineNo: newLine, text: row.line.text }}
-          onComment={onComment}
-        >
+        <ReadingContext>
           {/* data-file + data-line let a drag-selection map to a line range in THIS
               file; new-side line (old-side for a pure deletion), like the diff view. */}
           <div
             data-file={row.path}
             data-line={anchorLine}
-            className={cn('relative flex h-5 leading-5', tint ?? diffLineClass[row.line.kind])}
+            className={cn('relative flex h-5 leading-5', diffLineClass[row.line.kind])}
           >
-            <LineDecorations comments={comments} />
             <span className="w-12 shrink-0 select-none pr-2 text-right text-muted-foreground/40">
               {row.line.newLine ?? row.line.oldLine ?? ''}
             </span>
             <CodeLine tokens={row.tokens} text={row.line.text} />
           </div>
-        </CommentMenu>
+        </ReadingContext>
       )
     }
     case 'gap':
@@ -742,26 +575,15 @@ function ReadingRowView({
         </p>
       )
     case 'code': {
-      const comments = commentIndexByPath.get(row.path)?.byLine.get(row.lineNo)
-      const tint = commentRowClass(comments, isPending(pendingAnchor, row.path, row.lineNo))
       return (
-        <CommentMenu
-          path={row.path}
-          line={{ lineNo: row.lineNo, text: row.text }}
-          onComment={onComment}
-        >
-          <div
-            data-file={row.path}
-            data-line={row.lineNo}
-            className={cn('relative flex h-5 leading-5', tint)}
-          >
-            <LineDecorations comments={comments} />
+        <ReadingContext>
+          <div data-file={row.path} data-line={row.lineNo} className="relative flex h-5 leading-5">
             <span className="w-12 shrink-0 select-none pr-2 text-right text-muted-foreground/35">
               {row.lineNo}
             </span>
             <CodeLine tokens={row.tokens} text={row.text} />
           </div>
-        </CommentMenu>
+        </ReadingContext>
       )
     }
   }
@@ -801,14 +623,6 @@ export function ReadingSurfaceBody({
       return next
     })
   }
-  const collapse = (path: string): void => {
-    setCollapsedPaths((current) => {
-      if (current.has(path)) return current
-      const next = new Set(current)
-      next.add(path)
-      return next
-    })
-  }
   const rows = useMemo(
     () =>
       buildRows(reading, highlighter, theme, {
@@ -818,8 +632,6 @@ export function ReadingSurfaceBody({
       }),
     [reading, highlighter, theme, includeEvidence, includeAnchors, collapsible, collapsedPaths],
   )
-  const [anchor, setAnchor] = useState<CommentAnchor | null>(null)
-  const comments = useReviewComments()
   const setVisible = useReviewFocusStore((s) => s.setVisible)
   const clearJump = useReviewFocusStore((s) => s.clearJump)
   const jump = useReviewFocusStore((s) => s.jump)
@@ -846,50 +658,23 @@ export function ReadingSurfaceBody({
     clearJump()
   }, [trackFocus, jump, rows, clearJump])
 
-  // One comment index per file in the reading (built once per file), so each diff/code
-  // row can mark its commented lines. Comments key on the same project-relative paths.
-  const commentIndexByPath = useMemo(() => {
-    const map = new Map<string, CommentIndex>()
-    const files = [
-      ...reading.sections.flatMap((section) => section.files),
-      ...reading.groups.flatMap((group) => group.files),
-    ]
-    for (const file of files) {
-      if (!map.has(file.path)) map.set(file.path, buildCommentIndex(comments, file.path))
-    }
-    return map
-  }, [comments, reading])
-
   return (
-    <>
-      <VirtualRows
-        rows={rows}
-        className="text-xs"
-        dynamicHeight
-        scrollToLine={scrollTo?.line}
-        scrollNonce={scrollTo?.nonce}
-        scrollAlign="start"
-        onTopRow={handleTopRow}
-        renderRow={(row: ReadingRow): React.JSX.Element => (
-          <ReadingRowView
-            row={row}
-            onComment={setAnchor}
-            commentIndexByPath={commentIndexByPath}
-            pendingAnchor={anchor}
-            fileActions={fileActions}
-            collapsedPaths={collapsedPaths}
-            onToggleCollapsed={toggleCollapsed}
-            onCollapse={collapse}
-          />
-        )}
-      />
-      <CommentComposer
-        anchor={anchor}
-        open={anchor !== null}
-        onOpenChange={(open: boolean): void => {
-          if (!open) setAnchor(null)
-        }}
-      />
-    </>
+    <VirtualRows
+      rows={rows}
+      className="text-xs"
+      dynamicHeight
+      scrollToLine={scrollTo?.line}
+      scrollNonce={scrollTo?.nonce}
+      scrollAlign="start"
+      onTopRow={handleTopRow}
+      renderRow={(row: ReadingRow): React.JSX.Element => (
+        <ReadingRowView
+          row={row}
+          fileActions={fileActions}
+          collapsedPaths={collapsedPaths}
+          onToggleCollapsed={toggleCollapsed}
+        />
+      )}
+    />
   )
 }

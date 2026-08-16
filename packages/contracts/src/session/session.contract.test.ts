@@ -3,7 +3,6 @@ import { ACTIONS_CHANGE_KINDS } from '../actions'
 import { FILES_CHANGE_KINDS } from '../files'
 import { GIT_CHANGE_KINDS } from '../git'
 import { PROTOCOL_VERSION } from '../protocol'
-import { REVIEW_CHANGE_KINDS } from '../review'
 import { TASKS_CHANGE_KINDS } from '../tasks'
 import { TERMINAL_CHANGE_KINDS } from '../terminal'
 import {
@@ -19,7 +18,6 @@ import {
 const everyChangeKind = [
   ...FILES_CHANGE_KINDS,
   ...GIT_CHANGE_KINDS,
-  ...REVIEW_CHANGE_KINDS,
   ...TASKS_CHANGE_KINDS,
   ...ACTIONS_CHANGE_KINDS,
   ...TERMINAL_CHANGE_KINDS,
@@ -47,7 +45,6 @@ const scopedChangeFixtures = {
     kind: 'git.working-tree-changed',
     projectPath: '/synthetic/repo',
   },
-  'review.changed': { kind: 'review.changed', projectPath: '/synthetic/repo' },
   'actions.changed': { kind: 'actions.changed', projectId: 'proj-alpha' },
   'terminal.dev-servers-changed': {
     kind: 'terminal.dev-servers-changed',
@@ -71,8 +68,8 @@ describe('Session change envelope', () => {
     expect(sessionChangeSchema.options.map((option) => option.shape.kind.value).sort()).toEqual(
       [...everyChangeKind].sort(),
     )
-    expect(everyChangeKind).toHaveLength(8)
-    expect(scopedChangeKinds).toHaveLength(7)
+    expect(everyChangeKind).toHaveLength(7)
+    expect(scopedChangeKinds).toHaveLength(6)
   })
 
   it('keeps tasks.changed daemon-wide: strict, carrying only kind', () => {

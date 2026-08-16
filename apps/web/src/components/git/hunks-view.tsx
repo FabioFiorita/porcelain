@@ -1,9 +1,6 @@
 import type { DiffHunk, DiffLine } from '@porcelain/contracts/git'
-import type { ReviewComment } from '@porcelain/contracts/review'
-import { commentRowClass, LineDecorations } from '@renderer/components/git/comment-marker'
 import { CodeLine, useHighlighter } from '@renderer/components/viewer/code-line'
 import { VirtualRows } from '@renderer/components/viewer/virtual-rows'
-import type { CommentIndex } from '@renderer/features/review'
 import { useResolvedTheme } from '@renderer/hooks/use-theme'
 import { languageFor, type TokenMap, themeNameFor, tokenizeHunks } from '@renderer/lib/highlight'
 import { cn } from '@renderer/lib/utils'
@@ -14,17 +11,9 @@ import { useMemo } from 'react'
 type EmphasisMap = Map<DiffLine, CharRange[]>
 
 /** Line-anchored comments, keyed by 1-based line (empty when comments aren't shown). */
-type CommentsByLine = Map<number, ReviewComment[]>
-
-const NO_COMMENTS: CommentsByLine = new Map()
-const NO_PENDING: ReadonlySet<number> = new Set()
-
 interface RenderContext {
   tokens: TokenMap
   emphasis: EmphasisMap
-  commentsByLine: CommentsByLine
-  /** Lines the open comment composer is currently anchored to (transient highlight). */
-  pendingLines: ReadonlySet<number>
 }
 
 const lineClass: Record<DiffLine['kind'], string> = {
@@ -91,16 +80,8 @@ function DiffRowView({ row, ctx }: { row: DiffRow; ctx: RenderContext }): React.
     // selection here maps to a commentable line range; see lib/line-selection.ts.
     const anchorLine = row.line.newLine ?? row.line.oldLine ?? undefined
     const ranges = ctx.emphasis.get(row.line)
-    const comments = anchorLine !== undefined ? ctx.commentsByLine.get(anchorLine) : undefined
-    const pending = anchorLine !== undefined && ctx.pendingLines.has(anchorLine)
-    // Comment/pending tint wins over add/del fill (row bg, not an overlay — see commentRowClass).
-    const tint = commentRowClass(comments, pending)
     return (
-      <div
-        data-line={anchorLine}
-        className={cn('relative flex px-2', tint ?? lineClass[row.line.kind])}
-      >
-        <LineDecorations comments={comments} />
+      <div data-line={anchorLine} className={cn('relative flex px-2', lineClass[row.line.kind])}>
         <LineNo value={row.line.oldLine} />
         <LineNo value={row.line.newLine} />
         <CodeLine
@@ -159,18 +140,14 @@ function SplitCell({
 }): React.JSX.Element {
   const ranges = line ? ctx.emphasis.get(line) : undefined
   const anchorLine = line ? cellAnchorLine(line, side) : undefined
-  const comments = anchorLine !== undefined ? ctx.commentsByLine.get(anchorLine) : undefined
-  const pending = anchorLine !== undefined && ctx.pendingLines.has(anchorLine)
-  const tint = commentRowClass(comments, pending)
   return (
     <div
       data-line={anchorLine}
       className={cn(
         'relative flex min-w-0 flex-1 overflow-hidden',
-        tint ?? (line ? lineClass[line.kind] : ''),
+        line ? lineClass[line.kind] : '',
       )}
     >
-      <LineDecorations comments={comments} />
       <LineNo value={line ? (line.kind === 'add' ? line.newLine : line.oldLine) : null} />
       {line ? (
         <CodeLine
@@ -186,24 +163,16 @@ function SplitCell({
 }
 
 /**
- * Shared hunk renderer: virtualized unified/split rows with highlighting. When a
- * `commentIndex` is passed (the working-tree diff, where comments anchor to new-side
- * lines), commented lines get a gutter marker + tint; `pendingLines` tints the lines
- * the open composer is anchored to. Historical commit diffs omit both — their line
- * numbers don't match the working-tree comments.
+ * Shared hunk renderer: virtualized unified/split rows with highlighting.
  */
 export function HunksView({
   hunks,
   filePath,
   diffMode,
-  commentIndex,
-  pendingLines,
 }: {
   hunks: readonly DiffHunk[]
   filePath: string
   diffMode: 'unified' | 'split'
-  commentIndex?: CommentIndex
-  pendingLines?: ReadonlySet<number>
 }): React.JSX.Element {
   const highlighter = useHighlighter()
   const lang = languageFor(filePath)
@@ -216,8 +185,6 @@ export function HunksView({
   const ctx: RenderContext = {
     tokens,
     emphasis,
-    commentsByLine: commentIndex?.byLine ?? NO_COMMENTS,
-    pendingLines: pendingLines ?? NO_PENDING,
   }
 
   if (hunks.length === 0) {

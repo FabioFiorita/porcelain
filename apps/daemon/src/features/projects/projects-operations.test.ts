@@ -47,9 +47,6 @@ function harness() {
     isLinkedWorktree: vi.fn<ProjectsWorktree['isLinkedWorktree']>(async () => false),
   } satisfies ProjectsWorktree
   const effects = {
-    watchProjectCompanion: vi.fn<ProjectsEffects['watchProjectCompanion']>(() =>
-      events.push('watch'),
-    ),
     warmFileList: vi.fn<ProjectsEffects['warmFileList']>(() => events.push('warm')),
   } satisfies ProjectsEffects
   const environment = {
@@ -135,7 +132,7 @@ describe('Project operations', () => {
     })
 
     expect(await h.operations.openProject(PROJECT.path)).toEqual({ ok: true, value: PROJECT })
-    expect(h.events).toEqual(['validate', 'persist', 'watch', 'warm'])
+    expect(h.events).toEqual(['validate', 'persist', 'warm'])
   })
 
   it('returns validation failures without writing or running effects', async () => {

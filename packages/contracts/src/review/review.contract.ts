@@ -258,38 +258,10 @@ export const evidenceAssetBodySchema = z
 
 export type EvidenceAssetBody = z.infer<typeof evidenceAssetBodySchema>
 
-/* Comments */
-
-export const reviewCommentSchema = z
-  .object({
-    id: z.string(),
-    path: z.string().min(1),
-    startLine: z.number().int().positive().optional(),
-    endLine: z.number().int().positive().optional(),
-    anchorText: z.string().optional(),
-    body: z.string(),
-    resolved: z.boolean(),
-    createdAt: z.number(),
-    agentReply: z.object({ body: z.string(), createdAt: z.number() }).strict().optional(),
-  })
-  .strict()
-
-export type ReviewComment = z.infer<typeof reviewCommentSchema>
-
 /* Inputs and the void output */
 
 export const repoPathInputSchema = z.string().min(1)
 export type RepoPathInput = z.infer<typeof repoPathInputSchema>
-
-/** Total: sets exactly `paths` to `reviewed`, so one bulk write stays one atomic call. */
-export const setReviewedInputSchema = z
-  .object({
-    repoPath: z.string().min(1),
-    paths: z.array(z.string().min(1)).min(1),
-    reviewed: z.boolean(),
-  })
-  .strict()
-export type SetReviewedInput = z.infer<typeof setReviewedInputSchema>
 
 export const exploreReadingInputSchema = z
   .object({
@@ -314,41 +286,5 @@ export const reviewEvidenceAssetInputSchema = z
   .strict()
 export type ReviewEvidenceAssetInput = z.infer<typeof reviewEvidenceAssetInputSchema>
 
-export const addReviewCommentInputSchema = z
-  .object({
-    repoPath: z.string().min(1),
-    path: z.string().min(1),
-    startLine: z.number().int().positive().optional(),
-    endLine: z.number().int().positive().optional(),
-    anchorText: z.string().optional(),
-    body: z.string().min(1),
-  })
-  .strict()
-export type AddReviewCommentInput = z.infer<typeof addReviewCommentInputSchema>
-
-export const editReviewCommentInputSchema = z
-  .object({ repoPath: z.string().min(1), id: z.string().min(1), body: z.string().min(1) })
-  .strict()
-export type EditReviewCommentInput = z.infer<typeof editReviewCommentInputSchema>
-
-export const deleteReviewCommentInputSchema = z
-  .object({ repoPath: z.string().min(1), id: z.string().min(1) })
-  .strict()
-export type DeleteReviewCommentInput = z.infer<typeof deleteReviewCommentInputSchema>
-
-export const clearResolvedReviewCommentsInputSchema = z
-  .object({ repoPath: z.string().min(1) })
-  .strict()
-export type ClearResolvedReviewCommentsInput = z.infer<
-  typeof clearResolvedReviewCommentsInputSchema
->
-
-export const resolveReviewCommentInputSchema = z
-  .object({ repoPath: z.string().min(1), id: z.string().min(1), resolved: z.boolean() })
-  .strict()
-export type ResolveReviewCommentInput = z.infer<typeof resolveReviewCommentInputSchema>
-
 export const voidOutputSchema = z.void()
 export type VoidOutput = z.infer<typeof voidOutputSchema>
-
-export { reviewContractFixtures } from './review.fixtures'

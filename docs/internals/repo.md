@@ -26,8 +26,9 @@
   the app Provider silently routes ALL app hooks to the shell client ("No procedure found" hang).
 - Procedure catalog: `packages/contracts` + `scripts/lint-procedure-contracts.mjs`.
 - Daemon `userData/config.json` holds global Remote bind flags only; Project recents are owned by
-  the daemon's separate strict-v1 `userData/projects-recents.json` document. Notes, layers, reviewed
-  marks, and scope live under `~/.porcelain/*.json` so the dependency-free CLI can read them.
+  the daemon's separate strict-v1 `userData/projects-recents.json` document. Scope and explicit
+  overlays live under the daemon root; migration readers may still inspect legacy companion files
+  without writing them.
 
 ## Packaging, release, conventions
 

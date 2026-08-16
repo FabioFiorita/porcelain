@@ -1,15 +1,13 @@
 import {
   projectDataDispositionsQuery,
-  projectDataLayersQuery,
   projectDataProjectKey,
   projectDataVisibilityQuery,
 } from '@porcelain/client-runtime/project-data'
-import type { ChannelDispositionValue, Layer } from '@porcelain/contracts/project-data'
+import type { ChannelDispositionValue } from '@porcelain/contracts/project-data'
 import { projectDataProcedures } from '@porcelain/contracts/project-data'
 import { runUserAction } from '@porcelain/shared/background'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { useGitFlow } from '@/features/git'
 import { isPaired, useActiveEnvironment } from '@/features/remote'
 import { namedContractProcedure } from '@/lib/daemon/procedure'
 
@@ -28,13 +26,10 @@ const dispositionsProcedure = namedContractProcedure(
   'companionDispositions',
   projectDataProcedures.companionDispositions,
 )
-const layersProcedure = namedContractProcedure('repoLayers', projectDataProcedures.repoLayers)
 const visibilityProcedure = namedContractProcedure(
   'companionGitVisibility',
   projectDataProcedures.companionGitVisibility,
 )
-
-const FLOW_PREVIEW_POLL_MS = 15_000
 
 function failureText(label: string, cause: unknown): string {
   return `${label}: ${cause instanceof Error ? cause.message : String(cause)}`
@@ -136,53 +131,5 @@ export function useCompanionData(repoPath: string): CompanionData {
       })
     },
     untracked,
-  }
-}
-
-export type ReviewLayers = {
-  layers: readonly Layer[] | undefined
-  isStarter: boolean
-  isLoading: boolean
-  error: Error | null
-  failure: string | null
-  isSaving: boolean
-  changedPaths: readonly string[]
-  save: (layers: readonly Layer[] | null) => Promise<boolean>
-}
-
-/** Settings › Review — the agent-managed path groups for one repository. */
-export function useReviewLayers(repoPath: string): ReviewLayers {
-  const environment = useActiveEnvironment()
-  const environmentId = environment?.id ?? 'none'
-  const enabled = isPaired(environment)
-  const key = projectDataProjectKey(repoPath)
-  const flow = useGitFlow({ pollMs: FLOW_PREVIEW_POLL_MS })
-  const writes = useProjectDataWrites()
-  const { failure, runAsync } = useWriteFailure()
-  const [isSaving, setIsSaving] = useState(false)
-
-  const layers = useQuery({
-    enabled,
-    queryKey: projectDataQueryKey(environmentId, projectDataLayersQuery(key)),
-    queryFn: () => callProjectDataProcedure(environment, layersProcedure, key),
-  })
-
-  return {
-    changedPaths: (flow.groups ?? []).flatMap((group) => group.files.map((file) => file.path)),
-    error: layers.error,
-    failure,
-    isLoading: layers.isLoading,
-    isSaving,
-    isStarter: layers.data !== undefined && !layers.data.custom,
-    layers: layers.data?.layers,
-    save: (next) =>
-      runAsync('Could not save layers', async () => {
-        setIsSaving(true)
-        try {
-          await writes.saveLayers(repoPath, next)
-        } finally {
-          setIsSaving(false)
-        }
-      }),
   }
 }

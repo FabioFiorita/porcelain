@@ -15,7 +15,6 @@ export type { ApplyGitNotificationOptions } from './git-notifications'
 export {
   applyGitFreshnessRequirement,
   applyGitNotification,
-  applyReviewNotification,
   useGitNotificationSubscription,
 } from './git-notifications'
 export {
@@ -46,7 +45,6 @@ export {
   useGitStatus,
   useGitSuggestions,
 } from './git-reads'
-export { useReviewedPaths, useSetReviewed, useToggleReviewed } from './git-reviewed'
 export type { GitMutationAction } from './workspace/git-mutations'
 export { useGitAddWorktree, useGitCheckout, useGitCreateBranch } from './workspace/git-mutations'
 export { useGitBranches, useGitWorkspace } from './workspace/git-queries'

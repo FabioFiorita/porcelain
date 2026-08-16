@@ -39,7 +39,6 @@ import { useFilePromptStore } from '@renderer/stores/file-prompt'
 import { useFileTreeStore } from '@renderer/stores/file-tree'
 import { targetedTab } from '@renderer/stores/hub-tabs'
 import { usePreferencesStore } from '@renderer/stores/preferences'
-import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useRevealStore } from '@renderer/stores/reveal'
 import { useSelectionStore } from '@renderer/stores/selection'
 import { useTabsStore } from '@renderer/stores/tabs'
@@ -58,15 +57,12 @@ import {
   Folder,
   FolderPlus,
   Link2,
-  MessageSquarePlus,
   PenLine,
   Pin,
   PinOff,
   Trash2,
 } from 'lucide-react'
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
-import { type CommentAnchor, CommentComposer } from '../git/comment-composer'
-import { FileCommentButton } from '../git/file-comment-button'
 
 // A reveal highlight lingers this long after the row scrolls into view, then the
 // target is cleared so a later Files-tab remount doesn't re-expand its ancestors.
@@ -92,7 +88,6 @@ function EntryContextMenu({
   const newFile = useFilePromptStore((s) => s.newFile)
   const newFolder = useFilePromptStore((s) => s.newFolder)
   const startRename = useFilePromptStore((s) => s.rename)
-  const project = useProjectSelectionStore((s) => s.project)
 
   const scopeAct = (label: string, work: () => PromiseLike<unknown>): void =>
     runUserAction(work, (e) => toastUserActionError(label, e))
@@ -119,12 +114,6 @@ function EntryContextMenu({
           .closeTabEverywhere(targetedTab('file', entry.path, { title: entry.name }).id)
     })
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const [commentAnchor, setCommentAnchor] = useState<CommentAnchor | null>(null)
-  // Comments store project-relative paths; the tree holds absolute ones.
-  const relativePath =
-    project && entry.path.startsWith(`${project.path}/`)
-      ? entry.path.slice(project.path.length + 1)
-      : entry.path
   // New file/folder land in this directory (the folder itself, or a file's parent).
   const dir = entry.kind === 'dir' ? entry.path : dirName(entry.path)
 
@@ -154,12 +143,6 @@ function EntryContextMenu({
             <ContextMenuItem onClick={() => exploreFlow()}>
               <Compass />
               Explore code flow
-            </ContextMenuItem>
-          )}
-          {entry.kind === 'file' && (
-            <ContextMenuItem onClick={() => setCommentAnchor({ path: relativePath })}>
-              <MessageSquarePlus />
-              Comment on file
             </ContextMenuItem>
           )}
           <ContextMenuItem onClick={copyPath}>
@@ -235,13 +218,6 @@ function EntryContextMenu({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <CommentComposer
-        anchor={commentAnchor}
-        open={commentAnchor !== null}
-        onOpenChange={(open: boolean): void => {
-          if (!open) setCommentAnchor(null)
-        }}
-      />
     </>
   )
 }
@@ -258,7 +234,6 @@ function TreeNodeImpl({
   const isSelected = useSelectionStore((s) => s.selected.has(entry.path))
   const toggleSelection = useSelectionStore((s) => s.toggle)
   const setActive = useSelectionStore((s) => s.setActive)
-  const project = useProjectSelectionStore((s) => s.project)
   const prefetchFile = usePrefetchFileContent()
   // A file opened from outside the tree (Changes → Open file) sets the reveal
   // target; the matching row scrolls into view and shows the accent highlight.
@@ -280,10 +255,6 @@ function TreeNodeImpl({
   }, [isRevealed, isTreeVisible, clearReveal])
 
   if (entry.kind === 'file') {
-    const commentPath =
-      project && entry.path.startsWith(`${project.path}/`)
-        ? entry.path.slice(project.path.length + 1)
-        : entry.path
     return (
       <SidebarMenuItem>
         <EntryContextMenu entry={entry}>
@@ -313,7 +284,6 @@ function TreeNodeImpl({
               <FileTypeIcon name={entry.name} />
               <span className="truncate font-mono">{entry.name}</span>
             </SidebarMenuButton>
-            <FileCommentButton path={commentPath} />
           </div>
         </EntryContextMenu>
       </SidebarMenuItem>

@@ -54,11 +54,6 @@ export function proceduresForChange(change: SessionChange): readonly string[] {
       // Files content/tree identities belong to the typed Files notification bridge, and the
       // diff reading it also moves is a typed Git identity now.
       return []
-    case 'review.changed':
-      // ReviewNotificationBridge owns exact Review identity invalidation (REV-008); comments
-      // are owned by ReviewCommentNotificationBridge (RVC-004), layers by
-      // ProjectDataFreshnessBridge, and Review's Git consequences by GitNotificationBridge.
-      return []
     case 'actions.changed':
       // ActionsNotificationBridge owns exact Actions list invalidation (ACT-003).
       return []
@@ -88,7 +83,6 @@ export function proceduresForRecovery(
     'files.scope-changed',
     'files.tree-changed',
     'files.content-changed',
-    'review.changed',
     'actions.changed',
   ]
   const names = new Set<string>()

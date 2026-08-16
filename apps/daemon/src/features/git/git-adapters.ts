@@ -43,14 +43,12 @@ import {
 } from '../../git/git'
 import { clearWorkingTreeSnapshot } from '../../git/working-tree'
 import { loadCommitFlow, loadRangeFlow, loadWorkingFlow } from '../../review/flow-build'
-import { clearReviewedPaths } from '../../stores/reviewed-store'
 import type {
   CommitGeneration,
   GitChanges,
   GitDiffReadingSources,
   GitProjectResult,
   ProjectGit,
-  ReviewMarks,
   WorkingTreeCache,
   WorkspaceTrash,
 } from './git-ports'
@@ -154,10 +152,6 @@ export function createGitDiffReadingSources(): GitDiffReadingSources {
 
 export function createWorkspaceTrash(): WorkspaceTrash {
   return Object.freeze({ moveToTrash })
-}
-
-export function createReviewMarks(): ReviewMarks {
-  return Object.freeze({ clear: clearReviewedPaths })
 }
 
 export function createWorkingTreeCache(): WorkingTreeCache {

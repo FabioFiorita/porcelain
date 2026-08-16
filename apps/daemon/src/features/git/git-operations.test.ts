@@ -24,7 +24,6 @@ import type {
   GitWorkspaceError,
   GitWorkspacePort,
   ProjectGit,
-  ReviewMarks,
   WorkingTreeCache,
   WorkspaceTrash,
 } from './git-ports'
@@ -149,7 +148,6 @@ function dependencies(
     projectGit?: ProjectGit
     commitGeneration?: CommitGeneration
     workspaceTrash?: WorkspaceTrash
-    reviewMarks?: ReviewMarks
     workingTreeCache?: WorkingTreeCache
     changes?: GitChanges
     diffReadingSources?: GitDiffReadingSources
@@ -172,11 +170,6 @@ function dependencies(
       ({
         moveToTrash: vi.fn(async () => undefined),
       } satisfies WorkspaceTrash),
-    reviewMarks:
-      overrides.reviewMarks ??
-      ({
-        clear: vi.fn(async () => undefined),
-      } satisfies ReviewMarks),
     workingTreeCache:
       overrides.workingTreeCache ??
       ({
@@ -296,7 +289,7 @@ describe('Git operations', () => {
     expect(changes.publishWorkingTreeChanged).toHaveBeenCalledWith(REPO)
   })
 
-  it('commits, clears cache, clears reviewed marks, then publishes', async () => {
+  it('commits, clears cache, then publishes', async () => {
     const events: string[] = []
     const git = projectGit({
       commit: async () => {
@@ -308,24 +301,17 @@ describe('Git operations', () => {
       },
     })
     const cache = { clear: vi.fn(() => events.push('cache')) }
-    const marks = {
-      clear: vi.fn(async () => {
-        events.push('marks')
-      }),
-    }
     const changes = { publishWorkingTreeChanged: vi.fn(() => events.push('publish')) }
     const operations = createGitOperations(
       dependencies({
         projectGit: git,
         workingTreeCache: cache,
-        reviewMarks: marks,
         changes,
       }),
     )
 
     await operations.commitGit({ repoPath: REPO, message: 'feat: test' })
-    expect(events).toEqual(['commit', 'cache', 'files', 'marks', 'publish'])
-    expect(marks.clear).toHaveBeenCalledWith(REPO, ['src/a.ts'])
+    expect(events).toEqual(['commit', 'cache', 'files', 'publish'])
   })
 
   it('keeps a frozen operation catalog', () => {

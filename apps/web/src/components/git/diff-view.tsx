@@ -1,25 +1,14 @@
 import { Button } from '@renderer/components/ui/button'
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-} from '@renderer/components/ui/context-menu'
+import { ContextMenu, ContextMenuTrigger } from '@renderer/components/ui/context-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
-import { useDiffFile, useReviewedPaths, useToggleReviewed } from '@renderer/features/git'
-import { useCommentIndex } from '@renderer/features/review'
+import { useDiffFile } from '@renderer/features/git'
 import { useIsMobile } from '@renderer/hooks/use-mobile'
-import { compactButtonClass } from '@renderer/lib/controls'
-import { type LineSelection, lineSelectionFromDom } from '@renderer/lib/line-selection'
 import { fileName } from '@renderer/lib/paths'
-import { cn } from '@renderer/lib/utils'
 import { useHubRepoPath } from '@renderer/stores/hub-repo'
 import { activeTabTarget, targetedTab } from '@renderer/stores/hub-tabs'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useTabsStore } from '@renderer/stores/tabs'
-import { FileText, MessageSquarePlus, Square, SquareCheck } from 'lucide-react'
-import { useMemo, useState } from 'react'
-import { type CommentAnchor, CommentComposer } from './comment-composer'
+import { FileText } from 'lucide-react'
 import { DiffModeToggle } from './diff-mode-toggle'
 import { HunksView } from './hunks-view'
 
@@ -37,28 +26,6 @@ export function DiffView({
   const repoPath = useHubRepoPath()
   const openTab = useTabsStore((s) => s.openTab)
   const { hunks, status, image, binary, error } = useDiffFile(filePath, base)
-  const reviewed = useReviewedPaths()
-  const { mark, unmark } = useToggleReviewed()
-  const isReviewed = reviewed.has(filePath)
-  const [lineSel, setLineSel] = useState<LineSelection | null>(null)
-  const [commentAnchor, setCommentAnchor] = useState<CommentAnchor | null>(null)
-  const commentIndex = useCommentIndex(filePath)
-
-  // While the composer is open on a line range in THIS file, tint those lines so the
-  // anchor stays visible after the DOM selection dies (the dialog steals focus).
-  const pendingLines = useMemo(() => {
-    if (
-      !commentAnchor ||
-      commentAnchor.path !== filePath ||
-      commentAnchor.startLine === undefined
-    ) {
-      return undefined
-    }
-    const lines = new Set<number>()
-    const end = commentAnchor.endLine ?? commentAnchor.startLine
-    for (let line = commentAnchor.startLine; line <= end; line++) lines.add(line)
-    return lines
-  }, [commentAnchor, filePath])
 
   // Jump from the diff to the whole file (a preview tab, like the Changes list's
   // "Open file"). Hidden for a deleted file — it no longer exists on disk, so
@@ -90,33 +57,6 @@ export function DiffView({
       <div className="flex items-center justify-between gap-2 border-b px-3 py-1">
         <span className="truncate font-mono text-xs text-muted-foreground">{filePath}</span>
         <div className="flex shrink-0 items-center gap-1.5">
-          {/* Mark the file reviewed right where you read it — shares state with
-              the Changes list's reviewed indicator (useReviewedPaths). */}
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  className={cn(
-                    compactButtonClass,
-                    isReviewed ? 'text-success' : 'text-muted-foreground hover:text-foreground',
-                  )}
-                  onClick={() => {
-                    if (isReviewed) unmark(filePath)
-                    else mark(filePath)
-                  }}
-                >
-                  {isReviewed ? (
-                    <SquareCheck className="size-3.5" />
-                  ) : (
-                    <Square className="size-3.5" />
-                  )}
-                  {isReviewed ? 'Reviewed' : 'Mark reviewed'}
-                </Button>
-              }
-            />
-            <TooltipContent>{isReviewed ? 'Unmark reviewed' : 'Mark reviewed'}</TooltipContent>
-          </Tooltip>
           {status !== 'deleted' && (
             <Tooltip>
               <TooltipTrigger
@@ -155,51 +95,14 @@ export function DiffView({
           Binary file
         </div>
       ) : (
-        <ContextMenu
-          onOpenChange={(open: boolean): void => {
-            if (open) setLineSel(lineSelectionFromDom())
-          }}
-        >
+        <ContextMenu>
           {/* select-text so the diff stays selectable (the ui trigger defaults to
               select-none) — selecting lines is how you anchor a comment. */}
           <ContextMenuTrigger className="block min-h-0 flex-1 select-text">
-            <HunksView
-              hunks={hunks ?? []}
-              filePath={filePath}
-              diffMode={diffMode}
-              commentIndex={commentIndex}
-              pendingLines={pendingLines}
-            />
+            <HunksView hunks={hunks ?? []} filePath={filePath} diffMode={diffMode} />
           </ContextMenuTrigger>
-          <ContextMenuContent className="w-52">
-            {lineSel ? (
-              <ContextMenuItem
-                onClick={() =>
-                  setCommentAnchor({
-                    path: filePath,
-                    startLine: lineSel.startLine,
-                    endLine: lineSel.endLine,
-                    anchorText: lineSel.text.slice(0, 2000),
-                  })
-                }
-              >
-                <MessageSquarePlus /> Add comment
-              </ContextMenuItem>
-            ) : (
-              <ContextMenuItem onClick={() => setCommentAnchor({ path: filePath })}>
-                <MessageSquarePlus /> Comment on file
-              </ContextMenuItem>
-            )}
-          </ContextMenuContent>
         </ContextMenu>
       )}
-      <CommentComposer
-        anchor={commentAnchor}
-        open={commentAnchor !== null}
-        onOpenChange={(open: boolean): void => {
-          if (!open) setCommentAnchor(null)
-        }}
-      />
     </div>
   )
 }

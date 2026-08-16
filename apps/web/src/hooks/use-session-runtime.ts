@@ -2,11 +2,7 @@ import type { FreshnessRequirement } from '@porcelain/client-runtime/session/rec
 import type { SessionChange, SessionMismatchFrame } from '@porcelain/contracts/session'
 import { invalidateAllActionsQueries } from '@renderer/features/actions'
 import { invalidateAllFilesQueries } from '@renderer/features/files'
-import {
-  invalidateAllProjectDataQueries,
-  invalidateProjectDataLayers,
-} from '@renderer/features/project-data'
-import { invalidateAllReviewComments } from '@renderer/features/review'
+import { invalidateAllProjectDataQueries } from '@renderer/features/project-data'
 import { invalidateAllTasks } from '@renderer/features/tasks'
 import { type DaemonSession, primary } from '@renderer/lib/daemon'
 import { isBrowser } from '@renderer/lib/platform'
@@ -52,9 +48,7 @@ type QueryInvalidation = {
 export type SessionQueryUtils = {
   /** Every daemon-derived query this client holds. Used only for session-wide recovery. */
   readonly invalidate: () => Promise<void>
-  readonly repoLayers: QueryInvalidation
   readonly projectData: QueryInvalidation
-  readonly reviewComments: QueryInvalidation
   /** Files cache — wired to the feature key predicate (FIL-005). */
   readonly files: QueryInvalidation
   readonly actions: QueryInvalidation
@@ -88,9 +82,6 @@ export function invalidateForChange(
       // Tasks owns its notification → identity mapping (the Web Tasks feature adapter).
       // Handled here only so the switch stays exhaustive over SessionChange.
       return Promise.resolve()
-    case 'review.changed':
-      // Legacy repo-local Review changes no longer drive a live client surface.
-      return Promise.resolve()
     case 'actions.changed':
       // Actions owns its notification → list-identity mapping (ACT-003 feature adapter).
       // Session runtime must not invalidate Actions here; the feature subscription does.
@@ -118,7 +109,6 @@ export function invalidateForRecovery(
   if (requirement.scope.kind === 'session') {
     return Promise.all([
       utils.invalidate(),
-      utils.reviewComments.invalidate(),
       utils.tasks.invalidate(),
       utils.files.invalidate(),
       utils.projectData.invalidate(),
@@ -126,9 +116,6 @@ export function invalidateForRecovery(
   }
   return Promise.all([
     utils.files.invalidate(),
-    utils.repoLayers.invalidate(),
-    // Comments freshness is feature-owned (RVC-003); recovery still hits the predicate slot.
-    utils.reviewComments.invalidate(),
     // Tasks are daemon-wide, so a project-scoped gap still leaves them unproven: the gap
     // could have swallowed a `tasks.changed`, which carries no project to narrow by.
     utils.tasks.invalidate(),
@@ -165,14 +152,12 @@ export function useSessionRuntime({
     session.updateRequiredFrame(),
   )
 
-  // Structural SessionQueryUtils: comments and Files recovery use feature key
-  // predicates so they invalidate domain caches, not tRPC procedure-name keys.
+  // Structural SessionQueryUtils: Files recovery uses a feature key predicate so it
+  // invalidates domain caches, not tRPC procedure-name keys.
   const utils: SessionQueryUtils = useMemo(
     () => ({
       invalidate: () => trpcUtils.invalidate(),
-      repoLayers: { invalidate: () => invalidateProjectDataLayers(queryClient) },
       projectData: { invalidate: () => invalidateAllProjectDataQueries(queryClient) },
-      reviewComments: { invalidate: () => invalidateAllReviewComments(queryClient) },
       files: { invalidate: () => invalidateAllFilesQueries(queryClient) },
       actions: { invalidate: () => invalidateAllActionsQueries(queryClient) },
       tasks: { invalidate: () => invalidateAllTasks(queryClient) },

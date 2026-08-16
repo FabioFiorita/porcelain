@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_LAYERS } from '../features/project-data'
 import type { ChangedFile, DiffStat } from '../git/diff'
+import { DEFAULT_LAYERS } from './default-layers'
 import { flowKey, reviewKey } from './review-key'
 
 const files: ChangedFile[] = [{ path: 'a.ts', status: 'modified', staged: false, unstaged: true }]

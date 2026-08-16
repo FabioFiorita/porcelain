@@ -1,6 +1,5 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { DEFAULT_LAYERS, readLayers } from '../features/project-data'
 import type { ChangedFile, DiffStat } from '../git/diff'
 import {
   gitCommitFiles,
@@ -11,6 +10,7 @@ import {
   gitRangeNumstatFrom,
 } from '../git/git'
 import { workingTreeSnapshot } from '../git/working-tree'
+import { DEFAULT_LAYERS } from './default-layers'
 import { buildFlow, type FlowGroup, type Layer } from './flow'
 import { flowKey } from './review-key'
 
@@ -62,11 +62,8 @@ const commitFlowCache = new Map<string, { key: string; groups: FlowGroup[] }>()
 
 /** Working-tree flow groups (shared by gitFlow + diffReading). */
 export async function loadWorkingFlow(repoPath: string): Promise<FlowGroup[]> {
-  const [{ files, stats }, stored] = await Promise.all([
-    workingTreeSnapshot(repoPath),
-    readLayers(repoPath),
-  ])
-  const layers = stored ?? DEFAULT_LAYERS
+  const { files, stats } = await workingTreeSnapshot(repoPath)
+  const layers = DEFAULT_LAYERS
   const key = flowKey(files, stats, layers)
   const cached = flowCache.get(repoPath)
   if (cached && cached.key === key) return cached.groups
@@ -82,12 +79,11 @@ export async function loadRangeFlow(
   const base = await gitDefaultBranch(repoPath)
   try {
     const mergeBase = await gitMergeBase(repoPath, base)
-    const [files, stored, stats] = await Promise.all([
+    const [files, stats] = await Promise.all([
       gitRangeChangedFilesFrom(repoPath, mergeBase),
-      readLayers(repoPath),
       gitRangeNumstatFrom(repoPath, mergeBase),
     ])
-    const layers = stored ?? DEFAULT_LAYERS
+    const layers = DEFAULT_LAYERS
     const key = `${base}\n${flowKey(files, stats, layers)}`
     const cached = rangeFlowCache.get(repoPath)
     if (cached && cached.key === key) return { groups: cached.groups, base }
@@ -102,12 +98,11 @@ export async function loadRangeFlow(
 /** Historical commit flow groups (shared by gitCommitFlow + diffReading). */
 export async function loadCommitFlow(repoPath: string, hash: string): Promise<FlowGroup[]> {
   try {
-    const [files, stored, stats] = await Promise.all([
+    const [files, stats] = await Promise.all([
       gitCommitFiles(repoPath, hash),
-      readLayers(repoPath),
       gitCommitNumstat(repoPath, hash),
     ])
-    const layers = stored ?? DEFAULT_LAYERS
+    const layers = DEFAULT_LAYERS
     const cacheKey = `${repoPath}\n${hash}`
     const key = `${hash}\n${flowKey(files, stats, layers)}`
     const cached = commitFlowCache.get(cacheKey)

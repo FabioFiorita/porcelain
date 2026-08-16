@@ -9,14 +9,9 @@
 export {
   useSetCompanionDisposition,
   useSetCompanionGitVisibility,
-  useSetProjectLayers,
 } from './project-data-mutations'
 export {
   useCompanionDispositions,
   useCompanionGitVisibility,
-  useProjectLayers,
 } from './project-data-queries'
-export {
-  invalidateAllProjectDataQueries,
-  invalidateProjectDataLayers,
-} from './project-data-query-key'
+export { invalidateAllProjectDataQueries } from './project-data-query-key'

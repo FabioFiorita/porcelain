@@ -2,7 +2,6 @@ import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-gro
 import { HtmlView, isHtmlPath } from '@renderer/components/viewer/html-view'
 import { isMarkdownPath, MarkdownView } from '@renderer/components/viewer/markdown-view'
 import { useFilePreview } from '@renderer/features/files'
-import { useCommentIndex } from '@renderer/features/review'
 import { relativeTo } from '@renderer/lib/paths'
 import { useHubRepoPath } from '@renderer/stores/hub-repo'
 import { usePreferencesStore } from '@renderer/stores/preferences'
@@ -92,7 +91,6 @@ export function TextFileView({
   const scrollLine = line ?? effectiveHighlight?.[0]?.start
   const highlightLine = finding && findLine !== undefined ? findLine : scrollLine
   // Comments key on project-relative paths; the viewer holds an absolute one.
-  const commentIndex = useCommentIndex(relativeTo(repoPath, path))
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent): void => {
@@ -144,7 +142,6 @@ export function TextFileView({
             initialContent={content}
             highlightLine={highlightLine}
             highlightRanges={effectiveHighlight}
-            commentsByLine={commentIndex.byLine}
           />
         ) : (
           <SourceContextMenu path={path}>
@@ -153,7 +150,6 @@ export function TextFileView({
               content={content}
               highlightLine={highlightLine}
               highlightRanges={effectiveHighlight}
-              commentsByLine={commentIndex.byLine}
             />
           </SourceContextMenu>
         )}

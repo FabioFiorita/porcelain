@@ -79,7 +79,7 @@ describe('SkillsUpdateToast', () => {
   // Companion is where the copyable upgrade command lives — the action has to land
   // on a section that actually shows it.
   it('opens Settings to Companion and records the dismissal from the action', () => {
-    useSettingsDialogStore.setState({ section: 'flow' })
+    useSettingsDialogStore.setState({ section: 'general' })
     render(<SkillsUpdateToast />)
     const action = lastToast().action as ToastAction
     action.onClick()

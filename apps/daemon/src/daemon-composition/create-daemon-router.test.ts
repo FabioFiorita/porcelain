@@ -8,9 +8,6 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 vi.mock('../project/git-exclude', () => ({
   ensureCompanionHidden: vi.fn(async () => undefined),
 }))
-vi.mock('../review/review-watch', () => ({
-  watchProjectCompanion: vi.fn(),
-}))
 
 import type { ProjectsOperations } from '../features/projects'
 import { createTasksAttachments, createTasksStore } from '../features/tasks'
@@ -105,7 +102,6 @@ describe('createDaemonRouter composition', () => {
     expect(operations.remote).toBeDefined()
     expect(operations.tasks).toBeDefined()
     expect(operations.actions).toBeDefined()
-    expect(operations.review).toBeDefined()
     expect(operations.files).toBeDefined()
     expect(operations.git).toBeDefined()
     expect(operations.search).toBeDefined()

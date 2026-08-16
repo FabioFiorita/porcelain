@@ -1,7 +1,6 @@
-import type { Layer } from '@porcelain/contracts/project-data'
 import type { ChangedFile } from '../git/diff'
 
-export type { Layer }
+export type Layer = { readonly label: string; readonly pattern: string }
 
 export const OTHER_LABEL = 'Other'
 

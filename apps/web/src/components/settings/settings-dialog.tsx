@@ -26,14 +26,12 @@ import {
   Cloud,
   Database,
   Download,
-  Layers,
   Settings2,
   Share2,
   SlidersHorizontal,
 } from 'lucide-react'
 import { CompanionSection } from './companion-section'
 import { DataSection } from './data-section'
-import { FlowLayersSection } from './flow-layers-section'
 import { GeneralSection } from './general-section'
 import { RemotesSection } from './remotes-section'
 import { ShareSection } from './share-section'
@@ -45,7 +43,7 @@ import { UpdatesSection } from './updates-section'
 const ALL_SECTIONS: {
   id: SettingsSection
   label: string
-  icon: typeof Layers
+  icon: typeof SlidersHorizontal
   title: string
   blurb: string
   // Shell-only: Companion (skills install), Remotes (remote-daemon.json), Updates
@@ -92,14 +90,6 @@ const ALL_SECTIONS: {
     title: 'Remotes',
     blurb: 'Each window can use a different daemon. Add one with a connection link.',
     shellOnly: true,
-  },
-  {
-    id: 'flow',
-    label: 'Review',
-    icon: Layers,
-    title: 'Review layers',
-    blurb:
-      'Agent-managed grouping for this tree. Starts with Docs + Agents; product code is Other until configured.',
   },
   {
     id: 'updates',
@@ -220,7 +210,7 @@ export function SettingsDialog(): React.JSX.Element | null {
               <p className="mt-1 text-xs text-muted-foreground">{active.blurb}</p>
             </header>
             <main className="min-h-0 min-w-0 flex-1 overscroll-contain overflow-x-hidden overflow-y-auto p-4 pb-[calc(2rem+env(safe-area-inset-bottom))]">
-              <SettingsSectionBody activeId={activeId} onFlowSaved={() => setOpen(false)} />
+              <SettingsSectionBody activeId={activeId} />
             </main>
           </div>
         ) : (
@@ -264,7 +254,7 @@ export function SettingsDialog(): React.JSX.Element | null {
                 <p className="mt-1 text-xs text-muted-foreground">{active.blurb}</p>
               </header>
               <main className="min-h-0 min-w-0 flex-1 overscroll-contain overflow-x-hidden overflow-y-auto p-6 pb-10">
-                <SettingsSectionBody activeId={activeId} onFlowSaved={() => setOpen(false)} />
+                <SettingsSectionBody activeId={activeId} />
               </main>
             </div>
           </SidebarProvider>
@@ -274,13 +264,7 @@ export function SettingsDialog(): React.JSX.Element | null {
   )
 }
 
-function SettingsSectionBody({
-  activeId,
-  onFlowSaved,
-}: {
-  activeId: SettingsSection
-  onFlowSaved: () => void
-}): React.JSX.Element {
+function SettingsSectionBody({ activeId }: { activeId: SettingsSection }): React.JSX.Element {
   return (
     <>
       {activeId === 'general' && <GeneralSection />}
@@ -288,7 +272,6 @@ function SettingsSectionBody({
       {activeId === 'companion' && <CompanionSection />}
       {activeId === 'share' && <ShareSection />}
       {activeId === 'remotes' && <RemotesSection />}
-      {activeId === 'flow' && <FlowLayersSection onSaved={onFlowSaved} />}
       {activeId === 'updates' && <UpdatesSection />}
     </>
   )

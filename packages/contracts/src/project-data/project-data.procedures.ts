@@ -6,14 +6,10 @@ import {
   companionGitVisibilityOutputSchema,
   migrateCompanionInputSchema,
   migrateCompanionOutputSchema,
-  repoLayersInputSchema,
-  repoLayersOutputSchema,
   setCompanionDispositionInputSchema,
   setCompanionDispositionOutputSchema,
   setCompanionGitVisibilityInputSchema,
   setCompanionGitVisibilityOutputSchema,
-  setRepoLayersInputSchema,
-  setRepoLayersOutputSchema,
 } from './project-data.contract'
 
 const projectDataProcedureDefinitions = {
@@ -39,18 +35,6 @@ const projectDataProcedureDefinitions = {
     kind: 'mutation',
     input: setCompanionDispositionInputSchema,
     output: setCompanionDispositionOutputSchema,
-    errors: [],
-  },
-  repoLayers: {
-    kind: 'query',
-    input: repoLayersInputSchema,
-    output: repoLayersOutputSchema,
-    errors: [],
-  },
-  setRepoLayers: {
-    kind: 'mutation',
-    input: setRepoLayersInputSchema,
-    output: setRepoLayersOutputSchema,
     errors: [],
   },
   // `request.invalid` is the ambiguous-target outcome: a `path` that is not a live

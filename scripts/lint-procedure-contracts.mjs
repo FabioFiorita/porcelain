@@ -34,15 +34,13 @@ export const PRODUCTION_ROUTER_FILES = [
   'features/projects/projects-router.ts',
   'features/remote/remote-network-router.ts',
   'features/remote/remote-router.ts',
-  'features/review/comment-router.ts',
-  'features/review/review-marks-router.ts',
   'features/search/search-router.ts',
   'features/tasks/tasks-router.ts',
   'features/terminal/dev-server-router.ts',
   'features/terminal/terminal-router.ts',
 ]
 
-export const PROCEDURE_COUNT = 106
+export const PROCEDURE_COUNT = 96
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 

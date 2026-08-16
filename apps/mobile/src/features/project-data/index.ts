@@ -11,7 +11,5 @@ export { useCompanionGitVisibility } from './project-data-queries'
 export { invalidateAllProjectDataQueries } from './project-data-query-key'
 export {
   type CompanionData,
-  type ReviewLayers,
   useCompanionData,
-  useReviewLayers,
 } from './project-data-settings'

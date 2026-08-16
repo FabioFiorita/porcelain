@@ -1,5 +1,5 @@
 import { projectDataMutations, projectDataProjectKey } from '@porcelain/client-runtime/project-data'
-import type { CompanionDispositionValue, Layer } from '@porcelain/contracts/project-data'
+import type { CompanionDispositionValue } from '@porcelain/contracts/project-data'
 import { useQueryClient } from '@tanstack/react-query'
 import { useInvalidateGitGrouping } from '@/features/git'
 import { isPaired, useActiveEnvironment } from '@/features/remote'
@@ -11,13 +11,9 @@ import { callProjectDataProcedure } from './use-project-data-transport'
 /**
  * Mobile Project Data writes (PDT-003).
  *
- * Success-only typed identity invalidation. Layers also regroup Git after a write.
+ * Success-only typed identity invalidation.
  */
 
-const setLayersProcedure = namedContractProcedure(
-  projectDataMutations.setRepoLayers.procedureName,
-  projectDataMutations.setRepoLayers.procedure,
-)
 const setVisibilityProcedure = namedContractProcedure(
   projectDataMutations.setCompanionGitVisibility.procedureName,
   projectDataMutations.setCompanionGitVisibility.procedure,
@@ -26,27 +22,6 @@ const setDispositionProcedure = namedContractProcedure(
   projectDataMutations.setCompanionDisposition.procedureName,
   projectDataMutations.setCompanionDisposition.procedure,
 )
-
-export async function saveProjectLayers(
-  environment: Parameters<typeof callProjectDataProcedure>[0],
-  queryClient: ReturnType<typeof useQueryClient>,
-  invalidateGrouping: (repoPath: string) => Promise<void>,
-  repoPath: string,
-  layers: readonly Layer[] | null,
-): Promise<void> {
-  const wire = {
-    repoPath: projectDataProjectKey(repoPath),
-    layers: layers === null ? null : layers.map(({ label, pattern }) => ({ label, pattern })),
-  }
-  await callProjectDataProcedure(environment, setLayersProcedure, wire)
-  if (!isPaired(environment)) return
-  await invalidateProjectDataIdentities(
-    queryClient,
-    environment.id,
-    projectDataMutations.setRepoLayers.affectedQueries(wire),
-  )
-  await invalidateGrouping(repoPath)
-}
 
 export async function saveCompanionGitVisibility(
   environment: Parameters<typeof callProjectDataProcedure>[0],
@@ -87,9 +62,8 @@ export async function saveCompanionDisposition(
   return result
 }
 
-/** Hook wrapper used by settings writes that need grouping-after-write. */
+/** Hook wrapper used by settings writes. */
 export function useProjectDataWrites(): {
-  saveLayers: (repoPath: string, layers: readonly Layer[] | null) => Promise<void>
   setVisibility: (repoPath: string, hidden: boolean) => Promise<{ changed: boolean }>
   setDisposition: (
     repoPath: string,
@@ -101,8 +75,6 @@ export function useProjectDataWrites(): {
   const queryClient = useQueryClient()
   const invalidateGrouping = useInvalidateGitGrouping()
   return {
-    saveLayers: (repoPath, layers) =>
-      saveProjectLayers(environment, queryClient, invalidateGrouping, repoPath, layers),
     setVisibility: (repoPath, hidden) =>
       saveCompanionGitVisibility(environment, queryClient, invalidateGrouping, repoPath, hidden),
     setDisposition: (repoPath, key, disposition) =>

@@ -4,9 +4,7 @@ export {
   createCompanionMigration,
   type MigrationWorktrees,
 } from './companion-migration-operation'
-export { DEFAULT_LAYERS } from './default-layers'
 export { recordPublishedReview } from './gitignore-dispositions'
-export { readLayers, writeLayers } from './json-layers-document'
 export {
   createProjectDataOperations,
   type ProjectDataOperations,

@@ -25,7 +25,6 @@ import {
   projectsOverlayTargetInvalidErrorSchema,
   projectsUnavailableErrorSchema,
 } from '../projects'
-import { reviewCommentNotFoundErrorSchema, reviewUnavailableErrorSchema } from '../review'
 import {
   tasksAttachmentRejectedErrorSchema,
   tasksInvalidTitleErrorSchema,
@@ -84,8 +83,6 @@ export const publicErrorSchema = z.discriminatedUnion('code', [
   actionsNotFoundErrorSchema,
   actionsUntrustedErrorSchema,
   actionsTargetInvalidErrorSchema,
-  reviewUnavailableErrorSchema,
-  reviewCommentNotFoundErrorSchema,
   projectsNotFoundErrorSchema,
   projectsNotADirectoryErrorSchema,
   projectsUnavailableErrorSchema,

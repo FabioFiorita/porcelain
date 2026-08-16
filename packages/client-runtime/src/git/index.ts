@@ -11,7 +11,7 @@ export {
   type GitMutationDefinition,
   gitMutations,
 } from './git-mutations'
-export { gitNotificationEffects, gitReviewNotificationEffects } from './git-notifications'
+export { gitNotificationEffects } from './git-notifications'
 export {
   type DiffReadingScope,
   type GitBranchesQuery,

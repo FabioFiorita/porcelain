@@ -1,10 +1,10 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { DEFAULT_LAYERS, readLayers } from '../features/project-data'
 import type { ChangedFile, DiffStat } from '../git/diff'
 import { workingTreeSnapshot } from '../git/working-tree'
 import { readReviewSet } from '../stores/review-store'
 import { type ActiveReview, buildActiveReview, type ReviewReading } from './active-review'
+import { DEFAULT_LAYERS } from './default-layers'
 import type { Layer } from './flow'
 import { reviewKey } from './review-key'
 import type { ReviewSet } from './review-set'
@@ -55,12 +55,11 @@ export async function gatherReview(input: string): Promise<{
   reviewSet: ReviewSet | null
   key: string
 }> {
-  const [{ files, stats }, stored, reviewSet] = await Promise.all([
+  const [{ files, stats }, reviewSet] = await Promise.all([
     workingTreeSnapshot(input),
-    readLayers(input),
     readReviewSet(input),
   ])
-  const layers = stored ?? DEFAULT_LAYERS
+  const layers = DEFAULT_LAYERS
   const key = reviewKey(files, stats, layers, reviewSet)
   return { files, stats, layers, reviewSet, key }
 }

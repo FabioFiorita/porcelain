@@ -59,8 +59,6 @@ usePreferencesStore.subscribe((state, prev) => {
  */
 export function unreadTabFor(change: SessionChange): UnreadTab | null {
   switch (change.kind) {
-    case 'review.changed':
-      return null
     case 'tasks.changed':
       return 'tasks'
     case 'actions.changed':

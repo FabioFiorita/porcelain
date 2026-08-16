@@ -1,6 +1,6 @@
-import { gitFlowQuery, gitRangeFlowQuery, gitStatusQuery } from '@porcelain/client-runtime/git'
+import { gitStatusQuery } from '@porcelain/client-runtime/git'
 import { projectDataMutations, projectDataProjectKey } from '@porcelain/client-runtime/project-data'
-import type { CompanionDispositionValue, Layer } from '@porcelain/contracts/project-data'
+import type { CompanionDispositionValue } from '@porcelain/contracts/project-data'
 import { invalidateGitEffects } from '@renderer/features/git'
 import { invalidateAfterSuccess, onMutationError } from '@renderer/hooks/mutation-error'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
@@ -22,43 +22,6 @@ function daemonScopeFromIdentity(daemon: {
   version: string | null
 }): DaemonScope {
   return { host: daemon.host, version: daemon.version }
-}
-
-export function useSetProjectLayers(): {
-  save: (layers: Layer[] | null) => Promise<void>
-  isSaving: boolean
-} {
-  const daemon = useDaemonIdentity()
-  const daemonScope = daemonScopeFromIdentity(daemon)
-  const queryClient = useQueryClient()
-  const utils = trpc.useUtils()
-  const mutation = useMutation({
-    mutationFn: (input: { repoPath: string; layers: Layer[] | null }) =>
-      utils.client.setRepoLayers.mutate(input),
-  })
-  return {
-    save: async (layers: Layer[] | null): Promise<void> => {
-      const projectPath = useProjectSelectionStore.getState().project?.path
-      if (!projectPath) return
-      const wire = { repoPath: projectDataProjectKey(projectPath), layers }
-      await mutation.mutateAsync(wire)
-      await invalidateAfterSuccess(
-        [
-          invalidateProjectDataIdentities(
-            queryClient,
-            daemonScope,
-            projectDataMutations.setRepoLayers.affectedQueries(wire),
-          ),
-          invalidateGitEffects(queryClient, daemonScope, [
-            gitFlowQuery(wire.repoPath),
-            gitRangeFlowQuery(wire.repoPath),
-          ]),
-        ],
-        'Save layers',
-      )
-    },
-    isSaving: mutation.isPending,
-  }
 }
 
 export function useSetCompanionGitVisibility(): (hidden: boolean) => Promise<void> {

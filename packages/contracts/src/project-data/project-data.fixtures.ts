@@ -6,19 +6,11 @@ const sharedChannel = {
   trackedPaths: ['.porcelain/actions.json'],
 } as const
 
-const localChannel = {
-  key: 'layers',
-  label: 'Flow layers',
-  hint: 'How files group into a story.',
-  disposition: 'local',
-  trackedPaths: ['.porcelain/layers.json'],
-} as const
-
 /** Representative Project Data wire values used by boundary tests and client mocks. */
 export const projectDataContractFixtures = {
   companionDispositions: {
     input: '/synthetic/repo',
-    output: [sharedChannel, localChannel],
+    output: [sharedChannel],
   },
   companionGitVisibility: {
     input: '/synthetic/repo',
@@ -31,20 +23,6 @@ export const projectDataContractFixtures = {
   setCompanionDisposition: {
     input: { repoPath: '/synthetic/repo', key: 'actions', disposition: 'local' },
     output: { untracked: ['.porcelain/actions.json'], revealed: false },
-  },
-  repoLayers: {
-    input: '/synthetic/repo',
-    output: {
-      layers: [{ label: 'Docs', pattern: '(^|/)docs/' }],
-      custom: true,
-    },
-  },
-  setRepoLayers: {
-    input: {
-      repoPath: '/synthetic/repo',
-      layers: [{ label: ' Docs ', pattern: '(^|/)docs/' }],
-    },
-    output: undefined,
   },
   migrateCompanion: {
     input: { projectId: 'project-1', path: '/synthetic/repo', dryRun: true },

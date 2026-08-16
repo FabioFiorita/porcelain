@@ -33,13 +33,6 @@ const SETTINGS_ROWS: readonly QuickOpenGotoRow[] = [
   { detail: 'Settings', id: 'settings:data', kind: 'settings', label: 'Data', section: 'data' },
   {
     detail: 'Settings',
-    id: 'settings:review',
-    kind: 'settings',
-    label: 'Review',
-    section: 'review',
-  },
-  {
-    detail: 'Settings',
     id: 'settings:environments',
     kind: 'settings',
     label: 'Environments',

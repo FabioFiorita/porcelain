@@ -26,8 +26,9 @@ not own the behavior behind them. Quick Open composes existing domain queries an
 does not create a second search or command domain.
 
 Current product language is authoritative: Review replaces the old `feature` vocabulary; Project
-replaces repo/workspace ownership; Changes and History are Git surfaces; Comments are Review; saved
-commands are Actions rather than Terminal. Do not add compatibility names when extending a slice.
+replaces repo/workspace ownership; Changes and History are Git surfaces; Review is the daemon-root
+Canvas; saved commands are Actions rather than Terminal. Do not add compatibility names when
+extending a slice.
 
 ## One path from wire to UI
 
@@ -74,9 +75,8 @@ that boundary; do not deep-import its internals. The canonical domain paths are:
 | Web | `apps/web/src/features/<domain>` | browser transport adapter and presentation |
 | Mobile | `apps/mobile/src/features/<domain>` | native transport adapter and presentation |
 
-Supporting-region aliases are intentional and registered: mobile Comments belongs to Review, and
-mobile Quick Open belongs to the supporting surface layer. They are not permission to invent another
-domain tree.
+Supporting-region aliases are intentional and registered: mobile Quick Open belongs to the
+supporting surface layer. They are not permission to invent another domain tree.
 
 The dependency direction is:
 

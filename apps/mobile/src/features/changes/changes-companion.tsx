@@ -1,6 +1,5 @@
 import { ScrollView } from 'react-native'
 
-import { CommentsCard } from './comments-card'
 import { CommitCard } from './commit-card'
 import { QuickCommandsCard } from './quick-commands-card'
 
@@ -22,7 +21,6 @@ export function ChangesCompanion({ active }: { active: boolean }): React.JSX.Ele
     >
       <QuickCommandsCard active={active} />
       <CommitCard active={active} />
-      <CommentsCard active={active} />
     </ScrollView>
   )
 }

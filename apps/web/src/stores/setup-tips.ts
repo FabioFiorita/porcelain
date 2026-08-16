@@ -3,11 +3,11 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
 /**
- * One-time onboarding tips (Changes layers kickoff, Files scope focus, Settings
- * starter banner). Per-repo so dismissing on one tree does not hide tips elsewhere.
+ * One-time onboarding tips (Files scope focus). Per-repo so dismissing on one tree does not hide
+ * tips elsewhere.
  * Not for the Review empty canvas — that always shows.
  */
-const setupTipIdSchema = z.enum(['layers-kickoff', 'scope-kickoff', 'layers-settings'])
+const setupTipIdSchema = z.enum(['scope-kickoff'])
 export type SetupTipId = z.infer<typeof setupTipIdSchema>
 
 interface SetupTipsState {

@@ -98,9 +98,8 @@ test('Changes tab lists the working-tree changes', async ({ page }) => {
   `context.conditions?.includes is not a function` on relative TS imports. e2e code uses relative +
   bare specifiers only — don't add a path alias here to "match the app."
 - **Don't parse CLI stdout prose for a filesystem path.** A CLI command's human-readable explainer
-  is not a stable contract. Compute paths the same way the product does (for example,
-  `join(repoDir, '.porcelain', 'active-review', 'evidence')` mirroring `projectEvidenceDir`) instead
-  of reading them back from output.
+  is not a stable contract. Compute paths through the shared product path helper instead of reading
+  them back from output; proof fixtures must stay inside their isolated Playground home.
 - **`fullyParallel: false`, `workers: 1`.** One app/daemon instance at a time keeps screenshots
   deterministic. Don't add `test.describe.parallel` or bump workers to "speed things up" — it will
   make screenshots and the fixed fixture path racy.

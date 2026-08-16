@@ -1,5 +1,4 @@
 import type { FileStatus, FlowFile } from '@porcelain/contracts/git'
-import { SetupTip } from '@renderer/components/shell/setup-tip'
 import { Button } from '@renderer/components/ui/button'
 import {
   ContextMenu,
@@ -20,44 +19,22 @@ import {
   useDiscardFile,
   useFileStaging,
   useGitFlow,
-  useReviewedPaths,
-  useToggleReviewed,
 } from '@renderer/features/git'
-import { useProjectLayers } from '@renderer/features/project-data'
 import { toastingAction } from '@renderer/hooks/mutation-error'
-import { layersSetupPrompt } from '@renderer/lib/agent-setup-prompts'
 import { dirName, fileName } from '@renderer/lib/paths'
-import { cn, copyText } from '@renderer/lib/utils'
+import { cn } from '@renderer/lib/utils'
 import { targetedTab } from '@renderer/stores/hub-tabs'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useRevealStore } from '@renderer/stores/reveal'
-import { useSettingsDialogStore } from '@renderer/stores/settings-dialog'
-import { useSetupTipsStore } from '@renderer/stores/setup-tips'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { TestIds } from '@shared/test-ids'
-import {
-  Check,
-  Compass,
-  Copy,
-  FileText,
-  Layers,
-  MessageSquarePlus,
-  Minus,
-  Plus,
-  Rows3,
-  Square,
-  SquareCheck,
-  Undo2,
-} from 'lucide-react'
+import { Compass, FileText, Minus, Plus, Rows3, Undo2 } from 'lucide-react'
 import { memo, useState } from 'react'
 import { ChangesEmptyState } from './changes-empty-state'
 import { ChangesScopeToggle } from './changes-scope-toggle'
 import { changesetTabKey } from './changeset-view'
-import { type CommentAnchor, CommentComposer } from './comment-composer'
 import { DiscardFileDialog } from './discard-file-dialog'
-import { FileCommentButton } from './file-comment-button'
-import { ReviewAllToggle } from './review-all-toggle'
 
 const statusBadge: Record<FileStatus, { label: string; className: string }> = {
   modified: { label: 'M', className: 'text-warning' },
@@ -70,12 +47,10 @@ const statusBadge: Record<FileStatus, { label: string; className: string }> = {
 function FileRowImpl({
   file,
   repoPath,
-  isReviewed,
   base,
 }: {
   file: FlowFile
   repoPath: string
-  isReviewed: boolean
   base: string | undefined
 }): React.JSX.Element {
   const openTab = useTabsStore((s) => s.openTab)
@@ -85,9 +60,7 @@ function FileRowImpl({
   const { stageFile, unstageFile } = useFileStaging()
   const discardFile = useDiscardFile()
   const confirmDiscardFile = toastingAction('Discard file', () => discardFile(file.path))
-  const { mark, unmark } = useToggleReviewed()
   const [confirmDiscard, setConfirmDiscard] = useState(false)
-  const [commentAnchor, setCommentAnchor] = useState<CommentAnchor | null>(null)
   const name = fileName(file.path)
   const connects = file.connects.map((c) => fileName(c)).join(', ')
   // A new file (no committed version) is trashed rather than reverted; word the
@@ -170,20 +143,7 @@ function FileRowImpl({
                       </TooltipContent>
                     </Tooltip>
                   )}
-                  {isReviewed && (
-                    <Check
-                      className="size-3 shrink-0 self-center text-success"
-                      aria-label="Reviewed"
-                    />
-                  )}
-                  <span
-                    className={cn(
-                      'truncate font-mono text-sm-minus',
-                      isReviewed && 'text-muted-foreground line-through',
-                    )}
-                  >
-                    {name}
-                  </span>
+                  <span className={cn('truncate font-mono text-sm-minus')}>{name}</span>
                   {file.additions !== undefined && (
                     <span className="shrink-0 font-mono text-2xs text-success">
                       +{file.additions}
@@ -209,20 +169,8 @@ function FileRowImpl({
               </div>
             </div>
           </ContextMenuTrigger>
-          <FileCommentButton path={file.path} />
         </div>
         <ContextMenuContent>
-          {isReviewed ? (
-            <ContextMenuItem onClick={() => unmark(file.path)}>
-              <Square />
-              Unmark reviewed
-            </ContextMenuItem>
-          ) : (
-            <ContextMenuItem onClick={() => mark(file.path)}>
-              <SquareCheck />
-              Mark reviewed
-            </ContextMenuItem>
-          )}
           {/* Deleted files no longer exist on disk, so opening them would error. */}
           {file.status !== 'deleted' && (
             <ContextMenuItem onClick={handleOpenFile}>
@@ -240,11 +188,6 @@ function FileRowImpl({
               Explore flow
             </ContextMenuItem>
           )}
-          {/* file.path is project-relative — exactly what a comment anchors to. */}
-          <ContextMenuItem onClick={() => setCommentAnchor({ path: file.path })}>
-            <MessageSquarePlus />
-            Comment on file
-          </ContextMenuItem>
           {file.unstaged && (
             <ContextMenuItem onClick={toastingAction('Stage file', () => stageFile(file.path))}>
               <Plus />
@@ -274,13 +217,6 @@ function FileRowImpl({
         onOpenChange={setConfirmDiscard}
         onConfirm={confirmDiscardFile}
       />
-      <CommentComposer
-        anchor={commentAnchor}
-        open={commentAnchor !== null}
-        onOpenChange={(open: boolean): void => {
-          if (!open) setCommentAnchor(null)
-        }}
-      />
     </SidebarMenuItem>
   )
 }
@@ -291,12 +227,6 @@ export function ChangesList(): React.JSX.Element {
   const project = useProjectSelectionStore((s) => s.project)
   const changesScope = usePreferencesStore((s) => s.changesScope)
   const openTab = useTabsStore((s) => s.openTab)
-  const layers = useProjectLayers()
-  const layersKickoffDismissed = useSetupTipsStore((s) =>
-    project ? s.dismissed[project.path]?.['layers-kickoff'] === true : true,
-  )
-  const dismissTip = useSetupTipsStore((s) => s.dismiss)
-  const [setupCopied, setSetupCopied] = useState(false)
 
   // Always call both hooks — hooks can't be conditional. Branch hook is disabled
   // when scope is 'working' (no wasted fetch); working hook always fetches (it
@@ -308,26 +238,11 @@ export function ChangesList(): React.JSX.Element {
   const { groups } = changesScope === 'branch' ? branch : working
   const base = changesScope === 'branch' ? branch.base : undefined
 
-  const reviewed = useReviewedPaths()
-
   if (!project || groups === undefined) {
     return <p className="p-3 text-sm text-muted-foreground">Loading…</p>
   }
 
   const total = groups.reduce((n, g) => n + g.files.length, 0)
-  const reviewedCount = groups.reduce(
-    (n, g) => n + g.files.filter((f) => reviewed.has(f.path)).length,
-    0,
-  )
-  // Quiet kickoff while still on Docs+Agents starters (also dismissible; gone after layers set).
-  const showLayersKickoff =
-    layers !== undefined && !layers.custom && total > 0 && !layersKickoffDismissed
-
-  const handleCopyLayersSetup = toastingAction('Copy setup prompt', async () => {
-    await copyText(layersSetupPrompt())
-    setSetupCopied(true)
-  })
-
   // Opens the continuous stacked-diff surface for the active scope (working or
   // branch) — same flow order as this list, one scrollable document.
   const handleOpenReviewAll = (): void => {
@@ -345,35 +260,15 @@ export function ChangesList(): React.JSX.Element {
     <div data-testid={TestIds.changesList} className="flex flex-col gap-2 p-2">
       <ChangesScopeToggle />
       <div className="flex items-center justify-between gap-1">
-        {total > 0 && reviewedCount === total ? (
-          // Completion moment: the whole change set has been reviewed — the
-          // story is read end to end, so the count gives way to a clear signal.
-          <span
-            data-testid={TestIds.changesSummary}
-            data-count={total}
-            className="flex min-w-0 items-start gap-1 text-xs text-success"
-          >
-            <Check className="mt-0.5 size-3.5 shrink-0" />
-            All {total} {total === 1 ? 'file' : 'files'} reviewed{base && ` · vs ${base}`}
-          </span>
-        ) : (
-          <span
-            data-testid={TestIds.changesSummary}
-            data-count={total}
-            className="min-w-0 text-xs text-muted-foreground"
-          >
-            {total} changed {total === 1 ? 'file' : 'files'}
-            {base && ` · vs ${base}`}
-            {reviewedCount > 0 && ` · ${reviewedCount} reviewed`}
-          </span>
-        )}
+        <span
+          data-testid={TestIds.changesSummary}
+          data-count={total}
+          className="min-w-0 text-xs text-muted-foreground"
+        >
+          {total} changed {total === 1 ? 'file' : 'files'}
+          {base && ` · vs ${base}`}
+        </span>
         <div className="flex shrink-0 items-center gap-0.5">
-          {total > 0 && (
-            <ReviewAllToggle
-              paths={groups.flatMap((g) => g.files.map((f) => f.path))}
-              allReviewed={reviewedCount === total}
-            />
-          )}
           {total > 0 && (
             <Tooltip>
               <TooltipTrigger
@@ -394,45 +289,6 @@ export function ChangesList(): React.JSX.Element {
           )}
         </div>
       </div>
-      {showLayersKickoff && (
-        <SetupTip
-          testId={TestIds.changesLayersSetup}
-          dismissTestId={TestIds.changesLayersSetupDismiss}
-          className="mx-0"
-          onDismiss={() => dismissTip(project.path, 'layers-kickoff')}
-          actions={
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-6 gap-1 px-2 text-2xs"
-                onClick={handleCopyLayersSetup}
-              >
-                {setupCopied ? (
-                  <Check className="size-3 text-success" />
-                ) : (
-                  <Copy className="size-3" />
-                )}
-                {setupCopied ? 'Copied' : 'Copy setup prompt'}
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                className="h-6 gap-1 px-2 text-2xs"
-                onClick={() => useSettingsDialogStore.getState().openTo('flow')}
-              >
-                <Layers className="size-3" />
-                Open Review layers
-              </Button>
-            </>
-          }
-        >
-          <p className="text-2xs leading-snug text-muted-foreground">
-            Starter layers only (Docs · Agents). Product files sit in Other until configured for
-            this tree.
-          </p>
-        </SetupTip>
-      )}
       {total === 0 ? (
         <ChangesEmptyState />
       ) : (
@@ -443,13 +299,7 @@ export function ChangesList(): React.JSX.Element {
             </SidebarGroupLabel>
             <SidebarMenu>
               {group.files.map((file) => (
-                <FileRow
-                  key={file.path}
-                  file={file}
-                  repoPath={project.path}
-                  isReviewed={reviewed.has(file.path)}
-                  base={base}
-                />
+                <FileRow key={file.path} file={file} repoPath={project.path} base={base} />
               ))}
             </SidebarMenu>
           </div>

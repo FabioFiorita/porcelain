@@ -9,22 +9,11 @@ import {
 import { Kbd } from '@renderer/components/ui/kbd'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { kbdLabel } from '@renderer/lib/keyboard'
-import { type LineSelection, lineSelectionFromDom } from '@renderer/lib/line-selection'
 import { isBrowser } from '@renderer/lib/platform'
 import { copyText } from '@renderer/lib/utils'
-import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { runUserAction } from '@shared/background'
-import {
-  Compass,
-  Copy,
-  FileSymlink,
-  FolderOpen,
-  Link2,
-  MessageSquarePlus,
-  Search,
-} from 'lucide-react'
+import { Compass, Copy, FileSymlink, FolderOpen, Link2, Search } from 'lucide-react'
 import { useState } from 'react'
-import { type CommentAnchor, CommentComposer } from '../git/comment-composer'
 import { usePathActions } from './use-path-actions'
 
 export function SourceContextMenu({
@@ -35,117 +24,82 @@ export function SourceContextMenu({
   children: React.ReactNode
 }): React.JSX.Element {
   const [selection, setSelection] = useState('')
-  const [lineSel, setLineSel] = useState<LineSelection | null>(null)
-  const [commentAnchor, setCommentAnchor] = useState<CommentAnchor | null>(null)
-  const project = useProjectSelectionStore((s) => s.project)
   const { copyPath, copyRelativePath, reveal, findReferences, exploreFlow } = usePathActions(path)
 
-  // Comments store project-relative paths; the viewer holds an absolute one.
-  const relativePath =
-    project && path.startsWith(`${project.path}/`) ? path.slice(project.path.length + 1) : path
-
-  const handleCommentOnSelection = (): void => {
-    if (!lineSel) return
-    setCommentAnchor({
-      path: relativePath,
-      startLine: lineSel.startLine,
-      endLine: lineSel.endLine,
-      anchorText: lineSel.text.slice(0, 2000),
-    })
-  }
-
   return (
-    <>
-      <ContextMenu
-        onOpenChange={(open: boolean): void => {
-          if (open) {
-            setSelection(window.getSelection()?.toString() ?? '')
-            setLineSel(lineSelectionFromDom())
-          }
-        }}
-      >
-        {/* the ui trigger defaults to select-none; the viewer must stay selectable */}
-        <ContextMenuTrigger className="block h-full select-text">{children}</ContextMenuTrigger>
-        <ContextMenuContent className="w-56">
-          {selection !== '' ? (
-            <>
-              <ContextMenuItem
-                onClick={() => {
-                  runUserAction(
-                    () => copyText(selection),
-                    (error) => {
-                      toastUserActionError('Copy', error)
-                    },
-                  )
-                }}
-              >
-                <Copy /> Copy
-                <ContextMenuShortcut>
-                  <Kbd>{kbdLabel('mod', 'C')}</Kbd>
-                </ContextMenuShortcut>
-              </ContextMenuItem>
-              <ContextMenuItem
-                disabled={selection.trim() === ''}
-                onClick={() => findReferences(selection)}
-              >
-                <Search /> Find references
-              </ContextMenuItem>
-              <ContextMenuItem
-                disabled={selection.trim() === ''}
-                onClick={() => exploreFlow(selection)}
-              >
-                <Compass /> Explore flow from “{selection.trim().slice(0, 24)}”
-              </ContextMenuItem>
-              {lineSel && (
-                <ContextMenuItem onClick={handleCommentOnSelection}>
-                  <MessageSquarePlus /> Add comment
+    <ContextMenu
+      onOpenChange={(open: boolean): void => {
+        if (open) {
+          setSelection(window.getSelection()?.toString() ?? '')
+        }
+      }}
+    >
+      {/* the ui trigger defaults to select-none; the viewer must stay selectable */}
+      <ContextMenuTrigger className="block h-full select-text">{children}</ContextMenuTrigger>
+      <ContextMenuContent className="w-56">
+        {selection !== '' ? (
+          <>
+            <ContextMenuItem
+              onClick={() => {
+                runUserAction(
+                  () => copyText(selection),
+                  (error) => {
+                    toastUserActionError('Copy', error)
+                  },
+                )
+              }}
+            >
+              <Copy /> Copy
+              <ContextMenuShortcut>
+                <Kbd>{kbdLabel('mod', 'C')}</Kbd>
+              </ContextMenuShortcut>
+            </ContextMenuItem>
+            <ContextMenuItem
+              disabled={selection.trim() === ''}
+              onClick={() => findReferences(selection)}
+            >
+              <Search /> Find references
+            </ContextMenuItem>
+            <ContextMenuItem
+              disabled={selection.trim() === ''}
+              onClick={() => exploreFlow(selection)}
+            >
+              <Compass /> Explore flow from “{selection.trim().slice(0, 24)}”
+            </ContextMenuItem>
+          </>
+        ) : (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem
+              onClick={() => {
+                copyPath()
+              }}
+            >
+              <Link2 /> Copy path
+            </ContextMenuItem>
+            <ContextMenuItem
+              onClick={() => {
+                copyRelativePath()
+              }}
+            >
+              <FileSymlink /> Copy relative path
+            </ContextMenuItem>
+            {/* Reveal in Finder is a shell-only action — hidden in the browser client. */}
+            {!isBrowser && (
+              <>
+                <ContextMenuSeparator />
+                <ContextMenuItem
+                  onClick={() => {
+                    reveal()
+                  }}
+                >
+                  <FolderOpen /> Reveal in Finder
                 </ContextMenuItem>
-              )}
-            </>
-          ) : (
-            <>
-              <ContextMenuItem onClick={() => setCommentAnchor({ path: relativePath })}>
-                <MessageSquarePlus /> Comment on file
-              </ContextMenuItem>
-              <ContextMenuSeparator />
-              <ContextMenuItem
-                onClick={() => {
-                  copyPath()
-                }}
-              >
-                <Link2 /> Copy path
-              </ContextMenuItem>
-              <ContextMenuItem
-                onClick={() => {
-                  copyRelativePath()
-                }}
-              >
-                <FileSymlink /> Copy relative path
-              </ContextMenuItem>
-              {/* Reveal in Finder is a shell-only action — hidden in the browser client. */}
-              {!isBrowser && (
-                <>
-                  <ContextMenuSeparator />
-                  <ContextMenuItem
-                    onClick={() => {
-                      reveal()
-                    }}
-                  >
-                    <FolderOpen /> Reveal in Finder
-                  </ContextMenuItem>
-                </>
-              )}
-            </>
-          )}
-        </ContextMenuContent>
-      </ContextMenu>
-      <CommentComposer
-        anchor={commentAnchor}
-        open={commentAnchor !== null}
-        onOpenChange={(open: boolean): void => {
-          if (!open) setCommentAnchor(null)
-        }}
-      />
-    </>
+              </>
+            )}
+          </>
+        )}
+      </ContextMenuContent>
+    </ContextMenu>
   )
 }

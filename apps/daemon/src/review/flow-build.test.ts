@@ -3,10 +3,10 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
-import { DEFAULT_LAYERS, writeLayers } from '../features/project-data'
 import type { ChangedFile, DiffStat } from '../git/diff'
 import { gitEnv } from '../git/git-env'
 import { clearWorkingTreeSnapshot } from '../git/working-tree'
+import { DEFAULT_LAYERS } from './default-layers'
 import type { FlowGroup } from './flow'
 import {
   loadCommitFlow,
@@ -173,25 +173,6 @@ describe('flow loaders', () => {
     const second = await loadWorkingFlow(dir)
     expect(second).not.toBe(first)
     expect(fileAt(second, 'src/b.ts')).toBeDefined()
-  })
-
-  it('loadWorkingFlow busts the memo when the layers change', async () => {
-    const dir = await repo('porcelain-flow-layers-bust-')
-    await writeFile(join(dir, 'src', 'a.ts'), 'export const a = 2\n')
-    const first = await loadWorkingFlow(dir)
-    expect(fileAt(first, 'src/a.ts')).toBeDefined()
-    expect(first.find((group) => group.files.some((f) => f.path === 'src/a.ts'))?.layer).toBe(
-      'Other',
-    )
-
-    await writeLayers(dir, [{ label: 'Source', pattern: '(^|/)src/' }])
-    clearWorkingTreeSnapshot(dir)
-    const second = await loadWorkingFlow(dir)
-    expect(second).not.toBe(first)
-    // Product path remaps to Source; writing layers also leaves untracked `.porcelain/*` in Other.
-    expect(second.find((group) => group.files.some((f) => f.path === 'src/a.ts'))?.layer).toBe(
-      'Source',
-    )
   })
 
   it('loadRangeFlow reports the base branch and memoizes the range', async () => {

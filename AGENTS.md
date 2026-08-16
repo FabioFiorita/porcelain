@@ -16,10 +16,10 @@ Bare nouns resolve to exact regions of the product — act on them, don't re-ask
 | Term | Meaning |
 |---|---|
 | The Review | One unit-of-work story as a four-tab canvas: **Intent · Process · Execution · Evidence**. Product language and code are both Review — REV-009 deleted the `feature` vocabulary and `lint-legacy-migrations` keeps it dead |
-| Evidence | Agent-authored proof the loop closed: checks + Results documents + an image gallery (`.porcelain/active-review/evidence/`) |
+| Evidence | Agent-authored proof the loop closed: checks + Results documents + an image gallery in the daemon-root Canvas |
 | Viewer | The central panel of the app. Never "editor" |
 | Daemon | The headless Electron-free backend (`apps/daemon`); the shell spawns and babysits it |
-| Project companion | Repo-local `.porcelain/` (board, actions, notes, reviews) — agents write it via the porcelain CLI, never an MCP server |
+| Project companion | Repo-local `.porcelain/` for migration-era inputs and remaining agent conveniences; canonical Review data is daemon-root Canvas metadata |
 | Project board | Per-repo todo/doing/done (`.porcelain/board.json`), two-way via the CLI |
 | Playground | Throwaway repo that dev daemons operate on — never a real checkout |
 | Surface language | Raised = cards, recessed = wells; ONE opaque design serves Electron and the browser alike |

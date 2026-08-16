@@ -20,7 +20,6 @@ export type ProjectsWorktree = Readonly<{
 }>
 
 export type ProjectsEffects = Readonly<{
-  watchProjectCompanion: (path: string) => void
   warmFileList: (path: string) => void
 }>
 
