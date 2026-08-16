@@ -8,8 +8,8 @@ license: MIT
 # Porcelain companion
 
 Porcelain is an explicit product-surface procedure where agent work becomes trusted work. The daemon owns the
-canonical state; the app and browser render it. Repo-local companion files are migration inputs or
-explicit tracked overlays, not a live Review database.
+canonical state; the app and browser render it. Repo-local companion files are explicit tracked
+overlays, not a live Review database.
 
 ## Start with the CLI
 
@@ -30,12 +30,9 @@ references/tasks.md              daemon-wide Tasks
 references/actions.md            Project Actions (definitions; the human runs them)
 references/git-visibility.md      private state and tracked Canvas/project overlays
 references/worktrees.md           targeting a Worktree from a harness checkout
-references/migrate.md             one-time migration of legacy repo-local channels
 references/sync-environments.md   daemon/Project setup across environments
 ```
 
-`references/migrate.md` is the only reference for legacy Board, Notes, active-review, reviews,
-and evidence paths. Those names are migration vocabulary, not current commands or surfaces.
 
 ## Everyday commands
 
@@ -90,6 +87,4 @@ and evidence paths. Those names are migration vocabulary, not current commands o
 - Work in an isolated Playground for development daemons. Never aim proof at production port 43117
   or a real checkout.
 
-For the full Review Canvas procedure, read [references/review.md](references/review.md). For a
-legacy checkout, read [references/migrate.md](references/migrate.md) and treat its inputs as
-one-time migration data.
+For the full Review Canvas procedure, read [references/review.md](references/review.md).

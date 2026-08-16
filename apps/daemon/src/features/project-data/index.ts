@@ -1,11 +1,4 @@
 export {
-  type CompanionMigration,
-  type CompanionMigrationResult,
-  createCompanionMigration,
-  type MigrationWorktrees,
-} from './companion-migration-operation'
-export { recordPublishedReview } from './gitignore-dispositions'
-export {
   createProjectDataOperations,
   type ProjectDataOperations,
 } from './project-data-operations'

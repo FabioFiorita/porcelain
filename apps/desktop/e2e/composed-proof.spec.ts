@@ -15,9 +15,7 @@ import {
   waitForShell,
 } from './helpers/app'
 import { createFixtureRepo } from './helpers/fixture-repo'
-import { PNG_1PX, runFixtureCli } from './helpers/review-fixture'
 
-const MIGRATED_CARD = '22222222-2222-4222-8222-222222222222'
 const SECONDARY_BRANCH = 'composed-secondary-only'
 const SECONDARY_ONLY_FILE = 'secondary-only.txt'
 const SECONDARY_ONLY_CONTENT = 'SECONDARY-DAEMON-ONLY-CONTENT'
@@ -42,67 +40,16 @@ async function waitForProject(homeDir: string): Promise<{ projectId: string; wor
   throw new Error('hub inventory did not produce a Project + Worktree')
 }
 
-/** The retiring repo-local shape, deliberately used only to exercise migration. */
-async function seedLegacy(repoDir: string): Promise<void> {
-  const companion = join(repoDir, '.porcelain')
-  const review = join(companion, 'active-review')
-  await mkdir(join(review, 'evidence', 'assets'), { recursive: true })
-  await writeFile(
-    join(review, 'review.json'),
-    JSON.stringify({
-      name: 'Migrated Review Canvas',
-      thesis: 'A legacy story becomes a daemon-root Canvas.',
-      files: [{ path: 'README.md', source: 'changed' }],
-      sections: [
-        {
-          title: 'Migration',
-          prose: 'The old companion is read once.',
-          html: '<p id="migration-proof">The old companion is read once.</p>',
-          anchors: [],
-        },
-      ],
-    }),
-  )
-  await writeFile(
-    join(review, 'evidence', 'meta.json'),
-    JSON.stringify({
-      title: 'Migrated evidence',
-      repoPath: repoDir,
-      updatedAt: '2026-08-15T00:00:00.000Z',
-      checks: [{ label: 'migration proof', status: 'pass' }],
-    }),
-  )
-  await writeFile(join(review, 'evidence', 'assets', 'migration.png'), PNG_1PX)
-  await writeFile(
-    join(companion, 'board.json'),
-    JSON.stringify({
-      version: 1,
-      cards: [
-        { id: MIGRATED_CARD, title: 'Migrated task', status: 'doing', order: 0, createdAt: 1 },
-      ],
-    }),
-  )
-  await writeFile(
-    join(companion, 'actions.json'),
-    JSON.stringify({
-      version: 1,
-      actions: [
-        {
-          id: 'migrated-echo',
-          title: 'Migrated action',
-          command: 'echo migrated-action',
-          order: 0,
-          createdAt: 1,
-        },
-      ],
-    }),
-  )
-}
-
 async function seedCanvas(homeDir: string, projectId: string, worktreeId: string): Promise<void> {
   const indexPath = canvasIndexPath(homeDir, projectId)
-  const current = JSON.parse(await readFile(indexPath, 'utf8')) as {
-    value: { canvases: Record<string, unknown>[] }
+  let current: { version?: number; value: { canvases: Record<string, unknown>[] } }
+  try {
+    current = JSON.parse(await readFile(indexPath, 'utf8')) as {
+      value: { canvases: Record<string, unknown>[] }
+    }
+  } catch {
+    await mkdir(join(homeDir, 'projects', projectId, 'canvases'), { recursive: true })
+    current = { version: 1, value: { canvases: [] } }
   }
   const record = {
     id: 'composed-notes',
@@ -143,8 +90,6 @@ async function seedRemoteDaemon(repoDir: string) {
       },
     }),
   )
-  await seedLegacy(repoDir)
-  await runFixtureCli(['migrate', 'apply', '--repo', repoDir], seeded.env, repoDir)
   return seeded
 }
 
@@ -158,9 +103,8 @@ async function realpathGitCommonDir(repoDir: string): Promise<string> {
 
 test.setTimeout(120_000)
 
-test('composed daemon proof: targets, Canvas Review, migration, Tasks, Actions, and process lifetime', async ({
+test('composed daemon proof: targets, Canvas, Tasks, Actions, and process lifetime', async ({
   page,
-  repoDir,
   seeded,
 }) => {
   const secondaryRepo = join(tmpdir(), 'porcelain-e2e-secondary')
@@ -230,18 +174,7 @@ test('composed daemon proof: targets, Canvas Review, migration, Tasks, Actions, 
     })
 
     const { projectId, worktreeId } = await waitForProject(seeded.udBase)
-    await seedLegacy(repoDir)
-    await runFixtureCli(['migrate', 'apply', '--repo', repoDir], seeded.env, repoDir)
     await seedCanvas(seeded.udBase, projectId, worktreeId)
-    const migratedIndex = JSON.parse(
-      await readFile(canvasIndexPath(seeded.udBase, projectId), 'utf8'),
-    ) as {
-      value: { canvases: { id: string; template?: string }[] }
-    }
-    const migratedReview = migratedIndex.value.canvases.find(
-      (canvas) => canvas.template === 'review',
-    )
-    if (migratedReview === undefined) throw new Error('migration did not create a Review Canvas')
 
     // Both Environment identities, Projects, and Worktrees are now visible in one browser page.
     const secondaryEnvironment = JSON.parse(
@@ -282,22 +215,6 @@ test('composed daemon proof: targets, Canvas Review, migration, Tasks, Actions, 
     await expect(secondaryChange).toBeVisible()
     await expect(secondaryChange.getByRole('img', { name: 'untracked' })).toBeVisible()
     await openSurface(page, 'Canvas')
-    await expect(
-      loc.canvasListItems(page).filter({ hasText: 'Migrated Review Canvas' }),
-    ).toBeVisible()
-    await loc.canvasListItems(page).filter({ hasText: 'Migrated Review Canvas' }).click()
-    const secondaryReviewFrame = page.frameLocator(`[data-testid="${TestIds.canvasIframe}"]`)
-    await expect(secondaryReviewFrame.locator('h1')).toHaveText('Migrated Review Canvas')
-    await expect(secondaryReviewFrame.locator('#evidence')).toContainText('migration proof')
-    await openSurface(page, 'Tasks')
-    await loc.tasksOpen(page).click()
-    const migratedTasks = loc.tasksRow(page, MIGRATED_CARD)
-    await expect(migratedTasks).toHaveCount(2)
-    for (const text of await migratedTasks.allTextContents())
-      expect(text).toContain('Migrated task')
-    await loc.actionsMenu(page).click()
-    await expect(loc.actionRun(page, 'Migrated action')).toBeVisible()
-
     // Multiple Worktrees and explicit target-aware tabs/splits.
     const original = await page
       .locator('[data-testid^="hub-worktree-"]:not([data-hub-environment="e2e-secondary"])')
@@ -368,8 +285,8 @@ test('composed daemon proof: targets, Canvas Review, migration, Tasks, Actions, 
       (target): target is { environment: string; project: string; worktree: string } =>
         target.environment !== null && target.project !== null && target.worktree !== null,
     )
-    if (targetedRenderedTargets.length !== 3)
-      throw new Error(`expected three targeted tabs: ${JSON.stringify(renderedTargets)}`)
+    if (targetedRenderedTargets.length !== 2)
+      throw new Error(`expected two targeted tabs: ${JSON.stringify(renderedTargets)}`)
     const originalTabCount = await loc.hubTabTarget(page, originalTarget).count()
     const otherTabCount = await loc.hubTabTarget(page, otherTarget).count()
     if (originalTabCount !== 1 || otherTabCount !== 1) {
@@ -378,29 +295,13 @@ test('composed daemon proof: targets, Canvas Review, migration, Tasks, Actions, 
       )
     }
 
-    // Review is the structured Canvas template, and its Evidence is visible after migration.
+    // Canvas bundles remain visible after target switching.
     await openSurface(page, 'Canvas')
     await expect(loc.canvasListItem(page, 'composed-notes')).toBeVisible()
     await loc.canvasListItem(page, 'composed-notes').click()
     await expect(
       page.frameLocator(`[data-testid="${TestIds.canvasIframe}"]`).locator('#proof'),
     ).toHaveText('Composed notes')
-    await openSurface(page, 'Canvas')
-    await loc.canvasListItem(page, migratedReview.id).click()
-    const reviewFrame = page.frameLocator(`[data-testid="${TestIds.canvasIframe}"]`)
-    await expect(reviewFrame.locator('h1')).toHaveText('Migrated Review Canvas')
-    await expect(reviewFrame.locator('#evidence')).toContainText('migration proof')
-    await expect(reviewFrame.locator('#evidence img')).toHaveAttribute(
-      'src',
-      /^data:image\/png;base64,/,
-    )
-
-    // Migration produced daemon-root Tasks and Actions, not repo-local companions.
-    await openSurface(page, 'Tasks')
-    await loc.tasksOpen(page).click()
-    await expect(loc.tasksRow(page, MIGRATED_CARD)).toHaveCount(2)
-    await loc.actionsMenu(page).click()
-    await expect(loc.actionRun(page, 'Migrated action')).toBeVisible()
   } finally {
     if (secondaryChild !== null && secondaryChild.exitCode === null) {
       const exited = new Promise<void>((resolve) => secondaryChild?.once('exit', () => resolve()))

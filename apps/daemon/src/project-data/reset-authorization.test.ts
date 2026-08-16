@@ -38,7 +38,6 @@ const EXPECTED_CLASSIFICATIONS: readonly {
   { root: 'repoCompanion', relativePath: 'layers.json', disposition: 'material' },
   { root: 'repoCompanion', relativePath: '.gitignore', disposition: 'material' },
   { root: 'repoCompanion', relativePath: 'project-manifest.json', disposition: 'disposable' },
-  { root: 'repoCompanion', relativePath: '.migrated-from-home', disposition: 'disposable' },
 ]
 
 const SYNTHETIC_HOME: ResetTargetSpec = {

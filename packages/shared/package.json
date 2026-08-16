@@ -11,15 +11,9 @@
     "./platform": "./src/platform.ts",
     "./evidence-check": "./src/evidence-check.ts",
     "./test-ids": "./src/test-ids.ts",
-    "./board-file": "./src/board-file.ts",
-    "./doc-set-file": "./src/doc-set-file.ts",
     "./actions-file": "./src/actions-file.ts",
     "./background": "./src/background.ts",
     "./tasks-porcelain": "./src/tasks-porcelain.ts",
-    "./companion-migration": "./src/companion-migration.ts",
-    "./companion-migration-records": "./src/companion-migration-records.ts",
-    "./companion-migration-review": "./src/companion-migration-review.ts",
-    "./companion-migration-store": "./src/companion-migration-store.ts",
     "./review-canvas": "./src/review-canvas.ts",
     "./project-overrides": "./src/project-overrides.ts"
   },
@@ -46,12 +40,6 @@
       "test-ids": [
         "./src/test-ids.ts"
       ],
-      "board-file": [
-        "./src/board-file.ts"
-      ],
-      "doc-set-file": [
-        "./src/doc-set-file.ts"
-      ],
       "actions-file": [
         "./src/actions-file.ts"
       ],
@@ -60,18 +48,6 @@
       ],
       "tasks-porcelain": [
         "./src/tasks-porcelain.ts"
-      ],
-      "companion-migration": [
-        "./src/companion-migration.ts"
-      ],
-      "companion-migration-records": [
-        "./src/companion-migration-records.ts"
-      ],
-      "companion-migration-review": [
-        "./src/companion-migration-review.ts"
-      ],
-      "companion-migration-store": [
-        "./src/companion-migration-store.ts"
       ],
       "review-canvas": [
         "./src/review-canvas.ts"

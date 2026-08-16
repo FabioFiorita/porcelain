@@ -16,7 +16,6 @@ import {
   describeSetCanvas,
   listCanvasesForRepo,
 } from './canvas-file'
-import { describeMigrate, MIGRATE_COMMANDS } from './migrate-file'
 import { describePromoteOverrides, PROJECT_COMMANDS } from './overlay-file'
 import {
   addReviewFiles,
@@ -194,7 +193,6 @@ export const COMMANDS: NounHelp[] = [
   },
   CANVAS_COMMANDS,
   PROJECT_COMMANDS,
-  MIGRATE_COMMANDS,
 ]
 
 const HEADER = "porcelain — read and write Porcelain's agent channels for a repo"
@@ -336,11 +334,6 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<string
       return describePromoteOverrides(repo, {
         hidden: splitList(opt('hidden')),
         pinned: splitList(opt('pinned')),
-      })
-    case 'migrate apply':
-      return await describeMigrate(repo, {
-        dryRun: flags.has('dry-run'),
-        reportPath: opt('report'),
       })
     default:
       throw new Error(`unknown command: "${noun} ${verb}" — try "porcelain help"`)

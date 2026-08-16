@@ -16,7 +16,7 @@ import {
 } from './canvas-file'
 
 // Builtins only — see cli.ts. `review set` writes the Review template as a
-// daemon-root Canvas; the low-level helpers below remain for migration reads.
+// daemon-root Canvas.
 
 const FILE_SOURCES = new Set(['changed', 'context', 'shipped'])
 
@@ -323,7 +323,7 @@ function parseReviewSet(value: unknown): ReviewSet | null {
  * Write the Review template as the Project-owned Canvas. The temporary source
  * directory is only a CLI staging area; `setCanvas` atomically copies it into
  * `$PORCELAIN_HOME/projects/<id>/canvases/<canvas-id>` and updates the daemon
- * index, so no repo-local active-review lifecycle remains on this path.
+ * index, so no repo-local Review lifecycle remains on this path.
  */
 export function setReviewCanvas(repoPath: string, set: ReviewSet): void {
   const { kind, bodies } = reviewBodies(set)

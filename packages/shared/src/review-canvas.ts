@@ -8,11 +8,10 @@ import { dirname, join } from 'node:path'
  * `template: 'review'` in the canvas index. Two callers build one:
  *
  * - `porcelain review set` (apps/cli/src/review-file.ts), the agent's entry point;
- * - the one-time companion migration (companion-migration-review.ts), turning a
- *   legacy `.porcelain/active-review/` directory into the same thing.
+ * - daemon-root Review CLI writes, turning the structured Review set into the same thing.
  *
  * They share this module rather than each rendering their own bundle, which is
- * the only reason a migrated Review and a freshly written one are the same
+ * the only reason a Review and a freshly written one are the same
  * artifact rather than two formats wearing one name.
  *
  * ## Layout

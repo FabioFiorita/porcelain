@@ -16,13 +16,8 @@ const OLD_DEFAULT_WITHOUT_MANIFEST = `# Porcelain project companion.
 
 # >>> porcelain:managed — Settings › Data owns these lines
 /actions.json
-/reviews/*
-/active-review.json
-/active-review/
-/.migrated-from-home
 *.tmp
 *.corrupt-*
-reviews/*/evidence/
 # <<< porcelain:managed
 `
 

@@ -74,7 +74,7 @@ export type CanvasRecord = {
   entryFile: string
   createdAt: string
   updatedAt: string
-  /** The structured template this bundle follows; only the migration sets it (#27). */
+  /** The structured template this bundle follows. */
   template?: 'review'
 }
 

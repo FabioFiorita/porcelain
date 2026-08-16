@@ -59,7 +59,7 @@ const excludePath = (): string => join(repo, '.git', 'info', 'exclude')
 describe('hiding the companion from git', () => {
   it('makes a written companion invisible to status', async () => {
     expect(await hideCompanion(repo)).toBe(true)
-    await writeCompanionFile('board.json')
+    await writeCompanionFile('private.json')
     expect(git(repo, 'status', '--porcelain=v1', '-uall').trim()).toBe('')
     expect(await isCompanionHidden(repo)).toBe(true)
   })
@@ -84,17 +84,9 @@ describe('hiding the companion from git', () => {
 
   it('hands over to the inner .gitignore once unhidden', async () => {
     await hideCompanion(repo)
-    await writeCompanionFile('board.json')
+    await writeCompanionFile('private.json')
     await unhideCompanion(repo)
-    expect(git(repo, 'status', '--porcelain=v1', '-uall')).toContain('.porcelain/board.json')
-  })
-
-  it('never blocks a publish — force-add reaches through the exclude', async () => {
-    await hideCompanion(repo)
-    await mkdir(join(projectPorcelainDir(repo), 'reviews', 'r1'), { recursive: true })
-    await writeFile(join(projectPorcelainDir(repo), 'reviews', 'r1', 'review.json'), '{}')
-    git(repo, 'add', '-f', '--', '.porcelain/reviews/r1')
-    expect(git(repo, 'status', '--porcelain=v1')).toContain('.porcelain/reviews/r1/review.json')
+    expect(git(repo, 'status', '--porcelain=v1', '-uall')).toContain('.porcelain/private.json')
   })
 
   it('does nothing outside a git repository', async () => {
@@ -108,7 +100,7 @@ describe('hiding the companion from git', () => {
 describe('revealing the promoted Git overlay', () => {
   it('shows a promoted Canvas to git while every other companion file stays hidden', async () => {
     await hideCompanion(repo)
-    await writeCompanionFile('board.json')
+    await writeCompanionFile('private.json')
     await mkdir(join(projectPorcelainDir(repo), 'canvases', 'c1'), { recursive: true })
     await writeFile(join(projectPorcelainDir(repo), 'canvases', 'c1', 'index.html'), '<p>hi</p>')
 
@@ -122,13 +114,13 @@ describe('revealing the promoted Git overlay', () => {
   it('shows promoted project overrides too', async () => {
     await hideCompanion(repo)
     await writeCompanionFile('project.json', '{"hiddenPaths":[],"pinnedPaths":[],"worktrees":{}}')
-    await writeCompanionFile('notes.md', 'private')
+    await writeCompanionFile('legacy.txt', 'private')
 
     await revealCompanionOverlay(repo)
 
     const status = git(repo, 'status', '--porcelain=v1', '-uall')
     expect(status).toContain('.porcelain/project.json')
-    expect(status).not.toContain('notes.md')
+    expect(status).not.toContain('legacy.txt')
   })
 
   it('still reads as hidden, so a later companion write never re-adds the blanket rule', async () => {
@@ -191,7 +183,7 @@ describe('worktrees share one decision', () => {
 
     // Written from the WORKTREE, read by the worktree's own status.
     await mkdir(join(wt, '.porcelain'), { recursive: true })
-    await writeFile(join(wt, '.porcelain', 'board.json'), '{}')
+    await writeFile(join(wt, '.porcelain', 'private.json'), '{}')
     expect(git(wt, 'status', '--porcelain=v1', '-uall').trim()).toBe('')
 
     // And the worktree agrees about the state without its own exclude file.

@@ -65,10 +65,10 @@ Mobile mirrors General · Data · Environments.
 | Flow grouping | Built-in architectural grouping of Changes (entry-point → data); it is not a repo-local companion channel |
 | The Review template | The default Canvas template with four sections: **Intent**, **Process**, **Execution**, and **Evidence**. It is not an active lifecycle or repo-local storage model; `porcelain review set` writes the daemon-root Canvas. |
 | Evidence | The Review Canvas template's fourth section: agent-authored checks, Results, and image/video/link proof kept in the daemon-root Canvas bundle |
-| Review annotations | Historical migration inputs only; shipped clients use the structured daemon-root Canvas |
+| Review annotations | Retired; shipped clients use the structured daemon-root Canvas |
 | Tasks | The daemon-owned table for work across Projects and Environments; the shipped vocabulary replacing Board |
 | Actions | Saved named commands, stored per Project in the owning daemon (`$PORCELAIN_HOME/projects/<projectId>/actions.json`, ADR 0002); agent curates, **human runs** against an explicit Environment + Worktree |
-| Project companion | Repo-local `.porcelain/` only for explicit Git overlays and migration reads; default Project data stays in the daemon-root store |
+| Project companion | Repo-local `.porcelain/` only for explicit Git overlays; default Project data stays in the daemon-root store |
 | Git overlay | The **promoted** half of `.porcelain/`: `canvases/<id>/` (bundle + `canvas.json`) and `project.json` (tracked `hiddenPaths`/`pinnedPaths`/`worktrees` defaults). Written only by an explicit promotion — `projects.promoteCanvas` / `promoteOverrides`, or `porcelain canvas promote` — never by opening a repo. Tracked wins over private for the same Canvas id, the daemon never writes back into it, and promotion writes plain files without staging or committing (ADR 0002, #26) |
 | Promotion | Moving one private daemon-root Canvas, or the current Project defaults, into the Git overlay of an **explicitly named** Worktree checkout. The private copy is removed, not duplicated, so a tracked and a private version can never diverge. An ambiguous target is rejected (`projects.overlay-target-invalid`), never guessed |
 | Daemon | The headless Electron-free backend (`apps/daemon/src/server.ts`) the web client reaches over HTTP + one WS; the shell spawns and babysits it (`apps/desktop/src/main/daemon.ts`). "The daemon" always resolves here |

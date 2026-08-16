@@ -20,7 +20,6 @@ export const PROJECT_DATA_DOMAIN_FILES: {
 } = {
   actions: [PROJECT_FILES.actions],
   files: [],
-  // Review annotations are legacy migration inputs, not a live project-data channel.
   review: [],
   'project-data': [PROJECT_FILES.layers, PROJECT_FILES.gitignore, PROJECT_FILES.manifest],
   projects: [],

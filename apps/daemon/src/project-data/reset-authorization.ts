@@ -123,7 +123,6 @@ const RESET_RECORD_CATALOG: readonly {
   { root: 'repoCompanion', relativePath: '.gitignore', disposition: 'material' },
   { root: 'repoCompanion', relativePath: 'reviews', disposition: 'material' },
   { root: 'repoCompanion', relativePath: 'project-manifest.json', disposition: 'disposable' },
-  { root: 'repoCompanion', relativePath: '.migrated-from-home', disposition: 'disposable' },
 ]
 
 function refusalForSchemaFailure(error: z.ZodError): ResetAuthorizationRefusal {

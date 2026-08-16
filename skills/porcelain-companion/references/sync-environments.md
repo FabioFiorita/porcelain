@@ -31,10 +31,3 @@ Share tracked repo-local overlays deliberately; private daemon state remains wit
 
 Machine credentials and UI preferences stay in the daemon's user-data directory. They never enter
 the checkout or an evidence bundle.
-
-## Migration
-
-For an old checkout containing repo-local companion files, run the one-time migration documented
-in [migrate.md](migrate.md). It converts legacy Review, Board, Actions, and scope inputs into
-daemon-root data. After the migration, current clients read the Canvas, Tasks, Actions, and scope
-overrides from the daemon/project stores.

@@ -6,7 +6,6 @@ import {
   PROJECT_FILES,
   PROJECT_PORCELAIN_DIR,
   parseDispositions,
-  parsePublishedReviews,
   projectPorcelainDir,
   projectPorcelainPath,
   renderGitignore,
@@ -119,26 +118,6 @@ export async function setChannelDisposition(
   return { untracked, revealed: false }
 }
 
-/**
- * Record a review as published: a negation rule in `.porcelain/.gitignore` that
- * re-includes exactly that folder.
- *
- * Why a rule and not only `git add -f`: a force-add is a one-time index
- * operation with no memory. The rule is committed alongside the review, so the
- * repo itself says which reviews the team shares — a teammate cloning gets the
- * same answer, and `git check-ignore` can explain it.
- *
- * Lifts the clone-wide exclude first, because git cannot re-include a path whose
- * PARENT is excluded — with `.porcelain/` in info/exclude the negation is inert.
- */
-export async function recordPublishedReview(repoPath: string, id: string): Promise<void> {
-  await unhideCompanion(repoPath)
-  const current = await readGitignore(repoPath)
-  const published = parsePublishedReviews(current)
-  if (!published.includes(id)) published.push(id)
-  await writeGitignore(repoPath, renderGitignore(current, parseDispositions(current), published))
-}
-
 /** Whether git can see the companion in this clone at all. */
 export async function readCompanionGitVisibility(repoPath: string): Promise<{ hidden: boolean }> {
   return { hidden: await isCompanionHidden(repoPath) }
@@ -148,7 +127,6 @@ export function createGitignoreDispositions(): CompanionDispositionsPort {
   return {
     read: readChannelDispositions,
     set: setChannelDisposition,
-    recordPublishedReview,
   }
 }
 

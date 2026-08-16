@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { mkdir, readdir, readFile, stat } from 'node:fs/promises'
+import { mkdir, readdir, readFile } from 'node:fs/promises'
 import { isAbsolute, join, relative, sep } from 'node:path'
 import { PROTOCOL_VERSION } from '@porcelain/contracts'
 import {
@@ -62,7 +62,7 @@ describe('LCH-001 clean-v1 launch fixture', () => {
       ).toBe(true)
       expect([root, fixture.home, fixture.userData, fixture.project].every(isAbsolute)).toBe(true)
 
-      // Clean launch has no home records to migrate or interpret.
+      // Clean launch has no home records to interpret.
       expect(await readdir(fixture.home)).toEqual([])
 
       const recentsPath = join(fixture.userData, 'projects-recents.json')
@@ -79,11 +79,6 @@ describe('LCH-001 clean-v1 launch fixture', () => {
       expect(await readdir(join(fixture.project, '.porcelain'))).toEqual(
         expect.arrayContaining(['.gitignore', 'project-manifest.json']),
       )
-      await expect(
-        stat(join(fixture.project, '.porcelain', 'active-review')),
-      ).rejects.toMatchObject({
-        code: 'ENOENT',
-      })
     })
   })
 

@@ -27,5 +27,3 @@ real checks in Evidence, and let the PR carry the final hand-off if the Worktree
 Tracked `.porcelain/canvases/` and `.porcelain/project.json` overlays travel with a commit. Private
 Canvas, Tasks, Actions, and other daemon state stays with the Environment. Do not seed a Worktree
 by copying another daemon's private directory.
-
-Legacy repo-local Review and queue files are migration inputs only; see [migrate.md](migrate.md).

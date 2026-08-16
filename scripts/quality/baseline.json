@@ -990,11 +990,6 @@
         "file": "packages/client-runtime/src/word-diff-line.ts",
         "line": 70,
         "score": 36
-      },
-      {
-        "file": "packages/shared/src/companion-migration-review.ts",
-        "line": 146,
-        "score": 36
       }
     ]
   },

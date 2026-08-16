@@ -10,7 +10,6 @@ export type CompanionDispositionsPort = {
     key: string,
     disposition: CompanionDispositionValue,
   ): Promise<{ untracked: string[]; revealed: boolean }>
-  recordPublishedReview(repoPath: string, id: string): Promise<void>
 }
 
 export type CompanionGitVisibilityPort = {

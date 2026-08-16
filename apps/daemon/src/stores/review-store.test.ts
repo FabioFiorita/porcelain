@@ -80,12 +80,3 @@ it('reads only Review metadata from the daemon-root Canvas', async () => {
   )
   await expect(readReviewSet(repo)).resolves.toMatchObject({ name: 'Canvas review' })
 })
-
-it('does not read a legacy repo-local review file', async () => {
-  mkdirSync(join(repo, '.porcelain', 'active-review'), { recursive: true })
-  writeFileSync(
-    join(repo, '.porcelain', 'active-review', 'review.json'),
-    JSON.stringify({ name: 'legacy', files: [], sections: [] }),
-  )
-  await expect(readReviewSet(repo)).resolves.toBeNull()
-})

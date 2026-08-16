@@ -392,7 +392,7 @@ export async function gitTrackedUnder(repoPath: string, path: string): Promise<s
  * "local" while every board move still landed in everyone's diff.
  *
  * `--ignore-unmatch` makes it idempotent (an untracked channel is already local),
- * `-r` covers a directory channel like `reviews/`, and `--cached` is what keeps
+ * `-r` covers a directory channel, and `--cached` is what keeps
  * the file on disk. It STAGES a deletion — that is the honest meaning of "stop
  * sharing this", and the caller tells the human so.
  */

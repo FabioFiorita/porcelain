@@ -4,8 +4,6 @@ import {
   companionDispositionsOutputSchema,
   companionGitVisibilityInputSchema,
   companionGitVisibilityOutputSchema,
-  migrateCompanionInputSchema,
-  migrateCompanionOutputSchema,
   setCompanionDispositionInputSchema,
   setCompanionDispositionOutputSchema,
   setCompanionGitVisibilityInputSchema,
@@ -36,15 +34,6 @@ const projectDataProcedureDefinitions = {
     input: setCompanionDispositionInputSchema,
     output: setCompanionDispositionOutputSchema,
     errors: [],
-  },
-  // `request.invalid` is the ambiguous-target outcome: a `path` that is not a live
-  // checkout of `projectId` is rejected rather than guessed at (#18's explicit-target
-  // rule), and the system error already carries exactly that meaning on the wire.
-  migrateCompanion: {
-    kind: 'mutation',
-    input: migrateCompanionInputSchema,
-    output: migrateCompanionOutputSchema,
-    errors: ['request.invalid'],
   },
 } as const
 

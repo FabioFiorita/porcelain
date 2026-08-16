@@ -21,7 +21,6 @@ export function projectStoreDir(homeDir: string, projectId: string): string {
 export const PROJECT_STORE_FILES = {
   actions: 'actions.json',
   overrides: 'project.json',
-  migration: 'migration.json',
 } as const
 
 /** The saved-commands document for one Project — daemon-owned, never repo-local. */
@@ -39,13 +38,4 @@ export function projectActionsPath(homeDir: string, projectId: string): string {
  */
 export function projectOverridesPath(homeDir: string, projectId: string): string {
   return join(projectStoreDir(homeDir, projectId), PROJECT_STORE_FILES.overrides)
-}
-
-/**
- * The one-time companion migration's ledger for this Project (#27): which legacy
- * sources have already been converted, and what they became. It lives beside the
- * data it describes so a Project record carries its own migration history.
- */
-export function projectMigrationLedgerPath(homeDir: string, projectId: string): string {
-  return join(projectStoreDir(homeDir, projectId), PROJECT_STORE_FILES.migration)
 }

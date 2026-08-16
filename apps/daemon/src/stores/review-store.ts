@@ -22,9 +22,7 @@ export function isRepoContained(repoPath: string, entryPath: string): boolean {
 }
 
 /**
- * Review template metadata is read from the daemon-root Canvas bundle. Legacy
- * repo-local review files are consumed only by the one-time migration reader;
- * they are deliberately not part of the live daemon surface.
+ * Review template metadata is read from the daemon-root Canvas bundle.
  */
 
 const lenientReviewSetSchema = reviewSetSchema.extend({

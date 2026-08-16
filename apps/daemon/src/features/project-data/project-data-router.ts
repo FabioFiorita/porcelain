@@ -1,6 +1,4 @@
 import { procedureCatalog } from '@porcelain/contracts'
-import { expectedFailure } from '../../daemon-composition/expected-failure'
-import { toTrpcError } from '../../daemon-composition/public-error'
 import { publicProcedure, t } from '../../trpc'
 import type { ProjectDataOperations } from './project-data-operations'
 
@@ -20,16 +18,6 @@ export function createProjectDataRouter(operations: ProjectDataOperations) {
       .input(procedureCatalog.setCompanionGitVisibility.input)
       .output(procedureCatalog.setCompanionGitVisibility.output)
       .mutation(({ input }) => operations.setCompanionGitVisibility(input)),
-
-    migrateCompanion: publicProcedure
-      .input(procedureCatalog.migrateCompanion.input)
-      .output(procedureCatalog.migrateCompanion.output)
-      .mutation(async ({ input }) => {
-        const result = await operations.migrateCompanion(input)
-        // An ambiguous or foreign target is refused, never guessed (#18).
-        if (!result.ok) throw toTrpcError(expectedFailure('request.invalid'))
-        return result.value
-      }),
 
     setCompanionDisposition: publicProcedure
       .input(procedureCatalog.setCompanionDisposition.input)

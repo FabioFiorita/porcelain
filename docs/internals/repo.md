@@ -27,7 +27,7 @@
 - Procedure catalog: `packages/contracts` + `scripts/lint-procedure-contracts.mjs`.
 - Daemon `userData/config.json` holds global Remote bind flags only; Project recents are owned by
   the daemon's separate strict-v1 `userData/projects-recents.json` document. Scope and explicit
-  overlays live under the daemon root; migration readers may still inspect legacy companion files
+  overlays live under the daemon root; retired companion files are inert
   without writing them.
 
 ## Packaging, release, conventions

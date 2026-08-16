@@ -9,12 +9,8 @@ import {
   PROJECT_FILES,
   PROJECT_PORCELAIN_DIR,
   parseDispositions,
-  parsePublishedReviews,
-  projectArchivedReviewDir,
-  projectEvidenceDir,
   projectPorcelainDir,
   projectPorcelainPath,
-  projectReviewsDir,
   renderGitignore,
 } from './project-porcelain'
 
@@ -34,21 +30,6 @@ describe('project-porcelain paths', () => {
     expect(projectPorcelainPath('/repo', PROJECT_FILES.actions)).toBe(
       join('/repo', PROJECT_PORCELAIN_DIR, 'actions.json'),
     )
-  })
-
-  it('nests evidence and archived reviews under the project dir', () => {
-    expect(projectEvidenceDir('/repo')).toBe(
-      join('/repo', '.porcelain', 'active-review', 'evidence'),
-    )
-    expect(projectReviewsDir('/repo')).toBe(join('/repo', '.porcelain', 'reviews'))
-    expect(projectArchivedReviewDir('/repo', 'abc')).toBe(
-      join('/repo', '.porcelain', 'reviews', 'abc'),
-    )
-  })
-
-  it('ships a default gitignore that ignores evidence trees', () => {
-    expect(DEFAULT_PROJECT_GITIGNORE).toContain('evidence/')
-    expect(DEFAULT_PROJECT_GITIGNORE).toContain('reviews/*/evidence/')
   })
 
   it('never tracks derived or per-checkout state', () => {
@@ -80,7 +61,6 @@ describe('companion dispositions', () => {
     expect(parsed).toEqual({
       actions: 'shared',
       layers: 'shared',
-      reviews: 'local',
     })
   })
 
@@ -97,9 +77,6 @@ describe('companion dispositions', () => {
     expect(next).toContain('# mine')
     expect(next).toContain('secrets.json')
     expect(next).toContain('# trailing note')
-    expect(parseDispositions(next).reviews).toBe('shared')
-    // The always-ignored set survives a rewrite — it is inside the block.
-    expect(next).toContain('/active-review.json')
   })
 
   it('appends a managed block when the file has none', () => {
@@ -116,44 +93,5 @@ describe('companion dispositions', () => {
   it('leaves an unmanaged file readable as all-shared', () => {
     const parsed = parseDispositions('')
     for (const channel of COMPANION_CHANNELS) expect(parsed[channel.key]).toBe('shared')
-  })
-})
-
-describe('the active review is never tracked by default', () => {
-  it('ignores every active slot, including intent and evidence', () => {
-    // Publishing is what shares a review; it copies these into reviews/<id>/ and
-    // force-adds that folder. Tracking the live slots would put work-in-progress
-    // and every screenshot into everyone else's diff.
-    // One rule now: the whole unit in flight lives in one directory.
-    expect(DEFAULT_PROJECT_GITIGNORE).toContain('/active-review/')
-  })
-})
-
-describe('publishing one review', () => {
-  it('re-includes the folder and everything under it, last', () => {
-    const next = renderGitignore(DEFAULT_PROJECT_GITIGNORE, { reviews: 'local' }, ['abc123'])
-    const lines = next.split('\n').map((l) => l.trim())
-    // Git cannot re-include a path whose parent is excluded, so the reviews rule
-    // must exclude CONTENTS, and the negations must come after it.
-    expect(lines).toContain('/reviews/*')
-    expect(lines.indexOf('!/reviews/abc123/')).toBeGreaterThan(lines.indexOf('/reviews/*'))
-    // After the evidence glob too, or a published review would lose its proof.
-    expect(lines.indexOf('!/reviews/abc123/**')).toBeGreaterThan(
-      lines.indexOf('reviews/*/evidence/'),
-    )
-  })
-
-  it('round-trips the published set', () => {
-    const next = renderGitignore(DEFAULT_PROJECT_GITIGNORE, { reviews: 'local' }, ['a', 'b'])
-    expect(parsePublishedReviews(next).sort()).toEqual(['a', 'b'])
-  })
-
-  it('keeps published reviews across an unrelated toggle', () => {
-    const published = renderGitignore(DEFAULT_PROJECT_GITIGNORE, { reviews: 'local' }, ['keep'])
-    const afterToggle = renderGitignore(published, {
-      ...parseDispositions(published),
-      actions: 'local',
-    })
-    expect(parsePublishedReviews(afterToggle)).toEqual(['keep'])
   })
 })

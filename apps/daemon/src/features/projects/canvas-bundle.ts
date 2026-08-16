@@ -34,14 +34,7 @@ export const storedCanvasSchema = z
     entryFile: z.string().min(1),
     createdAt: z.string().min(1),
     updatedAt: z.string().min(1),
-    /**
-     * Which structured template the bundle follows, when it follows one. `review`
-     * is the Intent/Process/Execution/Evidence shape (#22) — the one-time
-     * companion migration (#27) stamps it on every Canvas it builds from a legacy
-     * Review, so a migrated bundle is distinguishable from a freeform one.
-     * Optional and additive: a Canvas written before this field existed still
-     * parses against this strict schema.
-     */
+    /** Which structured template the bundle follows, when it follows one. */
     template: z.literal('review').optional(),
   })
   .strict()

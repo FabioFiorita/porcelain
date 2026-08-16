@@ -56,7 +56,7 @@
   Project headers only expand or collapse; Worktree rows are the navigation targets. Each Project's
   branch-plus control opens the ref-aware New Worktree dialog, and the old branch/worktree footer
   controls are gone. Files, Changes, Review, History, Search, Tasks, and Canvas are the visible right-side
-  surfaces; Review is the structured Canvas template rather than a sidebar surface. Retired Board and Notes data is migration-only and has no shell surface. Surface list rows open detail in the central Viewer, while Actions and Git Commands are
+  surfaces; Review is the structured Canvas template rather than a sidebar surface. Retired Board and Notes data has no shell surface. Surface list rows open detail in the central Viewer, while Actions and Git Commands are
   exposed from the Viewer header.
 - **Canvas is a daemon-root surface, not a repo one.** `CanvasList`
   (`features/projects/canvas-list.tsx`) lists the selected Project's Canvases in the surfaces

@@ -62,10 +62,3 @@ The Review is Project-owned, while file anchors and actions can name a Worktree.
 harness Worktree, run the CLI from that checkout or pass its absolute `--repo` path. Runtime proof
 must use an isolated Playground and dev daemon; production port 43117 and real repositories are
 outside the proof boundary.
-
-## Migration boundary
-
-Legacy `active-review/`, `reviews/<id>/`, `intent/`, `evidence/`, and companion Board/Notes files
-are inputs for the one-time migration documented in [migrate.md](migrate.md). They are not current
-Review paths, commands, or surfaces. After migration, inspect the daemon-root Canvas and remove
-the old local inputs only when the migration workflow explicitly permits it.

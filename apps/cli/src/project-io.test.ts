@@ -28,8 +28,8 @@ const writeManifestFile = (value: unknown): void => {
 
 describe('companion root guard', () => {
   it('writes normally into a root with no manifest, and never creates one', () => {
-    writeProjectJson(repo, PROJECT_FILES.board, { version: 1, cards: [] })
-    expect(existsSync(projectPorcelainPath(repo, PROJECT_FILES.board))).toBe(true)
+    writeProjectJson(repo, PROJECT_FILES.actions, { version: 1, actions: [] })
+    expect(existsSync(projectPorcelainPath(repo, PROJECT_FILES.actions))).toBe(true)
     expect(existsSync(projectPorcelainPath(repo, PROJECT_FILES.gitignore))).toBe(true)
     // Project Data is the only writer of the root marker; the next daemon write fills it in.
     expect(existsSync(manifestPath())).toBe(false)
@@ -38,9 +38,9 @@ describe('companion root guard', () => {
   it('writes normally into a valid v1 root', () => {
     writeManifestFile({ version: 1, value: { layout: PROJECT_COMPANION_LAYOUT } })
     expect(() => {
-      writeProjectJson(repo, PROJECT_FILES.board, { version: 1, cards: [] })
+      writeProjectJson(repo, PROJECT_FILES.actions, { version: 1, actions: [] })
     }).not.toThrow()
-    expect(existsSync(projectPorcelainPath(repo, PROJECT_FILES.board))).toBe(true)
+    expect(existsSync(projectPorcelainPath(repo, PROJECT_FILES.actions))).toBe(true)
   })
 
   // A newer Porcelain laid this root out; converting it silently is how someone
@@ -51,9 +51,9 @@ describe('companion root guard', () => {
 
     expect(() => ensureProjectDir(repo)).toThrow(message)
     expect(() => {
-      writeProjectJson(repo, PROJECT_FILES.board, { version: 1, cards: [] })
+      writeProjectJson(repo, PROJECT_FILES.actions, { version: 1, actions: [] })
     }).toThrow(message)
-    expect(existsSync(projectPorcelainPath(repo, PROJECT_FILES.board))).toBe(false)
+    expect(existsSync(projectPorcelainPath(repo, PROJECT_FILES.actions))).toBe(false)
   })
 
   it('refuses a root that declares another layout', () => {
