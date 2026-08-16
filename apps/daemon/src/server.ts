@@ -134,7 +134,9 @@ async function main(): Promise<void> {
   const tokenHash = createHash('sha256').update(token).digest()
 
   // CORS is scoped, not `*`: the shell passes the dev renderer's origin via
-  // PORCELAIN_ALLOWED_ORIGIN (the Vite server); the packaged file:// renderer
+  // PORCELAIN_ALLOWED_ORIGIN (the Vite server). A standalone daemon may provide a
+  // comma-separated list through PORCELAIN_ALLOWED_ORIGIN or PORCELAIN_ALLOWED_ORIGINS
+  // so a primary Hub can connect from another machine. The packaged file:// renderer
   // sends a literal "null" origin the factory always echoes. See createRemoteHttp.
   // Compose the bound-operation catalog and flat router once before any listener
   // accepts a request — never per request, never as a module singleton.
@@ -178,7 +180,9 @@ async function main(): Promise<void> {
     adminTokenHash: tokenHash,
     authenticateClient: authenticateClientToken,
     exchangePairing: exchangePairingGrant,
-    allowedOrigin: process.env.PORCELAIN_ALLOWED_ORIGIN ?? '',
+    allowedOrigin: [process.env.PORCELAIN_ALLOWED_ORIGIN, process.env.PORCELAIN_ALLOWED_ORIGINS]
+      .filter((value): value is string => value !== undefined && value !== '')
+      .join(','),
     router,
     onSession: (socket, identity) => createSession(socket, identity, terminal),
     serveStatic,

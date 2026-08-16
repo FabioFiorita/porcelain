@@ -12,7 +12,11 @@ export {
 } from './access-store'
 export { initConfigDir, loadConfig, updateConfig } from './remote-config-store'
 export { funnelStatus, setFunnelDaemonPort, startFunnel, stopFunnel } from './remote-funnel'
-export { createRemoteHttp, type RemoteHttp, type RemoteHttpOptions } from './remote-http'
+export {
+  createRemoteHttp,
+  type RemoteHttp,
+  type RemoteHttpOptions,
+} from './remote-http'
 export {
   ifaceListenerPort,
   initIfaceHandlers,
@@ -33,4 +37,5 @@ export type {
   RemoteOperations,
 } from './remote-operations'
 export { createRemoteOperations } from './remote-operations'
+export { parseAllowedOrigins } from './remote-origins'
 export { createRemoteRouter } from './remote-router'

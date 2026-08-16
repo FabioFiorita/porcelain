@@ -21,7 +21,13 @@ import {
 import type { ProjectsOperations } from '../projects'
 import { createTasksAttachments, createTasksStore } from '../tasks'
 import type { TerminalOperations } from '../terminal'
-import { createRemoteHttp, initConfigDir, type RemoteHttp, type RemoteHttpOptions } from '.'
+import {
+  createRemoteHttp,
+  initConfigDir,
+  parseAllowedOrigins,
+  type RemoteHttp,
+  type RemoteHttpOptions,
+} from '.'
 
 // Each mock is typed to the port method it stands in for. Bare `vi.fn(() => ({ ok: true, … }))`
 // infers `{ ok: boolean }`, which collapses the TerminalResult discriminated union — the fake
@@ -170,13 +176,17 @@ const exchangeTestPairing: RemoteHttpOptions['exchangePairing'] = async (provide
     : null
 
 type TestDaemonOverrides = Partial<
-  Pick<RemoteHttpOptions, 'authenticateClient' | 'exchangePairing' | 'router' | 'serveCanvas'>
+  Pick<
+    RemoteHttpOptions,
+    'authenticateClient' | 'exchangePairing' | 'router' | 'serveCanvas' | 'allowedOrigin'
+  >
 >
 
 function testDaemonOptions({
   authenticateClient = authenticateTestClient,
   exchangePairing = exchangeTestPairing,
   router: testRouter = router,
+  allowedOrigin = ORIGIN,
   serveCanvas = async (_req: IncomingMessage, res: ServerResponse) => {
     res.writeHead(404)
     res.end()
@@ -186,7 +196,7 @@ function testDaemonOptions({
     adminTokenHash: createHash('sha256').update(TOKEN).digest(),
     authenticateClient,
     exchangePairing,
-    allowedOrigin: ORIGIN,
+    allowedOrigin,
     router: testRouter,
     onSession: (socket, identity) => createSession(socket, identity, terminalOperations),
     serveStatic: async (req: IncomingMessage, res: ServerResponse) => {
@@ -294,6 +304,24 @@ afterAll(async () => {
 })
 
 describe('daemon http surface — the token gate + CORS scope', () => {
+  it('parses multiple strict HTTP(S) Hub origins and removes duplicates', () => {
+    expect(
+      parseAllowedOrigins([ORIGIN, ` ${ORIGIN},https://hub.example`, 'https://hub.example']),
+    ).toEqual([ORIGIN, 'https://hub.example'])
+  })
+
+  it.each([
+    '*',
+    'null',
+    'file:///tmp/hub',
+    'https://hub.example/path',
+    'https://user:pass@hub.example',
+  ])('rejects an unsafe configured browser origin: %s', (origin) => {
+    expect(() => parseAllowedOrigins([origin])).toThrow(
+      'PORCELAIN_ALLOWED_ORIGIN contains an invalid HTTP(S) origin',
+    )
+  })
+
   it.each([
     ['a missing Bearer credential', {}],
     ['a wrong Bearer credential', { authorization: 'Bearer wrong-token' }],
@@ -329,6 +357,34 @@ describe('daemon http surface — the token gate + CORS scope', () => {
       },
     })
     expect(res.headers.get('access-control-allow-origin')).toBeNull()
+  })
+
+  it('echoes each configured Hub origin without reflecting an untrusted one', async () => {
+    const secondOrigin = 'https://primary-hub.example'
+    const isolated = await startTestDaemon({
+      // The singular environment-compatible option intentionally accepts a list.
+      allowedOrigin: `${ORIGIN},${secondOrigin}`,
+    })
+    try {
+      const trusted = await fetch(`${isolated.base}/trpc/recentRepos`, {
+        headers: {
+          authorization: `Bearer ${TOKEN}`,
+          origin: secondOrigin,
+          ...PROTOCOL_HEADERS,
+        },
+      })
+      expect(trusted.headers.get('access-control-allow-origin')).toBe(secondOrigin)
+      const untrusted = await fetch(`${isolated.base}/trpc/recentRepos`, {
+        headers: {
+          authorization: `Bearer ${TOKEN}`,
+          origin: 'https://evil.example',
+          ...PROTOCOL_HEADERS,
+        },
+      })
+      expect(untrusted.headers.get('access-control-allow-origin')).toBeNull()
+    } finally {
+      await stopTestDaemon(isolated.daemon)
+    }
   })
 
   it('answers OPTIONS preflight for /trpc without requiring a token', async () => {
@@ -796,10 +852,17 @@ describe('daemon http surface — the protocol gate', () => {
   })
 })
 
-function connect(protocols?: string | string[]): Promise<WebSocket> {
+function connect(protocols?: string | string[], origin?: string): Promise<WebSocket> {
   const url = `${base.replace('http', 'ws')}/session`
   return new Promise((resolve, reject) => {
-    const ws = protocols === undefined ? new WebSocket(url) : new WebSocket(url, protocols)
+    const ws =
+      origin === undefined
+        ? protocols === undefined
+          ? new WebSocket(url)
+          : new WebSocket(url, protocols)
+        : protocols === undefined
+          ? new WebSocket(url, [], { headers: { origin } })
+          : new WebSocket(url, protocols, { headers: { origin } })
     const timer = setTimeout(() => reject(new Error('ws connect timed out')), 4000)
     ws.on('open', () => {
       clearTimeout(timer)
@@ -839,6 +902,12 @@ describe('daemon ws surface — the /session upgrade gate + dispatch', () => {
 
   it('rejects a /session upgrade with a wrong-token subprotocol', async () => {
     await expect(connect('porcelain.wrong-token')).rejects.toThrow('unexpected-response')
+  })
+
+  it('rejects a cross-origin /session upgrade outside the trusted Hub list', async () => {
+    await expect(connect(`porcelain.${TOKEN}`, 'https://evil.example')).rejects.toThrow(
+      'unexpected-response',
+    )
   })
 
   it('closes every live socket on closeAllSessions', async () => {

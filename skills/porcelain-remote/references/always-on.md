@@ -19,6 +19,7 @@ WorkingDirectory=%h
 Environment=PATH=<node-manager-bin>:/usr/local/bin:/usr/bin:/bin
 Environment=PORCELAIN_USER_DATA=%h/.local/share/porcelain
 Environment=PORCELAIN_DAEMON_PORT=43117
+Environment=PORCELAIN_ALLOWED_ORIGIN=http://hub-host:43118
 ExecStart=<node-manager-bin>/npx --yes --prefer-online porcelain-daemon@latest serve --no-watchdog --funnel
 Restart=always
 RestartSec=5
@@ -36,6 +37,12 @@ Swap `--funnel` for `--tailnet`, `--lan`, or a combination to match the exposure
 Node on this host (a Volta shim dir, `~/.local/share/fnm`, a system path — whatever `which node`
 resolves through outside systemd). Never leave `<node-manager-bin>` as a literal placeholder in the
 file — resolve it for this host before writing the unit.
+
+If a browser Hub on another origin connects through **Settings → Remotes**, set
+`PORCELAIN_ALLOWED_ORIGIN` to that Hub's bare `http(s)` origin (scheme, host, and optional port;
+no path). Separate multiple trusted Hubs with commas, or use the equivalent
+`PORCELAIN_ALLOWED_ORIGINS` variable. The value is an allowlist, never a wildcard; pairing and
+client-token authentication remain required.
 
 Notes on the choices that matter here:
 

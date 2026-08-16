@@ -43,6 +43,23 @@ Add a flag to open it up, matched to where your other devices actually are:
 npx porcelain-daemon@latest serve --tailnet
 ```
 
+### Browser Hub connections and CORS
+
+When a browser is already running the Hub from a different origin (for example, a primary Hub
+at `http://hub-host:43118` connecting to this daemon), pass that Hub's origin explicitly:
+
+```sh
+npx porcelain-daemon@latest serve --tailnet --allowed-origin http://hub-host:43118
+```
+
+Repeat `--allowed-origin` for additional trusted Hubs. The equivalent service environment is
+`PORCELAIN_ALLOWED_ORIGIN` (comma-separated); `PORCELAIN_ALLOWED_ORIGINS` is also accepted for
+service files that prefer the plural name. Values must be bare `http://` or `https://` origins —
+no paths, credentials, wildcard, or `null`. The daemon echoes only an exact configured origin,
+never `*` or an arbitrary request header. Pairing tokens are still required, and are never
+included in CORS errors or logs. The browser's Remotes error names this setting and the Hub
+origin when a cross-origin preflight is blocked.
+
 The daemon never binds the wildcard address (`0.0.0.0`) under any of these — `--lan`/`--tailnet`
 add listeners on specific private interfaces only, and Funnel is an HTTPS proxy in front of the
 loopback listener rather than a second daemon. Every request still needs a credential either way.

@@ -19,6 +19,7 @@ import { TestIds } from './test-ids'
 const MAIN_ENTRY = join(__dirname, '..', '..', 'out', 'main', 'index.js')
 const DAEMON_ENTRY = join(__dirname, '..', '..', 'out', 'main', 'daemon', 'server.js')
 const CLI_ENTRY = join(__dirname, '..', '..', 'out', 'main', 'cli', 'porcelain.js')
+const DAEMON_CLI = join(__dirname, '..', '..', '..', '..', 'scripts', 'daemon-cli.js')
 
 // Seed one browser client identity directly in the isolated access store, then
 // plant its plaintext token in the same localStorage slot TokenGate uses. Minted
@@ -248,16 +249,27 @@ export async function seedIsolatedState(
 /** Spawn the headless daemon on an OS-assigned loopback port and resolve the port from its one stdout line. */
 export async function spawnDaemon(
   seeded: Seeded,
-  options: { port?: number; host?: string; allowedOrigin?: string } = {},
+  options: { port?: number; host?: string; allowedOrigin?: string; cli?: boolean } = {},
 ): Promise<{ child: ChildProcess; port: number }> {
-  const child = spawn(process.execPath, [DAEMON_ENTRY], {
+  const cliArgs = options.cli
+    ? [
+        DAEMON_CLI,
+        'serve',
+        '--no-watchdog',
+        '--user-data',
+        seeded.userData,
+        ...(options.port === undefined ? [] : ['--port', String(options.port)]),
+        ...(options.allowedOrigin === undefined ? [] : ['--allowed-origin', options.allowedOrigin]),
+      ]
+    : [DAEMON_ENTRY]
+  const child = spawn(process.execPath, cliArgs, {
     env: launchEnv({
       ...seeded.env,
       PORCELAIN_USER_DATA: seeded.userData,
       PORCELAIN_ADMIN_TOKEN: ADMIN_TOKEN,
       ...(options.port === undefined ? {} : { PORCELAIN_DAEMON_PORT: String(options.port) }),
       ...(options.host === undefined ? {} : { PORCELAIN_DAEMON_HOST: options.host }),
-      ...(options.allowedOrigin === undefined
+      ...(options.allowedOrigin === undefined || options.cli === true
         ? {}
         : { PORCELAIN_ALLOWED_ORIGIN: options.allowedOrigin }),
       // Playwright hands the child /dev/null stdin (EOF at once) — without the

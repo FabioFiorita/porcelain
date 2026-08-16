@@ -175,6 +175,9 @@ test('composed daemon proof: targets, Canvas Review, migration, Tasks, Actions, 
       port: 43220,
       host: 'e2e-secondary',
       allowedOrigin: new URL(page.url()).origin,
+      // Exercise the published standalone-daemon entrypoint and its supported
+      // --allowed-origin configuration, rather than bypassing it with the raw bundle.
+      cli: true,
     })
     secondaryChild = secondary.child
     const secondaryIdentity = await waitForProject(secondarySeed.udBase)

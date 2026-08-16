@@ -14,6 +14,9 @@ import {
 } from '../../daemon-composition/public-error'
 import { createRequestId } from '../../daemon-composition/request-id'
 import type { AuthIdentity } from './access-store'
+import { parseAllowedOrigins } from './remote-origins'
+
+export { parseAllowedOrigins } from './remote-origins'
 
 /**
  * The daemon's HTTP + WS surface, factored out of `server.ts` so it can be booted
@@ -50,8 +53,12 @@ export interface RemoteHttpOptions {
   exchangePairing: (
     credential: string,
   ) => Promise<{ token: string; client: { id: string; label: string; createdAt: string } } | null>
-  /** The single origin CORS echoes (dev Vite server); '' disables the echo. */
-  allowedOrigin: string
+  /**
+   * Trusted browser Hub origins. The legacy singular form accepts a comma-separated list;
+   * `allowedOrigins` is preferred by new callers. Empty means no cross-origin CORS echo.
+   */
+  allowedOrigin?: string
+  allowedOrigins?: readonly string[]
   /** The appRouter, served over tRPC's fetch adapter. */
   router: AnyRouter
   /** Called with the upgraded socket and authenticated identity. */
@@ -88,16 +95,13 @@ function announcedProtocolVersion(req: IncomingMessage): number | null {
 }
 
 export function createRemoteHttp(opts: RemoteHttpOptions): RemoteHttp {
-  const { allowedOrigin, router, onSession, serveStatic, serveCanvas } = opts
+  const allowedOrigins = parseAllowedOrigins([
+    ...(opts.allowedOrigin === undefined ? [] : [opts.allowedOrigin]),
+    ...(opts.allowedOrigins ?? []),
+  ])
+  const { router, onSession, serveStatic, serveCanvas } = opts
   const adminTokenHash = Buffer.from(opts.adminTokenHash)
 
-  /**
-   * THE gate. Every /trpc request and every /session upgrade passes through here, so it is
-   * the single most security-critical function in the daemon.
-   *
-   * The local administrator credential is checked constant-time over a fixed sha256
-   * digest. Otherwise the access store validates an individually revocable client token.
-   */
   async function authenticate(provided: string | undefined): Promise<AuthIdentity | null> {
     if (provided === undefined || provided === '') return null
     const digest = createHash('sha256').update(provided).digest()
@@ -110,22 +114,31 @@ export function createRemoteHttp(opts: RemoteHttpOptions): RemoteHttp {
     return auth?.startsWith('Bearer ') ? auth.slice('Bearer '.length) : undefined
   }
 
-  // CORS is scoped, not `*`: echo only the dev renderer's origin (the shell passes
-  // it via PORCELAIN_ALLOWED_ORIGIN — the Vite server in dev) or the literal
-  // "null" origin the packaged app's file:// renderer sends. Requests without an
-  // Origin header (the daemon smoke curl, non-browser callers) need no CORS
-  // headers at all. CORS is the browser-side courtesy layer; the Bearer check on
-  // the actual request is the real gate (a preflight can't carry it, so OPTIONS
-  // requires nothing sensitive).
+  // Echo only explicitly trusted browser Hub origins (or packaged file://'s literal "null").
+  // CORS is a courtesy layer; the Bearer check remains the real gate.
   function corsHeaders(req: IncomingMessage): Record<string, string> {
     const origin = req.headers.origin
     if (origin === undefined) return {}
-    if (origin !== 'null' && (allowedOrigin === '' || origin !== allowedOrigin)) return {}
+    if (origin !== 'null' && !allowedOrigins.includes(origin)) return {}
     return {
       'access-control-allow-origin': origin,
       'access-control-allow-methods': 'GET,POST,OPTIONS',
       'access-control-allow-headers': `content-type,authorization,${PROTOCOL_VERSION_HEADER}`,
       vary: 'origin',
+    }
+  }
+
+  function browserOriginAllowed(req: IncomingMessage): boolean {
+    const origin = req.headers.origin
+    if (origin === undefined || origin === 'null') return true
+    if (allowedOrigins.includes(origin)) return true
+    const host = req.headers.host
+    if (host === undefined) return false
+    try {
+      // Compare authority only: a reverse proxy may terminate HTTPS before forwarding the upgrade.
+      return new URL(origin).host === host
+    } catch {
+      return false
     }
   }
 
@@ -391,6 +404,11 @@ export function createRemoteHttp(opts: RemoteHttpOptions): RemoteHttp {
     const candidate = offered.find((protocol) => protocol.startsWith(WS_PROTOCOL_PREFIX))
     if (req.url !== '/session' || candidate === undefined) {
       socket.write('HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n')
+      socket.destroy()
+      return
+    }
+    if (!browserOriginAllowed(req)) {
+      socket.write('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n')
       socket.destroy()
       return
     }

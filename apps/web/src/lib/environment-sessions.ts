@@ -166,7 +166,16 @@ function connectionFailure(error: unknown): Error {
   if (code === 'UNAUTHORIZED' || code === 'FORBIDDEN') {
     return new Error('The daemon rejected this client token. Use a paired client token.')
   }
-  return new Error('Could not reach that daemon. Check the URL and that it is shared.')
+  // Browsers intentionally collapse a failed cross-origin preflight/fetch into a generic
+  // network error. Give the human the one safe, actionable distinction without ever echoing
+  // the submitted credential: the Hub origin is public metadata, while the token remains only
+  // in the password field and client-local storage.
+  const hubOrigin = typeof window === 'undefined' ? '' : window.location.origin
+  const corsHint =
+    hubOrigin === '' || hubOrigin === 'null'
+      ? ' If it is reachable from this browser, check the daemon CORS configuration.'
+      : ` If it is reachable from this Hub, configure PORCELAIN_ALLOWED_ORIGIN=${hubOrigin} on the daemon and restart it (CORS).`
+  return new Error(`Could not reach that daemon. Check the URL and that it is shared.${corsHint}`)
 }
 
 /**

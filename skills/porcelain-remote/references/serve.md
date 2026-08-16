@@ -49,7 +49,23 @@ npx porcelain-daemon@latest serve --tailnet
 npx porcelain-daemon@latest serve --lan
 npx porcelain-daemon@latest serve --tailnet --funnel
 npx porcelain-daemon@latest serve --port 43118 --lan
+npx porcelain-daemon@latest serve --tailnet --allowed-origin http://hub-host:43118
 ```
+
+### Cross-origin browser Hubs
+
+The browser Remotes client needs the daemon to trust the origin of the Hub serving the page. Use
+the Hub origin shown in that browser's address bar (scheme + host + port, with no path):
+
+```sh
+npx porcelain-daemon@latest serve --tailnet --allowed-origin http://hub-host:43118
+```
+
+The flag is repeatable for multiple Hubs. For a supervised deployment, use
+`Environment=PORCELAIN_ALLOWED_ORIGIN=http://hub-host:43118` in the unit; comma-separated values
+are supported, as is `PORCELAIN_ALLOWED_ORIGINS`. Origins are validated as strict HTTP(S) origins;
+paths, credentials, `*`, and `null` are rejected. This only controls the browser CORS courtesy
+headers — every tRPC request and WebSocket still requires its paired client token.
 
 ### Never `0.0.0.0`
 
@@ -95,12 +111,15 @@ Once Funnel is on, pair remote (off-tailnet) devices with `--base-url` pointed a
 --user-data <path>   Config dir (default ~/.local/share/porcelain)
 --tailnet            Also bind the Tailscale interface (same --port)
 --lan                Also bind RFC1918 LAN addresses (same --port)
---funnel             Publish loopback over public Tailscale Funnel HTTPS
---no-watchdog        Disable stdin parent-death watchdog (required under systemd)
+  --funnel             Publish loopback over public Tailscale Funnel HTTPS
+  --allowed-origin <origin>
+                       Trust a browser Hub origin (repeat for more than one)
+  --no-watchdog        Disable stdin parent-death watchdog (required under systemd)
 ```
 
 Env equivalents (flags set these when passed; set directly for systemd units or shells):
 `PORCELAIN_USER_DATA`, `PORCELAIN_DAEMON_PORT`, `PORCELAIN_ADMIN_TOKEN`,
+`PORCELAIN_ALLOWED_ORIGIN` (comma-separated), `PORCELAIN_ALLOWED_ORIGINS` (comma-separated),
 `PORCELAIN_TAILNET_BIND`, `PORCELAIN_LAN_BIND`, `PORCELAIN_FUNNEL_BIND`,
 `PORCELAIN_NO_STDIN_WATCHDOG`.
 

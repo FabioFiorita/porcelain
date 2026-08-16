@@ -44,6 +44,8 @@ Options:
   --tailnet            Also bind the Tailscale interface (same --port)
   --lan                Also bind RFC1918 LAN addresses (same --port)
   --funnel             Publish loopback over public Tailscale Funnel HTTPS
+  --allowed-origin <origin>
+                       Trust a browser Hub origin for cross-origin API/WS (repeatable)
   --no-watchdog        Disable stdin parent-death watchdog (required under systemd)
   -h, --help           Show this help
 
@@ -59,6 +61,7 @@ Examples:
 
 Env (same as the raw daemon; flags set these when passed):
   PORCELAIN_USER_DATA, PORCELAIN_DAEMON_PORT, PORCELAIN_ADMIN_TOKEN,
+  PORCELAIN_ALLOWED_ORIGIN (comma-separated), PORCELAIN_ALLOWED_ORIGINS (comma-separated),
   PORCELAIN_TAILNET_BIND, PORCELAIN_LAN_BIND, PORCELAIN_FUNNEL_BIND,
   PORCELAIN_NO_STDIN_WATCHDOG
 
@@ -89,6 +92,7 @@ function parseArgs(argv) {
     lan: false,
     funnel: false,
     noWatchdog: false,
+    allowedOrigins: [],
     help: false,
   }
 
@@ -126,6 +130,13 @@ function parseArgs(argv) {
     if (arg === '--no-watchdog') {
       opts.noWatchdog = true
       i += 1
+      continue
+    }
+    if (arg === '--allowed-origin' || arg === '--allowed-origins') {
+      const raw = argv[i + 1]
+      if (raw === undefined) fail(`${arg} requires a value`)
+      opts.allowedOrigins.push(raw)
+      i += 2
       continue
     }
     if (arg === '--port') {
@@ -321,6 +332,15 @@ async function main() {
   if (!process.env.PORCELAIN_DAEMON_PORT) {
     process.env.PORCELAIN_DAEMON_PORT = String(opts.port)
   }
+  // Preserve an explicitly supplied service environment. A flag supplies the same
+  // comma-separated format as PORCELAIN_ALLOWED_ORIGIN and is repeated for several Hubs.
+  if (
+    opts.allowedOrigins.length > 0 &&
+    !process.env.PORCELAIN_ALLOWED_ORIGIN &&
+    !process.env.PORCELAIN_ALLOWED_ORIGINS
+  ) {
+    process.env.PORCELAIN_ALLOWED_ORIGIN = opts.allowedOrigins.join(',')
+  }
   if (opts.tailnet) process.env.PORCELAIN_TAILNET_BIND = '1'
   if (opts.lan) process.env.PORCELAIN_LAN_BIND = '1'
   if (opts.funnel) process.env.PORCELAIN_FUNNEL_BIND = '1'
@@ -335,18 +355,32 @@ async function main() {
   if (process.env.PORCELAIN_TAILNET_BIND === '1') binds.push('tailnet')
   if (process.env.PORCELAIN_LAN_BIND === '1') binds.push('lan')
   if (process.env.PORCELAIN_FUNNEL_BIND === '1') binds.push('funnel')
+  const allowedOriginValue =
+    process.env.PORCELAIN_ALLOWED_ORIGINS || process.env.PORCELAIN_ALLOWED_ORIGIN || ''
+  const allowedOriginCount = allowedOriginValue
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean).length
 
   // Human-facing status on stderr; the daemon still owns the one stdout port line.
   console.error(`[porcelain-daemon] user data  ${userData}`)
   console.error(`[porcelain-daemon] port       ${port}`)
   console.error(`[porcelain-daemon] binds      ${binds.join(', ')}`)
+  console.error(
+    `[porcelain-daemon] cors       ${allowedOriginCount === 0 ? 'same-origin only' : `${allowedOriginCount} trusted Hub origin(s) configured`}`,
+  )
   console.error(`[porcelain-daemon] admin file ${ADMIN_TOKEN_PATH()}`)
   console.error('[porcelain-daemon] pair with: porcelain-daemon access issue --name <device>')
   console.error('[porcelain-daemon] starting…  Ctrl+C to stop')
 
-  const serverEntry = join(__dirname, '..', 'main', 'daemon', 'server.js')
-  if (!existsSync(serverEntry)) {
-    fail(`daemon entry missing at ${serverEntry} — package is corrupt; reinstall`)
+  const serverEntry = [
+    join(__dirname, '..', 'main', 'daemon', 'server.js'),
+    // Monorepo fallback used by the composed proof; the published package uses
+    // the first layout above after `daemon:dist` assembles it.
+    join(__dirname, '..', 'apps', 'desktop', 'out', 'main', 'daemon', 'server.js'),
+  ].find((candidate) => existsSync(candidate))
+  if (serverEntry === undefined) {
+    fail('daemon entry missing — package is corrupt; reinstall')
   }
   // Side-effect entry: boots the HTTP/WS listeners (same as `node main/daemon/server.js`).
   require(serverEntry)

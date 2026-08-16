@@ -205,6 +205,8 @@ porcelain-daemon share status | lan|tailnet|funnel on|off
   --tailnet            Bind Tailscale interface too
   --lan                Bind RFC1918 LAN addresses too
   --funnel             Publish loopback over Tailscale Funnel HTTPS
+  --allowed-origin <origin>
+                       Trust a browser Hub origin (repeat for more than one)
   --no-watchdog        For systemd / supervisors (stdin is /dev/null)
 \`\`\`
 
@@ -220,6 +222,7 @@ If you *do* want a supervised process, use \`--no-watchdog\` and a unit like:
 [Service]
 Environment=PORCELAIN_USER_DATA=%h/.local/share/porcelain
 Environment=PORCELAIN_DAEMON_PORT=43117
+Environment=PORCELAIN_ALLOWED_ORIGIN=http://hub-host:43118
 Environment=PORCELAIN_TAILNET_BIND=1
 Environment=PORCELAIN_NO_STDIN_WATCHDOG=1
 ExecStart=/usr/bin/npx --yes porcelain-daemon@latest serve --no-watchdog --tailnet
@@ -228,6 +231,11 @@ Restart=on-failure
 
 Prefer a real \`node\` binary over Volta/fnm/nvm shims in \`ExecStart\` when pinning
 a global install instead of npx.
+
+For a browser Hub served from another origin, set \`PORCELAIN_ALLOWED_ORIGIN\` to that Hub's
+bare \`http(s)\` origin (repeat \`--allowed-origin\` for multiple Hubs; comma-separated values
+are accepted). Paths, credentials, wildcards, and \`null\` are rejected. This setting only
+controls CORS response headers; every API and WebSocket request remains token-gated.
 
 ## Agent CLI (channel access)
 
