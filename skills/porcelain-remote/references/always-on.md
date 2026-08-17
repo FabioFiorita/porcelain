@@ -20,7 +20,8 @@ Environment=PATH=<node-manager-bin>:/usr/local/bin:/usr/bin:/bin
 Environment=PORCELAIN_USER_DATA=%h/.local/share/porcelain
 Environment=PORCELAIN_DAEMON_PORT=43117
 Environment=PORCELAIN_ALLOWED_ORIGIN=http://hub-host:43118
-ExecStart=<node-manager-bin>/npx --yes --prefer-online porcelain-daemon@latest serve --no-watchdog --lan --cloudflare
+EnvironmentFile=-%h/.porcelain/cloudflare.env
+ExecStart=<node-manager-bin>/npx --yes --prefer-online porcelain-daemon@latest serve --no-watchdog --lan --cloudflare --cloudflare-hostname review.example.com
 Restart=always
 RestartSec=5
 KillMode=control-group
@@ -32,8 +33,9 @@ NoNewPrivileges=true
 WantedBy=default.target
 ```
 
-Swap `--cloudflare` for `--tailnet` if this host is on a tailnet. Do not pass both. Match the
-exposure you picked in
+`~/.porcelain/cloudflare.env` (mode 0600) holds only `PORCELAIN_CLOUDFLARE_TOKEN=...`. The public
+hostname is a flag because it is not a secret. Swap `--cloudflare` for `--tailnet` if this host
+should stay on a tailnet instead. Do not pass both. Match the exposure you picked in
 [serve.md](serve.md). Swap `<node-manager-bin>` for the real bin directory of whatever installed
 Node on this host (a Volta shim dir, `~/.local/share/fnm`, a system path — whatever `which node`
 resolves through outside systemd). Never leave `<node-manager-bin>` as a literal placeholder in the

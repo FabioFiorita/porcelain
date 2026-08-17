@@ -43,7 +43,10 @@ Options:
   --user-data <path>   Config dir (default ${DEFAULT_USER_DATA})
   --lan                Also bind RFC1918 LAN addresses (same --port)
   --tailnet            Also bind the Tailscale interface (same --port)
-  --cloudflare         Publish loopback over a Cloudflare quick tunnel
+  --cloudflare         Publish loopback over Cloudflare (named tunnel if
+                       PORCELAIN_CLOUDFLARE_TOKEN is set, else a quick tunnel)
+  --cloudflare-hostname <host>
+                       Public https hostname of a named tunnel
   --allowed-origin <origin>
                        Trust a browser Hub origin for cross-origin API/WS (repeatable)
   --no-watchdog        Disable stdin parent-death watchdog (required under systemd)
@@ -56,7 +59,7 @@ Host-management options:
 Examples:
   npx porcelain-daemon@latest serve --lan
   npx porcelain-daemon@latest serve --lan --tailnet
-  npx porcelain-daemon@latest serve --lan --cloudflare
+  npx porcelain-daemon@latest serve --lan --cloudflare --cloudflare-hostname review.example.com
   npx porcelain-daemon@latest access issue --name "My phone"
   npx porcelain-daemon@latest serve --port 43118 --lan
 
@@ -64,11 +67,15 @@ Env (same as the raw daemon; flags set these when passed):
   PORCELAIN_USER_DATA, PORCELAIN_DAEMON_PORT, PORCELAIN_ADMIN_TOKEN,
   PORCELAIN_ALLOWED_ORIGIN (comma-separated), PORCELAIN_ALLOWED_ORIGINS (comma-separated),
   PORCELAIN_TAILNET_BIND, PORCELAIN_LAN_BIND, PORCELAIN_CLOUDFLARE_BIND,
+  PORCELAIN_CLOUDFLARE_HOSTNAME, PORCELAIN_CLOUDFLARE_TOKEN,
   PORCELAIN_NO_STDIN_WATCHDOG
 
 Notes:
   • Always binds 127.0.0.1; --tailnet / --lan add private interfaces only
     (never 0.0.0.0). Cloudflare proxies only the loopback listener.
+  • Named tunnels: set PORCELAIN_CLOUDFLARE_TOKEN (never a flag) and
+    --cloudflare-hostname. Without a token, --cloudflare is a quick tunnel
+    whose URL changes every start.
   • --tailnet and --cloudflare are mutually exclusive. LAN can combine with either.
   • Host administration lives at ~/.porcelain/admin-token (0600) and is never shared.
   • Pairing links are one-time credentials; clients receive individually revocable access.
@@ -93,6 +100,7 @@ function parseArgs(argv) {
     tailnet: false,
     lan: false,
     cloudflare: false,
+    cloudflareHostname: null,
     noWatchdog: false,
     allowedOrigins: [],
     help: false,
@@ -127,6 +135,14 @@ function parseArgs(argv) {
     if (arg === '--cloudflare') {
       opts.cloudflare = true
       i += 1
+      continue
+    }
+    if (arg === '--cloudflare-hostname') {
+      const raw = argv[i + 1]
+      if (raw === undefined) fail('--cloudflare-hostname requires a hostname')
+      opts.cloudflareHostname = raw
+      opts.cloudflare = true
+      i += 2
       continue
     }
     if (arg === '--funnel') {
@@ -355,6 +371,9 @@ async function main() {
   if (opts.tailnet) process.env.PORCELAIN_TAILNET_BIND = '1'
   if (opts.lan) process.env.PORCELAIN_LAN_BIND = '1'
   if (opts.cloudflare) process.env.PORCELAIN_CLOUDFLARE_BIND = '1'
+  if (opts.cloudflareHostname && !process.env.PORCELAIN_CLOUDFLARE_HOSTNAME) {
+    process.env.PORCELAIN_CLOUDFLARE_HOSTNAME = opts.cloudflareHostname
+  }
   if (opts.noWatchdog) process.env.PORCELAIN_NO_STDIN_WATCHDOG = '1'
 
   const token = process.env.PORCELAIN_ADMIN_TOKEN || ensureAdminToken()

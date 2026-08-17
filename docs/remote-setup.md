@@ -37,9 +37,21 @@ Add a flag to open it up, matched to where your other devices actually are:
 |------|---------|----------|
 | `--lan` | Same physical/Wi-Fi network | Fastest. Same house or office as the host |
 | `--tailnet` | Any device on your Tailscale network | Your own devices, anywhere, privately |
-| `--cloudflare` | The public internet, over HTTPS | No Tailscale. `cloudflared` publishes loopback |
+| `--cloudflare` | The public internet, over HTTPS | A named Cloudflare tunnel (stable hostname) or a quick tunnel |
 
 `--tailnet` and `--cloudflare` are mutually exclusive. LAN can combine with either.
+
+For a bookmarkable URL, create a named tunnel in the Cloudflare Zero Trust dashboard, point its
+public hostname at `http://127.0.0.1:43117`, and give the daemon the tunnel token plus that
+hostname. The token is an environment variable, never a flag (it would show up in `ps`):
+
+```sh
+export PORCELAIN_CLOUDFLARE_TOKEN='<tunnel token>'
+npx porcelain-daemon@latest serve --lan --cloudflare --cloudflare-hostname review.example.com
+```
+
+Without a token, `--cloudflare` still works as a **quick** tunnel (`*.trycloudflare.com`). That
+URL changes every restart — fine for a one-off, not for a bookmark.
 
 ```sh
 npx porcelain-daemon@latest serve --lan --cloudflare

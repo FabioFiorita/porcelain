@@ -204,7 +204,7 @@ porcelain-daemon share status | lan|tailnet|cloudflare on|off
   --user-data <path>   Config dir (default ~/.local/share/porcelain)
   --tailnet            Bind Tailscale interface too
   --lan                Bind RFC1918 LAN addresses too
-  --cloudflare         Publish loopback over a Cloudflare quick tunnel
+  --cloudflare         Publish loopback over Cloudflare (named or quick)
   --allowed-origin <origin>
                        Trust a browser Hub origin (repeat for more than one)
   --no-watchdog        For systemd / supervisors (stdin is /dev/null)

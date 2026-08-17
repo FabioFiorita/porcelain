@@ -39,7 +39,7 @@ goes away.
 | *(none)* | `127.0.0.1` only | This host only (e.g. paired with a local Mac app pointed at this daemon over SSH tunnel) | Testing, or the daemon and its only client share a machine |
 | `--lan` | This host's RFC1918 addresses (`10/8`, `172.16/12`, `192.168/16`) | Same physical/Wi-Fi network | Home network, same room/office as the other devices |
 | `--tailnet` | The detected Tailscale interface address (`100.64/10`) | Any device on your tailnet, anywhere | The common case — your own devices, wherever they are |
-| `--cloudflare` | Nothing new directly — proxies the loopback listener over a Cloudflare quick tunnel | The public internet | No Tailscale, or a device that can't join the tailnet |
+| `--cloudflare` | Nothing new directly — proxies the loopback listener over Cloudflare | The public internet | Named tunnel (stable hostname) or a one-off quick tunnel |
 
 `--lan` can combine with `--tailnet` or `--cloudflare`. `--tailnet` and `--cloudflare` cannot
 run together — pick one off-network route.
@@ -47,7 +47,7 @@ run together — pick one off-network route.
 ```sh
 npx porcelain-daemon@latest serve --lan
 npx porcelain-daemon@latest serve --lan --tailnet
-npx porcelain-daemon@latest serve --lan --cloudflare
+npx porcelain-daemon@latest serve --lan --cloudflare --cloudflare-hostname review.example.com
 npx porcelain-daemon@latest serve --port 43118 --lan
 npx porcelain-daemon@latest serve --tailnet --allowed-origin http://hub-host:43118
 ```
@@ -85,16 +85,20 @@ default reach. Prefer `--tailnet` when you can.
 
 ### Cloudflare
 
-`--cloudflare` requires `cloudflared` on `PATH`. It publishes the **loopback** listener at a
-quick-tunnel URL of the form:
+`--cloudflare` requires `cloudflared` on `PATH`. It publishes the **loopback** listener over an
+outbound HTTPS proxy — never `0.0.0.0`, never a second daemon.
 
-```
-https://<words>.trycloudflare.com
+**Named tunnel (the bookmark case).** Create the tunnel in the Cloudflare Zero Trust dashboard,
+point the public hostname at `http://127.0.0.1:<port>`, and put the tunnel token in the
+environment. Never pass the token as a flag.
+
+```sh
+export PORCELAIN_CLOUDFLARE_TOKEN='<tunnel token>'
+npx porcelain-daemon@latest serve --lan --cloudflare --cloudflare-hostname review.example.com
 ```
 
-— an outbound HTTPS proxy in front of `127.0.0.1`, not a second daemon and never `0.0.0.0`. The
-URL changes each time the process starts. Pair off-network devices against that URL — see
-[pairing.md](pairing.md).
+**Quick tunnel.** If `PORCELAIN_CLOUDFLARE_TOKEN` is unset, `--cloudflare` starts a
+`*.trycloudflare.com` URL. That name changes every restart — use it only for a one-off.
 
 `--funnel` is gone. If a unit or script still passes it, the CLI tells you to use `--cloudflare`.
 
@@ -105,7 +109,9 @@ URL changes each time the process starts. Pair off-network devices against that 
 --user-data <path>   Config dir (default ~/.local/share/porcelain)
 --tailnet            Also bind the Tailscale interface (same --port)
 --lan                Also bind RFC1918 LAN addresses (same --port)
-  --cloudflare         Publish loopback over a Cloudflare quick tunnel
+  --cloudflare         Publish loopback over Cloudflare
+  --cloudflare-hostname <host>
+                       Public hostname of a named tunnel
   --allowed-origin <origin>
                        Trust a browser Hub origin (repeat for more than one)
   --no-watchdog        Disable stdin parent-death watchdog (required under systemd)
@@ -115,6 +121,7 @@ Env equivalents (flags set these when passed; set directly for systemd units or 
 `PORCELAIN_USER_DATA`, `PORCELAIN_DAEMON_PORT`, `PORCELAIN_ADMIN_TOKEN`,
 `PORCELAIN_ALLOWED_ORIGIN` (comma-separated), `PORCELAIN_ALLOWED_ORIGINS` (comma-separated),
 `PORCELAIN_TAILNET_BIND`, `PORCELAIN_LAN_BIND`, `PORCELAIN_CLOUDFLARE_BIND`,
+`PORCELAIN_CLOUDFLARE_HOSTNAME`, `PORCELAIN_CLOUDFLARE_TOKEN` (never a flag),
 `PORCELAIN_NO_STDIN_WATCHDOG`.
 
 A foreground run (no `--no-watchdog`) is fine for "start it when I sit down, stop it when I'm
