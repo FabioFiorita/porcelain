@@ -89,7 +89,7 @@ describe('HubTree', () => {
     expect(openWindow).not.toHaveBeenCalled()
   })
 
-  it('opens a Worktree from another Environment in this browser page with its owner target', async () => {
+  it('opens a Worktree from another Environment in this window with its owner target', async () => {
     render(<HubTree />)
 
     fireEvent.click(screen.getByTestId(TestIds.hubWorktree(`remote-${localWorktree.id}`)))

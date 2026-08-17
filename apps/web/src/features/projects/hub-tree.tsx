@@ -1,7 +1,5 @@
 import type { HubWorktree } from '@porcelain/contracts/projects'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
-import { useNewWindow } from '@renderer/hooks/use-new-window'
-import { isBrowser } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
 import { useHubSelectionStore } from '@renderer/stores/hub-selection'
 import { runUserAction } from '@shared/background'
@@ -24,7 +22,6 @@ export function HubTree(props: { className?: string }): React.JSX.Element | null
   const openProject = useOpenProject()
   const removeProject = useRemoveHubProject()
   const removeWorktree = useRemoveHubWorktree()
-  const newWindow = useNewWindow()
   const selectWorktree = useHubSelectionStore((state) => state.selectWorktree)
   const selection = useHubSelectionStore((state) => state.selection)
   const selectedProject = useSelectedProject()
@@ -49,15 +46,6 @@ export function HubTree(props: { className?: string }): React.JSX.Element | null
   if (inventories.length === 0) return null
 
   const open = (source: HubInventoryView, worktree: HubWorktree): void => {
-    if (!source.current && !isBrowser) {
-      runUserAction(
-        async (): Promise<void> => {
-          newWindow.openWindow(worktree.path, source.environmentId)
-        },
-        (error) => toastUserActionError('Open remote worktree', error),
-      )
-      return
-    }
     selectWorktree({
       environmentId: source.inventory.environment.id,
       projectId: worktree.projectId,
