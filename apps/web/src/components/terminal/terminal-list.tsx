@@ -23,7 +23,6 @@ import { useLocalDaemon, useLocalTerminalPath } from '@renderer/hooks/use-local-
 import { spawnLocalTerminal, spawnTerminal } from '@renderer/lib/terminal-actions'
 import { cn } from '@renderer/lib/utils'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
-import { useTabsStore } from '@renderer/stores/tabs'
 import { useTerminalsStore } from '@renderer/stores/terminals'
 import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
@@ -53,7 +52,6 @@ export function TerminalPanel(): React.JSX.Element {
   const closePanel = useTerminalsStore((s) => s.closePanel)
   const setPanelSession = useTerminalsStore((s) => s.setPanelSession)
   const renameTerminal = useTerminalsStore((s) => s.rename)
-  const retitleTerminalTab = useTabsStore((s) => s.retitleTerminalTab)
   const project = useProjectSelectionStore((s) => s.project)
   const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null)
   const [mappingMode, setMappingMode] = useState<LocalPathDialogMode | null>(null)
@@ -96,7 +94,6 @@ export function TerminalPanel(): React.JSX.Element {
     const trimmed = name.trim()
     if (trimmed === '') return
     renameTerminal(id, trimmed)
-    retitleTerminalTab(id, trimmed)
   }
 
   const hasMappedPath = mappedLocalPath != null && mappedLocalPath !== ''

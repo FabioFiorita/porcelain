@@ -34,7 +34,6 @@ const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{0,47}$/
 // One fixed instant for every generated commit: a fixture that changes its own history
 // between runs makes diffs and screenshots non-reproducible.
 const FIXED_DATE = '2026-01-01T00:00:00+00:00'
-const AUTHOR = ['-c', 'user.name=Porcelain Playground', '-c', 'user.email=playground@localhost']
 
 class PlaygroundError extends Error {}
 
@@ -97,6 +96,15 @@ function git(cwd, args) {
       // A fixture must not inherit the human's signing config; a prompt here hangs the agent.
       GIT_CONFIG_GLOBAL: '/dev/null',
       GIT_CONFIG_SYSTEM: '/dev/null',
+      // Identity travels in the environment, not as `-c` on the commands that obviously
+      // commit. `git merge` needs one too — it may end in a commit — and it checks BEFORE
+      // it merges, so a missing identity fails the merge outright instead of conflicting.
+      // A dev box hides this by auto-detecting user@host; a CI runner whose hostname has
+      // no domain cannot, which is what made the conflicted fixture produce no MERGE_HEAD.
+      GIT_AUTHOR_NAME: 'Porcelain Playground',
+      GIT_AUTHOR_EMAIL: 'playground@localhost',
+      GIT_COMMITTER_NAME: 'Porcelain Playground',
+      GIT_COMMITTER_EMAIL: 'playground@localhost',
     },
   })
 }
@@ -107,7 +115,7 @@ const write = (root, relativePath, contents) => {
   writeFileSync(target, contents)
 }
 
-const commit = (root, message) => git(root, [...AUTHOR, 'commit', '-m', message])
+const commit = (root, message) => git(root, ['commit', '-m', message])
 
 const commitAll = (root, message) => {
   git(root, ['add', '-A'])

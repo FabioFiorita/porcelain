@@ -55,8 +55,8 @@ export interface ReadingFileActions {
 }
 
 // The shared inline reading surface: the Review Canvas, the
-// pure-diff continuous review (`changeset-view.tsx`), and the read-only explore view
-// (`explore-view.tsx`) all render through this. Everything flattens into a single
+// and pure-diff continuous review (`changeset-view.tsx`) render through this.
+// Everything flattens into a single
 // VirtualRows (the house pattern — same as HunksView flattening hunks); code rows
 // stay 20px, the document rows (thesis/prose/diagram/evidence) measure dynamically.
 export type ReadingRow =

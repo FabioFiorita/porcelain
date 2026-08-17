@@ -20,7 +20,6 @@ import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
 import {
   ClipboardPaste,
-  Compass,
   Copy,
   FileSymlink,
   FolderOpen,
@@ -65,7 +64,7 @@ export function EditorSource({
   const lang = languageFor(path)
   const deferredContent = useDeferredValue(content)
   const tokenLines = useTokenizedLines(deferredContent, lang)
-  const { findReferences, exploreFlow, copyPath, copyRelativePath, reveal } = usePathActions(path)
+  const { findReferences, copyPath, copyRelativePath, reveal } = usePathActions(path)
   const { save, isSaving, error: saveError } = useWriteTextFile(path)
 
   const flushSave = useEffectEvent((): void => {
@@ -288,9 +287,6 @@ export function EditorSource({
           onClick={() => findReferences(selection)}
         >
           <Search /> Find references
-        </ContextMenuItem>
-        <ContextMenuItem disabled={selection.trim() === ''} onClick={() => exploreFlow(selection)}>
-          <Compass /> Explore flow from “{selection.trim().slice(0, 24)}”
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem

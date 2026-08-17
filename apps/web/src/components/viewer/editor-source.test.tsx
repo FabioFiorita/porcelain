@@ -15,7 +15,6 @@ vi.mock('@renderer/features/files', () => ({
 vi.mock('./use-path-actions', () => ({
   usePathActions: () => ({
     findReferences: vi.fn(),
-    exploreFlow: vi.fn(),
     copyPath: vi.fn(),
     copyRelativePath: vi.fn(),
     reveal: vi.fn(),
