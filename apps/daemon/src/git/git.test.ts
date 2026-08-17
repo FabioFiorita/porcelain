@@ -440,7 +440,7 @@ describe('gitHead', () => {
 
   it('reports the checked-out branch with no sha', async () => {
     const dir = await repo()
-    expect(await gitHead(dir)).toEqual({ branch: 'main', detachedSha: null })
+    expect(await gitHead(dir)).toEqual({ branch: 'main', detachedSha: null, upstream: null })
   })
 
   it('reports a detached HEAD as a short sha, never the literal "HEAD"', async () => {
@@ -449,6 +449,7 @@ describe('gitHead', () => {
     const head = await gitHead(dir)
     expect(head.branch).toBeNull()
     expect(head.detachedSha).toMatch(/^[0-9a-f]{7,}$/)
+    expect(head.upstream).toBeNull()
     expect(headLabel(head)).toBe(`detached @ ${head.detachedSha}`)
   })
 
@@ -489,6 +490,29 @@ describe('gitPush', () => {
     // After a `-u` push the tracking ref resolves.
     const upstream = git(dir, 'rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}').trim()
     expect(upstream).toBe('origin/main')
+  })
+
+  it('publishes a topic branch that still tracks origin/main', async () => {
+    const { dir, bare } = await repoWithBareRemote()
+    await gitPush(dir)
+    git(dir, 'checkout', '-b', 'work/topic')
+    git(dir, 'branch', '--set-upstream-to=origin/main')
+    expect(git(dir, 'rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}').trim()).toBe(
+      'origin/main',
+    )
+
+    await writeFile(join(dir, 'topic.ts'), 'export const topic = true\n')
+    git(dir, 'add', 'topic.ts')
+    git(dir, '-c', 'commit.gpgsign=false', 'commit', '-m', 'add topic.ts')
+
+    // A plain `git push` would fail: local work/topic vs upstream origin/main.
+    await gitPush(dir)
+
+    const upstream = git(dir, 'rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}').trim()
+    expect(upstream).toBe('origin/work/topic')
+    const localHead = git(dir, 'rev-parse', 'HEAD').trim()
+    const remoteHead = git(bare, 'rev-parse', 'work/topic').trim()
+    expect(remoteHead).toBe(localHead)
   })
 
   it('pushes a later commit with a plain push once upstream is set', async () => {

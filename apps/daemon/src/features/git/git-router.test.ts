@@ -94,7 +94,11 @@ function operations(overrides: Partial<GitOperations> = {}): GitOperations {
       async (): Promise<GitProjectResult<never[]>> => ({ ok: true, value: [] }),
     ),
     suggestionsGit: vi.fn<GitOperations['suggestionsGit']>(async () => []),
-    headGit: vi.fn<GitOperations['headGit']>(async () => ({ branch: 'main', detachedSha: null })),
+    headGit: vi.fn<GitOperations['headGit']>(async () => ({
+      branch: 'main',
+      detachedSha: null,
+      upstream: null,
+    })),
     branchesGit: vi.fn<GitOperations['branchesGit']>(
       async (): Promise<GitProjectResult<never[]>> => ({ ok: true, value: [] }),
     ),
@@ -182,7 +186,11 @@ describe('Git feature router', () => {
     })
     await expect(caller.gitStatus(REPO)).resolves.toEqual([])
     await expect(caller.gitSuggestions(REPO)).resolves.toEqual([])
-    await expect(caller.gitHead(REPO)).resolves.toEqual({ branch: 'main', detachedSha: null })
+    await expect(caller.gitHead(REPO)).resolves.toEqual({
+      branch: 'main',
+      detachedSha: null,
+      upstream: null,
+    })
     await expect(caller.gitBranches(REPO)).resolves.toEqual([])
     await expect(
       caller.gitCreateBranch({ repoPath: REPO, branch: 'feature/new' }),

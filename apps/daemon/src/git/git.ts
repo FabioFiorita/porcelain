@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import { readFile, stat } from 'node:fs/promises'
 import { basename, isAbsolute, join, relative } from 'node:path'
 import { promisify } from 'node:util'
-import type { HeadRef } from '@porcelain/contracts'
+import { branchNeedsPublish, type GitHead } from '@porcelain/contracts/git'
 import { settleBackground } from '@porcelain/shared/background'
 import { imageMimeForPath, isBinaryBuffer, isGitBinaryDiff } from '../fs/image-mime'
 import { exceedsReadLimit } from '../fs/read-limits'
@@ -244,14 +244,17 @@ export async function gitCommitNumstat(repoPath: string, hash: string): Promise<
 /**
  * What HEAD points at in this checkout. `--abbrev-ref` answers the literal string
  * `HEAD` when detached, which is not a branch anyone can check out — so a detached
- * HEAD reports `branch: null` plus the short sha instead of that lie. The second
- * spawn only happens while detached (rare; this polls every 5s).
+ * HEAD reports `branch: null` plus the short sha instead of that lie. A named
+ * branch also resolves `@{u}` so push can tell a first publish from a regular
+ * push. Detached HEAD reports no upstream.
  */
-export async function gitHead(repoPath: string): Promise<HeadRef> {
+export async function gitHead(repoPath: string): Promise<GitHead> {
   const name = (await runGit(repoPath, ['rev-parse', '--abbrev-ref', 'HEAD'])).trim()
-  if (name !== 'HEAD') return { branch: name, detachedSha: null }
-  const sha = (await runGit(repoPath, ['rev-parse', '--short', 'HEAD'])).trim()
-  return { branch: null, detachedSha: sha }
+  if (name === 'HEAD') {
+    const sha = (await runGit(repoPath, ['rev-parse', '--short', 'HEAD'])).trim()
+    return { branch: null, detachedSha: sha, upstream: null }
+  }
+  return { branch: name, detachedSha: null, upstream: await currentUpstream(repoPath) }
 }
 
 export async function gitWorktrees(repoPath: string): Promise<Worktree[]> {
@@ -486,8 +489,9 @@ export function quickCommandArgs(id: string, pullMode: PullMode = 'merge'): stri
 
 /** Run a whitelisted quick command; returns combined output (git logs progress
  *  to stderr — e.g. push — so both streams matter). Throws output on failure.
- *  `push` routes through `gitPush` so a branch with no upstream still wires
- *  tracking on first push (the Commands/Suggested chip is the only push UI). */
+ *  `push` routes through `gitPush` so a branch with no same-named upstream
+ *  still publishes and wires tracking on first push (the Commands/Suggested
+ *  chip is the only push UI). */
 export async function gitQuickCommand(
   repoPath: string,
   id: string,
@@ -511,23 +515,29 @@ export async function gitQuickCommand(
   }
 }
 
-/** True when the current branch has an upstream tracking ref. */
-async function hasUpstream(repoPath: string): Promise<boolean> {
+/** Current upstream (`origin/main`), or null when none is configured. */
+async function currentUpstream(repoPath: string): Promise<string | null> {
   try {
-    await runGit(repoPath, ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'])
-    return true
+    const upstream = (
+      await runGit(repoPath, ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'])
+    ).trim()
+    return upstream === '' ? null : upstream
   } catch {
-    return false
+    return null
   }
 }
 
 /**
- * Push the current branch. A branch with no upstream (the fresh-worktree case) pushes
- * with `-u origin HEAD` so the first push wires tracking; after that a plain `push`.
- * Output merges stderr+stdout like gitQuickCommand — git logs push progress to stderr.
+ * Push the current branch. A branch with no same-named upstream (fresh worktree,
+ * or a topic branch still tracking `origin/main`) pushes with `-u origin HEAD`
+ * so the first push creates the remote and wires tracking; after that a plain
+ * `push`. Output merges stderr+stdout like gitQuickCommand — git logs push
+ * progress to stderr.
  */
 export async function gitPush(repoPath: string): Promise<string> {
-  const args = (await hasUpstream(repoPath)) ? ['push'] : ['push', '-u', 'origin', 'HEAD']
+  const args = branchNeedsPublish(await gitHead(repoPath))
+    ? ['push', '-u', 'origin', 'HEAD']
+    : ['push']
   try {
     const { stdout, stderr } = await execFileAsync('git', args, {
       cwd: repoPath,

@@ -1,10 +1,17 @@
+import { branchNeedsPublish } from '@porcelain/contracts/git'
+import { PublishBranchDialog } from '@renderer/components/git/publish-branch-dialog'
 import { Button } from '@renderer/components/ui/button'
 import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
 } from '@renderer/components/ui/sidebar'
-import { type QuickCommandId, useGitSuggestions, useQuickCommand } from '@renderer/features/git'
+import {
+  type QuickCommandId,
+  useGitSuggestions,
+  useGitWorkspace,
+  useQuickCommand,
+} from '@renderer/features/git'
 import { compactButtonClass } from '@renderer/lib/controls'
 import { cn } from '@renderer/lib/utils'
 import { runUserAction } from '@shared/background'
@@ -84,10 +91,15 @@ function ResultCard({
 export function QuickCommandsGroup(): React.JSX.Element {
   const [running, setRunning] = useState<string | null>(null)
   const [result, setResult] = useState<CommandResult | null>(null)
+  const [pendingPublish, setPendingPublish] = useState<{
+    id: QuickCommandId
+    label: string
+  } | null>(null)
   const runCommand = useQuickCommand()
   const suggestions = useGitSuggestions()
+  const { head } = useGitWorkspace()
 
-  const handleRun = (command: { id: QuickCommandId; label: string }): void => {
+  const execute = (command: { id: QuickCommandId; label: string }): void => {
     if (running) return
     setRunning(command.id)
     // Failure is not silent: it renders in the ResultCard rather than a toast.
@@ -107,6 +119,15 @@ export function QuickCommandsGroup(): React.JSX.Element {
         setRunning(null)
       },
     )
+  }
+
+  const handleRun = (command: { id: QuickCommandId; label: string }): void => {
+    if (running) return
+    if (command.id === 'push' && head !== undefined && branchNeedsPublish(head)) {
+      setPendingPublish(command)
+      return
+    }
+    execute(command)
   }
 
   return (
@@ -186,6 +207,19 @@ export function QuickCommandsGroup(): React.JSX.Element {
           {result && <ResultCard result={result} onDismiss={() => setResult(null)} />}
         </SidebarGroupContent>
       </SidebarGroup>
+      <PublishBranchDialog
+        branch={head?.branch ?? ''}
+        upstream={head?.upstream ?? null}
+        open={pendingPublish !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingPublish(null)
+        }}
+        onConfirm={() => {
+          const command = pendingPublish
+          setPendingPublish(null)
+          if (command !== null) execute(command)
+        }}
+      />
     </>
   )
 }

@@ -54,7 +54,11 @@ describe('ProjectGit adapter', () => {
       await projectGit.commit(repo, 'add tracked')
       // Git status prose follows the host's locale; the branch name is the stable contract.
       expect(await projectGit.quickCommand(input)).toContain('main')
-      expect(await projectGit.head(repo)).toEqual({ branch: 'main', detachedSha: null })
+      expect(await projectGit.head(repo)).toEqual({
+        branch: 'main',
+        detachedSha: null,
+        upstream: null,
+      })
 
       git(repo, 'branch', 'feature')
       const branches = await projectGit.branches(repo)

@@ -75,6 +75,8 @@ export const headRefSchema = z
   .object({
     branch: z.string().nullable(),
     detachedSha: z.string().nullable(),
+    /** `origin/main`-style tracking ref, or null when none is configured. */
+    upstream: z.string().nullable(),
   })
   .strict()
 
