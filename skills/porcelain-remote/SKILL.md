@@ -1,7 +1,7 @@
 ---
 name: porcelain-remote
 description: Set up a remote Porcelain daemon — install, serve, choose exposure (LAN / Tailscale / Cloudflare), pair devices, keep it always-on with systemd + linger, and run day-2 ops (revoke access, check share status, troubleshoot). Use whenever the human wants to reach Porcelain from a second machine, phone, or iPad; mentions a remote daemon, pairing a device, Tailscale, Cloudflare, or systemd for Porcelain; or asks to make Porcelain "always on."
-version: 0.53.1
+version: 0.53.2
 license: MIT
 ---
 

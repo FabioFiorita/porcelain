@@ -1,3 +1,14 @@
+## [0.53.2](https://github.com/FabioFiorita/porcelain/compare/v0.53.1...v0.53.2) (2026-08-17)
+
+### Features
+
+* **remote:** run a named Cloudflare tunnel for a stable hostname ([9599cb6](https://github.com/FabioFiorita/porcelain/commit/9599cb6a430e9806be4edd8a8f8419e6e6d6419c))
+* **remote:** share via LAN plus Tailscale or Cloudflare ([0b35f31](https://github.com/FabioFiorita/porcelain/commit/0b35f31bb67c370e0690ffc1165a91268b7712de))
+
+### Bug Fixes
+
+* **web:** keep hub worktree clicks in one window ([5f13a8b](https://github.com/FabioFiorita/porcelain/commit/5f13a8ba4700b7a7cb2db178bdf717376f598d4d))
+
 ## [0.53.1](https://github.com/FabioFiorita/porcelain/compare/v0.53.0...v0.53.1) (2026-08-17)
 
 ### Features
