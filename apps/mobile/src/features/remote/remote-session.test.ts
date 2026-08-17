@@ -114,7 +114,7 @@ beforeEach(() => {
 })
 
 describe('shared endpoint order', () => {
-  it('defers to REM-003 for preferred, last-known-good, and stale routes', () => {
+  it('defers to the shared LAN-then-public order', () => {
     const group = { endpoints: [LAN, FUNNEL], preferredEndpoint: LAN, url: FUNNEL }
     expect(orderMobileRemoteEndpoints(group)).toEqual(orderRemoteEndpoints(group))
     expect(orderMobileRemoteEndpoints(group)).toEqual([LAN, FUNNEL])
@@ -122,7 +122,7 @@ describe('shared endpoint order', () => {
     // A last-known-good URL no longer in the group is dropped, not probed.
     const stale = { endpoints: [LAN, FUNNEL], preferredEndpoint: FUNNEL, url: TAILNET }
     expect(orderMobileRemoteEndpoints(stale)).toEqual(orderRemoteEndpoints(stale))
-    expect(orderMobileRemoteEndpoints(stale)).toEqual([FUNNEL, LAN])
+    expect(orderMobileRemoteEndpoints(stale)).toEqual([LAN, FUNNEL])
   })
 
   it('classifies raw causes with the shared public-error parser', () => {
@@ -218,11 +218,11 @@ describe('automatic endpoint failover', () => {
     await retryConnection()
     expect(getEnvironment(id)?.baseUrl).toBe(LAN)
 
-    // The user re-points their preference at Funnel while LAN is still perfectly reachable.
+    // Pinning Funnel in the list does not skip a reachable LAN — failover is LAN first.
     await environmentActions.preferEndpoint(id, FUNNEL)
     await retryConnection()
 
-    expect(getEnvironment(id)?.baseUrl).toBe(FUNNEL)
+    expect(getEnvironment(id)?.baseUrl).toBe(LAN)
   })
 })
 
