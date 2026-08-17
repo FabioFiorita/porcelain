@@ -247,12 +247,15 @@ Landed:
 
 Remaining:
 
-6. **Surface decision docs** in paseo's genre, under `docs/surfaces/`: `navigator.md`,
+6. ✅ **Surface decision docs** in paseo's genre, under `docs/surfaces/`: `navigator.md`,
    `worktree-profile.md` (pillars 2 and 3 — one mechanism, one doc), `canvas.md`, `tasks.md`,
-   `git.md`. Written as behavioural contracts now; the "canonical exemplar at `file:line`, copy this
-   shape" pointer is added to each as its slice lands. Exemplars are never fabricated to fit the
-   genre. Remote gets its doc when pillar 5 comes off hold.
-7. **Grill it** with `ask-matt` / `grilling` before phase two starts.
+   `git.md`. Written as behavioural contracts; no exemplar pointers are invented — the "canonical
+   exemplar at `file:line`, copy this shape" line is added to each as its slice lands. Remote gets
+   its doc when pillar 5 comes off hold.
+7. **Grill it.** `ask-matt` routes a working-directory idea to **`/grill-with-docs`** — stateful,
+   and it leaves its trail in `CONTEXT.md` and ADRs, which is what this tree wants. Both skills are
+   user-invoked (`ask-matt` is `disable-model-invocation: true`), so this step is Fabio's to run.
+   It is the phase-one close and the gate on phase two.
 
 Deliberately deferred to phase two: `docs/internals/architecture.md` still describes the Review
 template as a daemon surface and mobile as a peer client. The charter describes what is built, and
