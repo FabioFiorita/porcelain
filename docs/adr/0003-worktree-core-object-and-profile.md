@@ -26,9 +26,17 @@ Storage extends ADR 0002 rather than adding a store. `<repo>/.porcelain/project.
 profile layers over them. Private profiles live in the daemon-root Project record; promotion into
 Git stays explicit and unchanged.
 
-Two consequences worth stating, because they will be tempting to violate. **A profile is never
-inferred silently** — an agent that reorganises someone's tree without being asked is a worse
-experience than no focus at all, so profile writes are an explicit CLI action with a visible result.
-And **layers are declarative, not heuristic**: the ordering comes from what a profile names, so a
+Two consequences worth stating, because they will be tempting to violate.
+
+**Porcelain ships the mechanism, not the policy.** The product provides CLI verbs and a companion
+skill for reading and writing profiles, and nothing more. Whether a profile gets written when a
+worktree is created, and what goes in it, is the user's own instruction to their own agent — wired
+through their `create` hook or their repository's agent instructions. Porcelain never writes a
+profile on its own initiative and never ships a default that decides this for someone. A user who
+wants their tree reorganised on every worktree creation can have exactly that; a user who wants
+nothing to move can have that too, without configuring anything off.
+
+**Layers are declarative, not heuristic.** The ordering comes from what a profile names, so a
 repository Porcelain has never seen is ordered by what its agent declares, not by a guess about
-framework conventions.
+framework conventions. A repository with no declared layers has no story order yet — that is
+correct, and better than a confident wrong order.

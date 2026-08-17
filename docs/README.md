@@ -11,6 +11,18 @@ Every file here must be indexed below; `pnpm lint` enforces it.
 | [marketing.md](marketing.md) | Voice and copy rules for README and marketing surfaces |
 | [remote-setup.md](remote-setup.md) | Running the daemon on a remote host: install, exposure, pairing, always-on |
 
+## Surfaces
+
+Behavioural contracts for the pillars. Read the one that owns a surface before changing it.
+
+| File | What |
+|------|------|
+| [surfaces/navigator.md](surfaces/navigator.md) | The left rail: worktrees as peers, creation destination, create/dispose hooks |
+| [surfaces/worktree-profile.md](surfaces/worktree-profile.md) | Pins, hides, and layer order as one object; mechanism not policy |
+| [surfaces/canvas.md](surfaces/canvas.md) | The agent's free HTML surface, its templates, its evidence, and its sandbox |
+| [surfaces/tasks.md](surfaces/tasks.md) | The cross-project board and why Quick Add outranks every field |
+| [surfaces/git.md](surfaces/git.md) | Changeset, diff, commit, history, composer — and why breadth is the failure |
+
 ## Internals
 
 Contributor architecture. Start with `architecture.md`; the rest are deep dives.
