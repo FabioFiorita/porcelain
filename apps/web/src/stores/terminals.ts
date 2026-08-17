@@ -14,7 +14,6 @@ import {
   terminalClientFor,
 } from '@renderer/lib/local-daemon'
 import { disposeTerminal } from '@renderer/lib/terminal-registry'
-import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { settleBackground } from '@shared/background'
 import { create } from 'zustand'
 
@@ -25,9 +24,9 @@ import { create } from 'zustand'
  *
  * The roster is DAEMON-OWNED and sessions survive a renderer reload: the daemon holds the
  * authoritative name/cwd/status, and `use-terminals` hydrates this store from it on repo
- * open and daemon reconnect. A session is independent of its viewer tab: closing the tab
- * leaves the PTY running; `close` is the explicit kill — it ends the PTY and closes its
- * viewer tab too, so a killed session can't leave a black, dead terminal tab behind.
+ * open and daemon reconnect. Terminals live ONLY in the bottom panel (ADR 0005) — there is
+ * no terminal tab kind, so this store never reaches into tabs. `close` is the explicit
+ * kill: it ends the PTY and drops the row.
  * `reset` (repo switch) is LOCAL-ONLY — it clears this window's view without killing the
  * PTYs, which survive the switch (a different repo just filters them out of the list).
  *
@@ -66,8 +65,7 @@ interface TerminalsState {
     origin?: TerminalOrigin
     session?: DaemonSession
   }) => Promise<string>
-  /** Rename a session's roster label (trimmed; empty and unknown ids are ignored). The
-   *  caller retitles any open terminal tab(s) — this store doesn't reach into tabs. */
+  /** Rename a session's roster label (trimmed; empty and unknown ids are ignored). */
   rename: (id: string, name: string) => void
   /** Mark a session exited (its PTY closed on its own) — kept in the roster, not removed. */
   markExited: (id: string, exitCode: number) => void
@@ -225,10 +223,6 @@ export const useTerminalsStore = create<TerminalsState>((set, get) => ({
     forgetLocalTerminal(id)
     forgetTerminalSession(id)
     disposeTerminal(id)
-    // The PTY and its Ghostty are gone; close any viewer tab still pointing at it so
-    // the pane doesn't render a dead terminal. (Cross-store getState() from a store
-    // action is the sanctioned pattern — see repo.switchProject.)
-    useTabsStore.getState().closeTabEverywhere(tabId('terminal', id))
     set((state) => {
       const sessions = state.sessions.filter((s) => s.id !== id)
       return {

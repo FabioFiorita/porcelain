@@ -12,7 +12,7 @@ import { kbdLabel } from '@renderer/lib/keyboard'
 import { isBrowser } from '@renderer/lib/platform'
 import { copyText } from '@renderer/lib/utils'
 import { runUserAction } from '@shared/background'
-import { Compass, Copy, FileSymlink, FolderOpen, Link2, Search } from 'lucide-react'
+import { Copy, FileSymlink, FolderOpen, Link2, Search } from 'lucide-react'
 import { useState } from 'react'
 import { usePathActions } from './use-path-actions'
 
@@ -24,7 +24,7 @@ export function SourceContextMenu({
   children: React.ReactNode
 }): React.JSX.Element {
   const [selection, setSelection] = useState('')
-  const { copyPath, copyRelativePath, reveal, findReferences, exploreFlow } = usePathActions(path)
+  const { copyPath, copyRelativePath, reveal, findReferences } = usePathActions(path)
 
   return (
     <ContextMenu
@@ -59,12 +59,6 @@ export function SourceContextMenu({
               onClick={() => findReferences(selection)}
             >
               <Search /> Find references
-            </ContextMenuItem>
-            <ContextMenuItem
-              disabled={selection.trim() === ''}
-              onClick={() => exploreFlow(selection)}
-            >
-              <Compass /> Explore flow from “{selection.trim().slice(0, 24)}”
             </ContextMenuItem>
           </>
         ) : (

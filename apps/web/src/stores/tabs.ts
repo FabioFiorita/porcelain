@@ -2,16 +2,7 @@ import type { HubTarget } from '@porcelain/client-runtime/projects'
 import { hubTabKey } from '@porcelain/client-runtime/projects'
 import { create } from 'zustand'
 
-export type TabKind =
-  | 'file'
-  | 'diff'
-  | 'commit'
-  | 'changeset'
-  | 'search'
-  | 'explore'
-  | 'tasks'
-  | 'terminal'
-  | 'canvas'
+export type TabKind = 'file' | 'diff' | 'commit' | 'changeset' | 'search' | 'tasks' | 'canvas'
 
 // The tabs store is the router: a tab id is its kind plus its key (file path,
 // commit hash, or search query). Every opener must build ids through this so
@@ -25,8 +16,8 @@ export interface Tab {
   kind: TabKind
   title: string
   /** File path for file/diff tabs, commit hash for commit tabs, query for search tabs,
-   *  terminal session id for terminal tabs, change-set scope key (`working` / `branch` /
-   *  `commit:<hash>`) for changeset tabs, Canvas id for canvas tabs. */
+   *  change-set scope key (`working` / `branch` / `commit:<hash>`) for changeset tabs,
+   *  Canvas id for canvas tabs. */
   path: string
   /** 1-based line to scroll to when opening (search results jump here). */
   line?: number
@@ -35,8 +26,6 @@ export interface Tab {
    * Distinct from `line` (scroll target) and from find-highlight (`bg-primary/15`).
    */
   highlight?: { start: number; end: number }[]
-  /** Explore tabs only: the seed symbol (omitted ⇒ a whole-file seed). */
-  symbol?: string
   /** Diff tabs only: the range base ref. Omitted ⇒ a working-tree diff. */
   base?: string
   /** The Environment + Project + Worktree this tab stays bound to. */
@@ -78,9 +67,6 @@ interface TabsState {
    *  tab would show a dead view. Pane-agnostic by design (the caller has the id,
    *  not the pane), unlike the pane-scoped `closeTab`. */
   closeTabEverywhere: (id: string) => void
-  /** Retitle every open terminal tab for a session (its `path` holds the session id)
-   *  across both panes — kept in sync when the session is renamed in the roster. */
-  retitleTerminalTab: (sessionId: string, title: string) => void
   closeAllTabs: () => void
   activateTab: (paneIndex: number, id: string) => void
   setActivePane: (paneIndex: number) => void
@@ -201,42 +187,11 @@ export const useTabsStore = create<TabsState>((set) => ({
   panes: [emptyPane()],
   activePaneIndex: 0,
   openTab: (tab: Tab) =>
-    set((state) => {
-      // A terminal is a single Ghostty instance — it can't be cloned into a second pane.
-      // If it's already open somewhere, activate it in place instead of duplicating it.
-      if (tab.kind === 'terminal') {
-        const existing = state.panes.findIndex((p) => p.tabs.some((t) => t.id === tab.id))
-        if (existing !== -1) {
-          return {
-            panes: state.panes.map((p, i) => (i === existing ? { ...p, activeTabId: tab.id } : p)),
-            activePaneIndex: existing,
-          }
-        }
-      }
-      return {
-        panes: state.panes.map((p, i) => (i === state.activePaneIndex ? addTab(p, tab) : p)),
-      }
-    }),
+    set((state) => ({
+      panes: state.panes.map((p, i) => (i === state.activePaneIndex ? addTab(p, tab) : p)),
+    })),
   openTabToSide: (tab: Tab) =>
     set((state) => {
-      // Terminals MOVE to the other pane (one Ghostty can't render in two places); a
-      // generic tab is cloned. Stripping the terminal from its source pane first is
-      // what makes the split show two distinct shells instead of one blanking out.
-      if (tab.kind === 'terminal') {
-        const stripped = state.panes.map((p) =>
-          p.tabs.some((t) => t.id === tab.id) ? removeTab(p, tab.id) : p,
-        )
-        if (stripped.length === 1) {
-          const pane = stripped[0]
-          if (!pane) return state
-          return normalize([pane, addTab(emptyPane(), tab)], 1)
-        }
-        const target = state.activePaneIndex === 0 ? 1 : 0
-        return normalize(
-          stripped.map((p, i) => (i === target ? addTab(p, tab) : p)),
-          target,
-        )
-      }
       if (state.panes.length === 1) {
         const pane = state.panes[0]
         if (!pane) return state
@@ -280,15 +235,6 @@ export const useTabsStore = create<TabsState>((set) => ({
         state.activePaneIndex,
       ),
     ),
-  retitleTerminalTab: (sessionId: string, title: string) =>
-    set((state) => ({
-      panes: state.panes.map((p) => ({
-        ...p,
-        tabs: p.tabs.map((t) =>
-          t.kind === 'terminal' && t.path === sessionId ? { ...t, title } : t,
-        ),
-      })),
-    })),
   closeAllTabs: () => set({ panes: [emptyPane()], activePaneIndex: 0 }),
   activateTab: (paneIndex: number, id: string) =>
     set((state) => ({

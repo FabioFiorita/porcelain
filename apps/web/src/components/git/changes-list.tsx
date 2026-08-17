@@ -29,7 +29,7 @@ import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useRevealStore } from '@renderer/stores/reveal'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { TestIds } from '@shared/test-ids'
-import { Compass, FileText, Minus, Plus, Rows3, Undo2 } from 'lucide-react'
+import { FileText, Minus, Plus, Rows3, Undo2 } from 'lucide-react'
 import { memo, useState } from 'react'
 import { ChangesEmptyState } from './changes-empty-state'
 import { ChangesScopeToggle } from './changes-scope-toggle'
@@ -176,16 +176,6 @@ function FileRowImpl({
             <ContextMenuItem onClick={handleOpenFile}>
               <FileText />
               Open file
-            </ContextMenuItem>
-          )}
-          {file.status !== 'deleted' && (
-            <ContextMenuItem
-              onClick={() => {
-                openTab(targetedTab('explore', file.path, { title: `Flow: ${name}` }))
-              }}
-            >
-              <Compass />
-              Explore flow
             </ContextMenuItem>
           )}
           {file.unstaged && (

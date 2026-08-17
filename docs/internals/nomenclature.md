@@ -36,7 +36,7 @@ parens is the **entry point**; read it for mechanics.
 | Glance | `glance-home.tsx` | Companion home an empty pane renders with a repo open |
 | Tab bar / Tab | `tab-bar.tsx` | Preview = single-click, italic, replaced; pinned = double-click/edit |
 | Split view / pane | `stores/tabs.ts` | Two panes, each its own tabs; "Open to the Side" |
-| Tab kinds | `viewer.tsx` switch | file / source / markdown reader / html preview / diff / commit / changeset / search / tasks / canvas. **Canvas is the primitive and the Review is a template on it** (ADR 0004); the `tasks` tab kind carries NO Hub target — the table spans every Environment. `explore` and `terminal` are retired by ADR 0005 — explore becomes a Canvas template, terminal becomes the bottom strip — and both still ship until phase two removes them |
+| Tab kinds | `viewer.tsx` switch | file / diff / commit / changeset / search / tasks / canvas. **Canvas is the primitive and the Review is a template on it** (ADR 0004); the `tasks` tab kind carries NO Hub target — the table spans every Environment. `explore` and `terminal` were retired by ADR 0005 and are gone: exploration is a Canvas template, and terminals live only in the bottom strip |
 | Tasks table | `tasks-view.tsx` | Quick Add · column picker · the table. Rows are labelled with the Environment that owns them; every mutation names that Environment |
 
 **Inside Companion** (sections follow the sidebar tab; the panel title itself never changes)

@@ -18,7 +18,6 @@ export function targetedTab(
     preview?: boolean
     base?: string
     line?: number
-    symbol?: string
     highlight?: { start: number; end: number }[]
   },
   target: HubTarget | null = currentHubTarget(),
@@ -30,7 +29,6 @@ export function targetedTab(
     preview: fields.preview,
     base: fields.base,
     line: fields.line,
-    symbol: fields.symbol,
     highlight: fields.highlight,
     id: tabId(kind, fields.key ?? path, target),
     target: target ?? undefined,

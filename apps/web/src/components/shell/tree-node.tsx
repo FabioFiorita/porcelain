@@ -48,7 +48,6 @@ import { TestIds } from '@shared/test-ids'
 import {
   ChevronRight,
   Columns2,
-  Compass,
   Copy,
   Eye,
   EyeOff,
@@ -83,7 +82,7 @@ function EntryContextMenu({
   const openTabToSide = useTabsStore((s) => s.openTabToSide)
   // Split panes are unusable at phone width — hide the "Open to the Side" entry there.
   const isMobile = useIsMobile()
-  const { reveal, exploreFlow, copyPath, copyRelativePath } = usePathActions(entry.path)
+  const { reveal, copyPath, copyRelativePath } = usePathActions(entry.path)
   const { trash, duplicate } = useFilesActions()
   const newFile = useFilePromptStore((s) => s.newFile)
   const newFolder = useFilePromptStore((s) => s.newFolder)
@@ -137,12 +136,6 @@ function EntryContextMenu({
             >
               <Columns2 />
               Open to the Side
-            </ContextMenuItem>
-          )}
-          {entry.kind === 'file' && (
-            <ContextMenuItem onClick={() => exploreFlow()}>
-              <Compass />
-              Explore code flow
             </ContextMenuItem>
           )}
           <ContextMenuItem onClick={copyPath}>

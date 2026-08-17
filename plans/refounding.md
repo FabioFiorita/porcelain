@@ -260,13 +260,25 @@ Remaining:
    mobile gets none of this. `CONTEXT.md` gained **Worktree profile** and **Layer** and had its
    frame, Worktree, Action, and Evidence entries corrected.
 
-## Phase two — order of work (settled in the grill)
+## Phase two — order of work
 
-1. **Layout, region by region, left rail first, no feature flag.** Once the navigator owns the left
-   and the panel owns the right, the surfaces with nowhere to go identify themselves — which is the
-   signal that drives step 2. A half-migrated layout behind a toggle doubles the maintained surface
-   during the riskiest phase, for a product with one user.
-2. **Deletion, default-delete.** A directory survives only if a pillar doc names it or Fabio does.
+**Re-ordered after a finding: the layout is already built.** `app-sidebar.tsx:23-27` states the left
+shell is "deliberately navigation-only"; `app-shell.tsx` composes navigator → viewer card
+(`ViewerHeader` + `Viewer` + `TerminalPanel`) → `RightSidebar`; `surface-sidebar.tsx:40` already
+carries Files · Changes · History · Search · Tasks · Canvas. That is ADR 0005, shipped. The eighth
+instance in this planning session of a complaint that was already a written and implemented
+decision. There is no layout migration — only residue to delete — so steps 1 and 2 merged.
+
+The left rail's one arguable violation is a Search **button** (`app-sidebar.tsx:60-71`), which opens
+the ⌘K finder modal. It stays: "no search in the rail" meant no search *panel*, and a command
+palette launcher is navigation.
+
+This also relocates the real work. "The left sidebar is not working very well" was never about
+where things live — it is the navigator's **behaviour**: fast switching across many worktrees,
+creation with a destination and branch, disposal, and the create/dispose marking on Actions. That is
+pillar-1 build work and none of it exists yet.
+
+1. **Deletion, default-delete.** A directory survives only if a pillar doc names it or Fabio does.
    Default-keep would let every filler surface survive its own individual review. The full
    directory-to-pillar mapping is produced and shown before anything is removed; it is never
    inferred from LOC counts.
