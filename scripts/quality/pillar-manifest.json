@@ -1,0 +1,57 @@
+{
+  "$comment": "Every feature/component directory declares the product pillar it serves. An unlisted directory fails lint-pillars. Statuses: pillar-1..pillar-6 (docs/product.md), supporting, frozen. Default-delete: a directory with no pillar and no argument is a deletion candidate, not a keeper.",
+  "pillars": {
+    "pillar-1": "Worktree navigation",
+    "pillar-2": "Per-worktree focus",
+    "pillar-3": "Per-worktree story layers",
+    "pillar-4": "Canvas",
+    "pillar-5": "Remote (held until the rest are in daily use)",
+    "pillar-6": "Tasks"
+  },
+  "directories": {
+    "apps/web/src/features/projects": "pillar-1",
+    "apps/web/src/features/files": "pillar-2",
+    "apps/web/src/features/git": "pillar-3",
+    "apps/web/src/features/review": "pillar-4",
+    "apps/web/src/features/remote": "pillar-5",
+    "apps/web/src/features/tasks": "pillar-6",
+    "apps/web/src/features/actions": "supporting",
+    "apps/web/src/features/search": "supporting",
+    "apps/web/src/features/terminal": "supporting",
+    "apps/web/src/features/project-data": "supporting",
+
+    "apps/web/src/components/shell": "supporting",
+    "apps/web/src/components/viewer": "supporting",
+    "apps/web/src/components/git": "supporting",
+    "apps/web/src/components/terminal": "supporting",
+    "apps/web/src/components/settings": "supporting",
+    "apps/web/src/components/ui": "supporting",
+
+    "apps/daemon/src/features/projects": "pillar-1",
+    "apps/daemon/src/features/files": "pillar-2",
+    "apps/daemon/src/features/git": "pillar-3",
+    "apps/daemon/src/features/remote": "pillar-5",
+    "apps/daemon/src/features/tasks": "pillar-6",
+    "apps/daemon/src/features/actions": "supporting",
+    "apps/daemon/src/features/search": "supporting",
+    "apps/daemon/src/features/terminal": "supporting",
+    "apps/daemon/src/features/project-data": "supporting",
+
+    "apps/mobile/src/features/actions": "frozen",
+    "apps/mobile/src/features/changes": "frozen",
+    "apps/mobile/src/features/comments": "frozen",
+    "apps/mobile/src/features/diff": "frozen",
+    "apps/mobile/src/features/files": "frozen",
+    "apps/mobile/src/features/git": "frozen",
+    "apps/mobile/src/features/history": "frozen",
+    "apps/mobile/src/features/project-data": "frozen",
+    "apps/mobile/src/features/projects": "frozen",
+    "apps/mobile/src/features/quick-open": "frozen",
+    "apps/mobile/src/features/remote": "frozen",
+    "apps/mobile/src/features/search": "frozen",
+    "apps/mobile/src/features/settings": "frozen",
+    "apps/mobile/src/features/shell": "frozen",
+    "apps/mobile/src/features/terminal": "frozen",
+    "apps/mobile/src/components/ui": "frozen"
+  }
+}
