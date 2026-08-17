@@ -1,3 +1,4 @@
+import { projectsContractFixtures } from '@porcelain/contracts/projects'
 import { remoteContractFixtures } from '@porcelain/contracts/remote'
 import { type Task, tasksContractFixtures } from '@porcelain/contracts/tasks'
 import {
@@ -37,10 +38,13 @@ export function taskAt(index: number): Task {
 function defaultTasksHandlers(overrides: DaemonMockHandlers = {}): DaemonMockHandlers {
   return {
     daemonInfo: () => ({ ok: true, value: remoteContractFixtures.daemonInfo.output }),
+    hubInventory: () => ({ ok: true, value: projectsContractFixtures.hubInventory.output }),
+    searchFiles: () => ({ ok: true, value: [] }),
     listTasks: () => ({ ok: true, value: [...TASKS] }),
     createTask: () => ({ ok: true, value: tasksContractFixtures.createTask.output }),
     updateTask: () => ({ ok: true, value: tasksContractFixtures.updateTask.output }),
     deleteTask: () => ({ ok: true, value: tasksContractFixtures.deleteTask.output }),
+    getTaskAttachment: () => ({ ok: true, value: tasksContractFixtures.getTaskAttachment.output }),
     ...overrides,
   }
 }

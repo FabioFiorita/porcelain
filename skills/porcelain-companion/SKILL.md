@@ -45,9 +45,10 @@ references/sync-environments.md   daemon/Project setup across environments
 
 # Tasks — daemon-wide rows, optionally linked to a Project and Worktree
 ~/.porcelain/porcelain tasks list
+~/.porcelain/porcelain tasks get --id T-18
 ~/.porcelain/porcelain tasks add --title "…" [--status todo|doing|done|blocked]
-~/.porcelain/porcelain tasks update --id <id> [--status <status>]
-~/.porcelain/porcelain tasks done --id <id>
+~/.porcelain/porcelain tasks update --id T-18 [--status <status>]
+~/.porcelain/porcelain tasks done --id T-18
 
 # Actions — definitions only; the human accepts and runs them in the app
 ~/.porcelain/porcelain actions list

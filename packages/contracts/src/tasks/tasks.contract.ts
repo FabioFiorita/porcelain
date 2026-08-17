@@ -49,6 +49,46 @@ export const taskLinksSchema = z.array(taskLinkSchema).max(32)
 export type TaskLink = z.infer<typeof taskLinkSchema>
 
 /**
+ * Human-facing Task id: `T-18`. Sequential per daemon, never padded, never `T-0`.
+ * The UUID remains the durable key; this is what a person pastes to an agent.
+ */
+export const TASK_SHORT_ID_PATTERN = /^T-[1-9][0-9]*$/
+export const taskShortIdSchema = z.string().regex(TASK_SHORT_ID_PATTERN)
+export type TaskShortId = z.infer<typeof taskShortIdSchema>
+
+/**
+ * A live pointer into a worktree. Not a copy — the file may move or vanish, and that is
+ * fine. A folder tag is the same shape with `kind: 'folder'`. A worktree without its
+ * project is meaningless, so both ids are required.
+ */
+export const taskPathRefSchema = z
+  .object({
+    projectId: z.string().min(1).max(256),
+    worktreeId: z.string().min(1).max(256),
+    path: z.string().trim().min(1).max(4096),
+    kind: z.enum(['file', 'folder']),
+  })
+  .strict()
+export const taskPathRefsSchema = z.array(taskPathRefSchema).max(64)
+export type TaskPathRef = z.infer<typeof taskPathRefSchema>
+
+/**
+ * Bytes a browser (or any client without a host path) hands the daemon to copy into the
+ * attachment store. `name` is a basename; the daemon derives MIME from it and never
+ * trusts a client-supplied type. Base64 is the wire encoding because tRPC has no
+ * multipart. 36_000_000 characters is 25 MiB of raw bytes plus base64 overhead.
+ */
+export const TASK_ATTACHMENT_UPLOAD_MAX_CHARS = 36_000_000
+export const taskAttachmentUploadSchema = z
+  .object({
+    name: z.string().min(1).max(255),
+    contentBase64: z.string().min(1).max(TASK_ATTACHMENT_UPLOAD_MAX_CHARS),
+  })
+  .strict()
+export const taskAttachmentUploadsSchema = z.array(taskAttachmentUploadSchema).max(16)
+export type TaskAttachmentUpload = z.infer<typeof taskAttachmentUploadSchema>
+
+/**
  * A file the daemon COPIED into its own store when the Task was created. `storedPath` is
  * relative to the daemon's attachment root and never an absolute host path: the wire must
  * not leak where a machine keeps its files, and a client has no business reading it directly.
@@ -72,11 +112,13 @@ export const taskAttachmentSourcesSchema = z.array(taskAttachmentSourceSchema).m
 export const taskSchema = z
   .object({
     id: z.uuid(),
+    shortId: taskShortIdSchema,
     title: z.string().min(1).max(240),
     notes: taskNotesInputSchema.optional(),
     status: taskStatusSchema,
     tags: taskTagsSchema,
     references: taskReferencesSchema,
+    pathRefs: taskPathRefsSchema,
     attachments: z.array(taskAttachmentSchema),
     links: taskLinksSchema,
     createdAt: z.iso.datetime(),
@@ -101,8 +143,11 @@ export const createTaskInputSchema = z
     tags: taskTagsSchema.optional(),
     references: taskReferencesSchema.optional(),
     links: taskLinksSchema.optional(),
+    pathRefs: taskPathRefsSchema.optional(),
     /** Absolute host paths the daemon copies into its own attachment store. */
     attachmentPaths: taskAttachmentSourcesSchema.optional(),
+    /** Raw bytes the daemon copies into the same store — paste and browser upload. */
+    attachmentUploads: taskAttachmentUploadsSchema.optional(),
   })
   .strict()
 export type CreateTaskInput = z.infer<typeof createTaskInputSchema>
@@ -120,6 +165,10 @@ export const updateTaskInputSchema = z
     tags: taskTagsSchema.optional(),
     references: taskReferencesSchema.optional(),
     links: taskLinksSchema.optional(),
+    pathRefs: taskPathRefsSchema.optional(),
+    attachmentPaths: taskAttachmentSourcesSchema.optional(),
+    attachmentUploads: taskAttachmentUploadsSchema.optional(),
+    removeAttachmentIds: z.array(z.uuid()).max(16).optional(),
   })
   .strict()
   .refine(
@@ -129,7 +178,11 @@ export const updateTaskInputSchema = z
       value.status !== undefined ||
       value.tags !== undefined ||
       value.references !== undefined ||
-      value.links !== undefined,
+      value.links !== undefined ||
+      value.pathRefs !== undefined ||
+      value.attachmentPaths !== undefined ||
+      value.attachmentUploads !== undefined ||
+      value.removeAttachmentIds !== undefined,
     { message: 'updateTask requires at least one field to change' },
   )
 export type UpdateTaskInput = z.infer<typeof updateTaskInputSchema>
@@ -141,3 +194,23 @@ export const deleteTaskInputSchema = z.object({ taskId: z.uuid() }).strict()
 export const deleteTaskOutputSchema = z.object({ taskId: z.uuid() }).strict()
 export type DeleteTaskInput = z.infer<typeof deleteTaskInputSchema>
 export type DeleteTaskOutput = z.infer<typeof deleteTaskOutputSchema>
+
+// --- getTaskAttachment ---
+
+export const getTaskAttachmentInputSchema = z
+  .object({
+    taskId: z.uuid(),
+    attachmentId: z.uuid(),
+  })
+  .strict()
+export const getTaskAttachmentOutputSchema = z
+  .object({
+    id: z.uuid(),
+    name: z.string().min(1).max(255),
+    mime: z.string().min(1).max(255),
+    byteSize: z.int().nonnegative(),
+    dataUrl: z.string().min(1),
+  })
+  .strict()
+export type GetTaskAttachmentInput = z.infer<typeof getTaskAttachmentInputSchema>
+export type GetTaskAttachmentOutput = z.infer<typeof getTaskAttachmentOutputSchema>

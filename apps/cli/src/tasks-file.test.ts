@@ -12,10 +12,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { taskSchema } from '@porcelain/contracts/tasks'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { describeTasks } from './tasks-describe'
 import {
   attachFile,
   createTask,
-  describeTasks,
   normalizeTags,
   normalizeTaskStatus,
   readTasks,
@@ -296,6 +296,26 @@ describe('attachments', () => {
   })
 })
 
+describe('short ids and path tags', () => {
+  it('assigns T-1 then T-2 and writes a schema-valid row', () => {
+    seedInventory()
+    const first = createTask({ repoPath, title: 'First' })
+    const second = createTask({ repoPath, title: 'Second' })
+    expect(first.shortId).toBe('T-1')
+    expect(second.shortId).toBe('T-2')
+    expect(taskSchema.safeParse(first).success).toBe(true)
+  })
+
+  it('tags a file pointer without copying it', () => {
+    seedInventory()
+    const task = createTask({ repoPath, title: 'Look here', filePath: 'src/app.ts' })
+    expect(task.pathRefs).toEqual([
+      { projectId: 'proj-1', worktreeId: 'wt-1', path: 'src/app.ts', kind: 'file' },
+    ])
+    expect(taskSchema.safeParse(readEnvelope().value.tasks[0]).success).toBe(true)
+  })
+})
+
 describe('describeTasks', () => {
   it('explains an empty table', () => {
     expect(describeTasks([])).toContain('No Tasks on this daemon yet')
@@ -314,6 +334,7 @@ describe('describeTasks', () => {
     })
 
     const text = describeTasks(readTasks())
+    expect(text).toContain(task.shortId)
     expect(text).toContain(task.id)
     expect(text).toContain('(doing) Chase the flake')
     expect(text).toContain('[infra]')

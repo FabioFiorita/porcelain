@@ -36,13 +36,23 @@ export const tasksInvalidTitleErrorSchema = definePublicError({
 })
 
 /**
- * A Quick Add attachment the daemon refused to copy. `reason` is the human's next move:
- * a path outside the caller's reach, a missing file, something that is not a regular file,
- * or a file too large for the store.
+ * An attachment the daemon refused to copy. `reason` is the human's next move: a path
+ * outside the caller's reach, a missing file, something that is not a regular file, a
+ * file too large for the store, a basename the store will not keep, or bytes that are
+ * not valid base64.
  */
+export const TASK_ATTACHMENT_REJECTED_REASONS = [
+  'not-absolute',
+  'not-found',
+  'not-a-file',
+  'too-large',
+  'unsafe-name',
+  'invalid-bytes',
+] as const
+
 export const tasksAttachmentRejectedErrorDetailsSchema = z
   .object({
-    reason: z.enum(['not-absolute', 'not-found', 'not-a-file', 'too-large', 'unsafe-name']),
+    reason: z.enum(TASK_ATTACHMENT_REJECTED_REASONS),
   })
   .strict()
 

@@ -74,7 +74,9 @@ describe('AppSidebar', () => {
 
   it('opens the new-task dialog from the plus without opening the board', () => {
     render(<AppSidebar />)
-    fireEvent.click(screen.getByTestId(TestIds.tasksNew))
+    const plus = screen.getByTestId(TestIds.tasksNew)
+    expect(screen.getByTestId(TestIds.tasksOpen).contains(plus)).toBe(false)
+    fireEvent.click(plus)
     expect(useNewTaskDialogStore.getState().open).toBe(true)
     expect(useTabsStore.getState().panes[0]?.tabs).toEqual([])
   })

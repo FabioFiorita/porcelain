@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type { SessionChange } from '@porcelain/contracts/session'
 import { createCreateTask } from './create-task'
 import { createDeleteTask } from './delete-task'
+import { createGetTaskAttachment } from './get-task-attachment'
 import { createListTasks } from './list-tasks'
 import type {
   TasksAttachments,
@@ -18,6 +19,7 @@ export type TasksOperations = {
   createTask: ReturnType<typeof createCreateTask>
   updateTask: ReturnType<typeof createUpdateTask>
   deleteTask: ReturnType<typeof createDeleteTask>
+  getTaskAttachment: ReturnType<typeof createGetTaskAttachment>
 }
 
 /**
@@ -42,7 +44,8 @@ export function createTasksOperations(options: {
   return Object.freeze({
     listTasks: createListTasks({ store }),
     createTask: createCreateTask({ store, clock, ids, attachments, changes }),
-    updateTask: createUpdateTask({ store, clock, changes }),
+    updateTask: createUpdateTask({ store, clock, attachments, changes }),
     deleteTask: createDeleteTask({ store, attachments, changes }),
+    getTaskAttachment: createGetTaskAttachment({ store, attachments }),
   })
 }

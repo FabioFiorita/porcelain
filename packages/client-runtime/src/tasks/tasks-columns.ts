@@ -8,25 +8,29 @@
  */
 
 export const TASK_COLUMN_IDS = [
+  'id',
   'status',
   'title',
-  'tags',
   'project',
-  'environment',
-  'worktree',
+  'links',
   'updated',
+  'tags',
+  'worktree',
+  'created',
 ] as const
 
 export type TaskColumnId = (typeof TASK_COLUMN_IDS)[number]
 
 export const TASK_COLUMN_LABELS: Readonly<Record<TaskColumnId, string>> = {
+  id: 'ID',
   status: 'Status',
   title: 'Title',
-  tags: 'Tags',
   project: 'Project',
-  environment: 'Environment',
-  worktree: 'Worktree',
+  links: 'URL',
   updated: 'Updated',
+  tags: 'Tags',
+  worktree: 'Worktree',
+  created: 'Created',
 }
 
 /**
@@ -37,7 +41,11 @@ export const TASK_COLUMN_LABELS: Readonly<Record<TaskColumnId, string>> = {
 /** Title is not optional: a row with no title column is not a table, it is a puzzle. */
 export const TASK_REQUIRED_COLUMN_IDS: readonly TaskColumnId[] = ['title']
 
-export const DEFAULT_HIDDEN_TASK_COLUMN_IDS: readonly TaskColumnId[] = ['worktree']
+export const DEFAULT_HIDDEN_TASK_COLUMN_IDS: readonly TaskColumnId[] = [
+  'tags',
+  'worktree',
+  'created',
+]
 
 /**
  * Reconcile a persisted column preference against the current vocabulary: unknown ids are

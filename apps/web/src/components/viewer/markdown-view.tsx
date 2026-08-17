@@ -10,10 +10,24 @@ export function isMarkdownPath(path: string): boolean {
 }
 
 /** Rendered (reader) view for markdown files. Links open in the default browser. */
-export function MarkdownView({ content }: { content: string }): React.JSX.Element {
+export function MarkdownView({
+  content,
+  className,
+  compact = false,
+}: {
+  content: string
+  className?: string
+  compact?: boolean
+}): React.JSX.Element {
   return (
-    <div className="h-full overflow-y-auto">
-      <article className="prose prose-sm dark:prose-invert max-w-3xl px-6 py-4 prose-code:before:content-none prose-code:after:content-none">
+    <div className={className ?? 'h-full overflow-y-auto'}>
+      <article
+        className={
+          compact
+            ? 'prose prose-sm dark:prose-invert max-w-none px-3 py-2 prose-code:before:content-none prose-code:after:content-none'
+            : 'prose prose-sm dark:prose-invert max-w-3xl px-6 py-4 prose-code:before:content-none prose-code:after:content-none'
+        }
+      >
         <Markdown
           remarkPlugins={[remarkGfm]}
           components={{

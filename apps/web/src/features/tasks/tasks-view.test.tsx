@@ -1,10 +1,10 @@
 import { DEFAULT_HIDDEN_TASK_COLUMN_IDS, TASK_COLUMN_IDS } from '@porcelain/client-runtime/tasks'
 import { TestIds } from '@shared/test-ids'
-import { act, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { useTaskColumnsStore } from './tasks-columns-store'
 import { TasksView } from './tasks-view'
-import { DAEMON_HOST, renderTasks, TASKS, taskAt } from './test-support'
+import { renderTasks, TASKS, taskAt } from './test-support'
 
 const REFERENCED = taskAt(1)
 
@@ -22,41 +22,28 @@ describe('TasksView', () => {
     })
   })
 
-  it('renders the references a Task carries, in their own columns', async () => {
-    act(() => {
-      useTaskColumnsStore.setState({ hidden: [] })
-    })
+  it('renders the short id, title, and project on the default columns', async () => {
     renderTasks(<TasksView />)
     await waitFor(() => expect(screen.getByTestId(TestIds.tasksTable)).toBeInTheDocument())
 
     const row = within(screen.getByTestId(TestIds.tasksRow(REFERENCED.id)))
+    expect(row.getByText(REFERENCED.shortId)).toBeInTheDocument()
     expect(row.getByText(REFERENCED.title)).toBeInTheDocument()
-    // Long ids are shortened for the cell, so match on the prefix the table shows.
-    expect(row.getByText(/^project-synt/)).toBeInTheDocument()
-    expect(row.getByText(/^worktree-syn/)).toBeInTheDocument()
-    expect(row.getByText(DAEMON_HOST)).toBeInTheDocument()
-    expect(columnHeaders()).toEqual([
-      'Status',
-      'Title',
-      'Tags',
-      'Project',
-      'Environment',
-      'Worktree',
-      'Updated',
-    ])
+    expect(row.getByText('project-synthetic')).toBeInTheDocument()
+    expect(columnHeaders()).toEqual(['ID', 'Status', 'Title', 'Project', 'URL', 'Updated'])
   })
 
   it('drops a hidden column from the table and keeps Title unhideable', async () => {
     renderTasks(<TasksView />)
     await waitFor(() => expect(screen.getByTestId(TestIds.tasksTable)).toBeInTheDocument())
-    expect(columnHeaders()).toContain('Tags')
-    // 'worktree' is hidden by default, so the vocabulary is not the same as the view.
+    expect(columnHeaders()).toContain('ID')
+    expect(columnHeaders()).not.toContain('Tags')
     expect(columnHeaders()).not.toContain('Worktree')
 
     act(() => {
-      useTaskColumnsStore.getState().toggle('tags')
+      useTaskColumnsStore.getState().toggle('project')
     })
-    await waitFor(() => expect(columnHeaders()).not.toContain('Tags'))
+    await waitFor(() => expect(columnHeaders()).not.toContain('Project'))
     expect(columnHeaders()).toContain('Title')
 
     act(() => {
@@ -83,6 +70,47 @@ describe('TasksView', () => {
     expect(screen.getByText('0 Tasks')).toBeInTheDocument()
     expect(screen.queryByTestId(TestIds.tasksTable)).not.toBeInTheDocument()
     expect(screen.queryByTestId(TestIds.tasksError)).not.toBeInTheDocument()
+  })
+
+  it('filters by a tag or path, not only the title', async () => {
+    renderTasks(<TasksView />)
+    await waitFor(() => expect(screen.getByTestId(TestIds.tasksTable)).toBeInTheDocument())
+    fireEvent.change(screen.getByTestId(TestIds.tasksFilter), {
+      target: { value: 'flaky' },
+    })
+    await waitFor(() => {
+      expect(screen.getByTestId(TestIds.tasksRow(REFERENCED.id))).toBeInTheDocument()
+      expect(screen.queryByTestId(TestIds.tasksRow(taskAt(0).id))).not.toBeInTheDocument()
+    })
+    fireEvent.change(screen.getByTestId(TestIds.tasksFilter), {
+      target: { value: 'probe.ts' },
+    })
+    await waitFor(() => {
+      expect(screen.getByTestId(TestIds.tasksRow(REFERENCED.id))).toBeInTheDocument()
+      expect(screen.queryByTestId(TestIds.tasksRow(taskAt(0).id))).not.toBeInTheDocument()
+    })
+  })
+
+  it('asks before deleting a row', async () => {
+    const { mock } = renderTasks(<TasksView />)
+    await waitFor(() => expect(screen.getByTestId(TestIds.tasksTable)).toBeInTheDocument())
+    fireEvent.click(screen.getByTestId(TestIds.tasksRowDelete(REFERENCED.id)))
+    expect(screen.getByText(`Delete ${REFERENCED.shortId}?`)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(mock.requests().some((request) => request.procedure === 'deleteTask')).toBe(false)
+    fireEvent.click(screen.getByTestId(TestIds.tasksRowDelete(REFERENCED.id)))
+    fireEvent.click(screen.getByTestId(TestIds.tasksDeleteConfirm))
+    await waitFor(() => {
+      expect(mock.requests().some((request) => request.procedure === 'deleteTask')).toBe(true)
+    })
+  })
+
+  it('opens the detail sheet when a row is clicked', async () => {
+    renderTasks(<TasksView />)
+    await waitFor(() => expect(screen.getByTestId(TestIds.tasksTable)).toBeInTheDocument())
+    fireEvent.click(screen.getByTestId(TestIds.tasksRow(REFERENCED.id)))
+    const sheet = await screen.findByTestId(TestIds.tasksSheet)
+    expect(within(sheet).getByText(REFERENCED.shortId)).toBeInTheDocument()
   })
 
   it('keeps a failed read distinct from an empty table', async () => {

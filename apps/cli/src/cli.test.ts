@@ -478,9 +478,34 @@ describe('runCli — tasks (daemon-wide table)', () => {
     ).rejects.toThrow(/todo\|doing\|done\|blocked/)
   })
 
+  it('tasks get prints the short id, notes, and a tagged file', async () => {
+    const created = await runCli([
+      'tasks',
+      'add',
+      ...repo,
+      '--title',
+      'Look at app.ts',
+      '--notes',
+      'The probe is flaky',
+      '--project-id',
+      'proj-1',
+      '--worktree-id',
+      'wt-1',
+      '--file',
+      'src/app.ts',
+    ])
+    expect(created).toContain('T-1')
+    const shown = await runCli(['tasks', 'get', ...repo, '--id', 'T-1'])
+    expect(shown).toContain('T-1  Look at app.ts')
+    expect(shown).toContain('The probe is flaky')
+    expect(shown).toContain('file: src/app.ts')
+  })
+
   it('tasks --help documents the verbs and the noun-specific flags', async () => {
     const text = await runCli(['tasks', '--help'])
     expect(text).toContain('--attach')
     expect(text).toContain("Absolute path to a file copied into the daemon's Task attachment store")
+    expect(text).toContain('Print one Task (UUID or T-18)')
+    expect(text).toContain('--file')
   })
 })

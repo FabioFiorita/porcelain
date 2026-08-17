@@ -28,15 +28,27 @@ describe('resolveTaskColumnOrder', () => {
   it('keeps a persisted order the current build still recognises', () => {
     expect(
       resolveTaskColumnOrder([
-        'title',
+        'id',
         'status',
-        'tags',
+        'title',
         'project',
-        'environment',
-        'worktree',
+        'links',
         'updated',
+        'tags',
+        'worktree',
+        'created',
       ]),
-    ).toEqual(['title', 'status', 'tags', 'project', 'environment', 'worktree', 'updated'])
+    ).toEqual([
+      'id',
+      'status',
+      'title',
+      'project',
+      'links',
+      'updated',
+      'tags',
+      'worktree',
+      'created',
+    ])
   })
 
   it('drops ids this build no longer has', () => {
@@ -47,17 +59,20 @@ describe('resolveTaskColumnOrder', () => {
   })
 
   it('appends a newly added column instead of hiding it after an upgrade', () => {
-    // A preference persisted before `worktree` and `updated` existed.
+    // A preference persisted before `id` and `created` existed, with the retired Environment column.
     const resolved = resolveTaskColumnOrder(['title', 'status', 'tags', 'project', 'environment'])
     expect(resolved).toEqual([
       'title',
       'status',
       'tags',
       'project',
-      'environment',
-      'worktree',
+      'id',
+      'links',
       'updated',
+      'worktree',
+      'created',
     ])
+    expect(resolved).not.toContain('environment')
     expect([...resolved].sort()).toEqual([...TASK_COLUMN_IDS].sort())
   })
 

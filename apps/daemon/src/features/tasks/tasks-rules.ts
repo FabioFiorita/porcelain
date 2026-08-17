@@ -50,3 +50,20 @@ export function sortTasks(tasks: readonly Task[]): Task[] {
 export function defaultStatus(status: TaskStatus | undefined): TaskStatus {
   return status ?? 'todo'
 }
+
+/** Decode one browser/CLI upload. Invalid base64 is a typed rejection, not a throw. */
+export function decodeAttachmentUpload(contentBase64: string): TasksResult<Uint8Array> {
+  try {
+    const bytes = Buffer.from(contentBase64, 'base64')
+    if (bytes.byteLength === 0) {
+      return { ok: false, error: { code: 'tasks.attachment-rejected', reason: 'invalid-bytes' } }
+    }
+    // Buffer.from silently skips bad characters; reject if the round-trip does not match.
+    if (bytes.toString('base64').replace(/=+$/, '') !== contentBase64.replace(/=+$/, '')) {
+      return { ok: false, error: { code: 'tasks.attachment-rejected', reason: 'invalid-bytes' } }
+    }
+    return { ok: true, value: bytes }
+  } catch {
+    return { ok: false, error: { code: 'tasks.attachment-rejected', reason: 'invalid-bytes' } }
+  }
+}

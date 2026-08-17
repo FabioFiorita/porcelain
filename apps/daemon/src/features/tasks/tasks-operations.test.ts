@@ -18,10 +18,12 @@ const CREATED_AT = '2026-01-01T00:00:00.000Z'
 
 function row(overrides: Partial<Task> & { id: string }): Task {
   return {
+    shortId: 'T-1',
     title: 'Existing row',
     status: 'todo',
     tags: [],
     references: {},
+    pathRefs: [],
     attachments: [],
     links: [],
     createdAt: CREATED_AT,
@@ -112,6 +114,26 @@ function memoryAttachments(options: { failAfter?: number } = {}): MemoryAttachme
         },
       }
     },
+    async writeBytes(taskId, name): Promise<TasksResult<TaskAttachment>> {
+      accepted += 1
+      files.set(taskId, [...(files.get(taskId) ?? []), name])
+      return {
+        ok: true,
+        value: {
+          id: ATTACHMENT_ID,
+          name,
+          storedPath: `${taskId}/${ATTACHMENT_ID}-${name}`,
+          byteSize: 4,
+          mime: 'image/png',
+        },
+      }
+    },
+    async read() {
+      return { ok: true, value: new Uint8Array([1, 2, 3, 4]) }
+    },
+    async removeOne() {
+      return
+    },
     async discard(taskId) {
       files.delete(taskId)
     },
@@ -175,10 +197,12 @@ describe('tasks operations', () => {
       ok: true,
       value: {
         id: ID_A,
+        shortId: 'T-1',
         title: 'Capture the follow-up',
         status: 'todo',
         tags: ['git', 'flaky'],
         references: {},
+        pathRefs: [],
         attachments: [],
         links: [{ url: 'https://example.invalid/1', label: 'Failing run' }],
         createdAt: '2026-02-01T00:00:00.000Z',
@@ -240,7 +264,28 @@ describe('tasks operations', () => {
       ok: false,
       error: { code: 'tasks.invalid-title', reason: 'too-long', maxLength: 240 },
     })
-    expect(await ops.createTask({ title: 'x'.repeat(240) })).toMatchObject({ ok: true })
+    const created = await ops.createTask({
+      title: 'x'.repeat(240),
+      pathRefs: [
+        {
+          projectId: 'project-synthetic',
+          worktreeId: 'worktree-synthetic',
+          path: 'src/app.ts',
+          kind: 'file',
+        },
+      ],
+      attachmentUploads: [
+        { name: 'shot.png', contentBase64: Buffer.from('PNG').toString('base64') },
+      ],
+    })
+    expect(created).toMatchObject({
+      ok: true,
+      value: { shortId: 'T-1', pathRefs: [{ path: 'src/app.ts', kind: 'file' }] },
+    })
+    if (created.ok) {
+      expect(created.value.attachments).toHaveLength(1)
+      expect(created.value.attachments[0]?.name).toBe('shot.png')
+    }
 
     expect(memory.reads()).toBe(1)
     expect(memory.writes()).toBe(1)
@@ -266,11 +311,13 @@ describe('tasks operations', () => {
       ok: true,
       value: {
         id: ID_A,
+        shortId: 'T-1',
         title: 'Before',
         notes: 'keep me',
         status: 'doing',
         tags: ['new'],
         references: {},
+        pathRefs: [],
         attachments: [],
         links: [],
         createdAt: CREATED_AT,
@@ -355,6 +402,38 @@ describe('tasks operations', () => {
     expect(listed.value.map((task) => task.id)).toEqual([ID_A, ID_C, ID_B])
   })
 
+  it('serves a stored attachment as a data URL', async () => {
+    const memory = memoryStore([
+      row({
+        id: ID_A,
+        attachments: [
+          {
+            id: ATTACHMENT_ID,
+            name: 'shot.png',
+            storedPath: `${ID_A}/${ATTACHMENT_ID}-shot.png`,
+            byteSize: 4,
+            mime: 'image/png',
+          },
+        ],
+      }),
+    ])
+    const files = memoryAttachments()
+    const { changes } = recordingChanges()
+    const ops = operationsFor({ store: memory.store, attachments: files.attachments, changes })
+
+    const served = await ops.getTaskAttachment({ taskId: ID_A, attachmentId: ATTACHMENT_ID })
+    expect(served).toEqual({
+      ok: true,
+      value: {
+        id: ATTACHMENT_ID,
+        name: 'shot.png',
+        mime: 'image/png',
+        byteSize: 4,
+        dataUrl: 'data:image/png;base64,AQIDBA==',
+      },
+    })
+  })
+
   it('surfaces tasks.unavailable from every operation when the store fails', async () => {
     const failing = unavailableStore()
     const files = memoryAttachments()
@@ -366,6 +445,12 @@ describe('tasks operations', () => {
     expect(await ops.createTask({ title: 'Ship' })).toEqual(unavailable)
     expect(await ops.updateTask({ taskId: ID_A, status: 'done' })).toEqual(unavailable)
     expect(await ops.deleteTask({ taskId: ID_A })).toEqual(unavailable)
+    expect(
+      await ops.getTaskAttachment({
+        taskId: ID_A,
+        attachmentId: ATTACHMENT_ID,
+      }),
+    ).toEqual(unavailable)
     expect(events).toEqual([])
   })
 })

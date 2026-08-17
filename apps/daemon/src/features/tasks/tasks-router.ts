@@ -6,7 +6,7 @@ import type { TasksResult } from './tasks-capabilities'
 import type { TasksOperations } from './tasks-operations'
 
 /**
- * Tasks feature router — four canonical wire names bound to `tasksProcedures`.
+ * Tasks feature router — five canonical wire names bound to `tasksProcedures`.
  * Each procedure is parse → invoke one operation → map authoritative outputs.
  */
 
@@ -51,7 +51,9 @@ export function createTasksRouter(operations: TasksOperations) {
             tags: input.tags,
             references: input.references,
             links: input.links,
+            pathRefs: input.pathRefs,
             attachmentPaths: input.attachmentPaths,
+            attachmentUploads: input.attachmentUploads,
           }),
         )
       }),
@@ -69,6 +71,10 @@ export function createTasksRouter(operations: TasksOperations) {
             tags: input.tags,
             references: input.references,
             links: input.links,
+            pathRefs: input.pathRefs,
+            attachmentPaths: input.attachmentPaths,
+            attachmentUploads: input.attachmentUploads,
+            removeAttachmentIds: input.removeAttachmentIds,
           }),
         )
       }),
@@ -78,6 +84,13 @@ export function createTasksRouter(operations: TasksOperations) {
       .output(procedureCatalog.deleteTask.output)
       .mutation(async ({ input }) => {
         return throwIfFailed(await operations.deleteTask({ taskId: input.taskId }))
+      }),
+
+    getTaskAttachment: publicProcedure
+      .input(procedureCatalog.getTaskAttachment.input)
+      .output(procedureCatalog.getTaskAttachment.output)
+      .query(async ({ input }) => {
+        return throwIfFailed(await operations.getTaskAttachment(input))
       }),
   })
 }

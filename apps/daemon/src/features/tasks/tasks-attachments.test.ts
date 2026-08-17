@@ -197,6 +197,43 @@ describe('createTasksAttachments', () => {
     })
   })
 
+  it('writes pasted bytes under the same store-relative path shape', async () => {
+    await withFixture('porcelain-tasks-attach-bytes-', async ({ homeDir }) => {
+      const attachments = createTasksAttachments({ homeDir })
+      const result = await attachments.writeBytes(TASK_ID, 'shot.png', Buffer.from('PNGDATA'))
+      expect(result.ok).toBe(true)
+      if (!result.ok) return
+      expect(result.value).toMatchObject({
+        name: 'shot.png',
+        byteSize: 7,
+        mime: 'image/png',
+      })
+      expect(result.value.storedPath).toBe(`${TASK_ID}/${result.value.id}-shot.png`)
+      const read = await attachments.read(result.value.storedPath)
+      expect(read.ok).toBe(true)
+      if (!read.ok) return
+      expect(Buffer.from(read.value).toString('utf8')).toBe('PNGDATA')
+    })
+  })
+
+  it('refuses an over-large paste without writing', async () => {
+    await withFixture('porcelain-tasks-attach-bytes-large-', async ({ homeDir }) => {
+      const attachments = createTasksAttachments({ homeDir, maxBytes: 4 })
+      expectRejected(
+        await attachments.writeBytes(TASK_ID, 'shot.png', Buffer.from('12345')),
+        'too-large',
+      )
+      expect(await listStore(homeDir)).toEqual([])
+    })
+  })
+
+  it('reads refuse a storedPath that walks out of the store', async () => {
+    await withFixture('porcelain-tasks-attach-read-escape-', async ({ homeDir }) => {
+      const attachments = createTasksAttachments({ homeDir })
+      expectRejected(await attachments.read('../outside.txt'), 'unsafe-name')
+    })
+  })
+
   it('discarding a task that stored nothing is a no-op', async () => {
     await withFixture('porcelain-tasks-attach-discard-empty-', async ({ homeDir }) => {
       const attachments = createTasksAttachments({ homeDir })

@@ -25,7 +25,7 @@ const domainProcedures = {
   'project-data': projectDataProcedures,
 } as const
 
-const PROCEDURE_COUNT = 103
+const PROCEDURE_COUNT = 104
 
 describe('procedure catalog', () => {
   it('is frozen and composes exactly one entry per domain procedure, in domain order', () => {
@@ -70,12 +70,13 @@ describe('procedure catalog', () => {
     expect(procedureCatalog.browseDirs.input.safeParse(42).success).toBe(false)
   })
 
-  it('composes the four canonical Tasks procedures as live catalog members', () => {
+  it('composes the five canonical Tasks procedures as live catalog members', () => {
     expect(Object.keys(tasksProcedures)).toEqual([
       'listTasks',
       'createTask',
       'updateTask',
       'deleteTask',
+      'getTaskAttachment',
     ])
     for (const name of Object.keys(tasksProcedures) as Array<keyof typeof tasksProcedures>) {
       expect(procedureCatalog[name]).toBe(tasksProcedures[name])
