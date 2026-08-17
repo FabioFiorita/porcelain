@@ -34,6 +34,9 @@ Contributor architecture. Start with `architecture.md`; the rest are deep dives.
 |------|------|
 | [adr/0001-one-window-multi-environment-hub.md](adr/0001-one-window-multi-environment-hub.md) | One persistent Hub across local and remote Environments |
 | [adr/0002-daemon-root-project-store.md](adr/0002-daemon-root-project-store.md) | Daemon-root project data with explicit Git promotion |
+| [adr/0003-worktree-core-object-and-profile.md](adr/0003-worktree-core-object-and-profile.md) | The worktree is the core object and carries a pin/hide/layer profile |
+| [adr/0004-canvas-is-the-primitive.md](adr/0004-canvas-is-the-primitive.md) | Canvas is the primitive; the Review is a skill-shipped template |
+| [adr/0005-shell-layout.md](adr/0005-shell-layout.md) | Navigator left, viewer centre, panel tabs right, terminal strip below |
 
 ## Security and correctness invariants
 
