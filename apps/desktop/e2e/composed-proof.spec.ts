@@ -60,13 +60,10 @@ test('composed daemon proof: targets, Canvas, Tasks, Actions, and process lifeti
   seeded,
 }) => {
   await waitForShell(page)
-  // The browser tab is one environment. Extra remotes belong in the Mac app.
   await loc.railSettings(page).click()
   await loc.settingsDialog(page).waitFor()
-  await loc.settingsSection(page, 'remotes').click()
-  await expect(loc.settingsHeading(page)).toHaveText('Remotes')
-  await expect(loc.browserEnvironmentConnections(page)).toContainText('This tab')
-  await expect(loc.browserEnvironmentConnections(page)).toContainText('One environment')
+  await expect(loc.settingsHeading(page)).toHaveText('General')
+  await expect(page.getByTestId(TestIds.settingsSection('remotes'))).toHaveCount(0)
   await loc.settingsDialog(page).getByRole('button', { name: 'Close' }).click()
   // Process lifetime: start this while the default Glance surface owns the
   // daemon-backed process section, then prove it survives the renderer reload.

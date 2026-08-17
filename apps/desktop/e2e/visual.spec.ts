@@ -172,9 +172,14 @@ test('settings dialog — phone', async ({ page, appMode }) => {
   expect(sBox.y).toBeGreaterThan(aBox.y + aBox.height - 4)
   // Chips navigate: leave General and come back, so the screenshot is the
   // section the mobile nav landed on, not the one it opened with.
-  await dialog.getByRole('button', { name: 'Remotes', exact: true }).click()
-  await expect(loc.settingsHeading(page)).toHaveText('Remotes')
-  await dialog.getByRole('button', { name: 'General' }).click()
+  if (appMode === 'browser') {
+    await expect(dialog.getByRole('button', { name: 'Remotes', exact: true })).toHaveCount(0)
+    await dialog.getByRole('button', { name: 'General' }).click()
+  } else {
+    await dialog.getByRole('button', { name: 'Remotes', exact: true }).click()
+    await expect(loc.settingsHeading(page)).toHaveText('Remotes')
+    await dialog.getByRole('button', { name: 'General' }).click()
+  }
   await expect(loc.settingsHeading(page)).toHaveText('General')
   await expect(dialog).toHaveScreenshot('settings-general-mobile.png')
 })

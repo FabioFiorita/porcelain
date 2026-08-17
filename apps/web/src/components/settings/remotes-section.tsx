@@ -15,13 +15,11 @@ import {
   useRemoveRemoteEnvironment,
 } from '@renderer/features/remote'
 import { compactButtonClass, rowActionClass } from '@renderer/lib/controls'
-import { isBrowser } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
 import { platformLabel } from '@shared/platform'
 import { TestIds } from '@shared/test-ids'
 import { X } from 'lucide-react'
 import { useState } from 'react'
-import { BrowserRemotesSection } from './browser-remotes-section'
 
 function describeStatus(status: EnvironmentStatus | undefined): string {
   if (status === undefined) return 'Checking…'
@@ -58,7 +56,6 @@ const primaryActionSlotClass = 'flex min-w-[5.75rem] justify-end'
  * starting point; pairing another link adds a route to this same card.
  */
 export function RemotesSection(): React.JSX.Element {
-  if (isBrowser) return <BrowserRemotesSection />
   return <ElectronRemotesSection />
 }
 

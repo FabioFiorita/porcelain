@@ -110,7 +110,7 @@ lower test is the owner of that invariant at its smallest complete boundary.
 
 | ID | Source assertion | Disposition and replacement |
 | --- | --- | --- |
-| SH-05 | `:3-11` — browser has neither Share nor Remotes host administration | The browser has no Share/host-administration surface, but its shipped Remotes client-connection manager is proven in `composed-proof.spec.ts`; `apps/web/src/components/settings/browser-remotes-section.test.tsx` owns its lower boundary. Desktop shell tests still own host-only administration. |
+| SH-05 | `:3-11` — browser has neither Share nor Remotes | The browser tab is the daemon that served it. Pairing is the link. `composed-proof.spec.ts` asserts Settings has no Remotes section. Desktop shell tests still own host-only administration. |
 | SH-06 | `:13-24` — Electron sees the seeded client, revoke removes it, empty state returns | `apps/desktop/src/main/shell-api.test.ts:120-210` owns the shell administration transport; `apps/web/src/components/settings/remotes-section.test.tsx:1-100` owns the renderer shape. SUP-003 ruling A keeps pairing/address book/shell-api in Desktop. Retired from browser |
 
 ### `terminal.spec.ts`

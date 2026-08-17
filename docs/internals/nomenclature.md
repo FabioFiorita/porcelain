@@ -8,7 +8,7 @@ parens is the **entry point**; read it for mechanics.
 | Term | Entry | Note |
 |---|---|---|
 | Top bar | `title-bar.tsx` | Electron-only native shell titlebar. Browser clients start with the navigation sidebar; this is **not** the viewer header |
-| Environment switcher | `environment-switcher.tsx` | Native-shell control for moving between Environments. The browser keeps the serving Environment plus configured remote sessions; **Settings → Remotes** adds and verifies client-token connections, and each Project carries its Environment badge |
+| Environment switcher | `environment-switcher.tsx` | Native-shell control for moving between Environments. The browser tab is the daemon that served it; **Settings → Remotes** is Mac-only. Each Project carries its Environment badge |
 | Hub inventory | `hub-tree.tsx` | Live Project → Worktree tree with the current Environment shown as a Project badge. Project headers collapse; Worktree rows navigate; there is no Delete Worktree control |
 | Hub selection | `hub-selection.ts` | Home · Project · Worktree. Viewer empty state shows the matching summary; open tabs keep the Worktree they were opened against and read that checkout, not the newly selected one |
 | Sidebar (unqualified = left) | `app-sidebar.tsx` | Navigation-only Project → Worktree tree (⌘B); Settings is in the footer |

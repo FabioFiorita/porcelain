@@ -37,8 +37,8 @@ const ALL_SECTIONS: {
   icon: typeof SlidersHorizontal
   title: string
   blurb: string
-  // Shell-only: Companion (skills install) and Updates (electron-updater). Remotes has a
-  // browser-owned connection manager as well as the Electron pairing surface.
+  // Shell-only: Companion, Updates, and Remotes (named environments live in the Mac app).
+  // The browser tab is already one daemon; pairing is the link, not a settings tab.
   shellOnly?: boolean
 }[] = [
   {
@@ -70,7 +70,8 @@ const ALL_SECTIONS: {
     label: 'Remotes',
     icon: Cloud,
     title: 'Remotes',
-    blurb: 'Mac: several named environments. Browser: this tab is this daemon.',
+    blurb: 'Connect this app to other daemons. Pairing links add a named environment.',
+    shellOnly: true,
   },
   {
     id: 'updates',

@@ -220,10 +220,6 @@ export async function addBrowserEnvironmentConnection(
   }
 }
 
-export function removeBrowserEnvironmentConnection(id: string): void {
-  setBrowserEnvironmentConnections(browserEnvironmentConnections().filter((item) => item.id !== id))
-}
-
 const secondarySessions = new Map<string, EnvironmentSession>()
 let primaryClient: ReturnType<typeof createAppClientFor> | null = null
 const environmentAliases = new Map<string, string>()
