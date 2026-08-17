@@ -3,6 +3,8 @@ import {
   createTaskInputSchema,
   deleteTaskInputSchema,
   deleteTaskOutputSchema,
+  getTaskAttachmentInputSchema,
+  getTaskAttachmentOutputSchema,
   listTasksOutputSchema,
   type Task,
   taskSchema,
@@ -23,10 +25,12 @@ const UPDATED_AT = '2026-01-02T00:00:00.000Z'
 export function taskFixture(overrides: Partial<Task> = {}): Task {
   return defineContractFixture(taskSchema, {
     id: OPEN_ID,
+    shortId: 'T-1',
     title: 'Rehearse the release',
     status: 'todo',
     tags: [],
     references: {},
+    pathRefs: [],
     attachments: [],
     links: [],
     createdAt: CREATED_AT,
@@ -44,10 +48,14 @@ const openTask = taskFixture()
 
 const referencedTask = taskFixture({
   id: DOING_ID,
+  shortId: 'T-2',
   title: 'Fix the flaky worktree probe',
   status: 'doing',
   tags: ['git', 'flaky'],
   references: { projectId: PROJECT_ID, worktreeId: WORKTREE_ID },
+  pathRefs: [
+    { projectId: PROJECT_ID, worktreeId: WORKTREE_ID, path: 'src/probe.ts', kind: 'file' },
+  ],
   attachments: [
     {
       id: ATTACHMENT_ID,
@@ -79,11 +87,24 @@ export const tasksContractFixtures = {
       links: [{ url: 'https://example.invalid/issue/23', label: 'Issue 23' }],
     }),
     output: defineContractFixture(taskSchema, {
-      ...taskFixture({ id: ADDED_ID, title: 'Capture the follow-up' }),
+      ...taskFixture({ id: ADDED_ID, shortId: 'T-3', title: 'Capture the follow-up' }),
       notes: 'Notes are markdown and optional.',
       tags: ['follow-up'],
       references: { projectId: PROJECT_ID },
       links: [{ url: 'https://example.invalid/issue/23', label: 'Issue 23' }],
+    }),
+  },
+  getTaskAttachment: {
+    input: defineContractFixture(getTaskAttachmentInputSchema, {
+      taskId: DOING_ID,
+      attachmentId: ATTACHMENT_ID,
+    }),
+    output: defineContractFixture(getTaskAttachmentOutputSchema, {
+      id: ATTACHMENT_ID,
+      name: 'trace.log',
+      mime: 'text/plain',
+      byteSize: 4,
+      dataUrl: 'data:text/plain;base64,dGVzdA==',
     }),
   },
   updateTask: {

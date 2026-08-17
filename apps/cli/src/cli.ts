@@ -27,7 +27,8 @@ import {
   toReviewFiles,
   toReviewSections,
 } from './review-file'
-import { describeTasksCommand, TASKS_COMMANDS } from './tasks-file'
+import { describeTasksCommand } from './tasks-describe'
+import { TASKS_COMMANDS } from './tasks-file'
 
 // Porcelain's agent CLI writes daemon-root Project data (Tasks, Actions, and Review
 // Canvases). One fresh process per invocation does a single synchronous read-modify-write.
@@ -291,6 +292,7 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<string
       return `Cleared the Review Canvas for ${repo}`
     case 'tasks list':
     case 'tasks add':
+    case 'tasks get':
     case 'tasks update':
     case 'tasks done':
       return describeTasksCommand(verb, repo, flags)

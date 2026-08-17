@@ -12,15 +12,18 @@ Talk to Porcelain through the bundled CLI at `~/.porcelain/porcelain`. Run it fr
 repo** and Tasks you create pick up that checkout's Project and Worktree references automatically;
 outside a Porcelain-known repo the verbs still work, just without references.
 
-- `~/.porcelain/porcelain tasks list` → every Task on this Environment, with its id, status, tags,
-  and references.
+- `~/.porcelain/porcelain tasks list` → every Task on this Environment, with its short id (`T-18`),
+  UUID, status, tags, and references.
+- `~/.porcelain/porcelain tasks get --id <T-18|uuid>` → one Task: notes, file/folder tags, and
+  absolute attachment paths so you can read the pictures.
 - `~/.porcelain/porcelain tasks add --title <s> [--notes <s>] [--status todo|doing|done|blocked]
-  [--tags a,b] [--link <url>] [--link-label <s>] [--attach <abs path>] [--project-id <s>]
-  [--worktree-id <s>]` → capture a Task. `--attach` **copies** the file into the daemon's store, so
-  the Task keeps its evidence even if the original moves.
-- `~/.porcelain/porcelain tasks update --id <id> [--title <s>] [--notes <s>] [--status <s>]
+  [--tags a,b] [--link <url>] [--link-label <s>] [--attach <abs path>] [--file <path>]
+  [--folder <path>] [--project-id <s>] [--worktree-id <s>]` → capture a Task. `--attach` **copies**
+  the file into the daemon's store. `--file` / `--folder` are live pointers into the worktree
+  (not copies) and need a Project and Worktree.
+- `~/.porcelain/porcelain tasks update --id <T-18|uuid> [--title <s>] [--notes <s>] [--status <s>]
   [--tags a,b]` → edit a row.
-- `~/.porcelain/porcelain tasks done --id <id>` → shorthand for `--status done`.
+- `~/.porcelain/porcelain tasks done --id <T-18|uuid>` → shorthand for `--status done`.
 
 ## How to use it
 

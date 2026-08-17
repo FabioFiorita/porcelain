@@ -78,20 +78,18 @@ export function AppSidebar(): React.JSX.Element {
           </Button>
         </div>
         <div className="app-no-drag px-2 pt-2">
-          <div
-            className={cn(
-              'flex h-8 items-center gap-1 rounded-md px-2 text-xs',
-              tasksActive
-                ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                : 'text-muted-foreground hover:bg-sidebar-accent/50',
-            )}
-          >
+          <div className="flex items-center gap-1">
             <button
               type="button"
               data-testid={TestIds.tasksOpen}
               aria-label="Open Tasks"
               aria-current={tasksActive ? 'page' : undefined}
-              className="flex min-w-0 flex-1 items-center gap-2 text-left"
+              className={cn(
+                'flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md px-2 text-left text-xs',
+                tasksActive
+                  ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                  : 'text-muted-foreground hover:bg-sidebar-accent/50',
+              )}
               onClick={() => openTasksBoard()}
             >
               <Table2 className="size-3.5 shrink-0" />
@@ -104,13 +102,10 @@ export function AppSidebar(): React.JSX.Element {
             <Button
               variant="ghost"
               size="icon-xs"
-              className="size-5 shrink-0"
+              className="shrink-0"
               aria-label="New Task"
               data-testid={TestIds.tasksNew}
-              onClick={(event) => {
-                event.stopPropagation()
-                showNewTask()
-              }}
+              onClick={() => showNewTask()}
             >
               <Plus />
             </Button>

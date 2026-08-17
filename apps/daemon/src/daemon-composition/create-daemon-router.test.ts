@@ -66,8 +66,14 @@ function projectsOperations(): ProjectsOperations {
   }
 }
 
-/** The four canonical Tasks names the eleventh domain contributes to the flat router. */
-const TASKS_PROCEDURE_KEYS = ['listTasks', 'createTask', 'updateTask', 'deleteTask'] as const
+/** The five canonical Tasks names the domain contributes to the flat router. */
+const TASKS_PROCEDURE_KEYS = [
+  'listTasks',
+  'createTask',
+  'updateTask',
+  'deleteTask',
+  'getTaskAttachment',
+] as const
 
 describe('createDaemonRouter composition', () => {
   let root = ''

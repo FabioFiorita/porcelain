@@ -23,6 +23,7 @@ export type TasksAttachmentRejectedReason =
   | 'not-a-file'
   | 'too-large'
   | 'unsafe-name'
+  | 'invalid-bytes'
 
 export type TasksAttachmentRejectedError = {
   readonly code: 'tasks.attachment-rejected'
@@ -61,6 +62,9 @@ export type TasksStore = Readonly<{
  */
 export type TasksAttachments = Readonly<{
   copyInto(taskId: string, sourcePath: string): Promise<TasksResult<TaskAttachment>>
+  writeBytes(taskId: string, name: string, bytes: Uint8Array): Promise<TasksResult<TaskAttachment>>
+  read(storedPath: string): Promise<TasksResult<Uint8Array>>
+  removeOne(storedPath: string): Promise<void>
   discard(taskId: string): Promise<void>
 }>
 

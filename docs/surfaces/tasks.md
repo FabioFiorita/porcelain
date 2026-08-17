@@ -14,8 +14,10 @@ is between having a thought and it being on the board.**
 
 In the browser shell, Tasks is a left-rail row (not a right-hand Surface). Clicking it opens the
 board in the Viewer without changing the selected worktree. The row plus (and ⌘⇧N when Files is
-not focused) opens a new-task dialog. Pictures, file/folder tags, and project/worktree tags are
-coming soon.
+not focused) opens the new-task composer: a Project, a title, and markdown notes. Notes are a live surface — type `# Title` and press Enter, and the hash
+leaves so the line is a real heading. `#tag` (no space) is still a tag. `@` files, `#` tags, and
+http(s) URLs lift out of the body into chips. Tab accepts the mention suggestion under the caret. There is no Quick Add bar
+on the table. The board shows a URL column for lifted links.
 
 ## Rules
 
@@ -33,7 +35,14 @@ starts working. Tasks does not need to chain into Canvas or execution to earn it
 building that chain is not a prerequisite for the pillar.
 
 **Every write names the Environment it targets.** The Hub aggregates the Environments it can reach
-and omits the ones it cannot; an ambiguous target is rejected rather than guessed.
+and omits the ones it cannot; an ambiguous target is rejected rather than guessed. The browser
+table does not show an Environment column — one daemon is one board.
+
+**The agent-facing id is `T-18`.** The UUID is still the durable key. `porcelain tasks get --id T-18`
+prints notes, file tags, and attachment paths so an agent can pick the work up.
+
+**Pictures are copies; file and folder tags are pointers.** A paste or upload is stored under
+`$PORCELAIN_HOME/tasks/attachments/`. An `@` tag names a path in a worktree and is not copied.
 
 **It must be good on a narrow viewport.** The current board is awkward on both web and mobile. A
 table that only works at desk width has not shipped.

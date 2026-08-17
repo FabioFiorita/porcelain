@@ -84,6 +84,24 @@ export function taskAttachmentMime(name: string): string {
  * NUL byte would truncate the path at the syscall — so those are refused outright rather
  * than coerced into something plausible.
  */
+/** Human Task id: `T-18`. Sequential per daemon, never padded, never `T-0`. */
+export const TASK_SHORT_ID_PATTERN = /^T-[1-9][0-9]*$/
+
+export function isTaskShortId(value: string): boolean {
+  return TASK_SHORT_ID_PATTERN.test(value)
+}
+
+/** Next unused `T-n` after the highest number already on the table. */
+export function nextTaskShortId(existing: readonly { shortId: string }[]): string {
+  let max = 0
+  for (const row of existing) {
+    if (!isTaskShortId(row.shortId)) continue
+    const n = Number(row.shortId.slice(2))
+    if (Number.isInteger(n) && n > max) max = n
+  }
+  return `T-${max + 1}`
+}
+
 export function safeTaskAttachmentName(sourcePath: string): string | null {
   const name = basename(sourcePath)
   if (name === '' || name === '.' || name === '..') return null

@@ -9,7 +9,7 @@ import {
 import { describe, expect, it } from 'vitest'
 import { withTemporaryDirectory } from '../../testing/temporary-directory'
 import { createTasksAttachments } from './tasks-attachments'
-import type { TasksAttachmentRejectedReason } from './tasks-capabilities'
+import type { TasksAttachmentRejectedReason, TasksResult } from './tasks-capabilities'
 
 const TASK_ID = '00000000-0000-4000-8000-0000000003a1'
 const OTHER_TASK_ID = '00000000-0000-4000-8000-0000000003b2'
@@ -29,10 +29,7 @@ async function withFixture(
   })
 }
 
-function expectRejected(
-  result: Awaited<ReturnType<ReturnType<typeof createTasksAttachments>['copyInto']>>,
-  reason: TasksAttachmentRejectedReason,
-): void {
+function expectRejected(result: TasksResult<unknown>, reason: TasksAttachmentRejectedReason): void {
   expect(result).toEqual({
     ok: false,
     error: { code: 'tasks.attachment-rejected', reason },
@@ -194,6 +191,43 @@ describe('createTasksAttachments', () => {
 
       expect(await readdir(tasksAttachmentsRoot(homeDir))).toEqual([OTHER_TASK_ID])
       expect(await readdir(taskAttachmentsDir(homeDir, OTHER_TASK_ID))).toHaveLength(1)
+    })
+  })
+
+  it('writes pasted bytes under the same store-relative path shape', async () => {
+    await withFixture('porcelain-tasks-attach-bytes-', async ({ homeDir }) => {
+      const attachments = createTasksAttachments({ homeDir })
+      const result = await attachments.writeBytes(TASK_ID, 'shot.png', Buffer.from('PNGDATA'))
+      expect(result.ok).toBe(true)
+      if (!result.ok) return
+      expect(result.value).toMatchObject({
+        name: 'shot.png',
+        byteSize: 7,
+        mime: 'image/png',
+      })
+      expect(result.value.storedPath).toBe(`${TASK_ID}/${result.value.id}-shot.png`)
+      const read = await attachments.read(result.value.storedPath)
+      expect(read.ok).toBe(true)
+      if (!read.ok) return
+      expect(Buffer.from(read.value).toString('utf8')).toBe('PNGDATA')
+    })
+  })
+
+  it('refuses an over-large paste without writing', async () => {
+    await withFixture('porcelain-tasks-attach-bytes-large-', async ({ homeDir }) => {
+      const attachments = createTasksAttachments({ homeDir, maxBytes: 4 })
+      expectRejected(
+        await attachments.writeBytes(TASK_ID, 'shot.png', Buffer.from('12345')),
+        'too-large',
+      )
+      expect(await listStore(homeDir)).toEqual([])
+    })
+  })
+
+  it('reads refuse a storedPath that walks out of the store', async () => {
+    await withFixture('porcelain-tasks-attach-read-escape-', async ({ homeDir }) => {
+      const attachments = createTasksAttachments({ homeDir })
+      expectRejected(await attachments.read('../outside.txt'), 'unsafe-name')
     })
   })
 

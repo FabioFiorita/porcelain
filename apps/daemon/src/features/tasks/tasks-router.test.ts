@@ -34,6 +34,7 @@ function unavailableOps(overrides: Partial<TasksOperations> = {}): TasksOperatio
     createTask: async () => ({ ok: false, error: { code: 'tasks.unavailable' } }),
     updateTask: async () => ({ ok: false, error: { code: 'tasks.unavailable' } }),
     deleteTask: async () => ({ ok: false, error: { code: 'tasks.unavailable' } }),
+    getTaskAttachment: async () => ({ ok: false, error: { code: 'tasks.unavailable' } }),
     ...overrides,
   }
 }
@@ -84,7 +85,9 @@ describe('tasks feature router (canonical wire names)', () => {
         tags: ['follow-up'],
         references: undefined,
         links: undefined,
+        pathRefs: undefined,
         attachmentPaths: ['/abs/trace.log'],
+        attachmentUploads: undefined,
       },
     ])
   })
@@ -112,6 +115,10 @@ describe('tasks feature router (canonical wire names)', () => {
         tags: undefined,
         references: undefined,
         links: undefined,
+        pathRefs: undefined,
+        attachmentPaths: undefined,
+        attachmentUploads: undefined,
+        removeAttachmentIds: undefined,
       },
     ])
   })
@@ -198,6 +205,15 @@ describe('tasks feature router (canonical wire names)', () => {
       'tasks.unavailable',
     )
     expectPublicCode(await rejected(() => caller.deleteTask({ taskId: ID })), 'tasks.unavailable')
+    expectPublicCode(
+      await rejected(() =>
+        caller.getTaskAttachment({
+          taskId: ID,
+          attachmentId: '00000000-0000-4000-8000-000000000210',
+        }),
+      ),
+      'tasks.unavailable',
+    )
   })
 
   it('rejects contract-invalid raw input before invoking an operation', async () => {

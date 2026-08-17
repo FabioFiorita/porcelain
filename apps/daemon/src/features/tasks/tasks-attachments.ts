@@ -1,11 +1,12 @@
 import { randomUUID } from 'node:crypto'
-import { copyFile, mkdir, realpath, rm, stat } from 'node:fs/promises'
+import { copyFile, mkdir, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
 import { isInsideDir } from '@shared/canvas-porcelain'
 import {
   safeTaskAttachmentName,
   TASK_ATTACHMENT_MAX_BYTES,
   taskAttachmentMime,
+  taskAttachmentPath,
   taskAttachmentsDir,
   tasksAttachmentsRoot,
 } from '@shared/tasks-porcelain'
@@ -21,14 +22,12 @@ function rejected(reason: TasksAttachmentRejectedReason): TasksResult<never> {
 }
 
 /**
- * Copies Quick Add sources into `$PORCELAIN_HOME/tasks/attachments/<taskId>/`.
+ * Copies sources and pasted bytes into `$PORCELAIN_HOME/tasks/attachments/<taskId>/`.
  *
  * The daemon OWNS the destination: the stored name is the source's basename with every
  * directory component stripped, prefixed by a freshly minted id, and the resulting path is
  * re-checked against the attachment root AFTER symlinks are resolved — so neither a crafted
- * file name nor a symlinked attachment directory can place a copy outside the store. The
- * source itself is realpath'd and required to be a regular file, so a symlink pointing at a
- * device or a directory is refused instead of being read as content.
+ * file name nor a symlinked attachment directory can place a copy outside the store.
  */
 export function createTasksAttachments(options: {
   homeDir: string
@@ -36,6 +35,39 @@ export function createTasksAttachments(options: {
 }): TasksAttachments {
   const maxBytes = options.maxBytes ?? TASK_ATTACHMENT_MAX_BYTES
   const root = resolve(tasksAttachmentsRoot(options.homeDir))
+
+  async function place(
+    taskId: string,
+    storedName: string,
+    write: (destination: string) => Promise<number>,
+  ): Promise<TasksResult<TaskAttachment>> {
+    const attachmentId = randomUUID()
+    const taskDirLexical = resolve(taskAttachmentsDir(options.homeDir, taskId))
+    if (!isInsideDir(root, taskDirLexical)) return rejected('unsafe-name')
+    const destinationLexical = resolve(taskDirLexical, `${attachmentId}-${storedName}`)
+    if (!isInsideDir(taskDirLexical, destinationLexical)) return rejected('unsafe-name')
+
+    try {
+      await mkdir(taskDirLexical, { recursive: true })
+      const taskDirReal = await realpath(taskDirLexical)
+      const rootReal = await realpath(root)
+      if (!isInsideDir(rootReal, taskDirReal)) return rejected('unsafe-name')
+      const destination = resolve(taskDirReal, `${attachmentId}-${storedName}`)
+      const byteSize = await write(destination)
+      return {
+        ok: true,
+        value: {
+          id: attachmentId,
+          name: storedName,
+          storedPath: relative(rootReal, destination).split(sep).join('/'),
+          byteSize,
+          mime: taskAttachmentMime(storedName),
+        },
+      }
+    } catch {
+      return { ok: false, error: { code: 'tasks.unavailable' } }
+    }
+  }
 
   return Object.freeze({
     async copyInto(taskId: string, sourcePath: string): Promise<TasksResult<TaskAttachment>> {
@@ -58,34 +90,55 @@ export function createTasksAttachments(options: {
       if (!info.isFile()) return rejected('not-a-file')
       if (info.size > maxBytes) return rejected('too-large')
 
-      const attachmentId = randomUUID()
-      const taskDirLexical = resolve(taskAttachmentsDir(options.homeDir, taskId))
-      if (!isInsideDir(root, taskDirLexical)) return rejected('unsafe-name')
-      const destinationLexical = resolve(taskDirLexical, `${attachmentId}-${storedName}`)
-      if (!isInsideDir(taskDirLexical, destinationLexical)) return rejected('unsafe-name')
+      return place(taskId, storedName, async (destination) => {
+        await copyFile(sourceReal, destination)
+        return info.size
+      })
+    },
 
+    async writeBytes(
+      taskId: string,
+      name: string,
+      bytes: Uint8Array,
+    ): Promise<TasksResult<TaskAttachment>> {
+      const storedName = safeTaskAttachmentName(name)
+      if (storedName === null) return rejected('unsafe-name')
+      if (bytes.byteLength > maxBytes) return rejected('too-large')
+      return place(taskId, storedName, async (destination) => {
+        await writeFile(destination, bytes)
+        return bytes.byteLength
+      })
+    },
+
+    async read(storedPath: string): Promise<TasksResult<Uint8Array>> {
+      if (storedPath === '' || storedPath.includes('\0') || storedPath.includes('..')) {
+        return rejected('unsafe-name')
+      }
+      const lexical = resolve(taskAttachmentPath(options.homeDir, storedPath))
+      if (!isInsideDir(root, lexical)) return rejected('unsafe-name')
       try {
-        await mkdir(taskDirLexical, { recursive: true })
-        // The directory may already exist as (or through) a symlink; resolving it and
-        // re-checking is what stops a pre-planted link from redirecting the copy.
-        const taskDirReal = await realpath(taskDirLexical)
+        const real = await realpath(lexical)
         const rootReal = await realpath(root)
-        if (!isInsideDir(rootReal, taskDirReal)) return rejected('unsafe-name')
-        await copyFile(sourceReal, resolve(taskDirReal, `${attachmentId}-${storedName}`))
-        return {
-          ok: true,
-          value: {
-            id: attachmentId,
-            name: storedName,
-            storedPath: relative(rootReal, resolve(taskDirReal, `${attachmentId}-${storedName}`))
-              .split(sep)
-              .join('/'),
-            byteSize: info.size,
-            mime: taskAttachmentMime(storedName),
-          },
-        }
+        if (!isInsideDir(rootReal, real)) return rejected('unsafe-name')
+        const info = await stat(real)
+        if (!info.isFile()) return rejected('not-a-file')
+        return { ok: true, value: await readFile(real) }
       } catch {
-        return { ok: false, error: { code: 'tasks.unavailable' } }
+        return rejected('not-found')
+      }
+    },
+
+    async removeOne(storedPath: string): Promise<void> {
+      if (storedPath === '' || storedPath.includes('\0') || storedPath.includes('..')) return
+      const lexical = resolve(taskAttachmentPath(options.homeDir, storedPath))
+      if (!isInsideDir(root, lexical)) return
+      try {
+        const real = await realpath(lexical)
+        const rootReal = await realpath(root)
+        if (!isInsideDir(rootReal, real)) return
+        await rm(real, { force: true })
+      } catch (error) {
+        console.error(`porcelain: could not remove task attachment ${storedPath}`, error)
       }
     },
 
@@ -95,8 +148,6 @@ export function createTasksAttachments(options: {
       try {
         await rm(taskDirLexical, { recursive: true, force: true })
       } catch (error) {
-        // Best effort by design — the row is already gone, so leftover bytes must not fail
-        // the caller — but the failure gets an owner instead of vanishing.
         console.error(`porcelain: could not discard task attachments for ${taskId}`, error)
       }
     },

@@ -4,7 +4,17 @@ import {
   TASK_COLUMN_LABELS,
   TASK_REQUIRED_COLUMN_IDS,
 } from '@porcelain/client-runtime/tasks'
-import type { TaskStatus } from '@porcelain/contracts/tasks'
+import { TASK_STATUSES, type TaskStatus } from '@porcelain/contracts/tasks'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@renderer/components/ui/alert-dialog'
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -13,30 +23,100 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from '@renderer/components/ui/dropdown-menu'
+import { Input } from '@renderer/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@renderer/components/ui/select'
+import { useHubInventories } from '@renderer/features/projects'
 import { toastingAction } from '@renderer/hooks/mutation-error'
+import { compactInputClass } from '@renderer/lib/controls'
+import { cn } from '@renderer/lib/utils'
 import { TestIds } from '@shared/test-ids'
 import { Columns3 } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { TaskDetailSheet } from './task-detail-sheet'
+import { TaskImageLightbox } from './task-image-lightbox'
+import { taskMatchesQuery } from './task-match'
+import { useTaskImagePreviews } from './task-previews'
 import { useTaskColumnsStore, visibleTaskColumns } from './tasks-columns-store'
 import { useTaskActions } from './tasks-mutations'
 import { useTasks } from './tasks-queries'
-import { TasksQuickAdd } from './tasks-quick-add'
 import { TasksTable } from './tasks-table'
 
+const STATUS_LABELS: Readonly<Record<TaskStatus, string>> = {
+  todo: 'To do',
+  doing: 'Doing',
+  done: 'Done',
+  blocked: 'Blocked',
+}
+
+const STATUS_FILTER_ITEMS = [
+  { label: 'All statuses', value: 'all' },
+  ...TASK_STATUSES.map((status) => ({ label: STATUS_LABELS[status], value: status })),
+]
+
 /**
- * The Tasks Viewer tab: Quick Add, the column picker, and the table itself.
+ * The Tasks Viewer tab: filters, the column picker, and the table itself.
  *
- * This is the one surface that is deliberately NOT scoped to the selected Worktree — the
- * whole point of moving off the per-repository Board is that coordination outlives any one
- * checkout (issue #23, story 36).
+ * Deliberately not scoped to the selected Worktree — coordination outlives any one checkout.
  */
 export function TasksView(): React.JSX.Element {
-  const { rows, environments, error, isLoaded } = useTasks()
+  const { rows, error, isLoaded } = useTasks()
+  const inventories = useHubInventories()
   const order = useTaskColumnsStore((s) => s.order)
   const hidden = useTaskColumnsStore((s) => s.hidden)
   const toggle = useTaskColumnsStore((s) => s.toggle)
   const actions = useTaskActions()
+  const [query, setQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [projectFilter, setProjectFilter] = useState('all')
+  const [openId, setOpenId] = useState<string | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<TaskRow | null>(null)
+  const [preview, setPreview] = useState<{ src: string; name: string } | null>(null)
 
   const visible = visibleTaskColumns(order, hidden)
+  const projectNames = useMemo(() => {
+    const names: Record<string, string> = {}
+    for (const source of inventories) {
+      for (const project of source.inventory.projects) names[project.id] = project.name
+    }
+    return names
+  }, [inventories])
+  const projectOptions = useMemo(() => {
+    const seen = new Set<string>()
+    const options: { id: string; name: string }[] = []
+    for (const row of rows) {
+      const id = row.task.references.projectId
+      if (id === undefined || seen.has(id)) continue
+      seen.add(id)
+      options.push({ id, name: projectNames[id] ?? id })
+    }
+    return options
+  }, [projectNames, rows])
+  const projectFilterItems = useMemo(
+    () => [
+      { label: 'All projects', value: 'all' },
+      ...projectOptions.map((project) => ({ label: project.name, value: project.id })),
+    ],
+    [projectOptions],
+  )
+  const filtered = useMemo(
+    () =>
+      rows.filter((row) => {
+        if (statusFilter !== 'all' && row.task.status !== statusFilter) return false
+        if (projectFilter !== 'all' && row.task.references.projectId !== projectFilter) return false
+        return taskMatchesQuery(row, query, projectNames)
+      }),
+    [projectFilter, projectNames, query, rows, statusFilter],
+  )
+  const imagePreviews = useTaskImagePreviews(filtered)
+  const openRow = rows.find((row) => row.task.id === openId) ?? null
+  const knownTags = useMemo(() => [...new Set(rows.flatMap((row) => row.task.tags))], [rows])
 
   const changeStatus = (row: TaskRow, status: TaskStatus): void => {
     toastingAction('Update Task', () =>
@@ -44,16 +124,75 @@ export function TasksView(): React.JSX.Element {
     )()
   }
 
-  const remove = (row: TaskRow): void => {
+  const confirmDelete = (): void => {
+    if (pendingDelete === null) return
+    const row = pendingDelete
+    setPendingDelete(null)
+    if (openId === row.task.id) setOpenId(null)
     toastingAction('Delete Task', () => actions.remove(row.environmentId, row.task.id))()
   }
 
   return (
     <div data-testid={TestIds.tasksView} className="flex h-full min-h-0 flex-col">
-      <TasksQuickAdd environments={environments} />
-      <div className="flex items-center justify-between px-2 py-1">
-        <span className="text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
-          {rows.length} Task{rows.length === 1 ? '' : 's'}
+      <div className="flex flex-wrap items-center gap-2 border-b px-2 py-1.5">
+        <Input
+          data-testid={TestIds.tasksFilter}
+          aria-label="Filter tasks"
+          placeholder="Filter by anything…"
+          className={cn(compactInputClass, 'min-w-40 flex-1')}
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+        />
+        <Select
+          items={STATUS_FILTER_ITEMS}
+          value={statusFilter}
+          onValueChange={(next: string | null) => setStatusFilter(next ?? 'all')}
+        >
+          <SelectTrigger
+            data-testid={TestIds.tasksFilterStatus}
+            aria-label="Filter by status"
+            size="sm"
+            className="min-w-32"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectItem value="all">All statuses</SelectItem>
+              {TASK_STATUSES.map((status) => (
+                <SelectItem key={status} value={status}>
+                  {STATUS_LABELS[status]}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+        <Select
+          items={projectFilterItems}
+          value={projectFilter}
+          onValueChange={(next: string | null) => setProjectFilter(next ?? 'all')}
+        >
+          <SelectTrigger
+            data-testid={TestIds.tasksFilterProject}
+            aria-label="Filter by project"
+            size="sm"
+            className="min-w-32"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectItem value="all">All projects</SelectItem>
+              {projectOptions.map((project) => (
+                <SelectItem key={project.id} value={project.id}>
+                  {project.name}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+        <span className="ml-auto text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
+          {filtered.length} Task{filtered.length === 1 ? '' : 's'}
         </span>
         <DropdownMenu>
           <DropdownMenuTrigger
@@ -70,7 +209,6 @@ export function TasksView(): React.JSX.Element {
             }
           />
           <DropdownMenuContent align="end">
-            {/* Base UI requires a GroupLabel to sit inside its Group. */}
             <DropdownMenuGroup>
               <DropdownMenuLabel>Columns</DropdownMenuLabel>
               {TASK_COLUMN_IDS.map((column) => (
@@ -97,18 +235,50 @@ export function TasksView(): React.JSX.Element {
         )}
         {error === null && isLoaded && rows.length === 0 && (
           <p data-testid={TestIds.tasksEmpty} className="p-4 text-sm text-muted-foreground">
-            No Tasks yet. Add one above — it lives on the Environment, not in a repository.
+            No Tasks yet. Press ⌘⇧N or the plus on Tasks to add one.
           </p>
         )}
         {error === null && rows.length > 0 && (
           <TasksTable
-            rows={rows}
+            rows={filtered}
             visibleColumns={visible}
+            projectNames={projectNames}
+            imagePreviews={imagePreviews}
             onStatusChange={changeStatus}
-            onDelete={remove}
+            onAskDelete={setPendingDelete}
+            onOpen={(row) => setOpenId(row.task.id)}
+            onPreviewImage={setPreview}
           />
         )}
       </div>
+      <TaskDetailSheet row={openRow} onClose={() => setOpenId(null)} knownTags={knownTags} />
+      <TaskImageLightbox image={preview} onClose={() => setPreview(null)} />
+      <AlertDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingDelete(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {pendingDelete?.task.shortId}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes {pendingDelete?.task.title} from the board. Pictures copied onto it are
+              discarded.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              data-testid={TestIds.tasksDeleteConfirm}
+              onClick={confirmDelete}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

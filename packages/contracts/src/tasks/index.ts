@@ -9,6 +9,7 @@ export * from './tasks.notifications'
 export {
   createTaskProcedure,
   deleteTaskProcedure,
+  getTaskAttachmentProcedure,
   listTasksProcedure,
   type TasksProcedureName,
   tasksProcedures,

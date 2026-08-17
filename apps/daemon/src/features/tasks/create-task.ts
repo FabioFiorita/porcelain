@@ -1,3 +1,5 @@
+import type { TaskAttachmentUpload, TaskPathRef } from '@porcelain/contracts/tasks'
+import { nextTaskShortId } from '@shared/tasks-porcelain'
 import type {
   Task,
   TaskAttachment,
@@ -10,7 +12,13 @@ import type {
   TasksResult,
   TasksStore,
 } from './tasks-capabilities'
-import { defaultStatus, normalizeLinks, normalizeTags, validateTitle } from './tasks-rules'
+import {
+  decodeAttachmentUpload,
+  defaultStatus,
+  normalizeLinks,
+  normalizeTags,
+  validateTitle,
+} from './tasks-rules'
 
 export type CreateTaskInput = {
   title: string
@@ -19,8 +27,11 @@ export type CreateTaskInput = {
   tags?: readonly string[]
   references?: TaskReferences
   links?: readonly TaskLink[]
+  pathRefs?: readonly TaskPathRef[]
   /** Absolute host paths copied into this daemon's attachment store before the row lands. */
   attachmentPaths?: readonly string[]
+  /** Pasted or uploaded bytes the daemon copies into the same store. */
+  attachmentUploads?: readonly TaskAttachmentUpload[]
 }
 
 /**
@@ -52,24 +63,37 @@ export function createCreateTask(deps: {
       }
       copied.push(attachment.value)
     }
-
-    const task: Task = {
-      id,
-      title: title.value,
-      ...(input.notes !== undefined ? { notes: input.notes } : {}),
-      status: defaultStatus(input.status),
-      tags: normalizeTags(input.tags ?? []),
-      references: input.references ?? {},
-      attachments: copied,
-      links: normalizeLinks(input.links ?? []),
-      createdAt: now,
-      updatedAt: now,
+    for (const upload of input.attachmentUploads ?? []) {
+      const decoded = decodeAttachmentUpload(upload.contentBase64)
+      if (!decoded.ok) {
+        await deps.attachments.discard(id)
+        return decoded
+      }
+      const attachment = await deps.attachments.writeBytes(id, upload.name, decoded.value)
+      if (!attachment.ok) {
+        await deps.attachments.discard(id)
+        return attachment
+      }
+      copied.push(attachment.value)
     }
 
-    const written = await deps.store.transact((current) => ({
-      ok: true,
-      value: { tasks: [...current, task], value: task },
-    }))
+    const written = await deps.store.transact((current) => {
+      const task: Task = {
+        id,
+        shortId: nextTaskShortId(current),
+        title: title.value,
+        ...(input.notes !== undefined ? { notes: input.notes } : {}),
+        status: defaultStatus(input.status),
+        tags: normalizeTags(input.tags ?? []),
+        references: input.references ?? {},
+        pathRefs: [...(input.pathRefs ?? [])],
+        attachments: copied,
+        links: normalizeLinks(input.links ?? []),
+        createdAt: now,
+        updatedAt: now,
+      }
+      return { ok: true, value: { tasks: [...current, task], value: task } }
+    })
     if (!written.ok) {
       await deps.attachments.discard(id)
       return written
