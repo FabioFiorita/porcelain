@@ -233,24 +233,30 @@ backlog.
 
 No code changes. Ordered by cascade.
 
-1. **`docs/product.md` rewritten** from bullet summary to the vision in Fabio's own words: the five
-   pillars as the spine, supporting features named as supporting, non-goals explicit.
-2. **ADR 0003 — Canvas is the primitive.** The canvas is the product object; the agent writes
-   anything on it. Intent · Process · Execution · Evidence is a *template*, shipped in the companion
-   skill and offered on the canvas. Product owns primitives; skills own conventions.
-3. **ADR 0004 — Shell layout.** Left = worktree navigator only (projects → worktrees, fast switch,
-   create from local/remote with a repo `create` hook, dispose with a repo `dispose` hook). Right =
-   panel tabs (files, diff, history, PR, tasks, canvas). Bottom = terminal, for a dev server, not an
-   agent. Supersedes or refines ADR 0001.
-4. **Surface decision docs** in paseo's genre, under `docs/surfaces/`: `navigator.md`,
-   `scoped-tree.md`, `story-order.md`, `canvas.md`, `tasks.md`, `git.md`. Written as behavioural
-   contracts now; the "canonical exemplar at `file:line`, copy this shape" pointer is added to each
-   as its slice lands. Exemplars are never fabricated to fit the genre.
-5. **`CLAUDE.md` / `AGENTS.md` realigned** to the above — the glossary's "four-tab canvas" is stale
-   against `nomenclature.md:66`. Load `writing-for-agents` for this. Re-check
-   `lint-legacy-migrations` and the REV-009 vocabulary residue: those gates may now pin the wrong
-   words.
-6. **Grill it** with `ask-matt` / `grilling` before phase two starts.
+Landed:
+
+1. ✅ **`docs/product.md` rewritten** — six pillars, the worktree as core object, the two-modes
+   split, explicit non-goals.
+2. ✅ **ADR 0003 — the worktree is the core object and carries a profile** (pins, hides, layer
+   order; agent-written, never inferred; layers declarative, not heuristic).
+3. ✅ **ADR 0004 — Canvas is the primitive**, the Review is a skill-shipped template, explore-a-flow
+   retires into a template, Canvas carries quantitative evidence as triage.
+4. ✅ **ADR 0005 — shell layout** — navigator left, viewer centre, panel tabs right, terminal strip
+   below; `terminal` and `explore` retired as tab kinds; structure from t3code, content model not.
+5. ✅ **`AGENTS.md` glossary and `nomenclature.md` realigned** to the three ADRs.
+
+Remaining:
+
+6. **Surface decision docs** in paseo's genre, under `docs/surfaces/`: `navigator.md`,
+   `worktree-profile.md` (pillars 2 and 3 — one mechanism, one doc), `canvas.md`, `tasks.md`,
+   `git.md`. Written as behavioural contracts now; the "canonical exemplar at `file:line`, copy this
+   shape" pointer is added to each as its slice lands. Exemplars are never fabricated to fit the
+   genre. Remote gets its doc when pillar 5 comes off hold.
+7. **Grill it** with `ask-matt` / `grilling` before phase two starts.
+
+Deliberately deferred to phase two: `docs/internals/architecture.md` still describes the Review
+template as a daemon surface and mobile as a peer client. The charter describes what is built, and
+phase two changes what is built — it is corrected then, not now.
 
 `docs/user/` (t3code's genre) is deferred — it documents shipped behaviour, and phase two changes
 what has shipped.

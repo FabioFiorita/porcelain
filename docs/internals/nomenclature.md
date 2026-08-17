@@ -36,7 +36,7 @@ parens is the **entry point**; read it for mechanics.
 | Glance | `glance-home.tsx` | Companion home an empty pane renders with a repo open |
 | Tab bar / Tab | `tab-bar.tsx` | Preview = single-click, italic, replaced; pinned = double-click/edit |
 | Split view / pane | `stores/tabs.ts` | Two panes, each its own tabs; "Open to the Side" |
-| Tab kinds | `viewer.tsx` switch | file / source / markdown reader / html preview / diff / commit / search / explore / tasks / terminal / canvas. **The Review is the structured Canvas template**; the `tasks` tab kind carries NO Hub target — the table spans every Environment |
+| Tab kinds | `viewer.tsx` switch | file / source / markdown reader / html preview / diff / commit / changeset / search / tasks / canvas. **Canvas is the primitive and the Review is a template on it** (ADR 0004); the `tasks` tab kind carries NO Hub target — the table spans every Environment. `explore` and `terminal` are retired by ADR 0005 — explore becomes a Canvas template, terminal becomes the bottom strip — and both still ship until phase two removes them |
 | Tasks table | `tasks-view.tsx` | Quick Add · column picker · the table. Rows are labelled with the Environment that owns them; every mutation names that Environment |
 
 **Inside Companion** (sections follow the sidebar tab; the panel title itself never changes)
@@ -62,9 +62,10 @@ Mobile mirrors General · Data · Environments.
 
 | Term | Meaning |
 |---|---|
-| Flow grouping | Built-in architectural grouping of Changes (entry-point → data); it is not a repo-local companion channel |
-| The Review template | The default Canvas template with four sections: **Intent**, **Process**, **Execution**, and **Evidence**. It is not an active lifecycle or repo-local storage model; `porcelain review set` writes the daemon-root Canvas. |
-| Evidence | The Review Canvas template's fourth section: agent-authored checks, Results, and image/video/link proof kept in the daemon-root Canvas bundle |
+| Worktree profile | The pinned paths, hidden paths, and layer order belonging to one Worktree (ADR 0003). Agent-written through the companion skill and CLI, never inferred; the full tree stays reachable. Project-level values in `project.json` are the default it layers over |
+| Flow grouping | Architectural grouping of Changes (entry-point → data). The layer sequence comes from the Worktree profile, not from a guess about framework conventions |
+| The Review template | A Canvas template with four sections: **Intent**, **Process**, **Execution**, and **Evidence**, shipped in the companion skill. Not a structure in the product, not an active lifecycle, not a repo-local storage model; `porcelain review set` writes the daemon-root Canvas |
+| Evidence | Agent-authored checks, Results, and image/video/link proof in the daemon-root Canvas bundle, plus the numbers that direct reading — coverage delta, mutation score, complexity, new dead code — carried as triage, never as a gate |
 | Review annotations | Retired; shipped clients use the structured daemon-root Canvas |
 | Tasks | The daemon-owned table for work across Projects and Environments; the shipped vocabulary replacing Board |
 | Actions | Saved named commands, stored per Project in the owning daemon (`$PORCELAIN_HOME/projects/<projectId>/actions.json`, ADR 0002); agent curates, **human runs** against an explicit Environment + Worktree |
