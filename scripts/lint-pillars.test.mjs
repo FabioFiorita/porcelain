@@ -4,7 +4,7 @@
  * shown failing is a gate nobody should trust.
  */
 import assert from 'node:assert/strict'
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { after, describe, it } from 'node:test'
@@ -14,9 +14,14 @@ const roots = ['apps/web/src/features']
 const scratch = mkdtempSync(join(tmpdir(), 'lint-pillars-'))
 after(() => rmSync(scratch, { recursive: true, force: true }))
 
+// Each fixture directory gets a file: the scanner skips empty ones on purpose, so an
+// empty fixture would silently assert nothing.
 function withDirectories(name, names) {
   const base = join(scratch, name)
-  for (const dir of names) mkdirSync(join(base, roots[0], dir), { recursive: true })
+  for (const dir of names) {
+    mkdirSync(join(base, roots[0], dir), { recursive: true })
+    writeFileSync(join(base, roots[0], dir, 'index.ts'), 'export {}\n')
+  }
   return base
 }
 
@@ -31,6 +36,16 @@ describe('scanDirectories', () => {
 
   it('ignores a watched root that does not exist', () => {
     assert.deepEqual(scanDirectories(join(scratch, 'absent'), roots), [])
+  })
+
+  // Git does not track empty directories, so a leftover in one checkout is invisible in
+  // another. A gate that failed on those would fail for one person and nobody else.
+  it('skips an empty directory and keeps one holding a nested file', () => {
+    const base = join(scratch, 'empty')
+    mkdirSync(join(base, roots[0], 'stale'), { recursive: true })
+    mkdirSync(join(base, roots[0], 'real', 'nested'), { recursive: true })
+    writeFileSync(join(base, roots[0], 'real', 'nested', 'index.ts'), 'export {}\n')
+    assert.deepEqual(scanDirectories(base, roots), ['apps/web/src/features/real'])
   })
 })
 

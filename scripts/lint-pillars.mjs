@@ -36,14 +36,31 @@ const PILLARS = new Set([
   'frozen',
 ])
 
-/** Directories present on disk under every watched root, as repo-relative posix paths. */
+/** Whether a directory holds any file at all, at any depth. */
+function holdsAnyFile(absolute) {
+  for (const entry of readdirSync(absolute, { withFileTypes: true })) {
+    if (entry.isFile()) return true
+    if (entry.isDirectory() && holdsAnyFile(join(absolute, entry.name))) return true
+  }
+  return false
+}
+
+/**
+ * Directories present on disk under every watched root, as repo-relative posix paths.
+ *
+ * EMPTY directories are skipped. Git does not track them, so one checkout can carry a
+ * leftover an identical checkout elsewhere has never seen — and a gate that fails on those
+ * fails for one person and nobody else. A surface is code; an empty folder is debris.
+ */
 export function scanDirectories(baseDir, roots = WATCHED_ROOTS) {
   const found = []
   for (const rootPath of roots) {
     const absolute = join(baseDir, rootPath)
     if (!existsSync(absolute)) continue
     for (const entry of readdirSync(absolute, { withFileTypes: true })) {
-      if (entry.isDirectory()) found.push(posix.join(rootPath, entry.name))
+      if (!entry.isDirectory()) continue
+      if (!holdsAnyFile(join(absolute, entry.name))) continue
+      found.push(posix.join(rootPath, entry.name))
     }
   }
   return found.sort()
