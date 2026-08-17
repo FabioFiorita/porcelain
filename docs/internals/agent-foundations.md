@@ -16,7 +16,7 @@ gaining a parallel `review-security.md` document.
 
 ## Discovery
 
-- The always-on delivery loop and escalation rules live in root [`AGENTS.md`](../../AGENTS.md).
+- Session start, the surface walk, and the delivery loop live in root [`AGENTS.md`](../../AGENTS.md).
 - Browser, mobile, and release procedure detail lives in the focused
   [`web-e2e`](../../.agents/skills/web-e2e/SKILL.md), [`mobile`](../../.agents/skills/mobile/SKILL.md),
   and [`releasing`](../../.agents/skills/releasing/SKILL.md) procedures.

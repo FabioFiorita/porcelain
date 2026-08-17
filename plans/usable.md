@@ -39,24 +39,31 @@ an explicit "new window" button), delete that path too. Check
 **Proof:** Mac Electron, both remotes connected, click worktree A then B. One window. `pnpm --dir
 apps/web exec vitest run src/features/projects/hub-tree.test.tsx`.
 
-## Slice 2 — Cloudflare Tunnel
+## Slice 2 — Cloudflare Tunnel (not Clerk)
 
-**Done when:** `porcelain-daemon serve --cloudflare` publishes the loopback daemon on an
-`https://*.trycloudflare.com` (quick) or named tunnel (SOAP + personal). Pairing is unchanged.
-LAN and Tailscale flags keep working. Fabio opens the Mac app or a browser at that URL and
-reviews the work repo without Tailscale or same-LAN.
+**Do not add Clerk.** T3 Connect is Clerk + a hosted relay + PlanetScale, built for 100k users.
+Paseo's production relay is a hosted Elixir service; the Cloudflare code in that repo is
+*legacy and not deployed*. Porcelain has no users to log in. Identity is already pairing.
 
-**Shape:** wrap `cloudflared` the way `--funnel` wraps Tailscale Funnel. Outbound from the
-daemon host. Never bind `0.0.0.0`. Never send repo contents to Porcelain. Bearer + pairing
-still gate every request.
+**Copy this instead:** T3's `t3 connect link` installs `cloudflared` and the daemon dials
+outbound. Pairing stays. That is the side-project version of what Fabio likes about T3.
+
+**Done when:** `porcelain-daemon serve --cloudflare` publishes loopback on a quick
+`*.trycloudflare.com` URL or a named tunnel (SOAP + personal). Pair once. Open Mac or
+browser at that URL. No Tailscale, no LAN. Existing `--lan` / `--tailnet` / `--funnel` keep
+working.
+
+**Shape:** wrap `cloudflared` the way `--funnel` wraps Tailscale Funnel
+(`apps/daemon/src/features/remote/`). Outbound. Never bind `0.0.0.0`. Never send repo
+contents to a Porcelain server. Bearer + pairing still gate every request. Two daemons =
+two tunnels, two pairing links, two remotes in the Hub.
 
 **Where:** `apps/daemon/src/features/remote/`, `docs/remote-setup.md`,
-`skills/porcelain-remote/`. Copy the Funnel listener shape in `remote-listeners.ts` and
-`remote-funnel.ts`. Two daemons = two tunnels, two pairing links, two remotes in the Hub.
+`skills/porcelain-remote/`.
 
-**Proof:** bring up a named or quick tunnel against the prod daemon on 43117; pair the Mac;
-open a worktree. A second daemon on its own home/port gets its own tunnel. Tests for start,
-stop, and "cloudflared missing" live next to the Funnel tests.
+**Proof:** tunnel against the *dev* daemon first, then one named tunnel on the work daemon
+(43117) and one on personal. Tests for start, stop, and "cloudflared missing" sit next to
+the Funnel tests. Mac: pair, open a worktree, one window.
 
 ## Slice 3 — Create and dispose worktrees
 
