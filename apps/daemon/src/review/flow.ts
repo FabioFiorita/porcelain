@@ -38,8 +38,7 @@ export function layerFor(path: string, layers: readonly Layer[]): string {
 /**
  * Group files into flow layers: bucket by the deepest-matching layer, then emit
  * groups in declared layer order (with `Other` last), each file list sorted by
- * path. The ONE grouping implementation — shared by buildFlow, buildActiveReview,
- * and buildExploreReading.
+ * path. The ONE grouping implementation — shared by buildFlow and buildActiveReview.
  */
 export function groupByLayer<T extends { path: string }>(
   items: readonly T[],

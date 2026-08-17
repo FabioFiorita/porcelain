@@ -263,19 +263,6 @@ export type EvidenceAssetBody = z.infer<typeof evidenceAssetBodySchema>
 export const repoPathInputSchema = z.string().min(1)
 export type RepoPathInput = z.infer<typeof repoPathInputSchema>
 
-export const exploreReadingInputSchema = z
-  .object({
-    repoPath: z.string().min(1),
-    seed: z.discriminatedUnion('kind', [
-      z.object({ kind: z.literal('file'), path: z.string().min(1) }).strict(),
-      z
-        .object({ kind: z.literal('symbol'), path: z.string().min(1), symbol: z.string().min(1) })
-        .strict(),
-    ]),
-  })
-  .strict()
-export type ExploreReadingInput = z.infer<typeof exploreReadingInputSchema>
-
 export const reviewEvidenceDocInputSchema = z
   .object({ repoPath: z.string().min(1), file: z.string().min(1) })
   .strict()
