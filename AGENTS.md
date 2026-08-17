@@ -1,8 +1,9 @@
 # Porcelain
 
-Where agent work becomes trusted work: a review layer for agentic coding (macOS app +
-daemon-served browser + iOS client in progress). Agents keep writing where they already write;
-Porcelain is where you read, annotate, and sign off. Full product story: `docs/product.md`.
+Where agent work becomes trusted work: a review layer for agentic coding (daemon-served browser +
+macOS shell; mobile is frozen). Agents keep writing where they already write; Porcelain is where you
+read what they wrote and decide whether to trust it. The **worktree** is the core object — several
+are read side by side, because several agents run at once. Full product story: `docs/product.md`.
 
 Delivery discipline: polish existing surfaces; releases are **patch** unless asked; 1.0 is far away.
 
@@ -15,8 +16,10 @@ Bare nouns resolve to exact regions of the product — act on them, don't re-ask
 
 | Term | Meaning |
 |---|---|
-| The Review | One unit-of-work story as a four-tab canvas: **Intent · Process · Execution · Evidence**. Product language and code are both Review — REV-009 deleted the `feature` vocabulary and `lint-legacy-migrations` keeps it dead |
-| Evidence | Agent-authored proof the loop closed: checks + Results documents + an image gallery in the daemon-root Canvas |
+| Worktree | The core object (ADR 0003). Everything scopes to one. Its **worktree profile** carries pinned paths, hidden paths, and layer order — agent-written through the skill/CLI, never inferred, and the full tree stays reachable |
+| Canvas | The product primitive (ADR 0004): one free HTML-first surface an agent puts diagrams, tables, flow explanations, and write-ups on |
+| The Review | A **template** on the Canvas — Intent · Process · Execution · Evidence — shipped in the companion skill. Product owns primitives, skills own conventions. `lint-legacy-migrations` keeps the retired `feature` vocabulary dead |
+| Evidence | Agent-authored proof plus the numbers that direct reading — coverage delta, mutation score, complexity, new dead code — as triage, never as a gate |
 | Viewer | The central panel of the app. Never "editor" |
 | Daemon | The headless Electron-free backend (`apps/daemon`); the shell spawns and babysits it |
 | Project companion | Repo-local `.porcelain/` for migration-era inputs and remaining agent conveniences; canonical Review data is daemon-root Canvas metadata |
