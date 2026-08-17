@@ -1,3 +1,18 @@
+## [0.53.1](https://github.com/FabioFiorita/porcelain/compare/v0.53.0...v0.53.1) (2026-08-17)
+
+### Features
+
+* **companion:** remove legacy migration flow ([88607a5](https://github.com/FabioFiorita/porcelain/commit/88607a5e87d94a76df2751e1e05b7ba0d8f29901))
+* **dev:** let a dev browser in without a pairing link ([9dfb4c9](https://github.com/FabioFiorita/porcelain/commit/9dfb4c9bb9f43091a5d90b702aa32d97a38fd02f))
+* **dev:** pair on boot and build a playground fleet ([db52b19](https://github.com/FabioFiorita/porcelain/commit/db52b194047f4b35b1a2c9b0dfc6db30ed717690))
+* **dev:** seed the dev daemon with state worth reviewing ([c50077f](https://github.com/FabioFiorita/porcelain/commit/c50077ff0aebe70a866d8de501f7daa0db251527))
+* **ui:** adopt the base-rhea shadcn preset ([#32](https://github.com/FabioFiorita/porcelain/issues/32)) ([0221059](https://github.com/FabioFiorita/porcelain/commit/022105942182f046c8b68d31d0a938fc787b70e3))
+
+### Bug Fixes
+
+* **quality:** let lint-pillars ignore empty directories ([a585972](https://github.com/FabioFiorita/porcelain/commit/a585972ddb3774af82787d8cb958f880f7cc477b))
+* **shell:** stop the preload bridge parsing through Zod's JIT ([#33](https://github.com/FabioFiorita/porcelain/issues/33)) ([975e6bf](https://github.com/FabioFiorita/porcelain/commit/975e6bf644c942c7f453b4a064f6faf4e1f43aea))
+
 ## [0.53.0](https://github.com/FabioFiorita/porcelain/compare/v0.52.1...v0.53.0) (2026-08-16)
 
 ### Features

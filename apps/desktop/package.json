@@ -1,7 +1,7 @@
 {
   "name": "@porcelain/desktop",
   "private": true,
-  "version": "0.53.0",
+  "version": "0.53.1",
   "description": "Where agent work becomes trusted work.",
   "main": "./out/main/index.js",
   "author": "Fabio Fiorita <fabiolfp@gmail.com>",

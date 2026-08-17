@@ -1,6 +1,6 @@
 ---
 name: mobile
-version: 0.53.0
+version: 0.53.1
 metadata:
   internal: true
 description: Fingerprint-gated iOS and Android build, install, deliver, and proof loop for apps/mobile, including semantic Android emulator control through stable React Native testIDs, accessibility labels, adb, and uiautomator. Load when building, installing, delivering, or taking mobile runtime evidence — not for every mobile file edit.
