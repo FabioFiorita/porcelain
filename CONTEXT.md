@@ -1,6 +1,6 @@
 # Porcelain domain context
 
-Porcelain is a one-window development hub for inspecting and coordinating agent-created work across multiple environments. In the current direction it is not a chat-based agent runner; it provides the workspace, Git, terminal, development-server, Tasks, and agent-authored Canvas surfaces around that work. A future global Terminal may host tools such as Herdr, but that is outside the current version.
+Porcelain is the review layer for agent-created work: a one-window hub for reading what agents wrote and deciding whether to trust it, across multiple Environments. The Worktree is the core object — several are read side by side, because several agents run at once. It is not an agent runner; it provides the navigation, Git, Canvas, Tasks, and development-server surfaces around work that happens elsewhere.
 
 ## Workspace
 
@@ -13,8 +13,16 @@ An environment-local repository or workspace record. A repository present in mor
 _Avoid_: Global project
 
 **Worktree**:
-A Git checkout representing one line of development inside a Project. Every Git Worktree is a first-class navigation target: it is the place where the developer inspects code, diffs, Git state, development servers, and the agent-authored Canvas surface. Porcelain discovers and displays Worktrees and may help create them, but has no destructive Delete Worktree control in v1; deletion remains an explicit terminal or agent operation.
+A Git checkout representing one line of development inside a Project, and Porcelain's core object. Every Worktree is a first-class navigation target: the place where the developer inspects code, diffs, Git state, development servers, and Canvases. Several Worktrees are read side by side without opening a second window, because several agents work at once. Porcelain creates Worktrees, with the human choosing the branch and the destination on disk, and disposes of them by explicit confirmed choice. Each Worktree carries a Worktree profile.
 _Avoid_: Thread, session
+
+**Worktree profile**:
+The pinned paths, hidden paths, and ordered Layers belonging to one Worktree. It expresses what this task needs to see and in what order, so a web change and a mobile change in one repository get a different tree and a different story. A profile is personal: two developers working on different parts of the same monorepo want different focus and different Layers, so a profile is never shared, never promoted into Git, and never inherited. It dies with its Worktree, because it describes one task and stale focus reads as deliberate. The full tree always stays reachable — hiding is focus, never access control. Porcelain provides the means to read and write profiles and never writes one on its own initiative; whether a profile is set when a Worktree is created is the user's instruction to their own agent.
+_Avoid_: Filter, scope, workspace settings
+
+**Layer**:
+One named group in a Worktree profile's ordered sequence, matching a set of paths. Layers turn a set of changed files into a story that follows the application's own line — view, transport, controller, service, repository, schema, or whatever a given codebase actually has. Layers are declared, never inferred: a codebase with no declared Layers has no story order yet, and a changed file matching no Layer is still shown, plainly, at the end.
+_Avoid_: Category, folder, tag
 
 **Hub**:
 The single application shell that keeps known Environments connected and exposes their Projects and Worktrees without opening a separate window. Switching context preserves the Viewer tabs and split panes belonging to the previous Worktree.
@@ -35,16 +43,16 @@ The default structured Canvas template with four explicit tabs: Intent, Process,
 _Avoid_: The only proof surface
 
 **Evidence**:
-Agent-authored proof or context recorded inside a Canvas. Evidence includes structured checks, Results documents, and visual records such as images and video stored in the owning Project store; the user may explicitly promote the Canvas and its assets into tracked repo `.porcelain/` data. Porcelain visualizes those assets but does not decide how the agent records them.
-_Avoid_: Screenshot gallery
+Agent-authored proof or context recorded inside a Canvas. Evidence includes structured checks, Results documents, visual records such as images and video, and the quantitative measures of a change — coverage delta, mutation score, complexity, new dead code. The agent computes every one of them and writes them in; Porcelain renders them and never runs a suite or an analyser itself. Numbers are reading triage — they say where attention should go, never whether the work is correct. Assets live in the owning Project store, and the user may explicitly promote the Canvas and its assets into tracked repo `.porcelain/` data.
+_Avoid_: Screenshot gallery, quality gate, score
 
 **Tasks**:
 A daemon-owned, table-first, GitHub Projects-like data table for work across Projects. Each Environment daemon is authoritative for its own Tasks table. It supports configurable columns such as status and tags, with Project, Environment, and Worktree references available as fields. The Hub can aggregate Tasks from connected Environments; mutations always target an explicit daemon. Quick Add creates Tasks and can attach copied files or links. Saved views, filters, and alternate layouts may be added later without changing the data model.
 _Avoid_: Per-repository kanban, project board, Board
 
 **Action**:
-A saved command scoped to a Project and aggregated into the Hub's top-corner menu for explicit human execution against a selected Environment and Worktree. Every mutation requires an explicit target; the Hub never guesses which copy of a repository should run it.
-_Avoid_: Automatically running task, agent action
+A saved command scoped to a Project and run in a terminal against an explicitly selected Environment and Worktree. Most Actions are pressed by a human from the Hub's menu — a development server, a build, a reset. An Action may instead be marked to run when a Worktree is created or disposed of, making it that Project's setup or teardown; the explicit human act is creating or disposing of the Worktree, and no agent ever fires one. Actions and lifecycle hooks are one concept with one store, distinguished only by that marking. Every mutation requires an explicit target; the Hub never guesses which copy of a repository should run it.
+_Avoid_: Agent-triggered automation, background job, separate hook concept
 
 ## Persistence boundaries
 

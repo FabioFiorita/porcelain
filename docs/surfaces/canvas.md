@@ -21,9 +21,16 @@ a skill where it can change without a release and where a user who works differe
 template. Two navigation models for agent-authored explanation is the specific mistake that
 retired explore-a-flow.
 
-**Canvas carries quantitative evidence.** Coverage delta, mutation score, cognitive complexity, and
-new dead code belong on the change beside its story — as **reading triage**, not as decoration and
-not as a gate. When several agent changes land at once and reading time is finite, a tight diff with
+**Canvases are agent-owned and read-only to humans.** That provenance is what makes a Canvas
+evidence: the moment a human can edit one, it stops being proof of what the agent did. Reacting to a
+Canvas is comments — a different concept with a different lifetime.
+
+**Canvas carries quantitative evidence, and the agent computes it** (ADR 0007). Coverage delta,
+mutation score, cognitive complexity, and new dead code belong on the change beside its story.
+Porcelain renders these numbers and never runs a suite, a coverage pass, or an analyser — that is
+cockpit breadth, it would demand per-repository knowledge of every toolchain, and it would quietly
+restrict the product to ecosystems it had been taught. They are **reading triage**, not decoration
+and not a gate. When several agent changes land at once and reading time is finite, a tight diff with
 a high mutation score and clean structure can be skimmed; thin coverage over a complex service
 cannot. Metrics never decide whether the work is correct — they cannot detect a well-built wrong
 feature — they decide where the reading goes.

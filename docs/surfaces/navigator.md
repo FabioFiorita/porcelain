@@ -30,19 +30,27 @@ guessing it well is not a substitute for asking.
 dependencies, seeds a database, links a config, writes a worktree profile, or tears any of that
 down. Porcelain has no opinion about what belongs in them.
 
+**Ordering is fixed.** Creation Actions run **after** the checkout exists, because the hook needs a
+directory to install into. Disposal Actions run **before** removal, because teardown needs to reach
+the files it is cleaning up.
+
 **Hook failure is visible and non-destructive.** A failing `create` hook leaves the worktree in
 place with the failure shown, rather than rolling back work the user may want to inspect. A failing
-`dispose` hook stops disposal rather than deleting a worktree whose teardown did not complete.
+`dispose` hook stops disposal rather than deleting a worktree whose teardown did not complete. You
+would rather inspect a broken worktree than lose one.
 
 **Disposal is destructive and always confirmed.** It removes a worktree. It is never the accidental
 outcome of a mis-click, and it never runs without the human choosing it.
 
-## Relationship to Actions
+## Hooks are Actions
 
-Hooks and Actions are the same idea at different lifecycle points, and they share a store
-(`$PORCELAIN_HOME/projects/<projectId>/actions.json`, ADR 0002): saved named commands, agent-curated
-and human-run. Hooks are the two Actions bound to worktree creation and disposal. Adding a second,
-parallel mechanism for "a command this repository runs" is the mistake to avoid.
+There is no separate hook concept. An Action is a saved command that runs in a terminal; most are
+pressed by a human, and an Action may instead be **marked to run on worktree creation or disposal**.
+That marking is the only difference. One store
+(`$PORCELAIN_HOME/projects/<projectId>/actions.json`, ADR 0002), one editing surface, one execution
+path. The explicit human act behind a lifecycle Action is creating or disposing of the worktree —
+no agent ever fires one. Adding a second, parallel mechanism for "a command this repository runs" is
+the mistake to avoid.
 
 ## Proving it
 

@@ -252,10 +252,30 @@ Remaining:
    `git.md`. Written as behavioural contracts; no exemplar pointers are invented — the "canonical
    exemplar at `file:line`, copy this shape" line is added to each as its slice lands. Remote gets
    its doc when pillar 5 comes off hold.
-7. **Grill it.** `ask-matt` routes a working-directory idea to **`/grill-with-docs`** — stateful,
-   and it leaves its trail in `CONTEXT.md` and ADRs, which is what this tree wants. Both skills are
-   user-invoked (`ask-matt` is `disable-model-invocation: true`), so this step is Fabio's to run.
-   It is the phase-one close and the gate on phase two.
+7. ✅ **Grilled** with `/grill-with-docs` over four rounds. Settled: Actions and lifecycle hooks are
+   one concept distinguished by a marking; Canvases stay read-only to humans; profiles are wholly
+   personal (ADR 0006, retiring promoted focus from #26); a Layer is an ordered named group of path
+   globs; ordering is a pure `client-runtime` function; the profile CLI is whole-document get/set; a
+   profile dies with its worktree; agents compute evidence and Porcelain renders it (ADR 0007);
+   mobile gets none of this. `CONTEXT.md` gained **Worktree profile** and **Layer** and had its
+   frame, Worktree, Action, and Evidence entries corrected.
+
+## Phase two — order of work (settled in the grill)
+
+1. **Layout, region by region, left rail first, no feature flag.** Once the navigator owns the left
+   and the panel owns the right, the surfaces with nowhere to go identify themselves — which is the
+   signal that drives step 2. A half-migrated layout behind a toggle doubles the maintained surface
+   during the riskiest phase, for a product with one user.
+2. **Deletion, default-delete.** A directory survives only if a pillar doc names it or Fabio does.
+   Default-keep would let every filler surface survive its own individual review. The full
+   directory-to-pillar mapping is produced and shown before anything is removed; it is never
+   inferred from LOC counts.
+3. **`lint-pillars.mjs` lands in the same commit as the first deletion.** One entry per feature
+   directory (`apps/*/src/features/*`, `apps/web/src/components/*`), status
+   `pillar-1`…`pillar-6` / `supporting` / `frozen`, stored at
+   `scripts/quality/pillar-manifest.json` beside the other baselines. An unlisted directory fails.
+4. **`react-doctor install`** lands with the deletion pass, so its ratchet pins surviving code.
+5. **Tasks UI** comes after phase two — it is the healthiest pillar and competes for the same hours.
 
 Deliberately deferred to phase two: `docs/internals/architecture.md` still describes the Review
 template as a daemon surface and mobile as a peer client. The charter describes what is built, and

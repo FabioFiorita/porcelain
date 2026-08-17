@@ -26,9 +26,23 @@ a file because Porcelain decided it was uninteresting.
 hidden, no story order. This is the default and it is a good default — a stable worktree usually
 keeps it.
 
-**Profiles layer over project defaults.** `<repo>/.porcelain/project.json` already carries
-`hiddenPaths` and `pinnedPaths` (ADR 0002); those remain the project-wide baseline and a worktree
-profile overrides them. Do not fork a second store.
+**Profiles are personal and private** (ADR 0006). Never shared, never promoted into Git, never
+inherited. `hiddenPaths` and `pinnedPaths` leave the tracked `project.json` overlay; committing
+someone's focus for a teammate to inherit is incoherent when two people in one monorepo work on
+unrelated parts of it. Do not fork a second store, and do not reintroduce a shared baseline.
+
+**A profile dies with its worktree.** It describes one task. A worktree recreated on the same branch
+later is usually different work, and resurrected focus reads as deliberate when it is merely stale.
+Canvases outlive disposal because they are evidence; a profile is convenience.
+
+**Reads and writes are whole-document.** `porcelain worktree profile get` and `porcelain worktree
+profile set`, the latter taking the entire profile as JSON. No granular pin/unpin/hide/layer-move
+verbs — they multiply argument shapes and half-written states, and agents write whole documents more
+reliably than they chain edits.
+
+**Ordering lives in `client-runtime`** as a pure function over the changed-file list and the profile.
+Not daemon-side, which would couple the `git` domain to profile data across a boundary; not
+per-client, which duplicates it.
 
 **Porcelain ships the mechanism, not the policy.** CLI verbs and a companion skill are the entire
 product surface. Whether a profile is written when a worktree is created, and what goes in it, is
