@@ -30,7 +30,7 @@ Coding agents generate faster than anyone can trust. Every tool in this space ra
 - **Search & finders**: repo-wide code search, fuzzy file finder, find-in-file, find references
 - **Secure remote access**: LAN, private Tailscale, or Tailscale Funnel; one-time connection links and individually revocable devices
 - **Light, dark, and system themes**, themed end to end
-- **Multi-window**: one repo per window, each window free to pick its own environment (local or remote)
+- **One window**: projects and worktrees from every connected daemon live in one Hub; clicking a worktree never opens a second window
 - **Auto-updating** builds (signed and notarized on macOS)
 
 ## Install

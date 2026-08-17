@@ -41,10 +41,9 @@ In priority order. Pillars 2 and 3 are one mechanism — the worktree profile �
    write-ups. HTML-first, because humans read it faster. Canvas carries the quantitative evidence
    too — coverage, mutation score, complexity, new dead code — not as decoration but as **reading
    triage**: which of today's changes deserve line-by-line attention, and which can be skimmed.
-5. **Remote.** *(Held until the rest are in daily use.)* The daemon dials outbound so remote access
-   costs no port forwarding, no VPN install, no firewall work. Local is never the lesser path: most
-   users will run Porcelain beside their code, and the macOS shell must be worth as much to them as
-   remote is to someone with a second machine.
+5. **Remote.** Cloudflare Tunnel in front of loopback. Pairing stays. LAN and Tailscale stay
+   optional. Two daemons (work and personal) are two tunnels. The Mac app is a viewer of those
+   daemons, not a second product.
 6. **Tasks.** One cross-project board, quick to add to — especially screenshots — with tags,
    statuses, and descriptions. Agents read it and pick work up. It does not need to chain into
    Canvas or execution to earn its place.
