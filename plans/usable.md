@@ -48,20 +48,22 @@ Paseo's production relay is a hosted Elixir service; the Cloudflare code in that
 outbound. Pairing stays. That is the side-project version of T3 Connect.
 
 **Done when:** `porcelain-daemon serve --cloudflare` publishes loopback on a quick
-`*.trycloudflare.com` URL or a named tunnel. Pair once. Open Mac or browser at that URL.
-No Tailscale, no LAN. Existing `--lan` / `--tailnet` / `--funnel` keep working.
+`*.trycloudflare.com` URL. Pair once. Open Mac or browser at that URL. No Tailscale
+required. `--lan` and `--tailnet` stay. `--funnel` is gone — Cloudflare is the public
+HTTPS path.
 
-**Shape:** wrap `cloudflared` the way `--funnel` wraps Tailscale Funnel
+**Shape:** wrap `cloudflared` the way Funnel used to wrap Tailscale
 (`apps/daemon/src/features/remote/`). Outbound. Never bind `0.0.0.0`. Never send repo
 contents to a Porcelain server. Bearer + pairing still gate every request. Two daemons =
-two tunnels, two pairing links, two remotes in the Hub.
+two tunnels, two pairing links, two remotes in the Hub. Tailscale and Cloudflare are
+exclusive. Clients try LAN, then Tailscale, then Cloudflare.
 
 **Where:** `apps/daemon/src/features/remote/`, `docs/remote-setup.md`,
 `skills/porcelain-remote/`.
 
 **Proof:** tunnel against the *dev* daemon first, then a named tunnel on a second daemon
 with its own home and port. Tests for start, stop, and "cloudflared missing" sit next to
-the Funnel tests. Mac: pair, open a worktree, one window.
+the Cloudflare tests. Mac: pair, open a worktree, one window.
 
 ## Slice 3 — Create and dispose worktrees
 

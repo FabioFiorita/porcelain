@@ -6,35 +6,35 @@ import { classifyRemoteFailure, mapAdapterStatus, orderWebRemoteEndpoints } from
 
 const LAN = 'http://192.168.1.50:43117'
 const TAILNET = 'http://100.64.0.1:43117'
-const FUNNEL = 'https://beelink.example.ts.net'
+const CLOUDFLARE = 'https://random-words-here.trycloudflare.com'
 const LOOPBACK = 'http://127.0.0.1:43117'
 
 describe('orderWebRemoteEndpoints', () => {
-  it('delegates to orderRemoteEndpoints: preferred, last-known-good, then rest', () => {
+  it('delegates to orderRemoteEndpoints: LAN, then Tailscale, then Cloudflare', () => {
     const group = {
-      endpoints: [LAN, TAILNET, FUNNEL],
-      preferredEndpoint: FUNNEL,
-      url: LAN,
+      endpoints: [CLOUDFLARE, TAILNET, LAN],
+      preferredEndpoint: CLOUDFLARE,
+      url: TAILNET,
     }
     expect(orderWebRemoteEndpoints(group)).toEqual(orderRemoteEndpoints(group))
-    expect(orderWebRemoteEndpoints(group)).toEqual([FUNNEL, LAN, TAILNET])
+    expect(orderWebRemoteEndpoints(group)).toEqual([LAN, TAILNET, CLOUDFLARE])
   })
 
-  it('drops a stale preferred address and does not rank by kind', () => {
+  it('ignores stored preference and still ranks by kind', () => {
     const stalePreferred = {
-      endpoints: [LOOPBACK, TAILNET, LAN, FUNNEL],
+      endpoints: [LOOPBACK, TAILNET, LAN, CLOUDFLARE],
       preferredEndpoint: 'http://192.168.9.9:43117',
       url: LAN,
     }
     expect(orderWebRemoteEndpoints(stalePreferred)).toEqual(orderRemoteEndpoints(stalePreferred))
-    expect(orderWebRemoteEndpoints(stalePreferred)).toEqual([LAN, LOOPBACK, TAILNET, FUNNEL])
+    expect(orderWebRemoteEndpoints(stalePreferred)).toEqual([LAN, TAILNET, LOOPBACK, CLOUDFLARE])
 
     const kindOrder = {
-      endpoints: [LOOPBACK, TAILNET, LAN, FUNNEL],
-      preferredEndpoint: FUNNEL,
+      endpoints: [LOOPBACK, TAILNET, LAN, CLOUDFLARE],
+      preferredEndpoint: CLOUDFLARE,
       url: LAN,
     }
-    expect(orderWebRemoteEndpoints(kindOrder)).toEqual([FUNNEL, LAN, LOOPBACK, TAILNET])
+    expect(orderWebRemoteEndpoints(kindOrder)).toEqual([LAN, TAILNET, LOOPBACK, CLOUDFLARE])
   })
 })
 

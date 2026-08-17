@@ -22,8 +22,8 @@ import { createProjectDataOperations, type ProjectDataOperations } from '../feat
 import type { ProjectsOperations } from '../features/projects'
 import {
   accessSnapshot,
+  cloudflareStatus,
   createRemoteOperations,
-  funnelStatus,
   ifaceListenerPort,
   issuePairingGrant,
   lanBindError,
@@ -33,10 +33,10 @@ import {
   type RemoteOperations,
   revokeAuthorizedClient,
   revokePairingGrant,
-  startFunnel,
+  startCloudflare,
   startLanListener,
   startTailnetListener,
-  stopFunnel,
+  stopCloudflare,
   stopLanListener,
   stopTailnetListener,
   tailnetBindError,
@@ -144,11 +144,11 @@ export function createDaemonOperations(options: {
         stopLanListener,
         ifaceListenerPort,
       },
-      funnel: { status: funnelStatus, start: startFunnel, stop: stopFunnel },
+      cloudflare: { status: cloudflareStatus, start: startCloudflare, stop: stopCloudflare },
       env: {
         tailnetBindForced: () => process.env.PORCELAIN_TAILNET_BIND === '1',
         lanBindForced: () => process.env.PORCELAIN_LAN_BIND === '1',
-        funnelBindForced: () => process.env.PORCELAIN_FUNNEL_BIND === '1',
+        cloudflareBindForced: () => process.env.PORCELAIN_CLOUDFLARE_BIND === '1',
       },
     }),
     tasks: createTasksOperations({

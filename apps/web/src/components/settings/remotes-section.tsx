@@ -1,4 +1,4 @@
-import { endpointKind } from '@porcelain/contracts'
+import { endpointKind, isCloudflareEndpoint } from '@porcelain/contracts'
 import { Badge } from '@renderer/components/ui/badge'
 import { Button } from '@renderer/components/ui/button'
 import { Input } from '@renderer/components/ui/input'
@@ -10,7 +10,6 @@ import {
   useEnvironmentStatuses,
   useOpenWindowInEnvironment,
   usePairEnvironmentConnection,
-  usePreferEnvironmentEndpoint,
   useRemoteEnvironments,
   useRemoveEnvironmentEndpoint,
   useRemoveRemoteEnvironment,
@@ -20,7 +19,7 @@ import { isBrowser } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
 import { platformLabel } from '@shared/platform'
 import { TestIds } from '@shared/test-ids'
-import { Check, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import { useState } from 'react'
 import { BrowserRemotesSection } from './browser-remotes-section'
 
@@ -42,7 +41,7 @@ function endpointLabel(url: string): string {
     case 'tailnet':
       return 'Tailscale'
     case 'other':
-      return 'Funnel / Internet'
+      return isCloudflareEndpoint(url) ? 'Cloudflare' : 'Internet'
   }
 }
 
@@ -71,7 +70,6 @@ function ElectronRemotesSection(): React.JSX.Element {
   const { disconnect, isPending: isDisconnecting } = useDisconnectRemoteEnvironment()
   const { open: openInEnv } = useOpenWindowInEnvironment()
   const { remove, pendingId: removingId } = useRemoveRemoteEnvironment()
-  const { prefer: preferEndpoint } = usePreferEnvironmentEndpoint()
   const { remove: removeEndpoint } = useRemoveEnvironmentEndpoint()
   const [connectionLink, setConnectionLink] = useState('')
   const [pairingTargetId, setPairingTargetId] = useState<string | null>(null)
@@ -200,7 +198,7 @@ function ElectronRemotesSection(): React.JSX.Element {
 
               <div className="flex flex-col gap-1 rounded-md border border-border/60 p-2">
                 <p className="px-1 text-2xs font-medium tracking-wider text-muted-foreground uppercase">
-                  Connections · primary route first
+                  Connections · LAN, then Tailscale, then Cloudflare
                 </p>
                 {environment.endpoints.map((endpoint) => (
                   <EndpointRow
@@ -208,8 +206,6 @@ function ElectronRemotesSection(): React.JSX.Element {
                     environmentId={environment.id}
                     key={endpoint.url}
                     onRemove={() => removeEndpoint({ id: environment.id, url: endpoint.url })}
-                    onPrefer={() => preferEndpoint({ id: environment.id, url: endpoint.url })}
-                    preferred={endpoint.preferred}
                     removable={environment.endpoints.length > 1}
                   />
                 ))}
@@ -244,8 +240,9 @@ function ElectronRemotesSection(): React.JSX.Element {
             className="font-mono"
           />
           <p className="text-xs text-muted-foreground">
-            Pair LAN first, then add Tailscale or Funnel as the fallback route. Each link is
-            verified against the same daemon before it joins the group.
+            Pair LAN first, then add Tailscale or Cloudflare as the fallback. Each link is verified
+            against the same daemon before it joins the group. Clients try LAN, then Tailscale, then
+            Cloudflare.
           </p>
           <div className="flex items-center gap-2">
             <Button
@@ -299,64 +296,43 @@ function ElectronRemotesSection(): React.JSX.Element {
 function EndpointRow({
   endpoint,
   environmentId,
-  onPrefer,
   onRemove,
-  preferred,
   removable,
 }: {
   endpoint: { url: string; kind: 'lan' | 'tailnet' | 'other'; preferred: boolean }
   environmentId: string
-  onPrefer: () => void
   onRemove: () => void
-  preferred: boolean
   removable: boolean
 }): React.JSX.Element {
   return (
     <div className="flex items-center justify-between gap-2 rounded-sm px-1 py-1">
       <div className="flex min-w-0 items-center gap-2">
-        <Badge variant={preferred ? 'default' : 'outline'} className="shrink-0 rounded-md text-2xs">
+        <Badge variant="outline" className="shrink-0 rounded-md text-2xs">
           {endpointLabel(endpoint.url)}
         </Badge>
         <span className="truncate font-mono text-2xs-plus text-muted-foreground">
           {endpoint.url}
         </span>
       </div>
-      <div className="flex shrink-0 items-center gap-1">
-        {preferred ? (
-          <Badge variant="secondary" className="gap-1 rounded-md text-2xs">
-            <Check data-icon="inline-start" /> Primary
-          </Badge>
-        ) : (
-          <Button
-            variant="ghost"
-            size="sm"
-            className={compactButtonClass}
-            onClick={onPrefer}
-            aria-label={`Make ${endpointLabel(endpoint.url)} primary`}
-          >
-            Make primary
-          </Button>
-        )}
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                disabled={!removable}
-                onClick={onRemove}
-                aria-label={`Remove ${endpointLabel(endpoint.url)} connection`}
-                data-environment-id={environmentId}
-              >
-                <X />
-              </Button>
-            }
-          />
-          <TooltipContent>
-            {removable ? 'Remove connection' : 'A group needs one connection'}
-          </TooltipContent>
-        </Tooltip>
-      </div>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              disabled={!removable}
+              onClick={onRemove}
+              aria-label={`Remove ${endpointLabel(endpoint.url)} connection`}
+              data-environment-id={environmentId}
+            >
+              <X />
+            </Button>
+          }
+        />
+        <TooltipContent>
+          {removable ? 'Remove connection' : 'A group needs one connection'}
+        </TooltipContent>
+      </Tooltip>
     </div>
   )
 }

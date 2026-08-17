@@ -36,14 +36,14 @@ Usage:
   porcelain-daemon access list
   porcelain-daemon access revoke <id>
   porcelain-daemon share status
-  porcelain-daemon share lan|tailnet|funnel on|off
+  porcelain-daemon share lan|tailnet|cloudflare on|off
 
 Options:
   --port <n>           Listen port for loopback AND LAN/tailnet (default ${DEFAULT_PORT})
   --user-data <path>   Config dir (default ${DEFAULT_USER_DATA})
-  --tailnet            Also bind the Tailscale interface (same --port)
   --lan                Also bind RFC1918 LAN addresses (same --port)
-  --funnel             Publish loopback over public Tailscale Funnel HTTPS
+  --tailnet            Also bind the Tailscale interface (same --port)
+  --cloudflare         Publish loopback over a Cloudflare quick tunnel
   --allowed-origin <origin>
                        Trust a browser Hub origin for cross-origin API/WS (repeatable)
   --no-watchdog        Disable stdin parent-death watchdog (required under systemd)
@@ -54,20 +54,22 @@ Host-management options:
   --base-url <url>     Reachable URL to embed in a new connection link
 
 Examples:
-  npx porcelain-daemon@latest serve --tailnet
-  npx porcelain-daemon@latest serve --tailnet --funnel
-  npx porcelain-daemon@latest access issue --name "My iPhone"
+  npx porcelain-daemon@latest serve --lan
+  npx porcelain-daemon@latest serve --lan --tailnet
+  npx porcelain-daemon@latest serve --lan --cloudflare
+  npx porcelain-daemon@latest access issue --name "My phone"
   npx porcelain-daemon@latest serve --port 43118 --lan
 
 Env (same as the raw daemon; flags set these when passed):
   PORCELAIN_USER_DATA, PORCELAIN_DAEMON_PORT, PORCELAIN_ADMIN_TOKEN,
   PORCELAIN_ALLOWED_ORIGIN (comma-separated), PORCELAIN_ALLOWED_ORIGINS (comma-separated),
-  PORCELAIN_TAILNET_BIND, PORCELAIN_LAN_BIND, PORCELAIN_FUNNEL_BIND,
+  PORCELAIN_TAILNET_BIND, PORCELAIN_LAN_BIND, PORCELAIN_CLOUDFLARE_BIND,
   PORCELAIN_NO_STDIN_WATCHDOG
 
 Notes:
   • Always binds 127.0.0.1; --tailnet / --lan add private interfaces only
-    (never 0.0.0.0). Funnel proxies only the loopback listener.
+    (never 0.0.0.0). Cloudflare proxies only the loopback listener.
+  • --tailnet and --cloudflare are mutually exclusive. LAN can combine with either.
   • Host administration lives at ~/.porcelain/admin-token (0600) and is never shared.
   • Pairing links are one-time credentials; clients receive individually revocable access.
   • Use @latest so each invoke can pick up a newer published package.
@@ -90,7 +92,7 @@ function parseArgs(argv) {
     userData: DEFAULT_USER_DATA,
     tailnet: false,
     lan: false,
-    funnel: false,
+    cloudflare: false,
     noWatchdog: false,
     allowedOrigins: [],
     help: false,
@@ -122,10 +124,13 @@ function parseArgs(argv) {
       i += 1
       continue
     }
-    if (arg === '--funnel') {
-      opts.funnel = true
+    if (arg === '--cloudflare') {
+      opts.cloudflare = true
       i += 1
       continue
+    }
+    if (arg === '--funnel') {
+      fail('Tailscale Funnel was removed. Use --cloudflare for public HTTPS.')
     }
     if (arg === '--no-watchdog') {
       opts.noWatchdog = true
@@ -240,12 +245,12 @@ function adminCommandOptions(argv) {
 }
 
 async function suggestedBaseUrl(client) {
-  const funnel = await client.query('funnelStatus').catch(() => null)
-  if (funnel?.url) return funnel.url
+  const lan = await client.query('lanStatus').catch(() => null)
+  if (lan?.numericUrl || lan?.url) return lan.numericUrl || lan.url
   const tailnet = await client.query('tailnetStatus').catch(() => null)
   if (tailnet?.url) return tailnet.url
-  const lan = await client.query('lanStatus').catch(() => null)
-  return lan?.numericUrl || lan?.url || null
+  const cloudflare = await client.query('cloudflareStatus').catch(() => null)
+  return cloudflare?.url || null
 }
 
 async function runAccessCommand(argv) {
@@ -288,22 +293,25 @@ async function runShareCommand(argv) {
   const [target, value] = options.args
   const client = adminClient(options.daemonUrl, ensureAdminToken())
   if (target === 'status') {
-    const [lan, tailnet, funnel] = await Promise.all([
+    const [lan, tailnet, cloudflare] = await Promise.all([
       client.query('lanStatus'),
       client.query('tailnetStatus'),
-      client.query('funnelStatus'),
+      client.query('cloudflareStatus'),
     ])
-    process.stdout.write(`${JSON.stringify({ lan, tailnet, funnel }, null, 2)}\n`)
+    process.stdout.write(`${JSON.stringify({ lan, tailnet, cloudflare }, null, 2)}\n`)
     return
+  }
+  if (target === 'funnel') {
+    fail('Tailscale Funnel was removed. Use share cloudflare on|off.')
   }
   const procedures = {
     lan: 'setLanBind',
     tailnet: 'setTailnetBind',
-    funnel: 'setFunnelBind',
+    cloudflare: 'setCloudflareBind',
   }
   const procedure = procedures[target]
   if (!procedure || (value !== 'on' && value !== 'off')) {
-    fail('usage: porcelain-daemon share status | lan|tailnet|funnel on|off')
+    fail('usage: porcelain-daemon share status | lan|tailnet|cloudflare on|off')
   }
   const status = await client.mutation(procedure, value === 'on')
   process.stdout.write(`${JSON.stringify(status, null, 2)}\n`)
@@ -341,9 +349,12 @@ async function main() {
   ) {
     process.env.PORCELAIN_ALLOWED_ORIGIN = opts.allowedOrigins.join(',')
   }
+  if (opts.tailnet && opts.cloudflare) {
+    fail('--tailnet and --cloudflare cannot be used together. Pick one off-network route.')
+  }
   if (opts.tailnet) process.env.PORCELAIN_TAILNET_BIND = '1'
   if (opts.lan) process.env.PORCELAIN_LAN_BIND = '1'
-  if (opts.funnel) process.env.PORCELAIN_FUNNEL_BIND = '1'
+  if (opts.cloudflare) process.env.PORCELAIN_CLOUDFLARE_BIND = '1'
   if (opts.noWatchdog) process.env.PORCELAIN_NO_STDIN_WATCHDOG = '1'
 
   const token = process.env.PORCELAIN_ADMIN_TOKEN || ensureAdminToken()
@@ -354,7 +365,7 @@ async function main() {
   const binds = ['127.0.0.1']
   if (process.env.PORCELAIN_TAILNET_BIND === '1') binds.push('tailnet')
   if (process.env.PORCELAIN_LAN_BIND === '1') binds.push('lan')
-  if (process.env.PORCELAIN_FUNNEL_BIND === '1') binds.push('funnel')
+  if (process.env.PORCELAIN_CLOUDFLARE_BIND === '1') binds.push('cloudflare')
   const allowedOriginValue =
     process.env.PORCELAIN_ALLOWED_ORIGINS || process.env.PORCELAIN_ALLOWED_ORIGIN || ''
   const allowedOriginCount = allowedOriginValue

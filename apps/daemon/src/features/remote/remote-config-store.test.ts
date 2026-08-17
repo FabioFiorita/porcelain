@@ -22,11 +22,14 @@ describe('appConfigSchema', () => {
 
   it('accepts the Remote-only empty config', () => {
     expect(appConfigSchema.parse(emptyConfig)).toEqual({})
-    expect(appConfigSchema.parse({ tailnetBind: true, lanBind: false, funnelBind: true })).toEqual({
+    expect(
+      appConfigSchema.parse({ tailnetBind: true, lanBind: false, cloudflareBind: true }),
+    ).toEqual({
       tailnetBind: true,
       lanBind: false,
-      funnelBind: true,
+      cloudflareBind: true,
     })
+    expect(appConfigSchema.parse({ funnelBind: true })).toEqual({ funnelBind: true })
   })
 })
 

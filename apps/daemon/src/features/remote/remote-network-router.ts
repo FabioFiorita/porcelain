@@ -24,14 +24,14 @@ export function createRemoteNetworkRouter(operations: RemoteOperations) {
       .output(procedureCatalog.setLanBind.output)
       .mutation(({ input }) => operations.setLanBind(input)),
 
-    funnelStatus: adminProcedure
-      .input(procedureCatalog.funnelStatus.input)
-      .output(procedureCatalog.funnelStatus.output)
-      .query(() => operations.funnelStatus()),
+    cloudflareStatus: adminProcedure
+      .input(procedureCatalog.cloudflareStatus.input)
+      .output(procedureCatalog.cloudflareStatus.output)
+      .query(() => operations.cloudflareStatus()),
 
-    setFunnelBind: adminProcedure
-      .input(procedureCatalog.setFunnelBind.input)
-      .output(procedureCatalog.setFunnelBind.output)
-      .mutation(({ input }) => operations.setFunnelBind(input)),
+    setCloudflareBind: adminProcedure
+      .input(procedureCatalog.setCloudflareBind.input)
+      .output(procedureCatalog.setCloudflareBind.output)
+      .mutation(({ input }) => operations.setCloudflareBind(input)),
   })
 }

@@ -63,14 +63,14 @@ const ALL_SECTIONS: {
     label: 'Share',
     icon: Share2,
     title: 'Share',
-    blurb: 'Choose a network, pair devices, and revoke access individually.',
+    blurb: 'Share this daemon over LAN, then Tailscale or Cloudflare. Pair and revoke devices.',
   },
   {
     id: 'remotes',
     label: 'Remotes',
     icon: Cloud,
     title: 'Remotes',
-    blurb: 'Connect this browser to another daemon with a client token.',
+    blurb: 'Mac: several named environments. Browser: this tab is this daemon.',
   },
   {
     id: 'updates',

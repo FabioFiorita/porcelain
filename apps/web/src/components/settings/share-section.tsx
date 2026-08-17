@@ -4,12 +4,12 @@ import { Input } from '@renderer/components/ui/input'
 import { Switch } from '@renderer/components/ui/switch'
 import {
   useAccessStatus,
-  useFunnelStatus,
+  useCloudflareStatus,
   useIssuePairingLink,
   useLanStatus,
   useRevokeAuthorizedClient,
   useRevokePairingLink,
-  useSetFunnelBind,
+  useSetCloudflareBind,
   useSetLanBind,
   useSetTailnetBind,
   useTailnetStatus,
@@ -223,33 +223,34 @@ function AccessList(): React.JSX.Element {
 
 export function ShareSection(): React.JSX.Element {
   const tailnet = useTailnetStatus()
-  const { setEnabled: setTailnetEnabled } = useSetTailnetBind()
+  const { setEnabled: setTailnetEnabled, isPending: tailnetPending } = useSetTailnetBind()
   const lan = useLanStatus()
   const { setEnabled: setLanEnabled } = useSetLanBind()
-  const funnel = useFunnelStatus()
-  const { setEnabled: setFunnelEnabled, isPending: funnelPending } = useSetFunnelBind()
+  const cloudflare = useCloudflareStatus()
+  const { setEnabled: setCloudflareEnabled, isPending: cloudflarePending } = useSetCloudflareBind()
 
   const lanUrl =
     lan?.numericUrl != null && lan.numericUrl !== '' ? lan.numericUrl : (lan?.url ?? null)
   const endpoints: ShareEndpoint[] = [
-    ...(lanUrl == null ? [] : [{ label: 'local network', url: lanUrl }]),
+    ...(lanUrl == null ? [] : [{ label: 'LAN', url: lanUrl }]),
     ...(tailnet?.url == null ? [] : [{ label: 'Tailscale', url: tailnet.url }]),
-    ...(funnel?.url == null ? [] : [{ label: 'Internet', url: funnel.url }]),
+    ...(cloudflare?.url == null ? [] : [{ label: 'Cloudflare', url: cloudflare.url }]),
   ]
 
   return (
     <div className="flex flex-col gap-8">
       <section className="flex flex-col gap-3">
         <div>
-          <h3 className="text-sm font-semibold tracking-tight">Networks</h3>
+          <h3 className="text-sm font-semibold tracking-tight">This daemon</h3>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Choose where devices can reach this local daemon.
+            LAN is the fastest route. Pick Tailscale or Cloudflare for when you leave this network.
+            Clients try LAN, then Tailscale, then Cloudflare.
           </p>
         </div>
         <div className="divide-y divide-border/60 overflow-hidden rounded-md border border-border/60">
           <ShareToggleRow
             label="Local network"
-            description="Same Wi‑Fi or LAN. Traffic is not encrypted on the wire."
+            description="Same Wi‑Fi or LAN. Fastest. Traffic is not encrypted on the wire."
             checked={lan?.enabled ?? false}
             disabled={lan?.envForced ?? false}
             onCheckedChange={(enabled) => {
@@ -270,16 +271,20 @@ export function ShareSection(): React.JSX.Element {
           />
           <ShareToggleRow
             label="Tailscale"
-            description="Private, WireGuard-encrypted access for devices on your tailnet."
+            description="Private WireGuard for your own devices. Turns Cloudflare off."
             checked={tailnet?.enabled ?? false}
-            disabled={tailnet?.envForced ?? false}
+            disabled={
+              tailnetPending || tailnet?.envForced === true || cloudflare?.envForced === true
+            }
             onCheckedChange={(enabled) => {
               setTailnetEnabled(enabled)
             }}
             envForcedHint={
               tailnet?.envForced === true
                 ? 'Locked on at daemon startup — change it from the host CLI or service.'
-                : undefined
+                : cloudflare?.envForced === true
+                  ? 'Cloudflare is locked on at daemon startup, so Tailscale stays off here.'
+                  : undefined
             }
             url={tailnet?.url}
             emptyHint={
@@ -289,31 +294,34 @@ export function ShareSection(): React.JSX.Element {
             }
           />
           <ShareToggleRow
-            label="Internet"
-            description="Public HTTPS through Tailscale Funnel. Anyone can reach the sign-in surface."
-            checked={funnel?.enabled ?? false}
+            label="Cloudflare"
+            description="Public HTTPS through a Cloudflare tunnel. Turns Tailscale off."
+            checked={cloudflare?.enabled ?? false}
             disabled={
-              funnelPending ||
-              funnel?.envForced === true ||
-              (funnel?.enabled === true && funnel.managed === false)
+              cloudflarePending ||
+              cloudflare?.envForced === true ||
+              tailnet?.envForced === true ||
+              (cloudflare?.enabled === true && cloudflare.managed === false)
             }
             onCheckedChange={(enabled) => {
-              setFunnelEnabled(enabled)
+              setCloudflareEnabled(enabled)
             }}
             envForcedHint={
-              funnel?.envForced === true
+              cloudflare?.envForced === true
                 ? 'Locked on at daemon startup — change it from the host CLI or service.'
-                : funnel?.error === 'conflict'
-                  ? 'Another Funnel target is already configured; Porcelain left it untouched.'
-                  : funnel?.enabled === true && funnel.managed === false
-                    ? 'This Funnel was not created by Porcelain and cannot be changed here.'
-                    : undefined
+                : tailnet?.envForced === true
+                  ? 'Tailscale is locked on at daemon startup, so Cloudflare stays off here.'
+                  : cloudflare?.error === 'conflict'
+                    ? 'Another tunnel is already configured; Porcelain left it untouched.'
+                    : cloudflare?.enabled === true && cloudflare.managed === false
+                      ? 'This tunnel was not created by Porcelain and cannot be changed here.'
+                      : undefined
             }
-            url={funnel?.url}
+            url={cloudflare?.url}
             emptyHint={
-              funnel?.error === 'unavailable'
-                ? 'Tailscale Funnel is unavailable on this machine.'
-                : 'Funnel is not configured.'
+              cloudflare?.error === 'unavailable'
+                ? 'cloudflared is not installed or not on PATH.'
+                : 'Cloudflare is not configured.'
             }
           />
         </div>

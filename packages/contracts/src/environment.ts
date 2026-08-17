@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-/** The route classes used when an environment group chooses a preferred path. */
+/** The route classes used when an environment group fails over between connections. */
 const endpointKinds = ['tailnet', 'lan', 'other'] as const
 export const endpointKindSchema = z.enum(endpointKinds)
 export type EndpointKind = (typeof endpointKinds)[number]
@@ -12,7 +12,9 @@ type EndpointGroupLike = {
   preferredEndpoint?: string
 }
 
-/** Classify an address for display; the exact endpoint, not this hint, owns preference. */
+const KIND_ORDER: Record<EndpointKind, number> = { lan: 0, tailnet: 1, other: 2 }
+
+/** Classify an address for display. Failover order is derived from this, not stored. */
 export function endpointKind(url: string): EndpointKind {
   let parsed: URL
   try {
@@ -33,10 +35,20 @@ export function endpointKind(url: string): EndpointKind {
     if (first === 192 && second === 168) return 'lan'
   }
 
-  // MagicDNS names use the same suffix as Funnel URLs. HTTP is the daemon's direct
-  // tailnet route; HTTPS remains the public/funnel display hint.
+  // HTTP MagicDNS is the direct tailnet listener. Quick Cloudflare tunnels and
+  // leftover HTTPS names stay `other` so failover walks LAN → Tailscale → public.
   if (parsed.protocol === 'http:' && host.endsWith('.ts.net')) return 'tailnet'
   return 'other'
+}
+
+/** Quick Cloudflare Tunnel hostnames (`*.trycloudflare.com` / `*.cfargotunnel.com`). */
+export function isCloudflareEndpoint(url: string): boolean {
+  try {
+    const host = new URL(url).hostname.toLowerCase()
+    return host.endsWith('.trycloudflare.com') || host.endsWith('.cfargotunnel.com')
+  } catch {
+    return false
+  }
 }
 
 /** Every known endpoint, falling back to the group's last-known-good URL. */
@@ -46,14 +58,11 @@ function endpointUrlsOf(group: EndpointGroupLike): string[] {
 }
 
 /**
- * The sequential order used by both clients. The exact preferred endpoint wins first,
- * then the last-known-good endpoint, then the group's remaining endpoints.
+ * Failover order for a group: LAN, then Tailscale, then everything else (Cloudflare
+ * and leftover public HTTPS). Preference is not consulted — the kinds already encode
+ * the product order, and a stored preference would put a slower public route first.
  */
 export function orderedEndpointUrls(group: EndpointGroupLike): string[] {
-  const all = endpointUrlsOf(group)
-  const preferred =
-    group.preferredEndpoint !== undefined && all.includes(group.preferredEndpoint)
-      ? [group.preferredEndpoint]
-      : []
-  return [...new Set([...preferred, group.url, ...all])].filter((url) => all.includes(url))
+  const all = [...new Set(endpointUrlsOf(group))]
+  return all.sort((left, right) => KIND_ORDER[endpointKind(left)] - KIND_ORDER[endpointKind(right)])
 }

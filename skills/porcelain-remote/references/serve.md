@@ -39,15 +39,15 @@ goes away.
 | *(none)* | `127.0.0.1` only | This host only (e.g. paired with a local Mac app pointed at this daemon over SSH tunnel) | Testing, or the daemon and its only client share a machine |
 | `--lan` | This host's RFC1918 addresses (`10/8`, `172.16/12`, `192.168/16`) | Same physical/Wi-Fi network | Home network, same room/office as the other devices |
 | `--tailnet` | The detected Tailscale interface address (`100.64/10`) | Any device on your tailnet, anywhere | The common case — your own devices, wherever they are |
-| `--funnel` | Nothing new directly — proxies the loopback listener over public Tailscale HTTPS | The public internet | Sharing with someone outside your tailnet, or a device that can't run Tailscale |
+| `--cloudflare` | Nothing new directly — proxies the loopback listener over a Cloudflare quick tunnel | The public internet | No Tailscale, or a device that can't join the tailnet |
 
-Flags combine: `serve --tailnet --funnel` runs both a private tailnet listener and a public HTTPS
-proxy at once.
+`--lan` can combine with `--tailnet` or `--cloudflare`. `--tailnet` and `--cloudflare` cannot
+run together — pick one off-network route.
 
 ```sh
-npx porcelain-daemon@latest serve --tailnet
 npx porcelain-daemon@latest serve --lan
-npx porcelain-daemon@latest serve --tailnet --funnel
+npx porcelain-daemon@latest serve --lan --tailnet
+npx porcelain-daemon@latest serve --lan --cloudflare
 npx porcelain-daemon@latest serve --port 43118 --lan
 npx porcelain-daemon@latest serve --tailnet --allowed-origin http://hub-host:43118
 ```
@@ -83,26 +83,20 @@ WireGuard-encrypted tailnet) that credential crosses the wire in cleartext — a
 network segment can capture it. This is why `--lan` is opt-in and default-off rather than the
 default reach. Prefer `--tailnet` when you can.
 
-### Funnel
+### Cloudflare
 
-`--funnel` requires:
-
-- Tailscale installed and logged in on this host
-- Funnel enabled for the tailnet (one-time `tailscale funnel` setup / ACL grant — see Tailscale's
-  own docs; this skill doesn't manage tailnet-level ACLs)
-
-It publishes the **loopback** listener at a URL of the form:
+`--cloudflare` requires `cloudflared` on `PATH`. It publishes the **loopback** listener at a
+quick-tunnel URL of the form:
 
 ```
-https://<host>.<tailnet>.ts.net
+https://<words>.trycloudflare.com
 ```
 
-— an HTTPS proxy in front of `127.0.0.1`, not a second daemon process. The daemon refuses to
-adopt, replace, or silently widen a Funnel configuration it doesn't already own; if `tailscale
-funnel` shows something else running on this target, `--funnel` will not steal it.
+— an outbound HTTPS proxy in front of `127.0.0.1`, not a second daemon and never `0.0.0.0`. The
+URL changes each time the process starts. Pair off-network devices against that URL — see
+[pairing.md](pairing.md).
 
-Once Funnel is on, pair remote (off-tailnet) devices with `--base-url` pointed at the Funnel URL
-— see [pairing.md](pairing.md).
+`--funnel` is gone. If a unit or script still passes it, the CLI tells you to use `--cloudflare`.
 
 ## Options reference
 
@@ -111,7 +105,7 @@ Once Funnel is on, pair remote (off-tailnet) devices with `--base-url` pointed a
 --user-data <path>   Config dir (default ~/.local/share/porcelain)
 --tailnet            Also bind the Tailscale interface (same --port)
 --lan                Also bind RFC1918 LAN addresses (same --port)
-  --funnel             Publish loopback over public Tailscale Funnel HTTPS
+  --cloudflare         Publish loopback over a Cloudflare quick tunnel
   --allowed-origin <origin>
                        Trust a browser Hub origin (repeat for more than one)
   --no-watchdog        Disable stdin parent-death watchdog (required under systemd)
@@ -120,7 +114,7 @@ Once Funnel is on, pair remote (off-tailnet) devices with `--base-url` pointed a
 Env equivalents (flags set these when passed; set directly for systemd units or shells):
 `PORCELAIN_USER_DATA`, `PORCELAIN_DAEMON_PORT`, `PORCELAIN_ADMIN_TOKEN`,
 `PORCELAIN_ALLOWED_ORIGIN` (comma-separated), `PORCELAIN_ALLOWED_ORIGINS` (comma-separated),
-`PORCELAIN_TAILNET_BIND`, `PORCELAIN_LAN_BIND`, `PORCELAIN_FUNNEL_BIND`,
+`PORCELAIN_TAILNET_BIND`, `PORCELAIN_LAN_BIND`, `PORCELAIN_CLOUDFLARE_BIND`,
 `PORCELAIN_NO_STDIN_WATCHDOG`.
 
 A foreground run (no `--no-watchdog`) is fine for "start it when I sit down, stop it when I'm

@@ -6,12 +6,12 @@ import { toast } from 'sonner'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   useAccessStatus,
-  useFunnelStatus,
+  useCloudflareStatus,
   useIssuePairingLink,
   useLanStatus,
   useRevokeAuthorizedClient,
   useRevokePairingLink,
-  useSetFunnelBind,
+  useSetCloudflareBind,
   useSetLanBind,
   useSetTailnetBind,
   useTailnetStatus,
@@ -24,7 +24,10 @@ const baseHandlers = {
   accessStatus: () => ({ ok: true as const, value: remoteContractFixtures.accessStatus.output }),
   lanStatus: () => ({ ok: true as const, value: remoteContractFixtures.lanStatus.output }),
   tailnetStatus: () => ({ ok: true as const, value: remoteContractFixtures.tailnetStatus.output }),
-  funnelStatus: () => ({ ok: true as const, value: remoteContractFixtures.funnelStatus.output }),
+  cloudflareStatus: () => ({
+    ok: true as const,
+    value: remoteContractFixtures.cloudflareStatus.output,
+  }),
 }
 
 beforeEach(() => {
@@ -32,14 +35,14 @@ beforeEach(() => {
 })
 
 describe('remote settings status shapes', () => {
-  it("returns today's LAN, Tailnet, Funnel, and access fields", async () => {
+  it("returns today's LAN, Tailscale, Cloudflare, and access fields", async () => {
     const { wrapper } = createValidatingTrpcHarness(baseHandlers)
     const { result } = renderHook(
       () => ({
         access: useAccessStatus(),
         lan: useLanStatus(),
         tailnet: useTailnetStatus(),
-        funnel: useFunnelStatus(),
+        cloudflare: useCloudflareStatus(),
       }),
       { wrapper },
     )
@@ -61,7 +64,7 @@ describe('remote settings status shapes', () => {
       envForced: false,
       port: 43118,
     })
-    expect(result.current.funnel).toEqual({
+    expect(result.current.cloudflare).toEqual({
       enabled: false,
       url: null,
       managed: false,
@@ -83,7 +86,10 @@ describe('remote settings mutations', () => {
       revokeAuthorizedClient: () => ({ ok: true, value: undefined }),
       setLanBind: () => ({ ok: true, value: remoteContractFixtures.setLanBind.output }),
       setTailnetBind: () => ({ ok: true, value: remoteContractFixtures.setTailnetBind.output }),
-      setFunnelBind: () => ({ ok: true, value: remoteContractFixtures.setFunnelBind.output }),
+      setCloudflareBind: () => ({
+        ok: true,
+        value: remoteContractFixtures.setCloudflareBind.output,
+      }),
     })
 
     const { result } = renderHook(
@@ -93,7 +99,7 @@ describe('remote settings mutations', () => {
         revokeClient: useRevokeAuthorizedClient(),
         lan: useSetLanBind(),
         tailnet: useSetTailnetBind(),
-        funnel: useSetFunnelBind(),
+        cloudflare: useSetCloudflareBind(),
       }),
       { wrapper },
     )
@@ -114,7 +120,7 @@ describe('remote settings mutations', () => {
       result.current.tailnet.setEnabled(true)
     })
     await act(async () => {
-      result.current.funnel.setEnabled(false)
+      result.current.cloudflare.setEnabled(false)
     })
 
     await waitFor(() => {
@@ -125,7 +131,7 @@ describe('remote settings mutations', () => {
           'revokeAuthorizedClient',
           'setLanBind',
           'setTailnetBind',
-          'setFunnelBind',
+          'setCloudflareBind',
         ]),
       )
     })

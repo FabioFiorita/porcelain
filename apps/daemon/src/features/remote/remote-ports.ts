@@ -29,6 +29,8 @@ export type RemoteOperationResult<T> =
 export type RemoteNetworkFlags = {
   tailnetBind?: boolean
   lanBind?: boolean
+  cloudflareBind?: boolean
+  /** Leftover from Tailscale Funnel. Accepted so existing config.json still loads. */
   funnelBind?: boolean
 }
 
@@ -50,21 +52,21 @@ export type RemoteListeners = {
   ifaceListenerPort(): number
 }
 
-export type RemoteFunnelState = {
+export type RemoteCloudflareState = {
   enabled: boolean
   url: string | null
   managed: boolean
   error: 'unavailable' | 'conflict' | null
 }
 
-export type RemoteFunnel = {
-  status(): Promise<RemoteFunnelState>
-  start(): Promise<RemoteFunnelState>
-  stop(): Promise<RemoteFunnelState>
+export type RemoteCloudflare = {
+  status(): Promise<RemoteCloudflareState>
+  start(): Promise<RemoteCloudflareState>
+  stop(): Promise<RemoteCloudflareState>
 }
 
 export type RemoteNetworkEnv = {
   tailnetBindForced(): boolean
   lanBindForced(): boolean
-  funnelBindForced(): boolean
+  cloudflareBindForced(): boolean
 }

@@ -1,6 +1,6 @@
 import {
   type AccessStatusOutput,
-  type FunnelStatusOutput,
+  type CloudflareStatusOutput,
   type IssuePairingLinkOutput,
   type LanStatusOutput,
   remoteProcedures,
@@ -18,20 +18,20 @@ import type { QueryClient } from '@tanstack/react-query'
 
 export type RemoteDaemonScope = { readonly host: string | null; readonly version: string | null }
 
-export type RemoteStatusName = 'accessStatus' | 'lanStatus' | 'tailnetStatus' | 'funnelStatus'
+export type RemoteStatusName = 'accessStatus' | 'lanStatus' | 'tailnetStatus' | 'cloudflareStatus'
 
 type RemoteDaemonClient = Pick<
   typeof trpcClient,
   | 'accessStatus'
   | 'lanStatus'
   | 'tailnetStatus'
-  | 'funnelStatus'
+  | 'cloudflareStatus'
   | 'issuePairingLink'
   | 'revokePairingLink'
   | 'revokeAuthorizedClient'
   | 'setLanBind'
   | 'setTailnetBind'
-  | 'setFunnelBind'
+  | 'setCloudflareBind'
 >
 
 export const remoteAccessStatusQueryOptions = {
@@ -39,7 +39,7 @@ export const remoteAccessStatusQueryOptions = {
   staleTime: 0,
 } as const
 
-export const remoteFunnelStatusQueryOptions = {
+export const remoteCloudflareStatusQueryOptions = {
   staleTime: 10_000,
   refetchOnWindowFocus: true,
 } as const
@@ -84,10 +84,10 @@ export async function fetchRemoteTailnetStatus(
   return remoteProcedures.tailnetStatus.output.parse(await client.tailnetStatus.query())
 }
 
-export async function fetchRemoteFunnelStatus(
-  client: Pick<RemoteDaemonClient, 'funnelStatus'>,
-): Promise<FunnelStatusOutput> {
-  return remoteProcedures.funnelStatus.output.parse(await client.funnelStatus.query())
+export async function fetchRemoteCloudflareStatus(
+  client: Pick<RemoteDaemonClient, 'cloudflareStatus'>,
+): Promise<CloudflareStatusOutput> {
+  return remoteProcedures.cloudflareStatus.output.parse(await client.cloudflareStatus.query())
 }
 
 export async function issueRemotePairingLink(
@@ -148,15 +148,17 @@ export async function setRemoteTailnetBind(
   const wire = remoteProcedures.setTailnetBind.input.parse(enabled)
   remoteProcedures.setTailnetBind.output.parse(await client.setTailnetBind.mutate(wire))
   await invalidateRemoteStatus(queryClient, daemon, 'tailnetStatus')
+  await invalidateRemoteStatus(queryClient, daemon, 'cloudflareStatus')
 }
 
-export async function setRemoteFunnelBind(
-  client: Pick<RemoteDaemonClient, 'setFunnelBind'>,
+export async function setRemoteCloudflareBind(
+  client: Pick<RemoteDaemonClient, 'setCloudflareBind'>,
   queryClient: QueryClient,
   daemon: RemoteDaemonScope,
   enabled: boolean,
 ): Promise<void> {
-  const wire = remoteProcedures.setFunnelBind.input.parse(enabled)
-  remoteProcedures.setFunnelBind.output.parse(await client.setFunnelBind.mutate(wire))
-  await invalidateRemoteStatus(queryClient, daemon, 'funnelStatus')
+  const wire = remoteProcedures.setCloudflareBind.input.parse(enabled)
+  remoteProcedures.setCloudflareBind.output.parse(await client.setCloudflareBind.mutate(wire))
+  await invalidateRemoteStatus(queryClient, daemon, 'cloudflareStatus')
+  await invalidateRemoteStatus(queryClient, daemon, 'tailnetStatus')
 }

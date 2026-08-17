@@ -10,12 +10,12 @@ npx porcelain-daemon@latest access issue --name "My iPhone"
 ```
 
 Prints one URL. If a bind mode is already active, the CLI auto-picks the best reachable base URL
-in this order: Funnel → tailnet → LAN. Override explicitly when the auto-pick is wrong for the
-device you're pairing (e.g. pairing an off-tailnet device while the tailnet URL would otherwise
+in this order: LAN → Tailscale → Cloudflare. Override explicitly when the auto-pick is wrong for
+the device you're pairing (for example a public Cloudflare URL when the LAN URL would otherwise
 win):
 
 ```sh
-npx porcelain-daemon@latest access issue --name "My Browser" --base-url https://<host>.<tailnet>.ts.net
+npx porcelain-daemon@latest access issue --name "My phone" --base-url https://<tunnel>.trycloudflare.com
 ```
 
 If nothing is reachable yet (still loopback-only), pass `--base-url` explicitly or turn on a bind

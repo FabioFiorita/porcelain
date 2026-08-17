@@ -2,10 +2,10 @@ import type { ProcedureContract } from '../procedure-contract'
 import {
   accessStatusInputSchema,
   accessStatusOutputSchema,
+  cloudflareStatusInputSchema,
+  cloudflareStatusOutputSchema,
   daemonInfoInputSchema,
   daemonInfoOutputSchema,
-  funnelStatusInputSchema,
-  funnelStatusOutputSchema,
   issuePairingLinkInputSchema,
   issuePairingLinkOutputSchema,
   lanStatusInputSchema,
@@ -16,8 +16,8 @@ import {
   revokeCurrentClientOutputSchema,
   revokePairingLinkInputSchema,
   revokePairingLinkOutputSchema,
-  setFunnelBindInputSchema,
-  setFunnelBindOutputSchema,
+  setCloudflareBindInputSchema,
+  setCloudflareBindOutputSchema,
   setLanBindInputSchema,
   setLanBindOutputSchema,
   setTailnetBindInputSchema,
@@ -87,16 +87,16 @@ const remoteProcedureDefinitions = {
     output: setLanBindOutputSchema,
     errors: ['auth.forbidden'],
   },
-  funnelStatus: {
+  cloudflareStatus: {
     kind: 'query',
-    input: funnelStatusInputSchema,
-    output: funnelStatusOutputSchema,
+    input: cloudflareStatusInputSchema,
+    output: cloudflareStatusOutputSchema,
     errors: ['auth.forbidden'],
   },
-  setFunnelBind: {
+  setCloudflareBind: {
     kind: 'mutation',
-    input: setFunnelBindInputSchema,
-    output: setFunnelBindOutputSchema,
+    input: setCloudflareBindInputSchema,
+    output: setCloudflareBindOutputSchema,
     errors: ['auth.forbidden'],
   },
 } as const

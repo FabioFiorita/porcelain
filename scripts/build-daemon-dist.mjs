@@ -160,7 +160,7 @@ HTTP/WS surface the Mac app and browser clients already talk to.
 On the remote host (Node ≥ 22, git, and a C toolchain for \`node-pty\`):
 
 \`\`\`sh
-npx porcelain-daemon@latest serve --tailnet --funnel
+npx porcelain-daemon@latest serve --lan --cloudflare
 \`\`\`
 
 That:
@@ -168,8 +168,8 @@ That:
 1. Fetches the **latest** published package (use \`@latest\` so you don't stick on a
    stale npx cache of an older version).
 2. Compiles \`node-pty\` for this host on first install.
-3. Starts the daemon on port **43117**, with private Tailscale access and opt-in
-   public HTTPS through Tailscale Funnel.
+3. Starts the daemon on port **43117**, with LAN access and opt-in
+   public HTTPS through a Cloudflare tunnel.
 4. Keeps host administration local; it never prints the administrator credential.
 
 Leave the process in the foreground while you work (Termius / tmux / SSH session).
@@ -198,21 +198,21 @@ npx porcelain-daemon@latest share status
 porcelain-daemon serve [options]
 porcelain-daemon access issue --name <device> [--base-url <url>]
 porcelain-daemon access list | revoke <id>
-porcelain-daemon share status | lan|tailnet|funnel on|off
+porcelain-daemon share status | lan|tailnet|cloudflare on|off
 
   --port <n>           Port (default 43117)
   --user-data <path>   Config dir (default ~/.local/share/porcelain)
   --tailnet            Bind Tailscale interface too
   --lan                Bind RFC1918 LAN addresses too
-  --funnel             Publish loopback over Tailscale Funnel HTTPS
+  --cloudflare         Publish loopback over a Cloudflare quick tunnel
   --allowed-origin <origin>
                        Trust a browser Hub origin (repeat for more than one)
   --no-watchdog        For systemd / supervisors (stdin is /dev/null)
 \`\`\`
 
 Porcelain always binds loopback, never \`0.0.0.0\`. Private listeners are explicit.
-Funnel is public HTTPS but still credential-gated, and Porcelain refuses to replace
-or disable a Funnel target it does not own.
+Cloudflare is public HTTPS but still credential-gated. Tailscale and Cloudflare are
+exclusive; LAN can combine with either.
 
 ## Always-on (optional)
 

@@ -23,6 +23,7 @@ export {
   type EndpointKind,
   endpointKind,
   endpointKindSchema,
+  isCloudflareEndpoint,
   orderedEndpointUrls,
 } from './environment'
 export {

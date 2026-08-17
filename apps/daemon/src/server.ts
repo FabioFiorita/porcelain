@@ -23,8 +23,8 @@ import {
   initConfigDir,
   initIfaceHandlers,
   loadConfig,
-  setFunnelDaemonPort,
-  startFunnel,
+  setCloudflareDaemonPort,
+  startCloudflare,
   startLanListener,
   startTailnetListener,
 } from './features/remote'
@@ -250,7 +250,7 @@ async function main(): Promise<void> {
       }
     })
   })
-  setFunnelDaemonPort(listeningPort)
+  setCloudflareDaemonPort(listeningPort)
 
   // If the user has the tailnet and/or LAN bind enabled — persisted config OR the
   // boot env override (PORCELAIN_TAILNET_BIND / PORCELAIN_LAN_BIND = '1', so a
@@ -266,9 +266,9 @@ async function main(): Promise<void> {
   if (bootConfig.lanBind === true || process.env.PORCELAIN_LAN_BIND === '1') {
     await startLanListener()
   }
-  if (bootConfig.funnelBind === true || process.env.PORCELAIN_FUNNEL_BIND === '1') {
-    await startFunnel().catch((error) => {
-      console.error('[daemon] Tailscale Funnel failed to start:', error)
+  if (bootConfig.cloudflareBind === true || process.env.PORCELAIN_CLOUDFLARE_BIND === '1') {
+    await startCloudflare().catch((error) => {
+      console.error('[daemon] Cloudflare tunnel failed to start:', error)
     })
   }
 

@@ -5,8 +5,8 @@ import type { AuthIdentity } from './access-store'
 import { createRemoteOperations } from './remote-operations'
 import type {
   RemoteAccess,
-  RemoteFunnel,
-  RemoteFunnelState,
+  RemoteCloudflare,
+  RemoteCloudflareState,
   RemoteIdentityValue,
   RemoteListeners,
   RemoteNetworkConfig,
@@ -77,25 +77,25 @@ function fakeListeners(overrides: Partial<RemoteListeners> = {}): RemoteListener
   }
 }
 
-const FUNNEL_OFF: RemoteFunnelState = {
+const CLOUDFLARE_OFF: RemoteCloudflareState = {
   enabled: false,
   url: null,
   managed: false,
   error: 'unavailable',
 }
 
-const FUNNEL_ON: RemoteFunnelState = {
+const CLOUDFLARE_ON: RemoteCloudflareState = {
   enabled: true,
-  url: 'https://workstation.example.ts.net',
+  url: 'https://random-words-here.trycloudflare.com',
   managed: true,
   error: null,
 }
 
-function fakeFunnel(overrides: Partial<RemoteFunnel> = {}): RemoteFunnel {
+function fakeCloudflare(overrides: Partial<RemoteCloudflare> = {}): RemoteCloudflare {
   return {
-    status: vi.fn<RemoteFunnel['status']>(async () => FUNNEL_OFF),
-    start: vi.fn<RemoteFunnel['start']>(async () => FUNNEL_ON),
-    stop: vi.fn<RemoteFunnel['stop']>(async () => FUNNEL_OFF),
+    status: vi.fn<RemoteCloudflare['status']>(async () => CLOUDFLARE_OFF),
+    start: vi.fn<RemoteCloudflare['start']>(async () => CLOUDFLARE_ON),
+    stop: vi.fn<RemoteCloudflare['stop']>(async () => CLOUDFLARE_OFF),
     ...overrides,
   }
 }
@@ -104,7 +104,7 @@ function fakeEnv(overrides: Partial<RemoteNetworkEnv> = {}): RemoteNetworkEnv {
   return {
     tailnetBindForced: vi.fn<RemoteNetworkEnv['tailnetBindForced']>(() => false),
     lanBindForced: vi.fn<RemoteNetworkEnv['lanBindForced']>(() => false),
-    funnelBindForced: vi.fn<RemoteNetworkEnv['funnelBindForced']>(() => false),
+    cloudflareBindForced: vi.fn<RemoteNetworkEnv['cloudflareBindForced']>(() => false),
     ...overrides,
   }
 }
@@ -118,7 +118,7 @@ function operations(
     displayAdminTokenPath?: () => string
     config?: RemoteNetworkConfig
     listeners?: Partial<RemoteListeners>
-    funnel?: Partial<RemoteFunnel>
+    cloudflare?: Partial<RemoteCloudflare>
     env?: Partial<RemoteNetworkEnv>
   } = {},
 ) {
@@ -126,14 +126,14 @@ function operations(
   const sessions = fakeSessions(overrides.sessions)
   const config = overrides.config ?? fakeConfig()
   const listeners = fakeListeners(overrides.listeners)
-  const funnel = fakeFunnel(overrides.funnel)
+  const cloudflare = fakeCloudflare(overrides.cloudflare)
   const env = fakeEnv(overrides.env)
   return {
     access,
     sessions,
     config,
     listeners,
-    funnel,
+    cloudflare,
     env,
     ops: createRemoteOperations({
       access,
@@ -143,7 +143,7 @@ function operations(
       sessions,
       config,
       listeners,
-      funnel,
+      cloudflare,
       env,
     }),
   }
@@ -344,83 +344,97 @@ describe('Remote operations', () => {
     expect(await ops.setTailnetBind(false)).toMatchObject({ enabled: true, envForced: true })
   })
 
-  it('passes Funnel live state through status and does not read funnelBind', async () => {
-    const live: RemoteFunnelState = {
+  it('passes Cloudflare live state through status and does not read cloudflareBind', async () => {
+    const live: RemoteCloudflareState = {
       enabled: true,
-      url: 'https://workstation.example.ts.net',
+      url: 'https://random-words-here.trycloudflare.com',
       managed: true,
       error: null,
     }
-    const config = fakeConfig({ funnelBind: false })
-    const { funnel, ops } = operations({
+    const config = fakeConfig({ cloudflareBind: false })
+    const { cloudflare, ops } = operations({
       config,
-      funnel: { status: vi.fn(async () => live) },
-      env: { funnelBindForced: vi.fn(() => true) },
+      cloudflare: { status: vi.fn(async () => live) },
+      env: { cloudflareBindForced: vi.fn(() => true) },
     })
 
-    expect(await ops.funnelStatus()).toEqual({ ...live, envForced: true })
-    expect(funnel.status).toHaveBeenCalledOnce()
+    expect(await ops.cloudflareStatus()).toEqual({ ...live, envForced: true })
+    expect(cloudflare.status).toHaveBeenCalledOnce()
     expect(config.load).not.toHaveBeenCalled()
   })
 
-  it('starts or stops Funnel then writes config', async () => {
+  it('starts or stops Cloudflare then writes config', async () => {
     const order: string[] = []
     const config = fakeConfig()
     vi.mocked(config.update).mockImplementation(async (fn) => {
       order.push('update')
       return fn({})
     })
-    const { funnel, ops } = operations({
+    const { cloudflare, ops } = operations({
       config,
-      funnel: {
+      cloudflare: {
         start: vi.fn(async () => {
           order.push('start')
-          return FUNNEL_ON
+          return CLOUDFLARE_ON
         }),
         stop: vi.fn(async () => {
           order.push('stop')
-          return FUNNEL_OFF
+          return CLOUDFLARE_OFF
         }),
       },
     })
 
-    expect(await ops.setFunnelBind(true)).toEqual({ ...FUNNEL_ON, envForced: false })
+    expect(await ops.setCloudflareBind(true)).toEqual({ ...CLOUDFLARE_ON, envForced: false })
     expect(order).toEqual(['start', 'update'])
-    expect(funnel.start).toHaveBeenCalledOnce()
-    expect(funnel.stop).not.toHaveBeenCalled()
+    expect(cloudflare.start).toHaveBeenCalledOnce()
+    expect(cloudflare.stop).not.toHaveBeenCalled()
 
     order.length = 0
-    expect(await ops.setFunnelBind(false)).toEqual({ ...FUNNEL_OFF, envForced: false })
+    expect(await ops.setCloudflareBind(false)).toEqual({ ...CLOUDFLARE_OFF, envForced: false })
     expect(order).toEqual(['stop', 'update'])
-    expect(funnel.stop).toHaveBeenCalledOnce()
+    expect(cloudflare.stop).toHaveBeenCalledOnce()
   })
 
-  it('skips config.update when Funnel start throws', async () => {
+  it('turns Tailscale off when Cloudflare starts, and the reverse', async () => {
+    const { cloudflare, listeners, config, ops } = operations({
+      config: fakeConfig({ tailnetBind: true, cloudflareBind: false }),
+    })
+
+    await ops.setCloudflareBind(true)
+    expect(listeners.stopTailnetListener).toHaveBeenCalledOnce()
+    expect(await config.load()).toMatchObject({ cloudflareBind: true, tailnetBind: false })
+
+    await ops.setTailnetBind(true)
+    expect(cloudflare.stop).toHaveBeenCalledOnce()
+    expect(await config.load()).toMatchObject({ tailnetBind: true, cloudflareBind: false })
+  })
+
+  it('skips config.update when Cloudflare start throws', async () => {
     const config = fakeConfig()
     const { ops } = operations({
       config,
-      funnel: {
+      cloudflare: {
         start: vi.fn(async () => {
           throw new Error('The daemon is not listening yet')
         }),
       },
     })
 
-    await expect(ops.setFunnelBind(true)).rejects.toThrow('The daemon is not listening yet')
+    await expect(ops.setCloudflareBind(true)).rejects.toThrow('The daemon is not listening yet')
     expect(config.update).not.toHaveBeenCalled()
   })
 
   it('reads env only through the injected port, never process.env', async () => {
     vi.stubEnv('PORCELAIN_TAILNET_BIND', '1')
     vi.stubEnv('PORCELAIN_LAN_BIND', '1')
-    vi.stubEnv('PORCELAIN_FUNNEL_BIND', '1')
+    vi.stubEnv('PORCELAIN_CLOUDFLARE_BIND', '1')
     const { ops } = operations({
       config: fakeConfig({ tailnetBind: false, lanBind: false }),
     })
 
     expect(await ops.tailnetStatus()).toMatchObject({ enabled: false, envForced: false })
     expect(await ops.lanStatus()).toMatchObject({ enabled: false, envForced: false })
-    expect(await ops.funnelStatus()).toMatchObject({ envForced: false })
+    expect(await ops.cloudflareStatus()).toMatchObject({ envForced: false })
     vi.unstubAllEnvs()
   })
 })

@@ -26,7 +26,7 @@ const LAN = {
   port: 43118,
 } as const
 
-const FUNNEL = {
+const CLOUDFLARE = {
   enabled: false,
   url: null,
   managed: false,
@@ -75,8 +75,8 @@ const operations = {
   setTailnetBind: vi.fn<RemoteOperations['setTailnetBind']>(async () => TAILNET),
   lanStatus: vi.fn<RemoteOperations['lanStatus']>(async () => LAN),
   setLanBind: vi.fn<RemoteOperations['setLanBind']>(async () => LAN),
-  funnelStatus: vi.fn<RemoteOperations['funnelStatus']>(async () => FUNNEL),
-  setFunnelBind: vi.fn<RemoteOperations['setFunnelBind']>(async () => FUNNEL),
+  cloudflareStatus: vi.fn<RemoteOperations['cloudflareStatus']>(async () => CLOUDFLARE),
+  setCloudflareBind: vi.fn<RemoteOperations['setCloudflareBind']>(async () => CLOUDFLARE),
 } satisfies RemoteOperations
 
 const router = createRemoteNetworkRouter(operations)
@@ -112,8 +112,8 @@ beforeEach(() => {
   vi.mocked(operations.setTailnetBind).mockResolvedValue(TAILNET)
   vi.mocked(operations.lanStatus).mockResolvedValue(LAN)
   vi.mocked(operations.setLanBind).mockResolvedValue(LAN)
-  vi.mocked(operations.funnelStatus).mockResolvedValue(FUNNEL)
-  vi.mocked(operations.setFunnelBind).mockResolvedValue(FUNNEL)
+  vi.mocked(operations.cloudflareStatus).mockResolvedValue(CLOUDFLARE)
+  vi.mocked(operations.setCloudflareBind).mockResolvedValue(CLOUDFLARE)
 })
 
 describe('Remote network router contract boundary', () => {
@@ -128,7 +128,7 @@ describe('Remote network router contract boundary', () => {
     expect(operations.setLanBind).toHaveBeenCalledWith(true)
     expect(operations.lanStatus).not.toHaveBeenCalled()
     expect(operations.setTailnetBind).not.toHaveBeenCalled()
-    expect(operations.setFunnelBind).not.toHaveBeenCalled()
+    expect(operations.setCloudflareBind).not.toHaveBeenCalled()
   })
 
   it('rejects a value supplied to a no-input procedure as request.invalid', async () => {
@@ -144,7 +144,7 @@ describe('Remote network router contract boundary', () => {
   })
 
   it('rejects a non-boolean bind input as request.invalid without calling the operation', async () => {
-    const error = await rejected(() => callWithRawInput('setFunnelBind', 'mutation', 'on'))
+    const error = await rejected(() => callWithRawInput('setCloudflareBind', 'mutation', 'on'))
     const normalized = normalizePublicError(error, REQUEST_ID)
 
     expect(normalized.unexpected).toBe(false)
@@ -152,11 +152,11 @@ describe('Remote network router contract boundary', () => {
       code: 'request.invalid',
       requestId: REQUEST_ID,
     })
-    expect(operations.setFunnelBind).not.toHaveBeenCalled()
+    expect(operations.setCloudflareBind).not.toHaveBeenCalled()
   })
 
-  it('refuses to serialize a Funnel status that violates its output contract', async () => {
-    vi.mocked(operations.funnelStatus).mockResolvedValueOnce({
+  it('refuses to serialize a Cloudflare status that violates its output contract', async () => {
+    vi.mocked(operations.cloudflareStatus).mockResolvedValueOnce({
       enabled: true,
       url: 'workstation.example.ts.net',
       managed: true,
@@ -164,7 +164,7 @@ describe('Remote network router contract boundary', () => {
       envForced: false,
     })
 
-    const error = await rejected(() => caller().funnelStatus())
+    const error = await rejected(() => caller().cloudflareStatus())
     const normalized = normalizePublicError(error, REQUEST_ID)
 
     expect(normalized.unexpected).toBe(true)

@@ -173,19 +173,17 @@ describe('endpointKind', () => {
     expect(endpointKind('http://beelink.local:43117')).toBe('lan')
     expect(endpointKind('http://beelink.ts.net:43117')).toBe('tailnet')
     expect(endpointKind('https://beelink.ts.net:43117')).toBe('other')
+    expect(endpointKind('https://random-words-here.trycloudflare.com')).toBe('other')
     expect(endpointKind('not a url')).toBe('other')
   })
 })
 
 describe('orderedEndpoints', () => {
-  it('tries the exact preferred endpoint first, not every endpoint of its kind', () => {
-    expect(orderedEndpoints(env({ url: TAILNET, preferredEndpoint: LAN }))).toEqual([LAN, TAILNET])
-  })
-
-  it('falls back to the last known good url when the preferred route is stale', () => {
-    expect(
-      orderedEndpoints(env({ preferredEndpoint: 'http://old-route:43117', url: TAILNET })),
-    ).toEqual([TAILNET, LAN])
+  it('tries LAN before Tailscale even when the last-known-good url is the tailnet', () => {
+    expect(orderedEndpoints(env({ url: TAILNET, preferredEndpoint: TAILNET }))).toEqual([
+      LAN,
+      TAILNET,
+    ])
   })
 
   it('never yields an address the environment no longer knows', () => {

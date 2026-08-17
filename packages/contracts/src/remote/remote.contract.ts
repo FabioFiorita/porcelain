@@ -128,9 +128,9 @@ export const setLanBindOutputSchema = lanStatusOutputSchema
 export type SetLanBindInput = z.infer<typeof setLanBindInputSchema>
 export type SetLanBindOutput = z.infer<typeof setLanBindOutputSchema>
 
-/** Status returned by Tailscale Funnel, including ownership and availability. */
-export const funnelStatusInputSchema = z.void()
-export const funnelStatusOutputSchema = z
+/** Status returned by the Cloudflare Tunnel in front of loopback. */
+export const cloudflareStatusInputSchema = z.void()
+export const cloudflareStatusOutputSchema = z
   .object({
     enabled: z.boolean(),
     url: z.string().url().nullable(),
@@ -139,13 +139,13 @@ export const funnelStatusOutputSchema = z
     envForced: z.boolean(),
   })
   .strict()
-export type FunnelStatusInput = z.infer<typeof funnelStatusInputSchema>
-export type FunnelStatusOutput = z.infer<typeof funnelStatusOutputSchema>
+export type CloudflareStatusInput = z.infer<typeof cloudflareStatusInputSchema>
+export type CloudflareStatusOutput = z.infer<typeof cloudflareStatusOutputSchema>
 
-export const setFunnelBindInputSchema = z.boolean()
-export const setFunnelBindOutputSchema = funnelStatusOutputSchema
-export type SetFunnelBindInput = z.infer<typeof setFunnelBindInputSchema>
-export type SetFunnelBindOutput = z.infer<typeof setFunnelBindOutputSchema>
+export const setCloudflareBindInputSchema = z.boolean()
+export const setCloudflareBindOutputSchema = cloudflareStatusOutputSchema
+export type SetCloudflareBindInput = z.infer<typeof setCloudflareBindInputSchema>
+export type SetCloudflareBindOutput = z.infer<typeof setCloudflareBindOutputSchema>
 
 /** Representative contract-valid data used by Remote boundary tests and client mocks. */
 export const remoteContractFixtures = {
@@ -219,11 +219,11 @@ export const remoteContractFixtures = {
       port: 43118,
     },
   },
-  funnelStatus: {
+  cloudflareStatus: {
     input: undefined,
     output: { enabled: false, url: null, managed: false, error: 'unavailable', envForced: false },
   },
-  setFunnelBind: {
+  setCloudflareBind: {
     input: false,
     output: { enabled: false, url: null, managed: false, error: 'unavailable', envForced: false },
   },

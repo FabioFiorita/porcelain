@@ -1,6 +1,6 @@
 ---
 name: porcelain-remote
-description: Set up a remote Porcelain daemon — install, serve, choose exposure (LAN / tailnet / Funnel), pair devices, keep it always-on with systemd + linger, and run day-2 ops (revoke access, check share status, troubleshoot). Use whenever the human wants to reach Porcelain from a second machine, phone, or iPad; mentions a remote daemon, pairing a device, Tailscale, Funnel, or systemd for Porcelain; or asks to make Porcelain "always on."
+description: Set up a remote Porcelain daemon — install, serve, choose exposure (LAN / Tailscale / Cloudflare), pair devices, keep it always-on with systemd + linger, and run day-2 ops (revoke access, check share status, troubleshoot). Use whenever the human wants to reach Porcelain from a second machine, phone, or iPad; mentions a remote daemon, pairing a device, Tailscale, Cloudflare, or systemd for Porcelain; or asks to make Porcelain "always on."
 version: 0.53.1
 license: MIT
 ---
@@ -30,7 +30,7 @@ not this skill. This skill is exclusively about getting a daemon **running and r
 
 ```
 references/
-  serve.md            porcelain-daemon serve, bind modes (LAN / tailnet / Funnel), tradeoffs
+  serve.md            porcelain-daemon serve, bind modes (LAN / Tailscale / Cloudflare), tradeoffs
   pairing.md           access issue/list/revoke, the pairing-link exchange, security model
   always-on.md         systemd user unit + linger, restart policy, readiness polling
   troubleshooting.md   node-pty/C toolchain, Volta shims, port conflicts, 401 vs unreachable
@@ -40,7 +40,7 @@ references/
 
 | When | Do |
 |------|----|
-| First-time setup on a fresh host | [references/serve.md](references/serve.md) quick start, then decide LAN vs tailnet vs Funnel |
+| First-time setup on a fresh host | [references/serve.md](references/serve.md) quick start, then decide LAN vs Tailscale vs Cloudflare |
 | "How do I reach it from my phone / another machine?" | Pick a bind mode in [serve.md](references/serve.md); default to `--tailnet` unless the human is on the same LAN or explicitly wants public HTTPS |
 | Add a device (phone, second laptop) | [references/pairing.md](references/pairing.md) — `access issue --name "…"` |
 | Lost a device / rotate access | [references/pairing.md](references/pairing.md) — `access list` then `access revoke <id>` |
@@ -52,8 +52,8 @@ references/
 
 1. **Install & serve.** `npx porcelain-daemon@latest serve` on the remote host. This alone binds
    loopback only — nothing reachable yet from another machine.
-2. **Choose exposure.** Add `--lan` (same network), `--tailnet` (your private mesh), and/or
-   `--funnel` (public HTTPS in front of loopback) based on where the other devices actually are.
+2. **Choose exposure.** Add `--lan` (same network), then either `--tailnet` (your private mesh)
+   or `--cloudflare` (public HTTPS in front of loopback). Do not combine Tailscale and Cloudflare.
    Detail and tradeoffs: [references/serve.md](references/serve.md).
 3. **Pair each device.** `porcelain-daemon access issue --name "…"` prints a one-time link; open
    it on that device. Detail: [references/pairing.md](references/pairing.md).
@@ -66,7 +66,7 @@ references/
 ## Security model, in one paragraph
 
 The daemon always binds `127.0.0.1`; `--lan`/`--tailnet` add listeners on private interfaces only
-— never `0.0.0.0`. Funnel is an HTTPS proxy in front of the loopback listener, not a second
+— never `0.0.0.0`. Cloudflare is an HTTPS proxy in front of the loopback listener, not a second
 daemon. Every request needs a bearer credential: the host administrator token
 (`~/.porcelain/admin-token`, mode 0600, never shared with a device) or a per-device token minted
 by pairing. Pairing links (`pc_pair_…`) are single-use, expire in 15 minutes, and carry their
@@ -82,8 +82,8 @@ revocable token; `access revoke` also closes that device's live sessions. Full d
    host and is read by the host CLI itself — you never need to cat it, echo it, or put it in a
    pairing link.
 2. **Prefer the narrowest exposure that solves the human's actual reach.** Same house/office →
-   `--lan`. Different networks, own devices → `--tailnet`. Sharing with someone outside your
-   tailnet, or no Tailscale → `--funnel`. Don't turn on Funnel by default "to be safe."
+   `--lan`. Different networks, own devices → `--tailnet`. No Tailscale → `--cloudflare`. Don't
+   turn on Cloudflare by default "to be safe."
 3. **`--no-watchdog` is required under systemd** (or any process supervisor) — the daemon's stdin
    parent-death watchdog conflicts with supervised restarts. Foreground/manual runs keep the
    watchdog on.

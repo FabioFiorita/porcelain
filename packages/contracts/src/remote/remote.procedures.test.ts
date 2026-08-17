@@ -14,8 +14,8 @@ const expectedKinds = {
   setTailnetBind: 'mutation',
   lanStatus: 'query',
   setLanBind: 'mutation',
-  funnelStatus: 'query',
-  setFunnelBind: 'mutation',
+  cloudflareStatus: 'query',
+  setCloudflareBind: 'mutation',
 } as const
 
 const invalidInputs: Record<keyof typeof remoteProcedures, unknown> = {
@@ -29,8 +29,8 @@ const invalidInputs: Record<keyof typeof remoteProcedures, unknown> = {
   setTailnetBind: 'true',
   lanStatus: null,
   setLanBind: 'true',
-  funnelStatus: null,
-  setFunnelBind: 'false',
+  cloudflareStatus: null,
+  setCloudflareBind: 'false',
 }
 
 const invalidOutputs: Record<keyof typeof remoteProcedures, unknown> = {
@@ -44,8 +44,8 @@ const invalidOutputs: Record<keyof typeof remoteProcedures, unknown> = {
   setTailnetBind: { ...remoteContractFixtures.setTailnetBind.output, port: '43118' },
   lanStatus: { ...remoteContractFixtures.lanStatus.output, numericUrl: 'not-a-url' },
   setLanBind: { ...remoteContractFixtures.setLanBind.output, enabled: 'true' },
-  funnelStatus: { ...remoteContractFixtures.funnelStatus.output, error: 'busy' },
-  setFunnelBind: { ...remoteContractFixtures.setFunnelBind.output, managed: 'false' },
+  cloudflareStatus: { ...remoteContractFixtures.cloudflareStatus.output, error: 'busy' },
+  setCloudflareBind: { ...remoteContractFixtures.setCloudflareBind.output, managed: 'false' },
 }
 
 describe('Remote procedure contracts', () => {

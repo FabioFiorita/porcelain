@@ -71,14 +71,14 @@ const operations: RemoteOperations = {
     envForced: false,
     port: 43117,
   })),
-  funnelStatus: vi.fn(async () => ({
+  cloudflareStatus: vi.fn(async () => ({
     enabled: false,
     url: null,
     managed: false,
     error: 'unavailable' as const,
     envForced: false,
   })),
-  setFunnelBind: vi.fn(async () => ({
+  setCloudflareBind: vi.fn(async () => ({
     enabled: false,
     url: null,
     managed: false,

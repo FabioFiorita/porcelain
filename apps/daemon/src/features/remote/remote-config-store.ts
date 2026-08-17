@@ -13,7 +13,9 @@ export const appConfigSchema = z
     // devices on the home LAN can reach it, gated on the same authentication. Cleartext on
     // the LAN — opt-in, default off (see docs/remote-setup.md). Toggled from Settings.
     lanBind: z.boolean().optional(),
-    // Public HTTPS reverse proxy managed through `tailscale funnel`.
+    // Public HTTPS reverse proxy managed through `cloudflared` (quick tunnel).
+    cloudflareBind: z.boolean().optional(),
+    // Leftover Tailscale Funnel flag. Accepted so existing config.json still loads.
     funnelBind: z.boolean().optional(),
   })
   .strict()

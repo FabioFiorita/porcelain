@@ -11,8 +11,13 @@ export {
   revokeAuthorizedClient,
   revokePairingGrant,
 } from './access-store'
+export {
+  cloudflareStatus,
+  setCloudflareDaemonPort,
+  startCloudflare,
+  stopCloudflare,
+} from './remote-cloudflare'
 export { initConfigDir, loadConfig, updateConfig } from './remote-config-store'
-export { funnelStatus, setFunnelDaemonPort, startFunnel, stopFunnel } from './remote-funnel'
 export {
   createRemoteHttp,
   type RemoteHttp,

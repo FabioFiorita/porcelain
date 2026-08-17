@@ -20,7 +20,7 @@ Environment=PATH=<node-manager-bin>:/usr/local/bin:/usr/bin:/bin
 Environment=PORCELAIN_USER_DATA=%h/.local/share/porcelain
 Environment=PORCELAIN_DAEMON_PORT=43117
 Environment=PORCELAIN_ALLOWED_ORIGIN=http://hub-host:43118
-ExecStart=<node-manager-bin>/npx --yes --prefer-online porcelain-daemon@latest serve --no-watchdog --funnel
+ExecStart=<node-manager-bin>/npx --yes --prefer-online porcelain-daemon@latest serve --no-watchdog --lan --cloudflare
 Restart=always
 RestartSec=5
 KillMode=control-group
@@ -32,7 +32,8 @@ NoNewPrivileges=true
 WantedBy=default.target
 ```
 
-Swap `--funnel` for `--tailnet`, `--lan`, or a combination to match the exposure you picked in
+Swap `--cloudflare` for `--tailnet` if this host is on a tailnet. Do not pass both. Match the
+exposure you picked in
 [serve.md](serve.md). Swap `<node-manager-bin>` for the real bin directory of whatever installed
 Node on this host (a Volta shim dir, `~/.local/share/fnm`, a system path — whatever `which node`
 resolves through outside systemd). Never leave `<node-manager-bin>` as a literal placeholder in the
@@ -50,7 +51,7 @@ Notes on the choices that matter here:
   controlling process; under systemd's process model it just fights `Restart=always` and the unit
   flaps. Systemd's own supervision replaces it.
 - **`Restart=always`, not `Restart=on-failure`.** A clean exit (e.g. from an unhandled signal
-  during a Funnel hiccup) should still come back — this is a background service, not a one-shot
+  during a tunnel hiccup) should still come back — this is a background service, not a one-shot
   job. (`on-failure` is what you'll see in older generated docs; prefer `always` for this
   proven setup.)
 - **PATH must include the agent CLIs**, not just Node. The daemon discovers `claude`/`codex`/other

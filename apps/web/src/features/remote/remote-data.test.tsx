@@ -5,7 +5,7 @@ import { renderHook, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import {
   remoteAccessStatusQueryOptions,
-  remoteFunnelStatusQueryOptions,
+  remoteCloudflareStatusQueryOptions,
   remoteStatusQueryKey,
   setRemoteLanBind,
   setRemoteTailnetBind,
@@ -26,7 +26,7 @@ describe('remoteStatusQueryKey', () => {
     expect(access).toEqual(['remote', 'accessStatus', DAEMON])
     expect(lan[1]).not.toBe(access[1])
     expect(otherLan[2]).not.toEqual(lan[2])
-    expect(remoteStatusQueryKey({ host: null, version: null }, 'funnelStatus')[2]).toEqual({
+    expect(remoteStatusQueryKey({ host: null, version: null }, 'cloudflareStatus')[2]).toEqual({
       host: null,
       version: null,
     })
@@ -36,7 +36,7 @@ describe('remoteStatusQueryKey', () => {
 describe('remote status query options', () => {
   it('does not re-enable Query retries', async () => {
     expect('retry' in remoteAccessStatusQueryOptions).toBe(false)
-    expect('retry' in remoteFunnelStatusQueryOptions).toBe(false)
+    expect('retry' in remoteCloudflareStatusQueryOptions).toBe(false)
 
     const { wrapper } = createValidatingTrpcHarness({
       daemonInfo: () => ({ ok: true, value: remoteContractFixtures.daemonInfo.output }),

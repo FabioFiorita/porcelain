@@ -159,26 +159,6 @@ export function usePairEnvironmentConnection(): {
   }
 }
 
-export function usePreferEnvironmentEndpoint(): {
-  prefer: (input: { id: string; url: string }) => void
-  isPending: boolean
-} {
-  const utils = shellTrpc.useUtils()
-  const mutation = shellTrpc.preferEnvironmentEndpoint.useMutation({
-    onSuccess: async (): Promise<void> => {
-      await Promise.all([
-        utils.remoteEnvironments.invalidate(),
-        utils.environmentStatuses.invalidate(),
-      ])
-    },
-    onError: onMutationError('Set primary connection'),
-  })
-  return {
-    prefer: (input: { id: string; url: string }): void => mutation.mutate(input),
-    isPending: mutation.isPending,
-  }
-}
-
 export function useRemoveEnvironmentEndpoint(): {
   remove: (input: { id: string; url: string }) => void
   isPending: boolean

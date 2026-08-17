@@ -5,17 +5,17 @@ import { trpc } from '@renderer/lib/trpc'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   fetchRemoteAccessStatus,
-  fetchRemoteFunnelStatus,
+  fetchRemoteCloudflareStatus,
   fetchRemoteLanStatus,
   fetchRemoteTailnetStatus,
   issueRemotePairingLink,
   type RemoteDaemonScope,
   remoteAccessStatusQueryOptions,
-  remoteFunnelStatusQueryOptions,
+  remoteCloudflareStatusQueryOptions,
   remoteStatusQueryKey,
   revokeRemoteAuthorizedClient,
   revokeRemotePairingLink,
-  setRemoteFunnelBind,
+  setRemoteCloudflareBind,
   setRemoteLanBind,
   setRemoteTailnetBind,
 } from './remote-data'
@@ -50,13 +50,13 @@ export interface TailnetStatus {
   port: number
 }
 
-export interface FunnelStatus {
+export interface CloudflareStatus {
   enabled: boolean
   url: string | null
   managed: boolean
-  /** Why nothing bound: 'unavailable' = tailscale/funnel missing, 'conflict' = port squatted. */
+  /** Why nothing bound: 'unavailable' = cloudflared missing, 'conflict' = another tunnel. */
   error: 'unavailable' | 'conflict' | null
-  /** True when PORCELAIN_FUNNEL_BIND=1 force-enabled the bind at boot (not togglable). */
+  /** True when PORCELAIN_CLOUDFLARE_BIND=1 force-enabled the bind at boot (not togglable). */
   envForced: boolean
 }
 
@@ -95,13 +95,13 @@ export function useTailnetStatus(): TailnetStatus | undefined {
   return data
 }
 
-export function useFunnelStatus(): FunnelStatus | undefined {
+export function useCloudflareStatus(): CloudflareStatus | undefined {
   const daemon = daemonScope(useDaemonIdentity())
   const client = trpc.useUtils().client
   const { data } = useQuery({
-    queryKey: remoteStatusQueryKey(daemon, 'funnelStatus'),
-    queryFn: () => fetchRemoteFunnelStatus(client),
-    ...remoteFunnelStatusQueryOptions,
+    queryKey: remoteStatusQueryKey(daemon, 'cloudflareStatus'),
+    queryFn: () => fetchRemoteCloudflareStatus(client),
+    ...remoteCloudflareStatusQueryOptions,
   })
   return data
 }
@@ -201,7 +201,7 @@ export function useSetTailnetBind(): {
   }
 }
 
-export function useSetFunnelBind(): {
+export function useSetCloudflareBind(): {
   setEnabled: (enabled: boolean) => void
   isPending: boolean
 } {
@@ -209,8 +209,8 @@ export function useSetFunnelBind(): {
   const queryClient = useQueryClient()
   const client = trpc.useUtils().client
   const mutation = useMutation({
-    mutationFn: (enabled: boolean) => setRemoteFunnelBind(client, queryClient, daemon, enabled),
-    onError: onMutationError('Update Internet sharing'),
+    mutationFn: (enabled: boolean) => setRemoteCloudflareBind(client, queryClient, daemon, enabled),
+    onError: onMutationError('Toggle Cloudflare sharing'),
   })
   return {
     setEnabled: (enabled: boolean): void => {

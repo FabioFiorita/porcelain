@@ -35,12 +35,14 @@ Add a flag to open it up, matched to where your other devices actually are:
 
 | Flag | Reaches | Use when |
 |------|---------|----------|
-| `--lan` | Same physical/Wi-Fi network | You're on the same LAN as the host |
-| `--tailnet` | Any device on your Tailscale network | The common case — your own devices, anywhere |
-| `--funnel` | The public internet, over HTTPS | Sharing with someone off your tailnet |
+| `--lan` | Same physical/Wi-Fi network | Fastest. Same house or office as the host |
+| `--tailnet` | Any device on your Tailscale network | Your own devices, anywhere, privately |
+| `--cloudflare` | The public internet, over HTTPS | No Tailscale. `cloudflared` publishes loopback |
+
+`--tailnet` and `--cloudflare` are mutually exclusive. LAN can combine with either.
 
 ```sh
-npx porcelain-daemon@latest serve --tailnet
+npx porcelain-daemon@latest serve --lan --cloudflare
 ```
 
 ### Browser Hub connections and CORS
@@ -61,7 +63,7 @@ included in CORS errors or logs. The browser's Remotes error names this setting 
 origin when a cross-origin preflight is blocked.
 
 The daemon never binds the wildcard address (`0.0.0.0`) under any of these — `--lan`/`--tailnet`
-add listeners on specific private interfaces only, and Funnel is an HTTPS proxy in front of the
+add listeners on specific private interfaces only, and Cloudflare is an HTTPS proxy in front of the
 loopback listener rather than a second daemon. Every request still needs a credential either way.
 Full bind-mode tradeoffs (including the cleartext-on-LAN caveat) are in the
 `porcelain-remote` agent skill's `references/serve.md`.
@@ -79,13 +81,9 @@ app's **Settings → Remotes**. It's a one-time link: single use, expires in 15 
 becomes an individually revocable credential for just that device. The host administrator token
 is never part of this exchange.
 
-For a browser that is already connected to one daemon, open **Settings → Remotes** in that tab
-to add another Environment. Enter the daemon URL, a human label, and the `pc_client_…` token
-issued by pairing. The browser calls `daemonInfo` first and saves the connection only after the
-URL and client token are accepted; the token remains client-local and is never shown in the saved
-connection card. Unreachable configured connections stay visible with an offline status, while
-their Environment inventories are omitted until the daemon is reachable again. The host
-administrator token is intentionally rejected by this form.
+A browser tab is one environment — the daemon that served the page. To use a different daemon,
+open its pairing link in a new tab. The Mac app (and later the phone) keep several named
+environments and try LAN, then Tailscale, then Cloudflare.
 
 Manage devices from the host CLI (or the Mac app's **Settings → Share**):
 
@@ -108,9 +106,9 @@ Volta/fnm/nvm shim trap, and a readiness-polling snippet for after a restart liv
 npx porcelain-daemon@latest share status
 ```
 
-is the first thing to run when something seems off — it reports LAN, tailnet, and Funnel status
-in one call and only needs loopback, so it works even when the exposure you're debugging is the
-thing that's broken.
+is the first thing to run when something seems off — it reports LAN, Tailscale, and Cloudflare
+status in one call and only needs loopback, so it works even when the exposure you're debugging is
+the thing that's broken.
 
 ## Ask an agent to do this for you
 

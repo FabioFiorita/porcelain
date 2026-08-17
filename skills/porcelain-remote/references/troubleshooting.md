@@ -6,9 +6,9 @@ Start every investigation with:
 npx porcelain-daemon@latest share status
 ```
 
-It prints `lan`, `tailnet`, and `funnel` status in one JSON blob (bound or not, and the URL each
-resolves to) and needs only loopback to run — so it works even when the exposure you're trying to
-debug is the thing that's broken. Confirm the daemon itself is reachable at all
+It prints `lan`, `tailnet`, and `cloudflare` status in one JSON blob (bound or not, and the URL
+each resolves to) and needs only loopback to run — so it works even when the exposure you're
+trying to debug is the thing that's broken. Confirm the daemon itself is reachable at all
 (`curl http://127.0.0.1:<port>/`) before chasing a network-layer theory.
 
 ## Install fails — node-pty won't compile
@@ -65,15 +65,11 @@ If that shows "Logged out" or no interface, log in first (`tailscale up`). If it
 plausible Tailscale-range addresses, the daemon refuses to pick one — that's usually an unusual
 multi-tailnet or VPN-overlap setup worth resolving at the Tailscale layer, not a Porcelain bug.
 
-## `--funnel` doesn't come up / Funnel URL 404s
+## `--cloudflare` doesn't come up / tunnel URL 404s
 
-- Confirm Tailscale is logged in (`tailscale status`).
-- Confirm Funnel is enabled for the tailnet — this is a one-time ACL grant in the Tailscale admin
-  console (Funnel isn't on by default even when Tailscale itself is). See Tailscale's own docs for
-  enabling Funnel; this skill doesn't manage tailnet ACLs.
-- If `tailscale funnel status` shows something else already publishing on this daemon's target,
-  the daemon refuses to steal it — stop the conflicting Funnel config first, or point Funnel at a
-  free target.
+- Confirm `cloudflared` is on `PATH` (`command -v cloudflared`). The daemon does not install it.
+- Quick-tunnel URLs change every time the process starts. Re-issue the pairing link after a restart.
+- `--funnel` is gone. Use `--cloudflare` (or `share cloudflare on`).
 
 ## "Unreachable" vs 401 — different problems
 
@@ -95,8 +91,8 @@ Don't conflate the two — a 401 means the network path already works.
   actually open it, not ahead of time.
 - **Link opens but can't reach the daemon** — the `--base-url` baked into the link doesn't
   actually route to this host from the device's network. Re-issue with an explicit `--base-url`
-  matching a bind mode that device can actually reach (e.g. the device is off-tailnet: use the
-  Funnel URL, not the tailnet one).
+  matching a bind mode that device can actually reach (e.g. the device is off-network: use the
+  Cloudflare URL, not the LAN one).
 
 ## Lost the admin token / locked out of host administration
 

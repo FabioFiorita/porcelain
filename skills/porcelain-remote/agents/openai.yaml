@@ -1,4 +1,4 @@
 interface:
   display_name: "Porcelain Remote"
-  short_description: "Set up a remote Porcelain daemon — install, serve, choose LAN/tailnet/Funnel exposure, pair devices, run it always-on, and troubleshoot"
-  default_prompt: "Use $porcelain-remote to bring up a Porcelain daemon on a remote host: install and serve it, pick the right exposure (LAN, tailnet, or Funnel), pair each device with a one-time link, wire it up as an always-on systemd user service with linger, and handle day-2 ops like revoking access and checking share status."
+  short_description: "Set up a remote Porcelain daemon — install, serve, choose LAN/Tailscale/Cloudflare exposure, pair devices, run it always-on, and troubleshoot"
+  default_prompt: "Use $porcelain-remote to bring up a Porcelain daemon on a remote host: install and serve it, pick the right exposure (LAN, Tailscale, or Cloudflare), pair each device with a one-time link, wire it up as an always-on systemd user service with linger, and handle day-2 ops like revoking access and checking share status."

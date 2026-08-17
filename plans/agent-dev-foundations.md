@@ -140,7 +140,7 @@ The regression the human hit is invisible until two daemons exist.
   `a621c652`/`31d79aed` shipped.
 - Both daemons must be individually addressable, individually pairable, and individually killable
   by tracked PID.
-- Cover the three connection modes the product claims: loopback, LAN, and tailnet/Funnel. A
+- Cover the three connection modes the product claims: loopback, LAN, and Tailscale/Cloudflare. A
   feature that works on one is not proven on the others.
 
 ### W5 — Surface walk

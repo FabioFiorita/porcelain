@@ -80,7 +80,7 @@ export function devAccessStatus(port = DEV_PORT) {
 
 /**
  * Mint a one-time pairing URL. With no explicit base URL the daemon picks the widest
- * enabled endpoint (Funnel, then tailnet, then LAN); a loopback-only daemon has none to
+ * enabled endpoint (LAN, then tailnet, then Cloudflare); a loopback-only daemon has none to
  * suggest, so fall back to the loopback origin rather than failing the launch.
  */
 export function issueDevPairingUrl({ port = DEV_PORT, label = 'Dev browser', baseUrl } = {}) {

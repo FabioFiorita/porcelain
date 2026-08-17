@@ -1,8 +1,8 @@
 import { PROTOCOL_VERSION } from '@porcelain/contracts'
 import type {
   AccessStatusOutput,
+  CloudflareStatusOutput,
   DaemonInfoOutput,
-  FunnelStatusOutput,
   IssuePairingLinkInput,
   IssuePairingLinkOutput,
   LanStatusOutput,
@@ -17,7 +17,7 @@ import {
 } from './access-store'
 import type {
   RemoteAccess,
-  RemoteFunnel,
+  RemoteCloudflare,
   RemoteIdentityValue,
   RemoteListeners,
   RemoteNetworkConfig,
@@ -42,8 +42,8 @@ export type RemoteOperations = Readonly<{
   setTailnetBind: (input: boolean) => Promise<TailnetStatusOutput>
   lanStatus: () => Promise<LanStatusOutput>
   setLanBind: (input: boolean) => Promise<LanStatusOutput>
-  funnelStatus: () => Promise<FunnelStatusOutput>
-  setFunnelBind: (input: boolean) => Promise<FunnelStatusOutput>
+  cloudflareStatus: () => Promise<CloudflareStatusOutput>
+  setCloudflareBind: (input: boolean) => Promise<CloudflareStatusOutput>
 }>
 
 function invalid(): RemoteOperationResult<never> {
@@ -58,7 +58,7 @@ export function createRemoteOperations(options: {
   sessions: RemoteSessions
   config: RemoteNetworkConfig
   listeners: RemoteListeners
-  funnel: RemoteFunnel
+  cloudflare: RemoteCloudflare
   env: RemoteNetworkEnv
 }): RemoteOperations {
   const access = options.access ?? {
@@ -141,7 +141,12 @@ export function createRemoteOperations(options: {
     },
 
     async setTailnetBind(input: boolean): Promise<TailnetStatusOutput> {
-      await options.config.update((current) => ({ ...current, tailnetBind: input }))
+      if (input) await options.cloudflare.stop()
+      await options.config.update((current) => ({
+        ...current,
+        tailnetBind: input,
+        cloudflareBind: input ? false : current.cloudflareBind,
+      }))
       if (input) await options.listeners.startTailnetListener()
       else await options.listeners.stopTailnetListener()
       const envForced = options.env.tailnetBindForced()
@@ -182,17 +187,22 @@ export function createRemoteOperations(options: {
       }
     },
 
-    async funnelStatus(): Promise<FunnelStatusOutput> {
+    async cloudflareStatus(): Promise<CloudflareStatusOutput> {
       return {
-        ...(await options.funnel.status()),
-        envForced: options.env.funnelBindForced(),
+        ...(await options.cloudflare.status()),
+        envForced: options.env.cloudflareBindForced(),
       }
     },
 
-    async setFunnelBind(input: boolean): Promise<FunnelStatusOutput> {
-      const status = input ? await options.funnel.start() : await options.funnel.stop()
-      await options.config.update((current) => ({ ...current, funnelBind: input }))
-      return { ...status, envForced: options.env.funnelBindForced() }
+    async setCloudflareBind(input: boolean): Promise<CloudflareStatusOutput> {
+      const status = input ? await options.cloudflare.start() : await options.cloudflare.stop()
+      if (input) await options.listeners.stopTailnetListener()
+      await options.config.update((current) => ({
+        ...current,
+        cloudflareBind: input,
+        tailnetBind: input ? false : current.tailnetBind,
+      }))
+      return { ...status, envForced: options.env.cloudflareBindForced() }
     },
   })
 }

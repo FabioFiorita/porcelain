@@ -16,7 +16,7 @@ Coding agents generate faster than anyone can trust. Every tool in this space ra
 - **A two-way loop.** Leave a comment on a line or a file. It becomes context for your agent, and resolutions come back. A per-repo board keeps work queued as agents ship. Everything stays on machines you control.
 - **Focus on the work in front of you.** Hide folders you will not touch. Pin the paths you live in. Your agent can set that up for you. Large trees stay fast: nothing is indexed until you open it.
 - **Companion, not replacement.** Porcelain is not an agent host and not an IDE. Keep the tools you already prefer. Run any agent CLI in Porcelain's terminal next to the review surfaces, or keep using your own terminal outside the app.
-- **Anywhere is the same place.** Share Porcelain over your LAN, private Tailscale network, or public HTTPS with Tailscale Funnel. Pair each Mac, phone, or tablet with a one-time link and revoke it independently. Terminals and review state stay on the host, so reconnects pick up where you left off.
+- **Anywhere is the same place.** Share Porcelain over your LAN, private Tailscale network, or public HTTPS with a Cloudflare tunnel. Pair each Mac, phone, or tablet with a one-time link and revoke it independently. Terminals and review state stay on the host, so reconnects pick up where you left off.
 
 ## Features
 
@@ -28,7 +28,7 @@ Coding agents generate faster than anyone can trust. Every tool in this space ra
 - **Fast file viewer**: virtualized rendering, Shiki highlighting, always-editable text (autosave), Markdown reader/source, image support, two-pane split
 - **Focus navigation**: hide folders, pin paths, lazy per-directory loading. Built for large repos and monorepos alike
 - **Search & finders**: repo-wide code search, fuzzy file finder, find-in-file, find references
-- **Secure remote access**: LAN, private Tailscale, or Tailscale Funnel; one-time connection links and individually revocable devices
+- **Secure remote access**: LAN, private Tailscale, or Cloudflare; one-time connection links and individually revocable devices
 - **Light, dark, and system themes**, themed end to end
 - **One window**: projects and worktrees from every connected daemon live in one Hub; clicking a worktree never opens a second window
 - **Auto-updating** builds (signed and notarized on macOS)
@@ -40,7 +40,7 @@ Coding agents generate faster than anyone can trust. Every tool in this space ra
 **Everything else (Linux, Windows, iPad, phone):** you don't install Porcelain, you open it. Run the daemon on the machine that holds your code and point a browser at it:
 
 ```bash
-npx porcelain-daemon@latest serve --tailnet --funnel
+npx porcelain-daemon@latest serve --lan --cloudflare
 ```
 
 Then, from another terminal on that host:

@@ -4,7 +4,7 @@
     ".": {
       "entry": ["scripts/*.{mjs,js}", "scripts/*/*.mjs"],
       "project": ["scripts/**/*.{mjs,js}"],
-      "ignoreBinaries": ["ss", "playwright", "vitest"]
+      "ignoreBinaries": ["ss", "playwright", "vitest", "cloudflared"]
     },
     "apps/desktop": {
       "entry": [
@@ -115,7 +115,7 @@
       "project": ["src/**/*.css"]
     }
   },
-  "ignoreBinaries": ["vitest"],
+  "ignoreBinaries": ["vitest", "cloudflared"],
   "ignoreDependencies": [
     "@fontsource-variable/geist",
     "@fontsource-variable/geist-mono",
