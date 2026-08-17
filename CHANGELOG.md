@@ -1,3 +1,16 @@
+## [0.54.0](https://github.com/FabioFiorita/porcelain/compare/v0.53.2...v0.54.0) (2026-08-17)
+
+### Features
+
+* **tasks:** ship a Linear-like board with a live notes composer ([6d28495](https://github.com/FabioFiorita/porcelain/commit/6d284953cafd1019c3c675862692b4dd00cfe78f))
+* **web:** restore review comments and settle the companion shell ([732c499](https://github.com/FabioFiorita/porcelain/commit/732c499fb071d9e1d514c2ddb0c68f909cf7dc79))
+
+### Bug Fixes
+
+* **git:** publish a branch when push has no matching remote ([#36](https://github.com/FabioFiorita/porcelain/issues/36)) ([5d0bd85](https://github.com/FabioFiorita/porcelain/commit/5d0bd8535ebacbcfef694eb5d82ce4753a6eaf1f))
+* **tasks:** typecheck attachment and tabs test fixtures ([a7c3dc7](https://github.com/FabioFiorita/porcelain/commit/a7c3dc70d5a624554f3c5b5024dc08ae253941b0))
+* **web:** drop Settings Remotes from the browser ([f4ebe07](https://github.com/FabioFiorita/porcelain/commit/f4ebe07b9fff6844e6371fb947b8f8339e2ca60f))
+
 ## [0.53.2](https://github.com/FabioFiorita/porcelain/compare/v0.53.1...v0.53.2) (2026-08-17)
 
 ### Features
