@@ -40,9 +40,9 @@ profile set`, the latter taking the entire profile as JSON. No granular pin/unpi
 verbs — they multiply argument shapes and half-written states, and agents write whole documents more
 reliably than they chain edits.
 
-**Ordering lives in `client-runtime`** as a pure function over the changed-file list and the profile.
-Not daemon-side, which would couple the `git` domain to profile data across a boundary; not
-per-client, which duplicates it.
+**Ordering lives in `apps/daemon/src/review/flow.ts`** — `groupByLayer` is the one grouping
+implementation, already shared by `buildFlow` and `buildActiveReview`. Profile-driven ordering
+extends it; it never grows a second implementation beside it (ADR 0006).
 
 **Porcelain ships the mechanism, not the policy.** CLI verbs and a companion skill are the entire
 product surface. Whether a profile is written when a worktree is created, and what goes in it, is

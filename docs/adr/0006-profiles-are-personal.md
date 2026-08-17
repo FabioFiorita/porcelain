@@ -25,13 +25,19 @@ merely stale. This is the deliberate opposite of the Canvas rule in ADR 0002 —
 Worktree disposal because losing evidence loses proof, while a profile is cheap to rewrite and, if a
 create Action is wired, rewritten before anyone notices it was gone.
 
-**Layer ordering is a pure function in `client-runtime`.** Ordering a changed-file list by declared
-Layers is pure UI semantics, which `internals/architecture.md` already assigns to that package.
-Computing it daemon-side would make the `git` domain reach into profile data — a cross-domain
-coupling that hard rule 4 forces through a narrow capability for no benefit. Computing it per client
-duplicates it. It is a pure function over two plain inputs, which makes it cheap to test in the
-layer where coverage is thinnest. `apps/mobile` is frozen and will not call it; that is accepted,
-and the placement stands on the remaining reasons.
+**Layer ordering stays daemon-side, in `apps/daemon/src/review/flow.ts`.** This decision was first
+written the other way — a pure function in `client-runtime` — and that was wrong, because it was
+argued against an empty field. `flow.ts` already implements it: `Layer`, `compileLayers`,
+`layerForCompiled`, and `groupByLayer`, described in its own comment as "the ONE grouping
+implementation" and shared by `buildFlow` and `buildActiveReview`. It is landed and tested.
+
+Reusing it costs nothing and keeps one implementation; porting it would re-test working code to
+satisfy an argument made in ignorance of it. The cross-domain worry that drove the original
+placement is also smaller than assumed: `flow.ts` lives under `review/`, not under `git/`, so
+profile-driven ordering does not make the Git domain reach for profile data. Profile-driven
+changeset ordering extends this function rather than growing a second one beside it — two grouping
+implementations is the outcome to avoid, and it is the outcome the first version of this paragraph
+would have produced.
 
 **The write path is whole-document.** `porcelain worktree profile get` and `porcelain worktree
 profile set`, the latter taking the entire profile as JSON. Granular mutation verbs multiply into

@@ -309,10 +309,11 @@ commit as the first deletion — never before it, never after.
 `plans/` is itself audited in this phase: `agent-dev-foundations.md` and anything harness-era is
 deletion candidate, not inheritance.
 
-## Open: ADR 0006 contradicts shipped code on where ordering lives
+## Resolved: ordering stays daemon-side
 
-**Found while deleting, needs Fabio's call.** ADR 0006 places layer ordering in `client-runtime` as
-a pure function. `apps/daemon/src/review/flow.ts` already implements it **daemon-side** —
+**Found while deleting; Fabio chose option 1 and ADR 0006 is amended.** The ADR originally placed
+layer ordering in `client-runtime` as a pure function. `apps/daemon/src/review/flow.ts` already
+implements it **daemon-side** —
 `Layer`, `compileLayers`, `layerForCompiled`, and `groupByLayer`, described in its own comment as
 "the ONE grouping implementation", shared by `buildFlow` and `buildActiveReview`. It is landed and
 tested.
@@ -326,8 +327,10 @@ empty field rather than against working code. Three ways out:
 3. **Split**: profile-driven changeset ordering in `client-runtime`, existing flow/review grouping
    left where it is — which risks exactly the two-implementations outcome the ADR meant to prevent.
 
-Recommendation is (1), but this is a written decision contradicting shipped code, which is the
-precise failure mode this session exists to stop. It should not be resolved silently.
+**Chosen: (1).** ADR 0006 and `docs/surfaces/worktree-profile.md` now say ordering stays in
+`flow.ts`, and profile-driven ordering extends `groupByLayer` rather than growing a second
+implementation. Recorded rather than quietly corrected, because a written decision contradicting
+shipped code is the precise failure this whole plan exists to stop.
 
 ## Scale reference
 
