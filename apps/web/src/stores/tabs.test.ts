@@ -3,8 +3,9 @@ import { hydrateViewerTabs, type Pane, type Tab, tabId, useTabsStore } from './t
 
 const tab = (id: string): Tab => ({ id, kind: 'file', title: id, path: `/repo/${id}` })
 
-const reset = (): void =>
+const reset = (): void => {
   useTabsStore.setState({ panes: [{ tabs: [], activeTabId: null }], activePaneIndex: 0 })
+}
 
 const pane = (index = 0): Pane => {
   const p = useTabsStore.getState().panes[index]
