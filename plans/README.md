@@ -4,8 +4,8 @@
 
 Active:
 
-- [`usable.md`](usable.md) — the only backlog. Four slices to make the app something Fabio
-  opens on Monday.
+- [`usable.md`](usable.md) — the only backlog. Four slices to make the app something that
+  gets opened on a weekday.
 
 Parked:
 

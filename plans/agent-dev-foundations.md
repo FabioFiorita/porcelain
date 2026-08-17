@@ -70,7 +70,7 @@ URL to stdout (`scripts/daemon-cli.js:262`), and the daemon already exchanges pa
 (`apps/daemon/src/server.ts`). So this is launcher work, not product work:
 
 - After the daemon reports ready, mint a pairing link and print it as a banner line — LAN form
-  (`http://beelink:<port>/pair#token=…`) so any device or a LAN-peer browser can take it.
+  (`http://<lan-host>:<port>/pair#token=…`) so any device or a LAN-peer browser can take it.
 - Print the loopback and LAN origins separately from the pairing URL, since a bare origin is
   useless to whoever needs to pair and a pairing URL must not be opened twice.
 - Keep `--share`-style semantics in mind for the tailnet flag, but do not invent a second sharing
@@ -164,7 +164,7 @@ Before calling frontend work done, say which entries applied. That sentence is t
 mechanism — it is cheap and it would have caught this.
 
 **Open question that must be answered before this section is written for real:** which browser
-each harness actually has on this machine. Chrome is not installed on beelink; the
+each harness actually has on this machine. Chrome is not installed on the Linux host; the
 `claude-in-chrome` route drives a **LAN peer**, and Playwright is headless-only here. Codex and
 other harnesses differ again. The current `web-e2e` skill says "use the in-app Browser first"
 without naming what that resolves to per harness, which makes it unactionable half the time. This

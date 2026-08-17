@@ -1,10 +1,10 @@
 # Make Porcelain usable
 
 Status: active. This is the only backlog. Do not add gates, ADRs, or docs unless a slice below
-cannot ship without them. Delete this file when all four slices are on `main` and Fabio has used
-the app on the work monorepo for a week.
+cannot ship without them. Delete this file when all four slices are on `main` and the app has
+been used on a real monorepo for a week.
 
-You are implementing product. Fabio reviews the running app, not your diff.
+You are implementing product. The human reviews the running app, not your diff.
 
 ## Already true
 
@@ -23,13 +23,12 @@ You are implementing product. Fabio reviews the running app, not your diff.
 3. Prove at the lowest test that can fail the behaviour. Then `pnpm quality:changed`.
 4. Slice 1 and 2 need Mac proof: Electron build, click the flow, screenshot. Linux unit tests
    are not enough for those two.
-5. Do not push unless Fabio asked.
+5. Do not push unless asked.
 
 ## Slice 1 — Mac: one window, two daemons
 
-**Done when:** In the Mac app, clicking a worktree on the SOAP (work) daemon or the personal
-daemon switches this window. No second window. Switching back works. Tabs from the previous
-worktree stay.
+**Done when:** In the Mac app, clicking a worktree on any connected daemon switches this
+window. No second window. Switching back works. Tabs from the previous worktree stay.
 
 **Where:** already patched in `hub-tree.tsx`. Verify on Mac against both real daemons. If
 anything else still calls `newWindow` / `openWindowInEnvironment` on a worktree *click* (not
@@ -46,12 +45,11 @@ Paseo's production relay is a hosted Elixir service; the Cloudflare code in that
 *legacy and not deployed*. Porcelain has no users to log in. Identity is already pairing.
 
 **Copy this instead:** T3's `t3 connect link` installs `cloudflared` and the daemon dials
-outbound. Pairing stays. That is the side-project version of what Fabio likes about T3.
+outbound. Pairing stays. That is the side-project version of T3 Connect.
 
 **Done when:** `porcelain-daemon serve --cloudflare` publishes loopback on a quick
-`*.trycloudflare.com` URL or a named tunnel (SOAP + personal). Pair once. Open Mac or
-browser at that URL. No Tailscale, no LAN. Existing `--lan` / `--tailnet` / `--funnel` keep
-working.
+`*.trycloudflare.com` URL or a named tunnel. Pair once. Open Mac or browser at that URL.
+No Tailscale, no LAN. Existing `--lan` / `--tailnet` / `--funnel` keep working.
 
 **Shape:** wrap `cloudflared` the way `--funnel` wraps Tailscale Funnel
 (`apps/daemon/src/features/remote/`). Outbound. Never bind `0.0.0.0`. Never send repo
@@ -61,8 +59,8 @@ two tunnels, two pairing links, two remotes in the Hub.
 **Where:** `apps/daemon/src/features/remote/`, `docs/remote-setup.md`,
 `skills/porcelain-remote/`.
 
-**Proof:** tunnel against the *dev* daemon first, then one named tunnel on the work daemon
-(43117) and one on personal. Tests for start, stop, and "cloudflared missing" sit next to
+**Proof:** tunnel against the *dev* daemon first, then a named tunnel on a second daemon
+with its own home and port. Tests for start, stop, and "cloudflared missing" sit next to
 the Funnel tests. Mac: pair, open a worktree, one window.
 
 ## Slice 3 — Create and dispose worktrees
@@ -99,6 +97,6 @@ order follows them.
 
 ## After slice 4
 
-Stop. Fabio uses it on the work monorepo for a week. UI redesign, Tasks polish, and anything
-not in the four slices wait for that week. If he does not open it, the next conversation is
-whether to archive, not what to build next.
+Stop. Use it on a real monorepo for a week. UI redesign, Tasks polish, and anything not in
+the four slices wait for that week. If it is not opened, the next conversation is whether
+to archive, not what to build next.

@@ -42,8 +42,8 @@ In priority order. Pillars 2 and 3 are one mechanism — the worktree profile �
    too — coverage, mutation score, complexity, new dead code — not as decoration but as **reading
    triage**: which of today's changes deserve line-by-line attention, and which can be skimmed.
 5. **Remote.** Cloudflare Tunnel in front of loopback. Pairing stays. LAN and Tailscale stay
-   optional. Two daemons (work and personal) are two tunnels. The Mac app is a viewer of those
-   daemons, not a second product.
+   optional. Two daemons are two tunnels. The Mac app is a viewer of those daemons, not a
+   second product.
 6. **Tasks.** One cross-project board, quick to add to — especially screenshots — with tags,
    statuses, and descriptions. Agents read it and pick work up. It does not need to chain into
    Canvas or execution to earn its place.

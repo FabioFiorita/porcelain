@@ -48,7 +48,7 @@ which of these applied:
 - **Clients.** Browser and Electron load the *same* web client. `isBrowser` is true in unit tests
   (no preload). Any `if (!isBrowser)` path needs a test that mocks `@renderer/lib/platform` the way
   `worktree-switcher.test.tsx` does — that is how “click worktree opens a new window” shipped.
-- **Environments.** Local daemon, a second remote daemon. Fabio runs two (work + personal).
+- **Environments.** Local daemon and a second remote daemon. Two daemons is the normal case.
 - **Reverse states.** A way in needs a way out and a way to see it.
 - **Docs.** User-visible behaviour goes in `docs/`. Current backlog is `plans/usable.md`.
 
