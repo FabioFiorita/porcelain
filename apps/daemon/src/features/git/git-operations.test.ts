@@ -76,7 +76,7 @@ function projectGit(overrides: Partial<ProjectGit> = {}): ProjectGit {
     ),
     suggestions: vi.fn<ProjectGit['suggestions']>(async (): Promise<GitSuggestion[]> => []),
     head: vi.fn<ProjectGit['head']>(
-      async (): Promise<GitHead> => ({ branch: 'main', detachedSha: null }),
+      async (): Promise<GitHead> => ({ branch: 'main', detachedSha: null, upstream: null }),
     ),
     branches: vi.fn<ProjectGit['branches']>(
       async (): Promise<GitProjectResult<BranchRef[]>> => ({

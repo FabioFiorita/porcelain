@@ -36,7 +36,9 @@ been bypassed and pillar 3 has quietly become a git feature again.
 reviewer who cannot see a change cannot review it.
 
 **Push stays prompted.** Pushing is outward-facing and is never the implicit consequence of another
-action.
+action. A first publish — this branch has no remote of the same name, or it still tracks a
+differently named branch such as `origin/main` — confirms before creating `origin/<branch>` and
+switching tracking to it.
 
 **Destructive git is not a convenience.** Discarding, resetting, and force-pushing are confirmed
 explicitly, and Porcelain never runs `git add` on a user's behalf as a side effect of something else

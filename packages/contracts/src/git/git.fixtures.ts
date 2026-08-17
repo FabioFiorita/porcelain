@@ -96,7 +96,7 @@ export const gitContractFixtures = {
   },
   gitHead: {
     input: '/synthetic/repo',
-    output: { branch: 'main', detachedSha: null },
+    output: { branch: 'main', detachedSha: null, upstream: 'origin/main' },
   },
   gitBranches: {
     input: '/synthetic/repo',

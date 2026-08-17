@@ -207,6 +207,8 @@ export const TestIds = {
   commentsClearResolved: 'comments-clear-resolved',
   commentsDeleteAll: 'comments-delete-all',
   commentsDeleteAllConfirm: 'comments-delete-all-confirm',
+  publishBranchDialog: 'publish-branch-dialog',
+  publishBranchConfirm: 'publish-branch-confirm',
 
   // --- Viewer tabs ---
   viewerTab: (title: string): string =>
