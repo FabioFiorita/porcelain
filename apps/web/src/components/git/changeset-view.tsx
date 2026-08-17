@@ -1,5 +1,40 @@
-import { type DiffReadingScope, useDiffReading } from '@renderer/features/git'
-import { ReadingSurfaceBody } from '@renderer/features/review'
+import type { ReadingFile } from '@porcelain/contracts/review'
+import { Button } from '@renderer/components/ui/button'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from '@renderer/components/ui/context-menu'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
+import {
+  type DiffReadingScope,
+  useDiffReading,
+  useReviewedPaths,
+  useToggleReviewed,
+} from '@renderer/features/git'
+import { useCommentIndex } from '@renderer/features/review'
+import { raisedCardClass, viewerWellClass } from '@renderer/lib/controls'
+import { type LineSelection, lineSelectionForFile } from '@renderer/lib/line-selection'
+import { fileName } from '@renderer/lib/paths'
+import { cn } from '@renderer/lib/utils'
+import { activeTabTarget, targetedTab } from '@renderer/stores/hub-tabs'
+import { usePreferencesStore } from '@renderer/stores/preferences'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
+import { useRevealStore } from '@renderer/stores/reveal'
+import { useTabsStore } from '@renderer/stores/tabs'
+import { TestIds } from '@shared/test-ids'
+import {
+  ChevronDown,
+  ChevronRight,
+  FileText,
+  MessageSquarePlus,
+  Square,
+  SquareCheck,
+} from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { type CommentAnchor, CommentComposer } from './comment-composer'
+import { HunksView } from './hunks-view'
 
 /** Encode a review scope into the tab's path key (and parse it back). */
 export function changesetTabKey(scope: DiffReadingScope): string {
@@ -15,22 +50,233 @@ export function parseChangesetTabKey(path: string): DiffReadingScope {
   return { type: 'working' }
 }
 
+function pendingLinesFor(
+  anchor: CommentAnchor | null,
+  path: string,
+): ReadonlySet<number> | undefined {
+  if (!anchor || anchor.path !== path || anchor.startLine === undefined) return undefined
+  const lines = new Set<number>()
+  const end = anchor.endLine ?? anchor.startLine
+  for (let line = anchor.startLine; line <= end; line++) lines.add(line)
+  return lines
+}
+
+function ChangesetFileCard({
+  file,
+  reviewable,
+  commentAnchor,
+  onComment,
+}: {
+  file: ReadingFile
+  reviewable: boolean
+  commentAnchor: CommentAnchor | null
+  onComment: (anchor: CommentAnchor) => void
+}): React.JSX.Element {
+  const [collapsed, setCollapsed] = useState(false)
+  const [lineSel, setLineSel] = useState<LineSelection | null>(null)
+  const project = useProjectSelectionStore((s) => s.project)
+  const openTab = useTabsStore((s) => s.openTab)
+  const setSidebarTab = usePreferencesStore((s) => s.setSidebarTab)
+  const reveal = useRevealStore((s) => s.reveal)
+  const reviewed = useReviewedPaths()
+  const { mark, unmark } = useToggleReviewed()
+  const commentIndex = useCommentIndex(file.path)
+  const isReviewed = reviewed.has(file.path)
+  const canOpenFile = file.status !== 'deleted'
+  const pendingLines = useMemo(
+    () => pendingLinesFor(commentAnchor, file.path),
+    [commentAnchor, file.path],
+  )
+
+  const handleOpenFile = (): void => {
+    if (!project || !canOpenFile) return
+    const absolute = `${project.path}/${file.path}`
+    openTab(
+      targetedTab(
+        'file',
+        absolute,
+        { title: fileName(file.path), preview: true },
+        activeTabTarget(),
+      ),
+    )
+    setSidebarTab('files')
+    reveal(absolute)
+  }
+
+  const handleToggleReviewed = (): void => {
+    if (isReviewed) {
+      unmark(file.path)
+      return
+    }
+    mark(file.path)
+    setCollapsed(true)
+  }
+
+  return (
+    <div
+      data-testid={TestIds.changesetCard(file.path)}
+      className={cn(raisedCardClass, 'flex flex-col')}
+    >
+      <div className="flex h-9 shrink-0 items-center gap-2 border-b px-3">
+        <Button
+          variant="ghost"
+          size="icon-2xs"
+          className="shrink-0 text-muted-foreground hover:text-foreground"
+          onClick={() => setCollapsed((current) => !current)}
+          aria-expanded={!collapsed}
+          aria-label={collapsed ? 'Expand diff' : 'Collapse diff'}
+          data-testid={TestIds.diffCollapse(file.path)}
+        >
+          {collapsed ? <ChevronRight /> : <ChevronDown />}
+        </Button>
+        <span className="min-w-0 flex-1 truncate font-mono text-xs font-medium">{file.path}</span>
+        {file.additions ? (
+          <span className="font-mono text-2xs text-success">+{file.additions}</span>
+        ) : null}
+        {file.deletions ? (
+          <span className="font-mono text-2xs text-destructive">−{file.deletions}</span>
+        ) : null}
+        {reviewable && (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-2xs"
+                  onClick={handleToggleReviewed}
+                  className={cn(
+                    'shrink-0',
+                    isReviewed ? 'text-success' : 'text-muted-foreground hover:text-foreground',
+                  )}
+                  aria-label={isReviewed ? 'Unmark reviewed' : 'Mark reviewed'}
+                  data-testid={TestIds.diffReviewed(file.path)}
+                >
+                  {isReviewed ? (
+                    <SquareCheck className="size-3.5" />
+                  ) : (
+                    <Square className="size-3.5" />
+                  )}
+                </Button>
+              }
+            />
+            <TooltipContent>{isReviewed ? 'Unmark reviewed' : 'Mark reviewed'}</TooltipContent>
+          </Tooltip>
+        )}
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon-2xs"
+                onClick={() => onComment({ path: file.path })}
+                className="shrink-0 text-muted-foreground hover:text-foreground"
+                aria-label="Comment on file"
+              >
+                <MessageSquarePlus className="size-3.5" />
+              </Button>
+            }
+          />
+          <TooltipContent>Comment on file</TooltipContent>
+        </Tooltip>
+        {canOpenFile && (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-2xs"
+                  onClick={handleOpenFile}
+                  className="shrink-0 text-muted-foreground hover:text-foreground"
+                  aria-label="Open file"
+                >
+                  <FileText className="size-3.5" />
+                </Button>
+              }
+            />
+            <TooltipContent>Open file</TooltipContent>
+          </Tooltip>
+        )}
+      </div>
+      {!collapsed && file.hunks && file.hunks.length > 0 && (
+        <ContextMenu
+          onOpenChange={(open: boolean): void => {
+            if (!open) setLineSel(null)
+          }}
+        >
+          <ContextMenuTrigger
+            className="block select-text"
+            onContextMenu={(event: React.MouseEvent): void => {
+              const selected = lineSelectionForFile(file.path)
+              if (selected) {
+                setLineSel(selected)
+                return
+              }
+              const row = (event.target as HTMLElement).closest('[data-line]')
+              const line = row
+                ? Number.parseInt(row.getAttribute('data-line') ?? '', 10)
+                : Number.NaN
+              setLineSel(
+                Number.isFinite(line) ? { startLine: line, endLine: line, text: '' } : null,
+              )
+            }}
+          >
+            <HunksView
+              hunks={file.hunks}
+              filePath={file.path}
+              diffMode="unified"
+              layout="content"
+              commentIndex={commentIndex}
+              pendingLines={pendingLines}
+            />
+          </ContextMenuTrigger>
+          <ContextMenuContent className="w-52">
+            {lineSel ? (
+              <ContextMenuItem
+                onClick={() =>
+                  onComment({
+                    path: file.path,
+                    startLine: lineSel.startLine,
+                    endLine: lineSel.endLine,
+                    anchorText: lineSel.text.slice(0, 2000),
+                  })
+                }
+              >
+                <MessageSquarePlus /> Add comment
+              </ContextMenuItem>
+            ) : (
+              <ContextMenuItem onClick={() => onComment({ path: file.path })}>
+                <MessageSquarePlus /> Comment on file
+              </ContextMenuItem>
+            )}
+            {reviewable && (
+              <ContextMenuItem onClick={handleToggleReviewed}>
+                {isReviewed ? <Square /> : <SquareCheck />}
+                {isReviewed ? 'Unmark reviewed' : 'Mark reviewed'}
+              </ContextMenuItem>
+            )}
+          </ContextMenuContent>
+        </ContextMenu>
+      )}
+    </div>
+  )
+}
+
 /**
- * Continuous stacked-diff reading surface opened from Changes or History.
- * Reuses the same ReadingSurfaceBody as the Review canvas and Explore; file-name rows carry
- * mark-reviewed (working/branch only), open-file, and collapse actions.
+ * Stacked-diff reading surface opened from Changes or History. Each file is its
+ * own raised card; collapsed cards are header-only.
  */
 export function ChangesetView({ path }: { path: string }): React.JSX.Element {
   const scope = parseChangesetTabKey(path)
   const { reading, error } = useDiffReading(scope)
+  const [commentAnchor, setCommentAnchor] = useState<CommentAnchor | null>(null)
 
   if (error) return <p className="p-4 text-sm text-destructive">{error.message}</p>
   if (reading === undefined) {
     return <p className="p-4 text-sm text-muted-foreground">Loading…</p>
   }
 
-  const fileCount = reading.groups.reduce((n, g) => n + g.files.length, 0)
-  if (fileCount === 0) {
+  const files = reading.groups.flatMap((group) => group.files)
+  if (files.length === 0) {
     return (
       <div className="flex h-full items-center justify-center p-6">
         <div className="max-w-sm text-center">
@@ -54,7 +300,6 @@ export function ChangesetView({ path }: { path: string }): React.JSX.Element {
         ? 'Branch range'
         : `Commit ${scope.hash.slice(0, 7)}`
 
-  // Thin chrome so continuous review isn't a bare stack (U14).
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex shrink-0 items-center gap-2 border-b border-border/60 px-4 py-2 text-2xs text-muted-foreground">
@@ -63,19 +308,29 @@ export function ChangesetView({ path }: { path: string }): React.JSX.Element {
         <span>{scopeLabel}</span>
         <span className="text-muted-foreground/40">·</span>
         <span className="tabular-nums">
-          {fileCount} file{fileCount === 1 ? '' : 's'}
+          {files.length} file{files.length === 1 ? '' : 's'}
         </span>
       </div>
-      <div className="min-h-0 flex-1">
-        <ReadingSurfaceBody
-          reading={reading}
-          fileActions={{
-            openFile: true,
-            showSource: false,
-            collapsible: true,
-          }}
-        />
+      <div data-testid={TestIds.codeWell} className={cn(viewerWellClass, 'overflow-auto')}>
+        <div className="flex flex-col gap-3">
+          {files.map((file) => (
+            <ChangesetFileCard
+              key={file.path}
+              file={file}
+              reviewable={scope.type !== 'commit'}
+              commentAnchor={commentAnchor}
+              onComment={setCommentAnchor}
+            />
+          ))}
+        </div>
       </div>
+      <CommentComposer
+        anchor={commentAnchor}
+        open={commentAnchor !== null}
+        onOpenChange={(open: boolean): void => {
+          if (!open) setCommentAnchor(null)
+        }}
+      />
     </div>
   )
 }

@@ -5,6 +5,7 @@ import type {
   HubProject,
   HubWorktree,
 } from '@porcelain/contracts/projects'
+import { SwitchBranchDialog } from '@renderer/components/git/branch-switcher'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -61,6 +62,7 @@ function WorktreeRow(props: {
   const selection = useHubSelectionStore((state) => state.selection)
   const selected = selection.kind === 'worktree' && selection.worktreeId === props.worktree.id
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [switchOpen, setSwitchOpen] = useState(false)
 
   const copy = (label: string, value: string): void => {
     runUserAction(
@@ -120,6 +122,17 @@ function WorktreeRow(props: {
           </span>
         </ContextMenuTrigger>
         <ContextMenuContent>
+          {props.mutable && (
+            <ContextMenuItem
+              onClick={() => {
+                props.openWorktree(props.worktree)
+                setSwitchOpen(true)
+              }}
+            >
+              <GitBranch />
+              Switch branch…
+            </ContextMenuItem>
+          )}
           <ContextMenuItem onClick={() => copy('Copy worktree name', props.worktree.name)}>
             <Copy />
             Copy name
@@ -145,6 +158,14 @@ function WorktreeRow(props: {
       </ContextMenu>
       {/* Sibling of the menu, never a child: a closing menu unmounts its content, and a
           dialog mounted inside it would close in the same frame it was asked to open. */}
+      {switchOpen && (
+        <SwitchBranchDialog
+          open={switchOpen}
+          currentBranch={props.worktree.branch}
+          repoPath={props.worktree.path}
+          onOpenChange={setSwitchOpen}
+        />
+      )}
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent data-testid={TestIds.hubRemoveWorktreeDialog}>
           <AlertDialogHeader>

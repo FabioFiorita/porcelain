@@ -65,6 +65,9 @@ export function proceduresForChange(change: SessionChange): readonly string[] {
       // Mobile does not surface development servers yet; the Hub client owns that roster.
       // Listed so the switch stays exhaustive rather than silently dropping a new signal.
       return []
+    case 'review.changed':
+      // Mobile comments are stubbed; the Hub client owns review comments and marks.
+      return []
   }
 }
 

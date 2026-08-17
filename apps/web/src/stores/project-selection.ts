@@ -15,7 +15,8 @@ export interface ProjectSelectionStore {
   selectProject: (project: ProjectSummary | null) => void
   /** Clear this window's local presentation before an in-place Project switch. */
   resetProjectPresentation: () => void
-  boot: () => Promise<void>
+  /** Optional checkout to reopen first (the persisted Hub Worktree). */
+  boot: (preferredPath?: string) => Promise<void>
   restoreLastProject: () => Promise<void>
   /** Opens the daemon-side Project picker. */
   openProjectPicker: () => void
@@ -34,12 +35,21 @@ export const useProjectSelectionStore = create<ProjectSelectionStore>((set, get)
     useTabsStore.getState().closeAllTabs()
     useTerminalsStore.getState().reset()
   },
-  boot: async () => {
+  boot: async (preferredPath) => {
     // No shell in a browser, so there's no windowInit to ask (open-this-repo /
     // restore / welcome is a per-Electron-window decision). The daemon's recents
     // are the browser client's restore source — fall straight to them, keeping the
-    // try/catch → welcome fallback restoreLastProject already carries.
+    // try/catch → welcome fallback restoreLastProject already carries. A persisted
+    // Hub Worktree wins over recents so a refresh lands back in the same checkout.
     if (isBrowser) {
+      if (preferredPath !== undefined) {
+        try {
+          set({ project: await openProjectOnDaemon(trpcClient, preferredPath), restoring: false })
+          return
+        } catch {
+          // Path gone — recents is the same fallback restoreLastProject already uses.
+        }
+      }
       await get().restoreLastProject()
       return
     }
@@ -48,6 +58,14 @@ export const useProjectSelectionStore = create<ProjectSelectionStore>((set, get)
       if (init.mode === 'open') {
         set({ project: await openProjectOnDaemon(trpcClient, init.repoPath) })
       } else if (init.mode === 'restore') {
+        if (preferredPath !== undefined) {
+          try {
+            set({ project: await openProjectOnDaemon(trpcClient, preferredPath) })
+            return
+          } catch {
+            // fall through to recents
+          }
+        }
         await get().restoreLastProject()
         return
       }

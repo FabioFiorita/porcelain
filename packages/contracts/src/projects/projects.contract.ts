@@ -120,6 +120,8 @@ export const createHubWorktreeInputSchema = z
     projectId: z.string().min(1),
     branch: z.string().trim().min(1),
     baseRef: z.string().trim().min(1).optional(),
+    /** Check out this existing branch instead of creating a new one with `-b`. */
+    existing: z.boolean().optional(),
   })
   .strict()
 export type CreateHubWorktreeInput = z.infer<typeof createHubWorktreeInputSchema>

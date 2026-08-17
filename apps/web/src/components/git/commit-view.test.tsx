@@ -93,6 +93,16 @@ describe('CommitView', () => {
     expect(screen.getByText('Data')).toBeInTheDocument()
   })
 
+  it('shows the selected file as an inset raised card', () => {
+    renderView()
+    expect(screen.getByTestId('code-well').className).toContain('bg-muted/30')
+    expect(screen.getByTestId('commit-list-card').className).toContain('rounded-xl')
+    expect(screen.getByTestId('commit-list-card')).toHaveTextContent('feat: add widget and schema')
+    expect(screen.getByTestId('code-card').className).toContain('rounded-xl')
+    expect(screen.getByTestId('code-card').className).toContain('h-full')
+    expect(screen.getByTestId('code-card')).toHaveTextContent('src/components/widget.tsx')
+  })
+
   it('renders a file row for each file under its layer', () => {
     renderView()
     // Basename displayed, not full path

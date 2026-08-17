@@ -24,6 +24,19 @@ export const PROJECT_FILES = {
   manifest: 'project-manifest.json',
 } as const
 
+/** The in-flight review companion — comments and reviewed marks for this checkout. */
+export const PROJECT_ACTIVE_DIR = 'active-review'
+
+/** Channel names inside `active-review/`. */
+export const ACTIVE_FILES = {
+  comments: `${PROJECT_ACTIVE_DIR}/comments.json`,
+  reviewed: `${PROJECT_ACTIVE_DIR}/reviewed.json`,
+} as const
+
+export function projectActiveReviewDir(repoPath: string): string {
+  return projectPorcelainPath(repoPath, PROJECT_ACTIVE_DIR)
+}
+
 /**
  * The two literals `project-manifest.json` carries. Project Data is the only
  * writer; the CLI reads them to refuse a write into a companion root some newer
@@ -87,7 +100,12 @@ export const COMPANION_CHANNELS: readonly CompanionChannel[] = [
  *   write; it is not a `COMPANION_CHANNELS` toggle.
  * - `*.tmp` / `*.corrupt-*` are atomic-write debris.
  */
-export const ALWAYS_IGNORED = ['/project-manifest.json', '*.tmp', '*.corrupt-*'] as const
+export const ALWAYS_IGNORED = [
+  '/project-manifest.json',
+  '/active-review/',
+  '*.tmp',
+  '*.corrupt-*',
+] as const
 
 // The trailing prose is free to change: `renderGitignore` finds the opening
 // marker by prefix, so a companion written by an older build is still replaced

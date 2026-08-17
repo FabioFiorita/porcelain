@@ -8,10 +8,18 @@ describe('surface shortcuts', () => {
       files: '1',
       changes: '2',
       history: '3',
+      git: '5',
       search: '4',
-      tasks: '5',
       canvas: '7',
     })
+    expect(SURFACES.map((surface) => surface.id)).toEqual([
+      'files',
+      'changes',
+      'history',
+      'git',
+      'search',
+      'canvas',
+    ])
   })
 
   it('routes every displayed shortcut to its surface and reserves 6 for Terminal', () => {
@@ -20,7 +28,7 @@ describe('surface shortcuts', () => {
       '2': 'changes',
       '3': 'history',
       '4': 'search',
-      '5': 'tasks',
+      '5': 'git',
       '7': 'canvas',
     })
     expect(SIDEBAR_TAB_KEYS['6']).toBeUndefined()

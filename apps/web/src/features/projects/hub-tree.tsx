@@ -27,6 +27,20 @@ export function HubTree(props: { className?: string }): React.JSX.Element | null
   const selectedProject = useSelectedProject()
 
   useEffect(() => {
+    if (inventories.length === 0) return
+    if (selection.kind === 'worktree') {
+      const stillThere = inventories.some((source) =>
+        source.inventory.projects.some((project) =>
+          project.worktrees.some((worktree) => worktree.id === selection.worktreeId),
+        ),
+      )
+      if (!stillThere) {
+        // Keep the restored Project; only drop the stale Hub row so the effect
+        // below can bind Home to whichever checkout boot actually opened.
+        useHubSelectionStore.setState({ selection: { kind: 'home' } })
+      }
+      return
+    }
     const current = inventories.find((source) => source.current)
     if (selection.kind !== 'home' || selectedProject === null || current === undefined) return
     for (const project of current.inventory.projects) {
@@ -41,7 +55,7 @@ export function HubTree(props: { className?: string }): React.JSX.Element | null
       })
       return
     }
-  }, [inventories, selectedProject, selection.kind, selectWorktree])
+  }, [inventories, selectedProject, selection, selectWorktree])
 
   if (inventories.length === 0) return null
 

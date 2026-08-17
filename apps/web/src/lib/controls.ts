@@ -19,3 +19,12 @@ export const rowActionClass = `${compactButtonClass} px-2.5 text-muted-foregroun
 // CommandGroup's className so command-palette sections read as one voice.
 export const commandGroupHeadingClass =
   '**:[[cmdk-group-heading]]:text-2xs **:[[cmdk-group-heading]]:font-bold **:[[cmdk-group-heading]]:uppercase **:[[cmdk-group-heading]]:tracking-[0.08em]'
+
+/** Recessed well behind file / diff / stacked-diff cards. */
+export const viewerWellClass = 'h-full min-h-0 bg-muted/30 p-3'
+
+/** Raised card chrome shared by a single file, a single diff, and each stacked-diff file. */
+export const raisedCardClass = 'overflow-hidden rounded-xl border bg-card'
+
+/** Shared inset from the Surfaces header divider into every list. */
+export const surfaceListInsetClass = 'px-2 pt-2'

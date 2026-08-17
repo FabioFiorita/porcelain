@@ -170,6 +170,21 @@ export const publicErrorFixtures = {
     retryable: true,
     requestId: '00000000-0000-4000-8000-00000000001f',
   },
+  'review.unavailable': {
+    code: 'review.unavailable',
+    category: 'unavailable',
+    message: 'Review comments are unavailable.',
+    retryable: true,
+    requestId: '00000000-0000-4000-8000-000000000030',
+  },
+  'review.comment-not-found': {
+    code: 'review.comment-not-found',
+    category: 'not-found',
+    message: 'The review comment was not found.',
+    retryable: false,
+    requestId: '00000000-0000-4000-8000-000000000031',
+    details: { commentId: 'comment-synthetic' },
+  },
   'files.already-exists': {
     code: 'files.already-exists',
     category: 'conflict',

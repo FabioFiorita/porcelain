@@ -7,6 +7,7 @@ import {
 import { filesChangeSchema } from '../files'
 import { gitChangeSchema } from '../git'
 import { PROTOCOL_VERSION, protocolVersionSchema } from '../protocol'
+import { reviewChangeSchema } from '../review'
 import { tasksChangeSchema } from '../tasks'
 import { terminalChangeSchema } from '../terminal'
 
@@ -27,6 +28,7 @@ import { terminalChangeSchema } from '../terminal'
 export const sessionChangeSchema = z.discriminatedUnion('kind', [
   ...filesChangeSchema.options,
   ...gitChangeSchema.options,
+  ...reviewChangeSchema.options,
   ...tasksChangeSchema.options,
   ...actionsChangeSchema.options,
   ...terminalChangeSchema.options,

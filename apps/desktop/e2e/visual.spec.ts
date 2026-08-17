@@ -8,7 +8,7 @@ import { expect, loc, openSettings, selectTab, test, waitForShell } from './help
 
 test('empty viewer', async ({ page }) => {
   await waitForShell(page)
-  await expect(loc.glanceChangedFiles(page)).toHaveAttribute('data-count', '2')
+  await expect(loc.viewerEmpty(page)).toBeVisible()
   await expect(page).toHaveScreenshot('empty-viewer.png')
 })
 
@@ -20,7 +20,7 @@ test('changes tab', async ({ page }) => {
 })
 
 // The surface launcher is exactly these six, in this order — the ⌘1,2,4–7 contract.
-const RAIL_TABS = ['files', 'changes', 'history', 'search', 'tasks', 'canvas']
+const RAIL_TABS = ['files', 'changes', 'history', 'git', 'search', 'canvas']
 
 // Element-scoped baseline for the surface launcher. Framing just the launcher makes a tab
 // restyle fail where full-page 2% tolerance would swallow it.
@@ -47,10 +47,9 @@ test('surface sidebar — changes', async ({ page }) => {
   await expect(panel).toHaveScreenshot('surface-changes.png')
 })
 
-test('header commands expose commit controls', async ({ page }) => {
+test('Git surface exposes commit controls', async ({ page }) => {
   await waitForShell(page)
-  await selectTab(page, 'Changes')
-  await loc.commandsMenu(page).click()
+  await selectTab(page, 'Git')
   await expect(loc.commitButton(page)).toBeVisible()
 })
 
@@ -188,7 +187,7 @@ test.describe('without a seeded repo', () => {
   test.use({ seedRepo: false })
 
   test('welcome screen', async ({ page }) => {
-    await expect(loc.hubHome(page)).toBeVisible()
+    await expect(loc.viewerEmpty(page)).toBeVisible()
     await expect(page.getByRole('button', { name: 'Remote daemon settings' })).toHaveCount(0)
     await expect(page).toHaveScreenshot('welcome.png')
   })

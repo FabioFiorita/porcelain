@@ -10,6 +10,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@renderer/components/ui/popover'
 import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-group'
 import { useCommitModels } from '@renderer/features/git'
+import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import { compactButtonClass } from '@renderer/lib/controls'
 import {
   type DiffMode,
@@ -123,9 +124,16 @@ export function GeneralSection(): React.JSX.Element {
   const setCommitModel = usePreferencesStore((s) => s.setCommitModel)
   const theme = usePreferencesStore((s) => s.theme) ?? 'system'
   const setTheme = usePreferencesStore((s) => s.setTheme)
+  const identity = useDaemonIdentity()
+  const connectedTo = identity.host ?? 'This daemon'
 
   return (
     <div className="flex flex-col gap-5">
+      <PreferenceRow label="Connected to" description="The daemon that served this browser tab.">
+        <p data-testid={TestIds.settingsConnectedTo} className="text-sm-minus font-medium">
+          {connectedTo}
+        </p>
+      </PreferenceRow>
       <PreferenceRow label="Appearance" description="Light, dark, or match the system.">
         <ToggleGroup
           value={[theme]}

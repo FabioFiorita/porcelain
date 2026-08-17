@@ -2,8 +2,8 @@ import { useFilesActions } from '@renderer/features/files'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { isTerminalTarget, isTextEntry } from '@renderer/lib/keyboard'
 import { dirName } from '@renderer/lib/paths'
+import { isFilesSurfaceFocused } from '@renderer/lib/surface-focus'
 import { useFilePromptStore } from '@renderer/stores/file-prompt'
-import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useSelectionStore } from '@renderer/stores/selection'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
@@ -22,7 +22,7 @@ export function FileCommands(): null {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent): void => {
-      if (usePreferencesStore.getState().sidebarTab !== 'files') return
+      if (!isFilesSurfaceFocused()) return
       if (!(e.metaKey || e.ctrlKey) || e.altKey) return
       if (isTextEntry(e.target) || isTerminalTarget(e.target)) return
 

@@ -20,6 +20,7 @@ export type HubGitPort = Readonly<{
     repoPath: string,
     branch: string,
     baseRef?: string,
+    existing?: boolean,
   ) => Promise<GitWorkspaceResult<{ path: string; branch: string }>>
   removeWorktree: (repoPath: string, worktreePath: string) => Promise<GitWorkspaceResult<void>>
 }>
@@ -127,8 +128,8 @@ export function createHubGitPort(
       }
     },
 
-    addWorktree(repoPath: string, branch: string, baseRef?: string) {
-      return workspace.addWorktree(repoPath, branch, baseRef)
+    addWorktree(repoPath: string, branch: string, baseRef?: string, existing?: boolean) {
+      return workspace.addWorktree(repoPath, branch, baseRef, existing)
     },
 
     removeWorktree(repoPath: string, worktreePath: string) {

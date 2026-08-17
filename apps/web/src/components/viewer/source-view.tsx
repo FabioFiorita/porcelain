@@ -1,3 +1,5 @@
+import type { ReviewComment } from '@porcelain/contracts/review'
+import { commentRowClass, LineDecorations } from '@renderer/components/git/comment-marker'
 import { CodeLine, useTokenizedLines } from '@renderer/components/viewer/code-line'
 import { VirtualRows } from '@renderer/components/viewer/virtual-rows'
 import { languageFor } from '@renderer/lib/highlight'
@@ -9,12 +11,14 @@ export function SourceView({
   content,
   highlightLine,
   highlightRanges,
+  commentsByLine,
 }: {
   path: string
   content: string
   highlightLine?: number
   /** Agent-changed lines (Review outline). Diff-token tint, not find highlight. */
   highlightRanges?: HighlightRange[]
+  commentsByLine?: Map<number, ReviewComment[]>
 }): React.JSX.Element {
   const lang = languageFor(path)
   const lines = content.split('\n')
@@ -27,16 +31,20 @@ export function SourceView({
       scrollToLine={highlightLine}
       renderRow={(line: string, i: number): React.JSX.Element => {
         const lineNo = i + 1
-        const isChanged = lineInHighlightRanges(lineNo, highlightRanges)
+        const comments = commentsByLine?.get(lineNo)
+        const tint = commentRowClass(comments)
+        const isChanged = !tint && lineInHighlightRanges(lineNo, highlightRanges)
         return (
           <div
             data-line={lineNo}
             className={cn(
               'relative flex',
-              lineNo === highlightLine && 'bg-primary/15',
+              !tint && lineNo === highlightLine && 'bg-primary/15',
+              tint,
               isChanged && 'border-l-2 border-l-diff-add bg-diff-add/10',
             )}
           >
+            <LineDecorations comments={comments} />
             <span className="w-10 shrink-0 select-none pr-3 text-right text-muted-foreground/50">
               {lineNo}
             </span>

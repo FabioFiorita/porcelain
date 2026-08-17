@@ -1,3 +1,4 @@
+import { TerminalResizeHandle } from '@renderer/components/shell/sidebar-resize-handle'
 import {
   LocalPathDialog,
   type LocalPathDialogMode,
@@ -22,6 +23,7 @@ import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import { useLocalDaemon, useLocalTerminalPath } from '@renderer/hooks/use-local-terminal'
 import { spawnLocalTerminal, spawnTerminal } from '@renderer/lib/terminal-actions'
 import { cn } from '@renderer/lib/utils'
+import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useTerminalsStore } from '@renderer/stores/terminals'
 import { runUserAction } from '@shared/background'
@@ -53,6 +55,7 @@ export function TerminalPanel(): React.JSX.Element {
   const setPanelSession = useTerminalsStore((s) => s.setPanelSession)
   const renameTerminal = useTerminalsStore((s) => s.rename)
   const project = useProjectSelectionStore((s) => s.project)
+  const terminalHeight = usePreferencesStore((s) => s.terminalHeight)
   const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null)
   const [mappingMode, setMappingMode] = useState<LocalPathDialogMode | null>(null)
   const localDaemon = useLocalDaemon()
@@ -101,8 +104,11 @@ export function TerminalPanel(): React.JSX.Element {
   return (
     <div
       data-testid={TestIds.terminalPanel}
-      className={cn('flex h-72 min-h-0 shrink-0 flex-col border-t', !panelOpen && 'hidden')}
+      data-slot="terminal-panel"
+      className={cn('relative flex min-h-0 shrink-0 flex-col border-t', !panelOpen && 'hidden')}
+      style={{ height: terminalHeight }}
     >
+      <TerminalResizeHandle />
       <div className="flex min-h-10 shrink-0 items-center gap-1 px-2">
         <div className="min-w-0 flex-1 overflow-x-auto">
           <div className="flex min-w-max items-center gap-1">

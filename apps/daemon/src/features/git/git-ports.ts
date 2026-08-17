@@ -32,6 +32,7 @@ export type GitWorkspacePort = Readonly<{
     repoPath: string,
     branch: string,
     baseRef?: string,
+    existing?: boolean,
   ): Promise<GitWorkspaceResult<Worktree>>
   removeWorktree(repoPath: string, worktreePath: string): Promise<GitWorkspaceResult<void>>
 }>

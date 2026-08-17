@@ -32,8 +32,8 @@ import {
 } from '@renderer/features/files'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { useIsMobile } from '@renderer/hooks/use-mobile'
+import { useCanRevealInFinder } from '@renderer/hooks/use-reveal-in-finder'
 import { dirName } from '@renderer/lib/paths'
-import { isBrowser } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
 import { useFilePromptStore } from '@renderer/stores/file-prompt'
 import { useFileTreeStore } from '@renderer/stores/file-tree'
@@ -83,6 +83,7 @@ function EntryContextMenu({
   // Split panes are unusable at phone width — hide the "Open to the Side" entry there.
   const isMobile = useIsMobile()
   const { reveal, copyPath, copyRelativePath } = usePathActions(entry.path)
+  const canReveal = useCanRevealInFinder()
   const { trash, duplicate } = useFilesActions()
   const newFile = useFilePromptStore((s) => s.newFile)
   const newFolder = useFilePromptStore((s) => s.newFolder)
@@ -146,8 +147,7 @@ function EntryContextMenu({
             <FileSymlink />
             Copy Relative Path
           </ContextMenuItem>
-          {/* Reveal in Finder is a shell-only action — hidden in the browser client. */}
-          {!isBrowser && (
+          {canReveal && (
             <ContextMenuItem onClick={reveal}>
               <Folder />
               Reveal in Finder

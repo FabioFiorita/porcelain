@@ -10,7 +10,7 @@ parens is the **entry point**; read it for mechanics.
 | Top bar | `title-bar.tsx` | Electron-only native shell titlebar. Browser clients start with the navigation sidebar; this is **not** the viewer header |
 | Environment switcher | `environment-switcher.tsx` | Native-shell control for moving between Environments. The browser tab is the daemon that served it; **Settings → Remotes** is Mac-only. Each Project carries its Environment badge |
 | Hub inventory | `hub-tree.tsx` | Live Project → Worktree tree with the current Environment shown as a Project badge. Project headers collapse; Worktree rows navigate; there is no Delete Worktree control |
-| Hub selection | `hub-selection.ts` | Home · Project · Worktree. Viewer empty state shows the matching summary; open tabs keep the Worktree they were opened against and read that checkout, not the newly selected one |
+| Hub selection | `hub-selection.ts` | Home · Project · Worktree. Persisted with Viewer tabs and open Surfaces so a refresh restores the working set; open tabs keep the Worktree they were opened against and read that checkout, not the newly selected one |
 | Sidebar (unqualified = left) | `app-sidebar.tsx` | Navigation-only Project → Worktree tree (⌘B); Settings is in the footer |
 | Viewer | `shell/viewer.tsx` | The central panel. **Never "editor"** |
 | Companion | `right-sidebar.tsx` | The right panel (⌘.); statically titled "Companion" on every tab — no more per-tab retitling. Orientation comes from section labels, which follow the active sidebar tab. Three other things share the word: the Settings tab, the mobile column/sheet, and the repo-local `.porcelain/` project companion — see the Overlays row and Cross-cutting table below |
@@ -24,7 +24,7 @@ parens is the **entry point**; read it for mechanics.
 | Search list | `search-list.tsx` | `gitSearchCode`; distinct from the ⌘⇧F `ContentSearch` overlay (`gitGrep`) |
 | Changes list | `changes-list.tsx` | Grouped by flow layer |
 | History list | `history-list.tsx` | |
-| Tasks list | `tasks-list.tsx` | Compact read of the daemon-wide table; opens the Viewer table |
+| Tasks list | `tasks-list.tsx` | Compact read of the daemon-wide table (no longer a Surface) |
 | Terminal list | `terminal-list.tsx` | Roster of **sessions** — they outlive their tabs |
 | Key bar | `terminal-key-bar.tsx` | Above the terminal pane; coarse-touch only, never a Settings option |
 | Selection Copy | `terminal-selection-toolbar.tsx` | Host clipboard via `copyText`, not OSC 52 |
@@ -33,7 +33,7 @@ parens is the **entry point**; read it for mechanics.
 
 | Term | Entry | Note |
 |---|---|---|
-| Glance | `glance-home.tsx` | Companion home an empty pane renders with a repo open |
+| Empty Viewer | `viewer.tsx` | No-tab landing: shadcn Empty — “Open a surface to get started.” |
 | Tab bar / Tab | `tab-bar.tsx` | Preview = single-click, italic, replaced; pinned = double-click/edit |
 | Split view / pane | `stores/tabs.ts` | Two panes, each its own tabs; "Open to the Side" |
 | Tab kinds | `viewer.tsx` switch | file / diff / commit / changeset / search / tasks / canvas. **Canvas is the primitive and the Review is a template on it** (ADR 0004); the `tasks` tab kind carries NO Hub target — the table spans every Environment. `explore` and `terminal` were retired by ADR 0005 and are gone: exploration is a Canvas template, and terminals live only in the bottom strip |
@@ -44,9 +44,10 @@ parens is the **entry point**; read it for mechanics.
 | Sidebar tab | Companion sections |
 |---|---|
 | Files | Pinned |
-| Changes | Suggested · Commands · Commit |
-| History | Suggested · Commands · File timeline (`gitFileLog --follow`) |
-| Tasks | (none — the table is the whole surface; Quick Add lives above it, not in Companion) |
+| Changes | File timeline |
+| History | File timeline (`gitFileLog --follow`) |
+| Git | Suggested · Commands · Commit |
+| Tasks | (none — left-rail row; Quick Add lives on the Viewer table) |
 | Terminal | Saved commands — the "Actions" feature (see Cross-cutting below), reachable from the Hub's top-corner Actions menu |
 | Search | Recent searches |
 

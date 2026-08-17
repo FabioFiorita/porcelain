@@ -63,12 +63,13 @@ async function readProtocolMismatch(
 
 test('authenticated startup restores the seeded repo and dirty count', async ({ page }) => {
   await waitForShell(page)
-  await expect(loc.glanceChangedFiles(page)).toHaveAttribute('data-count', '2')
   await expect(loc.hubInventory(page)).toBeVisible()
   await expect(loc.hubProjects(page)).toHaveCount(1)
   await expect(loc.hubWorktrees(page)).not.toHaveCount(0)
   await expect(page.getByLabel(/delete worktree/i)).toHaveCount(0)
-  await expect(loc.hubWorktreeSummary(page)).toBeVisible()
+  await expect(loc.viewerEmpty(page)).toBeVisible()
+  await selectTab(page, 'Changes')
+  await expect(loc.changesSummary(page)).toHaveAttribute('data-count', '2')
 })
 
 test('a stale session protocol receives the exact update-required mismatch', async ({ page }) => {
@@ -103,7 +104,7 @@ test('a PTY survives browser detach, reconnects, and replays its bounded tail', 
   page,
 }) => {
   await waitForShell(page)
-  await loc.glanceJumpTerminal(page).click()
+  await loc.toggleTerminalPanel(page).click()
   await loc.terminalNew(page).waitFor()
 
   const input = page.locator('.porcelain-ghostty-input').first()
@@ -122,7 +123,7 @@ test('a PTY survives browser detach, reconnects, and replays its bounded tail', 
   // The panel is persistent but hidden after reload; this structural locator can observe its
   // hydrated row without requiring the panel to be visible or triggering a new PTY.
   await existing.waitFor({ state: 'attached', timeout: 15_000 })
-  await loc.glanceJumpTerminal(page).click()
+  await loc.toggleTerminalPanel(page).click()
   await existing.waitFor({ timeout: 15_000 })
   await existing.click()
   await expectTerminalText(page, 0, 'SCROLLBACK_TAIL_64K', 45_000)

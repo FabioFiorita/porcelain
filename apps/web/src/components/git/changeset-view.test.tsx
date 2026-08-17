@@ -10,37 +10,13 @@ vi.mock('@renderer/features/git', () => ({
   useSetReviewed: () => () => {},
   useToggleReviewed: () => ({ mark: async () => {}, unmark: async () => {} }),
 }))
-// Reading surface pulls comments + reviewed + highlighter — stub the domain hooks, and take the
-// surface itself from the real Review feature (this file only owns the scope chrome around it).
-vi.mock('@renderer/features/review', async () => {
-  const surface = await vi.importActual<typeof import('@renderer/features/review/reading-surface')>(
-    '@renderer/features/review/reading-surface',
-  )
-  return { ReadingSurfaceBody: surface.ReadingSurfaceBody }
-})
-vi.mock('@renderer/features/review/comments', () => ({
-  useReviewComments: () => [],
+vi.mock('@renderer/features/review', () => ({
+  useCommentIndex: () => ({ byLine: new Map(), fileLevel: [] }),
   useCommentActions: () => ({ add: async () => {} }),
-  buildCommentIndex: () => ({ byLine: new Map(), fileLevel: [] }),
 }))
 vi.mock('@renderer/components/viewer/code-line', () => ({
   useHighlighter: () => null,
   CodeLine: ({ text }: { text: string }) => <span>{text}</span>,
-}))
-vi.mock('@renderer/components/viewer/virtual-rows', () => ({
-  VirtualRows: ({
-    rows,
-    renderRow,
-  }: {
-    rows: unknown[]
-    renderRow: (row: unknown) => React.ReactNode
-  }) => (
-    <div>
-      {rows.map((row) => (
-        <div key={JSON.stringify(row)}>{renderRow(row)}</div>
-      ))}
-    </div>
-  ),
 }))
 
 // Typed to what `useDiffReading` actually returns. It was annotated `ReviewReading`, a
@@ -89,8 +65,20 @@ describe('ChangesetView', () => {
   it('renders the stacked reading surface for a scope key', () => {
     render(<ChangesetView path="working" />)
     expect(screen.getByText('app/page.tsx')).toBeInTheDocument()
-    expect(screen.getByText('Pages')).toBeInTheDocument()
     expect(screen.getByText('hello')).toBeInTheDocument()
+    expect(screen.getByText('Line 1')).toBeInTheDocument()
+    expect(screen.queryByText('@@ -1 +1 @@')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Mark reviewed')).toBeInTheDocument()
+    expect(screen.getByLabelText('Comment on file')).toBeInTheDocument()
+  })
+
+  it('hides mark-reviewed on a historical commit scope', () => {
+    render(<ChangesetView path="commit:abc123" />)
+    expect(screen.queryByLabelText('Mark reviewed')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Comment on file')).toBeInTheDocument()
+    expect(screen.getByTestId('changeset-card-app/page.tsx').className).toContain('rounded-xl')
+    expect(screen.getByTestId('changeset-card-app/page.tsx').className).toContain('bg-card')
+    expect(screen.getByTestId('code-well').className).toContain('bg-muted/30')
   })
 
   it('shows Loading while the reading is undefined', () => {

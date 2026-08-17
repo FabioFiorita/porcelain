@@ -30,6 +30,7 @@
     "apps/daemon/src/features/projects": "pillar-1",
     "apps/daemon/src/features/files": "pillar-2",
     "apps/daemon/src/features/git": "pillar-3",
+    "apps/daemon/src/features/review": "pillar-4",
     "apps/daemon/src/features/remote": "pillar-5",
     "apps/daemon/src/features/tasks": "pillar-6",
     "apps/daemon/src/features/actions": "supporting",

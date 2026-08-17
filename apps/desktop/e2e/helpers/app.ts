@@ -448,6 +448,7 @@ type TabName =
   | 'Changes'
   | 'History'
   | 'Review'
+  | 'Git'
   | 'Tasks'
   | 'Terminal'
   | 'Canvas'
@@ -467,6 +468,8 @@ function railTabId(tab: TabName): string {
       return 'search'
     case 'Tasks':
       return 'tasks'
+    case 'Git':
+      return 'git'
     case 'Terminal':
       return 'terminal'
     case 'Canvas':
@@ -483,6 +486,10 @@ export async function waitForShell(page: Page): Promise<void> {
 
 /** Click a left-rail sidebar tab by its stable test id. */
 export async function selectTab(page: Page, tab: TabName): Promise<void> {
+  if (tab === 'Tasks') {
+    await loc.tasksOpen(page).click()
+    return
+  }
   await loc.railTab(page, railTabId(tab)).click()
 }
 

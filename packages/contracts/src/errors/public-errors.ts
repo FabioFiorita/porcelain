@@ -26,6 +26,7 @@ import {
   projectsOverlayTargetInvalidErrorSchema,
   projectsUnavailableErrorSchema,
 } from '../projects'
+import { reviewCommentNotFoundErrorSchema, reviewUnavailableErrorSchema } from '../review'
 import {
   tasksAttachmentRejectedErrorSchema,
   tasksInvalidTitleErrorSchema,
@@ -91,6 +92,8 @@ export const publicErrorSchema = z.discriminatedUnion('code', [
   projectsOverlayTargetInvalidErrorSchema,
   canvasNotFoundErrorSchema,
   canvasUnavailableErrorSchema,
+  reviewUnavailableErrorSchema,
+  reviewCommentNotFoundErrorSchema,
   filesAlreadyExistsErrorSchema,
   filesPathOutsideProjectErrorSchema,
   filesNotFoundErrorSchema,

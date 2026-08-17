@@ -1,6 +1,7 @@
 import type { SessionChange } from '@porcelain/contracts/session'
 import { create } from 'zustand'
 import { usePreferencesStore } from './preferences'
+import { useTabsStore } from './tabs'
 
 /**
  * The rail tabs that can carry an unread dot. A subset of `SidebarTab` — the
@@ -29,10 +30,16 @@ export const useUnreadStore = create<UnreadState>((set) => ({
     changes: false,
   },
   mark: (tab: UnreadTab) => {
-    // An event for the CURRENTLY active tab needs no dot — the view live-refreshes
-    // in front of the user (plan 035, decision 3). Read the active tab straight
-    // from the preferences store (sanctioned cross-store getState()).
-    if (usePreferencesStore.getState().sidebarTab === tab) return
+    // An event for the CURRENTLY active surface needs no dot — the view live-refreshes
+    // in front of the user (plan 035, decision 3). Tasks left the Surfaces strip, so
+    // its "already looking" check is the Viewer tab, not the sidebar preference.
+    if (tab === 'tasks') {
+      const state = useTabsStore.getState()
+      const pane = state.panes[state.activePaneIndex]
+      if (pane?.tabs.find((entry) => entry.id === pane.activeTabId)?.kind === 'tasks') return
+    } else if (usePreferencesStore.getState().sidebarTab === tab) {
+      return
+    }
     set((s) => ({ unread: { ...s.unread, [tab]: true } }))
   },
   clear: (tab: UnreadTab) => set((s) => ({ unread: { ...s.unread, [tab]: false } })),
@@ -46,6 +53,14 @@ usePreferencesStore.subscribe((state, prev) => {
   if (state.sidebarTab !== prev.sidebarTab && isUnreadTab(state.sidebarTab)) {
     useUnreadStore.getState().clear(state.sidebarTab)
   }
+})
+
+useTabsStore.subscribe((state, prev) => {
+  const pane = state.panes[state.activePaneIndex]
+  const prevPane = prev.panes[prev.activePaneIndex]
+  const kind = pane?.tabs.find((entry) => entry.id === pane.activeTabId)?.kind
+  const prevKind = prevPane?.tabs.find((entry) => entry.id === prevPane.activeTabId)?.kind
+  if (kind === 'tasks' && prevKind !== 'tasks') useUnreadStore.getState().clear('tasks')
 })
 
 /**
@@ -74,6 +89,9 @@ export function unreadTabFor(change: SessionChange): UnreadTab | null {
     case 'terminal.dev-servers-changed':
       // A server you started yourself starting, printing a URL, or dying is not an unread
       // message — the Servers list is already live. No rail dot.
+      return null
+    case 'review.changed':
+      // Comments refresh in place on the surface that owns them.
       return null
   }
 }

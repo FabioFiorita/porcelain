@@ -1,62 +1,38 @@
-import logo from '@renderer/assets/logo.png'
 import { ChangesetView } from '@renderer/components/git/changeset-view'
 import { CommitView } from '@renderer/components/git/commit-view'
 import { DiffView } from '@renderer/components/git/diff-view'
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '@renderer/components/ui/empty'
 import { FileContent } from '@renderer/components/viewer/file-content'
 import { SearchView } from '@renderer/components/viewer/search-view'
-import { CanvasView, HubHomeSummary, HubProjectSummary } from '@renderer/features/projects'
+import { CanvasView } from '@renderer/features/projects'
 import { TasksView } from '@renderer/features/tasks'
 import { cn } from '@renderer/lib/utils'
 import { HubRepoProvider } from '@renderer/stores/hub-repo'
-import { useHubSelectionStore } from '@renderer/stores/hub-selection'
 import { usePreferencesStore } from '@renderer/stores/preferences'
-import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { type Tab, useTabsStore } from '@renderer/stores/tabs'
 import { TestIds } from '@shared/test-ids'
-import { GlanceHome } from './glance-home'
+import { PanelRight } from 'lucide-react'
 import { SplitResizeHandle } from './sidebar-resize-handle'
 import { TabBar } from './tab-bar'
 
 function EmptyViewer(): React.JSX.Element {
-  const project = useProjectSelectionStore((s) => s.project)
-  const selection = useHubSelectionStore((s) => s.selection)
-
-  if (selection.kind === 'home') {
-    return <HubHomeSummary />
-  }
-  if (selection.kind === 'project') {
-    return <HubProjectSummary />
-  }
-
-  // Worktree selected: empty pane is the Glance (work in flight) on every form
-  // factor — phone already had it; desktop used to show only logo + chords (U6).
-  if (project !== null) {
-    return (
-      <div data-testid={TestIds.hubWorktreeSummary} className="flex h-full min-h-0 flex-col">
-        <div className="min-h-0 flex-1">
-          <GlanceHome />
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-7 px-6 text-center">
-      <div className="flex flex-col items-center gap-3">
-        <img
-          src={logo}
-          alt=""
-          draggable={false}
-          className="size-16 [filter:drop-shadow(0_10px_22px_rgb(0_0_0/0.45))]"
-        />
-        <div className="flex flex-col gap-0.5">
-          <p className="text-xl font-medium tracking-tight text-foreground">porcelain</p>
-          <p className="text-sm text-muted-foreground">Where agent work becomes trusted work.</p>
-          <p className="mt-2 max-w-xs text-xs text-muted-foreground/80 [@media(hover:hover)]:hidden">
-            Open a repository to get started.
-          </p>
-        </div>
-      </div>
+    <div className="flex h-full items-center justify-center p-6">
+      <Empty data-testid={TestIds.viewerEmpty} className="w-full max-w-sm">
+        <EmptyMedia>
+          <PanelRight />
+        </EmptyMedia>
+        <EmptyHeader>
+          <EmptyTitle>Open a surface to get started</EmptyTitle>
+          <EmptyDescription>Choose one from the Surfaces rail.</EmptyDescription>
+        </EmptyHeader>
+      </Empty>
     </div>
   )
 }

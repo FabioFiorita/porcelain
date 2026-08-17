@@ -3,6 +3,7 @@ import type { SessionChange, SessionMismatchFrame } from '@porcelain/contracts/s
 import { invalidateAllActionsQueries } from '@renderer/features/actions'
 import { invalidateAllFilesQueries } from '@renderer/features/files'
 import { invalidateAllProjectDataQueries } from '@renderer/features/project-data'
+import { invalidateAllReviewComments } from '@renderer/features/review'
 import { invalidateAllTasks } from '@renderer/features/tasks'
 import { type DaemonSession, primary } from '@renderer/lib/daemon'
 import { isBrowser } from '@renderer/lib/platform'
@@ -54,6 +55,8 @@ export type SessionQueryUtils = {
   readonly actions: QueryInvalidation
   /** Tasks cache — daemon-wide, so recovery invalidates every Environment's table. */
   readonly tasks: QueryInvalidation
+  /** Review comments cache — companion state the live `review.changed` path also owns. */
+  readonly review: QueryInvalidation
 }
 
 /**
@@ -77,6 +80,10 @@ export function invalidateForChange(
     case 'git.working-tree-changed':
       // The Git feature bridge owns it (GIT-006): one subscription maps the change to typed
       // Git identities. Handled here only so the switch stays exhaustive over SessionChange.
+      return Promise.resolve()
+    case 'review.changed':
+      // Review comments own their notification → identity mapping. Handled here only
+      // so the switch stays exhaustive over SessionChange.
       return Promise.resolve()
     case 'tasks.changed':
       // Tasks owns its notification → identity mapping (the Web Tasks feature adapter).
@@ -112,6 +119,7 @@ export function invalidateForRecovery(
       utils.tasks.invalidate(),
       utils.files.invalidate(),
       utils.projectData.invalidate(),
+      utils.review.invalidate(),
     ])
   }
   return Promise.all([
@@ -121,6 +129,7 @@ export function invalidateForRecovery(
     utils.tasks.invalidate(),
     utils.actions.invalidate(),
     utils.projectData.invalidate(),
+    utils.review.invalidate(),
   ])
 }
 
@@ -161,6 +170,7 @@ export function useSessionRuntime({
       files: { invalidate: () => invalidateAllFilesQueries(queryClient) },
       actions: { invalidate: () => invalidateAllActionsQueries(queryClient) },
       tasks: { invalidate: () => invalidateAllTasks(queryClient) },
+      review: { invalidate: () => invalidateAllReviewComments(queryClient) },
     }),
     [trpcUtils, queryClient],
   )

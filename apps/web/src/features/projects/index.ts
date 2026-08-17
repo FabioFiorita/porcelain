@@ -3,7 +3,6 @@
 export type { ProjectSummary } from '@porcelain/client-runtime/projects'
 export { CanvasList } from './canvas-list'
 export { CanvasView } from './canvas-view'
-export { HubHomeSummary, HubProjectSummary } from './hub-summaries'
 export { HubTree } from './hub-tree'
 export {
   isProjectsQueryKey,

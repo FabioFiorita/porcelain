@@ -6,16 +6,20 @@ import {
 } from '@renderer/components/terminal/local-path-dialog'
 import { Button } from '@renderer/components/ui/button'
 import {
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-} from '@renderer/components/ui/sidebar'
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '@renderer/components/ui/empty'
+import { SidebarGroup, SidebarGroupContent } from '@renderer/components/ui/sidebar'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { useLocalDaemon, useLocalTerminalPath } from '@renderer/hooks/use-local-terminal'
 import { useHubSelectionStore } from '@renderer/stores/hub-selection'
 import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
-import { Plus } from 'lucide-react'
+import { Zap } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { ActionComposer, type ActionDraft, draftFromAction } from './action-composer'
 import { ActionRow } from './action-row'
@@ -138,6 +142,10 @@ export function ActionsGroup(): React.JSX.Element {
    * targeted runs exactly as before — the gates must cost nothing on the path people
    * use fifty times a day, or they train people to click through them.
    */
+  const startNew = (): void => {
+    setDraft({ title: '', command: '', where: 'primary' })
+  }
+
   const handleRun = (action: ActionView): void => {
     if (!action.trusted) {
       setPendingTrust(action)
@@ -165,42 +173,57 @@ export function ActionsGroup(): React.JSX.Element {
 
   return (
     <SidebarGroup className="px-3">
-      <SidebarGroupLabel className="flex items-center justify-between px-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
-        {selected.projectName} · {selected.environmentName}
-        {selected.current && (
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="size-5"
-            aria-label="Add action"
-            data-testid={TestIds.actionsAdd}
-            onClick={() => setDraft({ title: '', command: '', where: 'primary' })}
-          >
-            <Plus />
-          </Button>
-        )}
-      </SidebarGroupLabel>
-      <SidebarGroupContent className="flex flex-col gap-1.5 px-1">
-        {actions.length === 0 ? (
-          <p className="px-1 text-xs text-muted-foreground">
-            Save a command — a dev server, storybook, a test watcher — and run it in a terminal with
-            one click. Your agent can add them too.
-          </p>
-        ) : (
-          actions.map((action, index) => (
-            <ActionRow
-              key={action.id}
-              action={action}
-              readOnly={!selected.current}
-              onEdit={(a: ActionView): void => setDraft(draftFromAction(a))}
-              onRun={handleRun}
-              showWhere={canSpawnLocal}
-              isFirst={index === 0}
-              isLast={index === actions.length - 1}
-            />
-          ))
-        )}
-      </SidebarGroupContent>
+      {actions.length === 0 ? (
+        <Empty className="min-h-0 p-4" data-testid={TestIds.actionsEmpty}>
+          <EmptyMedia>
+            <Zap />
+          </EmptyMedia>
+          <EmptyHeader>
+            <EmptyTitle>No actions yet</EmptyTitle>
+            <EmptyDescription>
+              Add a dev server, a test watcher, or anything you need to run in the terminal. Agents
+              can add them here too.
+            </EmptyDescription>
+          </EmptyHeader>
+          {selected.current && (
+            <EmptyContent>
+              <Button size="sm" data-testid={TestIds.actionsAdd} onClick={startNew}>
+                Add action
+              </Button>
+            </EmptyContent>
+          )}
+        </Empty>
+      ) : (
+        <>
+          <div className="flex items-center justify-end px-1">
+            {selected.current && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-2xs"
+                data-testid={TestIds.actionsAdd}
+                onClick={startNew}
+              >
+                Add action
+              </Button>
+            )}
+          </div>
+          <SidebarGroupContent className="flex flex-col gap-1.5 px-1">
+            {actions.map((action, index) => (
+              <ActionRow
+                key={action.id}
+                action={action}
+                readOnly={!selected.current}
+                onEdit={(a: ActionView): void => setDraft(draftFromAction(a))}
+                onRun={handleRun}
+                showWhere={canSpawnLocal}
+                isFirst={index === 0}
+                isLast={index === actions.length - 1}
+              />
+            ))}
+          </SidebarGroupContent>
+        </>
+      )}
       {siblings.map((scope) => (
         <SiblingEnvironment key={scope.environmentId} scope={scope} />
       ))}

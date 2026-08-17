@@ -8,7 +8,7 @@ const DIVERTED = 'HUB-VIEWER-DIVERGED-README'
 test('switching Worktree keeps existing tabs on their original target', async ({ page }) => {
   await waitForShell(page)
   await expect(loc.hubInventory(page)).toBeVisible()
-  await expect(loc.hubWorktreeSummary(page)).toBeVisible()
+  await expect(loc.viewerEmpty(page)).toBeVisible()
   await selectTab(page, 'Files')
   await expect(page.getByText('Pinned', { exact: true })).toBeVisible()
   await expect(page.getByText('All Files', { exact: true })).toBeVisible()
@@ -16,14 +16,11 @@ test('switching Worktree keeps existing tabs on their original target', async ({
   await loc.treeEntry(page, 'README.md').click()
   await expect(loc.viewerCard(page)).toContainText('A fixture repo for Porcelain e2e tests.')
   const tab = loc.viewerTab(page, 'README.md')
-  const task = loc.viewerCard(page).getByRole('button', { name: 'Task', exact: true })
   await expect(tab).toBeVisible()
-  await expect(task).toBeVisible()
-  const tabBox = await tab.boundingBox()
-  const taskBox = await task.boundingBox()
-  if (tabBox === null || taskBox === null) throw new Error('expected header tab and task button')
-  expect(Math.abs(tabBox.y - taskBox.y)).toBeLessThanOrEqual(1)
-  expect(tabBox.x + tabBox.width).toBeLessThan(taskBox.x)
+  await expect(loc.viewerCard(page).getByRole('button', { name: 'Task', exact: true })).toHaveCount(
+    0,
+  )
+  await expect(loc.actionsMenu(page)).toBeVisible()
 
   const originalWorktreeId = await page
     .locator('[data-hub-worktree]')
@@ -69,7 +66,7 @@ test('switching Worktree keeps existing tabs on their original target', async ({
 
 test('Project headers collapse without becoming navigation targets', async ({ page }) => {
   await waitForShell(page)
-  await expect(loc.hubWorktreeSummary(page)).toBeVisible()
+  await expect(loc.viewerEmpty(page)).toBeVisible()
 
   const project = loc.hubProjects(page).first()
   const worktrees = loc.hubWorktrees(page)

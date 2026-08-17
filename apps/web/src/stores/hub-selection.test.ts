@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { useHubSelectionStore } from './hub-selection'
+import { hydrateHubSelection, useHubSelectionStore } from './hub-selection'
 import { useProjectSelectionStore } from './project-selection'
 import { tabId, useTabsStore } from './tabs'
 
@@ -58,5 +58,36 @@ describe('Hub selection', () => {
     useHubSelectionStore.getState().selectHome()
     expect(useHubSelectionStore.getState().selection).toEqual({ kind: 'home' })
     expect(useTabsStore.getState().panes[0]?.tabs).toHaveLength(1)
+  })
+})
+
+describe('hydrateHubSelection', () => {
+  it('keeps a valid Worktree selection', () => {
+    expect(
+      hydrateHubSelection({
+        selection: {
+          kind: 'worktree',
+          environmentId: 'env',
+          projectId: 'proj',
+          worktreeId: 'wt',
+          path: '/repos/alpha',
+        },
+      }),
+    ).toEqual({
+      selection: {
+        kind: 'worktree',
+        environmentId: 'env',
+        projectId: 'proj',
+        worktreeId: 'wt',
+        path: '/repos/alpha',
+      },
+    })
+  })
+
+  it('falls back to Home for a corrupt blob', () => {
+    expect(hydrateHubSelection(null)).toEqual({ selection: { kind: 'home' } })
+    expect(hydrateHubSelection({ selection: { kind: 'worktree' } })).toEqual({
+      selection: { kind: 'home' },
+    })
   })
 })

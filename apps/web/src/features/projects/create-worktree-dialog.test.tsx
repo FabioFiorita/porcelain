@@ -74,4 +74,31 @@ describe('CreateWorktreeDialog', () => {
     })
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })
+
+  it('checks out an existing branch into a new worktree', async () => {
+    const createWorktree = vi.fn().mockResolvedValue(undefined)
+    render(
+      <CreateWorktreeDialog
+        project={project}
+        open
+        creating={false}
+        onOpenChange={vi.fn()}
+        createWorktree={createWorktree}
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId(TestIds.hubCreateWorktreeModeExisting))
+    fireEvent.click(screen.getByTestId(TestIds.hubCreateWorktreeBase))
+    fireEvent.click(await screen.findByRole('option', { name: 'main' }))
+    fireEvent.click(screen.getByTestId(TestIds.hubCreateWorktreeSubmit))
+
+    await waitFor(() => {
+      expect(createWorktree).toHaveBeenCalledWith({
+        projectId: 'project-alpha',
+        branch: 'main',
+        existing: true,
+      })
+    })
+    expect(screen.queryByTestId(TestIds.hubCreateWorktreeBranch)).toBeNull()
+  })
 })

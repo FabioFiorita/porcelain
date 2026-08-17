@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { type Pane, type Tab, tabId, useTabsStore } from './tabs'
+import { hydrateViewerTabs, type Pane, type Tab, tabId, useTabsStore } from './tabs'
 
 const tab = (id: string): Tab => ({ id, kind: 'file', title: id, path: `/repo/${id}` })
 
@@ -354,5 +354,57 @@ describe('useTabsStore', () => {
       useTabsStore.getState().cycleTab(1)
       expect(pane(0).activeTabId).toBe('b')
     })
+  })
+})
+
+describe('hydrateViewerTabs', () => {
+  it('restores a valid pane of file tabs', () => {
+    const restored = hydrateViewerTabs({
+      panes: [
+        {
+          tabs: [
+            { id: 'file:/repo/a.ts', kind: 'file', title: 'a.ts', path: '/repo/a.ts' },
+            {
+              id: 'diff:src/a.ts',
+              kind: 'diff',
+              title: 'a.ts',
+              path: 'src/a.ts',
+              preview: true,
+            },
+          ],
+          activeTabId: 'diff:src/a.ts',
+        },
+      ],
+      activePaneIndex: 0,
+    })
+    expect(restored.panes).toHaveLength(1)
+    expect(restored.panes[0]?.tabs.map((t) => t.id)).toEqual(['file:/repo/a.ts', 'diff:src/a.ts'])
+    expect(restored.panes[0]?.activeTabId).toBe('diff:src/a.ts')
+  })
+
+  it('returns one empty pane for a corrupt blob', () => {
+    expect(hydrateViewerTabs(null)).toEqual({
+      panes: [{ tabs: [], activeTabId: null }],
+      activePaneIndex: 0,
+    })
+    expect(hydrateViewerTabs({ panes: [{ tabs: [{ kind: 'nope' }], activeTabId: null }] })).toEqual(
+      {
+        panes: [{ tabs: [], activeTabId: null }],
+        activePaneIndex: 0,
+      },
+    )
+  })
+
+  it('repairs an activeTabId that is no longer in the pane', () => {
+    const restored = hydrateViewerTabs({
+      panes: [
+        {
+          tabs: [{ id: 'file:/repo/a.ts', kind: 'file', title: 'a.ts', path: '/repo/a.ts' }],
+          activeTabId: 'missing',
+        },
+      ],
+      activePaneIndex: 0,
+    })
+    expect(restored.panes[0]?.activeTabId).toBe('file:/repo/a.ts')
   })
 })

@@ -12,6 +12,11 @@ the wrong shape because the work it tracked was never confined to one repository
 The reference point is Linear, and the specific quality being copied is **how little friction there
 is between having a thought and it being on the board.**
 
+In the browser shell, Tasks is a left-rail row (not a right-hand Surface). Clicking it opens the
+board in the Viewer without changing the selected worktree. The row plus (and ⌘⇧N when Files is
+not focused) opens a new-task dialog. Pictures, file/folder tags, and project/worktree tags are
+coming soon.
+
 ## Rules
 
 **Tasks span projects, and that is the feature.** A task references a Project, Environment, or

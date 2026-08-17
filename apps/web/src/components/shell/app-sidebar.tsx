@@ -10,24 +10,33 @@ import {
   useSidebar,
 } from '@renderer/components/ui/sidebar'
 import { HubTree } from '@renderer/features/projects'
+import { openTasksBoard } from '@renderer/features/tasks'
 import { kbdLabel } from '@renderer/lib/keyboard'
 import { isBrowser } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
 import { useFileFinderStore } from '@renderer/stores/file-finder'
+import { useNewTaskDialogStore } from '@renderer/stores/new-task-dialog'
 import { useProjectPickerStore } from '@renderer/stores/project-picker'
+import { useTabsStore } from '@renderer/stores/tabs'
+import { useUnreadStore } from '@renderer/stores/unread'
 import { TestIds } from '@shared/test-ids'
-import { Plus, Search } from 'lucide-react'
-import { EnvironmentSwitcher } from './environment-switcher'
+import { Plus, Search, Table2 } from 'lucide-react'
 import { SidebarResizeHandle } from './sidebar-resize-handle'
 
 /**
  * The left shell is deliberately navigation-only. Project/worktree selection is
- * owned by the Hub tree; files, Git, Tasks, Canvas, and terminal surfaces live
- * in the right shell areas and open their detail in the central Viewer.
+ * owned by the Hub tree. Tasks is daemon-wide and lives here, not in Surfaces.
+ * Files, Git, Canvas, and terminal surfaces open their detail in the Viewer.
  */
 export function AppSidebar(): React.JSX.Element {
   const { state, isMobile } = useSidebar()
   const setFinderOpen = useFileFinderStore((s) => s.setOpen)
+  const tasksActive = useTabsStore((s) => {
+    const pane = s.panes[s.activePaneIndex]
+    return pane?.tabs.find((tab) => tab.id === pane.activeTabId)?.kind === 'tasks'
+  })
+  const tasksUnread = useUnreadStore((s) => s.unread.tasks)
+  const showNewTask = useNewTaskDialogStore((s) => s.show)
 
   return (
     <Sidebar
@@ -44,7 +53,6 @@ export function AppSidebar(): React.JSX.Element {
       <SidebarHeader className="app-drag h-12 shrink-0 flex-row items-center gap-2 border-b py-0 px-3">
         <img src={logo} alt="" draggable={false} className="size-6 shrink-0" />
         <span className="truncate text-sm font-semibold text-foreground">Porcelain</span>
-        {isBrowser && <EnvironmentSwitcher />}
         <Button
           variant="ghost"
           size="icon-sm"
@@ -68,6 +76,45 @@ export function AppSidebar(): React.JSX.Element {
             <span className="min-w-0 flex-1 truncate text-left">Search</span>
             <Kbd>{kbdLabel('mod', 'K')}</Kbd>
           </Button>
+        </div>
+        <div className="app-no-drag px-2 pt-2">
+          <div
+            className={cn(
+              'flex h-8 items-center gap-1 rounded-md px-2 text-xs',
+              tasksActive
+                ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                : 'text-muted-foreground hover:bg-sidebar-accent/50',
+            )}
+          >
+            <button
+              type="button"
+              data-testid={TestIds.tasksOpen}
+              aria-label="Open Tasks"
+              aria-current={tasksActive ? 'page' : undefined}
+              className="flex min-w-0 flex-1 items-center gap-2 text-left"
+              onClick={() => openTasksBoard()}
+            >
+              <Table2 className="size-3.5 shrink-0" />
+              <span className="min-w-0 flex-1 truncate">Tasks</span>
+              {tasksUnread && (
+                <span className="size-1.5 shrink-0 rounded-full bg-foreground" aria-hidden />
+              )}
+              <Kbd>{kbdLabel('mod', 'shift', 'T')}</Kbd>
+            </button>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              className="size-5 shrink-0"
+              aria-label="New Task"
+              data-testid={TestIds.tasksNew}
+              onClick={(event) => {
+                event.stopPropagation()
+                showNewTask()
+              }}
+            >
+              <Plus />
+            </Button>
+          </div>
         </div>
         <div className="app-no-drag px-2 pt-3">
           <HubTree className="max-w-none" />

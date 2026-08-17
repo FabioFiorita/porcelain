@@ -172,8 +172,8 @@ export function CommitGroup(): React.JSX.Element {
 
   if (!conventions) {
     return (
-      <SidebarGroup className="px-3">
-        <SidebarGroupLabel className="px-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
+      <SidebarGroup className="p-0">
+        <SidebarGroupLabel className="h-6 px-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
           Commit
         </SidebarGroupLabel>
       </SidebarGroup>
@@ -278,11 +278,11 @@ export function CommitGroup(): React.JSX.Element {
   const displayedError = error
 
   return (
-    <SidebarGroup data-testid={TestIds.commitGroup} className="px-3">
-      <SidebarGroupLabel className="px-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
+    <SidebarGroup data-testid={TestIds.commitGroup} className="p-0">
+      <SidebarGroupLabel className="h-6 px-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
         Commit
       </SidebarGroupLabel>
-      <SidebarGroupContent className="px-1">
+      <SidebarGroupContent>
         {treeClean && (
           <p className="mb-2 px-0.5 text-2xs text-muted-foreground">
             Working tree clean — nothing to stage or commit.

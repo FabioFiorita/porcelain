@@ -17,7 +17,7 @@ import { TreeNode } from './tree-node'
 
 export function PinnedGroup({ compact = false }: { compact?: boolean }): React.JSX.Element {
   const entries = usePinnedFiles()
-  const groupClass = compact ? 'px-2 py-2' : 'flex h-full flex-col px-3 pt-3'
+  const groupClass = compact ? 'px-2 pt-2' : 'flex h-full flex-col px-3 pt-3'
   const labelClass = 'h-6 px-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground'
 
   // Empty: the label still orients the panel; a centered treatment (short line + the

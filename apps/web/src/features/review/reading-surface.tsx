@@ -15,6 +15,7 @@ import {
   tokenizeHunks,
   tokenizeLines,
 } from '@renderer/lib/highlight'
+import { formatHunkHeader } from '@renderer/lib/hunk-header'
 import { fileName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'
 import { activeTabTarget, targetedTab } from '@renderer/stores/hub-tabs'
@@ -542,7 +543,11 @@ function ReadingRowView({
         </div>
       )
     case 'hunkHeader':
-      return <p className="h-5 bg-muted/40 px-2 leading-5 text-muted-foreground">{row.text}</p>
+      return (
+        <p className="h-5 bg-muted/40 px-2 leading-5 text-muted-foreground">
+          {formatHunkHeader(row.text)}
+        </p>
+      )
     case 'diff': {
       const anchorLine = row.line.newLine ?? row.line.oldLine ?? undefined
       return (

@@ -21,6 +21,16 @@ vi.mock('./use-path-actions', () => ({
   }),
 }))
 
+vi.mock('@renderer/features/review', () => ({
+  useCommentActions: () => ({ add: async () => {} }),
+  useCommentIndex: () => ({ byLine: new Map(), fileLevel: [] }),
+}))
+
+vi.mock('@renderer/hooks/use-reveal-in-finder', () => ({
+  useRevealInFinder: () => () => {},
+  useCanRevealInFinder: () => false,
+}))
+
 // Import AFTER mocks are declared (Vitest hoists vi.mock to the top of the module).
 import { EditorSource } from './editor-source'
 

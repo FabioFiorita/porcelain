@@ -236,3 +236,119 @@ export function BranchSwitcher(): React.JSX.Element | null {
     </Popover>
   )
 }
+
+/**
+ * Same checkout picker as the Git-surface chip, as a dialog — used from a
+ * worktree row so you can switch that checkout without hunting for the chip.
+ */
+export function SwitchBranchDialog(props: {
+  open: boolean
+  currentBranch: string
+  repoPath: string
+  onOpenChange: (open: boolean) => void
+}): React.JSX.Element {
+  const { branches, refreshBranches } = useGitWorkspace()
+  const checkout = useGitCheckout()
+  const [query, setQuery] = useState('')
+
+  const q = query.trim().toLowerCase()
+  const local = branches.filter((b) => b.remote === null && b.name.toLowerCase().includes(q))
+  const remote = branches.filter(
+    (b) => b.remote !== null && `${b.remote}/${b.name}`.toLowerCase().includes(q),
+  )
+
+  const handleOpenChange = (next: boolean): void => {
+    props.onOpenChange(next)
+    if (!next) {
+      setQuery('')
+      return
+    }
+    runUserAction(
+      () => refreshBranches(),
+      (error) => {
+        toast.error('Could not refresh branches', {
+          description: error instanceof Error ? error.message : String(error),
+        })
+      },
+    )
+  }
+
+  const handleSwitch = (target: string): void => {
+    if (target === props.currentBranch) {
+      props.onOpenChange(false)
+      return
+    }
+    runUserAction(
+      async () => {
+        await checkout.mutateAsync(target, props.repoPath)
+        props.onOpenChange(false)
+        toast.success(`Switched to ${target}`)
+      },
+      (error) => {
+        toast.error('Checkout failed', {
+          description: error instanceof Error ? error.message : String(error),
+        })
+      },
+    )
+  }
+
+  return (
+    <Dialog open={props.open} onOpenChange={handleOpenChange}>
+      <DialogContent data-testid={TestIds.hubSwitchBranch} className="sm:max-w-md p-0">
+        <DialogHeader className="px-6 pt-6">
+          <DialogTitle>Switch branch</DialogTitle>
+        </DialogHeader>
+        <Command shouldFilter={false} className="rounded-none border-0 shadow-none">
+          <CommandInput
+            value={query}
+            onValueChange={setQuery}
+            placeholder="Switch branch…"
+            className="text-xs"
+          />
+          <CommandList>
+            {local.length === 0 && remote.length === 0 && (
+              <CommandEmpty>No branches found.</CommandEmpty>
+            )}
+            {local.length > 0 && (
+              <CommandGroup heading="Local" className={commandGroupHeadingClass}>
+                {local.map((b) => (
+                  <CommandItem
+                    key={b.name}
+                    value={b.name}
+                    onSelect={() => handleSwitch(b.name)}
+                    className="text-xs-plus"
+                  >
+                    {b.name === props.currentBranch ? (
+                      <Check className="shrink-0" />
+                    ) : (
+                      <span className="size-4 shrink-0" />
+                    )}
+                    <span className="truncate font-mono">{b.name}</span>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
+            {remote.length > 0 && (
+              <CommandGroup heading="Remote" className={commandGroupHeadingClass}>
+                {remote.map((b) => (
+                  <CommandItem
+                    key={`${b.remote}/${b.name}`}
+                    value={`${b.remote}/${b.name}`}
+                    onSelect={() => handleSwitch(b.name)}
+                    className="text-xs-plus"
+                  >
+                    <span className="size-4 shrink-0" />
+                    <span className="truncate font-mono">
+                      <span className="text-muted-foreground">{b.remote}/</span>
+                      {b.name}
+                    </span>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
+          </CommandList>
+        </Command>
+      </DialogContent>
+    </Dialog>
+  )
+}

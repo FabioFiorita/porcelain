@@ -281,10 +281,12 @@ export function createHubInventoryOperations(options: {
       const project = rebuilt.value.live.find((entry) => entry.id === input.projectId)
       if (project === undefined) return notFound()
 
-      const added =
-        input.baseRef === undefined
-          ? await options.git.addWorktree(project.path, input.branch)
-          : await options.git.addWorktree(project.path, input.branch, input.baseRef)
+      const added = await options.git.addWorktree(
+        project.path,
+        input.branch,
+        input.baseRef,
+        input.existing === true,
+      )
       if (!added.ok) {
         return { ok: false, error: mapGitWorkspaceError(added.error) }
       }

@@ -1,3 +1,4 @@
+import { openTasksBoard } from '@renderer/features/tasks'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import {
   ctrlIsPrimary,
@@ -5,30 +6,31 @@ import {
   isTerminalTarget,
   isTextEntry,
 } from '@renderer/lib/keyboard'
+import { isFilesSurfaceFocused } from '@renderer/lib/surface-focus'
 import { spawnTerminal, toggleTerminalPanel } from '@renderer/lib/terminal-actions'
+import { useNewTaskDialogStore } from '@renderer/stores/new-task-dialog'
 import { type SidebarTab, usePreferencesStore } from '@renderer/stores/preferences'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { runUserAction } from '@shared/background'
 import { useEffect } from 'react'
 
 // Must match the displayed shortcuts in surface-sidebar.tsx. Cmd+6 belongs to the bottom
-// Terminal panel, so Tasks uses 5 and Canvas keeps its explicit 7 slot.
+// Terminal panel, so Git uses 5 and Canvas keeps its explicit 7 slot.
 export const SIDEBAR_TAB_KEYS: Record<string, SidebarTab | undefined> = {
   '1': 'files',
   '2': 'changes',
   '3': 'history',
   '4': 'search',
-  '5': 'tasks',
+  '5': 'git',
   '7': 'canvas',
 }
 
 /**
  * Window-level shortcuts: close-tab (Ctrl+W here on Linux/Windows, yielding to a focused
  * terminal; macOS Cmd+W goes via main's before-input-event instead), Ctrl+Tab cycling,
- * Cmd+1–5 sidebar tabs, Cmd+6 for the bottom terminal panel, Cmd+7 for Canvas, and the context-aware "new"
- * shortcut for files (⌘N)
- * plus ⌘T for a terminal anywhere. Files' ⌘N/⌘⇧N/⌘D/⌘⌫ live in a dedicated component
- * (FileCommands) instead — those go through tRPC hooks, which only a component may touch.
+ * Cmd+1–5 sidebar tabs, Cmd+6 for the bottom terminal panel, Cmd+7 for Canvas, ⌘⇧T for
+ * Tasks, and ⌘⇧N for a new Task unless Files owns that chord. Files' ⌘N/⌘⇧N/⌘D/⌘⌫ live
+ * in FileCommands — those go through tRPC hooks, which only a component may touch.
  */
 export function useAppShortcuts(): void {
   useEffect(() => {
@@ -63,6 +65,21 @@ export function useAppShortcuts(): void {
           openTabToSide({ ...active, preview: false })
         }
         return
+      }
+      if (isModExclusive(e) && e.shiftKey && !e.altKey && !isTextEntry(e.target)) {
+        const shifted = e.key.toLowerCase()
+        if (shifted === 't') {
+          e.preventDefault()
+          openTasksBoard()
+          return
+        }
+        // Files owns ⌘⇧N for new folder only while that surface is actually showing.
+        // The persisted sidebar tab defaults to `files` on the launcher — that is not focus.
+        if (shifted === 'n' && !isFilesSurfaceFocused()) {
+          e.preventDefault()
+          useNewTaskDialogStore.getState().show()
+          return
+        }
       }
       if (isModExclusive(e) && !e.altKey && !e.shiftKey) {
         if (e.key === '6') {

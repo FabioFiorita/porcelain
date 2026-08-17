@@ -27,7 +27,9 @@ export function CanvasList(): React.JSX.Element {
 
   if (target === null) {
     return (
-      <p className="p-3 text-sm text-muted-foreground">Select a Worktree to see its Canvases.</p>
+      <p className="px-2 pt-2 text-sm text-muted-foreground">
+        Select a Worktree to see its Canvases.
+      </p>
     )
   }
 
@@ -35,7 +37,7 @@ export function CanvasList(): React.JSX.Element {
     return (
       <Empty
         data-testid={TestIds.canvasListEmpty}
-        className="mx-2 mt-1 min-h-36 border-none bg-muted/20 px-4 py-8"
+        className="mx-2 mt-2 min-h-36 border-none bg-muted/20 px-4 py-8"
       >
         <EmptyMedia>
           <LayoutPanelTop />

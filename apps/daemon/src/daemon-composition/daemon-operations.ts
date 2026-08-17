@@ -43,6 +43,7 @@ import {
   tailnetUrl,
   updateConfig,
 } from '../features/remote'
+import { createReviewOperations, type ReviewOperations } from '../features/review'
 import { createSearchOperations, type SearchOperations } from '../features/search'
 import {
   createTasksOperations,
@@ -71,6 +72,7 @@ export type DaemonOperations = Readonly<{
   remote: RemoteOperations
   tasks: TasksOperations
   actions: ActionsOperations
+  review: ReviewOperations
   files: FilesOperations
   git: GitOperations
   search: SearchOperations
@@ -160,6 +162,9 @@ export function createDaemonOperations(options: {
       sources: [{ kind: 'private', store: createJsonActionsStore({ homeDir: options.homeDir }) }],
       trustStore: createJsonActionTrustStore(),
       projects: actionsProjectsCapability(options.projects),
+      publishSessionChange: publish,
+    }),
+    review: createReviewOperations({
       publishSessionChange: publish,
     }),
     files: createFilesOperations({ scope: filesScope, publishSessionChange: publish }),

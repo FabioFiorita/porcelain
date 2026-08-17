@@ -113,6 +113,7 @@ export function createGitSubprocess(host: GitSubprocessHost = {}): GitWorkspaceP
     repoPath: string,
     branch: string,
     baseRef?: string,
+    existing?: boolean,
   ): Promise<GitWorkspaceResult<Worktree>> {
     const sanitizedBranch = branch.replace(/[/\\:<>"|?*]+/g, '-')
     const parent = join(dirname(repoPath), `${basename(repoPath)}-worktrees`)
@@ -120,8 +121,10 @@ export function createGitSubprocess(host: GitSubprocessHost = {}): GitWorkspaceP
     await makeDirectory(parent)
 
     try {
-      const args = ['worktree', 'add', '-b', branch, directory]
-      if (baseRef !== undefined) args.push(baseRef)
+      const args = existing
+        ? ['worktree', 'add', directory, branch]
+        : ['worktree', 'add', '-b', branch, directory]
+      if (!existing && baseRef !== undefined) args.push(baseRef)
       await execute(args, commandOptions(repoPath, sourceEnv))
     } catch (error) {
       const result = failed<Worktree>('add-worktree', error)

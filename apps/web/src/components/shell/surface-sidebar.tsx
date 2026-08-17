@@ -6,7 +6,7 @@ import { SidebarGroupLabel } from '@renderer/components/ui/sidebar'
 import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-group'
 import { CanvasList } from '@renderer/features/projects'
 import { SearchList } from '@renderer/features/search'
-import { TasksList } from '@renderer/features/tasks'
+import { surfaceListInsetClass } from '@renderer/lib/controls'
 import { kbdLabel } from '@renderer/lib/keyboard'
 import { cn } from '@renderer/lib/utils'
 import { useFileTreeStore } from '@renderer/stores/file-tree'
@@ -18,16 +18,18 @@ import {
   Eye,
   EyeOff,
   FileText,
+  GitCommitHorizontal,
   GitCompareArrows,
   History,
   LayoutPanelTop,
   Search,
-  Table2,
 } from 'lucide-react'
 import { useState } from 'react'
+import { CommitGroup } from './commit-group'
 import { FileTimelineGroup } from './file-timeline-group'
 import { FileTree } from './file-tree'
 import { PinnedGroup } from './pinned-group'
+import { QuickCommandsGroup } from './quick-commands-group'
 
 interface SurfaceDefinition {
   id: SidebarTab
@@ -53,14 +55,14 @@ export const SURFACES: SurfaceDefinition[] = [
     shortcut: '3',
     icon: History,
   },
-  { id: 'search', label: 'Search', hint: 'Search code and files', shortcut: '4', icon: Search },
   {
-    id: 'tasks',
-    label: 'Tasks',
-    hint: 'Work across every Environment',
+    id: 'git',
+    label: 'Git',
+    hint: 'Commands, suggestions, and commit',
     shortcut: '5',
-    icon: Table2,
+    icon: GitCommitHorizontal,
   },
+  { id: 'search', label: 'Search', hint: 'Search code and files', shortcut: '4', icon: Search },
   {
     id: 'canvas',
     label: 'Canvas',
@@ -129,9 +131,8 @@ export function SurfaceContent({
 }): React.JSX.Element {
   const project = useProjectSelectionStore((s) => s.project)
 
-  // Tasks and Search are the two surfaces that do not need a Worktree: Tasks is
-  // daemon-wide by design, and Search opens its own scope.
-  if (project === null && active !== 'search' && active !== 'tasks') {
+  // Search is the surface that does not need a Worktree: it opens its own scope.
+  if (project === null && active !== 'search') {
     return (
       <p className="p-3 text-sm text-muted-foreground">
         Select a Worktree from Projects to open this surface.
@@ -147,8 +148,17 @@ export function SurfaceContent({
       {active === 'changes' && <ChangesList />}
       {active === 'history' && <HistorySurface />}
       {active === 'search' && <SearchList />}
-      {active === 'tasks' && <TasksList />}
+      {active === 'git' && <GitSurface />}
       {active === 'canvas' && <CanvasList />}
+    </div>
+  )
+}
+
+function GitSurface(): React.JSX.Element {
+  return (
+    <div className={surfaceListInsetClass}>
+      <QuickCommandsGroup />
+      <CommitGroup />
     </div>
   )
 }
@@ -158,7 +168,7 @@ function HistorySurface(): React.JSX.Element {
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="px-2 pt-2">
+      <div className={surfaceListInsetClass}>
         <ToggleGroup
           value={[tab]}
           onValueChange={(value: string[]) => {

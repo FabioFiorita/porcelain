@@ -21,6 +21,13 @@ at a time until Porcelain is competing with the terminal it sits beside.
 second diff implementation for a "special case" is the thing that must not happen; previews hand off
 to the real surface instead of growing their own.
 
+**Reviewed marks and comments live on the change, and comments also land on the file.** Each file
+can be marked reviewed (working tree and branch range; a historical commit is already history).
+Right-click a line or a selected range on a diff **or** a normal file to leave a comment the agent
+can read; the header also offers a file-level comment. Hunk headers are human labels (`Line 1`,
+`export function foo · lines 10–14`), not raw `@@` markers. Comment hygiene (resolve all, clear
+resolved, delete all) lives on the Changes header next to Review All — not a Comments surface.
+
 **Story order comes from the profile, never from git.** Git supplies the changed files; the layer
 sequence supplies the order. If ordering logic starts living in the git feature, the profile has
 been bypassed and pillar 3 has quietly become a git feature again.

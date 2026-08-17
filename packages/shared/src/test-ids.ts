@@ -14,11 +14,21 @@ export const TestIds = {
   // --- Shell / rail ---
   rail: 'rail',
   railTab: (tab: string): string => `rail-tab-${tab}`,
+  railTabMenu: (action: string): string => `rail-tab-menu-${action}`,
   railSettings: 'rail-settings',
   sidebarPanel: 'sidebar-panel',
   sidebarPanelTitle: 'sidebar-panel-title',
   rightSidebar: 'right-sidebar',
   viewerCard: 'viewer-card',
+  viewerEmpty: 'viewer-empty',
+  /** Recessed well behind a file / diff / stacked-diff card. */
+  codeWell: 'code-well',
+  /** Raised file or single-diff card that fills the Viewer. */
+  codeCard: 'code-card',
+  /** History commit file list (message, hash, layers) as a raised card. */
+  commitListCard: 'commit-list-card',
+  /** One stacked-diff file card, keyed by repo-relative path. */
+  changesetCard: (path: string): string => `changeset-card-${path}`,
   toggleLeftSidebar: 'toggle-left-sidebar',
   toggleRightSidebar: 'toggle-right-sidebar',
   toggleTerminalPanel: 'toggle-terminal-panel',
@@ -48,6 +58,9 @@ export const TestIds = {
   hubCreateWorktreeBranch: 'hub-create-worktree-branch',
   hubCreateWorktreeBase: 'hub-create-worktree-base',
   hubCreateWorktreeSubmit: 'hub-create-worktree-submit',
+  hubCreateWorktreeModeNew: 'hub-create-worktree-mode-new',
+  hubCreateWorktreeModeExisting: 'hub-create-worktree-mode-existing',
+  hubSwitchBranch: 'hub-switch-branch',
   hubWorktreeSetupDialog: 'hub-worktree-setup-dialog',
   hubWorktreeSetupStart: 'hub-worktree-setup-start',
   hubWorktreeSetupDispose: 'hub-worktree-setup-dispose',
@@ -147,6 +160,7 @@ export const TestIds = {
   terminalNew: 'terminal-new',
   terminalList: 'terminal-list',
   terminalPanel: 'terminal-panel',
+  terminalResize: 'terminal-resize',
   /** The key bar above a terminal pane on touch (Esc/Tab/Ctrl/arrows a soft keyboard lacks). */
   terminalKeyBar: 'terminal-key-bar',
   terminalKey: (label: string): string =>
@@ -170,6 +184,7 @@ export const TestIds = {
    * clone path used by "This device" shells and local-targeted actions.
    */
   localTerminalPathButton: 'local-terminal-path-button',
+  actionsEmpty: 'actions-empty',
   actionsAdd: 'actions-add',
   actionRun: (title: string): string =>
     `action-run-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
@@ -187,6 +202,11 @@ export const TestIds = {
 
   // --- File comments ---
   fileComments: (path: string): string => `file-comments-${path}`,
+  commentsManage: 'comments-manage',
+  commentsResolveAll: 'comments-resolve-all',
+  commentsClearResolved: 'comments-clear-resolved',
+  commentsDeleteAll: 'comments-delete-all',
+  commentsDeleteAllConfirm: 'comments-delete-all-confirm',
 
   // --- Viewer tabs ---
   viewerTab: (title: string): string =>
@@ -198,8 +218,14 @@ export const TestIds = {
   filePromptName: 'file-prompt-name',
   fileEditor: 'file-editor',
 
+  /** Settings → General: which daemon this browser tab is bound to. */
+  settingsConnectedTo: 'settings-connected-to',
+
   // --- Tasks (the daemon-wide table) ---
   tasksOpen: 'tasks-open',
+  tasksNew: 'tasks-new',
+  tasksDialog: 'tasks-dialog',
+  tasksComingSoon: (field: string): string => `tasks-coming-soon-${field}`,
   tasksView: 'tasks-view',
   tasksTable: 'tasks-table',
   tasksEmpty: 'tasks-empty',

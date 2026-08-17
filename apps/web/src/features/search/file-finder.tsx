@@ -171,8 +171,17 @@ export function FileFinder(): React.JSX.Element {
       description: 'Inspect commit history',
       keywords: 'commits log git',
       icon: History,
-      shortcut: kbdLabel('mod', '4'),
+      shortcut: kbdLabel('mod', '3'),
       onSelect: () => openSurface('history'),
+    },
+    {
+      id: 'git',
+      label: 'Open Git',
+      description: 'Commands, suggestions, and commit',
+      keywords: 'git commit pull push stash',
+      icon: GitCommitHorizontal,
+      shortcut: kbdLabel('mod', '5'),
+      onSelect: () => openSurface('git'),
     },
     {
       id: 'settings',

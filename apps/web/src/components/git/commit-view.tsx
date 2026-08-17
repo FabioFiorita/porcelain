@@ -8,6 +8,7 @@ import {
 } from '@renderer/components/ui/context-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useCommitDiff, useCommitFlow, useCommitMessage } from '@renderer/features/git'
+import { raisedCardClass, viewerWellClass } from '@renderer/lib/controls'
 import { fileName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'
 import { useHubRepoPath } from '@renderer/stores/hub-repo'
@@ -15,9 +16,11 @@ import { activeTabTarget, targetedTab } from '@renderer/stores/hub-tabs'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRevealStore } from '@renderer/stores/reveal'
 import { useTabsStore } from '@renderer/stores/tabs'
-import { FileText, Rows3 } from 'lucide-react'
+import { TestIds } from '@shared/test-ids'
+import { FileText, MessageSquarePlus, Rows3 } from 'lucide-react'
 import { useState } from 'react'
 import { changesetTabKey } from './changeset-view'
+import { type CommentAnchor, CommentComposer } from './comment-composer'
 import { DiffModeToggle } from './diff-mode-toggle'
 import { HunksView } from './hunks-view'
 
@@ -38,6 +41,7 @@ function CommitFileRow({
   const setSidebarTab = usePreferencesStore((s) => s.setSidebarTab)
   const reveal = useRevealStore((s) => s.reveal)
   const name = fileName(file.path)
+  const [commentAnchor, setCommentAnchor] = useState<CommentAnchor | null>(null)
 
   // Opens the FULL file (not the diff the row's click shows), flips the sidebar to
   // Files, and reveals the file in the tree — identical to the Changes list.
@@ -58,8 +62,8 @@ function CommitFileRow({
             className={cn(
               'block w-full truncate px-3 py-1 text-left font-mono text-xs',
               selected
-                ? 'bg-sidebar-accent text-foreground'
-                : 'text-muted-foreground hover:bg-sidebar-accent/50',
+                ? 'bg-accent text-accent-foreground'
+                : 'text-muted-foreground hover:bg-accent/50',
             )}
           />
         }
@@ -67,6 +71,10 @@ function CommitFileRow({
         {name}
       </ContextMenuTrigger>
       <ContextMenuContent>
+        <ContextMenuItem onClick={() => setCommentAnchor({ path: file.path })}>
+          <MessageSquarePlus />
+          Comment on file
+        </ContextMenuItem>
         {/* Deleted files no longer exist on disk, so opening them would error. */}
         {file.status !== 'deleted' && (
           <ContextMenuItem onClick={handleOpenFile}>
@@ -75,6 +83,13 @@ function CommitFileRow({
           </ContextMenuItem>
         )}
       </ContextMenuContent>
+      <CommentComposer
+        anchor={commentAnchor}
+        open={commentAnchor !== null}
+        onOpenChange={(open: boolean): void => {
+          if (!open) setCommentAnchor(null)
+        }}
+      />
     </ContextMenu>
   )
 }
@@ -137,8 +152,11 @@ export function CommitView({ hash }: { hash: string }): React.JSX.Element {
   }
 
   return (
-    <div className="flex h-full min-h-0">
-      <div className="w-64 shrink-0 overflow-y-auto border-r">
+    <div data-testid={TestIds.codeWell} className={cn(viewerWellClass, 'flex gap-3')}>
+      <div
+        data-testid={TestIds.commitListCard}
+        className={cn(raisedCardClass, 'flex w-64 shrink-0 flex-col overflow-y-auto')}
+      >
         <div className="border-b px-3 py-2">
           <div className="flex items-start justify-between gap-2">
             <p className="min-w-0 flex-1 whitespace-pre-wrap break-words text-sm-minus text-foreground">
@@ -167,7 +185,7 @@ export function CommitView({ hash }: { hash: string }): React.JSX.Element {
         </div>
         {groups.map((group) => (
           <div key={group.layer}>
-            <p className="h-6 px-2 text-2xs uppercase tracking-wider text-muted-foreground/70 flex items-center">
+            <p className="flex h-6 items-center px-3 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
               {group.layer}
             </p>
             {group.files.map((file) => (
@@ -185,37 +203,42 @@ export function CommitView({ hash }: { hash: string }): React.JSX.Element {
           <p className="px-3 py-2 text-xs text-muted-foreground">No files changed</p>
         )}
       </div>
-      <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex items-center justify-between gap-2 border-b px-3 py-1">
-          <span className="truncate font-mono text-xs text-muted-foreground">{selectedFile}</span>
-          <div className="flex shrink-0 items-center gap-1.5">
-            {selectedFile && selectedStatus !== 'deleted' && (
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      className="text-muted-foreground"
-                      onClick={handleOpenFile}
-                      aria-label="Open file"
-                    >
-                      <FileText />
-                    </Button>
-                  }
-                />
-                <TooltipContent>Open file</TooltipContent>
-              </Tooltip>
-            )}
-            <DiffModeToggle />
+      <div className="min-w-0 min-h-0 flex-1">
+        <div
+          data-testid={TestIds.codeCard}
+          className={cn(raisedCardClass, 'flex h-full min-h-0 flex-col')}
+        >
+          <div className="flex shrink-0 items-center justify-between gap-2 border-b px-3 py-1">
+            <span className="truncate font-mono text-xs text-muted-foreground">{selectedFile}</span>
+            <div className="flex shrink-0 items-center gap-1.5">
+              {selectedFile && selectedStatus !== 'deleted' && (
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        className="text-muted-foreground"
+                        onClick={handleOpenFile}
+                        aria-label="Open file"
+                      >
+                        <FileText />
+                      </Button>
+                    }
+                  />
+                  <TooltipContent>Open file</TooltipContent>
+                </Tooltip>
+              )}
+              <DiffModeToggle />
+            </div>
           </div>
-        </div>
-        <div className="min-h-0 flex-1">
-          {selectedFile ? (
-            <CommitFileDiff hash={hash} filePath={selectedFile} />
-          ) : (
-            <p className="p-4 text-sm text-muted-foreground">Empty commit</p>
-          )}
+          <div className="min-h-0 flex-1">
+            {selectedFile ? (
+              <CommitFileDiff hash={hash} filePath={selectedFile} />
+            ) : (
+              <p className="p-4 text-sm text-muted-foreground">Empty commit</p>
+            )}
+          </div>
         </div>
       </div>
     </div>

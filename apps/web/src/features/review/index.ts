@@ -7,6 +7,15 @@
  * Review implementation file.
  */
 
+export {
+  type CommentIndex,
+  invalidateAllReviewComments,
+  type NewComment,
+  useCommentActions,
+  useCommentIndex,
+  useReviewCommentNotificationSubscription,
+  useReviewComments,
+} from './comments'
 export { formatBytes } from './format-bytes'
 export { EvidenceChecksRow, EvidenceHeaderRow } from './reading-evidence-rows'
 export { ReadingSurfaceBody } from './reading-surface'

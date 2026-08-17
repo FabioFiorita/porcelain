@@ -5,12 +5,13 @@ import { useActionsNotificationSubscription } from '@renderer/features/actions'
 import { useFilesInterestBridge, useFilesNotificationSubscription } from '@renderer/features/files'
 import { useGitNotificationSubscription } from '@renderer/features/git'
 import { useEnvironmentStatuses } from '@renderer/features/remote'
+import { useReviewCommentNotificationSubscription } from '@renderer/features/review'
 import {
   ContentSearch,
   FileFinder,
   useSearchNotificationSubscription,
 } from '@renderer/features/search'
-import { useTasksNotificationSubscription } from '@renderer/features/tasks'
+import { NewTaskDialog, useTasksNotificationSubscription } from '@renderer/features/tasks'
 import {
   useDevServersNotificationSubscription,
   useTerminalRoster,
@@ -22,6 +23,7 @@ import { useShellEvents } from '@renderer/hooks/use-shell-events'
 import { useThemeSync } from '@renderer/hooks/use-theme'
 import { isBrowser } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
+import { useHubSelectionStore } from '@renderer/stores/hub-selection'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useZenStore } from '@renderer/stores/zen'
@@ -133,6 +135,7 @@ export function AppShell(): React.JSX.Element {
   // Git workspace notifications own typed Git identities; session-runtime handles only residual
   // non-Git recovery and Canvas/Files cross-domain concerns.
   useGitNotificationSubscription()
+  useReviewCommentNotificationSubscription()
   // Files notifications + watch interests (FIL-005); session-runtime Files arms are no-ops.
   useFilesNotificationSubscription()
   // Search owns its typed Search identities, Files facts, and recovery invalidation.
@@ -147,7 +150,8 @@ export function AppShell(): React.JSX.Element {
   useDevServersNotificationSubscription()
 
   useEffect(() => {
-    boot()
+    const selection = useHubSelectionStore.getState().selection
+    boot(selection.kind === 'worktree' ? selection.path : undefined)
   }, [boot])
 
   if (restoring) {
@@ -183,6 +187,7 @@ export function AppShell(): React.JSX.Element {
         <FileCommands />
         <FilePromptDialog />
         <ProjectPickerDialog />
+        <NewTaskDialog />
         <SkillsUpdateToast />
         <SettingsDialog />
         <AppSidebar />

@@ -21,7 +21,7 @@ import { invalidateGitEffects } from '../git-query-filter'
 type GitWorkspaceInput = GitCheckoutInput | GitCreateBranchInput | GitAddWorktreeInput
 
 export type GitMutationAction<TOutput> = {
-  mutateAsync: (branch: string) => Promise<TOutput | undefined>
+  mutateAsync: (branch: string, checkoutPath?: string) => Promise<TOutput | undefined>
   isPending: boolean
 }
 
@@ -64,8 +64,12 @@ export function useGitCheckout(): GitMutationAction<void> {
 
   return {
     isPending: mutation.isPending,
-    mutateAsync: (branch) =>
-      repoPath === null ? Promise.resolve(undefined) : mutation.mutateAsync({ repoPath, branch }),
+    mutateAsync: (branch, checkoutPath) => {
+      const path = checkoutPath ?? repoPath
+      return path === null
+        ? Promise.resolve(undefined)
+        : mutation.mutateAsync({ repoPath: path, branch })
+    },
   }
 }
 

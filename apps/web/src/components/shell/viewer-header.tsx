@@ -10,17 +10,8 @@ import { useTabsStore } from '@renderer/stores/tabs'
 import { useTerminalsStore } from '@renderer/stores/terminals'
 import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
-import {
-  GitCommitHorizontal,
-  ListPlus,
-  PanelBottom,
-  PanelLeft,
-  PanelRight,
-  Zap,
-} from 'lucide-react'
+import { PanelBottom, PanelLeft, PanelRight, Zap } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { CommitGroup } from './commit-group'
-import { QuickCommandsGroup } from './quick-commands-group'
 import { ShortcutTooltip } from './shortcut-tooltip'
 import { TabBar } from './tab-bar'
 import { useViewerBreadcrumb } from './use-viewer-breadcrumb'
@@ -113,7 +104,6 @@ export function ViewerHeader({ left }: { left: LeftSidebarHandle }): React.JSX.E
     )
   }
   const actionsShortcut = kbdLabel('mod', 'shift', 'A')
-  const commandsShortcut = kbdLabel('mod', 'shift', 'C')
 
   return (
     <div className="app-drag flex h-12 shrink-0 items-center gap-1 border-b px-2">
@@ -154,16 +144,6 @@ export function ViewerHeader({ left }: { left: LeftSidebarHandle }): React.JSX.E
         )}
       </div>
       <div className="app-no-drag flex shrink-0 items-center gap-1">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 gap-1 px-2 text-2xs text-muted-foreground"
-          disabled
-          title="Tasks arrive with the daemon-owned Tasks table."
-        >
-          <ListPlus className="size-3.5" />
-          Task
-        </Button>
         <HeaderPopover
           label="Actions"
           icon={Zap}
@@ -172,16 +152,6 @@ export function ViewerHeader({ left }: { left: LeftSidebarHandle }): React.JSX.E
           shortcut={actionsShortcut}
         >
           <ActionsGroup />
-        </HeaderPopover>
-        <HeaderPopover
-          label="Commands"
-          icon={GitCommitHorizontal}
-          testId={TestIds.commandsMenu}
-          shortcutKey="c"
-          shortcut={commandsShortcut}
-        >
-          <QuickCommandsGroup />
-          <CommitGroup />
         </HeaderPopover>
         <ShortcutTooltip label="Toggle terminal panel" shortcut={kbdLabel('mod', '6')}>
           <Button

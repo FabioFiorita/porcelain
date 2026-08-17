@@ -6,6 +6,7 @@ import { procedureCatalog } from './procedure-catalog'
 import { projectDataProcedures } from './project-data'
 import { projectsProcedures } from './projects'
 import { remoteProcedures } from './remote'
+import { reviewProcedures } from './review'
 import { searchProcedures } from './search'
 import { tasksProcedures } from './tasks'
 import { terminalProcedures } from './terminal'
@@ -17,13 +18,14 @@ const domainProcedures = {
   files: filesProcedures,
   search: searchProcedures,
   git: gitProcedures,
+  review: reviewProcedures,
   tasks: tasksProcedures,
   actions: actionsProcedures,
   terminal: terminalProcedures,
   'project-data': projectDataProcedures,
 } as const
 
-const PROCEDURE_COUNT = 95
+const PROCEDURE_COUNT = 103
 
 describe('procedure catalog', () => {
   it('is frozen and composes exactly one entry per domain procedure, in domain order', () => {
@@ -37,7 +39,7 @@ describe('procedure catalog', () => {
   })
 
   it('covers the ten canonical domains and owns every name exactly once', () => {
-    expect(Object.keys(domainProcedures)).toHaveLength(9)
+    expect(Object.keys(domainProcedures)).toHaveLength(10)
 
     const owners = new Map<string, string>()
     for (const [domain, procedures] of Object.entries(domainProcedures)) {

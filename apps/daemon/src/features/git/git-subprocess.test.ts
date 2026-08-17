@@ -144,6 +144,21 @@ describe('Git subprocess adapter', () => {
     })
   })
 
+  it('checks out an existing unused branch into a new worktree without -b', async () => {
+    await withTemporaryDirectory('porcelain-git-subprocess-', async (root) => {
+      const repo = await makeRepo(root)
+      git(repo, 'branch', 'topic')
+      const result = await createGitSubprocess().addWorktree(repo, 'topic', undefined, true)
+
+      expect(result).toMatchObject({ ok: true, value: { branch: 'topic' } })
+      if (result.ok) {
+        expect(git(repo, 'worktree', 'list', '--porcelain')).toContain(
+          `branch refs/heads/${result.value.branch}`,
+        )
+      }
+    })
+  })
+
   it('normalizes existing branches and worktree path/branch conflicts', async () => {
     await withTemporaryDirectory('porcelain-git-subprocess-', async (root) => {
       const repo = await makeRepo(root)

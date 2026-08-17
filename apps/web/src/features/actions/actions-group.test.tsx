@@ -143,6 +143,28 @@ describe('ActionsGroup', () => {
     expect(screen.getByTestId(TestIds.actionRun('Run checks'))).toHaveTextContent('make check')
     expect(screen.queryByTestId(TestIds.actionRun('Other project command'))).toBeNull()
     expect(screen.queryByTestId(TestIds.actionsNoProject)).toBeNull()
+    expect(screen.queryByTestId(TestIds.actionsEmpty)).toBeNull()
+    expect(screen.getByTestId(TestIds.actionsAdd)).toHaveTextContent('Add action')
+    expect(screen.queryByText(/porcelain/i)).toBeNull()
+  })
+
+  it('shows the empty state with an add button when the Project has no Actions', async () => {
+    const { wrapper } = createValidatingTrpcHarness({
+      daemonInfo: () => ({ ok: true, value: remoteContractFixtures.daemonInfo.output }),
+      actions: () => ({ ok: true, value: [] }),
+    })
+    render(<ActionsGroup />, { wrapper })
+    await waitFor(() => expect(screen.getByTestId(TestIds.actionsEmpty)).toBeInTheDocument())
+    expect(screen.getByTestId(TestIds.actionsEmpty)).toHaveTextContent('No actions yet')
+    expect(screen.getByTestId(TestIds.actionsEmpty)).toHaveTextContent(
+      'Add a dev server, a test watcher, or anything you need to run in the terminal. Agents can add them here too.',
+    )
+    expect(screen.getByTestId(TestIds.actionsAdd)).toHaveTextContent('Add action')
+    expect(screen.queryByRole('button', { name: /^Add action$/ })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Add action')).toBeNull()
+
+    fireEvent.click(screen.getByTestId(TestIds.actionsAdd))
+    expect(screen.getByRole('dialog', { name: 'New action' })).toBeInTheDocument()
   })
 
   it('runs against the Worktree the Hub selection names', async () => {
@@ -225,6 +247,7 @@ describe('ActionsGroup', () => {
     )
     expect(screen.queryByTestId(TestIds.actionRun('Build'))).toBeNull()
     expect(screen.queryByTestId(TestIds.actionsAdd)).toBeNull()
+    expect(screen.queryByTestId(TestIds.actionsEmpty)).toBeNull()
     await waitFor(() => expect(runs).toEqual([]))
     expect(create).not.toHaveBeenCalled()
   })

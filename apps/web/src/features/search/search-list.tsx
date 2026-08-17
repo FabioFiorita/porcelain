@@ -209,7 +209,7 @@ export function SearchList(): React.JSX.Element {
 
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="flex flex-col gap-1.5 px-2 pt-1">
+      <div className="flex flex-col gap-1.5 px-2 pt-2">
         <InputGroup className="h-8">
           <InputGroupInput
             placeholder="Search"

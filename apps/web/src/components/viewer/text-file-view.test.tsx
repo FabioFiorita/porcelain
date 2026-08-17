@@ -19,6 +19,7 @@ vi.mock(import('@renderer/features/files'), async (importOriginal) => {
 
 vi.mock('@renderer/hooks/use-reveal-in-finder', () => ({
   useRevealInFinder: () => () => {},
+  useCanRevealInFinder: () => false,
 }))
 
 // EditorSource also mounts CommentComposer, which reaches tRPC via useCommentActions;
@@ -72,4 +73,17 @@ test('a file over EDITABLE_MAX_LINES does not mount EditorSource', () => {
 test('a one-line file mounts EditorSource', () => {
   render(<TextFileView path="/repo/small.ts" content={'x'} paneIndex={0} />)
   expect(screen.getByLabelText('Edit /repo/small.ts')).toBeTruthy()
+})
+
+test('a text file fills the Viewer as one inset raised card', () => {
+  render(<TextFileView path="/repo/small.ts" content={'x'} paneIndex={0} />)
+  expect(screen.getByTestId('code-well').className).toContain('bg-muted/30')
+  expect(screen.getByTestId('code-card').className).toContain('rounded-xl')
+  expect(screen.getByTestId('code-card').className).toContain('bg-card')
+  expect(screen.getByTestId('code-card').className).toContain('h-full')
+})
+
+test('offers a file-level comment control on a normal file', () => {
+  render(<TextFileView path="/repo/small.ts" content={'x'} paneIndex={0} />)
+  expect(screen.getByLabelText('Comment on file')).toBeInTheDocument()
 })

@@ -22,6 +22,7 @@ vi.mock(import('@renderer/features/files'), async (importOriginal) => {
 
 vi.mock('@renderer/hooks/use-reveal-in-finder', () => ({
   useRevealInFinder: () => () => {},
+  useCanRevealInFinder: () => false,
 }))
 
 vi.mock('@renderer/features/review', () => ({

@@ -116,11 +116,11 @@ export function QuickCommandsGroup(): React.JSX.Element {
           one command worth running right now. Kept in our card style rather than
           the mockup's accent treatment. */}
       {suggestions.length > 0 && (
-        <SidebarGroup className="px-3">
-          <SidebarGroupLabel className="px-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
+        <SidebarGroup className="p-0">
+          <SidebarGroupLabel className="h-6 px-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
             Suggested
           </SidebarGroupLabel>
-          <SidebarGroupContent className="px-1">
+          <SidebarGroupContent>
             <div className="flex flex-col gap-0.5 rounded-xl border bg-card p-1">
               {suggestions.map((suggestion) => {
                 const command = QUICK_COMMANDS.find((c) => c.id === suggestion.command)
@@ -154,11 +154,11 @@ export function QuickCommandsGroup(): React.JSX.Element {
           </SidebarGroupContent>
         </SidebarGroup>
       )}
-      <SidebarGroup className="px-3">
-        <SidebarGroupLabel className="px-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
+      <SidebarGroup className="p-0">
+        <SidebarGroupLabel className="h-6 px-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
           Commands
         </SidebarGroupLabel>
-        <SidebarGroupContent className="flex flex-col gap-1.5 px-1">
+        <SidebarGroupContent className="flex flex-col gap-1.5">
           {/* Two-per-row grid (matching the mockup) rather than a stack of
               full-width rows — the command set is small and scannable at a glance. */}
           <div className="grid grid-cols-2 gap-1.5">

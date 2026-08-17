@@ -60,15 +60,13 @@ test('Quick Add creates a Task with references, a link, and a copied attachment'
   await waitForShell(page)
   // A Worktree is selected on boot, so Quick Add's references default from the Hub selection —
   // which is what makes the Project/Worktree columns meaningful without a second control.
-  await expect(loc.hubWorktreeSummary(page)).toBeVisible()
+  await expect(loc.viewerEmpty(page)).toBeVisible()
 
   const attachmentDir = await mkdtemp(join(tmpdir(), 'porcelain-e2e-attach-'))
   const attachmentPath = join(attachmentDir, 'trace.log')
   await writeFile(attachmentPath, 'the failing run\n')
 
   await selectTab(page, 'Tasks')
-  // The sidebar panel is the compact read; the Viewer tab is the table itself.
-  await loc.tasksOpen(page).click()
   await expect(loc.tasksView(page)).toBeVisible()
   await expect(loc.tasksQuickAdd(page)).toBeVisible()
 

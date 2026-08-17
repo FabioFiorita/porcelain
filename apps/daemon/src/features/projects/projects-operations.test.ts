@@ -341,7 +341,7 @@ describe('Project operations', () => {
         isPrimary: false,
       },
     })
-    expect(h.git.addWorktree).toHaveBeenCalledWith('/projects/alpha', 'topic', 'origin/main')
+    expect(h.git.addWorktree).toHaveBeenCalledWith('/projects/alpha', 'topic', 'origin/main', false)
   })
 
   it('rejects Worktree creation for an unknown Project', async () => {

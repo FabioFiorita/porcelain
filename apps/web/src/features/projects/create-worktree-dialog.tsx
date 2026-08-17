@@ -49,6 +49,7 @@ export function CreateWorktreeDialog(props: {
   createWorktree: (input: CreateHubWorktreeInput) => Promise<unknown>
 }): React.JSX.Element {
   const { branches, isFetching } = useGitBranches(props.project.path, props.open)
+  const [mode, setMode] = useState<'new' | 'existing'>('new')
   const [branch, setBranch] = useState('')
   const [baseRef, setBaseRef] = useState<string | null>(null)
   const [refOpen, setRefOpen] = useState(false)
@@ -60,16 +61,19 @@ export function CreateWorktreeDialog(props: {
   }, [baseRef, branches])
 
   const selected = branches.find((ref) => refValue(ref) === baseRef)
+  const canSubmit = mode === 'existing' ? baseRef !== null && baseRef !== '' : branch.trim() !== ''
   const submit = (event: React.FormEvent<HTMLFormElement>): void => {
     event.preventDefault()
-    const trimmedBranch = branch.trim()
-    if (trimmedBranch === '' || props.creating) return
+    if (props.creating || !canSubmit) return
 
-    const input = {
-      projectId: props.project.id,
-      branch: trimmedBranch,
-      ...(baseRef === null ? {} : { baseRef }),
-    }
+    const input: CreateHubWorktreeInput =
+      mode === 'existing' && baseRef !== null
+        ? { projectId: props.project.id, branch: baseRef, existing: true }
+        : {
+            projectId: props.project.id,
+            branch: branch.trim(),
+            ...(baseRef === null ? {} : { baseRef }),
+          }
     runUserAction(
       async () => {
         await props.createWorktree(input)
@@ -85,26 +89,54 @@ export function CreateWorktreeDialog(props: {
         <DialogHeader>
           <DialogTitle>New worktree</DialogTitle>
           <DialogDescription>
-            Create a new branch and worktree for {props.project.name}.
+            Add a worktree for {props.project.name} — a new branch, or an existing one that is not
+            already checked out.
           </DialogDescription>
         </DialogHeader>
         <form className="flex flex-col gap-4" onSubmit={submit}>
           <div className="flex flex-col gap-2">
-            <label htmlFor={TestIds.hubCreateWorktreeBranch} className="text-xs font-medium">
-              Branch name
-            </label>
-            <Input
-              id={TestIds.hubCreateWorktreeBranch}
-              data-testid={TestIds.hubCreateWorktreeBranch}
-              autoFocus
-              value={branch}
-              onChange={(event) => setBranch(event.target.value)}
-              placeholder="feature/my-change"
-              className="font-mono"
-            />
+            <span className="text-xs font-medium">Branch</span>
+            <div className="flex gap-1">
+              <Button
+                type="button"
+                variant={mode === 'new' ? 'secondary' : 'ghost'}
+                size="sm"
+                data-testid={TestIds.hubCreateWorktreeModeNew}
+                onClick={() => setMode('new')}
+              >
+                New
+              </Button>
+              <Button
+                type="button"
+                variant={mode === 'existing' ? 'secondary' : 'ghost'}
+                size="sm"
+                data-testid={TestIds.hubCreateWorktreeModeExisting}
+                onClick={() => setMode('existing')}
+              >
+                Existing
+              </Button>
+            </div>
           </div>
+          {mode === 'new' && (
+            <div className="flex flex-col gap-2">
+              <label htmlFor={TestIds.hubCreateWorktreeBranch} className="text-xs font-medium">
+                New branch name
+              </label>
+              <Input
+                id={TestIds.hubCreateWorktreeBranch}
+                data-testid={TestIds.hubCreateWorktreeBranch}
+                autoFocus
+                value={branch}
+                onChange={(event) => setBranch(event.target.value)}
+                placeholder="feature/my-change"
+                className="font-mono"
+              />
+            </div>
+          )}
           <div className="flex flex-col gap-2">
-            <span className="text-xs font-medium">Create from ref</span>
+            <span className="text-xs font-medium">
+              {mode === 'existing' ? 'Existing branch' : 'Create from ref'}
+            </span>
             <Popover open={refOpen} onOpenChange={setRefOpen}>
               <PopoverTrigger
                 render={
@@ -207,7 +239,7 @@ export function CreateWorktreeDialog(props: {
             <Button
               type="submit"
               data-testid={TestIds.hubCreateWorktreeSubmit}
-              disabled={branch.trim() === '' || props.creating}
+              disabled={!canSubmit || props.creating}
             >
               {props.creating && <LoaderCircle className="animate-spin" />}
               Create worktree

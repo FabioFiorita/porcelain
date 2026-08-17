@@ -1,0 +1,40 @@
+import type { ReviewComment } from '@porcelain/contracts/review'
+
+/**
+ * Pure per-file presentation index for Review comments (RVC-003).
+ *
+ * Behavior-identical to the pre-cutover hook helper: path filter, range expansion into
+ * every covered line, and file-level routing when `startLine` is absent.
+ */
+
+/** A file's comments split into per-line and file-level lookups, for viewer markers. */
+export interface CommentIndex {
+  /** Comments covering each 1-based line (a range expands to every line it spans). */
+  byLine: Map<number, ReviewComment[]>
+  /** Comments anchored to the whole file (no line range). */
+  fileLevel: ReviewComment[]
+}
+
+/**
+ * Build the per-line / file-level comment lookup for one file. Pure and exported so the
+ * derivation is unit-testable without a query. A range comment (`startLine..endLine`) is
+ * expanded into every line it covers, so a per-row marker lookup is O(1).
+ */
+export function buildCommentIndex(comments: readonly ReviewComment[], path: string): CommentIndex {
+  const byLine = new Map<number, ReviewComment[]>()
+  const fileLevel: ReviewComment[] = []
+  for (const comment of comments) {
+    if (comment.path !== path) continue
+    if (comment.startLine === undefined) {
+      fileLevel.push(comment)
+      continue
+    }
+    const end = comment.endLine ?? comment.startLine
+    for (let line = comment.startLine; line <= end; line++) {
+      const list = byLine.get(line)
+      if (list) list.push(comment)
+      else byLine.set(line, [comment])
+    }
+  }
+  return { byLine, fileLevel }
+}

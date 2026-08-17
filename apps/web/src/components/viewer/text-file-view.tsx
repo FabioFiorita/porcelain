@@ -1,11 +1,19 @@
+import { type CommentAnchor, CommentComposer } from '@renderer/components/git/comment-composer'
+import { Button } from '@renderer/components/ui/button'
 import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-group'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { HtmlView, isHtmlPath } from '@renderer/components/viewer/html-view'
 import { isMarkdownPath, MarkdownView } from '@renderer/components/viewer/markdown-view'
 import { useFilePreview } from '@renderer/features/files'
+import { useCommentIndex } from '@renderer/features/review'
+import { raisedCardClass, viewerWellClass } from '@renderer/lib/controls'
 import { relativeTo } from '@renderer/lib/paths'
+import { cn } from '@renderer/lib/utils'
 import { useHubRepoPath } from '@renderer/stores/hub-repo'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useTabsStore } from '@renderer/stores/tabs'
+import { TestIds } from '@shared/test-ids'
+import { MessageSquarePlus } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { EDITABLE_MAX_LINES, EditorSource } from './editor-source'
 import { FindBar } from './find-bar'
@@ -75,6 +83,9 @@ export function TextFileView({
   const htmlMode = usePreferencesStore((s) => s.htmlMode) ?? 'preview'
   const [finding, setFinding] = useState(false)
   const [findLine, setFindLine] = useState<number | undefined>(undefined)
+  const [commentAnchor, setCommentAnchor] = useState<CommentAnchor | null>(null)
+  const relativePath = relativeTo(repoPath, path)
+  const commentIndex = useCommentIndex(relativePath)
   const markdown = isMarkdownPath(path)
   const html = isHtmlPath(path)
   const reader = markdown && markdownMode === 'reader'
@@ -107,53 +118,87 @@ export function TextFileView({
   }, [paneIndex, reader, preview])
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex h-9 items-center justify-between gap-2 px-3">
-        <span className="truncate font-mono text-xs text-muted-foreground">
-          {relativeTo(repoPath, path)}
-        </span>
-        {markdown && <MarkdownModeToggle />}
-        {html && <HtmlModeToggle />}
-      </div>
-      <div className="relative min-h-0 flex-1">
-        {finding && !reader && !preview && (
-          <FindBar content={content} onClose={() => setFinding(false)} onMatchLine={setFindLine} />
-        )}
-        {reader ? (
-          <SourceContextMenu path={path}>
-            <MarkdownView content={content} />
-          </SourceContextMenu>
-        ) : preview ? (
-          previewError ? (
-            <p className="p-4 text-sm text-destructive">{previewError.message}</p>
-          ) : previewHtml === undefined ? (
-            <p className="p-4 text-sm text-muted-foreground">Loading…</p>
-          ) : previewHtml === null ? (
-            <p className="p-4 text-sm text-muted-foreground">
-              HTML preview unavailable (missing or too large). Switch to Source to edit the raw
-              file.
-            </p>
-          ) : (
-            <HtmlView html={previewHtml} title={path.split('/').at(-1) ?? 'HTML preview'} />
-          )
-        ) : editable ? (
-          <EditorSource
-            path={path}
-            initialContent={content}
-            highlightLine={highlightLine}
-            highlightRanges={effectiveHighlight}
-          />
-        ) : (
-          <SourceContextMenu path={path}>
-            <SourceView
-              path={path}
+    <div data-testid={TestIds.codeWell} className={viewerWellClass}>
+      <div
+        data-testid={TestIds.codeCard}
+        className={cn(raisedCardClass, 'flex h-full min-h-0 flex-col')}
+      >
+        <div className="flex h-9 shrink-0 items-center justify-between gap-2 border-b px-3">
+          <span className="truncate font-mono text-xs text-muted-foreground">{relativePath}</span>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    className="text-muted-foreground hover:text-foreground"
+                    onClick={() => setCommentAnchor({ path: relativePath })}
+                    aria-label="Comment on file"
+                  >
+                    <MessageSquarePlus />
+                  </Button>
+                }
+              />
+              <TooltipContent>Comment on file</TooltipContent>
+            </Tooltip>
+            {markdown && <MarkdownModeToggle />}
+            {html && <HtmlModeToggle />}
+          </div>
+        </div>
+        <div className="relative min-h-0 flex-1">
+          {finding && !reader && !preview && (
+            <FindBar
               content={content}
+              onClose={() => setFinding(false)}
+              onMatchLine={setFindLine}
+            />
+          )}
+          {reader ? (
+            <SourceContextMenu path={path}>
+              <MarkdownView content={content} />
+            </SourceContextMenu>
+          ) : preview ? (
+            previewError ? (
+              <p className="p-4 text-sm text-destructive">{previewError.message}</p>
+            ) : previewHtml === undefined ? (
+              <p className="p-4 text-sm text-muted-foreground">Loading…</p>
+            ) : previewHtml === null ? (
+              <p className="p-4 text-sm text-muted-foreground">
+                HTML preview unavailable (missing or too large). Switch to Source to edit the raw
+                file.
+              </p>
+            ) : (
+              <HtmlView html={previewHtml} title={path.split('/').at(-1) ?? 'HTML preview'} />
+            )
+          ) : editable ? (
+            <EditorSource
+              path={path}
+              initialContent={content}
               highlightLine={highlightLine}
               highlightRanges={effectiveHighlight}
+              commentsByLine={commentIndex.byLine}
             />
-          </SourceContextMenu>
-        )}
+          ) : (
+            <SourceContextMenu path={path}>
+              <SourceView
+                path={path}
+                content={content}
+                highlightLine={highlightLine}
+                highlightRanges={effectiveHighlight}
+                commentsByLine={commentIndex.byLine}
+              />
+            </SourceContextMenu>
+          )}
+        </div>
       </div>
+      <CommentComposer
+        anchor={commentAnchor}
+        open={commentAnchor !== null}
+        onOpenChange={(open: boolean): void => {
+          if (!open) setCommentAnchor(null)
+        }}
+      />
     </div>
   )
 }

@@ -289,8 +289,8 @@ test('marketing shots — the seeded demo repo across every surface', async () =
     // ── Phase 1 — the default layout: full-window surfaces + centered overlays. ──
     const { context, page } = await openShotPage(browser, port)
 
-    // glance.png — the Home hub, showing the connected Environment and its Project.
-    await expect(byId(page, TestIds.hubHome)).toBeVisible({ timeout: 20_000 })
+    // glance.png — empty Viewer landing after the Glance dashboard was removed.
+    await expect(byId(page, TestIds.viewerEmpty)).toBeVisible({ timeout: 20_000 })
     await byId(page, TestIds.hubWorktree(DEMO_WORKTREE_ID)).click()
     await settle(page)
     await shoot(page, 'glance.png')

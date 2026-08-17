@@ -1,6 +1,8 @@
 import type { HubTarget } from '@porcelain/client-runtime/projects'
 import { hubTabKey } from '@porcelain/client-runtime/projects'
+import { z } from 'zod'
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 
 export type TabKind = 'file' | 'diff' | 'commit' | 'changeset' | 'search' | 'tasks' | 'canvas'
 
@@ -74,6 +76,77 @@ interface TabsState {
 }
 
 const emptyPane = (): Pane => ({ tabs: [], activeTabId: null })
+
+const MAX_PERSISTED_TABS = 50
+
+const hubTargetSchema = z
+  .object({
+    environmentId: z.string().min(1),
+    projectId: z.string().min(1),
+    worktreeId: z.string().min(1),
+    path: z.string().min(1),
+  })
+  .strict()
+
+const tabSchema = z
+  .object({
+    id: z.string().min(1),
+    kind: z.enum(['file', 'diff', 'commit', 'changeset', 'search', 'tasks', 'canvas']),
+    title: z.string().min(1),
+    path: z.string().min(1),
+    line: z.number().int().positive().optional(),
+    highlight: z
+      .array(
+        z
+          .object({
+            start: z.number().int().positive(),
+            end: z.number().int().positive(),
+          })
+          .strict(),
+      )
+      .optional(),
+    base: z.string().min(1).optional(),
+    target: hubTargetSchema.optional(),
+    preview: z.boolean().optional(),
+    pinned: z.boolean().optional(),
+  })
+  .strict()
+
+const paneSchema = z
+  .object({
+    tabs: z.array(tabSchema).max(MAX_PERSISTED_TABS),
+    activeTabId: z.string().nullable(),
+  })
+  .strict()
+
+const persistedViewerTabsSchema = z
+  .object({
+    panes: z.array(paneSchema).min(1).max(2),
+    activePaneIndex: z.number().int().nonnegative(),
+  })
+  .partial()
+
+function sanitizePane(pane: Pane): Pane {
+  const tabs = pane.tabs.slice(0, MAX_PERSISTED_TABS)
+  const activeTabId = tabs.some((tab) => tab.id === pane.activeTabId)
+    ? pane.activeTabId
+    : (tabs[tabs.length - 1]?.id ?? null)
+  return { tabs, activeTabId }
+}
+
+/** Viewer panes a persisted blob still describes; one empty pane for anything else. */
+export function hydrateViewerTabs(persisted: unknown): {
+  panes: Pane[]
+  activePaneIndex: number
+} {
+  const parsed = persistedViewerTabsSchema.safeParse(persisted)
+  if (!parsed.success || parsed.data.panes === undefined || parsed.data.panes.length === 0) {
+    return { panes: [emptyPane()], activePaneIndex: 0 }
+  }
+  const panes = parsed.data.panes.map(sanitizePane)
+  const activePaneIndex = Math.min(parsed.data.activePaneIndex ?? 0, panes.length - 1)
+  return normalize(panes, activePaneIndex)
+}
 
 // Insert (or re-target) a tab in one pane — the preview/dedup rules, scoped to
 // a single pane so each side keeps its own preview slot.
@@ -183,78 +256,94 @@ const editPane =
     return normalize(panes, state.activePaneIndex)
   }
 
-export const useTabsStore = create<TabsState>((set) => ({
-  panes: [emptyPane()],
-  activePaneIndex: 0,
-  openTab: (tab: Tab) =>
-    set((state) => ({
-      panes: state.panes.map((p, i) => (i === state.activePaneIndex ? addTab(p, tab) : p)),
-    })),
-  openTabToSide: (tab: Tab) =>
-    set((state) => {
-      if (state.panes.length === 1) {
-        const pane = state.panes[0]
-        if (!pane) return state
-        return { panes: [pane, addTab(emptyPane(), tab)], activePaneIndex: 1 }
-      }
-      const target = state.activePaneIndex === 0 ? 1 : 0
-      return {
-        panes: state.panes.map((p, i) => (i === target ? addTab(p, tab) : p)),
-        activePaneIndex: target,
-      }
-    }),
-  pinTab: (id: string) =>
-    set((state) => ({
-      // a file can sit in both panes; pin every copy so edit-mode pinning is consistent
-      panes: state.panes.map((p) =>
-        p.tabs.some((t) => t.id === id && t.preview)
-          ? { ...p, tabs: p.tabs.map((t) => (t.id === id ? { ...t, preview: false } : t)) }
-          : p,
-      ),
-    })),
-  togglePinned: (paneIndex: number, id: string) =>
-    set(
-      editPane(paneIndex, (p) => {
-        const tab = p.tabs.find((t) => t.id === id)
-        if (!tab) return p
-        return setPinned(p, id, !tab.pinned)
-      }),
-    ),
-  closeTab: (paneIndex: number, id: string) => set(editPane(paneIndex, (p) => removeTab(p, id))),
-  closeOtherTabs: (paneIndex: number, id: string) =>
-    set(editPane(paneIndex, (p) => keepOnlyAnchor(p, id))),
-  closeTabsToLeft: (paneIndex: number, id: string) =>
-    set(editPane(paneIndex, (p) => keepFromAnchor(p, id))),
-  closeTabsToRight: (paneIndex: number, id: string) =>
-    set(editPane(paneIndex, (p) => keepThroughAnchor(p, id))),
-  closeUnpinnedTabs: (paneIndex: number) => set(editPane(paneIndex, dropUnpinned)),
-  closeTabEverywhere: (id: string) =>
-    set((state) =>
-      normalize(
-        state.panes.map((p) => removeTab(p, id)),
-        state.activePaneIndex,
-      ),
-    ),
-  closeAllTabs: () => set({ panes: [emptyPane()], activePaneIndex: 0 }),
-  activateTab: (paneIndex: number, id: string) =>
-    set((state) => ({
-      panes: state.panes.map((p, i) => (i === paneIndex ? { ...p, activeTabId: id } : p)),
-      activePaneIndex: paneIndex,
-    })),
-  setActivePane: (paneIndex: number) =>
-    set((state) => (state.panes[paneIndex] ? { activePaneIndex: paneIndex } : state)),
-  cycleTab: (direction: 1 | -1) =>
-    set((state) => {
-      const pane = state.panes[state.activePaneIndex]
-      if (!pane || pane.tabs.length < 2) return state
-      const index = pane.tabs.findIndex((t) => t.id === pane.activeTabId)
-      const next = (index + direction + pane.tabs.length) % pane.tabs.length
-      return {
-        panes: state.panes.map((p, i) =>
-          i === state.activePaneIndex
-            ? { ...p, activeTabId: pane.tabs[next]?.id ?? p.activeTabId }
-            : p,
+export const useTabsStore = create<TabsState>()(
+  persist(
+    (set) => ({
+      panes: [emptyPane()],
+      activePaneIndex: 0,
+      openTab: (tab: Tab) =>
+        set((state) => ({
+          panes: state.panes.map((p, i) => (i === state.activePaneIndex ? addTab(p, tab) : p)),
+        })),
+      openTabToSide: (tab: Tab) =>
+        set((state) => {
+          if (state.panes.length === 1) {
+            const pane = state.panes[0]
+            if (!pane) return state
+            return { panes: [pane, addTab(emptyPane(), tab)], activePaneIndex: 1 }
+          }
+          const target = state.activePaneIndex === 0 ? 1 : 0
+          return {
+            panes: state.panes.map((p, i) => (i === target ? addTab(p, tab) : p)),
+            activePaneIndex: target,
+          }
+        }),
+      pinTab: (id: string) =>
+        set((state) => ({
+          // a file can sit in both panes; pin every copy so edit-mode pinning is consistent
+          panes: state.panes.map((p) =>
+            p.tabs.some((t) => t.id === id && t.preview)
+              ? { ...p, tabs: p.tabs.map((t) => (t.id === id ? { ...t, preview: false } : t)) }
+              : p,
+          ),
+        })),
+      togglePinned: (paneIndex: number, id: string) =>
+        set(
+          editPane(paneIndex, (p) => {
+            const tab = p.tabs.find((t) => t.id === id)
+            if (!tab) return p
+            return setPinned(p, id, !tab.pinned)
+          }),
         ),
-      }
+      closeTab: (paneIndex: number, id: string) =>
+        set(editPane(paneIndex, (p) => removeTab(p, id))),
+      closeOtherTabs: (paneIndex: number, id: string) =>
+        set(editPane(paneIndex, (p) => keepOnlyAnchor(p, id))),
+      closeTabsToLeft: (paneIndex: number, id: string) =>
+        set(editPane(paneIndex, (p) => keepFromAnchor(p, id))),
+      closeTabsToRight: (paneIndex: number, id: string) =>
+        set(editPane(paneIndex, (p) => keepThroughAnchor(p, id))),
+      closeUnpinnedTabs: (paneIndex: number) => set(editPane(paneIndex, dropUnpinned)),
+      closeTabEverywhere: (id: string) =>
+        set((state) =>
+          normalize(
+            state.panes.map((p) => removeTab(p, id)),
+            state.activePaneIndex,
+          ),
+        ),
+      closeAllTabs: () => set({ panes: [emptyPane()], activePaneIndex: 0 }),
+      activateTab: (paneIndex: number, id: string) =>
+        set((state) => ({
+          panes: state.panes.map((p, i) => (i === paneIndex ? { ...p, activeTabId: id } : p)),
+          activePaneIndex: paneIndex,
+        })),
+      setActivePane: (paneIndex: number) =>
+        set((state) => (state.panes[paneIndex] ? { activePaneIndex: paneIndex } : state)),
+      cycleTab: (direction: 1 | -1) =>
+        set((state) => {
+          const pane = state.panes[state.activePaneIndex]
+          if (!pane || pane.tabs.length < 2) return state
+          const index = pane.tabs.findIndex((t) => t.id === pane.activeTabId)
+          const next = (index + direction + pane.tabs.length) % pane.tabs.length
+          return {
+            panes: state.panes.map((p, i) =>
+              i === state.activePaneIndex
+                ? { ...p, activeTabId: pane.tabs[next]?.id ?? p.activeTabId }
+                : p,
+            ),
+          }
+        }),
     }),
-}))
+    {
+      name: 'porcelain-viewer-tabs',
+      partialize: (state) => ({
+        panes: state.panes,
+        activePaneIndex: state.activePaneIndex,
+      }),
+      merge: (persisted, current): TabsState => ({
+        ...current,
+        ...hydrateViewerTabs(persisted),
+      }),
+    },
+  ),
+)

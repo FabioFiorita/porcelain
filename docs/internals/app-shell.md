@@ -3,7 +3,11 @@
 - **One Hub window.** The shell stays up with Home, Project, or Worktree selected. Viewer tabs
   keep an explicit Environment + Project + Worktree target **and** query that Worktree's checkout;
   switching selection retargets the sidebar (Files, Changes) but does not close or retarget open
-  tabs. The browser keeps a live session for the serving daemon plus every configured Environment;
+  tabs. Hub selection, Viewer tabs, and the open Surfaces strip persist in `localStorage`
+  (`porcelain-hub-selection`, `porcelain-viewer-tabs`, `porcelain-surfaces`) so a refresh lands
+  back in the same checkout with the same files open. Git status is not part of that snapshot.
+  A persisted Worktree that is gone from inventory falls back to Home, then to the last recents
+  checkout. The browser keeps a live session for the serving daemon plus every configured Environment;
   each target's Files, Git, Search, Actions, and terminal traffic stays on its owner's session.
   The daemon router is still stateless — procedures take `repoPath` — and per-connection concerns
   live on the WS **session** keyed by a structural sender, not a `WebContents`. The lone procedure
@@ -38,8 +42,10 @@
   because the tree reads lazily, so collapse-all bumps `collapseNonce` and nodes collapse in an effect
   keyed on it (skipping mount, so a reveal-expanded node isn't snapped shut). **Don't add a central
   expansion store to "fix" this.**
-- **Resize handles write the CSS variable directly during the drag and commit to the store only on
-  mouseup** — a store write per `mousemove` re-renders the whole app.
+- **Resize handles write the CSS variable (or the terminal panel's `height`) directly during the
+  drag and commit to the store only on mouseup** — a store write per `mousemove` re-renders the
+  whole app. The bottom terminal strip uses the same grab as the sidebars (`row-resize` on its
+  top edge).
 - **`VirtualRows` is fixed-height by default — the perf invariant.** File/diff/source viewers MUST
   stay fixed-height (measuring every row is what the virtualizer exists to avoid). The lone opt-in is
   `dynamicHeight`, used only by the small, sliced reading surface; it also publishes the viewport
@@ -55,9 +61,11 @@
   client; each Project header carries the current Environment name as a non-interactive badge.
   Project headers only expand or collapse; Worktree rows are the navigation targets. Each Project's
   branch-plus control opens the ref-aware New Worktree dialog, and the old branch/worktree footer
-  controls are gone. Files, Changes, Review, History, Search, Tasks, and Canvas are the visible right-side
-  surfaces; Review is the structured Canvas template rather than a sidebar surface. Retired Board and Notes data has no shell surface. Surface list rows open detail in the central Viewer, while Actions and Git Commands are
-  exposed from the Viewer header.
+  controls are gone. Files, Changes, History, Git, Search, and Canvas are the visible right-side
+  surfaces; Review is the structured Canvas template rather than a sidebar surface. Tasks lives
+  on the left rail (daemon-wide) and opens the Viewer table. Retired Board and Notes data has no
+  shell surface. Surface list rows open detail in the central Viewer. Actions stay in the Viewer
+  header; Git commands and the commit composer live on the Git surface.
 - **Canvas is a daemon-root surface, not a repo one.** `CanvasList`
   (`features/projects/canvas-list.tsx`) lists the selected Project's Canvases in the surfaces
   sidebar, and a row opens a `canvas` tab whose Viewer content is `CanvasView`

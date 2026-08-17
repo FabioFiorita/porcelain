@@ -1,8 +1,12 @@
 import type { DiffHunk, DiffLine } from '@porcelain/contracts/git'
+import type { ReviewComment } from '@porcelain/contracts/review'
+import { commentRowClass, LineDecorations } from '@renderer/components/git/comment-marker'
 import { CodeLine, useHighlighter } from '@renderer/components/viewer/code-line'
 import { VirtualRows } from '@renderer/components/viewer/virtual-rows'
+import type { CommentIndex } from '@renderer/features/review'
 import { useResolvedTheme } from '@renderer/hooks/use-theme'
 import { languageFor, type TokenMap, themeNameFor, tokenizeHunks } from '@renderer/lib/highlight'
+import { formatHunkHeader } from '@renderer/lib/hunk-header'
 import { cn } from '@renderer/lib/utils'
 import { type CharRange, intraLineEmphasis } from '@renderer/lib/word-diff'
 import { useMemo } from 'react'
@@ -11,9 +15,17 @@ import { useMemo } from 'react'
 type EmphasisMap = Map<DiffLine, CharRange[]>
 
 /** Line-anchored comments, keyed by 1-based line (empty when comments aren't shown). */
+type CommentsByLine = Map<number, ReviewComment[]>
+
+const NO_COMMENTS: CommentsByLine = new Map()
+const NO_PENDING: ReadonlySet<number> = new Set()
+
 interface RenderContext {
   tokens: TokenMap
   emphasis: EmphasisMap
+  commentsByLine: CommentsByLine
+  pendingLines: ReadonlySet<number>
+  filePath: string
 }
 
 const lineClass: Record<DiffLine['kind'], string> = {
@@ -73,15 +85,25 @@ function toRows(hunks: readonly DiffHunk[], mode: 'unified' | 'split'): DiffRow[
 
 function DiffRowView({ row, ctx }: { row: DiffRow; ctx: RenderContext }): React.JSX.Element {
   if (row.type === 'header') {
-    return <p className="h-5 bg-muted/40 px-2 text-muted-foreground">{row.text}</p>
+    return (
+      <p className="h-5 bg-muted/40 px-2 text-muted-foreground">{formatHunkHeader(row.text)}</p>
+    )
   }
   if (row.type === 'unified') {
     // data-line carries the new-side line (old-side for a pure deletion) so a text
     // selection here maps to a commentable line range; see lib/line-selection.ts.
     const anchorLine = row.line.newLine ?? row.line.oldLine ?? undefined
     const ranges = ctx.emphasis.get(row.line)
+    const comments = anchorLine !== undefined ? ctx.commentsByLine.get(anchorLine) : undefined
+    const pending = anchorLine !== undefined && ctx.pendingLines.has(anchorLine)
+    const tint = commentRowClass(comments, pending)
     return (
-      <div data-line={anchorLine} className={cn('relative flex px-2', lineClass[row.line.kind])}>
+      <div
+        data-file={ctx.filePath}
+        data-line={anchorLine}
+        className={cn('relative flex px-2', tint ?? lineClass[row.line.kind])}
+      >
+        <LineDecorations comments={comments} />
         <LineNo value={row.line.oldLine} />
         <LineNo value={row.line.newLine} />
         <CodeLine
@@ -140,14 +162,19 @@ function SplitCell({
 }): React.JSX.Element {
   const ranges = line ? ctx.emphasis.get(line) : undefined
   const anchorLine = line ? cellAnchorLine(line, side) : undefined
+  const comments = anchorLine !== undefined ? ctx.commentsByLine.get(anchorLine) : undefined
+  const pending = anchorLine !== undefined && ctx.pendingLines.has(anchorLine)
+  const tint = commentRowClass(comments, pending)
   return (
     <div
+      data-file={ctx.filePath}
       data-line={anchorLine}
       className={cn(
         'relative flex min-w-0 flex-1 overflow-hidden',
-        line ? lineClass[line.kind] : '',
+        tint ?? (line ? lineClass[line.kind] : ''),
       )}
     >
+      <LineDecorations comments={comments} />
       <LineNo value={line ? (line.kind === 'add' ? line.newLine : line.oldLine) : null} />
       {line ? (
         <CodeLine
@@ -169,10 +196,17 @@ export function HunksView({
   hunks,
   filePath,
   diffMode,
+  layout = 'pane',
+  commentIndex,
+  pendingLines,
 }: {
   hunks: readonly DiffHunk[]
   filePath: string
   diffMode: 'unified' | 'split'
+  /** `pane` fills a Viewer card. `content` grows with the hunks (stacked review). */
+  layout?: 'pane' | 'content'
+  commentIndex?: CommentIndex
+  pendingLines?: ReadonlySet<number>
 }): React.JSX.Element {
   const highlighter = useHighlighter()
   const lang = languageFor(filePath)
@@ -185,15 +219,39 @@ export function HunksView({
   const ctx: RenderContext = {
     tokens,
     emphasis,
+    commentsByLine: commentIndex?.byLine ?? NO_COMMENTS,
+    pendingLines: pendingLines ?? NO_PENDING,
+    filePath,
   }
 
   if (hunks.length === 0) {
     return <p className="p-4 font-mono text-xs text-muted-foreground">No changes</p>
   }
 
+  const rows = toRows(hunks, diffMode)
+  if (layout === 'content') {
+    return (
+      <div className="text-xs leading-5">
+        {rows.map((row, index) => (
+          <DiffRowView
+            key={
+              row.type === 'header'
+                ? `h:${row.text}:${index}`
+                : row.type === 'unified'
+                  ? `u:${row.line.oldLine}:${row.line.newLine}:${index}`
+                  : `s:${row.left?.oldLine}:${row.right?.newLine}:${index}`
+            }
+            row={row}
+            ctx={ctx}
+          />
+        ))}
+      </div>
+    )
+  }
+
   return (
     <VirtualRows
-      rows={toRows(hunks, diffMode)}
+      rows={rows}
       className="leading-5"
       fitWidth={diffMode === 'split'}
       renderRow={(row: DiffRow): React.JSX.Element => <DiffRowView row={row} ctx={ctx} />}

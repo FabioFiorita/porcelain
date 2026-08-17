@@ -19,6 +19,8 @@ import {
   useDiscardFile,
   useFileStaging,
   useGitFlow,
+  useReviewedPaths,
+  useToggleReviewed,
 } from '@renderer/features/git'
 import { toastingAction } from '@renderer/hooks/mutation-error'
 import { dirName, fileName } from '@renderer/lib/paths'
@@ -29,12 +31,25 @@ import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useRevealStore } from '@renderer/stores/reveal'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { TestIds } from '@shared/test-ids'
-import { FileText, Minus, Plus, Rows3, Undo2 } from 'lucide-react'
+import {
+  FileText,
+  MessageSquarePlus,
+  Minus,
+  Plus,
+  Rows3,
+  Square,
+  SquareCheck,
+  Undo2,
+} from 'lucide-react'
 import { memo, useState } from 'react'
 import { ChangesEmptyState } from './changes-empty-state'
 import { ChangesScopeToggle } from './changes-scope-toggle'
 import { changesetTabKey } from './changeset-view'
+import { type CommentAnchor, CommentComposer } from './comment-composer'
+import { CommentsManageMenu } from './comments-manage-menu'
 import { DiscardFileDialog } from './discard-file-dialog'
+import { FileCommentButton } from './file-comment-button'
+import { ReviewAllToggle } from './review-all-toggle'
 
 const statusBadge: Record<FileStatus, { label: string; className: string }> = {
   modified: { label: 'M', className: 'text-warning' },
@@ -59,6 +74,10 @@ function FileRowImpl({
   const prefetchDiff = useDiffFileHoverPrefetch()
   const { stageFile, unstageFile } = useFileStaging()
   const discardFile = useDiscardFile()
+  const reviewed = useReviewedPaths()
+  const { mark, unmark } = useToggleReviewed()
+  const isReviewed = reviewed.has(file.path)
+  const [commentAnchor, setCommentAnchor] = useState<CommentAnchor | null>(null)
   const confirmDiscardFile = toastingAction('Discard file', () => discardFile(file.path))
   const [confirmDiscard, setConfirmDiscard] = useState(false)
   const name = fileName(file.path)
@@ -170,7 +189,21 @@ function FileRowImpl({
             </div>
           </ContextMenuTrigger>
         </div>
+        <FileCommentButton path={file.path} />
         <ContextMenuContent>
+          <ContextMenuItem
+            onClick={() => {
+              if (isReviewed) unmark(file.path)
+              else mark(file.path)
+            }}
+          >
+            {isReviewed ? <Square /> : <SquareCheck />}
+            {isReviewed ? 'Unmark reviewed' : 'Mark reviewed'}
+          </ContextMenuItem>
+          <ContextMenuItem onClick={() => setCommentAnchor({ path: file.path })}>
+            <MessageSquarePlus />
+            Comment on file
+          </ContextMenuItem>
           {/* Deleted files no longer exist on disk, so opening them would error. */}
           {file.status !== 'deleted' && (
             <ContextMenuItem onClick={handleOpenFile}>
@@ -207,6 +240,13 @@ function FileRowImpl({
         onOpenChange={setConfirmDiscard}
         onConfirm={confirmDiscardFile}
       />
+      <CommentComposer
+        anchor={commentAnchor}
+        open={commentAnchor !== null}
+        onOpenChange={(open: boolean): void => {
+          if (!open) setCommentAnchor(null)
+        }}
+      />
     </SidebarMenuItem>
   )
 }
@@ -227,12 +267,15 @@ export function ChangesList(): React.JSX.Element {
   // Polls live (gitFlow / branch flow) — no manual refresh control.
   const { groups } = changesScope === 'branch' ? branch : working
   const base = changesScope === 'branch' ? branch.base : undefined
+  const reviewed = useReviewedPaths()
 
   if (!project || groups === undefined) {
     return <p className="p-3 text-sm text-muted-foreground">Loading…</p>
   }
 
   const total = groups.reduce((n, g) => n + g.files.length, 0)
+  const paths = groups.flatMap((group) => group.files.map((file) => file.path))
+  const allReviewed = total > 0 && paths.every((path) => reviewed.has(path))
   // Opens the continuous stacked-diff surface for the active scope (working or
   // branch) — same flow order as this list, one scrollable document.
   const handleOpenReviewAll = (): void => {
@@ -259,6 +302,8 @@ export function ChangesList(): React.JSX.Element {
           {base && ` · vs ${base}`}
         </span>
         <div className="flex shrink-0 items-center gap-0.5">
+          <CommentsManageMenu />
+          {total > 0 && <ReviewAllToggle paths={paths} allReviewed={allReviewed} />}
           {total > 0 && (
             <Tooltip>
               <TooltipTrigger

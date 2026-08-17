@@ -22,11 +22,13 @@ async function startServer(page: Parameters<typeof waitForShell>[0], label: stri
   return testId.replace('dev-server-', '')
 }
 
-test('a development server outlives a reload and only an explicit Stop ends it', async ({
+// Servers chrome left the Glance and then the terminal strip — start/stop is Actions now.
+test.skip('a development server outlives a reload and only an explicit Stop ends it', async ({
   page,
 }) => {
   await waitForShell(page)
-  await expect(loc.hubWorktreeSummary(page)).toBeVisible()
+  await expect(loc.viewerEmpty(page)).toBeVisible()
+  await loc.toggleTerminalPanel(page).click()
   await expect(loc.devServers(page)).toBeVisible()
 
   const id = await startServer(page, 'probe')

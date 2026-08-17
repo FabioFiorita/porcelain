@@ -3,6 +3,7 @@ import { ACTIONS_CHANGE_KINDS } from '../actions'
 import { FILES_CHANGE_KINDS } from '../files'
 import { GIT_CHANGE_KINDS } from '../git'
 import { PROTOCOL_VERSION } from '../protocol'
+import { REVIEW_CHANGE_KINDS } from '../review'
 import { TASKS_CHANGE_KINDS } from '../tasks'
 import { TERMINAL_CHANGE_KINDS } from '../terminal'
 import {
@@ -18,6 +19,7 @@ import {
 const everyChangeKind = [
   ...FILES_CHANGE_KINDS,
   ...GIT_CHANGE_KINDS,
+  ...REVIEW_CHANGE_KINDS,
   ...TASKS_CHANGE_KINDS,
   ...ACTIONS_CHANGE_KINDS,
   ...TERMINAL_CHANGE_KINDS,
@@ -52,6 +54,7 @@ const scopedChangeFixtures = {
     projectId: 'project-1',
     worktreeId: 'worktree-1',
   },
+  'review.changed': { kind: 'review.changed', projectPath: '/synthetic/repo' },
 } as const satisfies Record<Exclude<SessionChange['kind'], 'tasks.changed'>, SessionChange>
 
 const changeFixtures: Record<SessionChange['kind'], SessionChange> = {
@@ -64,12 +67,12 @@ const scopedChangeKinds = Object.keys(scopedChangeFixtures) as Array<
 >
 
 describe('Session change envelope', () => {
-  it('composes exactly the eight domain change kinds', () => {
+  it('composes exactly the domain change kinds', () => {
     expect(sessionChangeSchema.options.map((option) => option.shape.kind.value).sort()).toEqual(
       [...everyChangeKind].sort(),
     )
-    expect(everyChangeKind).toHaveLength(7)
-    expect(scopedChangeKinds).toHaveLength(6)
+    expect(everyChangeKind).toHaveLength(8)
+    expect(scopedChangeKinds).toHaveLength(7)
   })
 
   it('keeps tasks.changed daemon-wide: strict, carrying only kind', () => {
