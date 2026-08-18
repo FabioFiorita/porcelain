@@ -104,6 +104,14 @@ const projectsOperations = {
     ok: false,
     error: { code: 'projects.not-found' },
   })),
+  findCanvasByTemplate: vi.fn<ProjectsOperations['findCanvasByTemplate']>(async () => ({
+    ok: true,
+    value: null,
+  })),
+  forgetCanvas: vi.fn<ProjectsOperations['forgetCanvas']>(async () => ({
+    ok: true,
+    value: undefined,
+  })),
   writeCanvas: vi.fn<ProjectsOperations['writeCanvas']>(async () => ({
     ok: false,
     error: { code: 'canvas.not-found' },

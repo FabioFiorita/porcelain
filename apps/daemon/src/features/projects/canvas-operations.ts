@@ -54,6 +54,20 @@ export type WriteCanvasOperationInput = Readonly<{
 export type CanvasOperations = Readonly<{
   listCanvases: (input: ListCanvasesInput) => Promise<ProjectOperationResult<CanvasRecord[]>>
   writeCanvas: (input: WriteCanvasOperationInput) => Promise<ProjectOperationResult<CanvasRecord>>
+  /**
+   * The id of the private Canvas following a structured template, when there is one.
+   * `template` is deliberately absent from the public record: which template a bundle
+   * follows is how the Review finds itself again, not something a client renders.
+   */
+  findCanvasByTemplate: (input: {
+    projectId: string
+    template: 'review'
+  }) => Promise<ProjectOperationResult<string | null>>
+  /** Drop one private Canvas and its bundle. Tracked overlays are untouched. */
+  forgetCanvas: (input: {
+    projectId: string
+    canvasId: string
+  }) => Promise<ProjectOperationResult<void>>
   readCanvas: (
     input: ReadCanvasInput,
   ) => Promise<ProjectOperationResult<{ record: CanvasRecord; content: string }>>
@@ -221,6 +235,24 @@ export function createCanvasOperations(options: {
   }
 
   return Object.freeze({
+    async findCanvasByTemplate(input: {
+      projectId: string
+      template: 'review'
+    }): Promise<ProjectOperationResult<string | null>> {
+      const listed = await options.store.listCanvases(input.projectId)
+      if (!listed.ok) return fromStoreError(listed.error)
+      const found = listed.value.find((canvas) => canvas.template === input.template)
+      return { ok: true, value: found?.id ?? null }
+    },
+
+    async forgetCanvas(input: {
+      projectId: string
+      canvasId: string
+    }): Promise<ProjectOperationResult<void>> {
+      const forgotten = await options.store.forgetCanvas(input.projectId, input.canvasId)
+      return forgotten.ok ? { ok: true, value: undefined } : fromStoreError(forgotten.error)
+    },
+
     async writeCanvas(
       input: WriteCanvasOperationInput,
     ): Promise<ProjectOperationResult<CanvasRecord>> {

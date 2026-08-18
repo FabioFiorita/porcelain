@@ -32,6 +32,7 @@ function unavailableOps(overrides: Partial<ReviewCommentOperations> = {}): Revie
     listReviewComments: async () => ({ ok: true, value: [] }),
     addReviewComment: async () => ({ ok: false, error: { code: 'review.unavailable' } }),
     editReviewComment: async () => ({ ok: false, error: { code: 'review.unavailable' } }),
+    answerReviewComment: async () => ({ ok: false, error: { code: 'review.unavailable' } }),
     deleteReviewComment: async () => ({ ok: false, error: { code: 'review.unavailable' } }),
     resolveReviewComment: async () => ({ ok: false, error: { code: 'review.unavailable' } }),
     clearResolvedReviewComments: async () => ({

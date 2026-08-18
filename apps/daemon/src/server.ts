@@ -187,7 +187,10 @@ async function main(): Promise<void> {
   const router = createDaemonRouter({ operations })
   // One handler set for the process; the MCP route is stateless, so nothing here is
   // per-connection.
-  const mcpToolHandlers = createMcpToolHandlers()
+  const mcpToolHandlers = createMcpToolHandlers({
+    operations,
+    canvasBundleDir: canvasStores.store.bundleDirFor,
+  })
   daemon = createRemoteHttp({
     adminTokenHash: tokenHash,
     authenticateClient: authenticateClientToken,

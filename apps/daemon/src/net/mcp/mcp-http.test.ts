@@ -2,7 +2,6 @@
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { createMcpToolHandlers } from './mcp-handlers'
 import { handleMcpRequest, MCP_MAX_BODY_BYTES } from './mcp-http'
 import { MCP_PROTOCOL_VERSION } from './mcp-protocol'
 
@@ -33,7 +32,9 @@ function listRequest(padding = ''): string {
 beforeAll(async () => {
   server = createServer((req, res) => {
     handleMcpRequest(req, res, {
-      handlers: createMcpToolHandlers(),
+      // A stub, not the real handler set: this file proves the HTTP envelope, and
+      // the tools have their own tests against real operations.
+      handlers: { call: async (name) => ({ text: `stub:${name}`, isError: true }) },
       serverInfo: { name: 'porcelain', version: '0.0.0-test' },
     }).catch(() => {
       res.writeHead(500)
@@ -92,7 +93,7 @@ describe('handleMcpRequest', () => {
     expect(body.error.message).toMatch(/too large/i)
   })
 
-  it('reports an unwired tool as a tool failure, not a transport error', async () => {
+  it('reports a tool failure as a result, not a transport error', async () => {
     const response = await fetch(`${base}/mcp`, {
       method: 'POST',
       headers: { ...headers, 'mcp-method': 'tools/call', 'mcp-name': 'porcelain_context' },
