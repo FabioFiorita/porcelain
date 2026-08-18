@@ -1,17 +1,14 @@
 # @porcelain/contracts
 
 Shapes that cross a **client** boundary — WS protocol, env helpers, public errors, and the
-**ten-domain procedure catalog**. See `docs/internals/architecture.md`.
+procedure catalog. See [`docs/architecture.md`](../../docs/architecture.md).
 
-- Ten domain records (`remote`, `projects`, `files`, `search`, `git`, `tasks`, `actions`,
-  `terminal`, `project-data`) own every procedure name, kind, exact input/output zod, and error
-  list. Each domain has a public entry point: `@porcelain/contracts/<domain>`.
-- `procedureCatalog` composes those records into one flat frozen catalog of exactly **96**
-  procedures; `ProcedureName` is `keyof typeof procedureCatalog`. There is no separate name list,
-  no partial refinement map, and no `z.unknown()` I/O.
+- Domain records own each procedure name, kind, input/output schema, and error list. Each domain
+  has a public entry point at `@porcelain/contracts/<domain>`.
+- `procedureCatalog` composes those records into one flat frozen catalog; `ProcedureName` is
+  derived from it rather than maintained as a second list.
 - Every daemon router procedure binds `procedureCatalog.<name>.input` / `.output` exactly once.
-- Drift: `scripts/lint-procedure-contracts.mjs` (in `pnpm lint`) plus
-  `packages/contracts/src/procedure-catalog.test.ts`.
+- `packages/contracts/src/procedure-catalog.test.ts` covers catalog behavior.
 - AppRouter type stays on the daemon (`@backend/api`). **Never import from `apps/*`.**
 
 No build step. Bundled from source via workspace alias / exports. Zod only.

@@ -1,40 +1,51 @@
 # Contributing
 
-Thanks for looking at Porcelain. Issues and pull requests are welcome.
+Porcelain is a solo side project with an active web, Electron, daemon, and mobile product. Issues
+and focused pull requests are welcome. The project is changing quickly; explain the behavior you
+are changing and the proof you ran rather than preserving an old pattern for its own sake.
 
-## Before you start
+## Start here
 
-1. Read [AGENTS.md](AGENTS.md) for how the project works and the defaults agents (and humans) follow.
-2. Product identity: [docs/product.md](docs/product.md). Architecture traps when lost:
-   [docs/internals/](docs/internals/).
+1. Read [AGENTS.md](AGENTS.md) for the short operating map.
+2. Read [docs/development.md](docs/development.md) for setup, validation, and parallel worktrees.
+3. Read the focused operational document only when its branch applies:
+   [remote access](docs/remote-access.md), [release](docs/release.md), or
+   [architecture](docs/architecture.md) for cross-package changes.
 
 ## Setup
 
-```bash
+```sh
 pnpm install
-pnpm dev
+pnpm dev:daemon
 ```
 
-`pnpm dev` uses a throwaway playground repo and isolated config, so it does not touch your real repositories.
+`pnpm dev:daemon` uses the development home and playground boundary. It does not grant access to
+production Porcelain state. Use `pnpm dev` for the Electron client and the mobile commands in
+`apps/mobile/package.json` for native work.
 
-If Electron is missing after install (`Error: Electron uninstall`), run `node node_modules/electron/install.js` once (Electron may not download in `postinstall` on every platform).
+## Changes
 
-**Agents and this clone:** project hooks require `pnpm lint` before commit; run `pnpm verify` before push. Work on a fork, open a PR, and keep changes focused. Day-to-day product work uses the **dev** daemon (`pnpm dev:daemon`, port 43118, `~/.porcelain-dev`) — not a production install. See [AGENTS.md](AGENTS.md) and the focused procedures listed there.
+Keep a change coherent and small enough to review. Run the closest useful formatter, typecheck,
+test, build, or runtime proof for the behavior you touched. Browser, Electron, and mobile proof
+are chosen by the affected surface; no single command is required for every change. Describe
+what you ran and any uncertainty in the pull request.
 
-## Verification
+Use a managed worktree when work must proceed in parallel:
 
-```bash
-pnpm lint     # every commit (hook-enforced): Biome + real custom lints
-pnpm verify   # before push / release: lint + test + build + e2e typecheck
+```sh
+pnpm worktree create <slug>
+pnpm worktree list
 ```
 
-CI on `main` runs full `pnpm verify` and browser e2e in parallel.
+Worktrees are isolated branches with their own development port, home, channels, and playground.
+See [docs/development.md](docs/development.md) for the handoff and cleanup flow.
 
 ## Pull requests
 
-- Keep changes focused; match the local code style and architecture.
-- Prefer small PRs with a clear why.
-- Do not add a second pattern for something the codebase already solves one way; if you think a better approach exists, say so in the PR.
+- Explain the user-visible outcome and why the change belongs here.
+- Keep unrelated cleanup separate from product behavior.
+- Include focused validation and runtime evidence when relevant.
+- Resolve conflicts against current `main`; historical docs are not architectural authority.
 
 ## License
 
