@@ -1,3 +1,21 @@
+## [0.55.0](https://github.com/FabioFiorita/porcelain/compare/v0.54.0...v0.55.0) (2026-08-18)
+
+### Features
+
+* **quality:** gate exports whose only importer is a test ([ddd68d9](https://github.com/FabioFiorita/porcelain/commit/ddd68d948fa4b7bf4a1b88e15b94d4dc76285969))
+
+### Bug Fixes
+
+* **daemon:** same case-correction bug in the playground boundary check ([63439c6](https://github.com/FabioFiorita/porcelain/commit/63439c63120fadf02c38ab3ef31a03558fdfdb56))
+* **desktop:** repair electron-vite dev after the apps/web extract ([3dfe7fe](https://github.com/FabioFiorita/porcelain/commit/3dfe7fe5fd6f77b1babb7125ed1165dcb5209481))
+* **dev:** three playground-onboarding bugs on case-insensitive disks ([852e649](https://github.com/FabioFiorita/porcelain/commit/852e649e81d4d82640a62deceaab11a32e3f5fed))
+* **release:** stop staging the deleted skills directory in the cut ([a9e2bf5](https://github.com/FabioFiorita/porcelain/commit/a9e2bf51b887e4043935547cdf2f167e3f78aa89))
+* **tasks:** keep a row status edit out of the detail sheet ([2f50869](https://github.com/FabioFiorita/porcelain/commit/2f50869658bd51e4f7217f24b4aa5ac8af598c7e))
+* **web:** keep macOS traffic lights off the sidebar toggle ([#37](https://github.com/FabioFiorita/porcelain/issues/37)) ([fac2710](https://github.com/FabioFiorita/porcelain/commit/fac2710e9642ce9a8e710176059dac47b8731d0d))
+* **web:** refresh the Electron Hub tree after adding a project ([d8b9ee1](https://github.com/FabioFiorita/porcelain/commit/d8b9ee142f03174247452ff2858421d8e7c59f80))
+* **web:** register the local Environment id as primary on Electron ([215fa9a](https://github.com/FabioFiorita/porcelain/commit/215fa9aef0d69631667455e9d0188e40d61efb4c))
+* **web:** stop showing local Environment as offline on worktree switch ([563f725](https://github.com/FabioFiorita/porcelain/commit/563f7256fbe0365a14b9d954c40d80c83f29cb71))
+
 ## [0.54.0](https://github.com/FabioFiorita/porcelain/compare/v0.53.2...v0.54.0) (2026-08-17)
 
 ### Features
