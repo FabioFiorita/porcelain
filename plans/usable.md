@@ -131,7 +131,10 @@ Open design questions, all owned by step 3:
   a binary. Origin validation or keep the token (AUD-03 owns that boundary).
 - A static `mcp.json` names one URL; dev is 43118 and worktrees are 43200–43999.
 - The daemon must be running. Accepted regression — make the failure say so.
-- Do not transliterate 33 verbs into 33 tools.
+- Do not transliterate the 17 verbs into 17 tools.
+- The CLI never carried review comments or reviewed marks. `comment-router` and
+  `review-marks-router` are live on the daemon and the agent has no reach — restoring that
+  is the point, not tool-count math.
 
 ## After slice 4
 
