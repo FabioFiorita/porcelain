@@ -29,6 +29,8 @@ function sameQuery(a: FilesQueryEffect & { type: 'exact' }, b: FilesQueryEffect)
       return b.query.name === 'pins' && a.query.projectPath === b.query.projectPath
     case 'scope':
       return b.query.name === 'scope' && a.query.projectPath === b.query.projectPath
+    case 'profile':
+      return b.query.name === 'profile' && a.query.projectPath === b.query.projectPath
     case 'content':
       return (
         b.query.name === 'content' &&

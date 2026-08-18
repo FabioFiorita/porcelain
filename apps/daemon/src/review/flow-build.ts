@@ -10,7 +10,7 @@ import {
   gitRangeNumstatFrom,
 } from '../git/git'
 import { workingTreeSnapshot } from '../git/working-tree'
-import { DEFAULT_LAYERS } from './default-layers'
+import { effectiveLayers } from './default-layers'
 import { buildFlow, type FlowGroup, type Layer } from './flow'
 import { flowKey } from './review-key'
 
@@ -61,9 +61,12 @@ const rangeFlowCache = new Map<string, { key: string; groups: FlowGroup[] }>()
 const commitFlowCache = new Map<string, { key: string; groups: FlowGroup[] }>()
 
 /** Working-tree flow groups (shared by gitFlow + diffReading). */
-export async function loadWorkingFlow(repoPath: string): Promise<FlowGroup[]> {
+export async function loadWorkingFlow(
+  repoPath: string,
+  declared: readonly Layer[] = [],
+): Promise<FlowGroup[]> {
   const { files, stats } = await workingTreeSnapshot(repoPath)
-  const layers = DEFAULT_LAYERS
+  const layers = effectiveLayers(declared)
   const key = flowKey(files, stats, layers)
   const cached = flowCache.get(repoPath)
   if (cached && cached.key === key) return cached.groups
@@ -75,6 +78,7 @@ export async function loadWorkingFlow(repoPath: string): Promise<FlowGroup[]> {
 /** Branch-range flow groups + base label (shared by gitRangeFlow + diffReading). */
 export async function loadRangeFlow(
   repoPath: string,
+  declared: readonly Layer[] = [],
 ): Promise<{ groups: FlowGroup[]; base: string }> {
   const base = await gitDefaultBranch(repoPath)
   try {
@@ -83,7 +87,7 @@ export async function loadRangeFlow(
       gitRangeChangedFilesFrom(repoPath, mergeBase),
       gitRangeNumstatFrom(repoPath, mergeBase),
     ])
-    const layers = DEFAULT_LAYERS
+    const layers = effectiveLayers(declared)
     const key = `${base}\n${flowKey(files, stats, layers)}`
     const cached = rangeFlowCache.get(repoPath)
     if (cached && cached.key === key) return { groups: cached.groups, base }
@@ -96,13 +100,17 @@ export async function loadRangeFlow(
 }
 
 /** Historical commit flow groups (shared by gitCommitFlow + diffReading). */
-export async function loadCommitFlow(repoPath: string, hash: string): Promise<FlowGroup[]> {
+export async function loadCommitFlow(
+  repoPath: string,
+  hash: string,
+  declared: readonly Layer[] = [],
+): Promise<FlowGroup[]> {
   try {
     const [files, stats] = await Promise.all([
       gitCommitFiles(repoPath, hash),
       gitCommitNumstat(repoPath, hash),
     ])
-    const layers = DEFAULT_LAYERS
+    const layers = effectiveLayers(declared)
     const cacheKey = `${repoPath}\n${hash}`
     const key = `${hash}\n${flowKey(files, stats, layers)}`
     const cached = commitFlowCache.get(cacheKey)

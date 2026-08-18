@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { resolvedProfileSchema, worktreeProfileSchema } from '../worktree-profile'
 
 export const dirEntrySchema = z
   .object({
@@ -199,6 +200,30 @@ export const repoScopeOutputSchema = repoScopeSchema
 export type RepoScopeInput = z.infer<typeof repoScopeInputSchema>
 export type RepoScopeOutput = z.infer<typeof repoScopeOutputSchema>
 
+/**
+ * The worktree profile for one checkout, BROKEN OUT rather than merged.
+ *
+ * `repoScope` answers "what does this tree apply"; this answers "and where did
+ * each part come from". Settings → Personalization is the caller, and it exists
+ * to show a human which of their focus is the project baseline and which this
+ * worktree added — a single merged list cannot say that, and a reader who
+ * cannot tell the two apart cannot decide which one to ask their agent to fix.
+ */
+export const worktreeProfileViewSchema = z
+  .object({
+    /** Null when this checkout is not registered with the Hub yet. */
+    worktreeId: z.string().min(1).nullable(),
+    base: resolvedProfileSchema,
+    /** Null on the ordinary worktree: no override, pure inheritance. */
+    override: worktreeProfileSchema.nullable(),
+    resolved: resolvedProfileSchema,
+  })
+  .strict()
+export type WorktreeProfileView = z.infer<typeof worktreeProfileViewSchema>
+
+export const worktreeProfileInputSchema = z.string()
+export type WorktreeProfileInput = z.infer<typeof worktreeProfileInputSchema>
+
 /** Representative contract-valid FileView values used by boundary tests and client mocks. */
 export const fileViewFixtures = {
   text: { type: 'text', content: 'synthetic text content' },
@@ -302,6 +327,30 @@ export const filesContractFixtures = {
     output: {
       hiddenPaths: ['/synthetic/repo/src/generated'],
       pinnedPaths: ['/synthetic/repo/README.md'],
+    },
+  },
+  // A worktree that HAS an override, so the fixture exercises the interesting
+  // shape; the common case is `override: null` and `resolved` equal to `base`.
+  worktreeProfile: {
+    input: '/synthetic/repo',
+    output: {
+      worktreeId: 'wt-synthetic',
+      base: {
+        hiddenPaths: ['src/generated'],
+        pinnedPaths: ['README.md'],
+        layers: [{ label: 'Docs', pattern: '(^|/)docs/' }],
+      },
+      override: {
+        pinnedPaths: ['src/checkout/total.ts'],
+        hiddenPaths: [],
+        unhiddenPaths: ['src/generated'],
+        layers: null,
+      },
+      resolved: {
+        hiddenPaths: [],
+        pinnedPaths: ['README.md', 'src/checkout/total.ts'],
+        layers: [{ label: 'Docs', pattern: '(^|/)docs/' }],
+      },
     },
   },
 } as const

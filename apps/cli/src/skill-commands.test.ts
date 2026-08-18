@@ -34,9 +34,18 @@ describe('the shipped skill only cites commands the CLI has', () => {
   it.each(files)('%s', (file) => {
     const text = readFileSync(file, 'utf8')
     // Only `porcelain`-prefixed invocations, so prose like "the review set" is not a match.
-    const cited = [...text.matchAll(new RegExp(`porcelain (${nouns}) ([a-z][a-z-]*)`, 'g'))].map(
-      (match) => `${match[1]} ${match[2]}`,
-    )
-    expect([...new Set(cited)].filter((command) => !known.has(command))).toEqual([])
+    // The third token is optional because `worktree profile get` is three words;
+    // a citation counts as known if EITHER length matches, so the trailing word of
+    // a sentence after `porcelain profile get` is not read as part of the verb.
+    const cited = [
+      ...text.matchAll(new RegExp(`porcelain (${nouns}) ([a-z][a-z-]*)( [a-z][a-z-]*)?`, 'g')),
+    ].map((match) => ({
+      two: `${match[1]} ${match[2]}`,
+      three: `${match[1]} ${match[2]}${match[3] ?? ''}`,
+    }))
+    const unknown = cited
+      .filter((command) => !known.has(command.three) && !known.has(command.two))
+      .map((command) => command.three)
+    expect([...new Set(unknown)]).toEqual([])
   })
 })

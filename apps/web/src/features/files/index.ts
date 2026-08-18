@@ -31,6 +31,7 @@ export {
   usePinnedFiles,
   usePrefetchFileContent,
   useRefreshFilesTree,
+  useWorktreeProfile,
 } from './files-queries'
 export {
   filesQueryMatchesEffect,

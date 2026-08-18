@@ -5,7 +5,6 @@ import { join } from 'node:path'
 import type { GitQuickCommandInput } from '@porcelain/contracts/git'
 import { describe, expect, it } from 'vitest'
 import { gitEnv } from '../../git/git-env'
-import * as flowBuild from '../../review/flow-build'
 import { withTemporaryDirectory } from '../../testing/temporary-directory'
 import {
   createCommitGeneration,
@@ -129,9 +128,9 @@ describe('CommitGeneration and GitDiffReadingSources adapters', () => {
   it('binds flow loaders and Git hunk helpers on the diff-reading capability', async () => {
     const sources = createGitDiffReadingSources()
     expect(Object.isFrozen(sources)).toBe(true)
-    expect(sources.loadWorkingFlow).toBe(flowBuild.loadWorkingFlow)
-    expect(sources.loadRangeFlow).toBe(flowBuild.loadRangeFlow)
-    expect(sources.loadCommitFlow).toBe(flowBuild.loadCommitFlow)
+    expect(typeof sources.loadWorkingFlow).toBe('function')
+    expect(typeof sources.loadRangeFlow).toBe('function')
+    expect(typeof sources.loadCommitFlow).toBe('function')
     expect(typeof sources.workingHunks).toBe('function')
     expect(typeof sources.rangeHunks).toBe('function')
     expect(typeof sources.commitHunks).toBe('function')
@@ -148,6 +147,26 @@ describe('CommitGeneration and GitDiffReadingSources adapters', () => {
       expect(Array.isArray(hunks)).toBe(true)
       const message = await sources.commitMessage(repo, 'HEAD')
       expect(message).toContain('root')
+    })
+  })
+
+  it('orders a changeset by the layers the profile declares for that checkout', async () => {
+    await withTemporaryDirectory('porcelain-git-diff-layers-', async (root) => {
+      const repo = await makeRepo(root)
+      await mkdir(join(repo, 'src'), { recursive: true })
+      await writeFile(join(repo, 'src', 'checkout.ts'), 'export const value = 2\n')
+
+      const declared = await createGitDiffReadingSources({
+        scope: { layersForRepo: async () => [{ label: 'Checkout', pattern: 'checkout' }] },
+      }).loadWorkingFlow(repo)
+      expect(declared.map((group) => group.layer)).toContain('Checkout')
+
+      // Same repo, nothing declared: the starters group it, and 'Checkout'
+      // cannot appear — proving the label came from the profile, not the path.
+      const starters = await createGitDiffReadingSources({
+        scope: { layersForRepo: async () => [] },
+      }).loadWorkingFlow(repo)
+      expect(starters.map((group) => group.layer)).not.toContain('Checkout')
     })
   })
 })

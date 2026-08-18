@@ -86,8 +86,9 @@ describe('COMMANDS registry matches the dispatch switch', () => {
     encoding: 'utf8',
   }).trim()
   const source = readFileSync(join(toplevel, 'apps/cli/src/cli.ts'), 'utf8')
+  // `worktree profile get` is three tokens; every other command is two.
   const dispatched = new Set(
-    [...source.matchAll(/^\s*case '([a-z]+ [a-z-]+)':/gm)].map((m) => m[1] as string),
+    [...source.matchAll(/^\s*case '([a-z]+ [a-z-]+(?: [a-z-]+)?)':/gm)].map((m) => m[1] as string),
   )
   const documented = new Set(
     COMMANDS.flatMap((noun) => noun.verbs.map((verb) => `${noun.noun} ${verb.verb}`)),

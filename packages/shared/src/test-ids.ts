@@ -89,11 +89,15 @@ export const TestIds = {
   settingsCommitModel: 'settings-commit-model',
   /** Settings → Share: authorized and pending devices. */
   shareStatus: 'share-status',
-  /** Settings → Review layers: copy agent setup prompt (shown while starters only). */
-  layersCopySetup: 'layers-copy-setup',
-  /** Settings → Review layers: starter/unconfigured explainer. */
-  layersStarterBanner: 'layers-starter-banner',
-  layersStarterDismiss: 'layers-starter-dismiss',
+  /**
+   * Settings → Personalization: the worktree profile, read-only. Pins and hides
+   * are edited from the tree; layers are written by the agent, so the copyable
+   * prompts ARE the affordance here rather than a form.
+   */
+  personalizationBase: 'personalization-base',
+  personalizationOverride: 'personalization-override',
+  personalizationCopyStarter: 'personalization-copy-starter',
+  personalizationCopyKeeper: 'personalization-copy-keeper',
 
   // --- Changes ---
   changesList: 'changes-list',

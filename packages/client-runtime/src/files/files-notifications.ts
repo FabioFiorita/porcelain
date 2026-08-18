@@ -12,7 +12,13 @@ import {
   filesTreeFamilyEffect,
   treeSubtreeEffectsForStructuralPath,
 } from './files-effects'
-import { filesPinsQuery, filesProjectKey, filesScopeQuery, filesTreeQuery } from './files-queries'
+import {
+  filesPinsQuery,
+  filesProfileQuery,
+  filesProjectKey,
+  filesScopeQuery,
+  filesTreeQuery,
+} from './files-queries'
 
 /**
  * Exhaustive Files notification → query effect mapping (FIL-004).
@@ -36,6 +42,7 @@ export function filesNotificationEffects(notification: FilesChange): readonly Fi
     case 'files.scope-changed':
       return [
         filesExactEffect(filesScopeQuery(projectPath)),
+        filesExactEffect(filesProfileQuery(projectPath)),
         filesExactEffect(filesPinsQuery(projectPath)),
         filesTreeFamilyEffect(projectPath),
       ]
