@@ -5,6 +5,9 @@
 - **Packages:** `apps/daemon`, `apps/cli`, `apps/web`, `apps/desktop` (shell), `apps/mobile`,
   plus `packages/contracts`, `packages/client-runtime`, `packages/shared`. See
   `architecture.md`. Root is workspace-only (lint, hooks, release); no root `version`.
+- **The shipped plugin is not on the product version.** `plugins/porcelain/` has its own semver
+  in both manifests, gated by `pnpm lint:plugin`; `pnpm plugin:lock` re-records it after a bump.
+  `sync-versions.mjs` stamps internal `.agents/skills` procedures only.
 - **One product version** on every workspace package that carries `version`. Canonical stamp is
   `apps/desktop/package.json` (electron-builder); `scripts/sync-versions.mjs` aligns all others
   (`pnpm lint` runs `--check`). `release-cut` bumps then syncs.

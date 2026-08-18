@@ -10,12 +10,12 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 export const COMPANION_FOUNDATION_FILES = Object.freeze([
-  'skills/porcelain-companion/SKILL.md',
-  'skills/porcelain-companion/references/review.md',
-  'skills/porcelain-companion/references/sync-environments.md',
-  'skills/porcelain-companion/references/scope.md',
-  'skills/porcelain-companion/references/git-visibility.md',
-  'skills/porcelain-companion/agents/openai.yaml',
+  'plugins/porcelain/skills/porcelain-companion/SKILL.md',
+  'plugins/porcelain/skills/porcelain-companion/references/review.md',
+  'plugins/porcelain/skills/porcelain-companion/references/sync-environments.md',
+  'plugins/porcelain/skills/porcelain-companion/references/scope.md',
+  'plugins/porcelain/skills/porcelain-companion/references/git-visibility.md',
+  'plugins/porcelain/skills/porcelain-companion/agents/openai.yaml',
 ])
 
 const EXPLICIT_POLICY = Object.freeze([
@@ -94,13 +94,22 @@ function readSources(root, failures) {
 export function checkCompanionFoundation(root) {
   const failures = []
   const sources = readSources(root, failures)
-  const skill = normalize(sources.get('skills/porcelain-companion/SKILL.md') ?? '')
-  const review = normalize(sources.get('skills/porcelain-companion/references/review.md') ?? '')
-  const syncEnvironments = normalize(
-    sources.get('skills/porcelain-companion/references/sync-environments.md') ?? '',
+  const skill = normalize(
+    sources.get('plugins/porcelain/skills/porcelain-companion/SKILL.md') ?? '',
   )
-  const scope = normalize(sources.get('skills/porcelain-companion/references/scope.md') ?? '')
-  const adapter = normalize(sources.get('skills/porcelain-companion/agents/openai.yaml') ?? '')
+  const review = normalize(
+    sources.get('plugins/porcelain/skills/porcelain-companion/references/review.md') ?? '',
+  )
+  const syncEnvironments = normalize(
+    sources.get('plugins/porcelain/skills/porcelain-companion/references/sync-environments.md') ??
+      '',
+  )
+  const scope = normalize(
+    sources.get('plugins/porcelain/skills/porcelain-companion/references/scope.md') ?? '',
+  )
+  const adapter = normalize(
+    sources.get('plugins/porcelain/skills/porcelain-companion/agents/openai.yaml') ?? '',
+  )
   const allSources = [...sources.values()].map(normalize).join(' ')
 
   for (const [label, expected] of EXPLICIT_POLICY) {

@@ -14,7 +14,7 @@
   },
   "scripts": {
     "format": "biome format --write .",
-    "lint": "biome check . && pnpm lint:test-shape && pnpm lint:dead-code && pnpm lint:test-orphans && pnpm lint:architecture && pnpm lint:cli && pnpm lint:foundation-ownership && pnpm lint:companion-foundations && pnpm lint:agent-foundations && pnpm lint:launch-cleanup && node scripts/lint-mobile-nativewind.mjs && node scripts/lint-mobile-file-size.mjs && pnpm lint:escapes && node scripts/lint-security-boundaries.mjs && node scripts/lint-eas-triggers.mjs && node scripts/lint-legacy-realtime.mjs && node scripts/lint-legacy-migrations.mjs && node scripts/lint-supporting-regions.test.mjs && node scripts/lint-supporting-regions.mjs && node scripts/lint-pillars.test.mjs && node scripts/lint-pillars.mjs &&node scripts/lint-desktop-boundary.test.mjs && node scripts/lint-desktop-boundary.mjs && pnpm lint:procedure-contracts && node scripts/lint-skill-commands.mjs && node scripts/lint-docs.mjs && node scripts/sync-versions.mjs --check && pnpm agents:check",
+    "lint": "biome check . && pnpm lint:test-shape && pnpm lint:dead-code && pnpm lint:test-orphans && pnpm lint:architecture && pnpm lint:cli && pnpm lint:foundation-ownership && pnpm lint:companion-foundations && pnpm lint:agent-foundations && pnpm lint:launch-cleanup && node scripts/lint-mobile-nativewind.mjs && node scripts/lint-mobile-file-size.mjs && pnpm lint:escapes && node scripts/lint-security-boundaries.mjs && node scripts/lint-eas-triggers.mjs && node scripts/lint-legacy-realtime.mjs && node scripts/lint-legacy-migrations.mjs && node scripts/lint-supporting-regions.test.mjs && node scripts/lint-supporting-regions.mjs && node scripts/lint-pillars.test.mjs && node scripts/lint-pillars.mjs &&node scripts/lint-desktop-boundary.test.mjs && node scripts/lint-desktop-boundary.mjs && pnpm lint:procedure-contracts && node scripts/lint-skill-commands.mjs && pnpm lint:plugin && node scripts/lint-docs.mjs && node scripts/sync-versions.mjs --check && pnpm agents:check",
     "lint:test-shape": "node scripts/quality/test-shape.test.mjs && node scripts/quality/test-shape.mjs --gate",
     "lint:dead-code": "node scripts/quality/dead-code.mjs",
     "lint:test-orphans": "node scripts/lint-test-orphans.test.mjs && node scripts/lint-test-orphans.mjs",
@@ -28,6 +28,8 @@
     "lint:launch-cleanup": "node scripts/lint-launch-cleanup.test.mjs && node scripts/lint-launch-cleanup.mjs",
     "lint:procedure-contracts": "node scripts/lint-procedure-contracts.test.mjs && node scripts/lint-procedure-contracts.mjs",
     "lint:escapes": "node scripts/lint-escapes.test.mjs && node scripts/lint-escapes.mjs",
+    "lint:plugin": "node --test scripts/plugin-version.test.mjs && node scripts/plugin-version.mjs --check",
+    "plugin:lock": "node scripts/plugin-version.mjs",
     "versions:sync": "node scripts/sync-versions.mjs",
     "versions:check": "node scripts/sync-versions.mjs --check",
     "lint:fix": "biome check --write .",

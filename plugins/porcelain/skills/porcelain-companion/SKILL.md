@@ -1,7 +1,6 @@
 ---
 name: porcelain-companion
 description: Drive Porcelain's daemon-root Review Canvas, Tasks, Actions, and explicit Canvas/project overlays through the bundled CLI. Use when the human asks to publish or inspect a Review, record Tasks or Actions, promote daemon data, or close the evidence loop.
-version: 0.54.0
 license: MIT
 ---
 

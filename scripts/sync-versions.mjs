@@ -67,11 +67,14 @@ function readJson(path) {
  * upgrade, so a skill version that drifts from the app is a lie the human acts on.
  */
 const SKILL_FILES = [
-  join(root, 'skills', 'porcelain-companion', 'SKILL.md'),
-  join(root, 'skills', 'porcelain-remote', 'SKILL.md'),
-  // Skills we author. Listed explicitly, never globbed: .agents/skills also holds vendored
-  // Expo skills that carry their own upstream version, and restamping those would claim we
-  // ship an upstream release we do not have.
+  // Internal procedures only. The *shipped* skills moved to `plugins/porcelain/`, which
+  // carries its own semver — stamping them with the product version claimed a change on
+  // every release when most releases touch nothing an agent reads
+  // (`scripts/plugin-version.mjs` owns that version and its bump gate).
+  //
+  // Listed explicitly, never globbed: .agents/skills also holds vendored Expo skills that
+  // carry their own upstream version, and restamping those would claim we ship an upstream
+  // release we do not have.
   ...['mobile', 'releasing', 'merge-queue'].map((name) =>
     join(root, '.agents', 'skills', name, 'SKILL.md'),
   ),

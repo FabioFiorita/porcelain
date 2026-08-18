@@ -19,7 +19,7 @@ function writeFile(root, relativePath, content) {
 function validSources() {
   return new Map([
     [
-      'skills/porcelain-companion/SKILL.md',
+      'plugins/porcelain/skills/porcelain-companion/SKILL.md',
       [
         'Companion is an explicit product-surface procedure, not an automatic session lifecycle.',
         'Do not clear another active Review automatically.',
@@ -29,23 +29,23 @@ function validSources() {
       ].join('\n'),
     ],
     [
-      'skills/porcelain-companion/references/review.md',
+      'plugins/porcelain/skills/porcelain-companion/references/review.md',
       'Explicit replacement: do not clear another active Review automatically.',
     ],
     [
-      'skills/porcelain-companion/references/sync-environments.md',
+      'plugins/porcelain/skills/porcelain-companion/references/sync-environments.md',
       'Share tracked repo-local overlays deliberately.',
     ],
     [
-      'skills/porcelain-companion/references/scope.md',
+      'plugins/porcelain/skills/porcelain-companion/references/scope.md',
       'Scope is read from the current project-relative channel.',
     ],
     [
-      'skills/porcelain-companion/references/git-visibility.md',
+      'plugins/porcelain/skills/porcelain-companion/references/git-visibility.md',
       'The current disposable .migrated-from-home marker remains ignored.',
     ],
     [
-      'skills/porcelain-companion/agents/openai.yaml',
+      'plugins/porcelain/skills/porcelain-companion/agents/openai.yaml',
       'When the human requests Companion work or you deliberately publish a Review, start Intent-first.',
     ],
   ])
@@ -78,8 +78,8 @@ test('mandatory session lifecycle wording is rejected', () => {
   withFixture(
     (sources) => {
       sources.set(
-        'skills/porcelain-companion/SKILL.md',
-        `${sources.get('skills/porcelain-companion/SKILL.md')}\nStart of session: review clear if previous unit is done, then review set.`,
+        'plugins/porcelain/skills/porcelain-companion/SKILL.md',
+        `${sources.get('plugins/porcelain/skills/porcelain-companion/SKILL.md')}\nStart of session: review clear if previous unit is done, then review set.`,
       )
     },
     (root) => {
@@ -92,7 +92,7 @@ test('deleted home migration wording is rejected', () => {
   withFixture(
     (sources) => {
       sources.set(
-        'skills/porcelain-companion/references/sync-environments.md',
+        'plugins/porcelain/skills/porcelain-companion/references/sync-environments.md',
         'One-way migrate from home. Porcelain copies it into the repo and purges the home keys.',
       )
     },
@@ -106,7 +106,10 @@ test('missing authored source fails closed', () => {
   withFixture(
     (_) => {},
     (root) => {
-      const missingPath = path.join(root, 'skills/porcelain-companion/references/review.md')
+      const missingPath = path.join(
+        root,
+        'plugins/porcelain/skills/porcelain-companion/references/review.md',
+      )
       rmSync(missingPath)
       assert.ok(
         checkCompanionFoundation(root).some((failure) =>
@@ -114,7 +117,10 @@ test('missing authored source fails closed', () => {
         ),
       )
       assert.equal(
-        readFileSync(path.join(root, 'skills/porcelain-companion/SKILL.md'), 'utf8').length > 0,
+        readFileSync(
+          path.join(root, 'plugins/porcelain/skills/porcelain-companion/SKILL.md'),
+          'utf8',
+        ).length > 0,
         true,
       )
     },

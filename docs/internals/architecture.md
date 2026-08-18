@@ -31,7 +31,18 @@ packages/
   contracts/       wire protocol and ten-domain procedure catalog
   client-runtime/  nonvisual query, mutation, realtime, session, and pure UI semantics
   shared/          pure cross-cutting helpers
+
+plugins/
+  porcelain/       the shipped agent plugin — skills today, MCP next
 ```
+
+`plugins/porcelain/` is the one artifact agents install. It carries two manifests over one
+`skills/` tree: root `plugin.json` for the vendor-neutral
+[Agent Plugins 1.0.0](https://agent-plugins.org/) clients and `.claude-plugin/plugin.json` for
+Claude Code, which reads `.claude-plugin/marketplace.json` at the repo root to find it. The
+plugin carries **its own semver**, not the product version — `scripts/plugin-version.mjs`
+hashes what it ships and refuses a content change that kept the old version, because for a
+marketplace that version field *is* the update mechanism.
 
 | Package | Build |
 |---------|-------|

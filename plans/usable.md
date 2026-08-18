@@ -59,7 +59,7 @@ two tunnels, two pairing links, two remotes in the Hub. Tailscale and Cloudflare
 exclusive. Clients try LAN, then Tailscale, then Cloudflare.
 
 **Where:** `apps/daemon/src/features/remote/`, `docs/remote-setup.md`,
-`skills/porcelain-remote/`.
+`plugins/porcelain/skills/porcelain-remote/`.
 
 **Proof:** tunnel against the *dev* daemon first, then a named tunnel on a second daemon
 with its own home and port. Tests for start, stop, and "cloudflared missing" sit next to
@@ -96,6 +96,42 @@ ADR 0003, ADR 0006). Layer grouping stays in `apps/daemon/src/review/flow.ts`.
 **Proof:** set a profile on one worktree of a two-worktree playground; the other worktree is
 unchanged. Hide a path, confirm it is folded and still openable. Set layers, confirm Changes
 order follows them.
+
+## Track B — one plugin, then MCP, then delete the CLI
+
+Decided 2026-08-18. Runs alongside the slices; it is distribution and plumbing, not a slice.
+
+The reason is not "MCP is stateless now." Commit `7833529` killed the MCP server for
+**per-agent config writing** and stdio/PATH pain. A plugin *is* the config, and MCP
+2026-07-28 makes the server a route on the daemon that already runs — both original causes
+are gone. The prize is that `apps/cli` stops being a **second writer**: it reimplements the
+daemon's Project Data write path against `$PORCELAIN_HOME` on disk
+(`apps/cli/src/project-io.ts`: "Mirrors daemon project-channel atomic tmp+rename"). One
+writer is the point.
+
+1. **Done.** `plugins/porcelain/` with both manifests, independent semver, bump gate
+   (`pnpm lint:plugin`).
+2. The app stops printing `npx skills` and points at the plugin. Delete `skills.sh.json`.
+3. `/mcp` on the daemon, thin over the existing routers. Opt-in — tool defs cost context on
+   every agent turn.
+4. Dogfood a whole Review through MCP only, CLI present but unused.
+5. Delete `apps/cli`, `cli-install.ts` (daemon + shell), `lint:cli`, and the AUD-08/11/12
+   rows. Ratchet in the same commit: nothing writes `$PORCELAIN_HOME` outside the daemon's
+   Project Data adapter.
+
+**Conflicts to settle when they land.** Slice 4 writes `porcelain worktree profile get|set`
+under `apps/cli` — build it as an MCP tool instead, or accept it dies in step 5. Step 5 also
+wants the "use it for a week" gate below to have happened first.
+
+Open design questions, all owned by step 3:
+
+- Stateless means **no cwd**. The CLI resolved Project/Worktree from the git toplevel; every
+  tool call needs an explicit handle instead.
+- Loopback `/mcp` is not the CLI's posture — a webpage can POST to `127.0.0.1`, it cannot exec
+  a binary. Origin validation or keep the token (AUD-03 owns that boundary).
+- A static `mcp.json` names one URL; dev is 43118 and worktrees are 43200–43999.
+- The daemon must be running. Accepted regression — make the failure say so.
+- Do not transliterate 33 verbs into 33 tools.
 
 ## After slice 4
 

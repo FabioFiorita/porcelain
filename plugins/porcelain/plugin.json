@@ -1,0 +1,14 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "porcelain",
+  "version": "1.0.0",
+  "description": "Drive Porcelain — the review layer for agentic coding. Publish Reviews to the Canvas, record Tasks and Actions, close the evidence loop, and set up a remote daemon.",
+  "author": {
+    "name": "Fabio Fiorita",
+    "url": "https://github.com/FabioFiorita"
+  },
+  "homepage": "https://github.com/FabioFiorita/porcelain",
+  "repository": "https://github.com/FabioFiorita/porcelain",
+  "license": "MIT",
+  "keywords": ["code-review", "worktree", "evidence", "canvas", "agentic-coding"]
+}

@@ -75,7 +75,7 @@ for (const area of ['apps', 'packages']) {
 
 const files = [
   ...walk(join(root, '.agents', 'skills')),
-  ...walk(join(root, 'skills')),
+  ...walk(join(root, 'plugins', 'porcelain', 'skills')),
   ...walk(join(root, 'docs')),
 ]
 

@@ -19,7 +19,7 @@ export const REQUIRED_FRESH_AGENT_FILES = Object.freeze([
   'docs/README.md',
   'docs/internals/domain-architecture.md',
   'docs/internals/agent-foundations.md',
-  'skills/porcelain-companion/SKILL.md',
+  'plugins/porcelain/skills/porcelain-companion/SKILL.md',
   '.agents/skills/web-e2e/SKILL.md',
   '.agents/skills/mobile/SKILL.md',
   '.agents/skills/releasing/SKILL.md',
@@ -51,7 +51,7 @@ const EXCLUDED_RELATIVE_FILES = new Set([
   'packages/contracts/src/review/review.procedures.test.ts',
   'packages/shared/src/project-porcelain.ts',
   'scripts/lint-companion-foundations.test.mjs',
-  'skills/porcelain-companion/references/git-visibility.md',
+  'plugins/porcelain/skills/porcelain-companion/references/git-visibility.md',
 ])
 
 const EXCLUDED_DIRS = new Set([
