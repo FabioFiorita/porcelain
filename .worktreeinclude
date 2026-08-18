@@ -1,6 +1,0 @@
-# Gitignored personal setup copied into a fresh harness worktree (Codex).
-# Only ignored files are eligible — tracked files are already checked out.
-# Keep this list to host-local agent config; never machine secrets.
-AGENTS.local.md
-CLAUDE.local.md
-.claude/settings.local.json

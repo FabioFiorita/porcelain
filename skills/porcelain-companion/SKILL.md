@@ -1,11 +1,14 @@
 ---
 name: porcelain-companion
-description: Drive Porcelain's daemon-root Review Canvas, Tasks, Actions, and explicit Canvas/project overlays through the bundled CLI. Use when the human asks to publish or inspect a Review, record Tasks or Actions, promote daemon data, or close the evidence loop.
+description: Use the current Porcelain companion CLI for Review Canvas, Tasks, Actions, and explicit Canvas/project overlays. Load only when the human asks for Companion work or one of those daemon-backed operations; ordinary coding uses the shared development loop.
 version: 0.54.0
 license: MIT
 ---
 
-# Porcelain companion
+# Porcelain companion (current CLI adapter)
+
+This skill documents the installed companion CLI. Ordinary coding and repository validation stay
+outside this product procedure.
 
 Porcelain is an explicit product-surface procedure where agent work becomes trusted work. The daemon owns the
 canonical state; the app and browser render it. Repo-local companion files are explicit tracked
@@ -98,7 +101,7 @@ references/sync-environments.md   daemon/Project setup across environments
   overrides are personal and never enter git. Promote a Canvas deliberately when the team should
   receive it; promotion never commits.
 - Keep secrets out of Canvas, Tasks, Actions, and project overrides.
-- Work in an isolated Playground for development daemons. Never aim proof at production port 43117
-  or a real checkout.
+- Work in an isolated Playground for development daemons. Keep proof away from the production home,
+  configured production listener, and real checkouts.
 
 For the full Review Canvas procedure, read [references/review.md](references/review.md).

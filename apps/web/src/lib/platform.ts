@@ -28,11 +28,32 @@ export const isLinuxShell = typeof window !== 'undefined' && window.porcelain?.p
 /**
  * True in the Electron shell on macOS: the OS draws native traffic lights at a fixed
  * window position (see `trafficLightPosition` in `apps/desktop/src/main/window.ts`)
- * regardless of what the renderer paints underneath. Chrome that reaches the window's
- * true top-left corner — the sidebar header, once the drawn titlebar row is Linux-only —
- * must reserve space for them itself; see `app-sidebar.tsx`.
+ * regardless of what the renderer paints underneath. Whichever chrome reaches the
+ * window's true top-left corner — the sidebar header, or the Viewer header once that
+ * sidebar collapses — must reserve space for them itself.
+ *
+ * Keyed off `'darwin'` directly rather than `!isLinuxShell`: a Windows shell is neither
+ * Linux nor macOS, and inheriting the macOS answer there would reserve 80px for traffic
+ * lights that do not exist.
+ *
+ * vitest/jsdom: no bridge, so this is `false` under test.
  */
-export const isMacShell = !isBrowser && !isLinuxShell
+export const isMacShell = typeof window !== 'undefined' && window.porcelain?.platform === 'darwin'
+
+/**
+ * True in the Electron shell wherever `createWindow` asks for `frame: false` — Linux and
+ * Windows, i.e. every desktop platform except macOS (`window.ts`). Those windows have no
+ * OS-drawn chrome at all, so the renderer supplies both halves itself: the drag region and
+ * the min/maximize/close cluster (`title-bar.tsx` → `window-controls.tsx`). macOS keeps its
+ * native traffic lights and the browser client has no window to move, so neither draws the
+ * row and both start at the window's true top.
+ *
+ * Distinct from `isLinuxShell`, which answers a keyboard question (Ctrl-primary, word
+ * labels), not a window-chrome one.
+ *
+ * vitest/jsdom: no bridge, so this is `false` under test.
+ */
+export const isFramelessShell = !isBrowser && !isMacShell
 
 /**
  * True under the Playwright e2e harness, in EITHER runtime: the Electron shell (preload

@@ -17,8 +17,7 @@ const path = require('node:path')
  *
  * EnableEmbeddedAsarIntegrityValidation is deliberately omitted in this
  * iteration — it requires the asar header hash to be embedded and can interact
- * with asarUnpack; enable it as a deliberate follow-up after this conservative
- * set is proven on a packaged build (see plans/015-electron-fuses.md).
+ * with asarUnpack. Enable it only after proving the packaged PTY and updater paths.
  *
  * SMOKE TEST REQUIRED after every packaging:
  *   1. Open a terminal tab → a PTY must spawn and run a command (OnlyLoadAppFromAsar

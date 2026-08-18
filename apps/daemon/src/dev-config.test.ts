@@ -1,3 +1,4 @@
+import { realpathSync } from 'node:fs'
 import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -92,6 +93,42 @@ describe('devRepoPath', () => {
       // playground repo; the project operation never warms or registers them.
       expect(isRecognizedDevPlayground(join(playground, 'new-repo'), playground)).toBe(false)
       expect(isRecognizedDevPlayground(join(escaped, 'missing'), playground)).toBe(false)
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('recognizes a playground reached through a differently-cased path', async (ctx) => {
+    // The bug this pins: the UI browses to a directory and reports the filesystem's true
+    // on-disk casing, while devRepoPath()'s default builds the same path from a hardcoded
+    // lower-case 'code' segment. Canonicalize with the pure-JS realpathSync and those two
+    // strings stay different, so the containment check below sees two unrelated roots and
+    // rejects a playground the daemon has registered. realpathSync.native (libuv) corrects
+    // both sides to the same casing.
+    //
+    // Probe first: on a case-sensitive filesystem the mangled path does not resolve to the
+    // same directory at all, so the scenario cannot arise and the assertion would be empty
+    // — same shape as canvas-file.test.ts's twin of this guard.
+    const root = await mkdtemp(join(tmpdir(), 'porcelain-dev-case-'))
+    try {
+      const primary = join(root, 'Code', 'porcelain-playground')
+      await mkdir(primary, { recursive: true })
+      const lowerCased = join(root, 'code', 'porcelain-playground')
+      let caseInsensitiveFs = false
+      try {
+        caseInsensitiveFs = realpathSync.native(lowerCased) === realpathSync.native(primary)
+      } catch {
+        caseInsensitiveFs = false
+      }
+      // ctx.skip(), not a silent return: this guard only has something to prove on the
+      // volumes where the bug exists, and a green tick on Linux would misreport that.
+      if (!caseInsensitiveFs) ctx.skip()
+
+      const managed = join(root, 'Code', 'porcelain-playgrounds', 'fix-review')
+      await mkdir(managed, { recursive: true })
+
+      expect(isRecognizedDevPlayground(primary, lowerCased)).toBe(true)
+      expect(isRecognizedDevPlayground(managed, lowerCased)).toBe(true)
     } finally {
       await rm(root, { recursive: true, force: true })
     }

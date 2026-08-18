@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { TitleBar } from './title-bar'
 
-vi.mock('@renderer/lib/platform', () => ({ isLinuxShell: true }))
+vi.mock('@renderer/lib/platform', () => ({ isFramelessShell: true }))
 
 vi.mock('@renderer/hooks/use-window-controls', () => ({
   useWindowControls: () => ({

@@ -4,7 +4,7 @@
   "groupings": [
     {
       "title": "Porcelain",
-      "description": "The review layer for agentic coding: the Review, board, actions, notes, layers, environment sync, and setting up a remote daemon.",
+      "description": "Porcelain's current daemon-backed Companion adapter and remote-daemon operations.",
       "skills": ["porcelain-companion", "porcelain-remote"]
     }
   ]

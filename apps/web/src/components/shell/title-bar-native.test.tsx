@@ -4,7 +4,7 @@ import { TitleBar } from './title-bar'
 
 // macOS Electron and the browser client both hit this branch: neither draws its own
 // titlebar row (native traffic lights on macOS, no window chrome at all in the browser).
-vi.mock('@renderer/lib/platform', () => ({ isLinuxShell: false }))
+vi.mock('@renderer/lib/platform', () => ({ isFramelessShell: false }))
 
 describe('frameless shell titlebar (macOS / browser)', () => {
   it('renders nothing — no drawn row needed', () => {
