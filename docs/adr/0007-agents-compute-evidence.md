@@ -1,7 +1,7 @@
 # Agents compute evidence; Porcelain renders it
 
 The quantitative evidence on a change — coverage delta, mutation score, cognitive complexity, new
-dead code — is produced by the **agent**, written into the Canvas over the CLI, and only displayed
+dead code — is produced by the **agent**, written into the Canvas over MCP, and only displayed
 by Porcelain. Porcelain never runs a test suite, a coverage pass, or a static analyser.
 
 The tempting alternative is for Porcelain to compute these itself: it already knows the repository
@@ -13,7 +13,7 @@ would silently restrict Porcelain to ecosystems it has been taught, when the pro
 to care what language it is reading.
 
 Agents already run these commands inside their own loop. Handing the numbers to Porcelain costs
-them one more CLI call and costs Porcelain nothing.
+them one more tool call and costs Porcelain nothing.
 
 This is the same division the product applies everywhere: **Porcelain ships the mechanism, the user
 and their agent own the policy.** It is why profiles are agent-written rather than inferred (ADR

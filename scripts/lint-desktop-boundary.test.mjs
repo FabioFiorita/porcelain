@@ -60,19 +60,22 @@ export const token = ensureAdminToken
   )
 })
 
-test('importing @backend/cli-install yields []', () => {
+// The shell used to install an agent CLI into the user's home on every boot. Agents
+// reach the daemon over MCP now, so that import is no longer blessed and must not
+// quietly return the next time something wants to drop a binary somewhere.
+test('importing the retired @backend/cli-install is refused', () => {
   withFixtureRepo(
     (root) => {
       writeFixtureFile(
         root,
-        'apps/desktop/src/main/cli-install.ts',
+        'apps/desktop/src/main/boot.ts',
         `import { ensureCli } from '@backend/cli-install'
 export const install = ensureCli
 `,
       )
     },
     (root) => {
-      assert.deepEqual(checkDesktopBoundary(root), [])
+      assert.notDeepEqual(checkDesktopBoundary(root), [])
     },
   )
 })

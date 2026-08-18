@@ -38,9 +38,6 @@ const EXCLUDED_RELATIVE_FILES = new Set([
   'scripts/lint-legacy-migrations.mjs',
   // These tests prove that the deleted reader/path cannot return, or model reset disposition;
   // they are not active compatibility readers.
-  'apps/cli/src/cli.test.ts',
-  'apps/cli/src/evidence-file.test.ts',
-  'apps/cli/src/html-input.test.ts',
   'apps/daemon/src/features/review/review-evidence-router.test.ts',
   'apps/daemon/src/project-data/reset-authorization.test.ts',
   'apps/daemon/src/project-data/reset-authorization.ts',

@@ -9,7 +9,6 @@ wire surface; Web, Desktop, and mobile are clients of that daemon. The package a
 | Surface | Role | Runs without |
 |---------|------|----------------|
 | **Daemon** | Headless runtime for Projects, Files, Git, Review template, Tasks, Actions, Terminal, sharing, HTTP/WS | Electron and every UI |
-| **CLI** | Agent channel and project companion tooling | App UI |
 | **Web** | React client used directly in a browser and loaded by Electron | Electron shell |
 | **Shell** | Thin Electron lifecycle, windows, menus, updater, and local-daemon process owner | Business logic |
 | **Mobile** | Native client against the same daemon and contract catalog | Desktop shell |
@@ -21,8 +20,7 @@ client, not a second backend.
 
 ```text
 apps/
-  daemon/     @porcelain/daemon     plain Node runtime and HTTP/WS server
-  cli/        @porcelain/cli        dependency-light agent CLI
+  daemon/     @porcelain/daemon     plain Node runtime, HTTP/WS server, and MCP endpoint
   web/        @porcelain/web        React/Vite client
   desktop/    @porcelain/desktop    thin Electron shell
   mobile/     @porcelain/mobile     Expo native client
@@ -47,7 +45,6 @@ marketplace that version field *is* the update mechanism.
 | Package | Build |
 |---------|-------|
 | `apps/daemon` | `pnpm build:daemon` — esbuild Node output |
-| `apps/cli` | `pnpm build:cli` — dependency-light single-file CLI |
 | `apps/web` | `pnpm build:web` — Vite output |
 | `apps/desktop` | electron-vite shell; development loads the Web client |
 | Full product | `pnpm build` — mobile typecheck plus Desktop/Web build |
@@ -59,7 +56,6 @@ desktop  →  daemon, web, contracts, shared
 web      →  client-runtime, contracts, shared
 mobile   →  client-runtime, contracts, shared
 daemon   →  contracts, shared
-cli      →  shared
 
 contracts      →  nothing under apps/
 client-runtime →  contracts
@@ -91,8 +87,12 @@ platform-specific UI precedent.
 
 ## Versioning and runtime topology
 
-One product version is synchronized across packages and authored skills by
-`scripts/sync-versions.mjs`. The daemon is Electron-free and serves both the browser and the
+One product version is synchronized across packages by `scripts/sync-versions.mjs`; the shipped
+plugin carries its own (`scripts/plugin-version.mjs`).
+
+**The daemon is the only writer of `$PORCELAIN_HOME`.** `apps/cli` used to write it too, from its
+own process, keeping a hand-maintained copy of the Project Data write path; agents reach the same
+operations over MCP now and `pnpm lint:one-writer` refuses a second writer. The daemon is Electron-free and serves both the browser and the
 renderer client. The shell owns local process lifecycle and window bindings, while tokens stay out
 of the renderer. Remote listener and pairing policy is documented in
 [`../remote-setup.md`](../remote-setup.md).

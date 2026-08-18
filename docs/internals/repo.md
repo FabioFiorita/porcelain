@@ -2,7 +2,7 @@
 
 ## Repo facts
 
-- **Packages:** `apps/daemon`, `apps/cli`, `apps/web`, `apps/desktop` (shell), `apps/mobile`,
+- **Packages:** `apps/daemon`, `apps/web`, `apps/desktop` (shell), `apps/mobile`,
   plus `packages/contracts`, `packages/client-runtime`, `packages/shared`. See
   `architecture.md`. Root is workspace-only (lint, hooks, release); no root `version`.
 - **The shipped plugin is not on the product version.** `plugins/porcelain/` has its own semver
@@ -14,10 +14,9 @@
 - **Build outputs** (layout for shell spawn + `porcelain-daemon` npm):
   - `apps/desktop/out/main/index.js` — Electron main
   - `apps/desktop/out/main/daemon/server.js` — esbuild daemon
-  - `apps/desktop/out/main/cli/porcelain.js` — esbuild agent CLI (single file)
   - `apps/desktop/out/renderer/` — Vite web client
 - **Order:** `pnpm build` → mobile typecheck → web Vite → electron-vite shell → build-node
-  (so electron-vite cannot wipe daemon/cli).
+  (so electron-vite cannot wipe the daemon bundle).
 - **TRAP — pin `dmg.artifactName`.** electron-builder's `${name}` expands to the raw package name, so
   the scoped `@porcelain/desktop` would put a slash in the artifact filename.
 - Path aliases for web: electron-vite (dev HMR), `apps/web/vite.config.ts` (prod), vitest, tsconfigs —
@@ -36,8 +35,7 @@
 ## Packaging, release, conventions
 
 `electron-builder.yml`: mac dmg + zip (arm64 — the **zip** is what electron-updater downloads), hardened
-runtime, Developer ID signing. Auto-update no-ops unless `app.isPackaged`. Agent CLI is a single
-Node-builtins CJS file. Release: `pnpm release:cut` (default **patch**) bumps all package versions,
+runtime, Developer ID signing. Auto-update no-ops unless `app.isPackaged`. Release: `pnpm release:cut` (default **patch**) bumps all package versions,
 tags, packages Mac + publishes npm `porcelain-daemon`. Runbook: `releasing`.
 
 - shadcn primitives only; a new primitive needs human approval.

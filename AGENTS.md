@@ -4,7 +4,8 @@ Where agent work becomes trusted work: a review layer for agentic coding (daemon
 macOS shell; mobile is frozen). Not an agent host. The **worktree** is the core object. Product:
 `docs/product.md`. Current work: `plans/usable.md`.
 
-**Package map:** daemon · cli · web · shell · mobile — `docs/internals/architecture.md`.
+**Package map:** daemon · web · shell · mobile — `docs/internals/architecture.md`.
+Agents reach the daemon over MCP (`POST /mcp`); it is the only writer of `$PORCELAIN_HOME`.
 
 These are good defaults. If a rule fights the task, say so and get sign-off before breaking it.
 The human is not a dictator. Rubber-stamping is a failure mode. Push stays prompted.
@@ -85,7 +86,8 @@ Evidence.
 | Repos | Real worktrees | Playground fleet only |
 
 `PORCELAIN_DEV` (from `scripts/dev-env.mjs`) arms the playground boundary and `/dev-auth`.
-`pnpm porcelain <noun> <verb>` talks to the *dev* home.
+The dev daemon serves `POST /mcp` on 43118; drive it with the admin token in
+`~/.porcelain-dev/admin-token`.
 
 ## Skills
 

@@ -40,7 +40,6 @@ const COVERAGE_MAX_AGE_MS = 60 * 60 * 1000
 
 const AREAS = [
   'apps/daemon',
-  'apps/cli',
   'apps/web',
   'apps/desktop',
   'apps/mobile',

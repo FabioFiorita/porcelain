@@ -117,7 +117,7 @@ Published after the GitHub Release via **npm Trusted Publishing (OIDC)** — no 
 
 **No CI unpublish.** OIDC publish often returns success while the CDN stays 404 for minutes; auto-rollback caused false reds and unreliable state. If the probe times out: job fails and tells you to **re-run the same tag** later. If a version stays 404 for hours and poisons `latest`, unpublish **by hand** on npmjs.com (or pin the prod unit to a known-good version).
 
-**CLI install layout** (`ensureCli`): installs `~/.porcelain/cli/porcelain.js` + `~/.porcelain/chunks/*` + wrapper (not a flat `porcelain.js` — the bundle `require`s `../chunks/…`).
+**No agent CLI to install.** The daemon serves `POST /mcp`; agents get it from the plugin, so a release ships no per-user binary and nothing to re-register.
 
 After a good publish, the Linux **production** unit may still pin a version (e.g. `@0.43.3`) after a registry incident — only move it back to `@latest` once you've confirmed the tarball is 200.
 

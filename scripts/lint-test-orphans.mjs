@@ -203,7 +203,6 @@ export function findTestOnlyOrphans(options = {}) {
   const projectRoot = options.root ?? root
   const aliases = options.aliases ?? readAliases(path.join(projectRoot, 'knip.json'))
   const scanRoots = options.scanRoots ?? [
-    'apps/cli/src',
     'apps/daemon/src',
     'apps/desktop/src',
     'apps/mobile/src',

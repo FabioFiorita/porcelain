@@ -20,7 +20,7 @@ verified; it does not mean the behavior was discarded.
 | CW-01 | `smoke.spec.ts:3-7` — seeded repo restores into the shell and reports two dirty files | `critical-wiring.spec.ts:103-106` | Built daemon + browser client startup, auth, project recents, and first query |
 | CW-02 | No former browser equivalent; protocol coverage was lower-only | `critical-wiring.spec.ts:108-116` | Real authenticated `/session` WebSocket returns exact `session:mismatch` / `protocol.update-required` for `PROTOCOL_VERSION + 1` and closes |
 | CW-03 | `live-refresh.spec.ts:10-30` — an open clean file adopts an external disk rewrite | `critical-wiring.spec.ts:119-133` | Real fixture filesystem → daemon watcher → session frame → browser editor |
-| CW-04 | `review-publish.spec.ts:44-143` — built CLI review write reaches an already-running Review canvas | `composed-proof.spec.ts` | Legacy migration input is read once and rendered as a daemon-root Review Canvas with Evidence in both Environment-targeted browser flows; CLI and Canvas contract tests own file shape |
+| CW-04 | Review publish reaches an already-running Review Canvas | `apps/daemon/src/net/mcp/mcp-handlers.test.ts` (the `porcelain_review` tool) and `apps/daemon/src/features/projects/canvas-write.test.ts` (the bundle the daemon writes). The agent CLI this row once drove is gone; the write is a daemon operation now |
 | CW-05 | `terminal.spec.ts:6-24` plus the reconnect/scrollback contract from `terminal` lower tests | `critical-wiring.spec.ts:174-201` | Real PTY create, >64 KiB output, browser session detach, daemon-owned session retention, roster hydration, attach, and tail replay |
 
 The four critical tests above remain the wiring lane. The composed proof is the cross-feature

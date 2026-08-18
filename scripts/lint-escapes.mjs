@@ -5,7 +5,7 @@
  * floating-promise disposition that still accepts `void promise`.
  *
  * Scanned ownership roots (tracked TypeScript/JavaScript under each):
- *   apps/web, apps/daemon, apps/desktop, apps/mobile, apps/cli, packages/*, scripts
+ *   apps/web, apps/daemon, apps/desktop, apps/mobile, packages/*, scripts
  *
  * Repo-wide:
  *   - `as unknown as` — change the design or use a structural interface (production
@@ -59,7 +59,6 @@ export const SCAN_ROOTS = [
   'apps/daemon/src',
   'apps/desktop/src',
   'apps/mobile/src',
-  'apps/cli/src',
   'packages/client-runtime/src',
   'packages/contracts/src',
   'packages/shared/src',

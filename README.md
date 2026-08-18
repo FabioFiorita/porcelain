@@ -74,7 +74,7 @@ Porcelain is a monorepo: **daemon** (headless Node), **web** (React client), **d
 
 ```bash
 pnpm install      # install dependencies
-pnpm build        # daemon + cli + web + shell (dev daemon needs a warm build)
+pnpm build        # daemon + web + shell (dev daemon needs a warm build)
 pnpm dev:daemon   # headless on :43118 (browser: http://127.0.0.1:43118/)
 pnpm dev          # Electron shell against the same architecture
 ```

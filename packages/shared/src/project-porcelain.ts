@@ -38,12 +38,12 @@ export function projectActiveReviewDir(repoPath: string): string {
 }
 
 /**
- * The two literals `project-manifest.json` carries. Project Data is the only
- * writer; the CLI reads them to refuse a write into a companion root some newer
- * Porcelain laid out differently, rather than silently converting it.
+ * The layout literal `project-manifest.json` carries. The daemon's Project Data
+ * adapter is the only writer, and stamps the document version itself — the
+ * companion format constant that sat beside this one existed so a second writer
+ * could agree with it, and went with that writer.
  */
 export const PROJECT_COMPANION_LAYOUT = 'project-companion-v1' as const
-export const PROJECT_COMPANION_FORMAT_VERSION = 1 as const
 
 /**
  * Whether a channel is shared with the team through git or kept on this machine.

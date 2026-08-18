@@ -10,16 +10,16 @@ Porcelain's UI is a client of a daemon. Normally that daemon lives on the machin
 of you. This skill sets up a daemon on a **different** machine — a home server, a cloud box, a
 mini-PC — so any device (Mac app, browser, iPhone, iPad) can reach it.
 
-## Two CLIs — do not confuse them
+## The host CLI and the agent endpoint — do not confuse them
 
-Porcelain ships **two separate command-line tools**. Mixing them up is the most common setup
+Porcelain has **one CLI and one agent endpoint**. Mixing them up is the most common setup
 mistake.
 
-| | `porcelain-daemon` | `~/.porcelain/porcelain` |
+| | `porcelain-daemon` | `POST /mcp` |
 |---|---|---|
-| What | The **host CLI** — installs, starts, and administers the daemon itself | The **companion CLI** — an agent talks to a *running* daemon's Project data (Review Canvas, Tasks, Actions, scope) |
-| Runs on | The remote host, once, to bring the daemon up | Any machine with a repo, once the daemon is already running |
-| Installed via | `npx porcelain-daemon@latest` (npm package) | Auto-installed by the daemon/app on launch — never `npm install` it yourself |
+| What | The **host CLI** — installs, starts, and administers the daemon itself | The **agent endpoint** — an agent talks to a *running* daemon's Project data (Review Canvas, Tasks, Actions, scope) |
+| Runs on | The remote host, once, to bring the daemon up | Any machine with an agent, once the daemon is already running |
+| Reached via | `npx porcelain-daemon@latest` (npm package) | The Porcelain plugin — `npx plugins add FabioFiorita/porcelain` |
 | Covered by | **This skill** | The `porcelain-companion` skill |
 
 If the human wants the Review Canvas (Intent/Process/Execution/Evidence), Tasks, Actions, or scope — that's `porcelain-companion`,

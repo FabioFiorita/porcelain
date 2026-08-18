@@ -83,14 +83,14 @@ run, dispose, see teardown, confirm a failing dispose does not delete.
 
 ## Slice 4 — Worktree profile
 
-**Done when:** `porcelain worktree profile get|set` reads and writes pins, hides, and layer
-order for *this* worktree. The file tree and the Changes list honour it. A worktree with no
+**Done when:** the agent can read and write pins, hides, and layer order for *this* worktree —
+a `porcelain_profile` MCP tool, not a CLI verb (`apps/cli` is gone; see Track B). The file tree and the Changes list honour it. A worktree with no
 profile is a plain tree. The full tree stays reachable. Profiles are personal, die with the
 worktree, and are never written by Porcelain on its own (`docs/surfaces/worktree-profile.md`,
 ADR 0003, ADR 0006). Layer grouping stays in `apps/daemon/src/review/flow.ts`.
 
-**Where:** CLI under `apps/cli`. Store on the daemon-root project record, not in tracked
-`project.json`. Web tree: `apps/web/src/features/files/`. Changes grouping: extend
+**Where:** a new tool in `apps/daemon/src/net/mcp/`, over a projects operation. Store on the
+daemon-root project record, not in tracked `project.json`. Web tree: `apps/web/src/features/files/`. Changes grouping: extend
 `groupByLayer` in `flow.ts`.
 
 **Proof:** set a profile on one worktree of a two-worktree playground; the other worktree is
@@ -121,13 +121,16 @@ writer is the point.
    an agent-authored Action listed `trusted: false` beside the seeded human ones. Refusals
    confirmed live: 401 no token, 403 bad Origin, 405 GET, 400 stale version, 404 unknown
    method, 202 notification.
-5. Delete `apps/cli`, `cli-install.ts` (daemon + shell), `lint:cli`, and the AUD-08/11/12
-   rows. Ratchet in the same commit: nothing writes `$PORCELAIN_HOME` outside the daemon's
-   Project Data adapter.
+5. **Done 2026-08-18.** `apps/cli` deleted with `cli-install.ts` (daemon + shell), `lint:cli`,
+   `pnpm porcelain`, the `build:cli` target, and the AUD-08/11/12 rows rewritten onto the MCP
+   owners. Ratchet landed in the same commit: `pnpm lint:one-writer` refuses any file outside
+   `apps/daemon/src/` that resolves a Porcelain-home path and writes. `scripts/daemon-cli.js`
+   is allowlisted with its reason — minting the admin token for a host with no daemon yet is
+   credential bootstrap, not Project Data.
 
-**Conflicts to settle when they land.** Slice 4 writes `porcelain worktree profile get|set`
-under `apps/cli` — build it as an MCP tool instead, or accept it dies in step 5. Step 5 also
-wants the "use it for a week" gate below to have happened first.
+**Settled.** Slice 4 is now written as an MCP tool; there is no `apps/cli` to put a verb in.
+The "use it for a week" gate below has NOT happened — step 5 landed on the strength of the
+step-4 dogfood instead, which is a smaller claim. Say so if that bothers you.
 
 Open design questions, all owned by step 3:
 

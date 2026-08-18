@@ -22,11 +22,7 @@ const DESKTOP_ROOTS = ['apps/desktop/src/main', 'apps/desktop/src/preload']
 
 const FEATURE_PREFIXES = ['@renderer/', '@/features/', '@backend/features/']
 
-const BLESSED_BACKEND = new Set([
-  '@backend/net/admin-token',
-  '@backend/cli-install',
-  '@backend/fs/external-url',
-])
+const BLESSED_BACKEND = new Set(['@backend/net/admin-token', '@backend/fs/external-url'])
 
 function walk(directory, output = []) {
   if (!existsSync(directory) || !statSync(directory).isDirectory()) return output

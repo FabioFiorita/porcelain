@@ -40,7 +40,6 @@ const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 
 export const SCAN_ROOTS = [
   'apps/daemon/src',
-  'apps/cli/src',
   'apps/web/src',
   'apps/desktop/src',
   'apps/mobile/src',

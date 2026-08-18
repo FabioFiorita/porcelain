@@ -4,7 +4,6 @@ import {
   ALWAYS_IGNORED,
   COMPANION_CHANNELS,
   DEFAULT_PROJECT_GITIGNORE,
-  PROJECT_COMPANION_FORMAT_VERSION,
   PROJECT_COMPANION_LAYOUT,
   PROJECT_FILES,
   PROJECT_PORCELAIN_DIR,
@@ -20,7 +19,6 @@ import {
 describe('companion root marker', () => {
   it('is exactly version 1 of the project-companion-v1 layout', () => {
     expect(PROJECT_COMPANION_LAYOUT).toBe('project-companion-v1')
-    expect(PROJECT_COMPANION_FORMAT_VERSION).toBe(1)
   })
 })
 

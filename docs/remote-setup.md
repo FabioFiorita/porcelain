@@ -7,15 +7,17 @@ server, a mini-PC, a cloud box — so your Mac app, browser, and phone can all p
 If you only want the everyday workflow (Review Canvas, Tasks, and Actions), you don't need this page — see
 [product.md](product.md). This is for the one-time setup of the daemon itself.
 
-## Two command-line tools
+## The host CLI and the agent endpoint
 
-Porcelain ships two separate CLIs. They do different jobs and neither substitutes for the other.
+Porcelain ships one CLI and one agent endpoint. They do different jobs and neither substitutes for
+the other.
 
 - **`porcelain-daemon`** — the host CLI. Installs, starts, and administers the daemon: `serve`,
   `access issue/list/revoke`, `share status`. This is what this page is about.
-- **`~/.porcelain/porcelain`** — the companion CLI an agent uses to read and write daemon-root
-  Review Canvases, Tasks, and Actions once a daemon is already running. Auto-installed on every launch; you never
-  `npm install` it yourself.
+- **`POST /mcp`** — the agent endpoint, reached through the Porcelain plugin
+  (`npx plugins add FabioFiorita/porcelain`), used to read and write daemon-root
+  Review Canvases, Tasks, and Actions once a daemon is already running. The daemon always serves
+  it; installing the plugin is how a human opts an agent in.
 
 ## Install and start
 

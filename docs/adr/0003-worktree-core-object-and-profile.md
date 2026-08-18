@@ -15,7 +15,7 @@ different layers, and a permanent per-repository setting cannot express that.
 user has to remember undoing. A worktree with no profile shows the plain tree in path order; the
 stable worktree normally keeps that default.
 
-**The agent writes the profile; the human overrides it.** The companion skill and CLI are the write
+**The agent writes the profile; the human overrides it.** The companion skill and MCP tools are the write
 path, invoked when a worktree is created or when the work changes shape. This is the same division
 the product uses everywhere: the agent configures and explains, the human runs and decides. It is
 also the only division that scales — a human will not hand-curate pins for eight parallel worktrees,
@@ -28,7 +28,7 @@ Git stays explicit and unchanged.
 
 Two consequences worth stating, because they will be tempting to violate.
 
-**Porcelain ships the mechanism, not the policy.** The product provides CLI verbs and a companion
+**Porcelain ships the mechanism, not the policy.** The product provides MCP tools and a companion
 skill for reading and writing profiles, and nothing more. Whether a profile gets written when a
 worktree is created, and what goes in it, is the user's own instruction to their own agent — wired
 through their `create` hook or their repository's agent instructions. Porcelain never writes a

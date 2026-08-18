@@ -44,19 +44,6 @@ importers:
         specifier: ^6.0.3
         version: 6.0.3
 
-  apps/cli:
-    dependencies:
-      '@porcelain/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
-    devDependencies:
-      '@types/node':
-        specifier: ^24.0.0
-        version: 24.13.3
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
-
   apps/daemon:
     dependencies:
       '@porcelain/contracts':

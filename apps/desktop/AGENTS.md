@@ -3,7 +3,7 @@
 Applies under `apps/desktop/`. Mobile: `apps/mobile/`. Map: `docs/internals/architecture.md`.
 
 **This package is the Electron shell** (main, preload, packaging). Product runtime is `apps/daemon`,
-agent CLI is `apps/cli`, React UI is `apps/web`. Independent builds emit into `out/` for shell spawn
+React UI is `apps/web`. Independent builds emit into `out/` for shell spawn
 and packaging: Vite (web), esbuild (daemon/cli), electron-vite (shell only). See
 `docs/internals/architecture.md`.
 
@@ -15,7 +15,6 @@ and packaging: Vite (web), esbuild (daemon/cli), electron-vite (shell only). See
   `docs/internals/agent-foundations.md` before git/config/fs/URLs/channels changes.
   Types via `@backend/*`.
 - **Shell (`src/main`, `src/preload`):** windows, menu, updater, spawn/bind daemon, shell IPC only.
-- **CLI (`apps/cli`):** agent binary; Node builtins only.
 - **Data flow:** daemon procedures → domain hooks → components. Components never import
   `lib/trpc` or `lib/daemon` (Biome-enforced).
 - **Ports / homes:** root `AGENTS.md` → "Prod vs dev" is canonical. Never mix them.

@@ -86,7 +86,6 @@ const ALLOWED_RELATIVE = new Set([
   'packages/contracts/src/review/review.contract.test.ts',
   'packages/contracts/src/procedure-catalog.test.ts',
   'apps/daemon/src/features/review/review-evidence-router.test.ts',
-  'apps/cli/src/cli.test.ts',
 ])
 
 const hits = []

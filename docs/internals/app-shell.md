@@ -77,7 +77,7 @@
   with `window.open` — the shell navigates, never the frame. The records themselves live in the
   daemon's `$PORCELAIN_HOME` (`apps/daemon/src/features/projects/canvas-store.ts`, ADR 0002), so a
   Canvas outlives the checkout that authored it; agents write them with `porcelain canvas set` /
-  `porcelain canvas list` (`apps/cli/src/canvas-file.ts`).
+  the `porcelain_context` MCP tool (`apps/daemon/src/net/mcp/mcp-handlers.ts`).
 - **Phone is "quick look", not a full workspace** (iPad ≥768 keeps the desktop floating layout).
   Below 768px both sidebars become Sheets. The left navigation sheet auto-closes when the active
   viewer tab changes; force unified diffs (split needs two columns); the browser has no native
@@ -114,9 +114,9 @@
 - **Tree Delete = the `trash` npm package** (recoverable), never a permanent unlink; the one
   destructive tree action, so it confirms via an `AlertDialog`.
 - **Agent channels are watched JSON under `PORCELAIN_HOME`, driven by the dependency-free porcelain
-  CLI.** Read `apps/cli/src/` and the daemon stores it mirrors for the current set — an enumeration here rots.
+  MCP tools.** Read `apps/daemon/src/net/mcp/` and the operations behind it for the current set — an enumeration here rots.
   **Do not re-add a Porcelain MCP server** without reopening the channel design. Channel write-safety
-  rules live with the CLI and Project Data owners; read `docs/internals/agent-foundations.md` before
+  rules live with the MCP and Project Data owners; read `docs/internals/agent-foundations.md` before
   touching any channel file.
 - Flow grouping is built into the daemon; there is no repo-local layer file.
 - **Explore's flow reading is a heuristic, not an index** — relative imports only, so it won't cross

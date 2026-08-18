@@ -4,22 +4,21 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 /**
- * Independent Node builds for the daemon and agent CLI — no electron-vite.
+ * Independent Node build for the daemon — no electron-vite.
  *
- * Writes into the existing runtime layout so shell spawn, ensureCli, and
- * porcelain-daemon packaging keep working:
+ * Writes into the existing runtime layout so shell spawn and porcelain-daemon
+ * packaging keep working:
  *
  *   apps/desktop/out/main/daemon/server.js
  *   apps/desktop/out/main/contracts/protocol.js
- *   apps/desktop/out/main/cli/porcelain.js
  *
- * CLI is a single dependency-free CJS file (Node builtins only). Daemon externalizes
- * the same runtime deps the npm package declares (trpc, ws, node-pty, trash, zod).
+ * Daemon externalizes the same runtime deps the npm package declares (trpc, ws,
+ * node-pty, trash, zod). The agent CLI target is gone: agents reach Porcelain over
+ * MCP now, and the daemon is the only writer of its own home.
  *
  * Usage:
- *   node scripts/build-node.mjs           # both
+ *   node scripts/build-node.mjs           # daemon + protocol
  *   node scripts/build-node.mjs daemon
- *   node scripts/build-node.mjs cli
  */
 import * as esbuild from 'esbuild'
 
@@ -35,13 +34,13 @@ const { positionals, values } = parseArgs({
 })
 
 if (values.help) {
-  console.log(`Usage: node scripts/build-node.mjs [daemon|cli|all]
-Independent esbuild of daemon + agent CLI into apps/desktop/out/main/.`)
+  console.log(`Usage: node scripts/build-node.mjs [daemon|all]
+Independent esbuild of the daemon into apps/desktop/out/main/.`)
   process.exit(0)
 }
 
 const target = positionals[0] ?? 'all'
-if (!['daemon', 'cli', 'all'].includes(target)) {
+if (!['daemon', 'all'].includes(target)) {
   console.error(`[build-node] unknown target: ${target}`)
   process.exit(1)
 }
@@ -129,22 +128,5 @@ async function buildProtocol() {
   console.log(`[build-node] protocol → ${outfile}`)
 }
 
-async function buildCli() {
-  const outfile = join(outMain, 'cli', 'porcelain.js')
-  mkdirSync(dirname(outfile), { recursive: true })
-  // Fully bundled: agents run plain `node porcelain.js` with zero install.
-  // ensureCli treats a missing sibling chunks/ as single-file (do not wipe
-  // out/main/chunks — the Electron shell main entry may still use that dir).
-  await esbuild.build({
-    ...common,
-    entryPoints: [join(root, 'apps', 'cli', 'src', 'porcelain.ts')],
-    outfile,
-    // Node builtins only; do not externalize workspace packages.
-    packages: 'bundle',
-  })
-  console.log(`[build-node] cli → ${outfile}`)
-}
-
 if (target === 'daemon' || target === 'all') await buildDaemon()
 if (target === 'daemon' || target === 'all') await buildProtocol()
-if (target === 'cli' || target === 'all') await buildCli()
