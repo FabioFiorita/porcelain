@@ -202,7 +202,7 @@ export function createScopeStore(options: ScopeStoreOptions): ScopeStore {
    *
    * Inheritance is the default, so a human gesture means "everywhere" — which is
    * also what it meant before profiles existed. Task-shaped, worktree-only focus
-   * is what the agent writes through `porcelain worktree profile set`.
+   * is what an agent writes through the profile operation.
    *
    * Hiding also clears this worktree's `unhiddenPaths` entry for the same path.
    * Without that, a worktree whose agent had opted the path back IN would take
@@ -220,9 +220,8 @@ export function createScopeStore(options: ScopeStoreOptions): ScopeStore {
   /**
    * Remove from BOTH levels.
    *
-   * The escape hatch has to work in one gesture wherever the entry came from
-   * (`docs/surfaces/worktree-profile.md`) — a user who cannot get a file back
-   * cannot review it. Removing from the baseline does affect sibling worktrees,
+   * The escape hatch has to work in one gesture wherever the entry came from —
+   * a user who cannot get a file back cannot review it. Removing from the baseline does affect sibling worktrees,
    * and that is the honest reading of "shared by default": hide and unhide are
    * symmetric, and per-worktree divergence is the agent's job to express.
    */

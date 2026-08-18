@@ -16,10 +16,9 @@ import { toast } from 'sonner'
  * Settings → Personalization: the worktree profile, READ-ONLY.
  *
  * Read-only is the feature, not a gap. Pins and hides are edited from the tree,
- * where the escape hatch has to live (`docs/surfaces/worktree-profile.md`: every
- * hidden path stays one deliberate gesture away, discoverable from the tree
- * rather than from settings). Layer order is written by the agent through the
- * CLI, so the copyable prompts below ARE the affordance — a form here would just
+ * where every hidden path stays one deliberate gesture away, discoverable from
+ * the tree rather than from settings. Layer order is written by the agent, so
+ * the copyable prompts below ARE the affordance — a form here would just
  * be the hand-curation nobody did.
  *
  * The two levels are shown apart on purpose. A single merged list cannot say
