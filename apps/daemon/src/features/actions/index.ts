@@ -3,6 +3,7 @@
  */
 
 export {
+  type ActionAuthor,
   type ActionsOperations,
   createActionsOperations,
 } from './actions-operations'

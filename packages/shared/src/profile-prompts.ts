@@ -2,7 +2,7 @@
  * The two prompts Settings → Personalization offers to copy.
  *
  * They are TEXT, never a button that runs. Porcelain never writes a profile on
- * its own initiative (ADR 0003) and does not host agents (`docs/product.md`), so
+ * its own initiative and does not host agents, so
  * the product surface for "set my profile up" is a paragraph you hand to the
  * agent you already have. That is also what keeps the result honest: your agent
  * proposes, you read it, and the layers stay declarative rather than a guess

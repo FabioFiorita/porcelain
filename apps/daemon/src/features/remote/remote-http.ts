@@ -15,6 +15,7 @@ import {
 import { createRequestId } from '../../daemon-composition/request-id'
 import type { AuthIdentity } from './access-store'
 import { handleDevAuthRequest } from './dev-auth-http'
+import { serveMcpRoute } from './remote-mcp-route'
 import { parseAllowedOrigins } from './remote-origins'
 import { rejectProtocolMismatch } from './remote-protocol'
 
@@ -41,6 +42,9 @@ export { parseAllowedOrigins } from './remote-origins'
  * capability token (minted only to an already-Bearer-authenticated tRPC caller
  * — canvas-access-tokens.ts) is the credential there; see canvas-http.ts for
  * why the route exists at all.
+ *
+ * POST /mcp is the agent tool surface: Bearer-gated through the same `authenticate`,
+ * plus an Origin check a loopback bind does not give us — see remote-mcp-route.ts.
  *
  * GET /dev-auth is the one deliberate hole, mounted ONLY when the caller passes
  * `devAutoAuth` (server.ts does so only under PORCELAIN_DEV) — see dev-auth-http.ts for
@@ -75,6 +79,8 @@ export interface RemoteHttpOptions {
   serveCanvas: (req: IncomingMessage, res: ServerResponse) => Promise<void>
   /** DEVELOPMENT ONLY — see dev-auth-http.ts. Omitted in production; the route then does not exist. */
   devAutoAuth?: () => Promise<string>
+  /** Serves POST /mcp once gated. Omitted means the route does not exist. */
+  serveMcp?: (req: IncomingMessage, res: ServerResponse) => Promise<void>
 }
 
 export interface RemoteHttp {
@@ -301,6 +307,19 @@ export function createRemoteHttp(opts: RemoteHttpOptions): RemoteHttp {
         return
       }
       await serveCanvas(req, res)
+      return
+    }
+    if (url === '/mcp' || url.startsWith('/mcp?')) {
+      // Gates and rationale: remote-mcp-route.ts. An unexpected throw falls to the
+      // listener's catch below — /mcp has no Porcelain public-error shape to map onto.
+      await serveMcpRoute({
+        req,
+        res,
+        cors,
+        authenticate: () => authenticate(bearerToken(req)),
+        allowedOrigins,
+        serveMcp: opts.serveMcp,
+      })
       return
     }
     if (!url.startsWith('/trpc')) {

@@ -25,6 +25,7 @@ export type ReviewCommentChangeResult =
 export type ReviewCommentChange =
   | { kind: 'add'; file: CommentsFileV1; comment: CommentsFileComment }
   | { kind: 'edit'; file: CommentsFileV1; comment: CommentsFileComment }
+  | { kind: 'answer'; file: CommentsFileV1; comment: CommentsFileComment }
   | { kind: 'delete'; file: CommentsFileV1; commentId: string }
   | { kind: 'resolve'; file: CommentsFileV1; comment: CommentsFileComment }
   | { kind: 'clear'; file: CommentsFileV1; removedIds: string[] }

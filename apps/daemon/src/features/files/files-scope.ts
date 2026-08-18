@@ -16,6 +16,8 @@ export function createFilesScope(options?: ScopeStoreOptions): FilesScope {
         override: null,
         resolved: { hiddenPaths: [], pinnedPaths: [], layers: [] },
       }),
+      setProjectProfile: async () => undefined,
+      setWorktreeProfile: async () => undefined,
       unhidePath: async () => undefined,
       unpinPath: async () => undefined,
     })
@@ -26,6 +28,8 @@ export function createFilesScope(options?: ScopeStoreOptions): FilesScope {
     pinPath: scope.pinPath,
     read: scope.readRepoScope,
     readProfile: scope.profileViewForRepo,
+    setProjectProfile: scope.setProjectProfile,
+    setWorktreeProfile: scope.setWorktreeProfile,
     unhidePath: scope.unhidePath,
     unpinPath: scope.unpinPath,
   })

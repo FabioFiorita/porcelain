@@ -11,11 +11,17 @@ const outRenderer = resolve(desktop, 'out/renderer')
 const { version } = JSON.parse(readFileSync(resolve(desktop, 'package.json'), 'utf8')) as {
   version: string
 }
+const { version: pluginVersion } = JSON.parse(
+  readFileSync(resolve(root, '../../plugins/porcelain/plugin.json'), 'utf8'),
+) as { version: string }
 
 export default defineConfig({
   root,
   base: './', // file:// (Electron loadFile); not Vite's default '/'
-  define: { __PORCELAIN_VERSION__: JSON.stringify(version) },
+  define: {
+    __PORCELAIN_VERSION__: JSON.stringify(version),
+    __PORCELAIN_PLUGIN_VERSION__: JSON.stringify(pluginVersion),
+  },
   publicDir: resolve(root, 'public'),
   // `libghostty-vt` and its PTY callback shim are immutable build artifacts.
   // Keep them as URL-addressed assets instead of inlining 600+ KB into the

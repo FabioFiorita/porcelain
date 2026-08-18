@@ -1,7 +1,6 @@
 import { createHash } from 'node:crypto'
 import { porcelainHome, porcelainHomePath } from '@shared/porcelain-home'
 import { createDaemonOperations, createDaemonRouter } from './api'
-import { ensureCli } from './cli-install'
 import { devRepoPath, recognizedDevPlaygroundPath, seedDevConfig } from './dev-config'
 import { createGitSubprocess } from './features/git'
 import {
@@ -40,6 +39,8 @@ import { isLinkedWorktree } from './git/linked-worktree'
 import { ensureAdminToken } from './net/admin-token'
 import { handleCanvasRequest } from './net/canvas-http'
 import { daemonIdentity } from './net/daemon-identity'
+import { daemonVersion } from './net/daemon-version'
+import { createMcpToolHandlers, handleMcpRequest } from './net/mcp'
 import { rendererDistExists, serveStatic } from './net/static-server'
 import { createSession, publishSessionChange } from './session/live-session'
 
@@ -183,6 +184,12 @@ async function main(): Promise<void> {
     homeDir: porcelainHomeDir,
   })
   const router = createDaemonRouter({ operations })
+  // One handler set for the process; the MCP route is stateless, so nothing here is
+  // per-connection.
+  const mcpToolHandlers = createMcpToolHandlers({
+    operations,
+    canvasBundleDir: canvasStores.store.bundleDirFor,
+  })
   daemon = createRemoteHttp({
     adminTokenHash: tokenHash,
     authenticateClient: authenticateClientToken,
@@ -197,6 +204,14 @@ async function main(): Promise<void> {
       handleCanvasRequest(req, res, {
         resolveAccessToken: canvasAccessTokens.resolve,
         readCanvas: projects.readCanvas,
+      }),
+    // The agent tool surface. Opt-in for the human — installing the plugin is what
+    // turns it on for an agent — but always mounted, because the daemon cannot know
+    // which agents the human has pointed at it.
+    serveMcp: (req, res) =>
+      handleMcpRequest(req, res, {
+        handlers: mcpToolHandlers,
+        serverInfo: { name: 'porcelain', version: daemonVersion() },
       }),
     // A dev daemon hands its browser a real client token instead of demanding a pairing
     // link every context — the same provisioning the e2e harness already does, and the
@@ -228,19 +243,6 @@ async function main(): Promise<void> {
   // gated on dev (the shell sets PORCELAIN_DEV from `is.dev`) and a no-op once
   // any recent exists.
   if (process.env.PORCELAIN_DEV === '1') await seedDevConfig()
-
-  // Refresh the bundled CLI agents run (`~/.porcelain/porcelain <noun> <verb>`).
-  // Same contract as the Mac shell boot path (`src/main/index.ts`): every daemon
-  // start re-copies the bundle + wrapper from this package, so a daemon upgrade
-  // (npx porcelain-daemon@latest on Linux, or a Mac app update) ships new commands
-  // automatically — agents run a binary, so there's nothing to re-register.
-  // Best-effort: a missing build artifact or home-dir write failure must never block
-  // the listener (agents keep whatever copy they already had).
-  try {
-    await ensureCli()
-  } catch (error) {
-    console.error('[daemon] CLI refresh failed:', error)
-  }
 
   // Port 0 = OS-assigned (the default); PORCELAIN_DAEMON_PORT pins it (e2e/debugging).
   const requestedPort = Number(process.env.PORCELAIN_DAEMON_PORT ?? '') || 0

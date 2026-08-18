@@ -1,6 +1,6 @@
-import { type ChildProcess, execFileSync, spawn } from 'node:child_process'
+import { type ChildProcess, spawn } from 'node:child_process'
 import { createHash, randomBytes } from 'node:crypto'
-import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
@@ -18,7 +18,6 @@ import { TestIds } from './test-ids'
 
 const MAIN_ENTRY = join(__dirname, '..', '..', 'out', 'main', 'index.js')
 const DAEMON_ENTRY = join(__dirname, '..', '..', 'out', 'main', 'daemon', 'server.js')
-const CLI_ENTRY = join(__dirname, '..', '..', 'out', 'main', 'cli', 'porcelain.js')
 const DAEMON_CLI = join(__dirname, '..', '..', '..', '..', 'scripts', 'daemon-cli.js')
 
 // Seed one browser client identity directly in the isolated access store, then
@@ -55,19 +54,6 @@ function launchEnv(extra: Record<string, string>): Record<string, string> {
   return { ...env, ...extra }
 }
 
-/** The on-disk review-set shape `porcelain review set` writes (see src/cli/review-file.ts). */
-interface SeedReviewSet {
-  name: string
-  thesis?: string
-  files: { path: string; source?: string; note?: string; layer?: string }[]
-  sections?: {
-    title: string
-    prose: string
-    diagram?: string
-    anchors?: { path: string; startLine?: number; endLine?: number }[]
-  }[]
-}
-
 /** Which runtime hosts the suite: the built Electron app, or headless Chromium on the daemon-served browser client. Picked per Playwright project. */
 export type AppMode = 'electron' | 'browser'
 
@@ -81,7 +67,6 @@ interface Options {
    * Seed a daemon-root Review Canvas through the shipped CLI (default null → the Canvas empty
    * state). Written as an agent would publish it.
    */
-  seedReviewSet: SeedReviewSet | null
   /**
    * Present the renderer with a multi-touch screen (default false → a desktop
    * pointer, which is what both runtimes really are). Set it for the surfaces
@@ -136,11 +121,7 @@ interface WorkerFixtures {
  * Write isolated userData (daemon token/access) + project companion files under
  * the fixture repo's `.porcelain/`. Machine home stays empty of companion channels.
  */
-export async function seedIsolatedState(
-  repoDir: string,
-  seedRepo: boolean,
-  seedReviewSet: SeedReviewSet | null,
-): Promise<Seeded> {
+export async function seedIsolatedState(repoDir: string, seedRepo: boolean): Promise<Seeded> {
   const udBase = await mkdtemp(join(tmpdir(), 'porcelain-e2e-ud-'))
   const userData = `${udBase}-dev`
   await mkdir(userData, { recursive: true })
@@ -155,71 +136,6 @@ export async function seedIsolatedState(
       2,
     ),
   )
-  // Review is authored through the shipped CLI, exactly like an agent does. The
-  // fixture supplies the daemon's already-minted inventory so the CLI can resolve
-  // the stable Project identity before the daemon starts.
-  if (seedRepo) {
-    if (seedReviewSet) {
-      const commonGitDir = await realpath(
-        join(
-          repoDir,
-          execFileSync('git', ['rev-parse', '--git-common-dir'], {
-            cwd: repoDir,
-            encoding: 'utf8',
-          }).trim(),
-        ),
-      )
-      await writeFile(
-        join(udBase, 'hub-inventory.json'),
-        JSON.stringify({
-          version: 1,
-          value: {
-            projects: [
-              {
-                id: 'e2e-project',
-                commonGitDir,
-                groupingKey: 'name:porcelain-e2e-fixture',
-                name: 'porcelain-e2e-fixture',
-                worktrees: [{ id: 'e2e-worktree', gitDir: commonGitDir }],
-              },
-            ],
-          },
-        }),
-      )
-      const args = [
-        CLI_ENTRY,
-        'review',
-        'set',
-        '--repo',
-        repoDir,
-        '--name',
-        seedReviewSet.name,
-        '--files',
-        JSON.stringify(seedReviewSet.files),
-      ]
-      if (seedReviewSet.thesis !== undefined) {
-        args.push('--thesis', seedReviewSet.thesis)
-      }
-      if (seedReviewSet.sections !== undefined) {
-        args.push('--sections', JSON.stringify(seedReviewSet.sections))
-      }
-      await new Promise<void>((resolve, reject) => {
-        const child = spawn(process.execPath, args, {
-          cwd: repoDir,
-          env: { ...process.env, PORCELAIN_HOME: udBase },
-          stdio: ['ignore', 'pipe', 'pipe'],
-        })
-        let stderr = ''
-        child.stderr?.on('data', (chunk: Buffer) => {
-          stderr += chunk.toString()
-        })
-        child.on('error', reject)
-        child.on('exit', (code) =>
-          code === 0 ? resolve() : reject(new Error(`review seed CLI exited ${code}: ${stderr}`)),
-        )
-      })
-    }
-  }
   const adminTokenFile = join(udBase, 'admin-token')
   await writeFile(adminTokenFile, ADMIN_TOKEN, { mode: 0o600 })
   const accessFile = join(udBase, 'access.json')
@@ -314,7 +230,6 @@ export async function spawnDaemon(
 
 export const test = baseTest.extend<Options & Fixtures, WorkerOptions & WorkerFixtures>({
   seedRepo: [true, { option: true }],
-  seedReviewSet: [null, { option: true }],
   touchDevice: [false, { option: true }],
   plantToken: [true, { option: true }],
   // Worker-scoped so the shared Chromium can key off it; set per Playwright project.
@@ -347,8 +262,8 @@ export const test = baseTest.extend<Options & Fixtures, WorkerOptions & WorkerFi
     { scope: 'worker' },
   ],
 
-  seeded: async ({ repoDir, seedRepo, seedReviewSet }, use) => {
-    const seeded = await seedIsolatedState(repoDir, seedRepo, seedReviewSet)
+  seeded: async ({ repoDir, seedRepo }, use) => {
+    const seeded = await seedIsolatedState(repoDir, seedRepo)
     await use(seeded)
     await rm(seeded.udBase, { recursive: true, force: true })
     await rm(seeded.userData, { recursive: true, force: true })

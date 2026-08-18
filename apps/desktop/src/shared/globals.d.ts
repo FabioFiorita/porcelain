@@ -3,3 +3,8 @@
 // bundle and CLI so the current build can report its own version. Declared here so
 // both tsconfigs (node + web) include it; pure helpers live in packages/shared.
 declare const __PORCELAIN_VERSION__: string
+
+// `__PORCELAIN_PLUGIN_VERSION__` comes from `plugins/porcelain/plugin.json`, not the
+// product version — the shipped plugin is versioned independently so a release that
+// changes nothing an agent reads does not claim a new plugin.
+declare const __PORCELAIN_PLUGIN_VERSION__: string

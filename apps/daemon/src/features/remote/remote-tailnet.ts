@@ -6,7 +6,7 @@ import { networkInterfaces } from 'node:os'
  * Tailscale hands every node a stable address inside the CGNAT range
  * 100.64.0.0/10 (RFC 6598) — first octet 100, second octet 64–127. That's the
  * only interface the daemon is ever allowed to bind besides loopback (see the
- * docs/remote-setup.md): a public 0.0.0.0 bind would expose the token-gated shell channel
+ * docs/remote-access.md): a public 0.0.0.0 bind would expose the token-gated shell channel
  * to the whole LAN, whereas the tailnet is an authenticated, encrypted overlay.
  * We match the range rather than the `utun`/`tailscale0` interface name so it
  * works regardless of what the OS calls the interface. `interfaces` is injectable

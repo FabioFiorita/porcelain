@@ -104,6 +104,18 @@ const projectsOperations = {
     ok: false,
     error: { code: 'projects.not-found' },
   })),
+  findCanvasByTemplate: vi.fn<ProjectsOperations['findCanvasByTemplate']>(async () => ({
+    ok: true,
+    value: null,
+  })),
+  forgetCanvas: vi.fn<ProjectsOperations['forgetCanvas']>(async () => ({
+    ok: true,
+    value: undefined,
+  })),
+  writeCanvas: vi.fn<ProjectsOperations['writeCanvas']>(async () => ({
+    ok: false,
+    error: { code: 'canvas.not-found' },
+  })),
   listCanvases: vi.fn<ProjectsOperations['listCanvases']>(async () => ({
     ok: true,
     value: [],
@@ -184,6 +196,7 @@ type TestDaemonOverrides = Partial<
     | 'serveCanvas'
     | 'allowedOrigin'
     | 'devAutoAuth'
+    | 'serveMcp'
   >
 >
 
@@ -197,6 +210,7 @@ function testDaemonOptions({
     res.end()
   },
   devAutoAuth,
+  serveMcp,
 }: TestDaemonOverrides = {}): RemoteHttpOptions {
   return {
     adminTokenHash: createHash('sha256').update(TOKEN).digest(),
@@ -211,6 +225,7 @@ function testDaemonOptions({
     },
     serveCanvas,
     devAutoAuth,
+    serveMcp,
   }
 }
 
@@ -1046,5 +1061,131 @@ describe('daemon ws surface — the /session upgrade gate + dispatch', () => {
     ws.send(JSON.stringify({ t: 'terminal:create', reqId: 'r3', name: 't', cwd: '/tmp' }))
     expect(await reply).toEqual({ t: 'terminal:created', reqId: 'r3', id: 'term-1' })
     ws.close()
+  })
+})
+
+/**
+ * The MCP endpoint is a second dispatching route on the same listener, so the gates
+ * that make /trpc safe have to be shown holding here too — with one addition the
+ * retired agent CLI never needed: a web page can POST to a loopback port, so an
+ * untrusted `Origin` is refused before the request reaches any tool.
+ */
+describe('POST /mcp', () => {
+  const body = JSON.stringify({
+    jsonrpc: '2.0',
+    id: 1,
+    method: 'tools/list',
+    params: {
+      _meta: {
+        'io.modelcontextprotocol/protocolVersion': '2026-07-28',
+        'io.modelcontextprotocol/clientCapabilities': {},
+      },
+    },
+  })
+  const mcpHeaders: Record<string, string> = {
+    'content-type': 'application/json',
+    'mcp-protocol-version': '2026-07-28',
+    'mcp-method': 'tools/list',
+  }
+
+  async function withMcpDaemon(
+    run: (base: string, served: { calls: number }) => Promise<void>,
+    overrides: TestDaemonOverrides = {},
+  ): Promise<void> {
+    const served = { calls: 0 }
+    const started = await startTestDaemon({
+      serveMcp: async (_req, res) => {
+        served.calls += 1
+        res.writeHead(200, { 'content-type': 'application/json' })
+        res.end('{"ok":true}')
+      },
+      ...overrides,
+    })
+    try {
+      await run(started.base, served)
+    } finally {
+      await stopTestDaemon(started.daemon)
+    }
+  }
+
+  it('serves an authenticated request', async () => {
+    await withMcpDaemon(async (base, served) => {
+      const response = await fetch(`${base}/mcp`, {
+        method: 'POST',
+        headers: { ...mcpHeaders, authorization: `Bearer ${TOKEN}` },
+        body,
+      })
+      expect(response.status).toBe(200)
+      expect(served.calls).toBe(1)
+    })
+  })
+
+  it('refuses an unauthenticated request before dispatching', async () => {
+    await withMcpDaemon(async (base, served) => {
+      const response = await fetch(`${base}/mcp`, {
+        method: 'POST',
+        headers: mcpHeaders,
+        body,
+      })
+      await expectPublicHttpFailure(response, 401, 'auth.unauthenticated')
+      expect(served.calls).toBe(0)
+    })
+  })
+
+  it('refuses an untrusted Origin with a JSON-RPC error and never dispatches', async () => {
+    await withMcpDaemon(async (base, served) => {
+      const response = await fetch(`${base}/mcp`, {
+        method: 'POST',
+        headers: {
+          ...mcpHeaders,
+          authorization: `Bearer ${TOKEN}`,
+          origin: 'https://evil.example',
+        },
+        body,
+      })
+      expect(response.status).toBe(403)
+      const parsed = (await response.json()) as { jsonrpc: string; error: { code: number } }
+      expect(parsed.jsonrpc).toBe('2.0')
+      expect(parsed.error.code).toBe(-32600)
+      expect(served.calls).toBe(0)
+    })
+  })
+
+  it('allows the trusted browser Hub origin', async () => {
+    await withMcpDaemon(async (base, served) => {
+      const response = await fetch(`${base}/mcp`, {
+        method: 'POST',
+        headers: { ...mcpHeaders, authorization: `Bearer ${TOKEN}`, origin: ORIGIN },
+        body,
+      })
+      expect(response.status).toBe(200)
+      expect(served.calls).toBe(1)
+    })
+  })
+
+  it('does not require the Porcelain protocol header an MCP client cannot know', async () => {
+    await withMcpDaemon(async (base, served) => {
+      const response = await fetch(`${base}/mcp`, {
+        method: 'POST',
+        headers: { ...mcpHeaders, authorization: `Bearer ${TOKEN}` },
+        body,
+      })
+      expect(response.status).toBe(200)
+      expect(served.calls).toBe(1)
+    })
+  })
+
+  it('is absent when the daemon does not wire it', async () => {
+    const started = await startTestDaemon()
+    try {
+      const response = await fetch(`${started.base}/mcp`, {
+        method: 'POST',
+        headers: { ...mcpHeaders, authorization: `Bearer ${TOKEN}` },
+        body,
+      })
+      expect(response.status).toBe(404)
+    } finally {
+      await stopTestDaemon(started.daemon)
+    }
   })
 })

@@ -64,7 +64,8 @@ describe('hydratePreferences', () => {
       sidebarWidth: 360,
       notesHeight: 300,
       splitRatio: 0.35,
-      skillsDismissedVersion: '0.51.0',
+      // `skillsDismissedVersion` was the skills-upgrade nag; the plugin marketplace owns
+      // updates now, so a blob still carrying it must not resurrect the field.
     })
   })
 

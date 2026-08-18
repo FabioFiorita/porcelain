@@ -15,7 +15,7 @@ evidence, not permanent architecture.
 - `apps/web`: React client used in browsers and loaded by Electron.
 - `apps/desktop`: thin Electron shell and local-daemon lifecycle.
 - `apps/mobile`: Expo/React Native client of the daemon.
-- `apps/cli`: current agent and host command-line surfaces.
+- `plugins/porcelain`: shipped MCP connection and companion/remote procedures.
 - `packages/contracts`: shared wire contracts.
 - `packages/client-runtime`, `packages/shared`, `packages/ui`: reusable client and UI code.
 

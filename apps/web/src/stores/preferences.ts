@@ -80,7 +80,6 @@ const persistedPreferencesSchema = z.object({
   notesHeight: persistedField(z.number().transform(clampNotesHeight)),
   terminalHeight: persistedField(z.number().transform(clampTerminalHeight)),
   splitRatio: persistedField(z.number().transform(clampSplitRatio)),
-  skillsDismissedVersion: persistedField(z.string().nullable()),
 })
 
 /** The persisted fields with their optionality removed — `null` stays where it is real. */
@@ -118,9 +117,6 @@ export function hydratePreferences(persisted: unknown): Partial<PreferenceValues
   if (blob.notesHeight !== undefined) hydrated.notesHeight = blob.notesHeight
   if (blob.terminalHeight !== undefined) hydrated.terminalHeight = blob.terminalHeight
   if (blob.splitRatio !== undefined) hydrated.splitRatio = blob.splitRatio
-  if (blob.skillsDismissedVersion !== undefined) {
-    hydrated.skillsDismissedVersion = blob.skillsDismissedVersion
-  }
   return hydrated
 }
 
@@ -145,8 +141,6 @@ interface PreferencesState {
   terminalHeight: number
   /** Fraction of the viewer width given to the left pane when split (0.2–0.8). */
   splitRatio: number
-  /** Bundled skills version the user last dismissed the upgrade toast for. */
-  skillsDismissedVersion: string | null
   setChangesScope: (scope: ChangesScope) => void
   setDiffMode: (mode: DiffMode) => void
   setMarkdownMode: (mode: MarkdownMode) => void
@@ -160,7 +154,6 @@ interface PreferencesState {
   setNotesHeight: (height: number) => void
   setTerminalHeight: (height: number) => void
   setSplitRatio: (ratio: number) => void
-  setSkillsDismissedVersion: (version: string | null) => void
   setTheme: (theme: ThemeMode) => void
 }
 
@@ -181,7 +174,6 @@ export const usePreferencesStore = create<PreferencesState>()(
       notesHeight: 220,
       terminalHeight: TERMINAL_DEFAULT_HEIGHT,
       splitRatio: 0.5,
-      skillsDismissedVersion: null,
       setChangesScope: (changesScope: ChangesScope) => set({ changesScope }),
       setDiffMode: (diffMode: DiffMode) => set({ diffMode }),
       setMarkdownMode: (markdownMode: MarkdownMode) => set({ markdownMode }),
@@ -198,8 +190,6 @@ export const usePreferencesStore = create<PreferencesState>()(
       setNotesHeight: (height: number) => set({ notesHeight: clampNotesHeight(height) }),
       setTerminalHeight: (height: number) => set({ terminalHeight: clampTerminalHeight(height) }),
       setSplitRatio: (ratio: number) => set({ splitRatio: clampSplitRatio(ratio) }),
-      setSkillsDismissedVersion: (skillsDismissedVersion: string | null) =>
-        set({ skillsDismissedVersion }),
       setTheme: (theme: ThemeMode) => set({ theme }),
     }),
     {

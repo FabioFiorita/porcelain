@@ -1,6 +1,5 @@
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { app, BrowserWindow, type Session, session } from 'electron'
-import { ensureCli } from './cli-install'
 import { startDaemon } from './daemon'
 import { registerTrpcHandler } from './ipc'
 import { installAppMenu } from './menu'
@@ -90,16 +89,6 @@ app.whenReady().then(async () => {
     // The window still opens; daemon.ts keeps retrying with backoff and pushes
     // the url over `daemon-url-changed` once a spawn succeeds.
     console.error('[daemon] initial start failed:', error)
-  }
-
-  // Refresh the bundled CLI the user's agents run (`~/.porcelain/porcelain`).
-  // Re-copying the bundle + wrapper from the app bundle on every boot means an app
-  // update ships new commands transparently — agents run a binary, so there's
-  // nothing to re-register. Best-effort: a failure here never blocks the window.
-  try {
-    await ensureCli()
-  } catch (error) {
-    console.error('[cli] refresh failed:', error)
   }
 
   // Default open or close DevTools by F12 in development

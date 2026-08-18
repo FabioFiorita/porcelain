@@ -150,6 +150,31 @@ describe('layers', () => {
 })
 
 describe('the profile view', () => {
+  it('replaces either level without clobbering the other', async () => {
+    await withStore(async ({ store, repo }) => {
+      await store.setProjectProfile(repo, {
+        pinnedPaths: ['README.md'],
+        hiddenPaths: ['dist'],
+        layers: [{ label: 'Source', pattern: '^src/' }],
+      })
+      await store.setWorktreeProfile(repo, {
+        pinnedPaths: ['src/index.ts'],
+        hiddenPaths: [],
+        unhiddenPaths: ['dist'],
+        layers: null,
+      })
+
+      const view = await store.profileViewForRepo(repo)
+      expect(view.base.pinnedPaths).toEqual(['README.md'])
+      expect(view.override?.pinnedPaths).toEqual(['src/index.ts'])
+      expect(view.resolved.hiddenPaths).toEqual([])
+
+      await store.setWorktreeProfile(repo, null)
+      expect((await store.profileViewForRepo(repo)).override).toBeNull()
+      expect((await store.profileViewForRepo(repo)).base.pinnedPaths).toEqual(['README.md'])
+    })
+  })
+
   it('separates what the project declares from what this worktree added', async () => {
     await withStore(async ({ store, homeDir, repo }) => {
       await writePrivate(homeDir, {
@@ -202,9 +227,9 @@ describe('writing from the tree', () => {
   })
 
   /**
-   * The escape hatch has to work in ONE gesture wherever the entry came from
-   * (`docs/surfaces/worktree-profile.md`), so unhide reaches into the override
-   * as well as the baseline. A user who cannot get a file back cannot review it.
+   * The escape hatch has to work in ONE gesture wherever the entry came from, so
+   * unhide reaches into the override as well as the baseline. A user who cannot
+   * get a file back cannot review it.
    */
   it('unhides a path the worktree override put there', async () => {
     await withStore(async ({ store, homeDir, repo }) => {

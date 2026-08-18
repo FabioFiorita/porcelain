@@ -18,6 +18,12 @@ import {
   updateLocalTerminalPaths,
 } from './local-terminal-paths'
 import {
+  PLUGIN_VERSION,
+  pluginInstallCommand,
+  pluginMarketplaceCommands,
+  pluginUpdateCommands,
+} from './plugin-assets'
+import {
   type EndpointKind,
   endpointKind,
   endpointsOf,
@@ -38,7 +44,6 @@ import {
   environmentTasks,
   mutateEnvironmentTask,
 } from './shell-tasks'
-import { SKILLS_VERSION, skillsInstallCommand, skillsUpgradeCommand } from './skills-assets'
 import { checkForUpdates, installUpdate, type UpdateStatus, updateStatus } from './updater'
 import { createWindow, switchWindowEnvironment, type WindowInit, windowInitFor } from './window'
 
@@ -292,14 +297,21 @@ export const shellRouter = t.router({
     installUpdate()
   }),
 
-  // Skills are distributed via skills.sh (`npx skills add FabioFiorita/porcelain -g`).
-  // The app does not install them directly; it only tells the user the command and
-  // tracks the bundled skills version to prompt for `npx skills upgrade -g`.
-  skillsInfo: t.procedure.query(
-    (): { version: string; installCommand: string; upgradeCommand: string } => ({
-      version: SKILLS_VERSION,
-      installCommand: skillsInstallCommand(),
-      upgradeCommand: skillsUpgradeCommand(),
+  // The companion and remote skills ship inside the `porcelain` agent plugin. The app does
+  // not install it — it hands over the commands. There is deliberately no upgrade prompt:
+  // the app cannot see which version an agent has installed, and the marketplace route
+  // refreshes on its own.
+  pluginInfo: t.procedure.query(
+    (): {
+      version: string
+      installCommand: string
+      marketplaceCommands: readonly string[]
+      updateCommands: readonly string[]
+    } => ({
+      version: PLUGIN_VERSION,
+      installCommand: pluginInstallCommand(),
+      marketplaceCommands: pluginMarketplaceCommands(),
+      updateCommands: pluginUpdateCommands(),
     }),
   ),
 

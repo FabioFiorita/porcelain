@@ -19,7 +19,7 @@ const reviewBuildCache = new Map<
 >()
 
 // The (heavier still) inline reading surface, memoized on the same key. Only built
-// when an agent review set is present (the agent declares it via the porcelain CLI),
+// when an agent Review set is present (the agent declares it through MCP),
 // so the slice heuristic runs only on curated files; the baseline returns null
 // cheaply from the gather alone.
 const reviewReadingCache = new Map<string, { key: string; reading: ReviewReading }>()

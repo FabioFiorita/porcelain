@@ -35,7 +35,6 @@ import { FileCommands } from './file-commands'
 import { FilePromptDialog } from './file-prompt-dialog'
 import { ProjectPickerDialog } from './project-picker-dialog'
 import { RightSidebar } from './right-sidebar'
-import { SkillsUpdateToast } from './skills-update-toast'
 import { TitleBar } from './title-bar'
 import { useAppShortcuts } from './use-app-shortcuts'
 import { Viewer } from './viewer'
@@ -189,7 +188,6 @@ export function AppShell(): React.JSX.Element {
         <FilePromptDialog />
         <ProjectPickerDialog />
         <NewTaskDialog />
-        <SkillsUpdateToast />
         <SettingsDialog />
         <AppSidebar />
         <RepoShell />

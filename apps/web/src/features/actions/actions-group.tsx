@@ -65,7 +65,7 @@ function SiblingEnvironment({ scope }: { scope: ActionsScope }): React.JSX.Eleme
 /**
  * The Hub's top-corner Actions menu: the selected Project's saved commands, one click
  * from running — in a Worktree the human named. The agent curates these through the
- * porcelain CLI; the human runs them, and nothing runs without an explicit
+ * MCP tools; the human runs them, and nothing runs without an explicit
  * Environment + Worktree target (#24).
  *
  * When the same Project exists on more than one Environment the menu groups by

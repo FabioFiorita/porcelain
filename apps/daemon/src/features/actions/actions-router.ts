@@ -54,6 +54,7 @@ export function createActionsRouter(operations: ActionsOperations) {
       .output(procedureCatalog.addAction.output)
       .mutation(async ({ input }) => {
         const result = await operations.addAction({
+          authoredBy: 'human',
           projectId: input.projectId,
           title: input.title,
           command: input.command,
@@ -67,6 +68,7 @@ export function createActionsRouter(operations: ActionsOperations) {
       .output(procedureCatalog.updateAction.output)
       .mutation(async ({ input }) => {
         const result = await operations.updateAction({
+          authoredBy: 'human',
           projectId: input.projectId,
           id: input.id,
           title: input.title,

@@ -35,8 +35,20 @@ that device. Remote exposure and always-on setup are documented in
 
 ## Agent connection
 
-The repository currently ships a companion CLI/skill for agent-authored review and Task data.
-Follow the installed skill for the interface available in your checkout.
+Install the **porcelain** plugin to give agents the MCP tools and focused skills for Reviews, Tasks,
+Actions, profiles, and remote-daemon setup:
+
+```bash
+npx plugins add FabioFiorita/porcelain
+```
+
+Claude Code can register the repository as a marketplace:
+
+```text
+/plugin marketplace add FabioFiorita/porcelain
+/plugin install porcelain@porcelain
+```
+
 
 ## Development
 

@@ -1,0 +1,24 @@
+{
+  "name": "porcelain",
+  "displayName": "Porcelain",
+  "version": "1.4.0",
+  "description": "Drive Porcelain — publish Reviews, manage Tasks, Actions, and profiles, close the evidence loop, and set up a remote daemon.",
+  "author": {
+    "name": "Fabio Fiorita",
+    "url": "https://github.com/FabioFiorita"
+  },
+  "homepage": "https://github.com/FabioFiorita/porcelain",
+  "repository": "https://github.com/FabioFiorita/porcelain",
+  "license": "MIT",
+  "keywords": ["code-review", "worktree", "evidence", "canvas", "agentic-coding"],
+  "mcpServers": "./.mcp.json",
+  "userConfig": {
+    "admin_token": {
+      "type": "string",
+      "title": "Porcelain admin token",
+      "description": "Contents of ~/.porcelain/admin-token. The daemon mints it on first run; it never leaves this machine.",
+      "sensitive": true,
+      "required": true
+    }
+  }
+}

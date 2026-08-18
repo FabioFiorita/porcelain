@@ -62,14 +62,11 @@ function readJson(path) {
 }
 
 /**
- * Shipped agent skills carry the product version in their SKILL.md frontmatter: the skill is
- * distributed with the app (`npx skills add`), and the app reports SKILLS_VERSION to prompt an
- * upgrade, so a skill version that drifts from the app is a lie the human acts on.
+ * Internal agent procedures carry the product version in their SKILL.md frontmatter: they are
+ * versioned with this repo and nothing else. The *shipped* skills are not here — they live in
+ * `plugins/porcelain/` under their own semver, gated by `scripts/plugin-version.mjs`.
  */
-const SKILL_FILES = [
-  join(root, 'skills', 'porcelain-companion', 'SKILL.md'),
-  join(root, 'skills', 'porcelain-remote', 'SKILL.md'),
-]
+const SKILL_FILES = [join(root, '.agents', 'skills', 'merge-queue', 'SKILL.md')]
 
 /** Replace `version:` inside the leading `---` frontmatter block only. */
 function stampSkillVersion(path, next) {

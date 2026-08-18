@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { SessionChange } from '@porcelain/contracts/session'
 import { createAddReviewComment } from './add-review-comment'
+import { createAnswerReviewComment } from './answer-review-comment'
 import { createClearResolvedReviewComments } from './clear-resolved-review-comments'
 import type {
   ReviewCommentChanges,
@@ -19,6 +20,7 @@ export type ReviewCommentOperations = {
   listReviewComments: ReturnType<typeof createListReviewComments>
   addReviewComment: ReturnType<typeof createAddReviewComment>
   editReviewComment: ReturnType<typeof createEditReviewComment>
+  answerReviewComment: ReturnType<typeof createAnswerReviewComment>
   deleteReviewComment: ReturnType<typeof createDeleteReviewComment>
   resolveReviewComment: ReturnType<typeof createResolveReviewComment>
   clearResolvedReviewComments: ReturnType<typeof createClearResolvedReviewComments>
@@ -42,6 +44,7 @@ export function createReviewCommentOperations(options: {
     listReviewComments: createListReviewComments({ store }),
     addReviewComment: createAddReviewComment({ store, clock, ids, changes }),
     editReviewComment: createEditReviewComment({ store, changes }),
+    answerReviewComment: createAnswerReviewComment({ store, changes, clock }),
     deleteReviewComment: createDeleteReviewComment({ store, changes }),
     resolveReviewComment: createResolveReviewComment({ store, changes }),
     clearResolvedReviewComments: createClearResolvedReviewComments({ store, changes }),

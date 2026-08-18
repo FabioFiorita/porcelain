@@ -13,9 +13,15 @@ const resolve = (...segments: string[]): string => resolvePath(here, ...segments
 // Mirror electron.vite.config.ts's build-time version define so daemon-version.ts
 // and the CLI resolve `__PORCELAIN_VERSION__` under test.
 const { version } = JSON.parse(readFileSync(resolve('package.json'), 'utf8')) as { version: string }
+const { version: pluginVersion } = JSON.parse(
+  readFileSync(resolve(import.meta.dirname, '../../plugins/porcelain/plugin.json'), 'utf8'),
+) as { version: string }
 
 export default defineConfig({
-  define: { __PORCELAIN_VERSION__: JSON.stringify(version) },
+  define: {
+    __PORCELAIN_VERSION__: JSON.stringify(version),
+    __PORCELAIN_PLUGIN_VERSION__: JSON.stringify(pluginVersion),
+  },
   // The renderer's libghostty-vt ABI tests import the pinned Wasm artifact as
   // a data URL. Mirror apps/web's Vite asset treatment in this shared config.
   assetsInclude: ['**/*.wasm'],
@@ -86,13 +92,12 @@ export default defineConfig({
     // The suite spans every package, so the project root is the monorepo — coverage `include`
     // globs are resolved against this and silently match nothing when they climb out of it.
     root: resolve('../..'),
-    // One suite, one command. Mobile pure tests + daemon + cli + web + shared.
+    // One suite, one command. Mobile pure tests + daemon + web + shared.
     // A screen test in jsdom with no native runtime fails loudly — correct signal
     // that it belongs in browser e2e, not here.
     include: [
       'apps/desktop/src/**/*.test.{ts,tsx}',
       'apps/daemon/src/**/*.test.{ts,tsx}',
-      'apps/cli/src/**/*.test.{ts,tsx}',
       'apps/web/src/**/*.test.{ts,tsx}',
       'packages/*/src/**/*.test.{ts,tsx}',
       'apps/mobile/src/**/*.test.{ts,tsx}',

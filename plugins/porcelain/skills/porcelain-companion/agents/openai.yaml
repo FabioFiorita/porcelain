@@ -1,0 +1,4 @@
+interface:
+  display_name: "Porcelain Companion"
+  short_description: "Publish Reviews and manage Tasks, Actions, profiles, and overlays through Porcelain MCP tools"
+  default_prompt: "Use $porcelain-companion only for the current CLI adapter when the human requests Companion work or a Review, Task, Action, or explicit project overlay. Keep ordinary coding on the shared development loop; do not create or clear a Review as a side effect."

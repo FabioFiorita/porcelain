@@ -9,7 +9,14 @@ const webSrc = resolve(webRoot, 'src')
 const webPublic = resolve(webRoot, 'public')
 
 const { version } = JSON.parse(readFileSync(resolve('package.json'), 'utf8')) as { version: string }
-const define = { __PORCELAIN_VERSION__: JSON.stringify(version) }
+const { version: pluginVersion } = JSON.parse(
+  readFileSync(resolve(import.meta.dirname, '../../plugins/porcelain/plugin.json'), 'utf8'),
+) as { version: string }
+const define = {
+  __PORCELAIN_VERSION__: JSON.stringify(version),
+  // The shipped plugin is versioned independently of the product (see plugin-assets.ts).
+  __PORCELAIN_PLUGIN_VERSION__: JSON.stringify(pluginVersion),
+}
 
 const workspaceAliases = {
   '@porcelain/contracts': resolve('../../packages/contracts/src'),

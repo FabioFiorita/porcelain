@@ -1,18 +1,18 @@
 import { useActions } from '@renderer/features/actions'
-import { useSkillsInfo } from '@renderer/hooks/use-skills'
+import { usePluginInfo } from '@renderer/hooks/use-plugin'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 
 /**
  * A product-specific devtools panel that inspects Porcelain's agent channels — the
- * two surfaced here (review set, actions) plus the bundled
- * skills version. Each channel is a `~/.porcelain/*.json` file the porcelain CLI
+ * two surfaced here (review set, actions) plus the shipped
+ * plugin version. Each channel is a `~/.porcelain/*.json` file the daemon
  * (`src/cli/`) reads/writes; the renderer sees them through the same domain hooks
  * the UI uses, so this panel is a live mirror of what the agent can currently
  * see/do. Registered as a `plugins` entry in {@link DevtoolsShell}.
  */
 export function ChannelsDevtoolsPanel(): React.JSX.Element {
   const project = useProjectSelectionStore((s) => s.project)
-  const skills = useSkillsInfo()
+  const plugin = usePluginInfo()
   const actions = useActions()
 
   if (!project) {
@@ -21,9 +21,9 @@ export function ChannelsDevtoolsPanel(): React.JSX.Element {
 
   return (
     <div style={WRAP}>
-      <Section title="Skills (skills.sh)">
-        <Row label="Version" value={skills?.version ?? '—'} />
-        <Row label="Install" value={skills?.installCommand ?? '—'} />
+      <Section title="Agent plugin">
+        <Row label="Version" value={plugin?.version ?? '—'} />
+        <Row label="Install" value={plugin?.installCommand ?? '—'} />
       </Section>
 
       <Section title="Actions (two-way)">

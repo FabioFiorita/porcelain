@@ -19,6 +19,7 @@ export {
   createCanvasStore,
   type StoredCanvas,
 } from './canvas-store'
+export type { CanvasBundleSource } from './canvas-write'
 export { initEnvironmentIdentityStore } from './environment-identity-store'
 export { createHubGitPort } from './hub-git-port'
 export { configuredHubInventoryStore, initHubInventoryStore } from './hub-inventory-store'

@@ -15,9 +15,10 @@ import type {
 } from '@porcelain/contracts/projects'
 import { inlineLocalAssets } from '../../fs/evidence-assets'
 import type { CanvasAccessTokens } from './canvas-access-tokens'
-import type { StoredCanvas } from './canvas-bundle'
+import type { CanvasKind, StoredCanvas } from './canvas-bundle'
 import type { CanvasOverlayStore } from './canvas-overlay-store'
 import type { CanvasEntry, CanvasStore, CanvasStoreError, CanvasStoreResult } from './canvas-store'
+import type { CanvasBundleSource } from './canvas-write'
 import type { ProjectOperationResult } from './projects-results'
 
 /**
@@ -34,8 +35,39 @@ export type CanvasWorktrees = Readonly<{
   ) => Promise<ProjectOperationResult<readonly { id: string; path: string }[]>>
 }>
 
+/**
+ * Publishing a Canvas. Not a wire procedure: the app has never created a Canvas —
+ * the human does not author them — so this exists for the agent surface, where it
+ * replaces the CLI writing `$PORCELAIN_HOME` behind the daemon's back.
+ */
+export type WriteCanvasOperationInput = Readonly<{
+  projectId: string
+  worktreeId: string | null
+  id?: string
+  title: string
+  kind: CanvasKind
+  entryFile: string
+  template?: 'review'
+  source: CanvasBundleSource
+}>
+
 export type CanvasOperations = Readonly<{
   listCanvases: (input: ListCanvasesInput) => Promise<ProjectOperationResult<CanvasRecord[]>>
+  writeCanvas: (input: WriteCanvasOperationInput) => Promise<ProjectOperationResult<CanvasRecord>>
+  /**
+   * The id of the private Canvas following a structured template, when there is one.
+   * `template` is deliberately absent from the public record: which template a bundle
+   * follows is how the Review finds itself again, not something a client renders.
+   */
+  findCanvasByTemplate: (input: {
+    projectId: string
+    template: 'review'
+  }) => Promise<ProjectOperationResult<string | null>>
+  /** Drop one private Canvas and its bundle. Tracked overlays are untouched. */
+  forgetCanvas: (input: {
+    projectId: string
+    canvasId: string
+  }) => Promise<ProjectOperationResult<void>>
   readCanvas: (
     input: ReadCanvasInput,
   ) => Promise<ProjectOperationResult<{ record: CanvasRecord; content: string }>>
@@ -203,6 +235,41 @@ export function createCanvasOperations(options: {
   }
 
   return Object.freeze({
+    async findCanvasByTemplate(input: {
+      projectId: string
+      template: 'review'
+    }): Promise<ProjectOperationResult<string | null>> {
+      const listed = await options.store.listCanvases(input.projectId)
+      if (!listed.ok) return fromStoreError(listed.error)
+      const found = listed.value.find((canvas) => canvas.template === input.template)
+      return { ok: true, value: found?.id ?? null }
+    },
+
+    async forgetCanvas(input: {
+      projectId: string
+      canvasId: string
+    }): Promise<ProjectOperationResult<void>> {
+      const forgotten = await options.store.forgetCanvas(input.projectId, input.canvasId)
+      return forgotten.ok ? { ok: true, value: undefined } : fromStoreError(forgotten.error)
+    },
+
+    async writeCanvas(
+      input: WriteCanvasOperationInput,
+    ): Promise<ProjectOperationResult<CanvasRecord>> {
+      const written = await options.store.writeCanvas(input.projectId, {
+        id: input.id,
+        worktreeId: input.worktreeId,
+        title: input.title,
+        kind: input.kind,
+        entryFile: input.entryFile,
+        template: input.template,
+        source: input.source,
+      })
+      if (!written.ok) return fromStoreError(written.error)
+      // Freshly written is always private: promotion is a separate, explicit act.
+      return { ok: true, value: toPublicRecord(written.value, false) }
+    },
+
     listCanvases: mergedRecords,
 
     async readCanvas(input) {

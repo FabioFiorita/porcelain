@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Assemble `dist-daemon/` — a self-contained, npm-publishable copy of the
 // Porcelain daemon that runs under PLAIN Node (no Electron, no pnpm workspace)
-// on another machine (see docs/remote-setup.md for the supported deployment path).
+// on another machine (see docs/remote-access.md for the supported deployment path).
 //
 // Primary UX (t3-style):
 //   npx porcelain-daemon@latest serve --tailnet
@@ -12,8 +12,7 @@
 // apps/daemon/src/net/static-server.ts). Externalized runtime deps are declared
 // in a generated package.json with the EXACT semver ranges read from
 // apps/desktop/package.json, so `npm install` / npx on the target pulls them (and compiles
-// node-pty for that host). The dependency-free CLI ships too — the daemon installs
-// it to ~/.porcelain/porcelain on boot and the Beelink's coding agent runs it.
+// node-pty for that host).
 //
 // Plain-Node ESM, zero dependencies (runs before `npm install`).
 
@@ -76,12 +75,10 @@ mkdirSync(dist, { recursive: true })
 
 // Copy the out/ pieces the daemon needs, PRESERVING their relative layout so
 // RENDERER_ROOT (`__dirname/../../renderer` from main/daemon/server.js) resolves.
-// main/chunks is optional — independent esbuild CLI is a single file.
 const requiredCopies = [
   ['main/daemon/server.js', 'main/daemon/server.js'],
-  // Wire protocol constants the bundled CLI requires (bin/porcelain-daemon.js).
+  // Wire protocol constants bin/porcelain-daemon.js requires.
   ['main/contracts/protocol.js', 'main/contracts/protocol.js'],
-  ['main/cli/porcelain.js', 'main/cli/porcelain.js'],
   ['renderer', 'renderer'],
 ]
 for (const [from, to] of requiredCopies) {
@@ -237,23 +234,18 @@ bare \`http(s)\` origin (repeat \`--allowed-origin\` for multiple Hubs; comma-se
 are accepted). Paths, credentials, wildcards, and \`null\` are rejected. This setting only
 controls CORS response headers; every API and WebSocket request remains token-gated.
 
-## Agent CLI (channel access)
+## Agent access (MCP)
 
-The dependency-free CLI ships at \`main/cli/porcelain.js\`. On every \`serve\`, the
-daemon installs it to the stable path agents run:
-
-\`\`\`sh
-~/.porcelain/porcelain <noun> <verb>
-\`\`\`
-
-So upgrading the daemon (\`npx porcelain-daemon@latest\`) ships new CLI commands
-automatically — agents run a binary, so there's nothing to register.
-
-Direct package path (debug only; agents should use the installed home path):
+The daemon serves the Model Context Protocol at \`POST /mcp\`, token-gated like every
+other route. Agents reach it through the Porcelain plugin rather than a binary this
+package installs:
 
 \`\`\`sh
-node path/to/package/main/cli/porcelain.js
+npx plugins add FabioFiorita/porcelain
 \`\`\`
+
+Installing the plugin is the opt-in. The endpoint is always served, so upgrading the
+daemon ships new tools with no per-agent configuration to rewrite.
 
 ## Requirements
 

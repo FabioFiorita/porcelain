@@ -17,7 +17,7 @@ agent channel ───────> daemon capabilities
 The daemon is a headless Node process with HTTP procedures and a `/session` WebSocket for live
 updates and terminal streams. The browser client is served by the daemon. Electron hosts the same
 web client and owns local process/window lifecycle. Mobile is a native client using the
-same daemon and shared contracts. The current agent channel is the companion CLI/skill boundary.
+same daemon and shared contracts. Agents use the daemon's MCP endpoint through the shipped plugin.
 
 ## Packages
 
@@ -26,8 +26,6 @@ apps/daemon   daemon runtime and server
 apps/web      React/Vite client
 apps/desktop  Electron host and local-daemon lifecycle
 apps/mobile   Expo/React Native client
-apps/cli      dependency-light agent/host command line
-
 packages/contracts       cross-client wire schemas and procedure types
 packages/client-runtime  shared client queries, mutations, session, and semantics
 packages/shared          low-level cross-cutting utilities
@@ -50,8 +48,8 @@ package that owns the behavior until a second consumer makes sharing useful.
   logic implementation.
 - Mobile owns native lifecycle and presentation. Its terminal module may render native terminal
   cells, while daemon/PTY transport remains client feature code.
-- The agent channel adapts semantic daemon operations for agents. It should not become a second
-  store or duplicate product rules.
+- The MCP channel adapts semantic daemon operations for agents. The daemon remains the only writer
+  of its private state; the plugin contributes connection metadata and focused procedures.
 
 ## Data boundaries
 

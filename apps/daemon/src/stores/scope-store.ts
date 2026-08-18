@@ -54,6 +54,8 @@ export type ScopeStore = Readonly<{
   layersForRepo: (repoPath: string) => Promise<ProfileLayer[]>
   /** Project baseline, worktree override, and merge — for Settings → Personalization. */
   profileViewForRepo: (repoPath: string) => Promise<WorktreeProfileView>
+  setProjectProfile: (repoPath: string, profile: ResolvedProfile) => Promise<void>
+  setWorktreeProfile: (repoPath: string, profile: WorktreeProfile | null) => Promise<void>
   hidePath: (repoPath: string, path: string) => Promise<void>
   unhidePath: (repoPath: string, path: string) => Promise<void>
   pinPath: (repoPath: string, path: string) => Promise<void>
@@ -241,6 +243,24 @@ export function createScopeStore(options: ScopeStoreOptions): ScopeStore {
     pinnedPathsForRepo: async (repoPath) => (await readRepoScope(repoPath)).pinnedPaths,
     layersForRepo: async (repoPath) => (await readResolved(repoPath)).layers,
     profileViewForRepo: readProfileView,
+    setProjectProfile: async (repoPath, profile) => {
+      await mutate(repoPath, (document) => ({
+        ...document,
+        pinnedPaths: profile.pinnedPaths,
+        hiddenPaths: profile.hiddenPaths,
+        layers: profile.layers,
+      }))
+    },
+    setWorktreeProfile: async (repoPath, profile) => {
+      await mutate(repoPath, (document, identity) => {
+        if (identity.worktreeId === null) return document
+        const worktreeProfiles = { ...document.worktreeProfiles }
+        if (profile === null || isEmptyWorktreeProfile(profile))
+          delete worktreeProfiles[identity.worktreeId]
+        else worktreeProfiles[identity.worktreeId] = profile
+        return { ...document, worktreeProfiles }
+      })
+    },
     hidePath: async (repoPath, path) => {
       const rel = toRelativeScopePath(repoPath, path)
       if (rel !== '') await mutate(repoPath, addToBase('hiddenPaths', rel))
