@@ -81,9 +81,13 @@ describe('HubTree', () => {
       worktreeId: localWorktree.id,
       path: localWorktree.path,
     })
+    // openProject's environmentId is the session-routing identity (null = this window's
+    // own client), never the persisted-selection identity above — passing the local
+    // Environment's real id here made every local worktree switch look like an
+    // unresolved remote session and fail as "offline".
     await waitFor(() =>
       expect(openProject).toHaveBeenCalledWith(localWorktree.path, {
-        environmentId: local.environment.id,
+        environmentId: null,
       }),
     )
     expect(openWindow).not.toHaveBeenCalled()

@@ -70,7 +70,14 @@ export function HubTree(props: { className?: string }): React.JSX.Element | null
     runUserAction(
       () =>
         openProject.open(worktree.path, {
-          environmentId: source.inventory.environment.id,
+          // Session-routing identity, not the persisted-selection one above: null
+          // means "use this window's own client directly", which is what `current`
+          // sources need — `source.inventory.environment.id` is the daemon's own
+          // real id even when local, and environmentSessionFor() only recognizes
+          // it as local once the primary Environment id has round-tripped through
+          // daemonInfo, so passing it here treated the local Environment as an
+          // unresolved remote session and failed every worktree switch as offline.
+          environmentId: source.environmentId,
         }),
       (error) => toastUserActionError('Open worktree', error),
     )
