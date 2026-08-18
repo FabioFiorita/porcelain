@@ -17,7 +17,11 @@ import type {
   RemoveHubWorktreeInput,
 } from '@porcelain/contracts/projects'
 import type { CanvasAccessTokens } from './canvas-access-tokens'
-import { type CanvasOperations, createCanvasOperations } from './canvas-operations'
+import {
+  type CanvasOperations,
+  createCanvasOperations,
+  type WriteCanvasOperationInput,
+} from './canvas-operations'
 import type { CanvasOverlayStore } from './canvas-overlay-store'
 import type { CanvasStore } from './canvas-store'
 import type { EnvironmentIdentityStore } from './environment-identity-store'
@@ -52,6 +56,8 @@ export type ProjectsOperations = Readonly<{
   listHubInventory: () => Promise<ProjectOperationResult<HubInventory>>
   createHubWorktree: (input: CreateHubWorktreeInput) => Promise<ProjectOperationResult<HubWorktree>>
   listCanvases: (input: ListCanvasesInput) => Promise<ProjectOperationResult<CanvasRecord[]>>
+  /** Agent-surface only — see canvas-operations.ts. No wire procedure writes a Canvas. */
+  writeCanvas: (input: WriteCanvasOperationInput) => Promise<ProjectOperationResult<CanvasRecord>>
   readCanvas: (
     input: ReadCanvasInput,
   ) => Promise<ProjectOperationResult<{ record: CanvasRecord; content: string }>>
@@ -215,6 +221,7 @@ export function createProjectsOperations(options: {
     listHubInventory: hub.listHubInventory,
     createHubWorktree: hub.createHubWorktree,
     listCanvases: canvas.listCanvases,
+    writeCanvas: canvas.writeCanvas,
     readCanvas: canvas.readCanvas,
     mintCanvasAccessToken: canvas.mintCanvasAccessToken,
     promoteCanvas: canvas.promoteCanvas,

@@ -15,9 +15,10 @@ import type {
 } from '@porcelain/contracts/projects'
 import { inlineLocalAssets } from '../../fs/evidence-assets'
 import type { CanvasAccessTokens } from './canvas-access-tokens'
-import type { StoredCanvas } from './canvas-bundle'
+import type { CanvasKind, StoredCanvas } from './canvas-bundle'
 import type { CanvasOverlayStore } from './canvas-overlay-store'
 import type { CanvasEntry, CanvasStore, CanvasStoreError, CanvasStoreResult } from './canvas-store'
+import type { CanvasBundleSource } from './canvas-write'
 import type { ProjectOperationResult } from './projects-results'
 
 /**
@@ -34,8 +35,25 @@ export type CanvasWorktrees = Readonly<{
   ) => Promise<ProjectOperationResult<readonly { id: string; path: string }[]>>
 }>
 
+/**
+ * Publishing a Canvas. Not a wire procedure: the app has never created a Canvas —
+ * the human does not author them — so this exists for the agent surface, where it
+ * replaces the CLI writing `$PORCELAIN_HOME` behind the daemon's back.
+ */
+export type WriteCanvasOperationInput = Readonly<{
+  projectId: string
+  worktreeId: string | null
+  id?: string
+  title: string
+  kind: CanvasKind
+  entryFile: string
+  template?: 'review'
+  source: CanvasBundleSource
+}>
+
 export type CanvasOperations = Readonly<{
   listCanvases: (input: ListCanvasesInput) => Promise<ProjectOperationResult<CanvasRecord[]>>
+  writeCanvas: (input: WriteCanvasOperationInput) => Promise<ProjectOperationResult<CanvasRecord>>
   readCanvas: (
     input: ReadCanvasInput,
   ) => Promise<ProjectOperationResult<{ record: CanvasRecord; content: string }>>
@@ -203,6 +221,23 @@ export function createCanvasOperations(options: {
   }
 
   return Object.freeze({
+    async writeCanvas(
+      input: WriteCanvasOperationInput,
+    ): Promise<ProjectOperationResult<CanvasRecord>> {
+      const written = await options.store.writeCanvas(input.projectId, {
+        id: input.id,
+        worktreeId: input.worktreeId,
+        title: input.title,
+        kind: input.kind,
+        entryFile: input.entryFile,
+        template: input.template,
+        source: input.source,
+      })
+      if (!written.ok) return fromStoreError(written.error)
+      // Freshly written is always private: promotion is a separate, explicit act.
+      return { ok: true, value: toPublicRecord(written.value, false) }
+    },
+
     listCanvases: mergedRecords,
 
     async readCanvas(input) {

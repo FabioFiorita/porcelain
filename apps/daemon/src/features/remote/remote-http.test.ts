@@ -104,6 +104,10 @@ const projectsOperations = {
     ok: false,
     error: { code: 'projects.not-found' },
   })),
+  writeCanvas: vi.fn<ProjectsOperations['writeCanvas']>(async () => ({
+    ok: false,
+    error: { code: 'canvas.not-found' },
+  })),
   listCanvases: vi.fn<ProjectsOperations['listCanvases']>(async () => ({
     ok: true,
     value: [],

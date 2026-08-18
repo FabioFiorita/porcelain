@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { rm } from 'node:fs/promises'
 import { canvasBundleDir, canvasIndexPath } from '@shared/canvas-porcelain'
 import { z } from 'zod'
@@ -5,7 +6,13 @@ import {
   createStrictJsonDocument,
   type ReadStrictJsonDocument,
 } from '../../project-data/strict-json-document'
-import { readCanvasBundleEntry, type StoredCanvas, storedCanvasSchema } from './canvas-bundle'
+import {
+  type CanvasKind,
+  readCanvasBundleEntry,
+  type StoredCanvas,
+  storedCanvasSchema,
+} from './canvas-bundle'
+import { type CanvasBundleSource, isContainedBundlePath, writeCanvasBundle } from './canvas-write'
 
 export const CANVAS_INDEX_FILE_MAX_BYTES = 512 * 1024
 
@@ -35,8 +42,28 @@ export type CanvasEntry = Readonly<{
   content: string
 }>
 
+export type WriteCanvasInput = Readonly<{
+  /** Omit to create. Passing an existing id replaces that bundle and keeps its createdAt. */
+  id?: string
+  worktreeId: string | null
+  title: string
+  kind: CanvasKind
+  entryFile: string
+  template?: 'review'
+  source: CanvasBundleSource
+}>
+
 export type CanvasStore = Readonly<{
   listCanvases: (projectId: string) => Promise<CanvasStoreResult<StoredCanvas[]>>
+  /**
+   * Create or replace one private Canvas. The bundle lands before the index does:
+   * an index record pointing at bytes that are not there yet would be read by the
+   * live client in between, and a bundle with no record is merely invisible.
+   */
+  writeCanvas: (
+    projectId: string,
+    input: WriteCanvasInput,
+  ) => Promise<CanvasStoreResult<StoredCanvas>>
   readCanvasEntry: (projectId: string, canvasId: string) => Promise<CanvasStoreResult<CanvasEntry>>
   /** The private bundle directory — promotion's move source (canvas-overlay-store.ts). */
   bundleDirFor: (projectId: string, canvasId: string) => string
@@ -74,7 +101,14 @@ function reportUnavailable(
   )
 }
 
-export function createCanvasStore(options: { homeDir: string }): CanvasStore {
+export function createCanvasStore(options: {
+  homeDir: string
+  /** Injected so a test can assert the stored timestamps rather than guess them. */
+  now?: () => string
+  newId?: () => string
+}): CanvasStore {
+  const now = options.now ?? (() => new Date().toISOString())
+  const newId = options.newId ?? (() => randomUUID())
   function indexDocument(projectId: string) {
     return createStrictJsonDocument({
       path: canvasIndexPath(options.homeDir, projectId),
@@ -100,6 +134,52 @@ export function createCanvasStore(options: { homeDir: string }): CanvasStore {
 
   return Object.freeze({
     listCanvases: readCanvases,
+
+    async writeCanvas(
+      projectId: string,
+      input: WriteCanvasInput,
+    ): Promise<CanvasStoreResult<StoredCanvas>> {
+      if (!isContainedBundlePath(input.entryFile)) {
+        return { ok: false, error: { code: 'canvas.entry-outside-bundle' } }
+      }
+      const listed = await readCanvases(projectId)
+      if (!listed.ok) return listed
+
+      const id = input.id ?? newId()
+      const existing = listed.value.find((canvas) => canvas.id === id)
+      const timestamp = now()
+      const record: StoredCanvas = {
+        id,
+        worktreeId: input.worktreeId,
+        title: input.title,
+        kind: input.kind,
+        entryFile: input.entryFile,
+        createdAt: existing?.createdAt ?? timestamp,
+        updatedAt: timestamp,
+        ...(input.template === undefined ? {} : { template: input.template }),
+      }
+
+      const written = await writeCanvasBundle(
+        canvasBundleDir(options.homeDir, projectId, id),
+        input.source,
+      )
+      if (!written.ok) {
+        return written.error === 'entry-outside-bundle'
+          ? { ok: false, error: { code: 'canvas.entry-outside-bundle' } }
+          : unavailable()
+      }
+
+      const canvases =
+        existing === undefined
+          ? [...listed.value, record]
+          : listed.value.map((canvas) => (canvas.id === id ? record : canvas))
+      try {
+        await indexDocument(projectId).write({ canvases })
+      } catch {
+        return unavailable()
+      }
+      return { ok: true, value: record }
+    },
 
     bundleDirFor(projectId: string, canvasId: string): string {
       return canvasBundleDir(options.homeDir, projectId, canvasId)
