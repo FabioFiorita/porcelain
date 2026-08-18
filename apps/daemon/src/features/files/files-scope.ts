@@ -8,6 +8,14 @@ export function createFilesScope(options?: ScopeStoreOptions): FilesScope {
       hidePath: async () => undefined,
       pinPath: async () => undefined,
       read: async () => ({ hiddenPaths: [], pinnedPaths: [] }),
+      // No store configured: an unregistered checkout is a plain tree with no
+      // profile, which is exactly the empty view rather than an error.
+      readProfile: async () => ({
+        worktreeId: null,
+        base: { hiddenPaths: [], pinnedPaths: [], layers: [] },
+        override: null,
+        resolved: { hiddenPaths: [], pinnedPaths: [], layers: [] },
+      }),
       unhidePath: async () => undefined,
       unpinPath: async () => undefined,
     })
@@ -17,6 +25,7 @@ export function createFilesScope(options?: ScopeStoreOptions): FilesScope {
     hidePath: scope.hidePath,
     pinPath: scope.pinPath,
     read: scope.readRepoScope,
+    readProfile: scope.profileViewForRepo,
     unhidePath: scope.unhidePath,
     unpinPath: scope.unpinPath,
   })

@@ -61,7 +61,7 @@ import {
   closeClientSessions,
   publishSessionChange,
 } from '../session/live-session'
-import { createScopeStore } from '../stores/scope-store'
+import { createScopeStore, type RepoIdentity } from '../stores/scope-store'
 
 /**
  * Process-wide bound operation catalog constructed once at daemon startup.
@@ -111,16 +111,19 @@ export function createDaemonOperations(options: {
   publishSessionChange?: (change: SessionChange) => void
 }): DaemonOperations {
   const publish = options.publishSessionChange ?? publishSessionChange
-  const projectIdForRepo = async (repoPath: string): Promise<string | null> => {
+  // The profile store needs BOTH halves of a checkout's Hub identity: the Project
+  // owns the baseline document, the Worktree keys its optional override.
+  const identityForRepo = async (repoPath: string): Promise<RepoIdentity | null> => {
     const inventory = await options.projects.listHubInventory()
     if (!inventory.ok) return null
     for (const project of inventory.value.projects) {
-      if (project.worktrees.some((worktree) => worktree.path === repoPath)) return project.id
+      const worktree = project.worktrees.find((entry) => entry.path === repoPath)
+      if (worktree !== undefined) return { projectId: project.id, worktreeId: worktree.id }
     }
     return null
   }
-  const scope = createScopeStore({ homeDir: options.homeDir, projectIdForRepo })
-  const filesScope = createFilesScope({ homeDir: options.homeDir, projectIdForRepo })
+  const scope = createScopeStore({ homeDir: options.homeDir, identityForRepo })
+  const filesScope = createFilesScope({ homeDir: options.homeDir, identityForRepo })
   return Object.freeze({
     remote: createRemoteOperations({
       access: {
@@ -175,7 +178,9 @@ export function createDaemonOperations(options: {
       workspaceTrash: createWorkspaceTrash(),
       workingTreeCache: createWorkingTreeCache(),
       changes: createGitChangesPublisher(publish),
-      diffReadingSources: createGitDiffReadingSources(),
+      diffReadingSources: createGitDiffReadingSources({
+        scope: { layersForRepo: scope.layersForRepo },
+      }),
     }),
     search: createSearchOperations({
       git: {

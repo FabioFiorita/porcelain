@@ -21,6 +21,7 @@ export type FilesOperations = {
   unpinPath: (repoPath: string, path: string) => Promise<void>
   pinnedEntries: (repoPath: string) => ReturnType<WorkspaceFiles['pinnedEntries']>
   repoScope: FilesScope['read']
+  worktreeProfile: FilesScope['readProfile']
   readFile: WorkspaceFiles['readFile']
   previewHtml: WorkspaceFiles['previewHtml']
   writeTextFile: WorkspaceFiles['writeTextFile']
@@ -83,6 +84,7 @@ export function createFilesOperations(
       })
     },
     repoScope: (repoPath) => scope.read(repoPath),
+    worktreeProfile: (repoPath) => scope.readProfile(repoPath),
     readFile: (input) => workspaceFiles.readFile(input),
     previewHtml: (input) => workspaceFiles.previewHtml(input),
     async writeTextFile(input) {

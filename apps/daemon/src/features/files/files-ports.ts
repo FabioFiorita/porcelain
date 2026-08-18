@@ -1,4 +1,4 @@
-import type { DirEntry, FileView, RepoScope } from '@porcelain/contracts/files'
+import type { DirEntry, FileView, RepoScope, WorktreeProfileView } from '@porcelain/contracts/files'
 
 /** Shared outside predicate — NEVER use startsWith('..') alone; NEVER string-prefix root checks. */
 export type FilesPathOutsideError = { code: 'path-outside-project'; path: string }
@@ -136,6 +136,8 @@ export type WorkspaceFiles = {
 /** Files' repo-local visibility and pin scope. The operation composes this with host-fs reads. */
 export type FilesScope = Readonly<{
   read(repoPath: string): Promise<RepoScope>
+  /** The same profile, broken into project baseline + worktree override. */
+  readProfile(repoPath: string): Promise<WorktreeProfileView>
   hidePath(repoPath: string, path: string): Promise<void>
   unhidePath(repoPath: string, path: string): Promise<void>
   pinPath(repoPath: string, path: string): Promise<void>

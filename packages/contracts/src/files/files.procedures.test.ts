@@ -23,6 +23,7 @@ const expectedKinds = {
   duplicatePath: 'mutation',
   trashPath: 'mutation',
   repoScope: 'query',
+  worktreeProfile: 'query',
 } as const
 
 const expectedErrors = {
@@ -41,6 +42,7 @@ const expectedErrors = {
   duplicatePath: ['files.path-outside-project', 'files.not-found'],
   trashPath: ['files.path-outside-project', 'files.not-found'],
   repoScope: [],
+  worktreeProfile: [],
 } as const
 
 const invalidInputs: Record<keyof typeof filesProcedures, unknown> = {
@@ -59,6 +61,7 @@ const invalidInputs: Record<keyof typeof filesProcedures, unknown> = {
   duplicatePath: { path: 42 },
   trashPath: null,
   repoScope: 42,
+  worktreeProfile: 42,
 }
 
 const invalidOutputs: Record<keyof typeof filesProcedures, unknown> = {
@@ -85,10 +88,17 @@ const invalidOutputs: Record<keyof typeof filesProcedures, unknown> = {
   duplicatePath: 42,
   trashPath: null,
   repoScope: { hiddenPaths: [42], pinnedPaths: [] },
+  // A layer with no pattern is the shape an agent is most likely to hand us.
+  worktreeProfile: {
+    worktreeId: 'wt-synthetic',
+    base: { hiddenPaths: [], pinnedPaths: [], layers: [{ label: 'View' }] },
+    override: null,
+    resolved: { hiddenPaths: [], pinnedPaths: [], layers: [] },
+  },
 }
 
 describe('Files procedure contracts', () => {
-  it('declares exactly fifteen procedures with their router kinds and allowed errors', () => {
+  it('declares exactly sixteen procedures with their router kinds and allowed errors', () => {
     expect(Object.keys(filesProcedures).sort()).toEqual(Object.keys(expectedKinds).sort())
     for (const [name, kind] of Object.entries(expectedKinds)) {
       const procedure = filesProcedures[name as keyof typeof filesProcedures]

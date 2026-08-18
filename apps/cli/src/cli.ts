@@ -18,6 +18,17 @@ import {
 } from './canvas-file'
 import { describePromoteOverrides, PROJECT_COMMANDS } from './overlay-file'
 import {
+  clearWorktreeProfile,
+  describeProjectProfile,
+  describeWorktreeProfile,
+  PROFILE_COMMANDS,
+  setProjectProfile,
+  setWorktreeProfile,
+  toProjectProfile,
+  toWorktreeProfile,
+  WORKTREE_COMMANDS,
+} from './profile-file'
+import {
   addReviewFiles,
   clearReviewCanvas,
   describeReview,
@@ -128,6 +139,8 @@ const FLAG_DESCRIPTIONS: Record<string, string> = {
     'Absolute path to a local directory holding the Canvas entry file and its siblings (images, CSS, JS) — copied wholesale into the bundle',
   entry:
     'Entry file name inside --source-dir (default: index.html for html, index.md for markdown)',
+  profile:
+    "Whole profile document as JSON, or '-' to read it from stdin — the level is replaced, never merged",
 }
 
 interface VerbHelp {
@@ -194,6 +207,8 @@ export const COMMANDS: NounHelp[] = [
   },
   CANVAS_COMMANDS,
   PROJECT_COMMANDS,
+  PROFILE_COMMANDS,
+  WORKTREE_COMMANDS,
 ]
 
 const HEADER = "porcelain — read and write Porcelain's agent channels for a repo"
@@ -242,6 +257,10 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<string
   if (noun === undefined) return renderHelp()
   if (noun === 'help') return renderHelp(verb)
   if (flags.has('help') || verb === undefined) return renderHelp(noun)
+  // `worktree` is the one noun with a two-word verb (`profile get`), because the
+  // level it addresses needs naming: `porcelain profile` is the project.
+  const command = noun === 'worktree' ? positionals.slice(0, 3).join(' ') : `${noun} ${verb}`
+  if (noun === 'worktree' && positionals[2] === undefined) return renderHelp(noun)
 
   const req = (name: string): string => {
     const value = flags.get(name)
@@ -264,7 +283,7 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<string
   }
   const repo = resolveRepo(flags, cwd)
 
-  switch (`${noun} ${verb}`) {
+  switch (command) {
     case 'review set': {
       const name = opt('name') ?? 'Active review'
       // Intent-first starts declare a name and a thesis before any file is touched, so
@@ -337,7 +356,20 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<string
         hidden: splitList(opt('hidden')),
         pinned: splitList(opt('pinned')),
       })
+    case 'profile get':
+      return describeProjectProfile(repo)
+    case 'profile set':
+      setProjectProfile(repo, toProjectProfile(readJson('profile')))
+      return describeProjectProfile(repo)
+    case 'worktree profile get':
+      return describeWorktreeProfile(repo)
+    case 'worktree profile set':
+      setWorktreeProfile(repo, toWorktreeProfile(readJson('profile')))
+      return describeWorktreeProfile(repo)
+    case 'worktree profile clear':
+      clearWorktreeProfile(repo)
+      return describeWorktreeProfile(repo)
     default:
-      throw new Error(`unknown command: "${noun} ${verb}" — try "porcelain help"`)
+      throw new Error(`unknown command: "${command}" — try "porcelain help"`)
   }
 }

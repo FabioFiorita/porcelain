@@ -28,6 +28,8 @@ import {
   unhidePathOutputSchema,
   unpinPathInputSchema,
   unpinPathOutputSchema,
+  worktreeProfileInputSchema,
+  worktreeProfileViewSchema,
   writeTextFileInputSchema,
   writeTextFileOutputSchema,
 } from './files.contract'
@@ -111,6 +113,12 @@ const filesProcedureDefinitions = {
     kind: 'query',
     input: repoScopeInputSchema,
     output: repoScopeOutputSchema,
+    errors: [],
+  },
+  worktreeProfile: {
+    kind: 'query',
+    input: worktreeProfileInputSchema,
+    output: worktreeProfileViewSchema,
     errors: [],
   },
 } as const

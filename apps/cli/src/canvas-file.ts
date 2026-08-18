@@ -125,10 +125,15 @@ export function resolveHubIdentity(repoPath: string): HubIdentity {
     if (!isRecord(project) || project.commonGitDir !== commonGitDir) continue
     const worktrees = Array.isArray(project.worktrees) ? project.worktrees : []
     const worktree = worktrees.find((w) => isRecord(w) && w.gitDir === gitDir)
-    return {
-      projectId: String(project.id),
-      worktreeId: worktree !== undefined && isRecord(worktree) ? String(worktree.id) : null,
-    }
+    // `String(worktree.id)` on a record with no id yields the literal "undefined",
+    // which reads as a real Worktree everywhere downstream — and the profile
+    // store now KEYS on this value, so a bogus one silently files someone's
+    // focus under a worktree that does not exist.
+    const worktreeId =
+      isRecord(worktree) && typeof worktree.id === 'string' && worktree.id !== ''
+        ? worktree.id
+        : null
+    return { projectId: String(project.id), worktreeId }
   }
   throw new Error(
     'this checkout is not registered with a Porcelain Environment yet — open it in Porcelain once, then retry',

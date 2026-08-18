@@ -76,6 +76,10 @@ export function createFilesFeatureRouter(operations: FilesOperations) {
       .input(procedureCatalog.repoScope.input)
       .output(procedureCatalog.repoScope.output)
       .query(({ input }) => operations.repoScope(input)),
+    worktreeProfile: publicProcedure
+      .input(procedureCatalog.worktreeProfile.input)
+      .output(procedureCatalog.worktreeProfile.output)
+      .query(({ input }) => operations.worktreeProfile(input)),
 
     readFile: publicProcedure
       .input(procedureCatalog.readFile.input)
