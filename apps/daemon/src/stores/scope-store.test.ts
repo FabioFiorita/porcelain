@@ -260,6 +260,35 @@ describe('writing from the tree', () => {
     })
   })
 
+  /**
+   * A gesture that silently does nothing is worse than one that is unavailable.
+   * If the agent had opted this worktree back INTO seeing a path, hiding it from
+   * the tree here has to take effect here, not just in the baseline.
+   */
+  it('takes effect in a worktree whose override had opted the path back in', async () => {
+    await withStore(async ({ store, homeDir, repo }) => {
+      await writePrivate(homeDir, {
+        worktreeProfiles: { [WORKTREE]: { unhiddenPaths: ['dist'] } },
+      })
+
+      await store.hidePath(repo, join(repo, 'dist'))
+      expect((await store.readRepoScope(repo)).hiddenPaths).toEqual([join(repo, 'dist')])
+    })
+  })
+
+  it('leaves a sibling worktree still opted in when this one hides', async () => {
+    await withStore(async ({ store, homeDir, repo }) => {
+      await writePrivate(homeDir, {
+        worktreeProfiles: { 'wt-other': { unhiddenPaths: ['dist'] } },
+      })
+
+      await store.hidePath(repo, join(repo, 'dist'))
+      const document = await readPrivate(homeDir)
+      const siblings = document.worktreeProfiles as Record<string, { unhiddenPaths: string[] }>
+      expect(siblings['wt-other']?.unhiddenPaths).toEqual(['dist'])
+    })
+  })
+
   it('writes nothing at all for a checkout the Hub does not know', async () => {
     await withStore(async ({ store, homeDir, repo }) => {
       await store.hidePath(repo, join(repo, 'dist'))

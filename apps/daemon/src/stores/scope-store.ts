@@ -93,8 +93,7 @@ export function createScopeStore(options: ScopeStoreOptions): ScopeStore {
     }
   }
 
-  async function readPrivate(repoPath: string): Promise<PrivateProjectDocument> {
-    const identity = await options.identityForRepo(repoPath)
+  async function readPrivate(identity: RepoIdentity | null): Promise<PrivateProjectDocument> {
     if (identity === null) return emptyPrivateProjectDocument()
     return readDocument(projectOverridesPath(options.homeDir, identity.projectId))
   }
@@ -110,11 +109,11 @@ export function createScopeStore(options: ScopeStoreOptions): ScopeStore {
   }
 
   async function readProfileView(repoPath: string): Promise<WorktreeProfileView> {
-    const [identity, privateDoc, tracked] = await Promise.all([
-      options.identityForRepo(repoPath),
-      readPrivate(repoPath),
-      readTracked(repoPath),
-    ])
+    // Resolve the Hub identity ONCE. It scans the whole inventory, and the tree
+    // asks for this on every directory read — doing it per sub-read turned one
+    // scan per listing into two.
+    const identity = await options.identityForRepo(repoPath)
+    const [privateDoc, tracked] = await Promise.all([readPrivate(identity), readTracked(repoPath)])
     const base: ResolvedProfile = {
       hiddenPaths: [...new Set([...privateDoc.hiddenPaths, ...tracked.hiddenPaths])],
       pinnedPaths: [...new Set([...privateDoc.pinnedPaths, ...tracked.pinnedPaths])],
@@ -181,16 +180,41 @@ export function createScopeStore(options: ScopeStoreOptions): ScopeStore {
     }
   }
 
+  /** Drop a now-contradicted `unhiddenPaths` entry so a hide gesture cannot no-op. */
+  function withoutOverrideNegation(
+    document: PrivateProjectDocument,
+    identity: RepoIdentity,
+    rel: string,
+  ): PrivateProjectDocument {
+    const worktreeId = identity.worktreeId
+    if (worktreeId === null) return document
+    const override = document.worktreeProfiles[worktreeId]
+    if (override === undefined || !override.unhiddenPaths.includes(rel)) return document
+    const next: WorktreeProfile = {
+      ...override,
+      unhiddenPaths: override.unhiddenPaths.filter((entry) => entry !== rel),
+    }
+    return { ...document, worktreeProfiles: { ...document.worktreeProfiles, [worktreeId]: next } }
+  }
+
   /**
    * Add to the PROJECT baseline, not to this worktree's override.
    *
    * Inheritance is the default, so a human gesture means "everywhere" — which is
    * also what it meant before profiles existed. Task-shaped, worktree-only focus
    * is what the agent writes through `porcelain worktree profile set`.
+   *
+   * Hiding also clears this worktree's `unhiddenPaths` entry for the same path.
+   * Without that, a worktree whose agent had opted the path back IN would take
+   * the hide into the baseline and show no change at all — a gesture that
+   * silently does nothing is worse than one that is unavailable.
    */
   function addToBase(key: 'hiddenPaths' | 'pinnedPaths', rel: string) {
-    return (document: PrivateProjectDocument): PrivateProjectDocument =>
-      document[key].includes(rel) ? document : { ...document, [key]: [...document[key], rel] }
+    return (document: PrivateProjectDocument, identity: RepoIdentity): PrivateProjectDocument => {
+      const cleared =
+        key === 'hiddenPaths' ? withoutOverrideNegation(document, identity, rel) : document
+      return cleared[key].includes(rel) ? cleared : { ...cleared, [key]: [...cleared[key], rel] }
+    }
   }
 
   /**
