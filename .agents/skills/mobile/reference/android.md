@@ -17,7 +17,7 @@ $S up
 $S ui
 $S tap porcelain-files-refresh
 $S wait porcelain-changes-screen
-$S shot scripts/agent-scratch/android-proof/android.png
+$S shot /tmp/porcelain-mobile-proof/android.png
 $S fg
 $S down
 ```

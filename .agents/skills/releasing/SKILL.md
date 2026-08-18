@@ -1,12 +1,14 @@
 ---
 name: releasing
-version: 0.54.0
 metadata:
   internal: true
-description: How to cut a Porcelain release — simple main+tag path, Mac package + npm, always patch unless asked. Read when publishing a version or changing signing/notarization.
+description: Cut a Porcelain release, publish the daemon, package the Mac app, or change signing/notarization. Load only for an explicit release or release-tooling task.
 ---
 
-# Porcelain — releasing
+# Releasing
+
+Read `docs/release.md` first for the current release path. This skill keeps the expensive release
+traps and commands that are easy to get wrong; it does not define the everyday development loop.
 
 Side project, solo, **no real external users yet**. Shipping is occasional — when the human asks, not after every polish commit. Waiting ~10–15 minutes for a signed Mac build is fine.
 
@@ -34,14 +36,8 @@ main is good enough for daily use (web + daemon)
 
 **No pending task branches at cut time.** Day-to-day work lands on `main` (or through a
 short-lived managed `work/*` PR), and release stays the same simple main+tag path after
-`release-cut.mjs` has required clean `main == origin/main`. It sets `PORCELAIN_RELEASE_CUT=1`
-for one reason only: to *deny* the Claude duplicate-skip, so the tracked hook still runs
-`pnpm lint` on the nested commit `release-cut.mjs` makes — which the outer Claude/Grok hook
-never sees. It never bypasses the gate. No multi-workflow pre-cut gate. No cut/retry/npm_only
-mode soup.
-
-Day-to-day proof is `pnpm verify` (before push) + browser e2e on CI / the **dev** stack — not this
-workflow.
+`release-cut.mjs` has required clean `main == origin/main`. The cut script owns its
+release-specific checks; ordinary development does not depend on release tooling.
 
 ## Runbook
 
@@ -130,13 +126,7 @@ CI runs layout smoke only. On a real Mac install when packaging changed:
 3. `ELECTRON_RUN_AS_NODE=1 open -a Porcelain` opens the GUI, not a Node REPL.
 4. Daemon serves; process count stays sane.
 
-## Prod vs dev (not a release concern)
+## Environment boundary
 
-Product work uses the **dev** daemon (`pnpm dev:daemon`, port **43118**, `~/.porcelain-dev`). The
-production home (port **43117**, `~/.porcelain`) is real day-job work — agents never touch it while
-polishing Porcelain. See root `AGENTS.md`.
-
-## See also
-
-- `docs/internals/repo.md` — packaging facts
-- `AGENTS.md` — day-to-day delivery loop
+Release work may inspect production package state, but product development remains on the isolated
+development daemon. See `docs/development.md` for the shared environment and worktree flow.

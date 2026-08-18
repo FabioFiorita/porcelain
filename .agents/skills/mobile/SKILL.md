@@ -1,75 +1,71 @@
 ---
 name: mobile
-version: 0.54.0
 metadata:
   internal: true
-description: Fingerprint-gated iOS and Android build, install, deliver, and proof loop for apps/mobile, including semantic Android emulator control through stable React Native testIDs, accessibility labels, adb, and uiautomator. Load when building, installing, delivering, or taking mobile runtime evidence — not for every mobile file edit.
+description: Build, install, deliver, and prove apps/mobile on iOS or Android. Load for native builds, device or simulator installs, EAS delivery, emulator control, or mobile runtime evidence; ordinary mobile edits follow the shared development loop.
 ---
 
-# Mobile runbook
+# Mobile
 
-Platform law lives in `apps/mobile/AGENTS.md`. This skill is the loop and the traps.
+Read `docs/development.md` for the shared development loop, worktree setup, daemon and
+Playground rules, and host-specific setup. This skill owns only the mobile branches that need
+native tooling or runtime evidence. For source changes, follow the root instructions and the
+patterns in the owning mobile module.
 
-Host topology (Linux Metro, Mac sim/serve-sim, local builds over EAS) is in
-`apps/mobile/AGENTS.local.md` when present.
+## Choose the proof path
 
-## The fork: did the fingerprint move?
+Before building or delivering, compare the native fingerprint:
 
 ```bash
 eas fingerprint:compare
 ```
 
-| | Fingerprint **unchanged** | Fingerprint **moved** |
+| Fingerprint | Simulator / emulator | Phone |
 |---|---|---|
-| **Simulator / emulator** | Metro Fast Refresh | Local native build + install on the matching host; EAS if unavailable |
-| **Phone** | `eas update` (free) | EAS workflow for iOS; local Android build for development |
+| Unchanged | Metro Fast Refresh | `eas update` |
+| Moved | Local native build on the matching host, or EAS when local tooling is unavailable | EAS workflow for iOS; local Android build for development |
 
-Most sessions are the top-left cell. Prefer local Mac builds for native sim work to protect quota.
+Pure TypeScript, JavaScript, and CSS changes normally stay on Fast Refresh. A dependency, Expo
+config, native module, SDK, or device-family change needs a new binary. A successful `eas update`
+does not reach an installed binary whose runtime fingerprint moved.
 
-## Traps worth keeping
+## Native build traps
 
-- **`--local` install pairs with `sim:install:local --path`.** Plain `sim:install` pulls the latest
-  *EAS* artifact and can silently install an older cloud build after a local compile.
-- **Pass `--simulator` by exact name** from `xcrun simctl list devices` — omit and it may hit the
-  wrong booted device.
-- **`development-simulator` profile** is required for unsigned arm64 `.app`; plain `development` is a
-  device `.ipa`.
-- **`eas update` is a silent no-op** if the fingerprint moved (publishes a runtime no installed build
-  carries). Compare first.
-- **Workflows are `workflow_dispatch` only** — `pnpm lint` fails automatic triggers (`lint-eas-triggers`).
-- Delivery uses `type: submit`, not paid-tier `testflight` with a `build_id`.
-- **Two apps on device:** Porcelain Dev vs Porcelain (bundle id / icon via `APP_VARIANT`). Register
-  physical devices before ad-hoc builds.
+- Prefer a local Mac simulator build when a Mac is available; use EAS cloud builds when local
+  tooling is unavailable or an installable device/TestFlight artifact is needed.
+- Pair a local build with the local installer (`sim:install:local --path <artifact>`), not the
+  EAS downloader, or an older cloud artifact can silently replace it.
+- Pass the exact simulator name from `xcrun simctl list devices`.
+- Use the `development-simulator` profile for an unsigned simulator `.app`; the plain
+  `development` profile produces a device `.ipa`.
+- Register physical devices before an ad-hoc build.
+- Keep Porcelain Dev and the production/TestFlight app side by side; do not mistake one for the
+  other.
 
-## Layout (when changing screens)
+For the concrete iOS and EAS commands, read [reference/loop.md](reference/loop.md). Load the
+ignored `apps/mobile/AGENTS.local.md` only when the current machine's simulator, Metro, SSH, or
+serve-sim setup is part of the proof.
 
-```
-src/app/        routes only
-src/features/   one folder per feature
-src/lib/daemon/ only daemon seam — no AppRouter import, no barrels
-```
+## Android runtime proof
 
-iPhone and Android phone = **four** bottom tabs (Files · Changes · Terminal · Settings);
-History / Search are **re-tap dual faces** (store, not URL); Companion is a sheet from the bolt.
-The daemon-root Review Canvas is currently a Web/Desktop surface; mobile's shell does not expose a
-repo-local Review or Board route. Tablet (iPad + Android) = primary · supplementary · viewer ·
-companion (`features/shell`);
-Settings is a sheet on tablet, a tab on phone. iOS uses root `SplitView` + inspector; Android tablet
-uses the shared multi-column shell. Full IA: `reference/client.md`.
+Use [reference/android.md](reference/android.md) and the bundled
+`scripts/android-loop.sh`. Before `up`, check emulator ownership with `adb devices`; boot and
+address a session-owned emulator when another task already owns the visible one. Target stable
+React Native `testID`s and accessibility labels through the live `uiautomator` tree. Refresh the
+tree after navigation or keyboard changes, and tear down only emulators this session started.
 
-## Android control
+Runtime evidence means reading the foreground package, inspecting the final screen, and checking
+the changed behavior. A successful build or tap command is not evidence by itself. Keep daemon
+credentials and pairing tokens out of screenshots and logs.
 
-Use [`reference/android.md`](reference/android.md) and its executable
-[`scripts/android-loop.sh`](scripts/android-loop.sh) for Android runtime proof. Prefer exact
-React Native `testID` resource IDs, then stable accessibility labels/text, then deep links or
-explicit gesture fallbacks. The loop refreshes `uiautomator` before actions, refuses ambiguous
-targets, derives tap coordinates from the live tree, and tracks emulator ownership so it does not
-stop a device started by someone else.
+## Completion
 
-## Reference
+For a mobile task, leave one of these proofs:
 
-| File | When |
-|---|---|
-| `reference/loop.md` | Build, install, update, TestFlight, costs |
-| `reference/client.md` | Screens, tabs, daemon seam, file layout |
-| `reference/android.md` | Android emulator control, testID contract, and evidence traps |
+- Fast Refresh plus a focused test or typecheck for a JS-only change.
+- A matching native build and install for a fingerprint change.
+- Device or simulator interaction for a runtime-visible change.
+- EAS workflow output for a delivery request.
+
+Run only the checks the affected mobile behavior needs during iteration. Use the repository's full
+verification command when the task or release procedure explicitly calls for it.

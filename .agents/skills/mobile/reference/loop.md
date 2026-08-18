@@ -87,9 +87,8 @@ The workflow makes the build-or-update decision itself: fingerprint matches an e
 build → EAS Update; fingerprint moved → a build, then TestFlight. Dispatch it when a session is
 worth delivering — only the last commit of a session is observable to a tester anyway.
 
-Both workflows are dispatch-only and `pnpm lint` fails if an automatic trigger appears; the
-reasoning is in `scripts/lint-eas-triggers.mjs`. `production.yml` adds App Store submission, off by
-default while the app is out of the store.
+The preview workflow is dispatch-only. `production.yml` adds App Store submission and should stay
+an explicit release action while the app is out of the store.
 
 Delivery uses `type: submit`, not `testflight` — the latter is paid-tier when given an EAS
 `build_id`. Builds reach TestFlight and auto-distribute to internal groups, but carry no per-build
@@ -112,12 +111,3 @@ time, so registering afterwards means building again.
 pnpm --dir apps/mobile dev:device   # open the link on each device, install the profile
 pnpm --dir apps/mobile dev:build    # device .ipa, installs over the air from the EAS page
 ```
-
-## Startup metrics
-
-`expo-observe` reports launch performance only. The root layout is wrapped in `ObserveRoot.wrap`
-(cold and warm time-to-first-render) and each tab screen renders `<ObserveInteractiveMarker />`.
-The `expo-router` integration and `Observe.logEvent` are **deliberately unconfigured** — their
-dashboards are a paid tier. Traps: only the **first** `markInteractive` per session counts, so a
-marker above loaded content silently degrades TTI into a second TTR; debug builds never dispatch
-unless `dispatchInDebug: true`; and `expo-observe` is native, so adding it moved the fingerprint.

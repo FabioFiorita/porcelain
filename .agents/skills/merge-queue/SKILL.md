@@ -1,12 +1,14 @@
 ---
 name: merge-queue
-version: 0.54.0
 metadata:
   internal: true
-description: Land selected work/* PRs — human picks, agent rebases, verifies, squash-merges, and retires each worktree (local branch, remote branch, daemon, channels, playground). Load when the human asks to merge worktree PRs, process the queue, or clean up after merges.
+description: Land selected worktree PRs — inspect review feedback, sync and verify each chosen branch, squash-merge it, and retire its checkout. Load only when the human asks to merge or clean up PR work.
 ---
 
 # Merge queue
+
+Read `docs/development.md` for the normal worktree and process-ownership flow. This skill is only
+the explicit PR landing sequence.
 
 Worktree PRs pile up faster than the human can babysit each one. This skill lands the ones they
 picked and leaves nothing behind — no stale worktree, no orphaned branch, no dead daemon.
@@ -57,7 +59,8 @@ map to managed worktrees by slug (`work/<slug>`).
    explicitly abandons.
 7. **Delete the remote branch.** `git push origin --delete work/<slug>` — the local branch is
    already gone via step 6; this closes out the remote side that `gh pr merge` couldn't.
-8. **Board.** Move the card that spawned this unit to done (`porcelain board move`).
+8. **Task.** If the human named a Porcelain Task for this work, mark that Task done after the
+   merge; do not invent a board command or create a second tracking system.
 
 Process PRs sequentially — each merge changes main, and the next branch syncs against the result.
 

@@ -1,63 +1,43 @@
 ---
 name: web-e2e
-version: 0.50.0
 metadata:
   internal: true
-description: Browser proof for the daemon-served apps/web client, with Playwright as the automated-regression fallback. Load when proving apps/web behavior, writing or debugging an e2e spec, or chasing an e2e failure.
+description: Prove apps/web or the Electron renderer in a real browser, or write/debug a Playwright regression. Load only for explicit browser proof or an E2E task; ordinary UI edits use the shared development loop.
 ---
 
-# Web e2e
+# Browser proof
 
-## Choose the proof surface
+Read `docs/development.md` for the shared dev-daemon, Playground, worktree, and process-ownership
+flow. This skill owns the Porcelain browser targets and Playwright traps; it does not make E2E a
+required check for every UI change.
 
-Use the in-app Browser for interactive runtime proof: open the dev-daemon URL, inspect visible and
-interactive state, drive the flow, and capture screenshots there. Load and follow the
-`browser:control-in-app-browser` skill before browser work. It owns browser selection, setup, and
-interaction; this skill owns Porcelain-specific targets and fallback traps.
+## Choose the surface
 
-Use the Playwright browser lane only when Browser is unavailable or the deliverable itself is an
-automated regression/CI spec. A passing Playwright run can support that regression artifact, but it
-does not replace Browser proof when Browser is available.
+- Use the in-app Browser for interactive proof when it is available. Load the
+  `browser:control-in-app-browser` skill before opening or driving it.
+- Use Playwright when Browser is unavailable or the deliverable is an automated regression.
+- The browser and Electron clients share the `apps/web` renderer. The `electron` Playwright
+  project is Mac-local; it is useful for shell-specific behavior and unnecessary for web-only work.
 
-Start the dev daemon with `pnpm dev:daemon` (or `pnpm dev:daemon -- --host`), which enables its
-secure RFC1918 LAN listeners on the configured port. Open the proof at `http://beelink:<port>`;
-use `--loopback` only for proof that stays on this machine. Use an isolated development home and
-a Playground repo. Production port 43117 and real repos are outside the proof boundary.
+Proof stays on the development daemon and an isolated Playground. Never use production port
+43117 or a real checkout for a browser fixture. When a test needs its own daemon, use the helpers'
+isolated home, token, and fixture repo rather than the developer's `~/.porcelain-dev`.
 
-Specs live under `apps/desktop/e2e/` but they drive `apps/web` — the daemon serves the same built
-renderer the Electron window loads, over the same tRPC + WS path, so the `browser` Playwright
-project is the headless automated fallback against the same client. `mobile/reference/android.md`
-is the sibling doc for the other platform.
-
-## Playwright fallback loop
+## Playwright loop
 
 ```bash
-pnpm test:e2e                 # build + run the browser project — the CI lane
-pnpm --dir apps/desktop test:e2e:prebuilt   # expanded 18-test lane; skip the build when `out/` is fresh
-pnpm --dir apps/desktop test:e2e:update     # regenerate `browser` snapshot baselines
+pnpm test:e2e
+pnpm --dir apps/desktop test:e2e:prebuilt
+pnpm --dir apps/desktop test:e2e:update
 ```
 
-`electron` is the other Playwright project (real Electron shell, `_electron`) — **Mac-local only**
-(`test:e2e:native*`), not CI, not `pnpm verify`. Never run it to prove a web-only change; it has no
-Linux baseline and downloads nothing on the mac release runner unless you ask for it.
+The first command builds before running the browser project. Use `:prebuilt` only when the current
+renderer output is known to be fresh. Snapshot updates affect only the project you ran and are
+platform-specific.
 
-## Anatomy (`e2e/helpers/app.ts`)
+## Writing a regression
 
-- **One daemon per test, spawned fresh.** Isolated `PORCELAIN_HOME`/`PORCELAIN_USER_DATA` under a
-  temp dir, an admin token, and a seeded `access.json` client token planted into `localStorage`
-  before any renderer script runs (`context.addInitScript`). Nothing touches `~/.porcelain-dev`.
-- **`repoDir` fixture** is a fresh fixture git repo at a **fixed path** (`porcelain-e2e-fixture`),
-  recreated per test — fixed so screenshots get a stable project name, safe because
-  `workers: 1` makes it single-owner. Never point a spec at the human's real repos or prod channels.
-- **`seedRepo`** (`test.use({ ... })`) controls whether the isolated fixture project is restored
-  before the app boots. `seedRepo: false` lands on Welcome instead. The four critical assertions,
-  expanded acceptance lane, and lower-boundary relocation decisions live in
-  `apps/desktop/e2e/critical-wiring.md`.
-- Fixtures tear themselves down (`rm` the repo, user data, kill the daemon on `SIGTERM`) — a spec
-  that mutates the shared fixture repo must restore it, or leave a later test working from the
-  wrong tree.
-
-## Writing a spec
+Use the existing fixtures and locator helpers in `apps/desktop/e2e/helpers/app.ts`:
 
 ```ts
 import { expect, loc, selectTab, test, waitForShell } from './helpers/app'
@@ -69,57 +49,26 @@ test('Changes tab lists the working-tree changes', async ({ page }) => {
 })
 ```
 
-- **Always `await waitForShell(page)` first** (except the `seedRepo: false` Welcome case) — it
-  waits on the rail Settings test id, long-timeout (60s) to cover a cold daemon boot under load.
-- **Locate through `loc.*` / `TestIds`** (`packages/shared/src/test-ids.ts`), never
-  `getByText`/`getByRole` for anything with a stable `data-testid`. Add a `loc.*` helper next to the
-  existing ones rather than reaching for a raw `page.getByTestId` inline — keeps selectors
-  discoverable and renames a one-file fix.
-- **New spec files are picked up automatically** — `testDir: './e2e'`, no registration needed.
-- `page.evaluate` is fair game for state Playwright can't see structurally (see Terminal below).
+- Wait for the shell before assertions, except for the unseeded Welcome case.
+- Prefer an existing `loc.*` or `TestIds` helper over raw text/role selectors when a stable test
+  id exists. Add a helper beside the existing locators when the surface needs one.
+- Keep the fixture isolated and restore any repository state the test mutates.
+- Keep `workers: 1` and `fullyParallel: false` for screenshot-sensitive suites.
+- Terminal assertions use the test-only `__porcelainTerminalText` hook, not `.xterm-rows`.
+- Keep the E2E tsconfig paths-free; the renderer aliases can break Playwright's TS resolver.
 
-## Traps
+## Read failures as evidence
 
-- **Snapshot baselines are per-project *and* per-platform.** `changes-tab-browser-linux.png` vs
-  `changes-tab-darwin.png` — `snapshotPathTemplate` inserts both. `test:e2e:update` only regenerates
-  the project you ran (`browser` by default); it will not touch `electron`'s mac baselines, and
-  running it on Linux does not "fix" a mac snapshot.
-- **The `.app-drag` titlebar row does not repaint in headless Chromium screenshots** after a live
-  light/dark flip — it stays the boot color in captures while the DOM (and headed Chromium, and
-  real clients) are correct. This is a documented headless-rendering quirk of that one row, not an
-  app bug — don't spend time chasing it in `apps/web`.
-- **`colorScheme: 'dark'` is pinned on every context/page** (both projects) because the Appearance
-  preference defaults to System, and headless Chromium reports `prefers-color-scheme: light`
-  regardless of the OS — an unpinned context makes every System-default assertion flip against a
-  real machine's actual theme.
-- **Terminal assertions go through `__porcelainTerminalText`, never `.xterm-rows`.** The terminal's
-  WebGL renderer paints to a `<canvas>` and never fills the DOM rows xterm normally populates —
-  `expectTerminalText(page, index, text)` polls the test-only buffer hook the registry installs
-  under `PORCELAIN_E2E=1` instead. `index` is terminal creation order, not tab order.
-- **The e2e `tsconfig.json` is deliberately paths-free.** The root tsconfig's `@renderer`/`@main`
-  path aliases would otherwise drive Playwright's tsconfig-paths resolver, which trips with
-  `context.conditions?.includes is not a function` on relative TS imports. e2e code uses relative +
-  bare specifiers only — don't add a path alias here to "match the app."
-- **Don't parse CLI stdout prose for a filesystem path.** A CLI command's human-readable explainer
-  is not a stable contract. Compute paths through the shared product path helper instead of reading
-  them back from output; proof fixtures must stay inside their isolated Playground home.
-- **`fullyParallel: false`, `workers: 1`.** One app/daemon instance at a time keeps screenshots
-  deterministic. Don't add `test.describe.parallel` or bump workers to "speed things up" — it will
-  make screenshots and the fixed fixture path racy.
-- **`PLAYWRIGHT_FORCE_ASYNC_LOADER=1` is set on every `test:e2e*` script.** If you shell out to
-  `playwright test` directly instead of the `pnpm` script, set it yourself or specs referencing
-  dynamic imports can fail in ways that look unrelated to your change.
-- **Both projects need a fresh `pnpm build` first** — `test:e2e` does this for you; the `:prebuilt`
-  variants skip it deliberately for fast iteration once `out/` is current. Stale `out/` after an
-  `apps/web` edit is the most common "my fix isn't showing up" cause — rebuild before re-reading
-  the failure.
-- **A successful run is not proof by itself.** Read what a `toHaveScreenshot` diff actually shows on
-  failure (`e2e/.artifacts`, gitignored, delete before stopping per root instructions) rather than re-running
-  and hoping it passes; a flaky-looking diff is usually a real layout change.
+- Rebuild before trusting a result after an `apps/web` change.
+- A screenshot mismatch is evidence to inspect, not a reason to rerun until it disappears. Review
+  the artifact and distinguish a real layout change from the known headless titlebar repaint quirk.
+- Pin `colorScheme: 'dark'` when the assertion depends on System appearance; headless Chromium can
+  report a different OS preference than a real client.
+- Do not parse CLI prose for fixture paths. Resolve paths through the product helper and keep them
+  inside the isolated Playground.
 
-## CI
+## Completion
 
-`.github/workflows/ci.yml` installs Chromium (`playwright install --with-deps chromium`) and the
-Electron binary (`node apps/desktop/node_modules/electron/install.js`, since Electron 42 has no
-postinstall), then runs `pnpm test:e2e` — the `browser` project only. The `electron` project never
-runs in CI; don't gate a PR on it.
+Browser proof is complete when the affected flow was exercised on the chosen surface, the final
+state was inspected, and any regression artifact records the command and result. Stop every daemon
+or browser process owned by the task; leave unrelated sessions alone.
