@@ -36,7 +36,21 @@ function mapHostError(error: unknown): ProjectsPortError {
   return 'unavailable'
 }
 
-export function createNodeProjectsPort(): ProjectsPort {
+export type CreateNodeProjectsPortOptions = Readonly<{
+  /**
+   * Include dot-prefixed directories in browse listings. A production daemon hides them —
+   * dotfile clutter serves no real checkout. A dev daemon needs them: `pnpm playground new`
+   * (the workflow root AGENTS.md documents) writes fleet fixtures under a `.fleet` segment
+   * precisely because no managed worktree slug can start with `.` (playground.mjs), so hiding
+   * dot-directories here makes every fixture that command creates unreachable through this
+   * same "Open project" dialog. Safe either way: the dev playground boundary (`pathAllowed` in
+   * server.ts) still gates what can actually be opened, independent of what can be seen.
+   */
+  showHidden?: boolean
+}>
+
+export function createNodeProjectsPort(options: CreateNodeProjectsPortOptions = {}): ProjectsPort {
+  const showHidden = options.showHidden ?? false
   return Object.freeze({
     async inspectProject(path: string): Promise<ProjectsPortResult<ProjectInfo>> {
       try {
@@ -53,7 +67,7 @@ export function createNodeProjectsPort(): ProjectsPort {
       try {
         const dirents = await readdir(target, { withFileTypes: true })
         const entries = dirents
-          .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.'))
+          .filter((entry) => entry.isDirectory() && (showHidden || !entry.name.startsWith('.')))
           .map((entry) => {
             const entryPath = join(target, entry.name)
             return {

@@ -7,6 +7,7 @@ import { createNodeProjectsPort } from './projects-ports'
 
 let directory = ''
 const projects = createNodeProjectsPort()
+const devProjects = createNodeProjectsPort({ showHidden: true })
 
 beforeEach(async () => {
   directory = await mkdtemp(join(tmpdir(), 'porcelain-projects-port-'))
@@ -54,6 +55,16 @@ describe('ProjectsPort filesystem adapter', () => {
         entries: [{ name: 'visible', path: join(directory, 'visible'), isRepo: false }],
       },
     })
+  })
+
+  it('shows dot-directories when the port opts into showHidden (dev daemon)', async () => {
+    await mkdir(join(directory, 'visible'))
+    await mkdir(join(directory, '.fleet'))
+
+    const result = await devProjects.browseDirectories(directory)
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.value.entries.map((entry) => entry.name)).toEqual(['.fleet', 'visible'])
   })
 
   it('flags both .git directories and .git files as repositories', async () => {

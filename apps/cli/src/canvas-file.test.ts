@@ -97,6 +97,27 @@ describe('resolveHubIdentity', () => {
     seedInventory({ id: 'proj-1', worktrees: [] })
     expect(resolveHubIdentity(repoPath)).toEqual({ projectId: 'proj-1', worktreeId: null })
   })
+
+  it('resolves the same Project through a differently-cased repo path', () => {
+    // hub-git-port.ts (daemon) resolves with `node:fs/promises`' realpath, which corrects to
+    // the filesystem's true on-disk casing; this file must use realpathSync.native so the two
+    // always agree on a case-insensitive volume (macOS, Windows), whatever casing the caller
+    // passed in — dev-seed.mjs, for one, hardcodes a lower-case path segment. Probe first: on a
+    // case-sensitive filesystem the mangled path simply would not resolve to the same repo, so
+    // this scenario cannot occur there and the test would be asserting nothing real.
+    const mangledRepoPath = repoPath.toUpperCase()
+    let caseInsensitiveFs: boolean
+    try {
+      caseInsensitiveFs = realpathSync.native(mangledRepoPath) === realpathSync.native(repoPath)
+    } catch {
+      caseInsensitiveFs = false
+    }
+    if (!caseInsensitiveFs) return
+
+    const gitDir = realpathSync(join(repoPath, '.git'))
+    seedInventory({ id: 'proj-1', worktrees: [{ id: 'wt-1', gitDir }] })
+    expect(resolveHubIdentity(mangledRepoPath)).toEqual({ projectId: 'proj-1', worktreeId: 'wt-1' })
+  })
 })
 
 describe('setCanvas', () => {

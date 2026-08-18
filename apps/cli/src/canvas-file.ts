@@ -36,6 +36,14 @@ import { revealCompanionOverlay } from './git-exclude'
  * resolved (hub-git-port.ts). A repo Porcelain has never opened has no
  * Project id yet, so Canvas writes fail with a clear message instead of
  * inventing one.
+ *
+ * `realpathSync.native`, not plain `realpathSync`: hub-git-port.ts resolves
+ * with `node:fs/promises`' `realpath`, which is backed by libuv's native OS
+ * call and corrects a path to the filesystem's true on-disk casing. Node's
+ * default sync `realpathSync` is a pure-JS shim that does not. On a
+ * case-insensitive volume (macOS, Windows) the two can disagree on casing for
+ * the identical directory, and the exact-match compare below would then
+ * reject a checkout the daemon already has registered.
  */
 
 /** cli.ts's help-registry entry, kept here to hold that shrink-only file's line budget. */
@@ -93,8 +101,10 @@ export function resolveHubIdentity(repoPath: string): HubIdentity {
   let gitDir: string
   let commonGitDir: string
   try {
-    gitDir = realpathSync(resolve(repoPath, gitPlumbing(repoPath, ['rev-parse', '--git-dir'])))
-    commonGitDir = realpathSync(
+    gitDir = realpathSync.native(
+      resolve(repoPath, gitPlumbing(repoPath, ['rev-parse', '--git-dir'])),
+    )
+    commonGitDir = realpathSync.native(
       resolve(repoPath, gitPlumbing(repoPath, ['rev-parse', '--git-common-dir'])),
     )
   } catch {

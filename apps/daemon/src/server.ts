@@ -151,7 +151,10 @@ async function main(): Promise<void> {
     publishChange: publishSessionChange,
   })
   const projects = createProjectsOperations({
-    projects: createNodeProjectsPort(),
+    // Dev-only: fleet playground fixtures (pnpm playground new) live under a dot-prefixed
+    // .fleet segment (see CreateNodeProjectsPortOptions); a production daemon still hides
+    // dotfiles from the picker.
+    projects: createNodeProjectsPort({ showHidden: process.env.PORCELAIN_DEV === '1' }),
     recents: projectsRecents,
     worktree: { isLinkedWorktree },
     effects: { warmFileList },

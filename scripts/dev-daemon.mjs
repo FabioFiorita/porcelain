@@ -320,9 +320,13 @@ async function main() {
   mkdirSync(DEV_USER_DATA, { recursive: true })
 
   if (!existsSync(DEV_PLAYGROUND)) {
-    console.error(
-      `[dev:daemon] playground missing at ${DEV_PLAYGROUND}\n` +
-        '  Create it (git init + a commit) or run from a machine that has it.',
+    // Harmless, not an error: DEV_PLAYGROUND only backs the one-time first-boot recents
+    // seed (seedDevConfig, apps/daemon/src/dev-config.ts) — every other dev fixture comes
+    // from the fleet (`pnpm playground new <shape>`), created on demand, no setup step.
+    console.log(
+      `[dev:daemon] no playground yet at ${DEV_PLAYGROUND} — recents start empty.\n` +
+        '  pnpm playground new dirty   creates a fixture on demand\n' +
+        '  pnpm dev:seed everything    creates fixtures AND registers them as projects',
     )
   }
 
