@@ -35,7 +35,7 @@ const { values } = parseArgs({
 
 if (values.help) {
   console.log(`Usage: node scripts/sync-versions.mjs [--check] [--set X.Y.Z]
-One product version across all workspace packages (see docs/internals/architecture.md).`)
+One product version across all workspace packages.`)
   process.exit(0)
 }
 
@@ -69,12 +69,6 @@ function readJson(path) {
 const SKILL_FILES = [
   join(root, 'skills', 'porcelain-companion', 'SKILL.md'),
   join(root, 'skills', 'porcelain-remote', 'SKILL.md'),
-  // Skills we author. Listed explicitly, never globbed: .agents/skills also holds vendored
-  // Expo skills that carry their own upstream version, and restamping those would claim we
-  // ship an upstream release we do not have.
-  ...['mobile', 'releasing', 'merge-queue'].map((name) =>
-    join(root, '.agents', 'skills', name, 'SKILL.md'),
-  ),
 ]
 
 /** Replace `version:` inside the leading `---` frontmatter block only. */
