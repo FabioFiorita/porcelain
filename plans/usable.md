@@ -112,9 +112,15 @@ writer is the point.
 1. **Done.** `plugins/porcelain/` with both manifests, independent semver, bump gate
    (`pnpm lint:plugin`).
 2. The app stops printing `npx skills` and points at the plugin. Delete `skills.sh.json`.
-3. `/mcp` on the daemon, thin over the existing routers. Opt-in — tool defs cost context on
-   every agent turn.
-4. Dogfood a whole Review through MCP only, CLI present but unused.
+3. **Done.** `/mcp` on the daemon, seven tools over the existing operations. The daemon could
+   not write a Canvas at all before this — `apps/cli` was the only writer — so `writeCanvas`
+   and `answerReviewComment` had to be built, not just called.
+4. **Done 2026-08-18.** A whole Review published, appended to, read back and cleared through
+   `/mcp` alone against the dev daemon on the `dirty` playground; the human's seeded comment
+   answered (`agentReply` landed in `comments.json`, the shape comment-marker.tsx renders);
+   an agent-authored Action listed `trusted: false` beside the seeded human ones. Refusals
+   confirmed live: 401 no token, 403 bad Origin, 405 GET, 400 stale version, 404 unknown
+   method, 202 notification.
 5. Delete `apps/cli`, `cli-install.ts` (daemon + shell), `lint:cli`, and the AUD-08/11/12
    rows. Ratchet in the same commit: nothing writes `$PORCELAIN_HOME` outside the daemon's
    Project Data adapter.
