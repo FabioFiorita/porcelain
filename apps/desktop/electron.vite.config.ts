@@ -58,6 +58,12 @@ export default defineConfig(({ command }) => {
           },
           output: { interop: 'auto' as const },
         },
+        // Dev's `out/main` also holds build-node.mjs's daemon/cli bundles (run by the
+        // `dev` script before this starts). Emptying on every main-process rebuild
+        // would delete them and the shell's forked daemon would fail to resolve.
+        // Prod's `build` script re-runs build-node.mjs after electron-vite build, so a
+        // clean sweep there is safe.
+        emptyOutDir: command === 'build',
       },
     },
     preload: {
@@ -89,6 +95,15 @@ export default defineConfig(({ command }) => {
       },
       plugins: [react(), tailwindcss()],
       publicDir: webPublic,
+      build: {
+        // electron-vite's dev preset defaults rollupOptions.input to
+        // <cwd>/src/renderer/index.html regardless of renderer.root; this repo's
+        // renderer root is apps/web, so dev needs the entry pointed there explicitly
+        // or `electron-vite dev` fails with "rollupOptions.input option is required".
+        rollupOptions: {
+          input: resolve(webRoot, 'index.html'),
+        },
+      },
     },
   }
 })

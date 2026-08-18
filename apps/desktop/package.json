@@ -12,7 +12,7 @@
   },
   "scripts": {
     "start": "electron-vite preview",
-    "dev": "electron-vite dev",
+    "dev": "pnpm --dir ../.. build:node && electron-vite dev",
     "build": "pnpm typecheck && pnpm --dir ../.. build:web && electron-vite build && pnpm --dir ../.. build:node",
     "typecheck": "pnpm typecheck:node && pnpm typecheck:web && pnpm typecheck:mobile-tests",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
