@@ -23,7 +23,6 @@ export const loc = {
   toggleTerminalPanel: (page: Page): Locator => byId(page, TestIds.toggleTerminalPanel),
   actionsMenu: (page: Page): Locator => byId(page, TestIds.actionsMenu),
   commandsMenu: (page: Page): Locator => byId(page, TestIds.commandsMenu),
-  environmentSwitcher: (page: Page): Locator => byId(page, TestIds.environmentSwitcher),
 
   welcome: (page: Page): Locator => byId(page, TestIds.welcome),
   welcomeOpenRepo: (page: Page): Locator => byId(page, TestIds.welcomeOpenRepo),

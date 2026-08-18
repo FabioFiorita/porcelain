@@ -16,7 +16,7 @@ import {
 import { Kbd } from '@renderer/components/ui/kbd'
 import { Sidebar, SidebarContent, SidebarHeader, useSidebar } from '@renderer/components/ui/sidebar'
 import { kbdLabel } from '@renderer/lib/keyboard'
-import { isBrowser } from '@renderer/lib/platform'
+import { isLinuxShell } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
 import { type SidebarTab, usePreferencesStore } from '@renderer/stores/preferences'
 import {
@@ -239,9 +239,11 @@ export function RightSidebar(): React.JSX.Element {
       data-testid={TestIds.rightSidebar}
       className={cn(
         'md:pt-[9px] md:pb-[9px]',
-        isBrowser
-          ? 'md:top-[env(safe-area-inset-top)] md:h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom))]'
-          : 'md:top-[calc(3rem+env(safe-area-inset-top))] md:h-[calc(100dvh-3rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))]',
+        // Only the frameless Linux/Windows shell draws its own titlebar row above this
+        // one — see app-sidebar.tsx for the matching left-sidebar offset.
+        isLinuxShell
+          ? 'md:top-[calc(3rem+env(safe-area-inset-top))] md:h-[calc(100dvh-3rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))]'
+          : 'md:top-[env(safe-area-inset-top)] md:h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom))]',
       )}
     >
       {!isMobile && <RightSidebarResizeHandle />}

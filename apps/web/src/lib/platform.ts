@@ -26,6 +26,15 @@ export const isBrowser = typeof window !== 'undefined' && window.porcelain === u
 export const isLinuxShell = typeof window !== 'undefined' && window.porcelain?.platform === 'linux'
 
 /**
+ * True in the Electron shell on macOS: the OS draws native traffic lights at a fixed
+ * window position (see `trafficLightPosition` in `apps/desktop/src/main/window.ts`)
+ * regardless of what the renderer paints underneath. Chrome that reaches the window's
+ * true top-left corner — the sidebar header, once the drawn titlebar row is Linux-only —
+ * must reserve space for them itself; see `app-sidebar.tsx`.
+ */
+export const isMacShell = !isBrowser && !isLinuxShell
+
+/**
  * True under the Playwright e2e harness, in EITHER runtime: the Electron shell (preload
  * sets `porcelain.e2e`) or the browser client (the harness plants a localStorage flag via
  * addInitScript). Gates test-only affordances (terminal buffer hook, skills-toast

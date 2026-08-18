@@ -21,7 +21,7 @@ import { useResponsiveShell } from '@renderer/hooks/use-responsive-shell'
 import { useSessionRuntime } from '@renderer/hooks/use-session-runtime'
 import { useShellEvents } from '@renderer/hooks/use-shell-events'
 import { useThemeSync } from '@renderer/hooks/use-theme'
-import { isBrowser } from '@renderer/lib/platform'
+import { isLinuxShell } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
 import { useHubSelectionStore } from '@renderer/stores/hub-selection'
 import { usePreferencesStore } from '@renderer/stores/preferences'
@@ -164,14 +164,14 @@ export function AppShell(): React.JSX.Element {
   // Safe-area padding keeps the browser client clear of the iPhone notch / home bar
   // (viewport-fit=cover in index.html); inert on desktop Electron (env() → 0).
   return (
-    // Browser clients start the shell at the top: their search lives in the left
-    // navigation and they have no native window controls to reserve space for.
-    // Electron keeps the native titlebar row for traffic lights and shell-only
-    // environment switching.
+    // Everyone but the frameless Linux/Windows shell starts at the true window top:
+    // the browser has no native window chrome to clear, and macOS's traffic lights are
+    // native (no drawn row needed — the sidebar header reserves space for them itself).
+    // Only Linux/Windows draws its own titlebar row, for the drag region + window controls.
     <div className="flex h-dvh flex-col bg-background pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] text-foreground">
-      {!isBrowser && <TitleBar />}
+      {isLinuxShell && <TitleBar />}
       <SidebarProvider
-        // flex-1 fills the row under the native titlebar when Electron provides
+        // flex-1 fills the row under the drawn titlebar when the Linux/Windows shell provides
         // one; minHeight:0 overrides the
         // provider's default min-h-svh (which would push the layout past the window).
         className="min-h-0 flex-1"

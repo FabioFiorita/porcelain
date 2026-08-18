@@ -7,9 +7,8 @@ parens is the **entry point**; read it for mechanics.
 
 | Term | Entry | Note |
 |---|---|---|
-| Top bar | `title-bar.tsx` | Electron-only native shell titlebar. Browser clients start with the navigation sidebar; this is **not** the viewer header |
-| Environment switcher | `environment-switcher.tsx` | Native-shell control for moving between Environments. The browser tab is the daemon that served it; **Settings → Remotes** is Mac-only. Each Project carries its Environment badge |
-| Hub inventory | `hub-tree.tsx` | Live Project → Worktree tree with the current Environment shown as a Project badge. Project headers collapse; Worktree rows navigate; there is no Delete Worktree control |
+| Top bar | `title-bar.tsx` | Linux/Windows-only drawn titlebar (drag region + window controls). macOS has no drawn row — native traffic lights sit over the sidebar header instead; the browser has neither. Never the viewer header |
+| Hub inventory | `hub-tree.tsx` | Live Project → Worktree tree with the current Environment shown as a Project badge, spanning every connected Environment — there is no separate switcher to move between them. Project headers collapse; Worktree rows navigate; there is no Delete Worktree control |
 | Hub selection | `hub-selection.ts` | Home · Project · Worktree. Persisted with Viewer tabs and open Surfaces so a refresh restores the working set; open tabs keep the Worktree they were opened against and read that checkout, not the newly selected one |
 | Sidebar (unqualified = left) | `app-sidebar.tsx` | Navigation-only Project → Worktree tree (⌘B); Settings is in the footer |
 | Viewer | `shell/viewer.tsx` | The central panel. **Never "editor"** |

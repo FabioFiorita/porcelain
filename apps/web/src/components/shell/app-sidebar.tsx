@@ -12,7 +12,7 @@ import {
 import { HubTree } from '@renderer/features/projects'
 import { openTasksBoard } from '@renderer/features/tasks'
 import { kbdLabel } from '@renderer/lib/keyboard'
-import { isBrowser } from '@renderer/lib/platform'
+import { isLinuxShell, isMacShell } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
 import { useFileFinderStore } from '@renderer/stores/file-finder'
 import { useNewTaskDialogStore } from '@renderer/stores/new-task-dialog'
@@ -22,6 +22,7 @@ import { useUnreadStore } from '@renderer/stores/unread'
 import { TestIds } from '@shared/test-ids'
 import { Plus, Search, Table2 } from 'lucide-react'
 import { SidebarResizeHandle } from './sidebar-resize-handle'
+import { UpdateButton } from './update-button'
 
 /**
  * The left shell is deliberately navigation-only. Project/worktree selection is
@@ -44,25 +45,39 @@ export function AppSidebar(): React.JSX.Element {
       collapsible="offcanvas"
       className={cn(
         'overflow-hidden md:pt-[9px] md:pb-[9px]',
-        isBrowser
-          ? 'md:top-[env(safe-area-inset-top)] md:h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom))]'
-          : 'md:top-[calc(3rem+env(safe-area-inset-top))] md:h-[calc(100dvh-3rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))]',
+        // Only the frameless Linux/Windows shell draws its own titlebar row above this
+        // one — browser has no window chrome, macOS's traffic lights are native and
+        // don't push content down, they overlay the header's reserved left padding below.
+        isLinuxShell
+          ? 'md:top-[calc(3rem+env(safe-area-inset-top))] md:h-[calc(100dvh-3rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))]'
+          : 'md:top-[env(safe-area-inset-top)] md:h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom))]',
       )}
     >
       {state === 'expanded' && !isMobile && <SidebarResizeHandle />}
-      <SidebarHeader className="app-drag h-12 shrink-0 flex-row items-center gap-2 border-b py-0 px-3">
+      <SidebarHeader
+        className={cn(
+          'app-drag h-12 shrink-0 flex-row items-center gap-2 border-b py-0 pr-3',
+          // Clears the native traffic lights (trafficLightPosition x:19 in
+          // apps/desktop/src/main/window.ts spans roughly to x:70) now that this header
+          // sits flush at the window's true top-left corner on macOS.
+          isMacShell ? 'pl-20' : 'pl-3',
+        )}
+      >
         <img src={logo} alt="" draggable={false} className="size-6 shrink-0" />
         <span className="truncate text-sm font-semibold text-foreground">Porcelain</span>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          className="app-no-drag ml-auto shrink-0 text-muted-foreground"
-          aria-label="Add project"
-          data-testid={TestIds.hubAddProject}
-          onClick={() => useProjectPickerStore.getState().show()}
-        >
-          <Plus />
-        </Button>
+        <div className="app-no-drag ml-auto flex shrink-0 items-center gap-1.5">
+          <UpdateButton />
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="text-muted-foreground"
+            aria-label="Add project"
+            data-testid={TestIds.hubAddProject}
+            onClick={() => useProjectPickerStore.getState().show()}
+          >
+            <Plus />
+          </Button>
+        </div>
       </SidebarHeader>
       <SidebarContent className="gap-0">
         <div className="app-no-drag px-2 pt-2">

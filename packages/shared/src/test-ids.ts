@@ -34,7 +34,6 @@ export const TestIds = {
   toggleTerminalPanel: 'toggle-terminal-panel',
   actionsMenu: 'actions-menu',
   commandsMenu: 'commands-menu',
-  environmentSwitcher: 'environment-switcher',
   /** Titlebar install chip — only present when an update is downloaded (Electron). */
   updateButton: 'update-button',
   environmentRow: (id: string): string => `environment-row-${id}`,

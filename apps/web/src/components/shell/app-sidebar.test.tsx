@@ -26,6 +26,13 @@ vi.mock('@renderer/components/ui/sidebar', () => ({
   useSidebar: () => ({ state: 'expanded', isMobile: false }),
 }))
 
+// The update chip moved into the sidebar header (was Electron-titlebar-only, so browser
+// clients never got it) — same hook mock title-bar.test.tsx used.
+vi.mock('@renderer/hooks/use-updates', () => ({
+  useUpdateStatus: () => ({ state: 'idle', version: null, error: null, currentVersion: '0.49.0' }),
+  useInstallUpdate: () => ({ install: vi.fn(), isInstalling: false }),
+}))
+
 describe('AppSidebar', () => {
   beforeEach(() => {
     useHubSelectionStore.getState().selectHome()
@@ -33,11 +40,10 @@ describe('AppSidebar', () => {
     useNewTaskDialogStore.getState().hide()
   })
 
-  it('shows logo, Porcelain, and add-project without an environment chip', () => {
+  it('shows logo, Porcelain, and add-project', () => {
     render(<AppSidebar />)
     expect(screen.getByText('Porcelain')).toBeInTheDocument()
     expect(screen.getByTestId(TestIds.hubAddProject)).toBeInTheDocument()
-    expect(screen.queryByTestId(TestIds.environmentSwitcher)).toBeNull()
     expect(
       screen.getByLabelText('Search commands, projects, files, and commits'),
     ).toBeInTheDocument()

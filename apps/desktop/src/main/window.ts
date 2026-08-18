@@ -84,13 +84,15 @@ export function createWindow(init: WindowInit = { mode: 'restore' }): BrowserWin
     ...(platform === 'darwin'
       ? {
           titleBarStyle: 'hiddenInset' as const,
-          // Center the traffic lights in the full-width window titlebar. It's h-12
-          // (48px) flush with the window top, so its center sits at window-y 24. The
-          // buttons' visual center is ~y+8 (≈16px effective), so 24 − 8 = 16 centers
-          // them. GOTCHA: maximizing or fullscreening the window resets this to the
-          // macOS default — Electron doesn't re-apply trafficLightPosition on window
-          // state changes.
-          trafficLightPosition: { x: 19, y: 16 },
+          // Center the traffic lights against the left sidebar header (there is no
+          // drawn titlebar row on macOS — see title-bar.tsx). That header is h-12
+          // (48px) but sits inside the floating sidebar's own 9px top padding
+          // (app-sidebar.tsx `md:pt-[9px]`), so its content centers at window-y
+          // 9 + 24 = 33. The buttons' visual center is ~y+8 (≈16px effective), so
+          // 33 − 8 = 25 centers them. GOTCHA: maximizing or fullscreening the window
+          // resets this to the macOS default — Electron doesn't re-apply
+          // trafficLightPosition on window state changes.
+          trafficLightPosition: { x: 19, y: 25 },
         }
       : {
           // Linux/Windows: no native window controls — the renderer draws the
