@@ -12,7 +12,7 @@ import {
 import { HubTree } from '@renderer/features/projects'
 import { openTasksBoard } from '@renderer/features/tasks'
 import { kbdLabel } from '@renderer/lib/keyboard'
-import { isLinuxShell, isMacShell } from '@renderer/lib/platform'
+import { isFramelessShell, isMacShell } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
 import { useFileFinderStore } from '@renderer/stores/file-finder'
 import { useNewTaskDialogStore } from '@renderer/stores/new-task-dialog'
@@ -21,6 +21,7 @@ import { useTabsStore } from '@renderer/stores/tabs'
 import { useUnreadStore } from '@renderer/stores/unread'
 import { TestIds } from '@shared/test-ids'
 import { Plus, Search, Table2 } from 'lucide-react'
+import { MAC_TRAFFIC_LIGHT_CLEARANCE, sidebarTopOffsetClass } from './shell-chrome'
 import { SidebarResizeHandle } from './sidebar-resize-handle'
 import { UpdateButton } from './update-button'
 
@@ -45,22 +46,19 @@ export function AppSidebar(): React.JSX.Element {
       collapsible="offcanvas"
       className={cn(
         'overflow-hidden md:pt-[9px] md:pb-[9px]',
-        // Only the frameless Linux/Windows shell draws its own titlebar row above this
-        // one — browser has no window chrome, macOS's traffic lights are native and
-        // don't push content down, they overlay the header's reserved left padding below.
-        isLinuxShell
-          ? 'md:top-[calc(3rem+env(safe-area-inset-top))] md:h-[calc(100dvh-3rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))]'
-          : 'md:top-[env(safe-area-inset-top)] md:h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom))]',
+        // macOS's traffic lights are native: they overlay this header's reserved left
+        // padding below rather than pushing content down. See shell-chrome.ts.
+        sidebarTopOffsetClass(isFramelessShell),
       )}
     >
       {state === 'expanded' && !isMobile && <SidebarResizeHandle />}
       <SidebarHeader
         className={cn(
           'app-drag h-12 shrink-0 flex-row items-center gap-2 border-b py-0 pr-3',
-          // Clears the native traffic lights (trafficLightPosition x:19 in
-          // apps/desktop/src/main/window.ts spans roughly to x:70) now that this header
-          // sits flush at the window's true top-left corner on macOS.
-          isMacShell ? 'pl-20' : 'pl-3',
+          // This header sits flush at the window's true top-left corner on macOS, so it
+          // owns the traffic-light clearance while the sidebar is open. viewer-header.tsx
+          // takes over the moment this collapses.
+          isMacShell ? MAC_TRAFFIC_LIGHT_CLEARANCE : 'pl-3',
         )}
       >
         <img src={logo} alt="" draggable={false} className="size-6 shrink-0" />

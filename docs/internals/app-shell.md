@@ -24,16 +24,26 @@
 - **macOS menu:** keep the `editMenu` role (a custom menu strips ⌘C/V from inputs) and keep
   reload/devtools **dev-gated** (prod deliberately ignores ⌘R). `electron-devtools-installer` stays a
   **devDependency** — it must not ship.
-- **Chrome heights are coupled in Electron.** The native shell titlebar, navigation/surface
-  headers, and viewer header are `h-12`, and `trafficLightPosition` is tuned to that 48px row. The
-  browser client has no duplicate titlebar row: its navigation starts at the top. The Viewer tab
-  strip is a separate `h-9` row below the header. Change the Electron titlebar height and the
-  traffic lights drift.
-- **The two floating sidebars are pushed below the native titlebar only in Electron, with `md:`
-  classes and never an inline style** — shadcn pins their container to the full viewport, and the
-  mobile Sheet reuses the same props, so an inline offset makes the drawer begin 3rem below the
-  viewport. The browser variant starts at the top. The center `SidebarInset` is `h-full`, not
-  `h-screen` (which overflowed 48px past the bottom).
+- **Only a frameless window draws a titlebar row.** `isFramelessShell` (Linux/Windows Electron,
+  where `createWindow` sets `frame: false`) renders `TitleBar` for the drag region and window
+  controls. macOS and the browser client draw no row at all: macOS's traffic lights are native and
+  overlay whatever is beneath them, and a browser tab has no window to move. Navigation/surface
+  headers and the viewer header are all `h-12`; the Viewer tab strip is a separate `h-9` row below
+  the header.
+- **On macOS, whichever chrome owns the window's top-left corner reserves the traffic-light
+  clearance.** `trafficLightPosition` (`window.ts`) is a fixed window coordinate — the OS paints
+  there regardless of what the renderer draws. The left sidebar header owns that corner while the
+  sidebar is open; the **Viewer header** inherits it the moment the sidebar collapses (offcanvas,
+  and `useResponsiveShell` collapses it automatically on a narrow window). Both pull the same
+  `MAC_TRAFFIC_LIGHT_CLEARANCE` from `shell-chrome.ts`. Reserve it in only one of them and the
+  sidebar-toggle button ends up underneath the close button, with no way back.
+- **The two floating sidebars are pushed below the drawn titlebar only on a frameless shell, with
+  `md:` classes and never an inline style** — shadcn pins their container to the full viewport, and
+  the mobile Sheet reuses the same props, so an inline offset makes the drawer begin 3rem below the
+  viewport. Both sidebars read the offset from `sidebarTopOffsetClass` (`shell-chrome.ts`) rather
+  than each holding a copy; the right one drifted out of step with a fix to the left one once
+  already. macOS and the browser variant start at the top. The center `SidebarInset` is `h-full`,
+  not `h-screen` (which overflowed 48px past the bottom).
 - **Window chrome is platform-split; traffic lights are macOS-only.** Linux/Windows get
   `frame: false` and a renderer-drawn `WindowControls` calling shell procedures that act on the
   calling window. The maximize glyph must track OS-driven state (WM shortcut, drag-region

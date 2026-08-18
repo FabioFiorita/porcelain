@@ -16,7 +16,7 @@ import {
 import { Kbd } from '@renderer/components/ui/kbd'
 import { Sidebar, SidebarContent, SidebarHeader, useSidebar } from '@renderer/components/ui/sidebar'
 import { kbdLabel } from '@renderer/lib/keyboard'
-import { isLinuxShell } from '@renderer/lib/platform'
+import { isFramelessShell } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
 import { type SidebarTab, usePreferencesStore } from '@renderer/stores/preferences'
 import {
@@ -29,6 +29,7 @@ import {
 import { TestIds } from '@shared/test-ids'
 import { Plus, X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
+import { sidebarTopOffsetClass } from './shell-chrome'
 import { ShortcutTooltip } from './shortcut-tooltip'
 import { SidebarHeaderActionsProvider } from './sidebar-header-actions'
 import { RightSidebarResizeHandle } from './sidebar-resize-handle'
@@ -239,11 +240,8 @@ export function RightSidebar(): React.JSX.Element {
       data-testid={TestIds.rightSidebar}
       className={cn(
         'md:pt-[9px] md:pb-[9px]',
-        // Only the frameless Linux/Windows shell draws its own titlebar row above this
-        // one — see app-sidebar.tsx for the matching left-sidebar offset.
-        isLinuxShell
-          ? 'md:top-[calc(3rem+env(safe-area-inset-top))] md:h-[calc(100dvh-3rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))]'
-          : 'md:top-[env(safe-area-inset-top)] md:h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom))]',
+        // Same offset the left sidebar takes — shared so the two cannot drift apart again.
+        sidebarTopOffsetClass(isFramelessShell),
       )}
     >
       {!isMobile && <RightSidebarResizeHandle />}
