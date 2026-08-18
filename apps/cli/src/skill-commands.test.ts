@@ -11,7 +11,7 @@ import { COMMANDS } from './cli'
 const toplevel = execFileSync('git', ['rev-parse', '--show-toplevel'], {
   encoding: 'utf8',
 }).trim()
-const skillDir = join(toplevel, 'skills', 'porcelain-companion')
+const skillDir = join(toplevel, 'plugins', 'porcelain', 'skills', 'porcelain-companion')
 
 function markdownFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true, recursive: true })

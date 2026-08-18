@@ -13,9 +13,15 @@ const resolve = (...segments: string[]): string => resolvePath(here, ...segments
 // Mirror electron.vite.config.ts's build-time version define so daemon-version.ts
 // and the CLI resolve `__PORCELAIN_VERSION__` under test.
 const { version } = JSON.parse(readFileSync(resolve('package.json'), 'utf8')) as { version: string }
+const { version: pluginVersion } = JSON.parse(
+  readFileSync(resolve(import.meta.dirname, '../../plugins/porcelain/plugin.json'), 'utf8'),
+) as { version: string }
 
 export default defineConfig({
-  define: { __PORCELAIN_VERSION__: JSON.stringify(version) },
+  define: {
+    __PORCELAIN_VERSION__: JSON.stringify(version),
+    __PORCELAIN_PLUGIN_VERSION__: JSON.stringify(pluginVersion),
+  },
   // The renderer's libghostty-vt ABI tests import the pinned Wasm artifact as
   // a data URL. Mirror apps/web's Vite asset treatment in this shared config.
   assetsInclude: ['**/*.wasm'],

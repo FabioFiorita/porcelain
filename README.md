@@ -53,17 +53,20 @@ Open the one-time link it prints. It expires in 15 minutes and becomes a credent
 
 ## Connect your agent
 
-Teach your agents the Porcelain workflow with the single **porcelain-companion** skill (the Review, board, actions, notes, layers, and more), via [skills.sh](https://www.skills.sh):
+Teach your agents the Porcelain workflow with the **porcelain** plugin — the companion skill (the Review, board, actions, notes, layers, and more) and the remote-daemon setup skill, in one install. It follows the [Agent Plugins](https://agent-plugins.org/) standard, so one command covers every agent on the machine:
 
 ```bash
-npx skills add FabioFiorita/porcelain -g
+npx plugins add FabioFiorita/porcelain
 ```
 
-Agents publish and read review state through a small local command that installs with the app (`~/.porcelain/porcelain`), kept current on every launch. New surfaces ship as references inside that one skill. Update with:
+Claude Code can instead register the repo as a marketplace, which costs one extra step and then refreshes the plugin in the background:
 
-```bash
-npx skills upgrade -g
+```text
+/plugin marketplace add FabioFiorita/porcelain
+/plugin install porcelain@porcelain
 ```
+
+Agents publish and read review state through a small local command that installs with the app (`~/.porcelain/porcelain`), kept current on every launch. New surfaces ship as references inside the plugin's skills.
 
 ## Develop
 

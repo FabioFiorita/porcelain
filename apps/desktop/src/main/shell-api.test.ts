@@ -35,10 +35,11 @@ vi.mock('./local-terminal-paths', () => ({
   updateLocalTerminalPaths: vi.fn(),
 }))
 
-vi.mock('./skills-assets', () => ({
-  SKILLS_VERSION: '0.0.0-test',
-  skillsInstallCommand: (): string => 'install',
-  skillsUpgradeCommand: (): string => 'upgrade',
+vi.mock('./plugin-assets', () => ({
+  PLUGIN_VERSION: '1.0.0',
+  pluginInstallCommand: (): string => 'install',
+  pluginMarketplaceCommands: (): readonly string[] => ['marketplace'],
+  pluginUpdateCommands: (): readonly string[] => ['update'],
 }))
 
 vi.mock('./updater', () => ({

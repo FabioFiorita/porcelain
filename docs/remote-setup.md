@@ -126,6 +126,6 @@ the thing that's broken.
 
 All of the above — including the systemd unit, linger, and troubleshooting steps for node-pty
 compile failures, Volta shims, and port conflicts — is written up as the `porcelain-remote` agent
-skill (installed the same way as the everyday companion skill, via
-[skills.sh](https://www.skills.sh)). Point an agent at it and describe what you're trying to
+skill, which ships in the `porcelain` agent plugin alongside the everyday companion skill
+(`npx plugins add FabioFiorita/porcelain`). Point an agent at it and describe what you're trying to
 reach, and it'll walk the setup with you.
