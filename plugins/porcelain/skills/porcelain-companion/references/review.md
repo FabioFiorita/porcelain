@@ -1,29 +1,38 @@
 # Review Canvas
 
 The Review is one daemon-root Canvas template with four tabs: Intent, Process, Execution, and
-Evidence. It belongs to a Project in the daemon that serves the current Environment. `review set`
-is the agent-facing writer; the browser and desktop clients render the same Canvas bundle.
+Evidence. It belongs to a Project in the daemon that serves the current Environment.
+`porcelain_review` is the agent-facing writer; the browser and desktop clients render the same
+Canvas bundle.
 
 ## Publish or update
 
-Run from the target checkout so the CLI can resolve its Project and Worktree:
+`porcelain_review` takes `workspace` (the checkout path) and a `mode`:
 
-```bash
-~/.porcelain/porcelain review set \
-  --name "Fix null dereference on save" \
-  --thesis "Guard the missing record before the save path reaches persistence."
+```jsonc
+// Intent-first: a name and a thesis, before a file is listed.
+{ "workspace": "/abs/path/to/checkout", "mode": "replace",
+  "name": "Fix null dereference on save",
+  "thesis": "Guard the missing record before the save path reaches persistence." }
 
-~/.porcelain/porcelain review set \
-  --name "Fix null dereference on save" \
-  --thesis "…" \
-  --files '[{"path":"src/save.ts","source":"changed","note":"guard"}]' \
-  --sections '[{"title":"Guard the boundary","prose":"Validate the lookup before persistence.","anchors":[{"path":"src/save.ts"}]}]'
+// The whole set.
+{ "workspace": "/abs/path/to/checkout", "mode": "replace",
+  "name": "Fix null dereference on save",
+  "thesis": "…",
+  "files": [{ "path": "src/save.ts", "source": "changed", "note": "guard" }],
+  "sections": [{ "title": "Guard the boundary",
+                 "prose": "Validate the lookup before persistence.",
+                 "anchors": [{ "path": "src/save.ts" }] }] }
 
-~/.porcelain/porcelain review get
+// Add files to the Review that already exists.
+{ "workspace": "/abs/path/to/checkout", "mode": "append",
+  "files": [{ "path": "src/save.test.ts", "source": "changed" }] }
 ```
 
-`review set` replaces the structured set while retaining the Review Canvas identity. It writes
-daemon-root Project data; it does not write a repo-local Review directory. `review clear` removes
+Read it back with `porcelain_context` (`include: ["review"]`).
+
+`mode: "replace"` replaces the structured set while retaining the Review Canvas identity. It writes
+daemon-root Project data; it does not write a repo-local Review directory. `mode: "clear"` removes
 the daemon-root Review Canvas and is reserved for an explicit replacement requested by the human.
 Do not clear another active Review automatically.
 
@@ -31,12 +40,12 @@ The fields map directly to the tabs:
 
 | Input | Canvas tab | Meaning |
 |---|---|---|
-| `--thesis` | Intent | why this unit exists and its central idea |
-| `--sections` | Process | ordered walkthrough prose, optional inline SVG/HTML, and anchors |
-| `--files` | Execution | the declared files, source tags, notes, and flow layers |
+| `thesis` | Intent | why this unit exists and its central idea |
+| `sections` | Process | ordered walkthrough prose, optional inline SVG/HTML, and anchors |
+| `files` | Execution | the declared files, source tags, notes, and flow layers |
 | Canvas Evidence bundle | Evidence | checks, Results documents, and an image/video/link gallery |
 
-Keep the set truthful as implementation changes. The `--files` array is a deliberate review
+Keep the set truthful as implementation changes. The `files` array is a deliberate review
 selection, not an automatic dump of the working tree. A section should explain an invariant or
 boundary rather than repeat one file per paragraph.
 
@@ -59,6 +68,6 @@ integration work. Never claim a check that did not run.
 ## Targeting
 
 The Review is Project-owned, while file anchors and actions can name a Worktree. When working in a
-harness Worktree, run the CLI from that checkout or pass its absolute `--repo` path. Runtime proof
+harness Worktree, pass that checkout's absolute path as `workspace`. Runtime proof
 must use an isolated Playground and dev daemon; production port 43117 and real repositories are
 outside the proof boundary.

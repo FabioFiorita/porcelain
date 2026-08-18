@@ -1,75 +1,65 @@
 ---
 name: porcelain-companion
-description: Drive Porcelain's daemon-root Review Canvas, Tasks, Actions, and explicit Canvas/project overlays through the bundled CLI. Use when the human asks to publish or inspect a Review, record Tasks or Actions, promote daemon data, or close the evidence loop.
+description: Drive Porcelain's daemon-root Review Canvas, Tasks, Actions, review comments, and explicit Canvas/project overlays through the Porcelain MCP tools. Use when the human asks to publish or inspect a Review, answer a review comment, record Tasks or Actions, promote daemon data, or close the evidence loop.
 license: MIT
 ---
 
 # Porcelain companion
 
-Porcelain is an explicit product-surface procedure where agent work becomes trusted work. The daemon owns the
-canonical state; the app and browser render it. Repo-local companion files are explicit tracked
-overlays, not a live Review database.
+Porcelain is an explicit product surface procedure where agent work becomes trusted work. The
+daemon owns the canonical state; the app and browser render it. Repo-local companion files are
+explicit tracked overlays, not a live Review database.
 
-## Start with the CLI
+## Start with the tools
 
-```text
-~/.porcelain/porcelain
-```
+The `porcelain` MCP server runs on the daemon. Seven tools, and **`porcelain_context` first** —
+it resolves the workspace and hands back the Review, the human's open comments, and the files
+they have marked reviewed.
 
-Run it inside the target checkout so Porcelain can resolve its Project and Worktree. Use
-`--repo <absolute path>` only for another checkout. Read `help` when a verb is not listed here.
+Every tool takes `workspace`: the absolute path of the checkout you are working in. Pass
+`{projectId, worktreeId}` instead when the daemon is on another host, where your local path
+means nothing. There is no working directory to inherit — each call says where it acts.
+
+If a call reports that the checkout is not open in Porcelain, that is the answer: open it in the
+app rather than guessing another path.
 
 ## References
 
 Load the reference that matches the task:
 
 ```text
-references/review.md             Review Canvas: Intent · Process · Execution · Evidence
-references/tasks.md              daemon-wide Tasks
-references/actions.md            Project Actions (definitions; the human runs them)
+references/review.md              Review Canvas: Intent · Process · Execution · Evidence
+references/tasks.md               daemon-wide Tasks
+references/actions.md             Project Actions (definitions; the human runs them)
 references/git-visibility.md      private state and tracked Canvas/project overlays
 references/worktrees.md           targeting a Worktree from a harness checkout
 references/sync-environments.md   daemon/Project setup across environments
 ```
 
+## The seven tools
 
-## Everyday commands
-
-```bash
-# Review Canvas — one daemon-root Review template per Project
-~/.porcelain/porcelain review set --name "…" --thesis "…"
-~/.porcelain/porcelain review set --name "…" --thesis "…" --files '[…]' --sections '[…]'
-~/.porcelain/porcelain review get
-~/.porcelain/porcelain review clear                    # explicit replacement only
-
-# Tasks — daemon-wide rows, optionally linked to a Project and Worktree
-~/.porcelain/porcelain tasks list
-~/.porcelain/porcelain tasks get --id T-18
-~/.porcelain/porcelain tasks add --title "…" [--status todo|doing|done|blocked]
-~/.porcelain/porcelain tasks update --id T-18 [--status <status>]
-~/.porcelain/porcelain tasks done --id T-18
-
-# Actions — definitions only; the human accepts and runs them in the app
-~/.porcelain/porcelain actions list
-~/.porcelain/porcelain actions create --title "…" --command "…" [--where primary|local]
-~/.porcelain/porcelain actions update --id <id> [--title "…"] [--command "…"]
-~/.porcelain/porcelain actions delete --id <id>
-
-# Explicit tracked overlays
-~/.porcelain/porcelain canvas list
-~/.porcelain/porcelain canvas promote --id <canvas-id>
-~/.porcelain/porcelain project promote-overrides
-```
+| Tool | Use it to |
+|---|---|
+| `porcelain_context` | Read the Review, open comments, reviewed marks; ask for tasks/actions/canvases |
+| `porcelain_review` | Declare the Review — `replace`, `append` files, or `clear` |
+| `porcelain_task` | Create a Task (no `id`) or update one (`id`) |
+| `porcelain_action` | Save or delete an Action the human will run |
+| `porcelain_canvas` | Publish a Canvas bundle from a local directory |
+| `porcelain_promote` | Move private daemon data into the checkout as tracked files |
+| `porcelain_reply` | Answer a review comment the human left |
 
 ## The loop
 
-1. For an intentionally published unit, write the Review Canvas with `review set`. It writes the
-   Review template into the daemon-root Project store; it does not create a repo-local lifecycle.
-2. Keep Intent (thesis), Process (sections), and Execution (declared files) current as the work
+1. Call `porcelain_context`. Read the human's open comments before doing anything else — they
+   are the reason this product exists, and they are the one input you cannot infer.
+2. For an intentionally published unit, declare the Review with `porcelain_review`. A name and a
+   thesis alone is a valid Intent-first start, before a file is listed.
+3. Keep Intent (thesis), Process (sections), and Execution (declared files) current as the work
    changes. The Review is a Canvas with four tabs, not a queue and not an editor.
-3. Close the loop with real Evidence: checks, Results documents, and an image gallery. Evidence
-   belongs to the daemon-root Canvas bundle and is shown by the Evidence tab.
-4. Record follow-ups that are outside the Canvas story as daemon-owned Tasks.
+4. Answer comments with `porcelain_reply` as you address them. You cannot resolve or delete a
+   comment; the human closes their own loop.
+5. Close the loop with real Evidence: checks, Results documents, and an image gallery.
+6. Record follow-ups that are outside the Canvas story as daemon-owned Tasks.
 
 ## Rules
 
@@ -79,10 +69,13 @@ references/sync-environments.md   daemon/Project setup across environments
 - Complete Evidence validation before claiming an intentionally published Review complete.
 - Clear or replace a Review only when the human explicitly requests replacement.
 - A Task is a daemon-wide work row; it is not a Review and is not a per-repo board.
-- Actions are definitions. Never invent an execute verb or bypass the human acceptance gate.
+- Actions are definitions. Never invent an execute verb or bypass the human acceptance gate. An
+  Action you save arrives **untrusted**: the human approves the command text before it can run,
+  and editing a command drops that approval again. Do not ask them to pre-approve it.
+- You may answer a review comment. You may not resolve or delete one.
 - Hide and pin through the app's Files surface; project defaults are private daemon state until an
-  explicit `project promote-overrides` writes `.porcelain/project.json`. Promote a Canvas
-  deliberately when the team should receive it in git; promotion never commits.
+  explicit `porcelain_promote` with `what: "overrides"` writes `.porcelain/project.json`. Promote
+  a Canvas deliberately when the team should receive it in git; promotion never commits.
 - Keep secrets out of Canvas, Tasks, Actions, and project overrides.
 - Work in an isolated Playground for development daemons. Never aim proof at production port 43117
   or a real checkout.

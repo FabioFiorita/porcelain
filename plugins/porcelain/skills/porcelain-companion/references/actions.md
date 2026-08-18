@@ -4,12 +4,16 @@ Porcelain has saved **actions** — named shell commands the human runs in the e
 
 Actions belong to the **Project**, not to a checkout: they live in the owning Environment daemon's store (`$PORCELAIN_HOME/projects/<projectId>/actions.json`), so an action survives `git worktree remove` and every Worktree of the Project shares one list. Nothing is written into the repository.
 
-Talk to Porcelain through the bundled CLI at `~/.porcelain/porcelain` — installed automatically and kept fresh on every app launch. Run it from **inside the repo** and it targets that repo's Project automatically (git plumbing plus the Hub inventory the daemon already wrote); add `--repo <absolute path>` only to point at a different checkout. A repository Porcelain has never opened has no Project id yet, so the CLI says so instead of inventing one — open it in Porcelain once, then retry.
+Talk to Porcelain through the `porcelain` MCP tools. Every call takes `workspace` — the absolute path of the checkout, or `{projectId, worktreeId}` when the daemon runs on another host. A repository Porcelain has never opened has no Project id yet, so the tool says so instead of inventing one — open it in Porcelain once, then retry.
 
-- `~/.porcelain/porcelain actions list` → the saved actions, each with an id, title, command, and optional `where`.
-- `~/.porcelain/porcelain actions create --title <s> --command <s> [--where primary|local]` → add one (e.g. `--title "Storybook" --command "pnpm --filter web storybook"`).
-- `~/.porcelain/porcelain actions update --id <id> [--title <s>] [--command <s>] [--where primary|local]` → edit one.
-- `~/.porcelain/porcelain actions delete --id <id>` → remove one.
+- `porcelain_context` with `include: ["actions"]` → the saved actions, each with an id, title, command, and optional `where`.
+- `porcelain_action` with `op: "save"` and no `id` → add one (e.g. title "Storybook", command `pnpm --filter web storybook`).
+- `porcelain_action` with `op: "save"` and an `id` → edit one.
+- `porcelain_action` with `op: "delete"` and an `id` → remove one.
+
+An Action you save arrives **untrusted**. The human reads the command text and approves it before
+it can run, and editing the command drops that approval again — the command text is what runs, so
+the command text is what gets trusted.
 
 **`where`** (optional, default `primary`):
 

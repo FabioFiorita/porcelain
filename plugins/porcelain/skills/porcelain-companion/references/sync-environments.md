@@ -15,7 +15,7 @@ into a checkout:
   project.json         # promoted hide/pin and Worktree defaults
 ```
 
-Use `canvas promote` and `project promote-overrides`; promotion never stages or commits. The
+Use `porcelain_promote` with `what: "canvas"` or `what: "overrides"`; promotion never stages or commits. The
 project's managed git rules keep private daemon state out of normal status while allowing these
 explicit overlays to be tracked. Read [git-visibility.md](git-visibility.md) for the exact
 rules.

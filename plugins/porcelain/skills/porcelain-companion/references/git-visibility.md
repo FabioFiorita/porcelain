@@ -14,9 +14,9 @@ are private to that Environment. A checkout carries only deliberate overlays und
 ## Promote deliberately
 
 ```bash
-~/.porcelain/porcelain canvas list
-~/.porcelain/porcelain canvas promote --id <canvas-id>
-~/.porcelain/porcelain project promote-overrides
+porcelain_context (include: ["canvases"])
+porcelain_promote (what: "canvas", canvasId: …)
+porcelain_promote (what: "overrides")
 ```
 
 Promotion writes plain files and adjusts the clone's Porcelain visibility rules. It does not run

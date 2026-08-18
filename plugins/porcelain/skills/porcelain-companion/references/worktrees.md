@@ -10,8 +10,8 @@ Run the CLI from inside the desired Worktree. Porcelain resolves the checkout th
 uses its Project identity:
 
 ```bash
-cd "$WORKTREE" && ~/.porcelain/porcelain review get
-~/.porcelain/porcelain --repo /abs/path/to/worktree tasks add --title "…"
+porcelain_context (workspace: "$WORKTREE", include: ["review"])
+porcelain_task (workspace: "/abs/path/to/worktree", title: "…")
 ```
 
 The Review Canvas is Project-owned, while its Execution anchors and Evidence proof should describe

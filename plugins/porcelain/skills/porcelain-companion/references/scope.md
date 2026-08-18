@@ -5,11 +5,11 @@ writes the current project-relative channel; it is not a repository Review lifec
 `scope` command. Agents should use the app surface when the human asks to hide or pin paths.
 
 When a team needs the same defaults in a checkout, use the explicit
-`project promote-overrides` command. It writes `.porcelain/project.json` and never stages or
+`porcelain_promote` call with `what: "overrides"`. It writes `.porcelain/project.json` and never stages or
 commits the result:
 
 ```bash
-~/.porcelain/porcelain project promote-overrides
+porcelain_promote (what: "overrides")
 ```
 
 The tracked overlay contains only repository-relative hidden and pinned paths. Private daemon
