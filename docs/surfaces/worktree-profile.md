@@ -6,14 +6,21 @@ separately is the mistake this document exists to prevent.
 
 ## What it is
 
-A profile belongs to one worktree and holds three things:
+A profile holds three things:
 
 - **pinned paths** — lifted to the top of the tree
 - **hidden paths** — folded out of the tree
 - **layer order** — the sequence that orders a changeset as a story
 
-One object, one write path, one CLI surface. A change that touches pins but not layers still edits
-the profile.
+It exists at **two levels**, and the lower one is the default. The **project** profile is the
+baseline every worktree of that repository inherits — the boring things that are true whatever
+you are working on. The **worktree** profile is an optional override on top of it, normally
+absent. `resolveProfile` in `packages/contracts/src/worktree-profile.ts` is the one place they
+meet: pins and hides are additive, `unhiddenPaths` negates an inherited hide, and layer order
+replaces wholesale rather than interleaving two stories into a third neither of them meant.
+
+One object, one write path, one CLI surface per level. A change that touches pins but not layers
+still edits the profile.
 
 ## Rules
 
@@ -22,23 +29,41 @@ user has to remember to undo. Every hidden path stays one deliberate gesture awa
 is discoverable from the tree itself rather than from settings. A user must never be unable to open
 a file because Porcelain decided it was uninteresting.
 
-**A worktree with no profile behaves like a plain tree.** Path order, nothing pinned, nothing
-hidden, no story order. This is the default and it is a good default — a stable worktree usually
-keeps it.
+**A worktree with no override inherits the project profile.** It does not fall back to a plain
+tree — the whole point of the lower level is that someone who never opens a second worktree, or
+who wants every worktree to look the same, gets that without configuring anything off. A
+repository with no profile at either level is the plain tree, and that is still a good default.
+
+Inheritance is **live, not a copy** taken when the worktree was created. Editing the project
+profile moves every worktree that has not overridden it. A snapshot per worktree would recreate
+the stale-setup problem the profile exists to solve: eight places to fix instead of one.
 
 **Profiles are personal and private** (ADR 0006). Never shared, never promoted into Git, never
 inherited. `hiddenPaths` and `pinnedPaths` leave the tracked `project.json` overlay; committing
 someone's focus for a teammate to inherit is incoherent when two people in one monorepo work on
 unrelated parts of it. Do not fork a second store, and do not reintroduce a shared baseline.
 
-**A profile dies with its worktree.** It describes one task. A worktree recreated on the same branch
-later is usually different work, and resurrected focus reads as deliberate when it is merely stale.
-Canvases outlive disposal because they are evidence; a profile is convenience.
+**A worktree OVERRIDE dies with its worktree; the project baseline survives.** The override
+describes one task, and resurrected task focus reads as deliberate when it is merely stale. The
+baseline describes the repository, which outlives any task. `porcelain worktree profile clear`
+is the manual form; dispose-time cleanup lands with the create/dispose slice. Canvases outlive
+disposal because they are evidence; a profile is convenience.
 
-**Reads and writes are whole-document.** `porcelain worktree profile get` and `porcelain worktree
-profile set`, the latter taking the entire profile as JSON. No granular pin/unpin/hide/layer-move
-verbs — they multiply argument shapes and half-written states, and agents write whole documents more
-reliably than they chain edits.
+**Reads and writes are whole-document.** `porcelain profile get|set` for the project level and
+`porcelain worktree profile get|set|clear` for the override, `set` taking the entire profile as
+JSON. No granular pin/unpin/hide/layer-move verbs — they multiply argument shapes and
+half-written states, and agents write whole documents more reliably than they chain edits.
+
+**A human gesture in the tree writes the PROJECT level.** Hide and pin from the file tree mean
+"everywhere", because inheritance is the default and that is what the gesture meant before the
+profile had two levels. Unhide reaches into both levels, so the escape hatch always works in one
+gesture wherever the entry came from. Task-shaped, worktree-only focus is what the agent writes.
+
+**Settings → Personalization is read-only.** It shows the two levels apart, because a single
+merged list cannot say which focus is inherited and which this worktree added, and a reader who
+cannot tell them apart cannot decide which one to change. It never becomes an editor: pins and
+hides belong to the tree, and layers belong to the agent — the copyable prompts there are the
+affordance.
 
 **Ordering lives in `apps/daemon/src/review/flow.ts`** — `groupByLayer` is the one grouping
 implementation, already shared by `buildFlow` and `buildActiveReview`. Profile-driven ordering
@@ -56,9 +81,11 @@ confident wrong order is worse than none — it makes a reader trust a story tha
 repository with no declared layers has no story order yet, and the changeset falls back to a plain,
 honest ordering.
 
-**Layers are per worktree because tasks differ.** A web change and a mobile change in one monorepo
-want different sequences. A design that can only express one ordering per repository has missed the
-point of the pillar.
+**Layers are per worktree when they need to be.** A web change and a mobile change in one
+monorepo want different sequences, and the override expresses that. Most repositories have one
+sensible order most of the time, which is why the project level holds it and the override is the
+exception rather than the ceremony. An override's `layers: null` inherits; `[]` declines the
+project's order and falls back to the starters in `apps/daemon/src/review/default-layers.ts`.
 
 **Unlisted paths are never dropped.** A file that matches no declared layer still appears in the
 changeset, at the end, plainly. Story order groups what it knows about; it never conceals a change

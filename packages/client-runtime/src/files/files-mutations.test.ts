@@ -16,7 +16,7 @@ import {
   treeSubtreeEffectsForStructuralPath,
 } from './files-effects'
 import { filesMutations } from './files-mutations'
-import { filesPinsQuery, filesScopeQuery } from './files-queries'
+import { filesPinsQuery, filesProfileQuery, filesScopeQuery } from './files-queries'
 
 const fixtures = filesContractFixtures
 
@@ -29,6 +29,9 @@ const filesProcedureCatalog = {
 function scopeEffects(repoPath: string) {
   return [
     filesExactEffect(filesScopeQuery(repoPath)),
+    // Settings → Personalization reads the two levels apart, so a hide from the
+    // tree has to refresh it too — otherwise the tab shows what you just changed.
+    filesExactEffect(filesProfileQuery(repoPath)),
     filesExactEffect(filesPinsQuery(repoPath)),
     filesTreeFamilyEffect(repoPath),
   ]

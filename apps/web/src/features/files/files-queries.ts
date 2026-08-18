@@ -3,12 +3,13 @@ import {
   filePreviewQuery,
   filesExactEffect,
   filesPinsQuery,
+  filesProfileQuery,
   filesProjectKey,
   filesScopeQuery,
   filesTreeFamilyEffect,
   filesTreeQuery,
 } from '@porcelain/client-runtime/files'
-import type { DirEntry, FileView, RepoScope } from '@porcelain/contracts/files'
+import type { DirEntry, FileView, RepoScope, WorktreeProfileView } from '@porcelain/contracts/files'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
 import { daemonScopeForEnvironment, environmentClientFor } from '@renderer/lib/environment-sessions'
@@ -31,6 +32,7 @@ import { filesQueryKey } from './files-query-key'
 const DISABLED_TREE = filesTreeQuery('/', '.', false)
 const DISABLED_PINS = filesPinsQuery('/')
 const DISABLED_SCOPE = filesScopeQuery('/')
+const DISABLED_PROFILE = filesProfileQuery('/')
 const DISABLED_CONTENT = fileContentQuery('/', '__disabled__')
 const DISABLED_PREVIEW = filePreviewQuery('/', '__disabled__')
 
@@ -119,6 +121,29 @@ export function useFilesScope(): RepoScope | undefined {
     queryFn: async (): Promise<RepoScope> => {
       if (owner === null || projectKey === null) return invariantDisabledQueryFn('scope')
       return owner.client.repoScope.query(projectKey)
+    },
+    enabled: repoPath !== null,
+  })
+
+  return data
+}
+
+/**
+ * The worktree profile with its two levels kept apart — Settings →
+ * Personalization. `useFilesScope` is the merged answer the tree applies; this
+ * is the same state broken into "what the project declares" and "what this
+ * worktree added", which is the only thing a reader can act on.
+ */
+export function useWorktreeProfile(): WorktreeProfileView | undefined {
+  const { daemon, owner, repoPath } = useFilesOwner()
+  const projectKey = repoPath !== null ? filesProjectKey(repoPath) : null
+  const identity = projectKey !== null ? filesProfileQuery(projectKey) : DISABLED_PROFILE
+
+  const { data } = useQuery({
+    queryKey: filesQueryKey(daemon, identity),
+    queryFn: async (): Promise<WorktreeProfileView> => {
+      if (owner === null || projectKey === null) return invariantDisabledQueryFn('profile')
+      return owner.client.worktreeProfile.query(projectKey)
     },
     enabled: repoPath !== null,
   })

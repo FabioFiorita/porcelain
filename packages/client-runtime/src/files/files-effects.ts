@@ -81,6 +81,8 @@ function exactQueryKey(query: FilesQuery): string {
       return `pins\0${query.projectPath}`
     case 'scope':
       return `scope\0${query.projectPath}`
+    case 'profile':
+      return `profile\0${query.projectPath}`
     case 'content':
       return `content\0${query.projectPath}\0${query.path}`
     case 'preview':

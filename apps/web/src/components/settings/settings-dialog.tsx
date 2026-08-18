@@ -21,9 +21,18 @@ import { isBrowser } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
 import { type SettingsSection, useSettingsDialogStore } from '@renderer/stores/settings-dialog'
 import { TestIds } from '@shared/test-ids'
-import { BookOpen, Cloud, Download, Settings2, Share2, SlidersHorizontal } from 'lucide-react'
+import {
+  BookOpen,
+  Cloud,
+  Download,
+  Focus,
+  Settings2,
+  Share2,
+  SlidersHorizontal,
+} from 'lucide-react'
 import { CompanionSection } from './companion-section'
 import { GeneralSection } from './general-section'
+import { PersonalizationSection } from './personalization-section'
 import { RemotesSection } from './remotes-section'
 import { ShareSection } from './share-section'
 import { UpdatesSection } from './updates-section'
@@ -47,6 +56,15 @@ const ALL_SECTIONS: {
     icon: SlidersHorizontal,
     title: 'General',
     blurb: 'Viewer preferences, saved on this machine.',
+  },
+  {
+    id: 'personalization',
+    label: 'Personalization',
+    icon: Focus,
+    title: 'Personalization',
+    // Not shell-only: the profile is daemon state, and the browser renders it
+    // as well as Electron does.
+    blurb: 'What this project pins, hides, and the order your changes read in.',
   },
   {
     id: 'companion',
@@ -252,6 +270,7 @@ function SettingsSectionBody({ activeId }: { activeId: SettingsSection }): React
   return (
     <>
       {activeId === 'general' && <GeneralSection />}
+      {activeId === 'personalization' && <PersonalizationSection />}
       {activeId === 'companion' && <CompanionSection />}
       {activeId === 'share' && <ShareSection />}
       {activeId === 'remotes' && <RemotesSection />}

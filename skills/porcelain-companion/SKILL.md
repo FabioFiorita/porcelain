@@ -25,6 +25,7 @@ Run it inside the target checkout so Porcelain can resolve its Project and Workt
 Load the reference that matches the task:
 
 ```text
+references/profile.md            worktree profile: pins, hides, story layers
 references/review.md             Review Canvas: Intent · Process · Execution · Evidence
 references/tasks.md              daemon-wide Tasks
 references/actions.md            Project Actions (definitions; the human runs them)
@@ -56,6 +57,13 @@ references/sync-environments.md   daemon/Project setup across environments
 ~/.porcelain/porcelain actions update --id <id> [--title "…"] [--command "…"]
 ~/.porcelain/porcelain actions delete --id <id>
 
+# Worktree profile — pins, hides, story layers (two levels, whole-document writes)
+~/.porcelain/porcelain profile get
+~/.porcelain/porcelain profile set --profile -          # project baseline, inherited by every worktree
+~/.porcelain/porcelain worktree profile get             # baseline + this worktree's override + the merge
+~/.porcelain/porcelain worktree profile set --profile -
+~/.porcelain/porcelain worktree profile clear           # back to inheriting
+
 # Explicit tracked overlays
 ~/.porcelain/porcelain canvas list
 ~/.porcelain/porcelain canvas promote --id <canvas-id>
@@ -81,9 +89,14 @@ references/sync-environments.md   daemon/Project setup across environments
 - Clear or replace a Review only when the human explicitly requests replacement.
 - A Task is a daemon-wide work row; it is not a Review and is not a per-repo board.
 - Actions are definitions. Never invent an execute verb or bypass the human acceptance gate.
-- Hide and pin through the app's Files surface; project defaults are private daemon state until an
-  explicit `project promote-overrides` writes `.porcelain/project.json`. Promote a Canvas
-  deliberately when the team should receive it in git; promotion never commits.
+- Hide and pin through the app's Files surface, which writes the PROJECT level every worktree
+  inherits. Task-shaped focus is a worktree override you write — see
+  [references/profile.md](references/profile.md). Never write a profile unasked, and never infer
+  layers from framework conventions.
+- Project defaults are private daemon state until an explicit `project promote-overrides` writes
+  `.porcelain/project.json`, and that promotion carries hides and pins only — layers and worktree
+  overrides are personal and never enter git. Promote a Canvas deliberately when the team should
+  receive it; promotion never commits.
 - Keep secrets out of Canvas, Tasks, Actions, and project overrides.
 - Work in an isolated Playground for development daemons. Never aim proof at production port 43117
   or a real checkout.

@@ -16,10 +16,11 @@ second agent host.
 
 ## The core object: the worktree
 
-Everything is scoped to a worktree. A worktree carries its own **profile** — which paths are pinned,
-which are hidden, and which layers order its story — and the agent writes that profile through the
-companion skill and CLI when it sets the worktree up. A web task and a mobile task get different
-profiles because they are different work.
+Everything is scoped to a worktree. A **profile** — which paths are pinned, which are hidden, and
+which layers order the story — is set once for the project and inherited by every worktree of it.
+A worktree can override it, and the agent writes that override through the companion skill and CLI
+when the work needs focus of its own: a web task and a mobile task in one monorepo are different
+work. Most worktrees never need one.
 
 Worktrees are read side by side in one window. Tasks are the deliberate exception: they span
 projects and worktrees, because your work does.
@@ -31,12 +32,13 @@ In priority order. Pillars 2 and 3 are one mechanism — the worktree profile �
 1. **Worktree navigation.** Many worktrees legible in one window, fast to switch between. Created
    with a chosen destination and branch, running the repository's `create` hook; disposed of through
    its `dispose` hook. Parallel agents are the normal case, not the advanced one.
-2. **Per-worktree focus.** The whole tree is always reachable — nothing is permanently hidden. Pins
-   and hides are set per worktree, by the agent, to match the task at hand. A stable worktree keeps
-   the plain default.
-3. **Per-worktree story layers.** Changes read along the application's own layers — view → RPC →
-   controller → service → repository → schema — not alphabetically. The layer sequence belongs to
-   the worktree, not to the repository, for the same reason focus does.
+2. **Focus that follows the work.** The whole tree is always reachable — nothing is permanently
+   hidden. Pins and hides are set for the project and inherited by every worktree; an agent
+   overrides them for the one worktree whose task needs it. A stable worktree keeps what it
+   inherited.
+3. **Story layers.** Changes read along the application's own layers — view → RPC → controller →
+   service → repository → schema — not alphabetically. The sequence is declared, never inferred,
+   and a worktree whose task reads along a different path declares its own.
 4. **Canvas.** The agent's free surface: diagrams, tables, flow explanations, comparisons, review
    write-ups. HTML-first, because humans read it faster. Canvas carries the quantitative evidence
    too — coverage, mutation score, complexity, new dead code — not as decoration but as **reading
