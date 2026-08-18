@@ -29,6 +29,17 @@ import type {
 } from './actions-ports'
 import { commandFingerprint } from './json-action-trust-store'
 
+/**
+ * Who wrote the command text — and therefore whether writing it is consent to run it.
+ *
+ * A human typing into the app has already read what they typed, so the app auto-trusts
+ * it. An agent has not earned that: an Action is a shell command the human runs with
+ * one click, so an agent-authored one must arrive UNTRUSTED and wait for the approval
+ * step the client already renders (`action-run.ts` → `needs-trust`). Required, never
+ * defaulted: a new caller must state which it is rather than inherit auto-trust.
+ */
+export type ActionAuthor = 'human' | 'agent'
+
 export type ActionsOperations = {
   listActions: (input: { projectId: string }) => Promise<ActionsOperationResult<ActionView[]>>
   trustActions: (input: {
@@ -40,6 +51,7 @@ export type ActionsOperations = {
     title: string
     command: string
     where?: 'primary' | 'local'
+    authoredBy: ActionAuthor
   }) => Promise<ActionsOperationResult<Action>>
   updateAction: (input: {
     projectId: string
@@ -47,6 +59,7 @@ export type ActionsOperations = {
     title?: string
     command?: string
     where?: 'primary' | 'local'
+    authoredBy: ActionAuthor
   }) => Promise<ActionsOperationResult<void>>
   moveAction: (input: {
     projectId: string
@@ -145,6 +158,7 @@ export function createActionsOperations(options: {
     title: string
     command: string
     where?: 'primary' | 'local'
+    authoredBy: ActionAuthor
   }): Promise<ActionsOperationResult<Action>> {
     const now = clock.now()
     const id = ids.create()
@@ -167,9 +181,11 @@ export function createActionsOperations(options: {
       return { ok: false, error: { code: 'actions.unavailable' } }
     }
 
-    // Human-authored through the app — auto-trust the new command text.
-    const trusted = await trustStore.trustCommands(input.projectId, [result.value.action.command])
-    if (!trusted.ok) return trusted
+    if (input.authoredBy === 'human') {
+      // Typed into the app by the person who will run it — that is the consent.
+      const trusted = await trustStore.trustCommands(input.projectId, [result.value.action.command])
+      if (!trusted.ok) return trusted
+    }
 
     changes.publish({ type: 'actions.changed', projectId: input.projectId })
     return { ok: true, value: result.value.action }
@@ -181,6 +197,7 @@ export function createActionsOperations(options: {
     title?: string
     command?: string
     where?: 'primary' | 'local'
+    authoredBy: ActionAuthor
   }): Promise<ActionsOperationResult<void>> {
     const result = await store.transact(input.projectId, (current) => {
       const planned = planUpdateAction(current, {
@@ -198,7 +215,9 @@ export function createActionsOperations(options: {
       return { ok: false, error: { code: 'actions.unavailable' } }
     }
 
-    if (input.command !== undefined) {
+    // An edited command loses its trust by design; re-trusting it here is the human's
+    // consent, so an agent edit leaves the Action awaiting approval instead.
+    if (input.command !== undefined && input.authoredBy === 'human') {
       // Fingerprint the stored normalized command, not the raw input text.
       const trusted = await trustStore.trustCommands(input.projectId, [result.value.action.command])
       if (!trusted.ok) return trusted

@@ -113,8 +113,11 @@ describe('actions feature router', () => {
         where: 'local',
       }),
     ).resolves.toMatchObject({ id: ID, title: 'Ship', command: 'make ship' })
+    // The router is the human path, and says so: an agent reaching the same operation
+    // over MCP passes 'agent' and its command arrives untrusted.
     expect(calls).toEqual([
       {
+        authoredBy: 'human',
         projectId: PROJECT,
         title: 'Ship',
         command: 'make ship',
