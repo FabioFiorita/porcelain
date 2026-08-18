@@ -1,1 +1,0 @@
-../../.agents/hooks/worktree-create.sh
