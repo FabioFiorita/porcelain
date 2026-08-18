@@ -74,6 +74,19 @@ export function useHubInventories(): readonly HubInventoryView[] {
     if (browserQuery.data !== undefined) setPrimaryEnvironmentId(browserQuery.data.environment.id)
   }, [browserQuery.data])
   useEffect(() => {
+    // Electron never runs the browser effect above, so without this primaryEnvironmentId
+    // stays null forever on the shell: environmentClientFor/environmentSessionFor only
+    // recognize a real Environment id as local by matching it against primaryEnvironmentId,
+    // and every Hub selection's environmentId is that real id (HubSelection needs it non-null
+    // to persist which Environment a Worktree belongs to — see hub-selection.ts) even for the
+    // local Environment. Left unset, every query keyed off a Hub target — Files, Git, Search,
+    // Terminal, Actions — resolves no owning client and sits disabled/loading forever the
+    // moment a worktree is opened.
+    if (isBrowser) return
+    const local = shellQuery.data?.find((source) => source.current)
+    if (local !== undefined) setPrimaryEnvironmentId(local.inventory.environment.id)
+  }, [shellQuery.data])
+  useEffect(() => {
     for (const [index, query] of secondaryQueries.entries()) {
       const entry = browserSessions[index]
       if (entry !== undefined && query.data !== undefined) {
