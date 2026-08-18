@@ -132,6 +132,11 @@ Open design questions, all owned by step 3:
 - A static `mcp.json` names one URL; dev is 43118 and worktrees are 43200–43999.
 - The daemon must be running. Accepted regression — make the failure say so.
 - Do not transliterate the 17 verbs into 17 tools.
+- **The portable `mcp.json` cannot carry the token.** Claude Code has `userConfig`, so
+  its manifest prompts for `~/.porcelain/admin-token` on install. Agent Plugins 1.0.0
+  expands `${PLUGIN_ROOT}`/`${PLUGIN_DATA}` in stdio `args`/`env`/`cwd` only — nothing
+  in HTTP `headers` — so the portable file names `${PORCELAIN_ADMIN_TOKEN}` and a client
+  that does not expand it needs the header set by hand. Unsolved, not hidden.
 - The CLI never carried review comments or reviewed marks. `comment-router` and
   `review-marks-router` are live on the daemon and the agent has no reach — restoring that
   is the point, not tool-count math.

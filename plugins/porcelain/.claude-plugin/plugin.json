@@ -1,7 +1,7 @@
 {
   "name": "porcelain",
   "displayName": "Porcelain",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Drive Porcelain — the review layer for agentic coding. Publish Reviews to the Canvas, record Tasks and Actions, close the evidence loop, and set up a remote daemon.",
   "author": {
     "name": "Fabio Fiorita",
@@ -10,5 +10,15 @@
   "homepage": "https://github.com/FabioFiorita/porcelain",
   "repository": "https://github.com/FabioFiorita/porcelain",
   "license": "MIT",
-  "keywords": ["code-review", "worktree", "evidence", "canvas", "agentic-coding"]
+  "keywords": ["code-review", "worktree", "evidence", "canvas", "agentic-coding"],
+  "mcpServers": "./.mcp.json",
+  "userConfig": {
+    "admin_token": {
+      "type": "string",
+      "title": "Porcelain admin token",
+      "description": "Contents of ~/.porcelain/admin-token. The daemon mints it on first run; it never leaves this machine.",
+      "sensitive": true,
+      "required": true
+    }
+  }
 }

@@ -12,6 +12,9 @@
  * Usage:
  *   node scripts/plugin-version.mjs            # rewrite the lock (fails if a bump is owed)
  *   node scripts/plugin-version.mjs --check    # exit 1 on drift; runs in `pnpm lint`
+ *
+ * Lock AFTER `pnpm lint:fix`. The hash covers the shipped bytes, so reformatting a
+ * manifest afterwards moves it and the gate then demands a bump nobody owes.
  */
 import { createHash } from 'node:crypto'
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
