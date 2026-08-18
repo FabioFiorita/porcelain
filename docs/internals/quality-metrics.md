@@ -22,6 +22,7 @@ So: structure was measured, tests were not. This closes that.
 | Module size | `ARCHITECTURE_LINE_CEILING` (450) over production source | Same ceiling the architecture gate enforces, reported as a distribution |
 | Dead code | `knip`, shrink-only ledger | Unused exports, files, and dependencies — the debt that inflates every other number |
 | Test shape | `scripts/quality/test-shape.mjs` (TS AST) | Tests that pass without proving anything |
+| Test-only orphans | `scripts/lint-test-orphans.mjs` (TS AST) | Exports that only a test imports — code kept alive by its own test |
 
 Run it:
 
@@ -30,6 +31,7 @@ pnpm quality            # scorecard; reuses a coverage report under an hour old
 pnpm quality:baseline   # fresh suite run, then snapshot to scripts/quality/baseline.json
 pnpm test:coverage      # coverage alone, no scorecard
 pnpm lint:test-shape    # the gate that runs on every commit
+pnpm lint:test-orphans  # exports whose only importer is a test
 pnpm mutation           # mutation over the domains you touched
 pnpm quality:changed    # per-change verdict
 node scripts/quality/test-shape.mjs --list   # every shape finding, not just the head
@@ -73,6 +75,36 @@ It reported 54 correct tests and zero defects. Measure your own metric before tr
 
 Shape is a proxy, and it has a hard limit: it cannot see a spec that passes because a sibling left
 the fixture in the wrong state. That needs semantics, which is mutation testing's job.
+
+## Test-only orphans: the half knip cannot see
+
+Knip reports an export nobody imports. It cannot report an export imported **only by its own
+test**, because a test file is an importer like any other. So a component mounted nowhere, but
+rendered by its unit test, reads as used — by knip, by coverage, and by `pnpm lint`.
+
+That gap shipped a defect. `DevServersSection` sat unmounted while `composed-proof.spec.ts` still
+asserted the surface it used to own; three CI runs failed on it before anyone read the spec, and
+no gate had anything to say. `lint:test-orphans` closes it.
+
+It is **identity**-baselined, not count-baselined, and that distinction is the point.
+`dead-code-baseline.json` holds `{"exports": 198}`, so deleting one dead export and adding another
+keeps the gate green — churn is invisible to a count. `test-orphans-baseline.json` holds
+`file::Symbol` rows, so a *different* orphan is a new orphan even when the total does not move.
+
+Four things it deliberately stays quiet about, because a report that is mostly wrong teaches
+people to skip the report — the lesson that got `mock-only` deleted above:
+
+| Not flagged | Why |
+|---|---|
+| An export used inside its own file | It is rendered, therefore alive. An unnecessary `export` is knip's finding |
+| An export nobody imports at all | Already knip's `exports` row |
+| `test-support.*`, `test-harness.*`, `*-fixture.*` | Serving only tests is their job description |
+| `apps/web/src/components/ui/**` | Vendored primitives land ahead of their first caller by design |
+
+Module resolution reads the `paths` map straight out of `knip.json`, so the two cannot drift.
+
+A baselined row is a debt, not a home. Mounting the code or deleting it with its test are both
+fixes; adding a row is not.
 
 ## Read coverage by domain, not in total
 
@@ -171,6 +203,7 @@ chosen before anyone has read the distribution is either toothless or permanentl
 | `lint:test-shape` | every commit | zero focused / disabled / tautology / no-assert |
 | `typecheck:tests` | `pnpm verify` | zero, via an empty per-file ledger |
 | `lint:dead-code` | every commit | knip counts may shrink, never grow |
+| `lint:test-orphans` | every commit | the baselined `file::Symbol` rows may shrink, never grow |
 | `mutation` `thresholds.break` | on demand | the git domain's measured score |
 
 Coverage, complexity, module size, and dead code report only. `scripts/quality/baseline.json` is
