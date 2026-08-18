@@ -113,6 +113,19 @@ describe('TasksView', () => {
     expect(within(sheet).getByText(REFERENCED.shortId)).toBeInTheDocument()
   })
 
+  it('changes a status from the row without opening the detail sheet', async () => {
+    renderTasks(<TasksView />)
+    await waitFor(() => expect(screen.getByTestId(TestIds.tasksTable)).toBeInTheDocument())
+
+    fireEvent.click(screen.getByTestId(TestIds.tasksRowStatus(REFERENCED.id)))
+    const option = await screen.findByRole('option', { name: 'Done' })
+    fireEvent.click(option)
+
+    // The option renders in a portal but still bubbles through the React tree to the row,
+    // whose click opens the detail sheet. Picking a status is an edit, not a navigation.
+    await waitFor(() => expect(screen.queryByTestId(TestIds.tasksSheet)).not.toBeInTheDocument())
+  })
+
   it('keeps a failed read distinct from an empty table', async () => {
     renderTasks(<TasksView />, {
       listTasks: () => ({

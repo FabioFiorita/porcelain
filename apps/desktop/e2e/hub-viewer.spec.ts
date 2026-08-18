@@ -70,6 +70,9 @@ test('Project headers collapse without becoming navigation targets', async ({ pa
 
   const project = loc.hubProjects(page).first()
   const worktrees = loc.hubWorktrees(page)
+  // `count()` reads once and never retries, so capturing it before the Hub list has hydrated
+  // records 0 and the post-expand assertion then compares against the wrong baseline.
+  await expect(worktrees.first()).toBeVisible()
   const before = await worktrees.count()
 
   await project.getByRole('button', { name: /Collapse project/ }).click()

@@ -55,35 +55,16 @@ async function seedCanvas(homeDir: string, projectId: string, worktreeId: string
 
 test.setTimeout(120_000)
 
-test('composed daemon proof: targets, Canvas, Tasks, Actions, and process lifetime', async ({
-  page,
-  seeded,
-}) => {
+// Process lifetime is not proven here any more: the Servers chrome left the Glance and
+// start/stop belongs to Actions now (see the skip in `dev-servers.spec.ts`). The surviving
+// daemon-owned-process proof is `critical-wiring.spec.ts` — a PTY outliving a renderer reload.
+test('composed daemon proof: targets, Canvas, Tasks, and Actions', async ({ page, seeded }) => {
   await waitForShell(page)
   await loc.railSettings(page).click()
   await loc.settingsDialog(page).waitFor()
   await expect(loc.settingsHeading(page)).toHaveText('General')
   await expect(page.getByTestId(TestIds.settingsSection('remotes'))).toHaveCount(0)
   await loc.settingsDialog(page).getByRole('button', { name: 'Close' }).click()
-  // Process lifetime: start this while the default Glance surface owns the
-  // daemon-backed process section, then prove it survives the renderer reload.
-  await expect(loc.devServers(page)).toBeVisible()
-  await loc.devServerLabelInput(page).fill('composed process')
-  await loc
-    .devServerCommandInput(page)
-    .fill(
-      'node -e \'require("http").createServer(function(q,s){s.end("alive")}).listen(0,"127.0.0.1")\'',
-    )
-  await loc.devServerSubmit(page).click()
-  const processRow = loc.devServerRows(page).first()
-  await expect(processRow).toBeVisible({ timeout: 30_000 })
-  const processId = (await processRow.getAttribute('data-testid'))?.replace('dev-server-', '')
-  if (processId === undefined) throw new Error('process row has no id')
-  await page.reload()
-  await waitForShell(page)
-  await expect(loc.devServerRow(page, processId)).toHaveAttribute('data-status', 'running', {
-    timeout: 30_000,
-  })
 
   const { projectId, worktreeId } = await waitForProject(seeded.udBase)
   await seedCanvas(seeded.udBase, projectId, worktreeId)

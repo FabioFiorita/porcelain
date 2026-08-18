@@ -132,7 +132,9 @@ function buildColumns(props: TasksTableProps) {
             >
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            {/* The popup is portaled out of the row, but a React-tree click still bubbles to
+                the row's own handler — without this, picking a status also opens the sheet. */}
+            <SelectContent onClick={(event) => event.stopPropagation()}>
               <SelectGroup>
                 {TASK_STATUSES.map((status) => (
                   <SelectItem key={status} value={status}>
