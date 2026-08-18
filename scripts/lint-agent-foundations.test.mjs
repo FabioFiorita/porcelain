@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /** Fixture tests for AGT-003 root/focused foundation discovery and removal checks. */
 import assert from 'node:assert/strict'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { test } from 'node:test'
@@ -66,5 +66,24 @@ test('missing root delivery loop is rejected', () => {
       assert.ok(
         checkFoundationDiscovery(root).some((failure) => failure.includes('Delivery loop')),
       ),
+  )
+})
+
+/**
+ * A gitignored machine-local config symlinked at a checkout that has since moved
+ * leaves a dangling entry the walk still lists. Crashing there blocked every
+ * commit in the worktree with a raw ENOENT stack; an unreadable file is simply
+ * not evidence of a retired reference.
+ */
+test('a dangling symlink is skipped rather than crashing the gate', () => {
+  withFixture(
+    (root) => {
+      mkdirSync(path.join(root, '.claude'), { recursive: true })
+      symlinkSync(
+        path.join(root, 'nowhere', 'settings.local.json'),
+        path.join(root, '.claude', 'settings.local.json'),
+      )
+    },
+    (root) => assert.deepEqual(checkFoundationDiscovery(root), []),
   )
 })

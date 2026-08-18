@@ -131,11 +131,30 @@ function checkFreshAgentDiscovery(repositoryRoot) {
   return failures
 }
 
+/**
+ * Read a walked file, or null when it cannot be read.
+ *
+ * The walk lists directory entries; reading them can still fail — a dangling
+ * symlink (gitignored machine-local config pointing at a checkout that moved is
+ * the usual one), a permissions problem, a file deleted between the two steps.
+ * None of those are evidence of retired text, and crashing the gate with a raw
+ * ENOENT stack blocks every commit while telling the developer nothing about
+ * what it was actually checking.
+ */
+function readScannedFile(absolutePath) {
+  try {
+    return readFileSync(absolutePath, 'utf8')
+  } catch {
+    return null
+  }
+}
+
 function checkActiveCompatibilityReaders(repositoryRoot) {
   const failures = []
   for (const relativePath of walk(repositoryRoot)) {
     if (EXCLUDED_RELATIVE_FILES.has(relativePath)) continue
-    const source = readFileSync(path.join(repositoryRoot, relativePath), 'utf8')
+    const source = readScannedFile(path.join(repositoryRoot, relativePath))
+    if (source === null) continue
     for (const [label, pattern] of FORBIDDEN_ACTIVE_PATTERNS) {
       if (pattern.test(source)) failures.push(`${relativePath}: contains ${label}`)
     }
