@@ -4,6 +4,7 @@ import { useSidebar } from '@renderer/components/ui/sidebar'
 import { ActionsGroup } from '@renderer/features/actions'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { isModExclusive, isTextEntry, kbdLabel } from '@renderer/lib/keyboard'
+import { isMacShell } from '@renderer/lib/platform'
 import { toggleTerminalPanel } from '@renderer/lib/terminal-actions'
 import { cn } from '@renderer/lib/utils'
 import { useTabsStore } from '@renderer/stores/tabs'
@@ -12,6 +13,7 @@ import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
 import { PanelBottom, PanelLeft, PanelRight, Zap } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { MAC_TRAFFIC_LIGHT_CLEARANCE } from './shell-chrome'
 import { ShortcutTooltip } from './shortcut-tooltip'
 import { TabBar } from './tab-bar'
 import { useViewerBreadcrumb } from './use-viewer-breadcrumb'
@@ -106,7 +108,18 @@ export function ViewerHeader({ left }: { left: LeftSidebarHandle }): React.JSX.E
   const actionsShortcut = kbdLabel('mod', 'shift', 'A')
 
   return (
-    <div className="app-drag flex h-12 shrink-0 items-center gap-1 border-b px-2">
+    <div
+      className={cn(
+        'app-drag flex h-12 shrink-0 items-center gap-1 border-b pr-2',
+        // When the left sidebar collapses, this header inherits the window's top-left
+        // corner — and on macOS the native traffic lights are painted there regardless
+        // (trafficLightPosition x:19, spanning to roughly x:70; see window.ts). At the
+        // default `pl-2` the toggle button below lands at x≈17-45, directly underneath
+        // them: the one control that reopens the sidebar, covered by the close button.
+        // Same clearance app-sidebar.tsx reserves while it owns that corner.
+        isMacShell && left.collapsed ? MAC_TRAFFIC_LIGHT_CLEARANCE : 'pl-2',
+      )}
+    >
       <ShortcutTooltip label="Toggle projects sidebar" shortcut={kbdLabel('mod', 'B')}>
         <Button
           variant="ghost"

@@ -34,6 +34,12 @@ function stubOps(overrides: Partial<FilesOperations> = {}): FilesOperations {
     unpinPath: async () => undefined,
     pinnedEntries: async () => [],
     repoScope: async () => ({ hiddenPaths: [], pinnedPaths: [] }),
+    worktreeProfile: async () => ({
+      worktreeId: null,
+      base: { pinnedPaths: [], hiddenPaths: [], layers: [] },
+      override: null,
+      resolved: { pinnedPaths: [], hiddenPaths: [], layers: [] },
+    }),
     readFile: async () => ({ ok: true, value: { type: 'not-found' } }),
     previewHtml: async () => ({ ok: true, value: null }),
     writeTextFile: async () => ({ ok: true, value: undefined }),

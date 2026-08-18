@@ -28,7 +28,7 @@ const MAX_DUPLICATE_CP_ATTEMPTS = 32
  * Read-side cap on inlined HTML preview bytes — deliberately higher than the CLI
  * `evidence set` payload cap (1.5 MB), because sibling screenshots are inlined as
  * `data:` URIs here. Keep in lockstep with `READ_MAX_HTML_BYTES` in
- * `apps/cli/src/evidence-file.ts`, which warns against the same ceiling.
+ * Evidence asset handling applies the same ceiling.
  */
 const MAX_HTML_BYTES = 4_194_304
 

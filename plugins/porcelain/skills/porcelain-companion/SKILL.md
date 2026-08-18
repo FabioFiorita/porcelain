@@ -1,6 +1,6 @@
 ---
 name: porcelain-companion
-description: Drive Porcelain's daemon-root Review Canvas, Tasks, Actions, review comments, and explicit Canvas/project overlays through the Porcelain MCP tools. Use when the human asks to publish or inspect a Review, answer a review comment, record Tasks or Actions, promote daemon data, or close the evidence loop.
+description: Drive Porcelain's Review Canvas, Tasks, Actions, profiles, review comments, and explicit overlays through MCP tools. Use when the human asks to publish or inspect a Review, manage a profile, answer a comment, record Tasks or Actions, promote daemon data, or close the evidence loop.
 license: MIT
 ---
 
@@ -12,7 +12,7 @@ explicit tracked overlays, not a live Review database.
 
 ## Start with the tools
 
-The `porcelain` MCP server runs on the daemon. Seven tools, and **`porcelain_context` first** —
+The `porcelain` MCP server runs on the daemon. Eight tools, and **`porcelain_context` first** —
 it resolves the workspace and hands back the Review, the human's open comments, and the files
 they have marked reviewed.
 
@@ -31,16 +31,18 @@ Load the reference that matches the task:
 references/review.md              Review Canvas: Intent · Process · Execution · Evidence
 references/tasks.md               daemon-wide Tasks
 references/actions.md             Project Actions (definitions; the human runs them)
+references/profile.md             project baseline and worktree profile override
 references/git-visibility.md      private state and tracked Canvas/project overlays
 references/worktrees.md           targeting a Worktree from a harness checkout
 references/sync-environments.md   daemon/Project setup across environments
 ```
 
-## The seven tools
+## The tools
 
 | Tool | Use it to |
 |---|---|
 | `porcelain_context` | Read the Review, open comments, reviewed marks; ask for tasks/actions/canvases |
+| `porcelain_profile` | Read or replace the project profile or worktree override |
 | `porcelain_review` | Declare the Review — `replace`, `append` files, or `clear` |
 | `porcelain_task` | Create a Task (no `id`) or update one (`id`) |
 | `porcelain_action` | Save or delete an Action the human will run |
@@ -77,7 +79,7 @@ references/sync-environments.md   daemon/Project setup across environments
   explicit `porcelain_promote` with `what: "overrides"` writes `.porcelain/project.json`. Promote
   a Canvas deliberately when the team should receive it in git; promotion never commits.
 - Keep secrets out of Canvas, Tasks, Actions, and project overrides.
-- Work in an isolated Playground for development daemons. Never aim proof at production port 43117
-  or a real checkout.
+- Work in an isolated Playground for development daemons. Never aim proof at production state or a
+  real checkout.
 
 For the full Review Canvas procedure, read [references/review.md](references/review.md).

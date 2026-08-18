@@ -22,7 +22,7 @@ import {
   filesNotificationEffects,
   filesNotificationForeignDependencies,
 } from './files-notifications'
-import { filesPinsQuery, filesScopeQuery, filesTreeQuery } from './files-queries'
+import { filesPinsQuery, filesProfileQuery, filesScopeQuery, filesTreeQuery } from './files-queries'
 
 const PROJECT = '/synthetic/repo'
 const OTHER = '/synthetic/other-repo'
@@ -36,10 +36,11 @@ const filesCatalog = {
 }
 
 describe('filesNotificationEffects', () => {
-  it('scope-changed maps to scope+pins+tree-family for the notification project only', () => {
+  it('scope-changed maps to scope+profile+pins+tree-family for that project only', () => {
     const notification = filesNotificationFixtures['files.scope-changed']
     expect(filesNotificationEffects(notification)).toEqual([
       filesExactEffect(filesScopeQuery(PROJECT)),
+      filesExactEffect(filesProfileQuery(PROJECT)),
       filesExactEffect(filesPinsQuery(PROJECT)),
       filesTreeFamilyEffect(PROJECT),
     ])

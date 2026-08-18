@@ -51,7 +51,7 @@ function CommentSnippet({ path, text }: { path: string; text: string }): React.J
 
 /**
  * Controlled dialog to write a review comment anchored to a line range (or a whole
- * file when there's no range). Saves to the comment channel the agent reads via the porcelain CLI.
+ * file when there's no range). Saves to the comment channel the agent reads through MCP.
  */
 export function CommentComposer({
   anchor,

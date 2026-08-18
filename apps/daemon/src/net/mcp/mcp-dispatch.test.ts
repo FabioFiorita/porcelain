@@ -50,8 +50,9 @@ describe('dispatchMcp', () => {
     expect(outcome.kind).toBe('json')
     if (outcome.kind !== 'json') return
     const body = outcome.body as { result: { tools: { name: string; inputSchema: unknown }[] } }
-    expect(body.result.tools.length).toBe(7)
+    expect(body.result.tools.length).toBe(8)
     expect(body.result.tools.map((t) => t.name)).toContain('porcelain_reply')
+    expect(body.result.tools.map((t) => t.name)).toContain('porcelain_profile')
     for (const tool of body.result.tools) expect(tool.inputSchema).toBeTypeOf('object')
   })
 

@@ -57,7 +57,7 @@ describe('handleMcpRequest', () => {
     expect(response.status).toBe(200)
     expect(response.headers.get('content-type')).toBe('application/json')
     const body = (await response.json()) as { result: { tools: unknown[] } }
-    expect(body.result.tools).toHaveLength(7)
+    expect(body.result.tools).toHaveLength(8)
   })
 
   it('answers a notification with 202 and an empty body', async () => {

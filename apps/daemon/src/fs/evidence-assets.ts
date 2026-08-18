@@ -6,7 +6,7 @@ import { isAbsolute, relative, resolve, sep } from 'node:path'
  * tags for a document that lives in a review or Canvas directory. Keeps the
  * viewer on a fully sandboxed `srcdoc` while letting agents drop real
  * PNG/JPEG/CSS/JS siblings beside the document instead of base64-inlining them
- * through the porcelain CLI.
+ * through the daemon's MCP tools.
  *
  * Two roots, deliberately: references resolve relative to the document's own
  * directory, but containment is checked against `root`. A Results document sits

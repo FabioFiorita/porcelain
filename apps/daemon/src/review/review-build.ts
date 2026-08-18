@@ -4,7 +4,7 @@ import type { ChangedFile, DiffStat } from '../git/diff'
 import { workingTreeSnapshot } from '../git/working-tree'
 import { readReviewSet } from '../stores/review-store'
 import { type ActiveReview, buildActiveReview, type ReviewReading } from './active-review'
-import { DEFAULT_LAYERS } from './default-layers'
+import { effectiveLayers } from './default-layers'
 import type { Layer } from './flow'
 import { reviewKey } from './review-key'
 import type { ReviewSet } from './review-set'
@@ -19,7 +19,7 @@ const reviewBuildCache = new Map<
 >()
 
 // The (heavier still) inline reading surface, memoized on the same key. Only built
-// when an agent review set is present (the agent declares it via the porcelain CLI),
+// when an agent Review set is present (the agent declares it through MCP),
 // so the slice heuristic runs only on curated files; the baseline returns null
 // cheaply from the gather alone.
 const reviewReadingCache = new Map<string, { key: string; reading: ReviewReading }>()
@@ -48,7 +48,10 @@ export async function readSourcesInto(
 // set, and layers → the memo key. Each procedure checks its own cache on this key
 // before doing the expensive source reads. (Git status is only used to tag listed
 // files as `changed`; membership of Execution is the review set alone.)
-export async function gatherReview(input: string): Promise<{
+export async function gatherReview(
+  input: string,
+  declared: readonly Layer[] = [],
+): Promise<{
   files: ChangedFile[]
   stats: DiffStat[]
   layers: Layer[]
@@ -59,7 +62,7 @@ export async function gatherReview(input: string): Promise<{
     workingTreeSnapshot(input),
     readReviewSet(input),
   ])
-  const layers = DEFAULT_LAYERS
+  const layers = effectiveLayers(declared)
   const key = reviewKey(files, stats, layers, reviewSet)
   return { files, stats, layers, reviewSet, key }
 }

@@ -5,10 +5,6 @@ name = "porcelain"
 [setup]
 script = "pnpm install --frozen-lockfile"
 
-# Before Codex deletes a worktree: if it was adopted into the managed lifecycle
-# (pnpm worktree adopt), release its managed state — port, channels, user data,
-# playground — instead of orphaning it. Plain Codex worktrees have no config file,
-# so this is a no-op for them.
 [cleanup]
 script = '''
 cfg="$CODEX_WORKTREE_PATH/.porcelain-worktree.json"
@@ -19,16 +15,11 @@ fi
 '''
 
 [[actions]]
-name = "Verify"
+name = "Check"
 icon = "test"
-command = "pnpm verify"
+command = "pnpm check"
 
 [[actions]]
 name = "Dev daemon"
 icon = "run"
-command = "pnpm build && pnpm dev:daemon"
-
-[[actions]]
-name = "Browser e2e"
-icon = "test"
-command = "pnpm test:e2e"
+command = "pnpm dev:daemon"

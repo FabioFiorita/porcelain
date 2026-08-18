@@ -35,7 +35,7 @@ const { values } = parseArgs({
 
 if (values.help) {
   console.log(`Usage: node scripts/sync-versions.mjs [--check] [--set X.Y.Z]
-One product version across all workspace packages (see docs/internals/architecture.md).`)
+One product version across all workspace packages.`)
   process.exit(0)
 }
 
@@ -66,19 +66,7 @@ function readJson(path) {
  * versioned with this repo and nothing else. The *shipped* skills are not here — they live in
  * `plugins/porcelain/` under their own semver, gated by `scripts/plugin-version.mjs`.
  */
-const SKILL_FILES = [
-  // Internal procedures only. The *shipped* skills moved to `plugins/porcelain/`, which
-  // carries its own semver — stamping them with the product version claimed a change on
-  // every release when most releases touch nothing an agent reads
-  // (`scripts/plugin-version.mjs` owns that version and its bump gate).
-  //
-  // Listed explicitly, never globbed: .agents/skills also holds vendored Expo skills that
-  // carry their own upstream version, and restamping those would claim we ship an upstream
-  // release we do not have.
-  ...['mobile', 'releasing', 'merge-queue'].map((name) =>
-    join(root, '.agents', 'skills', name, 'SKILL.md'),
-  ),
-]
+const SKILL_FILES = [join(root, '.agents', 'skills', 'merge-queue', 'SKILL.md')]
 
 /** Replace `version:` inside the leading `---` frontmatter block only. */
 function stampSkillVersion(path, next) {

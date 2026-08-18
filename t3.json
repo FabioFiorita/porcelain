@@ -4,24 +4,19 @@
   "scripts": [
     {
       "name": "Setup Worktree",
-      "command": "pnpm install --frozen-lockfile && for f in CLAUDE.local.md .claude/settings.local.json; do [ -f \"$T3CODE_PROJECT_ROOT/$f\" ] && [ ! -e \"$f\" ] && ln -s \"$T3CODE_PROJECT_ROOT/$f\" \"$f\"; done; echo 'worktree ready'",
+      "command": "pnpm install --frozen-lockfile",
       "icon": "configure",
       "runOnWorktreeCreate": true
     },
     {
-      "name": "Verify",
-      "command": "pnpm verify",
+      "name": "Check",
+      "command": "pnpm check",
       "icon": "test"
     },
     {
       "name": "Dev daemon",
-      "command": "pnpm build && pnpm dev:daemon",
+      "command": "pnpm dev:daemon",
       "icon": "play"
-    },
-    {
-      "name": "Browser e2e",
-      "command": "pnpm test:e2e",
-      "icon": "test"
     }
   ]
 }

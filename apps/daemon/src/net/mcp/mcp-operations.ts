@@ -1,13 +1,20 @@
 import type { CanvasBundleSource } from '../../features/projects'
+import type { ResolvedProfile, WorktreeProfile } from '@porcelain/contracts'
+import type { WorktreeProfileView } from '@porcelain/contracts/files'
 import type { WorkspaceInventory } from './mcp-workspace'
 
 /**
- * Exactly the operations the seven tools reach — a narrow port, not the whole
+ * Exactly the operations the MCP tools reach — a narrow port, not the whole
  * `DaemonOperations`. Structural, so the composition root's real catalog satisfies
  * it and a test can stand up only the calls under test without impersonating every
  * domain on the daemon.
  */
 export type McpOperations = Readonly<{
+  files: Readonly<{
+    worktreeProfile: (repoPath: string) => Promise<WorktreeProfileView>
+    setProjectProfile: (repoPath: string, profile: ResolvedProfile) => Promise<void>
+    setWorktreeProfile: (repoPath: string, profile: WorktreeProfile | null) => Promise<void>
+  }>
   projects: Readonly<{
     listHubInventory: () => Promise<OperationResult<WorkspaceInventory>>
     listCanvases: (input: { projectId: string }) => Promise<OperationResult<unknown[]>>

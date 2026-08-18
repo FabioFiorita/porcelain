@@ -2,7 +2,7 @@
 /**
  * One writer: only the daemon may write the Porcelain home.
  *
- * `apps/cli` spent its whole life resolving `$PORCELAIN_HOME` and writing it directly —
+ * The retired agent CLI resolved `$PORCELAIN_HOME` and wrote it directly —
  * a second implementation of the daemon's Project Data write path, kept in step by hand
  * ("Mirrors daemon project-channel atomic tmp+rename"). Deleting it fixes today; this
  * gate is what stops it growing back, because the next helper that "just needs to drop a
@@ -112,9 +112,7 @@ export function findSecondWriters(repositoryRoot = root) {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const offenders = findSecondWriters()
   if (offenders.length > 0) {
-    console.error(
-      'Second writer to the Porcelain home — only the daemon may write it (see the MCP track in plans/usable.md):',
-    )
+    console.error('Second writer to the Porcelain home — only the daemon may write it:')
     for (const offender of offenders) console.error(`  ${offender}`)
     console.error(
       `Move the write behind a daemon operation under ${WRITER_ROOT}/, or read instead of writing.`,

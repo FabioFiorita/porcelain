@@ -27,7 +27,12 @@ import {
   treeEffectsForStructuralPath,
   treeSubtreeEffectsForStructuralPath,
 } from './files-effects'
-import { filesPinsQuery, filesProjectKey, filesScopeQuery } from './files-queries'
+import {
+  filesPinsQuery,
+  filesProfileQuery,
+  filesProjectKey,
+  filesScopeQuery,
+} from './files-queries'
 
 type FilesMutationProcedureName =
   | 'hidePath'
@@ -71,6 +76,7 @@ function scopeMutationEffects(repoPath: string): readonly FilesQueryEffect[] {
   const p = filesProjectKey(repoPath)
   return [
     filesExactEffect(filesScopeQuery(p)),
+    filesExactEffect(filesProfileQuery(p)),
     filesExactEffect(filesPinsQuery(p)),
     filesTreeFamilyEffect(p),
   ]

@@ -92,13 +92,12 @@ export default defineConfig({
     // The suite spans every package, so the project root is the monorepo — coverage `include`
     // globs are resolved against this and silently match nothing when they climb out of it.
     root: resolve('../..'),
-    // One suite, one command. Mobile pure tests + daemon + cli + web + shared.
+    // One suite, one command. Mobile pure tests + daemon + web + shared.
     // A screen test in jsdom with no native runtime fails loudly — correct signal
     // that it belongs in browser e2e, not here.
     include: [
       'apps/desktop/src/**/*.test.{ts,tsx}',
       'apps/daemon/src/**/*.test.{ts,tsx}',
-      'apps/cli/src/**/*.test.{ts,tsx}',
       'apps/web/src/**/*.test.{ts,tsx}',
       'packages/*/src/**/*.test.{ts,tsx}',
       'apps/mobile/src/**/*.test.{ts,tsx}',

@@ -9,7 +9,7 @@ const CANVAS_ROUTE_PREFIX = '/canvas/'
  * no fetch/XHR/WS (`connect-src 'none'`), no further framing, no forms — an
  * opaque-origin sandboxed script (see canvas-view.tsx: `allow-scripts`, no
  * `allow-same-origin`) that cannot reach the network cannot exfiltrate. See
- * docs/adr/0002-daemon-root-project-store.md for why this matters once #26
+ * This matters because daemon-root Canvas files are private state.
  * lets a Canvas travel with a clone.
  */
 const CANVAS_DOCUMENT_CSP =

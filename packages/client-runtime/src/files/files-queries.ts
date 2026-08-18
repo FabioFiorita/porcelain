@@ -74,6 +74,19 @@ export const filesScopeQuerySchema = z
   })
   .strict()
 
+/**
+ * The same two levels `scope` merges, kept apart. Settings → Personalization is
+ * the reader: it has to say which focus is the project baseline and which this
+ * worktree added, and the merged `scope` cannot answer that.
+ */
+export const filesProfileQuerySchema = z
+  .object({
+    domain: z.literal('files'),
+    name: z.literal('profile'),
+    projectPath: filesProjectPathSchema,
+  })
+  .strict()
+
 export const fileContentQuerySchema = z
   .object({
     domain: z.literal('files'),
@@ -97,6 +110,7 @@ export const filesQuerySchema = z.discriminatedUnion('name', [
   filesTreeQuerySchema,
   filesPinsQuerySchema,
   filesScopeQuerySchema,
+  filesProfileQuerySchema,
   fileContentQuerySchema,
   filePreviewQuerySchema,
 ])
@@ -104,6 +118,7 @@ export const filesQuerySchema = z.discriminatedUnion('name', [
 export type FilesTreeQuery = Readonly<z.infer<typeof filesTreeQuerySchema>>
 export type FilesPinsQuery = Readonly<z.infer<typeof filesPinsQuerySchema>>
 export type FilesScopeQuery = Readonly<z.infer<typeof filesScopeQuerySchema>>
+export type FilesProfileQuery = Readonly<z.infer<typeof filesProfileQuerySchema>>
 export type FileContentQuery = Readonly<z.infer<typeof fileContentQuerySchema>>
 export type FilePreviewQuery = Readonly<z.infer<typeof filePreviewQuerySchema>>
 export type FilesQuery = Readonly<z.infer<typeof filesQuerySchema>>
@@ -138,6 +153,14 @@ export function filesScopeQuery(projectPath: string): FilesScopeQuery {
   return {
     domain: 'files',
     name: 'scope',
+    projectPath: filesProjectKey(projectPath),
+  }
+}
+
+export function filesProfileQuery(projectPath: string): FilesProfileQuery {
+  return {
+    domain: 'files',
+    name: 'profile',
     projectPath: filesProjectKey(projectPath),
   }
 }

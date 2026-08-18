@@ -5,7 +5,7 @@ import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 /**
  * A product-specific devtools panel that inspects Porcelain's agent channels — the
  * two surfaced here (review set, actions) plus the shipped
- * plugin version. Each channel is a `~/.porcelain/*.json` file the porcelain CLI
+ * plugin version. Each channel is a `~/.porcelain/*.json` file the daemon
  * (`src/cli/`) reads/writes; the renderer sees them through the same domain hooks
  * the UI uses, so this panel is a live mirror of what the agent can currently
  * see/do. Registered as a `plugins` entry in {@link DevtoolsShell}.

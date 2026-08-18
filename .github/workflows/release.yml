@@ -1,10 +1,7 @@
 name: Release
 
-# Side-project release: simple path.
-#   1. Tag already exists on main (pnpm release:cut bumps + tags + pushes).
-#   2. This workflow packages macOS and the Linux/plain-Node daemon in parallel,
-#      publishes the GH Release, then publishes the prepared daemon to npm.
-# No pending branches. No multi-mode cut/retry soup.
+# The tag already exists on main. Package macOS and the plain-Node daemon,
+# publish the GitHub release, then publish the prepared daemon to npm.
 # Retry: re-run the failed job, or `gh workflow run release.yml -f tag=vX.Y.Z`.
 
 on:

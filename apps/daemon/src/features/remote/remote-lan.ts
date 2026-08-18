@@ -52,7 +52,7 @@ function isDeniedIface(name: string): boolean {
 
 /**
  * This machine's private-range (RFC 1918) IPv4 addresses, so the daemon can also
- * listen on the home LAN behind the same token gate (see docs/remote-setup.md).
+ * listen on the home LAN behind the same token gate (see docs/remote-access.md).
  * 10/8, 172.16/12, 192.168/16 only — Tailscale's CGNAT 100.64/10 belongs to
  * `findTailscaleAddress` and never overlaps. Wi-Fi and Ethernet can both be up, so
  * ALL matches return in enumeration order rather than guessing one. Range alone is

@@ -64,6 +64,12 @@ describe('createFilesOperations', () => {
         hiddenPaths: ['/synthetic/repo/.env'],
         pinnedPaths: ['/synthetic/repo/src'],
       })),
+      readProfile: vi.fn(async () => ({
+        worktreeId: null,
+        base: { pinnedPaths: [], hiddenPaths: [], layers: [] },
+        override: null,
+        resolved: { pinnedPaths: [], hiddenPaths: [], layers: [] },
+      })),
       hidePath: vi.fn(async () => undefined),
       unhidePath: vi.fn(async () => undefined),
       pinPath: vi.fn(async () => undefined),

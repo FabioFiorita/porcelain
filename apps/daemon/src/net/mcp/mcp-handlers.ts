@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { resolvedProfileSchema, worktreeProfileSchema } from '@porcelain/contracts'
 import type { McpToolHandlers, McpToolResult } from './mcp-dispatch'
 import type { McpOperations } from './mcp-operations'
 import {
@@ -19,7 +20,7 @@ import {
 } from './mcp-workspace'
 
 /**
- * The seven tools, over the same operations the app calls.
+ * The tools, over the same operations the app calls.
  *
  * An adapter, not a second implementation: every product decision stays in the
  * operation, which is what stops the agent surface drifting from the human one the
@@ -170,6 +171,49 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
         out.canvases = canvases.ok ? canvases.value : []
       }
       return ok(JSON.stringify(out, null, 2))
+    },
+
+    async porcelain_profile(args, place) {
+      if (place.worktreePath === null)
+        return fail('Profiles require a checkout on the daemon host.')
+      const level = args.level
+      const op = args.op
+      if (
+        (level !== 'project' && level !== 'worktree') ||
+        !['get', 'set', 'clear'].includes(String(op))
+      ) {
+        return fail('level must be project or worktree; op must be get, set, or clear.')
+      }
+      if (op === 'get') {
+        const view = await operations.files.worktreeProfile(place.worktreePath)
+        return ok(JSON.stringify(level === 'project' ? view.base : view.override, null, 2))
+      }
+      if (op === 'clear') {
+        if (level === 'project') {
+          await operations.files.setProjectProfile(place.worktreePath, {
+            pinnedPaths: [],
+            hiddenPaths: [],
+            layers: [],
+          })
+        } else await operations.files.setWorktreeProfile(place.worktreePath, null)
+        return ok(`${level === 'project' ? 'Project profile' : 'Worktree override'} cleared.`)
+      }
+      if (level === 'project') {
+        const parsed = resolvedProfileSchema.safeParse(args.profile)
+        if (!parsed.success)
+          return fail(
+            `Invalid project profile: ${parsed.error.issues[0]?.message ?? 'invalid input'}.`,
+          )
+        await operations.files.setProjectProfile(place.worktreePath, parsed.data)
+      } else {
+        const parsed = worktreeProfileSchema.safeParse(args.profile)
+        if (!parsed.success)
+          return fail(
+            `Invalid worktree profile: ${parsed.error.issues[0]?.message ?? 'invalid input'}.`,
+          )
+        await operations.files.setWorktreeProfile(place.worktreePath, parsed.data)
+      }
+      return ok(`${level === 'project' ? 'Project profile' : 'Worktree override'} replaced.`)
     },
 
     async porcelain_review(args, place) {

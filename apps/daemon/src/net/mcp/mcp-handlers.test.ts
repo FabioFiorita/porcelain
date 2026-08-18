@@ -25,6 +25,21 @@ function operations(overrides: Record<string, unknown> = {}) {
     calls.push({ name, input: value })
   }
   const ops = {
+    files: {
+      worktreeProfile: async () => ({
+        worktreeId: WORKTREE,
+        base: { pinnedPaths: ['README.md'], hiddenPaths: ['dist'], layers: [] },
+        override: null,
+        resolved: { pinnedPaths: ['README.md'], hiddenPaths: ['dist'], layers: [] },
+      }),
+      setProjectProfile: async (repoPath: string, profile: unknown) => {
+        record('setProjectProfile', { repoPath, profile })
+      },
+      setWorktreeProfile: async (repoPath: string, profile: unknown) => {
+        record('setWorktreeProfile', { repoPath, profile })
+      },
+      ...(overrides.files ?? {}),
+    },
     projects: {
       listHubInventory: async () => ({
         ok: true,
@@ -184,6 +199,44 @@ describe('porcelain_context', () => {
     })
     const body = JSON.parse(result.text) as { tasks: { shortId: string }[] }
     expect(body.tasks.map((task) => task.shortId)).toEqual(['T-2'])
+  })
+})
+
+describe('porcelain_profile', () => {
+  it('reads the selected level and replaces it as one document', async () => {
+    const { tools, calls } = handlers()
+    const read = await tools.call('porcelain_profile', {
+      workspace: root,
+      level: 'project',
+      op: 'get',
+    })
+    expect(JSON.parse(read.text)).toMatchObject({ pinnedPaths: ['README.md'] })
+
+    const written = await tools.call('porcelain_profile', {
+      workspace: root,
+      level: 'worktree',
+      op: 'set',
+      profile: { pinnedPaths: ['src'], hiddenPaths: [], unhiddenPaths: [], layers: null },
+    })
+    expect(written.isError).toBeUndefined()
+    expect(calls).toContainEqual({
+      name: 'setWorktreeProfile',
+      input: {
+        repoPath: root,
+        profile: { pinnedPaths: ['src'], hiddenPaths: [], unhiddenPaths: [], layers: null },
+      },
+    })
+  })
+
+  it('rejects a malformed whole profile', async () => {
+    const { tools } = handlers()
+    const result = await tools.call('porcelain_profile', {
+      workspace: root,
+      level: 'project',
+      op: 'set',
+      profile: { pinnedPaths: 'README.md' },
+    })
+    expect(result.isError).toBe(true)
   })
 })
 

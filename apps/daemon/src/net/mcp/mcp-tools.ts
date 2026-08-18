@@ -1,5 +1,5 @@
 /**
- * The tool surface an agent sees. Seven tools over the daemon's operations, not a
+ * The tool surface an agent sees. Eight tools over the daemon's operations, not a
  * transliteration of the retired CLI's seventeen verbs: every tool definition is
  * spent from the agent's context window on every turn, so the surface is grouped by
  * intention (orient, declare, record, publish) rather than by noun and verb.
@@ -76,6 +76,18 @@ const REVIEW_SECTION = {
   additionalProperties: false,
 } as const
 
+const PROFILE_LAYER = {
+  type: 'object',
+  properties: { label: { type: 'string' }, pattern: { type: 'string' } },
+  required: ['label', 'pattern'],
+  additionalProperties: false,
+} as const
+
+const PROFILE_FIELDS = {
+  pinnedPaths: { type: 'array', items: { type: 'string' } },
+  hiddenPaths: { type: 'array', items: { type: 'string' } },
+} as const
+
 export const MCP_TOOLS: readonly McpToolDefinition[] = Object.freeze([
   {
     name: 'porcelain_context',
@@ -97,6 +109,48 @@ export const MCP_TOOLS: readonly McpToolDefinition[] = Object.freeze([
         },
       },
       required: ['workspace'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'porcelain_profile',
+    title: 'Read or set the profile',
+    description:
+      'Read or replace the private project profile or this worktree override. Reads before writes; set replaces the selected level as a whole. Clear removes the selected level.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        workspace: WORKSPACE,
+        level: { enum: ['project', 'worktree'] },
+        op: { enum: ['get', 'set', 'clear'] },
+        profile: {
+          oneOf: [
+            {
+              type: 'object',
+              properties: {
+                ...PROFILE_FIELDS,
+                layers: { type: 'array', items: PROFILE_LAYER },
+              },
+              required: ['pinnedPaths', 'hiddenPaths', 'layers'],
+              additionalProperties: false,
+              description: 'Project profile',
+            },
+            {
+              type: 'object',
+              properties: {
+                ...PROFILE_FIELDS,
+                unhiddenPaths: { type: 'array', items: { type: 'string' } },
+                layers: { type: ['array', 'null'], items: PROFILE_LAYER },
+              },
+              required: ['pinnedPaths', 'hiddenPaths', 'unhiddenPaths', 'layers'],
+              additionalProperties: false,
+              description: 'Worktree override',
+            },
+          ],
+          description: 'Required for set.',
+        },
+      },
+      required: ['workspace', 'level', 'op'],
       additionalProperties: false,
     },
   },

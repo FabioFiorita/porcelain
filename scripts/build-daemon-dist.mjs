@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Assemble `dist-daemon/` — a self-contained, npm-publishable copy of the
 // Porcelain daemon that runs under PLAIN Node (no Electron, no pnpm workspace)
-// on another machine (see docs/remote-setup.md for the supported deployment path).
+// on another machine (see docs/remote-access.md for the supported deployment path).
 //
 // Primary UX (t3-style):
 //   npx porcelain-daemon@latest serve --tailnet
@@ -12,8 +12,7 @@
 // apps/daemon/src/net/static-server.ts). Externalized runtime deps are declared
 // in a generated package.json with the EXACT semver ranges read from
 // apps/desktop/package.json, so `npm install` / npx on the target pulls them (and compiles
-// node-pty for that host). The dependency-free CLI ships too — the daemon installs
-// it to ~/.porcelain/porcelain on boot and the Beelink's coding agent runs it.
+// node-pty for that host).
 //
 // Plain-Node ESM, zero dependencies (runs before `npm install`).
 

@@ -1,8 +1,8 @@
 {
   "name": "porcelain",
   "displayName": "Porcelain",
-  "version": "1.3.0",
-  "description": "Drive Porcelain — the review layer for agentic coding. Publish Reviews to the Canvas, record Tasks and Actions, close the evidence loop, and set up a remote daemon.",
+  "version": "1.4.0",
+  "description": "Drive Porcelain — publish Reviews, manage Tasks, Actions, and profiles, close the evidence loop, and set up a remote daemon.",
   "author": {
     "name": "Fabio Fiorita",
     "url": "https://github.com/FabioFiorita"

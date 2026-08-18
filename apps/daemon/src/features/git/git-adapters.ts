@@ -42,6 +42,7 @@ import {
   gitWorktrees,
 } from '../../git/git'
 import { clearWorkingTreeSnapshot } from '../../git/working-tree'
+import type { Layer } from '../../review/flow'
 import { loadCommitFlow, loadRangeFlow, loadWorkingFlow } from '../../review/flow-build'
 import type {
   CommitGeneration,
@@ -134,11 +135,25 @@ export function createCommitGeneration(): CommitGeneration {
   })
 }
 
-export function createGitDiffReadingSources(): GitDiffReadingSources {
+/**
+ * `scope.layersForRepo` is the profile capability, narrowed to the one thing the
+ * Git domain needs: a checkout's declared story order. Git never learns what a
+ * profile is or how the two levels merge — the store hands it a resolved list,
+ * or an empty one, and `effectiveLayers` falls back to the starters. Omitting
+ * the option leaves every changeset on the starters, which is what a daemon
+ * composed without a Project store should do.
+ */
+export function createGitDiffReadingSources(options?: {
+  scope: { layersForRepo: (repoPath: string) => Promise<readonly Layer[]> }
+}): GitDiffReadingSources {
+  const layersFor = async (repoPath: string): Promise<readonly Layer[]> =>
+    options === undefined ? [] : options.scope.layersForRepo(repoPath)
   return Object.freeze({
-    loadWorkingFlow,
-    loadRangeFlow,
-    loadCommitFlow,
+    loadWorkingFlow: async (repoPath: string) =>
+      loadWorkingFlow(repoPath, await layersFor(repoPath)),
+    loadRangeFlow: async (repoPath: string) => loadRangeFlow(repoPath, await layersFor(repoPath)),
+    loadCommitFlow: async (repoPath: string, hash: string) =>
+      loadCommitFlow(repoPath, hash, await layersFor(repoPath)),
     workingHunks: (repoPath: string, path: string) =>
       gitDiffFile(repoPath, path).then((result) => result.hunks),
     rangeHunks: (repoPath: string, base: string, path: string) =>

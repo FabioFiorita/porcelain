@@ -86,7 +86,7 @@ lower test is the owner of that invariant at its smallest complete boundary.
 
 | ID | Source assertion | Disposition and replacement |
 | --- | --- | --- |
-| RP-01 | `:44-95` — CLI Intent-only set appears; all four Canvas sections render with Evidence | `CW-04` owns the live CLI-to-Review-Canvas arrival and authenticated Canvas reads; `apps/cli/src/cli.test.ts:142-314` and the Projects Canvas contract tests own CLI shape and Canvas availability. |
+| RP-01 | MCP Intent-only set appears; all four Canvas sections render with Evidence | MCP handler and Projects Canvas contract tests own the write shape and Canvas availability. |
 | RP-02 | `:91-131` — second CLI set updates the same daemon-root Review Canvas | `CW-04` owns the composed migration and Canvas proof; CLI Canvas tests own replacement and invalidation shape |
 | RP-03 | `:133-143` — Review Canvas Evidence renders in a sandboxed iframe with image proof | `CW-04` and `apps/daemon/src/net/canvas-http.test.ts` own the browser and HTTP containment boundaries. Retired from broad browser |
 

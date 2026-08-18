@@ -79,5 +79,16 @@ export {
   type ProtocolVersion,
   protocolVersionSchema,
 } from './protocol'
+export {
+  emptyWorktreeProfile,
+  isEmptyWorktreeProfile,
+  type ProfileLayer,
+  profileLayerSchema,
+  type ResolvedProfile,
+  resolvedProfileSchema,
+  resolveProfile,
+  type WorktreeProfile,
+  worktreeProfileSchema,
+} from './worktree-profile'
 // Session wire caps and paste prompt helpers live on the terminal stream contract
 // (`@porcelain/contracts/terminal`). The legacy horizontal `session contracts` surface is gone.
