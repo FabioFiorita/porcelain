@@ -27,11 +27,13 @@ import type {
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import { type DaemonScope, daemonScopeSchema } from '@renderer/lib/daemon-scope'
 import { environmentSessionFor } from '@renderer/lib/environment-sessions'
+import { isBrowser } from '@renderer/lib/platform'
 import { trpc } from '@renderer/lib/trpc'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
 
+import { SHELL_HUB_INVENTORIES_QUERY_KEY } from './hub-inventories'
 import {
   browseProjectDirectoriesOnDaemon,
   createHubWorktreeOnDaemon,
@@ -80,6 +82,13 @@ async function invalidateProjectQueries(
       exact: true,
       queryKey: projectsQueryKey(daemon, query),
     })
+  }
+  // Electron's Hub tree reads through a separate shell-router query (hub-inventories.ts) that
+  // the per-Environment key above never reaches — without this, adding/removing a Project or
+  // Worktree leaves the left sidebar showing stale state until staleTime (30s) or a window-focus
+  // refetch catches up.
+  if (!isBrowser && queries.some((query) => query.name === 'inventory')) {
+    await queryClient.invalidateQueries({ exact: true, queryKey: SHELL_HUB_INVENTORIES_QUERY_KEY })
   }
 }
 

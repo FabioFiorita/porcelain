@@ -21,6 +21,15 @@ export type HubInventoryView = Readonly<{
   inventory: HubInventory
 }>
 
+/**
+ * Electron's Hub tree reads through the shell router (one IPC round trip fans out to every
+ * connected Environment), never the per-Environment `hubInventoryQuery()` shape the browser
+ * uses — so a mutation invalidating only that shape (project-data.ts's `invalidateProjectQueries`)
+ * leaves this query stale on Electron until `staleTime` (30s) or a window-focus refetch catches
+ * up. Exported so that invalidation can target it directly instead of duplicating the literal.
+ */
+export const SHELL_HUB_INVENTORIES_QUERY_KEY = ['shell', 'hubInventories'] as const
+
 /** Live Hub inventories: shell fan-out in Electron and one session per browser Environment. */
 export function useHubInventories(): readonly HubInventoryView[] {
   const daemon = useDaemonIdentity()
@@ -36,7 +45,7 @@ export function useHubInventories(): readonly HubInventoryView[] {
     enabled: !isBrowser,
     staleTime: 30_000,
     refetchOnWindowFocus: true,
-    queryKey: ['shell', 'hubInventories'],
+    queryKey: SHELL_HUB_INVENTORIES_QUERY_KEY,
     queryFn: async (): Promise<readonly HubInventoryView[]> =>
       shellTrpcClient.hubInventories.query(),
   })
