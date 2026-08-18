@@ -1,12 +1,9 @@
 #!/usr/bin/env node
 import { execFileSync, spawnSync } from 'node:child_process'
 import {
-  copyFileSync,
   existsSync,
-  lstatSync,
   mkdirSync,
   mkdtempSync,
-  readdirSync,
   readFileSync,
   readlinkSync,
   realpathSync,
@@ -20,8 +17,6 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
 
 const CONFIG_FILE = '.porcelain-worktree.json'
-const INCLUDE_FILE = '.worktreeinclude'
-const MAX_INCLUDED_FILES = 200
 const BRANCH_PREFIX = 'work/'
 const PORT_MIN = 43200
 const PORT_MAX = 43999
@@ -338,131 +333,6 @@ function createPlayground(path, slug) {
   ])
 }
 
-/**
- * `.worktreeinclude` lists gitignored files a fresh checkout needs (`.env`,
- * `.npmrc`, certs), applied at every entry point since Claude Code and
- * Codex only honor it partially on their own.
- * Subset of gitignore syntax: one relative path per line, `#`/blank lines
- * skipped, optional trailing `/`, `*` within one segment, no `**`, negation,
- * or anchoring — a directory pattern contributes the files beneath it.
- */
-function segmentMatcher(segment) {
-  const source = segment
-    .split('*')
-    .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-    .join('[^/]*')
-  return new RegExp(`^${source}$`)
-}
-
-function expandIncludePattern(root, pattern) {
-  const segments = pattern
-    .replace(/^\/+/, '')
-    .replace(/\/+$/, '')
-    .split('/')
-    .filter((segment) => segment !== '' && segment !== '.')
-  if (segments.length === 0 || segments.includes('..') || pattern.includes('**')) return []
-
-  let matches = ['']
-  for (const segment of segments) {
-    const next = []
-    for (const prefix of matches) {
-      const dir = join(root, prefix)
-      if (!segment.includes('*')) {
-        if (existsSync(join(dir, segment)))
-          next.push(prefix === '' ? segment : `${prefix}/${segment}`)
-        continue
-      }
-      const matcher = segmentMatcher(segment)
-      let entries = []
-      try {
-        entries = readdirSync(dir)
-      } catch {
-        continue
-      }
-      for (const entry of entries) {
-        if (matcher.test(entry)) next.push(prefix === '' ? entry : `${prefix}/${entry}`)
-      }
-    }
-    matches = next
-  }
-  return matches
-}
-
-/** Files under `relPath` (itself, or its contents when it is a directory). Symlinks are skipped. */
-function collectIncludeFiles(root, relPath, out) {
-  if (out.size >= MAX_INCLUDED_FILES || relPath === '.git') return
-  let stats
-  try {
-    stats = lstatSync(join(root, relPath))
-  } catch {
-    return
-  }
-  if (stats.isSymbolicLink()) return
-  if (stats.isFile()) {
-    out.add(relPath)
-    return
-  }
-  if (!stats.isDirectory()) return
-  let entries = []
-  try {
-    entries = readdirSync(join(root, relPath))
-  } catch {
-    return
-  }
-  for (const entry of entries) {
-    if (entry === '.git') continue
-    collectIncludeFiles(root, `${relPath}/${entry}`, out)
-  }
-}
-
-function isGitIgnored(root, relPath) {
-  return (
-    spawnSync('git', ['check-ignore', '-q', '--', relPath], {
-      cwd: root,
-      stdio: 'ignore',
-      env: ENV,
-    }).status === 0
-  )
-}
-
-/**
- * Copy the primary checkout's `.worktreeinclude` files into a new worktree.
- * Only gitignored, existing, non-symlink files are copied, and an existing file
- * in the target is never overwritten — this seeds local secrets, it never
- * rewrites the checkout.
- */
-function copyIncludedFiles(root, target) {
-  const includePath = join(root, INCLUDE_FILE)
-  if (!existsSync(includePath)) return
-  let contents = ''
-  try {
-    contents = readFileSync(includePath, 'utf8')
-  } catch {
-    return
-  }
-
-  const candidates = new Set()
-  for (const line of contents.split('\n')) {
-    const pattern = line.trim()
-    if (pattern === '' || pattern.startsWith('#')) continue
-    for (const match of expandIncludePattern(root, pattern)) {
-      collectIncludeFiles(root, match, candidates)
-    }
-  }
-  if (candidates.size >= MAX_INCLUDED_FILES) {
-    console.error(`worktree · ${INCLUDE_FILE} matched over ${MAX_INCLUDED_FILES} files; truncated`)
-  }
-
-  for (const relPath of [...candidates].sort()) {
-    if (!isGitIgnored(root, relPath)) continue
-    const destination = join(target, relPath)
-    if (existsSync(destination)) continue
-    mkdirSync(dirname(destination), { recursive: true })
-    copyFileSync(join(root, relPath), destination)
-    console.log(`worktree · copied ${relPath}`)
-  }
-}
-
 function installDependencies(path) {
   const result = spawnSync('pnpm', ['install', '--frozen-lockfile'], {
     cwd: path,
@@ -519,7 +389,6 @@ function create(slugArg, options) {
 
   try {
     writeConfig(path, { version: 1, slug, branch, port, base })
-    copyIncludedFiles(root, path)
     createPlayground(paths.playground, slug)
     if (!options.skipInstall) installDependencies(path)
   } catch (error) {
@@ -810,31 +679,9 @@ async function remove(slugArg, options = {}) {
 `)
 }
 
-function readCanvasList(root, worktreePath) {
-  const cli = join(root, 'apps', 'desktop', 'out', 'main', 'cli', 'porcelain.js')
-  const result = spawnSync(process.execPath, [cli, 'canvas', 'list', '--repo', worktreePath], {
-    cwd: worktreePath,
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'ignore'],
-    env: ENV,
-  })
-  return result.status === 0 ? result.stdout.trim() : ''
-}
-
-function prBody(root, branch, worktreePath) {
+function prBody(root, branch) {
   const commits = git(root, ['log', `main..${branch}`, '--oneline'])
-  const commitSection = ['## Commits', '', '```', commits, '```', ''].join('\n')
-  const canvases = readCanvasList(root, worktreePath)
-  if (canvases === '') {
-    return [
-      `_No daemon-root Canvas found for \`${worktreePath}\`._`,
-      '',
-      'Publish one with `pnpm porcelain review set` / `porcelain canvas set`.',
-      '',
-      commitSection,
-    ].join('\n')
-  }
-  return `## Review Canvas\n\n${canvases}\n\n${commitSection}`
+  return ['## Commits', '', '```', commits, '```', ''].join('\n')
 }
 
 function requireGh(root) {
@@ -882,7 +729,7 @@ function pullRequest(slugArg, options) {
 
   if (options.dryRun) {
     console.log(`title: ${options.title ?? git(root, ['log', '-1', '--format=%s', branch])}\n`)
-    console.log(prBody(root, branch, worktree.path))
+    console.log(prBody(root, branch))
     return
   }
 
@@ -896,7 +743,7 @@ function pullRequest(slugArg, options) {
   git(root, ['push', '-u', 'origin', branch], { inherit: true })
 
   const title = options.title ?? git(root, ['log', '-1', '--format=%s', branch])
-  const body = prBody(root, branch, worktree.path)
+  const body = prBody(root, branch)
   const dir = mkdtempSync(join(tmpdir(), 'porcelain-pr-'))
   const bodyFile = join(dir, 'body.md')
   try {
@@ -952,7 +799,6 @@ function adopt(pathArg, slugArg, options) {
   try {
     // Adopted harness checkouts still integrate via main unless a later tool rewrites base.
     writeConfig(target, { version: 1, slug, branch, port, base: DEFAULT_BASE })
-    copyIncludedFiles(root, target)
     createPlayground(paths.playground, slug)
     if (!options.skipInstall) installDependencies(target)
   } catch (error) {
@@ -1087,12 +933,6 @@ adopt:
   config (base=main), allocates a port, and creates the playground. The checkout
   stays where the harness put it; remove <slug> later deletes that directory.
 
-.worktreeinclude:
-  create and adopt both copy the gitignored files this file lists (one relative
-  path per line, \` * \` within a segment) from the primary checkout into the new
-  worktree, never overwriting an existing file. Agent harnesses apply that file
-  inconsistently; this script is the one mechanism.
-
 list:
   Managed worktrees first, then any unmanaged detached checkouts a harness left
   behind, marked prunable when they sit under a harness root (~/.t3, ~/.codex,
@@ -1101,12 +941,9 @@ list:
 
 pr:
   Pushes work/<slug> to origin and opens a PR into main via gh (main-only). Title
-  defaults to the branch's latest commit subject; the body carries the worktree's
-  published Review (Intent + Evidence) when one exists, plus the commit list.
-  Evidence-pack screenshots are published to R2 and inlined as short-lived (~2h)
-  presigned links so they render on GitHub. Prints the URL and exits when a PR is
-  already open for the branch. --dry-run prints the title and body it would send,
-  lists screenshot names it would upload, and touches neither origin, gh, nor R2.
+  defaults to the branch's latest commit subject and the body lists its commits.
+  Prints the URL and exits when a PR is already open for the branch. --dry-run
+  prints the title and body without touching origin or GitHub.
 
 remove:
   Requires a clean worktree whose branch tip is reachable from its recorded base
