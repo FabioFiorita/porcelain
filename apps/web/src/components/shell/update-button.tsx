@@ -7,13 +7,16 @@ import { TestIds } from '@shared/test-ids'
 import { Loader2, RotateCw } from 'lucide-react'
 
 /**
- * Titlebar install chip: appears only once a release is downloaded and ready.
- * Shell chrome next to the environment switcher (not the viewer TopBar). Matches
- * the env chip's height/surface so the pair reads as one control cluster.
+ * Install chip: appears only once a release is downloaded and ready. Lives in the
+ * left sidebar header (app-sidebar.tsx), not the viewer TopBar — it used to sit in the
+ * drawn titlebar row beside the environment switcher, but that row is frameless-only
+ * now (title-bar.tsx) and the switcher is retired, so macOS would never have shown it.
  *
- * On a phone the titlebar is tight (env is already icon-only), so this collapses
- * to the same size-8 glyph with the version in the accessible name + tooltip.
- * Browser clients have no auto-updater — always null.
+ * Browser clients have no auto-updater — always null. Electron-only is the whole point
+ * of the guard, not an oversight: nothing downloads a release for a browser tab.
+ *
+ * On a phone the header is tight, so this collapses to a size-8 glyph with the version
+ * in the accessible name + tooltip.
  */
 export function UpdateButton(): React.JSX.Element | null {
   const status = useUpdateStatus()
@@ -44,8 +47,8 @@ export function UpdateButton(): React.JSX.Element | null {
               'hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
               'disabled:pointer-events-none disabled:opacity-50',
               // Height is derived, never pinned: `py-1` on a text-xs line box is what
-              // makes this exactly as tall as the env chip beside it. A literal `h-8`
-              // here drifted 6px taller and broke the cluster.
+              // keeps this the same height as the icon buttons beside it. A literal
+              // `h-8` here drifted 6px taller and broke the cluster.
               compact ? 'size-8 justify-center' : 'max-w-48 gap-1.5 px-2 py-1',
             )}
           >

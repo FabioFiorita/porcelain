@@ -3,9 +3,11 @@ import { useWindowControls } from '@renderer/hooks/use-window-controls'
 import { Copy, Minus, Square, X } from 'lucide-react'
 
 /**
- * The custom min/maximize-restore/close cluster for the frameless Linux/Windows
- * shell — macOS keeps its native traffic lights, so this mounts only when
- * `isLinuxShell` (see title-bar.tsx). The maximize glyph swaps to overlapping
+ * The custom min/maximize-restore/close cluster for the frameless shell (Linux and
+ * Windows, where window.ts sets `frame: false`) — macOS keeps its native traffic
+ * lights, so this mounts only when `isFramelessShell` (see title-bar.tsx). Keyed off
+ * frameless rather than Linux because a Windows window is frameless too, and gating on
+ * Linux left it with no way to close itself. The maximize glyph swaps to overlapping
  * squares (Copy) when the window is maximized, and the close button gets a
  * destructive hover so it reads as the one that ends the window.
  */

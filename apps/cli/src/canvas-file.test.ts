@@ -98,7 +98,7 @@ describe('resolveHubIdentity', () => {
     expect(resolveHubIdentity(repoPath)).toEqual({ projectId: 'proj-1', worktreeId: null })
   })
 
-  it('resolves the same Project through a differently-cased repo path', () => {
+  it('resolves the same Project through a differently-cased repo path', (ctx) => {
     // hub-git-port.ts (daemon) resolves with `node:fs/promises`' realpath, which corrects to
     // the filesystem's true on-disk casing; this file must use realpathSync.native so the two
     // always agree on a case-insensitive volume (macOS, Windows), whatever casing the caller
@@ -112,7 +112,9 @@ describe('resolveHubIdentity', () => {
     } catch {
       caseInsensitiveFs = false
     }
-    if (!caseInsensitiveFs) return
+    // ctx.skip(), not a silent return: a green tick on a case-sensitive volume would
+    // report coverage this guard cannot have there.
+    if (!caseInsensitiveFs) ctx.skip()
 
     const gitDir = realpathSync(join(repoPath, '.git'))
     seedInventory({ id: 'proj-1', worktrees: [{ id: 'wt-1', gitDir }] })

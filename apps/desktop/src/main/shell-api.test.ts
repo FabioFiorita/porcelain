@@ -219,7 +219,7 @@ describe('shell daemon requests', () => {
     expectsProtocol(revoke)
   })
 
-  it('versions the identity probe behind the environment switcher', async () => {
+  it('versions the identity probe behind the Environment status list', async () => {
     const statuses = await caller().environmentStatuses()
 
     expect(statuses[0]?.state).toBe('online')
