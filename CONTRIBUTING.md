@@ -1,7 +1,7 @@
 # Contributing
 
-Porcelain is a solo side project with an active web, Electron, daemon, and mobile product. Issues
-and focused pull requests are welcome. The project is changing quickly; explain the behavior you
+Porcelain has web, Electron, daemon, and mobile surfaces. Issues and focused pull requests are
+welcome. The project is changing quickly; explain the behavior you
 are changing and the proof you ran rather than preserving an old pattern for its own sake.
 
 ## Start here

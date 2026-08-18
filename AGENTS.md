@@ -1,6 +1,6 @@
 # Porcelain
 
-Porcelain is a side-project review layer for agent-created work. The daemon owns the code,
+Porcelain is a review layer for agent-created work. The daemon owns the code,
 worktrees, Git state, terminals, and review data; browser, Electron, and mobile are clients. It
 is not an agent host or an IDE. The product is changing quickly, so current owner direction and
 the code that ships outrank historical prose.
@@ -14,7 +14,7 @@ evidence, not permanent architecture.
 - `apps/daemon`: Node daemon, HTTP/WS API, filesystem, Git, terminals, persistence, sharing.
 - `apps/web`: React client used in browsers and loaded by Electron.
 - `apps/desktop`: thin Electron shell and local-daemon lifecycle.
-- `apps/mobile`: active Expo/React Native client of the daemon.
+- `apps/mobile`: Expo/React Native client of the daemon.
 - `apps/cli`: current agent and host command-line surfaces.
 - `packages/contracts`: shared wire contracts.
 - `packages/client-runtime`, `packages/shared`, `packages/ui`: reusable client and UI code.
@@ -22,14 +22,15 @@ evidence, not permanent architecture.
 Read [docs/development.md](docs/development.md) when setting up, running, testing, or working in
 parallel. Read [docs/architecture.md](docs/architecture.md) when a change crosses package or
 runtime boundaries. Read [docs/remote-access.md](docs/remote-access.md) for daemon exposure,
-pairing, or credentials. Read [docs/release.md](docs/release.md) only for release work.
+pairing, or credentials. Read [docs/runtime-proof.md](docs/runtime-proof.md) for browser, Electron,
+or mobile runtime validation. Read [docs/release.md](docs/release.md) only for release work.
 
 ## Development boundary
 
 Use the development daemon for product work. The primary development checkout uses port `43118`,
 `~/.porcelain-dev`, and playgrounds. Managed worktrees use ports `43200–43999` and their own
-development homes/playgrounds. Production uses port `43117` and `~/.porcelain`; never point an
-agent at it.
+development homes/playgrounds. Production uses `~/.porcelain` and its configured listener; never
+point an agent at it.
 
 `PORCELAIN_DEV` protects the playground boundary and enables `/dev-auth`. Never put a token in
 browser `localStorage`. Start only processes you can identify and stop the processes you started
@@ -48,8 +49,8 @@ by their tracked PID or managed worktree record.
 
 Validation is proportional: pure logic needs a focused test; daemon procedures need a focused
 procedure or integration check; UI needs a focused test and runtime proof when useful; a build or
-release change needs the affected build or smoke path. Mobile is an active surface, not an
-exception: use its specialized procedure when building, installing, delivering, or proving it.
+release change needs the affected build or smoke path. Use runtime proof when building,
+installing, delivering, or proving browser, Electron, or mobile behavior.
 
 ## Surface check
 
@@ -77,6 +78,6 @@ behavior and operational facts only.
 
 Keep one source for each fact. Put current setup and the development loop in
 `docs/development.md`, runtime ownership in `docs/architecture.md`, remote operations in
-`docs/remote-access.md`, and release operations in `docs/release.md`. Porcelain Tasks describe
-future work. Update a document when its owned fact changes; do not add plans, policy matrices, or
-architecture rules to preserve a superseded direction.
+`docs/remote-access.md`, client validation in `docs/runtime-proof.md`, and release operations in
+`docs/release.md`. Porcelain Tasks describe future work. Update a document when its owned fact
+changes; do not add plans, policy matrices, or architecture rules to preserve a superseded direction.

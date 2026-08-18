@@ -60,5 +60,5 @@ integration work. Never claim a check that did not run.
 
 The Review is Project-owned, while file anchors and actions can name a Worktree. When working in a
 harness Worktree, run the CLI from that checkout or pass its absolute `--repo` path. Runtime proof
-must use an isolated Playground and dev daemon; production port 43117 and real repositories are
-outside the proof boundary.
+must use an isolated Playground and dev daemon; the production home/listener and real repositories
+are outside the proof boundary.

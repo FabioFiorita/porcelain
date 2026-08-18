@@ -21,21 +21,32 @@ pnpm release:cut major
 pnpm release:cut patch --skip-push
 ```
 
-The cut script uses `apps/desktop/package.json` as the current canonical version stamp, synchronizes
-workspace package versions, updates the changelog, commits the version, creates an annotated tag,
-and (unless skipped) pushes `main` with tags and dispatches the release workflow. It refuses a
-dirty or non-main checkout and refuses a branch that is not aligned with `origin/main`.
+The cut script synchronizes workspace and shipped-skill versions from the canonical package,
+updates the changelog, commits the version, creates an annotated tag, and (unless skipped) pushes
+`main` with tags and dispatches the release workflow. It refuses a dirty or non-main checkout and
+refuses a branch that is not aligned with `origin/main`.
 
 ## What the workflow publishes
 
 The release workflow packages the macOS desktop application and the plain-Node daemon in parallel,
-publishes a GitHub Release, and publishes the prepared daemon package to npm. Desktop packaging
-includes the Electron app and native dependencies. The macOS artifact path must preserve the
-configured artifact name; do not reintroduce a raw scoped package name into the filename.
+publishes a GitHub Release, and publishes the prepared daemon package to npm. Linux ships the
+daemon; it is not an Electron packaging target. Desktop packaging includes the Electron app and
+native dependencies. The macOS artifact path must preserve the configured artifact name.
 
-Mobile is an active product surface but is released through its Expo/EAS path, not as part of every
-desktop/daemon release. Use the mobile release procedure and the credentials appropriate to the
-target profile.
+Mobile is released separately through Expo/EAS:
+
+```sh
+cd apps/mobile
+eas workflow:run .eas/workflows/preview.yml
+eas workflow:run .eas/workflows/production.yml   # explicit store release
+```
+
+The preview workflow chooses an update or build from the fingerprint. Production submission stays
+an explicit release action.
+
+The macOS workflow expects `CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_ID`,
+`APPLE_APP_SPECIFIC_PASSWORD`, and `APPLE_TEAM_ID`. npm publication uses trusted publishing (OIDC),
+not a long-lived npm token.
 
 ## Publish and retry
 
@@ -50,6 +61,12 @@ has assets. Add `--cleanup-drafts` only when old failed draft releases should be
 workflow job can normally be retried from GitHub Actions or rerun with the same tag; do not rewrite
 an existing Git tag.
 
+After npm publication, metadata may appear before the tarball CDN returns HTTP 200. The workflow
+waits for the tarball and then runs `npx porcelain-daemon@<version> --help` from a clean temporary
+directory. Retry the same tag when propagation times out; do not cut another version for registry
+lag. Never run the consumer smoke inside `dist-daemon`, where `npx` can select the local package
+instead of the published artifact.
+
 ## Smoke checks
 
 Use the release fuse smoke script against the packaged output when native packaging changed:
@@ -59,5 +76,6 @@ node scripts/release-fuse-smoke.mjs --platform mac --dir apps/desktop/dist
 ```
 
 Confirm that the desktop artifact launches, the daemon distribution contains its native terminal
-dependency, and the published daemon can serve. Treat a failed smoke check as a release issue, not
-as a reason to weaken the normal development loop.
+dependency, and the published daemon can serve. On a real Mac, also exercise a terminal PTY, the
+updater launch path, and `ELECTRON_RUN_AS_NODE=1 open -a Porcelain`. Treat a failed smoke check as a
+release issue, not as a reason to weaken the normal development loop.

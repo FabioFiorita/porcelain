@@ -33,7 +33,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-REPO="$(git -C "$SCRIPT_DIR/../../../.." rev-parse --show-toplevel)"
+REPO="$(git -C "$SCRIPT_DIR/.." rev-parse --show-toplevel)"
 MOBILE="$REPO/apps/mobile"
 
 APP_VARIANT="${APP_VARIANT:-development}"

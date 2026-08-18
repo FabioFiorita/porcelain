@@ -1,8 +1,9 @@
 # Development
 
-This is the canonical development loop. Specialized procedures may add commands for a branch
-(browser proof, mobile builds, release, or merge queue), but they extend this loop rather than
-creating a competing workflow.
+This is the canonical development loop. Runtime validation continues in
+[runtime-proof.md](runtime-proof.md), releases in [release.md](release.md), and remote operations in
+[remote-access.md](remote-access.md). Those procedures reuse this setup, isolation, worktree, and
+task loop.
 
 ## First run
 
@@ -22,7 +23,7 @@ The development environment is intentionally distinct from the published daemon:
 
 | Environment | Port | Home | Repositories |
 | --- | ---: | --- | --- |
-| Production | 43117 | `~/.porcelain` | real checkouts |
+| Production | configured listener | `~/.porcelain` | real checkouts |
 | Primary development | 43118 | `~/.porcelain-dev` | playgrounds |
 | Managed worktree | 43200–43999 | `~/.porcelain-dev-worktrees/<slug>` | per-worktree playground |
 
@@ -54,10 +55,7 @@ pnpm dev              # Electron client
 pnpm format           # write formatting
 pnpm lint             # source checks configured by the checkout
 pnpm test              # desktop/Vitest suite; pass a focused target when supported
-pnpm build            # active product build/typechecks
-pnpm test:e2e         # explicit browser suite
-pnpm --dir apps/mobile start
-pnpm --dir apps/mobile typecheck
+pnpm build            # product build/typechecks
 ```
 
 Use the package-local command when the affected package has a narrower check. A successful mock
@@ -87,14 +85,10 @@ before confirming removal.
 ## Runtime proof pointers
 
 Browser and Electron load the same web client, but they have different launch and preload paths.
-The browser proof procedure is the right pointer for daemon-served UI behavior; Electron proof is
-needed when shell lifecycle, menus, windows, or preload bindings are involved. Mobile proof is
-needed when native lifecycle, simulator/device installation, or terminal rendering is involved.
-
-The repository has specialized skills for these branches. They contain useful operational commands,
-but their proof flows are still deliberately focused on the affected behavior rather than a
-universal end-to-end ritual. When a repeated runtime difficulty is discovered, record the smallest
-reliable flow here and add a focused guardrail only if the failure warrants it.
+Mobile adds native lifecycle, simulator/device installation, and terminal rendering. When the
+observable outcome needs a real client, continue with [runtime-proof.md](runtime-proof.md). Keep
+client-specific commands and traps there; change this document only when the shared development
+flow changes.
 
 ## Cleanup
 

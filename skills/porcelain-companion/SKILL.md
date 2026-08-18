@@ -7,8 +7,8 @@ license: MIT
 
 # Porcelain companion (current CLI adapter)
 
-Read `docs/development.md` for the normal coding, daemon, and worktree flow. This skill documents
-the current CLI adapter only; it is transitional while the MCP/plugin interface is being shaped.
+This skill documents the installed companion CLI. Ordinary coding and repository validation stay
+outside this product procedure.
 
 Porcelain is an explicit product-surface procedure where agent work becomes trusted work. The daemon owns the
 canonical state; the app and browser render it. Repo-local companion files are explicit tracked
@@ -88,7 +88,7 @@ references/sync-environments.md   daemon/Project setup across environments
   explicit `project promote-overrides` writes `.porcelain/project.json`. Promote a Canvas
   deliberately when the team should receive it in git; promotion never commits.
 - Keep secrets out of Canvas, Tasks, Actions, and project overrides.
-- Work in an isolated Playground for development daemons. Never aim proof at production port 43117
-  or a real checkout.
+- Work in an isolated Playground for development daemons. Keep proof away from the production home,
+  configured production listener, and real checkouts.
 
 For the full Review Canvas procedure, read [references/review.md](references/review.md).

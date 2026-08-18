@@ -16,7 +16,7 @@ agent channel ───────> daemon capabilities
 
 The daemon is a headless Node process with HTTP procedures and a `/session` WebSocket for live
 updates and terminal streams. The browser client is served by the daemon. Electron hosts the same
-web client and owns local process/window lifecycle. Mobile is an active native client using the
+web client and owns local process/window lifecycle. Mobile is a native client using the
 same daemon and shared contracts. The current agent channel is the companion CLI/skill boundary.
 
 ## Packages
@@ -43,7 +43,7 @@ package that owns the behavior until a second consumer makes sharing useful.
 - The daemon owns filesystem access, Git, worktrees, terminals, development servers, remote
   listeners, pairing, persistence, and product procedures.
 - `packages/contracts` owns data exchanged across process boundaries. A contract change must be
-  checked against every active client.
+  checked against every affected client.
 - `packages/client-runtime` owns reusable client transport/query/session behavior; a component
   should not reach into transport internals directly.
 - Web owns browser/Electron presentation. Desktop stays a thin host rather than a second business
@@ -70,5 +70,5 @@ the operational details.
 
 When a change crosses a boundary, name the owner before editing. Prefer one vertical slice through
 the existing seam over a new abstraction. Add a shared package only when the behavior is genuinely
-shared by more than one active consumer. Update this map when runtime ownership or package topology
+shared by more than one consumer. Update this map when runtime ownership or package topology
 actually changes; do not use it as a backlog or a justification for speculative layers.

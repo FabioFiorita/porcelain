@@ -7,14 +7,13 @@ license: MIT
 
 # Porcelain remote
 
-Read `docs/remote-access.md` first for the current security and environment model. This skill
-owns host setup and day-two commands only.
+This shipped skill owns remote host setup and day-two commands. It is self-contained because an
+installed copy cannot depend on documentation from the Porcelain source checkout.
 
 ## What this skill covers
 
 Use the published `porcelain-daemon` host CLI to install and serve a daemon on another machine.
-The current companion CLI and future MCP/plugin operations are separate agent interfaces; do not
-use this runbook for their project operations.
+The companion CLI is a separate agent interface; do not use this runbook for project operations.
 
 Load the reference that matches the branch:
 

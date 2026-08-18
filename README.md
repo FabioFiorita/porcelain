@@ -15,7 +15,7 @@ in-app agent host. Your code stays on machines you control.
 - Worktree navigation, focused file views, diffs, history, and Git actions.
 - Tasks that span projects and worktrees.
 - Terminals and development servers that belong to the daemon host.
-- Browser and Electron clients, plus an active mobile client using the same daemon contracts.
+- Browser, Electron, and mobile clients using the same daemon contracts.
 - LAN, Tailscale, and Cloudflare access with one-time pairing and independently revocable devices.
 
 ## Install
