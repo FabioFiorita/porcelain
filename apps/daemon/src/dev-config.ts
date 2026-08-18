@@ -21,6 +21,15 @@ export function devRepoPath(source: NodeJS.ProcessEnv = process.env, home = home
  * The string form matters at the project-operation boundary: callers must inspect, warm, and
  * register the same canonical path they just authorized. A boolean-only check leaves a symlink
  * race between validation and the first filesystem operation.
+ *
+ * `realpathSync.native`, not plain `realpathSync`, for every comparison side below: the daemon's
+ * own project registration (hub-git-port.ts) resolves through `node:fs/promises`' `realpath`,
+ * libuv-backed and case-correcting. Node's default sync `realpathSync` is a pure-JS shim that
+ * preserves whatever casing the caller passed. On a case-insensitive volume (macOS, Windows) a
+ * path browsed through the UI (built from the true on-disk directory names) and the same path
+ * built from a lower-cased constant (`devRepoPath`'s default) can disagree on casing for the
+ * identical directory — with the non-native form, the `relative()` containment check below then
+ * sees two "different" roots and rejects a playground the daemon already recognizes.
  */
 export function recognizedDevPlaygroundPath(path: string, primaryPath: string): string | null {
   // Canonicalize both sides before applying containment. A lexical check alone lets a symlink
@@ -34,7 +43,7 @@ export function recognizedDevPlaygroundPath(path: string, primaryPath: string): 
     const suffix: string[] = []
     while (true) {
       try {
-        const root = realpathSync(cursor)
+        const root = realpathSync.native(cursor)
         return suffix.length === 0 ? root : resolve(root, ...suffix.reverse())
       } catch {
         const parent = dirname(cursor)
@@ -50,7 +59,9 @@ export function recognizedDevPlaygroundPath(path: string, primaryPath: string): 
   if (candidate === null || primary === null) return null
   // The configured primary playground is itself a managed root. Existing symlinks here would
   // make the apparent dev home point at an arbitrary checkout, so reject them instead of
-  // treating their canonical target as the sandbox.
+  // treating their canonical target as the sandbox. Deliberately plain (non-native)
+  // realpathSync: this compares two resolutions of the SAME input string, so case-correction
+  // would just make a same-casing path look like a symlink on a case-insensitive volume.
   try {
     if (realpathSync(resolve(primaryPath)) !== resolve(primaryPath)) return null
   } catch {
@@ -75,7 +86,7 @@ export function recognizedDevPlaygroundPath(path: string, primaryPath: string): 
     // canonical target would silently turn a dev root into an arbitrary host directory.
     let canonicalRoot: string
     try {
-      canonicalRoot = realpathSync(managedRoot)
+      canonicalRoot = realpathSync.native(managedRoot)
     } catch {
       // A managed root is allowed to be created later. In that case its existing ancestors must
       // already be canonical; `canonical` preserves the lexical missing suffix for this check.
