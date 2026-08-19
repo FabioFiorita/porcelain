@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest'
 import { dispatchMcp, type McpToolHandlers } from './mcp-dispatch'
-import { MCP_ERROR, MCP_META, MCP_PROTOCOL_VERSION } from './mcp-protocol'
+import { MCP_CLASSIC_LATEST, MCP_ERROR, MCP_META, MCP_PROTOCOL_VERSION } from './mcp-protocol'
 
 const serverInfo = { name: 'porcelain', version: '0.0.0-test' }
 
@@ -91,10 +91,15 @@ describe('dispatchMcp', () => {
   })
 
   describe('header validation', () => {
-    it('requires the protocol version header', async () => {
-      const outcome = await run(request('tools/list'), { 'mcp-protocol-version': undefined })
-      expect(codeOf(outcome)).toBe(MCP_ERROR.headerMismatch)
-      expect(outcome.kind === 'json' && outcome.status).toBe(400)
+    it('treats a missing protocol version header as the classic era, not a refusal', async () => {
+      const outcome = await run(request('tools/list'), {
+        'mcp-protocol-version': undefined,
+        'mcp-method': undefined,
+      })
+      expect(outcome.kind === 'json' && outcome.status).toBe(200)
+      if (outcome.kind !== 'json') throw new Error('expected json')
+      const body = outcome.body as { result: { tools: unknown[] } }
+      expect(body.result.tools.length).toBe(8)
     })
 
     it('refuses a protocol version header that disagrees with the body', async () => {
@@ -108,17 +113,12 @@ describe('dispatchMcp', () => {
     })
 
     it('refuses a protocol version it does not speak, and says what it speaks', async () => {
-      const body = JSON.stringify({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'tools/list',
-        params: { _meta: meta({ [MCP_META.protocolVersion]: '2025-11-25' }) },
-      })
-      const outcome = await run(body, { 'mcp-protocol-version': '2025-11-25' })
+      const outcome = await run(request('tools/list'), { 'mcp-protocol-version': '2019-01-01' })
       expect(codeOf(outcome)).toBe(MCP_ERROR.unsupportedProtocolVersion)
       if (outcome.kind !== 'json') throw new Error('expected json')
       const parsed = outcome.body as { error: { data: { supported: string[] } } }
-      expect(parsed.error.data.supported).toEqual([MCP_PROTOCOL_VERSION])
+      expect(parsed.error.data.supported).toContain(MCP_PROTOCOL_VERSION)
+      expect(parsed.error.data.supported).toContain(MCP_CLASSIC_LATEST)
     })
 
     it('refuses an Mcp-Method header that disagrees with the body', async () => {
@@ -182,6 +182,99 @@ describe('dispatchMcp', () => {
         'mcp-method': 'tools/call',
         'mcp-name': 'porcelain_delete_everything',
       })
+      expect(codeOf(outcome)).toBe(MCP_ERROR.invalidParams)
+    })
+  })
+
+  it('answers the era probe so a client stays on the stateless revision', async () => {
+    const outcome = await run(request('server/discover'), { 'mcp-method': 'server/discover' })
+    if (outcome.kind !== 'json') throw new Error('expected json')
+    expect(outcome.status).toBe(200)
+    const body = outcome.body as {
+      result: { supportedVersions: string[]; capabilities: Record<string, unknown> }
+    }
+    expect(body.result.supportedVersions).toEqual([MCP_PROTOCOL_VERSION])
+    expect(body.result.capabilities).toHaveProperty('tools')
+  })
+
+  it('says how long a tool list may be cached and for whom', async () => {
+    const outcome = await run(request('tools/list'))
+    if (outcome.kind !== 'json') throw new Error('expected json')
+    const body = outcome.body as { result: { ttlMs: number; cacheScope: string } }
+    expect(body.result.ttlMs).toBe(0)
+    expect(body.result.cacheScope).toBe('private')
+  })
+
+  describe('classic era', () => {
+    /** A classic client sends none of the 2026 headers and no `_meta` envelope. */
+    async function classic(
+      method: string,
+      params: Record<string, unknown> = {},
+      version?: string,
+      tools = handlers(),
+    ) {
+      return dispatchMcp({
+        headers: version === undefined ? {} : { 'mcp-protocol-version': version },
+        rawBody: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
+        handlers: tools,
+        serverInfo,
+      })
+    }
+
+    it('completes initialize without an MCP-Protocol-Version header', async () => {
+      const outcome = await classic('initialize', { protocolVersion: '2025-06-18' })
+      if (outcome.kind !== 'json') throw new Error('expected json')
+      expect(outcome.status).toBe(200)
+      const body = outcome.body as {
+        result: { protocolVersion: string; capabilities: { tools: unknown }; serverInfo: unknown }
+      }
+      expect(body.result.protocolVersion).toBe('2025-06-18')
+      expect(body.result.capabilities.tools).toBeTypeOf('object')
+      expect(body.result.serverInfo).toEqual(serverInfo)
+    })
+
+    it('offers its newest classic revision when the client names one it does not know', async () => {
+      const outcome = await classic('initialize', { protocolVersion: '1999-01-01' })
+      if (outcome.kind !== 'json') throw new Error('expected json')
+      const body = outcome.body as { result: { protocolVersion: string } }
+      expect(body.result.protocolVersion).toBe(MCP_CLASSIC_LATEST)
+    })
+
+    it('accepts notifications/initialized without answering it', async () => {
+      const outcome = await dispatchMcp({
+        headers: { 'mcp-protocol-version': '2025-06-18' },
+        rawBody: JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' }),
+        handlers: handlers(),
+        serverInfo,
+      })
+      expect(outcome.kind).toBe('accepted')
+    })
+
+    it('lists tools in a plain envelope, with none of the 2026 markers', async () => {
+      const outcome = await classic('tools/list', {}, '2025-06-18')
+      if (outcome.kind !== 'json') throw new Error('expected json')
+      const body = outcome.body as { result: Record<string, unknown> }
+      expect((body.result.tools as unknown[]).length).toBe(8)
+      expect(body.result.resultType).toBeUndefined()
+      expect(body.result._meta).toBeUndefined()
+    })
+
+    it('runs a tool without the Mcp-Name header the 2026 era requires', async () => {
+      const tools = handlers('oriented')
+      const outcome = await classic(
+        'tools/call',
+        { name: 'porcelain_context', arguments: { workspace: '/repo' } },
+        '2025-06-18',
+        tools,
+      )
+      expect(tools.call).toHaveBeenCalledWith('porcelain_context', { workspace: '/repo' })
+      if (outcome.kind !== 'json') throw new Error('expected json')
+      const body = outcome.body as { result: { content: { text: string }[] } }
+      expect(body.result.content[0]?.text).toBe('oriented')
+    })
+
+    it('refuses an unknown tool', async () => {
+      const outcome = await classic('tools/call', { name: 'porcelain_nope' }, '2025-06-18')
       expect(codeOf(outcome)).toBe(MCP_ERROR.invalidParams)
     })
   })

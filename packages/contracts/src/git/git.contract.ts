@@ -219,6 +219,40 @@ export const gitGenerateCommitGroupsOutputSchema = commitGroupGenerationOutputSc
   .extend({ groups: z.array(commitGroupGenerationGroupSchema.strict()) })
   .strict()
 
+/**
+ * A proposed group as the daemon will apply it: stage exactly these whole files, then commit
+ * them with this message. Partial-file hunks are deliberately out of scope.
+ */
+export const commitGroupPlanSchema = z
+  .object({
+    files: z.array(z.string().trim().min(1)).min(1),
+    message: z.string().trim().min(1),
+  })
+  .strict()
+
+/**
+ * One group's outcome, in the order it was submitted. `skipped` means an earlier group failed
+ * and the batch stopped before reaching this one — those files are still in the working tree.
+ */
+export const commitGroupResultSchema = z
+  .object({
+    files: z.array(z.string()),
+    message: z.string(),
+    status: z.enum(['committed', 'failed', 'skipped']),
+    error: z.string().nullable(),
+  })
+  .strict()
+
+export const gitApplyCommitGroupsInputSchema = z
+  .object({
+    repoPath: z.string(),
+    groups: z.array(commitGroupPlanSchema).min(1),
+  })
+  .strict()
+export const gitApplyCommitGroupsOutputSchema = z
+  .object({ results: z.array(commitGroupResultSchema) })
+  .strict()
+
 export const gitCheckoutInputSchema = z
   .object({
     repoPath: z.string(),
@@ -302,11 +336,19 @@ export const gitRangeFlowOutputSchema = z
     defaultBase: z.string(),
   })
   .strict()
+/**
+ * Lines of unchanged context git keeps around each change (`git diff -U<n>`).
+ * Omitted means git's own default of 3. A client that offers "expand context"
+ * asks for a large value once and collapses the surplus itself, so expanding a
+ * gap costs no round trip.
+ */
+export const diffContextSchema = z.number().int().min(0).max(100_000)
 export const gitRangeDiffFileInputSchema = z
   .object({
     repoPath: z.string(),
     base: z.string(),
     filePath: z.string(),
+    context: diffContextSchema.optional(),
   })
   .strict()
 export const gitRangeDiffFileOutputSchema = diffFileResultSchema
@@ -314,6 +356,7 @@ export const gitDiffFileInputSchema = z
   .object({
     repoPath: z.string(),
     filePath: z.string(),
+    context: diffContextSchema.optional(),
   })
   .strict()
 export const gitDiffFileOutputSchema = diffFileResultSchema
@@ -390,6 +433,10 @@ export type GitGenerateCommitMessageInput = z.infer<typeof gitGenerateCommitMess
 export type GitGenerateCommitMessageOutput = z.infer<typeof gitGenerateCommitMessageOutputSchema>
 export type GitGenerateCommitGroupsInput = z.infer<typeof gitGenerateCommitGroupsInputSchema>
 export type GitGenerateCommitGroupsOutput = z.infer<typeof gitGenerateCommitGroupsOutputSchema>
+export type CommitGroupPlan = z.infer<typeof commitGroupPlanSchema>
+export type CommitGroupResult = z.infer<typeof commitGroupResultSchema>
+export type GitApplyCommitGroupsInput = z.infer<typeof gitApplyCommitGroupsInputSchema>
+export type GitApplyCommitGroupsOutput = z.infer<typeof gitApplyCommitGroupsOutputSchema>
 export type GitCheckoutInput = z.infer<typeof gitCheckoutInputSchema>
 export type GitCheckoutOutput = z.infer<typeof gitCheckoutOutputSchema>
 export type GitCreateBranchInput = z.infer<typeof gitCreateBranchInputSchema>

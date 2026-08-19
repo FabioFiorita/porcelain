@@ -9,7 +9,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { toast } from 'sonner'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { useActionMutations, useTrustAction } from './actions-mutations'
+import { duplicateTitle, useActionMutations, useTrustAction } from './actions-mutations'
 import { actionsListKeyForProject } from './actions-query-key'
 
 vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
@@ -117,6 +117,71 @@ describe('useActionMutations', () => {
         .affectedQueries({ projectId: PROJECT_ID, title: 'Build', command: 'make build' })
         .map((i) => i.name),
     ).toEqual(['list', 'trust'])
+  })
+
+  it('duplicates by adding a copy last and walking it up under the original', async () => {
+    const { mock, wrapper } = createValidatingTrpcHarness({
+      ...baseHandlers,
+      addAction: () => ({ ok: true, value: actionsContractFixtures.addAction.output }),
+      moveAction: () => ({ ok: true, value: undefined }),
+    })
+
+    const { result } = renderHook(
+      () => ({
+        mutations: useActionMutations(),
+        queryClient: useQueryClient(),
+        daemon: useDaemonIdentity(),
+      }),
+      { wrapper },
+    )
+
+    await waitFor(() => expect(result.current.daemon.host).toBe('workstation'))
+
+    const projectKey = actionsListKeyForProject(
+      { host: result.current.daemon.host, version: result.current.daemon.version },
+      PROJECT_ID,
+    )
+    result.current.queryClient.setQueryData(projectKey, [{ id: 'a' }])
+
+    // Original sits first of three rows: two rows below it, so two moves up.
+    await act(async () => {
+      await result.current.mutations.duplicate(
+        { title: 'Serve locally', command: 'make serve', where: 'local' },
+        2,
+      )
+    })
+
+    expect(mock.requests().filter((r) => r.procedure === 'addAction')).toEqual([
+      {
+        procedure: 'addAction',
+        kind: 'mutation',
+        input: {
+          projectId: PROJECT_ID,
+          title: 'Serve locally (copy)',
+          command: 'make serve',
+          where: 'local',
+        },
+      },
+    ])
+    // Same command text: trust is keyed to the text, so the copy arrives as trusted as the original.
+    expect(mock.requests().filter((r) => r.procedure === 'moveAction')).toEqual([
+      {
+        procedure: 'moveAction',
+        kind: 'mutation',
+        input: { projectId: PROJECT_ID, id: 'action-check', direction: 'up' },
+      },
+      {
+        procedure: 'moveAction',
+        kind: 'mutation',
+        input: { projectId: PROJECT_ID, id: 'action-check', direction: 'up' },
+      },
+    ])
+    expect(result.current.queryClient.getQueryState(projectKey)?.isInvalidated).toBe(true)
+  })
+
+  it('keeps a duplicated title inside the stored title limit', () => {
+    expect(duplicateTitle('Serve sim')).toBe('Serve sim (copy)')
+    expect(duplicateTitle('x'.repeat(400))).toHaveLength(240)
   })
 
   it('rejects without toasting on mutation failure', async () => {

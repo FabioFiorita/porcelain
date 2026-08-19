@@ -1,10 +1,18 @@
 import { DEFAULT_HIDDEN_TASK_COLUMN_IDS, TASK_COLUMN_IDS } from '@porcelain/client-runtime/tasks'
 import { TestIds } from '@shared/test-ids'
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { useTaskColumnsStore } from './tasks-columns-store'
 import { TasksView } from './tasks-view'
-import { renderTasks, TASKS, taskAt } from './test-support'
+import {
+  connectSecondaryEnvironment,
+  DAEMON_HOST,
+  disconnectSecondaryEnvironment,
+  renderTasks,
+  SECONDARY_ENVIRONMENT,
+  TASKS,
+  taskAt,
+} from './test-support'
 
 const REFERENCED = taskAt(1)
 
@@ -15,6 +23,10 @@ const columnHeaders = (): string[] =>
     .filter((label) => label !== '')
 
 describe('TasksView', () => {
+  afterEach(() => {
+    disconnectSecondaryEnvironment()
+  })
+
   beforeEach(() => {
     useTaskColumnsStore.setState({
       order: [...TASK_COLUMN_IDS],
@@ -143,5 +155,41 @@ describe('TasksView', () => {
     expect(screen.getByTestId(TestIds.tasksError).textContent).toContain('Tasks are unavailable.')
     expect(screen.queryByTestId(TestIds.tasksEmpty)).not.toBeInTheDocument()
     expect(screen.queryByTestId(TestIds.tasksTable)).not.toBeInTheDocument()
+  })
+
+  /**
+   * The Environment column is the answer to "which machine is this Task on?", so it only exists
+   * where that question has more than one answer: the Mac app and mobile fan out over every
+   * connected Environment, a browser client is served by exactly one daemon.
+   */
+  it('hides the Environment column entirely while one Environment answers', async () => {
+    renderTasks(<TasksView />)
+    await waitFor(() => expect(screen.getByTestId(TestIds.tasksTable)).toBeInTheDocument())
+
+    expect(columnHeaders()).not.toContain('Environment')
+    fireEvent.click(screen.getByTestId(TestIds.tasksColumnsMenu))
+    expect(await screen.findByTestId(TestIds.tasksColumnToggle('title'))).toBeInTheDocument()
+    expect(screen.queryByTestId(TestIds.tasksColumnToggle('environment'))).not.toBeInTheDocument()
+  })
+
+  it('names the Environment on every row once a second one answers', async () => {
+    // Short ids are per daemon, so two Environments can both own a `T-1`. The rows must stay
+    // two rows, told apart by the Environment name — never merged onto one short id.
+    const collision = {
+      ...taskAt(0),
+      id: '00000000-0000-4000-8000-000000000099',
+      title: 'Same short id, other machine',
+    }
+    connectSecondaryEnvironment([collision])
+    renderTasks(<TasksView />)
+    await waitFor(() => expect(columnHeaders()).toContain('Environment'))
+
+    const local = within(screen.getByTestId(TestIds.tasksRow(taskAt(0).id)))
+    const remote = within(screen.getByTestId(TestIds.tasksRow(collision.id)))
+    expect(local.getByText(taskAt(0).shortId)).toBeInTheDocument()
+    expect(remote.getByText(collision.shortId)).toBeInTheDocument()
+    expect(local.getByText(DAEMON_HOST)).toBeInTheDocument()
+    expect(remote.getByText(SECONDARY_ENVIRONMENT.name)).toBeInTheDocument()
+    expect(screen.getAllByRole('row')).toHaveLength(TASKS.length + 2)
   })
 })

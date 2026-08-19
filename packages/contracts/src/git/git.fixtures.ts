@@ -54,6 +54,22 @@ export const gitContractFixtures = {
     input: { repoPath: '/synthetic/repo', model: 'sonnet' },
     output: { groups: [{ files: ['src/example.ts'], message: 'feat: synthetic group' }] },
   },
+  gitApplyCommitGroups: {
+    input: {
+      repoPath: '/synthetic/repo',
+      groups: [{ files: ['src/example.ts'], message: 'feat: synthetic group' }],
+    },
+    output: {
+      results: [
+        {
+          files: ['src/example.ts'],
+          message: 'feat: synthetic group',
+          status: 'committed',
+          error: null,
+        },
+      ],
+    },
+  },
   gitCheckout: {
     input: { repoPath: '/synthetic/repo', branch: 'main' },
     output: undefined,

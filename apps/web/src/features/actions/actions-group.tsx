@@ -53,6 +53,7 @@ function SiblingEnvironment({ scope }: { scope: ActionsScope }): React.JSX.Eleme
           showWhere={false}
           isFirst={index === 0}
           isLast={index === actions.length - 1}
+          rowsBelow={actions.length - index - 1}
         />
       ))}
       <p className="px-1 text-2xs text-muted-foreground">
@@ -219,6 +220,7 @@ export function ActionsGroup(): React.JSX.Element {
                 showWhere={canSpawnLocal}
                 isFirst={index === 0}
                 isLast={index === actions.length - 1}
+                rowsBelow={actions.length - index - 1}
               />
             ))}
           </SidebarGroupContent>

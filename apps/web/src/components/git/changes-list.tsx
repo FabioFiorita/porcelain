@@ -26,13 +26,15 @@ import {
 import { toastingAction } from '@renderer/hooks/mutation-error'
 import { dirName, fileName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'
+import { useHubTarget } from '@renderer/stores/hub-selection'
 import { targetedTab } from '@renderer/stores/hub-tabs'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useRevealStore } from '@renderer/stores/reveal'
-import { useTabsStore } from '@renderer/stores/tabs'
+import { useActiveTab, useTabsStore } from '@renderer/stores/tabs'
 import { TestIds } from '@shared/test-ids'
 import {
+  Check,
   FileText,
   MessageSquarePlus,
   Minus,
@@ -79,6 +81,17 @@ function FileRowImpl({
   const reviewed = useReviewedPaths()
   const { mark, unmark } = useToggleReviewed()
   const isReviewed = reviewed.has(file.path)
+  // The row is "open" when the Viewer shows this file's diff in the same scope:
+  // a working-tree row (no base) must not light up for a branch-diff tab, and a
+  // diff tab bound to another Worktree must not light up this project's row (tab
+  // paths are repository-relative, so two projects share them).
+  const activeTab = useActiveTab()
+  const hubTarget = useHubTarget()
+  const isOpen =
+    activeTab?.kind === 'diff' &&
+    activeTab.path === file.path &&
+    activeTab.base === base &&
+    (activeTab.target === undefined || activeTab.target.path === hubTarget?.path)
   const [commentAnchor, setCommentAnchor] = useState<CommentAnchor | null>(null)
   const confirmDiscardFile = toastingAction('Discard file', () => discardFile(file.path))
   const [confirmDiscard, setConfirmDiscard] = useState(false)
@@ -110,8 +123,10 @@ function FileRowImpl({
             render={
               <SidebarMenuButton
                 className="h-auto py-1 pr-8"
+                isActive={isOpen}
                 data-testid={TestIds.changesFile(name)}
                 data-path={file.path}
+                data-reviewed={isReviewed}
                 onClick={() =>
                   openTab(
                     targetedTab('diff', file.path, {
@@ -164,7 +179,14 @@ function FileRowImpl({
                       </TooltipContent>
                     </Tooltip>
                   )}
-                  <span className={cn('truncate font-mono text-sm-minus')}>{name}</span>
+                  <span
+                    className={cn(
+                      'truncate font-mono text-sm-minus',
+                      isReviewed && 'text-muted-foreground',
+                    )}
+                  >
+                    {name}
+                  </span>
                   {file.additions !== undefined && (
                     <span className="shrink-0 font-mono text-2xs text-success">
                       +{file.additions}
@@ -174,6 +196,22 @@ function FileRowImpl({
                     <span className="shrink-0 font-mono text-2xs text-destructive">
                       −{file.deletions}
                     </span>
+                  )}
+                  {/* Reviewed mark: the row's right edge belongs to the comment
+                      button, so the check rides the name line instead. */}
+                  {isReviewed && (
+                    <Tooltip>
+                      <TooltipTrigger
+                        render={
+                          <Check
+                            role="img"
+                            aria-label="Reviewed"
+                            className="size-3 shrink-0 self-center text-success"
+                          />
+                        }
+                      />
+                      <TooltipContent>Reviewed</TooltipContent>
+                    </Tooltip>
                   )}
                 </span>
                 <span

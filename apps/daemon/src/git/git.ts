@@ -674,7 +674,19 @@ async function imagePreview(absPath: string, mime: string): Promise<string | nul
   }
 }
 
-export async function gitDiffFile(repoPath: string, filePath: string): Promise<DiffFileResult> {
+/**
+ * `git diff -U<n>` flags for a requested context width. Omitted context keeps
+ * git's default of 3 lines, so every existing caller diffs exactly as before.
+ */
+function contextArgs(context: number | undefined): string[] {
+  return context === undefined ? [] : [`-U${context}`]
+}
+
+export async function gitDiffFile(
+  repoPath: string,
+  filePath: string,
+  context?: number,
+): Promise<DiffFileResult> {
   const status = await runGit(repoPath, ['status', '--porcelain=v1', '-uall', '-z', '--', filePath])
   const probed = parseStatus(status)[0]?.status
   const abs = join(repoPath, filePath)
@@ -695,7 +707,14 @@ export async function gitDiffFile(repoPath: string, filePath: string): Promise<D
     return { hunks: synthesizeAddDiff(buffer.toString('utf8')), status: 'untracked' }
   }
 
-  const raw = await runGit(repoPath, ['diff', 'HEAD', '--no-color', '--', filePath])
+  const raw = await runGit(repoPath, [
+    'diff',
+    'HEAD',
+    '--no-color',
+    ...contextArgs(context),
+    '--',
+    filePath,
+  ])
   const fileStatus = probed ?? 'modified'
 
   // Known image types (and git's own "Binary files differ" marker): never try to
@@ -879,9 +898,17 @@ export async function gitRangeDiffFile(
   repoPath: string,
   base: string,
   filePath: string,
+  context?: number,
 ): Promise<DiffFileResult> {
   const mergeBase = await gitMergeBase(repoPath, await gitResolveCompareBase(repoPath, base))
-  const raw = await runGit(repoPath, ['diff', '--no-color', `${mergeBase}..HEAD`, '--', filePath])
+  const raw = await runGit(repoPath, [
+    'diff',
+    '--no-color',
+    ...contextArgs(context),
+    `${mergeBase}..HEAD`,
+    '--',
+    filePath,
+  ])
   const status = diffFileStatus(raw)
   const mime = imageMimeForPath(filePath)
   if (mime || isGitBinaryDiff(raw)) {

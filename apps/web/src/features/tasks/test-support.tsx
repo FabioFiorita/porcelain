@@ -13,6 +13,8 @@ import type { Operation } from '@trpc/client'
 import { TRPCClientError } from '@trpc/client'
 import { observable } from '@trpc/server/observable'
 import type { ReactElement } from 'react'
+import { vi } from 'vitest'
+import { setBrowserEnvironmentConnections } from '../../lib/environment-sessions'
 
 /**
  * Shared Tasks render/harness plumbing.
@@ -102,4 +104,47 @@ export function renderTasks(
     wrapper: ({ children }) => <Wrapper>{children}</Wrapper>,
   })
   return { ...result, mock, shellOperations }
+}
+
+/** A second client-local Environment: the browser stand-in for a Hub that fans out. */
+export const SECONDARY_ENVIRONMENT = {
+  id: 'connection-secondary',
+  name: 'Studio Mac',
+  url: 'http://127.0.0.1:43220',
+  token: 'pc_client_secondary_secret',
+} as const
+
+/**
+ * Connect a second Environment serving `tasks`.
+ *
+ * A client-local session talks over real `fetch`/`WebSocket` rather than the harness link, so
+ * both are stubbed here. Call `disconnectSecondaryEnvironment()` in `afterEach`: the connection
+ * list is module state that would otherwise leak into the next test.
+ */
+export function connectSecondaryEnvironment(tasks: readonly Task[]): void {
+  vi.stubGlobal(
+    'WebSocket',
+    class {
+      onopen: (() => void) | undefined
+      onmessage: ((event: MessageEvent) => void) | undefined
+      onclose: (() => void) | undefined
+      send(): void {}
+      close(): void {}
+    },
+  )
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(
+      async () =>
+        new Response(JSON.stringify([{ result: { data: tasks } }]), {
+          headers: { 'content-type': 'application/json' },
+        }),
+    ),
+  )
+  setBrowserEnvironmentConnections([SECONDARY_ENVIRONMENT])
+}
+
+export function disconnectSecondaryEnvironment(): void {
+  setBrowserEnvironmentConnections([])
+  vi.unstubAllGlobals()
 }

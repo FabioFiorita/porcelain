@@ -97,6 +97,7 @@ const persistedPreferencesSchema = z.object({
   notesHeight: persistedField(z.number().transform(clampNotesHeight)),
   terminalHeight: persistedField(z.number().transform(clampTerminalHeight)),
   splitRatio: persistedField(z.number().transform(clampSplitRatio)),
+  dismissedDaemonUpdates: persistedField(z.record(z.string(), z.string())),
 })
 
 /** The persisted fields with their optionality removed — `null` stays where it is real. */
@@ -135,6 +136,8 @@ export function hydratePreferences(persisted: unknown): Partial<PreferenceValues
   if (blob.notesHeight !== undefined) hydrated.notesHeight = blob.notesHeight
   if (blob.terminalHeight !== undefined) hydrated.terminalHeight = blob.terminalHeight
   if (blob.splitRatio !== undefined) hydrated.splitRatio = blob.splitRatio
+  if (blob.dismissedDaemonUpdates !== undefined)
+    hydrated.dismissedDaemonUpdates = blob.dismissedDaemonUpdates
   return hydrated
 }
 
@@ -161,6 +164,12 @@ interface PreferencesState {
   terminalHeight: number
   /** Fraction of the viewer width given to the left pane when split (0.2–0.8). */
   splitRatio: number
+  /**
+   * Remote daemon host -> the daemon version whose update prompt was waved off. Keyed by
+   * version so the next lagging release asks again (see lib/daemon-update.ts). Presentation
+   * state only — never a credential.
+   */
+  dismissedDaemonUpdates: Record<string, string>
   setChangesScope: (scope: ChangesScope) => void
   /** `null` clears the pick and returns that repo to the daemon's default base. */
   setCompareBase: (repoPath: string, base: string | null) => void
@@ -177,6 +186,7 @@ interface PreferencesState {
   setTerminalHeight: (height: number) => void
   setSplitRatio: (ratio: number) => void
   setTheme: (theme: ThemeMode) => void
+  dismissDaemonUpdate: (host: string, version: string) => void
 }
 
 export const usePreferencesStore = create<PreferencesState>()(
@@ -197,6 +207,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       notesHeight: 220,
       terminalHeight: TERMINAL_DEFAULT_HEIGHT,
       splitRatio: 0.5,
+      dismissedDaemonUpdates: {},
       setChangesScope: (changesScope: ChangesScope) => set({ changesScope }),
       setCompareBase: (repoPath: string, base: string | null) =>
         set((state) => {
@@ -221,6 +232,10 @@ export const usePreferencesStore = create<PreferencesState>()(
       setTerminalHeight: (height: number) => set({ terminalHeight: clampTerminalHeight(height) }),
       setSplitRatio: (ratio: number) => set({ splitRatio: clampSplitRatio(ratio) }),
       setTheme: (theme: ThemeMode) => set({ theme }),
+      dismissDaemonUpdate: (host: string, version: string) =>
+        set((state) => ({
+          dismissedDaemonUpdates: { ...state.dismissedDaemonUpdates, [host]: version },
+        })),
     }),
     {
       name: 'porcelain-preferences',

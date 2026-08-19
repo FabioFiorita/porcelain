@@ -12,6 +12,7 @@ export const TASK_COLUMN_IDS = [
   'status',
   'title',
   'project',
+  'environment',
   'links',
   'updated',
   'tags',
@@ -26,6 +27,7 @@ export const TASK_COLUMN_LABELS: Readonly<Record<TaskColumnId, string>> = {
   status: 'Status',
   title: 'Title',
   project: 'Project',
+  environment: 'Environment',
   links: 'URL',
   updated: 'Updated',
   tags: 'Tags',
@@ -46,6 +48,21 @@ export const DEFAULT_HIDDEN_TASK_COLUMN_IDS: readonly TaskColumnId[] = [
   'worktree',
   'created',
 ]
+
+/**
+ * Which columns a client may offer at all.
+ *
+ * The Environment column only means something where more than one Environment can be reached
+ * at once — the Mac app and mobile, which fan `listTasks` out over every connected daemon. A
+ * client bound to a single daemon would print the same name on every row, so the column is not
+ * merely hidden there, it is absent from the vocabulary and from the column picker.
+ *
+ * The caller supplies the boolean: this module stays platform-neutral so Web and mobile share
+ * one vocabulary rather than each growing its own runtime check.
+ */
+export function availableTaskColumns(multiEnvironment: boolean): TaskColumnId[] {
+  return TASK_COLUMN_IDS.filter((id) => multiEnvironment || id !== 'environment')
+}
 
 /**
  * Reconcile a persisted column preference against the current vocabulary: unknown ids are
