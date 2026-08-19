@@ -16,7 +16,10 @@ vi.mock('@/features/remote', () => ({
   environmentActions: { recordReachabilityFailure: () => {}, recordReachabilitySuccess: () => {} },
   useActiveEnvironment: () => null,
 }))
-vi.mock('@/features/projects', () => ({ useActiveProject: () => null }))
+vi.mock('@/features/projects', () => ({
+  useActiveProject: () => null,
+  useHubRepoPath: () => null,
+}))
 vi.mock('@/features/settings/preferences-store', () => ({
   usePreferencesStore: Object.assign(() => 'luna', {
     getState: () => ({ commitModel: 'luna', pullMode: 'merge' }),

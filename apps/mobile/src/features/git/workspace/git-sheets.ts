@@ -2,7 +2,7 @@ import { headLabel } from '@porcelain/contracts'
 import type { BranchRef, Worktree } from '@porcelain/contracts/git'
 import { runUserAction, settleBackground } from '@porcelain/shared/background'
 import { useEffect, useState } from 'react'
-import { openProject, useActiveProject } from '@/features/projects'
+import { openProject, useHubRepoPath } from '@/features/projects'
 import { useShellStore } from '@/features/shell/shell-store'
 import {
   blockingWorktree,
@@ -44,9 +44,9 @@ export function useGitBranchSheet(
 ): GitBranchSheet {
   const closeSheet = useShellStore((state) => state.closeSheet)
   const openSheet = useShellStore((state) => state.openSheet)
-  const project = useActiveProject()
+  const repoPath = useHubRepoPath()
   const workspace = useGitWorkspace({
-    enabled: open && project !== null,
+    enabled: open && repoPath !== null,
     placeholderData: true,
   })
   const checkout = useGitCheckout()
@@ -54,7 +54,7 @@ export function useGitBranchSheet(
   const [query, setQuery] = useState('')
   const [actionError, setActionError] = useState<string | null>(null)
   const [createError, setCreateError] = useState<string | null>(null)
-  const projectPath = project?.path ?? ''
+  const projectPath = repoPath ?? ''
 
   const branches = workspace.branches.data ?? []
   const worktrees = workspace.worktrees.data ?? []
@@ -80,7 +80,7 @@ export function useGitBranchSheet(
       setCreateError(null)
     },
     create: (branch): void => {
-      if (project === null || createBranch.isPending) return
+      if (repoPath === null || createBranch.isPending) return
       setCreateError(null)
       runUserAction(
         async () => {
@@ -106,13 +106,13 @@ export function useGitBranchSheet(
     local: matched.local,
     query,
     remote: matched.remote,
-    projectPath: project?.path ?? null,
+    projectPath: repoPath,
     select: (branch): void => {
       if (blockingWorktree(worktrees, branch.name, projectPath) !== undefined) {
         openSheet('worktree')
         return
       }
-      if (project === null || branch.name === currentBranch) {
+      if (repoPath === null || branch.name === currentBranch) {
         closeSheet()
         return
       }
@@ -156,9 +156,9 @@ export function useGitWorktreeSheet(
   onCreatingChange: (creating: boolean) => void,
 ): GitWorktreeSheet {
   const closeSheet = useShellStore((state) => state.closeSheet)
-  const project = useActiveProject()
+  const repoPath = useHubRepoPath()
   const workspace = useGitWorkspace({
-    enabled: open && project !== null,
+    enabled: open && repoPath !== null,
     placeholderData: true,
   })
   const addWorktree = useGitAddWorktree()
@@ -182,7 +182,7 @@ export function useGitWorktreeSheet(
       setCreateError(null)
     },
     create: (branch): void => {
-      if (project === null || addWorktree.isPending || busyPath !== null) return
+      if (repoPath === null || addWorktree.isPending || busyPath !== null) return
       setCreateError(null)
       runUserAction(
         async () => {
@@ -213,7 +213,7 @@ export function useGitWorktreeSheet(
       ? errorMessage(workspace.worktrees.error, 'Could not load worktrees.')
       : null,
     open: (path): void => {
-      if (path === project?.path) {
+      if (path === repoPath) {
         closeSheet()
         return
       }
@@ -232,7 +232,7 @@ export function useGitWorktreeSheet(
         },
       )
     },
-    projectPath: project?.path ?? null,
+    projectPath: repoPath,
     worktrees: workspace.worktrees.data ?? [],
   }
 }

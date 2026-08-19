@@ -11,6 +11,7 @@ vi.mock('@/features/remote', () => ({
 }))
 vi.mock('@/features/projects', () => ({
   useActiveProject: () => ({ name: 'repo', path: '/synthetic/repo' }),
+  useHubRepoPath: () => '/synthetic/repo',
 }))
 vi.mock('@/lib/daemon/session', () => ({
   subscribeSessionChanges: () => () => undefined,

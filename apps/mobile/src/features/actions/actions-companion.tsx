@@ -4,7 +4,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { ConfirmDialog, EmptyNote, ErrorNote, PanelLabel } from '@/components/surface-chrome'
-import { useActiveProject } from '@/features/projects'
+import { useHubRepoPath } from '@/features/projects'
 import { cn } from '@/lib/utils'
 import { useActionRun } from './action-run'
 import { useTrustAction } from './actions-mutations'
@@ -26,7 +26,7 @@ import { useActionsSelectionStore } from './actions-selection-store'
  * Placement remains under the Terminal surface (companion slot); ownership is Actions.
  */
 export function ActionsCompanion({ active }: { active: boolean }): React.JSX.Element {
-  const project = useActiveProject()
+  const repoPath = useHubRepoPath()
   const { actions, error } = useActions(active)
   const runAction = useActionRun()
   const trust = useTrustAction()
@@ -36,7 +36,7 @@ export function ActionsCompanion({ active }: { active: boolean }): React.JSX.Ele
   const [failure, setFailure] = useState<string | null>(null)
 
   const run = (action: ActionView): void => {
-    if (project === null) return
+    if (repoPath === null) return
     setFailure(null)
     runAction(action).catch((cause: unknown) => {
       setFailure(`Run failed: ${cause instanceof Error ? cause.message : String(cause)}`)

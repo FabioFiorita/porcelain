@@ -12,7 +12,7 @@ import {
   isFilesProjectRelativePath,
 } from '@porcelain/contracts/files'
 import { keepPreviousData, type UseQueryResult, useQuery } from '@tanstack/react-query'
-import { useActiveProject } from '@/features/projects'
+import { useHubRepoPath } from '@/features/projects'
 import { isPaired, useActiveEnvironment } from '@/features/remote'
 import { namedContractProcedure } from '@/lib/daemon/procedure'
 
@@ -54,10 +54,10 @@ function queryError(query: UseQueryResult<unknown>): Error | null {
 
 function liveProjectPath(
   environment: ReturnType<typeof useActiveEnvironment>,
-  project: ReturnType<typeof useActiveProject>,
+  repoPath: string | null,
 ): string | null {
-  if (!isPaired(environment) || project === null) return null
-  return filesProjectKey(project.path)
+  if (!isPaired(environment) || repoPath === null) return null
+  return filesProjectKey(repoPath)
 }
 
 function toEntries(repoPath: string, entries: readonly DirEntry[] | undefined): FileEntry[] {
@@ -91,9 +91,9 @@ export function useDirEntries(
   active: boolean,
 ): { entries: FileEntry[]; isLoading: boolean; error: Error | null } {
   const environment = useActiveEnvironment()
-  const project = useActiveProject()
+  const repoPath = useHubRepoPath()
   const showHidden = useFilesStore((state) => state.showHidden)
-  const projectPath = liveProjectPath(environment, project)
+  const projectPath = liveProjectPath(environment, repoPath)
   const treePath = relative === '' ? '.' : relative
   const valid = projectPath !== null && (treePath === '.' || isFilesProjectRelativePath(treePath))
   const enabled = active && valid && isPaired(environment)
@@ -121,7 +121,7 @@ export function useDirEntries(
   const state = readState(query, enabled)
 
   return {
-    entries: toEntries(project?.path ?? '/', state.data),
+    entries: toEntries(repoPath ?? '/', state.data),
     error: state.error,
     isLoading: state.isLoading,
   }
@@ -133,8 +133,8 @@ export function usePinnedEntries(active: boolean): {
   error: Error | null
 } {
   const environment = useActiveEnvironment()
-  const project = useActiveProject()
-  const projectPath = liveProjectPath(environment, project)
+  const repoPath = useHubRepoPath()
+  const projectPath = liveProjectPath(environment, repoPath)
   const enabled = active && projectPath !== null && isPaired(environment)
   const environmentId = environment?.id ?? 'none'
   const identity = projectPath !== null && enabled ? filesPinsQuery(projectPath) : DISABLED_PINS
@@ -149,7 +149,7 @@ export function usePinnedEntries(active: boolean): {
   const state = readState(query, enabled)
 
   return {
-    entries: toEntries(project?.path ?? '/', state.data),
+    entries: toEntries(repoPath ?? '/', state.data),
     error: state.error,
     isLoading: state.isLoading,
   }
@@ -157,8 +157,8 @@ export function usePinnedEntries(active: boolean): {
 
 export function useFileContents(relative: string, active: boolean): FileContents {
   const environment = useActiveEnvironment()
-  const project = useActiveProject()
-  const projectPath = liveProjectPath(environment, project)
+  const repoPath = useHubRepoPath()
+  const projectPath = liveProjectPath(environment, repoPath)
   const valid = projectPath !== null && relative !== '' && isFilesProjectRelativePath(relative)
   const enabled = active && valid && isPaired(environment)
   const environmentId = environment?.id ?? 'none'
@@ -188,8 +188,8 @@ export function useHtmlPreview(
   active: boolean,
 ): { html: string | null | undefined; isLoading: boolean; error: Error | null } {
   const environment = useActiveEnvironment()
-  const project = useActiveProject()
-  const projectPath = liveProjectPath(environment, project)
+  const repoPath = useHubRepoPath()
+  const projectPath = liveProjectPath(environment, repoPath)
   const valid = projectPath !== null && relative !== '' && isFilesProjectRelativePath(relative)
   const enabled = active && valid && isPaired(environment)
   const environmentId = environment?.id ?? 'none'

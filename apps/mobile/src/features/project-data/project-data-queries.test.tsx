@@ -20,6 +20,7 @@ vi.mock('@/features/remote', () => ({
 }))
 vi.mock('@/features/projects', () => ({
   useActiveProject: () => ctx.project,
+  useHubRepoPath: () => ctx.project?.path ?? null,
 }))
 vi.mock('@/features/git', () => ({
   useGitFlow: () => ({ error: null, groups: [], isLoading: false }),

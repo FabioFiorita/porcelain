@@ -3,7 +3,7 @@ import type { TerminalSessionsOutput } from '@porcelain/contracts/terminal'
 import { settleBackground } from '@porcelain/shared/background'
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo } from 'react'
-import { useActiveProject } from '@/features/projects'
+import { useHubRepoPath } from '@/features/projects'
 import { isPaired, useActiveEnvironment } from '@/features/remote'
 import { getDaemonClient } from '@/lib/daemon/client'
 import { DaemonError } from '@/lib/daemon/errors'
@@ -44,15 +44,14 @@ export function useTerminals(active: boolean): {
   isLoading: boolean
   error: DaemonError | null
 } {
-  const project = useActiveProject()
   const environment = useActiveEnvironment()
   const environmentId = environment?.id ?? 'none'
-  const repoPath = project?.path ?? ''
+  const repoPath = useHubRepoPath() ?? ''
   const hydrate = useTerminalStore((state) => state.hydrate)
   const reset = useTerminalStore((state) => state.reset)
   const sessions = useTerminalStore((state) => state.sessions)
   const adapter = mobileTerminalAdapter()
-  const enabled = active && project !== null && isPaired(environment)
+  const enabled = active && repoPath !== '' && isPaired(environment)
 
   useTerminalStream()
 
@@ -73,7 +72,7 @@ export function useTerminals(active: boolean): {
     refetchInterval: TERMINAL_ROSTER_POLL_MS,
     staleTime: 0,
   })
-  useMobileTerminalRecovery(active && project !== null, refetch)
+  useMobileTerminalRecovery(active && repoPath !== '', refetch)
 
   // The daemon lists every PTY it owns, across repos. This client shows one project at a time.
   const inRepo = useMemo(() => terminalSessionsForRepo(data ?? [], repoPath), [data, repoPath])

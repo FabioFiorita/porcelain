@@ -8,7 +8,7 @@ import type { BranchRef, GitHead, Worktree } from '@porcelain/contracts/git'
 import { gitProcedures } from '@porcelain/contracts/git'
 import { keepPreviousData, type UseQueryResult, useQuery } from '@tanstack/react-query'
 import { useCallback } from 'react'
-import { useActiveProject } from '@/features/projects'
+import { useHubRepoPath } from '@/features/projects'
 import { isPaired, useActiveEnvironment } from '@/features/remote'
 import { namedContractProcedure } from '@/lib/daemon/procedure'
 
@@ -34,10 +34,10 @@ export function useGitWorkspace(options: GitWorkspaceOptions = {}): {
   refreshBranches: () => Promise<void>
 } {
   const environment = useActiveEnvironment()
-  const project = useActiveProject()
+  const repoPath = useHubRepoPath()
   const environmentId = environment?.id ?? 'none'
-  const projectPath = project === null ? DISABLED_PROJECT : gitProjectKey(project.path)
-  const enabled = isPaired(environment) && project !== null && (options.enabled ?? true)
+  const projectPath = repoPath === null ? DISABLED_PROJECT : gitProjectKey(repoPath)
+  const enabled = isPaired(environment) && repoPath !== null && (options.enabled ?? true)
   const placeholder = options.placeholderData === true ? keepPreviousData : undefined
 
   const head = useQuery({

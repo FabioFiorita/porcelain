@@ -12,7 +12,7 @@ import {
 } from '@/components/surface-chrome'
 import { SURFACE_ROW, SURFACE_ROW_SELECTED } from '@/components/surface-layout'
 import { SurfaceList } from '@/components/surface-scroll'
-import { useActiveProject } from '@/features/projects'
+import { useHubRepoPath } from '@/features/projects'
 import { cn } from '@/lib/utils'
 
 import { TerminalRenameDialog } from './terminal-rename-dialog'
@@ -35,7 +35,7 @@ export function TerminalList({
   /** Phone: push the session's route. Omitted on tablet, which selects into its viewer. */
   onOpenSession?: (id: string) => void
 }): React.JSX.Element {
-  const project = useActiveProject()
+  const repoPath = useHubRepoPath()
   const { error, isLoading, sessions } = useTerminals(active)
   const selectedId = useTerminalStore((state) => state.selectedId)
   const select = useTerminalStore((state) => state.select)
@@ -63,9 +63,9 @@ export function TerminalList({
   }
 
   const handleNew = (): void => {
-    if (project === null) return
+    if (repoPath === null) return
     guard('New terminal failed', async () => {
-      const id = await spawn({ cwd: project.path })
+      const id = await spawn({ cwd: repoPath })
       onOpenSession?.(id)
     })
   }
@@ -97,14 +97,14 @@ export function TerminalList({
           className="min-w-0 flex-1 text-xs text-muted-foreground"
           testID="porcelain-terminal-summary"
         >
-          {summaryLabel(sessions, isLoading, project !== null)}
+          {summaryLabel(sessions, isLoading, repoPath !== null)}
         </Text>
         {/* Hung out by half the icon button's slack so the glyph — not its 36pt box — lands
             on the same gutter as the summary beside it. */}
         <View className="-mr-2">
           <IconAction
             accessibilityLabel="New terminal"
-            disabled={project === null}
+            disabled={repoPath === null}
             glyph="plus"
             testID="porcelain-terminal-new"
             onPress={handleNew}
@@ -126,7 +126,7 @@ export function TerminalList({
       {sessions.length === 0 && !isLoading ? (
         <EmptyNote
           body={
-            project === null
+            repoPath === null
               ? 'Open a project first — a shell needs somewhere to run.'
               : 'Start one with +, or run a saved action from the companion.'
           }

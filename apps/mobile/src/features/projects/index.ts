@@ -1,4 +1,10 @@
-export type { ProjectSummary } from '@porcelain/client-runtime/projects'
+export type { HubTarget, ProjectSummary } from '@porcelain/client-runtime/projects'
+export {
+  hubTargetIn,
+  useHubInventory,
+  useHubRepoPath,
+  useHubTarget,
+} from './hub-target'
 export type { ProjectSheet } from './project-data'
 export {
   projectsQueryKey,

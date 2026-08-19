@@ -11,7 +11,7 @@ import type { QueryClient } from '@tanstack/react-query'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 
-import { useActiveProject } from '@/features/projects'
+import { useHubRepoPath } from '@/features/projects'
 import { isPaired, useActiveEnvironment } from '@/features/remote'
 import { subscribeSessionChanges } from '@/lib/daemon/session'
 import { applySearchForeignDependencies as applyTypedSearchForeignDependencies } from '@/lib/search-invalidation'
@@ -89,9 +89,8 @@ export function applySearchFreshnessRequirement(
 /** The one mobile Search bridge, mounted beside the other domain bridges. */
 export function SearchNotificationBridge(): null {
   const environment = useActiveEnvironment()
-  const project = useActiveProject()
   const environmentId = environment?.id ?? null
-  const activeProjectPath = project?.path ?? null
+  const activeProjectPath = useHubRepoPath()
   const queryClient = useQueryClient()
   const paired = isPaired(environment)
 

@@ -20,6 +20,7 @@ vi.mock('@/features/remote', () => ({
 }))
 vi.mock('@/features/projects', () => ({
   useActiveProject: () => ctx.repo,
+  useHubRepoPath: () => ctx.repo?.path ?? null,
 }))
 vi.mock('@/features/git', () => ({
   invalidateGitWorkingTree: (): Promise<void> => Promise.resolve(),

@@ -6,7 +6,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query'
 import { useCallback } from 'react'
-import { useActiveProject } from '@/features/projects'
+import { useHubRepoPath } from '@/features/projects'
 import {
   type Environment,
   environmentActions,
@@ -64,13 +64,13 @@ export type GitScope = {
 /** Environment + project, in the shape every Git read and write needs. */
 export function useGitScope(): GitScope {
   const environment = useActiveEnvironment()
-  const project = useActiveProject()
+  const repoPath = useHubRepoPath()
   return {
     environment,
     environmentId: environment?.id ?? 'none',
-    projectPath: project === null ? DISABLED_PROJECT : gitProjectKey(project.path),
-    ready: isPaired(environment) && project !== null,
-    repoPath: project?.path ?? '',
+    projectPath: repoPath === null ? DISABLED_PROJECT : gitProjectKey(repoPath),
+    ready: isPaired(environment) && repoPath !== null,
+    repoPath: repoPath ?? '',
   }
 }
 

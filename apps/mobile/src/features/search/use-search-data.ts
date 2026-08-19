@@ -8,7 +8,7 @@ import {
 import type { CodeSearchResult, GrepMatch, SearchResult } from '@porcelain/contracts/search'
 import { searchProcedures } from '@porcelain/contracts/search'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { useActiveProject } from '@/features/projects'
+import { useHubRepoPath } from '@/features/projects'
 import { type Environment, isPaired, useActiveEnvironment } from '@/features/remote'
 import { getDaemonClient } from '@/lib/daemon/client'
 import { callDaemon, namedContractProcedure } from '@/lib/daemon/procedure'
@@ -29,12 +29,9 @@ const searchFilesProcedure = namedContractProcedure('searchFiles', searchProcedu
 const searchTextProcedure = namedContractProcedure('searchText', searchProcedures.searchText)
 const searchCodeProcedure = namedContractProcedure('searchCode', searchProcedures.searchCode)
 
-function liveProjectPath(
-  environment: Environment | null,
-  project: ReturnType<typeof useActiveProject>,
-): string | null {
-  if (!isPaired(environment) || project === null) return null
-  return searchProjectKey(project.path)
+function liveProjectPath(environment: Environment | null, repoPath: string | null): string | null {
+  if (!isPaired(environment) || repoPath === null) return null
+  return searchProjectKey(repoPath)
 }
 
 function queryError(error: unknown): Error | null {
@@ -51,8 +48,8 @@ export function useFileSearch(
   active: boolean,
 ): { results: SearchResult[]; isLoading: boolean; error: Error | null } {
   const environment = useActiveEnvironment()
-  const project = useActiveProject()
-  const projectPath = liveProjectPath(environment, project)
+  const repoPath = useHubRepoPath()
+  const projectPath = liveProjectPath(environment, repoPath)
   const trimmed = query.trim()
   const enabled = active && projectPath !== null && trimmed !== ''
   const identity =
@@ -82,8 +79,8 @@ export function useTextSearch(
   active: boolean,
 ): { matches: GrepMatch[] | undefined; isLoading: boolean; error: Error | null } {
   const environment = useActiveEnvironment()
-  const project = useActiveProject()
-  const projectPath = liveProjectPath(environment, project)
+  const repoPath = useHubRepoPath()
+  const projectPath = liveProjectPath(environment, repoPath)
   const trimmed = query.trim()
   const enabled = active && projectPath !== null && trimmed !== ''
   const identity =
@@ -113,8 +110,8 @@ export function useCodeSearch(
   active: boolean,
 ): { result: CodeSearchResult | undefined; isLoading: boolean; error: Error | null } {
   const environment = useActiveEnvironment()
-  const project = useActiveProject()
-  const projectPath = liveProjectPath(environment, project)
+  const repoPath = useHubRepoPath()
+  const projectPath = liveProjectPath(environment, repoPath)
   const normalizedOptions: SearchCodeOptions = { ...options, query: options.query.trim() }
   const enabled = active && projectPath !== null && normalizedOptions.query !== ''
   const identity =
