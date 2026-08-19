@@ -15,7 +15,7 @@ const { version: pluginVersion } = JSON.parse(
   readFileSync(resolve(root, '../../plugins/porcelain/plugin.json'), 'utf8'),
 ) as { version: string }
 
-export default defineConfig({
+export default defineConfig(async ({ command }) => ({
   root,
   base: './', // file:// (Electron loadFile); not Vite's default '/'
   define: {
@@ -99,10 +99,47 @@ export default defineConfig({
       input: resolve(root, 'index.html'),
     },
   },
-  server: {
-    // Dev is still primarily electron-vite; this config is for production build
-    // and optional standalone `pnpm --dir apps/web dev` against a running daemon.
-    port: 5173,
+  // Dev only. `vite build` never loads the dev-port module, so production is untouched.
+  server: command === 'serve' ? await devServer() : undefined,
+}))
+
+/**
+ * `pnpm dev:web` — the browser development loop.
+ *
+ * Without it, seeing a web edit in a browser meant rebuilding the renderer dist the daemon
+ * serves off disk (`apps/desktop/out/renderer`), so every one-line change cost a full bundle
+ * and a hard reload that threw the app state away. This serves the same source over Vite with
+ * HMR and proxies every daemon route back to the dev daemon of THIS checkout (port from
+ * scripts/dev-env.mjs, so a managed worktree talks to its own daemon and never 43117/43118
+ * by accident). Nothing here runs for `vite build`: production is byte-identical.
+ *
+ * The proxy keeps the client same-origin, which is what its auth depends on — the page origin
+ * is the daemon origin, `/dev-auth` hands this origin its own client token, and the `/session`
+ * WebSocket passes the daemon's origin check because Host and Origin still agree (no
+ * `changeOrigin`). GET /pair must NOT be proxied: it is a client route, and the daemon would
+ * answer it with the stale built shell.
+ */
+async function devServer() {
+  const { DEV_PORT, DEV_WEB_PORT } = (await import('../../scripts/dev-env.mjs')) as {
+    DEV_PORT: number
+    DEV_WEB_PORT: number
+  }
+  const target = `http://127.0.0.1:${DEV_PORT}`
+  const daemonRoute = { target, changeOrigin: false }
+  return {
+    port: DEV_WEB_PORT,
     strictPort: true,
-  },
-})
+    proxy: {
+      '/trpc': daemonRoute,
+      '/session': { ...daemonRoute, ws: true },
+      '/dev-auth': daemonRoute,
+      '/canvas': daemonRoute,
+      '/mcp': daemonRoute,
+      '/pair': {
+        ...daemonRoute,
+        // Only the credential exchange belongs to the daemon; the link itself is a client route.
+        bypass: (req: { method?: string }) => (req.method === 'POST' ? undefined : '/index.html'),
+      },
+    },
+  }
+}
