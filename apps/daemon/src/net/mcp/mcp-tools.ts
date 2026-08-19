@@ -126,7 +126,7 @@ export const MCP_TOOLS: readonly McpToolDefinition[] = Object.freeze([
     name: 'porcelain_profile',
     title: 'Read or set the profile',
     description:
-      'Read or replace the private project profile or this worktree override. Reads before writes; set replaces the selected level as a whole. Clear removes the selected level.',
+      'Read or replace the private project profile or this worktree override. Reads before writes; set replaces the selected level as a whole, so get first. Clear removes the selected level. pinnedPaths and hiddenPaths are EXACT repository-relative paths matched by set membership, not globs — "dist" hides that directory, "*.log" hides nothing.',
     inputSchema: {
       type: 'object',
       properties: {

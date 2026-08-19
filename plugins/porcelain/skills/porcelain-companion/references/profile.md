@@ -10,6 +10,7 @@ the work changes.
 PROJECT profile        personal, private, one per repository
   pinnedPaths            what you open on ANY task here
   hiddenPaths            dependency dirs, build output, generated code, lockfiles
+                         — exact repo-relative paths, never globs
   layers                 the order a change travels through this codebase
         │
         │  inherited — live, not copied
@@ -80,8 +81,8 @@ the same hide into a third worktree, it belonged in the project profile.
 - **A stale profile is worse than none.** `get` before you `set`. Clear the
   override when the work it described is finished.
 - **Nothing here is shared.** Both levels are personal and neither is
-  promoted into git. `project promote-overrides` writes hides and pins only; it
-  never carries layers or another worktree's override into a checkout.
+  promoted into git. `porcelain_promote` with `what: "overrides"` writes hides and
+  pins only; it never carries layers or another worktree's override into a checkout.
 - **Hiding is focus, never access control.** The full tree stays reachable and
   every hidden path is one gesture from the tree away. Do not hide something to
   stop the human seeing it.
