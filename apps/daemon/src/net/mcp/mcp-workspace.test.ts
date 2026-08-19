@@ -27,13 +27,12 @@ function inventory(path: string): WorkspaceInventory {
 }
 
 describe('isWorkspaceRef', () => {
-  it.each([
-    ['/repo'],
-    [{ projectId: 'proj-1' }],
-    [{ projectId: 'proj-1', worktreeId: 'wt-1' }],
-  ])('accepts %j', (value) => {
-    expect(isWorkspaceRef(value)).toBe(true)
-  })
+  it.each([['/repo'], [{ projectId: 'proj-1' }], [{ projectId: 'proj-1', worktreeId: 'wt-1' }]])(
+    'accepts %j',
+    (value) => {
+      expect(isWorkspaceRef(value)).toBe(true)
+    },
+  )
 
   it.each([[''], [null], [42], [{}], [{ worktreeId: 'wt-1' }]])('refuses %j', (value) => {
     expect(isWorkspaceRef(value)).toBe(false)

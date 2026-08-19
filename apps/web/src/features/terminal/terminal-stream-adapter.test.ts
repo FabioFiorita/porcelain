@@ -182,9 +182,13 @@ describe('Browser Terminal stream adapter', () => {
     context.adapter.writeTerminal('term-1', 'x'.repeat(65_537))
     const writes = sentFrames(socket).filter((frame) => frame.t === 'terminal:write')
     expect(writes).toHaveLength(2)
-    expect(writes[0]?.reqId).not.toBe(writes[1]?.reqId)
-    expect((writes[0]?.data as string).length).toBe(65_536)
-    expect((writes[1]?.data as string).length).toBe(1)
+    const [first, second] = writes
+    if (first?.t !== 'terminal:write' || second?.t !== 'terminal:write') {
+      throw new Error('expected two write frames')
+    }
+    expect(first.reqId).not.toBe(second.reqId)
+    expect(first.data.length).toBe(65_536)
+    expect(second.data.length).toBe(1)
   })
 
   it('rejects typed server failures, close failures, and expired requests', async () => {

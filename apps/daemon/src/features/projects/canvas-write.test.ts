@@ -32,15 +32,12 @@ describe('isContainedBundlePath', () => {
     expect(isContainedBundlePath(path)).toBe(true)
   })
 
-  it.each([
-    '',
-    '/etc/passwd',
-    '../escape.html',
-    '../../etc/passwd',
-    '..\\win.html',
-  ])('refuses %s', (path) => {
-    expect(isContainedBundlePath(path)).toBe(false)
-  })
+  it.each(['', '/etc/passwd', '../escape.html', '../../etc/passwd', '..\\win.html'])(
+    'refuses %s',
+    (path) => {
+      expect(isContainedBundlePath(path)).toBe(false)
+    },
+  )
 })
 
 describe('writeCanvasBundle', () => {

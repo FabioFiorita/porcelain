@@ -54,7 +54,7 @@
     "changelog": "conventional-changelog -p conventionalcommits -i CHANGELOG.md -r 1 --pkg apps/desktop/package.json"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.0",
+    "@biomejs/biome": "^2.5.9",
     "conventional-changelog": "^7.2.0",
     "conventional-changelog-conventionalcommits": "^9.3.1",
     "esbuild": "0.25.12",

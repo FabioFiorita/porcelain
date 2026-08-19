@@ -791,27 +791,28 @@ describe('daemon http surface — development auto-authorization', () => {
 })
 
 describe('daemon http surface — the protocol gate', () => {
-  it.each(
-    protocolMismatches,
-  )('refuses a /trpc call announcing %s before any handler runs', async (_label, headers, received) => {
-    const probe = probeRouter()
-    const isolated = await startTestDaemon({ router: probe.router })
+  it.each(protocolMismatches)(
+    'refuses a /trpc call announcing %s before any handler runs',
+    async (_label, headers, received) => {
+      const probe = probeRouter()
+      const isolated = await startTestDaemon({ router: probe.router })
 
-    try {
-      const res = await fetch(`${isolated.base}/trpc/probe`, {
-        headers: { authorization: `Bearer ${TOKEN}`, ...headers },
-      })
-      const error = await expectPublicHttpFailure(res, 409, 'protocol.update-required')
-      expect(error).toMatchObject({
-        category: 'conflict',
-        retryable: false,
-        details: { expected: PROTOCOL_VERSION, received },
-      })
-      expect(probe.dispatched).not.toHaveBeenCalled()
-    } finally {
-      await stopTestDaemon(isolated.daemon)
-    }
-  })
+      try {
+        const res = await fetch(`${isolated.base}/trpc/probe`, {
+          headers: { authorization: `Bearer ${TOKEN}`, ...headers },
+        })
+        const error = await expectPublicHttpFailure(res, 409, 'protocol.update-required')
+        expect(error).toMatchObject({
+          category: 'conflict',
+          retryable: false,
+          details: { expected: PROTOCOL_VERSION, received },
+        })
+        expect(probe.dispatched).not.toHaveBeenCalled()
+      } finally {
+        await stopTestDaemon(isolated.daemon)
+      }
+    },
+  )
 
   it('dispatches a /trpc call announcing the matching version', async () => {
     const probe = probeRouter()
@@ -829,25 +830,26 @@ describe('daemon http surface — the protocol gate', () => {
     }
   })
 
-  it.each(
-    protocolMismatches,
-  )('refuses a pairing exchange announcing %s before the grant is consumed', async (_label, headers, received) => {
-    const exchangePairing = vi.fn(async (_credential: string) => null)
-    const isolated = await startTestDaemon({ exchangePairing })
+  it.each(protocolMismatches)(
+    'refuses a pairing exchange announcing %s before the grant is consumed',
+    async (_label, headers, received) => {
+      const exchangePairing = vi.fn(async (_credential: string) => null)
+      const isolated = await startTestDaemon({ exchangePairing })
 
-    try {
-      const res = await fetch(`${isolated.base}/pair`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', ...headers },
-        body: JSON.stringify({ credential: PAIRING_TOKEN }),
-      })
-      const error = await expectPublicHttpFailure(res, 409, 'protocol.update-required')
-      expect(error).toMatchObject({ details: { expected: PROTOCOL_VERSION, received } })
-      expect(exchangePairing).not.toHaveBeenCalled()
-    } finally {
-      await stopTestDaemon(isolated.daemon)
-    }
-  })
+      try {
+        const res = await fetch(`${isolated.base}/pair`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', ...headers },
+          body: JSON.stringify({ credential: PAIRING_TOKEN }),
+        })
+        const error = await expectPublicHttpFailure(res, 409, 'protocol.update-required')
+        expect(error).toMatchObject({ details: { expected: PROTOCOL_VERSION, received } })
+        expect(exchangePairing).not.toHaveBeenCalled()
+      } finally {
+        await stopTestDaemon(isolated.daemon)
+      }
+    },
+  )
 
   it('exchanges a pairing grant announcing the matching version', async () => {
     const exchangePairing = vi.fn(exchangeTestPairing)
