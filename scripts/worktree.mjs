@@ -421,7 +421,7 @@ function create(slugArg, options) {
 
   cd ${path}
   pnpm build && pnpm dev:daemon -- --loopback
-  pnpm porcelain review set ...
+  # then declare the Review with the porcelain_review MCP tool
 
 ${integrateHint}
 `)
