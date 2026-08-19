@@ -12,6 +12,8 @@ import {
   pinnedEntriesOutputSchema,
   pinPathInputSchema,
   pinPathOutputSchema,
+  mintFilePreviewTokenInputSchema,
+  mintFilePreviewTokenOutputSchema,
   previewHtmlInputSchema,
   previewHtmlOutputSchema,
   readDirInputSchema,
@@ -72,6 +74,12 @@ const filesProcedureDefinitions = {
     input: previewHtmlInputSchema,
     output: previewHtmlOutputSchema,
     errors: ['files.path-outside-project'],
+  },
+  mintFilePreviewToken: {
+    kind: 'mutation',
+    input: mintFilePreviewTokenInputSchema,
+    output: mintFilePreviewTokenOutputSchema,
+    errors: [],
   },
   writeTextFile: {
     kind: 'mutation',

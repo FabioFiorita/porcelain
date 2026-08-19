@@ -64,8 +64,10 @@ export async function handleMcpRequest(
   res: ServerResponse,
   options: McpHttpOptions,
 ): Promise<void> {
-  // GET and DELETE were the session-era mechanics (standalone SSE stream, session
-  // teardown). This revision has neither, so they are refused rather than emulated.
+  // GET and DELETE are the session-era mechanics (standalone SSE stream, session
+  // teardown). Neither era the daemon speaks keeps a session, so they are refused
+  // rather than emulated; a classic client opens the GET stream optimistically after
+  // `initialize` and treats the 405 as "this server has no server-initiated stream".
   if (req.method !== 'POST') {
     res.writeHead(405, { allow: 'POST' })
     res.end()

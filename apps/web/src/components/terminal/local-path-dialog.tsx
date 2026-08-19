@@ -9,7 +9,10 @@ import {
 } from '@renderer/components/ui/dialog'
 import { Input } from '@renderer/components/ui/input'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
-import { useSetLocalTerminalPath } from '@renderer/hooks/use-local-terminal'
+import {
+  useLocalTerminalSuggestion,
+  useSetLocalTerminalPath,
+} from '@renderer/hooks/use-local-terminal'
 import { cn } from '@renderer/lib/utils'
 import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
@@ -23,11 +26,13 @@ export type LocalPathDialogMode = 'spawn' | 'edit' | 'run'
 
 /**
  * Where a "This device" terminal opens for this repo. The window runs on another
- * machine, so its repo path usually doesn't exist here; the human maps it once,
- * prefilled with the remote path since they often match. A plain field, not the
- * daemon-backed picker: that browser is wired to THIS window's daemon and would
- * browse the wrong machine. `mode: 'spawn'` opens a shell; `'edit'` fixes a stale
- * mapping; `'run'` maps before running a pending local-targeted action.
+ * machine, so its repo path does NOT exist here; the human maps it once, prefilled with
+ * a folder that actually exists on this device — the local clone of the same repo when
+ * this machine's daemon knows one, otherwise home (see
+ * `features/terminal/local-path-suggestion.ts`). A plain field, not the daemon-backed
+ * picker: that browser is wired to THIS window's daemon and would browse the wrong
+ * machine. `mode: 'spawn'` opens a shell; `'edit'` fixes a stale mapping; `'run'` maps
+ * before running a pending local-targeted action.
  */
 export function LocalPathDialog({
   repoPath,
@@ -42,7 +47,11 @@ export function LocalPathDialog({
   onSaved: (localPath: string) => void
   onClose: () => void
 }): React.JSX.Element {
-  const [path, setPath] = useState(initialPath ?? repoPath)
+  const suggestion = useLocalTerminalSuggestion(repoPath)
+  // null = untouched, so a suggestion that lands after first paint (the Hub inventories
+  // are queries) still fills an empty field, while anything typed wins from then on.
+  const [typed, setTyped] = useState<string | null>(null)
+  const path = typed ?? initialPath ?? suggestion
   const { save, isPending } = useSetLocalTerminalPath()
 
   const submit = (): void => {
@@ -79,7 +88,7 @@ export function LocalPathDialog({
         <Input
           autoFocus
           value={path}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>): void => setPath(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>): void => setTyped(e.target.value)}
           onFocus={(e: React.FocusEvent<HTMLInputElement>): void => e.target.select()}
           onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
             if (e.key !== 'Enter') return

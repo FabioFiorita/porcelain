@@ -16,12 +16,21 @@ The `porcelain` MCP server runs on the daemon. Eight tools, and **`porcelain_con
 it resolves the workspace and hands back the Review, the human's open comments, and the files
 they have marked reviewed.
 
-Every tool takes `workspace`: the absolute path of the checkout you are working in. Pass
-`{projectId, worktreeId}` instead when the daemon is on another host, where your local path
-means nothing. There is no working directory to inherit — each call says where it acts.
+Every tool takes `workspace`: the absolute path of the checkout you are working in — your own
+working directory is normally the right value, and any directory inside the checkout resolves.
+Pass `{projectId, worktreeId}` to act on a **different** checkout than the one you are standing
+in, or when the daemon runs on another host where your local path means nothing;
+`porcelain_context` with `include: ["projects"]` lists those ids.
 
-If a call reports that the checkout is not open in Porcelain, that is the answer: open it in the
-app rather than guessing another path.
+If a call reports that the checkout is not open in Porcelain, the refusal names the Projects that
+are open. Pick one of those or ask the human to open the repository in the app — do not guess
+another path.
+
+**Never go around these tools.** Do not read or write `$PORCELAIN_HOME` (`tasks.json`,
+`attachments/`, canvases) and do not `curl` the daemon's HTTP API. The daemon is the single
+writer; anything that skips it is invisible to the app and to every other client. If a tool
+genuinely cannot do what the work needs, that is a bug in the tool: record it with
+`porcelain_task` and say so in your report.
 
 ## References
 
@@ -41,10 +50,10 @@ references/sync-environments.md   daemon/Project setup across environments
 
 | Tool | Use it to |
 |---|---|
-| `porcelain_context` | Read the Review, open comments, reviewed marks; ask for tasks/actions/canvases |
+| `porcelain_context` | Read the Review, open comments, reviewed marks; ask for `tasks`, `actions`, `canvases`, `projects` |
 | `porcelain_profile` | Read or replace the project profile or worktree override |
 | `porcelain_review` | Declare the Review — `replace`, `append` files, or `clear` |
-| `porcelain_task` | Create a Task (no `id`) or update one (`id`) |
+| `porcelain_task` | Create a Task (no `id`), update one (`id`, short id like `T-18`), or move several (`ids`) |
 | `porcelain_action` | Save or delete an Action the human will run |
 | `porcelain_canvas` | Publish a Canvas bundle from a local directory |
 | `porcelain_promote` | Move private daemon data into the checkout as tracked files |
@@ -62,6 +71,20 @@ references/sync-environments.md   daemon/Project setup across environments
    comment; the human closes their own loop.
 5. Close the loop with real Evidence: checks, Results documents, and an image gallery.
 6. Record follow-ups that are outside the Canvas story as daemon-owned Tasks.
+
+## The Task loop
+
+When the human hands you a board rather than a Review:
+
+1. `porcelain_context` with `include: ["tasks"]` — the whole open board, with each Task's short
+   id, notes, links and attachment paths. Add `includeDone: true` to see what is already finished.
+2. Reading a Task's picture is a file read of the `hostPath` the tool handed you, when the daemon
+   is this machine. Never reach into the attachment store by hand.
+3. `porcelain_task` with `id` and `status: "doing"` when you pick a Task up; `status: "done"` plus
+   `link` for the PR when you finish. `ids` applies one change to several rows.
+4. New work you discover is a new Task (`porcelain_task` with a `title`), not a line in the chat.
+
+See [references/tasks.md](references/tasks.md) for the full contract.
 
 ## Rules
 

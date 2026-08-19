@@ -282,4 +282,75 @@ describe('renderGhosttySnapshot', () => {
 
     expect(clearedRows).toEqual([4, 36, 36])
   })
+  it('draws block glyphs cell-exactly instead of folding them into a text run', () => {
+    const fillTextCalls: unknown[][] = []
+    const fillRectCalls: number[][] = []
+    const context = {
+      canvas: { width: 200, height: 40 },
+      beginPath: () => {},
+      clip: () => {},
+      fillRect: (...args: number[]) => fillRectCalls.push(args),
+      fillText: (...args: unknown[]) => fillTextCalls.push(args),
+      moveTo: () => {},
+      quadraticCurveTo: () => {},
+      stroke: () => {},
+      rect: () => {},
+      resetTransform: () => {},
+      restore: () => {},
+      save: () => {},
+      set fillStyle(_value: string) {},
+      set strokeStyle(_value: string) {},
+      set lineCap(_value: string) {},
+      set lineWidth(_value: number) {},
+      set globalAlpha(_value: number) {},
+      set font(_value: string) {},
+      set textBaseline(_value: string) {},
+    } as unknown as CanvasRenderingContext2D
+    const snapshot: GhosttySnapshot = {
+      cols: 3,
+      rows: 2,
+      foreground: { r: 255, g: 255, b: 255 },
+      background: { r: 0, g: 0, b: 0 },
+      cursor: { r: 255, g: 255, b: 255 },
+      cursorX: -1,
+      cursorY: -1,
+      cursorVisible: false,
+      cursorBlinking: false,
+      cursorStyle: 1,
+      dirtyRows: new Set([0, 1]),
+      rowData: [0, 1].map(() => ({
+        cells: [cell('a'), cell('\u2588'), cell('b')],
+        text: 'a\u2588b',
+        isWrapContinuation: false,
+        wrapsToNext: false,
+      })),
+    }
+
+    renderGhosttySnapshot({
+      context,
+      snapshot,
+      metrics: { width: 7.2, height: 16, baseline: 11 },
+      fontSize: 12,
+      fontFamily: 'monospace',
+      padding: 4,
+      forceFull: false,
+      cursorOn: false,
+    })
+
+    // The block never enters a fillText run; its neighbours draw as separate runs.
+    expect(fillTextCalls).toEqual([
+      ['a', 4, 15, 7.2],
+      ['b', 18.4, 15, 7.2],
+      ['a', 4, 31, 7.2],
+      ['b', 18.4, 31, 7.2],
+    ])
+    // Each block fills its whole cell, and the two rows share an exact edge.
+    // One cell wide, snapped to whole pixels from the 7.2px column boundaries.
+    const blockCells = fillRectCalls.filter(([, , width, height]) => height === 16 && width === 7)
+    expect(blockCells).toEqual([
+      [11, 4, 7, 16],
+      [11, 20, 7, 16],
+    ])
+    expect((blockCells[0]?.[1] ?? 0) + (blockCells[0]?.[3] ?? 0)).toBe(blockCells[1]?.[1])
+  })
 })

@@ -1,10 +1,11 @@
-import { listTerminalSessionsOnDaemon } from '@renderer/features/terminal'
+import { useHubInventories } from '@renderer/features/projects/hub-inventories'
+import { listTerminalSessionsOnDaemon, suggestLocalTerminalPath } from '@renderer/features/terminal'
 import { onMutationError } from '@renderer/hooks/mutation-error'
 import { localDaemonClient, setLocalDaemonEndpoint } from '@renderer/lib/local-daemon'
 import { isBrowser } from '@renderer/lib/platform'
 import { shellTrpc } from '@renderer/lib/trpc'
 import { useQuery } from '@tanstack/react-query'
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 
 /**
  * "This device" terminals: running a shell on the machine the app is on while the window
@@ -19,6 +20,8 @@ export interface LocalDaemonInfo {
   token: string
   /** True when this window is ALREADY on the local daemon — the feature is then pointless. */
   isLocal: boolean
+  /** This device's home directory — the fallback folder when nothing local matches the repo. */
+  home: string
 }
 
 /**
@@ -46,6 +49,26 @@ export function useLocalTerminalPath(repoPath: string | null): string | null | u
     { enabled: !isBrowser && repoPath !== null },
   )
   return data
+}
+
+/**
+ * Where the "Terminal folder on this device" field should START for an unmapped repo.
+ *
+ * Both inventories come from the Hub fan-out this window already runs, so this costs no
+ * extra daemon round trip: the Environment bound to the window owns `repoPath`, the
+ * `environmentId: null` view is this machine's own daemon. See
+ * `features/terminal/local-path-suggestion.ts` for why the remote path is never offered.
+ */
+export function useLocalTerminalSuggestion(repoPath: string): string {
+  const inventories = useHubInventories()
+  const localDaemon = useLocalDaemon()
+  const localHome = localDaemon?.home ?? null
+  return useMemo(() => {
+    const remoteProjects = inventories.find((view) => view.current)?.inventory.projects ?? []
+    const localProjects =
+      inventories.find((view) => view.environmentId === null)?.inventory.projects ?? []
+    return suggestLocalTerminalPath({ repoPath, remoteProjects, localProjects, localHome })
+  }, [inventories, localHome, repoPath])
 }
 
 export function useSetLocalTerminalPath(): {
