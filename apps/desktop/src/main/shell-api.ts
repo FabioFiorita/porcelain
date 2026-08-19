@@ -46,6 +46,7 @@ import {
   mutateEnvironmentTask,
 } from './shell-tasks'
 import { checkForUpdates, installUpdate, type UpdateStatus, updateStatus } from './updater'
+import { closeQuickAddFrom } from './quick-add-window'
 import { createWindow, switchWindowEnvironment, type WindowInit, windowInitFor } from './window'
 
 // The Electron-side half of the router split: everything here needs the shell
@@ -165,6 +166,14 @@ export const shellRouter = t.router({
       } catch {}
     }
     return windowInitFor(ctx.sender)
+  }),
+
+  /**
+   * Dismiss the menu-bar quick-add popover from inside it (Task created, or Escape).
+   * Scoped to the CALLING window: no other window can close the popover this way.
+   */
+  closeQuickAdd: t.procedure.mutation(({ ctx }): void => {
+    closeQuickAddFrom(ctx.sender)
   }),
 
   refreshRemoteEnvironment: t.procedure.query(async ({ ctx }): Promise<void> => {

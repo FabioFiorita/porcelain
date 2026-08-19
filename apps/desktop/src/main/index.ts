@@ -3,6 +3,7 @@ import { app, BrowserWindow, type Session, session } from 'electron'
 import { startDaemon } from './daemon'
 import { registerTrpcHandler } from './ipc'
 import { installAppMenu } from './menu'
+import { installTray } from './tray'
 import { initUpdater } from './updater'
 import { createWindow } from './window'
 
@@ -78,6 +79,9 @@ app.whenReady().then(async () => {
   // One global shell-router handler for every window (ipcMain.handle is process-wide).
   registerTrpcHandler()
   installAppMenu()
+  // The menu-bar icon lives for the whole process (it is not owned by any window), so
+  // it is installed once here alongside the other process-wide handlers.
+  installTray()
 
   // Spawn the daemon (the Electron-free backend: appRouter over HTTP, terminal/
   // watch/legacy event bus over the WS session) before the first window so the preload's
