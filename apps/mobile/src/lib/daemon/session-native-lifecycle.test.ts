@@ -51,7 +51,6 @@ function buildChange(kind: SessionChange['kind'], projectPath: string): SessionC
     return {
       kind,
       role: 'worktree-setup',
-      projectPath,
       projectId: 'project-1',
       worktreeId: 'worktree-1',
       terminalId: 'terminal-1',

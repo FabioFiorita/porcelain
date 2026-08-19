@@ -35,15 +35,17 @@ export type DevServersChanged = z.infer<typeof devServersChangedSchema>
  * Setup and dispose scripts are the one case where Porcelain runs a saved command without a
  * click, so the session must not be hidden: this pushes the new session's id the moment it
  * exists, before `createHubWorktree` resolves and — for dispose — before the checkout is
- * removed. Clients refetch the roster and focus `terminalId`; a client that ignores it just
- * sees the session on the next poll.
+ * removed.
+ *
+ * Scoped by Project id rather than checkout path, exactly like `actions.changed`: a setup
+ * terminal is announced for a Worktree the client has not opened yet, so a path scope would
+ * drop the one signal that tells it where to look. Focusing is still narrow — a client acts
+ * only when `terminalId` shows up in the roster of the checkout it has open.
  */
 export const worktreeScriptStartedSchema = z
   .object({
     kind: z.literal('terminal.worktree-script-started'),
     role: worktreeScriptKindSchema,
-    /** The checkout the script runs in — the terminal's cwd. */
-    projectPath: z.string().min(1),
     projectId: z.string().min(1),
     worktreeId: z.string().min(1),
     terminalId: z.string().min(1),
@@ -68,7 +70,6 @@ export const terminalNotificationFixtures = {
   'terminal.worktree-script-started': {
     kind: 'terminal.worktree-script-started',
     role: 'worktree-setup',
-    projectPath: '/synthetic/repo',
     projectId: 'project-1',
     worktreeId: 'worktree-1',
     terminalId: 'terminal-1',

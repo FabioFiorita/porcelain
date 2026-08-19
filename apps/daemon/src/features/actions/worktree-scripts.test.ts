@@ -76,7 +76,6 @@ describe('worktree lifecycle scripts', () => {
       {
         kind: 'terminal.worktree-script-started',
         role: 'worktree-setup',
-        projectPath: TARGET.path,
         projectId: 'proj',
         worktreeId: 'wt',
         terminalId: 'terminal-1',
@@ -100,6 +99,28 @@ describe('worktree lifecycle scripts', () => {
     await scripts.runDispose(TARGET)
 
     expect(spawner.spawns).toEqual([])
+  })
+
+  it('ends the setup shell when the checkout it lives in is being removed', async () => {
+    const spawner = host()
+    const scripts = createWorktreeScripts({
+      listActions: async () => [
+        view({ id: 's1', kind: 'worktree-setup', command: 'pnpm install' }),
+      ],
+      host: spawner.port,
+      publish: () => undefined,
+    })
+
+    await scripts.runSetup(TARGET)
+    expect(spawner.killed).toEqual([])
+
+    // No dispose scripts at all: the setup shell must still not outlive its checkout.
+    await scripts.runDispose(TARGET)
+    expect(spawner.killed).toEqual(['terminal-1'])
+
+    // And it is forgotten, so a later removal cannot kill a session id that was reused.
+    await scripts.runDispose(TARGET)
+    expect(spawner.killed).toEqual(['terminal-1'])
   })
 
   it('waits for dispose to finish, then ends the session', async () => {

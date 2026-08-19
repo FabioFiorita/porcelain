@@ -173,7 +173,6 @@ describe('useTerminalRoster', () => {
       doubles.primarySession.announceChange({
         kind: 'terminal.worktree-script-started',
         role: 'worktree-setup',
-        projectPath: '/repo',
         projectId: 'project-1',
         worktreeId: 'worktree-1',
         terminalId: 'primary-in',
@@ -192,7 +191,6 @@ describe('useTerminalRoster', () => {
       doubles.primarySession.announceChange({
         kind: 'terminal.worktree-script-started',
         role: 'worktree-setup',
-        projectPath: '/other',
         projectId: 'project-1',
         worktreeId: 'worktree-2',
         // Filtered out of this checkout's roster: focusing it would open an empty panel.

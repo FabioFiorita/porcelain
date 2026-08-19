@@ -16,7 +16,9 @@ import type { SessionChange } from '@porcelain/contracts/session'
  *    session is retained and announced so a client can focus it while it runs.
  * 3. **Dispose finishes before the checkout does.** `git worktree remove --force` deletes the
  *    directory; a teardown that ran after it would run in nothing. So dispose blocks removal,
- *    bounded — a script that hangs must not make a Worktree unremovable.
+ *    bounded — a script that hangs must not make a Worktree unremovable. Removing a Worktree
+ *    also ends its setup session: it is retained, so no reaper would ever collect a shell
+ *    left running in a directory that no longer exists.
  */
 
 /** How long a dispose run may hold up removal before the daemon gives up and removes anyway. */
@@ -80,6 +82,8 @@ export function trustedScriptsOfKind(
 }
 
 export function createWorktreeScripts(options: CreateWorktreeScriptsOptions): WorktreeScripts {
+  /** Setup terminal by checkout path, so removing that checkout can shut it down. */
+  const setupSessions = new Map<string, string>()
   const timeoutMs = options.timeoutMs ?? DISPOSE_TIMEOUT_MS
   const setTimeoutFn = options.setTimeoutFn ?? ((callback, delay) => setTimeout(callback, delay))
   const clearTimeoutFn =
@@ -113,7 +117,6 @@ export function createWorktreeScripts(options: CreateWorktreeScriptsOptions): Wo
     options.publish({
       kind: 'terminal.worktree-script-started',
       role: kind,
-      projectPath: target.path,
       projectId: target.projectId,
       worktreeId: target.worktreeId,
       terminalId: created.value,
@@ -134,10 +137,19 @@ export function createWorktreeScripts(options: CreateWorktreeScriptsOptions): Wo
     async runSetup(target: WorktreeScriptTarget): Promise<void> {
       const scripts = await scriptsFor('worktree-setup', target.projectId)
       if (scripts === null) return
-      spawn('worktree-setup', target, scripts, () => undefined)
+      const id = spawn('worktree-setup', target, scripts, () => setupSessions.delete(target.path))
+      if (id !== null) setupSessions.set(target.path, id)
     },
 
     async runDispose(target: WorktreeScriptTarget): Promise<void> {
+      // The setup shell goes first, whatever else happens: the human asked for this checkout
+      // to be gone, and its own terminal must not outlive it.
+      const setup = setupSessions.get(target.path)
+      if (setup !== undefined) {
+        setupSessions.delete(target.path)
+        options.host.kill(setup)
+      }
+
       const scripts = await scriptsFor('worktree-dispose', target.projectId)
       if (scripts === null) return
 

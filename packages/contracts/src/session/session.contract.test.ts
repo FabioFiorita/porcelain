@@ -57,7 +57,6 @@ const scopedChangeFixtures = {
   'terminal.worktree-script-started': {
     kind: 'terminal.worktree-script-started',
     role: 'worktree-setup',
-    projectPath: '/synthetic/repo',
     projectId: 'project-1',
     worktreeId: 'worktree-1',
     terminalId: 'terminal-1',
