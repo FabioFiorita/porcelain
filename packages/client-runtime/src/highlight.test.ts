@@ -16,6 +16,9 @@ describe('languageFor', () => {
     expect(languageFor('notes.md')).toBe('markdown')
     expect(languageFor('ContentView.swift')).toBe('swift')
     expect(languageFor('docker-compose.yml')).toBe('yaml')
+    expect(languageFor('schema.prisma')).toBe('prisma')
+    expect(languageFor('prisma/schema.prisma')).toBe('prisma')
+    expect(languageFor('page.htm')).toBe('html')
   })
 
   it('maps .env-style files to dotenv', () => {
@@ -40,6 +43,7 @@ describe('fenceLanguageFor', () => {
     expect(fenceLanguageFor('bash')).toBe('shellscript')
     expect(fenceLanguageFor('shell')).toBe('shellscript')
     expect(fenceLanguageFor('yml')).toBe('yaml')
+    expect(fenceLanguageFor('prisma')).toBe('prisma')
   })
 
   it('is case-insensitive and trims whitespace', () => {
@@ -80,6 +84,16 @@ describe('tokenizeLines', () => {
     for (const lang of LANGS) {
       expect(Array.isArray(tokenizeLines(h, 'x', lang))).toBe(true)
     }
+  })
+
+  it('colors prisma model keywords differently from field names', async () => {
+    const h = await getHighlighter()
+    const tokens = tokenizeLines(h, 'model User {\n  id Int @id\n}', 'prisma')
+    expect(tokens).toHaveLength(3)
+    // `model` (keyword) and `User` (entity) must not collapse into one color —
+    // the bug this language was added for was a fully unhighlighted schema.
+    const declColors = new Set(tokens[0]?.map((t) => t.color).filter(Boolean))
+    expect(declColors.size).toBeGreaterThanOrEqual(2)
   })
 
   it('keeps multiline-comment continuation lines colored as comments', async () => {

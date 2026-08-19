@@ -32,7 +32,7 @@ export function profileStarterPrompt(window: ProfileHistoryWindow = '30 days'): 
 1. Read where I actually work: \`git log --author="$(git config user.email)" --since="${window}" --name-only --pretty=format:\` and count which directories come up.
 2. Work out what is noise here rather than assuming a language — read .gitignore, the build config, and the directory listing to find dependency directories, build output, generated code, and lockfiles.
 3. Propose a project profile: pin what I would open on any task in this repo, hide the noise, and declare layer order from the path a change actually travels through my own directory structure. Layers are { label, pattern } where pattern is a regular expression matched against repo-relative paths.
-4. Show me the JSON and wait. Once I say yes, write it with \`porcelain profile set --profile -\`.
+4. Show me the JSON and wait. Once I say yes, write it with the \`porcelain_profile\` tool — \`workspace\` this checkout's absolute path, \`level\` project, \`op\` set.
 
 This is the baseline every worktree inherits, so keep it to what is true whatever I am working on. Anything task-shaped belongs in a worktree override instead.`
 }
@@ -47,15 +47,16 @@ export const PROFILE_KEEPER_PROMPT = `## Porcelain profile
 
 This worktree's Porcelain profile — pinned paths, hidden paths, and story layer
 order — is meant to mutate. When you start substantial work here, set it to match
-*that* task: \`porcelain worktree profile set --profile -\` taking
+*that* task with the \`porcelain_profile\` tool: \`workspace\` this checkout's
+absolute path, \`level\` worktree, \`op\` set, and a profile of
 { pinnedPaths, hiddenPaths, unhiddenPaths, layers }. When the work changes shape,
-update it. When the work is done, \`porcelain worktree profile clear\` puts this
-worktree back to inheriting the project baseline.
+update it. When the work is done, \`op\` clear puts this worktree back to
+inheriting the project baseline.
 
 Pins and hides add to the project baseline; \`unhiddenPaths\` lets this worktree
 see something the project hides; \`layers\` replaces the project's order when set,
-and \`null\` inherits it. Read \`porcelain worktree profile get\` before writing —
-a stale profile is worse than none.`
+and \`null\` inherits it. \`op\` set replaces the whole level, so read it back with
+\`op\` get before you write — a stale profile is worse than none.`
 
 /** Where the keeper prompt belongs — a file the agent reads, not a Porcelain setting. */
 export const PROFILE_KEEPER_TARGETS = ['AGENTS.md', 'CLAUDE.md', 'AGENTS.local.md'] as const
