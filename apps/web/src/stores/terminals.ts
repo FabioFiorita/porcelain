@@ -24,9 +24,10 @@ import { create } from 'zustand'
  *
  * The roster is DAEMON-OWNED and sessions survive a renderer reload: the daemon holds the
  * authoritative name/cwd/status, and `use-terminals` hydrates this store from it on repo
- * open and daemon reconnect. Terminals live ONLY in the bottom panel (ADR 0005) — there is
- * no terminal tab kind, so this store never reaches into tabs. `close` is the explicit
- * kill: it ends the PTY and drops the row.
+ * open and daemon reconnect. This store is the BOTTOM PANEL's roster (ADR 0005) and stays
+ * repo-scoped: it never reaches into tabs, and the daemon-wide Terminals board reads the
+ * roster query directly rather than through here, so cross-project sessions cannot leak
+ * into the panel. `close` is the explicit kill: it ends the PTY and drops the row.
  * `reset` (repo switch) is LOCAL-ONLY — it clears this window's view without killing the
  * PTYs, which survive the switch (a different repo just filters them out of the list).
  *

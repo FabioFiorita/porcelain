@@ -20,3 +20,11 @@ export {
   useTerminalStream,
 } from './terminal-stream-adapter'
 export { listTerminalSessionsOnDaemon, renameTerminalOnDaemon } from './terminal-transport'
+export {
+  ELSEWHERE_GROUP_KEY,
+  groupTerminalSessions,
+  type TerminalGroup,
+  type TerminalLocation,
+  terminalLocations,
+} from './terminal-groups'
+export { openTerminalsBoard } from './terminals-navigation'
