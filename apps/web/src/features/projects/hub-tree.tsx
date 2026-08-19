@@ -1,5 +1,7 @@
 import type { HubWorktree } from '@porcelain/contracts/projects'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
+import { isBrowser } from '@renderer/lib/platform'
+import { shellTrpcClient } from '@renderer/lib/trpc'
 import { cn } from '@renderer/lib/utils'
 import { useHubSelectionStore } from '@renderer/stores/hub-selection'
 import { runUserAction } from '@shared/background'
@@ -60,13 +62,44 @@ export function HubTree(props: { className?: string }): React.JSX.Element | null
   if (inventories.length === 0) return null
 
   const open = (source: HubInventoryView, worktree: HubWorktree): void => {
-    selectWorktree({
-      environmentId: source.inventory.environment.id,
-      projectId: worktree.projectId,
-      worktreeId: worktree.id,
-      path: worktree.path,
-      name: worktree.name,
-    })
+    // Electron: `source.environmentId` is a SHELL identity (null = the local daemon, a
+    // string = a saved environment group), not one the renderer can resolve — its session
+    // resolver only knows the browser's own localStorage connections, so every non-current
+    // source used to fail as "offline" and the local row on a remote-bound window opened a
+    // local path against the remote daemon ("Project path was not found"). The renderer has
+    // one daemon client, its window's; anything else has to go through the shell.
+    const select = (): void => {
+      selectWorktree({
+        environmentId: source.inventory.environment.id,
+        projectId: worktree.projectId,
+        worktreeId: worktree.id,
+        path: worktree.path,
+        name: worktree.name,
+      })
+    }
+    if (!isBrowser && !source.current) {
+      // The shell reloads this window onto the target daemon, and the Hub selection is
+      // persisted through that reload — so it has to name the DESTINATION before the
+      // switch. Left on the origin Environment, the restored selection would carry an id
+      // that is no longer primary and every panel keyed off it (Files, Git, Search,
+      // Terminal, Actions) would read "offline" instead of the open action.
+      const previous = useHubSelectionStore.getState().selection
+      select()
+      runUserAction(
+        () =>
+          shellTrpcClient.openWorktreeInEnvironment.mutate({
+            environmentId: source.environmentId,
+            repoPath: worktree.path,
+          }),
+        (error) => {
+          // No reload happened, so put the tree back where the human left it.
+          useHubSelectionStore.setState({ selection: previous })
+          toastUserActionError('Open worktree', error)
+        },
+      )
+      return
+    }
+    select()
     runUserAction(
       () =>
         openProject.open(worktree.path, {
@@ -77,7 +110,7 @@ export function HubTree(props: { className?: string }): React.JSX.Element | null
           // it as local once the primary Environment id has round-tripped through
           // daemonInfo, so passing it here treated the local Environment as an
           // unresolved remote session and failed every worktree switch as offline.
-          environmentId: source.environmentId,
+          environmentId: isBrowser ? source.environmentId : null,
         }),
       (error) => toastUserActionError('Open worktree', error),
     )

@@ -553,6 +553,34 @@ export const shellRouter = t.router({
   }),
 
   /**
+   * Open a Hub checkout that lives on another Environment in THIS window.
+   *
+   * The renderer has exactly one daemon client — the one its window is bound to — so it
+   * cannot open a path on a different daemon itself. Point the window at that Environment
+   * and boot it straight into the checkout. `environmentId: null` = This device (local).
+   */
+  openWorktreeInEnvironment: t.procedure
+    .input(z.object({ environmentId: z.string().nullable(), repoPath: z.string().min(1) }))
+    .mutation(async ({ ctx, input }): Promise<void> => {
+      if (input.environmentId !== null) {
+        const live = await refreshActiveEndpoint(input.environmentId)
+        const state = await loadRemoteEnvironmentState()
+        const env = state.environments.find((e) => e.id === input.environmentId)
+        if (env === undefined) throw new Error('That environment no longer exists')
+        if (live === null) await probeDaemon(env.url, env.token)
+        await updateRemoteEnvironmentState((current) => ({ ...current, activeId: env.id }))
+        await reloadEnvironmentsCache()
+      } else if (getDefaultEnvironmentId() === windowEnvironmentId(ctx.sender)) {
+        // Same rule as disconnectRemoteEnvironment: only clear the default when THIS
+        // window was the one sitting on it — other windows keep their own.
+        await setDefaultEnvironmentId(null)
+      } else {
+        await reloadEnvironmentsCache()
+      }
+      switchWindowEnvironment(ctx.sender, input.environmentId, input.repoPath)
+    }),
+
+  /**
    * Open a fresh window on an environment without touching the caller's binding.
    * `environmentId: null` = This device (local).
    */
