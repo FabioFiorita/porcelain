@@ -31,25 +31,14 @@ import {
   ContextMenuTrigger,
 } from '@renderer/components/ui/context-menu'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
-import { spawnTerminalAt } from '@renderer/lib/terminal-actions'
 import { cn, copyText } from '@renderer/lib/utils'
 import { useHubSelectionStore } from '@renderer/stores/hub-selection'
-import { EMPTY_WORKTREE_SETUP, useWorktreeSetupStore } from '@renderer/stores/worktree-setup'
 import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
-import {
-  ChevronDown,
-  Copy,
-  FolderGit2,
-  GitBranch,
-  GitBranchPlus,
-  Settings2,
-  Trash2,
-} from 'lucide-react'
+import { ChevronDown, Copy, FolderGit2, GitBranch, GitBranchPlus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { CreateWorktreeDialog } from './create-worktree-dialog'
 import type { HubInventoryView } from './project-data'
-import { WorktreeSetupDialog } from './worktree-setup-dialog'
 
 function WorktreeRow(props: {
   worktree: HubWorktree
@@ -207,12 +196,7 @@ function ProjectBlock(props: {
 }): React.JSX.Element {
   const [expanded, setExpanded] = useState(true)
   const [createOpen, setCreateOpen] = useState(false)
-  const [setupOpen, setSetupOpen] = useState(false)
   const selectProject = useHubSelectionStore((state) => state.selectProject)
-  const setup = useWorktreeSetupStore(
-    (state) => state.setups[props.project.id] ?? EMPTY_WORKTREE_SETUP,
-  )
-  const setSetup = useWorktreeSetupStore((state) => state.setSetup)
 
   const copyProjectPath = (): void => {
     runUserAction(
@@ -234,15 +218,14 @@ function ProjectBlock(props: {
     )
   }
 
+  /**
+   * Create, then open. The daemon starts the Project's setup scripts in a terminal owned by
+   * the new checkout, and terminals are listed per open checkout — so opening the Worktree is
+   * what puts the human in front of the install they just triggered.
+   */
   const createWorktree = async (input: CreateHubWorktreeInput): Promise<HubWorktree> => {
     const worktree = await props.createWorktree({ ...input, environmentId: props.environmentId })
-    const startScript = setup.startScript.trim()
-    if (startScript !== '') {
-      await spawnTerminalAt(worktree.path, {
-        name: `Setup · ${props.project.name}`,
-        initialInput: `${startScript}\n`,
-      })
-    }
+    props.openWorktree(worktree)
     return worktree
   }
 
@@ -298,12 +281,6 @@ function ProjectBlock(props: {
           </div>
         </ContextMenuTrigger>
         <ContextMenuContent>
-          {props.mutable && (
-            <ContextMenuItem onClick={() => setSetupOpen(true)}>
-              <Settings2 />
-              Configure worktree setup
-            </ContextMenuItem>
-          )}
           <ContextMenuItem onClick={copyProjectPath}>
             <Copy />
             Copy project path
@@ -339,15 +316,6 @@ function ProjectBlock(props: {
           creating={props.creating}
           onOpenChange={setCreateOpen}
           createWorktree={createWorktree}
-        />
-      )}
-      {setupOpen && (
-        <WorktreeSetupDialog
-          projectName={props.project.name}
-          setup={setup}
-          open={setupOpen}
-          onOpenChange={setSetupOpen}
-          onSave={(next) => setSetup(props.project.id, next)}
         />
       )}
     </Collapsible>

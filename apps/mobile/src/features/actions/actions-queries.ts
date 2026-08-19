@@ -46,9 +46,12 @@ export function useActions(active: boolean): {
     },
   })
 
-  // A phone has no local daemon, so local-only actions are not runnable here.
+  // A phone has no local daemon, so local-only actions are not runnable here. Worktree
+  // lifecycle scripts are dropped for a different reason: nothing on a phone creates or
+  // removes a Worktree, and this list is the things a tap runs.
   const actions = useMemo(
-    () => (query.data ?? []).filter((action) => action.where !== 'local'),
+    () =>
+      (query.data ?? []).filter((action) => action.where !== 'local' && action.kind === 'action'),
     [query.data],
   )
 

@@ -1,7 +1,10 @@
 import { createHash } from 'node:crypto'
 import { porcelainHome, porcelainHomePath } from '@shared/porcelain-home'
-import { createDaemonOperations, createDaemonRouter } from './api'
+import { taskAttachmentPath } from '@shared/tasks-porcelain'
+import { createDaemonOperations, createDaemonRouter, type DaemonOperations } from './api'
+import { createWorktreeScripts } from './features/actions'
 import { devRepoPath, recognizedDevPlaygroundPath, seedDevConfig } from './dev-config'
+import { createFilePreviewTokens } from './features/files'
 import { createGitSubprocess } from './features/git'
 import {
   createCanvasAccessTokens,
@@ -38,6 +41,7 @@ import { warmFileList } from './git/git'
 import { isLinkedWorktree } from './git/linked-worktree'
 import { ensureAdminToken } from './net/admin-token'
 import { handleCanvasRequest } from './net/canvas-http'
+import { handleFilePreviewRequest } from './net/file-preview-http'
 import { daemonIdentity } from './net/daemon-identity'
 import { daemonVersion } from './net/daemon-version'
 import { createMcpToolHandlers, handleMcpRequest } from './net/mcp'
@@ -88,6 +92,9 @@ const hubInventory = initHubInventoryStore(porcelainHomeDir)
 // must resolve against the SAME in-memory grant map the GET /canvas/<token> route reads
 // from (the Canvas operations only expose mint, not resolve — that's this route's own concern).
 const canvasAccessTokens = createCanvasAccessTokens()
+// Same story one domain over: the Files operations mint file-preview grants, the
+// GET /file-preview/<token> route resolves them, and both must share this map.
+const filePreviewTokens = createFilePreviewTokens()
 const canvasStores = {
   store: createCanvasStore({ homeDir: porcelainHomeDir }),
   overlay: createCanvasOverlayStore(),
@@ -151,6 +158,18 @@ async function main(): Promise<void> {
     paste: createTerminalPasteAdapter({ root: porcelainHomePath('terminal-pastes') }),
     publishChange: publishSessionChange,
   })
+  // Worktree lifecycle scripts need the Project's Actions (with their trust flags), and the
+  // Actions operations are composed inside createDaemonOperations below — which in turn needs
+  // `projects`. The cycle is only in construction order, not at runtime: this closure is first
+  // called when someone creates or removes a Worktree, long after `operations` is bound.
+  const worktreeScripts = createWorktreeScripts({
+    listActions: async (projectId) => {
+      const listed = await operations.actions.listActions({ projectId })
+      return listed.ok ? listed.value : []
+    },
+    host: { createRetained: terminal.createRetained, kill: terminal.kill },
+    publish: publishSessionChange,
+  })
   const projects = createProjectsOperations({
     // Dev-only: fleet playground fixtures (pnpm playground new) live under a dot-prefixed
     // .fleet segment (see CreateNodeProjectsPortOptions); a production daemon still hides
@@ -171,10 +190,11 @@ async function main(): Promise<void> {
         process.env.PORCELAIN_DEV === '1'
           ? (path: string): string | null => recognizedDevPlaygroundPath(path, devRepoPath())
           : undefined,
+      worktreeScripts,
     },
     canvas: canvasStores,
   })
-  const operations = createDaemonOperations({
+  const operations: DaemonOperations = createDaemonOperations({
     projects,
     tasks: {
       store: createTasksStore({ homeDir: porcelainHomeDir }),
@@ -182,6 +202,7 @@ async function main(): Promise<void> {
     },
     terminal,
     homeDir: porcelainHomeDir,
+    filePreviewTokens,
   })
   const router = createDaemonRouter({ operations })
   // One handler set for the process; the MCP route is stateless, so nothing here is
@@ -189,6 +210,7 @@ async function main(): Promise<void> {
   const mcpToolHandlers = createMcpToolHandlers({
     operations,
     canvasBundleDir: canvasStores.store.bundleDirFor,
+    attachmentPath: (storedPath) => taskAttachmentPath(porcelainHomeDir, storedPath),
   })
   daemon = createRemoteHttp({
     adminTokenHash: tokenHash,
@@ -204,6 +226,14 @@ async function main(): Promise<void> {
       handleCanvasRequest(req, res, {
         resolveAccessToken: canvasAccessTokens.resolve,
         readCanvas: projects.readCanvas,
+      }),
+    // The one preview surface whose response CSP lets an author's own scripts run,
+    // which is why it asks for script inlining the tRPC procedure never requests.
+    serveFilePreview: (req, res) =>
+      handleFilePreviewRequest(req, res, {
+        resolveAccessToken: filePreviewTokens.resolve,
+        readPreviewDocument: (scope) =>
+          operations.files.previewHtml({ ...scope, inlineScripts: true }),
       }),
     // The agent tool surface. Opt-in for the human — installing the plugin is what
     // turns it on for an agent — but always mounted, because the daemon cannot know

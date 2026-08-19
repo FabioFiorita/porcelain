@@ -24,6 +24,10 @@ import { anchorTextFor, type DiffRow, toDiffRows } from './diff-rows'
 
 import { useDiffTokens } from './use-highlight'
 
+// A file with no hunks yet must not hand the memos below a fresh [] each render —
+// that identity change re-ran row building, emphasis, and tokenization every time.
+const NO_HUNKS: readonly DiffHunk[] = []
+
 /** The reviewed tick, when the surface has one. A historical commit has no reviewed state. */
 export type ReviewedControl = { isReviewed: boolean; onToggle: () => void }
 
@@ -79,7 +83,7 @@ export function DiffView({
   const [anchor, setAnchor] = useState<CommentAnchor | null>(null)
   const lineSelection = useLineSelection()
 
-  const hunks: readonly DiffHunk[] = file.hunks ?? []
+  const hunks: readonly DiffHunk[] = file.hunks ?? NO_HUNKS
   const rows = useMemo(() => toDiffRows(hunks, preferredMode), [hunks, preferredMode])
   const emphasis = useMemo(() => intraLineEmphasis(hunks), [hunks])
   const commentedLines = useMemo(() => new Set(commentIndex.byLine.keys()), [commentIndex])

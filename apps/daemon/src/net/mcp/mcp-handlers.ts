@@ -2,7 +2,8 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { resolvedProfileSchema, worktreeProfileSchema } from '@porcelain/contracts'
 import type { McpToolHandlers, McpToolResult } from './mcp-dispatch'
-import type { McpOperations } from './mcp-operations'
+import type { McpOperations, McpTask } from './mcp-operations'
+import { describeMissingTask, mergeLink, taskMatches, taskView } from './mcp-tasks'
 import {
   mergeReviewFiles,
   parseReviewSet,
@@ -35,6 +36,16 @@ export type McpToolDeps = Readonly<{
   operations: McpOperations
   /** Where the daemon keeps Canvas bundles — the Review's metadata is read from disk. */
   canvasBundleDir: (projectId: string, canvasId: string) => string
+  /**
+   * Absolute path of a stored Task attachment on the DAEMON host.
+   *
+   * The tRPC contract refuses to carry host paths, and it is right to: a browser has
+   * no business reading the daemon's disk. An agent on the daemon host is the other
+   * case — it has a file reader, and a screenshot it cannot open is a screenshot the
+   * human has to describe out loud. So the path is composed here, on the tool wire,
+   * and labelled as host-local.
+   */
+  attachmentPath: (storedPath: string) => string
 }>
 
 function ok(text: string): McpToolResult {
@@ -52,6 +63,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function stringField(args: Record<string, unknown>, key: string): string | undefined {
   const value = args[key]
   return typeof value === 'string' && value !== '' ? value : undefined
+}
+
+function stringList(args: Record<string, unknown>, key: string): string[] | undefined {
+  const value = args[key]
+  if (!Array.isArray(value)) return undefined
+  const entries = value.filter(
+    (entry): entry is string => typeof entry === 'string' && entry !== '',
+  )
+  return entries.length === 0 ? undefined : entries
 }
 
 /** Describe an operation failure without leaking a daemon-internal error object. */
@@ -122,6 +142,28 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
     )
   }
 
+  /** Short ids are what the human says out loud ("mark T-1 doing"); updateTask takes a UUID. */
+  async function resolveTaskIds(
+    wanted: readonly string[],
+  ): Promise<{ ok: true; value: string[] } | { ok: false; result: McpToolResult }> {
+    const listed = await operations.tasks.listTasks()
+    if (!listed.ok) return { ok: false, result: fail('This daemon cannot list its Tasks.') }
+    const resolvedIds: string[] = []
+    for (const entry of wanted) {
+      const found = listed.value.find((task) => taskMatches(task, entry))
+      if (found === undefined) {
+        return { ok: false, result: fail(describeMissingTask(entry, listed.value)) }
+      }
+      resolvedIds.push(found.id)
+    }
+    return { ok: true, value: resolvedIds }
+  }
+
+  async function readTask(taskId: string): Promise<McpTask | undefined> {
+    const listed = await operations.tasks.listTasks()
+    return listed.ok ? listed.value.find((task) => task.id === taskId) : undefined
+  }
+
   const tools: Record<
     string,
     (args: Record<string, unknown>, place: ResolvedWorkspace) => Promise<McpToolResult>
@@ -155,12 +197,34 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
       if (requested.includes('tasks')) {
         const tasks = await operations.tasks.listTasks()
         const taskId = stringField(args, 'taskId')
+        const includeDone = args.includeDone === true
         if (tasks.ok) {
-          out.tasks =
+          const rows =
             taskId === undefined
-              ? tasks.value.filter((task) => task.status !== 'done')
-              : tasks.value.filter((task) => task.id === taskId || task.shortId === taskId)
+              ? tasks.value.filter((task) => includeDone || task.status !== 'done')
+              : tasks.value.filter((task) => taskMatches(task, taskId))
+          out.tasks = rows.map((task) => taskView(task, deps.attachmentPath))
+          if (taskId === undefined && !includeDone) {
+            out.tasksNote = 'Done Tasks are hidden. Pass includeDone: true for the whole board.'
+          }
         } else out.tasks = []
+      }
+      if (requested.includes('projects')) {
+        const inventory = await operations.projects.listHubInventory()
+        out.projects = !inventory.ok
+          ? []
+          : inventory.value.projects.map((project) => ({
+              projectId: project.id,
+              name: project.name,
+              path: project.path,
+              worktrees: project.worktrees.map((worktree) => ({
+                worktreeId: worktree.id,
+                name: worktree.name,
+                branch: worktree.branch,
+                path: worktree.path,
+                isPrimary: worktree.isPrimary,
+              })),
+            }))
       }
       if (requested.includes('actions')) {
         const actions = await operations.actions.listActions({ projectId: place.projectId })
@@ -252,16 +316,21 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
     },
 
     async porcelain_task(args, place) {
-      const id = stringField(args, 'id')
       const status = args.status
-      const tags = Array.isArray(args.tags)
-        ? args.tags.filter((tag): tag is string => typeof tag === 'string')
-        : undefined
+      const tags = stringList(args, 'tags')
       const link = stringField(args, 'link')
-      const links =
-        link === undefined
-          ? undefined
-          : [{ url: link, label: stringField(args, 'linkLabel') ?? link }]
+      const replacementLinks = Array.isArray(args.links)
+        ? args.links
+            .filter(isRecord)
+            .filter((entry) => typeof entry.url === 'string' && entry.url !== '')
+            .map((entry) => ({
+              url: String(entry.url),
+              label:
+                typeof entry.label === 'string' && entry.label !== ''
+                  ? entry.label
+                  : String(entry.url),
+            }))
+        : undefined
       const attach = stringField(args, 'attach')
       const file = stringField(args, 'file')
       const folder = stringField(args, 'folder')
@@ -295,14 +364,24 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
         ...(stringField(args, 'notes') === undefined ? {} : { notes: stringField(args, 'notes') }),
         ...(typeof status === 'string' ? { status: status as 'todo' } : {}),
         ...(tags === undefined ? {} : { tags }),
-        ...(links === undefined ? {} : { links }),
         ...(pathRefs === undefined || pathRefs.length === 0 ? {} : { pathRefs }),
         ...(attach === undefined ? {} : { attachmentPaths: [attach] }),
       }
 
-      if (id === undefined) {
+      const wanted =
+        stringList(args, 'ids') ??
+        (stringField(args, 'id') === undefined ? [] : [String(stringField(args, 'id'))])
+
+      if (wanted.length === 0) {
         const title = stringField(args, 'title')
-        if (title === undefined) return fail('title is required to create a Task.')
+        if (title === undefined) {
+          return fail('title is required to create a Task. Pass id (or ids) to update instead.')
+        }
+        const newLinks =
+          replacementLinks ??
+          (link === undefined
+            ? undefined
+            : [{ url: link, label: stringField(args, 'linkLabel') ?? link }])
         const created = await operations.tasks.createTask({
           title,
           references: {
@@ -310,21 +389,43 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
             ...(place.worktreeId === null ? {} : { worktreeId: place.worktreeId }),
           },
           ...common,
+          ...(newLinks === undefined ? {} : { links: newLinks }),
         })
         return created.ok
           ? ok(`Task ${created.value.shortId ?? created.value.id} created: ${created.value.title}`)
           : fail(`Could not create the Task: ${describeError(created.error)}`)
       }
 
+      const resolved = await resolveTaskIds(wanted)
+      if (!resolved.ok) return resolved.result
+
       const title = stringField(args, 'title')
-      const updated = await operations.tasks.updateTask({
-        taskId: id,
-        ...(title === undefined ? {} : { title }),
-        ...common,
-      })
-      return updated.ok
-        ? ok(`Task ${updated.value.shortId ?? updated.value.id} updated.`)
-        : fail(`Could not update the Task: ${describeError(updated.error)}`)
+      if (title !== undefined && resolved.value.length > 1) {
+        return fail('title cannot be applied to several Tasks at once — update them one at a time.')
+      }
+
+      const done: string[] = []
+      for (const taskId of resolved.value) {
+        // A single `link` ADDS: attaching a PR to a Task that already links its issue
+        // must not silently drop the issue. `links` is the explicit replace.
+        let links = replacementLinks
+        if (links === undefined && link !== undefined) {
+          const current = await readTask(taskId)
+          links = mergeLink(current?.links, {
+            url: link,
+            label: stringField(args, 'linkLabel') ?? link,
+          })
+        }
+        const updated = await operations.tasks.updateTask({
+          taskId,
+          ...(title === undefined ? {} : { title }),
+          ...common,
+          ...(links === undefined ? {} : { links }),
+        })
+        if (!updated.ok) return fail(`Could not update the Task: ${describeError(updated.error)}`)
+        done.push(updated.value.shortId ?? updated.value.id)
+      }
+      return ok(`Task${done.length > 1 ? 's' : ''} ${done.join(', ')} updated.`)
     },
 
     async porcelain_action(args, place) {
@@ -338,6 +439,10 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
       }
 
       const where = args.where === 'local' || args.where === 'primary' ? args.where : undefined
+      const kind =
+        args.kind === 'worktree-setup' || args.kind === 'worktree-dispose' || args.kind === 'action'
+          ? args.kind
+          : undefined
       const command = stringField(args, 'command')
       const title = stringField(args, 'title')
 
@@ -351,6 +456,7 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
           title,
           command,
           ...(where === undefined ? {} : { where }),
+          ...(kind === undefined ? {} : { kind }),
         })
         return created.ok
           ? ok(

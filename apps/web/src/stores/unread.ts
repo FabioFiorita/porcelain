@@ -90,6 +90,10 @@ export function unreadTabFor(change: SessionChange): UnreadTab | null {
       // A server you started yourself starting, printing a URL, or dying is not an unread
       // message — the Servers list is already live. No rail dot.
       return null
+    case 'terminal.worktree-script-started':
+      // The terminal is about to be focused for the human to watch; a dot on the surface
+      // they are being sent to would be noise.
+      return null
     case 'review.changed':
       // Comments refresh in place on the surface that owns them.
       return null

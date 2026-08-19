@@ -9,7 +9,15 @@
  */
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { DEV_HOME, DEV_PLAYGROUND, DEV_PORT, DEV_USER_DATA, devEnv } from './dev-env.mjs'
+import {
+  DEV_HOME,
+  DEV_PLAYGROUND,
+  DEV_PORT,
+  DEV_USER_DATA,
+  DEV_WEB_PORT,
+  devEnv,
+  webDevPort,
+} from './dev-env.mjs'
 
 test('the dev env arms the daemon playground boundary', () => {
   assert.equal(devEnv().PORCELAIN_DEV, '1')
@@ -30,4 +38,16 @@ test('caller overrides win, so a launcher flag still decides binding and port', 
   assert.equal(env.PORCELAIN_LAN_BIND, '')
   assert.equal(env.PORCELAIN_DAEMON_PORT, '43199')
   assert.equal(env.PORCELAIN_DEV, '1')
+})
+
+/**
+ * `pnpm dev:web` proxies to the daemon of ITS checkout. A shared or colliding web port
+ * would silently show one worktree's browser client the other worktree's daemon.
+ */
+test('the web dev port is derived from the daemon port, so profiles never collide', () => {
+  assert.equal(webDevPort(43118), 53118)
+  assert.equal(webDevPort(43200), 53200)
+  assert.equal(webDevPort(43999), 53999)
+  assert.equal(DEV_WEB_PORT, webDevPort(DEV_PORT))
+  assert.notEqual(DEV_WEB_PORT, DEV_PORT)
 })

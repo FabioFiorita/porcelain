@@ -22,6 +22,26 @@ the command text is what gets trusted.
 | `primary` | Run on **this window's machine** (the daemon the human is looking at) — the default. |
 | `local` | Run on **This device** (the machine running the Mac app) when the window is remote-bound. Use for Mac-only tools (Xcode, iOS simulator) while the repo lives on a remote box. Ignored when the window is already local. |
 
+## Worktree scripts are the one exception
+
+A saved command carries a `kind`. The default, `action`, is everything above: the human clicks
+it. The two other kinds are **Worktree lifecycle scripts**, and Porcelain runs those itself:
+
+| `kind` | When Porcelain runs it |
+|---|---|
+| `worktree-setup` | After it creates a Worktree from the app, in a terminal in the new checkout. |
+| `worktree-dispose` | Before it removes a Worktree from the app; the removal waits for it. |
+
+Pass `kind` to `porcelain_action` with `op: "save"` to add one (e.g. title "Install", command
+`pnpm install`, kind `worktree-setup`). They are listed under **Worktree scripts** in the app,
+in order, apart from the Actions — the Actions list is what a click runs, and nothing that
+runs on its own belongs in it.
+
+**The trust gate is exactly the same, and it matters more here.** A script you save arrives
+untrusted, and an untrusted script is *skipped* when the Worktree is created or removed — it is
+not queued, and the human is not prompted mid-flow. Tell them you added it so they can accept
+it before the next Worktree, or the setup they expected will silently not have run.
+
 You **define** actions; only the human runs them (there is no run command). Running takes an explicit Environment + Worktree: the human either has a Worktree selected in the Hub, or Porcelain asks which checkout before anything executes. It never picks one. When you discover the project's common commands (from package.json scripts, the README, or what the human asks you to run repeatedly), offer to save them as actions.
 
 ## The human accepts a command before it runs

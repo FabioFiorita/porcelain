@@ -1,6 +1,6 @@
 import type { TaskRow } from '@porcelain/client-runtime/tasks'
 import {
-  TASK_COLUMN_IDS,
+  availableTaskColumns,
   TASK_COLUMN_LABELS,
   TASK_REQUIRED_COLUMN_IDS,
 } from '@porcelain/client-runtime/tasks'
@@ -66,7 +66,7 @@ const STATUS_FILTER_ITEMS = [
  * Deliberately not scoped to the selected Worktree — coordination outlives any one checkout.
  */
 export function TasksView(): React.JSX.Element {
-  const { rows, error, isLoaded } = useTasks()
+  const { rows, environments, error, isLoaded } = useTasks()
   const inventories = useHubInventories()
   const order = useTaskColumnsStore((s) => s.order)
   const hidden = useTaskColumnsStore((s) => s.hidden)
@@ -79,7 +79,15 @@ export function TasksView(): React.JSX.Element {
   const [pendingDelete, setPendingDelete] = useState<TaskRow | null>(null)
   const [preview, setPreview] = useState<{ src: string; name: string } | null>(null)
 
-  const visible = visibleTaskColumns(order, hidden)
+  // The Environment column only exists where several Environments answer at once — the Mac app
+  // and mobile fan out, a browser client is served by one daemon. Gating on the reachable
+  // Environments rather than the runtime keeps a single-Environment Hub from printing the same
+  // name on every row, and keeps the column out of the picker where it can never mean anything.
+  const columns = useMemo(
+    () => availableTaskColumns(environments.length > 1),
+    [environments.length],
+  )
+  const visible = visibleTaskColumns(order, hidden).filter((column) => columns.includes(column))
   const projectNames = useMemo(() => {
     const names: Record<string, string> = {}
     for (const source of inventories) {
@@ -211,7 +219,7 @@ export function TasksView(): React.JSX.Element {
           <DropdownMenuContent align="end">
             <DropdownMenuGroup>
               <DropdownMenuLabel>Columns</DropdownMenuLabel>
-              {TASK_COLUMN_IDS.map((column) => (
+              {columns.map((column) => (
                 <DropdownMenuCheckboxItem
                   key={column}
                   data-testid={TestIds.tasksColumnToggle(column)}

@@ -19,6 +19,16 @@ const BROWSE: BrowseDirsOutput = { path: '/projects', parent: '/', entries: [] }
 
 function harness(pathAllowed?: (path: string) => boolean) {
   const events: string[] = []
+  // Worktree lifecycle scripts push into `events` beside `warm`, so the assertions below can
+  // read the real ordering: setup must land after the checkout exists, dispose before it goes.
+  const worktreeScripts = {
+    runSetup: vi.fn(async (target: { path: string }) => {
+      events.push(`setup:${target.path}`)
+    }),
+    runDispose: vi.fn(async (target: { path: string }) => {
+      events.push(`dispose:${target.path}`)
+    }),
+  }
   const projects = {
     inspectProject: vi.fn<ProjectsPort['inspectProject']>(async (path: string) => ({
       ok: true as const,
@@ -94,6 +104,7 @@ function harness(pathAllowed?: (path: string) => boolean) {
   }
   return {
     events,
+    worktreeScripts,
     projects,
     recents,
     worktree,
@@ -114,6 +125,7 @@ function harness(pathAllowed?: (path: string) => boolean) {
         daemon: { host: 'synthetic', platform: 'linux', arch: 'x64' },
         pathAllowed,
         createId: () => 'generated',
+        worktreeScripts,
       },
       canvas,
     }),
@@ -342,6 +354,13 @@ describe('Project operations', () => {
       },
     })
     expect(h.git.addWorktree).toHaveBeenCalledWith('/projects/alpha', 'topic', 'origin/main', false)
+    // Setup runs on the checkout that now exists, and only once it has a Worktree identity.
+    expect(h.worktreeScripts.runSetup).toHaveBeenCalledWith({
+      projectId: 'generated',
+      worktreeId: 'generated',
+      path: '/projects/alpha-worktrees/topic',
+    })
+    expect(h.events).toContain('setup:/projects/alpha-worktrees/topic')
   })
 
   it('rejects Worktree creation for an unknown Project', async () => {
@@ -414,12 +433,23 @@ describe('Project operations', () => {
       '/projects/alpha-worktrees/topic',
     )
     expect(h.recents.removePath).toHaveBeenCalledWith('/projects/alpha-worktrees/topic')
+    // Teardown has to finish while the checkout still exists.
+    expect(h.worktreeScripts.runDispose).toHaveBeenCalledWith({
+      projectId: 'generated',
+      worktreeId: 'topic-id',
+      path: '/projects/alpha-worktrees/topic',
+    })
+    expect(h.worktreeScripts.runDispose.mock.invocationCallOrder[0]).toBeLessThan(
+      h.git.removeWorktree.mock.invocationCallOrder[0] ?? 0,
+    )
 
     remaining = live
     expect(
       await h.operations.removeHubWorktree({ projectId: 'generated', worktreeId: 'main-id' }),
     ).toEqual({ ok: false, error: { code: 'git.worktree-conflict' } })
     expect(h.git.removeWorktree).toHaveBeenCalledTimes(1)
+    // The primary checkout is refused before any teardown runs against it.
+    expect(h.worktreeScripts.runDispose).toHaveBeenCalledTimes(1)
   })
 
   it('removes a Project from the Hub without deleting its repository', async () => {

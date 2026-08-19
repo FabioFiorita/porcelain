@@ -4,6 +4,23 @@ export const ACTION_WHERE_VALUES = ['primary', 'local'] as const
 export const actionWhereSchema = z.enum(ACTION_WHERE_VALUES)
 export type ActionWhere = z.infer<typeof actionWhereSchema>
 
+/**
+ * What a saved command *is for*. `action` is the human's one-click command; the two
+ * worktree roles are lifecycle scripts Porcelain itself runs when a Worktree is created
+ * or removed. They share this table because they share everything that matters — Project
+ * ownership, command text, ordering, and the per-machine trust gate — and differ only in
+ * who presses go. Absent on the wire and on disk means `action`, so every row written
+ * before this field reads back as exactly what it was.
+ */
+export const ACTION_KINDS = ['action', 'worktree-setup', 'worktree-dispose'] as const
+export const actionKindSchema = z.enum(ACTION_KINDS)
+export type ActionKind = z.infer<typeof actionKindSchema>
+
+/** The two roles Porcelain runs itself, in list order, around a Worktree's lifetime. */
+export const WORKTREE_SCRIPT_KINDS = ['worktree-setup', 'worktree-dispose'] as const
+export const worktreeScriptKindSchema = z.enum(WORKTREE_SCRIPT_KINDS)
+export type WorktreeScriptKind = z.infer<typeof worktreeScriptKindSchema>
+
 export const ACTION_MOVE_DIRECTIONS = ['up', 'down'] as const
 export const actionMoveDirectionSchema = z.enum(ACTION_MOVE_DIRECTIONS)
 export type ActionMoveDirection = z.infer<typeof actionMoveDirectionSchema>
@@ -19,6 +36,7 @@ export const actionSchema = z
     title: z.string(),
     command: z.string(),
     where: actionWhereSchema.optional(),
+    kind: actionKindSchema.default('action'),
     order: z.number().default(0),
     createdAt: z.number().default(0),
   })
@@ -78,6 +96,7 @@ export const addActionInputSchema = z
     title: z.string().trim().min(1),
     command: z.string().trim().min(1),
     where: actionWhereSchema.optional(),
+    kind: actionKindSchema.optional(),
   })
   .strict()
 export const addActionOutputSchema = actionSchema

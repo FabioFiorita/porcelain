@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { homedir } from 'node:os'
 import { createTRPCUntypedClient, httpLink } from '@trpc/client'
 import { initTRPC } from '@trpc/server'
 import { BrowserWindow, clipboard, nativeTheme, shell, type WebContents } from 'electron'
@@ -45,6 +46,7 @@ import {
   mutateEnvironmentTask,
 } from './shell-tasks'
 import { checkForUpdates, installUpdate, type UpdateStatus, updateStatus } from './updater'
+import { closeQuickAddFrom } from './quick-add-window'
 import { createWindow, switchWindowEnvironment, type WindowInit, windowInitFor } from './window'
 
 // The Electron-side half of the router split: everything here needs the shell
@@ -166,6 +168,14 @@ export const shellRouter = t.router({
     return windowInitFor(ctx.sender)
   }),
 
+  /**
+   * Dismiss the menu-bar quick-add popover from inside it (Task created, or Escape).
+   * Scoped to the CALLING window: no other window can close the popover this way.
+   */
+  closeQuickAdd: t.procedure.mutation(({ ctx }): void => {
+    closeQuickAddFrom(ctx.sender)
+  }),
+
   refreshRemoteEnvironment: t.procedure.query(async ({ ctx }): Promise<void> => {
     const environmentId = windowEnvironmentId(ctx.sender)
     if (environmentId !== null) await refreshActiveEndpoint(environmentId)
@@ -178,10 +188,16 @@ export const shellRouter = t.router({
    * window can ALSO open a terminal here: repo on the Beelink, simulator on this Mac.
    * `isLocal` hides the affordance when the window is already local.
    */
-  localDaemon: t.procedure.query(({ ctx }): { url: string; token: string; isLocal: boolean } => ({
-    ...localDaemonPair(),
-    isLocal: windowEnvironmentId(ctx.sender) === null,
-  })),
+  localDaemon: t.procedure.query(
+    ({ ctx }): { url: string; token: string; isLocal: boolean; home: string } => ({
+      ...localDaemonPair(),
+      isLocal: windowEnvironmentId(ctx.sender) === null,
+      // This machine's home directory: the only folder a remote-bound window can be sure
+      // exists HERE, so it is the last-resort suggestion when the local terminal folder
+      // has never been mapped (the remote repo path would not exist on this disk).
+      home: homedir(),
+    }),
+  ),
 
   /**
    * The local directory a "This device" terminal should open in for `repoPath` on THIS

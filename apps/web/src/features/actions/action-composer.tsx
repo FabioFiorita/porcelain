@@ -1,4 +1,4 @@
-import type { Action, ActionWhere } from '@porcelain/contracts/actions'
+import type { Action, ActionKind, ActionWhere } from '@porcelain/contracts/actions'
 import { Button } from '@renderer/components/ui/button'
 import {
   Dialog,
@@ -24,6 +24,11 @@ export interface ActionDraft {
   title: string
   command: string
   where: ActionWhere
+  /**
+   * What the saved row is for. Carried on create so a script saved from the Worktree
+   * scripts list lands in that list; on edit it is already stored and never resent.
+   */
+  kind?: ActionKind
 }
 
 /** Build an edit draft from an existing action. */
@@ -33,7 +38,14 @@ export function draftFromAction(action: Action): ActionDraft {
     title: action.title,
     command: action.command,
     where: action.where === 'local' ? 'local' : 'primary',
+    kind: action.kind,
   }
+}
+
+const NOUN: Record<ActionKind, string> = {
+  action: 'action',
+  'worktree-setup': 'setup script',
+  'worktree-dispose': 'dispose script',
 }
 
 /** Controlled dialog to create or edit a saved action (title + command + optional where). */
@@ -73,6 +85,7 @@ export function ActionComposer({
           title: title.trim(),
           command: command.trim(),
           where: showWhere ? where : 'primary',
+          ...(draft.kind === undefined ? {} : { kind: draft.kind }),
         }
         if (draft.id) {
           await update(draft.id, payload)
@@ -102,7 +115,9 @@ export function ActionComposer({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{draft?.id ? 'Edit action' : 'New action'}</DialogTitle>
+          <DialogTitle>
+            {`${draft?.id ? 'Edit' : 'New'} ${NOUN[draft?.kind ?? 'action']}`}
+          </DialogTitle>
         </DialogHeader>
         <Input
           value={title}
@@ -155,7 +170,7 @@ export function ActionComposer({
             data-testid={TestIds.actionSave}
             onClick={handleSave}
           >
-            {saving ? 'Saving…' : draft?.id ? 'Save' : 'Add action'}
+            {saving ? 'Saving…' : draft?.id ? 'Save' : `Add ${NOUN[draft?.kind ?? 'action']}`}
           </Button>
         </DialogFooter>
       </DialogContent>

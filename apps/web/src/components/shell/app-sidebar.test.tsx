@@ -33,6 +33,12 @@ vi.mock('@renderer/hooks/use-updates', () => ({
   useInstallUpdate: () => ({ install: vi.fn(), isInstalling: false }),
 }))
 
+// Its sibling chip reads daemonInfo through tRPC; this suite renders without a provider.
+// The chip's own behavior lives in daemon-update-button.test.tsx.
+vi.mock('@renderer/hooks/use-daemon-update-prompt', () => ({
+  useDaemonUpdatePrompt: () => null,
+}))
+
 describe('AppSidebar', () => {
   beforeEach(() => {
     useHubSelectionStore.getState().selectHome()
@@ -76,6 +82,25 @@ describe('AppSidebar', () => {
       path: '/repo',
     })
     expect(screen.getByTestId(TestIds.tasksOpen)).toHaveAttribute('aria-current', 'page')
+  })
+
+  it('opens the daemon-wide Terminals board without changing the selected worktree', () => {
+    useHubSelectionStore.getState().selectWorktree({
+      environmentId: 'env-1',
+      projectId: 'proj-1',
+      worktreeId: 'wt-1',
+      path: '/repo',
+      name: 'main',
+    })
+    render(<AppSidebar />)
+    fireEvent.click(screen.getByTestId(TestIds.terminalsOpen))
+    const pane = useTabsStore.getState().panes[0]
+    // Target-free like Tasks: the board spans every Project on the daemon.
+    expect(pane?.tabs.some((tab) => tab.kind === 'terminals' && tab.target === undefined)).toBe(
+      true,
+    )
+    expect(useHubSelectionStore.getState().selection).toMatchObject({ worktreeId: 'wt-1' })
+    expect(screen.getByTestId(TestIds.terminalsOpen)).toHaveAttribute('aria-current', 'page')
   })
 
   it('opens the new-task dialog from the plus without opening the board', () => {

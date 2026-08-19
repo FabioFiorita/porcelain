@@ -2,6 +2,8 @@ import type { ProcedureContract } from '../procedure-contract'
 import {
   commitModelsInputSchema,
   commitModelsOutputSchema,
+  gitApplyCommitGroupsInputSchema,
+  gitApplyCommitGroupsOutputSchema,
   diffReadingInputSchema,
   diffReadingOutputSchema,
   gitAddWorktreeInputSchema,
@@ -116,6 +118,12 @@ const gitProcedureDefinitions = {
     kind: 'mutation',
     input: gitGenerateCommitGroupsInputSchema,
     output: gitGenerateCommitGroupsOutputSchema,
+    errors: [],
+  },
+  gitApplyCommitGroups: {
+    kind: 'mutation',
+    input: gitApplyCommitGroupsInputSchema,
+    output: gitApplyCommitGroupsOutputSchema,
     errors: [],
   },
   gitCheckout: {

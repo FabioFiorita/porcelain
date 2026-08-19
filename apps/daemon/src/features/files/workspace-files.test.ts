@@ -114,6 +114,33 @@ describe('createNodeWorkspaceFiles', () => {
     })
   })
 
+  it('previewHtml inlines a sibling script ONLY when the caller asks for it', async () => {
+    // The scripts-enabled preview route asks; the tRPC procedure (web reader
+    // fallback, mobile) never does — those frames refuse scripts anyway.
+    await withTemporaryDirectory('porcelain-files-preview-scripts-', async (dir) => {
+      await writeFile(join(dir, 'app.js'), 'document.title = "ran"', 'utf8')
+      await writeFile(
+        join(dir, 'index.html'),
+        '<!doctype html><script src="./app.js"></script>',
+        'utf8',
+      )
+      const withScripts = await files.previewHtml({
+        projectPath: dir,
+        path: 'index.html',
+        inlineScripts: true,
+      })
+      expect(withScripts).toEqual({
+        ok: true,
+        value: expect.stringContaining('<script>document.title = "ran"</script>'),
+      })
+      const withoutScripts = await files.previewHtml({ projectPath: dir, path: 'index.html' })
+      expect(withoutScripts).toEqual({
+        ok: true,
+        value: expect.stringContaining('<script src="./app.js"></script>'),
+      })
+    })
+  })
+
   it('create/write/rename/duplicate/trash mutations work with relative wire paths', async () => {
     await withTemporaryDirectory('porcelain-files-mut-', async (dir) => {
       expect(

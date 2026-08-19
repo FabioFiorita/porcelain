@@ -107,7 +107,11 @@ function operations(overrides: Partial<GitOperations> = {}): GitOperations {
       async (): Promise<GitProjectResult<never[]>> => ({ ok: true, value: [] }),
     ),
     flowGit: vi.fn<GitOperations['flowGit']>(async () => []),
-    rangeFlowGit: vi.fn<GitOperations['rangeFlowGit']>(async () => ({ groups: [], base: 'main' })),
+    rangeFlowGit: vi.fn<GitOperations['rangeFlowGit']>(async (input) => ({
+      base: input.base ?? 'main',
+      defaultBase: 'main',
+      groups: [],
+    })),
     rangeDiffFileGit: vi.fn<GitOperations['rangeDiffFileGit']>(async () => ({
       hunks: [],
       status: 'modified',
@@ -197,7 +201,11 @@ describe('Git feature router', () => {
     ).resolves.toBeUndefined()
     await expect(caller.gitWorktrees(REPO)).resolves.toEqual([])
     await expect(caller.gitFlow(REPO)).resolves.toEqual([])
-    await expect(caller.gitRangeFlow(REPO)).resolves.toEqual({ groups: [], base: 'main' })
+    await expect(caller.gitRangeFlow({ repoPath: REPO })).resolves.toEqual({
+      base: 'main',
+      defaultBase: 'main',
+      groups: [],
+    })
     await expect(
       caller.gitRangeDiffFile({ repoPath: REPO, base: 'main', filePath: 'src/a.ts' }),
     ).resolves.toEqual({ hunks: [], status: 'modified' })
@@ -241,7 +249,7 @@ describe('Git feature router', () => {
     expect(bound.createBranchGit).toHaveBeenCalled()
     expect(bound.worktreesGit).toHaveBeenCalled()
     expect(bound.flowGit).toHaveBeenCalledWith(REPO)
-    expect(bound.rangeFlowGit).toHaveBeenCalledWith(REPO)
+    expect(bound.rangeFlowGit).toHaveBeenCalledWith({ repoPath: REPO })
     expect(bound.rangeDiffFileGit).toHaveBeenCalledWith({
       repoPath: REPO,
       base: 'main',

@@ -151,7 +151,8 @@ export function createGitDiffReadingSources(options?: {
   return Object.freeze({
     loadWorkingFlow: async (repoPath: string) =>
       loadWorkingFlow(repoPath, await layersFor(repoPath)),
-    loadRangeFlow: async (repoPath: string) => loadRangeFlow(repoPath, await layersFor(repoPath)),
+    loadRangeFlow: async (repoPath: string, base?: string) =>
+      loadRangeFlow(repoPath, await layersFor(repoPath), base),
     loadCommitFlow: async (repoPath: string, hash: string) =>
       loadCommitFlow(repoPath, hash, await layersFor(repoPath)),
     workingHunks: (repoPath: string, path: string) =>

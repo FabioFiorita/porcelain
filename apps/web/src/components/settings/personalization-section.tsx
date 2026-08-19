@@ -6,7 +6,11 @@ import { compactButtonClass } from '@renderer/lib/controls'
 import { copyText } from '@renderer/lib/utils'
 import { useHubRepoPath } from '@renderer/stores/hub-repo'
 import { runUserAction } from '@shared/background'
-import { PROFILE_KEEPER_PROMPT, profileStarterPrompt } from '@shared/profile-prompts'
+import {
+  PROFILE_KEEPER_PROMPT,
+  profileStarterPrompt,
+  profileWorktreePrompt,
+} from '@shared/profile-prompts'
 import { TestIds } from '@shared/test-ids'
 import { Check, Copy } from 'lucide-react'
 import { useState } from 'react'
@@ -224,8 +228,13 @@ export function PersonalizationSection(): React.JSX.Element {
         <div className="flex flex-wrap gap-2">
           <CopyButton
             label="Copy: set my profile up"
-            text={profileStarterPrompt()}
+            text={profileStarterPrompt('30 days', repoPath)}
             testId={TestIds.personalizationCopyStarter}
+          />
+          <CopyButton
+            label="Copy: focus this worktree"
+            text={profileWorktreePrompt(repoPath)}
+            testId={TestIds.personalizationCopyWorktree}
           />
           <CopyButton
             label="Copy: keep it up to date"
@@ -234,8 +243,8 @@ export function PersonalizationSection(): React.JSX.Element {
           />
         </div>
         <p className="text-xs text-muted-foreground">
-          The second one belongs in your <span className="font-mono">AGENTS.md</span> — paste it
-          once and the profile follows the work without you asking.
+          The last one belongs in your <span className="font-mono">AGENTS.md</span> — paste it once
+          and the profile follows the work without you asking.
         </p>
       </section>
     </div>
