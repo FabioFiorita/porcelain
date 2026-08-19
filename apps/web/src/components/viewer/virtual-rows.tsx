@@ -26,24 +26,33 @@ interface VirtualRowsProps<T> {
   onTopRow?: (index: number) => void
   /**
    * Size rows to the viewport width (`w-full`) instead of growing to content
-   * (`w-max`). Use for fixed multi-column layouts (split diff) where each column
-   * owns a share of the width and clips its own overflow — growing to content
-   * would let one column's long line overrun the other. Default `false` keeps the
-   * single-column horizontal-scroll behavior (unified diff, source view).
+   * (`w-max`). Use whenever a row must not extend past the viewport: rows that
+   * soft-wrap (the diff views — `w-max` is max-CONTENT width, which ignores wrap
+   * opportunities, so wrapping without this changes nothing), and fixed
+   * multi-column layouts where each column owns a share of the width. Default
+   * `false` keeps the horizontal-scroll behavior (source view).
    */
   fitWidth?: boolean
   /**
-   * Measure each row's real height instead of locking to `ROW_HEIGHT`. Default
-   * `false` — big file/diff viewers stay fixed-height (the perf invariant); opt in
-   * only for small, sliced surfaces needing a tall row (the reading surface's
-   * wrapping note). When on, the scroll viewport width publishes as `--vrows-vw`
-   * so a row wrapping to the VIEWPORT (not the scrolling `w-max` content) can size
-   * with `max-w-[var(--vrows-vw)]`.
+   * Measure each row's real height instead of locking to `ROW_HEIGHT`, which stays
+   * the estimate. Required by any row that can be taller than one line, and the diff
+   * surfaces are that: a soft-wrapped line has no fixed height. `source-view.tsx`
+   * deliberately stays fixed-height — its lines never wrap, so the total size is
+   * exact from the first paint.
+   *
+   * The measured cost of measuring, accepted by the owner: on a wrap-heavy diff the
+   * total scroll height settles upward during the first read as rows are measured
+   * (4000 rows: 81k px → 103k px). No jank; a diff whose lines all fit never drifts.
+   *
+   * When on, the scroll viewport width publishes as `--vrows-vw` so a row wrapping to
+   * the VIEWPORT (not the scrolling `w-max` content) can size with
+   * `max-w-[var(--vrows-vw)]`.
    */
   dynamicHeight?: boolean
 }
 
-/** Virtualized fixed-height row list for code/diff content. Only visible rows mount. */
+/** Virtualized row list for code/diff content. Only visible rows mount; rows are
+ *  `ROW_HEIGHT` tall unless `dynamicHeight` measures them. */
 export function VirtualRows<T>({
   rows,
   renderRow,

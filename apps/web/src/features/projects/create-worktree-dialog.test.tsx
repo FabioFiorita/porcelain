@@ -10,13 +10,6 @@ vi.mock('@renderer/features/git', () => ({
   useGitBranches: vi.fn(),
 }))
 
-if (typeof window.ResizeObserver === 'undefined') {
-  window.ResizeObserver = class ResizeObserver {
-    observe(): void {}
-    unobserve(): void {}
-    disconnect(): void {}
-  }
-}
 if (typeof Element.prototype.scrollIntoView !== 'function') {
   Element.prototype.scrollIntoView = (): void => {}
 }

@@ -9,14 +9,6 @@ import { useTextSearch } from './search-queries'
 // Mock the domain hook — never tRPC. useTextSearch feeds match data.
 vi.mock('./search-queries', () => ({ useTextSearch: vi.fn() }))
 
-// cmdk uses ResizeObserver and scrollIntoView internally; jsdom doesn't ship them.
-if (typeof window.ResizeObserver === 'undefined') {
-  window.ResizeObserver = class ResizeObserver {
-    observe(): void {}
-    unobserve(): void {}
-    disconnect(): void {}
-  }
-}
 // cmdk calls scrollIntoView on the selected item; stub it on the prototype.
 if (typeof Element.prototype.scrollIntoView !== 'function') {
   Element.prototype.scrollIntoView = (): void => {}

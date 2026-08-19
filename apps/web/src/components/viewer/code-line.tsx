@@ -54,10 +54,24 @@ export function useTokenizedLines(
   )
 }
 
+/**
+ * Soft-wrap classes for a line that must fit the viewport instead of extending it.
+ *
+ * `whitespace-pre-wrap` keeps every leading space and tab (indentation is meaning in
+ * code, so `normal` is never right here) while allowing a break at spaces.
+ * `wrap-anywhere` (`overflow-wrap: anywhere`) breaks a token that still doesn't fit —
+ * a URL, a base64 blob, a minified line — and, unlike `break-words`, it also drops the
+ * token out of the element's MIN-CONTENT width, which is what stops a flex/grid parent
+ * from being pushed wide again. `min-w-0` is the other half of that: a `flex-1` item
+ * defaults to `min-width: auto`, so without it the long token still wins.
+ */
+const wrapClass = 'whitespace-pre-wrap wrap-anywhere min-w-0'
+
 export function CodeLine({
   tokens,
   text,
   emphasis,
+  wrap = false,
 }: {
   /** Pre-tokenized spans for this line, or null to render plain text. */
   tokens: ThemedToken[] | null
@@ -65,11 +79,18 @@ export function CodeLine({
   text: string
   /** Intra-line word-diff highlight: character ranges to emphasize + the bg class to apply. */
   emphasis?: { ranges: readonly CharRange[]; className: string }
+  /**
+   * Soft-wrap the line to its container instead of running off the right edge. The
+   * host row must then measure its own height (a wrapped line is 2+ lines tall) — see
+   * `VirtualRows dynamicHeight`. Default false: one line, one row, horizontal scroll.
+   */
+  wrap?: boolean
 }): React.JSX.Element {
   const ranges = emphasis?.ranges
+  const lineClass = cn('flex-1', wrap ? wrapClass : 'whitespace-pre')
   // Plain text with nothing to emphasize keeps its bare <pre> (also the blank-line spacer).
   if ((!tokens || tokens.length === 0) && !ranges?.length) {
-    return <pre className="flex-1 whitespace-pre">{text || ' '}</pre>
+    return <pre className={lineClass}>{text || ' '}</pre>
   }
 
   const base =
@@ -81,7 +102,7 @@ export function CodeLine({
     : base.map((s) => ({ ...s, emphasized: false }))
 
   return (
-    <pre className="flex-1 whitespace-pre">
+    <pre className={lineClass}>
       {segments.map((seg, i) => (
         <span
           // biome-ignore lint/suspicious/noArrayIndexKey: segments are static per line

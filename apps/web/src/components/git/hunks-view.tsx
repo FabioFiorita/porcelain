@@ -178,12 +178,17 @@ function DiffRowView({ row, ctx }: { row: DiffRow; ctx: RenderContext }): React.
           tokens={ctx.tokens.get(row.line) ?? null}
           text={row.line.text}
           emphasis={ranges ? { ranges, className: emphasisClass[row.line.kind] } : undefined}
+          wrap
         />
       </div>
     )
   }
+  // No `h-full` here: once rows measure themselves the parent height is `auto`, so
+  // `h-full` resolved to the content height of the SHORTER side and the divider stopped
+  // short of a wrapped cell. Dropping it leaves flex's default `align-items: stretch`,
+  // which sizes both cells to the taller side.
   return (
-    <div className="flex h-full divide-x divide-border">
+    <div className="flex divide-x divide-border">
       <SplitCell line={row.left} side="left" ctx={ctx} />
       <SplitCell line={row.right} side="right" ctx={ctx} />
     </div>
@@ -237,10 +242,7 @@ function SplitCell({
     <div
       data-file={ctx.filePath}
       data-line={anchorLine}
-      className={cn(
-        'relative flex min-w-0 flex-1 overflow-hidden',
-        tint ?? (line ? lineClass[line.kind] : ''),
-      )}
+      className={cn('relative flex min-w-0 flex-1', tint ?? (line ? lineClass[line.kind] : ''))}
     >
       <LineDecorations comments={comments} />
       <LineNo value={line ? (line.kind === 'add' ? line.newLine : line.oldLine) : null} />
@@ -249,8 +251,13 @@ function SplitCell({
           tokens={ctx.tokens.get(line) ?? null}
           text={line.text}
           emphasis={ranges ? { ranges, className: emphasisClass[line.kind] } : undefined}
+          wrap
         />
       ) : (
+        // No wrap class needed, and no `overflow-hidden` on the cell to fall back on:
+        // this filler is a single space, so it can never widen the cell. Every cell
+        // that DOES hold text renders `CodeLine wrap`, which is what makes dropping
+        // the cell's `overflow-hidden` safe.
         <pre className="flex-1"> </pre>
       )}
     </div>
@@ -326,11 +333,15 @@ export function HunksView({
     )
   }
 
+  // Lines soft-wrap, so a row never extends past the viewport: `fitWidth` pins the row
+  // width to the scroller (there is nothing left to scroll sideways to), and
+  // `dynamicHeight` measures each row because a wrapped line is 2+ lines tall.
   return (
     <VirtualRows
       rows={rows}
       className="leading-5"
-      fitWidth={diffMode === 'split'}
+      fitWidth
+      dynamicHeight
       renderRow={(row: DiffRow): React.JSX.Element => <DiffRowView row={row} ctx={ctx} />}
     />
   )

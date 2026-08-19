@@ -48,6 +48,19 @@ if (typeof window !== 'undefined') {
     document.elementFromPoint = (): null => null
   }
 
+  // jsdom ships no ResizeObserver. The only stub for it — cmdk, Base UI's Collapsible
+  // and VirtualRows (measuring wrapped row heights, publishing `--vrows-vw`) all reach
+  // for it. jsdom lays nothing out, so a stub that never fires is the honest answer:
+  // the callback would only ever report zeroes. Layout is proved in a browser.
+  if (typeof window.ResizeObserver !== 'function') {
+    window.ResizeObserver = class {
+      observe(): void {}
+      unobserve(): void {}
+      disconnect(): void {}
+    } as unknown as typeof ResizeObserver
+    globalThis.ResizeObserver = window.ResizeObserver
+  }
+
   // jsdom ships no matchMedia; shadcn's SidebarProvider (and any responsive
   // primitive) calls it on mount, so stub it once for every component test.
   if (typeof window.matchMedia !== 'function') {

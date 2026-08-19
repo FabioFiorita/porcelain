@@ -6,7 +6,11 @@ import { HunksView } from './hunks-view'
 
 vi.mock('@renderer/components/viewer/code-line', () => ({
   useHighlighter: () => null,
-  CodeLine: ({ text }: { text: string }) => <span>{text}</span>,
+  // Surface `wrap` so the tests can pin that diff lines ask to soft-wrap. The real
+  // classes are pinned in code-line.test.tsx.
+  CodeLine: ({ text, wrap }: { text: string; wrap?: boolean }) => (
+    <span data-wrap={wrap === true}>{text}</span>
+  ),
 }))
 
 /** A whole-file diff of `total` lines with line `changed` replaced. */
@@ -90,5 +94,59 @@ describe('HunksView gaps', () => {
     expect(screen.getByText('Lines 1–2')).toBeInTheDocument()
     expect(screen.getByText('keep')).toBeInTheDocument()
     expect(screen.queryByText(/unchanged lines/)).not.toBeInTheDocument()
+  })
+})
+
+/**
+ * Reading a diff must never need horizontal scrolling: a long line wraps to the
+ * viewport, in both layouts and both modes. The row then has to be free to be taller
+ * than one line, so nothing may pin or clip its height.
+ *
+ * These render `layout="content"`, which is all jsdom can see: the `pane` layout goes
+ * through the real virtualizer, which measures a 0-tall scroll element here and mounts
+ * no rows at all. The shipped `fitWidth dynamicHeight` path is gated by
+ * `e2e/diff-wrap.spec.ts` on the browser lane instead.
+ */
+describe('HunksView wrapping', () => {
+  const longLine: DiffHunk = {
+    header: '@@ -1,2 +1,2 @@',
+    lines: [
+      { kind: 'context', oldLine: 1, newLine: 1, text: '  indented context' },
+      { kind: 'add', oldLine: null, newLine: 2, text: 'a'.repeat(400) },
+    ],
+  }
+
+  it('asks every unified line to wrap', () => {
+    render(<HunksView hunks={[longLine]} filePath="a.md" diffMode="unified" layout="content" />)
+    const lines = screen.getAllByText(/indented context|a{400}/)
+    expect(lines).toHaveLength(2)
+    for (const line of lines) expect(line).toHaveAttribute('data-wrap', 'true')
+  })
+
+  it('asks every split cell to wrap, and never clips the cell that grew taller', () => {
+    const { container } = render(
+      <HunksView hunks={[longLine]} filePath="a.md" diffMode="split" layout="content" />,
+    )
+    for (const line of screen.getAllByText(/indented context|a{400}/)) {
+      expect(line).toHaveAttribute('data-wrap', 'true')
+    }
+    // Scoped to the cell holding the long added line, not the whole subtree: the cell
+    // is what used to carry `overflow-hidden`, and pinning its absence anywhere would
+    // break on unrelated chrome later.
+    const cell = container.querySelector('[data-line="2"]')
+    expect(cell).not.toBeNull()
+    expect(cell?.className).not.toContain('overflow-hidden')
+  })
+
+  it('lets a split row grow to its taller side instead of pinning it to the parent', () => {
+    const { container } = render(
+      <HunksView hunks={[longLine]} filePath="a.md" diffMode="split" layout="content" />,
+    )
+    // `h-full` resolved against a parent that is now auto-height, so it sized the row to
+    // the shorter side and cut the divider off beside a wrapped cell. Flex's default
+    // `align-items: stretch` is what should size the cells.
+    const rows = container.querySelectorAll('.divide-x')
+    expect(rows).not.toHaveLength(0)
+    for (const row of rows) expect(row.className).not.toContain('h-full')
   })
 })
