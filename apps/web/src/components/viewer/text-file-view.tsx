@@ -2,9 +2,9 @@ import { type CommentAnchor, CommentComposer } from '@renderer/components/git/co
 import { Button } from '@renderer/components/ui/button'
 import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
-import { HtmlView, isHtmlPath } from '@renderer/components/viewer/html-view'
+import { HtmlDocumentFrame, isHtmlPath } from '@renderer/components/viewer/html-view'
 import { isMarkdownPath, MarkdownView } from '@renderer/components/viewer/markdown-view'
-import { useFilePreview } from '@renderer/features/files'
+import { useFilePreview, useFilePreviewSrc } from '@renderer/features/files'
 import { useCommentIndex } from '@renderer/features/review'
 import { raisedCardClass, viewerWellClass } from '@renderer/lib/controls'
 import { relativeTo } from '@renderer/lib/paths'
@@ -90,7 +90,10 @@ export function TextFileView({
   const html = isHtmlPath(path)
   const reader = markdown && markdownMode === 'reader'
   const preview = html && htmlMode === 'preview'
+  // Two halves of one surface: the query answers "is there a preview at all"
+  // (missing / too large), the minted URL is where the frame points.
   const { html: previewHtml, error: previewError } = useFilePreview(path, preview)
+  const previewSrc = useFilePreviewSrc(path, preview && previewHtml !== null)
   const lineCount = content.split('\n').length
   const editable = !reader && !preview && lineCount <= EDITABLE_MAX_LINES
   // ≥90% coverage = whole-file noise (untracked); drop the tint, keep scroll.
@@ -168,8 +171,13 @@ export function TextFileView({
                 HTML preview unavailable (missing or too large). Switch to Source to edit the raw
                 file.
               </p>
+            ) : previewSrc === null ? (
+              <p className="p-4 text-sm text-muted-foreground">Loading…</p>
             ) : (
-              <HtmlView html={previewHtml} title={path.split('/').at(-1) ?? 'HTML preview'} />
+              <HtmlDocumentFrame
+                src={previewSrc}
+                title={path.split('/').at(-1) ?? 'HTML preview'}
+              />
             )
           ) : editable ? (
             <EditorSource

@@ -3,6 +3,7 @@ import { porcelainHome, porcelainHomePath } from '@shared/porcelain-home'
 import { taskAttachmentPath } from '@shared/tasks-porcelain'
 import { createDaemonOperations, createDaemonRouter } from './api'
 import { devRepoPath, recognizedDevPlaygroundPath, seedDevConfig } from './dev-config'
+import { createFilePreviewTokens } from './features/files'
 import { createGitSubprocess } from './features/git'
 import {
   createCanvasAccessTokens,
@@ -39,6 +40,7 @@ import { warmFileList } from './git/git'
 import { isLinkedWorktree } from './git/linked-worktree'
 import { ensureAdminToken } from './net/admin-token'
 import { handleCanvasRequest } from './net/canvas-http'
+import { handleFilePreviewRequest } from './net/file-preview-http'
 import { daemonIdentity } from './net/daemon-identity'
 import { daemonVersion } from './net/daemon-version'
 import { createMcpToolHandlers, handleMcpRequest } from './net/mcp'
@@ -89,6 +91,9 @@ const hubInventory = initHubInventoryStore(porcelainHomeDir)
 // must resolve against the SAME in-memory grant map the GET /canvas/<token> route reads
 // from (the Canvas operations only expose mint, not resolve — that's this route's own concern).
 const canvasAccessTokens = createCanvasAccessTokens()
+// Same story one domain over: the Files operations mint file-preview grants, the
+// GET /file-preview/<token> route resolves them, and both must share this map.
+const filePreviewTokens = createFilePreviewTokens()
 const canvasStores = {
   store: createCanvasStore({ homeDir: porcelainHomeDir }),
   overlay: createCanvasOverlayStore(),
@@ -183,6 +188,7 @@ async function main(): Promise<void> {
     },
     terminal,
     homeDir: porcelainHomeDir,
+    filePreviewTokens,
   })
   const router = createDaemonRouter({ operations })
   // One handler set for the process; the MCP route is stateless, so nothing here is
@@ -206,6 +212,14 @@ async function main(): Promise<void> {
       handleCanvasRequest(req, res, {
         resolveAccessToken: canvasAccessTokens.resolve,
         readCanvas: projects.readCanvas,
+      }),
+    // The one preview surface whose response CSP lets an author's own scripts run,
+    // which is why it asks for script inlining the tRPC procedure never requests.
+    serveFilePreview: (req, res) =>
+      handleFilePreviewRequest(req, res, {
+        resolveAccessToken: filePreviewTokens.resolve,
+        readPreviewDocument: (scope) =>
+          operations.files.previewHtml({ ...scope, inlineScripts: true }),
       }),
     // The agent tool surface. Opt-in for the human — installing the plugin is what
     // turns it on for an agent — but always mounted, because the daemon cannot know
