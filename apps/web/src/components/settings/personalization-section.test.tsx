@@ -117,9 +117,23 @@ describe('PersonalizationSection', () => {
     await waitFor(() => expect(vi.mocked(copyText).mock.calls.length).toBe(1))
 
     const copied = vi.mocked(copyText).mock.calls[0]?.[0] ?? ''
-    expect(copied).toContain('porcelain profile set')
+    expect(copied).toContain('porcelain_profile')
+    expect(copied).toContain('`level` project')
+    expect(copied).not.toContain('porcelain profile set')
     expect(copied).toContain('.gitignore')
     expect(copied).not.toContain('node_modules')
+  })
+
+  it("copies a worktree prompt with this checkout's path already filled in", async () => {
+    render(<PersonalizationSection />)
+
+    fireEvent.click(screen.getByTestId(TestIds.personalizationCopyWorktree))
+    await waitFor(() => expect(vi.mocked(copyText).mock.calls.length).toBe(1))
+
+    const copied = vi.mocked(copyText).mock.calls[0]?.[0] ?? ''
+    expect(copied).toContain('`level` worktree')
+    expect(copied).toContain('/repo')
+    expect(copied).not.toContain("this checkout's absolute path")
   })
 
   it('copies a keeper prompt that tells the agent to re-focus the worktree', async () => {
@@ -129,8 +143,10 @@ describe('PersonalizationSection', () => {
     await waitFor(() => expect(vi.mocked(copyText).mock.calls.length).toBe(1))
 
     const copied = vi.mocked(copyText).mock.calls[0]?.[0] ?? ''
-    expect(copied).toContain('porcelain worktree profile set')
-    expect(copied).toContain('porcelain worktree profile clear')
+    expect(copied).toContain('porcelain_profile')
+    expect(copied).toContain('`level` worktree')
+    expect(copied).toContain('`op` clear')
+    expect(copied).not.toContain('porcelain worktree profile')
   })
 
   it('asks for a repository rather than rendering an empty profile', () => {

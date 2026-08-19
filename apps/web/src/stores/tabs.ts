@@ -4,7 +4,15 @@ import { z } from 'zod'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
-export type TabKind = 'file' | 'diff' | 'commit' | 'changeset' | 'search' | 'tasks' | 'canvas'
+export type TabKind =
+  | 'file'
+  | 'diff'
+  | 'commit'
+  | 'changeset'
+  | 'search'
+  | 'tasks'
+  | 'terminals'
+  | 'canvas'
 
 // The tabs store is the router: a tab id is its kind plus its key (file path,
 // commit hash, or search query). Every opener must build ids through this so
@@ -91,7 +99,7 @@ const hubTargetSchema = z
 const tabSchema = z
   .object({
     id: z.string().min(1),
-    kind: z.enum(['file', 'diff', 'commit', 'changeset', 'search', 'tasks', 'canvas']),
+    kind: z.enum(['file', 'diff', 'commit', 'changeset', 'search', 'tasks', 'terminals', 'canvas']),
     title: z.string().min(1),
     path: z.string().min(1),
     line: z.number().int().positive().optional(),
@@ -347,3 +355,15 @@ export const useTabsStore = create<TabsState>()(
     },
   ),
 )
+
+/**
+ * The tab the Viewer is showing in the focused pane — what sidebar rows read to
+ * mark themselves open. Sidebar lists highlight one row (the thing on screen),
+ * so this deliberately follows the active pane only, like the file timeline.
+ */
+export function useActiveTab(): Tab | null {
+  return useTabsStore((s) => {
+    const pane = s.panes[s.activePaneIndex]
+    return pane?.tabs.find((t) => t.id === pane.activeTabId) ?? null
+  })
+}

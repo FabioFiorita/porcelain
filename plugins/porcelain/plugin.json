@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "porcelain",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "Drive Porcelain — publish Reviews, manage Tasks, Actions, and profiles, close the evidence loop, and set up a remote daemon.",
   "author": {
     "name": "Fabio Fiorita",

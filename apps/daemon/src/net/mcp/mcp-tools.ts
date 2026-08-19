@@ -25,9 +25,12 @@ export type McpToolDefinition = Readonly<{
  */
 const WORKSPACE = {
   description:
-    'Which checkout to act on: an absolute path inside it (local daemon), or {projectId, worktreeId?} — required when the daemon runs on another host.',
+    'Which checkout to act on. Normally the absolute path of the repository you are working in — your own working directory (process.cwd()) or any directory inside it works, e.g. "/home/me/code/app". Use {projectId, worktreeId?} to act on a DIFFERENT checkout than your own, or when the daemon runs on another host where your path means nothing; list the ids with porcelain_context include: ["projects"].',
   anyOf: [
-    { type: 'string', description: 'Absolute path inside the checkout' },
+    {
+      type: 'string',
+      description: 'Absolute path inside the checkout — your cwd or the repo root',
+    },
     {
       type: 'object',
       properties: {
@@ -93,19 +96,26 @@ export const MCP_TOOLS: readonly McpToolDefinition[] = Object.freeze([
     name: 'porcelain_context',
     title: 'Read the workspace',
     description:
-      "Read the current state of a Porcelain workspace: the Review, the human's review comments, the files they have marked reviewed, Tasks, saved Actions, and Canvases. Call this first — it resolves the workspace and returns what is needed to orient. Defaults to the Review, comments and marks; ask for tasks/actions/canvases only when the work needs them.",
+      'Read Porcelain state: the Review, the human\'s open review comments, the files they marked reviewed, the Task board, saved Actions, Canvases, and the Projects this daemon has open. Call this FIRST — it resolves the workspace and is the only read you need; never read $PORCELAIN_HOME or call the daemon\'s HTTP API yourself. Examples: {workspace: "/home/me/code/app", include: ["tasks"]} lists every open Task with its short id (T-18), status, notes, links and attachment paths; add includeDone: true for finished ones; {include: ["tasks"], taskId: "T-18"} returns one Task, whose attachments carry an absolute hostPath you can read as a file when the daemon is this machine; {include: ["projects"]} lists the projectId/worktreeId of every checkout, for acting on one other than your own.',
     inputSchema: {
       type: 'object',
       properties: {
         workspace: WORKSPACE,
         include: {
           type: 'array',
-          items: { enum: ['review', 'comments', 'marks', 'tasks', 'actions', 'canvases'] },
-          description: 'Sections to return. Default: review, comments, marks.',
+          items: {
+            enum: ['review', 'comments', 'marks', 'tasks', 'actions', 'canvases', 'projects'],
+          },
+          description:
+            'Sections to return. Default: review, comments, marks. "tasks" is the whole daemon-wide board; "projects" is every checkout this daemon has open, with its ids.',
         },
         taskId: {
           type: 'string',
-          description: 'Return only this Task (UUID or short id, e.g. T-18)',
+          description: 'Return only this Task. Short id (T-18) or UUID.',
+        },
+        includeDone: {
+          type: 'boolean',
+          description: 'Include Tasks with status "done" in the listing. Default false.',
         },
       },
       required: ['workspace'],
@@ -116,7 +126,7 @@ export const MCP_TOOLS: readonly McpToolDefinition[] = Object.freeze([
     name: 'porcelain_profile',
     title: 'Read or set the profile',
     description:
-      'Read or replace the private project profile or this worktree override. Reads before writes; set replaces the selected level as a whole. Clear removes the selected level.',
+      'Read or replace the private project profile or this worktree override. Reads before writes; set replaces the selected level as a whole, so get first. Clear removes the selected level. pinnedPaths and hiddenPaths are EXACT repository-relative paths matched by set membership, not globs — "dist" hides that directory, "*.log" hides nothing.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -185,18 +195,43 @@ export const MCP_TOOLS: readonly McpToolDefinition[] = Object.freeze([
     name: 'porcelain_task',
     title: 'Record a Task',
     description:
-      'Create or update a Task on the daemon-wide board — work that spans or outlives this checkout. Omit "id" to create; pass it to update. Tasks are read through porcelain_context.',
+      'Create or update Tasks on the daemon-wide board — work that spans or outlives this checkout. Omit "id" to create. Pass "id" (short id like T-18, or UUID) to update one, or "ids" to apply the same change to several — e.g. {ids: ["T-3","T-4"], status: "done"}. A "link" is ADDED to the Task\'s existing links (attach a PR with {id: "T-18", status: "done", link: "https://github.com/o/r/pull/7", linkLabel: "PR #7"}); "links" replaces them all. Read Tasks back with porcelain_context include: ["tasks"]. If something you need is not possible here, that is a bug in this tool — record it as a Task rather than editing the daemon\'s files.',
     inputSchema: {
       type: 'object',
       properties: {
         workspace: WORKSPACE,
-        id: { type: 'string', description: 'Omit to create a new Task' },
-        title: { type: 'string' },
-        notes: { type: 'string', description: 'Markdown' },
+        id: {
+          type: 'string',
+          description: 'Short id (T-18) or UUID of the Task to update. Omit to create a new one.',
+        },
+        ids: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Update several Tasks with the same change. Not for title.',
+        },
+        title: { type: 'string', description: 'Required when creating' },
+        notes: { type: 'string', description: 'Markdown. Replaces the existing notes.' },
         status: { enum: ['todo', 'doing', 'done', 'blocked'] },
-        tags: { type: 'array', items: { type: 'string' } },
-        link: { type: 'string', description: 'An http(s) URL to attach' },
-        linkLabel: { type: 'string' },
+        tags: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Replaces the existing tags',
+        },
+        link: {
+          type: 'string',
+          description: 'An http(s) URL ADDED to the Task, keeping the links already there',
+        },
+        linkLabel: { type: 'string', description: 'Label for "link". Defaults to the URL.' },
+        links: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: { url: { type: 'string' }, label: { type: 'string' } },
+            required: ['url'],
+            additionalProperties: false,
+          },
+          description: 'Replace every link on the Task. Use "link" to add one.',
+        },
         attach: {
           type: 'string',
           description:

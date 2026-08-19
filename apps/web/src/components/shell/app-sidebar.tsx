@@ -11,6 +11,7 @@ import {
 } from '@renderer/components/ui/sidebar'
 import { HubTree } from '@renderer/features/projects'
 import { openTasksBoard } from '@renderer/features/tasks'
+import { openTerminalsBoard } from '@renderer/features/terminal'
 import { kbdLabel } from '@renderer/lib/keyboard'
 import { isFramelessShell, isMacShell } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
@@ -20,8 +21,9 @@ import { useProjectPickerStore } from '@renderer/stores/project-picker'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { useUnreadStore } from '@renderer/stores/unread'
 import { TestIds } from '@shared/test-ids'
-import { Plus, Search, Table2 } from 'lucide-react'
+import { Plus, Search, SquareTerminal, Table2 } from 'lucide-react'
 import { MAC_TRAFFIC_LIGHT_CLEARANCE, sidebarTopOffsetClass } from './shell-chrome'
+import { DaemonUpdateButton } from './daemon-update-button'
 import { SidebarResizeHandle } from './sidebar-resize-handle'
 import { UpdateButton } from './update-button'
 
@@ -36,6 +38,10 @@ export function AppSidebar(): React.JSX.Element {
   const tasksActive = useTabsStore((s) => {
     const pane = s.panes[s.activePaneIndex]
     return pane?.tabs.find((tab) => tab.id === pane.activeTabId)?.kind === 'tasks'
+  })
+  const terminalsActive = useTabsStore((s) => {
+    const pane = s.panes[s.activePaneIndex]
+    return pane?.tabs.find((tab) => tab.id === pane.activeTabId)?.kind === 'terminals'
   })
   const tasksUnread = useUnreadStore((s) => s.unread.tasks)
   const showNewTask = useNewTaskDialogStore((s) => s.show)
@@ -64,6 +70,7 @@ export function AppSidebar(): React.JSX.Element {
         <img src={logo} alt="" draggable={false} className="size-6 shrink-0" />
         <span className="truncate text-sm font-semibold text-foreground">Porcelain</span>
         <div className="app-no-drag ml-auto flex shrink-0 items-center gap-1.5">
+          <DaemonUpdateButton />
           <UpdateButton />
           <Button
             variant="ghost"
@@ -123,6 +130,24 @@ export function AppSidebar(): React.JSX.Element {
               <Plus />
             </Button>
           </div>
+        </div>
+        <div className="app-no-drag px-2 pt-1">
+          <button
+            type="button"
+            data-testid={TestIds.terminalsOpen}
+            aria-label="Open Terminals"
+            aria-current={terminalsActive ? 'page' : undefined}
+            className={cn(
+              'flex h-8 w-full min-w-0 items-center gap-2 rounded-md px-2 text-left text-xs',
+              terminalsActive
+                ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                : 'text-muted-foreground hover:bg-sidebar-accent/50',
+            )}
+            onClick={() => openTerminalsBoard()}
+          >
+            <SquareTerminal className="size-3.5 shrink-0" />
+            <span className="min-w-0 flex-1 truncate">Terminals</span>
+          </button>
         </div>
         <div className="app-no-drag px-2 pt-3">
           <HubTree className="max-w-none" />

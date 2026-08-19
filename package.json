@@ -27,6 +27,7 @@
     "worktree": "node scripts/worktree.mjs",
     "dev": "pnpm --dir apps/desktop dev",
     "dev:daemon": "node scripts/dev-daemon.mjs",
+    "dev:web": "pnpm --dir apps/web dev",
     "dev:pair": "node scripts/dev-pair.mjs",
     "dev:seed": "node scripts/dev-seed.mjs",
     "playground": "node scripts/playground.mjs",

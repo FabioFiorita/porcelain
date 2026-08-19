@@ -15,10 +15,10 @@ import {
 } from '@renderer/components/ui/sidebar'
 import { Textarea } from '@renderer/components/ui/textarea'
 import {
+  useApplyCommitGroups,
   useCommit,
   useCommitConventions,
   useCommitGeneration,
-  useFileStaging,
   useGitFlow,
   useStageAll,
 } from '@renderer/features/git'
@@ -31,6 +31,7 @@ import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
 import {
+  Check,
   ChevronsUpDown,
   FileMinus2,
   FilePlus2,
@@ -145,7 +146,6 @@ export function CommitGroup(): React.JSX.Element {
   const clearMessage = useCommitDraftStore((s) => s.clearMessage)
   const [staged, setStaged] = useState<{ text: string; failed: boolean } | null>(null)
   const [generatedGroups, setGeneratedGroups] = useState<CommitGroupGenerationGroup[] | null>(null)
-  const [isApplyingGroup, setIsApplyingGroup] = useState(false)
   const conventions = useCommitConventions()
   const {
     commit: runCommit,
@@ -157,7 +157,7 @@ export function CommitGroup(): React.JSX.Element {
   })
   const { generateMessage, generateGroups, isGenerating } = useCommitGeneration()
   const { stageAll, unstageAll, isStaging } = useStageAll()
-  const { stageFile } = useFileStaging()
+  const { applyGroups, isApplying } = useApplyCommitGroups()
   const { groups } = useGitFlow()
 
   // "Stage all" flips to "Unstage all" once every change is fully staged with
@@ -251,24 +251,41 @@ export function CommitGroup(): React.JSX.Element {
     )
   }
 
-  const handleUseGroup = (group: CommitGroupGenerationGroup): void => {
-    if (isApplyingGroup) return
-    setIsApplyingGroup(true)
+  /**
+   * Accept the whole proposal. The daemon stages and commits every group in one call, so the
+   * human never stages or commits a group by hand — that was the point of the feature.
+   * A partial batch is not an error to swallow: the surviving groups stay on screen with the
+   * outcome, so the human can see what landed and retry the rest.
+   */
+  const handleAcceptGroups = (): void => {
+    if (generatedGroups === null || isApplying) return
     setStaged(null)
     runUserAction(
       async () => {
-        for (const path of group.files) await stageFile(path)
-        setMessage(repoPath, group.message)
+        const results = await applyGroups(generatedGroups)
+        const committed = results.filter((r) => r.status === 'committed')
+        const failure = results.find((r) => r.status === 'failed')
+        if (failure === undefined) {
+          setGeneratedGroups(null)
+          clearMessage(repoPath)
+          setStaged({
+            text: `Committed ${committed.length} group${committed.length === 1 ? '' : 's'}`,
+            failed: false,
+          })
+          return
+        }
+        setGeneratedGroups(
+          results
+            .filter((r) => r.status !== 'committed')
+            .map((r) => ({ files: r.files, message: r.message })),
+        )
         setStaged({
-          text: `Staged ${group.files.length} file${group.files.length === 1 ? '' : 's'} for this group`,
-          failed: false,
+          text: `Committed ${committed.length} of ${results.length} groups — “${failure.message}” failed: ${failure.error ?? 'unknown error'}`,
+          failed: true,
         })
       },
       (e) => {
         setStaged({ text: e instanceof Error ? e.message : String(e), failed: true })
-      },
-      () => {
-        setIsApplyingGroup(false)
       },
     )
   }
@@ -388,28 +405,32 @@ export function CommitGroup(): React.JSX.Element {
               {isGenerating ? 'Generating…' : 'Generate Group Commit'}
             </Button>
           </div>
-          {generatedGroups && (
+          {generatedGroups && generatedGroups.length > 0 && (
             <div className="flex flex-col gap-2 border-t pt-2">
               <p className="text-2xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                Generated groups
+                Proposed commits
               </p>
-              {generatedGroups.map((group) => (
+              {generatedGroups.map((group, index) => (
                 <div key={group.files.join('|')} className="rounded-md border p-2">
+                  <p className="text-2xs text-muted-foreground">Commit {index + 1}</p>
                   <p className="whitespace-pre-wrap text-xs font-medium">{group.message}</p>
                   <p className="mt-1 break-words font-mono text-2xs text-muted-foreground">
                     {group.files.join(', ')}
                   </p>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className={cn(compactButtonClass, 'mt-1 rounded-md px-1.5')}
-                    disabled={isApplyingGroup}
-                    onClick={() => handleUseGroup(group)}
-                  >
-                    Stage group
-                  </Button>
                 </div>
               ))}
+              <Button
+                size="sm"
+                className={cn(compactButtonClass, 'w-full justify-start rounded-md')}
+                disabled={isApplying}
+                data-testid={TestIds.acceptCommitGroups}
+                onClick={handleAcceptGroups}
+              >
+                <Check />
+                {isApplying
+                  ? 'Committing…'
+                  : `Accept all — commit ${generatedGroups.length} group${generatedGroups.length === 1 ? '' : 's'}`}
+              </Button>
             </div>
           )}
         </div>

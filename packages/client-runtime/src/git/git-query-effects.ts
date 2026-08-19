@@ -67,8 +67,32 @@ export function gitQueryEffectMatchesQuery(
     case 'diff-reading-family':
       return query.domain === 'git' && query.name === 'diff-reading'
     default:
-      return gitQueryEffectKey(query) === gitQueryEffectKey(effect)
+      return (
+        baseAgnosticMatch(query, effect) || gitQueryEffectKey(query) === gitQueryEffectKey(effect)
+      )
   }
+}
+
+/**
+ * A Branch-scope effect names a SCOPE, not a comparison base.
+ *
+ * Since a reviewer can compare their branch against any ref, one project can hold
+ * several cached branch-range identities at once — `origin/main`, `develop`, the
+ * upstream. A commit or a fetch invalidates all of them, and the mutation that
+ * declares the consequence has no idea which ones a client is holding. So an
+ * effect built WITHOUT a base ("the branch view is stale") matches every base;
+ * an effect that names one still matches only that one.
+ */
+function baseAgnosticMatch(query: GitWorkspaceQuery, effect: GitQueryEffect): boolean {
+  if (query.domain !== 'git' || effect.domain !== 'git') return false
+  if (query.name === 'range-flow' && effect.name === 'range-flow') return effect.base === undefined
+  return (
+    query.name === 'diff-reading' &&
+    effect.name === 'diff-reading' &&
+    query.scope.type === 'branch' &&
+    effect.scope.type === 'branch' &&
+    effect.scope.base === undefined
+  )
 }
 
 function gitQueryEffectKey(effect: GitQueryEffect): string {

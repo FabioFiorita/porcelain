@@ -14,6 +14,7 @@ import {
 } from '@renderer/components/ui/sidebar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import {
+  type DiffReadingScope,
   useBranchFlow,
   useDiffFileHoverPrefetch,
   useDiscardFile,
@@ -25,13 +26,15 @@ import {
 import { toastingAction } from '@renderer/hooks/mutation-error'
 import { dirName, fileName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'
+import { useHubTarget } from '@renderer/stores/hub-selection'
 import { targetedTab } from '@renderer/stores/hub-tabs'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useRevealStore } from '@renderer/stores/reveal'
-import { useTabsStore } from '@renderer/stores/tabs'
+import { useActiveTab, useTabsStore } from '@renderer/stores/tabs'
 import { TestIds } from '@shared/test-ids'
 import {
+  Check,
   FileText,
   MessageSquarePlus,
   Minus,
@@ -42,6 +45,7 @@ import {
   Undo2,
 } from 'lucide-react'
 import { memo, useState } from 'react'
+import { ChangesBasePicker } from './changes-base-picker'
 import { ChangesEmptyState } from './changes-empty-state'
 import { ChangesScopeToggle } from './changes-scope-toggle'
 import { changesetTabKey } from './changeset-view'
@@ -77,6 +81,17 @@ function FileRowImpl({
   const reviewed = useReviewedPaths()
   const { mark, unmark } = useToggleReviewed()
   const isReviewed = reviewed.has(file.path)
+  // The row is "open" when the Viewer shows this file's diff in the same scope:
+  // a working-tree row (no base) must not light up for a branch-diff tab, and a
+  // diff tab bound to another Worktree must not light up this project's row (tab
+  // paths are repository-relative, so two projects share them).
+  const activeTab = useActiveTab()
+  const hubTarget = useHubTarget()
+  const isOpen =
+    activeTab?.kind === 'diff' &&
+    activeTab.path === file.path &&
+    activeTab.base === base &&
+    (activeTab.target === undefined || activeTab.target.path === hubTarget?.path)
   const [commentAnchor, setCommentAnchor] = useState<CommentAnchor | null>(null)
   const confirmDiscardFile = toastingAction('Discard file', () => discardFile(file.path))
   const [confirmDiscard, setConfirmDiscard] = useState(false)
@@ -108,8 +123,10 @@ function FileRowImpl({
             render={
               <SidebarMenuButton
                 className="h-auto py-1 pr-8"
+                isActive={isOpen}
                 data-testid={TestIds.changesFile(name)}
                 data-path={file.path}
+                data-reviewed={isReviewed}
                 onClick={() =>
                   openTab(
                     targetedTab('diff', file.path, {
@@ -162,7 +179,14 @@ function FileRowImpl({
                       </TooltipContent>
                     </Tooltip>
                   )}
-                  <span className={cn('truncate font-mono text-sm-minus')}>{name}</span>
+                  <span
+                    className={cn(
+                      'truncate font-mono text-sm-minus',
+                      isReviewed && 'text-muted-foreground',
+                    )}
+                  >
+                    {name}
+                  </span>
                   {file.additions !== undefined && (
                     <span className="shrink-0 font-mono text-2xs text-success">
                       +{file.additions}
@@ -172,6 +196,22 @@ function FileRowImpl({
                     <span className="shrink-0 font-mono text-2xs text-destructive">
                       −{file.deletions}
                     </span>
+                  )}
+                  {/* Reviewed mark: the row's right edge belongs to the comment
+                      button, so the check rides the name line instead. */}
+                  {isReviewed && (
+                    <Tooltip>
+                      <TooltipTrigger
+                        render={
+                          <Check
+                            role="img"
+                            aria-label="Reviewed"
+                            className="size-3 shrink-0 self-center text-success"
+                          />
+                        }
+                      />
+                      <TooltipContent>Reviewed</TooltipContent>
+                    </Tooltip>
                   )}
                 </span>
                 <span
@@ -262,7 +302,13 @@ export function ChangesList(): React.JSX.Element {
   // when scope is 'working' (no wasted fetch); working hook always fetches (it
   // polls for live working-tree state regardless of the active scope).
   const working = useGitFlow()
-  const branch = useBranchFlow(changesScope === 'branch')
+  // The stored pick is per repo path — "compare against develop" is a fact about
+  // one project, not a global mode.
+  const requestedBase = usePreferencesStore((s) =>
+    project ? s.compareBases[project.path] : undefined,
+  )
+  const setCompareBase = usePreferencesStore((s) => s.setCompareBase)
+  const branch = useBranchFlow(changesScope === 'branch', requestedBase)
 
   // Polls live (gitFlow / branch flow) — no manual refresh control.
   const { groups } = changesScope === 'branch' ? branch : working
@@ -279,8 +325,12 @@ export function ChangesList(): React.JSX.Element {
   // Opens the continuous stacked-diff surface for the active scope (working or
   // branch) — same flow order as this list, one scrollable document.
   const handleOpenReviewAll = (): void => {
-    const scope =
-      changesScope === 'branch' ? ({ type: 'branch' } as const) : ({ type: 'working' } as const)
+    // Carry the SAME base into the stacked-diff surface. Without it the list would
+    // say "12 files vs develop" and Review All would show the diff vs origin/main.
+    const scope: DiffReadingScope =
+      changesScope === 'branch'
+        ? { type: 'branch', ...(base === undefined ? {} : { base }) }
+        : { type: 'working' }
     const key = changesetTabKey(scope)
     openTab(
       targetedTab('changeset', key, {
@@ -293,14 +343,25 @@ export function ChangesList(): React.JSX.Element {
     <div data-testid={TestIds.changesList} className="flex flex-col gap-2 p-2">
       <ChangesScopeToggle />
       <div className="flex items-center justify-between gap-1">
-        <span
-          data-testid={TestIds.changesSummary}
-          data-count={total}
-          className="min-w-0 text-xs text-muted-foreground"
-        >
-          {total} changed {total === 1 ? 'file' : 'files'}
-          {base && ` · vs ${base}`}
-        </span>
+        <div className="flex min-w-0 items-center gap-0.5">
+          <span
+            data-testid={TestIds.changesSummary}
+            data-count={total}
+            className="min-w-0 truncate text-xs text-muted-foreground"
+          >
+            {total} changed {total === 1 ? 'file' : 'files'}
+            {base !== undefined && ' ·'}
+          </span>
+          {base !== undefined && (
+            <ChangesBasePicker
+              repoPath={project.path}
+              selected={base}
+              defaultBase={branch.defaultBase}
+              requested={requestedBase}
+              onSelect={(next) => setCompareBase(project.path, next)}
+            />
+          )}
+        </div>
         <div className="flex shrink-0 items-center gap-0.5">
           <CommentsManageMenu />
           {total > 0 && <ReviewAllToggle paths={paths} allReviewed={allReviewed} />}
