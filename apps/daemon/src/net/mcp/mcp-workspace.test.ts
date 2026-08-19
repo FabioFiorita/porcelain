@@ -81,7 +81,11 @@ describe('resolveWorkspace', () => {
       const result = await resolveWorkspace(stranger, inventory(root))
       expect(result.ok).toBe(false)
       if (result.ok) return
-      expect(result.message).toMatch(/Open it in Porcelain first/)
+      expect(result.message).toMatch(/Open it in the Porcelain app first/)
+      // The refusal has to name a Project, or "pass {projectId}" is a dead end: an
+      // agent has no other way to learn an id, so it guesses or goes around the tool.
+      expect(result.message).toContain('proj-1')
+      expect(result.message).toContain(root)
     } finally {
       await rm(stranger, { recursive: true, force: true })
     }

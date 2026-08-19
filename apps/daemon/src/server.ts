@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { porcelainHome, porcelainHomePath } from '@shared/porcelain-home'
+import { taskAttachmentPath } from '@shared/tasks-porcelain'
 import { createDaemonOperations, createDaemonRouter } from './api'
 import { devRepoPath, recognizedDevPlaygroundPath, seedDevConfig } from './dev-config'
 import { createFilePreviewTokens } from './features/files'
@@ -195,6 +196,7 @@ async function main(): Promise<void> {
   const mcpToolHandlers = createMcpToolHandlers({
     operations,
     canvasBundleDir: canvasStores.store.bundleDirFor,
+    attachmentPath: (storedPath) => taskAttachmentPath(porcelainHomeDir, storedPath),
   })
   daemon = createRemoteHttp({
     adminTokenHash: tokenHash,
