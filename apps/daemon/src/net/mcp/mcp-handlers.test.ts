@@ -103,8 +103,28 @@ function operations(overrides: Record<string, unknown> = {}) {
       listTasks: async () => ({
         ok: true,
         value: [
-          { id: 'task-1', shortId: 'T-1', title: 'open', status: 'todo' },
-          { id: 'task-2', shortId: 'T-2', title: 'shipped', status: 'done' },
+          {
+            id: '11111111-1111-4111-8111-111111111111',
+            shortId: 'T-1',
+            title: 'open',
+            status: 'todo',
+            notes: 'the note',
+            links: [{ url: 'https://example.test/issue/1', label: 'issue' }],
+            attachments: [
+              {
+                id: 'att-1',
+                name: 'shot.png',
+                storedPath: 'task-1/att-1-shot.png',
+                mime: 'image/png',
+              },
+            ],
+          },
+          {
+            id: '22222222-2222-4222-8222-222222222222',
+            shortId: 'T-2',
+            title: 'shipped',
+            status: 'done',
+          },
         ],
       }),
       createTask: async (input: unknown) => {
@@ -113,7 +133,7 @@ function operations(overrides: Record<string, unknown> = {}) {
       },
       updateTask: async (input: unknown) => {
         record('updateTask', input)
-        return { ok: true, value: { id: 'task-1', shortId: 'T-1' } }
+        return { ok: true, value: { id: '11111111-1111-4111-8111-111111111111', shortId: 'T-1' } }
       },
       ...(overrides.tasks ?? {}),
     },
@@ -144,6 +164,7 @@ function handlers(overrides: Record<string, unknown> = {}) {
     tools: createMcpToolHandlers({
       operations: ops,
       canvasBundleDir: (projectId, canvasId) => join(root, projectId, canvasId),
+      attachmentPath: (storedPath) => join(root, 'attachments', storedPath),
     }),
   }
 }
@@ -186,8 +207,8 @@ describe('porcelain_context', () => {
       workspace: root,
       include: ['tasks'],
     })
-    const body = JSON.parse(result.text) as { tasks: { shortId: string }[] }
-    expect(body.tasks.map((task) => task.shortId)).toEqual(['T-1'])
+    const body = JSON.parse(result.text) as { tasks: { id: string }[] }
+    expect(body.tasks.map((task) => task.id)).toEqual(['T-1'])
   })
 
   it('finds one Task by its short id', async () => {
@@ -197,8 +218,126 @@ describe('porcelain_context', () => {
       include: ['tasks'],
       taskId: 'T-2',
     })
-    const body = JSON.parse(result.text) as { tasks: { shortId: string }[] }
-    expect(body.tasks.map((task) => task.shortId)).toEqual(['T-2'])
+    const body = JSON.parse(result.text) as { tasks: { id: string }[] }
+    expect(body.tasks.map((task) => task.id)).toEqual(['T-2'])
+  })
+
+  it('lists the whole board, done Tasks included, when asked', async () => {
+    const { tools } = handlers()
+    const result = await tools.call('porcelain_context', {
+      workspace: root,
+      include: ['tasks'],
+      includeDone: true,
+    })
+    const body = JSON.parse(result.text) as { tasks: { id: string }[] }
+    expect(body.tasks.map((task) => task.id)).toEqual(['T-1', 'T-2'])
+  })
+
+  it('hands back an absolute attachment path, so the agent can open the picture', async () => {
+    const { tools } = handlers()
+    const result = await tools.call('porcelain_context', {
+      workspace: root,
+      include: ['tasks'],
+      taskId: 'T-1',
+    })
+    const body = JSON.parse(result.text) as {
+      tasks: { notes?: string; attachments?: { hostPath: string }[] }[]
+    }
+    expect(body.tasks[0]?.notes).toBe('the note')
+    expect(body.tasks[0]?.attachments?.[0]?.hostPath).toBe(
+      join(root, 'attachments', 'task-1/att-1-shot.png'),
+    )
+  })
+
+  it('names the Projects it knows when the workspace does not resolve', async () => {
+    const { tools } = handlers()
+    const result = await tools.call('porcelain_context', { workspace: { projectId: 'nope' } })
+    expect(result.isError).toBe(true)
+    expect(result.text).toContain(PROJECT)
+    expect(result.text).toContain(root)
+  })
+
+  it('lists the open Projects with their ids, so a different checkout is addressable', async () => {
+    const { tools } = handlers()
+    const result = await tools.call('porcelain_context', {
+      workspace: root,
+      include: ['projects'],
+    })
+    const body = JSON.parse(result.text) as {
+      projects: { projectId: string; worktrees: { worktreeId: string }[] }[]
+    }
+    expect(body.projects[0]?.projectId).toBe(PROJECT)
+    expect(body.projects[0]?.worktrees[0]?.worktreeId).toBe(WORKTREE)
+  })
+})
+
+describe('porcelain_task', () => {
+  it('updates by short id — the id the human and the app both use', async () => {
+    const { tools, calls } = handlers()
+    const result = await tools.call('porcelain_task', {
+      workspace: root,
+      id: 'T-1',
+      status: 'doing',
+    })
+    expect(result.isError).toBeUndefined()
+    expect(calls.find((call) => call.name === 'updateTask')?.input).toMatchObject({
+      taskId: '11111111-1111-4111-8111-111111111111',
+      status: 'doing',
+    })
+  })
+
+  it('adds a link instead of dropping the ones already there', async () => {
+    const { tools, calls } = handlers()
+    await tools.call('porcelain_task', {
+      workspace: root,
+      id: 'T-1',
+      link: 'https://example.test/pull/7',
+      linkLabel: 'PR #7',
+    })
+    const input = calls.find((call) => call.name === 'updateTask')?.input as {
+      links: { url: string }[]
+    }
+    expect(input.links.map((link) => link.url)).toEqual([
+      'https://example.test/issue/1',
+      'https://example.test/pull/7',
+    ])
+  })
+
+  it('replaces every link when links is passed explicitly', async () => {
+    const { tools, calls } = handlers()
+    await tools.call('porcelain_task', {
+      workspace: root,
+      id: 'T-1',
+      links: [{ url: 'https://example.test/only' }],
+    })
+    const input = calls.find((call) => call.name === 'updateTask')?.input as {
+      links: { url: string; label: string }[]
+    }
+    expect(input.links).toEqual([
+      { url: 'https://example.test/only', label: 'https://example.test/only' },
+    ])
+  })
+
+  it('moves several Tasks in one call', async () => {
+    const { tools, calls } = handlers()
+    const result = await tools.call('porcelain_task', {
+      workspace: root,
+      ids: ['T-1', 'T-2'],
+      status: 'done',
+    })
+    expect(result.isError).toBeUndefined()
+    expect(calls.filter((call) => call.name === 'updateTask')).toHaveLength(2)
+  })
+
+  it('refuses an unknown Task by naming the ids that exist', async () => {
+    const { tools } = handlers()
+    const result = await tools.call('porcelain_task', {
+      workspace: root,
+      id: 'T-99',
+      status: 'done',
+    })
+    expect(result.isError).toBe(true)
+    expect(result.text).toContain('T-1')
   })
 })
 
@@ -334,7 +473,11 @@ describe('porcelain_task', () => {
 
   it('updates when given an id rather than creating a duplicate', async () => {
     const { tools, calls } = handlers()
-    await tools.call('porcelain_task', { workspace: root, id: 'task-1', status: 'done' })
+    await tools.call('porcelain_task', {
+      workspace: root,
+      id: '11111111-1111-4111-8111-111111111111',
+      status: 'done',
+    })
     expect(calls.some((call) => call.name === 'createTask')).toBe(false)
     expect(calls.some((call) => call.name === 'updateTask')).toBe(true)
   })

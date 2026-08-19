@@ -46,9 +46,7 @@ export type McpOperations = Readonly<{
     }) => Promise<OperationResult<undefined>>
   }>
   tasks: Readonly<{
-    listTasks: () => Promise<
-      OperationResult<readonly { id: string; shortId?: string; status: string }[]>
-    >
+    listTasks: () => Promise<OperationResult<readonly McpTask[]>>
     createTask: (
       input: TaskArgs & { title: string },
     ) => Promise<OperationResult<{ id: string; shortId?: string; title: string }>>
@@ -64,6 +62,25 @@ export type McpOperations = Readonly<{
     updateAction: (input: ActionArgs & { id: string }) => Promise<OperationResult<unknown>>
     deleteAction: (input: { projectId: string; id: string }) => Promise<OperationResult<unknown>>
   }>
+}>
+
+/**
+ * What the tools read off a Task row. Structural and deliberately partial: the MCP
+ * surface renders its own compact view, so a field the daemon adds does not have to
+ * be spent from the agent's context until a tool asks for it.
+ */
+export type McpTask = Readonly<{
+  id: string
+  shortId?: string
+  title?: string
+  notes?: string
+  status: string
+  tags?: readonly string[]
+  links?: readonly { url: string; label?: string }[]
+  pathRefs?: readonly { projectId: string; worktreeId: string; path: string; kind: string }[]
+  attachments?: readonly { id: string; name: string; storedPath: string; mime?: string }[]
+  references?: { projectId?: string; worktreeId?: string }
+  updatedAt?: string
 }>
 
 type OperationResult<Value> =

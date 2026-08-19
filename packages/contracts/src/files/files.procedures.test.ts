@@ -16,6 +16,7 @@ const expectedKinds = {
   pinnedEntries: 'query',
   readFile: 'query',
   previewHtml: 'query',
+  mintFilePreviewToken: 'mutation',
   writeTextFile: 'mutation',
   createFile: 'mutation',
   createFolder: 'mutation',
@@ -35,6 +36,7 @@ const expectedErrors = {
   pinnedEntries: [],
   readFile: ['files.path-outside-project'],
   previewHtml: ['files.path-outside-project'],
+  mintFilePreviewToken: [],
   writeTextFile: ['files.path-outside-project', 'files.not-found'],
   createFile: ['files.path-outside-project', 'files.already-exists', 'files.not-found'],
   createFolder: ['files.path-outside-project', 'files.already-exists', 'files.not-found'],
@@ -54,6 +56,7 @@ const invalidInputs: Record<keyof typeof filesProcedures, unknown> = {
   pinnedEntries: 42,
   readFile: 42,
   previewHtml: null,
+  mintFilePreviewToken: { projectPath: '/synthetic/repo' },
   writeTextFile: { projectPath: '/synthetic/repo', path: 'notes.txt', content: 42 },
   createFile: { path: 42 },
   createFolder: null,
@@ -81,6 +84,7 @@ const invalidOutputs: Record<keyof typeof filesProcedures, unknown> = {
   pinnedEntries: [{ name: 'README.md' }],
   readFile: { type: 'text', content: 42 },
   previewHtml: 42,
+  mintFilePreviewToken: { token: '' },
   writeTextFile: null,
   createFile: null,
   createFolder: null,
@@ -98,7 +102,7 @@ const invalidOutputs: Record<keyof typeof filesProcedures, unknown> = {
 }
 
 describe('Files procedure contracts', () => {
-  it('declares exactly sixteen procedures with their router kinds and allowed errors', () => {
+  it('declares exactly seventeen procedures with their router kinds and allowed errors', () => {
     expect(Object.keys(filesProcedures).sort()).toEqual(Object.keys(expectedKinds).sort())
     for (const [name, kind] of Object.entries(expectedKinds)) {
       const procedure = filesProcedures[name as keyof typeof filesProcedures]

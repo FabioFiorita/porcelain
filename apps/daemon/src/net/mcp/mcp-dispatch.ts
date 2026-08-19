@@ -1,7 +1,10 @@
+import { dispatchClassicMcp } from './mcp-classic'
 import {
   decodeHeaderValue,
   errorOutcome,
+  isClassicProtocolVersion,
   type JsonRpcId,
+  MCP_CLASSIC_VERSIONS,
   MCP_ERROR,
   MCP_META,
   MCP_PROTOCOL_VERSION,
@@ -9,14 +12,9 @@ import {
   resultOutcome,
 } from './mcp-protocol'
 import { MCP_TOOLS } from './mcp-tools'
+import type { McpToolHandlers } from './mcp-types'
 
-/** What a tool returns. The daemon speaks Porcelain results; this is the wire shape. */
-export type McpToolResult = Readonly<{ text: string; isError?: boolean }>
-
-/** The seam commit A leaves open: transport first, operations behind it. */
-export type McpToolHandlers = Readonly<{
-  call: (name: string, args: Record<string, unknown>) => Promise<McpToolResult>
-}>
+export type { McpToolHandlers, McpToolResult } from './mcp-types'
 
 export type McpDispatchInput = Readonly<{
   /** Header names already lowercased by Node. */
@@ -39,10 +37,11 @@ function header(headers: McpDispatchInput['headers'], name: string): string | un
  * One POST in, one outcome out. Every refusal the spec names is decided here rather
  * than in the HTTP layer, so the whole matrix is provable without a socket.
  *
- * ORDER MATTERS. Header validation precedes dispatch because a load balancer may
- * route on `Mcp-Method` while the server executes `body.method`; if those disagree,
- * two components are acting on different sources of truth and the request is refused
- * rather than reconciled.
+ * `MCP-Protocol-Version` picks the ERA, and nothing else does. `2026-07-28` means the
+ * strict stateless dialect below; absent or a pre-2026 revision means the classic
+ * handshake in mcp-classic. Absent is not a refusal: a classic client sends
+ * `initialize` before it has a version to name, and rejecting that is what left the
+ * shipped plugin with zero registered tools.
  */
 export async function dispatchMcp(input: McpDispatchInput): Promise<McpOutcome> {
   const { headers, handlers, serverInfo } = input
@@ -71,7 +70,8 @@ export async function dispatchMcp(input: McpDispatchInput): Promise<McpOutcome> 
 
   // A notification carries no id. The server MUST accept it with 202 and no body —
   // and MUST NOT answer it. The retired MCP server once replied to (and executed)
-  // notification-shaped calls; that is the bug this branch exists to prevent.
+  // notification-shaped calls; that is the bug this branch exists to prevent. It also
+  // covers `notifications/initialized`, which is the classic handshake's second step.
   if (rawId === undefined) return { kind: 'accepted' }
 
   if (typeof rawId !== 'string' && typeof rawId !== 'number') {
@@ -84,30 +84,48 @@ export async function dispatchMcp(input: McpDispatchInput): Promise<McpOutcome> 
   const id: JsonRpcId = rawId
 
   const params = isRecord(parsed.params) ? parsed.params : {}
-  const meta = isRecord(params._meta) ? params._meta : {}
-  const bodyVersion = meta[MCP_META.protocolVersion]
-
   const headerVersion = header(headers, 'mcp-protocol-version')
-  if (headerVersion === undefined) {
-    return errorOutcome(id, {
-      status: 400,
-      code: MCP_ERROR.headerMismatch,
-      message: 'MCP-Protocol-Version header is required',
-    })
-  }
-  if (headerVersion !== bodyVersion) {
-    return errorOutcome(id, {
-      status: 400,
-      code: MCP_ERROR.headerMismatch,
-      message: `Header mismatch: MCP-Protocol-Version header value '${headerVersion}' does not match body value '${String(bodyVersion)}'`,
-    })
+
+  if (headerVersion === undefined || isClassicProtocolVersion(headerVersion)) {
+    return dispatchClassicMcp({ id, method, params, handlers, serverInfo })
   }
   if (headerVersion !== MCP_PROTOCOL_VERSION) {
     return errorOutcome(id, {
       status: 400,
       code: MCP_ERROR.unsupportedProtocolVersion,
       message: `Unsupported protocol version '${headerVersion}'`,
-      data: { supported: [MCP_PROTOCOL_VERSION] },
+      data: { supported: [MCP_PROTOCOL_VERSION, ...MCP_CLASSIC_VERSIONS] },
+    })
+  }
+
+  return dispatchModernMcp({ id, method, params, headers, handlers, serverInfo })
+}
+
+type ModernInput = Readonly<{
+  id: JsonRpcId
+  method: string
+  params: Record<string, unknown>
+  headers: McpDispatchInput['headers']
+  handlers: McpToolHandlers
+  serverInfo: { name: string; version: string }
+}>
+
+/**
+ * The 2026-07-28 dialect. ORDER MATTERS: header validation precedes dispatch because
+ * a load balancer may route on `Mcp-Method` while the server executes `body.method`;
+ * if those disagree, two components are acting on different sources of truth and the
+ * request is refused rather than reconciled.
+ */
+async function dispatchModernMcp(input: ModernInput): Promise<McpOutcome> {
+  const { id, method, params, headers, handlers, serverInfo } = input
+  const meta = isRecord(params._meta) ? params._meta : {}
+
+  const bodyVersion = meta[MCP_META.protocolVersion]
+  if (bodyVersion !== MCP_PROTOCOL_VERSION) {
+    return errorOutcome(id, {
+      status: 400,
+      code: MCP_ERROR.headerMismatch,
+      message: `Header mismatch: MCP-Protocol-Version header value '${MCP_PROTOCOL_VERSION}' does not match body value '${String(bodyVersion)}'`,
     })
   }
 
@@ -137,8 +155,24 @@ export async function dispatchMcp(input: McpDispatchInput): Promise<McpOutcome> 
     })
   }
 
+  // The era probe. A client sends this FIRST; answering it with `methodNotFound` is
+  // what sent Claude Code back to the classic handshake, so this reply is the whole
+  // reason the strict dialect below ever runs.
+  if (method === 'server/discover') {
+    return resultOutcome(
+      id,
+      {
+        supportedVersions: [MCP_PROTOCOL_VERSION],
+        capabilities: { tools: { listChanged: false } },
+      },
+      serverInfo,
+    )
+  }
+
   if (method === 'tools/list') {
-    return resultOutcome(id, { tools: MCP_TOOLS }, serverInfo)
+    // A cacheable result must say for how long and for whom. The tool list is derived
+    // from the daemon build, so it is never shared across callers and never cached.
+    return resultOutcome(id, { ttlMs: 0, cacheScope: 'private', tools: MCP_TOOLS }, serverInfo)
   }
 
   if (method === 'tools/call') {

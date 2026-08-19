@@ -1,6 +1,8 @@
 import { type GitQueryEffect, gitMutations } from '@porcelain/client-runtime/git'
 import type { CommitGroupGenerationGroup, procedureCatalog } from '@porcelain/contracts'
 import type {
+  CommitGroupResult,
+  GitApplyCommitGroupsInput,
   GitCommitInput,
   GitGenerateCommitGroupsInput,
   GitGenerateCommitMessageInput,
@@ -278,6 +280,45 @@ export function useCommitGeneration(): {
       return (await message.mutateAsync({ model, repoPath })).message
     },
     isGenerating: message.isPending || groups.isPending,
+  }
+}
+
+/**
+ * Accept a whole grouped proposal: the daemon stages and commits each group in order, in ONE
+ * round trip, so a mid-way failure is decided in one place instead of across N client calls.
+ *
+ * It resolves even when a group fails — the per-group results say which landed — so the caller
+ * renders the outcome rather than a thrown error. The commit effects are applied either way,
+ * because any committed group already changed the working tree and history.
+ */
+export function useApplyCommitGroups(): {
+  applyGroups: (groups: readonly CommitGroupGenerationGroup[]) => Promise<CommitGroupResult[]>
+  isApplying: boolean
+} {
+  const { daemon, owner, repoPath } = useGitOwner()
+  const queryClient = useQueryClient()
+  const mutation = useMutation<CommitGroupResult[], Error, GitApplyCommitGroupsInput>({
+    mutationFn: async (input) => {
+      if (owner === null) throw new Error('The target Environment is offline.')
+      return (await owner.client.gitApplyCommitGroups.mutate(input)).results
+    },
+    onSuccess: async (_value, input): Promise<void> => {
+      await invalidateMutationEffects(
+        queryClient,
+        daemon,
+        gitMutations.applyGroups.affectedQueries(input),
+        gitMutations.applyGroups.filesEffects(input),
+      )
+    },
+  })
+  return {
+    applyGroups: async (
+      groups: readonly CommitGroupGenerationGroup[],
+    ): Promise<CommitGroupResult[]> => {
+      if (repoPath === null || owner === null || groups.length === 0) return []
+      return mutation.mutateAsync({ groups: [...groups], repoPath })
+    },
+    isApplying: mutation.isPending,
   }
 }
 

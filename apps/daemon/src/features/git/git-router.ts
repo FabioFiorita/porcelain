@@ -114,6 +114,11 @@ export function createGitFeatureRouter(operations: GitOperations) {
         groups: await operations.generateCommitGroupsGit(input),
       })),
 
+    gitApplyCommitGroups: publicProcedure
+      .input(procedureCatalog.gitApplyCommitGroups.input)
+      .output(procedureCatalog.gitApplyCommitGroups.output)
+      .mutation(({ input }) => operations.applyCommitGroupsGit(input)),
+
     gitCommitConventions: publicProcedure
       .input(procedureCatalog.gitCommitConventions.input)
       .output(procedureCatalog.gitCommitConventions.output)

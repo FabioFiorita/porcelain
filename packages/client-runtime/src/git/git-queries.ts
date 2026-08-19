@@ -37,6 +37,15 @@ const gitRangeFlowQuerySchema = z
     domain: z.literal('git'),
     name: z.literal('range-flow'),
     projectPath: projectPathSchema,
+    /**
+     * The chosen comparison base, or `undefined` for the daemon's default.
+     *
+     * It is part of the cache IDENTITY, not a parameter of one: the range is
+     * static until the next commit, so the flow is cached with an infinite stale
+     * time. Without the base in the key, picking a different base would read the
+     * previous base's cached answer forever.
+     */
+    base: z.string().optional(),
   })
   .strict()
 
@@ -79,7 +88,7 @@ const gitCommitDiffQuerySchema = z
 
 const diffReadingScopeSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('working') }).strict(),
-  z.object({ type: z.literal('branch') }).strict(),
+  z.object({ type: z.literal('branch'), base: z.string().optional() }).strict(),
   z.object({ type: z.literal('commit'), hash: pathDimensionSchema }).strict(),
 ])
 
@@ -241,8 +250,13 @@ export function gitFlowQuery(projectPath: string): GitFlowQuery {
   return { domain: 'git', name: 'flow', projectPath: gitProjectKey(projectPath) }
 }
 
-export function gitRangeFlowQuery(projectPath: string): GitRangeFlowQuery {
-  return { domain: 'git', name: 'range-flow', projectPath: gitProjectKey(projectPath) }
+export function gitRangeFlowQuery(projectPath: string, base?: string): GitRangeFlowQuery {
+  return {
+    domain: 'git',
+    name: 'range-flow',
+    projectPath: gitProjectKey(projectPath),
+    ...(base === undefined ? {} : { base }),
+  }
 }
 
 export function gitStatusQuery(projectPath: string): GitStatusQuery {
