@@ -60,10 +60,6 @@ export const TestIds = {
   hubCreateWorktreeModeNew: 'hub-create-worktree-mode-new',
   hubCreateWorktreeModeExisting: 'hub-create-worktree-mode-existing',
   hubSwitchBranch: 'hub-switch-branch',
-  hubWorktreeSetupDialog: 'hub-worktree-setup-dialog',
-  hubWorktreeSetupStart: 'hub-worktree-setup-start',
-  hubWorktreeSetupDispose: 'hub-worktree-setup-dispose',
-  hubWorktreeSetupSave: 'hub-worktree-setup-save',
   hubHome: 'hub-home',
   hubProjectSummary: 'hub-project-summary',
   hubWorktreeSummary: 'hub-worktree-summary',
@@ -200,6 +196,10 @@ export const TestIds = {
   /** One Environment heading inside the menu when the Project exists on several. */
   actionsEnvironment: (environmentId: string): string => `actions-environment-${environmentId}`,
   /** Worktree chooser raised when a run has no explicit Worktree target yet. */
+  /** Worktree lifecycle scripts: the section, one role's list, and its add button. */
+  actionsScriptsSection: 'actions-worktree-scripts',
+  actionsScripts: (kind: string): string => `actions-scripts-${kind}`,
+  actionsScriptAdd: (kind: string): string => `actions-scripts-add-${kind}`,
   actionsTargetPicker: 'actions-target-picker',
   actionsTargetOption: (worktreeId: string): string => `actions-target-option-${worktreeId}`,
 

@@ -116,6 +116,15 @@ export function createHubInventoryOperations(options: {
   /** Optional development-daemon boundary; production has no path restriction. */
   pathAllowed?: (path: string) => AllowedPath
   createId?: () => string
+  /**
+   * Worktree lifecycle scripts. Absent means a daemon composed without Actions — creating
+   * and removing a Worktree then behaves exactly as it did before they existed. This module
+   * knows nothing about trust or terminals; the runner owns both.
+   */
+  worktreeScripts?: {
+    runSetup: (target: { projectId: string; worktreeId: string; path: string }) => Promise<void>
+    runDispose: (target: { projectId: string; worktreeId: string; path: string }) => Promise<void>
+  }
 }): HubInventoryOperations {
   const createId = options.createId ?? randomUUID
 
@@ -254,6 +263,14 @@ export function createHubInventoryOperations(options: {
     if (project === undefined || worktree === undefined) return notFound()
     if (worktree.isPrimary) return { ok: false, error: { code: 'git.worktree-conflict' } }
 
+    // Teardown runs while the checkout still exists — `git worktree remove --force` deletes
+    // the directory, so a dispose script that ran after it would have nothing to run in.
+    await options.worktreeScripts?.runDispose({
+      projectId: project.id,
+      worktreeId: worktree.id,
+      path: worktree.path,
+    })
+
     const removed = await options.git.removeWorktree(project.path, worktree.path)
     if (!removed.ok) return { ok: false, error: mapGitWorkspaceError(removed.error) }
     const removedRecent = await options.recents.removePath(worktree.path)
@@ -297,6 +314,14 @@ export function createHubInventoryOperations(options: {
         .find((entry) => entry.id === input.projectId)
         ?.worktrees.find((worktree) => worktree.path === added.value.path)
       if (created === undefined) return unavailable()
+
+      // Setup starts once the checkout is real and identified, and this returns as soon as
+      // its terminal exists: the human watches the install, they do not wait on a spinner.
+      await options.worktreeScripts?.runSetup({
+        projectId: created.projectId,
+        worktreeId: created.id,
+        path: created.path,
+      })
       return { ok: true, value: created }
     },
 

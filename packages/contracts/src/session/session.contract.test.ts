@@ -54,6 +54,14 @@ const scopedChangeFixtures = {
     projectId: 'project-1',
     worktreeId: 'worktree-1',
   },
+  'terminal.worktree-script-started': {
+    kind: 'terminal.worktree-script-started',
+    role: 'worktree-setup',
+    projectPath: '/synthetic/repo',
+    projectId: 'project-1',
+    worktreeId: 'worktree-1',
+    terminalId: 'terminal-1',
+  },
   'review.changed': { kind: 'review.changed', projectPath: '/synthetic/repo' },
 } as const satisfies Record<Exclude<SessionChange['kind'], 'tasks.changed'>, SessionChange>
 
@@ -71,8 +79,8 @@ describe('Session change envelope', () => {
     expect(sessionChangeSchema.options.map((option) => option.shape.kind.value).sort()).toEqual(
       [...everyChangeKind].sort(),
     )
-    expect(everyChangeKind).toHaveLength(8)
-    expect(scopedChangeKinds).toHaveLength(7)
+    expect(everyChangeKind).toHaveLength(9)
+    expect(scopedChangeKinds).toHaveLength(8)
   })
 
   it('keeps tasks.changed daemon-wide: strict, carrying only kind', () => {

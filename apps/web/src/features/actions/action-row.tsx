@@ -20,6 +20,7 @@ import {
   PenLine,
   Play,
   ShieldQuestion,
+  Wrench,
   Trash2,
 } from 'lucide-react'
 import { useActionMutations } from './actions-mutations'
@@ -41,6 +42,7 @@ export function ActionRow({
   isLast,
   rowsBelow,
   readOnly = false,
+  lifecycle = false,
 }: {
   action: ActionView
   onEdit: (action: ActionView) => void
@@ -52,39 +54,50 @@ export function ActionRow({
   /** Rows that follow this one — how far a fresh copy must walk up to land right below it. */
   rowsBelow: number
   readOnly?: boolean
+  /**
+   * A Worktree lifecycle script rather than a command the human clicks. Porcelain runs it
+   * on create/remove, so the row offers no Play — but the same trust gate applies, and the
+   * click still leads to the accept step while it is unreviewed.
+   */
+  lifecycle?: boolean
 }): React.JSX.Element {
   const { duplicate, move, remove } = useActionMutations()
   const isLocal = action.where === 'local'
   // Unreviewed commands still show their full text and still sit under one click —
   // the click just lands on the accept step instead of a shell.
   const unreviewed = !action.trusted
+  const runIcon = unreviewed ? (
+    <ShieldQuestion
+      className="size-3.5 shrink-0 text-muted-foreground"
+      aria-label="Not run on this machine yet"
+      data-testid={TestIds.actionUnreviewed(action.title)}
+    />
+  ) : lifecycle ? (
+    <Wrench className="size-3.5 shrink-0 text-muted-foreground" aria-label="Porcelain runs this" />
+  ) : (
+    <Play className="size-3.5 shrink-0 text-muted-foreground" />
+  )
   return (
     <div className="group/action flex items-center gap-1 rounded-xl border bg-card p-2">
       <button
         type="button"
         onClick={() => onRun(action)}
         data-testid={TestIds.actionRun(action.title)}
-        disabled={readOnly}
+        disabled={readOnly || (lifecycle && !unreviewed)}
         className="flex min-w-0 flex-1 items-center gap-2 text-left disabled:opacity-70"
         title={
           readOnly
             ? `Runs on another Environment: ${action.command}`
             : unreviewed
-              ? `Not run on this machine yet: ${action.command}`
-              : isLocal
-                ? `Run on this device: ${action.command}`
-                : `Run: ${action.command}`
+              ? `Not accepted on this machine yet: ${action.command}`
+              : lifecycle
+                ? `Porcelain runs this: ${action.command}`
+                : isLocal
+                  ? `Run on this device: ${action.command}`
+                  : `Run: ${action.command}`
         }
       >
-        {unreviewed ? (
-          <ShieldQuestion
-            className="size-3.5 shrink-0 text-muted-foreground"
-            aria-label="Not run on this machine yet"
-            data-testid={TestIds.actionUnreviewed(action.title)}
-          />
-        ) : (
-          <Play className="size-3.5 shrink-0 text-muted-foreground" />
-        )}
+        {runIcon}
         <span className="min-w-0 flex-1">
           <span className="flex min-w-0 items-center gap-1.5">
             <span className="block truncate text-xs font-medium">{action.title}</span>

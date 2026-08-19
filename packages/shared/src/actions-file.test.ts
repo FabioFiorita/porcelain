@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   ACTION_COMMAND_MAX_LENGTH,
+  actionKindOf,
   ACTION_TITLE_MAX_LENGTH,
   ACTIONS_FILE_VERSION,
   ActionsFileParseError,
@@ -244,5 +245,100 @@ describe('pure action transitions', () => {
     expect(down.ok).toBe(true)
     if (!down.ok) return
     expect(down.kind).toBe('noop')
+  })
+
+  it('reads a pre-kind document unchanged and never writes the default role back', () => {
+    const legacy = {
+      version: 1 as const,
+      actions: [
+        { id: ID_A, title: 'Build', command: 'make build', order: 10, createdAt: 10 },
+        {
+          id: ID_B,
+          title: 'Serve',
+          command: 'make serve',
+          order: 20,
+          createdAt: 20,
+          where: 'local',
+        },
+      ],
+    }
+    const parsed = parseActionsFileV1(legacy)
+    expect(parsed.actions.every((entry) => entry.kind === undefined)).toBe(true)
+    expect(parsed.actions.map(actionKindOf)).toEqual(['action', 'action'])
+    // Byte-identical round trip: a daemon that only reads must not rewrite older files.
+    expect(serializeActionsFileV1(parsed)).toBe(`${JSON.stringify(legacy, null, 2)}\n`)
+
+    const created = planCreateAction(emptyActionsFileV1(), {
+      id: ID_C,
+      title: 'Install',
+      command: 'pnpm install',
+      kind: 'action',
+      order: 1,
+      createdAt: 1,
+    })
+    expect(created.ok).toBe(true)
+    if (!created.ok) return
+    expect(created.action.kind).toBeUndefined()
+  })
+
+  it('keeps a worktree role through create, parse, and clone', () => {
+    const created = planCreateAction(emptyActionsFileV1(), {
+      id: ID_A,
+      title: 'Install',
+      command: 'pnpm install',
+      kind: 'worktree-setup',
+      order: 1,
+      createdAt: 1,
+    })
+    expect(created.ok).toBe(true)
+    if (!created.ok) return
+    expect(created.action.kind).toBe('worktree-setup')
+    expect(parseActionsFileV1(created.file).actions[0]?.kind).toBe('worktree-setup')
+
+    const renamed = planUpdateAction(created.file, { actionId: ID_A, title: 'Bootstrap' })
+    expect(renamed.ok).toBe(true)
+    if (!renamed.ok) return
+    expect(renamed.action.kind).toBe('worktree-setup')
+
+    expect(() =>
+      parseActionsFileV1({
+        version: 1,
+        actions: [
+          { id: ID_A, title: 'x', command: 'y', kind: 'worktree-teardown', order: 1, createdAt: 1 },
+        ],
+      }),
+    ).toThrow(ActionsFileParseError)
+  })
+
+  it('moves a row among its own kind only', () => {
+    // Interleaved on purpose: order alone would make the setup row's neighbour an action.
+    const file = {
+      version: 1 as const,
+      actions: [
+        action({ id: ID_A, order: 1 }),
+        { ...action({ id: ID_B, order: 2 }), kind: 'worktree-setup' as const },
+        action({ id: ID_C, order: 3 }),
+        { ...action({ id: 'action-d', order: 4 }), kind: 'worktree-setup' as const },
+      ],
+    }
+    const moved = planMoveAction(file, { actionId: 'action-d', direction: 'up' })
+    expect(moved.ok).toBe(true)
+    if (!moved.ok) return
+    expect(moved.kind).toBe('move')
+    const byId = new Map(moved.file.actions.map((entry) => [entry.id, entry.order]))
+    // Swapped with the other setup row; both plain actions keep the order they had.
+    expect(byId.get('action-d')).toBe(2)
+    expect(byId.get(ID_B)).toBe(4)
+    expect(byId.get(ID_A)).toBe(1)
+    expect(byId.get(ID_C)).toBe(3)
+
+    // First of its own kind: a no-op that keeps every other row in the document.
+    const noop = planMoveAction(file, { actionId: ID_B, direction: 'up' })
+    expect(noop.ok).toBe(true)
+    if (!noop.ok) return
+    expect(noop.kind).toBe('noop')
+    expect(noop.file.actions.map((entry) => entry.id).sort()).toEqual(
+      [ID_A, ID_B, ID_C, 'action-d'].sort(),
+    )
   })
 })

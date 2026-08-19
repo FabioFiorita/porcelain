@@ -10,13 +10,29 @@ export const ACTION_COMMAND_MAX_LENGTH = 20_000
 
 export type ActionsFileWhere = 'primary' | 'local'
 
+/**
+ * What the row is for. `action` is the human's one-click command; the worktree roles are
+ * lifecycle scripts Porcelain runs itself. Stored in the same document because the trust
+ * gate, ordering, and Project ownership are identical — only who presses go differs.
+ *
+ * Absent means `action`, and `action` is never written back, so a document produced before
+ * this field round-trips byte-identical.
+ */
+export type ActionsFileKind = 'action' | 'worktree-setup' | 'worktree-dispose'
+
 export type ActionsFileAction = {
   id: string
   title: string
   command: string
   where?: ActionsFileWhere
+  kind?: Exclude<ActionsFileKind, 'action'>
   order: number
   createdAt: number
+}
+
+/** The role a row plays, with the on-disk default applied. */
+export function actionKindOf(action: Pick<ActionsFileAction, 'kind'>): ActionsFileKind {
+  return action.kind ?? 'action'
 }
 
 export type ActionsFileV1 = {
@@ -50,6 +66,7 @@ export type ActionsRequestInvalidError = {
 }
 
 const WHERE_SET = new Set<string>(['primary', 'local'])
+const KIND_SET = new Set<string>(['action', 'worktree-setup', 'worktree-dispose'])
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -84,6 +101,7 @@ function parseAction(value: unknown, index: number): ActionsFileAction {
       key !== 'title' &&
       key !== 'command' &&
       key !== 'where' &&
+      key !== 'kind' &&
       key !== 'order' &&
       key !== 'createdAt'
     ) {
@@ -121,6 +139,11 @@ function parseAction(value: unknown, index: number): ActionsFileAction {
       throw new ActionsFileParseError('invalid-action', `actions[${index}].where is invalid`)
     }
   }
+  if (value.kind !== undefined) {
+    if (typeof value.kind !== 'string' || !KIND_SET.has(value.kind)) {
+      throw new ActionsFileParseError('invalid-action', `actions[${index}].kind is invalid`)
+    }
+  }
 
   const action: ActionsFileAction = {
     id: value.id,
@@ -131,6 +154,8 @@ function parseAction(value: unknown, index: number): ActionsFileAction {
   }
   // Never persist primary on disk; treat an explicit primary as omitted.
   if (value.where === 'local') action.where = 'local'
+  // Same rule for the default role: a plain action carries no kind.
+  if (value.kind === 'worktree-setup' || value.kind === 'worktree-dispose') action.kind = value.kind
   return action
 }
 
@@ -205,6 +230,7 @@ function cloneAction(action: ActionsFileAction): ActionsFileAction {
     createdAt: action.createdAt,
   }
   if (action.where !== undefined) next.where = action.where
+  if (action.kind !== undefined) next.kind = action.kind
   return next
 }
 
@@ -219,6 +245,7 @@ export function planCreateAction(
     title: string
     command: string
     where?: ActionsFileWhere
+    kind?: ActionsFileKind
     order: number
     createdAt: number
   },
@@ -241,6 +268,7 @@ export function planCreateAction(
     createdAt: input.createdAt,
   }
   if (input.where === 'local') action.where = 'local'
+  if (input.kind === 'worktree-setup' || input.kind === 'worktree-dispose') action.kind = input.kind
 
   return {
     ok: true,
@@ -303,12 +331,18 @@ export function planMoveAction(
   | { ok: true; kind: 'move'; file: ActionsFileV1; action: ActionsFileAction }
   | { ok: true; kind: 'noop'; file: ActionsFileV1; action: ActionsFileAction }
   | { ok: false; error: ActionsNotFoundError } {
-  const sorted = sortActions(file.actions)
-  const index = sorted.findIndex((action) => action.id === input.actionId)
-  if (index < 0) {
+  const moved = file.actions.find((action) => action.id === input.actionId)
+  if (moved === undefined) {
     return { ok: false, error: { code: 'actions.not-found', actionId: input.actionId } }
   }
-  const current = sorted[index]
+  // Reorder within the moved row's own role. The human sees one kind per list, so a
+  // neighbour of another kind is invisible to them: swapping with it would move the row
+  // nowhere on screen and quietly shuffle a list they never opened.
+  const sorted = sortActions(file.actions).filter(
+    (action) => actionKindOf(action) === actionKindOf(moved),
+  )
+  const index = sorted.findIndex((action) => action.id === input.actionId)
+  const current = index < 0 ? undefined : sorted[index]
   if (current === undefined) {
     return { ok: false, error: { code: 'actions.not-found', actionId: input.actionId } }
   }
@@ -318,7 +352,7 @@ export function planMoveAction(
     return {
       ok: true,
       kind: 'noop',
-      file: withActions(file, sorted.map(cloneAction)),
+      file: withActions(file, file.actions.map(cloneAction)),
       action: cloneAction(current),
     }
   }
@@ -328,7 +362,7 @@ export function planMoveAction(
     return {
       ok: true,
       kind: 'noop',
-      file: withActions(file, sorted.map(cloneAction)),
+      file: withActions(file, file.actions.map(cloneAction)),
       action: cloneAction(current),
     }
   }

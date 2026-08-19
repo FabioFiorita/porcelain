@@ -67,6 +67,7 @@ const CATEGORY_BY_CHANGE_KIND = {
   'actions.changed': 'actions',
   'tasks.changed': 'tasks',
   'terminal.dev-servers-changed': 'terminal',
+  'terminal.worktree-script-started': 'terminal',
 } satisfies Record<SessionChange['kind'], SessionChangeCategory>
 
 /**

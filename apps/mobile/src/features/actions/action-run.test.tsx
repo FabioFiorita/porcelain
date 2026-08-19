@@ -54,6 +54,7 @@ const trustedPrimary: ActionView = {
   id: 'a1',
   title: 'Build',
   command: 'make build',
+  kind: 'action',
   order: 1,
   createdAt: 1,
   trusted: true,

@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { resolve } from 'node:path'
 import type {
   Action,
+  ActionKind,
   ActionRunTarget,
   ActionView,
   PrepareActionRunOutput,
@@ -9,6 +10,7 @@ import type {
 import type { SessionChange } from '@porcelain/contracts/session'
 import {
   type ActionsFileAction,
+  actionKindOf,
   planCreateAction,
   planDeleteAction,
   planMoveAction,
@@ -51,6 +53,7 @@ export type ActionsOperations = {
     title: string
     command: string
     where?: 'primary' | 'local'
+    kind?: ActionKind
     authoredBy: ActionAuthor
   }) => Promise<ActionsOperationResult<Action>>
   updateAction: (input: {
@@ -129,6 +132,8 @@ export function createActionsOperations(options: {
 
     const views: ActionView[] = sortActions(actionsResult.value).map((action) => ({
       ...action,
+      // The wire always states the role; only the file omits the default one.
+      kind: actionKindOf(action),
       trusted: trustResult.value.has(commandFingerprint(action.command)),
     }))
     return { ok: true, value: views }
@@ -158,6 +163,7 @@ export function createActionsOperations(options: {
     title: string
     command: string
     where?: 'primary' | 'local'
+    kind?: ActionKind
     authoredBy: ActionAuthor
   }): Promise<ActionsOperationResult<Action>> {
     const now = clock.now()
@@ -169,6 +175,7 @@ export function createActionsOperations(options: {
         title: input.title,
         command: input.command,
         where: input.where,
+        kind: input.kind,
         order: now,
         createdAt: now,
       })
@@ -188,7 +195,10 @@ export function createActionsOperations(options: {
     }
 
     changes.publish({ type: 'actions.changed', projectId: input.projectId })
-    return { ok: true, value: result.value.action }
+    return {
+      ok: true,
+      value: { ...result.value.action, kind: actionKindOf(result.value.action) },
+    }
   }
 
   async function updateAction(input: {

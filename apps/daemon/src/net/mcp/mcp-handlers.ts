@@ -338,6 +338,10 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
       }
 
       const where = args.where === 'local' || args.where === 'primary' ? args.where : undefined
+      const kind =
+        args.kind === 'worktree-setup' || args.kind === 'worktree-dispose' || args.kind === 'action'
+          ? args.kind
+          : undefined
       const command = stringField(args, 'command')
       const title = stringField(args, 'title')
 
@@ -351,6 +355,7 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
           title,
           command,
           ...(where === undefined ? {} : { where }),
+          ...(kind === undefined ? {} : { kind }),
         })
         return created.ok
           ? ok(

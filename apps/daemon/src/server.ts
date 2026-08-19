@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { porcelainHome, porcelainHomePath } from '@shared/porcelain-home'
-import { createDaemonOperations, createDaemonRouter } from './api'
+import { createDaemonOperations, createDaemonRouter, type DaemonOperations } from './api'
+import { createWorktreeScripts } from './features/actions'
 import { devRepoPath, recognizedDevPlaygroundPath, seedDevConfig } from './dev-config'
 import { createGitSubprocess } from './features/git'
 import {
@@ -151,6 +152,18 @@ async function main(): Promise<void> {
     paste: createTerminalPasteAdapter({ root: porcelainHomePath('terminal-pastes') }),
     publishChange: publishSessionChange,
   })
+  // Worktree lifecycle scripts need the Project's Actions (with their trust flags), and the
+  // Actions operations are composed inside createDaemonOperations below — which in turn needs
+  // `projects`. The cycle is only in construction order, not at runtime: this closure is first
+  // called when someone creates or removes a Worktree, long after `operations` is bound.
+  const worktreeScripts = createWorktreeScripts({
+    listActions: async (projectId) => {
+      const listed = await operations.actions.listActions({ projectId })
+      return listed.ok ? listed.value : []
+    },
+    host: { createRetained: terminal.createRetained, kill: terminal.kill },
+    publish: publishSessionChange,
+  })
   const projects = createProjectsOperations({
     // Dev-only: fleet playground fixtures (pnpm playground new) live under a dot-prefixed
     // .fleet segment (see CreateNodeProjectsPortOptions); a production daemon still hides
@@ -171,10 +184,11 @@ async function main(): Promise<void> {
         process.env.PORCELAIN_DEV === '1'
           ? (path: string): string | null => recognizedDevPlaygroundPath(path, devRepoPath())
           : undefined,
+      worktreeScripts,
     },
     canvas: canvasStores,
   })
-  const operations = createDaemonOperations({
+  const operations: DaemonOperations = createDaemonOperations({
     projects,
     tasks: {
       store: createTasksStore({ homeDir: porcelainHomeDir }),

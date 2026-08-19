@@ -30,10 +30,20 @@ import { ActionTrustDialog } from './action-trust-dialog'
 import { useTrustAction } from './actions-mutations'
 import { useActions } from './actions-queries'
 import { type ActionsScope, useActionsScopes, useSiblingActions } from './actions-scope'
+import { WorktreeScriptsSection } from './worktree-scripts-section'
+
+/**
+ * The rows this menu is about: commands the human presses. Worktree lifecycle scripts share
+ * the same store and the same trust gate, but Porcelain starts them — listing them here would
+ * make every row's Play arrow mean two different things.
+ */
+function clickable(actions: readonly ActionView[]): ActionView[] {
+  return actions.filter((action) => action.kind === 'action')
+}
 
 /** One other Environment that has the same Project — listed, never run from here. */
 function SiblingEnvironment({ scope }: { scope: ActionsScope }): React.JSX.Element | null {
-  const actions = useSiblingActions(scope)
+  const actions = clickable(useSiblingActions(scope))
   if (actions.length === 0) return null
   return (
     <div
@@ -74,7 +84,8 @@ function SiblingEnvironment({ scope }: { scope: ActionsScope }): React.JSX.Eleme
  */
 export function ActionsGroup(): React.JSX.Element {
   const { selected, siblings } = useActionsScopes()
-  const actions = useActions(true, selected?.projectId ?? null, selected?.environmentId ?? null)
+  const saved = useActions(true, selected?.projectId ?? null, selected?.environmentId ?? null)
+  const actions = clickable(saved)
   const runAction = useActionRun()
   const selection = useHubSelectionStore((s) => s.selection)
   const localDaemon = useLocalDaemon()
@@ -226,6 +237,7 @@ export function ActionsGroup(): React.JSX.Element {
           </SidebarGroupContent>
         </>
       )}
+      <WorktreeScriptsSection actions={saved} editable={selected.current} />
       {siblings.map((scope) => (
         <SiblingEnvironment key={scope.environmentId} scope={scope} />
       ))}

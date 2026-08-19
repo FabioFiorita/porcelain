@@ -77,6 +77,8 @@ describe('actions feature router', () => {
         id: ID,
         title: 'Ship',
         command: 'make ship',
+        // The wire always states the role, even for a row stored before `kind` existed.
+        kind: 'action',
         order: 1,
         createdAt: 1,
         trusted: true,

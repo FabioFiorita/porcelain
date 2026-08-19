@@ -65,6 +65,7 @@ const build: ActionView = {
   id: 'action-build',
   title: 'Build',
   command: 'make build',
+  kind: 'action',
   order: 10,
   createdAt: 10,
   trusted: true,
@@ -74,14 +75,36 @@ const check: ActionView = {
   id: 'action-check',
   title: 'Run checks',
   command: 'make check',
+  kind: 'action',
   order: 20,
   createdAt: 20,
   trusted: true,
 }
 
+/** Porcelain runs these; they must never appear among the rows a click runs. */
+const install: ActionView = {
+  id: 'script-install',
+  title: 'Install deps',
+  command: 'pnpm install',
+  kind: 'worktree-setup',
+  order: 30,
+  createdAt: 30,
+  trusted: true,
+}
+
+const teardown: ActionView = {
+  id: 'script-teardown',
+  title: 'Stop containers',
+  command: 'docker compose down',
+  kind: 'worktree-dispose',
+  order: 40,
+  createdAt: 40,
+  trusted: false,
+}
+
 /** Every Project the daemon knows has its own roster, so a wrong id shows wrong rows. */
 const rosters: Record<string, ActionView[]> = {
-  'proj-alpha': [build, check],
+  'proj-alpha': [build, check, install, teardown],
   'proj-beta': [{ ...build, id: 'action-other', title: 'Other project command' }],
 }
 
@@ -133,6 +156,33 @@ beforeEach(() => {
 })
 
 describe('ActionsGroup', () => {
+  it('keeps Worktree lifecycle scripts out of the click list and shows them on their own', async () => {
+    const { wrapper } = harness()
+    render(<ActionsGroup />, { wrapper })
+
+    await waitFor(() => {
+      expect(screen.getByTestId(TestIds.actionRun('Build'))).toBeInTheDocument()
+    })
+
+    // Both scripts are listed — under Worktree scripts, not among the Actions.
+    const setupList = screen.getByTestId(TestIds.actionsScripts('worktree-setup'))
+    const disposeList = screen.getByTestId(TestIds.actionsScripts('worktree-dispose'))
+    expect(setupList).toHaveTextContent('pnpm install')
+    expect(disposeList).toHaveTextContent('docker compose down')
+
+    // A lifecycle row nobody has accepted still says so, with the same shield as an Action.
+    expect(screen.getByTestId(TestIds.actionUnreviewed('Stop containers'))).toBeInTheDocument()
+
+    // The Actions list itself holds only the two commands a click runs.
+    const rows = screen
+      .getAllByTestId(/^action-run-/)
+      .filter((row) => setupList.contains(row) === false && disposeList.contains(row) === false)
+    expect(rows.map((row) => row.getAttribute('data-testid'))).toEqual([
+      TestIds.actionRun('Build'),
+      TestIds.actionRun('Run checks'),
+    ])
+  })
+
   it('lists the selected Project’s saved commands', async () => {
     const { wrapper } = harness()
     render(<ActionsGroup />, { wrapper })

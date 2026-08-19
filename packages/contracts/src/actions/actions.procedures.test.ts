@@ -166,9 +166,15 @@ describe('Actions procedure contracts', () => {
 
   it('separates the stored action from the derived trusted view', () => {
     const stored = { id: 'action-build', title: 'Build', command: 'make build' }
-    expect(actionSchema.parse(stored)).toEqual({ ...stored, order: 0, createdAt: 0 })
+    expect(actionSchema.parse(stored)).toEqual({
+      ...stored,
+      kind: 'action',
+      order: 0,
+      createdAt: 0,
+    })
     expect(actionViewSchema.parse(stored)).toEqual({
       ...stored,
+      kind: 'action',
       order: 0,
       createdAt: 0,
       trusted: false,
@@ -178,8 +184,29 @@ describe('Actions procedure contracts', () => {
       actionsProcedures.addAction.output.safeParse({ ...stored, trusted: false }).success,
     ).toBe(false)
     expect(actionsProcedures.actions.output.parse([stored])).toEqual([
-      { ...stored, order: 0, createdAt: 0, trusted: false },
+      { ...stored, kind: 'action', order: 0, createdAt: 0, trusted: false },
     ])
+  })
+
+  it('reads a row written before kind existed as a plain action, and keeps the two script roles', () => {
+    const legacy = { id: 'a', title: 'Build', command: 'make', order: 1, createdAt: 1 }
+    expect(actionSchema.parse(legacy).kind).toBe('action')
+
+    for (const kind of ['worktree-setup', 'worktree-dispose'] as const) {
+      expect(actionSchema.parse({ ...legacy, kind }).kind).toBe(kind)
+      expect(
+        actionsProcedures.addAction.input.safeParse({
+          projectId: 'proj-alpha',
+          title: 'Install',
+          command: 'pnpm install',
+          kind,
+        }).success,
+      ).toBe(true)
+    }
+
+    expect(actionSchema.safeParse({ ...legacy, kind: 'worktree-teardown' }).success).toBe(false)
+    // Never a wire escape hatch: an unknown field is still refused by the strict record.
+    expect(actionSchema.safeParse({ ...legacy, role: 'worktree-setup' }).success).toBe(false)
   })
 
   it('requires a Project id on every procedure and rejects a bare path', () => {

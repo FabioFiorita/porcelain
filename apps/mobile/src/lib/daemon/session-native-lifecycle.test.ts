@@ -47,6 +47,16 @@ function buildChange(kind: SessionChange['kind'], projectPath: string): SessionC
   if (kind === 'terminal.dev-servers-changed') {
     return { kind, projectPath, projectId: 'project-1', worktreeId: 'worktree-1' }
   }
+  if (kind === 'terminal.worktree-script-started') {
+    return {
+      kind,
+      role: 'worktree-setup',
+      projectPath,
+      projectId: 'project-1',
+      worktreeId: 'worktree-1',
+      terminalId: 'terminal-1',
+    }
+  }
   return { kind, projectPath }
 }
 
