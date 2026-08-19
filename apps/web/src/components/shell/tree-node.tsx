@@ -41,7 +41,7 @@ import { targetedTab } from '@renderer/stores/hub-tabs'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRevealStore } from '@renderer/stores/reveal'
 import { useSelectionStore } from '@renderer/stores/selection'
-import { useTabsStore } from '@renderer/stores/tabs'
+import { useActiveTab, useTabsStore } from '@renderer/stores/tabs'
 import { useTreeDirsStore } from '@renderer/stores/tree-dirs'
 import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
@@ -232,6 +232,10 @@ function TreeNodeImpl({
   // target; the matching row scrolls into view and shows the accent highlight.
   const isRevealed = useRevealStore((s) => s.path === entry.path)
   const clearReveal = useRevealStore((s) => s.clear)
+  // The row is "open" when the Viewer shows this file — a persistent state the
+  // cmd-click multi-selection highlight composes with rather than replaces.
+  const activeTab = useActiveTab()
+  const isOpen = activeTab?.kind === 'file' && activeTab.path === entry.path
   // The tree stays mounted while other sidebar tabs show (CSS-hidden, so folder
   // expansion survives tab switches); scrollIntoView on a hidden element is a
   // no-op, so the leaf waits for the Files tab before consuming the reveal.
@@ -256,10 +260,13 @@ function TreeNodeImpl({
               ref={ref}
               data-testid={TestIds.treeEntry(entry.name)}
               data-path={entry.path}
+              isActive={isOpen}
               className={cn(
                 'pr-8 text-sm-minus',
                 entry.hidden && 'opacity-50',
-                (isSelected || isRevealed) && 'bg-sidebar-accent',
+                // Hover must not dim a multi-selected or revealed row: the
+                // half-strength hover tint would otherwise win over this one.
+                (isSelected || isRevealed) && 'bg-sidebar-accent hover:bg-sidebar-accent!',
               )}
               onMouseEnter={() => prefetchFile(entry.path)}
               onClick={(e: React.MouseEvent<HTMLButtonElement>): void => {
@@ -376,7 +383,9 @@ function DirNode({
                 className={cn(
                   'text-sm-minus',
                   entry.hidden && 'opacity-50',
-                  (isSelected || isRevealed) && 'bg-sidebar-accent',
+                  // Hover must not dim a multi-selected or revealed row: the
+                  // half-strength hover tint would otherwise win over this one.
+                  (isSelected || isRevealed) && 'bg-sidebar-accent hover:bg-sidebar-accent!',
                 )}
                 onClick={(e: React.MouseEvent<HTMLButtonElement>): void => {
                   setActive({ path: entry.path, kind: 'dir' })
