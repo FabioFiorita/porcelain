@@ -1,5 +1,6 @@
 import { SidebarProvider } from '@renderer/components/ui/sidebar'
 import { type DirEntry, useFilesTree } from '@renderer/features/files'
+import { useSelectionStore } from '@renderer/stores/selection'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { TestIds } from '@shared/test-ids'
 import { render, screen } from '@testing-library/react'
@@ -37,6 +38,7 @@ function renderTree(): void {
 describe('TreeNode', () => {
   beforeEach(() => {
     useTabsStore.setState({ panes: [{ tabs: [], activeTabId: null }], activePaneIndex: 0 })
+    useSelectionStore.setState({ selected: new Set<string>() })
     vi.mocked(useFilesTree).mockReturnValue([])
   })
 
@@ -56,6 +58,14 @@ describe('TreeNode', () => {
 
   it('marks no row when the viewer has no file tab', () => {
     renderTree()
+    expect(screen.getByTestId(TestIds.treeEntry('app.ts'))).not.toHaveAttribute('data-active')
+  })
+
+  it('marks a cmd-click selected row through the same selected state', () => {
+    useSelectionStore.setState({ selected: new Set([other.path]) })
+    renderTree()
+
+    expect(screen.getByTestId(TestIds.treeEntry('util.ts'))).toHaveAttribute('data-active')
     expect(screen.getByTestId(TestIds.treeEntry('app.ts'))).not.toHaveAttribute('data-active')
   })
 })

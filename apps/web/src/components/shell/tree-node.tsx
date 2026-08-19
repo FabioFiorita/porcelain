@@ -260,14 +260,11 @@ function TreeNodeImpl({
               ref={ref}
               data-testid={TestIds.treeEntry(entry.name)}
               data-path={entry.path}
-              isActive={isOpen}
-              className={cn(
-                'pr-8 text-sm-minus',
-                entry.hidden && 'opacity-50',
-                // Hover must not dim a multi-selected or revealed row: the
-                // half-strength hover tint would otherwise win over this one.
-                (isSelected || isRevealed) && 'bg-sidebar-accent hover:bg-sidebar-accent!',
-              )}
+              // One selected state through the primitive (`data-active`), so the
+              // open file, a cmd-click selection, and a reveal all read the same
+              // and none of them fade under the pointer's hover tint.
+              isActive={isOpen || isSelected || isRevealed}
+              className={cn('pr-8 text-sm-minus', entry.hidden && 'opacity-50')}
               onMouseEnter={() => prefetchFile(entry.path)}
               onClick={(e: React.MouseEvent<HTMLButtonElement>): void => {
                 setActive({ path: entry.path, kind: 'file' })
@@ -380,13 +377,8 @@ function DirNode({
                 ref={ref}
                 data-testid={TestIds.treeEntry(entry.name)}
                 data-path={entry.path}
-                className={cn(
-                  'text-sm-minus',
-                  entry.hidden && 'opacity-50',
-                  // Hover must not dim a multi-selected or revealed row: the
-                  // half-strength hover tint would otherwise win over this one.
-                  (isSelected || isRevealed) && 'bg-sidebar-accent hover:bg-sidebar-accent!',
-                )}
+                isActive={isSelected || isRevealed}
+                className={cn('text-sm-minus', entry.hidden && 'opacity-50')}
                 onClick={(e: React.MouseEvent<HTMLButtonElement>): void => {
                   setActive({ path: entry.path, kind: 'dir' })
                   if (e.metaKey || e.ctrlKey) {
