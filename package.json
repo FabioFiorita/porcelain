@@ -20,7 +20,6 @@
     "plugin:check": "node --test scripts/plugin-version.test.mjs && node scripts/plugin-version.mjs --check",
     "plugin:lock": "node scripts/plugin-version.mjs",
     "versions:sync": "node scripts/sync-versions.mjs",
-    "versions:check": "node scripts/sync-versions.mjs --check",
     "lint:fix": "biome lint --write .",
     "typecheck": "pnpm --dir apps/mobile typecheck && pnpm --dir apps/desktop typecheck",
     "check": "pnpm format:check && pnpm lint && pnpm lint:one-writer && pnpm plugin:check && pnpm typecheck",
