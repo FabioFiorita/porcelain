@@ -14,7 +14,7 @@
     "start": "electron-vite preview",
     "dev": "pnpm --dir ../.. build:node && electron-vite dev",
     "build": "pnpm typecheck && pnpm --dir ../.. build:web && electron-vite build && pnpm --dir ../.. build:node",
-    "typecheck": "pnpm typecheck:node && pnpm typecheck:web && pnpm typecheck:mobile-tests",
+    "typecheck": "pnpm typecheck:node && pnpm typecheck:web && pnpm typecheck:mobile-tests && pnpm typecheck:e2e",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
     "typecheck:mobile-tests": "tsc --noEmit -p tsconfig.mobile-tests.json",
