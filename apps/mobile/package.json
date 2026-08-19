@@ -61,10 +61,10 @@
     "vitest": "^4.1.8"
   },
   "scripts": {
-    "start": "expo start",
-    "android": "expo run:android",
-    "android:build": "expo run:android",
-    "ios": "expo run:ios",
+    "start": "APP_VARIANT=development expo start",
+    "android": "APP_VARIANT=development expo run:android",
+    "android:build": "APP_VARIANT=development expo run:android",
+    "ios": "APP_VARIANT=development expo run:ios",
     "sim:build": "npx eas-cli@latest build -p ios --profile development-simulator --local",
     "sim:build:cloud": "npx eas-cli@latest build -p ios --profile development-simulator",
     "sim:install": "npx eas-cli@latest build:run -p ios --profile development-simulator --latest",
