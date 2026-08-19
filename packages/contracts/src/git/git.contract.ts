@@ -281,11 +281,59 @@ export const gitSuggestionsOutputSchema = z.array(gitSuggestionSchema)
 export const gitFlowInputSchema = repoPathSchema
 const flowGroupsSchema = z.array(flowGroupSchema)
 export const gitFlowOutputSchema = flowGroupsSchema
-export const gitRangeFlowInputSchema = repoPathSchema
+/**
+ * The ref a Branch review is measured against, as the client asks for it.
+ *
+ * Wire-level sanity only — a bounded, single-token, non-option string. The daemon
+ * is what decides whether it NAMES anything (`gitResolveCompareBase`): only an
+ * existing local branch, a remote-tracking branch, or the literal upstream is
+ * accepted, and a value that no longer resolves falls back to the default base.
+ * `@{u}` is the "just the remote" choice — this branch's own upstream, whatever
+ * it is called.
+ */
+/**
+ * A ref name is one printable, space-free token.
+ *
+ * Written as a code-point scan rather than a regex so it rejects control
+ * characters without embedding any, and so a non-ASCII branch name still passes —
+ * git allows those and a reviewer with one should still be able to compare
+ * against it.
+ */
+export function isSingleRefToken(ref: string): boolean {
+  for (const char of ref) {
+    const code = char.codePointAt(0) ?? 0
+    if (code <= 0x20 || code === 0x7f) return false
+  }
+  return true
+}
+
+export const compareBaseSchema = z
+  .string()
+  .min(1)
+  .max(255)
+  .refine((ref) => !ref.startsWith('-'), { message: 'base ref may not start with "-"' })
+  .refine(isSingleRefToken, {
+    message: 'base ref may not contain whitespace or control characters',
+  })
+export type CompareBase = z.infer<typeof compareBaseSchema>
+
+/** The literal that means "compare against this branch's own upstream". */
+export const UPSTREAM_COMPARE_BASE = '@{u}'
+
+export const gitRangeFlowInputSchema = z
+  .object({
+    repoPath: z.string(),
+    /** Absent = the default base (origin/HEAD, else local main/master). */
+    base: compareBaseSchema.optional(),
+  })
+  .strict()
 export const gitRangeFlowOutputSchema = z
   .object({
     groups: flowGroupsSchema,
+    /** The ref actually used — what the "vs …" label reads and what per-file range reads pass back. */
     base: z.string(),
+    /** The base used when nothing is chosen, so the picker can mark it as the default. */
+    defaultBase: z.string(),
   })
   .strict()
 /**
@@ -356,7 +404,7 @@ export const diffReadingInputSchema = z
     repoPath: z.string(),
     scope: z.discriminatedUnion('type', [
       z.object({ type: z.literal('working') }).strict(),
-      z.object({ type: z.literal('branch') }).strict(),
+      z.object({ type: z.literal('branch'), base: compareBaseSchema.optional() }).strict(),
       z.object({ type: z.literal('commit'), hash: z.string() }).strict(),
     ]),
   })

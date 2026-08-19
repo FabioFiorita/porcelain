@@ -14,6 +14,7 @@ import {
 } from '@renderer/components/ui/sidebar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import {
+  type DiffReadingScope,
   useBranchFlow,
   useDiffFileHoverPrefetch,
   useDiscardFile,
@@ -44,6 +45,7 @@ import {
   Undo2,
 } from 'lucide-react'
 import { memo, useState } from 'react'
+import { ChangesBasePicker } from './changes-base-picker'
 import { ChangesEmptyState } from './changes-empty-state'
 import { ChangesScopeToggle } from './changes-scope-toggle'
 import { changesetTabKey } from './changeset-view'
@@ -300,7 +302,13 @@ export function ChangesList(): React.JSX.Element {
   // when scope is 'working' (no wasted fetch); working hook always fetches (it
   // polls for live working-tree state regardless of the active scope).
   const working = useGitFlow()
-  const branch = useBranchFlow(changesScope === 'branch')
+  // The stored pick is per repo path — "compare against develop" is a fact about
+  // one project, not a global mode.
+  const requestedBase = usePreferencesStore((s) =>
+    project ? s.compareBases[project.path] : undefined,
+  )
+  const setCompareBase = usePreferencesStore((s) => s.setCompareBase)
+  const branch = useBranchFlow(changesScope === 'branch', requestedBase)
 
   // Polls live (gitFlow / branch flow) — no manual refresh control.
   const { groups } = changesScope === 'branch' ? branch : working
@@ -317,8 +325,12 @@ export function ChangesList(): React.JSX.Element {
   // Opens the continuous stacked-diff surface for the active scope (working or
   // branch) — same flow order as this list, one scrollable document.
   const handleOpenReviewAll = (): void => {
-    const scope =
-      changesScope === 'branch' ? ({ type: 'branch' } as const) : ({ type: 'working' } as const)
+    // Carry the SAME base into the stacked-diff surface. Without it the list would
+    // say "12 files vs develop" and Review All would show the diff vs origin/main.
+    const scope: DiffReadingScope =
+      changesScope === 'branch'
+        ? { type: 'branch', ...(base === undefined ? {} : { base }) }
+        : { type: 'working' }
     const key = changesetTabKey(scope)
     openTab(
       targetedTab('changeset', key, {
@@ -331,14 +343,25 @@ export function ChangesList(): React.JSX.Element {
     <div data-testid={TestIds.changesList} className="flex flex-col gap-2 p-2">
       <ChangesScopeToggle />
       <div className="flex items-center justify-between gap-1">
-        <span
-          data-testid={TestIds.changesSummary}
-          data-count={total}
-          className="min-w-0 text-xs text-muted-foreground"
-        >
-          {total} changed {total === 1 ? 'file' : 'files'}
-          {base && ` · vs ${base}`}
-        </span>
+        <div className="flex min-w-0 items-center gap-0.5">
+          <span
+            data-testid={TestIds.changesSummary}
+            data-count={total}
+            className="min-w-0 truncate text-xs text-muted-foreground"
+          >
+            {total} changed {total === 1 ? 'file' : 'files'}
+            {base !== undefined && ' ·'}
+          </span>
+          {base !== undefined && (
+            <ChangesBasePicker
+              repoPath={project.path}
+              selected={base}
+              defaultBase={branch.defaultBase}
+              requested={requestedBase}
+              onSelect={(next) => setCompareBase(project.path, next)}
+            />
+          )}
+        </div>
         <div className="flex shrink-0 items-center gap-0.5">
           <CommentsManageMenu />
           {total > 0 && <ReviewAllToggle paths={paths} allReviewed={allReviewed} />}

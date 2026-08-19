@@ -109,6 +109,8 @@ export const TestIds = {
   // --- Changes ---
   changesList: 'changes-list',
   changesSummary: 'changes-summary',
+  changesBasePicker: 'changes-base-picker',
+  changesBaseOption: (ref: string): string => `changes-base-option-${ref}`,
   changesFile: (fileName: string): string => `changes-file-${fileName}`,
   diffCollapse: (path: string): string => `diff-collapse-${path}`,
   diffReviewed: (path: string): string => `diff-reviewed-${path}`,

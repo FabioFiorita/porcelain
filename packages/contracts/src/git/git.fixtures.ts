@@ -99,8 +99,8 @@ export const gitContractFixtures = {
   },
   gitFlow: { input: '/synthetic/repo', output: [flowGroupFixture] },
   gitRangeFlow: {
-    input: '/synthetic/repo',
-    output: { groups: [flowGroupFixture], base: 'origin/main' },
+    input: { repoPath: '/synthetic/repo' },
+    output: { groups: [flowGroupFixture], base: 'origin/main', defaultBase: 'origin/main' },
   },
   gitRangeDiffFile: {
     input: { repoPath: '/synthetic/repo', base: 'origin/main', filePath: 'src/example.ts' },

@@ -119,9 +119,10 @@ const SAMPLE_HUNK: DiffHunk = {
 function diffReadingSources(overrides: Partial<GitDiffReadingSources> = {}): GitDiffReadingSources {
   return {
     loadWorkingFlow: vi.fn<GitDiffReadingSources['loadWorkingFlow']>(async () => FLOW_GROUPS),
-    loadRangeFlow: vi.fn<GitDiffReadingSources['loadRangeFlow']>(async () => ({
+    loadRangeFlow: vi.fn<GitDiffReadingSources['loadRangeFlow']>(async (_repo, base) => ({
+      base: base ?? 'main',
+      defaultBase: 'main',
       groups: FLOW_GROUPS,
-      base: 'main',
     })),
     loadCommitFlow: vi.fn<GitDiffReadingSources['loadCommitFlow']>(async () => FLOW_GROUPS),
     workingHunks: vi.fn<GitDiffReadingSources['workingHunks']>(async () => [SAMPLE_HUNK]),
@@ -359,9 +360,10 @@ describe('Git operations', () => {
     )
 
     await expect(operations.flowGit(REPO)).resolves.toEqual(FLOW_GROUPS)
-    await expect(operations.rangeFlowGit(REPO)).resolves.toEqual({
-      groups: FLOW_GROUPS,
+    await expect(operations.rangeFlowGit({ repoPath: REPO })).resolves.toEqual({
       base: 'main',
+      defaultBase: 'main',
+      groups: FLOW_GROUPS,
     })
     await expect(
       operations.rangeDiffFileGit({ repoPath: REPO, base: 'main', filePath: 'src/a.ts' }),
@@ -384,7 +386,7 @@ describe('Git operations', () => {
     ).resolves.toEqual(FLOW_GROUPS)
 
     expect(sources.loadWorkingFlow).toHaveBeenCalledWith(REPO)
-    expect(sources.loadRangeFlow).toHaveBeenCalledWith(REPO)
+    expect(sources.loadRangeFlow).toHaveBeenCalledWith(REPO, undefined)
     expect(sources.rangeDiffFile).toHaveBeenCalledWith(REPO, 'main', 'src/a.ts', undefined)
     expect(sources.diffFile).toHaveBeenCalledWith(REPO, 'src/a.ts', undefined)
     expect(git.log).toHaveBeenCalledWith(REPO, 20)
@@ -458,8 +460,33 @@ describe('Git operations', () => {
     await expect(
       operations.diffReadingGit({ repoPath: REPO, scope: { type: 'branch' } }),
     ).resolves.toMatchObject({ name: 'vs main' })
-    expect(sources.loadRangeFlow).toHaveBeenCalledWith(REPO)
+    expect(sources.loadRangeFlow).toHaveBeenCalledWith(REPO, undefined)
     expect(sources.rangeHunks).toHaveBeenCalledWith(REPO, 'main', 'src/alpha.ts')
+  })
+
+  it('threads a chosen base through the branch reading, title and per-file hunks', async () => {
+    const sources = diffReadingSources()
+    const operations = createGitOperations(dependencies({ diffReadingSources: sources }))
+
+    await expect(
+      operations.diffReadingGit({ repoPath: REPO, scope: { type: 'branch', base: 'develop' } }),
+    ).resolves.toMatchObject({ name: 'vs develop' })
+    expect(sources.loadRangeFlow).toHaveBeenCalledWith(REPO, 'develop')
+    // The hunks must come from the SAME base the list counted, or Review All
+    // shows a different diff than the header claims.
+    expect(sources.rangeHunks).toHaveBeenCalledWith(REPO, 'develop', 'src/alpha.ts')
+  })
+
+  it('passes a chosen base to the range flow and reports the default alongside it', async () => {
+    const sources = diffReadingSources()
+    const operations = createGitOperations(dependencies({ diffReadingSources: sources }))
+
+    await expect(operations.rangeFlowGit({ repoPath: REPO, base: 'develop' })).resolves.toEqual({
+      base: 'develop',
+      defaultBase: 'main',
+      groups: FLOW_GROUPS,
+    })
+    expect(sources.loadRangeFlow).toHaveBeenCalledWith(REPO, 'develop')
   })
 
   it('titles a commit-scope reading from the first message line or short hash', async () => {
