@@ -29,6 +29,7 @@ import { CommitGroup } from './commit-group'
 import { FileTimelineGroup } from './file-timeline-group'
 import { FileTree } from './file-tree'
 import { PinnedGroup } from './pinned-group'
+import { ProfileSetupTip } from './profile-setup-tip'
 import { QuickCommandsGroup } from './quick-commands-group'
 
 interface SurfaceDefinition {
@@ -204,6 +205,7 @@ function FilesSurface({
     >
       <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
         <div className="shrink-0">
+          <ProfileSetupTip projectPath={projectPath} />
           <PinnedGroup compact />
         </div>
         <div className="min-w-0 px-2 pb-2">

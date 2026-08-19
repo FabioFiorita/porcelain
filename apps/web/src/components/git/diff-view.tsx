@@ -9,6 +9,17 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui
 import { useDiffFile, useReviewedPaths, useToggleReviewed } from '@renderer/features/git'
 import { useCommentIndex } from '@renderer/features/review'
 import { useIsMobile } from '@renderer/hooks/use-mobile'
+import {
+  addRange,
+  allRevealed,
+  collapseHunks,
+  DEFAULT_DIFF_CONTEXT,
+  type DiffGap,
+  type LineRange,
+  revealDown,
+  revealUp,
+  revealWhole,
+} from '@renderer/lib/collapse-hunks'
 import { raisedCardClass, viewerWellClass } from '@renderer/lib/controls'
 import { type LineSelection, lineSelectionFromDom } from '@renderer/lib/line-selection'
 import { fileName } from '@renderer/lib/paths'
@@ -18,7 +29,14 @@ import { activeTabTarget, targetedTab } from '@renderer/stores/hub-tabs'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { TestIds } from '@shared/test-ids'
-import { FileText, MessageSquarePlus, Square, SquareCheck } from 'lucide-react'
+import {
+  FileText,
+  FoldVertical,
+  MessageSquarePlus,
+  Square,
+  SquareCheck,
+  UnfoldVertical,
+} from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { type CommentAnchor, CommentComposer } from './comment-composer'
 import { DiffModeToggle } from './diff-mode-toggle'
@@ -44,6 +62,27 @@ export function DiffView({
   const [lineSel, setLineSel] = useState<LineSelection | null>(null)
   const [commentAnchor, setCommentAnchor] = useState<CommentAnchor | null>(null)
   const commentIndex = useCommentIndex(filePath)
+
+  // The page fetches the file whole (see useDiffFile) and hides everything more
+  // than DEFAULT_DIFF_CONTEXT lines from a change; `revealed` is what the reader
+  // has expanded back, in new-side line numbers. Opening another file starts over.
+  const [revealed, setRevealed] = useState<readonly LineRange[]>([])
+  const revealKey = `${filePath}\u0000${base ?? ''}`
+  const [revealedFor, setRevealedFor] = useState(revealKey)
+  if (revealedFor !== revealKey) {
+    setRevealedFor(revealKey)
+    setRevealed([])
+  }
+  const collapsed = useMemo(
+    () => collapseHunks(hunks ?? [], { context: DEFAULT_DIFF_CONTEXT, revealed }),
+    [hunks, revealed],
+  )
+  const handleExpand = (gap: DiffGap, direction: 'up' | 'down' | 'whole'): void => {
+    const range =
+      direction === 'up' ? revealUp(gap) : direction === 'down' ? revealDown(gap) : revealWhole(gap)
+    setRevealed((current) => addRange(current, range))
+  }
+  const canExpand = collapsed.gaps.some((gap) => gap.expandable)
   const pendingLines = useMemo(() => {
     if (
       !commentAnchor ||
@@ -148,6 +187,42 @@ export function DiffView({
                 <TooltipContent>Open file</TooltipContent>
               </Tooltip>
             )}
+            {!nonText && canExpand && (
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      className="text-muted-foreground hover:text-foreground"
+                      onClick={() => setRevealed(allRevealed())}
+                      aria-label="Expand all context"
+                    >
+                      <UnfoldVertical />
+                    </Button>
+                  }
+                />
+                <TooltipContent>Expand all context</TooltipContent>
+              </Tooltip>
+            )}
+            {!nonText && revealed.length > 0 && (
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      className="text-muted-foreground hover:text-foreground"
+                      onClick={() => setRevealed([])}
+                      aria-label="Collapse context"
+                    >
+                      <FoldVertical />
+                    </Button>
+                  }
+                />
+                <TooltipContent>Collapse context</TooltipContent>
+              </Tooltip>
+            )}
             {!nonText && <DiffModeToggle />}
           </div>
         </div>
@@ -193,7 +268,9 @@ export function DiffView({
               }}
             >
               <HunksView
-                hunks={hunks ?? []}
+                hunks={collapsed.hunks}
+                gaps={collapsed.gaps}
+                onExpand={handleExpand}
                 filePath={filePath}
                 diffMode={diffMode}
                 commentIndex={commentIndex}

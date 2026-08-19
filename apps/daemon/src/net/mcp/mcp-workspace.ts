@@ -33,14 +33,41 @@ export type ResolvedWorkspace = Readonly<{
 export type WorkspaceInventory = Readonly<{
   projects: readonly Readonly<{
     id: string
+    /** Only used to say which Projects exist when resolution fails. */
+    name?: string
     path: string
-    worktrees: readonly Readonly<{ id: string; path: string; isPrimary: boolean }>[]
+    worktrees: readonly Readonly<{
+      id: string
+      path: string
+      isPrimary: boolean
+      name?: string
+      branch?: string
+    }>[]
   }>[]
 }>
 
 export type WorkspaceResolution =
   | Readonly<{ ok: true; value: ResolvedWorkspace }>
   | Readonly<{ ok: false; message: string }>
+
+/**
+ * What this daemon has open, in the failure message itself. Telling an agent to
+ * "pass {projectId}" without ever naming one is a dead end: it has no other way to
+ * learn an id, so it either guesses or goes around the tool.
+ */
+export function describeKnownProjects(inventory: WorkspaceInventory): string {
+  if (inventory.projects.length === 0) {
+    return 'This daemon has no Projects open yet — open the repository in Porcelain first.'
+  }
+  const lines = inventory.projects.map((project) => {
+    const worktrees = project.worktrees
+      .map((worktree) => `      worktreeId ${worktree.id} → ${worktree.path}`)
+      .join('\n')
+    const label = project.name === undefined ? '' : ` (${project.name})`
+    return `  projectId ${project.id}${label} → ${project.path}${worktrees === '' ? '' : `\n${worktrees}`}`
+  })
+  return `Projects open on this daemon:\n${lines.join('\n')}`
+}
 
 export function isWorkspaceRef(value: unknown): value is WorkspaceRef {
   if (typeof value === 'string') return value !== ''
@@ -71,7 +98,10 @@ export async function resolveWorkspace(
   if (typeof ref !== 'string') {
     const project = inventory.projects.find((candidate) => candidate.id === ref.projectId)
     if (project === undefined) {
-      return { ok: false, message: `No Project ${ref.projectId} on this daemon.` }
+      return {
+        ok: false,
+        message: `No Project ${ref.projectId} on this daemon. ${describeKnownProjects(inventory)}`,
+      }
     }
     if (ref.worktreeId === undefined) {
       const primary = project.worktrees.find((worktree) => worktree.isPrimary)
@@ -86,7 +116,10 @@ export async function resolveWorkspace(
     }
     const worktree = project.worktrees.find((candidate) => candidate.id === ref.worktreeId)
     if (worktree === undefined) {
-      return { ok: false, message: `No Worktree ${ref.worktreeId} in Project ${ref.projectId}.` }
+      return {
+        ok: false,
+        message: `No Worktree ${ref.worktreeId} in Project ${ref.projectId}. ${describeKnownProjects(inventory)}`,
+      }
     }
     return {
       ok: true,
@@ -95,7 +128,12 @@ export async function resolveWorkspace(
   }
 
   const requested = await realpathOrNull(ref)
-  if (requested === null) return { ok: false, message: `No such directory: ${ref}` }
+  if (requested === null) {
+    return {
+      ok: false,
+      message: `No such directory: ${ref}. Pass the absolute path of the checkout you are working in (your process.cwd() or its repository root). ${describeKnownProjects(inventory)}`,
+    }
+  }
 
   for (const project of inventory.projects) {
     for (const worktree of project.worktrees) {
@@ -113,6 +151,6 @@ export async function resolveWorkspace(
   }
   return {
     ok: false,
-    message: `${ref} is not a checkout Porcelain has open. Open it in Porcelain first, or pass {projectId} explicitly.`,
+    message: `${ref} is not a checkout Porcelain has open. Open it in the Porcelain app first, or call again with {projectId, worktreeId?}. ${describeKnownProjects(inventory)}`,
   }
 }

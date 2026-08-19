@@ -66,6 +66,17 @@ the worktree clean enough for the next person to understand. Do not push or publ
 explicit request. Product future work lives in Porcelain Tasks; this repository documents current
 behavior and operational facts only.
 
+## Porcelain profile
+
+This worktree's Porcelain profile — pinned paths, hidden paths, and story layer order — is meant
+to mutate. When you start substantial work here, set it to match *that* task with the
+`porcelain_profile` MCP tool: `workspace` this checkout's absolute path, `level` worktree, `op`
+set, and a profile of { pinnedPaths, hiddenPaths, unhiddenPaths, layers }. When the work is done,
+`op` clear puts this worktree back to inheriting the project baseline. Pins and hides add to that
+baseline, `unhiddenPaths` reveals something the project hides, and `layers` replaces the project's
+order when set (`null` inherits it). `op` set replaces the whole level, so read it back with `op`
+get first — a stale profile is worse than none.
+
 ## Hard safety rules
 
 - Development work uses playgrounds and development homes; production repositories and state are

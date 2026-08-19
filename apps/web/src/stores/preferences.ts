@@ -12,6 +12,22 @@ const htmlModeSchema = z.enum(['preview', 'source'])
 const pullModeSchema = z.enum(['merge', 'rebase'])
 const sidebarTabSchema = z.enum(['files', 'changes', 'history', 'search', 'git', 'canvas'])
 
+/**
+ * The Branch-scope comparison base, per checkout.
+ *
+ * Per repo path, not one global value: "compare against develop" is a fact about
+ * one project, and carrying it to the next one would silently change what someone
+ * is reviewing. A ref is short and single-token by construction, so the schema
+ * bounds it — a hand-edited blob cannot smuggle a novel into a wire argument, and
+ * the daemon re-validates whatever arrives anyway.
+ *
+ * This is CLIENT state. The daemon has no per-worktree preference store to
+ * piggyback on (the worktree profile owns pins/hides/layers and nothing else), so
+ * the choice survives reload per browser rather than per daemon.
+ */
+const compareBasesSchema = z.record(z.string(), z.string().min(1).max(255))
+export type CompareBases = z.infer<typeof compareBasesSchema>
+
 export type ChangesScope = z.infer<typeof changesScopeSchema>
 export type ThemeMode = z.infer<typeof themeModeSchema>
 export type DiffMode = z.infer<typeof diffModeSchema>
@@ -68,6 +84,7 @@ function persistedField<Schema extends z.ZodType>(schema: Schema) {
 const persistedPreferencesSchema = z.object({
   theme: persistedField(themeModeSchema),
   changesScope: persistedField(changesScopeSchema),
+  compareBases: persistedField(compareBasesSchema),
   diffMode: persistedField(diffModeSchema),
   markdownMode: persistedField(markdownModeSchema),
   htmlMode: persistedField(htmlModeSchema),
@@ -80,6 +97,7 @@ const persistedPreferencesSchema = z.object({
   notesHeight: persistedField(z.number().transform(clampNotesHeight)),
   terminalHeight: persistedField(z.number().transform(clampTerminalHeight)),
   splitRatio: persistedField(z.number().transform(clampSplitRatio)),
+  dismissedDaemonUpdates: persistedField(z.record(z.string(), z.string())),
 })
 
 /** The persisted fields with their optionality removed — `null` stays where it is real. */
@@ -105,6 +123,7 @@ export function hydratePreferences(persisted: unknown): Partial<PreferenceValues
   const hydrated: Partial<PreferenceValues> = {}
   if (blob.theme !== undefined) hydrated.theme = blob.theme
   if (blob.changesScope !== undefined) hydrated.changesScope = blob.changesScope
+  if (blob.compareBases !== undefined) hydrated.compareBases = blob.compareBases
   if (blob.diffMode !== undefined) hydrated.diffMode = blob.diffMode
   if (blob.markdownMode !== undefined) hydrated.markdownMode = blob.markdownMode
   if (blob.htmlMode !== undefined) hydrated.htmlMode = blob.htmlMode
@@ -117,6 +136,8 @@ export function hydratePreferences(persisted: unknown): Partial<PreferenceValues
   if (blob.notesHeight !== undefined) hydrated.notesHeight = blob.notesHeight
   if (blob.terminalHeight !== undefined) hydrated.terminalHeight = blob.terminalHeight
   if (blob.splitRatio !== undefined) hydrated.splitRatio = blob.splitRatio
+  if (blob.dismissedDaemonUpdates !== undefined)
+    hydrated.dismissedDaemonUpdates = blob.dismissedDaemonUpdates
   return hydrated
 }
 
@@ -124,6 +145,8 @@ interface PreferencesState {
   /** Light/dark/system appearance. Applied pre-paint in main.tsx via lib/theme. */
   theme: ThemeMode
   changesScope: ChangesScope
+  /** Chosen Branch-scope comparison base per repo path; absent = the daemon's default. */
+  compareBases: CompareBases
   diffMode: DiffMode
   markdownMode: MarkdownMode
   /** Default for .html/.htm: sandboxed preview vs source. */
@@ -141,7 +164,15 @@ interface PreferencesState {
   terminalHeight: number
   /** Fraction of the viewer width given to the left pane when split (0.2–0.8). */
   splitRatio: number
+  /**
+   * Remote daemon host -> the daemon version whose update prompt was waved off. Keyed by
+   * version so the next lagging release asks again (see lib/daemon-update.ts). Presentation
+   * state only — never a credential.
+   */
+  dismissedDaemonUpdates: Record<string, string>
   setChangesScope: (scope: ChangesScope) => void
+  /** `null` clears the pick and returns that repo to the daemon's default base. */
+  setCompareBase: (repoPath: string, base: string | null) => void
   setDiffMode: (mode: DiffMode) => void
   setMarkdownMode: (mode: MarkdownMode) => void
   setHtmlMode: (mode: HtmlMode) => void
@@ -155,6 +186,7 @@ interface PreferencesState {
   setTerminalHeight: (height: number) => void
   setSplitRatio: (ratio: number) => void
   setTheme: (theme: ThemeMode) => void
+  dismissDaemonUpdate: (host: string, version: string) => void
 }
 
 export const usePreferencesStore = create<PreferencesState>()(
@@ -162,6 +194,7 @@ export const usePreferencesStore = create<PreferencesState>()(
     (set) => ({
       theme: 'system',
       changesScope: 'working',
+      compareBases: {},
       diffMode: 'unified',
       markdownMode: 'reader',
       htmlMode: 'preview',
@@ -174,7 +207,15 @@ export const usePreferencesStore = create<PreferencesState>()(
       notesHeight: 220,
       terminalHeight: TERMINAL_DEFAULT_HEIGHT,
       splitRatio: 0.5,
+      dismissedDaemonUpdates: {},
       setChangesScope: (changesScope: ChangesScope) => set({ changesScope }),
+      setCompareBase: (repoPath: string, base: string | null) =>
+        set((state) => {
+          const next = { ...state.compareBases }
+          if (base === null) delete next[repoPath]
+          else next[repoPath] = base
+          return { compareBases: next }
+        }),
       setDiffMode: (diffMode: DiffMode) => set({ diffMode }),
       setMarkdownMode: (markdownMode: MarkdownMode) => set({ markdownMode }),
       setHtmlMode: (htmlMode: HtmlMode) => set({ htmlMode }),
@@ -191,6 +232,10 @@ export const usePreferencesStore = create<PreferencesState>()(
       setTerminalHeight: (height: number) => set({ terminalHeight: clampTerminalHeight(height) }),
       setSplitRatio: (ratio: number) => set({ splitRatio: clampSplitRatio(ratio) }),
       setTheme: (theme: ThemeMode) => set({ theme }),
+      dismissDaemonUpdate: (host: string, version: string) =>
+        set((state) => ({
+          dismissedDaemonUpdates: { ...state.dismissedDaemonUpdates, [host]: version },
+        })),
     }),
     {
       name: 'porcelain-preferences',

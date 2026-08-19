@@ -23,8 +23,8 @@ rules.
 ## Moving between Environments
 
 Open or pair the destination daemon, then let its Hub inventory discover the same Project and
-Worktrees. Recreate private Actions or Canvas content in that Environment through the CLI when
-the human wants it there; do not copy daemon databases by hand. Use tracked overlays when the
+Worktrees. Recreate private Actions or Canvas content in that Environment through the `porcelain_*` tools
+when the human wants it there; do not copy daemon databases by hand. Use tracked overlays when the
 team should receive the same Canvas or project defaults from git.
 
 Share tracked repo-local overlays deliberately; private daemon state remains with its Environment.

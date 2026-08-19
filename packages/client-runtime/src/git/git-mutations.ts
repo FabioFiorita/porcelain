@@ -7,6 +7,7 @@ import {
 } from '@porcelain/client-runtime/files'
 import {
   type GitAddWorktreeInput,
+  type GitApplyCommitGroupsInput,
   type GitCheckoutInput,
   type GitCommitInput,
   type GitCreateBranchInput,
@@ -53,6 +54,7 @@ type GitMutationName =
   | 'gitCommit'
   | 'gitGenerateCommitMessage'
   | 'gitGenerateCommitGroups'
+  | 'gitApplyCommitGroups'
   | 'gitCheckout'
   | 'gitCreateBranch'
   | 'gitAddWorktree'
@@ -246,6 +248,17 @@ export const gitMutations = {
     optimistic: false,
     requiresAuthoritativeRefetch: true,
   },
+  applyGroups: {
+    procedure: gitProcedures.gitApplyCommitGroups,
+    procedureName: 'gitApplyCommitGroups',
+    // The batch ends in one or more real commits, so it moves the same ground a single commit
+    // does — working tree, history, and the branch range all change.
+    affectedQueries: (input: GitApplyCommitGroupsInput): readonly GitQueryEffect[] =>
+      commitQueries(input.repoPath),
+    filesEffects: noFilesEffects<GitApplyCommitGroupsInput>,
+    optimistic: false,
+    requiresAuthoritativeRefetch: true,
+  },
   checkout: {
     procedure: gitProcedures.gitCheckout,
     procedureName: 'gitCheckout',
@@ -292,6 +305,7 @@ export const gitMutations = {
     'gitGenerateCommitGroups',
     GitGenerateCommitGroupsInput
   >
+  readonly applyGroups: GitMutationDefinition<'gitApplyCommitGroups', GitApplyCommitGroupsInput>
   readonly checkout: GitMutationDefinition<'gitCheckout', GitCheckoutInput>
   readonly createBranch: GitMutationDefinition<'gitCreateBranch', GitCreateBranchInput>
   readonly addWorktree: GitMutationDefinition<'gitAddWorktree', GitAddWorktreeInput>

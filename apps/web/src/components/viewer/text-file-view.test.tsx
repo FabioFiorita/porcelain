@@ -14,6 +14,7 @@ vi.mock(import('@renderer/features/files'), async (importOriginal) => {
     ...actual,
     useWriteTextFile: () => ({ save: async () => {}, isSaving: false, error: null }),
     useFilePreview: () => ({ html: null, error: null }),
+    useFilePreviewSrc: () => null,
   }
 })
 

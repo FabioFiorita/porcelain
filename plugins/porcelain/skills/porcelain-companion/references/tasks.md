@@ -1,39 +1,80 @@
 # Tasks
 
 Tasks are Porcelain's **daemon-wide** table: rows shared by every Project on that Environment.
-They live in the daemon's own home (`$PORCELAIN_HOME/tasks/tasks.json`) and never enter a
-repository. Coordination therefore outlives, precedes, and spans checkouts, so a Task about a
-repo you have not cloned yet, or about two repos at once, still has a home.
+They live in the daemon's own home and never enter a repository, so coordination outlives,
+precedes, and spans checkouts — a Task about a repo you have not cloned yet, or about two repos
+at once, still has a home.
 
 **Tasks vs Review:** Tasks are work rows; Review is the daemon-root Canvas story with Intent,
 Process, Execution, and Evidence. A Task is not a second Review.
 
-Talk to Porcelain through the `porcelain` MCP tools. Every call takes `workspace` — the absolute
-path of the checkout, or `{projectId, worktreeId}` when the daemon runs on another host. A Task you
-create picks up that checkout's Project and Worktree references automatically.
+Two tools carry the whole board: `porcelain_context` reads, `porcelain_task` writes. Both take
+`workspace` — the absolute path of the checkout you are standing in (your working directory is
+the right answer), or `{projectId, worktreeId?}` when you mean a different checkout or the daemon
+runs on another host.
 
-- `porcelain_context` with `include: ["tasks"]` → every Task on this Environment, with its short id (`T-18`),
-  UUID, status, tags, and references.
-- `porcelain_context` with `include: ["tasks"]` and `taskId` → one Task: notes, file/folder tags, and
-  absolute attachment paths so you can read the pictures.
-- `porcelain_task` with `title` and no `id` [`notes`, `status: todo|doing|done|blocked`,
-  [--tags a,b] [--link <url>] [--link-label <s>] [--attach <abs path>] [--file <path>]
-  [--folder <path>] [--project-id <s>] [--worktree-id <s>]` → capture a Task. `--attach` **copies**
-  the file into the daemon's store. `--file` / `--folder` are live pointers into the worktree
-  (not copies) and need a Project and Worktree.
-- `porcelain_task` with an `id` [`title`, `notes`, `status`,
-  [--tags a,b]` → edit a row.
-- `porcelain_task` with an `id` and `status: "done"` → close it.
+## Read
+
+```jsonc
+// The open board: short id, title, status, notes, tags, links, references, attachments
+porcelain_context { "workspace": "/abs/path/to/checkout", "include": ["tasks"] }
+
+// …including the finished ones
+porcelain_context { "workspace": "…", "include": ["tasks"], "includeDone": true }
+
+// One Task in full
+porcelain_context { "workspace": "…", "include": ["tasks"], "taskId": "T-18" }
+
+// Which checkouts this daemon has open, with their projectId / worktreeId
+porcelain_context { "workspace": "…", "include": ["projects"] }
+```
+
+Every Task comes back with `id` (the short id — `T-18` — the same one the human says and the app
+shows) and `uuid`. Either is accepted anywhere an id is asked for.
+
+Each attachment carries `hostPath`: the absolute path of the copied file **on the daemon host**.
+When the daemon is your machine, read that path directly — that is how you look at the screenshot
+the human attached. When the daemon is remote, treat it as a name only.
+
+## Write
+
+```jsonc
+// Create
+porcelain_task { "workspace": "…", "title": "Fix the pairing timeout",
+                 "notes": "…markdown…", "status": "todo", "tags": ["daemon"] }
+
+// Start it, finish it
+porcelain_task { "workspace": "…", "id": "T-18", "status": "doing" }
+porcelain_task { "workspace": "…", "id": "T-18", "status": "done",
+                 "link": "https://github.com/o/r/pull/7", "linkLabel": "PR #7" }
+
+// Several rows, one change
+porcelain_task { "workspace": "…", "ids": ["T-3", "T-4"], "status": "done" }
+```
+
+- `link` **adds** to the links already on the Task; `links` replaces the whole list.
+- `notes`, `tags` and `title` replace what is there.
+- `attach` takes an absolute path and **copies** the file into the daemon's store (local daemon
+  only — the path is read on the daemon host). `file` / `folder` are live worktree-relative
+  pointers, not copies.
+- A Task you create picks up the Project and Worktree of the `workspace` you passed.
 
 ## How to use it
 
-- Capture follow-ups you discover mid-change with `porcelain_task` rather than leaving them in the
-  conversation — that is the whole reason the table exists.
-- Move a Task to `doing` when you start it and `done` when you finish, so the human sees progress
-  without asking.
-- Attach the artifact that explains the Task (a failing log, a screenshot) with `--attach`, and
-  link the run or issue with `--link`. A Task that names its evidence is a Task the human can act
-  on without you.
-- The Environment is implicit: the CLI writes to the daemon whose `$PORCELAIN_HOME` it resolves.
-  There is no cross-machine write from the CLI — that is the app's job, and it always names the
-  Environment explicitly.
+- Capture follow-ups you discover mid-change rather than leaving them in the conversation — that
+  is the whole reason the table exists.
+- Move a Task to `doing` when you start and `done` when you finish, so the human sees progress
+  without asking. Attach the PR with `link` as you close it.
+- Attach the artifact that explains the Task (a failing log, a screenshot). A Task that names its
+  evidence is a Task the human can act on without you.
+- The Environment is implicit: you are talking to one daemon, and it owns the board.
+
+## Do not go around the tools
+
+If you catch yourself about to read `$PORCELAIN_HOME/tasks/tasks.json`, open a file under
+`…/tasks/attachments/`, or call the daemon's HTTP API with `curl`, stop. Those are private daemon
+state; a write that skips the daemon is invisible to the app and to every other client, and a read
+that skips it will drift.
+
+If the tools genuinely cannot do what you need, that is a bug in the tool — record it with
+`porcelain_task` (tag `mcp`) and say so in your report.

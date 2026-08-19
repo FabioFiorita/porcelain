@@ -29,6 +29,7 @@ import type {
   GitSuggestion,
 } from '@porcelain/contracts/git'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
+import { FULL_DIFF_CONTEXT } from '@renderer/lib/collapse-hunks'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
 import { daemonScopeForEnvironment, environmentClientFor } from '@renderer/lib/environment-sessions'
 import { trpc } from '@renderer/lib/trpc'
@@ -106,12 +107,21 @@ export function useGitFlow(): { groups: FlowGroup[] | undefined; refresh: () => 
 
 /**
  * The Changes tab's Branch scope: the flow-ordered cumulative diff since the merge-base with the
- * default branch. A committed range is static until the next commit, so — unlike useGitFlow —
+ * comparison base. A committed range is static until the next commit, so — unlike useGitFlow —
  * this does NOT poll; the commit/push effect tables refresh it.
+ *
+ * `requestedBase` is the reviewer's pick; `undefined` means the daemon's default. The daemon
+ * always answers with the base it ACTUALLY measured against, which is what the "vs …" label and
+ * every per-file range read use — so a pick that no longer resolves degrades to the default
+ * rather than showing a lie.
  */
-export function useBranchFlow(enabled: boolean): {
+export function useBranchFlow(
+  enabled: boolean,
+  requestedBase?: string,
+): {
   groups: FlowGroup[] | undefined
   base: string | undefined
+  defaultBase: string | undefined
   refresh: () => Promise<void>
 } {
   const repoPath = useHubRepoPath()
@@ -120,12 +130,18 @@ export function useBranchFlow(enabled: boolean): {
   const owner = useGitOwner()
   const query = useQuery({
     enabled: enabled && repoPath !== null,
-    queryFn: () => ownerClient(owner).gitRangeFlow.query(path),
-    queryKey: gitQueryKey(daemon, gitRangeFlowQuery(path)),
+    queryFn: () =>
+      ownerClient(owner).gitRangeFlow.query({
+        repoPath: path,
+        ...(requestedBase === undefined ? {} : { base: requestedBase }),
+      }),
+    queryKey: gitQueryKey(daemon, gitRangeFlowQuery(path, requestedBase)),
+    placeholderData: keepPreviousData,
     staleTime: Number.POSITIVE_INFINITY,
   })
   return {
     base: query.data?.base,
+    defaultBase: query.data?.defaultBase,
     groups: query.data?.groups,
     refresh: async (): Promise<void> => {
       await query.refetch()
@@ -162,6 +178,13 @@ export function useGitSuggestions(): GitSuggestion[] {
   return query.data ?? []
 }
 
+/**
+ * The single-file diff page collapses context itself, so it fetches the file
+ * whole once and expanding a gap costs no round trip. The stacked reader and the
+ * commit views use other procedures and keep git's default 3-line hunks.
+ */
+const DIFF_PAGE_CONTEXT = FULL_DIFF_CONTEXT
+
 export function useDiffFile(
   filePath: string,
   base?: string,
@@ -186,7 +209,12 @@ export function useDiffFile(
   const range = useQuery({
     enabled: repoPath !== null && base !== undefined,
     queryFn: () =>
-      ownerClient(owner).gitRangeDiffFile.query({ base: base ?? '', filePath, repoPath: path }),
+      ownerClient(owner).gitRangeDiffFile.query({
+        base: base ?? '',
+        context: DIFF_PAGE_CONTEXT,
+        filePath,
+        repoPath: path,
+      }),
     queryKey: gitQueryKey(daemon, gitRangeDiffFileQuery(path, base ?? '', filePath)),
     placeholderData: keepPreviousData,
     staleTime: Number.POSITIVE_INFINITY,
@@ -212,14 +240,25 @@ export function useDiffFilePrefetch(): (filePath: string, base?: string) => Prom
     const path = gitProjectKey(repoPath)
     if (base === undefined) {
       await queryClient.prefetchQuery({
-        queryFn: () => ownerClient(owner).gitDiffFile.query({ filePath, repoPath: path }),
+        queryFn: () =>
+          ownerClient(owner).gitDiffFile.query({
+            context: DIFF_PAGE_CONTEXT,
+            filePath,
+            repoPath: path,
+          }),
         queryKey: gitQueryKey(daemon, gitDiffFileQuery(path, filePath)),
         staleTime: 2000,
       })
       return
     }
     await queryClient.prefetchQuery({
-      queryFn: () => ownerClient(owner).gitRangeDiffFile.query({ base, filePath, repoPath: path }),
+      queryFn: () =>
+        ownerClient(owner).gitRangeDiffFile.query({
+          base,
+          context: DIFF_PAGE_CONTEXT,
+          filePath,
+          repoPath: path,
+        }),
       queryKey: gitQueryKey(daemon, gitRangeDiffFileQuery(path, base, filePath)),
       staleTime: 2000,
     })

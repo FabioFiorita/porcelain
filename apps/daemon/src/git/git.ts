@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import { readFile, stat } from 'node:fs/promises'
 import { basename, isAbsolute, join, relative } from 'node:path'
 import { promisify } from 'node:util'
-import { branchNeedsPublish, type GitHead } from '@porcelain/contracts/git'
+import { branchNeedsPublish, type GitHead, isSingleRefToken } from '@porcelain/contracts/git'
 import { settleBackground } from '@porcelain/shared/background'
 import { imageMimeForPath, isBinaryBuffer, isGitBinaryDiff } from '../fs/image-mime'
 import { exceedsReadLimit } from '../fs/read-limits'
@@ -674,7 +674,19 @@ async function imagePreview(absPath: string, mime: string): Promise<string | nul
   }
 }
 
-export async function gitDiffFile(repoPath: string, filePath: string): Promise<DiffFileResult> {
+/**
+ * `git diff -U<n>` flags for a requested context width. Omitted context keeps
+ * git's default of 3 lines, so every existing caller diffs exactly as before.
+ */
+function contextArgs(context: number | undefined): string[] {
+  return context === undefined ? [] : [`-U${context}`]
+}
+
+export async function gitDiffFile(
+  repoPath: string,
+  filePath: string,
+  context?: number,
+): Promise<DiffFileResult> {
   const status = await runGit(repoPath, ['status', '--porcelain=v1', '-uall', '-z', '--', filePath])
   const probed = parseStatus(status)[0]?.status
   const abs = join(repoPath, filePath)
@@ -695,7 +707,14 @@ export async function gitDiffFile(repoPath: string, filePath: string): Promise<D
     return { hunks: synthesizeAddDiff(buffer.toString('utf8')), status: 'untracked' }
   }
 
-  const raw = await runGit(repoPath, ['diff', 'HEAD', '--no-color', '--', filePath])
+  const raw = await runGit(repoPath, [
+    'diff',
+    'HEAD',
+    '--no-color',
+    ...contextArgs(context),
+    '--',
+    filePath,
+  ])
   const fileStatus = probed ?? 'modified'
 
   // Known image types (and git's own "Binary files differ" marker): never try to
@@ -873,14 +892,23 @@ export async function gitRangeChangedFiles(repoPath: string, base: string): Prom
   return gitRangeChangedFilesFrom(repoPath, await gitMergeBase(repoPath, base))
 }
 
-/** Unified diff for a single file over the merge-base of `base`..HEAD range. */
+/** Unified diff for a single file over the merge-base of `base`..HEAD range.
+ *  `base` arrives from a client, so it is re-validated here rather than trusted. */
 export async function gitRangeDiffFile(
   repoPath: string,
   base: string,
   filePath: string,
+  context?: number,
 ): Promise<DiffFileResult> {
-  const mergeBase = await gitMergeBase(repoPath, base)
-  const raw = await runGit(repoPath, ['diff', '--no-color', `${mergeBase}..HEAD`, '--', filePath])
+  const mergeBase = await gitMergeBase(repoPath, await gitResolveCompareBase(repoPath, base))
+  const raw = await runGit(repoPath, [
+    'diff',
+    '--no-color',
+    ...contextArgs(context),
+    `${mergeBase}..HEAD`,
+    '--',
+    filePath,
+  ])
   const status = diffFileStatus(raw)
   const mime = imageMimeForPath(filePath)
   if (mime || isGitBinaryDiff(raw)) {
@@ -914,6 +942,86 @@ export async function gitDefaultBranch(repoPath: string): Promise<string> {
     }
   }
   return 'main' // last resort; range is empty if it doesn't exist
+}
+
+/**
+ * Resolve the ref a Branch review is measured against.
+ *
+ * Everything a client asks to compare against passes through here before it can
+ * reach git's argv, because the resolved value is spliced into `merge-base` /
+ * `diff` invocations. The rules are deliberately narrow:
+ *
+ * - `undefined` / empty → the default base (`gitDefaultBranch`), i.e. today's behaviour.
+ * - `@{u}` (or `@{upstream}`) → the current branch's own upstream, expanded to its
+ *   short name (`origin/main`) so the "vs …" label names a ref a human recognises.
+ * - anything else must `rev-parse` to a `refs/heads/` or `refs/remotes/` ref.
+ *
+ * A raw SHA, a tag, `HEAD~3`, a `--flag`, or a deleted branch all fail — a SHA has
+ * no symbolic full name, and the option guard plus `--end-of-options` keep a
+ * hostile string from being read as an option even before git sees it.
+ *
+ * Throws `UnknownCompareBaseError` so callers can choose: the flow falls back to
+ * the default (a branch you deleted should not brick the panel), while a per-file
+ * range read refuses, because it was handed an already-resolved base.
+ */
+export class UnknownCompareBaseError extends Error {
+  constructor(ref: string) {
+    super(`Not a branch or remote-tracking ref: ${ref}`)
+    this.name = 'UnknownCompareBaseError'
+  }
+}
+
+const UPSTREAM_BASES = new Set(['@{u}', '@{upstream}'])
+
+export async function gitResolveCompareBase(
+  repoPath: string,
+  requested?: string | undefined,
+): Promise<string> {
+  const ref = requested?.trim() ?? ''
+  if (ref === '') return gitDefaultBranch(repoPath)
+  if (ref.startsWith('-') || !isSingleRefToken(ref) || ref.length > 255) {
+    throw new UnknownCompareBaseError(ref)
+  }
+  if (UPSTREAM_BASES.has(ref)) {
+    const upstream = await symbolicRef(repoPath, ['--abbrev-ref', '@{u}'])
+    if (upstream === '') throw new UnknownCompareBaseError(ref)
+    return upstream
+  }
+  const candidates =
+    ref.startsWith('refs/heads/') || ref.startsWith('refs/remotes/')
+      ? [ref]
+      : [`refs/heads/${ref}`, `refs/remotes/${ref}`]
+  for (const candidate of candidates) {
+    if (await refExists(repoPath, candidate)) return ref
+  }
+  throw new UnknownCompareBaseError(ref)
+}
+
+/**
+ * Does this EXACT full ref exist?
+ *
+ * `show-ref --verify` rather than `rev-parse`, deliberately. rev-parse speaks
+ * revision syntax — it would happily accept a raw SHA, a tag, `HEAD~3`, or
+ * `main@{yesterday}`, none of which are a branch a reviewer chose from a list.
+ * Verifying a full `refs/…` name accepts branches and remote-tracking refs and
+ * nothing else, and a hostile string is inert once it is prefixed.
+ */
+async function refExists(repoPath: string, fullRef: string): Promise<boolean> {
+  try {
+    await runGit(repoPath, ['show-ref', '--verify', '--quiet', fullRef])
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** `git rev-parse` for a ref name, with "git said no" flattened to the empty string. */
+async function symbolicRef(repoPath: string, args: string[]): Promise<string> {
+  try {
+    return (await runGit(repoPath, ['rev-parse', ...args])).trim()
+  } catch {
+    return ''
+  }
 }
 
 /** +/- counts per file over the range from a resolved `mergeBase` SHA to HEAD. */
