@@ -77,6 +77,8 @@ export interface RemoteHttpOptions {
   serveStatic: (req: IncomingMessage, res: ServerResponse) => Promise<void>
   /** Serves GET /canvas/<token> — see canvas-http.ts. Token-gated, not Bearer-gated. */
   serveCanvas: (req: IncomingMessage, res: ServerResponse) => Promise<void>
+  /** Serves GET /file-preview/<token> — see file-preview-http.ts. Token-gated, not Bearer-gated. */
+  serveFilePreview: (req: IncomingMessage, res: ServerResponse) => Promise<void>
   /** DEVELOPMENT ONLY — see dev-auth-http.ts. Omitted in production; the route then does not exist. */
   devAutoAuth?: () => Promise<string>
   /** Serves POST /mcp once gated. Omitted means the route does not exist. */
@@ -99,7 +101,7 @@ export function createRemoteHttp(opts: RemoteHttpOptions): RemoteHttp {
     ...(opts.allowedOrigin === undefined ? [] : [opts.allowedOrigin]),
     ...(opts.allowedOrigins ?? []),
   ])
-  const { router, onSession, serveStatic, serveCanvas } = opts
+  const { router, onSession, serveStatic, serveCanvas, serveFilePreview } = opts
   const adminTokenHash = Buffer.from(opts.adminTokenHash)
 
   async function authenticate(provided: string | undefined): Promise<AuthIdentity | null> {
@@ -307,6 +309,17 @@ export function createRemoteHttp(opts: RemoteHttpOptions): RemoteHttp {
         return
       }
       await serveCanvas(req, res)
+      return
+    }
+    if (url.startsWith('/file-preview/')) {
+      // Same token-gated shape as /canvas/ above: an iframe navigation with the grant
+      // in the URL, its own per-response CSP, and no CORS (no fetch caller exists).
+      if (req.method === 'OPTIONS') {
+        res.writeHead(204)
+        res.end()
+        return
+      }
+      await serveFilePreview(req, res)
       return
     }
     if (url === '/mcp' || url.startsWith('/mcp?')) {

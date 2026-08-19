@@ -81,8 +81,13 @@ export type GitDiffReadingSources = Readonly<{
   loadCommitFlow(repoPath: string, hash: string): Promise<FlowGroup[]>
   workingHunks(repoPath: string, path: string): Promise<DiffHunk[]>
   rangeHunks(repoPath: string, base: string, path: string): Promise<DiffHunk[]>
-  diffFile(repoPath: string, path: string): Promise<DiffFileResult>
-  rangeDiffFile(repoPath: string, base: string, path: string): Promise<DiffFileResult>
+  diffFile(repoPath: string, path: string, context?: number): Promise<DiffFileResult>
+  rangeDiffFile(
+    repoPath: string,
+    base: string,
+    path: string,
+    context?: number,
+  ): Promise<DiffFileResult>
   commitHunks(repoPath: string, hash: string, path: string): Promise<DiffHunk[]>
   commitMessage(repoPath: string, hash: string): Promise<string>
 }>

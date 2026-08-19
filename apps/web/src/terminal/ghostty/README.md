@@ -9,6 +9,8 @@ renders a canvas surface.
 - `ghostty-write-pty.wasm` is a tiny callback trampoline for terminal-generated PTY replies.
 - `core.ts` owns per-terminal Ghostty handles and translates the C ABI into render snapshots.
 - `renderer.ts` batches backgrounds and style runs into a Canvas 2D frame.
+- `customGlyphs.ts` draws block and box-drawing characters geometrically so they tile the
+  cell grid exactly instead of leaving seams at the font's own glyph bounds.
 - `surface.ts` owns browser input, IME, selection, scrolling, sizing, links, and cursor blinking.
 - `fonts/` vendors the symbols-only Nerd Font (MIT) the surface registers lazily, so
   prompt glyphs render without a locally installed Nerd Font.

@@ -25,6 +25,8 @@ export const TestIds = {
   codeWell: 'code-well',
   /** Raised file or single-diff card that fills the Viewer. */
   codeCard: 'code-card',
+  /** Files HTML preview iframe — the daemon-served, scripts-enabled document frame. */
+  htmlPreviewIframe: 'html-preview-iframe',
   /** History commit file list (message, hash, layers) as a raised card. */
   commitListCard: 'commit-list-card',
   /** One stacked-diff file card, keyed by repo-relative path. */

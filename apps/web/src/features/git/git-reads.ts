@@ -29,6 +29,7 @@ import type {
   GitSuggestion,
 } from '@porcelain/contracts/git'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
+import { FULL_DIFF_CONTEXT } from '@renderer/lib/collapse-hunks'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
 import { daemonScopeForEnvironment, environmentClientFor } from '@renderer/lib/environment-sessions'
 import { trpc } from '@renderer/lib/trpc'
@@ -162,6 +163,13 @@ export function useGitSuggestions(): GitSuggestion[] {
   return query.data ?? []
 }
 
+/**
+ * The single-file diff page collapses context itself, so it fetches the file
+ * whole once and expanding a gap costs no round trip. The stacked reader and the
+ * commit views use other procedures and keep git's default 3-line hunks.
+ */
+const DIFF_PAGE_CONTEXT = FULL_DIFF_CONTEXT
+
 export function useDiffFile(
   filePath: string,
   base?: string,
@@ -186,7 +194,12 @@ export function useDiffFile(
   const range = useQuery({
     enabled: repoPath !== null && base !== undefined,
     queryFn: () =>
-      ownerClient(owner).gitRangeDiffFile.query({ base: base ?? '', filePath, repoPath: path }),
+      ownerClient(owner).gitRangeDiffFile.query({
+        base: base ?? '',
+        context: DIFF_PAGE_CONTEXT,
+        filePath,
+        repoPath: path,
+      }),
     queryKey: gitQueryKey(daemon, gitRangeDiffFileQuery(path, base ?? '', filePath)),
     placeholderData: keepPreviousData,
     staleTime: Number.POSITIVE_INFINITY,
@@ -212,14 +225,25 @@ export function useDiffFilePrefetch(): (filePath: string, base?: string) => Prom
     const path = gitProjectKey(repoPath)
     if (base === undefined) {
       await queryClient.prefetchQuery({
-        queryFn: () => ownerClient(owner).gitDiffFile.query({ filePath, repoPath: path }),
+        queryFn: () =>
+          ownerClient(owner).gitDiffFile.query({
+            context: DIFF_PAGE_CONTEXT,
+            filePath,
+            repoPath: path,
+          }),
         queryKey: gitQueryKey(daemon, gitDiffFileQuery(path, filePath)),
         staleTime: 2000,
       })
       return
     }
     await queryClient.prefetchQuery({
-      queryFn: () => ownerClient(owner).gitRangeDiffFile.query({ base, filePath, repoPath: path }),
+      queryFn: () =>
+        ownerClient(owner).gitRangeDiffFile.query({
+          base,
+          context: DIFF_PAGE_CONTEXT,
+          filePath,
+          repoPath: path,
+        }),
       queryKey: gitQueryKey(daemon, gitRangeDiffFileQuery(path, base, filePath)),
       staleTime: 2000,
     })
