@@ -97,7 +97,13 @@ export const TestIds = {
   personalizationBase: 'personalization-base',
   personalizationOverride: 'personalization-override',
   personalizationCopyStarter: 'personalization-copy-starter',
+  personalizationCopyWorktree: 'personalization-copy-worktree',
   personalizationCopyKeeper: 'personalization-copy-keeper',
+  /** Files panel first-run prompt: no profile at either level yet. */
+  filesProfileSetup: 'files-profile-setup',
+  filesProfileSetupDismiss: 'files-profile-setup-dismiss',
+  filesProfileSetupProject: 'files-profile-setup-project',
+  filesProfileSetupWorktree: 'files-profile-setup-worktree',
 
   // --- Changes ---
   changesList: 'changes-list',
