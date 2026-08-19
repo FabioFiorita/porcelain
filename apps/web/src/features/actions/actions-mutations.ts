@@ -35,14 +35,6 @@ export function duplicateTitle(title: string): string {
   return `${title.length > room ? title.slice(0, room).trimEnd() : title}${COPY_SUFFIX}`
 }
 
-const COPY_SUFFIX = ' (copy)'
-
-/** `Serve sim` → `Serve sim (copy)`, trimmed so the daemon never rejects the title. */
-export function duplicateTitle(title: string): string {
-  const room = ACTION_TITLE_MAX_LENGTH - COPY_SUFFIX.length
-  return `${title.length > room ? title.slice(0, room).trimEnd() : title}${COPY_SUFFIX}`
-}
-
 function daemonScopeFromIdentity(daemon: {
   host: string | null
   version: string | null
