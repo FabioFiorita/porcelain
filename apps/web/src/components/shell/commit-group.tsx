@@ -268,7 +268,10 @@ export function CommitGroup(): React.JSX.Element {
         if (failure === undefined) {
           setGeneratedGroups(null)
           clearMessage(repoPath)
-          setStaged({ text: `Committed ${committed.length} groups`, failed: false })
+          setStaged({
+            text: `Committed ${committed.length} group${committed.length === 1 ? '' : 's'}`,
+            failed: false,
+          })
           return
         }
         setGeneratedGroups(
