@@ -1,5 +1,5 @@
 import { actionsMutations, actionsProjectKey } from '@porcelain/client-runtime/actions'
-import type { ActionWhere } from '@porcelain/contracts/actions'
+import type { ActionKind, ActionWhere } from '@porcelain/contracts/actions'
 import { ACTION_TITLE_MAX_LENGTH } from '@porcelain/shared/actions-file'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
@@ -23,6 +23,16 @@ export type NewActionInput = {
   title: string
   command: string
   where?: ActionWhere
+  /** Omitted means a plain Action; the worktree roles are lifecycle scripts. */
+  kind?: ActionKind
+}
+
+const COPY_SUFFIX = ' (copy)'
+
+/** `Serve sim` → `Serve sim (copy)`, trimmed so the daemon never rejects the title. */
+export function duplicateTitle(title: string): string {
+  const room = ACTION_TITLE_MAX_LENGTH - COPY_SUFFIX.length
+  return `${title.length > room ? title.slice(0, room).trimEnd() : title}${COPY_SUFFIX}`
 }
 
 const COPY_SUFFIX = ' (copy)'
@@ -72,6 +82,7 @@ export function useActionMutations(): {
         title: input.title,
         command: input.command,
         where: input.where,
+        kind: input.kind,
       }
       await ownerClient().addAction.mutate(wire)
       await invalidateActionsIdentities(
@@ -99,6 +110,7 @@ export function useActionMutations(): {
         title: duplicateTitle(action.title),
         command: action.command,
         where: action.where,
+        kind: action.kind,
       }
       const created = await target.addAction.mutate(wire)
       for (let step = 0; step < rowsBelow; step += 1) {

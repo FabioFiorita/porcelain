@@ -17,3 +17,4 @@ export {
   useActionsNotificationSubscription,
 } from './actions-notifications'
 export { useActions } from './actions-queries'
+export { WorktreeScriptsSection } from './worktree-scripts-section'

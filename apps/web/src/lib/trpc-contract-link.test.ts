@@ -197,6 +197,7 @@ describe('contractValidationLink', () => {
     expect(settled.value).toEqual([
       {
         id: 'action-build',
+        kind: 'action',
         title: 'Build',
         command: 'make build',
         order: 0,

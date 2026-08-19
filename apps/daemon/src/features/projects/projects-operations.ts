@@ -125,6 +125,10 @@ export function createProjectsOperations(options: {
     daemon: { host: string; platform: string; arch: string }
     createId?: () => string
     pathAllowed?: (path: string) => AllowedPath
+    worktreeScripts?: {
+      runSetup: (target: { projectId: string; worktreeId: string; path: string }) => Promise<void>
+      runDispose: (target: { projectId: string; worktreeId: string; path: string }) => Promise<void>
+    }
   }
   /**
    * Canvas storage plus the grant map. Built here rather than handed in already
@@ -149,6 +153,7 @@ export function createProjectsOperations(options: {
     daemon: options.hub.daemon,
     pathAllowed: options.hub.pathAllowed,
     createId: options.hub.createId,
+    worktreeScripts: options.hub.worktreeScripts,
   })
   const canvas: CanvasOperations = createCanvasOperations({
     store: options.canvas.store,

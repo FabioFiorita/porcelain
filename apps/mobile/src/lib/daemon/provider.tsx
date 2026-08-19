@@ -61,9 +61,11 @@ export function proceduresForChange(change: SessionChange): readonly string[] {
       // Tasks has no mobile client yet (its registry entry lists three target roots);
       // when one lands it owns its own typed identities, as every other domain does.
       return []
+    case 'terminal.worktree-script-started':
     case 'terminal.dev-servers-changed':
-      // Mobile does not surface development servers yet; the Hub client owns that roster.
-      // Listed so the switch stays exhaustive rather than silently dropping a new signal.
+      // Mobile does not surface development servers or Worktree lifecycle terminals yet; the
+      // Hub client owns those. Listed so the switch stays exhaustive rather than silently
+      // dropping a new signal.
       return []
     case 'review.changed':
       // Mobile comments are stubbed; the Hub client owns review comments and marks.

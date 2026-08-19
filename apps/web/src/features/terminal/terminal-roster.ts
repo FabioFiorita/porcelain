@@ -121,6 +121,24 @@ export function useTerminalRoster(): void {
   const ownerAdapter = useTerminalStream(ownerSession, primaryListeners)
   const localAdapter = useTerminalStream(localSession, localListeners)
 
+  /**
+   * A Worktree lifecycle terminal the daemon just started for us.
+   *
+   * Setup and dispose are the two commands Porcelain runs without a click, so the human has
+   * to be put in front of them rather than left to find them. The id is held until the row
+   * actually shows up: creating a Worktree announces the session before the client has
+   * opened that checkout, and the roster only lists terminals of the open one.
+   */
+  const [pendingFocus, setPendingFocus] = useState<string | null>(null)
+  useEffect(() => {
+    if (ownerSession === null) return
+    return ownerSession.onChange((change) => {
+      if (change.kind !== 'terminal.worktree-script-started') return
+      setPendingFocus(change.terminalId)
+      settleBackground(ownerRoster.refetch(), 'notification')
+    })
+  }, [ownerSession, ownerRoster.refetch])
+
   useEffect(() => {
     if (repoPath === null || ownerRoster.data === undefined) return
     const inRepo = ownerRoster.data.filter(
@@ -143,6 +161,11 @@ export function useTerminalRoster(): void {
       })),
     ]
 
+    if (pendingFocus !== null && rows.some((row) => row.id === pendingFocus)) {
+      setPendingFocus(null)
+      useTerminalsStore.getState().openPanel(pendingFocus)
+    }
+
     resetTerminalSessions()
     if (ownerSession !== null) {
       for (const session of inRepo) registerTerminalSession(session.id, ownerSession)
@@ -159,5 +182,14 @@ export function useTerminalRoster(): void {
       if (localAdapter.isTerminalAttached(session.id)) continue
       settleBackground(localAdapter.attachTerminal(session.id), 'lifecycle')
     }
-  }, [hydrate, localAdapter, localSessions, ownerAdapter, ownerRoster.data, ownerSession, repoPath])
+  }, [
+    hydrate,
+    localAdapter,
+    localSessions,
+    ownerAdapter,
+    ownerRoster.data,
+    ownerSession,
+    pendingFocus,
+    repoPath,
+  ])
 }

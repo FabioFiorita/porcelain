@@ -59,6 +59,7 @@ export function createActionsRouter(operations: ActionsOperations) {
           title: input.title,
           command: input.command,
           where: input.where,
+          kind: input.kind,
         })
         return throwIfFailed(result)
       }),

@@ -1,4 +1,4 @@
-import { renderHook } from '@testing-library/react'
+import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 type ListenerSet = {
@@ -9,7 +9,18 @@ type ListenerSet = {
 }
 
 const doubles = vi.hoisted(() => {
-  const primarySession = { name: 'primary-session' }
+  // The lifecycle-terminal focus path subscribes to the owning session's change stream.
+  let sessionChangeListener: ((change: unknown) => void) | null = null
+  const primarySession = {
+    name: 'primary-session',
+    onChange: (listener: (change: unknown) => void) => {
+      sessionChangeListener = listener
+      return () => {
+        sessionChangeListener = null
+      }
+    },
+    announceChange: (change: unknown) => sessionChangeListener?.(change),
+  }
   const localSession = { name: 'local-session' }
   const primaryAdapter = {
     isTerminalAttached: vi.fn((id: string) => id === 'primary-known'),
@@ -37,6 +48,7 @@ const doubles = vi.hoisted(() => {
   const terminalState = {
     markExited: vi.fn(),
     hydrate: vi.fn(),
+    openPanel: vi.fn(),
   }
   return {
     primarySession,
@@ -104,8 +116,10 @@ vi.mock('@renderer/stores/project-selection', () => ({
     selector(doubles.projectState),
 }))
 vi.mock('@renderer/stores/terminals', () => ({
-  useTerminalsStore: (selector: (state: typeof doubles.terminalState) => unknown) =>
-    selector(doubles.terminalState),
+  useTerminalsStore: Object.assign(
+    (selector: (state: typeof doubles.terminalState) => unknown) => selector(doubles.terminalState),
+    { getState: () => doubles.terminalState },
+  ),
 }))
 vi.mock('@tanstack/react-query', () => ({
   useQuery: doubles.useQuery,
@@ -149,6 +163,42 @@ describe('useTerminalRoster', () => {
     expect(doubles.primaryAdapter.attachTerminal).toHaveBeenCalledWith('primary-in')
     expect(doubles.primaryAdapter.attachTerminal).not.toHaveBeenCalledWith('primary-known')
     expect(doubles.localAdapter.attachTerminal).toHaveBeenCalledWith('local-in')
+  })
+
+  it('opens the panel on the Worktree lifecycle terminal the daemon announces', () => {
+    renderHook(() => useTerminalRoster())
+    expect(doubles.terminalState.openPanel).not.toHaveBeenCalled()
+
+    act(() => {
+      doubles.primarySession.announceChange({
+        kind: 'terminal.worktree-script-started',
+        role: 'worktree-setup',
+        projectId: 'project-1',
+        worktreeId: 'worktree-1',
+        terminalId: 'primary-in',
+      })
+    })
+
+    // Setup and dispose run without a click, so the human is put in front of the session
+    // rather than left to find it in the list.
+    expect(doubles.terminalState.openPanel).toHaveBeenCalledWith('primary-in')
+  })
+
+  it('leaves an announced terminal alone until the checkout listing it is open', () => {
+    renderHook(() => useTerminalRoster())
+
+    act(() => {
+      doubles.primarySession.announceChange({
+        kind: 'terminal.worktree-script-started',
+        role: 'worktree-setup',
+        projectId: 'project-1',
+        worktreeId: 'worktree-2',
+        // Filtered out of this checkout's roster: focusing it would open an empty panel.
+        terminalId: 'primary-out',
+      })
+    })
+
+    expect(doubles.terminalState.openPanel).not.toHaveBeenCalled()
   })
 
   it('routes stream exits through both the registry and roster store', () => {

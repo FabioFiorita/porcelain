@@ -261,6 +261,11 @@ export const MCP_TOOLS: readonly McpToolDefinition[] = Object.freeze([
           enum: ['primary', 'local'],
           description: "Where the human's click runs it: the window's machine, or their device",
         },
+        kind: {
+          enum: ['action', 'worktree-setup', 'worktree-dispose'],
+          description:
+            'Default "action" (the human clicks it). The worktree roles are lifecycle scripts Porcelain runs itself in a terminal when a Worktree is created or removed — still only after the human accepts the command.',
+        },
       },
       required: ['workspace', 'op'],
       additionalProperties: false,

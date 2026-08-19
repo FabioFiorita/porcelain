@@ -76,17 +76,15 @@ describe('Hub inventory tree', () => {
     expect(screen.getByTestId(TestIds.hubProject('proj-alpha'))).not.toHaveTextContent('synthetic')
     expect(screen.getByTestId(TestIds.hubWorktree('wt-alpha-main'))).toHaveTextContent('alpha')
     expect(screen.getByTestId(TestIds.hubCreateWorktree('proj-alpha'))).toBeInTheDocument()
-    fireEvent.contextMenu(screen.getByRole('button', { name: 'Collapse project alpha' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Configure worktree setup' }))
-    expect(screen.getByTestId(TestIds.hubWorktreeSetupDialog)).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
-    expect(screen.getByRole('button', { name: 'Collapse project alpha' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /delete worktree/i })).toBeNull()
     expect(screen.queryByLabelText(/delete worktree/i)).toBeNull()
 
     fireEvent.contextMenu(screen.getByRole('button', { name: 'Collapse project alpha' }))
     expect(screen.getByRole('menuitem', { name: 'Copy project path' })).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: 'Remove project' })).toBeInTheDocument()
+    // Lifecycle scripts moved into the Actions store; the Project menu no longer owns a
+    // second, browser-local copy of them.
+    expect(screen.queryByRole('menuitem', { name: 'Configure worktree setup' })).toBeNull()
 
     fireEvent.contextMenu(screen.getByTestId(TestIds.hubWorktree('wt-alpha-main')))
     // The primary checkout is the Project itself — git refuses to remove it.

@@ -8,6 +8,7 @@ const action = (overrides: Partial<ActionView> = {}): ActionView => ({
   command: 'pnpm verify',
   createdAt: 0,
   id: 'verify',
+  kind: 'action',
   order: 0,
   title: 'Verify',
   trusted: true,
