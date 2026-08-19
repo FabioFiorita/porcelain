@@ -14,6 +14,7 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { ModalBackdrop } from '@/components/ui/modal-backdrop'
+import { themeVarsFor } from '@/features/settings/theme-vars'
 import { cn } from '@/lib/utils'
 
 type ShellModalProps = {
@@ -72,7 +73,7 @@ export function ShellModal({
   const insets = useSafeAreaInsets()
   useStackGuard(open)
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light'
-  const closeTint = scheme === 'dark' ? '#F5F7FA' : '#171A1C'
+  const closeTint = themeVarsFor(scheme).foreground ?? '#0A0A0A'
 
   return (
     <Modal

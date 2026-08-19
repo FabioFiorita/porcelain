@@ -1,6 +1,8 @@
 import { NativeTabs } from 'expo-router/unstable-native-tabs'
 
 import { useChangedFileCount } from '@/features/git'
+import { useResolvedColorScheme } from '@/features/settings/theme-provider'
+import { themeVarsFor } from '@/features/settings/theme-vars'
 
 import { ShellSheets } from './shell-sheets'
 import type { DualTabSlot } from './tab-faces'
@@ -18,13 +20,15 @@ export function PhoneShell(): React.JSX.Element {
   // The badge is the live working-tree count — a fixed number here would be a lie the moment
   // the agent writes anything.
   const changedFiles = useChangedFileCount()
+  // Tab tint follows the shared `primary` token, not a hardcoded system blue.
+  const tintColor = themeVarsFor(useResolvedColorScheme()).primary ?? '#171717'
 
   return (
     <>
       <NativeTabs
         disableTransparentOnScrollEdge
         minimizeBehavior="onScrollDown"
-        tintColor="#0A84FF"
+        tintColor={tintColor}
       >
         {/* The Files tab is a route group, so its stack (`/folder/…`, `/file/…`) lives inside
             the tab while the tab root stays the app's `/`. */}
