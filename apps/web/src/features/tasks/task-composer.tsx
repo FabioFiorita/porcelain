@@ -111,6 +111,11 @@ function worktreeFor(
   )
 }
 
+// Shared empty defaults: a fresh [] per render would change identity and re-run the
+// tag memo (and redraw the picture strip) on every keystroke.
+const NO_PICTURES: readonly { id: string; name: string; previewUrl?: string }[] = []
+const NO_TAGS: readonly string[] = []
+
 export type TaskComposerProps = {
   value: TaskComposerValue
   onChange: (value: TaskComposerValue) => void
@@ -122,9 +127,9 @@ export type TaskComposerProps = {
 export function TaskComposer({
   value,
   onChange,
-  existingPictures = [],
+  existingPictures = NO_PICTURES,
   onRemoveExisting,
-  knownTags = [],
+  knownTags = NO_TAGS,
 }: TaskComposerProps): React.JSX.Element {
   const inventories = useHubInventories()
   const selection = useHubSelectionStore((s) => s.selection)

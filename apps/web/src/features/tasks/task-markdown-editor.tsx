@@ -70,9 +70,11 @@ export function TaskMarkdownEditor({
   onPaste?: (event: React.ClipboardEvent<HTMLTextAreaElement>) => void
   children?: React.ReactNode
 }): React.JSX.Element {
-  const initial = withTrailingParagraph(parseNoteBlocks(notes))
+  // Parsed once on mount: this only seeds the three states below, and re-parsing every
+  // note block on every keystroke threw the result away.
+  const [initial] = useState(() => withTrailingParagraph(parseNoteBlocks(notes)))
   const [blocks, setBlocks] = useState<NoteBlock[]>(initial)
-  const [focusIndex, setFocusIndex] = useState(Math.max(0, initial.length - 1))
+  const [focusIndex, setFocusIndex] = useState(() => Math.max(0, initial.length - 1))
   const [draft, setDraft] = useState(() => blockSource(blockAt(initial, initial.length - 1)))
   const emitted = useRef(notes)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
