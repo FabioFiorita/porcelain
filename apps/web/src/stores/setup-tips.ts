@@ -3,7 +3,9 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
 /**
- * One-time onboarding tips (Files scope focus). Per-repo so dismissing on one tree does not hide
+ * One-time onboarding tips (Files scope focus). `scope-kickoff` is the Files panel's first-run
+ * prompt to set up pins, hides, and story order. Keyed by project path so dismissing it once
+ * settles it for every worktree of that project, and so dismissing on one tree does not hide
  * tips elsewhere.
  * Not for the Review empty canvas — that always shows.
  */

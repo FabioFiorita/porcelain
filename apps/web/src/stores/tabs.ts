@@ -355,3 +355,15 @@ export const useTabsStore = create<TabsState>()(
     },
   ),
 )
+
+/**
+ * The tab the Viewer is showing in the focused pane — what sidebar rows read to
+ * mark themselves open. Sidebar lists highlight one row (the thing on screen),
+ * so this deliberately follows the active pane only, like the file timeline.
+ */
+export function useActiveTab(): Tab | null {
+  return useTabsStore((s) => {
+    const pane = s.panes[s.activePaneIndex]
+    return pane?.tabs.find((t) => t.id === pane.activeTabId) ?? null
+  })
+}

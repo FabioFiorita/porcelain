@@ -8,6 +8,7 @@ import {
   gitMergeBase,
   gitRangeChangedFilesFrom,
   gitRangeNumstatFrom,
+  gitResolveCompareBase,
 } from '../git/git'
 import { workingTreeSnapshot } from '../git/working-tree'
 import { effectiveLayers } from './default-layers'
@@ -75,12 +76,23 @@ export async function loadWorkingFlow(
   return groups
 }
 
-/** Branch-range flow groups + base label (shared by gitRangeFlow + diffReading). */
+/**
+ * Branch-range flow groups + base label (shared by gitRangeFlow + diffReading).
+ *
+ * `requestedBase` is the reviewer's choice of comparison base. It is resolved
+ * through `gitResolveCompareBase`, and a choice that no longer names anything —
+ * the branch was deleted, the upstream was dropped — falls back to the default
+ * rather than erroring: a stale preference should never brick the Changes panel.
+ * The returned `base` is always the one actually measured against, so the label
+ * and every per-file range read downstream stay honest.
+ */
 export async function loadRangeFlow(
   repoPath: string,
   declared: readonly Layer[] = [],
-): Promise<{ groups: FlowGroup[]; base: string }> {
-  const base = await gitDefaultBranch(repoPath)
+  requestedBase?: string | undefined,
+): Promise<{ groups: FlowGroup[]; base: string; defaultBase: string }> {
+  const defaultBase = await gitDefaultBranch(repoPath)
+  const base = await resolveOrDefault(repoPath, requestedBase, defaultBase)
   try {
     const mergeBase = await gitMergeBase(repoPath, base)
     const [files, stats] = await Promise.all([
@@ -90,12 +102,25 @@ export async function loadRangeFlow(
     const layers = effectiveLayers(declared)
     const key = `${base}\n${flowKey(files, stats, layers)}`
     const cached = rangeFlowCache.get(repoPath)
-    if (cached && cached.key === key) return { groups: cached.groups, base }
+    if (cached && cached.key === key) return { base, defaultBase, groups: cached.groups }
     const groups = await readSourcesAndBuildFlow(repoPath, files, stats, layers)
     rangeFlowCache.set(repoPath, { key, groups })
-    return { groups, base }
+    return { base, defaultBase, groups }
   } catch {
-    return { groups: [], base }
+    return { base, defaultBase, groups: [] }
+  }
+}
+
+async function resolveOrDefault(
+  repoPath: string,
+  requestedBase: string | undefined,
+  defaultBase: string,
+): Promise<string> {
+  if (requestedBase === undefined || requestedBase === '') return defaultBase
+  try {
+    return await gitResolveCompareBase(repoPath, requestedBase)
+  } catch {
+    return defaultBase
   }
 }
 

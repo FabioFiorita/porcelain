@@ -110,7 +110,8 @@ export function useGitRangeFlow(options: GitFlowOptions = {}): GitRangeFlowRead 
   const { data, error, isLoading } = useGitQuery(
     gitRangeFlowQuery(scope.projectPath),
     rangeFlowProcedure,
-    scope.repoPath,
+    // Mobile has no base picker yet, so it always reads the daemon's default base.
+    { repoPath: scope.repoPath },
     { enabled: scope.ready && (options.enabled ?? true), keepPreviousData: true },
   )
   return { base: data?.base, error, groups: data?.groups, isLoading }

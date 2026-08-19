@@ -85,6 +85,14 @@ export type WorkspaceFiles = {
   previewHtml(input: {
     projectPath: string
     path: string
+    /**
+     * Inline sibling `<script src>` files too. Internal, never on the wire: only the
+     * token-gated `GET /file-preview/<token>` route asks for it, because that response
+     * is the ONE preview surface served with a CSP that lets author scripts run. The
+     * tRPC `previewHtml` procedure (web reader fallback, mobile) leaves it off — those
+     * render inside `sandbox=""`/no-script CSP frames where a script is dead weight.
+     */
+    inlineScripts?: boolean
   }): Promise<{ ok: true; value: string | null } | { ok: false; error: FilesPathOutsideError }>
 
   writeTextFile(input: {

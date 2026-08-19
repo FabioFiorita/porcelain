@@ -51,6 +51,9 @@ function draftFromRow(row: TaskRow): TaskComposerValue {
   }
 }
 
+// A fresh [] default per render would change identity for the composer below.
+const NO_TAGS: readonly string[] = []
+
 export type TaskDetailSheetProps = {
   row: TaskRow | null
   onClose: () => void
@@ -60,7 +63,7 @@ export type TaskDetailSheetProps = {
 export function TaskDetailSheet({
   row,
   onClose,
-  knownTags = [],
+  knownTags = NO_TAGS,
 }: TaskDetailSheetProps): React.JSX.Element {
   const actions = useTaskActions()
   const utils = trpc.useUtils()

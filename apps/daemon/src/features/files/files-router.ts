@@ -97,6 +97,11 @@ export function createFilesFeatureRouter(operations: FilesOperations) {
         return throwIfFailed(result)
       }),
 
+    mintFilePreviewToken: publicProcedure
+      .input(procedureCatalog.mintFilePreviewToken.input)
+      .output(procedureCatalog.mintFilePreviewToken.output)
+      .mutation(({ input }) => operations.mintFilePreviewToken(input)),
+
     writeTextFile: publicProcedure
       .input(procedureCatalog.writeTextFile.input)
       .output(procedureCatalog.writeTextFile.output)

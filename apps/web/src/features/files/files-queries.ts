@@ -13,12 +13,13 @@ import type { DirEntry, FileView, RepoScope, WorktreeProfileView } from '@porcel
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
 import { daemonScopeForEnvironment, environmentClientFor } from '@renderer/lib/environment-sessions'
+import { daemonBaseUrl } from '@renderer/lib/daemon'
 import { trpc } from '@renderer/lib/trpc'
 import { useHubRepoPath, useHubRepoTarget } from '@renderer/stores/hub-repo'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { settleBackground } from '@shared/background'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useCallback } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   normalizeProjectRoot,
   projectAbsoluteFromRelative,
@@ -222,6 +223,48 @@ export function useFilePreview(
   })
 
   return { html, error }
+}
+
+/**
+ * A daemon URL for the scripts-enabled preview of one HTML file — the `src` the
+ * Files preview iframe loads (see html-view.tsx `HtmlDocumentFrame` and the
+ * daemon's file-preview-http.ts). The short-lived grant is minted against the
+ * SAME daemon that owns the file, and the URL is composed from that session's
+ * base URL, so a secondary Environment previews from its own daemon.
+ *
+ * `null` while minting (or when it failed) — the caller already knows whether a
+ * preview exists at all from `useFilePreview`, which owns the empty/too-large
+ * states; this hook only answers "where does the frame point".
+ */
+export function useFilePreviewSrc(absolutePath: string, enabled: boolean): string | null {
+  const { owner, repoPath } = useFilesOwner()
+  const [src, setSrc] = useState<string | null>(null)
+  const rel = repoPath !== null ? projectRelativeFromAbsolute(repoPath, absolutePath) : null
+  const projectKey = repoPath !== null ? filesProjectKey(repoPath) : null
+  const client = owner?.client ?? null
+  const baseUrl = owner?.session?.baseUrl() ?? daemonBaseUrl()
+
+  useEffect(() => {
+    if (!enabled || client === null || projectKey === null || rel === null) {
+      setSrc(null)
+      return
+    }
+    let cancelled = false
+    setSrc(null)
+    settleBackground(
+      client.mintFilePreviewToken
+        .mutate({ projectPath: projectKey, path: rel })
+        .then(({ token }) => {
+          if (!cancelled) setSrc(`${baseUrl}/file-preview/${token}`)
+        }),
+      'fallback',
+    )
+    return () => {
+      cancelled = true
+    }
+  }, [enabled, client, projectKey, rel, baseUrl])
+
+  return src
 }
 
 /** Prefetch a file's contents (tree hover) into the same key as useFileContent. */

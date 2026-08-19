@@ -23,6 +23,7 @@ import { useUnreadStore } from '@renderer/stores/unread'
 import { TestIds } from '@shared/test-ids'
 import { Plus, Search, SquareTerminal, Table2 } from 'lucide-react'
 import { MAC_TRAFFIC_LIGHT_CLEARANCE, sidebarTopOffsetClass } from './shell-chrome'
+import { DaemonUpdateButton } from './daemon-update-button'
 import { SidebarResizeHandle } from './sidebar-resize-handle'
 import { UpdateButton } from './update-button'
 
@@ -69,6 +70,7 @@ export function AppSidebar(): React.JSX.Element {
         <img src={logo} alt="" draggable={false} className="size-6 shrink-0" />
         <span className="truncate text-sm font-semibold text-foreground">Porcelain</span>
         <div className="app-no-drag ml-auto flex shrink-0 items-center gap-1.5">
+          <DaemonUpdateButton />
           <UpdateButton />
           <Button
             variant="ghost"

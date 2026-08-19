@@ -33,6 +33,12 @@ vi.mock('@renderer/hooks/use-updates', () => ({
   useInstallUpdate: () => ({ install: vi.fn(), isInstalling: false }),
 }))
 
+// Its sibling chip reads daemonInfo through tRPC; this suite renders without a provider.
+// The chip's own behavior lives in daemon-update-button.test.tsx.
+vi.mock('@renderer/hooks/use-daemon-update-prompt', () => ({
+  useDaemonUpdatePrompt: () => null,
+}))
+
 describe('AppSidebar', () => {
   beforeEach(() => {
     useHubSelectionStore.getState().selectHome()

@@ -138,6 +138,21 @@ export const previewHtmlOutputSchema = z.string().nullable()
 export type PreviewHtmlInput = z.infer<typeof previewHtmlInputSchema>
 export type PreviewHtmlOutput = z.infer<typeof previewHtmlOutputSchema>
 
+/**
+ * Capability grant for the daemon's scripts-enabled preview route
+ * (`GET /file-preview/<token>`). Same file scope as `previewHtml`; the token is
+ * the credential an iframe navigation can carry, and it expires in minutes.
+ */
+export const mintFilePreviewTokenInputSchema = z
+  .object({
+    projectPath: filesProjectPathSchema,
+    path: filesProjectRelativePathSchema,
+  })
+  .strict()
+export const mintFilePreviewTokenOutputSchema = z.object({ token: z.string().min(1) }).strict()
+export type MintFilePreviewTokenInput = z.infer<typeof mintFilePreviewTokenInputSchema>
+export type MintFilePreviewTokenOutput = z.infer<typeof mintFilePreviewTokenOutputSchema>
+
 export const writeTextFileInputSchema = z
   .object({
     projectPath: filesProjectPathSchema,
@@ -289,6 +304,10 @@ export const filesContractFixtures = {
   previewHtml: {
     input: { projectPath: '/synthetic/repo', path: 'docs/index.html' },
     output: '<!doctype html><html><body>synthetic preview</body></html>',
+  },
+  mintFilePreviewToken: {
+    input: { projectPath: '/synthetic/repo', path: 'docs/index.html' },
+    output: { token: 'synthetic-file-preview-token' },
   },
   writeTextFile: {
     input: {

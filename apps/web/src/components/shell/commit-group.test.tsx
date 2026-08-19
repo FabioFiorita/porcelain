@@ -2,25 +2,26 @@ import type { FlowGroup } from '@backend/review/flow'
 import type { CommitConventions } from '@porcelain/contracts/git'
 import { SidebarProvider } from '@renderer/components/ui/sidebar'
 import {
+  useApplyCommitGroups,
   useCommit,
   useCommitConventions,
   useCommitGeneration,
-  useFileStaging,
   useGitFlow,
   useStageAll,
 } from '@renderer/features/git'
 import { useCommitDraftStore } from '@renderer/stores/commit-draft'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
+import { TestIds } from '@shared/test-ids'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { CommitGroup } from './commit-group'
 
 // Same convention as changes-list: mock the domain hooks, never the tRPC proxy.
 vi.mock('@renderer/features/git', () => ({
+  useApplyCommitGroups: vi.fn(),
   useCommit: vi.fn(),
   useCommitConventions: vi.fn(),
   useCommitGeneration: vi.fn(),
-  useFileStaging: vi.fn(),
   useGitFlow: vi.fn(),
   useStageAll: vi.fn(),
 }))
@@ -60,13 +61,15 @@ describe('CommitGroup', () => {
     vi.mocked(useCommitConventions).mockReturnValue(conventions)
     vi.mocked(useCommitGeneration).mockReturnValue({
       generateMessage: async () => 'feat: generated message',
-      generateGroups: async () => [{ files: ['src/a.ts'], message: 'feat: grouped change' }],
+      generateGroups: async () => [
+        { files: ['src/a.ts'], message: 'feat: grouped change' },
+        { files: ['src/b.ts'], message: 'fix: second group' },
+      ],
       isGenerating: false,
     })
-    vi.mocked(useFileStaging).mockReturnValue({
-      stageFile: async () => {},
-      unstageFile: async () => {},
-      isStaging: false,
+    vi.mocked(useApplyCommitGroups).mockReturnValue({
+      applyGroups: async () => [],
+      isApplying: false,
     })
     vi.mocked(useStageAll).mockReturnValue({
       stageAll: async () => {},
@@ -108,6 +111,86 @@ describe('CommitGroup', () => {
       )
     })
     expect(screen.getByRole('button', { name: 'Generate Group Commit' })).toBeDisabled()
+  })
+
+  it('accepts the whole proposal in one click — no per-group stage or commit button', async () => {
+    const applyGroups = vi.fn(async () => [
+      {
+        files: ['src/a.ts'],
+        message: 'feat: grouped change',
+        status: 'committed' as const,
+        error: null,
+      },
+      {
+        files: ['src/b.ts'],
+        message: 'fix: second group',
+        status: 'committed' as const,
+        error: null,
+      },
+    ])
+    vi.mocked(useApplyCommitGroups).mockReturnValue({ applyGroups, isApplying: false })
+    vi.mocked(useGitFlow).mockReturnValue({
+      groups: changedFiles(false, true),
+      refresh: async () => {},
+    })
+    renderGroup()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Generate Group Commit' }))
+    const accept = await screen.findByTestId(TestIds.acceptCommitGroups)
+    expect(accept).toHaveTextContent('Accept all — commit 2 groups')
+    // The old flow made the human stage each group and then press Commit.
+    expect(screen.queryByRole('button', { name: 'Stage group' })).not.toBeInTheDocument()
+
+    fireEvent.click(accept)
+
+    await waitFor(() => {
+      expect(applyGroups).toHaveBeenCalledWith([
+        { files: ['src/a.ts'], message: 'feat: grouped change' },
+        { files: ['src/b.ts'], message: 'fix: second group' },
+      ])
+    })
+    // A fully applied proposal is gone — the working tree it described no longer exists.
+    await waitFor(() => {
+      expect(screen.queryByTestId(TestIds.acceptCommitGroups)).not.toBeInTheDocument()
+    })
+    expect(screen.getByText('Committed 2 groups')).toBeInTheDocument()
+  })
+
+  it('keeps the groups that did not land when the batch stops on a failure', async () => {
+    vi.mocked(useApplyCommitGroups).mockReturnValue({
+      applyGroups: async () => [
+        {
+          files: ['src/a.ts'],
+          message: 'feat: grouped change',
+          status: 'committed' as const,
+          error: null,
+        },
+        {
+          files: ['src/b.ts'],
+          message: 'fix: second group',
+          status: 'failed' as const,
+          error: 'nothing to commit',
+        },
+      ],
+      isApplying: false,
+    })
+    vi.mocked(useGitFlow).mockReturnValue({
+      groups: changedFiles(false, true),
+      refresh: async () => {},
+    })
+    renderGroup()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Generate Group Commit' }))
+    fireEvent.click(await screen.findByTestId(TestIds.acceptCommitGroups))
+
+    await screen.findByText(/Committed 1 of 2 groups/)
+    // Only the unlanded group is still offered, so a retry cannot double-commit.
+    await waitFor(() => {
+      expect(screen.getByTestId(TestIds.acceptCommitGroups)).toHaveTextContent(
+        'Accept all — commit 1 group',
+      )
+    })
+    expect(screen.queryByText('feat: grouped change')).not.toBeInTheDocument()
   })
 
   it('reports a failed generation once, not once per error channel', async () => {

@@ -25,6 +25,8 @@ export const TestIds = {
   codeWell: 'code-well',
   /** Raised file or single-diff card that fills the Viewer. */
   codeCard: 'code-card',
+  /** Files HTML preview iframe — the daemon-served, scripts-enabled document frame. */
+  htmlPreviewIframe: 'html-preview-iframe',
   /** History commit file list (message, hash, layers) as a raised card. */
   commitListCard: 'commit-list-card',
   /** One stacked-diff file card, keyed by repo-relative path. */
@@ -36,6 +38,11 @@ export const TestIds = {
   commandsMenu: 'commands-menu',
   /** Titlebar install chip — only present when an update is downloaded (Electron). */
   updateButton: 'update-button',
+  /** Sidebar chip prompting an update of the REMOTE daemon this window is bound to. */
+  daemonUpdateButton: 'daemon-update-button',
+  daemonUpdateCommand: 'daemon-update-command',
+  daemonUpdateCopy: 'daemon-update-copy',
+  daemonUpdateDismiss: 'daemon-update-dismiss',
   environmentRow: (id: string): string => `environment-row-${id}`,
   /** One address of a saved environment — an environment has many (phase 5). */
   environmentEndpoint: (url: string): string => `environment-endpoint-${url}`,
@@ -97,11 +104,19 @@ export const TestIds = {
   personalizationBase: 'personalization-base',
   personalizationOverride: 'personalization-override',
   personalizationCopyStarter: 'personalization-copy-starter',
+  personalizationCopyWorktree: 'personalization-copy-worktree',
   personalizationCopyKeeper: 'personalization-copy-keeper',
+  /** Files panel first-run prompt: no profile at either level yet. */
+  filesProfileSetup: 'files-profile-setup',
+  filesProfileSetupDismiss: 'files-profile-setup-dismiss',
+  filesProfileSetupProject: 'files-profile-setup-project',
+  filesProfileSetupWorktree: 'files-profile-setup-worktree',
 
   // --- Changes ---
   changesList: 'changes-list',
   changesSummary: 'changes-summary',
+  changesBasePicker: 'changes-base-picker',
+  changesBaseOption: (ref: string): string => `changes-base-option-${ref}`,
   changesFile: (fileName: string): string => `changes-file-${fileName}`,
   diffCollapse: (path: string): string => `diff-collapse-${path}`,
   diffReviewed: (path: string): string => `diff-reviewed-${path}`,
@@ -145,6 +160,7 @@ export const TestIds = {
   commitGroup: 'commit-group',
   generateCommitMessage: 'generate-commit-message',
   generateCommitGroups: 'generate-commit-groups',
+  acceptCommitGroups: 'accept-commit-groups',
 
   // --- Development servers (daemon-owned, per Worktree) ---
   devServers: 'dev-servers',
@@ -261,11 +277,19 @@ export const TestIds = {
   tasksComposerNotes: 'tasks-composer-notes',
   tasksComposerMarkdown: 'tasks-composer-markdown',
   tasksComposerProject: 'tasks-composer-project',
+  tasksComposerEnvironment: 'tasks-composer-environment',
   tasksComposerAttach: 'tasks-composer-attach',
   tasksComposerFileSearch: 'tasks-composer-file-search',
   tasksComposerSubmit: 'tasks-composer-submit',
   tasksComposerPicture: (name: string): string => `tasks-composer-picture-${name}`,
   tasksComposerPath: (path: string): string => `tasks-composer-path-${path}`,
+
+  // --- Menu-bar quick add (the tray popover surface) ---
+  quickAdd: 'quick-add',
+  quickAddTitle: 'quick-add-title',
+  quickAddNotes: 'quick-add-notes',
+  quickAddSubmit: 'quick-add-submit',
+  quickAddConfirmation: 'quick-add-confirmation',
 
   // --- Review documents (Intent panes and Evidence Results) ---
   intentDocTabs: 'intent-doc-tabs',

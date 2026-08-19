@@ -5,10 +5,13 @@ import { CodeLine, useHighlighter } from '@renderer/components/viewer/code-line'
 import { VirtualRows } from '@renderer/components/viewer/virtual-rows'
 import type { CommentIndex } from '@renderer/features/review'
 import { useResolvedTheme } from '@renderer/hooks/use-theme'
+import type { DiffGap } from '@renderer/lib/collapse-hunks'
+import { EXPAND_STEP } from '@renderer/lib/collapse-hunks'
 import { languageFor, type TokenMap, themeNameFor, tokenizeHunks } from '@renderer/lib/highlight'
 import { formatHunkHeader } from '@renderer/lib/hunk-header'
 import { cn } from '@renderer/lib/utils'
 import { type CharRange, intraLineEmphasis } from '@renderer/lib/word-diff'
+import { ChevronDown, ChevronsUpDown, ChevronUp } from 'lucide-react'
 import { useMemo } from 'react'
 
 /** Intra-line word-diff ranges per diff line (paired del/add lines only). */
@@ -19,6 +22,7 @@ type CommentsByLine = Map<number, ReviewComment[]>
 
 const NO_COMMENTS: CommentsByLine = new Map()
 const NO_PENDING: ReadonlySet<number> = new Set()
+const NO_GAPS: readonly DiffGap[] = []
 
 interface RenderContext {
   tokens: TokenMap
@@ -26,7 +30,11 @@ interface RenderContext {
   commentsByLine: CommentsByLine
   pendingLines: ReadonlySet<number>
   filePath: string
+  onExpand: ExpandHandler | undefined
 }
+
+/** Reveal part of a collapsed gap: its bottom (`up`), its top (`down`), or all of it. */
+export type ExpandHandler = (gap: DiffGap, direction: 'up' | 'down' | 'whole') => void
 
 const lineClass: Record<DiffLine['kind'], string> = {
   add: 'bg-diff-add',
@@ -61,6 +69,7 @@ function cellAnchorLine(line: DiffLine, side: 'left' | 'right'): number | undefi
 
 type DiffRow =
   | { type: 'header'; text: string }
+  | { type: 'gap'; gap: DiffGap }
   | { type: 'unified'; line: DiffLine }
   | SplitRowEntry
 
@@ -70,20 +79,79 @@ interface SplitRowEntry {
   right: DiffLine | null
 }
 
-function toRows(hunks: readonly DiffHunk[], mode: 'unified' | 'split'): DiffRow[] {
+function toRows(
+  hunks: readonly DiffHunk[],
+  mode: 'unified' | 'split',
+  gaps: readonly DiffGap[],
+): DiffRow[] {
   const rows: DiffRow[] = []
-  for (const hunk of hunks) {
-    rows.push({ type: 'header', text: hunk.header })
+  const pushGaps = (index: number): void => {
+    for (const gap of gaps) if (gap.beforeHunk === index) rows.push({ type: 'gap', gap })
+  }
+  hunks.forEach((hunk, index) => {
+    pushGaps(index)
+    // A collapsed hunk carries no header — its gap rows say where it sits.
+    if (hunk.header !== '') rows.push({ type: 'header', text: hunk.header })
     if (mode === 'unified') {
       for (const line of hunk.lines) rows.push({ type: 'unified', line })
     } else {
       for (const row of toSplitRows(hunk)) rows.push({ type: 'split', ...row })
     }
-  }
+  })
+  pushGaps(hunks.length)
   return rows
 }
 
+function GapRow({
+  gap,
+  onExpand,
+}: {
+  gap: DiffGap
+  onExpand: ExpandHandler | undefined
+}): React.JSX.Element {
+  const label = `${gap.count} unchanged ${gap.count === 1 ? 'line' : 'lines'}`
+  const controls = gap.expandable && onExpand !== undefined
+  return (
+    <div className="flex h-5 items-center gap-1 bg-muted/40 px-2 text-muted-foreground">
+      {controls &&
+        (gap.count <= EXPAND_STEP ? (
+          <button
+            type="button"
+            aria-label={`Expand ${label}`}
+            className="rounded-sm px-0.5 hover:bg-accent hover:text-foreground"
+            onClick={() => onExpand(gap, 'whole')}
+          >
+            <ChevronsUpDown className="size-3" />
+          </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              aria-label={`Expand up from line ${gap.endNew}`}
+              className="rounded-sm px-0.5 hover:bg-accent hover:text-foreground"
+              onClick={() => onExpand(gap, 'up')}
+            >
+              <ChevronUp className="size-3" />
+            </button>
+            <button
+              type="button"
+              aria-label={`Expand down from line ${gap.startNew}`}
+              className="rounded-sm px-0.5 hover:bg-accent hover:text-foreground"
+              onClick={() => onExpand(gap, 'down')}
+            >
+              <ChevronDown className="size-3" />
+            </button>
+          </>
+        ))}
+      <span className="select-none">{`⋯ ${label}`}</span>
+    </div>
+  )
+}
+
 function DiffRowView({ row, ctx }: { row: DiffRow; ctx: RenderContext }): React.JSX.Element {
+  if (row.type === 'gap') {
+    return <GapRow gap={row.gap} onExpand={ctx.onExpand} />
+  }
   if (row.type === 'header') {
     return (
       <p className="h-5 bg-muted/40 px-2 text-muted-foreground">{formatHunkHeader(row.text)}</p>
@@ -199,6 +267,8 @@ export function HunksView({
   layout = 'pane',
   commentIndex,
   pendingLines,
+  gaps,
+  onExpand,
 }: {
   hunks: readonly DiffHunk[]
   filePath: string
@@ -207,6 +277,10 @@ export function HunksView({
   layout?: 'pane' | 'content'
   commentIndex?: CommentIndex
   pendingLines?: ReadonlySet<number>
+  /** Collapsed context runs to draw between hunks. Omitted: no gap rows, as the
+   *  stacked reader and commit views want. */
+  gaps?: readonly DiffGap[]
+  onExpand?: ExpandHandler
 }): React.JSX.Element {
   const highlighter = useHighlighter()
   const lang = languageFor(filePath)
@@ -222,24 +296,27 @@ export function HunksView({
     commentsByLine: commentIndex?.byLine ?? NO_COMMENTS,
     pendingLines: pendingLines ?? NO_PENDING,
     filePath,
+    onExpand,
   }
 
-  if (hunks.length === 0) {
+  if (hunks.length === 0 && (gaps === undefined || gaps.length === 0)) {
     return <p className="p-4 font-mono text-xs text-muted-foreground">No changes</p>
   }
 
-  const rows = toRows(hunks, diffMode)
+  const rows = toRows(hunks, diffMode, gaps ?? NO_GAPS)
   if (layout === 'content') {
     return (
       <div className="text-xs leading-5">
         {rows.map((row, index) => (
           <DiffRowView
             key={
-              row.type === 'header'
-                ? `h:${row.text}:${index}`
-                : row.type === 'unified'
-                  ? `u:${row.line.oldLine}:${row.line.newLine}:${index}`
-                  : `s:${row.left?.oldLine}:${row.right?.newLine}:${index}`
+              row.type === 'gap'
+                ? `g:${row.gap.startNew}:${index}`
+                : row.type === 'header'
+                  ? `h:${row.text}:${index}`
+                  : row.type === 'unified'
+                    ? `u:${row.line.oldLine}:${row.line.newLine}:${index}`
+                    : `s:${row.left?.oldLine}:${row.right?.newLine}:${index}`
             }
             row={row}
             ctx={ctx}
