@@ -61,11 +61,12 @@ has assets. Add `--cleanup-drafts` only when old failed draft releases should be
 workflow job can normally be retried from GitHub Actions or rerun with the same tag; do not rewrite
 an existing Git tag.
 
-After npm publication, metadata may appear before the tarball CDN returns HTTP 200. The workflow
-waits for the tarball and then runs `npx porcelain-daemon@<version> --help` from a clean temporary
-directory. Retry the same tag when propagation times out; do not cut another version for registry
-lag. Never run the consumer smoke inside `dist-daemon`, where `npx` can select the local package
-instead of the published artifact.
+After npm publication, the tarball CDN and the version metadata can each lag the publish. The
+workflow waits for the tarball to return HTTP 200 and for `npm view` to report the new version,
+then runs `npx porcelain-daemon@<version> --help` from a clean temporary directory. Retry the same
+tag when propagation times out; do not cut another version for registry lag. Never run the consumer
+smoke inside `dist-daemon`, where `npx` can select the local package instead of the published
+artifact.
 
 ## Smoke checks
 
