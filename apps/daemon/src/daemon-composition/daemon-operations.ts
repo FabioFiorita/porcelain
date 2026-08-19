@@ -6,7 +6,12 @@ import {
   createJsonActionsStore,
   createJsonActionTrustStore,
 } from '../features/actions'
-import { createFilesOperations, createFilesScope, type FilesOperations } from '../features/files'
+import {
+  createFilesOperations,
+  createFilesScope,
+  type FilePreviewTokens,
+  type FilesOperations,
+} from '../features/files'
 import {
   createCommitGeneration,
   createGitChangesPublisher,
@@ -108,6 +113,8 @@ export function createDaemonOperations(options: {
   terminal: TerminalOperations
   /** Resolved `porcelainHome()` — the daemon-root Project store lives beneath it. */
   homeDir: string
+  /** Shared capability grants for GET /file-preview/<token> (file-preview-http.ts). */
+  filePreviewTokens?: FilePreviewTokens
   publishSessionChange?: (change: SessionChange) => void
 }): DaemonOperations {
   const publish = options.publishSessionChange ?? publishSessionChange
@@ -170,7 +177,15 @@ export function createDaemonOperations(options: {
     review: createReviewOperations({
       publishSessionChange: publish,
     }),
-    files: createFilesOperations({ scope: filesScope, publishSessionChange: publish }),
+    files: createFilesOperations({
+      scope: filesScope,
+      publishSessionChange: publish,
+      // The entry point owns the ONE token store the GET /file-preview route resolves
+      // against; a default instance here would mint grants nothing can redeem.
+      ...(options.filePreviewTokens === undefined
+        ? {}
+        : { previewTokens: options.filePreviewTokens }),
+    }),
     git: createGitOperations({
       workspace: createGitSubprocess(),
       projectGit: createProjectGit(),

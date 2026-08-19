@@ -1,5 +1,6 @@
 import { actionsMutations, actionsProjectKey } from '@porcelain/client-runtime/actions'
 import type { ActionWhere } from '@porcelain/contracts/actions'
+import { ACTION_TITLE_MAX_LENGTH } from '@porcelain/shared/actions-file'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
 import { daemonScopeForEnvironment, environmentClientFor } from '@renderer/lib/environment-sessions'
@@ -24,6 +25,14 @@ export type NewActionInput = {
   where?: ActionWhere
 }
 
+const COPY_SUFFIX = ' (copy)'
+
+/** `Serve sim` → `Serve sim (copy)`, trimmed so the daemon never rejects the title. */
+export function duplicateTitle(title: string): string {
+  const room = ACTION_TITLE_MAX_LENGTH - COPY_SUFFIX.length
+  return `${title.length > room ? title.slice(0, room).trimEnd() : title}${COPY_SUFFIX}`
+}
+
 function daemonScopeFromIdentity(daemon: {
   host: string | null
   version: string | null
@@ -34,6 +43,7 @@ function daemonScopeFromIdentity(daemon: {
 /** Add/edit/delete/move saved actions. Each successful mutation refreshes the list. */
 export function useActionMutations(): {
   add: (input: NewActionInput) => Promise<void>
+  duplicate: (action: NewActionInput, rowsBelow: number) => Promise<void>
   update: (id: string, fields: NewActionInput) => Promise<void>
   move: (id: string, direction: 'up' | 'down') => Promise<void>
   remove: (id: string) => Promise<void>
@@ -64,6 +74,40 @@ export function useActionMutations(): {
         where: input.where,
       }
       await ownerClient().addAction.mutate(wire)
+      await invalidateActionsIdentities(
+        queryClient,
+        daemonScope,
+        actionsMutations.add.affectedQueries(wire),
+      )
+    },
+    /**
+     * Copy an Action the human is looking at. Composed from the existing add + move
+     * procedures — no new wire name, so it also works against an older remote daemon.
+     * The copy is created last and walked up past the `rowsBelow` rows that followed
+     * the original, landing directly beneath it; the list is invalidated once, at the end.
+     *
+     * Trust rides on the command TEXT, not the id: an identical copy of a command this
+     * machine already accepted is already accepted. The wire `addAction` is human-authored
+     * (the router says so), so it follows exactly the rule "the human typed it, the human
+     * trusts it" that Add action follows.
+     */
+    duplicate: async (action: NewActionInput, rowsBelow: number): Promise<void> => {
+      if (projectId === null) return
+      const target = ownerClient()
+      const wire = {
+        projectId: actionsProjectKey(projectId),
+        title: duplicateTitle(action.title),
+        command: action.command,
+        where: action.where,
+      }
+      const created = await target.addAction.mutate(wire)
+      for (let step = 0; step < rowsBelow; step += 1) {
+        await target.moveAction.mutate({
+          projectId: wire.projectId,
+          id: created.id,
+          direction: 'up',
+        })
+      }
       await invalidateActionsIdentities(
         queryClient,
         daemonScope,

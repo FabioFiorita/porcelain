@@ -31,6 +31,11 @@ vi.mock('@renderer/hooks/use-updates', () => ({
   useInstallUpdate: () => ({ install: vi.fn(), isInstalling: false }),
 }))
 
+// Its sibling chip reads daemonInfo through tRPC; this suite renders without a provider.
+vi.mock('@renderer/hooks/use-daemon-update-prompt', () => ({
+  useDaemonUpdatePrompt: () => null,
+}))
+
 // Unlike app-sidebar.test.tsx's stub, this one forwards className: the placement of this
 // panel against the window frame IS the behaviour under test, and it lives nowhere but
 // these class strings.

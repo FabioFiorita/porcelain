@@ -1,6 +1,7 @@
 /** Web Terminal public boundary: transport adapter, roster binding, and recovery copy. */
 
 export { useDevServersNotificationSubscription } from './dev-servers'
+export { findHubProjectForPath, suggestLocalTerminalPath } from './local-path-suggestion'
 export { applyTerminalRecovery, terminalPasteFailureMessage } from './terminal-notifications'
 export {
   invalidateTerminalSessionsQueries,

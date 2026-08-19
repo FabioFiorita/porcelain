@@ -3,6 +3,7 @@
 export type { BranchRef, GitHead, Worktree } from '@porcelain/contracts/git'
 export type { QuickCommandId } from './git-mutations'
 export {
+  useApplyCommitGroups,
   useCommit,
   useCommitGeneration,
   useDiscardFile,
