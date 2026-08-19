@@ -385,8 +385,8 @@ describe('Git operations', () => {
 
     expect(sources.loadWorkingFlow).toHaveBeenCalledWith(REPO)
     expect(sources.loadRangeFlow).toHaveBeenCalledWith(REPO)
-    expect(sources.rangeDiffFile).toHaveBeenCalledWith(REPO, 'main', 'src/a.ts')
-    expect(sources.diffFile).toHaveBeenCalledWith(REPO, 'src/a.ts')
+    expect(sources.rangeDiffFile).toHaveBeenCalledWith(REPO, 'main', 'src/a.ts', undefined)
+    expect(sources.diffFile).toHaveBeenCalledWith(REPO, 'src/a.ts', undefined)
     expect(git.log).toHaveBeenCalledWith(REPO, 20)
     expect(sources.commitMessage).toHaveBeenCalledWith(REPO, 'abcdef123456')
     expect(git.fileLog).toHaveBeenCalledWith(REPO, 'src/a.ts', 20)
