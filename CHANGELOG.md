@@ -1,3 +1,36 @@
+## [0.55.1](https://github.com/FabioFiorita/porcelain/compare/v0.55.0...v0.55.1) (2026-08-19)
+
+### Features
+
+* **actions:** duplicate a saved Action from its row menu ([#44](https://github.com/FabioFiorita/porcelain/issues/44)) ([9da9957](https://github.com/FabioFiorita/porcelain/commit/9da9957da7750468e31137e1f6f9189a3b0af415))
+* **desktop:** menu-bar quick add Task popover ([#58](https://github.com/FabioFiorita/porcelain/issues/58)) ([e67c010](https://github.com/FabioFiorita/porcelain/commit/e67c0102959b27535fb6363e57df0278df06c22f))
+* **dev:** pnpm dev:web serves the browser client with HMR ([#54](https://github.com/FabioFiorita/porcelain/issues/54)) ([5eccd0a](https://github.com/FabioFiorita/porcelain/commit/5eccd0aac015711be9be4873c597052489574b8e))
+* **git:** accept a grouped commit proposal in one click ([#53](https://github.com/FabioFiorita/porcelain/issues/53)) ([dd9b03b](https://github.com/FabioFiorita/porcelain/commit/dd9b03b243b15f5142aef0194c546ddbe78bce96))
+* **git:** pick the branch you compare against ([#55](https://github.com/FabioFiorita/porcelain/issues/55)) ([84733d6](https://github.com/FabioFiorita/porcelain/commit/84733d6e6ff69fb6d72b480631856a94c5c1ab17))
+* **highlight:** syntax-highlight Prisma schemas ([#40](https://github.com/FabioFiorita/porcelain/issues/40)) ([70a5ee9](https://github.com/FabioFiorita/porcelain/commit/70a5ee92fd0bb3819f3efbb05231d8e0dae8879e))
+* **mcp:** make the companion tools expressible for the daily Task loop ([#48](https://github.com/FabioFiorita/porcelain/issues/48)) ([9b75044](https://github.com/FabioFiorita/porcelain/commit/9b7504497793f9fecaf6d8b68ce4a586de452b88))
+* **tasks:** name the Environment a Task lives on ([#52](https://github.com/FabioFiorita/porcelain/issues/52)) ([52c9353](https://github.com/FabioFiorita/porcelain/commit/52c9353ef83b821a954e1bcf8b0501e1d406c573))
+* **web:** daemon-wide Terminals board in the Viewer (T-1) ([#60](https://github.com/FabioFiorita/porcelain/issues/60)) ([eb785a8](https://github.com/FabioFiorita/porcelain/commit/eb785a822795cd182d91b62a40b55a869bcd3cea))
+* **web:** prompt for a profile when a project has none ([#56](https://github.com/FabioFiorita/porcelain/issues/56)) ([4e2b56e](https://github.com/FabioFiorita/porcelain/commit/4e2b56e26029948e1b672f6fb34772afb74fe141)), closes [#39](https://github.com/FabioFiorita/porcelain/issues/39)
+* **web:** prompt to update a remote daemon that lags the client ([#51](https://github.com/FabioFiorita/porcelain/issues/51)) ([06c9341](https://github.com/FabioFiorita/porcelain/commit/06c934155ca997c72e0a064e2543c1e259d0f5ee))
+* **web:** show which file is open and which is reviewed ([#47](https://github.com/FabioFiorita/porcelain/issues/47)) ([2759544](https://github.com/FabioFiorita/porcelain/commit/27595445ec1429318d53af6d6c35bdf9095b244a)), closes [#46](https://github.com/FabioFiorita/porcelain/issues/46)
+* **web:** trim the single-file diff to its changed lines, with expand controls ([#50](https://github.com/FabioFiorita/porcelain/issues/50)) ([341a98a](https://github.com/FabioFiorita/porcelain/commit/341a98a90b35136de86f5e1435c0afff4e1ab43a))
+
+### Bug Fixes
+
+* **contracts:** bump PROCEDURE_COUNT ratchet to the real count after the merge queue landing ([a89cac2](https://github.com/FabioFiorita/porcelain/commit/a89cac2356ae917743ee58e09b495c79d326b6f5))
+* **daemon:** answer the MCP era probe and the classic handshake ([#43](https://github.com/FabioFiorita/porcelain/issues/43)) ([dff3e64](https://github.com/FabioFiorita/porcelain/commit/dff3e64cf006bcc00e6081a4742610955bf47041))
+* **shared:** word the profile prompts for the porcelain_profile MCP tool ([#42](https://github.com/FabioFiorita/porcelain/issues/42)) ([59f79f6](https://github.com/FabioFiorita/porcelain/commit/59f79f62fada9ec99f9a5b8308fc358089453f6d)), closes [#39](https://github.com/FabioFiorita/porcelain/issues/39)
+* **terminal:** suggest a local folder that exists for This-device terminals ([#41](https://github.com/FabioFiorita/porcelain/issues/41)) ([7889c22](https://github.com/FabioFiorita/porcelain/commit/7889c22148907a38e612eca6a4b5c74add32b521))
+* **web:** draw terminal block and box glyphs on the cell grid ([#45](https://github.com/FabioFiorita/porcelain/issues/45)) ([c581d8c](https://github.com/FabioFiorita/porcelain/commit/c581d8c49e1192f7ff21687095393a739691e72d))
+* **web:** remove duplicate duplicateTitle/COPY_SUFFIX from merge queue landing [#61](https://github.com/FabioFiorita/porcelain/issues/61) ([e44553a](https://github.com/FabioFiorita/porcelain/commit/e44553aef94fdac1141ec49f177f287e1d0d9eec))
+* **web:** stop sidebar hover from merging into the selected row ([#46](https://github.com/FabioFiorita/porcelain/issues/46)) ([0e1e1f3](https://github.com/FabioFiorita/porcelain/commit/0e1e1f3b72ac50bd14a4cb2559f35a3f6b548069))
+* **worktree-scripts:** scope the lifecycle signal by Project, end setup on removal ([#61](https://github.com/FabioFiorita/porcelain/issues/61)) ([1c909e0](https://github.com/FabioFiorita/porcelain/commit/1c909e00e545cf55ac47069e224d55cc9780edaf)), closes [#44](https://github.com/FabioFiorita/porcelain/issues/44)
+
+### Performance Improvements
+
+* **clients:** stop rebuilding empty arrays that break memoization ([#59](https://github.com/FabioFiorita/porcelain/issues/59)) ([a8f4e16](https://github.com/FabioFiorita/porcelain/commit/a8f4e16a3ce978d9c72a3e957f8c664598842fdf))
+
 ## [0.55.0](https://github.com/FabioFiorita/porcelain/compare/v0.54.0...v0.55.0) (2026-08-18)
 
 ### Features

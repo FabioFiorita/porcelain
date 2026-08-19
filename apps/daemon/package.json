@@ -1,6 +1,6 @@
 {
   "name": "@porcelain/daemon",
-  "version": "0.55.0",
+  "version": "0.55.1",
   "private": true,
   "description": "Porcelain headless runtime — git, review, PTY, share. Plain Node.",
   "type": "module",
