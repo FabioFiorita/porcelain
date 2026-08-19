@@ -137,7 +137,7 @@ export function printDevEnv() {
               pnpm dev:daemon -- --host          # LAN (default)
               pnpm dev:daemon -- --loopback      # this machine only
               pnpm dev:daemon -- --port 43119
-  CLI:        pnpm porcelain <noun> <verb>
+  agent:      the Porcelain plugin — MCP tools over POST /mcp
   browser:    http://127.0.0.1:${DEV_PORT}/
               http://<host>.local:${DEV_PORT}/   # with --host
   pair:       pnpm dev:pair                          # one-time URL; dev:daemon prints one at boot

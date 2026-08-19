@@ -198,10 +198,10 @@ export function createGitOperations(dependencies: GitOperationDependencies): Git
     rangeFlowGit: (repoPath: string) => diffReadingSources.loadRangeFlow(repoPath),
 
     rangeDiffFileGit: (input: GitRangeDiffFileInput) =>
-      diffReadingSources.rangeDiffFile(input.repoPath, input.base, input.filePath),
+      diffReadingSources.rangeDiffFile(input.repoPath, input.base, input.filePath, input.context),
 
     diffFileGit: (input: GitDiffFileInput) =>
-      diffReadingSources.diffFile(input.repoPath, input.filePath),
+      diffReadingSources.diffFile(input.repoPath, input.filePath, input.context),
 
     logGit: (input: GitLogInput) => projectGit.log(input.repoPath, input.limit),
 
