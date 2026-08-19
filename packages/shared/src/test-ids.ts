@@ -152,6 +152,7 @@ export const TestIds = {
   commitGroup: 'commit-group',
   generateCommitMessage: 'generate-commit-message',
   generateCommitGroups: 'generate-commit-groups',
+  acceptCommitGroups: 'accept-commit-groups',
 
   // --- Development servers (daemon-owned, per Worktree) ---
   devServers: 'dev-servers',

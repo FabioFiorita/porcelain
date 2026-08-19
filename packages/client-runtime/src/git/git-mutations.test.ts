@@ -39,6 +39,7 @@ describe('gitMutations', () => {
     expect(gitMutations.commit.procedure).toBe(gitProcedures.gitCommit)
     expect(gitMutations.generateMessage.procedure).toBe(gitProcedures.gitGenerateCommitMessage)
     expect(gitMutations.generateGroups.procedure).toBe(gitProcedures.gitGenerateCommitGroups)
+    expect(gitMutations.applyGroups.procedure).toBe(gitProcedures.gitApplyCommitGroups)
   })
 
   it('keeps workspace consequences explicit and includes the working diff family', () => {
@@ -112,6 +113,16 @@ describe('gitMutations', () => {
     expect(
       gitMutations.generateMessage.affectedQueries({ model: 'claude', repoPath: PROJECT }),
     ).toEqual([])
+    // Accepting a grouped proposal produces real commits, so it must move the same surfaces a
+    // single commit does — a narrower footprint would leave the Changes list stale.
+    expect(
+      names(
+        gitMutations.applyGroups.affectedQueries({
+          groups: [{ files: ['src/a.ts'], message: 'feat: x' }],
+          repoPath: PROJECT,
+        }),
+      ),
+    ).toEqual(effects)
   })
 
   it('dispatches contract-valid workspace successes through the validating mock', async () => {
