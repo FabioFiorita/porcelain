@@ -14,6 +14,7 @@ import {
   ArrowDown,
   ArrowUp,
   Cloud,
+  Copy,
   Monitor,
   MoreHorizontal,
   PenLine,
@@ -38,6 +39,7 @@ export function ActionRow({
   showWhere,
   isFirst,
   isLast,
+  rowsBelow,
   readOnly = false,
 }: {
   action: ActionView
@@ -47,9 +49,11 @@ export function ActionRow({
   showWhere: boolean
   isFirst: boolean
   isLast: boolean
+  /** Rows that follow this one — how far a fresh copy must walk up to land right below it. */
+  rowsBelow: number
   readOnly?: boolean
 }): React.JSX.Element {
-  const { move, remove } = useActionMutations()
+  const { duplicate, move, remove } = useActionMutations()
   const isLocal = action.where === 'local'
   // Unreviewed commands still show their full text and still sit under one click —
   // the click just lands on the accept step instead of a shell.
@@ -120,6 +124,19 @@ export function ActionRow({
             <DropdownMenuItem onClick={() => onEdit(action)}>
               <PenLine />
               Edit
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => {
+                runUserAction(
+                  () => duplicate(action, rowsBelow),
+                  (error) => {
+                    toastUserActionError('Duplicate action', error)
+                  },
+                )
+              }}
+            >
+              <Copy />
+              Duplicate
             </DropdownMenuItem>
             <DropdownMenuItem
               disabled={isFirst}

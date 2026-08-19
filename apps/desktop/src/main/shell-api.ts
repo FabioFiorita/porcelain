@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { homedir } from 'node:os'
 import { createTRPCUntypedClient, httpLink } from '@trpc/client'
 import { initTRPC } from '@trpc/server'
 import { BrowserWindow, clipboard, nativeTheme, shell, type WebContents } from 'electron'
@@ -178,10 +179,16 @@ export const shellRouter = t.router({
    * window can ALSO open a terminal here: repo on the Beelink, simulator on this Mac.
    * `isLocal` hides the affordance when the window is already local.
    */
-  localDaemon: t.procedure.query(({ ctx }): { url: string; token: string; isLocal: boolean } => ({
-    ...localDaemonPair(),
-    isLocal: windowEnvironmentId(ctx.sender) === null,
-  })),
+  localDaemon: t.procedure.query(
+    ({ ctx }): { url: string; token: string; isLocal: boolean; home: string } => ({
+      ...localDaemonPair(),
+      isLocal: windowEnvironmentId(ctx.sender) === null,
+      // This machine's home directory: the only folder a remote-bound window can be sure
+      // exists HERE, so it is the last-resort suggestion when the local terminal folder
+      // has never been mapped (the remote repo path would not exist on this disk).
+      home: homedir(),
+    }),
+  ),
 
   /**
    * The local directory a "This device" terminal should open in for `repoPath` on THIS
