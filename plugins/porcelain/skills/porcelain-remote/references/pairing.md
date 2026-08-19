@@ -63,4 +63,4 @@ A client token is equivalent to a shell on the host: arbitrary-path file read/wr
 spawn, the same as the token holder sitting at the machine. That's deliberate — the token holder
 *is* the user, from any network the daemon is reachable on. Treat every paired-device token, and
 the admin token, as exactly as sensitive as a login credential for this machine. Full model:
-`docs/remote-access.md` in the main repo.
+[remote-access.md](https://github.com/FabioFiorita/porcelain/blob/main/docs/remote-access.md) in the Porcelain repository.

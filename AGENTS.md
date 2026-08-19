@@ -15,7 +15,9 @@ evidence, not permanent architecture.
 - `apps/web`: React client used in browsers and loaded by Electron.
 - `apps/desktop`: thin Electron shell and local-daemon lifecycle.
 - `apps/mobile`: Expo/React Native client of the daemon.
-- `plugins/porcelain`: shipped MCP connection and companion/remote procedures.
+- `plugins/porcelain`: shipped MCP connection and companion/remote procedures. These ship
+  installed, where this checkout does not exist — keep them self-contained and link a public URL
+  when they must cite `docs/`.
 - `packages/contracts`: shared wire contracts.
 - `packages/client-runtime`, `packages/shared`, `packages/ui`: reusable client and UI code.
 
@@ -27,14 +29,14 @@ or mobile runtime validation. Read [docs/release.md](docs/release.md) only for r
 
 ## Development boundary
 
-Use the development daemon for product work. The primary development checkout uses port `43118`,
-`~/.porcelain-dev`, and playgrounds. Managed worktrees use ports `43200–43999` and their own
-development homes/playgrounds. Production uses `~/.porcelain` and its configured listener; never
-point an agent at it.
+Use the development daemon for product work — the development doc routed above owns its ports,
+homes, and playgrounds. Production is `~/.porcelain` and its configured listener; never point an
+agent at it.
 
-`PORCELAIN_DEV` protects the playground boundary and enables `/dev-auth`. Never put a token in
-browser `localStorage`. Start only processes you can identify and stop the processes you started
-by their tracked PID or managed worktree record.
+`PORCELAIN_DEV` protects the playground boundary and enables `/dev-auth`. Authenticate a browser
+through `/dev-auth` or the pairing URL `pnpm dev:daemon` prints, and keep tokens out of browser
+`localStorage`. Start only processes you can identify and stop the processes you started by their
+tracked PID or managed worktree record.
 
 ## Working loop
 
@@ -68,14 +70,12 @@ behavior and operational facts only.
 
 ## Porcelain profile
 
-This worktree's Porcelain profile — pinned paths, hidden paths, and story layer order — is meant
-to mutate. When you start substantial work here, set it to match *that* task with the
-`porcelain_profile` MCP tool: `workspace` this checkout's absolute path, `level` worktree, `op`
-set, and a profile of { pinnedPaths, hiddenPaths, unhiddenPaths, layers }. When the work is done,
-`op` clear puts this worktree back to inheriting the project baseline. Pins and hides add to that
-baseline, `unhiddenPaths` reveals something the project hides, and `layers` replaces the project's
-order when set (`null` inherits it). `op` set replaces the whole level, so read it back with `op`
-get first — a stale profile is worse than none.
+This worktree's profile — pinned paths, hidden paths, and story layer order — is meant to mutate.
+Setting it to match the task you are starting is a standing request here, so treat this section as
+the human's ask: use `porcelain_profile` at `level` worktree when you start substantial work, and
+`op` clear when it is done. Levels, the whole-document write shape, and the confirmation rule live
+in the [profile reference](plugins/porcelain/skills/porcelain-companion/references/profile.md);
+read it before your first write.
 
 ## Hard safety rules
 
@@ -87,8 +87,8 @@ get first — a stale profile is worse than none.
 
 ## Documentation discipline
 
-Keep one source for each fact. Put current setup and the development loop in
-`docs/development.md`, runtime ownership in `docs/architecture.md`, remote operations in
-`docs/remote-access.md`, client validation in `docs/runtime-proof.md`, and release operations in
-`docs/release.md`. Porcelain Tasks describe future work. Update a document when its owned fact
-changes; do not add plans, policy matrices, or architecture rules to preserve a superseded direction.
+Keep one source for each fact. The routing above says which document owns which subject, and it
+says it once — a second route is a second owner. Porcelain Tasks describe future work. Update a
+document when its owned fact changes; do not add plans, policy matrices, or architecture rules to
+preserve a superseded direction. `pnpm lint:docs` holds both halves: one route per document, and
+shipped skills that never reach into this checkout.
