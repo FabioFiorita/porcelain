@@ -1,5 +1,6 @@
 import { type ChildProcess, spawn } from 'node:child_process'
 import { createHash, randomBytes } from 'node:crypto'
+import { realpathSync } from 'node:fs'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -166,6 +167,13 @@ export async function seedIsolatedState(repoDir: string, seedRepo: boolean): Pro
       // don't source the runner's zsh profile.
       PORCELAIN_SHELL: '/bin/bash',
       PORCELAIN_E2E: '1',
+      // The Electron lane runs unpackaged, so its child daemon is a DEV daemon and refuses
+      // every path outside the playground family — an e2e app would boot with an empty Hub
+      // and no project. The fixture repo IS this run's disposable playground, so name it as
+      // one. Canonical (macOS `/var` → `/private/var`): the guard rejects a primary
+      // playground path that is not already its own realpath. Inert in browser mode, whose
+      // daemon never sets PORCELAIN_DEV.
+      PORCELAIN_DEV_PLAYGROUND: realpathSync(repoDir),
     },
   }
 }
