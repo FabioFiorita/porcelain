@@ -123,7 +123,7 @@ const invalidOutputs: Record<keyof typeof gitProcedures, unknown> = {
   gitStatus: [{ path: 'src/example.ts', status: 'copied' }],
   gitSuggestions: [{ command: 'pull' }],
   gitFlow: [{ layer: 'Other', files: [{ path: 'src/example.ts', status: 'modified' }] }],
-  gitRangeFlow: { groups: [], base: 42 },
+  gitRangeFlow: { groups: [], base: 42, defaultBase: 'main' },
   gitRangeDiffFile: { hunks: [], status: 'copied' },
   gitDiffFile: { hunks: [{ header: '@@', lines: [] }], status: 'modified', image: null },
   gitHead: { branch: 'main' },

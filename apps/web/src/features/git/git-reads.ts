@@ -106,12 +106,21 @@ export function useGitFlow(): { groups: FlowGroup[] | undefined; refresh: () => 
 
 /**
  * The Changes tab's Branch scope: the flow-ordered cumulative diff since the merge-base with the
- * default branch. A committed range is static until the next commit, so — unlike useGitFlow —
+ * comparison base. A committed range is static until the next commit, so — unlike useGitFlow —
  * this does NOT poll; the commit/push effect tables refresh it.
+ *
+ * `requestedBase` is the reviewer's pick; `undefined` means the daemon's default. The daemon
+ * always answers with the base it ACTUALLY measured against, which is what the "vs …" label and
+ * every per-file range read use — so a pick that no longer resolves degrades to the default
+ * rather than showing a lie.
  */
-export function useBranchFlow(enabled: boolean): {
+export function useBranchFlow(
+  enabled: boolean,
+  requestedBase?: string,
+): {
   groups: FlowGroup[] | undefined
   base: string | undefined
+  defaultBase: string | undefined
   refresh: () => Promise<void>
 } {
   const repoPath = useHubRepoPath()
@@ -120,12 +129,18 @@ export function useBranchFlow(enabled: boolean): {
   const owner = useGitOwner()
   const query = useQuery({
     enabled: enabled && repoPath !== null,
-    queryFn: () => ownerClient(owner).gitRangeFlow.query(path),
-    queryKey: gitQueryKey(daemon, gitRangeFlowQuery(path)),
+    queryFn: () =>
+      ownerClient(owner).gitRangeFlow.query({
+        repoPath: path,
+        ...(requestedBase === undefined ? {} : { base: requestedBase }),
+      }),
+    queryKey: gitQueryKey(daemon, gitRangeFlowQuery(path, requestedBase)),
+    placeholderData: keepPreviousData,
     staleTime: Number.POSITIVE_INFINITY,
   })
   return {
     base: query.data?.base,
+    defaultBase: query.data?.defaultBase,
     groups: query.data?.groups,
     refresh: async (): Promise<void> => {
       await query.refetch()

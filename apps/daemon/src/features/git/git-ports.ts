@@ -77,7 +77,10 @@ export type CommitGeneration = Readonly<{
 /** Flow loaders + per-file hunk helpers for continuous stacked-diff reading. */
 export type GitDiffReadingSources = Readonly<{
   loadWorkingFlow(repoPath: string): Promise<FlowGroup[]>
-  loadRangeFlow(repoPath: string): Promise<{ groups: FlowGroup[]; base: string }>
+  loadRangeFlow(
+    repoPath: string,
+    base?: string,
+  ): Promise<{ groups: FlowGroup[]; base: string; defaultBase: string }>
   loadCommitFlow(repoPath: string, hash: string): Promise<FlowGroup[]>
   workingHunks(repoPath: string, path: string): Promise<DiffHunk[]>
   rangeHunks(repoPath: string, base: string, path: string): Promise<DiffHunk[]>

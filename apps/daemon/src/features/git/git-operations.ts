@@ -26,6 +26,7 @@ import type {
   GitPushInput,
   GitQuickCommandInput,
   GitRangeDiffFileInput,
+  GitRangeFlowInput,
   GitStageAllInput,
   GitStageFileInput,
   GitSuggestion,
@@ -78,7 +79,9 @@ export type GitOperations = Readonly<{
   createBranchGit(input: GitCreateBranchInput): Promise<void>
   worktreesGit(repoPath: string): Promise<GitProjectResult<Worktree[]>>
   flowGit(repoPath: string): Promise<FlowGroup[]>
-  rangeFlowGit(repoPath: string): Promise<{ groups: FlowGroup[]; base: string }>
+  rangeFlowGit(
+    input: GitRangeFlowInput,
+  ): Promise<{ groups: FlowGroup[]; base: string; defaultBase: string }>
   rangeDiffFileGit(input: GitRangeDiffFileInput): Promise<DiffFileResult>
   diffFileGit(input: GitDiffFileInput): Promise<DiffFileResult>
   logGit(input: GitLogInput): Promise<Commit[]>
@@ -195,7 +198,8 @@ export function createGitOperations(dependencies: GitOperationDependencies): Git
 
     flowGit: (repoPath: string) => diffReadingSources.loadWorkingFlow(repoPath),
 
-    rangeFlowGit: (repoPath: string) => diffReadingSources.loadRangeFlow(repoPath),
+    rangeFlowGit: (input: GitRangeFlowInput) =>
+      diffReadingSources.loadRangeFlow(input.repoPath, input.base),
 
     rangeDiffFileGit: (input: GitRangeDiffFileInput) =>
       diffReadingSources.rangeDiffFile(input.repoPath, input.base, input.filePath),
@@ -230,7 +234,7 @@ export function createGitOperations(dependencies: GitOperationDependencies): Git
         name = 'Changes'
         fetchHunks = (path: string) => diffReadingSources.workingHunks(repoPath, path)
       } else if (scope.type === 'branch') {
-        const range = await diffReadingSources.loadRangeFlow(repoPath)
+        const range = await diffReadingSources.loadRangeFlow(repoPath, scope.base)
         groups = range.groups
         name = `vs ${range.base}`
         fetchHunks = (path: string) => diffReadingSources.rangeHunks(repoPath, range.base, path)

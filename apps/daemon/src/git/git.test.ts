@@ -20,6 +20,7 @@ import {
   gitRangeDiffFile,
   gitRangeNumstat,
   gitResetPath,
+  gitResolveCompareBase,
   gitRestoreFromHead,
   gitStageAll,
   gitStageFile,
@@ -235,6 +236,81 @@ async function makeRepo(): Promise<string> {
   git(dir, '-c', 'commit.gpgsign=false', 'commit', '-m', 'add tracked.ts')
   return dir
 }
+
+describe('gitResolveCompareBase', () => {
+  let repoDir = ''
+  let remoteDir = ''
+
+  beforeAll(async () => {
+    remoteDir = await mkdtemp(join(tmpdir(), 'porcelain-compare-remote-'))
+    git(remoteDir, 'init', '-b', 'main', '--bare')
+
+    repoDir = await mkdtemp(join(tmpdir(), 'porcelain-compare-base-'))
+    git(repoDir, 'init', '-b', 'main')
+    await writeFile(join(repoDir, 'a.ts'), 'export const a = 1\n')
+    git(repoDir, 'add', 'a.ts')
+    git(repoDir, '-c', 'commit.gpgsign=false', 'commit', '-m', 'root')
+    git(repoDir, 'branch', 'develop')
+    git(repoDir, 'remote', 'add', 'origin', remoteDir)
+    git(repoDir, 'push', '-u', 'origin', 'main')
+    git(repoDir, 'push', 'origin', 'main:release')
+    git(repoDir, 'fetch', 'origin')
+  })
+
+  afterAll(async () => {
+    for (const dir of [repoDir, remoteDir]) {
+      if (dir) await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('falls back to the default base when nothing is requested', async () => {
+    await expect(gitResolveCompareBase(repoDir)).resolves.toBe('origin/main')
+    await expect(gitResolveCompareBase(repoDir, '')).resolves.toBe('origin/main')
+  })
+
+  it('accepts an existing local branch', async () => {
+    await expect(gitResolveCompareBase(repoDir, 'develop')).resolves.toBe('develop')
+  })
+
+  it('accepts a remote-tracking branch', async () => {
+    await expect(gitResolveCompareBase(repoDir, 'origin/release')).resolves.toBe('origin/release')
+  })
+
+  it('expands the upstream literal to the ref it names', async () => {
+    await expect(gitResolveCompareBase(repoDir, '@{u}')).resolves.toBe('origin/main')
+    await expect(gitResolveCompareBase(repoDir, '@{upstream}')).resolves.toBe('origin/main')
+  })
+
+  it('rejects anything that is not a branch or remote-tracking ref', async () => {
+    const head = git(repoDir, 'rev-parse', 'HEAD').trim()
+    for (const ref of [
+      head, // a raw SHA is not a ref a reviewer picked from a list
+      'HEAD',
+      'HEAD~1',
+      'nope',
+      'refs/tags/v1',
+      '--exec=touch /tmp/pwned',
+      '-n',
+      'main --output=/tmp/pwned',
+      'main\nrelease',
+    ]) {
+      await expect(gitResolveCompareBase(repoDir, ref)).rejects.toThrow(
+        /Not a branch or remote-tracking ref/,
+      )
+    }
+  })
+
+  it('rejects the upstream literal when the branch has no upstream', async () => {
+    git(repoDir, 'checkout', 'develop')
+    try {
+      await expect(gitResolveCompareBase(repoDir, '@{u}')).rejects.toThrow(
+        /Not a branch or remote-tracking ref/,
+      )
+    } finally {
+      git(repoDir, 'checkout', 'main')
+    }
+  })
+})
 
 describe('mutations', () => {
   const repos: string[] = []
