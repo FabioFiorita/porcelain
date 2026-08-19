@@ -38,6 +38,11 @@ export const TestIds = {
   commandsMenu: 'commands-menu',
   /** Titlebar install chip — only present when an update is downloaded (Electron). */
   updateButton: 'update-button',
+  /** Sidebar chip prompting an update of the REMOTE daemon this window is bound to. */
+  daemonUpdateButton: 'daemon-update-button',
+  daemonUpdateCommand: 'daemon-update-command',
+  daemonUpdateCopy: 'daemon-update-copy',
+  daemonUpdateDismiss: 'daemon-update-dismiss',
   environmentRow: (id: string): string => `environment-row-${id}`,
   /** One address of a saved environment — an environment has many (phase 5). */
   environmentEndpoint: (url: string): string => `environment-endpoint-${url}`,
