@@ -38,6 +38,7 @@ import {
   DEV_USER_DATA,
   devEnv,
   ensureDevAdminToken,
+  webDevPort,
 } from './dev-env.mjs'
 import { devAccessStatus, issueDevPairingUrl, waitForDaemon } from './dev-pair.mjs'
 
@@ -297,7 +298,8 @@ ${tailnetLine}
   auth        ${opts.autoAuth ? 'auto (browser needs no pairing)' : 'pairing link required'}
   pair        printed below once the daemon is listening (or \`pnpm dev:pair\`)
 
-  Rebuild after code changes:  pnpm build && pnpm dev:daemon -- …
+  web client   pnpm dev:web  → HMR at http://127.0.0.1:${webDevPort(opts.port)}/ (no rebuild)
+  daemon code  pnpm build:daemon, then restart this launcher
 `)
 }
 

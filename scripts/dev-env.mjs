@@ -76,6 +76,17 @@ export const DEV_PLAYGROUND = DEV_PROFILE.playground
 export const DEV_ADMIN_TOKEN_FILE = join(DEV_HOME, 'admin-token')
 
 /**
+ * The Vite dev server port that pairs with a daemon port. Offsetting by 10000 keeps it
+ * unique per profile without a second allocator: dev daemon ports are already unique
+ * (43118 primary, 43200–43999 per managed worktree), so 53118 / 53200–53999 are too.
+ */
+export function webDevPort(daemonPort = DEV_PORT) {
+  return daemonPort + 10_000
+}
+
+export const DEV_WEB_PORT = webDevPort(DEV_PORT)
+
+/**
  * Mint or load the dev-stack administrator token at ~/.porcelain-dev/admin-token.
  * The daemon entry refuses to auto-read the file when stdin is a TTY (so a
  * bare `node out/main/daemon/server.js` doesn't silently mint); the launcher
@@ -137,6 +148,7 @@ export function printDevEnv() {
               pnpm dev:daemon -- --host          # LAN (default)
               pnpm dev:daemon -- --loopback      # this machine only
               pnpm dev:daemon -- --port 43119
+  web HMR:    pnpm dev:web                       # http://127.0.0.1:${DEV_WEB_PORT}/ (proxies to the daemon)
   CLI:        pnpm porcelain <noun> <verb>
   browser:    http://127.0.0.1:${DEV_PORT}/
               http://<host>.local:${DEV_PORT}/   # with --host
@@ -144,7 +156,8 @@ export function printDevEnv() {
   fixtures:   pnpm playground list
 
   Not the published package — that is:  npx porcelain-daemon@latest serve
-  Rebuild after code changes:           pnpm build && pnpm dev:daemon
+  Web client changes:                   pnpm dev:web (HMR, no rebuild)
+  Daemon changes:                       pnpm build:daemon && restart pnpm dev:daemon
 `)
 }
 
