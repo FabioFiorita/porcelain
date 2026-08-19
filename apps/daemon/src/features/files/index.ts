@@ -8,6 +8,11 @@ export {
   createFilesOperations,
   type FilesOperations,
 } from './files-operations'
+export {
+  createFilePreviewTokens,
+  type FilePreviewAccessScope,
+  type FilePreviewTokens,
+} from './file-preview-tokens'
 export { createFilesFeatureRouter } from './files-router'
 export { createFilesScope } from './files-scope'
 export {
