@@ -35,4 +35,17 @@ describe('SidebarMenuButton selected vs hover', () => {
       expect(classes).toContain('data-active:bg-sidebar-accent')
     }
   })
+
+  it('carries no left-edge bar on the selected row', () => {
+    renderMenu()
+    // The selected row reads as selected through the sidebar-accent fill alone. A
+    // `before:` bar was painted with `bg-sidebar-primary`, which is near-black in
+    // light and near-white in dark, and the button's own `overflow-hidden rounded-xl`
+    // clipped it into a sliver at the corner. Neither is a selection treatment.
+    for (const label of ['Companion', 'Remotes']) {
+      const classes = screen.getByText(label).className.split(' ')
+      expect(classes.filter((c) => c.startsWith('data-active:before:'))).toEqual([])
+      expect(classes).not.toContain('data-active:bg-sidebar-primary')
+    }
+  })
 })
