@@ -4,7 +4,15 @@ import { z } from 'zod'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
-export type TabKind = 'file' | 'diff' | 'commit' | 'changeset' | 'search' | 'tasks' | 'canvas'
+export type TabKind =
+  | 'file'
+  | 'diff'
+  | 'commit'
+  | 'changeset'
+  | 'search'
+  | 'tasks'
+  | 'terminals'
+  | 'canvas'
 
 // The tabs store is the router: a tab id is its kind plus its key (file path,
 // commit hash, or search query). Every opener must build ids through this so
@@ -91,7 +99,7 @@ const hubTargetSchema = z
 const tabSchema = z
   .object({
     id: z.string().min(1),
-    kind: z.enum(['file', 'diff', 'commit', 'changeset', 'search', 'tasks', 'canvas']),
+    kind: z.enum(['file', 'diff', 'commit', 'changeset', 'search', 'tasks', 'terminals', 'canvas']),
     title: z.string().min(1),
     path: z.string().min(1),
     line: z.number().int().positive().optional(),

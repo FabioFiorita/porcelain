@@ -187,6 +187,16 @@ export const TestIds = {
    * clone path used by "This device" shells and local-targeted actions.
    */
   localTerminalPathButton: 'local-terminal-path-button',
+  // --- Terminals board (the daemon-wide, cross-project view in the Viewer) ---
+  terminalsOpen: 'terminals-open',
+  terminalsBoard: 'terminals-board',
+  terminalsBoardEmpty: 'terminals-board-empty',
+  terminalsBoardNew: 'terminals-board-new',
+  terminalsBoardNewAt: (key: string): string => `terminals-board-new-at-${key}`,
+  terminalsBoardGrid: 'terminals-board-grid',
+  terminalsBoardGroup: (key: string): string => `terminals-board-group-${key}`,
+  terminalsBoardSession: (id: string): string => `terminals-board-session-${id}`,
+
   actionsEmpty: 'actions-empty',
   actionsAdd: 'actions-add',
   actionRun: (title: string): string =>
