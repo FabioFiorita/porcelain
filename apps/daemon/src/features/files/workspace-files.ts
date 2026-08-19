@@ -178,6 +178,7 @@ export function createNodeWorkspaceFiles(
           dirname(lexicalAbsolute), // resolution base — lexical document directory
           raw,
           projectRootReal, // containment root
+          input.inlineScripts === true,
         )
         if (Buffer.byteLength(html, 'utf8') > MAX_HTML_BYTES) return { ok: true, value: null }
         return { ok: true, value: html }

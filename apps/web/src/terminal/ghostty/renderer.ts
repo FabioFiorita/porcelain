@@ -5,6 +5,7 @@ import {
   type GhosttySnapshot,
   ghosttyColorsEqual,
 } from './core'
+import { drawGhosttyCustomGlyph, isGhosttyCustomGlyph } from './customGlyphs'
 
 export interface GhosttyCellMetrics {
   readonly width: number
@@ -48,7 +49,9 @@ export function ghosttyTextRunEnd(
       end += 1
       continue
     }
-    if (next.text.length === 0 || !sameStyle(next)) break
+    // A block or box-drawing character is drawn geometrically, cell by cell, so it can never
+    // join a fillText run.
+    if (next.text.length === 0 || isGhosttyCustomGlyph(next.text) || !sameStyle(next)) break
     end += 1
   }
   return end
@@ -193,6 +196,25 @@ export function renderGhosttySnapshot(options: {
         runStart += 1
         continue
       }
+      if (isGhosttyCustomGlyph(first.text)) {
+        if (!first.invisible) {
+          // Cell edges come from the column boundaries, not left + width, so a fractional cell
+          // advance still leaves adjacent glyphs sharing one exact edge.
+          drawGhosttyCustomGlyph(
+            context,
+            first.text,
+            {
+              left: padding + runStart * metrics.width,
+              right: padding + (runStart + 1) * metrics.width,
+              top,
+              bottom: top + metrics.height,
+            },
+            cssColor(first.foreground),
+          )
+        }
+        runStart += 1
+        continue
+      }
       const runEnd = ghosttyTextRunEnd(row.cells, runStart, (cell) => sameTextStyle(cell, first))
       const text = row.cells
         .slice(runStart, runEnd)
@@ -263,9 +285,18 @@ export function renderGhosttySnapshot(options: {
       context.fillRect(left, top, metrics.width, metrics.height)
       const cell = snapshot.rowData[snapshot.cursorY]?.cells[snapshot.cursorX]
       if (cell?.text) {
-        context.font = fontForCell(cell, fontSize, fontFamily)
-        context.fillStyle = cssColor(snapshot.background)
-        context.fillText(cell.text, left, top + metrics.baseline, metrics.width)
+        const inverted = cssColor(snapshot.background)
+        const rect = {
+          left,
+          right: left + metrics.width,
+          top,
+          bottom: top + metrics.height,
+        }
+        if (!drawGhosttyCustomGlyph(context, cell.text, rect, inverted)) {
+          context.font = fontForCell(cell, fontSize, fontFamily)
+          context.fillStyle = inverted
+          context.fillText(cell.text, left, top + metrics.baseline, metrics.width)
+        }
       }
     }
   }

@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { HtmlView, isHtmlPath } from './html-view'
+import { HtmlDocumentFrame, HtmlView, isHtmlPath } from './html-view'
 
 describe('isHtmlPath', () => {
   it('matches html and htm extensions', () => {
@@ -21,5 +21,22 @@ describe('HtmlView', () => {
     expect(iframe.className).toContain('overflow-y-auto')
     expect(iframe.getAttribute('srcdoc')).toContain('<h1>Hello</h1>')
     expect(iframe.getAttribute('srcdoc')).toContain('name="viewport"')
+  })
+})
+
+describe('HtmlDocumentFrame', () => {
+  it('loads the daemon URL in a script-enabled frame that is NOT same-origin', () => {
+    render(<HtmlDocumentFrame src="http://127.0.0.1:43118/file-preview/tok" title="review.html" />)
+    const iframe = screen.getByTitle('review.html')
+    expect(iframe.tagName).toBe('IFRAME')
+    // src, never srcdoc: a srcdoc document inherits the app CSP and its inline
+    // scripts are refused no matter what the sandbox says.
+    expect(iframe.getAttribute('src')).toBe('http://127.0.0.1:43118/file-preview/tok')
+    expect(iframe.getAttribute('srcdoc')).toBeNull()
+    const sandbox = iframe.getAttribute('sandbox') ?? ''
+    expect(sandbox.split(' ')).toContain('allow-scripts')
+    expect(sandbox).not.toContain('allow-same-origin')
+    // A document with no background of its own must not show the dark app through it.
+    expect(iframe.className).toContain('bg-white')
   })
 })

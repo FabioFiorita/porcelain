@@ -225,7 +225,7 @@ export function SettingsDialog(): React.JSX.Element | null {
               <SidebarContent>
                 <SidebarGroup>
                   <SidebarGroupContent>
-                    <SidebarMenu className="gap-1 px-2">
+                    <SidebarMenu className="gap-1.5 px-2">
                       {sections.map((s) => (
                         <SidebarMenuItem key={s.id}>
                           <SidebarMenuButton

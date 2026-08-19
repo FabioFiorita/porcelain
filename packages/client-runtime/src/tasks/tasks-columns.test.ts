@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  availableTaskColumns,
   DEFAULT_HIDDEN_TASK_COLUMN_IDS,
   resolveHiddenTaskColumns,
   resolveTaskColumnOrder,
@@ -32,6 +33,7 @@ describe('resolveTaskColumnOrder', () => {
         'status',
         'title',
         'project',
+        'environment',
         'links',
         'updated',
         'tags',
@@ -43,6 +45,7 @@ describe('resolveTaskColumnOrder', () => {
       'status',
       'title',
       'project',
+      'environment',
       'links',
       'updated',
       'tags',
@@ -59,20 +62,20 @@ describe('resolveTaskColumnOrder', () => {
   })
 
   it('appends a newly added column instead of hiding it after an upgrade', () => {
-    // A preference persisted before `id` and `created` existed, with the retired Environment column.
-    const resolved = resolveTaskColumnOrder(['title', 'status', 'tags', 'project', 'environment'])
+    // A preference persisted before `id`, `environment`, and `created` existed.
+    const resolved = resolveTaskColumnOrder(['title', 'status', 'tags', 'project'])
     expect(resolved).toEqual([
       'title',
       'status',
       'tags',
       'project',
       'id',
+      'environment',
       'links',
       'updated',
       'worktree',
       'created',
     ])
-    expect(resolved).not.toContain('environment')
     expect([...resolved].sort()).toEqual([...TASK_COLUMN_IDS].sort())
   })
 
@@ -104,5 +107,19 @@ describe('resolveHiddenTaskColumns', () => {
         .slice()
         .sort(),
     )
+  })
+})
+
+describe('availableTaskColumns', () => {
+  it('offers the Environment column only to a client that reaches several Environments', () => {
+    expect(availableTaskColumns(true)).toEqual([...TASK_COLUMN_IDS])
+    expect(availableTaskColumns(false)).not.toContain('environment')
+  })
+
+  it('changes nothing else about the vocabulary or its order', () => {
+    expect(availableTaskColumns(false)).toEqual(
+      TASK_COLUMN_IDS.filter((id) => id !== 'environment'),
+    )
+    expect(availableTaskColumns(false)).toContain('title')
   })
 })

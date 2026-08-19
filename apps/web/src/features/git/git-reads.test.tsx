@@ -9,6 +9,7 @@ import {
 import { gitContractFixtures } from '@porcelain/contracts/git'
 import { remoteContractFixtures } from '@porcelain/contracts/remote'
 import { createValidatingTrpcHarness } from '@renderer/hooks/trpc-test-harness'
+import { FULL_DIFF_CONTEXT } from '@renderer/lib/collapse-hunks'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { renderHook, waitFor } from '@testing-library/react'
@@ -131,6 +132,7 @@ describe('useDiffFile', () => {
       gitRangeDiffFile: (input) => {
         expect(input).toEqual({
           base: 'origin/main',
+          context: FULL_DIFF_CONTEXT,
           filePath: 'src/example.ts',
           repoPath: REPO,
         })

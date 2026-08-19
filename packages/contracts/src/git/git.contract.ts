@@ -288,11 +288,19 @@ export const gitRangeFlowOutputSchema = z
     base: z.string(),
   })
   .strict()
+/**
+ * Lines of unchanged context git keeps around each change (`git diff -U<n>`).
+ * Omitted means git's own default of 3. A client that offers "expand context"
+ * asks for a large value once and collapses the surplus itself, so expanding a
+ * gap costs no round trip.
+ */
+export const diffContextSchema = z.number().int().min(0).max(100_000)
 export const gitRangeDiffFileInputSchema = z
   .object({
     repoPath: z.string(),
     base: z.string(),
     filePath: z.string(),
+    context: diffContextSchema.optional(),
   })
   .strict()
 export const gitRangeDiffFileOutputSchema = diffFileResultSchema
@@ -300,6 +308,7 @@ export const gitDiffFileInputSchema = z
   .object({
     repoPath: z.string(),
     filePath: z.string(),
+    context: diffContextSchema.optional(),
   })
   .strict()
 export const gitDiffFileOutputSchema = diffFileResultSchema

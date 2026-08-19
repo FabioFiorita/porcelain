@@ -197,6 +197,20 @@ function buildColumns(props: TasksTableProps) {
         )
       },
     }),
+    helper.accessor((row) => row.environmentName, {
+      id: 'environment',
+      header: ({ column }) => (
+        <SortHeader label={TASK_COLUMN_LABELS.environment} onClick={() => column.toggleSorting()} />
+      ),
+      // Short ids are per daemon: two Environments can both own a `T-1`. The name is what
+      // tells those rows apart, so it is rendered as a badge rather than muted metadata.
+      cell: (context) => (
+        <Badge variant="outline" className="max-w-40 truncate">
+          {context.getValue()}
+        </Badge>
+      ),
+      sortFn: 'text',
+    }),
     helper.accessor((row) => row.task.links.map((link) => link.label).join(', '), {
       id: 'links',
       header: TASK_COLUMN_LABELS.links,
