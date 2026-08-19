@@ -7,6 +7,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@renderer/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@renderer/components/ui/select'
 import { compactButtonClass } from '@renderer/lib/controls'
 import { useNewTaskDialogStore } from '@renderer/stores/new-task-dialog'
 import { runUserAction } from '@shared/background'
@@ -18,8 +26,20 @@ import {
   TaskComposer,
   type TaskComposerValue,
 } from './task-composer'
-import { MissingEnvironmentTargetError, useTaskActions } from './tasks-mutations'
+import {
+  MissingEnvironmentTargetError,
+  type TaskEnvironmentTarget,
+  useTaskActions,
+} from './tasks-mutations'
 import { useTasks } from './tasks-queries'
+
+/**
+ * `null` is a real Environment target (This device — the directly connected daemon), so the
+ * picker cannot use the id as its value: it needs one that is never confusable with "unchosen".
+ */
+function environmentValue(id: string | null): string {
+  return id ?? 'this-device'
+}
 
 /**
  * New-task composer: title, notes, a Project, pasted/uploaded pictures, and @ file/folder tags.
@@ -32,12 +52,29 @@ export function NewTaskDialog(): React.JSX.Element {
   const actions = useTaskActions()
   const [draft, setDraft] = useState<TaskComposerValue>(emptyComposerValue)
   const [error, setError] = useState<string | null>(null)
+  /** The picker's VALUE, not an Environment id: `null` means nobody has chosen yet. */
+  const [chosenValue, setChosenValue] = useState<string | null>(null)
 
-  const targetEnvironment = environments.length === 1 ? environments[0]?.id : null
+  /**
+   * A Hub reaching several Environments has no "current" daemon to fall back on, so the person
+   * names the target and an unchosen one is refused (`MissingEnvironmentTargetError`) rather than
+   * guessed — guessing is how a Task gets filed on the wrong machine. With one Environment there
+   * is nothing to choose, so no control appears.
+   */
+  const multiEnvironment = environments.length > 1
+  const chosen = environments.find(
+    (environment) => environmentValue(environment.id) === chosenValue,
+  )
+  const targetEnvironment: TaskEnvironmentTarget = multiEnvironment
+    ? chosen === undefined
+      ? undefined
+      : chosen.id
+    : (environments[0]?.id ?? null)
 
   const reset = (): void => {
     setDraft(emptyComposerValue())
     setError(null)
+    setChosenValue(null)
   }
 
   const submit = (): void => {
@@ -100,8 +137,42 @@ export function NewTaskDialog(): React.JSX.Element {
       <DialogContent data-testid={TestIds.tasksDialog} className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>New Task</DialogTitle>
-          <DialogDescription>Add a Task to this daemon’s board.</DialogDescription>
+          <DialogDescription>
+            {multiEnvironment
+              ? 'Add a Task to one Environment’s board.'
+              : 'Add a Task to this daemon’s board.'}
+          </DialogDescription>
         </DialogHeader>
+        {multiEnvironment && (
+          <Select
+            items={environments.map((environment) => ({
+              label: environment.name,
+              value: environmentValue(environment.id),
+            }))}
+            value={chosenValue}
+            onValueChange={(next: string | null) => setChosenValue(next)}
+          >
+            <SelectTrigger
+              data-testid={TestIds.tasksComposerEnvironment}
+              aria-label="Environment"
+              className="w-full"
+            >
+              <SelectValue placeholder="Choose an Environment" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {environments.map((environment) => (
+                  <SelectItem
+                    key={environmentValue(environment.id)}
+                    value={environmentValue(environment.id)}
+                  >
+                    {environment.name}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        )}
         <TaskComposer value={draft} onChange={setDraft} knownTags={knownTags} />
         {error !== null && <p className="text-xs text-destructive">{error}</p>}
         <DialogFooter>
