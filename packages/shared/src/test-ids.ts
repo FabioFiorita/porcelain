@@ -260,9 +260,12 @@ export const TestIds = {
   tasksView: 'tasks-view',
   tasksTable: 'tasks-table',
   tasksEmpty: 'tasks-empty',
+  /** Rows exist but the current filters match none of them — distinct from an empty table. */
+  tasksNoMatches: 'tasks-no-matches',
   tasksError: 'tasks-error',
   tasksFilter: 'tasks-filter',
   tasksFilterStatus: 'tasks-filter-status',
+  tasksFilterStatusToggle: (status: string): string => `tasks-filter-status-${status}`,
   tasksFilterProject: 'tasks-filter-project',
   tasksRow: (id: string): string => `tasks-row-${id}`,
   /** The compact sidebar list entry — distinct from the Viewer table row above. */
