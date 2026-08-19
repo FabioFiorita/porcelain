@@ -44,6 +44,14 @@ do not make it the inner loop for every edit. CI is the clean-machine check. The
 the risk: a focused unit test for logic, a daemon procedure check for server behavior, a browser or
 Electron interaction for client behavior, and native runtime evidence for mobile behavior.
 
+## One step per shipped bug
+
+The verification surface grows from shipped bugs, not from policy. When a bug reaches a running
+Porcelain, record three things in the fix commit: what the user saw, what caused it, and the
+mitigation. Then add the smallest check that would have failed before the fix — usually a focused
+unit or daemon-procedure test, occasionally a browser e2e assertion. Add one step, not a new gate;
+if a whole class of bug keeps returning, that is when a broader check earns its cost.
+
 ## Useful commands
 
 The exact scripts are the source of truth (`pnpm run` lists the checkout's commands). Common entry
