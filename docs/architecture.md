@@ -45,7 +45,8 @@ package that owns the behavior until a second consumer makes sharing useful.
 - `packages/client-runtime` owns reusable client transport/query/session behavior; a component
   should not reach into transport internals directly.
 - Web owns browser/Electron presentation. Desktop stays a thin host rather than a second business
-  logic implementation.
+  logic implementation. The menu-bar (tray) quick-add popover follows that rule: the shell owns the
+  icon and the window, and the window loads the same web client at `#/quick-add`.
 - Mobile owns native lifecycle and presentation. Its terminal module may render native terminal
   cells, while daemon/PTY transport remains client feature code.
 - The MCP channel adapts semantic daemon operations for agents. The daemon remains the only writer

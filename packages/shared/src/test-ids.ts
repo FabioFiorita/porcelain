@@ -257,6 +257,13 @@ export const TestIds = {
   tasksComposerPicture: (name: string): string => `tasks-composer-picture-${name}`,
   tasksComposerPath: (path: string): string => `tasks-composer-path-${path}`,
 
+  // --- Menu-bar quick add (the tray popover surface) ---
+  quickAdd: 'quick-add',
+  quickAddTitle: 'quick-add-title',
+  quickAddNotes: 'quick-add-notes',
+  quickAddSubmit: 'quick-add-submit',
+  quickAddConfirmation: 'quick-add-confirmation',
+
   // --- Review documents (Intent panes and Evidence Results) ---
   intentDocTabs: 'intent-doc-tabs',
   intentDocTab: (label: string): string =>
