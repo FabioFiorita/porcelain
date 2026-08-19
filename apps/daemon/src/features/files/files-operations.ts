@@ -1,4 +1,5 @@
 import type { SessionChange } from '@porcelain/contracts/session'
+import { createFilePreviewTokens, type FilePreviewTokens } from './file-preview-tokens'
 import { createFilesChangesPublisher } from './files-notifications'
 import type { FilesChanges, FilesScope, WorkspaceFiles } from './files-ports'
 import { createFilesScope } from './files-scope'
@@ -26,6 +27,12 @@ export type FilesOperations = {
   setWorktreeProfile: FilesScope['setWorktreeProfile']
   readFile: WorkspaceFiles['readFile']
   previewHtml: WorkspaceFiles['previewHtml']
+  /**
+   * Capability grant for `GET /file-preview/<token>` — the scripts-enabled HTML
+   * preview surface. Mint only; the route owns `resolve` (server.ts holds the one
+   * shared token store), exactly as Canvas does.
+   */
+  mintFilePreviewToken: (input: { projectPath: string; path: string }) => { token: string }
   writeTextFile: WorkspaceFiles['writeTextFile']
   createFile: WorkspaceFiles['createFile']
   createFolder: WorkspaceFiles['createFolder']
@@ -54,12 +61,14 @@ export function createFilesOperations(
   options: {
     workspaceFiles?: WorkspaceFiles
     scope?: FilesScope
+    previewTokens?: FilePreviewTokens
     changes?: FilesChanges
     publishSessionChange?: (change: SessionChange) => void
   } = {},
 ): FilesOperations {
   const workspaceFiles = options.workspaceFiles ?? createNodeWorkspaceFiles()
   const scope = options.scope ?? createFilesScope()
+  const previewTokens = options.previewTokens ?? createFilePreviewTokens()
   const changes =
     options.changes ??
     createFilesChangesPublisher(options.publishSessionChange ?? (() => undefined))
@@ -91,6 +100,7 @@ export function createFilesOperations(
     setWorktreeProfile: (repoPath, profile) => scope.setWorktreeProfile(repoPath, profile),
     readFile: (input) => workspaceFiles.readFile(input),
     previewHtml: (input) => workspaceFiles.previewHtml(input),
+    mintFilePreviewToken: (input) => ({ token: previewTokens.mint(input) }),
     async writeTextFile(input) {
       const result = await workspaceFiles.writeTextFile(input)
       if (!result.ok) return result

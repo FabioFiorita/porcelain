@@ -38,6 +38,7 @@ import {
   DEV_USER_DATA,
   devEnv,
   ensureDevAdminToken,
+  webDevPort,
 } from './dev-env.mjs'
 import { devAccessStatus, issueDevPairingUrl, waitForDaemon } from './dev-pair.mjs'
 
@@ -293,11 +294,12 @@ ${lanLine}
 ${tailnetLine}
   browser     http://127.0.0.1:${opts.port}/
   admin file  ${DEV_ADMIN_TOKEN_FILE}
-  CLI         pnpm porcelain <noun> <verb>
+  agent       the Porcelain plugin — MCP tools over POST /mcp
   auth        ${opts.autoAuth ? 'auto (browser needs no pairing)' : 'pairing link required'}
   pair        printed below once the daemon is listening (or \`pnpm dev:pair\`)
 
-  Rebuild after code changes:  pnpm build && pnpm dev:daemon -- …
+  web client   pnpm dev:web  → HMR at http://127.0.0.1:${webDevPort(opts.port)}/ (no rebuild)
+  daemon code  pnpm build:daemon, then restart this launcher
 `)
 }
 

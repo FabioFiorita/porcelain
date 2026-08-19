@@ -1,7 +1,8 @@
 // Fine-grained Shiki: import ONLY the grammars/theme the app uses, not the
 // `'shiki'` meta-bundle (which registers the entire language/theme registry in
-// the renderer chunk). Adding a 12th language = one `@shikijs/langs/<x>` import
-// below + a `LANGS` entry — never reach back for the meta bundle.
+// the renderer chunk). Adding a language = one `@shikijs/langs/<x>` import
+// below + a `LANGS` entry + a `createHighlighterCore` langs entry — never reach
+// back for the meta bundle.
 
 import langCss from '@shikijs/langs/css'
 import langDotenv from '@shikijs/langs/dotenv'
@@ -10,6 +11,7 @@ import langJavascript from '@shikijs/langs/javascript'
 import langJson from '@shikijs/langs/json'
 import langJsx from '@shikijs/langs/jsx'
 import langMarkdown from '@shikijs/langs/markdown'
+import langPrisma from '@shikijs/langs/prisma'
 import langShellscript from '@shikijs/langs/shellscript'
 import langSwift from '@shikijs/langs/swift'
 import langTsx from '@shikijs/langs/tsx'
@@ -45,6 +47,7 @@ export const LANGS: readonly BundledLanguage[] = [
   'css',
   'html',
   'markdown',
+  'prisma',
   'yaml',
   'shellscript',
   'swift',
@@ -80,6 +83,7 @@ export function getHighlighter(engine?: JavaScriptRegexEngineOptions): Promise<H
       langCss,
       langHtml,
       langMarkdown,
+      langPrisma,
       langYaml,
       langShellscript,
       langSwift,
@@ -102,7 +106,9 @@ const extToLang: Record<string, BundledLanguage> = {
   json: 'json',
   css: 'css',
   html: 'html',
+  htm: 'html',
   md: 'markdown',
+  prisma: 'prisma',
   yaml: 'yaml',
   yml: 'yaml',
   sh: 'shellscript',

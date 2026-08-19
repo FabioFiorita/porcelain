@@ -26,6 +26,7 @@ export {
 export {
   useFileContent,
   useFilePreview,
+  useFilePreviewSrc,
   useFilesScope,
   useFilesTree,
   usePinnedFiles,

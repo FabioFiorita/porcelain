@@ -54,6 +54,22 @@ export const gitContractFixtures = {
     input: { repoPath: '/synthetic/repo', model: 'sonnet' },
     output: { groups: [{ files: ['src/example.ts'], message: 'feat: synthetic group' }] },
   },
+  gitApplyCommitGroups: {
+    input: {
+      repoPath: '/synthetic/repo',
+      groups: [{ files: ['src/example.ts'], message: 'feat: synthetic group' }],
+    },
+    output: {
+      results: [
+        {
+          files: ['src/example.ts'],
+          message: 'feat: synthetic group',
+          status: 'committed',
+          error: null,
+        },
+      ],
+    },
+  },
   gitCheckout: {
     input: { repoPath: '/synthetic/repo', branch: 'main' },
     output: undefined,
@@ -83,8 +99,8 @@ export const gitContractFixtures = {
   },
   gitFlow: { input: '/synthetic/repo', output: [flowGroupFixture] },
   gitRangeFlow: {
-    input: '/synthetic/repo',
-    output: { groups: [flowGroupFixture], base: 'origin/main' },
+    input: { repoPath: '/synthetic/repo' },
+    output: { groups: [flowGroupFixture], base: 'origin/main', defaultBase: 'origin/main' },
   },
   gitRangeDiffFile: {
     input: { repoPath: '/synthetic/repo', base: 'origin/main', filePath: 'src/example.ts' },

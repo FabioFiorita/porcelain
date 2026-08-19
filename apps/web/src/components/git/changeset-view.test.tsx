@@ -55,6 +55,16 @@ describe('changesetTabKey / parseChangesetTabKey', () => {
     expect(parseChangesetTabKey('branch')).toEqual({ type: 'branch' })
     expect(parseChangesetTabKey('commit:abc123')).toEqual({ type: 'commit', hash: 'abc123' })
   })
+
+  it('keeps a chosen comparison base in the key, so two bases are two tabs', () => {
+    expect(changesetTabKey({ type: 'branch', base: 'origin/develop' })).toBe(
+      'branch:origin/develop',
+    )
+    expect(parseChangesetTabKey('branch:origin/develop')).toEqual({
+      type: 'branch',
+      base: 'origin/develop',
+    })
+  })
 })
 
 describe('ChangesetView', () => {

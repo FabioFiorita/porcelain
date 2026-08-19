@@ -1,10 +1,14 @@
-import { useSetLocalTerminalPath } from '@renderer/hooks/use-local-terminal'
+import {
+  useLocalTerminalSuggestion,
+  useSetLocalTerminalPath,
+} from '@renderer/hooks/use-local-terminal'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { LocalPathDialog } from './local-path-dialog'
 
 vi.mock('@renderer/hooks/use-local-terminal', () => ({
   useSetLocalTerminalPath: vi.fn(),
+  useLocalTerminalSuggestion: vi.fn(),
 }))
 
 describe('LocalPathDialog', () => {
@@ -15,6 +19,7 @@ describe('LocalPathDialog', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(useSetLocalTerminalPath).mockReturnValue({ save, isPending: false })
+    vi.mocked(useLocalTerminalSuggestion).mockReturnValue('/Users/you/code/app')
   })
 
   it('labels the primary action "Open terminal" when mapping for a spawn', () => {
@@ -77,5 +82,60 @@ describe('LocalPathDialog', () => {
     })
     expect(onSaved).toHaveBeenCalledWith('/Users/you/code/app')
     expect(onClose).toHaveBeenCalled()
+  })
+
+  it('prefills a folder that exists on THIS device, never the remote repo path', () => {
+    render(
+      <LocalPathDialog
+        repoPath="/home/you/worktrees/app-branch"
+        initialPath={null}
+        mode="spawn"
+        onSaved={onSaved}
+        onClose={onClose}
+      />,
+    )
+    expect(screen.getByLabelText<HTMLInputElement>('Local folder').value).toBe(
+      '/Users/you/code/app',
+    )
+  })
+
+  it('adopts a suggestion that arrives after first paint, but never overwrites typing', () => {
+    vi.mocked(useLocalTerminalSuggestion).mockReturnValue('')
+    const { rerender } = render(
+      <LocalPathDialog
+        repoPath="/home/you/worktrees/app-branch"
+        initialPath={null}
+        mode="spawn"
+        onSaved={onSaved}
+        onClose={onClose}
+      />,
+    )
+    const input = screen.getByLabelText<HTMLInputElement>('Local folder')
+    expect(input.value).toBe('')
+
+    vi.mocked(useLocalTerminalSuggestion).mockReturnValue('/Users/you/code/app')
+    rerender(
+      <LocalPathDialog
+        repoPath="/home/you/worktrees/app-branch"
+        initialPath={null}
+        mode="spawn"
+        onSaved={onSaved}
+        onClose={onClose}
+      />,
+    )
+    expect(input.value).toBe('/Users/you/code/app')
+
+    fireEvent.change(input, { target: { value: '/Users/you/elsewhere' } })
+    vi.mocked(useLocalTerminalSuggestion).mockReturnValue('/Users/you/code/other')
+    rerender(
+      <LocalPathDialog
+        repoPath="/home/you/worktrees/app-branch"
+        initialPath={null}
+        mode="spawn"
+        onSaved={onSaved}
+        onClose={onClose}
+      />,
+    )
+    expect(input.value).toBe('/Users/you/elsewhere')
   })
 })

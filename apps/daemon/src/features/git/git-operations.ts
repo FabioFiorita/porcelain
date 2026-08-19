@@ -9,6 +9,8 @@ import type {
   DiffReadingInput,
   DiffReadingOutput,
   GitAddWorktreeInput,
+  GitApplyCommitGroupsInput,
+  GitApplyCommitGroupsOutput,
   GitCheckoutInput,
   GitCommitDiffInput,
   GitCommitFlowInput,
@@ -26,6 +28,7 @@ import type {
   GitPushInput,
   GitQuickCommandInput,
   GitRangeDiffFileInput,
+  GitRangeFlowInput,
   GitStageAllInput,
   GitStageFileInput,
   GitSuggestion,
@@ -70,6 +73,7 @@ export type GitOperations = Readonly<{
   generateCommitGroupsGit(
     input: GitGenerateCommitGroupsInput,
   ): Promise<GitGenerateCommitGroupsOutput['groups']>
+  applyCommitGroupsGit(input: GitApplyCommitGroupsInput): Promise<GitApplyCommitGroupsOutput>
   commitConventionsGit(repoPath: string): Promise<CommitConventions>
   statusGit(repoPath: string): Promise<GitProjectResult<ChangedFile[]>>
   suggestionsGit(repoPath: string): Promise<GitSuggestion[]>
@@ -78,7 +82,9 @@ export type GitOperations = Readonly<{
   createBranchGit(input: GitCreateBranchInput): Promise<void>
   worktreesGit(repoPath: string): Promise<GitProjectResult<Worktree[]>>
   flowGit(repoPath: string): Promise<FlowGroup[]>
-  rangeFlowGit(repoPath: string): Promise<{ groups: FlowGroup[]; base: string }>
+  rangeFlowGit(
+    input: GitRangeFlowInput,
+  ): Promise<{ groups: FlowGroup[]; base: string; defaultBase: string }>
   rangeDiffFileGit(input: GitRangeDiffFileInput): Promise<DiffFileResult>
   diffFileGit(input: GitDiffFileInput): Promise<DiffFileResult>
   logGit(input: GitLogInput): Promise<Commit[]>
@@ -175,6 +181,50 @@ export function createGitOperations(dependencies: GitOperationDependencies): Git
     generateCommitGroupsGit: (input: GitGenerateCommitGroupsInput) =>
       commitGeneration.generateGroups(input),
 
+    /**
+     * Apply a whole grouped-commit proposal in one call: for each group, stage exactly its
+     * files and commit them, in order.
+     *
+     * The index is reset first. The daemon cannot assume the proposal is still the only thing
+     * in the index — a stale proposal or manual staging in between would otherwise leak extra
+     * files into the first group's commit, and "stage exactly these paths" is the whole promise
+     * of this procedure. Reset touches the index only; the working tree is never modified here.
+     *
+     * The batch stops at the first failing group and reports per-group outcomes rather than
+     * throwing, because groups before the failure are already committed and the human needs to
+     * know which. The failed group's partial staging is reset so the index is never left half
+     * staged, and its files plus every skipped group's files stay in the working tree.
+     */
+    async applyCommitGroupsGit(
+      input: GitApplyCommitGroupsInput,
+    ): Promise<GitApplyCommitGroupsOutput> {
+      const { repoPath, groups } = input
+      const results: GitApplyCommitGroupsOutput['results'] = []
+      await projectGit.unstageAll(repoPath)
+      let failed = false
+      for (const group of groups) {
+        if (failed) {
+          results.push({ ...group, status: 'skipped', error: null })
+          continue
+        }
+        try {
+          for (const path of group.files) await projectGit.stageFile(repoPath, path)
+          await projectGit.commit(repoPath, group.message)
+          results.push({ ...group, status: 'committed', error: null })
+        } catch (error) {
+          await projectGit.unstageAll(repoPath)
+          failed = true
+          results.push({
+            ...group,
+            status: 'failed',
+            error: error instanceof Error ? error.message : String(error),
+          })
+        }
+      }
+      changed(repoPath)
+      return { results }
+    },
+
     async commitConventionsGit(repoPath: string): Promise<CommitConventions> {
       const commits = await projectGit.log(repoPath, 200)
       return parseConventions(commits.map((commit) => commit.subject))
@@ -195,13 +245,14 @@ export function createGitOperations(dependencies: GitOperationDependencies): Git
 
     flowGit: (repoPath: string) => diffReadingSources.loadWorkingFlow(repoPath),
 
-    rangeFlowGit: (repoPath: string) => diffReadingSources.loadRangeFlow(repoPath),
+    rangeFlowGit: (input: GitRangeFlowInput) =>
+      diffReadingSources.loadRangeFlow(input.repoPath, input.base),
 
     rangeDiffFileGit: (input: GitRangeDiffFileInput) =>
-      diffReadingSources.rangeDiffFile(input.repoPath, input.base, input.filePath),
+      diffReadingSources.rangeDiffFile(input.repoPath, input.base, input.filePath, input.context),
 
     diffFileGit: (input: GitDiffFileInput) =>
-      diffReadingSources.diffFile(input.repoPath, input.filePath),
+      diffReadingSources.diffFile(input.repoPath, input.filePath, input.context),
 
     logGit: (input: GitLogInput) => projectGit.log(input.repoPath, input.limit),
 
@@ -230,7 +281,7 @@ export function createGitOperations(dependencies: GitOperationDependencies): Git
         name = 'Changes'
         fetchHunks = (path: string) => diffReadingSources.workingHunks(repoPath, path)
       } else if (scope.type === 'branch') {
-        const range = await diffReadingSources.loadRangeFlow(repoPath)
+        const range = await diffReadingSources.loadRangeFlow(repoPath, scope.base)
         groups = range.groups
         name = `vs ${range.base}`
         fetchHunks = (path: string) => diffReadingSources.rangeHunks(repoPath, range.base, path)

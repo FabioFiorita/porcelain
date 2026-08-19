@@ -15,9 +15,29 @@ pnpm build
 pnpm dev:daemon
 ```
 
-Open `http://127.0.0.1:43118/` for the development browser client. Run `pnpm dev` for the
-Electron client. The daemon launcher uses `~/.porcelain-dev` and a disposable playground; it is
-the only environment for ordinary agent product work.
+The daemon launcher uses `~/.porcelain-dev` and a disposable playground; it is the only
+environment for ordinary agent product work. `http://127.0.0.1:43118/` serves the browser
+client from the built renderer dist — correct, but rebuilt only by `pnpm build:web`.
+
+## Editing the web client
+
+Run `pnpm dev:web` beside the daemon and open `http://127.0.0.1:53118/` (the daemon port plus
+10000, so a managed worktree gets its own). That is the same `apps/web` source over Vite with
+hot module replacement, proxying `/trpc`, `/session`, `/dev-auth`, `/pair`, `/canvas`, and
+`/mcp` to the daemon of that checkout, so an edit is on screen in well under a second with the
+app state intact. `pnpm dev` runs the Electron client, which has its own HMR renderer.
+
+Rebuilds are for the other layers, not for web edits:
+
+| Changed | Cost |
+| --- | --- |
+| `apps/web` with `pnpm dev:web` | hot, no command |
+| `apps/web` for the daemon-served client | `pnpm build:web`, then reload the page |
+| `apps/daemon` | `pnpm build:daemon`, then restart `pnpm dev:daemon` |
+| Electron shell (`apps/desktop/src/main`) | `pnpm build`, then restart `pnpm dev` |
+
+`pnpm build` also runs the full typecheck, which is most of its time; reach for it before
+delivery, not between edits.
 
 The development environment is intentionally distinct from the published daemon:
 
@@ -51,7 +71,10 @@ points are:
 
 ```sh
 pnpm dev:daemon       # isolated daemon, port 43118 or the worktree allocation
+pnpm dev:web          # browser client with HMR, daemon port + 10000
 pnpm dev              # Electron client
+pnpm build:web        # rebuild the dist the daemon itself serves
+pnpm build:daemon     # rebuild the daemon bundle (restart the launcher after)
 pnpm format           # write formatting
 pnpm lint             # source checks configured by the checkout
 pnpm test              # desktop/Vitest suite; pass a focused target when supported

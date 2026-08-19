@@ -68,6 +68,21 @@ For an always-on Linux host, install the daemon as a user-level systemd unit and
 both are required for survival across logout and reboot. The remote skill contains the unit-file,
 Node shim, readiness-polling, and node-pty troubleshooting details.
 
+## Update the daemon
+
+A client shows an "Update daemon" prompt when the daemon it is bound to reports an older
+release than the client itself. The unit in the remote skill starts the daemon through
+`npx --yes --prefer-online porcelain-daemon@latest`, so restarting the service resolves the
+new version and is the whole upgrade:
+
+```sh
+systemctl --user restart porcelain-daemon.service
+```
+
+A daemon started by hand in a shell is updated by stopping it and re-running
+`npx porcelain-daemon@latest serve` with the same flags. Either way the restart is not
+instant — poll readiness rather than assuming the daemon is back.
+
 When something is wrong, start with:
 
 ```sh
