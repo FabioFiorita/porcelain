@@ -7,6 +7,7 @@
  */
 
 export {
+  availableTaskColumns,
   DEFAULT_HIDDEN_TASK_COLUMN_IDS,
   resolveHiddenTaskColumns,
   resolveTaskColumnOrder,

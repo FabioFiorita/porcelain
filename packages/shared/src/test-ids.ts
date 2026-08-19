@@ -251,6 +251,7 @@ export const TestIds = {
   tasksComposerNotes: 'tasks-composer-notes',
   tasksComposerMarkdown: 'tasks-composer-markdown',
   tasksComposerProject: 'tasks-composer-project',
+  tasksComposerEnvironment: 'tasks-composer-environment',
   tasksComposerAttach: 'tasks-composer-attach',
   tasksComposerFileSearch: 'tasks-composer-file-search',
   tasksComposerSubmit: 'tasks-composer-submit',
