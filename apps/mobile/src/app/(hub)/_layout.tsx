@@ -64,12 +64,11 @@ export default function HubLayout(): React.JSX.Element {
         name="files"
         options={{ headerRight: () => <HeaderActions companionSurface="files" />, title: 'Files' }}
       />
+      {/* No companion bolt: Changes has no inspector, on this client or on web. Suggestions,
+          git commands and the commit composer are the Git surface's. */}
       <Stack.Screen
         name="changes/index"
-        options={{
-          headerRight: () => <HeaderActions companionSurface="changes" />,
-          title: 'Changes',
-        }}
+        options={{ headerRight: () => <HeaderActions />, title: 'Changes' }}
       />
       <Stack.Screen
         name="history"
@@ -89,6 +88,17 @@ export default function HubLayout(): React.JSX.Element {
       {/* No Terminal screen here. Shells are daemon-wide and live in the Terminals tab
           (`app/terminals/`) — a Worktree's own sessions were a second terminal home, and the
           long-lived one was always the one you were not standing in. */}
+
+      {/* A form, not a list: at 0.6 the fields sit under the keyboard, so this sheet
+          starts near-full like the Tasks composer instead of taking SHEET's list detents. */}
+      <Stack.Screen
+        name="new-worktree"
+        options={{
+          ...SHEET,
+          sheetAllowedDetents: [0.85, 0.99],
+          title: 'New Worktree',
+        }}
+      />
 
       <Stack.Screen
         name="quick-open"

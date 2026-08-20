@@ -150,6 +150,7 @@ export function GitCommitCard({ active }: { active: boolean }): React.JSX.Elemen
             disabled={treeClean || conventions === undefined}
             kind="type"
             options={conventions?.types ?? []}
+            testIDPrefix="porcelain-git-commit"
             value={type}
             onChange={(next) => {
               setMessage(repoPath, applyCommitPrefix(message, next, next === null ? null : scope))
@@ -159,6 +160,7 @@ export function GitCommitCard({ active }: { active: boolean }): React.JSX.Elemen
             disabled={treeClean || type === null || conventions === undefined}
             kind="scope"
             options={conventions?.scopes ?? []}
+            testIDPrefix="porcelain-git-commit"
             value={scope}
             onChange={(next) => {
               setMessage(repoPath, applyCommitPrefix(message, type, next))

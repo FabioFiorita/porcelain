@@ -8,10 +8,12 @@ type CommitDraftState = {
 }
 
 /**
- * Per-repo commit drafts. The composer lives in the companion, which unmounts whenever the
- * sheet closes or the tablet surface changes — without this, half a written message would be
- * lost to a glance at the diff. Kept in memory only: a stale draft outliving a cold start
- * would be attached to a tree that has since moved on.
+ * Per-repo commit drafts. The composer lives on the Git surface, which unmounts as soon as you
+ * navigate off it — without this, half a written message would be lost to a glance at the diff.
+ * It stays in this feature because the draft belongs to the repository rather than to whichever
+ * screen is composing: one message per repo path, whoever is reading or writing it. Kept in
+ * memory only: a stale draft outliving a cold start would be attached to a tree that has since
+ * moved on.
  */
 export const useCommitDraftStore = create<CommitDraftState>()((set) => ({
   messages: {},

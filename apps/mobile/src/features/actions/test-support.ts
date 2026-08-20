@@ -1,5 +1,5 @@
 import { actionsContractFixtures } from '@porcelain/contracts/actions'
-import { hubInventoryQuery } from '@porcelain/client-runtime/projects'
+import type { hubInventoryQuery } from '@porcelain/client-runtime/projects'
 import type { HubInventory } from '@porcelain/contracts/projects'
 
 import { hubInventoryKey as sharedHubInventoryKey } from '@/features/projects/hub-target'

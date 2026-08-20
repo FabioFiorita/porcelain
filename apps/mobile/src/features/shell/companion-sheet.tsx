@@ -18,7 +18,7 @@ export function CompanionSheet({ surface }: { surface?: SurfaceId }): React.JSX.
 
   return (
     <View className="flex-1" testID="porcelain-companion-sheet">
-      <slots.companion active />
+      {slots.companion === undefined ? null : <slots.companion active />}
     </View>
   )
 }

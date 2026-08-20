@@ -1,19 +1,19 @@
 import { type HubProjectGroup, groupEquivalentProjects } from '@porcelain/client-runtime/projects'
-import type { HubProject, HubWorktree } from '@porcelain/contracts/projects'
-import { useRouter } from 'expo-router'
+import { Stack } from 'expo-router'
 import { useMemo, useState } from 'react'
 import { Pressable, View } from 'react-native'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { EmptyNote } from '@/components/panel-chrome'
-import { SURFACE_GUTTER, SURFACE_ROW, SURFACE_ROW_SELECTED } from '@/components/surface-layout'
+import { SURFACE_GUTTER } from '@/components/surface-layout'
 import { SurfaceScroll } from '@/components/surface-scroll'
 import { Text } from '@/components/ui/text'
 import { useHubInventories, useHubRepoPath } from '@/features/projects'
 import type { Environment } from '@/features/remote'
 import { cn } from '@/lib/utils'
 
-import { openHubWorktree } from './hub-selection'
+import { NewWorktreeHeaderAction } from './hub-header-actions'
+import { WorktreeRow } from './worktree-row'
 
 /**
  * The Hub list — every Worktree of every paired Environment in ONE list, grouped by Project.
@@ -42,6 +42,9 @@ export function HubScreen(): React.JSX.Element {
 
   return (
     <View className="flex-1 bg-background" testID="porcelain-hub-screen">
+      {/* The list's title and large-title behaviour are the stack's (`(hub)/_layout.tsx`);
+          only the action belongs to this screen, so only the action is declared here. */}
+      <Stack.Screen options={{ headerRight: () => <NewWorktreeHeaderAction /> }} />
       <SurfaceScroll gap={4} largeTitle paddingTop={8}>
         {groups.length === 0 ? (
           <EmptyNote
@@ -120,56 +123,5 @@ function ProjectGroup({
             />
           ))}
     </View>
-  )
-}
-
-/**
- * One Worktree. Only fields `hubWorktreeSchema` actually carries are printed — name, branch,
- * primary — plus the Environment nickname this device paired it under. There is no status on
- * the record, so there is no status badge.
- */
-function WorktreeRow({
-  environment,
-  project,
-  selected,
-  worktree,
-}: {
-  environment: Environment | null
-  project: HubProject
-  selected: boolean
-  worktree: HubWorktree
-}): React.JSX.Element {
-  const router = useRouter()
-
-  return (
-    <Pressable
-      accessibilityLabel={`Worktree ${worktree.name}`}
-      accessibilityRole="button"
-      accessibilityState={{ selected }}
-      className={cn(SURFACE_ROW, selected && SURFACE_ROW_SELECTED)}
-      testID={`porcelain-hub-worktree-${worktree.id}`}
-      onPress={() => {
-        if (environment === null) return
-        void openHubWorktree(environment, worktree).then(() => {
-          router.push('/worktree')
-        })
-      }}
-    >
-      <View className="flex-row items-center gap-2">
-        <ChromeGlyph name={worktree.isPrimary ? 'folderFill' : 'branch'} size={14} tone="muted" />
-        <View className="min-w-0 flex-1">
-          <Text className="text-sm font-medium text-foreground" numberOfLines={1}>
-            {worktree.name}
-          </Text>
-          <Text className="font-mono text-3xs text-muted-foreground" numberOfLines={1}>
-            {worktree.branch}
-          </Text>
-        </View>
-        <Text className="shrink-0 text-3xs text-muted-foreground" numberOfLines={1}>
-          {environment?.nickname ?? project.environmentId}
-        </Text>
-        <ChromeGlyph name="chevronRight" size={11} tone="muted" />
-      </View>
-    </Pressable>
   )
 }

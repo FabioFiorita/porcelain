@@ -1,3 +1,4 @@
+import { TASK_STATUS_LABELS } from '@porcelain/client-runtime/tasks'
 import { TASK_STATUSES, type TaskStatus } from '@porcelain/contracts/tasks'
 import { Stack, useRouter } from 'expo-router'
 import { useState } from 'react'
@@ -17,7 +18,6 @@ import { cn } from '@/lib/utils'
 import { TaskAttachments } from './task-attachments'
 import { TaskHeaderAction } from './task-header-action'
 import { formatWhen, projectNamesFrom } from './task-match'
-import { TASK_STATUS_LABELS } from './task-status-scope'
 import { useTaskActions } from './tasks-mutations'
 import { useTaskRow } from './tasks-queries'
 

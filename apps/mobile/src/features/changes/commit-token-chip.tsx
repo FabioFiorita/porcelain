@@ -18,18 +18,24 @@ import { type TokenKind, tokenChipLabel, tokenOptionLabel, tokenPicker } from '.
  *
  * The value is DERIVED from the message text, so editing the message by hand keeps the chips in
  * sync; choosing one rewrites only the leading prefix.
+ *
+ * `testIDPrefix` is required rather than defaulted: the chip is shared, so a default would let
+ * whichever surface forgot to pass one publish another surface's ids.
  */
 export function CommitTokenChip({
   disabled,
   kind,
   onChange,
   options,
+  testIDPrefix,
   value,
 }: {
   disabled: boolean
   kind: TokenKind
   onChange: (value: string | null) => void
   options: readonly string[]
+  /** The owning card's commit id stem, e.g. `porcelain-git-commit`. */
+  testIDPrefix: string
   value: string | null
 }): React.JSX.Element {
   const [open, setOpen] = useState(false)
@@ -53,7 +59,7 @@ export function CommitTokenChip({
           disabled && 'opacity-50',
         )}
         disabled={disabled}
-        testID={`porcelain-changes-commit-${kind}`}
+        testID={`${testIDPrefix}-${kind}`}
         onPress={() => {
           setOpen(true)
         }}
@@ -88,7 +94,7 @@ export function CommitTokenChip({
             autoCapitalize="none"
             autoCorrect={false}
             placeholder={`Add ${kind}…`}
-            testID={`porcelain-changes-commit-${kind}-input`}
+            testID={`${testIDPrefix}-${kind}-input`}
             value={query}
             onChangeText={setQuery}
           />
@@ -105,7 +111,7 @@ export function CommitTokenChip({
           {value === null ? null : (
             <TokenOption
               label={`Clear ${kind}`}
-              testID={`porcelain-changes-commit-${kind}-clear`}
+              testID={`${testIDPrefix}-${kind}-clear`}
               onPress={() => {
                 choose(null)
               }}
@@ -117,7 +123,7 @@ export function CommitTokenChip({
               label={tokenOptionLabel(kind, option)}
               mono
               selected={option === value}
-              testID={`porcelain-changes-commit-${kind}-${option}`}
+              testID={`${testIDPrefix}-${kind}-${option}`}
               onPress={() => {
                 choose(option)
               }}
@@ -126,7 +132,7 @@ export function CommitTokenChip({
           {picker.addition === null ? null : (
             <TokenOption
               label={`Add “${picker.addition}”`}
-              testID={`porcelain-changes-commit-${kind}-add`}
+              testID={`${testIDPrefix}-${kind}-add`}
               onPress={() => {
                 choose(picker.addition)
               }}

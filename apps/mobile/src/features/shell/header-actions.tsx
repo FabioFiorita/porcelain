@@ -56,7 +56,7 @@ export function HeaderActions({
   search = true,
 }: {
   companionSurface?: SurfaceId
-  /** The Worktree screen drops it — it is a list of surfaces, not a place to search from. */
+  /** Screens with nothing to open from — a presented sheet, a modal root — pass false. */
   search?: boolean
 }): React.JSX.Element {
   const router = useRouter()

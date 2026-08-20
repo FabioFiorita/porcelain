@@ -1,4 +1,5 @@
 import type { TaskRow } from '@porcelain/client-runtime/tasks'
+import { OPEN_TASK_STATUSES, TASK_STATUS_LABELS } from '@porcelain/client-runtime/tasks'
 import { TASK_STATUSES, type TaskStatus } from '@porcelain/contracts/tasks'
 
 /**
@@ -8,25 +9,19 @@ import { TASK_STATUSES, type TaskStatus } from '@porcelain/contracts/tasks'
  * Web can hold an arbitrary SET of statuses because a dropdown has room for four checkboxes
  * next to a text field. A phone's filter is a segmented control, which is single-choice by
  * construction, so the vocabulary is the scopes a person actually asks for: everything still
- * open, or one named status. `open` is exactly Web's default set (every status but `done`), so
- * the rule the owner cares about — Done is hidden until asked for — holds identically on both
- * clients.
+ * open, or one named status. The `open` scope is `OPEN_TASK_STATUSES` — the one shared set Web
+ * opens its filter on — so the rule the owner cares about, Done is hidden until asked for,
+ * cannot drift between the two clients. Only this control vocabulary is mobile's; the rule and
+ * the status names are not.
  *
- * Like Web's, this is per-session state and never persisted: "hidden by default" has to be
+ * Like Web's, the scope is per-session state and never persisted: "hidden by default" has to be
  * true on every cold start, which a stored preference cannot promise.
  */
-
-export const TASK_STATUS_LABELS: Readonly<Record<TaskStatus, string>> = {
-  todo: 'To do',
-  doing: 'Doing',
-  done: 'Done',
-  blocked: 'Blocked',
-}
 
 export const TASK_STATUS_SCOPES = ['open', ...TASK_STATUSES] as const
 export type TaskStatusScope = (typeof TASK_STATUS_SCOPES)[number]
 
-/** Done is hidden until the control asks for it — Web's `DEFAULT_STATUS_FILTER`, one value. */
+/** Done is hidden until the control asks for it — Web's opening filter, as one value. */
 export const DEFAULT_TASK_STATUS_SCOPE: TaskStatusScope = 'open'
 
 export const TASK_STATUS_SCOPE_LABELS: Readonly<Record<TaskStatusScope, string>> = {
@@ -36,7 +31,7 @@ export const TASK_STATUS_SCOPE_LABELS: Readonly<Record<TaskStatusScope, string>>
 
 /** The statuses a scope admits, always in `TASK_STATUSES` order. */
 export function statusesInScope(scope: TaskStatusScope): readonly TaskStatus[] {
-  if (scope === 'open') return TASK_STATUSES.filter((status) => status !== 'done')
+  if (scope === 'open') return OPEN_TASK_STATUSES
   return [scope]
 }
 

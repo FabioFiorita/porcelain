@@ -1,4 +1,5 @@
 import type { TaskRow } from '@porcelain/client-runtime/tasks'
+import { OPEN_TASK_STATUSES } from '@porcelain/client-runtime/tasks'
 import { taskFixture } from '@porcelain/contracts/tasks'
 import { describe, expect, it } from 'vitest'
 
@@ -23,9 +24,11 @@ const DONE = '00000000-0000-4000-8000-000000000303'
 const BLOCKED = '00000000-0000-4000-8000-000000000304'
 
 describe('task status scope', () => {
-  it('hides Done by default, matching the web filter', () => {
+  // What "Done is hidden by default" means is asserted once, on the shared OPEN_TASK_STATUSES.
+  // What this owns is the binding: the default segment is the scope that IS that shared set.
+  it('opens on the shared open-status set, so Done is hidden until asked for', () => {
     expect(DEFAULT_TASK_STATUS_SCOPE).toBe('open')
-    expect(statusesInScope(DEFAULT_TASK_STATUS_SCOPE)).toEqual(['todo', 'doing', 'blocked'])
+    expect(statusesInScope(DEFAULT_TASK_STATUS_SCOPE)).toBe(OPEN_TASK_STATUSES)
     expect(statusesInScope('done')).toEqual(['done'])
   })
 

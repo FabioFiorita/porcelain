@@ -1,4 +1,5 @@
 import type { TaskRow } from '@porcelain/client-runtime/tasks'
+import { TASK_STATUS_LABELS, taskMatchesQuery } from '@porcelain/client-runtime/tasks'
 import { Stack, useRouter } from 'expo-router'
 import { useState } from 'react'
 import { Pressable, View } from 'react-native'
@@ -17,11 +18,10 @@ import { Text } from '@/components/ui/text'
 import { useHubInventories } from '@/features/projects'
 import { cn } from '@/lib/utils'
 
-import { formatWhen, projectNamesFrom, taskMatchesQuery } from './task-match'
+import { formatWhen, projectNamesFrom } from './task-match'
 import {
   DEFAULT_TASK_STATUS_SCOPE,
   groupRowsByStatus,
-  TASK_STATUS_LABELS,
   type TaskStatusScope,
   taskStatusScopeOptions,
 } from './task-status-scope'
@@ -37,7 +37,9 @@ import { useTasks } from './tasks-queries'
  * so there is none on the card.
  *
  * Search is `UISearchController` / the Material search field, declared as a screen option. The
- * filter it drives is Web's `taskMatchesQuery`, mirrored in `task-match.ts`.
+ * filter it drives is `taskMatchesQuery`, the one implementation Web filters with too. The phone
+ * adds the Environment label to what it searches, because this board lists every paired
+ * Environment at once and the Viewer is already standing inside one.
  */
 export function TasksBoardScreen(): React.JSX.Element {
   const { rows, environments, error, isLoaded } = useTasks()
@@ -45,7 +47,9 @@ export function TasksBoardScreen(): React.JSX.Element {
   const [scope, setScope] = useState<TaskStatusScope>(DEFAULT_TASK_STATUS_SCOPE)
   const [query, setQuery] = useState('')
 
-  const matched = rows.filter((row) => taskMatchesQuery(row, query, projectNames))
+  const matched = rows.filter((row) =>
+    taskMatchesQuery(row, query, projectNames, [row.environmentName]),
+  )
   const groups = groupRowsByStatus(matched, scope)
   const shown = groups.reduce((total, group) => total + group.rows.length, 0)
   // The same gate Web puts on its Environment column: one Environment would print the same

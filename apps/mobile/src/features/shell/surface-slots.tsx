@@ -1,4 +1,3 @@
-import { ChangesCompanion } from '@/features/changes/changes-companion'
 import { ChangesList } from '@/features/changes/changes-list'
 import { ChangesPhoneScreen } from '@/features/changes/changes-phone-screen'
 import { ChangesViewer } from '@/features/changes/changes-viewer'
@@ -49,15 +48,19 @@ export type SurfaceSlots = {
   list: (props: { active: boolean }) => React.JSX.Element
   /** Tablet viewer column. */
   viewer: (props: { active: boolean }) => React.JSX.Element
-  /** Tablet inspector column and the phone companion sheet. */
-  companion: (props: { active: boolean }) => React.JSX.Element
+  /**
+   * Tablet inspector column and the phone companion sheet — omitted when the surface has none.
+   * Changes is the one that does: everything it used to hold (suggestions, git commands, the
+   * commit composer) is the Git surface's, exactly as on web, and a sheet that opens to explain
+   * that is worse than a bolt that is not there.
+   */
+  companion?: (props: { active: boolean }) => React.JSX.Element
   /** The phone screen body, under the native header the stack declares for it. */
   phone: () => React.JSX.Element
 }
 
 const SURFACE_SLOTS: Record<SurfaceId, SurfaceSlots> = {
   changes: {
-    companion: ChangesCompanion,
     list: ChangesList,
     phone: ChangesPhoneScreen,
     viewer: ChangesViewer,
