@@ -1,36 +1,26 @@
-import { PhoneSurface } from './phone-surface'
-import { ViewerCanvas } from './shell-columns'
-import { useShellStore } from './shell-store'
-import type { SurfaceId } from './surfaces'
-import { useIsTablet } from './use-app-window'
+import { useIsFocused } from 'expo-router'
+import { useEffect } from 'react'
 
-type SurfaceScreenProps = {
-  /** Phone route surface (primary face of a dual slot, or Terminal). */
-  surface: SurfaceId
-}
+import { useShellStore } from './shell-store'
+import { surfaceSlots } from './surface-slots'
+import type { SurfaceId } from './surfaces'
 
 /**
- * Shared route body: tablet Slot shows store-driven viewer; phone uses dual-face
- * PhoneSurface chrome.
+ * One surface, mounted as a screen inside the Hub stack.
+ *
+ * A surface used to be a global tab with two faces crammed into it, because five surfaces had
+ * to fit four tab slots. It is now reached through the Worktree that owns it, so the slot
+ * pressure — and the dual-face store, and the re-tap-to-flip gesture — is gone. The surface's
+ * own `phone` panel paints everything, header included.
  */
-export function SurfaceScreen({ surface }: SurfaceScreenProps): React.JSX.Element {
-  const isTablet = useIsTablet()
-  const activeSurface = useShellStore((state) => state.activeSurface)
+export function SurfaceScreen({ surface }: { surface: SurfaceId }): React.JSX.Element {
+  const focused = useIsFocused()
+  const setActiveSurface = useShellStore((state) => state.setActiveSurface)
+  const slots = surfaceSlots(surface)
 
-  if (isTablet) {
-    return <ViewerCanvas surfaceId={activeSurface} />
-  }
+  useEffect(() => {
+    if (focused) setActiveSurface(surface)
+  }, [focused, setActiveSurface, surface])
 
-  if (surface === 'files') {
-    return <PhoneSurface slot="files" surface="files" />
-  }
-  if (surface === 'changes') {
-    return <PhoneSurface slot="changes" surface="changes" />
-  }
-  if (surface === 'terminal') {
-    return <PhoneSurface surface="terminal" />
-  }
-
-  // Orphan routes (history/search) still render their face if navigated to.
-  return <PhoneSurface surface={surface} />
+  return <slots.phone />
 }

@@ -60,13 +60,13 @@ describe('quick-open matching', () => {
     expect(gotoRows('terminal')).toEqual([
       { detail: 'Surface', id: 'terminal', kind: 'surface', label: 'Terminal' },
     ])
-    expect(gotoRows('environment')).toEqual([
+    expect(gotoRows('remote')).toEqual([
       {
         detail: 'Settings',
-        id: 'settings:environments',
+        id: 'settings:remotes',
         kind: 'settings',
-        label: 'Environments',
-        section: 'environments',
+        label: 'Remotes',
+        section: 'remotes',
       },
     ])
   })

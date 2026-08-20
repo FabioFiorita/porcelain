@@ -1,6 +1,8 @@
 export type { HubTarget, ProjectSummary } from '@porcelain/client-runtime/projects'
+export type { HubEnvironmentInventory } from './hub-target'
 export {
   hubTargetIn,
+  useHubInventories,
   useHubInventory,
   useHubRepoPath,
   useHubTarget,

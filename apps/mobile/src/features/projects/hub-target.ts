@@ -1,7 +1,13 @@
 import { type HubTarget, hubInventoryQuery } from '@porcelain/client-runtime/projects'
 import type { HubInventory } from '@porcelain/contracts/projects'
-import { useQuery } from '@tanstack/react-query'
-import { activeProjectPathOf, isPaired, useActiveEnvironment } from '@/features/remote'
+import { useQueries, useQuery } from '@tanstack/react-query'
+import {
+  activeProjectPathOf,
+  type Environment,
+  isPaired,
+  useActiveEnvironment,
+  useEnvironments,
+} from '@/features/remote'
 import { hubInventoryProcedure } from './project-procedures'
 import { callProjectDaemon } from './use-project-transport'
 
@@ -73,4 +79,35 @@ export function useHubTarget(): HubTarget | null {
  */
 export function useHubRepoPath(): string | null {
   return activeProjectPathOf(useActiveEnvironment())
+}
+
+/** One Environment's Hub inventory, joined to the local pairing record that produced it. */
+export type HubEnvironmentInventory = {
+  readonly environment: Environment
+  readonly inventory: HubInventory
+}
+
+/**
+ * Every paired Environment's Hub inventory at once.
+ *
+ * The Hub list is cross-Environment by definition — a Worktree's Environment is a label on the
+ * row, never a filter — so it cannot be built on `useHubInventory`, which is scoped to the
+ * active Environment and gated on a selected checkout. This one is gated on pairing alone, so a
+ * cold start with nothing selected still has a list to show.
+ */
+export function useHubInventories(): readonly HubEnvironmentInventory[] {
+  const environments = useEnvironments()
+  const paired = environments.filter(isPaired)
+  const results = useQueries({
+    queries: paired.map((environment) => ({
+      queryFn: async (): Promise<HubInventory> =>
+        callProjectDaemon(environment, hubInventoryProcedure, undefined),
+      queryKey: hubInventoryKey(environment.id),
+      staleTime: 30_000,
+    })),
+  })
+  return paired.flatMap((environment, index) => {
+    const inventory = results[index]?.data
+    return inventory === undefined ? [] : [{ environment, inventory }]
+  })
 }
