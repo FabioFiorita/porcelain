@@ -66,3 +66,7 @@ JavaScript-only change needs nothing but Metro.
 
 `$S down` removes this loop's Metro reverse and stops only its own emulator. Stop the Metro you
 started by its tracked task or PID.
+
+Ownership is recorded when `up` prints `launched …`. An `up` that was interrupted before that line
+booted an emulator it never claimed, so a later `down` reports it as pre-existing and leaves it
+running: check `adb devices` and stop that one yourself with `adb -s <serial> emu kill`.
