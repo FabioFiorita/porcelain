@@ -18,7 +18,7 @@ import {
   useStageAll,
   useWorkingFlow,
 } from '@/features/git'
-import { useActiveProject } from '@/features/projects'
+import { useHubRepoPath } from '@/features/projects'
 import { cn } from '@/lib/utils'
 import { useCommitDraftStore } from './commit-draft-store'
 import { commitReady, stagingState } from './commit-staging'
@@ -32,8 +32,7 @@ import { CommitTokenChip } from './commit-token-chip'
  * leading prefix, so a hand-written message with no prefix commits exactly as typed.
  */
 export function CommitCard({ active }: { active: boolean }): React.JSX.Element {
-  const project = useActiveProject()
-  const repoPath = project?.path ?? ''
+  const repoPath = useHubRepoPath() ?? ''
   const message = useCommitDraftStore((state) => state.messages[repoPath] ?? '')
   const setMessage = useCommitDraftStore((state) => state.setMessage)
   const clearMessage = useCommitDraftStore((state) => state.clearMessage)

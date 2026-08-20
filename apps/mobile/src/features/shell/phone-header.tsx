@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router'
 import { Pressable, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { ChromeGlyph } from '@/components/chrome-glyph'
@@ -5,7 +6,6 @@ import { SURFACE_HEADER_BAND } from '@/components/surface-layout'
 import { cn } from '@/lib/utils'
 import { useShellStore } from './shell-store'
 import type { SurfaceId } from './surfaces'
-import { useWorkspaceHeader } from './use-workspace'
 
 type PhoneHeaderProps = {
   /** Large title — active face name (Files, Search, Changes, …). */
@@ -15,8 +15,14 @@ type PhoneHeaderProps = {
    * when omitted (settings tab has no product surface).
    */
   companionSurface?: SurfaceId
-  /** Hide workspace chips (Settings). */
-  workspace?: boolean
+  /**
+   * Back chevron when this screen was pushed. A TAB ROOT passes false: the Hub stack has
+   * history behind the tab you are on, so `canGoBack()` is true there too, and a chevron on a
+   * tab root would pop a stack the reader is not looking at.
+   */
+  back?: boolean
+  /** Quick-open button. The Hub list drops it — it is a Worktree list, not a search. */
+  search?: boolean
   /**
    * Companion bolt. Product tabs keep it; Settings drops it — prefs have no
    * companion rail content.
@@ -34,30 +40,32 @@ type PhoneHeaderProps = {
 
 /**
  * Phone title bar:
- *   [ Title                                    ⚡ ]
- *   [ PROJECT ⌄ ][ BRANCH ⌄ ][ WORKTREE ⌄        ]
+ *   [ ‹  Title                                🔍 ⚡ ]
  *
- * No gear (Settings is a tab). No environment chip (lives in Settings).
- * Bolt opens the companion sheet on product surfaces.
+ * The chevron appears whenever this screen was pushed — which, now that surfaces live inside
+ * the Hub stack, is every screen except the four tab roots. The native bar is hidden (each
+ * screen carries chrome it has no room for), so without this the only way back is the edge
+ * swipe, and a hierarchy with no visible way up is a hierarchy people get lost in.
  *
- * The three switchers are captioned rather than run together as `name · name · name`. Two of
- * the three routinely print the same string — a checkout's worktree is named for the branch in
- * it — so an unlabelled row asked the reader to tell three identical-looking chips apart by
- * position. The tablet header already solved this with captioned chips; this is the same
- * control at phone scale.
+ * The project / branch / worktree chip row is gone with the shell that needed it. A surface is
+ * now reached THROUGH a Worktree — the Hub list picks the checkout, and the screen you are on
+ * cannot be showing a different one — so a switcher in the header would be a second, competing
+ * answer to a question the navigation already settled.
  */
 export function PhoneHeader({
   title,
   companionSurface,
-  workspace = true,
+  back = true,
+  search = true,
   companion = true,
   border = true,
   children,
 }: PhoneHeaderProps): React.JSX.Element {
   const insets = useSafeAreaInsets()
+  const router = useRouter()
+  const canGoBack = back && router.canGoBack()
   const openSheet = useShellStore((state) => state.openSheet)
   const setActiveSurface = useShellStore((state) => state.setActiveSurface)
-  const { branch, projectName, worktree } = useWorkspaceHeader()
 
   return (
     <View
@@ -68,6 +76,19 @@ export function PhoneHeader({
     >
       <View className={SURFACE_HEADER_BAND}>
         <View className="min-h-11 flex-row items-center justify-between gap-3">
+          {canGoBack ? (
+            <Pressable
+              accessibilityLabel="Back"
+              accessibilityRole="button"
+              className="-ml-1 shrink-0 py-1 pr-1"
+              testID="porcelain-phone-back"
+              onPress={() => {
+                router.back()
+              }}
+            >
+              <ChromeGlyph name="chevronLeft" size={22} tone="foreground" />
+            </Pressable>
+          ) : null}
           <Text
             accessibilityRole="header"
             className="min-w-0 flex-1 text-[28px] font-extrabold tracking-tight text-foreground"
@@ -77,111 +98,44 @@ export function PhoneHeader({
             {title}
           </Text>
 
-          {companion ? (
+          {companion || search ? (
             <View className="shrink-0 flex-row items-center gap-2">
-              <Pressable
-                accessibilityLabel="Quick open"
-                accessibilityRole="button"
-                /* panel-card-allow: a 40pt control, not a card. */
-                className="size-10 items-center justify-center rounded-xl border border-border bg-card active:bg-accent"
-                testID="porcelain-phone-search"
-                onPress={() => {
-                  openSheet('search')
-                }}
-              >
-                <ChromeGlyph name="search" size={17} tone="foreground" />
-              </Pressable>
-              <Pressable
-                accessibilityLabel="Companion"
-                accessibilityRole="button"
-                /* panel-card-allow: a 40pt control, not a card. */
-                className="size-10 items-center justify-center rounded-xl border border-border bg-card active:bg-accent"
-                testID="porcelain-phone-bolt"
-                onPress={() => {
-                  if (companionSurface !== undefined) {
-                    setActiveSurface(companionSurface)
-                  }
-                  openSheet('companion')
-                }}
-              >
-                <ChromeGlyph name="companion" size={17} tone="foreground" />
-              </Pressable>
+              {search ? (
+                <Pressable
+                  accessibilityLabel="Quick open"
+                  accessibilityRole="button"
+                  /* panel-card-allow: a 40pt control, not a card. */
+                  className="size-10 items-center justify-center rounded-xl border border-border bg-card active:bg-accent"
+                  testID="porcelain-phone-search"
+                  onPress={() => {
+                    openSheet('search')
+                  }}
+                >
+                  <ChromeGlyph name="search" size={17} tone="foreground" />
+                </Pressable>
+              ) : null}
+              {companion ? (
+                <Pressable
+                  accessibilityLabel="Companion"
+                  accessibilityRole="button"
+                  /* panel-card-allow: a 40pt control, not a card. */
+                  className="size-10 items-center justify-center rounded-xl border border-border bg-card active:bg-accent"
+                  testID="porcelain-phone-bolt"
+                  onPress={() => {
+                    if (companionSurface !== undefined) {
+                      setActiveSurface(companionSurface)
+                    }
+                    openSheet('companion')
+                  }}
+                >
+                  <ChromeGlyph name="companion" size={17} tone="foreground" />
+                </Pressable>
+              ) : null}
             </View>
           ) : null}
         </View>
-
-        {workspace ? (
-          <View className="flex-row items-stretch gap-1.5 pt-1.5">
-            <WorkspaceChip
-              accessibilityLabel={`Project ${projectName}`}
-              caption="Project"
-              label={projectName}
-              testID="porcelain-phone-project"
-              onPress={() => {
-                openSheet('project')
-              }}
-            />
-            <WorkspaceChip
-              accessibilityLabel={`Branch ${branch}`}
-              caption="Branch"
-              label={branch}
-              testID="porcelain-phone-branch"
-              onPress={() => {
-                openSheet('branch')
-              }}
-            />
-            <WorkspaceChip
-              accessibilityLabel={`Worktree ${worktree}`}
-              caption="Worktree"
-              label={worktree}
-              testID="porcelain-phone-worktree"
-              onPress={() => {
-                openSheet('worktree')
-              }}
-            />
-          </View>
-        ) : null}
       </View>
       {children}
     </View>
-  )
-}
-
-/**
- * One switcher. Equal thirds rather than content width: a branch name is arbitrarily long, and
- * letting it size the chip pushes the other two off the row — the tail of the name is what the
- * sheet is for.
- */
-function WorkspaceChip({
-  accessibilityLabel,
-  caption,
-  label,
-  onPress,
-  testID,
-}: {
-  accessibilityLabel: string
-  caption: string
-  label: string
-  onPress: () => void
-  testID: string
-}): React.JSX.Element {
-  return (
-    <Pressable
-      accessibilityLabel={accessibilityLabel}
-      accessibilityRole="button"
-      className="min-w-0 flex-1 flex-row items-center gap-1 rounded-lg border border-border bg-card px-2 py-1 active:bg-accent"
-      testID={testID}
-      onPress={onPress}
-    >
-      <View className="min-w-0 flex-1">
-        <Text className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">
-          {caption}
-        </Text>
-        <Text className="text-xs font-medium text-foreground" numberOfLines={1}>
-          {label}
-        </Text>
-      </View>
-      <ChromeGlyph name="chevron" size={9} />
-    </Pressable>
   )
 }

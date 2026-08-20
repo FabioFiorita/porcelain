@@ -73,19 +73,15 @@ export type { GitQueryKey } from './git-query-key'
 export { gitQueryKey, isGitQueryKey, parseGitQueryKey } from './git-query-key'
 export type {
   BranchRef,
-  GitBranchSheet,
   GitHead,
   GitMutationAction,
   GitWorkspaceOptions,
   GitWorkspaceQueryResult,
-  GitWorktreeSheet,
   Worktree,
 } from './workspace'
 export {
   useGitAddWorktree,
-  useGitBranchSheet,
   useGitCheckout,
   useGitCreateBranch,
   useGitWorkspace,
-  useGitWorktreeSheet,
 } from './workspace'

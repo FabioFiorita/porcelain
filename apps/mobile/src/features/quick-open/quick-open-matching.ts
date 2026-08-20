@@ -30,13 +30,26 @@ const SETTINGS_ROWS: readonly QuickOpenGotoRow[] = [
     label: 'General',
     section: 'general',
   },
-  { detail: 'Settings', id: 'settings:data', kind: 'settings', label: 'Data', section: 'data' },
   {
     detail: 'Settings',
-    id: 'settings:environments',
+    id: 'settings:personalization',
     kind: 'settings',
-    label: 'Environments',
-    section: 'environments',
+    label: 'Personalization',
+    section: 'personalization',
+  },
+  {
+    detail: 'Settings',
+    id: 'settings:companion',
+    kind: 'settings',
+    label: 'Companion',
+    section: 'companion',
+  },
+  {
+    detail: 'Settings',
+    id: 'settings:remotes',
+    kind: 'settings',
+    label: 'Remotes',
+    section: 'remotes',
   },
 ]
 

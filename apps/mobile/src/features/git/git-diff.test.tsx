@@ -29,6 +29,7 @@ vi.mock('@/features/remote', () => ({
 }))
 vi.mock('@/features/projects', () => ({
   useActiveProject: () => ctx.project,
+  useHubRepoPath: () => ctx.project?.path ?? null,
 }))
 vi.mock('@/lib/daemon/client', () => ({
   getDaemonClient: () => ctx.client,

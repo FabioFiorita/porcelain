@@ -2,7 +2,7 @@ import type { FilesChange } from '@porcelain/contracts/files'
 import type { SessionChange } from '@porcelain/contracts/session'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
-import { useActiveProject } from '@/features/projects'
+import { useHubRepoPath } from '@/features/projects'
 import { isPaired, useActiveEnvironment } from '@/features/remote'
 import { subscribeSessionChanges } from '@/lib/daemon/session'
 
@@ -27,9 +27,8 @@ function filesChangeFromSessionChange(change: SessionChange): FilesChange | null
 export function FilesNotificationBridge(): null {
   const queryClient = useQueryClient()
   const environment = useActiveEnvironment()
-  const project = useActiveProject()
   const environmentId = environment?.id ?? null
-  const activeProjectPath = project?.path ?? null
+  const activeProjectPath = useHubRepoPath()
   const paired = isPaired(environment)
 
   useEffect(() => {

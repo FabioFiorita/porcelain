@@ -18,6 +18,7 @@ vi.mock('@/features/remote', () => ({
 }))
 vi.mock('@/features/projects', () => ({
   useActiveProject: () => ({ name: 'repo', path: ctx.repoPath }),
+  useHubRepoPath: () => ctx.repoPath,
 }))
 vi.mock('@/lib/daemon/session', () => ({
   daemonSession: {

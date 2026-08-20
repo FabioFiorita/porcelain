@@ -2,17 +2,15 @@ import { create } from 'zustand'
 
 import type { SurfaceId } from './surfaces'
 
-export type ShellSheet =
-  | 'project'
-  | 'search'
-  | 'branch'
-  | 'worktree'
-  | 'settings'
-  | 'companion'
-  | null
+/**
+ * The sheets the shell still owns. Project / branch / worktree went with the header switcher —
+ * a checkout is chosen in the Hub list now, not from a sheet over whatever surface you happen
+ * to be on.
+ */
+export type ShellSheet = 'search' | 'settings' | 'companion' | null
 
-/** Mirrors the desktop Settings dialog: General · Data · Environments. */
-export type SettingsSection = 'general' | 'data' | 'environments'
+/** Mirrors the desktop Settings dialog: General · Personalization · Companion · Remotes. */
+export type SettingsSection = 'general' | 'personalization' | 'companion' | 'remotes'
 
 type ShellState = {
   /** Active product surface (tablet rail + phone face). Independent of URL faces. */

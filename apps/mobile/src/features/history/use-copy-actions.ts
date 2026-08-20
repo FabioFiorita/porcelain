@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useFetchCommitMessage } from '@/features/git'
-import { useActiveProject } from '@/features/projects'
+import { useHubRepoPath } from '@/features/projects'
 import { copyText } from '@/lib/clipboard'
 
 import { shortHash } from './commit-message'
@@ -22,7 +22,7 @@ export type CopyActions = {
  * silently did nothing.
  */
 export function useCopyActions(): CopyActions {
-  const project = useActiveProject()
+  const repoPath = useHubRepoPath()
   const fetchCommitMessage = useFetchCommitMessage()
   const [status, setStatus] = useState<{ text: string; failed: boolean } | null>(null)
 
@@ -45,7 +45,7 @@ export function useCopyActions(): CopyActions {
         })
     },
     copyMessage: (hash: string): void => {
-      if (project === null) return
+      if (repoPath === null) return
       fetchCommitMessage(hash)
         .then(copyText)
         .then((ok) => {

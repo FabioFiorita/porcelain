@@ -10,20 +10,26 @@ import { type SettingsSection, useShellStore } from '../shell/shell-store'
 import { DataSettings } from './data-panel'
 import { EnvironmentsSettings } from './environments-panel'
 import { GeneralSettings } from './general-panel'
+import { PersonalizationSettings } from './personalization-panel'
 
 /**
- * Three sections share a 390pt phone, so "Environments" gets ~85pt. `SegmentedControl`
- * already gives every segment `flex-1` and one line of `text-xs`, which is the geometry
- * the hand-tuned `TabsTrigger` was reaching for.
+ * The same four sections the desktop Settings dialog has, in its order: General ·
+ * Personalization · Companion · Remotes. Share and Updates are shell concerns and are not
+ * offered here.
+ *
+ * `Companion` is what this client used to call `Data` — it edits the repo companion channel
+ * dispositions, which is companion state, not a fourth kind of preference. `Remotes` is what it
+ * called `Environments`; the paired-daemon list is the same thing under the desktop's name.
  */
 const SECTIONS: { value: SettingsSection; label: string; testID: string }[] = [
   { value: 'general', label: 'General', testID: 'porcelain-settings-section-general' },
-  { value: 'data', label: 'Data', testID: 'porcelain-settings-section-data' },
   {
-    value: 'environments',
-    label: 'Environments',
-    testID: 'porcelain-settings-section-environments',
+    value: 'personalization',
+    label: 'Personal',
+    testID: 'porcelain-settings-section-personalization',
   },
+  { value: 'companion', label: 'Companion', testID: 'porcelain-settings-section-companion' },
+  { value: 'remotes', label: 'Remotes', testID: 'porcelain-settings-section-remotes' },
 ]
 
 /**
@@ -40,7 +46,7 @@ export function SettingsScreen(): React.JSX.Element {
 
   return (
     <View className="flex-1 bg-background" testID="porcelain-phone-settings">
-      <PhoneHeader border={false} companion={false} title="Settings" workspace={false}>
+      <PhoneHeader back={false} border={false} companion={false} search={false} title="Settings">
         {/* The header hands its divider to this band so the switcher reads as part of the
             chrome; the band therefore owns the gutter and the space above the line. */}
         <View className={cn(SURFACE_GUTTER, 'border-b border-border pb-3')}>
@@ -60,12 +66,12 @@ export function SettingsScreen(): React.JSX.Element {
         showsVerticalScrollIndicator={false}
       >
         {section === 'general' ? <GeneralSettings /> : null}
-        {section === 'data' ? <DataSettings /> : null}
-        {section === 'environments' ? <EnvironmentsSettings /> : null}
+        {section === 'personalization' ? <PersonalizationSettings /> : null}
+        {section === 'companion' ? <DataSettings /> : null}
+        {section === 'remotes' ? <EnvironmentsSettings /> : null}
       </SurfaceScroll>
     </View>
   )
 }
 
-// Re-export panels for the tablet settings sheet.
-export { DataSettings, EnvironmentsSettings, GeneralSettings }
+export { DataSettings, EnvironmentsSettings, GeneralSettings, PersonalizationSettings }

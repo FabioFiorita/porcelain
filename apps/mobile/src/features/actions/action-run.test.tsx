@@ -33,9 +33,12 @@ vi.mock('@/features/remote', () => ({
   isPaired: (environment: { token: string | null } | null): boolean =>
     environment !== null && environment.token !== null,
   useActiveEnvironment: () => ctx.environment,
+  // The selected checkout now comes off the Environment record, not a Projects hook.
+  activeProjectPathOf: () => ctx.project?.path ?? null,
 }))
 vi.mock('@/features/projects', () => ({
   useActiveProject: () => ctx.project,
+  useHubRepoPath: () => ctx.project?.path ?? null,
 }))
 vi.mock('@/lib/daemon/client', () => ({
   getDaemonClient: () => ({ query: vi.fn(), mutation: vi.fn() }),

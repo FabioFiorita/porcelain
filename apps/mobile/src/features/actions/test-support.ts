@@ -1,5 +1,8 @@
 import { actionsContractFixtures } from '@porcelain/contracts/actions'
+import { hubInventoryQuery } from '@porcelain/client-runtime/projects'
 import type { HubInventory } from '@porcelain/contracts/projects'
+
+import { hubInventoryKey as sharedHubInventoryKey } from '@/features/projects/hub-target'
 
 /**
  * Mobile Actions test support (#24).
@@ -77,8 +80,8 @@ const HUB_INVENTORY: HubInventory = {
 /** The cache key `useActionsTarget` reads the Hub inventory under. */
 export function hubInventoryKey(
   environmentId: string,
-): readonly ['daemon', string, { domain: 'projects'; name: 'hubInventory' }] {
-  return ['daemon', environmentId, { domain: 'projects', name: 'hubInventory' }] as const
+): readonly ['daemon', string, ReturnType<typeof hubInventoryQuery>] {
+  return sharedHubInventoryKey(environmentId)
 }
 
 /**
