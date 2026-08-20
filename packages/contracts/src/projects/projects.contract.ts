@@ -65,7 +65,14 @@ export type RemoveHubWorktreeOutput = z.infer<typeof removeHubWorktreeOutputSche
 export const browseDirsInputSchema = z.string().nullable()
 export type BrowseDirsInput = z.infer<typeof browseDirsInputSchema>
 
-/** Stable Environment identity announced by the owning daemon. */
+/**
+ * Stable Environment identity announced by the owning daemon.
+ *
+ * `name` is the DISPLAY name and `host` is the machine. They start out equal, and a
+ * nickname is what pulls them apart: two daemons with separate homes on ONE machine
+ * report the same `host`, so the machine name alone cannot tell them apart.
+ * `host` stays the machine and remains the cache/scope key — never overwrite it.
+ */
 export const environmentIdentitySchema = z
   .object({
     id: z.string().min(1),
@@ -76,6 +83,30 @@ export const environmentIdentitySchema = z
   })
   .strict()
 export type EnvironmentIdentity = z.infer<typeof environmentIdentitySchema>
+
+/**
+ * How long an Environment nickname may be. Long enough for "Fabio's Beelink (work)",
+ * short enough to sit in a settings row and a Hub badge without wrapping. Input over
+ * the bound is REJECTED by the contract rather than silently truncated — a name the
+ * human did not choose is worse than an error they can see.
+ */
+export const ENVIRONMENT_NAME_MAX_LENGTH = 60
+
+/** This daemon's Environment identity — nickname included. */
+export const environmentIdentityInputSchema = z.void()
+export type EnvironmentIdentityInput = z.infer<typeof environmentIdentityInputSchema>
+export type EnvironmentIdentityOutput = EnvironmentIdentity
+
+/**
+ * Set this Environment's nickname. Whitespace is trimmed; an empty result CLEARS the
+ * nickname and the daemon falls back to its machine-derived name, which is why the
+ * input has no `min(1)` while the announced `name` does.
+ */
+export const renameEnvironmentInputSchema = z
+  .object({ name: z.string().max(ENVIRONMENT_NAME_MAX_LENGTH) })
+  .strict()
+export type RenameEnvironmentInput = z.infer<typeof renameEnvironmentInputSchema>
+export type RenameEnvironmentOutput = EnvironmentIdentity
 
 /** A discovered Git checkout with an identity that survives path changes. */
 export const hubWorktreeSchema = z
@@ -356,6 +387,11 @@ export const projectsContractFixtures = {
     },
   },
   hubInventory: { input: undefined, output: hubInventoryFixture },
+  environmentIdentity: { input: undefined, output: hubInventoryFixture.environment },
+  renameEnvironment: {
+    input: { name: 'Beelink (work)' },
+    output: { ...hubInventoryFixture.environment, name: 'Beelink (work)' },
+  },
   createHubWorktree: {
     input: { projectId: 'proj-alpha', branch: 'topic' },
     output: hubInventoryFixture.projects[0].worktrees[1],

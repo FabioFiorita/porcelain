@@ -37,7 +37,7 @@ import { toastingAction } from '@renderer/hooks/mutation-error'
 import { compactInputClass } from '@renderer/lib/controls'
 import { cn } from '@renderer/lib/utils'
 import { TestIds } from '@shared/test-ids'
-import { Columns3 } from 'lucide-react'
+import { ChevronDown, Columns3 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { TaskDetailSheet } from './task-detail-sheet'
 import { TaskImageLightbox } from './task-image-lightbox'
@@ -55,10 +55,29 @@ const STATUS_LABELS: Readonly<Record<TaskStatus, string>> = {
   blocked: 'Blocked',
 }
 
-const STATUS_FILTER_ITEMS = [
-  { label: 'All statuses', value: 'all' },
-  ...TASK_STATUSES.map((status) => ({ label: STATUS_LABELS[status], value: status })),
-]
+/**
+ * Done Tasks are hidden until asked for. A finished Task is noise on a board about what is
+ * left to do, and the human keeps them only long enough to delete them. This is the initial
+ * filter, not a stored preference: "hidden by default" has to hold on every load, so showing
+ * Done is deliberately a per-session choice rather than something a `localStorage` entry can
+ * carry into tomorrow.
+ */
+const DEFAULT_STATUS_FILTER: readonly TaskStatus[] = TASK_STATUSES.filter(
+  (status) => status !== 'done',
+)
+
+/** What the status trigger says, naming the excluded status when only one is missing. */
+function statusFilterLabel(selected: readonly TaskStatus[]): string {
+  if (selected.length === 0) return 'No statuses'
+  if (selected.length === TASK_STATUSES.length) return 'All statuses'
+  if (selected.length === TASK_STATUSES.length - 1) {
+    const missing = TASK_STATUSES.find((status) => !selected.includes(status))
+    return missing === undefined ? 'All statuses' : `All but ${STATUS_LABELS[missing]}`
+  }
+  return TASK_STATUSES.filter((status) => selected.includes(status))
+    .map((status) => STATUS_LABELS[status])
+    .join(', ')
+}
 
 /**
  * The Tasks Viewer tab: filters, the column picker, and the table itself.
@@ -73,7 +92,7 @@ export function TasksView(): React.JSX.Element {
   const toggle = useTaskColumnsStore((s) => s.toggle)
   const actions = useTaskActions()
   const [query, setQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState<readonly TaskStatus[]>(DEFAULT_STATUS_FILTER)
   const [projectFilter, setProjectFilter] = useState('all')
   const [openId, setOpenId] = useState<string | null>(null)
   const [pendingDelete, setPendingDelete] = useState<TaskRow | null>(null)
@@ -116,7 +135,7 @@ export function TasksView(): React.JSX.Element {
   const filtered = useMemo(
     () =>
       rows.filter((row) => {
-        if (statusFilter !== 'all' && row.task.status !== statusFilter) return false
+        if (!statusFilter.includes(row.task.status)) return false
         if (projectFilter !== 'all' && row.task.references.projectId !== projectFilter) return false
         return taskMatchesQuery(row, query, projectNames)
       }),
@@ -125,6 +144,14 @@ export function TasksView(): React.JSX.Element {
   const imagePreviews = useTaskImagePreviews(filtered)
   const openRow = rows.find((row) => row.task.id === openId) ?? null
   const knownTags = useMemo(() => [...new Set(rows.flatMap((row) => row.task.tags))], [rows])
+
+  const toggleStatusFilter = (status: TaskStatus): void => {
+    setStatusFilter((current) =>
+      current.includes(status)
+        ? current.filter((entry) => entry !== status)
+        : TASK_STATUSES.filter((entry) => entry === status || current.includes(entry)),
+    )
+  }
 
   const changeStatus = (row: TaskRow, status: TaskStatus): void => {
     toastingAction('Update Task', () =>
@@ -151,30 +178,37 @@ export function TasksView(): React.JSX.Element {
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
-        <Select
-          items={STATUS_FILTER_ITEMS}
-          value={statusFilter}
-          onValueChange={(next: string | null) => setStatusFilter(next ?? 'all')}
-        >
-          <SelectTrigger
-            data-testid={TestIds.tasksFilterStatus}
-            aria-label="Filter by status"
-            size="sm"
-            className="min-w-32"
-          >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              <SelectItem value="all">All statuses</SelectItem>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <button
+                type="button"
+                data-testid={TestIds.tasksFilterStatus}
+                aria-label="Filter by status"
+                className="flex h-7 min-w-32 shrink-0 items-center justify-between gap-1.5 rounded-md border bg-transparent px-2 text-xs text-foreground hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+              >
+                {statusFilterLabel(statusFilter)}
+                <ChevronDown className="size-3.5 text-muted-foreground" />
+              </button>
+            }
+          />
+          <DropdownMenuContent align="start">
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Statuses</DropdownMenuLabel>
               {TASK_STATUSES.map((status) => (
-                <SelectItem key={status} value={status}>
+                <DropdownMenuCheckboxItem
+                  key={status}
+                  data-testid={TestIds.tasksFilterStatusToggle(status)}
+                  closeOnClick={false}
+                  checked={statusFilter.includes(status)}
+                  onCheckedChange={() => toggleStatusFilter(status)}
+                >
                   {STATUS_LABELS[status]}
-                </SelectItem>
+                </DropdownMenuCheckboxItem>
               ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <Select
           items={projectFilterItems}
           value={projectFilter}
@@ -246,7 +280,14 @@ export function TasksView(): React.JSX.Element {
             No Tasks yet. Press ⌘⇧N or the plus on Tasks to add one.
           </p>
         )}
-        {error === null && rows.length > 0 && (
+        {error === null && rows.length > 0 && filtered.length === 0 && (
+          <p data-testid={TestIds.tasksNoMatches} className="p-4 text-sm text-muted-foreground">
+            No Tasks match these filters.
+            {!statusFilter.includes('done') &&
+              ' Done Tasks are hidden until the status filter asks for them.'}
+          </p>
+        )}
+        {error === null && filtered.length > 0 && (
           <TasksTable
             rows={filtered}
             visibleColumns={visible}

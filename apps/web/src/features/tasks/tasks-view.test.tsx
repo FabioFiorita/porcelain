@@ -1,4 +1,5 @@
 import { DEFAULT_HIDDEN_TASK_COLUMN_IDS, TASK_COLUMN_IDS } from '@porcelain/client-runtime/tasks'
+import type { Task, TaskStatus } from '@porcelain/contracts/tasks'
 import { TestIds } from '@shared/test-ids'
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -15,6 +16,30 @@ import {
 } from './test-support'
 
 const REFERENCED = taskAt(1)
+
+const DONE: Task = {
+  ...taskAt(0),
+  id: '00000000-0000-4000-8000-000000000091',
+  shortId: 'T-91',
+  title: 'Shipped last week',
+  status: 'done',
+}
+const BLOCKED: Task = {
+  ...taskAt(0),
+  id: '00000000-0000-4000-8000-000000000092',
+  shortId: 'T-92',
+  title: 'Waiting on review',
+  status: 'blocked',
+}
+/** One Task per status, so a filter assertion can name what it expects to appear and vanish. */
+const STATUS_SPREAD: readonly Task[] = [taskAt(0), REFERENCED, DONE, BLOCKED]
+
+/** Open the status filter and click one checkbox — the menu stays open across clicks. */
+async function toggleStatus(status: TaskStatus): Promise<void> {
+  fireEvent.click(screen.getByTestId(TestIds.tasksFilterStatus))
+  fireEvent.click(await screen.findByTestId(TestIds.tasksFilterStatusToggle(status)))
+  fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' })
+}
 
 const columnHeaders = (): string[] =>
   screen
@@ -101,6 +126,60 @@ describe('TasksView', () => {
       expect(screen.getByTestId(TestIds.tasksRow(REFERENCED.id))).toBeInTheDocument()
       expect(screen.queryByTestId(TestIds.tasksRow(taskAt(0).id))).not.toBeInTheDocument()
     })
+  })
+
+  /**
+   * A finished Task is noise. The board opens on what is left to do, and Done is something
+   * the human asks for — the reverse state below proves it is hidden rather than absent.
+   */
+  it('hides Done rows until the status filter asks for them', async () => {
+    renderTasks(<TasksView />, { listTasks: () => ({ ok: true, value: [...STATUS_SPREAD] }) })
+    await waitFor(() => expect(screen.getByTestId(TestIds.tasksTable)).toBeInTheDocument())
+
+    expect(screen.getByTestId(TestIds.tasksRow(taskAt(0).id))).toBeInTheDocument()
+    expect(screen.getByTestId(TestIds.tasksRow(BLOCKED.id))).toBeInTheDocument()
+    expect(screen.queryByTestId(TestIds.tasksRow(DONE.id))).not.toBeInTheDocument()
+    expect(screen.getByTestId(TestIds.tasksFilterStatus).textContent).toContain('All but Done')
+    expect(screen.getByText('3 Tasks')).toBeInTheDocument()
+
+    await toggleStatus('done')
+    await waitFor(() => expect(screen.getByTestId(TestIds.tasksRow(DONE.id))).toBeInTheDocument())
+    expect(screen.getByTestId(TestIds.tasksFilterStatus).textContent).toContain('All statuses')
+    expect(screen.getByText('4 Tasks')).toBeInTheDocument()
+
+    // With Done showing, an empty result came from some other filter — the hint must not claim
+    // Done is hidden when it is the text query that matched nothing.
+    fireEvent.change(screen.getByTestId(TestIds.tasksFilter), { target: { value: 'zzz-no-match' } })
+    await waitFor(() => expect(screen.getByTestId(TestIds.tasksNoMatches)).toBeInTheDocument())
+    expect(screen.getByTestId(TestIds.tasksNoMatches).textContent).not.toContain('Done Tasks')
+  })
+
+  it('keeps several statuses selected at once and says so on the trigger', async () => {
+    renderTasks(<TasksView />, { listTasks: () => ({ ok: true, value: [...STATUS_SPREAD] }) })
+    await waitFor(() => expect(screen.getByTestId(TestIds.tasksTable)).toBeInTheDocument())
+
+    // From the default (everything but Done) down to Doing + Blocked, then Blocked alone.
+    await toggleStatus('todo')
+    await waitFor(() =>
+      expect(screen.queryByTestId(TestIds.tasksRow(taskAt(0).id))).not.toBeInTheDocument(),
+    )
+    expect(screen.getByTestId(TestIds.tasksRow(taskAt(1).id))).toBeInTheDocument()
+    expect(screen.getByTestId(TestIds.tasksRow(BLOCKED.id))).toBeInTheDocument()
+    expect(screen.getByTestId(TestIds.tasksFilterStatus).textContent).toContain('Doing, Blocked')
+
+    await toggleStatus('doing')
+    await waitFor(() =>
+      expect(screen.queryByTestId(TestIds.tasksRow(taskAt(1).id))).not.toBeInTheDocument(),
+    )
+    expect(screen.getByTestId(TestIds.tasksRow(BLOCKED.id))).toBeInTheDocument()
+
+    // Every box cleared matches nothing, and the view says that instead of showing bare headers.
+    await toggleStatus('blocked')
+    await waitFor(() => expect(screen.getByTestId(TestIds.tasksNoMatches)).toBeInTheDocument())
+    expect(screen.queryByTestId(TestIds.tasksTable)).not.toBeInTheDocument()
+    expect(screen.queryByTestId(TestIds.tasksEmpty)).not.toBeInTheDocument()
+    expect(screen.getByTestId(TestIds.tasksFilterStatus).textContent).toContain('No statuses')
+    expect(screen.getByTestId(TestIds.tasksNoMatches).textContent).toContain('Done Tasks')
   })
 
   it('asks before deleting a row', async () => {

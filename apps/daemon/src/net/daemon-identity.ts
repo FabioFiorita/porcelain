@@ -5,9 +5,13 @@ import { hostname } from 'node:os'
  *
  * Environments used to be a user-typed string: you invented "Beelink" when you added
  * the URL, and nothing ever confirmed the window was actually on the Beelink. The
- * daemon announcing its own identity is what lets the app auto-name an environment,
- * label "This device" correctly on every platform, and show a machine in the top-bar
- * switcher rather than a nickname.
+ * daemon announcing its own identity is what lets the app auto-name an environment and
+ * label "This device" correctly on every platform.
+ *
+ * This is the MACHINE, not the display name. A nickname sits on top of it — see the
+ * environment identity store, whose `name` defaults to this `host` and which the human
+ * can override, because two daemons with their own homes on one machine report the same
+ * host and nothing else tells them apart.
  *
  * Rides the existing `daemonInfo` procedure rather than a second identity endpoint so
  * every current client gets the same machine label from the same response.

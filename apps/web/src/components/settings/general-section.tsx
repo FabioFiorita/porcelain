@@ -10,7 +10,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@renderer/components/ui/popover'
 import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-group'
 import { useCommitModels } from '@renderer/features/git'
-import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
+import { useDaemonIdentity, useEnvironmentName } from '@renderer/hooks/use-daemon-identity'
 import { compactButtonClass } from '@renderer/lib/controls'
 import {
   type DiffMode,
@@ -125,7 +125,9 @@ export function GeneralSection(): React.JSX.Element {
   const theme = usePreferencesStore((s) => s.theme) ?? 'system'
   const setTheme = usePreferencesStore((s) => s.setTheme)
   const identity = useDaemonIdentity()
-  const connectedTo = identity.host ?? 'This daemon'
+  // The Environment's name, which is its nickname once someone sets one. Two daemons on one
+  // machine answer the same `host`, so the host alone cannot say which daemon served this tab.
+  const connectedTo = useEnvironmentName() ?? identity.host ?? 'This daemon'
 
   return (
     <div className="flex flex-col gap-5">

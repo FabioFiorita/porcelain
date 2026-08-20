@@ -24,8 +24,9 @@ evidence, not permanent architecture.
 Read [docs/development.md](docs/development.md) when setting up, running, testing, or working in
 parallel. Read [docs/architecture.md](docs/architecture.md) when a change crosses package or
 runtime boundaries. Read [docs/remote-access.md](docs/remote-access.md) for daemon exposure,
-pairing, or credentials. Read [docs/runtime-proof.md](docs/runtime-proof.md) for browser, Electron,
-or mobile runtime validation. Read [docs/release.md](docs/release.md) only for release work.
+pairing, or credentials. Read [docs/runtime-proof.md](docs/runtime-proof.md) to pick the client
+surface a change must be observed in; each surface's driving loop is its own `prove-*` skill.
+Read [docs/release.md](docs/release.md) only for release work.
 
 ## Development boundary
 

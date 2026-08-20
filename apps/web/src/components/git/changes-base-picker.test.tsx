@@ -7,14 +7,8 @@ import { ChangesBasePicker } from './changes-base-picker'
 
 vi.mock('@renderer/features/git', () => ({ useGitBranches: vi.fn() }))
 
-// cmdk uses ResizeObserver and scrollIntoView internally; jsdom doesn't ship them.
-if (typeof window.ResizeObserver === 'undefined') {
-  window.ResizeObserver = class ResizeObserver {
-    observe(): void {}
-    unobserve(): void {}
-    disconnect(): void {}
-  }
-}
+// cmdk calls scrollIntoView on the selected item; jsdom doesn't ship it (the
+// ResizeObserver it also needs is stubbed once, in the shared test setup).
 if (typeof Element.prototype.scrollIntoView !== 'function') {
   Element.prototype.scrollIntoView = (): void => {}
 }

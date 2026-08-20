@@ -10,15 +10,6 @@ import { useSearchStore } from './search-store'
 // Mock the domain hook — never tRPC. useCodeSearch feeds result data.
 vi.mock('./search-queries', () => ({ useCodeSearch: vi.fn() }))
 
-// Base UI's Collapsible measures its panel via ResizeObserver; jsdom lacks it.
-if (typeof window.ResizeObserver === 'undefined') {
-  window.ResizeObserver = class ResizeObserver {
-    observe(): void {}
-    unobserve(): void {}
-    disconnect(): void {}
-  }
-}
-
 const result: CodeSearchResult = {
   truncated: false,
   files: [

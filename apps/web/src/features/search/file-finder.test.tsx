@@ -20,13 +20,6 @@ vi.mock('@renderer/features/git', () => ({ useGitLog: vi.fn(() => []) }))
 vi.mock('@renderer/hooks/mutation-error', () => ({ toastUserActionError: vi.fn() }))
 vi.mock('@shared/background', () => ({ runUserAction: vi.fn() }))
 
-if (typeof window.ResizeObserver === 'undefined') {
-  window.ResizeObserver = class ResizeObserver {
-    observe(): void {}
-    unobserve(): void {}
-    disconnect(): void {}
-  }
-}
 if (typeof Element.prototype.scrollIntoView !== 'function') {
   Element.prototype.scrollIntoView = (): void => {}
 }

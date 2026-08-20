@@ -211,6 +211,35 @@ jobs:
             echo "Last tarball response was HTTP ${code}" >&2
             return 1
           }
+          # --prefer-online: the pre-publish check above seeds npm's packument
+          # cache for five minutes, and a poll that re-reads that cache would
+          # spend half its budget certain the version is missing.
+          metadata_version() {
+            npm view --prefer-online "${PKG}@${VER}" version 2>/dev/null || true
+          }
+          # Version metadata can lag behind the tarball. npx resolves the version
+          # from metadata, so an ETARGET right after publish is propagation, not
+          # a failed publish.
+          wait_metadata() {
+            local attempts=60 sleep_s=10
+            local i seen
+            echo "Waiting up to 10 minutes for ${PKG}@${VER} metadata propagation..."
+            for i in $(seq 1 "$attempts"); do
+              seen=$(metadata_version)
+              if [ "$seen" = "$VER" ]; then
+                echo "${PKG}@${VER} metadata is available after ${i} check(s)"
+                return 0
+              fi
+              if [ $((i % 6)) -eq 0 ]; then
+                echo "Still propagating after $((i * sleep_s))s..."
+              fi
+              if [ "$i" -lt "$attempts" ]; then
+                sleep "$sleep_s"
+              fi
+            done
+            echo "Last metadata response was \"${seen}\"" >&2
+            return 1
+          }
 
           if npm view "${PKG}@${VER}" version >/dev/null 2>&1; then
             echo "${PKG}@${VER} already published — verifying availability"
@@ -220,6 +249,14 @@ jobs:
 
           if ! wait_tarball; then
             echo "${PKG}@${VER} metadata exists, but its tarball is still unavailable." >&2
+            echo "Do not cut a new patch. Re-run this same tag after npm finishes propagating:" >&2
+            echo "  gh workflow run release.yml -f tag=v${VER}" >&2
+            echo "If latest stays unavailable for hours, inspect it manually on npmjs.com." >&2
+            exit 1
+          fi
+
+          if ! wait_metadata; then
+            echo "${PKG}@${VER} tarball exists, but its version metadata has not propagated." >&2
             echo "Do not cut a new patch. Re-run this same tag after npm finishes propagating:" >&2
             echo "  gh workflow run release.yml -f tag=v${VER}" >&2
             echo "If latest stays unavailable for hours, inspect it manually on npmjs.com." >&2

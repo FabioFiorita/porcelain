@@ -3,6 +3,8 @@ import {
   browseDirsInputSchema,
   browseDirsOutputSchema,
   createHubWorktreeInputSchema,
+  environmentIdentityInputSchema,
+  environmentIdentitySchema,
   hubInventoryInputSchema,
   hubInventorySchema,
   hubWorktreeSchema,
@@ -28,6 +30,7 @@ import {
   removeHubWorktreeOutputSchema,
   removeRecentRepoInputSchema,
   removeRecentRepoOutputSchema,
+  renameEnvironmentInputSchema,
 } from './projects.contract'
 
 const projectsProcedureDefinitions = {
@@ -81,6 +84,18 @@ const projectsProcedureDefinitions = {
     kind: 'query',
     input: hubInventoryInputSchema,
     output: hubInventorySchema,
+    errors: ['projects.unavailable'],
+  },
+  environmentIdentity: {
+    kind: 'query',
+    input: environmentIdentityInputSchema,
+    output: environmentIdentitySchema,
+    errors: ['projects.unavailable'],
+  },
+  renameEnvironment: {
+    kind: 'mutation',
+    input: renameEnvironmentInputSchema,
+    output: environmentIdentitySchema,
     errors: ['projects.unavailable'],
   },
   createHubWorktree: {

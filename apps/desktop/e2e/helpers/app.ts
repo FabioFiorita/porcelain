@@ -362,6 +362,12 @@ declare global {
     __porcelainTerminalText?: (index: number) => string
     /** Marketing shots only: shrink Ghostty font for Retina full-window captures. */
     __porcelainSetTerminalFontSize?: (size: number) => void
+    /**
+     * The preload's daemon pair, as the Electron lane reads it. Declared minimally: the
+     * real `PorcelainBridge` lives in the preload project, which this one does not
+     * include, and specs only need to know which daemon the window is bound to.
+     */
+    porcelain?: { daemon: { url: string; token: string } }
   }
 }
 

@@ -1,8 +1,14 @@
+import { hubInventorySchema, projectsContractFixtures } from '@porcelain/contracts/projects'
 import { TestIds } from '@shared/test-ids'
 import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { useState } from 'react'
 import { describe, expect, it } from 'vitest'
-import { emptyComposerValue, fileToUpload, TaskComposer } from './task-composer'
+import {
+  emptyComposerValue,
+  fileToUpload,
+  projectsOnEnvironment,
+  TaskComposer,
+} from './task-composer'
 import { renderTasks } from './test-support'
 
 function Harness(): React.JSX.Element {
@@ -64,5 +70,75 @@ describe('TaskComposer', () => {
     })
     await waitFor(() => expect(screen.getByTestId('upload-count')).toHaveTextContent('1'))
     expect(screen.getByTestId(TestIds.tasksComposerPicture('paste.png'))).toBeInTheDocument()
+  })
+})
+
+const localInventory = hubInventorySchema.parse(projectsContractFixtures.hubInventory.output)
+const remoteInventory = hubInventorySchema.parse({
+  ...localInventory,
+  environment: { ...localInventory.environment, id: 'env-remote', name: 'Beelink (work)' },
+  projects: localInventory.projects.map((project) => ({
+    ...project,
+    id: `remote-${project.id}`,
+    name: `remote-${project.name}`,
+    environmentId: 'env-remote',
+    worktrees: project.worktrees.map((worktree) => ({
+      ...worktree,
+      id: `remote-${worktree.id}`,
+      projectId: `remote-${project.id}`,
+    })),
+  })),
+})
+
+function names(projects: readonly { name: string }[]): string[] {
+  return projects.map((project) => project.name)
+}
+
+describe('projectsOnEnvironment', () => {
+  const inventories = [
+    { environmentId: null, current: true, inventory: localInventory },
+    { environmentId: 'env-remote', current: false, inventory: remoteInventory },
+  ]
+
+  it('gives This device only the Projects on this device', () => {
+    expect(names(projectsOnEnvironment(inventories, null))).toEqual(names(localInventory.projects))
+  })
+
+  it('gives a named Environment only its own Projects', () => {
+    expect(names(projectsOnEnvironment(inventories, 'env-remote'))).toEqual(
+      names(remoteInventory.projects),
+    )
+  })
+
+  /**
+   * The Electron shape: the Task target is the shell's saved GROUP id, while every Project in
+   * that inventory carries the id its own daemon announced. Filtering on the Project field
+   * would return nothing here — and nothing at all for This device, whose target is `null`.
+   */
+  it('matches the source a Project arrived from, not the id the Project carries', () => {
+    const shellSources = [
+      { environmentId: null, current: true, inventory: localInventory },
+      { environmentId: 'group-7', current: false, inventory: remoteInventory },
+    ]
+    expect(names(projectsOnEnvironment(shellSources, 'group-7'))).toEqual(
+      names(remoteInventory.projects),
+    )
+    expect(remoteInventory.projects.every((project) => project.environmentId !== 'group-7')).toBe(
+      true,
+    )
+  })
+
+  it('resolves a source still known only by the id its daemon announced', () => {
+    const bootstrapping = [
+      { environmentId: null, current: true, inventory: localInventory },
+      { environmentId: 'connection-secondary', current: false, inventory: remoteInventory },
+    ]
+    expect(names(projectsOnEnvironment(bootstrapping, 'env-remote'))).toEqual(
+      names(remoteInventory.projects),
+    )
+  })
+
+  it('offers nothing for an Environment that reported no inventory', () => {
+    expect(projectsOnEnvironment(inventories, 'env-unknown')).toEqual([])
   })
 })

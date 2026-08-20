@@ -129,6 +129,11 @@ export function commentRowClass(
  * and should also take `commentRowClass(comments, pending)` so open/pending
  * lines tint without covering the text. A line with only resolved comments gets
  * the dimmed glyph and no tint.
+ *
+ * Pinned to the row's FIRST visual line (`top-0.5` centres the 16px glyph in the
+ * 20px line box) rather than the row's middle: a soft-wrapped line is several lines
+ * tall, and a centred glyph would drift down away from the number it marks. On an
+ * unwrapped 20px row this is the same 2px offset as centring was.
  */
 export function LineDecorations({
   comments,
@@ -137,7 +142,7 @@ export function LineDecorations({
 }): React.JSX.Element | null {
   if (!comments || comments.length === 0) return null
   return (
-    <div className="absolute left-0.5 top-1/2 z-10 -translate-y-1/2">
+    <div className="absolute left-0.5 top-0.5 z-10">
       <CommentMarker comments={comments} />
     </div>
   )

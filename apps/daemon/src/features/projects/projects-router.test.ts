@@ -256,15 +256,21 @@ describe('Projects router contract boundary', () => {
           path: '/somewhere/else',
         }),
     ],
-  ] as const)('maps %s operation failures to typed public errors', async (_procedure, operation, code, run) => {
-    const method = operations[operation]
-    method.mockResolvedValueOnce({ ok: false, error: { code } } as never)
-    const error = await rejected(run)
-    const normalized = normalizePublicError(error, REQUEST_ID)
+  ] as const)(
+    'maps %s operation failures to typed public errors',
+    async (_procedure, operation, code, run) => {
+      const method = operations[operation]
+      method.mockResolvedValueOnce({ ok: false, error: { code } } as never)
+      const error = await rejected(run)
+      const normalized = normalizePublicError(error, REQUEST_ID)
 
-    expect(normalized.unexpected).toBe(false)
-    expect(publicErrorSchema.parse(normalized.error)).toMatchObject({ code, requestId: REQUEST_ID })
-  })
+      expect(normalized.unexpected).toBe(false)
+      expect(publicErrorSchema.parse(normalized.error)).toMatchObject({
+        code,
+        requestId: REQUEST_ID,
+      })
+    },
+  )
 
   it('turns an operation output that violates the wire contract into an unexpected error', async () => {
     operations.openProject.mockResolvedValueOnce({

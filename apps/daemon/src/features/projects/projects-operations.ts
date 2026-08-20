@@ -2,6 +2,7 @@ import type {
   BrowseDirsOutput,
   CanvasRecord,
   CreateHubWorktreeInput,
+  EnvironmentIdentity,
   HubInventory,
   HubWorktree,
   ListCanvasesInput,
@@ -54,6 +55,8 @@ export type ProjectsOperations = Readonly<{
     path: string | null,
   ) => Promise<ProjectOperationResult<BrowseDirsOutput>>
   listHubInventory: () => Promise<ProjectOperationResult<HubInventory>>
+  environmentIdentity: () => Promise<ProjectOperationResult<EnvironmentIdentity>>
+  renameEnvironment: (name: string) => Promise<ProjectOperationResult<EnvironmentIdentity>>
   createHubWorktree: (input: CreateHubWorktreeInput) => Promise<ProjectOperationResult<HubWorktree>>
   listCanvases: (input: ListCanvasesInput) => Promise<ProjectOperationResult<CanvasRecord[]>>
   /** Agent-surface only — see canvas-operations.ts. No wire procedure writes a Canvas. */
@@ -232,6 +235,8 @@ export function createProjectsOperations(options: {
     },
 
     listHubInventory: hub.listHubInventory,
+    environmentIdentity: hub.environmentIdentity,
+    renameEnvironment: hub.renameEnvironment,
     createHubWorktree: hub.createHubWorktree,
     listCanvases: canvas.listCanvases,
     writeCanvas: canvas.writeCanvas,

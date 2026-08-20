@@ -23,6 +23,8 @@ import type { ProjectOperationResult, ProjectsOperationError } from './projects-
 
 export type HubInventoryOperations = Readonly<{
   listHubInventory: () => Promise<ProjectOperationResult<HubInventory>>
+  environmentIdentity: () => Promise<ProjectOperationResult<EnvironmentIdentity>>
+  renameEnvironment: (name: string) => Promise<ProjectOperationResult<EnvironmentIdentity>>
   createHubWorktree: (input: CreateHubWorktreeInput) => Promise<ProjectOperationResult<HubWorktree>>
   removeHubProject: (projectId: string) => Promise<ProjectOperationResult<void>>
   removeHubWorktree: (input: RemoveHubWorktreeInput) => Promise<ProjectOperationResult<void>>
@@ -281,6 +283,27 @@ export function createHubInventoryOperations(options: {
   }
 
   return Object.freeze({
+    environmentIdentity: loadEnvironment,
+
+    /**
+     * Name this Environment. The nickname lives with the daemon that owns the Environment,
+     * not with a client: two daemons on ONE machine report the same `host`, so a per-client
+     * label would have to be re-typed on every device that pairs with them.
+     */
+    async renameEnvironment(name: string): Promise<ProjectOperationResult<EnvironmentIdentity>> {
+      const renamed = await options.environment.rename(name)
+      if (!renamed.ok) return unavailable()
+      return {
+        ok: true,
+        value: {
+          ...renamed.value,
+          host: options.daemon.host,
+          platform: options.daemon.platform,
+          arch: options.daemon.arch,
+        },
+      }
+    },
+
     async listHubInventory(): Promise<ProjectOperationResult<HubInventory>> {
       const rebuilt = await rebuild()
       if (!rebuilt.ok) return rebuilt

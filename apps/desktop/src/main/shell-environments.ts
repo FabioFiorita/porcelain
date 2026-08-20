@@ -25,6 +25,16 @@ export interface EnvironmentStatus {
   endpoint: string | null
   /** Reported identity; null when the daemon is down or returned an invalid response. */
   host: string | null
+  /**
+   * The daemon's DISPLAY name — its nickname when the human set one, otherwise its
+   * machine name. Separate from `host` because two daemons with their own homes on ONE
+   * machine report the same host: the nickname is the only thing that tells them apart.
+   *
+   * Null means UNKNOWN, never "has no nickname": the daemon is down, the caller did not
+   * ask for identity, or the ask did not come back. A null must never be written over a
+   * saved name — see `readEnvironmentIdentity`.
+   */
+  name: string | null
   platform: string | null
   version: string | null
 }
@@ -45,15 +55,62 @@ const daemonInfoResponseSchema = z.object({
 // Short enough that a sleeping box doesn't stall the switcher behind the app's own
 // boot, long enough for a tailnet round-trip on a phone hotspot.
 const STATUS_PROBE_TIMEOUT_MS = 4000
-const UNKNOWN_IDENTITY = { host: null, platform: null, version: null }
+const UNKNOWN_IDENTITY = { host: null, name: null, platform: null, version: null }
+
+// The Environment's own identity document, which carries the human's nickname. Read
+// separately from `daemonInfo` because that response is `.strict()` on every client
+// already shipped — a client one version old would reject a daemon that added a field
+// to it, and refuse to connect at all.
+const environmentIdentityResponseSchema = z.object({
+  result: z.object({ data: z.object({ name: z.string().min(1) }) }),
+})
+
+/**
+ * What the identity question came back with — and `answered` is the load-bearing half.
+ *
+ * A daemon too old to know the procedure answers 404, which IS an answer ("no nickname
+ * concept here") and settles for the machine name. A 503, a timeout, a network error or an
+ * unreadable body are NOT answers: healing a saved nickname from one of those would replace
+ * the human's label with the very host name the nickname exists to escape, permanently,
+ * because nothing ever heals it back. The union is what stops a `?? host` from collapsing
+ * the two cases again — it does not compile.
+ */
+type IdentityAnswer = { answered: true; name: string | null } | { answered: false }
+
+const NOT_ANSWERED: IdentityAnswer = { answered: false }
+
+/**
+ * Ask one daemon for its display name. Never throws and never fails the probe: an
+ * environment that cannot answer is still a row that has to render.
+ */
+async function readEnvironmentIdentity(url: string, token: string): Promise<IdentityAnswer> {
+  try {
+    const response = await fetch(`${url}/trpc/environmentIdentity`, {
+      headers: daemonHeaders(token),
+      signal: AbortSignal.timeout(STATUS_PROBE_TIMEOUT_MS),
+    })
+    // 404 is the one status that answers the question: this daemon predates nicknames.
+    if (response.status === 404) return { answered: true, name: null }
+    if (!response.ok) return NOT_ANSWERED
+    const parsed = environmentIdentityResponseSchema.safeParse(await response.json())
+    return parsed.success ? { answered: true, name: parsed.data.result.data.name } : NOT_ANSWERED
+  } catch {
+    return NOT_ANSWERED
+  }
+}
 
 /**
  * Ask one daemon who it is. Never throws — a switcher row must render for an
  * environment that is asleep, and an unreachable box is a *state*, not an error.
+ *
+ * `identity` is opt-in because it is a SECOND round trip, up to the probe timeout again, on
+ * every endpoint of every environment. Only the callers that display or persist the name pay
+ * for it; the ones that just want "is this endpoint alive" do not.
  */
 export async function probeEnvironment(
   url: string,
   token: string,
+  options: { identity?: boolean } = {},
 ): Promise<Omit<EnvironmentStatus, 'id' | 'endpoint'>> {
   let response: Response
   try {
@@ -76,9 +133,14 @@ export async function probeEnvironment(
   const parsed = daemonInfoResponseSchema.safeParse(body)
   if (!parsed.success) return { state: 'offline', ...UNKNOWN_IDENTITY }
   const info = parsed.data.result.data
+  const identity =
+    options.identity === true ? await readEnvironmentIdentity(url, token) : NOT_ANSWERED
   return {
     state: 'online',
     host: info.host,
+    // The machine name is the fallback only for a daemon that ANSWERED without a nickname.
+    // An unanswered question leaves the name unknown — the caller must not write it down.
+    name: identity.answered ? (identity.name ?? info.host) : null,
     platform: info.platform,
     version: info.version,
   }
@@ -89,7 +151,7 @@ async function probeEnvironmentEndpoints(
 ): Promise<Omit<EnvironmentStatus, 'id'>> {
   let firstFailure: Omit<EnvironmentStatus, 'id' | 'endpoint'> | null = null
   for (const url of orderedEndpoints(env)) {
-    const status = await probeEnvironment(url, env.token)
+    const status = await probeEnvironment(url, env.token, { identity: true })
     if (status.state === 'online') return { ...status, endpoint: url }
     if (status.state === 'unauthorized') return { ...status, endpoint: null }
     firstFailure ??= status
@@ -102,7 +164,7 @@ export async function readEnvironmentStatuses(): Promise<EnvironmentStatus[]> {
   const state = await loadRemoteEnvironmentState()
   const local = localDaemonPair()
   const [localStatus, ...remoteStatuses] = await Promise.all([
-    probeEnvironment(local.url, local.token).then((status) => ({
+    probeEnvironment(local.url, local.token, { identity: true }).then((status) => ({
       ...status,
       endpoint: local.url,
     })),
@@ -110,25 +172,46 @@ export async function readEnvironmentStatuses(): Promise<EnvironmentStatus[]> {
   ])
   const healed = new Map(
     state.environments
-      .map((env, index) => [env.id, remoteStatuses[index]?.endpoint ?? null] as const)
-      .filter(([, endpoint]) => endpoint !== null),
+      .map(
+        (env, index) =>
+          [
+            env.id,
+            {
+              endpoint: remoteStatuses[index]?.endpoint ?? null,
+              // The saved name was frozen at pairing time. Refresh it from the daemon that
+              // owns the Environment, so a nickname set on the box shows up here — and
+              // survives in the picker after that box goes to sleep. Null is "unknown", not
+              // "no nickname", and never heals anything.
+              name: remoteStatuses[index]?.name ?? null,
+              // The name this probe started from. The fan-out above took SECONDS, and a
+              // rename can land inside that window; writing the probed name back regardless
+              // would silently revert it. Same lost-update rule the endpoint half follows by
+              // keying on id — this half compares before it swaps.
+              previousName: env.name,
+            },
+          ] as const,
+      )
+      .filter(([, heal]) => heal.endpoint !== null || heal.name !== null),
   )
   if (healed.size > 0) {
     await updateRemoteEnvironmentState((current) => ({
       ...current,
       environments: current.environments.map((env) => {
-        const endpoint = healed.get(env.id)
-        return endpoint === undefined ||
-          endpoint === null ||
-          endpoint === env.url ||
-          !env.endpoints.includes(endpoint)
-          ? env
-          : withActiveUrl(env, endpoint)
+        const heal = healed.get(env.id)
+        if (heal === undefined) return env
+        const stale = env.name !== heal.previousName
+        const named =
+          heal.name !== null && heal.name !== env.name && !stale ? { ...env, name: heal.name } : env
+        return heal.endpoint === null ||
+          heal.endpoint === named.url ||
+          !named.endpoints.includes(heal.endpoint)
+          ? named
+          : withActiveUrl(named, heal.endpoint)
       }),
     }))
     const refreshed = await reloadEnvironmentsCache()
     for (const env of refreshed.environments) {
-      const endpoint = healed.get(env.id)
+      const endpoint = healed.get(env.id)?.endpoint
       if (endpoint !== undefined && endpoint !== null && env.endpoints.includes(endpoint)) {
         setWindowRemoteEndpoint(env.id, { token: env.token, url: endpoint })
       }

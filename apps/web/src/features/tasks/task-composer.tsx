@@ -95,8 +95,50 @@ export function composerTags(value: TaskComposerValue): string[] {
   return extractHashTags(value.title, value.notes, ...value.tags.map((tag) => `#${tag}`))
 }
 
-function flattenProjects(inventories: ReturnType<typeof useHubInventories>): readonly HubProject[] {
-  return inventories.flatMap((source) => source.inventory.projects)
+/**
+ * Which Environment's Projects this composer may offer.
+ *
+ * `all` is every Environment the Hub can reach — what a surface uses when the Task's
+ * Environment is already settled and cannot change under the person. A composer whose target
+ * is still being named says `unchosen` instead: offering Projects from every machine is how
+ * someone picks a checkout the receiving daemon has never seen.
+ */
+export type ComposerEnvironment =
+  | { readonly kind: 'all' }
+  | { readonly kind: 'unchosen' }
+  | { readonly kind: 'environment'; readonly environmentId: string | null }
+
+/** Stable identity so the default prop never re-runs the Project memo. */
+const EVERY_ENVIRONMENT: ComposerEnvironment = { kind: 'all' }
+
+/**
+ * The Projects one Environment target owns.
+ *
+ * Matched on the inventory SOURCE, never on `HubProject.environmentId`: a Project carries the
+ * id its own daemon announced, while a target is `null` (This device) or the id this client
+ * files Tasks under — the shell's saved group id in Electron, the connection alias in the
+ * browser. Both ids a source can be known by are accepted, so a browser session that has not
+ * yet learned its daemon's announced id still resolves to the same Projects.
+ */
+export function projectsOnEnvironment(
+  inventories: ReturnType<typeof useHubInventories>,
+  environmentId: string | null,
+): readonly HubProject[] {
+  return inventories
+    .filter(
+      (source) =>
+        source.environmentId === environmentId || source.inventory.environment.id === environmentId,
+    )
+    .flatMap((source) => source.inventory.projects)
+}
+
+function projectsForComposer(
+  inventories: ReturnType<typeof useHubInventories>,
+  environment: ComposerEnvironment,
+): readonly HubProject[] {
+  if (environment.kind === 'unchosen') return []
+  if (environment.kind === 'all') return inventories.flatMap((source) => source.inventory.projects)
+  return projectsOnEnvironment(inventories, environment.environmentId)
 }
 
 function worktreeFor(
@@ -122,6 +164,8 @@ export type TaskComposerProps = {
   existingPictures?: readonly { id: string; name: string; previewUrl?: string }[]
   onRemoveExisting?: (id: string) => void
   knownTags?: readonly string[]
+  /** Scope of the Project picker. Defaults to every Environment the Hub can reach. */
+  environment?: ComposerEnvironment
 }
 
 export function TaskComposer({
@@ -130,16 +174,31 @@ export function TaskComposer({
   existingPictures = NO_PICTURES,
   onRemoveExisting,
   knownTags = NO_TAGS,
+  environment = EVERY_ENVIRONMENT,
 }: TaskComposerProps): React.JSX.Element {
   const inventories = useHubInventories()
   const selection = useHubSelectionStore((s) => s.selection)
-  const projects = useMemo(() => flattenProjects(inventories), [inventories])
+  const projects = useMemo(
+    () => projectsForComposer(inventories, environment),
+    [environment, inventories],
+  )
+  /**
+   * What the closed control says when no Project is chosen. An Environment with nothing to
+   * offer says so on the trigger — an empty popup behind a "No project" label reads like a
+   * picker that failed rather than a machine with no Projects on it.
+   */
+  const emptyProjectLabel =
+    environment.kind === 'unchosen'
+      ? 'Choose an Environment first'
+      : projects.length === 0
+        ? 'No Projects on this Environment'
+        : 'No project'
   const projectItems = useMemo(
     () => [
-      { label: 'No project', value: 'none' },
+      { label: emptyProjectLabel, value: 'none' },
       ...projects.map((entry) => ({ label: entry.name, value: entry.id })),
     ],
-    [projects],
+    [emptyProjectLabel, projects],
   )
   const project = projects.find((entry) => entry.id === value.projectId)
   const worktree = worktreeFor(project, value.worktreeId)
@@ -299,12 +358,13 @@ export function TaskComposer({
           data-testid={TestIds.tasksComposerProject}
           aria-label="Project"
           className="w-full"
+          disabled={environment.kind === 'unchosen'}
         >
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
           <SelectGroup>
-            <SelectItem value="none">No project</SelectItem>
+            <SelectItem value="none">{emptyProjectLabel}</SelectItem>
             {projects.map((entry) => (
               <SelectItem key={entry.id} value={entry.id}>
                 {entry.name}

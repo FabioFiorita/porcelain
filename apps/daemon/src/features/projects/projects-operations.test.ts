@@ -64,6 +64,11 @@ function harness(pathAllowed?: (path: string) => boolean) {
       ok: true as const,
       value: { id: 'env-1', name: 'synthetic' },
     })),
+    rename: vi.fn<EnvironmentIdentityStore['rename']>(async (name) => ({
+      ok: true as const,
+      value: { id: 'env-1', name: name.trim() || 'synthetic' },
+    })),
+    defaultName: vi.fn<EnvironmentIdentityStore['defaultName']>(() => 'synthetic'),
   } satisfies EnvironmentIdentityStore
   const inventory = {
     readProjects: vi.fn<HubInventoryStore['readProjects']>(async () => ({
@@ -505,5 +510,54 @@ describe('Project operations', () => {
     expect(h.git.removeWorktree).not.toHaveBeenCalled()
     expect(h.recents.removePath).toHaveBeenCalledWith('/projects/alpha')
     expect(h.inventory.writeProjects).toHaveBeenLastCalledWith([])
+  })
+
+  it("announces the Environment identity with this daemon's machine facts", async () => {
+    const h = harness()
+
+    expect(await h.operations.environmentIdentity()).toEqual({
+      ok: true,
+      value: { id: 'env-1', name: 'synthetic', host: 'synthetic', platform: 'linux', arch: 'x64' },
+    })
+  })
+
+  it('renames the Environment without touching the machine it reports', async () => {
+    const h = harness()
+
+    const renamed = await h.operations.renameEnvironment('  Beelink (work)  ')
+
+    expect(h.environment.rename).toHaveBeenCalledWith('  Beelink (work)  ')
+    expect(renamed).toEqual({
+      ok: true,
+      // `host` is a scope key and a machine fact — the nickname never overwrites it.
+      value: {
+        id: 'env-1',
+        name: 'Beelink (work)',
+        host: 'synthetic',
+        platform: 'linux',
+        arch: 'x64',
+      },
+    })
+  })
+
+  it('falls back to the machine-derived name when the nickname is cleared', async () => {
+    const h = harness()
+
+    const cleared = await h.operations.renameEnvironment('   ')
+
+    expect(cleared.ok && cleared.value.name).toBe('synthetic')
+  })
+
+  it('reports unavailable rather than a half-renamed Environment', async () => {
+    const h = harness()
+    h.environment.rename.mockResolvedValueOnce({
+      ok: false,
+      error: { code: 'projects.unavailable' },
+    })
+
+    expect(await h.operations.renameEnvironment('Studio')).toEqual({
+      ok: false,
+      error: { code: 'projects.unavailable' },
+    })
   })
 })

@@ -1,6 +1,6 @@
 import { aggregateTaskRows, type TaskRow } from '@porcelain/client-runtime/tasks'
 import type { Task } from '@porcelain/contracts/tasks'
-import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
+import { useDaemonIdentity, useEnvironmentName } from '@renderer/hooks/use-daemon-identity'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
 import {
   daemonScopeForEnvironment,
@@ -48,7 +48,8 @@ function useLocalTasks(enabled: boolean): {
   const environmentSessionsRevision = useEnvironmentSessionsRevision()
   const daemonScope: DaemonScope = { host: daemon.host, version: daemon.version }
   const utils = trpc.useUtils()
-  const name = daemon.host ?? 'This device'
+  // Nickname first: with two daemons on one machine the host is the same string twice.
+  const name = useEnvironmentName() ?? daemon.host ?? 'This device'
 
   const query = useQuery({
     queryKey: tasksKeyForEnvironment(daemonScope, null),

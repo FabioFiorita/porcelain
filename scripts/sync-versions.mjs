@@ -66,7 +66,16 @@ function readJson(path) {
  * versioned with this repo and nothing else. The *shipped* skills are not here — they live in
  * `plugins/porcelain/` under their own semver, gated by `scripts/plugin-version.mjs`.
  */
-const SKILL_FILES = [join(root, '.agents', 'skills', 'merge-queue', 'SKILL.md')]
+const SKILL_FILES = listInternalSkills(join(root, '.agents', 'skills'))
+
+/** Every internal skill, so a new one is stamped without anyone remembering this list. */
+function listInternalSkills(dir) {
+  if (!existsSync(dir)) return []
+  return readdirSync(dir)
+    .map((name) => join(dir, name, 'SKILL.md'))
+    .filter((path) => existsSync(path))
+    .sort()
+}
 
 /** Replace `version:` inside the leading `---` frontmatter block only. */
 function stampSkillVersion(path, next) {

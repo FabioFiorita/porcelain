@@ -136,6 +136,10 @@ export function TaskDetailSheet({
             <TaskComposer
               value={draft}
               onChange={setDraft}
+              // An existing Task already belongs to an Environment and cannot be moved, so
+              // the picker offers only that machine's Projects. Editing one was the other
+              // half of filing against a checkout the receiving daemon has never seen.
+              environment={{ kind: 'environment', environmentId: row.environmentId }}
               existingPictures={pictures.flatMap((query, index) => {
                 const attachment = row.task.attachments.filter(
                   (item) => !removedIds.includes(item.id),

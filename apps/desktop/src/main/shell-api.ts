@@ -3,6 +3,7 @@ import { homedir } from 'node:os'
 import { createTRPCUntypedClient, httpLink } from '@trpc/client'
 import { initTRPC } from '@trpc/server'
 import { BrowserWindow, clipboard, nativeTheme, shell, type WebContents } from 'electron'
+import { ENVIRONMENT_NAME_MAX_LENGTH } from '@porcelain/contracts/projects'
 import { z } from 'zod'
 import {
   getDefaultEnvironmentId,
@@ -37,6 +38,7 @@ import {
   withoutEndpoint,
 } from './remote-daemon'
 import { readProjectActions } from './shell-actions'
+import { renameEnvironment } from './shell-environment-name'
 import { probeEnvironment, readEnvironmentStatuses } from './shell-environments'
 import { readHubInventories } from './shell-hub-inventory'
 import { exchangePairingLink } from './shell-pairing'
@@ -373,6 +375,20 @@ export const shellRouter = t.router({
     .mutation(({ input }) => mutateEnvironmentTask(input)),
 
   environmentStatuses: t.procedure.query(() => readEnvironmentStatuses()),
+
+  /**
+   * Name one Environment — This device (`null`) or a saved group. The nickname is written on
+   * the daemon that owns it; a blank name clears it back to that daemon's machine name.
+   * Bounded by the contract, so an over-long name is rejected rather than truncated.
+   */
+  renameEnvironment: t.procedure
+    .input(
+      z.object({
+        environmentId: z.string().min(1).nullable(),
+        name: z.string().max(ENVIRONMENT_NAME_MAX_LENGTH),
+      }),
+    )
+    .mutation(({ input }) => renameEnvironment(input)),
 
   /** One Project's saved commands on any connected Environment (read-only fan-out). */
   projectActions: t.procedure
