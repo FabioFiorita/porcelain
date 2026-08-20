@@ -25,7 +25,9 @@ vi.mock('@renderer/lib/local-daemon', () => ({
 }))
 vi.mock('@renderer/features/terminal', () => ({
   terminalAdapterFor: vi.fn(() => ({ killTerminal, detachTerminal })),
-  terminalAdapterForSession: vi.fn(() => ({ createTerminal: vi.fn() })),
+  terminalAdapterForSession: vi.fn(() => ({
+    createTerminal: vi.fn(async () => 'created-id'),
+  })),
   renameTerminalOnDaemon: vi.fn().mockResolvedValue(undefined),
 }))
 vi.mock('@renderer/lib/terminal-registry', () => ({
@@ -48,12 +50,14 @@ const session = (
 ): TerminalSession => ({
   id,
   name,
+  cwd: `/repo/${id}`,
+  createdAt: 0,
   status,
   origin: 'primary',
 })
 
 const seed = (...sessions: TerminalSession[]): void =>
-  useTerminalsStore.setState({ sessions, panelOpen: false, panelSessionId: null })
+  useTerminalsStore.setState({ sessions, focusedId: null })
 
 const sessions = (): TerminalSession[] => useTerminalsStore.getState().sessions
 
@@ -145,23 +149,77 @@ describe('useTerminalsStore.close vs hydrate race', () => {
   })
 })
 
-describe('useTerminalsStore bottom panel', () => {
+describe('useTerminalsStore create vs hydrate race', () => {
   beforeEach(() => {
     seed()
     __resetTerminalTombstonesForTests()
   })
 
-  it('opens the first available session when toggled on', () => {
-    seed(session('t1', 'zsh'), session('t2', 'bash'))
-    useTerminalsStore.getState().togglePanel()
-    expect(useTerminalsStore.getState()).toMatchObject({ panelOpen: true, panelSessionId: 't1' })
+  /**
+   * The bug this exists for: opening a terminal in another Worktree typed into the previous
+   * one. `create` resolves before any roster knows the PTY exists, so the very next hydrate
+   * — built from a snapshot issued BEFORE the create — erased the row, and the surface fell
+   * back to the first session it could still see.
+   */
+  it('holds a just-created row through a roster snapshot that predates it', async () => {
+    await useTerminalsStore.getState().create({ cwd: '/repo/new', name: 'Terminal 9' })
+    const created = useTerminalsStore.getState().focusedId
+    expect(created).not.toBeNull()
+
+    useTerminalsStore.getState().hydrate([session('t1', 'zsh')])
+
+    expect(
+      sessions()
+        .map((s) => s.id)
+        .sort(),
+    ).toEqual(['t1', created].sort())
+    expect(useTerminalsStore.getState().focusedId).toBe(created)
   })
 
-  it('keeps the selected session while hiding and reopening the panel', () => {
+  it('retires the guard once a roster actually lists the row', async () => {
+    await useTerminalsStore.getState().create({ cwd: '/repo/new', name: 'Terminal 9' })
+    const created = useTerminalsStore.getState().focusedId ?? ''
+
+    // The daemon agrees the session exists: from here the roster is authoritative again, so
+    // a later snapshot that drops it (another window killed it) really does drop it.
+    useTerminalsStore.getState().hydrate([{ ...session(created, 'Terminal 9'), cwd: '/repo/new' }])
+    useTerminalsStore.getState().hydrate([session('t1', 'zsh')])
+
+    expect(sessions().map((s) => s.id)).toEqual(['t1'])
+  })
+
+  it('lets an explicit close beat the guard — a killed row never comes back', async () => {
+    await useTerminalsStore.getState().create({ cwd: '/repo/new', name: 'Terminal 9' })
+    const created = useTerminalsStore.getState().focusedId ?? ''
+
+    useTerminalsStore.getState().close(created)
+    useTerminalsStore.getState().hydrate([session('t1', 'zsh')])
+
+    expect(sessions().map((s) => s.id)).toEqual(['t1'])
+    expect(useTerminalsStore.getState().focusedId).toBeNull()
+  })
+})
+
+describe('useTerminalsStore focus', () => {
+  beforeEach(() => {
+    seed()
+    __resetTerminalTombstonesForTests()
+  })
+
+  it('holds an id the roster does not own, so a cross-project row can be shown', () => {
+    seed(session('t1', 'zsh'))
+    useTerminalsStore.getState().focus('elsewhere-on-this-daemon')
+    expect(useTerminalsStore.getState().focusedId).toBe('elsewhere-on-this-daemon')
+  })
+
+  it('releases focus when the focused session is killed, and leaves another alone', () => {
     seed(session('t1', 'zsh'), session('t2', 'bash'))
-    useTerminalsStore.getState().openPanel('t2')
-    useTerminalsStore.getState().closePanel()
-    useTerminalsStore.getState().togglePanel()
-    expect(useTerminalsStore.getState()).toMatchObject({ panelOpen: true, panelSessionId: 't2' })
+    useTerminalsStore.getState().focus('t1')
+    useTerminalsStore.getState().close('t1')
+    expect(useTerminalsStore.getState().focusedId).toBeNull()
+
+    useTerminalsStore.getState().focus('t2')
+    useTerminalsStore.getState().close('nope')
+    expect(useTerminalsStore.getState().focusedId).toBe('t2')
   })
 })

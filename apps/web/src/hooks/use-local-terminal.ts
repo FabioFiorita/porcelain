@@ -94,6 +94,7 @@ export interface LocalTerminalRow {
   id: string
   name: string
   cwd: string
+  createdAt: number
   status: 'running' | 'exited'
   exitCode?: number
 }

@@ -8,11 +8,11 @@ describe('TooltipContent', () => {
       <TooltipProvider>
         <Tooltip defaultOpen>
           <TooltipTrigger render={<button type="button">Tip</button>} />
-          <TooltipContent>Toggle terminal panel</TooltipContent>
+          <TooltipContent>Toggle surfaces sidebar</TooltipContent>
         </Tooltip>
       </TooltipProvider>,
     )
-    const content = screen.getByText('Toggle terminal panel')
+    const content = screen.getByText('Toggle surfaces sidebar')
     expect(content.className).toContain('bg-popover')
     expect(content.className).toContain('text-popover-foreground')
     expect(content.className).not.toContain('bg-foreground')

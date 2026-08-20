@@ -27,9 +27,9 @@ export interface TerminalLocation {
 }
 
 export interface TerminalGroup {
-  /** `<projectId>:<worktreeId>`, or `elsewhere` for the unmatched bucket. */
+  /** `<projectId>:<worktreeId>`, `environment`, or `elsewhere`. */
   key: string
-  /** Project name, or `Elsewhere` for the unmatched bucket. */
+  /** Project name, `Environment`, or `Elsewhere`. */
   label: string
   /** Worktree name; `null` for the unmatched bucket. */
   worktreeName: string | null
@@ -39,6 +39,8 @@ export interface TerminalGroup {
 }
 
 export const ELSEWHERE_GROUP_KEY = 'elsewhere'
+/** The Environment's own shells: under the daemon host's home, claimed by no Project. */
+export const ENVIRONMENT_GROUP_KEY = 'environment'
 
 /** Every worktree the Hub knows, flattened and sorted for the "New terminal" picker. */
 export function terminalLocations(projects: readonly HubProject[]): TerminalLocation[] {
@@ -84,6 +86,7 @@ export function locationForCwd(
 export function groupTerminalSessions(
   sessions: readonly TerminalInfo[],
   locations: readonly TerminalLocation[],
+  environmentRoot: string | null = null,
 ): TerminalGroup[] {
   const groups = new Map<string, TerminalGroup>()
   const ordered = [...sessions].sort(
@@ -92,7 +95,9 @@ export function groupTerminalSessions(
 
   for (const session of ordered) {
     const location = locationForCwd(session.cwd, locations)
-    const key = location?.key ?? ELSEWHERE_GROUP_KEY
+    const atEnvironment =
+      location === null && environmentRoot !== null && isUnder(session.cwd, environmentRoot)
+    const key = location?.key ?? (atEnvironment ? ENVIRONMENT_GROUP_KEY : ELSEWHERE_GROUP_KEY)
     const existing = groups.get(key)
     if (existing !== undefined) {
       existing.sessions.push(session)
@@ -100,18 +105,27 @@ export function groupTerminalSessions(
     }
     groups.set(key, {
       key,
-      label: location?.projectName ?? 'Elsewhere',
+      label: location?.projectName ?? (atEnvironment ? 'Environment' : 'Elsewhere'),
       worktreeName: location?.worktreeName ?? null,
-      path: location?.path ?? null,
+      path: location?.path ?? (atEnvironment ? environmentRoot : null),
       sessions: [session],
     })
   }
 
-  const named = [...groups.values()].filter((group) => group.key !== ELSEWHERE_GROUP_KEY)
+  const named = [...groups.values()].filter(
+    (group) => group.key !== ELSEWHERE_GROUP_KEY && group.key !== ENVIRONMENT_GROUP_KEY,
+  )
   named.sort(
     (a, b) =>
       a.label.localeCompare(b.label) || (a.worktreeName ?? '').localeCompare(b.worktreeName ?? ''),
   )
+  // The Environment leads and Elsewhere trails: the human's own machine is the frame the
+  // Projects sit inside, and the unclaimed bucket is the one nobody is looking for.
+  const environment = groups.get(ENVIRONMENT_GROUP_KEY)
   const elsewhere = groups.get(ELSEWHERE_GROUP_KEY)
-  return elsewhere === undefined ? named : [...named, elsewhere]
+  return [
+    ...(environment === undefined ? [] : [environment]),
+    ...named,
+    ...(elsewhere === undefined ? [] : [elsewhere]),
+  ]
 }

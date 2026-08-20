@@ -3,6 +3,7 @@ import type { TerminalInfo } from '@porcelain/contracts/terminal'
 import { describe, expect, it } from 'vitest'
 import {
   ELSEWHERE_GROUP_KEY,
+  ENVIRONMENT_GROUP_KEY,
   groupTerminalSessions,
   locationForCwd,
   terminalLocations,
@@ -112,6 +113,30 @@ describe('groupTerminalSessions', () => {
     )
     expect(groups.map((group) => group.key)).toEqual(['p-api:w-api-main', ELSEWHERE_GROUP_KEY])
     expect(groups[1]?.path).toBeNull()
+  })
+
+  it('leads with the Environment when a shell sits under the daemon host home', () => {
+    const groups = groupTerminalSessions(
+      [
+        session('api', '/code/api', 2),
+        session('herd', '/home/fabio', 1),
+        session('tmp', '/tmp/scratch', 3),
+      ],
+      locations,
+      '/home/fabio',
+    )
+    // Environment first, Projects next, and only the truly unclaimed trails.
+    expect(groups.map((group) => group.key)).toEqual([
+      ENVIRONMENT_GROUP_KEY,
+      'p-api:w-api-main',
+      ELSEWHERE_GROUP_KEY,
+    ])
+    expect(groups[0]?.path).toBe('/home/fabio')
+  })
+
+  it('lets a Project inside the Environment home stay its own group', () => {
+    const groups = groupTerminalSessions([session('api', '/code/api', 1)], locations, '/code')
+    expect(groups.map((group) => group.key)).toEqual(['p-api:w-api-main'])
   })
 
   it('orders sessions oldest first so a roster poll cannot reshuffle the list', () => {

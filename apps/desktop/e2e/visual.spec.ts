@@ -1,5 +1,13 @@
 import type { Locator } from '@playwright/test'
-import { expect, loc, openSettings, selectTab, test, waitForShell } from './helpers/app'
+import {
+  expect,
+  loc,
+  openSettings,
+  openTerminals,
+  selectTab,
+  test,
+  waitForShell,
+} from './helpers/app'
 
 // Screenshot baselines = the regression net. DOM-only (no native window chrome /
 // traffic lights — the UI is one opaque design, no vibrancy), per-platform.
@@ -53,9 +61,9 @@ test('Git surface exposes commit controls', async ({ page }) => {
   await expect(loc.commitButton(page)).toBeVisible()
 })
 
-test('header actions expose saved commands', async ({ page }) => {
+test('the Terminals surface exposes saved commands', async ({ page }) => {
   await waitForShell(page)
-  await loc.actionsMenu(page).click()
+  await openTerminals(page)
   await expect(loc.actionsAdd(page)).toBeVisible()
 })
 

@@ -1,4 +1,3 @@
-import { TerminalPanel } from '@renderer/components/terminal/terminal-list'
 import { SidebarInset, SidebarProvider, useSidebar } from '@renderer/components/ui/sidebar'
 import { Toaster } from '@renderer/components/ui/sonner'
 import { useActionsNotificationSubscription } from '@renderer/features/actions'
@@ -12,10 +11,7 @@ import {
   useSearchNotificationSubscription,
 } from '@renderer/features/search'
 import { NewTaskDialog, useTasksNotificationSubscription } from '@renderer/features/tasks'
-import {
-  useDevServersNotificationSubscription,
-  useTerminalRoster,
-} from '@renderer/features/terminal'
+import { useTerminalRoster } from '@renderer/features/terminal'
 import { useDocumentTitle } from '@renderer/hooks/use-document-title'
 import { useResponsiveShell } from '@renderer/hooks/use-responsive-shell'
 import { useSessionRuntime } from '@renderer/hooks/use-session-runtime'
@@ -112,7 +108,6 @@ function RepoShell(): React.JSX.Element {
           <div className="min-h-0 flex-1">
             <Viewer />
           </div>
-          <TerminalPanel />
         </div>
         <RightSidebar />
       </SidebarProvider>
@@ -146,7 +141,6 @@ export function AppShell(): React.JSX.Element {
   useThemeSync()
   useDocumentTitle()
   useTerminalRoster()
-  useDevServersNotificationSubscription()
 
   useEffect(() => {
     const selection = useHubSelectionStore.getState().selection

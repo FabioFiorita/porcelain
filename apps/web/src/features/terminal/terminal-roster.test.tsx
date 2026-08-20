@@ -32,23 +32,35 @@ const doubles = vi.hoisted(() => {
   }
   const primaryRoster = {
     data: [
-      { id: 'primary-in', name: 'remote', cwd: '/repo', status: 'running' as const },
+      { id: 'primary-in', name: 'remote', cwd: '/repo', createdAt: 1, status: 'running' as const },
       {
         id: 'primary-nested',
         name: 'nested',
         cwd: '/repo/src',
+        createdAt: 2,
         status: 'exited' as const,
         exitCode: 2,
       },
-      { id: 'primary-out', name: 'outside', cwd: '/other', status: 'running' as const },
-      { id: 'primary-known', name: 'attached', cwd: '/repo/known', status: 'running' as const },
+      {
+        id: 'primary-out',
+        name: 'outside',
+        cwd: '/other',
+        createdAt: 3,
+        status: 'running' as const,
+      },
+      {
+        id: 'primary-known',
+        name: 'attached',
+        cwd: '/repo/known',
+        createdAt: 4,
+        status: 'running' as const,
+      },
     ],
     refetch: vi.fn(() => Promise.resolve()),
   }
   const terminalState = {
     markExited: vi.fn(),
     hydrate: vi.fn(),
-    openPanel: vi.fn(),
   }
   return {
     primarySession,
@@ -61,8 +73,15 @@ const doubles = vi.hoisted(() => {
     localDaemon: { isLocal: false },
     localPath: '/machine/repo',
     localSessions: [
-      { id: 'local-in', name: 'local', cwd: '/machine/repo', status: 'running' as const },
+      {
+        id: 'local-in',
+        name: 'local',
+        cwd: '/machine/repo',
+        createdAt: 5,
+        status: 'running' as const,
+      },
     ],
+    followTerminal: vi.fn(),
     daemonIdentity: { host: 'primary', version: '0.0.0-test' },
     primaryListeners: undefined as ListenerSet | undefined,
     localListeners: undefined as ListenerSet | undefined,
@@ -128,6 +147,9 @@ vi.mock('@tanstack/react-query', () => ({
 vi.mock('./terminal-stream-adapter', () => ({
   useTerminalStream: doubles.useTerminalStream,
 }))
+vi.mock('@renderer/lib/terminal-actions', () => ({
+  followTerminal: (id: string) => doubles.followTerminal(id),
+}))
 
 import { markLocalTerminal } from '@renderer/lib/local-daemon'
 import { receiveExit } from '@renderer/lib/terminal-registry'
@@ -153,11 +175,45 @@ describe('useTerminalRoster', () => {
         ],
       }),
     )
+    // cwd and createdAt ride along: the Terminals board merges these rows into its own
+    // daemon-global list, and both grouping and ordering read them.
     expect(doubles.terminalState.hydrate).toHaveBeenCalledWith([
-      { id: 'primary-in', name: 'remote', status: 'running', origin: 'primary' },
-      { id: 'primary-nested', name: 'nested', status: 'exited', exitCode: 2, origin: 'primary' },
-      { id: 'primary-known', name: 'attached', status: 'running', origin: 'primary' },
-      { id: 'local-in', name: 'local', status: 'running', origin: 'local' },
+      {
+        id: 'primary-in',
+        name: 'remote',
+        cwd: '/repo',
+        createdAt: 1,
+        status: 'running',
+        exitCode: undefined,
+        origin: 'primary',
+      },
+      {
+        id: 'primary-nested',
+        name: 'nested',
+        cwd: '/repo/src',
+        createdAt: 2,
+        status: 'exited',
+        exitCode: 2,
+        origin: 'primary',
+      },
+      {
+        id: 'primary-known',
+        name: 'attached',
+        cwd: '/repo/known',
+        createdAt: 4,
+        status: 'running',
+        exitCode: undefined,
+        origin: 'primary',
+      },
+      {
+        id: 'local-in',
+        name: 'local',
+        cwd: '/machine/repo',
+        createdAt: 5,
+        status: 'running',
+        exitCode: undefined,
+        origin: 'local',
+      },
     ])
     expect(markLocalTerminal).toHaveBeenCalledWith('local-in')
     expect(doubles.primaryAdapter.attachTerminal).toHaveBeenCalledWith('primary-in')
@@ -165,9 +221,9 @@ describe('useTerminalRoster', () => {
     expect(doubles.localAdapter.attachTerminal).toHaveBeenCalledWith('local-in')
   })
 
-  it('opens the panel on the Worktree lifecycle terminal the daemon announces', () => {
+  it('follows the Worktree lifecycle terminal the daemon announces', () => {
     renderHook(() => useTerminalRoster())
-    expect(doubles.terminalState.openPanel).not.toHaveBeenCalled()
+    expect(doubles.followTerminal).not.toHaveBeenCalled()
 
     act(() => {
       doubles.primarySession.announceChange({
@@ -179,9 +235,9 @@ describe('useTerminalRoster', () => {
       })
     })
 
-    // Setup and dispose run without a click, so the human is put in front of the session
-    // rather than left to find it in the list.
-    expect(doubles.terminalState.openPanel).toHaveBeenCalledWith('primary-in')
+    // Setup and dispose run without a click: the board follows the session, but nothing
+    // navigates there — see `followTerminal`.
+    expect(doubles.followTerminal).toHaveBeenCalledWith('primary-in')
   })
 
   it('leaves an announced terminal alone until the checkout listing it is open', () => {
@@ -193,12 +249,12 @@ describe('useTerminalRoster', () => {
         role: 'worktree-setup',
         projectId: 'project-1',
         worktreeId: 'worktree-2',
-        // Filtered out of this checkout's roster: focusing it would open an empty panel.
+        // Filtered out of this checkout's roster: revealing it would show nothing.
         terminalId: 'primary-out',
       })
     })
 
-    expect(doubles.terminalState.openPanel).not.toHaveBeenCalled()
+    expect(doubles.followTerminal).not.toHaveBeenCalled()
   })
 
   it('routes stream exits through both the registry and roster store', () => {

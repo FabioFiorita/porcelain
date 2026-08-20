@@ -19,7 +19,6 @@ import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { commandGroupHeadingClass } from '@renderer/lib/controls'
 import { isTerminalTarget, kbdLabel } from '@renderer/lib/keyboard'
 import { dirName, fileName } from '@renderer/lib/paths'
-import { openTerminalPanel } from '@renderer/lib/terminal-actions'
 import { useFileFinderStore } from '@renderer/stores/file-finder'
 import { activeTabTarget, targetedTab } from '@renderer/stores/hub-tabs'
 import { type SidebarTab, usePreferencesStore } from '@renderer/stores/preferences'
@@ -227,21 +226,22 @@ export function FileFinder(): React.JSX.Element {
   }
 
   const requestLocalRun = useActionRunStore((s) => s.requestLocalRun)
+  const openActionsMenu = useActionRunStore((s) => s.setMenuOpen)
   const handleRunCommand = (action: ActionView): void => {
     closeFinder()
     runUserAction(
       async () => {
         const result = await runAction(action)
         if (result === 'needs-local-path') {
-          // ActionsGroup owns the path dialog — open the bottom terminal panel, and hand
-          // the pending action through the compose-intent store.
-          await openTerminalPanel()
+          // ActionsGroup owns the path dialog and mounts only in the header popover — open
+          // it, and hand the pending action through the compose-intent store.
+          openActionsMenu(true)
           requestLocalRun(action)
         }
         if (result === 'needs-trust') {
-          // Trust dialog lives on ActionsGroup; open the terminal companion so the
-          // human can accept the command from the list (unreviewed shield).
-          await openTerminalPanel()
+          // Trust dialog lives on ActionsGroup; open the popover so the human can accept
+          // the command from the roster (unreviewed shield).
+          openActionsMenu(true)
         }
         if (result === 'needs-target') {
           // No Worktree is selected, so there is no checkout to run in. Say so rather

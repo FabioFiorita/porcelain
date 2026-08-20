@@ -100,7 +100,8 @@ test('Actions: the Hub menu lists a Project roster, runs it in the selected Work
   await expect(loc.actionUnreviewed(page, 'Echo hello')).toBeVisible()
 
   // 2. Trust boundary + execution: one click lands on the accept step, and accepting
-  //    runs it in the Worktree the Hub has selected.
+  //    runs it in the Worktree the Hub has selected — on the Terminals surface, which the
+  //    run opens, since that is the only place a shell is shown.
   await loc.actionRun(page, 'Echo hello').click()
   await expect(loc.actionTrustDialog(page)).toBeVisible()
   await loc.actionTrustConfirm(page).click()

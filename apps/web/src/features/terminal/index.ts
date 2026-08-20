@@ -1,7 +1,14 @@
 /** Web Terminal public boundary: transport adapter, roster binding, and recovery copy. */
 
-export { useDevServersNotificationSubscription } from './dev-servers'
 export { findHubProjectForPath, suggestLocalTerminalPath } from './local-path-suggestion'
+export {
+  ELSEWHERE_GROUP_KEY,
+  ENVIRONMENT_GROUP_KEY,
+  groupTerminalSessions,
+  type TerminalGroup,
+  type TerminalLocation,
+  terminalLocations,
+} from './terminal-groups'
 export { applyTerminalRecovery, terminalPasteFailureMessage } from './terminal-notifications'
 export {
   invalidateTerminalSessionsQueries,
@@ -20,11 +27,4 @@ export {
   useTerminalStream,
 } from './terminal-stream-adapter'
 export { listTerminalSessionsOnDaemon, renameTerminalOnDaemon } from './terminal-transport'
-export {
-  ELSEWHERE_GROUP_KEY,
-  groupTerminalSessions,
-  type TerminalGroup,
-  type TerminalLocation,
-  terminalLocations,
-} from './terminal-groups'
 export { openTerminalsBoard } from './terminals-navigation'

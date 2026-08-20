@@ -1,18 +1,14 @@
 import { Button } from '@renderer/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@renderer/components/ui/popover'
 import { useSidebar } from '@renderer/components/ui/sidebar'
-import { ActionsGroup } from '@renderer/features/actions'
-import { toastUserActionError } from '@renderer/hooks/mutation-error'
+import { ActionsGroup, useActionRunStore } from '@renderer/features/actions'
 import { isModExclusive, isTextEntry, kbdLabel } from '@renderer/lib/keyboard'
 import { isMacShell } from '@renderer/lib/platform'
-import { toggleTerminalPanel } from '@renderer/lib/terminal-actions'
 import { cn } from '@renderer/lib/utils'
 import { useTabsStore } from '@renderer/stores/tabs'
-import { useTerminalsStore } from '@renderer/stores/terminals'
-import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
-import { PanelBottom, PanelLeft, PanelRight, Zap } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { PanelLeft, PanelRight, Zap } from 'lucide-react'
+import { useEffect } from 'react'
 import { MAC_TRAFFIC_LIGHT_CLEARANCE } from './shell-chrome'
 import { ShortcutTooltip } from './shortcut-tooltip'
 import { TabBar } from './tab-bar'
@@ -23,24 +19,18 @@ interface LeftSidebarHandle {
   toggle: () => void
 }
 
-function HeaderPopover({
-  label,
-  icon: Icon,
-  children,
-  className,
-  testId,
-  shortcutKey,
-  shortcut,
-}: {
-  label: string
-  icon: typeof Zap
-  children: React.ReactNode
-  className?: string
-  testId?: string
-  shortcutKey: string
-  shortcut: string
-}): React.JSX.Element {
-  const [open, setOpen] = useState(false)
+/**
+ * Saved Actions, in the header corner and reachable from any tab.
+ *
+ * They run in the selected Worktree wherever they are started from, so the roster does not
+ * belong to one surface: a popover leaves whatever you were reading on screen, and running
+ * one still lands you on Terminals, where its shell is.
+ */
+function ActionsMenu(): React.JSX.Element {
+  // Store-owned, not local state: the file finder opens this popover too, to hand back a
+  // run that needs the trust step or a This-device folder.
+  const open = useActionRunStore((s) => s.menuOpen)
+  const setOpen = useActionRunStore((s) => s.setMenuOpen)
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent): void => {
@@ -48,7 +38,7 @@ function HeaderPopover({
         !isModExclusive(event) ||
         event.altKey ||
         !event.shiftKey ||
-        event.key.toLowerCase() !== shortcutKey.toLowerCase() ||
+        event.key.toLowerCase() !== 'a' ||
         isTextEntry(event.target)
       ) {
         return
@@ -59,21 +49,21 @@ function HeaderPopover({
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [shortcutKey])
+  }, [setOpen])
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <ShortcutTooltip label={label} shortcut={shortcut}>
+      <ShortcutTooltip label="Actions" shortcut={kbdLabel('mod', 'shift', 'A')}>
         <PopoverTrigger
           render={
             <Button
               variant="ghost"
               size="sm"
-              className={cn('h-7 gap-1 px-2 text-2xs text-muted-foreground', className)}
-              data-testid={testId}
+              className="h-7 gap-1 px-2 text-2xs text-muted-foreground"
+              data-testid={TestIds.actionsMenu}
             >
-              <Icon className="size-3.5" />
-              {label}
+              <Zap className="size-3.5" />
+              Actions
             </Button>
           }
         />
@@ -82,7 +72,7 @@ function HeaderPopover({
         align="end"
         className="max-h-[calc(100dvh-4.5rem)] w-[min(24rem,calc(100vw-1rem))] overflow-auto p-1"
       >
-        {children}
+        <ActionsGroup />
       </PopoverContent>
     </Popover>
   )
@@ -94,18 +84,10 @@ export function ViewerHeader({ left }: { left: LeftSidebarHandle }): React.JSX.E
   const crumbs = useViewerBreadcrumb()
   const paneCount = useTabsStore((s) => s.panes.length)
   const activePaneIndex = useTabsStore((s) => s.activePaneIndex)
-  const terminalPanelOpen = useTerminalsStore((s) => s.panelOpen)
   const rightActive = isMobile ? openMobile : rightOpen
   const handleToggleRight = (): void => {
     toggleRight()
   }
-  const handleToggleTerminal = (): void => {
-    runUserAction(
-      () => toggleTerminalPanel(),
-      (error) => toastUserActionError('Open terminal', error),
-    )
-  }
-  const actionsShortcut = kbdLabel('mod', 'shift', 'A')
 
   return (
     <div
@@ -157,27 +139,7 @@ export function ViewerHeader({ left }: { left: LeftSidebarHandle }): React.JSX.E
         )}
       </div>
       <div className="app-no-drag flex shrink-0 items-center gap-1">
-        <HeaderPopover
-          label="Actions"
-          icon={Zap}
-          testId={TestIds.actionsMenu}
-          shortcutKey="a"
-          shortcut={actionsShortcut}
-        >
-          <ActionsGroup />
-        </HeaderPopover>
-        <ShortcutTooltip label="Toggle terminal panel" shortcut={kbdLabel('mod', '6')}>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={handleToggleTerminal}
-            aria-label="Toggle terminal panel"
-            aria-expanded={terminalPanelOpen}
-            data-testid={TestIds.toggleTerminalPanel}
-          >
-            <PanelBottom />
-          </Button>
-        </ShortcutTooltip>
+        <ActionsMenu />
         <ShortcutTooltip label="Toggle surfaces sidebar" shortcut={kbdLabel('mod', '.')}>
           <Button
             variant="ghost"

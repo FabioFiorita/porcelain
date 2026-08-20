@@ -1,4 +1,5 @@
 import { openTasksBoard } from '@renderer/features/tasks'
+import { openTerminalsBoard } from '@renderer/features/terminal'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import {
   ctrlIsPrimary,
@@ -7,15 +8,18 @@ import {
   isTextEntry,
 } from '@renderer/lib/keyboard'
 import { isFilesSurfaceFocused } from '@renderer/lib/surface-focus'
-import { spawnTerminal, toggleTerminalPanel } from '@renderer/lib/terminal-actions'
+import { spawnTerminal } from '@renderer/lib/terminal-actions'
 import { useNewTaskDialogStore } from '@renderer/stores/new-task-dialog'
 import { type SidebarTab, usePreferencesStore } from '@renderer/stores/preferences'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { runUserAction } from '@shared/background'
 import { useEffect } from 'react'
 
-// Must match the displayed shortcuts in surface-sidebar.tsx. Cmd+6 belongs to the bottom
-// Terminal panel, so Git uses 5 and Canvas keeps its explicit 7 slot.
+// Must match the displayed shortcuts in surface-sidebar.tsx. Cmd+6 opens the Terminals
+// surface — the bottom panel's old key, so the muscle memory survives, though it opens
+// rather than toggles now (a Viewer tab is closed like any other). Git uses 5 and Canvas
+// keeps its explicit 7 slot. ⌘⇧A is NOT here: the Actions popover owns that chord from
+// the header, where it can open without taking the Viewer away.
 export const SIDEBAR_TAB_KEYS: Record<string, SidebarTab | undefined> = {
   '1': 'files',
   '2': 'changes',
@@ -28,9 +32,10 @@ export const SIDEBAR_TAB_KEYS: Record<string, SidebarTab | undefined> = {
 /**
  * Window-level shortcuts: close-tab (Ctrl+W here on Linux/Windows, yielding to a focused
  * terminal; macOS Cmd+W goes via main's before-input-event instead), Ctrl+Tab cycling,
- * Cmd+1–5 sidebar tabs, Cmd+6 for the bottom terminal panel, Cmd+7 for Canvas, ⌘⇧T for
- * Tasks, and ⌘⇧N for a new Task unless Files owns that chord. Files' ⌘N/⌘⇧N/⌘D/⌘⌫ live
- * in FileCommands — those go through tRPC hooks, which only a component may touch.
+ * Cmd+1–5 sidebar tabs, Cmd+6 for the Terminals surface, Cmd+7 for Canvas, ⌘⇧T for Tasks,
+ * and ⌘⇧N for a new Task unless Files owns that chord.
+ * Files' ⌘N/⌘⇧N/⌘D/⌘⌫ live in FileCommands — those go through tRPC hooks, which only a
+ * component may touch.
  */
 export function useAppShortcuts(): void {
   useEffect(() => {
@@ -84,10 +89,7 @@ export function useAppShortcuts(): void {
       if (isModExclusive(e) && !e.altKey && !e.shiftKey) {
         if (e.key === '6') {
           e.preventDefault()
-          runUserAction(
-            () => toggleTerminalPanel(),
-            (error) => toastUserActionError('Open terminal', error),
-          )
+          openTerminalsBoard()
           return
         }
         const tab = SIDEBAR_TAB_KEYS[e.key]

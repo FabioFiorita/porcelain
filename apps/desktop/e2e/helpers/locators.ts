@@ -20,8 +20,6 @@ export const loc = {
   tasksNew: (page: Page): Locator => byId(page, TestIds.tasksNew),
   toggleLeftSidebar: (page: Page): Locator => byId(page, TestIds.toggleLeftSidebar),
   toggleRightSidebar: (page: Page): Locator => byId(page, TestIds.toggleRightSidebar),
-  toggleTerminalPanel: (page: Page): Locator => byId(page, TestIds.toggleTerminalPanel),
-  actionsMenu: (page: Page): Locator => byId(page, TestIds.actionsMenu),
   commandsMenu: (page: Page): Locator => byId(page, TestIds.commandsMenu),
 
   welcome: (page: Page): Locator => byId(page, TestIds.welcome),
@@ -49,19 +47,8 @@ export const loc = {
     page.locator(
       `[data-hub-environment="${target.environmentId}"][data-hub-project="${target.projectId}"][data-hub-worktree="${target.worktreeId}"]`,
     ),
-  devServers: (page: Page): Locator => byId(page, TestIds.devServers),
-  devServersEmpty: (page: Page): Locator => byId(page, TestIds.devServersEmpty),
-  devServerRows: (page: Page): Locator => page.locator('[data-testid^="dev-server-"][data-status]'),
-  devServerRow: (page: Page, id: string): Locator => byId(page, TestIds.devServerRow(id)),
-  devServerUrl: (page: Page, id: string): Locator => byId(page, TestIds.devServerUrl(id)),
-  devServerStop: (page: Page, id: string): Locator => byId(page, TestIds.devServerStop(id)),
-  devServerDismiss: (page: Page, id: string): Locator => byId(page, TestIds.devServerDismiss(id)),
-  devServerLabelInput: (page: Page): Locator => byId(page, TestIds.devServerLabelInput),
-  devServerCommandInput: (page: Page): Locator => byId(page, TestIds.devServerCommandInput),
-  devServerSubmit: (page: Page): Locator => byId(page, TestIds.devServerSubmit),
   glance: (page: Page): Locator => byId(page, TestIds.glance),
   glanceChangedFiles: (page: Page): Locator => byId(page, TestIds.glanceChangedFiles),
-  glanceJumpTerminal: (page: Page): Locator => byId(page, TestIds.glanceJumpTerminal),
 
   tasksOpen: (page: Page): Locator => byId(page, TestIds.tasksOpen),
   tasksView: (page: Page): Locator => byId(page, TestIds.tasksView),
@@ -155,9 +142,22 @@ export const loc = {
   commitButton: (page: Page): Locator => byId(page, TestIds.commitButton),
   commitGroup: (page: Page): Locator => byId(page, TestIds.commitGroup),
 
-  terminalNew: (page: Page): Locator => byId(page, TestIds.terminalNew),
+  // --- The Terminals surface: the one terminal home ---
+  terminalsOpen: (page: Page): Locator => byId(page, TestIds.terminalsOpen),
+  terminalsBoard: (page: Page): Locator => byId(page, TestIds.terminalsBoard),
+  terminalsBoardNew: (page: Page): Locator => byId(page, TestIds.terminalsBoardNew),
+  /** "New terminal" targets that are a checkout, not the Environment's own home. */
+  terminalsBoardNewInProject: (page: Page): Locator =>
+    page.locator(
+      `[data-testid^="${TestIds.terminalsBoardNewAt('')}"]:not([data-testid="${TestIds.terminalsBoardNewAt('environment')}"])`,
+    ),
+  /** Every session row on the board — a count has no single id to ask for. */
+  terminalsBoardSessions: (page: Page): Locator =>
+    page.locator(`[data-testid^="${TestIds.terminalsBoardSession('')}"]`),
+  terminalsBoardEnvironmentShell: (page: Page, key: string): Locator =>
+    byId(page, TestIds.terminalsBoardEnvironmentShell(key)),
   terminalSession: (page: Page, name: string): Locator =>
-    byId(page, TestIds.terminalPanel)
+    byId(page, TestIds.terminalsBoard)
       .locator('button')
       .filter({ hasText: new RegExp(`^${name}$`) }),
   terminalKeyBar: (page: Page): Locator => byId(page, TestIds.terminalKeyBar),
@@ -168,6 +168,7 @@ export const loc = {
   terminalContextAttachFile: (page: Page): Locator => byId(page, TestIds.terminalContextAttachFile),
   terminalContextSelectAll: (page: Page): Locator => byId(page, TestIds.terminalContextSelectAll),
   terminalContextClear: (page: Page): Locator => byId(page, TestIds.terminalContextClear),
+  actionsMenu: (page: Page): Locator => byId(page, TestIds.actionsMenu),
   actionsAdd: (page: Page): Locator => byId(page, TestIds.actionsAdd),
   actionRun: (page: Page, title: string): Locator => byId(page, TestIds.actionRun(title)),
   actionTitleInput: (page: Page): Locator => byId(page, TestIds.actionTitleInput),
