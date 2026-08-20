@@ -57,8 +57,8 @@ export default function HubLayout(): React.JSX.Element {
           and no back button. */}
       <Stack.Screen name="index" options={{ headerLargeTitle: true, title: 'Worktrees' }} />
 
-      {/* `worktree` and `unbuilt/[surface]` set their own titles from what they are showing —
-          a project name and a surface name — so their options live in the screen. */}
+      {/* `worktree`, `git` and the Canvas screens set their own titles from what they are
+          showing — a project name, a document name — so their options live in the screen. */}
 
       <Stack.Screen
         name="files"
@@ -86,22 +86,9 @@ export default function HubLayout(): React.JSX.Element {
           title: 'Search',
         }}
       />
-      <Stack.Screen
-        name="terminal/index"
-        options={{
-          headerRight: () => <HeaderActions companionSurface="terminal" />,
-          title: 'Terminal',
-        }}
-      />
-
-      {/*
-        A terminal wants every row the display has, which is why the session is a full-screen
-        modal rather than a push — `NativeTabs` has no supported way to hide just the tab bar
-        for one pushed screen. It still gets a real bar, because a modal with no bar has no
-        visible way out, but a minimal one: no large title, no actions, and the session's own
-        name is set by the screen.
-      */}
-      <Stack.Screen name="terminal/[id]" options={{ presentation: 'fullScreenModal' }} />
+      {/* No Terminal screen here. Shells are daemon-wide and live in the Terminals tab
+          (`app/terminals/`) — a Worktree's own sessions were a second terminal home, and the
+          long-lived one was always the one you were not standing in. */}
 
       <Stack.Screen
         name="quick-open"

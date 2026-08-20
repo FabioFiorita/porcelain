@@ -2,14 +2,17 @@
 
 import { useTerminalStore } from './terminal-store'
 
-export { TerminalList } from './terminal-list'
-export { TerminalPhoneScreen } from './terminal-phone-screen'
 export {
   applyTerminalRecovery,
   terminalPasteFailureMessage,
   useMobileTerminalRecovery,
 } from './terminal-recovery'
-export { useRenameTerminal, useTerminalStream, useTerminals } from './terminal-roster'
+export {
+  useRefreshTerminals,
+  useRenameTerminal,
+  useTerminalStream,
+  useTerminals,
+} from './terminal-roster'
 export { TerminalSessionScreen } from './terminal-session-screen'
 export {
   createMobileTerminalAdapter,
@@ -22,7 +25,7 @@ export {
   type TerminalStreamListeners,
   useMobileTerminalStream,
 } from './terminal-stream-adapter'
-export { TerminalViewer } from './terminal-viewer'
+export { TerminalsScreen } from './terminals-screen'
 
 /** Public create surface for Actions prepare → Terminal create (ACT-003). */
 export async function spawnTerminalSession(opts: {

@@ -1,5 +1,5 @@
-import { TasksScreen } from '@/features/hub/tasks-screen'
+import { TasksBoardScreen } from '@/features/tasks'
 
 export default function TasksRoute(): React.JSX.Element {
-  return <TasksScreen />
+  return <TasksBoardScreen />
 }

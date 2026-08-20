@@ -12,6 +12,20 @@ import {
 export type { LineRange, LineSelection }
 export { describeRange, isLineInRange, MAX_ANCHOR_TEXT, rangeForPath, rangeOf }
 
+export { CommentComposerSheet } from './comment-composer-sheet'
+export { type ReviewCommentActions, reviewCommentsKey, useCommentActions } from './comment-data'
+export {
+  type CommentCounts,
+  type CommentThread,
+  commentAnchorKey,
+  commentCounts,
+  commentRange,
+  commentThreads,
+  describeAnchor,
+  describeCommentCounts,
+} from './comment-threads'
+export { ReviewCommentsScreen } from './review-comments-screen'
+
 /** Historical migration shape retained only so generic line-selection callers can compile. */
 export type CommentAnchor = {
   path: string
@@ -45,10 +59,14 @@ export function useLineSelection(): LineSelectionControls {
   )
 }
 
-export function useReviewComments(_active: boolean): readonly never[] {
-  return []
-}
+export { useReviewComments } from './comment-data'
 
+/**
+ * Still placeholders: the Review surface reads comments as threads, and no mobile file or diff
+ * row draws a comment decoration yet. They keep their signatures so the Files and Changes
+ * viewers that already ask for an index compile unchanged, and answering "nothing here" is the
+ * truth for those surfaces until one of them grows a gutter marker.
+ */
 export function useCommentIndex(
   _comments: readonly unknown[],
   _path: string,

@@ -1,10 +1,13 @@
+import { settleBackground } from '@porcelain/shared/background'
 import { Stack } from 'expo-router/stack'
+import { useEffect } from 'react'
 import { Text, View } from 'react-native'
 import { EmptyNote } from '@/components/surface-chrome'
 import { ClearBottomChrome } from '@/features/shell/bottom-chrome'
 import { HeaderCloseButton } from '@/features/shell/header-actions'
 import { useTerminalStream } from './terminal-roster'
 import { useTerminalStore } from './terminal-store'
+import { mobileTerminalAdapter } from './terminal-stream-adapter'
 import { TerminalView } from './terminal-view'
 
 /**
@@ -15,6 +18,11 @@ import { TerminalView } from './terminal-view'
  * wants every row the display has — but a modal is the root of its own presented stack, so the
  * bar draws no back button, and a full-screen presentation cannot be swiped away either. A bar
  * this screen can leave from is worth the two rows it costs.
+ *
+ * ATTACHING is this screen's job, not the roster's. The list is daemon-wide now — every PTY on
+ * the machine, including a herd of agent shells nobody is looking at — and attaching all of them
+ * would replay every scrollback into an emulator this phone is not showing. Opening one session
+ * attaches one session, and the attach reply carries the scrollback that fills the view.
  *
  * Leaving this screen deliberately does NOT detach: the PTY keeps streaming into its emulator,
  * so coming back shows what happened while you were away rather than a gap.
@@ -28,6 +36,13 @@ export function TerminalSessionScreen({ sessionId }: { sessionId: string }): Rea
   const session = useTerminalStore((state) =>
     state.sessions.find((candidate) => candidate.id === sessionId),
   )
+
+  useEffect(() => {
+    const adapter = mobileTerminalAdapter()
+    if (adapter.isTerminalAttached(sessionId)) return
+    // A dropped socket leaves desired state awaiting reattach; the shared adapter owns retry.
+    settleBackground(adapter.attachTerminal(sessionId), 'lifecycle')
+  }, [sessionId])
 
   return (
     <ClearBottomChrome>

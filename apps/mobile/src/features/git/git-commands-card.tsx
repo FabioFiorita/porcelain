@@ -1,0 +1,221 @@
+import { runUserAction } from '@porcelain/shared/background'
+import { useState } from 'react'
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native'
+
+import { ChromeGlyph, type ChromeIconName } from '@/components/chrome-glyph'
+import { PanelLabel } from '@/components/panel-chrome'
+import { PANEL_CARD } from '@/components/surface-layout'
+import { cn } from '@/lib/utils'
+
+import { publishPrompt } from './branch-facts'
+import { QUICK_COMMANDS, type QuickCommandId, useQuickCommand } from './git-mutations'
+import { useGitHead, useGitSuggestions } from './git-queries'
+
+/** Label + glyph for each whitelisted command; the ids come from the daemon's own list. */
+const COMMAND_FACES: Record<QuickCommandId, { label: string; glyph: ChromeIconName }> = {
+  fetch: { label: 'fetch', glyph: 'refresh' },
+  pull: { label: 'pull', glyph: 'arrowDown' },
+  push: { label: 'push', glyph: 'arrowUpFromLine' },
+  status: { label: 'status', glyph: 'info' },
+  stash: { label: 'stash', glyph: 'archive' },
+  'stash-pop': { label: 'stash pop', glyph: 'archiveRestore' },
+}
+
+type CommandResult = { label: string; output: string; failed: boolean }
+
+/**
+ * Suggested + Commands: the contextual "one command worth running now" tile over the
+ * whitelisted grid, exactly the pair web's Git surface opens with.
+ *
+ * The suggestion heuristic is the daemon's (behind / ahead / stash / dirty), so the phone
+ * offers what the desktop offers. Nothing here is optimistic and nothing is silent: every run
+ * ends on the result card, success or failure, with git's own words in it.
+ */
+export function GitCommandsCard({ active }: { active: boolean }): React.JSX.Element {
+  const suggestions = useGitSuggestions(active)
+  const { head } = useGitHead(active)
+  const { isRunning, runCommand } = useQuickCommand()
+  const [running, setRunning] = useState<QuickCommandId | null>(null)
+  const [result, setResult] = useState<CommandResult | null>(null)
+
+  const execute = (command: QuickCommandId): void => {
+    setRunning(command)
+    setResult(null)
+    runUserAction(
+      async () => {
+        const output = await runCommand(command)
+        setResult({
+          failed: false,
+          label: COMMAND_FACES[command].label,
+          output: output === '' ? '(no output)' : output,
+        })
+      },
+      (cause) => {
+        setResult({
+          failed: true,
+          label: COMMAND_FACES[command].label,
+          output: cause instanceof Error ? cause.message : String(cause),
+        })
+      },
+      () => {
+        setRunning(null)
+      },
+    )
+  }
+
+  /**
+   * A push that would publish the branch asks first; every other command runs on the tap. The
+   * confirmed run is the SAME command — the prompt is consent, not a different write.
+   *
+   * `Alert.alert` fired here rather than a rendered dialog: the question belongs to this tap,
+   * so the head it read cannot drift while the alert is up. Publish is a default action, not a
+   * destructive one — web's dialog confirms it in the primary style, and a red button would
+   * tell the reader this push deletes something.
+   */
+  const handleRun = (command: QuickCommandId): void => {
+    if (isRunning) return
+    const prompt = command === 'push' ? publishPrompt(head) : null
+    if (prompt === null) {
+      execute(command)
+      return
+    }
+    Alert.alert(prompt.title, prompt.body, [
+      { style: 'cancel', text: 'Cancel' },
+      {
+        onPress: () => {
+          execute(command)
+        },
+        style: 'default',
+        text: 'Publish',
+      },
+    ])
+  }
+
+  return (
+    <>
+      {suggestions.length === 0 ? null : (
+        <View className="gap-2" testID="porcelain-git-suggested">
+          <PanelLabel>Suggested</PanelLabel>
+          <View className={cn('gap-0.5 p-1', PANEL_CARD)}>
+            {suggestions.map((suggestion) => {
+              const command = asQuickCommand(suggestion.command)
+              if (command === null) return null
+              const face = COMMAND_FACES[command]
+              return (
+                <Pressable
+                  key={command}
+                  accessibilityLabel={`Run git ${face.label} — ${suggestion.reason}`}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: isRunning }}
+                  className={cn(
+                    'min-h-12 flex-row items-center gap-2.5 rounded-xl px-2.5 py-2 active:bg-accent',
+                    isRunning && 'opacity-60',
+                  )}
+                  disabled={isRunning}
+                  testID={`porcelain-git-suggested-${command}`}
+                  onPress={() => {
+                    handleRun(command)
+                  }}
+                >
+                  <ChromeGlyph name={running === command ? 'refresh' : 'sparkles'} size={15} />
+                  <View className="min-w-0 flex-1">
+                    <Text className="font-mono text-xs text-foreground">git {face.label}</Text>
+                    <Text className="text-2xs text-muted-foreground" numberOfLines={2}>
+                      {suggestion.reason}
+                    </Text>
+                  </View>
+                  <ChromeGlyph name="chevronRight" size={14} />
+                </Pressable>
+              )
+            })}
+          </View>
+        </View>
+      )}
+
+      <View className="gap-2" testID="porcelain-git-commands">
+        <PanelLabel>Commands</PanelLabel>
+        <View className="flex-row flex-wrap gap-1.5">
+          {QUICK_COMMANDS.map((command) => {
+            const face = COMMAND_FACES[command]
+            return (
+              <Pressable
+                key={command}
+                accessibilityLabel={`git ${face.label}`}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: isRunning }}
+                className={cn(
+                  'min-h-10 min-w-[8rem] flex-1 flex-row items-center gap-1.5 rounded-xl border border-border bg-secondary px-2.5 py-2 active:bg-accent',
+                  isRunning && 'opacity-60',
+                )}
+                disabled={isRunning}
+                testID={`porcelain-git-command-${command}`}
+                onPress={() => {
+                  handleRun(command)
+                }}
+              >
+                <ChromeGlyph name={running === command ? 'refresh' : face.glyph} size={14} />
+                <Text className="font-mono text-xs text-secondary-foreground">{face.label}</Text>
+              </Pressable>
+            )
+          })}
+        </View>
+        {result === null ? null : (
+          <CommandResultCard
+            result={result}
+            onDismiss={() => {
+              setResult(null)
+            }}
+          />
+        )}
+      </View>
+    </>
+  )
+}
+
+/** The daemon's suggestion carries a bare string; only the whitelisted ids are runnable. */
+function asQuickCommand(command: string): QuickCommandId | null {
+  return QUICK_COMMANDS.find((candidate) => candidate === command) ?? null
+}
+
+function CommandResultCard({
+  onDismiss,
+  result,
+}: {
+  onDismiss: () => void
+  result: CommandResult
+}): React.JSX.Element {
+  return (
+    <View className={cn('overflow-hidden', PANEL_CARD)} testID="porcelain-git-command-result">
+      <View className="flex-row items-center gap-2 border-b border-border/60 px-2.5 py-1.5">
+        <ChromeGlyph
+          name={result.failed ? 'circleX' : 'circleCheck'}
+          size={14}
+          tone={result.failed ? 'destructive' : 'success'}
+        />
+        <Text className="min-w-0 flex-1 font-mono text-xs text-foreground" numberOfLines={1}>
+          git {result.label}
+        </Text>
+        <Pressable
+          accessibilityLabel="Dismiss result"
+          accessibilityRole="button"
+          className="p-1"
+          hitSlop={8}
+          testID="porcelain-git-command-result-dismiss"
+          onPress={onDismiss}
+        >
+          <ChromeGlyph name="close" size={13} />
+        </Pressable>
+      </View>
+      <ScrollView className="max-h-44" nestedScrollEnabled>
+        <Text
+          className={cn(
+            'px-2.5 py-2 font-mono text-2xs leading-4',
+            result.failed ? 'text-destructive' : 'text-muted-foreground',
+          )}
+        >
+          {result.output}
+        </Text>
+      </ScrollView>
+    </View>
+  )
+}

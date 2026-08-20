@@ -1,4 +1,3 @@
-import { ActionsCompanion } from '@/features/actions'
 import { ChangesCompanion } from '@/features/changes/changes-companion'
 import { ChangesList } from '@/features/changes/changes-list'
 import { ChangesPhoneScreen } from '@/features/changes/changes-phone-screen'
@@ -15,7 +14,6 @@ import { HistoryList } from '@/features/history/history-list'
 import { HistoryPhoneScreen } from '@/features/history/history-phone-screen'
 import { HistoryViewer } from '@/features/history/history-viewer'
 import { SearchCompanion, SearchList, SearchPhoneScreen } from '@/features/search'
-import { TerminalList, TerminalPhoneScreen, TerminalViewer } from '@/features/terminal'
 
 import type { SurfaceId } from './surfaces'
 
@@ -85,12 +83,6 @@ const SURFACE_SLOTS: Record<SurfaceId, SurfaceSlots> = {
     list: HistoryList,
     phone: HistoryPhoneScreen,
     viewer: HistoryViewer,
-  },
-  terminal: {
-    companion: ActionsCompanion,
-    list: TerminalList,
-    phone: TerminalPhoneScreen,
-    viewer: TerminalViewer,
   },
 }
 

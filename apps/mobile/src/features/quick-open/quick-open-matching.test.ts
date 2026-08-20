@@ -57,9 +57,11 @@ describe('quick-open matching', () => {
   })
 
   it('matches navigation destinations and settings sections by their visible names', () => {
-    expect(gotoRows('terminal')).toEqual([
-      { detail: 'Surface', id: 'terminal', kind: 'surface', label: 'Terminal' },
+    expect(gotoRows('history')).toEqual([
+      { detail: 'Surface', id: 'history', kind: 'surface', label: 'History' },
     ])
+    // Terminals is a tab, not a Worktree surface: the palette's Go-to list names surfaces only.
+    expect(gotoRows('terminal')).toEqual([])
     expect(gotoRows('remote')).toEqual([
       {
         detail: 'Settings',

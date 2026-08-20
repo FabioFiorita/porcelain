@@ -130,9 +130,6 @@ export function useQuickOpen(open: boolean, onClose: () => void): QuickOpenModel
         case 'history':
           router.push('/history')
           return
-        case 'terminal':
-          router.push('/terminal')
-          return
       }
     },
     [router, setActiveSurface],
@@ -149,13 +146,17 @@ export function useQuickOpen(open: boolean, onClose: () => void): QuickOpenModel
     [close, router],
   )
 
+  /**
+   * A saved command is not a surface: running one starts a shell, and shells live in the
+   * Terminals tab now. The selection is what the Actions list highlights when it opens.
+   */
   const openCommand = useCallback(
     (action: ActionView): void => {
       selectAction(action.id)
       close()
-      navigateSurface('terminal')
+      router.push('/terminals/actions')
     },
-    [close, navigateSurface, selectAction],
+    [close, router, selectAction],
   )
 
   const openCommit = useCallback(

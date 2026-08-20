@@ -139,7 +139,7 @@ describe('surface layout', () => {
       'search/search-panel.tsx',
       'history/commit-file-row.tsx',
       'history/commit-row.tsx',
-      'terminal/terminal-list.tsx',
+      'terminal/terminal-session-row.tsx',
     ]
     const offenders: string[] = []
 

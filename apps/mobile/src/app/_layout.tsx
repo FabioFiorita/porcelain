@@ -16,6 +16,7 @@ import { PhoneBottomChrome } from '@/features/shell/bottom-chrome'
 import { PhoneShell } from '@/features/shell/phone-shell'
 import { TabletShell } from '@/features/shell/tablet-shell'
 import { useIsTablet } from '@/features/shell/use-app-window'
+import { TasksNotificationBridge } from '@/features/tasks'
 import { DaemonProvider } from '@/lib/daemon/provider'
 
 export default function RootLayout(): React.JSX.Element {
@@ -41,6 +42,7 @@ function ThemedApp(): React.JSX.Element {
         <SearchNotificationBridge />
         <GitNotificationBridge />
         <ActionsNotificationBridge />
+        <TasksNotificationBridge />
         <ProjectDataFreshnessBridge />
         <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
         {/* Only the phone floats chrome over its content. A tablet column ends above its own

@@ -9,7 +9,7 @@
  * needs: which destinations exist and what they are called.
  */
 
-export type SurfaceId = 'files' | 'changes' | 'history' | 'search' | 'terminal'
+export type SurfaceId = 'files' | 'changes' | 'history' | 'search'
 
 export type Surface = {
   readonly id: SurfaceId
@@ -21,13 +21,15 @@ export type Surface = {
 /**
  * Presentation order. These are no longer tabs: a surface is a screen inside the Hub stack,
  * reached from the Worktree that owns it (`features/hub/worktree-screen.tsx`).
+ *
+ * Terminal is deliberately absent. Shells are daemon-wide, not a property of one checkout, so
+ * they are a tab of their own (`app/terminals/`) rather than a surface listed here.
  */
 export const SURFACES: readonly Surface[] = [
   { id: 'files', label: 'Files', listTitle: 'Files' },
   { id: 'changes', label: 'Changes', listTitle: 'Changes' },
   { id: 'history', label: 'History', listTitle: 'History' },
   { id: 'search', label: 'Search', listTitle: 'Search' },
-  { id: 'terminal', label: 'Terminal', listTitle: 'Terminal' },
 ]
 
 export function surfaceById(id: SurfaceId): Surface {

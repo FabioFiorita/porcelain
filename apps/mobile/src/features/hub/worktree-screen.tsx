@@ -17,21 +17,29 @@ type SurfaceRow = {
   readonly label: string
   readonly hint: string
   readonly glyph: ChromeIconName
-  /** Route inside the Hub stack, or null when mobile has no panel for it yet. */
-  readonly route: Href | null
+  /** Route inside the Hub stack. Every surface has one — a row that opens nothing is not a row. */
+  readonly route: Href
 }
 
 /**
  * A Worktree's surfaces.
  *
  * Surfaces are no longer global tabs: you reach one THROUGH the checkout it belongs to, which
- * is the whole point of the change. The set mirrors the web rail (`surface-sidebar.tsx`:
- * Files · Changes · History · Git · Search · Canvas) plus Terminal, which is a mobile surface
- * the web rail does not list. Git and Canvas have no mobile panel; they say so rather than
- * pretending, because a row that opens an empty screen is worse than a row that explains.
+ * is the whole point of the change. The set and its order mirror the web rail
+ * (`surface-sidebar.tsx`): Files · Changes · History · Git · Search · Canvas.
+ *
+ * Terminal is not here. A shell belongs to the daemon, not to one checkout, so it is a tab of
+ * its own (`app/terminals/`) — the same move web made when the docked panel became the one
+ * Terminals surface.
  */
 const SURFACE_ROWS: readonly SurfaceRow[] = [
-  { id: 'files', label: 'Files', hint: 'Browse the tree', glyph: 'folder', route: '/files' },
+  {
+    id: 'files',
+    label: 'Files',
+    hint: 'Browse the project tree',
+    glyph: 'folder',
+    route: '/files',
+  },
   {
     id: 'changes',
     label: 'Changes',
@@ -47,6 +55,13 @@ const SURFACE_ROWS: readonly SurfaceRow[] = [
     route: '/history',
   },
   {
+    id: 'git',
+    label: 'Git',
+    hint: 'Commands, suggestions, and commit',
+    glyph: 'commit',
+    route: '/git',
+  },
+  {
     id: 'search',
     label: 'Search',
     hint: 'Search code and files',
@@ -54,25 +69,11 @@ const SURFACE_ROWS: readonly SurfaceRow[] = [
     route: '/search',
   },
   {
-    id: 'terminal',
-    label: 'Terminal',
-    hint: 'Sessions in this checkout',
-    glyph: 'terminal',
-    route: '/terminal',
-  },
-  {
-    id: 'git',
-    label: 'Git',
-    hint: 'Not built on mobile yet',
-    glyph: 'commit',
-    route: null,
-  },
-  {
     id: 'canvas',
     label: 'Canvas',
-    hint: 'Not built on mobile yet',
+    hint: 'Agent-authored explanation for this Project',
     glyph: 'layers',
-    route: null,
+    route: '/canvas',
   },
 ]
 
@@ -114,12 +115,7 @@ export function WorktreeScreen(): React.JSX.Element {
               className={SURFACE_ROW}
               testID={`porcelain-worktree-surface-${surface.id}`}
               onPress={() => {
-                router.push(
-                  surface.route ?? {
-                    params: { surface: surface.id },
-                    pathname: '/unbuilt/[surface]',
-                  },
-                )
+                router.push(surface.route)
               }}
             >
               <View className="flex-row items-center gap-3">

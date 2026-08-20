@@ -1,9 +1,7 @@
 import { terminalSessionsQuery } from '@porcelain/client-runtime/terminal'
 import type { TerminalSessionsOutput } from '@porcelain/contracts/terminal'
-import { settleBackground } from '@porcelain/shared/background'
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useMemo } from 'react'
-import { useHubRepoPath } from '@/features/projects'
+import { useEffect, useRef } from 'react'
 import { isPaired, useActiveEnvironment } from '@/features/remote'
 import { getDaemonClient } from '@/lib/daemon/client'
 import { DaemonError } from '@/lib/daemon/errors'
@@ -12,13 +10,9 @@ import { receiveData, receiveExit, receiveScrollback } from './terminal-engine'
 import { renameTerminalProcedure, terminalSessionsProcedure } from './terminal-procedures'
 import { invalidateTerminalSessionsQueries, terminalSessionsQueryKey } from './terminal-query-key'
 import { useMobileTerminalRecovery } from './terminal-recovery'
-import { TERMINAL_ROSTER_POLL_MS, terminalSessionsForRepo } from './terminal-roster-policy'
+import { TERMINAL_ROSTER_POLL_MS } from './terminal-roster-policy'
 import { type TerminalSession, useTerminalStore } from './terminal-store'
-import {
-  mobileTerminalAdapter,
-  type TerminalStreamListeners,
-  useMobileTerminalStream,
-} from './terminal-stream-adapter'
+import { type TerminalStreamListeners, useMobileTerminalStream } from './terminal-stream-adapter'
 
 const NATIVE_STREAM_LISTENERS: TerminalStreamListeners = {
   onData: receiveData,
@@ -36,8 +30,15 @@ export function useTerminalStream(): void {
 
 /**
  * Query-backed Terminal roster plus the one shared native stream binding. The daemon owns names,
- * cwd, status, and exit code; the store owns only selection, tombstones, and native presentation
- * workflow.
+ * cwd, status, and exit code; the store owns only tombstones and the optimistic new row.
+ *
+ * DAEMON-WIDE, and gated on pairing alone rather than on a selected checkout: the Terminals tab
+ * leads with the Environment's own shells, which exist before any Project is open. Grouping the
+ * flat list back into Projects is `groupTerminalSessions`, not a filter here.
+ *
+ * It reads and never ATTACHES. Attaching is per-session work the viewer does when it opens one
+ * (`terminal-session-screen.tsx`): a herd of agent shells on the daemon would otherwise mean a
+ * dozen emulators replaying scrollback into a phone that is showing none of them.
  */
 export function useTerminals(active: boolean): {
   sessions: TerminalSession[]
@@ -46,12 +47,10 @@ export function useTerminals(active: boolean): {
 } {
   const environment = useActiveEnvironment()
   const environmentId = environment?.id ?? 'none'
-  const repoPath = useHubRepoPath() ?? ''
   const hydrate = useTerminalStore((state) => state.hydrate)
   const reset = useTerminalStore((state) => state.reset)
   const sessions = useTerminalStore((state) => state.sessions)
-  const adapter = mobileTerminalAdapter()
-  const enabled = active && repoPath !== '' && isPaired(environment)
+  const enabled = active && isPaired(environment)
 
   useTerminalStream()
 
@@ -72,33 +71,43 @@ export function useTerminals(active: boolean): {
     refetchInterval: TERMINAL_ROSTER_POLL_MS,
     staleTime: 0,
   })
-  useMobileTerminalRecovery(active && repoPath !== '', refetch)
-
-  // The daemon lists every PTY it owns, across repos. This client shows one project at a time.
-  const inRepo = useMemo(() => terminalSessionsForRepo(data ?? [], repoPath), [data, repoPath])
+  useMobileTerminalRecovery(active, refetch)
 
   useEffect(() => {
-    if (repoPath === '') {
-      reset()
-      return
-    }
     if (data === undefined) return
-    hydrate(
-      inRepo.map((session) => ({
-        exitCode: session.exitCode,
-        id: session.id,
-        name: session.name,
-        status: session.status,
-      })),
-    )
-    for (const session of inRepo) {
-      if (adapter.isTerminalAttached(session.id)) continue
-      // A dropped socket leaves desired state awaiting reattach; the shared adapter owns retry.
-      settleBackground(adapter.attachTerminal(session.id), 'lifecycle')
-    }
-  }, [adapter, data, hydrate, inRepo, repoPath, reset])
+    hydrate([...data])
+  }, [data, hydrate])
+
+  // A session id means something on ONE daemon. Switching Environment — or losing the pairing
+  // that made this one reachable — makes every row and every emulator stale, and the checkout
+  // switch that used to clear them is gone now that the roster is daemon-wide. Compared against
+  // the last value rather than declared as effect cleanup: unmounting this screen must NOT let
+  // go of the sessions, which is the whole reason a shell survives leaving the tab.
+  const lastEnvironmentId = useRef(environmentId)
+  useEffect(() => {
+    if (lastEnvironmentId.current === environmentId && isPaired(environment)) return
+    lastEnvironmentId.current = environmentId
+    reset()
+  }, [environment, environmentId, reset])
 
   return { error, isLoading, sessions }
+}
+
+/**
+ * Re-read the roster now.
+ *
+ * A spawn or a kill changes the daemon's list immediately, and the five-second poll is a
+ * backstop for what OTHER clients do — waiting it out makes this device's own action look
+ * like it did not land.
+ */
+export function useRefreshTerminals(): () => Promise<void> {
+  const environment = useActiveEnvironment()
+  const queryClient = useQueryClient()
+
+  return async (): Promise<void> => {
+    if (!isPaired(environment)) return
+    await invalidateTerminalSessionsQueries(queryClient, environment.id)
+  }
 }
 
 /** Write a rename through to the daemon, which owns the roster label. */

@@ -12,8 +12,10 @@ import { themeVarsFor } from '@/features/settings/theme-vars'
  * project / branch / worktree switcher in every header to say which checkout you were looking
  * at. Both are gone with this shell.
  *
- * Console and Tasks are daemon-wide, not per-Worktree, which is why they are tabs rather than
- * surfaces. Both are stubs today.
+ * Terminals and Tasks are daemon-wide, not per-Worktree, which is why they are tabs rather than
+ * surfaces. Terminals is the ONE terminal surface — a Worktree no longer has a Terminal row of
+ * its own, because a shell that outlives the checkout you were standing in has to be reachable
+ * from somewhere that is not inside it.
  */
 export function PhoneShell(): React.JSX.Element {
   // Tab tint follows the shared `primary` token, not a hardcoded system blue.
@@ -30,9 +32,9 @@ export function PhoneShell(): React.JSX.Element {
         <NativeTabs.Trigger.Label>Worktrees</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="console">
+      <NativeTabs.Trigger name="terminals">
         <NativeTabs.Trigger.Icon sf="terminal.fill" md="terminal" />
-        <NativeTabs.Trigger.Label>Console</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Label>Terminals</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="tasks">

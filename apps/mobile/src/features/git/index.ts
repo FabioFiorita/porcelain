@@ -24,6 +24,7 @@ export { changesDiffSource, useDiffFile, useDiffReading } from './git-diff'
 export type { QuickCommandId } from './git-mutations'
 export {
   QUICK_COMMANDS,
+  useApplyCommitGroups,
   useCommit,
   useCommitGeneration,
   useDiscardFile,

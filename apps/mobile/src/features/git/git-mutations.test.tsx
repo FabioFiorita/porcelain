@@ -65,7 +65,13 @@ vi.mock('@/features/settings/preferences-store', () => ({
   ),
 }))
 
-import { useDiscardFile, useFileStaging, usePush, useQuickCommand } from './git-mutations'
+import {
+  useApplyCommitGroups,
+  useDiscardFile,
+  useFileStaging,
+  usePush,
+  useQuickCommand,
+} from './git-mutations'
 import { gitQueryKey } from './git-query-key'
 
 const validatingCatalog = {
@@ -253,5 +259,70 @@ describe('Mobile Git writes', () => {
       queryClient.getQueryState(gitQueryKey('env-git-writes', gitFlowQuery(PROJECT)))
         ?.isInvalidated,
     ).toBe(true)
+  })
+  it('commits a whole proposal in one round trip and reports each group', async () => {
+    const mock = createValidatingDaemonMock(validatingCatalog, {
+      gitApplyCommitGroups: () => ({
+        ok: true,
+        value: {
+          results: [
+            { error: null, files: ['src/main.ts'], message: 'feat: a', status: 'committed' },
+            {
+              error: 'nothing to commit',
+              files: ['docs.md'],
+              message: 'docs: b',
+              status: 'failed',
+            },
+          ],
+        },
+      }),
+    })
+    ctx.client = mockClient(mock)
+    const queryClient = new QueryClient()
+    seedProjectCache(queryClient, 'env-git-writes')
+    const { result } = renderHook(() => useApplyCommitGroups(), { wrapper: wrapper(queryClient) })
+
+    const groups = [
+      { files: ['src/main.ts'], message: 'feat: a' },
+      { files: ['docs.md'], message: 'docs: b' },
+    ]
+    let results: readonly { status: string }[] = []
+    await act(async () => {
+      results = await result.current.applyGroups(groups)
+    })
+
+    // One call for the batch — the daemon decides a mid-way failure, not the client.
+    expect(mock.requests()).toEqual([
+      {
+        kind: 'mutation',
+        procedure: 'gitApplyCommitGroups',
+        input: { groups, repoPath: PROJECT },
+      },
+    ])
+    expect(results.map((entry) => entry.status)).toEqual(['committed', 'failed'])
+    // A partial batch still committed something, so the tree and the history both moved.
+    await waitFor(() =>
+      expect(
+        queryClient.getQueryState(gitQueryKey('env-git-writes', gitLogQuery(PROJECT)))
+          ?.isInvalidated,
+      ).toBe(true),
+    )
+    expect(
+      queryClient.getQueryState(gitQueryKey('env-git-writes', gitFlowQuery(PROJECT)))
+        ?.isInvalidated,
+    ).toBe(true)
+  })
+
+  it('does not ask the daemon to commit an empty proposal', async () => {
+    const mock = createValidatingDaemonMock(validatingCatalog, {})
+    ctx.client = mockClient(mock)
+    const queryClient = new QueryClient()
+    const { result } = renderHook(() => useApplyCommitGroups(), { wrapper: wrapper(queryClient) })
+
+    await act(async () => {
+      expect(await result.current.applyGroups([])).toEqual([])
+    })
+
+    expect(mock.requests()).toEqual([])
   })
 })

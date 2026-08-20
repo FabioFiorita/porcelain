@@ -14,9 +14,9 @@ export type { RowMenuAction } from './row-menu-actions'
  * the same gesture. `@expo/ui/swift-ui`'s `ContextMenu` alone would have covered only the first
  * of those.
  *
- * NOT WIRED UP YET. It is the primitive the worktree rows will long-press onto in a later
- * pass; the surfaces that have a long-press menu today still open `ActionSheet`, and moving
- * them is a change to what those rows do rather than to what draws them.
+ * The Terminals list is its first consumer — rename and kill hang off a session row here. The
+ * surfaces that still open `ActionSheet` on a long press have not moved yet; that is a change
+ * to what those rows do rather than to what draws them.
  */
 export function RowContextMenu({
   actions,
