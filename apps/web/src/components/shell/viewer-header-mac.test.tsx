@@ -20,6 +20,13 @@ vi.mock('@renderer/components/ui/sidebar', () => ({
   useSidebar: () => ({ toggleSidebar: vi.fn(), isMobile: false, openMobile: false, open: true }),
 }))
 
+// The Actions roster is a whole feature with its own queries; this suite is about the
+// header row's padding.
+vi.mock('@renderer/features/actions', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@renderer/features/actions')>()),
+  ActionsGroup: () => <div data-testid="actions-group" />,
+}))
+
 vi.mock('./tab-bar', () => ({ TabBar: () => <div data-testid="tab-bar" /> }))
 
 // Reaches the daemon through tRPC for the crumb trail; the header row's padding is what

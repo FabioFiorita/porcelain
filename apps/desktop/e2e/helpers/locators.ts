@@ -156,7 +156,6 @@ export const loc = {
     page.locator(`[data-testid^="${TestIds.terminalsBoardSession('')}"]`),
   terminalsBoardEnvironmentShell: (page: Page, key: string): Locator =>
     byId(page, TestIds.terminalsBoardEnvironmentShell(key)),
-  terminalsBoardActions: (page: Page): Locator => byId(page, TestIds.terminalsBoardActions),
   terminalSession: (page: Page, name: string): Locator =>
     byId(page, TestIds.terminalsBoard)
       .locator('button')
@@ -169,6 +168,7 @@ export const loc = {
   terminalContextAttachFile: (page: Page): Locator => byId(page, TestIds.terminalContextAttachFile),
   terminalContextSelectAll: (page: Page): Locator => byId(page, TestIds.terminalContextSelectAll),
   terminalContextClear: (page: Page): Locator => byId(page, TestIds.terminalContextClear),
+  actionsMenu: (page: Page): Locator => byId(page, TestIds.actionsMenu),
   actionsAdd: (page: Page): Locator => byId(page, TestIds.actionsAdd),
   actionRun: (page: Page, title: string): Locator => byId(page, TestIds.actionRun(title)),
   actionTitleInput: (page: Page): Locator => byId(page, TestIds.actionTitleInput),

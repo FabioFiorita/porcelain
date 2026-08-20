@@ -18,7 +18,8 @@ import { useEffect } from 'react'
 // Must match the displayed shortcuts in surface-sidebar.tsx. Cmd+6 opens the Terminals
 // surface — the bottom panel's old key, so the muscle memory survives, though it opens
 // rather than toggles now (a Viewer tab is closed like any other). Git uses 5 and Canvas
-// keeps its explicit 7 slot.
+// keeps its explicit 7 slot. ⌘⇧A is NOT here: the Actions popover owns that chord from
+// the header, where it can open without taking the Viewer away.
 export const SIDEBAR_TAB_KEYS: Record<string, SidebarTab | undefined> = {
   '1': 'files',
   '2': 'changes',
@@ -31,8 +32,8 @@ export const SIDEBAR_TAB_KEYS: Record<string, SidebarTab | undefined> = {
 /**
  * Window-level shortcuts: close-tab (Ctrl+W here on Linux/Windows, yielding to a focused
  * terminal; macOS Cmd+W goes via main's before-input-event instead), Ctrl+Tab cycling,
- * Cmd+1–5 sidebar tabs, Cmd+6 and ⌘⇧A for the Terminals surface (saved Actions live in it),
- * Cmd+7 for Canvas, ⌘⇧T for Tasks, and ⌘⇧N for a new Task unless Files owns that chord.
+ * Cmd+1–5 sidebar tabs, Cmd+6 for the Terminals surface, Cmd+7 for Canvas, ⌘⇧T for Tasks,
+ * and ⌘⇧N for a new Task unless Files owns that chord.
  * Files' ⌘N/⌘⇧N/⌘D/⌘⌫ live in FileCommands — those go through tRPC hooks, which only a
  * component may touch.
  */
@@ -75,13 +76,6 @@ export function useAppShortcuts(): void {
         if (shifted === 't') {
           e.preventDefault()
           openTasksBoard()
-          return
-        }
-        // Actions moved into the Terminals surface, and this chord opened their menu for
-        // long enough that it has to keep landing on them.
-        if (shifted === 'a') {
-          e.preventDefault()
-          openTerminalsBoard()
           return
         }
         // Files owns ⌘⇧N for new folder only while that surface is actually showing.

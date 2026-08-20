@@ -84,10 +84,6 @@ vi.mock('@renderer/features/projects', () => ({
     isFetching: false,
   }),
 }))
-// The Actions group is a whole feature with its own queries; this file is about the list.
-vi.mock('@renderer/features/actions', () => ({
-  ActionsGroup: () => <div data-testid="actions-group" />,
-}))
 vi.mock('@renderer/hooks/use-local-terminal', () => ({
   useLocalDaemon: () => ({ isLocal: true }),
   useLocalTerminalPath: () => null,

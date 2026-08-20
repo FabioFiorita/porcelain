@@ -33,6 +33,8 @@ export const TestIds = {
   changesetCard: (path: string): string => `changeset-card-${path}`,
   toggleLeftSidebar: 'toggle-left-sidebar',
   toggleRightSidebar: 'toggle-right-sidebar',
+  /** Header popover holding the saved Actions roster (⌘⇧A). */
+  actionsMenu: 'actions-menu',
   commandsMenu: 'commands-menu',
   /** Titlebar install chip — only present when an update is downloaded (Electron). */
   updateButton: 'update-button',
@@ -196,8 +198,6 @@ export const TestIds = {
   terminalsBoardClose: (id: string): string => `terminals-board-close-${id}`,
   /** herdr / tmux on the Environment row. */
   terminalsBoardEnvironmentShell: (key: string): string => `terminals-board-environment-${key}`,
-  /** Saved Actions, rendered against the selected Worktree inside the board. */
-  terminalsBoardActions: 'terminals-board-actions',
 
   actionsEmpty: 'actions-empty',
   actionsAdd: 'actions-add',

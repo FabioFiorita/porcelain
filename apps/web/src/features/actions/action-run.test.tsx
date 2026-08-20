@@ -27,6 +27,7 @@ vi.mock('@renderer/lib/terminal-actions', () => ({
 }))
 
 import { useActionRun } from './action-run'
+import { useActionRunStore } from './action-run-store'
 
 const WORKTREE_PATH = '/synthetic/projects/alpha/main'
 
@@ -101,6 +102,8 @@ beforeEach(() => {
   spawnLocalTerminal.mockReset()
   spawnLocalTerminal.mockResolvedValue(undefined)
   useHubSelectionStore.setState({ selection: { kind: 'worktree', ...selectionTarget } })
+  // The roster popover is open whenever a run starts from it.
+  useActionRunStore.getState().setMenuOpen(true)
 })
 
 describe('useActionRun', () => {
@@ -143,9 +146,10 @@ describe('useActionRun', () => {
       initialInput: 'make build',
     })
     // The shell an Action starts is put in front of the human — the Terminals surface is
-    // the only place it can be seen at all.
+    // the only place it can be seen at all — and the roster popover gets out of its way.
     expect(revealTerminal).toHaveBeenCalledTimes(1)
     expect(revealTerminal).toHaveBeenCalledWith('term-1')
+    expect(useActionRunStore.getState().menuOpen).toBe(false)
     expect(spawnLocalTerminal).not.toHaveBeenCalled()
   })
 

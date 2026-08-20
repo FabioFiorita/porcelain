@@ -6,6 +6,7 @@ import { revealTerminal, spawnLocalTerminal } from '@renderer/lib/terminal-actio
 import { trpc } from '@renderer/lib/trpc'
 import { currentHubTarget } from '@renderer/stores/hub-selection'
 import { useTerminalsStore } from '@renderer/stores/terminals'
+import { useActionRunStore } from './action-run-store'
 
 /**
  * Authorize → Terminal create (ACT-003).
@@ -61,8 +62,14 @@ export function useActionRun(): (
     if (!prepared.ok) return 'needs-local-path'
 
     const { where, cwd, name, initialInput } = prepared.value
+    // A run reveals its shell on Terminals, and this roster is a popover over the Viewer —
+    // leaving it open would cover the very terminal the human just started.
+    const closeMenu = (): void => {
+      useActionRunStore.getState().setMenuOpen(false)
+    }
     if (where === 'local') {
       await spawnLocalTerminal(cwd, { name, initialInput })
+      closeMenu()
       return 'ran'
     }
 
@@ -73,6 +80,7 @@ export function useActionRun(): (
       session: owner?.session ?? undefined,
     })
     revealTerminal(id)
+    closeMenu()
     return 'ran'
   }
 }

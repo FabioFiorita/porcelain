@@ -1,11 +1,14 @@
 import { Button } from '@renderer/components/ui/button'
+import { Popover, PopoverContent, PopoverTrigger } from '@renderer/components/ui/popover'
 import { useSidebar } from '@renderer/components/ui/sidebar'
-import { kbdLabel } from '@renderer/lib/keyboard'
+import { ActionsGroup, useActionRunStore } from '@renderer/features/actions'
+import { isModExclusive, isTextEntry, kbdLabel } from '@renderer/lib/keyboard'
 import { isMacShell } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { TestIds } from '@shared/test-ids'
-import { PanelLeft, PanelRight } from 'lucide-react'
+import { PanelLeft, PanelRight, Zap } from 'lucide-react'
+import { useEffect } from 'react'
 import { MAC_TRAFFIC_LIGHT_CLEARANCE } from './shell-chrome'
 import { ShortcutTooltip } from './shortcut-tooltip'
 import { TabBar } from './tab-bar'
@@ -14,6 +17,65 @@ import { useViewerBreadcrumb } from './use-viewer-breadcrumb'
 interface LeftSidebarHandle {
   collapsed: boolean
   toggle: () => void
+}
+
+/**
+ * Saved Actions, in the header corner and reachable from any tab.
+ *
+ * They run in the selected Worktree wherever they are started from, so the roster does not
+ * belong to one surface: a popover leaves whatever you were reading on screen, and running
+ * one still lands you on Terminals, where its shell is.
+ */
+function ActionsMenu(): React.JSX.Element {
+  // Store-owned, not local state: the file finder opens this popover too, to hand back a
+  // run that needs the trust step or a This-device folder.
+  const open = useActionRunStore((s) => s.menuOpen)
+  const setOpen = useActionRunStore((s) => s.setMenuOpen)
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      if (
+        !isModExclusive(event) ||
+        event.altKey ||
+        !event.shiftKey ||
+        event.key.toLowerCase() !== 'a' ||
+        isTextEntry(event.target)
+      ) {
+        return
+      }
+      event.preventDefault()
+      setOpen(true)
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [setOpen])
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <ShortcutTooltip label="Actions" shortcut={kbdLabel('mod', 'shift', 'A')}>
+        <PopoverTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 gap-1 px-2 text-2xs text-muted-foreground"
+              data-testid={TestIds.actionsMenu}
+            >
+              <Zap className="size-3.5" />
+              Actions
+            </Button>
+          }
+        />
+      </ShortcutTooltip>
+      <PopoverContent
+        align="end"
+        className="max-h-[calc(100dvh-4.5rem)] w-[min(24rem,calc(100vw-1rem))] overflow-auto p-1"
+      >
+        <ActionsGroup />
+      </PopoverContent>
+    </Popover>
+  )
 }
 
 /** Header chrome for the center Viewer; feature internals stay below this boundary. */
@@ -77,6 +139,7 @@ export function ViewerHeader({ left }: { left: LeftSidebarHandle }): React.JSX.E
         )}
       </div>
       <div className="app-no-drag flex shrink-0 items-center gap-1">
+        <ActionsMenu />
         <ShortcutTooltip label="Toggle surfaces sidebar" shortcut={kbdLabel('mod', '.')}>
           <Button
             variant="ghost"

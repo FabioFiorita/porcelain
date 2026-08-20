@@ -15,7 +15,6 @@ import { Kbd, KbdGroup } from '@renderer/components/ui/kbd'
 import { FileTypeIcon, FolderIcon } from '@renderer/components/viewer/file-icon'
 import { useActionRun, useActionRunStore, useActions } from '@renderer/features/actions'
 import { useGitLog } from '@renderer/features/git'
-import { openTerminalsBoard } from '@renderer/features/terminal'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { commandGroupHeadingClass } from '@renderer/lib/controls'
 import { isTerminalTarget, kbdLabel } from '@renderer/lib/keyboard'
@@ -227,21 +226,22 @@ export function FileFinder(): React.JSX.Element {
   }
 
   const requestLocalRun = useActionRunStore((s) => s.requestLocalRun)
+  const openActionsMenu = useActionRunStore((s) => s.setMenuOpen)
   const handleRunCommand = (action: ActionView): void => {
     closeFinder()
     runUserAction(
       async () => {
         const result = await runAction(action)
         if (result === 'needs-local-path') {
-          // ActionsGroup owns the path dialog and now lives in the Terminals surface — open
+          // ActionsGroup owns the path dialog and mounts only in the header popover — open
           // it, and hand the pending action through the compose-intent store.
-          openTerminalsBoard()
+          openActionsMenu(true)
           requestLocalRun(action)
         }
         if (result === 'needs-trust') {
-          // Trust dialog lives on ActionsGroup; open the Terminals surface so the
-          // human can accept the command from the list (unreviewed shield).
-          openTerminalsBoard()
+          // Trust dialog lives on ActionsGroup; open the popover so the human can accept
+          // the command from the roster (unreviewed shield).
+          openActionsMenu(true)
         }
         if (result === 'needs-target') {
           // No Worktree is selected, so there is no checkout to run in. Say so rather

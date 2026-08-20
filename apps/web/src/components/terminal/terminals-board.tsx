@@ -26,7 +26,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from '@renderer/components/ui/empty'
-import { ActionsGroup } from '@renderer/features/actions'
 import { useHubInventory, useProjectDirectories } from '@renderer/features/projects'
 import {
   ENVIRONMENT_GROUP_KEY,
@@ -43,7 +42,6 @@ import { useLocalDaemon, useLocalTerminalPath } from '@renderer/hooks/use-local-
 import { spawnLocalTerminal, spawnTerminalAt } from '@renderer/lib/terminal-actions'
 import { trpc } from '@renderer/lib/trpc'
 import { cn } from '@renderer/lib/utils'
-import { useHubSelectionStore } from '@renderer/stores/hub-selection'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useTerminalsStore } from '@renderer/stores/terminals'
 import { runUserAction, settleBackground } from '@shared/background'
@@ -68,9 +66,9 @@ import { useEffect, useMemo, useState } from 'react'
  * It leads with the Environment's own shells — the daemon host's home, where a multiplexer
  * or an agent herd lives — and lists the Project/Worktree groups under it, resolved by
  * longest `cwd` prefix (`terminal-groups.ts`), because a daemon terminal carries no project
- * id on the wire. Saved Actions sit in the same column: an Action has always needed a
- * Worktree to run in, and putting it beside the Worktree list makes that rule visible
- * instead of a surprise from a menu in the corner.
+ * id on the wire. Saved Actions are NOT here: they run in the selected Worktree wherever
+ * they are started from, so they stay in the header popover, reachable from any tab —
+ * running one still lands here, on the shell it started.
  *
  * Deliberately NOT scoped to the Hub selection: a long-lived process stays reachable while
  * you review a different Project. The daemon owns the sessions, so the list survives a
@@ -117,7 +115,6 @@ export function TerminalsBoard(): React.JSX.Element {
   const closeTerminal = useTerminalsStore((s) => s.close)
   const renameTerminal = useTerminalsStore((s) => s.rename)
   const storeRows = useTerminalsStore((s) => s.sessions)
-  const selection = useHubSelectionStore((s) => s.selection)
   const project = useProjectSelectionStore((s) => s.project)
   const localDaemon = useLocalDaemon()
   const mappedLocalPath = useLocalTerminalPath(project?.path ?? null)
@@ -476,22 +473,6 @@ export function TerminalsBoard(): React.JSX.Element {
                 {group.sessions.map(sessionRow)}
               </div>
             ))}
-        </div>
-        {/* Actions live against the selected Worktree — the same target a run has always
-            required. With none selected the group says so and nothing here can run. */}
-        <div
-          className="flex max-h-[45%] shrink-0 flex-col overflow-y-auto border-t"
-          data-testid={TestIds.terminalsBoardActions}
-        >
-          <div className="flex h-8 shrink-0 items-center gap-1 px-3 text-xs font-medium">
-            <span className="min-w-0 flex-1 truncate">Actions</span>
-            {selection.kind === 'worktree' && project !== null && (
-              <span className="shrink-0 truncate text-2xs font-normal text-muted-foreground">
-                {project.name}
-              </span>
-            )}
-          </div>
-          <ActionsGroup />
         </div>
       </div>
       <div className="min-w-0 flex-1">
