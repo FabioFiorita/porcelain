@@ -65,8 +65,8 @@ import { useEffect, useMemo, useState } from 'react'
  *
  * It leads with the Environment's own shells — the daemon host's home, where a multiplexer
  * or an agent herd lives — and lists the Project/Worktree groups under it, resolved by
- * longest `cwd` prefix (`terminal-groups.ts`), because a daemon terminal carries no project
- * id on the wire. Saved Actions are NOT here: they run in the selected Worktree wherever
+ * longest `cwd` prefix (`client-runtime/terminal/terminal-groups.ts`, shared with the mobile
+ * Terminals tab), because a daemon terminal carries no project id on the wire. Saved Actions are NOT here: they run in the selected Worktree wherever
  * they are started from, so they stay in the header popover, reachable from any tab —
  * running one still lands here, on the shell it started.
  *

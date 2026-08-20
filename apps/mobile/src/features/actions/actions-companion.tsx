@@ -1,4 +1,5 @@
 import type { ActionView } from '@porcelain/contracts/actions'
+import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 
@@ -23,9 +24,12 @@ import { useActionsSelectionStore } from './actions-selection-store'
  * shared action can arrive from a clone or an agent write — accepting is keyed to the command
  * TEXT, so editing it later asks again.
  *
- * Placement remains under the Terminal surface (companion slot); ownership is Actions.
+ * Reached from the Terminals toolbar, and running one LANDS on the shell it started: the
+ * roster screen is replaced by that session, so the back chevron returns to the board rather
+ * than to a list you have already left. Web's header popover does the same thing.
  */
 export function ActionsCompanion({ active }: { active: boolean }): React.JSX.Element {
+  const router = useRouter()
   const repoPath = useHubRepoPath()
   const { actions, error } = useActions(active)
   const runAction = useActionRun()
@@ -38,9 +42,13 @@ export function ActionsCompanion({ active }: { active: boolean }): React.JSX.Ele
   const run = (action: ActionView): void => {
     if (repoPath === null) return
     setFailure(null)
-    runAction(action).catch((cause: unknown) => {
-      setFailure(`Run failed: ${cause instanceof Error ? cause.message : String(cause)}`)
-    })
+    runAction(action)
+      .then((sessionId) => {
+        router.replace({ params: { id: sessionId }, pathname: '/terminals/[id]' })
+      })
+      .catch((cause: unknown) => {
+        setFailure(`Run failed: ${cause instanceof Error ? cause.message : String(cause)}`)
+      })
   }
 
   return (

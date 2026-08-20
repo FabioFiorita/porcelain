@@ -14,6 +14,10 @@ import { callActionsProcedure } from './use-actions-transport'
  * target (#24) and hands back the command plus the verified checkout; this hook only
  * spawns. Imports only the public Terminal `spawnTerminalSession` helper — never
  * terminal-store. Rejects on a missing target, a daemon refusal, or a spawn failure.
+ *
+ * Returns the spawned session's id, because running an Action has to LAND on the shell it
+ * started — the same thing the web popover does. Where that lands is the caller's business;
+ * this hook does not navigate.
  */
 
 const prepareProcedure = namedContractProcedure(
@@ -21,11 +25,11 @@ const prepareProcedure = namedContractProcedure(
   actionsProcedures.prepareActionRun,
 )
 
-export function useActionRun(): (action: ActionView) => Promise<void> {
+export function useActionRun(): (action: ActionView) => Promise<string> {
   const target = useActionsTarget()
   const environment = useActiveEnvironment()
 
-  return async (action: ActionView): Promise<void> => {
+  return async (action: ActionView): Promise<string> => {
     if (target === null) {
       throw new Error('No Worktree target for this Project on the paired daemon')
     }
@@ -41,6 +45,6 @@ export function useActionRun(): (action: ActionView) => Promise<void> {
     }
 
     const { cwd, name, initialInput } = prepared.value
-    await spawnTerminalSession({ cwd, name, initialInput })
+    return await spawnTerminalSession({ cwd, name, initialInput })
   }
 }

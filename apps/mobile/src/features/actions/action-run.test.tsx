@@ -89,7 +89,7 @@ function callsTo(name: string): unknown[][] {
 }
 
 /** Render the hook and wait until the Hub inventory read that resolves the target lands. */
-async function runner(): Promise<(action: ActionView) => Promise<void>> {
+async function runner(): Promise<(action: ActionView) => Promise<string>> {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const { result } = renderHook(() => useActionRun(), { wrapper: wrapper(queryClient) })
   await waitFor(() => expect(queryClient.getQueryData(hubInventoryKey(ENV_ID))).toBeDefined())
@@ -129,7 +129,8 @@ describe('mobile useActionRun', () => {
 
   it('spawns one terminal with the daemon-returned command and verified cwd', async () => {
     const run = await runner()
-    await run(trustedPrimary)
+    // The id comes back so the caller can land on the shell the run started.
+    await expect(run(trustedPrimary)).resolves.toBe('term-1')
 
     expect(spawnTerminalSession).toHaveBeenCalledTimes(1)
     expect(spawnTerminalSession).toHaveBeenCalledWith({
