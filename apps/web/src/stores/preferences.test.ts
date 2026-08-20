@@ -8,8 +8,6 @@ import {
   SIDEBAR_MIN_WIDTH,
   SPLIT_MAX_RATIO,
   SPLIT_MIN_RATIO,
-  TERMINAL_MAX_HEIGHT,
-  TERMINAL_MIN_HEIGHT,
   usePreferencesStore,
 } from './preferences'
 
@@ -117,13 +115,6 @@ describe('hydratePreferences', () => {
     })
     expect(hydratePreferences({ notesHeight: 5 })).toEqual({ notesHeight: NOTES_MIN_HEIGHT })
     expect(hydratePreferences({ notesHeight: 5000 })).toEqual({ notesHeight: NOTES_MAX_HEIGHT })
-    expect(hydratePreferences({ terminalHeight: 20 })).toEqual({
-      terminalHeight: TERMINAL_MIN_HEIGHT,
-    })
-    expect(hydratePreferences({ terminalHeight: 9000 })).toEqual({
-      terminalHeight: TERMINAL_MAX_HEIGHT,
-    })
-    expect(hydratePreferences({ terminalHeight: 400 })).toEqual({ terminalHeight: 400 })
     expect(hydratePreferences({ splitRatio: -3 })).toEqual({ splitRatio: SPLIT_MIN_RATIO })
     expect(hydratePreferences({ splitRatio: 3 })).toEqual({ splitRatio: SPLIT_MAX_RATIO })
   })

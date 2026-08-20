@@ -15,11 +15,11 @@ import { Kbd, KbdGroup } from '@renderer/components/ui/kbd'
 import { FileTypeIcon, FolderIcon } from '@renderer/components/viewer/file-icon'
 import { useActionRun, useActionRunStore, useActions } from '@renderer/features/actions'
 import { useGitLog } from '@renderer/features/git'
+import { openTerminalsBoard } from '@renderer/features/terminal'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { commandGroupHeadingClass } from '@renderer/lib/controls'
 import { isTerminalTarget, kbdLabel } from '@renderer/lib/keyboard'
 import { dirName, fileName } from '@renderer/lib/paths'
-import { openTerminalPanel } from '@renderer/lib/terminal-actions'
 import { useFileFinderStore } from '@renderer/stores/file-finder'
 import { activeTabTarget, targetedTab } from '@renderer/stores/hub-tabs'
 import { type SidebarTab, usePreferencesStore } from '@renderer/stores/preferences'
@@ -233,15 +233,15 @@ export function FileFinder(): React.JSX.Element {
       async () => {
         const result = await runAction(action)
         if (result === 'needs-local-path') {
-          // ActionsGroup owns the path dialog — open the bottom terminal panel, and hand
-          // the pending action through the compose-intent store.
-          await openTerminalPanel()
+          // ActionsGroup owns the path dialog and now lives in the Terminals surface — open
+          // it, and hand the pending action through the compose-intent store.
+          openTerminalsBoard()
           requestLocalRun(action)
         }
         if (result === 'needs-trust') {
-          // Trust dialog lives on ActionsGroup; open the terminal companion so the
+          // Trust dialog lives on ActionsGroup; open the Terminals surface so the
           // human can accept the command from the list (unreviewed shield).
-          await openTerminalPanel()
+          openTerminalsBoard()
         }
         if (result === 'needs-target') {
           // No Worktree is selected, so there is no checkout to run in. Say so rather

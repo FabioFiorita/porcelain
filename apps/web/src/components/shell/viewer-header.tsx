@@ -1,18 +1,11 @@
 import { Button } from '@renderer/components/ui/button'
-import { Popover, PopoverContent, PopoverTrigger } from '@renderer/components/ui/popover'
 import { useSidebar } from '@renderer/components/ui/sidebar'
-import { ActionsGroup } from '@renderer/features/actions'
-import { toastUserActionError } from '@renderer/hooks/mutation-error'
-import { isModExclusive, isTextEntry, kbdLabel } from '@renderer/lib/keyboard'
+import { kbdLabel } from '@renderer/lib/keyboard'
 import { isMacShell } from '@renderer/lib/platform'
-import { toggleTerminalPanel } from '@renderer/lib/terminal-actions'
 import { cn } from '@renderer/lib/utils'
 import { useTabsStore } from '@renderer/stores/tabs'
-import { useTerminalsStore } from '@renderer/stores/terminals'
-import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
-import { PanelBottom, PanelLeft, PanelRight, Zap } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { PanelLeft, PanelRight } from 'lucide-react'
 import { MAC_TRAFFIC_LIGHT_CLEARANCE } from './shell-chrome'
 import { ShortcutTooltip } from './shortcut-tooltip'
 import { TabBar } from './tab-bar'
@@ -23,89 +16,16 @@ interface LeftSidebarHandle {
   toggle: () => void
 }
 
-function HeaderPopover({
-  label,
-  icon: Icon,
-  children,
-  className,
-  testId,
-  shortcutKey,
-  shortcut,
-}: {
-  label: string
-  icon: typeof Zap
-  children: React.ReactNode
-  className?: string
-  testId?: string
-  shortcutKey: string
-  shortcut: string
-}): React.JSX.Element {
-  const [open, setOpen] = useState(false)
-
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent): void => {
-      if (
-        !isModExclusive(event) ||
-        event.altKey ||
-        !event.shiftKey ||
-        event.key.toLowerCase() !== shortcutKey.toLowerCase() ||
-        isTextEntry(event.target)
-      ) {
-        return
-      }
-      event.preventDefault()
-      setOpen(true)
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [shortcutKey])
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <ShortcutTooltip label={label} shortcut={shortcut}>
-        <PopoverTrigger
-          render={
-            <Button
-              variant="ghost"
-              size="sm"
-              className={cn('h-7 gap-1 px-2 text-2xs text-muted-foreground', className)}
-              data-testid={testId}
-            >
-              <Icon className="size-3.5" />
-              {label}
-            </Button>
-          }
-        />
-      </ShortcutTooltip>
-      <PopoverContent
-        align="end"
-        className="max-h-[calc(100dvh-4.5rem)] w-[min(24rem,calc(100vw-1rem))] overflow-auto p-1"
-      >
-        {children}
-      </PopoverContent>
-    </Popover>
-  )
-}
-
 /** Header chrome for the center Viewer; feature internals stay below this boundary. */
 export function ViewerHeader({ left }: { left: LeftSidebarHandle }): React.JSX.Element {
   const { toggleSidebar: toggleRight, isMobile, openMobile, open: rightOpen } = useSidebar()
   const crumbs = useViewerBreadcrumb()
   const paneCount = useTabsStore((s) => s.panes.length)
   const activePaneIndex = useTabsStore((s) => s.activePaneIndex)
-  const terminalPanelOpen = useTerminalsStore((s) => s.panelOpen)
   const rightActive = isMobile ? openMobile : rightOpen
   const handleToggleRight = (): void => {
     toggleRight()
   }
-  const handleToggleTerminal = (): void => {
-    runUserAction(
-      () => toggleTerminalPanel(),
-      (error) => toastUserActionError('Open terminal', error),
-    )
-  }
-  const actionsShortcut = kbdLabel('mod', 'shift', 'A')
 
   return (
     <div
@@ -157,27 +77,6 @@ export function ViewerHeader({ left }: { left: LeftSidebarHandle }): React.JSX.E
         )}
       </div>
       <div className="app-no-drag flex shrink-0 items-center gap-1">
-        <HeaderPopover
-          label="Actions"
-          icon={Zap}
-          testId={TestIds.actionsMenu}
-          shortcutKey="a"
-          shortcut={actionsShortcut}
-        >
-          <ActionsGroup />
-        </HeaderPopover>
-        <ShortcutTooltip label="Toggle terminal panel" shortcut={kbdLabel('mod', '6')}>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={handleToggleTerminal}
-            aria-label="Toggle terminal panel"
-            aria-expanded={terminalPanelOpen}
-            data-testid={TestIds.toggleTerminalPanel}
-          >
-            <PanelBottom />
-          </Button>
-        </ShortcutTooltip>
         <ShortcutTooltip label="Toggle surfaces sidebar" shortcut={kbdLabel('mod', '.')}>
           <Button
             variant="ghost"

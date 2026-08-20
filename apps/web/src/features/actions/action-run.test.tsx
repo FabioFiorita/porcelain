@@ -8,13 +8,13 @@ import { renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const create = vi.fn(async () => 'term-1')
-const openPanel = vi.fn()
+const revealTerminal = vi.fn()
 
 const spawnLocalTerminal = vi.fn<typeof spawnLocalTerminalModule>(async () => {})
 
 vi.mock('@renderer/stores/terminals', () => ({
   useTerminalsStore: {
-    getState: () => ({ create, openPanel }),
+    getState: () => ({ create }),
   },
 }))
 
@@ -23,6 +23,7 @@ vi.mock('@renderer/lib/terminal-actions', () => ({
   // an untyped mock would not notice the real signature changing under it.
   spawnLocalTerminal: (...args: Parameters<typeof spawnLocalTerminalModule>) =>
     spawnLocalTerminal(...args),
+  revealTerminal: (id: string) => revealTerminal(id),
 }))
 
 import { useActionRun } from './action-run'
@@ -96,7 +97,7 @@ beforeEach(() => {
   setPrimaryEnvironmentId('env-local')
   create.mockReset()
   create.mockResolvedValue('term-1')
-  openPanel.mockReset()
+  revealTerminal.mockReset()
   spawnLocalTerminal.mockReset()
   spawnLocalTerminal.mockResolvedValue(undefined)
   useHubSelectionStore.setState({ selection: { kind: 'worktree', ...selectionTarget } })
@@ -110,7 +111,7 @@ describe('useActionRun', () => {
     expect(inputs).toEqual([])
     expect(create).not.toHaveBeenCalled()
     expect(spawnLocalTerminal).not.toHaveBeenCalled()
-    expect(openPanel).not.toHaveBeenCalled()
+    expect(revealTerminal).not.toHaveBeenCalled()
   })
 
   it('returns needs-target and authorizes nothing when no Worktree is selected', async () => {
@@ -141,8 +142,10 @@ describe('useActionRun', () => {
       name: 'Build',
       initialInput: 'make build',
     })
-    expect(openPanel).toHaveBeenCalledTimes(1)
-    expect(openPanel).toHaveBeenCalledWith('term-1')
+    // The shell an Action starts is put in front of the human — the Terminals surface is
+    // the only place it can be seen at all.
+    expect(revealTerminal).toHaveBeenCalledTimes(1)
+    expect(revealTerminal).toHaveBeenCalledWith('term-1')
     expect(spawnLocalTerminal).not.toHaveBeenCalled()
   })
 

@@ -3,6 +3,13 @@ import { hydrateViewerTabs, type Pane, type Tab, tabId, useTabsStore } from './t
 
 const tab = (id: string): Tab => ({ id, kind: 'file', title: id, path: `/repo/${id}` })
 
+const terminals = (): Tab => ({
+  id: 'terminals:terminals',
+  kind: 'terminals',
+  title: 'Terminals',
+  path: 'terminals',
+})
+
 const reset = (): void => {
   useTabsStore.setState({ panes: [{ tabs: [], activeTabId: null }], activePaneIndex: 0 })
 }
@@ -343,6 +350,43 @@ describe('useTabsStore', () => {
       expect(useTabsStore.getState().activePaneIndex).toBe(0)
     })
 
+    // The Terminals board owns ONE Ghostty node app-wide: a second mount steals it and
+    // leaves the first pane blank. So the tab may only ever live in one pane.
+    describe('exclusive tabs', () => {
+      it('reveals the board where it already lives instead of opening a second one', () => {
+        useTabsStore.getState().openTab(terminals())
+        useTabsStore.getState().openTabToSide(tab('diff'))
+        expect(useTabsStore.getState().activePaneIndex).toBe(1)
+
+        useTabsStore.getState().openTab(terminals())
+
+        expect(pane(0).tabs.map((t) => t.id)).toEqual(['terminals:terminals'])
+        expect(pane(1).tabs.map((t) => t.id)).toEqual(['diff'])
+        expect(useTabsStore.getState().activePaneIndex).toBe(0)
+      })
+
+      it('moves the board to the side rather than copying it', () => {
+        useTabsStore.getState().openTab(tab('diff'))
+        useTabsStore.getState().openTab(terminals())
+        useTabsStore.getState().openTabToSide(terminals())
+
+        expect(useTabsStore.getState().panes).toHaveLength(2)
+        expect(pane(0).tabs.map((t) => t.id)).toEqual(['diff'])
+        expect(pane(1).tabs.map((t) => t.id)).toEqual(['terminals:terminals'])
+        expect(useTabsStore.getState().activePaneIndex).toBe(1)
+      })
+
+      it('is a no-op when splitting the board to the side it is already on', () => {
+        useTabsStore.getState().openTab(tab('diff'))
+        useTabsStore.getState().openTabToSide(terminals())
+        useTabsStore.getState().setActivePane(0)
+        useTabsStore.getState().openTabToSide(terminals())
+
+        expect(pane(1).tabs.map((t) => t.id)).toEqual(['terminals:terminals'])
+        expect(useTabsStore.getState().activePaneIndex).toBe(1)
+      })
+    })
+
     it('cycles tabs within the active pane only', () => {
       useTabsStore.getState().openTab(tab('a'))
       useTabsStore.getState().openTab(tab('b'))
@@ -381,6 +425,28 @@ describe('hydrateViewerTabs', () => {
     expect(restored.panes).toHaveLength(1)
     expect(restored.panes[0]?.tabs.map((t) => t.id)).toEqual(['file:/repo/a.ts', 'diff:src/a.ts'])
     expect(restored.panes[0]?.activeTabId).toBe('diff:src/a.ts')
+  })
+
+  it('keeps a duplicated Terminals tab in the first pane only', () => {
+    const board = {
+      id: 'terminals:terminals',
+      kind: 'terminals',
+      title: 'Terminals',
+      path: 'terminals',
+    }
+    const restored = hydrateViewerTabs({
+      panes: [
+        { tabs: [board], activeTabId: 'terminals:terminals' },
+        {
+          tabs: [board, { id: 'file:/repo/a.ts', kind: 'file', title: 'a.ts', path: '/repo/a.ts' }],
+          activeTabId: 'terminals:terminals',
+        },
+      ],
+      activePaneIndex: 1,
+    })
+    expect(restored.panes[0]?.tabs.map((t) => t.id)).toEqual(['terminals:terminals'])
+    expect(restored.panes[1]?.tabs.map((t) => t.id)).toEqual(['file:/repo/a.ts'])
+    expect(restored.panes[1]?.activeTabId).toBe('file:/repo/a.ts')
   })
 
   it('returns one empty pane for a corrupt blob', () => {

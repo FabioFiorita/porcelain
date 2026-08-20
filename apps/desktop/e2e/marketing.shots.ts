@@ -323,8 +323,14 @@ test('marketing shots — the seeded demo repo across every surface', async () =
     await shoot(page, 'viewer.png')
 
     // terminal.png — a real PTY round-trip showing the repo's git state + history.
-    await byId(page, TestIds.toggleTerminalPanel).click()
-    await byId(page, TestIds.terminalNew).click()
+    await byId(page, TestIds.terminalsOpen).click()
+    await byId(page, TestIds.terminalsBoardNew).click()
+    await page
+      .locator(
+        `[data-testid^="${TestIds.terminalsBoardNewAt('')}"]:not([data-testid="${TestIds.terminalsBoardNewAt('environment')}"])`,
+      )
+      .first()
+      .click()
     const input = page.locator('.porcelain-ghostty-input').first()
     await input.waitFor()
     await input.focus()

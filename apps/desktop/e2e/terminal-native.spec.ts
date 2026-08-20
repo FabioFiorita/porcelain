@@ -1,4 +1,12 @@
-import { expect, expectTerminalText, loc, selectTab, test, waitForShell } from './helpers/app'
+import {
+  expect,
+  expectTerminalText,
+  loc,
+  openTerminals,
+  spawnBoardTerminal,
+  test,
+  waitForShell,
+} from './helpers/app'
 
 test('native clipboard, selection copy, and dropped files reach the daemon PTY', async ({
   app,
@@ -8,8 +16,8 @@ test('native clipboard, selection copy, and dropped files reach the daemon PTY',
   if (app === null) throw new Error('Electron project launched without an Electron app')
 
   await waitForShell(page)
-  await selectTab(page, 'Terminal')
-  await loc.terminalNew(page).click()
+  await openTerminals(page)
+  await spawnBoardTerminal(page)
   const input = page.locator('.porcelain-ghostty-input').first()
   await input.waitFor()
   await input.focus()

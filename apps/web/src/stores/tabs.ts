@@ -85,6 +85,18 @@ interface TabsState {
 
 const emptyPane = (): Pane => ({ tabs: [], activeTabId: null })
 
+/**
+ * Kinds whose view owns ONE live DOM node for the whole app, so the same tab may never
+ * be mounted in two panes at once. Terminals re-parents a single Ghostty wrapper into
+ * whichever pane mounted last; the pane that lost it goes blank and nothing puts it back.
+ *
+ * The invariant lives here rather than in the openers because every entry point — ⌘6,
+ * ⌘⇧A, a saved Action, a lifecycle script, "Open to the Side", a restored layout — passes
+ * through this store. Opening one where it already lives ACTIVATES it; splitting it to the
+ * side MOVES it, which is how a terminal is watched beside a diff.
+ */
+const EXCLUSIVE_KINDS: ReadonlySet<TabKind> = new Set<TabKind>(['terminals'])
+
 const MAX_PERSISTED_TABS = 50
 
 const hubTargetSchema = z
@@ -151,9 +163,30 @@ export function hydrateViewerTabs(persisted: unknown): {
   if (!parsed.success || parsed.data.panes === undefined || parsed.data.panes.length === 0) {
     return { panes: [emptyPane()], activePaneIndex: 0 }
   }
-  const panes = parsed.data.panes.map(sanitizePane)
+  const panes = dedupeExclusive(parsed.data.panes.map(sanitizePane))
   const activePaneIndex = Math.min(parsed.data.activePaneIndex ?? 0, panes.length - 1)
   return normalize(panes, activePaneIndex)
+}
+
+/** Index of the pane already holding this exclusive tab, or -1 (never for other kinds). */
+function exclusivePaneIndex(panes: Pane[], tab: Tab): number {
+  if (!EXCLUSIVE_KINDS.has(tab.kind)) return -1
+  return panes.findIndex((p) => p.tabs.some((t) => t.id === tab.id))
+}
+
+/** A layout persisted before the invariant existed can hold one exclusive tab in both
+ *  panes; the first pane keeps it so a restored window never opens blank. */
+function dedupeExclusive(panes: Pane[]): Pane[] {
+  const seen = new Set<string>()
+  return panes.map((pane) => {
+    let next = pane
+    for (const tab of pane.tabs) {
+      if (!EXCLUSIVE_KINDS.has(tab.kind)) continue
+      if (seen.has(tab.id)) next = removeTab(next, tab.id)
+      else seen.add(tab.id)
+    }
+    return next
+  })
 }
 
 // Insert (or re-target) a tab in one pane — the preview/dedup rules, scoped to
@@ -270,21 +303,39 @@ export const useTabsStore = create<TabsState>()(
       panes: [emptyPane()],
       activePaneIndex: 0,
       openTab: (tab: Tab) =>
-        set((state) => ({
-          panes: state.panes.map((p, i) => (i === state.activePaneIndex ? addTab(p, tab) : p)),
-        })),
+        set((state) => {
+          // An exclusive tab is revealed where it already lives: opening a second copy in
+          // the active pane is what blanked the first one.
+          const held = exclusivePaneIndex(state.panes, tab)
+          if (held !== -1) {
+            return {
+              panes: state.panes.map((p, i) => (i === held ? addTab(p, tab) : p)),
+              activePaneIndex: held,
+            }
+          }
+          return {
+            panes: state.panes.map((p, i) => (i === state.activePaneIndex ? addTab(p, tab) : p)),
+          }
+        }),
       openTabToSide: (tab: Tab) =>
         set((state) => {
+          // Exclusive tabs move rather than copy — that is what makes "terminal beside a
+          // diff" work instead of leaving one of the two panes blank.
+          const source = exclusivePaneIndex(state.panes, tab)
           if (state.panes.length === 1) {
             const pane = state.panes[0]
             if (!pane) return state
-            return { panes: [pane, addTab(emptyPane(), tab)], activePaneIndex: 1 }
+            const left = source === 0 ? removeTab(pane, tab.id) : pane
+            return normalize([left, addTab(emptyPane(), tab)], 1)
           }
           const target = state.activePaneIndex === 0 ? 1 : 0
-          return {
-            panes: state.panes.map((p, i) => (i === target ? addTab(p, tab) : p)),
-            activePaneIndex: target,
-          }
+          if (source === target) return { activePaneIndex: target }
+          const panes = state.panes.map((p, i) => {
+            if (i === target) return addTab(p, tab)
+            if (i === source) return removeTab(p, tab.id)
+            return p
+          })
+          return normalize(panes, target)
         }),
       pinTab: (id: string) =>
         set((state) => ({

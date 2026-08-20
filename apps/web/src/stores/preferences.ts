@@ -41,9 +41,6 @@ export const RIGHT_SIDEBAR_MIN_WIDTH = 280
 export const SIDEBAR_MAX_WIDTH = 520
 export const NOTES_MIN_HEIGHT = 100
 export const NOTES_MAX_HEIGHT = 600
-export const TERMINAL_MIN_HEIGHT = 140
-export const TERMINAL_MAX_HEIGHT = 800
-export const TERMINAL_DEFAULT_HEIGHT = 288
 export const SPLIT_MIN_RATIO = 0.2
 export const SPLIT_MAX_RATIO = 0.8
 
@@ -53,8 +50,6 @@ const clampSidebarWidth = (width: number): number =>
   Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, width))
 const clampNotesHeight = (height: number): number =>
   Math.min(NOTES_MAX_HEIGHT, Math.max(NOTES_MIN_HEIGHT, height))
-const clampTerminalHeight = (height: number): number =>
-  Math.min(TERMINAL_MAX_HEIGHT, Math.max(TERMINAL_MIN_HEIGHT, height))
 const clampSplitRatio = (ratio: number): number =>
   Math.min(SPLIT_MAX_RATIO, Math.max(SPLIT_MIN_RATIO, ratio))
 
@@ -95,7 +90,6 @@ const persistedPreferencesSchema = z.object({
   sidebarTab: persistedField(sidebarTabSchema),
   sidebarWidth: persistedField(z.number().transform(clampSidebarWidth)),
   notesHeight: persistedField(z.number().transform(clampNotesHeight)),
-  terminalHeight: persistedField(z.number().transform(clampTerminalHeight)),
   splitRatio: persistedField(z.number().transform(clampSplitRatio)),
   dismissedDaemonUpdates: persistedField(z.record(z.string(), z.string())),
 })
@@ -134,7 +128,6 @@ export function hydratePreferences(persisted: unknown): Partial<PreferenceValues
   if (blob.sidebarTab !== undefined) hydrated.sidebarTab = blob.sidebarTab
   if (blob.sidebarWidth !== undefined) hydrated.sidebarWidth = blob.sidebarWidth
   if (blob.notesHeight !== undefined) hydrated.notesHeight = blob.notesHeight
-  if (blob.terminalHeight !== undefined) hydrated.terminalHeight = blob.terminalHeight
   if (blob.splitRatio !== undefined) hydrated.splitRatio = blob.splitRatio
   if (blob.dismissedDaemonUpdates !== undefined)
     hydrated.dismissedDaemonUpdates = blob.dismissedDaemonUpdates
@@ -160,8 +153,6 @@ interface PreferencesState {
   sidebarTab: SidebarTab
   sidebarWidth: number
   notesHeight: number
-  /** Height of the bottom terminal panel, in pixels. */
-  terminalHeight: number
   /** Fraction of the viewer width given to the left pane when split (0.2–0.8). */
   splitRatio: number
   /**
@@ -183,7 +174,6 @@ interface PreferencesState {
   setRightSidebarWidth: (width: number) => void
   setSidebarWidth: (width: number) => void
   setNotesHeight: (height: number) => void
-  setTerminalHeight: (height: number) => void
   setSplitRatio: (ratio: number) => void
   setTheme: (theme: ThemeMode) => void
   dismissDaemonUpdate: (host: string, version: string) => void
@@ -205,7 +195,6 @@ export const usePreferencesStore = create<PreferencesState>()(
       sidebarTab: 'files',
       sidebarWidth: 256,
       notesHeight: 220,
-      terminalHeight: TERMINAL_DEFAULT_HEIGHT,
       splitRatio: 0.5,
       dismissedDaemonUpdates: {},
       setChangesScope: (changesScope: ChangesScope) => set({ changesScope }),
@@ -229,7 +218,6 @@ export const usePreferencesStore = create<PreferencesState>()(
         }),
       setSidebarWidth: (width: number) => set({ sidebarWidth: clampSidebarWidth(width) }),
       setNotesHeight: (height: number) => set({ notesHeight: clampNotesHeight(height) }),
-      setTerminalHeight: (height: number) => set({ terminalHeight: clampTerminalHeight(height) }),
       setSplitRatio: (ratio: number) => set({ splitRatio: clampSplitRatio(ratio) }),
       setTheme: (theme: ThemeMode) => set({ theme }),
       dismissDaemonUpdate: (host: string, version: string) =>

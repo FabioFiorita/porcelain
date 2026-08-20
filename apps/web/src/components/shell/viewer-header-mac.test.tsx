@@ -20,10 +20,6 @@ vi.mock('@renderer/components/ui/sidebar', () => ({
   useSidebar: () => ({ toggleSidebar: vi.fn(), isMobile: false, openMobile: false, open: true }),
 }))
 
-vi.mock('@renderer/features/actions', () => ({
-  ActionsGroup: () => <div data-testid="actions-group" />,
-}))
-
 vi.mock('./tab-bar', () => ({ TabBar: () => <div data-testid="tab-bar" /> }))
 
 // Reaches the daemon through tRPC for the crumb trail; the header row's padding is what

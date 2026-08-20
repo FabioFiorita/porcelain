@@ -4,20 +4,14 @@ import {
   SIDEBAR_MIN_WIDTH,
   SPLIT_MAX_RATIO,
   SPLIT_MIN_RATIO,
-  TERMINAL_MAX_HEIGHT,
-  TERMINAL_MIN_HEIGHT,
   usePreferencesStore,
 } from '@renderer/stores/preferences'
-import { TestIds } from '@shared/test-ids'
 
 const clampWidth = (width: number, min: number = SIDEBAR_MIN_WIDTH): number =>
   Math.min(SIDEBAR_MAX_WIDTH, Math.max(min, width))
 
 const clampRatio = (ratio: number): number =>
   Math.min(SPLIT_MAX_RATIO, Math.max(SPLIT_MIN_RATIO, ratio))
-
-const clampTerminalHeight = (height: number): number =>
-  Math.min(TERMINAL_MAX_HEIGHT, Math.max(TERMINAL_MIN_HEIGHT, height))
 
 export function SidebarResizeHandle(): React.JSX.Element {
   const setSidebarWidth = usePreferencesStore((s) => s.setSidebarWidth)
@@ -119,43 +113,6 @@ export function SplitResizeHandle(): React.JSX.Element {
     // biome-ignore lint/a11y/noStaticElementInteractions: pointer-only resize affordance
     <div
       className="z-20 w-1.5 shrink-0 cursor-col-resize bg-border/50 transition-colors hover:bg-sidebar-border active:bg-sidebar-border"
-      onMouseDown={handleStartResize}
-    />
-  )
-}
-
-/**
- * Top edge of the bottom terminal panel. Same drag-then-commit as the sidebar
- * handles: write height on the panel during the move, persist on mouseup.
- */
-export function TerminalResizeHandle(): React.JSX.Element {
-  const setTerminalHeight = usePreferencesStore((s) => s.setTerminalHeight)
-
-  const handleStartResize = (event: React.MouseEvent): void => {
-    event.preventDefault()
-    const panel = event.currentTarget.closest<HTMLElement>('[data-slot="terminal-panel"]')
-    let height = usePreferencesStore.getState().terminalHeight
-    const handleMouseMove = (e: MouseEvent): void => {
-      if (!panel) return
-      height = clampTerminalHeight(panel.getBoundingClientRect().bottom - e.clientY)
-      panel.style.height = `${height}px`
-    }
-    const handleMouseUp = (): void => {
-      window.removeEventListener('mousemove', handleMouseMove)
-      window.removeEventListener('mouseup', handleMouseUp)
-      document.body.style.removeProperty('cursor')
-      setTerminalHeight(height)
-    }
-    document.body.style.cursor = 'row-resize'
-    window.addEventListener('mousemove', handleMouseMove)
-    window.addEventListener('mouseup', handleMouseUp)
-  }
-
-  return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: pointer-only resize affordance
-    <div
-      data-testid={TestIds.terminalResize}
-      className="absolute inset-x-0 top-0 z-20 h-1.5 cursor-row-resize transition-colors hover:bg-sidebar-border active:bg-sidebar-border"
       onMouseDown={handleStartResize}
     />
   )

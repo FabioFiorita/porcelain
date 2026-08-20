@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { PROTOCOL_VERSION, PROTOCOL_VERSION_HEADER } from '@porcelain/contracts'
 import { projectActionsPath } from '@shared/project-store'
-import { expect, expectTerminalText, loc, test, waitForShell } from './helpers/app'
+import { expect, expectTerminalText, loc, openTerminals, test, waitForShell } from './helpers/app'
 
 const COMMAND = 'echo porcelain-e2e-actions'
 
@@ -92,9 +92,11 @@ test('Actions: the Hub menu lists a Project roster, runs it in the selected Work
   const { projectId, worktreeId } = await waitForProjectAndWorktree(seeded.udBase)
   await seedAction(seeded.udBase, projectId)
 
-  // 1. Listing: the agent-curated roster shows up in the top-corner menu, unreviewed —
-  //    an action written by an agent is not something this machine has agreed to run.
-  await loc.actionsMenu(page).click()
+  // 1. Listing: the agent-curated roster shows up on the Terminals surface — beside the
+  //    Worktree list a run has always needed — unreviewed, because an action written by an
+  //    agent is not something this machine has agreed to run.
+  await openTerminals(page)
+  await expect(loc.terminalsBoardActions(page)).toBeVisible()
   await expect(loc.actionRun(page, 'Echo hello')).toBeVisible()
   await expect(loc.actionRun(page, 'Echo hello')).toContainText(COMMAND)
   await expect(loc.actionUnreviewed(page, 'Echo hello')).toBeVisible()

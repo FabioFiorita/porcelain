@@ -33,8 +33,6 @@ export const TestIds = {
   changesetCard: (path: string): string => `changeset-card-${path}`,
   toggleLeftSidebar: 'toggle-left-sidebar',
   toggleRightSidebar: 'toggle-right-sidebar',
-  toggleTerminalPanel: 'toggle-terminal-panel',
-  actionsMenu: 'actions-menu',
   commandsMenu: 'commands-menu',
   /** Titlebar install chip — only present when an update is downloaded (Electron). */
   updateButton: 'update-button',
@@ -80,7 +78,6 @@ export const TestIds = {
   glance: 'glance',
   glanceChangedFiles: 'glance-changed-files',
   glanceJumpChanges: 'glance-jump-changes',
-  glanceJumpTerminal: 'glance-jump-terminal',
 
   // --- Settings ---
   settingsDialog: 'settings-dialog',
@@ -164,24 +161,7 @@ export const TestIds = {
   generateCommitGroups: 'generate-commit-groups',
   acceptCommitGroups: 'accept-commit-groups',
 
-  // --- Development servers (daemon-owned, per Worktree) ---
-  devServers: 'dev-servers',
-  devServersEmpty: 'dev-servers-empty',
-  devServerRow: (id: string): string => `dev-server-${id}`,
-  devServerUrl: (id: string): string => `dev-server-url-${id}`,
-  devServerAttach: (id: string): string => `dev-server-attach-${id}`,
-  devServerStop: (id: string): string => `dev-server-stop-${id}`,
-  devServerDismiss: (id: string): string => `dev-server-dismiss-${id}`,
-  devServerNew: 'dev-server-new',
-  devServerLabelInput: 'dev-server-label-input',
-  devServerCommandInput: 'dev-server-command-input',
-  devServerSubmit: 'dev-server-submit',
-
   // --- Terminal ---
-  terminalNew: 'terminal-new',
-  terminalList: 'terminal-list',
-  terminalPanel: 'terminal-panel',
-  terminalResize: 'terminal-resize',
   /** The key bar above a terminal pane on touch (Esc/Tab/Ctrl/arrows a soft keyboard lacks). */
   terminalKeyBar: 'terminal-key-bar',
   terminalKey: (label: string): string =>
@@ -195,17 +175,16 @@ export const TestIds = {
   terminalContextAttachFile: 'terminal-context-attach-file',
   terminalContextSelectAll: 'terminal-context-select-all',
   terminalContextClear: 'terminal-context-clear',
-  /** Machine picker items shown when the window is bound to a REMOTE daemon. */
-  terminalNewRemote: 'terminal-new-remote',
+  /** Machine picker item shown when the window is bound to a REMOTE daemon. */
   terminalNewLocal: 'terminal-new-local',
   localTerminalPathInput: 'local-terminal-path-input',
   localTerminalPathSave: 'local-terminal-path-save',
   /**
-   * Header icon left of "+" on a remote-bound Terminal tab — set/change the local
+   * Header icon left of "+" on a remote-bound Terminals board — set/change the local
    * clone path used by "This device" shells and local-targeted actions.
    */
   localTerminalPathButton: 'local-terminal-path-button',
-  // --- Terminals board (the daemon-wide, cross-project view in the Viewer) ---
+  // --- Terminals board (the one terminal surface: daemon-wide, cross-project) ---
   terminalsOpen: 'terminals-open',
   terminalsBoard: 'terminals-board',
   terminalsBoardEmpty: 'terminals-board-empty',
@@ -214,6 +193,11 @@ export const TestIds = {
   terminalsBoardGrid: 'terminals-board-grid',
   terminalsBoardGroup: (key: string): string => `terminals-board-group-${key}`,
   terminalsBoardSession: (id: string): string => `terminals-board-session-${id}`,
+  terminalsBoardClose: (id: string): string => `terminals-board-close-${id}`,
+  /** herdr / tmux on the Environment row. */
+  terminalsBoardEnvironmentShell: (key: string): string => `terminals-board-environment-${key}`,
+  /** Saved Actions, rendered against the selected Worktree inside the board. */
+  terminalsBoardActions: 'terminals-board-actions',
 
   actionsEmpty: 'actions-empty',
   actionsAdd: 'actions-add',

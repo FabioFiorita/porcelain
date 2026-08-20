@@ -36,7 +36,7 @@ let inventories: readonly {
 }[] = []
 
 const create = vi.fn(async () => 'term-1')
-const openPanel = vi.fn()
+const focus = vi.fn()
 const spawnLocalTerminal = vi.fn<typeof spawnLocalTerminalModule>(async () => {})
 
 vi.mock('@renderer/features/projects', () => ({
@@ -50,7 +50,7 @@ vi.mock('@renderer/hooks/use-local-terminal', () => ({
 
 vi.mock('@renderer/stores/terminals', () => ({
   useTerminalsStore: {
-    getState: () => ({ create, openPanel }),
+    getState: () => ({ create, focus }),
   },
 }))
 

@@ -1,7 +1,16 @@
 import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { PROTOCOL_VERSION } from '@porcelain/contracts'
-import { expect, expectTerminalText, loc, selectTab, test, waitForShell } from './helpers/app'
+import {
+  expect,
+  expectTerminalText,
+  loc,
+  openTerminals,
+  selectTab,
+  spawnBoardTerminal,
+  test,
+  waitForShell,
+} from './helpers/app'
 
 interface SessionMismatch {
   t: 'session:mismatch'
@@ -104,8 +113,8 @@ test('a PTY survives browser detach, reconnects, and replays its bounded tail', 
   page,
 }) => {
   await waitForShell(page)
-  await loc.toggleTerminalPanel(page).click()
-  await loc.terminalNew(page).waitFor()
+  await openTerminals(page)
+  await spawnBoardTerminal(page)
 
   const input = page.locator('.porcelain-ghostty-input').first()
   await input.waitFor()
@@ -117,13 +126,10 @@ test('a PTY survives browser detach, reconnects, and replays its bounded tail', 
 
   // Reload closes the browser session (daemon detach) while the daemon-owned PTY remains alive.
   // The fresh roster hydration then opens the existing row and attaches a new Ghostty stream.
+  // The Terminals tab kind is persisted, so the surface restores itself with the window.
   await page.reload()
   await waitForShell(page)
   const existing = loc.terminalSession(page, 'Terminal 1')
-  // The panel is persistent but hidden after reload; this structural locator can observe its
-  // hydrated row without requiring the panel to be visible or triggering a new PTY.
-  await existing.waitFor({ state: 'attached', timeout: 15_000 })
-  await loc.toggleTerminalPanel(page).click()
   await existing.waitFor({ timeout: 15_000 })
   await existing.click()
   await expectTerminalText(page, 0, 'SCROLLBACK_TAIL_64K', 45_000)

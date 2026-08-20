@@ -14,6 +14,7 @@ import {
   registerTerminalSession,
   resetTerminalSessions,
 } from '@renderer/lib/local-daemon'
+import { followTerminal } from '@renderer/lib/terminal-actions'
 import { receiveData, receiveExit, receiveScrollback } from '@renderer/lib/terminal-registry'
 import { trpc } from '@renderer/lib/trpc'
 import { useHubRepoPath } from '@renderer/stores/hub-repo'
@@ -124,10 +125,12 @@ export function useTerminalRoster(): void {
   /**
    * A Worktree lifecycle terminal the daemon just started for us.
    *
-   * Setup and dispose are the two commands Porcelain runs without a click, so the human has
-   * to be put in front of them rather than left to find them. The id is held until the row
-   * actually shows up: creating a Worktree announces the session before the client has
-   * opened that checkout, and the roster only lists terminals of the open one.
+   * Setup and dispose are the two commands Porcelain runs without a click, so the board
+   * follows them — but it does not navigate there: nobody asked for this shell, and taking
+   * the pane away from a diff to show it is a worse surprise than a missed script. The id
+   * is held until the row actually shows up: creating a Worktree announces the session
+   * before the client has opened that checkout, and the roster only lists terminals of the
+   * open one.
    */
   const [pendingFocus, setPendingFocus] = useState<string | null>(null)
   useEffect(() => {
@@ -148,6 +151,8 @@ export function useTerminalRoster(): void {
       ...inRepo.map((session) => ({
         id: session.id,
         name: session.name,
+        cwd: session.cwd,
+        createdAt: session.createdAt,
         status: session.status,
         exitCode: session.exitCode,
         origin: 'primary' as const,
@@ -155,6 +160,8 @@ export function useTerminalRoster(): void {
       ...localSessions.map((session) => ({
         id: session.id,
         name: session.name,
+        cwd: session.cwd,
+        createdAt: session.createdAt,
         status: session.status,
         exitCode: session.exitCode,
         origin: 'local' as const,
@@ -163,7 +170,7 @@ export function useTerminalRoster(): void {
 
     if (pendingFocus !== null && rows.some((row) => row.id === pendingFocus)) {
       setPendingFocus(null)
-      useTerminalsStore.getState().openPanel(pendingFocus)
+      followTerminal(pendingFocus)
     }
 
     resetTerminalSessions()

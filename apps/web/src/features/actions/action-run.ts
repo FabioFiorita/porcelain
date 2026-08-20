@@ -2,7 +2,7 @@ import { prepareActionRun } from '@porcelain/client-runtime/actions'
 import type { HubTarget } from '@porcelain/client-runtime/projects'
 import type { ActionView } from '@porcelain/contracts/actions'
 import { environmentClientFor } from '@renderer/lib/environment-sessions'
-import { spawnLocalTerminal } from '@renderer/lib/terminal-actions'
+import { revealTerminal, spawnLocalTerminal } from '@renderer/lib/terminal-actions'
 import { trpc } from '@renderer/lib/trpc'
 import { currentHubTarget } from '@renderer/stores/hub-selection'
 import { useTerminalsStore } from '@renderer/stores/terminals'
@@ -72,7 +72,7 @@ export function useActionRun(): (
       initialInput,
       session: owner?.session ?? undefined,
     })
-    useTerminalsStore.getState().openPanel(id)
+    revealTerminal(id)
     return 'ran'
   }
 }
