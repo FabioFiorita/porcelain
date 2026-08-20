@@ -43,7 +43,7 @@ export function HubScreen(): React.JSX.Element {
 
   return (
     <View className="flex-1 bg-background" testID="porcelain-hub-screen">
-      <PhoneHeader companion={false} search={false} title="Worktrees" />
+      <PhoneHeader back={false} companion={false} search={false} title="Worktrees" />
       <SurfaceScroll gap={4} paddingTop={8}>
         {groups.length === 0 ? (
           <EmptyNote

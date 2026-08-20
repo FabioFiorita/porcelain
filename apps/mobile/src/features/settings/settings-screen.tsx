@@ -46,7 +46,7 @@ export function SettingsScreen(): React.JSX.Element {
 
   return (
     <View className="flex-1 bg-background" testID="porcelain-phone-settings">
-      <PhoneHeader border={false} companion={false} search={false} title="Settings">
+      <PhoneHeader back={false} border={false} companion={false} search={false} title="Settings">
         {/* The header hands its divider to this band so the switcher reads as part of the
             chrome; the band therefore owns the gutter and the space above the line. */}
         <View className={cn(SURFACE_GUTTER, 'border-b border-border pb-3')}>
