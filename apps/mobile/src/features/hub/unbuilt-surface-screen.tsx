@@ -1,7 +1,7 @@
+import { Stack } from 'expo-router/stack'
 import { View } from 'react-native'
 
 import { EmptyNote } from '@/components/panel-chrome'
-import { PhoneHeader } from '@/features/shell/phone-header'
 
 const COPY: Record<string, { title: string; body: string }> = {
   canvas: {
@@ -25,11 +25,9 @@ export function UnbuiltSurfaceScreen({ surface }: { surface: string }): React.JS
   }
   return (
     <View className="flex-1 bg-background" testID={`porcelain-unbuilt-${surface}`}>
-      <PhoneHeader
-        companion={false}
-        search={false}
-        title={copy.title.split(' is ')[0] ?? 'Surface'}
-      />
+      {/* The title is what the surface is called, so it is set here rather than in the stack
+          layout — the route only knows the segment. */}
+      <Stack.Screen options={{ title: copy.title.split(' is ')[0] ?? 'Surface' }} />
       <EmptyNote body={copy.body} testID={`porcelain-unbuilt-note-${surface}`} title={copy.title} />
     </View>
   )

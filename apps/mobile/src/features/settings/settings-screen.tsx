@@ -1,11 +1,8 @@
 import { View } from 'react-native'
 
-import { SegmentedControl } from '@/components/segmented-control'
-import { SURFACE_GUTTER } from '@/components/surface-layout'
+import { SegmentedControl } from '@/components/native/segmented-control'
 import { SurfaceScroll } from '@/components/surface-scroll'
-import { cn } from '@/lib/utils'
 
-import { PhoneHeader } from '../shell/phone-header'
 import { type SettingsSection, useShellStore } from '../shell/shell-store'
 import { DataSettings } from './data-panel'
 import { EnvironmentsSettings } from './environments-panel'
@@ -33,12 +30,15 @@ const SECTIONS: { value: SettingsSection; label: string; testID: string }[] = [
 ]
 
 /**
- * Phone Settings tab — full-screen (not a sheet). The section switcher lives in the header
- * band so one divider sits under the chrome, not a double line.
+ * Phone Settings tab — full-screen (not a sheet).
  *
- * It is the same `SegmentedControl` Changes and Files use. Settings had the app's only
- * `ui/tabs` switcher, which meant one screen answering a tap with a different shape,
- * height, and selected fill than the other surfaces.
+ * The section switcher used to hang off the bottom of the hand-rolled header and take the
+ * header's divider with it, so the two read as one band. The bar is `UINavigationBar` now and
+ * nothing can be hung off it, so the switcher became the first row of the content instead —
+ * which is also what lets the large title collapse, since the scroll view has to be the
+ * screen's first child for iOS to drive it.
+ *
+ * It is the same `SegmentedControl` Changes and Files use — a native segmented control.
  */
 export function SettingsScreen(): React.JSX.Element {
   const section = useShellStore((state) => state.settingsSection)
@@ -46,25 +46,19 @@ export function SettingsScreen(): React.JSX.Element {
 
   return (
     <View className="flex-1 bg-background" testID="porcelain-phone-settings">
-      <PhoneHeader back={false} border={false} companion={false} search={false} title="Settings">
-        {/* The header hands its divider to this band so the switcher reads as part of the
-            chrome; the band therefore owns the gutter and the space above the line. */}
-        <View className={cn(SURFACE_GUTTER, 'border-b border-border pb-3')}>
-          <SegmentedControl<SettingsSection>
-            options={SECTIONS}
-            testID="porcelain-settings-tabs"
-            value={section}
-            onChange={setSettingsSection}
-          />
-        </View>
-      </PhoneHeader>
-
       <SurfaceScroll
         gap={12}
         keyboardShouldPersistTaps="handled"
+        largeTitle
         paddingTop={12}
         showsVerticalScrollIndicator={false}
       >
+        <SegmentedControl<SettingsSection>
+          options={SECTIONS}
+          testID="porcelain-settings-tabs"
+          value={section}
+          onChange={setSettingsSection}
+        />
         {section === 'general' ? <GeneralSettings /> : null}
         {section === 'personalization' ? <PersonalizationSettings /> : null}
         {section === 'companion' ? <DataSettings /> : null}

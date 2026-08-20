@@ -188,7 +188,6 @@ export function TerminalList({
         }
         confirmLabel={killing?.status === 'exited' ? 'Remove' : 'Kill'}
         open={killing !== null}
-        testID="porcelain-terminal-kill-confirm"
         title={killing === null ? '' : `Kill ${killing.name}?`}
         onCancel={() => {
           setKilling(null)

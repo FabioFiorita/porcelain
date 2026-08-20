@@ -112,6 +112,17 @@ const CHROME_SYMBOLS = {
 
 export type ChromeIconName = keyof typeof CHROME_SYMBOLS
 
+/**
+ * The SF Symbol behind a chrome glyph, by NAME rather than as a view.
+ *
+ * A native menu item takes a symbol name and draws the icon itself — there is no place to hand
+ * it a `SymbolView`. iOS only: the Android menu wants a drawable resource, not a Material
+ * Symbols name, so `RowContextMenu` leaves its items unillustrated there.
+ */
+export function sfSymbolFor(name: ChromeIconName): SFSymbol {
+  return CHROME_SYMBOLS[name].ios
+}
+
 function useToneColor(tone: IconTone): string {
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light'
   return toneHex(scheme, tone)

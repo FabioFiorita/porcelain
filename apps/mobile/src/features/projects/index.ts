@@ -7,12 +7,10 @@ export {
   useHubRepoPath,
   useHubTarget,
 } from './hub-target'
-export type { ProjectSheet } from './project-data'
 export {
   projectsQueryKey,
   useOpenProject,
   useProjectDirectories,
-  useProjectSheet,
   useRecentProjects,
   useRemoveRecentProject,
   useSelectedProject,

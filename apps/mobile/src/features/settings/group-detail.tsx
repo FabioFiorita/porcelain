@@ -236,7 +236,6 @@ export function GroupDetail({
         body="This device stops trying that route. The others in this group are untouched, and the daemon is not changed."
         confirmLabel="Remove"
         open={detail.removing !== null}
-        testID="porcelain-settings-connection-remove-confirm"
         title="Remove this connection?"
         onCancel={detail.cancelRemove}
         onConfirm={() => {

@@ -11,7 +11,7 @@ import type { SurfaceId } from './surfaces'
  * A surface used to be a global tab with two faces crammed into it, because five surfaces had
  * to fit four tab slots. It is now reached through the Worktree that owns it, so the slot
  * pressure — and the dual-face store, and the re-tap-to-flip gesture — is gone. The surface's
- * own `phone` panel paints everything, header included.
+ * own `phone` panel paints the body; the native bar above it is a screen option on the stack.
  */
 export function SurfaceScreen({ surface }: { surface: SurfaceId }): React.JSX.Element {
   const focused = useIsFocused()

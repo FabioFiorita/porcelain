@@ -2,11 +2,11 @@ import { Pressable, ScrollView, Text, View } from 'react-native'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { IconAction, PanelLabel } from '@/components/panel-chrome'
-import { useShellStore } from '@/features/shell/shell-store'
 import { useIsTablet } from '@/features/shell/use-app-window'
 import { pathTestId } from '@/lib/path-identities'
 
 import { useSearchStore } from './search-store'
+import { useDismissSheet } from '@/features/shell/shell-sheets'
 
 /**
  * The Search companion — "Recent searches", the same roster the web rail carries.
@@ -22,7 +22,7 @@ export function SearchCompanion(): React.JSX.Element {
   const recent = useSearchStore((state) => state.recentSearches)
   const setQuery = useSearchStore((state) => state.setQuery)
   const forgetSearch = useSearchStore((state) => state.forgetSearch)
-  const closeSheet = useShellStore((state) => state.closeSheet)
+  const closeSheet = useDismissSheet()
   const isTablet = useIsTablet()
 
   // The tablet's inspector sits beside the results, so re-running a query leaves it open. The

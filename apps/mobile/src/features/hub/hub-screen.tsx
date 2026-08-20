@@ -11,7 +11,6 @@ import { SurfaceScroll } from '@/components/surface-scroll'
 import { Text } from '@/components/ui/text'
 import { useHubInventories, useHubRepoPath } from '@/features/projects'
 import type { Environment } from '@/features/remote'
-import { PhoneHeader } from '@/features/shell/phone-header'
 import { cn } from '@/lib/utils'
 
 import { openHubWorktree } from './hub-selection'
@@ -43,8 +42,7 @@ export function HubScreen(): React.JSX.Element {
 
   return (
     <View className="flex-1 bg-background" testID="porcelain-hub-screen">
-      <PhoneHeader back={false} companion={false} search={false} title="Worktrees" />
-      <SurfaceScroll gap={4} paddingTop={8}>
+      <SurfaceScroll gap={4} largeTitle paddingTop={8}>
         {groups.length === 0 ? (
           <EmptyNote
             body="Pair an environment under Settings, then open a project on that daemon."

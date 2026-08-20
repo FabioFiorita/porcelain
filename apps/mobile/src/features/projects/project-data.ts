@@ -8,9 +8,7 @@ import {
   removeRecentProject,
 } from '@porcelain/client-runtime/projects'
 import type { BrowseDirsOutput } from '@porcelain/contracts/projects'
-import { runUserAction } from '@porcelain/shared/background'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
 import {
   activeEnvironment,
   activeProjectPathOf,
@@ -18,7 +16,6 @@ import {
   isPaired,
   useActiveEnvironment,
 } from '@/features/remote'
-import { useShellStore } from '@/features/shell/shell-store'
 import { daemonSession } from '@/lib/daemon/session'
 
 import {
@@ -184,88 +181,4 @@ export function useProjectDirectories(
 /** Selected Project presentation state derived from the persisted active path. */
 export function useSelectedProject(): ProjectSummary | null {
   return useActiveProject()
-}
-
-export type ProjectSheet = {
-  /** `browse` is the daemon-side directory browser; `projects` is the recents list. */
-  mode: 'projects' | 'browse'
-  paired: boolean
-  activePath: string | null
-  projects: readonly ProjectSummary[]
-  isLoading: boolean
-  loadError: string | null
-  browse: {
-    result: BrowseDirsOutput | undefined
-    isFetching: boolean
-    isLoading: boolean
-    error: string | null
-  }
-  busyPath: string | null
-  actionError: string | null
-  /** Total void: failures land on actionError; busyPath cleared in finally. */
-  open: (path: ProjectPath) => void
-  setBrowsePath: (path: string | null) => void
-  startBrowsing: () => void
-  stopBrowsing: () => void
-}
-
-/** Project recents plus the daemon-side directory browser used by local and remote daemons. */
-export function useProjectSheet(open: boolean): ProjectSheet {
-  const closeSheet = useShellStore((state) => state.closeSheet)
-  const environment = useActiveEnvironment()
-  const project = useSelectedProject()
-  const openProjectMutation = useOpenProject()
-  const [mode, setMode] = useState<'projects' | 'browse'>('projects')
-  const [browsePath, setBrowsePath] = useState<string | null>(null)
-  const [busyPath, setBusyPath] = useState<string | null>(null)
-  const [actionError, setActionError] = useState<string | null>(null)
-  const recent = useRecentProjects(open && mode === 'projects')
-  const browse = useProjectDirectories(browsePath, open && mode === 'browse')
-
-  useEffect(() => {
-    if (!open) {
-      setActionError(null)
-      setBrowsePath(null)
-      setBusyPath(null)
-      setMode('projects')
-    }
-  }, [open])
-
-  return {
-    actionError,
-    activePath: project?.path ?? null,
-    browse,
-    busyPath,
-    isLoading: recent.isLoading,
-    loadError: recent.loadError,
-    mode,
-    open: (path): void => {
-      setBusyPath(path)
-      setActionError(null)
-      runUserAction(
-        async () => {
-          await openProjectMutation.open(path)
-          closeSheet()
-        },
-        (error) => {
-          setActionError(failureMessage(error, 'Could not open that project.'))
-        },
-        () => {
-          setBusyPath(null)
-        },
-      )
-    },
-    paired: isPaired(environment),
-    projects: recent.projects,
-    setBrowsePath,
-    startBrowsing: () => {
-      setActionError(null)
-      setBrowsePath(null)
-      setMode('browse')
-    },
-    stopBrowsing: () => {
-      setActionError(null)
-      setMode('projects')
-    },
-  }
 }

@@ -42,7 +42,8 @@ function SearchListSlot({ active }: { active: boolean }): React.JSX.Element {
  * screen mounted in the background), not about which surface is selected.
  *
  * Adding a tab is one entry here plus its feature folder. Keep the shape: list · viewer ·
- * companion for tablet, and `phone` for the tab's root screen, which owns its own header.
+ * companion for tablet, and `phone` for the surface's screen body. The screen's title and
+ * toolbar are not in here — they are options on the Hub stack, drawn by the native header.
  * A surface with detail views gives them routes under `app/<surface>/` and pushes.
  */
 export type SurfaceSlots = {
@@ -52,7 +53,7 @@ export type SurfaceSlots = {
   viewer: (props: { active: boolean }) => React.JSX.Element
   /** Tablet inspector column and the phone companion sheet. */
   companion: (props: { active: boolean }) => React.JSX.Element
-  /** Whole phone tab body, including its header. */
+  /** The phone screen body, under the native header the stack declares for it. */
   phone: () => React.JSX.Element
 }
 

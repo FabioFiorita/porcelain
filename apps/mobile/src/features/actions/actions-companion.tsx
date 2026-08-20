@@ -90,7 +90,6 @@ export function ActionsCompanion({ active }: { active: boolean }): React.JSX.Ele
         }
         confirmLabel="Accept and run"
         open={pendingTrust !== null}
-        testID="porcelain-terminal-trust-confirm"
         title="Run this command?"
         onCancel={() => {
           setPendingTrust(null)

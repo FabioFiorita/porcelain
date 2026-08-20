@@ -1,8 +1,8 @@
-import { useRouter } from 'expo-router'
+import { Stack } from 'expo-router/stack'
 import { Text, View } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { EmptyNote, ScreenHeader } from '@/components/surface-chrome'
+import { EmptyNote } from '@/components/surface-chrome'
 import { ClearBottomChrome } from '@/features/shell/bottom-chrome'
+import { HeaderCloseButton } from '@/features/shell/header-actions'
 import { useTerminalStream } from './terminal-roster'
 import { useTerminalStore } from './terminal-store'
 import { TerminalView } from './terminal-view'
@@ -10,9 +10,11 @@ import { TerminalView } from './terminal-view'
 /**
  * One session, full screen, pushed from the roster.
  *
- * The native header is hidden because the terminal needs every row it can get and the bar
- * would eat two of them; the compact bar below carries the back affordance and the session
- * name instead. The pop gesture still works with the bar hidden.
+ * The bar is the platform's, and deliberately the smallest one it will draw: the session name
+ * as an inline title, no large title, a close item, and the live/exited marker. A terminal
+ * wants every row the display has — but a modal is the root of its own presented stack, so the
+ * bar draws no back button, and a full-screen presentation cannot be swiped away either. A bar
+ * this screen can leave from is worth the two rows it costs.
  *
  * Leaving this screen deliberately does NOT detach: the PTY keeps streaming into its emulator,
  * so coming back shows what happened while you were away rather than a gap.
@@ -22,8 +24,6 @@ import { TerminalView } from './terminal-view'
  * the route is a modal rather than a push.
  */
 export function TerminalSessionScreen({ sessionId }: { sessionId: string }): React.JSX.Element {
-  const router = useRouter()
-  const insets = useSafeAreaInsets()
   useTerminalStream()
   const session = useTerminalStore((state) =>
     state.sessions.find((candidate) => candidate.id === sessionId),
@@ -31,31 +31,22 @@ export function TerminalSessionScreen({ sessionId }: { sessionId: string }): Rea
 
   return (
     <ClearBottomChrome>
-      <View
-        className="flex-1 bg-background"
-        /* nativewind-allow-style: the bar clears the live status-bar inset. */
-        style={{ paddingTop: insets.top }}
-        testID="porcelain-terminal-session"
-      >
-        <ScreenHeader
-          actions={
-            session?.status === 'exited' ? (
-              <Text className="px-2 text-3xs uppercase tracking-widest text-muted-foreground">
-                exited
-              </Text>
-            ) : (
-              <View className="mr-2 size-2 rounded-full bg-success" />
-            )
-          }
-          back={{
-            accessibilityLabel: 'Back to terminals',
-            onPress: () => {
-              router.back()
-            },
-            testID: 'porcelain-terminal-session-back',
+      <View className="flex-1 bg-background" testID="porcelain-terminal-session">
+        {/* The session's name is minted by the daemon, so the screen sets the title, not the
+            stack layout. */}
+        <Stack.Screen
+          options={{
+            headerLeft: () => <HeaderCloseButton testID="porcelain-terminal-session-back" />,
+            headerRight: () =>
+              session?.status === 'exited' ? (
+                <Text className="text-3xs uppercase tracking-widest text-muted-foreground">
+                  exited
+                </Text>
+              ) : (
+                <View className="size-2 rounded-full bg-success" />
+              ),
+            title: session?.name ?? 'Terminal',
           }}
-          title={session?.name ?? 'Terminal'}
-          topInset={0}
         />
 
         {session === undefined ? (

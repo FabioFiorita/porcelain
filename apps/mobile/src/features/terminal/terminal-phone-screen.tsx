@@ -1,12 +1,11 @@
 import { useIsFocused, useRouter } from 'expo-router'
 import { View } from 'react-native'
 
-import { PhoneHeader } from '@/features/shell/phone-header'
-
 import { TerminalList } from './terminal-list'
 
 /**
- * The Terminal tab root on phone: the header and the roster.
+ * The Terminal surface on phone: the roster. Its title and toolbar are screen options on the
+ * Hub stack, drawn by the native bar.
  *
  * Opening a session pushes a route rather than swapping the viewer behind a store flag, which
  * is what hands the interactive pop gesture, the Android back button and re-tap-to-root back
@@ -19,7 +18,6 @@ export function TerminalPhoneScreen(): React.JSX.Element {
 
   return (
     <View className="flex-1 bg-background" testID="porcelain-phone-surface-terminal">
-      <PhoneHeader companionSurface="terminal" title="Terminal" />
       <TerminalList
         active={focused}
         onOpenSession={(id) => {

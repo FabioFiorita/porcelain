@@ -1,4 +1,5 @@
 import { type Href, useRouter } from 'expo-router'
+import { Stack } from 'expo-router/stack'
 import { Pressable, View } from 'react-native'
 
 import { ChromeGlyph, type ChromeIconName } from '@/components/chrome-glyph'
@@ -8,7 +9,7 @@ import { SurfaceScroll } from '@/components/surface-scroll'
 import { Text } from '@/components/ui/text'
 import { useHubRepoPath } from '@/features/projects'
 import { projectNameOf } from '@/features/remote'
-import { PhoneHeader } from '@/features/shell/phone-header'
+import { HeaderActions } from '@/features/shell/header-actions'
 import { cn } from '@/lib/utils'
 
 type SurfaceRow = {
@@ -81,9 +82,14 @@ export function WorktreeScreen(): React.JSX.Element {
 
   return (
     <View className="flex-1 bg-background" testID="porcelain-worktree-screen">
-      <PhoneHeader
-        companion={false}
-        title={repoPath === null ? 'Worktree' : projectNameOf(repoPath)}
+      {/* The title is the checkout you are in, so the screen sets it rather than the layout.
+          No companion bolt: a Worktree is a list of surfaces and the companion belongs to a
+          surface. */}
+      <Stack.Screen
+        options={{
+          headerRight: () => <HeaderActions />,
+          title: repoPath === null ? 'Worktree' : projectNameOf(repoPath),
+        }}
       />
       {repoPath === null ? (
         <EmptyNote

@@ -1,12 +1,11 @@
 import { useIsFocused, useRouter } from 'expo-router'
 import { View } from 'react-native'
 
-import { PhoneHeader } from '@/features/shell/phone-header'
-
 import { ChangesList } from './changes-list'
 
 /**
- * The Changes tab root on phone: the header and the list.
+ * The Changes surface on phone: the list. Its title and toolbar are screen options on the
+ * Hub stack (`app/(hub)/_layout.tsx`), drawn by the native bar.
  *
  * Opening a file pushes a route onto this tab's stack rather than swapping the viewer in
  * behind a store flag, so the interactive pop gesture, the Android hardware back button, and
@@ -19,7 +18,6 @@ export function ChangesPhoneScreen(): React.JSX.Element {
 
   return (
     <View className="flex-1 bg-background" testID="porcelain-phone-surface-changes">
-      <PhoneHeader companionSurface="changes" title="Changes" />
       <ChangesList
         active={focused}
         onOpenAll={() => {

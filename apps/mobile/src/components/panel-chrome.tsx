@@ -1,10 +1,9 @@
-import { Pressable, Text, View } from 'react-native'
+import { useEffect, useRef } from 'react'
+import { Alert, Pressable, Text, View } from 'react-native'
 
 import { ChromeGlyph, type ChromeIconName, type IconTone } from '@/components/chrome-glyph'
-import { ShellModal, ShellModalScroll, useShellModalSize } from '@/components/shell-modal'
+import { NativeSheet } from '@/components/native/native-sheet'
 import { SURFACE_GUTTER } from '@/components/surface-layout'
-import { Button } from '@/components/ui/button'
-import { Text as UiText } from '@/components/ui/text'
 import { cn } from '@/lib/utils'
 
 /**
@@ -209,6 +208,11 @@ export type SheetAction = {
 /**
  * The touch stand-in for the web row's right-click menu. A long press opens it, so the row's
  * tap target stays the one thing it should do — open the diff.
+ *
+ * The sheet sizes itself to its actions rather than to a fraction of the window. The version
+ * this replaces capped its panel at 78% of the window height and scrolled inside it, because a
+ * centred `Modal` has to be given a size before it knows what is in it; a native sheet measures
+ * its content, and an action list is three or four rows.
  */
 export function ActionSheet({
   actions,
@@ -225,10 +229,9 @@ export function ActionSheet({
   testID: string
   title: string
 }): React.JSX.Element {
-  const { maxHeight, width } = useShellModalSize()
   return (
-    <ShellModal bare hideHeader open={open} onClose={onClose} contentStyle={{ maxHeight, width }}>
-      <View className="gap-1 border-b border-border px-5 pb-3 pr-12 pt-5" testID={testID}>
+    <NativeSheet open={open} onClose={onClose}>
+      <View className="gap-1 border-b border-border px-5 pb-3" testID={testID}>
         <Text className="text-base font-semibold text-foreground" numberOfLines={1}>
           {title}
         </Text>
@@ -238,11 +241,7 @@ export function ActionSheet({
           </Text>
         )}
       </View>
-      <ShellModalScroll
-        className="max-h-96"
-        contentContainerClassName="gap-0.5 px-2 py-2"
-        testID={`${testID}-actions`}
-      >
+      <View className="gap-0.5 px-2" testID={`${testID}-actions`}>
         {actions.map((action) => (
           <Pressable
             key={action.id}
@@ -251,8 +250,8 @@ export function ActionSheet({
             className="min-h-12 flex-row items-center gap-3 rounded-xl px-3 py-2.5 active:bg-accent"
             testID={`${testID}-${action.id}`}
             onPress={() => {
-              // Close first: the action may open a second sheet (composer, confirm), and two
-              // RN modals racing on the same frame leaves the second one invisible on iOS.
+              // Close first: the action may open a second sheet (composer, confirm), and a
+              // native sheet cannot present another one while it is still on screen.
               onClose()
               action.onPress()
             }}
@@ -272,19 +271,28 @@ export function ActionSheet({
             </Text>
           </Pressable>
         ))}
-      </ShellModalScroll>
-    </ShellModal>
+      </View>
+    </NativeSheet>
   )
 }
 
-/** Confirmation for the writes that cannot be undone (discard, clear closed comments). */
+/**
+ * Confirmation for the writes that cannot be undone (discard, clear closed comments).
+ *
+ * A `UIAlertController` / Material `AlertDialog`, not a sheet. A confirm is the one dialog the
+ * platform already owns outright: it renders above everything else including a presented sheet,
+ * it dismisses on the Android hardware back button, VoiceOver and TalkBack announce it as an
+ * alert, and iOS paints the destructive verb red from the button role. The version this
+ * replaces drew two `Button`s in a rounded `View` inside an RN `Modal` and got none of that.
+ *
+ * Nothing is rendered into the tree, so this component has no `testID`: an alert is not a view.
+ */
 export function ConfirmDialog({
   body,
   confirmLabel,
   onCancel,
   onConfirm,
   open,
-  testID,
   title,
 }: {
   body: string
@@ -292,23 +300,44 @@ export function ConfirmDialog({
   onCancel: () => void
   onConfirm: () => void
   open: boolean
-  testID: string
   title: string
-}): React.JSX.Element {
-  const { width } = useShellModalSize()
-  return (
-    <ShellModal open={open} onClose={onCancel} title={title} contentStyle={{ width }}>
-      <View className="gap-4" testID={testID}>
-        <Text className="text-sm leading-5 text-muted-foreground">{body}</Text>
-        <View className="flex-row justify-end gap-2">
-          <Button testID={`${testID}-cancel`} variant="ghost" onPress={onCancel}>
-            <UiText>Cancel</UiText>
-          </Button>
-          <Button testID={`${testID}-confirm`} variant="destructive" onPress={onConfirm}>
-            <UiText>{confirmLabel}</UiText>
-          </Button>
-        </View>
-      </View>
-    </ShellModal>
-  )
+}): null {
+  // The alert is fired once, when `open` turns true. The handlers ride a ref so a parent that
+  // rebuilds them every render cannot re-present an alert that is already on screen.
+  const handlers = useRef({ onCancel, onConfirm })
+  handlers.current = { onCancel, onConfirm }
+
+  useEffect(() => {
+    if (!open) return
+    Alert.alert(
+      title,
+      body,
+      [
+        {
+          onPress: () => {
+            handlers.current.onCancel()
+          },
+          style: 'cancel',
+          text: 'Cancel',
+        },
+        {
+          onPress: () => {
+            handlers.current.onConfirm()
+          },
+          style: 'destructive',
+          text: confirmLabel,
+        },
+      ],
+      {
+        cancelable: true,
+        // Android dismisses on a tap outside or the back button without choosing an action;
+        // the owner still has to learn the dialog is gone or its `open` flag stays true.
+        onDismiss: () => {
+          handlers.current.onCancel()
+        },
+      },
+    )
+  }, [body, confirmLabel, open, title])
+
+  return null
 }

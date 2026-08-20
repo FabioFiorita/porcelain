@@ -4,12 +4,12 @@ import { Pressable, ScrollView, Text, View } from 'react-native'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { IconAction, PanelLabel, StatusNote } from '@/components/panel-chrome'
-import { useShellStore } from '@/features/shell/shell-store'
 import { useIsTablet } from '@/features/shell/use-app-window'
 
 import { pathSegments, pathTestId } from './file-paths'
 import { type FileEntry, usePathScope, usePinnedEntries } from './files-data'
 import { useFilesStore } from './files-store'
+import { useDismissSheet } from '@/features/shell/shell-sheets'
 
 /**
  * The Files companion — pinned paths for quick access.
@@ -41,7 +41,7 @@ function PinnedCard({ active }: { active: boolean }): React.JSX.Element {
   const { unpin } = usePathScope()
   const openDir = useFilesStore((state) => state.openDir)
   const openFile = useFilesStore((state) => state.openFile)
-  const closeSheet = useShellStore((state) => state.closeSheet)
+  const closeSheet = useDismissSheet()
   const isTablet = useIsTablet()
   const router = useRouter()
   const [actionError, setActionError] = useState<string | null>(null)

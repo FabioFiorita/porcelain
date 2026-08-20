@@ -1,7 +1,6 @@
 import { View } from 'react-native'
 
 import { EmptyNote } from '@/components/panel-chrome'
-import { PhoneHeader } from '@/features/shell/phone-header'
 
 /**
  * Console — one terminal for the agent runner (herdr / tmux) ACROSS worktrees, as opposed to
@@ -12,7 +11,6 @@ import { PhoneHeader } from '@/features/shell/phone-header'
 export function ConsoleScreen(): React.JSX.Element {
   return (
     <View className="flex-1 bg-background" testID="porcelain-console-screen">
-      <PhoneHeader back={false} companion={false} search={false} title="Console" />
       <EmptyNote
         body="One terminal for the agent runner across every worktree. Not built yet — a worktree's own sessions live under its Terminal surface."
         testID="porcelain-console-empty"

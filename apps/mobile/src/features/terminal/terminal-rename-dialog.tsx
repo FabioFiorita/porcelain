@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { View } from 'react-native'
 
-import { ShellModal, useShellModalSize } from '@/components/shell-modal'
+import { NativeSheet } from '@/components/native/native-sheet'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Text as UiText } from '@/components/ui/text'
@@ -26,7 +26,6 @@ export function TerminalRenameDialog({
   open: boolean
 }): React.JSX.Element {
   const [name, setName] = useState(initialName)
-  const { width } = useShellModalSize()
   const trimmed = name.trim()
 
   const submit = (): void => {
@@ -35,8 +34,8 @@ export function TerminalRenameDialog({
   }
 
   return (
-    <ShellModal contentStyle={{ width }} open={open} title="Rename terminal" onClose={onClose}>
-      <View className="gap-4" testID="porcelain-terminal-rename">
+    <NativeSheet open={open} title="Rename terminal" onClose={onClose}>
+      <View className="gap-4 px-5" testID="porcelain-terminal-rename">
         <Input
           autoCapitalize="none"
           autoCorrect={false}
@@ -61,6 +60,6 @@ export function TerminalRenameDialog({
           </Button>
         </View>
       </View>
-    </ShellModal>
+    </NativeSheet>
   )
 }

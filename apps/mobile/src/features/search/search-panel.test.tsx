@@ -24,7 +24,7 @@ vi.mock('@/components/panel-chrome', () => {
       React.createElement('div', { 'data-testid': testID }, message),
   }
 })
-vi.mock('@/components/segmented-control', () => {
+vi.mock('@/components/native/segmented-control', () => {
   const React = require('react') as typeof import('react')
   return {
     SegmentedControl: ({

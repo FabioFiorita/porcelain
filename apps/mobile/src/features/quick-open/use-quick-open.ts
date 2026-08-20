@@ -7,6 +7,7 @@ import { useActions, useActionsSelectionStore } from '@/features/actions'
 import { useGitLog } from '@/features/git'
 import { useHistoryStore } from '@/features/history'
 import { useFileSearch, useSearchStore } from '@/features/search'
+import { shellSheetHref } from '@/features/shell/shell-sheets'
 import { useShellStore } from '@/features/shell/shell-store'
 import type { SurfaceId } from '@/features/shell/surfaces'
 import { pathSegments } from '@/lib/path-identities'
@@ -171,7 +172,7 @@ export function useQuickOpen(open: boolean, onClose: () => void): QuickOpenModel
       close()
       if (destination.kind === 'settings') {
         setSettingsSection(destination.section)
-        router.navigate('/settings')
+        router.navigate(shellSheetHref('settings'))
         return
       }
       navigateSurface(destination.id)

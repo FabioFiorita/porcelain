@@ -8,6 +8,7 @@
     "@porcelain/shared": "workspace:*",
     "@porcelain/mobile-terminal-native": "file:./modules/porcelain-terminal",
     "@porcelain/ui": "workspace:*",
+    "@expo/ui": "~57.0.8",
     "@rn-primitives/collapsible": "^1.5.2",
     "@rn-primitives/portal": "^1.5.2",
     "@rn-primitives/slot": "^1.5.2",

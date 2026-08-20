@@ -1,7 +1,7 @@
 import { View } from 'react-native'
 
 import { ErrorNote } from '@/components/panel-chrome'
-import { SegmentedControl } from '@/components/segmented-control'
+import { SegmentedControl } from '@/components/native/segmented-control'
 import { CommentComposer, SelectionBar } from '@/features/comments'
 import type { HtmlMode, MarkdownMode } from '@/features/settings/preferences-store'
 import { useResolvedColorScheme } from '@/features/settings/theme-provider'
