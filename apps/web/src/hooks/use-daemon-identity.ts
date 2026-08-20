@@ -28,3 +28,20 @@ export function useDaemonIdentity(): DaemonIdentityView {
     version: data?.version ?? null,
   }
 }
+
+/**
+ * The DISPLAY name of the Environment this window is bound to: the human's nickname when
+ * they set one, otherwise the daemon's machine name. Null until the daemon answers, or on a
+ * daemon too old to know the procedure — callers fall back to `useDaemonIdentity().host`.
+ *
+ * Deliberately NOT folded into `useDaemonIdentity`: that hook's `host` is a cache/scope key
+ * on ~30 query families and is cached forever, while a nickname is display text that changes
+ * the moment someone renames the Environment.
+ */
+export function useEnvironmentName(): string | null {
+  const { data } = trpc.environmentIdentity.useQuery(undefined, {
+    retry: false,
+    staleTime: 30_000,
+  })
+  return data?.name ?? null
+}

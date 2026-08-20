@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { projectsContractFixtures } from './projects.contract'
+import { ENVIRONMENT_NAME_MAX_LENGTH, projectsContractFixtures } from './projects.contract'
 import { projectsProcedures } from './projects.procedures'
 
 const expectedKinds = {
@@ -10,6 +10,8 @@ const expectedKinds = {
   removeHubWorktree: 'mutation',
   browseDirs: 'query',
   hubInventory: 'query',
+  environmentIdentity: 'query',
+  renameEnvironment: 'mutation',
   createHubWorktree: 'mutation',
   listCanvases: 'query',
   readCanvas: 'query',
@@ -37,6 +39,8 @@ const expectedErrors = {
   ],
   browseDirs: ['projects.not-found', 'projects.not-a-directory', 'projects.unavailable'],
   hubInventory: ['projects.unavailable'],
+  environmentIdentity: ['projects.unavailable'],
+  renameEnvironment: ['projects.unavailable'],
   createHubWorktree: [
     'projects.not-found',
     'projects.unavailable',
@@ -60,6 +64,9 @@ const invalidInputs = {
   removeHubWorktree: { projectId: 'proj-alpha' },
   browseDirs: 42,
   hubInventory: {},
+  environmentIdentity: {},
+  // 61 characters — one past ENVIRONMENT_NAME_MAX_LENGTH, rejected rather than trimmed.
+  renameEnvironment: { name: 'n'.repeat(ENVIRONMENT_NAME_MAX_LENGTH + 1) },
   createHubWorktree: { projectId: 'proj-alpha', branch: '' },
   listCanvases: { projectId: '' },
   readCanvas: { projectId: 'proj-alpha' },
@@ -83,6 +90,8 @@ const invalidOutputs = {
     entries: [{ name: 'alpha', path: '/synthetic/projects/alpha', isRepo: 'true' }],
   },
   hubInventory: { environment: { id: 'env' }, projects: [] },
+  environmentIdentity: { id: 'env-synthetic', name: '', host: '', platform: 'linux', arch: 'x64' },
+  renameEnvironment: { id: 'env-synthetic', name: '', host: '', platform: 'linux', arch: 'x64' },
   createHubWorktree: { id: 'wt', projectId: 'proj', path: '/x', name: 'x', branch: 'x' },
   listCanvases: [{ id: 'canvas-a', title: 'Intent', kind: 'pdf' }],
   readCanvas: { record: { id: 'canvas-a' }, content: 42 },
@@ -163,6 +172,24 @@ describe('Projects procedure contracts', () => {
             extra: true,
           },
         ],
+      }).success,
+    ).toBe(false)
+  })
+
+  it('clears a nickname with an empty name and bounds a long one', () => {
+    const input = projectsProcedures.renameEnvironment.input
+    // Clearing is a legal rename: the daemon answers with its machine-derived name.
+    expect(input.safeParse({ name: '' }).success).toBe(true)
+    expect(input.safeParse({ name: '   ' }).success).toBe(true)
+    expect(input.safeParse({ name: 'n'.repeat(ENVIRONMENT_NAME_MAX_LENGTH) }).success).toBe(true)
+    expect(input.safeParse({ name: 'n'.repeat(ENVIRONMENT_NAME_MAX_LENGTH + 1) }).success).toBe(
+      false,
+    )
+    // The ANNOUNCED name is never empty, whatever the human typed.
+    expect(
+      projectsProcedures.renameEnvironment.output.safeParse({
+        ...projectsContractFixtures.environmentIdentity.output,
+        name: '',
       }).success,
     ).toBe(false)
   })

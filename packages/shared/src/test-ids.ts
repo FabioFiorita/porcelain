@@ -44,6 +44,12 @@ export const TestIds = {
   daemonUpdateCopy: 'daemon-update-copy',
   daemonUpdateDismiss: 'daemon-update-dismiss',
   environmentRow: (id: string): string => `environment-row-${id}`,
+  /** The rendered display name of one Environment row — nickname when it has one. */
+  environmentName: (id: string): string => `environment-name-${id}`,
+  /** Opens the inline nickname editor on that row. */
+  environmentRename: (id: string): string => `environment-rename-${id}`,
+  environmentNameInput: (id: string): string => `environment-name-input-${id}`,
+  environmentNameSave: (id: string): string => `environment-name-save-${id}`,
   /** One address of a saved environment — an environment has many (phase 5). */
   environmentEndpoint: (url: string): string => `environment-endpoint-${url}`,
 

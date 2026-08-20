@@ -68,6 +68,16 @@ export function createProjectsRouter(operations: ProjectsOperations) {
       .output(procedureCatalog.browseDirs.output)
       .query(async ({ input }) => throwIfFailed(await operations.browseProjectDirectories(input))),
 
+    environmentIdentity: publicProcedure
+      .input(procedureCatalog.environmentIdentity.input)
+      .output(procedureCatalog.environmentIdentity.output)
+      .query(async () => throwIfFailed(await operations.environmentIdentity())),
+
+    renameEnvironment: publicProcedure
+      .input(procedureCatalog.renameEnvironment.input)
+      .output(procedureCatalog.renameEnvironment.output)
+      .mutation(async ({ input }) => throwIfFailed(await operations.renameEnvironment(input.name))),
+
     hubInventory: publicProcedure
       .input(procedureCatalog.hubInventory.input)
       .output(procedureCatalog.hubInventory.output)

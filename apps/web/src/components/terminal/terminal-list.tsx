@@ -19,7 +19,7 @@ import {
   DropdownMenuTrigger,
 } from '@renderer/components/ui/dropdown-menu'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
-import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
+import { useDaemonIdentity, useEnvironmentName } from '@renderer/hooks/use-daemon-identity'
 import { useLocalDaemon, useLocalTerminalPath } from '@renderer/hooks/use-local-terminal'
 import { spawnLocalTerminal, spawnTerminal } from '@renderer/lib/terminal-actions'
 import { cn } from '@renderer/lib/utils'
@@ -62,6 +62,9 @@ export function TerminalPanel(): React.JSX.Element {
   const canSpawnLocal = localDaemon !== undefined && !localDaemon.isLocal && project !== null
   const mappedLocalPath = useLocalTerminalPath(project?.path ?? null)
   const identity = useDaemonIdentity()
+  // The Environment's name, so a nicknamed daemon is named here too rather than showing the
+  // machine name it shares with its neighbour.
+  const environmentName = useEnvironmentName()
   const activeSession = sessions.find((session) => session.id === panelSessionId) ?? null
 
   useEffect(() => {
@@ -206,7 +209,7 @@ export function TerminalPanel(): React.JSX.Element {
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={handleSpawnRemote} data-testid={TestIds.terminalNewRemote}>
                 <Cloud />
-                {identity.host ?? 'This window’s machine'}
+                {environmentName ?? identity.host ?? 'This window’s machine'}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleSpawnLocal} data-testid={TestIds.terminalNewLocal}>
                 <Monitor />

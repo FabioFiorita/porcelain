@@ -15,6 +15,7 @@ import {
   useRemoveRemoteEnvironment,
 } from '@renderer/features/remote'
 import { compactButtonClass, rowActionClass } from '@renderer/lib/controls'
+import { EnvironmentName } from './environment-name'
 import { cn } from '@renderer/lib/utils'
 import { platformLabel } from '@shared/platform'
 import { TestIds } from '@shared/test-ids'
@@ -30,6 +31,11 @@ function describeStatus(status: EnvironmentStatus | undefined): string {
       ? `${status.host} · ${platformLabel(status.platform)}`
       : (status.host ?? 'Online')
   return status.version !== null ? `${machine} · daemon ${status.version}` : machine
+}
+
+/** The first label that is actually a label — a blank string is not one. */
+function firstLabel(...candidates: (string | null | undefined)[]): string | null {
+  return candidates.find((value) => value != null && value !== '') ?? null
 }
 
 function endpointLabel(url: string): string {
@@ -75,8 +81,9 @@ function ElectronRemotesSection(): React.JSX.Element {
   const environments = data?.environments ?? []
   const activeId = data?.activeId ?? null
   const localStatus = statuses.get(null)
-  const localName =
-    localStatus?.host != null && localStatus.host !== '' ? localStatus.host : 'This device'
+  // The nickname first, then the machine name, then the role label. With two daemons on this
+  // machine the middle one is the SAME string twice — that is the confusion the nickname ends.
+  const localName = firstLabel(localStatus?.name, localStatus?.host) ?? 'This device'
 
   function showPairForm(groupId: string | null): void {
     setPairingTargetId(groupId)
@@ -92,7 +99,12 @@ function ElectronRemotesSection(): React.JSX.Element {
           data-testid={TestIds.environmentRow('local')}
         >
           <div className="min-w-0">
-            <p className="text-sm-minus font-medium">{localName}</p>
+            <EnvironmentName
+              disabled={localStatus?.state !== 'online'}
+              environmentId={null}
+              machineName={localStatus?.host ?? null}
+              name={localName}
+            />
             <p className="text-xs text-muted-foreground">{describeStatus(localStatus)}</p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -139,7 +151,12 @@ function ElectronRemotesSection(): React.JSX.Element {
             >
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-sm-minus font-medium">{environment.name}</p>
+                  <EnvironmentName
+                    disabled={status?.state !== 'online'}
+                    environmentId={environment.id}
+                    machineName={status?.host ?? null}
+                    name={firstLabel(status?.name, environment.name) ?? environment.name}
+                  />
                   <p className="text-xs text-muted-foreground">
                     {describeStatus(status)}
                     {route == null ? '' : ` · via ${route}`}

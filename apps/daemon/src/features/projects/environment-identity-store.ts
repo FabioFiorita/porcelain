@@ -24,6 +24,14 @@ export type EnvironmentIdentityResult<Value> =
 
 export type EnvironmentIdentityStore = Readonly<{
   read: () => Promise<EnvironmentIdentityResult<EnvironmentIdentityRecord>>
+  /**
+   * Set the human's nickname for this Environment. A blank or whitespace-only name
+   * CLEARS it: the record falls back to the machine-derived default rather than
+   * persisting an empty label nothing could render.
+   */
+  rename: (name: string) => Promise<EnvironmentIdentityResult<EnvironmentIdentityRecord>>
+  /** The machine-derived name a cleared nickname falls back to. */
+  defaultName: () => string
 }>
 
 const unavailable = (): EnvironmentIdentityResult<never> => ({
@@ -75,28 +83,55 @@ export function createEnvironmentIdentityStore(options: {
     return next
   }
 
+  /**
+   * Read-or-create, WITHOUT the serializer. Both public methods run inside `serialize`
+   * already; calling a serialized method from another one would wait on a chain link
+   * that cannot advance until the caller returns.
+   */
+  async function load(): Promise<EnvironmentIdentityResult<EnvironmentIdentityRecord>> {
+    let result: ReadStrictJsonDocument<EnvironmentIdentityRecord>
+    try {
+      result = await document.read()
+    } catch {
+      return unavailable()
+    }
+    if (result.kind === 'valid') return { ok: true, value: result.value }
+    if (result.kind !== 'missing') {
+      reportUnavailable(result)
+      return unavailable()
+    }
+    const created = { id: createId(), name: defaultName }
+    try {
+      await document.write(created)
+    } catch {
+      return unavailable()
+    }
+    return { ok: true, value: created }
+  }
+
   return Object.freeze({
     read(): Promise<EnvironmentIdentityResult<EnvironmentIdentityRecord>> {
+      return serialize<EnvironmentIdentityRecord>(load)
+    },
+
+    rename(name: string): Promise<EnvironmentIdentityResult<EnvironmentIdentityRecord>> {
       return serialize<EnvironmentIdentityRecord>(async () => {
-        let result: ReadStrictJsonDocument<EnvironmentIdentityRecord>
+        const current = await load()
+        if (!current.ok) return current
+        // The id is the Environment's identity and never moves; only the label does.
+        const next = { ...current.value, name: name.trim() || defaultName }
+        if (next.name === current.value.name) return { ok: true, value: current.value }
         try {
-          result = await document.read()
+          await document.write(next)
         } catch {
           return unavailable()
         }
-        if (result.kind === 'valid') return { ok: true, value: result.value }
-        if (result.kind !== 'missing') {
-          reportUnavailable(result)
-          return unavailable()
-        }
-        const created = { id: createId(), name: defaultName }
-        try {
-          await document.write(created)
-        } catch {
-          return unavailable()
-        }
-        return { ok: true, value: created }
+        return { ok: true, value: next }
       })
+    },
+
+    defaultName(): string {
+      return defaultName
     },
   })
 }

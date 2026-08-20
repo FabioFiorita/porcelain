@@ -1,8 +1,10 @@
 import { parsePublicError } from '@porcelain/client-runtime/remote'
 import type { EndpointKind } from '@porcelain/contracts'
+import { SHELL_HUB_INVENTORIES_QUERY_KEY } from '@renderer/features/projects/hub-inventories'
 import { onMutationError } from '@renderer/hooks/mutation-error'
 import { isBrowser } from '@renderer/lib/platform'
-import { shellTrpc } from '@renderer/lib/trpc'
+import { shellTrpc, trpc } from '@renderer/lib/trpc'
+import { useQueryClient } from '@tanstack/react-query'
 import { useMemo } from 'react'
 
 /**
@@ -21,6 +23,14 @@ export type EnvironmentStatus = {
   state: 'online' | 'unauthorized' | 'offline'
   endpoint: string | null
   host: string | null
+  /**
+   * The Environment's display name: the human's nickname when it has one, otherwise the
+   * machine name. Distinct from `host` on purpose — two daemons with their own homes on ONE
+   * machine report the same host, and the nickname is the only thing that separates them.
+   * Null means UNKNOWN — unreachable, or the shell could not ask — never "has no nickname",
+   * so a row falls back to the name it already had rather than treating null as an answer.
+   */
+  name: string | null
   platform: string | null
   version: string | null
 }
@@ -74,6 +84,11 @@ export type WebLocalRemoteAdapter = {
   ) => ReturnType<
     ReturnType<typeof shellTrpc.useUtils>['client']['openWindowInEnvironment']['mutate']
   >
+  readonly renameEnvironment: (
+    input: Parameters<
+      ReturnType<typeof shellTrpc.useUtils>['client']['renameEnvironment']['mutate']
+    >[0],
+  ) => ReturnType<ReturnType<typeof shellTrpc.useUtils>['client']['renameEnvironment']['mutate']>
   readonly removeRemoteEnvironment: (
     input: Parameters<
       ReturnType<typeof shellTrpc.useUtils>['client']['removeRemoteEnvironment']['mutate']
@@ -227,5 +242,53 @@ export function useRemoveRemoteEnvironment(): {
   return {
     remove: (id: string): void => removeMutation.mutate({ id }),
     pendingId: removeMutation.isPending ? (removeMutation.variables?.id ?? null) : null,
+  }
+}
+
+/**
+ * Name one Environment — This device or any saved group — from wherever it is listed.
+ * The write lands on the daemon that owns the Environment, so every client that pairs with
+ * it sees the same name. A blank name clears the nickname back to the machine name.
+ */
+export function useRenameEnvironment(): {
+  /**
+   * `onSuccess` is how an editor knows the write actually landed: the caller keeps the typed
+   * name on screen until then, so a failure leaves something to correct rather than a toast
+   * and an empty row.
+   */
+  rename: (
+    input: { environmentId: string | null; name: string },
+    options?: { onSuccess?: () => void },
+  ) => void
+  pendingId: string | null | undefined
+} {
+  const utils = shellTrpc.useUtils()
+  const daemonUtils = trpc.useUtils()
+  const queryClient = useQueryClient()
+  const mutation = shellTrpc.renameEnvironment.useMutation({
+    onSuccess: async (): Promise<void> => {
+      // The statuses query is 30s-stale by design; without these the row the human just
+      // renamed keeps showing the old label until the next focus refetch. The daemon-side
+      // identity is a SEPARATE cache — this window reads its own Environment through it.
+      await Promise.all([
+        utils.remoteEnvironments.invalidate(),
+        utils.environmentStatuses.invalidate(),
+        // The Hub's shell fan-out has its own literal key, not a tRPC one — invalidating
+        // `utils.hubInventories` would silently miss it and leave the Hub badges stale.
+        queryClient.invalidateQueries({ exact: true, queryKey: SHELL_HUB_INVENTORIES_QUERY_KEY }),
+        // The Tasks fan-out labels each table from the saved group name it read at
+        // fan-out time; without this the New Task picker keeps offering the old label.
+        utils.environmentTasks.invalidate(),
+        daemonUtils.environmentIdentity.invalidate(),
+      ])
+    },
+    onError: onMutationError('Rename environment'),
+  })
+  return {
+    rename: (
+      input: { environmentId: string | null; name: string },
+      options?: { onSuccess?: () => void },
+    ): void => mutation.mutate(input, options),
+    pendingId: mutation.isPending ? mutation.variables?.environmentId : undefined,
   }
 }

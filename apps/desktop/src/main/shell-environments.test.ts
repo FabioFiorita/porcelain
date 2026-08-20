@@ -35,6 +35,20 @@ const DAEMON_INFO = {
   result: { data: { version: '1.2.3', host: 'synthetic-host', platform: 'linux', arch: 'x64' } },
 }
 
+/** The nickname `awake.synthetic` announces; every other stub daemon has none. */
+const NICKNAME = 'Beelink (work)'
+const ENVIRONMENT_IDENTITY = {
+  result: {
+    data: {
+      id: 'env-synthetic',
+      name: NICKNAME,
+      host: 'synthetic-host',
+      platform: 'linux',
+      arch: 'x64',
+    },
+  },
+}
+
 function environment(overrides: Partial<RemoteEnvironment> = {}): RemoteEnvironment {
   return {
     id: 'env-1',
@@ -46,6 +60,12 @@ function environment(overrides: Partial<RemoteEnvironment> = {}): RemoteEnvironm
     ...overrides,
   }
 }
+
+/**
+ * Fired while a nicknamed daemon is answering the identity question — the window in which a
+ * rename can land, which is the whole point of the lost-update test below.
+ */
+let onIdentityFetch: (() => void) | null = null
 
 /** Every daemon answer the shell has to survive, keyed by hostname. */
 function stubDaemon(): void {
@@ -60,6 +80,21 @@ function stubDaemon(): void {
       if (url.includes('impostor.synthetic')) {
         return new Response(JSON.stringify({ hello: 'from something else' }), { status: 200 })
       }
+      if (url.endsWith('/trpc/environmentIdentity')) {
+        // A daemon that is UP (daemonInfo answers) but cannot answer this one question:
+        // a transient 503, and a 200 whose body says nothing about a name. Neither is an
+        // answer, and neither may be allowed to overwrite what the human already named.
+        if (url.includes('flaky.synthetic')) return new Response('', { status: 503 })
+        if (url.includes('muddled.synthetic')) {
+          return new Response(JSON.stringify({ result: { data: {} } }), { status: 200 })
+        }
+        onIdentityFetch?.()
+        // Only the awake remote has been nicknamed. The local daemon answers 404, standing
+        // in for a daemon too old to know the procedure at all.
+        return url.includes('awake.synthetic')
+          ? new Response(JSON.stringify(ENVIRONMENT_IDENTITY), { status: 200 })
+          : new Response('', { status: 404 })
+      }
       return new Response(JSON.stringify(DAEMON_INFO), { status: 200 })
     }),
   )
@@ -67,6 +102,7 @@ function stubDaemon(): void {
 
 beforeEach(() => {
   state = { activeId: null, environments: [] }
+  onIdentityFetch = null
   setWindowRemoteEndpoint.mockClear()
   stubDaemon()
 })
@@ -82,12 +118,54 @@ afterEach(() => {
  */
 describe('probeEnvironment', () => {
   it('reports identity when the daemon answers', async () => {
-    expect(await probeEnvironment('http://awake.synthetic', 'pc_client_remote')).toEqual({
+    expect(
+      await probeEnvironment('http://awake.synthetic', 'pc_client_remote', { identity: true }),
+    ).toEqual({
       state: 'online',
       host: 'synthetic-host',
+      name: NICKNAME,
       platform: 'linux',
       version: '1.2.3',
     })
+  })
+
+  /**
+   * The nickname is what tells two daemons on ONE machine apart, so its absence must never
+   * leave a row blank: a daemon too old to know the procedure answers 404, which IS an
+   * answer, and its machine name is a perfectly good display name.
+   */
+  it('falls back to the machine name when the daemon announces no nickname', async () => {
+    const status = await probeEnvironment('http://127.0.0.1:43118', 'pc_admin_local', {
+      identity: true,
+    })
+    expect(status.name).toBe('synthetic-host')
+    expect(status.host).toBe('synthetic-host')
+  })
+
+  /**
+   * The distinction the saved nickname depends on: a daemon that could not answer has NOT
+   * told us it has no nickname. Reporting the machine name here is what would overwrite the
+   * human's label — so an unanswered question reports no name at all.
+   */
+  it.each([
+    ['a transient failure', 'http://flaky.synthetic'],
+    ['an unreadable identity body', 'http://muddled.synthetic'],
+  ])('reports no name — not the machine name — after %s', async (_case, url) => {
+    const status = await probeEnvironment(url, 'pc_client_remote', { identity: true })
+
+    expect(status.state).toBe('online')
+    expect(status.host).toBe('synthetic-host')
+    expect(status.name).toBeNull()
+  })
+
+  /** The identity read is a second round trip; callers that only want liveness skip it. */
+  it('asks for identity only when the caller wants the name', async () => {
+    const status = await probeEnvironment('http://awake.synthetic', 'pc_client_remote')
+
+    expect(vi.mocked(fetch).mock.calls.map(([input]) => String(input))).toEqual([
+      'http://awake.synthetic/trpc/daemonInfo',
+    ])
+    expect(status.name).toBeNull()
   })
 
   it('separates a rejected credential from an unreachable box', async () => {
@@ -108,6 +186,7 @@ describe('probeEnvironment', () => {
     expect(await probeEnvironment(url, 'pc_client_remote')).toEqual({
       state: 'offline',
       host: null,
+      name: null,
       platform: null,
       version: null,
     })
@@ -164,6 +243,82 @@ describe('readEnvironmentStatuses', () => {
       token: 'pc_client_remote',
       url: 'http://awake.synthetic',
     })
+  })
+
+  /**
+   * The saved name is frozen at pairing time — for two daemons on one machine it is the
+   * SAME hostname twice. Healing it from the owning daemon is what makes a nickname show up
+   * in every shell-side surface, and what keeps it there once that box goes to sleep.
+   */
+  it('heals the saved name to the nickname the daemon announces', async () => {
+    state = { activeId: 'env-1', environments: [environment({ name: 'synthetic-host' })] }
+
+    const statuses = await readEnvironmentStatuses()
+
+    expect(statuses[1]?.name).toBe(NICKNAME)
+    expect(state.environments[0]?.name).toBe(NICKNAME)
+  })
+
+  /**
+   * The regression that made healing dangerous: the daemon is UP, so the row is online and
+   * the state gets rewritten — but the one call that carries the nickname hiccuped. Writing
+   * the machine name in would replace the human's label with the exact string the nickname
+   * exists to escape, permanently: the next fan-out would read that name back as the truth.
+   */
+  it.each([
+    ['a transient failure', 'http://flaky.synthetic'],
+    ['an unreadable identity body', 'http://muddled.synthetic'],
+  ])('keeps the saved nickname when the identity call meets %s', async (_case, url) => {
+    state = {
+      activeId: 'env-1',
+      environments: [
+        environment({ name: NICKNAME, url, endpoints: [url], preferredEndpoint: url }),
+      ],
+    }
+
+    const statuses = await readEnvironmentStatuses()
+
+    expect(statuses[1]?.state).toBe('online')
+    expect(statuses[1]?.name).toBeNull()
+    expect(state.environments[0]?.name).toBe(NICKNAME)
+  })
+
+  /**
+   * The fan-out takes seconds, and a rename can land inside it. The name the probe read is
+   * then stale, and writing it back would silently revert what the human just typed — the
+   * lost update `updateRemoteEnvironmentState` exists to prevent.
+   */
+  it('does not revert a rename that landed while the probe was in flight', async () => {
+    state = { activeId: 'env-1', environments: [environment({ name: 'synthetic-host' })] }
+    onIdentityFetch = (): void => {
+      state = {
+        ...state,
+        environments: state.environments.map((env) => ({ ...env, name: 'Typed mid-probe' })),
+      }
+    }
+
+    await readEnvironmentStatuses()
+
+    expect(state.environments[0]?.name).toBe('Typed mid-probe')
+  })
+
+  it('keeps the last known nickname when the Environment is offline', async () => {
+    state = {
+      activeId: 'env-1',
+      environments: [
+        environment({
+          name: NICKNAME,
+          url: 'http://asleep.synthetic',
+          endpoints: ['http://asleep.synthetic'],
+        }),
+      ],
+    }
+
+    const statuses = await readEnvironmentStatuses()
+
+    expect(statuses[1]?.state).toBe('offline')
+    expect(statuses[1]?.name).toBeNull()
+    expect(state.environments[0]?.name).toBe(NICKNAME)
   })
 
   it('leaves the stored route alone when no endpoint answers', async () => {
