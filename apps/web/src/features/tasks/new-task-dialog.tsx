@@ -19,8 +19,9 @@ import { compactButtonClass } from '@renderer/lib/controls'
 import { useNewTaskDialogStore } from '@renderer/stores/new-task-dialog'
 import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
+  type ComposerEnvironment,
   composerTags,
   emptyComposerValue,
   TaskComposer,
@@ -70,6 +71,32 @@ export function NewTaskDialog(): React.JSX.Element {
       ? undefined
       : chosen.id
     : (environments[0]?.id ?? null)
+
+  /**
+   * The Project picker follows the target: every Project belongs to exactly one daemon, and a
+   * flat list across Environments cannot say which. Until a multi-Environment Hub is told
+   * where the Task goes there is no list to show.
+   */
+  const composerEnvironment = useMemo<ComposerEnvironment>(
+    () =>
+      targetEnvironment === undefined
+        ? { kind: 'unchosen' }
+        : { kind: 'environment', environmentId: targetEnvironment },
+    [targetEnvironment],
+  )
+
+  /**
+   * Retarget the Task. The Project reference (and the file tags hanging off its Worktree) name
+   * a checkout on the OLD daemon, so they are dropped rather than carried across — a stale one
+   * that survived the switch is precisely how a Task gets filed against a repository the
+   * receiving Environment has never seen. Title, notes, tags, links, and pictures are the
+   * person's own words and stay.
+   */
+  const retarget = (next: string | null): void => {
+    if (next === chosenValue) return
+    setChosenValue(next)
+    setDraft((current) => ({ ...current, projectId: null, worktreeId: null, pathRefs: [] }))
+  }
 
   const reset = (): void => {
     setDraft(emptyComposerValue())
@@ -150,7 +177,7 @@ export function NewTaskDialog(): React.JSX.Element {
               value: environmentValue(environment.id),
             }))}
             value={chosenValue}
-            onValueChange={(next: string | null) => setChosenValue(next)}
+            onValueChange={retarget}
           >
             <SelectTrigger
               data-testid={TestIds.tasksComposerEnvironment}
@@ -173,7 +200,12 @@ export function NewTaskDialog(): React.JSX.Element {
             </SelectContent>
           </Select>
         )}
-        <TaskComposer value={draft} onChange={setDraft} knownTags={knownTags} />
+        <TaskComposer
+          value={draft}
+          onChange={setDraft}
+          knownTags={knownTags}
+          environment={composerEnvironment}
+        />
         {error !== null && <p className="text-xs text-destructive">{error}</p>}
         <DialogFooter>
           <Button
