@@ -9,6 +9,14 @@ export type { DevServerMutationDefinition } from './dev-server-mutations'
 export { devServerMutations, devServersNotificationEffects } from './dev-server-mutations'
 export type { DevServersQuery } from './dev-server-queries'
 export { devServersQuery, devServersQuerySchema } from './dev-server-queries'
+export type { TerminalGroup, TerminalLocation } from './terminal-groups'
+export {
+  ELSEWHERE_GROUP_KEY,
+  ENVIRONMENT_GROUP_KEY,
+  groupTerminalSessions,
+  locationForCwd,
+  terminalLocations,
+} from './terminal-groups'
 export type { TerminalMutation, TerminalMutationDefinition } from './terminal-mutations'
 export { terminalMutations } from './terminal-mutations'
 export type { TerminalIdentity, TerminalSessionsQuery } from './terminal-queries'
