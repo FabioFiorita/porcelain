@@ -24,8 +24,10 @@ verified; it does not mean the behavior was discarded.
 | CW-05 | `terminal.spec.ts:6-24` plus the reconnect/scrollback contract from `terminal` lower tests | `critical-wiring.spec.ts:174-201` | Real PTY create, >64 KiB output, browser session detach, daemon-owned session retention, roster hydration, attach, and tail replay |
 
 The four critical tests above remain the wiring lane. The composed proof is the cross-feature
-browser lane, and the acceptance command also runs the Canvas, migration, Tasks, Actions, Hub,
-and promotion specs. The terminal test deliberately
+browser lane, and the full acceptance command also runs the Canvas, migration, Tasks, Actions,
+Hub, and promotion specs. The current command contains 16 functional browser tests. The CI
+smoke command deliberately selects four dependable flows: authenticated startup, an external
+file refresh, Worktree create/remove, and Task persistence. The terminal test deliberately
 asserts the tail after reload; the exact byte/unit cap and frame ordering remain owned by
 `apps/daemon/src/features/terminal/terminal-operations.test.ts:118-178`,
 `apps/daemon/src/features/terminal/terminal-stream-gateway.test.ts:50-135`,
@@ -110,7 +112,7 @@ lower test is the owner of that invariant at its smallest complete boundary.
 
 | ID | Source assertion | Disposition and replacement |
 | --- | --- | --- |
-| SH-05 | `:3-11` — browser has neither Share nor Remotes | The browser tab is the daemon that served it. Pairing is the link. `composed-proof.spec.ts` asserts Settings has no Remotes section. Desktop shell tests still own host-only administration. |
+| SH-05 | `:3-11` — browser has neither Share nor Remotes | The browser tab is the daemon that served it. Pairing is the link. `apps/web/src/components/settings/remotes-section.test.tsx` owns the renderer shape; Desktop shell tests own host-only administration. Retired from browser. |
 | SH-06 | `:13-24` — Electron sees the seeded client, revoke removes it, empty state returns | `apps/desktop/src/main/shell-api.test.ts:120-210` owns the shell administration transport; `apps/web/src/components/settings/remotes-section.test.tsx:1-100` owns the renderer shape. SUP-003 ruling A keeps pairing/address book/shell-api in Desktop. Retired from browser |
 
 ### `terminal.spec.ts`
@@ -147,7 +149,9 @@ lower test is the owner of that invariant at its smallest complete boundary.
 | Former risk | New owner |
 | --- | --- |
 | `helpers/app.ts:158-161` wrote obsolete `{ recentRepos: [...] }` to `config.json`, so a strict-v1 daemon treated seeded startup as empty | `helpers/app.ts:158-170` writes `{ version: 1, value: { paths: [...] } }` to the isolated `projects-recents.json` document |
-| Normal browser command ran every functional and visual spec | `apps/desktop/package.json` `test:e2e` and `test:e2e:prebuilt` run the 18-test functional acceptance lane; `test:e2e:update` is visual-only |
+| Browser command inventory | `apps/desktop/package.json` `test:e2e` and `test:e2e:prebuilt` run the 16-test functional acceptance lane; `test:e2e:smoke[:prebuilt]` runs the four-test CI smoke lane; `test:e2e:update` is visual-only |
+| Pairing exchange | `test:e2e:pairing[:prebuilt]` runs the four browser gate/pairing tests explicitly; they are not part of the seeded functional lane |
+| Task Project scoping | `test:e2e:native:task-environments[:prebuilt]` runs the four Electron-only multi-daemon tests; browser runs skip them because Environment groups belong to the native shell |
 | Native clipboard proof was skipped in browser but lived beside browser assertions | `terminal-native.spec.ts` and native scripts target the Electron project explicitly |
 | A layout geometry assertion lived in the functional browser list | `visual.spec.ts` owns it beside screenshot proof |
 | Fixture daemon could touch a developer daemon/home if a test leaked paths | `helpers/app.ts` keeps per-test `PORCELAIN_HOME`, `PORCELAIN_USER_DATA`, access file, admin token, loopback OS-assigned port, and fixture repo; no production port or personal companion is used |
@@ -164,14 +168,15 @@ The relocation is complete only when all of the following are true:
 - The old broad functional specs are absent, while `visual.spec.ts`, `terminal-native.spec.ts`, and this ledger remain.
 - The worktree is clean after the implementation commit and no push is performed.
 
-## Run record
+## Historical E2E-001 run record
 
 - Baseline: the inherited browser lane failed before the migration because the helper wrote the
   obsolete `config.json`; the daemon ignored it and the browser waited for the shell rail while
   the Welcome surface remained mounted. No product daemon or personal data was involved.
 - `pnpm --dir apps/desktop typecheck:e2e` — passed.
-- `pnpm --dir apps/desktop test:e2e:prebuilt` — 18/18 browser tests passed, including
-  `composed-proof.spec.ts`, `hub-inventory.spec.ts`, and `hub-viewer.spec.ts`.
+- `pnpm --dir apps/desktop test:e2e:prebuilt` — 18/18 browser tests passed at the E2E-001
+  migration point, including `composed-proof.spec.ts`, `hub-inventory.spec.ts`, and
+  `hub-viewer.spec.ts`. The current inventory is 16 tests after later spec changes.
 - `pnpm --dir apps/desktop test` — 466 test files / 3,623 tests passed (the repository test
   script ran the complete Vitest workspace while the lower-boundary command was exercised).
 - `pnpm lint` — passed; `git diff --check` — passed; architecture-spec validator — passed.

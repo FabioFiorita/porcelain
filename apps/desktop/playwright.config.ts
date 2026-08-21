@@ -1,9 +1,9 @@
 import { defineConfig } from '@playwright/test'
 import type { AppMode } from './e2e/helpers/app'
 
-// Porcelain's e2e tier — ONE spec suite, two runtimes (see e2e/helpers/app.ts):
+// Porcelain's e2e tier has a browser lane and a native Electron lane (see e2e/helpers/app.ts):
 //
-// - `browser` (day-to-day CI on main): headless Chromium driving the daemon-served
+// - `browser` (CI smoke plus the local full acceptance command): headless Chromium driving the daemon-served
 //   browser client — the daemon serves the SAME built renderer dist the Electron
 //   window loads, over the same tRPC + WS data path, so this asserts everything
 //   except the Electron shell layer, with no display server needed.
@@ -11,8 +11,8 @@ import type { AppMode } from './e2e/helpers/app'
 //   BUILT app via Playwright's `_electron`, so the real preload, native menu, and
 //   window management are present. Not CI; release packaging does not re-run this.
 //
-// Both need `pnpm build` first; root `pnpm test:e2e` and the desktop package
-// scripts do this for you.
+// Both need `pnpm build` first; the build-free `:prebuilt` variants are used after
+// a build has already run (for example, by CI's `pnpm verify`).
 export default defineConfig<{ appMode: AppMode }>({
   testDir: './e2e',
   // Pin a paths-free tsconfig: the root tsconfig's `@renderer`/`@main` path

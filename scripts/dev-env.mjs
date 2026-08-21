@@ -148,6 +148,7 @@ export function printDevEnv() {
               pnpm dev:daemon -- --host          # LAN (default)
               pnpm dev:daemon -- --loopback      # this machine only
               pnpm dev:daemon -- --port 43119
+              pnpm dev                              # Electron + its profile daemon
   web HMR:    pnpm dev:web                       # http://127.0.0.1:${DEV_WEB_PORT}/ (proxies to the daemon)
   CLI:        pnpm porcelain <noun> <verb>
   agent:      the Porcelain plugin — MCP tools over POST /mcp

@@ -10,6 +10,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import {
+  DEV_ADMIN_TOKEN_FILE,
   DEV_HOME,
   DEV_PLAYGROUND,
   DEV_PORT,
@@ -27,7 +28,9 @@ test('the dev env points every path away from production', () => {
   const env = devEnv()
   assert.equal(env.PORCELAIN_HOME, DEV_HOME)
   assert.equal(env.PORCELAIN_USER_DATA, DEV_USER_DATA)
+  assert.equal(env.PORCELAIN_DAEMON_PORT, String(DEV_PORT))
   assert.equal(env.PORCELAIN_DEV_PLAYGROUND, DEV_PLAYGROUND)
+  assert.equal(env.PORCELAIN_ADMIN_TOKEN_FILE, DEV_ADMIN_TOKEN_FILE)
   assert.notEqual(env.PORCELAIN_HOME, `${process.env.HOME}/.porcelain`)
   assert.notEqual(env.PORCELAIN_USER_DATA, `${process.env.HOME}/.local/share/porcelain`)
   assert.notEqual(String(DEV_PORT), '43117')

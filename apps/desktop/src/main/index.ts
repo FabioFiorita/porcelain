@@ -8,11 +8,13 @@ import { initUpdater } from './updater'
 import { createWindow } from './window'
 
 // Dev gets its own config dir so `pnpm dev` never touches (or hijacks) the
-// state of the installed app the user works in. Must run before the daemon
-// spawn (which passes app.getPath('userData') down as PORCELAIN_USER_DATA —
-// the daemon owns the config store now, the shell never reads it).
+// state of the installed app the user works in. The workspace launcher supplies
+// the complete primary/worktree profile in PORCELAIN_USER_DATA; honoring it here
+// makes Electron's own files and single-instance lock follow the same profile as
+// the daemon. Keep the suffix fallback for direct package-local/e2e launches that
+// intentionally do not provide a profile.
 if (is.dev) {
-  app.setPath('userData', `${app.getPath('userData')}-dev`)
+  app.setPath('userData', process.env.PORCELAIN_USER_DATA ?? `${app.getPath('userData')}-dev`)
 }
 
 // Porcelain is ONE process hosting N windows (File → New Window / ⌘⌥N add windows

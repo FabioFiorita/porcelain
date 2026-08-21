@@ -12,7 +12,7 @@
  *   pnpm dev:daemon -- --port 43119 --host
  *   pnpm dev:daemon -- --loopback
  */
-import { execSync, spawn } from 'node:child_process'
+import { execFileSync, execSync, spawn } from 'node:child_process'
 import {
   closeSync,
   existsSync,
@@ -28,7 +28,7 @@ import {
 } from 'node:fs'
 import { createServer } from 'node:net'
 import { dirname, join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import {
   DEV_ADMIN_TOKEN_FILE,
   DEV_HOME,
@@ -137,16 +137,38 @@ function parseArgs(argv) {
   return opts
 }
 
-/** Best-effort PIDs listening on a TCP port (Linux ss). */
+/** Parse PIDs from either Linux `ss` output or macOS `lsof -t` output. */
+export function parseListeningPids(output, command) {
+  const matches =
+    command === 'lsof'
+      ? (output.match(/\b\d+\b/g) ?? [])
+      : [...output.matchAll(/pid=(\d+)/g)].map((match) => match[1])
+  return [...new Set(matches)]
+}
+
+/** The platform-specific owner probe; Linux keeps using `ss`, macOS uses `lsof`. */
+export function portOwnerProbe(port, platform = process.platform) {
+  if (platform === 'darwin') {
+    return {
+      command: 'lsof',
+      args: ['-nP', `-iTCP:${port}`, '-sTCP:LISTEN', '-t'],
+    }
+  }
+  return {
+    command: 'ss',
+    args: ['-ltnp', `sport = :${port}`],
+  }
+}
+
+/** Best-effort PIDs listening on a TCP port (Linux ss, macOS lsof). */
 function pidsOnPort(port) {
+  const probe = portOwnerProbe(port)
   try {
-    const out = execSync(`ss -ltnp "sport = :${port}"`, {
+    const out = execFileSync(probe.command, probe.args, {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],
     })
-    const pids = new Set()
-    for (const m of out.matchAll(/pid=(\d+)/g)) pids.add(m[1])
-    return [...pids]
+    return parseListeningPids(out, probe.command)
   } catch {
     return []
   }
@@ -168,7 +190,11 @@ function assertPortFree(port) {
       if (pids.length > 0) {
         console.error(`    kill ${pids.join(' ')}`)
       }
-      console.error(`    # or:  fuser -k ${port}/tcp`)
+      console.error(
+        process.platform === 'darwin'
+          ? `    # or:  lsof -tiTCP:${port} -sTCP:LISTEN | xargs kill`
+          : `    # or:  fuser -k ${port}/tcp`,
+      )
       console.error('  Leave only one `pnpm dev:daemon` running at a time.')
       process.exit(1)
     })
@@ -392,7 +418,9 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error('[dev:daemon]', err)
-  process.exit(1)
-})
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((err) => {
+    console.error('[dev:daemon]', err)
+    process.exit(1)
+  })
+}

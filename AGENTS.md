@@ -69,6 +69,11 @@ the worktree clean enough for the next person to understand. Do not push or publ
 explicit request. Product future work lives in Porcelain Tasks; this repository documents current
 behavior and operational facts only.
 
+Before starting a development process in a linked worktree, run `pnpm dev:env`. If it reports the
+primary profile because an external harness created the worktree without `.porcelain-worktree.json`,
+adopt it from the primary checkout with `pnpm worktree adopt <path> <slug>` so its ports and state
+cannot collide with another checkout.
+
 ## Porcelain profile
 
 This worktree's profile — pinned paths, hidden paths, and story layer order — is meant to mutate.
