@@ -1,29 +1,24 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { publicErrorFor, writePublicError } from '../../daemon-composition/public-error'
-import { createRequestId } from '../../daemon-composition/request-id'
 import { mcpForbiddenOriginBody } from '../../net/mcp'
-import type { AuthIdentity } from './access-store'
 
 /**
- * POST /mcp — the agent tool surface, gated.
+ * POST /mcp — the local agent tool surface.
  *
- * Two gates, in this order. **Bearer first**, because authentication is the daemon's
- * outermost fail-closed check everywhere else and an anonymous caller must not be
- * able to probe which origins a daemon trusts. **Origin second**, because a loopback
- * bind is not privacy: any page the human has open can POST to 127.0.0.1, and MCP
- * requires local servers to refuse an untrusted `Origin` with 403 for exactly that
- * reason. The retired agent CLI needed neither — a web page cannot exec a binary —
- * so this is the security property the move to a network transport must pay for.
+ * Installing the plugin is the user's authorization for a local agent, so this
+ * route deliberately has no admin-token requirement. It is only reachable from a
+ * direct loopback TCP connection, though: LAN, Tailscale, and Cloudflare requests
+ * are refused even when they carry an admin credential. Forwarded/proxy headers are
+ * refused because a tunnel or reverse proxy can otherwise make a remote request
+ * look loopback-local. Origin checking remains important because arbitrary browser
+ * pages can also POST to a loopback listener.
  *
- * The Porcelain protocol header is deliberately not required here: an MCP client is
- * not a Porcelain client and carries MCP's own `MCP-Protocol-Version` instead, which
- * `net/mcp` enforces against the request body.
+ * MCP's own protocol headers are enforced by `net/mcp`; Porcelain's app protocol
+ * header is intentionally not required here.
  */
 export async function serveMcpRoute(input: {
   req: IncomingMessage
   res: ServerResponse
   cors: Record<string, string>
-  authenticate: () => Promise<AuthIdentity | null>
   allowedOrigins: readonly string[]
   /** Undefined means the daemon does not wire MCP at all, and the route 404s. */
   serveMcp: ((req: IncomingMessage, res: ServerResponse) => Promise<void>) | undefined
@@ -34,13 +29,15 @@ export async function serveMcpRoute(input: {
     res.end()
     return
   }
-  if (req.method === 'OPTIONS') {
-    res.writeHead(204, cors)
+  if (!isDirectLoopbackRequest(req)) {
+    // 404 intentionally avoids advertising the MCP surface to a remote caller.
+    res.writeHead(404, cors)
     res.end()
     return
   }
-  if ((await input.authenticate()) === null) {
-    writePublicError(res, 401, cors, publicErrorFor('auth.unauthenticated', createRequestId()))
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204, cors)
+    res.end()
     return
   }
   const origin = req.headers.origin
@@ -54,4 +51,30 @@ export async function serveMcpRoute(input: {
     return
   }
   await serveMcp(req, res)
+}
+
+function isLoopbackAddress(address: string | undefined): boolean {
+  if (address === undefined) return false
+  return address === '127.0.0.1' || address === '::1' || address === '::ffff:127.0.0.1'
+}
+
+function isDirectLoopbackRequest(req: IncomingMessage): boolean {
+  if (!isLoopbackAddress(req.socket.remoteAddress)) return false
+  // A direct MCP client does not send these. Rejecting them prevents a local proxy
+  // (including a Cloudflare tunnel) from laundering a remote request as loopback.
+  const forwardedHeaders = [
+    'forwarded',
+    'via',
+    'x-forwarded-for',
+    'x-forwarded-host',
+    'x-forwarded-proto',
+    'x-real-ip',
+    'cf-connecting-ip',
+    'cf-ray',
+    'cf-visitor',
+  ]
+  return forwardedHeaders.every((name) => {
+    const value = req.headers[name]
+    return value === undefined || value === ''
+  })
 }

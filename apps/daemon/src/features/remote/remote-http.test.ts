@@ -239,9 +239,14 @@ async function startTestDaemon(
 }
 
 async function stopTestDaemon(testDaemon: RemoteHttp): Promise<void> {
-  await new Promise<void>((resolve, reject) =>
-    testDaemon.server.close((error) => (error ? reject(error) : resolve())),
-  )
+  const close = (server: import('node:http').Server): Promise<void> =>
+    server.listening
+      ? new Promise<void>((resolve, reject) =>
+          server.close((error) => (error ? reject(error) : resolve())),
+        )
+      : Promise.resolve()
+  await close(testDaemon.server)
+  await close(testDaemon.externalServer)
 }
 
 async function trpcPublicErrorFrom(response: Response) {
@@ -313,7 +318,7 @@ function postChunked(url: string, body: string): Promise<Response> {
 }
 
 beforeAll(async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'porcelain-daemon-http-'))
+  const dir = await mkdtemp(join(tmpdir(), 'porcelain-http-'))
   initConfigDir(dir)
   const started = await startTestDaemon()
   base = started.base
@@ -1067,10 +1072,9 @@ describe('daemon ws surface — the /session upgrade gate + dispatch', () => {
 })
 
 /**
- * The MCP endpoint is a second dispatching route on the same listener, so the gates
- * that make /trpc safe have to be shown holding here too — with one addition the
- * retired agent CLI never needed: a web page can POST to a loopback port, so an
- * untrusted `Origin` is refused before the request reaches any tool.
+ * The MCP endpoint is intentionally local-only. Installing the plugin authorizes
+ * direct loopback use, while Origin and proxy-header checks stop a browser page or
+ * tunnel from turning that local route into an unauthenticated remote API.
  */
 describe('POST /mcp', () => {
   const body = JSON.stringify({
@@ -1110,11 +1114,11 @@ describe('POST /mcp', () => {
     }
   }
 
-  it('serves an authenticated request', async () => {
+  it('serves a direct loopback request without an Authorization header', async () => {
     await withMcpDaemon(async (base, served) => {
       const response = await fetch(`${base}/mcp`, {
         method: 'POST',
-        headers: { ...mcpHeaders, authorization: `Bearer ${TOKEN}` },
+        headers: mcpHeaders,
         body,
       })
       expect(response.status).toBe(200)
@@ -1122,16 +1126,42 @@ describe('POST /mcp', () => {
     })
   })
 
-  it('refuses an unauthenticated request before dispatching', async () => {
+  it('refuses a proxied loopback request so Cloudflare cannot launder remote access', async () => {
     await withMcpDaemon(async (base, served) => {
       const response = await fetch(`${base}/mcp`, {
+        method: 'POST',
+        headers: { ...mcpHeaders, 'x-forwarded-for': '203.0.113.10' },
+        body,
+      })
+      expect(response.status).toBe(404)
+      expect(served.calls).toBe(0)
+    })
+  })
+
+  it('does not expose MCP through the external listener even when proxy headers are stripped', async () => {
+    const served = { calls: 0 }
+    const started = await startTestDaemon({
+      serveMcp: async (_req, res) => {
+        served.calls += 1
+        res.writeHead(200, { 'content-type': 'application/json' })
+        res.end('{"ok":true}')
+      },
+    })
+    await new Promise<void>((resolve) =>
+      started.daemon.externalServer.listen(0, '127.0.0.1', resolve),
+    )
+    const address = started.daemon.externalServer.address() as AddressInfo
+    try {
+      const response = await fetch(`http://127.0.0.1:${address.port}/mcp`, {
         method: 'POST',
         headers: mcpHeaders,
         body,
       })
-      await expectPublicHttpFailure(response, 401, 'auth.unauthenticated')
+      expect(response.status).toBe(404)
       expect(served.calls).toBe(0)
-    })
+    } finally {
+      await stopTestDaemon(started.daemon)
+    }
   })
 
   it('refuses an untrusted Origin with a JSON-RPC error and never dispatches', async () => {
@@ -1140,7 +1170,6 @@ describe('POST /mcp', () => {
         method: 'POST',
         headers: {
           ...mcpHeaders,
-          authorization: `Bearer ${TOKEN}`,
           origin: 'https://evil.example',
         },
         body,
@@ -1157,7 +1186,7 @@ describe('POST /mcp', () => {
     await withMcpDaemon(async (base, served) => {
       const response = await fetch(`${base}/mcp`, {
         method: 'POST',
-        headers: { ...mcpHeaders, authorization: `Bearer ${TOKEN}`, origin: ORIGIN },
+        headers: { ...mcpHeaders, origin: ORIGIN },
         body,
       })
       expect(response.status).toBe(200)
@@ -1169,7 +1198,7 @@ describe('POST /mcp', () => {
     await withMcpDaemon(async (base, served) => {
       const response = await fetch(`${base}/mcp`, {
         method: 'POST',
-        headers: { ...mcpHeaders, authorization: `Bearer ${TOKEN}` },
+        headers: mcpHeaders,
         body,
       })
       expect(response.status).toBe(200)
@@ -1182,7 +1211,7 @@ describe('POST /mcp', () => {
     try {
       const response = await fetch(`${started.base}/mcp`, {
         method: 'POST',
-        headers: { ...mcpHeaders, authorization: `Bearer ${TOKEN}` },
+        headers: mcpHeaders,
         body,
       })
       expect(response.status).toBe(404)

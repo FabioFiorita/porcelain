@@ -14,9 +14,9 @@ are private to that Environment. A checkout carries only deliberate overlays und
 ## Promote deliberately
 
 ```bash
-porcelain_context (include: ["canvases"])
-porcelain_promote (what: "canvas", canvasId: …)
-porcelain_promote (what: "overrides")
+porcelain_canvas { "op": "list", "workspace": "/abs/path/to/checkout" }
+porcelain_canvas { "op": "promote", "workspace": "/abs/path/to/checkout", "id": "…" }
+porcelain_profile { "op": "promote", "workspace": "/abs/path/to/checkout", "level": "project" }
 ```
 
 Promotion writes plain files and adjusts the clone's Porcelain visibility rules. It does not run

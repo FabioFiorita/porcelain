@@ -6,7 +6,7 @@ import { parseArgs } from 'node:util'
 /**
  * Independent Node build for the daemon — no electron-vite.
  *
- * Writes into the existing runtime layout so shell spawn and porcelain-daemon
+ * Writes into the existing runtime layout so shell spawn and porcelain
  * packaging keep working:
  *
  *   apps/desktop/out/main/daemon/server.js
@@ -99,7 +99,7 @@ async function buildDaemon() {
     ...common,
     entryPoints: [join(root, 'apps', 'daemon', 'src', 'server.ts')],
     outfile,
-    // Match porcelain-daemon runtime deps — not bundled so native modules compile on host.
+    // Match @fabiofiorita/porcelain runtime deps — not bundled so native modules compile on host.
     external: ['@trpc/server', '@trpc/client', 'ws', 'node-pty', 'trash', 'zod'],
   })
   console.log(`[build-node] daemon → ${outfile}`)
@@ -108,7 +108,7 @@ async function buildDaemon() {
 /**
  * The wire protocol constants, built as one requirable CJS module.
  *
- * `scripts/daemon-cli.js` is plain CommonJS with no bundler and no workspace resolution, but
+ * `scripts/porcelain-host.js` is plain CommonJS with no bundler and no workspace resolution, but
  * it is a repository-owned daemon client: it must announce the same protocol version the
  * daemon enforces, from the same contracts definition, never a copied literal. It already
  * requires the built daemon out of this layout — this puts the contracts it needs beside it,
@@ -122,7 +122,7 @@ async function buildProtocol() {
     entryPoints: [join(contractsSrc, 'protocol.ts')],
     outfile,
     // zod stays external, exactly as in the daemon bundle: it is a declared dependency of
-    // the porcelain-daemon package, and bundling it would grow two constants to 500 kB.
+    // the @fabiofiorita/porcelain package, and bundling it would grow two constants to 500 kB.
     external: ['zod'],
   })
   console.log(`[build-node] protocol → ${outfile}`)

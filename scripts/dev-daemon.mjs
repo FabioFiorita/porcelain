@@ -2,8 +2,8 @@
 /**
  * Start the local-tree daemon on the DEV stack (default port 43118, porcelain-dev data).
  *
- * This is NOT the published `porcelain-daemon` npm package — that is for production
- * hosts (`npx porcelain-daemon@latest serve`). Day-to-day product work uses this
+ * This is NOT the published `@fabiofiorita/porcelain` npm package — that is for production
+ * hosts (`npx @fabiofiorita/porcelain@latest serve`). Day-to-day product work uses this
  * launcher against a built tree (`pnpm build` once, then restart here).
  *
  * Usage (pnpm needs `--` before flags):
@@ -66,7 +66,7 @@ Notes:
   • Channels / token: ${DEV_HOME}  (never prod ~/.porcelain)
   • Requires a warm build: pnpm build   (if apps/desktop/out/main/daemon/server.js is missing)
   • Production is port 43117 / systemd — this command never touches it
-  • Not the published package: use \`npx porcelain-daemon@latest serve\` for that
+  • Not the published package: use \`npx @fabiofiorita/porcelain@latest serve\` for that
 
 Examples:
   pnpm dev:daemon

@@ -1,6 +1,6 @@
 # Sync Environments
 
-Porcelain keeps the canonical Review Canvas, Tasks, and Actions in the daemon-root store. An
+Porcelain keeps canonical Canvases, Tasks, and Actions in the daemon-root store. An
 Environment is a daemon connection; a Project identifies a repository family and its Worktrees.
 The browser and desktop clients always name the Environment and Worktree they are showing.
 
@@ -15,7 +15,7 @@ into a checkout:
   project.json         # promoted hide/pin and Worktree defaults
 ```
 
-Use `porcelain_promote` with `what: "canvas"` or `what: "overrides"`; promotion never stages or commits. The
+Use `porcelain_canvas` with `op: "promote"` or `porcelain_profile` with `op: "promote"`; promotion never stages or commits. The
 project's managed git rules keep private daemon state out of normal status while allowing these
 explicit overlays to be tracked. Read [git-visibility.md](git-visibility.md) for the exact
 rules.

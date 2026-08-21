@@ -21,7 +21,7 @@ const TITLE = 'Companion'
  */
 export default function CompanionRoute(): React.JSX.Element {
   const { surface } = useLocalSearchParams<{ surface?: SurfaceId }>()
-  const done = <HeaderDoneButton testID="porcelain-companion-done" />
+  const done = <HeaderDoneButton testID="companion-done" />
 
   return (
     <PresentedChrome>

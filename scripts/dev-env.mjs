@@ -104,7 +104,7 @@ export const DEV_WEB_PORT = webDevPort(DEV_PORT)
  * Mint or load the dev-stack administrator token at ~/.porcelain-dev/admin-token.
  * The daemon entry refuses to auto-read the file when stdin is a TTY (so a
  * bare `node out/main/daemon/server.js` doesn't silently mint); the launcher
- * must pass PORCELAIN_ADMIN_TOKEN via env — same pattern as daemon-cli.js.
+ * must pass PORCELAIN_ADMIN_TOKEN via env — same pattern as porcelain-host.js.
  */
 export function ensureDevAdminToken() {
   mkdirSync(DEV_HOME, { recursive: true })
@@ -175,7 +175,7 @@ export function printDevEnv() {
   pair:       pnpm dev:pair                          # one-time URL; dev:daemon prints one at boot
   fixtures:   pnpm playground list
 
-  Not the published package — that is:  npx porcelain-daemon@latest serve
+  Not the published package — that is:  npx @fabiofiorita/porcelain@latest serve
   Web client changes:                   pnpm dev:web (HMR, no rebuild)
   Daemon changes:                       pnpm build:daemon && restart pnpm dev:daemon
 `)

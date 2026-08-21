@@ -3,9 +3,8 @@ import { shellTrpc } from '@renderer/lib/trpc'
 
 export interface PluginInfo {
   version: string
-  installCommand: string
-  marketplaceCommands: readonly string[]
-  updateCommands: readonly string[]
+  agentPluginRepository: string
+  claudePluginCommands: readonly string[]
 }
 
 export function usePluginInfo(): PluginInfo | undefined {

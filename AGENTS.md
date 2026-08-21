@@ -80,7 +80,7 @@ This worktree's profile â€” pinned paths, hidden paths, and story layer order â€
 Setting it to match the task you are starting is a standing request here, so treat this section as
 the human's ask: use `porcelain_profile` at `level` worktree when you start substantial work, and
 `op` clear when it is done. Levels, the whole-document write shape, and the confirmation rule live
-in the [profile reference](plugins/porcelain/skills/porcelain-companion/references/profile.md);
+in the [profile reference](plugins/porcelain/skills/companion/references/profile.md);
 read it before your first write.
 
 ## Hard safety rules

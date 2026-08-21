@@ -9,22 +9,18 @@ describe('CompanionSection', () => {
   beforeEach(() => {
     vi.mocked(usePluginInfo).mockReturnValue({
       version: '1.0.0',
-      installCommand: 'npx plugins add FabioFiorita/porcelain',
-      marketplaceCommands: [
+      agentPluginRepository: 'FabioFiorita/porcelain',
+      claudePluginCommands: [
         '/plugin marketplace add FabioFiorita/porcelain',
         '/plugin install porcelain@porcelain',
-      ],
-      updateCommands: [
-        'npx plugins add FabioFiorita/porcelain',
-        '/plugin marketplace update porcelain',
       ],
     })
   })
 
-  it('shows the vendor-neutral install, the Claude marketplace route, and the update', () => {
+  it('shows the Agent Plugin source and Claude marketplace route', () => {
     render(<CompanionSection />)
 
-    expect(screen.getAllByText('npx plugins add FabioFiorita/porcelain').length).toBeGreaterThan(0)
+    expect(screen.getByText('FabioFiorita/porcelain')).toBeTruthy()
     // The marketplace route is two commands in one block — joined on a real newline, not
     // truncated to the first. Whitespace normalization would hide a dropped line, so keep it off.
     expect(
@@ -40,5 +36,6 @@ describe('CompanionSection', () => {
     render(<CompanionSection />)
 
     expect(screen.queryByText(/npx skills/)).toBeNull()
+    expect(screen.queryByText(/npx plugins add/)).toBeNull()
   })
 })

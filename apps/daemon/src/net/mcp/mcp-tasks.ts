@@ -53,7 +53,7 @@ export function describeMissingTask(wanted: string, tasks: readonly McpTask[]): 
     .map((task) => task.shortId ?? task.id)
     .slice(0, 40)
     .join(', ')
-  return `No Task ${wanted} on this daemon. Known Tasks: ${known === '' ? '(none)' : known}. List them with porcelain_context include: ["tasks"].`
+  return `No Task ${wanted} on this daemon. Known Tasks: ${known === '' ? '(none)' : known}. List them with porcelain_task op: "list".`
 }
 
 /**

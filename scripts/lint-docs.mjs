@@ -8,7 +8,7 @@
  * The rule: a `docs/*.md` path appears in AGENTS.md exactly once, in the routing block.
  *
  * Shipped skills cannot read this checkout. `plugins/` is published and installed elsewhere,
- * where `docs/` does not exist. `porcelain-remote/SKILL.md` states this about itself, and two
+ * where `docs/` does not exist. `remote/SKILL.md` states this about itself, and two
  * of its own references pointed at `docs/remote-access.md` anyway — the invariant lived only
  * inside the artifact it constrained. The rule: no relative `docs/*.md` reference under
  * `plugins/`. An absolute URL is fine; an installed copy can follow it.

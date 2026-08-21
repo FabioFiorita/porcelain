@@ -1,12 +1,12 @@
 # Always-on: systemd + linger
 
-A foreground `npx porcelain-daemon@latest serve` dies with the SSH session that started it. For a
+A foreground `npx @fabiofiorita/porcelain@latest serve` dies with the SSH session that started it. For a
 host that should keep serving after you log out or reboot, run it as a **user-level systemd unit**
 with **linger** enabled. Both parts are required — the unit alone still stops at logout.
 
 ## The unit
 
-`~/.config/systemd/user/porcelain-daemon.service`:
+`~/.config/systemd/user/porcelain.service`:
 
 ```ini
 [Unit]
@@ -21,8 +21,8 @@ Environment=PORCELAIN_USER_DATA=%h/.local/share/porcelain
 Environment=PORCELAIN_DAEMON_PORT=43117
 Environment=PORCELAIN_ALLOWED_ORIGIN=http://hub-host:43118
 EnvironmentFile=-%h/.porcelain/cloudflare.env
-ExecStart=<node-manager-bin>/npx --yes --prefer-online porcelain-daemon@latest serve --no-watchdog --lan --cloudflare --cloudflare-hostname review.example.com
-Restart=always
+ExecStart=<node-manager-bin>/npx --yes --prefer-online @fabiofiorita/porcelain@latest serve --no-watchdog --lan --cloudflare --cloudflare-hostname review.example.com
+Restart=on-failure
 RestartSec=5
 KillMode=control-group
 TimeoutStopSec=15
@@ -50,12 +50,10 @@ client-token authentication remain required.
 Notes on the choices that matter here:
 
 - **`--no-watchdog` is required.** The daemon's stdin parent-death watchdog assumes a live
-  controlling process; under systemd's process model it just fights `Restart=always` and the unit
+  controlling process; under systemd's process model it just fights service supervision and the unit
   flaps. Systemd's own supervision replaces it.
-- **`Restart=always`, not `Restart=on-failure`.** A clean exit (e.g. from an unhandled signal
-  during a tunnel hiccup) should still come back — this is a background service, not a one-shot
-  job. (`on-failure` is what you'll see in older generated docs; prefer `always` for this
-  proven setup.)
+- **`Restart=on-failure`.** Unexpected crashes restart the service, while an intentional clean
+  stop remains stopped.
 - **PATH must include the agent CLIs**, not just Node. The daemon discovers `claude`/`codex`/other
   agent CLIs by walking `PATH` when it spawns a terminal — if the unit's `PATH` only has Node, a
   terminal spawned by a remote client won't find those binaries even though an interactive shell
@@ -63,10 +61,10 @@ Notes on the choices that matter here:
   agent CLIs.
 - **`UMask=0077` + `NoNewPrivileges=true`** keep the admin-token file and anything the daemon
   writes from being group/world-readable, and block privilege escalation via the service.
-- **`@latest`** re-resolves on every restart (including the automatic ones from `Restart=always`),
+- **`@latest`** re-resolves on every restart (including automatic failure restarts),
   so the daemon auto-updates. That's a deliberate tradeoff: you get fixes without manual upkeep,
   but a breaking npm release also lands automatically. Pin a version
-  (`porcelain-daemon@0.50.0`) in `ExecStart` instead if you'd rather control upgrades by hand.
+  (`@fabiofiorita/porcelain@0.50.0`) in `ExecStart` instead if you'd rather control upgrades by hand.
 
 ### The Volta/fnm/nvm trap
 
@@ -84,13 +82,13 @@ no obvious link back to the shim. Two fixes, either works:
 
 ```sh
 systemctl --user daemon-reload
-systemctl --user enable --now porcelain-daemon.service
+systemctl --user enable --now porcelain.service
 loginctl enable-linger $USER
 ```
 
 Both are required:
 
-- `systemctl --user enable` starts the unit on next login and lets `Restart=always` supervise it.
+- `systemctl --user enable` starts the unit on next login and lets `Restart=on-failure` supervise it.
 - `loginctl enable-linger $USER` keeps this user's systemd **instance** running (and therefore the
   unit) after the last SSH session to this user closes. Without linger, the unit dies the moment
   you log out even though it's "enabled" — this is the part people skip and then can't figure out
@@ -105,8 +103,8 @@ loginctl show-user $USER --property=Linger
 ## Check status and logs
 
 ```sh
-systemctl --user status porcelain-daemon.service
-journalctl --user -u porcelain-daemon.service -f
+systemctl --user status porcelain.service
+journalctl --user -u porcelain.service -f
 ```
 
 ## Readiness after a restart

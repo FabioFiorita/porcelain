@@ -6,7 +6,7 @@ administrator token.
 ## Issue a pairing link
 
 ```sh
-npx porcelain-daemon@latest access issue --name "My iPhone"
+npx @fabiofiorita/porcelain@latest access issue --name "My iPhone"
 ```
 
 Prints one URL. If a bind mode is already active, the CLI auto-picks the best reachable base URL
@@ -15,7 +15,7 @@ the device you're pairing (for example a public Cloudflare URL when the LAN URL 
 win):
 
 ```sh
-npx porcelain-daemon@latest access issue --name "My phone" --base-url https://<tunnel>.trycloudflare.com
+npx @fabiofiorita/porcelain@latest access issue --name "My phone" --base-url https://<tunnel>.trycloudflare.com
 ```
 
 If nothing is reachable yet (still loopback-only), pass `--base-url` explicitly or turn on a bind
@@ -39,14 +39,14 @@ app's connection-link entry.
 ## List and revoke
 
 ```sh
-npx porcelain-daemon@latest access list
+npx @fabiofiorita/porcelain@latest access list
 ```
 
 Prints JSON with two arrays: `clients` (paired, active devices) and `pairings` (links issued but
 not yet exchanged, still within TTL). Each has an `id`.
 
 ```sh
-npx porcelain-daemon@latest access revoke <id>
+npx @fabiofiorita/porcelain@latest access revoke <id>
 ```
 
 Works on either an active client id or an unconsumed pairing id. Revoking a **client** immediately

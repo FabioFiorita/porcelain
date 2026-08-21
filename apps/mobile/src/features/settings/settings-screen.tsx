@@ -35,7 +35,7 @@ const SECTIONS: { value: SettingsSection; label: string; detail: string; testID:
   {
     value: 'companion',
     label: 'Companion',
-    detail: 'The porcelain-companion skill for your agents.',
+    detail: 'The companion skill for your agents.',
     testID: 'porcelain-settings-section-companion',
   },
   {

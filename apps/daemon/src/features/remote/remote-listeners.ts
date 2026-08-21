@@ -9,7 +9,7 @@ import { findTailscaleAddress } from './remote-tailnet'
  * gate as loopback and never 0.0.0.0 (Remote boundary + server.ts): the **tailnet**
  * listener binds the Tailscale interface (100.64/10), the **LAN** listener binds the
  * machine's RFC1918 addresses. Same shape, so they are two instances of one factory
- * (`createIfaceListener`). The request/upgrade handlers live in server.ts and are
+ * (`createIfaceListener`). The external request/upgrade handlers live in server.ts and are
  * handed over once via `initIfaceHandlers`, so start/stop can go live without
  * importing server.ts (which would drag in the daemon's `main()` side effects).
  *
@@ -45,12 +45,22 @@ const IFACE_RECONCILE_MS = 5_000
 type RequestHandler = (req: IncomingMessage, res: ServerResponse) => void
 type UpgradeHandler = (req: IncomingMessage, socket: Duplex, head: Buffer) => void
 
-let requestHandler: RequestHandler | null = null
+let externalRequestHandler: RequestHandler | null = null
 let upgradeHandler: UpgradeHandler | null = null
 
-/** Register the shared handlers (called once from server.ts before any listen). */
-export function initIfaceHandlers(request: RequestHandler, upgrade: UpgradeHandler): void {
-  requestHandler = request
+/**
+ * Register the handlers (called once from server.ts before any listen).
+ *
+ * The optional third argument keeps small listener-only callers source-compatible,
+ * but production always supplies it. Interface listeners must use the external
+ * handler so the token-free MCP route remains structurally loopback-only.
+ */
+export function initIfaceHandlers(
+  request: RequestHandler,
+  upgrade: UpgradeHandler,
+  externalRequest: RequestHandler = request,
+): void {
+  externalRequestHandler = externalRequest
   upgradeHandler = upgrade
 }
 
@@ -147,10 +157,10 @@ export function createIfaceListener(
   async function bindOne(
     addr: string,
   ): Promise<{ server: Server; addr: string } | { failed: 'in-use' | 'other' }> {
-    if (requestHandler === null || upgradeHandler === null) {
+    if (externalRequestHandler === null || upgradeHandler === null) {
       throw new Error('iface-listener: initIfaceHandlers has not been called')
     }
-    const request = requestHandler
+    const request = externalRequestHandler
     const upgrade = upgradeHandler
     return new Promise((resolve) => {
       const listener = createServer(request)
@@ -173,7 +183,7 @@ export function createIfaceListener(
   }
 
   async function reconcile(): Promise<string | null> {
-    if (requestHandler === null || upgradeHandler === null) {
+    if (externalRequestHandler === null || upgradeHandler === null) {
       throw new Error('iface-listener: initIfaceHandlers has not been called')
     }
     // Only clear 'in-use' when we start a fresh pass; a mid-pass bind failure

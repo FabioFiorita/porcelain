@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// Headless CLI for the published porcelain-daemon package.
+// Narrow host launcher for the published @fabiofiorita/porcelain package.
 // Copied into dist-daemon/bin/ by scripts/build-daemon-dist.mjs — not run from
 // the monorepo root (paths resolve relative to the installed package layout).
 //
 // Goal: t3-style one-liner on a remote box —
-//   npx porcelain-daemon@latest serve --tailnet
+//   npx @fabiofiorita/porcelain@latest serve --tailnet
 // instead of scp'ing a dist tarball and wiring systemd.
 
 const { randomBytes } = require('node:crypto')
@@ -27,16 +27,15 @@ const porcelainHome = () => process.env.PORCELAIN_HOME ?? join(homedir(), '.porc
 const ADMIN_TOKEN_PATH = () =>
   process.env.PORCELAIN_ADMIN_TOKEN_FILE ?? join(porcelainHome(), 'admin-token')
 
-const HELP = `porcelain-daemon — headless Porcelain backend (plain Node, no Electron)
+const HELP = `porcelain — headless Porcelain backend (plain Node, no Electron)
 
 Usage:
-  porcelain-daemon serve [options]
-  porcelain-daemon [options]              (same as serve)
-  porcelain-daemon access issue --name <device> [--base-url <url>]
-  porcelain-daemon access list
-  porcelain-daemon access revoke <id>
-  porcelain-daemon share status
-  porcelain-daemon share lan|tailnet|cloudflare on|off
+  porcelain serve [options]
+  porcelain [options]              (same as serve)
+  porcelain access issue --name <device> [--base-url <url>]
+  porcelain access list
+  porcelain access revoke <id>
+  porcelain share status
 
 Options:
   --port <n>           Listen port for loopback AND LAN/tailnet (default ${DEFAULT_PORT})
@@ -57,11 +56,11 @@ Host-management options:
   --base-url <url>     Reachable URL to embed in a new connection link
 
 Examples:
-  npx porcelain-daemon@latest serve --lan
-  npx porcelain-daemon@latest serve --lan --tailnet
-  npx porcelain-daemon@latest serve --lan --cloudflare --cloudflare-hostname review.example.com
-  npx porcelain-daemon@latest access issue --name "My phone"
-  npx porcelain-daemon@latest serve --port 43118 --lan
+  npx @fabiofiorita/porcelain@latest serve --lan
+  npx @fabiofiorita/porcelain@latest serve --lan --tailnet
+  npx @fabiofiorita/porcelain@latest serve --lan --cloudflare --cloudflare-hostname review.example.com
+  npx @fabiofiorita/porcelain@latest access issue --name "My phone"
+  npx @fabiofiorita/porcelain@latest serve --port 43118 --lan
 
 Env (same as the raw daemon; flags set these when passed):
   PORCELAIN_USER_DATA, PORCELAIN_DAEMON_PORT, PORCELAIN_ADMIN_TOKEN,
@@ -72,7 +71,7 @@ Env (same as the raw daemon; flags set these when passed):
 
 Notes:
   • Always binds 127.0.0.1; --tailnet / --lan add private interfaces only
-    (never 0.0.0.0). Cloudflare proxies only the loopback listener.
+    (never 0.0.0.0). Cloudflare uses a separate loopback ingress without MCP.
   • Named tunnels: set PORCELAIN_CLOUDFLARE_TOKEN (never a flag) and
     --cloudflare-hostname. Without a token, --cloudflare is a quick tunnel
     whose URL changes every start.
@@ -84,7 +83,7 @@ Notes:
 `
 
 function fail(message) {
-  console.error(`[porcelain-daemon] ${message}`)
+  console.error(`[porcelain] ${message}`)
   process.exit(1)
 }
 
@@ -301,12 +300,12 @@ async function runAccessCommand(argv) {
     process.stdout.write(`Revoked ${id}\n`)
     return
   }
-  fail('usage: porcelain-daemon access issue --name <device> | list | revoke <id>')
+  fail('usage: porcelain access issue --name <device> | list | revoke <id>')
 }
 
 async function runShareCommand(argv) {
   const options = adminCommandOptions(argv)
-  const [target, value] = options.args
+  const [target] = options.args
   const client = adminClient(options.daemonUrl, ensureAdminToken())
   if (target === 'status') {
     const [lan, tailnet, cloudflare] = await Promise.all([
@@ -317,20 +316,7 @@ async function runShareCommand(argv) {
     process.stdout.write(`${JSON.stringify({ lan, tailnet, cloudflare }, null, 2)}\n`)
     return
   }
-  if (target === 'funnel') {
-    fail('Tailscale Funnel was removed. Use share cloudflare on|off.')
-  }
-  const procedures = {
-    lan: 'setLanBind',
-    tailnet: 'setTailnetBind',
-    cloudflare: 'setCloudflareBind',
-  }
-  const procedure = procedures[target]
-  if (!procedure || (value !== 'on' && value !== 'off')) {
-    fail('usage: porcelain-daemon share status | lan|tailnet|cloudflare on|off')
-  }
-  const status = await client.mutation(procedure, value === 'on')
-  process.stdout.write(`${JSON.stringify(status, null, 2)}\n`)
+  fail('usage: porcelain share status')
 }
 
 async function main() {
@@ -393,15 +379,15 @@ async function main() {
     .filter(Boolean).length
 
   // Human-facing status on stderr; the daemon still owns the one stdout port line.
-  console.error(`[porcelain-daemon] user data  ${userData}`)
-  console.error(`[porcelain-daemon] port       ${port}`)
-  console.error(`[porcelain-daemon] binds      ${binds.join(', ')}`)
+  console.error(`[porcelain] user data  ${userData}`)
+  console.error(`[porcelain] port       ${port}`)
+  console.error(`[porcelain] binds      ${binds.join(', ')}`)
   console.error(
-    `[porcelain-daemon] cors       ${allowedOriginCount === 0 ? 'same-origin only' : `${allowedOriginCount} trusted Hub origin(s) configured`}`,
+    `[porcelain] cors       ${allowedOriginCount === 0 ? 'same-origin only' : `${allowedOriginCount} trusted Hub origin(s) configured`}`,
   )
-  console.error(`[porcelain-daemon] admin file ${ADMIN_TOKEN_PATH()}`)
-  console.error('[porcelain-daemon] pair with: porcelain-daemon access issue --name <device>')
-  console.error('[porcelain-daemon] starting…  Ctrl+C to stop')
+  console.error(`[porcelain] admin file ${ADMIN_TOKEN_PATH()}`)
+  console.error('[porcelain] pair with: porcelain access issue --name <device>')
+  console.error('[porcelain] starting…  Ctrl+C to stop')
 
   const serverEntry = [
     join(__dirname, '..', 'main', 'daemon', 'server.js'),
