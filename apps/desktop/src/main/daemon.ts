@@ -17,6 +17,7 @@ import {
   type RemoteEnvironmentState,
   saveRemoteEnvironmentState,
 } from './remote-daemon'
+import { broadcastShellEvent } from './shell-events'
 
 /**
  * Fork and babysit the daemon child (`out/main/daemon/server.js`) — the Electron-free
@@ -74,6 +75,37 @@ const windowCleanupBound = new Set<number>()
  */
 export function localDaemonPair(): { url: string; token: string } {
   return localDaemonInfo()
+}
+
+/** The synthetic connection id `environmentDaemonPairs` uses for "This device" when it is a
+ * secondary session — a real saved Environment never collides with it (those ids come from
+ * `randomUUID()` at pairing). MUST match `THIS_DEVICE_CONNECTION_ID` in the renderer's
+ * environment-sessions.ts (apps/web cannot import this main-process module, or the reverse). */
+const THIS_DEVICE_CONNECTION_ID = 'this-device'
+
+/**
+ * Every daemon pair a window can hold a live secondary session for, given ITS OWN binding.
+ * Saved Environments are always candidates; "This device" is included too, but only for a
+ * window whose primary IS a saved Environment — a window already primary-bound to the local
+ * child has no use for a second connection to itself, and `localDaemonPair()` before the
+ * child reports its port would hand out an empty url.
+ */
+export function environmentDaemonPairs(callerEnvironmentId: string | null): {
+  id: string
+  name: string
+  url: string
+  token: string
+}[] {
+  const saved = environmentsCache.map((env) => ({
+    id: env.id,
+    name: env.name,
+    url: env.url,
+    token: env.token,
+  }))
+  if (callerEnvironmentId === null) return saved
+  const local = localDaemonInfo()
+  if (local.url === '') return saved
+  return [{ id: THIS_DEVICE_CONNECTION_ID, name: 'This device', ...local }, ...saved]
 }
 
 function localDaemonInfo(): { url: string; token: string } {
@@ -154,6 +186,7 @@ export async function reloadEnvironmentsCache(): Promise<RemoteEnvironmentState>
   const state = await loadRemoteEnvironmentState()
   environmentsCache = state.environments
   defaultEnvironmentId = state.activeId
+  broadcastShellEvent('remote-environments-changed')
   return state
 }
 

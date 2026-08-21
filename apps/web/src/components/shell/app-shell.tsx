@@ -15,6 +15,7 @@ import { useTerminalRoster } from '@renderer/features/terminal'
 import { useDocumentTitle } from '@renderer/hooks/use-document-title'
 import { useResponsiveShell } from '@renderer/hooks/use-responsive-shell'
 import { useSessionRuntime } from '@renderer/hooks/use-session-runtime'
+import { useShellEnvironmentConnections } from '@renderer/hooks/use-shell-environment-connections'
 import { useShellEvents } from '@renderer/hooks/use-shell-events'
 import { useThemeSync } from '@renderer/hooks/use-theme'
 import { isFramelessShell } from '@renderer/lib/platform'
@@ -122,6 +123,7 @@ export function AppShell(): React.JSX.Element {
 
   useAppShortcuts()
   useShellEvents()
+  useShellEnvironmentConnections()
   // One session runtime for the window: domain change invalidation, watch interests,
   // project selection, and reconnect recovery. Terminal traffic shares the same socket.
   useSessionRuntime()
