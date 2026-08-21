@@ -1,7 +1,6 @@
-import { NativeTabs } from 'expo-router/unstable-native-tabs'
+import { TabList, TabSlot, TabTrigger, Tabs } from 'expo-router/ui'
 
-import { useResolvedColorScheme } from '@/features/settings/theme-provider'
-import { themeVarsFor } from '@/features/settings/theme-vars'
+import { PorcelainTabBar, TabBarItem } from './tab-bar'
 
 /**
  * The app's four tabs.
@@ -16,36 +15,34 @@ import { themeVarsFor } from '@/features/settings/theme-vars'
  * surfaces. Terminals is the ONE terminal surface — a Worktree no longer has a Terminal row of
  * its own, because a shell that outlives the checkout you were standing in has to be reachable
  * from somewhere that is not inside it.
+ *
+ * **The navigator is `expo-router/ui`, not `NativeTabs`.** `PorcelainTabBar` explains why the
+ * bar is drawn rather than adopted. What matters here is what the swap does NOT cost: `TabSlot`
+ * renders every tab that has been visited and hides the ones that are not focused
+ * (`activityState: 0`, `display: none`) rather than unmounting them, so a Terminals session
+ * survives a trip to Settings exactly as it did under the native navigator. A tab mounts lazily
+ * on its first visit and is never torn down after.
  */
 export function PhoneShell(): React.JSX.Element {
-  // Tab tint follows the shared `primary` token, not a hardcoded system blue.
-  const tintColor = themeVarsFor(useResolvedColorScheme()).primary ?? '#171717'
-
   return (
-    <NativeTabs
-      disableTransparentOnScrollEdge
-      minimizeBehavior="onScrollDown"
-      tintColor={tintColor}
-    >
-      <NativeTabs.Trigger name="(hub)">
-        <NativeTabs.Trigger.Icon sf="square.stack.3d.up.fill" md="layers" />
-        <NativeTabs.Trigger.Label>Worktrees</NativeTabs.Trigger.Label>
-      </NativeTabs.Trigger>
-
-      <NativeTabs.Trigger name="terminals">
-        <NativeTabs.Trigger.Icon sf="terminal.fill" md="terminal" />
-        <NativeTabs.Trigger.Label>Terminals</NativeTabs.Trigger.Label>
-      </NativeTabs.Trigger>
-
-      <NativeTabs.Trigger name="tasks">
-        <NativeTabs.Trigger.Icon sf="checklist" md="checklist" />
-        <NativeTabs.Trigger.Label>Tasks</NativeTabs.Trigger.Label>
-      </NativeTabs.Trigger>
-
-      <NativeTabs.Trigger name="settings">
-        <NativeTabs.Trigger.Icon sf="gearshape.fill" md="settings" />
-        <NativeTabs.Trigger.Label>Settings</NativeTabs.Trigger.Label>
-      </NativeTabs.Trigger>
-    </NativeTabs>
+    <Tabs>
+      <TabSlot />
+      <TabList asChild>
+        <PorcelainTabBar>
+          <TabTrigger asChild href="/" name="hub">
+            <TabBarItem glyph="layers" label="Worktrees" />
+          </TabTrigger>
+          <TabTrigger asChild href="/terminals" name="terminals">
+            <TabBarItem glyph="terminal" label="Terminals" />
+          </TabTrigger>
+          <TabTrigger asChild href="/tasks" name="tasks">
+            <TabBarItem glyph="checklist" label="Tasks" />
+          </TabTrigger>
+          <TabTrigger asChild href="/settings" name="settings">
+            <TabBarItem glyph="settings" label="Settings" />
+          </TabTrigger>
+        </PorcelainTabBar>
+      </TabList>
+    </Tabs>
   )
 }
