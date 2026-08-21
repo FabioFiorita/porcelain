@@ -1,11 +1,11 @@
 import { TabList, TabSlot, TabTrigger, Tabs } from 'expo-router/ui'
-import { useState } from 'react'
 import { View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { IconAction } from '@/components/panel-chrome'
 
 import { DESTINATIONS } from './destinations'
+import { useShellStore } from './shell-store'
 import { SidebarInspector } from './tablet-inspector'
 import { TabletSidebar } from './tablet-sidebar'
 import { HUB_SIDEBAR_WIDTH } from './shell-layout'
@@ -55,8 +55,13 @@ import { ColumnChrome, ShellControls } from './window-chrome'
 export function TabletShell(): React.JSX.Element {
   const insets = useSafeAreaInsets()
   const layout = useShellLayout()
-  const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [inspectorOpen, setInspectorOpen] = useState(false)
+  // Both panels are open by default and their state is the shell store's, not this component's:
+  // the web client opens with its sidebar and its surfaces panel showing, and a panel that has
+  // to be found before the window looks like the desktop is a window that does not.
+  const sidebarOpen = useShellStore((state) => state.sidebarVisible)
+  const toggleSidebar = useShellStore((state) => state.toggleSidebar)
+  const inspectorOpen = useShellStore((state) => state.inspectorVisible)
+  const toggleInspector = useShellStore((state) => state.toggleInspector)
   const showSidebar = layout === 'split' && sidebarOpen
 
   return (
@@ -99,9 +104,7 @@ export function TabletShell(): React.JSX.Element {
                     selected={sidebarOpen}
                     testID="porcelain-tablet-toggle-sidebar"
                     tone="foreground"
-                    onPress={() => {
-                      setSidebarOpen((open) => !open)
-                    }}
+                    onPress={toggleSidebar}
                   />
                 ) : null
               }
@@ -113,9 +116,7 @@ export function TabletShell(): React.JSX.Element {
                     selected={inspectorOpen}
                     testID="porcelain-tablet-toggle-inspector"
                     tone="foreground"
-                    onPress={() => {
-                      setInspectorOpen((open) => !open)
-                    }}
+                    onPress={toggleInspector}
                   />
                 ) : null
               }
@@ -127,11 +128,7 @@ export function TabletShell(): React.JSX.Element {
 
         {layout === 'split' && inspectorOpen ? (
           <View style={{ width: HUB_SIDEBAR_WIDTH }}>
-            <SidebarInspector
-              onClose={() => {
-                setInspectorOpen(false)
-              }}
-            />
+            <SidebarInspector onClose={toggleInspector} />
           </View>
         ) : null}
       </View>

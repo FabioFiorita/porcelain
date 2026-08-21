@@ -9,6 +9,8 @@ import { SurfaceScroll } from '@/components/surface-scroll'
 import { Text } from '@/components/ui/text'
 import { useHubInventories, useHubRepoPath } from '@/features/projects'
 import type { Environment } from '@/features/remote'
+import { useShellStore } from '@/features/shell/shell-store'
+import { useShellLayout } from '@/features/shell/use-app-window'
 import { cn } from '@/lib/utils'
 
 import { NewWorktreeHeaderAction } from './hub-header-actions'
@@ -22,8 +24,17 @@ import { WorktreeRow } from './worktree-row'
  * position of choosing a machine before they can choose the work, which is the shell this
  * replaces. Projects that are the same repository on two machines share a `groupingKey`, so
  * `groupEquivalentProjects` puts them under one heading without merging the records.
+ *
+ * **On a tablet with its navigation panel open, this screen is empty.** The panel already
+ * carries the same list, drawn with the same rows, so the viewer was printing a second copy of
+ * the sidebar next to the sidebar. The web client does not: with nothing selected its viewer is
+ * blank, and the tree beside it is the one place Worktrees live. The list comes back the moment
+ * the panel is closed or the window is too narrow for it — that is the phone's shape, where the
+ * list IS the screen.
  */
 export function HubScreen(): React.JSX.Element {
+  const sidebarShowsTheList = useShellStore((state) => state.sidebarVisible)
+  const inPanels = useShellLayout() === 'split'
   const inventories = useHubInventories()
   const activePath = useHubRepoPath()
   const groups = useMemo(
@@ -38,6 +49,18 @@ export function HubScreen(): React.JSX.Element {
     return map
   }, [inventories])
   const [collapsed, setCollapsed] = useState<readonly string[]>([])
+
+  if (inPanels && sidebarShowsTheList) {
+    return (
+      <View className="flex-1 bg-background" testID="porcelain-hub-screen">
+        <ScreenHeader
+          actions={<NewWorktreeHeaderAction />}
+          testID="porcelain-hub-header"
+          title="Worktrees"
+        />
+      </View>
+    )
+  }
 
   return (
     <View className="flex-1 bg-background" testID="porcelain-hub-screen">

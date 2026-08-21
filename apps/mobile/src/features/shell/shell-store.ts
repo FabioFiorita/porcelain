@@ -8,9 +8,12 @@ export type SettingsSection = 'general' | 'personalization' | 'companion' | 'rem
 type ShellState = {
   /** Active product surface (tablet rail + phone face). Independent of URL faces. */
   activeSurface: SurfaceId
+  /** Tablet navigation panel. Open by default — it is the window's navigation. */
+  sidebarVisible: boolean
   inspectorVisible: boolean
   settingsSection: SettingsSection
   setActiveSurface: (surface: SurfaceId) => void
+  toggleSidebar: () => void
   toggleInspector: () => void
   setInspectorVisible: (visible: boolean) => void
   setSettingsSection: (section: SettingsSection) => void
@@ -19,9 +22,13 @@ type ShellState = {
 export const useShellStore = create<ShellState>()((set) => ({
   activeSurface: 'files',
   inspectorVisible: true,
+  sidebarVisible: true,
   settingsSection: 'general',
   setActiveSurface: (activeSurface) => {
     set({ activeSurface })
+  },
+  toggleSidebar: () => {
+    set((state) => ({ sidebarVisible: !state.sidebarVisible }))
   },
   toggleInspector: () => {
     set((state) => ({ inspectorVisible: !state.inspectorVisible }))

@@ -68,48 +68,54 @@ export function RowContextMenu({
             fragment, so the overlay has to be told to fill, and a reanimated view would drop
             every class it was given. */}
         <DropdownMenuPrimitive.Overlay style={FILL}>
+          {/* `asChild` so the class list is on OUR view: a class handed to a component from
+              `node_modules` is an inert prop — see the note in `Sheet`. */}
           <DropdownMenuPrimitive.Content
-            className="min-w-56 rounded-xl border border-border bg-popover p-1 shadow-lg shadow-black/20"
+            asChild
             insets={{ bottom: 12, left: 12, right: 12, top: 12 }}
-            testID={testID === undefined ? undefined : `${testID}-menu`}
           >
-            {title === undefined ? null : (
-              <Text className="px-2 py-1.5 text-3xs font-semibold uppercase tracking-widest text-muted-foreground">
-                {title}
-              </Text>
-            )}
-            {actions.map((action) => (
-              <DropdownMenuPrimitive.Item
-                key={action.id}
-                asChild
-                disabled={action.disabled === true}
-                onPress={action.onPress}
-              >
-                <View
-                  className={cn(
-                    'min-h-11 flex-row items-center gap-3 rounded-lg px-2 active:bg-accent',
-                    action.disabled === true && 'opacity-40',
-                  )}
-                  testID={`${testID ?? 'porcelain-row-menu'}-${action.id}`}
+            <View
+              className="min-w-56 rounded-xl border border-border bg-popover p-1 shadow-lg shadow-black/20"
+              testID={testID === undefined ? undefined : `${testID}-menu`}
+            >
+              {title === undefined ? null : (
+                <Text className="px-2 py-1.5 text-3xs font-semibold uppercase tracking-widest text-muted-foreground">
+                  {title}
+                </Text>
+              )}
+              {actions.map((action) => (
+                <DropdownMenuPrimitive.Item
+                  key={action.id}
+                  asChild
+                  disabled={action.disabled === true}
+                  onPress={action.onPress}
                 >
-                  {action.glyph === undefined ? null : (
-                    <ChromeGlyph
-                      name={action.glyph}
-                      size={15}
-                      tone={action.destructive === true ? 'destructive' : 'foreground'}
-                    />
-                  )}
-                  <Text
+                  <View
                     className={cn(
-                      'min-w-0 flex-1 text-sm font-medium',
-                      action.destructive === true ? 'text-destructive' : 'text-foreground',
+                      'min-h-11 flex-row items-center gap-3 rounded-lg px-2 active:bg-accent',
+                      action.disabled === true && 'opacity-40',
                     )}
+                    testID={`${testID ?? 'porcelain-row-menu'}-${action.id}`}
                   >
-                    {action.label}
-                  </Text>
-                </View>
-              </DropdownMenuPrimitive.Item>
-            ))}
+                    {action.glyph === undefined ? null : (
+                      <ChromeGlyph
+                        name={action.glyph}
+                        size={15}
+                        tone={action.destructive === true ? 'destructive' : 'foreground'}
+                      />
+                    )}
+                    <Text
+                      className={cn(
+                        'min-w-0 flex-1 text-sm font-medium',
+                        action.destructive === true ? 'text-destructive' : 'text-foreground',
+                      )}
+                    >
+                      {action.label}
+                    </Text>
+                  </View>
+                </DropdownMenuPrimitive.Item>
+              ))}
+            </View>
           </DropdownMenuPrimitive.Content>
         </DropdownMenuPrimitive.Overlay>
       </DropdownMenuPrimitive.Portal>

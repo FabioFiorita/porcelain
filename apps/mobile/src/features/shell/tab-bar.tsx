@@ -70,7 +70,11 @@ export function TabBarItem({
       accessibilityRole="tab"
       accessibilityState={{ selected: isFocused }}
       className={cn(
-        'min-h-12 min-w-0 flex-1 items-center justify-center gap-1 rounded-md py-1.5',
+        // `will-change-pressable`: the class list gains `active:` only when a tab is NOT
+        // focused, and `react-native-css` warns that a pressable state appearing after the
+        // first render resets the component and remounts its children. Declaring it up front
+        // keeps the bar's items stable across every tab switch.
+        'min-h-12 min-w-0 flex-1 items-center justify-center gap-1 rounded-md py-1.5 will-change-pressable',
         isFocused ? 'bg-accent' : 'active:bg-accent/40',
       )}
       /* nativewind-allow-style: `TabTrigger` hands its slot `flexDirection: 'row'` and
