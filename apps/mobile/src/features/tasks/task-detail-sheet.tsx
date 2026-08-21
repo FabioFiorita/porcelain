@@ -16,6 +16,8 @@ import { useHubInventories } from '@/features/projects'
 import { cn } from '@/lib/utils'
 
 import { TaskAttachments } from './task-attachments'
+import { SheetBar } from '@/features/shell/sheet-bar'
+
 import { TaskHeaderAction } from './task-header-action'
 import { formatWhen, projectNamesFrom } from './task-match'
 import { useTaskActions } from './tasks-mutations'
@@ -87,21 +89,25 @@ export function TaskDetailSheet({
       })
   }
 
+  const saveAction = (
+    <TaskHeaderAction
+      disabled={actions.isPending}
+      label="Save"
+      testID="porcelain-task-save"
+      onPress={save}
+    />
+  )
+
   return (
     <View className="flex-1 bg-background" testID="porcelain-task-detail">
       <Stack.Screen
         options={{
-          headerRight: () => (
-            <TaskHeaderAction
-              disabled={actions.isPending}
-              label="Save"
-              testID="porcelain-task-save"
-              onPress={save}
-            />
-          ),
+          headerRight: () => saveAction,
           title: task.shortId,
         }}
       />
+      {/* Android's sheet has no bar of its own to hang `headerRight` on; iOS's does. */}
+      <SheetBar action={saveAction} title={task.shortId} />
       <SurfaceScroll gap={12} paddingTop={12}>
         {error === null ? null : <ErrorNote message={error} testID="porcelain-task-error" />}
 

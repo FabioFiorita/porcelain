@@ -13,6 +13,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { useHubInventories } from '@/features/projects'
 import { cn } from '@/lib/utils'
 
+import { SheetBar } from '@/features/shell/sheet-bar'
+
 import { TaskHeaderAction } from './task-header-action'
 import { MissingEnvironmentTargetError, useTaskActions } from './tasks-mutations'
 import { useTasks } from './tasks-queries'
@@ -88,20 +90,24 @@ export function NewTaskSheet(): React.JSX.Element {
       })
   }
 
+  const submitAction = (
+    <TaskHeaderAction
+      disabled={actions.isPending}
+      label="Add"
+      testID="porcelain-new-task-submit"
+      onPress={submit}
+    />
+  )
+
   return (
     <View className="flex-1 bg-background" testID="porcelain-new-task">
       <Stack.Screen
         options={{
-          headerRight: () => (
-            <TaskHeaderAction
-              disabled={actions.isPending}
-              label="Add"
-              testID="porcelain-new-task-submit"
-              onPress={submit}
-            />
-          ),
+          headerRight: () => submitAction,
         }}
       />
+      {/* Android's sheet has no bar of its own to hang `headerRight` on; iOS's does. */}
+      <SheetBar action={submitAction} title="New Task" />
       <SurfaceScroll gap={12} paddingTop={12}>
         {error === null ? null : <ErrorNote message={error} testID="porcelain-new-task-error" />}
 

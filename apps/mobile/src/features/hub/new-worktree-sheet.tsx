@@ -6,6 +6,7 @@ import { ChromeGlyph } from '@/components/chrome-glyph'
 import { ErrorNote, PanelLabel } from '@/components/panel-chrome'
 import { PANEL_CARD } from '@/components/surface-layout'
 import { SurfaceScroll } from '@/components/surface-scroll'
+import { SheetAction, SheetBar } from '@/features/shell/sheet-bar'
 import { Input } from '@/components/ui/input'
 import { Text } from '@/components/ui/text'
 import { useHubInventories } from '@/features/projects'
@@ -90,18 +91,20 @@ export function NewWorktreeSheet(): React.JSX.Element {
       })
   }
 
+  const submitAction = (
+    <SheetAction
+      disabled={actions.isPending}
+      label="Add"
+      testID="porcelain-new-worktree-submit"
+      onPress={submit}
+    />
+  )
+
   return (
     <View className="flex-1 bg-background" testID="porcelain-new-worktree">
       <Stack.Screen
         options={{
-          headerRight: () => (
-            <SheetHeaderAction
-              disabled={actions.isPending}
-              label="Add"
-              testID="porcelain-new-worktree-submit"
-              onPress={submit}
-            />
-          ),
+          headerRight: () => submitAction,
           // The sheet's presentation is the platform's: a `formSheet` with detents, a grabber
           // and drag-to-dismiss, matching the other presented routes in this stack.
           presentation: 'formSheet',
@@ -111,6 +114,8 @@ export function NewWorktreeSheet(): React.JSX.Element {
           title: 'New Worktree',
         }}
       />
+      {/* Android's sheet has no bar of its own to hang `headerRight` on; iOS's does. */}
+      <SheetBar action={submitAction} title="New Worktree" />
       <SurfaceScroll gap={12} paddingTop={12}>
         {error === null ? null : (
           <ErrorNote message={error} testID="porcelain-new-worktree-error" />
@@ -194,35 +199,6 @@ export function NewWorktreeSheet(): React.JSX.Element {
         </View>
       </SurfaceScroll>
     </View>
-  )
-}
-
-/** A word in the sheet's native bar. Disabled while the write is in flight — a second tap is a
- * second Worktree. */
-function SheetHeaderAction({
-  disabled,
-  label,
-  onPress,
-  testID,
-}: {
-  disabled: boolean
-  label: string
-  onPress: () => void
-  testID: string
-}): React.JSX.Element {
-  return (
-    <Pressable
-      accessibilityLabel={label}
-      accessibilityRole="button"
-      accessibilityState={{ disabled }}
-      className={cn('min-h-11 justify-center px-1 active:opacity-50', disabled && 'opacity-40')}
-      disabled={disabled}
-      hitSlop={8}
-      testID={testID}
-      onPress={onPress}
-    >
-      <Text className="text-base font-semibold text-primary">{label}</Text>
-    </Pressable>
   )
 }
 
