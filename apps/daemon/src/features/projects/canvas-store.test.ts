@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { canvasBundleDir, canvasIndexPath } from '@shared/canvas-porcelain'
@@ -26,7 +26,7 @@ async function writeIndex(projectId: string, canvases: StoredCanvas[]): Promise<
 }
 
 beforeEach(async () => {
-  homeDir = await mkdtemp(join(tmpdir(), 'porcelain-canvas-store-'))
+  homeDir = await realpath(await mkdtemp(join(tmpdir(), 'porcelain-canvas-store-')))
   store = createCanvasStore({ homeDir })
   vi.spyOn(console, 'error').mockImplementation(() => undefined)
 })

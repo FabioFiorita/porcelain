@@ -92,9 +92,11 @@ anything. When it reports `primary checkout`, adopt that checkout from the prima
 `pnpm worktree adopt <path> <slug>`. Adoption keeps the checkout in place while adding its branch,
 profile, port, and playground.
 
-The mobile scripts currently still use Expo/Metro's normal device allocation; mobile isolation
-between multiple worktrees remains a follow-up. Do not infer that two simultaneous mobile
-worktrees are independent until that work is complete.
+`pnpm dev:mobile` gives each development profile its own Metro port and temporary state. The
+primary checkout uses port 8081; managed worktrees derive a port from their daemon allocation.
+`pnpm dev:mobile:android <command>` gives the Android driving loop profile-owned state as well.
+Physical devices, AVDs, and iOS simulator UDIDs are still shared machine resources: select them
+explicitly, and never stop one that the current session did not start.
 
 ## The task loop
 

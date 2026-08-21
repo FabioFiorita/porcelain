@@ -12,11 +12,14 @@ import { test } from 'node:test'
 import {
   DEV_ADMIN_TOKEN_FILE,
   DEV_HOME,
+  DEV_METRO_PORT,
+  DEV_MOBILE_STATE,
   DEV_PLAYGROUND,
   DEV_PORT,
   DEV_USER_DATA,
   DEV_WEB_PORT,
   devEnv,
+  mobileMetroPort,
   webDevPort,
 } from './dev-env.mjs'
 
@@ -53,4 +56,13 @@ test('the web dev port is derived from the daemon port, so profiles never collid
   assert.equal(webDevPort(43999), 53999)
   assert.equal(DEV_WEB_PORT, webDevPort(DEV_PORT))
   assert.notEqual(DEV_WEB_PORT, DEV_PORT)
+})
+
+test('the mobile port and ownership state are profile-specific', () => {
+  assert.equal(mobileMetroPort(43118), 8081)
+  assert.equal(mobileMetroPort(43200), 44000)
+  assert.equal(mobileMetroPort(43999), 44799)
+  assert.throws(() => mobileMetroPort(43119), /unmanaged daemon port/)
+  assert.equal(DEV_METRO_PORT, mobileMetroPort(DEV_PORT))
+  assert.match(DEV_MOBILE_STATE, /porcelain-mobile-(primary|[a-z0-9-]+)$/)
 })

@@ -169,6 +169,7 @@ export const loc = {
   terminalContextSelectAll: (page: Page): Locator => byId(page, TestIds.terminalContextSelectAll),
   terminalContextClear: (page: Page): Locator => byId(page, TestIds.terminalContextClear),
   actionsMenu: (page: Page): Locator => byId(page, TestIds.actionsMenu),
+  actionsEmpty: (page: Page): Locator => byId(page, TestIds.actionsEmpty),
   actionsAdd: (page: Page): Locator => byId(page, TestIds.actionsAdd),
   actionRun: (page: Page, title: string): Locator => byId(page, TestIds.actionRun(title)),
   actionTitleInput: (page: Page): Locator => byId(page, TestIds.actionTitleInput),

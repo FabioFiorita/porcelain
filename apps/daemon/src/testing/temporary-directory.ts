@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -11,7 +11,10 @@ export async function withTemporaryDirectory<T>(
   prefix: string,
   run: (path: string) => Promise<T> | T,
 ): Promise<T> {
-  const directory = await mkdtemp(join(tmpdir(), prefix))
+  // macOS exposes its temporary root as `/var/...` while filesystem APIs and Git can return
+  // `/private/var/...`. Give tests the canonical spelling so path assertions exercise product
+  // behavior instead of the operating system's compatibility symlink.
+  const directory = await realpath(await mkdtemp(join(tmpdir(), prefix)))
   try {
     return await run(directory)
   } finally {

@@ -15,15 +15,14 @@ and environment input, so read the script rather than a copy of it here.
 ## The loop
 
 ```sh
-TMPDIR=~/.cache/porcelain-metro pnpm --dir apps/mobile start   # Metro, background
-S=scripts/mobile-android-loop.sh
-$S preflight                          # package, Metro, emulator, foreground app
-$S up                                 # boot or reuse an AVD, reverse Metro, launch the dev client
-$S ui                                 # visible testIDs, labels, bounds, actions
-$S tap <testID-or-label>
-$S shot /tmp/porcelain-android.png    # then read the file
-$S fg
-$S down
+pnpm dev:mobile                                      # profile Metro, background
+pnpm dev:mobile:android preflight                    # package, Metro, emulator, foreground app
+pnpm dev:mobile:android up                           # boot/reuse AVD, reverse Metro, launch client
+pnpm dev:mobile:android ui                           # visible testIDs, labels, bounds, actions
+pnpm dev:mobile:android tap <testID-or-label>
+pnpm dev:mobile:android shot /tmp/porcelain-android.png
+pnpm dev:mobile:android fg
+pnpm dev:mobile:android down                         # release only this loop's resources
 ```
 
 A first launch after an install lands on the development-client onboarding, then its dev menu. Both
@@ -53,18 +52,16 @@ JavaScript-only change needs nothing but Metro.
 
 - **`CI=1` freezes the bundle.** `expo start` under that flag serves one frozen bundle forever and
   the watcher never fires, so every edit you make is invisible and you debug ghosts.
-- **Metro's cache directory is shared between Linux users.** It defaults to `$TMPDIR/metro-cache`,
-  and when another account on the machine created it first, bundling dies with
-  `EACCES: permission denied` — served to the device as a 500, which the dev client reports only as
-  "Porcelain Dev keeps stopping". Give Metro its own `TMPDIR`. `adb logcat -b crash` carries the
-  real error whenever the app dies at launch.
+- **Use the profile wrappers.** They derive a Metro port and temporary directory from the current
+  checkout, so main and managed worktrees do not share Metro process state. `adb logcat -b crash`
+  carries the real error whenever the app dies at launch.
 - **Export `ANDROID_HOME`.** `~/Android/Sdk` here; `adb` and `emulator` live under it.
 - **An emulator you did not boot belongs to someone else.** Run `adb devices` before `up`, and let
   `down` stop only the one this loop booted.
 
 ## Down
 
-`$S down` removes this loop's Metro reverse and stops only its own emulator. Stop the Metro you
+`pnpm dev:mobile:android down` removes this loop's Metro reverse and stops only its own emulator. Stop the Metro you
 started by its tracked task or PID.
 
 Ownership is recorded when `up` prints `launched …`. An `up` that was interrupted before that line

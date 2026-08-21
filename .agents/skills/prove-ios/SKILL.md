@@ -42,8 +42,9 @@ Metro runs wherever the repository is. On the Mac that is `localhost`; from Linu
 LAN IP, and the simulator reaches it over the network like any device.
 
 ```sh
-pnpm --dir apps/mobile start                            # Metro, on the machine with the code
-xcrun simctl openurl $SIM "porcelain-dev://expo-development-client/?url=http%3A%2F%2F<host>%3A8081"
+pnpm dev:env                                            # note this profile's Metro port
+pnpm dev:mobile                                         # Metro, on the machine with the code
+xcrun simctl openurl $SIM "porcelain-dev://expo-development-client/?url=http%3A%2F%2F<host>%3A<metro-port>"
 xcodebuildmcp ui-automation tap --simulator-id $SIM --label "Open"   # the "Open in …?" dialog
 ```
 

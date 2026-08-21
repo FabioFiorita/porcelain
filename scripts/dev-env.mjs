@@ -16,7 +16,7 @@ import { execFileSync } from 'node:child_process'
  */
 import { randomBytes } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
-import { homedir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
@@ -74,6 +74,20 @@ export const DEV_USER_DATA = DEV_PROFILE.userData
 export const DEV_HOME = DEV_PROFILE.home
 export const DEV_PLAYGROUND = DEV_PROFILE.playground
 export const DEV_ADMIN_TOKEN_FILE = join(DEV_HOME, 'admin-token')
+
+/**
+ * Metro keeps its conventional 8081 port in the primary checkout. Managed worktrees map their
+ * allocated daemon port onto a separate 44000-44799 range, preserving the allocator's uniqueness
+ * without colliding with daemon (43200-43999) or web-HMR (53200-53999) listeners.
+ */
+export function mobileMetroPort(daemonPort = DEV_PORT) {
+  if (daemonPort === PRIMARY_PROFILE.port) return 8081
+  if (daemonPort >= 43200 && daemonPort <= 43999) return 44000 + (daemonPort - 43200)
+  throw new Error(`cannot derive a mobile port from unmanaged daemon port ${daemonPort}`)
+}
+
+export const DEV_METRO_PORT = mobileMetroPort(DEV_PORT)
+export const DEV_MOBILE_STATE = join(tmpdir(), `porcelain-mobile-${DEV_PROFILE.slug ?? 'primary'}`)
 
 /**
  * The Vite dev server port that pairs with a daemon port. Offsetting by 10000 keeps it
@@ -143,6 +157,8 @@ export function printDevEnv() {
   user data   ${DEV_USER_DATA}
   channels    ${DEV_HOME}  (PORCELAIN_HOME)
   playground  ${DEV_PLAYGROUND}
+  Metro       ${DEV_METRO_PORT}
+  mobile      ${DEV_MOBILE_STATE}
 
   start:      pnpm dev:daemon
               pnpm dev:daemon -- --host          # LAN (default)
@@ -150,6 +166,8 @@ export function printDevEnv() {
               pnpm dev:daemon -- --port 43119
               pnpm dev                              # Electron + its profile daemon
   web HMR:    pnpm dev:web                       # http://127.0.0.1:${DEV_WEB_PORT}/ (proxies to the daemon)
+  mobile:     pnpm dev:mobile                    # profile Metro (primary 8081; worktrees 44000+)
+              pnpm dev:mobile:android preflight  # same port + profile-owned emulator state
   CLI:        pnpm porcelain <noun> <verb>
   agent:      the Porcelain plugin — MCP tools over POST /mcp
   browser:    http://127.0.0.1:${DEV_PORT}/

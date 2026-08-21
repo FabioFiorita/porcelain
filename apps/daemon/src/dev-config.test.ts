@@ -1,5 +1,5 @@
 import { realpathSync } from 'node:fs'
-import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -34,7 +34,7 @@ describe('devRepoPath', () => {
   })
 
   it('prunes real-repo registrations and seeds the disposable playground only', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'porcelain-dev-config-'))
+    const root = await realpath(await mkdtemp(join(tmpdir(), 'porcelain-dev-config-')))
     try {
       const playground = join(root, 'code', 'porcelain-playground')
       await mkdir(playground, { recursive: true })
@@ -79,7 +79,7 @@ describe('devRepoPath', () => {
   })
 
   it('rejects a symlinked playground path that resolves outside the sandbox', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'porcelain-dev-symlink-'))
+    const root = await realpath(await mkdtemp(join(tmpdir(), 'porcelain-dev-symlink-')))
     try {
       const playground = join(root, 'playground')
       const production = join(root, 'production')
@@ -109,7 +109,7 @@ describe('devRepoPath', () => {
     // Probe first: on a case-sensitive filesystem the mangled path does not resolve to the
     // same directory at all, so the scenario cannot arise and the assertion would be empty
     // — same shape as canvas-file.test.ts's twin of this guard.
-    const root = await mkdtemp(join(tmpdir(), 'porcelain-dev-case-'))
+    const root = await realpath(await mkdtemp(join(tmpdir(), 'porcelain-dev-case-')))
     try {
       const primary = join(root, 'Code', 'porcelain-playground')
       await mkdir(primary, { recursive: true })
@@ -135,7 +135,7 @@ describe('devRepoPath', () => {
   })
 
   it('rejects a symlinked managed worktree root even when its child is reachable', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'porcelain-dev-root-link-'))
+    const root = await realpath(await mkdtemp(join(tmpdir(), 'porcelain-dev-root-link-')))
     try {
       const primary = join(root, 'code', 'porcelain-playground')
       const managedRoot = join(root, 'code', 'porcelain-playgrounds')

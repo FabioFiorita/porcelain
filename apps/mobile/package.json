@@ -71,7 +71,7 @@
     "sim:build:cloud": "npx eas-cli@latest build -p ios --profile development-simulator",
     "sim:install": "npx eas-cli@latest build:run -p ios --profile development-simulator --latest",
     "sim:install:local": "npx eas-cli@latest build:run -p ios --profile development-simulator",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "expo customize tsconfig.json && tsc --noEmit",
     "dev:device": "npx eas-cli@latest device:create",
     "dev:build": "npx eas-cli@latest build -p ios --profile development"
   },
