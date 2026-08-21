@@ -1,3 +1,20 @@
+## [0.56.0](https://github.com/FabioFiorita/porcelain/compare/v0.55.1...v0.56.0) (2026-08-21)
+
+### Features
+
+* name an Environment so two daemons on one machine tell apart ([1a355ad](https://github.com/FabioFiorita/porcelain/commit/1a355adfab301fd834a8968421f0c6e92fc46946))
+* **web:** hide Done Tasks by default and filter by several statuses ([b098868](https://github.com/FabioFiorita/porcelain/commit/b0988686c17dbe05ef7fd08e5f1542241ae517f6))
+* **web:** make Terminals the one terminal surface ([986c6e9](https://github.com/FabioFiorita/porcelain/commit/986c6e96d5de76b133bfc2366730d4fb3c1bb978))
+* **web:** put saved Actions back in the header ([fbca8ce](https://github.com/FabioFiorita/porcelain/commit/fbca8cede10ff0c7f10dafbb8a3a8ff57d7a8254))
+* **web:** scope the Task Project picker to its Environment ([d6d53ff](https://github.com/FabioFiorita/porcelain/commit/d6d53ff27699312227abb949590a8fccede4ddf7))
+* **web:** wrap long lines in the diff surfaces ([1e7edc2](https://github.com/FabioFiorita/porcelain/commit/1e7edc2f262989bc9518161022685484569009f1))
+
+### Bug Fixes
+
+* **desktop:** open Hub worktrees on other Environments through the shell ([#63](https://github.com/FabioFiorita/porcelain/issues/63)) ([937d5d0](https://github.com/FabioFiorita/porcelain/commit/937d5d0d40aab6db71b041145a1686e7aaa52c19))
+* **desktop:** typecheck the e2e project in `pnpm check` ([268ff2a](https://github.com/FabioFiorita/porcelain/commit/268ff2ac39d6093e27652f80a420615987ab35d7)), closes [#63](https://github.com/FabioFiorita/porcelain/issues/63)
+* **web:** drop the black left-edge bar from selected sidebar rows ([479b724](https://github.com/FabioFiorita/porcelain/commit/479b724616b4a96a1092d78bbf4fd20f95a39434))
+
 ## [0.55.1](https://github.com/FabioFiorita/porcelain/compare/v0.55.0...v0.55.1) (2026-08-19)
 
 ### Features
