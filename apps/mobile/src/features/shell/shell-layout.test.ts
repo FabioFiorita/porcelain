@@ -13,27 +13,22 @@ describe('decideShellLayout', () => {
   const wide = { width: SPLIT_MIN_WIDTH }
   const narrow = { width: SPLIT_MIN_WIDTH - 1 }
 
-  it('splits once the Hub stack is deeper than its list', () => {
+  it('gives a wide window the panels at every route, the way the web client does', () => {
+    expect(decideShellLayout({ ...wide, pathname: '/' })).toBe('split')
     expect(decideShellLayout({ ...wide, pathname: '/worktree' })).toBe('split')
     expect(decideShellLayout({ ...wide, pathname: '/files' })).toBe('split')
-    expect(decideShellLayout({ ...wide, pathname: '/changes' })).toBe('split')
     expect(decideShellLayout({ ...wide, pathname: '/file/src/app/index.tsx' })).toBe('split')
-    expect(decideShellLayout({ ...wide, pathname: '/changes/commit/abc123/read-all' })).toBe(
-      'split',
-    )
-  })
-
-  it('keeps the Hub list full width — the sidebar would be a copy of the screen', () => {
-    expect(decideShellLayout({ ...wide, pathname: '/' })).toBe('single')
     // Group segments never reach `usePathname`, but a hand-joined segment list still lands here.
-    expect(decideShellLayout({ ...wide, pathname: '/(hub)/' })).toBe('single')
+    expect(decideShellLayout({ ...wide, pathname: '/(hub)/' })).toBe('split')
   })
 
-  it('leaves the other three tabs single-column', () => {
-    expect(decideShellLayout({ ...wide, pathname: '/terminals' })).toBe('single')
-    expect(decideShellLayout({ ...wide, pathname: '/terminals/session-7' })).toBe('single')
-    expect(decideShellLayout({ ...wide, pathname: '/tasks/12' })).toBe('single')
-    expect(decideShellLayout({ ...wide, pathname: '/settings' })).toBe('single')
+  it('does not strand the daemon-wide tabs on a phone layout', () => {
+    // These four were `single` while the sidebar only appeared inside a Worktree, which is what
+    // made an iPad show a phone screen in four of the five places you can stand.
+    expect(decideShellLayout({ ...wide, pathname: '/terminals' })).toBe('split')
+    expect(decideShellLayout({ ...wide, pathname: '/terminals/session-7' })).toBe('split')
+    expect(decideShellLayout({ ...wide, pathname: '/tasks/12' })).toBe('split')
+    expect(decideShellLayout({ ...wide, pathname: '/settings' })).toBe('split')
   })
 
   it('holds the layout a sheet was opened over', () => {

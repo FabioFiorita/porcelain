@@ -13,11 +13,12 @@
  */
 
 /**
- * The sidebar column's width, in points.
+ * A side panel's width, in points.
  *
  * A Worktree row prints a name over a branch with an Environment nickname beside it; 320 is the
  * width that fits the pair without truncating both, and it is the same order as the web client's
- * default sidebar.
+ * default sidebar. The companion panel takes the same width, because two panels of different
+ * widths around one viewer is a window that looks like it was assembled rather than designed.
  */
 export const HUB_SIDEBAR_WIDTH = 320
 
@@ -44,9 +45,6 @@ export type ShellLayout = 'single' | 'split'
  */
 export type ShellLayoutDecision = ShellLayout | 'unchanged'
 
-/** The three tabs that are not the Hub. Their stacks are single-column by design. */
-const OTHER_TAB_PREFIXES = ['/terminals', '/tasks', '/settings'] as const
-
 /** Hub routes that are presented rather than pushed — see `SHEET` in `app/(hub)/_layout.tsx`. */
 const HUB_SHEET_PATHS = ['/quick-open', '/companion', '/new-worktree'] as const
 
@@ -65,21 +63,22 @@ function isUnder(pathname: string, prefix: string): boolean {
 }
 
 /**
- * Which shape this window and this route want.
+ * Which shape this window wants.
  *
- * The rules, in the order they are applied:
+ * The rule is now the window's alone, and that is the change: the panels used to appear only
+ * once the Hub stack was deeper than its own list, so an iPad showed a phone screen at the Hub
+ * root, at Terminals, at Tasks and at Settings — four of the five places you can stand. The web
+ * client does not do that. Its sidebar is where the app's navigation lives at every route, and
+ * an iPad that means to replace the desktop has to be the same window, not a phone that
+ * occasionally widens.
+ *
+ * What is left:
  *
  *   1. **A narrow window is one column**, whatever route it is on. This is the iPad multitasking
  *      case, and it beats everything below — including a sheet, because a sheet cannot make room
  *      the window does not have.
  *   2. **A sheet changes nothing.** See `ShellLayoutDecision`.
- *   3. **The other three tabs are one column.** Terminals, Tasks and Settings are daemon-wide
- *      lists that own their whole width; a Worktree list beside Settings would be furniture.
- *   4. **The Hub root is one column.** The Worktree list IS that screen — putting the same list
- *      in a sidebar beside itself is the one layout that is strictly worse than the phone's.
- *   5. **Anything deeper in the Hub is a split.** A Worktree, a surface, a file: the screen that
- *      would have covered the list on a phone sits beside it instead, which is the web client's
- *      sidebar-and-viewer shape.
+ *   3. **Anything else is the three-pane window.**
  */
 export function decideShellLayout({
   pathname,
@@ -89,11 +88,6 @@ export function decideShellLayout({
   width: number
 }): ShellLayoutDecision {
   if (width < SPLIT_MIN_WIDTH) return 'single'
-
-  const path = normalize(pathname)
-
-  if (HUB_SHEET_PATHS.some((sheet) => isUnder(path, sheet))) return 'unchanged'
-  if (OTHER_TAB_PREFIXES.some((prefix) => isUnder(path, prefix))) return 'single'
-  if (path === '/') return 'single'
+  if (HUB_SHEET_PATHS.some((sheet) => isUnder(normalize(pathname), sheet))) return 'unchanged'
   return 'split'
 }

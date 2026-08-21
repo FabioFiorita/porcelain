@@ -5,7 +5,7 @@ import { ChromeGlyph, type ChromeIconName, type IconTone } from '@/components/ch
 import { NativeSheet } from '@/components/native/native-sheet'
 import { SURFACE_GUTTER } from '@/components/surface-layout'
 import { Input } from '@/components/ui/input'
-import { useTopChrome } from '@/features/shell/window-chrome'
+import { useShellLeading, useShellTrailing, useTopChrome } from '@/features/shell/window-chrome'
 import { cn } from '@/lib/utils'
 
 /**
@@ -110,6 +110,10 @@ export function ScreenHeader({
   // Read, never passed: the shell knows whether this screen is at the top of the window, and
   // threading the number was how the old bars ended up disagreeing with each other.
   const topInset = useTopChrome()
+  // The shell's own control — the tablet's panel toggle — sits ahead of the back chevron, the
+  // same order the web client's viewer header puts them in.
+  const leading = useShellLeading()
+  const trailing = useShellTrailing()
 
   return (
     <View
@@ -118,8 +122,9 @@ export function ScreenHeader({
       style={{ paddingTop: topInset + 6 }}
       testID={testID}
     >
+      {leading === null ? null : <View className="-ml-2 flex-row items-center">{leading}</View>}
       {back === undefined ? null : (
-        <View className="-ml-2">
+        <View className={cn(leading === null && '-ml-2')}>
           <IconAction
             accessibilityLabel={back.accessibilityLabel}
             glyph="chevronLeft"
@@ -149,8 +154,11 @@ export function ScreenHeader({
           </Text>
         )}
       </View>
-      {actions === undefined ? null : (
-        <View className="-mr-2 flex-row items-center">{actions}</View>
+      {actions === undefined && trailing === null ? null : (
+        <View className="-mr-2 flex-row items-center">
+          {actions}
+          {trailing}
+        </View>
       )}
     </View>
   )

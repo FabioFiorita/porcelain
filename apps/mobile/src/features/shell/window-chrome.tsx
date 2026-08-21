@@ -83,3 +83,44 @@ export function useTopChrome(): number {
   const insets = useSafeAreaInsets()
   return declared ?? insets.top
 }
+
+/**
+ * A control the SHELL puts at the head of whatever screen is mounted inside it.
+ *
+ * The tablet's panel toggles are the case: they belong to the shell — nothing a routed screen
+ * knows says whether a sidebar is open — but they have to appear inside that screen's header,
+ * because the header is the only 48pt band at the top of the viewer card and a second one under
+ * it would be two bars. Every screen already draws `ScreenHeader`, so the shell hands the
+ * control down and `ScreenHeader` renders it before the back chevron.
+ *
+ * Empty on phone, where the shell has no panels to toggle.
+ */
+const ShellLeadingContext = createContext<React.ReactNode>(null)
+const ShellTrailingContext = createContext<React.ReactNode>(null)
+
+export function ShellControls({
+  children,
+  leading = null,
+  trailing = null,
+}: {
+  children: React.ReactNode
+  /** Drawn ahead of the back chevron. */
+  leading?: React.ReactNode
+  /** Drawn after the screen's own actions, on the trailing edge — where the web client puts
+   * its surfaces-panel toggle. */
+  trailing?: React.ReactNode
+}): React.JSX.Element {
+  return (
+    <ShellLeadingContext.Provider value={leading}>
+      <ShellTrailingContext.Provider value={trailing}>{children}</ShellTrailingContext.Provider>
+    </ShellLeadingContext.Provider>
+  )
+}
+
+export function useShellLeading(): React.ReactNode {
+  return useContext(ShellLeadingContext)
+}
+
+export function useShellTrailing(): React.ReactNode {
+  return useContext(ShellTrailingContext)
+}

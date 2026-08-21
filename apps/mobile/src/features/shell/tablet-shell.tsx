@@ -1,53 +1,145 @@
+import { TabList, TabSlot, TabTrigger, Tabs } from 'expo-router/ui'
+import { useState } from 'react'
 import { View } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { HubSidebar } from './hub-sidebar'
-import { PhoneShell } from './phone-shell'
+import { IconAction } from '@/components/panel-chrome'
+
+import { DESTINATIONS } from './destinations'
+import { SidebarInspector } from './tablet-inspector'
+import { TabletSidebar } from './tablet-sidebar'
 import { HUB_SIDEBAR_WIDTH } from './shell-layout'
 import { useShellLayout } from './use-app-window'
+import { ColumnChrome, ShellControls } from './window-chrome'
 
 /**
- * The tablet shell: the same four tabs, with the Hub list held beside the screen it opened
- * instead of under it.
+ * The tablet shell: the web client's three-pane window, as an app.
  *
- * This is the web client's shape — sidebar next to viewer — reached the only way an iPad-width
- * window makes it worth reaching: once you are INSIDE a Worktree. At the Hub list itself the
- * list is the screen, so there is one column; push a Worktree, a surface, or a file and the list
- * slides out beside it rather than being covered. `decideShellLayout` owns that rule.
+ * ```
+ *  ┌────────────┬───────────────────────────┬──────────────┐
+ *  │ Porcelain  │  ╭─────────────────────╮  │  Companion   │
+ *  │ Search     │  │ ScreenHeader        │  │              │
+ *  │ Terminals  │  │                     │  │              │
+ *  │ Tasks      │  │  the routed stack   │  │              │
+ *  │ WORKTREES  │  │                     │  │              │
+ *  │  …         │  ╰─────────────────────╯  │              │
+ *  │ Settings   │                           │              │
+ *  └────────────┴───────────────────────────┴──────────────┘
+ * ```
  *
- * **The tabs are never remounted.** `PhoneShell` sits in a fixed child slot with the sidebar
- * conditional beside it, so widening and narrowing the window — Stage Manager, Split View, a
- * rotation — adds and removes one column while every tab's native stack, and whatever is pushed
- * on it, stays exactly where it was. That is the whole answer to a live resize: the routed
- * screen never moves between containers, because it was never in the sidebar's container.
+ * This is `app-shell.tsx` from `apps/web`, pane for pane: a navigation sidebar, a rounded
+ * `bg-card` viewer with its own header, and a surface panel on the trailing edge. The iPad has
+ * been handed phone layouts stretched to 1024pt for years and this product is not going to be
+ * another one — the human's words were that it is time to come hard on it.
+ *
+ * **There is no tab bar here, and the tabs are still what runs it.** `Tabs` stays mounted, its
+ * `TabList` is present but hidden, and the sidebar's rows are `TabTrigger`s that address the
+ * same tabs by name. So the iPad gets the web silhouette while every stack stays alive behind
+ * it: leaving Terminals for Settings and coming back finds the same attached session, and the
+ * routed screen never moves between containers when the window resizes, because it was never in
+ * the sidebar's container.
  *
  * **Why this is a flex row and not `UISplitViewController`.** expo-router 57 does ship the
  * platform primitive (`expo-router/unstable-split-view`, over `react-native-screens`'
  * experimental `Split.Host`), and it is the right thing when the app's ROOT is a split. It
  * cannot be this: `SplitView` throws inside any navigator, so it can only replace the tab shell
- * rather than live in the Worktrees tab — an iPad app with no tabs, whose `Slot` unmounts the
- * other tabs' stacks. `Split.Host` underneath it renders `null` on Android outright. A two-column
- * flex layout keeps all four tabs, keeps every stack mounted, and works on both tablets. The
- * swap back to the native split stays a change to this one file if a no-tabs iPad is ever what
- * is wanted.
+ * rather than live inside it, and `Split.Host` renders `null` on Android outright. It also owns
+ * the column headers and does not let them be customised — which is precisely the trade this
+ * whole pass reverses. A flex row keeps the navigator, works on both tablets, and every pixel
+ * of it is a token.
+ *
+ * **Narrowing.** An iPad window resizes live — Stage Manager, Split View, a rotation — and the
+ * panes drop in the order the web client drops them: the inspector first, then the sidebar,
+ * leaving the viewer whole. `decideShellLayout` owns the width rule.
  */
 export function TabletShell(): React.JSX.Element {
+  const insets = useSafeAreaInsets()
   const layout = useShellLayout()
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [inspectorOpen, setInspectorOpen] = useState(false)
+  const showSidebar = layout === 'split' && sidebarOpen
 
   return (
-    <View className="flex-1 flex-row bg-background">
-      {layout === 'split' ? (
-        <View
-          /* nativewind-allow-style: the column's width is half of the threshold that decides
-             whether it appears at all, so both live on the same constant. */
-          style={{ width: HUB_SIDEBAR_WIDTH }}
-        >
-          <HubSidebar />
+    <Tabs>
+      <View
+        className="flex-1 flex-row gap-2 bg-background p-2"
+        /* nativewind-allow-style: the window's safe area is owned HERE, once, so the panels
+           inside it are plain columns. Each one used to clear the status bar and the home
+           indicator for itself, which is three chances to disagree by a point. */
+        style={{
+          paddingBottom: insets.bottom + 8,
+          paddingLeft: insets.left + 8,
+          paddingRight: insets.right + 8,
+          paddingTop: insets.top + 8,
+        }}
+      >
+        {showSidebar ? (
+          <View
+            /* nativewind-allow-style: the column's width is half of the threshold that decides
+               whether it appears at all, so both live on the same constant. */
+            style={{ width: HUB_SIDEBAR_WIDTH }}
+          >
+            <TabletSidebar />
+          </View>
+        ) : null}
+
+        {/* The viewer card. Fixed slot: this subtree must keep its identity across every layout
+            change, or a resize would remount the stack inside it. */}
+        <View className="min-w-0 flex-1 overflow-hidden rounded-xl border border-border bg-card">
+          <ColumnChrome>
+            <ShellControls
+              leading={
+                layout === 'split' ? (
+                  <IconAction
+                    accessibilityLabel="Toggle the navigation panel"
+                    glyph="panelLeft"
+                    selected={sidebarOpen}
+                    testID="porcelain-tablet-toggle-sidebar"
+                    tone="foreground"
+                    onPress={() => {
+                      setSidebarOpen((open) => !open)
+                    }}
+                  />
+                ) : null
+              }
+              trailing={
+                layout === 'split' ? (
+                  <IconAction
+                    accessibilityLabel="Toggle the companion panel"
+                    glyph="panelRight"
+                    selected={inspectorOpen}
+                    testID="porcelain-tablet-toggle-inspector"
+                    tone="foreground"
+                    onPress={() => {
+                      setInspectorOpen((open) => !open)
+                    }}
+                  />
+                ) : null
+              }
+            >
+              <TabSlot />
+            </ShellControls>
+          </ColumnChrome>
         </View>
-      ) : null}
-      {/* Fixed slot: this subtree must keep its identity across every layout change. */}
-      <View className="min-w-0 flex-1">
-        <PhoneShell />
+
+        {layout === 'split' && inspectorOpen ? (
+          <View style={{ width: HUB_SIDEBAR_WIDTH }}>
+            <SidebarInspector
+              onClose={() => {
+                setInspectorOpen(false)
+              }}
+            />
+          </View>
+        ) : null}
       </View>
-    </View>
+
+      {/* The declaration of what each tab is and where it points. Hidden, because the sidebar
+          draws the destinations; `TabList` is still the only place they are declared. */}
+      <TabList style={{ display: 'none' }}>
+        {DESTINATIONS.map((destination) => (
+          <TabTrigger key={destination.name} href={destination.href} name={destination.name} />
+        ))}
+      </TabList>
+    </Tabs>
   )
 }
