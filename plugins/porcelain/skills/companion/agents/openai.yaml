@@ -1,0 +1,4 @@
+interface:
+  display_name: "Porcelain Companion"
+  short_description: "Use Porcelain domain tools for Canvases, comments, Tasks, profiles, and Actions"
+  default_prompt: "Use $companion when the human requests a Porcelain Canvas or template, review comments, Tasks, profiles, or user-run Actions. Keep ordinary coding on the shared development loop; do not create product state as a side effect. Use $remote for host setup, pairing, service, or network exposure."

@@ -1,13 +1,8 @@
 /**
- * The tool surface an agent sees. Eight tools over the daemon's operations, not a
- * transliteration of the retired CLI's seventeen verbs: every tool definition is
- * spent from the agent's context window on every turn, so the surface is grouped by
- * intention (orient, declare, record, publish) rather than by noun and verb.
- *
- * Two of these reach channels the CLI never had. `comment-router` and
- * `review-marks-router` have been live on the daemon the whole time with nothing on
- * the agent side to call them, so an agent could not read the human's review
- * comments at all — in a review layer, that is the loop.
+ * The MCP surface is deliberately organized around Porcelain's product domains.
+ * Each domain is one entry point and its `op` selects the small CRUD/read family
+ * that belongs to it. Review is a Canvas template, replies are Comment operations,
+ * and promotion is an operation on the thing being promoted.
  */
 
 export type McpToolDefinition = Readonly<{
@@ -17,15 +12,10 @@ export type McpToolDefinition = Readonly<{
   inputSchema: Record<string, unknown>
 }>
 
-/**
- * Where to operate. A path is the ordinary local answer and costs the agent nothing —
- * it already knows its checkout. The explicit id form exists because a stateless
- * request carries no cwd and a *remote* daemon cannot resolve a path that only exists
- * on the agent's machine.
- */
+/** Where to operate. A path is the ordinary local answer and costs the agent nothing. */
 const WORKSPACE = {
   description:
-    'Which checkout to act on. Normally the absolute path of the repository you are working in — your own working directory (process.cwd()) or any directory inside it works, e.g. "/home/me/code/app". Use {projectId, worktreeId?} to act on a DIFFERENT checkout than your own, or when the daemon runs on another host where your path means nothing; list the ids with porcelain_context include: ["projects"].',
+    'Which checkout to act on. Normally the absolute path of the repository you are working in. Use {projectId, worktreeId?} to target a different checkout; discover ids with porcelain_project.',
   anyOf: [
     {
       type: 'string',
@@ -43,13 +33,59 @@ const WORKSPACE = {
   ],
 } as const
 
+const PROFILE_LAYER = {
+  type: 'object',
+  properties: { label: { type: 'string' }, pattern: { type: 'string' } },
+  required: ['label', 'pattern'],
+  additionalProperties: false,
+} as const
+
+const PROFILE = {
+  oneOf: [
+    {
+      type: 'object',
+      properties: {
+        pinnedPaths: { type: 'array', items: { type: 'string' } },
+        hiddenPaths: { type: 'array', items: { type: 'string' } },
+        layers: { type: 'array', items: PROFILE_LAYER },
+      },
+      required: ['pinnedPaths', 'hiddenPaths', 'layers'],
+      additionalProperties: false,
+      description: 'Project profile',
+    },
+    {
+      type: 'object',
+      properties: {
+        pinnedPaths: { type: 'array', items: { type: 'string' } },
+        hiddenPaths: { type: 'array', items: { type: 'string' } },
+        unhiddenPaths: { type: 'array', items: { type: 'string' } },
+        layers: { type: ['array', 'null'], items: PROFILE_LAYER },
+      },
+      required: ['pinnedPaths', 'hiddenPaths', 'unhiddenPaths', 'layers'],
+      additionalProperties: false,
+      description: 'Worktree override',
+    },
+  ],
+  description: 'Required for set; set replaces the selected level as a whole.',
+} as const
+
+const CANVAS_FILE = {
+  type: 'object',
+  properties: {
+    path: { type: 'string', description: 'Bundle-relative path' },
+    content: { type: 'string' },
+  },
+  required: ['path', 'content'],
+  additionalProperties: false,
+} as const
+
 const REVIEW_FILE = {
   type: 'object',
   properties: {
-    path: { type: 'string', description: 'Repo-relative path' },
+    path: { type: 'string' },
     source: { enum: ['changed', 'context', 'shipped'] },
-    note: { type: 'string', description: 'Why this file is in the Review' },
-    layer: { type: 'string', description: 'Grouping label, e.g. "wire" or "daemon"' },
+    note: { type: 'string' },
+    layer: { type: 'string' },
   },
   required: ['path'],
   additionalProperties: false,
@@ -59,7 +95,7 @@ const REVIEW_SECTION = {
   type: 'object',
   properties: {
     title: { type: 'string' },
-    prose: { type: 'string', description: 'Markdown' },
+    prose: { type: 'string', description: 'Markdown prose' },
     diagram: { type: 'string', description: 'Inline SVG' },
     anchors: {
       type: 'array',
@@ -79,255 +115,168 @@ const REVIEW_SECTION = {
   additionalProperties: false,
 } as const
 
-const PROFILE_LAYER = {
+const TASK_LINK = {
   type: 'object',
-  properties: { label: { type: 'string' }, pattern: { type: 'string' } },
-  required: ['label', 'pattern'],
+  properties: { url: { type: 'string' }, label: { type: 'string' } },
+  required: ['url'],
   additionalProperties: false,
 } as const
 
-const PROFILE_FIELDS = {
-  pinnedPaths: { type: 'array', items: { type: 'string' } },
-  hiddenPaths: { type: 'array', items: { type: 'string' } },
+const PATH_REF = {
+  type: 'object',
+  properties: { path: { type: 'string' }, kind: { enum: ['file', 'folder'] } },
+  required: ['path', 'kind'],
+  additionalProperties: false,
+} as const
+
+const COMMENT = {
+  type: 'object',
+  properties: {
+    path: { type: 'string', description: 'Repo-relative file path' },
+    startLine: { type: 'integer' },
+    endLine: { type: 'integer' },
+    anchorText: { type: 'string' },
+    body: { type: 'string', description: 'Markdown comment or reply' },
+  },
+  additionalProperties: false,
 } as const
 
 export const MCP_TOOLS: readonly McpToolDefinition[] = Object.freeze([
   {
-    name: 'porcelain_context',
-    title: 'Read the workspace',
+    name: 'porcelain_project',
+    title: 'Discover Projects and Worktrees',
     description:
-      'Read Porcelain state: the Review, the human\'s open review comments, the files they marked reviewed, the Task board, saved Actions, Canvases, and the Projects this daemon has open. Call this FIRST — it resolves the workspace and is the only read you need; never read $PORCELAIN_HOME or call the daemon\'s HTTP API yourself. Examples: {workspace: "/home/me/code/app", include: ["tasks"]} lists every open Task with its short id (T-18), status, notes, links and attachment paths; add includeDone: true for finished ones; {include: ["tasks"], taskId: "T-18"} returns one Task, whose attachments carry an absolute hostPath you can read as a file when the daemon is this machine; {include: ["projects"]} lists the projectId/worktreeId of every checkout, for acting on one other than your own.',
+      'List the Projects and Worktrees known by this daemon, or get one Project by id. Use this when targeting a checkout other than the current workspace.',
     inputSchema: {
       type: 'object',
       properties: {
+        op: { enum: ['list', 'get'] },
         workspace: WORKSPACE,
-        include: {
-          type: 'array',
-          items: {
-            enum: ['review', 'comments', 'marks', 'tasks', 'actions', 'canvases', 'projects'],
-          },
-          description:
-            'Sections to return. Default: review, comments, marks. "tasks" is the whole daemon-wide board; "projects" is every checkout this daemon has open, with its ids.',
-        },
-        taskId: {
-          type: 'string',
-          description: 'Return only this Task. Short id (T-18) or UUID.',
-        },
-        includeDone: {
-          type: 'boolean',
-          description: 'Include Tasks with status "done" in the listing. Default false.',
-        },
+        projectId: { type: 'string' },
       },
-      required: ['workspace'],
-      additionalProperties: false,
-    },
-  },
-  {
-    name: 'porcelain_profile',
-    title: 'Read or set the profile',
-    description:
-      'Read or replace the private project profile or this worktree override. Reads before writes; set replaces the selected level as a whole, so get first. Clear removes the selected level. pinnedPaths and hiddenPaths are EXACT repository-relative paths matched by set membership, not globs — "dist" hides that directory, "*.log" hides nothing.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        workspace: WORKSPACE,
-        level: { enum: ['project', 'worktree'] },
-        op: { enum: ['get', 'set', 'clear'] },
-        profile: {
-          oneOf: [
-            {
-              type: 'object',
-              properties: {
-                ...PROFILE_FIELDS,
-                layers: { type: 'array', items: PROFILE_LAYER },
-              },
-              required: ['pinnedPaths', 'hiddenPaths', 'layers'],
-              additionalProperties: false,
-              description: 'Project profile',
-            },
-            {
-              type: 'object',
-              properties: {
-                ...PROFILE_FIELDS,
-                unhiddenPaths: { type: 'array', items: { type: 'string' } },
-                layers: { type: ['array', 'null'], items: PROFILE_LAYER },
-              },
-              required: ['pinnedPaths', 'hiddenPaths', 'unhiddenPaths', 'layers'],
-              additionalProperties: false,
-              description: 'Worktree override',
-            },
-          ],
-          description: 'Required for set.',
-        },
-      },
-      required: ['workspace', 'level', 'op'],
-      additionalProperties: false,
-    },
-  },
-  {
-    name: 'porcelain_review',
-    title: 'Declare the Review',
-    description:
-      'Declare what this change is and which files carry it. "replace" writes the whole Review; a name and thesis alone is a valid Intent-first start, before any file is listed. "append" adds files to the Review that exists. "clear" removes it.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        workspace: WORKSPACE,
-        mode: { enum: ['replace', 'append', 'clear'] },
-        name: { type: 'string', description: 'Review name shown in Porcelain' },
-        thesis: { type: 'string', description: 'One-paragraph markdown thesis' },
-        files: {
-          type: 'array',
-          items: REVIEW_FILE,
-          description: 'In flow order: entry point → data',
-        },
-        sections: {
-          type: 'array',
-          items: REVIEW_SECTION,
-          description: 'Walkthrough, in flow order',
-        },
-      },
-      required: ['workspace', 'mode'],
-      additionalProperties: false,
-    },
-  },
-  {
-    name: 'porcelain_task',
-    title: 'Record a Task',
-    description:
-      'Create or update Tasks on the daemon-wide board — work that spans or outlives this checkout. Omit "id" to create. Pass "id" (short id like T-18, or UUID) to update one, or "ids" to apply the same change to several — e.g. {ids: ["T-3","T-4"], status: "done"}. A "link" is ADDED to the Task\'s existing links (attach a PR with {id: "T-18", status: "done", link: "https://github.com/o/r/pull/7", linkLabel: "PR #7"}); "links" replaces them all. Read Tasks back with porcelain_context include: ["tasks"]. If something you need is not possible here, that is a bug in this tool — record it as a Task rather than editing the daemon\'s files.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        workspace: WORKSPACE,
-        id: {
-          type: 'string',
-          description: 'Short id (T-18) or UUID of the Task to update. Omit to create a new one.',
-        },
-        ids: {
-          type: 'array',
-          items: { type: 'string' },
-          description: 'Update several Tasks with the same change. Not for title.',
-        },
-        title: { type: 'string', description: 'Required when creating' },
-        notes: { type: 'string', description: 'Markdown. Replaces the existing notes.' },
-        status: { enum: ['todo', 'doing', 'done', 'blocked'] },
-        tags: {
-          type: 'array',
-          items: { type: 'string' },
-          description: 'Replaces the existing tags',
-        },
-        link: {
-          type: 'string',
-          description: 'An http(s) URL ADDED to the Task, keeping the links already there',
-        },
-        linkLabel: { type: 'string', description: 'Label for "link". Defaults to the URL.' },
-        links: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: { url: { type: 'string' }, label: { type: 'string' } },
-            required: ['url'],
-            additionalProperties: false,
-          },
-          description: 'Replace every link on the Task. Use "link" to add one.',
-        },
-        attach: {
-          type: 'string',
-          description:
-            "Absolute path to a file copied into the daemon's attachment store. Local daemon only — the path is read on the daemon host.",
-        },
-        file: { type: 'string', description: 'Worktree-relative file to tag (not copied)' },
-        folder: { type: 'string', description: 'Worktree-relative folder to tag (not copied)' },
-      },
-      required: ['workspace'],
-      additionalProperties: false,
-    },
-  },
-  {
-    name: 'porcelain_action',
-    title: 'Save an Action',
-    description:
-      'Define or remove a saved Action — a named shell command the HUMAN runs from the app. Porcelain never runs it for you. An Action you create arrives untrusted and the human approves the command text before it can run.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        workspace: WORKSPACE,
-        op: { enum: ['save', 'delete'] },
-        id: { type: 'string', description: 'Omit on save to create a new Action' },
-        title: { type: 'string' },
-        command: { type: 'string', description: 'The shell command the human will run' },
-        where: {
-          enum: ['primary', 'local'],
-          description: "Where the human's click runs it: the window's machine, or their device",
-        },
-        kind: {
-          enum: ['action', 'worktree-setup', 'worktree-dispose'],
-          description:
-            'Default "action" (the human clicks it). The worktree roles are lifecycle scripts Porcelain runs itself in a terminal when a Worktree is created or removed — still only after the human accepts the command.',
-        },
-      },
-      required: ['workspace', 'op'],
+      required: ['op'],
       additionalProperties: false,
     },
   },
   {
     name: 'porcelain_canvas',
-    title: 'Publish a Canvas',
+    title: 'Manage a Canvas',
     description:
-      'Publish an agent-authored explanation for this Project from a local directory of files (entry file plus its images, CSS, JS). Omit "id" to create, pass it to replace. Local daemon only — the directory is read on the daemon host.',
+      'List, read, create, update, delete, or promote an agent-authored Canvas. Review is the `review` template inside Canvas; use templateData for its structured files and sections. A promoted Canvas is tracked in <repo>/.porcelain and becomes canonical for that checkout. Promotion writes files but never stages or commits.',
     inputSchema: {
       type: 'object',
       properties: {
+        op: { enum: ['list', 'get', 'create', 'update', 'delete', 'promote'] },
         workspace: WORKSPACE,
-        id: { type: 'string', description: 'Omit to create a new Canvas' },
+        id: { type: 'string', description: 'Canvas id for get/update/delete/promote' },
         title: { type: 'string' },
         kind: { enum: ['html', 'markdown'] },
-        sourceDir: { type: 'string', description: 'Absolute path to the directory to copy in' },
-        entry: {
-          type: 'string',
-          description: 'Entry file inside sourceDir (default index.html / index.md)',
-        },
+        sourceDir: { type: 'string', description: 'Absolute directory on the daemon host' },
+        entry: { type: 'string', description: 'Bundle-relative entry file' },
+        files: { type: 'array', items: CANVAS_FILE },
         tracked: {
           type: 'boolean',
-          description:
-            'Write to the tracked <repo>/.porcelain/ overlay instead of the private store',
+          description: 'Create or update directly in the tracked checkout overlay',
+        },
+        template: { enum: ['review'] },
+        templateData: {
+          type: 'object',
+          properties: {
+            name: { type: 'string' },
+            thesis: { type: 'string' },
+            files: { type: 'array', items: REVIEW_FILE },
+            sections: { type: 'array', items: REVIEW_SECTION },
+          },
+          required: ['name', 'files', 'sections'],
+          additionalProperties: false,
         },
       },
-      required: ['workspace', 'title', 'kind', 'sourceDir'],
+      required: ['op', 'workspace'],
       additionalProperties: false,
     },
   },
   {
-    name: 'porcelain_promote',
-    title: 'Promote into the checkout',
+    name: 'porcelain_comment',
+    title: 'Manage Review Comments',
     description:
-      'Move private daemon-root data into the checkout as tracked files so Git carries it. Writes files; never stages and never commits.',
+      'List, read, create, edit, delete, reply to, resolve, or reopen review comments. Use status open, resolved, or all when listing. Replies remain attached to their parent comment; resolve/reopen changes the parent status.',
     inputSchema: {
       type: 'object',
       properties: {
+        op: { enum: ['list', 'get', 'create', 'update', 'delete', 'reply', 'resolve', 'reopen'] },
         workspace: WORKSPACE,
-        what: { enum: ['canvas', 'overrides'] },
-        canvasId: { type: 'string', description: 'Required when what = canvas' },
-        target: { type: 'string', description: 'Absolute path of the checkout to write into' },
+        id: {
+          type: 'string',
+          description: 'Comment id for get/update/delete/reply/resolve/reopen',
+        },
+        status: { enum: ['open', 'resolved', 'all'] },
+        comment: COMMENT,
+        body: { type: 'string', description: 'Comment body or reply body' },
       },
-      required: ['workspace', 'what'],
+      required: ['op', 'workspace'],
       additionalProperties: false,
     },
   },
   {
-    name: 'porcelain_reply',
-    title: 'Answer a review comment',
+    name: 'porcelain_task',
+    title: 'Manage Tasks',
     description:
-      'Reply to a comment the human left on the Review. Read the open comments with porcelain_context first. You cannot resolve or delete a comment — the human closes their own loop.',
+      'List, read, create, update, or delete durable Tasks. Tasks are daemon-wide and can carry notes, status, tags, links, attachments, and file/folder references. Workspace is optional for daemon-wide reads, deletes, and tasks without checkout references; provide it when create/update adds refs.',
     inputSchema: {
       type: 'object',
       properties: {
+        op: { enum: ['list', 'get', 'create', 'update', 'delete'] },
         workspace: WORKSPACE,
-        commentId: { type: 'string' },
-        body: { type: 'string', description: 'Markdown reply' },
+        id: { type: 'string', description: 'Short id such as T-18 or UUID' },
+        title: { type: 'string' },
+        notes: { type: 'string' },
+        status: { enum: ['todo', 'doing', 'done', 'blocked'] },
+        tags: { type: 'array', items: { type: 'string' } },
+        links: { type: 'array', items: TASK_LINK },
+        link: { type: 'string', description: 'URL added to existing links' },
+        linkLabel: { type: 'string' },
+        attach: { type: 'string', description: 'Absolute file path copied into task attachments' },
+        removeAttachmentIds: { type: 'array', items: { type: 'string' } },
+        refs: { type: 'array', items: PATH_REF },
       },
-      required: ['workspace', 'commentId', 'body'],
+      required: ['op'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'porcelain_profile',
+    title: 'Manage the Repository Profile',
+    description:
+      'Get, replace, clear, or promote a project profile or worktree override. Profiles contain pins, hides, optional unhidden paths, and story layers. set replaces the selected level as a whole; get first. Promotion writes portable pins/hides to .porcelain/project.json and intentionally does not carry private story layers or worktree overrides.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        op: { enum: ['get', 'set', 'clear', 'promote'] },
+        workspace: WORKSPACE,
+        level: { enum: ['project', 'worktree'] },
+        profile: PROFILE,
+      },
+      required: ['op', 'workspace', 'level'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'porcelain_action',
+    title: 'Manage Saved Actions',
+    description:
+      'List, read, create, update, or delete saved Actions. The agent authors Action definitions; the user starts them by clicking in Porcelain. This MCP surface has no execute, run, approve, or trust operation.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        op: { enum: ['list', 'get', 'create', 'update', 'delete'] },
+        workspace: WORKSPACE,
+        id: { type: 'string' },
+        title: { type: 'string' },
+        command: { type: 'string' },
+        where: { enum: ['primary', 'local'] },
+        kind: { enum: ['action', 'worktree-setup', 'worktree-dispose'] },
+      },
+      required: ['op', 'workspace'],
       additionalProperties: false,
     },
   },

@@ -19,12 +19,7 @@ import {
   localTerminalPathKey,
   updateLocalTerminalPaths,
 } from './local-terminal-paths'
-import {
-  PLUGIN_VERSION,
-  pluginInstallCommand,
-  pluginMarketplaceCommands,
-  pluginUpdateCommands,
-} from './plugin-assets'
+import { PLUGIN_VERSION, agentPluginRepository, claudePluginCommands } from './plugin-assets'
 import {
   type EndpointKind,
   endpointKind,
@@ -316,20 +311,17 @@ export const shellRouter = t.router({
   }),
 
   // The companion and remote skills ship inside the `porcelain` agent plugin. The app does
-  // not install it — it hands over the commands. There is deliberately no upgrade prompt:
-  // the app cannot see which version an agent has installed, and the marketplace route
-  // refreshes on its own.
+  // not install it: Agent Plugins leaves distribution to each client, while Claude has a
+  // verified marketplace route. There is deliberately no generic install command.
   pluginInfo: t.procedure.query(
     (): {
       version: string
-      installCommand: string
-      marketplaceCommands: readonly string[]
-      updateCommands: readonly string[]
+      agentPluginRepository: string
+      claudePluginCommands: readonly string[]
     } => ({
       version: PLUGIN_VERSION,
-      installCommand: pluginInstallCommand(),
-      marketplaceCommands: pluginMarketplaceCommands(),
-      updateCommands: pluginUpdateCommands(),
+      agentPluginRepository: agentPluginRepository(),
+      claudePluginCommands: claudePluginCommands(),
     }),
   ),
 

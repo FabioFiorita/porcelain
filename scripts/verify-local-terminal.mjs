@@ -9,8 +9,8 @@
  * (markLocalTerminal → sessionForTerminal → local daemon).
  *
  * Manual dual-daemon smoke (when local-terminal code changes):
- *   1. Terminal A: PORCELAIN_DAEMON_PORT=43119 PORCELAIN_USER_DATA=/tmp/porcelain-remote-ud
- *      PORCELAIN_HOME=/tmp/porcelain-remote-home pnpm dev:daemon
+ *   1. Terminal A: PORCELAIN_DAEMON_PORT=43119 PORCELAIN_USER_DATA=/tmp/porcelain-dev-ud
+ *      PORCELAIN_HOME=/tmp/porcelain-dev-home pnpm dev:daemon
  *   2. Seed the Mac app's userData remote-daemon.json so a window binds to
  *      that "remote" while the local child still runs.
  *   3. Map a local clone path (folder icon next to + on Terminal).

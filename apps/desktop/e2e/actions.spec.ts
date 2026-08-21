@@ -1,12 +1,5 @@
 import { PROTOCOL_VERSION, PROTOCOL_VERSION_HEADER } from '@porcelain/contracts'
-import {
-  E2E_BROWSER_TOKEN,
-  expect,
-  expectTerminalText,
-  loc,
-  test,
-  waitForShell,
-} from './helpers/app'
+import { expect, expectTerminalText, loc, test, waitForShell } from './helpers/app'
 
 const COMMAND = 'echo porcelain-e2e-actions'
 
@@ -80,7 +73,6 @@ async function createAgentAction(
   const origin = new URL(page.url()).origin
   const response = await page.request.post(`${origin}/mcp`, {
     headers: {
-      authorization: `Bearer ${E2E_BROWSER_TOKEN}`,
       'content-type': 'application/json',
       'mcp-method': 'tools/call',
       'mcp-name': 'porcelain_action',
@@ -98,7 +90,7 @@ async function createAgentAction(
         name: 'porcelain_action',
         arguments: {
           workspace: repoDir,
-          op: 'save',
+          op: 'create',
           title: 'Echo hello',
           command: COMMAND,
         },
@@ -110,23 +102,22 @@ async function createAgentAction(
 
   const contextResponse = await page.request.post(`${origin}/mcp`, {
     headers: {
-      authorization: `Bearer ${E2E_BROWSER_TOKEN}`,
       'content-type': 'application/json',
       'mcp-method': 'tools/call',
-      'mcp-name': 'porcelain_context',
+      'mcp-name': 'porcelain_action',
       'mcp-protocol-version': '2026-07-28',
     },
     data: {
       jsonrpc: '2.0',
-      id: 'e2e-action-context',
+      id: 'e2e-action-list',
       method: 'tools/call',
       params: {
         _meta: {
           'io.modelcontextprotocol/protocolVersion': '2026-07-28',
           'io.modelcontextprotocol/clientCapabilities': {},
         },
-        name: 'porcelain_context',
-        arguments: { workspace: repoDir, include: ['actions'] },
+        name: 'porcelain_action',
+        arguments: { workspace: repoDir, op: 'list' },
       },
     },
   })
@@ -135,12 +126,10 @@ async function createAgentAction(
     result?: { content?: Array<{ text?: string }> }
   }
   const contextText = contextBody.result?.content?.[0]?.text
-  if (contextText === undefined) throw new Error('porcelain_context returned no content')
-  const context = JSON.parse(contextText) as {
-    actions?: Array<{ id: string; title: string }>
-  }
-  const action = context.actions?.find((candidate) => candidate.title === 'Echo hello')
-  if (action === undefined) throw new Error('porcelain_context did not return Echo hello')
+  if (contextText === undefined) throw new Error('porcelain_action returned no content')
+  const parsed = JSON.parse(contextText) as { value?: Array<{ id: string; title: string }> }
+  const action = parsed.value?.find((candidate) => candidate.title === 'Echo hello')
+  if (action === undefined) throw new Error('porcelain_action did not return Echo hello')
   return action.id
 }
 

@@ -37,9 +37,8 @@ vi.mock('./local-terminal-paths', () => ({
 
 vi.mock('./plugin-assets', () => ({
   PLUGIN_VERSION: '1.0.0',
-  pluginInstallCommand: (): string => 'install',
-  pluginMarketplaceCommands: (): readonly string[] => ['marketplace'],
-  pluginUpdateCommands: (): readonly string[] => ['update'],
+  agentPluginRepository: (): string => 'repository',
+  claudePluginCommands: (): readonly string[] => ['marketplace'],
 }))
 
 vi.mock('./updater', () => ({

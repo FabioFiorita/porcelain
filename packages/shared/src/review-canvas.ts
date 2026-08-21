@@ -7,7 +7,7 @@ import { dirname, join } from 'node:path'
  * Review is not a lifecycle any more (#28); it is a Canvas that declares
  * `template: 'review'` in the canvas index. Two callers build one:
  *
- * - the `porcelain_review` MCP tool, the agent's entry point;
+ * - the `porcelain_canvas` MCP tool with `template: "review"`, the agent's entry point;
  * - the daemon's Review write (net/mcp), turning the structured Review set into the same thing.
  *
  * They share this module rather than each rendering their own bundle, which is

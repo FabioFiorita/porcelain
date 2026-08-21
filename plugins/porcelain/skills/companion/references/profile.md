@@ -81,7 +81,7 @@ the same hide into a third worktree, it belonged in the project profile.
 - **A stale profile is worse than none.** `get` before you `set`. Clear the
   override when the work it described is finished.
 - **Nothing here is shared.** Both levels are personal and neither is
-  promoted into git. `porcelain_promote` with `what: "overrides"` writes hides and
+  promoted into git. `porcelain_profile` with `op: "promote"` writes portable hides and
   pins only; it never carries layers or another worktree's override into a checkout.
 - **Hiding is focus, never access control.** The full tree stays reachable and
   every hidden path is one gesture from the tree away. Do not hide something to

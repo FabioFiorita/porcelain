@@ -7,10 +7,10 @@ import { runUserAction } from '@shared/background'
 import { Check, Copy } from 'lucide-react'
 import { useState } from 'react'
 
-/** One copyable command block. */
-function CommandBlock({ label, commands }: { label: string; commands: readonly string[] }) {
+/** One copyable block for a client-specific installation route or repository source. */
+function CopyBlock({ label, lines }: { label: string; lines: readonly string[] }) {
   const [copied, setCopied] = useState(false)
-  const text = commands.join('\n')
+  const text = lines.join('\n')
 
   const handleCopy = (): void => {
     runUserAction(
@@ -20,7 +20,7 @@ function CommandBlock({ label, commands }: { label: string; commands: readonly s
         setTimeout(() => setCopied(false), 1500)
       },
       (error) => {
-        toastUserActionError('Copy command', error)
+        toastUserActionError('Copy plugin details', error)
       },
     )
   }
@@ -50,12 +50,9 @@ function CommandBlock({ label, commands }: { label: string; commands: readonly s
 }
 
 /**
- * Command blocks only — the General "Companion" block owns the title and blurb so
- * this doesn't re-introduce the same-weight heading underneath.
- *
- * Two routes on purpose. `npx plugins add` detects every agent on the machine and installs
- * into each; Claude Code's marketplace costs an extra step but then refreshes on its own.
- * Neither is nagged about here — the app cannot see what any agent has installed.
+ * The General "Companion" block owns the title and blurb so this doesn't re-introduce the
+ * same-weight heading underneath. Agent Plugins leaves distribution to each client, so the
+ * first option shows the repository source. Claude has an explicit marketplace route.
  */
 export function PluginSection(): React.JSX.Element {
   const info = usePluginInfo()
@@ -66,12 +63,16 @@ export function PluginSection(): React.JSX.Element {
         <p className="text-xs text-muted-foreground">Bundled plugin: v{info.version}.</p>
       )}
 
-      <CommandBlock label="Install (any agent)" commands={info ? [info.installCommand] : []} />
-      <CommandBlock
-        label="Install (Claude Code, auto-updates)"
-        commands={info?.marketplaceCommands ?? []}
-      />
-      <CommandBlock label="Update" commands={info?.updateCommands ?? []} />
+      <div className="flex min-w-0 flex-col gap-1.5">
+        <p className="text-2xs font-medium tracking-wider text-muted-foreground uppercase">
+          Agent Plugin
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Use your agent's native plugin manager with this repository:
+        </p>
+        <CopyBlock label="Repository" lines={info ? [info.agentPluginRepository] : []} />
+      </div>
+      <CopyBlock label="Claude Plugin" lines={info?.claudePluginCommands ?? []} />
     </div>
   )
 }

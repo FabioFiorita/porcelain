@@ -57,7 +57,7 @@ describe('handleMcpRequest', () => {
     expect(response.status).toBe(200)
     expect(response.headers.get('content-type')).toBe('application/json')
     const body = (await response.json()) as { result: { tools: unknown[] } }
-    expect(body.result.tools).toHaveLength(8)
+    expect(body.result.tools).toHaveLength(6)
   })
 
   it('answers a notification with 202 and an empty body', async () => {
@@ -96,14 +96,14 @@ describe('handleMcpRequest', () => {
   it('reports a tool failure as a result, not a transport error', async () => {
     const response = await fetch(`${base}/mcp`, {
       method: 'POST',
-      headers: { ...headers, 'mcp-method': 'tools/call', 'mcp-name': 'porcelain_context' },
+      headers: { ...headers, 'mcp-method': 'tools/call', 'mcp-name': 'porcelain_project' },
       body: JSON.stringify({
         jsonrpc: '2.0',
         id: 2,
         method: 'tools/call',
         params: {
-          name: 'porcelain_context',
-          arguments: { workspace: '/repo' },
+          name: 'porcelain_project',
+          arguments: { op: 'list' },
           _meta: {
             'io.modelcontextprotocol/protocolVersion': MCP_PROTOCOL_VERSION,
             'io.modelcontextprotocol/clientCapabilities': {},

@@ -1,17 +1,12 @@
-import { readFile } from 'node:fs/promises'
-import { join } from 'node:path'
 import { resolvedProfileSchema, worktreeProfileSchema } from '@porcelain/contracts'
 import type { McpToolHandlers, McpToolResult } from './mcp-dispatch'
-import type { McpOperations, McpTask } from './mcp-operations'
-import { describeMissingTask, mergeLink, taskMatches, taskView } from './mcp-tasks'
+import type { McpOperations, McpTask, TaskArgs } from './mcp-operations'
+import { mergeLink, taskMatches, taskView } from './mcp-tasks'
 import {
-  mergeReviewFiles,
-  parseReviewSet,
-  REVIEW_CANVAS_METADATA,
+  reviewBundleSource,
   type ReviewFile,
   type ReviewSection,
   type ReviewSet,
-  reviewBundleSource,
 } from './mcp-review'
 import {
   isWorkspaceRef,
@@ -20,31 +15,9 @@ import {
   type WorkspaceRef,
 } from './mcp-workspace'
 
-/**
- * The tools, over the same operations the app calls.
- *
- * An adapter, not a second implementation: every product decision stays in the
- * operation, which is what stops the agent surface drifting from the human one the
- * way the CLI did once it started writing $PORCELAIN_HOME itself.
- *
- * Failures come back as tool RESULTS carrying text, not JSON-RPC errors. A model is
- * meant to read what went wrong and try again; a transport error denies it that and
- * usually ends the turn.
- */
-
+/** The MCP adapter calls domain operations; it never reaches into Porcelain storage. */
 export type McpToolDeps = Readonly<{
   operations: McpOperations
-  /** Where the daemon keeps Canvas bundles — the Review's metadata is read from disk. */
-  canvasBundleDir: (projectId: string, canvasId: string) => string
-  /**
-   * Absolute path of a stored Task attachment on the DAEMON host.
-   *
-   * The tRPC contract refuses to carry host paths, and it is right to: a browser has
-   * no business reading the daemon's disk. An agent on the daemon host is the other
-   * case — it has a file reader, and a screenshot it cannot open is a screenshot the
-   * human has to describe out loud. So the path is composed here, on the tool wire,
-   * and labelled as host-local.
-   */
   attachmentPath: (storedPath: string) => string
 }>
 
@@ -65,32 +38,108 @@ function stringField(args: Record<string, unknown>, key: string): string | undef
   return typeof value === 'string' && value !== '' ? value : undefined
 }
 
-function stringList(args: Record<string, unknown>, key: string): string[] | undefined {
-  const value = args[key]
-  if (!Array.isArray(value)) return undefined
-  const entries = value.filter(
-    (entry): entry is string => typeof entry === 'string' && entry !== '',
-  )
-  return entries.length === 0 ? undefined : entries
-}
-
-/** Describe an operation failure without leaking a daemon-internal error object. */
 function describeError(error: unknown): string {
   if (isRecord(error) && typeof error.code === 'string') return error.code
   return 'unknown'
 }
 
+function json(value: unknown): McpToolResult {
+  return ok(JSON.stringify(value, null, 2))
+}
+
+function workspaceView(place: ResolvedWorkspace): Record<string, unknown> {
+  return {
+    projectId: place.projectId,
+    worktreeId: place.worktreeId,
+    path: place.worktreePath,
+  }
+}
+
+function workspaceResult(place: ResolvedWorkspace, value: unknown): McpToolResult {
+  return json({ workspace: workspaceView(place), value })
+}
+
+function statusOf(args: Record<string, unknown>): 'open' | 'resolved' | 'all' {
+  return args.status === 'resolved' || args.status === 'all' ? args.status : 'open'
+}
+
+function statusValue(value: unknown): 'todo' | 'doing' | 'done' | 'blocked' | undefined {
+  return value === 'todo' || value === 'doing' || value === 'done' || value === 'blocked'
+    ? value
+    : undefined
+}
+
+function stringList(args: Record<string, unknown>, key: string): string[] | undefined {
+  const value = args[key]
+  if (!Array.isArray(value)) return undefined
+  return value.filter((entry): entry is string => typeof entry === 'string' && entry !== '')
+}
+
+function reviewSet(value: unknown): ReviewSet | null {
+  if (!isRecord(value) || typeof value.name !== 'string' || value.name === '') return null
+  const files = Array.isArray(value.files)
+    ? value.files.filter(isRecord).flatMap((file): ReviewFile[] => {
+        if (typeof file.path !== 'string' || file.path === '') return []
+        const parsed: {
+          path: string
+          source?: ReviewFile['source']
+          note?: string
+          layer?: string
+        } = { path: file.path }
+        if (file.source === 'changed' || file.source === 'context' || file.source === 'shipped') {
+          parsed.source = file.source
+        }
+        if (typeof file.note === 'string') parsed.note = file.note
+        if (typeof file.layer === 'string') parsed.layer = file.layer
+        return [parsed]
+      })
+    : []
+  const sections = Array.isArray(value.sections)
+    ? value.sections.filter(isRecord).flatMap((section): ReviewSection[] => {
+        if (typeof section.title !== 'string' || typeof section.prose !== 'string') return []
+        const parsed: {
+          title: string
+          prose: string
+          diagram?: string
+          anchors?: { path: string; startLine?: number; endLine?: number }[]
+        } = { title: section.title, prose: section.prose }
+        if (typeof section.diagram === 'string') parsed.diagram = section.diagram
+        if (Array.isArray(section.anchors)) {
+          parsed.anchors = section.anchors.filter(isRecord).flatMap((anchor) => {
+            if (typeof anchor.path !== 'string') return []
+            return [
+              {
+                path: anchor.path,
+                ...(typeof anchor.startLine === 'number' ? { startLine: anchor.startLine } : {}),
+                ...(typeof anchor.endLine === 'number' ? { endLine: anchor.endLine } : {}),
+              },
+            ]
+          })
+        }
+        return [parsed]
+      })
+    : []
+  return {
+    name: value.name,
+    files,
+    sections,
+    ...(typeof value.thesis === 'string' ? { thesis: value.thesis } : {}),
+  }
+}
+
 export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
   const { operations } = deps
 
-  async function workspace(
+  async function resolvePlace(
     args: Record<string, unknown>,
   ): Promise<{ ok: true; value: ResolvedWorkspace } | { ok: false; result: McpToolResult }> {
     const ref = args.workspace
     if (!isWorkspaceRef(ref)) {
       return {
         ok: false,
-        result: fail('workspace is required: an absolute path in the checkout, or {projectId}.'),
+        result: fail(
+          'workspace is required: an absolute checkout path, or {projectId, worktreeId?}.',
+        ),
       }
     }
     const inventory = await operations.projects.listHubInventory()
@@ -101,156 +150,435 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
       : { ok: false, result: fail(resolved.message) }
   }
 
-  /** The Review is the Canvas carrying the `review` template; there is at most one. */
-  async function reviewCanvasId(place: ResolvedWorkspace): Promise<string | undefined> {
-    const found = await operations.projects.findCanvasByTemplate({
-      projectId: place.projectId,
-      template: 'review',
-    })
-    return found.ok && found.value !== null ? found.value : undefined
+  async function listTasks(): Promise<readonly McpTask[] | null> {
+    const result = await operations.tasks.listTasks()
+    return result.ok ? result.value : null
   }
 
-  async function readReviewSet(place: ResolvedWorkspace): Promise<ReviewSet | null> {
-    const id = await reviewCanvasId(place)
-    if (id === undefined) return null
-    try {
-      const raw = await readFile(
-        join(deps.canvasBundleDir(place.projectId, id), REVIEW_CANVAS_METADATA),
-        'utf8',
-      )
-      return parseReviewSet(JSON.parse(raw))
-    } catch {
-      return null
+  async function resolveTaskId(wanted: string): Promise<string | undefined> {
+    const tasks = await listTasks()
+    return tasks?.find((task) => taskMatches(task, wanted))?.id
+  }
+
+  async function resolveCanvasId(
+    place: ResolvedWorkspace,
+    args: Record<string, unknown>,
+  ): Promise<string | undefined> {
+    const explicit = stringField(args, 'id')
+    if (explicit !== undefined) return explicit
+    if (args.template === 'review' || args.templateData !== undefined) {
+      const found = await operations.projects.findCanvasByTemplate({
+        projectId: place.projectId,
+        template: 'review',
+        ...(place.worktreePath === null ? {} : { worktreePath: place.worktreePath }),
+      })
+      if (found.ok) return found.value ?? undefined
     }
+    return undefined
   }
 
-  async function publishReview(place: ResolvedWorkspace, set: ReviewSet): Promise<McpToolResult> {
-    const rendered = reviewBundleSource(set)
-    const written = await operations.projects.writeCanvas({
-      projectId: place.projectId,
-      worktreeId: place.worktreeId,
-      id: await reviewCanvasId(place),
-      title: set.name,
-      kind: rendered.kind,
-      entryFile: rendered.entryFile,
-      template: 'review',
-      source: rendered.source,
-    })
-    if (!written.ok) return fail(`Could not publish the Review: ${describeError(written.error)}`)
-    return ok(
-      `Review "${set.name}" published — ${set.files.length} file(s), ${set.sections.length} section(s).`,
-    )
-  }
-
-  /** Short ids are what the human says out loud ("mark T-1 doing"); updateTask takes a UUID. */
-  async function resolveTaskIds(
-    wanted: readonly string[],
-  ): Promise<{ ok: true; value: string[] } | { ok: false; result: McpToolResult }> {
-    const listed = await operations.tasks.listTasks()
-    if (!listed.ok) return { ok: false, result: fail('This daemon cannot list its Tasks.') }
-    const resolvedIds: string[] = []
-    for (const entry of wanted) {
-      const found = listed.value.find((task) => taskMatches(task, entry))
-      if (found === undefined) {
-        return { ok: false, result: fail(describeMissingTask(entry, listed.value)) }
+  async function canvasSource(args: Record<string, unknown>): Promise<
+    | {
+        ok: true
+        title: string
+        kind: 'html' | 'markdown'
+        entryFile: string
+        template?: 'review'
+        source: import('../../features/projects').CanvasBundleSource
       }
-      resolvedIds.push(found.id)
+    | { ok: false; result: McpToolResult }
+  > {
+    const templateData = args.templateData
+    if (templateData !== undefined) {
+      const set = reviewSet(templateData)
+      if (set === null) {
+        return {
+          ok: false,
+          result: fail('templateData is invalid; review needs name, files, and sections.'),
+        }
+      }
+      const rendered = reviewBundleSource(set)
+      return {
+        ok: true,
+        title: set.name,
+        kind: rendered.kind,
+        entryFile: rendered.entryFile,
+        template: 'review',
+        source: rendered.source,
+      }
     }
-    return { ok: true, value: resolvedIds }
-  }
 
-  async function readTask(taskId: string): Promise<McpTask | undefined> {
-    const listed = await operations.tasks.listTasks()
-    return listed.ok ? listed.value.find((task) => task.id === taskId) : undefined
+    const title = stringField(args, 'title')
+    const kind = args.kind === 'markdown' ? 'markdown' : args.kind === 'html' ? 'html' : undefined
+    if (title === undefined || kind === undefined) {
+      return { ok: false, result: fail('title and kind are required for a generic Canvas.') }
+    }
+    const entryFile = stringField(args, 'entry') ?? (kind === 'html' ? 'index.html' : 'index.md')
+    const sourceDir = stringField(args, 'sourceDir')
+    if (sourceDir !== undefined) {
+      return { ok: true, title, kind, entryFile, source: { kind: 'directory', sourceDir } }
+    }
+    const files = Array.isArray(args.files)
+      ? args.files.filter(isRecord).flatMap((file) => {
+          if (typeof file.path !== 'string' || typeof file.content !== 'string') return []
+          return [{ path: file.path, content: file.content }]
+        })
+      : []
+    if (files.length === 0) {
+      return {
+        ok: false,
+        result: fail('Canvas create/update needs sourceDir or a non-empty files array.'),
+      }
+    }
+    return { ok: true, title, kind, entryFile, source: { kind: 'files', files } }
   }
 
   const tools: Record<
     string,
-    (args: Record<string, unknown>, place: ResolvedWorkspace) => Promise<McpToolResult>
+    (args: Record<string, unknown>, place: ResolvedWorkspace | null) => Promise<McpToolResult>
   > = {
-    async porcelain_context(args, place) {
-      const requested = Array.isArray(args.include)
-        ? args.include.filter((entry): entry is string => typeof entry === 'string')
-        : ['review', 'comments', 'marks']
-      const out: Record<string, unknown> = {
-        workspace: {
-          projectId: place.projectId,
-          worktreeId: place.worktreeId,
-          path: place.worktreePath,
-        },
-      }
+    async porcelain_project(args) {
+      const inventory = await operations.projects.listHubInventory()
+      if (!inventory.ok) return fail(`Could not read Projects: ${describeError(inventory.error)}`)
+      const projects = inventory.value.projects.map((project) => ({
+        projectId: project.id,
+        name: project.name,
+        path: project.path,
+        worktrees: project.worktrees.map((worktree) => ({
+          worktreeId: worktree.id,
+          name: worktree.name,
+          branch: worktree.branch,
+          path: worktree.path,
+          isPrimary: worktree.isPrimary,
+        })),
+      }))
+      if (args.op === 'list') return json({ projects })
+      if (args.op !== 'get') return fail('op must be list or get.')
+      const id =
+        stringField(args, 'projectId') ??
+        (isRecord(args.workspace) ? stringField(args.workspace, 'projectId') : undefined)
+      if (id === undefined) return fail('projectId or workspace is required for project get.')
+      const project = projects.find((entry) => entry.projectId === id)
+      return project === undefined ? fail(`No Project ${id} on this daemon.`) : json(project)
+    },
 
-      if (requested.includes('review')) out.review = await readReviewSet(place)
-      if (requested.includes('comments') && place.worktreePath !== null) {
-        const comments = await operations.review.listReviewComments({
-          projectPath: place.worktreePath,
+    async porcelain_canvas(args, place) {
+      if (place === null) return fail('workspace is required for Canvas operations.')
+      const op = args.op
+      if (op === 'list') {
+        const listed = await operations.projects.listCanvases({
+          projectId: place.projectId,
+          ...(place.worktreePath === null ? {} : { worktreePath: place.worktreePath }),
         })
-        // The human's comments are the point of the whole product; resolved ones are
-        // noise to an agent that is about to act, so only the open ones come back.
-        out.comments = comments.ok ? comments.value.filter((comment) => !comment.resolved) : []
+        return listed.ok
+          ? workspaceResult(place, listed.value)
+          : fail(`Could not list Canvases: ${describeError(listed.error)}`)
       }
-      if (requested.includes('marks') && place.worktreePath !== null) {
-        out.reviewedPaths = await operations.review.readReviewedPaths({
-          projectPath: place.worktreePath,
+      const id = stringField(args, 'id')
+      if (op === 'get') {
+        if (id === undefined) return fail('id is required to get a Canvas.')
+        const read = await operations.projects.readCanvas({
+          projectId: place.projectId,
+          canvasId: id,
+          ...(place.worktreePath === null ? {} : { worktreePath: place.worktreePath }),
         })
+        return read.ok
+          ? workspaceResult(place, read.value)
+          : fail(`Could not read the Canvas: ${describeError(read.error)}`)
       }
-      if (requested.includes('tasks')) {
-        const tasks = await operations.tasks.listTasks()
-        const taskId = stringField(args, 'taskId')
-        const includeDone = args.includeDone === true
-        if (tasks.ok) {
-          const rows =
-            taskId === undefined
-              ? tasks.value.filter((task) => includeDone || task.status !== 'done')
-              : tasks.value.filter((task) => taskMatches(task, taskId))
-          out.tasks = rows.map((task) => taskView(task, deps.attachmentPath))
-          if (taskId === undefined && !includeDone) {
-            out.tasksNote = 'Done Tasks are hidden. Pass includeDone: true for the whole board.'
-          }
-        } else out.tasks = []
+      if (op === 'delete') {
+        if (id === undefined) return fail('id is required to delete a Canvas.')
+        const deleted = await operations.projects.forgetCanvas({
+          projectId: place.projectId,
+          canvasId: id,
+          ...(place.worktreePath === null ? {} : { worktreePath: place.worktreePath }),
+        })
+        return deleted.ok
+          ? ok(`Canvas ${id} deleted.`)
+          : fail(`Could not delete the Canvas: ${describeError(deleted.error)}`)
       }
-      if (requested.includes('projects')) {
-        const inventory = await operations.projects.listHubInventory()
-        out.projects = !inventory.ok
-          ? []
-          : inventory.value.projects.map((project) => ({
-              projectId: project.id,
-              name: project.name,
-              path: project.path,
-              worktrees: project.worktrees.map((worktree) => ({
-                worktreeId: worktree.id,
-                name: worktree.name,
-                branch: worktree.branch,
-                path: worktree.path,
-                isPrimary: worktree.isPrimary,
-              })),
-            }))
+      if (op === 'promote') {
+        if (id === undefined) return fail('id is required to promote a Canvas.')
+        if (place.worktreePath === null)
+          return fail('Canvas promotion needs a checkout on the daemon host.')
+        const promoted = await operations.projects.promoteCanvas({
+          projectId: place.projectId,
+          canvasId: id,
+          path: place.worktreePath,
+        })
+        return promoted.ok
+          ? ok(
+              `Canvas ${id} promoted to ${promoted.value.bundlePath}. Files written; nothing staged or committed.`,
+            )
+          : fail(`Could not promote the Canvas: ${describeError(promoted.error)}`)
       }
-      if (requested.includes('actions')) {
-        const actions = await operations.actions.listActions({ projectId: place.projectId })
-        out.actions = actions.ok ? actions.value : []
+      if (op !== 'create' && op !== 'update')
+        return fail('op must be list, get, create, update, delete, or promote.')
+      const source = await canvasSource(args)
+      if (!source.ok) return source.result
+      const canvasId = await resolveCanvasId(place, args)
+      if (op === 'update' && canvasId === undefined)
+        return fail('id is required to update a Canvas.')
+      const listed = await operations.projects.listCanvases({
+        projectId: place.projectId,
+        ...(place.worktreePath === null ? {} : { worktreePath: place.worktreePath }),
+      })
+      const wasTracked =
+        canvasId !== undefined &&
+        listed.ok &&
+        listed.value.some(
+          (record) => isRecord(record) && record.id === canvasId && record.tracked === true,
+        )
+      const written = await operations.projects.writeCanvas({
+        projectId: place.projectId,
+        worktreeId: place.worktreeId,
+        ...(canvasId === undefined ? {} : { id: canvasId }),
+        title: source.title,
+        kind: source.kind,
+        entryFile: source.entryFile,
+        ...(source.template === undefined ? {} : { template: source.template }),
+        source: source.source,
+      })
+      if (!written.ok) return fail(`Could not write the Canvas: ${describeError(written.error)}`)
+      const track = args.tracked === true || wasTracked
+      if (track) {
+        if (place.worktreePath === null)
+          return fail('tracked Canvas writes need a checkout on the daemon host.')
+        // A template create can resolve an existing tracked Canvas too. In both
+        // that case and an ordinary update, replace the canonical bytes instead
+        // of letting idempotent promotion leave a fresh private duplicate behind.
+        const replacing = canvasId !== undefined && (args.tracked === true || wasTracked)
+        const promoted = await operations.projects.promoteCanvas({
+          projectId: place.projectId,
+          canvasId: written.value.id,
+          path: place.worktreePath,
+          ...(replacing ? { replace: true } : {}),
+        })
+        return promoted.ok
+          ? ok(
+              `Canvas ${written.value.id} written to the tracked overlay. Files written; nothing staged or committed.`,
+            )
+          : fail(`Could not update the tracked Canvas: ${describeError(promoted.error)}`)
       }
-      if (requested.includes('canvases')) {
-        const canvases = await operations.projects.listCanvases({ projectId: place.projectId })
-        out.canvases = canvases.ok ? canvases.value : []
+      return workspaceResult(place, written.value)
+    },
+
+    async porcelain_comment(args, place) {
+      if (place?.worktreePath === null || place === null)
+        return fail('Comments need a checkout on the daemon host.')
+      const projectPath = place.worktreePath
+      const op = args.op
+      if (op === 'list' || op === 'get') {
+        const listed = await operations.review.listReviewComments({ projectPath })
+        if (!listed.ok) return fail(`Could not list comments: ${describeError(listed.error)}`)
+        const status = statusOf(args)
+        const filtered = listed.value.filter(
+          (comment) =>
+            status === 'all' || (status === 'resolved' ? comment.resolved : !comment.resolved),
+        )
+        if (op === 'list') return workspaceResult(place, filtered)
+        const id = stringField(args, 'id')
+        if (id === undefined) return fail('id is required to get a comment.')
+        const comment = listed.value.find((entry) => entry.id === id)
+        return comment === undefined ? fail(`No comment ${id}.`) : workspaceResult(place, comment)
       }
-      return ok(JSON.stringify(out, null, 2))
+      const id = stringField(args, 'id')
+      if (op === 'create') {
+        const comment = isRecord(args.comment) ? args.comment : args
+        const path = typeof comment.path === 'string' ? comment.path : undefined
+        const body = typeof comment.body === 'string' ? comment.body : undefined
+        if (path === undefined || body === undefined)
+          return fail('comment.path and comment.body are required to create a comment.')
+        const created = await operations.review.addReviewComment({
+          projectPath,
+          path,
+          body,
+          ...(typeof comment.startLine === 'number' ? { startLine: comment.startLine } : {}),
+          ...(typeof comment.endLine === 'number' ? { endLine: comment.endLine } : {}),
+          ...(typeof comment.anchorText === 'string' ? { anchorText: comment.anchorText } : {}),
+        })
+        return created.ok
+          ? workspaceResult(place, created.value)
+          : fail(`Could not create the comment: ${describeError(created.error)}`)
+      }
+      if (id === undefined) return fail('id is required for this comment operation.')
+      if (op === 'update' || op === 'reply') {
+        const body = stringField(args, 'body')
+        if (body === undefined) return fail('body is required for comment update/reply.')
+        const changed =
+          op === 'update'
+            ? await operations.review.editReviewComment({ projectPath, commentId: id, body })
+            : await operations.review.answerReviewComment({ projectPath, commentId: id, body })
+        return changed.ok
+          ? ok(op === 'reply' ? `Reply posted under comment ${id}.` : `Comment ${id} updated.`)
+          : fail(`Could not ${op} the comment: ${describeError(changed.error)}`)
+      }
+      if (op === 'delete') {
+        const deleted = await operations.review.deleteReviewComment({ projectPath, commentId: id })
+        return deleted.ok
+          ? ok(`Comment ${id} deleted.`)
+          : fail(`Could not delete the comment: ${describeError(deleted.error)}`)
+      }
+      if (op === 'resolve' || op === 'reopen') {
+        const changed = await operations.review.resolveReviewComment({
+          projectPath,
+          commentId: id,
+          resolved: op === 'resolve',
+        })
+        return changed.ok
+          ? ok(`Comment ${id} ${op === 'resolve' ? 'resolved' : 'reopened'}.`)
+          : fail(`Could not ${op} the comment: ${describeError(changed.error)}`)
+      }
+      return fail('op must be list, get, create, update, delete, reply, resolve, or reopen.')
+    },
+
+    async porcelain_task(args, place) {
+      const op = args.op
+      const tasks = await listTasks()
+      if (tasks === null) return fail('This daemon cannot read its Tasks.')
+      if (op === 'list' || op === 'get') {
+        if (op === 'list') return json(tasks.map((task) => taskView(task, deps.attachmentPath)))
+        const id = stringField(args, 'id')
+        if (id === undefined) return fail('id is required to get a Task.')
+        const task = tasks.find((entry) => taskMatches(entry, id))
+        return task === undefined
+          ? fail(`No Task ${id} on this daemon.`)
+          : json(taskView(task, deps.attachmentPath))
+      }
+      const wanted = stringField(args, 'id')
+      if (op === 'create') {
+        const title = stringField(args, 'title')
+        if (title === undefined) return fail('title is required to create a Task.')
+        const links = Array.isArray(args.links)
+          ? args.links.filter(isRecord).flatMap((link) =>
+              typeof link.url === 'string'
+                ? [
+                    {
+                      url: link.url,
+                      label:
+                        typeof link.label === 'string' && link.label !== '' ? link.label : link.url,
+                    },
+                  ]
+                : [],
+            )
+          : undefined
+        const refs: TaskArgs['pathRefs'] =
+          Array.isArray(args.refs) && place !== null && place.worktreeId !== null
+            ? args.refs.filter(isRecord).flatMap((ref) =>
+                typeof ref.path === 'string' && (ref.kind === 'file' || ref.kind === 'folder')
+                  ? [
+                      {
+                        projectId: place.projectId,
+                        worktreeId: place.worktreeId as string,
+                        path: ref.path,
+                        kind: ref.kind,
+                      },
+                    ]
+                  : [],
+              )
+            : undefined
+        const created = await operations.tasks.createTask({
+          title,
+          ...(stringField(args, 'notes') === undefined
+            ? {}
+            : { notes: stringField(args, 'notes') }),
+          ...(statusValue(args.status) === undefined ? {} : { status: statusValue(args.status) }),
+          ...(stringList(args, 'tags') === undefined ? {} : { tags: stringList(args, 'tags') }),
+          ...(links === undefined ? {} : { links }),
+          ...(refs === undefined ? {} : { pathRefs: refs }),
+          ...(stringField(args, 'attach') === undefined
+            ? {}
+            : { attachmentPaths: [stringField(args, 'attach') as string] }),
+          ...(place === null
+            ? {}
+            : {
+                references: {
+                  projectId: place.projectId,
+                  ...(place.worktreeId === null ? {} : { worktreeId: place.worktreeId }),
+                },
+              }),
+        })
+        return created.ok
+          ? json(taskView(created.value, deps.attachmentPath))
+          : fail(`Could not create the Task: ${describeError(created.error)}`)
+      }
+      if (wanted === undefined) return fail('id is required for Task update/delete.')
+      const taskId = await resolveTaskId(wanted)
+      if (taskId === undefined) return fail(`No Task ${wanted} on this daemon.`)
+      if (op === 'delete') {
+        const deleted = await operations.tasks.deleteTask({ taskId })
+        return deleted.ok
+          ? ok(`Task ${wanted} deleted.`)
+          : fail(`Could not delete the Task: ${describeError(deleted.error)}`)
+      }
+      if (op !== 'update') return fail('op must be list, get, create, update, or delete.')
+      const links = Array.isArray(args.links)
+        ? args.links.filter(isRecord).flatMap((link) =>
+            typeof link.url === 'string'
+              ? [
+                  {
+                    url: link.url,
+                    label:
+                      typeof link.label === 'string' && link.label !== '' ? link.label : link.url,
+                  },
+                ]
+              : [],
+          )
+        : undefined
+      const singleLink = stringField(args, 'link')
+      const current = tasks.find((task) => task.id === taskId)
+      const mergedLinks =
+        singleLink === undefined
+          ? links
+          : mergeLink(current?.links, {
+              url: singleLink,
+              label: stringField(args, 'linkLabel') ?? singleLink,
+            })
+      const refs: TaskArgs['pathRefs'] =
+        Array.isArray(args.refs) && place !== null && place.worktreeId !== null
+          ? args.refs.filter(isRecord).flatMap((ref) =>
+              typeof ref.path === 'string' && (ref.kind === 'file' || ref.kind === 'folder')
+                ? [
+                    {
+                      projectId: place.projectId,
+                      worktreeId: place.worktreeId as string,
+                      path: ref.path,
+                      kind: ref.kind,
+                    },
+                  ]
+                : [],
+            )
+          : undefined
+      const updated = await operations.tasks.updateTask({
+        taskId,
+        ...(stringField(args, 'title') === undefined ? {} : { title: stringField(args, 'title') }),
+        ...(stringField(args, 'notes') === undefined ? {} : { notes: stringField(args, 'notes') }),
+        ...(statusValue(args.status) === undefined ? {} : { status: statusValue(args.status) }),
+        ...(stringList(args, 'tags') === undefined ? {} : { tags: stringList(args, 'tags') }),
+        ...(mergedLinks === undefined ? {} : { links: mergedLinks }),
+        ...(refs === undefined ? {} : { pathRefs: refs }),
+        ...(stringField(args, 'attach') === undefined
+          ? {}
+          : { attachmentPaths: [stringField(args, 'attach') as string] }),
+        ...(stringList(args, 'removeAttachmentIds') === undefined
+          ? {}
+          : { removeAttachmentIds: stringList(args, 'removeAttachmentIds') }),
+      })
+      return updated.ok
+        ? json(taskView(updated.value, deps.attachmentPath))
+        : fail(`Could not update the Task: ${describeError(updated.error)}`)
     },
 
     async porcelain_profile(args, place) {
-      if (place.worktreePath === null)
-        return fail('Profiles require a checkout on the daemon host.')
+      if (place?.worktreePath === null || place === null)
+        return fail('Profiles need a checkout on the daemon host.')
       const level = args.level
       const op = args.op
-      if (
-        (level !== 'project' && level !== 'worktree') ||
-        !['get', 'set', 'clear'].includes(String(op))
-      ) {
-        return fail('level must be project or worktree; op must be get, set, or clear.')
-      }
+      if (level !== 'project' && level !== 'worktree')
+        return fail('level must be project or worktree.')
       if (op === 'get') {
         const view = await operations.files.worktreeProfile(place.worktreePath)
-        return ok(JSON.stringify(level === 'project' ? view.base : view.override, null, 2))
+        return workspaceResult(place, level === 'project' ? view.base : view.override)
       }
       if (op === 'clear') {
         if (level === 'project') {
@@ -259,9 +587,26 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
             hiddenPaths: [],
             layers: [],
           })
-        } else await operations.files.setWorktreeProfile(place.worktreePath, null)
+        } else {
+          await operations.files.setWorktreeProfile(place.worktreePath, null)
+        }
         return ok(`${level === 'project' ? 'Project profile' : 'Worktree override'} cleared.`)
       }
+      if (op === 'promote') {
+        if (level !== 'project')
+          return fail('Only the project profile has portable fields to promote.')
+        const view = await operations.files.worktreeProfile(place.worktreePath)
+        const promoted = await operations.projects.promoteOverrides({
+          projectId: place.projectId,
+          path: place.worktreePath,
+          hiddenPaths: [...new Set(view.base.hiddenPaths)],
+          pinnedPaths: [...new Set(view.base.pinnedPaths)],
+        })
+        return promoted.ok
+          ? ok('Project profile pins and hides promoted to .porcelain/project.json.')
+          : fail(`Could not promote the profile: ${describeError(promoted.error)}`)
+      }
+      if (op !== 'set') return fail('op must be get, set, clear, or promote.')
       if (level === 'project') {
         const parsed = resolvedProfileSchema.safeParse(args.profile)
         if (!parsed.success)
@@ -280,273 +625,66 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
       return ok(`${level === 'project' ? 'Project profile' : 'Worktree override'} replaced.`)
     },
 
-    async porcelain_review(args, place) {
-      const mode = args.mode
-      if (mode === 'clear') {
-        const id = await reviewCanvasId(place)
-        if (id === undefined) return ok('No Review to clear.')
-        const cleared = await operations.projects.forgetCanvas({
-          projectId: place.projectId,
-          canvasId: id,
-        })
-        return cleared.ok
-          ? ok('Review cleared.')
-          : fail(`Could not clear the Review: ${describeError(cleared.error)}`)
-      }
-
-      const files = Array.isArray(args.files) ? (args.files as ReviewFile[]) : []
-      const sections = Array.isArray(args.sections) ? (args.sections as ReviewSection[]) : []
-
-      if (mode === 'append') {
-        const current = await readReviewSet(place)
-        if (current === null) {
-          return fail('There is no Review to append to. Publish one with mode "replace" first.')
-        }
-        return publishReview(place, { ...current, files: mergeReviewFiles(current.files, files) })
-      }
-
-      const name = stringField(args, 'name') ?? 'Active review'
-      const thesis = stringField(args, 'thesis')
-      return publishReview(place, {
-        name,
-        files,
-        sections,
-        ...(thesis === undefined ? {} : { thesis }),
-      })
-    },
-
-    async porcelain_task(args, place) {
-      const status = args.status
-      const tags = stringList(args, 'tags')
-      const link = stringField(args, 'link')
-      const replacementLinks = Array.isArray(args.links)
-        ? args.links
-            .filter(isRecord)
-            .filter((entry) => typeof entry.url === 'string' && entry.url !== '')
-            .map((entry) => ({
-              url: String(entry.url),
-              label:
-                typeof entry.label === 'string' && entry.label !== ''
-                  ? entry.label
-                  : String(entry.url),
-            }))
-        : undefined
-      const attach = stringField(args, 'attach')
-      const file = stringField(args, 'file')
-      const folder = stringField(args, 'folder')
-      const pathRefs =
-        place.worktreeId === null
-          ? undefined
-          : [
-              ...(file === undefined
-                ? []
-                : [
-                    {
-                      projectId: place.projectId,
-                      worktreeId: place.worktreeId,
-                      path: file,
-                      kind: 'file' as const,
-                    },
-                  ]),
-              ...(folder === undefined
-                ? []
-                : [
-                    {
-                      projectId: place.projectId,
-                      worktreeId: place.worktreeId,
-                      path: folder,
-                      kind: 'folder' as const,
-                    },
-                  ]),
-            ]
-
-      const common = {
-        ...(stringField(args, 'notes') === undefined ? {} : { notes: stringField(args, 'notes') }),
-        ...(typeof status === 'string' ? { status: status as 'todo' } : {}),
-        ...(tags === undefined ? {} : { tags }),
-        ...(pathRefs === undefined || pathRefs.length === 0 ? {} : { pathRefs }),
-        ...(attach === undefined ? {} : { attachmentPaths: [attach] }),
-      }
-
-      const wanted =
-        stringList(args, 'ids') ??
-        (stringField(args, 'id') === undefined ? [] : [String(stringField(args, 'id'))])
-
-      if (wanted.length === 0) {
-        const title = stringField(args, 'title')
-        if (title === undefined) {
-          return fail('title is required to create a Task. Pass id (or ids) to update instead.')
-        }
-        const newLinks =
-          replacementLinks ??
-          (link === undefined
-            ? undefined
-            : [{ url: link, label: stringField(args, 'linkLabel') ?? link }])
-        const created = await operations.tasks.createTask({
-          title,
-          references: {
-            projectId: place.projectId,
-            ...(place.worktreeId === null ? {} : { worktreeId: place.worktreeId }),
-          },
-          ...common,
-          ...(newLinks === undefined ? {} : { links: newLinks }),
-        })
-        return created.ok
-          ? ok(`Task ${created.value.shortId ?? created.value.id} created: ${created.value.title}`)
-          : fail(`Could not create the Task: ${describeError(created.error)}`)
-      }
-
-      const resolved = await resolveTaskIds(wanted)
-      if (!resolved.ok) return resolved.result
-
-      const title = stringField(args, 'title')
-      if (title !== undefined && resolved.value.length > 1) {
-        return fail('title cannot be applied to several Tasks at once — update them one at a time.')
-      }
-
-      const done: string[] = []
-      for (const taskId of resolved.value) {
-        // A single `link` ADDS: attaching a PR to a Task that already links its issue
-        // must not silently drop the issue. `links` is the explicit replace.
-        let links = replacementLinks
-        if (links === undefined && link !== undefined) {
-          const current = await readTask(taskId)
-          links = mergeLink(current?.links, {
-            url: link,
-            label: stringField(args, 'linkLabel') ?? link,
-          })
-        }
-        const updated = await operations.tasks.updateTask({
-          taskId,
-          ...(title === undefined ? {} : { title }),
-          ...common,
-          ...(links === undefined ? {} : { links }),
-        })
-        if (!updated.ok) return fail(`Could not update the Task: ${describeError(updated.error)}`)
-        done.push(updated.value.shortId ?? updated.value.id)
-      }
-      return ok(`Task${done.length > 1 ? 's' : ''} ${done.join(', ')} updated.`)
-    },
-
     async porcelain_action(args, place) {
+      if (place === null) return fail('workspace is required for Action operations.')
+      const listed = await operations.actions.listActions({ projectId: place.projectId })
+      if (!listed.ok) return fail(`Could not list Actions: ${describeError(listed.error)}`)
+      const op = args.op
+      if (op === 'list') return workspaceResult(place, listed.value)
       const id = stringField(args, 'id')
-      if (args.op === 'delete') {
-        if (id === undefined) return fail('id is required to delete an Action.')
+      if (op === 'get') {
+        if (id === undefined) return fail('id is required to get an Action.')
+        const action = listed.value.find((entry) => isRecord(entry) && entry.id === id)
+        return action === undefined ? fail(`No Action ${id}.`) : workspaceResult(place, action)
+      }
+      if (id !== undefined && op === 'delete') {
         const deleted = await operations.actions.deleteAction({ projectId: place.projectId, id })
         return deleted.ok
-          ? ok('Action deleted.')
+          ? ok(`Action ${id} deleted.`)
           : fail(`Could not delete the Action: ${describeError(deleted.error)}`)
       }
-
-      const where = args.where === 'local' || args.where === 'primary' ? args.where : undefined
-      const kind =
-        args.kind === 'worktree-setup' || args.kind === 'worktree-dispose' || args.kind === 'action'
-          ? args.kind
-          : undefined
-      const command = stringField(args, 'command')
-      const title = stringField(args, 'title')
-
-      if (id === undefined) {
-        if (title === undefined || command === undefined) {
+      if (op === 'create') {
+        const title = stringField(args, 'title')
+        const command = stringField(args, 'command')
+        if (title === undefined || command === undefined)
           return fail('title and command are required to create an Action.')
-        }
         const created = await operations.actions.addAction({
           authoredBy: 'agent',
           projectId: place.projectId,
           title,
           command,
-          ...(where === undefined ? {} : { where }),
-          ...(kind === undefined ? {} : { kind }),
+          ...(args.where === 'primary' || args.where === 'local' ? { where: args.where } : {}),
+          ...(args.kind === 'action' ||
+          args.kind === 'worktree-setup' ||
+          args.kind === 'worktree-dispose'
+            ? { kind: args.kind }
+            : {}),
         })
         return created.ok
-          ? ok(
-              `Action "${created.value.title}" saved. It is UNTRUSTED — the human approves the command before it can run.`,
-            )
-          : fail(`Could not save the Action: ${describeError(created.error)}`)
+          ? workspaceResult(place, created.value)
+          : fail(`Could not create the Action: ${describeError(created.error)}`)
       }
-
-      const updated = await operations.actions.updateAction({
-        authoredBy: 'agent',
-        projectId: place.projectId,
-        id,
-        ...(title === undefined ? {} : { title }),
-        ...(command === undefined ? {} : { command }),
-        ...(where === undefined ? {} : { where }),
-      })
-      return updated.ok
-        ? ok(
-            command === undefined
-              ? 'Action updated.'
-              : 'Action updated. The changed command is UNTRUSTED until the human approves it.',
-          )
-        : fail(`Could not update the Action: ${describeError(updated.error)}`)
-    },
-
-    async porcelain_canvas(args, place) {
-      const title = stringField(args, 'title')
-      const sourceDir = stringField(args, 'sourceDir')
-      const kind = args.kind === 'markdown' ? 'markdown' : 'html'
-      if (title === undefined || sourceDir === undefined) {
-        return fail('title and sourceDir are required.')
-      }
-      const entry = stringField(args, 'entry') ?? (kind === 'html' ? 'index.html' : 'index.md')
-      const written = await operations.projects.writeCanvas({
-        projectId: place.projectId,
-        worktreeId: place.worktreeId,
-        ...(stringField(args, 'id') === undefined ? {} : { id: stringField(args, 'id') }),
-        title,
-        kind,
-        entryFile: entry,
-        source: { kind: 'directory', sourceDir },
-      })
-      return written.ok
-        ? ok(`Canvas ${written.value.id} "${written.value.title}" published.`)
-        : fail(`Could not publish the Canvas: ${describeError(written.error)}`)
-    },
-
-    async porcelain_promote(args, place) {
-      const target = stringField(args, 'target') ?? place.worktreePath
-      if (target === null || target === undefined) {
-        return fail('This workspace has no checkout on disk; pass target explicitly.')
-      }
-      if (args.what === 'overrides') {
-        const promoted = await operations.projects.promoteOverrides({
+      if (op === 'update') {
+        if (id === undefined) return fail('id is required to update an Action.')
+        const updated = await operations.actions.updateAction({
+          authoredBy: 'agent',
           projectId: place.projectId,
-          path: target,
+          id,
+          ...(stringField(args, 'title') === undefined
+            ? {}
+            : { title: stringField(args, 'title') }),
+          ...(stringField(args, 'command') === undefined
+            ? {}
+            : { command: stringField(args, 'command') }),
+          ...(args.where === 'primary' || args.where === 'local' ? { where: args.where } : {}),
         })
-        return promoted.ok
-          ? ok(`Overrides promoted into ${target}.`)
-          : fail(`Could not promote: ${describeError(promoted.error)}`)
+        return updated.ok
+          ? ok(`Action ${id} updated.`)
+          : fail(`Could not update the Action: ${describeError(updated.error)}`)
       }
-      const canvasId = stringField(args, 'canvasId')
-      if (canvasId === undefined) return fail('canvasId is required when promoting a Canvas.')
-      const promoted = await operations.projects.promoteCanvas({
-        projectId: place.projectId,
-        canvasId,
-        path: target,
-      })
-      return promoted.ok
-        ? ok(
-            `Canvas promoted to ${promoted.value.bundlePath}. Files written; nothing staged or committed.`,
-          )
-        : fail(`Could not promote: ${describeError(promoted.error)}`)
-    },
-
-    async porcelain_reply(args, place) {
-      if (place.worktreePath === null) return fail('Replying needs a checkout on disk.')
-      const commentId = stringField(args, 'commentId')
-      const body = stringField(args, 'body')
-      if (commentId === undefined || body === undefined) {
-        return fail('commentId and body are required.')
-      }
-      const answered = await operations.review.answerReviewComment({
-        projectPath: place.worktreePath,
-        commentId,
-        body,
-      })
-      return answered.ok
-        ? ok('Reply posted under the comment. Only the human can resolve it.')
-        : fail(`Could not reply: ${describeError(answered.error)}`)
+      return fail(
+        'op must be list, get, create, update, or delete. Actions cannot be run or trusted through MCP.',
+      )
     },
   }
 
@@ -554,9 +692,19 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
     async call(name, args) {
       const tool = tools[name]
       if (tool === undefined) return fail(`Unknown tool ${name}.`)
-      const place = await workspace(args)
-      if (!place.ok) return place.result
-      return tool(args, place.value)
+      if (name === 'porcelain_project') return tool(args, null)
+      // Task inventory is daemon-wide. Only checkout path references need a
+      // workspace lookup; list/get/delete and ordinary create/update do not.
+      if (name === 'porcelain_task') {
+        const needsWorkspace =
+          (args.op === 'create' || args.op === 'update') &&
+          Array.isArray(args.refs) &&
+          args.refs.length > 0
+        if (!needsWorkspace) return tool(args, null)
+      }
+      const resolved = await resolvePlace(args)
+      if (!resolved.ok) return resolved.result
+      return tool(args, resolved.value)
     },
   }
 }

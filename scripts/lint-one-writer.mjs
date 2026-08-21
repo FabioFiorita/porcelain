@@ -2,7 +2,7 @@
 /**
  * One writer: only the daemon may write the Porcelain home.
  *
- * The retired agent CLI resolved `$PORCELAIN_HOME` and wrote it directly —
+ * The retired agent host CLI resolved `$PORCELAIN_HOME` and wrote it directly —
  * a second implementation of the daemon's Project Data write path, kept in step by hand
  * ("Mirrors daemon project-channel atomic tmp+rename"). Deleting it fixes today; this
  * gate is what stops it growing back, because the next helper that "just needs to drop a
@@ -82,7 +82,7 @@ const matches = (patterns, source) => patterns.some((pattern) => pattern.test(so
 export const ALLOWED = Object.freeze({
   // Mints `~/.porcelain/admin-token` for a host that has no daemon running yet. Host
   // credential bootstrap, not Project Data — the daemon does the same thing on boot.
-  'scripts/daemon-cli.js': 'admin-token bootstrap for the published daemon package',
+  'scripts/porcelain-host.js': 'admin-token bootstrap for the published daemon package',
   // These two describe the patterns; naming them is not performing them.
   'scripts/lint-one-writer.mjs': 'this gate',
   'scripts/lint-one-writer.test.mjs': 'this gate proof',

@@ -262,6 +262,36 @@ describe('tracked wins over private', () => {
     if (!listed.ok) throw new Error('expected ok')
     expect(listed.value).toEqual([expect.objectContaining({ title: 'Intent', tracked: false })])
   })
+
+  it('replaces tracked bytes when an already-promoted Canvas is updated', async () => {
+    await writeIndex([
+      { ...PRIVATE_CANVAS, title: 'Updated', updatedAt: '2026-08-15T10:00:00.000Z' },
+    ])
+    await writePrivateBundle(
+      { ...PRIVATE_CANVAS, title: 'Updated', updatedAt: '2026-08-15T10:00:00.000Z' },
+      '<p>updated</p>',
+    )
+    await writeTrackedBundle({ ...PRIVATE_CANVAS, worktreeId: null }, '<p>old</p>')
+
+    const replaced = await operations.promoteCanvas({
+      projectId: 'proj-1',
+      canvasId: 'canvas-intent',
+      path: repo,
+      replace: true,
+    })
+    expect(replaced.ok).toBe(true)
+    if (!replaced.ok) throw new Error('expected replace to succeed')
+
+    const read = await operations.readCanvas({
+      projectId: 'proj-1',
+      canvasId: 'canvas-intent',
+      worktreePath: repo,
+    })
+    if (!read.ok) throw new Error('expected tracked Canvas to be readable')
+    expect(read.value.content).toContain('<p>updated</p>')
+    expect(read.value.content).not.toContain('<p>old</p>')
+    expect(await readIndexRecords()).toEqual([])
+  })
 })
 
 describe('a promoted bundle stays confined to its own directory', () => {

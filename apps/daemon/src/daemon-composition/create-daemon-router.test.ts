@@ -91,7 +91,7 @@ describe('createDaemonRouter composition', () => {
   }
 
   beforeAll(async () => {
-    root = await mkdtemp(join(tmpdir(), 'porcelain-daemon-composition-'))
+    root = await mkdtemp(join(tmpdir(), 'porcelain-composition-'))
     tasksHome = join(root, 'tasks-home')
   })
 

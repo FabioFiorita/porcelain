@@ -4,11 +4,11 @@ Hide and pin preferences are private daemon-root Project data. The app's Files s
 writes the current project-relative channel; it is not a repository Review lifecycle. Agents should use the app surface when the human asks to hide or pin paths.
 
 When a team needs the same defaults in a checkout, use the explicit
-`porcelain_promote` call with `what: "overrides"`. It writes `.porcelain/project.json` and never stages or
+`porcelain_profile` with `op: "promote"` and `level: "project"`. It writes `.porcelain/project.json` and never stages or
 commits the result:
 
 ```jsonc
-porcelain_promote { "workspace": "/abs/path/to/checkout", "what": "overrides" }
+porcelain_profile { "op": "promote", "workspace": "/abs/path/to/checkout", "level": "project" }
 ```
 
 The tracked overlay contains only repository-relative hidden and pinned paths. Private daemon

@@ -29,7 +29,7 @@ export type ReviewSection = Readonly<{
 }>
 
 /**
- * The declared set travels beside the rendered bundle so `porcelain_context` can
+ * The declared set travels beside the rendered bundle so `porcelain_canvas` can
  * hand back what was declared rather than reverse-engineering it out of HTML.
  */
 export const REVIEW_CANVAS_METADATA = 'review.json'

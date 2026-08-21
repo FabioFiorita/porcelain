@@ -25,8 +25,8 @@ On macOS, download the latest signed application from
 client, run the daemon on the machine that holds the code:
 
 ```sh
-npx porcelain-daemon@latest serve --lan
-npx porcelain-daemon@latest access issue --name "My phone"
+npx @fabiofiorita/porcelain@latest serve --lan
+npx @fabiofiorita/porcelain@latest access issue --name "My phone"
 ```
 
 Open the one-time link on the device. It expires after 15 minutes and becomes a credential for
@@ -35,12 +35,16 @@ that device. Remote exposure and always-on setup are documented in
 
 ## Agent connection
 
-Install the **porcelain** plugin to give agents the MCP tools and focused skills for Reviews, Tasks,
-Actions, profiles, and remote-daemon setup:
+The **porcelain** plugin gives agents the MCP tools and focused skills for Canvases, comments,
+Tasks, Actions, profiles, and remote-daemon setup. Choose the installation route your client
+supports:
 
-```bash
-npx plugins add FabioFiorita/porcelain
-```
+### Agent Plugin
+
+Agent Plugins leaves installation and distribution to each client. In your agent's native plugin
+manager, add the repository `FabioFiorita/porcelain`.
+
+### Claude Plugin
 
 Claude Code can register the repository as a marketplace:
 
