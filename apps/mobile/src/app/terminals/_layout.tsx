@@ -1,7 +1,5 @@
 import { Stack } from 'expo-router/stack'
 
-import { HeaderDoneButton } from '@/features/shell/header-actions'
-
 /**
  * Terminals is a tab root, so it needs a stack of its own to have a native bar at all — a
  * `NativeTabs` trigger renders a screen, not a navigator, and there is nowhere else to declare
@@ -27,11 +25,12 @@ export default function TerminalsLayout(): React.JSX.Element {
 
       {/* Actions run against the selected Worktree. On a 3-pane board they sit in the same
           column as the Worktree list; a phone column cannot hold both, so they are a presented
-          sheet off the list rather than a second scrolling region competing with it. */}
+          sheet off the list rather than a second scrolling region competing with it. The sheet
+          declares its own Done item, because Android draws no bar for a sheet and `SheetBar`
+          has to render the same element the native bar gets. */}
       <Stack.Screen
         name="actions"
         options={{
-          headerRight: () => <HeaderDoneButton testID="porcelain-terminals-actions-done" />,
           presentation: 'formSheet',
           sheetAllowedDetents: [0.6, 0.95],
           sheetCornerRadius: 20,

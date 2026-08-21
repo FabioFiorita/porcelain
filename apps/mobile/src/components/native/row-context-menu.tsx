@@ -7,12 +7,11 @@ export type { RowMenuAction } from './row-menu-actions'
 /**
  * A list row that opens the platform's own context menu on long press.
  *
- * On iOS this is `@expo/ui`'s SwiftUI `ContextMenu`: the row lifts, the rest of the screen
- * blurs, and the menu animates out of the row itself — the interaction the system uses
- * everywhere else, which no `Modal` full of `Pressable`s can imitate. On Android the same
- * declaration becomes an anchored Material `DropdownMenu`, which is that platform's answer to
- * the same gesture. `@expo/ui/swift-ui`'s `ContextMenu` alone would have covered only the first
- * of those.
+ * This is the Android half: `@expo/ui`'s `MenuView` becomes an anchored Material
+ * `DropdownMenu`, that platform's answer to a long press on a row. iOS answers the same
+ * declaration with SwiftUI's `ContextMenu` — the row lifts, the rest of the screen blurs, and
+ * the menu animates out of the row itself — but it has to compose that tree itself to keep the
+ * row's width, so it lives in `row-context-menu.ios.tsx` and that file says why.
  *
  * The Terminals list is its first consumer — rename and kill hang off a session row here. The
  * surfaces that still open `ActionSheet` on a long press have not moved yet; that is a change

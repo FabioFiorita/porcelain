@@ -1,6 +1,6 @@
 import { Stack } from 'expo-router/stack'
 
-import { HeaderActions, HeaderDoneButton } from '@/features/shell/header-actions'
+import { HeaderActions } from '@/features/shell/header-actions'
 
 /**
  * The Hub tab is one native stack: the Worktree list pushes a Worktree, and a Worktree pushes
@@ -100,22 +100,10 @@ export default function HubLayout(): React.JSX.Element {
         }}
       />
 
-      <Stack.Screen
-        name="quick-open"
-        options={{
-          ...SHEET,
-          headerRight: () => <HeaderDoneButton testID="porcelain-quick-open-done" />,
-          title: 'Quick open',
-        }}
-      />
-      <Stack.Screen
-        name="companion"
-        options={{
-          ...SHEET,
-          headerRight: () => <HeaderDoneButton testID="porcelain-companion-done" />,
-          title: 'Companion',
-        }}
-      />
+      {/* Both sheets declare their own Done item, because Android draws no bar for a sheet and
+          `SheetBar` has to render the same element the native bar gets. */}
+      <Stack.Screen name="quick-open" options={{ ...SHEET, title: 'Quick open' }} />
+      <Stack.Screen name="companion" options={{ ...SHEET, title: 'Companion' }} />
 
       <Stack.Screen name="file/[...path]" options={DETAIL} />
       <Stack.Screen name="folder/[...path]" options={DETAIL} />
