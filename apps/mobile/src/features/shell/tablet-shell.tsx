@@ -85,6 +85,9 @@ export function TabletShell(): React.JSX.Element {
 
         {/* The viewer card. Fixed slot: this subtree must keep its identity across every layout
             change, or a resize would remount the stack inside it. */}
+        {/* panel-card-allow: a shell panel, not a content card. `PANEL_CARD`'s `rounded-2xl`
+            is the radius of a thing INSIDE a surface; the window's own panes take the web
+            client's `rounded-xl`, and a 2xl pane around 2xl cards reads as a card of cards. */}
         <View className="min-w-0 flex-1 overflow-hidden rounded-xl border border-border bg-card">
           <ColumnChrome>
             <ShellControls
