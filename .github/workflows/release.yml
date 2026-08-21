@@ -16,10 +16,6 @@ concurrency:
   group: porcelain-release
   cancel-in-progress: false
 
-permissions:
-  contents: write
-  id-token: write
-
 jobs:
   prepare:
     runs-on: ubuntu-latest
@@ -46,6 +42,9 @@ jobs:
   package-mac:
     needs: [prepare]
     runs-on: macos-14
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v5
         with:
@@ -56,13 +55,9 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-      - name: Restore Turbo task cache
-        uses: actions/cache@v4
+      - uses: vercel/setup-turborepo-remote-cache-action@v1.0.0
         with:
-          path: .turbo/cache
-          key: turbo-${{ runner.os }}-build-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
-          restore-keys: |
-            turbo-${{ runner.os }}-build-${{ hashFiles('pnpm-lock.yaml') }}-
+          team: ${{ vars.TURBO_TEAM }}
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
@@ -97,6 +92,9 @@ jobs:
   package-daemon:
     needs: [prepare]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v5
         with:
@@ -107,13 +105,9 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-      - name: Restore Turbo task cache
-        uses: actions/cache@v4
+      - uses: vercel/setup-turborepo-remote-cache-action@v1.0.0
         with:
-          path: .turbo/cache
-          key: turbo-${{ runner.os }}-build-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
-          restore-keys: |
-            turbo-${{ runner.os }}-build-${{ hashFiles('pnpm-lock.yaml') }}-
+          team: ${{ vars.TURBO_TEAM }}
 
       - run: pnpm install --frozen-lockfile
       # The daemon package needs the shared web renderer plus the independent
@@ -132,6 +126,8 @@ jobs:
   publish:
     needs: [prepare, package-mac]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v5
         with:
