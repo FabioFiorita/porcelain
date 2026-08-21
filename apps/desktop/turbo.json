@@ -6,7 +6,22 @@
       "dependsOn": [
         "@porcelain/desktop#check-types",
         "@porcelain/desktop#build:web",
-        "@porcelain/desktop#build:node"
+        "@porcelain/desktop#build:electron"
+      ],
+      "inputs": [
+        "$TURBO_ROOT$/apps/daemon/**",
+        "$TURBO_ROOT$/packages/contracts/**",
+        "$TURBO_ROOT$/packages/shared/**",
+        "$TURBO_ROOT$/scripts/build-node.mjs"
+      ],
+      "outputs": ["out/main/daemon/**", "out/main/contracts/**"]
+    },
+    "build:electron": {
+      "inputs": [
+        "$TURBO_ROOT$/apps/desktop/**",
+        "$TURBO_ROOT$/packages/**",
+        "!$TURBO_ROOT$/apps/desktop/out/**",
+        "!$TURBO_ROOT$/**/.turbo/**"
       ],
       "outputs": ["out/main/index.js", "out/main/chunks/**", "out/preload/**"]
     },

@@ -13,7 +13,8 @@
   "scripts": {
     "start": "electron-vite preview",
     "dev": "pnpm --dir ../.. build:node && electron-vite dev",
-    "build": "electron-vite build",
+    "build": "node ../../scripts/build-node.mjs",
+    "build:electron": "electron-vite build",
     "build:web": "pnpm --dir ../web build",
     "build:node": "node ../../scripts/build-node.mjs",
     "build:daemon": "node ../../scripts/build-node.mjs daemon",
