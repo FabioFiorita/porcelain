@@ -1,6 +1,7 @@
 import '@/global.css'
 
 import { PortalHost } from '@rn-primitives/portal'
+import { View } from 'react-native'
 import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router/react-navigation'
 import { StatusBar } from 'expo-status-bar'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
@@ -45,7 +46,14 @@ function ThemedApp(): React.JSX.Element {
         <ProjectDataFreshnessBridge />
         <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
         {isTablet ? <TabletShell /> : <PhoneShell />}
-        <PortalHost />
+        {/* The portal host has to FILL the window, and it does not by default: as a plain flex
+            child next to a `flex-1` shell it lays out at zero height, and everything portalled
+            into it — every sheet backdrop, every menu — positions itself against a box with no
+            size. That is why a sheet rendered off the bottom edge with no dimming behind it.
+            `box-none` so an empty host stays invisible to touches. */}
+        <View className="absolute bottom-0 left-0 right-0 top-0" pointerEvents="box-none">
+          <PortalHost />
+        </View>
       </DaemonProvider>
     </ThemeProvider>
   )

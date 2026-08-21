@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Alert, Pressable, Text, View } from 'react-native'
 
 import { ChromeGlyph, type ChromeIconName, type IconTone } from '@/components/chrome-glyph'
-import { NativeSheet } from '@/components/native/native-sheet'
+import { Sheet } from '@/components/ui/sheet'
 import { SURFACE_GUTTER } from '@/components/surface-layout'
 import { Input } from '@/components/ui/input'
 import { useShellLeading, useShellTrailing, useTopChrome } from '@/features/shell/window-chrome'
@@ -292,7 +292,7 @@ export function ActionSheet({
   title: string
 }): React.JSX.Element {
   return (
-    <NativeSheet open={open} onClose={onClose}>
+    <Sheet open={open} onClose={onClose}>
       <View className="gap-1 border-b border-border px-5 pb-3" testID={testID}>
         <Text className="text-base font-semibold text-foreground" numberOfLines={1}>
           {title}
@@ -334,7 +334,7 @@ export function ActionSheet({
           </Pressable>
         ))}
       </View>
-    </NativeSheet>
+    </Sheet>
   )
 }
 

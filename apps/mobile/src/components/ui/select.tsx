@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Pressable, View } from 'react-native'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
-import { NativeSheet } from '@/components/native/native-sheet'
+import { Sheet } from '@/components/ui/sheet'
 import { Text } from '@/components/ui/text'
 import { cn } from '@/lib/utils'
 
@@ -69,7 +69,7 @@ export function Select<T extends string>({
         <ChromeGlyph name="chevron" size={12} tone="muted" />
       </Pressable>
 
-      <NativeSheet
+      <Sheet
         open={open}
         onClose={() => {
           setOpen(false)
@@ -108,7 +108,7 @@ export function Select<T extends string>({
             </Pressable>
           ))}
         </View>
-      </NativeSheet>
+      </Sheet>
     </>
   )
 }

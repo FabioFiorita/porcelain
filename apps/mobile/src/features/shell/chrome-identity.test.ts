@@ -16,9 +16,10 @@ import { describe, expect, it } from 'vitest'
  *
  * A cleanup nothing prevents from regrowing is not a cleanup, so:
  *
- *   - **No `@expo/ui` in shipped UI.** The remaining native components are containers and
- *     platform interactions (a bottom sheet's presentation, a long-press context menu), not
- *     surfaces, and they are quarantined in `components/native/` where a reviewer sees them.
+ *   - **No `@expo/ui`, anywhere.** There is no quarantine any more: the last two — a bottom
+ *     sheet's presentation and a long-press context menu — are `@rn-primitives` now, the same
+ *     primitives the web client's Dialog and ContextMenu are built on, so both clients draw
+ *     from one set of tokens. The dependency is gone from `package.json`; this keeps it gone.
  *   - **No native header options.** A screen that declares `title`, `headerRight` or
  *     `headerLargeTitle` is asking for a bar this app does not draw. `ScreenHeader` is the bar.
  *
@@ -27,8 +28,6 @@ import { describe, expect, it } from 'vitest'
  */
 
 const SRC = join(__dirname, '..', '..')
-/** Where a native component may still live, because its job is presentation, not surface. */
-const NATIVE_QUARANTINE = join(SRC, 'components', 'native')
 
 /**
  * Header options a native bar would draw. `headerShown` is deliberately absent — a layout
@@ -63,15 +62,13 @@ function sourceFiles(dir: string): string[] {
   })
 }
 
-/** Every source file that is not a test and not the quarantine. */
+/** Every source file that is not a test. */
 function shippedFiles(): string[] {
-  return sourceFiles(SRC).filter(
-    (path) => !path.includes('.test.') && !path.startsWith(NATIVE_QUARANTINE),
-  )
+  return sourceFiles(SRC).filter((path) => !path.includes('.test.'))
 }
 
 describe('chrome identity', () => {
-  it('keeps `@expo/ui` out of everything but the native quarantine', () => {
+  it('keeps `@expo/ui` out of the client entirely', () => {
     const offenders = shippedFiles().filter((path) => code(path).includes('@expo/ui'))
     expect(offenders).toEqual([])
   })

@@ -1,7 +1,7 @@
 import { Pressable, Text, View } from 'react-native'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
-import { RowContextMenu, type RowMenuAction } from '@/components/native/row-context-menu'
+import { RowContextMenu, type RowMenuAction } from '@/components/ui/row-context-menu'
 import { SURFACE_ROW } from '@/components/surface-layout'
 import { cn } from '@/lib/utils'
 

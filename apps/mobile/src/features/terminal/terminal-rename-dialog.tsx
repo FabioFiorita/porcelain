@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { View } from 'react-native'
 
-import { NativeSheet } from '@/components/native/native-sheet'
+import { Sheet } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Text as UiText } from '@/components/ui/text'
@@ -34,7 +34,7 @@ export function TerminalRenameDialog({
   }
 
   return (
-    <NativeSheet open={open} title="Rename terminal" onClose={onClose}>
+    <Sheet open={open} title="Rename terminal" onClose={onClose}>
       <View className="gap-4 px-5" testID="porcelain-terminal-rename">
         <Input
           autoCapitalize="none"
@@ -60,6 +60,6 @@ export function TerminalRenameDialog({
           </Button>
         </View>
       </View>
-    </NativeSheet>
+    </Sheet>
   )
 }

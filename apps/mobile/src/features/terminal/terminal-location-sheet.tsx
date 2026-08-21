@@ -1,7 +1,7 @@
 import { Pressable, ScrollView, Text, View } from 'react-native'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
-import { NativeSheet } from '@/components/native/native-sheet'
+import { Sheet } from '@/components/ui/sheet'
 import { EmptyNote } from '@/components/surface-chrome'
 import { SURFACE_ROW } from '@/components/surface-layout'
 import { cn } from '@/lib/utils'
@@ -28,10 +28,10 @@ export function TerminalLocationSheet({
   options: readonly NewTerminalOption[]
 }): React.JSX.Element {
   return (
-    <NativeSheet
+    <Sheet
       description="The shell starts in the directory you pick."
       open={open}
-      snapPoints={['55%']}
+      scrollable
       title="New terminal"
       onClose={onClose}
     >
@@ -79,6 +79,6 @@ export function TerminalLocationSheet({
           </ScrollView>
         )}
       </View>
-    </NativeSheet>
+    </Sheet>
   )
 }

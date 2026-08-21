@@ -7,7 +7,7 @@ import ReanimatedSwipeable, {
 } from 'react-native-gesture-handler/ReanimatedSwipeable'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
-import { RowContextMenu, type RowMenuAction } from '@/components/native/row-context-menu'
+import { RowContextMenu, type RowMenuAction } from '@/components/ui/row-context-menu'
 import { SURFACE_ROW, SURFACE_ROW_SELECTED } from '@/components/surface-layout'
 import { Text } from '@/components/ui/text'
 import type { Environment } from '@/features/remote'

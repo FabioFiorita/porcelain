@@ -95,10 +95,10 @@ vi.mock('@/components/ui/input', () => {
 })
 // The token picker's sheet is closed until the chip is pressed; render its body only when open
 // so the chip's own id is what a closed card exposes.
-vi.mock('@/components/native/native-sheet', () => {
+vi.mock('@/components/ui/sheet', () => {
   const React = require('react') as typeof import('react')
   return {
-    NativeSheet: ({ children, open }: { children?: React.ReactNode; open: boolean }) =>
+    Sheet: ({ children, open }: { children?: React.ReactNode; open: boolean }) =>
       open ? React.createElement('div', null, children) : null,
   }
 })

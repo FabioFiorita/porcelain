@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { View } from 'react-native'
 
-import { NativeSheet } from '@/components/native/native-sheet'
+import { Sheet } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Text } from '@/components/ui/text'
@@ -65,7 +65,7 @@ export function NamePrompt({
   }
 
   return (
-    <NativeSheet description={description} open={open} title={title} onClose={onClose}>
+    <Sheet description={description} open={open} title={title} onClose={onClose}>
       <View className="gap-3 px-5" testID={testID}>
         <Input
           accessibilityLabel={title}
@@ -98,6 +98,6 @@ export function NamePrompt({
           </Button>
         </View>
       </View>
-    </NativeSheet>
+    </Sheet>
   )
 }

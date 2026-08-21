@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 
-import { NativeSheet } from '@/components/native/native-sheet'
+import { Sheet } from '@/components/ui/sheet'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 
@@ -41,7 +41,7 @@ export function CommentComposerSheet({
   const canSend = body.trim() !== '' && !pending
 
   return (
-    <NativeSheet open={open} testID="porcelain-comment-composer" title="Reply" onClose={onClose}>
+    <Sheet open={open} testID="porcelain-comment-composer" title="Reply" onClose={onClose}>
       <View className="gap-3 px-5 pb-2">
         <View className="gap-0.5">
           <Text className="text-xs font-medium text-foreground">{anchorLabel}</Text>
@@ -87,6 +87,6 @@ export function CommentComposerSheet({
           </Pressable>
         </View>
       </View>
-    </NativeSheet>
+    </Sheet>
   )
 }

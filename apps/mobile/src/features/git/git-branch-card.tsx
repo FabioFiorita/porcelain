@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
-import { NativeSheet } from '@/components/native/native-sheet'
+import { Sheet } from '@/components/ui/sheet'
 import { ErrorNote, PanelLabel } from '@/components/panel-chrome'
 import { PANEL_CARD } from '@/components/surface-layout'
 import { Button } from '@/components/ui/button'
@@ -143,9 +143,9 @@ function BranchSheet({
   }
 
   return (
-    <NativeSheet
+    <Sheet
       open={open}
-      snapPoints={['60%']}
+      scrollable
       title={creating ? 'New branch' : 'Switch branch'}
       onClose={dismiss}
     >
@@ -256,7 +256,7 @@ function BranchSheet({
           </View>
         </>
       )}
-    </NativeSheet>
+    </Sheet>
   )
 }
 

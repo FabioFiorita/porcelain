@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
-import { NativeSheet } from '@/components/native/native-sheet'
+import { Sheet } from '@/components/ui/sheet'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
@@ -78,10 +78,10 @@ export function CommitTokenChip({
 
       {/* The list is as long as the repository's history of scopes, so the sheet is given a
           rest height rather than measuring content it would have to scroll anyway. */}
-      <NativeSheet
+      <Sheet
         description="Values this repository already uses — or add a new one."
         open={open}
-        snapPoints={['60%']}
+        scrollable
         title={kind === 'type' ? 'Commit type' : 'Commit scope'}
         onClose={() => {
           setOpen(false)
@@ -144,7 +144,7 @@ export function CommitTokenChip({
             </Text>
           ) : null}
         </ScrollView>
-      </NativeSheet>
+      </Sheet>
     </>
   )
 }
