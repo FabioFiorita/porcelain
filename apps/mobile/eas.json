@@ -22,7 +22,7 @@
       }
     },
     "preview": {
-      "distribution": "store",
+      "distribution": "internal",
       "channel": "preview",
       "environment": "preview",
       "autoIncrement": true,
@@ -31,6 +31,7 @@
       }
     },
     "production": {
+      "distribution": "store",
       "channel": "production",
       "environment": "production",
       "autoIncrement": true,
@@ -40,11 +41,6 @@
     }
   },
   "submit": {
-    "preview": {
-      "ios": {
-        "ascAppId": "6796720233"
-      }
-    },
     "production": {
       "ios": {
         "ascAppId": "6796720233"

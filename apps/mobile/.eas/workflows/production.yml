@@ -1,78 +1,34 @@
-# Production release — SHAPE ONLY, DELIBERATELY NOT AUTOMATIC YET.
-# Porcelain's native client is not in the App Store, so there is nothing to
-# submit to and nothing on the `production` channel to update. This file exists
-# so the release path is decided rather than improvised on the day it matters.
-# Disabled how: no `push` / tag trigger. It runs only when a human types
-# `eas workflow:run .eas/workflows/production.yml`, and submission is off unless
-# that human passes `-F submit_to_app_store=true`. When the app does ship, swap
-# `workflow_dispatch` for the tag trigger the desktop release already uses:
+# Production release — manual only.
 #
-#   on:
-#     push:
-#       tags: ['v*']
+# Run it explicitly from the mobile app directory:
 #
-# Same fingerprint decision as preview.yml — build when the native fingerprint
-# moved, otherwise send an over-the-air update to the `production` channel — with
-# App Store submission bolted on the build branch only. An OTA never needs review;
-# a new binary always does.
-# iOS-only, matching the rest of the mobile pipeline — the app has no Android target.
+#   eas workflow:run .eas/workflows/production.yml
+#
+# Every run creates a new store-signed iOS production build and submits that
+# exact build to App Store Connect. Use preview.yml for ad-hoc testing; this
+# workflow has no OTA-only branch and no automatic GitHub Actions trigger.
+# iOS-only workflow: the app also defines Android, but store release is intentionally iOS.
 
 name: Production release
 
 on:
-  workflow_dispatch:
-    inputs:
-      submit_to_app_store:
-        type: boolean
-        required: false
-        default: false
-        description: 'Submit a newly built binary to App Store Connect. Leave false until the app is actually in the store.'
+  workflow_dispatch: {}
 
 # No `concurrency` block: `cancel_in_progress` only accepts `true`, and a release
 # run must never be cancelled by the next one.
 
 jobs:
-  fingerprint:
-    name: Fingerprint
-    type: fingerprint
-    environment: production
-
-  get_ios_build:
-    name: Check for a matching iOS build
-    needs: [fingerprint]
-    type: get-build
-    params:
-      platform: ios
-      profile: production
-      fingerprint_hash: ${{ needs.fingerprint.outputs.ios_fingerprint_hash }}
-      wait_for_in_progress: true
-
-  publish_ios_update:
-    name: Publish iOS production update
-    needs: [get_ios_build]
-    if: ${{ needs.get_ios_build.outputs.build_id }}
-    type: update
-    params:
-      channel: production
-      platform: ios
-      message: ${{ substring(github.commit_message || 'Manual production update', 0, 1024) }}
-
   build_ios:
     name: Build iOS production
-    needs: [get_ios_build]
-    if: ${{ !needs.get_ios_build.outputs.build_id }}
     type: build
     params:
       platform: ios
       profile: production
 
   submit_ios:
-    name: Submit iOS to the App Store
+    name: Submit iOS to App Store Connect
     needs: [build_ios]
-    if: ${{ inputs.submit_to_app_store }}
     type: submit
-    env:
-      EXPO_DEBUG: "1"
     params:
       build_id: ${{ needs.build_ios.outputs.build_id }}
       profile: production

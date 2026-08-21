@@ -67,14 +67,12 @@
     "android": "APP_VARIANT=development expo run:android",
     "android:build": "APP_VARIANT=development expo run:android",
     "ios": "APP_VARIANT=development expo run:ios",
-    "sim:build": "npx eas-cli@latest build -p ios --profile development-simulator --local",
-    "sim:build:cloud": "npx eas-cli@latest build -p ios --profile development-simulator",
-    "sim:install": "npx eas-cli@latest build:run -p ios --profile development-simulator --latest",
-    "sim:install:local": "npx eas-cli@latest build:run -p ios --profile development-simulator",
+    "sim:build": "npx eas-cli@latest build -p ios --profile development-simulator --local --output /tmp/porcelain-development-simulator.tar.gz",
+    "sim:install": "npx eas-cli@latest build:run -p ios --path /tmp/porcelain-development-simulator.tar.gz",
+    "dev:build": "npx eas-cli@latest build -p ios --profile development --local --output /tmp/porcelain-development.ipa",
+    "dev:device": "APP_VARIANT=development expo run:ios --device",
     "typecheck": "expo customize tsconfig.json && tsc --noEmit",
-    "check-types": "expo customize tsconfig.json && tsc --noEmit",
-    "dev:device": "npx eas-cli@latest device:create",
-    "dev:build": "npx eas-cli@latest build -p ios --profile development"
+    "check-types": "expo customize tsconfig.json && tsc --noEmit"
   },
   "private": true
 }
