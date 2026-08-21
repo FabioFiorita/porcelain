@@ -111,6 +111,11 @@ do not make it the inner loop for every edit. CI is the clean-machine check. The
 the risk: a focused unit test for logic, a daemon procedure check for server behavior, a browser or
 Electron interaction for client behavior, and native runtime evidence for mobile behavior.
 
+The package build, test, and typecheck entry points run through Turborepo. Repeated CI and release
+runs restore `.turbo/cache` through the GitHub Actions cache; unchanged package tasks can therefore
+be skipped while the existing root commands keep their names. Turbo does not cache runtime proof,
+macOS signing/notarization, artifact publication, or npm registry propagation.
+
 ## One step per shipped bug
 
 The verification surface grows from shipped bugs, not from policy. When a bug reaches a running
@@ -135,6 +140,7 @@ pnpm format           # write formatting
 pnpm lint             # source checks configured by the checkout
 pnpm test              # desktop/Vitest suite; pass a focused target when supported
 pnpm build            # product build/typechecks
+pnpm turbo run build --filter=@porcelain/desktop  # inspect the production build graph
 ```
 
 Browser and Electron acceptance have explicit scopes. `pnpm test:e2e:smoke` is the small browser

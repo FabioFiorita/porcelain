@@ -13,7 +13,11 @@
   "scripts": {
     "start": "electron-vite preview",
     "dev": "pnpm --dir ../.. build:node && electron-vite dev",
-    "build": "pnpm typecheck && pnpm --dir ../.. build:web && electron-vite build && pnpm --dir ../.. build:node",
+    "build": "electron-vite build",
+    "build:web": "pnpm --dir ../web build",
+    "build:node": "node ../../scripts/build-node.mjs",
+    "build:daemon": "node ../../scripts/build-node.mjs daemon",
+    "check-types": "pnpm typecheck",
     "typecheck": "pnpm typecheck:node && pnpm typecheck:web && pnpm typecheck:mobile-tests && pnpm typecheck:e2e",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",

@@ -56,6 +56,13 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+      - name: Restore Turbo task cache
+        uses: actions/cache@v4
+        with:
+          path: .turbo/cache
+          key: turbo-${{ runner.os }}-build-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-build-${{ hashFiles('pnpm-lock.yaml') }}-
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
@@ -100,6 +107,13 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+      - name: Restore Turbo task cache
+        uses: actions/cache@v4
+        with:
+          path: .turbo/cache
+          key: turbo-${{ runner.os }}-build-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-build-${{ hashFiles('pnpm-lock.yaml') }}-
 
       - run: pnpm install --frozen-lockfile
       # The daemon package needs the shared web renderer plus the independent

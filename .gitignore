@@ -2,6 +2,7 @@ node_modules/
 dist/
 dist-daemon/
 out/
+.turbo/
 .DS_Store
 
 # Playwright e2e: keep the *-snapshots/ baselines (committed), drop run output.

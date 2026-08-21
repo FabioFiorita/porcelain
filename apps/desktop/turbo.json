@@ -1,0 +1,63 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "dependsOn": [
+        "@porcelain/desktop#check-types",
+        "@porcelain/desktop#build:web",
+        "@porcelain/desktop#build:node"
+      ],
+      "outputs": ["out/main/index.js", "out/main/chunks/**", "out/preload/**"]
+    },
+    "build:web": {
+      "inputs": [
+        "$TURBO_ROOT$/apps/web/**",
+        "$TURBO_ROOT$/apps/desktop/package.json",
+        "$TURBO_ROOT$/packages/**",
+        "$TURBO_ROOT$/plugins/porcelain/plugin.json"
+      ],
+      "outputs": ["out/renderer/**"]
+    },
+    "build:node": {
+      "inputs": [
+        "$TURBO_ROOT$/apps/daemon/**",
+        "$TURBO_ROOT$/packages/contracts/**",
+        "$TURBO_ROOT$/packages/shared/**",
+        "$TURBO_ROOT$/scripts/build-node.mjs"
+      ],
+      "outputs": ["out/main/daemon/**", "out/main/contracts/**"]
+    },
+    "build:daemon": {
+      "inputs": [
+        "$TURBO_ROOT$/apps/daemon/**",
+        "$TURBO_ROOT$/packages/contracts/**",
+        "$TURBO_ROOT$/packages/shared/**",
+        "$TURBO_ROOT$/scripts/build-node.mjs"
+      ],
+      "outputs": ["out/main/daemon/**"]
+    },
+    "check-types": {
+      "inputs": [
+        "$TURBO_ROOT$/apps/daemon/**",
+        "$TURBO_ROOT$/apps/desktop/**",
+        "$TURBO_ROOT$/apps/web/**",
+        "$TURBO_ROOT$/packages/**",
+        "$TURBO_ROOT$/tsconfig*.json",
+        "!$TURBO_ROOT$/apps/desktop/out/**",
+        "!$TURBO_ROOT$/**/.turbo/**"
+      ]
+    },
+    "test": {
+      "inputs": [
+        "$TURBO_ROOT$/apps/daemon/**",
+        "$TURBO_ROOT$/apps/desktop/**",
+        "$TURBO_ROOT$/apps/web/**",
+        "$TURBO_ROOT$/packages/**",
+        "$TURBO_ROOT$/vitest.config.*",
+        "!$TURBO_ROOT$/apps/desktop/out/**",
+        "!$TURBO_ROOT$/**/.turbo/**"
+      ]
+    }
+  }
+}

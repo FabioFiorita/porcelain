@@ -11,9 +11,9 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  check:
+  quality:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v5
@@ -21,8 +21,53 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+      - uses: actions/cache@v4
+        with:
+          path: .turbo/cache
+          key: turbo-${{ runner.os }}-quality-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-quality-${{ hashFiles('pnpm-lock.yaml') }}-
       - run: pnpm install --frozen-lockfile
-      - run: pnpm verify
+      - run: pnpm check
+
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: actions/cache@v4
+        with:
+          path: .turbo/cache
+          key: turbo-${{ runner.os }}-unit-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-unit-${{ hashFiles('pnpm-lock.yaml') }}-
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+      - run: pnpm turbo run //#test:scripts
+
+  browser-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: actions/cache@v4
+        with:
+          path: .turbo/cache
+          key: turbo-${{ runner.os }}-build-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-build-${{ hashFiles('pnpm-lock.yaml') }}-
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
       - name: Install Chromium for browser smoke
         run: pnpm --dir apps/desktop exec playwright install --with-deps chromium
       - name: Run browser smoke

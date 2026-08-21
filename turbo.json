@@ -1,0 +1,97 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "globalDependencies": ["pnpm-lock.yaml"],
+  "globalPassThroughEnv": [
+    "CI",
+    "GITHUB_REPOSITORY",
+    "NODE_PATH",
+    "PORCELAIN_ADMIN_TOKEN",
+    "PORCELAIN_ADMIN_TOKEN_FILE",
+    "PORCELAIN_ALLOWED_ORIGIN",
+    "PORCELAIN_ALLOWED_ORIGINS",
+    "PORCELAIN_CLOUDFLARE_BIND",
+    "PORCELAIN_CLOUDFLARE_HOSTNAME",
+    "PORCELAIN_DAEMON_PORT",
+    "PORCELAIN_HOME",
+    "PORCELAIN_LAN_BIND",
+    "PORCELAIN_MOBILE_MAC_SSH",
+    "PORCELAIN_MOBILE_SIM_HOST",
+    "PORCELAIN_MOBILE_SIM_PORT",
+    "PORCELAIN_TAILNET_BIND",
+    "PORCELAIN_USER_DATA"
+  ],
+  "tasks": {
+    "//#format:check": {
+      "inputs": [
+        "$TURBO_ROOT$/**",
+        "!$TURBO_ROOT$/**/.turbo/**",
+        "!$TURBO_ROOT$/**/.expo/**",
+        "!$TURBO_ROOT$/**/node_modules/**",
+        "!$TURBO_ROOT$/**/out/**",
+        "!$TURBO_ROOT$/**/dist/**",
+        "!$TURBO_ROOT$/**/*.tsbuildinfo"
+      ],
+      "outputs": []
+    },
+    "//#lint": {
+      "inputs": [
+        "$TURBO_ROOT$/**",
+        "!$TURBO_ROOT$/**/.turbo/**",
+        "!$TURBO_ROOT$/**/.expo/**",
+        "!$TURBO_ROOT$/**/node_modules/**",
+        "!$TURBO_ROOT$/**/out/**",
+        "!$TURBO_ROOT$/**/dist/**",
+        "!$TURBO_ROOT$/**/*.tsbuildinfo"
+      ],
+      "outputs": []
+    },
+    "//#lint:one-writer": {
+      "inputs": [
+        "$TURBO_ROOT$/apps/**",
+        "$TURBO_ROOT$/packages/**",
+        "$TURBO_ROOT$/scripts/lint-one-writer*",
+        "!$TURBO_ROOT$/**/.turbo/**",
+        "!$TURBO_ROOT$/**/.expo/**",
+        "!$TURBO_ROOT$/**/out/**",
+        "!$TURBO_ROOT$/**/*.tsbuildinfo"
+      ],
+      "outputs": []
+    },
+    "//#lint:docs": {
+      "inputs": [
+        "$TURBO_ROOT$/AGENTS.md",
+        "$TURBO_ROOT$/docs/**",
+        "$TURBO_ROOT$/.agents/skills/**",
+        "$TURBO_ROOT$/plugins/**",
+        "$TURBO_ROOT$/scripts/lint-docs*"
+      ],
+      "outputs": []
+    },
+    "//#plugin:check": {
+      "inputs": ["$TURBO_ROOT$/plugins/**", "$TURBO_ROOT$/scripts/plugin-version*"],
+      "outputs": []
+    },
+    "//#test:scripts": {
+      "inputs": ["$TURBO_ROOT$/scripts/**", "$TURBO_ROOT$/package.json"],
+      "outputs": []
+    },
+    "transit": {
+      "dependsOn": ["^transit"]
+    },
+    "check-types": {
+      "dependsOn": ["transit"],
+      "outputs": []
+    },
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"]
+    },
+    "test": {
+      "outputs": []
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    }
+  }
+}
