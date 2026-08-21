@@ -1,6 +1,6 @@
 {
   "name": "@porcelain/mobile-terminal-native",
-  "version": "0.57.1",
+  "version": "0.57.2",
   "private": true,
   "license": "MIT",
   "expo-module": {
