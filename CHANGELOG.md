@@ -1,3 +1,17 @@
+## [0.57.0](https://github.com/FabioFiorita/porcelain/compare/v0.56.0...v0.57.0) (2026-08-21)
+
+### Features
+
+* **mobile:** draw the phone tab bar in Porcelain, not UIKit ([fd29b75](https://github.com/FabioFiorita/porcelain/commit/fd29b75f8485e3d4cbf8bb0cd6dbc6d59e7afc2d))
+* **mobile:** give every screen a Porcelain header ([b9ce008](https://github.com/FabioFiorita/porcelain/commit/b9ce008e7db1bcfc8cef0bcc78cfd5f32de29d78))
+* **mobile:** give the iPad the web client's window ([9630c1e](https://github.com/FabioFiorita/porcelain/commit/9630c1efe2845a9f98375d9d8d5d589eed140d2a))
+* **mobile:** pick Settings sections instead of squeezing them ([1d7af4d](https://github.com/FabioFiorita/porcelain/commit/1d7af4d01645f00cec91c1e3a5bba746d2868f5f))
+* **mobile:** retire @expo/ui for the Reusables primitives ([dccdb1d](https://github.com/FabioFiorita/porcelain/commit/dccdb1d042e086cc9a63b9653ef1ccbc0cbe08f1))
+
+### Bug Fixes
+
+* **mobile:** stop the iPad printing the sidebar twice, open both panels ([302fc41](https://github.com/FabioFiorita/porcelain/commit/302fc4117b791669ee312110dba6f0c7e0b2b4fe))
+
 ## [0.56.0](https://github.com/FabioFiorita/porcelain/compare/v0.55.1...v0.56.0) (2026-08-21)
 
 ### Features
