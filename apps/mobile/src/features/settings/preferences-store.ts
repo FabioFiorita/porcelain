@@ -32,11 +32,12 @@ type Preferences = z.infer<typeof preferencesSchema>
 /**
  * A phone's readability problem turned out to be wrapping and margins, not the glyph size
  * itself — both fixed elsewhere (the full-screen session view, the tighter pane gutter) — so
- * 'small' stays the phone default, favoring columns. A tablet has the physical room to spend
- * on 'medium' without giving up much width, so it starts there instead. Read once at launch:
- * a device's form factor does not change mid-session.
+ * the phone default favors columns: 'small', now 9pt and 71 of them. A tablet has the physical
+ * room to spend on a bigger glyph without giving up much width, so it starts at 'large', which
+ * is the same 15pt tablets rendered before the ladder gained a denser step. Read once at
+ * launch: a device's form factor does not change mid-session.
  */
-const DEFAULT_TERMINAL_TEXT_SIZE: TerminalTextSize = isTabletFormFactor() ? 'medium' : 'small'
+const DEFAULT_TERMINAL_TEXT_SIZE: TerminalTextSize = isTabletFormFactor() ? 'large' : 'small'
 
 const DEFAULTS: Preferences = {
   theme: 'system',
