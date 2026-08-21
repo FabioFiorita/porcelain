@@ -1,4 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+// isBrowser is `true` by default under vitest/jsdom (no preload bridge); the shell-connection
+// tests below flip it to exercise activeEnvironmentConnections()'s Electron branch instead.
+const platformState = vi.hoisted(() => ({ isBrowser: true }))
+vi.mock('./platform', () => ({
+  get isBrowser() {
+    return platformState.isBrowser
+  },
+  isE2E: false,
+  isLinuxShell: false,
+}))
+
 import {
   addBrowserEnvironmentConnection,
   browserEnvironmentConnections,
@@ -9,11 +21,15 @@ import {
   registerEnvironmentAlias,
   setBrowserEnvironmentConnections,
   setPrimaryEnvironmentId,
+  setShellEnvironmentConnections,
+  shellEnvironmentConnections,
 } from './environment-sessions'
 
 beforeEach(() => {
   window.localStorage.clear()
   setPrimaryEnvironmentId(null)
+  platformState.isBrowser = true
+  setShellEnvironmentConnections([])
 })
 
 describe('browser Environment session hub', () => {
@@ -153,5 +169,91 @@ describe('browser Environment session hub', () => {
       token: 'pc_client_secondary_secret',
     })
     vi.unstubAllGlobals()
+  })
+})
+
+describe('shell Environment session hub', () => {
+  it('caches one session per Environment and resolves explicit targets', () => {
+    platformState.isBrowser = false
+    const connection = {
+      id: 'shell-secondary',
+      name: 'Secondary',
+      url: 'http://127.0.0.1:43221',
+      token: 'pc_client_shell_secondary',
+    }
+    setShellEnvironmentConnections([connection])
+    expect(shellEnvironmentConnections()).toEqual([connection])
+
+    const first = ensureEnvironmentSession(connection)
+    const second = ensureEnvironmentSession(connection)
+
+    expect(second).toBe(first)
+    expect(environmentSessionFor('shell-secondary')).toBe(first)
+    expect(environmentSessionFor('offline')).toBeNull()
+  })
+
+  it('re-points an existing shell session in place when its connection is repointed', () => {
+    platformState.isBrowser = false
+    const connection = {
+      id: 'shell-secondary',
+      name: 'Secondary',
+      url: 'http://127.0.0.1:43221',
+      token: 'pc_client_shell_secondary',
+    }
+    setShellEnvironmentConnections([connection])
+    const before = ensureEnvironmentSession(connection)
+
+    const repointed = { ...connection, url: 'http://127.0.0.1:43222' }
+    setShellEnvironmentConnections([repointed])
+    const after = ensureEnvironmentSession(repointed)
+
+    expect(after).toBe(before)
+    expect(after.session.endpoint().url).toBe('http://127.0.0.1:43222')
+  })
+
+  it('stops and removes a session when its shell connection is pruned', () => {
+    platformState.isBrowser = false
+    const connection = {
+      id: 'shell-secondary',
+      name: 'Secondary',
+      url: 'http://127.0.0.1:43221',
+      token: 'pc_client_shell_secondary',
+    }
+    setShellEnvironmentConnections([connection])
+    const session = ensureEnvironmentSession(connection).session
+    const stop = vi.spyOn(session, 'stop')
+
+    setShellEnvironmentConnections([])
+
+    expect(stop).toHaveBeenCalledOnce()
+    expect(shellEnvironmentConnections()).toEqual([])
+    expect(environmentSessionFor(connection.id)).toBeNull()
+  })
+
+  it('keeps a shell-sourced session alive across repeated routing calls (regression)', () => {
+    platformState.isBrowser = false
+    const connection = {
+      id: 'shell-secondary',
+      name: 'Secondary',
+      url: 'http://127.0.0.1:43221',
+      token: 'pc_client_shell_secondary',
+    }
+    setShellEnvironmentConnections([connection])
+    const session = ensureEnvironmentSession(connection).session
+    const stop = vi.spyOn(session, 'stop')
+
+    // Before the fix, browserEnvironmentConnections() re-parsed localStorage and pruned
+    // on every read — including these internal calls from every routing decision — and
+    // stopped any session outside ITS OWN (empty, localStorage-backed) id set. On
+    // Electron that silently killed this shell-sourced session, live PTYs included, the
+    // moment any routing call ran after it was created.
+    environmentSessionFor(connection.id)
+    liveEnvironmentSessions()
+    environmentSessionFor(connection.id)
+    liveEnvironmentSessions()
+
+    expect(stop).not.toHaveBeenCalled()
+    expect(shellEnvironmentConnections()).toEqual([connection])
+    expect(environmentSessionFor(connection.id)).toBe(ensureEnvironmentSession(connection))
   })
 })
