@@ -18,7 +18,7 @@ import {
 } from '@/features/comments'
 import { type DiffSource, useDiffFile } from '@/features/git'
 import { usePreferencesStore } from '@/features/settings/preferences-store'
-import { useBottomChrome } from '@/features/shell/bottom-chrome'
+import { useBottomChrome } from '@/features/shell/window-chrome'
 import { DiffRowView } from './diff-lines'
 import { anchorTextFor, type DiffRow, toDiffRows } from './diff-rows'
 
@@ -48,7 +48,6 @@ export function DiffView({
   testID,
   commentTestIDPrefix = 'porcelain-changes-comment',
   selectionTestIDPrefix = 'porcelain-changes-selection',
-  topInset = 0,
 }: {
   active: boolean
   filePath: string
@@ -73,7 +72,6 @@ export function DiffView({
   /** Prefix for the selection-bar controls exposed by this surface. */
   selectionTestIDPrefix?: string
   /** Phone: this view replaces the tab header, so it owns the status-bar inset. */
-  topInset?: number
 }): React.JSX.Element {
   const bottomInset = useBottomChrome()
   const file = useDiffFile(filePath, source, active)
@@ -128,7 +126,6 @@ export function DiffView({
         // action where the reader's thumb already is.
         selectedRange={selected}
         testID={testID}
-        topInset={topInset}
         onBack={onBack}
         onComment={() => {
           if (selected === null) setAnchor({ path: filePath })
@@ -175,7 +172,6 @@ function DiffHeader({
   reviewed,
   selectedRange,
   testID,
-  topInset,
 }: {
   filePath: string
   onBack?: () => void
@@ -185,7 +181,6 @@ function DiffHeader({
   /** The open selection the comment action would anchor to, or null for the whole file. */
   selectedRange: LineRange | null
   testID: string
-  topInset: number
 }): React.JSX.Element {
   return (
     <ScreenHeader
@@ -235,7 +230,6 @@ function DiffHeader({
       subtitle={filePath}
       subtitleFromEnd
       title={fileName(filePath)}
-      topInset={topInset}
     />
   )
 }

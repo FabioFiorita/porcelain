@@ -1,7 +1,8 @@
 import { View } from 'react-native'
 
-import { SegmentedControl } from '@/components/native/segmented-control'
+import { ScreenHeader } from '@/components/panel-chrome'
 import { SurfaceScroll } from '@/components/surface-scroll'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 
 import { type SettingsSection, useShellStore } from '../shell/shell-store'
 import { DataSettings } from './data-panel'
@@ -32,13 +33,12 @@ const SECTIONS: { value: SettingsSection; label: string; testID: string }[] = [
 /**
  * Phone Settings tab — full-screen (not a sheet).
  *
- * The section switcher used to hang off the bottom of the hand-rolled header and take the
- * header's divider with it, so the two read as one band. The bar is `UINavigationBar` now and
- * nothing can be hung off it, so the switcher became the first row of the content instead —
- * which is also what lets the large title collapse, since the scroll view has to be the
- * screen's first child for iOS to drive it.
+ * The section switcher is the first row of the content rather than part of the header band. It
+ * used to hang off the bottom of a hand-rolled header and take the divider with it, so the two
+ * read as one 90pt slab; `ScreenHeader` is a 48pt band with a hairline, the same as the web
+ * client's, and the switcher scrolls under it like any other content.
  *
- * It is the same `SegmentedControl` Changes and Files use — a native segmented control.
+ * It is the same `SegmentedControl` Changes and Files use.
  */
 export function SettingsScreen(): React.JSX.Element {
   const section = useShellStore((state) => state.settingsSection)
@@ -46,10 +46,10 @@ export function SettingsScreen(): React.JSX.Element {
 
   return (
     <View className="flex-1 bg-background" testID="porcelain-phone-settings">
+      <ScreenHeader testID="porcelain-settings-header" title="Settings" />
       <SurfaceScroll
         gap={12}
         keyboardShouldPersistTaps="handled"
-        largeTitle
         paddingTop={12}
         showsVerticalScrollIndicator={false}
       >

@@ -7,12 +7,11 @@ import { shellSheetHref } from './shell-sheets'
 import type { SurfaceId } from './surfaces'
 
 /**
- * One item in a native header's right-hand cluster.
+ * One item in a header's right-hand cluster.
  *
- * Deliberately a bare glyph on a touch target and nothing else. The bar these replace drew a
- * 40pt bordered chip per action because it was a `View` pretending to be a toolbar, and a
- * pretend toolbar has to draw its own affordance. `UINavigationBar` and the Material app bar
- * draw the affordance themselves, so a second border here reads as a button inside a button.
+ * Deliberately a bare glyph on a touch target and nothing else — the web client's header
+ * buttons are `variant="ghost"` for the same reason. An earlier bar drew a 40pt bordered chip
+ * per action, and a border around every glyph reads as a button inside a button.
  */
 function HeaderItem({
   accessibilityLabel,
@@ -41,10 +40,6 @@ function HeaderItem({
 
 /**
  * The Hub stack's header actions: quick open, and the surface companion.
- *
- * These were the two buttons the hand-rolled `PhoneHeader` drew inside its own title band.
- * They are now `headerRight` items on the native bar, so they scroll, blur and collapse with
- * it instead of sitting on a `View` that had to reimplement all three.
  *
  * The companion carries its surface in the URL rather than writing `activeSurface` to the
  * shell store on the way. The sheet is a route now; a route that needs to know which surface

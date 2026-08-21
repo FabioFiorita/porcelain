@@ -1,8 +1,8 @@
-import { Stack, useIsFocused, useRouter } from 'expo-router'
+import { useIsFocused, useRouter } from 'expo-router'
 import { Text, View } from 'react-native'
 
 import { IconAction } from '@/components/panel-chrome'
-import { EmptyNote, ErrorNote } from '@/components/panel-chrome'
+import { EmptyNote, ErrorNote, ScreenHeader } from '@/components/panel-chrome'
 import { SURFACE_GUTTER } from '@/components/surface-layout'
 import { markdownToHtml, PreviewView, readerDocument } from '@/features/files'
 import { useResolvedColorScheme } from '@/features/settings/theme-provider'
@@ -30,20 +30,26 @@ export function CanvasScreen({ canvasId }: { canvasId: string }): React.JSX.Elem
 
   return (
     <View className="flex-1 bg-background" testID="porcelain-canvas-document">
-      <Stack.Screen
-        options={{
-          headerRight: () => (
-            <IconAction
-              accessibilityLabel="Review comments"
-              glyph="comment"
-              testID="porcelain-canvas-document-comments"
-              onPress={() => {
-                router.push('/canvas/comments')
-              }}
-            />
-          ),
-          title: canvas?.record.title ?? 'Canvas',
+      <ScreenHeader
+        actions={
+          <IconAction
+            accessibilityLabel="Review comments"
+            glyph="comment"
+            testID="porcelain-canvas-document-comments"
+            onPress={() => {
+              router.push('/canvas/comments')
+            }}
+          />
+        }
+        back={{
+          accessibilityLabel: 'Back to Canvas',
+          testID: 'porcelain-canvas-document-back',
+          onPress: () => {
+            router.back()
+          },
         }}
+        testID="porcelain-canvas-document-header"
+        title={canvas?.record.title ?? 'Canvas'}
       />
       <CanvasBody
         canvas={canvas}

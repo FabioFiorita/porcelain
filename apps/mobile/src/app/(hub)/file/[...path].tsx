@@ -1,5 +1,4 @@
 import { useIsFocused, useLocalSearchParams, useRouter } from 'expo-router'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { FileViewer, pathFromSegments } from '@/features/files'
 
@@ -10,7 +9,6 @@ import { FileViewer, pathFromSegments } from '@/features/files'
 export default function FilesFileRoute(): React.JSX.Element {
   const { line, path } = useLocalSearchParams<{ line?: string; path: string[] }>()
   const focused = useIsFocused()
-  const insets = useSafeAreaInsets()
   const router = useRouter()
   // A deep link carries whatever the URL says; anything that is not a positive integer is a
   // file opened at the top, not a crash.
@@ -22,7 +20,6 @@ export default function FilesFileRoute(): React.JSX.Element {
       active={focused}
       filePath={pathFromSegments(path)}
       line={at}
-      topInset={Math.max(insets.top, 8)}
       onBack={() => {
         router.back()
       }}

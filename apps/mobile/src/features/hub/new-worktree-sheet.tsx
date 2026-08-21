@@ -1,4 +1,4 @@
-import { Stack, useRouter } from 'expo-router'
+import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { Pressable, View } from 'react-native'
 
@@ -102,19 +102,6 @@ export function NewWorktreeSheet(): React.JSX.Element {
 
   return (
     <View className="flex-1 bg-background" testID="porcelain-new-worktree">
-      <Stack.Screen
-        options={{
-          headerRight: () => submitAction,
-          // The sheet's presentation is the platform's: a `formSheet` with detents, a grabber
-          // and drag-to-dismiss, matching the other presented routes in this stack.
-          presentation: 'formSheet',
-          sheetAllowedDetents: [0.85, 0.99],
-          sheetCornerRadius: 20,
-          sheetGrabberVisible: true,
-          title: 'New Worktree',
-        }}
-      />
-      {/* Android's sheet has no bar of its own to hang `headerRight` on; iOS's does. */}
       <SheetBar action={submitAction} title="New Worktree" />
       <SurfaceScroll gap={12} paddingTop={12}>
         {error === null ? null : (

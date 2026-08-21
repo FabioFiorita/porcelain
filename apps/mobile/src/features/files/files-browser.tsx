@@ -11,6 +11,7 @@ import { SURFACE_TOOLBAR } from '@/components/surface-layout'
 import { SurfaceList } from '@/components/surface-scroll'
 import { CommentComposer } from '@/features/comments'
 import { useActiveProject } from '@/features/projects'
+import { useTopChrome } from '@/features/shell/window-chrome'
 import { cn } from '@/lib/utils'
 import { FileEntryRow } from './file-entry-row'
 import { breadcrumbs, type Crumb, pathTestId, REPO_ROOT } from './file-paths'
@@ -40,7 +41,6 @@ export function FilesBrowser({
   onOpenDir,
   onOpenFile,
   selectedPath = null,
-  topInset,
 }: {
   active: boolean
   /** Repo-relative directory; `''` is the project root. */
@@ -58,7 +58,6 @@ export function FilesBrowser({
   /** Tablet: the file the viewer column is showing. */
   selectedPath?: string | null
   /** Phone folder screens: this view replaces the tab header, so it owns the status bar. */
-  topInset?: number
 }): React.JSX.Element {
   const project = useActiveProject()
   const showHidden = useFilesStore((state) => state.showHidden)
@@ -78,7 +77,6 @@ export function FilesBrowser({
         onToggleHidden={toggleHidden}
         showHidden={showHidden}
         summary={browser.summary}
-        topInset={topInset}
       />
 
       {browser.actionError === null ? null : (
@@ -228,7 +226,6 @@ function BrowserHeader({
   onToggleHidden,
   showHidden,
   summary,
-  topInset,
 }: {
   crumbs: Crumb[]
   onBack?: () => void
@@ -238,16 +235,17 @@ function BrowserHeader({
   onToggleHidden: () => void
   showHidden: boolean
   summary: string
-  topInset?: number
 }): React.JSX.Element {
+  // This toolbar doubles as the screen header on the routes where the breadcrumb IS the title.
+  // A non-zero inset is the shell saying "you are at the top of the window", which is also when
+  // the band owes a hairline to whatever scrolls under it.
+  const topInset = useTopChrome()
+
   return (
     <View
-      className={cn(
-        SURFACE_TOOLBAR,
-        'gap-1',
-        topInset === undefined ? undefined : 'border-b border-border',
-      )}
-      style={topInset === undefined ? undefined : { paddingTop: topInset + 6 }}
+      className={cn(SURFACE_TOOLBAR, 'gap-1', topInset > 0 && 'border-b border-border')}
+      /* nativewind-allow-style: the band clears the live status-bar inset when it owns it. */
+      style={topInset > 0 ? { paddingTop: topInset + 6 } : undefined}
     >
       {/* The icon clusters hang half an icon button outside the gutter so their glyphs, not
           their 36pt hit boxes, line up with the breadcrumb and the rows below. */}

@@ -1,5 +1,4 @@
 import { useIsFocused, useRouter } from 'expo-router'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { ChangesReadAllView } from '@/features/changes/changes-read-all-view'
 import { useChangesStore } from '@/features/changes/changes-store'
@@ -13,7 +12,6 @@ import { useChangesFlow } from '@/features/changes/use-changes'
  */
 export default function ChangesReadAllRoute(): React.JSX.Element {
   const focused = useIsFocused()
-  const insets = useSafeAreaInsets()
   const router = useRouter()
   const scope = useChangesStore((state) => state.scope)
   const { base } = useChangesFlow(focused)
@@ -23,7 +21,6 @@ export default function ChangesReadAllRoute(): React.JSX.Element {
       active={focused}
       base={base}
       scope={scope}
-      topInset={Math.max(insets.top, 8)}
       onBack={() => {
         router.back()
       }}

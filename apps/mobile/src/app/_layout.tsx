@@ -12,7 +12,6 @@ import { GitNotificationBridge } from '@/features/git'
 import { ProjectDataFreshnessBridge } from '@/features/project-data'
 import { SearchNotificationBridge } from '@/features/search'
 import { AppThemeProvider, useResolvedColorScheme } from '@/features/settings/theme-provider'
-import { PhoneBottomChrome } from '@/features/shell/bottom-chrome'
 import { PhoneShell } from '@/features/shell/phone-shell'
 import { TabletShell } from '@/features/shell/tablet-shell'
 import { useIsTablet } from '@/features/shell/use-app-window'
@@ -45,15 +44,7 @@ function ThemedApp(): React.JSX.Element {
         <TasksNotificationBridge />
         <ProjectDataFreshnessBridge />
         <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-        {/* Only the phone floats chrome over its content. A tablet column ends above its own
-            chrome already, so it declares none and every shared body reads zero there. */}
-        {isTablet ? (
-          <TabletShell />
-        ) : (
-          <PhoneBottomChrome>
-            <PhoneShell />
-          </PhoneBottomChrome>
-        )}
+        {isTablet ? <TabletShell /> : <PhoneShell />}
         <PortalHost />
       </DaemonProvider>
     </ThemeProvider>

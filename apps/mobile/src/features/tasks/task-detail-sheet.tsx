@@ -1,11 +1,11 @@
 import { TASK_STATUS_LABELS } from '@porcelain/client-runtime/tasks'
 import { TASK_STATUSES, type TaskStatus } from '@porcelain/contracts/tasks'
-import { Stack, useRouter } from 'expo-router'
+import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { Linking, Pressable, View } from 'react-native'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
-import { SegmentedControl } from '@/components/native/segmented-control'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import { EmptyNote, ErrorNote, PanelLabel } from '@/components/panel-chrome'
 import { PANEL_CARD } from '@/components/surface-layout'
 import { SurfaceScroll } from '@/components/surface-scroll'
@@ -100,13 +100,6 @@ export function TaskDetailSheet({
 
   return (
     <View className="flex-1 bg-background" testID="porcelain-task-detail">
-      <Stack.Screen
-        options={{
-          headerRight: () => saveAction,
-          title: task.shortId,
-        }}
-      />
-      {/* Android's sheet has no bar of its own to hang `headerRight` on; iOS's does. */}
       <SheetBar action={saveAction} title={task.shortId} />
       <SurfaceScroll gap={12} paddingTop={12}>
         {error === null ? null : <ErrorNote message={error} testID="porcelain-task-error" />}

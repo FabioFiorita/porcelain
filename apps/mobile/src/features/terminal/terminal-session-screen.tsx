@@ -1,10 +1,9 @@
 import { settleBackground } from '@porcelain/shared/background'
-import { Stack } from 'expo-router/stack'
+import { useRouter } from 'expo-router'
 import { useEffect } from 'react'
 import { Text, View } from 'react-native'
-import { EmptyNote } from '@/components/surface-chrome'
-import { ClearBottomChrome } from '@/features/shell/bottom-chrome'
-import { HeaderCloseButton } from '@/features/shell/header-actions'
+import { EmptyNote, ScreenHeader } from '@/components/surface-chrome'
+import { PresentedChrome } from '@/features/shell/window-chrome'
 import { useTerminalStream } from './terminal-roster'
 import { useTerminalStore } from './terminal-store'
 import { mobileTerminalAdapter } from './terminal-stream-adapter'
@@ -32,6 +31,7 @@ import { TerminalView } from './terminal-view'
  * the route is a modal rather than a push.
  */
 export function TerminalSessionScreen({ sessionId }: { sessionId: string }): React.JSX.Element {
+  const router = useRouter()
   useTerminalStream()
   const session = useTerminalStore((state) =>
     state.sessions.find((candidate) => candidate.id === sessionId),
@@ -45,23 +45,30 @@ export function TerminalSessionScreen({ sessionId }: { sessionId: string }): Rea
   }, [sessionId])
 
   return (
-    <ClearBottomChrome>
+    <PresentedChrome coversStatusBar>
       <View className="flex-1 bg-background" testID="porcelain-terminal-session">
-        {/* The session's name is minted by the daemon, so the screen sets the title, not the
-            stack layout. */}
-        <Stack.Screen
-          options={{
-            headerLeft: () => <HeaderCloseButton testID="porcelain-terminal-session-back" />,
-            headerRight: () =>
-              session?.status === 'exited' ? (
-                <Text className="text-3xs uppercase tracking-widest text-muted-foreground">
-                  exited
-                </Text>
-              ) : (
-                <View className="size-2 rounded-full bg-success" />
-              ),
-            title: session?.name ?? 'Terminal',
+        {/* The session's name is minted by the daemon, so the screen carries the title. A
+            full-screen modal has no back chevron of its own and no swipe-down, so the close
+            item is the only way out and is not optional. */}
+        <ScreenHeader
+          actions={
+            session?.status === 'exited' ? (
+              <Text className="px-2 text-3xs uppercase tracking-widest text-muted-foreground">
+                exited
+              </Text>
+            ) : (
+              <View className="mr-2 size-2 rounded-full bg-success" />
+            )
+          }
+          back={{
+            accessibilityLabel: 'Close',
+            testID: 'porcelain-terminal-session-back',
+            onPress: () => {
+              router.back()
+            },
           }}
+          testID="porcelain-terminal-session-header"
+          title={session?.name ?? 'Terminal'}
         />
 
         {session === undefined ? (
@@ -74,6 +81,6 @@ export function TerminalSessionScreen({ sessionId }: { sessionId: string }): Rea
           <TerminalView sessionId={sessionId} />
         )}
       </View>
-    </ClearBottomChrome>
+    </PresentedChrome>
   )
 }

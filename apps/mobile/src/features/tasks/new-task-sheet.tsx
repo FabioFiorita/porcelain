@@ -1,5 +1,5 @@
 import type { CreateTaskInput } from '@porcelain/contracts/tasks'
-import { Stack, useRouter } from 'expo-router'
+import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { Pressable, View } from 'react-native'
 
@@ -101,12 +101,6 @@ export function NewTaskSheet(): React.JSX.Element {
 
   return (
     <View className="flex-1 bg-background" testID="porcelain-new-task">
-      <Stack.Screen
-        options={{
-          headerRight: () => submitAction,
-        }}
-      />
-      {/* Android's sheet has no bar of its own to hang `headerRight` on; iOS's does. */}
       <SheetBar action={submitAction} title="New Task" />
       <SurfaceScroll gap={12} paddingTop={12}>
         {error === null ? null : <ErrorNote message={error} testID="porcelain-new-task-error" />}

@@ -11,7 +11,7 @@ import {
 import { PANEL_CARD, SURFACE_GUTTER, surfaceContentStyle } from '@/components/surface-layout'
 import { type CommentAnchor, CommentComposer } from '@/features/comments'
 import { useCommitFlow, useCommitMessage } from '@/features/git'
-import { useBottomChrome } from '@/features/shell/bottom-chrome'
+import { useBottomChrome } from '@/features/shell/window-chrome'
 import { cn } from '@/lib/utils'
 
 import { CommitFileRow, type CommitFileRowActions } from './commit-file-row'
@@ -30,7 +30,6 @@ export function CommitView({
   onBack,
   onOpenAll,
   onOpenFile,
-  topInset = 0,
 }: {
   active: boolean
   hash: string
@@ -39,7 +38,6 @@ export function CommitView({
   onOpenAll: (hash: string) => void
   onOpenFile: (hash: string, path: string) => void
   /** Phone: this view replaces the tab header, so it owns the status-bar inset. */
-  topInset?: number
 }): React.JSX.Element {
   const bottomInset = useBottomChrome()
   const message = useCommitMessage(hash, active)
@@ -86,7 +84,6 @@ export function CommitView({
         }
         subtitle={`${shortHash(hash)} · ${fileCount} ${fileCount === 1 ? 'file' : 'files'}`}
         title={commitTitle(message, hash)}
-        topInset={topInset}
       />
 
       {error !== null ? (

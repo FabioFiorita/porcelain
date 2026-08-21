@@ -12,7 +12,6 @@ export function FileViewerHeader({
   onComment,
   onTogglePinned,
   selectedRange,
-  topInset,
 }: {
   commentCount: number
   filePath: string
@@ -22,7 +21,6 @@ export function FileViewerHeader({
   onTogglePinned: () => void
   /** The open selection the comment action would anchor to, or null for the whole file. */
   selectedRange: LineRange | null
-  topInset: number
 }): React.JSX.Element {
   return (
     <ScreenHeader
@@ -63,7 +61,6 @@ export function FileViewerHeader({
       subtitle={`${filePath}${commentCount === 0 ? '' : ` · ${commentCount} commented`}`}
       subtitleFromEnd
       title={fileName(filePath)}
-      topInset={topInset}
     />
   )
 }

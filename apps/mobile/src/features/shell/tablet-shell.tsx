@@ -1,6 +1,5 @@
 import { View } from 'react-native'
 
-import { PhoneBottomChrome } from './bottom-chrome'
 import { HubSidebar } from './hub-sidebar'
 import { PhoneShell } from './phone-shell'
 import { HUB_SIDEBAR_WIDTH } from './shell-layout'
@@ -47,9 +46,7 @@ export function TabletShell(): React.JSX.Element {
       ) : null}
       {/* Fixed slot: this subtree must keep its identity across every layout change. */}
       <View className="min-w-0 flex-1">
-        <PhoneBottomChrome>
-          <PhoneShell />
-        </PhoneBottomChrome>
+        <PhoneShell />
       </View>
     </View>
   )

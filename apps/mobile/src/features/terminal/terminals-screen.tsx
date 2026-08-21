@@ -1,11 +1,16 @@
 import { ENVIRONMENT_GROUP_KEY, type TerminalGroup } from '@porcelain/client-runtime/terminal'
 import { useIsFocused, useRouter } from 'expo-router'
-import { Stack } from 'expo-router/stack'
 import { Fragment, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
-import { ConfirmDialog, EmptyNote, ErrorNote, IconAction } from '@/components/surface-chrome'
+import {
+  ConfirmDialog,
+  EmptyNote,
+  ErrorNote,
+  IconAction,
+  ScreenHeader,
+} from '@/components/surface-chrome'
 import { SURFACE_GUTTER, SURFACE_NOTE } from '@/components/surface-layout'
 import { SurfaceScroll } from '@/components/surface-scroll'
 import { isPaired, useActiveEnvironment } from '@/features/remote'
@@ -109,36 +114,36 @@ export function TerminalsScreen(): React.JSX.Element {
 
   return (
     <View className="flex-1 bg-background" testID="porcelain-terminals-screen">
-      {/* The toolbar is the native bar's, and both items belong to state living here: the
-          picker is a sheet this screen owns, and Actions is a route. */}
-      <Stack.Screen
-        options={{
-          headerRight: () => (
-            <View className="flex-row items-center gap-1">
-              <IconAction
-                accessibilityLabel="Actions"
-                glyph="companion"
-                testID="porcelain-terminals-actions"
-                tone="foreground"
-                onPress={() => {
-                  router.push('/terminals/actions')
-                }}
-              />
-              <IconAction
-                accessibilityLabel="New terminal"
-                glyph="plus"
-                testID="porcelain-terminals-new"
-                tone="foreground"
-                onPress={() => {
-                  setPicking(true)
-                }}
-              />
-            </View>
-          ),
-        }}
+      {/* Both items belong to state living here: the picker is a sheet this screen owns, and
+          Actions is a route. */}
+      <ScreenHeader
+        actions={
+          <>
+            <IconAction
+              accessibilityLabel="Actions"
+              glyph="companion"
+              testID="porcelain-terminals-actions"
+              tone="foreground"
+              onPress={() => {
+                router.push('/terminals/actions')
+              }}
+            />
+            <IconAction
+              accessibilityLabel="New terminal"
+              glyph="plus"
+              testID="porcelain-terminals-new"
+              tone="foreground"
+              onPress={() => {
+                setPicking(true)
+              }}
+            />
+          </>
+        }
+        testID="porcelain-terminals-header"
+        title="Terminals"
       />
 
-      <SurfaceScroll edgeToEdge gap={2} largeTitle paddingTop={4}>
+      <SurfaceScroll edgeToEdge gap={2} paddingTop={4}>
         <Text
           className={cn(SURFACE_GUTTER, 'pb-1 text-xs text-muted-foreground')}
           testID="porcelain-terminals-summary"

@@ -1,5 +1,4 @@
 import { useIsFocused, useLocalSearchParams, useRouter } from 'expo-router'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { DiffView } from '@/features/diff/diff-view'
 import { pathSegments } from '@/features/files'
@@ -14,7 +13,6 @@ import { useHistoryFocus } from '@/features/history/use-history'
 export default function HistoryCommitFileRoute(): React.JSX.Element {
   const { hash, path } = useLocalSearchParams<{ hash: string; path: string[] }>()
   const focused = useIsFocused()
-  const insets = useSafeAreaInsets()
   const router = useRouter()
   const filePath = path.join('/')
   useHistoryFocus({ hash, kind: 'file', path: filePath })
@@ -27,7 +25,6 @@ export default function HistoryCommitFileRoute(): React.JSX.Element {
       testID="porcelain-history-diff"
       commentTestIDPrefix="porcelain-history-comment"
       selectionTestIDPrefix="porcelain-history-selection"
-      topInset={Math.max(insets.top, 8)}
       onBack={() => {
         router.back()
       }}

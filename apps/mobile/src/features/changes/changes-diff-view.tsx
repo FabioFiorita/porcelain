@@ -14,7 +14,6 @@ export function ChangesDiffView({
   filePath,
   onBack,
   onOpenFile,
-  topInset = 0,
 }: {
   active: boolean
   /** Branch scope base ref; `undefined` reads the working tree. */
@@ -22,7 +21,6 @@ export function ChangesDiffView({
   filePath: string
   onBack?: () => void
   onOpenFile?: (path: string) => void
-  topInset?: number
 }): React.JSX.Element {
   return (
     <DiffView
@@ -30,7 +28,6 @@ export function ChangesDiffView({
       filePath={filePath}
       source={changesDiffSource(base)}
       testID="porcelain-changes-diff"
-      topInset={topInset}
       onBack={onBack}
       onOpenFile={onOpenFile}
     />

@@ -1,8 +1,7 @@
-import { useIsFocused } from 'expo-router'
-import { Stack } from 'expo-router/stack'
+import { useIsFocused, useRouter } from 'expo-router'
 import { View } from 'react-native'
 
-import { EmptyNote } from '@/components/panel-chrome'
+import { EmptyNote, ScreenHeader } from '@/components/panel-chrome'
 import { SurfaceScroll } from '@/components/surface-scroll'
 import { useHubRepoPath } from '@/features/projects'
 import { HeaderActions } from '@/features/shell/header-actions'
@@ -23,6 +22,7 @@ import { GitCommitCard } from './git-commit-card'
  * one here would open a sheet holding what is already on screen.
  */
 export function GitScreen(): React.JSX.Element {
+  const router = useRouter()
   const repoPath = useHubRepoPath()
   // The reads poll while this screen is the one you are looking at, and stop when it is not.
   const active = useIsFocused()
@@ -31,7 +31,18 @@ export function GitScreen(): React.JSX.Element {
     <View className="flex-1 bg-background" testID="porcelain-git-screen">
       {/* Set here rather than in the stack layout: the layout does not know a surface exists
           until a Worktree pushes it. */}
-      <Stack.Screen options={{ headerRight: () => <HeaderActions />, title: 'Git' }} />
+      <ScreenHeader
+        actions={<HeaderActions />}
+        back={{
+          accessibilityLabel: 'Back',
+          testID: 'porcelain-git-back',
+          onPress: () => {
+            router.back()
+          },
+        }}
+        testID="porcelain-git-header"
+        title="Git"
+      />
       {repoPath === null ? (
         <EmptyNote
           body="Pick a worktree from the list first."

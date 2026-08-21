@@ -1,5 +1,4 @@
 import { useIsFocused, useLocalSearchParams, useRouter } from 'expo-router'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { ReadAllView } from '@/features/diff/read-all-view'
 import { useCommitMessage } from '@/features/git'
@@ -14,7 +13,6 @@ import { useHistoryFocus } from '@/features/history/use-history'
 export default function HistoryCommitReadAllRoute(): React.JSX.Element {
   const { hash } = useLocalSearchParams<{ hash: string }>()
   const focused = useIsFocused()
-  const insets = useSafeAreaInsets()
   const router = useRouter()
   const message = useCommitMessage(hash, focused)
   useHistoryFocus({ hash, kind: 'all' })
@@ -28,7 +26,6 @@ export default function HistoryCommitReadAllRoute(): React.JSX.Element {
       commentTestIDPrefix="porcelain-history-comment"
       selectionTestIDPrefix="porcelain-history-selection"
       title={commitTitle(message, hash)}
-      topInset={Math.max(insets.top, 8)}
       onBack={() => {
         router.back()
       }}

@@ -1,16 +1,23 @@
 import type { TaskRow } from '@porcelain/client-runtime/tasks'
 import { TASK_STATUS_LABELS, taskMatchesQuery } from '@porcelain/client-runtime/tasks'
-import { Stack, useRouter } from 'expo-router'
+import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { Pressable, View } from 'react-native'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
-import { SegmentedControl } from '@/components/native/segmented-control'
-import { EmptyNote, ErrorNote, PanelLabel } from '@/components/panel-chrome'
+import { SegmentedControl } from '@/components/ui/segmented-control'
+import {
+  EmptyNote,
+  ErrorNote,
+  PanelLabel,
+  ScreenHeader,
+  SearchField,
+} from '@/components/panel-chrome'
 import {
   SURFACE_GUTTER,
   SURFACE_NOTE,
   SURFACE_ROW,
+  SURFACE_STACK_GAP,
   SURFACE_TOOLBAR,
 } from '@/components/surface-layout'
 import { SurfaceScroll } from '@/components/surface-scroll'
@@ -19,6 +26,7 @@ import { useHubInventories } from '@/features/projects'
 import { cn } from '@/lib/utils'
 
 import { formatWhen, projectNamesFrom } from './task-match'
+import { NewTaskHeaderAction } from './tasks-header-actions'
 import {
   DEFAULT_TASK_STATUS_SCOPE,
   groupRowsByStatus,
@@ -36,7 +44,7 @@ import { useTasks } from './tasks-queries'
  * actually carries are printed — there is no priority, no assignee and no due date on the wire,
  * so there is none on the card.
  *
- * Search is `UISearchController` / the Material search field, declared as a screen option. The
+ * Search is a `SearchField` in the toolbar band, the same place the web client puts it. The
  * filter it drives is `taskMatchesQuery`, the one implementation Web filters with too. The phone
  * adds the Environment label to what it searches, because this board lists every paired
  * Environment at once and the Viewer is already standing inside one.
@@ -58,17 +66,18 @@ export function TasksBoardScreen(): React.JSX.Element {
 
   return (
     <View className="flex-1 bg-background" testID="porcelain-tasks-screen">
-      <Stack.Screen
-        options={{
-          headerSearchBarOptions: {
-            placeholder: 'Filter by anything…',
-            onChangeText: (event) => {
-              setQuery(event.nativeEvent.text)
-            },
-          },
-        }}
+      <ScreenHeader
+        actions={<NewTaskHeaderAction />}
+        testID="porcelain-tasks-header"
+        title="Tasks"
       />
-      <View className={cn(SURFACE_TOOLBAR)}>
+      <View className={cn(SURFACE_TOOLBAR, SURFACE_STACK_GAP)}>
+        <SearchField
+          placeholder="Filter by anything…"
+          testID="porcelain-tasks-search"
+          value={query}
+          onChangeText={setQuery}
+        />
         <SegmentedControl
           options={taskStatusScopeOptions()}
           testID="porcelain-tasks-scope"
@@ -84,7 +93,7 @@ export function TasksBoardScreen(): React.JSX.Element {
           />
         </View>
       )}
-      <SurfaceScroll gap={4} largeTitle paddingTop={4}>
+      <SurfaceScroll gap={4} paddingTop={4}>
         {error === null && isLoaded && rows.length === 0 ? (
           <EmptyNote
             body="Tasks are daemon-wide. Add one with the plus, or file it from the desktop — it shows up here."

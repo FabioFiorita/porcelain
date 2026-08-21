@@ -1,6 +1,6 @@
 import { useLocalSearchParams } from 'expo-router'
 
-import { ClearBottomChrome } from '@/features/shell/bottom-chrome'
+import { PresentedChrome } from '@/features/shell/window-chrome'
 import { TaskDetailSheet } from '@/features/tasks'
 
 /**
@@ -11,8 +11,8 @@ import { TaskDetailSheet } from '@/features/tasks'
 export default function TaskDetailRoute(): React.JSX.Element {
   const { environment, id } = useLocalSearchParams<{ environment?: string; id: string }>()
   return (
-    <ClearBottomChrome>
+    <PresentedChrome>
       <TaskDetailSheet environmentId={environment ?? ''} taskId={id} />
-    </ClearBottomChrome>
+    </PresentedChrome>
   )
 }

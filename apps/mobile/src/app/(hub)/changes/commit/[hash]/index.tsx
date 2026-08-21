@@ -1,5 +1,4 @@
 import { useIsFocused, useLocalSearchParams, useRouter } from 'expo-router'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { CommitView } from '@/features/history/commit-view'
 import { useHistoryFocus } from '@/features/history/use-history'
@@ -14,7 +13,6 @@ import { useHistoryFocus } from '@/features/history/use-history'
 export default function HistoryCommitRoute(): React.JSX.Element {
   const { hash } = useLocalSearchParams<{ hash: string }>()
   const focused = useIsFocused()
-  const insets = useSafeAreaInsets()
   const router = useRouter()
   useHistoryFocus({ hash, kind: 'commit' })
 
@@ -22,7 +20,6 @@ export default function HistoryCommitRoute(): React.JSX.Element {
     <CommitView
       active={focused}
       hash={hash}
-      topInset={Math.max(insets.top, 8)}
       onBack={() => {
         router.back()
       }}

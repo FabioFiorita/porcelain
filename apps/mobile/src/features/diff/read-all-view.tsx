@@ -25,7 +25,7 @@ import {
 } from '@/features/comments'
 import { type DiffReadingScope, useDiffReading } from '@/features/git'
 import { usePreferencesStore } from '@/features/settings/preferences-store'
-import { useBottomChrome } from '@/features/shell/bottom-chrome'
+import { useBottomChrome } from '@/features/shell/window-chrome'
 import { cn } from '@/lib/utils'
 import { DiffRowView } from './diff-lines'
 import { anchorTextFor } from './diff-rows'
@@ -56,7 +56,6 @@ export function ReadAllView({
   commentTestIDPrefix = 'porcelain-changes-comment',
   selectionTestIDPrefix = 'porcelain-changes-selection',
   title,
-  topInset = 0,
 }: {
   active: boolean
   /** Second header line — which set this is, before the file count. */
@@ -73,7 +72,6 @@ export function ReadAllView({
   selectionTestIDPrefix?: string
   title: string
   /** Phone: this view replaces the tab header, so it owns the status-bar inset. */
-  topInset?: number
 }): React.JSX.Element {
   const bottomInset = useBottomChrome()
   const { error, isLoading, reading } = useDiffReading(scope, active)
@@ -141,7 +139,6 @@ export function ReadAllView({
         }
         subtitle={`${context} · ${fileCount} ${fileCount === 1 ? 'file' : 'files'}`}
         title={title}
-        topInset={topInset}
       />
 
       {error !== null ? (

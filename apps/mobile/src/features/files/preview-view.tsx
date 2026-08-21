@@ -2,7 +2,7 @@ import { Alert, Linking } from 'react-native'
 import { WebView } from 'react-native-webview'
 
 import { openPreviewExternalLink } from '@/features/files/preview-open-link'
-import { useBottomChrome } from '@/features/shell/bottom-chrome'
+import { useBottomChrome } from '@/features/shell/window-chrome'
 
 /**
  * The one place this client renders someone else's document.

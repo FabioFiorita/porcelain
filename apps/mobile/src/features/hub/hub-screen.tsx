@@ -1,10 +1,9 @@
 import { type HubProjectGroup, groupEquivalentProjects } from '@porcelain/client-runtime/projects'
-import { Stack } from 'expo-router'
 import { useMemo, useState } from 'react'
 import { Pressable, View } from 'react-native'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
-import { EmptyNote } from '@/components/panel-chrome'
+import { EmptyNote, ScreenHeader } from '@/components/panel-chrome'
 import { SURFACE_GUTTER } from '@/components/surface-layout'
 import { SurfaceScroll } from '@/components/surface-scroll'
 import { Text } from '@/components/ui/text'
@@ -42,10 +41,12 @@ export function HubScreen(): React.JSX.Element {
 
   return (
     <View className="flex-1 bg-background" testID="porcelain-hub-screen">
-      {/* The list's title and large-title behaviour are the stack's (`(hub)/_layout.tsx`);
-          only the action belongs to this screen, so only the action is declared here. */}
-      <Stack.Screen options={{ headerRight: () => <NewWorktreeHeaderAction /> }} />
-      <SurfaceScroll gap={4} largeTitle paddingTop={8}>
+      <ScreenHeader
+        actions={<NewWorktreeHeaderAction />}
+        testID="porcelain-hub-header"
+        title="Worktrees"
+      />
+      <SurfaceScroll gap={4} paddingTop={8}>
         {groups.length === 0 ? (
           <EmptyNote
             body="Pair an environment under Settings, then open a project on that daemon."

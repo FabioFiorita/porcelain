@@ -4,6 +4,8 @@ import { Alert, Pressable, Text, View } from 'react-native'
 import { ChromeGlyph, type ChromeIconName, type IconTone } from '@/components/chrome-glyph'
 import { NativeSheet } from '@/components/native/native-sheet'
 import { SURFACE_GUTTER } from '@/components/surface-layout'
+import { Input } from '@/components/ui/input'
+import { useTopChrome } from '@/features/shell/window-chrome'
 import { cn } from '@/lib/utils'
 
 /**
@@ -70,12 +72,19 @@ export function IconAction({
 }
 
 /**
- * The bar at the top of a pushed screen: back, what you are looking at, and its actions.
+ * The bar at the top of EVERY screen: back, what you are looking at, and its actions.
  *
  * One component because there were five hand-rolled copies of it — the file viewer, the diff,
  * a commit, the continuous read, and a terminal session — and they had drifted onto their own
  * 8pt gutter while every surface behind them moved to 16pt. Backing out of a file therefore
  * shifted the whole screen sideways.
+ *
+ * It is now the app's only header. The tab roots and the pushed surfaces wore
+ * `UINavigationBar` — large titles, system back chevron, a scroll edge effect — and that bar
+ * cannot be themed: it draws the system's type, its blur and its tint over a product whose
+ * every other pixel comes from `@porcelain/ui` tokens. The web client's header is a 48pt band
+ * with a hairline under it, a small semibold title and a cluster of quiet glyph buttons, and
+ * that is what this draws, on phone and in every tablet column.
  *
  * The icon clusters hang half a button outside the gutter: a 36pt box around a 17pt glyph puts
  * the mark 9pt inside its own edge, and it is the mark the eye lines up.
@@ -88,7 +97,7 @@ export function ScreenHeader({
   /** Head-truncate the subtitle — the tail of a path is what identifies it. */
   subtitleFromEnd = false,
   title,
-  topInset,
+  testID,
 }: {
   actions?: React.ReactNode
   back?: { accessibilityLabel: string; testID: string; onPress: () => void }
@@ -96,14 +105,18 @@ export function ScreenHeader({
   subtitle?: string
   subtitleFromEnd?: boolean
   title: string
-  /** Status-bar inset when this bar replaces the tab header; 0 inside a column. */
-  topInset: number
+  testID?: string
 }): React.JSX.Element {
+  // Read, never passed: the shell knows whether this screen is at the top of the window, and
+  // threading the number was how the old bars ended up disagreeing with each other.
+  const topInset = useTopChrome()
+
   return (
     <View
       className={cn(SURFACE_GUTTER, 'flex-row items-center gap-1 border-b border-border py-1.5')}
       /* nativewind-allow-style: the bar clears the live status-bar inset. */
       style={{ paddingTop: topInset + 6 }}
+      testID={testID}
     >
       {back === undefined ? null : (
         <View className="-ml-2">
@@ -118,7 +131,10 @@ export function ScreenHeader({
       )}
       <View className="min-w-0 flex-1">
         <Text
-          className={cn('text-xs font-semibold text-foreground', mono && 'font-mono font-medium')}
+          className={cn(
+            'text-sm font-semibold text-foreground',
+            mono && 'font-mono text-xs font-medium',
+          )}
           numberOfLines={1}
         >
           {title}
@@ -136,6 +152,44 @@ export function ScreenHeader({
       {actions === undefined ? null : (
         <View className="-mr-2 flex-row items-center">{actions}</View>
       )}
+    </View>
+  )
+}
+
+/**
+ * A filter field in a surface's toolbar band.
+ *
+ * The boards used to declare `headerSearchBarOptions` and get `UISearchController` — a system
+ * field that appears under a large title, in the system's type, with the system's cancel button
+ * and its own show/hide-on-scroll behaviour that nothing in this app could match. The web client
+ * puts a bordered field with a leading glyph in the panel itself, and so does this.
+ */
+export function SearchField({
+  onChangeText,
+  placeholder,
+  testID,
+  value,
+}: {
+  onChangeText: (value: string) => void
+  placeholder: string
+  testID: string
+  value: string
+}): React.JSX.Element {
+  return (
+    <View className="relative justify-center">
+      <View className="absolute left-3 z-10" pointerEvents="none">
+        <ChromeGlyph name="search" size={14} tone="muted" />
+      </View>
+      <Input
+        autoCapitalize="none"
+        autoCorrect={false}
+        className="h-9 pl-8 text-sm"
+        clearButtonMode="while-editing"
+        placeholder={placeholder}
+        testID={testID}
+        value={value}
+        onChangeText={onChangeText}
+      />
     </View>
   )
 }

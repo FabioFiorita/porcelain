@@ -1,9 +1,9 @@
 import type { CanvasRecord } from '@porcelain/contracts/projects'
-import { Stack, useIsFocused, useRouter } from 'expo-router'
+import { useIsFocused, useRouter } from 'expo-router'
 import { Pressable, Text, View } from 'react-native'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
-import { EmptyNote, ErrorNote, PanelLabel } from '@/components/panel-chrome'
+import { EmptyNote, ErrorNote, PanelLabel, ScreenHeader } from '@/components/panel-chrome'
 import { SURFACE_GUTTER, SURFACE_ROW } from '@/components/surface-layout'
 import { SurfaceScroll } from '@/components/surface-scroll'
 import { describeCommentCounts, useReviewComments } from '@/features/comments'
@@ -30,7 +30,17 @@ export function CanvasListScreen(): React.JSX.Element {
 
   return (
     <View className="flex-1 bg-background" testID="porcelain-canvas-screen">
-      <Stack.Screen options={{ title: 'Canvas' }} />
+      <ScreenHeader
+        back={{
+          accessibilityLabel: 'Back',
+          testID: 'porcelain-canvas-back',
+          onPress: () => {
+            router.back()
+          },
+        }}
+        testID="porcelain-canvas-header"
+        title="Canvas"
+      />
       {repoPath === null ? (
         <EmptyNote
           body="Pick a worktree from the list first — a Canvas belongs to the checkout you open it from."

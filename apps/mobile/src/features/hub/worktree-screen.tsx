@@ -1,9 +1,8 @@
 import { type Href, useRouter } from 'expo-router'
-import { Stack } from 'expo-router/stack'
 import { Pressable, View } from 'react-native'
 
 import { ChromeGlyph, type ChromeIconName } from '@/components/chrome-glyph'
-import { EmptyNote } from '@/components/panel-chrome'
+import { EmptyNote, ScreenHeader } from '@/components/panel-chrome'
 import { SURFACE_GUTTER, SURFACE_ROW } from '@/components/surface-layout'
 import { SurfaceScroll } from '@/components/surface-scroll'
 import { Text } from '@/components/ui/text'
@@ -86,11 +85,17 @@ export function WorktreeScreen(): React.JSX.Element {
       {/* The title is the checkout you are in, so the screen sets it rather than the layout.
           No companion bolt: a Worktree is a list of surfaces and the companion belongs to a
           surface. */}
-      <Stack.Screen
-        options={{
-          headerRight: () => <HeaderActions />,
-          title: repoPath === null ? 'Worktree' : projectNameOf(repoPath),
+      <ScreenHeader
+        actions={<HeaderActions />}
+        back={{
+          accessibilityLabel: 'Back to Worktrees',
+          testID: 'porcelain-worktree-back',
+          onPress: () => {
+            router.back()
+          },
         }}
+        testID="porcelain-worktree-header"
+        title={repoPath === null ? 'Worktree' : projectNameOf(repoPath)}
       />
       {repoPath === null ? (
         <EmptyNote

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { SectionList, Text, View } from 'react-native'
 import { EmptyNote, ErrorNote, IconAction, PanelLabel } from '@/components/panel-chrome'
-import { SegmentedControl } from '@/components/native/segmented-control'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import {
   SURFACE_GUTTER,
   SURFACE_STACK_GAP,
@@ -9,7 +9,7 @@ import {
   surfaceContentStyle,
 } from '@/components/surface-layout'
 import { type FlowFile, useDiscardFile, useFileStaging } from '@/features/git'
-import { useBottomChrome } from '@/features/shell/bottom-chrome'
+import { useBottomChrome } from '@/features/shell/window-chrome'
 import { cn } from '@/lib/utils'
 import { type ChangesScope, useChangesStore } from './changes-store'
 import { summarizeChanges } from './changes-summary'

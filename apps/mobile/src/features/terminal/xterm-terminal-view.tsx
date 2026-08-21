@@ -9,7 +9,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import { ErrorNote } from '@/components/surface-chrome'
 import { usePreferencesStore } from '@/features/settings/preferences-store'
 import { useResolvedColorScheme } from '@/features/settings/theme-provider'
-import { useBottomChrome } from '@/features/shell/bottom-chrome'
+import { useBottomChrome } from '@/features/shell/window-chrome'
 import { readViewport, type TerminalRun } from './terminal-cells'
 import { TerminalCommandComposer } from './terminal-command-composer'
 import {

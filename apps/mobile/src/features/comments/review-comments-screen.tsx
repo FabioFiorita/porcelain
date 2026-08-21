@@ -1,10 +1,16 @@
 import type { ReviewComment } from '@porcelain/contracts/review'
 import { runUserAction } from '@porcelain/shared/background'
-import { Stack, useIsFocused } from 'expo-router'
+import { useIsFocused, useRouter } from 'expo-router'
 import { useState } from 'react'
 import { Alert, Pressable, Text, View } from 'react-native'
 
-import { ConfirmDialog, EmptyNote, IconAction, PanelLabel } from '@/components/panel-chrome'
+import {
+  ConfirmDialog,
+  EmptyNote,
+  IconAction,
+  PanelLabel,
+  ScreenHeader,
+} from '@/components/panel-chrome'
 import { PANEL_CARD } from '@/components/surface-layout'
 import { SurfaceScroll } from '@/components/surface-scroll'
 import { useHubRepoPath } from '@/features/projects'
@@ -30,6 +36,7 @@ import {
  * and a line range, and the surface that knows those is Files, not this one.
  */
 export function ReviewCommentsScreen(): React.JSX.Element {
+  const router = useRouter()
   const focused = useIsFocused()
   const repoPath = useHubRepoPath()
   const comments = useReviewComments(focused)
@@ -45,23 +52,30 @@ export function ReviewCommentsScreen(): React.JSX.Element {
 
   return (
     <View className="flex-1 bg-background" testID="porcelain-review-comments">
-      <Stack.Screen
-        options={{
+      <ScreenHeader
+        actions={
           // Hygiene only, and only when there is something to clear — a header button that
           // opens a menu of disabled items is worse than no button.
-          headerRight: () =>
-            counts.resolved === 0 ? null : (
-              <IconAction
-                accessibilityLabel="Clear resolved comments"
-                glyph="eraser"
-                testID="porcelain-review-comments-clear-resolved"
-                onPress={() => {
-                  setConfirmClear(true)
-                }}
-              />
-            ),
-          title: 'Review comments',
+          counts.resolved === 0 ? undefined : (
+            <IconAction
+              accessibilityLabel="Clear resolved comments"
+              glyph="eraser"
+              testID="porcelain-review-comments-clear-resolved"
+              onPress={() => {
+                setConfirmClear(true)
+              }}
+            />
+          )
+        }
+        back={{
+          accessibilityLabel: 'Back',
+          testID: 'porcelain-review-comments-back',
+          onPress: () => {
+            router.back()
+          },
         }}
+        testID="porcelain-review-comments-header"
+        title="Review comments"
       />
       {repoPath === null ? (
         <EmptyNote

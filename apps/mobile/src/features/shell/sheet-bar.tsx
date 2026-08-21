@@ -1,22 +1,20 @@
-import { Platform, Pressable, View } from 'react-native'
+import { Pressable, View } from 'react-native'
 
 import { Text } from '@/components/ui/text'
 import { cn } from '@/lib/utils'
 
 /**
- * A presented sheet's own title and primary action, for the platform that draws neither.
+ * A presented sheet's own title and primary action.
  *
- * `formSheet` is `UISheetPresentationController` on iOS, and the native stack draws its bar
- * inside the sheet — the title and `headerRight` land where you expect them. On Android the same
- * presentation is a Material bottom sheet with NO app bar: `react-native-screens` renders no
- * header for it, `headerShown: true` does not bring one back, and every `headerRight` a sheet
- * declares is silently dropped. Observed on an emulator, where New Task and New Worktree both
- * presented as forms you could fill in and had no way to submit.
+ * This used to be Android-only, and the asymmetry was the tell. `formSheet` is
+ * `UISheetPresentationController` on iOS, where the native stack draws a `UINavigationBar`
+ * inside the sheet and a `headerRight` lands on it; the same presentation on Android is a
+ * Material bottom sheet with NO app bar, so `react-native-screens` drew nothing and every
+ * `headerRight` was silently dropped — New Task presented as a form you could fill in and had
+ * no way to submit. One sheet therefore wore the system's bar and the other wore ours.
  *
- * So this is Android-only by construction. It is not a second design — it is the same title and
- * the same action, drawn by the sheet because nothing else will draw them. If a future
- * `react-native-screens` gives the Android sheet a real header, deleting the `Platform` guard is
- * the whole change.
+ * Now neither does. The sheet draws its own bar on both platforms, in the same 48pt band with
+ * the same hairline as `ScreenHeader`, so a sheet reads as part of the app that opened it.
  */
 export function SheetBar({
   action,
@@ -25,18 +23,18 @@ export function SheetBar({
   /** The sheet's primary action — the same element the screen gives `headerRight` for iOS. */
   action?: React.ReactNode
   title: string
-}): React.JSX.Element | null {
-  if (Platform.OS !== 'android') return null
-
+}): React.JSX.Element {
   return (
     <View
-      className="min-h-14 flex-row items-center justify-between border-b border-border px-4"
+      // No status-bar inset: a sheet is inset from the top of the window and the grabber sits
+      // above this band. `ScreenHeader`'s geometry otherwise, so the two read as one bar.
+      className="min-h-12 flex-row items-center gap-1 border-b border-border px-4 py-1.5"
       testID="porcelain-sheet-bar"
     >
-      <Text className="text-lg font-semibold text-foreground" numberOfLines={1}>
+      <Text className="min-w-0 flex-1 text-sm font-semibold text-foreground" numberOfLines={1}>
         {title}
       </Text>
-      {action ?? null}
+      {action === undefined ? null : <View className="-mr-2 flex-row items-center">{action}</View>}
     </View>
   )
 }

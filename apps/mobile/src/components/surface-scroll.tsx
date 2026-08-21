@@ -1,13 +1,7 @@
-import {
-  FlatList,
-  type FlatListProps,
-  Platform,
-  ScrollView,
-  type ScrollViewProps,
-} from 'react-native'
+import { FlatList, type FlatListProps, ScrollView, type ScrollViewProps } from 'react-native'
 
 import { type SurfaceContentOptions, surfaceContentStyle } from '@/components/surface-layout'
-import { useBottomChrome } from '@/features/shell/bottom-chrome'
+import { useBottomChrome } from '@/features/shell/window-chrome'
 import { cn } from '@/lib/utils'
 
 /**
@@ -24,7 +18,7 @@ import { cn } from '@/lib/utils'
  *      interpolated into an HTML string served to a WebView. These read the shell directly, so
  *      no caller passes a number and no layer can drop one.
  *
- *   2. **The same number was wrong on iPad.** See `features/shell/bottom-chrome` — the inset is
+ *   2. **The same number was wrong on iPad.** See `features/shell/window-chrome` — the inset is
  *      a property of the shell, and asking the shell is what makes one component correct in a
  *      phone tab and an iPad column at once.
  *
@@ -34,39 +28,21 @@ import { cn } from '@/lib/utils'
  *      with no warning and source that still read correctly. Here there is one prop, built
  *      once, so the pair cannot occur.
  *
- * `contentInsetAdjustmentBehavior="never"` is deliberate: iOS applies its own automatic inset
- * to a scroll view it recognises as a screen's primary one, and an automatic inset stacked on
- * the reserved one is the double padding this was supposed to remove. One mechanism, ours.
+ * `contentInsetAdjustmentBehavior="never"` is deliberate, and it is now unconditional: iOS
+ * applies its own automatic inset to a scroll view it recognises as a screen's primary one, and
+ * an automatic inset stacked on the reserved one is the double padding this was supposed to
+ * remove. One mechanism, ours.
  *
- * `largeTitle` is the one screen class that has to hand the mechanism back. An iOS large title
- * collapses by watching the offset of the scroll view UIKit has adjusted, so under
- * `headerLargeTitle` the bar simply never collapses and the first rows sit behind it. Those
- * screens switch to `automatic` AND stop reserving the bottom inset themselves, because
- * `automatic` already applies the safe area — which, inside a `UITabBarController` child,
- * already contains the tab bar (see `bottom-chrome`). Adding ours on top is the same double
- * padding from the other end. Android has neither a large title nor this property, so it keeps
- * reserving the bar by hand.
+ * There used to be a `largeTitle` escape hatch that handed the mechanism back to UIKit, because
+ * an iOS large title collapses by watching the offset of a scroll view UIKit has adjusted, and
+ * ours was not one. No screen wears a native bar any more — every header is `ScreenHeader`,
+ * drawn above the scroll view rather than over it — so there is nothing left to hand back.
  *
  * A surface that genuinely cannot use these — a native host with its own scroll view, a
  * horizontally scrolling strip — is not a bottom-edge surface and does not need them.
  */
 
-type SurfacePadding = Pick<SurfaceContentOptions, 'edgeToEdge' | 'gap' | 'paddingTop'> & {
-  /** This is the primary scroll view of a screen whose native header has `headerLargeTitle`. */
-  largeTitle?: boolean
-}
-
-/**
- * Who owns the safe-area insets on this scroll view: UIKit under a large title, us everywhere
- * else. Returns the bottom inset to reserve by hand and the property to hand UIKit.
- */
-function insetOwnership(
-  largeTitle: boolean,
-  bottomInset: number,
-): { adjust: 'automatic' | 'never'; reserve: number } {
-  if (largeTitle && Platform.OS === 'ios') return { adjust: 'automatic', reserve: 0 }
-  return { adjust: 'never', reserve: bottomInset }
-}
+type SurfacePadding = Pick<SurfaceContentOptions, 'edgeToEdge' | 'gap' | 'paddingTop'>
 
 /** The vertical scroll container for a surface: a stack of rows, cards, or prose. */
 export function SurfaceScroll({
@@ -74,24 +50,22 @@ export function SurfaceScroll({
   className,
   edgeToEdge,
   gap,
-  largeTitle = false,
   paddingTop,
   ...rest
 }: SurfacePadding &
   Omit<ScrollViewProps, 'contentContainerStyle' | 'contentContainerClassName'> & {
     children: React.ReactNode
   }): React.JSX.Element {
-  const { adjust, reserve } = insetOwnership(largeTitle, useBottomChrome())
   return (
     <ScrollView
       className={cn('flex-1', className)}
       contentContainerStyle={surfaceContentStyle({
-        bottomInset: reserve,
+        bottomInset: useBottomChrome(),
         edgeToEdge,
         gap,
         paddingTop,
       })}
-      contentInsetAdjustmentBehavior={adjust}
+      contentInsetAdjustmentBehavior="never"
       {...rest}
     >
       {children}
@@ -109,7 +83,6 @@ export function SurfaceList<ItemT>({
   className,
   edgeToEdge,
   gap,
-  largeTitle = false,
   paddingTop,
   ...rest
 }: SurfacePadding &
@@ -118,17 +91,16 @@ export function SurfaceList<ItemT>({
      * the type to say so — see the note above. */
     ref?: React.Ref<FlatList<ItemT>>
   }): React.JSX.Element {
-  const { adjust, reserve } = insetOwnership(largeTitle, useBottomChrome())
   return (
     <FlatList<ItemT>
       className={cn('flex-1', className)}
       contentContainerStyle={surfaceContentStyle({
-        bottomInset: reserve,
+        bottomInset: useBottomChrome(),
         edgeToEdge,
         gap,
         paddingTop,
       })}
-      contentInsetAdjustmentBehavior={adjust}
+      contentInsetAdjustmentBehavior="never"
       {...rest}
     />
   )

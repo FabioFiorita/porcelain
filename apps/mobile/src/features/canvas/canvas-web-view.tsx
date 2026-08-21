@@ -2,7 +2,7 @@ import { Alert, Linking } from 'react-native'
 import { WebView } from 'react-native-webview'
 
 import { openPreviewExternalLink } from '@/features/files'
-import { useBottomChrome } from '@/features/shell/bottom-chrome'
+import { useBottomChrome } from '@/features/shell/window-chrome'
 
 import { CANVAS_LINK_BRIDGE, canvasLinkHref, canvasNavigationAllowed } from './canvas-document'
 

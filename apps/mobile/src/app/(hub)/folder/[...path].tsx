@@ -1,6 +1,5 @@
 import { useIsFocused, useLocalSearchParams, useRouter } from 'expo-router'
 import { View } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { FilesBrowser, pathFromSegments, pathSegments } from '@/features/files'
 
@@ -13,7 +12,6 @@ import { FilesBrowser, pathFromSegments, pathSegments } from '@/features/files'
 export default function FilesFolderRoute(): React.JSX.Element {
   const { path } = useLocalSearchParams<{ path: string[] }>()
   const focused = useIsFocused()
-  const insets = useSafeAreaInsets()
   const router = useRouter()
   const dirPath = pathFromSegments(path)
 
@@ -22,7 +20,6 @@ export default function FilesFolderRoute(): React.JSX.Element {
       <FilesBrowser
         active={focused}
         dirPath={dirPath}
-        topInset={Math.max(insets.top, 8)}
         onBack={() => {
           router.back()
         }}

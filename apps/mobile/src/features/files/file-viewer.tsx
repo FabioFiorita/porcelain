@@ -1,11 +1,11 @@
 import { View } from 'react-native'
 
 import { ErrorNote } from '@/components/panel-chrome'
-import { SegmentedControl } from '@/components/native/segmented-control'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import { CommentComposer, SelectionBar } from '@/features/comments'
 import type { HtmlMode, MarkdownMode } from '@/features/settings/preferences-store'
 import { useResolvedColorScheme } from '@/features/settings/theme-provider'
-import { useBottomChrome } from '@/features/shell/bottom-chrome'
+import { useBottomChrome } from '@/features/shell/window-chrome'
 
 import { FileViewerBody, HtmlPreviewBody } from './file-viewer-body'
 import { FileViewerHeader } from './file-viewer-header'
@@ -34,7 +34,6 @@ export function FileViewer({
   filePath,
   line,
   onBack,
-  topInset = 0,
 }: {
   active: boolean
   /** Repo-relative. */
@@ -44,7 +43,6 @@ export function FileViewer({
   /** Phone: pop back to the browser. Omitted on tablet, where the list is always on screen. */
   onBack?: () => void
   /** Phone: this view replaces the tab header, so it owns the status-bar inset. */
-  topInset?: number
 }): React.JSX.Element {
   const bottomInset = useBottomChrome()
   const scheme = useResolvedColorScheme()
@@ -60,7 +58,6 @@ export function FileViewer({
         onComment={viewer.comment}
         onTogglePinned={viewer.togglePinned}
         selectedRange={viewer.anchorable}
-        topInset={topInset}
       />
 
       {viewer.actionError === null ? null : (

@@ -11,13 +11,11 @@ export function ChangesReadAllView({
   base,
   onBack,
   scope,
-  topInset = 0,
 }: {
   active: boolean
   base: string | undefined
   onBack?: () => void
   scope: ChangesScope
-  topInset?: number
 }): React.JSX.Element {
   return (
     <ReadAllView
@@ -26,7 +24,6 @@ export function ChangesReadAllView({
       scope={readingScopeFor(scope)}
       testID="porcelain-changes-read-all"
       title="All changes"
-      topInset={topInset}
       onBack={onBack}
     />
   )

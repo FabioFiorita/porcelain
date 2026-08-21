@@ -3,7 +3,7 @@ import type { ChannelDispositionValue } from '@porcelain/contracts/project-data'
 import { View } from 'react-native'
 
 import { EmptyNote, ErrorNote, PanelLabel } from '@/components/panel-chrome'
-import { SegmentedControl } from '@/components/native/segmented-control'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import { PANEL_CARD } from '@/components/surface-layout'
 import { Button } from '@/components/ui/button'
 import { Text } from '@/components/ui/text'
