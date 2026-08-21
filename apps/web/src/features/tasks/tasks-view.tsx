@@ -1,8 +1,11 @@
 import type { TaskRow } from '@porcelain/client-runtime/tasks'
 import {
   availableTaskColumns,
+  OPEN_TASK_STATUSES,
   TASK_COLUMN_LABELS,
   TASK_REQUIRED_COLUMN_IDS,
+  TASK_STATUS_LABELS,
+  taskMatchesQuery,
 } from '@porcelain/client-runtime/tasks'
 import { TASK_STATUSES, type TaskStatus } from '@porcelain/contracts/tasks'
 import {
@@ -41,41 +44,30 @@ import { ChevronDown, Columns3 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { TaskDetailSheet } from './task-detail-sheet'
 import { TaskImageLightbox } from './task-image-lightbox'
-import { taskMatchesQuery } from './task-match'
 import { useTaskImagePreviews } from './task-previews'
 import { useTaskColumnsStore, visibleTaskColumns } from './tasks-columns-store'
 import { useTaskActions } from './tasks-mutations'
 import { useTasks } from './tasks-queries'
 import { TasksTable } from './tasks-table'
 
-const STATUS_LABELS: Readonly<Record<TaskStatus, string>> = {
-  todo: 'To do',
-  doing: 'Doing',
-  done: 'Done',
-  blocked: 'Blocked',
-}
-
 /**
- * Done Tasks are hidden until asked for. A finished Task is noise on a board about what is
- * left to do, and the human keeps them only long enough to delete them. This is the initial
- * filter, not a stored preference: "hidden by default" has to hold on every load, so showing
- * Done is deliberately a per-session choice rather than something a `localStorage` entry can
- * carry into tomorrow.
+ * What the status trigger says, naming the excluded status when only one is missing.
+ *
+ * The set the filter opens on — Done hidden until asked for — is `OPEN_TASK_STATUSES`, shared
+ * with the mobile board so the two cannot disagree about it. It is the initial filter and not a
+ * stored preference: "hidden by default" has to hold on every load, so showing Done is
+ * deliberately a per-session choice rather than something a `localStorage` entry can carry into
+ * tomorrow.
  */
-const DEFAULT_STATUS_FILTER: readonly TaskStatus[] = TASK_STATUSES.filter(
-  (status) => status !== 'done',
-)
-
-/** What the status trigger says, naming the excluded status when only one is missing. */
 function statusFilterLabel(selected: readonly TaskStatus[]): string {
   if (selected.length === 0) return 'No statuses'
   if (selected.length === TASK_STATUSES.length) return 'All statuses'
   if (selected.length === TASK_STATUSES.length - 1) {
     const missing = TASK_STATUSES.find((status) => !selected.includes(status))
-    return missing === undefined ? 'All statuses' : `All but ${STATUS_LABELS[missing]}`
+    return missing === undefined ? 'All statuses' : `All but ${TASK_STATUS_LABELS[missing]}`
   }
   return TASK_STATUSES.filter((status) => selected.includes(status))
-    .map((status) => STATUS_LABELS[status])
+    .map((status) => TASK_STATUS_LABELS[status])
     .join(', ')
 }
 
@@ -92,7 +84,7 @@ export function TasksView(): React.JSX.Element {
   const toggle = useTaskColumnsStore((s) => s.toggle)
   const actions = useTaskActions()
   const [query, setQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState<readonly TaskStatus[]>(DEFAULT_STATUS_FILTER)
+  const [statusFilter, setStatusFilter] = useState<readonly TaskStatus[]>(OPEN_TASK_STATUSES)
   const [projectFilter, setProjectFilter] = useState('all')
   const [openId, setOpenId] = useState<string | null>(null)
   const [pendingDelete, setPendingDelete] = useState<TaskRow | null>(null)
@@ -203,7 +195,7 @@ export function TasksView(): React.JSX.Element {
                   checked={statusFilter.includes(status)}
                   onCheckedChange={() => toggleStatusFilter(status)}
                 >
-                  {STATUS_LABELS[status]}
+                  {TASK_STATUS_LABELS[status]}
                 </DropdownMenuCheckboxItem>
               ))}
             </DropdownMenuGroup>

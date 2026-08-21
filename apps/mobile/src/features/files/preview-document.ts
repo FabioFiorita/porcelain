@@ -1,5 +1,7 @@
 import MarkdownIt from 'markdown-it'
 
+import { themeVarsFor } from '@/features/settings/theme-vars'
+
 /**
  * Markdown → HTML, GFM-ish and safe by construction.
  *
@@ -15,28 +17,28 @@ export function markdownToHtml(source: string): string {
 }
 
 /**
- * Colours the preview paints with. The WebView cannot see NativeWind classes, so the semantic
- * tokens are mirrored here as hex — the same compromise `chrome-glyph` makes for SF Symbols.
- * Keep in step with `@porcelain/ui/tokens.css`.
+ * Colours the preview paints. The WebView cannot see NativeWind classes, so the semantic
+ * tokens are read from the same maps the CSS variables come from (`@porcelain/ui` tokens.css).
  */
-const THEME = {
-  light: {
-    background: '#FFFFFF',
-    border: '#E4E7EB',
-    code: '#F3F4F6',
-    foreground: '#171A1C',
-    link: '#0A84FF',
-    muted: '#687076',
-  },
-  dark: {
-    background: '#090B0C',
-    border: '#23272B',
-    code: '#16191C',
-    foreground: '#F5F7FA',
-    link: '#0A84FF',
-    muted: '#A7B0BB',
-  },
-} as const
+function themeFor(scheme: 'light' | 'dark'): {
+  background: string
+  border: string
+  code: string
+  foreground: string
+  link: string
+  muted: string
+} {
+  const vars = themeVarsFor(scheme)
+  return {
+    background: vars.background ?? '#FFFFFF',
+    border: vars.border ?? '#E5E5E5',
+    code: vars.muted ?? '#F5F5F5',
+    foreground: vars.foreground ?? '#0A0A0A',
+    // `primary` is now near-black/near-white, which reads as body text; links use `info`.
+    link: vars.info ?? '#0084D1',
+    muted: vars['muted-foreground'] ?? '#737373',
+  }
+}
 
 /**
  * Everything the preview is allowed to do, declared in the document itself.
@@ -50,7 +52,7 @@ const CSP =
   "default-src 'none'; img-src data:; media-src data:; style-src 'unsafe-inline'; font-src data:; base-uri 'none'; form-action 'none'"
 
 function styles(scheme: 'light' | 'dark'): string {
-  const t = THEME[scheme]
+  const t = themeFor(scheme)
   return `
     :root { color-scheme: ${scheme}; }
     html { -webkit-text-size-adjust: 100%; }

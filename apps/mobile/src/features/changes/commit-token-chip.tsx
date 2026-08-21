@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { Pressable, Text } from 'react-native'
+import { Pressable, ScrollView, Text, View } from 'react-native'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
-import { ShellModal, ShellModalScroll, useShellModalSize } from '@/components/shell-modal'
+import { NativeSheet } from '@/components/native/native-sheet'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
@@ -18,23 +18,28 @@ import { type TokenKind, tokenChipLabel, tokenOptionLabel, tokenPicker } from '.
  *
  * The value is DERIVED from the message text, so editing the message by hand keeps the chips in
  * sync; choosing one rewrites only the leading prefix.
+ *
+ * `testIDPrefix` is required rather than defaulted: the chip is shared, so a default would let
+ * whichever surface forgot to pass one publish another surface's ids.
  */
 export function CommitTokenChip({
   disabled,
   kind,
   onChange,
   options,
+  testIDPrefix,
   value,
 }: {
   disabled: boolean
   kind: TokenKind
   onChange: (value: string | null) => void
   options: readonly string[]
+  /** The owning card's commit id stem, e.g. `porcelain-git-commit`. */
+  testIDPrefix: string
   value: string | null
 }): React.JSX.Element {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
-  const { maxHeight, width } = useShellModalSize()
   const picker = tokenPicker(options, query)
 
   const choose = (next: string | null): void => {
@@ -54,7 +59,7 @@ export function CommitTokenChip({
           disabled && 'opacity-50',
         )}
         disabled={disabled}
-        testID={`porcelain-changes-commit-${kind}`}
+        testID={`${testIDPrefix}-${kind}`}
         onPress={() => {
           setOpen(true)
         }}
@@ -71,30 +76,42 @@ export function CommitTokenChip({
         <ChromeGlyph name="chevron" size={11} />
       </Pressable>
 
-      <ShellModal
+      {/* The list is as long as the repository's history of scopes, so the sheet is given a
+          rest height rather than measuring content it would have to scroll anyway. */}
+      <NativeSheet
+        description="Values this repository already uses — or add a new one."
         open={open}
+        snapPoints={['60%']}
         title={kind === 'type' ? 'Commit type' : 'Commit scope'}
-        description={`Values this repository already uses — or add a new one.`}
-        contentStyle={{ maxHeight, width }}
         onClose={() => {
           setOpen(false)
           setQuery('')
         }}
       >
-        <Input
-          accessibilityLabel={`Filter ${kind}s`}
-          autoCapitalize="none"
-          autoCorrect={false}
-          placeholder={`Add ${kind}…`}
-          testID={`porcelain-changes-commit-${kind}-input`}
-          value={query}
-          onChangeText={setQuery}
-        />
-        <ShellModalScroll className="max-h-72" contentContainerClassName="gap-0.5">
+        <View className="px-5">
+          <Input
+            accessibilityLabel={`Filter ${kind}s`}
+            autoCapitalize="none"
+            autoCorrect={false}
+            placeholder={`Add ${kind}…`}
+            testID={`${testIDPrefix}-${kind}-input`}
+            value={query}
+            onChangeText={setQuery}
+          />
+        </View>
+        {/* surface-gutter-allow: these rows are inside a sheet, not a surface. The sheet's own
+            gutter is 20pt (`px-5` on the title above) and the option rows add `px-3` of their
+            own, so 8pt here is what lands the labels on the title's left edge. `SURFACE_GUTTER`
+            is the phone screen's 16pt line and there is no screen in here to line up with. */}
+        <ScrollView
+          className="flex-1"
+          contentContainerClassName="gap-0.5 px-2 pb-2"
+          keyboardShouldPersistTaps="handled"
+        >
           {value === null ? null : (
             <TokenOption
               label={`Clear ${kind}`}
-              testID={`porcelain-changes-commit-${kind}-clear`}
+              testID={`${testIDPrefix}-${kind}-clear`}
               onPress={() => {
                 choose(null)
               }}
@@ -106,7 +123,7 @@ export function CommitTokenChip({
               label={tokenOptionLabel(kind, option)}
               mono
               selected={option === value}
-              testID={`porcelain-changes-commit-${kind}-${option}`}
+              testID={`${testIDPrefix}-${kind}-${option}`}
               onPress={() => {
                 choose(option)
               }}
@@ -115,7 +132,7 @@ export function CommitTokenChip({
           {picker.addition === null ? null : (
             <TokenOption
               label={`Add “${picker.addition}”`}
-              testID={`porcelain-changes-commit-${kind}-add`}
+              testID={`${testIDPrefix}-${kind}-add`}
               onPress={() => {
                 choose(picker.addition)
               }}
@@ -126,8 +143,8 @@ export function CommitTokenChip({
               No {kind}s yet.
             </Text>
           ) : null}
-        </ShellModalScroll>
-      </ShellModal>
+        </ScrollView>
+      </NativeSheet>
     </>
   )
 }

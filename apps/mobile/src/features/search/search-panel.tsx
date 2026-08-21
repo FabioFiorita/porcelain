@@ -6,7 +6,7 @@ import { Pressable, Text, View } from 'react-native'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { EmptyNote, ErrorNote } from '@/components/panel-chrome'
-import { SegmentedControl } from '@/components/segmented-control'
+import { SegmentedControl } from '@/components/native/segmented-control'
 import {
   SURFACE_ROW,
   SURFACE_ROW_SELECTED,

@@ -4,14 +4,12 @@ import { useRouter } from 'expo-router'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { useActions, useActionsSelectionStore } from '@/features/actions'
-import { useFilesStore } from '@/features/files'
 import { useGitLog } from '@/features/git'
 import { useHistoryStore } from '@/features/history'
 import { useFileSearch, useSearchStore } from '@/features/search'
+import { shellSheetHref } from '@/features/shell/shell-sheets'
 import { useShellStore } from '@/features/shell/shell-store'
 import type { SurfaceId } from '@/features/shell/surfaces'
-import { useTabFaces } from '@/features/shell/tab-faces'
-import { useIsTablet } from '@/features/shell/use-app-window'
 import { pathSegments } from '@/lib/path-identities'
 
 import {
@@ -51,18 +49,12 @@ function asError(error: unknown): Error | null {
 /** Shared phone/tablet behavior for the one-line navigation surface. */
 export function useQuickOpen(open: boolean, onClose: () => void): QuickOpenModel {
   const router = useRouter()
-  const isTablet = useIsTablet()
   const setActiveSurface = useShellStore((state) => state.setActiveSurface)
-  const openSheet = useShellStore((state) => state.openSheet)
   const setSettingsSection = useShellStore((state) => state.setSettingsSection)
-  const openDir = useFilesStore((state) => state.openDir)
-  const openFileInViewer = useFilesStore((state) => state.openFile)
   const openCommitInHistory = useHistoryStore((state) => state.openCommit)
   const selectAction = useActionsSelectionStore((state) => state.selectAction)
   const setSearchQuery = useSearchStore((state) => state.setQuery)
   const setSearchMode = useSearchStore((state) => state.setSearchMode)
-  const setFilesFace = useTabFaces((state) => state.setFiles)
-  const setChangesFace = useTabFaces((state) => state.setChanges)
 
   const [query, setQuery] = useState('')
   const [settledQuery, setSettledQuery] = useState('')
@@ -118,73 +110,62 @@ export function useQuickOpen(open: boolean, onClose: () => void): QuickOpenModel
     onClose()
   }, [onClose])
 
-  const navigatePhoneSurface = useCallback(
+  /**
+   * Every surface is a screen inside the Hub stack now, so going to one is a plain push at its
+   * own route — no tab face to set first, and no `/` that means two different surfaces.
+   */
+  const navigateSurface = useCallback(
     (surface: SurfaceId): void => {
       setActiveSurface(surface)
       switch (surface) {
         case 'files':
-          setFilesFace('files')
-          router.navigate('/')
+          router.push('/files')
           return
         case 'search':
-          setFilesFace('search')
-          router.navigate('/')
+          router.push('/search')
           return
         case 'changes':
-          setChangesFace('changes')
-          router.navigate('/changes')
+          router.push('/changes')
           return
         case 'history':
-          setChangesFace('history')
-          router.navigate('/changes')
-          return
-        case 'terminal':
-          router.navigate('/terminal')
+          router.push('/history')
           return
       }
     },
-    [router, setActiveSurface, setChangesFace, setFilesFace],
+    [router, setActiveSurface],
   )
 
   const openFile = useCallback(
     (result: QuickOpenFile): void => {
       close()
-      if (isTablet) {
-        if (result.kind === 'dir') openDir(result.path)
-        else openFileInViewer(result.path)
-        setActiveSurface('files')
-        return
-      }
       router.push({
         params: { path: pathSegments(result.path) },
         pathname: result.kind === 'dir' ? '/folder/[...path]' : '/file/[...path]',
       })
     },
-    [close, isTablet, openDir, openFileInViewer, router, setActiveSurface],
+    [close, router],
   )
 
+  /**
+   * A saved command is not a surface: running one starts a shell, and shells live in the
+   * Terminals tab now. The selection is what the Actions list highlights when it opens.
+   */
   const openCommand = useCallback(
     (action: ActionView): void => {
       selectAction(action.id)
       close()
-      if (isTablet) setActiveSurface('terminal')
-      else navigatePhoneSurface('terminal')
+      router.push('/terminals/actions')
     },
-    [close, isTablet, navigatePhoneSurface, selectAction, setActiveSurface],
+    [close, router, selectAction],
   )
 
   const openCommit = useCallback(
     (commit: Commit): void => {
       openCommitInHistory(commit.hash)
       close()
-      if (isTablet) {
-        setActiveSurface('history')
-        return
-      }
-      setChangesFace('history')
       router.push({ params: { hash: commit.hash }, pathname: '/changes/commit/[hash]' })
     },
-    [close, isTablet, openCommitInHistory, router, setActiveSurface, setChangesFace],
+    [close, openCommitInHistory, router],
   )
 
   const openGoto = useCallback(
@@ -192,22 +173,12 @@ export function useQuickOpen(open: boolean, onClose: () => void): QuickOpenModel
       close()
       if (destination.kind === 'settings') {
         setSettingsSection(destination.section)
-        if (isTablet) openSheet('settings')
-        else router.navigate('/settings')
+        router.navigate(shellSheetHref('settings'))
         return
       }
-      if (isTablet) setActiveSurface(destination.id)
-      else navigatePhoneSurface(destination.id)
+      navigateSurface(destination.id)
     },
-    [
-      close,
-      isTablet,
-      navigatePhoneSurface,
-      openSheet,
-      router,
-      setActiveSurface,
-      setSettingsSection,
-    ],
+    [close, navigateSurface, router, setSettingsSection],
   )
 
   const searchContents = useCallback((): void => {
@@ -216,17 +187,8 @@ export function useQuickOpen(open: boolean, onClose: () => void): QuickOpenModel
     close()
     setSearchMode('text')
     setSearchQuery(nextQuery)
-    if (isTablet) setActiveSurface('search')
-    else navigatePhoneSurface('search')
-  }, [
-    close,
-    isTablet,
-    navigatePhoneSurface,
-    query,
-    setActiveSurface,
-    setSearchMode,
-    setSearchQuery,
-  ])
+    navigateSurface('search')
+  }, [close, navigateSurface, query, setSearchMode, setSearchQuery])
 
   return {
     commands,

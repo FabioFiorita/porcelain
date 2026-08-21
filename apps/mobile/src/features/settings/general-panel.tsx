@@ -4,7 +4,7 @@ import { Pressable, View } from 'react-native'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { ActionSheet, ErrorNote } from '@/components/panel-chrome'
-import { SegmentedControl } from '@/components/segmented-control'
+import { SegmentedControl } from '@/components/native/segmented-control'
 import { Text } from '@/components/ui/text'
 import { cn } from '@/lib/utils'
 

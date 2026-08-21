@@ -1,5 +1,8 @@
+import { usePathname } from 'expo-router'
 import { useEffect, useState } from 'react'
 import { Dimensions, Platform, type ScaledSize, useWindowDimensions } from 'react-native'
+
+import { type ShellLayout, decideShellLayout } from './shell-layout'
 
 /**
  * Whether this device gets the multi-column shell rather than the tab shell.
@@ -29,6 +32,32 @@ export function isTabletFormFactor(): boolean {
 
 function isTabletSize(width: number, height: number): boolean {
   return (Platform.OS === 'ios' && Platform.isPad) || Math.min(width, height) >= 768
+}
+
+/**
+ * Whether the tablet shell shows the Hub list beside the screen it opened, or just the screen.
+ *
+ * `useIsTablet` says which SHELL runs; this says what that shell looks like right now, and it
+ * has to be re-asked on every resize because an iPad window changes width mid-session. The rule
+ * itself is `decideShellLayout` — pure, and tested next to it.
+ *
+ * The remembered value is the sheet case. A `formSheet` route changes the pathname while what is
+ * behind it stays put, so `decideShellLayout` answers `unchanged` for those paths and the last
+ * real answer stands until the sheet is dismissed. A concrete decision is returned the moment it
+ * is computed — the state only ever supplies the held value.
+ */
+export function useShellLayout(): ShellLayout {
+  const { width } = useWindowDimensions()
+  const pathname = usePathname()
+  const [held, setHeld] = useState<ShellLayout>('single')
+
+  const decision = decideShellLayout({ pathname, width })
+
+  useEffect(() => {
+    if (decision !== 'unchanged') setHeld(decision)
+  }, [decision])
+
+  return decision === 'unchanged' ? held : decision
 }
 
 /**

@@ -1,9 +1,10 @@
 import type { ActionView } from '@porcelain/contracts/actions'
 import type { Commit } from '@porcelain/contracts/git'
+import { useRouter } from 'expo-router'
+import { useCallback } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import { ChromeGlyph, type ChromeIconName } from '@/components/chrome-glyph'
 import { EmptyNote, ErrorNote } from '@/components/panel-chrome'
-import { ShellModal, useShellModalSize } from '@/components/shell-modal'
 import { SURFACE_ROW } from '@/components/surface-layout'
 import { Input } from '@/components/ui/input'
 import { pathTestId } from '@/lib/path-identities'
@@ -12,34 +13,33 @@ import { cn } from '@/lib/utils'
 import type { QuickOpenFile, QuickOpenGotoRow } from './quick-open-matching'
 import { useQuickOpen } from './use-quick-open'
 
-export function QuickOpenSheet({
-  maxWidth,
-  onClose,
-  open,
-}: {
-  maxWidth: number
-  onClose: () => void
-  open: boolean
-}): React.JSX.Element {
-  const { maxHeight } = useShellModalSize()
-  const model = useQuickOpen(open, onClose)
+/**
+ * The quick-open palette's body.
+ *
+ * It used to mount permanently next to the tab bar and wait for a `sheet === 'search'` flag,
+ * inside a transparent `Modal` holding a rounded `View`. It is the content of a `formSheet`
+ * route now (`app/(hub)/quick-open.tsx`), so "is it open" is "is the screen mounted" — which
+ * is also what gives it the sheet's detents, its grabber, and drag-to-dismiss.
+ */
+export function QuickOpenSheet(): React.JSX.Element {
+  const router = useRouter()
+  // Every open* handler closes before it navigates, so the sheet is gone by the time the
+  // destination pushes; `back()` is the dismissal a presented route has.
+  const close = useCallback((): void => {
+    router.back()
+  }, [router])
+  const model = useQuickOpen(true, close)
   const trimmed = model.query.trim()
 
   return (
-    <ShellModal
-      bare
-      hideHeader
-      open={open}
-      onClose={onClose}
-      contentStyle={{ width: maxWidth, maxHeight }}
-    >
-      <View className="flex-row items-center gap-2 border-b border-border px-3 py-1 pr-12">
+    <View className="flex-1">
+      <View className="flex-row items-center gap-2 border-b border-border px-3 py-1">
         <ChromeGlyph name="search" size={16} />
         <Input
           accessibilityLabel="Quick open files, commands, commits, or surfaces"
           autoCapitalize="none"
           autoCorrect={false}
-          autoFocus={open}
+          autoFocus
           className="native:h-12 flex-1 border-0 bg-transparent px-0 text-base shadow-none dark:bg-transparent"
           placeholder="Jump to a file, command, commit, or surface…"
           returnKeyType="search"
@@ -50,12 +50,9 @@ export function QuickOpenSheet({
       </View>
 
       <ScrollView
-        className="min-h-0"
+        className="flex-1"
         keyboardShouldPersistTaps="handled"
-        nestedScrollEnabled
         showsVerticalScrollIndicator
-        /* nativewind-allow-style: the sheet height is derived from live window metrics. */
-        style={{ maxHeight: maxHeight - 72 }}
         contentContainerClassName="gap-0.5 py-1.5 pb-3"
         testID="porcelain-quick-open"
       >
@@ -131,7 +128,7 @@ export function QuickOpenSheet({
           </>
         )}
       </ScrollView>
-    </ShellModal>
+    </View>
   )
 }
 

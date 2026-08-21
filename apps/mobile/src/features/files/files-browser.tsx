@@ -207,7 +207,6 @@ export function FilesBrowser({
         }
         confirmLabel="Trash"
         open={pending?.kind === 'trash'}
-        testID="porcelain-files-trash-confirm"
         title="Move to Trash?"
         onCancel={browser.closePending}
         onConfirm={() => {

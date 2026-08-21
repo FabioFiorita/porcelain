@@ -17,14 +17,21 @@
 import type { TerminalTextSize } from '@/features/settings/preferences-store'
 
 /**
- * Point sizes behind the user's terminal text size preference. 'small' is the original fixed
- * size this terminal shipped with — dense, but too small to read prose-heavy CLI output on a
- * phone, which is why 'medium' is the default (see `DEFAULTS` in `preferences-store.ts`).
+ * Point sizes behind the user's terminal text size preference.
+ *
+ * The ladder is anchored on COLUMNS, because that is what a terminal is spent on: at 9pt a
+ * 393dp phone paints 71 columns, which is the density a good SSH client gives you on the same
+ * screen and the one this app was measured against. 12 gives 54 and 15 gives 43 — the sizes
+ * this ladder used to call small and medium, kept a step up so nobody's terminal changed size
+ * without asking.
+ *
+ * Phones start at 'small' and tablets at 'large' (`preferences-store.ts`), which is 15pt on
+ * both counts — the size a tablet already rendered before the ladder gained a denser bottom.
  */
 const TERMINAL_FONT_SIZES: Record<TerminalTextSize, number> = {
-  large: 18,
-  medium: 15,
-  small: 12,
+  large: 15,
+  medium: 12,
+  small: 9,
 }
 
 export function terminalFontSize(size: TerminalTextSize): number {

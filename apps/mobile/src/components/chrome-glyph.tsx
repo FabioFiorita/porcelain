@@ -2,6 +2,8 @@ import type { AndroidSymbol, SFSymbol } from 'expo-symbols'
 import { SymbolView } from 'expo-symbols'
 import { useColorScheme } from 'react-native'
 
+import { themeVarsFor } from '@/features/settings/theme-vars'
+
 export type IconTone =
   | 'foreground'
   | 'muted'
@@ -10,25 +12,19 @@ export type IconTone =
   | 'success'
   | 'destructive'
 
-// SymbolView tints with a color value, not a class, so the semantic palette is mirrored
-// here. Keep these in step with the tokens in `@porcelain/ui`.
-const TONE_HEX: Record<'light' | 'dark', Record<IconTone, string>> = {
-  light: {
-    destructive: '#DC2626',
-    foreground: '#171A1C',
-    muted: '#687076',
-    primary: '#0A84FF',
-    primaryForeground: '#FFFFFF',
-    success: '#059669',
-  },
-  dark: {
-    destructive: '#EF4444',
-    foreground: '#F5F7FA',
-    muted: '#A7B0BB',
-    primary: '#0A84FF',
-    primaryForeground: '#FFFFFF',
-    success: '#10B981',
-  },
+// SymbolView tints with a color value, not a class, so the semantic palette is resolved
+// from the same token maps the CSS variables come from (`@porcelain/ui` tokens.css).
+const TONE_VAR: Record<IconTone, string> = {
+  destructive: 'destructive',
+  foreground: 'foreground',
+  muted: 'muted-foreground',
+  primary: 'primary',
+  primaryForeground: 'primary-foreground',
+  success: 'success',
+}
+
+function toneHex(scheme: 'light' | 'dark', tone: IconTone): string {
+  return themeVarsFor(scheme)[TONE_VAR[tone]] ?? '#000000'
 }
 
 /**
@@ -116,9 +112,20 @@ const CHROME_SYMBOLS = {
 
 export type ChromeIconName = keyof typeof CHROME_SYMBOLS
 
+/**
+ * The SF Symbol behind a chrome glyph, by NAME rather than as a view.
+ *
+ * A native menu item takes a symbol name and draws the icon itself — there is no place to hand
+ * it a `SymbolView`. iOS only: the Android menu wants a drawable resource, not a Material
+ * Symbols name, so `RowContextMenu` leaves its items unillustrated there.
+ */
+export function sfSymbolFor(name: ChromeIconName): SFSymbol {
+  return CHROME_SYMBOLS[name].ios
+}
+
 function useToneColor(tone: IconTone): string {
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light'
-  return TONE_HEX[scheme][tone]
+  return toneHex(scheme, tone)
 }
 
 /** The raw symbol host. Exported so surface iconography can share the tone palette. */

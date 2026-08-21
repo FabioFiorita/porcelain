@@ -23,7 +23,7 @@ import {
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query'
-import { useActiveProject } from '@/features/projects'
+import { useHubRepoPath } from '@/features/projects'
 import { isPaired, useActiveEnvironment } from '@/features/remote'
 import { namedContractProcedure } from '@/lib/daemon/procedure'
 
@@ -118,7 +118,7 @@ export type FileWrites = {
 /** Non-optimistic working-tree writes. Success effects are authoritative and awaited. */
 export function useFileWrites(): FileWrites {
   const environment = useActiveEnvironment()
-  const activeProject = useActiveProject()
+  const activeRepoPath = useHubRepoPath()
   const queryClient = useQueryClient()
   const create = useMutation({
     mutationFn: async (input: CreateFileInput): Promise<void> => {
@@ -147,8 +147,8 @@ export function useFileWrites(): FileWrites {
   })
 
   const project = (): { environmentId: string; projectPath: string } | null => {
-    if (!isPaired(environment) || activeProject === null) return null
-    return { environmentId: environment.id, projectPath: filesProjectKey(activeProject.path) }
+    if (!isPaired(environment) || activeRepoPath === null) return null
+    return { environmentId: environment.id, projectPath: filesProjectKey(activeRepoPath) }
   }
 
   return {
@@ -244,11 +244,11 @@ async function runScopeMutation(
   relative: string,
   definition: ScopeDefinition,
   environment: ReturnType<typeof useActiveEnvironment>,
-  project: ReturnType<typeof useActiveProject>,
+  repoPath: string | null,
   queryClient: QueryClient,
 ): Promise<void> {
-  if (!isPaired(environment) || project === null || !isFilesProjectRelativePath(relative)) return
-  const projectPath = filesProjectKey(project.path)
+  if (!isPaired(environment) || repoPath === null || !isFilesProjectRelativePath(relative)) return
+  const projectPath = filesProjectKey(repoPath)
   const input = { path: absolutePath(projectPath, relative), repoPath: projectPath }
   await runMutation(
     mutation,
@@ -270,7 +270,7 @@ export function usePathScope(): {
   error: Error | null
 } {
   const environment = useActiveEnvironment()
-  const project = useActiveProject()
+  const repoPath = useHubRepoPath()
   const queryClient = useQueryClient()
   const pin = useMutation({
     mutationFn: async (input: PinPathInput): Promise<void> => {
@@ -298,7 +298,7 @@ export function usePathScope(): {
     relative: string,
     definition: ScopeDefinition,
   ): Promise<void> =>
-    runScopeMutation(mutation, relative, definition, environment, project, queryClient)
+    runScopeMutation(mutation, relative, definition, environment, repoPath, queryClient)
 
   const errors = [pin.error, unpin.error, hide.error, unhide.error]
   return {

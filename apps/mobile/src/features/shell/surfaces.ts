@@ -1,16 +1,15 @@
 /**
- * The shell's destinations. Seven surfaces, named once.
+ * A Worktree's surfaces, named once.
  *
  * This file was `mock-data.ts` and carried 450 lines of screenshot fixtures — list rows,
  * companion sections, viewer placeholders, fake projects and branches — for the period when the
  * tablet shell was an outer layer with nothing behind it. Every surface now has real,
  * daemon-backed panels in `surface-slots.tsx`, so every fixture had become unreachable content
  * still shipping in the production bundle. What is left is the taxonomy the shell actually
- * needs: which destinations exist, what the rail calls them, and what their list column is
- * titled.
+ * needs: which destinations exist and what they are called.
  */
 
-export type SurfaceId = 'files' | 'changes' | 'history' | 'search' | 'terminal'
+export type SurfaceId = 'files' | 'changes' | 'history' | 'search'
 
 export type Surface = {
   readonly id: SurfaceId
@@ -19,13 +18,18 @@ export type Surface = {
   readonly listTitle: string
 }
 
-/** Rail order. The phone's tabs are a subset of these, paired into dual-face slots. */
+/**
+ * Presentation order. These are no longer tabs: a surface is a screen inside the Hub stack,
+ * reached from the Worktree that owns it (`features/hub/worktree-screen.tsx`).
+ *
+ * Terminal is deliberately absent. Shells are daemon-wide, not a property of one checkout, so
+ * they are a tab of their own (`app/terminals/`) rather than a surface listed here.
+ */
 export const SURFACES: readonly Surface[] = [
   { id: 'files', label: 'Files', listTitle: 'Files' },
   { id: 'changes', label: 'Changes', listTitle: 'Changes' },
   { id: 'history', label: 'History', listTitle: 'History' },
   { id: 'search', label: 'Search', listTitle: 'Search' },
-  { id: 'terminal', label: 'Terminal', listTitle: 'Terminal' },
 ]
 
 export function surfaceById(id: SurfaceId): Surface {

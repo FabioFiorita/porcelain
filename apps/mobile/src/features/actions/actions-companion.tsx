@@ -1,10 +1,11 @@
 import type { ActionView } from '@porcelain/contracts/actions'
+import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { ConfirmDialog, EmptyNote, ErrorNote, PanelLabel } from '@/components/surface-chrome'
-import { useActiveProject } from '@/features/projects'
+import { useHubRepoPath } from '@/features/projects'
 import { cn } from '@/lib/utils'
 import { useActionRun } from './action-run'
 import { useTrustAction } from './actions-mutations'
@@ -23,10 +24,13 @@ import { useActionsSelectionStore } from './actions-selection-store'
  * shared action can arrive from a clone or an agent write — accepting is keyed to the command
  * TEXT, so editing it later asks again.
  *
- * Placement remains under the Terminal surface (companion slot); ownership is Actions.
+ * Reached from the Terminals toolbar, and running one LANDS on the shell it started: the
+ * roster screen is replaced by that session, so the back chevron returns to the board rather
+ * than to a list you have already left. Web's header popover does the same thing.
  */
 export function ActionsCompanion({ active }: { active: boolean }): React.JSX.Element {
-  const project = useActiveProject()
+  const router = useRouter()
+  const repoPath = useHubRepoPath()
   const { actions, error } = useActions(active)
   const runAction = useActionRun()
   const trust = useTrustAction()
@@ -36,11 +40,15 @@ export function ActionsCompanion({ active }: { active: boolean }): React.JSX.Ele
   const [failure, setFailure] = useState<string | null>(null)
 
   const run = (action: ActionView): void => {
-    if (project === null) return
+    if (repoPath === null) return
     setFailure(null)
-    runAction(action).catch((cause: unknown) => {
-      setFailure(`Run failed: ${cause instanceof Error ? cause.message : String(cause)}`)
-    })
+    runAction(action)
+      .then((sessionId) => {
+        router.replace({ params: { id: sessionId }, pathname: '/terminals/[id]' })
+      })
+      .catch((cause: unknown) => {
+        setFailure(`Run failed: ${cause instanceof Error ? cause.message : String(cause)}`)
+      })
   }
 
   return (
@@ -90,7 +98,6 @@ export function ActionsCompanion({ active }: { active: boolean }): React.JSX.Ele
         }
         confirmLabel="Accept and run"
         open={pendingTrust !== null}
-        testID="porcelain-terminal-trust-confirm"
         title="Run this command?"
         onCancel={() => {
           setPendingTrust(null)

@@ -1,3 +1,5 @@
+import type { TerminalInfo } from '@porcelain/contracts/terminal'
+import { settleBackground } from '@porcelain/shared/background'
 import { create } from 'zustand'
 
 import { disposeTerminal, fitTerminal, nextTerminalSize } from './terminal-engine'
@@ -5,24 +7,21 @@ import { nextTerminalNumber } from './terminal-naming'
 import { mobileTerminalAdapter } from './terminal-stream-adapter'
 
 /**
- * The roster: which PTYs this repo has open, and which one the tablet's viewer is showing.
+ * The roster: every PTY the paired daemon owns, as this device last read it.
  *
  * The roster is DAEMON-OWNED — the daemon holds the authoritative name, cwd and status, and
  * every session outlives this app. `hydrate` therefore REPLACES rather than merges: a shell
- * killed from the desktop client has to disappear here on the next read. `create` still
+ * killed from the desktop client has to disappear here on the next read. `spawn` still
  * appends optimistically so a new terminal appears the instant you ask for it.
  *
- * Selection is the TABLET's model only, exactly as in Changes: the tablet viewer is a column
- * no route owns, while the phone reads its session from the route and gets the pop gesture
- * and hardware back button for free.
+ * It is DAEMON-WIDE, not repo-scoped: the Terminals tab is the one terminal surface, and it
+ * groups by `cwd` (`groupTerminalSessions`) rather than filtering to the selected checkout.
+ * Which session is on screen is the route's business — the phone reads it from the URL and
+ * gets the pop gesture and the hardware back button for free.
  */
 
-export type TerminalSession = {
-  id: string
-  name: string
-  status: 'running' | 'exited'
-  exitCode?: number
-}
+/** A roster row, shaped exactly like the wire record so it can be grouped without a mapping. */
+export type TerminalSession = TerminalInfo
 
 /**
  * Ids the human killed that a stale roster poll must not resurrect. Without this, kill →
@@ -52,32 +51,37 @@ let numberFloor = 0
 
 type TerminalState = {
   sessions: TerminalSession[]
-  /** Tablet only: the session its viewer column is showing. */
-  selectedId: string | null
   hydrate: (sessions: TerminalSession[]) => void
-  select: (id: string | null) => void
   /** Spawn a PTY and add it to the roster; resolves with the daemon-minted id. */
   spawn: (opts: { cwd: string; name?: string; initialInput?: string }) => Promise<string>
   rename: (id: string, name: string) => void
   markExited: (id: string, exitCode: number) => void
   /** Kill the PTY, drop its emulator, and remove the row. The only thing that ends a shell. */
   close: (id: string) => void
-  /** Repo or environment switch: let go of every session WITHOUT killing anything. */
+  /** Environment switch: let go of every session WITHOUT killing anything. */
   reset: () => void
+}
+
+/**
+ * Kill a shell this client may never have opened.
+ *
+ * The kill frame is only minted for a session the stream state knows (`terminal-stream.kill`
+ * returns nothing for an unattached id), and the Terminals tab lists every PTY on the daemon —
+ * including the ones started from the desktop client or by a Worktree script. Without the
+ * attach, killing a row you had not opened silently did nothing.
+ */
+async function killWherever(id: string): Promise<void> {
+  const adapter = mobileTerminalAdapter()
+  if (!adapter.isTerminalAttached(id)) await adapter.attachTerminal(id)
+  adapter.killTerminal(id)
+  disposeTerminal(id)
 }
 
 export const useTerminalStore = create<TerminalState>()((set, get) => ({
   hydrate: (incoming: TerminalSession[]) => {
     const daemonIds = new Set(incoming.map((session) => session.id))
     pruneTombstones(daemonIds)
-    const sessions = incoming.filter((session) => !tombstones.has(session.id))
-    set((state) => ({
-      sessions,
-      // A selection whose PTY is gone would leave the viewer pointed at nothing.
-      selectedId: sessions.some((session) => session.id === state.selectedId)
-        ? state.selectedId
-        : (sessions[0]?.id ?? null),
-    }))
+    set({ sessions: incoming.filter((session) => !tombstones.has(session.id)) })
   },
   markExited: (id: string, exitCode: number) => {
     // An exited PTY stays in the roster so its final output is still readable; the human
@@ -91,15 +95,8 @@ export const useTerminalStore = create<TerminalState>()((set, get) => ({
   },
   close: (id: string) => {
     tombstones.set(id, Date.now())
-    mobileTerminalAdapter().killTerminal(id)
-    disposeTerminal(id)
-    set((state) => {
-      const sessions = state.sessions.filter((session) => session.id !== id)
-      return {
-        sessions,
-        selectedId: state.selectedId === id ? (sessions[0]?.id ?? null) : state.selectedId,
-      }
-    })
+    settleBackground(killWherever(id), 'fallback')
+    set((state) => ({ sessions: state.sessions.filter((session) => session.id !== id) }))
   },
   rename: (id: string, name: string) => {
     const trimmed = name.trim()
@@ -113,17 +110,14 @@ export const useTerminalStore = create<TerminalState>()((set, get) => ({
     }))
   },
   reset: () => {
-    // Detach, never kill: these PTYs survive a repo switch and re-hydrate if it comes back.
+    // Detach, never kill: these PTYs survive an Environment switch and re-hydrate if it
+    // comes back.
     for (const session of get().sessions) {
       mobileTerminalAdapter().detachTerminal(session.id)
       disposeTerminal(session.id)
     }
-    set({ selectedId: null, sessions: [] })
+    set({ sessions: [] })
   },
-  select: (id: string | null) => {
-    set({ selectedId: id })
-  },
-  selectedId: null,
   sessions: [],
   spawn: async ({ cwd, name, initialInput }) => {
     numberFloor = nextTerminalNumber(
@@ -146,9 +140,13 @@ export const useTerminalStore = create<TerminalState>()((set, get) => ({
     // Remember it against the daemon-minted id too, so output that arrives before the view
     // mounts is written into an emulator of the same size the PTY is running at.
     if (size !== undefined) fitTerminal(id, size.cols, size.rows)
+    // Optimistic row carries `cwd` and `createdAt` because the list groups by directory: a row
+    // without them would land in "Elsewhere" for the five seconds before the first poll.
     set((state) => ({
-      selectedId: id,
-      sessions: [...state.sessions, { id, name: label, status: 'running' as const }],
+      sessions: [
+        ...state.sessions,
+        { createdAt: Date.now(), cwd, id, name: label, status: 'running' as const },
+      ],
     }))
     return id
   },

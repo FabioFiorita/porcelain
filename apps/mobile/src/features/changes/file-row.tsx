@@ -169,7 +169,6 @@ function FileRowImpl({
         }
         confirmLabel="Discard"
         open={confirmDiscard}
-        testID="porcelain-changes-discard-confirm"
         title={`Discard ${name}?`}
         onCancel={() => {
           setConfirmDiscard(false)

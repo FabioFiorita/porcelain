@@ -8,13 +8,13 @@ import { PANEL_CARD } from '@/components/surface-layout'
 import { Button } from '@/components/ui/button'
 import { Text as UiText } from '@/components/ui/text'
 import { useCommitMessage, useFileLog, useGitLog } from '@/features/git'
-import { useShellStore } from '@/features/shell/shell-store'
 import { useIsTablet } from '@/features/shell/use-app-window'
 import { cn } from '@/lib/utils'
 
 import { commitTitle, shortHash } from './commit-message'
 import { useHistoryStore } from './history-store'
 import { useCopyActions } from './use-copy-actions'
+import { useDismissSheet } from '@/features/shell/shell-sheets'
 
 /**
  * The History companion — "Timeline".
@@ -192,7 +192,7 @@ function useOpenCommitFromCompanion(): (hash: string) => void {
   const isTablet = useIsTablet()
   const router = useRouter()
   const select = useHistoryStore((state) => state.openCommit)
-  const closeSheet = useShellStore((state) => state.closeSheet)
+  const closeSheet = useDismissSheet()
 
   return (hash: string): void => {
     if (isTablet) {

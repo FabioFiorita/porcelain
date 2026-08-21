@@ -84,11 +84,6 @@ vi.mock('@/lib/daemon/session', () => ({
   daemonSession: { selectProject: vi.fn() },
 }))
 
-vi.mock('@/features/shell/shell-store', () => ({
-  useShellStore: (selector: (state: { closeSheet: () => void }) => unknown): unknown =>
-    selector({ closeSheet: vi.fn() }),
-}))
-
 const validatingCatalog = {
   procedures: procedureCatalog,
   notification: sessionChangeSchema,

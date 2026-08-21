@@ -1,150 +1,56 @@
-import { settleBackground } from '@porcelain/shared/background'
-import { SplitView } from 'expo-router/unstable-split-view'
-import { useEffect, useState } from 'react'
-import { Linking, Platform, View } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import {
-  ColumnOverflowProvider,
-  CompanionColumn,
-  PrimaryColumn,
-  SupplementaryColumn,
-  ViewerCanvas,
-} from './shell-columns'
-import { ShellSheets } from './shell-sheets'
-import { useShellStore } from './shell-store'
-import type { SurfaceId } from './surfaces'
-import { TabletHeader } from './tablet-header'
+import { View } from 'react-native'
+
+import { PhoneBottomChrome } from './bottom-chrome'
+import { HubSidebar } from './hub-sidebar'
+import { PhoneShell } from './phone-shell'
+import { HUB_SIDEBAR_WIDTH } from './shell-layout'
+import { useShellLayout } from './use-app-window'
 
 /**
- * Tablet outer shell — iPad native SplitView, Android shared multi-column layout.
- * Surface selection is store-driven so primary · supplementary · viewer · companion
- * switch together. iOS SplitView auto-Slot hosts the route which reads the same store.
+ * The tablet shell: the same four tabs, with the Hub list held beside the screen it opened
+ * instead of under it.
  *
- * Deep link `porcelain-dev://settings` (or `…/settings`) opens the Settings sheet —
- * tablet Settings is not a tab route like the phone.
+ * This is the web client's shape — sidebar next to viewer — reached the only way an iPad-width
+ * window makes it worth reaching: once you are INSIDE a Worktree. At the Hub list itself the
+ * list is the screen, so there is one column; push a Worktree, a surface, or a file and the list
+ * slides out beside it rather than being covered. `decideShellLayout` owns that rule.
+ *
+ * **The tabs are never remounted.** `PhoneShell` sits in a fixed child slot with the sidebar
+ * conditional beside it, so widening and narrowing the window — Stage Manager, Split View, a
+ * rotation — adds and removes one column while every tab's native stack, and whatever is pushed
+ * on it, stays exactly where it was. That is the whole answer to a live resize: the routed
+ * screen never moves between containers, because it was never in the sidebar's container.
+ *
+ * **Why this is a flex row and not `UISplitViewController`.** expo-router 57 does ship the
+ * platform primitive (`expo-router/unstable-split-view`, over `react-native-screens`'
+ * experimental `Split.Host`), and it is the right thing when the app's ROOT is a split. It
+ * cannot be this: `SplitView` throws inside any navigator, so it can only replace the tab shell
+ * rather than live in the Worktrees tab — an iPad app with no tabs, whose `Slot` unmounts the
+ * other tabs' stacks. `Split.Host` underneath it renders `null` on Android outright. A two-column
+ * flex layout keeps all four tabs, keeps every stack mounted, and works on both tablets. The
+ * swap back to the native split stays a change to this one file if a no-tabs iPad is ever what
+ * is wanted.
  */
 export function TabletShell(): React.JSX.Element {
-  const insets = useSafeAreaInsets()
-  const inspectorVisible = useShellStore((state) => state.inspectorVisible)
-  const activeSurface = useShellStore((state) => state.activeSurface)
-  const openSheet = useShellStore((state) => state.openSheet)
-  const [primaryCollapsed, setPrimaryCollapsed] = useState(false)
-  const usesNativeSplitView = Platform.OS === 'ios'
-  const platformLabel = usesNativeSplitView ? 'iPad' : 'Android tablet'
-  // How far the header pushes the SplitView down. The native columns are laid out at the full
-  // window height regardless, so this is exactly how far each one overruns the bottom of the
-  // screen — see `ColumnOverflowContext`. Android lays its own columns out and needs none of it.
-  const [columnOverflow, setColumnOverflow] = useState(0)
+  const layout = useShellLayout()
 
-  useEffect(() => {
-    const openFromUrl = (url: string): void => {
-      try {
-        const path = url.split('://')[1] ?? url
-        if (path === 'settings' || path.startsWith('settings?') || path.endsWith('/settings')) {
-          openSheet('settings')
-        }
-      } catch {
-        // Ignore malformed deep links.
-      }
-    }
-    // Initial URL probe is best-effort; malformed/unavailable stays silent.
-    settleBackground(
-      Linking.getInitialURL().then((url) => {
-        if (url !== null) openFromUrl(url)
-      }),
-      'lifecycle',
-    )
-    const sub = Linking.addEventListener('url', (event) => {
-      openFromUrl(event.url)
-    })
-    return () => {
-      sub.remove()
-    }
-  }, [openSheet])
-
-  return (
-    <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
-      <TabletHeader platformLabel={platformLabel} />
-      <View
-        className="min-h-0 flex-1"
-        onLayout={(event) => {
-          // `layout.y` already counts the root's top inset padding, so it is the split view's
-          // absolute offset from the top of the window — and its overrun past the bottom.
-          if (!usesNativeSplitView) return
-          setColumnOverflow(event.nativeEvent.layout.y)
-        }}
-      >
-        <ColumnOverflowProvider value={columnOverflow}>
-          {usesNativeSplitView ? (
-            <SplitView
-              columnMetrics={{
-                preferredInspectorColumnWidthOrFraction: 0.22,
-                preferredPrimaryColumnWidthOrFraction: 0.16,
-                preferredSecondaryColumnWidthOrFraction: 0.4,
-                preferredSupplementaryColumnWidthOrFraction: 0.22,
-              }}
-              preferredDisplayMode="twoBesideSecondary"
-              preferredSplitBehavior="tile"
-              onDisplayModeWillChange={(event) => {
-                setPrimaryCollapsed(event.nativeEvent.nextDisplayMode === 'oneBesideSecondary')
-              }}
-              primaryBackgroundStyle="none"
-              showInspector={inspectorVisible}
-              topColumnForCollapsing="primary"
-            >
-              <SplitView.Column>
-                <PrimaryColumn />
-              </SplitView.Column>
-              <SplitView.Column>
-                <SupplementaryColumn primaryCollapsed={primaryCollapsed} />
-              </SplitView.Column>
-              <SplitView.Inspector>
-                <CompanionColumn />
-              </SplitView.Inspector>
-            </SplitView>
-          ) : (
-            <AndroidTabletColumns
-              activeSurface={activeSurface}
-              inspectorVisible={inspectorVisible}
-            />
-          )}
-        </ColumnOverflowProvider>
-      </View>
-      <ShellSheets variant="tablet" />
-    </View>
-  )
-}
-
-function AndroidTabletColumns({
-  inspectorVisible,
-  activeSurface,
-}: {
-  inspectorVisible: boolean
-  activeSurface: SurfaceId
-}): React.JSX.Element {
   return (
     <View className="flex-1 flex-row bg-background">
-      {/* nativewind-allow-style: Android tablet columns use fractional flex geometry. */}
-      <View className="min-w-0" style={{ flex: 0.16 }}>
-        <PrimaryColumn />
-      </View>
-      {/* nativewind-allow-style: Android tablet columns use fractional flex geometry. */}
-      <View className="min-w-0" style={{ flex: 0.22 }}>
-        <SupplementaryColumn primaryCollapsed={false} />
-      </View>
-      {/* nativewind-allow-style: the viewer fraction changes with the inspector column. */}
-      <View
-        className="min-w-0 border-l border-border"
-        style={{ flex: inspectorVisible ? 0.4 : 0.62 }}
-      >
-        <ViewerCanvas surfaceId={activeSurface} />
-      </View>
-      {inspectorVisible ? (
-        /* nativewind-allow-style: Android tablet columns use fractional flex geometry. */
-        <View className="min-w-0" style={{ flex: 0.22 }}>
-          <CompanionColumn />
+      {layout === 'split' ? (
+        <View
+          /* nativewind-allow-style: the column's width is half of the threshold that decides
+             whether it appears at all, so both live on the same constant. */
+          style={{ width: HUB_SIDEBAR_WIDTH }}
+        >
+          <HubSidebar />
         </View>
       ) : null}
+      {/* Fixed slot: this subtree must keep its identity across every layout change. */}
+      <View className="min-w-0 flex-1">
+        <PhoneBottomChrome>
+          <PhoneShell />
+        </PhoneBottomChrome>
+      </View>
     </View>
   )
 }

@@ -1,0 +1,115 @@
+import { Stack, useIsFocused, useRouter } from 'expo-router'
+import { Text, View } from 'react-native'
+
+import { IconAction } from '@/components/panel-chrome'
+import { EmptyNote, ErrorNote } from '@/components/panel-chrome'
+import { SURFACE_GUTTER } from '@/components/surface-layout'
+import { markdownToHtml, PreviewView, readerDocument } from '@/features/files'
+import { useResolvedColorScheme } from '@/features/settings/theme-provider'
+
+import { useCanvas, useCanvasDocumentUrl } from './canvas-data'
+import { CanvasWebView } from './canvas-web-view'
+
+/**
+ * One Canvas, read.
+ *
+ * The two kinds take deliberately different routes, the same split the web Viewer makes. A
+ * Markdown Canvas is text: it goes through the inert reader every other repo document uses,
+ * scripting off and no network at all. An HTML Canvas is a document the agent wrote to be
+ * rendered, so it goes to the daemon over its own token route and keeps the response CSP the
+ * daemon chose for it — see `canvas-web-view.tsx` for what that buys and what it does not.
+ */
+export function CanvasScreen({ canvasId }: { canvasId: string }): React.JSX.Element {
+  const focused = useIsFocused()
+  const router = useRouter()
+  const scheme = useResolvedColorScheme()
+  const { canvas, isLoading, loadError } = useCanvas(canvasId, focused)
+  const isHtml = canvas?.record.kind === 'html'
+  const { url, mintError } = useCanvasDocumentUrl(canvasId, focused && isHtml)
+  const error = loadError ?? mintError
+
+  return (
+    <View className="flex-1 bg-background" testID="porcelain-canvas-document">
+      <Stack.Screen
+        options={{
+          headerRight: () => (
+            <IconAction
+              accessibilityLabel="Review comments"
+              glyph="comment"
+              testID="porcelain-canvas-document-comments"
+              onPress={() => {
+                router.push('/canvas/comments')
+              }}
+            />
+          ),
+          title: canvas?.record.title ?? 'Canvas',
+        }}
+      />
+      <CanvasBody
+        canvas={canvas}
+        documentUrl={url}
+        error={error}
+        isLoading={isLoading}
+        scheme={scheme}
+      />
+    </View>
+  )
+}
+
+function CanvasBody({
+  canvas,
+  documentUrl,
+  error,
+  isLoading,
+  scheme,
+}: {
+  canvas: ReturnType<typeof useCanvas>['canvas']
+  documentUrl: string | null
+  error: string | null
+  isLoading: boolean
+  scheme: 'light' | 'dark'
+}): React.JSX.Element {
+  if (error !== null) {
+    return (
+      <View className={SURFACE_GUTTER}>
+        <ErrorNote message={error} testID="porcelain-canvas-document-error" />
+      </View>
+    )
+  }
+  if (canvas === undefined) {
+    return isLoading ? (
+      <Text
+        className="p-4 text-sm text-muted-foreground"
+        testID="porcelain-canvas-document-loading"
+      >
+        Opening Canvas…
+      </Text>
+    ) : (
+      <EmptyNote
+        body="Select a worktree, then open a Canvas from its list."
+        testID="porcelain-canvas-document-unavailable"
+        title="No Canvas"
+      />
+    )
+  }
+  if (canvas.record.kind === 'markdown') {
+    return (
+      <PreviewView
+        document={readerDocument(markdownToHtml(canvas.content), scheme)}
+        testID="porcelain-canvas-document-reader"
+      />
+    )
+  }
+  // A failed mint leaves the loading state standing rather than a WebView pointed nowhere.
+  if (documentUrl === null) {
+    return (
+      <Text
+        className="p-4 text-sm text-muted-foreground"
+        testID="porcelain-canvas-document-minting"
+      >
+        Opening Canvas…
+      </Text>
+    )
+  }
+  return <CanvasWebView documentUrl={documentUrl} testID="porcelain-canvas-document-frame" />
+}

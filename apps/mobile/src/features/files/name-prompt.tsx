@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { View } from 'react-native'
 
-import { ShellModal, useShellModalSize } from '@/components/shell-modal'
+import { NativeSheet } from '@/components/native/native-sheet'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Text } from '@/components/ui/text'
@@ -38,7 +38,6 @@ export function NamePrompt({
   testID: string
   title: string
 }): React.JSX.Element {
-  const { width } = useShellModalSize()
   const [name, setName] = useState(initialValue)
   const [error, setError] = useState<string | null>(null)
 
@@ -66,14 +65,8 @@ export function NamePrompt({
   }
 
   return (
-    <ShellModal
-      contentStyle={{ width }}
-      description={description}
-      open={open}
-      title={title}
-      onClose={onClose}
-    >
-      <View className="gap-3" testID={testID}>
+    <NativeSheet description={description} open={open} title={title} onClose={onClose}>
+      <View className="gap-3 px-5" testID={testID}>
         <Input
           accessibilityLabel={title}
           autoCapitalize="none"
@@ -105,6 +98,6 @@ export function NamePrompt({
           </Button>
         </View>
       </View>
-    </ShellModal>
+    </NativeSheet>
   )
 }

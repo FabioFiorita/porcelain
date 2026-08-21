@@ -22,6 +22,11 @@ export const browseDirectoriesProcedure = namedContractProcedure(
   projectsProcedures.browseDirs,
 )
 
+export const hubInventoryProcedure = namedContractProcedure(
+  'hubInventory',
+  projectsProcedures.hubInventory,
+)
+
 export function pairedProjectEnvironment(
   environment: Environment | null,
   procedure: string,

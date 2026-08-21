@@ -1,4 +1,10 @@
-import { FlatList, type FlatListProps, ScrollView, type ScrollViewProps } from 'react-native'
+import {
+  FlatList,
+  type FlatListProps,
+  Platform,
+  ScrollView,
+  type ScrollViewProps,
+} from 'react-native'
 
 import { type SurfaceContentOptions, surfaceContentStyle } from '@/components/surface-layout'
 import { useBottomChrome } from '@/features/shell/bottom-chrome'
@@ -32,11 +38,35 @@ import { cn } from '@/lib/utils'
  * to a scroll view it recognises as a screen's primary one, and an automatic inset stacked on
  * the reserved one is the double padding this was supposed to remove. One mechanism, ours.
  *
+ * `largeTitle` is the one screen class that has to hand the mechanism back. An iOS large title
+ * collapses by watching the offset of the scroll view UIKit has adjusted, so under
+ * `headerLargeTitle` the bar simply never collapses and the first rows sit behind it. Those
+ * screens switch to `automatic` AND stop reserving the bottom inset themselves, because
+ * `automatic` already applies the safe area — which, inside a `UITabBarController` child,
+ * already contains the tab bar (see `bottom-chrome`). Adding ours on top is the same double
+ * padding from the other end. Android has neither a large title nor this property, so it keeps
+ * reserving the bar by hand.
+ *
  * A surface that genuinely cannot use these — a native host with its own scroll view, a
  * horizontally scrolling strip — is not a bottom-edge surface and does not need them.
  */
 
-type SurfacePadding = Pick<SurfaceContentOptions, 'edgeToEdge' | 'gap' | 'paddingTop'>
+type SurfacePadding = Pick<SurfaceContentOptions, 'edgeToEdge' | 'gap' | 'paddingTop'> & {
+  /** This is the primary scroll view of a screen whose native header has `headerLargeTitle`. */
+  largeTitle?: boolean
+}
+
+/**
+ * Who owns the safe-area insets on this scroll view: UIKit under a large title, us everywhere
+ * else. Returns the bottom inset to reserve by hand and the property to hand UIKit.
+ */
+function insetOwnership(
+  largeTitle: boolean,
+  bottomInset: number,
+): { adjust: 'automatic' | 'never'; reserve: number } {
+  if (largeTitle && Platform.OS === 'ios') return { adjust: 'automatic', reserve: 0 }
+  return { adjust: 'never', reserve: bottomInset }
+}
 
 /** The vertical scroll container for a surface: a stack of rows, cards, or prose. */
 export function SurfaceScroll({
@@ -44,18 +74,24 @@ export function SurfaceScroll({
   className,
   edgeToEdge,
   gap,
+  largeTitle = false,
   paddingTop,
   ...rest
 }: SurfacePadding &
   Omit<ScrollViewProps, 'contentContainerStyle' | 'contentContainerClassName'> & {
     children: React.ReactNode
   }): React.JSX.Element {
-  const bottomInset = useBottomChrome()
+  const { adjust, reserve } = insetOwnership(largeTitle, useBottomChrome())
   return (
     <ScrollView
       className={cn('flex-1', className)}
-      contentContainerStyle={surfaceContentStyle({ bottomInset, edgeToEdge, gap, paddingTop })}
-      contentInsetAdjustmentBehavior="never"
+      contentContainerStyle={surfaceContentStyle({
+        bottomInset: reserve,
+        edgeToEdge,
+        gap,
+        paddingTop,
+      })}
+      contentInsetAdjustmentBehavior={adjust}
       {...rest}
     >
       {children}
@@ -73,6 +109,7 @@ export function SurfaceList<ItemT>({
   className,
   edgeToEdge,
   gap,
+  largeTitle = false,
   paddingTop,
   ...rest
 }: SurfacePadding &
@@ -81,12 +118,17 @@ export function SurfaceList<ItemT>({
      * the type to say so — see the note above. */
     ref?: React.Ref<FlatList<ItemT>>
   }): React.JSX.Element {
-  const bottomInset = useBottomChrome()
+  const { adjust, reserve } = insetOwnership(largeTitle, useBottomChrome())
   return (
     <FlatList<ItemT>
       className={cn('flex-1', className)}
-      contentContainerStyle={surfaceContentStyle({ bottomInset, edgeToEdge, gap, paddingTop })}
-      contentInsetAdjustmentBehavior="never"
+      contentContainerStyle={surfaceContentStyle({
+        bottomInset: reserve,
+        edgeToEdge,
+        gap,
+        paddingTop,
+      })}
+      contentInsetAdjustmentBehavior={adjust}
       {...rest}
     />
   )

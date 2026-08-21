@@ -1,13 +1,12 @@
 import { useIsFocused, useRouter } from 'expo-router'
 import { View } from 'react-native'
 
-import { PhoneHeader } from '@/features/shell/phone-header'
-
 import { pathSegments, REPO_ROOT } from './file-paths'
 import { FilesBrowser } from './files-browser'
 
 /**
- * The Files tab root on phone: the header and the repo root's contents.
+ * The Files surface on phone: the repo root's contents. Its title and toolbar are screen
+ * options on the Hub stack, drawn by the native bar.
  *
  * Folders and files both push a route onto this tab's stack, so the interactive pop gesture,
  * the Android hardware back button, and re-tap-to-root all come from the navigator rather than
@@ -20,7 +19,6 @@ export function FilesPhoneScreen(): React.JSX.Element {
 
   return (
     <View className="flex-1 bg-background" testID="porcelain-phone-surface-files">
-      <PhoneHeader companionSurface="files" title="Files" />
       <FilesBrowser
         active={focused}
         dirPath={REPO_ROOT}

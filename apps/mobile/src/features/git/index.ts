@@ -24,6 +24,7 @@ export { changesDiffSource, useDiffFile, useDiffReading } from './git-diff'
 export type { QuickCommandId } from './git-mutations'
 export {
   QUICK_COMMANDS,
+  useApplyCommitGroups,
   useCommit,
   useCommitGeneration,
   useDiscardFile,
@@ -73,19 +74,15 @@ export type { GitQueryKey } from './git-query-key'
 export { gitQueryKey, isGitQueryKey, parseGitQueryKey } from './git-query-key'
 export type {
   BranchRef,
-  GitBranchSheet,
   GitHead,
   GitMutationAction,
   GitWorkspaceOptions,
   GitWorkspaceQueryResult,
-  GitWorktreeSheet,
   Worktree,
 } from './workspace'
 export {
   useGitAddWorktree,
-  useGitBranchSheet,
   useGitCheckout,
   useGitCreateBranch,
   useGitWorkspace,
-  useGitWorktreeSheet,
 } from './workspace'

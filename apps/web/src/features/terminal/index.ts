@@ -1,6 +1,9 @@
 /** Web Terminal public boundary: transport adapter, roster binding, and recovery copy. */
 
 export { findHubProjectForPath, suggestLocalTerminalPath } from './local-path-suggestion'
+// The board's grouping rule is shared with the mobile Terminals tab, so it lives in
+// client-runtime and both clients read one implementation. Re-exported here so web's own
+// boundary stays the single import site for everything Terminal.
 export {
   ELSEWHERE_GROUP_KEY,
   ENVIRONMENT_GROUP_KEY,
@@ -8,7 +11,7 @@ export {
   type TerminalGroup,
   type TerminalLocation,
   terminalLocations,
-} from './terminal-groups'
+} from '@porcelain/client-runtime/terminal'
 export { applyTerminalRecovery, terminalPasteFailureMessage } from './terminal-notifications'
 export {
   invalidateTerminalSessionsQueries,

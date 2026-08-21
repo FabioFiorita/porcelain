@@ -1,12 +1,11 @@
 import { useIsFocused, useRouter } from 'expo-router'
 import { View } from 'react-native'
 
-import { PhoneHeader } from '@/features/shell/phone-header'
-
 import { HistoryList } from './history-list'
 
 /**
- * The History face of the Changes tab on phone: the header and the commit list.
+ * The History surface on phone: the commit list. Its title and toolbar are screen options on
+ * the Hub stack, drawn by the native bar.
  *
  * Opening a commit pushes a route onto the Changes tab's stack — History has no tab of its
  * own, it is that tab's alternate face, so its detail screens live in that tab's navigator and
@@ -24,7 +23,6 @@ export function HistoryPhoneScreen(): React.JSX.Element {
 
   return (
     <View className="flex-1 bg-background" testID="porcelain-phone-surface-history">
-      <PhoneHeader companionSurface="history" title="History" />
       <HistoryList
         active={focused}
         onOpenCommit={(hash) => {

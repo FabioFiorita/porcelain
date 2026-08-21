@@ -1,6 +1,5 @@
 import { useIsFocused, useRouter } from 'expo-router'
 import { View } from 'react-native'
-import { PhoneHeader } from '@/features/shell/phone-header'
 import { pathSegments } from '@/lib/path-identities'
 
 import { SearchPanel } from './search-panel'
@@ -17,8 +16,6 @@ export function SearchPhoneScreen(): React.JSX.Element {
 
   return (
     <View className="flex-1 bg-background" testID="porcelain-phone-surface-search">
-      {/* The bolt opens Search's own companion — recent queries, not Files' pins and notes. */}
-      <PhoneHeader companionSurface="search" title="Search" />
       <SearchPanel
         active={focused}
         onOpenDir={(path) => {

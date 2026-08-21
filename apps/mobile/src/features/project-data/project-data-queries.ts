@@ -4,7 +4,7 @@ import {
 } from '@porcelain/client-runtime/project-data'
 import { projectDataProcedures } from '@porcelain/contracts/project-data'
 import { useQuery } from '@tanstack/react-query'
-import { useActiveProject } from '@/features/projects'
+import { useHubRepoPath } from '@/features/projects'
 import { isPaired, useActiveEnvironment } from '@/features/remote'
 import { namedContractProcedure } from '@/lib/daemon/procedure'
 
@@ -33,11 +33,10 @@ export function useCompanionGitVisibility(enabled: boolean): {
   hidden: boolean | undefined
   isPending: boolean
 } {
-  const project = useActiveProject()
+  const projectPath = useHubRepoPath()
   const environment = useActiveEnvironment()
   const environmentId = environment?.id ?? 'none'
-  const projectPath = project?.path ?? null
-  const canRun = enabled && project !== null && isPaired(environment)
+  const canRun = enabled && projectPath !== null && isPaired(environment)
 
   const query = useQuery({
     enabled: canRun,

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { SectionList, Text, View } from 'react-native'
 import { EmptyNote, ErrorNote, IconAction, PanelLabel } from '@/components/panel-chrome'
-import { SegmentedControl } from '@/components/segmented-control'
+import { SegmentedControl } from '@/components/native/segmented-control'
 import {
   SURFACE_GUTTER,
   SURFACE_STACK_GAP,

@@ -1,90 +1,51 @@
 import { NativeTabs } from 'expo-router/unstable-native-tabs'
 
-import { useChangedFileCount } from '@/features/git'
-
-import { ShellSheets } from './shell-sheets'
-import type { DualTabSlot } from './tab-faces'
-import { useTabFaces } from './tab-faces'
-import { useTabRootFocus } from './tab-root-focus'
+import { useResolvedColorScheme } from '@/features/settings/theme-provider'
+import { themeVarsFor } from '@/features/settings/theme-vars'
 
 /**
- * Phone outer shell — four tabs; Files / Changes are dual-face.
- * Face state is store-driven so sheets never reset the tab bar identity.
- * Settings is a tab (not a gear). Bolt companion is a sheet from the header.
+ * The app's four tabs.
+ *
+ * Worktrees is the Hub — every Worktree of every Environment in one list — and a surface is
+ * reached THROUGH the Worktree that owns it, inside that tab's stack. Surfaces used to be the
+ * tabs themselves, which meant five surfaces sharing four slots via a dual-face hack, and a
+ * project / branch / worktree switcher in every header to say which checkout you were looking
+ * at. Both are gone with this shell.
+ *
+ * Terminals and Tasks are daemon-wide, not per-Worktree, which is why they are tabs rather than
+ * surfaces. Terminals is the ONE terminal surface — a Worktree no longer has a Terminal row of
+ * its own, because a shell that outlives the checkout you were standing in has to be reachable
+ * from somewhere that is not inside it.
  */
 export function PhoneShell(): React.JSX.Element {
-  const filesFace = useTabFaces((state) => state.files)
-  const changesFace = useTabFaces((state) => state.changes)
-  // The badge is the live working-tree count — a fixed number here would be a lie the moment
-  // the agent writes anything.
-  const changedFiles = useChangedFileCount()
+  // Tab tint follows the shared `primary` token, not a hardcoded system blue.
+  const tintColor = themeVarsFor(useResolvedColorScheme()).primary ?? '#171717'
 
   return (
-    <>
-      <NativeTabs
-        disableTransparentOnScrollEdge
-        minimizeBehavior="onScrollDown"
-        tintColor="#0A84FF"
-      >
-        {/* The Files tab is a route group, so its stack (`/folder/…`, `/file/…`) lives inside
-            the tab while the tab root stays the app's `/`. */}
-        <NativeTabs.Trigger
-          name="(files)"
-          listeners={{
-            tabPress: () => {
-              toggleFaceIfRoot('files')
-            },
-          }}
-        >
-          <NativeTabs.Trigger.Icon
-            sf={filesFace === 'search' ? 'magnifyingglass' : 'folder.fill'}
-            md={filesFace === 'search' ? 'search' : 'folder'}
-          />
-          <NativeTabs.Trigger.Label>
-            {filesFace === 'search' ? 'Search' : 'Files'}
-          </NativeTabs.Trigger.Label>
-        </NativeTabs.Trigger>
+    <NativeTabs
+      disableTransparentOnScrollEdge
+      minimizeBehavior="onScrollDown"
+      tintColor={tintColor}
+    >
+      <NativeTabs.Trigger name="(hub)">
+        <NativeTabs.Trigger.Icon sf="square.stack.3d.up.fill" md="layers" />
+        <NativeTabs.Trigger.Label>Worktrees</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
 
-        <NativeTabs.Trigger
-          name="changes"
-          listeners={{
-            tabPress: () => {
-              toggleFaceIfRoot('changes')
-            },
-          }}
-        >
-          <NativeTabs.Trigger.Icon
-            sf={changesFace === 'history' ? 'clock.arrow.circlepath' : 'arrow.triangle.branch'}
-            md={changesFace === 'history' ? 'history' : 'account_tree'}
-          />
-          <NativeTabs.Trigger.Label>
-            {changesFace === 'history' ? 'History' : 'Changes'}
-          </NativeTabs.Trigger.Label>
-          {changesFace === 'changes' && changedFiles > 0 ? (
-            <NativeTabs.Trigger.Badge>{String(changedFiles)}</NativeTabs.Trigger.Badge>
-          ) : null}
-        </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="terminals">
+        <NativeTabs.Trigger.Icon sf="terminal.fill" md="terminal" />
+        <NativeTabs.Trigger.Label>Terminals</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
 
-        <NativeTabs.Trigger name="terminal">
-          <NativeTabs.Trigger.Icon sf="terminal.fill" md="terminal" />
-          <NativeTabs.Trigger.Label>Terminal</NativeTabs.Trigger.Label>
-        </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="tasks">
+        <NativeTabs.Trigger.Icon sf="checklist" md="checklist" />
+        <NativeTabs.Trigger.Label>Tasks</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
 
-        <NativeTabs.Trigger name="settings">
-          <NativeTabs.Trigger.Icon sf="gearshape.fill" md="settings" />
-          <NativeTabs.Trigger.Label>Settings</NativeTabs.Trigger.Label>
-        </NativeTabs.Trigger>
-      </NativeTabs>
-      <ShellSheets variant="phone" />
-    </>
+      <NativeTabs.Trigger name="settings">
+        <NativeTabs.Trigger.Icon sf="gearshape.fill" md="settings" />
+        <NativeTabs.Trigger.Label>Settings</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
+    </NativeTabs>
   )
-}
-
-function toggleFaceIfRoot(tab: DualTabSlot): void {
-  // Re-tapping a tab pops its stack to the root first (the iOS "back to root" idiom) — the
-  // navigator does that itself, so a tab only reaches here once it is already showing its
-  // list, and the tap means "flip to the alternate face".
-  if (!useTabRootFocus.getState().roots[tab]) return
-  if (tab === 'files') useTabFaces.getState().toggleFiles()
-  else if (tab === 'changes') useTabFaces.getState().toggleChanges()
 }
