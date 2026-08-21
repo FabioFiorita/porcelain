@@ -72,6 +72,10 @@ file). Two things change:
   coordinates from the snapshot.
 - **`⌘R` cannot reach a worktree's Metro.** Repoint the dev client with
   `xcodebuildmcp simulator stop` + `launch-app`, or `xcrun simctl terminate`/`launch`.
+- **Fast Refresh cannot re-create a native view.** A prop a native host reads once at mount —
+  `@expo/ui`'s `matchContents` is one — keeps its old value in every view already on screen, so a
+  correct fix to a hosted component looks like it did nothing on the surfaces you had already
+  opened. Relaunch (`xcrun simctl terminate` + `launch`) before believing a negative result.
 - **A missing native module is not a JavaScript problem.** `Cannot find native module '…'` means the
   installed dev client predates a native dependency on this branch — build and install a new one.
 - **A frame is only proof if its clock is current.** The status bar is the cheapest check that you

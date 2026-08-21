@@ -25,14 +25,14 @@ export type { RowMenuAction } from './row-menu-actions'
  * stretching to the list. Android needs none of this: its `MenuView` wraps the Compose host in
  * a plain `View`, which stretches, so `row-context-menu.tsx` stays as it was.
  *
- * One caller is still collapsed and this is NOT the file that fixes it: a Terminals session row
- * is a DIRECT child of the scrolling content container, and a host there takes no width from it.
- * Measured on the iPad with a coloured wrapper `View` around the host: the wrapper painted the
- * full width of a Hub row and not one pixel of a Terminals row, in the same running app. Those
- * rows were collapsed before this file existed and are collapsed the same amount now. The Hub's
- * rows have a `View` and the swipeable's own containers between them and the scroll, and those
- * give the width — whatever the scroll container withholds from a hosted view belongs to the
- * Terminals list, not to the menu.
+ * `matchContents` is read once, when the native host is created, so a Fast Refresh cannot repair a
+ * host that is already on screen: the JavaScript arrives and the SwiftUI view keeps the sizing it
+ * was born with. That is what made this fix look partial. The Terminals rows, mounted before it
+ * landed, stayed 18pt wide through every reload while the Hub rows that happened to remount came
+ * back full width — one bug reading as two, and a scroll parent taking the blame. Measured on an
+ * iPad Pro 13-inch, `snapshot-ui` frames for a session row: both axes matched, cold launch, 18x48;
+ * this file's shape, cold launch, 1016x48; this file's shape delivered by Fast Refresh alone,
+ * 18x48 still. Relaunch the app before believing a row is still collapsed.
  */
 export function RowContextMenu({
   actions,
