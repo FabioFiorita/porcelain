@@ -1,6 +1,6 @@
 ---
 name: merge-queue
-version: 0.57.0
+version: 0.57.1
 metadata:
   internal: true
 description: Land human-selected worktree PRs, update main, and retire their managed checkouts. Load only when the human asks to merge or clean up PR work.
