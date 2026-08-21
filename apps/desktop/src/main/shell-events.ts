@@ -15,6 +15,9 @@ export type ShellEvent =
   // second connection to the local daemon for "This device" terminals and would
   // otherwise keep talking to a dead port (daemon.ts, pushLocalDaemonInfo).
   | 'local-daemon-changed'
+  // The saved-environments list changed (pairing, connect, disconnect, remove, endpoint
+  // healing) — renderer-side secondary daemon sessions should re-fetch it and re-point.
+  | 'remote-environments-changed'
   // File > Settings… (menu.ts) — open the Settings dialog in the focused window.
   | 'open-settings'
   // File > New Terminal / File > Quick Open… / View > Split Pane (menu.ts) — mirror the
