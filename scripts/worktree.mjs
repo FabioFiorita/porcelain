@@ -421,7 +421,7 @@ function create(slugArg, options) {
 
   cd ${path}
   pnpm build && pnpm dev:daemon -- --loopback
-  # then declare the Review with the porcelain_review MCP tool
+  # then publish a Review-template Canvas with the porcelain_canvas MCP tool
 
 ${integrateHint}
 `)

@@ -3,10 +3,7 @@
   "mcpServers": {
     "porcelain": {
       "type": "streamable-http",
-      "url": "http://127.0.0.1:43117/mcp",
-      "headers": {
-        "Authorization": "Bearer ${PORCELAIN_ADMIN_TOKEN}"
-      }
+      "url": "http://127.0.0.1:43117/mcp"
     }
   }
 }

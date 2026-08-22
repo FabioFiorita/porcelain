@@ -11,15 +11,15 @@ in is the ordinary answer; Porcelain resolves it through the Hub inventory and u
 and Worktree identity:
 
 ```jsonc
-porcelain_context { "workspace": "/abs/path/to/worktree", "include": ["review"] }
-porcelain_task { "workspace": "/abs/path/to/worktree", "title": "…" }
+porcelain_canvas { "op": "get", "workspace": "/abs/path/to/worktree", "id": "…" }
+porcelain_task { "op": "create", "workspace": "/abs/path/to/worktree", "title": "…" }
 ```
 
 To act on a checkout other than your own, read the ids first and pass them:
 
 ```jsonc
-porcelain_context { "workspace": "<your checkout>", "include": ["projects"] }
-porcelain_task { "workspace": { "projectId": "…", "worktreeId": "…" }, "id": "T-18", "status": "doing" }
+porcelain_project { "op": "list" }
+porcelain_task { "op": "update", "workspace": { "projectId": "…", "worktreeId": "…" }, "id": "T-18", "status": "doing" }
 ```
 
 The Review Canvas is Project-owned, while its Execution anchors and Evidence proof should describe

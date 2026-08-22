@@ -14,6 +14,9 @@ jobs:
   quality:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v5
@@ -21,18 +24,18 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-      - uses: actions/cache@v4
+      - uses: vercel/setup-turborepo-remote-cache-action@v1.0.0
         with:
-          path: .turbo/cache
-          key: turbo-${{ runner.os }}-quality-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
-          restore-keys: |
-            turbo-${{ runner.os }}-quality-${{ hashFiles('pnpm-lock.yaml') }}-
+          team: ${{ vars.TURBO_TEAM }}
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
 
   unit:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v5
@@ -40,12 +43,9 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-      - uses: actions/cache@v4
+      - uses: vercel/setup-turborepo-remote-cache-action@v1.0.0
         with:
-          path: .turbo/cache
-          key: turbo-${{ runner.os }}-unit-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
-          restore-keys: |
-            turbo-${{ runner.os }}-unit-${{ hashFiles('pnpm-lock.yaml') }}-
+          team: ${{ vars.TURBO_TEAM }}
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
       - run: pnpm turbo run //#test:scripts
@@ -53,6 +53,9 @@ jobs:
   browser-smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v5
@@ -60,12 +63,9 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-      - uses: actions/cache@v4
+      - uses: vercel/setup-turborepo-remote-cache-action@v1.0.0
         with:
-          path: .turbo/cache
-          key: turbo-${{ runner.os }}-build-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
-          restore-keys: |
-            turbo-${{ runner.os }}-build-${{ hashFiles('pnpm-lock.yaml') }}-
+          team: ${{ vars.TURBO_TEAM }}
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - name: Install Chromium for browser smoke

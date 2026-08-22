@@ -3,7 +3,7 @@
 Start every investigation with:
 
 ```sh
-npx porcelain-daemon@latest share status
+npx @fabiofiorita/porcelain@latest share status
 ```
 
 It prints `lan`, `tailnet`, and `cloudflare` status in one JSON blob (bound or not, and the URL
@@ -24,7 +24,7 @@ sudo apt-get install -y build-essential python3
 sudo dnf groupinstall -y "Development Tools"
 ```
 
-Then retry `npx porcelain-daemon@latest serve`. `python3` and `make`/`g++` (or your platform's
+Then retry `npx @fabiofiorita/porcelain@latest serve`. `python3` and `make`/`g++` (or your platform's
 equivalent) all need to be on `PATH`.
 
 ## Works interactively, fails under systemd ("Node is not available", ENOENT)
@@ -40,7 +40,7 @@ interactive shell has but a systemd unit does not inherit.
 ## Port already in use
 
 ```sh
-[porcelain-daemon] port       43117
+[porcelain] port       43117
 ```
 ```
 Error: listen EADDRINUSE: address already in use 127.0.0.1:43117
@@ -69,7 +69,7 @@ multi-tailnet or VPN-overlap setup worth resolving at the Tailscale layer, not a
 
 - Confirm `cloudflared` is on `PATH` (`command -v cloudflared`). The daemon does not install it.
 - Quick-tunnel URLs change every time the process starts. Re-issue the pairing link after a restart.
-- `--funnel` is gone. Use `--cloudflare` (or `share cloudflare on`).
+- `--funnel` is gone. Use `--cloudflare`.
 
 ## "Unreachable" vs 401 — different problems
 

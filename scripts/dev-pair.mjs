@@ -2,7 +2,7 @@
 /**
  * Pairing for the Porcelain DEV stack.
  *
- * The daemon's own pairing path is `daemon-cli.js access issue`, which already prints a
+ * The daemon's own pairing path is `porcelain-host.js access issue`, which already prints a
  * complete one-time URL. This module drives that exact command with the dev profile's env
  * so the launcher can hand over a ready-to-open URL instead of a command to run next —
  * and so nobody plants an admin token into `localStorage` by hand again.
@@ -21,26 +21,26 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { DEV_PORT, devEnv } from './dev-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const daemonCli = join(root, 'scripts', 'daemon-cli.js')
+const hostLauncher = join(root, 'scripts', 'porcelain-host.js')
 
 const loopbackUrl = (port) => `http://127.0.0.1:${port}`
 
 /**
- * `daemon-cli.js` ships inside the published package, where its dependencies sit beside it.
+ * `porcelain-host.js` ships inside the published package, where its dependencies sit beside it.
  * Run from the monorepo it resolves nothing (`Cannot find module '@trpc/client'`), because
  * pnpm keeps those under the workspace packages that declare them. Lend it that resolution
- * root rather than teaching the shipped CLI about the checkout's layout.
+ * root rather than teaching the shipped host launcher about the checkout's layout.
  */
-const CLI_RESOLUTION_ROOTS = [
+const HOST_RESOLUTION_ROOTS = [
   join(root, 'apps', 'desktop', 'node_modules'),
   join(root, 'apps', 'daemon', 'node_modules'),
 ]
 
 function runDaemonCli(args, port) {
-  const nodePath = [...CLI_RESOLUTION_ROOTS, process.env.NODE_PATH]
+  const nodePath = [...HOST_RESOLUTION_ROOTS, process.env.NODE_PATH]
     .filter((entry) => entry !== undefined && entry !== '')
     .join(delimiter)
-  return execFileSync(process.execPath, [daemonCli, ...args], {
+  return execFileSync(process.execPath, [hostLauncher, ...args], {
     cwd: root,
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],

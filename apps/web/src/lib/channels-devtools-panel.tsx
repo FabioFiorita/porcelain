@@ -23,7 +23,7 @@ export function ChannelsDevtoolsPanel(): React.JSX.Element {
     <div style={WRAP}>
       <Section title="Agent plugin">
         <Row label="Version" value={plugin?.version ?? '—'} />
-        <Row label="Install" value={plugin?.installCommand ?? '—'} />
+        <Row label="Agent source" value={plugin?.agentPluginRepository ?? '—'} />
       </Section>
 
       <Section title="Actions (two-way)">

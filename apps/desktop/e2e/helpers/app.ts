@@ -19,7 +19,7 @@ import { TestIds } from './test-ids'
 
 const MAIN_ENTRY = join(__dirname, '..', '..', 'out', 'main', 'index.js')
 const DAEMON_ENTRY = join(__dirname, '..', '..', 'out', 'main', 'daemon', 'server.js')
-const DAEMON_CLI = join(__dirname, '..', '..', '..', '..', 'scripts', 'daemon-cli.js')
+const PORCELAIN_HOST = join(__dirname, '..', '..', '..', '..', 'scripts', 'porcelain-host.js')
 
 // Seed one browser client identity directly in the isolated access store, then
 // plant its plaintext token in the same localStorage slot TokenGate uses. Minted
@@ -65,7 +65,7 @@ interface Options {
    */
   seedRepo: boolean
   /**
-   * Seed a daemon-root Review Canvas through the shipped CLI (default null → the Canvas empty
+   * Seed a daemon-root Review Canvas through the shipped host launcher (default null → the Canvas empty
    * state). Written as an agent would publish it.
    */
   /**
@@ -185,7 +185,7 @@ export async function spawnDaemon(
 ): Promise<{ child: ChildProcess; port: number }> {
   const cliArgs = options.cli
     ? [
-        DAEMON_CLI,
+        PORCELAIN_HOST,
         'serve',
         '--no-watchdog',
         '--user-data',

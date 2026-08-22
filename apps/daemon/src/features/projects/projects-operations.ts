@@ -11,7 +11,6 @@ import type {
   MintCanvasAccessTokenInput,
   ProjectInfo,
   ProjectOverrides,
-  PromoteCanvasInput,
   PromoteCanvasOutput,
   PromoteOverridesInput,
   ReadCanvasInput,
@@ -21,6 +20,7 @@ import type { CanvasAccessTokens } from './canvas-access-tokens'
 import {
   type CanvasOperations,
   createCanvasOperations,
+  type PromoteCanvasOperationInput,
   type WriteCanvasOperationInput,
 } from './canvas-operations'
 import type { CanvasOverlayStore } from './canvas-overlay-store'
@@ -64,10 +64,12 @@ export type ProjectsOperations = Readonly<{
   findCanvasByTemplate: (input: {
     projectId: string
     template: 'review'
+    worktreePath?: string
   }) => Promise<ProjectOperationResult<string | null>>
   forgetCanvas: (input: {
     projectId: string
     canvasId: string
+    worktreePath?: string
   }) => Promise<ProjectOperationResult<void>>
   readCanvas: (
     input: ReadCanvasInput,
@@ -75,7 +77,9 @@ export type ProjectsOperations = Readonly<{
   mintCanvasAccessToken: (
     input: MintCanvasAccessTokenInput,
   ) => Promise<ProjectOperationResult<{ token: string }>>
-  promoteCanvas: (input: PromoteCanvasInput) => Promise<ProjectOperationResult<PromoteCanvasOutput>>
+  promoteCanvas: (
+    input: PromoteCanvasOperationInput,
+  ) => Promise<ProjectOperationResult<PromoteCanvasOutput>>
   promoteOverrides: (
     input: PromoteOverridesInput,
   ) => Promise<ProjectOperationResult<ProjectOverrides>>

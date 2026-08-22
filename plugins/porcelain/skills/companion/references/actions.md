@@ -6,9 +6,9 @@ Actions belong to the **Project**, not to a checkout: they live in the owning En
 
 Talk to Porcelain through the `porcelain` MCP tools. Every call takes `workspace` — the absolute path of the checkout, or `{projectId, worktreeId}` when the daemon runs on another host. A repository Porcelain has never opened has no Project id yet, so the tool says so instead of inventing one — open it in Porcelain once, then retry.
 
-- `porcelain_context` with `include: ["actions"]` → the saved actions, each with an id, title, command, and optional `where`.
-- `porcelain_action` with `op: "save"` and no `id` → add one (e.g. title "Storybook", command `pnpm --filter web storybook`).
-- `porcelain_action` with `op: "save"` and an `id` → edit one.
+- `porcelain_action` with `op: "list"` → the saved actions, each with an id, title, command, and optional `where`.
+- `porcelain_action` with `op: "create"` → add one (e.g. title "Storybook", command `pnpm --filter web storybook`).
+- `porcelain_action` with `op: "update"` and an `id` → edit one.
 - `porcelain_action` with `op: "delete"` and an `id` → remove one.
 
 An Action you save arrives **untrusted**. The human reads the command text and approves it before
@@ -32,7 +32,7 @@ it. The two other kinds are **Worktree lifecycle scripts**, and Porcelain runs t
 | `worktree-setup` | After it creates a Worktree from the app, in a terminal in the new checkout. |
 | `worktree-dispose` | Before it removes a Worktree from the app; the removal waits for it. |
 
-Pass `kind` to `porcelain_action` with `op: "save"` to add one (e.g. title "Install", command
+Pass `kind` to `porcelain_action` with `op: "create"` to add one (e.g. title "Install", command
 `pnpm install`, kind `worktree-setup`). They are listed under **Worktree scripts** in the app,
 in order, apart from the Actions — the Actions list is what a click runs, and nothing that
 runs on its own belongs in it.

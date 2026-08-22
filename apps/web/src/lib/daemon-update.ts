@@ -75,14 +75,14 @@ export function shouldPromptDaemonUpdate(input: DaemonUpdatePromptInput): boolea
 
 /**
  * The documented restart. The always-on unit's `ExecStart` runs
- * `npx --yes --prefer-online porcelain-daemon@latest serve …`, so restarting the service IS
+ * `npx --yes --prefer-online @fabiofiorita/porcelain@latest serve …`, so restarting the service IS
  * the upgrade — there is no separate install step to paste
- * (plugins/porcelain/skills/porcelain-remote/references/always-on.md).
+ * (plugins/porcelain/skills/remote/references/always-on.md).
  */
-export const DAEMON_UPDATE_SYSTEMD_COMMAND = 'systemctl --user restart porcelain-daemon.service'
+export const DAEMON_UPDATE_SYSTEMD_COMMAND = 'systemctl --user restart porcelain.service'
 
 /** For a daemon started by hand in a shell rather than supervised by systemd. */
-export const DAEMON_UPDATE_FOREGROUND_COMMAND = 'npx porcelain-daemon@latest serve'
+export const DAEMON_UPDATE_FOREGROUND_COMMAND = 'npx @fabiofiorita/porcelain@latest serve'
 
 export const DAEMON_UPDATE_DOCS_URL =
   'https://github.com/FabioFiorita/porcelain/blob/main/docs/remote-access.md'

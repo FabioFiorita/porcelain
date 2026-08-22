@@ -11,10 +11,10 @@
 On the remote host:
 
 ```sh
-npx porcelain-daemon@latest serve
+npx @fabiofiorita/porcelain@latest serve
 ```
 
-Bare `serve` (or no subcommand at all — `porcelain-daemon` alone means `serve`) does three things
+Bare `serve` (or no subcommand at all — `porcelain` alone means `serve`) does three things
 and nothing more:
 
 1. Mints `~/.porcelain/admin-token` (0600) if it doesn't exist yet.
@@ -27,7 +27,7 @@ change that.
 
 Use `@latest` deliberately: each `npx` invocation re-resolves the newest published version, so
 restarting the process (or the systemd unit — see [always-on.md](always-on.md)) picks up updates
-automatically. Pin a version (`porcelain-daemon@0.50.0`) only if you want to freeze it.
+automatically. Pin a version (`@fabiofiorita/porcelain@0.50.0`) only if you want to freeze it.
 
 ## Bind modes
 
@@ -45,11 +45,11 @@ goes away.
 run together — pick one off-network route.
 
 ```sh
-npx porcelain-daemon@latest serve --lan
-npx porcelain-daemon@latest serve --lan --tailnet
-npx porcelain-daemon@latest serve --lan --cloudflare --cloudflare-hostname review.example.com
-npx porcelain-daemon@latest serve --port 43118 --lan
-npx porcelain-daemon@latest serve --tailnet --allowed-origin http://hub-host:43118
+npx @fabiofiorita/porcelain@latest serve --lan
+npx @fabiofiorita/porcelain@latest serve --lan --tailnet
+npx @fabiofiorita/porcelain@latest serve --lan --cloudflare --cloudflare-hostname review.example.com
+npx @fabiofiorita/porcelain@latest serve --port 43118 --lan
+npx @fabiofiorita/porcelain@latest serve --tailnet --allowed-origin http://hub-host:43118
 ```
 
 ### Cross-origin browser Hubs
@@ -58,7 +58,7 @@ The browser Remotes client needs the daemon to trust the origin of the Hub servi
 the Hub origin shown in that browser's address bar (scheme + host + port, with no path):
 
 ```sh
-npx porcelain-daemon@latest serve --tailnet --allowed-origin http://hub-host:43118
+npx @fabiofiorita/porcelain@latest serve --tailnet --allowed-origin http://hub-host:43118
 ```
 
 The flag is repeatable for multiple Hubs. For a supervised deployment, use
@@ -93,7 +93,7 @@ environment. Never pass the token as a flag.
 
 ```sh
 export PORCELAIN_CLOUDFLARE_TOKEN='<tunnel token>'
-npx porcelain-daemon@latest serve --lan --cloudflare --cloudflare-hostname review.example.com
+npx @fabiofiorita/porcelain@latest serve --lan --cloudflare --cloudflare-hostname review.example.com
 ```
 
 **Quick tunnel.** If `PORCELAIN_CLOUDFLARE_TOKEN` is unset, `--cloudflare` starts a

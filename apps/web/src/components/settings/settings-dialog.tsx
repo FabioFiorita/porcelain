@@ -73,7 +73,7 @@ const ALL_SECTIONS: {
     title: 'Companion',
     // Shell-only now that the repo half lives under Data: all that is left is the
     // skill installer, which writes into agent homes on THIS machine.
-    blurb: 'The porcelain-companion skill for your agents.',
+    blurb: 'The companion skill for your agents.',
     shellOnly: true,
   },
   {

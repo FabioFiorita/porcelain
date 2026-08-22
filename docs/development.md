@@ -111,10 +111,11 @@ do not make it the inner loop for every edit. CI is the clean-machine check. The
 the risk: a focused unit test for logic, a daemon procedure check for server behavior, a browser or
 Electron interaction for client behavior, and native runtime evidence for mobile behavior.
 
-The package build, test, and typecheck entry points run through Turborepo. Repeated CI and release
-runs restore `.turbo/cache` through the GitHub Actions cache; unchanged package tasks can therefore
-be skipped while the existing root commands keep their names. Turbo does not cache runtime proof,
-macOS signing/notarization, artifact publication, or npm registry propagation.
+The package build, test, and typecheck entry points run through Turborepo. CI and release jobs
+configure Vercel's Turborepo OIDC remote-cache action with the `TURBO_TEAM` repository variable
+before invoking those commands; `.turbo/` stays ignored locally. Unchanged package tasks can
+therefore be skipped while the existing root commands keep their names. Turbo does not cache
+runtime proof, macOS signing/notarization, artifact publication, or npm registry propagation.
 
 ## One step per shipped bug
 

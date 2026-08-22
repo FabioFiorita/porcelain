@@ -17,7 +17,7 @@ export function CompanionSheet({ surface }: { surface?: SurfaceId }): React.JSX.
   const slots = surfaceSlots(surface ?? activeSurface)
 
   return (
-    <View className="flex-1" testID="porcelain-companion-sheet">
+    <View className="flex-1" testID="companion-sheet">
       {slots.companion === undefined ? null : <slots.companion active />}
     </View>
   )
