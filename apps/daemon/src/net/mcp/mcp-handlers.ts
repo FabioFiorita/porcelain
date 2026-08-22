@@ -1,13 +1,13 @@
 import { resolvedProfileSchema, worktreeProfileSchema } from '@porcelain/contracts'
 import type { McpToolHandlers, McpToolResult } from './mcp-dispatch'
 import type { McpOperations, McpTask, TaskArgs } from './mcp-operations'
-import { mergeLink, taskMatches, taskView } from './mcp-tasks'
 import {
-  reviewBundleSource,
   type ReviewFile,
   type ReviewSection,
   type ReviewSet,
+  reviewBundleSource,
 } from './mcp-review'
+import { mergeLink, taskMatches, taskView } from './mcp-tasks'
 import {
   isWorkspaceRef,
   type ResolvedWorkspace,
@@ -73,6 +73,34 @@ function stringList(args: Record<string, unknown>, key: string): string[] | unde
   const value = args[key]
   if (!Array.isArray(value)) return undefined
   return value.filter((entry): entry is string => typeof entry === 'string' && entry !== '')
+}
+
+/**
+ * `refs` needs a worktree to anchor its paths to. Distinguishing "no refs passed" from
+ * "refs passed but unanchorable" matters: silently dropping the latter to `undefined`
+ * looks like success while the caller's paths never reach the Task.
+ */
+function resolveTaskRefs(
+  args: Record<string, unknown>,
+  place: ResolvedWorkspace | null,
+): { ok: true; refs: TaskArgs['pathRefs'] } | { ok: false; message: string } {
+  if (!Array.isArray(args.refs)) return { ok: true, refs: undefined }
+  if (place === null || place.worktreeId === null) {
+    return {
+      ok: false,
+      message:
+        'refs requires a workspace resolved to a worktree; pass a workspace path (or {projectId, worktreeId}) that has one.',
+    }
+  }
+  const worktreeId = place.worktreeId
+  const refs: TaskArgs['pathRefs'] = args.refs
+    .filter(isRecord)
+    .flatMap((ref) =>
+      typeof ref.path === 'string' && (ref.kind === 'file' || ref.kind === 'folder')
+        ? [{ projectId: place.projectId, worktreeId, path: ref.path, kind: ref.kind }]
+        : [],
+    )
+  return { ok: true, refs }
 }
 
 function reviewSet(value: unknown): ReviewSet | null {
@@ -462,21 +490,9 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
                 : [],
             )
           : undefined
-        const refs: TaskArgs['pathRefs'] =
-          Array.isArray(args.refs) && place !== null && place.worktreeId !== null
-            ? args.refs.filter(isRecord).flatMap((ref) =>
-                typeof ref.path === 'string' && (ref.kind === 'file' || ref.kind === 'folder')
-                  ? [
-                      {
-                        projectId: place.projectId,
-                        worktreeId: place.worktreeId as string,
-                        path: ref.path,
-                        kind: ref.kind,
-                      },
-                    ]
-                  : [],
-              )
-            : undefined
+        const refsResult = resolveTaskRefs(args, place)
+        if (!refsResult.ok) return fail(refsResult.message)
+        const refs = refsResult.refs
         const created = await operations.tasks.createTask({
           title,
           ...(stringField(args, 'notes') === undefined
@@ -534,21 +550,9 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
               url: singleLink,
               label: stringField(args, 'linkLabel') ?? singleLink,
             })
-      const refs: TaskArgs['pathRefs'] =
-        Array.isArray(args.refs) && place !== null && place.worktreeId !== null
-          ? args.refs.filter(isRecord).flatMap((ref) =>
-              typeof ref.path === 'string' && (ref.kind === 'file' || ref.kind === 'folder')
-                ? [
-                    {
-                      projectId: place.projectId,
-                      worktreeId: place.worktreeId as string,
-                      path: ref.path,
-                      kind: ref.kind,
-                    },
-                  ]
-                : [],
-            )
-          : undefined
+      const refsResult = resolveTaskRefs(args, place)
+      if (!refsResult.ok) return fail(refsResult.message)
+      const refs = refsResult.refs
       const updated = await operations.tasks.updateTask({
         taskId,
         ...(stringField(args, 'title') === undefined ? {} : { title: stringField(args, 'title') }),

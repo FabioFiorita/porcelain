@@ -218,6 +218,32 @@ describe('domain MCP entry points', () => {
     )
   })
 
+  it('refuses refs it cannot anchor to a worktree instead of silently dropping them', async () => {
+    const { tools, calls } = harness()
+    const noWorkspace = await tools.call('porcelain_task', {
+      op: 'update',
+      id: 'T-1',
+      refs: [{ path: 'src/a.ts', kind: 'file' }],
+    })
+    expect(noWorkspace.isError).toBe(true)
+    expect(noWorkspace.text).toContain('worktree')
+    expect(calls.map((call) => call.name)).not.toContain('updateTask')
+  })
+
+  it('anchors refs to the resolved worktree when a workspace is given', async () => {
+    const { tools, calls } = harness()
+    await tools.call('porcelain_task', {
+      op: 'update',
+      id: 'T-1',
+      workspace: REPO,
+      refs: [{ path: 'src/a.ts', kind: 'file' }],
+    })
+    const update = calls.find((call) => call.name === 'updateTask')
+    expect(update?.input).toMatchObject({
+      pathRefs: [{ projectId: PROJECT, worktreeId: WORKTREE, path: 'src/a.ts', kind: 'file' }],
+    })
+  })
+
   it('keeps Actions CRUD-only and never exposes execution or trust', async () => {
     const { tools, calls } = harness()
     const run = await tools.call('porcelain_action', { op: 'run', workspace: REPO, id: 'action-1' })
