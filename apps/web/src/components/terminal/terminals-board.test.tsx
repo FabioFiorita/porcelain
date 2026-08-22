@@ -42,6 +42,7 @@ const PROJECTS: HubProject[] = [
 ]
 
 const ENVIRONMENT_ROOT = '/home/fabio'
+const SECONDARY_ROOT = '/Users/fabio'
 
 const SESSIONS: TerminalInfo[] = [
   { id: 't-web', name: 'Terminal 1', cwd: '/code/web/src', status: 'running', createdAt: 1 },
@@ -51,9 +52,13 @@ const SESSIONS: TerminalInfo[] = [
 
 const doubles = vi.hoisted(() => {
   const primarySession = { name: 'primary-session' }
+  const secondarySession = { name: 'beelink-session' }
   return {
     primarySession,
+    secondarySession,
     sessions: [] as unknown[] | undefined,
+    /** Sessions on a SECOND Environment; empty in every test that is about one machine. */
+    secondarySessions: [] as unknown[],
     adapter: {
       isTerminalAttached: vi.fn(() => false),
       attachTerminal: vi.fn(() => Promise.resolve({})),
@@ -67,7 +72,7 @@ const doubles = vi.hoisted(() => {
     }),
     close: vi.fn(),
     rename: vi.fn(),
-    spawnTerminalAt: vi.fn(async () => 't-new'),
+    spawnOnSession: vi.fn(async () => 't-new'),
   }
 })
 
@@ -78,6 +83,7 @@ vi.mock('@renderer/components/terminal/terminal-view', () => ({
 }))
 vi.mock('@renderer/features/projects', () => ({
   useHubInventory: () => ({ environment: { id: 'env-1' }, projects: PROJECTS }),
+  useHubInventories: () => [],
   useProjectDirectories: () => ({
     result: { path: ENVIRONMENT_ROOT },
     error: null,
@@ -111,23 +117,71 @@ vi.mock('@renderer/hooks/use-daemon-identity', () => ({
   useEnvironmentName: () => 'beelink',
 }))
 vi.mock('@renderer/lib/daemon', () => ({ primary: doubles.primarySession }))
+vi.mock('@renderer/lib/local-daemon', () => ({
+  sessionForTerminal: () => doubles.primarySession,
+}))
 vi.mock('@renderer/lib/trpc', () => ({
   trpc: { useUtils: () => ({ client: {} }) },
 }))
 vi.mock('@tanstack/react-query', () => ({
-  useQuery: () => ({ data: doubles.sessions }),
   useQueryClient: () => ({ invalidateQueries: doubles.invalidateQueries }),
 }))
-vi.mock('@renderer/features/terminal', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@renderer/features/terminal')>()),
-  terminalAdapterForSession: () => doubles.adapter,
-  terminalAdapterFor: () => doubles.adapter,
-  listTerminalSessionsOnDaemon: vi.fn(),
-}))
+vi.mock('@renderer/features/terminal', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@renderer/features/terminal')>()
+  return {
+    ...actual,
+    terminalAdapterForSession: () => doubles.adapter,
+    terminalAdapterFor: () => doubles.adapter,
+    listTerminalSessionsOnDaemon: vi.fn(),
+    invalidateEveryTerminalSessionsQuery: () => doubles.invalidateQueries(),
+    // The board renders whatever the Environments hook reports; what that hook READS from
+    // each daemon is its own test. Grouping is the real implementation so a group key here
+    // means the same thing it means on screen.
+    useEnvironmentTerminals: () => {
+      const current = {
+        environmentId: 'env-1',
+        connectionId: null,
+        name: 'beelink',
+        current: true,
+        session: doubles.primarySession,
+        root: ENVIRONMENT_ROOT,
+        locations: actual.terminalLocations(PROJECTS),
+        sessions: doubles.sessions ?? [],
+        groups: actual.groupTerminalSessions(
+          (doubles.sessions ?? []) as never,
+          actual.terminalLocations(PROJECTS),
+          ENVIRONMENT_ROOT,
+        ),
+      }
+      if (doubles.secondarySessions.length === 0) return [current]
+      return [
+        current,
+        {
+          environmentId: 'env-2',
+          connectionId: 'conn-2',
+          name: 'mac mini',
+          current: false,
+          session: doubles.secondarySession,
+          root: SECONDARY_ROOT,
+          locations: [],
+          sessions: doubles.secondarySessions,
+          groups: actual.groupTerminalSessions(
+            doubles.secondarySessions as never,
+            [],
+            SECONDARY_ROOT,
+          ),
+        },
+      ]
+    },
+  }
+})
 vi.mock('@renderer/lib/terminal-actions', () => ({
   spawnLocalTerminal: vi.fn(),
-  spawnTerminalAt: (cwd: string, opts?: { name?: string; initialInput?: string }) =>
-    doubles.spawnTerminalAt(cwd, opts),
+  spawnTerminalOnSession: (
+    session: unknown,
+    cwd: string,
+    opts?: { name?: string; initialInput?: string },
+  ) => doubles.spawnOnSession(session, cwd, opts),
 }))
 
 import { TerminalsBoard } from './terminals-board'
@@ -135,6 +189,7 @@ import { TerminalsBoard } from './terminals-board'
 beforeEach(() => {
   vi.clearAllMocks()
   doubles.sessions = SESSIONS
+  doubles.secondarySessions = []
   doubles.storeRows = []
   doubles.focusedId = null
 })
@@ -158,7 +213,7 @@ describe('TerminalsBoard', () => {
 
     fireEvent.click(screen.getByTestId(TestIds.terminalsBoardEnvironmentShell('tmux')))
     await screen.findByTestId(TestIds.terminalsBoardSession('t-api'))
-    expect(doubles.spawnTerminalAt).toHaveBeenCalledWith(ENVIRONMENT_ROOT, {
+    expect(doubles.spawnOnSession).toHaveBeenCalledWith(doubles.primarySession, ENVIRONMENT_ROOT, {
       name: 'tmux',
       initialInput: 'tmux new -A -s porcelain\n',
     })
@@ -168,10 +223,10 @@ describe('TerminalsBoard', () => {
       ...SESSIONS,
       { id: 't-tmux', name: 'tmux', cwd: ENVIRONMENT_ROOT, status: 'running', createdAt: 4 },
     ]
-    doubles.spawnTerminalAt.mockClear()
+    doubles.spawnOnSession.mockClear()
     rerender(<TerminalsBoard />)
     fireEvent.click(screen.getByTestId(TestIds.terminalsBoardEnvironmentShell('tmux')))
-    expect(doubles.spawnTerminalAt).not.toHaveBeenCalled()
+    expect(doubles.spawnOnSession).not.toHaveBeenCalled()
     expect(doubles.focus).toHaveBeenCalledWith('t-tmux')
   })
 
@@ -261,7 +316,11 @@ describe('TerminalsBoard', () => {
     fireEvent.click(screen.getByTestId(TestIds.terminalsBoardNew))
     fireEvent.click(await screen.findByTestId(TestIds.terminalsBoardNewAt('p-api:w-api')))
 
-    expect(doubles.spawnTerminalAt).toHaveBeenCalledWith('/code/api', undefined)
+    expect(doubles.spawnOnSession).toHaveBeenCalledWith(
+      doubles.primarySession,
+      '/code/api',
+      undefined,
+    )
   })
 
   it('offers the empty state when the daemon has no sessions', () => {
@@ -269,5 +328,38 @@ describe('TerminalsBoard', () => {
     render(<TerminalsBoard />)
 
     expect(screen.getByTestId(TestIds.terminalsBoardEmpty)).toBeTruthy()
+  })
+
+  /**
+   * The point of the surface: a shell on another machine used to be invisible until the whole
+   * window was switched to that daemon.
+   */
+  it('lists every Environment, and spawns on the one whose row was used', async () => {
+    doubles.secondarySessions = [
+      { id: 't-mac', name: 'build', cwd: SECONDARY_ROOT, status: 'running', createdAt: 6 },
+    ]
+    render(<TerminalsBoard />)
+
+    expect(screen.getByTestId(TestIds.terminalsBoardEnvironmentSection('env-1'))).toBeTruthy()
+    expect(screen.getByTestId(TestIds.terminalsBoardEnvironmentSection('env-2'))).toBeTruthy()
+    expect(screen.getByTestId(TestIds.terminalsBoardSession('t-mac'))).toBeTruthy()
+    expect(screen.getByText('mac mini')).toBeTruthy()
+
+    // Both blocks offer the multiplexer shortcuts; the second one must start on the SECOND
+    // daemon, not on the daemon this window is bound to.
+    const shells = screen.getAllByTestId(TestIds.terminalsBoardEnvironmentShell('herdr'))
+    expect(shells).toHaveLength(2)
+    fireEvent.click(shells[1] as HTMLElement)
+
+    await vi.waitFor(() => {
+      expect(doubles.spawnOnSession).toHaveBeenCalledWith(
+        doubles.secondarySession,
+        SECONDARY_ROOT,
+        {
+          name: 'herdr',
+          initialInput: 'herdr\n',
+        },
+      )
+    })
   })
 })

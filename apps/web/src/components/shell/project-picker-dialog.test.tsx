@@ -57,6 +57,13 @@ vi.mock('@renderer/lib/platform', () => ({ isBrowser: false }))
 
 const { useProjectPickerStore } = await import('@renderer/stores/project-picker')
 
+// jsdom implements no Web Animations API, and Base UI's ScrollArea asks its viewport for
+// running animations on a timer AFTER mount — the throw lands outside the test that rendered
+// it and fails the file rather than an assertion. Stubbed here rather than globally: with it
+// present, Base UI's popups take their animated close path, which changes what other suites
+// observe. Nothing animates in jsdom, so "none running" is the honest answer.
+Element.prototype.getAnimations ??= (): Animation[] => []
+
 /** Base UI's Select commits on the pointer sequence; a bare click leaves it unchosen. */
 async function choose(trigger: HTMLElement, option: RegExp): Promise<void> {
   fireEvent.click(trigger)

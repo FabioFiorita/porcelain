@@ -11,7 +11,7 @@ import {
   useSearchNotificationSubscription,
 } from '@renderer/features/search'
 import { NewTaskDialog, useTasksNotificationSubscription } from '@renderer/features/tasks'
-import { useTerminalRoster } from '@renderer/features/terminal'
+import { useEnvironmentTerminalStreams, useTerminalRoster } from '@renderer/features/terminal'
 import { useDocumentTitle } from '@renderer/hooks/use-document-title'
 import { useResponsiveShell } from '@renderer/hooks/use-responsive-shell'
 import { useSessionRuntime } from '@renderer/hooks/use-session-runtime'
@@ -144,6 +144,9 @@ export function AppShell(): React.JSX.Element {
   useThemeSync()
   useDocumentTitle()
   useTerminalRoster()
+  // One live terminal stream per Environment, for the whole window: the Terminals board
+  // renders every machine's shells and must never open a second subscriber for one.
+  useEnvironmentTerminalStreams()
 
   useEffect(() => {
     const selection = useHubSelectionStore.getState().selection

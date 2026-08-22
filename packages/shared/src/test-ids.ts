@@ -201,6 +201,8 @@ export const TestIds = {
   terminalsBoardNew: 'terminals-board-new',
   terminalsBoardNewAt: (key: string): string => `terminals-board-new-at-${key}`,
   terminalsBoardGrid: 'terminals-board-grid',
+  /** One Environment's block in the Terminals list. 'current' = the window's own daemon. */
+  terminalsBoardEnvironmentSection: (id: string): string => `terminals-board-env-${id}`,
   terminalsBoardGroup: (key: string): string => `terminals-board-group-${key}`,
   terminalsBoardSession: (id: string): string => `terminals-board-session-${id}`,
   terminalsBoardClose: (id: string): string => `terminals-board-close-${id}`,

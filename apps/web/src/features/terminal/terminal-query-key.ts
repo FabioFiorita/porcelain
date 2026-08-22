@@ -37,3 +37,16 @@ export function invalidateTerminalSessionsQueries(
     exact: true,
   })
 }
+
+/**
+ * Invalidate every Environment's roster at once.
+ *
+ * A spawn, rename, or kill is aimed at one daemon, but the board now lists them all and the
+ * cheapest correct answer to "which row changed" is all of them: the query is a small list
+ * and each Environment refetches only if something is mounted that reads it.
+ */
+export function invalidateEveryTerminalSessionsQuery(queryClient: QueryClient): Promise<void> {
+  return queryClient.invalidateQueries({
+    predicate: (query) => isTerminalSessionsQueryKey(query.queryKey),
+  })
+}

@@ -89,6 +89,9 @@ const doubles = vi.hoisted(() => {
     useQueryClient: vi.fn(() => ({
       invalidateQueries: vi.fn(() => Promise.resolve()),
     })),
+    terminalAdapterForSession: vi.fn((session: unknown) =>
+      session === primarySession ? primaryAdapter : localAdapter,
+    ),
     useTerminalStream: vi.fn((session: unknown, listeners: ListenerSet) => {
       if (session === primarySession) {
         doubles.primaryListeners = listeners
@@ -146,6 +149,9 @@ vi.mock('@tanstack/react-query', () => ({
 }))
 vi.mock('./terminal-stream-adapter', () => ({
   useTerminalStream: doubles.useTerminalStream,
+  // The Environment stream is subscribed once, app-wide, by useEnvironmentTerminalStreams;
+  // this hook only needs the adapter to attach the open checkout's shells.
+  terminalAdapterForSession: doubles.terminalAdapterForSession,
 }))
 vi.mock('@renderer/lib/terminal-actions', () => ({
   followTerminal: (id: string) => doubles.followTerminal(id),
@@ -257,12 +263,26 @@ describe('useTerminalRoster', () => {
     expect(doubles.followTerminal).not.toHaveBeenCalled()
   })
 
-  it('routes stream exits through both the registry and roster store', () => {
+  /**
+   * "This device" is the one stream this hook still owns: every Environment's stream has a
+   * single subscriber in useEnvironmentTerminalStreams, and a second one here would write
+   * every byte to the Ghostty surface twice.
+   */
+  it('routes This device stream exits through both the registry and roster store', () => {
     renderHook(() => useTerminalRoster())
 
-    doubles.primaryListeners?.onExit?.('primary-in', 7)
+    doubles.localListeners?.onExit?.('local-in', 7)
 
-    expect(receiveExit).toHaveBeenCalledWith('primary-in', 7)
-    expect(doubles.terminalState.markExited).toHaveBeenCalledWith('primary-in', 7)
+    expect(receiveExit).toHaveBeenCalledWith('local-in', 7)
+    expect(doubles.terminalState.markExited).toHaveBeenCalledWith('local-in', 7)
+  })
+
+  it('does not subscribe the Environment stream a second time', () => {
+    renderHook(() => useTerminalRoster())
+
+    expect(doubles.useTerminalStream).not.toHaveBeenCalledWith(
+      doubles.primarySession,
+      expect.anything(),
+    )
   })
 })

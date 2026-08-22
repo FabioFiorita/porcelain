@@ -12,8 +12,14 @@ export {
   type TerminalLocation,
   terminalLocations,
 } from '@porcelain/client-runtime/terminal'
+export {
+  type EnvironmentTerminals,
+  useEnvironmentTerminals,
+  useEnvironmentTerminalStreams,
+} from './environment-terminals'
 export { applyTerminalRecovery, terminalPasteFailureMessage } from './terminal-notifications'
 export {
+  invalidateEveryTerminalSessionsQuery,
   invalidateTerminalSessionsQueries,
   terminalSessionsQueryKey,
 } from './terminal-query-key'
