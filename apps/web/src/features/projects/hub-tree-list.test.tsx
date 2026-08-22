@@ -2,6 +2,7 @@ import { hubInventorySchema, projectsContractFixtures } from '@porcelain/contrac
 import { TestIds } from '@shared/test-ids'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { useWorktreeScriptsStore } from '@renderer/stores/worktree-scripts'
 import { HubTreeFromInventories, HubTreeFromInventory } from './hub-tree-list'
 
 const inventory = hubInventorySchema.parse(projectsContractFixtures.hubInventory.output)
@@ -147,6 +148,47 @@ describe('Hub inventory tree', () => {
 
     await waitFor(() => expect(screen.queryByTestId(TestIds.hubRemoveWorktreeDialog)).toBeNull())
     expect(removeWorktree).not.toHaveBeenCalled()
+  })
+
+  it('opens the Worktree scripts of the Project the menu was raised on', () => {
+    useWorktreeScriptsStore.setState({ target: null })
+    render(
+      <HubTreeFromInventory
+        inventory={inventory}
+        openWorktree={vi.fn()}
+        createWorktree={vi.fn(async () => createdWorktree)}
+        removeProject={vi.fn(async () => undefined)}
+        removeWorktree={vi.fn(async () => undefined)}
+      />,
+    )
+
+    fireEvent.contextMenu(screen.getByRole('button', { name: 'Collapse project alpha' }))
+    fireEvent.click(screen.getByTestId(TestIds.hubWorktreeScripts('proj-alpha')))
+
+    expect(useWorktreeScriptsStore.getState().target).toEqual({
+      projectId: 'proj-alpha',
+      projectName: 'alpha',
+      environmentId: inventory.environment.id,
+      editable: true,
+    })
+  })
+
+  it('offers the scripts read-only for a Project this window daemon does not serve', () => {
+    useWorktreeScriptsStore.setState({ target: null })
+    render(
+      <HubTreeFromInventories
+        sources={[{ environmentId: 'env-remote', current: false, inventory: remoteInventory }]}
+        openWorktree={vi.fn()}
+        createWorktree={vi.fn(async () => createdWorktree)}
+        removeProject={vi.fn(async () => undefined)}
+        removeWorktree={vi.fn(async () => undefined)}
+      />,
+    )
+
+    fireEvent.contextMenu(screen.getByRole('button', { name: 'Collapse project alpha' }))
+    fireEvent.click(screen.getByTestId(TestIds.hubWorktreeScripts('remote-proj-alpha')))
+
+    expect(useWorktreeScriptsStore.getState().target?.editable).toBe(false)
   })
 
   it('collapses a Project without selecting it', () => {

@@ -160,7 +160,7 @@ describe('TerminalsBoard', () => {
     await screen.findByTestId(TestIds.terminalsBoardSession('t-api'))
     expect(doubles.spawnTerminalAt).toHaveBeenCalledWith(ENVIRONMENT_ROOT, {
       name: 'tmux',
-      initialInput: 'tmux new -A -s porcelain\n',
+      initialInput: 'tmux new -A -s porcelain',
     })
 
     // The row is now on the daemon: the shortcut focuses it instead of starting a second one.

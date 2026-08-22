@@ -15,6 +15,8 @@ export {
   ENVIRONMENT_GROUP_KEY,
   groupTerminalSessions,
   locationForCwd,
+  terminalLocationGroups,
+  terminalLocationLabel,
   terminalLocations,
 } from './terminal-groups'
 export type { TerminalMutation, TerminalMutationDefinition } from './terminal-mutations'

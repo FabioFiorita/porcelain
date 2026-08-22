@@ -209,14 +209,18 @@ describe('Browser Terminal stream adapter', () => {
 
     const create = context.adapter.createTerminal({ name: 'bash', cwd: '/synthetic/repo' })
     context.socket().handlers.closed()
-    await expect(create).rejects.toEqual({ reason: 'closed' })
+    await expect(create).rejects.toMatchObject({ reason: 'closed' })
+    // An Error, not a bare failure object: the toast description is `String(error)`.
+    await expect(create).rejects.toBeInstanceOf(Error)
+    await expect(create).rejects.toThrow('The connection to this Environment is not open.')
 
     let now = 0
     const timed = harness({ now: () => now })
     const timeout = timed.adapter.createTerminal({ name: 'fish', cwd: '/synthetic/repo' })
     now = 10_000
     vi.advanceTimersByTime(10_000)
-    await expect(timeout).rejects.toEqual({ reason: 'deadline' })
+    await expect(timeout).rejects.toMatchObject({ reason: 'deadline' })
+    await expect(timeout).rejects.toThrow('The daemon did not answer in time.')
   })
 
   it('reattaches desired sessions with fresh ids after reconnect and emits recovery', async () => {
@@ -315,7 +319,7 @@ describe('Browser Terminal stream adapter', () => {
     context.deliver(attachReply(frame.reqId))
     await first
 
-    await expect(context.adapter.attachTerminal('term-1')).rejects.toEqual({
+    await expect(context.adapter.attachTerminal('term-1')).rejects.toMatchObject({
       reason: 'not-requestable',
     })
     expect(context.adapter.isTerminalAttached('term-1')).toBe(true)

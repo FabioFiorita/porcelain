@@ -294,7 +294,12 @@ export function SwitchBranchDialog(props: {
 
   return (
     <Dialog open={props.open} onOpenChange={handleOpenChange}>
-      <DialogContent data-testid={TestIds.hubSwitchBranch} className="sm:max-w-md p-0">
+      {/* `overflow-hidden` + the list's own bottom padding: with neither, the last row's
+          highlight ran square into the dialog's rounded corner and the colour looked cut. */}
+      <DialogContent
+        data-testid={TestIds.hubSwitchBranch}
+        className="sm:max-w-md overflow-hidden p-0 pb-2"
+      >
         <DialogHeader className="px-6 pt-6">
           <DialogTitle>Switch branch</DialogTitle>
         </DialogHeader>
