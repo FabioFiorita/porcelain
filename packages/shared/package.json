@@ -1,6 +1,6 @@
 {
   "name": "@porcelain/shared",
-  "version": "0.57.2",
+  "version": "0.58.0",
   "private": true,
   "description": "Pure cross-cutting helpers shared by daemon, CLI, web, and shell.",
   "exports": {

@@ -1,3 +1,9 @@
+## [0.58.0](https://github.com/FabioFiorita/porcelain/compare/v0.57.2...v0.58.0) (2026-08-22)
+
+### Features
+
+* scope the app by Environment — Settings, project picker, and Terminals ([#70](https://github.com/FabioFiorita/porcelain/issues/70)) ([30a6208](https://github.com/FabioFiorita/porcelain/commit/30a62081e4e8daa77b63335e1c3fc8dc46b605ae))
+
 ## [0.57.2](https://github.com/FabioFiorita/porcelain/compare/v0.57.1...v0.57.2) (2026-08-21)
 
 ## [0.57.1](https://github.com/FabioFiorita/porcelain/compare/v0.57.0...v0.57.1) (2026-08-21)
