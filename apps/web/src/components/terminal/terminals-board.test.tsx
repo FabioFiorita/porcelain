@@ -160,7 +160,7 @@ describe('TerminalsBoard', () => {
     await screen.findByTestId(TestIds.terminalsBoardSession('t-api'))
     expect(doubles.spawnTerminalAt).toHaveBeenCalledWith(ENVIRONMENT_ROOT, {
       name: 'tmux',
-      initialInput: 'tmux new -A -s porcelain\n',
+      initialInput: 'tmux new -A -s porcelain',
     })
 
     // The row is now on the daemon: the shortcut focuses it instead of starting a second one.
@@ -253,6 +253,30 @@ describe('TerminalsBoard', () => {
     expect(screen.getByTestId('terminal-pane-t-web')).toBeTruthy()
     expect(screen.getByTestId('terminal-pane-t-api')).toBeTruthy()
     expect(screen.getByTestId('terminal-pane-t-home')).toBeTruthy()
+  })
+
+  it('hides the grid toggle until there is a second shell to put beside the first', () => {
+    doubles.sessions = [SESSIONS[0]]
+    const { rerender } = render(<TerminalsBoard />)
+    expect(screen.queryByTestId(TestIds.terminalsBoardGrid)).toBeNull()
+
+    doubles.sessions = SESSIONS
+    rerender(<TerminalsBoard />)
+    expect(screen.getByTestId(TestIds.terminalsBoardGrid)).toBeTruthy()
+  })
+
+  it('names each Project once and calls its own checkout Root', async () => {
+    render(<TerminalsBoard />)
+
+    fireEvent.click(screen.getByTestId(TestIds.terminalsBoardNew))
+    const root = await screen.findByTestId(TestIds.terminalsBoardNewAt('p-api:w-api'))
+
+    // The Project names the section; the row carries only the checkout's own name, which is
+    // what stopped "porcelain · porcelain-work" from being truncated to "porcelain · por…".
+    expect(root.textContent).toBe('Root')
+    const menu = root.closest('[role="menu"]')
+    expect(menu?.textContent).toContain('api')
+    expect(menu?.textContent).not.toContain('api · main')
   })
 
   it('spawns a terminal in the picked Worktree', async () => {

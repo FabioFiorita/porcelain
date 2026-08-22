@@ -9,6 +9,7 @@ import {
   SidebarHeader,
   useSidebar,
 } from '@renderer/components/ui/sidebar'
+import { WorktreeScriptsDialog } from '@renderer/features/actions'
 import { HubTree } from '@renderer/features/projects'
 import { openTasksBoard } from '@renderer/features/tasks'
 import { openTerminalsBoard } from '@renderer/features/terminal'
@@ -152,6 +153,9 @@ export function AppSidebar(): React.JSX.Element {
         <div className="app-no-drag px-2 pt-3">
           <HubTree className="max-w-none" />
         </div>
+        {/* Sibling of the tree, never a child of the menu that opens it: a closing context
+            menu unmounts its content, and a dialog inside would close in the same frame. */}
+        <WorktreeScriptsDialog />
       </SidebarContent>
       <SidebarFooter className="shrink-0 border-t px-2 py-2">
         <SettingsButton

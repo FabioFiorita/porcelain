@@ -33,9 +33,18 @@ import {
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { cn, copyText } from '@renderer/lib/utils'
 import { useHubSelectionStore } from '@renderer/stores/hub-selection'
+import { useWorktreeScriptsStore } from '@renderer/stores/worktree-scripts'
 import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
-import { ChevronDown, Copy, FolderGit2, GitBranch, GitBranchPlus, Trash2 } from 'lucide-react'
+import {
+  ChevronDown,
+  Copy,
+  FolderGit2,
+  GitBranch,
+  GitBranchPlus,
+  ScrollText,
+  Trash2,
+} from 'lucide-react'
 import { useState } from 'react'
 import { CreateWorktreeDialog } from './create-worktree-dialog'
 import type { HubInventoryView } from './project-data'
@@ -197,6 +206,7 @@ function ProjectBlock(props: {
   const [expanded, setExpanded] = useState(true)
   const [createOpen, setCreateOpen] = useState(false)
   const selectProject = useHubSelectionStore((state) => state.selectProject)
+  const openWorktreeScripts = useWorktreeScriptsStore((state) => state.open)
 
   const copyProjectPath = (): void => {
     runUserAction(
@@ -281,6 +291,23 @@ function ProjectBlock(props: {
           </div>
         </ContextMenuTrigger>
         <ContextMenuContent>
+          {/* The lifecycle scripts belong to this Project, and this row is where a human
+              picks a Project — so this is where they are edited, not at the bottom of the
+              menu of commands you click. */}
+          <ContextMenuItem
+            data-testid={TestIds.hubWorktreeScripts(props.project.id)}
+            onClick={() =>
+              openWorktreeScripts({
+                projectId: props.project.id,
+                projectName: props.project.name,
+                environmentId: props.environmentId,
+                editable: props.mutable,
+              })
+            }
+          >
+            <ScrollText />
+            Worktree scripts…
+          </ContextMenuItem>
           <ContextMenuItem onClick={copyProjectPath}>
             <Copy />
             Copy project path

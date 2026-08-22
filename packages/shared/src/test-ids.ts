@@ -67,6 +67,9 @@ export const TestIds = {
   hubRemoveWorktreeConfirm: 'hub-remove-worktree-confirm',
   hubWorktreeSetup: (projectId: string): string => `hub-worktree-setup-${projectId}`,
   hubCreateWorktreeDialog: 'hub-create-worktree-dialog',
+  /** Worktree lifecycle scripts of one Project, raised from its row in the tree. */
+  hubWorktreeScripts: (projectId: string): string => `hub-worktree-scripts-${projectId}`,
+  hubWorktreeScriptsDialog: 'hub-worktree-scripts-dialog',
   hubCreateWorktreeBranch: 'hub-create-worktree-branch',
   hubCreateWorktreeBase: 'hub-create-worktree-base',
   hubCreateWorktreeSubmit: 'hub-create-worktree-submit',

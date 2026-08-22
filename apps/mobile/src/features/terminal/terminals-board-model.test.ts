@@ -91,7 +91,9 @@ describe('mobile Terminals grouping', () => {
 describe('Environment shell shortcuts', () => {
   it('offers herdr and tmux, each as a create-time input rather than a write', () => {
     expect(ENVIRONMENT_SHELLS.map((shell) => shell.name)).toEqual(['herdr', 'tmux'])
-    for (const shell of ENVIRONMENT_SHELLS) expect(shell.initialInput.endsWith('\n')).toBe(true)
+    // No trailing newline: the daemon appends the submitting return itself, and a second one
+    // drew a stray empty prompt row above the multiplexer.
+    for (const shell of ENVIRONMENT_SHELLS) expect(shell.initialInput.endsWith('\n')).toBe(false)
   })
 
   it('finds a running shell by its literal name so the shortcut never starts a second one', () => {
@@ -131,7 +133,7 @@ describe('New terminal options', () => {
       }),
     ).toEqual([
       { detail: null, key: 'environment', label: 'Beelink', path: HOME },
-      { detail: 'main', key: 'p1:w1', label: 'Porcelain', path: `${HOME}/code/porcelain` },
+      { detail: 'Root', key: 'p1:w1', label: 'Porcelain', path: `${HOME}/code/porcelain` },
       {
         detail: 'shell',
         key: 'p1:w2',

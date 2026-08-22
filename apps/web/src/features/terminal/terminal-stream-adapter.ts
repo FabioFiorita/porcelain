@@ -16,6 +16,7 @@ import type { DaemonSession } from '@renderer/lib/daemon'
 import { sessionForTerminal } from '@renderer/lib/local-daemon'
 import { randomId } from '@renderer/lib/utils'
 import { useEffect, useMemo } from 'react'
+import { TerminalRequestError } from './terminal-notifications'
 
 type TerminalAttachedFrame = Extract<TerminalServerFrame, { t: 'terminal:attached' }>
 type TerminalFilePastedFrame = Extract<TerminalServerFrame, { t: 'terminal:file-pasted' }>
@@ -172,11 +173,14 @@ export function createBrowserTerminalAdapter(
     session.start()
     const now = settings.now()
     const request = create(settings.requestId(), now + settings.requestTimeoutMs)
-    if (request === undefined) return Promise.reject(failureNotRequestable())
+    // Rejections leave this module as Errors, never bare failure objects: the callers all end
+    // in a toast, and a plain object stringifies to "[object Object]".
+    if (request === undefined)
+      return Promise.reject(new TerminalRequestError(failureNotRequestable()))
     return new Promise<T>((resolve, reject) => {
       register(
         request,
-        makeEntry(resolve, (failure) => reject(failure)),
+        makeEntry(resolve, (failure) => reject(new TerminalRequestError(failure))),
       )
     })
   }

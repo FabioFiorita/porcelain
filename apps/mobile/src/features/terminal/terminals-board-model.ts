@@ -1,4 +1,4 @@
-import type { TerminalLocation } from '@porcelain/client-runtime/terminal'
+import { type TerminalLocation, terminalLocationLabel } from '@porcelain/client-runtime/terminal'
 import type { TerminalInfo } from '@porcelain/contracts/terminal'
 
 /**
@@ -27,8 +27,8 @@ export type EnvironmentShell = {
  * a spawn, never a write into an existing shell.
  */
 export const ENVIRONMENT_SHELLS: readonly EnvironmentShell[] = [
-  { initialInput: 'herdr\n', key: 'herdr', label: 'herdr', name: 'herdr' },
-  { initialInput: 'tmux new -A -s porcelain\n', key: 'tmux', label: 'tmux', name: 'tmux' },
+  { initialInput: 'herdr', key: 'herdr', label: 'herdr', name: 'herdr' },
+  { initialInput: 'tmux new -A -s porcelain', key: 'tmux', label: 'tmux', name: 'tmux' },
 ]
 
 /**
@@ -77,8 +77,10 @@ export function newTerminalOptions({
       : [{ detail: null, key: 'environment', label: environmentLabel, path: environmentRoot }]
   return [
     ...environment,
+    // Same naming as the web picker: the Project titles the row, and the checkout under it is
+    // "Root" when it is the Project's own — not the repeated Project name.
     ...locations.map((location) => ({
-      detail: location.worktreeName,
+      detail: terminalLocationLabel(location),
       key: location.key,
       label: location.projectName,
       path: location.path,

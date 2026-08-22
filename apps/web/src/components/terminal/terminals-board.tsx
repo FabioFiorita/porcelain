@@ -16,7 +16,10 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@renderer/components/ui/dropdown-menu'
 import {
@@ -26,6 +29,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from '@renderer/components/ui/empty'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useHubInventory, useProjectDirectories } from '@renderer/features/projects'
 import {
   ENVIRONMENT_GROUP_KEY,
@@ -33,6 +37,8 @@ import {
   listTerminalSessionsOnDaemon,
   type TerminalGroup,
   terminalAdapterFor,
+  terminalLocationGroups,
+  terminalLocationLabel,
   terminalLocations,
   terminalSessionsQueryKey,
 } from '@renderer/features/terminal'
@@ -49,6 +55,8 @@ import { TestIds } from '@shared/test-ids'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Cloud,
+  FolderGit2,
+  GitBranch,
   FolderPen,
   Grid2x2,
   Layers,
@@ -91,8 +99,8 @@ const MAX_GRID_PANES = 4
  * is a spawn, never a write into an existing shell.
  */
 const ENVIRONMENT_SHELLS = [
-  { key: 'herdr', label: 'herdr', name: 'herdr', initialInput: 'herdr\n' },
-  { key: 'tmux', label: 'tmux', name: 'tmux', initialInput: 'tmux new -A -s porcelain\n' },
+  { key: 'herdr', label: 'herdr', name: 'herdr', initialInput: 'herdr' },
+  { key: 'tmux', label: 'tmux', name: 'tmux', initialInput: 'tmux new -A -s porcelain' },
 ] as const
 
 /** Cap the grid so a herd of shells cannot render dozens of live Ghostty surfaces at once. */
@@ -147,6 +155,7 @@ export function TerminalsBoard(): React.JSX.Element {
     () => terminalLocations(inventory?.projects ?? []),
     [inventory?.projects],
   )
+  const locationGroups = useMemo(() => terminalLocationGroups(locations), [locations])
 
   // One list from two rosters. The global poll is authoritative for the primary daemon; the
   // store contributes the rows it cannot see at all (local origin, secondary Environment).
@@ -193,6 +202,9 @@ export function TerminalsBoard(): React.JSX.Element {
     [allSessions, environmentRoot, locations],
   )
   const sessions = useMemo(() => groups.flatMap((group) => group.sessions), [groups])
+  // The grid toggle only means something with a second shell to put beside the first, and an
+  // unexplained glyph that does nothing is worse than no button. It appears when it applies.
+  const canGrid = sessions.filter((session) => session.status === 'running').length > 1
   const environmentSessions = useMemo(
     () => groups.find((group) => group.key === ENVIRONMENT_GROUP_KEY)?.sessions ?? [],
     [groups],
@@ -356,17 +368,30 @@ export function TerminalsBoard(): React.JSX.Element {
       <div className="flex w-64 min-w-0 shrink-0 flex-col border-r">
         <div className="flex h-9 shrink-0 items-center gap-1 border-b px-2">
           <span className="min-w-0 flex-1 truncate text-xs font-medium">Terminals</span>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Grid layout"
-            aria-pressed={grid}
-            data-testid={TestIds.terminalsBoardGrid}
-            className={cn(grid && 'bg-accent text-accent-foreground')}
-            onClick={() => setGrid((current) => !current)}
-          >
-            <Grid2x2 />
-          </Button>
+          {/* Two glyph-only buttons sat side by side with nothing saying what either did.
+              The grid one is the obscure half, so it says so on hover. */}
+          {canGrid && (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Grid layout"
+                    aria-pressed={grid}
+                    data-testid={TestIds.terminalsBoardGrid}
+                    className={cn(grid && 'bg-accent text-accent-foreground')}
+                    onClick={() => setGrid((current) => !current)}
+                  >
+                    <Grid2x2 />
+                  </Button>
+                }
+              />
+              <TooltipContent>
+                {grid ? 'Show one terminal' : `Show up to ${MAX_GRID_PANES} terminals at once`}
+              </TooltipContent>
+            </Tooltip>
+          )}
           {canSpawnLocal && (
             <Button
               variant="ghost"
@@ -384,49 +409,74 @@ export function TerminalsBoard(): React.JSX.Element {
             </Button>
           )}
           <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="New terminal"
-                  data-testid={TestIds.terminalsBoardNew}
-                >
-                  <Plus />
-                </Button>
-              }
-            />
-            <DropdownMenuContent align="end" className="max-h-80 overflow-y-auto">
-              {environmentRoot !== null && (
-                <DropdownMenuItem
-                  data-testid={TestIds.terminalsBoardNewAt(ENVIRONMENT_GROUP_KEY)}
-                  onClick={toastingAction('New terminal', () => spawnAt(environmentRoot))}
-                >
-                  <Cloud />
-                  <span className="truncate">
-                    {environmentName ?? daemon.host ?? 'Environment'}
-                  </span>
-                </DropdownMenuItem>
-              )}
-              {canSpawnLocal && (
-                <DropdownMenuItem data-testid={TestIds.terminalNewLocal} onClick={handleSpawnLocal}>
-                  <Monitor />
-                  This device
-                </DropdownMenuItem>
-              )}
-              {locations.length === 0 && environmentRoot === null && (
-                <DropdownMenuItem disabled>Add a Project first</DropdownMenuItem>
-              )}
-              {locations.map((location) => (
-                <DropdownMenuItem
-                  key={location.key}
-                  data-testid={TestIds.terminalsBoardNewAt(location.key)}
-                  onClick={toastingAction('New terminal', () => spawnAt(location.path))}
-                >
-                  <span className="truncate">
-                    {location.projectName} · {location.worktreeName}
-                  </span>
-                </DropdownMenuItem>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="New terminal"
+                        data-testid={TestIds.terminalsBoardNew}
+                      >
+                        <Plus />
+                      </Button>
+                    }
+                  />
+                }
+              />
+              <TooltipContent>New terminal</TooltipContent>
+            </Tooltip>
+            {/* The menu inherits the trigger's width by default, and the trigger is a 28px
+                icon button — which is how "porcelain · porcelain-work" became "porcelain · por…".
+                One Project per section, so a row only ever carries the checkout's own name. */}
+            <DropdownMenuContent align="end" className="max-h-80 w-72 overflow-y-auto">
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>Where should it run?</DropdownMenuLabel>
+                {environmentRoot !== null && (
+                  <DropdownMenuItem
+                    data-testid={TestIds.terminalsBoardNewAt(ENVIRONMENT_GROUP_KEY)}
+                    onClick={toastingAction('New terminal', () => spawnAt(environmentRoot))}
+                  >
+                    <Cloud />
+                    <span className="truncate">
+                      {environmentName ?? daemon.host ?? 'Environment'}
+                    </span>
+                  </DropdownMenuItem>
+                )}
+                {canSpawnLocal && (
+                  <DropdownMenuItem
+                    data-testid={TestIds.terminalNewLocal}
+                    onClick={handleSpawnLocal}
+                  >
+                    <Monitor />
+                    This device
+                  </DropdownMenuItem>
+                )}
+                {locations.length === 0 && environmentRoot === null && (
+                  <DropdownMenuItem disabled>Add a Project first</DropdownMenuItem>
+                )}
+              </DropdownMenuGroup>
+              {locationGroups.map((group) => (
+                <DropdownMenuGroup key={group.projectId}>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="flex items-center gap-1.5">
+                    <FolderGit2 className="size-3.5 shrink-0" aria-hidden />
+                    <span className="min-w-0 truncate">{group.projectName}</span>
+                  </DropdownMenuLabel>
+                  {group.locations.map((location) => (
+                    <DropdownMenuItem
+                      key={location.key}
+                      data-testid={TestIds.terminalsBoardNewAt(location.key)}
+                      title={location.path}
+                      onClick={toastingAction('New terminal', () => spawnAt(location.path))}
+                    >
+                      <GitBranch />
+                      <span className="truncate">{terminalLocationLabel(location)}</span>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuGroup>
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
