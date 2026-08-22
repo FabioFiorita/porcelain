@@ -48,6 +48,12 @@ export function ProjectScopePicker(): React.JSX.Element | null {
 
   return (
     <Select
+      // `items` is what makes the trigger read as a name: without it Base UI renders the
+      // raw value, and these values are worktree UUIDs.
+      items={rows.map((row) => ({
+        label: label(row.worktree, row.project.name),
+        value: row.worktree.id,
+      }))}
       value={selectedWorktreeId ?? undefined}
       onValueChange={(value: string | null): void => {
         if (value !== null) choose(value)

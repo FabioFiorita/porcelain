@@ -140,6 +140,13 @@ function ProjectPicker({ onClose }: { onClose: () => void }): React.JSX.Element 
               opened against the Mac. */}
           {inventories.length > 1 && (
             <Select
+              // Without `items` the trigger shows the raw value — an Environment UUID.
+              items={inventories.map((source) => ({
+                label: source.current
+                  ? `${source.inventory.environment.name} · this window`
+                  : source.inventory.environment.name,
+                value: source.inventory.environment.id,
+              }))}
               value={target?.inventory.environment.id}
               onValueChange={(value: string | null): void => {
                 if (value !== null) retarget(value)
