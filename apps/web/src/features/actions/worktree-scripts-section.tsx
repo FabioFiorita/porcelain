@@ -1,5 +1,6 @@
 import type { ActionView, WorktreeScriptKind } from '@porcelain/contracts/actions'
 import { Button } from '@renderer/components/ui/button'
+import { cn } from '@renderer/lib/utils'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
@@ -91,10 +92,13 @@ function ScriptList({
 export function WorktreeScriptsSection({
   actions,
   editable,
+  showHeading = true,
 }: {
   /** The Project's full saved list; this component takes only the two script roles from it. */
   actions: readonly ActionView[]
   editable: boolean
+  /** False where the host already says what this is — the dialog raised from the tree. */
+  showHeading?: boolean
 }): React.JSX.Element {
   const [draft, setDraft] = useState<ActionDraft | null>(null)
   // A lifecycle row has nothing to run on click, so accepting its command is the whole
@@ -103,10 +107,15 @@ export function WorktreeScriptsSection({
   const trustAction = useTrustAction()
 
   return (
-    <div className="flex flex-col border-t pt-1" data-testid={TestIds.actionsScriptsSection}>
-      <span className="px-2 pt-2 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
-        Worktree scripts
-      </span>
+    <div
+      className={cn('flex flex-col', showHeading && 'border-t pt-1')}
+      data-testid={TestIds.actionsScriptsSection}
+    >
+      {showHeading && (
+        <span className="px-2 pt-2 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
+          Worktree scripts
+        </span>
+      )}
       {SECTIONS.map((section) => (
         <ScriptList
           key={section.kind}

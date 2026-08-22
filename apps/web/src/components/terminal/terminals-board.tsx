@@ -56,6 +56,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Cloud,
   FolderGit2,
+  GitBranch,
   FolderPen,
   Grid2x2,
   Layers,
@@ -201,6 +202,9 @@ export function TerminalsBoard(): React.JSX.Element {
     [allSessions, environmentRoot, locations],
   )
   const sessions = useMemo(() => groups.flatMap((group) => group.sessions), [groups])
+  // The grid toggle only means something with a second shell to put beside the first, and an
+  // unexplained glyph that does nothing is worse than no button. It appears when it applies.
+  const canGrid = sessions.filter((session) => session.status === 'running').length > 1
   const environmentSessions = useMemo(
     () => groups.find((group) => group.key === ENVIRONMENT_GROUP_KEY)?.sessions ?? [],
     [groups],
@@ -366,26 +370,28 @@ export function TerminalsBoard(): React.JSX.Element {
           <span className="min-w-0 flex-1 truncate text-xs font-medium">Terminals</span>
           {/* Two glyph-only buttons sat side by side with nothing saying what either did.
               The grid one is the obscure half, so it says so on hover. */}
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Grid layout"
-                  aria-pressed={grid}
-                  data-testid={TestIds.terminalsBoardGrid}
-                  className={cn(grid && 'bg-accent text-accent-foreground')}
-                  onClick={() => setGrid((current) => !current)}
-                >
-                  <Grid2x2 />
-                </Button>
-              }
-            />
-            <TooltipContent>
-              {grid ? 'Show one terminal' : `Show up to ${MAX_GRID_PANES} terminals at once`}
-            </TooltipContent>
-          </Tooltip>
+          {canGrid && (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Grid layout"
+                    aria-pressed={grid}
+                    data-testid={TestIds.terminalsBoardGrid}
+                    className={cn(grid && 'bg-accent text-accent-foreground')}
+                    onClick={() => setGrid((current) => !current)}
+                  >
+                    <Grid2x2 />
+                  </Button>
+                }
+              />
+              <TooltipContent>
+                {grid ? 'Show one terminal' : `Show up to ${MAX_GRID_PANES} terminals at once`}
+              </TooltipContent>
+            </Tooltip>
+          )}
           {canSpawnLocal && (
             <Button
               variant="ghost"
@@ -466,6 +472,7 @@ export function TerminalsBoard(): React.JSX.Element {
                       title={location.path}
                       onClick={toastingAction('New terminal', () => spawnAt(location.path))}
                     >
+                      <GitBranch />
                       <span className="truncate">{terminalLocationLabel(location)}</span>
                     </DropdownMenuItem>
                   ))}

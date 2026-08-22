@@ -16,7 +16,7 @@ import { WorktreeScriptsSection } from './worktree-scripts-section'
 /** Mounted only while a Project is targeted, so the closed dialog holds no Actions query. */
 function WorktreeScriptsBody({ target }: { target: WorktreeScriptsTarget }): React.JSX.Element {
   const actions = useActions(true, target.projectId, target.environmentId)
-  return <WorktreeScriptsSection actions={actions} editable={target.editable} />
+  return <WorktreeScriptsSection actions={actions} editable={target.editable} showHeading={false} />
 }
 
 /**
