@@ -25,6 +25,10 @@ function reportRootFailure(result: Exclude<ProjectDataRootResult, { ok: true }>)
     console.error(`porcelain: project-data manifest has unsupported version ${error.version}`)
     return
   }
+  if (error.code === 'project-data.manifest-schema-mismatch') {
+    console.error('porcelain: project-data manifest no longer matches the expected shape')
+    return
+  }
   console.error(
     `porcelain: project-data manifest is ${error.byteLength} bytes (> ${error.maxBytes})`,
   )
@@ -54,14 +58,16 @@ async function performEnsureRoot(repoPath: string): Promise<ProjectDataRootResul
             ok: false,
             error: { code: 'project-data.manifest-incompatible', version: result.version },
           }
-        : {
-            ok: false,
-            error: {
-              code: 'project-data.manifest-too-large',
-              byteLength: result.byteLength,
-              maxBytes: result.maxBytes,
-            },
-          }
+        : result.kind === 'schema-mismatch'
+          ? { ok: false, error: { code: 'project-data.manifest-schema-mismatch' } }
+          : {
+              ok: false,
+              error: {
+                code: 'project-data.manifest-too-large',
+                byteLength: result.byteLength,
+                maxBytes: result.maxBytes,
+              },
+            }
   reportRootFailure(failed)
   return failed
 }

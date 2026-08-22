@@ -52,6 +52,7 @@ export function projectDataFilesForDomain(domainKey: ProjectDataDomainKey): Proj
 export type ProjectDataRootError =
   | { readonly code: 'project-data.manifest-corrupt'; readonly backupPath: string }
   | { readonly code: 'project-data.manifest-incompatible'; readonly version: number }
+  | { readonly code: 'project-data.manifest-schema-mismatch' }
   | {
       readonly code: 'project-data.manifest-too-large'
       readonly byteLength: number

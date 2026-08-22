@@ -91,7 +91,7 @@ describe('createProjectManifestDocument', () => {
     })
   })
 
-  it('backs up unversioned JSON and invalid values as corrupt', async () => {
+  it('backs up unversioned JSON as corrupt', async () => {
     await withTemporaryDirectory('porcelain-pdt-001-unversioned-', async (repoPath) => {
       const path = projectManifestPath(repoPath)
       await mkdir(join(repoPath, '.porcelain'), { recursive: true })
@@ -104,7 +104,9 @@ describe('createProjectManifestDocument', () => {
       await expect(stat(path)).rejects.toMatchObject({ code: 'ENOENT' })
       expect(await readFile(result.backupPath, 'utf8')).toBe(original)
     })
+  })
 
+  it('reports a well-formed envelope with an invalid value as schema-mismatch, leaving the file in place', async () => {
     await withTemporaryDirectory('porcelain-pdt-001-invalid-value-', async (repoPath) => {
       const path = projectManifestPath(repoPath)
       await mkdir(join(repoPath, '.porcelain'), { recursive: true })
@@ -112,10 +114,9 @@ describe('createProjectManifestDocument', () => {
       await writeFile(path, original, 'utf8')
 
       const result = await createProjectManifestDocument(repoPath).read()
-      expect(result.kind).toBe('corrupt')
-      if (result.kind !== 'corrupt') return
-      await expect(stat(path)).rejects.toMatchObject({ code: 'ENOENT' })
-      expect(await readFile(result.backupPath, 'utf8')).toBe(original)
+      expect(result.kind).toBe('schema-mismatch')
+      await expect(stat(path)).resolves.toBeDefined()
+      expect(await readFile(path, 'utf8')).toBe(original)
     })
   })
 

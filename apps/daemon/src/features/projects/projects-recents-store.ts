@@ -44,6 +44,10 @@ function reportUnavailable(
     console.error(`porcelain: projects recents document has unsupported version ${result.version}`)
     return
   }
+  if (result.kind === 'schema-mismatch') {
+    console.error('porcelain: projects recents document no longer matches the expected shape')
+    return
+  }
   if (result.kind === 'too-large') {
     console.error(
       `porcelain: projects recents document is ${result.byteLength} bytes (> ${result.maxBytes})`,

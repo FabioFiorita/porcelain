@@ -74,9 +74,12 @@ describe('createTasksStore', () => {
     })
   })
 
-  it('reports a schema-invalid row as unavailable and keeps the rejected bytes', async () => {
+  it('reports a schema-invalid row as unavailable, leaving the file in place for migration', async () => {
     await withTemporaryDirectory('porcelain-tasks-store-schema-', async (homeDir) => {
-      vi.spyOn(console, 'error').mockImplementation(() => undefined)
+      const errors: string[] = []
+      vi.spyOn(console, 'error').mockImplementation((message: unknown) => {
+        errors.push(String(message))
+      })
       const body = `${JSON.stringify({ version: 1, value: { tasks: [{ id: 'not-a-uuid' }] } })}\n`
       const path = await writeIndexRaw(homeDir, body)
 
@@ -85,11 +88,8 @@ describe('createTasksStore', () => {
         error: { code: 'tasks.unavailable' },
       })
 
-      const backups = (await readdir(dirname(path))).filter((name) =>
-        name.startsWith('tasks.json.corrupt-'),
-      )
-      expect(backups).toHaveLength(1)
-      expect(await readFile(`${dirname(path)}/${backups[0]}`, 'utf8')).toBe(body)
+      expect(await readFile(path, 'utf8')).toBe(body)
+      expect(errors.join('\n')).toContain('tasks table no longer matches the expected shape')
     })
   })
 

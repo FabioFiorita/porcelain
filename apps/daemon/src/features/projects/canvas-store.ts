@@ -96,6 +96,10 @@ function reportUnavailable(
     console.error(`porcelain: canvas index has unsupported version ${result.version}`)
     return
   }
+  if (result.kind === 'schema-mismatch') {
+    console.error('porcelain: canvas index no longer matches the expected shape')
+    return
+  }
   console.error(
     `porcelain: canvas index is ${result.byteLength} bytes (> ${CANVAS_INDEX_FILE_MAX_BYTES})`,
   )

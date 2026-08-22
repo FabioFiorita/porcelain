@@ -124,19 +124,17 @@ describe('createStrictJsonDocument', () => {
     })
   })
 
-  it('renames invalid version-1 values to a corrupt backup and removes the original path', async () => {
+  it('reports a version-1 envelope whose value the caller schema rejects as schema-mismatch, leaving the file in place', async () => {
     await withTemporaryDirectory('porcelain-dat-001-invalid-v1-', async (directory) => {
       const path = join(directory, 'doc.json')
-      const original = `${JSON.stringify({ version: 1, value: { name: 99, count: 'nope' } }, null, 2)}\n`
+      const value = { name: 99, count: 'nope' }
+      const original = `${JSON.stringify({ version: 1, value }, null, 2)}\n`
       await writeFile(path, original, 'utf8')
       const doc = documentAt(path)
 
       const result = await doc.read()
-      expect(result.kind).toBe('corrupt')
-      if (result.kind !== 'corrupt') return
-
-      await expect(stat(path)).rejects.toMatchObject({ code: 'ENOENT' })
-      expect(await readFile(result.backupPath, 'utf8')).toBe(original)
+      expect(result).toEqual({ kind: 'schema-mismatch', value })
+      expect(await readFile(path, 'utf8')).toBe(original)
     })
   })
 
@@ -264,8 +262,23 @@ describe('createStrictJsonDocument', () => {
       )
       kinds.add((await documentAt(incompatPath).read()).kind)
 
+      const mismatchPath = join(directory, 'mismatch.json')
+      await writeFile(
+        mismatchPath,
+        JSON.stringify({ version: 1, value: { name: 'z', count: 'not-a-number' } }),
+        'utf8',
+      )
+      kinds.add((await documentAt(mismatchPath).read()).kind)
+
       expect(kinds).toEqual(
-        new Set(['missing', 'valid', 'too-large', 'corrupt', 'incompatible-version']),
+        new Set([
+          'missing',
+          'valid',
+          'too-large',
+          'corrupt',
+          'incompatible-version',
+          'schema-mismatch',
+        ]),
       )
     })
   })
@@ -324,13 +337,13 @@ describe('persisted envelope boundary', () => {
     })
   })
 
-  it('backs up a version-1 envelope whose value the caller schema rejects', async () => {
+  it('reports a version-1 envelope whose value the caller schema rejects as schema-mismatch, not corrupt', async () => {
     await withTemporaryDirectory('porcelain-dat-001-envelope-value-', async (directory) => {
       for (const [index, raw] of ['{"version":1}', '{"version":1,"value":null}'].entries()) {
         const name = `value-${index}.json`
         const { result, survivors } = await readEnvelope(directory, name, raw)
-        expect(result.kind, raw).toBe('corrupt')
-        expect(survivors).not.toContain(name)
+        expect(result.kind, raw).toBe('schema-mismatch')
+        expect(survivors).toContain(name)
       }
     })
   })

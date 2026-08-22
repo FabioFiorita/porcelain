@@ -28,6 +28,10 @@ function reportUnavailable(
     console.error(`porcelain: tasks table has unsupported version ${result.version}`)
     return
   }
+  if (result.kind === 'schema-mismatch') {
+    console.error('porcelain: tasks table no longer matches the expected shape')
+    return
+  }
   console.error(
     `porcelain: tasks table is ${result.byteLength} bytes (> ${TASKS_INDEX_FILE_MAX_BYTES})`,
   )

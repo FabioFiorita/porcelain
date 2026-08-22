@@ -27,6 +27,7 @@ export type ReadStrictJsonDocument<Value> =
   | { kind: 'valid'; value: Value }
   | { kind: 'incompatible-version'; version: number }
   | { kind: 'corrupt'; backupPath: string }
+  | { kind: 'schema-mismatch'; value: unknown }
   | { kind: 'too-large'; byteLength: number; maxBytes: number }
 
 export interface StrictJsonDocumentOptions<Value> {
@@ -187,10 +188,13 @@ export function createStrictJsonDocument<Value>(
       return { kind: 'incompatible-version', version }
     }
 
+    // A well-formed envelope whose value no longer matches valueSchema is an old
+    // shape, not garbage — leave the file in place so a caller can migrate it
+    // instead of it being quarantined and lost (moveToCorruptBackup is reserved
+    // for JSON/envelope failures above, which no migration can recover from).
     const schemaResult = valueSchema.safeParse(envelope.data.value)
     if (!schemaResult.success) {
-      const backupPath = await moveToCorruptBackup(documentPath)
-      return { kind: 'corrupt', backupPath }
+      return { kind: 'schema-mismatch', value: envelope.data.value }
     }
 
     return { kind: 'valid', value: schemaResult.data }

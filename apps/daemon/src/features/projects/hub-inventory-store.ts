@@ -60,6 +60,10 @@ function reportUnavailable(
     console.error(`porcelain: hub inventory document has unsupported version ${result.version}`)
     return
   }
+  if (result.kind === 'schema-mismatch') {
+    console.error('porcelain: hub inventory document no longer matches the expected shape')
+    return
+  }
   if (result.kind === 'too-large') {
     console.error(
       `porcelain: hub inventory document is ${result.byteLength} bytes (> ${HUB_INVENTORY_FILE_MAX_BYTES})`,

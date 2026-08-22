@@ -54,6 +54,10 @@ function reportUnavailable(
     )
     return
   }
+  if (result.kind === 'schema-mismatch') {
+    console.error('porcelain: environment identity document no longer matches the expected shape')
+    return
+  }
   if (result.kind === 'too-large') {
     console.error(
       `porcelain: environment identity document is ${result.byteLength} bytes (> ${ENVIRONMENT_IDENTITY_FILE_MAX_BYTES})`,
