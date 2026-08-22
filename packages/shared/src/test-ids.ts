@@ -84,6 +84,12 @@ export const TestIds = {
   // --- Settings ---
   settingsDialog: 'settings-dialog',
   settingsHeading: 'settings-heading',
+  /** The header eyebrow: which scope — and which Environment or Project — this page is about. */
+  settingsScope: 'settings-scope',
+  /** Share, on a window bound to an Environment this app cannot administer. */
+  shareNotAdministrable: 'share-not-administrable',
+  /** Which checkout a project-scoped Settings page is about. */
+  settingsProjectScope: 'settings-project-scope',
   settingsSection: (section: string): string => `settings-section-${section}`,
   browserEnvironmentConnections: 'browser-environment-connections',
   browserEnvironmentLabel: 'browser-environment-label',

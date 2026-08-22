@@ -15,6 +15,7 @@ import { TestIds } from '@shared/test-ids'
 import { Check, Copy } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { ProjectScopePicker } from './project-scope-picker'
 
 /**
  * Settings → Personalization: the worktree profile, READ-ONLY.
@@ -193,19 +194,30 @@ export function PersonalizationSection(): React.JSX.Element {
 
   if (repoPath === null) {
     return (
-      <p className="text-xs text-muted-foreground">
-        Open a repository to see its profile. Pins, hides, and story order belong to a project and
-        its worktrees, not to the app.
-      </p>
+      <div className="flex flex-col gap-3">
+        <p className="text-xs text-muted-foreground">
+          A profile belongs to a repository and its worktrees, not to the app. Choose one to see its
+          pins, hides, and story order.
+        </p>
+        <ProjectScopePicker />
+      </div>
     )
   }
 
   return (
     <div className="flex flex-col gap-6">
-      <p className="text-xs text-muted-foreground">
-        Pins, hides, and the order your changes read in. Set once for the project and inherited by
-        every worktree; an agent can override it for the one you are working in.
-      </p>
+      <div className="flex flex-col gap-2">
+        <p className="text-xs text-muted-foreground">
+          Pins, hides, and the order your changes read in. Set once for the project and inherited by
+          every worktree; an agent can override it for the one you are working in.
+        </p>
+        {/* Naming the checkout is half of it — a reader also has to be able to change which one
+            they are reading, without leaving Settings for the Hub tree and coming back. */}
+        <ProjectScopePicker />
+        <p className="truncate font-mono text-2xs text-muted-foreground" title={repoPath}>
+          {repoPath}
+        </p>
+      </div>
 
       {view === undefined ? (
         <p className="text-xs text-muted-foreground">Reading the profile…</p>

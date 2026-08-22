@@ -8,7 +8,6 @@ import {
   PopoverTrigger,
 } from '@renderer/components/ui/popover'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
-import { useEnvironmentName } from '@renderer/hooks/use-daemon-identity'
 import { useDaemonUpdatePrompt } from '@renderer/hooks/use-daemon-update-prompt'
 import {
   DAEMON_UPDATE_DOCS_URL,
@@ -42,7 +41,6 @@ import { useState } from 'react'
  */
 export function DaemonUpdateButton(): React.JSX.Element | null {
   const prompt = useDaemonUpdatePrompt()
-  const environmentName = useEnvironmentName()
   const [copied, setCopied] = useState(false)
 
   if (prompt === null) return null
@@ -50,7 +48,7 @@ export function DaemonUpdateButton(): React.JSX.Element | null {
   // Name the host and BOTH versions. "Update remote daemon (0.56.0)" read as an offer to
   // install 0.56.0 — it is the version the daemon is stuck on, and the number that makes
   // that legible is the one beside it.
-  const label = `Update ${environmentName ?? prompt.daemonHost} — running ${prompt.daemonVersion}, this app is ${prompt.clientVersion}`
+  const label = `Update ${prompt.daemonName} — running ${prompt.daemonVersion}, this app is ${prompt.clientVersion}`
   const copy = (command: string): void => {
     settleBackground(
       copyText(command).then(() => {
@@ -91,8 +89,8 @@ export function DaemonUpdateButton(): React.JSX.Element | null {
         <PopoverHeader>
           <PopoverTitle>Remote daemon is out of date</PopoverTitle>
           <PopoverDescription>
-            {environmentName ?? prompt.daemonHost} runs Porcelain {prompt.daemonVersion}; this
-            client is {prompt.clientVersion}. Update it on the host.
+            {prompt.daemonName} runs Porcelain {prompt.daemonVersion}; this client is{' '}
+            {prompt.clientVersion}. Update it on the host.
           </PopoverDescription>
         </PopoverHeader>
         <div className="flex flex-col gap-1">

@@ -12,6 +12,7 @@ import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-gro
 import { useCommitModels } from '@renderer/features/git'
 import { useDaemonIdentity, useEnvironmentName } from '@renderer/hooks/use-daemon-identity'
 import { compactButtonClass } from '@renderer/lib/controls'
+import { isBrowser } from '@renderer/lib/platform'
 import {
   type DiffMode,
   type HtmlMode,
@@ -109,7 +110,11 @@ function CommitModelPicker({
   )
 }
 
-/** Viewer + git prefs only. Share / Remotes are their own Settings tabs. */
+/**
+ * This app's own preferences: how it looks, how it renders a diff, which model it asks for a
+ * commit message. All of it is saved on this machine and travels with the app, not with the
+ * daemon — an Environment's own settings live under Environments and Share.
+ */
 export function GeneralSection(): React.JSX.Element {
   const { models, isLoading: areModelsLoading } = useCommitModels()
   const diffMode = usePreferencesStore((s) => s.diffMode)
@@ -131,11 +136,16 @@ export function GeneralSection(): React.JSX.Element {
 
   return (
     <div className="flex flex-col gap-5">
-      <PreferenceRow label="Connected to" description="The daemon that served this browser tab.">
-        <p data-testid={TestIds.settingsConnectedTo} className="text-sm-minus font-medium">
-          {connectedTo}
-        </p>
-      </PreferenceRow>
+      {/* Electron lists every Environment under Environments, and marks the one this window
+          is on — repeating it here as a preference reads as something you can set. A browser
+          tab has no such list: it is served BY one daemon, and this row is how it says which. */}
+      {isBrowser && (
+        <PreferenceRow label="Connected to" description="The daemon that served this browser tab.">
+          <p data-testid={TestIds.settingsConnectedTo} className="text-sm-minus font-medium">
+            {connectedTo}
+          </p>
+        </PreferenceRow>
+      )}
       <PreferenceRow label="Appearance" description="Light, dark, or match the system.">
         <ToggleGroup
           value={[theme]}
@@ -240,7 +250,7 @@ export function GeneralSection(): React.JSX.Element {
       </PreferenceRow>
       <PreferenceRow
         label="Commit message model"
-        description="Model used for generated commit messages and commit groups. Effort is fixed at medium."
+        description={`Model used for generated commit messages and commit groups, from the providers ${connectedTo} can reach. Effort is fixed at medium.`}
       >
         <CommitModelPicker
           value={commitModel}
