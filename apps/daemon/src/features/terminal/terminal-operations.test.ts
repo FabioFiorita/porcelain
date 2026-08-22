@@ -287,6 +287,45 @@ describe('Terminal lifecycle operations', () => {
     vi.advanceTimersByTime(1)
     expect(ptys[1]?.writes).toHaveBeenCalledWith('next\r')
   })
+
+  it('submits initial input once when the caller already ended it with a newline', () => {
+    const { operations, ptys } = makeHarness()
+    const created = operations.create(
+      { name: 'tmux', cwd: '/repo', initialInput: 'tmux new -A -s porcelain\n' },
+      makeSink(),
+    )
+    if (!created.ok) throw new Error('expected a terminal')
+    ptys[0]?.emitData('prompt> ')
+    vi.advanceTimersByTime(QUIET_AFTER_PROMPT_MS)
+    // One write, with exactly one submitting return: a second one drew a stray empty prompt
+    // row above whatever the command painted (the `❯` line over tmux).
+    expect(ptys[0]?.writes).toHaveBeenCalledTimes(1)
+    expect(ptys[0]?.writes).toHaveBeenCalledWith('tmux new -A -s porcelain\r')
+  })
+
+  it('keeps the interior newlines of a multi-command initial input', () => {
+    const { operations, ptys } = makeHarness()
+    const created = operations.create(
+      { name: 'setup', cwd: '/repo', initialInput: 'pnpm install\npnpm build\n' },
+      makeSink(),
+    )
+    if (!created.ok) throw new Error('expected a terminal')
+    ptys[0]?.emitData('prompt> ')
+    vi.advanceTimersByTime(QUIET_AFTER_PROMPT_MS)
+    expect(ptys[0]?.writes).toHaveBeenCalledWith('pnpm install\npnpm build\r')
+  })
+
+  it('treats an initial input that is only newlines as no initial input', () => {
+    const { operations, ptys } = makeHarness()
+    const created = operations.create(
+      { name: 'blank', cwd: '/repo', initialInput: '\n' },
+      makeSink(),
+    )
+    if (!created.ok) throw new Error('expected a terminal')
+    ptys[0]?.emitData('prompt> ')
+    vi.advanceTimersByTime(QUIET_AFTER_NEWLINE_MS)
+    expect(ptys[0]?.writes).not.toHaveBeenCalled()
+  })
 })
 
 describe('Terminal retention and capacity policy', () => {
