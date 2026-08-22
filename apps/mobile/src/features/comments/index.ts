@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
 import {
+  anchorRange,
+  type CommentAnchor,
   describeRange,
   isLineInRange,
   type LineRange,
@@ -9,9 +11,10 @@ import {
   rangeOf,
 } from './line-range'
 
-export type { LineRange, LineSelection }
-export { describeRange, isLineInRange, MAX_ANCHOR_TEXT, rangeForPath, rangeOf }
+export type { CommentAnchor, LineRange, LineSelection }
+export { anchorRange, describeRange, isLineInRange, MAX_ANCHOR_TEXT, rangeForPath, rangeOf }
 
+export { CommentComposer } from './comment-composer'
 export { CommentComposerSheet } from './comment-composer-sheet'
 export { type ReviewCommentActions, reviewCommentsKey, useCommentActions } from './comment-data'
 export {
@@ -25,14 +28,7 @@ export {
   describeCommentCounts,
 } from './comment-threads'
 export { ReviewCommentsScreen } from './review-comments-screen'
-
-/** Historical migration shape retained only so generic line-selection callers can compile. */
-export type CommentAnchor = {
-  path: string
-  startLine?: number
-  endLine?: number
-  anchorText?: string
-}
+export { SelectionBar } from './selection-bar'
 
 export type LineSelectionControls = {
   selection: LineSelection | null
@@ -62,10 +58,10 @@ export function useLineSelection(): LineSelectionControls {
 export { useReviewComments } from './comment-data'
 
 /**
- * Still placeholders: the Review surface reads comments as threads, and no mobile file or diff
- * row draws a comment decoration yet. They keep their signatures so the Files and Changes
- * viewers that already ask for an index compile unchanged, and answering "nothing here" is the
- * truth for those surfaces until one of them grows a gutter marker.
+ * Still a placeholder: filing a comment works (`CommentComposer`, `SelectionBar`), but no mobile
+ * file or diff row draws a decoration for one that already exists there. Kept so the Files and
+ * Changes viewers that already ask for an index compile unchanged, and answering "nothing here"
+ * is the truth for those surfaces until one of them grows a gutter marker.
  */
 export function useCommentIndex(
   _comments: readonly unknown[],
@@ -76,12 +72,4 @@ export function useCommentIndex(
 
 export function useCommentedLinesByPath(_comments: readonly unknown[]): Map<string, Set<number>> {
   return new Map()
-}
-
-export function CommentComposer(_props: Record<string, unknown>): null {
-  return null
-}
-
-export function SelectionBar(_props: Record<string, unknown>): null {
-  return null
 }

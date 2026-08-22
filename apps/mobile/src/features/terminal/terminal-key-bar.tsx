@@ -112,7 +112,7 @@ export function TerminalKeyBar({
       <KeyButton
         accessibilityLabel={keyboardVisible ? 'Dismiss keyboard' : 'Show keyboard'}
         active={keyboardVisible}
-        glyph="terminal"
+        glyph="keyboard"
         testID="porcelain-terminal-key-keyboard"
         onPress={onToggleKeyboard}
       />

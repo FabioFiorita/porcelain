@@ -16,6 +16,21 @@ export type LineSelection = {
 
 export type LineRange = { startLine: number; endLine: number }
 
+/** What a new comment anchors to: a whole file, or a line range within it. */
+export type CommentAnchor = {
+  path: string
+  startLine?: number
+  endLine?: number
+  anchorText?: string
+}
+
+/** An anchor's line range, or null for a whole-file comment. */
+export function anchorRange(anchor: CommentAnchor): LineRange | null {
+  return anchor.startLine === undefined || anchor.endLine === undefined
+    ? null
+    : { endLine: anchor.endLine, startLine: anchor.startLine }
+}
+
 /** The ordered range a selection covers. */
 export function rangeOf(selection: LineSelection): LineRange {
   return {

@@ -227,15 +227,23 @@ export function StatusNote({
 
 export function EmptyNote({
   body,
+  glyph,
   testID,
   title,
 }: {
   body: string
+  /** Web's shadcn `Empty` always leads with an `EmptyMedia` icon; mobile omits it unless passed. */
+  glyph?: ChromeIconName
   testID: string
   title: string
 }): React.JSX.Element {
   return (
-    <View className="items-center gap-1 px-6 py-10" testID={testID}>
+    <View className="items-center gap-2 px-6 py-10" testID={testID}>
+      {glyph === undefined ? null : (
+        <View className="mb-1 size-10 items-center justify-center rounded-full bg-muted">
+          <ChromeGlyph name={glyph} size={18} tone="muted" />
+        </View>
+      )}
       <Text className="text-sm font-medium text-foreground">{title}</Text>
       <Text className="max-w-[16rem] text-center text-xs leading-5 text-muted-foreground">
         {body}

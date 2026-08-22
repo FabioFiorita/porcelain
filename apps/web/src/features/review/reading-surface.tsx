@@ -1,3 +1,4 @@
+import { formatHunkHeader } from '@porcelain/client-runtime/hunk-header'
 import type { DiffLine } from '@porcelain/contracts/git'
 import type { ReadingFile, ReviewReading } from '@porcelain/contracts/review'
 import { Button } from '@renderer/components/ui/button'
@@ -15,7 +16,6 @@ import {
   tokenizeHunks,
   tokenizeLines,
 } from '@renderer/lib/highlight'
-import { formatHunkHeader } from '@renderer/lib/hunk-header'
 import { fileName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'
 import { activeTabTarget, targetedTab } from '@renderer/stores/hub-tabs'

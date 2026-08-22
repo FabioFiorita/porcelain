@@ -112,6 +112,9 @@ const CHROME_SYMBOLS = {
   pencil: { ios: 'pencil' as SFSymbol, android: 'edit' as AndroidSymbol },
   /** Terminal key bar: insert a newline instead of submitting the line (⇧↵). */
   newline: { ios: 'return' as SFSymbol, android: 'keyboard_return' as AndroidSymbol },
+  /** Terminal key bar: show/dismiss the software keyboard — distinct from `terminal` itself,
+   *  which names the session, not this toggle. */
+  keyboard: { ios: 'keyboard' as SFSymbol, android: 'keyboard' as AndroidSymbol },
 } as const
 
 export type ChromeIconName = keyof typeof CHROME_SYMBOLS

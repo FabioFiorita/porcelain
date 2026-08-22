@@ -13,7 +13,6 @@ import {
 } from '@/components/surface-chrome'
 import { SURFACE_GUTTER, SURFACE_NOTE } from '@/components/surface-layout'
 import { SurfaceScroll } from '@/components/surface-scroll'
-import { isPaired, useActiveEnvironment } from '@/features/remote'
 import { cn } from '@/lib/utils'
 
 import { TerminalLocationSheet } from './terminal-location-sheet'
@@ -25,7 +24,6 @@ import {
   ENVIRONMENT_SHELLS,
   type EnvironmentShell,
   newTerminalOptions,
-  rosterSummary,
   runningShellNamed,
 } from './terminals-board-model'
 import { useTerminalsBoard } from './use-terminals-board'
@@ -46,8 +44,7 @@ import { useTerminalsBoard } from './use-terminals-board'
 export function TerminalsScreen(): React.JSX.Element {
   const focused = useIsFocused()
   const router = useRouter()
-  const environment = useActiveEnvironment()
-  const { error, isLoading, sessions } = useTerminals(focused)
+  const { error, sessions } = useTerminals(focused)
   const board = useTerminalsBoard(focused, sessions)
   const spawn = useTerminalStore((state) => state.spawn)
   const close = useTerminalStore((state) => state.close)
@@ -144,13 +141,6 @@ export function TerminalsScreen(): React.JSX.Element {
       />
 
       <SurfaceScroll edgeToEdge gap={2} paddingTop={4}>
-        <Text
-          className={cn(SURFACE_GUTTER, 'pb-1 text-xs text-muted-foreground')}
-          testID="porcelain-terminals-summary"
-        >
-          {rosterSummary(sessions, { isLoading, paired: isPaired(environment) })}
-        </Text>
-
         {failure === null ? null : (
           <View className={SURFACE_NOTE}>
             <ErrorNote message={failure} testID="porcelain-terminals-action-error" />
@@ -203,6 +193,7 @@ export function TerminalsScreen(): React.JSX.Element {
         {sessions.length === 0 ? (
           <EmptyNote
             body="Start one with +, or open herdr on this environment."
+            glyph="terminal"
             testID="porcelain-terminals-empty"
             title="No terminals running"
           />
