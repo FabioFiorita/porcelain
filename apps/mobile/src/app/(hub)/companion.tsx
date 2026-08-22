@@ -13,8 +13,10 @@ const TITLE = 'Companion'
  * The active surface's companion, as a presented sheet.
  *
  * The surface is a URL parameter: the bolt that opens this knows which surface it sits on, and
- * a route that says so in its address does not depend on a store write landing first. The
- * store's `activeSurface` is still the fallback for a deep link that names nothing.
+ * a route that says so in its address does not depend on a store write landing first. A deep
+ * link that names nothing gets the "no companion here" note rather than whichever surface the
+ * shell store happened to hold — the store's `activeSurface` is the tablet panel's tab now, and
+ * a sheet opened from a phone has no business reading it.
  *
  * The Done item is declared HERE rather than in the stack layout because it is the sheet's own
  * bar that renders it, and the sheet is what knows it can be dismissed.

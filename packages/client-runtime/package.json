@@ -17,6 +17,7 @@
     "./terminal": "./src/terminal/index.ts",
     "./commit-message": "./src/commit-message.ts",
     "./highlight": "./src/highlight.ts",
+    "./hunk-header": "./src/hunk-header.ts",
     "./paths": "./src/paths.ts",
     "./terminal-keys": "./src/terminal-keys.ts",
     "./terminal-touch-scroll": "./src/terminal-touch-scroll.ts",

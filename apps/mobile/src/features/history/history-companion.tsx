@@ -1,6 +1,5 @@
 import { fileName } from '@porcelain/client-runtime/paths'
 import type { Commit } from '@porcelain/contracts/git'
-import { useRouter } from 'expo-router'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { PanelLabel, StatusNote } from '@/components/panel-chrome'
@@ -8,13 +7,13 @@ import { PANEL_CARD } from '@/components/surface-layout'
 import { Button } from '@/components/ui/button'
 import { Text as UiText } from '@/components/ui/text'
 import { useCommitMessage, useFileLog, useGitLog } from '@/features/git'
-import { useIsTablet } from '@/features/shell/use-app-window'
+import { useDismissSheet } from '@/features/shell/shell-sheets'
+import { useSurfaceOpen } from '@/features/shell/use-surface-open'
 import { cn } from '@/lib/utils'
 
 import { commitTitle, shortHash } from './commit-message'
 import { useHistoryStore } from './history-store'
 import { useCopyActions } from './use-copy-actions'
-import { useDismissSheet } from '@/features/shell/shell-sheets'
 
 /**
  * The History companion — "Timeline".
@@ -105,7 +104,7 @@ function CommitCard({ active }: { active: boolean }): React.JSX.Element {
  * The commit history of the file open in the viewer — who changed it, when, and in which
  * commit. Tapping a row opens that commit, so the entry reads alongside the change.
  */
-function FileTimelineCard({ active }: { active: boolean }): React.JSX.Element {
+export function FileTimelineCard({ active }: { active: boolean }): React.JSX.Element {
   const path = useHistoryStore((state) => state.timelinePath)
   const commits = useFileLog(path, active)
   const openCommit = useOpenCommitFromCompanion()
@@ -184,22 +183,20 @@ function TimelineRow({
 }
 
 /**
- * Open a commit from the companion, which sits on either side of the shell's two navigation
- * models: the tablet's inspector column drives the viewer through the store, while the phone's
- * bolt sheet has to dismiss itself and push onto the Changes tab's stack instead.
+ * Open a commit from the timeline.
+ *
+ * One path for both hosts: mark the commit so the list beside it agrees, get out of the way if
+ * we are covering something (the phone's bolt sheet — `useDismissSheet` is inert in a panel),
+ * then push the commit into the viewer.
  */
 function useOpenCommitFromCompanion(): (hash: string) => void {
-  const isTablet = useIsTablet()
-  const router = useRouter()
+  const open = useSurfaceOpen()
   const select = useHistoryStore((state) => state.openCommit)
   const closeSheet = useDismissSheet()
 
   return (hash: string): void => {
-    if (isTablet) {
-      select(hash)
-      return
-    }
+    select(hash)
     closeSheet()
-    router.push({ params: { hash }, pathname: '/changes/commit/[hash]' })
+    open.commit(hash)
   }
 }

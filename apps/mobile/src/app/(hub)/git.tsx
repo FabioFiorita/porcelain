@@ -1,5 +1,5 @@
-import { GitScreen } from '@/features/git/git-screen'
+import { SurfaceScreen } from '@/features/shell/surface-screen'
 
 export default function GitRoute(): React.JSX.Element {
-  return <GitScreen />
+  return <SurfaceScreen surface="git" />
 }

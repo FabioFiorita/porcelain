@@ -20,6 +20,7 @@ export function CommentComposerSheet({
   open,
   pending,
   subject,
+  testIDPrefix = 'porcelain-comment-composer',
 }: {
   /** "Line 12" / "File comment" — what the new comment will be attached to. */
   anchorLabel: string
@@ -29,6 +30,8 @@ export function CommentComposerSheet({
   pending: boolean
   /** The file the anchor belongs to. */
   subject: string
+  /** Distinguishes this sheet's testIDs when more than one surface can open one. */
+  testIDPrefix?: string
 }): React.JSX.Element {
   const [body, setBody] = useState('')
 
@@ -41,7 +44,7 @@ export function CommentComposerSheet({
   const canSend = body.trim() !== '' && !pending
 
   return (
-    <Sheet open={open} testID="porcelain-comment-composer" title="Reply" onClose={onClose}>
+    <Sheet open={open} testID={testIDPrefix} title="Reply" onClose={onClose}>
       <View className="gap-3 px-5 pb-2">
         <View className="gap-0.5">
           <Text className="text-xs font-medium text-foreground">{anchorLabel}</Text>
@@ -55,7 +58,7 @@ export function CommentComposerSheet({
           editable={!pending}
           numberOfLines={5}
           placeholder="What should the agent change?"
-          testID="porcelain-comment-composer-input"
+          testID={`${testIDPrefix}-input`}
           value={body}
           onChangeText={setBody}
         />
@@ -64,7 +67,7 @@ export function CommentComposerSheet({
             accessibilityLabel="Cancel comment"
             accessibilityRole="button"
             className="h-9 min-w-18 items-center justify-center rounded-lg border border-border bg-secondary px-3 active:opacity-80"
-            testID="porcelain-comment-composer-cancel"
+            testID={`${testIDPrefix}-cancel`}
             onPress={onClose}
           >
             <Text className="text-sm font-medium text-secondary-foreground">Cancel</Text>
@@ -78,7 +81,7 @@ export function CommentComposerSheet({
               !canSend && 'opacity-50',
             )}
             disabled={!canSend}
-            testID="porcelain-comment-composer-send"
+            testID={`${testIDPrefix}-send`}
             onPress={() => {
               onSubmit(body.trim())
             }}

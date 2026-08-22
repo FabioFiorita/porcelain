@@ -1,99 +1,60 @@
-import { type Href, useRouter } from 'expo-router'
-import { Pressable, View } from 'react-native'
+import { useRouter } from 'expo-router'
+import { Pressable, Text, View } from 'react-native'
 
-import { ChromeGlyph, type ChromeIconName } from '@/components/chrome-glyph'
+import { ChromeGlyph } from '@/components/chrome-glyph'
 import { EmptyNote, ScreenHeader } from '@/components/panel-chrome'
 import { SURFACE_GUTTER, SURFACE_ROW } from '@/components/surface-layout'
 import { SurfaceScroll } from '@/components/surface-scroll'
-import { Text } from '@/components/ui/text'
 import { useHubRepoPath } from '@/features/projects'
 import { projectNameOf } from '@/features/remote'
 import { HeaderActions } from '@/features/shell/header-actions'
+import { useShellStore } from '@/features/shell/shell-store'
+import { SURFACES } from '@/features/shell/surfaces'
+import { useShellLayout } from '@/features/shell/use-app-window'
 import { cn } from '@/lib/utils'
 
-type SurfaceRow = {
-  readonly id: string
-  readonly label: string
-  readonly hint: string
-  readonly glyph: ChromeIconName
-  /** Route inside the Hub stack. Every surface has one — a row that opens nothing is not a row. */
-  readonly route: Href
-}
-
 /**
- * A Worktree's surfaces.
+ * A Worktree: what you are standing in, and the way into its surfaces.
  *
- * Surfaces are no longer global tabs: you reach one THROUGH the checkout it belongs to, which
- * is the whole point of the change. The set and its order mirror the web rail
- * (`surface-sidebar.tsx`): Files · Changes · History · Git · Search · Canvas.
+ * **On a phone the surfaces are a list here.** Surfaces are not global tabs — you reach one
+ * THROUGH the checkout it belongs to — and a phone has one column, so a list of six rows is the
+ * whole navigation. The set and its order are `SURFACES`, shared with the tablet's panel and the
+ * quick-open palette so there is one answer to what a surface is.
  *
- * Terminal is not here. A shell belongs to the daemon, not to one checkout, so it is a tab of
- * its own (`app/terminals/`) — the same move web made when the docked panel became the one
- * Terminals surface.
+ * **On a tablet with panels, this screen is the empty viewer.** The surfaces live in the trailing
+ * Surfaces panel, the way the Mac app and the web client arrange them; printing the same six rows
+ * in the centre column would put a menu where the file, the diff or the Canvas belongs, with the
+ * panel that actually opens them sitting right beside it. So the viewer says what is open —
+ * nothing yet — and names where to open something from. The rows come back the moment the panel
+ * is closed or the window is too narrow for it, which is the phone's shape.
+ *
+ * The back chevron goes with them: at split width the Worktree list is the sidebar, permanently
+ * on screen, so there is nothing behind this screen to go back to.
  */
-const SURFACE_ROWS: readonly SurfaceRow[] = [
-  {
-    id: 'files',
-    label: 'Files',
-    hint: 'Browse the project tree',
-    glyph: 'folder',
-    route: '/files',
-  },
-  {
-    id: 'changes',
-    label: 'Changes',
-    hint: 'Review working-tree changes',
-    glyph: 'branch',
-    route: '/changes',
-  },
-  {
-    id: 'history',
-    label: 'History',
-    hint: 'Inspect commit history',
-    glyph: 'copy',
-    route: '/history',
-  },
-  {
-    id: 'git',
-    label: 'Git',
-    hint: 'Commands, suggestions, and commit',
-    glyph: 'commit',
-    route: '/git',
-  },
-  {
-    id: 'search',
-    label: 'Search',
-    hint: 'Search code and files',
-    glyph: 'search',
-    route: '/search',
-  },
-  {
-    id: 'canvas',
-    label: 'Canvas',
-    hint: 'Agent-authored explanation for this Project',
-    glyph: 'layers',
-    route: '/canvas',
-  },
-]
-
 export function WorktreeScreen(): React.JSX.Element {
   const router = useRouter()
   const repoPath = useHubRepoPath()
+  const inPanels = useShellLayout() === 'split'
+  const surfacesInPanel = useShellStore((state) => state.inspectorVisible)
+  const openSurface = useShellStore((state) => state.openSurface)
+  const showPanelRest = inPanels && surfacesInPanel
 
   return (
     <View className="flex-1 bg-background" testID="porcelain-worktree-screen">
-      {/* The title is the checkout you are in, so the screen sets it rather than the layout.
-          No companion bolt: a Worktree is a list of surfaces and the companion belongs to a
-          surface. */}
+      {/* The title is the checkout you are in, so the screen sets it rather than the layout. */}
       <ScreenHeader
         actions={<HeaderActions />}
-        back={{
-          accessibilityLabel: 'Back to Worktrees',
-          testID: 'porcelain-worktree-back',
-          onPress: () => {
-            router.back()
-          },
-        }}
+        back={
+          inPanels
+            ? undefined
+            : {
+                accessibilityLabel: 'Back to Worktrees',
+                testID: 'porcelain-worktree-back',
+                onPress: () => {
+                  router.back()
+                },
+              }
+        }
         testID="porcelain-worktree-header"
         title={repoPath === null ? 'Worktree' : projectNameOf(repoPath)}
       />
@@ -102,6 +63,12 @@ export function WorktreeScreen(): React.JSX.Element {
           body="Pick a worktree from the list first."
           testID="porcelain-worktree-empty"
           title="No worktree selected"
+        />
+      ) : showPanelRest ? (
+        <EmptyNote
+          body="Open a file, a diff, a commit or a Canvas from the Surfaces panel and it shows up here."
+          testID="porcelain-worktree-viewer-empty"
+          title="Nothing open"
         />
       ) : (
         <SurfaceScroll gap={2} paddingTop={8}>
@@ -112,7 +79,7 @@ export function WorktreeScreen(): React.JSX.Element {
           >
             {repoPath}
           </Text>
-          {SURFACE_ROWS.map((surface) => (
+          {SURFACES.map((surface) => (
             <Pressable
               key={surface.id}
               accessibilityLabel={surface.label}
@@ -120,6 +87,9 @@ export function WorktreeScreen(): React.JSX.Element {
               className={SURFACE_ROW}
               testID={`porcelain-worktree-surface-${surface.id}`}
               onPress={() => {
+                // Report it into the shell too: a window that widens back into panels should
+                // find the surface you were last in already on the strip.
+                openSurface(surface.id)
                 router.push(surface.route)
               }}
             >

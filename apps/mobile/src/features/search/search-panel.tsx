@@ -13,11 +13,12 @@ import {
   SURFACE_STACK_GAP,
   SURFACE_TOOLBAR,
 } from '@/components/surface-layout'
-import { SurfaceList } from '@/components/surface-scroll'
+import { SurfaceList, SurfaceScroll } from '@/components/surface-scroll'
 import { Input } from '@/components/ui/input'
 import { pathTestId } from '@/lib/path-identities'
 import { cn } from '@/lib/utils'
 import { ContentResults } from './content-results'
+import { RecentSearches } from './search-companion'
 import { useCodeSearch, useFileSearch } from './search-data'
 import { type SearchMode, useSearchStore } from './search-store'
 
@@ -198,15 +199,22 @@ export function SearchPanel({
       )}
 
       {trimmed === '' ? (
-        <EmptyNote
-          body={
-            contentMode
-              ? 'Grep the whole repo — turn on .* for a regular expression, or ⋯ to narrow it to a folder.'
-              : 'Fuzzy match on the path — “mobshell” finds apps/mobile/src/features/shell.'
-          }
-          testID="porcelain-search-idle"
-          title="Search the repo"
-        />
+        // Idle is where the recents belong: it is the one moment they are worth reading and the
+        // only one where they are not competing with results for the column. The phone reaches
+        // the same list through the companion bolt, because its screen has no idle space to
+        // spare once the keyboard is up.
+        <SurfaceScroll gap={16} keyboardShouldPersistTaps="handled" paddingTop={8}>
+          <EmptyNote
+            body={
+              contentMode
+                ? 'Grep the whole repo — turn on .* for a regular expression, or ⋯ to narrow it to a folder.'
+                : 'Fuzzy match on the path — “mobshell” finds apps/mobile/src/features/shell.'
+            }
+            testID="porcelain-search-idle"
+            title="Search the repo"
+          />
+          <RecentSearches compact />
+        </SurfaceScroll>
       ) : !found ? (
         <Text
           className="px-4 py-6 text-center text-sm text-muted-foreground"

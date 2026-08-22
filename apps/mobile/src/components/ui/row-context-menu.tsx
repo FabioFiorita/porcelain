@@ -59,10 +59,59 @@ export function RowContextMenu({
   title?: string
 }): React.JSX.Element {
   return (
-    <DropdownMenuPrimitive.Root>
+    <MenuRoot actions={actions} testID={testID} title={title}>
       <DropdownMenuPrimitive.Trigger asChild testID={testID}>
         <LongPressTrigger>{children}</LongPressTrigger>
       </DropdownMenuPrimitive.Trigger>
+    </MenuRoot>
+  )
+}
+
+/**
+ * The same menu on a plain TAP, anchored to whatever opened it.
+ *
+ * For a control whose only job is to open a menu — the Surfaces strip's `+`, a tab's own menu on
+ * a pointer-less screen. A bottom sheet is the right presentation when the trigger is a row in a
+ * list a thumb is already on; anchored to a 36pt button at the top of a 320pt panel in a 1200pt
+ * window, a sheet spanning the whole window to list four items is the phone shape stretched,
+ * which is the thing this pass exists to stop doing.
+ */
+export function AnchoredMenu({
+  actions,
+  children,
+  testID,
+  title,
+}: {
+  actions: readonly RowMenuAction[]
+  /** The control that opens it. */
+  children: React.ReactNode
+  testID?: string
+  title?: string
+}): React.JSX.Element {
+  return (
+    <MenuRoot actions={actions} testID={testID} title={title}>
+      <DropdownMenuPrimitive.Trigger asChild testID={testID}>
+        <Slot.Pressable>{children}</Slot.Pressable>
+      </DropdownMenuPrimitive.Trigger>
+    </MenuRoot>
+  )
+}
+
+/** Root, portal, overlay and the item list — everything except which gesture opens it. */
+function MenuRoot({
+  actions,
+  children,
+  testID,
+  title,
+}: {
+  actions: readonly RowMenuAction[]
+  children: React.ReactNode
+  testID?: string
+  title?: string
+}): React.JSX.Element {
+  return (
+    <DropdownMenuPrimitive.Root>
+      {children}
       <DropdownMenuPrimitive.Portal>
         {/* `FILL` and no `asChild`, for the reason `Sheet` spells out: the portal host renders a
             fragment, so the overlay has to be told to fill, and a reanimated view would drop

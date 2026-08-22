@@ -28,7 +28,15 @@ export function SheetBar({
     <View
       // No status-bar inset: a sheet is inset from the top of the window and the grabber sits
       // above this band. `ScreenHeader`'s geometry otherwise, so the two read as one bar.
-      className="min-h-12 flex-row items-center gap-1 border-b border-border px-4 py-1.5"
+      className="h-12 flex-row items-center gap-1 border-b border-border bg-background px-4"
+      // `react-native-screens` wants a `formSheet` holding a ScrollView to be exactly two
+      // native subviews — this bar, then the scroll body — so it can keep the bar fixed and
+      // the body alone scrolling. View-flattening erases this row from the native tree since
+      // it is a plain box with no properties of its own, so the sheet saw five flattened
+      // subviews instead of two and laid the body over the bar rather than under it. RNScreens
+      // logs exactly this ("FormSheet with ScrollView expects at most 2 subviews... apply
+      // collapsable: false on your header"); `collapsable={false}` keeps this box in the tree.
+      collapsable={false}
       testID="porcelain-sheet-bar"
     >
       <Text className="min-w-0 flex-1 text-sm font-semibold text-foreground" numberOfLines={1}>

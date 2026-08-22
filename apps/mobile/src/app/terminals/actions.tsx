@@ -1,5 +1,3 @@
-import { View } from 'react-native'
-
 import { ActionsCompanion } from '@/features/actions'
 import { PresentedChrome } from '@/features/shell/window-chrome'
 import { HeaderDoneButton } from '@/features/shell/header-actions'
@@ -22,10 +20,8 @@ export default function TerminalsActionsRoute(): React.JSX.Element {
 
   return (
     <PresentedChrome>
-      <View className="flex-1 bg-background">
-        <SheetBar action={done} title={TITLE} />
-        <ActionsCompanion active />
-      </View>
+      <SheetBar action={done} title={TITLE} />
+      <ActionsCompanion active />
     </PresentedChrome>
   )
 }

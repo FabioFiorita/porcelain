@@ -100,9 +100,9 @@ export function NewTaskSheet(): React.JSX.Element {
   )
 
   return (
-    <View className="flex-1 bg-background" testID="porcelain-new-task">
+    <>
       <SheetBar action={submitAction} title="New Task" />
-      <SurfaceScroll gap={12} paddingTop={12}>
+      <SurfaceScroll className="bg-background" gap={12} paddingTop={12} testID="porcelain-new-task">
         {error === null ? null : <ErrorNote message={error} testID="porcelain-new-task-error" />}
 
         <View className="gap-1.5">
@@ -178,7 +178,7 @@ export function NewTaskSheet(): React.JSX.Element {
           )}
         </View>
       </SurfaceScroll>
-    </View>
+    </>
   )
 }
 
