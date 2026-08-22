@@ -3,12 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { DaemonUpdateButton } from './daemon-update-button'
 
 let identity: { host: string | null; platform: string | null; version: string | null }
+let environmentName: string | null
 let localDaemon: { isLocal: boolean } | undefined
 let browser = false
 const copyText = vi.fn(async () => {})
 
 vi.mock('@renderer/hooks/use-daemon-identity', () => ({
   useDaemonIdentity: () => identity,
+  useEnvironmentName: () => environmentName,
 }))
 
 vi.mock('@renderer/hooks/use-local-terminal', () => ({
@@ -35,6 +37,7 @@ const { usePreferencesStore } = await import('@renderer/stores/preferences')
 
 beforeEach(() => {
   identity = { host: 'beelink', platform: 'linux', version: '0.53.0' }
+  environmentName = null
   localDaemon = { isLocal: false }
   browser = false
   copyText.mockClear()
@@ -42,10 +45,18 @@ beforeEach(() => {
 })
 
 describe('DaemonUpdateButton', () => {
-  it('prompts when the remote daemon is behind this client', () => {
+  it('names the host and both versions so the number never reads as the target', () => {
     render(<DaemonUpdateButton />)
     expect(screen.getByTestId('daemon-update-button')).toHaveAccessibleName(
-      'Update remote daemon (0.53.0)',
+      'Update beelink — running 0.53.0, this app is 0.55.0',
+    )
+  })
+
+  it('prefers the Environment nickname over the machine name', () => {
+    environmentName = 'beelink soap'
+    render(<DaemonUpdateButton />)
+    expect(screen.getByTestId('daemon-update-button')).toHaveAccessibleName(
+      'Update beelink soap — running 0.53.0, this app is 0.55.0',
     )
   })
 
