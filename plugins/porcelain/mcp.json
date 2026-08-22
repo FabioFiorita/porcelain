@@ -1,9 +1,9 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
   "mcpServers": {
-    "porcelain": {
+    "mcp": {
       "type": "streamable-http",
-      "url": "http://127.0.0.1:43117/mcp"
+      "url": "http://127.0.0.1:${PORCELAIN_DAEMON_PORT:-43117}/mcp"
     }
   }
 }
