@@ -416,10 +416,17 @@ export function environmentSessionForHubTarget(
   }
 }
 
-/** Resolve an explicit target to its owning client; unknown Environment ids refuse. */
+/**
+ * Resolve an explicit target to its owning client; unknown Environment ids refuse.
+ *
+ * `revision` is a dependency, not an input: a caller memoizing this must re-resolve when a
+ * session appears, moves, or is aliased to its announced id, and passing the revision is how
+ * it says so.
+ */
 export function environmentClientFor(
   environmentId: string | null,
   primary: EnvironmentSession['client'],
+  _revision = environmentSessionRevision,
 ): EnvironmentClient | null {
   if (environmentId === null || environmentId === primaryEnvironmentId) {
     return { client: primary, session: null }

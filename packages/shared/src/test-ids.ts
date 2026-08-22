@@ -90,6 +90,8 @@ export const TestIds = {
   shareNotAdministrable: 'share-not-administrable',
   /** Which checkout a project-scoped Settings page is about. */
   settingsProjectScope: 'settings-project-scope',
+  /** Which Environment's filesystem the Open-project browser is reading. */
+  projectPickerEnvironment: 'project-picker-environment',
   settingsSection: (section: string): string => `settings-section-${section}`,
   browserEnvironmentConnections: 'browser-environment-connections',
   browserEnvironmentLabel: 'browser-environment-label',

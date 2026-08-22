@@ -26,11 +26,17 @@ import type {
 } from '@porcelain/contracts/projects'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import { type DaemonScope, daemonScopeSchema } from '@renderer/lib/daemon-scope'
-import { environmentSessionFor } from '@renderer/lib/environment-sessions'
+import {
+  daemonScopeForEnvironment,
+  environmentClientFor,
+  environmentSessionFor,
+  useEnvironmentSessionsRevision,
+} from '@renderer/lib/environment-sessions'
 import { isBrowser } from '@renderer/lib/platform'
 import { trpc } from '@renderer/lib/trpc'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMemo } from 'react'
 import { z } from 'zod'
 
 import { SHELL_HUB_INVENTORIES_QUERY_KEY } from './hub-inventories'
@@ -246,22 +252,41 @@ export function useRemoveHubWorktree(): {
   return { isPending: mutation.isPending, remove: mutation.mutateAsync }
 }
 
+/**
+ * Browse one Environment's filesystem. `environmentId` is the daemon-announced id;
+ * `undefined` (and `null`) mean this window's own daemon, which is what every caller
+ * that only ever browses locally passes.
+ *
+ * The result is keyed by Environment, so switching machines in the picker cannot show
+ * the previous one's directories under the new one's name.
+ */
 export function useProjectDirectories(
   path: string | null,
   enabled: boolean,
+  environmentId?: string | null,
 ): {
   result: BrowseDirsOutput | undefined
   error: { message: string } | null
   isFetching: boolean
 } {
   const daemon = useDaemonIdentity()
-  const client = trpc.useUtils().client
+  const sessionRevision = useEnvironmentSessionsRevision()
+  const primary = trpc.useUtils().client
+  const owner = useMemo(
+    // The revision is the dependency, not a value: a session appears (or moves) after the
+    // shell answers, and the browse has to re-resolve when it does.
+    () => environmentClientFor(environmentId ?? null, primary, sessionRevision),
+    [environmentId, primary, sessionRevision],
+  )
   const identity = projectDirectoriesQuery(path)
   const query = useQuery({
-    enabled,
+    enabled: enabled && owner !== null,
     placeholderData: keepPreviousData,
-    queryFn: async (): Promise<BrowseDirsOutput> => browseProjectDirectoriesOnDaemon(client, path),
-    queryKey: projectsQueryKey(daemon, identity),
+    queryFn: async (): Promise<BrowseDirsOutput> => {
+      if (owner === null) throw new Error('That Environment is offline.')
+      return browseProjectDirectoriesOnDaemon(owner.client, path)
+    },
+    queryKey: projectsQueryKey(daemonScopeForEnvironment(environmentId, daemon), identity),
   })
   return { error: errorView(query.error), isFetching: query.isFetching, result: query.data }
 }

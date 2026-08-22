@@ -61,6 +61,14 @@ if (typeof window !== 'undefined') {
     globalThis.ResizeObserver = window.ResizeObserver
   }
 
+  // jsdom implements no Web Animations API. Base UI's ScrollArea asks its viewport for
+  // running animations on a timer AFTER mount, so the throw lands outside the test that
+  // rendered it and fails the file rather than an assertion. Nothing here animates —
+  // "no animations running" is the honest answer.
+  if (typeof Element.prototype.getAnimations !== 'function') {
+    Element.prototype.getAnimations = (): Animation[] => []
+  }
+
   // jsdom ships no matchMedia; shadcn's SidebarProvider (and any responsive
   // primitive) calls it on mount, so stub it once for every component test.
   if (typeof window.matchMedia !== 'function') {
