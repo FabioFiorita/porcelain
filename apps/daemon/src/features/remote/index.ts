@@ -22,6 +22,7 @@ export {
   createRemoteHttp,
   type RemoteHttp,
   type RemoteHttpOptions,
+  TRPC_MAX_BODY_BYTES,
 } from './remote-http'
 export {
   ifaceListenerPort,

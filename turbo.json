@@ -87,6 +87,7 @@
       "outputs": ["dist/**"]
     },
     "test": {
+      "env": ["RUNNER_OS"],
       "outputs": []
     },
     "dev": {

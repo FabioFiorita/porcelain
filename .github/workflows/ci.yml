@@ -50,6 +50,28 @@ jobs:
       - run: pnpm test
       - run: pnpm turbo run //#test:scripts
 
+  # macOS is the flagship packaged platform (release.yml builds and notarizes on
+  # macos-14), yet PTY, shell, and path-sensitive code was only ever CI-verified on
+  # Linux. This job mirrors the unit suite there; e2e stays Linux-only.
+  unit-macos:
+    runs-on: macos-14
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: vercel/setup-turborepo-remote-cache-action@v1.0.0
+        with:
+          team: ${{ vars.TURBO_TEAM }}
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+
   browser-smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 20

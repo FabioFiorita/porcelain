@@ -248,7 +248,25 @@ describe('Git procedure contracts', () => {
         repoPath: '/synthetic/repo',
         branch: '',
       }).success,
-    ).toBe(true)
+    ).toBe(false)
+  })
+
+  it('rejects branch names git could read as options, keeps slash-separated ones', () => {
+    for (const name of ['gitCheckout', 'gitCreateBranch', 'gitAddWorktree'] as const) {
+      const input = gitProcedures[name].input
+      expect(input.safeParse({ repoPath: '/synthetic/repo', branch: '--orphan' }).success).toBe(
+        false,
+      )
+      expect(input.safeParse({ repoPath: '/synthetic/repo', branch: '-b topic' }).success).toBe(
+        false,
+      )
+      expect(
+        input.safeParse({ repoPath: '/synthetic/repo', branch: 'feature/topic' }).success,
+      ).toBe(true)
+    }
+    expect(
+      gitProcedures.gitCheckout.input.parse({ repoPath: '/synthetic/repo', branch: '  topic  ' }),
+    ).toEqual({ repoPath: '/synthetic/repo', branch: 'topic' })
   })
 
   it('accepts every flow, status, diff, and reading discriminator', () => {

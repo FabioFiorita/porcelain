@@ -253,10 +253,28 @@ export const gitApplyCommitGroupsOutputSchema = z
   .object({ results: z.array(commitGroupResultSchema) })
   .strict()
 
+/**
+ * A branch name as a client supplies it — the same shape a compare base must have,
+ * because both land in git's argv where a leading "-" would be read as an option
+ * (`checkout -b --orphan`). Slash-separated names (`feature/x`) stay legal; git
+ * forbids whitespace in refs anyway, so `isSingleRefToken` rejects nothing valid.
+ * (Its forward reference to `isSingleRefToken` runs at parse time, not load time.)
+ */
+export const branchNameSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(255)
+  .refine((branch) => !branch.startsWith('-'), { message: 'branch may not start with "-"' })
+  .refine(isSingleRefToken, {
+    message: 'branch may not contain whitespace or control characters',
+  })
+export type BranchName = z.infer<typeof branchNameSchema>
+
 export const gitCheckoutInputSchema = z
   .object({
     repoPath: z.string(),
-    branch: z.string(),
+    branch: branchNameSchema,
   })
   .strict()
 export const gitCheckoutOutputSchema = z.void()
@@ -264,7 +282,7 @@ export const gitCheckoutOutputSchema = z.void()
 export const gitCreateBranchInputSchema = z
   .object({
     repoPath: z.string(),
-    branch: z.string().min(1),
+    branch: branchNameSchema,
   })
   .strict()
 export const gitCreateBranchOutputSchema = z.void()

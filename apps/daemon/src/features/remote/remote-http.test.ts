@@ -7,6 +7,10 @@ import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { PROTOCOL_VERSION, PROTOCOL_VERSION_HEADER, publicErrorSchema } from '@porcelain/contracts'
+import {
+  TASK_ATTACHMENT_UPLOAD_MAX_CHARS,
+  TASK_ATTACHMENT_UPLOADS_MAX_COUNT,
+} from '@porcelain/contracts/tasks'
 import { initTRPC } from '@trpc/server'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import WebSocket from 'ws'
@@ -27,6 +31,7 @@ import {
   parseAllowedOrigins,
   type RemoteHttp,
   type RemoteHttpOptions,
+  TRPC_MAX_BODY_BYTES,
 } from '.'
 
 // Each mock is typed to the port method it stands in for. Bare `vi.fn(() => ({ ok: true, … }))`
@@ -197,6 +202,7 @@ type TestDaemonOverrides = Partial<
     | 'allowedOrigin'
     | 'devAutoAuth'
     | 'serveMcp'
+    | 'trpcMaxBodyBytes'
   >
 >
 
@@ -211,6 +217,7 @@ function testDaemonOptions({
   },
   devAutoAuth,
   serveMcp,
+  trpcMaxBodyBytes,
 }: TestDaemonOverrides = {}): RemoteHttpOptions {
   return {
     adminTokenHash: createHash('sha256').update(TOKEN).digest(),
@@ -226,6 +233,7 @@ function testDaemonOptions({
     serveCanvas,
     devAutoAuth,
     serveMcp,
+    trpcMaxBodyBytes,
   }
 }
 
@@ -273,7 +281,11 @@ async function expectPublicHttpFailure(response: Response, status: number, code:
   return error
 }
 
-function postChunked(url: string, body: string): Promise<Response> {
+function postChunked(
+  url: string,
+  body: string,
+  extraHeaders: Record<string, string> = {},
+): Promise<Response> {
   const target = new URL(url)
   return new Promise((resolve, reject) => {
     const req = request(
@@ -286,6 +298,7 @@ function postChunked(url: string, body: string): Promise<Response> {
           'content-type': 'application/json',
           'transfer-encoding': 'chunked',
           ...PROTOCOL_HEADERS,
+          ...extraHeaders,
         },
       },
       (response) => {
@@ -365,6 +378,40 @@ describe('daemon http surface — the token gate + CORS scope', () => {
       headers: { authorization: `Bearer ${TOKEN}`, ...PROTOCOL_HEADERS },
     })
     expect(res.status).toBe(200)
+  })
+
+  it('sizes TRPC_MAX_BODY_BYTES to admit a full createTask/updateTask attachment batch', () => {
+    expect(TRPC_MAX_BODY_BYTES).toBeGreaterThan(
+      TASK_ATTACHMENT_UPLOADS_MAX_COUNT * TASK_ATTACHMENT_UPLOAD_MAX_CHARS,
+    )
+  })
+
+  it('rejects a declared /trpc body above the cap before dispatch', async () => {
+    const isolated = await startTestDaemon({ trpcMaxBodyBytes: 8_192 })
+    try {
+      const res = await fetch(`${isolated.base}/trpc/recentRepos`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${TOKEN}`, ...PROTOCOL_HEADERS },
+        body: JSON.stringify({ padding: 'x'.repeat(8_192) }),
+      })
+      await expectPublicHttpFailure(res, 413, 'request.invalid')
+    } finally {
+      await stopTestDaemon(isolated.daemon)
+    }
+  })
+
+  it('rejects a streamed /trpc body above the cap before dispatch', async () => {
+    const isolated = await startTestDaemon({ trpcMaxBodyBytes: 8_192 })
+    try {
+      const res = await postChunked(
+        `${isolated.base}/trpc/recentRepos`,
+        JSON.stringify({ padding: 'x'.repeat(8_192) }),
+        { authorization: `Bearer ${TOKEN}` },
+      )
+      await expectPublicHttpFailure(res, 413, 'request.invalid')
+    } finally {
+      await stopTestDaemon(isolated.daemon)
+    }
   })
 
   it('echoes CORS for the allowed origin and never *', async () => {

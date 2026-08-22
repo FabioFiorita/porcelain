@@ -96,12 +96,49 @@ interface Instance {
   creating: Promise<GhosttyTerminalSurface> | null
   initialReplay: string | null
   output: string[]
+  outputUnits: number
   disposed: boolean
   disposeTouchScroll?: () => void
 }
 
 const instances = new Map<string, Instance>()
 const seeded = new Set<string>()
+
+/**
+ * Chunks buffered while a terminal has data but no Ghostty surface (the board caps
+ * live surfaces at four, and every Environment's sessions stream from mount). A
+ * verbose process in an unmounted terminal would otherwise grow renderer memory for
+ * the session's lifetime. Oldest chunks drop first — what a scrollback window would
+ * have shown anyway. One PTY write is bounded by MAX_TERMINAL_WRITE_CODE_UNITS on
+ * the daemon, so a single chunk can exceed this only trivially and never accumulates.
+ */
+const MAX_PENDING_OUTPUT_CODE_UNITS = 1024 * 1024
+
+/** Push `visible` into `buffer`, then drop oldest chunks until the tracked unit
+ *  count fits `maxUnits`. Always keeps at least the newest chunk. Pure so the
+ *  eviction order is testable without a mounted surface. Returns the new count. */
+export function pushCappedOutput(
+  buffer: string[],
+  units: number,
+  visible: string,
+  maxUnits: number,
+): number {
+  buffer.push(visible)
+  units += visible.length
+  while (units > maxUnits && buffer.length > 1) {
+    units -= buffer.shift()?.length ?? 0
+  }
+  return units
+}
+
+function appendPendingOutput(instance: Instance, visible: string): void {
+  instance.outputUnits = pushCappedOutput(
+    instance.output,
+    instance.outputUnits,
+    visible,
+    MAX_PENDING_OUTPUT_CODE_UNITS,
+  )
+}
 
 function recordFor(id: string): Instance {
   const existing = instances.get(id)
@@ -118,6 +155,7 @@ function recordFor(id: string): Instance {
     creating: null,
     initialReplay: null,
     output: [],
+    outputUnits: 0,
     disposed: false,
   }
   instances.set(id, instance)
@@ -178,6 +216,7 @@ function ensureSurface(instance: Instance): Promise<GhosttyTerminalSurface> | nu
       if (replay !== null) surface.resetAndWrite(replay)
       else for (const data of instance.output) surface.write(data)
       instance.output = []
+      instance.outputUnits = 0
       for (const text of instance.pasteQueue.splice(0)) surface.paste(text)
       if (isCoarseTouch()) {
         instance.disposeTouchScroll = attachTouchScroll(
@@ -264,7 +303,7 @@ export function receiveData(id: string, data: string): void {
   })
   if (visible === '') return
   if (instance.surface) instance.surface.write(visible)
-  else instance.output.push(visible)
+  else appendPendingOutput(instance, visible)
 }
 
 /** Reset a fresh renderer from daemon replay. Replay is intentionally OSC52-silent. */

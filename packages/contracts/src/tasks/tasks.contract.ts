@@ -85,7 +85,13 @@ export const taskAttachmentUploadSchema = z
     contentBase64: z.string().min(1).max(TASK_ATTACHMENT_UPLOAD_MAX_CHARS),
   })
   .strict()
-export const taskAttachmentUploadsSchema = z.array(taskAttachmentUploadSchema).max(16)
+/** Attachments a single createTask/updateTask call may carry — bounds both the array
+ *  and, multiplied by TASK_ATTACHMENT_UPLOAD_MAX_CHARS, the request body a transport
+ *  cap must admit. */
+export const TASK_ATTACHMENT_UPLOADS_MAX_COUNT = 16
+export const taskAttachmentUploadsSchema = z
+  .array(taskAttachmentUploadSchema)
+  .max(TASK_ATTACHMENT_UPLOADS_MAX_COUNT)
 export type TaskAttachmentUpload = z.infer<typeof taskAttachmentUploadSchema>
 
 /**

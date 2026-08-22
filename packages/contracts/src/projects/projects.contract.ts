@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { branchNameSchema } from '../git/git.contract'
 
 export const projectInfoSchema = z
   .object({
@@ -149,8 +150,8 @@ export type HubInventoryOutput = HubInventory
 export const createHubWorktreeInputSchema = z
   .object({
     projectId: z.string().min(1),
-    branch: z.string().trim().min(1),
-    baseRef: z.string().trim().min(1).optional(),
+    branch: branchNameSchema,
+    baseRef: branchNameSchema.optional(),
     /** Check out this existing branch instead of creating a new one with `-b`. */
     existing: z.boolean().optional(),
   })
