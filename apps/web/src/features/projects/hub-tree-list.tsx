@@ -58,7 +58,11 @@ function WorktreeRow(props: {
   removeWorktree: (input: { projectId: string; worktreeId: string }) => Promise<void>
 }): React.JSX.Element {
   const selection = useHubSelectionStore((state) => state.selection)
-  const selected = selection.kind === 'worktree' && selection.worktreeId === props.worktree.id
+  const selected =
+    selection.kind === 'worktree' &&
+    selection.environmentId === props.environmentId &&
+    selection.projectId === props.projectId &&
+    selection.worktreeId === props.worktree.id
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [switchOpen, setSwitchOpen] = useState(false)
 
@@ -80,7 +84,12 @@ function WorktreeRow(props: {
           worktreeId: props.worktree.id,
         })
         const current = useHubSelectionStore.getState().selection
-        if (current.kind === 'worktree' && current.worktreeId === props.worktree.id) {
+        if (
+          current.kind === 'worktree' &&
+          current.environmentId === props.environmentId &&
+          current.projectId === props.projectId &&
+          current.worktreeId === props.worktree.id
+        ) {
           useHubSelectionStore.getState().selectHome()
         }
       },
@@ -220,7 +229,11 @@ function ProjectBlock(props: {
       async () => {
         await props.removeProject(props.project.id, props.environmentId)
         const current = useHubSelectionStore.getState().selection
-        if (current.kind !== 'home' && current.projectId === props.project.id) {
+        if (
+          current.kind !== 'home' &&
+          current.environmentId === props.environmentId &&
+          current.projectId === props.project.id
+        ) {
           useHubSelectionStore.getState().selectHome()
         }
       },

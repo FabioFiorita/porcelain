@@ -10,15 +10,17 @@ import {
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
 } from '@renderer/components/ui/sidebar'
-import { useRemoteEnvironments } from '@renderer/features/remote'
+import { useEnvironmentName } from '@renderer/hooks/use-daemon-identity'
 import { useIsMobile } from '@renderer/hooks/use-mobile'
 import { isBrowser } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { type SettingsSection, useSettingsDialogStore } from '@renderer/stores/settings-dialog'
 import { TestIds } from '@shared/test-ids'
 import {
@@ -37,6 +39,33 @@ import { RemotesSection } from './remotes-section'
 import { ShareSection } from './share-section'
 import { UpdatesSection } from './updates-section'
 
+/**
+ * WHERE a section's settings live. Every complaint this grouping answers was the same one:
+ * a preference read as global when it belonged to one machine, or to one repository.
+ *
+ * - `app`      this copy of Porcelain, on this machine. Nothing follows you to another one.
+ * - `environment` a daemon: its identity, what it shares, which one this window is on.
+ * - `project`  one repository's own state, wherever that repository lives.
+ */
+type SettingsScope = 'app' | 'environment' | 'project'
+
+/** Nav group headings — plural, because a group heads a list. */
+const SCOPE_LABEL: Record<SettingsScope, string> = {
+  app: 'This app',
+  environment: 'Environments',
+  project: 'Project',
+}
+
+/** Header eyebrow — singular, because it names the ONE thing this page is about. */
+const SCOPE_EYEBROW: Record<SettingsScope, string> = {
+  app: 'This app',
+  environment: 'Environment',
+  project: 'Project',
+}
+
+/** Nav order. Widest scope first: the app you are in, the machines it reaches, the repo. */
+const SCOPE_ORDER: SettingsScope[] = ['app', 'environment', 'project']
+
 // Each section's title + blurb live here so the dialog can render a fixed header
 // band (real type hierarchy, always visible) while only the body scrolls — the
 // section components render just their controls.
@@ -46,7 +75,8 @@ const ALL_SECTIONS: {
   icon: typeof SlidersHorizontal
   title: string
   blurb: string
-  // Shell-only: Companion, Updates, and Remotes (named environments live in the Mac app).
+  scope: SettingsScope
+  // Shell-only: Companion, Updates, and Environments (named environments live in the Mac app).
   // The browser tab is already one daemon; pairing is the link, not a settings tab.
   shellOnly?: boolean
 }[] = [
@@ -55,40 +85,18 @@ const ALL_SECTIONS: {
     label: 'General',
     icon: SlidersHorizontal,
     title: 'General',
-    blurb: 'Viewer preferences, saved on this machine.',
-  },
-  {
-    id: 'personalization',
-    label: 'Personalization',
-    icon: Focus,
-    title: 'Personalization',
-    // Not shell-only: the profile is daemon state, and the browser renders it
-    // as well as Electron does.
-    blurb: 'What this project pins, hides, and the order your changes read in.',
+    scope: 'app',
+    blurb: 'How this app looks and reads. Saved on this machine, for every Environment.',
   },
   {
     id: 'companion',
     label: 'Companion',
     icon: BookOpen,
     title: 'Companion',
+    scope: 'app',
     // Shell-only now that the repo half lives under Data: all that is left is the
     // skill installer, which writes into agent homes on THIS machine.
-    blurb: 'The companion skill for your agents.',
-    shellOnly: true,
-  },
-  {
-    id: 'share',
-    label: 'Share',
-    icon: Share2,
-    title: 'Share',
-    blurb: 'Share this daemon over LAN, then Tailscale or Cloudflare. Pair and revoke devices.',
-  },
-  {
-    id: 'remotes',
-    label: 'Remotes',
-    icon: Cloud,
-    title: 'Remotes',
-    blurb: 'Connect this app to other daemons. Pairing links add a named environment.',
+    blurb: 'The porcelain-companion skill for the agents on this machine.',
     shellOnly: true,
   },
   {
@@ -96,8 +104,36 @@ const ALL_SECTIONS: {
     label: 'Updates',
     icon: Download,
     title: 'Updates',
+    scope: 'app',
     blurb: 'Porcelain checks automatically and installs on quit.',
     shellOnly: true,
+  },
+  {
+    id: 'remotes',
+    label: 'Environments',
+    icon: Cloud,
+    title: 'Environments',
+    scope: 'environment',
+    blurb: 'Every daemon this app can reach. Name one, open a window on it, pair another.',
+    shellOnly: true,
+  },
+  {
+    id: 'share',
+    label: 'Share',
+    icon: Share2,
+    title: 'Share',
+    scope: 'environment',
+    blurb: 'Share a daemon over LAN, then Tailscale or Cloudflare. Pair and revoke devices.',
+  },
+  {
+    id: 'personalization',
+    label: 'Personalization',
+    icon: Focus,
+    title: 'Personalization',
+    scope: 'project',
+    // Not shell-only: the profile is daemon state, and the browser renders it
+    // as well as Electron does.
+    blurb: 'What this project pins, hides, and the order your changes read in.',
   },
 ]
 
@@ -144,18 +180,29 @@ export function SettingsDialog(): React.JSX.Element | null {
   const section = useSettingsDialogStore((s) => s.section)
   const setSection = useSettingsDialogStore((s) => s.setSection)
   const isMobile = useIsMobile()
-  const remotes = useRemoteEnvironments()
-  const sections = ALL_SECTIONS.filter((candidate) => {
-    if (isBrowser) return candidate.shellOnly !== true && candidate.id !== 'share'
-    if (candidate.id === 'share') return remotes?.activeId === null
-    return true
-  })
+  const environmentName = useEnvironmentName()
+  const projectName = useProjectSelectionStore((s) => s.project?.name ?? null)
+  // The browser tab IS one daemon: it cannot reach another, and it cannot administer the one
+  // it is on with a paired token. Every Environment-wide section is therefore Electron's.
+  const sections = ALL_SECTIONS.filter((candidate) =>
+    isBrowser ? candidate.shellOnly !== true && candidate.id !== 'share' : true,
+  )
   // A section that's hidden in this surface (e.g. 'updates' opened in Electron, then
   // the same prefs viewed in a browser) falls back to General so the header and body
   // never disagree.
   const active = sections.find((s) => s.id === section) ?? sections[0]
   if (active === undefined) return null
   const activeId = active.id
+  // The eyebrow names the scope AND the thing in it. "Project" alone answers half the
+  // question a reader of a settings page actually has: which project?
+  const subject =
+    active.scope === 'environment' && active.id === 'share'
+      ? environmentName
+      : active.scope === 'project'
+        ? projectName
+        : null
+  const eyebrow =
+    subject === null ? SCOPE_EYEBROW[active.scope] : `${SCOPE_EYEBROW[active.scope]} · ${subject}`
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -202,9 +249,15 @@ export function SettingsDialog(): React.JSX.Element | null {
               </div>
             </nav>
             <header className="shrink-0 border-b px-4 py-3">
+              <p
+                data-testid={TestIds.settingsScope}
+                className="text-2xs font-medium uppercase tracking-wider text-muted-foreground"
+              >
+                {eyebrow}
+              </p>
               <h2
                 data-testid={TestIds.settingsHeading}
-                className="text-base font-semibold tracking-tight"
+                className="mt-0.5 text-base font-semibold tracking-tight"
               >
                 {active.title}
               </h2>
@@ -223,33 +276,49 @@ export function SettingsDialog(): React.JSX.Element | null {
             {/* Fixed 600px overflowed small phone viewports; cap to the dialog's max-h. */}
             <Sidebar collapsible="none" className="h-[min(600px,90dvh)] shrink-0 border-r">
               <SidebarContent>
-                <SidebarGroup>
-                  <SidebarGroupContent>
-                    <SidebarMenu className="gap-1.5 px-2">
-                      {sections.map((s) => (
-                        <SidebarMenuItem key={s.id}>
-                          <SidebarMenuButton
-                            isActive={activeId === s.id}
-                            data-testid={TestIds.settingsSection(s.id)}
-                            onClick={() => setSection(s.id)}
-                            className="text-sm-minus"
-                          >
-                            <s.icon /> {s.label}
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-                      ))}
-                    </SidebarMenu>
-                  </SidebarGroupContent>
-                </SidebarGroup>
+                {/* Grouped by scope, not by theme: the group a section sits in is the answer
+                    to "where does this setting live", which is the question every one of
+                    these pages was previously silent about. */}
+                {SCOPE_ORDER.map((scope) => {
+                  const grouped = sections.filter((s) => s.scope === scope)
+                  if (grouped.length === 0) return null
+                  return (
+                    <SidebarGroup key={scope}>
+                      <SidebarGroupLabel className="px-4">{SCOPE_LABEL[scope]}</SidebarGroupLabel>
+                      <SidebarGroupContent>
+                        <SidebarMenu className="gap-1.5 px-2">
+                          {grouped.map((s) => (
+                            <SidebarMenuItem key={s.id}>
+                              <SidebarMenuButton
+                                isActive={activeId === s.id}
+                                data-testid={TestIds.settingsSection(s.id)}
+                                onClick={() => setSection(s.id)}
+                                className="text-sm-minus"
+                              >
+                                <s.icon /> {s.label}
+                              </SidebarMenuButton>
+                            </SidebarMenuItem>
+                          ))}
+                        </SidebarMenu>
+                      </SidebarGroupContent>
+                    </SidebarGroup>
+                  )
+                })}
               </SidebarContent>
             </Sidebar>
             <div className="flex h-[min(600px,90dvh)] min-w-0 flex-1 flex-col overflow-hidden">
               {/* Fixed header band — the section title/blurb stay put so a long
                   scroll never slides row controls up next to the dialog close X. */}
               <header className="shrink-0 border-b px-6 py-4 pr-12">
+                <p
+                  data-testid={TestIds.settingsScope}
+                  className="text-2xs font-medium uppercase tracking-wider text-muted-foreground"
+                >
+                  {eyebrow}
+                </p>
                 <h2
                   data-testid={TestIds.settingsHeading}
-                  className="text-base font-semibold tracking-tight"
+                  className="mt-0.5 text-base font-semibold tracking-tight"
                 >
                   {active.title}
                 </h2>

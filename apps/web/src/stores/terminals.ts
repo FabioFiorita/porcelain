@@ -171,13 +171,9 @@ export const useTerminalsStore = create<TerminalsState>((set, get) => ({
     }
     // The daemon stores the name (roster is daemon-owned); we still append locally so the
     // row shows immediately, before the next hydrate confirms it.
-    const adapter =
-      origin === 'local' && session !== null
-        ? terminalAdapterForSession(session)
-        : origin === 'primary'
-          ? terminalAdapterForSession(primary)
-          : null
-    if (adapter === null) throw new Error('The local daemon connection is not ready yet.')
+    // Whichever daemon was named: `primary` when nobody named one, the local child daemon
+    // for a This-device shell, or an Environment session for a shell on another machine.
+    const adapter = terminalAdapterForSession(session)
     const id = await adapter.createTerminal({ cwd, name, initialInput })
     // Register BEFORE the row exists: the registry may write to this id (an initialInput
     // action, the first keystroke) as soon as the view mounts, and it routes by this map.

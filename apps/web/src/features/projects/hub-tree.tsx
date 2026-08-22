@@ -29,10 +29,14 @@ export function HubTree(props: { className?: string }): React.JSX.Element | null
   useEffect(() => {
     if (inventories.length === 0) return
     if (selection.kind === 'worktree') {
-      const stillThere = inventories.some((source) =>
-        source.inventory.projects.some((project) =>
-          project.worktrees.some((worktree) => worktree.id === selection.worktreeId),
-        ),
+      const stillThere = inventories.some(
+        (source) =>
+          source.inventory.environment.id === selection.environmentId &&
+          source.inventory.projects.some(
+            (project) =>
+              project.id === selection.projectId &&
+              project.worktrees.some((worktree) => worktree.id === selection.worktreeId),
+          ),
       )
       if (!stillThere) {
         // Keep the restored Project; only drop the stale Hub row so the effect

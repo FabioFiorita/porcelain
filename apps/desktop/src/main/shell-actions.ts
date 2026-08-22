@@ -2,12 +2,8 @@ import { type ActionView, actionsProcedures } from '@porcelain/contracts/actions
 import { createTRPCUntypedClient, httpLink } from '@trpc/client'
 import { localDaemonPair } from './daemon'
 import { daemonHeaders } from './daemon-headers'
-import {
-  loadRemoteEnvironmentState,
-  orderedEndpoints,
-  type RemoteEnvironment,
-} from './remote-daemon'
-import { probeEnvironment } from './shell-environments'
+import { loadRemoteEnvironmentState } from './remote-daemon'
+import { liveEndpoint, probeEnvironment } from './shell-environments'
 
 /**
  * Read one Project's saved commands from an Environment this window is NOT bound to.
@@ -17,16 +13,6 @@ import { probeEnvironment } from './shell-environments'
  * still happens on the Environment that owns the checkout, and the token never leaves
  * the main process.
  */
-
-/** Find a healthy endpoint in preference order; an unauthorized credential is shared by routes. */
-async function liveEndpoint(env: RemoteEnvironment): Promise<string | null> {
-  for (const url of orderedEndpoints(env)) {
-    const { state } = await probeEnvironment(url, env.token)
-    if (state === 'online') return url
-    if (state === 'unauthorized') return null
-  }
-  return null
-}
 
 /** `null` groupId is This device; anything else is a saved environment group. */
 async function resolveEndpoint(

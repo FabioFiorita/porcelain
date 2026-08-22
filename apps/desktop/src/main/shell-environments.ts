@@ -146,6 +146,67 @@ export async function probeEnvironment(
   }
 }
 
+/** Find a healthy endpoint in preference order; an unauthorized credential is shared by routes. */
+export async function liveEndpoint(env: RemoteEnvironment): Promise<string | null> {
+  for (const url of orderedEndpoints(env)) {
+    const { state } = await probeEnvironment(url, env.token)
+    if (state === 'online') return url
+    if (state === 'unauthorized') return null
+  }
+  return null
+}
+
+/**
+ * One reachable Environment the renderer may open its OWN session to.
+ *
+ * The window's bound daemon is never in this list — the renderer already has it as
+ * `primary`. Everything else is a SECOND connection, the same shape `localDaemon` has handed
+ * over since local terminals shipped: a URL and the paired credential for it. That is what
+ * makes a Terminal, a directory browse, or a roster on another machine possible without the
+ * main process proxying every byte; the alternative is a bespoke IPC bridge per feature.
+ *
+ * `id` is the SHELL identity — `null` is This device — and the renderer maps it to the
+ * daemon-announced Environment id through the Hub inventory it already reads.
+ */
+export interface EnvironmentConnection {
+  id: string | null
+  name: string
+  url: string
+  token: string
+}
+
+/**
+ * Every Environment this window can reach EXCEPT the one it is bound to, each pointed at an
+ * endpoint that answered just now. An Environment with no live endpoint is omitted rather
+ * than handed over as a dead URL: the renderer would open a socket and retry it forever.
+ */
+export async function readEnvironmentConnections(
+  currentEnvironmentId: string | null,
+): Promise<EnvironmentConnection[]> {
+  const state = await loadRemoteEnvironmentState()
+  const local = localDaemonPair()
+  const [localOnline, remoteEndpoints] = await Promise.all([
+    currentEnvironmentId === null || local.url === ''
+      ? Promise.resolve(false)
+      : probeEnvironment(local.url, local.token).then((status) => status.state === 'online'),
+    Promise.all(
+      state.environments.map(
+        async (env): Promise<string | null> =>
+          env.id === currentEnvironmentId ? null : await liveEndpoint(env),
+      ),
+    ),
+  ])
+  const connections: EnvironmentConnection[] = localOnline
+    ? [{ id: null, name: 'This device', ...local }]
+    : []
+  for (const [index, env] of state.environments.entries()) {
+    const url = remoteEndpoints[index]
+    if (url === null || url === undefined) continue
+    connections.push({ id: env.id, name: env.name, url, token: env.token })
+  }
+  return connections
+}
+
 async function probeEnvironmentEndpoints(
   env: RemoteEnvironment,
 ): Promise<Omit<EnvironmentStatus, 'id'>> {

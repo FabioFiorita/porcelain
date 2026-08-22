@@ -35,7 +35,11 @@ import {
 } from './remote-daemon'
 import { readProjectActions } from './shell-actions'
 import { renameEnvironment } from './shell-environment-name'
-import { probeEnvironment, readEnvironmentStatuses } from './shell-environments'
+import {
+  probeEnvironment,
+  readEnvironmentConnections,
+  readEnvironmentStatuses,
+} from './shell-environments'
 import { readHubInventories } from './shell-hub-inventory'
 import { exchangePairingLink } from './shell-pairing'
 import {
@@ -401,6 +405,16 @@ export const shellRouter = t.router({
   /** Live Hub inventory across This device and every saved Environment. */
   hubInventories: t.procedure.query(({ ctx }) =>
     readHubInventories(windowEnvironmentId(ctx.sender)),
+  ),
+
+  /**
+   * Endpoints + credentials for every reachable Environment this window is NOT bound to, so
+   * the renderer can hold a session to each one instead of asking the shell to relay every
+   * read, spawn, and terminal byte. `localDaemon` above has handed the same pair over since
+   * local terminals shipped; this generalizes it from one extra daemon to all of them.
+   */
+  environmentConnections: t.procedure.query(({ ctx }) =>
+    readEnvironmentConnections(windowEnvironmentId(ctx.sender)),
   ),
 
   pairEnvironmentConnection: t.procedure

@@ -29,7 +29,9 @@ vi.mock('./remote-daemon', async (importOriginal) => {
   }
 })
 
-const { probeEnvironment, readEnvironmentStatuses } = await import('./shell-environments')
+const { probeEnvironment, readEnvironmentConnections, readEnvironmentStatuses } = await import(
+  './shell-environments'
+)
 
 const DAEMON_INFO = {
   result: { data: { version: '1.2.3', host: 'synthetic-host', platform: 'linux', arch: 'x64' } },
@@ -332,5 +334,44 @@ describe('readEnvironmentStatuses', () => {
     expect(statuses[1]?.state).toBe('offline')
     expect(state.environments[0]?.url).toBe('http://asleep.synthetic')
     expect(setWindowRemoteEndpoint).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * The renderer opens its OWN session to whatever this returns, so the list is a boundary as
+ * much as a feature: never the Environment the window is already bound to, and never an
+ * address that just failed to answer — the renderer would retry it forever.
+ */
+describe('readEnvironmentConnections', () => {
+  it('hands over This device when the window is bound to a remote', async () => {
+    state = { activeId: 'env-1', environments: [environment()] }
+
+    expect(await readEnvironmentConnections('env-1')).toEqual([
+      { id: null, name: 'This device', url: 'http://127.0.0.1:43118', token: 'pc_admin_local' },
+    ])
+  })
+
+  it('points a saved Environment at the endpoint that answered', async () => {
+    state = { activeId: null, environments: [environment()] }
+
+    // The window is on This device, so the local daemon is not repeated; the remote's
+    // preferred address is asleep, so the connection carries the one that answered.
+    expect(await readEnvironmentConnections(null)).toEqual([
+      { id: 'env-1', name: 'Synthetic', url: 'http://awake.synthetic', token: 'pc_client_remote' },
+    ])
+  })
+
+  it('omits an Environment with no live endpoint', async () => {
+    state = {
+      activeId: null,
+      environments: [
+        environment({
+          endpoints: ['http://asleep.synthetic'],
+          preferredEndpoint: 'http://asleep.synthetic',
+        }),
+      ],
+    }
+
+    expect(await readEnvironmentConnections(null)).toEqual([])
   })
 })

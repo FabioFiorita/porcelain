@@ -1,4 +1,4 @@
-import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
+import { useDaemonIdentity, useEnvironmentName } from '@renderer/hooks/use-daemon-identity'
 import { useLocalDaemon } from '@renderer/hooks/use-local-terminal'
 import { clientVersion } from '@renderer/lib/client-version'
 import { isLoopbackHostname, shouldPromptDaemonUpdate } from '@renderer/lib/daemon-update'
@@ -9,6 +9,12 @@ export interface DaemonUpdatePrompt {
   /** The daemon's version — only set while the prompt should be visible. */
   daemonVersion: string
   daemonHost: string
+  /**
+   * What to CALL that daemon: its Environment nickname when it has one, otherwise the machine
+   * name. The host stays the dismissal key — a nickname can change, and a waved-off version
+   * must stay waved off when it does.
+   */
+  daemonName: string
   clientVersion: string
   dismiss: () => void
 }
@@ -40,6 +46,7 @@ function useIsRemoteDaemon(): boolean {
  */
 export function useDaemonUpdatePrompt(): DaemonUpdatePrompt | null {
   const identity = useDaemonIdentity()
+  const environmentName = useEnvironmentName()
   const isRemote = useIsRemoteDaemon()
   const dismissed = usePreferencesStore((s) => s.dismissedDaemonUpdates)
   const dismissDaemonUpdate = usePreferencesStore((s) => s.dismissDaemonUpdate)
@@ -59,6 +66,7 @@ export function useDaemonUpdatePrompt(): DaemonUpdatePrompt | null {
   return {
     daemonVersion,
     daemonHost,
+    daemonName: environmentName ?? daemonHost,
     clientVersion: version,
     dismiss: () => dismissDaemonUpdate(daemonHost, daemonVersion),
   }

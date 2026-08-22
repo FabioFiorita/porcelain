@@ -8,11 +8,30 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { PersonalizationSection } from './personalization-section'
 
 vi.mock('@renderer/features/files', () => ({ useWorktreeProfile: vi.fn() }))
+// The scope picker reads the Hub fan-out; these cases are about the profile it frames.
+vi.mock('@renderer/features/projects', () => ({
+  useHubInventories: () => inventories,
+  useOpenHubWorktree: () => openWorktree,
+}))
 vi.mock('@renderer/stores/hub-repo', () => ({ useHubRepoPath: vi.fn() }))
 vi.mock('@renderer/lib/utils', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@renderer/lib/utils')>()),
   copyText: vi.fn(async () => undefined),
 }))
+
+const openWorktree = vi.fn()
+let inventories: {
+  environmentId: string | null
+  current: boolean
+  inventory: {
+    environment: { id: string; name: string }
+    projects: {
+      id: string
+      name: string
+      worktrees: { id: string; name: string; isPrimary: boolean }[]
+    }[]
+  }
+}[] = []
 
 const inheriting: WorktreeProfileView = {
   worktreeId: 'wt-1',
@@ -53,6 +72,7 @@ const override = (): HTMLElement => screen.getByTestId(TestIds.personalizationOv
 describe('PersonalizationSection', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    inventories = []
     vi.mocked(useHubRepoPath).mockReturnValue('/repo')
     vi.mocked(useWorktreeProfile).mockReturnValue(inheriting)
   })
@@ -153,7 +173,35 @@ describe('PersonalizationSection', () => {
     vi.mocked(useHubRepoPath).mockReturnValue(null)
     render(<PersonalizationSection />)
 
-    expect(screen.getByText(/Open a repository/)).toBeTruthy()
+    expect(screen.getByText(/belongs to a repository/)).toBeTruthy()
     expect(screen.queryByTestId(TestIds.personalizationBase)).toBeNull()
+  })
+
+  /**
+   * The page used to name no project at all, which is the complaint: a project-scoped page
+   * has to say which project, and let you change it without leaving Settings.
+   */
+  it('names the checkout the profile belongs to and offers the others', () => {
+    inventories = [
+      {
+        environmentId: null,
+        current: true,
+        inventory: {
+          environment: { id: 'env-local', name: 'This device' },
+          projects: [
+            {
+              id: 'project-1',
+              name: 'porcelain',
+              worktrees: [{ id: 'wt-1', name: 'main', isPrimary: true }],
+            },
+          ],
+        },
+      },
+    ]
+    vi.mocked(useWorktreeProfile).mockReturnValue(inheriting)
+    render(<PersonalizationSection />)
+
+    expect(screen.getByText('/repo')).toBeTruthy()
+    expect(screen.getByTestId(TestIds.settingsProjectScope)).toBeTruthy()
   })
 })

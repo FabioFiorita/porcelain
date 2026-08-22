@@ -12,7 +12,6 @@ import {
   localDaemonSession,
   markLocalTerminal,
   registerTerminalSession,
-  resetTerminalSessions,
 } from '@renderer/lib/local-daemon'
 import { followTerminal } from '@renderer/lib/terminal-actions'
 import { receiveData, receiveExit, receiveScrollback } from '@renderer/lib/terminal-registry'
@@ -25,7 +24,11 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useState } from 'react'
 import { applyTerminalRecovery } from './terminal-notifications'
 import { terminalSessionsQueryKey } from './terminal-query-key'
-import { type TerminalStreamListeners, useTerminalStream } from './terminal-stream-adapter'
+import {
+  type TerminalStreamListeners,
+  terminalAdapterForSession,
+  useTerminalStream,
+} from './terminal-stream-adapter'
 import { listTerminalSessionsOnDaemon } from './terminal-transport'
 
 /** The local endpoint is installed by useLocalDaemon's effect; resolve it after that effect runs. */
@@ -84,22 +87,6 @@ export function useTerminalRoster(): void {
   const localSessions = useLocalTerminalSessions(localPath)
   const localSession = useResolvedLocalSession(localPath)
 
-  const primaryListeners = useMemo<TerminalStreamListeners>(
-    () => ({
-      onData: receiveData,
-      onScrollback: receiveScrollback,
-      onExit: (id, exitCode): void => {
-        receiveExit(id, exitCode)
-        markExited(id, exitCode)
-      },
-      onRecovery: (recovery): void => {
-        applyTerminalRecovery(recovery, {
-          refetchRoster: () => ownerRoster.refetch(),
-        })
-      },
-    }),
-    [markExited, ownerRoster.refetch],
-  )
   const localListeners = useMemo<TerminalStreamListeners>(
     () => ({
       onData: receiveData,
@@ -119,7 +106,15 @@ export function useTerminalRoster(): void {
   )
 
   const ownerSession = owner === null ? null : (owner.session ?? primary)
-  const ownerAdapter = useTerminalStream(ownerSession, primaryListeners)
+  // No subscription for the Environment session: `useEnvironmentTerminalStreams` is the ONE
+  // subscriber for every Environment, and a second `receiveData` listener would write each
+  // byte to the Ghostty surface twice. The adapter is still needed here to ATTACH the
+  // checkout's own shells. "This device" is not an Environment of this Hub, so its stream is
+  // still owned here.
+  const ownerAdapter = useMemo(
+    () => (ownerSession === null ? null : terminalAdapterForSession(ownerSession)),
+    [ownerSession],
+  )
   const localAdapter = useTerminalStream(localSession, localListeners)
 
   /**
@@ -173,7 +168,9 @@ export function useTerminalRoster(): void {
       followTerminal(pendingFocus)
     }
 
-    resetTerminalSessions()
+    // Additive, never a wipe: this hook knows the OPEN checkout's shells, and the board's
+    // per-Environment rosters know the rest. Clearing the map here dropped their ownership
+    // and sent the next keystroke on another machine's shell to this window's daemon.
     if (ownerSession !== null) {
       for (const session of inRepo) registerTerminalSession(session.id, ownerSession)
     }

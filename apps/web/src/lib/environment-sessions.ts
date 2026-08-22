@@ -173,13 +173,30 @@ export function shellEnvironmentConnections(
 export function setShellEnvironmentConnections(
   connections: readonly BrowserEnvironmentConnection[],
 ): void {
+  const unchanged =
+    shellConnections.length === connections.length &&
+    shellConnections.every((current, index) => {
+      const next = connections[index]
+      return (
+        next !== undefined &&
+        next.id === current.id &&
+        next.name === current.name &&
+        next.url === current.url &&
+        next.token === current.token
+      )
+    })
+  if (unchanged) return
   shellConnections = connections
   const ids = new Set(connections.map((connection) => connection.id))
   for (const [environmentId, connectionId] of environmentAliases) {
     if (!ids.has(connectionId)) environmentAliases.delete(environmentId)
   }
   removeStaleEnvironmentSessions(ids)
-  for (const connection of connections) ensureEnvironmentSession(connection)
+  // Re-point what is already live; nothing is opened here. A window with no cross-Environment
+  // panel on screen should not hold a socket to every machine the human owns.
+  for (const connection of connections) {
+    if (secondarySessions.has(connection.id)) ensureEnvironmentSession(connection)
+  }
   notifyEnvironmentSessionChange()
 }
 
@@ -187,6 +204,18 @@ export function setShellEnvironmentConnections(
  * `environmentDaemonPairs` query in Electron. */
 function activeEnvironmentConnections(): readonly BrowserEnvironmentConnection[] {
   return isBrowser ? browserEnvironmentConnections() : shellEnvironmentConnections()
+}
+
+/** Public connection snapshot for callers that need the platform's current topology. */
+export function environmentConnections(
+  _revision = environmentSessionRevision,
+): readonly BrowserEnvironmentConnection[] {
+  return isBrowser ? browserEnvironmentConnections(_revision) : shellConnections
+}
+
+/** Translate a daemon Environment id into the shell's connection-id namespace. */
+export function shellConnectionId(environmentId: string | null): string {
+  return environmentId ?? THIS_DEVICE_CONNECTION_ID
 }
 
 function connectionId(): string {
@@ -387,6 +416,7 @@ export function environmentSessionForHubTarget(
 export function environmentClientFor(
   environmentId: string | null,
   primary: EnvironmentSession['client'],
+  _revision = environmentSessionRevision,
 ): EnvironmentClient | null {
   if (environmentId === null || environmentId === primaryEnvironmentId) {
     return { client: primary, session: null }

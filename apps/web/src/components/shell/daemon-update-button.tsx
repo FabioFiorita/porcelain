@@ -45,7 +45,10 @@ export function DaemonUpdateButton(): React.JSX.Element | null {
 
   if (prompt === null) return null
 
-  const label = `Update remote daemon (${prompt.daemonVersion})`
+  // Name the host and BOTH versions. "Update remote daemon (0.56.0)" read as an offer to
+  // install 0.56.0 — it is the version the daemon is stuck on, and the number that makes
+  // that legible is the one beside it.
+  const label = `Update ${prompt.daemonName} — running ${prompt.daemonVersion}, this app is ${prompt.clientVersion}`
   const copy = (command: string): void => {
     settleBackground(
       copyText(command).then(() => {
@@ -86,7 +89,7 @@ export function DaemonUpdateButton(): React.JSX.Element | null {
         <PopoverHeader>
           <PopoverTitle>Remote daemon is out of date</PopoverTitle>
           <PopoverDescription>
-            {prompt.daemonHost} runs Porcelain {prompt.daemonVersion}; this client is{' '}
+            {prompt.daemonName} runs Porcelain {prompt.daemonVersion}; this client is{' '}
             {prompt.clientVersion}. Update it on the host.
           </PopoverDescription>
         </PopoverHeader>

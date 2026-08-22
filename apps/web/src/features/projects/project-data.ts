@@ -26,11 +26,17 @@ import type {
 } from '@porcelain/contracts/projects'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import { type DaemonScope, daemonScopeSchema } from '@renderer/lib/daemon-scope'
-import { environmentSessionFor } from '@renderer/lib/environment-sessions'
+import {
+  daemonScopeForEnvironment,
+  environmentClientFor,
+  environmentSessionFor,
+  useEnvironmentSessionsRevision,
+} from '@renderer/lib/environment-sessions'
 import { isBrowser } from '@renderer/lib/platform'
 import { trpc } from '@renderer/lib/trpc'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMemo } from 'react'
 import { z } from 'zod'
 
 import { SHELL_HUB_INVENTORIES_QUERY_KEY } from './hub-inventories'
@@ -76,12 +82,26 @@ async function invalidateProjectQueries(
   queryClient: ReturnType<typeof useQueryClient>,
   daemon: ProjectsDaemonScope,
   queries: readonly ProjectsQuery[],
+  environmentId: string | null = null,
 ): Promise<void> {
+  const scope = daemonScopeForEnvironment(environmentId, daemon)
   for (const query of queries) {
     await queryClient.invalidateQueries({
       exact: true,
-      queryKey: projectsQueryKey(daemon, query),
+      queryKey: projectsQueryKey(scope, query),
     })
+  }
+  // Browser secondary inventories use a connection-id key because the daemon-announced
+  // Environment id is learned only after the connection has answered. Invalidate that
+  // concrete cache row as well as the canonical daemon-scoped key above.
+  if (isBrowser && environmentId !== null && queries.some((query) => query.name === 'inventory')) {
+    const owner = environmentSessionFor(environmentId)
+    if (owner !== null) {
+      await queryClient.invalidateQueries({
+        exact: true,
+        queryKey: ['browser', 'hubInventory', owner.id],
+      })
+    }
   }
   // Electron's Hub tree reads through a separate shell-router query (hub-inventories.ts) that
   // the per-Environment key above never reaches — without this, adding/removing a Project or
@@ -137,6 +157,7 @@ export function useOpenProject(): {
         queryClient,
         daemon,
         openProject.affectedQueries(variables.path),
+        variables.environmentId,
       )
     },
   })
@@ -166,7 +187,12 @@ export function useRemoveRecentProject(): {
       await removeRecentProjectOnDaemon(client, path)
     },
     onSuccess: async (_result, path) => {
-      await invalidateProjectQueries(queryClient, daemon, removeRecentProject.affectedQueries(path))
+      await invalidateProjectQueries(
+        queryClient,
+        daemon,
+        removeRecentProject.affectedQueries(path),
+        null,
+      )
       if (useProjectSelectionStore.getState().project?.path === path) selectProject(null)
     },
   })
@@ -198,6 +224,7 @@ export function useRemoveHubProject(): {
         queryClient,
         daemon,
         removeHubProject.affectedQueries(variables.projectId),
+        variables.environmentId ?? null,
       )
     },
   })
@@ -239,6 +266,7 @@ export function useRemoveHubWorktree(): {
         queryClient,
         daemon,
         removeHubWorktree.affectedQueries(variables),
+        variables.environmentId ?? null,
       )
     },
   })
@@ -246,22 +274,41 @@ export function useRemoveHubWorktree(): {
   return { isPending: mutation.isPending, remove: mutation.mutateAsync }
 }
 
+/**
+ * Browse one Environment's filesystem. `environmentId` is the daemon-announced id;
+ * `undefined` (and `null`) mean this window's own daemon, which is what every caller
+ * that only ever browses locally passes.
+ *
+ * The result is keyed by Environment, so switching machines in the picker cannot show
+ * the previous one's directories under the new one's name.
+ */
 export function useProjectDirectories(
   path: string | null,
   enabled: boolean,
+  environmentId?: string | null,
 ): {
   result: BrowseDirsOutput | undefined
   error: { message: string } | null
   isFetching: boolean
 } {
   const daemon = useDaemonIdentity()
-  const client = trpc.useUtils().client
+  const sessionRevision = useEnvironmentSessionsRevision()
+  const primary = trpc.useUtils().client
+  const owner = useMemo(
+    // The revision is the dependency, not a value: a session appears (or moves) after the
+    // shell answers, and the browse has to re-resolve when it does.
+    () => environmentClientFor(environmentId ?? null, primary, sessionRevision),
+    [environmentId, primary, sessionRevision],
+  )
   const identity = projectDirectoriesQuery(path)
   const query = useQuery({
-    enabled,
+    enabled: enabled && owner !== null,
     placeholderData: keepPreviousData,
-    queryFn: async (): Promise<BrowseDirsOutput> => browseProjectDirectoriesOnDaemon(client, path),
-    queryKey: projectsQueryKey(daemon, identity),
+    queryFn: async (): Promise<BrowseDirsOutput> => {
+      if (owner === null) throw new Error('That Environment is offline.')
+      return browseProjectDirectoriesOnDaemon(owner.client, path)
+    },
+    queryKey: projectsQueryKey(daemonScopeForEnvironment(environmentId, daemon), identity),
   })
   return { error: errorView(query.error), isFetching: query.isFetching, result: query.data }
 }
@@ -295,7 +342,12 @@ export function useCreateHubWorktree(): {
       })
     },
     onSuccess: async (_result, input) => {
-      await invalidateProjectQueries(queryClient, daemon, createHubWorktree.affectedQueries(input))
+      await invalidateProjectQueries(
+        queryClient,
+        daemon,
+        createHubWorktree.affectedQueries(input),
+        input.environmentId ?? null,
+      )
     },
   })
   return { create: mutation.mutateAsync, isPending: mutation.isPending }

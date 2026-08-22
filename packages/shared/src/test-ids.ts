@@ -87,6 +87,14 @@ export const TestIds = {
   // --- Settings ---
   settingsDialog: 'settings-dialog',
   settingsHeading: 'settings-heading',
+  /** The header eyebrow: which scope — and which Environment or Project — this page is about. */
+  settingsScope: 'settings-scope',
+  /** Share, on a window bound to an Environment this app cannot administer. */
+  shareNotAdministrable: 'share-not-administrable',
+  /** Which checkout a project-scoped Settings page is about. */
+  settingsProjectScope: 'settings-project-scope',
+  /** Which Environment's filesystem the Open-project browser is reading. */
+  projectPickerEnvironment: 'project-picker-environment',
   settingsSection: (section: string): string => `settings-section-${section}`,
   browserEnvironmentConnections: 'browser-environment-connections',
   browserEnvironmentLabel: 'browser-environment-label',
@@ -196,6 +204,8 @@ export const TestIds = {
   terminalsBoardNew: 'terminals-board-new',
   terminalsBoardNewAt: (key: string): string => `terminals-board-new-at-${key}`,
   terminalsBoardGrid: 'terminals-board-grid',
+  /** One Environment's block in the Terminals list. 'current' = the window's own daemon. */
+  terminalsBoardEnvironmentSection: (id: string): string => `terminals-board-env-${id}`,
   terminalsBoardGroup: (key: string): string => `terminals-board-group-${key}`,
   terminalsBoardSession: (id: string): string => `terminals-board-session-${id}`,
   terminalsBoardClose: (id: string): string => `terminals-board-close-${id}`,

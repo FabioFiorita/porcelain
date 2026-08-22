@@ -1,4 +1,5 @@
 import { openTerminalsBoard } from '@renderer/features/terminal/terminals-navigation'
+import type { DaemonSession } from '@renderer/lib/daemon'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { type TerminalOrigin, useTerminalsStore } from '@renderer/stores/terminals'
 
@@ -47,6 +48,21 @@ export async function spawnTerminalAt(
 }
 
 /**
+ * Spawn on a named Environment — a daemon this window is not bound to.
+ *
+ * Same path as every other spawn so the numbering floor, the reveal, and the id routing stay
+ * in one place: the only difference is which daemon is asked, and the store records that so a
+ * later keystroke reaches the same machine.
+ */
+export async function spawnTerminalOnSession(
+  session: DaemonSession,
+  cwd: string,
+  opts?: { name?: string; initialInput?: string },
+): Promise<string> {
+  return spawn(cwd, 'primary', opts, session)
+}
+
+/**
  * Put one session in front of the human: focus it and open the Terminals tab.
  *
  * The reveal path for a shell the human ASKED for — ⌘T, the board's "+", a saved Action
@@ -88,6 +104,7 @@ async function spawn(
   cwd: string,
   origin: TerminalOrigin,
   opts?: { name?: string; initialInput?: string },
+  session?: DaemonSession,
 ): Promise<string> {
   const { sessions, create } = useTerminalsStore.getState()
   terminalNumberFloor = nextTerminalNumber(
@@ -98,7 +115,7 @@ async function spawn(
   // "Terminal 3"s in it — one local, one remote — would be the confusing outcome.
   // Named spawns (saved actions) keep the action title instead.
   const name = opts?.name ?? `Terminal ${terminalNumberFloor}`
-  const id = await create({ cwd, name, origin, initialInput: opts?.initialInput })
+  const id = await create({ cwd, name, origin, initialInput: opts?.initialInput, session })
   revealTerminal(id)
   return id
 }
