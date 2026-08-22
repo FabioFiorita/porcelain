@@ -133,7 +133,7 @@ export function TabletShell(): React.JSX.Element {
 
         {layout === 'split' && inspectorOpen ? (
           <View style={{ width: HUB_SIDEBAR_WIDTH }}>
-            <SurfacesPanel onClose={toggleInspector} />
+            <SurfacesPanel />
           </View>
         ) : null}
       </View>

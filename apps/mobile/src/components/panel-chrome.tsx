@@ -34,6 +34,16 @@ export function PanelLabel({
   )
 }
 
+/**
+ * The touch target every icon-only control wears: a 36pt box around a 17pt glyph.
+ *
+ * Exported because a control that opens an anchored menu cannot BE an `IconAction` — the menu's
+ * trigger clones a host component to get its ref, and a function component swallows both the
+ * ref and the press. Such a trigger draws its own `Pressable` with this, rather than inventing
+ * a second 36pt box that drifts from this one.
+ */
+export const ICON_ACTION = 'size-9 items-center justify-center rounded-lg active:bg-accent'
+
 /** Icon-only control sized for touch — the header actions and row affordances. */
 export function IconAction({
   accessibilityLabel,
@@ -57,10 +67,7 @@ export function IconAction({
       accessibilityLabel={accessibilityLabel}
       accessibilityRole="button"
       accessibilityState={{ disabled, selected }}
-      className={cn(
-        'size-9 items-center justify-center rounded-lg active:bg-accent',
-        disabled && 'opacity-40',
-      )}
+      className={cn(ICON_ACTION, disabled && 'opacity-40')}
       disabled={disabled}
       hitSlop={4}
       testID={testID}
@@ -115,11 +122,22 @@ export function ScreenHeader({
   const leading = useShellLeading()
   const trailing = useShellTrailing()
 
+  // Inside a tablet column the shell has already cleared the status bar, so this bar is free to
+  // be exactly the 48pt the sidebar's header and the Surfaces strip take. It was sized by its
+  // content instead, so a viewer showing a file — a title over its path — stood 4pt taller than
+  // the two columns beside it and the three hairlines did not line up. At the top of a phone
+  // window there is an inset to clear and the bar grows past 48 by definition.
+  const inColumn = topInset === 0
+
   return (
     <View
-      className={cn(SURFACE_GUTTER, 'flex-row items-center gap-1 border-b border-border py-1.5')}
+      className={cn(
+        SURFACE_GUTTER,
+        'flex-row items-center gap-1 border-b border-border py-1.5',
+        inColumn && 'h-12 py-0',
+      )}
       /* nativewind-allow-style: the bar clears the live status-bar inset. */
-      style={{ paddingTop: topInset + 6 }}
+      style={inColumn ? undefined : { paddingTop: topInset + 6 }}
       testID={testID}
     >
       {leading === null ? null : <View className="-ml-2 flex-row items-center">{leading}</View>}

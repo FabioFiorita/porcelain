@@ -1,14 +1,15 @@
-import { useState } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
-import { ActionSheet, IconAction, type SheetAction } from '@/components/panel-chrome'
+import { EmptyNote, ICON_ACTION } from '@/components/panel-chrome'
+import { AnchoredMenu, type RowMenuAction, RowContextMenu } from '@/components/ui/row-context-menu'
 import { SurfaceScroll } from '@/components/surface-scroll'
+import { useHubRepoPath } from '@/features/projects'
 import { cn } from '@/lib/utils'
 
 import { useShellStore } from './shell-store'
 import { surfaceSlots } from './surface-slots'
-import { type SurfaceId, SURFACES, surfaceById } from './surfaces'
+import { SURFACES, type SurfaceId, surfaceById } from './surfaces'
 import { ColumnChrome } from './window-chrome'
 
 /**
@@ -16,7 +17,7 @@ import { ColumnChrome } from './window-chrome'
  *
  * ```
  *  ┌──────────────────────────────┐
- *  │ ⌗ Files ×  ⎇ Changes ×    +  │  ← the strip: what is open, what is showing
+ *  │ ⌗ Files ×  ⎇ Changes      +  │  ← the strip: what is open, what is showing
  *  ├──────────────────────────────┤
  *  │  the active surface's list   │  ← rows open detail into the VIEWER, not in here
  *  └──────────────────────────────┘
@@ -40,23 +41,20 @@ import { ColumnChrome } from './window-chrome'
  * from this panel arrives with the pop gesture and the Android back button — the same push the
  * phone makes from the same list. The columns do not talk through a selection store any more.
  *
- * Deliberately NOT reordered by drag, and with no per-tab "close others / close to the right"
- * menu: both are pointer gestures the web client earns from a mouse. The long-press action sheet
- * carries close-others and close-all, which is the pair a touch strip actually needs.
+ * Deliberately NOT reordered by drag: that is a pointer gesture the web client earns from a
+ * mouse. Its "close others / close to the right" family is a long press on a tab here.
  */
-export function SurfacesPanel({ onClose }: { onClose: () => void }): React.JSX.Element {
+export function SurfacesPanel(): React.JSX.Element {
   const openSurfaces = useShellStore((state) => state.openSurfaces)
   const activeSurface = useShellStore((state) => state.activeSurface)
   const openSurface = useShellStore((state) => state.openSurface)
   const closeSurface = useShellStore((state) => state.closeSurface)
   const setOpenSurfaces = useShellStore((state) => state.setOpenSurfaces)
   const setActiveSurface = useShellStore((state) => state.setActiveSurface)
-  const [menuFor, setMenuFor] = useState<SurfaceId | null>(null)
-  const [launcherOpen, setLauncherOpen] = useState(false)
 
-  // A strip that holds a surface which is no longer showing has to show SOMETHING; falling back
-  // to the first open tab keeps the panel from going blank on a state the store cannot produce
-  // but a future one might.
+  // A strip holding a surface that is no longer showing has to show SOMETHING; falling back to
+  // the first open tab keeps the panel from going blank on a state the store cannot produce but
+  // a future one might.
   const active =
     activeSurface !== null && openSurfaces.includes(activeSurface)
       ? activeSurface
@@ -68,6 +66,8 @@ export function SurfacesPanel({ onClose }: { onClose: () => void }): React.JSX.E
       className="flex-1 overflow-hidden rounded-xl border border-border bg-background"
       testID="porcelain-tablet-inspector"
     >
+      {/* `min-h-12`, the height the sidebar's header and the viewer's header both take. Three
+          columns whose top bands disagree by a few points is the first thing a reader sees. */}
       <View className="min-h-12 flex-row items-center gap-1 border-b border-border pl-2 pr-1">
         {active === null ? (
           <Text
@@ -83,27 +83,38 @@ export function SurfacesPanel({ onClose }: { onClose: () => void }): React.JSX.E
             open={openSurfaces}
             onActivate={setActiveSurface}
             onClose={closeSurface}
-            onMenu={setMenuFor}
+            onReplace={setOpenSurfaces}
           />
         )}
         {available.length === 0 ? null : (
-          <IconAction
-            accessibilityLabel="Open a surface"
-            glyph="plus"
+          <AnchoredMenu
+            actions={available.map(
+              (surface): RowMenuAction => ({
+                glyph: surface.glyph,
+                id: surface.id,
+                label: surface.label,
+                onPress: () => {
+                  openSurface(surface.id)
+                },
+              }),
+            )}
             testID="porcelain-surfaces-add"
-            tone="foreground"
-            onPress={() => {
-              setLauncherOpen(true)
-            }}
-          />
+            title="Open a surface"
+          >
+            {/* A host `Pressable`, not `IconAction`: the menu's trigger clones its child to
+                take a ref and compose the press, and a function component absorbs both — the
+                first cut of this button drew correctly and opened nothing. */}
+            <Pressable
+              accessibilityLabel="Open a surface"
+              accessibilityRole="button"
+              className={ICON_ACTION}
+              hitSlop={4}
+              testID="porcelain-surfaces-add-button"
+            >
+              <ChromeGlyph name="plus" size={17} tone="foreground" />
+            </Pressable>
+          </AnchoredMenu>
         )}
-        <IconAction
-          accessibilityLabel="Close the Surfaces panel"
-          glyph="close"
-          testID="porcelain-tablet-inspector-close"
-          tone="foreground"
-          onPress={onClose}
-        />
       </View>
 
       <ColumnChrome>
@@ -113,63 +124,6 @@ export function SurfacesPanel({ onClose }: { onClose: () => void }): React.JSX.E
           <SurfaceBodies active={active} open={openSurfaces} />
         )}
       </ColumnChrome>
-
-      <ActionSheet
-        actions={[
-          {
-            glyph: 'close',
-            id: 'close',
-            label: 'Close',
-            onPress: () => {
-              if (menuFor !== null) closeSurface(menuFor)
-            },
-          },
-          {
-            glyph: 'layers',
-            id: 'close-others',
-            label: 'Close others',
-            onPress: () => {
-              if (menuFor !== null) setOpenSurfaces([menuFor], menuFor)
-            },
-          },
-          {
-            destructive: true,
-            glyph: 'eraser',
-            id: 'close-all',
-            label: 'Close all',
-            onPress: () => {
-              setOpenSurfaces([])
-            },
-          },
-        ]}
-        open={menuFor !== null}
-        subtitle={menuFor === null ? undefined : surfaceById(menuFor).hint}
-        testID="porcelain-surfaces-tab-menu"
-        title={menuFor === null ? '' : surfaceById(menuFor).label}
-        onClose={() => {
-          setMenuFor(null)
-        }}
-      />
-
-      <ActionSheet
-        actions={available.map(
-          (surface): SheetAction => ({
-            glyph: surface.glyph,
-            id: surface.id,
-            label: surface.label,
-            onPress: () => {
-              openSurface(surface.id)
-            },
-          }),
-        )}
-        open={launcherOpen}
-        subtitle="Keep a project view beside the viewer."
-        testID="porcelain-surfaces-add-sheet"
-        title="Open a surface"
-        onClose={() => {
-          setLauncherOpen(false)
-        }}
-      />
     </View>
   )
 }
@@ -182,6 +136,12 @@ export function SurfacesPanel({ onClose }: { onClose: () => void }): React.JSX.E
  * the scope switch. `display: none` is how `TabSlot` keeps the phone's tabs alive too, so the
  * two shells hold state the same way. `active` is false for the hidden ones, which is what
  * stops five surfaces polling one daemon at once.
+ *
+ * **Search is the surface that does not need a Worktree** — it opens its own scope — so it is
+ * the one exception to the "select a Worktree first" note, exactly as `SurfaceContent` on web.
+ * Without this every surface fell back to its own empty state, and Files' ("everything here is
+ * hidden by the project's scope, or the folder is empty") reads as a broken tree rather than as
+ * nothing being selected.
  */
 function SurfaceBodies({
   active,
@@ -190,6 +150,18 @@ function SurfaceBodies({
   active: SurfaceId
   open: readonly SurfaceId[]
 }): React.JSX.Element {
+  const repoPath = useHubRepoPath()
+
+  if (repoPath === null && active !== 'search') {
+    return (
+      <EmptyNote
+        body="Pick one from the Worktrees list and its surfaces open here."
+        testID="porcelain-surfaces-no-worktree"
+        title="No Worktree selected"
+      />
+    )
+  }
+
   return (
     <View className="min-h-0 flex-1">
       {open.map((id) => {
@@ -217,13 +189,13 @@ function SurfaceStrip({
   active,
   onActivate,
   onClose,
-  onMenu,
+  onReplace,
   open,
 }: {
   active: SurfaceId
   onActivate: (id: SurfaceId) => void
   onClose: (id: SurfaceId) => void
-  onMenu: (id: SurfaceId) => void
+  onReplace: (next: readonly SurfaceId[], activate?: SurfaceId) => void
   open: readonly SurfaceId[]
 }): React.JSX.Element {
   return (
@@ -237,50 +209,89 @@ function SurfaceStrip({
       {open.map((id) => {
         const surface = surfaceById(id)
         const selected = id === active
+        const menu: RowMenuAction[] = [
+          {
+            glyph: 'close',
+            id: 'close',
+            label: `Close ${surface.label}`,
+            onPress: () => {
+              onClose(id)
+            },
+          },
+          {
+            disabled: open.length < 2,
+            glyph: 'layers',
+            id: 'close-others',
+            label: 'Close others',
+            onPress: () => {
+              onReplace([id], id)
+            },
+          },
+          {
+            destructive: true,
+            glyph: 'eraser',
+            id: 'close-all',
+            label: 'Close all',
+            onPress: () => {
+              onReplace([])
+            },
+          },
+        ]
+
         return (
-          <Pressable
+          <RowContextMenu
             key={id}
-            accessibilityLabel={surface.label}
-            accessibilityRole="tab"
-            accessibilityState={{ selected }}
-            className={cn(
-              'h-8 shrink-0 flex-row items-center gap-1.5 rounded-lg pl-2 pr-1',
-              selected ? 'bg-accent' : 'active:bg-accent/40',
-            )}
+            actions={menu}
             testID={`porcelain-surfaces-tab-${id}`}
-            onLongPress={() => {
-              onMenu(id)
-            }}
-            onPress={() => {
-              onActivate(id)
-            }}
+            title={surface.label}
           >
-            <ChromeGlyph name={surface.glyph} size={13} tone={selected ? 'foreground' : 'muted'} />
-            <Text
-              className={cn(
-                'text-xs font-medium',
-                selected ? 'text-accent-foreground' : 'text-muted-foreground',
-              )}
-              numberOfLines={1}
-            >
-              {surface.label}
-            </Text>
-            {/* The close mark is inside the tab, not a second row of controls: a strip that
-                needs a mouse-over to reveal its close button has nothing to reveal on a touch
-                screen, so it is simply always there. */}
             <Pressable
-              accessibilityLabel={`Close ${surface.label}`}
-              accessibilityRole="button"
-              className="size-6 items-center justify-center rounded-md active:bg-accent"
-              hitSlop={4}
-              testID={`porcelain-surfaces-close-${id}`}
+              accessibilityLabel={surface.label}
+              accessibilityRole="tab"
+              accessibilityState={{ selected }}
+              className={cn(
+                'h-8 shrink-0 flex-row items-center gap-1.5 rounded-lg pl-2',
+                selected ? 'bg-accent pr-1' : 'pr-2 active:bg-accent/40',
+              )}
               onPress={() => {
-                onClose(id)
+                onActivate(id)
               }}
             >
-              <ChromeGlyph name="close" size={11} tone="muted" />
+              <ChromeGlyph
+                name={surface.glyph}
+                size={13}
+                tone={selected ? 'foreground' : 'muted'}
+              />
+              <Text
+                className={cn(
+                  'text-xs font-medium',
+                  selected ? 'text-accent-foreground' : 'text-muted-foreground',
+                )}
+                numberOfLines={1}
+              >
+                {surface.label}
+              </Text>
+              {/* Only the SHOWING tab carries a close mark. The web strip reveals one on hover,
+                  which is a gesture a touch screen does not have — and a mark on every tab cost
+                  24pt each, so a third tab was already being clipped in a 320pt panel. Every tab
+                  can still be closed from its long-press menu; the one you are looking at gets
+                  the one-tap affordance. */}
+              {selected ? (
+                <Pressable
+                  accessibilityLabel={`Close ${surface.label}`}
+                  accessibilityRole="button"
+                  className="size-6 items-center justify-center rounded-md active:bg-accent"
+                  hitSlop={4}
+                  testID={`porcelain-surfaces-close-${id}`}
+                  onPress={() => {
+                    onClose(id)
+                  }}
+                >
+                  <ChromeGlyph name="close" size={11} tone="muted" />
+                </Pressable>
+              ) : null}
             </Pressable>
-          </Pressable>
+          </RowContextMenu>
         )
       })}
     </ScrollView>
