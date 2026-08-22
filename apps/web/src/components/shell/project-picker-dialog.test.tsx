@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ProjectPickerDialog } from './project-picker-dialog'
 
 const openProject = vi.fn(async () => undefined)
-const openWorktreeInEnvironment = vi.fn(async () => undefined)
 /** What the browse hook was asked for, so a test can prove WHICH daemon was read. */
 const browsed: { path: string | null; environmentId: string | null | undefined }[] = []
 
@@ -45,16 +44,6 @@ vi.mock('@renderer/features/projects', () => ({
   },
 }))
 
-vi.mock('@renderer/lib/trpc', () => ({
-  shellTrpcClient: {
-    openWorktreeInEnvironment: {
-      mutate: (input: unknown) => openWorktreeInEnvironment(input),
-    },
-  },
-}))
-
-vi.mock('@renderer/lib/platform', () => ({ isBrowser: false }))
-
 const { useProjectPickerStore } = await import('@renderer/stores/project-picker')
 
 // jsdom implements no Web Animations API, and Base UI's ScrollArea asks its viewport for
@@ -75,7 +64,6 @@ async function choose(trigger: HTMLElement, option: RegExp): Promise<void> {
 
 beforeEach(() => {
   openProject.mockClear()
-  openWorktreeInEnvironment.mockClear()
   browsed.length = 0
   inventories = [inventory('env-mac', 'This device', true)]
   useProjectPickerStore.setState({ open: true })
@@ -105,7 +93,7 @@ describe('ProjectPickerDialog', () => {
     expect(screen.getByText(/moves this window to beelink soap/)).toBeTruthy()
   })
 
-  it('opens through the shell when the folder lives on another Environment', async () => {
+  it('opens through the target Environment session when the folder lives elsewhere', async () => {
     inventories = [
       inventory('env-mac', 'This device', true),
       inventory('env-beelink', 'beelink soap', false),
@@ -114,13 +102,9 @@ describe('ProjectPickerDialog', () => {
     await choose(screen.getByTestId(TestIds.projectPickerEnvironment), /beelink soap/)
     fireEvent.click(screen.getByRole('button', { name: 'Open this folder' }))
 
-    // Only the shell can repoint the window; the renderer's session to that daemon is for
-    // reads, not for binding.
-    expect(openWorktreeInEnvironment).toHaveBeenCalledWith({
-      environmentId: 'shell-env-beelink',
-      repoPath: '/home/beelink',
+    expect(openProject).toHaveBeenCalledWith('/home/beelink', {
+      environmentId: 'env-beelink',
     })
-    expect(openProject).not.toHaveBeenCalled()
   })
 
   it('opens through this window when the folder is on its own Environment', () => {
@@ -128,6 +112,5 @@ describe('ProjectPickerDialog', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open this folder' }))
 
     expect(openProject).toHaveBeenCalledWith('/home/mac', { environmentId: null })
-    expect(openWorktreeInEnvironment).not.toHaveBeenCalled()
   })
 })

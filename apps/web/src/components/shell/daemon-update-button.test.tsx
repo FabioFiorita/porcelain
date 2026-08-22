@@ -82,11 +82,11 @@ describe('DaemonUpdateButton', () => {
     render(<DaemonUpdateButton />)
     fireEvent.click(screen.getByTestId('daemon-update-button'))
     expect(screen.getByTestId('daemon-update-command')).toHaveTextContent(
-      'systemctl --user restart porcelain-daemon.service',
+      'systemctl --user restart porcelain.service',
     )
     expect(screen.getByText(/beelink runs Porcelain 0\.53\.0/)).toBeTruthy()
     fireEvent.click(screen.getByTestId('daemon-update-copy'))
-    expect(copyText).toHaveBeenCalledWith('systemctl --user restart porcelain-daemon.service')
+    expect(copyText).toHaveBeenCalledWith('systemctl --user restart porcelain.service')
   })
 
   it('stays dismissed for that daemon version across a remount', () => {

@@ -10,8 +10,28 @@ import { type ConnectionState, type Environment, hostOf } from '@/features/remot
  * mislabelled state or an off-by-one swap could only be found on a device.
  */
 
-/** The three shapes of route a daemon can be reached over, named the way a human picks between them. */
+/** True for `127.0.0.0/8` and `::1` — this device, not a route to another one. */
+function isLoopback(url: string): boolean {
+  let host: string
+  try {
+    host = new URL(url).hostname.toLowerCase()
+  } catch {
+    return false
+  }
+  return host === '::1' || /^127(?:\.\d{1,3}){3}$/.test(host)
+}
+
+/**
+ * The three shapes of route a daemon can be reached over, named the way a human picks between
+ * them.
+ *
+ * Loopback gets its own case rather than folding into `endpointKind`'s classification: that
+ * function also drives failover order, where a stale loopback endpoint from a same-machine dev
+ * pairing must stay deprioritized behind a real LAN or Tailscale route, not jump ahead of them.
+ * The label is a separate concern — a daemon on this exact device is not "the internet."
+ */
 export function endpointLabel(url: string): string {
+  if (isLoopback(url)) return 'LAN'
   switch (endpointKind(url)) {
     case 'lan':
       return 'LAN'

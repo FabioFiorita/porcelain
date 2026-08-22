@@ -37,9 +37,8 @@ vi.mock('./local-terminal-paths', () => ({
 
 vi.mock('./plugin-assets', () => ({
   PLUGIN_VERSION: '1.0.0',
-  pluginInstallCommand: (): string => 'install',
-  pluginMarketplaceCommands: (): readonly string[] => ['marketplace'],
-  pluginUpdateCommands: (): readonly string[] => ['update'],
+  agentPluginRepository: (): string => 'repository',
+  claudePluginCommands: (): readonly string[] => ['marketplace'],
 }))
 
 vi.mock('./updater', () => ({
@@ -265,39 +264,6 @@ describe('shell daemon requests', () => {
     for (const entry of seen.filter((request) => request.url.includes('/trpc/hubInventory'))) {
       expectsProtocol(entry)
     }
-  })
-
-  it('opens a Hub Worktree on another Environment by rebinding this window to it', async () => {
-    state = {
-      activeId: null,
-      environments: [
-        {
-          id: 'env-online',
-          name: 'env-online',
-          url: 'http://online.synthetic',
-          token: 'pc_client_env-online',
-          endpoints: ['http://online.synthetic'],
-          preferredEndpoint: 'http://online.synthetic',
-        },
-      ],
-    }
-
-    // The renderer holds one daemon client — its window's — so it cannot open a path on any
-    // other daemon itself; without this route every cross-Environment Hub click failed.
-    await caller().openWorktreeInEnvironment({
-      environmentId: 'env-online',
-      repoPath: '/repos/alpha',
-    })
-
-    expect(switchWindowEnvironmentMock).toHaveBeenCalledWith({}, 'env-online', '/repos/alpha')
-    expect(state.activeId).toBe('env-online')
-  })
-
-  it('refuses a Hub Worktree whose Environment is no longer saved', async () => {
-    await expect(
-      caller().openWorktreeInEnvironment({ environmentId: 'env-gone', repoPath: '/repos/alpha' }),
-    ).rejects.toThrow('no longer exists')
-    expect(switchWindowEnvironmentMock).not.toHaveBeenCalled()
   })
 
   it('reads one Project roster from the Environment the caller named', async () => {

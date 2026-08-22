@@ -1,98 +1,84 @@
-import { ChangesList } from '@/features/changes/changes-list'
+import { CanvasSurfacePanel } from '@/features/canvas/canvas-surface-panel'
 import { ChangesPhoneScreen } from '@/features/changes/changes-phone-screen'
-import { ChangesViewer } from '@/features/changes/changes-viewer'
-import {
-  FilesCompanion,
-  FilesList,
-  FilesPhoneScreen,
-  FilesViewer,
-  useFilesStore,
-} from '@/features/files'
+import { ChangesSurfacePanel } from '@/features/changes/changes-surface-panel'
+import { FilesCompanion, FilesPhoneScreen, FilesSurfacePanel } from '@/features/files'
+import { GitSurfacePanel } from '@/features/git/git-surface-panel'
 import { HistoryCompanion } from '@/features/history/history-companion'
-import { HistoryList } from '@/features/history/history-list'
 import { HistoryPhoneScreen } from '@/features/history/history-phone-screen'
-import { HistoryViewer } from '@/features/history/history-viewer'
-import { SearchCompanion, SearchList, SearchPhoneScreen } from '@/features/search'
+import { HistorySurfacePanel } from '@/features/history/history-surface-panel'
+import { SearchCompanion, SearchPhoneScreen, SearchSurfacePanel } from '@/features/search'
 
 import type { SurfaceId } from './surfaces'
 
-function SearchListSlot({ active }: { active: boolean }): React.JSX.Element {
-  const selection = useFilesStore((state) => state.selection)
-  const openDir = useFilesStore((state) => state.openDir)
-  const openFile = useFilesStore((state) => state.openFile)
-  return (
-    <SearchList
-      active={active}
-      onOpenDir={openDir}
-      onOpenFile={openFile}
-      selectedPath={selection}
-    />
-  )
-}
-
 /**
- * A surface's real, daemon-backed panels. Every surface has a full set — the shell has no other
+ * A surface's real, daemon-backed bodies. Every surface has a full set — the shell has no other
  * way to paint a column, and no mock fallback behind it any more.
  *
- * Slots are only mounted for the ACTIVE surface, so a mounted panel is a focused panel — the
- * `active` flag they receive is about screen focus on phone (a native tab keeps its previous
- * screen mounted in the background), not about which surface is selected.
+ * Two hosts, and they are not the same shape:
  *
- * Adding a tab is one entry here plus its feature folder. Keep the shape: list · viewer ·
- * companion for tablet, and `phone` for the surface's screen body. The screen's title and
- * toolbar are not in here — they are options on the Hub stack, drawn by the native header.
- * A surface with detail views gives them routes under `app/<surface>/` and pushes.
+ *   - **`panel`** is a tab of the tablet's trailing Surfaces panel, beside the viewer. It is
+ *     handed `active` because it is not a routed screen and has no `useIsFocused` to ask — the
+ *     panel knows which of its tabs is showing, and only that one polls the daemon.
+ *   - **`phone`** is the surface's screen inside the Hub stack, under the header `SurfaceScreen`
+ *     draws. It asks the navigator whether it is focused itself.
+ *   - **`companion`** is the phone's bolt sheet, and is omitted when the surface has none.
+ *     There is no companion COLUMN any more: the web client keeps its pins inside the Files
+ *     surface and its file timeline behind a toggle inside History, and the tablet panels now do
+ *     the same. What is left here is a phone affordance — a phone screen has one column and
+ *     cannot stack a second list under a toggle.
+ *
+ * Adding a surface is one entry here plus its feature folder, and the record is total by type:
+ * a new `SurfaceId` without bodies is a compile error.
  */
 export type SurfaceSlots = {
-  /** Tablet supplementary column. */
-  list: (props: { active: boolean }) => React.JSX.Element
-  /** Tablet viewer column. */
-  viewer: (props: { active: boolean }) => React.JSX.Element
-  /**
-   * Tablet inspector column and the phone companion sheet — omitted when the surface has none.
-   * Changes is the one that does: everything it used to hold (suggestions, git commands, the
-   * commit composer) is the Git surface's, exactly as on web, and a sheet that opens to explain
-   * that is worse than a bolt that is not there.
-   */
+  /** Tablet Surfaces-panel tab body. */
+  panel: (props: { active: boolean }) => React.JSX.Element
+  /** The phone screen body, under the header `SurfaceScreen` draws. */
+  phone: (props: { active: boolean }) => React.JSX.Element
+  /** The phone's companion sheet — omitted when the surface has none. */
   companion?: (props: { active: boolean }) => React.JSX.Element
-  /** The phone screen body, under the native header the stack declares for it. */
-  phone: () => React.JSX.Element
 }
 
 const SURFACE_SLOTS: Record<SurfaceId, SurfaceSlots> = {
+  // Canvas has no companion: the surface is a list of documents and the answer to one is a
+  // review comment, which is a destination on the surface rather than a card beside it.
+  canvas: {
+    panel: CanvasSurfacePanel,
+    phone: CanvasSurfacePanel,
+  },
+  // Changes has no companion, here and on web: everything one would hold — suggestions, git
+  // commands, the commit composer — belongs to the Git surface, and a sheet that opens to say so
+  // is worse than a bolt that is not there.
   changes: {
-    list: ChangesList,
+    panel: ChangesSurfacePanel,
     phone: ChangesPhoneScreen,
-    viewer: ChangesViewer,
   },
   files: {
     companion: FilesCompanion,
-    list: FilesList,
+    panel: FilesSurfacePanel,
     phone: FilesPhoneScreen,
-    viewer: FilesViewer,
   },
-  // Search is the Files tab's other face and the tablet rail's own destination: a different
-  // way into the same tree, so it shares Files' viewer rather than owning a second copy. Its
-  // companion is its own, because "what did I just look for" is not "where do I work" — the
-  // same split the web rail makes.
-  search: {
-    companion: SearchCompanion,
-    list: SearchListSlot,
-    phone: SearchPhoneScreen,
-    viewer: FilesViewer,
+  // Git's surface IS what a companion column would hold. A bolt would open a sheet showing what
+  // is already on the screen that opened it.
+  git: {
+    panel: GitSurfacePanel,
+    phone: GitSurfacePanel,
   },
   history: {
     companion: HistoryCompanion,
-    list: HistoryList,
+    panel: HistorySurfacePanel,
     phone: HistoryPhoneScreen,
-    viewer: HistoryViewer,
+  },
+  // Search is a different way into the same tree Files owns, so it shares Files' navigation
+  // rather than owning a second copy. Its companion is its own, because "what did I just look
+  // for" is not "where do I work" — the same split the web rail makes.
+  search: {
+    companion: SearchCompanion,
+    panel: SearchSurfacePanel,
+    phone: SearchPhoneScreen,
   },
 }
 
-/**
- * Total by type, not by convention: a new `SurfaceId` without panels is a compile error, which
- * is what replaced the mock fallbacks the shell used to render for a surface that had none.
- */
 export function surfaceSlots(surface: SurfaceId): SurfaceSlots {
   return SURFACE_SLOTS[surface]
 }

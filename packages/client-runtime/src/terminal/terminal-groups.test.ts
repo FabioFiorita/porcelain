@@ -6,6 +6,8 @@ import {
   ENVIRONMENT_GROUP_KEY,
   groupTerminalSessions,
   locationForCwd,
+  terminalLocationGroups,
+  terminalLocationLabel,
   terminalLocations,
 } from './terminal-groups'
 
@@ -60,11 +62,29 @@ function session(id: string, cwd: string, createdAt = 0): TerminalInfo {
 }
 
 describe('terminalLocations', () => {
-  it('flattens every worktree and sorts by project then worktree', () => {
+  it('flattens every worktree and sorts by project, primary checkout first', () => {
     expect(terminalLocations(PROJECTS).map((location) => location.key)).toEqual([
       'p-api:w-api-main',
-      'p-web:w-web-fix',
       'p-web:w-web-main',
+      'p-web:w-web-fix',
+    ])
+  })
+
+  it('calls the Project checkout Root and every other one by its own name', () => {
+    expect(terminalLocations(PROJECTS).map(terminalLocationLabel)).toEqual(['Root', 'Root', 'fix'])
+  })
+})
+
+describe('terminalLocationGroups', () => {
+  it('sections the picker by Project, keeping list order inside each one', () => {
+    expect(
+      terminalLocationGroups(terminalLocations(PROJECTS)).map((group) => [
+        group.projectName,
+        group.locations.map(terminalLocationLabel),
+      ]),
+    ).toEqual([
+      ['api', ['Root']],
+      ['web', ['Root', 'fix']],
     ])
   })
 })

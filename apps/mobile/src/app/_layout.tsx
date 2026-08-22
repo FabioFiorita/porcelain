@@ -16,6 +16,7 @@ import { AppThemeProvider, useResolvedColorScheme } from '@/features/settings/th
 import { PhoneShell } from '@/features/shell/phone-shell'
 import { TabletShell } from '@/features/shell/tablet-shell'
 import { useIsTablet } from '@/features/shell/use-app-window'
+import { WorktreeResetBridge } from '@/features/shell/worktree-reset-bridge'
 import { TasksNotificationBridge } from '@/features/tasks'
 import { DaemonProvider } from '@/lib/daemon/provider'
 
@@ -44,6 +45,7 @@ function ThemedApp(): React.JSX.Element {
         <ActionsNotificationBridge />
         <TasksNotificationBridge />
         <ProjectDataFreshnessBridge />
+        <WorktreeResetBridge />
         <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
         {isTablet ? <TabletShell /> : <PhoneShell />}
         {/* The portal host has to FILL the window, and it does not by default: as a plain flex

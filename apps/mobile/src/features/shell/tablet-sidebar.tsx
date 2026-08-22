@@ -5,7 +5,7 @@ import { useMemo } from 'react'
 import { Pressable, View } from 'react-native'
 
 import { ChromeGlyph, type ChromeIconName } from '@/components/chrome-glyph'
-import { EmptyNote } from '@/components/panel-chrome'
+import { EmptyNote, IconAction } from '@/components/panel-chrome'
 import { SURFACE_GUTTER } from '@/components/surface-layout'
 import { SurfaceScroll } from '@/components/surface-scroll'
 import { Text } from '@/components/ui/text'
@@ -42,9 +42,13 @@ export function TabletSidebar(): React.JSX.Element {
     >
       <SidebarHeader />
       <SearchRow />
+      {/* Web's order, and web's trailing `+` on the row that can create one. Tasks before
+          Terminals because that is the order `app-sidebar.tsx` puts them in, and two clients
+          that disagree about the order of two rows is exactly the kind of drift this pass is
+          for. */}
       <View className="gap-0.5 px-2 pt-2">
+        <DestinationRow action={<NewTaskAction />} glyph="checklist" label="Tasks" name="tasks" />
         <DestinationRow glyph="terminal" label="Terminals" name="terminals" />
-        <DestinationRow glyph="checklist" label="Tasks" name="tasks" />
       </View>
       <WorktreeList />
       <View className="border-t border-border px-2 py-2">
@@ -54,15 +58,50 @@ export function TabletSidebar(): React.JSX.Element {
   )
 }
 
-/** The product's own name over the panel, the way the web sidebar heads itself. */
+/**
+ * The product's own name over the panel, the way the web sidebar heads itself — and the `+`
+ * that adds a Worktree.
+ *
+ * That control used to live only in the viewer's header at the Hub root, which is the one place
+ * on a tablet you almost never stand: the moment the viewer navigates to a file it is gone, and
+ * the sidebar beside it is where the list it adds to actually is. Web puts it here for the same
+ * reason.
+ */
 function SidebarHeader(): React.JSX.Element {
+  const router = useRouter()
+
   return (
-    <View className="min-h-12 flex-row items-center gap-2 border-b border-border px-3 py-1.5">
+    <View className="min-h-12 flex-row items-center gap-2 border-b border-border pl-3 pr-1">
       <ChromeGlyph name="layers" size={17} tone="foreground" />
       <Text className="min-w-0 flex-1 text-sm font-semibold text-foreground" numberOfLines={1}>
         Porcelain
       </Text>
+      <IconAction
+        accessibilityLabel="New Worktree"
+        glyph="plus"
+        testID="porcelain-tablet-new-worktree"
+        tone="foreground"
+        onPress={() => {
+          router.push('/new-worktree')
+        }}
+      />
     </View>
+  )
+}
+
+/** Compose a Task without leaving whatever the viewer is showing. */
+function NewTaskAction(): React.JSX.Element {
+  const router = useRouter()
+
+  return (
+    <IconAction
+      accessibilityLabel="New Task"
+      glyph="plus"
+      testID="porcelain-tablet-new-task"
+      onPress={() => {
+        router.push('/tasks/new')
+      }}
+    />
   )
 }
 
@@ -114,7 +153,7 @@ function DestinationButton({
       accessibilityRole="tab"
       accessibilityState={{ selected: isFocused }}
       className={cn(
-        'min-h-9 min-w-0 flex-row items-center gap-2 rounded-md px-2',
+        'min-h-9 min-w-0 flex-1 flex-row items-center gap-2 rounded-md px-2',
         isFocused === true ? 'bg-accent' : 'active:bg-accent/40',
       )}
       style={style}
@@ -140,18 +179,34 @@ function DestinationButton({
  * where each tab points.
  */
 function DestinationRow({
+  action,
   glyph,
   label,
   name,
 }: {
+  /** A trailing control that belongs to the destination but is not the destination — Tasks' `+`. */
+  action?: React.ReactNode
   glyph: ChromeIconName
   label: string
   name: string
 }): React.JSX.Element {
+  if (action === undefined) {
+    return (
+      <TabTrigger asChild name={name}>
+        <DestinationButton glyph={glyph} label={label} />
+      </TabTrigger>
+    )
+  }
+
+  // The trigger wraps the ROW, not the row plus its action: a `+` inside the trigger would
+  // switch the tab on its way to opening the composer.
   return (
-    <TabTrigger asChild name={name}>
-      <DestinationButton glyph={glyph} label={label} />
-    </TabTrigger>
+    <View className="flex-row items-center">
+      <TabTrigger asChild name={name}>
+        <DestinationButton glyph={glyph} label={label} />
+      </TabTrigger>
+      {action}
+    </View>
   )
 }
 

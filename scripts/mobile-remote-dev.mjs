@@ -11,9 +11,11 @@
  *   node scripts/mobile-remote-dev.mjs -- --stop-sim
  */
 import { spawn, spawnSync } from 'node:child_process'
-import { dirname, resolve } from 'node:path'
+import { mkdirSync } from 'node:fs'
+import { dirname, join, resolve } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
+import { DEV_METRO_PORT, DEV_MOBILE_STATE } from './dev-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const defaultSshAlias = process.env.PORCELAIN_MOBILE_MAC_SSH ?? 'mac'
@@ -195,13 +197,16 @@ function hasExpoHostOption(args) {
 }
 
 function startMetro(expoArgs) {
-  const args = hasExpoHostOption(expoArgs) ? expoArgs : ['--host', 'lan', ...expoArgs]
+  const hostArgs = hasExpoHostOption(expoArgs) ? expoArgs : ['--host', 'lan', ...expoArgs]
+  const args = ['--port', String(DEV_METRO_PORT), ...hostArgs]
+  const metroTmp = join(DEV_MOBILE_STATE, 'tmp')
+  mkdirSync(metroTmp, { recursive: true })
   console.log(
     `[mobile:dev:remote] Starting Metro with: pnpm --dir apps/mobile start ${args.join(' ')}`,
   )
   return spawn('pnpm', ['--dir', 'apps/mobile', 'start', ...args], {
     cwd: root,
-    env: process.env,
+    env: { ...process.env, METRO_PORT: String(DEV_METRO_PORT), TMPDIR: metroTmp },
     stdio: 'inherit',
   })
 }
@@ -219,7 +224,7 @@ async function main() {
     )
     console.log(`[mobile:dev:remote] Simulator preview: ${simUrl(options)}`)
     console.log(
-      `[mobile:dev:remote] Metro: pnpm --dir apps/mobile start --host lan${expoArgs.length ? ` ${expoArgs.join(' ')}` : ''}`,
+      `[mobile:dev:remote] Metro: pnpm --dir apps/mobile start --port ${DEV_METRO_PORT} --host lan${expoArgs.length ? ` ${expoArgs.join(' ')}` : ''}`,
     )
     return
   }

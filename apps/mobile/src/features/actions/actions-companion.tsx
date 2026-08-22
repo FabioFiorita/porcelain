@@ -53,7 +53,7 @@ export function ActionsCompanion({ active }: { active: boolean }): React.JSX.Ele
 
   return (
     <ScrollView
-      className="flex-1"
+      className="flex-1 bg-background"
       contentContainerClassName="gap-3 px-4 pb-8 pt-3"
       showsVerticalScrollIndicator={false}
       testID="porcelain-terminal-companion"

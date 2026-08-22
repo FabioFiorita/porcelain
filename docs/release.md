@@ -33,16 +33,54 @@ publishes a GitHub Release, and publishes the prepared daemon package to npm. Li
 daemon; it is not an Electron packaging target. Desktop packaging includes the Electron app and
 native dependencies. The macOS artifact path must preserve the configured artifact name.
 
-Mobile is released separately through Expo/EAS:
+Mobile is released separately through Expo/EAS. The app keeps four profiles,
+but only the manually dispatched preview and production workflows use EAS cloud
+builds:
+
+| Profile | Build boundary | Delivery |
+| --- | --- | --- |
+| `development` | Local Mac | Development client for a physical device; Metro is required when running it |
+| `development-simulator` | Local Mac | Development client for the iOS Simulator; Metro is required when running it |
+| `preview` | EAS cloud, manually dispatched | Internal/ad-hoc iOS install link |
+| `production` | EAS cloud, manually dispatched | App Store Connect and TestFlight |
+
+Local development commands are quota-free with respect to EAS cloud builds:
+
+```sh
+pnpm --dir apps/mobile dev:device  # local debug build and install on a connected iOS device
+pnpm --dir apps/mobile dev:build   # local EAS device IPA in /tmp
+pnpm --dir apps/mobile sim:build   # local EAS Simulator archive in /tmp
+pnpm --dir apps/mobile sim:install # install and run that archive on a selected Simulator
+```
+
+The cloud workflows are manual; neither workflow has a GitHub push, pull-request, or schedule
+trigger:
 
 ```sh
 cd apps/mobile
-eas workflow:run .eas/workflows/preview.yml
-eas workflow:run .eas/workflows/production.yml   # explicit store release
+eas workflow:run .eas/workflows/preview.yml      # ad-hoc preview delivery
+eas workflow:run .eas/workflows/production.yml   # store release
 ```
 
-The preview workflow chooses an update or build from the fingerprint. Production submission stays
-an explicit release action.
+Preview compares the native fingerprint. If it is unchanged, the workflow publishes an EAS Update
+to the existing `preview` installation without consuming a build; if it changed, it creates an
+internal/ad-hoc iOS build. Every physical iOS device that installs that IPA must be registered with
+EAS first, and a replacement device needs to be registered before the next preview build. Preview
+is never submitted to TestFlight.
+
+Production always creates a new store-signed iOS build and submits that exact build to App Store
+Connect. Apple processing, TestFlight testing, App Review, and public release remain controlled in
+App Store Connect. A production workflow run consumes one EAS cloud build; when the cloud allowance
+is exhausted, build and submit the same production artifact locally:
+
+```sh
+cd apps/mobile
+eas build --platform ios --profile production --local --output /tmp/porcelain-production.ipa
+eas submit --platform ios --profile production --path /tmp/porcelain-production.ipa --wait
+```
+
+Local EAS builds may use Expo to resolve project metadata or managed credentials, but compilation
+happens on the Mac and does not consume an EAS cloud-build allowance.
 
 The macOS workflow expects `CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_ID`,
 `APPLE_APP_SPECIFIC_PASSWORD`, and `APPLE_TEAM_ID`. npm publication uses trusted publishing (OIDC),
@@ -63,7 +101,7 @@ an existing Git tag.
 
 After npm publication, the tarball CDN and the version metadata can each lag the publish. The
 workflow waits for the tarball to return HTTP 200 and for `npm view` to report the new version,
-then runs `npx porcelain-daemon@<version> --help` from a clean temporary directory. Retry the same
+then runs `npx @fabiofiorita/porcelain@<version> --help` from a clean temporary directory. Retry the same
 tag when propagation times out; do not cut another version for registry lag. Never run the consumer
 smoke inside `dist-daemon`, where `npx` can select the local package instead of the published
 artifact.

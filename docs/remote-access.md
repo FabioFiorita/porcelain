@@ -8,7 +8,7 @@ and pairing a browser, Mac, or mobile client. Host administration remains on the
 Node 22+, Git, and a C toolchain for the first `node-pty` build are required:
 
 ```sh
-npx porcelain-daemon@latest serve
+npx @fabiofiorita/porcelain@latest serve
 ```
 
 Without an exposure flag this listens on loopback. The first run creates
@@ -25,13 +25,15 @@ shared with a device.
 
 `--tailnet` and `--cloudflare` are mutually exclusive. LAN can be combined with either. The
 daemon does not bind `0.0.0.0`; LAN and tailnet use specific private interfaces, and Cloudflare
-proxies to the loopback listener. Every request still requires a credential.
+proxies to the loopback listener. Every app/API request still requires a credential. The MCP
+endpoint is deliberately different: it is available without a token only to direct loopback
+clients and returns 404 through LAN, Tailscale, Cloudflare, or a proxy.
 
 For a named Cloudflare tunnel, set the token in the environment rather than a command-line flag:
 
 ```sh
 export PORCELAIN_CLOUDFLARE_TOKEN='<tunnel token>'
-npx porcelain-daemon@latest serve --lan --cloudflare --cloudflare-hostname review.example.com
+npx @fabiofiorita/porcelain@latest serve --lan --cloudflare --cloudflare-hostname review.example.com
 ```
 
 Without a token, `--cloudflare` creates a quick `trycloudflare.com` URL that changes on restart.
@@ -41,7 +43,7 @@ Without a token, `--cloudflare` creates a quick `trycloudflare.com` URL that cha
 When a Hub served from another origin connects to this daemon, allow that exact origin:
 
 ```sh
-npx porcelain-daemon@latest serve --tailnet --allowed-origin http://hub-host:43118
+npx @fabiofiorita/porcelain@latest serve --tailnet --allowed-origin http://hub-host:43118
 ```
 
 Repeat the flag for additional trusted Hubs. `PORCELAIN_ALLOWED_ORIGIN` (or the accepted plural
@@ -53,9 +55,9 @@ origins with no paths, credentials, wildcard, or `null`. Pairing credentials rem
 On the host:
 
 ```sh
-npx porcelain-daemon@latest access issue --name "My phone"
-npx porcelain-daemon@latest access list
-npx porcelain-daemon@latest access revoke <id>
+npx @fabiofiorita/porcelain@latest access issue --name "My phone"
+npx @fabiofiorita/porcelain@latest access list
+npx @fabiofiorita/porcelain@latest access revoke <id>
 ```
 
 Open the issued link on the device. It is single-use, expires after 15 minutes, and becomes an
@@ -72,21 +74,21 @@ Node shim, readiness-polling, and node-pty troubleshooting details.
 
 A client shows an "Update daemon" prompt when the daemon it is bound to reports an older
 release than the client itself. The unit in the remote skill starts the daemon through
-`npx --yes --prefer-online porcelain-daemon@latest`, so restarting the service resolves the
+`npx --yes --prefer-online @fabiofiorita/porcelain@latest`, so restarting the service resolves the
 new version and is the whole upgrade:
 
 ```sh
-systemctl --user restart porcelain-daemon.service
+systemctl --user restart porcelain.service
 ```
 
 A daemon started by hand in a shell is updated by stopping it and re-running
-`npx porcelain-daemon@latest serve` with the same flags. Either way the restart is not
+`npx @fabiofiorita/porcelain@latest serve` with the same flags. Either way the restart is not
 instant — poll readiness rather than assuming the daemon is back.
 
 When something is wrong, start with:
 
 ```sh
-npx porcelain-daemon@latest share status
+npx @fabiofiorita/porcelain@latest share status
 ```
 
 It reports LAN, Tailscale, and Cloudflare status through loopback. Keep host credentials out of

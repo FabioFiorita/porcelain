@@ -98,7 +98,17 @@ async function readToken(id: EnvironmentId): Promise<string | null> {
 async function hydrate(): Promise<void> {
   const raw = await SecureStore.getItemAsync(INDEX_KEY).catch(() => null)
   const stored = parseEnvironmentsFile(raw)
+  // A hydrate that lands while a connection is already up and running is a re-read, not a cold
+  // start: `add()`/`persist()` writes the index asynchronously, so a hydrate racing a
+  // not-yet-flushed write can see corrupt or stale bytes for an environment this device is
+  // actively, successfully talking to right now. Neither branch below may downgrade that live
+  // connection — there is nothing left to promote it back once the bootstrap effect it depends
+  // on has already fired for this identity.
+  const live = environmentsStore.getState()
+  const liveConnected = live.connection.kind === 'ready'
+
   if (stored.status === 'corrupt') {
+    if (liveConnected) return
     // Kept, not discarded: a credential that vanishes without a word is worse than an error.
     if (raw !== null) await SecureStore.setItemAsync(CORRUPT_KEY, raw)
     environmentsStore.setState({ connection: { kind: 'no-environment' }, corrupt: true })
@@ -116,7 +126,8 @@ async function hydrate(): Promise<void> {
     environments.find((candidate) => candidate.id === file.activeId) ?? environments[0] ?? null
   environmentsStore.setState({
     activeId: active?.id ?? null,
-    connection: connectionFor(active),
+    connection:
+      liveConnected && active?.id === live.activeId ? live.connection : connectionFor(active),
     corrupt: false,
     environments,
   })
@@ -169,6 +180,9 @@ export const environmentActions: EnvironmentActions = {
     await SecureStore.setItemAsync(tokenKey(environment.id), environment.token)
     environmentsStore.setState((state) => ({
       activeId: state.activeId ?? environment.id,
+      // A pairing that just succeeded is proof the index is readable again: the corrupt
+      // banner from a stale on-device blob must not survive next to a working environment.
+      corrupt: false,
       environments: [...state.environments, environment],
     }))
     await persist()

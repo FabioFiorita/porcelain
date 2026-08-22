@@ -9,7 +9,7 @@ import { useHistoryStore } from '@/features/history'
 import { useFileSearch, useSearchStore } from '@/features/search'
 import { shellSheetHref } from '@/features/shell/shell-sheets'
 import { useShellStore } from '@/features/shell/shell-store'
-import type { SurfaceId } from '@/features/shell/surfaces'
+import { type SurfaceId, surfaceById } from '@/features/shell/surfaces'
 import { pathSegments } from '@/lib/path-identities'
 
 import {
@@ -49,7 +49,7 @@ function asError(error: unknown): Error | null {
 /** Shared phone/tablet behavior for the one-line navigation surface. */
 export function useQuickOpen(open: boolean, onClose: () => void): QuickOpenModel {
   const router = useRouter()
-  const setActiveSurface = useShellStore((state) => state.setActiveSurface)
+  const openSurface = useShellStore((state) => state.openSurface)
   const setSettingsSection = useShellStore((state) => state.setSettingsSection)
   const openCommitInHistory = useHistoryStore((state) => state.openCommit)
   const selectAction = useActionsSelectionStore((state) => state.selectAction)
@@ -111,28 +111,19 @@ export function useQuickOpen(open: boolean, onClose: () => void): QuickOpenModel
   }, [onClose])
 
   /**
-   * Every surface is a screen inside the Hub stack now, so going to one is a plain push at its
-   * own route — no tab face to set first, and no `/` that means two different surfaces.
+   * Every surface is a screen inside the Hub stack, so going to one is a plain push at the route
+   * `SURFACES` names — no tab face to set first, and no `switch` to forget a case in. It was one,
+   * and it silently did nothing for the two surfaces it had never been told about.
+   *
+   * The surface is also opened onto the tablet's Surfaces strip, so a window in panels finds the
+   * palette's destination beside the viewer rather than only inside it.
    */
   const navigateSurface = useCallback(
     (surface: SurfaceId): void => {
-      setActiveSurface(surface)
-      switch (surface) {
-        case 'files':
-          router.push('/files')
-          return
-        case 'search':
-          router.push('/search')
-          return
-        case 'changes':
-          router.push('/changes')
-          return
-        case 'history':
-          router.push('/history')
-          return
-      }
+      openSurface(surface)
+      router.push(surfaceById(surface).route)
     },
-    [router, setActiveSurface],
+    [openSurface, router],
   )
 
   const openFile = useCallback(

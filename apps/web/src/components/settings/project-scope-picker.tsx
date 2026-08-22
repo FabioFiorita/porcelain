@@ -28,7 +28,6 @@ export function ProjectScopePicker(): React.JSX.Element | null {
   const inventories = useHubInventories()
   const open = useOpenHubWorktree()
   const selection = useHubSelectionStore((state) => state.selection)
-  const selectedWorktreeId = selection.kind === 'worktree' ? selection.worktreeId : null
 
   const rows = inventories.flatMap((source) =>
     source.inventory.projects.flatMap((project) =>
@@ -37,9 +36,16 @@ export function ProjectScopePicker(): React.JSX.Element | null {
   )
   if (rows.length === 0) return null
 
-  const choose = (worktreeId: string): void => {
-    const row = rows.find((entry) => entry.worktree.id === worktreeId)
-    if (row === undefined || row.worktree.id === selectedWorktreeId) return
+  const rowValue = (row: (typeof rows)[number]): string =>
+    `${row.source.inventory.environment.id}:${row.project.id}:${row.worktree.id}`
+  const selectedValue =
+    selection.kind === 'worktree'
+      ? `${selection.environmentId}:${selection.projectId}:${selection.worktreeId}`
+      : null
+
+  const choose = (value: string): void => {
+    const row = rows.find((entry) => rowValue(entry) === value)
+    if (row === undefined || value === selectedValue) return
     open(row.source, row.worktree)
   }
 
@@ -52,9 +58,9 @@ export function ProjectScopePicker(): React.JSX.Element | null {
       // raw value, and these values are worktree UUIDs.
       items={rows.map((row) => ({
         label: label(row.worktree, row.project.name),
-        value: row.worktree.id,
+        value: rowValue(row),
       }))}
-      value={selectedWorktreeId ?? undefined}
+      value={selectedValue ?? undefined}
       onValueChange={(value: string | null): void => {
         if (value !== null) choose(value)
       }}
@@ -71,7 +77,10 @@ export function ProjectScopePicker(): React.JSX.Element | null {
             <SelectLabel>{source.inventory.environment.name}</SelectLabel>
             {source.inventory.projects.flatMap((project) =>
               project.worktrees.map((worktree) => (
-                <SelectItem key={worktree.id} value={worktree.id}>
+                <SelectItem
+                  key={`${source.inventory.environment.id}:${project.id}:${worktree.id}`}
+                  value={`${source.inventory.environment.id}:${project.id}:${worktree.id}`}
+                >
                   {label(worktree, project.name)}
                 </SelectItem>
               )),

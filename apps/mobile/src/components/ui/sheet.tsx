@@ -1,9 +1,15 @@
 import * as DialogPrimitive from '@rn-primitives/dialog'
-import { KeyboardAvoidingView, Platform, Pressable, View } from 'react-native'
+import { KeyboardAvoidingView, Platform, Pressable, useWindowDimensions, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { Text } from '@/components/ui/text'
 import { cn } from '@/lib/utils'
+
+/** The 8pt breathing room under the body's last row, before the home-indicator inset. */
+const BODY_TRAILING_GAP = 8
+
+/** How much of the window height a sheet may grow to before its body has to scroll instead. */
+const MAX_HEIGHT_FRACTION = 0.85
 
 /**
  * Fill the parent, as a literal.
@@ -77,6 +83,15 @@ export function Sheet({
   title?: string
 }): React.JSX.Element {
   const insets = useSafeAreaInsets()
+  // `max-h-[85%]` resolves against Yoga's own content box, not the window, whenever nothing in
+  // the ancestor chain up to the absolute-filled backdrop carries a DEFINITE height — every
+  // intervening `justify-end` box here is auto-sized. That makes the cap shrink toward whatever
+  // fraction of the CONTENT's own natural size it last measured rather than 85% of the screen: a
+  // short sheet (one field, one button row) usually lands under the true cap anyway and looks
+  // fine; a taller one (several list rows) hits it and the box clips its last rows off, which is
+  // exactly what a bottom-anchored sheet with a rounded top must never do. A pixel cap computed
+  // from the window has no such ambiguity to resolve.
+  const maxHeight = useWindowDimensions().height * MAX_HEIGHT_FRACTION
 
   return (
     <DialogPrimitive.Root
@@ -99,20 +114,21 @@ export function Sheet({
           >
             <KeyboardAvoidingView
               behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-              className={cn('justify-end', scrollable && 'max-h-[85%] flex-1')}
+              className="justify-end"
+              /* nativewind-allow-style: see the note on `maxHeight` above. */
+              style={scrollable ? { flex: 1, maxHeight } : undefined}
             >
               <DialogPrimitive.Content asChild>
                 <View
                   className={cn(
-                    'max-h-[85%] rounded-t-2xl border-t border-border bg-card',
+                    'rounded-t-2xl border-t border-border bg-card',
                     scrollable && 'flex-1',
                   )}
                   // The sheet is inside the backdrop's `Pressable`, so a tap on its own blank
                   // space would otherwise dismiss it. Claiming the responder keeps the press.
                   onStartShouldSetResponder={() => true}
-                  /* nativewind-allow-style: the home indicator sits under the last row of a
-                     sheet that reaches the bottom of the window. */
-                  style={{ paddingBottom: insets.bottom === 0 ? 16 : insets.bottom }}
+                  /* nativewind-allow-style: see the note on `maxHeight` above. */
+                  style={scrollable ? undefined : { maxHeight }}
                   testID={testID}
                 >
                   {/* The grabber. Decoration, not a control — the dismissal it advertises is
@@ -128,7 +144,19 @@ export function Sheet({
                       )}
                     </View>
                   )}
-                  <View className={cn('gap-3 pb-2', scrollable && 'min-h-0 flex-1')}>
+                  {/* `paddingBottom` here, not on a trailing sibling after `children`: a plain
+                      View placed after this one — sized only by its own `height` or
+                      `paddingBottom` style, with nothing else in it — measures correctly in
+                      Yoga but the card's rounded/bordered background does not extend down to
+                      include it, leaving it rendering as a disconnected strip below the card
+                      instead of inside it. Putting the inset on the LAST view that already
+                      holds real content sidesteps whatever that rendering gap is. */}
+                  <View
+                    className={cn('gap-3', scrollable && 'min-h-0 flex-1')}
+                    style={{
+                      paddingBottom: BODY_TRAILING_GAP + (insets.bottom === 0 ? 16 : insets.bottom),
+                    }}
+                  >
                     {children}
                   </View>
                 </View>

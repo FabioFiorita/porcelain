@@ -33,9 +33,18 @@ import {
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { cn, copyText } from '@renderer/lib/utils'
 import { useHubSelectionStore } from '@renderer/stores/hub-selection'
+import { useWorktreeScriptsStore } from '@renderer/stores/worktree-scripts'
 import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
-import { ChevronDown, Copy, FolderGit2, GitBranch, GitBranchPlus, Trash2 } from 'lucide-react'
+import {
+  ChevronDown,
+  Copy,
+  FolderGit2,
+  GitBranch,
+  GitBranchPlus,
+  ScrollText,
+  Trash2,
+} from 'lucide-react'
 import { useState } from 'react'
 import { CreateWorktreeDialog } from './create-worktree-dialog'
 import type { HubInventoryView } from './project-data'
@@ -49,7 +58,11 @@ function WorktreeRow(props: {
   removeWorktree: (input: { projectId: string; worktreeId: string }) => Promise<void>
 }): React.JSX.Element {
   const selection = useHubSelectionStore((state) => state.selection)
-  const selected = selection.kind === 'worktree' && selection.worktreeId === props.worktree.id
+  const selected =
+    selection.kind === 'worktree' &&
+    selection.environmentId === props.environmentId &&
+    selection.projectId === props.projectId &&
+    selection.worktreeId === props.worktree.id
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [switchOpen, setSwitchOpen] = useState(false)
 
@@ -71,7 +84,12 @@ function WorktreeRow(props: {
           worktreeId: props.worktree.id,
         })
         const current = useHubSelectionStore.getState().selection
-        if (current.kind === 'worktree' && current.worktreeId === props.worktree.id) {
+        if (
+          current.kind === 'worktree' &&
+          current.environmentId === props.environmentId &&
+          current.projectId === props.projectId &&
+          current.worktreeId === props.worktree.id
+        ) {
           useHubSelectionStore.getState().selectHome()
         }
       },
@@ -197,6 +215,7 @@ function ProjectBlock(props: {
   const [expanded, setExpanded] = useState(true)
   const [createOpen, setCreateOpen] = useState(false)
   const selectProject = useHubSelectionStore((state) => state.selectProject)
+  const openWorktreeScripts = useWorktreeScriptsStore((state) => state.open)
 
   const copyProjectPath = (): void => {
     runUserAction(
@@ -210,7 +229,11 @@ function ProjectBlock(props: {
       async () => {
         await props.removeProject(props.project.id, props.environmentId)
         const current = useHubSelectionStore.getState().selection
-        if (current.kind !== 'home' && current.projectId === props.project.id) {
+        if (
+          current.kind !== 'home' &&
+          current.environmentId === props.environmentId &&
+          current.projectId === props.project.id
+        ) {
           useHubSelectionStore.getState().selectHome()
         }
       },
@@ -281,6 +304,23 @@ function ProjectBlock(props: {
           </div>
         </ContextMenuTrigger>
         <ContextMenuContent>
+          {/* The lifecycle scripts belong to this Project, and this row is where a human
+              picks a Project — so this is where they are edited, not at the bottom of the
+              menu of commands you click. */}
+          <ContextMenuItem
+            data-testid={TestIds.hubWorktreeScripts(props.project.id)}
+            onClick={() =>
+              openWorktreeScripts({
+                projectId: props.project.id,
+                projectName: props.project.name,
+                environmentId: props.environmentId,
+                editable: props.mutable,
+              })
+            }
+          >
+            <ScrollText />
+            Worktree scripts…
+          </ContextMenuItem>
           <ContextMenuItem onClick={copyProjectPath}>
             <Copy />
             Copy project path

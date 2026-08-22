@@ -99,7 +99,12 @@ export function CommitView({
         </Text>
       ) : (
         <SectionList
-          contentContainerStyle={surfaceContentStyle({ bottomInset, edgeToEdge: true, gap: 2 })}
+          contentContainerStyle={surfaceContentStyle({
+            bottomInset,
+            edgeToEdge: true,
+            gap: 2,
+            paddingTop: 12,
+          })}
           keyExtractor={(file: FlowFile) => file.path}
           ListEmptyComponent={
             <View className={SURFACE_GUTTER}>
@@ -119,7 +124,7 @@ export function CommitView({
           }
           renderItem={({ item }) => <CommitFileRow actions={actions} file={item} />}
           renderSectionHeader={({ section }) => (
-            <View className={cn('bg-background pb-1 pt-3', SURFACE_GUTTER)}>
+            <View className={cn('bg-background pb-1 pt-2', SURFACE_GUTTER)}>
               <PanelLabel>{section.layer}</PanelLabel>
             </View>
           )}

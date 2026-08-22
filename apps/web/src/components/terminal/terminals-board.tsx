@@ -12,6 +12,7 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@renderer/components/ui/dropdown-menu'
 import {
@@ -21,12 +22,15 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from '@renderer/components/ui/empty'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import {
   type EnvironmentTerminals,
   groupTerminalSessions,
   invalidateEveryTerminalSessionsQuery,
   type TerminalGroup,
   terminalAdapterFor,
+  terminalLocationGroups,
+  terminalLocationLabel,
   useEnvironmentTerminals,
 } from '@renderer/features/terminal'
 import { ENVIRONMENT_GROUP_KEY } from '@porcelain/client-runtime/terminal'
@@ -45,7 +49,16 @@ import { useTerminalsStore } from '@renderer/stores/terminals'
 import { runUserAction, settleBackground } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
 import { useQueryClient } from '@tanstack/react-query'
-import { Cloud, FolderPen, Grid2x2, Monitor, Plus, SquareTerminal } from 'lucide-react'
+import {
+  Cloud,
+  FolderGit2,
+  FolderPen,
+  GitBranch,
+  Grid2x2,
+  Monitor,
+  Plus,
+  SquareTerminal,
+} from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
 /**
@@ -179,6 +192,7 @@ export function TerminalsBoard(): React.JSX.Element {
 
   const groups = useMemo(() => listed.flatMap((environment) => environment.groups), [listed])
   const sessions = useMemo(() => groups.flatMap((group) => group.sessions), [groups])
+  const canGrid = sessions.filter((session) => session.status === 'running').length > 1
   const visible = useMemo(() => {
     if (grid) return gridSessions(groups, focusedId)
     const focused = sessions.find((session) => session.id === focusedId)
@@ -307,17 +321,28 @@ export function TerminalsBoard(): React.JSX.Element {
       <div className="flex w-64 min-w-0 shrink-0 flex-col border-r">
         <div className="flex h-9 shrink-0 items-center gap-1 border-b px-2">
           <span className="min-w-0 flex-1 truncate text-xs font-medium">Terminals</span>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Grid layout"
-            aria-pressed={grid}
-            data-testid={TestIds.terminalsBoardGrid}
-            className={cn(grid && 'bg-accent text-accent-foreground')}
-            onClick={() => setGrid((current) => !current)}
-          >
-            <Grid2x2 />
-          </Button>
+          {canGrid && (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Grid layout"
+                    aria-pressed={grid}
+                    data-testid={TestIds.terminalsBoardGrid}
+                    className={cn(grid && 'bg-accent text-accent-foreground')}
+                    onClick={() => setGrid((current) => !current)}
+                  >
+                    <Grid2x2 />
+                  </Button>
+                }
+              />
+              <TooltipContent>
+                {grid ? 'Show one terminal' : `Show up to ${MAX_GRID_PANES} terminals at once`}
+              </TooltipContent>
+            </Tooltip>
+          )}
           {canSpawnLocal && (
             <Button
               variant="ghost"
@@ -335,29 +360,41 @@ export function TerminalsBoard(): React.JSX.Element {
             </Button>
           )}
           <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="New terminal"
-                  data-testid={TestIds.terminalsBoardNew}
-                >
-                  <Plus />
-                </Button>
-              }
-            />
-            <DropdownMenuContent align="end" className="max-h-80 overflow-y-auto">
-              {canSpawnLocal && (
-                <DropdownMenuItem data-testid={TestIds.terminalNewLocal} onClick={handleSpawnLocal}>
-                  <Monitor />
-                  This device
-                </DropdownMenuItem>
-              )}
-              {/* Grouped by machine, because "where" is the first thing a new shell needs to
-                  answer: a Worktree name repeated on two hosts is not one place. */}
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="New terminal"
+                        data-testid={TestIds.terminalsBoardNew}
+                      >
+                        <Plus />
+                      </Button>
+                    }
+                  />
+                }
+              />
+              <TooltipContent>New terminal</TooltipContent>
+            </Tooltip>
+            <DropdownMenuContent align="end" className="max-h-80 w-72 overflow-y-auto">
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>Where should it run?</DropdownMenuLabel>
+                {canSpawnLocal && (
+                  <DropdownMenuItem
+                    data-testid={TestIds.terminalNewLocal}
+                    onClick={handleSpawnLocal}
+                  >
+                    <Monitor />
+                    This device
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuGroup>
               {listed.map((environment) => (
                 <DropdownMenuGroup key={environment.environmentId ?? 'current'}>
+                  <DropdownMenuSeparator />
                   <DropdownMenuLabel className="text-2xs text-muted-foreground">
                     {environment.name}
                   </DropdownMenuLabel>
@@ -374,18 +411,28 @@ export function TerminalsBoard(): React.JSX.Element {
                       <span className="truncate">{environment.name}</span>
                     </DropdownMenuItem>
                   )}
-                  {environment.locations.map((location) => (
-                    <DropdownMenuItem
-                      key={location.key}
-                      data-testid={TestIds.terminalsBoardNewAt(location.key)}
-                      onClick={toastingAction('New terminal', () =>
-                        spawnOn(environment, location.path),
-                      )}
+                  {terminalLocationGroups(environment.locations).map((group) => (
+                    <DropdownMenuGroup
+                      key={`${environment.environmentId ?? 'current'}:${group.projectId}`}
                     >
-                      <span className="truncate">
-                        {location.projectName} · {location.worktreeName}
-                      </span>
-                    </DropdownMenuItem>
+                      <DropdownMenuLabel className="flex items-center gap-1.5">
+                        <FolderGit2 className="size-3.5 shrink-0" aria-hidden />
+                        <span className="min-w-0 truncate">{group.projectName}</span>
+                      </DropdownMenuLabel>
+                      {group.locations.map((location) => (
+                        <DropdownMenuItem
+                          key={location.key}
+                          data-testid={TestIds.terminalsBoardNewAt(location.key)}
+                          title={location.path}
+                          onClick={toastingAction('New terminal', () =>
+                            spawnOn(environment, location.path),
+                          )}
+                        >
+                          <GitBranch />
+                          <span className="truncate">{terminalLocationLabel(location)}</span>
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuGroup>
                   ))}
                 </DropdownMenuGroup>
               ))}

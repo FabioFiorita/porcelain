@@ -26,8 +26,11 @@ import type { TerminalInfo } from '@porcelain/contracts/terminal'
 export interface TerminalLocation {
   /** `<projectId>:<worktreeId>`; stable for a React key and for the picker's value. */
   key: string
+  projectId: string
   projectName: string
   worktreeName: string
+  /** The Project's own checkout, not a Worktree added beside it. Pickers call this one "Root". */
+  isPrimary: boolean
   path: string
 }
 
@@ -47,21 +50,58 @@ export const ELSEWHERE_GROUP_KEY = 'elsewhere'
 /** The Environment's own shells: under the daemon host's home, claimed by no Project. */
 export const ENVIRONMENT_GROUP_KEY = 'environment'
 
-/** Every worktree the Hub knows, flattened and sorted for the "New terminal" picker. */
+/**
+ * Every worktree the Hub knows, flattened and sorted for the "New terminal" picker.
+ *
+ * Sorted Project first, then the Project's own checkout ahead of the Worktrees beside it: a
+ * picker groups by Project, and "the repo itself" is the entry a human looks for first.
+ */
 export function terminalLocations(projects: readonly HubProject[]): TerminalLocation[] {
   return projects
     .flatMap((project) =>
       project.worktrees.map((worktree) => ({
         key: `${project.id}:${worktree.id}`,
+        projectId: project.id,
         projectName: project.name,
         worktreeName: worktree.name,
+        isPrimary: worktree.isPrimary,
         path: worktree.path,
       })),
     )
     .sort(
       (a, b) =>
-        a.projectName.localeCompare(b.projectName) || a.worktreeName.localeCompare(b.worktreeName),
+        a.projectName.localeCompare(b.projectName) ||
+        Number(b.isPrimary) - Number(a.isPrimary) ||
+        a.worktreeName.localeCompare(b.worktreeName),
     )
+}
+
+/** What a picker calls one location inside its Project section. */
+export function terminalLocationLabel(location: TerminalLocation): string {
+  return location.isPrimary ? 'Root' : location.worktreeName
+}
+
+/** The picker's Project sections, in list order, each holding its own locations. */
+export function terminalLocationGroups(
+  locations: readonly TerminalLocation[],
+): Array<{ projectId: string; projectName: string; locations: TerminalLocation[] }> {
+  const groups = new Map<
+    string,
+    { projectId: string; projectName: string; locations: TerminalLocation[] }
+  >()
+  for (const location of locations) {
+    const existing = groups.get(location.projectId)
+    if (existing !== undefined) {
+      existing.locations.push(location)
+      continue
+    }
+    groups.set(location.projectId, {
+      projectId: location.projectId,
+      projectName: location.projectName,
+      locations: [location],
+    })
+  }
+  return [...groups.values()]
 }
 
 /** True when `cwd` is `path` itself or a directory under it. */

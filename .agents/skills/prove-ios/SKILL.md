@@ -1,6 +1,6 @@
 ---
 name: prove-ios
-version: 0.56.0
+version: 0.57.2
 metadata:
   internal: true
 description: Drive the iOS simulator to observe a change in the mobile client, from a Mac locally or from a Linux box over the LAN. Use when the changed behavior is `apps/mobile` and iOS is the surface — native lifecycle, iOS keyboard, Safari-only rendering, or an iOS screenshot. Read `docs/runtime-proof.md` for what finishes a proof.
@@ -42,8 +42,9 @@ Metro runs wherever the repository is. On the Mac that is `localhost`; from Linu
 LAN IP, and the simulator reaches it over the network like any device.
 
 ```sh
-pnpm --dir apps/mobile start                            # Metro, on the machine with the code
-xcrun simctl openurl $SIM "porcelain-dev://expo-development-client/?url=http%3A%2F%2F<host>%3A8081"
+pnpm dev:env                                            # note this profile's Metro port
+pnpm dev:mobile                                         # Metro, on the machine with the code
+xcrun simctl openurl $SIM "porcelain-dev://expo-development-client/?url=http%3A%2F%2F<host>%3A<metro-port>"
 xcodebuildmcp ui-automation tap --simulator-id $SIM --label "Open"   # the "Open in …?" dialog
 ```
 

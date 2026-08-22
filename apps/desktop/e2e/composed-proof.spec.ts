@@ -55,16 +55,10 @@ async function seedCanvas(homeDir: string, projectId: string, worktreeId: string
 
 test.setTimeout(120_000)
 
-// Process lifetime is not proven here any more: the Servers chrome left the Glance and
-// start/stop belongs to Actions now (see the skip in `dev-servers.spec.ts`). The surviving
-// daemon-owned-process proof is `critical-wiring.spec.ts` — a PTY outliving a renderer reload.
+// The daemon-owned process proof is `critical-wiring.spec.ts` — a PTY outliving a renderer
+// reload. This scenario stays focused on cross-feature target, Canvas, Task, and Action wiring.
 test('composed daemon proof: targets, Canvas, Tasks, and Actions', async ({ page, seeded }) => {
   await waitForShell(page)
-  await loc.railSettings(page).click()
-  await loc.settingsDialog(page).waitFor()
-  await expect(loc.settingsHeading(page)).toHaveText('General')
-  await expect(page.getByTestId(TestIds.settingsSection('remotes'))).toHaveCount(0)
-  await loc.settingsDialog(page).getByRole('button', { name: 'Close' }).click()
 
   const { projectId, worktreeId } = await waitForProject(seeded.udBase)
   await seedCanvas(seeded.udBase, projectId, worktreeId)

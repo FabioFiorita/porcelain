@@ -1,7 +1,5 @@
 import type { HubWorktree } from '@porcelain/contracts/projects'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
-import { isBrowser } from '@renderer/lib/platform'
-import { shellTrpcClient } from '@renderer/lib/trpc'
 import { useHubSelectionStore } from '@renderer/stores/hub-selection'
 import { runUserAction } from '@shared/background'
 import { type HubInventoryView, useOpenProject } from './project-data'
@@ -18,11 +16,9 @@ export function useOpenHubWorktree(): (source: HubInventoryView, worktree: HubWo
   const selectWorktree = useHubSelectionStore((state) => state.selectWorktree)
 
   return (source: HubInventoryView, worktree: HubWorktree): void => {
-    // Electron: `source.environmentId` is a SHELL identity (null = the local daemon, a
-    // string = a saved environment group), not the daemon-announced one the Hub selection
-    // records. Opening a checkout binds the WINDOW to its daemon, so a non-current source
-    // goes through the shell — the renderer's own session to that Environment is for reads
-    // and terminals, not for repointing the window.
+    // `source.environmentId` is a shell connection identity in Electron and null in the
+    // browser's primary source. The persisted selection always uses the daemon-announced id;
+    // the open call below uses that same id so the existing renderer session owns the request.
     const select = (): void => {
       selectWorktree({
         environmentId: source.inventory.environment.id,
@@ -32,40 +28,14 @@ export function useOpenHubWorktree(): (source: HubInventoryView, worktree: HubWo
         name: worktree.name,
       })
     }
-    if (!isBrowser && !source.current) {
-      // The shell reloads this window onto the target daemon, and the Hub selection is
-      // persisted through that reload — so it has to name the DESTINATION before the
-      // switch. Left on the origin Environment, the restored selection would carry an id
-      // that is no longer primary and every panel keyed off it (Files, Git, Search,
-      // Terminal, Actions) would read "offline" instead of the open action.
-      const previous = useHubSelectionStore.getState().selection
-      select()
-      runUserAction(
-        () =>
-          shellTrpcClient.openWorktreeInEnvironment.mutate({
-            environmentId: source.environmentId,
-            repoPath: worktree.path,
-          }),
-        (error) => {
-          // No reload happened, so put the tree back where the human left it.
-          useHubSelectionStore.setState({ selection: previous })
-          toastUserActionError('Open worktree', error)
-        },
-      )
-      return
-    }
     select()
     runUserAction(
       () =>
         openProject.open(worktree.path, {
-          // Session-routing identity, not the persisted-selection one above: null
-          // means "use this window's own client directly", which is what `current`
-          // sources need — `source.inventory.environment.id` is the daemon's own
-          // real id even when local, and environmentSessionFor() only recognizes
-          // it as local once the primary Environment id has round-tripped through
-          // daemonInfo, so passing it here treated the local Environment as an
-          // unresolved remote session and failed every worktree switch as offline.
-          environmentId: isBrowser ? source.environmentId : null,
+          // null means this window's own daemon. For a secondary source, use its
+          // daemon-announced identity; hub-inventories registered the alias to the live
+          // Electron or browser connection before the row became actionable.
+          environmentId: source.current ? null : source.inventory.environment.id,
         }),
       (error) => toastUserActionError('Open worktree', error),
     )

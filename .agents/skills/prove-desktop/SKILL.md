@@ -1,6 +1,6 @@
 ---
 name: prove-desktop
-version: 0.56.0
+version: 0.57.2
 metadata:
   internal: true
 description: Drive the Electron client to observe a change in the real desktop app — launch it with a CDP port, snapshot its accessibility tree, click and type, screenshot. Use when the changed behavior is Electron shell, preload/IPC, window, or menu work, or when desktop evidence is asked for. Read `docs/runtime-proof.md` for what finishes a proof.
@@ -10,26 +10,29 @@ description: Drive the Electron client to observe a change in the real desktop a
 
 `agent-browser` speaks CDP, and Electron is Chromium, so the desktop client drives exactly like a
 page: snapshot, act, re-snapshot. Renderer-only behavior is cheaper on the browser client — reach
-here for what only the shell can show.
+here for what only the shell can show. Run `pnpm dev:env` first so the primary checkout or managed
+worktree profile is visible before anything starts.
 
 ## Drive the running app
 
 ```sh
 cd apps/desktop && ./node_modules/.bin/electron-vite dev --remoteDebuggingPort=9333   # background it
-agent-browser --session porcelain-desktop connect 9333
-agent-browser --session porcelain-desktop tab        # one target, ending http://localhost:5173/
-agent-browser --session porcelain-desktop snapshot -i   # a11y tree with @eN refs — every button,
-                                                        # tab, and textbox by name
-agent-browser --session porcelain-desktop click @e10
-agent-browser --session porcelain-desktop screenshot /tmp/porcelain-desktop.png   # read the file
+agent-browser --session porcelain-desktop --cdp 9333 tab list   # one target, ending http://localhost:5173/
+agent-browser --session porcelain-desktop --cdp 9333 snapshot -i # a11y tree with @eN refs — every
+                                                                 # button, tab, and textbox by name
+agent-browser --session porcelain-desktop --cdp 9333 click @e10
+agent-browser --session porcelain-desktop --cdp 9333 screenshot /tmp/porcelain-desktop.png
 ```
 
 Act on refs from the newest snapshot and re-snapshot after anything that changes the view; refs are
 renumbered per snapshot. `pnpm dev` runs the same client when no flag is needed — it appends nothing
 to `electron-vite`, so `pnpm dev -- --remoteDebuggingPort=…` starts an app you cannot attach to.
 
-The app carries its own daemon under `~/.config/@porcelain/desktop-dev` with `PORCELAIN_DEV=1`,
-which is why driving it never reaches production state.
+The root `pnpm dev` launcher passes the active primary or managed-worktree profile to Electron and
+its daemon: `PORCELAIN_HOME`, user data, port, playground, token, and `PORCELAIN_DEV=1`. That keeps
+the driven app out of production state and gives simultaneous worktrees separate Electron locks.
+The package-local command above is only for a manually controlled CDP run; when using it directly,
+export the profile shown by `pnpm dev:env` or prefer a native Playwright proof.
 
 ## Traps
 

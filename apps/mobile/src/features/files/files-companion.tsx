@@ -4,18 +4,20 @@ import { Pressable, ScrollView, Text, View } from 'react-native'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { IconAction, PanelLabel, StatusNote } from '@/components/panel-chrome'
-import { useIsTablet } from '@/features/shell/use-app-window'
+import { useDismissSheet } from '@/features/shell/shell-sheets'
+import { cn } from '@/lib/utils'
 
 import { pathSegments, pathTestId } from './file-paths'
 import { type FileEntry, usePathScope, usePinnedEntries } from './files-data'
-import { useFilesStore } from './files-store'
-import { useDismissSheet } from '@/features/shell/shell-sheets'
 
 /**
  * The Files companion — pinned paths for quick access.
  *
- * One component for both hosts, the tablet inspector column and the phone's bolt sheet, so the
- * two can never drift into different companions for the same surface.
+ * On a phone this is the bolt sheet's whole content. On a tablet there is no companion column
+ * any more: the web client stacks its pins directly above the tree inside the Files surface
+ * (`FilesSurface` in `apps/web`'s `shell/surface-sidebar.tsx`), and the tablet's Surfaces panel
+ * now does the same by mounting `PinnedSection` itself. One section, two hosts, and neither one
+ * a second panel to go and find.
  */
 export function FilesCompanion({ active }: { active: boolean }): React.JSX.Element {
   return (
@@ -27,34 +29,37 @@ export function FilesCompanion({ active }: { active: boolean }): React.JSX.Eleme
       showsVerticalScrollIndicator={false}
       testID="porcelain-files-companion"
     >
-      <PinnedCard active={active} />
+      <PinnedSection active={active} />
     </ScrollView>
   )
 }
 
 /**
  * The project's pinned paths. Pinning is how a monorepo gets a short list of the places you
- * actually work — the tab's own bookmarks, stored per project on the daemon rather than here.
+ * actually work — the surface's own bookmarks, stored per project on the daemon rather than
+ * here, and shared with the desktop client.
  */
-function PinnedCard({ active }: { active: boolean }): React.JSX.Element {
+export function PinnedSection({
+  active,
+  compact = false,
+}: {
+  active: boolean
+  /**
+   * Sitting above the tree rather than alone in a sheet: draw nothing until there is something
+   * to draw. The explanatory empty state is worth a sheet you opened on purpose; above a tree
+   * it is a paragraph between you and the thing you came for, on every project with no pins.
+   */
+  compact?: boolean
+}): React.JSX.Element | null {
   const { entries, error } = usePinnedEntries(active)
   const { unpin } = usePathScope()
-  const openDir = useFilesStore((state) => state.openDir)
-  const openFile = useFilesStore((state) => state.openFile)
   const closeSheet = useDismissSheet()
-  const isTablet = useIsTablet()
   const router = useRouter()
   const [actionError, setActionError] = useState<string | null>(null)
 
-  // The same card hosted two ways: an always-on inspector column beside the tree, and a sheet
-  // over the phone's tab. The tablet moves its columns' cursor; the phone dismisses itself and
-  // pushes, because a sheet that stays open over the file it just opened is a sheet in the way.
+  // One path for both hosts: get out of the way if we are covering something (the phone's
+  // sheet), then open the entry in the viewer. `useDismissSheet` is inert in a panel.
   const open = (entry: FileEntry): void => {
-    if (isTablet) {
-      if (entry.kind === 'dir') openDir(entry.path)
-      else openFile(entry.path)
-      return
-    }
     closeSheet()
     router.push({
       params: { path: pathSegments(entry.path) },
@@ -62,8 +67,15 @@ function PinnedCard({ active }: { active: boolean }): React.JSX.Element {
     })
   }
 
+  if (compact && entries.length === 0 && error === null && actionError === null) return null
+
   return (
-    <View className="gap-2" testID="porcelain-files-pinned">
+    // Compact draws its own band because it is stacked ON something: without the rule the pins
+    // and the first tree row read as one list. The sheet is the whole panel and needs no edge.
+    <View
+      className={cn('gap-2', compact && 'shrink-0 border-b border-border px-4 py-3')}
+      testID="porcelain-files-pinned"
+    >
       <PanelLabel>{entries.length > 0 ? `Pinned · ${entries.length}` : 'Pinned'}</PanelLabel>
 
       {error !== null ? (

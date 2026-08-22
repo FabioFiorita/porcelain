@@ -9,7 +9,7 @@ export type {
 export { ContentResults } from './content-results'
 export { SearchCompanion } from './search-companion'
 export { useCodeSearch, useFileSearch, useTextSearch } from './search-data'
-export { SearchList } from './search-list'
+
 export {
   applySearchForeignDependencies,
   applySearchFreshnessRequirement,
@@ -18,6 +18,7 @@ export {
 } from './search-notifications'
 export { SearchPanel } from './search-panel'
 export { SearchPhoneScreen } from './search-phone-screen'
+export { SearchSurfacePanel } from './search-surface-panel'
 export {
   invalidateAllSearchQueries,
   invalidateSearchEffects,

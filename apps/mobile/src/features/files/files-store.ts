@@ -18,6 +18,8 @@ type FilesState = {
   openDir: (path: string) => void
   /** `line` is 1-based and only comes from a search hit. */
   openFile: (path: string, line?: number) => void
+  /** Back to the repo root with nothing open — see `WorktreeResetBridge`. */
+  reset: () => void
 }
 
 /**
@@ -34,6 +36,10 @@ export const useFilesStore = create<FilesState>()((set) => ({
   },
   openFile: (selection, line) => {
     set({ selection, selectionLine: line ?? null })
+  },
+  reset: () => {
+    // `showHidden` deliberately survives: it is the reader's override, not a place in a tree.
+    set({ cursor: REPO_ROOT, selection: null, selectionLine: null })
   },
   toggleHidden: () => {
     set((state) => ({ showHidden: !state.showHidden }))

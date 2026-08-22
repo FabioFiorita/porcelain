@@ -19,8 +19,8 @@ import { Layers, Monitor, PenLine, SquareTerminal, X } from 'lucide-react'
  * is a spawn, never a write into an existing shell.
  */
 export const ENVIRONMENT_SHELLS = [
-  { key: 'herdr', label: 'herdr', name: 'herdr', initialInput: 'herdr\n' },
-  { key: 'tmux', label: 'tmux', name: 'tmux', initialInput: 'tmux new -A -s porcelain\n' },
+  { key: 'herdr', label: 'herdr', name: 'herdr', initialInput: 'herdr' },
+  { key: 'tmux', label: 'tmux', name: 'tmux', initialInput: 'tmux new -A -s porcelain' },
 ] as const
 
 export type TerminalRowHandlers = Readonly<{

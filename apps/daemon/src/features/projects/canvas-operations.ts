@@ -20,6 +20,7 @@ import type { CanvasOverlayStore } from './canvas-overlay-store'
 import type { CanvasEntry, CanvasStore, CanvasStoreError, CanvasStoreResult } from './canvas-store'
 import type { CanvasBundleSource } from './canvas-write'
 import type { ProjectOperationResult } from './projects-results'
+import { projectOverlayCanvasBundleDir } from '@shared/project-porcelain'
 
 /**
  * Live checkouts of one Project — promotion's only legal targets.
@@ -51,6 +52,12 @@ export type WriteCanvasOperationInput = Readonly<{
   source: CanvasBundleSource
 }>
 
+/** Internal replace mode used by the agent surface when updating a tracked Canvas. */
+export type PromoteCanvasOperationInput = PromoteCanvasInput &
+  Readonly<{
+    replace?: boolean
+  }>
+
 export type CanvasOperations = Readonly<{
   listCanvases: (input: ListCanvasesInput) => Promise<ProjectOperationResult<CanvasRecord[]>>
   writeCanvas: (input: WriteCanvasOperationInput) => Promise<ProjectOperationResult<CanvasRecord>>
@@ -62,11 +69,13 @@ export type CanvasOperations = Readonly<{
   findCanvasByTemplate: (input: {
     projectId: string
     template: 'review'
+    worktreePath?: string
   }) => Promise<ProjectOperationResult<string | null>>
-  /** Drop one private Canvas and its bundle. Tracked overlays are untouched. */
+  /** Drop one Canvas, deleting its tracked bundle when the addressed checkout owns it. */
   forgetCanvas: (input: {
     projectId: string
     canvasId: string
+    worktreePath?: string
   }) => Promise<ProjectOperationResult<void>>
   readCanvas: (
     input: ReadCanvasInput,
@@ -75,7 +84,9 @@ export type CanvasOperations = Readonly<{
   mintCanvasAccessToken: (
     input: MintCanvasAccessTokenInput,
   ) => Promise<ProjectOperationResult<{ token: string }>>
-  promoteCanvas: (input: PromoteCanvasInput) => Promise<ProjectOperationResult<PromoteCanvasOutput>>
+  promoteCanvas: (
+    input: PromoteCanvasOperationInput,
+  ) => Promise<ProjectOperationResult<PromoteCanvasOutput>>
   promoteOverrides: (
     input: PromoteOverridesInput,
   ) => Promise<ProjectOperationResult<ProjectOverrides>>
@@ -238,7 +249,17 @@ export function createCanvasOperations(options: {
     async findCanvasByTemplate(input: {
       projectId: string
       template: 'review'
+      worktreePath?: string
     }): Promise<ProjectOperationResult<string | null>> {
+      // A promoted Canvas is canonical. Resolve the tracked overlay first so
+      // Review/MCP callers keep seeing the same id after promotion and never
+      // create a second private Review for the same project.
+      if (input.worktreePath !== undefined) {
+        const tracked = await options.overlay.listOverlayCanvases(input.worktreePath)
+        if (!tracked.ok) return fromStoreError(tracked.error)
+        const trackedMatch = tracked.value.find((canvas) => canvas.template === input.template)
+        if (trackedMatch !== undefined) return { ok: true, value: trackedMatch.id }
+      }
       const listed = await options.store.listCanvases(input.projectId)
       if (!listed.ok) return fromStoreError(listed.error)
       const found = listed.value.find((canvas) => canvas.template === input.template)
@@ -248,7 +269,29 @@ export function createCanvasOperations(options: {
     async forgetCanvas(input: {
       projectId: string
       canvasId: string
+      worktreePath?: string
     }): Promise<ProjectOperationResult<void>> {
+      if (input.worktreePath !== undefined) {
+        const tracked = await options.overlay.readOverlayCanvasEntry(
+          input.worktreePath,
+          input.canvasId,
+        )
+        if (tracked.ok) {
+          const deleted = await options.overlay.deleteOverlayCanvas(
+            input.worktreePath,
+            input.canvasId,
+          )
+          if (!deleted.ok) return fromStoreError(deleted.error)
+          // A crash between promotion and private cleanup can leave a stale private
+          // duplicate. Remove it when present so tracked remains the sole canonical copy.
+          const privateCopy = await options.store.forgetCanvas(input.projectId, input.canvasId)
+          if (!privateCopy.ok && privateCopy.error.code !== 'canvas.not-found') {
+            return fromStoreError(privateCopy.error)
+          }
+          return { ok: true, value: undefined }
+        }
+        if (tracked.error.code === 'canvas.unavailable') return fromStoreError(tracked.error)
+      }
       const forgotten = await options.store.forgetCanvas(input.projectId, input.canvasId)
       return forgotten.ok ? { ok: true, value: undefined } : fromStoreError(forgotten.error)
     },
@@ -313,6 +356,27 @@ export function createCanvasOperations(options: {
     async promoteCanvas(input) {
       const target = await resolveTarget(input)
       if (!target.ok) return target
+
+      // Promotion is idempotent unless the agent explicitly replaces the private
+      // bytes after an update. The normal path remains recoverable: once the tracked
+      // bundle exists it is canonical, even if the private source has been removed.
+      const alreadyTracked = await options.overlay.readOverlayCanvasEntry(
+        target.value,
+        input.canvasId,
+      )
+      if (alreadyTracked.ok) {
+        if (input.replace !== true) {
+          return {
+            ok: true,
+            value: {
+              record: toPublicRecord(alreadyTracked.value.record, true),
+              bundlePath: projectOverlayCanvasBundleDir(target.value, input.canvasId),
+            },
+          }
+        }
+      } else if (alreadyTracked.error.code === 'canvas.unavailable') {
+        return fromStoreError(alreadyTracked.error)
+      }
 
       const entry = await options.store.readCanvasEntry(input.projectId, input.canvasId)
       if (!entry.ok) return fromStoreError(entry.error)

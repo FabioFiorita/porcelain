@@ -50,8 +50,8 @@ describe('dispatchMcp', () => {
     expect(outcome.kind).toBe('json')
     if (outcome.kind !== 'json') return
     const body = outcome.body as { result: { tools: { name: string; inputSchema: unknown }[] } }
-    expect(body.result.tools.length).toBe(8)
-    expect(body.result.tools.map((t) => t.name)).toContain('porcelain_reply')
+    expect(body.result.tools.length).toBe(6)
+    expect(body.result.tools.map((t) => t.name)).toContain('porcelain_comment')
     expect(body.result.tools.map((t) => t.name)).toContain('porcelain_profile')
     for (const tool of body.result.tools) expect(tool.inputSchema).toBeTypeOf('object')
   })
@@ -67,11 +67,11 @@ describe('dispatchMcp', () => {
   it('accepts a notification without answering or executing it', async () => {
     const tools = handlers()
     const outcome = await dispatchMcp({
-      headers: headers({ 'mcp-method': 'tools/call', 'mcp-name': 'porcelain_context' }),
+      headers: headers({ 'mcp-method': 'tools/call', 'mcp-name': 'porcelain_project' }),
       rawBody: JSON.stringify({
         jsonrpc: '2.0',
         method: 'tools/call',
-        params: { name: 'porcelain_context', _meta: meta() },
+        params: { name: 'porcelain_project', _meta: meta() },
       }),
       handlers: tools,
       serverInfo,
@@ -99,7 +99,7 @@ describe('dispatchMcp', () => {
       expect(outcome.kind === 'json' && outcome.status).toBe(200)
       if (outcome.kind !== 'json') throw new Error('expected json')
       const body = outcome.body as { result: { tools: unknown[] } }
-      expect(body.result.tools.length).toBe(8)
+      expect(body.result.tools.length).toBe(6)
     })
 
     it('refuses a protocol version header that disagrees with the body', async () => {
@@ -139,16 +139,16 @@ describe('dispatchMcp', () => {
   })
 
   describe('tools/call', () => {
-    const callHeaders = { 'mcp-method': 'tools/call', 'mcp-name': 'porcelain_context' }
+    const callHeaders = { 'mcp-method': 'tools/call', 'mcp-name': 'porcelain_project' }
     const callBody = request('tools/call', {
-      name: 'porcelain_context',
-      arguments: { workspace: '/repo' },
+      name: 'porcelain_project',
+      arguments: { op: 'list' },
     })
 
     it('runs the named tool and returns its text', async () => {
       const tools = handlers('oriented')
       const outcome = await run(callBody, callHeaders, tools)
-      expect(tools.call).toHaveBeenCalledWith('porcelain_context', { workspace: '/repo' })
+      expect(tools.call).toHaveBeenCalledWith('porcelain_project', { op: 'list' })
       if (outcome.kind !== 'json') throw new Error('expected json')
       const body = outcome.body as { result: { content: { text: string }[] } }
       expect(body.result.content[0]?.text).toBe('oriented')
@@ -171,7 +171,7 @@ describe('dispatchMcp', () => {
     })
 
     it('decodes a base64 Mcp-Name before comparing it', async () => {
-      const encoded = `=?base64?${Buffer.from('porcelain_context', 'utf8').toString('base64')}?=`
+      const encoded = `=?base64?${Buffer.from('porcelain_project', 'utf8').toString('base64')}?=`
       const outcome = await run(callBody, { ...callHeaders, 'mcp-name': encoded })
       expect(outcome.kind === 'json' && outcome.status).toBe(200)
     })
@@ -254,7 +254,7 @@ describe('dispatchMcp', () => {
       const outcome = await classic('tools/list', {}, '2025-06-18')
       if (outcome.kind !== 'json') throw new Error('expected json')
       const body = outcome.body as { result: Record<string, unknown> }
-      expect((body.result.tools as unknown[]).length).toBe(8)
+      expect((body.result.tools as unknown[]).length).toBe(6)
       expect(body.result.resultType).toBeUndefined()
       expect(body.result._meta).toBeUndefined()
     })
@@ -263,11 +263,11 @@ describe('dispatchMcp', () => {
       const tools = handlers('oriented')
       const outcome = await classic(
         'tools/call',
-        { name: 'porcelain_context', arguments: { workspace: '/repo' } },
+        { name: 'porcelain_project', arguments: { op: 'list' } },
         '2025-06-18',
         tools,
       )
-      expect(tools.call).toHaveBeenCalledWith('porcelain_context', { workspace: '/repo' })
+      expect(tools.call).toHaveBeenCalledWith('porcelain_project', { op: 'list' })
       if (outcome.kind !== 'json') throw new Error('expected json')
       const body = outcome.body as { result: { content: { text: string }[] } }
       expect(body.result.content[0]?.text).toBe('oriented')

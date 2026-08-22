@@ -1,23 +1,17 @@
-# Preview delivery — dispatched, never triggered.
+# Preview delivery — manual only.
 #
-# `on:` is `workflow_dispatch` only, and `scripts/lint-eas-triggers.mjs` fails
-# the gate if a `push`, `pull_request`, or `schedule` trigger appears: a run
-# spends ~2.4 minutes of the monthly workflow allowance (fingerprint 65s, update
-# 81s) before anything reaches a tester, which is ~25 runs. Raise the EAS plan
-# before allowing one.
+# Run it explicitly from the mobile app directory:
 #
 #   eas workflow:run .eas/workflows/preview.yml
 #
-# Fingerprint unchanged -> EAS Update on `preview`, no build credit. Fingerprint
-# moved -> a `preview` build, then TestFlight. Monthly iOS builds are capped and
-# shared with every `development-simulator` build.
+# Fingerprint unchanged -> EAS Update on `preview`, with no build credit.
+# Fingerprint moved -> an internal iOS `preview` build. EAS provides an ad-hoc
+# install link for the build; every physical iOS device must be registered with
+# EAS before it can install that IPA. This workflow never submits to TestFlight.
 #
-# iOS-only: `app.json` declares `"platforms": ["ios"]`.
+# iOS-only workflow: the app also defines Android, but preview delivery is intentionally iOS.
 #
 # `message` truncates to 1024, EAS's hard limit; longer fails the run up front.
-#
-# Delivery is `type: submit`; `testflight` with a `build_id` is paid-tier, so no
-# per-build "What to Test" note. Needs App Store Connect credentials on EAS.
 
 name: Preview delivery
 
@@ -66,11 +60,3 @@ jobs:
       platform: ios
       profile: preview
       message: ${{ substring(github.commit_message || 'Manual preview build', 0, 1024) }}
-
-  submit_ios:
-    name: Send iOS preview to TestFlight
-    needs: [build_ios]
-    type: submit
-    params:
-      build_id: ${{ needs.build_ios.outputs.build_id }}
-      profile: preview

@@ -50,6 +50,8 @@ export type CanvasOverlayStore = Readonly<{
     repoPath: string,
     canvasId: string,
   ) => Promise<CanvasStoreResult<CanvasEntry>>
+  /** Delete one tracked Canvas bundle. This is explicit; reads never mutate the overlay. */
+  deleteOverlayCanvas: (repoPath: string, canvasId: string) => Promise<CanvasStoreResult<void>>
   /**
    * Copy `sourceBundleDir` into the overlay under `record.id` and write its
    * manifest. Staged beside the destination and renamed into place, so a reader
@@ -169,6 +171,23 @@ export function createCanvasOverlayStore(): CanvasOverlayStore {
           : notFound()
       }
       return { ok: true, value: { record, ...bundle.value } }
+    },
+
+    async deleteOverlayCanvas(
+      repoPath: string,
+      canvasId: string,
+    ): Promise<CanvasStoreResult<void>> {
+      const record = await readOverlayManifest(repoPath, canvasId)
+      if (record === null) return notFound()
+      try {
+        await rm(projectOverlayCanvasBundleDir(repoPath, canvasId), {
+          recursive: true,
+          force: true,
+        })
+      } catch {
+        return unavailable()
+      }
+      return { ok: true, value: undefined }
     },
 
     async writeOverlayCanvas(

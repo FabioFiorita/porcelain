@@ -2,10 +2,7 @@
   "mcpServers": {
     "porcelain": {
       "type": "http",
-      "url": "http://127.0.0.1:43117/mcp",
-      "headers": {
-        "Authorization": "Bearer ${user_config.admin_token}"
-      }
+      "url": "http://127.0.0.1:43117/mcp"
     }
   }
 }

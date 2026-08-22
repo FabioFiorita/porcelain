@@ -16,10 +16,6 @@ concurrency:
   group: porcelain-release
   cancel-in-progress: false
 
-permissions:
-  contents: write
-  id-token: write
-
 jobs:
   prepare:
     runs-on: ubuntu-latest
@@ -46,6 +42,9 @@ jobs:
   package-mac:
     needs: [prepare]
     runs-on: macos-14
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v5
         with:
@@ -56,6 +55,9 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+      - uses: vercel/setup-turborepo-remote-cache-action@v1.0.0
+        with:
+          team: ${{ vars.TURBO_TEAM }}
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
@@ -84,12 +86,15 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-  # The Linux deliverable is the plain-Node daemon published as porcelain-daemon.
+  # The Linux deliverable is the plain-Node daemon published as @fabiofiorita/porcelain.
   # Build it independently of the signed Mac job, then hand the exact assembled
   # package to the post-release npm publisher instead of rebuilding the workspace.
   package-daemon:
     needs: [prepare]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v5
         with:
@@ -100,6 +105,9 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+      - uses: vercel/setup-turborepo-remote-cache-action@v1.0.0
+        with:
+          team: ${{ vars.TURBO_TEAM }}
 
       - run: pnpm install --frozen-lockfile
       # The daemon package needs the shared web renderer plus the independent
@@ -118,6 +126,8 @@ jobs:
   publish:
     needs: [prepare, package-mac]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v5
         with:
@@ -163,7 +173,7 @@ jobs:
           name: release-daemon-${{ needs.prepare.outputs.tag }}
           path: dist-daemon
 
-      - name: Publish porcelain-daemon to npm
+      - name: Publish @fabiofiorita/porcelain to npm
         run: |
           set -euo pipefail
           npm install -g npm@11.5.2
@@ -179,8 +189,8 @@ jobs:
           unset NODE_AUTH_TOKEN || true
           export NPM_CONFIG_USERCONFIG="$PUBLISH_NPMRC"
           VER=$(node -p "require('./package.json').version")
-          PKG=porcelain-daemon
-          TARBALL_URL="https://registry.npmjs.org/${PKG}/-/${PKG}-${VER}.tgz"
+          PKG=@fabiofiorita/porcelain
+          TARBALL_URL="https://registry.npmjs.org/@fabiofiorita%2fporcelain/-/porcelain-${VER}.tgz"
           tarball_code() {
             local code
             if ! code=$(curl -sS -o /dev/null -w '%{http_code}' -L "$TARBALL_URL"); then

@@ -6,7 +6,7 @@ import {
   ensureEnvironmentSession,
   registerEnvironmentAlias,
   setPrimaryEnvironmentId,
-  shellConnectionId,
+  THIS_DEVICE_CONNECTION_ID,
   useEnvironmentSessionsRevision,
 } from '@renderer/lib/environment-sessions'
 import { isBrowser } from '@renderer/lib/platform'
@@ -86,16 +86,19 @@ export function useHubInventories(): readonly HubInventoryView[] {
     if (isBrowser) return
     const local = shellQuery.data?.find((source) => source.current)
     if (local !== undefined) setPrimaryEnvironmentId(local.inventory.environment.id)
-    // The shell names Environments by ITS ids (null = This device); every Hub row, selection,
-    // and query key names them by the daemon-announced id. This fan-out is the one place both
-    // appear together, so it is where the two are tied — without it the sessions the shell
-    // handed over (`useShellEnvironmentConnections`) can never be resolved from a Hub target.
+    // Bridge the shell's pairing-minted Environment id to the daemon-announced one: every
+    // other resolver in the app (environmentClientFor, environmentSessionFor, HubTarget)
+    // keys off the daemon-announced id, not the shell's. This window's own binding can be a
+    // saved Environment rather than This device (Settings' "Pair & use here"), which makes
+    // This device the secondary — bridge it to the same THIS_DEVICE_CONNECTION_ID
+    // environmentDaemonPairs used for its entry, or every Files/Git/Terminal query keyed off
+    // it resolves no owning session and "This device" reads permanently offline.
     for (const source of shellQuery.data ?? []) {
-      if (source.current) continue
-      registerEnvironmentAlias(
-        source.inventory.environment.id,
-        shellConnectionId(source.environmentId),
-      )
+      if (source.environmentId !== null) {
+        registerEnvironmentAlias(source.inventory.environment.id, source.environmentId)
+      } else if (!source.current) {
+        registerEnvironmentAlias(source.inventory.environment.id, THIS_DEVICE_CONNECTION_ID)
+      }
     }
   }, [shellQuery.data])
   useEffect(() => {

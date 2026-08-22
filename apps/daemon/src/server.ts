@@ -57,7 +57,7 @@ import { createSession, publishSessionChange } from './session/live-session'
  *
  * SECURITY INVARIANTS live in the Remote boundary and must hold here:
  * binds are 127.0.0.1 ALWAYS plus, on opt-in, the enumerated Tailscale/RFC1918
- * addresses through these same handlers — never 0.0.0.0; every privileged request is
+ * addresses through the external handler — never 0.0.0.0; every privileged request is
  * token-gated ALWAYS (`authorization: Bearer` on /trpc, the `porcelain.<token>`
  * subprotocol on the WS upgrade — chosen over `?token=`, which would leak the token
  * into logs and proxies); `POST /pair` is the one unauthenticated route in production.
@@ -209,7 +209,6 @@ async function main(): Promise<void> {
   // per-connection.
   const mcpToolHandlers = createMcpToolHandlers({
     operations,
-    canvasBundleDir: canvasStores.store.bundleDirFor,
     attachmentPath: (storedPath) => taskAttachmentPath(porcelainHomeDir, storedPath),
   })
   daemon = createRemoteHttp({
@@ -254,10 +253,10 @@ async function main(): Promise<void> {
         : undefined,
   })
 
-  // Hand the shared handlers to the second-listener module so its optional
-  // tailnet + LAN listeners (started/stopped live from the API) behave identically
-  // to loopback — same token gate, never 0.0.0.0.
-  initIfaceHandlers(daemon.requestListener, daemon.handleUpgrade)
+  // Hand the handlers to the second-listener module so its optional tailnet + LAN
+  // listeners (started/stopped live from the API) use the external surface. It
+  // deliberately has no /mcp route; the token-free agent surface stays loopback-only.
+  initIfaceHandlers(daemon.requestListener, daemon.handleUpgrade, daemon.externalRequestListener)
 
   // The daemon serves the renderer dist to the browser client (Phase 3). In dev
   // the daemon runs before any build, so the dist is legitimately absent — log
@@ -276,16 +275,28 @@ async function main(): Promise<void> {
 
   // Port 0 = OS-assigned (the default); PORCELAIN_DAEMON_PORT pins it (e2e/debugging).
   const requestedPort = Number(process.env.PORCELAIN_DAEMON_PORT ?? '') || 0
-  const listeningPort = await new Promise<number>((resolve) => {
-    daemon.server.listen(requestedPort, '127.0.0.1', () => {
-      const address = daemon.server.address()
-      if (address !== null && typeof address === 'object') {
-        process.stdout.write(`${JSON.stringify({ port: address.port })}\n`)
-        resolve(address.port)
-      }
-    })
-  })
-  setCloudflareDaemonPort(listeningPort)
+  const [, cloudflarePort] = await Promise.all([
+    new Promise<number>((resolve) => {
+      daemon.server.listen(requestedPort, '127.0.0.1', () => {
+        const address = daemon.server.address()
+        if (address !== null && typeof address === 'object') {
+          process.stdout.write(`${JSON.stringify({ port: address.port })}\n`)
+          resolve(address.port)
+        }
+      })
+    }),
+    // Cloudflare is a local process, but it is still a proxy boundary: target a
+    // separate loopback socket whose handler cannot dispatch /mcp. This prevents
+    // a proxy that strips forwarding headers from laundering an external request
+    // into the token-free local MCP listener.
+    new Promise<number>((resolve) => {
+      daemon.externalServer.listen(0, '127.0.0.1', () => {
+        const address = daemon.externalServer.address()
+        if (address !== null && typeof address === 'object') resolve(address.port)
+      })
+    }),
+  ])
+  setCloudflareDaemonPort(cloudflarePort)
 
   // If the user has the tailnet and/or LAN bind enabled — persisted config OR the
   // boot env override (PORCELAIN_TAILNET_BIND / PORCELAIN_LAN_BIND = '1', so a

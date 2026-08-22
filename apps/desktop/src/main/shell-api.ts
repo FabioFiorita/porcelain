@@ -6,6 +6,7 @@ import { BrowserWindow, clipboard, nativeTheme, shell, type WebContents } from '
 import { ENVIRONMENT_NAME_MAX_LENGTH } from '@porcelain/contracts/projects'
 import { z } from 'zod'
 import {
+  environmentDaemonPairs as readEnvironmentDaemonPairs,
   getDefaultEnvironmentId,
   localDaemonPair,
   reloadEnvironmentsCache,
@@ -19,12 +20,7 @@ import {
   localTerminalPathKey,
   updateLocalTerminalPaths,
 } from './local-terminal-paths'
-import {
-  PLUGIN_VERSION,
-  pluginInstallCommand,
-  pluginMarketplaceCommands,
-  pluginUpdateCommands,
-} from './plugin-assets'
+import { PLUGIN_VERSION, agentPluginRepository, claudePluginCommands } from './plugin-assets'
 import {
   type EndpointKind,
   endpointKind,
@@ -320,20 +316,17 @@ export const shellRouter = t.router({
   }),
 
   // The companion and remote skills ship inside the `porcelain` agent plugin. The app does
-  // not install it — it hands over the commands. There is deliberately no upgrade prompt:
-  // the app cannot see which version an agent has installed, and the marketplace route
-  // refreshes on its own.
+  // not install it: Agent Plugins leaves distribution to each client, while Claude has a
+  // verified marketplace route. There is deliberately no generic install command.
   pluginInfo: t.procedure.query(
     (): {
       version: string
-      installCommand: string
-      marketplaceCommands: readonly string[]
-      updateCommands: readonly string[]
+      agentPluginRepository: string
+      claudePluginCommands: readonly string[]
     } => ({
       version: PLUGIN_VERSION,
-      installCommand: pluginInstallCommand(),
-      marketplaceCommands: pluginMarketplaceCommands(),
-      updateCommands: pluginUpdateCommands(),
+      agentPluginRepository: agentPluginRepository(),
+      claudePluginCommands: claudePluginCommands(),
     }),
   ),
 
@@ -368,6 +361,16 @@ export const shellRouter = t.router({
         })),
       }
     },
+  ),
+
+  // Widens the renderer's held credentials from one token (today's `localDaemon`) to N
+  // (every saved environment, plus This device when THIS window's primary is a saved
+  // Environment) — not a new trust category, since the renderer already always holds one
+  // live daemon token in-process. Every `RemoteEnvironment.token` returned here must be a
+  // pairing-issued `pc_client_…` client credential, never the host administrator token —
+  // this daemon deliberately never issues the admin token through pairing.
+  environmentDaemonPairs: t.procedure.query(({ ctx }) =>
+    readEnvironmentDaemonPairs(windowEnvironmentId(ctx.sender)),
   ),
 
   // Cross-Environment Tasks. Implementation lives in shell-tasks.ts; see the fan-out and
@@ -581,34 +584,6 @@ export const shellRouter = t.router({
     // Main-process reload onto This device (welcome) — renderer must not also reload.
     switchWindowEnvironment(ctx.sender, null)
   }),
-
-  /**
-   * Open a Hub checkout that lives on another Environment in THIS window.
-   *
-   * The renderer has exactly one daemon client — the one its window is bound to — so it
-   * cannot open a path on a different daemon itself. Point the window at that Environment
-   * and boot it straight into the checkout. `environmentId: null` = This device (local).
-   */
-  openWorktreeInEnvironment: t.procedure
-    .input(z.object({ environmentId: z.string().nullable(), repoPath: z.string().min(1) }))
-    .mutation(async ({ ctx, input }): Promise<void> => {
-      if (input.environmentId !== null) {
-        const live = await refreshActiveEndpoint(input.environmentId)
-        const state = await loadRemoteEnvironmentState()
-        const env = state.environments.find((e) => e.id === input.environmentId)
-        if (env === undefined) throw new Error('That environment no longer exists')
-        if (live === null) await probeDaemon(env.url, env.token)
-        await updateRemoteEnvironmentState((current) => ({ ...current, activeId: env.id }))
-        await reloadEnvironmentsCache()
-      } else if (getDefaultEnvironmentId() === windowEnvironmentId(ctx.sender)) {
-        // Same rule as disconnectRemoteEnvironment: only clear the default when THIS
-        // window was the one sitting on it — other windows keep their own.
-        await setDefaultEnvironmentId(null)
-      } else {
-        await reloadEnvironmentsCache()
-      }
-      switchWindowEnvironment(ctx.sender, input.environmentId, input.repoPath)
-    }),
 
   /**
    * Open a fresh window on an environment without touching the caller's binding.

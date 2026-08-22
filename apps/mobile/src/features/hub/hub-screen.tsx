@@ -25,12 +25,12 @@ import { WorktreeRow } from './worktree-row'
  * replaces. Projects that are the same repository on two machines share a `groupingKey`, so
  * `groupEquivalentProjects` puts them under one heading without merging the records.
  *
- * **On a tablet with its navigation panel open, this screen is empty.** The panel already
- * carries the same list, drawn with the same rows, so the viewer was printing a second copy of
- * the sidebar next to the sidebar. The web client does not: with nothing selected its viewer is
- * blank, and the tree beside it is the one place Worktrees live. The list comes back the moment
- * the panel is closed or the window is too narrow for it — that is the phone's shape, where the
- * list IS the screen.
+ * **On a tablet with its navigation panel open, this screen is the empty viewer.** The panel
+ * already carries the same list, drawn with the same rows, so the viewer was printing a second
+ * copy of the sidebar next to the sidebar. The web client does not: with nothing selected its
+ * viewer says so, and the tree beside it is the one place Worktrees live. The list comes back
+ * the moment the panel is closed or the window is too narrow for it — that is the phone's
+ * shape, where the list IS the screen.
  */
 export function HubScreen(): React.JSX.Element {
   const sidebarShowsTheList = useShellStore((state) => state.sidebarVisible)
@@ -57,6 +57,13 @@ export function HubScreen(): React.JSX.Element {
           actions={<NewWorktreeHeaderAction />}
           testID="porcelain-hub-header"
           title="Worktrees"
+        />
+        {/* A header over an empty column reads as a pane that failed to load. Say what the
+            viewer is for, the way it does once a Worktree IS open. */}
+        <EmptyNote
+          body="Pick one from the panel on the left, then open a file, a diff or a Canvas from the Surfaces panel."
+          testID="porcelain-hub-viewer-empty"
+          title="No Worktree open"
         />
       </View>
     )

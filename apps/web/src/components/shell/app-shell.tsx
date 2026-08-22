@@ -3,7 +3,7 @@ import { Toaster } from '@renderer/components/ui/sonner'
 import { useActionsNotificationSubscription } from '@renderer/features/actions'
 import { useFilesInterestBridge, useFilesNotificationSubscription } from '@renderer/features/files'
 import { useGitNotificationSubscription } from '@renderer/features/git'
-import { useEnvironmentStatuses, useShellEnvironmentConnections } from '@renderer/features/remote'
+import { useEnvironmentStatuses } from '@renderer/features/remote'
 import { useReviewCommentNotificationSubscription } from '@renderer/features/review'
 import {
   ContentSearch,
@@ -15,6 +15,7 @@ import { useEnvironmentTerminalStreams, useTerminalRoster } from '@renderer/feat
 import { useDocumentTitle } from '@renderer/hooks/use-document-title'
 import { useResponsiveShell } from '@renderer/hooks/use-responsive-shell'
 import { useSessionRuntime } from '@renderer/hooks/use-session-runtime'
+import { useShellEnvironmentConnections } from '@renderer/hooks/use-shell-environment-connections'
 import { useShellEvents } from '@renderer/hooks/use-shell-events'
 import { useThemeSync } from '@renderer/hooks/use-theme'
 import { isFramelessShell } from '@renderer/lib/platform'
@@ -122,6 +123,7 @@ export function AppShell(): React.JSX.Element {
 
   useAppShortcuts()
   useShellEvents()
+  useShellEnvironmentConnections()
   // One session runtime for the window: domain change invalidation, watch interests,
   // project selection, and reconnect recovery. Terminal traffic shares the same socket.
   useSessionRuntime()
@@ -138,9 +140,6 @@ export function AppShell(): React.JSX.Element {
   useActionsNotificationSubscription()
   useFilesInterestBridge()
   useEnvironmentStatuses()
-  // Hands this window a session to every OTHER reachable Environment (Electron only), which is
-  // what lets Terminals, the Project browser, and Hub panels address a daemon it is not bound to.
-  useShellEnvironmentConnections()
   useThemeSync()
   useDocumentTitle()
   useTerminalRoster()

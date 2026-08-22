@@ -10,6 +10,8 @@ export {
   groupTerminalSessions,
   type TerminalGroup,
   type TerminalLocation,
+  terminalLocationGroups,
+  terminalLocationLabel,
   terminalLocations,
 } from '@porcelain/client-runtime/terminal'
 export {
@@ -17,7 +19,12 @@ export {
   useEnvironmentTerminals,
   useEnvironmentTerminalStreams,
 } from './environment-terminals'
-export { applyTerminalRecovery, terminalPasteFailureMessage } from './terminal-notifications'
+export {
+  applyTerminalRecovery,
+  terminalFailureMessage,
+  terminalPasteFailureMessage,
+  TerminalRequestError,
+} from './terminal-notifications'
 export {
   invalidateEveryTerminalSessionsQuery,
   invalidateTerminalSessionsQueries,

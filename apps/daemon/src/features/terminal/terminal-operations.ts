@@ -31,6 +31,18 @@ function initialInputQuietDelay(chunk: string): number {
   return chunk.endsWith('\n') ? QUIET_AFTER_NEWLINE_MS : QUIET_AFTER_PROMPT_MS
 }
 
+/**
+ * The shell submits what we send it, and the daemon adds the submitting `\r` itself. A caller
+ * that also ended its command with a newline therefore submitted TWICE: the command ran, and the
+ * bare second return drew one more empty prompt above whatever the command painted — the stray
+ * `❯` row over tmux. Trailing newlines are stripped here, at the one place that appends the
+ * return, so no client literal can reintroduce it. Interior newlines are untouched: a lifecycle
+ * script list is several commands on purpose.
+ */
+export function submittableInitialInput(command: string): string {
+  return command.replace(/[\r\n]+$/, '')
+}
+
 type Session = {
   id: string
   pty: ReturnType<PtyPort['spawn']>
@@ -207,8 +219,10 @@ export function createTerminalOperations(
     sessions.set(id, session)
     markDetachedIfEmpty(session)
 
-    if (input.initialInput !== undefined && input.initialInput !== '') {
-      const command = input.initialInput
+    const initialInput =
+      input.initialInput === undefined ? '' : submittableInitialInput(input.initialInput)
+    if (initialInput !== '') {
+      const command = initialInput
       session.sendInitialInput = () => {
         clearInitialInput(session)
         if (!sessions.has(id)) return

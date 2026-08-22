@@ -49,6 +49,10 @@ describe('endpointLabel', () => {
     expect(endpointLabel('http://beelink.tail1234.ts.net:43118')).toBe('Tailscale')
     expect(endpointLabel('https://porcelain.example.com')).toBe('Funnel / Internet')
   })
+
+  it('names loopback LAN, not Funnel/Internet — this machine is not remote from itself', () => {
+    expect(endpointLabel('http://127.0.0.1:43200')).toBe('LAN')
+  })
 })
 
 describe('connectionStatusLabel', () => {

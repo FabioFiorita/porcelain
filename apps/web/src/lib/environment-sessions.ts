@@ -4,12 +4,9 @@ import { isBrowser } from './platform'
 import { createAppClientFor } from './trpc'
 
 /**
- * A client may keep more than one authenticated daemon session in one Hub. Credentials are
- * deliberately client-local: the daemon remains the authority for its own identity and
- * records, and no token is ever sent through another daemon.
- *
- * Named for the browser because that runtime pairs and stores its own connections; Electron
- * uses the same shape, handed over by the shell (`setShellEnvironmentConnections`).
+ * A browser client may keep more than one authenticated daemon session in one Hub.
+ * Credentials are deliberately client-local: the daemon remains the authority for its
+ * own identity and records, and no token is ever sent through another daemon.
  */
 export type BrowserEnvironmentConnection = Readonly<{
   id: string
@@ -17,6 +14,11 @@ export type BrowserEnvironmentConnection = Readonly<{
   url: string
   token: string
 }>
+
+/** Electron's connection id for "This device" when it is a secondary session (this window's
+ * primary is a saved Environment). Mirrored as a literal in apps/desktop's daemon.ts, which
+ * cannot import from this renderer package — keep the two in sync by hand. */
+export const THIS_DEVICE_CONNECTION_ID = 'this-device'
 
 export type BrowserEnvironmentConnectionInput = Readonly<{
   name: string
@@ -120,24 +122,22 @@ const connectionShape = (value: unknown): value is BrowserEnvironmentConnection 
   )
 }
 
-/** Read explicit browser connections. Malformed client-local state is ignored safely. */
+/** Read explicit browser connections. Malformed client-local state is ignored safely.
+ * A pure getter — pruning happens only where the connection list actually changes
+ * (`setBrowserEnvironmentConnections`), not on every read. This function used to also sweep
+ * `environmentAliases` and `.stop()` sessions absent from the freshly-parsed list; called from
+ * every routing decision (`liveEnvironmentSessions`, `environmentSessionFor`), that silently
+ * killed any non-browser-sourced session (e.g. Electron's) the moment a routing call ran. */
 export function browserEnvironmentConnections(
   _revision = environmentSessionRevision,
 ): readonly BrowserEnvironmentConnection[] {
   if (typeof window === 'undefined') return []
-  let connections: readonly BrowserEnvironmentConnection[] = []
   try {
     const parsed: unknown = JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? '[]')
-    if (Array.isArray(parsed)) connections = parsed.filter(connectionShape)
+    return Array.isArray(parsed) ? parsed.filter(connectionShape) : []
   } catch {
-    connections = []
+    return []
   }
-  const ids = new Set(connections.map((connection) => connection.id))
-  for (const [environmentId, connectionId] of environmentAliases) {
-    if (!ids.has(connectionId)) environmentAliases.delete(environmentId)
-  }
-  removeStaleEnvironmentSessions(ids)
-  return connections
 }
 
 /** Persist browser connections; useful to pairing/settings surfaces and isolated proof fixtures. */
@@ -153,6 +153,69 @@ export function setBrowserEnvironmentConnections(
   removeStaleEnvironmentSessions(ids)
   for (const connection of connections) ensureEnvironmentSession(connection)
   notifyEnvironmentSessionChange()
+}
+
+/** Electron's counterpart to the browser connection list above: sourced from the shell's
+ * `environmentDaemonPairs` query instead of localStorage (always empty in Electron), with its
+ * own module-level state so the two platforms never share storage. */
+let shellConnections: readonly BrowserEnvironmentConnection[] = []
+
+/** Pure getter, mirrors `browserEnvironmentConnections`. */
+export function shellEnvironmentConnections(
+  _revision = environmentSessionRevision,
+): readonly BrowserEnvironmentConnection[] {
+  return shellConnections
+}
+
+/** Mirrors `setBrowserEnvironmentConnections`: prune stale aliases/sessions, ensure a live
+ * session per connection, and notify. Called from `useShellEnvironmentConnections` whenever the
+ * shell's saved-environment pairs change. */
+export function setShellEnvironmentConnections(
+  connections: readonly BrowserEnvironmentConnection[],
+): void {
+  const unchanged =
+    shellConnections.length === connections.length &&
+    shellConnections.every((current, index) => {
+      const next = connections[index]
+      return (
+        next !== undefined &&
+        next.id === current.id &&
+        next.name === current.name &&
+        next.url === current.url &&
+        next.token === current.token
+      )
+    })
+  if (unchanged) return
+  shellConnections = connections
+  const ids = new Set(connections.map((connection) => connection.id))
+  for (const [environmentId, connectionId] of environmentAliases) {
+    if (!ids.has(connectionId)) environmentAliases.delete(environmentId)
+  }
+  removeStaleEnvironmentSessions(ids)
+  // Re-point what is already live; nothing is opened here. A window with no cross-Environment
+  // panel on screen should not hold a socket to every machine the human owns.
+  for (const connection of connections) {
+    if (secondarySessions.has(connection.id)) ensureEnvironmentSession(connection)
+  }
+  notifyEnvironmentSessionChange()
+}
+
+/** The platform's actual connection source: localStorage in the browser, the shell's
+ * `environmentDaemonPairs` query in Electron. */
+function activeEnvironmentConnections(): readonly BrowserEnvironmentConnection[] {
+  return isBrowser ? browserEnvironmentConnections() : shellEnvironmentConnections()
+}
+
+/** Public connection snapshot for callers that need the platform's current topology. */
+export function environmentConnections(
+  _revision = environmentSessionRevision,
+): readonly BrowserEnvironmentConnection[] {
+  return isBrowser ? browserEnvironmentConnections(_revision) : shellConnections
+}
+
+/** Translate a daemon Environment id into the shell's connection-id namespace. */
+export function shellConnectionId(environmentId: string | null): string {
+  return environmentId ?? THIS_DEVICE_CONNECTION_ID
 }
 
 function connectionId(): string {
@@ -224,73 +287,6 @@ export async function addBrowserEnvironmentConnection(
   }
 }
 
-/**
- * The connection id an Electron window uses for This device. The shell names the local daemon
- * `null` (its own identity for it), but a connection is keyed by string here, and `null`
- * already means "this window's own daemon" everywhere in this module.
- */
-const THIS_DEVICE_CONNECTION_ID = 'this-device'
-
-/** This registry's connection id for one SHELL Environment id (`null` = This device). */
-export function shellConnectionId(environmentId: string | null): string {
-  return environmentId ?? THIS_DEVICE_CONNECTION_ID
-}
-
-/**
- * The Electron half of the same list. A browser keeps its connections in `localStorage`
- * because it paired them itself; the shell already holds the saved Environments and their
- * credentials, so it hands the reachable ones over (`environmentConnections`) and this module
- * treats them exactly like browser connections. Kept in memory only — the shell is the
- * authority, and a stale copy in storage would outlive a removed Environment.
- */
-let shellConnections: readonly BrowserEnvironmentConnection[] = []
-
-/**
- * Replace the shell-provided connection set. Sessions are re-pointed, never rebuilt, when an
- * Environment moves to another endpoint — a rebuild would drop every live PTY attached to it,
- * and this query refetches on focus. Sessions for Environments that dropped off the list are
- * stopped.
- */
-export function setShellEnvironmentConnections(
-  connections: readonly BrowserEnvironmentConnection[],
-): void {
-  const unchanged =
-    shellConnections.length === connections.length &&
-    shellConnections.every((current, index) => {
-      const next = connections[index]
-      return (
-        next !== undefined &&
-        next.id === current.id &&
-        next.name === current.name &&
-        next.url === current.url &&
-        next.token === current.token
-      )
-    })
-  if (unchanged) return
-  shellConnections = connections
-  const ids = new Set(connections.map((connection) => connection.id))
-  for (const [environmentId, connectionId] of environmentAliases) {
-    if (!ids.has(connectionId)) environmentAliases.delete(environmentId)
-  }
-  removeStaleEnvironmentSessions(ids)
-  // Re-point what is already live; nothing is opened here. A window with no cross-Environment
-  // panel on screen should not hold a socket to every machine the human owns.
-  for (const connection of connections) {
-    if (secondarySessions.has(connection.id)) ensureEnvironmentSession(connection)
-  }
-  notifyEnvironmentSessionChange()
-}
-
-/**
- * Every Environment this client can open its own session to, whichever runtime it is in.
- * Browser: the connections it paired and stored. Electron: what the shell handed over.
- */
-export function environmentConnections(
-  revision = environmentSessionRevision,
-): readonly BrowserEnvironmentConnection[] {
-  return isBrowser ? browserEnvironmentConnections(revision) : shellConnections
-}
-
 const secondarySessions = new Map<string, EnvironmentSession>()
 let primaryClient: ReturnType<typeof createAppClientFor> | null = null
 const environmentAliases = new Map<string, string>()
@@ -359,7 +355,7 @@ export function liveEnvironmentSessions(
     session: primary,
     client: primaryAppClient(),
   }
-  const secondary = environmentConnections().map((connection) => {
+  const secondary = activeEnvironmentConnections().map((connection) => {
     const entry = ensureEnvironmentSession(connection)
     return {
       environmentId: environmentAliasesForConnection(connection.id) ?? connection.id,
@@ -390,7 +386,7 @@ export function environmentSessionFor(environmentId: string | null): Environment
     }
   }
   const connectionId = environmentAliases.get(environmentId) ?? environmentId
-  const connections = environmentConnections()
+  const connections = activeEnvironmentConnections()
   const connection = connections.find((item) => item.id === connectionId)
   return connection === undefined ? null : ensureEnvironmentSession(connection)
 }
@@ -405,7 +401,7 @@ export function environmentSessionForHubTarget(
 ): EnvironmentSession | null {
   const direct = environmentSessionFor(environmentId)
   if (direct !== null || environmentId === null || primaryEnvironmentId !== null) return direct
-  if (environmentConnections().some((connection) => connection.id === environmentId)) {
+  if (activeEnvironmentConnections().some((connection) => connection.id === environmentId)) {
     return null
   }
   return {
@@ -416,13 +412,7 @@ export function environmentSessionForHubTarget(
   }
 }
 
-/**
- * Resolve an explicit target to its owning client; unknown Environment ids refuse.
- *
- * `revision` is a dependency, not an input: a caller memoizing this must re-resolve when a
- * session appears, moves, or is aliased to its announced id, and passing the revision is how
- * it says so.
- */
+/** Resolve an explicit target to its owning client; unknown Environment ids refuse. */
 export function environmentClientFor(
   environmentId: string | null,
   primary: EnvironmentSession['client'],

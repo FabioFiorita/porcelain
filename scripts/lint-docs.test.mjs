@@ -38,10 +38,7 @@ test('a document nothing routes to is unreachable', () => {
 test('a shipped skill pointing into the checkout is refused', () => {
   const source = 'Full model: `docs/remote-access.md` in the main repo.'
   assert.equal(
-    reachesIntoCheckout(
-      `${SHIPPED_ROOT}/porcelain/skills/porcelain-remote/references/pairing.md`,
-      source,
-    ),
+    reachesIntoCheckout(`${SHIPPED_ROOT}/porcelain/skills/remote/references/pairing.md`, source),
     true,
   )
 })

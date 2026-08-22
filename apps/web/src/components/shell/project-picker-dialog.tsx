@@ -22,8 +22,6 @@ import {
 } from '@renderer/features/projects'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { rowActionClass } from '@renderer/lib/controls'
-import { isBrowser } from '@renderer/lib/platform'
-import { shellTrpcClient } from '@renderer/lib/trpc'
 import { cn } from '@renderer/lib/utils'
 import { useProjectPickerStore } from '@renderer/stores/project-picker'
 import { useSettingsDialogStore } from '@renderer/stores/settings-dialog'
@@ -91,24 +89,9 @@ function ProjectPicker({ onClose }: { onClose: () => void }): React.JSX.Element 
   }
 
   // The Projects adapter records the recent, selects the authoritative result, and then this
-  // dialog closes. Opening a checkout on another Environment binds the WINDOW to it, which
-  // only the shell can do — the same rule the Hub tree follows (features/projects/hub-open.ts).
+  // dialog closes. A secondary Environment is addressed through its live renderer session,
+  // just like the Hub and Settings project pickers.
   const handleOpen = (repoPath: string): void => {
-    if (!isBrowser && browsingElsewhere) {
-      runUserAction(
-        async () => {
-          await shellTrpcClient.openWorktreeInEnvironment.mutate({
-            environmentId: target.environmentId,
-            repoPath,
-          })
-          onClose()
-        },
-        (error) => {
-          toastUserActionError('Open project', error)
-        },
-      )
-      return
-    }
     runUserAction(
       async () => {
         await openProject.open(repoPath, {

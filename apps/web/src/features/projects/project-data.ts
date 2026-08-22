@@ -82,12 +82,26 @@ async function invalidateProjectQueries(
   queryClient: ReturnType<typeof useQueryClient>,
   daemon: ProjectsDaemonScope,
   queries: readonly ProjectsQuery[],
+  environmentId: string | null = null,
 ): Promise<void> {
+  const scope = daemonScopeForEnvironment(environmentId, daemon)
   for (const query of queries) {
     await queryClient.invalidateQueries({
       exact: true,
-      queryKey: projectsQueryKey(daemon, query),
+      queryKey: projectsQueryKey(scope, query),
     })
+  }
+  // Browser secondary inventories use a connection-id key because the daemon-announced
+  // Environment id is learned only after the connection has answered. Invalidate that
+  // concrete cache row as well as the canonical daemon-scoped key above.
+  if (isBrowser && environmentId !== null && queries.some((query) => query.name === 'inventory')) {
+    const owner = environmentSessionFor(environmentId)
+    if (owner !== null) {
+      await queryClient.invalidateQueries({
+        exact: true,
+        queryKey: ['browser', 'hubInventory', owner.id],
+      })
+    }
   }
   // Electron's Hub tree reads through a separate shell-router query (hub-inventories.ts) that
   // the per-Environment key above never reaches — without this, adding/removing a Project or
@@ -143,6 +157,7 @@ export function useOpenProject(): {
         queryClient,
         daemon,
         openProject.affectedQueries(variables.path),
+        variables.environmentId,
       )
     },
   })
@@ -172,7 +187,12 @@ export function useRemoveRecentProject(): {
       await removeRecentProjectOnDaemon(client, path)
     },
     onSuccess: async (_result, path) => {
-      await invalidateProjectQueries(queryClient, daemon, removeRecentProject.affectedQueries(path))
+      await invalidateProjectQueries(
+        queryClient,
+        daemon,
+        removeRecentProject.affectedQueries(path),
+        null,
+      )
       if (useProjectSelectionStore.getState().project?.path === path) selectProject(null)
     },
   })
@@ -204,6 +224,7 @@ export function useRemoveHubProject(): {
         queryClient,
         daemon,
         removeHubProject.affectedQueries(variables.projectId),
+        variables.environmentId ?? null,
       )
     },
   })
@@ -245,6 +266,7 @@ export function useRemoveHubWorktree(): {
         queryClient,
         daemon,
         removeHubWorktree.affectedQueries(variables),
+        variables.environmentId ?? null,
       )
     },
   })
@@ -320,7 +342,12 @@ export function useCreateHubWorktree(): {
       })
     },
     onSuccess: async (_result, input) => {
-      await invalidateProjectQueries(queryClient, daemon, createHubWorktree.affectedQueries(input))
+      await invalidateProjectQueries(
+        queryClient,
+        daemon,
+        createHubWorktree.affectedQueries(input),
+        input.environmentId ?? null,
+      )
     },
   })
   return { create: mutation.mutateAsync, isPending: mutation.isPending }

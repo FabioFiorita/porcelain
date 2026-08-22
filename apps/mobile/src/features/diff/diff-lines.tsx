@@ -1,4 +1,5 @@
 import type { TokenMap } from '@porcelain/client-runtime/highlight'
+import { formatHunkHeader } from '@porcelain/client-runtime/hunk-header'
 import { type CharRange, splitByRanges } from '@porcelain/client-runtime/word-diff-line'
 import type { DiffHunk } from '@porcelain/contracts/git'
 import { memo } from 'react'
@@ -189,7 +190,7 @@ function DiffRowViewImpl({ ctx, row }: { ctx: DiffLineContext; row: DiffRow }): 
     return (
       <View className="bg-muted/50 px-2 py-0.5">
         <Text className="font-mono text-3xs leading-4 text-muted-foreground" numberOfLines={1}>
-          {row.text}
+          {formatHunkHeader(row.text)}
         </Text>
       </View>
     )

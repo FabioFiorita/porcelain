@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { access, mkdir, writeFile } from 'node:fs/promises'
+import { access, mkdir, realpath, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { isAbsolute, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -12,7 +12,7 @@ describe('withTemporaryDirectory', () => {
     await withTemporaryDirectory('porcelain-tst-002-', async (directory) => {
       seen.push(directory)
       expect(isAbsolute(directory)).toBe(true)
-      expect(directory.startsWith(tmpdir())).toBe(true)
+      expect(directory.startsWith(await realpath(tmpdir()))).toBe(true)
 
       const nested = join(directory, 'nested', 'leaf')
       await mkdir(nested, { recursive: true })

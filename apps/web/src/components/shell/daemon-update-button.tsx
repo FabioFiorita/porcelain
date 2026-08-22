@@ -102,8 +102,8 @@ export function DaemonUpdateButton(): React.JSX.Element | null {
           </code>
           <p className="text-xs text-muted-foreground">
             The always-on unit re-resolves{' '}
-            <code className="font-mono">porcelain-daemon@latest</code> on start, so a restart is the
-            upgrade. Started by hand instead? Stop it and re-run{' '}
+            <code className="font-mono">@fabiofiorita/porcelain@latest</code> on start, so a restart
+            is the upgrade. Started by hand instead? Stop it and re-run{' '}
             <code className="font-mono">{DAEMON_UPDATE_FOREGROUND_COMMAND}</code>.
           </p>
         </div>

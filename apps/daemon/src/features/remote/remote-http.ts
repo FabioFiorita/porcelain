@@ -43,8 +43,11 @@ export { parseAllowedOrigins } from './remote-origins'
  * — canvas-access-tokens.ts) is the credential there; see canvas-http.ts for
  * why the route exists at all.
  *
- * POST /mcp is the agent tool surface: Bearer-gated through the same `authenticate`,
- * plus an Origin check a loopback bind does not give us — see remote-mcp-route.ts.
+ * POST /mcp is the local agent tool surface: token-free only for direct loopback
+ * requests, with Origin and proxy-header checks. The loopback server is the only
+ * server that dispatches it; the interface listeners and the Cloudflare ingress use
+ * the separate external listener below, where `/mcp` does not exist at all — see
+ * remote-mcp-route.ts.
  *
  * GET /dev-auth is the one deliberate hole, mounted ONLY when the caller passes
  * `devAutoAuth` (server.ts does so only under PORCELAIN_DEV) — see dev-auth-http.ts for
@@ -88,8 +91,14 @@ export interface RemoteHttpOptions {
 export interface RemoteHttp {
   /** The http.Server, NOT yet listening — the caller owns `.listen()`. */
   server: Server
-  /** The (req, res) listener; shared with the optional tailnet listener. */
+  /** The local (req, res) listener; `/mcp` is available only on this listener. */
   requestListener: (req: IncomingMessage, res: ServerResponse) => void
+  /**
+   * The external (req, res) listener; `/mcp` is deliberately unavailable here.
+   * LAN/Tailscale listeners and the Cloudflare ingress use this handler.
+   */
+  externalServer: Server
+  externalRequestListener: (req: IncomingMessage, res: ServerResponse) => void
   /** The upgrade handler; shared with the optional tailnet listener. */
   handleUpgrade: (req: IncomingMessage, socket: Duplex, head: Buffer) => void
 }
@@ -273,10 +282,14 @@ export function createRemoteHttp(opts: RemoteHttpOptions): RemoteHttp {
   // fetch adapter — all protocol logic (batching, input decoding, error shapes)
   // stays in tRPC, exactly like the Stage-1 IPC shuttle. The appRouter context is
   // empty by design: no procedure may see the caller (per-connection concerns
-  // live on the WS session). Extracted from createServer so the loopback listener
-  // AND the optional tailnet listener share the identical handler — the token gate
-  // below then applies to both automatically.
-  async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  // live on the WS session). Extracted from createServer so the local and external
+  // listeners share the same authenticated pipeline; `allowMcp` is the one deliberate
+  // surface distinction, keeping the token-free agent route loopback-only.
+  async function handleRequest(
+    req: IncomingMessage,
+    res: ServerResponse,
+    allowMcp: boolean,
+  ): Promise<void> {
     const cors = corsHeaders(req)
     const url = req.url ?? '/'
     if (url === '/pair' && req.method === 'OPTIONS') {
@@ -323,13 +336,20 @@ export function createRemoteHttp(opts: RemoteHttpOptions): RemoteHttp {
       return
     }
     if (url === '/mcp' || url.startsWith('/mcp?')) {
+      // This is a listener-level boundary, not a header convention. A reverse
+      // proxy can strip forwarded headers and make an incoming request appear
+      // loopback, so external listeners must never call the MCP dispatcher.
+      if (!allowMcp) {
+        res.writeHead(404, cors)
+        res.end()
+        return
+      }
       // Gates and rationale: remote-mcp-route.ts. An unexpected throw falls to the
       // listener's catch below — /mcp has no Porcelain public-error shape to map onto.
       await serveMcpRoute({
         req,
         res,
         cors,
-        authenticate: () => authenticate(bearerToken(req)),
         allowedOrigins,
         serveMcp: opts.serveMcp,
       })
@@ -443,7 +463,15 @@ export function createRemoteHttp(opts: RemoteHttpOptions): RemoteHttp {
   // expects. Dynamic request failures handle themselves above; this last-resort
   // path preserves non-public static-route failures without logging raw details.
   const requestListener = (req: IncomingMessage, res: ServerResponse): void => {
-    handleRequest(req, res).catch((error) => {
+    handleRequest(req, res, true).catch((error) => {
+      logUnexpectedError({ error, requestId: createRequestId(), path: undefined })
+      if (!res.headersSent) res.writeHead(500, corsHeaders(req))
+      if (!res.writableEnded) res.end()
+    })
+  }
+
+  const externalRequestListener = (req: IncomingMessage, res: ServerResponse): void => {
+    handleRequest(req, res, false).catch((error) => {
       logUnexpectedError({ error, requestId: createRequestId(), path: undefined })
       if (!res.headersSent) res.writeHead(500, corsHeaders(req))
       if (!res.writableEnded) res.end()
@@ -452,10 +480,17 @@ export function createRemoteHttp(opts: RemoteHttpOptions): RemoteHttp {
 
   const server = createServer(requestListener)
   server.on('upgrade', handleUpgrade)
+  // Cloudflare runs on the same host, so its target is a loopback socket too. It
+  // still must use the external handler: the proxy is allowed to remove all
+  // forwarding headers before connecting here.
+  const externalServer = createServer(externalRequestListener)
+  externalServer.on('upgrade', handleUpgrade)
 
   return {
     server,
     requestListener,
+    externalServer,
+    externalRequestListener,
     handleUpgrade,
   }
 }

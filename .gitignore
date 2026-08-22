@@ -2,6 +2,7 @@ node_modules/
 dist/
 dist-daemon/
 out/
+.turbo/
 .DS_Store
 
 # Playwright e2e: keep the *-snapshots/ baselines (committed), drop run output.
@@ -44,3 +45,6 @@ reports/
 # Claude Design handoff bundle — a local prototype reference, not source. Keep it
 # out of git and out of the lint/typecheck gate (Biome honours .gitignore).
 claude-design/
+
+# Turborepo
+.turbo

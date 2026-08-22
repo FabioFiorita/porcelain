@@ -11,9 +11,12 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  check:
+  quality:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v5
@@ -21,5 +24,51 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+      - uses: vercel/setup-turborepo-remote-cache-action@v1.0.0
+        with:
+          team: ${{ vars.TURBO_TEAM }}
       - run: pnpm install --frozen-lockfile
-      - run: pnpm verify
+      - run: pnpm check
+
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: vercel/setup-turborepo-remote-cache-action@v1.0.0
+        with:
+          team: ${{ vars.TURBO_TEAM }}
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+      - run: pnpm turbo run //#test:scripts
+
+  browser-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: vercel/setup-turborepo-remote-cache-action@v1.0.0
+        with:
+          team: ${{ vars.TURBO_TEAM }}
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Install Chromium for browser smoke
+        run: pnpm --dir apps/desktop exec playwright install --with-deps chromium
+      - name: Run browser smoke
+        run: pnpm test:e2e:smoke:prebuilt

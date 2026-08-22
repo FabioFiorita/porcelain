@@ -1,4 +1,0 @@
-interface:
-  display_name: "Porcelain Remote"
-  short_description: "Set up a remote Porcelain daemon — install, serve, choose LAN/Tailscale/Cloudflare exposure, pair devices, run it always-on, and troubleshoot"
-  default_prompt: "Use $porcelain-remote for remote-daemon setup or operations: install and serve it, choose the narrowest exposure (LAN, Tailscale, or Cloudflare), pair devices with one-time links, configure an always-on systemd user service when needed, and handle revocation or share-status diagnostics."

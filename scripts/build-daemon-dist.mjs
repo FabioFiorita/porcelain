@@ -4,7 +4,7 @@
 // on another machine (see docs/remote-access.md for the supported deployment path).
 //
 // Primary UX (t3-style):
-//   npx porcelain-daemon@latest serve --tailnet
+//   npx @fabiofiorita/porcelain@latest serve --tailnet
 //
 // It mirrors the `out/` layout exactly so the daemon's two relative resolutions
 // keep working unchanged: the shared chunk require from
@@ -77,7 +77,7 @@ mkdirSync(dist, { recursive: true })
 // RENDERER_ROOT (`__dirname/../../renderer` from main/daemon/server.js) resolves.
 const requiredCopies = [
   ['main/daemon/server.js', 'main/daemon/server.js'],
-  // Wire protocol constants bin/porcelain-daemon.js requires.
+  // Wire protocol constants bin/porcelain.js requires.
   ['main/contracts/protocol.js', 'main/contracts/protocol.js'],
   ['renderer', 'renderer'],
 ]
@@ -96,29 +96,28 @@ if (existsSync(chunksSrc)) {
   cpSync(chunksSrc, join(dist, 'main', 'chunks'), { recursive: true })
 }
 
-// CLI entry (npx porcelain-daemon serve …). Source of truth is scripts/daemon-cli.js;
+// Host launcher entry (npx @fabiofiorita/porcelain serve …). Source of truth is scripts/porcelain-host.js;
 // it resolves main/daemon/server.js relative to the installed package layout.
-const cliSrc = join(root, 'scripts', 'daemon-cli.js')
+const cliSrc = join(root, 'scripts', 'porcelain-host.js')
 if (!existsSync(cliSrc)) {
-  console.error('[daemon:dist] scripts/daemon-cli.js missing')
+  console.error('[daemon:dist] scripts/porcelain-host.js missing')
   process.exit(1)
 }
 const binDir = join(dist, 'bin')
 mkdirSync(binDir, { recursive: true })
-const cliDest = join(binDir, 'porcelain-daemon.js')
-// Install as .js (CJS) — package has no "type":"module", and the CLI is written
+const cliDest = join(binDir, 'porcelain.js')
+// Install as .js (CJS) — package has no "type":"module", and the host launcher is written
 // as plain CommonJS so require(server.js) works without createRequire.
 cpSync(cliSrc, cliDest)
 // Executable for direct bin invocation after npm install / npx.
 chmodSync(cliDest, 0o755)
 
-// `porcelain` is already taken on npm (unrelated plate templating package).
-// Publish as porcelain-daemon; bin name matches for `npx porcelain-daemon@latest`.
+// Publish the scoped package so the executable can use the unscoped `porcelain` name.
 const distPkg = {
-  name: 'porcelain-daemon',
+  name: '@fabiofiorita/porcelain',
   version: daemonPkg.version ?? desktopPkg.version,
   description:
-    'Headless Porcelain daemon — plain Node backend for remote machines (npx porcelain-daemon@latest serve)',
+    'Headless Porcelain daemon — plain Node backend for remote machines (npx @fabiofiorita/porcelain@latest serve)',
   license: desktopPkg.license ?? 'MIT',
   author: desktopPkg.author,
   repository: desktopPkg.repository,
@@ -126,7 +125,7 @@ const distPkg = {
   homepage: desktopPkg.homepage ?? 'https://github.com/FabioFiorita/porcelain',
   engines: { node: '>=22' },
   bin: {
-    'porcelain-daemon': 'bin/porcelain-daemon.js',
+    porcelain: 'bin/porcelain.js',
   },
   files: ['bin', 'main', 'renderer', 'README.md'],
   dependencies,
@@ -139,14 +138,16 @@ writeFileSync(join(dist, 'package.json'), `${JSON.stringify(distPkg, null, 2)}\n
 
 writeFileSync(join(dist, 'README.md'), readme(desktopPkg.version))
 
-console.log(`[daemon:dist] assembled dist-daemon/ (porcelain-daemon@${desktopPkg.version})`)
-console.log('[daemon:dist] try:   cd dist-daemon && npm install && npx porcelain-daemon serve')
+console.log(`[daemon:dist] assembled dist-daemon/ (@fabiofiorita/porcelain@${desktopPkg.version})`)
 console.log(
-  '[daemon:dist] pair:  npx porcelain-daemon access issue --name "My phone" --base-url http://127.0.0.1:43117',
+  '[daemon:dist] try:   cd dist-daemon && npm install && npx @fabiofiorita/porcelain serve',
+)
+console.log(
+  '[daemon:dist] pair:  npx @fabiofiorita/porcelain access issue --name "My phone" --base-url http://127.0.0.1:43117',
 )
 
 function readme(version) {
-  return `# porcelain-daemon (${version})
+  return `# @fabiofiorita/porcelain (${version})
 
 Headless **Porcelain** backend — the Electron-free daemon + renderer, packaged for
 plain Node on any machine (Linux mini-PC, cloud VM, laptop). Same credential-gated
@@ -157,7 +158,7 @@ HTTP/WS surface the Mac app and browser clients already talk to.
 On the remote host (Node ≥ 22, git, and a C toolchain for \`node-pty\`):
 
 \`\`\`sh
-npx porcelain-daemon@latest serve --lan --cloudflare
+npx @fabiofiorita/porcelain@latest serve --lan --cloudflare
 \`\`\`
 
 That:
@@ -176,7 +177,7 @@ when you're done.
 ### Pair a device
 
 \`\`\`sh
-npx porcelain-daemon@latest access issue --name "My phone"
+npx @fabiofiorita/porcelain@latest access issue --name "My phone"
 \`\`\`
 
 Open the printed connection link in a browser, or paste it into the Mac app's
@@ -184,18 +185,18 @@ Open the printed connection link in a browser, or paste it into the Mac app's
 an individually revocable device credential. Manage access only on the host:
 
 \`\`\`sh
-npx porcelain-daemon@latest access list
-npx porcelain-daemon@latest access revoke <id>
-npx porcelain-daemon@latest share status
+npx @fabiofiorita/porcelain@latest access list
+npx @fabiofiorita/porcelain@latest access revoke <id>
+npx @fabiofiorita/porcelain@latest share status
 \`\`\`
 
-## CLI
+## Host launcher
 
 \`\`\`text
-porcelain-daemon serve [options]
-porcelain-daemon access issue --name <device> [--base-url <url>]
-porcelain-daemon access list | revoke <id>
-porcelain-daemon share status | lan|tailnet|cloudflare on|off
+porcelain serve [options]
+porcelain access issue --name <device> [--base-url <url>]
+porcelain access list | revoke <id>
+porcelain share status
 
   --port <n>           Port (default 43117)
   --user-data <path>   Config dir (default ~/.local/share/porcelain)
@@ -222,7 +223,7 @@ Environment=PORCELAIN_DAEMON_PORT=43117
 Environment=PORCELAIN_ALLOWED_ORIGIN=http://hub-host:43118
 Environment=PORCELAIN_TAILNET_BIND=1
 Environment=PORCELAIN_NO_STDIN_WATCHDOG=1
-ExecStart=/usr/bin/npx --yes porcelain-daemon@latest serve --no-watchdog --tailnet
+ExecStart=/usr/bin/npx --yes @fabiofiorita/porcelain@latest serve --no-watchdog --tailnet
 Restart=on-failure
 \`\`\`
 
@@ -236,12 +237,14 @@ controls CORS response headers; every API and WebSocket request remains token-ga
 
 ## Agent access (MCP)
 
-The daemon serves the Model Context Protocol at \`POST /mcp\`, token-gated like every
-other route. Agents reach it through the Porcelain plugin rather than a binary this
-package installs:
+The daemon serves the Model Context Protocol at \`POST /mcp\` for direct loopback agent
+clients without an admin token. LAN, Tailscale, Cloudflare, and proxied requests receive
+404. Install the plugin through your client's native plugin manager. For an Agent Plugin client,
+add the repository \`FabioFiorita/porcelain\`; for Claude Code, use:
 
-\`\`\`sh
-npx plugins add FabioFiorita/porcelain
+\`\`\`text
+/plugin marketplace add FabioFiorita/porcelain
+/plugin install porcelain@porcelain
 \`\`\`
 
 Installing the plugin is the opt-in. The endpoint is always served, so upgrading the

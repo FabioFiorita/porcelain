@@ -33,6 +33,10 @@ function handle(event: ShellEvent, shellUtils: ShellUtils): Promise<unknown> {
       // REMOTE one — refresh the endpoint so its "This device" terminal session
       // re-points instead of talking to the dead port (useLocalDaemon re-points on data)
       return shellUtils.localDaemon.invalidate()
+    case 'remote-environments-changed':
+      // pairing/connect/disconnect/remove/endpoint healing changed the saved-environments
+      // list — refetch so useShellEnvironmentConnections re-points its live sessions
+      return shellUtils.environmentDaemonPairs.invalidate()
     case 'close-tab': {
       // Cmd+W routed from the main process before-input-event — close the active
       // tab, or the window if it was the last one.

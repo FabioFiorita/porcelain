@@ -15,6 +15,43 @@ export function applyTerminalRecovery(
   settleBackground(options.refetchRoster(), 'lifecycle')
 }
 
+/**
+ * A Terminal request failure, as an `Error`.
+ *
+ * The stream adapter used to reject with the bare typed failure object. Everything that
+ * catches a rejection ends in a toast whose description is `String(error)`, and on a plain
+ * object that reads "[object Object]" — which is what "New terminal failed" showed the human
+ * instead of a reason. Rejecting with this instead gives every current and future call site a
+ * sentence, while the `reason` (and `error`) own properties keep the typed classifiers below
+ * working on the same value.
+ */
+export class TerminalRequestError extends Error {
+  readonly reason: TerminalAdapterFailure['reason']
+  readonly error?: Extract<TerminalAdapterFailure, { reason: 'server' }>['error']
+
+  constructor(failure: TerminalAdapterFailure) {
+    super(terminalFailureMessage(failure))
+    this.name = 'TerminalRequestError'
+    this.reason = failure.reason
+    if (failure.reason === 'server') this.error = failure.error
+  }
+}
+
+/** One human sentence per way a Terminal request can fail. */
+export function terminalFailureMessage(failure: TerminalAdapterFailure): string {
+  switch (failure.reason) {
+    case 'not-requestable':
+    case 'closed':
+      return 'The connection to this Environment is not open. Reconnect and try again.'
+    case 'deadline':
+      return 'The daemon did not answer in time.'
+    case 'server':
+      return failure.error.message === ''
+        ? `The daemon refused the request (${failure.error.code}).`
+        : failure.error.message
+  }
+}
+
 function isTerminalFailure(error: unknown): error is TerminalAdapterFailure {
   if (typeof error !== 'object' || error === null || !('reason' in error)) return false
   if (

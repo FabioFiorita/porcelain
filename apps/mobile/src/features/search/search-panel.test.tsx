@@ -22,8 +22,28 @@ vi.mock('@/components/panel-chrome', () => {
       React.createElement('div', { 'data-testid': testID }, title),
     ErrorNote: ({ message, testID }: { message: string; testID?: string }) =>
       React.createElement('div', { 'data-testid': testID }, message),
+    // The idle panel carries the recents roster, which draws both of these.
+    IconAction: ({
+      accessibilityLabel,
+      onPress,
+      testID,
+    }: {
+      accessibilityLabel: string
+      onPress: () => void
+      testID?: string
+    }) =>
+      React.createElement('button', {
+        'aria-label': accessibilityLabel,
+        'data-testid': testID,
+        onClick: onPress,
+        type: 'button',
+      }),
+    PanelLabel: ({ children }: { children: string }) => React.createElement('div', null, children),
   }
 })
+// `RecentSearches` asks the shell whether it is inside a sheet; the shell reaches expo-router,
+// which reaches React Native, which this suite's jsdom parser cannot read.
+vi.mock('@/features/shell/shell-sheets', () => ({ useDismissSheet: () => () => {} }))
 vi.mock('@/components/ui/segmented-control', () => {
   const React = require('react') as typeof import('react')
   return {
@@ -78,6 +98,8 @@ vi.mock('@/components/surface-scroll', () => {
           React.createElement(React.Fragment, { key: index }, renderItem({ item })),
         ),
       ),
+    SurfaceScroll: ({ children, testID }: { children?: React.ReactNode; testID?: string }) =>
+      React.createElement('div', { 'data-testid': testID }, children),
   }
 })
 vi.mock('@/components/ui/input', () => {
