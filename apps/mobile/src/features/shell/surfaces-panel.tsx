@@ -250,7 +250,11 @@ function SurfaceStrip({
               accessibilityRole="tab"
               accessibilityState={{ selected }}
               className={cn(
-                'h-8 shrink-0 flex-row items-center gap-1.5 rounded-lg pl-2',
+                // `will-change-pressable`, the same reason `tab-bar.tsx` carries it: the class
+                // list gains `active:` only when a tab is NOT showing, and `react-native-css`
+                // resets the component and remounts its children when a pressable state appears
+                // after the first render. Metro logged it on every tab switch here.
+                'h-8 shrink-0 flex-row items-center gap-1.5 rounded-lg pl-2 will-change-pressable',
                 selected ? 'bg-accent pr-1' : 'pr-2 active:bg-accent/40',
               )}
               onPress={() => {
