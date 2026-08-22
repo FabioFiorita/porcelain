@@ -1,11 +1,9 @@
 import { useIsFocused, useRouter } from 'expo-router'
-import { useEffect } from 'react'
 import { View } from 'react-native'
 
 import { ScreenHeader } from '@/components/panel-chrome'
 
 import { HeaderActions } from './header-actions'
-import { useShellStore } from './shell-store'
 import { surfaceSlots } from './surface-slots'
 import { type SurfaceId, surfaceById } from './surfaces'
 import { ColumnChrome } from './window-chrome'
@@ -17,28 +15,29 @@ import { ColumnChrome } from './window-chrome'
  * to fit four tab slots. It is now reached through the Worktree that owns it, so the slot
  * pressure — and the dual-face store, and the re-tap-to-flip gesture — is gone.
  *
- * The header is drawn HERE, once, for all four surfaces. It was four sets of `title` /
- * `headerRight` options on the stack layout, which put the surface's name and the surface's
- * actions in a different file from the surface — and put them on a `UINavigationBar` that could
- * not be themed. The companion bolt appears only for a surface that has a companion panel, which
- * `surfaceSlots` already knows: Changes has none, on this client or on web.
+ * The header is drawn HERE, once, for **all six** surfaces. It was four sets of `title` /
+ * `headerRight` options on the stack layout plus two screens (Git, Canvas) that drew their own
+ * bar in their own file — which is how Git's back chevron and Files' back chevron ended up
+ * being two different components. The companion bolt appears only for a surface that has a
+ * companion sheet, which `surfaceSlots` already knows.
  *
  * `ColumnChrome` wraps the body because this screen has now drawn the top chrome. Files' own
  * breadcrumb band doubles as a header on the routes it owns and reads the same shell value to
  * decide; without this it would draw a second bar under the first.
+ *
+ * **Nothing is reported to the shell store from here.** It used to write `activeSurface` on
+ * focus, back when the tablet's trailing panel was a companion that followed whatever screen
+ * was in the viewer. That panel is the Surfaces strip now and owns its own tab; a screen
+ * writing into it would silently re-open a surface the human had just closed.
  */
 export function SurfaceScreen({ surface }: { surface: SurfaceId }): React.JSX.Element {
   const focused = useIsFocused()
   const router = useRouter()
-  const setActiveSurface = useShellStore((state) => state.setActiveSurface)
   const slots = surfaceSlots(surface)
-
-  useEffect(() => {
-    if (focused) setActiveSurface(surface)
-  }, [focused, setActiveSurface, surface])
+  const Body = slots.phone
 
   return (
-    <View className="flex-1 bg-background">
+    <View className="flex-1 bg-background" testID={`porcelain-${surface}-screen`}>
       <ScreenHeader
         actions={
           <HeaderActions companionSurface={slots.companion === undefined ? undefined : surface} />
@@ -54,7 +53,7 @@ export function SurfaceScreen({ surface }: { surface: SurfaceId }): React.JSX.El
         title={surfaceById(surface).label}
       />
       <ColumnChrome>
-        <slots.phone />
+        <Body active={focused} />
       </ColumnChrome>
     </View>
   )

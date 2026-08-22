@@ -6,7 +6,7 @@ import { IconAction } from '@/components/panel-chrome'
 
 import { DESTINATIONS } from './destinations'
 import { useShellStore } from './shell-store'
-import { SidebarInspector } from './tablet-inspector'
+import { SurfacesPanel } from './surfaces-panel'
 import { TabletSidebar } from './tablet-sidebar'
 import { HUB_SIDEBAR_WIDTH } from './shell-layout'
 import { useShellLayout } from './use-app-window'
@@ -17,20 +17,25 @@ import { ColumnChrome, ShellControls } from './window-chrome'
  *
  * ```
  *  ┌────────────┬───────────────────────────┬──────────────┐
- *  │ Porcelain  │  ╭─────────────────────╮  │  Companion   │
- *  │ Search     │  │ ScreenHeader        │  │              │
- *  │ Terminals  │  │                     │  │              │
- *  │ Tasks      │  │  the routed stack   │  │              │
- *  │ WORKTREES  │  │                     │  │              │
- *  │  …         │  ╰─────────────────────╯  │              │
+ *  │ Porcelain  │  ╭─────────────────────╮  │ Files ⨯ Chg ⨯│
+ *  │ Search     │  │ ScreenHeader        │  ├──────────────┤
+ *  │ Terminals  │  │                     │  │  the active  │
+ *  │ Tasks      │  │  the routed stack   │  │  surface's   │
+ *  │ WORKTREES  │  │  (file · diff ·     │  │  list        │
+ *  │  …         │  ╰──commit · Canvas)───╯  │              │
  *  │ Settings   │                           │              │
  *  └────────────┴───────────────────────────┴──────────────┘
  * ```
  *
  * This is `app-shell.tsx` from `apps/web`, pane for pane: a navigation sidebar, a rounded
- * `bg-card` viewer with its own header, and a surface panel on the trailing edge. The iPad has
- * been handed phone layouts stretched to 1024pt for years and this product is not going to be
- * another one — the human's words were that it is time to come hard on it.
+ * `bg-card` viewer with its own header, and the Surfaces panel on the trailing edge. The iPad
+ * has been handed phone layouts stretched to 1024pt for years and this product is not going to
+ * be another one — the human's words were that it is time to come hard on it.
+ *
+ * **The trailing panel holds the surfaces, not a companion.** Files, Changes, History, Git,
+ * Search and Canvas are tabs of that panel and their rows open detail into the viewer — the Mac
+ * app's arrangement exactly. They used to be six rows the Worktree screen pushed INTO the
+ * viewer, which spent the iPad's centre column on a menu; see `surfaces-panel.tsx`.
  *
  * **There is no tab bar here, and the tabs are still what runs it.** `Tabs` stays mounted, its
  * `TabList` is present but hidden, and the sidebar's rows are `TabTrigger`s that address the
@@ -111,7 +116,7 @@ export function TabletShell(): React.JSX.Element {
               trailing={
                 layout === 'split' ? (
                   <IconAction
-                    accessibilityLabel="Toggle the companion panel"
+                    accessibilityLabel="Toggle the Surfaces panel"
                     glyph="panelRight"
                     selected={inspectorOpen}
                     testID="porcelain-tablet-toggle-inspector"
@@ -128,7 +133,7 @@ export function TabletShell(): React.JSX.Element {
 
         {layout === 'split' && inspectorOpen ? (
           <View style={{ width: HUB_SIDEBAR_WIDTH }}>
-            <SidebarInspector onClose={toggleInspector} />
+            <SurfacesPanel onClose={toggleInspector} />
           </View>
         ) : null}
       </View>

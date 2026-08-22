@@ -7,6 +7,6 @@ export {
   canvasLinkHref,
   canvasNavigationAllowed,
 } from './canvas-document'
-export { CanvasListScreen } from './canvas-list-screen'
+export { CanvasSurfacePanel } from './canvas-surface-panel'
 export { CanvasScreen } from './canvas-screen'
 export { CanvasWebView } from './canvas-web-view'
