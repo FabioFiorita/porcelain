@@ -1,11 +1,15 @@
 import { useSyncExternalStore } from 'react'
 import { createDaemonSession, type DaemonEndpoint, type DaemonSession, primary } from './daemon'
+import { isBrowser } from './platform'
 import { createAppClientFor } from './trpc'
 
 /**
- * A browser client may keep more than one authenticated daemon session in one Hub.
- * Credentials are deliberately client-local: the daemon remains the authority for its
- * own identity and records, and no token is ever sent through another daemon.
+ * A client may keep more than one authenticated daemon session in one Hub. Credentials are
+ * deliberately client-local: the daemon remains the authority for its own identity and
+ * records, and no token is ever sent through another daemon.
+ *
+ * Named for the browser because that runtime pairs and stores its own connections; Electron
+ * uses the same shape, handed over by the shell (`setShellEnvironmentConnections`).
  */
 export type BrowserEnvironmentConnection = Readonly<{
   id: string
@@ -220,6 +224,73 @@ export async function addBrowserEnvironmentConnection(
   }
 }
 
+/**
+ * The connection id an Electron window uses for This device. The shell names the local daemon
+ * `null` (its own identity for it), but a connection is keyed by string here, and `null`
+ * already means "this window's own daemon" everywhere in this module.
+ */
+const THIS_DEVICE_CONNECTION_ID = 'this-device'
+
+/** This registry's connection id for one SHELL Environment id (`null` = This device). */
+export function shellConnectionId(environmentId: string | null): string {
+  return environmentId ?? THIS_DEVICE_CONNECTION_ID
+}
+
+/**
+ * The Electron half of the same list. A browser keeps its connections in `localStorage`
+ * because it paired them itself; the shell already holds the saved Environments and their
+ * credentials, so it hands the reachable ones over (`environmentConnections`) and this module
+ * treats them exactly like browser connections. Kept in memory only — the shell is the
+ * authority, and a stale copy in storage would outlive a removed Environment.
+ */
+let shellConnections: readonly BrowserEnvironmentConnection[] = []
+
+/**
+ * Replace the shell-provided connection set. Sessions are re-pointed, never rebuilt, when an
+ * Environment moves to another endpoint — a rebuild would drop every live PTY attached to it,
+ * and this query refetches on focus. Sessions for Environments that dropped off the list are
+ * stopped.
+ */
+export function setShellEnvironmentConnections(
+  connections: readonly BrowserEnvironmentConnection[],
+): void {
+  const unchanged =
+    shellConnections.length === connections.length &&
+    shellConnections.every((current, index) => {
+      const next = connections[index]
+      return (
+        next !== undefined &&
+        next.id === current.id &&
+        next.name === current.name &&
+        next.url === current.url &&
+        next.token === current.token
+      )
+    })
+  if (unchanged) return
+  shellConnections = connections
+  const ids = new Set(connections.map((connection) => connection.id))
+  for (const [environmentId, connectionId] of environmentAliases) {
+    if (!ids.has(connectionId)) environmentAliases.delete(environmentId)
+  }
+  removeStaleEnvironmentSessions(ids)
+  // Re-point what is already live; nothing is opened here. A window with no cross-Environment
+  // panel on screen should not hold a socket to every machine the human owns.
+  for (const connection of connections) {
+    if (secondarySessions.has(connection.id)) ensureEnvironmentSession(connection)
+  }
+  notifyEnvironmentSessionChange()
+}
+
+/**
+ * Every Environment this client can open its own session to, whichever runtime it is in.
+ * Browser: the connections it paired and stored. Electron: what the shell handed over.
+ */
+export function environmentConnections(
+  revision = environmentSessionRevision,
+): readonly BrowserEnvironmentConnection[] {
+  return isBrowser ? browserEnvironmentConnections(revision) : shellConnections
+}
+
 const secondarySessions = new Map<string, EnvironmentSession>()
 let primaryClient: ReturnType<typeof createAppClientFor> | null = null
 const environmentAliases = new Map<string, string>()
@@ -288,7 +359,7 @@ export function liveEnvironmentSessions(
     session: primary,
     client: primaryAppClient(),
   }
-  const secondary = browserEnvironmentConnections().map((connection) => {
+  const secondary = environmentConnections().map((connection) => {
     const entry = ensureEnvironmentSession(connection)
     return {
       environmentId: environmentAliasesForConnection(connection.id) ?? connection.id,
@@ -319,7 +390,7 @@ export function environmentSessionFor(environmentId: string | null): Environment
     }
   }
   const connectionId = environmentAliases.get(environmentId) ?? environmentId
-  const connections = browserEnvironmentConnections()
+  const connections = environmentConnections()
   const connection = connections.find((item) => item.id === connectionId)
   return connection === undefined ? null : ensureEnvironmentSession(connection)
 }
@@ -334,7 +405,7 @@ export function environmentSessionForHubTarget(
 ): EnvironmentSession | null {
   const direct = environmentSessionFor(environmentId)
   if (direct !== null || environmentId === null || primaryEnvironmentId !== null) return direct
-  if (browserEnvironmentConnections().some((connection) => connection.id === environmentId)) {
+  if (environmentConnections().some((connection) => connection.id === environmentId)) {
     return null
   }
   return {

@@ -6,6 +6,7 @@ import {
   ensureEnvironmentSession,
   registerEnvironmentAlias,
   setPrimaryEnvironmentId,
+  shellConnectionId,
   useEnvironmentSessionsRevision,
 } from '@renderer/lib/environment-sessions'
 import { isBrowser } from '@renderer/lib/platform'
@@ -85,6 +86,17 @@ export function useHubInventories(): readonly HubInventoryView[] {
     if (isBrowser) return
     const local = shellQuery.data?.find((source) => source.current)
     if (local !== undefined) setPrimaryEnvironmentId(local.inventory.environment.id)
+    // The shell names Environments by ITS ids (null = This device); every Hub row, selection,
+    // and query key names them by the daemon-announced id. This fan-out is the one place both
+    // appear together, so it is where the two are tied — without it the sessions the shell
+    // handed over (`useShellEnvironmentConnections`) can never be resolved from a Hub target.
+    for (const source of shellQuery.data ?? []) {
+      if (source.current) continue
+      registerEnvironmentAlias(
+        source.inventory.environment.id,
+        shellConnectionId(source.environmentId),
+      )
+    }
   }, [shellQuery.data])
   useEffect(() => {
     for (const [index, query] of secondaryQueries.entries()) {

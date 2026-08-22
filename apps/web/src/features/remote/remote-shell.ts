@@ -4,8 +4,12 @@ import { SHELL_HUB_INVENTORIES_QUERY_KEY } from '@renderer/features/projects/hub
 import { onMutationError } from '@renderer/hooks/mutation-error'
 import { isBrowser } from '@renderer/lib/platform'
 import { shellTrpc, trpc } from '@renderer/lib/trpc'
+import {
+  setShellEnvironmentConnections,
+  shellConnectionId,
+} from '@renderer/lib/environment-sessions'
 import { useQueryClient } from '@tanstack/react-query'
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 
 /**
  * One address of an environment group (one identity, many endpoints). `preferred`
@@ -123,6 +127,33 @@ export function useRemoteEnvironments():
   | undefined {
   const { data } = shellTrpc.remoteEnvironments.useQuery(undefined, { enabled: !isBrowser })
   return data
+}
+
+/**
+ * Feed the shell's reachable Environments into the session registry, so an Electron window
+ * can open its own session to a daemon it is not bound to — the browser has done this from
+ * its own stored connections since Hub fan-out shipped.
+ *
+ * Mounted ONCE, in AppShell. Sessions are not started here: the registry hands one out when a
+ * panel actually addresses that Environment.
+ */
+export function useShellEnvironmentConnections(): void {
+  const { data } = shellTrpc.environmentConnections.useQuery(undefined, {
+    enabled: !isBrowser,
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
+  })
+  useEffect(() => {
+    if (isBrowser || data === undefined) return
+    setShellEnvironmentConnections(
+      data.map((connection) => ({
+        id: shellConnectionId(connection.id),
+        name: connection.name,
+        url: connection.url,
+        token: connection.token,
+      })),
+    )
+  }, [data])
 }
 
 export function useEnvironmentStatuses(): Map<string | null, EnvironmentStatus> {

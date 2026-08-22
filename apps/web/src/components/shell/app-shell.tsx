@@ -3,7 +3,7 @@ import { Toaster } from '@renderer/components/ui/sonner'
 import { useActionsNotificationSubscription } from '@renderer/features/actions'
 import { useFilesInterestBridge, useFilesNotificationSubscription } from '@renderer/features/files'
 import { useGitNotificationSubscription } from '@renderer/features/git'
-import { useEnvironmentStatuses } from '@renderer/features/remote'
+import { useEnvironmentStatuses, useShellEnvironmentConnections } from '@renderer/features/remote'
 import { useReviewCommentNotificationSubscription } from '@renderer/features/review'
 import {
   ContentSearch,
@@ -138,6 +138,9 @@ export function AppShell(): React.JSX.Element {
   useActionsNotificationSubscription()
   useFilesInterestBridge()
   useEnvironmentStatuses()
+  // Hands this window a session to every OTHER reachable Environment (Electron only), which is
+  // what lets Terminals, the Project browser, and Hub panels address a daemon it is not bound to.
+  useShellEnvironmentConnections()
   useThemeSync()
   useDocumentTitle()
   useTerminalRoster()

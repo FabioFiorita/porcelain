@@ -37,4 +37,5 @@ export {
   useRemoveEnvironmentEndpoint,
   useRemoveRemoteEnvironment,
   useRenameEnvironment,
+  useShellEnvironmentConnections,
 } from './remote-shell'

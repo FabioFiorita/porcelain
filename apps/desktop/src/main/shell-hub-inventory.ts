@@ -3,12 +3,8 @@ import { createTRPCUntypedClient, httpLink } from '@trpc/client'
 import { z } from 'zod'
 import { localDaemonPair } from './daemon'
 import { daemonHeaders } from './daemon-headers'
-import {
-  loadRemoteEnvironmentState,
-  orderedEndpoints,
-  type RemoteEnvironment,
-} from './remote-daemon'
-import { probeEnvironment } from './shell-environments'
+import { loadRemoteEnvironmentState, type RemoteEnvironment } from './remote-daemon'
+import { liveEndpoint, probeEnvironment } from './shell-environments'
 
 /** One validated inventory plus the shell identity needed to route its actions safely. */
 export type ShellHubInventory = Readonly<{
@@ -27,17 +23,11 @@ const shellHubInventorySchema = z
   })
   .strict()
 
-/** Find a healthy endpoint in preference order; an unauthorized credential is shared by routes. */
-async function liveEndpoint(env: RemoteEnvironment): Promise<string | null> {
-  for (const url of orderedEndpoints(env)) {
-    const { state } = await probeEnvironment(url, env.token)
-    if (state === 'online') return url
-    if (state === 'unauthorized') return null
-  }
-  return null
-}
-
-/** Read one already-probed daemon inventory without allowing its token into the renderer. */
+/**
+ * Read one already-probed daemon inventory. The fan-out is a main-process read: this path
+ * never puts the credential in the response. A renderer that needs its OWN session to that
+ * Environment asks for one explicitly (`environmentConnections` in shell-environments.ts).
+ */
 async function readHubInventory(url: string, token: string): Promise<HubInventory | null> {
   try {
     const client = createTRPCUntypedClient({
