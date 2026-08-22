@@ -15,6 +15,8 @@ type ChangesState = {
   setScope: (scope: ChangesScope) => void
   openFile: (path: string) => void
   openAll: () => void
+  /** Nothing open — see `WorktreeResetBridge`. */
+  reset: () => void
 }
 
 /**
@@ -41,5 +43,9 @@ export const useChangesStore = create<ChangesState>()((set) => ({
   },
   openAll: () => {
     set({ selection: { kind: 'all' } })
+  },
+  reset: () => {
+    // `scope` survives: working-vs-branch is the reader's setting, not this checkout's.
+    set({ selection: null })
   },
 }))

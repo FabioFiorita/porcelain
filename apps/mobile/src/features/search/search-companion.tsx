@@ -2,36 +2,23 @@ import { Pressable, ScrollView, Text, View } from 'react-native'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { IconAction, PanelLabel } from '@/components/panel-chrome'
-import { useIsTablet } from '@/features/shell/use-app-window'
+import { useDismissSheet } from '@/features/shell/shell-sheets'
 import { pathTestId } from '@/lib/path-identities'
 
 import { useSearchStore } from './search-store'
-import { useDismissSheet } from '@/features/shell/shell-sheets'
 
 /**
  * The Search companion — "Recent searches", the same roster the web rail carries.
  *
- * Search shares Files' viewer but not its companion: pinned paths and repo notes answer "where
- * do I work", and the question you have while searching is "what did I just look for".
+ * On a phone this is the bolt sheet's whole content. On a tablet there is no companion column
+ * any more, so `RecentSearches` is mounted by the Search panel itself, in the space an empty
+ * query leaves — which is the moment the list is worth reading and the only moment it is not
+ * competing with results.
  *
  * Client-only and unpersisted, like the desktop's: a search session is ephemeral, and a query
- * from a previous cold start is rarely the one you want back. Reads nothing from the daemon,
- * so it needs no `active` flag.
+ * from a previous cold start is rarely the one you want back.
  */
 export function SearchCompanion(): React.JSX.Element {
-  const recent = useSearchStore((state) => state.recentSearches)
-  const setQuery = useSearchStore((state) => state.setQuery)
-  const forgetSearch = useSearchStore((state) => state.forgetSearch)
-  const closeSheet = useDismissSheet()
-  const isTablet = useIsTablet()
-
-  // The tablet's inspector sits beside the results, so re-running a query leaves it open. The
-  // phone's sheet covers the field it just filled, so it gets out of the way.
-  const run = (query: string): void => {
-    setQuery(query)
-    if (!isTablet) closeSheet()
-  }
-
   return (
     <ScrollView
       className="flex-1"
@@ -41,6 +28,29 @@ export function SearchCompanion(): React.JSX.Element {
       showsVerticalScrollIndicator={false}
       testID="porcelain-search-companion"
     >
+      <RecentSearches />
+    </ScrollView>
+  )
+}
+
+/**
+ * The roster itself. Running one dismisses the host if it is covering something — the phone's
+ * bolt sheet — and stays put in a panel, where the results appear beside the list that asked
+ * for them. `useDismissSheet` is inert outside a sheet, so this is one code path.
+ */
+export function RecentSearches(): React.JSX.Element | null {
+  const recent = useSearchStore((state) => state.recentSearches)
+  const setQuery = useSearchStore((state) => state.setQuery)
+  const forgetSearch = useSearchStore((state) => state.forgetSearch)
+  const closeSheet = useDismissSheet()
+
+  const run = (query: string): void => {
+    setQuery(query)
+    closeSheet()
+  }
+
+  return (
+    <View className="gap-2" testID="porcelain-search-recent">
       <PanelLabel>
         {recent.length > 0 ? `Recent searches · ${recent.length}` : 'Recent searches'}
       </PanelLabel>
@@ -83,6 +93,6 @@ export function SearchCompanion(): React.JSX.Element {
           ))}
         </View>
       )}
-    </ScrollView>
+    </View>
   )
 }
