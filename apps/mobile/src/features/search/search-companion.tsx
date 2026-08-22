@@ -38,7 +38,17 @@ export function SearchCompanion(): React.JSX.Element {
  * bolt sheet — and stays put in a panel, where the results appear beside the list that asked
  * for them. `useDismissSheet` is inert outside a sheet, so this is one code path.
  */
-export function RecentSearches(): React.JSX.Element | null {
+export function RecentSearches({
+  compact = false,
+}: {
+  /**
+   * Stacked under the panel's own idle note: draw nothing until there is something to draw.
+   * Two explanatory paragraphs before the reader has typed anything is worse than one, and the
+   * sheet — which they opened on purpose, to see this list — is the place the explanation earns
+   * its space. Same rule, and the same reason, as `PinnedSection`'s.
+   */
+  compact?: boolean
+} = {}): React.JSX.Element | null {
   const recent = useSearchStore((state) => state.recentSearches)
   const setQuery = useSearchStore((state) => state.setQuery)
   const forgetSearch = useSearchStore((state) => state.forgetSearch)
@@ -48,6 +58,8 @@ export function RecentSearches(): React.JSX.Element | null {
     setQuery(query)
     closeSheet()
   }
+
+  if (compact && recent.length === 0) return null
 
   return (
     <View className="gap-2" testID="porcelain-search-recent">

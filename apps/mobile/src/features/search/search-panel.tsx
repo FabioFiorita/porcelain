@@ -213,7 +213,7 @@ export function SearchPanel({
             testID="porcelain-search-idle"
             title="Search the repo"
           />
-          <RecentSearches />
+          <RecentSearches compact />
         </SurfaceScroll>
       ) : !found ? (
         <Text
