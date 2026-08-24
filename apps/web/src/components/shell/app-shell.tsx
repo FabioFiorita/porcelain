@@ -12,6 +12,7 @@ import {
 } from '@renderer/features/search'
 import { NewTaskDialog, useTasksNotificationSubscription } from '@renderer/features/tasks'
 import { useEnvironmentTerminalStreams, useTerminalRoster } from '@renderer/features/terminal'
+import { TerminalPanel } from '@renderer/components/terminal/terminal-panel'
 import { useDocumentTitle } from '@renderer/hooks/use-document-title'
 import { useResponsiveShell } from '@renderer/hooks/use-responsive-shell'
 import { useSessionRuntime } from '@renderer/hooks/use-session-runtime'
@@ -109,6 +110,7 @@ function RepoShell(): React.JSX.Element {
           <div className="min-h-0 flex-1">
             <Viewer />
           </div>
+          <TerminalPanel />
         </div>
         <RightSidebar />
       </SidebarProvider>
@@ -143,8 +145,9 @@ export function AppShell(): React.JSX.Element {
   useThemeSync()
   useDocumentTitle()
   useTerminalRoster()
-  // One live terminal stream per Environment, for the whole window: the Terminals board
-  // renders every machine's shells and must never open a second subscriber for one.
+  // One live terminal stream per Environment, for the whole window. Saved Actions and a
+  // selected Worktree on another machine still write through that session; a second
+  // `receiveData` subscriber would paint every byte twice.
   useEnvironmentTerminalStreams()
 
   useEffect(() => {

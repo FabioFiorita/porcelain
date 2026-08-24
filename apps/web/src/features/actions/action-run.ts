@@ -62,8 +62,8 @@ export function useActionRun(): (
     if (!prepared.ok) return 'needs-local-path'
 
     const { where, cwd, name, initialInput } = prepared.value
-    // A run reveals its shell on Terminals, and this roster is a popover over the Viewer —
-    // leaving it open would cover the very terminal the human just started.
+    // A run reveals its shell in the bottom panel, and this roster is a popover over the
+    // Viewer — leaving it open would cover the very terminal the human just started.
     const closeMenu = (): void => {
       useActionRunStore.getState().setMenuOpen(false)
     }

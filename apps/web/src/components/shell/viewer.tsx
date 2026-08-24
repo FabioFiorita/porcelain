@@ -12,7 +12,6 @@ import { FileContent } from '@renderer/components/viewer/file-content'
 import { SearchView } from '@renderer/components/viewer/search-view'
 import { CanvasView } from '@renderer/features/projects'
 import { TasksView } from '@renderer/features/tasks'
-import { TerminalsBoard } from '@renderer/components/terminal/terminals-board'
 import { cn } from '@renderer/lib/utils'
 import { HubRepoProvider } from '@renderer/stores/hub-repo'
 import { usePreferencesStore } from '@renderer/stores/preferences'
@@ -69,10 +68,6 @@ function PaneContent({ tab, paneIndex }: { tab: Tab; paneIndex: number }): React
       // Deliberately target-free: the table spans every Environment, so it renders the
       // same thing whichever Worktree the Hub happens to have selected.
       return <TasksView />
-    case 'terminals':
-      // Daemon-wide like Tasks: the board lists every live shell on this daemon, so it
-      // renders the same thing whichever Worktree the Hub has selected.
-      return <TerminalsBoard />
     case 'file':
       return (
         <FileContent

@@ -188,29 +188,24 @@ export const TestIds = {
   terminalContextAttachFile: 'terminal-context-attach-file',
   terminalContextSelectAll: 'terminal-context-select-all',
   terminalContextClear: 'terminal-context-clear',
-  /** Machine picker item shown when the window is bound to a REMOTE daemon. */
+  /** Header button that toggles the bottom terminal panel. */
+  toggleTerminalPanel: 'toggle-terminal-panel',
+  // --- Bottom terminal panel (the checkout's own shells) ---
+  terminalNew: 'terminal-new',
+  terminalPanel: 'terminal-panel',
+  terminalResize: 'terminal-resize',
+  /** One session tab in the panel. */
+  terminalTab: (id: string): string => `terminal-tab-${id}`,
+  /** Machine picker items when the window is bound to a REMOTE daemon. */
+  terminalNewRemote: 'terminal-new-remote',
   terminalNewLocal: 'terminal-new-local',
   localTerminalPathInput: 'local-terminal-path-input',
   localTerminalPathSave: 'local-terminal-path-save',
   /**
-   * Header icon left of "+" on a remote-bound Terminals board — set/change the local
-   * clone path used by "This device" shells and local-targeted actions.
+   * Icon next to "+" on the bottom terminal panel — set/change the local clone path used
+   * by "This device" shells and local-targeted actions.
    */
   localTerminalPathButton: 'local-terminal-path-button',
-  // --- Terminals board (the one terminal surface: daemon-wide, cross-project) ---
-  terminalsOpen: 'terminals-open',
-  terminalsBoard: 'terminals-board',
-  terminalsBoardEmpty: 'terminals-board-empty',
-  terminalsBoardNew: 'terminals-board-new',
-  terminalsBoardNewAt: (key: string): string => `terminals-board-new-at-${key}`,
-  terminalsBoardGrid: 'terminals-board-grid',
-  /** One Environment's block in the Terminals list. 'current' = the window's own daemon. */
-  terminalsBoardEnvironmentSection: (id: string): string => `terminals-board-env-${id}`,
-  terminalsBoardGroup: (key: string): string => `terminals-board-group-${key}`,
-  terminalsBoardSession: (id: string): string => `terminals-board-session-${id}`,
-  terminalsBoardClose: (id: string): string => `terminals-board-close-${id}`,
-  /** herdr / tmux on the Environment row. */
-  terminalsBoardEnvironmentShell: (key: string): string => `terminals-board-environment-${key}`,
 
   actionsEmpty: 'actions-empty',
   actionsAdd: 'actions-add',

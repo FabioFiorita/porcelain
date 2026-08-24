@@ -57,7 +57,7 @@ const session = (
 })
 
 const seed = (...sessions: TerminalSession[]): void =>
-  useTerminalsStore.setState({ sessions, focusedId: null })
+  useTerminalsStore.setState({ sessions, panelOpen: false, panelSessionId: null })
 
 const sessions = (): TerminalSession[] => useTerminalsStore.getState().sessions
 
@@ -158,12 +158,12 @@ describe('useTerminalsStore create vs hydrate race', () => {
   /**
    * The bug this exists for: opening a terminal in another Worktree typed into the previous
    * one. `create` resolves before any roster knows the PTY exists, so the very next hydrate
-   * — built from a snapshot issued BEFORE the create — erased the row, and the surface fell
+   * — built from a snapshot issued BEFORE the create — erased the row, and the panel fell
    * back to the first session it could still see.
    */
   it('holds a just-created row through a roster snapshot that predates it', async () => {
     await useTerminalsStore.getState().create({ cwd: '/repo/new', name: 'Terminal 9' })
-    const created = useTerminalsStore.getState().focusedId
+    const created = useTerminalsStore.getState().panelSessionId
     expect(created).not.toBeNull()
 
     useTerminalsStore.getState().hydrate([session('t1', 'zsh')])
@@ -173,12 +173,12 @@ describe('useTerminalsStore create vs hydrate race', () => {
         .map((s) => s.id)
         .sort(),
     ).toEqual(['t1', created].sort())
-    expect(useTerminalsStore.getState().focusedId).toBe(created)
+    expect(useTerminalsStore.getState().panelSessionId).toBe(created)
   })
 
   it('retires the guard once a roster actually lists the row', async () => {
     await useTerminalsStore.getState().create({ cwd: '/repo/new', name: 'Terminal 9' })
-    const created = useTerminalsStore.getState().focusedId ?? ''
+    const created = useTerminalsStore.getState().panelSessionId ?? ''
 
     // The daemon agrees the session exists: from here the roster is authoritative again, so
     // a later snapshot that drops it (another window killed it) really does drop it.
@@ -190,36 +190,81 @@ describe('useTerminalsStore create vs hydrate race', () => {
 
   it('lets an explicit close beat the guard — a killed row never comes back', async () => {
     await useTerminalsStore.getState().create({ cwd: '/repo/new', name: 'Terminal 9' })
-    const created = useTerminalsStore.getState().focusedId ?? ''
+    const created = useTerminalsStore.getState().panelSessionId ?? ''
 
     useTerminalsStore.getState().close(created)
     useTerminalsStore.getState().hydrate([session('t1', 'zsh')])
 
     expect(sessions().map((s) => s.id)).toEqual(['t1'])
-    expect(useTerminalsStore.getState().focusedId).toBeNull()
+    expect(useTerminalsStore.getState().panelSessionId).toBe('t1')
   })
 })
 
-describe('useTerminalsStore focus', () => {
+describe('useTerminalsStore panel', () => {
   beforeEach(() => {
     seed()
     __resetTerminalTombstonesForTests()
   })
 
-  it('holds an id the roster does not own, so a cross-project row can be shown', () => {
-    seed(session('t1', 'zsh'))
-    useTerminalsStore.getState().focus('elsewhere-on-this-daemon')
-    expect(useTerminalsStore.getState().focusedId).toBe('elsewhere-on-this-daemon')
+  it('opens with a spawn and shows its tab', async () => {
+    expect(useTerminalsStore.getState().panelOpen).toBe(false)
+    await useTerminalsStore.getState().create({ cwd: '/repo/new', name: 'Terminal 1' })
+    expect(useTerminalsStore.getState().panelOpen).toBe(true)
+    expect(useTerminalsStore.getState().panelSessionId).toBe('created-id')
   })
 
-  it('releases focus when the focused session is killed, and leaves another alone', () => {
-    seed(session('t1', 'zsh'), session('t2', 'bash'))
-    useTerminalsStore.getState().focus('t1')
-    useTerminalsStore.getState().close('t1')
-    expect(useTerminalsStore.getState().focusedId).toBeNull()
+  it('toggle opens onto an existing session and closePanel hides without dropping rows', () => {
+    seed(session('t1', 'zsh'))
+    useTerminalsStore.setState({ panelSessionId: 't1' })
+    useTerminalsStore.getState().togglePanel()
+    expect(useTerminalsStore.getState().panelOpen).toBe(true)
+    useTerminalsStore.getState().closePanel()
+    expect(useTerminalsStore.getState().panelOpen).toBe(false)
+    expect(sessions().map((s) => s.id)).toEqual(['t1'])
+  })
 
-    useTerminalsStore.getState().focus('t2')
-    useTerminalsStore.getState().close('nope')
-    expect(useTerminalsStore.getState().focusedId).toBe('t2')
+  it('setPanelSession switches tabs and opens; unknown ids are ignored', () => {
+    seed(session('t1', 'zsh'))
+    useTerminalsStore.getState().setPanelSession('nope')
+    expect(useTerminalsStore.getState().panelSessionId).toBeNull()
+    useTerminalsStore.getState().setPanelSession('t1')
+    expect(useTerminalsStore.getState().panelSessionId).toBe('t1')
+    expect(useTerminalsStore.getState().panelOpen).toBe(true)
+  })
+
+  it('followSession points the tab WITHOUT opening the panel (lifecycle scripts)', () => {
+    seed(session('t1', 'zsh'))
+    useTerminalsStore.getState().followSession('t1')
+    expect(useTerminalsStore.getState().panelSessionId).toBe('t1')
+    expect(useTerminalsStore.getState().panelOpen).toBe(false)
+  })
+
+  it('closing the shown session moves to the next row; closing the last hides the panel', () => {
+    seed(session('t1', 'zsh'), session('t2', 'bash'))
+    useTerminalsStore.setState({ panelOpen: true, panelSessionId: 't1' })
+    useTerminalsStore.getState().close('t1')
+    expect(useTerminalsStore.getState().panelSessionId).toBe('t2')
+
+    useTerminalsStore.getState().close('t2')
+    expect(useTerminalsStore.getState().panelOpen).toBe(false)
+    expect(useTerminalsStore.getState().panelSessionId).toBeNull()
+  })
+
+  it('hydrate re-points the panel when its session left the roster', () => {
+    seed(session('t2', 'bash'))
+    useTerminalsStore.setState({ panelOpen: true, panelSessionId: 'gone' })
+    useTerminalsStore.getState().hydrate([session('t2', 'bash')])
+    expect(useTerminalsStore.getState().panelSessionId).toBe('t2')
+  })
+
+  it('reset clears the panel state with the roster', () => {
+    seed(session('t1', 'zsh'))
+    useTerminalsStore.setState({ panelOpen: true, panelSessionId: 't1' })
+    useTerminalsStore.getState().reset()
+    expect(useTerminalsStore.getState()).toMatchObject({
+      sessions: [],
+      panelOpen: false,
+      panelSessionId: null,
+    })
   })
 })

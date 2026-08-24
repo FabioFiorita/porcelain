@@ -2,12 +2,16 @@ import { Button } from '@renderer/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@renderer/components/ui/popover'
 import { useSidebar } from '@renderer/components/ui/sidebar'
 import { ActionsGroup, useActionRunStore } from '@renderer/features/actions'
+import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { isModExclusive, isTextEntry, kbdLabel } from '@renderer/lib/keyboard'
 import { isMacShell } from '@renderer/lib/platform'
+import { toggleTerminalPanel } from '@renderer/lib/terminal-actions'
 import { cn } from '@renderer/lib/utils'
 import { useTabsStore } from '@renderer/stores/tabs'
+import { useTerminalsStore } from '@renderer/stores/terminals'
+import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
-import { PanelLeft, PanelRight, Zap } from 'lucide-react'
+import { PanelBottom, PanelLeft, PanelRight, Zap } from 'lucide-react'
 import { useEffect } from 'react'
 import { MAC_TRAFFIC_LIGHT_CLEARANCE } from './shell-chrome'
 import { ShortcutTooltip } from './shortcut-tooltip'
@@ -24,7 +28,7 @@ interface LeftSidebarHandle {
  *
  * They run in the selected Worktree wherever they are started from, so the roster does not
  * belong to one surface: a popover leaves whatever you were reading on screen, and running
- * one still lands you on Terminals, where its shell is.
+ * one still opens the bottom panel onto its shell.
  */
 function ActionsMenu(): React.JSX.Element {
   // Store-owned, not local state: the file finder opens this popover too, to hand back a
@@ -84,6 +88,7 @@ export function ViewerHeader({ left }: { left: LeftSidebarHandle }): React.JSX.E
   const crumbs = useViewerBreadcrumb()
   const paneCount = useTabsStore((s) => s.panes.length)
   const activePaneIndex = useTabsStore((s) => s.activePaneIndex)
+  const panelOpen = useTerminalsStore((s) => s.panelOpen)
   const rightActive = isMobile ? openMobile : rightOpen
   const handleToggleRight = (): void => {
     toggleRight()
@@ -140,6 +145,23 @@ export function ViewerHeader({ left }: { left: LeftSidebarHandle }): React.JSX.E
       </div>
       <div className="app-no-drag flex shrink-0 items-center gap-1">
         <ActionsMenu />
+        <ShortcutTooltip label="Toggle terminal panel" shortcut={kbdLabel('mod', 'J')}>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() =>
+              runUserAction(
+                () => toggleTerminalPanel(),
+                (error) => toastUserActionError('Open terminal', error),
+              )
+            }
+            aria-label="Toggle terminal panel"
+            aria-expanded={panelOpen}
+            data-testid={TestIds.toggleTerminalPanel}
+          >
+            <PanelBottom />
+          </Button>
+        </ShortcutTooltip>
         <ShortcutTooltip label="Toggle surfaces sidebar" shortcut={kbdLabel('mod', '.')}>
           <Button
             variant="ghost"

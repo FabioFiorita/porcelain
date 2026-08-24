@@ -120,12 +120,11 @@ export function useTerminalRoster(): void {
   /**
    * A Worktree lifecycle terminal the daemon just started for us.
    *
-   * Setup and dispose are the two commands Porcelain runs without a click, so the board
-   * follows them — but it does not navigate there: nobody asked for this shell, and taking
-   * the pane away from a diff to show it is a worse surprise than a missed script. The id
-   * is held until the row actually shows up: creating a Worktree announces the session
-   * before the client has opened that checkout, and the roster only lists terminals of the
-   * open one.
+   * Setup and dispose are the two commands Porcelain runs without a click, so the panel
+   * follows them — but it does not open: nobody asked for this shell, and sliding it over
+   * a diff is a worse surprise than a missed script. The id is held until the row actually
+   * shows up: creating a Worktree announces the session before the client has opened that
+   * checkout, and the roster only lists terminals of the open one.
    */
   const [pendingFocus, setPendingFocus] = useState<string | null>(null)
   useEffect(() => {
@@ -168,9 +167,9 @@ export function useTerminalRoster(): void {
       followTerminal(pendingFocus)
     }
 
-    // Additive, never a wipe: this hook knows the OPEN checkout's shells, and the board's
-    // per-Environment rosters know the rest. Clearing the map here dropped their ownership
-    // and sent the next keystroke on another machine's shell to this window's daemon.
+    // Additive, never a wipe: this hook knows the OPEN checkout's shells. Clearing the
+    // map here dropped ownership of a shell on another Environment and sent the next
+    // keystroke to this window's daemon.
     if (ownerSession !== null) {
       for (const session of inRepo) registerTerminalSession(session.id, ownerSession)
     }

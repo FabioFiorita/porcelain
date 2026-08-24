@@ -145,8 +145,8 @@ describe('useActionRun', () => {
       name: 'Build',
       initialInput: 'make build',
     })
-    // The shell an Action starts is put in front of the human — the Terminals surface is
-    // the only place it can be seen at all — and the roster popover gets out of its way.
+    // The shell an Action starts is put in front of the human — the bottom panel is
+    // where it can be seen — and the roster popover gets out of its way.
     expect(revealTerminal).toHaveBeenCalledTimes(1)
     expect(revealTerminal).toHaveBeenCalledWith('term-1')
     expect(useActionRunStore.getState().menuOpen).toBe(false)

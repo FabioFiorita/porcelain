@@ -18,4 +18,3 @@ export {
 } from './actions-notifications'
 export { useActions } from './actions-queries'
 export { WorktreeScriptsDialog } from './worktree-scripts-dialog'
-export { WorktreeScriptsSection } from './worktree-scripts-section'

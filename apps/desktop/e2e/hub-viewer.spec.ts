@@ -20,7 +20,7 @@ test('switching Worktree keeps existing tabs on their original target', async ({
   await expect(loc.viewerCard(page).getByRole('button', { name: 'Task', exact: true })).toHaveCount(
     0,
   )
-  await expect(loc.terminalsOpen(page)).toBeVisible()
+  await expect(loc.toggleTerminalPanel(page)).toBeVisible()
 
   const originalWorktreeId = await page
     .locator('[data-hub-worktree]')

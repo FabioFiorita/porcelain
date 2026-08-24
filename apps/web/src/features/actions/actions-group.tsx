@@ -30,7 +30,6 @@ import { ActionTrustDialog } from './action-trust-dialog'
 import { useTrustAction } from './actions-mutations'
 import { useActions } from './actions-queries'
 import { type ActionsScope, useActionsScopes, useSiblingActions } from './actions-scope'
-import { WorktreeScriptsSection } from './worktree-scripts-section'
 
 /**
  * The rows this menu is about: commands the human presses. Worktree lifecycle scripts share
@@ -237,7 +236,6 @@ export function ActionsGroup(): React.JSX.Element {
           </SidebarGroupContent>
         </>
       )}
-      <WorktreeScriptsSection actions={saved} editable={selected.current} />
       {siblings.map((scope) => (
         <SiblingEnvironment key={scope.environmentId} scope={scope} />
       ))}

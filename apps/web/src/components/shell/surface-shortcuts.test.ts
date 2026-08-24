@@ -22,7 +22,7 @@ describe('surface shortcuts', () => {
     ])
   })
 
-  it('routes every displayed shortcut to its surface and reserves 6 for Terminal', () => {
+  it('routes every displayed shortcut to its surface; terminal is ⌘J, not a numbered slot', () => {
     expect(SIDEBAR_TAB_KEYS).toEqual({
       '1': 'files',
       '2': 'changes',

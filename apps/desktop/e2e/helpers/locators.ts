@@ -142,22 +142,14 @@ export const loc = {
   commitButton: (page: Page): Locator => byId(page, TestIds.commitButton),
   commitGroup: (page: Page): Locator => byId(page, TestIds.commitGroup),
 
-  // --- The Terminals surface: the one terminal home ---
-  terminalsOpen: (page: Page): Locator => byId(page, TestIds.terminalsOpen),
-  terminalsBoard: (page: Page): Locator => byId(page, TestIds.terminalsBoard),
-  terminalsBoardNew: (page: Page): Locator => byId(page, TestIds.terminalsBoardNew),
-  /** "New terminal" targets that are a checkout, not the Environment's own home. */
-  terminalsBoardNewInProject: (page: Page): Locator =>
-    page.locator(
-      `[data-testid^="${TestIds.terminalsBoardNewAt('')}"]:not([data-testid="${TestIds.terminalsBoardNewAt('environment')}"])`,
-    ),
-  /** Every session row on the board — a count has no single id to ask for. */
-  terminalsBoardSessions: (page: Page): Locator =>
-    page.locator(`[data-testid^="${TestIds.terminalsBoardSession('')}"]`),
-  terminalsBoardEnvironmentShell: (page: Page, key: string): Locator =>
-    byId(page, TestIds.terminalsBoardEnvironmentShell(key)),
-  terminalSession: (page: Page, name: string): Locator =>
-    byId(page, TestIds.terminalsBoard)
+  // --- The bottom terminal panel: the checkout's own shells ---
+  toggleTerminalPanel: (page: Page): Locator => byId(page, TestIds.toggleTerminalPanel),
+  terminalPanel: (page: Page): Locator => byId(page, TestIds.terminalPanel),
+  terminalNew: (page: Page): Locator => byId(page, TestIds.terminalNew),
+  terminalTab: (page: Page, id: string): Locator => byId(page, TestIds.terminalTab(id)),
+  /** A panel tab by its session name (the id is daemon-side; e2e only knows the label). */
+  terminalTabByName: (page: Page, name: string): Locator =>
+    byId(page, TestIds.terminalPanel)
       .locator('button')
       .filter({ hasText: new RegExp(`^${name}$`) }),
   terminalKeyBar: (page: Page): Locator => byId(page, TestIds.terminalKeyBar),

@@ -18,25 +18,23 @@ import { settleBackground } from '@shared/background'
 import { create } from 'zustand'
 
 /**
- * The terminal-session roster this window can reach BEYOND the primary daemon's own list:
- * the sessions of the open checkout, plus every session the Terminals board could not see
- * on its own. The PTY itself lives in a daemon (terminal-manager) and its Ghostty instance
- * in the registry — this store only holds rows and which one the board is showing.
+ * The terminal-session roster this window can reach: the sessions of the open checkout
+ * (`useTerminalRoster` hydrates it from the daemon, filtered to that repo) plus any shell
+ * this window spawned before a poll confirmed it. The PTY itself lives in a daemon
+ * (terminal-manager) and its Ghostty instance in the registry — this store holds rows and
+ * which one the bottom panel is showing.
  *
  * The rows are DAEMON-OWNED and survive a renderer reload: the daemon holds the
- * authoritative name/cwd/status, and `use-terminals` hydrates this store from it on repo
- * open and daemon reconnect. The Terminals board polls the PRIMARY daemon's global roster
- * itself and merges these rows in by id, which is how "This device" shells and a selected
- * secondary Environment's shells reach the one terminal surface at all.
+ * authoritative name/cwd/status, and `useTerminalRoster` hydrates this store on repo open
+ * and daemon reconnect. This roster stays REPO-SCOPED — the bottom panel is about the
+ * checkout you are in, not every shell the daemon hosts. `close` is the explicit kill:
+ * it ends the PTY and drops the row. `reset` is the local teardown when this window opens
+ * a different Project in place (which closes every tab with it); it never kills a PTY.
  *
- * `focusedId` is which session that surface shows. It lives here, not in the board, so a
- * spawn from anywhere (a saved Action, a Worktree lifecycle script, ⌘T) can put its shell
- * in front of the human — see `revealTerminal` in lib/terminal-actions.ts.
- *
- * `close` is the explicit kill: it ends the PTY and drops the row. `reset` is the local
- * teardown when this window opens a different Project in place (which closes every tab,
- * the Terminals one included); it never kills a PTY. Selecting another Worktree in the Hub
- * does neither — the board spans the whole daemon, so its shells stay on screen.
+ * `panelOpen` / `panelSessionId` are the bottom panel's visibility and active tab. A spawn
+ * from anywhere (a saved Action, ⌘T) opens the panel onto its shell via `openPanel`;
+ * `followSession` points the tab at a shell nobody clicked for — a Worktree setup or
+ * dispose script — without taking the Viewer away.
  *
  * A session also carries WHICH machine it runs on (`origin`). Almost always that's
  * `primary` — the daemon this window is bound to — but a window on a remote daemon can
@@ -48,9 +46,9 @@ export type TerminalOrigin = 'primary' | 'local'
 export interface TerminalSession {
   id: string
   name: string
-  /** Where the PTY was spawned; the board groups by longest path prefix on it. */
+  /** Where the PTY was spawned; hydration filters the daemon roster down to this repo by it. */
   cwd: string
-  /** Daemon epoch ms; the board sorts on it so the list holds still under the poll. */
+  /** Daemon epoch ms; keeps tab order stable under the five-second roster poll. */
   createdAt: number
   status: 'running' | 'exited'
   exitCode?: number
@@ -59,17 +57,17 @@ export interface TerminalSession {
 
 interface TerminalsState {
   sessions: TerminalSession[]
-  /**
-   * Session the Terminals surface shows. Not required to be in `sessions`: the board also
-   * lists the primary daemon's own roster, which this store never holds.
-   */
-  focusedId: string | null
+  /** Whether the Viewer-bottom terminal panel is visible. */
+  panelOpen: boolean
+  /** Session shown in the active bottom-panel tab. */
+  panelSessionId: string | null
   /** Replace the roster with the daemon-owned sessions for the current repo (idempotent). */
   hydrate: (sessions: TerminalSession[]) => void
   /**
-   * Spawn a PTY in `cwd` (optionally typing a command into it) and add it to the roster.
-   * `origin` picks the machine — omitted means this window's daemon; `local` requires the
-   * local session to already exist (the caller establishes it from the shell's endpoint).
+   * Spawn a PTY in `cwd` (optionally typing a command into it), add it to the roster, and
+   * open the panel onto it. `origin` picks the machine — omitted means this window's
+   * daemon; `local` requires the local session to already exist (the caller establishes it
+   * from the shell's endpoint).
    */
   create: (opts: {
     cwd: string
@@ -82,8 +80,14 @@ interface TerminalsState {
   rename: (id: string, name: string) => void
   /** Mark a session exited (its PTY closed on its own) — kept in the roster, not removed. */
   markExited: (id: string, exitCode: number) => void
-  /** Show this session on the Terminals surface. Any id — the board reconciles the rest. */
-  focus: (id: string | null) => void
+  /** Show the panel, optionally landing on a specific session. */
+  openPanel: (sessionId?: string) => void
+  closePanel: () => void
+  togglePanel: () => void
+  /** Switch the panel's tab (opens the panel too). */
+  setPanelSession: (sessionId: string) => void
+  /** Point the panel's tab at a session WITHOUT opening it (lifecycle-script shells). */
+  followSession: (sessionId: string) => void
   /** Kill the PTY, dispose its terminal, and drop it from the roster. */
   close: (id: string) => void
   /** Local teardown when this window opens a DIFFERENT Project in place (every tab closes
@@ -131,7 +135,8 @@ function pruneAges(): void {
 
 export const useTerminalsStore = create<TerminalsState>((set, get) => ({
   sessions: [],
-  focusedId: null,
+  panelOpen: false,
+  panelSessionId: null,
   // The daemon owns the roster, so hydrate REPLACES: the incoming repo-filtered list is
   // authoritative (a session killed in another window drops out here on the next poll).
   // `create` still appends optimistically for zero-latency feedback; the vanishingly
@@ -148,7 +153,13 @@ export const useTerminalsStore = create<TerminalsState>((set, get) => ({
     const held = get().sessions.filter(
       (session) => !listed.has(session.id) && freshCreates.has(session.id),
     )
-    set({ sessions: [...sessions, ...held] })
+    const rows = [...sessions, ...held]
+    // Keep the panel's tab if it survived the refresh; otherwise land on the first row.
+    const currentPanelSession = get().panelSessionId
+    const panelSessionId = rows.some((session) => session.id === currentPanelSession)
+      ? currentPanelSession
+      : (rows[0]?.id ?? null)
+    set({ sessions: rows, panelSessionId })
   },
   create: async ({
     cwd,
@@ -186,7 +197,8 @@ export const useTerminalsStore = create<TerminalsState>((set, get) => ({
         ...state.sessions,
         { id, name, cwd, createdAt: Date.now(), status: 'running', origin },
       ],
-      focusedId: id,
+      panelOpen: true,
+      panelSessionId: id,
     }))
     return id
   },
@@ -222,7 +234,34 @@ export const useTerminalsStore = create<TerminalsState>((set, get) => ({
       }
     })
   },
-  focus: (id: string | null) => set({ focusedId: id }),
+  openPanel: (sessionId?: string) =>
+    set((state) => ({
+      panelOpen: true,
+      panelSessionId:
+        sessionId !== undefined && state.sessions.some((session) => session.id === sessionId)
+          ? sessionId
+          : (state.panelSessionId ?? state.sessions[0]?.id ?? null),
+    })),
+  closePanel: () => set({ panelOpen: false }),
+  togglePanel: () =>
+    set((state) => ({
+      panelOpen: !state.panelOpen,
+      panelSessionId: state.panelOpen
+        ? state.panelSessionId
+        : (state.panelSessionId ?? state.sessions[0]?.id ?? null),
+    })),
+  setPanelSession: (sessionId: string) =>
+    set((state) =>
+      state.sessions.some((session) => session.id === sessionId)
+        ? { panelSessionId: sessionId, panelOpen: true }
+        : state,
+    ),
+  followSession: (sessionId: string) =>
+    set((state) =>
+      state.sessions.some((session) => session.id === sessionId)
+        ? { panelSessionId: sessionId }
+        : state,
+    ),
   close: (id: string) => {
     closedTombstones.set(id, Date.now())
     freshCreates.delete(id)
@@ -230,10 +269,15 @@ export const useTerminalsStore = create<TerminalsState>((set, get) => ({
     forgetLocalTerminal(id)
     forgetTerminalSession(id)
     disposeTerminal(id)
-    set((state) => ({
-      sessions: state.sessions.filter((s) => s.id !== id),
-      focusedId: state.focusedId === id ? null : state.focusedId,
-    }))
+    set((state) => {
+      const sessions = state.sessions.filter((s) => s.id !== id)
+      return {
+        sessions,
+        panelOpen: sessions.length > 0 ? state.panelOpen : false,
+        panelSessionId:
+          state.panelSessionId === id ? (sessions[0]?.id ?? null) : state.panelSessionId,
+      }
+    })
   },
   reset: () => {
     // Detach from each PTY (so its live stream stops arriving at a torn-down Ghostty) and
@@ -244,6 +288,6 @@ export const useTerminalsStore = create<TerminalsState>((set, get) => ({
       forgetTerminalSession(session.id)
       disposeTerminal(session.id)
     }
-    set({ sessions: [], focusedId: null })
+    set({ sessions: [], panelOpen: false, panelSessionId: null })
   },
 }))
