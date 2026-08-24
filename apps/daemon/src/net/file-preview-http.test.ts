@@ -72,7 +72,7 @@ describe('handleFilePreviewRequest', () => {
     }
   }
 
-  it("serves a browser-like document that still cannot fetch or post", async () => {
+  it('serves a browser-like document that still cannot fetch or post', async () => {
     await withServer(deps(), async (base) => {
       const res = await fetch(`${base}/file-preview/tok`)
       expect(res.status).toBe(200)
