@@ -284,8 +284,7 @@ export function HunksView({
   layout?: 'pane' | 'content'
   commentIndex?: CommentIndex
   pendingLines?: ReadonlySet<number>
-  /** Collapsed context runs to draw between hunks. Omitted: no gap rows, as the
-   *  stacked reader and commit views want. */
+  /** Collapsed context runs to draw between hunks. Omitted: no gap rows. */
   gaps?: readonly DiffGap[]
   onExpand?: ExpandHandler
 }): React.JSX.Element {

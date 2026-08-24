@@ -179,9 +179,9 @@ export function useGitSuggestions(): GitSuggestion[] {
 }
 
 /**
- * The single-file diff page collapses context itself, so it fetches the file
- * whole once and expanding a gap costs no round trip. The stacked reader and the
- * commit views use other procedures and keep git's default 3-line hunks.
+ * The single-file diff page and the stacked All Changes reader collapse context
+ * themselves, so they fetch the file whole once and expanding a gap costs no
+ * round trip. Commit-page views that still render git's own hunks omit this.
  */
 const DIFF_PAGE_CONTEXT = FULL_DIFF_CONTEXT
 
@@ -201,7 +201,12 @@ export function useDiffFile(
   const owner = useGitOwner()
   const working = useQuery({
     enabled: repoPath !== null && base === undefined,
-    queryFn: () => ownerClient(owner).gitDiffFile.query({ repoPath: path, filePath }),
+    queryFn: () =>
+      ownerClient(owner).gitDiffFile.query({
+        context: DIFF_PAGE_CONTEXT,
+        filePath,
+        repoPath: path,
+      }),
     queryKey: gitQueryKey(daemon, gitDiffFileQuery(path, filePath)),
     placeholderData: keepPreviousData,
     staleTime: 0,
@@ -309,7 +314,12 @@ export function useDiffReading(scope: DiffReadingScope): {
   const live = scope.type === 'working'
   const query = useQuery({
     enabled: repoPath !== null,
-    queryFn: () => ownerClient(owner).diffReading.query({ repoPath: path, scope }),
+    queryFn: () =>
+      ownerClient(owner).diffReading.query({
+        context: DIFF_PAGE_CONTEXT,
+        repoPath: path,
+        scope,
+      }),
     queryKey: gitQueryKey(daemon, gitDiffReadingQuery(path, scope)),
     refetchInterval: live ? 3000 : false,
     staleTime: live ? 0 : Number.POSITIVE_INFINITY,

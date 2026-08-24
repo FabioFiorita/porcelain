@@ -155,13 +155,14 @@ export function createGitDiffReadingSources(options?: {
       loadRangeFlow(repoPath, await layersFor(repoPath), base),
     loadCommitFlow: async (repoPath: string, hash: string) =>
       loadCommitFlow(repoPath, hash, await layersFor(repoPath)),
-    workingHunks: (repoPath: string, path: string) =>
-      gitDiffFile(repoPath, path).then((result) => result.hunks),
-    rangeHunks: (repoPath: string, base: string, path: string) =>
-      gitRangeDiffFile(repoPath, base, path).then((result) => result.hunks),
+    workingHunks: (repoPath: string, path: string, context?: number) =>
+      gitDiffFile(repoPath, path, context).then((result) => result.hunks),
+    rangeHunks: (repoPath: string, base: string, path: string, context?: number) =>
+      gitRangeDiffFile(repoPath, base, path, context).then((result) => result.hunks),
     diffFile: gitDiffFile,
     rangeDiffFile: gitRangeDiffFile,
-    commitHunks: gitCommitDiff,
+    commitHunks: (repoPath: string, hash: string, path: string, context?: number) =>
+      gitCommitDiff(repoPath, hash, path, context),
     commitMessage: gitCommitMessage,
   })
 }

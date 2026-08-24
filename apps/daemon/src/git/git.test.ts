@@ -7,6 +7,7 @@ import { headLabel } from '@porcelain/contracts'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import {
   gitCommit,
+  gitCommitDiff,
   gitCommitNumstat,
   gitCreateBranch,
   gitDefaultBranch,
@@ -941,6 +942,30 @@ describe('gitDiffFile context width', () => {
     expect(result.hunks[0]?.lines).toHaveLength(201)
     expect(result.hunks[0]?.lines[0]?.newLine).toBe(1)
     expect(result.hunks[0]?.lines.at(-1)?.newLine).toBe(200)
+  })
+})
+
+describe('gitCommitDiff context width', () => {
+  const repos: string[] = []
+  afterAll(async () => {
+    await Promise.all(repos.map((d) => rm(d, { recursive: true, force: true })))
+  })
+
+  it('returns the whole file as one hunk for a wide context', async () => {
+    const dir = await makeRepo()
+    repos.push(dir)
+    const lines = Array.from({ length: 200 }, (_, i) => `const l${i + 1} = ${i + 1}`)
+    await writeFile(join(dir, 'big.ts'), `${lines.join('\n')}\n`)
+    git(dir, 'add', 'big.ts')
+    git(dir, '-c', 'commit.gpgsign=false', 'commit', '-m', 'add big.ts')
+    lines[99] = 'const l100 = 4242'
+    await writeFile(join(dir, 'big.ts'), `${lines.join('\n')}\n`)
+    git(dir, 'add', 'big.ts')
+    git(dir, '-c', 'commit.gpgsign=false', 'commit', '-m', 'edit line 100')
+    const hunks = await gitCommitDiff(dir, 'HEAD', 'big.ts', 100_000)
+    expect(hunks).toHaveLength(1)
+    expect(hunks[0]?.lines[0]?.newLine).toBe(1)
+    expect(hunks[0]?.lines.at(-1)?.newLine).toBe(200)
   })
 })
 

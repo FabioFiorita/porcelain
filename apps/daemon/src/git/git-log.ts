@@ -63,9 +63,18 @@ export async function gitCommitDiff(
   repoPath: string,
   hash: string,
   filePath: string,
+  context?: number,
 ): Promise<DiffHunk[]> {
   return parseUnifiedDiff(
-    await runGit(repoPath, ['show', hash, '--no-color', '--format=', '--', filePath]),
+    await runGit(repoPath, [
+      'show',
+      hash,
+      '--no-color',
+      '--format=',
+      ...(context === undefined ? [] : [`-U${context}`]),
+      '--',
+      filePath,
+    ]),
   )
 }
 

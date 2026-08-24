@@ -447,8 +447,8 @@ describe('Git operations', () => {
       ],
     })
     expect(sources.loadWorkingFlow).toHaveBeenCalledWith(REPO)
-    expect(sources.workingHunks).toHaveBeenCalledWith(REPO, 'src/alpha.ts')
-    expect(sources.workingHunks).toHaveBeenCalledWith(REPO, 'src/beta.ts')
+    expect(sources.workingHunks).toHaveBeenCalledWith(REPO, 'src/alpha.ts', undefined)
+    expect(sources.workingHunks).toHaveBeenCalledWith(REPO, 'src/beta.ts', undefined)
     expect(sources.loadRangeFlow).not.toHaveBeenCalled()
     expect(sources.loadCommitFlow).not.toHaveBeenCalled()
   })
@@ -461,7 +461,7 @@ describe('Git operations', () => {
       operations.diffReadingGit({ repoPath: REPO, scope: { type: 'branch' } }),
     ).resolves.toMatchObject({ name: 'vs main' })
     expect(sources.loadRangeFlow).toHaveBeenCalledWith(REPO, undefined)
-    expect(sources.rangeHunks).toHaveBeenCalledWith(REPO, 'main', 'src/alpha.ts')
+    expect(sources.rangeHunks).toHaveBeenCalledWith(REPO, 'main', 'src/alpha.ts', undefined)
   })
 
   it('threads a chosen base through the branch reading, title and per-file hunks', async () => {
@@ -474,7 +474,7 @@ describe('Git operations', () => {
     expect(sources.loadRangeFlow).toHaveBeenCalledWith(REPO, 'develop')
     // The hunks must come from the SAME base the list counted, or Review All
     // shows a different diff than the header claims.
-    expect(sources.rangeHunks).toHaveBeenCalledWith(REPO, 'develop', 'src/alpha.ts')
+    expect(sources.rangeHunks).toHaveBeenCalledWith(REPO, 'develop', 'src/alpha.ts', undefined)
   })
 
   it('passes a chosen base to the range flow and reports the default alongside it', async () => {
@@ -500,7 +500,7 @@ describe('Git operations', () => {
       operations.diffReadingGit({ repoPath: REPO, scope: { type: 'commit', hash } }),
     ).resolves.toMatchObject({ name: 'fix(auth): lock session' })
     expect(withMessage.loadCommitFlow).toHaveBeenCalledWith(REPO, hash)
-    expect(withMessage.commitHunks).toHaveBeenCalledWith(REPO, hash, 'src/alpha.ts')
+    expect(withMessage.commitHunks).toHaveBeenCalledWith(REPO, hash, 'src/alpha.ts', undefined)
 
     const emptyMessage = diffReadingSources({
       commitMessage: vi.fn(async () => '   \n'),
@@ -511,6 +511,19 @@ describe('Git operations', () => {
         scope: { type: 'commit', hash },
       }),
     ).resolves.toMatchObject({ name: hash.slice(0, 12) })
+  })
+
+  it('forwards a requested context width to per-file hunks', async () => {
+    const sources = diffReadingSources()
+    const operations = createGitOperations(dependencies({ diffReadingSources: sources }))
+
+    await operations.diffReadingGit({
+      context: 100_000,
+      repoPath: REPO,
+      scope: { type: 'working' },
+    })
+    expect(sources.workingHunks).toHaveBeenCalledWith(REPO, 'src/alpha.ts', 100_000)
+    expect(sources.workingHunks).toHaveBeenCalledWith(REPO, 'src/beta.ts', 100_000)
   })
 
   it('recovers vanished-file hunks as empty without failing the reading', async () => {

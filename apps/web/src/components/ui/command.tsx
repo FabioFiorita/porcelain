@@ -78,7 +78,7 @@ function CommandInput({
   return (
     <div
       data-slot="command-input-wrapper"
-      className={cn(palette ? "border-b border-border/60 px-3 py-2" : "p-1 pb-0")}
+      className={cn(palette ? "border-b border-border/60 px-3 py-2" : "p-1")}
     >
       <InputGroup
         className={cn(

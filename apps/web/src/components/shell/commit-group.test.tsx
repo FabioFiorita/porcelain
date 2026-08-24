@@ -16,6 +16,11 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { CommitGroup } from './commit-group'
 
+// cmdk calls scrollIntoView on the selected item; jsdom doesn't ship it.
+if (typeof Element.prototype.scrollIntoView !== 'function') {
+  Element.prototype.scrollIntoView = (): void => {}
+}
+
 // Same convention as changes-list: mock the domain hooks, never the tRPC proxy.
 vi.mock('@renderer/features/git', () => ({
   useApplyCommitGroups: vi.fn(),
@@ -83,6 +88,20 @@ describe('CommitGroup', () => {
     renderGroup()
     expect(screen.getByRole('button', { name: 'Commit' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Push' })).not.toBeInTheDocument()
+  })
+
+  it('keeps the type picker list off the Add type field', () => {
+    vi.mocked(useGitFlow).mockReturnValue({
+      groups: changedFiles(false, true),
+      refresh: async () => {},
+    })
+    renderGroup()
+    fireEvent.click(screen.getByRole('button', { name: /type/i }))
+    const wrapper = document.querySelector('[data-slot="command-input-wrapper"]')
+    expect(wrapper?.className).toContain('p-1')
+    expect(wrapper?.className).not.toContain('pb-0')
+    const command = document.querySelector('[data-slot="command"]')
+    expect(command?.className).toContain('gap-1')
   })
 
   it('offers group generation only when changes are unstaged', () => {

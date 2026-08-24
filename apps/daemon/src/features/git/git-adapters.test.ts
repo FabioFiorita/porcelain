@@ -147,6 +147,17 @@ describe('CommitGeneration and GitDiffReadingSources adapters', () => {
       expect(Array.isArray(hunks)).toBe(true)
       const message = await sources.commitMessage(repo, 'HEAD')
       expect(message).toContain('root')
+
+      const lines = Array.from({ length: 200 }, (_, i) => `const l${i + 1} = ${i + 1}`)
+      await writeFile(join(repo, 'big.ts'), `${lines.join('\n')}\n`)
+      git(repo, 'add', 'big.ts')
+      git(repo, '-c', 'commit.gpgsign=false', 'commit', '-m', 'add big.ts')
+      lines[99] = 'const l100 = 4242'
+      await writeFile(join(repo, 'big.ts'), `${lines.join('\n')}\n`)
+      const stacked = await sources.workingHunks(repo, 'big.ts', 100_000)
+      expect(stacked).toHaveLength(1)
+      expect(stacked[0]?.lines[0]?.newLine).toBe(1)
+      expect(stacked[0]?.lines.at(-1)?.newLine).toBe(200)
     })
   })
 

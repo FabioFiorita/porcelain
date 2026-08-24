@@ -97,7 +97,7 @@ function CommitTokenSelect({
         }
       />
       <PopoverContent align="start" className="w-44 rounded-xl p-0">
-        <Command shouldFilter={false}>
+        <Command shouldFilter={false} className="gap-1">
           <CommandInput
             value={query}
             onValueChange={setQuery}

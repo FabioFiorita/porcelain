@@ -1,13 +1,13 @@
 import type { DiffHunk, DiffLine } from '@porcelain/contracts/git'
 
 /**
- * Context collapsing for the single-file diff page.
+ * Context collapsing for the single-file diff page and the stacked All Changes
+ * reader.
  *
  * The daemon can hand back a diff with as much unchanged context as we ask for
- * (`gitDiffFile({ context })`). The page asks for the whole file once and then
- * hides everything more than `context` lines from a change, so expanding a gap
- * is local state rather than another round trip. The stacked "All changes"
- * reader keeps git's own 3-line hunks and never goes through here.
+ * (`gitDiffFile({ context })`). Those surfaces ask for the whole file once and
+ * then hide everything more than `context` lines from a change, so expanding a
+ * gap is local state rather than another round trip.
  */
 
 /** Inclusive range of new-side line numbers the reader has expanded. */

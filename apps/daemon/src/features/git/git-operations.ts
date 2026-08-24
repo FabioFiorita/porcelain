@@ -271,7 +271,7 @@ export function createGitOperations(dependencies: GitOperationDependencies): Git
     commitModelsGit: () => commitGeneration.listModels(),
 
     async diffReadingGit(input: DiffReadingInput): Promise<DiffReadingOutput> {
-      const { repoPath, scope } = input
+      const { repoPath, scope, context } = input
       let groups: FlowGroup[]
       let name: string
       let fetchHunks: (path: string) => Promise<DiffHunk[]>
@@ -279,17 +279,19 @@ export function createGitOperations(dependencies: GitOperationDependencies): Git
       if (scope.type === 'working') {
         groups = await diffReadingSources.loadWorkingFlow(repoPath)
         name = 'Changes'
-        fetchHunks = (path: string) => diffReadingSources.workingHunks(repoPath, path)
+        fetchHunks = (path: string) => diffReadingSources.workingHunks(repoPath, path, context)
       } else if (scope.type === 'branch') {
         const range = await diffReadingSources.loadRangeFlow(repoPath, scope.base)
         groups = range.groups
         name = `vs ${range.base}`
-        fetchHunks = (path: string) => diffReadingSources.rangeHunks(repoPath, range.base, path)
+        fetchHunks = (path: string) =>
+          diffReadingSources.rangeHunks(repoPath, range.base, path, context)
       } else {
         groups = await diffReadingSources.loadCommitFlow(repoPath, scope.hash)
         const message = await diffReadingSources.commitMessage(repoPath, scope.hash)
         name = message.split('\n')[0]?.trim() || scope.hash.slice(0, 12)
-        fetchHunks = (path: string) => diffReadingSources.commitHunks(repoPath, scope.hash, path)
+        fetchHunks = (path: string) =>
+          diffReadingSources.commitHunks(repoPath, scope.hash, path, context)
       }
 
       const files = groups.flatMap((group) => group.files)

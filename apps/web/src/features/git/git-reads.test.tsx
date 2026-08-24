@@ -113,7 +113,11 @@ describe('useDiffFile', () => {
     const { mock, wrapper } = createValidatingTrpcHarness({
       ...baseHandlers,
       gitDiffFile: (input) => {
-        expect(input).toEqual({ filePath: 'src/example.ts', repoPath: REPO })
+        expect(input).toEqual({
+          context: FULL_DIFF_CONTEXT,
+          filePath: 'src/example.ts',
+          repoPath: REPO,
+        })
         return { ok: true, value: gitContractFixtures.gitDiffFile.output }
       },
       gitRangeDiffFile: () => ({ ok: true, value: gitContractFixtures.gitRangeDiffFile.output }),
@@ -299,8 +303,16 @@ describe('useDiffReading', () => {
 
     await waitFor(() => expect(result.current.working.reading).toBeDefined())
     await waitFor(() => expect(result.current.branch.reading).toBeDefined())
-    expect(seen).toContainEqual({ repoPath: REPO, scope: { type: 'working' } })
-    expect(seen).toContainEqual({ repoPath: REPO, scope: { type: 'branch' } })
+    expect(seen).toContainEqual({
+      context: FULL_DIFF_CONTEXT,
+      repoPath: REPO,
+      scope: { type: 'working' },
+    })
+    expect(seen).toContainEqual({
+      context: FULL_DIFF_CONTEXT,
+      repoPath: REPO,
+      scope: { type: 'branch' },
+    })
   })
 })
 

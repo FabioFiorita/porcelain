@@ -14,6 +14,17 @@ import {
   useToggleReviewed,
 } from '@renderer/features/git'
 import { useCommentIndex } from '@renderer/features/review'
+import {
+  addRange,
+  allRevealed,
+  collapseHunks,
+  DEFAULT_DIFF_CONTEXT,
+  type DiffGap,
+  type LineRange,
+  revealDown,
+  revealUp,
+  revealWhole,
+} from '@renderer/lib/collapse-hunks'
 import { raisedCardClass, viewerWellClass } from '@renderer/lib/controls'
 import { type LineSelection, lineSelectionForFile } from '@renderer/lib/line-selection'
 import { fileName } from '@renderer/lib/paths'
@@ -28,9 +39,11 @@ import {
   ChevronDown,
   ChevronRight,
   FileText,
+  FoldVertical,
   MessageSquarePlus,
   Square,
   SquareCheck,
+  UnfoldVertical,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { type CommentAnchor, CommentComposer } from './comment-composer'
@@ -80,7 +93,7 @@ function ChangesetFileCard({
   commentAnchor: CommentAnchor | null
   onComment: (anchor: CommentAnchor) => void
 }): React.JSX.Element {
-  const [collapsed, setCollapsed] = useState(false)
+  const [fileCollapsed, setFileCollapsed] = useState(false)
   const [lineSel, setLineSel] = useState<LineSelection | null>(null)
   const project = useProjectSelectionStore((s) => s.project)
   const openTab = useTabsStore((s) => s.openTab)
@@ -95,6 +108,18 @@ function ChangesetFileCard({
     () => pendingLinesFor(commentAnchor, file.path),
     [commentAnchor, file.path],
   )
+  const [revealed, setRevealed] = useState<readonly LineRange[]>([])
+  const collapsedDiff = useMemo(
+    () => collapseHunks(file.hunks ?? [], { context: DEFAULT_DIFF_CONTEXT, revealed }),
+    [file.hunks, revealed],
+  )
+  const canExpand = collapsedDiff.gaps.some((gap) => gap.expandable)
+  const useCollapsed = canExpand || revealed.length > 0
+  const handleExpand = (gap: DiffGap, direction: 'up' | 'down' | 'whole'): void => {
+    const range =
+      direction === 'up' ? revealUp(gap) : direction === 'down' ? revealDown(gap) : revealWhole(gap)
+    setRevealed((current) => addRange(current, range))
+  }
 
   const handleOpenFile = (): void => {
     if (!project || !canOpenFile) return
@@ -117,7 +142,7 @@ function ChangesetFileCard({
       return
     }
     mark(file.path)
-    setCollapsed(true)
+    setFileCollapsed(true)
   }
 
   return (
@@ -130,12 +155,12 @@ function ChangesetFileCard({
           variant="ghost"
           size="icon-2xs"
           className="shrink-0 text-muted-foreground hover:text-foreground"
-          onClick={() => setCollapsed((current) => !current)}
-          aria-expanded={!collapsed}
-          aria-label={collapsed ? 'Expand diff' : 'Collapse diff'}
+          onClick={() => setFileCollapsed((current) => !current)}
+          aria-expanded={!fileCollapsed}
+          aria-label={fileCollapsed ? 'Expand diff' : 'Collapse diff'}
           data-testid={TestIds.diffCollapse(file.path)}
         >
-          {collapsed ? <ChevronRight /> : <ChevronDown />}
+          {fileCollapsed ? <ChevronRight /> : <ChevronDown />}
         </Button>
         <span className="min-w-0 flex-1 truncate font-mono text-xs font-medium">{file.path}</span>
         {file.additions ? (
@@ -204,8 +229,44 @@ function ChangesetFileCard({
             <TooltipContent>Open file</TooltipContent>
           </Tooltip>
         )}
+        {canExpand && (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-2xs"
+                  onClick={() => setRevealed(allRevealed())}
+                  className="shrink-0 text-muted-foreground hover:text-foreground"
+                  aria-label="Expand all context"
+                >
+                  <UnfoldVertical className="size-3.5" />
+                </Button>
+              }
+            />
+            <TooltipContent>Expand all context</TooltipContent>
+          </Tooltip>
+        )}
+        {revealed.length > 0 && (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-2xs"
+                  onClick={() => setRevealed([])}
+                  className="shrink-0 text-muted-foreground hover:text-foreground"
+                  aria-label="Collapse context"
+                >
+                  <FoldVertical className="size-3.5" />
+                </Button>
+              }
+            />
+            <TooltipContent>Collapse context</TooltipContent>
+          </Tooltip>
+        )}
       </div>
-      {!collapsed && file.hunks && file.hunks.length > 0 && (
+      {!fileCollapsed && file.hunks && file.hunks.length > 0 && (
         <ContextMenu
           onOpenChange={(open: boolean): void => {
             if (!open) setLineSel(null)
@@ -229,7 +290,9 @@ function ChangesetFileCard({
             }}
           >
             <HunksView
-              hunks={file.hunks}
+              hunks={useCollapsed ? collapsedDiff.hunks : (file.hunks ?? [])}
+              gaps={useCollapsed ? collapsedDiff.gaps : undefined}
+              onExpand={useCollapsed ? handleExpand : undefined}
               filePath={file.path}
               diffMode="unified"
               layout="content"

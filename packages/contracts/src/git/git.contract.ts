@@ -425,6 +425,7 @@ export const diffReadingInputSchema = z
       z.object({ type: z.literal('branch'), base: compareBaseSchema.optional() }).strict(),
       z.object({ type: z.literal('commit'), hash: z.string() }).strict(),
     ]),
+    context: diffContextSchema.optional(),
   })
   .strict()
 

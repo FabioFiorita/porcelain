@@ -1,6 +1,6 @@
-import type { DiffReadingOutput } from '@porcelain/contracts/git'
+import type { DiffHunk, DiffReadingOutput } from '@porcelain/contracts/git'
 import { useDiffReading } from '@renderer/features/git'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ChangesetView, changesetTabKey, parseChangesetTabKey } from './changeset-view'
 
@@ -104,5 +104,34 @@ describe('ChangesetView', () => {
     })
     render(<ChangesetView path="working" />)
     expect(screen.getByText('No changes to review')).toBeInTheDocument()
+  })
+
+  it('offers expand-all on a stacked file while context is collapsed', () => {
+    const lines = Array.from({ length: 100 }, (_, i) => ({
+      kind: 'context' as const,
+      oldLine: i + 1,
+      newLine: i + 1,
+      text: `line ${i + 1}`,
+    }))
+    lines[49] = { kind: 'add' as const, oldLine: null, newLine: 50, text: 'changed' }
+    const hunks: DiffHunk[] = [{ header: '@@ -1,100 +1,100 @@', lines }]
+    vi.mocked(useDiffReading).mockReturnValue({
+      reading: {
+        ...reading,
+        groups: [
+          {
+            layer: 'Pages',
+            files: [{ ...reading.groups[0].files[0], hunks }],
+          },
+        ],
+      },
+      error: null,
+    })
+    render(<ChangesetView path="working" />)
+
+    expect(screen.queryByLabelText('Collapse context')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('Expand all context'))
+    expect(screen.queryByLabelText('Expand all context')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Collapse context')).toBeInTheDocument()
   })
 })
