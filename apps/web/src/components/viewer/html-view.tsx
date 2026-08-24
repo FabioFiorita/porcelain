@@ -27,9 +27,10 @@ function responsiveHtml(html: string): string {
  * `src`, never `srcdoc`, is the whole point. A `srcdoc` document inherits the app
  * shell's CSP (`script-src 'self'`), so an author's inline `<script>` is refused
  * there regardless of the sandbox attribute; a real HTTP response from the daemon
- * carries its own policy (file-preview-http.ts: scripts and styles inline, no
- * network at all). `sandbox="allow-scripts"` WITHOUT `allow-same-origin` keeps the
- * document on an opaque origin, so it can never read the app's storage or token.
+ * carries its own policy (file-preview-http.ts: https scripts/styles/fonts/
+ * images, no fetch/forms). `sandbox="allow-scripts"` WITHOUT `allow-same-origin`
+ * keeps the document on an opaque origin, so it can never read the app's
+ * storage or token.
  *
  * `bg-white` rather than `bg-background`: a document with no background of its own
  * must not show the dark app through it — a browser paints white, so this does too.

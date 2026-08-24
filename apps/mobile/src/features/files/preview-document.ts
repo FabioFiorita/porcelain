@@ -41,15 +41,20 @@ function themeFor(scheme: 'light' | 'dark'): {
 }
 
 /**
- * Everything the preview is allowed to do, declared in the document itself.
- *
- * `default-src 'none'` with only inline styles, data-URI images, data-URI media, and data-URI fonts is the
- * mobile twin of the renderer's `sandbox=""` iframe: no network, no scripts, no frames. The
- * daemon has already inlined a previewed file's local images as data URIs (`previewHtml`), so
- * this blocks exactly the remote fetches that would turn opening a repo file into a beacon.
+ * Markdown reader: no scripts, no frames, no remote subresources. A remote
+ * `![…](https://…)` stays a beacon we refuse on this surface.
  */
-const CSP =
+const READER_CSP =
   "default-src 'none'; img-src data:; media-src data:; style-src 'unsafe-inline'; font-src data:; base-uri 'none'; form-action 'none'"
+
+/**
+ * HTML file preview on the phone. Still no scripts (the WebView is not the
+ * daemon's script-enabled `/file-preview` route). https images, fonts, and
+ * stylesheets are allowed so a review page that uses Google Fonts or a remote
+ * screenshot is readable; fetch / forms stay closed.
+ */
+const HTML_PREVIEW_CSP =
+  "default-src 'none'; img-src data: https:; media-src data: https:; style-src 'unsafe-inline' https:; font-src data: https:; base-uri 'none'; form-action 'none'"
 
 function styles(scheme: 'light' | 'dark'): string {
   const t = themeFor(scheme)
@@ -95,21 +100,21 @@ function styles(scheme: 'light' | 'dark'): string {
 export function readerDocument(html: string, scheme: 'light' | 'dark'): string {
   return `<!doctype html><html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta http-equiv="Content-Security-Policy" content="${CSP}">
+<meta http-equiv="Content-Security-Policy" content="${READER_CSP}">
 <style>${styles(scheme)}</style></head><body>${html}</body></html>`
 }
 
 const VIEWPORT =
   '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">'
-const POLICY = `<meta http-equiv="Content-Security-Policy" content="${CSP}">`
+const POLICY = `<meta http-equiv="Content-Security-Policy" content="${HTML_PREVIEW_CSP}">`
 
 /**
  * A whole HTML file, made readable on a phone without editing what it says.
  *
  * Only two things are injected — a viewport so a desktop-width page is not rendered at 980px
- * and then scaled to unreadable, and the same policy the reader carries. A file that already
- * declares its own viewport keeps it. The policy goes first in `<head>` because a meta CSP only
- * governs what comes after it.
+ * and then scaled to unreadable, and HTML_PREVIEW_CSP. A file that already declares its own
+ * viewport keeps it. The policy goes first in `<head>` because a meta CSP only governs what
+ * comes after it.
  */
 export function previewDocument(html: string): string {
   const hasViewport = /<meta\b[^>]*\bname\s*=\s*["']viewport["']/i.test(html)

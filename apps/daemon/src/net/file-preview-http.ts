@@ -10,21 +10,31 @@ const FILE_PREVIEW_ROUTE_PREFIX = '/file-preview/'
  * `script-src 'self' 'wasm-unsafe-eval'`), so an author's inline `<script>` is
  * refused there no matter what the sandbox attribute says (verified in a browser
  * against the dev daemon). A real HTTP response carries its own policy, so this
- * is the only way a previewed HTML file can behave the way a browser behaves.
+ * is the only way a previewed HTML file can behave the way a browser tab does:
+ * Tailwind Play, mermaid-from-a-CDN, Google Fonts, a remote screenshot.
  *
- * What it does NOT allow is the network: `default-src 'none'` plus
- * `connect-src 'none'` means an author script can render (mermaid bundled into
- * the file, a chart drawn from inline data) but cannot fetch, beacon, or pull a
- * remote image — the same reasoning canvas-http.ts spells out for agent-authored
- * Canvases, and Files preview is agent-authored content under review too. Local
- * siblings are not fetched at runtime: the daemon inlines stylesheets, scripts,
- * and images as data URIs before this response is written.
+ * Local siblings are still inlined as data URIs (inlineLocalAssets) so a file
+ * that only references `./shot.png` keeps working offline. `https:` on script /
+ * style / img / font / media is what lets a review document load the rest.
  *
- * `media-src data:` because inlineLocalAssets also inlines mp4/webm siblings and
- * `img-src` does not cover `<video>`.
+ * What it still refuses: fetch / XHR / beacon (`connect-src 'none'`), forms,
+ * framing, and a `http:` (non-TLS) subresource. Canvas stays on the tighter
+ * canvas-http.ts policy — that document is private daemon state, not a repo
+ * file the user could open in a tab.
+ *
+ * `blob:` on img/media because mermaid (and similar) draws into object URLs.
  */
-const FILE_PREVIEW_DOCUMENT_CSP =
-  "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; media-src data:; font-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'"
+const FILE_PREVIEW_DOCUMENT_CSP = [
+  "default-src 'none'",
+  "script-src 'unsafe-inline' https:",
+  "style-src 'unsafe-inline' https:",
+  'img-src data: blob: https:',
+  'media-src data: blob: https:',
+  'font-src data: https:',
+  "connect-src 'none'",
+  "form-action 'none'",
+  "base-uri 'none'",
+].join('; ')
 
 export type FilePreviewHttpDeps = Readonly<{
   resolveAccessToken: (token: string) => FilePreviewAccessScope | null

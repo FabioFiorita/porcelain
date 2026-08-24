@@ -59,6 +59,7 @@ describe('readerDocument', () => {
     const doc = readerDocument('<p>hi</p>', 'dark')
     expect(doc).toContain("default-src 'none'")
     expect(doc).toContain('img-src data:')
+    expect(doc).not.toContain('img-src data: https:')
     expect(doc).toContain('<p>hi</p>')
   })
 
@@ -99,5 +100,13 @@ describe('previewDocument', () => {
     const doc = previewDocument('<p>fragment</p>')
     expect(doc.startsWith('<!doctype html>')).toBe(true)
     expect(doc).toContain('<p>fragment</p>')
+  })
+
+  it('allows https images, fonts, and styles, and still refuses scripts', () => {
+    const doc = previewDocument('<p>x</p>')
+    expect(doc).toContain('img-src data: https:')
+    expect(doc).toContain('font-src data: https:')
+    expect(doc).toContain("style-src 'unsafe-inline' https:")
+    expect(doc).not.toContain('script-src')
   })
 })

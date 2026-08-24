@@ -72,16 +72,20 @@ describe('handleFilePreviewRequest', () => {
     }
   }
 
-  it("serves the document with a CSP that runs the author's scripts but reaches no network", async () => {
+  it("serves a browser-like document that still cannot fetch or post", async () => {
     await withServer(deps(), async (base) => {
       const res = await fetch(`${base}/file-preview/tok`)
       expect(res.status).toBe(200)
       const csp = res.headers.get('content-security-policy')
-      expect(csp).toContain("script-src 'unsafe-inline'")
-      expect(csp).toContain("style-src 'unsafe-inline'")
-      expect(csp).toContain("connect-src 'none'")
       expect(csp).toContain("default-src 'none'")
-      expect(csp).not.toContain('https:')
+      expect(csp).toContain("script-src 'unsafe-inline' https:")
+      expect(csp).toContain("style-src 'unsafe-inline' https:")
+      expect(csp).toContain('img-src data: blob: https:')
+      expect(csp).toContain('font-src data: https:')
+      expect(csp).toContain('media-src data: blob: https:')
+      expect(csp).toContain("connect-src 'none'")
+      expect(csp).toContain("form-action 'none'")
+      expect(csp).not.toMatch(/connect-src [^;]*https:/)
       expect(res.headers.get('content-type')).toContain('text/html')
       const body = await res.text()
       expect(body).toContain('<style>h1{color:red}</style>')
