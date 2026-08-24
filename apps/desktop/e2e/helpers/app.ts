@@ -403,23 +403,24 @@ export async function waitForShell(page: Page): Promise<void> {
 }
 
 /**
- * Open the Terminals surface — the app's only terminal home, and where saved Actions live.
- * A Viewer tab, not a rail surface, so it has its own entry point.
+ * Open the bottom terminal panel — the checkout's own terminal home. Idempotent:
+ * the header button toggles, so an already-open panel is left alone.
  */
 export async function openTerminals(page: Page): Promise<void> {
-  await loc.terminalsOpen(page).click()
-  await loc.terminalsBoard(page).waitFor()
+  const toggle = loc.toggleTerminalPanel(page)
+  if (await loc.terminalPanel(page).isVisible()) return
+  await toggle.click()
+  await loc.terminalPanel(page).waitFor()
 }
 
-/** Start a PTY in the seeded checkout from the Terminals surface, and wait for its row. */
-export async function spawnBoardTerminal(page: Page): Promise<void> {
-  await loc.terminalsBoardNew(page).click()
-  const target = loc.terminalsBoardNewInProject(page).first()
-  await target.waitFor({ timeout: 15_000 })
-  // `force`: the board re-renders on its five-second roster poll, which re-anchors this
-  // popup — Playwright's stability wait can never settle on a menu item that keeps moving.
-  await target.click({ force: true })
-  await loc.terminalsBoardSessions(page).first().waitFor({ timeout: 30_000 })
+/** Start a PTY in the seeded checkout from the panel's "+", and wait for its tab. */
+export async function spawnPanelTerminal(page: Page): Promise<void> {
+  await openTerminals(page)
+  await loc.terminalNew(page).click()
+  await page
+    .locator(`[data-testid^="${TestIds.terminalTab('')}"]`)
+    .first()
+    .waitFor({ timeout: 30_000 })
 }
 
 /** Click a left-rail sidebar tab by its stable test id. */

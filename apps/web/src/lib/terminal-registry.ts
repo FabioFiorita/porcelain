@@ -105,8 +105,8 @@ const instances = new Map<string, Instance>()
 const seeded = new Set<string>()
 
 /**
- * Chunks buffered while a terminal has data but no Ghostty surface (the board caps
- * live surfaces at four, and every Environment's sessions stream from mount). A
+ * Chunks buffered while a terminal has data but no Ghostty surface (the bottom panel
+ * shows one tab at a time, and a closed panel still receives the live stream). A
  * verbose process in an unmounted terminal would otherwise grow renderer memory for
  * the session's lifetime. Oldest chunks drop first — what a scrollback window would
  * have shown anyway. One PTY write is bounded by MAX_TERMINAL_WRITE_CODE_UNITS on

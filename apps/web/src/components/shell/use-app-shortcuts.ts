@@ -1,5 +1,4 @@
 import { openTasksBoard } from '@renderer/features/tasks'
-import { openTerminalsBoard } from '@renderer/features/terminal'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import {
   ctrlIsPrimary,
@@ -8,18 +7,17 @@ import {
   isTextEntry,
 } from '@renderer/lib/keyboard'
 import { isFilesSurfaceFocused } from '@renderer/lib/surface-focus'
-import { spawnTerminal } from '@renderer/lib/terminal-actions'
+import { spawnTerminal, toggleTerminalPanel } from '@renderer/lib/terminal-actions'
 import { useNewTaskDialogStore } from '@renderer/stores/new-task-dialog'
 import { type SidebarTab, usePreferencesStore } from '@renderer/stores/preferences'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { runUserAction } from '@shared/background'
 import { useEffect } from 'react'
 
-// Must match the displayed shortcuts in surface-sidebar.tsx. Cmd+6 opens the Terminals
-// surface — the bottom panel's old key, so the muscle memory survives, though it opens
-// rather than toggles now (a Viewer tab is closed like any other). Git uses 5 and Canvas
-// keeps its explicit 7 slot. ⌘⇧A is NOT here: the Actions popover owns that chord from
-// the header, where it can open without taking the Viewer away.
+// Must match the displayed shortcuts in surface-sidebar.tsx. Git uses 5 and Canvas keeps
+// its explicit 7 slot. ⌘J — t3code's terminal key — toggles the bottom terminal panel.
+// ⌘⇧A is NOT here: the Actions popover owns that chord from the header, where it can open
+// without taking the Viewer away.
 export const SIDEBAR_TAB_KEYS: Record<string, SidebarTab | undefined> = {
   '1': 'files',
   '2': 'changes',
@@ -32,8 +30,8 @@ export const SIDEBAR_TAB_KEYS: Record<string, SidebarTab | undefined> = {
 /**
  * Window-level shortcuts: close-tab (Ctrl+W here on Linux/Windows, yielding to a focused
  * terminal; macOS Cmd+W goes via main's before-input-event instead), Ctrl+Tab cycling,
- * Cmd+1–5 sidebar tabs, Cmd+6 for the Terminals surface, Cmd+7 for Canvas, ⌘⇧T for Tasks,
- * and ⌘⇧N for a new Task unless Files owns that chord.
+ * Cmd+1–5 sidebar tabs, Cmd+J for the bottom terminal panel, Cmd+7 for Canvas, ⌘⇧T for
+ * Tasks, and ⌘⇧N for a new Task unless Files owns that chord.
  * Files' ⌘N/⌘⇧N/⌘D/⌘⌫ live in FileCommands — those go through tRPC hooks, which only a
  * component may touch.
  */
@@ -87,9 +85,16 @@ export function useAppShortcuts(): void {
         }
       }
       if (isModExclusive(e) && !e.altKey && !e.shiftKey) {
-        if (e.key === '6') {
+        // Cmd/Ctrl+J toggles the bottom terminal panel (t3code's terminal key). In the
+        // browser client Ctrl is the primary modifier and Ctrl+J is a newline in a shell,
+        // so a focused PTY keeps it — same yield rule as ⌘T below.
+        if (e.key.toLowerCase() === 'j') {
+          if (ctrlIsPrimary && isTerminalTarget(e.target)) return
           e.preventDefault()
-          openTerminalsBoard()
+          runUserAction(
+            () => toggleTerminalPanel(),
+            (error) => toastUserActionError('Open terminal', error),
+          )
           return
         }
         const tab = SIDEBAR_TAB_KEYS[e.key]

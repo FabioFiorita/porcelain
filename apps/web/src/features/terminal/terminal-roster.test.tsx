@@ -241,8 +241,8 @@ describe('useTerminalRoster', () => {
       })
     })
 
-    // Setup and dispose run without a click: the board follows the session, but nothing
-    // navigates there — see `followTerminal`.
+    // Setup and dispose run without a click: the panel follows the session, but nothing
+    // opens it — see `followTerminal`.
     expect(doubles.followTerminal).toHaveBeenCalledWith('primary-in')
   })
 

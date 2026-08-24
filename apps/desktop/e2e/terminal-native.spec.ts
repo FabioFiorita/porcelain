@@ -3,7 +3,7 @@ import {
   expectTerminalText,
   loc,
   openTerminals,
-  spawnBoardTerminal,
+  spawnPanelTerminal,
   test,
   waitForShell,
 } from './helpers/app'
@@ -17,7 +17,7 @@ test('native clipboard, selection copy, and dropped files reach the daemon PTY',
 
   await waitForShell(page)
   await openTerminals(page)
-  await spawnBoardTerminal(page)
+  await spawnPanelTerminal(page)
   const input = page.locator('.porcelain-ghostty-input').first()
   await input.waitFor()
   await input.focus()

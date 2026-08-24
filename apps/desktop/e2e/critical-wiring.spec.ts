@@ -7,7 +7,7 @@ import {
   loc,
   openTerminals,
   selectTab,
-  spawnBoardTerminal,
+  spawnPanelTerminal,
   test,
   waitForShell,
 } from './helpers/app'
@@ -114,7 +114,7 @@ test('a PTY survives browser detach, reconnects, and replays its bounded tail', 
 }) => {
   await waitForShell(page)
   await openTerminals(page)
-  await spawnBoardTerminal(page)
+  await spawnPanelTerminal(page)
 
   const input = page.locator('.porcelain-ghostty-input').first()
   await input.waitFor()
@@ -125,11 +125,13 @@ test('a PTY survives browser detach, reconnects, and replays its bounded tail', 
   await expectTerminalText(page, 0, 'SCROLLBACK_TAIL_64K')
 
   // Reload closes the browser session (daemon detach) while the daemon-owned PTY remains alive.
-  // The fresh roster hydration then opens the existing row and attaches a new Ghostty stream.
-  // The Terminals tab kind is persisted, so the surface restores itself with the window.
+  // The fresh roster hydration then fills the panel with the existing row and attaches a new
+  // Ghostty stream. The panel starts closed after a reload — it is presentation state, not a
+  // persisted layout — so reopen it before looking for the tab.
   await page.reload()
   await waitForShell(page)
-  const existing = loc.terminalSession(page, 'Terminal 1')
+  await openTerminals(page)
+  const existing = loc.terminalTabByName(page, 'Terminal 1')
   await existing.waitFor({ timeout: 15_000 })
   await existing.click()
   await expectTerminalText(page, 0, 'SCROLLBACK_TAIL_64K', 45_000)

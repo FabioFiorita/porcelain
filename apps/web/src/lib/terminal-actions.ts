@@ -1,5 +1,7 @@
-import { openTerminalsBoard } from '@renderer/features/terminal/terminals-navigation'
 import type { DaemonSession } from '@renderer/lib/daemon'
+import { environmentClientFor } from '@renderer/lib/environment-sessions'
+import { trpcClient } from '@renderer/lib/trpc'
+import { currentHubTarget } from '@renderer/stores/hub-selection'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { type TerminalOrigin, useTerminalsStore } from '@renderer/stores/terminals'
 
@@ -26,20 +28,27 @@ export function nextTerminalNumber(existingNames: string[], floor: number): numb
 let terminalNumberFloor = 0
 
 /**
- * Spawn a shell in the project root and show it on the Terminals surface. Shared by the
- * Terminals board's "+" button and the ⌘T shortcut so they stay in lockstep (naming, the
- * reveal step). No-op without a project. Not a store action — it reaches across three
- * stores via `getState()`, which only a lib helper may do. Imports the navigation module
- * directly rather than the `features/terminal` barrel: the barrel pulls in the roster,
- * which imports this file, and that is a real cycle.
+ * Spawn a shell in the selected Worktree and open it in the Viewer-bottom terminal panel.
+ * Shared by the panel's "+" button and the ⌘T shortcut so they stay in lockstep (naming,
+ * the reveal step). Same target saved Actions use (`currentHubTarget`), so `pnpm dev` and
+ * a typed shell start in the same checkout. No-op without a Worktree or open project.
  */
 export async function spawnTerminal(): Promise<void> {
-  const project = useProjectSelectionStore.getState().project
-  if (!project) return
-  await spawn(project.path, 'primary')
+  const target = currentHubTarget()
+  const cwd = target?.path ?? useProjectSelectionStore.getState().project?.path
+  if (!cwd) return
+  if (target === null) {
+    await spawn(cwd, 'primary')
+    return
+  }
+  const owner = environmentClientFor(target.environmentId, trpcClient)
+  if (owner === null) {
+    throw new Error('The target Environment is offline.')
+  }
+  await spawn(cwd, 'primary', undefined, owner.session ?? undefined)
 }
 
-/** Spawn a primary-daemon shell in an explicit directory, reveal it, and name its id. */
+/** Spawn a primary-daemon shell in an explicit directory and open it as a panel tab. */
 export async function spawnTerminalAt(
   cwd: string,
   opts?: { name?: string; initialInput?: string },
@@ -47,50 +56,52 @@ export async function spawnTerminalAt(
   return spawn(cwd, 'primary', opts)
 }
 
-/**
- * Spawn on a named Environment — a daemon this window is not bound to.
- *
- * Same path as every other spawn so the numbering floor, the reveal, and the id routing stay
- * in one place: the only difference is which daemon is asked, and the store records that so a
- * later keystroke reaches the same machine.
- */
-export async function spawnTerminalOnSession(
-  session: DaemonSession,
-  cwd: string,
-  opts?: { name?: string; initialInput?: string },
-): Promise<string> {
-  return spawn(cwd, 'primary', opts, session)
+/** Open the bottom panel, creating its first shell on demand for the active project. */
+export async function openTerminalPanel(): Promise<void> {
+  const { sessions, openPanel } = useTerminalsStore.getState()
+  if (sessions.length === 0) {
+    await spawnTerminal()
+    return
+  }
+  openPanel()
+}
+
+/** Toggle the bottom panel; the first open creates a shell instead of showing an empty bar. */
+export async function toggleTerminalPanel(): Promise<void> {
+  const { panelOpen, closePanel } = useTerminalsStore.getState()
+  if (panelOpen) {
+    closePanel()
+    return
+  }
+  await openTerminalPanel()
 }
 
 /**
- * Put one session in front of the human: focus it and open the Terminals tab.
+ * Put one session in front of the human: open the bottom panel on its tab.
  *
- * The reveal path for a shell the human ASKED for — ⌘T, the board's "+", a saved Action
- * they ran — which is worthless if it starts somewhere they cannot see, and there is
- * exactly one place to show it now. A shell nobody clicked for uses `followTerminal`.
+ * The reveal path for a shell the human ASKED for — ⌘T, the panel's "+", a saved Action
+ * they ran — which is worthless if it starts somewhere they cannot see. A shell nobody
+ * clicked for uses `followTerminal`.
  */
 export function revealTerminal(id: string): void {
-  useTerminalsStore.getState().focus(id)
-  openTerminalsBoard()
+  useTerminalsStore.getState().openPanel(id)
 }
 
 /**
- * Point the board at a session without navigating to it.
+ * Point the panel at a session without opening it.
  *
- * For shells the daemon starts on its own — a Worktree setup or dispose script. The old
- * bottom panel could slide one into view under whatever you were reading; the Viewer
- * cannot, and taking the pane away mid-review to show a script nobody asked for is the
- * worse surprise. The board renders `focusedId`, so a board already on screen switches to
- * it immediately and a closed one opens on it later.
+ * For shells the daemon starts on its own — a Worktree setup or dispose script. Sliding
+ * the panel into view under whatever you were reading is the worse surprise; this way the
+ * tab is already on it whenever the panel is next opened.
  */
 export function followTerminal(id: string): void {
-  useTerminalsStore.getState().focus(id)
+  useTerminalsStore.getState().followSession(id)
 }
 
 /**
  * Spawn a shell on the machine running the app (not the daemon this window is bound to)
- * and reveal it on the Terminals surface — the "This device" path. `localPath` is the human's
- * mapped local directory for this project; the caller (the Terminals board) collects it first,
+ * and open it as a panel tab — the "This device" path. `localPath` is the human's mapped
+ * local directory for this project; the caller (the terminal panel) collects it first,
  * since the remote project's path rarely exists locally.
  */
 export async function spawnLocalTerminal(
@@ -116,6 +127,6 @@ async function spawn(
   // Named spawns (saved actions) keep the action title instead.
   const name = opts?.name ?? `Terminal ${terminalNumberFloor}`
   const id = await create({ cwd, name, origin, initialInput: opts?.initialInput, session })
-  revealTerminal(id)
+  useTerminalsStore.getState().openPanel(id)
   return id
 }

@@ -51,8 +51,7 @@ function handle(event: ShellEvent, shellUtils: ShellUtils): Promise<unknown> {
       useSettingsDialogStore.getState().openTo()
       return Promise.resolve()
     case 'new-terminal':
-      // File > New Terminal (menu.ts) — same spawn the ⌘T shortcut and the Terminal
-      // tab's "+" button use.
+      // File > New Terminal (menu.ts) — same spawn the ⌘T shortcut and the panel's "+" use.
       return spawnTerminal()
     case 'quick-open':
       // File > Quick Open… (menu.ts) — open the same popup ⌘P toggles, mirroring the
