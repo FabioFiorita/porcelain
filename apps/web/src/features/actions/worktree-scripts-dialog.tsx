@@ -22,10 +22,9 @@ function WorktreeScriptsBody({ target }: { target: WorktreeScriptsTarget }): Rea
 /**
  * One Project's Worktree lifecycle scripts, raised from the Project row in the sidebar tree.
  *
- * They used to be reachable only at the bottom of the Actions popover, which is the list of
- * commands a human presses — the opposite of what these are. The tree is where a Project is
- * selected, created from and removed, so it is where "what runs when a Worktree appears"
- * belongs. The section itself is unchanged: this is a second door onto it, not a second copy.
+ * Actions is the list of commands a human presses. These scripts are the opposite: Porcelain
+ * starts them when a Worktree is created or removed. The tree is where a Project is selected,
+ * created from and removed, so it is where they are edited.
  */
 export function WorktreeScriptsDialog(): React.JSX.Element {
   const target = useWorktreeScriptsStore((state) => state.target)

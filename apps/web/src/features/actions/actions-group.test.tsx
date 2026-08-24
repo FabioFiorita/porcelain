@@ -156,7 +156,7 @@ beforeEach(() => {
 })
 
 describe('ActionsGroup', () => {
-  it('keeps Worktree lifecycle scripts out of the click list and shows them on their own', async () => {
+  it('lists only commands a click runs — Worktree lifecycle scripts stay out', async () => {
     const { wrapper } = harness()
     render(<ActionsGroup />, { wrapper })
 
@@ -164,23 +164,18 @@ describe('ActionsGroup', () => {
       expect(screen.getByTestId(TestIds.actionRun('Build'))).toBeInTheDocument()
     })
 
-    // Both scripts are listed — under Worktree scripts, not among the Actions.
-    const setupList = screen.getByTestId(TestIds.actionsScripts('worktree-setup'))
-    const disposeList = screen.getByTestId(TestIds.actionsScripts('worktree-dispose'))
-    expect(setupList).toHaveTextContent('pnpm install')
-    expect(disposeList).toHaveTextContent('docker compose down')
+    expect(screen.queryByTestId(TestIds.actionsScriptsSection)).toBeNull()
+    expect(screen.queryByTestId(TestIds.actionsScripts('worktree-setup'))).toBeNull()
+    expect(screen.queryByTestId(TestIds.actionsScripts('worktree-dispose'))).toBeNull()
+    expect(screen.queryByText('Worktree scripts')).toBeNull()
+    expect(screen.queryByText('On create')).toBeNull()
+    expect(screen.queryByText('On remove')).toBeNull()
+    expect(screen.queryByTestId(TestIds.actionRun('Install deps'))).toBeNull()
+    expect(screen.queryByTestId(TestIds.actionRun('Stop containers'))).toBeNull()
 
-    // A lifecycle row nobody has accepted still says so, with the same shield as an Action.
-    expect(screen.getByTestId(TestIds.actionUnreviewed('Stop containers'))).toBeInTheDocument()
-
-    // The Actions list itself holds only the two commands a click runs.
-    const rows = screen
-      .getAllByTestId(/^action-run-/)
-      .filter((row) => setupList.contains(row) === false && disposeList.contains(row) === false)
-    expect(rows.map((row) => row.getAttribute('data-testid'))).toEqual([
-      TestIds.actionRun('Build'),
-      TestIds.actionRun('Run checks'),
-    ])
+    expect(
+      screen.getAllByTestId(/^action-run-/).map((row) => row.getAttribute('data-testid')),
+    ).toEqual([TestIds.actionRun('Build'), TestIds.actionRun('Run checks')])
   })
 
   it('lists the selected Project’s saved commands', async () => {
@@ -212,9 +207,22 @@ describe('ActionsGroup', () => {
     expect(screen.getByTestId(TestIds.actionsAdd)).toHaveTextContent('Add action')
     expect(screen.queryByRole('button', { name: /^Add action$/ })).toBeInTheDocument()
     expect(screen.queryByLabelText('Add action')).toBeNull()
+    expect(screen.queryByText('Worktree scripts')).toBeNull()
 
     fireEvent.click(screen.getByTestId(TestIds.actionsAdd))
     expect(screen.getByRole('dialog', { name: 'New action' })).toBeInTheDocument()
+  })
+
+  it('still looks empty when the Project only has Worktree lifecycle scripts', async () => {
+    const { wrapper } = createValidatingTrpcHarness({
+      daemonInfo: () => ({ ok: true, value: remoteContractFixtures.daemonInfo.output }),
+      actions: () => ({ ok: true, value: [install, teardown] }),
+    })
+    render(<ActionsGroup />, { wrapper })
+    await waitFor(() => expect(screen.getByTestId(TestIds.actionsEmpty)).toBeInTheDocument())
+    expect(screen.queryByTestId(TestIds.actionRun('Install deps'))).toBeNull()
+    expect(screen.queryByText('On create')).toBeNull()
+    expect(screen.queryByText('On remove')).toBeNull()
   })
 
   it('runs against the Worktree the Hub selection names', async () => {
