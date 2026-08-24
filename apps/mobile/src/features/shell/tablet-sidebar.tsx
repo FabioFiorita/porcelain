@@ -1,32 +1,31 @@
 import { groupEquivalentProjects, type HubProjectGroup } from '@porcelain/client-runtime/projects'
 import { useRouter } from 'expo-router'
-import { TabTrigger, type TabTriggerSlotProps } from 'expo-router/ui'
-import { useMemo } from 'react'
-import { Pressable, View } from 'react-native'
+import { useMemo, useState } from 'react'
+import { Image, Pressable, View } from 'react-native'
 
-import { ChromeGlyph, type ChromeIconName } from '@/components/chrome-glyph'
+import { ChromeGlyph } from '@/components/chrome-glyph'
 import { EmptyNote, IconAction } from '@/components/panel-chrome'
 import { SURFACE_GUTTER } from '@/components/surface-layout'
 import { SurfaceScroll } from '@/components/surface-scroll'
 import { Text } from '@/components/ui/text'
+import { ProjectHeading } from '@/features/hub/project-heading'
+import { useHubOverlayStore } from '@/features/hub/hub-overlay-store'
 import { WorktreeRow } from '@/features/hub/worktree-row'
 import { useHubInventories, useHubRepoPath } from '@/features/projects'
 import type { Environment } from '@/features/remote'
 import { cn } from '@/lib/utils'
 
 import { shellSheetHref } from './shell-sheets'
+import { useShellStore } from './shell-store'
 
 /**
  * The tablet's leading panel: the web client's left sidebar, on iPad.
  *
- * It is navigation only, in the web sidebar's order — Search, the daemon-wide destinations, the
- * Hub tree, Settings in the footer. Two things about it are worth naming:
+ * It is navigation only, in the web sidebar's order — Search, the Hub tree, Settings in the
+ * footer. Two things about it are worth naming:
  *
- * **The destination rows are `TabTrigger`s, not links.** A trigger rendered outside the
- * `TabList` switches the tab navigator by name without pushing anything, which is what lets the
- * iPad drop the bottom bar without giving up the three stacks behind it: leaving Terminals for
- * Settings from this panel keeps the Terminals stack, and its attached session, exactly where it
- * was. A `router.push` here would have grown the current stack instead.
+ * **Settings opens the dialog**, the same overlay the web and Mac apps use. A `TabTrigger`
+ * would have swapped the viewer to the phone Settings stack, which is the wrong shape here.
  *
  * **The Worktree list is in the panel, not behind it.** On a phone the Hub list IS a screen; at
  * iPad width the list beside the thing it opened is the whole point of the extra column, and it
@@ -42,13 +41,9 @@ export function TabletSidebar(): React.JSX.Element {
     >
       <SidebarHeader />
       <SearchRow />
-      {/* Daemon-wide destinations above the Hub tree; Settings lives in the footer. */}
-      <View className="gap-0.5 px-2 pt-2">
-        <DestinationRow glyph="terminal" label="Terminals" name="terminals" />
-      </View>
       <WorktreeList />
       <View className="border-t border-border px-2 py-2">
-        <DestinationRow glyph="settings" label="Settings" name="settings" />
+        <SettingsRow />
       </View>
     </View>
   )
@@ -64,21 +59,26 @@ export function TabletSidebar(): React.JSX.Element {
  * reason.
  */
 function SidebarHeader(): React.JSX.Element {
-  const router = useRouter()
+  const openProjectPicker = useHubOverlayStore((state) => state.openProjectPicker)
 
   return (
     <View className="min-h-12 flex-row items-center gap-2 border-b border-border pl-3 pr-1">
-      <ChromeGlyph name="layers" size={17} tone="foreground" />
+      <Image
+        accessibilityIgnoresInvertColors
+        className="size-5 shrink-0 rounded-md"
+        source={require('../../../assets/images/icon.png')}
+        testID="porcelain-tablet-logo"
+      />
       <Text className="min-w-0 flex-1 text-sm font-semibold text-foreground" numberOfLines={1}>
         Porcelain
       </Text>
       <IconAction
-        accessibilityLabel="New Worktree"
+        accessibilityLabel="Open project"
         glyph="plus"
-        testID="porcelain-tablet-new-worktree"
+        testID="porcelain-tablet-open-project"
         tone="foreground"
         onPress={() => {
-          router.push('/new-worktree')
+          openProjectPicker()
         }}
       />
     </View>
@@ -114,69 +114,31 @@ function SearchRow(): React.JSX.Element {
   )
 }
 
-type DestinationRowProps = TabTriggerSlotProps & {
-  glyph: ChromeIconName
-  label: string
-}
+function SettingsRow(): React.JSX.Element {
+  const openSettings = useShellStore((state) => state.openSettings)
 
-function DestinationButton({
-  glyph,
-  isFocused,
-  label,
-  style,
-  ...props
-}: DestinationRowProps): React.JSX.Element {
   return (
     <Pressable
-      {...props}
-      accessibilityLabel={label}
-      accessibilityRole="tab"
-      accessibilityState={{ selected: isFocused }}
-      className={cn(
-        'min-h-9 min-w-0 flex-1 flex-row items-center gap-2 rounded-md px-2',
-        isFocused === true ? 'bg-accent' : 'active:bg-accent/40',
-      )}
-      style={style}
-      testID={`porcelain-tablet-${label.toLowerCase()}`}
+      accessibilityLabel="Settings"
+      accessibilityRole="button"
+      className="min-h-9 min-w-0 flex-row items-center gap-2 rounded-md px-2 active:bg-accent/40"
+      testID="porcelain-tablet-settings"
+      onPress={() => {
+        openSettings()
+      }}
     >
-      <ChromeGlyph name={glyph} size={15} tone={isFocused === true ? 'foreground' : 'muted'} />
-      <Text
-        className={cn(
-          'min-w-0 flex-1 text-xs font-medium',
-          isFocused === true ? 'text-accent-foreground' : 'text-muted-foreground',
-        )}
-        numberOfLines={1}
-      >
-        {label}
+      <ChromeGlyph name="settings" size={15} tone="muted" />
+      <Text className="min-w-0 flex-1 text-xs font-medium text-muted-foreground" numberOfLines={1}>
+        Settings
       </Text>
     </Pressable>
-  )
-}
-
-/**
- * A destination row. No `href`: a `TabTrigger` outside the `TabList` acts as the trigger of the
- * same `name` that IS in the list, which is how the hidden list can stay the one declaration of
- * where each tab points.
- */
-function DestinationRow({
-  glyph,
-  label,
-  name,
-}: {
-  glyph: ChromeIconName
-  label: string
-  name: string
-}): React.JSX.Element {
-  return (
-    <TabTrigger asChild name={name}>
-      <DestinationButton glyph={glyph} label={label} />
-    </TabTrigger>
   )
 }
 
 function WorktreeList(): React.JSX.Element {
   const inventories = useHubInventories()
   const activePath = useHubRepoPath()
+  const [collapsed, setCollapsed] = useState<readonly string[]>([])
   const groups = useMemo(
     () => groupEquivalentProjects(inventories.map((entry) => entry.inventory)),
     [inventories],
@@ -197,7 +159,7 @@ function WorktreeList(): React.JSX.Element {
       >
         Worktrees
       </Text>
-      <SurfaceScroll gap={4} paddingTop={4}>
+      <SurfaceScroll edgeToEdge gap={4} paddingTop={4}>
         {groups.length === 0 ? (
           <EmptyNote
             body="Pair an environment under Settings, then open a project on that daemon."
@@ -209,8 +171,16 @@ function WorktreeList(): React.JSX.Element {
           <SidebarGroup
             key={group.groupingKey}
             activePath={activePath}
+            collapsed={collapsed.includes(group.groupingKey)}
             group={group}
             localByEnvironmentId={localByEnvironmentId}
+            onToggle={() =>
+              setCollapsed((current) =>
+                current.includes(group.groupingKey)
+                  ? current.filter((key) => key !== group.groupingKey)
+                  : [...current, group.groupingKey],
+              )
+            }
           />
         ))}
       </SurfaceScroll>
@@ -220,12 +190,16 @@ function WorktreeList(): React.JSX.Element {
 
 function SidebarGroup({
   activePath,
+  collapsed,
   group,
   localByEnvironmentId,
+  onToggle,
 }: {
   activePath: string | null
+  collapsed: boolean
   group: HubProjectGroup
   localByEnvironmentId: Map<string, Environment>
+  onToggle: () => void
 }): React.JSX.Element {
   const rows = group.members.flatMap((member) =>
     member.project.worktrees.map((worktree) => ({
@@ -237,22 +211,25 @@ function SidebarGroup({
 
   return (
     <View testID={`porcelain-tablet-sidebar-project-${group.groupingKey}`}>
-      <Text
-        className={cn(SURFACE_GUTTER, 'py-2 text-sm font-semibold text-foreground')}
-        numberOfLines={1}
-      >
-        {group.name}
-      </Text>
-      {rows.map((row) => (
-        <WorktreeRow
-          key={`${row.environmentId}:${row.worktree.id}`}
-          environment={localByEnvironmentId.get(row.environmentId) ?? null}
-          open="navigate"
-          project={row.project}
-          selected={row.worktree.path === activePath}
-          worktree={row.worktree}
-        />
-      ))}
+      <ProjectHeading
+        collapsed={collapsed}
+        environments={localByEnvironmentId}
+        group={group}
+        testID={`porcelain-tablet-sidebar-project-toggle-${group.groupingKey}`}
+        onToggle={onToggle}
+      />
+      {collapsed
+        ? null
+        : rows.map((row) => (
+            <WorktreeRow
+              key={`${row.environmentId}:${row.worktree.id}`}
+              environment={localByEnvironmentId.get(row.environmentId) ?? null}
+              open="navigate"
+              project={row.project}
+              selected={row.worktree.path === activePath}
+              worktree={row.worktree}
+            />
+          ))}
     </View>
   )
 }

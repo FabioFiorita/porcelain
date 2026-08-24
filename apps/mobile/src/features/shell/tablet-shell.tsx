@@ -4,6 +4,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { IconAction } from '@/components/panel-chrome'
 
+import { SettingsDialog } from '@/features/settings/settings-dialog'
+
 import { DESTINATIONS } from './destinations'
 import { HUB_SIDEBAR_WIDTH } from './shell-layout'
 import { useShellStore } from './shell-store'
@@ -19,10 +21,10 @@ import { ColumnChrome, ShellControls } from './window-chrome'
  *  ┌────────────┬───────────────────────────┬──────────────┐
  *  │ Porcelain  │  ╭─────────────────────╮  │ Files ⨯ Chg ⨯│
  *  │ Search     │  │ ScreenHeader        │  ├──────────────┤
- *  │ Terminals  │  │                     │  │  the active  │
- *  │ WORKTREES  │  │  the routed stack   │  │  surface's   │
- *  │  …         │  │  (file · diff ·     │  │  list        │
- *  │ Settings   │  ╰──commit · Canvas)───╯  │              │
+ *  │ WORKTREES  │  │                     │  │  the active  │
+ *  │  …         │  │  the routed stack   │  │  surface's   │
+ *  │ Settings   │  │  (file · diff ·     │  │  list        │
+ *  │            │  ╰──commit · Canvas)───╯  │              │
  *  └────────────┴───────────────────────────┴──────────────┘
  * ```
  *
@@ -37,11 +39,9 @@ import { ColumnChrome, ShellControls } from './window-chrome'
  * viewer, which spent the iPad's centre column on a menu; see `surfaces-panel.tsx`.
  *
  * **There is no tab bar here, and the tabs are still what runs it.** `Tabs` stays mounted, its
- * `TabList` is present but hidden, and the sidebar's rows are `TabTrigger`s that address the
- * same tabs by name. So the iPad gets the web silhouette while every stack stays alive behind
- * it: leaving Terminals for Settings and coming back finds the same attached session, and the
- * routed screen never moves between containers when the window resizes, because it was never in
- * the sidebar's container.
+ * `TabList` is present but hidden. Settings is a dialog, not a tab. The routed screen never
+ * moves between containers when the window resizes, because it was never in the sidebar's
+ * container.
  *
  * **Why this is a flex row and not `UISplitViewController`.** expo-router 57 does ship the
  * platform primitive (`expo-router/unstable-split-view`, over `react-native-screens`'
@@ -69,6 +69,7 @@ export function TabletShell(): React.JSX.Element {
   const showSidebar = layout === 'split' && sidebarOpen
 
   return (
+    <>
     <Tabs>
       <View
         className="flex-1 flex-row gap-2 bg-background p-2"
@@ -145,5 +146,7 @@ export function TabletShell(): React.JSX.Element {
         ))}
       </TabList>
     </Tabs>
+    <SettingsDialog />
+    </>
   )
 }

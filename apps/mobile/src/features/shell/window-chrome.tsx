@@ -13,7 +13,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
  * it. A shell-provided value cannot lie.
  *
  * Both edges default to the plain phone answer and are overridden by whoever knows better: a
- * presented screen at the bottom, a column at the top.
+ * presented screen at the bottom, a column at the top. The phone shell has no tab bar; it
+ * clears the home indicator on the slot itself.
  */
 
 const BottomChromeContext = createContext(0)
@@ -29,7 +30,7 @@ const TopChromeContext = createContext<number | null>(null)
 /**
  * For a screen presented OVER the shell — a `fullScreenModal`, a `formSheet`, a `Modal`.
  *
- * **Bottom:** the tab bar is not under it, so the home indicator is the surface's own problem.
+ * **Bottom:** the shell is not under it, so the home indicator is the surface's own problem.
  * **Top:** a sheet is inset from the top of the window and never reaches the status bar, so its
  * header adds nothing; a full-screen modal does, and passes `coversStatusBar`.
  */
@@ -62,10 +63,9 @@ export function ColumnChrome({ children }: { children: React.ReactNode }): React
 /**
  * Points of chrome this surface has to clear at its bottom edge.
  *
- * Zero unless a shell says otherwise — which is the correct answer inside the tab shell, inside
- * every tablet column, and in a test. It used to be the tab bar's height, because a `UITabBar`
- * floats over its content and UIKit folds it into the safe area; `PorcelainTabBar` is an
- * ordinary row in a column, so content simply ends above it.
+ * Zero unless a shell says otherwise — which is the correct answer inside the phone and tablet
+ * shells, inside every tablet column, and in a test. The phone slot itself clears the home
+ * indicator, so a surface mounted there does not reserve a second inset.
  */
 export function useBottomChrome(): number {
   return useContext(BottomChromeContext)

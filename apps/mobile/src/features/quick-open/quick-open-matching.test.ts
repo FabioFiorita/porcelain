@@ -71,5 +71,15 @@ describe('quick-open matching', () => {
         section: 'remotes',
       },
     ])
+    expect(gotoRows('update')).toEqual([
+      {
+        detail: 'Settings',
+        id: 'settings:updates',
+        kind: 'settings',
+        label: 'Updates',
+        section: 'updates',
+      },
+    ])
+    expect(gotoRows('personalization')).toEqual([])
   })
 })

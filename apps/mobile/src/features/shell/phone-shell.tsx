@@ -1,46 +1,40 @@
 import { TabList, TabSlot, Tabs, TabTrigger } from 'expo-router/ui'
+import { View } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { DESTINATIONS } from './destinations'
-import { PorcelainTabBar, TabBarItem } from './tab-bar'
 
 /**
- * The phone shell: the three destinations as a bottom bar under the screen they open.
+ * The phone shell: the Hub stack fills the window. There is no bottom bar.
  *
  * Worktrees is the Hub — every Worktree of every Environment in one list — and a surface is
- * reached THROUGH the Worktree that owns it, inside that tab's stack. Surfaces used to be the
- * tabs themselves, which meant five surfaces sharing four slots via a dual-face hack, and a
- * project / branch / worktree switcher in every header to say which checkout you were looking
- * at. Both are gone with this shell.
+ * reached THROUGH the Worktree that owns it, inside that tab's stack.
  *
- * Terminals is daemon-wide, not per-Worktree, which is why it is a destination rather than a
- * surface. It is the ONE terminal surface — a Worktree no longer has a Terminal row of its own,
- * because a shell that outlives the checkout you were standing in has to be reachable from
- * somewhere that is not inside it.
+ * **The navigator is still `expo-router/ui` `Tabs`.** The tablet already hid its `TabList` and
+ * switched tabs from the sidebar; the phone now hides the same list. `TabSlot` keeps every
+ * visited tab mounted (`activityState: 0`, `display: none`) rather than unmounting it, so a
+ * Settings visit does not tear the Hub stack down. A tab mounts lazily on its first visit and
+ * is never torn down after.
  *
- * **The navigator is `expo-router/ui`, not `NativeTabs`.** `PorcelainTabBar` explains why the
- * bar is drawn rather than adopted. What matters here is what the swap does NOT cost: `TabSlot`
- * renders every tab that has been visited and hides the ones that are not focused
- * (`activityState: 0`, `display: none`) rather than unmounting them, so a Terminals session
- * survives a trip to Settings exactly as it did under the native navigator. A tab mounts lazily
- * on its first visit and is never torn down after.
+ * The home indicator used to sit inside the tab bar. With the bar gone, the slot itself clears
+ * it so Hub rows are not drawn under the gesture inset.
  */
 export function PhoneShell(): React.JSX.Element {
+  const insets = useSafeAreaInsets()
+
   return (
     <Tabs>
-      <TabSlot />
-      <TabList asChild>
-        <PorcelainTabBar>
-          {DESTINATIONS.map((destination) => (
-            <TabTrigger
-              key={destination.name}
-              asChild
-              href={destination.href}
-              name={destination.name}
-            >
-              <TabBarItem glyph={destination.glyph} label={destination.label} />
-            </TabTrigger>
-          ))}
-        </PorcelainTabBar>
+      <View
+        className="flex-1 bg-background"
+        /* nativewind-allow-style: the home indicator is owned HERE now that there is no tab bar. */
+        style={{ paddingBottom: insets.bottom }}
+      >
+        <TabSlot />
+      </View>
+      <TabList style={{ display: 'none' }}>
+        {DESTINATIONS.map((destination) => (
+          <TabTrigger key={destination.name} href={destination.href} name={destination.name} />
+        ))}
       </TabList>
     </Tabs>
   )

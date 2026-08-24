@@ -22,7 +22,7 @@ import type {
 } from '@porcelain/contracts/git'
 import { gitProcedures } from '@porcelain/contracts/git'
 import { useCallback } from 'react'
-import { BADGE_POLL_MS, LIVE_POLL_MS } from '@/lib/daemon/poll'
+import { LIVE_POLL_MS } from '@/lib/daemon/poll'
 import { namedContractProcedure } from '@/lib/daemon/procedure'
 
 import { useGitFetch, useGitQuery, useGitScope } from './use-git-transport'
@@ -125,16 +125,6 @@ export function useGitRangeFlow(options: GitFlowOptions = {}): GitRangeFlowRead 
  */
 export function useWorkingFlow(active: boolean): FlowGroup[] | undefined {
   return useGitFlow({ enabled: active }).groups
-}
-
-/**
- * Changed-file count for the tab-bar badge. Shares the flow identity with the list, so this
- * adds a read only while the tab is off screen — React Query uses the shortest interval among
- * a key's observers, so an open list still refreshes at the live rate.
- */
-export function useChangedFileCount(): number {
-  const { groups } = useGitFlow({ pollMs: BADGE_POLL_MS })
-  return (groups ?? []).reduce((count, group) => count + group.files.length, 0)
 }
 
 /** The porcelain status list — staged and unstaged paths without the flow grouping. */

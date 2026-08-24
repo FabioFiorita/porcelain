@@ -47,7 +47,6 @@ export type {
   GitRangeFlowRead,
 } from './git-queries'
 export {
-  useChangedFileCount,
   useCommitConventions,
   useCommitFlow,
   useCommitMessage,

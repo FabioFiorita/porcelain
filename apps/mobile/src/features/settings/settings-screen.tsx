@@ -1,73 +1,39 @@
+import { useRouter } from 'expo-router'
 import { View } from 'react-native'
 
 import { ScreenHeader } from '@/components/panel-chrome'
 import { SurfaceScroll } from '@/components/surface-scroll'
 import { Select } from '@/components/ui/select'
+import { useShellStore } from '@/features/shell/shell-store'
 
-import { type SettingsSection, useShellStore } from '../shell/shell-store'
-import { DataSettings } from './data-panel'
-import { EnvironmentsSettings } from './environments-panel'
-import { GeneralSettings } from './general-panel'
-import { PersonalizationSettings } from './personalization-panel'
+import { SettingsSectionBody } from './settings-body'
+import { SETTINGS_SECTIONS, type SettingsSection } from './settings-catalog'
 
 /**
- * The same four sections the desktop Settings dialog has, in its order: General ·
- * Personalization · Companion · Remotes. Share and Updates are shell concerns and are not
- * offered here.
+ * Phone Settings — a full-screen stack with a back button.
  *
- * `Companion` is what this client used to call `Data` — it edits the repo companion channel
- * dispositions, which is companion state, not a fourth kind of preference. `Remotes` is what it
- * called `Environments`; the paired-daemon list is the same thing under the desktop's name.
- */
-const SECTIONS: { value: SettingsSection; label: string; detail: string; testID: string }[] = [
-  {
-    value: 'general',
-    label: 'General',
-    detail: 'Viewer preferences, saved on this machine.',
-    testID: 'porcelain-settings-section-general',
-  },
-  {
-    value: 'personalization',
-    label: 'Personalization',
-    detail: 'Copyable guidance for how changes should read.',
-    testID: 'porcelain-settings-section-personalization',
-  },
-  {
-    value: 'companion',
-    label: 'Companion',
-    detail: 'The companion skill for your agents.',
-    testID: 'porcelain-settings-section-companion',
-  },
-  {
-    value: 'remotes',
-    label: 'Remotes',
-    detail: 'Connect this app to other daemons.',
-    testID: 'porcelain-settings-section-remotes',
-  },
-]
-
-/**
- * Phone Settings tab — full-screen (not a sheet).
- *
- * The section switcher is the first row of the content rather than part of the header band. It
- * used to hang off the bottom of a hand-rolled header and take the divider with it, so the two
- * read as one 90pt slab; `ScreenHeader` is a 48pt band with a hairline, the same as the web
- * client's, and the switcher scrolls under it like any other content.
- *
- * A `Select`, not the `SegmentedControl` the scope switchers use. Four segments across a phone
- * cannot print four words — "Personalization" and "Companion" were both losing their tails —
- * and the sections are a LIST rather than a scope: the desktop draws them as one, complete with
- * the sentence under each name, and the Environments picker this screen is going to grow has as
- * many entries as the human has machines. A control that divides the width by its option count
- * is the wrong shape for both.
+ * Tablet Settings is a dialog (`settings-dialog.tsx`). The section list is the same four:
+ * General, Personalization, Companion, and Remotes, plus any host status section supported by
+ * the current daemon. Project-specific Personalization also opens from its Project row.
  */
 export function SettingsScreen(): React.JSX.Element {
+  const router = useRouter()
   const section = useShellStore((state) => state.settingsSection)
   const setSettingsSection = useShellStore((state) => state.setSettingsSection)
 
   return (
     <View className="flex-1 bg-background" testID="porcelain-phone-settings">
-      <ScreenHeader testID="porcelain-settings-header" title="Settings" />
+      <ScreenHeader
+        back={{
+          accessibilityLabel: 'Worktrees',
+          testID: 'porcelain-settings-back',
+          onPress: () => {
+            router.navigate('/')
+          },
+        }}
+        testID="porcelain-settings-header"
+        title="Settings"
+      />
       <SurfaceScroll
         gap={12}
         keyboardShouldPersistTaps="handled"
@@ -75,19 +41,23 @@ export function SettingsScreen(): React.JSX.Element {
         showsVerticalScrollIndicator={false}
       >
         <Select<SettingsSection>
-          options={SECTIONS}
+          options={SETTINGS_SECTIONS.map((entry) => ({
+            detail: entry.blurb,
+            label: entry.label,
+            testID: entry.testID,
+            value: entry.id,
+          }))}
           testID="porcelain-settings-tabs"
           title="Settings"
           value={section}
           onChange={setSettingsSection}
         />
-        {section === 'general' ? <GeneralSettings /> : null}
-        {section === 'personalization' ? <PersonalizationSettings /> : null}
-        {section === 'companion' ? <DataSettings /> : null}
-        {section === 'remotes' ? <EnvironmentsSettings /> : null}
+        <SettingsSectionBody section={section} />
       </SurfaceScroll>
     </View>
   )
 }
 
-export { DataSettings, EnvironmentsSettings, GeneralSettings, PersonalizationSettings }
+export { DataSettings } from './data-panel'
+export { EnvironmentsSettings } from './environments-panel'
+export { GeneralSettings } from './general-panel'

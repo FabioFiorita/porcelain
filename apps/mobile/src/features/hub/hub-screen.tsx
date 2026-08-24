@@ -1,19 +1,16 @@
 import { type HubProjectGroup, groupEquivalentProjects } from '@porcelain/client-runtime/projects'
 import { useMemo, useState } from 'react'
-import { Pressable, View } from 'react-native'
+import { View } from 'react-native'
 
-import { ChromeGlyph } from '@/components/chrome-glyph'
 import { EmptyNote, ScreenHeader } from '@/components/panel-chrome'
-import { SURFACE_GUTTER } from '@/components/surface-layout'
 import { SurfaceScroll } from '@/components/surface-scroll'
-import { Text } from '@/components/ui/text'
 import { useHubInventories, useHubRepoPath } from '@/features/projects'
 import type { Environment } from '@/features/remote'
 import { useShellStore } from '@/features/shell/shell-store'
 import { useShellLayout } from '@/features/shell/use-app-window'
-import { cn } from '@/lib/utils'
 
-import { NewWorktreeHeaderAction } from './hub-header-actions'
+import { HubHeaderActions } from './hub-header-actions'
+import { ProjectHeading } from './project-heading'
 import { WorktreeRow } from './worktree-row'
 
 /**
@@ -54,7 +51,7 @@ export function HubScreen(): React.JSX.Element {
     return (
       <View className="flex-1 bg-background" testID="porcelain-hub-screen">
         <ScreenHeader
-          actions={<NewWorktreeHeaderAction />}
+          actions={<HubHeaderActions />}
           testID="porcelain-hub-header"
           title="Worktrees"
         />
@@ -72,11 +69,11 @@ export function HubScreen(): React.JSX.Element {
   return (
     <View className="flex-1 bg-background" testID="porcelain-hub-screen">
       <ScreenHeader
-        actions={<NewWorktreeHeaderAction />}
+        actions={<HubHeaderActions />}
         testID="porcelain-hub-header"
         title="Worktrees"
       />
-      <SurfaceScroll gap={4} paddingTop={8}>
+      <SurfaceScroll edgeToEdge gap={4} paddingTop={8}>
         {groups.length === 0 ? (
           <EmptyNote
             body="Pair an environment under Settings, then open a project on that daemon."
@@ -128,20 +125,13 @@ function ProjectGroup({
 
   return (
     <View testID={`porcelain-hub-project-${group.groupingKey}`}>
-      <Pressable
-        accessibilityLabel={`Project ${group.name}`}
-        accessibilityRole="button"
-        accessibilityState={{ expanded: !collapsed }}
-        className={cn(SURFACE_GUTTER, 'flex-row items-center gap-2 py-2')}
+      <ProjectHeading
+        collapsed={collapsed}
+        environments={localByEnvironmentId}
+        group={group}
         testID={`porcelain-hub-project-toggle-${group.groupingKey}`}
-        onPress={onToggle}
-      >
-        <ChromeGlyph name={collapsed ? 'chevronRight' : 'chevron'} size={11} tone="muted" />
-        <Text className="min-w-0 flex-1 text-sm font-semibold text-foreground" numberOfLines={1}>
-          {group.name}
-        </Text>
-        <Text className="text-2xs text-muted-foreground">{rows.length}</Text>
-      </Pressable>
+        onToggle={onToggle}
+      />
       {collapsed
         ? null
         : rows.map((row) => (

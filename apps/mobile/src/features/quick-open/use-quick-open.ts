@@ -9,6 +9,7 @@ import { useHistoryStore } from '@/features/history'
 import { useFileSearch, useSearchStore } from '@/features/search'
 import { shellSheetHref } from '@/features/shell/shell-sheets'
 import { useShellStore } from '@/features/shell/shell-store'
+import { useIsTablet } from '@/features/shell/use-app-window'
 import { type SurfaceId, surfaceById } from '@/features/shell/surfaces'
 import { pathSegments } from '@/lib/path-identities'
 
@@ -49,8 +50,9 @@ function asError(error: unknown): Error | null {
 /** Shared phone/tablet behavior for the one-line navigation surface. */
 export function useQuickOpen(open: boolean, onClose: () => void): QuickOpenModel {
   const router = useRouter()
+  const isTablet = useIsTablet()
   const openSurface = useShellStore((state) => state.openSurface)
-  const setSettingsSection = useShellStore((state) => state.setSettingsSection)
+  const openSettings = useShellStore((state) => state.openSettings)
   const openCommitInHistory = useHistoryStore((state) => state.openCommit)
   const selectAction = useActionsSelectionStore((state) => state.selectAction)
   const setSearchQuery = useSearchStore((state) => state.setQuery)
@@ -163,13 +165,13 @@ export function useQuickOpen(open: boolean, onClose: () => void): QuickOpenModel
     (destination: QuickOpenGotoRow): void => {
       close()
       if (destination.kind === 'settings') {
-        setSettingsSection(destination.section)
-        router.navigate(shellSheetHref('settings'))
+        openSettings(destination.section)
+        if (!isTablet) router.navigate(shellSheetHref('settings'))
         return
       }
       navigateSurface(destination.id)
     },
-    [close, navigateSurface, router, setSettingsSection],
+    [close, isTablet, navigateSurface, openSettings, router],
   )
 
   const searchContents = useCallback((): void => {

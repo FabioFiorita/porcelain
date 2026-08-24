@@ -1,6 +1,7 @@
 import {
   createHubWorktree,
   type ProjectsQuery,
+  removeHubProject,
   removeHubWorktree,
 } from '@porcelain/client-runtime/projects'
 import {
@@ -35,6 +36,10 @@ const createWorktreeProcedure = namedContractProcedure(
 const removeWorktreeProcedure = namedContractProcedure(
   'removeHubWorktree',
   projectsProcedures.removeHubWorktree,
+)
+const removeProjectProcedure = namedContractProcedure(
+  'removeHubProject',
+  projectsProcedures.removeHubProject,
 )
 
 async function invalidate(
@@ -124,5 +129,34 @@ export function useRetireHubWorktree(): {
     retire: async (environment, worktree): Promise<void> => {
       await mutation.mutateAsync({ environment, worktree })
     },
+  }
+}
+
+export function useRemoveHubProject(): {
+  remove: (environment: Environment, projectId: string) => Promise<void>
+  isPending: boolean
+} {
+  const queryClient = useQueryClient()
+  const mutation = useMutation({
+    mutationFn: async ({
+      environment,
+      projectId,
+    }: {
+      environment: Environment
+      projectId: string
+    }) => {
+      await callProjectDaemon(environment, removeProjectProcedure, projectId)
+    },
+    onSettled: async (_data, _error, variables): Promise<void> => {
+      await invalidate(
+        queryClient,
+        variables.environment.id,
+        removeHubProject.affectedQueries(variables.projectId),
+      )
+    },
+  })
+  return {
+    isPending: mutation.isPending,
+    remove: async (environment, projectId) => mutation.mutateAsync({ environment, projectId }),
   }
 }

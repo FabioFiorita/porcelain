@@ -1,10 +1,15 @@
+import * as DialogPrimitive from '@rn-primitives/dialog'
 import { useState } from 'react'
-import { Pressable, View } from 'react-native'
+import { Pressable, useWindowDimensions, View } from 'react-native'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { Sheet } from '@/components/ui/sheet'
 import { Text } from '@/components/ui/text'
+import { useIsTablet } from '@/features/shell/use-app-window'
 import { cn } from '@/lib/utils'
+
+const FILL = { bottom: 0, left: 0, position: 'absolute', right: 0, top: 0 } as const
+const SCRIM = { ...FILL, backgroundColor: 'rgba(0, 0, 0, 0.5)' } as const
 
 type Option<T extends string> = {
   value: T
@@ -45,7 +50,38 @@ export function Select<T extends string>({
   value: T
 }): React.JSX.Element {
   const [open, setOpen] = useState(false)
+  const tablet = useIsTablet()
+  const window = useWindowDimensions()
   const selected = options.find((option) => option.value === value)
+
+  const optionRows = (
+    <View className="gap-0.5 px-2" testID={`${testID}-options`}>
+      {options.map((option) => (
+        <Pressable
+          key={option.value}
+          accessibilityLabel={option.label}
+          accessibilityRole="button"
+          accessibilityState={{ selected: option.value === value }}
+          className="min-h-12 flex-row items-center gap-3 rounded-xl px-3 py-2.5 active:bg-accent"
+          testID={option.testID}
+          onPress={() => {
+            setOpen(false)
+            if (option.value !== value) onChange(option.value)
+          }}
+        >
+          <View className="min-w-0 flex-1">
+            <Text className="text-sm font-medium text-foreground">{option.label}</Text>
+            {option.detail === undefined ? null : (
+              <Text className="text-xs text-muted-foreground" numberOfLines={2}>
+                {option.detail}
+              </Text>
+            )}
+          </View>
+          {option.value === value ? <ChromeGlyph name="check" size={15} tone="primary" /> : null}
+        </Pressable>
+      ))}
+    </View>
+  )
 
   return (
     <>
@@ -69,46 +105,41 @@ export function Select<T extends string>({
         <ChromeGlyph name="chevron" size={12} tone="muted" />
       </Pressable>
 
-      <Sheet
-        open={open}
-        onClose={() => {
-          setOpen(false)
-        }}
-      >
-        <View className="gap-1 border-b border-border px-5 pb-3">
-          <Text className="text-base font-semibold text-foreground" numberOfLines={1}>
-            {title}
-          </Text>
-        </View>
-        <View className="gap-0.5 px-2" testID={`${testID}-options`}>
-          {options.map((option) => (
-            <Pressable
-              key={option.value}
-              accessibilityLabel={option.label}
-              accessibilityRole="button"
-              accessibilityState={{ selected: option.value === value }}
-              className="min-h-12 flex-row items-center gap-3 rounded-xl px-3 py-2.5 active:bg-accent"
-              testID={option.testID}
-              onPress={() => {
-                setOpen(false)
-                if (option.value !== value) onChange(option.value)
-              }}
-            >
-              <View className="min-w-0 flex-1">
-                <Text className="text-sm font-medium text-foreground">{option.label}</Text>
-                {option.detail === undefined ? null : (
-                  <Text className="text-xs text-muted-foreground" numberOfLines={2}>
-                    {option.detail}
-                  </Text>
-                )}
-              </View>
-              {option.value === value ? (
-                <ChromeGlyph name="check" size={15} tone="primary" />
-              ) : null}
-            </Pressable>
-          ))}
-        </View>
-      </Sheet>
+      {tablet ? (
+        <DialogPrimitive.Root open={open} onOpenChange={(next) => !next && setOpen(false)}>
+          <DialogPrimitive.Portal>
+            <DialogPrimitive.Overlay asChild>
+              <Pressable className="items-center justify-center" style={SCRIM}>
+                <DialogPrimitive.Content asChild>
+                  {/* panel-card-allow: a compact picker dialog, not a content card. */}
+                  <View
+                    className="overflow-hidden rounded-xl border border-border bg-card py-2"
+                    onStartShouldSetResponder={() => true}
+                    style={{
+                      maxHeight: window.height - 96,
+                      width: Math.min(420, window.width - 96),
+                    }}
+                  >
+                    <View className="border-b border-border px-5 pb-3 pt-1">
+                      <Text className="text-base font-semibold text-foreground">{title}</Text>
+                    </View>
+                    {optionRows}
+                  </View>
+                </DialogPrimitive.Content>
+              </Pressable>
+            </DialogPrimitive.Overlay>
+          </DialogPrimitive.Portal>
+        </DialogPrimitive.Root>
+      ) : (
+        <Sheet open={open} onClose={() => setOpen(false)}>
+          <View className="gap-1 border-b border-border px-5 pb-3">
+            <Text className="text-base font-semibold text-foreground" numberOfLines={1}>
+              {title}
+            </Text>
+          </View>
+          {optionRows}
+        </Sheet>
+      )}
     </>
   )
 }
