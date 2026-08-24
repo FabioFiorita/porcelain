@@ -18,6 +18,11 @@ apps/desktop/e2e/.artifacts/
 .claude/worktrees/
 .porcelain-worktree.json
 
+# Personal agent instructions (Linear close-with-evidence). Not shared.
+AGENTS.local.md
+CLAUDE.local.md
+cloud.local.md
+
 # Local env files — the per-repo Expo account (EXPO_TOKEN). An Expo access token is a
 # FULL-account credential (publish updates, submit builds, rotate signing keys), so it
 # never enters git. Also covers `.envrc`; a tracked template would need `!.env.example`.
