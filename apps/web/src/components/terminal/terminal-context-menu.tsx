@@ -6,9 +6,9 @@ import {
   ContextMenuShortcut,
   ContextMenuTrigger,
 } from '@renderer/components/ui/context-menu'
-import { Kbd } from '@renderer/components/ui/kbd'
+import { Shortcut } from '@renderer/components/ui/kbd'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
-import { kbdLabel } from '@renderer/lib/keyboard'
+
 import {
   chooseTerminalFiles,
   clearTerminalViewport,
@@ -59,7 +59,7 @@ export function TerminalContextMenu({
         >
           <Copy /> Copy
           <ContextMenuShortcut>
-            <Kbd>{kbdLabel('mod', 'C')}</Kbd>
+            <Shortcut tokens={['mod', 'C']} />
           </ContextMenuShortcut>
         </ContextMenuItem>
         <ContextMenuItem
@@ -77,7 +77,7 @@ export function TerminalContextMenu({
         >
           <ClipboardPaste /> Paste
           <ContextMenuShortcut>
-            <Kbd>{kbdLabel('mod', 'V')}</Kbd>
+            <Shortcut tokens={['mod', 'V']} />
           </ContextMenuShortcut>
         </ContextMenuItem>
         <ContextMenuItem
@@ -93,7 +93,7 @@ export function TerminalContextMenu({
         >
           <TextSelect /> Select all
           <ContextMenuShortcut>
-            <Kbd>{kbdLabel('mod', 'A')}</Kbd>
+            <Shortcut tokens={['mod', 'A']} />
           </ContextMenuShortcut>
         </ContextMenuItem>
         <ContextMenuItem
@@ -102,7 +102,7 @@ export function TerminalContextMenu({
         >
           <Eraser /> Clear
           <ContextMenuShortcut>
-            <Kbd>{kbdLabel('mod', 'K')}</Kbd>
+            <Shortcut tokens={['mod', 'K']} />
           </ContextMenuShortcut>
         </ContextMenuItem>
       </ContextMenuContent>

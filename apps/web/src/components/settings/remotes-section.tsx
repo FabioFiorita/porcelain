@@ -19,7 +19,7 @@ import { EnvironmentName } from './environment-name'
 import { cn } from '@renderer/lib/utils'
 import { platformLabel } from '@shared/platform'
 import { TestIds } from '@shared/test-ids'
-import { X } from 'lucide-react'
+import { Cloud, Monitor, X } from 'lucide-react'
 import { useState } from 'react'
 
 function describeStatus(status: EnvironmentStatus | undefined): string {
@@ -93,50 +93,57 @@ function ElectronRemotesSection(): React.JSX.Element {
 
   return (
     <div className="flex flex-col gap-3">
-      <ul className="divide-y divide-border/60 overflow-hidden rounded-md border border-border/60">
+      <ul className="flex flex-col gap-3">
         <li
-          className="flex items-center justify-between gap-3 p-3"
+          className="flex flex-col gap-3 rounded-xl border border-border/60 bg-card/40 p-4"
           data-testid={TestIds.environmentRow('local')}
         >
-          <div className="min-w-0">
-            <EnvironmentName
-              disabled={localStatus?.state !== 'online'}
-              environmentId={null}
-              machineName={localStatus?.host ?? null}
-              name={localName}
-            />
-            <p className="text-xs text-muted-foreground">{describeStatus(localStatus)}</p>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <div className={primaryActionSlotClass}>
-              {activeId == null ? (
-                <Badge
-                  variant="outline"
-                  className="rounded-md border-border/60 text-2xs text-muted-foreground"
-                >
-                  This window
-                </Badge>
-              ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={rowActionClass}
-                  disabled={isDisconnecting}
-                  onClick={() => disconnect()}
-                >
-                  {isDisconnecting ? 'Switching…' : 'Use here'}
-                </Button>
-              )}
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-start gap-3">
+              <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                <Monitor className="size-4" aria-hidden />
+              </span>
+              <div className="min-w-0">
+                <EnvironmentName
+                  disabled={localStatus?.state !== 'online'}
+                  environmentId={null}
+                  machineName={localStatus?.host ?? null}
+                  name={localName}
+                />
+                <p className="text-xs text-muted-foreground">{describeStatus(localStatus)}</p>
+              </div>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className={rowActionClass}
-              onClick={() => openInEnv({ environmentId: null })}
-            >
-              New window
-            </Button>
-            <span className="size-7 shrink-0" aria-hidden />
+            <div className="flex shrink-0 items-center gap-2">
+              <div className={primaryActionSlotClass}>
+                {activeId == null ? (
+                  <Badge
+                    variant="outline"
+                    className="rounded-md border-border/60 text-2xs text-muted-foreground"
+                  >
+                    Connected
+                  </Badge>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={rowActionClass}
+                    disabled={isDisconnecting}
+                    onClick={() => disconnect()}
+                  >
+                    {isDisconnecting ? 'Switching…' : 'Switch to'}
+                  </Button>
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className={rowActionClass}
+                onClick={() => openInEnv({ environmentId: null })}
+              >
+                New window
+              </Button>
+              <span className="size-7 shrink-0" aria-hidden />
+            </div>
           </div>
         </li>
         {environments.map((environment) => {
@@ -146,21 +153,26 @@ function ElectronRemotesSection(): React.JSX.Element {
           return (
             <li
               key={environment.id}
-              className="flex flex-col gap-3 p-3"
+              className="flex flex-col gap-3 rounded-xl border border-border/60 bg-card/40 p-4"
               data-testid={TestIds.environmentRow(environment.id)}
             >
               <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <EnvironmentName
-                    disabled={status?.state !== 'online'}
-                    environmentId={environment.id}
-                    machineName={status?.host ?? null}
-                    name={firstLabel(status?.name, environment.name) ?? environment.name}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    {describeStatus(status)}
-                    {route == null ? '' : ` · via ${route}`}
-                  </p>
+                <div className="flex min-w-0 items-start gap-3">
+                  <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                    <Cloud className="size-4" aria-hidden />
+                  </span>
+                  <div className="min-w-0">
+                    <EnvironmentName
+                      disabled={status?.state !== 'online'}
+                      environmentId={environment.id}
+                      machineName={status?.host ?? null}
+                      name={firstLabel(status?.name, environment.name) ?? environment.name}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      {describeStatus(status)}
+                      {route == null ? '' : ` · via ${route}`}
+                    </p>
+                  </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <div className={primaryActionSlotClass}>
@@ -169,7 +181,7 @@ function ElectronRemotesSection(): React.JSX.Element {
                         variant="outline"
                         className="rounded-md border-border/60 text-2xs text-muted-foreground"
                       >
-                        This window
+                        Connected
                       </Badge>
                     ) : (
                       <Button
@@ -179,12 +191,12 @@ function ElectronRemotesSection(): React.JSX.Element {
                         disabled={connectingId === environment.id}
                         onClick={() => connect(environment.id)}
                       >
-                        {connectingId === environment.id ? 'Switching…' : 'Use here'}
+                        {connectingId === environment.id ? 'Switching…' : 'Switch to'}
                       </Button>
                     )}
                   </div>
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
                     className={rowActionClass}
                     onClick={() => openInEnv({ environmentId: environment.id })}

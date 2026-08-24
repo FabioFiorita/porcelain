@@ -17,6 +17,18 @@ export function createRemoteRouter(operations: RemoteOperations) {
       .output(procedureCatalog.daemonInfo.output)
       .query(() => operations.daemonInfo()),
 
+    checkDaemonUpdate: publicProcedure
+      .input(procedureCatalog.checkDaemonUpdate.input)
+      .output(procedureCatalog.checkDaemonUpdate.output)
+      .mutation(async () => operations.checkDaemonUpdate()),
+
+    restartDaemon: publicProcedure
+      .input(procedureCatalog.restartDaemon.input)
+      .output(procedureCatalog.restartDaemon.output)
+      .mutation(async () => {
+        throwIfFailed(await operations.restartDaemon())
+      }),
+
     accessStatus: adminProcedure
       .input(procedureCatalog.accessStatus.input)
       .output(procedureCatalog.accessStatus.output)

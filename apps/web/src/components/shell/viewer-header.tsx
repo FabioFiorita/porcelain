@@ -3,7 +3,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@renderer/components/ui
 import { useSidebar } from '@renderer/components/ui/sidebar'
 import { ActionsGroup, useActionRunStore } from '@renderer/features/actions'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
-import { isModExclusive, isTextEntry, kbdLabel } from '@renderer/lib/keyboard'
+import { isModExclusive, isTextEntry } from '@renderer/lib/keyboard'
 import { isMacShell } from '@renderer/lib/platform'
 import { toggleTerminalPanel } from '@renderer/lib/terminal-actions'
 import { cn } from '@renderer/lib/utils'
@@ -57,7 +57,7 @@ function ActionsMenu(): React.JSX.Element {
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <ShortcutTooltip label="Actions" shortcut={kbdLabel('mod', 'shift', 'A')}>
+      <ShortcutTooltip label="Actions" tokens={['mod', 'shift', 'A']}>
         <PopoverTrigger
           render={
             <Button
@@ -107,7 +107,7 @@ export function ViewerHeader({ left }: { left: LeftSidebarHandle }): React.JSX.E
         isMacShell && left.collapsed ? MAC_TRAFFIC_LIGHT_CLEARANCE : 'pl-2',
       )}
     >
-      <ShortcutTooltip label="Toggle projects sidebar" shortcut={kbdLabel('mod', 'B')}>
+      <ShortcutTooltip label="Toggle projects sidebar" tokens={['mod', 'B']}>
         <Button
           variant="ghost"
           size="icon-sm"
@@ -145,7 +145,7 @@ export function ViewerHeader({ left }: { left: LeftSidebarHandle }): React.JSX.E
       </div>
       <div className="app-no-drag flex shrink-0 items-center gap-1">
         <ActionsMenu />
-        <ShortcutTooltip label="Toggle terminal panel" shortcut={kbdLabel('mod', 'J')}>
+        <ShortcutTooltip label="Toggle terminal panel" tokens={['mod', 'J']}>
           <Button
             variant="ghost"
             size="icon-sm"
@@ -162,7 +162,7 @@ export function ViewerHeader({ left }: { left: LeftSidebarHandle }): React.JSX.E
             <PanelBottom />
           </Button>
         </ShortcutTooltip>
-        <ShortcutTooltip label="Toggle surfaces sidebar" shortcut={kbdLabel('mod', '.')}>
+        <ShortcutTooltip label="Toggle surfaces sidebar" tokens={['mod', '.']}>
           <Button
             variant="ghost"
             size="icon-sm"

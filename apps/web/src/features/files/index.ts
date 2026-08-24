@@ -33,6 +33,7 @@ export {
   usePrefetchFileContent,
   useRefreshFilesTree,
   useWorktreeProfile,
+  useWorktreeProfileAt,
 } from './files-queries'
 export {
   filesQueryMatchesEffect,

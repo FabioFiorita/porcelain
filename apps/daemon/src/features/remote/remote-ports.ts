@@ -21,6 +21,7 @@ export type RemoteIdentityValue = {
 export type RemoteOperationError =
   | { readonly code: 'request.invalid' }
   | { readonly code: 'auth.forbidden' }
+  | { readonly code: 'resource.unavailable' }
 
 export type RemoteOperationResult<T> =
   | { readonly ok: true; readonly value: T }

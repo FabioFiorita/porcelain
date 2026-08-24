@@ -1,7 +1,8 @@
 import logo from '@renderer/assets/logo.png'
+import { PersonalizationDialog } from '@renderer/components/settings/personalization-dialog'
 import { SettingsButton } from '@renderer/components/settings/settings-dialog'
 import { Button } from '@renderer/components/ui/button'
-import { Kbd } from '@renderer/components/ui/kbd'
+import { Shortcut } from '@renderer/components/ui/kbd'
 import {
   Sidebar,
   SidebarContent,
@@ -11,7 +12,6 @@ import {
 } from '@renderer/components/ui/sidebar'
 import { WorktreeScriptsDialog } from '@renderer/features/actions'
 import { HubTree } from '@renderer/features/projects'
-import { kbdLabel } from '@renderer/lib/keyboard'
 import { isFramelessShell, isMacShell } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
 import { useFileFinderStore } from '@renderer/stores/file-finder'
@@ -80,7 +80,7 @@ export function AppSidebar(): React.JSX.Element {
           >
             <Search className="size-3.5" />
             <span className="min-w-0 flex-1 truncate text-left">Search</span>
-            <Kbd>{kbdLabel('mod', 'K')}</Kbd>
+            <Shortcut tokens={['mod', 'K']} />
           </Button>
         </div>
         <div className="app-no-drag px-2 pt-3">
@@ -89,6 +89,7 @@ export function AppSidebar(): React.JSX.Element {
         {/* Sibling of the tree, never a child of the menu that opens it: a closing context
             menu unmounts its content, and a dialog inside would close in the same frame. */}
         <WorktreeScriptsDialog />
+        <PersonalizationDialog />
       </SidebarContent>
       <SidebarFooter className="shrink-0 border-t px-2 py-2">
         <SettingsButton

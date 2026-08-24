@@ -27,6 +27,12 @@ const GRANT = {
 
 const operations: RemoteOperations = {
   daemonInfo: vi.fn(() => INFO),
+  checkDaemonUpdate: vi.fn(async () => ({
+    currentVersion: INFO.version,
+    latestVersion: '0.53.0',
+    restartable: true,
+  })),
+  restartDaemon: vi.fn(async () => ({ ok: true as const, value: undefined })),
   accessStatus: vi.fn(async () => ({
     pairings: [],
     clients: [],
@@ -142,6 +148,16 @@ describe('Remote router contract boundary', () => {
     expect(info.protocolVersion).not.toBe(info.version)
     expect(procedureCatalog.daemonInfo.output.safeParse(info).success).toBe(true)
     expect(operations.daemonInfo).toHaveBeenCalledOnce()
+  })
+
+  it('checks the published package and restarts the always-on unit', async () => {
+    await expect(caller().checkDaemonUpdate()).resolves.toEqual({
+      currentVersion: INFO.version,
+      latestVersion: '0.53.0',
+      restartable: true,
+    })
+    await expect(caller().restartDaemon()).resolves.toBeUndefined()
+    expect(operations.restartDaemon).toHaveBeenCalledOnce()
   })
 
   it('rejects an unknown key on a strict object input before the operation', async () => {

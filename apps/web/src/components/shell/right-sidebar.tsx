@@ -13,9 +13,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@renderer/components/ui/dropdown-menu'
-import { Kbd } from '@renderer/components/ui/kbd'
+import { Shortcut } from '@renderer/components/ui/kbd'
 import { Sidebar, SidebarContent, SidebarHeader, useSidebar } from '@renderer/components/ui/sidebar'
-import { kbdLabel } from '@renderer/lib/keyboard'
 import { isFramelessShell } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
 import { type SidebarTab, usePreferencesStore } from '@renderer/stores/preferences'
@@ -95,7 +94,7 @@ export function SurfaceTabs({
                   >
                     <ShortcutTooltip
                       label={`Open ${surface.label}`}
-                      shortcut={kbdLabel('mod', surface.shortcut)}
+                      tokens={['mod', surface.shortcut]}
                     >
                       <button
                         type="button"
@@ -177,7 +176,7 @@ export function SurfaceTabs({
                     <DropdownMenuItem key={surface.id} onClick={() => onOpen(surface.id)}>
                       <Icon />
                       {surface.label}
-                      <Kbd className="ml-auto">{kbdLabel('mod', surface.shortcut)}</Kbd>
+                      <Shortcut className="ml-auto" tokens={['mod', surface.shortcut]} />
                     </DropdownMenuItem>
                   )
                 })}

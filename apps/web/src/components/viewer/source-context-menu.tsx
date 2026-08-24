@@ -7,10 +7,10 @@ import {
   ContextMenuShortcut,
   ContextMenuTrigger,
 } from '@renderer/components/ui/context-menu'
-import { Kbd } from '@renderer/components/ui/kbd'
+import { Shortcut } from '@renderer/components/ui/kbd'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { useCanRevealInFinder } from '@renderer/hooks/use-reveal-in-finder'
-import { kbdLabel } from '@renderer/lib/keyboard'
+
 import { type LineSelection, lineSelectionFromDom } from '@renderer/lib/line-selection'
 import { relativeTo } from '@renderer/lib/paths'
 import { copyText } from '@renderer/lib/utils'
@@ -77,7 +77,7 @@ export function SourceContextMenu({
               >
                 <Copy /> Copy
                 <ContextMenuShortcut>
-                  <Kbd>{kbdLabel('mod', 'C')}</Kbd>
+                  <Shortcut tokens={['mod', 'C']} />
                 </ContextMenuShortcut>
               </ContextMenuItem>
               <ContextMenuItem

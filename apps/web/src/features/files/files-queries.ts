@@ -130,23 +130,43 @@ export function useFilesScope(): RepoScope | undefined {
 }
 
 /**
- * The worktree profile with its two levels kept apart — Settings →
- * Personalization. `useFilesScope` is the merged answer the tree applies; this
- * is the same state broken into "what the project declares" and "what this
- * worktree added", which is the only thing a reader can act on.
+ * The worktree profile with its two levels kept apart. `useFilesScope` is the
+ * merged answer the tree applies; this is the same state broken into "what the
+ * project declares" and "what this worktree added", which is the only thing a
+ * reader can act on.
  */
 export function useWorktreeProfile(): WorktreeProfileView | undefined {
-  const { daemon, owner, repoPath } = useFilesOwner()
+  const { repoPath } = useFilesOwner()
+  const target = useHubRepoTarget()
+  return useWorktreeProfileAt(repoPath, target?.environmentId ?? null)
+}
+
+/**
+ * The profile of a named checkout, not necessarily the one currently open. Used by the
+ * Personalization dialog raised from a Project row — that dialog must not silently follow
+ * Hub selection.
+ */
+export function useWorktreeProfileAt(
+  repoPath: string | null,
+  environmentId: string | null,
+): WorktreeProfileView | undefined {
+  const identity = useDaemonIdentity()
+  const primary = trpc.useUtils().client
+  const owner =
+    environmentId === null
+      ? { client: primary, session: null }
+      : environmentClientFor(environmentId, primary)
+  const daemon = daemonScopeForEnvironment(environmentId, identity)
   const projectKey = repoPath !== null ? filesProjectKey(repoPath) : null
-  const identity = projectKey !== null ? filesProfileQuery(projectKey) : DISABLED_PROFILE
+  const queryIdentity = projectKey !== null ? filesProfileQuery(projectKey) : DISABLED_PROFILE
 
   const { data } = useQuery({
-    queryKey: filesQueryKey(daemon, identity),
+    queryKey: filesQueryKey(daemon, queryIdentity),
     queryFn: async (): Promise<WorktreeProfileView> => {
       if (owner === null || projectKey === null) return invariantDisabledQueryFn('profile')
       return owner.client.worktreeProfile.query(projectKey)
     },
-    enabled: repoPath !== null,
+    enabled: repoPath !== null && owner !== null,
   })
 
   return data

@@ -7,11 +7,10 @@ import {
   ContextMenuShortcut,
   ContextMenuTrigger,
 } from '@renderer/components/ui/context-menu'
-import { Kbd } from '@renderer/components/ui/kbd'
+import { Shortcut } from '@renderer/components/ui/kbd'
 import { ScrollArea } from '@renderer/components/ui/scroll-area'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useIsMobile } from '@renderer/hooks/use-mobile'
-import { kbdLabel } from '@renderer/lib/keyboard'
 import { cn } from '@renderer/lib/utils'
 import { type Tab, useTabsStore } from '@renderer/stores/tabs'
 import { TestIds } from '@shared/test-ids'
@@ -137,7 +136,7 @@ function TabItem({
           <ContextMenuItem onClick={() => closeTab(paneIndex, tab.id)}>
             Close
             <ContextMenuShortcut>
-              <Kbd>{kbdLabel('mod', 'W')}</Kbd>
+              <Shortcut tokens={['mod', 'W']} />
             </ContextMenuShortcut>
           </ContextMenuItem>
           <ContextMenuItem
@@ -165,7 +164,7 @@ function TabItem({
               >
                 Open to the Side
                 <ContextMenuShortcut>
-                  <Kbd>{kbdLabel('mod', 'shift', 'S')}</Kbd>
+                  <Shortcut tokens={['mod', 'shift', 'S']} />
                 </ContextMenuShortcut>
               </ContextMenuItem>
             </>

@@ -20,21 +20,11 @@ import { useEnvironmentName } from '@renderer/hooks/use-daemon-identity'
 import { useIsMobile } from '@renderer/hooks/use-mobile'
 import { isBrowser } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
-import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { type SettingsSection, useSettingsDialogStore } from '@renderer/stores/settings-dialog'
 import { TestIds } from '@shared/test-ids'
-import {
-  BookOpen,
-  Cloud,
-  Download,
-  Focus,
-  Settings2,
-  Share2,
-  SlidersHorizontal,
-} from 'lucide-react'
+import { BookOpen, Cloud, Download, Settings2, Share2, SlidersHorizontal } from 'lucide-react'
 import { CompanionSection } from './companion-section'
 import { GeneralSection } from './general-section'
-import { PersonalizationSection } from './personalization-section'
 import { RemotesSection } from './remotes-section'
 import { ShareSection } from './share-section'
 import { UpdatesSection } from './updates-section'
@@ -45,26 +35,23 @@ import { UpdatesSection } from './updates-section'
  *
  * - `app`      this copy of Porcelain, on this machine. Nothing follows you to another one.
  * - `environment` a daemon: its identity, what it shares, which one this window is on.
- * - `project`  one repository's own state, wherever that repository lives.
  */
-type SettingsScope = 'app' | 'environment' | 'project'
+type SettingsScope = 'app' | 'environment'
 
 /** Nav group headings — plural, because a group heads a list. */
 const SCOPE_LABEL: Record<SettingsScope, string> = {
   app: 'This app',
   environment: 'Environments',
-  project: 'Project',
 }
 
 /** Header eyebrow — singular, because it names the ONE thing this page is about. */
 const SCOPE_EYEBROW: Record<SettingsScope, string> = {
   app: 'This app',
   environment: 'Environment',
-  project: 'Project',
 }
 
-/** Nav order. Widest scope first: the app you are in, the machines it reaches, the repo. */
-const SCOPE_ORDER: SettingsScope[] = ['app', 'environment', 'project']
+/** Nav order. Widest scope first: the app you are in, the machines it reaches. */
+const SCOPE_ORDER: SettingsScope[] = ['app', 'environment']
 
 // Each section's title + blurb live here so the dialog can render a fixed header
 // band (real type hierarchy, always visible) while only the body scrolls — the
@@ -76,8 +63,8 @@ const ALL_SECTIONS: {
   title: string
   blurb: string
   scope: SettingsScope
-  // Shell-only: Companion, Updates, and Environments (named environments live in the Mac app).
-  // The browser tab is already one daemon; pairing is the link, not a settings tab.
+  // Shell-only: Environments live in the Mac app. Share is host administration —
+  // a browser tab is a paired client of one daemon, not the administrator of it.
   shellOnly?: boolean
 }[] = [
   {
@@ -94,10 +81,7 @@ const ALL_SECTIONS: {
     icon: BookOpen,
     title: 'Companion',
     scope: 'app',
-    // Shell-only now that the repo half lives under Data: all that is left is the
-    // skill installer, which writes into agent homes on THIS machine.
     blurb: 'The porcelain-companion skill for the agents on this machine.',
-    shellOnly: true,
   },
   {
     id: 'updates',
@@ -105,8 +89,9 @@ const ALL_SECTIONS: {
     icon: Download,
     title: 'Updates',
     scope: 'app',
-    blurb: 'Porcelain checks automatically and installs on quit.',
-    shellOnly: true,
+    blurb: isBrowser
+      ? 'The daemon that served this tab. Check npm and restart the always-on unit to install.'
+      : 'Porcelain checks automatically and installs on quit.',
   },
   {
     id: 'remotes',
@@ -114,7 +99,7 @@ const ALL_SECTIONS: {
     icon: Cloud,
     title: 'Environments',
     scope: 'environment',
-    blurb: 'Every daemon this app can reach. Name one, open a window on it, pair another.',
+    blurb: 'Every daemon this app can reach. Pair one, name it, keep several live in this window.',
     shellOnly: true,
   },
   {
@@ -124,16 +109,6 @@ const ALL_SECTIONS: {
     title: 'Share',
     scope: 'environment',
     blurb: 'Share a daemon over LAN, then Tailscale or Cloudflare. Pair and revoke devices.',
-  },
-  {
-    id: 'personalization',
-    label: 'Personalization',
-    icon: Focus,
-    title: 'Personalization',
-    scope: 'project',
-    // Not shell-only: the profile is daemon state, and the browser renders it
-    // as well as Electron does.
-    blurb: 'What this project pins, hides, and the order your changes read in.',
   },
 ]
 
@@ -181,9 +156,8 @@ export function SettingsDialog(): React.JSX.Element | null {
   const setSection = useSettingsDialogStore((s) => s.setSection)
   const isMobile = useIsMobile()
   const environmentName = useEnvironmentName()
-  const projectName = useProjectSelectionStore((s) => s.project?.name ?? null)
-  // The browser tab IS one daemon: it cannot reach another, and it cannot administer the one
-  // it is on with a paired token. Every Environment-wide section is therefore Electron's.
+  // A browser tab is a paired client of one daemon: it cannot pair others, and it cannot
+  // administer Share. Companion and Updates stay — they are copy-paste and a daemon restart.
   const sections = ALL_SECTIONS.filter((candidate) =>
     isBrowser ? candidate.shellOnly !== true && candidate.id !== 'share' : true,
   )
@@ -193,14 +167,7 @@ export function SettingsDialog(): React.JSX.Element | null {
   const active = sections.find((s) => s.id === section) ?? sections[0]
   if (active === undefined) return null
   const activeId = active.id
-  // The eyebrow names the scope AND the thing in it. "Project" alone answers half the
-  // question a reader of a settings page actually has: which project?
-  const subject =
-    active.scope === 'environment' && active.id === 'share'
-      ? environmentName
-      : active.scope === 'project'
-        ? projectName
-        : null
+  const subject = active.scope === 'environment' && active.id === 'share' ? environmentName : null
   const eyebrow =
     subject === null ? SCOPE_EYEBROW[active.scope] : `${SCOPE_EYEBROW[active.scope]} · ${subject}`
 
@@ -339,7 +306,6 @@ function SettingsSectionBody({ activeId }: { activeId: SettingsSection }): React
   return (
     <>
       {activeId === 'general' && <GeneralSection />}
-      {activeId === 'personalization' && <PersonalizationSection />}
       {activeId === 'companion' && <CompanionSection />}
       {activeId === 'share' && <ShareSection />}
       {activeId === 'remotes' && <RemotesSection />}

@@ -1,10 +1,9 @@
 import type { ProfileLayer } from '@porcelain/contracts'
 import type { WorktreeProfileView } from '@porcelain/contracts/files'
 import { Button } from '@renderer/components/ui/button'
-import { useWorktreeProfile } from '@renderer/features/files'
+import { useWorktreeProfileAt } from '@renderer/features/files'
 import { compactButtonClass } from '@renderer/lib/controls'
 import { copyText } from '@renderer/lib/utils'
-import { useHubRepoPath } from '@renderer/stores/hub-repo'
 import { runUserAction } from '@shared/background'
 import {
   PROFILE_KEEPER_PROMPT,
@@ -15,21 +14,16 @@ import { TestIds } from '@shared/test-ids'
 import { Check, Copy } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { ProjectScopePicker } from './project-scope-picker'
 
 /**
- * Settings → Personalization: the worktree profile, READ-ONLY.
+ * One Project's profile, READ-ONLY, raised from its row in the sidebar tree.
  *
  * Read-only is the feature, not a gap. Pins and hides are edited from the tree,
- * where every hidden path stays one deliberate gesture away, discoverable from
- * the tree rather than from settings. Layer order is written by the agent, so
- * the copyable prompts below ARE the affordance — a form here would just
- * be the hand-curation nobody did.
+ * where every hidden path stays one deliberate gesture away. Layer order is
+ * written by the agent, so the copyable prompts below ARE the affordance.
  *
  * The two levels are shown apart on purpose. A single merged list cannot say
- * which focus is the project baseline and which this worktree added, and a
- * reader who cannot tell them apart cannot decide which one to ask their agent
- * to change.
+ * which focus is the project baseline and which this worktree added.
  */
 
 function CopyButton({
@@ -188,21 +182,14 @@ function OverrideProfile({ view }: { view: WorktreeProfileView }): React.JSX.Ele
   )
 }
 
-export function PersonalizationSection(): React.JSX.Element {
-  const repoPath = useHubRepoPath()
-  const view = useWorktreeProfile()
-
-  if (repoPath === null) {
-    return (
-      <div className="flex flex-col gap-3">
-        <p className="text-xs text-muted-foreground">
-          A profile belongs to a repository and its worktrees, not to the app. Choose one to see its
-          pins, hides, and story order.
-        </p>
-        <ProjectScopePicker />
-      </div>
-    )
-  }
+export function PersonalizationSection({
+  repoPath,
+  environmentId,
+}: {
+  repoPath: string
+  environmentId: string | null
+}): React.JSX.Element {
+  const view = useWorktreeProfileAt(repoPath, environmentId)
 
   return (
     <div className="flex flex-col gap-6">
@@ -211,9 +198,6 @@ export function PersonalizationSection(): React.JSX.Element {
           Pins, hides, and the order your changes read in. Set once for the project and inherited by
           every worktree; an agent can override it for the one you are working in.
         </p>
-        {/* Naming the checkout is half of it — a reader also has to be able to change which one
-            they are reading, without leaving Settings for the Hub tree and coming back. */}
-        <ProjectScopePicker />
         <p className="truncate font-mono text-2xs text-muted-foreground" title={repoPath}>
           {repoPath}
         </p>

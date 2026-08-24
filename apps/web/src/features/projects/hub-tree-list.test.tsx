@@ -2,6 +2,7 @@ import { hubInventorySchema, projectsContractFixtures } from '@porcelain/contrac
 import { TestIds } from '@shared/test-ids'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { usePersonalizationStore } from '@renderer/stores/personalization'
 import { useWorktreeScriptsStore } from '@renderer/stores/worktree-scripts'
 import { HubTreeFromInventories, HubTreeFromInventory } from './hub-tree-list'
 
@@ -82,6 +83,7 @@ describe('Hub inventory tree', () => {
 
     fireEvent.contextMenu(screen.getByRole('button', { name: 'Collapse project alpha' }))
     expect(screen.getByRole('menuitem', { name: 'Copy project path' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Personalization' })).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: 'Remove project' })).toBeInTheDocument()
     // Lifecycle scripts moved into the Actions store; the Project menu no longer owns a
     // second, browser-local copy of them.
@@ -189,6 +191,29 @@ describe('Hub inventory tree', () => {
     fireEvent.click(screen.getByTestId(TestIds.hubWorktreeScripts('remote-proj-alpha')))
 
     expect(useWorktreeScriptsStore.getState().target?.editable).toBe(false)
+  })
+
+  it('opens Personalization of the Project the menu was raised on', () => {
+    usePersonalizationStore.setState({ target: null })
+    render(
+      <HubTreeFromInventory
+        inventory={inventory}
+        openWorktree={vi.fn()}
+        createWorktree={vi.fn(async () => createdWorktree)}
+        removeProject={vi.fn(async () => undefined)}
+        removeWorktree={vi.fn(async () => undefined)}
+      />,
+    )
+
+    fireEvent.contextMenu(screen.getByRole('button', { name: 'Collapse project alpha' }))
+    fireEvent.click(screen.getByTestId(TestIds.hubPersonalization('proj-alpha')))
+
+    expect(usePersonalizationStore.getState().target).toEqual({
+      projectId: 'proj-alpha',
+      projectName: 'alpha',
+      projectPath: inventory.projects[0]?.path,
+      environmentId: inventory.environment.id,
+    })
   })
 
   it('collapses a Project without selecting it', () => {

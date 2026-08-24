@@ -42,6 +42,15 @@ const operations = {
     platform: 'linux',
     arch: 'x64',
   })),
+  checkDaemonUpdate: vi.fn<RemoteOperations['checkDaemonUpdate']>(async () => ({
+    currentVersion: '0.52.1',
+    latestVersion: '0.53.0',
+    restartable: true,
+  })),
+  restartDaemon: vi.fn<RemoteOperations['restartDaemon']>(async () => ({
+    ok: true as const,
+    value: undefined,
+  })),
   accessStatus: vi.fn<RemoteOperations['accessStatus']>(async () => ({
     pairings: [],
     clients: [],

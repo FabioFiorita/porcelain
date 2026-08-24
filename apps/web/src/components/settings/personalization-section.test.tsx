@@ -1,37 +1,16 @@
 import type { WorktreeProfileView } from '@porcelain/contracts/files'
-import { useWorktreeProfile } from '@renderer/features/files'
+import { useWorktreeProfileAt } from '@renderer/features/files'
 import { copyText } from '@renderer/lib/utils'
-import { useHubRepoPath } from '@renderer/stores/hub-repo'
 import { TestIds } from '@shared/test-ids'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { PersonalizationSection } from './personalization-section'
 
-vi.mock('@renderer/features/files', () => ({ useWorktreeProfile: vi.fn() }))
-// The scope picker reads the Hub fan-out; these cases are about the profile it frames.
-vi.mock('@renderer/features/projects', () => ({
-  useHubInventories: () => inventories,
-  useOpenHubWorktree: () => openWorktree,
-}))
-vi.mock('@renderer/stores/hub-repo', () => ({ useHubRepoPath: vi.fn() }))
+vi.mock('@renderer/features/files', () => ({ useWorktreeProfileAt: vi.fn() }))
 vi.mock('@renderer/lib/utils', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@renderer/lib/utils')>()),
   copyText: vi.fn(async () => undefined),
 }))
-
-const openWorktree = vi.fn()
-let inventories: {
-  environmentId: string | null
-  current: boolean
-  inventory: {
-    environment: { id: string; name: string }
-    projects: {
-      id: string
-      name: string
-      worktrees: { id: string; name: string; isPrimary: boolean }[]
-    }[]
-  }
-}[] = []
 
 const inheriting: WorktreeProfileView = {
   worktreeId: 'wt-1',
@@ -69,23 +48,25 @@ function withOverride(): WorktreeProfileView {
 const base = (): HTMLElement => screen.getByTestId(TestIds.personalizationBase)
 const override = (): HTMLElement => screen.getByTestId(TestIds.personalizationOverride)
 
+function renderSection(): void {
+  render(<PersonalizationSection environmentId="env-local" repoPath="/repo" />)
+}
+
 describe('PersonalizationSection', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    inventories = []
-    vi.mocked(useHubRepoPath).mockReturnValue('/repo')
-    vi.mocked(useWorktreeProfile).mockReturnValue(inheriting)
+    vi.mocked(useWorktreeProfileAt).mockReturnValue(inheriting)
   })
 
   it('shows the project baseline, since that is what an un-overridden worktree applies', () => {
-    render(<PersonalizationSection />)
+    renderSection()
 
     expect(base().textContent).toContain('README.md')
     expect(base().textContent).toContain('dist')
   })
 
   it('reads layer order as a sequence, not an alphabetical list', () => {
-    render(<PersonalizationSection />)
+    renderSection()
 
     expect(base().textContent).toContain('View → Service')
   })
@@ -95,15 +76,15 @@ describe('PersonalizationSection', () => {
    * inherited focus from worktree-added focus cannot decide which one to change.
    */
   it('says plainly when a worktree is inheriting rather than showing empty lists', () => {
-    render(<PersonalizationSection />)
+    renderSection()
 
     expect(override().textContent).toContain('No override')
     expect(override().textContent).not.toContain('Also pinned')
   })
 
   it('separates what this worktree added from what the project declares', () => {
-    vi.mocked(useWorktreeProfile).mockReturnValue(withOverride())
-    render(<PersonalizationSection />)
+    vi.mocked(useWorktreeProfileAt).mockReturnValue(withOverride())
+    renderSection()
 
     expect(override().textContent).toContain('apps/mobile/src/screen.tsx')
     expect(base().textContent).not.toContain('apps/mobile/src/screen.tsx')
@@ -111,15 +92,15 @@ describe('PersonalizationSection', () => {
   })
 
   it('shows a worktree that opted out of a project hide', () => {
-    vi.mocked(useWorktreeProfile).mockReturnValue(withOverride())
-    render(<PersonalizationSection />)
+    vi.mocked(useWorktreeProfileAt).mockReturnValue(withOverride())
+    renderSection()
 
     expect(override().textContent).toContain('Shown despite the project hiding them')
   })
 
   it('shows the override layer order in place of the project one', () => {
-    vi.mocked(useWorktreeProfile).mockReturnValue(withOverride())
-    render(<PersonalizationSection />)
+    vi.mocked(useWorktreeProfileAt).mockReturnValue(withOverride())
+    renderSection()
 
     expect(override().textContent).toContain('Screen')
     expect(override().textContent).not.toContain('View → Service')
@@ -131,7 +112,7 @@ describe('PersonalizationSection', () => {
    * feature failing silently.
    */
   it('copies a starter prompt that reads the repo instead of naming a language', async () => {
-    render(<PersonalizationSection />)
+    renderSection()
 
     fireEvent.click(screen.getByTestId(TestIds.personalizationCopyStarter))
     await waitFor(() => expect(vi.mocked(copyText).mock.calls.length).toBe(1))
@@ -145,7 +126,7 @@ describe('PersonalizationSection', () => {
   })
 
   it("copies a worktree prompt with this checkout's path already filled in", async () => {
-    render(<PersonalizationSection />)
+    renderSection()
 
     fireEvent.click(screen.getByTestId(TestIds.personalizationCopyWorktree))
     await waitFor(() => expect(vi.mocked(copyText).mock.calls.length).toBe(1))
@@ -157,7 +138,7 @@ describe('PersonalizationSection', () => {
   })
 
   it('copies a keeper prompt that tells the agent to re-focus the worktree', async () => {
-    render(<PersonalizationSection />)
+    renderSection()
 
     fireEvent.click(screen.getByTestId(TestIds.personalizationCopyKeeper))
     await waitFor(() => expect(vi.mocked(copyText).mock.calls.length).toBe(1))
@@ -169,39 +150,10 @@ describe('PersonalizationSection', () => {
     expect(copied).not.toContain('porcelain worktree profile')
   })
 
-  it('asks for a repository rather than rendering an empty profile', () => {
-    vi.mocked(useHubRepoPath).mockReturnValue(null)
-    render(<PersonalizationSection />)
-
-    expect(screen.getByText(/belongs to a repository/)).toBeTruthy()
-    expect(screen.queryByTestId(TestIds.personalizationBase)).toBeNull()
-  })
-
-  /**
-   * The page used to name no project at all, which is the complaint: a project-scoped page
-   * has to say which project, and let you change it without leaving Settings.
-   */
-  it('names the checkout the profile belongs to and offers the others', () => {
-    inventories = [
-      {
-        environmentId: null,
-        current: true,
-        inventory: {
-          environment: { id: 'env-local', name: 'This device' },
-          projects: [
-            {
-              id: 'project-1',
-              name: 'porcelain',
-              worktrees: [{ id: 'wt-1', name: 'main', isPrimary: true }],
-            },
-          ],
-        },
-      },
-    ]
-    vi.mocked(useWorktreeProfile).mockReturnValue(inheriting)
-    render(<PersonalizationSection />)
+  it('names the checkout the profile belongs to without a settings picker', () => {
+    renderSection()
 
     expect(screen.getByText('/repo')).toBeTruthy()
-    expect(screen.getByTestId(TestIds.settingsProjectScope)).toBeTruthy()
+    expect(screen.queryByTestId(TestIds.settingsProjectScope)).toBeNull()
   })
 })

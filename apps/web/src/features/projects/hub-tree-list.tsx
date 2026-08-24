@@ -33,18 +33,11 @@ import {
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { cn, copyText } from '@renderer/lib/utils'
 import { useHubSelectionStore } from '@renderer/stores/hub-selection'
+import { usePersonalizationStore } from '@renderer/stores/personalization'
 import { useWorktreeScriptsStore } from '@renderer/stores/worktree-scripts'
 import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
-import {
-  ChevronDown,
-  Copy,
-  FolderGit2,
-  GitBranch,
-  GitBranchPlus,
-  ScrollText,
-  Trash2,
-} from 'lucide-react'
+import { ChevronDown, Copy, FolderGit2, GitBranch, GitBranchPlus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { CreateWorktreeDialog } from './create-worktree-dialog'
 import type { HubInventoryView } from './project-data'
@@ -216,6 +209,7 @@ function ProjectBlock(props: {
   const [createOpen, setCreateOpen] = useState(false)
   const selectProject = useHubSelectionStore((state) => state.selectProject)
   const openWorktreeScripts = useWorktreeScriptsStore((state) => state.open)
+  const openPersonalization = usePersonalizationStore((state) => state.open)
 
   const copyProjectPath = (): void => {
     runUserAction(
@@ -318,13 +312,22 @@ function ProjectBlock(props: {
               })
             }
           >
-            <ScrollText />
             Worktree scripts…
           </ContextMenuItem>
-          <ContextMenuItem onClick={copyProjectPath}>
-            <Copy />
-            Copy project path
+          <ContextMenuItem
+            data-testid={TestIds.hubPersonalization(props.project.id)}
+            onClick={() =>
+              openPersonalization({
+                projectId: props.project.id,
+                projectName: props.project.name,
+                projectPath: props.project.path,
+                environmentId: props.environmentId,
+              })
+            }
+          >
+            Personalization
           </ContextMenuItem>
+          <ContextMenuItem onClick={copyProjectPath}>Copy project path</ContextMenuItem>
           {props.mutable && (
             <>
               <ContextMenuSeparator />

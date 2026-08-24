@@ -5,6 +5,8 @@ import { remoteProcedures } from './remote.procedures'
 
 const expectedKinds = {
   daemonInfo: 'query',
+  checkDaemonUpdate: 'mutation',
+  restartDaemon: 'mutation',
   accessStatus: 'query',
   issuePairingLink: 'mutation',
   revokePairingLink: 'mutation',
@@ -20,6 +22,8 @@ const expectedKinds = {
 
 const invalidInputs: Record<keyof typeof remoteProcedures, unknown> = {
   daemonInfo: null,
+  checkDaemonUpdate: null,
+  restartDaemon: null,
   accessStatus: null,
   issuePairingLink: { label: '', baseUrl: 'not-a-url' },
   revokePairingLink: 42,
@@ -35,6 +39,8 @@ const invalidInputs: Record<keyof typeof remoteProcedures, unknown> = {
 
 const invalidOutputs: Record<keyof typeof remoteProcedures, unknown> = {
   daemonInfo: { version: '0.52.1', protocolVersion: PROTOCOL_VERSION, platform: 'linux' },
+  checkDaemonUpdate: { currentVersion: 1, latestVersion: null, restartable: true },
+  restartDaemon: null,
   accessStatus: { pairings: [], clients: [], connected: 0 },
   issuePairingLink: { ...remoteContractFixtures.issuePairingLink.output, credential: undefined },
   revokePairingLink: null,
@@ -49,7 +55,7 @@ const invalidOutputs: Record<keyof typeof remoteProcedures, unknown> = {
 }
 
 describe('Remote procedure contracts', () => {
-  it('declares all twelve procedures with their router kinds', () => {
+  it('declares all fourteen procedures with their router kinds', () => {
     expect(Object.keys(remoteProcedures).sort()).toEqual(Object.keys(expectedKinds).sort())
     for (const [name, kind] of Object.entries(expectedKinds)) {
       expect(remoteProcedures[name as keyof typeof remoteProcedures].kind).toBe(kind)

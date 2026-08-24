@@ -10,7 +10,7 @@ import {
   ContextMenuShortcut,
   ContextMenuTrigger,
 } from '@renderer/components/ui/context-menu'
-import { Kbd } from '@renderer/components/ui/kbd'
+import { Shortcut } from '@renderer/components/ui/kbd'
 import { CodeLine, useTokenizedLines } from '@renderer/components/viewer/code-line'
 import { ROW_HEIGHT } from '@renderer/components/viewer/virtual-rows'
 import { useWriteTextFile } from '@renderer/features/files'
@@ -18,7 +18,7 @@ import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { useCanRevealInFinder } from '@renderer/hooks/use-reveal-in-finder'
 import { languageFor } from '@renderer/lib/highlight'
 import { lineInHighlightRanges } from '@renderer/lib/highlight-ranges'
-import { kbdLabel } from '@renderer/lib/keyboard'
+
 import { lineRangeFromOffsets } from '@renderer/lib/line-selection'
 import { relativeTo } from '@renderer/lib/paths'
 import { cn, copyText } from '@renderer/lib/utils'
@@ -295,7 +295,7 @@ export function EditorSource({
             </Badge>
           ) : dirty ? (
             <Badge variant="outline" className={cn(STATUS_PILL, 'text-muted-foreground')}>
-              Unsaved <Kbd className="[@media(hover:none)]:hidden">{kbdLabel('mod', 'S')}</Kbd>
+              Unsaved <Shortcut className="[@media(hover:none)]:hidden" tokens={['mod', 'S']} />
             </Badge>
           ) : null}
         </ContextMenuTrigger>
@@ -316,7 +316,7 @@ export function EditorSource({
           >
             <Scissors /> Cut
             <ContextMenuShortcut>
-              <Kbd>{kbdLabel('mod', 'X')}</Kbd>
+              <Shortcut tokens={['mod', 'X']} />
             </ContextMenuShortcut>
           </ContextMenuItem>
           <ContextMenuItem
@@ -332,13 +332,13 @@ export function EditorSource({
           >
             <Copy /> Copy
             <ContextMenuShortcut>
-              <Kbd>{kbdLabel('mod', 'C')}</Kbd>
+              <Shortcut tokens={['mod', 'C']} />
             </ContextMenuShortcut>
           </ContextMenuItem>
           <ContextMenuItem onClick={() => handlePaste()}>
             <ClipboardPaste /> Paste
             <ContextMenuShortcut>
-              <Kbd>{kbdLabel('mod', 'V')}</Kbd>
+              <Shortcut tokens={['mod', 'V']} />
             </ContextMenuShortcut>
           </ContextMenuItem>
           <ContextMenuItem

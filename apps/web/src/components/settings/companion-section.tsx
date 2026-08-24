@@ -3,9 +3,9 @@ import { PluginSection } from './plugin-section'
 /**
  * Settings → Companion: the `porcelain` agent plugin your agents read.
  *
- * What git carries moved to Settings → Data. That half was a property of the
- * repo; this half installs files into an agent home on THIS machine, which is
- * why the tab is shell-only — a browser client has no shell router to run it.
+ * The commands are copy-paste into the agent's own plugin manager. They are
+ * the same on the browser client and in Electron: the plugin lives in the
+ * product repository, not in a shell-only installer.
  */
 export function CompanionSection(): React.JSX.Element {
   return (

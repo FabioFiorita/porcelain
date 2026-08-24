@@ -72,18 +72,20 @@ Node shim, readiness-polling, and node-pty troubleshooting details.
 
 ## Update the daemon
 
-A client shows an "Update daemon" prompt when the daemon it is bound to reports an older
-release than the client itself. The unit in the remote skill starts the daemon through
+A browser Settings → Updates page can check the published package and, when this process is the
+always-on unit, restart it. The unit in the remote skill starts the daemon through
 `npx --yes --prefer-online @fabiofiorita/porcelain@latest`, so restarting the service resolves the
-new version and is the whole upgrade:
+new version and is the whole upgrade.
+
+A client also shows an "Update daemon" prompt when the daemon it is bound to reports an older
+release than the client itself. Development daemons and a foreground `npx … serve` refuse a
+restart from the client — stop them and re-run the serve command with the same flags.
 
 ```sh
 systemctl --user restart porcelain.service
 ```
 
-A daemon started by hand in a shell is updated by stopping it and re-running
-`npx @fabiofiorita/porcelain@latest serve` with the same flags. Either way the restart is not
-instant — poll readiness rather than assuming the daemon is back.
+Either way the restart is not instant — poll readiness rather than assuming the daemon is back.
 
 When something is wrong, start with:
 

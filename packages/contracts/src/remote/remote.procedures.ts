@@ -2,6 +2,8 @@ import type { ProcedureContract } from '../procedure-contract'
 import {
   accessStatusInputSchema,
   accessStatusOutputSchema,
+  checkDaemonUpdateInputSchema,
+  checkDaemonUpdateOutputSchema,
   cloudflareStatusInputSchema,
   cloudflareStatusOutputSchema,
   daemonInfoInputSchema,
@@ -14,6 +16,8 @@ import {
   revokeAuthorizedClientOutputSchema,
   revokeCurrentClientInputSchema,
   revokeCurrentClientOutputSchema,
+  restartDaemonInputSchema,
+  restartDaemonOutputSchema,
   revokePairingLinkInputSchema,
   revokePairingLinkOutputSchema,
   setCloudflareBindInputSchema,
@@ -32,6 +36,18 @@ const remoteProcedureDefinitions = {
     input: daemonInfoInputSchema,
     output: daemonInfoOutputSchema,
     errors: [],
+  },
+  checkDaemonUpdate: {
+    kind: 'mutation',
+    input: checkDaemonUpdateInputSchema,
+    output: checkDaemonUpdateOutputSchema,
+    errors: [],
+  },
+  restartDaemon: {
+    kind: 'mutation',
+    input: restartDaemonInputSchema,
+    output: restartDaemonOutputSchema,
+    errors: ['resource.unavailable'],
   },
   accessStatus: {
     kind: 'query',

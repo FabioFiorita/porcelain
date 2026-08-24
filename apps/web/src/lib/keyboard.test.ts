@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { formatKbd, isModExclusive, isTerminalTarget, isTextEntry } from './keyboard'
+import {
+  formatKbd,
+  formatKbdParts,
+  isModExclusive,
+  isTerminalTarget,
+  isTextEntry,
+} from './keyboard'
 
 // Mount a child element inside a terminal host appended to the document body.
 // This lets `closest()` traverse correctly in the jsdom environment.
@@ -108,9 +114,9 @@ describe('formatKbd', () => {
   })
 
   describe('browser mode (Ctrl is primary)', () => {
-    it('renders mod as ⌃ (Ctrl glyph, since the OS may be macOS), joined with +', () => {
-      expect(formatKbd(['mod', 'B'], true)).toBe('⌃+B')
-      expect(formatKbd(['mod', 'shift', 'S'], true)).toBe('⌃+⇧+S')
+    it('renders mod/alt/shift as the words Ctrl/Alt/Shift, joined with +', () => {
+      expect(formatKbd(['mod', 'B'], true)).toBe('Ctrl+B')
+      expect(formatKbd(['mod', 'shift', 'S'], true)).toBe('Ctrl+Shift+S')
       expect(formatKbd(['alt', '↵'], true)).toBe('Alt+↵')
     })
   })
@@ -125,6 +131,13 @@ describe('formatKbd', () => {
     it('takes precedence over the glyph style even when ctrlPrimary is set', () => {
       expect(formatKbd(['mod', 'shift', 'S'], true, true)).toBe('Ctrl+Shift+S')
     })
+  })
+})
+
+describe('formatKbdParts', () => {
+  it('keeps each key as its own label so the UI can render split keycaps', () => {
+    expect(formatKbdParts(['mod', 'shift', 'T'], false)).toEqual(['⌘', '⇧', 'T'])
+    expect(formatKbdParts(['mod', 'T'], true)).toEqual(['Ctrl', 'T'])
   })
 })
 

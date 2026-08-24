@@ -1,6 +1,7 @@
 import { PROTOCOL_VERSION } from '@porcelain/contracts'
 import type {
   AccessStatusOutput,
+  CheckDaemonUpdateOutput,
   CloudflareStatusOutput,
   DaemonInfoOutput,
   IssuePairingLinkInput,
@@ -15,6 +16,7 @@ import {
   revokePairingGrant,
   revokeAuthorizedClient as storeRevokeAuthorizedClient,
 } from './access-store'
+import { daemonRestartable, fetchPublishedVersion, restartPorcelainService } from './daemon-update'
 import type {
   RemoteAccess,
   RemoteCloudflare,
@@ -29,8 +31,16 @@ import type {
 
 export type { RemoteOperationError, RemoteOperationResult }
 
+export type RemoteUpdate = {
+  fetchLatest(): Promise<string | null>
+  restartable(): boolean
+  restart(): void
+}
+
 export type RemoteOperations = Readonly<{
   daemonInfo: () => DaemonInfoOutput
+  checkDaemonUpdate: () => Promise<CheckDaemonUpdateOutput>
+  restartDaemon: () => Promise<RemoteOperationResult<void>>
   accessStatus: () => Promise<AccessStatusOutput>
   issuePairingLink: (
     input: IssuePairingLinkInput,
@@ -60,7 +70,13 @@ export function createRemoteOperations(options: {
   listeners: RemoteListeners
   cloudflare: RemoteCloudflare
   env: RemoteNetworkEnv
+  update?: RemoteUpdate
 }): RemoteOperations {
+  const update: RemoteUpdate = options.update ?? {
+    fetchLatest: fetchPublishedVersion,
+    restartable: daemonRestartable,
+    restart: restartPorcelainService,
+  }
   const access = options.access ?? {
     snapshot: accessSnapshot,
     issuePairingGrant,
@@ -75,6 +91,22 @@ export function createRemoteOperations(options: {
         protocolVersion: PROTOCOL_VERSION,
         ...options.identity(),
       }
+    },
+
+    async checkDaemonUpdate(): Promise<CheckDaemonUpdateOutput> {
+      return {
+        currentVersion: options.version(),
+        latestVersion: await update.fetchLatest(),
+        restartable: update.restartable(),
+      }
+    },
+
+    async restartDaemon(): Promise<RemoteOperationResult<void>> {
+      if (!update.restartable()) {
+        return { ok: false, error: { code: 'resource.unavailable' } }
+      }
+      update.restart()
+      return { ok: true, value: undefined }
     },
 
     async accessStatus(): Promise<AccessStatusOutput> {

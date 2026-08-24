@@ -59,19 +59,25 @@ export function isModExclusive(e: ModEvent, ctrlPrimary: boolean = ctrlIsPrimary
 /**
  * The pure token→label mapping behind `kbdLabel` (split out for per-mode testing). Tokens
  * 'mod'/'alt'/'shift' map to the mode's label; anything else (a letter, ⌫, ↵, ←) passes
- * through. Electron/macOS: ⌘/⌥/⇧ joined tight. Browser client: ⌃/Alt/⇧ with '+' — glyphs, not
- * words, since the OS may still be macOS. Linux shell (`linux`): words Ctrl/Alt/Shift with
- * '+' (no glyph keyboard there); `linux` implies `ctrlPrimary` and wins when both are set.
+ * through. Electron/macOS: ⌘/⌥/⇧. Browser client and Linux shell: words Ctrl/Alt/Shift —
+ * the browser remaps primary chords onto Ctrl even on macOS, so a glyph keyboard would lie.
+ * `linux` implies `ctrlPrimary` and wins when both are set.
  */
+export function formatKbdParts(
+  tokens: readonly string[],
+  ctrlPrimary: boolean,
+  linux: boolean = false,
+): string[] {
+  const labels: Record<string, string> =
+    linux || ctrlPrimary
+      ? { mod: 'Ctrl', alt: 'Alt', shift: 'Shift' }
+      : { mod: '⌘', alt: '⌥', shift: '⇧' }
+  return tokens.map((token) => labels[token] ?? token)
+}
+
 export function formatKbd(tokens: string[], ctrlPrimary: boolean, linux: boolean = false): string {
-  if (linux) {
-    const labels: Record<string, string> = { mod: 'Ctrl', alt: 'Alt', shift: 'Shift' }
-    return tokens.map((t) => labels[t] ?? t).join('+')
-  }
-  const labels: Record<string, string> = ctrlPrimary
-    ? { mod: '⌃', alt: 'Alt', shift: '⇧' }
-    : { mod: '⌘', alt: '⌥', shift: '⇧' }
-  return tokens.map((t) => labels[t] ?? t).join(ctrlPrimary ? '+' : '')
+  const parts = formatKbdParts(tokens, ctrlPrimary, linux)
+  return linux || ctrlPrimary ? parts.join('+') : parts.join('')
 }
 
 /**
@@ -80,4 +86,9 @@ export function formatKbd(tokens: string[], ctrlPrimary: boolean, linux: boolean
  */
 export function kbdLabel(...tokens: string[]): string {
   return formatKbd(tokens, ctrlIsPrimary, isLinuxShell)
+}
+
+/** One label per key, for Linear-style split keycaps. */
+export function kbdParts(...tokens: string[]): string[] {
+  return formatKbdParts(tokens, ctrlIsPrimary, isLinuxShell)
 }

@@ -1,13 +1,12 @@
 import { ChangesList } from '@renderer/components/git/changes-list'
 import { HistoryList } from '@renderer/components/git/history-list'
 import { Button } from '@renderer/components/ui/button'
-import { Kbd } from '@renderer/components/ui/kbd'
+import { Shortcut } from '@renderer/components/ui/kbd'
 import { SidebarGroupLabel } from '@renderer/components/ui/sidebar'
 import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-group'
 import { CanvasList } from '@renderer/features/projects'
 import { SearchList } from '@renderer/features/search'
 import { surfaceListInsetClass } from '@renderer/lib/controls'
-import { kbdLabel } from '@renderer/lib/keyboard'
 import { cn } from '@renderer/lib/utils'
 import { useFileTreeStore } from '@renderer/stores/file-tree'
 import type { SidebarTab } from '@renderer/stores/preferences'
@@ -111,7 +110,7 @@ export function SurfaceLauncher({
             >
               <span className="flex w-full items-center justify-between gap-2">
                 <Icon className="size-4 text-muted-foreground group-hover:text-foreground" />
-                <Kbd>{kbdLabel('mod', surface.shortcut)}</Kbd>
+                <Shortcut tokens={['mod', surface.shortcut]} />
               </span>
               <span className="text-xs font-medium text-foreground">{surface.label}</span>
               <span className="text-2xs leading-snug text-muted-foreground">{surface.hint}</span>

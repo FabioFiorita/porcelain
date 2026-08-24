@@ -11,13 +11,13 @@ import {
   CommandList,
   CommandShortcut,
 } from '@renderer/components/ui/command'
-import { Kbd, KbdGroup } from '@renderer/components/ui/kbd'
+import { Kbd, KbdGroup, Shortcut } from '@renderer/components/ui/kbd'
 import { FileTypeIcon, FolderIcon } from '@renderer/components/viewer/file-icon'
 import { useActionRun, useActionRunStore, useActions } from '@renderer/features/actions'
 import { useGitLog } from '@renderer/features/git'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { commandGroupHeadingClass } from '@renderer/lib/controls'
-import { isTerminalTarget, kbdLabel } from '@renderer/lib/keyboard'
+import { isTerminalTarget } from '@renderer/lib/keyboard'
 import { dirName, fileName } from '@renderer/lib/paths'
 import { useFileFinderStore } from '@renderer/stores/file-finder'
 import { activeTabTarget, targetedTab } from '@renderer/stores/hub-tabs'
@@ -69,7 +69,7 @@ interface FinderAction {
   description: string
   keywords: string
   icon: LucideIcon
-  shortcut?: string
+  shortcut?: readonly string[]
   onSelect: () => void
 }
 
@@ -143,7 +143,7 @@ export function FileFinder(): React.JSX.Element {
       description: 'Open the project tree',
       keywords: 'files folders tree',
       icon: FileText,
-      shortcut: kbdLabel('mod', '1'),
+      shortcut: ['mod', '1'],
       onSelect: () => openSurface('files'),
     },
     {
@@ -152,7 +152,7 @@ export function FileFinder(): React.JSX.Element {
       description: 'Search text across files',
       keywords: 'search code text contents grep',
       icon: Search,
-      shortcut: kbdLabel('mod', 'shift', 'F'),
+      shortcut: ['mod', 'shift', 'F'],
       onSelect: () => openSurface('search'),
     },
     {
@@ -161,7 +161,7 @@ export function FileFinder(): React.JSX.Element {
       description: 'Review working-tree changes',
       keywords: 'git diff modified files',
       icon: FileDiff,
-      shortcut: kbdLabel('mod', '2'),
+      shortcut: ['mod', '2'],
       onSelect: () => openSurface('changes'),
     },
     {
@@ -170,7 +170,7 @@ export function FileFinder(): React.JSX.Element {
       description: 'Inspect commit history',
       keywords: 'commits log git',
       icon: History,
-      shortcut: kbdLabel('mod', '3'),
+      shortcut: ['mod', '3'],
       onSelect: () => openSurface('history'),
     },
     {
@@ -179,7 +179,7 @@ export function FileFinder(): React.JSX.Element {
       description: 'Commands, suggestions, and commit',
       keywords: 'git commit pull push stash',
       icon: GitCommitHorizontal,
-      shortcut: kbdLabel('mod', '5'),
+      shortcut: ['mod', '5'],
       onSelect: () => openSurface('git'),
     },
     {
@@ -298,7 +298,11 @@ export function FileFinder(): React.JSX.Element {
                         {action.description}
                       </span>
                     </span>
-                    {action.shortcut && <CommandShortcut>{action.shortcut}</CommandShortcut>}
+                    {action.shortcut && (
+                      <CommandShortcut>
+                        <Shortcut tokens={action.shortcut} />
+                      </CommandShortcut>
+                    )}
                   </CommandItem>
                 )
               })}

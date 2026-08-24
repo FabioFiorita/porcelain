@@ -2,7 +2,7 @@
 import { PROTOCOL_VERSION } from '@porcelain/contracts'
 import { describe, expect, it, vi } from 'vitest'
 import type { AuthIdentity } from './access-store'
-import { createRemoteOperations } from './remote-operations'
+import { createRemoteOperations, type RemoteUpdate } from './remote-operations'
 import type {
   RemoteAccess,
   RemoteCloudflare,
@@ -120,6 +120,7 @@ function operations(
     listeners?: Partial<RemoteListeners>
     cloudflare?: Partial<RemoteCloudflare>
     env?: Partial<RemoteNetworkEnv>
+    update?: RemoteUpdate
   } = {},
 ) {
   const access = fakeAccess(overrides.access)
@@ -145,6 +146,7 @@ function operations(
       listeners,
       cloudflare,
       env,
+      update: overrides.update,
     }),
   }
 }
@@ -160,6 +162,50 @@ describe('Remote operations', () => {
       arch: 'x64',
     })
     expect(ops.daemonInfo().protocolVersion).not.toBe(ops.daemonInfo().version)
+  })
+
+  it('reports a published version and whether this process can restart itself', async () => {
+    const { ops } = operations({
+      update: {
+        fetchLatest: async () => '0.60.0',
+        restartable: () => true,
+        restart: vi.fn(),
+      },
+    })
+    await expect(ops.checkDaemonUpdate()).resolves.toEqual({
+      currentVersion: '0.52.1',
+      latestVersion: '0.60.0',
+      restartable: true,
+    })
+  })
+
+  it('refuses a restart when this process is not the always-on unit', async () => {
+    const restart = vi.fn()
+    const { ops } = operations({
+      update: {
+        fetchLatest: async () => null,
+        restartable: () => false,
+        restart,
+      },
+    })
+    await expect(ops.restartDaemon()).resolves.toEqual({
+      ok: false,
+      error: { code: 'resource.unavailable' },
+    })
+    expect(restart).not.toHaveBeenCalled()
+  })
+
+  it('restarts the always-on unit when the host can', async () => {
+    const restart = vi.fn()
+    const { ops } = operations({
+      update: {
+        fetchLatest: async () => '0.60.0',
+        restartable: () => true,
+        restart,
+      },
+    })
+    await expect(ops.restartDaemon()).resolves.toEqual({ ok: true, value: undefined })
+    expect(restart).toHaveBeenCalledTimes(1)
   })
 
   it('joins snapshot, connected count, and admin token path for accessStatus', async () => {

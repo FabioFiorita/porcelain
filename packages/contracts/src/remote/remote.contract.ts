@@ -22,6 +22,29 @@ export const daemonInfoOutputSchema = z
 export type DaemonInfoInput = z.infer<typeof daemonInfoInputSchema>
 export type DaemonInfoOutput = z.infer<typeof daemonInfoOutputSchema>
 
+/**
+ * On-demand npm lookup for the published package, plus whether this process can
+ * restart itself through the always-on systemd unit. `latestVersion` is null when
+ * the registry cannot be reached — a failed check is not a reason to hide the
+ * restart, which is the whole upgrade for a unit that re-resolves `@latest`.
+ */
+export const checkDaemonUpdateInputSchema = z.void()
+export const checkDaemonUpdateOutputSchema = z
+  .object({
+    currentVersion: z.string().min(1),
+    latestVersion: z.string().min(1).nullable(),
+    restartable: z.boolean(),
+  })
+  .strict()
+export type CheckDaemonUpdateInput = z.infer<typeof checkDaemonUpdateInputSchema>
+export type CheckDaemonUpdateOutput = z.infer<typeof checkDaemonUpdateOutputSchema>
+
+/** Restart the always-on unit. Development daemons and foreground processes refuse. */
+export const restartDaemonInputSchema = z.void()
+export const restartDaemonOutputSchema = z.void()
+export type RestartDaemonInput = z.infer<typeof restartDaemonInputSchema>
+export type RestartDaemonOutput = z.infer<typeof restartDaemonOutputSchema>
+
 export const pairingGrantSchema = z
   .object({
     id: z.string(),
@@ -159,6 +182,11 @@ export const remoteContractFixtures = {
       arch: 'x64',
     },
   },
+  checkDaemonUpdate: {
+    input: undefined,
+    output: { currentVersion: '0.52.1', latestVersion: '0.53.0', restartable: true },
+  },
+  restartDaemon: { input: undefined, output: undefined },
   accessStatus: {
     input: undefined,
     output: { pairings: [], clients: [], connected: 0, adminTokenPath: '~/.porcelain/admin-token' },

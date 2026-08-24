@@ -7,11 +7,21 @@ export interface PluginInfo {
   claudePluginCommands: readonly string[]
 }
 
+const BUNDLED_PLUGIN: PluginInfo = {
+  version: __PORCELAIN_PLUGIN_VERSION__,
+  agentPluginRepository: 'FabioFiorita/porcelain',
+  claudePluginCommands: [
+    '/plugin marketplace add FabioFiorita/porcelain',
+    '/plugin install porcelain@porcelain',
+  ],
+}
+
 export function usePluginInfo(): PluginInfo | undefined {
-  // Shell-only — the browser client hides the Companion block, so this is never queried there.
+  // Electron reads the shell's copy of the bundled plugin. The browser client is
+  // served without that bridge, so it uses the same values baked into this bundle.
   const { data } = shellTrpc.pluginInfo.useQuery(undefined, {
     staleTime: Number.POSITIVE_INFINITY,
     enabled: !isBrowser,
   })
-  return data
+  return isBrowser ? BUNDLED_PLUGIN : data
 }

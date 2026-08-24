@@ -1,14 +1,14 @@
-import { Kbd } from '@renderer/components/ui/kbd'
+import { Shortcut } from '@renderer/components/ui/kbd'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 
 /** Adds the same keyboard affordance to compact shell controls. */
 export function ShortcutTooltip({
   label,
-  shortcut,
+  tokens,
   children,
 }: {
   label: string
-  shortcut: string
+  tokens: readonly string[]
   children: React.ReactNode
 }): React.JSX.Element {
   return (
@@ -16,7 +16,7 @@ export function ShortcutTooltip({
       <TooltipTrigger render={<span className="inline-flex shrink-0">{children}</span>} />
       <TooltipContent>
         <span>{label}</span>
-        <Kbd>{shortcut}</Kbd>
+        <Shortcut tokens={tokens} />
       </TooltipContent>
     </Tooltip>
   )

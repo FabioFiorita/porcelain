@@ -70,6 +70,8 @@ export const TestIds = {
   /** Worktree lifecycle scripts of one Project, raised from its row in the tree. */
   hubWorktreeScripts: (projectId: string): string => `hub-worktree-scripts-${projectId}`,
   hubWorktreeScriptsDialog: 'hub-worktree-scripts-dialog',
+  hubPersonalization: (projectId: string): string => `hub-personalization-${projectId}`,
+  hubPersonalizationDialog: 'hub-personalization-dialog',
   hubCreateWorktreeBranch: 'hub-create-worktree-branch',
   hubCreateWorktreeBase: 'hub-create-worktree-base',
   hubCreateWorktreeSubmit: 'hub-create-worktree-submit',
