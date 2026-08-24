@@ -250,48 +250,6 @@ export const TestIds = {
   /** Settings → General: which daemon this browser tab is bound to. */
   settingsConnectedTo: 'settings-connected-to',
 
-  // --- Tasks (the daemon-wide table) ---
-  tasksOpen: 'tasks-open',
-  tasksNew: 'tasks-new',
-  tasksDialog: 'tasks-dialog',
-  tasksSheet: 'tasks-sheet',
-  tasksView: 'tasks-view',
-  tasksTable: 'tasks-table',
-  tasksEmpty: 'tasks-empty',
-  /** Rows exist but the current filters match none of them — distinct from an empty table. */
-  tasksNoMatches: 'tasks-no-matches',
-  tasksError: 'tasks-error',
-  tasksFilter: 'tasks-filter',
-  tasksFilterStatus: 'tasks-filter-status',
-  tasksFilterStatusToggle: (status: string): string => `tasks-filter-status-${status}`,
-  tasksFilterProject: 'tasks-filter-project',
-  tasksRow: (id: string): string => `tasks-row-${id}`,
-  /** The compact sidebar list entry — distinct from the Viewer table row above. */
-  tasksListRow: (id: string): string => `tasks-list-row-${id}`,
-  tasksRowStatus: (id: string): string => `tasks-row-status-${id}`,
-  tasksRowDelete: (id: string): string => `tasks-row-delete-${id}`,
-  tasksDeleteConfirm: 'tasks-delete-confirm',
-  tasksColumnsMenu: 'tasks-columns-menu',
-  tasksColumnToggle: (column: string): string => `tasks-column-toggle-${column}`,
-  tasksComposer: 'tasks-composer',
-  tasksComposerTitle: 'tasks-composer-title',
-  tasksComposerNotes: 'tasks-composer-notes',
-  tasksComposerMarkdown: 'tasks-composer-markdown',
-  tasksComposerProject: 'tasks-composer-project',
-  tasksComposerEnvironment: 'tasks-composer-environment',
-  tasksComposerAttach: 'tasks-composer-attach',
-  tasksComposerFileSearch: 'tasks-composer-file-search',
-  tasksComposerSubmit: 'tasks-composer-submit',
-  tasksComposerPicture: (name: string): string => `tasks-composer-picture-${name}`,
-  tasksComposerPath: (path: string): string => `tasks-composer-path-${path}`,
-
-  // --- Menu-bar quick add (the tray popover surface) ---
-  quickAdd: 'quick-add',
-  quickAddTitle: 'quick-add-title',
-  quickAddNotes: 'quick-add-notes',
-  quickAddSubmit: 'quick-add-submit',
-  quickAddConfirmation: 'quick-add-confirmation',
-
   // --- Review documents (Intent panes and Evidence Results) ---
   intentDocTabs: 'intent-doc-tabs',
   intentDocTab: (label: string): string =>

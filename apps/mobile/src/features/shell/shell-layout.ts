@@ -67,7 +67,7 @@ function isUnder(pathname: string, prefix: string): boolean {
  *
  * The rule is now the window's alone, and that is the change: the panels used to appear only
  * once the Hub stack was deeper than its own list, so an iPad showed a phone screen at the Hub
- * root, at Terminals, at Tasks and at Settings — four of the five places you can stand. The web
+ * root, at Terminals and at Settings — three of the four places you can stand. The web
  * client does not do that. Its sidebar is where the app's navigation lives at every route, and
  * an iPad that means to replace the desktop has to be the same window, not a phone that
  * occasionally widens.

@@ -6,11 +6,11 @@ import { ChromeGlyph } from '@/components/chrome-glyph'
 import { ErrorNote, PanelLabel } from '@/components/panel-chrome'
 import { PANEL_CARD } from '@/components/surface-layout'
 import { SurfaceScroll } from '@/components/surface-scroll'
-import { SheetAction, SheetBar } from '@/features/shell/sheet-bar'
 import { Input } from '@/components/ui/input'
 import { Text } from '@/components/ui/text'
 import { useHubInventories } from '@/features/projects'
 import { isPaired, useEnvironments } from '@/features/remote'
+import { SheetAction, SheetBar } from '@/features/shell/sheet-bar'
 import { cn } from '@/lib/utils'
 
 import { useCreateHubWorktree } from './hub-mutations'
@@ -25,7 +25,7 @@ import { newWorktreeRequest, newWorktreeTarget, showsEnvironmentPicker } from '.
  * contract at all, and the second is a different gesture (checking a branch out) wearing this
  * one's clothes.
  *
- * Two rules borrowed from `new-task-sheet`, for the same reasons:
+ * Two rules, because a picker over more than one Environment has no implicit target:
  *
  *   - The **Environment** control appears only when more than one is paired. A board reaching
  *     three daemons has no "current" one to fall back on, so an unchosen target is refused

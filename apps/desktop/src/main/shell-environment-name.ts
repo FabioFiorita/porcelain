@@ -19,8 +19,8 @@ import { probeEnvironment } from './shell-environments'
  * human can SEE side by side in Settings. Only the shell can reach both, so the rename is
  * routed here — one named target, never a fan-out write.
  *
- * The saved group name is refreshed with whatever the daemon answers, so the picker and the
- * Tasks tables show the new label immediately instead of waiting for the next status probe.
+ * The saved group name is refreshed with whatever the daemon answers, so the picker shows
+ * the new label immediately instead of waiting for the next status probe.
  */
 
 /** Resolve the daemon pair for an Environment id, or fail loudly rather than guessing. */

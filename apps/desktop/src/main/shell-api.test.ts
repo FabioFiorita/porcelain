@@ -47,12 +47,6 @@ vi.mock('./updater', () => ({
   updateStatus: (): { state: 'idle' } => ({ state: 'idle' }),
 }))
 
-// Same reason as './window': the popover module reaches for the real Electron window
-// APIs at import time, which this suite deliberately keeps out of the graph.
-vi.mock('./quick-add-window', () => ({
-  closeQuickAddFrom: vi.fn(),
-}))
-
 vi.mock('./window', () => ({
   createWindow: vi.fn(),
   switchWindowEnvironment: switchWindowEnvironmentMock,

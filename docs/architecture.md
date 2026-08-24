@@ -45,8 +45,7 @@ package that owns the behavior until a second consumer makes sharing useful.
 - `packages/client-runtime` owns reusable client transport/query/session behavior; a component
   should not reach into transport internals directly.
 - Web owns browser/Electron presentation. Desktop stays a thin host rather than a second business
-  logic implementation. The menu-bar (tray) quick-add popover follows that rule: the shell owns the
-  icon and the window, and the window loads the same web client at `#/quick-add`.
+  logic implementation. The menu-bar (tray) icon is shell-owned: left-click opens Porcelain.
 - Mobile owns native lifecycle and presentation. Its terminal module may render native terminal
   cells, while daemon/PTY transport remains client feature code.
 - The MCP channel adapts semantic daemon operations for agents. The daemon remains the only writer
@@ -55,7 +54,7 @@ package that owns the behavior until a second consumer makes sharing useful.
 ## Data boundaries
 
 The daemon's `PORCELAIN_HOME` is the default home for private project data, credentials, Canvas and
-Action data, and daemon-wide Tasks. A repository-local `.porcelain/` is optional and only holds
+Action data. A repository-local `.porcelain/` is optional and only holds
 data explicitly promoted into Git. The daemon also owns each repository's private profile: project
 pins, hides, and layer order, plus an optional worktree override that inherits the project baseline.
 The client owns local presentation state such as tabs, splits, and preferences. A connected Hub may

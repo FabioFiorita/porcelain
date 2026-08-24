@@ -1,9 +1,9 @@
 import '@/global.css'
 
 import { PortalHost } from '@rn-primitives/portal'
-import { View } from 'react-native'
 import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router/react-navigation'
 import { StatusBar } from 'expo-status-bar'
+import { View } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 
@@ -17,7 +17,6 @@ import { PhoneShell } from '@/features/shell/phone-shell'
 import { TabletShell } from '@/features/shell/tablet-shell'
 import { useIsTablet } from '@/features/shell/use-app-window'
 import { WorktreeResetBridge } from '@/features/shell/worktree-reset-bridge'
-import { TasksNotificationBridge } from '@/features/tasks'
 import { DaemonProvider } from '@/lib/daemon/provider'
 
 export default function RootLayout(): React.JSX.Element {
@@ -43,7 +42,6 @@ function ThemedApp(): React.JSX.Element {
         <SearchNotificationBridge />
         <GitNotificationBridge />
         <ActionsNotificationBridge />
-        <TasksNotificationBridge />
         <ProjectDataFreshnessBridge />
         <WorktreeResetBridge />
         <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />

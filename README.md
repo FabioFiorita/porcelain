@@ -6,14 +6,13 @@
 </div>
 
 Porcelain is a daemon with browser, Electron, and mobile clients. It brings worktrees, Git changes,
-review material, Tasks, terminals, and remote access into one place without becoming an IDE or an
+review material, terminals, and remote access into one place without becoming an IDE or an
 in-app agent host. Your code stays on machines you control.
 
 ## What it provides
 
 - A review story for a unit of work: intent, execution, and evidence.
 - Worktree navigation, focused file views, diffs, history, and Git actions.
-- Tasks that span projects and worktrees.
 - Terminals and development servers that belong to the daemon host.
 - Browser, Electron, and mobile clients using the same daemon contracts.
 - LAN, Tailscale, and Cloudflare access with one-time pairing and independently revocable devices.
@@ -36,7 +35,7 @@ that device. Remote exposure and always-on setup are documented in
 ## Agent connection
 
 The **porcelain** plugin gives agents the MCP tools and focused skills for Canvases, comments,
-Tasks, Actions, profiles, and remote-daemon setup. Choose the installation route your client
+Actions, profiles, and remote-daemon setup. Choose the installation route your client
 supports:
 
 ### Agent Plugin
@@ -71,8 +70,8 @@ It must not be used with production state. Current package ownership is summariz
 
 ## Contributing
 
-Start with [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md). Future product work is
-tracked in Porcelain Tasks; repository documentation describes what currently exists.
+Start with [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md). This repository
+documents current behavior and operational facts only.
 
 ## License
 

@@ -1,3 +1,4 @@
+import { TerminalPanel } from '@renderer/components/terminal/terminal-panel'
 import { SidebarInset, SidebarProvider, useSidebar } from '@renderer/components/ui/sidebar'
 import { Toaster } from '@renderer/components/ui/sonner'
 import { useActionsNotificationSubscription } from '@renderer/features/actions'
@@ -10,9 +11,7 @@ import {
   FileFinder,
   useSearchNotificationSubscription,
 } from '@renderer/features/search'
-import { NewTaskDialog, useTasksNotificationSubscription } from '@renderer/features/tasks'
 import { useEnvironmentTerminalStreams, useTerminalRoster } from '@renderer/features/terminal'
-import { TerminalPanel } from '@renderer/components/terminal/terminal-panel'
 import { useDocumentTitle } from '@renderer/hooks/use-document-title'
 import { useResponsiveShell } from '@renderer/hooks/use-responsive-shell'
 import { useSessionRuntime } from '@renderer/hooks/use-session-runtime'
@@ -129,7 +128,6 @@ export function AppShell(): React.JSX.Element {
   // One session runtime for the window: domain change invalidation, watch interests,
   // project selection, and reconnect recovery. Terminal traffic shares the same socket.
   useSessionRuntime()
-  useTasksNotificationSubscription()
   // Git workspace notifications own typed Git identities; session-runtime handles only residual
   // non-Git recovery and Canvas/Files cross-domain concerns.
   useGitNotificationSubscription()
@@ -189,7 +187,6 @@ export function AppShell(): React.JSX.Element {
         <FileCommands />
         <FilePromptDialog />
         <ProjectPickerDialog />
-        <NewTaskDialog />
         <SettingsDialog />
         <AppSidebar />
         <RepoShell />

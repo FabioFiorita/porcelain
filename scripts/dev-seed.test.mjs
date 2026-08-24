@@ -99,6 +99,5 @@ test('every path the seed pins, hides or reviews exists in its fixture', () => {
 })
 
 test('the seed tag is a single stable marker', () => {
-  // Tasks are reclaimed by this tag alone; changing it strands every previously seeded Task.
   assert.equal(SEED_TAG, 'dev-seed')
 })

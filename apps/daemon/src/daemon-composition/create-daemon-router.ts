@@ -6,7 +6,6 @@ import { createProjectsRouter } from '../features/projects'
 import { createRemoteNetworkRouter, createRemoteRouter } from '../features/remote'
 import { createReviewCommentRouter, createReviewMarksRouter } from '../features/review'
 import { createSearchRouter } from '../features/search'
-import { createTasksRouter } from '../features/tasks'
 import { createDevServerRouter, createTerminalRouter } from '../features/terminal'
 import { t } from '../trpc'
 import type { CreateDaemonRouterOptions } from './daemon-operations'
@@ -16,7 +15,7 @@ import type { CreateDaemonRouterOptions } from './daemon-operations'
  * domain router factory in the historical merge order and merges them with the
  * one shared `initTRPC` builder so procedure names stay flat on the wire.
  *
- * Remote, Projects, Git, Files, Search, Review comments/marks, Tasks, Actions, Project
+ * Remote, Projects, Git, Files, Search, Review comments/marks, Actions, Project
  * Data, and Terminal procedures are bound through `operations`; no horizontal procedure router
  * remains outside a canonical domain feature.
  */
@@ -29,7 +28,6 @@ export function createDaemonRouter({ operations }: CreateDaemonRouterOptions) {
     createSearchRouter(operations.search),
     createReviewCommentRouter(operations.review),
     createReviewMarksRouter(operations.review),
-    createTasksRouter(operations.tasks),
     createActionsRouter(operations.actions),
     createProjectDataRouter(operations.projectData),
     createRemoteNetworkRouter(operations.remote),

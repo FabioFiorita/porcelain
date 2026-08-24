@@ -1,13 +1,12 @@
 import { resolvedProfileSchema, worktreeProfileSchema } from '@porcelain/contracts'
 import type { McpToolHandlers, McpToolResult } from './mcp-dispatch'
-import type { McpOperations, McpTask, TaskArgs } from './mcp-operations'
+import type { McpOperations } from './mcp-operations'
 import {
   type ReviewFile,
   type ReviewSection,
   type ReviewSet,
   reviewBundleSource,
 } from './mcp-review'
-import { mergeLink, taskMatches, taskView } from './mcp-tasks'
 import {
   isWorkspaceRef,
   type ResolvedWorkspace,
@@ -18,7 +17,6 @@ import {
 /** The MCP adapter calls domain operations; it never reaches into Porcelain storage. */
 export type McpToolDeps = Readonly<{
   operations: McpOperations
-  attachmentPath: (storedPath: string) => string
 }>
 
 function ok(text: string): McpToolResult {
@@ -61,46 +59,6 @@ function workspaceResult(place: ResolvedWorkspace, value: unknown): McpToolResul
 
 function statusOf(args: Record<string, unknown>): 'open' | 'resolved' | 'all' {
   return args.status === 'resolved' || args.status === 'all' ? args.status : 'open'
-}
-
-function statusValue(value: unknown): 'todo' | 'doing' | 'done' | 'blocked' | undefined {
-  return value === 'todo' || value === 'doing' || value === 'done' || value === 'blocked'
-    ? value
-    : undefined
-}
-
-function stringList(args: Record<string, unknown>, key: string): string[] | undefined {
-  const value = args[key]
-  if (!Array.isArray(value)) return undefined
-  return value.filter((entry): entry is string => typeof entry === 'string' && entry !== '')
-}
-
-/**
- * `refs` needs a worktree to anchor its paths to. Distinguishing "no refs passed" from
- * "refs passed but unanchorable" matters: silently dropping the latter to `undefined`
- * looks like success while the caller's paths never reach the Task.
- */
-function resolveTaskRefs(
-  args: Record<string, unknown>,
-  place: ResolvedWorkspace | null,
-): { ok: true; refs: TaskArgs['pathRefs'] } | { ok: false; message: string } {
-  if (!Array.isArray(args.refs)) return { ok: true, refs: undefined }
-  if (place === null || place.worktreeId === null) {
-    return {
-      ok: false,
-      message:
-        'refs requires a workspace resolved to a worktree; pass a workspace path (or {projectId, worktreeId}) that has one.',
-    }
-  }
-  const worktreeId = place.worktreeId
-  const refs: TaskArgs['pathRefs'] = args.refs
-    .filter(isRecord)
-    .flatMap((ref) =>
-      typeof ref.path === 'string' && (ref.kind === 'file' || ref.kind === 'folder')
-        ? [{ projectId: place.projectId, worktreeId, path: ref.path, kind: ref.kind }]
-        : [],
-    )
-  return { ok: true, refs }
 }
 
 function reviewSet(value: unknown): ReviewSet | null {
@@ -176,16 +134,6 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
     return resolved.ok
       ? { ok: true, value: resolved.value }
       : { ok: false, result: fail(resolved.message) }
-  }
-
-  async function listTasks(): Promise<readonly McpTask[] | null> {
-    const result = await operations.tasks.listTasks()
-    return result.ok ? result.value : null
-  }
-
-  async function resolveTaskId(wanted: string): Promise<string | undefined> {
-    const tasks = await listTasks()
-    return tasks?.find((task) => taskMatches(task, wanted))?.id
   }
 
   async function resolveCanvasId(
@@ -460,119 +408,6 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
       return fail('op must be list, get, create, update, delete, reply, resolve, or reopen.')
     },
 
-    async porcelain_task(args, place) {
-      const op = args.op
-      const tasks = await listTasks()
-      if (tasks === null) return fail('This daemon cannot read its Tasks.')
-      if (op === 'list' || op === 'get') {
-        if (op === 'list') return json(tasks.map((task) => taskView(task, deps.attachmentPath)))
-        const id = stringField(args, 'id')
-        if (id === undefined) return fail('id is required to get a Task.')
-        const task = tasks.find((entry) => taskMatches(entry, id))
-        return task === undefined
-          ? fail(`No Task ${id} on this daemon.`)
-          : json(taskView(task, deps.attachmentPath))
-      }
-      const wanted = stringField(args, 'id')
-      if (op === 'create') {
-        const title = stringField(args, 'title')
-        if (title === undefined) return fail('title is required to create a Task.')
-        const links = Array.isArray(args.links)
-          ? args.links.filter(isRecord).flatMap((link) =>
-              typeof link.url === 'string'
-                ? [
-                    {
-                      url: link.url,
-                      label:
-                        typeof link.label === 'string' && link.label !== '' ? link.label : link.url,
-                    },
-                  ]
-                : [],
-            )
-          : undefined
-        const refsResult = resolveTaskRefs(args, place)
-        if (!refsResult.ok) return fail(refsResult.message)
-        const refs = refsResult.refs
-        const created = await operations.tasks.createTask({
-          title,
-          ...(stringField(args, 'notes') === undefined
-            ? {}
-            : { notes: stringField(args, 'notes') }),
-          ...(statusValue(args.status) === undefined ? {} : { status: statusValue(args.status) }),
-          ...(stringList(args, 'tags') === undefined ? {} : { tags: stringList(args, 'tags') }),
-          ...(links === undefined ? {} : { links }),
-          ...(refs === undefined ? {} : { pathRefs: refs }),
-          ...(stringField(args, 'attach') === undefined
-            ? {}
-            : { attachmentPaths: [stringField(args, 'attach') as string] }),
-          ...(place === null
-            ? {}
-            : {
-                references: {
-                  projectId: place.projectId,
-                  ...(place.worktreeId === null ? {} : { worktreeId: place.worktreeId }),
-                },
-              }),
-        })
-        return created.ok
-          ? json(taskView(created.value, deps.attachmentPath))
-          : fail(`Could not create the Task: ${describeError(created.error)}`)
-      }
-      if (wanted === undefined) return fail('id is required for Task update/delete.')
-      const taskId = await resolveTaskId(wanted)
-      if (taskId === undefined) return fail(`No Task ${wanted} on this daemon.`)
-      if (op === 'delete') {
-        const deleted = await operations.tasks.deleteTask({ taskId })
-        return deleted.ok
-          ? ok(`Task ${wanted} deleted.`)
-          : fail(`Could not delete the Task: ${describeError(deleted.error)}`)
-      }
-      if (op !== 'update') return fail('op must be list, get, create, update, or delete.')
-      const links = Array.isArray(args.links)
-        ? args.links.filter(isRecord).flatMap((link) =>
-            typeof link.url === 'string'
-              ? [
-                  {
-                    url: link.url,
-                    label:
-                      typeof link.label === 'string' && link.label !== '' ? link.label : link.url,
-                  },
-                ]
-              : [],
-          )
-        : undefined
-      const singleLink = stringField(args, 'link')
-      const current = tasks.find((task) => task.id === taskId)
-      const mergedLinks =
-        singleLink === undefined
-          ? links
-          : mergeLink(current?.links, {
-              url: singleLink,
-              label: stringField(args, 'linkLabel') ?? singleLink,
-            })
-      const refsResult = resolveTaskRefs(args, place)
-      if (!refsResult.ok) return fail(refsResult.message)
-      const refs = refsResult.refs
-      const updated = await operations.tasks.updateTask({
-        taskId,
-        ...(stringField(args, 'title') === undefined ? {} : { title: stringField(args, 'title') }),
-        ...(stringField(args, 'notes') === undefined ? {} : { notes: stringField(args, 'notes') }),
-        ...(statusValue(args.status) === undefined ? {} : { status: statusValue(args.status) }),
-        ...(stringList(args, 'tags') === undefined ? {} : { tags: stringList(args, 'tags') }),
-        ...(mergedLinks === undefined ? {} : { links: mergedLinks }),
-        ...(refs === undefined ? {} : { pathRefs: refs }),
-        ...(stringField(args, 'attach') === undefined
-          ? {}
-          : { attachmentPaths: [stringField(args, 'attach') as string] }),
-        ...(stringList(args, 'removeAttachmentIds') === undefined
-          ? {}
-          : { removeAttachmentIds: stringList(args, 'removeAttachmentIds') }),
-      })
-      return updated.ok
-        ? json(taskView(updated.value, deps.attachmentPath))
-        : fail(`Could not update the Task: ${describeError(updated.error)}`)
-    },
-
     async porcelain_profile(args, place) {
       if (place?.worktreePath === null || place === null)
         return fail('Profiles need a checkout on the daemon host.')
@@ -697,15 +532,6 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
       const tool = tools[name]
       if (tool === undefined) return fail(`Unknown tool ${name}.`)
       if (name === 'porcelain_project') return tool(args, null)
-      // Task inventory is daemon-wide. Only checkout path references need a
-      // workspace lookup; list/get/delete and ordinary create/update do not.
-      if (name === 'porcelain_task') {
-        const needsWorkspace =
-          (args.op === 'create' || args.op === 'update') &&
-          Array.isArray(args.refs) &&
-          args.refs.length > 0
-        if (!needsWorkspace) return tool(args, null)
-      }
       const resolved = await resolvePlace(args)
       if (!resolved.ok) return resolved.result
       return tool(args, resolved.value)

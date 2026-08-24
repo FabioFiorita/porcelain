@@ -39,7 +39,7 @@ export default function HubLayout(): React.JSX.Element {
   return (
     <Stack screenOptions={{ headerShown: false }}>
       {/* A form, not a list: at 0.6 the fields sit under the keyboard, so this sheet
-          starts near-full like the Tasks composer instead of taking SHEET's list detents. */}
+          starts near-full instead of taking SHEET's list detents. */}
       <Stack.Screen name="new-worktree" options={{ ...SHEET, sheetAllowedDetents: [0.85, 0.99] }} />
 
       <Stack.Screen name="quick-open" options={SHEET} />

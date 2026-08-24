@@ -1,16 +1,11 @@
 // @vitest-environment node
 import { createHash } from 'node:crypto'
-import { mkdtempSync } from 'node:fs'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp } from 'node:fs/promises'
 import { type IncomingMessage, request, type ServerResponse } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { PROTOCOL_VERSION, PROTOCOL_VERSION_HEADER, publicErrorSchema } from '@porcelain/contracts'
-import {
-  TASK_ATTACHMENT_UPLOAD_MAX_CHARS,
-  TASK_ATTACHMENT_UPLOADS_MAX_COUNT,
-} from '@porcelain/contracts/tasks'
 import { initTRPC } from '@trpc/server'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import WebSocket from 'ws'
@@ -23,7 +18,6 @@ import {
   sessionCount,
 } from '../../session/live-session'
 import type { ProjectsOperations } from '../projects'
-import { createTasksAttachments, createTasksStore } from '../tasks'
 import type { TerminalOperations } from '../terminal'
 import {
   createRemoteHttp,
@@ -147,17 +141,9 @@ const projectsOperations = {
   })),
 } satisfies ProjectsOperations
 
-// Daemon-root Tasks adapters over a throwaway home, the way `server.ts` resolves them from
-// `$PORCELAIN_HOME`; the HTTP boundary tests never touch a real Tasks index.
-const tasksHome = mkdtempSync(join(tmpdir(), 'porcelain-remote-http-tasks-'))
-
 const router = createDaemonRouter({
   operations: createDaemonOperations({
     projects: projectsOperations,
-    tasks: {
-      store: createTasksStore({ homeDir: tasksHome }),
-      attachments: createTasksAttachments({ homeDir: tasksHome }),
-    },
     terminal: terminalOperations,
     homeDir: join(tmpdir(), 'porcelain-remote-http-home'),
   }),
@@ -340,7 +326,6 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await stopTestDaemon(daemon)
-  await rm(tasksHome, { recursive: true, force: true })
 })
 
 describe('daemon http surface — the token gate + CORS scope', () => {
@@ -380,10 +365,8 @@ describe('daemon http surface — the token gate + CORS scope', () => {
     expect(res.status).toBe(200)
   })
 
-  it('sizes TRPC_MAX_BODY_BYTES to admit a full createTask/updateTask attachment batch', () => {
-    expect(TRPC_MAX_BODY_BYTES).toBeGreaterThan(
-      TASK_ATTACHMENT_UPLOADS_MAX_COUNT * TASK_ATTACHMENT_UPLOAD_MAX_CHARS,
-    )
+  it('bounds a /trpc body so an authenticated peer cannot stream unbounded JSON', () => {
+    expect(TRPC_MAX_BODY_BYTES).toBe(32 * 1024 * 1024)
   })
 
   it('rejects a declared /trpc body above the cap before dispatch', async () => {

@@ -1,4 +1,4 @@
-import { type HubProjectGroup, groupEquivalentProjects } from '@porcelain/client-runtime/projects'
+import { groupEquivalentProjects, type HubProjectGroup } from '@porcelain/client-runtime/projects'
 import { useRouter } from 'expo-router'
 import { TabTrigger, type TabTriggerSlotProps } from 'expo-router/ui'
 import { useMemo } from 'react'
@@ -24,7 +24,7 @@ import { shellSheetHref } from './shell-sheets'
  *
  * **The destination rows are `TabTrigger`s, not links.** A trigger rendered outside the
  * `TabList` switches the tab navigator by name without pushing anything, which is what lets the
- * iPad drop the bottom bar without giving up the four stacks behind it: leaving Terminals for
+ * iPad drop the bottom bar without giving up the three stacks behind it: leaving Terminals for
  * Settings from this panel keeps the Terminals stack, and its attached session, exactly where it
  * was. A `router.push` here would have grown the current stack instead.
  *
@@ -42,12 +42,8 @@ export function TabletSidebar(): React.JSX.Element {
     >
       <SidebarHeader />
       <SearchRow />
-      {/* Web's order, and web's trailing `+` on the row that can create one. Tasks before
-          Terminals because that is the order `app-sidebar.tsx` puts them in, and two clients
-          that disagree about the order of two rows is exactly the kind of drift this pass is
-          for. */}
+      {/* Daemon-wide destinations above the Hub tree; Settings lives in the footer. */}
       <View className="gap-0.5 px-2 pt-2">
-        <DestinationRow action={<NewTaskAction />} glyph="checklist" label="Tasks" name="tasks" />
         <DestinationRow glyph="terminal" label="Terminals" name="terminals" />
       </View>
       <WorktreeList />
@@ -86,22 +82,6 @@ function SidebarHeader(): React.JSX.Element {
         }}
       />
     </View>
-  )
-}
-
-/** Compose a Task without leaving whatever the viewer is showing. */
-function NewTaskAction(): React.JSX.Element {
-  const router = useRouter()
-
-  return (
-    <IconAction
-      accessibilityLabel="New Task"
-      glyph="plus"
-      testID="porcelain-tablet-new-task"
-      onPress={() => {
-        router.push('/tasks/new')
-      }}
-    />
   )
 }
 
@@ -179,34 +159,18 @@ function DestinationButton({
  * where each tab points.
  */
 function DestinationRow({
-  action,
   glyph,
   label,
   name,
 }: {
-  /** A trailing control that belongs to the destination but is not the destination — Tasks' `+`. */
-  action?: React.ReactNode
   glyph: ChromeIconName
   label: string
   name: string
 }): React.JSX.Element {
-  if (action === undefined) {
-    return (
-      <TabTrigger asChild name={name}>
-        <DestinationButton glyph={glyph} label={label} />
-      </TabTrigger>
-    )
-  }
-
-  // The trigger wraps the ROW, not the row plus its action: a `+` inside the trigger would
-  // switch the tab on its way to opening the composer.
   return (
-    <View className="flex-row items-center">
-      <TabTrigger asChild name={name}>
-        <DestinationButton glyph={glyph} label={label} />
-      </TabTrigger>
-      {action}
-    </View>
+    <TabTrigger asChild name={name}>
+      <DestinationButton glyph={glyph} label={label} />
+    </TabTrigger>
   )
 }
 

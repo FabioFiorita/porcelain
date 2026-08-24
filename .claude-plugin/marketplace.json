@@ -9,7 +9,7 @@
     {
       "name": "porcelain",
       "source": "./plugins/porcelain",
-      "description": "Drive Porcelain's Review Canvas, Tasks, Actions, and remote daemon setup.",
+      "description": "Drive Porcelain's Review Canvas, Actions, and remote daemon setup.",
       "category": "code-review"
     }
   ]

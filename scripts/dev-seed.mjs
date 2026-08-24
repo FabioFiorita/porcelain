@@ -3,7 +3,7 @@
  * Seed the DEV daemon with state worth looking at.
  *
  * An empty database is a bad test. Porcelain is a review layer, and until now every session
- * started with nothing to review: an agent built a Canvas, a Task and a diff by hand before
+ * started with nothing to review: an agent built a Canvas and a diff by hand before
  * it could see the surface it had just changed, and threw all of it away at the end.
  *
  * Everything here is written through the **shipped CLI** — the same commands an agent runs.
@@ -11,8 +11,8 @@
  * writes would prove nothing and rot the moment a store changes. Reads go through the
  * daemon's typed procedures (dev-daemon-client.mjs), never by parsing CLI prose.
  *
- * Re-running is safe: seeded Tasks carry a tag and are removed first, seeded Actions and
- * Canvases are matched by title and replaced, and a Review set is a replace by definition.
+ * Re-running is safe: seeded Actions and Canvases are matched by title and replaced, and a
+ * Review set is a replace by definition.
  *
  * Usage:
  *   pnpm dev:seed                 # the default scenario
@@ -76,15 +76,10 @@ async function projectIdFor(path) {
 }
 
 /**
- * Remove what a previous run left behind. Seeded Tasks are tagged; Actions and Canvases are
- * matched by the exact titles this file writes, so a Task or Action the human added by hand
- * is never in scope.
+ * Remove what a previous run left behind. Actions are matched by the exact titles this file
+ * writes, so an Action the human added by hand is never in scope.
  */
 async function purgeSeeded(titles) {
-  const tasks = await adminQuery('listTasks')
-  for (const task of tasks) {
-    if (task.tags?.includes(SEED_TAG)) await adminMutation('deleteTask', { taskId: task.id })
-  }
   const inventory = await adminQuery('hubInventory', undefined)
   for (const project of inventory.projects) {
     const actions = await adminQuery('actions', { projectId: project.id })
@@ -93,26 +88,6 @@ async function purgeSeeded(titles) {
         await adminMutation('deleteAction', { projectId: project.id, id: action.id })
       }
     }
-  }
-}
-
-async function seedTask(fields) {
-  await adminMutation('createTask', { ...fields, tags: [...(fields.tags ?? []), SEED_TAG] })
-}
-
-/**
- * A Task with a real file attached. The daemon copies the source into its own attachment
- * store, so the temp file is only needed for the length of the call — but it must exist:
- * an attachment chip with nothing behind it is exactly the state a seed must not fake.
- */
-async function seedTaskWithAttachment(fields, attachment) {
-  const dir = mkdtempSync(join(tmpdir(), 'porcelain-seed-attachment-'))
-  try {
-    const file = join(dir, attachment.name)
-    writeFileSync(file, attachment.contents)
-    await seedTask({ ...fields, attachmentPaths: [file] })
-  } finally {
-    rmSync(dir, { recursive: true, force: true })
   }
 }
 
@@ -313,7 +288,7 @@ async function seedActionsFor(path) {
 
 const SCENARIOS = {
   empty: {
-    summary: 'no projects, no Tasks — the Welcome screen',
+    summary: 'no projects — the Welcome screen',
     run: async () => {
       const recents = await adminQuery('recentRepos', undefined)
       for (const project of recents) {
@@ -326,19 +301,16 @@ const SCENARIOS = {
     },
   },
   'one-review': {
-    summary: 'one project with a dirty tree, a Review across all four tabs, a few Tasks',
+    summary: 'one project with a dirty tree, a Review across all four tabs',
     run: async () => {
       const repo = playground('dirty')
       await registerProject(repo)
       seedReview(repo, REVIEW)
       await seedActionsFor(repo)
-      await seedTask({ title: 'Read the seeded Review', status: 'doing' })
-      await seedTask({ title: 'Check the Changes tab against git status', status: 'todo' })
-      await seedTask({ title: 'Confirm the walkthrough anchors resolve', status: 'done' })
     },
   },
   busy: {
-    summary: 'four projects in different shapes, Tasks in every status, Actions, one Review',
+    summary: 'four projects in different shapes, Actions, one Review',
     run: async () => {
       for (const shape of ['clean', 'dirty', 'staged', 'history']) {
         await registerProject(playground(shape))
@@ -346,11 +318,6 @@ const SCENARIOS = {
       const reviewed = playground('dirty')
       seedReview(reviewed, REVIEW)
       await seedActionsFor(reviewed)
-      await seedTask({ title: 'Switch between the four projects', status: 'doing' })
-      await seedTask({ title: 'Open the staged fixture and read the split', status: 'todo' })
-      await seedTask({ title: 'Resolve the conflicted fixture', status: 'blocked' })
-      await seedTask({ title: 'Walk the deep history', status: 'todo' })
-      await seedTask({ title: 'Register a second project', status: 'done' })
     },
   },
   'evidence-heavy': {
@@ -360,11 +327,10 @@ const SCENARIOS = {
       await registerProject(repo)
       seedReview(repo, REVIEW)
       await seedEvidenceCanvas(repo, 'Seeded evidence')
-      await seedTask({ title: 'Read the Evidence tab', status: 'doing' })
     },
   },
   everything: {
-    summary: 'every shape registered, two Reviews, Evidence, Tasks in every status, pins and hides',
+    summary: 'every shape registered, two Reviews, Evidence, pins and hides',
     run: async () => {
       // Every shape, so no surface is empty for want of a fixture: the switcher has eight
       // rows, Worktrees has a linked checkout, and the deep tree has somewhere to go.
@@ -382,42 +348,6 @@ const SCENARIOS = {
       // Pins and hides are per-project file scope: without them the tree only ever renders
       // its default shape, and the pinned well never appears.
       for (const scope of SEEDED_SCOPES) await seedScope(repos[scope.shape], scope)
-
-      const dirtyId = await projectIdFor(repos.dirty)
-      const monorepoId = await projectIdFor(repos.monorepo)
-      await seedTask({
-        title: 'Read the seeded Review end to end',
-        status: 'doing',
-        notes: 'Intent → Process → Execution → Evidence. Every tab should carry something.',
-        tags: ['review'],
-        references: { projectId: dirtyId },
-      })
-      await seedTask({
-        title: 'Compare the workspace Review against the deep tree',
-        status: 'todo',
-        tags: ['review', 'monorepo'],
-        references: { projectId: monorepoId },
-      })
-      await seedTask({
-        title: 'Resolve the conflicted fixture',
-        status: 'blocked',
-        notes: 'The merge is stopped on purpose — this is the conflict surface fixture.',
-        tags: ['git'],
-      })
-      await seedTask({
-        title: 'Open the staged fixture and read the split',
-        status: 'todo',
-        tags: ['git', 'diff'],
-      })
-      await seedTaskWithAttachment(
-        {
-          title: 'Walk the deep history',
-          status: 'todo',
-          links: [{ url: 'https://git-scm.com/docs/git-log', label: 'git log' }],
-        },
-        { name: 'history-notes.md', contents: '# Deep history\n\n12 commits, one side branch.\n' },
-      )
-      await seedTask({ title: 'Register every playground shape', status: 'done', tags: ['setup'] })
     },
   },
 }
@@ -432,8 +362,8 @@ ${Object.entries(SCENARIOS)
   .map(([name, { summary }]) => `  ${name.padEnd(16)}${summary}`)
   .join('\n')}
 
-Re-running is safe: seeded Tasks are tagged \`${SEED_TAG}\` and removed first; Reviews and
-Canvases are replaced by title. Needs a running dev daemon (pnpm dev:daemon).
+Re-running is safe: seeded Actions and Canvases are matched by title and replaced. Needs a
+running dev daemon (pnpm dev:daemon).
 `
 
 async function main(argv) {
@@ -452,12 +382,10 @@ async function main(argv) {
   await purgeSeeded({ actions: SEEDED_ACTION_TITLES })
   await scenario.run()
 
-  const tasks = await adminQuery('listTasks')
   const recents = await adminQuery('recentRepos', undefined)
   process.stdout.write(
     `seeded "${name}"\n` +
-      `  projects  ${recents.length === 0 ? '(none — Welcome)' : recents.map((p) => p.name).join(', ')}\n` +
-      `  tasks     ${tasks.length}\n`,
+      `  projects  ${recents.length === 0 ? '(none — Welcome)' : recents.map((p) => p.name).join(', ')}\n`,
   )
 }
 

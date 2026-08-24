@@ -41,7 +41,7 @@ tracked PID or managed worktree record.
 
 ## Working loop
 
-1. Read the Task and inspect the owning code. State the user-visible outcome.
+1. Read the request and inspect the owning code. State the user-visible outcome.
 2. Make the smallest change that can produce that outcome. Keep unrelated cleanup separate.
 3. Format and run the closest useful typecheck/test. Exercise the real path when the change is
    runtime-facing, visual, remote, Electron, or mobile.
@@ -66,8 +66,7 @@ you checked and which remain unproved instead of implying universal coverage.
 
 Work on `main` for direct work, or use `pnpm worktree create <slug>` for an isolated branch. Keep
 the worktree clean enough for the next person to understand. Do not push or publish without an
-explicit request. Product future work lives in Porcelain Tasks; this repository documents current
-behavior and operational facts only.
+explicit request. This repository documents current behavior and operational facts only.
 
 Before starting a development process in a linked worktree, run `pnpm dev:env`. If it reports the
 primary profile because an external harness created the worktree without `.porcelain-worktree.json`,
@@ -94,7 +93,7 @@ read it before your first write.
 ## Documentation discipline
 
 Keep one source for each fact. The routing above says which document owns which subject, and it
-says it once — a second route is a second owner. Porcelain Tasks describe future work. Update a
+says it once — a second route is a second owner. Update a
 document when its owned fact changes; do not add plans, policy matrices, or architecture rules to
 preserve a superseded direction. `pnpm lint:docs` holds both halves: one route per document, and
 shipped skills that never reach into this checkout.

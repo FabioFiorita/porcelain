@@ -14,7 +14,6 @@
     "./actions-file": "./src/actions-file.ts",
     "./comments-file": "./src/comments-file.ts",
     "./background": "./src/background.ts",
-    "./tasks-porcelain": "./src/tasks-porcelain.ts",
     "./review-canvas": "./src/review-canvas.ts",
     "./project-overrides": "./src/project-overrides.ts"
   },
@@ -49,9 +48,6 @@
       ],
       "background": [
         "./src/background.ts"
-      ],
-      "tasks-porcelain": [
-        "./src/tasks-porcelain.ts"
       ],
       "review-canvas": [
         "./src/review-canvas.ts"

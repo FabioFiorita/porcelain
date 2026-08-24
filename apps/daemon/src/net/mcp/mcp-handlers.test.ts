@@ -13,21 +13,6 @@ function harness(options: { trackedCanvas?: boolean; canvasContent?: string } = 
     { id: 'comment-open', path: 'src/a.ts', body: 'why?', resolved: false, createdAt: 1 },
     { id: 'comment-done', path: 'src/b.ts', body: 'done', resolved: true, createdAt: 2 },
   ]
-  const tasks = [
-    {
-      id: '11111111-1111-4111-8111-111111111111',
-      shortId: 'T-1',
-      title: 'Ship',
-      status: 'todo',
-      notes: 'note',
-      tags: [],
-      links: [],
-      pathRefs: [],
-      references: { projectId: PROJECT, worktreeId: WORKTREE },
-      attachments: [],
-      updatedAt: new Date(0).toISOString(),
-    },
-  ]
   const canvas = {
     id: 'canvas-1',
     worktreeId: WORKTREE,
@@ -117,21 +102,6 @@ function harness(options: { trackedCanvas?: boolean; canvasContent?: string } = 
         return { ok: true, value: undefined }
       },
     },
-    tasks: {
-      listTasks: async () => ({ ok: true, value: tasks }),
-      createTask: async (input: unknown) => {
-        calls.push({ name: 'createTask', input })
-        return { ok: true, value: tasks[0] }
-      },
-      updateTask: async (input: unknown) => {
-        calls.push({ name: 'updateTask', input })
-        return { ok: true, value: tasks[0] }
-      },
-      deleteTask: async (input: unknown) => {
-        calls.push({ name: 'deleteTask', input })
-        return { ok: true, value: input as { taskId: string } }
-      },
-    },
     actions: {
       listActions: async () => ({
         ok: true,
@@ -155,7 +125,6 @@ function harness(options: { trackedCanvas?: boolean; canvasContent?: string } = 
     calls,
     tools: createMcpToolHandlers({
       operations: ops,
-      attachmentPath: (path) => `${REPO}/attachments/${path}`,
     }),
   }
 }
@@ -201,47 +170,6 @@ describe('domain MCP entry points', () => {
         },
       ]),
     )
-  })
-
-  it('supports Task list/get/create/update/delete without context', async () => {
-    const { tools, calls } = harness()
-    expect((await tools.call('porcelain_task', { op: 'get', id: 'T-1' })).text).toContain('Ship')
-    await tools.call('porcelain_task', {
-      op: 'create',
-      title: 'New',
-      status: 'doing',
-    })
-    await tools.call('porcelain_task', { op: 'update', id: 'T-1', status: 'done' })
-    await tools.call('porcelain_task', { op: 'delete', id: 'T-1' })
-    expect(calls.map((call) => call.name)).toEqual(
-      expect.arrayContaining(['createTask', 'updateTask', 'deleteTask']),
-    )
-  })
-
-  it('refuses refs it cannot anchor to a worktree instead of silently dropping them', async () => {
-    const { tools, calls } = harness()
-    const noWorkspace = await tools.call('porcelain_task', {
-      op: 'update',
-      id: 'T-1',
-      refs: [{ path: 'src/a.ts', kind: 'file' }],
-    })
-    expect(noWorkspace.isError).toBe(true)
-    expect(noWorkspace.text).toContain('worktree')
-    expect(calls.map((call) => call.name)).not.toContain('updateTask')
-  })
-
-  it('anchors refs to the resolved worktree when a workspace is given', async () => {
-    const { tools, calls } = harness()
-    await tools.call('porcelain_task', {
-      op: 'update',
-      id: 'T-1',
-      workspace: REPO,
-      refs: [{ path: 'src/a.ts', kind: 'file' }],
-    })
-    const update = calls.find((call) => call.name === 'updateTask')
-    expect(update?.input).toMatchObject({
-      pathRefs: [{ projectId: PROJECT, worktreeId: WORKTREE, path: 'src/a.ts', kind: 'file' }],
-    })
   })
 
   it('keeps Actions CRUD-only and never exposes execution or trust', async () => {

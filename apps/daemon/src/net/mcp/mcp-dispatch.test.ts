@@ -2,6 +2,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { dispatchMcp, type McpToolHandlers } from './mcp-dispatch'
 import { MCP_CLASSIC_LATEST, MCP_ERROR, MCP_META, MCP_PROTOCOL_VERSION } from './mcp-protocol'
+import { MCP_TOOLS } from './mcp-tools'
 
 const serverInfo = { name: 'porcelain', version: '0.0.0-test' }
 
@@ -50,7 +51,7 @@ describe('dispatchMcp', () => {
     expect(outcome.kind).toBe('json')
     if (outcome.kind !== 'json') return
     const body = outcome.body as { result: { tools: { name: string; inputSchema: unknown }[] } }
-    expect(body.result.tools.length).toBe(6)
+    expect(body.result.tools.length).toBe(MCP_TOOLS.length)
     expect(body.result.tools.map((t) => t.name)).toContain('porcelain_comment')
     expect(body.result.tools.map((t) => t.name)).toContain('porcelain_profile')
     for (const tool of body.result.tools) expect(tool.inputSchema).toBeTypeOf('object')
@@ -99,7 +100,7 @@ describe('dispatchMcp', () => {
       expect(outcome.kind === 'json' && outcome.status).toBe(200)
       if (outcome.kind !== 'json') throw new Error('expected json')
       const body = outcome.body as { result: { tools: unknown[] } }
-      expect(body.result.tools.length).toBe(6)
+      expect(body.result.tools.length).toBe(MCP_TOOLS.length)
     })
 
     it('refuses a protocol version header that disagrees with the body', async () => {
@@ -254,7 +255,7 @@ describe('dispatchMcp', () => {
       const outcome = await classic('tools/list', {}, '2025-06-18')
       if (outcome.kind !== 'json') throw new Error('expected json')
       const body = outcome.body as { result: Record<string, unknown> }
-      expect((body.result.tools as unknown[]).length).toBe(6)
+      expect((body.result.tools as unknown[]).length).toBe(MCP_TOOLS.length)
       expect(body.result.resultType).toBeUndefined()
       expect(body.result._meta).toBeUndefined()
     })

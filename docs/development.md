@@ -3,7 +3,7 @@
 This is the canonical development loop. Runtime validation continues in
 [runtime-proof.md](runtime-proof.md), releases in [release.md](release.md), and remote operations in
 [remote-access.md](remote-access.md). Those procedures reuse this setup, isolation, worktree, and
-task loop.
+working loop.
 
 ## First run
 
@@ -98,9 +98,9 @@ primary checkout uses port 8081; managed worktrees derive a port from their daem
 Physical devices, AVDs, and iOS simulator UDIDs are still shared machine resources: select them
 explicitly, and never stop one that the current session did not start.
 
-## The task loop
+## The working loop
 
-1. Read the Porcelain Task and inspect the owning code. Describe the observable outcome.
+1. Read the request and inspect the owning code. Describe the observable outcome.
 2. Make the smallest coherent change. Keep unrelated cleanup separate.
 3. Format changed files and run the closest useful typecheck or test.
 4. Exercise the affected runtime path when the change is user-facing, remote, Electron, or mobile.
@@ -146,8 +146,7 @@ pnpm turbo run build --filter=@porcelain/desktop  # inspect the production build
 
 Browser and Electron acceptance have explicit scopes. `pnpm test:e2e:smoke` is the small browser
 lane used in CI; `pnpm test:e2e` is the broader browser acceptance lane and is not part of
-`pnpm verify`. Run `pnpm test:e2e:pairing` for the real unpaired/link exchange, and
-`pnpm test:e2e:native:task-environments` for the Electron-only multi-daemon Task Project picker.
+`pnpm verify`. Run `pnpm test:e2e:pairing` for the real unpaired/link exchange.
 Each has a `:prebuilt` form for use after `pnpm build` or `pnpm verify`.
 
 Use the package-local command when the affected package has a narrower check. A successful mock

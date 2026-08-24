@@ -28,12 +28,6 @@ import {
 } from '../projects'
 import { reviewCommentNotFoundErrorSchema, reviewUnavailableErrorSchema } from '../review'
 import {
-  tasksAttachmentRejectedErrorSchema,
-  tasksInvalidTitleErrorSchema,
-  tasksNotFoundErrorSchema,
-  tasksUnavailableErrorSchema,
-} from '../tasks'
-import {
   devServerNotFoundErrorSchema,
   devServerRunningErrorSchema,
   devServerTargetErrorSchema,
@@ -77,10 +71,6 @@ export const publicErrorSchema = z.discriminatedUnion('code', [
   resourceUnavailableErrorSchema,
   internalUnexpectedErrorSchema,
   protocolUpdateRequiredErrorSchema,
-  tasksUnavailableErrorSchema,
-  tasksNotFoundErrorSchema,
-  tasksInvalidTitleErrorSchema,
-  tasksAttachmentRejectedErrorSchema,
   actionsUnavailableErrorSchema,
   actionsNotFoundErrorSchema,
   actionsUntrustedErrorSchema,

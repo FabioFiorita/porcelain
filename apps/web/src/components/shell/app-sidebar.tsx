@@ -11,37 +11,26 @@ import {
 } from '@renderer/components/ui/sidebar'
 import { WorktreeScriptsDialog } from '@renderer/features/actions'
 import { HubTree } from '@renderer/features/projects'
-import { openTasksBoard } from '@renderer/features/tasks'
 import { kbdLabel } from '@renderer/lib/keyboard'
 import { isFramelessShell, isMacShell } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
 import { useFileFinderStore } from '@renderer/stores/file-finder'
-import { useNewTaskDialogStore } from '@renderer/stores/new-task-dialog'
 import { useProjectPickerStore } from '@renderer/stores/project-picker'
-import { useTabsStore } from '@renderer/stores/tabs'
-import { useUnreadStore } from '@renderer/stores/unread'
 import { TestIds } from '@shared/test-ids'
-import { Plus, Search, Table2 } from 'lucide-react'
-import { MAC_TRAFFIC_LIGHT_CLEARANCE, sidebarTopOffsetClass } from './shell-chrome'
+import { Plus, Search } from 'lucide-react'
 import { DaemonUpdateButton } from './daemon-update-button'
+import { MAC_TRAFFIC_LIGHT_CLEARANCE, sidebarTopOffsetClass } from './shell-chrome'
 import { SidebarResizeHandle } from './sidebar-resize-handle'
 import { UpdateButton } from './update-button'
 
 /**
  * The left shell is deliberately navigation-only. Project/worktree selection is
- * owned by the Hub tree. Tasks is daemon-wide and lives here, not in Surfaces.
- * Files, Git, and Canvas surfaces open their detail in the Viewer; terminals dock
- * at the bottom of it (⌘J), so they need no navigation row here.
+ * owned by the Hub tree. Files, Git, and Canvas surfaces open their detail in the
+ * Viewer; terminals dock at the bottom of it (⌘J), so they need no navigation row here.
  */
 export function AppSidebar(): React.JSX.Element {
   const { state, isMobile } = useSidebar()
   const setFinderOpen = useFileFinderStore((s) => s.setOpen)
-  const tasksActive = useTabsStore((s) => {
-    const pane = s.panes[s.activePaneIndex]
-    return pane?.tabs.find((tab) => tab.id === pane.activeTabId)?.kind === 'tasks'
-  })
-  const tasksUnread = useUnreadStore((s) => s.unread.tasks)
-  const showNewTask = useNewTaskDialogStore((s) => s.show)
 
   return (
     <Sidebar
@@ -93,40 +82,6 @@ export function AppSidebar(): React.JSX.Element {
             <span className="min-w-0 flex-1 truncate text-left">Search</span>
             <Kbd>{kbdLabel('mod', 'K')}</Kbd>
           </Button>
-        </div>
-        <div className="app-no-drag px-2 pt-2">
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              data-testid={TestIds.tasksOpen}
-              aria-label="Open Tasks"
-              aria-current={tasksActive ? 'page' : undefined}
-              className={cn(
-                'flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md px-2 text-left text-xs',
-                tasksActive
-                  ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-muted-foreground hover:bg-sidebar-accent/50',
-              )}
-              onClick={() => openTasksBoard()}
-            >
-              <Table2 className="size-3.5 shrink-0" />
-              <span className="min-w-0 flex-1 truncate">Tasks</span>
-              {tasksUnread && (
-                <span className="size-1.5 shrink-0 rounded-full bg-foreground" aria-hidden />
-              )}
-              <Kbd>{kbdLabel('mod', 'shift', 'T')}</Kbd>
-            </button>
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              className="shrink-0"
-              aria-label="New Task"
-              data-testid={TestIds.tasksNew}
-              onClick={() => showNewTask()}
-            >
-              <Plus />
-            </Button>
-          </div>
         </div>
         <div className="app-no-drag px-2 pt-3">
           <HubTree className="max-w-none" />

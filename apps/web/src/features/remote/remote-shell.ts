@@ -2,12 +2,12 @@ import { parsePublicError } from '@porcelain/client-runtime/remote'
 import type { EndpointKind } from '@porcelain/contracts'
 import { SHELL_HUB_INVENTORIES_QUERY_KEY } from '@renderer/features/projects/hub-inventories'
 import { onMutationError } from '@renderer/hooks/mutation-error'
-import { isBrowser } from '@renderer/lib/platform'
-import { shellTrpc, trpc } from '@renderer/lib/trpc'
 import {
   setShellEnvironmentConnections,
   shellConnectionId,
 } from '@renderer/lib/environment-sessions'
+import { isBrowser } from '@renderer/lib/platform'
+import { shellTrpc, trpc } from '@renderer/lib/trpc'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo } from 'react'
 
@@ -307,9 +307,6 @@ export function useRenameEnvironment(): {
         // The Hub's shell fan-out has its own literal key, not a tRPC one — invalidating
         // `utils.hubInventories` would silently miss it and leave the Hub badges stale.
         queryClient.invalidateQueries({ exact: true, queryKey: SHELL_HUB_INVENTORIES_QUERY_KEY }),
-        // The Tasks fan-out labels each table from the saved group name it read at
-        // fan-out time; without this the New Task picker keeps offering the old label.
-        utils.environmentTasks.invalidate(),
         daemonUtils.environmentIdentity.invalidate(),
       ])
     },

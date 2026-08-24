@@ -22,10 +22,8 @@ import {
  *    only subscriptions scoped to that project, and an unscoped subscription receives none of
  *    them. Fail closed: a session that has not declared a project has not earned another
  *    project's change stream. A DAEMON-WIDE change — one whose contract carries no
- *    `projectPath` at all, today only `tasks.changed` — reaches every open subscription,
- *    because there is no project whose data it could leak: the Tasks table belongs to the
- *    Environment, not to a checkout, and withholding it would leave the one surface that is
- *    deliberately global unable to refresh.
+ *    `projectPath` at all, today `actions.changed` (scoped by Project id instead) — reaches
+ *    every open subscription, because there is no checkout path whose data it could leak.
  * 3. **Sequenced per subscription.** `epoch` identifies this daemon instance; `sequence` is
  *    monotonic and gapless *within one subscription* for that epoch. A single daemon-wide
  *    counter would look like a permanent gap to every client (decision 009 reads a gap as
@@ -42,14 +40,7 @@ import {
  * The change categories a source is allowed to produce, keyed by the domain prefix the
  * contract union already discriminates on.
  */
-export const SESSION_CHANGE_CATEGORIES = [
-  'files',
-  'git',
-  'review',
-  'actions',
-  'tasks',
-  'terminal',
-] as const
+export const SESSION_CHANGE_CATEGORIES = ['files', 'git', 'review', 'actions', 'terminal'] as const
 export type SessionChangeCategory = (typeof SESSION_CHANGE_CATEGORIES)[number]
 
 /**
@@ -65,7 +56,6 @@ const CATEGORY_BY_CHANGE_KIND = {
   'git.working-tree-changed': 'git',
   'review.changed': 'review',
   'actions.changed': 'actions',
-  'tasks.changed': 'tasks',
   'terminal.dev-servers-changed': 'terminal',
   'terminal.worktree-script-started': 'terminal',
 } satisfies Record<SessionChange['kind'], SessionChangeCategory>

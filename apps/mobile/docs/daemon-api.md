@@ -45,7 +45,7 @@ This is why the app ships `NSAllowsArbitraryLoads` / `usesCleartextTraffic` (see
 
 ## Live updates
 
-Daemon-owned Canvas, Tasks, Actions, scope, working-tree, and file-tree changes surface through the typed session stream. Canvas records are daemon-root and are read through the Projects procedures below; there is no repo-local Review reading lifecycle. Mobile should poll screen-focused data lazily to respect battery/cellular.
+Daemon-owned Canvas, Actions, scope, working-tree, and file-tree changes surface through the typed session stream. Canvas records are daemon-root and are read through the Projects procedures below; there is no repo-local Review reading lifecycle. Mobile should poll screen-focused data lazily to respect battery/cellular.
 
 ## Procedure catalog by feature area
 
@@ -84,9 +84,8 @@ hands off to the existing terminal or viewer navigation. Content search remains 
 - reviewed marks: `setReviewed` M `{repoPath, paths, reviewed}` (total and idempotent — one call marks or unmarks a whole set), `reviewedPaths` Q
 - History (inside Changes): `gitLog` Q `{limit≤500}`, `gitCommitFlow` Q, `gitCommitMessage` Q, `gitFileLog` Q (`--follow`)
 
-### Canvas, Tasks, and Actions
+### Canvas and Actions
 - Canvas: `listCanvases` Q `{projectId, worktreePath?}`, `readCanvas` Q `{projectId, canvasId, worktreePath?}`, `mintCanvasAccessToken` M `{projectId, canvasId, worktreePath?}`
-- Tasks: `listTasks` Q, `createTask`/`updateTask`/`deleteTask` M — daemon-wide work across Environments
 - Actions: `actions` Q `{projectId}`, `addAction`/`updateAction`/`moveAction`/`deleteAction` M, `prepareActionRun` M — every mutation names its Project and Worktree target
 
 ### Terminal tab

@@ -1,16 +1,15 @@
 import type { SessionChange } from '@porcelain/contracts/session'
 import { create } from 'zustand'
 import { usePreferencesStore } from './preferences'
-import { useTabsStore } from './tabs'
 
 /**
  * The rail tabs that can carry an unread dot. A subset of `SidebarTab` — the
- * other tabs (files/search/changes/history) get no agent-push signal (see the
+ * other tabs (files/search/history) get no agent-push signal (see the
  * event→tab mapping below and plan 035's decisions).
  */
-export type UnreadTab = 'tasks' | 'terminal' | 'changes'
+export type UnreadTab = 'terminal' | 'changes'
 
-const UNREAD_TABS: readonly UnreadTab[] = ['tasks', 'terminal', 'changes']
+const UNREAD_TABS: readonly UnreadTab[] = ['terminal', 'changes']
 
 export function isUnreadTab(tab: string): tab is UnreadTab {
   return (UNREAD_TABS as readonly string[]).includes(tab)
@@ -25,19 +24,13 @@ interface UnreadState {
 
 export const useUnreadStore = create<UnreadState>((set) => ({
   unread: {
-    tasks: false,
     terminal: false,
     changes: false,
   },
   mark: (tab: UnreadTab) => {
     // An event for the CURRENTLY active surface needs no dot — the view live-refreshes
-    // in front of the user (plan 035, decision 3). Tasks left the Surfaces strip, so
-    // its "already looking" check is the Viewer tab, not the sidebar preference.
-    if (tab === 'tasks') {
-      const state = useTabsStore.getState()
-      const pane = state.panes[state.activePaneIndex]
-      if (pane?.tabs.find((entry) => entry.id === pane.activeTabId)?.kind === 'tasks') return
-    } else if (usePreferencesStore.getState().sidebarTab === tab) {
+    // in front of the user (plan 035, decision 3).
+    if (usePreferencesStore.getState().sidebarTab === tab) {
       return
     }
     set((s) => ({ unread: { ...s.unread, [tab]: true } }))
@@ -55,18 +48,9 @@ usePreferencesStore.subscribe((state, prev) => {
   }
 })
 
-useTabsStore.subscribe((state, prev) => {
-  const pane = state.panes[state.activePaneIndex]
-  const prevPane = prev.panes[prev.activePaneIndex]
-  const kind = pane?.tabs.find((entry) => entry.id === pane.activeTabId)?.kind
-  const prevKind = prevPane?.tabs.find((entry) => entry.id === prevPane.activeTabId)?.kind
-  if (kind === 'tasks' && prevKind !== 'tasks') useUnreadStore.getState().clear('tasks')
-})
-
 /**
  * Which rail dot a session change lights, or `null` for signals that carry no
  * attention cue (plan 035, decision 2):
- * - `tasks.changed` → Tasks
  * - `actions.changed` → Terminal
  * - `terminal.dev-servers-changed` → no dot (the Servers list is already live)
  * - tree / working-tree / content → Changes
@@ -74,8 +58,6 @@ useTabsStore.subscribe((state, prev) => {
  */
 export function unreadTabFor(change: SessionChange): UnreadTab | null {
   switch (change.kind) {
-    case 'tasks.changed':
-      return 'tasks'
     case 'actions.changed':
       return 'terminal'
     case 'files.tree-changed':

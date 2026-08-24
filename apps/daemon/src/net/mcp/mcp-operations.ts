@@ -79,12 +79,6 @@ export type McpOperations = Readonly<{
       resolved: boolean
     }) => Promise<OperationResult<void>>
   }>
-  tasks: Readonly<{
-    listTasks: () => Promise<OperationResult<readonly McpTask[]>>
-    createTask: (input: TaskArgs & { title: string }) => Promise<OperationResult<McpTask>>
-    updateTask: (input: TaskArgs & { taskId: string }) => Promise<OperationResult<McpTask>>
-    deleteTask: (input: { taskId: string }) => Promise<OperationResult<{ taskId: string }>>
-  }>
   actions: Readonly<{
     listActions: (input: { projectId: string }) => Promise<OperationResult<readonly unknown[]>>
     addAction: (
@@ -114,32 +108,6 @@ export type WriteCanvasArgs = {
   entryFile: string
   template?: 'review'
   source: CanvasBundleSource
-}
-
-export type McpTask = Readonly<{
-  id: string
-  shortId?: string
-  title?: string
-  notes?: string
-  status: string
-  tags?: readonly string[]
-  links?: readonly { url: string; label?: string }[]
-  pathRefs?: readonly { projectId: string; worktreeId: string; path: string; kind: string }[]
-  attachments?: readonly { id: string; name: string; storedPath: string; mime?: string }[]
-  references?: { projectId?: string; worktreeId?: string }
-  updatedAt?: string
-}>
-
-export type TaskArgs = {
-  title?: string
-  notes?: string
-  status?: 'todo' | 'doing' | 'done' | 'blocked'
-  tags?: string[]
-  links?: { url: string; label: string }[]
-  pathRefs?: { projectId: string; worktreeId: string; path: string; kind: 'file' | 'folder' }[]
-  attachmentPaths?: string[]
-  removeAttachmentIds?: string[]
-  references?: { projectId: string; worktreeId?: string }
 }
 
 export type ActionArgs = {

@@ -8,7 +8,7 @@ The browser functional gate includes the four assembled wiring risks in
 `critical-wiring.spec.ts` plus the daemon-backed composed acceptance proof in
 `composed-proof.spec.ts`. The composed scenario covers two Environment daemons in one browser
 page, Projects and Worktrees from both, target-aware tabs and splits, the Review Canvas migration
-(including Evidence), Tasks, Actions, and a daemon-owned process surviving reload. Visual assertions stay in `visual.spec.ts`; Electron-only host
+(including Evidence), Actions, and a daemon-owned process surviving reload. Visual assertions stay in `visual.spec.ts`; Electron-only host
 clipboard proof stays in `terminal-native.spec.ts`. All other assertions have a lower-boundary
 owner below. “Retired” means the old browser route was redundant after the named owner was
 verified; it does not mean the behavior was discarded.
@@ -24,10 +24,10 @@ verified; it does not mean the behavior was discarded.
 | CW-05 | `terminal.spec.ts:6-24` plus the reconnect/scrollback contract from `terminal` lower tests | `critical-wiring.spec.ts:174-201` | Real PTY create, >64 KiB output, browser session detach, daemon-owned session retention, roster hydration, attach, and tail replay |
 
 The four critical tests above remain the wiring lane. The composed proof is the cross-feature
-browser lane, and the full acceptance command also runs the Canvas, migration, Tasks, Actions,
-Hub, and promotion specs. The current command contains 16 functional browser tests. The CI
-smoke command deliberately selects four dependable flows: authenticated startup, an external
-file refresh, Worktree create/remove, and Task persistence. The terminal test deliberately
+browser lane, and the full acceptance command also runs the Canvas, migration, Actions,
+Hub, and promotion specs. The current command contains 13 functional browser tests. The CI
+smoke command deliberately selects three dependable flows: authenticated startup, an external
+file refresh, and Worktree create/remove. The terminal test deliberately
 asserts the tail after reload; the exact byte/unit cap and frame ordering remain owned by
 `apps/daemon/src/features/terminal/terminal-operations.test.ts:118-178`,
 `apps/daemon/src/features/terminal/terminal-stream-gateway.test.ts:50-135`,
@@ -75,7 +75,7 @@ lower test is the owner of that invariant at its smallest complete boundary.
 | --- | --- | --- |
 | SH-01 | `:6-11` — Meta-T creates a visible Terminal 1 from the current tab | `apps/web/src/lib/keyboard.test.ts:43-69` owns terminal-host shortcut targeting; `apps/web/src/lib/terminal-actions.test.ts:5-26` owns deterministic naming; `CW-05` owns real PTY creation. Retired from browser |
 | SH-02 | `:13-32` — Meta-N on Terminal creates a PTY; command runs; Meta-K clears only the local viewport | `apps/web/src/lib/terminal-actions.test.ts:5-26`, `apps/web/src/components/terminal/terminal-context-menu.test.tsx:57-87`, and `CW-05` own the action, clear, and real stream boundaries. Retired from browser |
-| SH-03 | `:35-47` — Meta-N opened the retired Board composer and Meta-S saved a card | Daemon-owned Tasks and their mutations own current work capture; `apps/web/src/lib/keyboard.test.ts:74-130` owns modifier semantics. Retired from browser |
+| SH-03 | `:35-47` — Meta-N opened the retired Board composer and Meta-S saved a card | The Board composer and later Tasks capture path are gone; `apps/web/src/lib/keyboard.test.ts:74-130` owns modifier semantics. Retired from browser |
 | SH-04 | `:49-72` — Meta-N file, Meta-Shift-N folder, Meta-D duplicate, Meta-Backspace trash | `apps/web/src/features/files/files-mutations.test.tsx:33-80` owns create/duplicate/trash mutation contracts and authoritative invalidation; `apps/daemon/src/features/files/files-operations.test.ts:50-180` owns filesystem facts. Retired from browser |
 
 ### `live-refresh.spec.ts`
@@ -149,9 +149,8 @@ lower test is the owner of that invariant at its smallest complete boundary.
 | Former risk | New owner |
 | --- | --- |
 | `helpers/app.ts:158-161` wrote obsolete `{ recentRepos: [...] }` to `config.json`, so a strict-v1 daemon treated seeded startup as empty | `helpers/app.ts:158-170` writes `{ version: 1, value: { paths: [...] } }` to the isolated `projects-recents.json` document |
-| Browser command inventory | `apps/desktop/package.json` `test:e2e` and `test:e2e:prebuilt` run the 16-test functional acceptance lane; `test:e2e:smoke[:prebuilt]` runs the four-test CI smoke lane; `test:e2e:update` is visual-only |
+| Browser command inventory | `apps/desktop/package.json` `test:e2e` and `test:e2e:prebuilt` run the 13-test functional acceptance lane; `test:e2e:smoke[:prebuilt]` runs the three-test CI smoke lane; `test:e2e:update` is visual-only |
 | Pairing exchange | `test:e2e:pairing[:prebuilt]` runs the four browser gate/pairing tests explicitly; they are not part of the seeded functional lane |
-| Task Project scoping | `test:e2e:native:task-environments[:prebuilt]` runs the four Electron-only multi-daemon tests; browser runs skip them because Environment groups belong to the native shell |
 | Native clipboard proof was skipped in browser but lived beside browser assertions | `terminal-native.spec.ts` and native scripts target the Electron project explicitly |
 | A layout geometry assertion lived in the functional browser list | `visual.spec.ts` owns it beside screenshot proof |
 | Fixture daemon could touch a developer daemon/home if a test leaked paths | `helpers/app.ts` keeps per-test `PORCELAIN_HOME`, `PORCELAIN_USER_DATA`, access file, admin token, loopback OS-assigned port, and fixture repo; no production port or personal companion is used |
@@ -162,7 +161,7 @@ The relocation is complete only when all of the following are true:
 
 - `pnpm --dir apps/desktop typecheck:e2e` passes.
 - `pnpm --dir apps/desktop test:e2e` runs the built browser client against its per-test daemon,
-  including the four critical tests and the composed/migration/task/action/worktree/Hub lanes.
+  including the four critical tests and the composed/migration/action/worktree/Hub lanes.
 - Focused lower-boundary tests named in this ledger pass.
 - `pnpm lint` and `git diff --check` pass.
 - The old broad functional specs are absent, while `visual.spec.ts`, `terminal-native.spec.ts`, and this ledger remain.
@@ -176,7 +175,7 @@ The relocation is complete only when all of the following are true:
 - `pnpm --dir apps/desktop typecheck:e2e` — passed.
 - `pnpm --dir apps/desktop test:e2e:prebuilt` — 18/18 browser tests passed at the E2E-001
   migration point, including `composed-proof.spec.ts`, `hub-inventory.spec.ts`, and
-  `hub-viewer.spec.ts`. The current inventory is 16 tests after later spec changes.
+  `hub-viewer.spec.ts`. The current inventory is 13 tests after later spec changes.
 - `pnpm --dir apps/desktop test` — 466 test files / 3,623 tests passed (the repository test
   script ran the complete Vitest workspace while the lower-boundary command was exercised).
 - `pnpm lint` — passed; `git diff --check` — passed; architecture-spec validator — passed.

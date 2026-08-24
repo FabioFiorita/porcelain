@@ -1,10 +1,10 @@
-import { TabList, TabSlot, TabTrigger, Tabs } from 'expo-router/ui'
+import { TabList, TabSlot, Tabs, TabTrigger } from 'expo-router/ui'
 
 import { DESTINATIONS } from './destinations'
 import { PorcelainTabBar, TabBarItem } from './tab-bar'
 
 /**
- * The phone shell: the four destinations as a bottom bar under the screen they open.
+ * The phone shell: the three destinations as a bottom bar under the screen they open.
  *
  * Worktrees is the Hub — every Worktree of every Environment in one list — and a surface is
  * reached THROUGH the Worktree that owns it, inside that tab's stack. Surfaces used to be the
@@ -12,10 +12,10 @@ import { PorcelainTabBar, TabBarItem } from './tab-bar'
  * project / branch / worktree switcher in every header to say which checkout you were looking
  * at. Both are gone with this shell.
  *
- * Terminals and Tasks are daemon-wide, not per-Worktree, which is why they are destinations
- * rather than surfaces. Terminals is the ONE terminal surface — a Worktree no longer has a
- * Terminal row of its own, because a shell that outlives the checkout you were standing in has
- * to be reachable from somewhere that is not inside it.
+ * Terminals is daemon-wide, not per-Worktree, which is why it is a destination rather than a
+ * surface. It is the ONE terminal surface — a Worktree no longer has a Terminal row of its own,
+ * because a shell that outlives the checkout you were standing in has to be reachable from
+ * somewhere that is not inside it.
  *
  * **The navigator is `expo-router/ui`, not `NativeTabs`.** `PorcelainTabBar` explains why the
  * bar is drawn rather than adopted. What matters here is what the swap does NOT cost: `TabSlot`

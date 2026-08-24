@@ -10,7 +10,6 @@ vi.mock('../project/git-exclude', () => ({
 }))
 
 import type { ProjectsOperations } from '../features/projects'
-import { createTasksAttachments, createTasksStore } from '../features/tasks'
 import type { TerminalOperations } from '../features/terminal'
 import { createDaemonRouter } from './create-daemon-router'
 import { createDaemonOperations } from './daemon-operations'
@@ -69,30 +68,11 @@ function projectsOperations(): ProjectsOperations {
   }
 }
 
-/** The five canonical Tasks names the domain contributes to the flat router. */
-const TASKS_PROCEDURE_KEYS = [
-  'listTasks',
-  'createTask',
-  'updateTask',
-  'deleteTask',
-  'getTaskAttachment',
-] as const
-
 describe('createDaemonRouter composition', () => {
   let root = ''
-  let tasksHome = ''
-
-  /** Daemon-root Tasks adapters over a temp home, the way `server.ts` resolves them. */
-  function tasksAdapters() {
-    return {
-      store: createTasksStore({ homeDir: tasksHome }),
-      attachments: createTasksAttachments({ homeDir: tasksHome }),
-    }
-  }
 
   beforeAll(async () => {
     root = await mkdtemp(join(tmpdir(), 'porcelain-composition-'))
-    tasksHome = join(root, 'tasks-home')
   })
 
   afterAll(async () => {
@@ -103,13 +83,11 @@ describe('createDaemonRouter composition', () => {
     const operations = createDaemonOperations({
       publishSessionChange: () => undefined,
       projects: projectsOperations(),
-      tasks: tasksAdapters(),
       terminal: terminalOperations(),
       homeDir: join(root, 'home'),
     })
     expect(Object.isFrozen(operations)).toBe(true)
     expect(operations.remote).toBeDefined()
-    expect(operations.tasks).toBeDefined()
     expect(operations.actions).toBeDefined()
     expect(operations.files).toBeDefined()
     expect(operations.git).toBeDefined()
@@ -123,21 +101,18 @@ describe('createDaemonRouter composition', () => {
 
     expect(keys).toEqual(EXPECTED_PROCEDURE_KEYS)
     expect(keys).toHaveLength(EXPECTED_PROCEDURE_KEYS.length)
-    for (const name of TASKS_PROCEDURE_KEYS) expect(keys).toContain(name)
   })
 
   it('supplies the operation catalog at construction rather than through a module mock', () => {
     const first = createDaemonOperations({
       publishSessionChange: () => undefined,
       projects: projectsOperations(),
-      tasks: tasksAdapters(),
       terminal: terminalOperations(),
       homeDir: join(root, 'home'),
     })
     const second = createDaemonOperations({
       publishSessionChange: () => undefined,
       projects: projectsOperations(),
-      tasks: tasksAdapters(),
       terminal: terminalOperations(),
       homeDir: join(root, 'home'),
     })

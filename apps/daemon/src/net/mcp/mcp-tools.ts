@@ -115,20 +115,6 @@ const REVIEW_SECTION = {
   additionalProperties: false,
 } as const
 
-const TASK_LINK = {
-  type: 'object',
-  properties: { url: { type: 'string' }, label: { type: 'string' } },
-  required: ['url'],
-  additionalProperties: false,
-} as const
-
-const PATH_REF = {
-  type: 'object',
-  properties: { path: { type: 'string' }, kind: { enum: ['file', 'folder'] } },
-  required: ['path', 'kind'],
-  additionalProperties: false,
-} as const
-
 const COMMENT = {
   type: 'object',
   properties: {
@@ -214,32 +200,6 @@ export const MCP_TOOLS: readonly McpToolDefinition[] = Object.freeze([
         body: { type: 'string', description: 'Comment body or reply body' },
       },
       required: ['op', 'workspace'],
-      additionalProperties: false,
-    },
-  },
-  {
-    name: 'porcelain_task',
-    title: 'Manage Tasks',
-    description:
-      'List, read, create, update, or delete durable Tasks. Tasks are daemon-wide and can carry notes, status, tags, links, attachments, and file/folder references. Workspace is optional for daemon-wide reads, deletes, and tasks without checkout references; provide it when create/update adds refs.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        op: { enum: ['list', 'get', 'create', 'update', 'delete'] },
-        workspace: WORKSPACE,
-        id: { type: 'string', description: 'Short id such as T-18 or UUID' },
-        title: { type: 'string' },
-        notes: { type: 'string' },
-        status: { enum: ['todo', 'doing', 'done', 'blocked'] },
-        tags: { type: 'array', items: { type: 'string' } },
-        links: { type: 'array', items: TASK_LINK },
-        link: { type: 'string', description: 'URL added to existing links' },
-        linkLabel: { type: 'string' },
-        attach: { type: 'string', description: 'Absolute file path copied into task attachments' },
-        removeAttachmentIds: { type: 'array', items: { type: 'string' } },
-        refs: { type: 'array', items: PATH_REF },
-      },
-      required: ['op'],
       additionalProperties: false,
     },
   },

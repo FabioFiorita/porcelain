@@ -12,7 +12,6 @@
     "./search": "./src/search/index.ts",
     "./git": "./src/git/index.ts",
     "./review": "./src/review/index.ts",
-    "./tasks": "./src/tasks/index.ts",
     "./actions": "./src/actions/index.ts",
     "./terminal": "./src/terminal/index.ts",
     "./project-data": "./src/project-data/index.ts",

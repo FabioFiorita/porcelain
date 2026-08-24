@@ -42,13 +42,7 @@ import {
 } from './shell-environments'
 import { readHubInventories } from './shell-hub-inventory'
 import { exchangePairingLink } from './shell-pairing'
-import {
-  environmentTaskMutationInput,
-  environmentTasks,
-  mutateEnvironmentTask,
-} from './shell-tasks'
 import { checkForUpdates, installUpdate, type UpdateStatus, updateStatus } from './updater'
-import { closeQuickAddFrom } from './quick-add-window'
 import { createWindow, switchWindowEnvironment, type WindowInit, windowInitFor } from './window'
 
 // The Electron-side half of the router split: everything here needs the shell
@@ -168,14 +162,6 @@ export const shellRouter = t.router({
       } catch {}
     }
     return windowInitFor(ctx.sender)
-  }),
-
-  /**
-   * Dismiss the menu-bar quick-add popover from inside it (Task created, or Escape).
-   * Scoped to the CALLING window: no other window can close the popover this way.
-   */
-  closeQuickAdd: t.procedure.mutation(({ ctx }): void => {
-    closeQuickAddFrom(ctx.sender)
   }),
 
   refreshRemoteEnvironment: t.procedure.query(async ({ ctx }): Promise<void> => {
@@ -372,14 +358,6 @@ export const shellRouter = t.router({
   environmentDaemonPairs: t.procedure.query(({ ctx }) =>
     readEnvironmentDaemonPairs(windowEnvironmentId(ctx.sender)),
   ),
-
-  // Cross-Environment Tasks. Implementation lives in shell-tasks.ts; see the fan-out and
-  // explicit-target rules there.
-  environmentTasks: t.procedure.query(() => environmentTasks()),
-
-  environmentTaskMutation: t.procedure
-    .input(environmentTaskMutationInput)
-    .mutation(({ input }) => mutateEnvironmentTask(input)),
 
   environmentStatuses: t.procedure.query(() => readEnvironmentStatuses()),
 

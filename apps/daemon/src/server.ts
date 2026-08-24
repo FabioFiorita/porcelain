@@ -1,6 +1,5 @@
 import { createHash } from 'node:crypto'
 import { porcelainHome, porcelainHomePath } from '@shared/porcelain-home'
-import { taskAttachmentPath } from '@shared/tasks-porcelain'
 import { createDaemonOperations, createDaemonRouter, type DaemonOperations } from './api'
 import { createWorktreeScripts } from './features/actions'
 import { devRepoPath, recognizedDevPlaygroundPath, seedDevConfig } from './dev-config'
@@ -30,7 +29,6 @@ import {
   startLanListener,
   startTailnetListener,
 } from './features/remote'
-import { createTasksAttachments, createTasksStore } from './features/tasks'
 import {
   createPtyAdapter,
   createTerminalEnvironment,
@@ -196,10 +194,6 @@ async function main(): Promise<void> {
   })
   const operations: DaemonOperations = createDaemonOperations({
     projects,
-    tasks: {
-      store: createTasksStore({ homeDir: porcelainHomeDir }),
-      attachments: createTasksAttachments({ homeDir: porcelainHomeDir }),
-    },
     terminal,
     homeDir: porcelainHomeDir,
     filePreviewTokens,
@@ -209,7 +203,6 @@ async function main(): Promise<void> {
   // per-connection.
   const mcpToolHandlers = createMcpToolHandlers({
     operations,
-    attachmentPath: (storedPath) => taskAttachmentPath(porcelainHomeDir, storedPath),
   })
   daemon = createRemoteHttp({
     adminTokenHash: tokenHash,

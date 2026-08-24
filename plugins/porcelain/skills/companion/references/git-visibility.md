@@ -1,6 +1,6 @@
 # Git visibility
 
-Canonical Review, Tasks, Actions, and UI state live in the daemon-root Environment and
+Canonical Review, Actions, and UI state live in the daemon-root Environment and
 are private to that Environment. A checkout carries only deliberate overlays under
 `.porcelain/`:
 

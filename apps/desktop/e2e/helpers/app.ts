@@ -371,7 +371,7 @@ declare global {
   }
 }
 
-type TabName = 'Files' | 'Search' | 'Changes' | 'History' | 'Review' | 'Git' | 'Tasks' | 'Canvas'
+type TabName = 'Files' | 'Search' | 'Changes' | 'History' | 'Review' | 'Git' | 'Canvas'
 
 /** Map human/product tab names to the sidebar store id used in `data-testid`. */
 function railTabId(tab: TabName): string {
@@ -386,8 +386,6 @@ function railTabId(tab: TabName): string {
       return 'history'
     case 'Search':
       return 'search'
-    case 'Tasks':
-      return 'tasks'
     case 'Git':
       return 'git'
     case 'Canvas':
@@ -425,10 +423,6 @@ export async function spawnPanelTerminal(page: Page): Promise<void> {
 
 /** Click a left-rail sidebar tab by its stable test id. */
 export async function selectTab(page: Page, tab: TabName): Promise<void> {
-  if (tab === 'Tasks') {
-    await loc.tasksOpen(page).click()
-    return
-  }
   await loc.railTab(page, railTabId(tab)).click()
 }
 

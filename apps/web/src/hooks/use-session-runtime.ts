@@ -4,7 +4,6 @@ import { invalidateAllActionsQueries } from '@renderer/features/actions'
 import { invalidateAllFilesQueries } from '@renderer/features/files'
 import { invalidateAllProjectDataQueries } from '@renderer/features/project-data'
 import { invalidateAllReviewComments } from '@renderer/features/review'
-import { invalidateAllTasks } from '@renderer/features/tasks'
 import { type DaemonSession, primary } from '@renderer/lib/daemon'
 import { isBrowser } from '@renderer/lib/platform'
 import type { SessionConnectionStatus } from '@renderer/lib/session-browser-adapter'
@@ -53,8 +52,6 @@ export type SessionQueryUtils = {
   /** Files cache — wired to the feature key predicate (FIL-005). */
   readonly files: QueryInvalidation
   readonly actions: QueryInvalidation
-  /** Tasks cache — daemon-wide, so recovery invalidates every Environment's table. */
-  readonly tasks: QueryInvalidation
   /** Review comments cache — companion state the live `review.changed` path also owns. */
   readonly review: QueryInvalidation
 }
@@ -85,10 +82,6 @@ export function invalidateForChange(
       // Review comments own their notification → identity mapping. Handled here only
       // so the switch stays exhaustive over SessionChange.
       return Promise.resolve()
-    case 'tasks.changed':
-      // Tasks owns its notification → identity mapping (the Web Tasks feature adapter).
-      // Handled here only so the switch stays exhaustive over SessionChange.
-      return Promise.resolve()
     case 'actions.changed':
       // Actions owns its notification → list-identity mapping (ACT-003 feature adapter).
       // Session runtime must not invalidate Actions here; the feature subscription does.
@@ -117,7 +110,6 @@ export function invalidateForRecovery(
   if (requirement.scope.kind === 'session') {
     return Promise.all([
       utils.invalidate(),
-      utils.tasks.invalidate(),
       utils.files.invalidate(),
       utils.projectData.invalidate(),
       utils.review.invalidate(),
@@ -125,9 +117,6 @@ export function invalidateForRecovery(
   }
   return Promise.all([
     utils.files.invalidate(),
-    // Tasks are daemon-wide, so a project-scoped gap still leaves them unproven: the gap
-    // could have swallowed a `tasks.changed`, which carries no project to narrow by.
-    utils.tasks.invalidate(),
     utils.actions.invalidate(),
     utils.projectData.invalidate(),
     utils.review.invalidate(),
@@ -170,7 +159,6 @@ export function useSessionRuntime({
       projectData: { invalidate: () => invalidateAllProjectDataQueries(queryClient) },
       files: { invalidate: () => invalidateAllFilesQueries(queryClient) },
       actions: { invalidate: () => invalidateAllActionsQueries(queryClient) },
-      tasks: { invalidate: () => invalidateAllTasks(queryClient) },
       review: { invalidate: () => invalidateAllReviewComments(queryClient) },
     }),
     [trpcUtils, queryClient],

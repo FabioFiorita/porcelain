@@ -11,8 +11,8 @@ export function CompanionSection(): React.JSX.Element {
   return (
     <div className="flex flex-col gap-3">
       <p className="text-xs text-muted-foreground">
-        Installs the Porcelain plugin, which teaches your agents the Review Canvas, daemon-owned
-        Tasks and Actions, and how this project's companion data is shared.
+        Installs the Porcelain plugin, which teaches your agents the Review Canvas, comments,
+        daemon-owned Actions, and how this project's companion data is shared.
       </p>
       <PluginSection />
     </div>

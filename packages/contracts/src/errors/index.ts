@@ -25,15 +25,6 @@ export {
   projectsUnavailableErrorSchema,
 } from '../projects'
 export {
-  tasksAttachmentRejectedErrorDetailsSchema,
-  tasksAttachmentRejectedErrorSchema,
-  tasksInvalidTitleErrorDetailsSchema,
-  tasksInvalidTitleErrorSchema,
-  tasksNotFoundErrorDetailsSchema,
-  tasksNotFoundErrorSchema,
-  tasksUnavailableErrorSchema,
-} from '../tasks'
-export {
   type TerminalPublicError,
   terminalCapacityErrorSchema,
   terminalExitedErrorSchema,

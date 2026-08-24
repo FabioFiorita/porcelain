@@ -50,12 +50,6 @@ import {
 } from '../features/remote'
 import { createReviewOperations, type ReviewOperations } from '../features/review'
 import { createSearchOperations, type SearchOperations } from '../features/search'
-import {
-  createTasksOperations,
-  type TasksAttachments,
-  type TasksOperations,
-  type TasksStore,
-} from '../features/tasks'
 import type { TerminalOperations } from '../features/terminal'
 import { gitGrep, gitListSearchFiles, gitSearchCode } from '../git/git'
 import { displayAdminTokenPath } from '../net/admin-token'
@@ -75,7 +69,6 @@ import { createScopeStore, type RepoIdentity } from '../stores/scope-store'
  */
 export type DaemonOperations = Readonly<{
   remote: RemoteOperations
-  tasks: TasksOperations
   actions: ActionsOperations
   review: ReviewOperations
   files: FilesOperations
@@ -108,8 +101,6 @@ function actionsProjectsCapability(projects: ProjectsOperations): ActionsProject
 
 export function createDaemonOperations(options: {
   projects: ProjectsOperations
-  /** Daemon-root Tasks adapters; only the entry point may resolve `$PORCELAIN_HOME`. */
-  tasks: { store: TasksStore; attachments: TasksAttachments }
   terminal: TerminalOperations
   /** Resolved `porcelainHome()` — the daemon-root Project store lives beneath it. */
   homeDir: string
@@ -162,11 +153,6 @@ export function createDaemonOperations(options: {
         lanBindForced: () => process.env.PORCELAIN_LAN_BIND === '1',
         cloudflareBindForced: () => process.env.PORCELAIN_CLOUDFLARE_BIND === '1',
       },
-    }),
-    tasks: createTasksOperations({
-      store: options.tasks.store,
-      attachments: options.tasks.attachments,
-      publishSessionChange: publish,
     }),
     actions: createActionsOperations({
       sources: [{ kind: 'private', store: createJsonActionsStore({ homeDir: options.homeDir }) }],

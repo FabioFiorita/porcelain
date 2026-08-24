@@ -1,6 +1,4 @@
 import { useHubSelectionStore } from '@renderer/stores/hub-selection'
-import { useNewTaskDialogStore } from '@renderer/stores/new-task-dialog'
-import { useTabsStore } from '@renderer/stores/tabs'
 import { TestIds } from '@shared/test-ids'
 import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -57,8 +55,6 @@ vi.mock('@renderer/components/ui/sidebar', () => ({
 
 beforeEach(() => {
   useHubSelectionStore.getState().selectHome()
-  useTabsStore.getState().closeAllTabs()
-  useNewTaskDialogStore.getState().hide()
 })
 
 describe('AppSidebar on the macOS shell', () => {

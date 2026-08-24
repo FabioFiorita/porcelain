@@ -56,8 +56,8 @@ async function seedCanvas(homeDir: string, projectId: string, worktreeId: string
 test.setTimeout(120_000)
 
 // The daemon-owned process proof is `critical-wiring.spec.ts` — a PTY outliving a renderer
-// reload. This scenario stays focused on cross-feature target, Canvas, Task, and Action wiring.
-test('composed daemon proof: targets, Canvas, Tasks, and Actions', async ({ page, seeded }) => {
+// reload. This scenario stays focused on cross-feature target, Canvas, and Action wiring.
+test('composed daemon proof: targets, Canvas, and Actions', async ({ page, seeded }) => {
   await waitForShell(page)
 
   const { projectId, worktreeId } = await waitForProject(seeded.udBase)

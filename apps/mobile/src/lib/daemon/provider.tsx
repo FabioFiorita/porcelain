@@ -57,10 +57,6 @@ export function proceduresForChange(change: SessionChange): readonly string[] {
     case 'actions.changed':
       // ActionsNotificationBridge owns exact Actions list invalidation (ACT-003).
       return []
-    case 'tasks.changed':
-      // Tasks has no mobile client yet (its registry entry lists three target roots);
-      // when one lands it owns its own typed identities, as every other domain does.
-      return []
     case 'terminal.worktree-script-started':
     case 'terminal.dev-servers-changed':
       // Mobile does not surface development servers or Worktree lifecycle terminals yet; the

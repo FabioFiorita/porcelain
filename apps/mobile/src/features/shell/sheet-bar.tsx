@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils'
  * `UISheetPresentationController` on iOS, where the native stack draws a `UINavigationBar`
  * inside the sheet and a `headerRight` lands on it; the same presentation on Android is a
  * Material bottom sheet with NO app bar, so `react-native-screens` drew nothing and every
- * `headerRight` was silently dropped — New Task presented as a form you could fill in and had
+ * `headerRight` was silently dropped — a composer presented as a form you could fill in and had
  * no way to submit. One sheet therefore wore the system's bar and the other wore ours.
  *
  * Now neither does. The sheet draws its own bar on both platforms, in the same 48pt band with

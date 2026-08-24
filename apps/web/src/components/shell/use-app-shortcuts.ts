@@ -1,4 +1,3 @@
-import { openTasksBoard } from '@renderer/features/tasks'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import {
   ctrlIsPrimary,
@@ -6,9 +5,7 @@ import {
   isTerminalTarget,
   isTextEntry,
 } from '@renderer/lib/keyboard'
-import { isFilesSurfaceFocused } from '@renderer/lib/surface-focus'
 import { spawnTerminal, toggleTerminalPanel } from '@renderer/lib/terminal-actions'
-import { useNewTaskDialogStore } from '@renderer/stores/new-task-dialog'
 import { type SidebarTab, usePreferencesStore } from '@renderer/stores/preferences'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { runUserAction } from '@shared/background'
@@ -30,8 +27,7 @@ export const SIDEBAR_TAB_KEYS: Record<string, SidebarTab | undefined> = {
 /**
  * Window-level shortcuts: close-tab (Ctrl+W here on Linux/Windows, yielding to a focused
  * terminal; macOS Cmd+W goes via main's before-input-event instead), Ctrl+Tab cycling,
- * Cmd+1–5 sidebar tabs, Cmd+J for the bottom terminal panel, Cmd+7 for Canvas, ⌘⇧T for
- * Tasks, and ⌘⇧N for a new Task unless Files owns that chord.
+ * Cmd+1–5 sidebar tabs, Cmd+J for the bottom terminal panel, and Cmd+7 for Canvas.
  * Files' ⌘N/⌘⇧N/⌘D/⌘⌫ live in FileCommands — those go through tRPC hooks, which only a
  * component may touch.
  */
@@ -68,21 +64,6 @@ export function useAppShortcuts(): void {
           openTabToSide({ ...active, preview: false })
         }
         return
-      }
-      if (isModExclusive(e) && e.shiftKey && !e.altKey && !isTextEntry(e.target)) {
-        const shifted = e.key.toLowerCase()
-        if (shifted === 't') {
-          e.preventDefault()
-          openTasksBoard()
-          return
-        }
-        // Files owns ⌘⇧N for new folder only while that surface is actually showing.
-        // The persisted sidebar tab defaults to `files` on the launcher — that is not focus.
-        if (shifted === 'n' && !isFilesSurfaceFocused()) {
-          e.preventDefault()
-          useNewTaskDialogStore.getState().show()
-          return
-        }
       }
       if (isModExclusive(e) && !e.altKey && !e.shiftKey) {
         // Cmd/Ctrl+J toggles the bottom terminal panel (t3code's terminal key). In the

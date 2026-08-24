@@ -34,7 +34,6 @@ const HOME_PATTERNS = [
   /\bporcelainHomePath\b/,
   /porcelain-home/,
   /canvasBundleDir|canvasIndexPath|projectCanvasesDir/,
-  /tasksIndexPath|taskAttachmentPath/,
 ]
 
 /** Putting bytes on disk. `rm` counts: deleting someone else's store is a write. */

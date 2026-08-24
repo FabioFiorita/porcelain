@@ -1,7 +1,6 @@
 import { is } from '@electron-toolkit/utils'
 import { resolvePlatform } from '@shared/platform'
 import { BrowserWindow, Menu, type MenuItemConstructorOptions } from 'electron'
-import { toggleQuickAddPopover } from './tray'
 import { createWindow } from './window'
 
 export function installAppMenu(): void {
@@ -68,15 +67,6 @@ export function installAppMenu(): void {
           },
         },
         newTerminalItem,
-        { type: 'separator' },
-        {
-          // The same popover the menu-bar icon opens. Linux status-notifier trays are
-          // easy to miss (and easy for a desktop to hide entirely), so quick add has a
-          // second, always-present door — which is also the path e2e drives.
-          id: 'quick-add-task',
-          label: 'Quick Add Task…',
-          click: toggleQuickAddPopover,
-        },
         { type: 'separator' },
         {
           label: 'Quick Open…',

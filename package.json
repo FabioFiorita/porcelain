@@ -47,8 +47,6 @@
     "test:e2e:smoke:prebuilt": "pnpm --dir apps/desktop test:e2e:smoke:prebuilt",
     "test:e2e:pairing": "pnpm --dir apps/desktop test:e2e:pairing",
     "test:e2e:pairing:prebuilt": "pnpm --dir apps/desktop test:e2e:pairing:prebuilt",
-    "test:e2e:native:task-environments": "pnpm --dir apps/desktop test:e2e:native:task-environments",
-    "test:e2e:native:task-environments:prebuilt": "pnpm --dir apps/desktop test:e2e:native:task-environments:prebuilt",
     "shots": "pnpm --dir apps/desktop shots",
     "dist": "pnpm --dir apps/desktop dist",
     "package:mac": "pnpm --dir apps/desktop package:mac",

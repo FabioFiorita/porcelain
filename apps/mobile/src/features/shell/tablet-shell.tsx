@@ -1,14 +1,14 @@
-import { TabList, TabSlot, TabTrigger, Tabs } from 'expo-router/ui'
+import { TabList, TabSlot, Tabs, TabTrigger } from 'expo-router/ui'
 import { View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { IconAction } from '@/components/panel-chrome'
 
 import { DESTINATIONS } from './destinations'
+import { HUB_SIDEBAR_WIDTH } from './shell-layout'
 import { useShellStore } from './shell-store'
 import { SurfacesPanel } from './surfaces-panel'
 import { TabletSidebar } from './tablet-sidebar'
-import { HUB_SIDEBAR_WIDTH } from './shell-layout'
 import { useShellLayout } from './use-app-window'
 import { ColumnChrome, ShellControls } from './window-chrome'
 
@@ -20,10 +20,9 @@ import { ColumnChrome, ShellControls } from './window-chrome'
  *  │ Porcelain  │  ╭─────────────────────╮  │ Files ⨯ Chg ⨯│
  *  │ Search     │  │ ScreenHeader        │  ├──────────────┤
  *  │ Terminals  │  │                     │  │  the active  │
- *  │ Tasks      │  │  the routed stack   │  │  surface's   │
- *  │ WORKTREES  │  │  (file · diff ·     │  │  list        │
- *  │  …         │  ╰──commit · Canvas)───╯  │              │
- *  │ Settings   │                           │              │
+ *  │ WORKTREES  │  │  the routed stack   │  │  surface's   │
+ *  │  …         │  │  (file · diff ·     │  │  list        │
+ *  │ Settings   │  ╰──commit · Canvas)───╯  │              │
  *  └────────────┴───────────────────────────┴──────────────┘
  * ```
  *

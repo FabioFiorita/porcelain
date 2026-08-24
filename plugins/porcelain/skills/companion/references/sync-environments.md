@@ -1,6 +1,6 @@
 # Sync Environments
 
-Porcelain keeps canonical Canvases, Tasks, and Actions in the daemon-root store. An
+Porcelain keeps canonical Canvases and Actions in the daemon-root store. An
 Environment is a daemon connection; a Project identifies a repository family and its Worktrees.
 The browser and desktop clients always name the Environment and Worktree they are showing.
 

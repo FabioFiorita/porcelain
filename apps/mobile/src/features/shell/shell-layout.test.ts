@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { HUB_SIDEBAR_WIDTH, SPLIT_MIN_WIDTH, decideShellLayout } from './shell-layout'
+import { decideShellLayout, HUB_SIDEBAR_WIDTH, SPLIT_MIN_WIDTH } from './shell-layout'
 
 /**
  * The tablet shell's only decision, and the only part of it that can be checked without an iPad.
@@ -23,11 +23,10 @@ describe('decideShellLayout', () => {
   })
 
   it('does not strand the daemon-wide tabs on a phone layout', () => {
-    // These four were `single` while the sidebar only appeared inside a Worktree, which is what
-    // made an iPad show a phone screen in four of the five places you can stand.
+    // These were `single` while the sidebar only appeared inside a Worktree, which is what
+    // made an iPad show a phone screen in most of the places you can stand.
     expect(decideShellLayout({ ...wide, pathname: '/terminals' })).toBe('split')
     expect(decideShellLayout({ ...wide, pathname: '/terminals/session-7' })).toBe('split')
-    expect(decideShellLayout({ ...wide, pathname: '/tasks/12' })).toBe('split')
     expect(decideShellLayout({ ...wide, pathname: '/settings' })).toBe('split')
   })
 

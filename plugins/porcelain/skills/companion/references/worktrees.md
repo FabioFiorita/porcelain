@@ -12,14 +12,13 @@ and Worktree identity:
 
 ```jsonc
 porcelain_canvas { "op": "get", "workspace": "/abs/path/to/worktree", "id": "…" }
-porcelain_task { "op": "create", "workspace": "/abs/path/to/worktree", "title": "…" }
 ```
 
 To act on a checkout other than your own, read the ids first and pass them:
 
 ```jsonc
 porcelain_project { "op": "list" }
-porcelain_task { "op": "update", "workspace": { "projectId": "…", "worktreeId": "…" }, "id": "T-18", "status": "doing" }
+porcelain_canvas { "op": "get", "workspace": { "projectId": "…", "worktreeId": "…" }, "id": "…" }
 ```
 
 The Review Canvas is Project-owned, while its Execution anchors and Evidence proof should describe
@@ -33,5 +32,5 @@ ready to merge. Publish or update the daemon-root Review through the target Work
 real checks in Evidence, and let the PR carry the final hand-off if the Worktree is removed.
 
 Tracked `.porcelain/canvases/` and `.porcelain/project.json` overlays travel with a commit. Private
-Canvas, Tasks, Actions, and other daemon state stays with the Environment. Do not seed a Worktree
+Canvas, Actions, and other daemon state stays with the Environment. Do not seed a Worktree
 by copying another daemon's private directory.

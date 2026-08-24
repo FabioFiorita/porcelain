@@ -11,18 +11,17 @@ import {
 import trayLinuxIcon from '../../resources/tray-linux.png?asset'
 import trayTemplateIcon from '../../resources/trayTemplate.png?asset'
 import trayTemplateIcon2x from '../../resources/trayTemplate@2x.png?asset'
-import { toggleQuickAdd } from './quick-add-window'
 import { createWindow } from './window'
 
 /**
- * The menu-bar (system tray) entry point: an icon that opens the quick-add popover.
+ * The menu-bar (system tray) entry point: an icon that opens Porcelain.
  *
  * Platform split, because the tray is the least portable Electron surface there is:
  *   - macOS/Windows report the icon's screen rectangle and deliver a `click` event, so
- *     left-click toggles the popover and right-click pops the menu.
+ *     left-click opens Porcelain and right-click pops the menu.
  *   - Linux hosts the icon through StatusNotifier (GNOME AppIndicator), which delivers NO
  *     click event and reports an all-zero rectangle — the only interaction there is the
- *     context menu, so Quick Add is its first item.
+ *     context menu.
  */
 
 // Module-level on purpose: a Tray that goes out of scope is garbage-collected and the
@@ -60,15 +59,8 @@ function openPorcelain(): void {
   existing.focus()
 }
 
-/** Open (or dismiss) the quick-add popover anchored to the tray icon. */
-export function toggleQuickAddPopover(): void {
-  toggleQuickAdd(tray === null || tray.isDestroyed() ? null : tray.getBounds())
-}
-
 function trayMenu(): Menu {
   const items: MenuItemConstructorOptions[] = [
-    { label: 'Quick Add Task…', click: toggleQuickAddPopover },
-    { type: 'separator' },
     { label: 'Open Porcelain', click: openPorcelain },
     { type: 'separator' },
     { label: 'Quit Porcelain', role: 'quit' },
@@ -80,7 +72,7 @@ function trayMenu(): Menu {
 export function installTray(): void {
   if (tray !== null && !tray.isDestroyed()) return
   tray = new Tray(trayImage())
-  tray.setToolTip('Porcelain — quick add a Task')
+  tray.setToolTip('Porcelain')
 
   const menu = trayMenu()
   if (resolvePlatform() === 'linux') {
@@ -89,8 +81,8 @@ export function installTray(): void {
     return
   }
   // Never `setContextMenu` on macOS: it makes a LEFT click open the menu, which would
-  // take the one-click path to quick add away.
-  tray.on('click', toggleQuickAddPopover)
+  // take the one-click path to Open Porcelain away.
+  tray.on('click', openPorcelain)
   tray.on('right-click', () => {
     tray?.popUpContextMenu(menu)
   })

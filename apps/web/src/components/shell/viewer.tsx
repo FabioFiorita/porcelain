@@ -11,7 +11,6 @@ import {
 import { FileContent } from '@renderer/components/viewer/file-content'
 import { SearchView } from '@renderer/components/viewer/search-view'
 import { CanvasView } from '@renderer/features/projects'
-import { TasksView } from '@renderer/features/tasks'
 import { cn } from '@renderer/lib/utils'
 import { HubRepoProvider } from '@renderer/stores/hub-repo'
 import { usePreferencesStore } from '@renderer/stores/preferences'
@@ -64,10 +63,6 @@ function PaneContent({ tab, paneIndex }: { tab: Tab; paneIndex: number }): React
       return <ChangesetView key={tab.id} path={tab.path} />
     case 'search':
       return <SearchView key={tab.id} query={tab.path} />
-    case 'tasks':
-      // Deliberately target-free: the table spans every Environment, so it renders the
-      // same thing whichever Worktree the Hub happens to have selected.
-      return <TasksView />
     case 'file':
       return (
         <FileContent

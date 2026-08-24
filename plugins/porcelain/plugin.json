@@ -1,8 +1,8 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "porcelain",
-  "version": "1.6.6",
-  "description": "Drive Porcelain — manage Canvases and templates, review comments, Tasks, profiles, and user-run Actions; set up a remote host when needed.",
+  "version": "1.6.7",
+  "description": "Drive Porcelain — manage Canvases and templates, review comments, profiles, and user-run Actions; set up a remote host when needed.",
   "author": {
     "name": "Fabio Fiorita",
     "url": "https://github.com/FabioFiorita"

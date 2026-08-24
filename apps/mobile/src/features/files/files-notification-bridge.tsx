@@ -9,7 +9,7 @@ import { subscribeSessionChanges } from '@/lib/daemon/session'
 import { applyFilesFreshnessRequirement, applyFilesNotification } from './files-notifications'
 
 // Takes the whole SessionChange union: some kinds carry no `projectPath` at all
-// (daemon-wide `tasks.changed`, Project-scoped `actions.changed`), so a parameter shape
+// (Project-scoped `actions.changed`, daemon-wide terminal signals), so a parameter shape
 // that demanded one would silently exclude them from the union instead of returning null.
 function filesChangeFromSessionChange(change: SessionChange): FilesChange | null {
   switch (change.kind) {

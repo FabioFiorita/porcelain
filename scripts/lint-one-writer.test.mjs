@@ -9,12 +9,12 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 
 test('the daemon may write the Porcelain home', () => {
   const source = "import { porcelainHome } from '@shared/porcelain-home'\nwriteFileSync(p, x)"
-  assert.equal(isSecondWriter(`${WRITER_ROOT}/features/tasks/store.ts`, source), false)
+  assert.equal(isSecondWriter(`${WRITER_ROOT}/features/actions/store.ts`, source), false)
 })
 
 test('anything else writing the Porcelain home is refused', () => {
   const source = "import { porcelainHome } from '@shared/porcelain-home'\nwriteFileSync(p, x)"
-  assert.equal(isSecondWriter('apps/cli/src/tasks-file.ts', source), true)
+  assert.equal(isSecondWriter('apps/cli/src/actions-file.ts', source), true)
   assert.equal(isSecondWriter('scripts/handy-helper.mjs', source), true)
 })
 

@@ -2,10 +2,6 @@ import { createHash, timingSafeEqual } from 'node:crypto'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import type { Duplex } from 'node:stream'
 import { PROTOCOL_VERSION_HEADER } from '@porcelain/contracts'
-import {
-  TASK_ATTACHMENT_UPLOAD_MAX_CHARS,
-  TASK_ATTACHMENT_UPLOADS_MAX_COUNT,
-} from '@porcelain/contracts/tasks'
 import { MAX_SESSION_MESSAGE_BYTES } from '@porcelain/contracts/terminal'
 import type { AnyRouter } from '@trpc/server'
 import { fetchRequestHandler } from '@trpc/server/adapters/fetch'
@@ -26,15 +22,12 @@ import { rejectProtocolMismatch } from './remote-protocol'
 export { parseAllowedOrigins } from './remote-origins'
 
 /**
- * Cap on a single /trpc request body. The largest legitimate input is a createTask/
- * updateTask call carrying TASK_ATTACHMENT_UPLOADS_MAX_COUNT attachments at
- * TASK_ATTACHMENT_UPLOAD_MAX_CHARS of base64 each; the cap must admit that in full or
- * a legitimate multi-file drop gets rejected. 8MiB of headroom covers the surrounding
- * JSON (title, notes, other fields, per-item punctuation). Still turns an unbounded
- * streamed body from any authenticated peer into a bounded allocation instead.
+ * Cap on a single /trpc request body. Remaining procedures carry Canvas files, review
+ * documents, and similar JSON — not unbounded attachment batches. 32MiB admits those
+ * with headroom and still turns an unbounded streamed body from any authenticated peer
+ * into a bounded allocation.
  */
-export const TRPC_MAX_BODY_BYTES =
-  TASK_ATTACHMENT_UPLOADS_MAX_COUNT * TASK_ATTACHMENT_UPLOAD_MAX_CHARS + 8 * 1024 * 1024
+export const TRPC_MAX_BODY_BYTES = 32 * 1024 * 1024
 
 /**
  * The daemon's HTTP + WS surface, factored out of `server.ts` so it can be booted

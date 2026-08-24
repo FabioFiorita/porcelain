@@ -8,10 +8,9 @@ import { projectsProcedures } from './projects'
 import { remoteProcedures } from './remote'
 import { reviewProcedures } from './review'
 import { searchProcedures } from './search'
-import { tasksProcedures } from './tasks'
 import { terminalProcedures } from './terminal'
 
-/** The ten domain records that currently compose the live catalog. */
+/** The nine domain records that currently compose the live catalog. */
 const domainProcedures = {
   remote: remoteProcedures,
   projects: projectsProcedures,
@@ -19,13 +18,12 @@ const domainProcedures = {
   search: searchProcedures,
   git: gitProcedures,
   review: reviewProcedures,
-  tasks: tasksProcedures,
   actions: actionsProcedures,
   terminal: terminalProcedures,
   'project-data': projectDataProcedures,
 } as const
 
-const PROCEDURE_COUNT = 109
+const PROCEDURE_COUNT = 104
 
 describe('procedure catalog', () => {
   it('is frozen and composes exactly one entry per domain procedure, in domain order', () => {
@@ -38,8 +36,8 @@ describe('procedure catalog', () => {
     )
   })
 
-  it('covers the ten canonical domains and owns every name exactly once', () => {
-    expect(Object.keys(domainProcedures)).toHaveLength(10)
+  it('covers the nine canonical domains and owns every name exactly once', () => {
+    expect(Object.keys(domainProcedures)).toHaveLength(9)
 
     const owners = new Map<string, string>()
     for (const [domain, procedures] of Object.entries(domainProcedures)) {
@@ -68,18 +66,5 @@ describe('procedure catalog', () => {
   it('rejects a value the owning domain contract does not describe', () => {
     expect(procedureCatalog.daemonInfo.output.safeParse({ version: '1' }).success).toBe(false)
     expect(procedureCatalog.browseDirs.input.safeParse(42).success).toBe(false)
-  })
-
-  it('composes the five canonical Tasks procedures as live catalog members', () => {
-    expect(Object.keys(tasksProcedures)).toEqual([
-      'listTasks',
-      'createTask',
-      'updateTask',
-      'deleteTask',
-      'getTaskAttachment',
-    ])
-    for (const name of Object.keys(tasksProcedures) as Array<keyof typeof tasksProcedures>) {
-      expect(procedureCatalog[name]).toBe(tasksProcedures[name])
-    }
   })
 })
