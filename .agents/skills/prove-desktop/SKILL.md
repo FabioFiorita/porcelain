@@ -1,6 +1,6 @@
 ---
 name: prove-desktop
-version: 0.58.0
+version: 0.59.0
 metadata:
   internal: true
 description: Drive the Electron client to observe a change in the real desktop app — launch it with a CDP port, snapshot its accessibility tree, click and type, screenshot. Use when the changed behavior is Electron shell, preload/IPC, window, or menu work, or when desktop evidence is asked for. Read `docs/runtime-proof.md` for what finishes a proof.
