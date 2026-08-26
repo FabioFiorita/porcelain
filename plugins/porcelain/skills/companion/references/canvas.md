@@ -21,6 +21,78 @@ An HTML Canvas can include relative CSS, JavaScript, and media in the bundle. `s
 daemon-host directory alternative when the bundle already exists on disk. Use `get` to read the
 authoritative content and `list` to see private/tracked records.
 
+### HTML presentation
+
+Make HTML Canvases self-contained and intentional: include base CSS in the bundle, set explicit
+foreground and background colors, and style the document rather than relying on browser defaults.
+Use CSS custom properties with `prefers-color-scheme` so the Canvas stays legible in both client
+themes. Keep screenshots and videos within their container to prevent horizontal overflow.
+
+Adapt this starter to the content instead of treating its exact colors or spacing as a fixed
+design system:
+
+```css
+:root {
+  color-scheme: light dark;
+  --canvas-bg: #f5f1e8;
+  --canvas-panel: #fffaf0;
+  --canvas-text: #29241f;
+  --canvas-muted: #6f665c;
+  --canvas-border: #d9d0c3;
+  --canvas-accent: #7c3aed;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --canvas-bg: #181614;
+    --canvas-panel: #211e1b;
+    --canvas-text: #f3eee7;
+    --canvas-muted: #b8aea3;
+    --canvas-border: #3b3530;
+    --canvas-accent: #a78bfa;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html, body { margin: 0; min-height: 100%; }
+
+body {
+  background: var(--canvas-bg);
+  color: var(--canvas-text);
+  font: 15px/1.6 system-ui, sans-serif;
+}
+
+.canvas {
+  width: min(100% - 2rem, 72rem);
+  margin-inline: auto;
+  padding-block: 2rem 4rem;
+}
+
+h1, h2, h3 { line-height: 1.2; }
+p, li { max-width: 75ch; }
+.muted { color: var(--canvas-muted); }
+
+.checkpoint {
+  margin-block: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--canvas-border);
+  border-left: 0.25rem solid var(--canvas-accent);
+  border-radius: 0.75rem;
+  background: var(--canvas-panel);
+}
+
+img, video {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+}
+```
+
+Place the CSS in a bundled stylesheet or an inline `<style>` element; avoid runtime dependencies
+for presentation that should render consistently in browser, Electron, and mobile clients.
+
 ## Review template
 
 Review is structured Canvas content, not a separate domain:

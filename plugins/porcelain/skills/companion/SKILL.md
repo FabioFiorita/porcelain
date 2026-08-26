@@ -34,6 +34,8 @@ Use `porcelain_canvas` for any authored explanation, report, diagram, evidence r
 handoff. A normal Canvas accepts Markdown/HTML files or a daemon-host directory. The `review`
 template accepts structured `templateData` with a name, thesis, declared files, and sections;
 Evidence and Handoff are content inside that Canvas/template, not separate MCP domains.
+Read [references/canvas.md](references/canvas.md) when authoring a Canvas, especially an HTML
+bundle that needs portable layout and theme styling.
 
 Private Canvases live in daemon state. `op: "promote"` copies one into the addressed checkout's
 `.porcelain/canvases/<id>/` overlay. A tracked Canvas is canonical for that checkout and reads
