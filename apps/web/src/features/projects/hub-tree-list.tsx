@@ -4,6 +4,7 @@ import type {
   HubInventory,
   HubProject,
   HubWorktree,
+  RemoveHubWorktreeInput,
 } from '@porcelain/contracts/projects'
 import { SwitchBranchDialog } from '@renderer/components/git/branch-switcher'
 import {
@@ -45,10 +46,13 @@ import type { HubInventoryView } from './project-data'
 function WorktreeRow(props: {
   worktree: HubWorktree
   environmentId: string
+  mutationEnvironmentId: string | null
   projectId: string
   mutable: boolean
   openWorktree: (worktree: HubWorktree) => void
-  removeWorktree: (input: { projectId: string; worktreeId: string }) => Promise<void>
+  removeWorktree: (
+    input: RemoveHubWorktreeInput & { environmentId?: string | null },
+  ) => Promise<void>
 }): React.JSX.Element {
   const selection = useHubSelectionStore((state) => state.selection)
   const selected =
@@ -75,6 +79,7 @@ function WorktreeRow(props: {
         await props.removeWorktree({
           projectId: props.projectId,
           worktreeId: props.worktree.id,
+          environmentId: props.mutationEnvironmentId,
         })
         const current = useHubSelectionStore.getState().selection
         if (
@@ -92,7 +97,7 @@ function WorktreeRow(props: {
 
   // The primary checkout is the Project itself: git refuses to remove it, and offering the
   // item anyway would only ever produce an error toast.
-  const removable = props.mutable && !props.worktree.isPrimary
+  const removable = !props.worktree.isPrimary
 
   return (
     <>
@@ -195,13 +200,16 @@ function ProjectBlock(props: {
   project: HubProject
   environmentId: string
   environmentName: string
+  mutationEnvironmentId: string | null
   mutable: boolean
   openWorktree: (worktree: HubWorktree) => void
   createWorktree: (
     input: CreateHubWorktreeInput & { environmentId?: string | null },
   ) => Promise<HubWorktree>
   removeProject: (projectId: string, environmentId?: string | null) => Promise<void>
-  removeWorktree: (input: { projectId: string; worktreeId: string }) => Promise<void>
+  removeWorktree: (
+    input: RemoveHubWorktreeInput & { environmentId?: string | null },
+  ) => Promise<void>
   showEnvironment: boolean
   creating: boolean
 }): React.JSX.Element {
@@ -345,6 +353,7 @@ function ProjectBlock(props: {
             key={worktree.id}
             worktree={worktree}
             environmentId={props.environmentId}
+            mutationEnvironmentId={props.mutationEnvironmentId}
             projectId={props.project.id}
             mutable={props.mutable}
             openWorktree={props.openWorktree}
@@ -372,7 +381,9 @@ export function HubTreeFromInventory(props: {
     input: CreateHubWorktreeInput & { environmentId?: string | null },
   ) => Promise<HubWorktree>
   removeProject: (projectId: string, environmentId?: string | null) => Promise<void>
-  removeWorktree: (input: { projectId: string; worktreeId: string }) => Promise<void>
+  removeWorktree: (
+    input: RemoveHubWorktreeInput & { environmentId?: string | null },
+  ) => Promise<void>
   creating?: boolean
   className?: string
 }): React.JSX.Element {
@@ -394,7 +405,9 @@ export function HubTreeFromInventories(props: {
   openWorktree: (source: HubInventoryView, worktree: HubWorktree) => void
   createWorktree: (input: CreateHubWorktreeInput) => Promise<HubWorktree>
   removeProject: (projectId: string) => Promise<void>
-  removeWorktree: (input: { projectId: string; worktreeId: string }) => Promise<void>
+  removeWorktree: (
+    input: RemoveHubWorktreeInput & { environmentId?: string | null },
+  ) => Promise<void>
   creating?: boolean
   className?: string
 }): React.JSX.Element {
@@ -423,6 +436,7 @@ export function HubTreeFromInventories(props: {
                 project={member.project}
                 environmentId={member.environment.id}
                 environmentName={member.environment.name}
+                mutationEnvironmentId={source.current ? null : member.environment.id}
                 mutable={source.current}
                 openWorktree={(worktree) => props.openWorktree(source, worktree)}
                 createWorktree={props.createWorktree}

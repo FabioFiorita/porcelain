@@ -21,7 +21,7 @@ import {
   useRecentProjects,
   useRemoveRecentProject,
 } from './index'
-import { usePromoteCanvas } from './project-data'
+import { usePromoteCanvas, useRemoveHubWorktree } from './project-data'
 
 const alpha = projectsContractFixtures.openRepoPath.output
 const beta = { path: '/synthetic/projects/beta', name: 'beta' }
@@ -186,6 +186,43 @@ describe('Web Projects adapter', () => {
       ).wrapper,
     })
     await waitFor(() => expect(failure.result.current).toBeNull())
+  })
+
+  it('optimistically removes a Worktree while the daemon operation is pending', async () => {
+    let finishRemove: (() => void) | undefined
+    const removePending = new Promise<void>((resolve) => {
+      finishRemove = resolve
+    })
+    const { wrapper } = createValidatingTrpcHarness(
+      handlers({
+        removeHubWorktree: async () => {
+          await removePending
+          return { ok: true, value: undefined }
+        },
+      }),
+    )
+    const hook = renderHook(
+      () => ({ inventory: useHubInventory(), remove: useRemoveHubWorktree() }),
+      { wrapper },
+    )
+    await waitFor(() => expect(hook.result.current.inventory).toEqual(inventory))
+
+    let removal: Promise<void> | undefined
+    act(() => {
+      removal = hook.result.current.remove.remove({
+        projectId: 'proj-alpha',
+        worktreeId: 'wt-alpha-topic',
+        environmentId: null,
+      })
+    })
+
+    await waitFor(() =>
+      expect(
+        hook.result.current.inventory?.projects[0]?.worktrees.map((worktree) => worktree.id),
+      ).toEqual(['wt-alpha-main']),
+    )
+    finishRemove?.()
+    await act(async () => removal)
   })
 
   it('updates Hub inventories when browser Environment topology changes', async () => {

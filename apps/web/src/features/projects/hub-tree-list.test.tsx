@@ -29,8 +29,9 @@ const remoteInventory = hubInventorySchema.parse({
 })
 
 describe('Hub inventory tree', () => {
-  it('keeps equivalent Environment-local Projects distinct and read-only when remote', () => {
+  it('keeps equivalent Environment-local Projects distinct and routes remote removal', async () => {
     const openWorktree = vi.fn()
+    const removeWorktree = vi.fn(async () => undefined)
     const local = { environmentId: null, current: true, inventory }
     const remote = { environmentId: 'env-remote', current: false, inventory: remoteInventory }
     render(
@@ -39,7 +40,7 @@ describe('Hub inventory tree', () => {
         openWorktree={openWorktree}
         createWorktree={vi.fn(async () => createdWorktree)}
         removeProject={vi.fn(async () => undefined)}
-        removeWorktree={vi.fn(async () => undefined)}
+        removeWorktree={removeWorktree}
       />,
     )
 
@@ -56,6 +57,18 @@ describe('Hub inventory tree', () => {
       within(remoteProject).getByRole('button', { name: 'Collapse project alpha' }),
     )
     expect(screen.queryByRole('menuitem', { name: 'Remove project' })).toBeNull()
+
+    fireEvent.contextMenu(screen.getByTestId(TestIds.hubWorktree('remote-wt-alpha-topic')))
+    expect(screen.getByRole('menuitem', { name: /remove worktree/i })).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId(TestIds.hubRemoveWorktree('remote-wt-alpha-topic')))
+    fireEvent.click(await screen.findByTestId(TestIds.hubRemoveWorktreeConfirm))
+    await waitFor(() =>
+      expect(removeWorktree).toHaveBeenCalledWith({
+        projectId: 'remote-proj-alpha',
+        worktreeId: 'remote-wt-alpha-topic',
+        environmentId: 'env-remote',
+      }),
+    )
   })
 
   it('keeps the environment badge and project header separate from clickable Worktrees', () => {
@@ -128,6 +141,7 @@ describe('Hub inventory tree', () => {
       expect(removeWorktree).toHaveBeenCalledWith({
         projectId: 'proj-alpha',
         worktreeId: 'wt-alpha-topic',
+        environmentId: null,
       }),
     )
   })

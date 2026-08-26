@@ -1,5 +1,6 @@
 import {
   createHubWorktree,
+  hubInventoryQuery,
   listCanvasesQuery,
   openProject,
   type ProjectPath,
@@ -18,6 +19,7 @@ import type {
   BrowseDirsOutput,
   CanvasRecord,
   CreateHubWorktreeInput,
+  HubInventory,
   HubWorktree,
   PromoteCanvasInput,
   PromoteCanvasOutput,
@@ -39,7 +41,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { useMemo } from 'react'
 import { z } from 'zod'
 
-import { SHELL_HUB_INVENTORIES_QUERY_KEY } from './hub-inventories'
+import { SHELL_HUB_INVENTORIES_QUERY_KEY, type HubInventoryView } from './hub-inventories'
 import {
   browseProjectDirectoriesOnDaemon,
   createHubWorktreeOnDaemon,
@@ -247,6 +249,7 @@ export function useRemoveHubWorktree(): {
   const daemon = useDaemonIdentity()
   const client = trpc.useUtils().client
   const queryClient = useQueryClient()
+  type Snapshot = { queryKey: readonly unknown[]; data: HubInventory | readonly HubInventoryView[] }
   const mutation = useMutation({
     mutationFn: async (
       variables: RemoveHubWorktreeInput & { environmentId?: string | null },
@@ -261,7 +264,60 @@ export function useRemoveHubWorktree(): {
         worktreeId: variables.worktreeId,
       })
     },
-    onSuccess: async (_result, variables) => {
+    onMutate: async (variables): Promise<readonly Snapshot[]> => {
+      const removeFromInventory = (inventory: HubInventory): HubInventory => ({
+        ...inventory,
+        projects: inventory.projects.map((project) =>
+          project.id === variables.projectId
+            ? {
+                ...project,
+                worktrees: project.worktrees.filter(
+                  (worktree) => worktree.id !== variables.worktreeId,
+                ),
+              }
+            : project,
+        ),
+      })
+
+      if (!isBrowser) {
+        await queryClient.cancelQueries({ exact: true, queryKey: SHELL_HUB_INVENTORIES_QUERY_KEY })
+        const data = queryClient.getQueryData<readonly HubInventoryView[]>(
+          SHELL_HUB_INVENTORIES_QUERY_KEY,
+        )
+        if (data === undefined) return []
+        queryClient.setQueryData<readonly HubInventoryView[]>(
+          SHELL_HUB_INVENTORIES_QUERY_KEY,
+          data.map((source) => {
+            const target =
+              variables.environmentId === undefined || variables.environmentId === null
+                ? source.current
+                : source.inventory.environment.id === variables.environmentId
+            return target ? { ...source, inventory: removeFromInventory(source.inventory) } : source
+          }),
+        )
+        return [{ queryKey: SHELL_HUB_INVENTORIES_QUERY_KEY, data }]
+      }
+
+      const queryKey = (() => {
+        if (variables.environmentId === undefined || variables.environmentId === null) {
+          return projectsQueryKey(daemon, hubInventoryQuery())
+        }
+        const owner = environmentSessionFor(variables.environmentId)
+        return owner === null ? null : (['browser', 'hubInventory', owner.id] as const)
+      })()
+      if (queryKey === null) return []
+      await queryClient.cancelQueries({ exact: true, queryKey })
+      const data = queryClient.getQueryData<HubInventory>(queryKey)
+      if (data === undefined) return []
+      queryClient.setQueryData(queryKey, removeFromInventory(data))
+      return [{ queryKey, data }]
+    },
+    onError: (_error, _variables, snapshots) => {
+      for (const snapshot of snapshots ?? []) {
+        queryClient.setQueryData(snapshot.queryKey, snapshot.data)
+      }
+    },
+    onSettled: async (_result, _error, variables) => {
       await invalidateProjectQueries(
         queryClient,
         daemon,

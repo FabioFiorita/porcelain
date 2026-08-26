@@ -6,7 +6,7 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createValidatingTrpcHarness, type DaemonMockHandlers } from '../../hooks/trpc-test-harness'
 import { SHELL_HUB_INVENTORIES_QUERY_KEY } from './hub-inventories'
-import { useOpenProject } from './project-data'
+import { useOpenProject, useRemoveHubWorktree } from './project-data'
 
 // The Electron shell reads the Hub tree through a separate shell-router query
 // (hub-inventories.ts) — pin isBrowser false to exercise that path, same as
@@ -59,5 +59,49 @@ describe('useOpenProject on the Electron shell', () => {
           ?.isInvalidated,
       ).toBe(true),
     )
+  })
+
+  it('optimistically removes a Worktree from the shell inventory while deletion is pending', async () => {
+    let finishRemove: (() => void) | undefined
+    const removePending = new Promise<void>((resolve) => {
+      finishRemove = resolve
+    })
+    const { wrapper } = createValidatingTrpcHarness(
+      handlers({
+        removeHubWorktree: async () => {
+          await removePending
+          return { ok: true, value: undefined }
+        },
+      }),
+    )
+    const hook = renderHook(
+      () => ({ remove: useRemoveHubWorktree(), queryClient: useQueryClient() }),
+      { wrapper },
+    )
+    const inventory = projectsContractFixtures.hubInventory.output
+    hook.result.current.queryClient.setQueryData(SHELL_HUB_INVENTORIES_QUERY_KEY, [
+      { environmentId: null, current: true, inventory },
+    ])
+
+    let removal: Promise<void> | undefined
+    act(() => {
+      removal = hook.result.current.remove.remove({
+        projectId: 'proj-alpha',
+        worktreeId: 'wt-alpha-topic',
+        environmentId: null,
+      })
+    })
+
+    await waitFor(() =>
+      expect(
+        hook.result.current.queryClient
+          .getQueryData<readonly { inventory: typeof inventory }[]>(
+            SHELL_HUB_INVENTORIES_QUERY_KEY,
+          )?.[0]
+          ?.inventory.projects[0]?.worktrees.map((worktree) => worktree.id),
+      ).toEqual(['wt-alpha-main']),
+    )
+    finishRemove?.()
+    await act(async () => removal)
   })
 })
