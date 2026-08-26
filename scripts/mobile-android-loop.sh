@@ -66,7 +66,7 @@ resolve_tools() {
 
 resolve_config() {
   local config
-  config="$(cd "$MOBILE" && APP_VARIANT="$APP_VARIANT" pnpm exec expo config --type public --json 2>/dev/null)" \
+  config="$(cd "$MOBILE" && APP_VARIANT="$APP_VARIANT" pnpm exec expo config --type public --json 2>/dev/null | grep -m1 -E '^\{')" \
     || die "could not resolve Expo config for APP_VARIANT=$APP_VARIANT"
 
   PACKAGE="$(node -e 'const fs = require("node:fs"); const c = JSON.parse(fs.readFileSync(0, "utf8")); process.stdout.write(c.android?.package ?? "")' <<<"$config")"
@@ -137,6 +137,25 @@ wait_for_boot() {
   die "emulator $serial did not finish booting within 180 seconds"
 }
 
+avd_dir() {
+  local avd="$1"
+  local home="${ANDROID_AVD_HOME:-$HOME/.android/avd}"
+  sed -n 's/^path=//p' "$home/$avd.ini" 2>/dev/null | head -n 1
+}
+
+clear_stale_locks() {
+  local avd="$1"
+  local dir
+  dir="$(avd_dir "$avd")"
+  [[ -n "$dir" && -d "$dir" ]] || return 0
+  local removed=()
+  local f
+  for f in "$dir"/hardware-qemu.ini.lock "$dir"/multiinstance.lock; do
+    [[ -e "$f" ]] && removed+=("$f") && rm -f "$f"
+  done
+  [[ "${#removed[@]}" -eq 0 ]] || echo "cleared stale lock(s) for AVD '$avd': ${removed[*]}" >&2
+}
+
 boot_emulator() {
   local avd="${ANDROID_LOOP_AVD:-}"
   [[ -n "$avd" ]] || avd="$($EMULATOR_BIN -list-avds 2>/dev/null | grep -v '^INFO' | head -n 1 || true)"
@@ -146,9 +165,18 @@ boot_emulator() {
     die "an emulator process for AVD '$avd' already exists but adb does not show it; resolve that before booting another"
   fi
 
+  # No live process for this AVD (checked above): any lock files left on disk
+  # are stale, from a prior ungraceful kill. Clear them so this boot doesn't
+  # inherit yesterday's crash.
+  clear_stale_locks "$avd"
+
   local args=(-avd "$avd" -no-boot-anim -no-snapshot-save)
   if [[ "${ANDROID_LOOP_WINDOW:-}" != "1" ]]; then
     args+=(-no-window -no-audio -gpu swiftshader_indirect)
+  else
+    # The bundled Qt UI's Wayland backend freezes on click under XWayland
+    # (window stops responding until it loses/regains focus); xcb is stable.
+    export QT_QPA_PLATFORM="${QT_QPA_PLATFORM:-xcb}"
   fi
   if [[ -n "${ANDROID_LOOP_EMULATOR_ARGS:-}" ]]; then
     # shellcheck disable=SC2206

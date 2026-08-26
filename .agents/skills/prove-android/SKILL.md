@@ -35,6 +35,22 @@ Resolve every control from `ui` output — the script prefers React Native `test
 accessibility labels, and `xy` coordinates are the last resort, never a reading off a screenshot.
 Refresh the tree after navigation or a keyboard change.
 
+## Windowed mode, when the human wants to watch
+
+`up` is headless by default — no window renders, which keeps agent-driven runs fast and
+deterministic. When the human asks to see the emulator or wants to click into it themselves, boot
+with a window instead:
+
+```sh
+ANDROID_LOOP_WINDOW=1 pnpm dev:mobile:android up
+```
+
+This machine's desktop runs under XWayland, where the emulator's Qt UI is known to freeze on click
+until the window loses and regains focus. The script now exports `QT_QPA_PLATFORM=xcb`
+automatically whenever `ANDROID_LOOP_WINDOW=1` is set, which avoids that — no extra step needed.
+A window can't be attached to an already-running headless instance; `down` it and `up` again with
+the flag set. Go back to plain `up` (no `ANDROID_LOOP_WINDOW`) once the human is done watching.
+
 ## The dev client has to be there first
 
 `up` deep-links `porcelain-dev://` into an installed development build. A cold-booted AVD that
@@ -58,6 +74,10 @@ JavaScript-only change needs nothing but Metro.
 - **Export `ANDROID_HOME`.** `~/Android/Sdk` here; `adb` and `emulator` live under it.
 - **An emulator you did not boot belongs to someone else.** Run `adb devices` before `up`, and let
   `down` stop only the one this loop booted.
+- **Stale locks self-heal.** An emulator killed ungracefully (crashed session, host restart) can
+  leave `hardware-qemu.ini.lock`/`multiinstance.lock` behind, which made the next boot fail in a
+  different way each time. `boot_emulator` now clears an AVD's stale locks itself once `adb` shows
+  no live serial for it — no manual cleanup needed on a fresh boot failure.
 
 ## Down
 
