@@ -6,7 +6,7 @@
 const PLUGIN_REPO = 'FabioFiorita/porcelain'
 
 /**
- * The plugin carries its own semver (`plugins/porcelain/plugin.json`), injected at build
+ * The plugin carries its own semver (`plugins/porcelain/.codex-plugin/plugin.json`), injected at build
  * time — it deliberately no longer tracks the product version, because most releases change
  * nothing an agent reads. Shown for reference only: the app cannot see which version a given
  * agent actually has installed, so it never nags about an upgrade.

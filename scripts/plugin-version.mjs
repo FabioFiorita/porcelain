@@ -25,7 +25,7 @@ import { parseArgs } from 'node:util'
 const root = join(fileURLToPath(new URL('.', import.meta.url)), '..')
 
 export const PLUGIN_DIR = join(root, 'plugins', 'porcelain')
-export const AGENT_MANIFEST = join(PLUGIN_DIR, 'plugin.json')
+export const AGENT_MANIFEST = join(PLUGIN_DIR, '.codex-plugin', 'plugin.json')
 export const CLAUDE_MANIFEST = join(PLUGIN_DIR, '.claude-plugin', 'plugin.json')
 export const MARKETPLACE = join(root, '.claude-plugin', 'marketplace.json')
 export const LOCK = join(PLUGIN_DIR, 'plugin.lock.json')
@@ -69,7 +69,7 @@ export function evaluate({ agentVersion, claudeVersion, marketplaceVersion, hash
   const problems = []
   if (claudeVersion !== agentVersion)
     problems.push(
-      `.claude-plugin/plugin.json is ${claudeVersion}, plugin.json is ${agentVersion} — the two manifests ship one plugin and must agree`,
+      `.claude-plugin/plugin.json is ${claudeVersion}, .codex-plugin/plugin.json is ${agentVersion} — the two manifests ship one plugin and must agree`,
     )
   if (marketplaceVersion != null && marketplaceVersion !== agentVersion)
     problems.push(
@@ -78,7 +78,7 @@ export function evaluate({ agentVersion, claudeVersion, marketplaceVersion, hash
   const changed = locked === null || locked.hash !== hash
   if (changed && locked !== null && locked.version === agentVersion)
     problems.push(
-      `plugin content changed but the version is still ${agentVersion} — bump plugins/porcelain/plugin.json (and the Claude manifest), then run \`pnpm plugin:lock\``,
+      `plugin content changed but the version is still ${agentVersion} — bump plugins/porcelain/.codex-plugin/plugin.json (and the Claude manifest), then run \`pnpm plugin:lock\``,
     )
   if (!changed && locked.version !== agentVersion)
     problems.push(

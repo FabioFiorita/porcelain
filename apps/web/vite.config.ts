@@ -12,7 +12,7 @@ const { version } = JSON.parse(readFileSync(resolve(desktop, 'package.json'), 'u
   version: string
 }
 const { version: pluginVersion } = JSON.parse(
-  readFileSync(resolve(root, '../../plugins/porcelain/plugin.json'), 'utf8'),
+  readFileSync(resolve(root, '../../plugins/porcelain/.codex-plugin/plugin.json'), 'utf8'),
 ) as { version: string }
 
 export default defineConfig(async ({ command }) => ({

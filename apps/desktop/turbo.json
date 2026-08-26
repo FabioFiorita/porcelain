@@ -30,7 +30,7 @@
         "$TURBO_ROOT$/apps/web/**",
         "$TURBO_ROOT$/apps/desktop/package.json",
         "$TURBO_ROOT$/packages/**",
-        "$TURBO_ROOT$/plugins/porcelain/plugin.json"
+        "$TURBO_ROOT$/plugins/porcelain/.codex-plugin/plugin.json"
       ],
       "outputs": ["out/renderer/**"]
     },

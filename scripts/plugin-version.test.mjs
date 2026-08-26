@@ -63,6 +63,7 @@ test('first run bootstraps without demanding a bump', () => {
 test('the hash covers the real shipped files and excludes the lock', () => {
   const files = pluginFiles()
   assert.ok(files.some((f) => f.endsWith('skills/companion/SKILL.md')))
+  assert.ok(files.some((f) => f.endsWith('.codex-plugin/plugin.json')))
   assert.ok(files.some((f) => f.endsWith('.claude-plugin/plugin.json')))
   assert.ok(!files.some((f) => f.endsWith('plugin.lock.json')))
   assert.match(hashPlugin(), /^[0-9a-f]{64}$/)

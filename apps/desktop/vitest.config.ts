@@ -14,7 +14,10 @@ const resolve = (...segments: string[]): string => resolvePath(here, ...segments
 // and the CLI resolve `__PORCELAIN_VERSION__` under test.
 const { version } = JSON.parse(readFileSync(resolve('package.json'), 'utf8')) as { version: string }
 const { version: pluginVersion } = JSON.parse(
-  readFileSync(resolve(import.meta.dirname, '../../plugins/porcelain/plugin.json'), 'utf8'),
+  readFileSync(
+    resolve(import.meta.dirname, '../../plugins/porcelain/.codex-plugin/plugin.json'),
+    'utf8',
+  ),
 ) as { version: string }
 
 export default defineConfig({
