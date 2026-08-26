@@ -10,7 +10,7 @@ const diffModeSchema = z.enum(['unified', 'split'])
 const markdownModeSchema = z.enum(['reader', 'source'])
 const htmlModeSchema = z.enum(['preview', 'source'])
 const pullModeSchema = z.enum(['merge', 'rebase'])
-const sidebarTabSchema = z.enum(['files', 'changes', 'history', 'search', 'git', 'canvas'])
+const sidebarTabSchema = z.enum(['files', 'changes', 'history', 'git', 'canvas'])
 
 /**
  * The Branch-scope comparison base, per checkout.

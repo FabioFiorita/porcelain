@@ -5,7 +5,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const ctx = vi.hoisted(() => ({
   client: {
-    searchCode: { query: vi.fn() },
     searchFiles: { query: vi.fn() },
     searchText: { query: vi.fn() },
   },
@@ -26,7 +25,7 @@ vi.mock('@renderer/lib/trpc', () => ({
 }))
 
 import { searchContractFixtures } from '@porcelain/contracts/search'
-import { useCodeSearch, useFileSearch, useTextSearch } from './search-queries'
+import { useFileSearch, useTextSearch } from './search-queries'
 
 function wrapper(queryClient: QueryClient) {
   return function Wrapper({ children }: { children: ReactNode }): React.JSX.Element {
@@ -38,7 +37,6 @@ beforeEach(() => {
   ctx.project = { name: 'repo', path: '/synthetic/repo' }
   ctx.client.searchFiles.query.mockReset()
   ctx.client.searchText.query.mockReset()
-  ctx.client.searchCode.query.mockReset()
 })
 
 describe('Web Search query adapters', () => {
@@ -65,31 +63,5 @@ describe('Web Search query adapters', () => {
     ctx.client.searchText.query.mockRejectedValue(new Error('search unavailable'))
     const failed = renderHook(() => useTextSearch('needle'), { wrapper: wrapper(queryClient) })
     await waitFor(() => expect(failed.result.current.error?.message).toBe('search unavailable'))
-  })
-
-  it('passes code flags and globs through the typed adapter', async () => {
-    ctx.client.searchCode.query.mockResolvedValue(searchContractFixtures.searchCode.output)
-    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    const { result } = renderHook(
-      () =>
-        useCodeSearch({
-          caseSensitive: true,
-          exclude: 'generated/**',
-          include: 'src/**',
-          query: ' needle ',
-          regex: true,
-        }),
-      { wrapper: wrapper(queryClient) },
-    )
-
-    await waitFor(() => expect(result.current.result?.files).toHaveLength(1))
-    expect(ctx.client.searchCode.query).toHaveBeenCalledWith({
-      caseSensitive: true,
-      exclude: 'generated/**',
-      include: 'src/**',
-      query: 'needle',
-      regex: true,
-      repoPath: '/synthetic/repo',
-    })
   })
 })

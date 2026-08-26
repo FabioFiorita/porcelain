@@ -93,6 +93,7 @@ describe('hydratePreferences', () => {
       pullMode: 'rebase',
     })
     expect(hydratePreferences({ sidebarTab: 'git' })).toEqual({ sidebarTab: 'git' })
+    expect(hydratePreferences({ sidebarTab: 'search' })).toEqual({})
     expect(hydratePreferences({ sidebarTab: 'board', pullMode: 'rebase' })).toEqual({
       pullMode: 'rebase',
     })

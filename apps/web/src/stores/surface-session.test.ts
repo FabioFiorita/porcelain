@@ -13,7 +13,7 @@ const tabs: SidebarTab[] = ['files', 'changes', 'history', 'git']
 describe('surface tab close and move', () => {
   it('keeps only the chosen tab when closing others', () => {
     expect(closeOtherSurfaces(tabs, 'history')).toEqual(['history'])
-    expect(closeOtherSurfaces(tabs, 'search')).toEqual(tabs)
+    expect(closeOtherSurfaces(tabs, 'canvas')).toEqual(tabs)
   })
 
   it('closes tabs to the left or right of the chosen tab', () => {
@@ -32,7 +32,9 @@ describe('surface tab close and move', () => {
 
 describe('hydrateSurfaceSession', () => {
   it('keeps known surface tabs and drops the rest', () => {
-    expect(hydrateSurfaceSession({ openTabs: ['changes', 'nope', 'files', 'changes'] })).toEqual({
+    expect(
+      hydrateSurfaceSession({ openTabs: ['changes', 'search', 'nope', 'files', 'changes'] }),
+    ).toEqual({
       openTabs: ['changes', 'files'],
     })
   })

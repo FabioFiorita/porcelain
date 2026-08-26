@@ -3,7 +3,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { SidebarTab } from './preferences'
 
-const sidebarTabSchema = z.enum(['files', 'changes', 'history', 'search', 'git', 'canvas'])
+const sidebarTabSchema = z.enum(['files', 'changes', 'history', 'git', 'canvas'])
 
 /**
  * Surfaces the right rail is actually showing. Distinct from `preferences.sidebarTab`,

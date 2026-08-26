@@ -5,7 +5,6 @@ import { Shortcut } from '@renderer/components/ui/kbd'
 import { SidebarGroupLabel } from '@renderer/components/ui/sidebar'
 import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-group'
 import { CanvasList } from '@renderer/features/projects'
-import { SearchList } from '@renderer/features/search'
 import { surfaceListInsetClass } from '@renderer/lib/controls'
 import { cn } from '@renderer/lib/utils'
 import { useFileTreeStore } from '@renderer/stores/file-tree'
@@ -21,7 +20,6 @@ import {
   GitCompareArrows,
   History,
   LayoutPanelTop,
-  Search,
 } from 'lucide-react'
 import { useState } from 'react'
 import { CommitGroup } from './commit-group'
@@ -71,17 +69,8 @@ export const SURFACES: SurfaceDefinition[] = [
   },
 ]
 
-const SEARCH_SURFACE: SurfaceDefinition = {
-  id: 'search',
-  label: 'Search',
-  hint: 'Search code and files',
-  shortcut: 'K',
-  icon: Search,
-}
-
 export function surfaceDefinition(id: SidebarTab): SurfaceDefinition {
-  const definition =
-    id === SEARCH_SURFACE.id ? SEARCH_SURFACE : SURFACES.find((surface) => surface.id === id)
+  const definition = SURFACES.find((surface) => surface.id === id)
   if (definition === undefined) throw new Error(`Unknown surface: ${id}`)
   return definition
 }
@@ -139,8 +128,7 @@ export function SurfaceContent({
 }): React.JSX.Element {
   const project = useProjectSelectionStore((s) => s.project)
 
-  // Search is the surface that does not need a Worktree: it opens its own scope.
-  if (project === null && active !== 'search') {
+  if (project === null) {
     return (
       <p className="p-3 text-sm text-muted-foreground">
         Select a Worktree from Projects to open this surface.
@@ -155,7 +143,6 @@ export function SurfaceContent({
       )}
       {active === 'changes' && <ChangesList />}
       {active === 'history' && <HistorySurface />}
-      {active === 'search' && <SearchList />}
       {active === 'git' && <GitSurface />}
       {active === 'canvas' && <CanvasList />}
     </div>

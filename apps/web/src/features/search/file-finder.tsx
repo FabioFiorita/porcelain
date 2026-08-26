@@ -34,7 +34,6 @@ import {
   GitCommitHorizontal,
   History,
   Play,
-  Search,
   Settings,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -145,15 +144,6 @@ export function FileFinder(): React.JSX.Element {
       icon: FileText,
       shortcut: ['mod', '1'],
       onSelect: () => openSurface('files'),
-    },
-    {
-      id: 'search',
-      label: 'Search project contents',
-      description: 'Search text across files',
-      keywords: 'search code text contents grep',
-      icon: Search,
-      shortcut: ['mod', 'shift', 'F'],
-      onSelect: () => openSurface('search'),
     },
     {
       id: 'changes',

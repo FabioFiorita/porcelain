@@ -39,7 +39,7 @@ describe('FileFinder', () => {
       await screen.findByPlaceholderText('Search commands, projects, files, and commits…'),
     ).toBeInTheDocument()
     expect(screen.getByText('Actions')).toBeInTheDocument()
-    expect(screen.getByText('Search project contents')).toBeInTheDocument()
+    expect(screen.queryByText('Search project contents')).not.toBeInTheDocument()
     expect(screen.getByText('Open settings')).toBeInTheDocument()
     expect(screen.queryByText('Open board')).not.toBeInTheDocument()
     expect(screen.getByText('Navigate')).toBeInTheDocument()
@@ -51,13 +51,13 @@ describe('FileFinder', () => {
     expect(inputGroup).toHaveClass('border-0!')
   })
 
-  it('routes a palette action to the matching sidebar surface', async () => {
+  it('routes a palette action to a remaining sidebar surface', async () => {
     render(<FileFinder />)
     act(() => useFileFinderStore.getState().setOpen(true))
 
-    fireEvent.click(await screen.findByText('Search project contents'))
+    fireEvent.click(await screen.findByText('Open changes'))
 
-    expect(usePreferencesStore.getState().sidebarTab).toBe('search')
+    expect(usePreferencesStore.getState().sidebarTab).toBe('changes')
     await waitFor(() => {
       expect(useFileFinderStore.getState().open).toBe(false)
     })
