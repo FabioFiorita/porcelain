@@ -28,14 +28,7 @@ import { useSettingsDialogStore } from '@renderer/stores/settings-dialog'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { runUserAction } from '@shared/background'
 import type { LucideIcon } from 'lucide-react'
-import {
-  FileDiff,
-  FileText,
-  GitCommitHorizontal,
-  History,
-  Play,
-  Settings,
-} from 'lucide-react'
+import { FileDiff, FileText, GitCommitHorizontal, History, Play, Settings } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { useFileSearch } from './search-queries'
