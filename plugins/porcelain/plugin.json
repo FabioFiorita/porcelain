@@ -1,7 +1,6 @@
 {
-  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "porcelain",
-  "version": "1.6.7",
+  "version": "1.6.8",
   "description": "Drive Porcelain — manage Canvases and templates, review comments, profiles, and user-run Actions; set up a remote host when needed.",
   "author": {
     "name": "Fabio Fiorita",
@@ -10,5 +9,18 @@
   "homepage": "https://github.com/FabioFiorita/porcelain",
   "repository": "https://github.com/FabioFiorita/porcelain",
   "license": "MIT",
-  "keywords": ["code-review", "worktree", "evidence", "canvas", "agentic-coding"]
+  "keywords": ["code-review", "worktree", "evidence", "canvas", "agentic-coding"],
+  "interface": {
+    "displayName": "Porcelain",
+    "shortDescription": "Review agent-created work",
+    "longDescription": "Manage Porcelain Canvases, comments, profiles, Actions, and remote hosts.",
+    "developerName": "Fabio Fiorita",
+    "category": "code-review",
+    "capabilities": ["Interactive", "Read", "Write"],
+    "websiteURL": "https://github.com/FabioFiorita/porcelain",
+    "defaultPrompt": ["Review the current Porcelain checkout"],
+    "brandColor": "#8B5CF6",
+    "composerIcon": "./assets/icon.png",
+    "logo": "./assets/icon.png"
+  }
 }

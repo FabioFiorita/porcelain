@@ -3,6 +3,7 @@ import { useDiffReading } from '@renderer/features/git'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ChangesetView, changesetTabKey, parseChangesetTabKey } from './changeset-view'
+import { useChangesetCollapseStore } from '@renderer/stores/changeset-collapse'
 
 vi.mock('@renderer/features/git', () => ({
   useDiffReading: vi.fn(),
@@ -69,6 +70,7 @@ describe('changesetTabKey / parseChangesetTabKey', () => {
 
 describe('ChangesetView', () => {
   beforeEach(() => {
+    useChangesetCollapseStore.getState().clear()
     vi.mocked(useDiffReading).mockReturnValue({ reading, error: null })
   })
 
@@ -80,6 +82,20 @@ describe('ChangesetView', () => {
     expect(screen.queryByText('@@ -1 +1 @@')).not.toBeInTheDocument()
     expect(screen.getByLabelText('Mark reviewed')).toBeInTheDocument()
     expect(screen.getByLabelText('Comment on file')).toBeInTheDocument()
+  })
+
+  it('keeps a collapsed file collapsed after the changeset remounts', () => {
+    const first = render(<ChangesetView path="working" />)
+    fireEvent.click(screen.getByLabelText('Collapse diff'))
+    expect(screen.queryByText('hello')).not.toBeInTheDocument()
+
+    first.unmount()
+    render(<ChangesetView path="working" />)
+    expect(screen.getByLabelText('Expand diff')).toBeInTheDocument()
+    expect(screen.queryByText('hello')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByLabelText('Expand diff'))
+    expect(screen.getByText('hello')).toBeInTheDocument()
   })
 
   it('hides mark-reviewed on a historical commit scope', () => {

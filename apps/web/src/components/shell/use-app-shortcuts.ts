@@ -11,23 +11,22 @@ import { useTabsStore } from '@renderer/stores/tabs'
 import { runUserAction } from '@shared/background'
 import { useEffect } from 'react'
 
-// Must match the displayed shortcuts in surface-sidebar.tsx. Git uses 5 and Canvas keeps
-// its explicit 7 slot. ⌘J — t3code's terminal key — toggles the bottom terminal panel.
+// Must match the displayed shortcuts in surface-sidebar.tsx. ⌘J — t3code's terminal key —
+// toggles the bottom terminal panel.
 // ⌘⇧A is NOT here: the Actions popover owns that chord from the header, where it can open
 // without taking the Viewer away.
 export const SIDEBAR_TAB_KEYS: Record<string, SidebarTab | undefined> = {
   '1': 'files',
   '2': 'changes',
-  '3': 'history',
-  '4': 'search',
-  '5': 'git',
-  '7': 'canvas',
+  '3': 'git',
+  '4': 'history',
+  '5': 'canvas',
 }
 
 /**
  * Window-level shortcuts: close-tab (Ctrl+W here on Linux/Windows, yielding to a focused
  * terminal; macOS Cmd+W goes via main's before-input-event instead), Ctrl+Tab cycling,
- * Cmd+1–5 sidebar tabs, Cmd+J for the bottom terminal panel, and Cmd+7 for Canvas.
+ * Cmd+1–5 sidebar tabs and Cmd+J for the bottom terminal panel.
  * Files' ⌘N/⌘⇧N/⌘D/⌘⌫ live in FileCommands — those go through tRPC hooks, which only a
  * component may touch.
  */

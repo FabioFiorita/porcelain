@@ -14,6 +14,11 @@ import { CommitContextMenu } from './commit-context-menu'
 
 export function HistoryList(): React.JSX.Element {
   const openTab = useTabsStore((s) => s.openTab)
+  const activeCommitHash = useTabsStore((s) => {
+    const pane = s.panes[s.activePaneIndex]
+    const tab = pane?.tabs.find((candidate) => candidate.id === pane.activeTabId)
+    return tab?.kind === 'commit' ? tab.path : null
+  })
   const commits = useGitLog(200)
 
   if (commits === undefined) {
@@ -41,6 +46,7 @@ export function HistoryList(): React.JSX.Element {
           <CommitContextMenu commit={commit}>
             <SidebarMenuButton
               className="h-auto py-1 text-sm-minus"
+              isActive={activeCommitHash === commit.hash}
               onClick={() =>
                 openTab(targetedTab('commit', commit.hash, { title: commit.subject.slice(0, 32) }))
               }

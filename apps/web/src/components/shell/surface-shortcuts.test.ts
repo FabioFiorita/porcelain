@@ -7,17 +7,15 @@ describe('surface shortcuts', () => {
     expect(Object.fromEntries(SURFACES.map((surface) => [surface.id, surface.shortcut]))).toEqual({
       files: '1',
       changes: '2',
-      history: '3',
-      git: '5',
-      search: '4',
-      canvas: '7',
+      git: '3',
+      history: '4',
+      canvas: '5',
     })
     expect(SURFACES.map((surface) => surface.id)).toEqual([
       'files',
       'changes',
-      'history',
       'git',
-      'search',
+      'history',
       'canvas',
     ])
   })
@@ -26,11 +24,11 @@ describe('surface shortcuts', () => {
     expect(SIDEBAR_TAB_KEYS).toEqual({
       '1': 'files',
       '2': 'changes',
-      '3': 'history',
-      '4': 'search',
-      '5': 'git',
-      '7': 'canvas',
+      '3': 'git',
+      '4': 'history',
+      '5': 'canvas',
     })
     expect(SIDEBAR_TAB_KEYS['6']).toBeUndefined()
+    expect(SIDEBAR_TAB_KEYS['7']).toBeUndefined()
   })
 })

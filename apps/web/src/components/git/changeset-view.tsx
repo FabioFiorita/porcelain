@@ -33,6 +33,7 @@ import { activeTabTarget, targetedTab } from '@renderer/stores/hub-tabs'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useRevealStore } from '@renderer/stores/reveal'
+import { useChangesetCollapseStore } from '@renderer/stores/changeset-collapse'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { TestIds } from '@shared/test-ids'
 import {
@@ -84,16 +85,22 @@ function pendingLinesFor(
 
 function ChangesetFileCard({
   file,
+  collapseScope,
   reviewable,
   commentAnchor,
   onComment,
 }: {
   file: ReadingFile
+  collapseScope: string
   reviewable: boolean
   commentAnchor: CommentAnchor | null
   onComment: (anchor: CommentAnchor) => void
 }): React.JSX.Element {
-  const [fileCollapsed, setFileCollapsed] = useState(false)
+  const fileCollapsed = useChangesetCollapseStore((s) =>
+    (s.collapsedByScope[collapseScope] ?? []).includes(file.path),
+  )
+  const toggleFileCollapsed = useChangesetCollapseStore((s) => s.toggle)
+  const collapseFile = useChangesetCollapseStore((s) => s.collapse)
   const [lineSel, setLineSel] = useState<LineSelection | null>(null)
   const project = useProjectSelectionStore((s) => s.project)
   const openTab = useTabsStore((s) => s.openTab)
@@ -142,7 +149,7 @@ function ChangesetFileCard({
       return
     }
     mark(file.path)
-    setFileCollapsed(true)
+    collapseFile(collapseScope, file.path)
   }
 
   return (
@@ -155,7 +162,7 @@ function ChangesetFileCard({
           variant="ghost"
           size="icon-2xs"
           className="shrink-0 text-muted-foreground hover:text-foreground"
-          onClick={() => setFileCollapsed((current) => !current)}
+          onClick={() => toggleFileCollapsed(collapseScope, file.path)}
           aria-expanded={!fileCollapsed}
           aria-label={fileCollapsed ? 'Expand diff' : 'Collapse diff'}
           data-testid={TestIds.diffCollapse(file.path)}
@@ -340,6 +347,8 @@ export function ChangesetView({ path }: { path: string }): React.JSX.Element {
   const scope = parseChangesetTabKey(path)
   const { reading, error } = useDiffReading(scope)
   const [commentAnchor, setCommentAnchor] = useState<CommentAnchor | null>(null)
+  const projectPath = useProjectSelectionStore((s) => s.project?.path ?? '')
+  const collapseScope = `${projectPath}\0${path}`
 
   if (error) return <p className="p-4 text-sm text-destructive">{error.message}</p>
   if (reading === undefined) {
@@ -388,6 +397,7 @@ export function ChangesetView({ path }: { path: string }): React.JSX.Element {
             <ChangesetFileCard
               key={file.path}
               file={file}
+              collapseScope={collapseScope}
               reviewable={scope.type !== 'commit'}
               commentAnchor={commentAnchor}
               onComment={setCommentAnchor}

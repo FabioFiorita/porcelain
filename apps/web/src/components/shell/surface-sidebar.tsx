@@ -49,31 +49,39 @@ export const SURFACES: SurfaceDefinition[] = [
     icon: GitCompareArrows,
   },
   {
-    id: 'history',
-    label: 'History',
-    hint: 'Inspect commit history',
-    shortcut: '3',
-    icon: History,
-  },
-  {
     id: 'git',
     label: 'Git',
     hint: 'Commands, suggestions, and commit',
-    shortcut: '5',
+    shortcut: '3',
     icon: GitCommitHorizontal,
   },
-  { id: 'search', label: 'Search', hint: 'Search code and files', shortcut: '4', icon: Search },
+  {
+    id: 'history',
+    label: 'History',
+    hint: 'Inspect commit history',
+    shortcut: '4',
+    icon: History,
+  },
   {
     id: 'canvas',
     label: 'Canvas',
     hint: 'Agent-authored explanation for this Project',
-    shortcut: '7',
+    shortcut: '5',
     icon: LayoutPanelTop,
   },
 ]
 
+const SEARCH_SURFACE: SurfaceDefinition = {
+  id: 'search',
+  label: 'Search',
+  hint: 'Search code and files',
+  shortcut: 'K',
+  icon: Search,
+}
+
 export function surfaceDefinition(id: SidebarTab): SurfaceDefinition {
-  const definition = SURFACES.find((surface) => surface.id === id)
+  const definition =
+    id === SEARCH_SURFACE.id ? SEARCH_SURFACE : SURFACES.find((surface) => surface.id === id)
   if (definition === undefined) throw new Error(`Unknown surface: ${id}`)
   return definition
 }

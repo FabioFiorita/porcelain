@@ -54,6 +54,23 @@ describe('HistoryList', () => {
     expect(activeTabId).toBe(tabId('commit', 'aaa1111'))
   })
 
+  it('highlights the commit shown in the focused viewer pane', () => {
+    const id = tabId('commit', 'aaa1111')
+    useTabsStore.setState({
+      panes: [
+        {
+          tabs: [{ id, kind: 'commit', path: 'aaa1111', title: 'feat: add the widget' }],
+          activeTabId: id,
+        },
+      ],
+      activePaneIndex: 0,
+    })
+    renderList()
+
+    expect(document.querySelector('[data-active]')).toHaveTextContent('feat: add the widget')
+    expect(document.querySelectorAll('[data-active]')).toHaveLength(1)
+  })
+
   it('renders the Empty state when the branch has no commits', () => {
     vi.mocked(useGitLog).mockReturnValue([])
     renderList()

@@ -168,7 +168,7 @@ export function SurfaceTabs({
                 </Button>
               }
             />
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="w-44">
               <DropdownMenuGroup>
                 {available.map((surface) => {
                   const Icon = surface.icon
@@ -176,7 +176,7 @@ export function SurfaceTabs({
                     <DropdownMenuItem key={surface.id} onClick={() => onOpen(surface.id)}>
                       <Icon />
                       {surface.label}
-                      <Shortcut className="ml-auto" tokens={['mod', surface.shortcut]} />
+                      <Shortcut className="ml-auto shrink-0" tokens={['mod', surface.shortcut]} />
                     </DropdownMenuItem>
                   )
                 })}
