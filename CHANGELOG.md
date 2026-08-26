@@ -1,3 +1,9 @@
+## [0.59.2](https://github.com/FabioFiorita/porcelain/compare/v0.59.1...v0.59.2) (2026-08-26)
+
+### Features
+
+* comment from rendered file views ([8d528ed](https://github.com/FabioFiorita/porcelain/commit/8d528edd78c676c1da7c5b5f91a8cca0d5760227))
+
 ## [0.59.1](https://github.com/FabioFiorita/porcelain/compare/v0.59.0...v0.59.1) (2026-08-26)
 
 ### Bug Fixes

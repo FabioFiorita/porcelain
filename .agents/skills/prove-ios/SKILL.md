@@ -1,6 +1,6 @@
 ---
 name: prove-ios
-version: 0.59.1
+version: 0.59.2
 metadata:
   internal: true
 description: Drive the iOS simulator to observe a change in the mobile client, from a Mac locally or from a Linux box over the LAN. Use when the changed behavior is `apps/mobile` and iOS is the surface — native lifecycle, iOS keyboard, Safari-only rendering, or an iOS screenshot. Read `docs/runtime-proof.md` for what finishes a proof.
