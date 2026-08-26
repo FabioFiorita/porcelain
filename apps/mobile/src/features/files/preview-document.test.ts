@@ -34,12 +34,13 @@ describe('file kinds', () => {
 describe('markdownToHtml', () => {
   it('renders the usual structures', () => {
     const html = markdownToHtml('# Title\n\n- one\n- two\n')
-    expect(html).toContain('<h1>Title</h1>')
-    expect(html).toContain('<li>one</li>')
+    expect(html).toContain('<h1 data-source-start-line="1" data-source-end-line="1">Title</h1>')
+    expect(html).toContain('data-source-start-line="3"')
+    expect(html).toContain('>one</li>')
   })
 
   it('renders tables and fenced code, which is what a repo README is made of', () => {
-    expect(markdownToHtml('| a | b |\n| - | - |\n| 1 | 2 |\n')).toContain('<table>')
+    expect(markdownToHtml('| a | b |\n| - | - |\n| 1 | 2 |\n')).toContain('<table ')
     expect(markdownToHtml('```ts\nconst a = 1\n```\n')).toContain('<code class="language-ts">')
   })
 

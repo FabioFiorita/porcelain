@@ -12,20 +12,35 @@ export interface LineSelection {
  * otherwise `closest` would walk past the rows entirely and find nothing.
  */
 /** The nearest `[data-line]` row element a range boundary (container + offset) sits in. */
-function rowAt(container: Node, offset: number): Element | null {
+function elementAt(container: Node, offset: number): Element | null {
   let node: Node | null = container
   if (container.nodeType === Node.ELEMENT_NODE) {
     const element = container as Element
     node = element.childNodes[offset] ?? element.childNodes[offset - 1] ?? element
   }
-  const element = node instanceof Element ? node : (node?.parentElement ?? null)
-  return element?.closest('[data-line]') ?? null
+  return node instanceof Element ? node : (node?.parentElement ?? null)
+}
+
+function rowAt(container: Node, offset: number): Element | null {
+  return elementAt(container, offset)?.closest('[data-line]') ?? null
 }
 
 function lineOf(row: Element | null): number | null {
   const value = row?.getAttribute('data-line')
   const parsed = value ? Number.parseInt(value, 10) : Number.NaN
   return Number.isFinite(parsed) ? parsed : null
+}
+
+function sourceRangeOf(element: Element | null): { startLine: number; endLine: number } | null {
+  const source = element?.closest('[data-source-start-line]')
+  if (!source) return null
+  const startLine = Number.parseInt(source.getAttribute('data-source-start-line') ?? '', 10)
+  const endLine = Number.parseInt(
+    source.getAttribute('data-source-end-line') ?? String(startLine),
+    10,
+  )
+  if (!Number.isFinite(startLine) || !Number.isFinite(endLine)) return null
+  return { startLine, endLine }
 }
 
 function lineAt(container: Node, offset: number): number | null {
@@ -43,8 +58,32 @@ export function lineRangeFromRange(range: Range): { startLine: number; endLine: 
   const start = lineAt(range.startContainer, range.startOffset)
   const end = lineAt(range.endContainer, range.endOffset)
   const lines = [start, end].filter((line): line is number => line !== null)
-  if (lines.length === 0) return null
+  if (lines.length === 0) {
+    const start = sourceRangeOf(elementAt(range.startContainer, range.startOffset))
+    const end = sourceRangeOf(elementAt(range.endContainer, range.endOffset))
+    const ranges = [start, end].filter(
+      (value): value is { startLine: number; endLine: number } => value !== null,
+    )
+    if (ranges.length === 0) return null
+    return {
+      startLine: Math.min(...ranges.map((value) => value.startLine)),
+      endLine: Math.max(...ranges.map((value) => value.endLine)),
+    }
+  }
   return { startLine: Math.min(...lines), endLine: Math.max(...lines) }
+}
+
+/** Resolve selected rendered text back to its first occurrence in the source. */
+export function lineRangeForSelectedText(
+  source: string,
+  selectedText: string,
+): LineSelection | null {
+  const text = selectedText.trim()
+  if (text === '') return null
+  const start = source.indexOf(text)
+  if (start < 0) return null
+  const range = lineRangeFromOffsets(source, start, start + text.length)
+  return range ? { ...range, text } : null
 }
 
 /**

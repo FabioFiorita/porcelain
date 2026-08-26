@@ -60,16 +60,25 @@ function writePlainText(res: ServerResponse, status: number, body: string): void
 const VIEWPORT_META =
   '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">'
 
+/** Export only the user's visible selection from the opaque preview frame. */
+export const FILE_PREVIEW_SELECTION_BRIDGE = `<script>(function(){
+function send(){var text=String(getSelection&&getSelection()||'').trim();if(!text)return;parent.postMessage({source:'porcelain-file-preview',type:'selection',text:text.slice(0,2000)},'*')}
+document.addEventListener('mouseup',send,true);document.addEventListener('contextmenu',send,true)
+})()</script>`
+
 /** Same responsive treatment the srcdoc reader applies, so the two surfaces match. */
 export function responsivePreviewDocument(html: string): string {
-  if (/<meta\b[^>]*\bname\s*=\s*["']viewport["']/i.test(html)) return html
+  const withBridge = /<\/body\s*>/i.test(html)
+    ? html.replace(/<\/body\s*>/i, `${FILE_PREVIEW_SELECTION_BRIDGE}</body>`)
+    : html + FILE_PREVIEW_SELECTION_BRIDGE
+  if (/<meta\b[^>]*\bname\s*=\s*["']viewport["']/i.test(withBridge)) return withBridge
   const head = /<head\b[^>]*>/i
-  if (head.test(html)) return html.replace(head, (tag) => tag + VIEWPORT_META)
+  if (head.test(withBridge)) return withBridge.replace(head, (tag) => tag + VIEWPORT_META)
   const htmlTag = /<html\b[^>]*>/i
-  if (htmlTag.test(html)) {
-    return html.replace(htmlTag, (tag) => `${tag}<head>${VIEWPORT_META}</head>`)
+  if (htmlTag.test(withBridge)) {
+    return withBridge.replace(htmlTag, (tag) => `${tag}<head>${VIEWPORT_META}</head>`)
   }
-  return `<!doctype html><html><head>${VIEWPORT_META}</head><body>${html}</body></html>`
+  return `<!doctype html><html><head>${VIEWPORT_META}</head><body>${withBridge}</body></html>`
 }
 
 /**

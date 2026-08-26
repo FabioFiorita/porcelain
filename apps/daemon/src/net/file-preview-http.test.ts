@@ -33,9 +33,12 @@ describe('responsivePreviewDocument', () => {
     expect(out.match(/name="viewport"/g)).toHaveLength(1)
   })
 
-  it('leaves an authored viewport alone', () => {
+  it('keeps an authored viewport and adds the selection bridge', () => {
     const authored = '<html><head><meta name="viewport" content="width=500"></head></html>'
-    expect(responsivePreviewDocument(authored)).toBe(authored)
+    const out = responsivePreviewDocument(authored)
+    expect(out).toContain('<meta name="viewport" content="width=500">')
+    expect(out.match(/name="viewport"/g)).toHaveLength(1)
+    expect(out).toContain("source:'porcelain-file-preview'")
   })
 })
 

@@ -58,9 +58,8 @@ export function viewerFace(file: {
 /**
  * The range a comment would anchor to, given what is on screen.
  *
- * A range selected in Source means nothing while a rendered page is up: a comment anchors to a
- * line, and a rendered page has none. The selection bar hides for the same reason — one rule, so
- * the bar and the header's comment action can never disagree about what the tap would file.
+ * Source selections belong only to Source. Rendered Markdown supplies its own source-positioned
+ * selection through the preview bridge, so callers substitute that range while Reader is active.
  */
 export function anchorableRange(selected: LineRange | null, face: ViewerFace): LineRange | null {
   return face === 'source' ? selected : null

@@ -7,6 +7,7 @@ import { isMarkdownPath, MarkdownView } from '@renderer/components/viewer/markdo
 import { useFilePreview, useFilePreviewSrc } from '@renderer/features/files'
 import { useCommentIndex } from '@renderer/features/review'
 import { raisedCardClass, viewerWellClass } from '@renderer/lib/controls'
+import { lineRangeForSelectedText } from '@renderer/lib/line-selection'
 import { relativeTo } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'
 import { useHubRepoPath } from '@renderer/stores/hub-repo'
@@ -84,6 +85,7 @@ export function TextFileView({
   const [finding, setFinding] = useState(false)
   const [findLine, setFindLine] = useState<number | undefined>(undefined)
   const [commentAnchor, setCommentAnchor] = useState<CommentAnchor | null>(null)
+  const [previewSelection, setPreviewSelection] = useState<string | null>(null)
   const relativePath = relativeTo(repoPath, path)
   const commentIndex = useCommentIndex(relativePath)
   const markdown = isMarkdownPath(path)
@@ -159,7 +161,7 @@ export function TextFileView({
           )}
           {reader ? (
             <SourceContextMenu path={path}>
-              <MarkdownView content={content} />
+              <MarkdownView content={content} commentsByLine={commentIndex.byLine} />
             </SourceContextMenu>
           ) : preview ? (
             previewError ? (
@@ -174,10 +176,31 @@ export function TextFileView({
             ) : previewSrc === null ? (
               <p className="p-4 text-sm text-muted-foreground">Loading…</p>
             ) : (
-              <HtmlDocumentFrame
-                src={previewSrc}
-                title={path.split('/').at(-1) ?? 'HTML preview'}
-              />
+              <div className="relative h-full">
+                <HtmlDocumentFrame
+                  src={previewSrc}
+                  title={path.split('/').at(-1) ?? 'HTML preview'}
+                  onSelection={setPreviewSelection}
+                />
+                {previewSelection !== null && (
+                  <div className="absolute bottom-4 left-1/2 z-20 -translate-x-1/2 rounded-lg border bg-popover p-1 shadow-lg">
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        const range = lineRangeForSelectedText(content, previewSelection)
+                        setCommentAnchor({
+                          path: relativePath,
+                          anchorText: previewSelection,
+                          ...(range ? { startLine: range.startLine, endLine: range.endLine } : {}),
+                        })
+                        setPreviewSelection(null)
+                      }}
+                    >
+                      <MessageSquarePlus /> Add comment
+                    </Button>
+                  </div>
+                )}
+              </div>
             )
           ) : editable ? (
             <EditorSource

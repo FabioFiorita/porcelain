@@ -12,6 +12,14 @@ import { themeVarsFor } from '@/features/settings/theme-vars'
  */
 const markdown = new MarkdownIt({ breaks: false, html: false, linkify: true, typographer: false })
 
+markdown.core.ruler.push('porcelain-source-lines', (state) => {
+  for (const token of state.tokens) {
+    if (token.nesting !== 1 || token.map === null) continue
+    token.attrSet('data-source-start-line', String(token.map[0] + 1))
+    token.attrSet('data-source-end-line', String(token.map[1]))
+  }
+})
+
 export function markdownToHtml(source: string): string {
   return markdown.render(source)
 }

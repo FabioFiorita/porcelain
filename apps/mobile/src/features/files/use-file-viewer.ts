@@ -19,13 +19,7 @@ import { useFileContents, useHtmlPreview, usePathScope, usePinnedEntries } from 
 import type { SourceLine } from './source-lines'
 import { type SourceRow, sourceAnchorText, toSourceRows } from './source-rows'
 import { useSourceTokens } from './use-file-highlight'
-import {
-  anchorableRange,
-  type ViewerFace,
-  type ViewerOverride,
-  viewerFace,
-  viewerMode,
-} from './viewer-mode'
+import { type ViewerFace, type ViewerOverride, viewerFace, viewerMode } from './viewer-mode'
 
 export type FileViewerState = {
   /** The range a comment filed right now would anchor to — null means the whole file. */
@@ -53,6 +47,7 @@ export type FileViewerState = {
   /** The live selection, whether or not the face on screen can anchor to it. */
   selected: LineRange | null
   clearSelection: () => void
+  selectRendered: (selection: { startLine: number; endLine: number; text: string }) => void
   /** File a comment: on the open range if there is one, on the whole file otherwise. */
   comment: () => void
   setHtmlMode: (mode: HtmlMode) => void
@@ -85,6 +80,11 @@ export function useFileViewer({
   const comments = useReviewComments(active)
   const commentIndex = useCommentIndex(comments, filePath)
   const [anchor, setAnchor] = useState<CommentAnchor | null>(null)
+  const [renderedSelection, setRenderedSelection] = useState<{
+    startLine: number
+    endLine: number
+    text: string
+  } | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const lineSelection = useLineSelection()
   const { pin, unpin } = usePathScope()
@@ -136,7 +136,7 @@ export function useFileViewer({
     [commentedLines, extend, filePath, line, selected, start, tokens],
   )
 
-  const anchorable = anchorableRange(selected, face)
+  const anchorable = face === 'source' ? selected : renderedSelection
 
   return {
     actionError,
@@ -145,7 +145,10 @@ export function useFileViewer({
     clearAnchor: () => {
       setAnchor(null)
     },
-    clearSelection: lineSelection.clear,
+    clearSelection: () => {
+      lineSelection.clear()
+      setRenderedSelection(null)
+    },
     // One action, two anchors: with a range open it files against the range, and against the
     // file when there is none. The bar stays the deliberate route; this is the same action
     // where the reader's thumb already is.
@@ -155,12 +158,14 @@ export function useFileViewer({
         return
       }
       setAnchor({
-        anchorText: sourceAnchorText(rows, anchorable),
+        anchorText:
+          face === 'source' ? sourceAnchorText(rows, anchorable) : renderedSelection?.text,
         endLine: anchorable.endLine,
         path: filePath,
         startLine: anchorable.startLine,
       })
       lineSelection.clear()
+      setRenderedSelection(null)
     },
     commentCount: commentIndex.fileLevel.length + commentIndex.byLine.size,
     content,
@@ -174,10 +179,13 @@ export function useFileViewer({
     markdownMode,
     rows,
     selected,
+    selectRendered: setRenderedSelection,
     setHtmlMode: (mode) => {
+      setRenderedSelection(null)
       setHtmlOverride({ mode, path: filePath })
     },
     setMarkdownMode: (mode) => {
+      setRenderedSelection(null)
       setMarkdownOverride({ mode, path: filePath })
     },
     toggle: !isText || (!markdown && !html) ? null : markdown ? 'markdown' : 'html',

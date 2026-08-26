@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { fileLineRangeFromRange, lineRangeFromOffsets, lineRangeFromRange } from './line-selection'
+import {
+  fileLineRangeFromRange,
+  lineRangeForSelectedText,
+  lineRangeFromOffsets,
+  lineRangeFromRange,
+} from './line-selection'
 
 // Mirror the rendered DOM: VirtualRows wraps each row in a div that has NO data-line;
 // the row div inside carries data-line and holds the code text. This is the shape
@@ -69,6 +74,27 @@ describe('lineRangeFromRange', () => {
     range.setStart(plain.firstChild as Text, 0)
     range.setEnd(plain.firstChild as Text, 2)
     expect(lineRangeFromRange(range)).toBeNull()
+  })
+})
+
+describe('rendered selections', () => {
+  it('reads markdown source positions when no source row exists', () => {
+    const wrapper = document.createElement('p')
+    wrapper.dataset.sourceStartLine = '4'
+    wrapper.dataset.sourceEndLine = '6'
+    wrapper.textContent = 'rendered prose'
+    document.body.append(wrapper)
+    const range = document.createRange()
+    range.selectNodeContents(wrapper)
+    expect(lineRangeFromRange(range)).toEqual({ startLine: 4, endLine: 6 })
+  })
+
+  it('maps iframe-selected text back to source lines', () => {
+    expect(lineRangeForSelectedText('<h1>Title</h1>\n<p>Hello world</p>', 'Hello world')).toEqual({
+      startLine: 2,
+      endLine: 2,
+      text: 'Hello world',
+    })
   })
 })
 

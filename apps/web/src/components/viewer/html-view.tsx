@@ -1,4 +1,5 @@
 import { TestIds } from '@shared/test-ids'
+import { useEffect, useRef } from 'react'
 
 const HTML_EXTENSIONS = ['html', 'htm']
 const VIEWPORT_META =
@@ -38,12 +39,33 @@ function responsiveHtml(html: string): string {
 export function HtmlDocumentFrame({
   src,
   title,
+  onSelection,
 }: {
   src: string
   title: string
+  onSelection?: (text: string) => void
 }): React.JSX.Element {
+  const frameRef = useRef<HTMLIFrameElement>(null)
+  useEffect(() => {
+    const receive = (event: MessageEvent): void => {
+      if (event.source !== frameRef.current?.contentWindow) return
+      const data = event.data as { source?: unknown; type?: unknown; text?: unknown }
+      if (
+        data?.source !== 'porcelain-file-preview' ||
+        data.type !== 'selection' ||
+        typeof data.text !== 'string'
+      ) {
+        return
+      }
+      const text = data.text.trim().slice(0, 2000)
+      if (text !== '') onSelection?.(text)
+    }
+    window.addEventListener('message', receive)
+    return () => window.removeEventListener('message', receive)
+  }, [onSelection])
   return (
     <iframe
+      ref={frameRef}
       data-testid={TestIds.htmlPreviewIframe}
       title={title}
       src={src}

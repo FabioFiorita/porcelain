@@ -29,12 +29,14 @@ import { useBottomChrome } from '@/features/shell/window-chrome'
 export function PreviewView({
   document,
   mediaPlayback = false,
+  onSelection,
   testID,
 }: {
   /** A complete HTML document — see `preview-document`, which is what builds them. */
   document: string
   /** Opt into native video controls only for the dedicated evidence video viewer. */
   mediaPlayback?: boolean
+  onSelection?: (selection: { startLine: number; endLine: number; text: string }) => void
   testID: string
 }): React.JSX.Element {
   const bottomInset = useBottomChrome()
@@ -48,8 +50,34 @@ export function PreviewView({
       // Ours is the only inset; iOS adding its own on top is the double reservation this
       // whole seam exists to stop.
       contentInsetAdjustmentBehavior="never"
-      // The document is inert; scripting buys it nothing and costs it every injection bug.
-      javaScriptEnabled={false}
+      // Arbitrary HTML remains inert. Generated Markdown may run only our selection bridge.
+      injectedJavaScript={onSelection ? PREVIEW_SELECTION_BRIDGE : undefined}
+      javaScriptEnabled={onSelection !== undefined}
+      onMessage={(event) => {
+        if (!onSelection) return
+        try {
+          const value = JSON.parse(event.nativeEvent.data) as {
+            source?: unknown
+            startLine?: unknown
+            endLine?: unknown
+            text?: unknown
+          }
+          if (
+            value.source === 'porcelain-preview-selection' &&
+            typeof value.startLine === 'number' &&
+            typeof value.endLine === 'number' &&
+            typeof value.text === 'string'
+          ) {
+            onSelection({
+              startLine: value.startLine,
+              endLine: value.endLine,
+              text: value.text.slice(0, 2000),
+            })
+          }
+        } catch {
+          // Ignore messages that do not belong to the selection bridge.
+        }
+      }}
       onShouldStartLoadWithRequest={(request) => {
         // The initial load of our own document is the only navigation that ever happens here.
         if (request.url === 'about:blank' || request.url.startsWith('data:')) return true
@@ -81,3 +109,9 @@ export function PreviewView({
 
 // nativewind-allow-style: WebView is a native host that does not take a className.
 const STYLE = { backgroundColor: 'transparent', flex: 1 }
+
+export const PREVIEW_SELECTION_BRIDGE = `(function(){
+function line(node,edge){var el=node&&node.nodeType===1?node:node&&node.parentElement;var hit=el&&el.closest('[data-source-start-line]');if(!hit)return null;return Number(hit.getAttribute(edge==='start'?'data-source-start-line':'data-source-end-line'))}
+function send(){var s=getSelection();if(!s||s.isCollapsed||!s.rangeCount)return;var r=s.getRangeAt(0),a=line(r.startContainer,'start'),b=line(r.endContainer,'end'),text=String(s).trim();if(!text||!a||!b)return;window.ReactNativeWebView.postMessage(JSON.stringify({source:'porcelain-preview-selection',startLine:Math.min(a,b),endLine:Math.max(a,b),text:text.slice(0,2000)}))}
+document.addEventListener('selectionchange',function(){setTimeout(send,0)},true);document.addEventListener('touchend',send,true)
+})();true;`

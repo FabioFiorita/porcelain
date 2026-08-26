@@ -24,8 +24,8 @@ import { useFileViewer } from './use-file-viewer'
  * A markdown or HTML file also has a rendered face. Which one it opens in is the Settings
  * preference; the toggle above the content overrides that choice **for this file only** and
  * never writes back to the default — see `viewer-mode.ts`. Source stays the surface that
- * carries line numbers, comment markers and selection — a comment anchors to a line, and a
- * rendered page has none.
+ * carries line numbers and comment markers. Rendered Markdown preserves source positions so a
+ * native text selection can file the same line-ranged comment without switching faces.
  *
  * The state behind all of that is `use-file-viewer.ts`; this file is the markup.
  */
@@ -95,6 +95,7 @@ export function FileViewer({
       {viewer.face === 'reader' ? (
         <PreviewView
           document={readerDocument(markdownToHtml(viewer.content), scheme)}
+          onSelection={viewer.selectRendered}
           testID="porcelain-files-reader"
         />
       ) : viewer.face === 'preview' ? (
@@ -115,9 +116,6 @@ export function FileViewer({
         />
       )}
 
-      {/* A rendered page has no line numbers, so a range selected in Source has nothing to
-          point at here — the bar waits for the toggle to come back rather than hovering over
-          content it cannot describe. `anchorable` is that same rule. */}
       {viewer.anchorable === null ? null : (
         <SelectionBar
           bottomInset={bottomInset}
