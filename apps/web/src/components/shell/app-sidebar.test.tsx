@@ -31,10 +31,14 @@ vi.mock('@renderer/hooks/use-updates', () => ({
   useInstallUpdate: () => ({ install: vi.fn(), isInstalling: false }),
 }))
 
-// Its sibling chip reads daemonInfo through tRPC; this suite renders without a provider.
-// The chip's own behavior lives in daemon-update-button.test.tsx.
+// A stale daemon prompt must not restore the removed environment-update control.
 vi.mock('@renderer/hooks/use-daemon-update-prompt', () => ({
-  useDaemonUpdatePrompt: () => null,
+  useDaemonUpdatePrompt: () => ({
+    daemonName: 'beelink soap',
+    daemonVersion: '0.59.0',
+    clientVersion: '0.59.2',
+    dismiss: vi.fn(),
+  }),
 }))
 
 describe('AppSidebar', () => {
@@ -46,6 +50,7 @@ describe('AppSidebar', () => {
     render(<AppSidebar />)
     expect(screen.getByText('Porcelain')).toBeInTheDocument()
     expect(screen.getByTestId(TestIds.hubAddProject)).toBeInTheDocument()
+    expect(screen.queryByTestId(TestIds.daemonUpdateButton)).not.toBeInTheDocument()
     expect(
       screen.getByLabelText('Search commands, projects, files, and commits'),
     ).toBeInTheDocument()
