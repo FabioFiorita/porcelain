@@ -4,6 +4,7 @@ import { startDaemon } from './daemon'
 import { registerTrpcHandler } from './ipc'
 import { installAppMenu } from './menu'
 import { installTray } from './tray'
+import { shouldInstallTray } from './tray-policy'
 import { initUpdater } from './updater'
 import { createWindow } from './window'
 
@@ -81,9 +82,9 @@ app.whenReady().then(async () => {
   // One global shell-router handler for every window (ipcMain.handle is process-wide).
   registerTrpcHandler()
   installAppMenu()
-  // The menu-bar icon lives for the whole process (it is not owned by any window), so
-  // it is installed once here alongside the other process-wide handlers.
-  installTray()
+  // macOS already exposes Porcelain through the Dock and application menu. The former
+  // menu-bar icon duplicated that entry point without providing a useful action.
+  if (shouldInstallTray(process.platform)) installTray()
 
   // Spawn the daemon (the Electron-free backend: appRouter over HTTP, terminal/
   // watch/legacy event bus over the WS session) before the first window so the preload's
