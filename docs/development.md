@@ -96,7 +96,10 @@ profile, port, and playground.
 primary checkout uses port 8081; managed worktrees derive a port from their daemon allocation.
 `pnpm dev:mobile:android <command>` gives the Android driving loop profile-owned state as well.
 Physical devices, AVDs, and iOS simulator UDIDs are still shared machine resources: select them
-explicitly, and never stop one that the current session did not start.
+explicitly, and never stop one that the current session did not start. On a machine that also runs
+a second account's work (its own `ANDROID_HOME`, its own AVDs), the AVD config is isolated per
+account but `/dev/kvm` and host RAM/CPU are not — a concurrent emulator on the other account can
+still slow or stall this one with no porcelain-side cause.
 
 ## The working loop
 
