@@ -7,7 +7,18 @@ const PROJECT = 'project-1'
 const WORKTREE = 'worktree-1'
 const REPO = process.cwd()
 
-function harness(options: { trackedCanvas?: boolean; canvasContent?: string } = {}) {
+function harness(
+  options: {
+    trackedCanvas?: boolean
+    canvasContent?: string
+    worktreeOverride?: {
+      pinnedPaths: string[]
+      hiddenPaths: string[]
+      unhiddenPaths: string[]
+      layers: { label: string; pattern: string }[] | null
+    } | null
+  } = {},
+) {
   const calls: { name: string; input: unknown }[] = []
   const comments = [
     { id: 'comment-open', path: 'src/a.ts', body: 'why?', resolved: false, createdAt: 1 },
@@ -25,7 +36,7 @@ function harness(options: { trackedCanvas?: boolean; canvasContent?: string } = 
       worktreeProfile: async () => ({
         worktreeId: WORKTREE,
         base: { pinnedPaths: ['README.md'], hiddenPaths: ['dist'], layers: [] },
-        override: null,
+        override: options.worktreeOverride ?? null,
         resolved: { pinnedPaths: ['README.md'], hiddenPaths: ['dist'], layers: [] },
       }),
       setProjectProfile: async (repoPath: string, profile: unknown) =>
@@ -231,6 +242,68 @@ describe('domain MCP entry points', () => {
     expect(calls).toContainEqual({
       name: 'promoteOverrides',
       input: { projectId: PROJECT, path: REPO, hiddenPaths: ['dist'], pinnedPaths: ['README.md'] },
+    })
+  })
+
+  it('updates project story layers without changing manual pins or hides', async () => {
+    const { tools, calls } = harness()
+    await tools.call('porcelain_profile', {
+      op: 'set',
+      workspace: REPO,
+      level: 'project',
+      profile: { layers: [{ label: 'View', pattern: 'components/' }] },
+    })
+    expect(calls).toContainEqual({
+      name: 'setProjectProfile',
+      input: {
+        repoPath: REPO,
+        profile: {
+          pinnedPaths: ['README.md'],
+          hiddenPaths: ['dist'],
+          layers: [{ label: 'View', pattern: 'components/' }],
+        },
+      },
+    })
+  })
+
+  it('updates worktree story layers without changing manual path choices', async () => {
+    const { tools, calls } = harness({
+      worktreeOverride: {
+        pinnedPaths: ['src/manual.ts'],
+        hiddenPaths: ['tmp'],
+        unhiddenPaths: ['dist'],
+        layers: null,
+      },
+    })
+    await tools.call('porcelain_profile', {
+      op: 'set',
+      workspace: REPO,
+      level: 'worktree',
+      profile: { layers: [{ label: 'Service', pattern: 'services/' }] },
+    })
+    expect(calls).toContainEqual({
+      name: 'setWorktreeProfile',
+      input: {
+        repoPath: REPO,
+        profile: {
+          pinnedPaths: ['src/manual.ts'],
+          hiddenPaths: ['tmp'],
+          unhiddenPaths: ['dist'],
+          layers: [{ label: 'Service', pattern: 'services/' }],
+        },
+      },
+    })
+  })
+
+  it('clears only story layers and preserves manual project paths', async () => {
+    const { tools, calls } = harness()
+    await tools.call('porcelain_profile', { op: 'clear', workspace: REPO, level: 'project' })
+    expect(calls).toContainEqual({
+      name: 'setProjectProfile',
+      input: {
+        repoPath: REPO,
+        profile: { pinnedPaths: ['README.md'], hiddenPaths: ['dist'], layers: [] },
+      },
     })
   })
 })

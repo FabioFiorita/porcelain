@@ -41,32 +41,14 @@ const PROFILE_LAYER = {
 } as const
 
 const PROFILE = {
-  oneOf: [
-    {
-      type: 'object',
-      properties: {
-        pinnedPaths: { type: 'array', items: { type: 'string' } },
-        hiddenPaths: { type: 'array', items: { type: 'string' } },
-        layers: { type: 'array', items: PROFILE_LAYER },
-      },
-      required: ['pinnedPaths', 'hiddenPaths', 'layers'],
-      additionalProperties: false,
-      description: 'Project profile',
-    },
-    {
-      type: 'object',
-      properties: {
-        pinnedPaths: { type: 'array', items: { type: 'string' } },
-        hiddenPaths: { type: 'array', items: { type: 'string' } },
-        unhiddenPaths: { type: 'array', items: { type: 'string' } },
-        layers: { type: ['array', 'null'], items: PROFILE_LAYER },
-      },
-      required: ['pinnedPaths', 'hiddenPaths', 'unhiddenPaths', 'layers'],
-      additionalProperties: false,
-      description: 'Worktree override',
-    },
-  ],
-  description: 'Required for set; set replaces the selected level as a whole.',
+  type: 'object',
+  properties: {
+    layers: { type: ['array', 'null'], items: PROFILE_LAYER },
+  },
+  required: ['layers'],
+  additionalProperties: false,
+  description:
+    'Required for set. Agents can change story layers only; manual pin/hide choices are preserved.',
 } as const
 
 const CANVAS_FILE = {
@@ -207,7 +189,7 @@ export const MCP_TOOLS: readonly McpToolDefinition[] = Object.freeze([
     name: 'porcelain_profile',
     title: 'Manage the Repository Profile',
     description:
-      'Get, replace, clear, or promote a project profile or worktree override. Profiles contain pins, hides, optional unhidden paths, and story layers. set replaces the selected level as a whole; get first. Promotion writes portable pins/hides to .porcelain/project.json and intentionally does not carry private story layers or worktree overrides.',
+      'Read a project profile or worktree override, and set or clear its story layers. Pins, hides, and unhidden paths are manual file-tree choices: agent writes preserve them. Promotion writes the existing portable project pins/hides to .porcelain/project.json.',
     inputSchema: {
       type: 'object',
       properties: {

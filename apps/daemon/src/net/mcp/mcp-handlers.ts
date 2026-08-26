@@ -1,4 +1,4 @@
-import { resolvedProfileSchema, worktreeProfileSchema } from '@porcelain/contracts'
+import { profileLayerSchema } from '@porcelain/contracts'
 import type { McpToolHandlers, McpToolResult } from './mcp-dispatch'
 import type { McpOperations } from './mcp-operations'
 import {
@@ -420,16 +420,20 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
         return workspaceResult(place, level === 'project' ? view.base : view.override)
       }
       if (op === 'clear') {
+        const view = await operations.files.worktreeProfile(place.worktreePath)
         if (level === 'project') {
           await operations.files.setProjectProfile(place.worktreePath, {
-            pinnedPaths: [],
-            hiddenPaths: [],
+            pinnedPaths: view.base.pinnedPaths,
+            hiddenPaths: view.base.hiddenPaths,
             layers: [],
           })
         } else {
-          await operations.files.setWorktreeProfile(place.worktreePath, null)
+          await operations.files.setWorktreeProfile(
+            place.worktreePath,
+            view.override === null ? null : { ...view.override, layers: null },
+          )
         }
-        return ok(`${level === 'project' ? 'Project profile' : 'Worktree override'} cleared.`)
+        return ok(`${level === 'project' ? 'Project' : 'Worktree'} story layers cleared.`)
       }
       if (op === 'promote') {
         if (level !== 'project')
@@ -446,22 +450,33 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
           : fail(`Could not promote the profile: ${describeError(promoted.error)}`)
       }
       if (op !== 'set') return fail('op must be get, set, clear, or promote.')
+      if (!isRecord(args.profile)) return fail('profile with a layers field is required for set.')
+      const view = await operations.files.worktreeProfile(place.worktreePath)
       if (level === 'project') {
-        const parsed = resolvedProfileSchema.safeParse(args.profile)
+        const parsed = profileLayerSchema.array().safeParse(args.profile.layers)
         if (!parsed.success)
           return fail(
-            `Invalid project profile: ${parsed.error.issues[0]?.message ?? 'invalid input'}.`,
+            `Invalid project layers: ${parsed.error.issues[0]?.message ?? 'invalid input'}.`,
           )
-        await operations.files.setProjectProfile(place.worktreePath, parsed.data)
+        await operations.files.setProjectProfile(place.worktreePath, {
+          pinnedPaths: view.base.pinnedPaths,
+          hiddenPaths: view.base.hiddenPaths,
+          layers: parsed.data,
+        })
       } else {
-        const parsed = worktreeProfileSchema.safeParse(args.profile)
+        const parsed = profileLayerSchema.array().nullable().safeParse(args.profile.layers)
         if (!parsed.success)
           return fail(
-            `Invalid worktree profile: ${parsed.error.issues[0]?.message ?? 'invalid input'}.`,
+            `Invalid worktree layers: ${parsed.error.issues[0]?.message ?? 'invalid input'}.`,
           )
-        await operations.files.setWorktreeProfile(place.worktreePath, parsed.data)
+        await operations.files.setWorktreeProfile(place.worktreePath, {
+          pinnedPaths: view.override?.pinnedPaths ?? [],
+          hiddenPaths: view.override?.hiddenPaths ?? [],
+          unhiddenPaths: view.override?.unhiddenPaths ?? [],
+          layers: parsed.data,
+        })
       }
-      return ok(`${level === 'project' ? 'Project profile' : 'Worktree override'} replaced.`)
+      return ok(`${level === 'project' ? 'Project' : 'Worktree'} story layers updated.`)
     },
 
     async porcelain_action(args, place) {

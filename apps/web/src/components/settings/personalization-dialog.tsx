@@ -9,9 +9,7 @@ import { usePersonalizationStore } from '@renderer/stores/personalization'
 import { TestIds } from '@shared/test-ids'
 import { PersonalizationSection } from './personalization-section'
 
-/**
- * One Project's pins, hides, and story order, raised from its row in the sidebar tree.
- */
+/** One Project's copyable story-order instruction, raised from its sidebar row. */
 export function PersonalizationDialog(): React.JSX.Element {
   const target = usePersonalizationStore((state) => state.target)
   const close = usePersonalizationStore((state) => state.close)
@@ -29,15 +27,10 @@ export function PersonalizationDialog(): React.JSX.Element {
           <DialogDescription>
             {target === null
               ? ''
-              : `What ${target.projectName} pins, hides, and the order its changes read in.`}
+              : `Agent guidance for how ${target.projectName} changes should read.`}
           </DialogDescription>
         </DialogHeader>
-        {target !== null && (
-          <PersonalizationSection
-            repoPath={target.projectPath}
-            environmentId={target.environmentId}
-          />
-        )}
+        {target !== null && <PersonalizationSection repoPath={target.projectPath} />}
       </DialogContent>
     </Dialog>
   )

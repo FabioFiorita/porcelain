@@ -75,12 +75,13 @@ cannot collide with another checkout.
 
 ## Porcelain profile
 
-This worktree's profile — pinned paths, hidden paths, and story layer order — is meant to mutate.
-Setting it to match the task you are starting is a standing request here, so treat this section as
-the human's ask: use `porcelain_profile` at `level` worktree when you start substantial work, and
-`op` clear when it is done. Levels, the whole-document write shape, and the confirmation rule live
-in the [profile reference](plugins/porcelain/skills/companion/references/profile.md);
-read it before your first write.
+Pinned and hidden paths are manual file-tree choices: agents preserve them exactly and never add,
+remove, or recommend them. Story layer order is meant to follow the task. Use
+`porcelain_profile` at `level` worktree to update only `layers` when substantial work starts or
+changes shape, and restore inherited layers when it is done without changing manual path choices.
+The whole-document write shape and confirmation rule live in the
+[profile reference](plugins/porcelain/skills/companion/references/profile.md); read it before your
+first write.
 
 ## Hard safety rules
 

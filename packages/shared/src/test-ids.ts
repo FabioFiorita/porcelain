@@ -110,21 +110,8 @@ export const TestIds = {
   settingsCommitModel: 'settings-commit-model',
   /** Settings → Share: authorized and pending devices. */
   shareStatus: 'share-status',
-  /**
-   * Settings → Personalization: the worktree profile, read-only. Pins and hides
-   * are edited from the tree; layers are written by the agent, so the copyable
-   * prompts ARE the affordance here rather than a form.
-   */
-  personalizationBase: 'personalization-base',
-  personalizationOverride: 'personalization-override',
-  personalizationCopyStarter: 'personalization-copy-starter',
-  personalizationCopyWorktree: 'personalization-copy-worktree',
-  personalizationCopyKeeper: 'personalization-copy-keeper',
-  /** Files panel first-run prompt: no profile at either level yet. */
-  filesProfileSetup: 'files-profile-setup',
-  filesProfileSetupDismiss: 'files-profile-setup-dismiss',
-  filesProfileSetupProject: 'files-profile-setup-project',
-  filesProfileSetupWorktree: 'files-profile-setup-worktree',
+  /** Settings → Personalization: visible agent instruction and its copy affordance. */
+  personalizationCopyInstruction: 'personalization-copy-instruction',
 
   // --- Changes ---
   changesList: 'changes-list',

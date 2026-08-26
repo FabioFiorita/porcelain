@@ -29,7 +29,7 @@ const SECTIONS: { value: SettingsSection; label: string; detail: string; testID:
   {
     value: 'personalization',
     label: 'Personalization',
-    detail: 'What this project pins, hides, and the order your changes read in.',
+    detail: 'Copyable guidance for how changes should read.',
     testID: 'porcelain-settings-section-personalization',
   },
   {
