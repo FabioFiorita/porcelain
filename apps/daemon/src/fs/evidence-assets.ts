@@ -46,7 +46,7 @@ const MIME: Record<string, string> = {
   '.webm': 'video/webm',
 }
 
-function mimeFor(filePath: string): string {
+export function mimeFor(filePath: string): string {
   const lower = filePath.toLowerCase()
   for (const [ext, mime] of Object.entries(MIME)) {
     if (lower.endsWith(ext)) return mime
@@ -140,6 +140,7 @@ export async function inlineLocalAssets(
   html: string,
   rootDir: string = dir,
   inlineScripts = false,
+  inlineMedia = true,
 ): Promise<string> {
   const base = resolve(dir)
   const root = resolve(rootDir)
@@ -218,7 +219,9 @@ export async function inlineLocalAssets(
     [...paths].map(async (raw) => {
       const asset = await readContainedAsset(base, root, rootReal, raw)
       if (asset === null) return
-      dataUris.set(raw, `data:${mimeFor(asset.lexical)};base64,${asset.bytes.toString('base64')}`)
+      const mime = mimeFor(asset.lexical)
+      if (!inlineMedia && (mime.startsWith('video/') || mime.startsWith('audio/'))) return
+      dataUris.set(raw, `data:${mime};base64,${asset.bytes.toString('base64')}`)
     }),
   )
 

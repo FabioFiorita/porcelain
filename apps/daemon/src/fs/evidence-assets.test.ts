@@ -40,6 +40,12 @@ describe('inlineLocalAssets', () => {
     expect(out).not.toContain('src="capture.mp4"')
   })
 
+  it('leaves media sources relative when the caller provides a streaming route', async () => {
+    writeFileSync(join(dir, 'capture.mp4'), Buffer.from('video-bytes'))
+    const html = '<video controls src="capture.mp4"></video>'
+    expect(await inlineLocalAssets(dir, html, dir, true, false)).toBe(html)
+  })
+
   it('leaves remote and missing stylesheets alone', async () => {
     const html =
       '<link rel="stylesheet" href="https://example.com/styles.css"><link rel="stylesheet" href="missing.css">'

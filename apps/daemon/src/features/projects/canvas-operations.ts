@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
-import { realpath } from 'node:fs/promises'
-import { resolve } from 'node:path'
+import { readFile, realpath } from 'node:fs/promises'
+import { isAbsolute, relative, resolve, sep } from 'node:path'
 import type {
   CanvasRecord,
   ListCanvasesInput,
@@ -13,7 +13,7 @@ import type {
   PromoteOverridesInput,
   ReadCanvasInput,
 } from '@porcelain/contracts/projects'
-import { inlineLocalAssets } from '../../fs/evidence-assets'
+import { inlineLocalAssets, mimeFor } from '../../fs/evidence-assets'
 import type { CanvasAccessTokens } from './canvas-access-tokens'
 import type { CanvasKind, StoredCanvas } from './canvas-bundle'
 import type { CanvasOverlayStore } from './canvas-overlay-store'
@@ -80,6 +80,9 @@ export type CanvasOperations = Readonly<{
   readCanvas: (
     input: ReadCanvasInput,
   ) => Promise<ProjectOperationResult<{ record: CanvasRecord; content: string }>>
+  readCanvasAsset: (
+    input: ReadCanvasInput & { assetPath: string },
+  ) => Promise<ProjectOperationResult<{ bytes: Buffer; contentType: string }>>
   /** For the HTML iframe's authenticated GET route (canvas-http.ts) — see its docstring. */
   mintCanvasAccessToken: (
     input: MintCanvasAccessTokenInput,
@@ -329,11 +332,37 @@ export function createCanvasOperations(options: {
       // is what actually guarantees it could not have run.
       const rendered =
         entry.record.kind === 'html'
-          ? `${await inlineLocalAssets(entry.bundleDir, entry.content, entry.bundleDir, !tracked)}${EXTERNAL_LINK_BRIDGE}`
+          ? `${await inlineLocalAssets(entry.bundleDir, entry.content, entry.bundleDir, !tracked, false)}${EXTERNAL_LINK_BRIDGE}`
           : entry.content
       return {
         ok: true,
         value: { record: toPublicRecord(entry.record, tracked), content: rendered },
+      }
+    },
+
+    async readCanvasAsset(input) {
+      const resolved = await resolveEntry(input)
+      if (!resolved.ok || resolved.value.entry.record.kind !== 'html') return notFound()
+      const root = await realpath(resolved.value.entry.bundleDir).catch(() => null)
+      if (root === null || isAbsolute(input.assetPath) || input.assetPath.includes('\0'))
+        return notFound()
+      const lexical = resolve(root, input.assetPath)
+      const rel = relative(root, lexical)
+      if (rel === '' || rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel))
+        return notFound()
+      try {
+        const actual = await realpath(lexical)
+        const actualRel = relative(root, actual)
+        if (
+          actualRel === '' ||
+          actualRel === '..' ||
+          actualRel.startsWith(`..${sep}`) ||
+          isAbsolute(actualRel)
+        )
+          return notFound()
+        return { ok: true, value: { bytes: await readFile(actual), contentType: mimeFor(lexical) } }
+      } catch {
+        return notFound()
       }
     },
 

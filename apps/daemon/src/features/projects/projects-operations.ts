@@ -74,6 +74,7 @@ export type ProjectsOperations = Readonly<{
   readCanvas: (
     input: ReadCanvasInput,
   ) => Promise<ProjectOperationResult<{ record: CanvasRecord; content: string }>>
+  readCanvasAsset: CanvasOperations['readCanvasAsset']
   mintCanvasAccessToken: (
     input: MintCanvasAccessTokenInput,
   ) => Promise<ProjectOperationResult<{ token: string }>>
@@ -247,6 +248,7 @@ export function createProjectsOperations(options: {
     findCanvasByTemplate: canvas.findCanvasByTemplate,
     forgetCanvas: canvas.forgetCanvas,
     readCanvas: canvas.readCanvas,
+    readCanvasAsset: canvas.readCanvasAsset,
     mintCanvasAccessToken: canvas.mintCanvasAccessToken,
     promoteCanvas: canvas.promoteCanvas,
     promoteOverrides: canvas.promoteOverrides,

@@ -129,6 +129,31 @@ describe('Canvas operations', () => {
     expect(result.value.content).not.toContain('src="shot.png"')
   })
 
+  it('keeps media relative and reads it only from inside the Canvas bundle', async () => {
+    await writeIndex('proj-1', [htmlRecord])
+    const bundleDir = canvasBundleDir(homeDir, 'proj-1', 'canvas-html')
+    await mkdir(bundleDir, { recursive: true })
+    await writeFile(join(bundleDir, 'index.html'), '<video src="capture.mp4"></video>', 'utf8')
+    await writeFile(join(bundleDir, 'capture.mp4'), Buffer.from('video-bytes'))
+
+    const canvas = await operations.readCanvas({ projectId: 'proj-1', canvasId: 'canvas-html' })
+    expect(canvas.ok && canvas.value.content).toContain('src="capture.mp4"')
+    expect(
+      await operations.readCanvasAsset({
+        projectId: 'proj-1',
+        canvasId: 'canvas-html',
+        assetPath: 'capture.mp4',
+      }),
+    ).toEqual({ ok: true, value: { bytes: Buffer.from('video-bytes'), contentType: 'video/mp4' } })
+    expect(
+      await operations.readCanvasAsset({
+        projectId: 'proj-1',
+        canvasId: 'canvas-html',
+        assetPath: '../index.json',
+      }),
+    ).toEqual({ ok: false, error: { code: 'canvas.not-found' } })
+  })
+
   it('appends the external-link bridge script to HTML content only', async () => {
     await writeIndex('proj-1', [htmlRecord, markdownRecord])
     await mkdir(canvasBundleDir(homeDir, 'proj-1', 'canvas-html'), { recursive: true })

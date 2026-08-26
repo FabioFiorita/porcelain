@@ -13,7 +13,7 @@ const CANVAS_ROUTE_PREFIX = '/canvas/'
  * lets a Canvas travel with a clone.
  */
 const CANVAS_DOCUMENT_CSP =
-  "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; form-action 'none'"
+  "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; media-src 'self'; connect-src 'none'; form-action 'none'"
 
 /**
  * A PROMOTED Canvas is stricter still. ADR 0002 makes this an explicit decision
@@ -25,7 +25,7 @@ const CANVAS_DOCUMENT_CSP =
  * which does not depend on a server-side sanitizer being complete. Styles,
  * images, and links still work, which is the whole point of promoting a Canvas.
  */
-const TRACKED_CANVAS_DOCUMENT_CSP = `default-src 'none'; script-src ${CANVAS_BRIDGE_SCRIPT_HASH}; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; form-action 'none'`
+const TRACKED_CANVAS_DOCUMENT_CSP = `default-src 'none'; script-src ${CANVAS_BRIDGE_SCRIPT_HASH}; style-src 'unsafe-inline'; img-src data:; media-src 'self'; connect-src 'none'; form-action 'none'`
 
 export type CanvasHttpDeps = Readonly<{
   resolveAccessToken: (
@@ -36,6 +36,12 @@ export type CanvasHttpDeps = Readonly<{
     canvasId: string
     worktreePath?: string
   }) => Promise<ProjectOperationResult<{ record: CanvasRecord; content: string }>>
+  readCanvasAsset: (input: {
+    projectId: string
+    canvasId: string
+    worktreePath?: string
+    assetPath: string
+  }) => Promise<ProjectOperationResult<{ bytes: Buffer; contentType: string }>>
 }>
 
 /**
@@ -50,6 +56,34 @@ export function canvasTokenFromUrl(url: string): string | null {
   const rest = pathOnly.slice(CANVAS_ROUTE_PREFIX.length)
   if (rest === '' || rest.includes('/')) return null
   return rest
+}
+
+function canvasRoute(url: string): { token: string; assetPath: string | null } | null {
+  const pathOnly = url.split('?')[0]?.split('#')[0] ?? ''
+  if (!pathOnly.startsWith(CANVAS_ROUTE_PREFIX)) return null
+  const [token, marker, ...assetSegments] = pathOnly.slice(CANVAS_ROUTE_PREFIX.length).split('/')
+  if (!token) return null
+  if (marker === undefined) return { token, assetPath: null }
+  if (marker !== 'assets' || assetSegments.length === 0) return null
+  try {
+    return { token, assetPath: decodeURIComponent(assetSegments.join('/')) }
+  } catch {
+    return null
+  }
+}
+
+function rangedSlice(
+  range: string | undefined,
+  size: number,
+): { start: number; end: number } | null {
+  if (range === undefined) return null
+  const match = /^bytes=(\d+)-(\d*)$/.exec(range)
+  if (!match) return null
+  const start = Number(match[1])
+  const end = match[2] === '' ? size - 1 : Number(match[2])
+  if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start > end || start >= size)
+    return null
+  return { start, end: Math.min(end, size - 1) }
 }
 
 function writePlainText(res: ServerResponse, status: number, body: string): void {
@@ -85,14 +119,51 @@ export async function handleCanvasRequest(
     res.end()
     return
   }
-  const token = canvasTokenFromUrl(req.url ?? '')
-  if (token === null) {
+  const route = canvasRoute(req.url ?? '')
+  if (route === null) {
     writePlainText(res, 404, 'not found')
     return
   }
-  const scope = deps.resolveAccessToken(token)
+  const scope = deps.resolveAccessToken(route.token)
   if (scope === null) {
     writePlainText(res, 401, 'expired or unknown Canvas access token')
+    return
+  }
+  if (route.assetPath !== null) {
+    const result = await deps.readCanvasAsset({
+      projectId: scope.projectId,
+      canvasId: scope.canvasId,
+      assetPath: route.assetPath,
+      ...(scope.worktreePath === null ? {} : { worktreePath: scope.worktreePath }),
+    })
+    if (!result.ok) {
+      writePlainText(res, 404, 'not found')
+      return
+    }
+    const { bytes, contentType } = result.value
+    const range = rangedSlice(req.headers.range, bytes.length)
+    const headers = {
+      'content-type': contentType,
+      'accept-ranges': 'bytes',
+      'cache-control': 'no-store',
+    }
+    if (req.headers.range !== undefined && range === null) {
+      res.writeHead(416, { ...headers, 'content-range': `bytes */${bytes.length}` })
+      res.end()
+      return
+    }
+    if (range !== null) {
+      const body = bytes.subarray(range.start, range.end + 1)
+      res.writeHead(206, {
+        ...headers,
+        'content-range': `bytes ${range.start}-${range.end}/${bytes.length}`,
+        'content-length': String(body.length),
+      })
+      res.end(req.method === 'HEAD' ? undefined : body)
+      return
+    }
+    res.writeHead(200, { ...headers, 'content-length': String(bytes.length) })
+    res.end(req.method === 'HEAD' ? undefined : bytes)
     return
   }
   // The grant carries the checkout the Viewer addressed, so a promoted Canvas
@@ -121,5 +192,6 @@ export async function handleCanvasRequest(
     return
   }
   res.writeHead(200, headers)
-  res.end(result.value.content)
+  const base = `<base href="${CANVAS_ROUTE_PREFIX}${route.token}/assets/">`
+  res.end(`${base}${result.value.content}`)
 }

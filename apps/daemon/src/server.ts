@@ -218,6 +218,7 @@ async function main(): Promise<void> {
       handleCanvasRequest(req, res, {
         resolveAccessToken: canvasAccessTokens.resolve,
         readCanvas: projects.readCanvas,
+        readCanvasAsset: projects.readCanvasAsset,
       }),
     // The one preview surface whose response CSP lets an author's own scripts run,
     // which is why it asks for script inlining the tRPC procedure never requests.

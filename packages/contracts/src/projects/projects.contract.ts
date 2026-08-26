@@ -211,9 +211,9 @@ export const readCanvasInputSchema = z
   })
   .strict()
 /**
- * `content` is already server-inlined for `kind: 'html'` — relative images,
- * stylesheets, and scripts are resolved and embedded (see inlineLocalAssets),
- * so the Viewer never fetches a second asset request. Markdown Canvases carry
+ * `content` is server-prepared for `kind: 'html'` — relative images,
+ * stylesheets, and scripts are embedded (see inlineLocalAssets), while media
+ * remains relative for the token-scoped streaming route. Markdown Canvases carry
  * their raw text; the Viewer's existing Markdown renderer owns presentation.
  */
 export const readCanvasOutputSchema = z

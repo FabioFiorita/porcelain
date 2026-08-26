@@ -48,6 +48,10 @@ describe('handleCanvasRequest', () => {
         ok: true,
         value: { record: HTML_RECORD, content: '<script>console.log(1)</script>' },
       }),
+      readCanvasAsset: async () => ({
+        ok: true,
+        value: { bytes: Buffer.from('0123456789'), contentType: 'video/mp4' },
+      }),
       ...overrides,
     }
   }
@@ -80,8 +84,24 @@ describe('handleCanvasRequest', () => {
       const csp = res.headers.get('content-security-policy')
       expect(csp).toContain("connect-src 'none'")
       expect(csp).toContain("script-src 'unsafe-inline'")
+      expect(csp).toContain("media-src 'self'")
       expect(res.headers.get('content-type')).toContain('text/html')
-      expect(await res.text()).toBe('<script>console.log(1)</script>')
+      expect(await res.text()).toBe(
+        '<base href="/canvas/tok/assets/"><script>console.log(1)</script>',
+      )
+    })
+  })
+
+  it('serves a Canvas media asset with byte-range semantics', async () => {
+    await withServer(deps(), async (base) => {
+      const res = await fetch(`${base}/canvas/tok/assets/capture.mp4`, {
+        headers: { range: 'bytes=2-5' },
+      })
+      expect(res.status).toBe(206)
+      expect(res.headers.get('content-type')).toBe('video/mp4')
+      expect(res.headers.get('accept-ranges')).toBe('bytes')
+      expect(res.headers.get('content-range')).toBe('bytes 2-5/10')
+      expect(await res.text()).toBe('2345')
     })
   })
 

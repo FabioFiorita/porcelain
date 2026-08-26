@@ -5,6 +5,11 @@ import { expect, loc, selectTab, TestIds, test, waitForShell } from './helpers/a
 // Real bytes, so inlineLocalAssets has something to base64 and the gallery has something to decode.
 import { PNG_1PX } from './helpers/review-fixture'
 
+const MP4_1S = Buffer.from(
+  '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',
+  'base64',
+)
+
 interface StoredCanvas {
   id: string
   worktreeId: string | null
@@ -102,6 +107,7 @@ test('Canvas: list, Markdown render, and a sandboxed HTML Canvas with inlined as
           '</head><body>',
           '<p id="proof">canvas content</p>',
           '<img id="shot" src="shot.png">',
+          '<video id="capture" controls src="capture.mp4"></video>',
           '<a href="https://example.com/porcelain-e2e">external link</a>',
           '<script src="app.js"></script>',
           '</body></html>',
@@ -109,6 +115,7 @@ test('Canvas: list, Markdown render, and a sandboxed HTML Canvas with inlined as
         'style.css': '#proof { color: rgb(255, 0, 0); }',
         'app.js': 'document.getElementById("proof").dataset.scriptRan = "yes"',
         'shot.png': PNG_1PX,
+        'capture.mp4': MP4_1S,
       },
     },
   )
@@ -141,6 +148,11 @@ test('Canvas: list, Markdown render, and a sandboxed HTML Canvas with inlined as
   await expect(frame.locator('#proof')).toHaveCSS('color', 'rgb(255, 0, 0)')
   // The sibling image was inlined as a data URI, not left as a broken relative src.
   await expect(frame.locator('#shot')).toHaveAttribute('src', /^data:image\/png;base64,/)
+  const video = frame.locator('#capture')
+  await expect(video).toHaveAttribute('src', 'capture.mp4')
+  await expect
+    .poll(() => video.evaluate((element: HTMLVideoElement) => element.duration))
+    .toBeGreaterThan(0)
 
   // Neither allow-top-navigation nor allow-popups is granted, so the click-
   // interception bridge is the ONLY way this link can reach anywhere — it must
