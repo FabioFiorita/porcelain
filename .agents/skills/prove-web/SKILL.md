@@ -1,6 +1,6 @@
 ---
 name: prove-web
-version: 0.59.0
+version: 0.59.1
 metadata:
   internal: true
 description: Drive the browser client to observe a change in a real page — dev daemon plus HMR client, snapshot the accessibility tree, click and type, screenshot. Use when the changed behavior is `apps/web`, a daemon procedure seen through the UI, or any client behavior an Electron shell is not needed for. Read `docs/runtime-proof.md` for what finishes a proof.

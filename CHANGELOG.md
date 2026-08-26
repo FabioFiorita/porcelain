@@ -1,3 +1,11 @@
+## [0.59.1](https://github.com/FabioFiorita/porcelain/compare/v0.59.0...v0.59.1) (2026-08-26)
+
+### Bug Fixes
+
+* hide inactive tray icon on macOS ([1f8bc29](https://github.com/FabioFiorita/porcelain/commit/1f8bc291abe150639a1adeea32c0bfcc03a6a6bb))
+* make worktree removal immediate across environments ([ff346a2](https://github.com/FabioFiorita/porcelain/commit/ff346a2deab13be706748368273dd654d2a34ca1))
+* polish review and surface state ([90337a5](https://github.com/FabioFiorita/porcelain/commit/90337a518050247b0efa0e306a9b9427b6d4a31f))
+
 ## [0.59.0](https://github.com/FabioFiorita/porcelain/compare/v0.58.0...v0.59.0) (2026-08-25)
 
 ## [0.58.0](https://github.com/FabioFiorita/porcelain/compare/v0.57.2...v0.58.0) (2026-08-22)
