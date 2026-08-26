@@ -10,11 +10,10 @@ import type { ChromeIconName } from '@/components/chrome-glyph'
  * shell actually needs: which surfaces exist, what they are called, what they are drawn with,
  * and where each one opens.
  *
- * **The set is the web rail's set**, in the web rail's order — `apps/web`'s
- * `shell/surface-sidebar.tsx` `SURFACES`. It was four here and six there, and the two that were
- * missing (Git, Canvas) were not missing from the app: they were screens the Worktree list
- * pushed, unknown to the shell, so neither could ever appear in a panel or be reached from the
- * palette. A surface the shell cannot name is a surface the tablet cannot show.
+ * Shared surfaces follow the web rail's order. Mobile additionally keeps Search as a native
+ * Worktree surface; desktop retired its duplicate rich-search surface in favor of the shell
+ * finder and content-search dialog. The shared `searchCode` daemon route still owns mobile's
+ * regex, case, and include/exclude search.
  *
  * Terminal is deliberately absent from both clients. Shells are daemon-wide, not a property of
  * one checkout, so they are a destination of their own (`app/terminals/`).
@@ -25,7 +24,7 @@ export type SurfaceId = 'files' | 'changes' | 'history' | 'git' | 'search' | 'ca
 export type Surface = {
   readonly id: SurfaceId
   readonly label: string
-  /** The one-line description, verbatim from the web rail so the two cannot drift. */
+  /** The one-line description; shared surfaces match the web rail. */
   readonly hint: string
   readonly glyph: ChromeIconName
   /** Route inside the Hub stack. Every surface has one — a surface that opens nothing is not one. */
@@ -33,9 +32,9 @@ export type Surface = {
 }
 
 /**
- * Presentation order, matching the web rail. These are not tabs: on a phone a surface is a
- * screen inside the Hub stack, reached from the Worktree that owns it; on a tablet it is a tab
- * of the trailing Surfaces panel, beside the viewer it opens into.
+ * Shared-surface order matches the web rail. These are not tabs: on a phone a surface is a screen
+ * inside the Hub stack, reached from the Worktree that owns it; on a tablet it is a tab of the
+ * trailing Surfaces panel, beside the viewer it opens into.
  */
 export const SURFACES: readonly Surface[] = [
   {
@@ -53,18 +52,18 @@ export const SURFACES: readonly Surface[] = [
     route: '/changes',
   },
   {
-    id: 'history',
-    label: 'History',
-    hint: 'Inspect commit history',
-    glyph: 'copy',
-    route: '/history',
-  },
-  {
     id: 'git',
     label: 'Git',
     hint: 'Commands, suggestions, and commit',
     glyph: 'commit',
     route: '/git',
+  },
+  {
+    id: 'history',
+    label: 'History',
+    hint: 'Inspect commit history',
+    glyph: 'copy',
+    route: '/history',
   },
   {
     id: 'search',

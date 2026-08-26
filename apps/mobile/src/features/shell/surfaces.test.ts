@@ -12,10 +12,8 @@ import { SURFACES, surfaceById } from './surfaces'
  * appear in the tablet's panel, and the quick-open palette's `switch` over surfaces silently did
  * nothing for both. Nobody noticed because nothing compared the two lists.
  *
- * This does. The web rail is the source: its `SURFACES` is read off disk and the ids, their
- * order and their one-line hints have to match. A surface added to the desktop and not to this
- * client fails here, which is the only place the drift is visible before a human finds it on an
- * iPad.
+ * This does for the shared set. Mobile deliberately adds Search because it is a native Worktree
+ * surface there; desktop uses its shell finder and content-search dialog instead.
  */
 
 const WEB_RAIL = join(
@@ -47,14 +45,22 @@ function webRail(): { id: string; hint: string }[] {
 }
 
 describe('surfaces', () => {
-  it('is the web rail’s set, in the web rail’s order', () => {
-    expect(SURFACES.map((surface) => surface.id)).toEqual(webRail().map((entry) => entry.id))
+  it('keeps shared surfaces in the web rail’s order and retains mobile Search', () => {
+    const webIds = webRail().map((entry) => entry.id)
+    expect(
+      SURFACES.filter((surface) => surface.id !== 'search').map((surface) => surface.id),
+    ).toEqual(webIds)
+    expect(surfaceById('search')).toMatchObject({
+      hint: 'Search code and files',
+      route: '/search',
+    })
   })
 
   it('describes each surface the way the desktop describes it', () => {
     const hints = new Map(webRail().map((entry) => [entry.id, entry.hint]))
-    expect(SURFACES.map((surface) => [surface.id, surface.hint])).toEqual(
-      SURFACES.map((surface) => [surface.id, hints.get(surface.id)]),
+    const shared = SURFACES.filter((surface) => surface.id !== 'search')
+    expect(shared.map((surface) => [surface.id, surface.hint])).toEqual(
+      shared.map((surface) => [surface.id, hints.get(surface.id)]),
     )
   })
 
