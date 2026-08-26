@@ -21,7 +21,10 @@ export function PersonalizationDialog(): React.JSX.Element {
         if (!open) close()
       }}
     >
-      <DialogContent data-testid={TestIds.hubPersonalizationDialog} className="sm:max-w-lg">
+      <DialogContent
+        data-testid={TestIds.hubPersonalizationDialog}
+        className="max-h-[calc(100dvh-2rem)] min-w-0 overflow-y-auto sm:max-w-lg"
+      >
         <DialogHeader>
           <DialogTitle>Personalization</DialogTitle>
           <DialogDescription>

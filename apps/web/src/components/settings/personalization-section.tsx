@@ -25,12 +25,12 @@ export function PersonalizationSection({ repoPath }: { repoPath: string }): Reac
     )
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex min-w-0 flex-col gap-3">
       <p className="text-xs text-muted-foreground">
         Story order helps Porcelain present a change in the sequence it travels through this
         repository. Add this instruction to your agent guidance.
       </p>
-      <pre className="max-h-80 overflow-auto whitespace-pre-wrap rounded-md bg-card p-3 font-mono text-xs text-foreground/90">
+      <pre className="wrap-anywhere max-h-80 max-w-full min-w-0 overflow-auto whitespace-pre-wrap rounded-md bg-card p-3 font-mono text-xs text-foreground/90">
         {instruction}
       </pre>
       <div>

@@ -18,6 +18,9 @@ describe('PersonalizationSection', () => {
     expect(screen.getByText(/## Porcelain story order/)).toBeInTheDocument()
     expect(screen.queryByText(/pinned/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/hidden/i)).not.toBeInTheDocument()
+    const instruction = screen.getByText(/## Porcelain story order/)
+    expect(instruction).toHaveClass('min-w-0', 'max-w-full', 'wrap-anywhere')
+    expect(instruction.parentElement).toHaveClass('min-w-0')
   })
 
   it('copies the visible instruction with the checkout path filled in', async () => {
