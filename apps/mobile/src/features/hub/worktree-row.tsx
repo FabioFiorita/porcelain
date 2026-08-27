@@ -1,6 +1,7 @@
+import { gitBranchesQuery } from '@porcelain/client-runtime/git'
+import { type BranchRef, gitProcedures } from '@porcelain/contracts/git'
 import type { HubProject, HubWorktree } from '@porcelain/contracts/projects'
-import { gitProcedures } from '@porcelain/contracts/git'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'expo-router'
 import { useRef, useState } from 'react'
 import { Alert, Pressable, View } from 'react-native'
@@ -9,22 +10,24 @@ import ReanimatedSwipeable, {
 } from 'react-native-gesture-handler/ReanimatedSwipeable'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
-import { RowContextMenu, type RowMenuAction } from '@/components/ui/row-context-menu'
-import { Sheet } from '@/components/ui/sheet'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { SURFACE_ROW, SURFACE_ROW_SELECTED } from '@/components/surface-layout'
+import { Button } from '@/components/ui/button'
+import { RowContextMenu, type RowMenuAction } from '@/components/ui/row-context-menu'
+import { Select } from '@/components/ui/select'
 import { Text } from '@/components/ui/text'
+import { gitQueryKey } from '@/features/git/git-query-key'
+import { callGit } from '@/features/git/use-git-transport'
 import type { Environment } from '@/features/remote'
 import { copyText } from '@/lib/clipboard'
 import { namedContractProcedure } from '@/lib/daemon/procedure'
-import { callGit } from '@/features/git/use-git-transport'
 import { cn } from '@/lib/utils'
 
 import { useRetireHubWorktree } from './hub-mutations'
 import { openHubWorktree } from './hub-selection'
+import { ResponsiveHubDialog } from './responsive-hub-dialog'
 
 const checkoutProcedure = namedContractProcedure('gitCheckout', gitProcedures.gitCheckout)
+const branchesProcedure = namedContractProcedure('gitBranches', gitProcedures.gitBranches)
 
 /**
  * One Worktree in the Hub list.
@@ -65,6 +68,12 @@ export function WorktreeRow({
   const [switchOpen, setSwitchOpen] = useState(false)
   const [branch, setBranch] = useState(worktree.branch)
   const [switchError, setSwitchError] = useState<string | null>(null)
+  const branches = useQuery({
+    enabled: switchOpen && environment !== null,
+    queryFn: async (): Promise<BranchRef[]> =>
+      callGit(environment, branchesProcedure, worktree.path),
+    queryKey: gitQueryKey(environment?.id ?? 'none', gitBranchesQuery(worktree.path)),
+  })
   const checkout = useMutation({
     mutationFn: async (next: string) =>
       callGit(environment, checkoutProcedure, { branch: next, repoPath: worktree.path }),
@@ -210,21 +219,37 @@ export function WorktreeRow({
           {row}
         </RowContextMenu>
       </ReanimatedSwipeable>
-      <Sheet
+      <ResponsiveHubDialog
+        description={`Choose the branch checked out in ${worktree.name}.`}
         open={switchOpen}
         testID="porcelain-switch-branch"
         title="Switch branch"
         onClose={() => setSwitchOpen(false)}
       >
-        <View className="gap-3 px-5">
-          <Input
-            autoCapitalize="none"
-            autoCorrect={false}
-            className="font-mono"
-            placeholder="Branch"
+        <View className="gap-3 px-5 py-5">
+          <Select
+            disabled={branches.isPending || branches.isError}
+            options={(branches.data ?? []).map((candidate) => ({
+              detail: candidate.remote === null ? undefined : `Remote: ${candidate.remote}`,
+              label: candidate.name,
+              testID: `porcelain-switch-branch-option-${candidate.name}`,
+              value: candidate.name,
+            }))}
+            testID="porcelain-switch-branch-picker"
+            title="Branch"
             value={branch}
-            onChangeText={setBranch}
+            onChange={setBranch}
           />
+          {branches.isPending ? (
+            <Text className="text-xs text-muted-foreground">Reading branches…</Text>
+          ) : null}
+          {branches.isError ? (
+            <Text className="text-xs text-destructive">
+              {branches.error instanceof Error
+                ? branches.error.message
+                : 'Could not read branches.'}
+            </Text>
+          ) : null}
           {switchError === null ? null : (
             <Text className="text-xs text-destructive">{switchError}</Text>
           )}
@@ -253,7 +278,7 @@ export function WorktreeRow({
             </Button>
           </View>
         </View>
-      </Sheet>
+      </ResponsiveHubDialog>
     </>
   )
 }

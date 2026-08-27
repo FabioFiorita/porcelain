@@ -67,8 +67,6 @@ export function PinnedSection({
     })
   }
 
-  if (compact && entries.length === 0 && error === null && actionError === null) return null
-
   return (
     // Compact draws its own band because it is stacked ON something: without the rule the pins
     // and the first tree row read as one list. The sheet is the whole panel and needs no edge.

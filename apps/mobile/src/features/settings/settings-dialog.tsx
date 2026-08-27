@@ -52,7 +52,7 @@ export function SettingsDialog(): React.JSX.Element {
               {/* panel-card-allow: this is the Settings window shell, not a content card. */}
               <View
                 className="flex-row overflow-hidden rounded-xl border border-border bg-card"
-                onStartShouldSetResponder={() => true}
+                onTouchEnd={(event) => event.stopPropagation()}
                 /* nativewind-allow-style: the card is a fraction of the window, not a token. */
                 style={{ height: dialogHeight, width: dialogWidth }}
                 testID="porcelain-settings-dialog"

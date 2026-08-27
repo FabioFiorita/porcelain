@@ -2,16 +2,16 @@ import type { HubProjectGroup } from '@porcelain/client-runtime/projects'
 import { Alert, Pressable, View } from 'react-native'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
-import { SURFACE_GUTTER } from '@/components/surface-layout'
 import { IconAction } from '@/components/panel-chrome'
+import { SURFACE_GUTTER } from '@/components/surface-layout'
 import { RowContextMenu, type RowMenuAction } from '@/components/ui/row-context-menu'
 import { Text } from '@/components/ui/text'
-import { usePersonalizationStore } from '@/features/settings/personalization-store'
 import type { Environment } from '@/features/remote'
+import { usePersonalizationStore } from '@/features/settings/personalization-store'
 import { copyText } from '@/lib/clipboard'
 import { cn } from '@/lib/utils'
-import { useHubOverlayStore } from './hub-overlay-store'
 import { useRemoveHubProject } from './hub-mutations'
+import { useHubOverlayStore } from './hub-overlay-store'
 
 /**
  * The Project name above its Worktrees.
@@ -35,6 +35,7 @@ export function ProjectHeading({
 }): React.JSX.Element {
   const openPersonalization = usePersonalizationStore((state) => state.open)
   const openWorktreeSetup = useHubOverlayStore((state) => state.openWorktreeSetup)
+  const openWorktreeScripts = useHubOverlayStore((state) => state.openWorktreeScripts)
   const removeProject = useRemoveHubProject()
   const worktreeCount = group.members.reduce(
     (count, member) => count + member.project.worktrees.length,
@@ -48,10 +49,10 @@ export function ProjectHeading({
   const actions: RowMenuAction[] = targets
     .flatMap<RowMenuAction>(({ environment, member }) => [
       {
-        glyph: 'plus',
-        id: `new-worktree-${member.project.id}`,
-        label: `New worktree${suffix(member.environment.name)}`,
-        onPress: () => openWorktreeSetup({ environment, project: member.project }),
+        glyph: 'terminal',
+        id: `worktree-scripts-${member.project.id}`,
+        label: `Worktree scripts…${suffix(member.environment.name)}`,
+        onPress: () => openWorktreeScripts({ environment, project: member.project }),
       },
       {
         glyph: 'settings',
@@ -135,12 +136,12 @@ export function ProjectHeading({
           glyph="plus"
           testID={`${testID}-new-worktree`}
           tone="muted"
-          onPress={() =>
-            openWorktreeSetup({
-              environment: targets[0]!.environment,
-              project: targets[0]!.member.project,
-            })
-          }
+          onPress={() => {
+            const target = targets[0]
+            if (target !== undefined) {
+              openWorktreeSetup({ environment: target.environment, project: target.member.project })
+            }
+          }}
         />
       )}
     </View>

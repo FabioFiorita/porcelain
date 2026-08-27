@@ -114,7 +114,7 @@ export function Select<T extends string>({
                   {/* panel-card-allow: a compact picker dialog, not a content card. */}
                   <View
                     className="overflow-hidden rounded-xl border border-border bg-card py-2"
-                    onStartShouldSetResponder={() => true}
+                    onTouchEnd={(event) => event.stopPropagation()}
                     style={{
                       maxHeight: window.height - 96,
                       width: Math.min(420, window.width - 96),

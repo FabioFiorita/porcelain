@@ -2,9 +2,9 @@ import { useEffect, useRef } from 'react'
 import { Alert, Pressable, Text, View } from 'react-native'
 
 import { ChromeGlyph, type ChromeIconName, type IconTone } from '@/components/chrome-glyph'
-import { Sheet } from '@/components/ui/sheet'
 import { SURFACE_GUTTER } from '@/components/surface-layout'
 import { Input } from '@/components/ui/input'
+import { Sheet } from '@/components/ui/sheet'
 import { useShellLeading, useShellTrailing, useTopChrome } from '@/features/shell/window-chrome'
 import { cn } from '@/lib/utils'
 
@@ -290,6 +290,7 @@ export type SheetAction = {
   glyph: ChromeIconName
   tone?: IconTone
   destructive?: boolean
+  separatorBefore?: boolean
   onPress: () => void
 }
 
@@ -331,33 +332,35 @@ export function ActionSheet({
       </View>
       <View className="gap-0.5 px-2" testID={`${testID}-actions`}>
         {actions.map((action) => (
-          <Pressable
-            key={action.id}
-            accessibilityLabel={action.label}
-            accessibilityRole="button"
-            className="min-h-12 flex-row items-center gap-3 rounded-xl px-3 py-2.5 active:bg-accent"
-            testID={`${testID}-${action.id}`}
-            onPress={() => {
-              // Close first: the action may open a second sheet (composer, confirm), and a
-              // native sheet cannot present another one while it is still on screen.
-              onClose()
-              action.onPress()
-            }}
-          >
-            <ChromeGlyph
-              name={action.glyph}
-              size={17}
-              tone={action.destructive === true ? 'destructive' : (action.tone ?? 'foreground')}
-            />
-            <Text
-              className={cn(
-                'min-w-0 flex-1 text-sm font-medium',
-                action.destructive === true ? 'text-destructive' : 'text-foreground',
-              )}
+          <View key={action.id}>
+            {action.separatorBefore === true ? <View className="mx-3 my-1 h-px bg-border" /> : null}
+            <Pressable
+              accessibilityLabel={action.label}
+              accessibilityRole="button"
+              className="min-h-12 flex-row items-center gap-3 rounded-xl px-3 py-2.5 active:bg-accent"
+              testID={`${testID}-${action.id}`}
+              onPress={() => {
+                // Close first: the action may open a second sheet (composer, confirm), and a
+                // native sheet cannot present another one while it is still on screen.
+                onClose()
+                action.onPress()
+              }}
             >
-              {action.label}
-            </Text>
-          </Pressable>
+              <ChromeGlyph
+                name={action.glyph}
+                size={17}
+                tone={action.destructive === true ? 'destructive' : (action.tone ?? 'foreground')}
+              />
+              <Text
+                className={cn(
+                  'min-w-0 flex-1 text-sm font-medium',
+                  action.destructive === true ? 'text-destructive' : 'text-foreground',
+                )}
+              >
+                {action.label}
+              </Text>
+            </Pressable>
+          </View>
         ))}
       </View>
     </Sheet>

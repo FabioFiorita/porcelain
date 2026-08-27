@@ -22,8 +22,7 @@ import { isBrowser } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
 import { type SettingsSection, useSettingsDialogStore } from '@renderer/stores/settings-dialog'
 import { TestIds } from '@shared/test-ids'
-import { BookOpen, Cloud, Download, Settings2, Share2, SlidersHorizontal } from 'lucide-react'
-import { CompanionSection } from './companion-section'
+import { Cloud, Download, Settings2, Share2, SlidersHorizontal } from 'lucide-react'
 import { GeneralSection } from './general-section'
 import { RemotesSection } from './remotes-section'
 import { ShareSection } from './share-section'
@@ -74,14 +73,6 @@ const ALL_SECTIONS: {
     title: 'General',
     scope: 'app',
     blurb: 'How this app looks and reads. Saved on this machine, for every Environment.',
-  },
-  {
-    id: 'companion',
-    label: 'Companion',
-    icon: BookOpen,
-    title: 'Companion',
-    scope: 'app',
-    blurb: 'The porcelain-companion skill for the agents on this machine.',
   },
   {
     id: 'updates',
@@ -157,7 +148,7 @@ export function SettingsDialog(): React.JSX.Element | null {
   const isMobile = useIsMobile()
   const environmentName = useEnvironmentName()
   // A browser tab is a paired client of one daemon: it cannot pair others, and it cannot
-  // administer Share. Companion and Updates stay — they are copy-paste and a daemon restart.
+  // administer Share. Updates stays because the browser can restart its daemon.
   const sections = ALL_SECTIONS.filter((candidate) =>
     isBrowser ? candidate.shellOnly !== true && candidate.id !== 'share' : true,
   )
@@ -306,7 +297,6 @@ function SettingsSectionBody({ activeId }: { activeId: SettingsSection }): React
   return (
     <>
       {activeId === 'general' && <GeneralSection />}
-      {activeId === 'companion' && <CompanionSection />}
       {activeId === 'share' && <ShareSection />}
       {activeId === 'remotes' && <RemotesSection />}
       {activeId === 'updates' && <UpdatesSection />}

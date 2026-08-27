@@ -1,5 +1,12 @@
+import { actionsMutations } from '@porcelain/client-runtime/actions'
+import {
+  type ActionView,
+  actionsProcedures,
+  type WorktreeScriptKind,
+} from '@porcelain/contracts/actions'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
-import { Pressable, View } from 'react-native'
+import { Alert, Pressable, View } from 'react-native'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { ErrorNote, PanelLabel } from '@/components/panel-chrome'
@@ -10,6 +17,8 @@ import { Input } from '@/components/ui/input'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Select } from '@/components/ui/select'
 import { Text } from '@/components/ui/text'
+import { actionsListKeyForProject } from '@/features/actions/actions-query-key'
+import { callActionsProcedure } from '@/features/actions/use-actions-transport'
 import { useOpenProject, useProjectDirectories } from '@/features/projects'
 import {
   environmentActions,
@@ -17,9 +26,9 @@ import {
   useActiveEnvironment,
   useEnvironments,
 } from '@/features/remote'
-
-import { useHubOverlayStore } from './hub-overlay-store'
+import { namedContractProcedure } from '@/lib/daemon/procedure'
 import { useCreateHubWorktree } from './hub-mutations'
+import { useHubOverlayStore } from './hub-overlay-store'
 import { ResponsiveHubDialog } from './responsive-hub-dialog'
 
 export function HubOverlays(): React.JSX.Element {
@@ -27,7 +36,283 @@ export function HubOverlays(): React.JSX.Element {
     <>
       <ProjectPicker />
       <WorktreeSetup />
+      <WorktreeScripts />
     </>
+  )
+}
+
+const listActionsProcedure = namedContractProcedure('actions', actionsProcedures.actions)
+const addActionProcedure = namedContractProcedure('addAction', actionsMutations.add.procedure)
+const updateActionProcedure = namedContractProcedure(
+  'updateAction',
+  actionsMutations.update.procedure,
+)
+const moveActionProcedure = namedContractProcedure('moveAction', actionsMutations.move.procedure)
+const deleteActionProcedure = namedContractProcedure(
+  'deleteAction',
+  actionsMutations.delete.procedure,
+)
+const trustActionsProcedure = namedContractProcedure(
+  'trustActions',
+  actionsMutations.trust.procedure,
+)
+
+function WorktreeScripts(): React.JSX.Element {
+  const target = useHubOverlayStore((state) => state.worktreeScripts)
+  const close = useHubOverlayStore((state) => state.closeWorktreeScripts)
+  const queryClient = useQueryClient()
+  const [kind, setKind] = useState<WorktreeScriptKind>('worktree-setup')
+  const [editing, setEditing] = useState<ActionView | null>(null)
+  const [title, setTitle] = useState('')
+  const [command, setCommand] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const environment = target?.environment ?? null
+  const projectId = target?.project.id ?? null
+  const key = actionsListKeyForProject(environment?.id ?? 'none', projectId ?? 'none')
+  const query = useQuery({
+    enabled: target !== null,
+    queryKey: key,
+    queryFn: async () =>
+      target === null
+        ? []
+        : callActionsProcedure(target.environment, listActionsProcedure, {
+            projectId: target.project.id,
+          }),
+  })
+  const mutation = useMutation({
+    mutationFn: async (run: () => Promise<unknown>) => run(),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ exact: true, queryKey: key })
+    },
+  })
+  const scripts = (query.data ?? []).filter(
+    (action): action is ActionView =>
+      action.kind === 'worktree-setup' || action.kind === 'worktree-dispose',
+  )
+
+  useEffect(() => {
+    if (target === null) return
+    setKind('worktree-setup')
+    setEditing(null)
+    setTitle('')
+    setCommand('')
+    setError(null)
+  }, [target])
+
+  const save = (): void => {
+    if (target === null || title.trim() === '' || command.trim() === '') {
+      setError('Give the script a name and command.')
+      return
+    }
+    setError(null)
+    const run =
+      editing === null
+        ? () =>
+            callActionsProcedure(target.environment, addActionProcedure, {
+              command: command.trim(),
+              kind,
+              projectId: target.project.id,
+              title: title.trim(),
+            })
+        : () =>
+            callActionsProcedure(target.environment, updateActionProcedure, {
+              command: command.trim(),
+              id: editing.id,
+              projectId: target.project.id,
+              title: title.trim(),
+            })
+    mutation.mutate(run, {
+      onError: (reason) =>
+        setError(reason instanceof Error ? reason.message : 'Could not save the script.'),
+      onSuccess: () => {
+        setEditing(null)
+        setTitle('')
+        setCommand('')
+      },
+    })
+  }
+
+  const runMutation = (run: () => Promise<unknown>): void => {
+    setError(null)
+    mutation.mutate(run, {
+      onError: (reason) =>
+        setError(reason instanceof Error ? reason.message : 'Could not update the scripts.'),
+    })
+  }
+
+  return (
+    <ResponsiveHubDialog
+      description={
+        target === null
+          ? undefined
+          : `Commands Porcelain runs when ${target.project.name} worktrees are created or removed.`
+      }
+      open={target !== null}
+      testID="porcelain-worktree-scripts"
+      title="Worktree scripts"
+      onClose={close}
+    >
+      <SurfaceScroll gap={14} paddingTop={16}>
+        {error === null && query.error === null ? null : (
+          <View className="px-4">
+            <ErrorNote
+              message={error ?? String(query.error)}
+              testID="porcelain-worktree-scripts-error"
+            />
+          </View>
+        )}
+        {(['worktree-setup', 'worktree-dispose'] as const).map((sectionKind) => (
+          <View key={sectionKind} className="gap-2 px-4">
+            <PanelLabel>{sectionKind === 'worktree-setup' ? 'On create' : 'On remove'}</PanelLabel>
+            {scripts
+              .filter((action) => action.kind === sectionKind)
+              .map((action, index, rows) => (
+                <View key={action.id} className="gap-2 rounded-lg border border-border p-3">
+                  <Text className="text-sm font-semibold text-foreground">{action.title}</Text>
+                  <Text className="font-mono text-xs text-muted-foreground">{action.command}</Text>
+                  {!action.trusted ? (
+                    <Text className="text-xs text-destructive">
+                      Not trusted on this environment
+                    </Text>
+                  ) : null}
+                  <View className="flex-row flex-wrap gap-2">
+                    {!action.trusted && target !== null ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onPress={() =>
+                          runMutation(() =>
+                            callActionsProcedure(target.environment, trustActionsProcedure, {
+                              ids: [action.id],
+                              projectId: target.project.id,
+                            }),
+                          )
+                        }
+                      >
+                        <Text>Trust</Text>
+                      </Button>
+                    ) : null}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onPress={() => {
+                        setKind(sectionKind)
+                        setEditing(action)
+                        setTitle(action.title)
+                        setCommand(action.command)
+                      }}
+                    >
+                      <Text>Edit</Text>
+                    </Button>
+                    {index > 0 && target !== null ? (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onPress={() =>
+                          runMutation(() =>
+                            callActionsProcedure(target.environment, moveActionProcedure, {
+                              direction: 'up',
+                              id: action.id,
+                              projectId: target.project.id,
+                            }),
+                          )
+                        }
+                      >
+                        <Text>Up</Text>
+                      </Button>
+                    ) : null}
+                    {index < rows.length - 1 && target !== null ? (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onPress={() =>
+                          runMutation(() =>
+                            callActionsProcedure(target.environment, moveActionProcedure, {
+                              direction: 'down',
+                              id: action.id,
+                              projectId: target.project.id,
+                            }),
+                          )
+                        }
+                      >
+                        <Text>Down</Text>
+                      </Button>
+                    ) : null}
+                    {target !== null ? (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onPress={() =>
+                          Alert.alert(
+                            `Delete ${action.title}?`,
+                            'This removes the saved lifecycle script.',
+                            [
+                              { text: 'Cancel', style: 'cancel' },
+                              {
+                                text: 'Delete',
+                                style: 'destructive',
+                                onPress: () =>
+                                  runMutation(() =>
+                                    callActionsProcedure(
+                                      target.environment,
+                                      deleteActionProcedure,
+                                      { id: action.id, projectId: target.project.id },
+                                    ),
+                                  ),
+                              },
+                            ],
+                          )
+                        }
+                      >
+                        <Text className="text-destructive">Delete</Text>
+                      </Button>
+                    ) : null}
+                  </View>
+                </View>
+              ))}
+          </View>
+        ))}
+        <View className="gap-3 border-t border-border px-4 pt-4">
+          <PanelLabel>{editing === null ? 'Add script' : 'Edit script'}</PanelLabel>
+          {editing === null ? (
+            <SegmentedControl
+              value={kind}
+              options={[
+                { value: 'worktree-setup', label: 'On create' },
+                { value: 'worktree-dispose', label: 'On remove' },
+              ]}
+              onChange={setKind}
+            />
+          ) : null}
+          <Input placeholder="Name" value={title} onChangeText={setTitle} />
+          <Input
+            autoCapitalize="none"
+            autoCorrect={false}
+            className="font-mono"
+            placeholder="Command"
+            value={command}
+            onChangeText={setCommand}
+          />
+          <View className="flex-row justify-end gap-2">
+            {editing === null ? null : (
+              <Button
+                variant="ghost"
+                onPress={() => {
+                  setEditing(null)
+                  setTitle('')
+                  setCommand('')
+                }}
+              >
+                <Text>Cancel edit</Text>
+              </Button>
+            )}
+            <Button disabled={mutation.isPending} onPress={save}>
+              <Text>{editing === null ? 'Add' : 'Save'}</Text>
+            </Button>
+          </View>
+        </View>
+      </SurfaceScroll>
+    </ResponsiveHubDialog>
   )
 }
 
@@ -112,7 +397,7 @@ function ProjectPicker(): React.JSX.Element {
             <View key={entry.path} className="flex-row items-center">
               <Pressable
                 accessibilityLabel={`Folder ${entry.name}`}
-                className={SURFACE_ROW + ' min-w-0 flex-1'}
+                className={`${SURFACE_ROW} min-w-0 flex-1`}
                 testID={`porcelain-project-picker-folder-${entry.name}`}
                 onPress={() => setPath(entry.path)}
               >

@@ -46,7 +46,7 @@ export type ShellLayout = 'single' | 'split'
 export type ShellLayoutDecision = ShellLayout | 'unchanged'
 
 /** Hub routes that are presented rather than pushed — see `SHEET` in `app/(hub)/_layout.tsx`. */
-const HUB_SHEET_PATHS = ['/quick-open', '/companion', '/new-worktree'] as const
+const HUB_SHEET_PATHS = ['/quick-open', '/new-worktree'] as const
 
 /**
  * Router group segments — `(hub)` — never reach `usePathname`, but normalising costs one regex

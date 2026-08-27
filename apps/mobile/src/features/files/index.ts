@@ -11,9 +11,9 @@ export { FilesCompanion, PinnedSection } from './files-companion'
 
 export { FilesNotificationBridge } from './files-notification-bridge'
 export { FilesPhoneScreen } from './files-phone-screen'
-export { FilesSurfacePanel } from './files-surface-panel'
 export { invalidateFilesEffects } from './files-query-filter'
 export { useFilesStore } from './files-store'
+export { FilesSurfacePanel } from './files-surface-panel'
 
 export {
   markdownToHtml,

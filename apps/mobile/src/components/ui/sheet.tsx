@@ -124,9 +124,9 @@ export function Sheet({
                     'rounded-t-2xl border-t border-border bg-card',
                     scrollable && 'flex-1',
                   )}
-                  // The sheet is inside the backdrop's `Pressable`, so a tap on its own blank
-                  // space would otherwise dismiss it. Claiming the responder keeps the press.
-                  onStartShouldSetResponder={() => true}
+                  // The sheet is inside the backdrop's `Pressable`; stop the completed touch so
+                  // blank space inside the card cannot bubble into backdrop dismissal.
+                  onTouchEnd={(event) => event.stopPropagation()}
                   /* nativewind-allow-style: see the note on `maxHeight` above. */
                   style={scrollable ? undefined : { maxHeight }}
                   testID={testID}

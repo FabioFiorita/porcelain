@@ -10,10 +10,8 @@ import type { ChromeIconName } from '@/components/chrome-glyph'
  * shell actually needs: which surfaces exist, what they are called, what they are drawn with,
  * and where each one opens.
  *
- * Shared surfaces follow the web rail's order. Mobile additionally keeps Search as a native
- * Worktree surface; desktop retired its duplicate rich-search surface in favor of the shell
- * finder and content-search dialog. The shared `searchCode` daemon route still owns mobile's
- * regex, case, and include/exclude search.
+ * Shared surfaces follow the web rail's order. Search is still a routable result destination for
+ * Quick Open's content-search escape, but it is not a surface in the rail.
  *
  * Terminal is deliberately absent from both clients. Shells are daemon-wide, not a property of
  * one checkout, so they are a destination of their own (`app/terminals/`).
@@ -66,13 +64,6 @@ export const SURFACES: readonly Surface[] = [
     route: '/history',
   },
   {
-    id: 'search',
-    label: 'Search',
-    hint: 'Search code and files',
-    glyph: 'search',
-    route: '/search',
-  },
-  {
     id: 'canvas',
     label: 'Canvas',
     hint: 'Agent-authored explanation for this Project',
@@ -81,6 +72,16 @@ export const SURFACES: readonly Surface[] = [
   },
 ]
 
+/** Internal content-search destination reached from Quick Open, not a rail surface. */
+const SEARCH_DESTINATION: Surface = {
+  id: 'search',
+  label: 'Search',
+  hint: 'Search code and files',
+  glyph: 'search',
+  route: '/search',
+}
+
 export function surfaceById(id: SurfaceId): Surface {
+  if (id === 'search') return SEARCH_DESTINATION
   return SURFACES.find((surface) => surface.id === id) ?? SURFACES[0]
 }

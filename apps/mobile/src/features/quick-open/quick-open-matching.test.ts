@@ -81,5 +81,7 @@ describe('quick-open matching', () => {
       },
     ])
     expect(gotoRows('personalization')).toEqual([])
+    expect(gotoRows('companion')).toEqual([])
+    expect(gotoRows('search')).toEqual([])
   })
 })

@@ -1,4 +1,4 @@
 interface:
   display_name: "Porcelain Companion"
   short_description: "Use Porcelain domain tools for Canvases, comments, profiles, and Actions"
-  default_prompt: "Use $companion when the human requests a Porcelain Canvas or template, review comments, profiles, or user-run Actions. Keep ordinary coding on the shared development loop; do not create product state as a side effect. Use $remote for host setup, pairing, service, or network exposure."
+  default_prompt: "Use $companion when the human asks to use or set up Porcelain in repository work, or requests a Canvas, review comments, profiles, or user-run Actions. Preserve manual project pins and hides; author story layers in the relevant Review Canvas. Use $remote for host setup, pairing, service, or network exposure."

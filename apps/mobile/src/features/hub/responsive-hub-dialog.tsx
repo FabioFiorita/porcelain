@@ -56,7 +56,7 @@ export function ResponsiveHubDialog({
                   radius matches the tablet's other modal windows. */}
               <View
                 className="overflow-hidden rounded-xl border border-border bg-card"
-                onStartShouldSetResponder={() => true}
+                onTouchEnd={(event) => event.stopPropagation()}
                 style={{
                   height: Math.min(620, window.height - 64),
                   width: Math.min(620, window.width - 64),

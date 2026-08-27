@@ -21,13 +21,14 @@ import { useQuickOpen } from './use-quick-open'
  * route now (`app/(hub)/quick-open.tsx`), so "is it open" is "is the screen mounted" — which
  * is also what gives it the sheet's detents, its grabber, and drag-to-dismiss.
  */
-export function QuickOpenSheet(): React.JSX.Element {
+export function QuickOpenSheet({ onClose }: { onClose?: () => void } = {}): React.JSX.Element {
   const router = useRouter()
   // Every open* handler closes before it navigates, so the sheet is gone by the time the
   // destination pushes; `back()` is the dismissal a presented route has.
   const close = useCallback((): void => {
-    router.back()
-  }, [router])
+    if (onClose === undefined) router.back()
+    else onClose()
+  }, [onClose, router])
   const model = useQuickOpen(true, close)
   const trimmed = model.query.trim()
 

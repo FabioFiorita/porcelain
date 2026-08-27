@@ -12,8 +12,7 @@ import { SURFACES, surfaceById } from './surfaces'
  * appear in the tablet's panel, and the quick-open palette's `switch` over surfaces silently did
  * nothing for both. Nobody noticed because nothing compared the two lists.
  *
- * This does for the shared set. Mobile deliberately adds Search because it is a native Worktree
- * surface there; desktop uses its shell finder and content-search dialog instead.
+ * Search is an internal result destination reached from Quick Open, not a rail surface.
  */
 
 const WEB_RAIL = join(
@@ -45,11 +44,13 @@ function webRail(): { id: string; hint: string }[] {
 }
 
 describe('surfaces', () => {
-  it('keeps shared surfaces in the web rail’s order and retains mobile Search', () => {
+  it('keeps the visible surfaces in the web rail’s order', () => {
     const webIds = webRail().map((entry) => entry.id)
-    expect(
-      SURFACES.filter((surface) => surface.id !== 'search').map((surface) => surface.id),
-    ).toEqual(webIds)
+    expect(SURFACES.map((surface) => surface.id)).toEqual(webIds)
+    expect(SURFACES.some((surface) => surface.id === 'search')).toBe(false)
+  })
+
+  it('retains Search as Quick Open’s internal content-search destination', () => {
     expect(surfaceById('search')).toMatchObject({
       hint: 'Search code and files',
       route: '/search',
@@ -58,9 +59,8 @@ describe('surfaces', () => {
 
   it('describes each surface the way the desktop describes it', () => {
     const hints = new Map(webRail().map((entry) => [entry.id, entry.hint]))
-    const shared = SURFACES.filter((surface) => surface.id !== 'search')
-    expect(shared.map((surface) => [surface.id, surface.hint])).toEqual(
-      shared.map((surface) => [surface.id, hints.get(surface.id)]),
+    expect(SURFACES.map((surface) => [surface.id, surface.hint])).toEqual(
+      SURFACES.map((surface) => [surface.id, hints.get(surface.id)]),
     )
   })
 

@@ -110,8 +110,8 @@ export const TestIds = {
   settingsCommitModel: 'settings-commit-model',
   /** Settings → Share: authorized and pending devices. */
   shareStatus: 'share-status',
-  /** Settings → Personalization: visible agent instruction and its copy affordance. */
-  personalizationCopyInstruction: 'personalization-copy-instruction',
+  /** Settings → Personalization: agent-authored ordering lives in each Review Canvas. */
+  personalizationAgentBuilt: 'personalization-agent-built',
 
   // --- Changes ---
   changesList: 'changes-list',

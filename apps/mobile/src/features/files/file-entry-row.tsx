@@ -4,6 +4,7 @@ import { Pressable, Text, View } from 'react-native'
 import { ChromeGlyph, type ChromeIconName } from '@/components/chrome-glyph'
 import { ActionSheet, type SheetAction } from '@/components/panel-chrome'
 import { SURFACE_ROW, SURFACE_ROW_SELECTED } from '@/components/surface-layout'
+import { copyText } from '@/lib/clipboard'
 import { cn } from '@/lib/utils'
 
 import { pathTestId } from './file-paths'
@@ -69,10 +70,18 @@ function FileEntryRowImpl({
   actions,
   entry,
   selected,
+  compact = false,
+  depth = 0,
+  expanded,
+  onPress,
 }: {
   actions: EntryActions
   entry: FileEntry
   selected: boolean
+  compact?: boolean
+  depth?: number
+  expanded?: boolean
+  onPress?: () => void
 }): React.JSX.Element {
   const [menuOpen, setMenuOpen] = useState(false)
 
@@ -98,25 +107,26 @@ function FileEntryRowImpl({
       },
     },
     {
-      glyph: 'pencil',
-      id: 'rename',
-      label: 'Rename',
+      glyph: 'copy',
+      id: 'copy-path',
+      label: 'Copy path',
+      separatorBefore: true,
       onPress: () => {
-        actions.onRename(entry)
+        void copyText(entry.absolutePath)
       },
     },
     {
       glyph: 'copy',
-      id: 'duplicate',
-      label: 'Duplicate',
+      id: 'copy-relative-path',
+      label: 'Copy relative path',
       onPress: () => {
-        actions.onDuplicate(entry)
+        void copyText(entry.path)
       },
     },
     {
       glyph: entry.pinned ? 'pinOff' : 'pin',
       id: 'pin',
-      label: entry.pinned ? 'Unpin' : 'Pin to companion',
+      label: entry.pinned ? 'Unpin' : 'Pin',
       onPress: () => {
         actions.onSetPinned(entry.path, !entry.pinned)
       },
@@ -140,6 +150,25 @@ function FileEntryRowImpl({
       },
     })
   }
+  menuActions.push(
+    {
+      glyph: 'pencil',
+      id: 'rename',
+      label: 'Rename',
+      separatorBefore: true,
+      onPress: () => {
+        actions.onRename(entry)
+      },
+    },
+    {
+      glyph: 'copy',
+      id: 'duplicate',
+      label: 'Duplicate',
+      onPress: () => {
+        actions.onDuplicate(entry)
+      },
+    },
+  )
   // Last, and the only destructive one: the trash is recoverable, but a mis-tap next to
   // "Duplicate" still costs a trip to Finder.
   menuActions.push({
@@ -147,13 +176,14 @@ function FileEntryRowImpl({
     glyph: 'trash',
     id: 'trash',
     label: 'Move to Trash…',
+    separatorBefore: true,
     onPress: () => {
       actions.onTrash(entry)
     },
   })
 
   return (
-    <View>
+    <View style={depth === 0 ? undefined : { paddingLeft: depth * 14 }}>
       <Pressable
         accessibilityLabel={`${entry.kind === 'dir' ? 'Folder' : 'File'} ${entry.name}${
           entry.pinned ? ', pinned' : ''
@@ -161,7 +191,9 @@ function FileEntryRowImpl({
         accessibilityRole="button"
         accessibilityState={{ selected }}
         className={cn(
-          'min-h-11 flex-row items-center gap-2.5',
+          compact
+            ? 'min-h-8 flex-row items-center gap-1.5 py-0.5'
+            : 'min-h-11 flex-row items-center gap-2.5',
           SURFACE_ROW,
           selected && SURFACE_ROW_SELECTED,
           // A hidden row is only on screen because the scope override is on; keep it legible
@@ -173,9 +205,13 @@ function FileEntryRowImpl({
           setMenuOpen(true)
         }}
         onPress={() => {
-          actions.onOpen(entry)
+          if (onPress === undefined) actions.onOpen(entry)
+          else onPress()
         }}
       >
+        {entry.kind === 'dir' && compact ? (
+          <ChromeGlyph name={expanded ? 'chevron' : 'chevronRight'} size={11} tone="muted" />
+        ) : null}
         <ChromeGlyph
           name={glyphFor(entry)}
           size={16}
@@ -185,7 +221,7 @@ function FileEntryRowImpl({
           {entry.name}
         </Text>
         {entry.pinned ? <ChromeGlyph name="pin" size={11} tone="primary" /> : null}
-        {entry.kind === 'dir' ? <ChromeGlyph name="chevronRight" size={12} /> : null}
+        {entry.kind === 'dir' && !compact ? <ChromeGlyph name="chevronRight" size={12} /> : null}
       </Pressable>
 
       <ActionSheet

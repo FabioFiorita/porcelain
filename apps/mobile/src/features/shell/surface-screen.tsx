@@ -18,8 +18,7 @@ import { ColumnChrome } from './window-chrome'
  * The header is drawn HERE, once, for **all six** surfaces. It was four sets of `title` /
  * `headerRight` options on the stack layout plus two screens (Git, Canvas) that drew their own
  * bar in their own file — which is how Git's back chevron and Files' back chevron ended up
- * being two different components. The companion bolt appears only for a surface that has a
- * companion sheet, which `surfaceSlots` already knows.
+ * being two different components.
  *
  * `ColumnChrome` wraps the body because this screen has now drawn the top chrome. Files' own
  * breadcrumb band doubles as a header on the routes it owns and reads the same shell value to
@@ -39,9 +38,7 @@ export function SurfaceScreen({ surface }: { surface: SurfaceId }): React.JSX.El
   return (
     <View className="flex-1 bg-background" testID={`porcelain-${surface}-screen`}>
       <ScreenHeader
-        actions={
-          <HeaderActions companionSurface={slots.companion === undefined ? undefined : surface} />
-        }
+        actions={<HeaderActions />}
         back={{
           accessibilityLabel: 'Back',
           testID: `porcelain-${surface}-back`,

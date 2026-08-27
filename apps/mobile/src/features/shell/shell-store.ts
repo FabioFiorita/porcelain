@@ -29,6 +29,7 @@ type ShellState = {
   /** Tablet Surfaces panel. */
   inspectorVisible: boolean
   settingsOpen: boolean
+  quickOpenOpen: boolean
   settingsSection: SettingsSection
   /** Open a surface into the panel (or raise it, if it is already there) and show it. */
   openSurface: (surface: SurfaceId) => void
@@ -44,6 +45,8 @@ type ShellState = {
   setSettingsSection: (section: SettingsSection) => void
   openSettings: (section?: SettingsSection) => void
   closeSettings: () => void
+  openQuickOpen: () => void
+  closeQuickOpen: () => void
 }
 
 /**
@@ -66,13 +69,24 @@ export const useShellStore = create<ShellState>()((set) => ({
   inspectorVisible: true,
   openSurfaces: DEFAULT_OPEN,
   settingsOpen: false,
+  quickOpenOpen: false,
   settingsSection: 'general',
   sidebarVisible: true,
   closeSettings: () => {
     set({ settingsOpen: false })
   },
+  closeQuickOpen: () => {
+    set({ quickOpenOpen: false })
+  },
+  openQuickOpen: () => {
+    set({ quickOpenOpen: true })
+  },
   openSettings: (section) => {
-    set(section === undefined ? { settingsOpen: true } : { settingsOpen: true, settingsSection: section })
+    set(
+      section === undefined
+        ? { settingsOpen: true }
+        : { settingsOpen: true, settingsSection: section },
+    )
   },
   closeSurface: (surface) => {
     set((state) => {
