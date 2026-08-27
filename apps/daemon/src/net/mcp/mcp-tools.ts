@@ -189,7 +189,7 @@ export const MCP_TOOLS: readonly McpToolDefinition[] = Object.freeze([
     name: 'porcelain_profile',
     title: 'Manage the Repository Profile',
     description:
-      'Read a project profile or worktree override, and set or clear its story layers. Pins, hides, and unhidden paths are manual file-tree choices: agent writes preserve them. Promotion writes the existing portable project pins/hides to .porcelain/project.json.',
+      'Read a project profile or worktree story-layer override, and set or clear its story layers. Pins and hides are manual project-wide file-tree choices: agent writes preserve them. Promotion writes the existing portable project pins/hides to .porcelain/project.json.',
     inputSchema: {
       type: 'object',
       properties: {

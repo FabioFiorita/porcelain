@@ -59,7 +59,8 @@ package that owns the behavior until a second consumer makes sharing useful.
 The daemon's `PORCELAIN_HOME` is the default home for private project data, credentials, Canvas and
 Action data. A repository-local `.porcelain/` is optional and only holds
 data explicitly promoted into Git. The daemon also owns each repository's private profile: project
-pins, hides, and layer order, plus an optional worktree override that inherits the project baseline.
+project-wide pins, hides, and layer order, plus an optional worktree story-layer override that
+inherits the project baseline.
 The client owns local presentation state such as tabs, splits, and preferences. A connected Hub may
 show several daemons, but each daemon remains authoritative for its own state.
 

@@ -470,9 +470,6 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
             `Invalid worktree layers: ${parsed.error.issues[0]?.message ?? 'invalid input'}.`,
           )
         await operations.files.setWorktreeProfile(place.worktreePath, {
-          pinnedPaths: view.override?.pinnedPaths ?? [],
-          hiddenPaths: view.override?.hiddenPaths ?? [],
-          unhiddenPaths: view.override?.unhiddenPaths ?? [],
           layers: parsed.data,
         })
       }

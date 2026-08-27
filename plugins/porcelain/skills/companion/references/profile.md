@@ -3,7 +3,7 @@
 Manual pins and hides plus agent-maintained story layer order. Read this when the human asks about
 their profile, when story order should follow substantial work, or when that work changes shape.
 
-## Two levels, and the lower one is the default
+## Project navigation, optional worktree story order
 
 ```
 PROJECT profile        personal, private, one per repository
@@ -15,9 +15,6 @@ PROJECT profile        personal, private, one per repository
         │  inherited — live, not copied
         ▼
 WORKTREE override      optional, usually absent
-  pinnedPaths            + this task's files
-  hiddenPaths            + noise for this task only
-  unhiddenPaths          − show something the project hides
   layers                 replaces the project order; null inherits it
 ```
 
@@ -35,8 +32,8 @@ state — do not write an override just to restate the baseline.
 ```
 
 `set` replaces the selected level's layer order. Read with `get` first and send the complete
-`layers` value. The handler preserves manual path fields; it does not expose agent pin/unpin or
-hide/unhide writes.
+`layers` value. Pins and hides are project-scoped manual choices; the handler does not expose
+agent pin/unpin or hide/unhide writes.
 
 Paths are repo-relative. A layer is `{ label, pattern }` where `pattern` is a
 regular expression matched against repo-relative paths; the deepest (right-most)
@@ -59,15 +56,15 @@ match wins, so a filename pattern beats the directory a file sits in.
 | The thing being declared | Level |
 |---|---|
 | True whatever anyone works on here | project |
-| True for the task this worktree is doing | worktree override |
+| Story order true for the task this worktree is doing | worktree override |
 | The human asked for it from the file tree | already written — the tree writes the project level |
 
 The human manages pins and hides from the file tree. An agent may update story layers at either
-level only when instructed, while round-tripping all manual path fields unchanged.
+level only when instructed. Switching worktrees never changes manual navigation paths.
 
 ## Rules
 
-- **Pins and hides are manual.** Preserve `pinnedPaths`, `hiddenPaths`, and `unhiddenPaths`
+- **Pins and hides are manual and project-wide.** Preserve `pinnedPaths` and `hiddenPaths`
   exactly as read. Do not propose, add, remove, or reorder them.
 - **Never write story layers unasked.** Porcelain ships the mechanism, not the policy. Write them
   when the human asks, or when their own agent instructions tell you to. Show the proposed layer
@@ -77,8 +74,7 @@ level only when instructed, while round-tripping all manual path fields unchange
   a framework convention you recognise. A confident wrong order makes a reader
   trust a story that isn't true, which is worse than no order at all.
 - **A stale profile is worse than none.** `get` before you `set`. Clear the
-  worktree's layer override when the work it described is finished while preserving its manual
-  path choices.
+  worktree's layer override when the work it described is finished.
 - **Nothing here is shared.** Both levels are personal and neither is
   promoted into git. `porcelain_profile` with `op: "promote"` writes portable hides and
   pins only; it never carries layers or another worktree's override into a checkout.

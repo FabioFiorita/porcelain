@@ -12,9 +12,6 @@ function harness(
     trackedCanvas?: boolean
     canvasContent?: string
     worktreeOverride?: {
-      pinnedPaths: string[]
-      hiddenPaths: string[]
-      unhiddenPaths: string[]
       layers: { label: string; pattern: string }[] | null
     } | null
   } = {},
@@ -266,15 +263,8 @@ describe('domain MCP entry points', () => {
     })
   })
 
-  it('updates worktree story layers without changing manual path choices', async () => {
-    const { tools, calls } = harness({
-      worktreeOverride: {
-        pinnedPaths: ['src/manual.ts'],
-        hiddenPaths: ['tmp'],
-        unhiddenPaths: ['dist'],
-        layers: null,
-      },
-    })
+  it('updates a worktree story-layer override without writing navigation paths', async () => {
+    const { tools, calls } = harness()
     await tools.call('porcelain_profile', {
       op: 'set',
       workspace: REPO,
@@ -286,9 +276,6 @@ describe('domain MCP entry points', () => {
       input: {
         repoPath: REPO,
         profile: {
-          pinnedPaths: ['src/manual.ts'],
-          hiddenPaths: ['tmp'],
-          unhiddenPaths: ['dist'],
           layers: [{ label: 'Service', pattern: 'services/' }],
         },
       },

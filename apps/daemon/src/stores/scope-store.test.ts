@@ -66,40 +66,25 @@ describe('project baseline', () => {
 })
 
 describe('worktree override', () => {
-  it('adds this worktree’s focus on top of the baseline', async () => {
+  it('ignores legacy path overrides so every worktree keeps the project paths', async () => {
     await withStore(async ({ store, homeDir, repo }) => {
       await writePrivate(homeDir, {
         hiddenPaths: ['dist'],
         pinnedPaths: ['README.md'],
-        worktreeProfiles: { [WORKTREE]: { pinnedPaths: ['apps/mobile'] } },
+        worktreeProfiles: {
+          [WORKTREE]: {
+            pinnedPaths: ['apps/mobile'],
+            hiddenPaths: ['apps/web'],
+            unhiddenPaths: ['dist'],
+          },
+        },
       })
 
       const scope = await store.readRepoScope(repo)
-      expect(scope.pinnedPaths).toEqual([join(repo, 'README.md'), join(repo, 'apps/mobile')])
-    })
-  })
-
-  it('leaves a sibling worktree of the same project untouched', async () => {
-    await withStore(async ({ store, homeDir, repo }) => {
-      await writePrivate(homeDir, {
-        hiddenPaths: [],
-        pinnedPaths: [],
-        worktreeProfiles: { 'wt-other': { hiddenPaths: ['apps/web'] } },
+      expect(scope).toEqual({
+        pinnedPaths: [join(repo, 'README.md')],
+        hiddenPaths: [join(repo, 'dist')],
       })
-
-      expect((await store.readRepoScope(repo)).hiddenPaths).toEqual([])
-    })
-  })
-
-  it('lets one worktree see a path the project hides', async () => {
-    await withStore(async ({ store, homeDir, repo }) => {
-      await writePrivate(homeDir, {
-        hiddenPaths: ['dist'],
-        pinnedPaths: [],
-        worktreeProfiles: { [WORKTREE]: { unhiddenPaths: ['dist'] } },
-      })
-
-      expect((await store.readRepoScope(repo)).hiddenPaths).toEqual([])
     })
   })
 })
@@ -158,16 +143,13 @@ describe('the profile view', () => {
         layers: [{ label: 'Source', pattern: '^src/' }],
       })
       await store.setWorktreeProfile(repo, {
-        pinnedPaths: ['src/index.ts'],
-        hiddenPaths: [],
-        unhiddenPaths: ['dist'],
-        layers: null,
+        layers: [{ label: 'Screen', pattern: '^screens/' }],
       })
 
       const view = await store.profileViewForRepo(repo)
       expect(view.base.pinnedPaths).toEqual(['README.md'])
-      expect(view.override?.pinnedPaths).toEqual(['src/index.ts'])
-      expect(view.resolved.hiddenPaths).toEqual([])
+      expect(view.override).toEqual({ layers: [{ label: 'Screen', pattern: '^screens/' }] })
+      expect(view.resolved.hiddenPaths).toEqual(['dist'])
 
       await store.setWorktreeProfile(repo, null)
       expect((await store.profileViewForRepo(repo)).override).toBeNull()
@@ -175,7 +157,7 @@ describe('the profile view', () => {
     })
   })
 
-  it('separates what the project declares from what this worktree added', async () => {
+  it('keeps legacy worktree paths out of both the override and resolved profile', async () => {
     await withStore(async ({ store, homeDir, repo }) => {
       await writePrivate(homeDir, {
         hiddenPaths: ['dist'],
@@ -186,15 +168,15 @@ describe('the profile view', () => {
       const view = await store.profileViewForRepo(repo)
       expect(view.worktreeId).toBe(WORKTREE)
       expect(view.base).toEqual({ hiddenPaths: ['dist'], pinnedPaths: [], layers: [] })
-      expect(view.override?.pinnedPaths).toEqual(['apps/mobile'])
-      expect(view.resolved.pinnedPaths).toEqual(['apps/mobile'])
+      expect(view.override).toBeNull()
+      expect(view.resolved.pinnedPaths).toEqual([])
     })
   })
 
   it('reports no override when the stored one says nothing', async () => {
     await withStore(async ({ store, homeDir, repo }) => {
       await writePrivate(homeDir, {
-        worktreeProfiles: { [WORKTREE]: { pinnedPaths: [], hiddenPaths: [] } },
+        worktreeProfiles: { [WORKTREE]: { layers: null } },
       })
 
       expect((await store.profileViewForRepo(repo)).override).toBeNull()
@@ -227,36 +209,6 @@ describe('writing from the tree', () => {
   })
 
   /**
-   * The escape hatch has to work in ONE gesture wherever the entry came from, so
-   * unhide reaches into the override as well as the baseline. A user who cannot
-   * get a file back cannot review it.
-   */
-  it('unhides a path the worktree override put there', async () => {
-    await withStore(async ({ store, homeDir, repo }) => {
-      await writePrivate(homeDir, {
-        worktreeProfiles: { [WORKTREE]: { hiddenPaths: ['apps/web'] } },
-      })
-
-      await store.unhidePath(repo, join(repo, 'apps/web'))
-      expect((await store.readRepoScope(repo)).hiddenPaths).toEqual([])
-    })
-  })
-
-  it('does not touch a SIBLING worktree’s override while unhiding', async () => {
-    await withStore(async ({ store, homeDir, repo }) => {
-      await writePrivate(homeDir, {
-        hiddenPaths: ['apps/web'],
-        worktreeProfiles: { 'wt-other': { hiddenPaths: ['apps/web'] } },
-      })
-
-      await store.unhidePath(repo, join(repo, 'apps/web'))
-      const document = await readPrivate(homeDir)
-      const siblings = document.worktreeProfiles as Record<string, { hiddenPaths: string[] }>
-      expect(siblings['wt-other']?.hiddenPaths).toEqual(['apps/web'])
-    })
-  })
-
-  /**
    * The regression this store shipped for months: `mutate` used to write
    * `{ ...next, worktrees: {} }`, so one click in the tree deleted the worktree
    * setup an agent had written. The same document now also carries layers and
@@ -270,7 +222,9 @@ describe('writing from the tree', () => {
         pinnedPaths: [],
         worktrees: { main: { setup: { startScript: 'pnpm dev', disposeScript: '' } } },
         layers: [{ label: 'View', pattern: 'components/' }],
-        worktreeProfiles: { 'wt-other': { hiddenPaths: ['apps/web'] } },
+        worktreeProfiles: {
+          'wt-other': { layers: [{ label: 'Mobile', pattern: 'apps/mobile/' }] },
+        },
       })
 
       await store.pinPath(repo, join(repo, 'README.md'))
@@ -285,12 +239,7 @@ describe('writing from the tree', () => {
     })
   })
 
-  /**
-   * A gesture that silently does nothing is worse than one that is unavailable.
-   * If the agent had opted this worktree back INTO seeing a path, hiding it from
-   * the tree here has to take effect here, not just in the baseline.
-   */
-  it('takes effect in a worktree whose override had opted the path back in', async () => {
+  it('takes effect even when persisted legacy data tried to unhide the path', async () => {
     await withStore(async ({ store, homeDir, repo }) => {
       await writePrivate(homeDir, {
         worktreeProfiles: { [WORKTREE]: { unhiddenPaths: ['dist'] } },
@@ -301,16 +250,22 @@ describe('writing from the tree', () => {
     })
   })
 
-  it('leaves a sibling worktree still opted in when this one hides', async () => {
+  it('strips a sibling’s legacy path fields while preserving its layers on write', async () => {
     await withStore(async ({ store, homeDir, repo }) => {
       await writePrivate(homeDir, {
-        worktreeProfiles: { 'wt-other': { unhiddenPaths: ['dist'] } },
+        worktreeProfiles: {
+          'wt-other': {
+            unhiddenPaths: ['dist'],
+            layers: [{ label: 'View', pattern: 'apps/web/' }],
+          },
+        },
       })
 
       await store.hidePath(repo, join(repo, 'dist'))
       const document = await readPrivate(homeDir)
-      const siblings = document.worktreeProfiles as Record<string, { unhiddenPaths: string[] }>
-      expect(siblings['wt-other']?.unhiddenPaths).toEqual(['dist'])
+      expect(document.worktreeProfiles).toEqual({
+        'wt-other': { layers: [{ label: 'View', pattern: 'apps/web/' }] },
+      })
     })
   })
 

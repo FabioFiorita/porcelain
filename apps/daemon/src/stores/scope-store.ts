@@ -19,8 +19,8 @@ import { projectOverlayOverridesPath } from '@shared/project-porcelain'
 import { projectOverridesPath } from '@shared/project-store'
 
 /**
- * The worktree profile store: pins, hides, and declared story layers, at two
- * levels (ADR 0003).
+ * The profile store: project-owned pins/hides and story layers, with optional
+ * worktree-specific story layers (ADR 0003).
  *
  * The PROJECT level is the default and lives in the daemon-root private Project
  * store. The WORKTREE level is an optional override keyed by worktree id, and a
@@ -52,7 +52,7 @@ export type ScopeStore = Readonly<{
   pinnedPathsForRepo: (repoPath: string) => Promise<string[]>
   /** Declared story order for this checkout — empty when nothing is declared yet. */
   layersForRepo: (repoPath: string) => Promise<ProfileLayer[]>
-  /** Project baseline, worktree override, and merge — for Settings → Personalization. */
+  /** Project baseline, worktree layer override, and resolved profile. */
   profileViewForRepo: (repoPath: string) => Promise<WorktreeProfileView>
   setProjectProfile: (repoPath: string, profile: ResolvedProfile) => Promise<void>
   setWorktreeProfile: (repoPath: string, profile: WorktreeProfile | null) => Promise<void>
@@ -164,77 +164,18 @@ export function createScopeStore(options: ScopeStoreOptions): ScopeStore {
     await writeFile(path, `${JSON.stringify(next, null, 2)}\n`)
   }
 
-  /** Drop `rel` from a worktree's override, leaving the map clean when it empties. */
-  function withoutOverridePath(
-    document: PrivateProjectDocument,
-    identity: RepoIdentity,
-    key: 'hiddenPaths' | 'pinnedPaths',
-    rel: string,
-  ): PrivateProjectDocument {
-    const worktreeId = identity.worktreeId
-    if (worktreeId === null) return document
-    const override = document.worktreeProfiles[worktreeId]
-    if (override === undefined || !override[key].includes(rel)) return document
-    const next: WorktreeProfile = { ...override, [key]: override[key].filter((e) => e !== rel) }
-    return {
-      ...document,
-      worktreeProfiles: { ...document.worktreeProfiles, [worktreeId]: next },
-    }
-  }
-
-  /** Drop a now-contradicted `unhiddenPaths` entry so a hide gesture cannot no-op. */
-  function withoutOverrideNegation(
-    document: PrivateProjectDocument,
-    identity: RepoIdentity,
-    rel: string,
-  ): PrivateProjectDocument {
-    const worktreeId = identity.worktreeId
-    if (worktreeId === null) return document
-    const override = document.worktreeProfiles[worktreeId]
-    if (override === undefined || !override.unhiddenPaths.includes(rel)) return document
-    const next: WorktreeProfile = {
-      ...override,
-      unhiddenPaths: override.unhiddenPaths.filter((entry) => entry !== rel),
-    }
-    return { ...document, worktreeProfiles: { ...document.worktreeProfiles, [worktreeId]: next } }
-  }
-
-  /**
-   * Add to the PROJECT baseline, not to this worktree's override.
-   *
-   * Inheritance is the default, so a human gesture means "everywhere" — which is
-   * also what it meant before profiles existed. Task-shaped, worktree-only focus
-   * is what an agent writes through the profile operation.
-   *
-   * Hiding also clears this worktree's `unhiddenPaths` entry for the same path.
-   * Without that, a worktree whose agent had opted the path back IN would take
-   * the hide into the baseline and show no change at all — a gesture that
-   * silently does nothing is worse than one that is unavailable.
-   */
+  /** Add to the project-owned navigation paths shared by every worktree. */
   function addToBase(key: 'hiddenPaths' | 'pinnedPaths', rel: string) {
-    return (document: PrivateProjectDocument, identity: RepoIdentity): PrivateProjectDocument => {
-      const cleared =
-        key === 'hiddenPaths' ? withoutOverrideNegation(document, identity, rel) : document
-      return cleared[key].includes(rel) ? cleared : { ...cleared, [key]: [...cleared[key], rel] }
-    }
+    return (document: PrivateProjectDocument): PrivateProjectDocument =>
+      document[key].includes(rel) ? document : { ...document, [key]: [...document[key], rel] }
   }
 
-  /**
-   * Remove from BOTH levels.
-   *
-   * The escape hatch has to work in one gesture wherever the entry came from —
-   * a user who cannot get a file back cannot review it. Removing from the baseline does affect sibling worktrees,
-   * and that is the honest reading of "shared by default": hide and unhide are
-   * symmetric, and per-worktree divergence is the agent's job to express.
-   */
-  function removeFromBoth(key: 'hiddenPaths' | 'pinnedPaths', rel: string) {
-    return (document: PrivateProjectDocument, identity: RepoIdentity): PrivateProjectDocument =>
-      withoutOverridePath(
-        { ...document, [key]: document[key].filter((entry) => entry !== rel) },
-        identity,
-        key,
-        rel,
-      )
+  /** Remove from the project-owned navigation paths shared by every worktree. */
+  function removeFromBase(key: 'hiddenPaths' | 'pinnedPaths', rel: string) {
+    return (document: PrivateProjectDocument): PrivateProjectDocument => ({
+      ...document,
+      [key]: document[key].filter((entry) => entry !== rel),
+    })
   }
 
   return Object.freeze({
@@ -266,14 +207,14 @@ export function createScopeStore(options: ScopeStoreOptions): ScopeStore {
       if (rel !== '') await mutate(repoPath, addToBase('hiddenPaths', rel))
     },
     unhidePath: async (repoPath, path) => {
-      await mutate(repoPath, removeFromBoth('hiddenPaths', toRelativeScopePath(repoPath, path)))
+      await mutate(repoPath, removeFromBase('hiddenPaths', toRelativeScopePath(repoPath, path)))
     },
     pinPath: async (repoPath, path) => {
       const rel = toRelativeScopePath(repoPath, path)
       if (rel !== '') await mutate(repoPath, addToBase('pinnedPaths', rel))
     },
     unpinPath: async (repoPath, path) => {
-      await mutate(repoPath, removeFromBoth('pinnedPaths', toRelativeScopePath(repoPath, path)))
+      await mutate(repoPath, removeFromBase('pinnedPaths', toRelativeScopePath(repoPath, path)))
     },
   })
 }

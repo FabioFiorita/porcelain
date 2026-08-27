@@ -38,12 +38,8 @@ export const profileLayerSchema = z
 export type ProfileLayer = z.infer<typeof profileLayerSchema>
 
 /**
- * One worktree's override of the project profile.
- *
- * Pins and hides are ADDITIVE over the project baseline — the common case is
- * "the project baseline plus the handful of files this feature touches".
- * `unhiddenPaths` is the negation that lets one worktree see a path the project
- * hides, so focus stays expressible in both directions.
+ * One worktree's override of the project story order. Navigation paths belong
+ * to the project, so every checkout of that project sees the same pins/hides.
  *
  * `layers` REPLACES wholesale when non-null. There is no sensible interleave of
  * a web sequence and a mobile one; merging two declared orderings produces a
@@ -54,20 +50,18 @@ export type ProfileLayer = z.infer<typeof profileLayerSchema>
  */
 export const worktreeProfileSchema = z
   .object({
-    pinnedPaths: z.array(z.string()).default([]),
-    hiddenPaths: z.array(z.string()).default([]),
-    unhiddenPaths: z.array(z.string()).default([]),
     layers: z.array(profileLayerSchema).nullable().default(null),
   })
   .strict()
 export type WorktreeProfile = z.infer<typeof worktreeProfileSchema>
 
-export const emptyWorktreeProfile = (): WorktreeProfile => ({
-  pinnedPaths: [],
-  hiddenPaths: [],
-  unhiddenPaths: [],
-  layers: null,
-})
+export const emptyWorktreeProfile = (): WorktreeProfile => ({ layers: null })
+
+/** Read old stored overrides while deliberately discarding retired path fields. */
+export const persistedWorktreeProfileSchema = z.preprocess((value) => {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return value
+  return { layers: 'layers' in value ? value.layers : null }
+}, worktreeProfileSchema)
 
 /** What a tree, a search, or a changeset actually applies: one level, already merged. */
 export const resolvedProfileSchema = z
@@ -91,23 +85,14 @@ export function resolveProfile(
   override: WorktreeProfile | null,
 ): ResolvedProfile {
   if (override === null) return { ...base }
-  const unhidden = new Set(override.unhiddenPaths)
   return {
-    pinnedPaths: [...new Set([...base.pinnedPaths, ...override.pinnedPaths])],
-    hiddenPaths: [...new Set([...base.hiddenPaths, ...override.hiddenPaths])].filter(
-      (path) => !unhidden.has(path),
-    ),
+    pinnedPaths: [...base.pinnedPaths],
+    hiddenPaths: [...base.hiddenPaths],
     layers: override.layers ?? base.layers,
   }
 }
 
 /** True when this override says nothing — the worktree is purely inheriting. */
 export function isEmptyWorktreeProfile(profile: WorktreeProfile | null): boolean {
-  return (
-    profile === null ||
-    (profile.pinnedPaths.length === 0 &&
-      profile.hiddenPaths.length === 0 &&
-      profile.unhiddenPaths.length === 0 &&
-      profile.layers === null)
-  )
+  return profile === null || profile.layers === null
 }

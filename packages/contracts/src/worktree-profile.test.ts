@@ -27,45 +27,10 @@ describe('resolveProfile', () => {
     expect(resolved).not.toBe(base)
   })
 
-  it('adds worktree pins and hides on top of the baseline', () => {
-    const resolved = resolveProfile(base, {
-      ...emptyWorktreeProfile(),
-      pinnedPaths: ['apps/mobile/src/screen.tsx'],
-      hiddenPaths: ['apps/web'],
-    })
-
-    expect(resolved.pinnedPaths).toEqual(['README.md', 'apps/web', 'apps/mobile/src/screen.tsx'])
-    expect(resolved.hiddenPaths).toEqual(['dist', 'pnpm-lock.yaml', 'apps/web'])
-  })
-
-  it('never repeats a path the baseline already carries', () => {
-    const resolved = resolveProfile(base, {
-      ...emptyWorktreeProfile(),
-      pinnedPaths: ['README.md'],
-      hiddenPaths: ['dist'],
-    })
-
+  it('always takes pins and hides from the project baseline', () => {
+    const resolved = resolveProfile(base, { layers: [] })
     expect(resolved.pinnedPaths).toEqual(base.pinnedPaths)
     expect(resolved.hiddenPaths).toEqual(base.hiddenPaths)
-  })
-
-  it('lets one worktree see a path the project hides', () => {
-    const resolved = resolveProfile(base, {
-      ...emptyWorktreeProfile(),
-      unhiddenPaths: ['dist'],
-    })
-
-    expect(resolved.hiddenPaths).toEqual(['pnpm-lock.yaml'])
-  })
-
-  it('negates a hide the override itself declared', () => {
-    const resolved = resolveProfile(base, {
-      ...emptyWorktreeProfile(),
-      hiddenPaths: ['apps/web'],
-      unhiddenPaths: ['apps/web'],
-    })
-
-    expect(resolved.hiddenPaths).not.toContain('apps/web')
   })
 
   it('replaces layer order wholesale rather than interleaving two stories', () => {
@@ -90,7 +55,6 @@ describe('isEmptyWorktreeProfile', () => {
   })
 
   it('is false once the override says anything, including "no layers here"', () => {
-    expect(isEmptyWorktreeProfile({ ...emptyWorktreeProfile(), hiddenPaths: ['dist'] })).toBe(false)
     expect(isEmptyWorktreeProfile({ ...emptyWorktreeProfile(), layers: [] })).toBe(false)
   })
 })
@@ -117,16 +81,20 @@ describe('privateProjectDocumentSchema', () => {
     })
   })
 
-  it('keys worktree overrides by worktree id', () => {
+  it('discards legacy worktree path fields while retaining its story layers', () => {
     const parsed = privateProjectDocumentSchema.parse({
-      worktreeProfiles: { 'wt-9': { hiddenPaths: ['apps/web'] } },
+      worktreeProfiles: {
+        'wt-9': {
+          pinnedPaths: ['README.md'],
+          hiddenPaths: ['apps/web'],
+          unhiddenPaths: ['dist'],
+          layers: [{ label: 'View', pattern: 'components/' }],
+        },
+      },
     })
 
     expect(parsed.worktreeProfiles['wt-9']).toEqual({
-      pinnedPaths: [],
-      hiddenPaths: ['apps/web'],
-      unhiddenPaths: [],
-      layers: null,
+      layers: [{ label: 'View', pattern: 'components/' }],
     })
   })
 })
@@ -138,7 +106,7 @@ describe('stripPersonalProfileFields (ADR 0006)', () => {
       pinnedPaths: ['README.md'],
       worktrees: {},
       layers: [{ label: 'View', pattern: 'components/' }],
-      worktreeProfiles: { 'wt-9': worktreeProfileSchema.parse({ hiddenPaths: ['x'] }) },
+      worktreeProfiles: { 'wt-9': worktreeProfileSchema.parse({ layers: [] }) },
     })
 
     expect(promoted).toEqual({ hiddenPaths: ['dist'], pinnedPaths: ['README.md'], worktrees: {} })

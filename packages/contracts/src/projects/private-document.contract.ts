@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { profileLayerSchema, worktreeProfileSchema } from '../worktree-profile'
+import { persistedWorktreeProfileSchema, profileLayerSchema } from '../worktree-profile'
 import { type ProjectOverrides, projectOverridesSchema } from './projects.contract'
 
 /**
@@ -21,7 +21,7 @@ export const privateProjectDocumentSchema = projectOverridesSchema
     /** Project-level story order — the baseline every worktree inherits. */
     layers: z.array(profileLayerSchema).default([]),
     /** Keyed by stable Worktree id, so a branch rename does not orphan an override. */
-    worktreeProfiles: z.record(z.string(), worktreeProfileSchema).default({}),
+    worktreeProfiles: z.record(z.string(), persistedWorktreeProfileSchema).default({}),
   })
   .strict()
 export type PrivateProjectDocument = z.infer<typeof privateProjectDocumentSchema>

@@ -219,10 +219,8 @@ export type RepoScopeOutput = z.infer<typeof repoScopeOutputSchema>
  * The worktree profile for one checkout, BROKEN OUT rather than merged.
  *
  * `repoScope` answers "what does this tree apply"; this answers "and where did
- * each part come from". Settings → Personalization is the caller, and it exists
- * to show a human which of their focus is the project baseline and which this
- * worktree added — a single merged list cannot say that, and a reader who
- * cannot tell the two apart cannot decide which one to ask their agent to fix.
+ * each part came from". Pins and hides always come from the project baseline;
+ * only the declared story order may differ for a worktree.
  */
 export const worktreeProfileViewSchema = z
   .object({
@@ -360,15 +358,12 @@ export const filesContractFixtures = {
         layers: [{ label: 'Docs', pattern: '(^|/)docs/' }],
       },
       override: {
-        pinnedPaths: ['src/checkout/total.ts'],
-        hiddenPaths: [],
-        unhiddenPaths: ['src/generated'],
-        layers: null,
+        layers: [{ label: 'Checkout', pattern: '(^|/)src/checkout/' }],
       },
       resolved: {
-        hiddenPaths: [],
-        pinnedPaths: ['README.md', 'src/checkout/total.ts'],
-        layers: [{ label: 'Docs', pattern: '(^|/)docs/' }],
+        hiddenPaths: ['src/generated'],
+        pinnedPaths: ['README.md'],
+        layers: [{ label: 'Checkout', pattern: '(^|/)src/checkout/' }],
       },
     },
   },
