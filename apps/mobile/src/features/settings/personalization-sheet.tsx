@@ -37,6 +37,7 @@ export function PersonalizationSheet(): React.JSX.Element {
       title="Personalization"
       onClose={close}
     >
+      {/* surface-gutter-allow: modal body padding, not a product surface gutter. */}
       <ScrollView className="min-h-0 flex-1" contentContainerClassName="gap-6 px-5 py-5">
         {target === null ? null : (
           <Text className="font-mono text-2xs text-muted-foreground">{target.projectPath}</Text>

@@ -32,6 +32,7 @@ export function QuickOpenDialog(): React.JSX.Element {
             testID="porcelain-quick-open-backdrop"
           >
             <DialogPrimitive.Content asChild>
+              {/* panel-card-allow: the tablet dialog shell, not a content card. */}
               <View
                 className="overflow-hidden rounded-xl border border-border bg-card"
                 style={{
