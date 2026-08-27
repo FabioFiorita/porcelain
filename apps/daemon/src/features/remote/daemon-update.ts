@@ -30,11 +30,15 @@ export async function fetchPublishedVersion(
   }
 }
 
-/** Fire-and-forget: systemd takes over the next process; this one is about to die. */
-export function restartPorcelainService(spawnImpl: typeof spawn = spawn): void {
-  const child = spawnImpl('systemctl', ['--user', 'restart', 'porcelain.service'], {
-    detached: true,
-    stdio: 'ignore',
+/** Resolve once systemctl has launched; systemd then takes over and terminates this daemon. */
+export function restartPorcelainService(spawnImpl: typeof spawn = spawn): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const child = spawnImpl('systemctl', ['--user', 'restart', 'porcelain.service'], {
+      detached: true,
+      stdio: 'ignore',
+    })
+    child.once('spawn', resolve)
+    child.once('error', reject)
+    child.unref()
   })
-  child.unref()
 }

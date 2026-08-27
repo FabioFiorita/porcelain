@@ -169,7 +169,7 @@ describe('Remote operations', () => {
       update: {
         fetchLatest: async () => '0.60.0',
         restartable: () => true,
-        restart: vi.fn(),
+        restart: vi.fn(async () => undefined),
       },
     })
     await expect(ops.checkDaemonUpdate()).resolves.toEqual({
@@ -180,7 +180,7 @@ describe('Remote operations', () => {
   })
 
   it('refuses a restart when this process is not the always-on unit', async () => {
-    const restart = vi.fn()
+    const restart = vi.fn(async () => undefined)
     const { ops } = operations({
       update: {
         fetchLatest: async () => null,
@@ -196,7 +196,7 @@ describe('Remote operations', () => {
   })
 
   it('restarts the always-on unit when the host can', async () => {
-    const restart = vi.fn()
+    const restart = vi.fn(async () => undefined)
     const { ops } = operations({
       update: {
         fetchLatest: async () => '0.60.0',
@@ -206,6 +206,23 @@ describe('Remote operations', () => {
     })
     await expect(ops.restartDaemon()).resolves.toEqual({ ok: true, value: undefined })
     expect(restart).toHaveBeenCalledTimes(1)
+  })
+
+  it('reports a restart launch failure instead of claiming success', async () => {
+    const { ops } = operations({
+      update: {
+        fetchLatest: async () => '0.60.0',
+        restartable: () => true,
+        restart: vi.fn(async () => {
+          throw new Error('systemctl not found')
+        }),
+      },
+    })
+
+    await expect(ops.restartDaemon()).resolves.toEqual({
+      ok: false,
+      error: { code: 'resource.unavailable' },
+    })
   })
 
   it('joins snapshot, connected count, and admin token path for accessStatus', async () => {

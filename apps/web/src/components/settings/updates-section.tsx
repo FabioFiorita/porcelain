@@ -8,8 +8,8 @@ import {
   DAEMON_UPDATE_SYSTEMD_COMMAND,
 } from '@renderer/lib/daemon-update'
 import { isBrowser } from '@renderer/lib/platform'
-import { copyText } from '@renderer/lib/utils'
 import { trpc } from '@renderer/lib/trpc'
+import { copyText } from '@renderer/lib/utils'
 import { runUserAction } from '@shared/background'
 import { Check, Copy, Loader2, RotateCw, TriangleAlert } from 'lucide-react'
 import { useState } from 'react'
@@ -92,6 +92,7 @@ function DaemonUpdatesSection(): React.JSX.Element {
   const latest = check.data?.latestVersion ?? null
   const checked = check.data !== undefined
   const restartable = check.data?.restartable === true
+  const busy = check.isPending || restart.isPending
   const behind = current !== null && latest !== null ? compareVersions(current, latest) < 0 : false
 
   const copyRestart = (): void => {
@@ -123,7 +124,7 @@ function DaemonUpdatesSection(): React.JSX.Element {
               onError: (error) => toastUserActionError('Check for updates', error),
             })
           }
-          disabled={check.isPending}
+          disabled={busy}
         >
           {check.isPending ? <Loader2 className="animate-spin" /> : <RotateCw />}
           {check.isPending ? 'Checking…' : 'Check for updates'}
@@ -152,7 +153,7 @@ function DaemonUpdatesSection(): React.JSX.Element {
         <Button
           size="sm"
           className={compactButtonClass}
-          disabled={restart.isPending || !checked || !restartable}
+          disabled={busy || !checked || !restartable}
           onClick={() =>
             restart.mutate(undefined, {
               onSuccess: () => toast.message('Restarting the daemon…'),
@@ -163,7 +164,13 @@ function DaemonUpdatesSection(): React.JSX.Element {
           {restart.isPending ? <Loader2 className="animate-spin" /> : <RotateCw />}
           {restart.isPending ? 'Restarting…' : 'Update and restart'}
         </Button>
-        <Button variant="outline" size="sm" className={compactButtonClass} onClick={copyRestart}>
+        <Button
+          variant="outline"
+          size="sm"
+          className={compactButtonClass}
+          disabled={busy}
+          onClick={copyRestart}
+        >
           {copied ? <Check /> : <Copy />}
           {copied ? 'Copied' : 'Copy restart command'}
         </Button>

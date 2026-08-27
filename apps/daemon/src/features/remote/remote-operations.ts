@@ -34,7 +34,7 @@ export type { RemoteOperationError, RemoteOperationResult }
 export type RemoteUpdate = {
   fetchLatest(): Promise<string | null>
   restartable(): boolean
-  restart(): void
+  restart(): Promise<void>
 }
 
 export type RemoteOperations = Readonly<{
@@ -105,8 +105,12 @@ export function createRemoteOperations(options: {
       if (!update.restartable()) {
         return { ok: false, error: { code: 'resource.unavailable' } }
       }
-      update.restart()
-      return { ok: true, value: undefined }
+      try {
+        await update.restart()
+        return { ok: true, value: undefined }
+      } catch {
+        return { ok: false, error: { code: 'resource.unavailable' } }
+      }
     },
 
     async accessStatus(): Promise<AccessStatusOutput> {
