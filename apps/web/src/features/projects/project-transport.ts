@@ -107,9 +107,10 @@ export async function listCanvasesOnDaemon(
   client: ProjectsClient,
   projectId: string,
   worktreePath?: string,
+  worktreeId?: string,
 ): Promise<readonly CanvasRecord[]> {
   return projectsProcedures.listCanvases.output.parse(
-    await client.listCanvases.query({ projectId, worktreePath }),
+    await client.listCanvases.query({ projectId, worktreeId, worktreePath }),
   )
 }
 

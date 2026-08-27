@@ -40,6 +40,14 @@ function canvasScope(target: HubTarget): { projectId: string; worktreePath: stri
   return { projectId: target.projectId, worktreePath: target.path }
 }
 
+function canvasListScope(target: HubTarget): {
+  projectId: string
+  worktreeId: string
+  worktreePath: string
+} {
+  return { ...canvasScope(target), worktreeId: target.worktreeId }
+}
+
 /** Every Canvas the selected Worktree resolves, newest daemon order preserved. */
 export function useCanvasList(active: boolean): {
   canvases: readonly CanvasRecord[]
@@ -51,13 +59,15 @@ export function useCanvasList(active: boolean): {
   const enabled = active && isPaired(environment) && target !== null
   const environmentId = environment?.id ?? 'none'
   const identity =
-    target === null ? DISABLED_LIST : listCanvasesQuery(target.projectId, target.path)
+    target === null
+      ? DISABLED_LIST
+      : listCanvasesQuery(target.projectId, target.path, target.worktreeId)
 
   const query = useQuery({
     enabled,
     queryFn: async (): Promise<readonly CanvasRecord[]> => {
       if (target === null) throw new Error('listCanvases ran without a selected Worktree')
-      return callProjectDaemon(environment, listCanvasesProcedure, canvasScope(target))
+      return callProjectDaemon(environment, listCanvasesProcedure, canvasListScope(target))
     },
     queryKey: projectsQueryKey(environmentId, identity),
   })

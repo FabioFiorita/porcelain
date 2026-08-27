@@ -115,7 +115,7 @@ describe('CanvasList', () => {
     useHubSelectionStore.setState({ selection: { kind: 'worktree', ...TARGET } })
     vi.mocked(useCanvasList).mockReturnValue([RECORD])
     renderList()
-    expect(useCanvasList).toHaveBeenCalledWith('proj-1', '/repo', 'env-1')
+    expect(useCanvasList).toHaveBeenCalledWith('proj-1', '/repo', 'env-1', 'wt-1')
   })
 
   it('badges a tracked Canvas and offers it no promotion', () => {

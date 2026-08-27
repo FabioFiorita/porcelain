@@ -37,6 +37,32 @@ afterEach(async () => {
 })
 
 describe('Canvas store', () => {
+  it('keeps concurrent creates in the project index', async () => {
+    const first = store.writeCanvas('proj-1', {
+      worktreeId: 'wt-1',
+      title: 'First',
+      kind: 'markdown',
+      entryFile: 'index.md',
+      template: 'review',
+      source: { kind: 'files', files: [{ path: 'index.md', content: '# First' }] },
+    })
+    const second = store.writeCanvas('proj-1', {
+      worktreeId: 'wt-2',
+      title: 'Second',
+      kind: 'markdown',
+      entryFile: 'index.md',
+      template: 'review',
+      source: { kind: 'files', files: [{ path: 'index.md', content: '# Second' }] },
+    })
+    const results = await Promise.all([first, second])
+    expect(results.every((result) => result.ok)).toBe(true)
+    const listed = await store.listCanvases('proj-1')
+    expect(listed.ok && listed.value.map((canvas) => canvas.title).sort()).toEqual([
+      'First',
+      'Second',
+    ])
+  })
+
   it('lists no canvases for a project with no manifest yet', async () => {
     expect(await store.listCanvases('proj-1')).toEqual({ ok: true, value: [] })
   })

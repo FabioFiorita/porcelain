@@ -75,7 +75,7 @@ describe('useCanvasList', () => {
     expect(ctx.callDaemon).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ name: 'listCanvases' }),
-      { projectId: PROJECT_ID, worktreePath: REPO_PATH },
+      { projectId: PROJECT_ID, worktreeId: 'wt-alpha-main', worktreePath: REPO_PATH },
     )
   })
 

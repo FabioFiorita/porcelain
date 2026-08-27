@@ -23,6 +23,7 @@ export function CanvasList(): React.JSX.Element {
     target?.projectId ?? null,
     target?.path ?? null,
     target?.environmentId ?? null,
+    target?.worktreeId ?? null,
   )
 
   if (target === null) {

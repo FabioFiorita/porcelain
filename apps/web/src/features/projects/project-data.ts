@@ -413,17 +413,23 @@ export function useCanvasList(
   projectId: string | null,
   worktreePath: string | null = null,
   environmentId: string | null = null,
+  worktreeId: string | null = null,
 ): readonly CanvasRecord[] {
   const daemon = useDaemonIdentity()
   const defaultClient = trpc.useUtils().client
   const owner =
     environmentId === null ? { client: defaultClient } : environmentSessionFor(environmentId)
-  const identity = listCanvasesQuery(projectId ?? '', worktreePath)
+  const identity = listCanvasesQuery(projectId ?? '', worktreePath, worktreeId)
   const query = useQuery({
     enabled: projectId !== null && owner !== null,
     queryFn: async (): Promise<readonly CanvasRecord[]> => {
       if (owner === null) throw new Error('The target Environment is offline.')
-      return listCanvasesOnDaemon(owner.client, projectId ?? '', worktreePath ?? undefined)
+      return listCanvasesOnDaemon(
+        owner.client,
+        projectId ?? '',
+        worktreePath ?? undefined,
+        worktreeId ?? undefined,
+      )
     },
     queryKey: [...projectsQueryKey(daemon, identity), environmentId],
   })

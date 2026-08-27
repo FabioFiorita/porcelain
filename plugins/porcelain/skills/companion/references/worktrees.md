@@ -21,9 +21,11 @@ porcelain_project { "op": "list" }
 porcelain_canvas { "op": "get", "workspace": { "projectId": "…", "worktreeId": "…" }, "id": "…" }
 ```
 
-The Review Canvas is Project-owned, while its Execution anchors and Evidence proof should describe
-the Worktree that was actually inspected. Actions run only after the human chooses an Environment
-and Worktree in the client. They never guess a checkout.
+Each Review Canvas is stored under the Project but scoped to the Worktree named by `workspace`.
+Creating another Review never replaces an earlier review; update the returned Canvas id when the
+same review changes. Execution anchors and Evidence proof should describe the Worktree that was
+actually inspected. Actions run only after the human chooses an Environment and Worktree in the
+client. They never guess a checkout.
 
 ## Harness hand-off
 

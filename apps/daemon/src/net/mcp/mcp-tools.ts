@@ -130,7 +130,7 @@ export const MCP_TOOLS: readonly McpToolDefinition[] = Object.freeze([
     name: 'porcelain_canvas',
     title: 'Manage a Canvas',
     description:
-      'List, read, create, update, delete, or promote an agent-authored Canvas. Review is the `review` template inside Canvas; use templateData for its structured files and sections. A promoted Canvas is tracked in <repo>/.porcelain and becomes canonical for that checkout. Promotion writes files but never stages or commits.',
+      'List, read, create, update, delete, or promote an agent-authored Canvas. Review is the `review` template inside Canvas; each create makes a new Review scoped to the addressed Worktree, and update requires its id. A promoted Canvas is tracked in <repo>/.porcelain and becomes canonical for that checkout. Promotion writes files but never stages or commits.',
     inputSchema: {
       type: 'object',
       properties: {

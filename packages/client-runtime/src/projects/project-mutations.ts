@@ -120,7 +120,7 @@ export const promoteCanvas = {
   procedure: projectsProcedures.promoteCanvas,
   procedureName: 'promoteCanvas',
   affectedQueries: (input: PromoteCanvasInput): readonly ProjectsQuery[] => [
-    listCanvasesQuery(input.projectId, input.path),
+    listCanvasesQuery(input.projectId, input.path, input.worktreeId ?? null),
     listCanvasesQuery(input.projectId),
     readCanvasQuery(input.projectId, input.canvasId, input.path),
     overlayQuery(input.path),

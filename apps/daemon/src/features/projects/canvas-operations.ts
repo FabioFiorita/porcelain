@@ -61,16 +61,6 @@ export type PromoteCanvasOperationInput = PromoteCanvasInput &
 export type CanvasOperations = Readonly<{
   listCanvases: (input: ListCanvasesInput) => Promise<ProjectOperationResult<CanvasRecord[]>>
   writeCanvas: (input: WriteCanvasOperationInput) => Promise<ProjectOperationResult<CanvasRecord>>
-  /**
-   * The id of the private Canvas following a structured template, when there is one.
-   * `template` is deliberately absent from the public record: which template a bundle
-   * follows is how the Review finds itself again, not something a client renders.
-   */
-  findCanvasByTemplate: (input: {
-    projectId: string
-    template: 'review'
-    worktreePath?: string
-  }) => Promise<ProjectOperationResult<string | null>>
   /** Drop one Canvas, deleting its tracked bundle when the addressed checkout owns it. */
   forgetCanvas: (input: {
     projectId: string
@@ -214,10 +204,19 @@ export function createCanvasOperations(options: {
   ): Promise<ProjectOperationResult<CanvasRecord[]>> {
     const privateRecords = await options.store.listCanvases(input.projectId)
     if (!privateRecords.ok) return fromStoreError(privateRecords.error)
+    const visiblePrivate =
+      input.worktreeId === undefined
+        ? privateRecords.value
+        : privateRecords.value.filter(
+            (record) =>
+              record.template !== 'review' ||
+              record.worktreeId === null ||
+              record.worktreeId === input.worktreeId,
+          )
     const asPrivate = (records: readonly StoredCanvas[]): CanvasRecord[] =>
       records.map((record) => toPublicRecord(record, false))
     if (input.worktreePath === undefined) {
-      return { ok: true, value: asPrivate(privateRecords.value).sort(byUpdatedDesc) }
+      return { ok: true, value: asPrivate(visiblePrivate).sort(byUpdatedDesc) }
     }
 
     const tracked = await options.overlay.listOverlayCanvases(input.worktreePath)
@@ -226,7 +225,7 @@ export function createCanvasOperations(options: {
     const trackedIds = new Set(tracked.value.map((record) => record.id))
     const records = [
       ...tracked.value.map((record) => toPublicRecord(record, true)),
-      ...asPrivate(privateRecords.value.filter((record) => !trackedIds.has(record.id))),
+      ...asPrivate(visiblePrivate.filter((record) => !trackedIds.has(record.id))),
     ]
     return { ok: true, value: records.sort(byUpdatedDesc) }
   }
@@ -249,26 +248,6 @@ export function createCanvasOperations(options: {
   }
 
   return Object.freeze({
-    async findCanvasByTemplate(input: {
-      projectId: string
-      template: 'review'
-      worktreePath?: string
-    }): Promise<ProjectOperationResult<string | null>> {
-      // A promoted Canvas is canonical. Resolve the tracked overlay first so
-      // Review/MCP callers keep seeing the same id after promotion and never
-      // create a second private Review for the same project.
-      if (input.worktreePath !== undefined) {
-        const tracked = await options.overlay.listOverlayCanvases(input.worktreePath)
-        if (!tracked.ok) return fromStoreError(tracked.error)
-        const trackedMatch = tracked.value.find((canvas) => canvas.template === input.template)
-        if (trackedMatch !== undefined) return { ok: true, value: trackedMatch.id }
-      }
-      const listed = await options.store.listCanvases(input.projectId)
-      if (!listed.ok) return fromStoreError(listed.error)
-      const found = listed.value.find((canvas) => canvas.template === input.template)
-      return { ok: true, value: found?.id ?? null }
-    },
-
     async forgetCanvas(input: {
       projectId: string
       canvasId: string

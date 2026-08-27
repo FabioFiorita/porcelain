@@ -55,6 +55,32 @@ afterEach(async () => {
 })
 
 describe('Canvas operations', () => {
+  it('shows Review Canvases only in their worktree while keeping ordinary Canvases project-wide', async () => {
+    const reviewOne: StoredCanvas = { ...htmlRecord, id: 'review-one', template: 'review' }
+    const reviewTwo: StoredCanvas = {
+      ...htmlRecord,
+      id: 'review-two',
+      worktreeId: 'wt-2',
+      template: 'review',
+    }
+    await writeIndex('proj-1', [reviewOne, reviewTwo, markdownRecord])
+
+    const first = await operations.listCanvases({
+      projectId: 'proj-1',
+      worktreeId: 'wt-1',
+    })
+    const second = await operations.listCanvases({
+      projectId: 'proj-1',
+      worktreeId: 'wt-2',
+    })
+
+    expect(first.ok && first.value.map((canvas) => canvas.id)).toEqual(['review-one', 'canvas-md'])
+    expect(second.ok && second.value.map((canvas) => canvas.id)).toEqual([
+      'review-two',
+      'canvas-md',
+    ])
+  })
+
   it('lists Canvases newest-updated first as public records with no storage detail', async () => {
     await writeIndex('proj-1', [markdownRecord, htmlRecord])
     const result = await operations.listCanvases({ projectId: 'proj-1' })

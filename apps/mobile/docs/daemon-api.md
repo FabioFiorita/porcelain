@@ -85,7 +85,7 @@ hands off to the existing terminal or viewer navigation. Content search remains 
 - History (inside Changes): `gitLog` Q `{limit≤500}`, `gitCommitFlow` Q, `gitCommitMessage` Q, `gitFileLog` Q (`--follow`)
 
 ### Canvas and Actions
-- Canvas: `listCanvases` Q `{projectId, worktreePath?}`, `readCanvas` Q `{projectId, canvasId, worktreePath?}`, `mintCanvasAccessToken` M `{projectId, canvasId, worktreePath?}`
+- Canvas: `listCanvases` Q `{projectId, worktreeId?, worktreePath?}`, `readCanvas` Q `{projectId, canvasId, worktreePath?}`, `mintCanvasAccessToken` M `{projectId, canvasId, worktreePath?}`
 - Actions: `actions` Q `{projectId}`, `addAction`/`updateAction`/`moveAction`/`deleteAction` M, `prepareActionRun` M — every mutation names its Project and Worktree target
 
 ### Terminal tab

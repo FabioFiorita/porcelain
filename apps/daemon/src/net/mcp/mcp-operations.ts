@@ -22,11 +22,6 @@ export type McpOperations = Readonly<{
       projectId: string
       worktreePath?: string
     }) => Promise<OperationResult<readonly unknown[]>>
-    findCanvasByTemplate: (input: {
-      projectId: string
-      template: 'review'
-      worktreePath?: string
-    }) => Promise<OperationResult<string | null>>
     readCanvas: (input: {
       projectId: string
       canvasId: string

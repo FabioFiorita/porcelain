@@ -41,6 +41,7 @@ const listCanvasesQuerySchema = z
     domain: z.literal('projects'),
     name: z.literal('canvases'),
     projectId: z.string().min(1),
+    worktreeId: z.string().min(1).nullable(),
     worktreePath: worktreePathIdentitySchema,
   })
   .strict()
@@ -106,8 +107,9 @@ export function hubInventoryQuery(): HubInventoryQuery {
 export function listCanvasesQuery(
   projectId: string,
   worktreePath: string | null = null,
+  worktreeId: string | null = null,
 ): ListCanvasesQuery {
-  return { domain: 'projects', name: 'canvases', projectId, worktreePath }
+  return { domain: 'projects', name: 'canvases', projectId, worktreeId, worktreePath }
 }
 
 /** Build the single-Canvas read identity, scoped to the addressed checkout. */

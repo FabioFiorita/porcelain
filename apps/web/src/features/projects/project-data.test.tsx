@@ -329,7 +329,7 @@ describe('Web Projects adapter', () => {
     )
     const hook = renderHook(
       () => ({
-        list: useCanvasList('proj-alpha', '/synthetic/projects/alpha'),
+        list: useCanvasList('proj-alpha', '/synthetic/projects/alpha', null, 'wt-alpha-main'),
         canvas: useCanvas('proj-alpha', 'canvas-intent', '/synthetic/projects/alpha'),
       }),
       { wrapper },
@@ -339,7 +339,11 @@ describe('Web Projects adapter', () => {
     expect(mock.requests()).toContainEqual({
       procedure: 'listCanvases',
       kind: 'query',
-      input: { projectId: 'proj-alpha', worktreePath: '/synthetic/projects/alpha' },
+      input: {
+        projectId: 'proj-alpha',
+        worktreeId: 'wt-alpha-main',
+        worktreePath: '/synthetic/projects/alpha',
+      },
     })
     expect(mock.requests()).toContainEqual({
       procedure: 'readCanvas',

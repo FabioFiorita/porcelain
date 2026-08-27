@@ -61,11 +61,6 @@ export type ProjectsOperations = Readonly<{
   listCanvases: (input: ListCanvasesInput) => Promise<ProjectOperationResult<CanvasRecord[]>>
   /** Agent-surface only — see canvas-operations.ts. No wire procedure writes a Canvas. */
   writeCanvas: (input: WriteCanvasOperationInput) => Promise<ProjectOperationResult<CanvasRecord>>
-  findCanvasByTemplate: (input: {
-    projectId: string
-    template: 'review'
-    worktreePath?: string
-  }) => Promise<ProjectOperationResult<string | null>>
   forgetCanvas: (input: {
     projectId: string
     canvasId: string
@@ -245,7 +240,6 @@ export function createProjectsOperations(options: {
     createHubWorktree: hub.createHubWorktree,
     listCanvases: canvas.listCanvases,
     writeCanvas: canvas.writeCanvas,
-    findCanvasByTemplate: canvas.findCanvasByTemplate,
     forgetCanvas: canvas.forgetCanvas,
     readCanvas: canvas.readCanvas,
     readCanvasAsset: canvas.readCanvasAsset,

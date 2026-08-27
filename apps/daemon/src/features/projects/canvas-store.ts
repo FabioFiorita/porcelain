@@ -113,6 +113,17 @@ export function createCanvasStore(options: {
 }): CanvasStore {
   const now = options.now ?? (() => new Date().toISOString())
   const newId = options.newId ?? (() => randomUUID())
+  const mutationTails = new Map<string, Promise<unknown>>()
+
+  /** Serialize each Project's read-modify-write cycle so parallel agents cannot lose index rows. */
+  function mutateProject<Value>(projectId: string, mutation: () => Promise<Value>): Promise<Value> {
+    const previous = mutationTails.get(projectId) ?? Promise.resolve()
+    const current = previous.catch(() => undefined).then(mutation)
+    mutationTails.set(projectId, current)
+    return current.finally(() => {
+      if (mutationTails.get(projectId) === current) mutationTails.delete(projectId)
+    })
+  }
   function indexDocument(projectId: string) {
     return createStrictJsonDocument({
       path: canvasIndexPath(options.homeDir, projectId),
@@ -143,46 +154,48 @@ export function createCanvasStore(options: {
       projectId: string,
       input: WriteCanvasInput,
     ): Promise<CanvasStoreResult<StoredCanvas>> {
-      if (!isContainedBundlePath(input.entryFile)) {
-        return { ok: false, error: { code: 'canvas.entry-outside-bundle' } }
-      }
-      const listed = await readCanvases(projectId)
-      if (!listed.ok) return listed
+      return mutateProject(projectId, async () => {
+        if (!isContainedBundlePath(input.entryFile)) {
+          return { ok: false, error: { code: 'canvas.entry-outside-bundle' } }
+        }
+        const listed = await readCanvases(projectId)
+        if (!listed.ok) return listed
 
-      const id = input.id ?? newId()
-      const existing = listed.value.find((canvas) => canvas.id === id)
-      const timestamp = now()
-      const record: StoredCanvas = {
-        id,
-        worktreeId: input.worktreeId,
-        title: input.title,
-        kind: input.kind,
-        entryFile: input.entryFile,
-        createdAt: existing?.createdAt ?? timestamp,
-        updatedAt: timestamp,
-        ...(input.template === undefined ? {} : { template: input.template }),
-      }
+        const id = input.id ?? newId()
+        const existing = listed.value.find((canvas) => canvas.id === id)
+        const timestamp = now()
+        const record: StoredCanvas = {
+          id,
+          worktreeId: input.worktreeId,
+          title: input.title,
+          kind: input.kind,
+          entryFile: input.entryFile,
+          createdAt: existing?.createdAt ?? timestamp,
+          updatedAt: timestamp,
+          ...(input.template === undefined ? {} : { template: input.template }),
+        }
 
-      const written = await writeCanvasBundle(
-        canvasBundleDir(options.homeDir, projectId, id),
-        input.source,
-      )
-      if (!written.ok) {
-        return written.error === 'entry-outside-bundle'
-          ? { ok: false, error: { code: 'canvas.entry-outside-bundle' } }
-          : unavailable()
-      }
+        const written = await writeCanvasBundle(
+          canvasBundleDir(options.homeDir, projectId, id),
+          input.source,
+        )
+        if (!written.ok) {
+          return written.error === 'entry-outside-bundle'
+            ? { ok: false, error: { code: 'canvas.entry-outside-bundle' } }
+            : unavailable()
+        }
 
-      const canvases =
-        existing === undefined
-          ? [...listed.value, record]
-          : listed.value.map((canvas) => (canvas.id === id ? record : canvas))
-      try {
-        await indexDocument(projectId).write({ canvases })
-      } catch {
-        return unavailable()
-      }
-      return { ok: true, value: record }
+        const canvases =
+          existing === undefined
+            ? [...listed.value, record]
+            : listed.value.map((canvas) => (canvas.id === id ? record : canvas))
+        try {
+          await indexDocument(projectId).write({ canvases })
+        } catch {
+          return unavailable()
+        }
+        return { ok: true, value: record }
+      })
     },
 
     bundleDirFor(projectId: string, canvasId: string): string {
@@ -211,20 +224,22 @@ export function createCanvasStore(options: {
     },
 
     async forgetCanvas(projectId: string, canvasId: string): Promise<CanvasStoreResult<void>> {
-      const listed = await readCanvases(projectId)
-      if (!listed.ok) return listed
-      const remaining = listed.value.filter((canvas) => canvas.id !== canvasId)
-      if (remaining.length === listed.value.length) return notFound()
-      try {
-        await indexDocument(projectId).write({ canvases: remaining })
-        await rm(canvasBundleDir(options.homeDir, projectId, canvasId), {
-          recursive: true,
-          force: true,
-        })
-      } catch {
-        return unavailable()
-      }
-      return { ok: true, value: undefined }
+      return mutateProject(projectId, async () => {
+        const listed = await readCanvases(projectId)
+        if (!listed.ok) return listed
+        const remaining = listed.value.filter((canvas) => canvas.id !== canvasId)
+        if (remaining.length === listed.value.length) return notFound()
+        try {
+          await indexDocument(projectId).write({ canvases: remaining })
+          await rm(canvasBundleDir(options.homeDir, projectId, canvasId), {
+            recursive: true,
+            force: true,
+          })
+        } catch {
+          return unavailable()
+        }
+        return { ok: true, value: undefined }
+      })
     },
   })
 }

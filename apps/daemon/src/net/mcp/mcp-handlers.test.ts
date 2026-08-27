@@ -58,7 +58,6 @@ function harness(
         },
       }),
       listCanvases: async () => ({ ok: true, value: [canvas] }),
-      findCanvasByTemplate: async () => ({ ok: true, value: null }),
       readCanvas: async () => ({
         ok: true,
         value: { record: canvas, content: options.canvasContent ?? '# Canvas' },
@@ -212,6 +211,38 @@ describe('domain MCP entry points', () => {
     expect(calls.map((call) => call.name)).toEqual(
       expect.arrayContaining(['writeCanvas', 'promoteCanvas']),
     )
+  })
+
+  it('creates distinct Review Canvases in the addressed worktree', async () => {
+    const { tools, calls } = harness()
+    const review = {
+      name: 'Review A',
+      files: [{ path: 'src/a.ts' }],
+      sections: [{ title: 'Intent', prose: 'First review' }],
+    }
+    await tools.call('porcelain_canvas', {
+      op: 'create',
+      workspace: REPO,
+      template: 'review',
+      templateData: review,
+    })
+    await tools.call('porcelain_canvas', {
+      op: 'create',
+      workspace: REPO,
+      template: 'review',
+      templateData: { ...review, name: 'Review B' },
+    })
+
+    const writes = calls.filter((call) => call.name === 'writeCanvas')
+    expect(writes).toHaveLength(2)
+    expect(writes).toEqual([
+      expect.objectContaining({ input: expect.not.objectContaining({ id: expect.anything() }) }),
+      expect.objectContaining({ input: expect.not.objectContaining({ id: expect.anything() }) }),
+    ])
+    expect(writes.map((write) => write.input)).toEqual([
+      expect.objectContaining({ worktreeId: WORKTREE, title: 'Review A', template: 'review' }),
+      expect.objectContaining({ worktreeId: WORKTREE, title: 'Review B', template: 'review' }),
+    ])
   })
 
   it('replaces an existing tracked Canvas on update and reads the new content', async () => {

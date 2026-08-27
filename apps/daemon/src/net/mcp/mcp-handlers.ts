@@ -136,23 +136,6 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
       : { ok: false, result: fail(resolved.message) }
   }
 
-  async function resolveCanvasId(
-    place: ResolvedWorkspace,
-    args: Record<string, unknown>,
-  ): Promise<string | undefined> {
-    const explicit = stringField(args, 'id')
-    if (explicit !== undefined) return explicit
-    if (args.template === 'review' || args.templateData !== undefined) {
-      const found = await operations.projects.findCanvasByTemplate({
-        projectId: place.projectId,
-        template: 'review',
-        ...(place.worktreePath === null ? {} : { worktreePath: place.worktreePath }),
-      })
-      if (found.ok) return found.value ?? undefined
-    }
-    return undefined
-  }
-
   async function canvasSource(args: Record<string, unknown>): Promise<
     | {
         ok: true
@@ -244,6 +227,7 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
       if (op === 'list') {
         const listed = await operations.projects.listCanvases({
           projectId: place.projectId,
+          ...(place.worktreeId === null ? {} : { worktreeId: place.worktreeId }),
           ...(place.worktreePath === null ? {} : { worktreePath: place.worktreePath }),
         })
         return listed.ok
@@ -292,11 +276,14 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
         return fail('op must be list, get, create, update, delete, or promote.')
       const source = await canvasSource(args)
       if (!source.ok) return source.result
-      const canvasId = await resolveCanvasId(place, args)
+      const canvasId = stringField(args, 'id')
+      if (op === 'create' && canvasId !== undefined)
+        return fail('id is not accepted for create; use update to replace a Canvas.')
       if (op === 'update' && canvasId === undefined)
         return fail('id is required to update a Canvas.')
       const listed = await operations.projects.listCanvases({
         projectId: place.projectId,
+        ...(place.worktreeId === null ? {} : { worktreeId: place.worktreeId }),
         ...(place.worktreePath === null ? {} : { worktreePath: place.worktreePath }),
       })
       const wasTracked =

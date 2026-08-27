@@ -67,6 +67,7 @@ describe('Project query identities', () => {
       domain: 'projects',
       name: 'canvases',
       projectId: 'proj-1',
+      worktreeId: null,
       worktreePath: null,
     })
     expect(listCanvasesQuery('proj-1')).not.toEqual(listCanvasesQuery('proj-2'))
@@ -87,6 +88,9 @@ describe('Project query identities', () => {
       listCanvasesQuery('proj-1', '/repo-b'),
     )
     expect(listCanvasesQuery('proj-1', '/repo-a')).not.toEqual(listCanvasesQuery('proj-1'))
+    expect(listCanvasesQuery('proj-1', '/repo-a', 'wt-a')).not.toEqual(
+      listCanvasesQuery('proj-1', '/repo-a', 'wt-b'),
+    )
     expect(readCanvasQuery('proj-1', 'canvas-1', '/repo-a')).not.toEqual(
       readCanvasQuery('proj-1', 'canvas-1', '/repo-b'),
     )

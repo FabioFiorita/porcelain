@@ -164,9 +164,9 @@ export const canvasKindSchema = z.enum(['html', 'markdown'])
 export type CanvasKind = z.infer<typeof canvasKindSchema>
 
 /**
- * A Canvas owned by the stable Project record — it survives the Worktree that
- * authored it. `worktreeId` is `null` once that Worktree is gone or the Canvas
- * was never scoped to one.
+ * A Canvas stored under the stable Project record. Review templates use
+ * `worktreeId` as their review context; ordinary Canvases remain project-wide.
+ * `worktreeId` is null for legacy/global records and promoted records that travel.
  */
 export const canvasRecordSchema = z
   .object({
@@ -188,16 +188,18 @@ export const canvasRecordSchema = z
 export type CanvasRecord = z.infer<typeof canvasRecordSchema>
 
 /**
- * The Worktree checkout to read the Git overlay from. Optional because a Canvas
- * is owned by the Project, not a checkout: omit it and only private daemon-root
- * Canvases are listed. Pass it and the tracked overlay in that ONE checkout is
- * merged over the private records — never a scan of every Worktree, which would
- * make "which copy did I open" depend on branch checkout order.
+ * Pass `worktreePath` to merge the tracked overlay in that ONE checkout. Pass
+ * `worktreeId` to show only Review templates belonging to that review context;
+ * ordinary project Canvases and legacy/global Reviews remain visible.
  */
 const worktreePathSchema = z.string().min(1).optional()
 
 export const listCanvasesInputSchema = z
-  .object({ projectId: z.string().min(1), worktreePath: worktreePathSchema })
+  .object({
+    projectId: z.string().min(1),
+    worktreeId: z.string().min(1).optional(),
+    worktreePath: worktreePathSchema,
+  })
   .strict()
 export const listCanvasesOutputSchema = z.array(canvasRecordSchema)
 export type ListCanvasesInput = z.infer<typeof listCanvasesInputSchema>

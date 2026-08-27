@@ -111,12 +111,17 @@ Review is structured Canvas content, not a separate domain:
 }
 ```
 
+Every `create` produces a new Review Canvas scoped to the Worktree named by `workspace`; parallel
+reviews can therefore coexist in one Project. Keep the returned Canvas id and use `update` with
+that id for later changes to the same review. Never use `create` as an upsert.
+
 Evidence and Handoff belong inside this Canvas/template as checks, results, artifacts, and a
 next-step summary. Do not create parallel stores or tools for them.
 
 ## Persistence and promotion
 
-Private Canvases live in the daemon's own store. `promote` writes a bundle to:
+Private Canvases live in the daemon's own store. Review Canvases are listed only with their
+Worktree review context; generic Canvases remain Project-wide. `promote` writes a bundle to:
 
 ```text
 .porcelain/canvases/<canvas-id>/
