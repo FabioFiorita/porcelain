@@ -5,22 +5,19 @@ import { Input } from '@renderer/components/ui/input'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import {
   type EnvironmentStatus,
-  useConnectRemoteEnvironment,
-  useDisconnectRemoteEnvironment,
   useEnvironmentStatuses,
-  useOpenWindowInEnvironment,
   usePairEnvironmentConnection,
   useRemoteEnvironments,
   useRemoveEnvironmentEndpoint,
   useRemoveRemoteEnvironment,
 } from '@renderer/features/remote'
-import { compactButtonClass, rowActionClass } from '@renderer/lib/controls'
-import { EnvironmentName } from './environment-name'
+import { compactButtonClass } from '@renderer/lib/controls'
 import { cn } from '@renderer/lib/utils'
 import { platformLabel } from '@shared/platform'
 import { TestIds } from '@shared/test-ids'
 import { Cloud, Monitor, X } from 'lucide-react'
 import { useState } from 'react'
+import { EnvironmentName } from './environment-name'
 
 function describeStatus(status: EnvironmentStatus | undefined): string {
   if (status === undefined) return 'Checking…'
@@ -54,9 +51,6 @@ function activeRoute(status: EnvironmentStatus | undefined): string | null {
   return endpointLabel(status.endpoint)
 }
 
-/** Primary action slot — Badge and Button share a width so the settings rows stay aligned. */
-const primaryActionSlotClass = 'flex min-w-[5.75rem] justify-end'
-
 /**
  * Each saved environment is a group of verified connections. A group of one is the normal
  * starting point; pairing another link adds a route to this same card.
@@ -69,9 +63,6 @@ function ElectronRemotesSection(): React.JSX.Element {
   const data = useRemoteEnvironments()
   const statuses = useEnvironmentStatuses()
   const { pair, isPending: isPairing, error } = usePairEnvironmentConnection()
-  const { connect, pendingId: connectingId } = useConnectRemoteEnvironment()
-  const { disconnect, isPending: isDisconnecting } = useDisconnectRemoteEnvironment()
-  const { open: openInEnv } = useOpenWindowInEnvironment()
   const { remove, pendingId: removingId } = useRemoveRemoteEnvironment()
   const { remove: removeEndpoint } = useRemoveEnvironmentEndpoint()
   const [connectionLink, setConnectionLink] = useState('')
@@ -79,7 +70,6 @@ function ElectronRemotesSection(): React.JSX.Element {
   const [showPairing, setShowPairing] = useState(false)
 
   const environments = data?.environments ?? []
-  const activeId = data?.activeId ?? null
   const localStatus = statuses.get(null)
   // The nickname first, then the machine name, then the role label. With two daemons on this
   // machine the middle one is the SAME string twice — that is the confusion the nickname ends.
@@ -113,41 +103,10 @@ function ElectronRemotesSection(): React.JSX.Element {
                 <p className="text-xs text-muted-foreground">{describeStatus(localStatus)}</p>
               </div>
             </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <div className={primaryActionSlotClass}>
-                {activeId == null ? (
-                  <Badge
-                    variant="outline"
-                    className="rounded-md border-border/60 text-2xs text-muted-foreground"
-                  >
-                    Connected
-                  </Badge>
-                ) : (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className={rowActionClass}
-                    disabled={isDisconnecting}
-                    onClick={() => disconnect()}
-                  >
-                    {isDisconnecting ? 'Switching…' : 'Switch to'}
-                  </Button>
-                )}
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className={rowActionClass}
-                onClick={() => openInEnv({ environmentId: null })}
-              >
-                New window
-              </Button>
-              <span className="size-7 shrink-0" aria-hidden />
-            </div>
+            <span className="size-7 shrink-0" aria-hidden />
           </div>
         </li>
         {environments.map((environment) => {
-          const isActive = environment.id === activeId
           const status = statuses.get(environment.id)
           const route = activeRoute(status)
           return (
@@ -175,34 +134,6 @@ function ElectronRemotesSection(): React.JSX.Element {
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  <div className={primaryActionSlotClass}>
-                    {isActive ? (
-                      <Badge
-                        variant="outline"
-                        className="rounded-md border-border/60 text-2xs text-muted-foreground"
-                      >
-                        Connected
-                      </Badge>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className={rowActionClass}
-                        disabled={connectingId === environment.id}
-                        onClick={() => connect(environment.id)}
-                      >
-                        {connectingId === environment.id ? 'Switching…' : 'Switch to'}
-                      </Button>
-                    )}
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className={rowActionClass}
-                    onClick={() => openInEnv({ environmentId: environment.id })}
-                  >
-                    New window
-                  </Button>
                   <Tooltip>
                     <TooltipTrigger
                       render={
@@ -279,7 +210,7 @@ function ElectronRemotesSection(): React.JSX.Element {
               onClick={() =>
                 pair({
                   connectionLink,
-                  connectThisWindow: pairingTargetId === null,
+                  connectThisWindow: false,
                   groupId: pairingTargetId,
                 })
               }
@@ -287,7 +218,7 @@ function ElectronRemotesSection(): React.JSX.Element {
               {isPairing
                 ? 'Pairing…'
                 : pairingTargetId === null
-                  ? 'Pair & use here'
+                  ? 'Pair environment'
                   : 'Add connection'}
             </Button>
             <Button

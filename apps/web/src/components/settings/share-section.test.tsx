@@ -53,7 +53,6 @@ vi.mock('@renderer/features/remote', () => ({
 
 beforeEach(() => {
   activeId = null
-  openWindow.mockClear()
   setLan.mockClear()
   setTailnet.mockClear()
   setCloudflare.mockClear()
@@ -81,19 +80,12 @@ describe('ShareSection', () => {
     expect(setTailnet).toHaveBeenCalledWith(false)
   })
 
-  /**
-   * A remote-bound window used to lose the whole page. The daemon refuses these procedures to
-   * a paired client — correctly — but silence read as "Porcelain cannot do this at all".
-   */
-  it('says where sharing is administered when the window is on another Environment', () => {
+  it('administers this device without leaving a remote-focused window', () => {
     activeId = 'env-beelink'
     render(<ShareSection />)
 
-    expect(screen.getByTestId('share-not-administrable')).toBeTruthy()
-    expect(screen.getByText(/beelink soap/)).toBeTruthy()
-    expect(screen.queryByText('Local network')).toBeNull()
-
-    fireEvent.click(screen.getByRole('button', { name: 'Open a window on This device' }))
-    expect(openWindow).toHaveBeenCalledWith({ environmentId: null })
+    expect(screen.queryByTestId('share-not-administrable')).toBeNull()
+    expect(screen.getByText('Local network')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Create LAN link' })).toBeTruthy()
   })
 })

@@ -424,3 +424,27 @@ export function environmentClientFor(
   const owner = environmentSessionFor(environmentId)
   return owner === null ? null : { client: owner.client, session: owner.session }
 }
+
+/**
+ * Resolve the daemon running on this physical device, independently of which Environment the
+ * Electron window currently presents. A local-primary window uses its primary client; a
+ * remote-primary window uses the shell-provided `this-device` administrator connection. The
+ * browser has no shell-owned device, so its serving daemon remains the answer there.
+ */
+export function thisDeviceClient(
+  primaryClient: EnvironmentSession['client'],
+  _revision = environmentSessionRevision,
+): EnvironmentClient & { environmentId: string | null } {
+  if (!isBrowser) {
+    const connection = shellConnections.find((entry) => entry.id === THIS_DEVICE_CONNECTION_ID)
+    if (connection !== undefined) {
+      const owner = ensureEnvironmentSession(connection)
+      return {
+        client: owner.client,
+        environmentId: THIS_DEVICE_CONNECTION_ID,
+        session: owner.session,
+      }
+    }
+  }
+  return { client: primaryClient, environmentId: null, session: null }
+}

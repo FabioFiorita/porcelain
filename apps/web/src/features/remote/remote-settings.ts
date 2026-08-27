@@ -1,6 +1,12 @@
 import type { AuthorizedClient, PairingGrant } from '@porcelain/contracts/remote'
 import { onMutationError } from '@renderer/hooks/mutation-error'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
+import {
+  daemonScopeForEnvironment,
+  type EnvironmentSession,
+  thisDeviceClient,
+  useEnvironmentSessionsRevision,
+} from '@renderer/lib/environment-sessions'
 import { trpc } from '@renderer/lib/trpc'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -60,13 +66,23 @@ export interface CloudflareStatus {
   envForced: boolean
 }
 
-function daemonScope(identity: { host: string | null; version: string | null }): RemoteDaemonScope {
-  return { host: identity.host, version: identity.version }
+/** Sharing belongs to this physical device, not to whichever Environment the window presents. */
+function useShareDaemon(): {
+  client: EnvironmentSession['client']
+  daemon: RemoteDaemonScope
+} {
+  const identity = useDaemonIdentity()
+  const revision = useEnvironmentSessionsRevision()
+  const primaryClient = trpc.useUtils().client
+  const owner = thisDeviceClient(primaryClient, revision)
+  return {
+    client: owner.client,
+    daemon: daemonScopeForEnvironment(owner.environmentId, identity),
+  }
 }
 
 export function useAccessStatus(): AccessStatus | undefined {
-  const daemon = daemonScope(useDaemonIdentity())
-  const client = trpc.useUtils().client
+  const { daemon, client } = useShareDaemon()
   const { data } = useQuery({
     queryKey: remoteStatusQueryKey(daemon, 'accessStatus'),
     queryFn: () => fetchRemoteAccessStatus(client),
@@ -76,8 +92,7 @@ export function useAccessStatus(): AccessStatus | undefined {
 }
 
 export function useLanStatus(): LanStatus | undefined {
-  const daemon = daemonScope(useDaemonIdentity())
-  const client = trpc.useUtils().client
+  const { daemon, client } = useShareDaemon()
   const { data } = useQuery({
     queryKey: remoteStatusQueryKey(daemon, 'lanStatus'),
     queryFn: () => fetchRemoteLanStatus(client),
@@ -86,8 +101,7 @@ export function useLanStatus(): LanStatus | undefined {
 }
 
 export function useTailnetStatus(): TailnetStatus | undefined {
-  const daemon = daemonScope(useDaemonIdentity())
-  const client = trpc.useUtils().client
+  const { daemon, client } = useShareDaemon()
   const { data } = useQuery({
     queryKey: remoteStatusQueryKey(daemon, 'tailnetStatus'),
     queryFn: () => fetchRemoteTailnetStatus(client),
@@ -96,8 +110,7 @@ export function useTailnetStatus(): TailnetStatus | undefined {
 }
 
 export function useCloudflareStatus(): CloudflareStatus | undefined {
-  const daemon = daemonScope(useDaemonIdentity())
-  const client = trpc.useUtils().client
+  const { daemon, client } = useShareDaemon()
   const { data } = useQuery({
     queryKey: remoteStatusQueryKey(daemon, 'cloudflareStatus'),
     queryFn: () => fetchRemoteCloudflareStatus(client),
@@ -110,9 +123,8 @@ export function useIssuePairingLink(): {
   issue: (input: { label: string; baseUrl: string }) => Promise<{ url: string }>
   isPending: boolean
 } {
-  const daemon = daemonScope(useDaemonIdentity())
+  const { daemon, client } = useShareDaemon()
   const queryClient = useQueryClient()
-  const client = trpc.useUtils().client
   const mutation = useMutation({
     mutationFn: (input: { label: string; baseUrl: string }) =>
       issueRemotePairingLink(client, queryClient, daemon, input),
@@ -129,9 +141,8 @@ export function useRevokePairingLink(): {
   revoke: (id: string) => void
   pendingId: string | null
 } {
-  const daemon = daemonScope(useDaemonIdentity())
+  const { daemon, client } = useShareDaemon()
   const queryClient = useQueryClient()
-  const client = trpc.useUtils().client
   const mutation = useMutation({
     mutationFn: (id: string) => revokeRemotePairingLink(client, queryClient, daemon, id),
     onError: onMutationError('Revoke connection link'),
@@ -148,9 +159,8 @@ export function useRevokeAuthorizedClient(): {
   revoke: (id: string) => void
   pendingId: string | null
 } {
-  const daemon = daemonScope(useDaemonIdentity())
+  const { daemon, client } = useShareDaemon()
   const queryClient = useQueryClient()
-  const client = trpc.useUtils().client
   const mutation = useMutation({
     mutationFn: (id: string) => revokeRemoteAuthorizedClient(client, queryClient, daemon, id),
     onError: onMutationError('Revoke device'),
@@ -167,9 +177,8 @@ export function useSetLanBind(): {
   setEnabled: (enabled: boolean) => void
   isPending: boolean
 } {
-  const daemon = daemonScope(useDaemonIdentity())
+  const { daemon, client } = useShareDaemon()
   const queryClient = useQueryClient()
-  const client = trpc.useUtils().client
   const mutation = useMutation({
     mutationFn: (enabled: boolean) => setRemoteLanBind(client, queryClient, daemon, enabled),
     onError: onMutationError('Toggle local network sharing'),
@@ -186,9 +195,8 @@ export function useSetTailnetBind(): {
   setEnabled: (enabled: boolean) => void
   isPending: boolean
 } {
-  const daemon = daemonScope(useDaemonIdentity())
+  const { daemon, client } = useShareDaemon()
   const queryClient = useQueryClient()
-  const client = trpc.useUtils().client
   const mutation = useMutation({
     mutationFn: (enabled: boolean) => setRemoteTailnetBind(client, queryClient, daemon, enabled),
     onError: onMutationError('Toggle Tailscale sharing'),
@@ -205,9 +213,8 @@ export function useSetCloudflareBind(): {
   setEnabled: (enabled: boolean) => void
   isPending: boolean
 } {
-  const daemon = daemonScope(useDaemonIdentity())
+  const { daemon, client } = useShareDaemon()
   const queryClient = useQueryClient()
-  const client = trpc.useUtils().client
   const mutation = useMutation({
     mutationFn: (enabled: boolean) => setRemoteCloudflareBind(client, queryClient, daemon, enabled),
     onError: onMutationError('Toggle Cloudflare sharing'),

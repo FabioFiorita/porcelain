@@ -162,11 +162,6 @@ function ProjectPicker({ onClose }: { onClose: () => void }): React.JSX.Element 
           >
             {currentPath || (error ? '—' : '…')}
           </p>
-          {browsingElsewhere && (
-            <p className="text-2xs text-muted-foreground">
-              Opening a folder here moves this window to {target.inventory.environment.name}.
-            </p>
-          )}
         </DialogHeader>
 
         <ScrollArea className="h-72 rounded-md border">

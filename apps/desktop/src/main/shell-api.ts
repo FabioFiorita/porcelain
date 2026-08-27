@@ -1,14 +1,14 @@
 import { randomUUID } from 'node:crypto'
 import { homedir } from 'node:os'
+import { ENVIRONMENT_NAME_MAX_LENGTH } from '@porcelain/contracts/projects'
 import { createTRPCUntypedClient, httpLink } from '@trpc/client'
 import { initTRPC } from '@trpc/server'
 import { BrowserWindow, clipboard, nativeTheme, shell, type WebContents } from 'electron'
-import { ENVIRONMENT_NAME_MAX_LENGTH } from '@porcelain/contracts/projects'
 import { z } from 'zod'
 import {
-  environmentDaemonPairs as readEnvironmentDaemonPairs,
   getDefaultEnvironmentId,
   localDaemonPair,
+  environmentDaemonPairs as readEnvironmentDaemonPairs,
   reloadEnvironmentsCache,
   setDefaultEnvironmentId,
   setWindowRemoteEndpoint,
@@ -20,7 +20,7 @@ import {
   localTerminalPathKey,
   updateLocalTerminalPaths,
 } from './local-terminal-paths'
-import { PLUGIN_VERSION, agentPluginRepository, claudePluginCommands } from './plugin-assets'
+import { agentPluginRepository, claudePluginCommands, PLUGIN_VERSION } from './plugin-assets'
 import {
   type EndpointKind,
   endpointKind,
@@ -452,7 +452,6 @@ export const shellRouter = t.router({
             await revokeClientCredential(url, token)
             await updateRemoteEnvironmentState((state) => ({
               ...state,
-              activeId: twin.id,
               environments: state.environments.map((env) =>
                 env.id === twin.id ? withActiveUrl(withEndpoint(env, url), url) : env,
               ),
@@ -477,8 +476,6 @@ export const shellRouter = t.router({
         const id = randomUUID()
         await updateRemoteEnvironmentState((state) => ({
           ...state,
-          // New env becomes the default for future bare New Window / app restore.
-          activeId: id,
           environments: [
             ...state.environments,
             {

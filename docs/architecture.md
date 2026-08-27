@@ -18,6 +18,9 @@ The daemon is a headless Node process with HTTP procedures and a `/session` WebS
 updates and terminal streams. The browser client is served by the daemon. Electron hosts the same
 web client and owns local process/window lifecycle. Mobile is a native client using the
 same daemon and shared contracts. Agents use the daemon's MCP endpoint through the shipped plugin.
+An Electron window keeps the local child daemon as its primary connection; Projects, Worktrees,
+and daemon-owned operations carry an explicit Environment target through renderer sessions, so
+selecting remote work never rebinds or reloads the window.
 
 ## Packages
 

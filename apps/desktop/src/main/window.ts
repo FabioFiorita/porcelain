@@ -4,7 +4,7 @@ import { is } from '@electron-toolkit/utils'
 import { resolvePlatform } from '@shared/platform'
 import { BrowserWindow, shell, type WebContents } from 'electron'
 import icon from '../../resources/icon.png?asset'
-import { getDefaultEnvironmentId, setWindowEnvironment } from './daemon'
+import { setWindowEnvironment } from './daemon'
 
 // The opaque dark shell background: the `.dark --background` token from
 // src/renderer/src/assets/main.css — oklch(0.148 0.004 228.8) → #090b0c. Set on
@@ -19,10 +19,9 @@ const OPAQUE_BACKGROUND = '#090b0c'
 const isE2E = process.env.PORCELAIN_E2E === '1'
 
 /**
- * Boot intent for a new window. `environmentId` is optional: omit to use the
- * app's default (last env this app opened a window into); pass `null` for This
- * device (local daemon); pass a saved remote id for that environment. Binding is
- * per-window — see setWindowEnvironment in daemon.ts.
+ * Boot intent for a new window. Environment ownership is retained on open intents for wire
+ * compatibility with older shell callers; new windows themselves always use the local daemon
+ * as their primary connection and route remote work through explicit renderer sessions.
  */
 export type WindowInit =
   | { mode: 'restore'; environmentId?: string | null }
@@ -125,12 +124,11 @@ export function createWindow(init: WindowInit = { mode: 'restore' }): BrowserWin
 
   pendingInits.set(mainWindow.webContents, init)
 
-  // Bind this window to its environment BEFORE loadURL so the preload's sync
-  // daemon-url getter (sendSync) resolves the right pair on first paint.
-  // Undefined environmentId → app default (persisted activeId); null → local.
-  const environmentId =
-    init.environmentId !== undefined ? init.environmentId : getDefaultEnvironmentId()
-  setWindowEnvironment(mainWindow.webContents, environmentId)
+  // The Mac app is one multi-Environment client. Its primary connection is always the local
+  // child; Projects and Worktrees carry their owning Environment explicitly through renderer
+  // sessions. Keeping window identity local prevents settings, pairing, and future client-level
+  // capabilities from silently inheriting whichever remote Project was last selected.
+  setWindowEnvironment(mainWindow.webContents, null)
 
   // A window's PTYs and watchers now live daemon-side, keyed by its WS session —
   // closing the window closes the socket and the daemon reaps them (session.ts).

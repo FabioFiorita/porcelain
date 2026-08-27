@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react'
 import { TestIds } from '@shared/test-ids'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ProjectPickerDialog } from './project-picker-dialog'
 
@@ -90,7 +90,7 @@ describe('ProjectPickerDialog', () => {
     expect(browsed.at(-1)?.environmentId).toBe('env-beelink')
     // A path read on the Mac means nothing on the Beelink: browsing restarts at its home.
     expect(browsed.at(-1)?.path).toBeNull()
-    expect(screen.getByText(/moves this window to beelink soap/)).toBeTruthy()
+    expect(screen.queryByText(/moves this window/i)).toBeNull()
   })
 
   it('opens through the target Environment session when the folder lives elsewhere', async () => {

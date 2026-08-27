@@ -100,7 +100,25 @@ describe('RemotesSection', () => {
     expect(screen.getByText('Cloudflare')).toBeTruthy()
     expect(screen.queryByText('Primary')).toBeNull()
     expect(screen.queryByRole('button', { name: /Make .* primary/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Switch to/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /New window/ })).toBeNull()
+    expect(screen.queryByText('Connected')).toBeNull()
     expect(screen.getByText('Add connection')).toBeTruthy()
+  })
+
+  it('pairs a new Environment without rebinding this window', () => {
+    render(<RemotesSection />)
+    fireEvent.click(screen.getByRole('button', { name: 'Pair an environment group' }))
+    fireEvent.change(screen.getByPlaceholderText('Connection link (https://…/pair#token=…)'), {
+      target: { value: 'https://beelink/pair#token=secret' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Pair environment' }))
+
+    expect(pair).toHaveBeenCalledWith({
+      connectionLink: 'https://beelink/pair#token=secret',
+      connectThisWindow: false,
+      groupId: null,
+    })
   })
 
   it('opens the pairing form for an additional connection', () => {

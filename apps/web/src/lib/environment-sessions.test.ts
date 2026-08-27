@@ -23,6 +23,7 @@ import {
   setPrimaryEnvironmentId,
   setShellEnvironmentConnections,
   shellEnvironmentConnections,
+  thisDeviceClient,
 } from './environment-sessions'
 
 beforeEach(() => {
@@ -173,6 +174,34 @@ describe('browser Environment session hub', () => {
 })
 
 describe('shell Environment session hub', () => {
+  it('resolves This device independently of a remote primary window', () => {
+    platformState.isBrowser = false
+    const local = {
+      id: 'this-device',
+      name: 'This device',
+      url: 'http://127.0.0.1:43118',
+      token: 'local-admin-token',
+    }
+    setShellEnvironmentConnections([local])
+    const primaryClient = { marker: 'remote-primary' } as never
+
+    const owner = thisDeviceClient(primaryClient)
+
+    expect(owner.client).toBe(ensureEnvironmentSession(local).client)
+    expect(owner.environmentId).toBe('this-device')
+  })
+
+  it('uses the primary client when this window already belongs to This device', () => {
+    platformState.isBrowser = false
+    const primaryClient = { marker: 'local-primary' } as never
+
+    expect(thisDeviceClient(primaryClient)).toEqual({
+      client: primaryClient,
+      environmentId: null,
+      session: null,
+    })
+  })
+
   it('caches one session per Environment and resolves explicit targets', () => {
     platformState.isBrowser = false
     const connection = {

@@ -4,9 +4,6 @@ import { Input } from '@renderer/components/ui/input'
 import { Switch } from '@renderer/components/ui/switch'
 import {
   useAccessStatus,
-  useEnvironmentStatuses,
-  useOpenWindowInEnvironment,
-  useRemoteEnvironments,
   useCloudflareStatus,
   useIssuePairingLink,
   useLanStatus,
@@ -224,51 +221,7 @@ function AccessList(): React.JSX.Element {
   )
 }
 
-/**
- * Sharing is administered ON the machine, by the machine's own administrator credential. This
- * window holds a paired client token for the Environment it is bound to, and the daemon
- * refuses these procedures to one — correctly: a paired laptop must not be able to open the
- * host to the internet.
- *
- * So the page still appears, and says whose settings they are and where to change them. It
- * used to vanish from the nav entirely on a remote-bound window, which reads as "Porcelain
- * cannot share this" rather than "not from here".
- */
-function ShareElsewhereNotice({ name }: { name: string }): React.JSX.Element {
-  const { open } = useOpenWindowInEnvironment()
-  return (
-    <div className="flex flex-col items-start gap-3" data-testid={TestIds.shareNotAdministrable}>
-      <p className="text-xs text-muted-foreground">
-        This window is on <span className="font-medium text-foreground">{name}</span>, paired with a
-        client credential. Sharing is administered on that machine — open Porcelain there, or run
-        the daemon's own commands on it.
-      </p>
-      <p className="text-xs text-muted-foreground">
-        This device has its own sharing settings, and this app can administer those.
-      </p>
-      <Button
-        variant="outline"
-        size="sm"
-        className={compactButtonClass}
-        onClick={() => open({ environmentId: null })}
-      >
-        Open a window on This device
-      </Button>
-    </div>
-  )
-}
-
 export function ShareSection(): React.JSX.Element {
-  const remotes = useRemoteEnvironments()
-  const statuses = useEnvironmentStatuses()
-  // A browser tab has no shell to ask, so this stays null there and the page behaves exactly
-  // as it did: it is served BY the daemon it administers.
-  const activeId = remotes?.activeId ?? null
-  if (activeId !== null) {
-    const saved = remotes?.environments.find((environment) => environment.id === activeId)
-    const name = statuses.get(activeId)?.name ?? saved?.name ?? 'another machine'
-    return <ShareElsewhereNotice name={name} />
-  }
   return <LocalShareSettings />
 }
 
