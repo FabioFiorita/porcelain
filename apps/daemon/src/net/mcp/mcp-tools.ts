@@ -99,6 +99,17 @@ const STRUCTURED_ASSET = {
   ],
 } as const
 
+const STRUCTURED_TAB = {
+  type: 'object',
+  properties: {
+    id: { type: 'string', pattern: '^[a-z0-9][a-z0-9-]*$' },
+    label: { type: 'string', minLength: 1, maxLength: 24 },
+    blocks: { type: 'array', minItems: 1, maxItems: 16, items: STRUCTURED_BLOCK },
+  },
+  required: ['id', 'label', 'blocks'],
+  additionalProperties: false,
+} as const
+
 const STRUCTURED_CANVAS = {
   type: 'object',
   properties: {
@@ -108,16 +119,7 @@ const STRUCTURED_CANVAS = {
       type: 'array',
       minItems: 1,
       maxItems: 4,
-      items: {
-        type: 'object',
-        properties: {
-          id: { type: 'string', pattern: '^[a-z0-9][a-z0-9-]*$' },
-          label: { type: 'string', minLength: 1, maxLength: 24 },
-          blocks: { type: 'array', minItems: 1, maxItems: 16, items: STRUCTURED_BLOCK },
-        },
-        required: ['id', 'label', 'blocks'],
-        additionalProperties: false,
-      },
+      items: STRUCTURED_TAB,
     },
     assets: { type: 'array', maxItems: 64, items: STRUCTURED_ASSET },
   },
@@ -137,27 +139,28 @@ const REVIEW_FILE = {
   additionalProperties: false,
 } as const
 
-const REVIEW_SECTION = {
+const REVIEW_TEMPLATE = {
   type: 'object',
   properties: {
-    title: { type: 'string' },
-    prose: { type: 'string', description: 'Markdown prose' },
-    diagram: { type: 'string', description: 'Inline SVG' },
-    anchors: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          path: { type: 'string' },
-          startLine: { type: 'integer' },
-          endLine: { type: 'integer' },
-        },
-        required: ['path'],
-        additionalProperties: false,
-      },
-    },
+    title: { type: 'string', minLength: 1, maxLength: 120 },
+    why: { type: 'array', minItems: 1, maxItems: 16, items: STRUCTURED_BLOCK },
+    how: { type: 'array', minItems: 1, maxItems: 16, items: STRUCTURED_BLOCK },
+    layers: { type: 'array', items: PROFILE_LAYER },
+    files: { type: 'array', items: REVIEW_FILE },
+    assets: { type: 'array', maxItems: 64, items: STRUCTURED_ASSET },
   },
-  required: ['title', 'prose'],
+  required: ['title', 'why', 'how'],
+  additionalProperties: false,
+} as const
+
+const PLAN_TEMPLATE = {
+  type: 'object',
+  properties: {
+    title: { type: 'string', minLength: 1, maxLength: 120 },
+    tabs: { type: 'array', minItems: 1, maxItems: 4, items: STRUCTURED_TAB },
+    assets: { type: 'array', maxItems: 64, items: STRUCTURED_ASSET },
+  },
+  required: ['title', 'tabs'],
   additionalProperties: false,
 } as const
 
@@ -194,7 +197,7 @@ export const MCP_TOOLS: readonly McpToolDefinition[] = Object.freeze([
     name: 'porcelain_canvas',
     title: 'Manage a Canvas',
     description:
-      'List, read, create, update, delete, or promote an agent-authored Canvas. Prefer document for a validated versioned structured Canvas; sourceDir may provide its referenced bundle assets. Review is the `review` template inside Canvas; each create makes a new Review scoped to the addressed Worktree, and update requires its id. A promoted Canvas is tracked in <repo>/.porcelain and becomes canonical for that checkout. Promotion writes files but never stages or commits.',
+      'List, read, create, update, delete, or promote an agent-authored Canvas. Prefer document for a custom validated structured Canvas; sourceDir may provide bundle assets. Built-in review and plan templates compile into that same renderer. Review fixes Why/How and owns its file layers; Plan chooses bounded tabs. Each Review create is scoped to the addressed Worktree, and update requires its id. Promotion writes files but never stages or commits.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -214,19 +217,8 @@ export const MCP_TOOLS: readonly McpToolDefinition[] = Object.freeze([
           type: 'boolean',
           description: 'Create or update directly in the tracked checkout overlay',
         },
-        template: { enum: ['review'] },
-        templateData: {
-          type: 'object',
-          properties: {
-            name: { type: 'string' },
-            thesis: { type: 'string' },
-            layers: { type: 'array', items: PROFILE_LAYER },
-            files: { type: 'array', items: REVIEW_FILE },
-            sections: { type: 'array', items: REVIEW_SECTION },
-          },
-          required: ['name', 'files', 'sections'],
-          additionalProperties: false,
-        },
+        template: { enum: ['review', 'plan'] },
+        templateData: { oneOf: [REVIEW_TEMPLATE, PLAN_TEMPLATE] },
       },
       required: ['op', 'workspace'],
       additionalProperties: false,

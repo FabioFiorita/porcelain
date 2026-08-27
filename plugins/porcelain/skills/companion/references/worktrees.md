@@ -23,7 +23,7 @@ porcelain_canvas { "op": "get", "workspace": { "projectId": "…", "worktreeId":
 
 Each Review Canvas is stored under the Project but scoped to the Worktree named by `workspace`.
 Creating another Review never replaces an earlier review; update the returned Canvas id when the
-same review changes. Execution anchors and Evidence proof should describe the Worktree that was
+same review changes. Review layers and Assets evidence should describe the Worktree that was
 actually inspected. Actions run only after the human chooses an Environment and Worktree in the
 client. They never guess a checkout.
 

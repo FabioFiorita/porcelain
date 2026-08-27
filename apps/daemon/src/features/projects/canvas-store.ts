@@ -49,7 +49,7 @@ export type WriteCanvasInput = Readonly<{
   title: string
   kind: CanvasKind
   entryFile: string
-  template?: 'review'
+  template?: 'review' | 'plan'
   source: CanvasBundleSource
 }>
 

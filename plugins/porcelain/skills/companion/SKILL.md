@@ -32,7 +32,7 @@ tool, file tool, Git tool, or Action execution/trust tool. Each feature has one 
 
 Use `porcelain_canvas` for any authored explanation, report, diagram, evidence record, or
 handoff. A normal Canvas accepts Markdown/HTML files or a daemon-host directory. The `review`
-template accepts structured `templateData` with a name, thesis, review layers, declared files, and sections;
+template accepts structured `templateData` with a title, Why/How blocks, review layers, declared files, and Assets;
 Evidence and Handoff are content inside that Canvas/template, not separate MCP domains.
 Read [references/canvas.md](references/canvas.md) when authoring a Canvas, especially an HTML
 bundle that needs portable layout and theme styling.

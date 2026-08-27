@@ -101,7 +101,7 @@ export type WriteCanvasArgs = {
   title: string
   kind: 'html' | 'markdown' | 'structured'
   entryFile: string
-  template?: 'review'
+  template?: 'review' | 'plan'
   source: CanvasBundleSource
 }
 

@@ -268,10 +268,11 @@ describe('domain MCP entry points', () => {
   it('creates distinct Review Canvases in the addressed worktree', async () => {
     const { tools, calls } = harness()
     const review = {
-      name: 'Review A',
+      title: 'Review A',
+      why: [{ type: 'markdown', content: '# Why\nThe boundary leaked.' }],
+      how: [{ type: 'markdown', content: '# How\nMove ownership.' }],
       layers: [{ label: 'Source', pattern: '^src/' }],
       files: [{ path: 'src/a.ts' }],
-      sections: [{ title: 'Intent', prose: 'First review' }],
     }
     await tools.call('porcelain_canvas', {
       op: 'create',
@@ -284,9 +285,10 @@ describe('domain MCP entry points', () => {
       workspace: REPO,
       template: 'review',
       templateData: {
-        name: 'Review B',
+        title: 'Review B',
+        why: review.why,
+        how: review.how,
         files: review.files,
-        sections: review.sections,
       },
     })
 
@@ -301,12 +303,47 @@ describe('domain MCP entry points', () => {
       expect.objectContaining({ worktreeId: WORKTREE, title: 'Review B', template: 'review' }),
     ])
     const metadata = writes.map((write) => {
-      const input = write.input as { source: { files: { path: string; content: string }[] } }
-      const reviewFile = input.source.files.find((file) => file.path === 'review.json')
+      const input = write.input as { source: { extraFiles: { path: string; content: string }[] } }
+      const reviewFile = input.source.extraFiles.find((file) => file.path === 'review.json')
       return JSON.parse(reviewFile?.content ?? '{}')
     })
     expect(metadata[0].layers).toEqual([{ label: 'Source', pattern: '^src/' }])
     expect(metadata[1].layers).toEqual([])
+    const firstWrite = writes[0]
+    if (firstWrite === undefined) throw new Error('expected first Review write')
+    const firstSource = (firstWrite.input as { source: { document: string } }).source
+    expect(
+      JSON.parse(firstSource.document).tabs.map((tab: { label: string }) => tab.label),
+    ).toEqual(['Why', 'How'])
+  })
+
+  it('creates a Plan through the shared structured renderer', async () => {
+    const { tools, calls } = harness()
+    const result = await tools.call('porcelain_canvas', {
+      op: 'create',
+      workspace: REPO,
+      template: 'plan',
+      templateData: {
+        title: 'Migration plan',
+        tabs: [
+          {
+            id: 'approach',
+            label: 'Approach',
+            blocks: [{ type: 'markdown', content: '# Sequence' }],
+          },
+        ],
+      },
+    })
+
+    expect(result.isError).toBeUndefined()
+    expect(calls).toContainEqual({
+      name: 'writeCanvas',
+      input: expect.objectContaining({
+        title: 'Migration plan',
+        kind: 'structured',
+        template: 'plan',
+      }),
+    })
   })
 
   it('replaces an existing tracked Canvas on update and reads the new content', async () => {

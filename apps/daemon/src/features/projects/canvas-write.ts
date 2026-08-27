@@ -28,6 +28,7 @@ export type CanvasBundleSource =
       entryFile: string
       document: string
       assetsDir?: string
+      extraFiles?: readonly Readonly<{ path: string; content: string }>[]
     }>
 
 export type CanvasWriteError = 'unavailable' | 'entry-outside-bundle' | 'source-missing'
@@ -76,6 +77,7 @@ export async function writeCanvasBundle(
   } else if (
     source.kind === 'structured' &&
     (!isContainedBundlePath(source.entryFile) ||
+      source.extraFiles?.some((file) => !isContainedBundlePath(file.path)) ||
       (source.assetsDir !== undefined && !(await isDirectory(source.assetsDir))))
   ) {
     return source.assetsDir !== undefined && !(await isDirectory(source.assetsDir))
@@ -101,6 +103,11 @@ export async function writeCanvasBundle(
       const target = join(staging, source.entryFile)
       await mkdir(dirname(target), { recursive: true })
       await writeFile(target, source.document, 'utf8')
+      for (const file of source.extraFiles ?? []) {
+        const extraTarget = join(staging, file.path)
+        await mkdir(dirname(extraTarget), { recursive: true })
+        await writeFile(extraTarget, file.content, 'utf8')
+      }
     }
     await rm(destDir, { recursive: true, force: true })
     await rename(staging, destDir)

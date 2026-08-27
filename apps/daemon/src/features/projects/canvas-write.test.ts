@@ -113,10 +113,12 @@ describe('writeCanvasBundle', () => {
         entryFile: 'canvas.json',
         document: `${JSON.stringify(document, null, 2)}\n`,
         assetsDir: source,
+        extraFiles: [{ path: 'review.json', content: '{"layers":[]}' }],
       }),
     ).toEqual({ ok: true })
     expect(JSON.parse(await readFile(join(dest, 'canvas.json'), 'utf8'))).toEqual(document)
     expect(await readFile(join(dest, 'images', 'proof.png'), 'utf8')).toBe('image bytes')
+    expect(await readFile(join(dest, 'review.json'), 'utf8')).toBe('{"layers":[]}')
   })
 })
 

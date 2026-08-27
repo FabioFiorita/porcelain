@@ -144,14 +144,19 @@ Review is structured Canvas content, not a separate domain:
   "workspace": "/abs/path/to/checkout",
   "template": "review",
   "templateData": {
-    "name": "Fix the save boundary",
-    "thesis": "Guard the missing record before persistence.",
+    "title": "Fix the save boundary",
+    "why": [
+      { "type": "markdown", "content": "# Why\nThe missing record reached persistence." }
+    ],
+    "how": [
+      { "type": "markdown", "content": "# How\nGuard the lookup before writing." }
+    ],
     "layers": [
       { "label": "Contract", "pattern": "packages/contracts/" },
       { "label": "Daemon", "pattern": "apps/daemon/" }
     ],
     "files": [{ "path": "src/save.ts", "source": "changed", "note": "guard" }],
-    "sections": [{ "title": "Boundary", "prose": "Validate the lookup first." }]
+    "assets": [{ "type": "image", "path": "assets/result.png", "alt": "Passing save flow" }]
   }
 }
 ```
@@ -162,8 +167,41 @@ that id for later changes to the same review. Never use `create` as an upsert. `
 Changes/History narrative only for this Review; a later Review in the same Worktree starts with its
 own order and does not inherit this one.
 
-Evidence and Handoff belong inside this Canvas/template as checks, results, artifacts, and a
-next-step summary. Do not create parallel stores or tools for them.
+The Review Canvas always has **Why** and **How** content tabs. It has no Execution tab: `layers`
+orders the changed files while the Canvas explains them. Evidence belongs in the shared Assets
+gallery; provide its bundle files with `sourceDir`.
+
+## Plan template
+
+Plan uses the same structured renderer but lets the agent choose the bounded tabs:
+
+```jsonc
+{
+  "op": "create",
+  "workspace": "/abs/path/to/checkout",
+  "template": "plan",
+  "templateData": {
+    "title": "Pairing migration",
+    "tabs": [
+      {
+        "id": "approach",
+        "label": "Approach",
+        "blocks": [{ "type": "markdown", "content": "# Sequence\n1. Add the seam." }]
+      },
+      {
+        "id": "risks",
+        "label": "Risks",
+        "blocks": [{ "type": "html", "content": "<table>...</table>", "height": 320 }]
+      }
+    ],
+    "assets": []
+  }
+}
+```
+
+Plan tab count, labels, blocks, and Assets use the same limits as a custom structured Canvas. Use a
+custom `document` instead when Review or Plan does not fit; conforming content needs no renderer
+change.
 
 ## Persistence and promotion
 

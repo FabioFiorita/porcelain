@@ -1,16 +1,12 @@
-import { profileLayerSchema } from '@porcelain/contracts'
 import {
+  planCanvasTemplateDataSchema,
+  reviewCanvasTemplateDataSchema,
   structuredCanvasDocumentSchema,
   structuredCanvasValidationMessage,
 } from '@porcelain/contracts/projects'
 import type { McpToolHandlers, McpToolResult } from './mcp-dispatch'
 import type { McpOperations } from './mcp-operations'
-import {
-  type ReviewFile,
-  type ReviewSection,
-  type ReviewSet,
-  reviewBundleSource,
-} from './mcp-review'
+import { planBundleSource, reviewBundleSource } from './mcp-review'
 import {
   isWorkspaceRef,
   type ResolvedWorkspace,
@@ -65,61 +61,6 @@ function statusOf(args: Record<string, unknown>): 'open' | 'resolved' | 'all' {
   return args.status === 'resolved' || args.status === 'all' ? args.status : 'open'
 }
 
-function reviewSet(value: unknown): ReviewSet | null {
-  if (!isRecord(value) || typeof value.name !== 'string' || value.name === '') return null
-  const parsedLayers = profileLayerSchema.array().safeParse(value.layers ?? [])
-  if (!parsedLayers.success) return null
-  const files = Array.isArray(value.files)
-    ? value.files.filter(isRecord).flatMap((file): ReviewFile[] => {
-        if (typeof file.path !== 'string' || file.path === '') return []
-        const parsed: {
-          path: string
-          source?: ReviewFile['source']
-          note?: string
-          layer?: string
-        } = { path: file.path }
-        if (file.source === 'changed' || file.source === 'context' || file.source === 'shipped') {
-          parsed.source = file.source
-        }
-        if (typeof file.note === 'string') parsed.note = file.note
-        if (typeof file.layer === 'string') parsed.layer = file.layer
-        return [parsed]
-      })
-    : []
-  const sections = Array.isArray(value.sections)
-    ? value.sections.filter(isRecord).flatMap((section): ReviewSection[] => {
-        if (typeof section.title !== 'string' || typeof section.prose !== 'string') return []
-        const parsed: {
-          title: string
-          prose: string
-          diagram?: string
-          anchors?: { path: string; startLine?: number; endLine?: number }[]
-        } = { title: section.title, prose: section.prose }
-        if (typeof section.diagram === 'string') parsed.diagram = section.diagram
-        if (Array.isArray(section.anchors)) {
-          parsed.anchors = section.anchors.filter(isRecord).flatMap((anchor) => {
-            if (typeof anchor.path !== 'string') return []
-            return [
-              {
-                path: anchor.path,
-                ...(typeof anchor.startLine === 'number' ? { startLine: anchor.startLine } : {}),
-                ...(typeof anchor.endLine === 'number' ? { endLine: anchor.endLine } : {}),
-              },
-            ]
-          })
-        }
-        return [parsed]
-      })
-    : []
-  return {
-    name: value.name,
-    layers: parsedLayers.data,
-    files,
-    sections,
-    ...(typeof value.thesis === 'string' ? { thesis: value.thesis } : {}),
-  }
-}
-
 export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
   const { operations } = deps
 
@@ -149,7 +90,7 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
         title: string
         kind: 'html' | 'markdown' | 'structured'
         entryFile: string
-        template?: 'review'
+        template?: 'review' | 'plan'
         source: import('../../features/projects').CanvasBundleSource
       }
     | { ok: false; result: McpToolResult }
@@ -198,21 +139,36 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
 
     const templateData = args.templateData
     if (templateData !== undefined) {
-      const set = reviewSet(templateData)
-      if (set === null) {
+      const template = args.template
+      const schema =
+        template === 'review' ? reviewCanvasTemplateDataSchema : planCanvasTemplateDataSchema
+      if (template !== 'review' && template !== 'plan') {
         return {
           ok: false,
-          result: fail('templateData is invalid; review needs name, files, and sections.'),
+          result: fail('template must be review or plan when templateData is provided.'),
         }
       }
-      const rendered = reviewBundleSource(set)
+      const parsed = schema.safeParse(templateData)
+      if (!parsed.success) {
+        return {
+          ok: false,
+          result: fail(
+            `Invalid ${template} templateData: ${structuredCanvasValidationMessage(parsed.error)}.`,
+          ),
+        }
+      }
+      const assetsDir = stringField(args, 'sourceDir')
+      const source =
+        template === 'review'
+          ? reviewBundleSource(reviewCanvasTemplateDataSchema.parse(parsed.data), assetsDir)
+          : planBundleSource(planCanvasTemplateDataSchema.parse(parsed.data), assetsDir)
       return {
         ok: true,
-        title: set.name,
-        kind: rendered.kind,
-        entryFile: rendered.entryFile,
-        template: 'review',
-        source: rendered.source,
+        title: parsed.data.title,
+        kind: 'structured',
+        entryFile: 'canvas.json',
+        template,
+        source,
       }
     }
 

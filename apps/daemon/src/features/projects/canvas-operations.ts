@@ -13,6 +13,7 @@ import type {
   PromoteOverridesInput,
   ReadCanvasInput,
 } from '@porcelain/contracts/projects'
+import { projectOverlayCanvasBundleDir } from '@shared/project-porcelain'
 import { inlineLocalAssets, mimeFor } from '../../fs/evidence-assets'
 import type { CanvasAccessTokens } from './canvas-access-tokens'
 import type { CanvasKind, StoredCanvas } from './canvas-bundle'
@@ -20,7 +21,6 @@ import type { CanvasOverlayStore } from './canvas-overlay-store'
 import type { CanvasEntry, CanvasStore, CanvasStoreError, CanvasStoreResult } from './canvas-store'
 import type { CanvasBundleSource } from './canvas-write'
 import type { ProjectOperationResult } from './projects-results'
-import { projectOverlayCanvasBundleDir } from '@shared/project-porcelain'
 
 /**
  * Live checkouts of one Project — promotion's only legal targets.
@@ -48,7 +48,7 @@ export type WriteCanvasOperationInput = Readonly<{
   title: string
   kind: CanvasKind
   entryFile: string
-  template?: 'review'
+  template?: 'review' | 'plan'
   source: CanvasBundleSource
 }>
 
