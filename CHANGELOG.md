@@ -1,3 +1,25 @@
+## [0.60.0](https://github.com/FabioFiorita/porcelain/compare/v0.59.2...v0.60.0) (2026-08-27)
+
+### Features
+
+* **canvas:** add review and plan templates ([625395d](https://github.com/FabioFiorita/porcelain/commit/625395d7393487e334312c0c1884578ab1a6fe21))
+* **canvas:** add structured documents ([1007bfb](https://github.com/FabioFiorita/porcelain/commit/1007bfb335a3cef40f6dbbbfeed2fb358e9f0758))
+
+### Bug Fixes
+
+* **canvas:** allow remote daemon frame origins ([91e32e7](https://github.com/FabioFiorita/porcelain/commit/91e32e7a5462bf7894dcc8bc9f3be212a3f1872e))
+* **canvas:** scope reviews to worktrees ([ed91d02](https://github.com/FabioFiorita/porcelain/commit/ed91d028e21f2f9ff4a148cff81dff1702668100))
+* **canvas:** stream embedded video assets ([c42a243](https://github.com/FabioFiorita/porcelain/commit/c42a243e4b8fe4a3586cd05e98038d42a0d41e00))
+* **desktop:** allow packaged session origin ([3dd66bd](https://github.com/FabioFiorita/porcelain/commit/3dd66bdfe36fe3d76fbc7227f9c296554beca8fd))
+* **environments:** unify desktop daemon sessions ([4800dc6](https://github.com/FabioFiorita/porcelain/commit/4800dc6ca8e6d70436935f5cc97dfb5bd1c3a776))
+* harden android-loop against stale locks and Wayland freeze ([07f3f68](https://github.com/FabioFiorita/porcelain/commit/07f3f6845fb0fefe983e230641011d42ebf4c7ae))
+* **personalization:** contain long instructions ([2a69ca6](https://github.com/FabioFiorita/porcelain/commit/2a69ca6ab2a523dfacb5f8201c483055ee0ba4a9))
+* **plugin:** use canonical Codex manifest ([6e3187d](https://github.com/FabioFiorita/porcelain/commit/6e3187d7c541106e7446bf6c8112991eae432ec3))
+* **profile:** share navigation paths across worktrees ([0a5f7d3](https://github.com/FabioFiorita/porcelain/commit/0a5f7d35c7865b6fcbce9e66807d2f9ca2e74e11))
+* **review:** scope layers to reviews ([21cbd5b](https://github.com/FabioFiorita/porcelain/commit/21cbd5bb43606410d41220cb710847b74d52bc1a))
+* **sidebar:** remove daemon update prompt ([1b6119b](https://github.com/FabioFiorita/porcelain/commit/1b6119b1e2865ea9803d66be7befb900bb610947))
+* **updates:** guard daemon restart workflow ([6e3edcd](https://github.com/FabioFiorita/porcelain/commit/6e3edcd80e267720540fdf4377e24b9a290df19a))
+
 ## [0.59.2](https://github.com/FabioFiorita/porcelain/compare/v0.59.1...v0.59.2) (2026-08-26)
 
 ### Features
