@@ -76,12 +76,10 @@ cannot collide with another checkout.
 ## Porcelain profile
 
 Pinned and hidden paths are manual file-tree choices: agents preserve them exactly and never add,
-remove, or recommend them. Story layer order is meant to follow the task. Use
-`porcelain_profile` at `level` worktree to update only `layers` when substantial work starts or
-changes shape, and restore inherited layers when it is done without changing manual path choices.
-The whole-document write shape and confirmation rule live in the
-[profile reference](plugins/porcelain/skills/companion/references/profile.md); read it before your
-first write.
+remove, or recommend them. Story layer order belongs to each Review Canvas and is supplied with
+that Review's `templateData.layers`; it never persists on the Worktree or carries into the next
+Review. The navigation profile and Review shape live in the
+[profile reference](plugins/porcelain/skills/companion/references/profile.md).
 
 ## Hard safety rules
 

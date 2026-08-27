@@ -146,6 +146,10 @@ Review is structured Canvas content, not a separate domain:
   "templateData": {
     "name": "Fix the save boundary",
     "thesis": "Guard the missing record before persistence.",
+    "layers": [
+      { "label": "Contract", "pattern": "packages/contracts/" },
+      { "label": "Daemon", "pattern": "apps/daemon/" }
+    ],
     "files": [{ "path": "src/save.ts", "source": "changed", "note": "guard" }],
     "sections": [{ "title": "Boundary", "prose": "Validate the lookup first." }]
   }
@@ -154,7 +158,9 @@ Review is structured Canvas content, not a separate domain:
 
 Every `create` produces a new Review Canvas scoped to the Worktree named by `workspace`; parallel
 reviews can therefore coexist in one Project. Keep the returned Canvas id and use `update` with
-that id for later changes to the same review. Never use `create` as an upsert.
+that id for later changes to the same review. Never use `create` as an upsert. `layers` orders the
+Changes/History narrative only for this Review; a later Review in the same Worktree starts with its
+own order and does not inherit this one.
 
 Evidence and Handoff belong inside this Canvas/template as checks, results, artifacts, and a
 next-step summary. Do not create parallel stores or tools for them.

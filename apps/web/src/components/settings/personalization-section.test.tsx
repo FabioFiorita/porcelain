@@ -15,10 +15,10 @@ describe('PersonalizationSection', () => {
   it('shows one story-order instruction without pinned or hidden content', () => {
     render(<PersonalizationSection repoPath="/repo" />)
 
-    expect(screen.getByText(/## Porcelain story order/)).toBeInTheDocument()
+    expect(screen.getByText(/## Porcelain review order/)).toBeInTheDocument()
     expect(screen.queryByText(/pinned/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/hidden/i)).not.toBeInTheDocument()
-    const instruction = screen.getByText(/## Porcelain story order/)
+    const instruction = screen.getByText(/## Porcelain review order/)
     expect(instruction).toHaveClass('min-w-0', 'max-w-full', 'wrap-anywhere')
     expect(instruction.parentElement).toHaveClass('min-w-0')
   })
@@ -29,9 +29,9 @@ describe('PersonalizationSection', () => {
     fireEvent.click(screen.getByTestId(TestIds.personalizationCopyInstruction))
     await waitFor(() => expect(vi.mocked(copyText)).toHaveBeenCalledTimes(1))
 
-    const visible = screen.getByText(/## Porcelain story order/).textContent ?? ''
+    const visible = screen.getByText(/## Porcelain review order/).textContent ?? ''
     expect(copyText).toHaveBeenCalledWith(visible)
     expect(visible).toContain('/repo')
-    expect(visible).toContain('Change only `layers`')
+    expect(visible).toContain("Review's complete `layers` array")
   })
 })

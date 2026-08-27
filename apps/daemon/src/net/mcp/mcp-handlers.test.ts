@@ -269,6 +269,7 @@ describe('domain MCP entry points', () => {
     const { tools, calls } = harness()
     const review = {
       name: 'Review A',
+      layers: [{ label: 'Source', pattern: '^src/' }],
       files: [{ path: 'src/a.ts' }],
       sections: [{ title: 'Intent', prose: 'First review' }],
     }
@@ -282,7 +283,11 @@ describe('domain MCP entry points', () => {
       op: 'create',
       workspace: REPO,
       template: 'review',
-      templateData: { ...review, name: 'Review B' },
+      templateData: {
+        name: 'Review B',
+        files: review.files,
+        sections: review.sections,
+      },
     })
 
     const writes = calls.filter((call) => call.name === 'writeCanvas')
@@ -295,6 +300,13 @@ describe('domain MCP entry points', () => {
       expect.objectContaining({ worktreeId: WORKTREE, title: 'Review A', template: 'review' }),
       expect.objectContaining({ worktreeId: WORKTREE, title: 'Review B', template: 'review' }),
     ])
+    const metadata = writes.map((write) => {
+      const input = write.input as { source: { files: { path: string; content: string }[] } }
+      const reviewFile = input.source.files.find((file) => file.path === 'review.json')
+      return JSON.parse(reviewFile?.content ?? '{}')
+    })
+    expect(metadata[0].layers).toEqual([{ label: 'Source', pattern: '^src/' }])
+    expect(metadata[1].layers).toEqual([])
   })
 
   it('replaces an existing tracked Canvas on update and reads the new content', async () => {
@@ -325,55 +337,27 @@ describe('domain MCP entry points', () => {
     })
   })
 
-  it('updates project story layers without changing manual pins or hides', async () => {
+  it('keeps review layers out of the persistent profile surface', async () => {
     const { tools, calls } = harness()
-    await tools.call('porcelain_profile', {
-      op: 'set',
+    const profile = await tools.call('porcelain_profile', {
+      op: 'get',
       workspace: REPO,
       level: 'project',
-      profile: { layers: [{ label: 'View', pattern: 'components/' }] },
     })
-    expect(calls).toContainEqual({
-      name: 'setProjectProfile',
-      input: {
-        repoPath: REPO,
-        profile: {
-          pinnedPaths: ['README.md'],
-          hiddenPaths: ['dist'],
-          layers: [{ label: 'View', pattern: 'components/' }],
-        },
-      },
+    expect(JSON.parse(profile.text).value).toEqual({
+      pinnedPaths: ['README.md'],
+      hiddenPaths: ['dist'],
     })
-  })
-
-  it('updates a worktree story-layer override without writing navigation paths', async () => {
-    const { tools, calls } = harness()
-    await tools.call('porcelain_profile', {
-      op: 'set',
-      workspace: REPO,
-      level: 'worktree',
-      profile: { layers: [{ label: 'Service', pattern: 'services/' }] },
-    })
-    expect(calls).toContainEqual({
-      name: 'setWorktreeProfile',
-      input: {
-        repoPath: REPO,
-        profile: {
-          layers: [{ label: 'Service', pattern: 'services/' }],
-        },
-      },
-    })
-  })
-
-  it('clears only story layers and preserves manual project paths', async () => {
-    const { tools, calls } = harness()
-    await tools.call('porcelain_profile', { op: 'clear', workspace: REPO, level: 'project' })
-    expect(calls).toContainEqual({
-      name: 'setProjectProfile',
-      input: {
-        repoPath: REPO,
-        profile: { pinnedPaths: ['README.md'], hiddenPaths: ['dist'], layers: [] },
-      },
-    })
+    expect(
+      (
+        await tools.call('porcelain_profile', {
+          op: 'set',
+          workspace: REPO,
+          level: 'worktree',
+          profile: { layers: [{ label: 'Service', pattern: 'services/' }] },
+        })
+      ).isError,
+    ).toBe(true)
+    expect(calls.some((call) => call.name === 'setWorktreeProfile')).toBe(false)
   })
 })

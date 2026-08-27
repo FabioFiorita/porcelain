@@ -52,8 +52,8 @@ function sanitizeReview(repoPath: string, set: z.infer<typeof lenientReviewSetSc
   }
 }
 
-/** Find the daemon-root Project identity the CLI used for this checkout. */
-function projectIdentity(repoPath: string): { projectId: string } | null {
+/** Find the daemon-root Project and Worktree identities for this checkout. */
+function projectIdentity(repoPath: string): { projectId: string; worktreeId: string } | null {
   try {
     const dotGit = resolve(repoPath, '.git')
     const dotGitStat = statSync(dotGit)
@@ -79,13 +79,27 @@ function projectIdentity(repoPath: string): { projectId: string } | null {
     ) as { value?: { projects?: unknown[] } }
     const projects = inventory.value?.projects ?? []
     const project = projects.find(
-      (entry): entry is { id: string; commonGitDir: string } =>
+      (
+        entry,
+      ): entry is {
+        id: string
+        commonGitDir: string
+        worktrees?: { id: string; gitDir: string }[]
+      } =>
         typeof entry === 'object' &&
         entry !== null &&
         typeof (entry as { id?: unknown }).id === 'string' &&
         (entry as { commonGitDir?: unknown }).commonGitDir === commonGitDir,
     )
-    return project === undefined ? null : { projectId: project.id }
+    if (project === undefined) return null
+    const worktree = project.worktrees?.find((entry) => {
+      try {
+        return realpathSync(entry.gitDir) === realpathSync(gitDir)
+      } catch {
+        return false
+      }
+    })
+    return worktree === undefined ? null : { projectId: project.id, worktreeId: worktree.id }
   } catch {
     return null
   }
@@ -102,14 +116,23 @@ async function readCanvasReviewSet(repoPath: string): Promise<ReviewSet | null> 
       value?: { canvases?: unknown[] }
     }
     const candidates = (index.value?.canvases ?? []).filter(
-      (entry): entry is { id: string; template?: string; updatedAt?: string } =>
+      (
+        entry,
+      ): entry is {
+        id: string
+        worktreeId?: string | null
+        template?: string
+        updatedAt?: string
+      } =>
         typeof entry === 'object' &&
         entry !== null &&
         typeof (entry as { id?: unknown }).id === 'string',
     )
-    const record = candidates
-      .filter((entry) => entry.template === 'review')
-      .sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))[0]
+    const reviews = candidates.filter((entry) => entry.template === 'review')
+    const exact = reviews.filter((entry) => entry.worktreeId === identity.worktreeId)
+    const record = (
+      exact.length === 0 ? reviews.filter((entry) => entry.worktreeId == null) : exact
+    ).sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))[0]
     if (record === undefined) return null
     const raw = JSON.parse(
       await readFile(
@@ -129,4 +152,11 @@ export async function readReviewSet(repoPath: string): Promise<ReviewSet | null>
   const canvas = await readCanvasReviewSet(repoPath)
   if (canvas !== null) return sanitizeReview(repoPath, lenientReviewSetSchema.parse(canvas))
   return null
+}
+
+/** Narrative order owned by the newest Review in this exact Worktree. */
+export async function reviewLayersForRepo(
+  repoPath: string,
+): Promise<readonly { label: string; pattern: string }[]> {
+  return (await readReviewSet(repoPath))?.layers ?? []
 }

@@ -22,7 +22,7 @@ workspace for `op: "list"`.
 | `porcelain_project` | `list`, `get` | Discover Projects and Worktrees |
 | `porcelain_canvas` | `list`, `get`, `create`, `update`, `delete`, `promote` | Author the shared surface; `review` is a Canvas template |
 | `porcelain_comment` | `list`, `get`, `create`, `update`, `delete`, `reply`, `resolve`, `reopen` | Keep the complete review-comment loop in one place |
-| `porcelain_profile` | `get`, `set`, `clear`, `promote` | Read profiles and maintain story layers without changing manual path choices |
+| `porcelain_profile` | `get`, `promote` | Read or promote manual project navigation choices |
 | `porcelain_action` | `list`, `get`, `create`, `update`, `delete` | Author a command the human may run by clicking in Porcelain |
 
 There is no context super-tool, separate Review or reply tool, generic promotion tool, terminal
@@ -32,7 +32,7 @@ tool, file tool, Git tool, or Action execution/trust tool. Each feature has one 
 
 Use `porcelain_canvas` for any authored explanation, report, diagram, evidence record, or
 handoff. A normal Canvas accepts Markdown/HTML files or a daemon-host directory. The `review`
-template accepts structured `templateData` with a name, thesis, declared files, and sections;
+template accepts structured `templateData` with a name, thesis, review layers, declared files, and sections;
 Evidence and Handoff are content inside that Canvas/template, not separate MCP domains.
 Read [references/canvas.md](references/canvas.md) when authoring a Canvas, especially an HTML
 bundle that needs portable layout and theme styling.
@@ -50,10 +50,9 @@ has asked for that state change.
 
 ## Profiles and Actions
 
-Call `get` first, then `set` with the complete `layers` value for the selected level. Pins,
-hides, and unhidden paths are manual file-tree choices and agent writes preserve them. `promote`
-writes the existing portable project pins/hides to `.porcelain/project.json`; private story
-layers and worktree overrides do not travel through Git.
+Pins, hides, and unhidden paths are manual file-tree choices and agents preserve them. `promote`
+writes the existing portable project pins/hides to `.porcelain/project.json`. Story layers belong
+to the individual Review Canvas and are authored with that Review's `templateData.layers`.
 
 Actions are definitions only. Create and update the title, command, target, and optional lifecycle
 kind. The MCP surface never runs, approves, trusts, or executes an Action. The human reads it and

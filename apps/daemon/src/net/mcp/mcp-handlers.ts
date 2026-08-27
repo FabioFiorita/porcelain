@@ -67,6 +67,8 @@ function statusOf(args: Record<string, unknown>): 'open' | 'resolved' | 'all' {
 
 function reviewSet(value: unknown): ReviewSet | null {
   if (!isRecord(value) || typeof value.name !== 'string' || value.name === '') return null
+  const parsedLayers = profileLayerSchema.array().safeParse(value.layers ?? [])
+  if (!parsedLayers.success) return null
   const files = Array.isArray(value.files)
     ? value.files.filter(isRecord).flatMap((file): ReviewFile[] => {
         if (typeof file.path !== 'string' || file.path === '') return []
@@ -111,6 +113,7 @@ function reviewSet(value: unknown): ReviewSet | null {
     : []
   return {
     name: value.name,
+    layers: parsedLayers.data,
     files,
     sections,
     ...(typeof value.thesis === 'string' ? { thesis: value.thesis } : {}),
@@ -446,27 +449,14 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
         return fail('Profiles need a checkout on the daemon host.')
       const level = args.level
       const op = args.op
-      if (level !== 'project' && level !== 'worktree')
-        return fail('level must be project or worktree.')
+      if (level !== 'project')
+        return fail('Only the project navigation profile remains persistent.')
       if (op === 'get') {
         const view = await operations.files.worktreeProfile(place.worktreePath)
-        return workspaceResult(place, level === 'project' ? view.base : view.override)
-      }
-      if (op === 'clear') {
-        const view = await operations.files.worktreeProfile(place.worktreePath)
-        if (level === 'project') {
-          await operations.files.setProjectProfile(place.worktreePath, {
-            pinnedPaths: view.base.pinnedPaths,
-            hiddenPaths: view.base.hiddenPaths,
-            layers: [],
-          })
-        } else {
-          await operations.files.setWorktreeProfile(
-            place.worktreePath,
-            view.override === null ? null : { ...view.override, layers: null },
-          )
-        }
-        return ok(`${level === 'project' ? 'Project' : 'Worktree'} story layers cleared.`)
+        return workspaceResult(place, {
+          pinnedPaths: view.base.pinnedPaths,
+          hiddenPaths: view.base.hiddenPaths,
+        })
       }
       if (op === 'promote') {
         if (level !== 'project')
@@ -482,31 +472,7 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
           ? ok('Project profile pins and hides promoted to .porcelain/project.json.')
           : fail(`Could not promote the profile: ${describeError(promoted.error)}`)
       }
-      if (op !== 'set') return fail('op must be get, set, clear, or promote.')
-      if (!isRecord(args.profile)) return fail('profile with a layers field is required for set.')
-      const view = await operations.files.worktreeProfile(place.worktreePath)
-      if (level === 'project') {
-        const parsed = profileLayerSchema.array().safeParse(args.profile.layers)
-        if (!parsed.success)
-          return fail(
-            `Invalid project layers: ${parsed.error.issues[0]?.message ?? 'invalid input'}.`,
-          )
-        await operations.files.setProjectProfile(place.worktreePath, {
-          pinnedPaths: view.base.pinnedPaths,
-          hiddenPaths: view.base.hiddenPaths,
-          layers: parsed.data,
-        })
-      } else {
-        const parsed = profileLayerSchema.array().nullable().safeParse(args.profile.layers)
-        if (!parsed.success)
-          return fail(
-            `Invalid worktree layers: ${parsed.error.issues[0]?.message ?? 'invalid input'}.`,
-          )
-        await operations.files.setWorktreeProfile(place.worktreePath, {
-          layers: parsed.data,
-        })
-      }
-      return ok(`${level === 'project' ? 'Project' : 'Worktree'} story layers updated.`)
+      return fail('op must be get or promote; review layers belong to a Review Canvas.')
     },
 
     async porcelain_action(args, place) {

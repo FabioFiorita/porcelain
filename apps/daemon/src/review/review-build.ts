@@ -48,10 +48,7 @@ export async function readSourcesInto(
 // set, and layers → the memo key. Each procedure checks its own cache on this key
 // before doing the expensive source reads. (Git status is only used to tag listed
 // files as `changed`; membership of Execution is the review set alone.)
-export async function gatherReview(
-  input: string,
-  declared: readonly Layer[] = [],
-): Promise<{
+export async function gatherReview(input: string): Promise<{
   files: ChangedFile[]
   stats: DiffStat[]
   layers: Layer[]
@@ -62,7 +59,7 @@ export async function gatherReview(
     workingTreeSnapshot(input),
     readReviewSet(input),
   ])
-  const layers = effectiveLayers(declared)
+  const layers = effectiveLayers(reviewSet?.layers ?? [])
   const key = reviewKey(files, stats, layers, reviewSet)
   return { files, stats, layers, reviewSet, key }
 }

@@ -1,3 +1,4 @@
+import type { ProfileLayer } from '@porcelain/contracts'
 import {
   buildReviewCanvas,
   escapeHtml,
@@ -10,6 +11,7 @@ import type { CanvasBundleSource } from '../../features/projects'
 export type ReviewSet = Readonly<{
   name: string
   thesis?: string
+  layers?: readonly ProfileLayer[]
   files: readonly ReviewFile[]
   sections: readonly ReviewSection[]
 }>
@@ -144,8 +146,27 @@ export function parseReviewSet(value: unknown): ReviewSet | null {
         return [parsed]
       })
     : []
-  const set: { name: string; thesis?: string; files: ReviewFile[]; sections: ReviewSection[] } = {
+  const parsedLayers = Array.isArray(value.layers)
+    ? value.layers
+        .filter(isRecord)
+        .flatMap((layer): ProfileLayer[] =>
+          typeof layer.label === 'string' &&
+          layer.label !== '' &&
+          typeof layer.pattern === 'string' &&
+          layer.pattern !== ''
+            ? [{ label: layer.label, pattern: layer.pattern }]
+            : [],
+        )
+    : []
+  const set: {
+    name: string
+    thesis?: string
+    layers: ProfileLayer[]
+    files: ReviewFile[]
+    sections: ReviewSection[]
+  } = {
     name: value.name,
+    layers: parsedLayers,
     files,
     sections,
   }

@@ -136,18 +136,15 @@ export function createCommitGeneration(): CommitGeneration {
 }
 
 /**
- * `scope.layersForRepo` is the profile capability, narrowed to the one thing the
- * Git domain needs: a checkout's declared story order. Git never learns what a
- * profile is or how the two levels merge — the store hands it a resolved list,
- * or an empty one, and `effectiveLayers` falls back to the starters. Omitting
- * the option leaves every changeset on the starters, which is what a daemon
- * composed without a Project store should do.
+ * A Review context owns its narrative order. Git receives only that narrow read;
+ * it never learns how Review Canvases are persisted or selected. With no Review,
+ * `effectiveLayers` falls back to the starters.
  */
 export function createGitDiffReadingSources(options?: {
-  scope: { layersForRepo: (repoPath: string) => Promise<readonly Layer[]> }
+  review: { layersForRepo: (repoPath: string) => Promise<readonly Layer[]> }
 }): GitDiffReadingSources {
   const layersFor = async (repoPath: string): Promise<readonly Layer[]> =>
-    options === undefined ? [] : options.scope.layersForRepo(repoPath)
+    options === undefined ? [] : options.review.layersForRepo(repoPath)
   return Object.freeze({
     loadWorkingFlow: async (repoPath: string) =>
       loadWorkingFlow(repoPath, await layersFor(repoPath)),

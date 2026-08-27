@@ -1,3 +1,4 @@
+import { profileLayerSchema } from '@porcelain/contracts'
 import { z } from 'zod'
 
 /**
@@ -84,6 +85,7 @@ export interface ReviewSection {
 export const reviewSetSchema = z.object({
   name: z.string().default('Active review'),
   thesis: z.string().max(4096).optional(),
+  layers: z.array(profileLayerSchema).default([]),
   files: z.array(reviewSetFileSchema).default([]),
   sections: z.array(reviewSectionSchema).max(30).default([]),
 })
@@ -92,6 +94,8 @@ export interface ReviewSet {
   name: string
   /** One-paragraph markdown thesis shown at the top of the Review. */
   thesis?: string
+  /** This Review's narrative order; it never carries into a later Review. */
+  layers?: { label: string; pattern: string }[]
   files: ReviewSetFile[]
   /** The agent-authored walkthrough sections, in flow order. */
   sections: ReviewSection[]

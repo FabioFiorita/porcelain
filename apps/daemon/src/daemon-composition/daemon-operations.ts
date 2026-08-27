@@ -60,6 +60,7 @@ import {
   closeClientSessions,
   publishSessionChange,
 } from '../session/live-session'
+import { reviewLayersForRepo } from '../stores/review-store'
 import { createScopeStore, type RepoIdentity } from '../stores/scope-store'
 
 /**
@@ -180,7 +181,7 @@ export function createDaemonOperations(options: {
       workingTreeCache: createWorkingTreeCache(),
       changes: createGitChangesPublisher(publish),
       diffReadingSources: createGitDiffReadingSources({
-        scope: { layersForRepo: scope.layersForRepo },
+        review: { layersForRepo: reviewLayersForRepo },
       }),
     }),
     search: createSearchOperations({

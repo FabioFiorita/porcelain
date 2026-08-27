@@ -168,14 +168,14 @@ describe('CommitGeneration and GitDiffReadingSources adapters', () => {
       await writeFile(join(repo, 'src', 'checkout.ts'), 'export const value = 2\n')
 
       const declared = await createGitDiffReadingSources({
-        scope: { layersForRepo: async () => [{ label: 'Checkout', pattern: 'checkout' }] },
+        review: { layersForRepo: async () => [{ label: 'Checkout', pattern: 'checkout' }] },
       }).loadWorkingFlow(repo)
       expect(declared.map((group) => group.layer)).toContain('Checkout')
 
       // Same repo, nothing declared: the starters group it, and 'Checkout'
       // cannot appear — proving the label came from the profile, not the path.
       const starters = await createGitDiffReadingSources({
-        scope: { layersForRepo: async () => [] },
+        review: { layersForRepo: async () => [] },
       }).loadWorkingFlow(repo)
       expect(starters.map((group) => group.layer)).not.toContain('Checkout')
     })

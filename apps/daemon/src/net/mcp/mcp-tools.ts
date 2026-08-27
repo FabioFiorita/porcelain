@@ -40,17 +40,6 @@ const PROFILE_LAYER = {
   additionalProperties: false,
 } as const
 
-const PROFILE = {
-  type: 'object',
-  properties: {
-    layers: { type: ['array', 'null'], items: PROFILE_LAYER },
-  },
-  required: ['layers'],
-  additionalProperties: false,
-  description:
-    'Required for set. Agents can change story layers only; manual pin/hide choices are preserved.',
-} as const
-
 const CANVAS_FILE = {
   type: 'object',
   properties: {
@@ -231,6 +220,7 @@ export const MCP_TOOLS: readonly McpToolDefinition[] = Object.freeze([
           properties: {
             name: { type: 'string' },
             thesis: { type: 'string' },
+            layers: { type: 'array', items: PROFILE_LAYER },
             files: { type: 'array', items: REVIEW_FILE },
             sections: { type: 'array', items: REVIEW_SECTION },
           },
@@ -268,14 +258,13 @@ export const MCP_TOOLS: readonly McpToolDefinition[] = Object.freeze([
     name: 'porcelain_profile',
     title: 'Manage the Repository Profile',
     description:
-      'Read a project profile or worktree story-layer override, and set or clear its story layers. Pins and hides are manual project-wide file-tree choices: agent writes preserve them. Promotion writes the existing portable project pins/hides to .porcelain/project.json.',
+      'Read the manual project navigation profile or promote its portable pins/hides to .porcelain/project.json. Review layers belong to each Review Canvas, never to a persistent profile.',
     inputSchema: {
       type: 'object',
       properties: {
-        op: { enum: ['get', 'set', 'clear', 'promote'] },
+        op: { enum: ['get', 'promote'] },
         workspace: WORKSPACE,
-        level: { enum: ['project', 'worktree'] },
-        profile: PROFILE,
+        level: { const: 'project' },
       },
       required: ['op', 'workspace', 'level'],
       additionalProperties: false,
