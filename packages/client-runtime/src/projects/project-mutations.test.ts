@@ -59,8 +59,15 @@ describe('Project mutation effects', () => {
         name: 'canvases',
         projectId: 'proj-alpha',
         worktreePath: '/synthetic/projects/alpha',
+        worktreeId: null,
       },
-      { domain: 'projects', name: 'canvases', projectId: 'proj-alpha', worktreePath: null },
+      {
+        domain: 'projects',
+        name: 'canvases',
+        projectId: 'proj-alpha',
+        worktreePath: null,
+        worktreeId: null,
+      },
       {
         domain: 'projects',
         name: 'canvas',
