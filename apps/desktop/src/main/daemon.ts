@@ -287,7 +287,8 @@ async function launch(): Promise<void> {
       PORCELAIN_NO_STDIN_WATCHDOG: '1',
       // The dev renderer is served by Vite, so its origin must be CORS-echoed;
       // the packaged file:// renderer sends the "null" origin the daemon always
-      // accepts (the Bearer token is the real gate either way).
+      // accepts (HTTP uses `null`; WebSocket upgrades use `file://`; the token is
+      // the real gate either way).
       PORCELAIN_ALLOWED_ORIGIN:
         is.dev && process.env.ELECTRON_RENDERER_URL
           ? new URL(process.env.ELECTRON_RENDERER_URL).origin

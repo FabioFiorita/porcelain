@@ -1025,6 +1025,12 @@ describe('daemon ws surface — the /session upgrade gate + dispatch', () => {
     )
   })
 
+  it('accepts the packaged Electron file origin with the right token', async () => {
+    const ws = await connect(`porcelain.${TOKEN}`, 'file://')
+    await readySession(ws)
+    ws.close()
+  })
+
   it('closes every live socket on closeAllSessions', async () => {
     const ws = await connect(`porcelain.${TOKEN}`)
     expect(sessionCount()).toBeGreaterThanOrEqual(1)

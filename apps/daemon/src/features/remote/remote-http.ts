@@ -154,7 +154,10 @@ export function createRemoteHttp(opts: RemoteHttpOptions): RemoteHttp {
 
   function browserOriginAllowed(req: IncomingMessage): boolean {
     const origin = req.headers.origin
-    if (origin === undefined || origin === 'null') return true
+    // Packaged Electron fetches use the opaque `null` origin, but Chromium's
+    // WebSocket handshake serializes the same file document as literal `file://`.
+    // The upgrade remains credential-gated below; this only admits the shell's origin.
+    if (origin === undefined || origin === 'null' || origin === 'file://') return true
     if (allowedOrigins.includes(origin)) return true
     const host = req.headers.host
     if (host === undefined) return false

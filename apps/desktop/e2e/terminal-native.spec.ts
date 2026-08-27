@@ -8,6 +8,15 @@ import {
   waitForShell,
 } from './helpers/app'
 
+test('packaged Electron opens a daemon-backed terminal', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'electron', 'Electron-only session-origin proof')
+
+  await waitForShell(page)
+  await openTerminals(page)
+  await expect(loc.terminalPanel(page)).toBeVisible()
+  await expectTerminalText(page, 0, '$')
+})
+
 test('native clipboard, selection copy, and dropped files reach the daemon PTY', async ({
   app,
   page,
