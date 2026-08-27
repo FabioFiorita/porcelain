@@ -160,7 +160,7 @@ export type CreateHubWorktreeInput = z.infer<typeof createHubWorktreeInputSchema
 export type CreateHubWorktreeOutput = HubWorktree
 
 /** Agent-authored HTML or Markdown. Read-only to the human in v1 (ADR 0002). */
-export const canvasKindSchema = z.enum(['html', 'markdown'])
+export const canvasKindSchema = z.enum(['html', 'markdown', 'structured'])
 export type CanvasKind = z.infer<typeof canvasKindSchema>
 
 /**

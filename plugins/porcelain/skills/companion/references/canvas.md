@@ -21,6 +21,47 @@ An HTML Canvas can include relative CSS, JavaScript, and media in the bundle. `s
 daemon-host directory alternative when the bundle already exists on disk. Use `get` to read the
 authoritative content and `list` to see private/tracked records.
 
+### Structured Canvas
+
+Prefer the versioned structured document when the content fits a small set of named views. It uses
+the same renderer for built-in templates and custom Canvases:
+
+```jsonc
+{
+  "op": "create",
+  "workspace": "/abs/path/to/checkout",
+  "document": {
+    "version": 1,
+    "title": "Architecture decision",
+    "tabs": [
+      {
+        "id": "why",
+        "label": "Why",
+        "blocks": [{ "type": "markdown", "content": "# Context\nThe current seam leaks." }]
+      },
+      {
+        "id": "how",
+        "label": "How",
+        "blocks": [
+          { "type": "html", "content": "<figure>...</figure>", "height": 360 }
+        ]
+      }
+    ],
+    "assets": [
+      { "type": "image", "path": "assets/result.png", "alt": "Result after the change" }
+    ]
+  },
+  "sourceDir": "/abs/path/to/bundle-assets"
+}
+```
+
+Version 1 allows one to four tabs, tab labels up to 24 characters, and Markdown or sandboxed HTML
+blocks. Put image and video collections in `assets` instead of creating more content tabs; asset
+paths are bundle-relative and resolve from the optional `sourceDir`. The daemon rejects malformed
+documents before persistence with the failing field path, and clients validate tracked documents
+again before rendering them. A video may include a bundle-relative `captionsPath` pointing to a
+WebVTT captions file.
+
 ### HTML presentation
 
 Make HTML Canvases self-contained and intentional: include base CSS in the bundle, set explicit

@@ -1,7 +1,7 @@
-import type { CanvasBundleSource } from '../../features/projects'
 import type { ResolvedProfile, WorktreeProfile } from '@porcelain/contracts'
 import type { WorktreeProfileView } from '@porcelain/contracts/files'
 import type { PromoteOverridesInput } from '@porcelain/contracts/projects'
+import type { CanvasBundleSource } from '../../features/projects'
 import type { ReviewComment } from '../../features/review/comment-capabilities'
 import type { WorkspaceInventory } from './mcp-workspace'
 
@@ -99,7 +99,7 @@ export type WriteCanvasArgs = {
   worktreeId: string | null
   id?: string
   title: string
-  kind: 'html' | 'markdown'
+  kind: 'html' | 'markdown' | 'structured'
   entryFile: string
   template?: 'review'
   source: CanvasBundleSource

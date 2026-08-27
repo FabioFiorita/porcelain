@@ -19,7 +19,7 @@ import { z } from 'zod'
  * the private one, with no second implementation to fall behind.
  */
 
-export const canvasKindSchema = z.enum(['html', 'markdown'])
+export const canvasKindSchema = z.enum(['html', 'markdown', 'structured'])
 
 export const storedCanvasSchema = z
   .object({

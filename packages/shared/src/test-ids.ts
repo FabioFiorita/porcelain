@@ -268,6 +268,8 @@ export const TestIds = {
   /** Sidebar entry that tracks the Project's hidden/pinned defaults into the checkout. */
   /** Sandboxed HTML Canvas iframe — sandbox="allow-scripts", no allow-same-origin. */
   canvasIframe: 'canvas-iframe',
+  structuredCanvas: 'structured-canvas',
+  structuredCanvasInvalid: 'structured-canvas-invalid',
 
   // --- Saved action trust ---
   actionTrustDialog: 'action-trust-dialog',

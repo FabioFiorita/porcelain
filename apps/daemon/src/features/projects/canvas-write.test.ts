@@ -88,6 +88,36 @@ describe('writeCanvasBundle', () => {
     })
     expect(await readFile(join(dest, 'assets', 'style.css'), 'utf8')).toBe('body{}')
   })
+
+  it('writes a canonical structured document alongside copied assets', async () => {
+    const source = join(home, 'source')
+    await mkdir(join(source, 'images'), { recursive: true })
+    await writeFile(join(source, 'images', 'proof.png'), 'image bytes')
+
+    const document = {
+      version: 1 as const,
+      title: 'Proof',
+      tabs: [
+        {
+          id: 'summary',
+          label: 'Summary',
+          blocks: [{ type: 'markdown' as const, content: '# Done' }],
+        },
+      ],
+      assets: [{ type: 'image' as const, path: 'images/proof.png', alt: 'Proof' }],
+    }
+    const dest = join(home, 'bundle')
+    expect(
+      await writeCanvasBundle(dest, {
+        kind: 'structured',
+        entryFile: 'canvas.json',
+        document: `${JSON.stringify(document, null, 2)}\n`,
+        assetsDir: source,
+      }),
+    ).toEqual({ ok: true })
+    expect(JSON.parse(await readFile(join(dest, 'canvas.json'), 'utf8'))).toEqual(document)
+    expect(await readFile(join(dest, 'images', 'proof.png'), 'utf8')).toBe('image bytes')
+  })
 })
 
 describe('canvasStore.writeCanvas', () => {

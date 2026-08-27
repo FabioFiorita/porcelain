@@ -5,6 +5,7 @@ import { settleBackground } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
 import { useEffect, useRef, useState } from 'react'
 import { useCanvas, useMintCanvasAccessToken } from './project-data'
+import { StructuredCanvasView } from './structured-canvas-view'
 
 /**
  * Message a Canvas's click-interception bootstrap posts for every non-fragment
@@ -28,25 +29,21 @@ function externalLinkHref(data: unknown): string | null {
  * `src` (not `srcdoc`) is why the CSP `GET /canvas/<token>` sets on its own
  * response — not the app shell's — governs what the iframe's script can do.
  */
-function CanvasHtmlFrame({
+function useCanvasDocumentUrl({
   projectId,
   canvasId,
-  title,
   worktreePath,
   environmentId,
 }: {
   projectId: string
   canvasId: string
-  title: string
   worktreePath: string | undefined
   environmentId: string | undefined
-}): React.JSX.Element {
+}): string | null {
   const { mint } = useMintCanvasAccessToken()
   const environment = environmentSessionFor(environmentId ?? null)
   const environmentBaseUrl = environment?.session.baseUrl() ?? daemonBaseUrl()
   const [src, setSrc] = useState<string | null>(null)
-  const iframeRef = useRef<HTMLIFrameElement>(null)
-
   useEffect(() => {
     let cancelled = false
     setSrc(null)
@@ -69,6 +66,25 @@ function CanvasHtmlFrame({
       cancelled = true
     }
   }, [projectId, canvasId, worktreePath, environmentId, environmentBaseUrl, mint])
+
+  return src
+}
+
+function CanvasHtmlFrame({
+  projectId,
+  canvasId,
+  title,
+  worktreePath,
+  environmentId,
+}: {
+  projectId: string
+  canvasId: string
+  title: string
+  worktreePath: string | undefined
+  environmentId: string | undefined
+}): React.JSX.Element {
+  const src = useCanvasDocumentUrl({ projectId, canvasId, worktreePath, environmentId })
+  const iframeRef = useRef<HTMLIFrameElement>(null)
 
   useEffect(() => {
     function onMessage(event: MessageEvent): void {
@@ -126,6 +142,17 @@ export function CanvasView({
   if (canvas.record.kind === 'markdown') {
     return <MarkdownView content={canvas.content} />
   }
+  if (canvas.record.kind === 'structured') {
+    return (
+      <StructuredCanvasContainer
+        projectId={projectId}
+        canvasId={canvasId}
+        content={canvas.content}
+        worktreePath={worktreePath}
+        environmentId={environmentId}
+      />
+    )
+  }
   return (
     <CanvasHtmlFrame
       projectId={projectId}
@@ -135,4 +162,21 @@ export function CanvasView({
       environmentId={environmentId}
     />
   )
+}
+
+function StructuredCanvasContainer({
+  projectId,
+  canvasId,
+  content,
+  worktreePath,
+  environmentId,
+}: {
+  projectId: string
+  canvasId: string
+  content: string
+  worktreePath: string | undefined
+  environmentId: string | undefined
+}): React.JSX.Element {
+  const assetBaseUrl = useCanvasDocumentUrl({ projectId, canvasId, worktreePath, environmentId })
+  return <StructuredCanvasView content={content} assetBaseUrl={assetBaseUrl} />
 }

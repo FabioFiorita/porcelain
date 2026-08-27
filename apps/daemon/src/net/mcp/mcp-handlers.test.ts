@@ -213,6 +213,58 @@ describe('domain MCP entry points', () => {
     )
   })
 
+  it('validates and writes a structured Canvas document', async () => {
+    const { tools, calls } = harness()
+    const document = {
+      version: 1,
+      title: 'Architecture',
+      tabs: [
+        {
+          id: 'why',
+          label: 'Why',
+          blocks: [{ type: 'markdown', content: '# Context' }],
+        },
+      ],
+    }
+    const result = await tools.call('porcelain_canvas', {
+      op: 'create',
+      workspace: REPO,
+      document,
+    })
+
+    expect(result.isError).toBeUndefined()
+    expect(calls).toContainEqual({
+      name: 'writeCanvas',
+      input: expect.objectContaining({
+        title: 'Architecture',
+        kind: 'structured',
+        entryFile: 'canvas.json',
+        source: expect.objectContaining({ kind: 'structured', document: expect.any(String) }),
+      }),
+    })
+  })
+
+  it('returns actionable feedback for an invalid structured Canvas document', async () => {
+    const { tools, calls } = harness()
+    const result = await tools.call('porcelain_canvas', {
+      op: 'create',
+      workspace: REPO,
+      document: {
+        version: 1,
+        title: 'Too many tabs',
+        tabs: Array.from({ length: 5 }, (_, index) => ({
+          id: `tab-${index}`,
+          label: `Tab ${index}`,
+          blocks: [{ type: 'markdown', content: 'Content' }],
+        })),
+      },
+    })
+
+    expect(result.isError).toBe(true)
+    expect(result.text).toContain('tabs')
+    expect(calls.some((call) => call.name === 'writeCanvas')).toBe(false)
+  })
+
   it('creates distinct Review Canvases in the addressed worktree', async () => {
     const { tools, calls } = harness()
     const review = {

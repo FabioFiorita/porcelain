@@ -22,6 +22,13 @@ export type CanvasBundleSource =
   | Readonly<{ kind: 'files'; files: readonly Readonly<{ path: string; content: string }>[] }>
   /** A directory the caller already assembled, copied wholesale. */
   | Readonly<{ kind: 'directory'; sourceDir: string }>
+  /** A validated JSON entry plus optional bundle assets copied from a directory. */
+  | Readonly<{
+      kind: 'structured'
+      entryFile: string
+      document: string
+      assetsDir?: string
+    }>
 
 export type CanvasWriteError = 'unavailable' | 'entry-outside-bundle' | 'source-missing'
 
@@ -64,8 +71,16 @@ export async function writeCanvasBundle(
     for (const file of source.files) {
       if (!isContainedBundlePath(file.path)) return { ok: false, error: 'entry-outside-bundle' }
     }
-  } else if (!(await isDirectory(source.sourceDir))) {
+  } else if (source.kind === 'directory' && !(await isDirectory(source.sourceDir))) {
     return { ok: false, error: 'source-missing' }
+  } else if (
+    source.kind === 'structured' &&
+    (!isContainedBundlePath(source.entryFile) ||
+      (source.assetsDir !== undefined && !(await isDirectory(source.assetsDir))))
+  ) {
+    return source.assetsDir !== undefined && !(await isDirectory(source.assetsDir))
+      ? { ok: false, error: 'source-missing' }
+      : { ok: false, error: 'entry-outside-bundle' }
   }
 
   const staging = `${destDir}.tmp-${randomUUID()}`
@@ -73,13 +88,19 @@ export async function writeCanvasBundle(
     await mkdir(dirname(staging), { recursive: true })
     if (source.kind === 'directory') {
       await cp(source.sourceDir, staging, { recursive: true })
-    } else {
+    } else if (source.kind === 'files') {
       await mkdir(staging, { recursive: true })
       for (const file of source.files) {
         const target = join(staging, file.path)
         await mkdir(dirname(target), { recursive: true })
         await writeFile(target, file.content, 'utf8')
       }
+    } else {
+      if (source.assetsDir === undefined) await mkdir(staging, { recursive: true })
+      else await cp(source.assetsDir, staging, { recursive: true })
+      const target = join(staging, source.entryFile)
+      await mkdir(dirname(target), { recursive: true })
+      await writeFile(target, source.document, 'utf8')
     }
     await rm(destDir, { recursive: true, force: true })
     await rename(staging, destDir)

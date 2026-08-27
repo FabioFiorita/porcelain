@@ -1,4 +1,8 @@
 import { profileLayerSchema } from '@porcelain/contracts'
+import {
+  structuredCanvasDocumentSchema,
+  structuredCanvasValidationMessage,
+} from '@porcelain/contracts/projects'
 import type { McpToolHandlers, McpToolResult } from './mcp-dispatch'
 import type { McpOperations } from './mcp-operations'
 import {
@@ -140,13 +144,55 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
     | {
         ok: true
         title: string
-        kind: 'html' | 'markdown'
+        kind: 'html' | 'markdown' | 'structured'
         entryFile: string
         template?: 'review'
         source: import('../../features/projects').CanvasBundleSource
       }
     | { ok: false; result: McpToolResult }
   > {
+    if (args.document !== undefined) {
+      if (
+        args.templateData !== undefined ||
+        args.template !== undefined ||
+        args.files !== undefined ||
+        args.kind !== undefined ||
+        args.entry !== undefined ||
+        args.title !== undefined
+      ) {
+        return {
+          ok: false,
+          result: fail(
+            'document is a complete structured Canvas; do not combine it with title, kind, entry, files, template, or templateData.',
+          ),
+        }
+      }
+      const parsed = structuredCanvasDocumentSchema.safeParse(args.document)
+      if (!parsed.success) {
+        return {
+          ok: false,
+          result: fail(
+            `Invalid structured Canvas: ${structuredCanvasValidationMessage(parsed.error)}.`,
+          ),
+        }
+      }
+      const entryFile = 'canvas.json'
+      return {
+        ok: true,
+        title: parsed.data.title,
+        kind: 'structured',
+        entryFile,
+        source: {
+          kind: 'structured',
+          entryFile,
+          document: `${JSON.stringify(parsed.data, null, 2)}\n`,
+          ...(stringField(args, 'sourceDir') === undefined
+            ? {}
+            : { assetsDir: stringField(args, 'sourceDir') }),
+        },
+      }
+    }
+
     const templateData = args.templateData
     if (templateData !== undefined) {
       const set = reviewSet(templateData)

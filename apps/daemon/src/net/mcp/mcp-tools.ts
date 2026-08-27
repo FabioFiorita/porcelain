@@ -61,6 +61,81 @@ const CANVAS_FILE = {
   additionalProperties: false,
 } as const
 
+const STRUCTURED_BLOCK = {
+  oneOf: [
+    {
+      type: 'object',
+      properties: { type: { const: 'markdown' }, content: { type: 'string' } },
+      required: ['type', 'content'],
+      additionalProperties: false,
+    },
+    {
+      type: 'object',
+      properties: {
+        type: { const: 'html' },
+        content: { type: 'string' },
+        height: { type: 'integer', minimum: 160, maximum: 1200 },
+      },
+      required: ['type', 'content'],
+      additionalProperties: false,
+    },
+  ],
+} as const
+
+const STRUCTURED_ASSET = {
+  oneOf: [
+    {
+      type: 'object',
+      properties: {
+        type: { const: 'image' },
+        path: { type: 'string' },
+        alt: { type: 'string' },
+        caption: { type: 'string' },
+      },
+      required: ['type', 'path', 'alt'],
+      additionalProperties: false,
+    },
+    {
+      type: 'object',
+      properties: {
+        type: { const: 'video' },
+        path: { type: 'string' },
+        label: { type: 'string' },
+        caption: { type: 'string' },
+        captionsPath: { type: 'string' },
+      },
+      required: ['type', 'path', 'label'],
+      additionalProperties: false,
+    },
+  ],
+} as const
+
+const STRUCTURED_CANVAS = {
+  type: 'object',
+  properties: {
+    version: { const: 1 },
+    title: { type: 'string', minLength: 1, maxLength: 120 },
+    tabs: {
+      type: 'array',
+      minItems: 1,
+      maxItems: 4,
+      items: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', pattern: '^[a-z0-9][a-z0-9-]*$' },
+          label: { type: 'string', minLength: 1, maxLength: 24 },
+          blocks: { type: 'array', minItems: 1, maxItems: 16, items: STRUCTURED_BLOCK },
+        },
+        required: ['id', 'label', 'blocks'],
+        additionalProperties: false,
+      },
+    },
+    assets: { type: 'array', maxItems: 64, items: STRUCTURED_ASSET },
+  },
+  required: ['version', 'title', 'tabs'],
+  additionalProperties: false,
+} as const
+
 const REVIEW_FILE = {
   type: 'object',
   properties: {
@@ -130,7 +205,7 @@ export const MCP_TOOLS: readonly McpToolDefinition[] = Object.freeze([
     name: 'porcelain_canvas',
     title: 'Manage a Canvas',
     description:
-      'List, read, create, update, delete, or promote an agent-authored Canvas. Review is the `review` template inside Canvas; each create makes a new Review scoped to the addressed Worktree, and update requires its id. A promoted Canvas is tracked in <repo>/.porcelain and becomes canonical for that checkout. Promotion writes files but never stages or commits.',
+      'List, read, create, update, delete, or promote an agent-authored Canvas. Prefer document for a validated versioned structured Canvas; sourceDir may provide its referenced bundle assets. Review is the `review` template inside Canvas; each create makes a new Review scoped to the addressed Worktree, and update requires its id. A promoted Canvas is tracked in <repo>/.porcelain and becomes canonical for that checkout. Promotion writes files but never stages or commits.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -139,9 +214,13 @@ export const MCP_TOOLS: readonly McpToolDefinition[] = Object.freeze([
         id: { type: 'string', description: 'Canvas id for get/update/delete/promote' },
         title: { type: 'string' },
         kind: { enum: ['html', 'markdown'] },
-        sourceDir: { type: 'string', description: 'Absolute directory on the daemon host' },
+        sourceDir: {
+          type: 'string',
+          description: 'Absolute bundle directory, or assets directory when document is provided',
+        },
         entry: { type: 'string', description: 'Bundle-relative entry file' },
         files: { type: 'array', items: CANVAS_FILE },
+        document: STRUCTURED_CANVAS,
         tracked: {
           type: 'boolean',
           description: 'Create or update directly in the tracked checkout overlay',
