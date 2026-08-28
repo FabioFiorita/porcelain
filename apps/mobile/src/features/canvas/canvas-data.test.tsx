@@ -18,14 +18,17 @@ const ctx = vi.hoisted(() => ({
   callDaemon: vi.fn(),
   environment: {
     baseUrl: 'http://synthetic-host:43117',
+    enabled: true,
     id: 'env-actions-test',
     token: 'paired',
-  } as { baseUrl: string; id: string; token: string | null } | null,
+  } as { baseUrl: string; enabled: boolean; id: string; token: string | null } | null,
   repoPath: '/synthetic/projects/alpha' as string | null,
 }))
 
 vi.mock('@/features/remote', () => ({
   activeProjectPathOf: () => ctx.repoPath,
+  isEnabled: (environment: { enabled: boolean } | null): boolean =>
+    environment !== null && environment.enabled,
   isPaired: (environment: { token: string | null } | null): boolean =>
     environment !== null && environment.token !== null,
   useActiveEnvironment: () => ctx.environment,
@@ -60,7 +63,7 @@ function wrapper(): (props: { children: ReactNode }) => React.JSX.Element {
 
 beforeEach(() => {
   ctx.callDaemon.mockReset()
-  ctx.environment = { baseUrl: BASE_URL, id: ENV_ID, token: 'paired' }
+  ctx.environment = { baseUrl: BASE_URL, enabled: true, id: ENV_ID, token: 'paired' }
   ctx.repoPath = REPO_PATH
 })
 

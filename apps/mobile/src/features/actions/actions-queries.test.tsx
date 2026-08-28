@@ -8,7 +8,8 @@ import { daemonDispatch, ENV_ID, PROJECT_ID, REPO_PATH, UNKNOWN_PATH } from './t
 
 const ctx = vi.hoisted(() => ({
   callDaemon: vi.fn(),
-  environment: { id: 'env-actions-test', token: 'paired' } as {
+  environment: { enabled: true, id: 'env-actions-test', token: 'paired' } as {
+    enabled: boolean
     id: string
     token: string | null
   } | null,
@@ -20,6 +21,8 @@ const ctx = vi.hoisted(() => ({
 
 vi.mock('@/features/remote', () => ({
   // Pure identity the subject reads from the same feature index; the store half is faked below.
+  isEnabled: (environment: { enabled: boolean } | null): boolean =>
+    environment !== null && environment.enabled,
   isPaired: (environment: { token: string | null } | null): boolean =>
     environment !== null && environment.token !== null,
   useActiveEnvironment: () => ctx.environment,
@@ -54,7 +57,7 @@ function listCalls(): unknown[] {
 }
 
 beforeEach(() => {
-  ctx.environment = { id: ENV_ID, token: 'paired' }
+  ctx.environment = { enabled: true, id: ENV_ID, token: 'paired' }
   ctx.project = { name: 'alpha', path: REPO_PATH }
   ctx.callDaemon.mockReset()
   ctx.callDaemon.mockImplementation(
@@ -112,7 +115,7 @@ describe('mobile useActions', () => {
     expect(inactive.result.current.actions).toEqual([])
     expect(listCalls()).toEqual([])
 
-    ctx.environment = { id: ENV_ID, token: null }
+    ctx.environment = { enabled: true, id: ENV_ID, token: null }
     ctx.callDaemon.mockClear()
     const unpairedClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     const unpaired = renderHook(() => useActions(true), { wrapper: wrapper(unpairedClient) })

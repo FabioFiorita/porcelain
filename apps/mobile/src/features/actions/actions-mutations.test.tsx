@@ -16,7 +16,8 @@ import {
 
 const ctx = vi.hoisted(() => ({
   callDaemon: vi.fn(),
-  environment: { id: 'env-actions-test', token: 'paired' } as {
+  environment: { enabled: true, id: 'env-actions-test', token: 'paired' } as {
+    enabled: boolean
     id: string
     token: string | null
   } | null,
@@ -28,6 +29,8 @@ const ctx = vi.hoisted(() => ({
 
 vi.mock('@/features/remote', () => ({
   // Pure identity the subject reads from the same feature index; the store half is faked below.
+  isEnabled: (environment: { enabled: boolean } | null): boolean =>
+    environment !== null && environment.enabled,
   isPaired: (environment: { token: string | null } | null): boolean =>
     environment !== null && environment.token !== null,
   useActiveEnvironment: () => ctx.environment,
@@ -62,7 +65,7 @@ function trustCalls(): unknown[] {
 }
 
 beforeEach(() => {
-  ctx.environment = { id: ENV_ID, token: 'paired' }
+  ctx.environment = { enabled: true, id: ENV_ID, token: 'paired' }
   ctx.project = { name: 'alpha', path: REPO_PATH }
   ctx.callDaemon.mockReset()
   ctx.callDaemon.mockImplementation(daemonDispatch({ trustActions: () => undefined }))
