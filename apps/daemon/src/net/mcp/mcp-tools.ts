@@ -197,7 +197,7 @@ export const MCP_TOOLS: readonly McpToolDefinition[] = Object.freeze([
     name: 'porcelain_canvas',
     title: 'Manage a Canvas',
     description:
-      'List, read, create, update, delete, or promote an agent-authored Canvas. Prefer document for a custom validated structured Canvas; sourceDir may provide bundle assets. Built-in review and plan templates compile into that same renderer. Review fixes Why/How and owns its file layers; Plan chooses bounded tabs. Each Review create is scoped to the addressed Worktree, and update requires its id. Promotion writes files but never stages or commits.',
+      'List, read, create, update, delete, or promote an agent-authored Canvas. Prefer document for a custom validated structured Canvas; sourceDir may provide bundle assets. Built-in review and plan templates compile into that same renderer. Review fixes Why/How and owns its file layers; Plan chooses bounded tabs. Each Review create is scoped to the addressed Worktree, and update requires its id. A clean Review write binds current HEAD for cross-Worktree History; a dirty write reports live-only and must be updated after commit. Promotion writes files but never stages or commits.',
     inputSchema: {
       type: 'object',
       properties: {

@@ -105,38 +105,21 @@ function projectIdentity(repoPath: string): { projectId: string; worktreeId: str
   }
 }
 
-/** Read the Review template metadata carried by the Project-owned Canvas. */
-async function readCanvasReviewSet(repoPath: string): Promise<ReviewSet | null> {
-  const identity = projectIdentity(repoPath)
-  if (identity === null) return null
+interface ReviewCanvasRecord {
+  id: string
+  worktreeId?: string | null
+  template?: string
+  updatedAt?: string
+}
+
+async function readReviewCandidate(
+  projectId: string,
+  record: ReviewCanvasRecord,
+): Promise<ReviewSet | null> {
   try {
-    const index = JSON.parse(
-      await readFile(canvasIndexPath(porcelainHome(), identity.projectId), 'utf8'),
-    ) as {
-      value?: { canvases?: unknown[] }
-    }
-    const candidates = (index.value?.canvases ?? []).filter(
-      (
-        entry,
-      ): entry is {
-        id: string
-        worktreeId?: string | null
-        template?: string
-        updatedAt?: string
-      } =>
-        typeof entry === 'object' &&
-        entry !== null &&
-        typeof (entry as { id?: unknown }).id === 'string',
-    )
-    const reviews = candidates.filter((entry) => entry.template === 'review')
-    const exact = reviews.filter((entry) => entry.worktreeId === identity.worktreeId)
-    const record = (
-      exact.length === 0 ? reviews.filter((entry) => entry.worktreeId == null) : exact
-    ).sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))[0]
-    if (record === undefined) return null
     const raw = JSON.parse(
       await readFile(
-        join(canvasBundleDir(porcelainHome(), identity.projectId, record.id), 'review.json'),
+        join(canvasBundleDir(porcelainHome(), projectId, record.id), 'review.json'),
         'utf8',
       ),
     )
@@ -147,16 +130,65 @@ async function readCanvasReviewSet(repoPath: string): Promise<ReviewSet | null> 
   }
 }
 
+/** Read Review metadata for the live Worktree, or for one immutable History commit. */
+async function readCanvasReviewSet(
+  repoPath: string,
+  commitHash?: string,
+): Promise<ReviewSet | null> {
+  const identity = projectIdentity(repoPath)
+  if (identity === null) return null
+  try {
+    const index = JSON.parse(
+      await readFile(canvasIndexPath(porcelainHome(), identity.projectId), 'utf8'),
+    ) as {
+      value?: { canvases?: unknown[] }
+    }
+    const candidates = (index.value?.canvases ?? []).filter(
+      (entry): entry is ReviewCanvasRecord =>
+        typeof entry === 'object' &&
+        entry !== null &&
+        typeof (entry as { id?: unknown }).id === 'string',
+    )
+    const reviews = candidates
+      .filter((entry) => entry.template === 'review')
+      .sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))
+    if (commitHash !== undefined) {
+      for (const record of reviews) {
+        const review = await readReviewCandidate(identity.projectId, record)
+        if (
+          review?.commitHash !== undefined &&
+          (review.commitHash === commitHash || review.commitHash.startsWith(commitHash))
+        ) {
+          return review
+        }
+      }
+      return null
+    }
+    const exact = reviews.filter((entry) => entry.worktreeId === identity.worktreeId)
+    const record = (
+      exact.length === 0 ? reviews.filter((entry) => entry.worktreeId == null) : exact
+    )[0]
+    if (record === undefined) return null
+    return readReviewCandidate(identity.projectId, record)
+  } catch {
+    return null
+  }
+}
+
 /** The Review Canvas template metadata, or null when no template is present. */
-export async function readReviewSet(repoPath: string): Promise<ReviewSet | null> {
-  const canvas = await readCanvasReviewSet(repoPath)
+export async function readReviewSet(
+  repoPath: string,
+  commitHash?: string,
+): Promise<ReviewSet | null> {
+  const canvas = await readCanvasReviewSet(repoPath, commitHash)
   if (canvas !== null) return sanitizeReview(repoPath, lenientReviewSetSchema.parse(canvas))
   return null
 }
 
-/** Narrative order owned by the newest Review in this exact Worktree. */
+/** Narrative order for the live Worktree, or the Review bound to a History commit. */
 export async function reviewLayersForRepo(
   repoPath: string,
+  commitHash?: string,
 ): Promise<readonly { label: string; pattern: string }[]> {
-  return (await readReviewSet(repoPath))?.layers ?? []
+  return (await readReviewSet(repoPath, commitHash))?.layers ?? []
 }

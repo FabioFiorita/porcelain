@@ -167,6 +167,11 @@ that id for later changes to the same review. Never use `create` as an upsert. `
 Changes/History narrative only for this Review; a later Review in the same Worktree starts with its
 own order and does not inherit this one.
 
+When the addressed checkout is clean, a Review create/update records its current commit. History
+uses that immutable association across Worktrees. A Review authored while files are still dirty
+continues to shape the live Changes surface; update the same Canvas once after committing to make
+its layers follow the commit into History.
+
 The Review Canvas always has **Why** and **How** content tabs. It has no Execution tab: `layers`
 orders the changed files while the Canvas explains them. Evidence belongs in the shared Assets
 gallery; provide its bundle files with `sourceDir`.

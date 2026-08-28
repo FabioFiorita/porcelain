@@ -26,9 +26,11 @@ function structuredSource(
 export function reviewBundleSource(
   data: ReviewCanvasTemplateData,
   assetsDir?: string,
+  commitHash?: string,
 ): CanvasBundleSource {
   const metadata = {
     name: data.title,
+    ...(commitHash === undefined ? {} : { commitHash }),
     layers: data.layers,
     files: data.files,
     sections: [],

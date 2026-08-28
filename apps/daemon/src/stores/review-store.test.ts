@@ -99,6 +99,7 @@ it('reads only Review metadata from the daemon-root Canvas', async () => {
     join(otherBundle, 'review.json'),
     JSON.stringify({
       name: 'Other worktree review',
+      commitHash: 'abcdef0123456789abcdef0123456789abcdef01',
       layers: [{ label: 'Other', pattern: '.*' }],
       files: [],
       sections: [],
@@ -106,4 +107,8 @@ it('reads only Review metadata from the daemon-root Canvas', async () => {
   )
   await expect(readReviewSet(repo)).resolves.toMatchObject({ name: 'Canvas review' })
   await expect(reviewLayersForRepo(repo)).resolves.toEqual([{ label: 'Source', pattern: '^src/' }])
+  await expect(reviewLayersForRepo(repo, 'abcdef012345')).resolves.toEqual([
+    { label: 'Other', pattern: '.*' },
+  ])
+  await expect(reviewLayersForRepo(repo, '000000000000')).resolves.toEqual([])
 })

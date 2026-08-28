@@ -84,7 +84,10 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
       : { ok: false, result: fail(resolved.message) }
   }
 
-  async function canvasSource(args: Record<string, unknown>): Promise<
+  async function canvasSource(
+    args: Record<string, unknown>,
+    reviewCommitHash?: string,
+  ): Promise<
     | {
         ok: true
         title: string
@@ -160,7 +163,11 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
       const assetsDir = stringField(args, 'sourceDir')
       const source =
         template === 'review'
-          ? reviewBundleSource(reviewCanvasTemplateDataSchema.parse(parsed.data), assetsDir)
+          ? reviewBundleSource(
+              reviewCanvasTemplateDataSchema.parse(parsed.data),
+              assetsDir,
+              reviewCommitHash,
+            )
           : planBundleSource(planCanvasTemplateDataSchema.parse(parsed.data), assetsDir)
       return {
         ok: true,
@@ -279,7 +286,21 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
       }
       if (op !== 'create' && op !== 'update')
         return fail('op must be list, get, create, update, delete, or promote.')
-      const source = await canvasSource(args)
+      // A Review authored on a clean checkout describes the immutable HEAD that
+      // History will later open, even from another Worktree. Dirty Reviews remain
+      // live-only until the agent updates the same Canvas after committing.
+      const reviewCommitHash = await (async (): Promise<string | undefined> => {
+        if (args.template !== 'review' || place.worktreePath === null) return undefined
+        try {
+          const status = await operations.git.statusGit(place.worktreePath)
+          if (!status.ok || status.value.length > 0) return undefined
+          return (await operations.git.logGit({ repoPath: place.worktreePath, limit: 1 }))[0]?.hash
+        } catch {
+          // An empty/unreadable Git history must not prevent authoring the live Review.
+          return undefined
+        }
+      })()
+      const source = await canvasSource(args, reviewCommitHash)
       if (!source.ok) return source.result
       const canvasId = stringField(args, 'id')
       if (op === 'create' && canvasId !== undefined)
@@ -324,11 +345,25 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
         })
         return promoted.ok
           ? ok(
-              `Canvas ${written.value.id} written to the tracked overlay. Files written; nothing staged or committed.`,
+              source.template === 'review'
+                ? `Review Canvas ${written.value.id} written to the tracked overlay${reviewCommitHash === undefined ? ' for live Changes; update it after committing to bind History' : ` and bound to commit ${reviewCommitHash} for History`}. Files written; nothing staged or committed.`
+                : `Canvas ${written.value.id} written to the tracked overlay. Files written; nothing staged or committed.`,
             )
           : fail(`Could not update the tracked Canvas: ${describeError(promoted.error)}`)
       }
-      return workspaceResult(place, written.value)
+      return workspaceResult(
+        place,
+        source.template === 'review'
+          ? {
+              ...written.value,
+              historyCommit: reviewCommitHash ?? null,
+              history:
+                reviewCommitHash === undefined
+                  ? 'live-only; update this Canvas after committing to bind History'
+                  : 'bound',
+            }
+          : written.value,
+      )
     },
 
     async porcelain_comment(args, place) {

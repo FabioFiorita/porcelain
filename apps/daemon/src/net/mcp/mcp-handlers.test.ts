@@ -6,11 +6,13 @@ import type { McpOperations } from './mcp-operations'
 const PROJECT = 'project-1'
 const WORKTREE = 'worktree-1'
 const REPO = process.cwd()
+const HEAD = '0123456789abcdef0123456789abcdef01234567'
 
 function harness(
   options: {
     trackedCanvas?: boolean
     canvasContent?: string
+    dirtyReview?: boolean
     worktreeOverride?: {
       layers: { label: string; pattern: string }[] | null
     } | null
@@ -29,6 +31,13 @@ function harness(
     tracked: options.trackedCanvas ?? false,
   }
   const ops = {
+    git: {
+      statusGit: async () => ({
+        ok: true,
+        value: options.dirtyReview ? [{ path: 'src/a.ts', status: 'modified' as const }] : [],
+      }),
+      logGit: async () => [{ hash: HEAD, author: 'Agent', date: '', subject: 'Review' }],
+    },
     files: {
       worktreeProfile: async () => ({
         worktreeId: WORKTREE,
@@ -326,13 +335,38 @@ describe('domain MCP entry points', () => {
       return JSON.parse(reviewFile?.content ?? '{}')
     })
     expect(metadata[0].layers).toEqual([{ label: 'Source', pattern: '^src/' }])
+    expect(metadata[0].commitHash).toBe(HEAD)
     expect(metadata[1].layers).toEqual([])
+    expect(metadata[1].commitHash).toBe(HEAD)
     const firstWrite = writes[0]
     if (firstWrite === undefined) throw new Error('expected first Review write')
     const firstSource = (firstWrite.input as { source: { document: string } }).source
     expect(
       JSON.parse(firstSource.document).tabs.map((tab: { label: string }) => tab.label),
     ).toEqual(['Why', 'How'])
+  })
+
+  it('leaves a dirty Review live-only until it is updated after commit', async () => {
+    const { tools, calls } = harness({ dirtyReview: true })
+    const result = await tools.call('porcelain_canvas', {
+      op: 'create',
+      workspace: REPO,
+      template: 'review',
+      templateData: {
+        title: 'In progress',
+        why: [{ type: 'markdown', content: '# Why' }],
+        how: [{ type: 'markdown', content: '# How' }],
+        layers: [{ label: 'Source', pattern: '^src/' }],
+      },
+    })
+
+    const write = calls.find((call) => call.name === 'writeCanvas')
+    const source = (
+      write?.input as { source?: { extraFiles?: { path: string; content: string }[] } }
+    )?.source
+    const reviewFile = source?.extraFiles?.find((file) => file.path === 'review.json')
+    expect(JSON.parse(reviewFile?.content ?? '{}')).not.toHaveProperty('commitHash')
+    expect(result.text).toContain('live-only')
   })
 
   it('creates a Plan through the shared structured renderer', async () => {

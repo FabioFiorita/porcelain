@@ -53,6 +53,9 @@ has asked for that state change.
 Pins, hides, and unhidden paths are manual file-tree choices and agents preserve them. `promote`
 writes the existing portable project pins/hides to `.porcelain/project.json`. Story layers belong
 to the individual Review Canvas and are authored with that Review's `templateData.layers`.
+On a clean checkout, creating or updating a Review binds it to the current commit so those layers
+also follow that commit into History from another Worktree. If the Review was authored before the
+commit, update that same Canvas after committing; do not create a replacement Review.
 
 Actions are definitions only. Create and update the title, command, target, and optional lifecycle
 kind. The MCP surface never runs, approves, trusts, or executes an Action. The human reads it and

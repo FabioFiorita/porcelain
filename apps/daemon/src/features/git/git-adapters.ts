@@ -141,17 +141,17 @@ export function createCommitGeneration(): CommitGeneration {
  * `effectiveLayers` falls back to the starters.
  */
 export function createGitDiffReadingSources(options?: {
-  review: { layersForRepo: (repoPath: string) => Promise<readonly Layer[]> }
+  review: { layersForRepo: (repoPath: string, commitHash?: string) => Promise<readonly Layer[]> }
 }): GitDiffReadingSources {
-  const layersFor = async (repoPath: string): Promise<readonly Layer[]> =>
-    options === undefined ? [] : options.review.layersForRepo(repoPath)
+  const layersFor = async (repoPath: string, commitHash?: string): Promise<readonly Layer[]> =>
+    options === undefined ? [] : options.review.layersForRepo(repoPath, commitHash)
   return Object.freeze({
     loadWorkingFlow: async (repoPath: string) =>
       loadWorkingFlow(repoPath, await layersFor(repoPath)),
     loadRangeFlow: async (repoPath: string, base?: string) =>
       loadRangeFlow(repoPath, await layersFor(repoPath), base),
     loadCommitFlow: async (repoPath: string, hash: string) =>
-      loadCommitFlow(repoPath, hash, await layersFor(repoPath)),
+      loadCommitFlow(repoPath, hash, await layersFor(repoPath, hash)),
     workingHunks: (repoPath: string, path: string, context?: number) =>
       gitDiffFile(repoPath, path, context).then((result) => result.hunks),
     rangeHunks: (repoPath: string, base: string, path: string, context?: number) =>

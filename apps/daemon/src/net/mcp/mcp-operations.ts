@@ -1,4 +1,5 @@
 import type { ResolvedProfile, WorktreeProfile } from '@porcelain/contracts'
+import type { ChangedFile, Commit } from '@porcelain/contracts/git'
 import type { WorktreeProfileView } from '@porcelain/contracts/files'
 import type { PromoteOverridesInput } from '@porcelain/contracts/projects'
 import type { CanvasBundleSource } from '../../features/projects'
@@ -11,6 +12,10 @@ import type { WorkspaceInventory } from './mcp-workspace'
  * composition root's real catalog satisfies it without a second implementation.
  */
 export type McpOperations = Readonly<{
+  git: Readonly<{
+    statusGit: (repoPath: string) => Promise<OperationResult<ChangedFile[]>>
+    logGit: (input: { repoPath: string; limit: number }) => Promise<Commit[]>
+  }>
   files: Readonly<{
     worktreeProfile: (repoPath: string) => Promise<WorktreeProfileView>
     setProjectProfile: (repoPath: string, profile: ResolvedProfile) => Promise<void>

@@ -59,7 +59,9 @@ package that owns the behavior until a second consumer makes sharing useful.
 The daemon's `PORCELAIN_HOME` is the default home for private project data, credentials, Canvas and
 Action data. A repository-local `.porcelain/` is optional and only holds data explicitly promoted
 into Git. Private Review Canvases are separate records scoped to their authoring Worktree; ordinary
-Canvases remain project-wide. The daemon also owns each repository's private profile: project-wide
+Canvases remain project-wide. A clean Review write records its current commit so History can recover
+that Review's layers from another Worktree; a dirty Review stays live-only until updated after the
+commit. The daemon also owns each repository's private profile: project-wide
 pins, hides, and layer order, plus an optional worktree story-layer override that inherits the
 project baseline.
 The client owns local presentation state such as tabs, splits, and preferences. A connected Hub may
