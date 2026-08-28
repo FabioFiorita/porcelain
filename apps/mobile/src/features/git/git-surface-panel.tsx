@@ -4,17 +4,16 @@ import { EmptyNote } from '@/components/panel-chrome'
 import { SurfaceScroll } from '@/components/surface-scroll'
 import { useHubRepoPath } from '@/features/projects'
 
-import { GitBranchCard } from './git-branch-card'
 import { GitCommandsCard } from './git-commands-card'
 import { GitCommitCard } from './git-commit-card'
 
 /**
- * The Git surface body — branch, commands, suggestions, and commit.
+ * The Git surface body — commands, suggestions, and commit.
  *
  * Same content as the web rail's Git surface ("Commands, suggestions, and commit"), in the same
  * order, and shared by both hosts: the phone's screen under its own header, and the tablet's
- * Surfaces panel beside the viewer. Branch context leads because a phone has no status bar to
- * keep it on — what you are about to commit to has to be visible on the screen where you commit.
+ * Surfaces panel beside the viewer. Branch context belongs to the Changes header, where its
+ * comparison control already identifies the checkout without repeating a second branch card.
  *
  * Git has no companion on either client: web's Git surface IS what a companion column would
  * hold, so a bolt here would open a sheet showing what is already on screen.
@@ -41,7 +40,6 @@ export function GitSurfacePanel({ active }: { active: boolean }): React.JSX.Elem
       paddingTop={12}
       testID="porcelain-git-surface"
     >
-      <GitBranchCard active={active} />
       <GitCommandsCard active={active} />
       <GitCommitCard active={active} />
     </SurfaceScroll>

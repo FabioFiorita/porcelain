@@ -124,6 +124,7 @@ function MenuRoot({
           <DropdownMenuPrimitive.Content
             asChild
             insets={{ bottom: 12, left: 12, right: 12, top: 12 }}
+            sideOffset={8}
           >
             <View
               className="min-w-56 rounded-xl border border-border bg-popover p-1 shadow-lg shadow-black/20"
