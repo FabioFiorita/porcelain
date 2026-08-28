@@ -1,3 +1,17 @@
+## [0.60.1](https://github.com/FabioFiorita/porcelain/compare/v0.60.0...v0.60.1) (2026-08-28)
+
+### Features
+
+* **mobile:** align review surfaces with web ([#72](https://github.com/FabioFiorita/porcelain/issues/72)) ([040a9ca](https://github.com/FabioFiorita/porcelain/commit/040a9caa05c8bf8ad80f6111ca928f0480311651))
+* **mobile:** bring review controls into Changes ([b412001](https://github.com/FabioFiorita/porcelain/commit/b41200168338fdaaa49ca64b3c4e3a47aa647349))
+* **review:** identify agent-authored comments ([d1f4ec8](https://github.com/FabioFiorita/porcelain/commit/d1f4ec8af709930c38b428b4d8fb81da7cc5cb41))
+
+### Bug Fixes
+
+* **mobile:** clarify git and worktree actions ([47771ad](https://github.com/FabioFiorita/porcelain/commit/47771adad906785948033b02a8aa9f68c259f2d4))
+* **mobile:** clarify projects and environments ([889abb5](https://github.com/FabioFiorita/porcelain/commit/889abb58e9fc0bcc61d3903f041897a8e7ef2aaf))
+* **review:** preserve layers in commit history ([7a7d609](https://github.com/FabioFiorita/porcelain/commit/7a7d6092b3a9c432ec7a91a84ee922108f0f0685))
+
 ## [0.60.0](https://github.com/FabioFiorita/porcelain/compare/v0.59.2...v0.60.0) (2026-08-27)
 
 ### Features
