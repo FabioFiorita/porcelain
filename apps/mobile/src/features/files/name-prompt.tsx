@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react'
 import { View } from 'react-native'
-
-import { Sheet } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Sheet } from '@/components/ui/sheet'
 import { Text } from '@/components/ui/text'
 
 import { nameError } from './entry-name'

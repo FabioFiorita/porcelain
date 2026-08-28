@@ -1,12 +1,11 @@
 import { CanvasSurfacePanel } from '@/features/canvas/canvas-surface-panel'
 import { ChangesPhoneScreen } from '@/features/changes/changes-phone-screen'
 import { ChangesSurfacePanel } from '@/features/changes/changes-surface-panel'
-import { FilesCompanion, FilesPhoneScreen, FilesSurfacePanel } from '@/features/files'
+import { FilesPhoneScreen, FilesSurfacePanel } from '@/features/files'
 import { GitSurfacePanel } from '@/features/git/git-surface-panel'
-import { HistoryCompanion } from '@/features/history/history-companion'
 import { HistoryPhoneScreen } from '@/features/history/history-phone-screen'
 import { HistorySurfacePanel } from '@/features/history/history-surface-panel'
-import { SearchCompanion, SearchPhoneScreen, SearchSurfacePanel } from '@/features/search'
+import { SearchPhoneScreen, SearchSurfacePanel } from '@/features/search'
 
 import type { SurfaceId } from './surfaces'
 
@@ -21,11 +20,6 @@ import type { SurfaceId } from './surfaces'
  *     panel knows which of its tabs is showing, and only that one polls the daemon.
  *   - **`phone`** is the surface's screen inside the Hub stack, under the header `SurfaceScreen`
  *     draws. It asks the navigator whether it is focused itself.
- *   - **`companion`** is the phone's bolt sheet, and is omitted when the surface has none.
- *     There is no companion COLUMN any more: the web client keeps its pins inside the Files
- *     surface and its file timeline behind a toggle inside History, and the tablet panels now do
- *     the same. What is left here is a phone affordance — a phone screen has one column and
- *     cannot stack a second list under a toggle.
  *
  * Adding a surface is one entry here plus its feature folder, and the record is total by type:
  * a new `SurfaceId` without bodies is a compile error.
@@ -35,8 +29,6 @@ export type SurfaceSlots = {
   panel: (props: { active: boolean }) => React.JSX.Element
   /** The phone screen body, under the header `SurfaceScreen` draws. */
   phone: (props: { active: boolean }) => React.JSX.Element
-  /** The phone's companion sheet — omitted when the surface has none. */
-  companion?: (props: { active: boolean }) => React.JSX.Element
 }
 
 const SURFACE_SLOTS: Record<SurfaceId, SurfaceSlots> = {
@@ -54,7 +46,6 @@ const SURFACE_SLOTS: Record<SurfaceId, SurfaceSlots> = {
     phone: ChangesPhoneScreen,
   },
   files: {
-    companion: FilesCompanion,
     panel: FilesSurfacePanel,
     phone: FilesPhoneScreen,
   },
@@ -65,7 +56,6 @@ const SURFACE_SLOTS: Record<SurfaceId, SurfaceSlots> = {
     phone: GitSurfacePanel,
   },
   history: {
-    companion: HistoryCompanion,
     panel: HistorySurfacePanel,
     phone: HistoryPhoneScreen,
   },
@@ -73,7 +63,6 @@ const SURFACE_SLOTS: Record<SurfaceId, SurfaceSlots> = {
   // rather than owning a second copy. Its companion is its own, because "what did I just look
   // for" is not "where do I work" — the same split the web rail makes.
   search: {
-    companion: SearchCompanion,
     panel: SearchSurfacePanel,
     phone: SearchPhoneScreen,
   },

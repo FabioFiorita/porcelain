@@ -4,6 +4,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { IconAction } from '@/components/panel-chrome'
 
+import { SettingsDialog } from '@/features/settings/settings-dialog'
+import { QuickOpenDialog } from '@/features/quick-open/quick-open-dialog'
+
 import { DESTINATIONS } from './destinations'
 import { HUB_SIDEBAR_WIDTH } from './shell-layout'
 import { useShellStore } from './shell-store'
@@ -19,10 +22,10 @@ import { ColumnChrome, ShellControls } from './window-chrome'
  *  ┌────────────┬───────────────────────────┬──────────────┐
  *  │ Porcelain  │  ╭─────────────────────╮  │ Files ⨯ Chg ⨯│
  *  │ Search     │  │ ScreenHeader        │  ├──────────────┤
- *  │ Terminals  │  │                     │  │  the active  │
- *  │ WORKTREES  │  │  the routed stack   │  │  surface's   │
- *  │  …         │  │  (file · diff ·     │  │  list        │
- *  │ Settings   │  ╰──commit · Canvas)───╯  │              │
+ *  │ WORKTREES  │  │                     │  │  the active  │
+ *  │  …         │  │  the routed stack   │  │  surface's   │
+ *  │ Settings   │  │  (file · diff ·     │  │  list        │
+ *  │            │  ╰──commit · Canvas)───╯  │              │
  *  └────────────┴───────────────────────────┴──────────────┘
  * ```
  *
@@ -37,11 +40,9 @@ import { ColumnChrome, ShellControls } from './window-chrome'
  * viewer, which spent the iPad's centre column on a menu; see `surfaces-panel.tsx`.
  *
  * **There is no tab bar here, and the tabs are still what runs it.** `Tabs` stays mounted, its
- * `TabList` is present but hidden, and the sidebar's rows are `TabTrigger`s that address the
- * same tabs by name. So the iPad gets the web silhouette while every stack stays alive behind
- * it: leaving Terminals for Settings and coming back finds the same attached session, and the
- * routed screen never moves between containers when the window resizes, because it was never in
- * the sidebar's container.
+ * `TabList` is present but hidden. Settings is a dialog, not a tab. The routed screen never
+ * moves between containers when the window resizes, because it was never in the sidebar's
+ * container.
  *
  * **Why this is a flex row and not `UISplitViewController`.** expo-router 57 does ship the
  * platform primitive (`expo-router/unstable-split-view`, over `react-native-screens`'
@@ -69,81 +70,85 @@ export function TabletShell(): React.JSX.Element {
   const showSidebar = layout === 'split' && sidebarOpen
 
   return (
-    <Tabs>
-      <View
-        className="flex-1 flex-row gap-2 bg-background p-2"
-        /* nativewind-allow-style: the window's safe area is owned HERE, once, so the panels
+    <>
+      <Tabs>
+        <View
+          className="flex-1 flex-row gap-2 bg-background p-2"
+          /* nativewind-allow-style: the window's safe area is owned HERE, once, so the panels
            inside it are plain columns. Each one used to clear the status bar and the home
            indicator for itself, which is three chances to disagree by a point. */
-        style={{
-          paddingBottom: insets.bottom + 8,
-          paddingLeft: insets.left + 8,
-          paddingRight: insets.right + 8,
-          paddingTop: insets.top + 8,
-        }}
-      >
-        {showSidebar ? (
-          <View
-            /* nativewind-allow-style: the column's width is half of the threshold that decides
+          style={{
+            paddingBottom: insets.bottom + 8,
+            paddingLeft: insets.left + 8,
+            paddingRight: insets.right + 8,
+            paddingTop: insets.top + 8,
+          }}
+        >
+          {showSidebar ? (
+            <View
+              /* nativewind-allow-style: the column's width is half of the threshold that decides
                whether it appears at all, so both live on the same constant. */
-            style={{ width: HUB_SIDEBAR_WIDTH }}
-          >
-            <TabletSidebar />
-          </View>
-        ) : null}
+              style={{ width: HUB_SIDEBAR_WIDTH }}
+            >
+              <TabletSidebar />
+            </View>
+          ) : null}
 
-        {/* The viewer card. Fixed slot: this subtree must keep its identity across every layout
+          {/* The viewer card. Fixed slot: this subtree must keep its identity across every layout
             change, or a resize would remount the stack inside it. */}
-        {/* panel-card-allow: a shell panel, not a content card. `PANEL_CARD`'s `rounded-2xl`
+          {/* panel-card-allow: a shell panel, not a content card. `PANEL_CARD`'s `rounded-2xl`
             is the radius of a thing INSIDE a surface; the window's own panes take the web
             client's `rounded-xl`, and a 2xl pane around 2xl cards reads as a card of cards. */}
-        <View className="min-w-0 flex-1 overflow-hidden rounded-xl border border-border bg-card">
-          <ColumnChrome>
-            <ShellControls
-              leading={
-                layout === 'split' ? (
-                  <IconAction
-                    accessibilityLabel="Toggle the navigation panel"
-                    glyph="panelLeft"
-                    selected={sidebarOpen}
-                    testID="porcelain-tablet-toggle-sidebar"
-                    tone="foreground"
-                    onPress={toggleSidebar}
-                  />
-                ) : null
-              }
-              trailing={
-                layout === 'split' ? (
-                  <IconAction
-                    accessibilityLabel="Toggle the Surfaces panel"
-                    glyph="panelRight"
-                    selected={inspectorOpen}
-                    testID="porcelain-tablet-toggle-inspector"
-                    tone="foreground"
-                    onPress={toggleInspector}
-                  />
-                ) : null
-              }
-            >
-              <TabSlot />
-            </ShellControls>
-          </ColumnChrome>
+          <View className="min-w-0 flex-1 overflow-hidden rounded-xl border border-border bg-card">
+            <ColumnChrome>
+              <ShellControls
+                leading={
+                  layout === 'split' ? (
+                    <IconAction
+                      accessibilityLabel="Toggle the navigation panel"
+                      glyph="panelLeft"
+                      selected={sidebarOpen}
+                      testID="porcelain-tablet-toggle-sidebar"
+                      tone="foreground"
+                      onPress={toggleSidebar}
+                    />
+                  ) : null
+                }
+                trailing={
+                  layout === 'split' ? (
+                    <IconAction
+                      accessibilityLabel="Toggle the Surfaces panel"
+                      glyph="panelRight"
+                      selected={inspectorOpen}
+                      testID="porcelain-tablet-toggle-inspector"
+                      tone="foreground"
+                      onPress={toggleInspector}
+                    />
+                  ) : null
+                }
+              >
+                <TabSlot />
+              </ShellControls>
+            </ColumnChrome>
+          </View>
+
+          {layout === 'split' && inspectorOpen ? (
+            <View style={{ width: HUB_SIDEBAR_WIDTH }}>
+              <SurfacesPanel />
+            </View>
+          ) : null}
         </View>
 
-        {layout === 'split' && inspectorOpen ? (
-          <View style={{ width: HUB_SIDEBAR_WIDTH }}>
-            <SurfacesPanel />
-          </View>
-        ) : null}
-      </View>
-
-      {/* The declaration of what each tab is and where it points. Hidden, because the sidebar
+        {/* The declaration of what each tab is and where it points. Hidden, because the sidebar
           draws the destinations; `TabList` is still the only place they are declared. */}
-      <TabList style={{ display: 'none' }}>
-        {DESTINATIONS.map((destination) => (
-          <TabTrigger key={destination.name} href={destination.href} name={destination.name} />
-        ))}
-      </TabList>
-    </Tabs>
+        <TabList style={{ display: 'none' }}>
+          {DESTINATIONS.map((destination) => (
+            <TabTrigger key={destination.name} href={destination.href} name={destination.name} />
+          ))}
+        </TabList>
+      </Tabs>
+      <SettingsDialog />
+      <QuickOpenDialog />
+    </>
   )
 }

@@ -43,7 +43,6 @@ export default function HubLayout(): React.JSX.Element {
       <Stack.Screen name="new-worktree" options={{ ...SHEET, sheetAllowedDetents: [0.85, 0.99] }} />
 
       <Stack.Screen name="quick-open" options={SHEET} />
-      <Stack.Screen name="companion" options={SHEET} />
     </Stack>
   )
 }

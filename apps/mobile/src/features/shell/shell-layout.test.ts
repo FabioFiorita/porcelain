@@ -32,7 +32,6 @@ describe('decideShellLayout', () => {
 
   it('holds the layout a sheet was opened over', () => {
     expect(decideShellLayout({ ...wide, pathname: '/quick-open' })).toBe('unchanged')
-    expect(decideShellLayout({ ...wide, pathname: '/companion' })).toBe('unchanged')
     expect(decideShellLayout({ ...wide, pathname: '/new-worktree' })).toBe('unchanged')
   })
 

@@ -3,7 +3,7 @@ import { Pressable, Text, View } from 'react-native'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { EmptyNote, ScreenHeader } from '@/components/panel-chrome'
-import { SURFACE_GUTTER, SURFACE_ROW } from '@/components/surface-layout'
+import { SURFACE_ROW } from '@/components/surface-layout'
 import { SurfaceScroll } from '@/components/surface-scroll'
 import { useHubRepoPath } from '@/features/projects'
 import { projectNameOf } from '@/features/remote'
@@ -11,7 +11,6 @@ import { HeaderActions } from '@/features/shell/header-actions'
 import { useShellStore } from '@/features/shell/shell-store'
 import { SURFACES } from '@/features/shell/surfaces'
 import { useShellLayout } from '@/features/shell/use-app-window'
-import { cn } from '@/lib/utils'
 
 /**
  * A Worktree: what you are standing in, and the way into its surfaces.
@@ -71,14 +70,7 @@ export function WorktreeScreen(): React.JSX.Element {
           title="Nothing open"
         />
       ) : (
-        <SurfaceScroll gap={2} paddingTop={8}>
-          <Text
-            className={cn(SURFACE_GUTTER, 'pb-2 font-mono text-3xs text-muted-foreground')}
-            ellipsizeMode="head"
-            numberOfLines={1}
-          >
-            {repoPath}
-          </Text>
+        <SurfaceScroll edgeToEdge gap={2} paddingTop={8}>
           {SURFACES.map((surface) => (
             <Pressable
               key={surface.id}

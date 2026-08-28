@@ -163,6 +163,26 @@ describe('surface layout', () => {
     expect(offenders).toEqual([])
   })
 
+  it('keeps navigation lists on the same tight row inset', () => {
+    const files = readFileSync(join(FEATURES, 'files/files-browser.tsx'), 'utf8')
+    const hub = readFileSync(join(FEATURES, 'hub/hub-screen.tsx'), 'utf8')
+    const launcher = readFileSync(join(FEATURES, 'hub/worktree-screen.tsx'), 'utf8')
+    const search = readFileSync(join(FEATURES, 'search/search-panel.tsx'), 'utf8')
+    const tablet = readFileSync(join(FEATURES, 'shell/tablet-sidebar.tsx'), 'utf8')
+
+    expect(files).toMatch(/<SurfaceList[\s\S]*?edgeToEdge[\s\S]*?porcelain-files-rows/)
+    expect(hub).toContain('<SurfaceScroll edgeToEdge gap={4} paddingTop={8}>')
+    expect(launcher).toContain('<SurfaceScroll edgeToEdge gap={2} paddingTop={8}>')
+    expect(search).toMatch(/<SurfaceList[\s\S]*?edgeToEdge[\s\S]*?porcelain-search-results/)
+    expect(tablet).toContain('<SurfaceScroll edgeToEdge gap={4} paddingTop={4}>')
+  })
+
+  it('starts the Worktree launcher with surfaces instead of its host path', () => {
+    const launcher = readFileSync(join(FEATURES, 'hub/worktree-screen.tsx'), 'utf8')
+
+    expect(launcher).not.toContain('{repoPath}')
+  })
+
   /**
    * The card ratchet. The `ui/card.tsx` primitive was never adopted, so eleven surfaces hand-wrote
    * the same shell — and drifted while doing it: `rounded-2xl` across the tabs, `rounded-xl` in

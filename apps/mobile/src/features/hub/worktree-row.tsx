@@ -1,20 +1,33 @@
+import { gitBranchesQuery } from '@porcelain/client-runtime/git'
+import { type BranchRef, gitProcedures } from '@porcelain/contracts/git'
 import type { HubProject, HubWorktree } from '@porcelain/contracts/projects'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'expo-router'
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { Alert, Pressable, View } from 'react-native'
 import ReanimatedSwipeable, {
   type SwipeableMethods,
 } from 'react-native-gesture-handler/ReanimatedSwipeable'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
-import { RowContextMenu, type RowMenuAction } from '@/components/ui/row-context-menu'
 import { SURFACE_ROW, SURFACE_ROW_SELECTED } from '@/components/surface-layout'
+import { Button } from '@/components/ui/button'
+import { RowContextMenu, type RowMenuAction } from '@/components/ui/row-context-menu'
+import { Select } from '@/components/ui/select'
 import { Text } from '@/components/ui/text'
+import { gitQueryKey } from '@/features/git/git-query-key'
+import { callGit } from '@/features/git/use-git-transport'
 import type { Environment } from '@/features/remote'
+import { copyText } from '@/lib/clipboard'
+import { namedContractProcedure } from '@/lib/daemon/procedure'
 import { cn } from '@/lib/utils'
 
 import { useRetireHubWorktree } from './hub-mutations'
 import { openHubWorktree } from './hub-selection'
+import { ResponsiveHubDialog } from './responsive-hub-dialog'
+
+const checkoutProcedure = namedContractProcedure('gitCheckout', gitProcedures.gitCheckout)
+const branchesProcedure = namedContractProcedure('gitBranches', gitProcedures.gitBranches)
 
 /**
  * One Worktree in the Hub list.
@@ -50,7 +63,26 @@ export function WorktreeRow({
 }): React.JSX.Element {
   const router = useRouter()
   const actions = useRetireHubWorktree()
+  const queryClient = useQueryClient()
   const swipe = useRef<SwipeableMethods | null>(null)
+  const [switchOpen, setSwitchOpen] = useState(false)
+  const [branch, setBranch] = useState(worktree.branch)
+  const [switchError, setSwitchError] = useState<string | null>(null)
+  const branches = useQuery({
+    enabled: switchOpen && environment !== null,
+    queryFn: async (): Promise<BranchRef[]> =>
+      callGit(environment, branchesProcedure, worktree.path),
+    queryKey: gitQueryKey(environment?.id ?? 'none', gitBranchesQuery(worktree.path)),
+  })
+  const checkout = useMutation({
+    mutationFn: async (next: string) =>
+      callGit(environment, checkoutProcedure, { branch: next, repoPath: worktree.path }),
+    onSuccess: async () => {
+      if (environment !== null)
+        await queryClient.invalidateQueries({ queryKey: ['daemon', environment.id] })
+      setSwitchOpen(false)
+    },
+  })
   const retirable = environment !== null && !worktree.isPrimary
 
   const retire = (): void => {
@@ -77,17 +109,46 @@ export function WorktreeRow({
     )
   }
 
-  const menuActions: RowMenuAction[] = retirable
-    ? [
-        {
-          destructive: true,
-          glyph: 'trash',
-          id: 'retire',
-          label: 'Retire Worktree',
-          onPress: confirmRetire,
-        },
-      ]
-    : []
+  const menuActions: RowMenuAction[] = [
+    {
+      disabled: environment === null,
+      glyph: 'branch',
+      id: 'switch-branch',
+      label: 'Switch branch',
+      onPress: () => {
+        setBranch(worktree.branch)
+        setSwitchError(null)
+        setSwitchOpen(true)
+      },
+    },
+    {
+      glyph: 'copy',
+      id: 'copy-name',
+      label: 'Copy name',
+      onPress: () => {
+        void copyText(worktree.name)
+      },
+    },
+    {
+      glyph: 'copy',
+      id: 'copy-path',
+      label: 'Copy path',
+      onPress: () => {
+        void copyText(worktree.path)
+      },
+    },
+    ...(retirable
+      ? ([
+          {
+            destructive: true,
+            glyph: 'trash',
+            id: 'remove',
+            label: 'Remove worktree',
+            onPress: confirmRetire,
+          },
+        ] satisfies RowMenuAction[])
+      : []),
+  ]
 
   const row = (
     <Pressable
@@ -105,7 +166,7 @@ export function WorktreeRow({
       }}
     >
       <View className="flex-row items-center gap-2">
-        <ChromeGlyph name={worktree.isPrimary ? 'folderFill' : 'branch'} size={14} tone="muted" />
+        <ChromeGlyph name="branch" size={14} tone="muted" />
         <View className="min-w-0 flex-1">
           <Text className="text-sm font-medium text-foreground" numberOfLines={1}>
             {worktree.name}
@@ -125,33 +186,31 @@ export function WorktreeRow({
   // The menu host wraps the row and the swipeable wraps the menu host, so the whole row —
   // long-press affordance included — travels with the gesture.
   return (
-    <ReanimatedSwipeable
-      ref={swipe}
-      enabled={retirable && !actions.isPending}
-      friction={2}
-      renderRightActions={
-        retirable
-          ? () => (
-              <Pressable
-                accessibilityLabel={`Retire ${worktree.name}`}
-                accessibilityRole="button"
-                className="w-24 items-center justify-center bg-destructive active:opacity-80"
-                testID={`porcelain-hub-worktree-retire-${worktree.id}`}
-                onPress={confirmRetire}
-              >
-                {/* A word, not a glyph: `ChromeGlyph` tints from the semantic palette, and
+    <>
+      <ReanimatedSwipeable
+        ref={swipe}
+        enabled={retirable && !actions.isPending}
+        friction={2}
+        renderRightActions={
+          retirable
+            ? () => (
+                <Pressable
+                  accessibilityLabel={`Retire ${worktree.name}`}
+                  accessibilityRole="button"
+                  className="w-24 items-center justify-center bg-destructive active:opacity-80"
+                  testID={`porcelain-hub-worktree-retire-${worktree.id}`}
+                  onPress={confirmRetire}
+                >
+                  {/* A word, not a glyph: `ChromeGlyph` tints from the semantic palette, and
                     none of its tones is guaranteed to read on the destructive fill in both
                     schemes. */}
-                <Text className="text-sm font-semibold text-white">Retire</Text>
-              </Pressable>
-            )
-          : undefined
-      }
-      rightThreshold={40}
-    >
-      {menuActions.length === 0 ? (
-        row
-      ) : (
+                  <Text className="text-sm font-semibold text-white">Retire</Text>
+                </Pressable>
+              )
+            : undefined
+        }
+        rightThreshold={40}
+      >
         <RowContextMenu
           actions={menuActions}
           testID={`porcelain-hub-worktree-menu-${worktree.id}`}
@@ -159,7 +218,67 @@ export function WorktreeRow({
         >
           {row}
         </RowContextMenu>
-      )}
-    </ReanimatedSwipeable>
+      </ReanimatedSwipeable>
+      <ResponsiveHubDialog
+        description={`Choose the branch checked out in ${worktree.name}.`}
+        open={switchOpen}
+        testID="porcelain-switch-branch"
+        title="Switch branch"
+        onClose={() => setSwitchOpen(false)}
+      >
+        <View className="gap-3 px-5 py-5">
+          <Select
+            disabled={branches.isPending || branches.isError}
+            options={(branches.data ?? []).map((candidate) => ({
+              detail: candidate.remote === null ? undefined : `Remote: ${candidate.remote}`,
+              label: candidate.name,
+              testID: `porcelain-switch-branch-option-${candidate.name}`,
+              value: candidate.name,
+            }))}
+            testID="porcelain-switch-branch-picker"
+            title="Branch"
+            value={branch}
+            onChange={setBranch}
+          />
+          {branches.isPending ? (
+            <Text className="text-xs text-muted-foreground">Reading branches…</Text>
+          ) : null}
+          {branches.isError ? (
+            <Text className="text-xs text-destructive">
+              {branches.error instanceof Error
+                ? branches.error.message
+                : 'Could not read branches.'}
+            </Text>
+          ) : null}
+          {switchError === null ? null : (
+            <Text className="text-xs text-destructive">{switchError}</Text>
+          )}
+          <View className="flex-row justify-end gap-2">
+            <Button variant="ghost" onPress={() => setSwitchOpen(false)}>
+              <Text>Cancel</Text>
+            </Button>
+            <Button
+              disabled={checkout.isPending}
+              onPress={() => {
+                const next = branch.trim()
+                if (next === '') {
+                  setSwitchError('Enter a branch name.')
+                  return
+                }
+                void checkout
+                  .mutateAsync(next)
+                  .catch((reason: unknown) =>
+                    setSwitchError(
+                      reason instanceof Error ? reason.message : 'Could not switch branches.',
+                    ),
+                  )
+              }}
+            >
+              <Text>Switch</Text>
+            </Button>
+          </View>
+        </View>
+      </ResponsiveHubDialog>
+    </>
   )
 }

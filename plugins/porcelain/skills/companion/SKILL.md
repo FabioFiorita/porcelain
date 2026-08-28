@@ -1,6 +1,6 @@
 ---
 name: companion
-description: Use Porcelain's domain MCP tools to work with Canvases and templates, review comments, repository profiles, and user-run Actions. Use when the human asks to publish or inspect shared work, manage review feedback, shape the repository view, or propose a command for the human to run.
+description: Use Porcelain's domain MCP tools for Canvases, review comments, repository profiles, and user-run Actions. Use when the human asks to use or set up Porcelain, mentions Porcelain while starting repository work, wants shared review material, asks for review feedback, wants the repository view shaped, or needs a command curated for them to run.
 license: MIT
 ---
 
@@ -58,9 +58,18 @@ Actions are definitions only. Create and update the title, command, target, and 
 kind. The MCP surface never runs, approves, trusts, or executes an Action. The human reads it and
 starts it with a click in the app; command edits retain the app's internal approval safety state.
 
+## Starting work with Porcelain
+
+When the human asks to use or set up Porcelain for repository work, inspect the project navigation
+profile before substantial implementation and preserve its manual pins and hides. When the work
+needs a review story, create or update that Review Canvas and author its `templateData.layers`
+there. Read the [profile reference](references/profile.md) before profile operations. The product UI
+shows the result directly—it is not a prompt delivery mechanism.
+
 ## Working rules
 
-- Use `$companion` when the human requests Companion work or a Porcelain Canvas, comment, profile, or Action operation.
+- Use `$companion` when the human asks to use Porcelain in repository work or requests a Canvas,
+  comment, profile, or Action operation.
 - Read open comments when the human asks for review feedback; request `status: "all"` when history matters.
 - Never read or write `$PORCELAIN_HOME`, `.porcelain` files, or daemon APIs directly.
 - Keep secrets out of Canvases, Actions, and profiles.

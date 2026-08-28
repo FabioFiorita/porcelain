@@ -1,5 +1,6 @@
 import * as DropdownMenuPrimitive from '@rn-primitives/dropdown-menu'
 import * as Slot from '@rn-primitives/slot'
+import { Fragment } from 'react'
 import type { PressableProps } from 'react-native'
 import { View } from 'react-native'
 
@@ -16,6 +17,7 @@ import { cn } from '@/lib/utils'
  */
 /** See `Sheet`'s `FILL` — a registered style is dropped by the class merge. */
 const FILL = { bottom: 0, left: 0, position: 'absolute', right: 0, top: 0 } as const
+const SCRIM = { ...FILL, backgroundColor: 'rgba(0, 0, 0, 0.35)' } as const
 
 export type RowMenuAction = {
   id: string
@@ -116,7 +118,7 @@ function MenuRoot({
         {/* `FILL` and no `asChild`, for the reason `Sheet` spells out: the portal host renders a
             fragment, so the overlay has to be told to fill, and a reanimated view would drop
             every class it was given. */}
-        <DropdownMenuPrimitive.Overlay style={FILL}>
+        <DropdownMenuPrimitive.Overlay style={SCRIM}>
           {/* `asChild` so the class list is on OUR view: a class handed to a component from
               `node_modules` is an inert prop — see the note in `Sheet`. */}
           <DropdownMenuPrimitive.Content
@@ -132,37 +134,41 @@ function MenuRoot({
                   {title}
                 </Text>
               )}
-              {actions.map((action) => (
-                <DropdownMenuPrimitive.Item
-                  key={action.id}
-                  asChild
-                  disabled={action.disabled === true}
-                  onPress={action.onPress}
-                >
-                  <View
-                    className={cn(
-                      'min-h-11 flex-row items-center gap-3 rounded-lg px-2 active:bg-accent',
-                      action.disabled === true && 'opacity-40',
-                    )}
-                    testID={`${testID ?? 'porcelain-row-menu'}-${action.id}`}
+              {actions.map((action, index) => (
+                <Fragment key={action.id}>
+                  {action.destructive === true && actions[index - 1]?.destructive !== true ? (
+                    <View className="mx-2 my-1 h-px bg-border" />
+                  ) : null}
+                  <DropdownMenuPrimitive.Item
+                    asChild
+                    disabled={action.disabled === true}
+                    onPress={action.onPress}
                   >
-                    {action.glyph === undefined ? null : (
-                      <ChromeGlyph
-                        name={action.glyph}
-                        size={15}
-                        tone={action.destructive === true ? 'destructive' : 'foreground'}
-                      />
-                    )}
-                    <Text
+                    <View
                       className={cn(
-                        'min-w-0 flex-1 text-sm font-medium',
-                        action.destructive === true ? 'text-destructive' : 'text-foreground',
+                        'min-h-11 flex-row items-center gap-3 rounded-lg px-2 active:bg-accent',
+                        action.disabled === true && 'opacity-40',
                       )}
+                      testID={`${testID ?? 'porcelain-row-menu'}-${action.id}`}
                     >
-                      {action.label}
-                    </Text>
-                  </View>
-                </DropdownMenuPrimitive.Item>
+                      {action.glyph === undefined ? null : (
+                        <ChromeGlyph
+                          name={action.glyph}
+                          size={15}
+                          tone={action.destructive === true ? 'destructive' : 'foreground'}
+                        />
+                      )}
+                      <Text
+                        className={cn(
+                          'min-w-0 flex-1 text-sm font-medium',
+                          action.destructive === true ? 'text-destructive' : 'text-foreground',
+                        )}
+                      >
+                        {action.label}
+                      </Text>
+                    </View>
+                  </DropdownMenuPrimitive.Item>
+                </Fragment>
               ))}
             </View>
           </DropdownMenuPrimitive.Content>

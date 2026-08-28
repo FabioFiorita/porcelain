@@ -14,11 +14,9 @@ import { createContext, useCallback, useContext } from 'react'
  * A sheet is a screen now. The kinds survive because they are the shell's vocabulary; what
  * they map to is an address rather than a flag.
  */
-export type ShellSheet = 'search' | 'settings' | 'companion'
+export type ShellSheet = 'search' | 'settings'
 
 const SHELL_SHEET_HREF: Record<ShellSheet, Href> = {
-  // The surface companion takes `?surface=` — see `header-actions.tsx`; this is its bare form.
-  companion: '/companion',
   search: '/quick-open',
   // Settings is a tab, not an overlay. Naming it here keeps "go to Settings" one lookup rather
   // than a route literal repeated wherever a destination list mentions it.

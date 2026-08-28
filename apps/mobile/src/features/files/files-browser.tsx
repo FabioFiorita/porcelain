@@ -1,4 +1,4 @@
-import { Pressable, Text, View } from 'react-native'
+import { Pressable, ScrollView, Text, View } from 'react-native'
 
 import {
   ActionSheet,
@@ -17,18 +17,16 @@ import { FileEntryRow } from './file-entry-row'
 import { breadcrumbs, type Crumb, pathTestId, REPO_ROOT } from './file-paths'
 import type { FileEntry } from './files-data'
 import { useFilesStore } from './files-store'
+import { FilesTree } from './files-tree'
 import { NamePrompt } from './name-prompt'
 import { useFilesBrowser } from './use-files-browser'
 
 /**
  * One directory, as a list.
  *
- * A drill-down rather than the desktop's expanding tree: indentation costs the width a phone
- * does not have, and a folder you enter is a screen you can swipe back out of. The daemon
- * reads one directory at a time either way, so nothing is paid for the choice.
- *
- * The phone pushes a route per folder and gets the pop gesture; the tablet moves a cursor in
- * the store because its column has no stack. Both render this component.
+ * It can render either a directory route or the persistent lazy tree shared by the main phone
+ * and tablet Files surfaces. Directory mode remains for a folder opened from another surface;
+ * tree mode keeps the same context actions and write dialogs while expanding folders in place.
  *
  * What is in the directory, and what the reader is in the middle of doing to it, is
  * `use-files-browser.ts`; this file is the markup.
@@ -41,6 +39,7 @@ export function FilesBrowser({
   onOpenDir,
   onOpenFile,
   selectedPath = null,
+  tree = false,
 }: {
   active: boolean
   /** Repo-relative directory; `''` is the project root. */
@@ -57,11 +56,15 @@ export function FilesBrowser({
   onOpenFile: (path: string) => void
   /** Tablet: the file the viewer column is showing. */
   selectedPath?: string | null
+  /** Persistent, lazy expansion matching the web/tablet Files rail. */
+  tree?: boolean
   /** Phone folder screens: this view replaces the tab header, so it owns the status bar. */
 }): React.JSX.Element {
   const project = useActiveProject()
   const showHidden = useFilesStore((state) => state.showHidden)
   const toggleHidden = useFilesStore((state) => state.toggleHidden)
+  const collapseAll = useFilesStore((state) => state.collapseAll)
+  const collapseNonce = useFilesStore((state) => state.collapseNonce)
   const browser = useFilesBrowser({ active, dirPath, onOpenDir, onOpenFile, showHidden })
   const { pending, writes } = browser
 
@@ -69,6 +72,8 @@ export function FilesBrowser({
     <View className="flex-1" testID="porcelain-files-browser">
       <BrowserHeader
         crumbs={breadcrumbs(project?.name ?? 'Repo', dirPath)}
+        tree={tree}
+        onCollapseAll={collapseAll}
         onBack={onBack}
         onNew={() => {
           browser.setNewMenuOpen(true)
@@ -104,6 +109,17 @@ export function FilesBrowser({
           testID="porcelain-files-empty"
           title="Nothing to show"
         />
+      ) : tree ? (
+        <ScrollView className="min-h-0 flex-1" contentInsetAdjustmentBehavior="never">
+          <FilesTree
+            actions={browser.actions}
+            active={active}
+            collapseNonce={collapseNonce}
+            entries={browser.entries}
+            onOpenFile={onOpenFile}
+            selectedPath={selectedPath}
+          />
+        </ScrollView>
       ) : (
         <SurfaceList
           data={browser.entries}
@@ -226,6 +242,8 @@ function BrowserHeader({
   onToggleHidden,
   showHidden,
   summary,
+  tree,
+  onCollapseAll,
 }: {
   crumbs: Crumb[]
   onBack?: () => void
@@ -235,6 +253,8 @@ function BrowserHeader({
   onToggleHidden: () => void
   showHidden: boolean
   summary: string
+  tree: boolean
+  onCollapseAll: () => void
 }): React.JSX.Element {
   // This toolbar doubles as the screen header on the routes where the breadcrumb IS the title.
   // A non-zero inset is the shell saying "you are at the top of the window", which is also when
@@ -262,12 +282,28 @@ function BrowserHeader({
           </View>
         )}
         <View className="min-w-0 flex-1">
-          <Breadcrumbs crumbs={crumbs} onOpenCrumb={onOpenCrumb} />
-          <Text className="text-2xs text-muted-foreground" testID="porcelain-files-summary">
-            {summary}
-          </Text>
+          {tree ? (
+            <Text className="text-2xs font-bold uppercase tracking-wider text-muted-foreground">
+              All Files
+            </Text>
+          ) : (
+            <>
+              <Breadcrumbs crumbs={crumbs} onOpenCrumb={onOpenCrumb} />
+              <Text className="text-2xs text-muted-foreground" testID="porcelain-files-summary">
+                {summary}
+              </Text>
+            </>
+          )}
         </View>
         <View className="-mr-2 flex-row items-center">
+          {tree ? (
+            <IconAction
+              accessibilityLabel="Collapse all folders"
+              glyph="chevronUp"
+              testID="porcelain-files-collapse-all"
+              onPress={onCollapseAll}
+            />
+          ) : null}
           <IconAction
             accessibilityLabel="New file or folder here"
             glyph="plus"

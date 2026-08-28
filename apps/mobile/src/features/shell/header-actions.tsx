@@ -4,7 +4,8 @@ import { Pressable, Text, View } from 'react-native'
 import { ChromeGlyph, type ChromeIconName } from '@/components/chrome-glyph'
 
 import { shellSheetHref } from './shell-sheets'
-import type { SurfaceId } from './surfaces'
+import { useShellStore } from './shell-store'
+import { useIsTablet } from './use-app-window'
 
 /**
  * One item in a header's right-hand cluster.
@@ -39,22 +40,17 @@ function HeaderItem({
 }
 
 /**
- * The Hub stack's header actions: quick open, and the surface companion.
- *
- * The companion carries its surface in the URL rather than writing `activeSurface` to the
- * shell store on the way. The sheet is a route now; a route that needs to know which surface
- * it is showing should say so in its own address, not depend on a store write that happened
- * one frame earlier.
+ * The Hub stack's header action for Quick Open.
  */
 export function HeaderActions({
-  companionSurface,
   search = true,
 }: {
-  companionSurface?: SurfaceId
   /** Screens with nothing to open from — a presented sheet, a modal root — pass false. */
   search?: boolean
 }): React.JSX.Element {
   const router = useRouter()
+  const tablet = useIsTablet()
+  const openQuickOpen = useShellStore((state) => state.openQuickOpen)
 
   return (
     <View className="flex-row items-center gap-1">
@@ -64,20 +60,11 @@ export function HeaderActions({
           glyph="search"
           testID="porcelain-header-search"
           onPress={() => {
-            router.push(shellSheetHref('search'))
+            if (tablet) openQuickOpen()
+            else router.push(shellSheetHref('search'))
           }}
         />
       ) : null}
-      {companionSurface === undefined ? null : (
-        <HeaderItem
-          accessibilityLabel="Companion"
-          glyph="companion"
-          testID="porcelain-header-companion"
-          onPress={() => {
-            router.push({ params: { surface: companionSurface }, pathname: '/companion' })
-          }}
-        />
-      )}
     </View>
   )
 }

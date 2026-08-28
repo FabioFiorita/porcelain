@@ -14,6 +14,9 @@ type FilesState = {
   selection: string | null
   /** The 1-based line the viewer opened at (a search hit), or `null` for the top. */
   selectionLine: number | null
+  /** Monotonic signal consumed by every expanded directory in the persistent tree. */
+  collapseNonce: number
+  collapseAll: () => void
   toggleHidden: () => void
   openDir: (path: string) => void
   /** `line` is 1-based and only comes from a search hit. */
@@ -27,6 +30,10 @@ type FilesState = {
  * Search feature's unpersisted store so Files owns no Search workflow state.
  */
 export const useFilesStore = create<FilesState>()((set) => ({
+  collapseAll: () => {
+    set((state) => ({ collapseNonce: state.collapseNonce + 1 }))
+  },
+  collapseNonce: 0,
   cursor: REPO_ROOT,
   selection: null,
   selectionLine: null,

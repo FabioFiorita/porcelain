@@ -1,9 +1,10 @@
 import { create } from 'zustand'
 
+import type { SettingsSection } from '@/features/settings/settings-catalog'
+
 import { type SurfaceId, SURFACES } from './surfaces'
 
-/** Mirrors the desktop Settings dialog: General · Personalization · Companion · Remotes. */
-export type SettingsSection = 'general' | 'personalization' | 'companion' | 'remotes'
+export type { SettingsSection }
 
 /**
  * The surfaces the tablet's trailing panel currently holds, and which one it is showing.
@@ -27,6 +28,8 @@ type ShellState = {
   sidebarVisible: boolean
   /** Tablet Surfaces panel. */
   inspectorVisible: boolean
+  settingsOpen: boolean
+  quickOpenOpen: boolean
   settingsSection: SettingsSection
   /** Open a surface into the panel (or raise it, if it is already there) and show it. */
   openSurface: (surface: SurfaceId) => void
@@ -40,6 +43,10 @@ type ShellState = {
   toggleInspector: () => void
   setInspectorVisible: (visible: boolean) => void
   setSettingsSection: (section: SettingsSection) => void
+  openSettings: (section?: SettingsSection) => void
+  closeSettings: () => void
+  openQuickOpen: () => void
+  closeQuickOpen: () => void
 }
 
 /**
@@ -61,8 +68,26 @@ export const useShellStore = create<ShellState>()((set) => ({
   activeSurface: DEFAULT_OPEN[0] ?? null,
   inspectorVisible: true,
   openSurfaces: DEFAULT_OPEN,
+  settingsOpen: false,
+  quickOpenOpen: false,
   settingsSection: 'general',
   sidebarVisible: true,
+  closeSettings: () => {
+    set({ settingsOpen: false })
+  },
+  closeQuickOpen: () => {
+    set({ quickOpenOpen: false })
+  },
+  openQuickOpen: () => {
+    set({ quickOpenOpen: true })
+  },
+  openSettings: (section) => {
+    set(
+      section === undefined
+        ? { settingsOpen: true }
+        : { settingsOpen: true, settingsSection: section },
+    )
+  },
   closeSurface: (surface) => {
     set((state) => {
       const index = state.openSurfaces.indexOf(surface)
