@@ -102,19 +102,28 @@ export function useGitFlow(options: GitFlowOptions = {}): GitFlowRead {
 export type GitRangeFlowRead = GitFlowRead & {
   /** The ref the range is measured against. */
   base: string | undefined
+  /** The daemon's choice when no explicit base is requested. */
+  defaultBase: string | undefined
 }
 
+export type GitRangeFlowOptions = GitFlowOptions & { readonly base?: string }
+
 /** The cumulative committed range since the merge-base — static until the next commit. */
-export function useGitRangeFlow(options: GitFlowOptions = {}): GitRangeFlowRead {
+export function useGitRangeFlow(options: GitRangeFlowOptions = {}): GitRangeFlowRead {
   const scope = useGitScope()
   const { data, error, isLoading } = useGitQuery(
-    gitRangeFlowQuery(scope.projectPath),
+    gitRangeFlowQuery(scope.projectPath, options.base),
     rangeFlowProcedure,
-    // Mobile has no base picker yet, so it always reads the daemon's default base.
-    { repoPath: scope.repoPath },
+    { repoPath: scope.repoPath, ...(options.base === undefined ? {} : { base: options.base }) },
     { enabled: scope.ready && (options.enabled ?? true), keepPreviousData: true },
   )
-  return { base: data?.base, error, groups: data?.groups, isLoading }
+  return {
+    base: data?.base,
+    defaultBase: data?.defaultBase,
+    error,
+    groups: data?.groups,
+    isLoading,
+  }
 }
 
 /**

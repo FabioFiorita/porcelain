@@ -5,7 +5,6 @@ import { ChromeGlyph } from '@/components/chrome-glyph'
 import { EmptyNote, ErrorNote, PanelLabel } from '@/components/panel-chrome'
 import { SURFACE_GUTTER, SURFACE_ROW } from '@/components/surface-layout'
 import { SurfaceScroll } from '@/components/surface-scroll'
-import { describeCommentCounts, useReviewComments } from '@/features/comments'
 import { useHubRepoPath } from '@/features/projects'
 import { useSurfaceOpen } from '@/features/shell/use-surface-open'
 import { cn } from '@/lib/utils'
@@ -13,13 +12,7 @@ import { cn } from '@/lib/utils'
 import { useCanvasList } from './canvas-data'
 
 /**
- * The Canvas surface body: every Canvas the selected Worktree resolves, plus the review comments
- * left on that checkout.
- *
- * Both halves are here because a Canvas is only half the Review — the agent's explanation is
- * what the human answers, and the answer has nowhere else to live on this client. They are two
- * unrelated wire shapes though: a Canvas belongs to the Project, a comment to the checkout, and
- * no contract joins them, so the comments are a destination rather than a badge on a row.
+ * The Canvas surface body: every Canvas the selected Worktree resolves.
  *
  * Shared by the phone screen and the tablet's Surfaces panel; a row opens the document into the
  * Hub stack, which is the phone's screen stack and the tablet's centre viewer.
@@ -27,7 +20,6 @@ import { useCanvasList } from './canvas-data'
 export function CanvasSurfacePanel({ active }: { active: boolean }): React.JSX.Element {
   const repoPath = useHubRepoPath()
   const { canvases, isLoading, loadError } = useCanvasList(active)
-  const comments = useReviewComments(active)
   const open = useSurfaceOpen()
 
   if (repoPath === null) {
@@ -48,24 +40,7 @@ export function CanvasSurfacePanel({ active }: { active: boolean }): React.JSX.E
         </View>
       )}
 
-      <Pressable
-        accessibilityLabel="Review comments"
-        accessibilityRole="button"
-        className={cn(SURFACE_ROW, 'flex-row items-center gap-3')}
-        testID="porcelain-canvas-comments-row"
-        onPress={open.reviewComments}
-      >
-        <ChromeGlyph name="comment" size={17} tone="muted" />
-        <View className="min-w-0 flex-1">
-          <Text className="text-sm font-medium text-foreground">Review comments</Text>
-          <Text className="text-xs text-muted-foreground" numberOfLines={1}>
-            {describeCommentCounts(comments)}
-          </Text>
-        </View>
-        <ChromeGlyph name="chevronRight" size={15} tone="muted" />
-      </Pressable>
-
-      <PanelLabel className={cn(SURFACE_GUTTER, 'pt-4')}>Canvases</PanelLabel>
+      <PanelLabel className={cn(SURFACE_GUTTER, 'pt-2')}>Canvases</PanelLabel>
       {canvases.length === 0 ? (
         <EmptyNote
           body={

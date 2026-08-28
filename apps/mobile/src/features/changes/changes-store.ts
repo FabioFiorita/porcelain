@@ -12,7 +12,10 @@ export type ChangesSelection = { kind: 'file'; path: string } | { kind: 'all' } 
 type ChangesState = {
   scope: ChangesScope
   selection: ChangesSelection
+  /** Branch comparison choices are checkout-scoped; absent means follow the daemon default. */
+  compareBases: Readonly<Record<string, string>>
   setScope: (scope: ChangesScope) => void
+  setCompareBase: (repoPath: string, base: string | null) => void
   openFile: (path: string) => void
   openAll: () => void
   /** Nothing open — see `WorktreeResetBridge`. */
@@ -33,10 +36,19 @@ type ChangesState = {
 export const useChangesStore = create<ChangesState>()((set) => ({
   scope: 'working',
   selection: null,
+  compareBases: {},
   setScope: (scope) => {
     // A path from the other scope may not exist there at all (an untracked file has no
     // committed range), so a scope switch returns to the list rather than a dead diff.
     set({ scope, selection: null })
+  },
+  setCompareBase: (repoPath, base) => {
+    set((state) => {
+      const compareBases = { ...state.compareBases }
+      if (base === null) delete compareBases[repoPath]
+      else compareBases[repoPath] = base
+      return { compareBases, selection: null }
+    })
   },
   openFile: (path) => {
     set({ selection: { kind: 'file', path } })

@@ -20,6 +20,7 @@ export type {
   ReadingFile,
 } from '@porcelain/contracts/git'
 export type { DiffFile, DiffSource } from './git-diff'
+export { branchLabel } from './branch-facts'
 export { changesDiffSource, useDiffFile, useDiffReading } from './git-diff'
 export type { QuickCommandId } from './git-mutations'
 export {
@@ -44,6 +45,7 @@ export type {
   GitFlowOptions,
   GitFlowRead,
   GitLog,
+  GitRangeFlowOptions,
   GitRangeFlowRead,
 } from './git-queries'
 export {

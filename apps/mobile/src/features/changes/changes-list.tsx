@@ -1,17 +1,23 @@
 import { useMemo, useState } from 'react'
-import { SectionList, Text, View } from 'react-native'
+import { Pressable, SectionList, Text, View } from 'react-native'
+import { ChromeGlyph } from '@/components/chrome-glyph'
 import { EmptyNote, ErrorNote, IconAction, PanelLabel } from '@/components/panel-chrome'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import {
   SURFACE_GUTTER,
+  SURFACE_ROW,
   SURFACE_STACK_GAP,
   SURFACE_TOOLBAR,
   surfaceContentStyle,
 } from '@/components/surface-layout'
 import { type FlowFile, useDiscardFile, useFileStaging } from '@/features/git'
+import { describeCommentCounts, useReviewComments } from '@/features/comments'
+import { useHubRepoPath } from '@/features/projects'
+import { useSurfaceOpen } from '@/features/shell/use-surface-open'
 import { useBottomChrome } from '@/features/shell/window-chrome'
 import { cn } from '@/lib/utils'
 import { type ChangesScope, useChangesStore } from './changes-store'
+import { ChangesBasePicker } from './changes-base-picker'
 import { summarizeChanges } from './changes-summary'
 import { FileRow, type FileRowActions } from './file-row'
 import { useChangesFlow } from './use-changes'
@@ -36,20 +42,24 @@ export function ChangesList({
   onOpenFile?: (path: string) => void
 }): React.JSX.Element {
   const bottomInset = useBottomChrome()
+  const repoPath = useHubRepoPath()
+  const comments = useReviewComments(active)
+  const open = useSurfaceOpen()
   const scope = useChangesStore((state) => state.scope)
   const setScope = useChangesStore((state) => state.setScope)
+  const setCompareBase = useChangesStore((state) => state.setCompareBase)
   const selection = useChangesStore((state) => state.selection)
   const selectFile = useChangesStore((state) => state.openFile)
   const selectAll = useChangesStore((state) => state.openAll)
   const openFile = onOpenFile ?? selectFile
   const openAll = onOpenAll ?? selectAll
 
-  const { base, error, groups, isLoading } = useChangesFlow(active)
+  const { base, defaultBase, error, groups, isLoading, requestedBase } = useChangesFlow(active)
   const { stageFile, unstageFile } = useFileStaging()
   const { discardFile } = useDiscardFile()
   const [actionError, setActionError] = useState<string | null>(null)
 
-  const summary = useMemo(() => summarizeChanges(groups ?? [], base), [base, groups])
+  const summary = useMemo(() => summarizeChanges(groups ?? []), [groups])
   const sections = useMemo(
     () => (groups ?? []).map((group) => ({ data: group.files, layer: group.layer })),
     [groups],
@@ -87,11 +97,41 @@ export function ChangesList({
     <View className="flex-1" testID="porcelain-changes-list">
       <ChangesHeader
         label={pending ? 'Loading changes…' : summary.label}
+        basePicker={
+          scope !== 'branch' || base === undefined || repoPath === null ? undefined : (
+            <ChangesBasePicker
+              active={active}
+              defaultBase={defaultBase}
+              requested={requestedBase}
+              selected={base}
+              onSelect={(next) => {
+                setCompareBase(repoPath, next)
+              }}
+            />
+          )
+        }
         scope={scope}
         total={summary.total}
         onReadAll={openAll}
         onScopeChange={setScope}
       />
+
+      <Pressable
+        accessibilityLabel="Review comments"
+        accessibilityRole="button"
+        className={cn(SURFACE_ROW, 'mb-2 flex-row items-center gap-3')}
+        testID="porcelain-changes-comments-row"
+        onPress={open.reviewComments}
+      >
+        <ChromeGlyph name="comment" size={17} tone="muted" />
+        <View className="min-w-0 flex-1">
+          <Text className="text-sm font-medium text-foreground">Review comments</Text>
+          <Text className="text-xs text-muted-foreground" numberOfLines={1}>
+            {describeCommentCounts(comments)}
+          </Text>
+        </View>
+        <ChromeGlyph name="chevronRight" size={15} tone="muted" />
+      </Pressable>
 
       {failure === null ? null : (
         <View className="px-4 pb-2">
@@ -151,12 +191,14 @@ export function ChangesList({
 }
 
 function ChangesHeader({
+  basePicker,
   label,
   onReadAll,
   onScopeChange,
   scope,
   total,
 }: {
+  basePicker?: React.ReactNode
   label: string
   onReadAll: () => void
   onScopeChange: (scope: ChangesScope) => void
@@ -172,6 +214,7 @@ function ChangesHeader({
         >
           {label}
         </Text>
+        {basePicker}
         {/* An icon button is a 36pt box around a 17pt glyph, so sitting it *on* the gutter
             leaves the glyph 9pt inside it. The cluster hangs out to put the glyph on the
             gutter instead — the alignment the eye reads is the mark's, not the box's. */}

@@ -148,4 +148,26 @@ describe('Mobile Git reads', () => {
       1,
     )
   })
+
+  it('sends a chosen comparison base and keeps it in the cache identity', async () => {
+    const mock = createValidatingDaemonMock(validatingCatalog, {
+      gitRangeFlow: () => ({ ok: true, value: gitContractFixtures.gitRangeFlow.output }),
+    })
+    ctx.client = mockClient(mock)
+    const queryClient = new QueryClient()
+    const { result } = renderHook(() => useGitRangeFlow({ base: 'origin/develop' }), {
+      wrapper: wrapper(queryClient),
+    })
+    await waitFor(() => expect(result.current.base).toBeDefined())
+    expect(mock.requests()).toContainEqual({
+      kind: 'query',
+      procedure: 'gitRangeFlow',
+      input: { base: 'origin/develop', repoPath: '/synthetic/repo' },
+    })
+    expect(
+      queryClient.getQueryData(
+        gitQueryKey('env-git-reads', gitRangeFlowQuery('/synthetic/repo', 'origin/develop')),
+      ),
+    ).toBeDefined()
+  })
 })

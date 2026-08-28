@@ -1,7 +1,6 @@
 import { useIsFocused, useRouter } from 'expo-router'
 import { Text, View } from 'react-native'
 
-import { IconAction } from '@/components/panel-chrome'
 import { EmptyNote, ErrorNote, ScreenHeader } from '@/components/panel-chrome'
 import { SURFACE_GUTTER } from '@/components/surface-layout'
 import { markdownToHtml, PreviewView, readerDocument } from '@/features/files'
@@ -31,16 +30,6 @@ export function CanvasScreen({ canvasId }: { canvasId: string }): React.JSX.Elem
   return (
     <View className="flex-1 bg-background" testID="porcelain-canvas-document">
       <ScreenHeader
-        actions={
-          <IconAction
-            accessibilityLabel="Review comments"
-            glyph="comment"
-            testID="porcelain-canvas-document-comments"
-            onPress={() => {
-              router.push('/canvas/comments')
-            }}
-          />
-        }
         back={{
           accessibilityLabel: 'Back to Canvas',
           testID: 'porcelain-canvas-document-back',

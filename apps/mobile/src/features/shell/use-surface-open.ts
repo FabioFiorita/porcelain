@@ -62,7 +62,7 @@ export function useSurfaceOpen(): SurfaceOpen {
         router.push({ params: { path: pathSegments(path) }, pathname: '/folder/[...path]' })
       },
       reviewComments: () => {
-        router.push('/canvas/comments')
+        router.push('/changes/comments')
       },
     }),
     [router],
