@@ -1,5 +1,6 @@
 const reviewComment = {
   id: 'comment-synthetic',
+  author: 'user',
   path: 'src/changed.ts',
   startLine: 1,
   endLine: 2,

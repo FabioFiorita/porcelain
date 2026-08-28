@@ -26,6 +26,7 @@ function comment(
     endLine: number
     anchorText: string
     body: string
+    author: 'user' | 'agent'
     resolved: boolean
     createdAt: number
     agentReply: { body: string; createdAt: number }
@@ -35,6 +36,7 @@ function comment(
     id: overrides.id ?? ID_A,
     path: overrides.path ?? 'src/a.ts',
     body: overrides.body ?? 'note',
+    ...(overrides.author !== undefined ? { author: overrides.author } : {}),
     resolved: overrides.resolved ?? false,
     createdAt: overrides.createdAt ?? 10,
     ...(overrides.startLine !== undefined ? { startLine: overrides.startLine } : {}),
@@ -73,6 +75,18 @@ describe('parseCommentsFileV1 / serializeCommentsFileV1', () => {
         comments: [{ ...comment(), extra: true }],
       }),
     ).toThrow(/unknown field/)
+  })
+
+  it('preserves explicit authorship while accepting legacy user comments without it', () => {
+    const legacy = comment()
+    const agent = comment({ author: 'agent', id: ID_B })
+    expect(parseCommentsFileV1({ version: 1, comments: [legacy, agent] }).comments).toEqual([
+      legacy,
+      agent,
+    ])
+    expect(() =>
+      parseCommentsFileV1({ version: 1, comments: [{ ...legacy, author: 'robot' }] }),
+    ).toThrow(/author is invalid/)
   })
 
   it('rejects top-level arrays, incompatible version, and malformed shapes', () => {
@@ -128,6 +142,7 @@ describe('comment planners', () => {
     const empty = emptyCommentsFileV1()
     const added = planAddReviewComment(empty, {
       id: ID_A,
+      author: 'agent',
       path: 'a.ts',
       body: 'why?',
       startLine: 2,
@@ -137,6 +152,7 @@ describe('comment planners', () => {
     expect(added.ok).toBe(true)
     if (!added.ok) return
     expect(added.comment.resolved).toBe(false)
+    expect(added.comment.author).toBe('agent')
     expect(added.comment.startLine).toBe(2)
 
     const inverted = planAddReviewComment(empty, {

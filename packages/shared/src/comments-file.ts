@@ -13,6 +13,8 @@ export type CommentsFileAgentReply = {
 
 export type CommentsFileComment = {
   id: string
+  /** Missing only on pre-authorship version-1 files; those comments were user-authored. */
+  author?: 'user' | 'agent'
   path: string
   startLine?: number
   endLine?: number
@@ -106,6 +108,7 @@ function parseComment(value: unknown, index: number): CommentsFileComment {
   for (const key of Object.keys(value)) {
     if (
       key !== 'id' &&
+      key !== 'author' &&
       key !== 'path' &&
       key !== 'startLine' &&
       key !== 'endLine' &&
@@ -123,6 +126,9 @@ function parseComment(value: unknown, index: number): CommentsFileComment {
   }
   if (typeof value.id !== 'string' || value.id.length === 0) {
     throw new CommentsFileParseError('invalid-comment', `comments[${index}].id is invalid`)
+  }
+  if (value.author !== undefined && value.author !== 'user' && value.author !== 'agent') {
+    throw new CommentsFileParseError('invalid-comment', `comments[${index}].author is invalid`)
   }
   if (typeof value.path !== 'string' || value.path.length === 0) {
     throw new CommentsFileParseError('invalid-comment', `comments[${index}].path is invalid`)
@@ -159,6 +165,7 @@ function parseComment(value: unknown, index: number): CommentsFileComment {
     resolved: value.resolved,
     createdAt: value.createdAt,
   }
+  if (value.author !== undefined) comment.author = value.author
   if (value.startLine !== undefined) comment.startLine = value.startLine
   if (value.endLine !== undefined) comment.endLine = value.endLine
   if (value.anchorText !== undefined) comment.anchorText = value.anchorText
@@ -237,6 +244,7 @@ function cloneComment(comment: CommentsFileComment): CommentsFileComment {
     resolved: comment.resolved,
     createdAt: comment.createdAt,
   }
+  if (comment.author !== undefined) next.author = comment.author
   if (comment.startLine !== undefined) next.startLine = comment.startLine
   if (comment.endLine !== undefined) next.endLine = comment.endLine
   if (comment.anchorText !== undefined) next.anchorText = comment.anchorText
@@ -259,6 +267,7 @@ export function planAddReviewComment(
     endLine?: number
     anchorText?: string
     body: string
+    author?: 'user' | 'agent'
     createdAt: number
   },
 ):
@@ -274,6 +283,7 @@ export function planAddReviewComment(
 
   const comment: CommentsFileComment = {
     id: input.id,
+    author: input.author ?? 'user',
     path: input.path,
     body: input.body,
     resolved: false,

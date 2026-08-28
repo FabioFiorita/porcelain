@@ -61,4 +61,19 @@ describe('LineDecorations', () => {
     )
     expect(container).toBeEmptyDOMElement()
   })
+
+  it('identifies user and agent-authored root comments', async () => {
+    renderComments(
+      <LineDecorations
+        comments={[
+          comment({ id: 'user', body: 'Human note', author: 'user' }),
+          comment({ id: 'agent', body: 'Agent context', author: 'agent' }),
+        ]}
+      />,
+      defaultCommentHandlers(),
+    )
+    screen.getByRole('button', { name: /2 comments/i }).click()
+    expect(await screen.findByText('You')).toBeInTheDocument()
+    expect(await screen.findByText('Agent')).toBeInTheDocument()
+  })
 })

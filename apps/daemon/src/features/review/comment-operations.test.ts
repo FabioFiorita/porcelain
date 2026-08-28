@@ -94,6 +94,7 @@ describe('review comment operations', () => {
 
     const added = await ops.addReviewComment({
       projectPath: PROJECT,
+      author: 'agent',
       path: 'src/a.ts',
       body: 'look here',
       startLine: 1,
@@ -104,6 +105,7 @@ describe('review comment operations', () => {
     expect(added.value).toMatchObject({
       path: 'src/a.ts',
       body: 'look here',
+      author: 'agent',
       resolved: false,
       startLine: 1,
       endLine: 2,

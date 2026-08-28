@@ -238,14 +238,19 @@ function CommentCard({
       testID={`porcelain-review-comment-${comment.id}`}
     >
       <View className="flex-row items-start gap-1">
-        <Text
-          className={cn(
-            'min-w-0 flex-1 text-sm leading-5 text-foreground',
-            comment.resolved && 'text-muted-foreground line-through',
-          )}
-        >
-          {comment.body}
-        </Text>
+        <View className="min-w-0 flex-1 gap-0.5">
+          <Text className="text-3xs font-semibold uppercase tracking-widest text-muted-foreground">
+            {comment.author === 'agent' ? 'Agent' : 'You'}
+          </Text>
+          <Text
+            className={cn(
+              'text-sm leading-5 text-foreground',
+              comment.resolved && 'text-muted-foreground line-through',
+            )}
+          >
+            {comment.body}
+          </Text>
+        </View>
         <IconAction
           accessibilityLabel={comment.resolved ? 'Reopen comment' : 'Resolve comment'}
           disabled={busy}

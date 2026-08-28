@@ -24,14 +24,19 @@ function CommentCard({ comment }: { comment: ReviewComment }): React.JSX.Element
         {anchorLabel(comment)}
       </span>
       <div className="flex items-start gap-1">
-        <p
-          className={cn(
-            'min-w-0 flex-1 whitespace-pre-wrap break-words text-xs',
-            comment.resolved && 'text-muted-foreground line-through',
-          )}
-        >
-          {comment.body}
-        </p>
+        <div className="min-w-0 flex-1">
+          <span className="text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
+            {comment.author === 'agent' ? 'Agent' : 'You'}
+          </span>
+          <p
+            className={cn(
+              'whitespace-pre-wrap break-words text-xs',
+              comment.resolved && 'text-muted-foreground line-through',
+            )}
+          >
+            {comment.body}
+          </p>
+        </div>
         <Button
           variant="ghost"
           size="icon-sm"

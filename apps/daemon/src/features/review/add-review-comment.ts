@@ -10,6 +10,7 @@ import type {
 
 export type AddReviewCommentInput = {
   projectPath: string
+  author?: 'user' | 'agent'
   path: string
   startLine?: number
   endLine?: number
@@ -32,6 +33,7 @@ export function createAddReviewComment(deps: {
     const result = await deps.store.transact(input.projectPath, (current) => {
       const planned = planAddReviewComment(current, {
         id,
+        author: input.author,
         path: input.path,
         startLine: input.startLine,
         endLine: input.endLine,

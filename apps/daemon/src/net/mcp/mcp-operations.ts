@@ -48,6 +48,7 @@ export type McpOperations = Readonly<{
     }) => Promise<OperationResult<readonly ReviewComment[]>>
     addReviewComment: (input: {
       projectPath: string
+      author?: 'user' | 'agent'
       path: string
       startLine?: number
       endLine?: number

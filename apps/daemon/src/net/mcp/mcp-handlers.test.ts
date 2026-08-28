@@ -179,6 +179,24 @@ describe('domain MCP entry points', () => {
     )
   })
 
+  it('records comments created through MCP as agent-authored', async () => {
+    const { tools, calls } = harness()
+    await tools.call('porcelain_comment', {
+      op: 'create',
+      workspace: REPO,
+      comment: { path: 'src/a.ts', body: 'Agent context' },
+    })
+    expect(calls).toContainEqual({
+      name: 'addReviewComment',
+      input: expect.objectContaining({
+        projectPath: REPO,
+        author: 'agent',
+        path: 'src/a.ts',
+        body: 'Agent context',
+      }),
+    })
+  })
+
   it('keeps Actions CRUD-only and never exposes execution or trust', async () => {
     const { tools, calls } = harness()
     const run = await tools.call('porcelain_action', { op: 'run', workspace: REPO, id: 'action-1' })

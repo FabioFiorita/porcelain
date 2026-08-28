@@ -359,6 +359,7 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
           return fail('comment.path and comment.body are required to create a comment.')
         const created = await operations.review.addReviewComment({
           projectPath,
+          author: 'agent',
           path,
           body,
           ...(typeof comment.startLine === 'number' ? { startLine: comment.startLine } : {}),

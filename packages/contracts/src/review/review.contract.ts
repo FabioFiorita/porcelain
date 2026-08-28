@@ -263,6 +263,8 @@ export type EvidenceAssetBody = z.infer<typeof evidenceAssetBodySchema>
 export const reviewCommentSchema = z
   .object({
     id: z.string(),
+    /** Absent only for comments written before authorship was recorded; clients treat those as user. */
+    author: z.enum(['user', 'agent']).optional(),
     path: z.string().min(1),
     startLine: z.number().int().positive().optional(),
     endLine: z.number().int().positive().optional(),
