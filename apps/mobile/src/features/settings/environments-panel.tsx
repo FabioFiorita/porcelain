@@ -114,8 +114,8 @@ function EnvironmentsList({
       ) : null}
 
       {environments.map((environment) => {
-        const isActive = environment.id === active?.id
-        const statusLabel = describeConnection(environment, isActive, connection)
+        const isCurrent = environment.id === active?.id
+        const statusLabel = describeConnection(environment, isCurrent, connection)
         return (
           <Pressable
             key={environment.id}
@@ -124,7 +124,7 @@ function EnvironmentsList({
             className={cn(
               PANEL_CARD,
               'flex-row items-center gap-3 p-3 active:bg-accent',
-              isActive && 'border-primary/40 bg-primary/5',
+              isCurrent && 'border-primary/40 bg-primary/5',
             )}
             testID={`porcelain-settings-environment-${environment.id}`}
             onPress={() => {
@@ -142,7 +142,10 @@ function EnvironmentsList({
                 {statusLabel}
               </Text>
             </View>
-            {isActive ? <Text className="text-xs font-semibold text-primary">Active</Text> : null}
+            <Text className="text-xs font-semibold text-primary">
+              {environment.enabled ? 'Active' : 'Inactive'}
+            </Text>
+            {isCurrent ? <Text className="text-xs font-semibold text-primary">Current</Text> : null}
             <ChromeGlyph name="chevronRight" size={14} />
           </Pressable>
         )

@@ -240,6 +240,36 @@ describe('Mobile Projects adapter', () => {
     expect(hook.result.current.queryClient.getQueryState(trueKey)?.isInvalidated).toBe(true)
   })
 
+  it('ignores a duplicate open while the first request is pending', async () => {
+    let resolveOpen: ((outcome: DaemonMockOutcome) => void) | undefined
+    const pendingOpen = new Promise<DaemonMockOutcome>((resolve) => {
+      resolveOpen = resolve
+    })
+    const { client, mock, wrapper } = createProjectHarness({
+      openRepoPath: () => pendingOpen,
+    })
+    ctx.client = client
+    const hook = renderHook(() => useOpenProject(), { wrapper })
+
+    let first: Promise<void> | undefined
+    await act(async () => {
+      first = hook.result.current.open(beta.path)
+    })
+    await waitFor(() => expect(hook.result.current.isPending).toBe(true))
+
+    let duplicate: Promise<void> | undefined
+    await act(async () => {
+      duplicate = hook.result.current.open('/synthetic/projects/duplicate')
+    })
+    expect(mock.requests().filter(({ procedure }) => procedure === 'openRepoPath')).toHaveLength(1)
+
+    resolveOpen?.({ ok: true, value: beta })
+    await act(async () => {
+      await first
+      await duplicate
+    })
+  })
+
   it('clears only the selected Project after remove', async () => {
     const { client, wrapper } = createProjectHarness()
     ctx.client = client

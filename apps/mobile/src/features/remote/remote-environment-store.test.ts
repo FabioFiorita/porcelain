@@ -76,6 +76,8 @@ describe('remote environment store persistence', () => {
     if (written === undefined) throw new Error('the index was never written')
     const file: unknown = JSON.parse(written)
     expect(file).toMatchObject({ version: 1, activeId: environment.id })
+    expect(environment.enabled).toBe(true)
+    expect(file).toMatchObject({ environments: [{ id: environment.id, enabled: true }] })
     expect(written).not.toContain('"version":3')
     // The token rides its own key; the index must never carry a credential.
     expect(written).not.toContain('pc_client_test')
@@ -134,7 +136,117 @@ describe('remote environment store persistence', () => {
     const state = environmentsStore.getState()
     expect(state.corrupt).toBe(false)
     expect(state.activeId).toBe(id)
-    expect(state.environments[0]).toMatchObject({ icon: 'terminal', token: 'pc_client_stored' })
+    expect(state.environments[0]).toMatchObject({
+      enabled: true,
+      icon: 'terminal',
+      token: 'pc_client_stored',
+    })
     expect(state.connection).toEqual({ kind: 'connecting' })
+  })
+
+  it('disables the current environment and selects the first enabled peer', async () => {
+    const current = await environmentActions.add({
+      baseUrl: LAN,
+      nickname: 'studio',
+      token: 'pc_client_studio',
+    })
+    const peer = await environmentActions.add({
+      baseUrl: 'http://192.168.1.51:43117',
+      nickname: 'office',
+      token: 'pc_client_office',
+    })
+
+    await environmentActions.setEnabled(current.id, false)
+
+    const state = environmentsStore.getState()
+    expect(state.activeId).toBe(peer.id)
+    expect(state.environments.find((entry) => entry.id === current.id)?.enabled).toBe(false)
+    expect(state.connection).toEqual({ kind: 'connecting' })
+    expect(indexWrites().at(-1)).toContain('"enabled":false')
+  })
+
+  it('disables the only current environment and clears selection and connection', async () => {
+    const current = await environmentActions.add({
+      baseUrl: LAN,
+      nickname: 'studio',
+      token: 'pc_client_studio',
+    })
+
+    await environmentActions.setEnabled(current.id, false)
+
+    expect(environmentsStore.getState().activeId).toBeNull()
+    expect(environmentsStore.getState().connection).toEqual({ kind: 'no-environment' })
+  })
+
+  it('does not make a disabled environment current', async () => {
+    const current = await environmentActions.add({
+      baseUrl: LAN,
+      nickname: 'studio',
+      token: 'pc_client_studio',
+    })
+    const peer = await environmentActions.add({
+      baseUrl: 'http://192.168.1.51:43117',
+      nickname: 'office',
+      token: 'pc_client_office',
+    })
+    await environmentActions.setEnabled(current.id, false)
+
+    await environmentActions.setActive(current.id)
+
+    expect(environmentsStore.getState().activeId).toBe(peer.id)
+  })
+
+  it('hydrates a disabled environment as disabled and leaves it out of current selection', async () => {
+    const id = 'env-disabled'
+    getItemAsync.mockImplementation(async (key: string): Promise<string | null> => {
+      if (key === INDEX_KEY) {
+        return JSON.stringify({
+          version: 1,
+          activeId: id,
+          environments: [
+            {
+              activeRepoPath: null,
+              baseUrl: LAN,
+              createdAt: 1_700_000_000_000,
+              enabled: false,
+              endpoints: [LAN],
+              icon: 'desktop',
+              id,
+              nickname: 'studio',
+              preferredEndpoint: LAN,
+            },
+          ],
+        })
+      }
+      return key === `porcelain.token.${id}` ? 'pc_client_disabled' : null
+    })
+
+    await environmentActions.hydrate()
+
+    const state = environmentsStore.getState()
+    expect(state.environments[0]).toMatchObject({ enabled: false, token: 'pc_client_disabled' })
+    expect(state.activeId).toBeNull()
+    expect(state.connection).toEqual({ kind: 'no-environment' })
+  })
+
+  it('persists re-enabling and hydrates it as enabled', async () => {
+    const current = await environmentActions.add({
+      baseUrl: LAN,
+      nickname: 'studio',
+      token: 'pc_client_studio',
+    })
+    await environmentActions.setEnabled(current.id, false)
+    await environmentActions.setEnabled(current.id, true)
+
+    const written = indexWrites().at(-1)
+    if (written === undefined) throw new Error('the index was never written')
+    getItemAsync.mockImplementation(async (key: string): Promise<string | null> => {
+      if (key === INDEX_KEY) return written
+      return key === `porcelain.token.${current.id}` ? 'pc_client_studio' : null
+    })
+
+    await environmentActions.hydrate()
+
+    expect(environmentsStore.getState().environments[0]?.enabled).toBe(true)
   })
 })

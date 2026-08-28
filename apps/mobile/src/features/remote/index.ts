@@ -17,6 +17,7 @@ export {
   type EnvironmentId,
   type EnvironmentRecord,
   hostOf,
+  isEnabled,
   isPaired,
   normalizeBaseUrl,
   type PairedEnvironment,

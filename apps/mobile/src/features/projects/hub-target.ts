@@ -4,6 +4,7 @@ import { useQueries, useQuery } from '@tanstack/react-query'
 import {
   activeProjectPathOf,
   type Environment,
+  isEnabled,
   isPaired,
   useActiveEnvironment,
   useEnvironments,
@@ -32,7 +33,8 @@ export function hubInventoryKey(
 export function useHubInventory(): HubInventory | null {
   const environment = useActiveEnvironment()
   const environmentId = environment?.id ?? 'none'
-  const enabled = isPaired(environment) && activeProjectPathOf(environment) !== null
+  const enabled =
+    isEnabled(environment) && isPaired(environment) && activeProjectPathOf(environment) !== null
   const query = useQuery({
     enabled,
     queryFn: async (): Promise<HubInventory> =>
@@ -97,7 +99,7 @@ export type HubEnvironmentInventory = {
  */
 export function useHubInventories(): readonly HubEnvironmentInventory[] {
   const environments = useEnvironments()
-  const paired = environments.filter(isPaired)
+  const paired = environments.filter(isEnabled).filter(isPaired)
   const results = useQueries({
     queries: paired.map((environment) => ({
       queryFn: async (): Promise<HubInventory> =>

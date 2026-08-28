@@ -9,6 +9,7 @@ import {
 } from '@porcelain/client-runtime/projects'
 import type { BrowseDirsOutput } from '@porcelain/contracts/projects'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useRef } from 'react'
 import {
   activeEnvironment,
   activeProjectPathOf,
@@ -44,12 +45,14 @@ async function invalidateProjectQueries(
   environmentId: string,
   queries: readonly ProjectsQuery[],
 ): Promise<void> {
-  for (const query of queries) {
-    await queryClient.invalidateQueries({
-      exact: true,
-      queryKey: projectsQueryKey(environmentId, query),
-    })
-  }
+  await Promise.all(
+    queries.map((query) =>
+      queryClient.invalidateQueries({
+        exact: true,
+        queryKey: projectsQueryKey(environmentId, query),
+      }),
+    ),
+  )
 }
 
 /** Recent Projects for the mobile Project sheet. */
@@ -87,6 +90,7 @@ export function useOpenProject(): {
 } {
   const environment = useActiveEnvironment()
   const queryClient = useQueryClient()
+  const opening = useRef(false)
   const mutation = useMutation({
     mutationFn: async (path: ProjectPath): Promise<ProjectSummary> => {
       return callProjectDaemon(environment, openProjectProcedure, path)
@@ -106,7 +110,13 @@ export function useOpenProject(): {
   return {
     isPending: mutation.isPending,
     open: async (path: ProjectPath): Promise<void> => {
-      await mutation.mutateAsync(path)
+      if (opening.current) return
+      opening.current = true
+      try {
+        await mutation.mutateAsync(path)
+      } finally {
+        opening.current = false
+      }
     },
   }
 }

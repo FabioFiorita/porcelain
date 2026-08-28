@@ -5,7 +5,7 @@ import {
   type WorktreeScriptKind,
 } from '@porcelain/contracts/actions'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Alert, Pressable, View } from 'react-native'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
@@ -22,6 +22,7 @@ import { callActionsProcedure } from '@/features/actions/use-actions-transport'
 import { useOpenProject, useProjectDirectories } from '@/features/projects'
 import {
   environmentActions,
+  isEnabled,
   isPaired,
   useActiveEnvironment,
   useEnvironments,
@@ -319,15 +320,21 @@ function WorktreeScripts(): React.JSX.Element {
 function ProjectPicker(): React.JSX.Element {
   const open = useHubOverlayStore((state) => state.projectPickerOpen)
   const close = useHubOverlayStore((state) => state.closeProjectPicker)
-  const environments = useEnvironments().filter(isPaired)
+  const environments = useEnvironments().filter(isEnabled).filter(isPaired)
   const active = useActiveEnvironment()
   const [path, setPath] = useState<string | null>(null)
   const browser = useProjectDirectories(path, open)
   const opener = useOpenProject()
   const [error, setError] = useState<string | null>(null)
+  const [openingPath, setOpeningPath] = useState<string | null>(null)
+  const openingPathRef = useRef<string | null>(null)
 
   useEffect(() => {
-    if (!open) setPath(null)
+    if (!open) {
+      setPath(null)
+      setOpeningPath(null)
+      openingPathRef.current = null
+    }
   }, [open])
 
   const chooseEnvironment = (id: string): void => {
@@ -335,14 +342,20 @@ function ProjectPicker(): React.JSX.Element {
     void environmentActions.setActive(id)
   }
   const openPath = (next: string): void => {
+    if (openingPathRef.current !== null || opener.isPending) return
+    openingPathRef.current = next
+    setOpeningPath(next)
     setError(null)
     void opener
       .open(next)
       .then(close)
       .catch((reason: unknown) => {
+        openingPathRef.current = null
+        setOpeningPath(null)
         setError(reason instanceof Error ? reason.message : 'Could not open that Project.')
       })
   }
+  const isOpening = openingPath !== null || opener.isPending
 
   return (
     <ResponsiveHubDialog
@@ -380,7 +393,7 @@ function ProjectPicker(): React.JSX.Element {
             />
           </View>
         )}
-        <View className={PANEL_CARD}>
+        <View className={`${PANEL_CARD} gap-2 p-2`}>
           <Pressable
             accessibilityLabel="Up"
             className={SURFACE_ROW}
@@ -394,7 +407,7 @@ function ProjectPicker(): React.JSX.Element {
             </View>
           </Pressable>
           {browser.result?.entries.map((entry) => (
-            <View key={entry.path} className="flex-row items-center">
+            <View key={entry.path} className="flex-row items-center gap-2">
               <Pressable
                 accessibilityLabel={`Folder ${entry.name}`}
                 className={`${SURFACE_ROW} min-w-0 flex-1`}
@@ -413,8 +426,14 @@ function ProjectPicker(): React.JSX.Element {
                 </View>
               </Pressable>
               {entry.isRepo ? (
-                <Button size="sm" variant="ghost" onPress={() => openPath(entry.path)}>
-                  <Text>Open</Text>
+                <Button
+                  disabled={isOpening}
+                  size="sm"
+                  testID={`porcelain-project-picker-open-${entry.name}`}
+                  variant="ghost"
+                  onPress={() => openPath(entry.path)}
+                >
+                  <Text>{openingPath === entry.path ? 'Opening…' : 'Open'}</Text>
                 </Button>
               ) : null}
             </View>
@@ -425,10 +444,11 @@ function ProjectPicker(): React.JSX.Element {
             <Text>Cancel</Text>
           </Button>
           <Button
-            disabled={browser.result === undefined || opener.isPending}
+            disabled={browser.result === undefined || isOpening}
+            testID="porcelain-project-picker-open-current"
             onPress={() => browser.result && openPath(browser.result.path)}
           >
-            <Text>Open this folder</Text>
+            <Text>{openingPath === browser.result?.path ? 'Opening…' : 'Open this folder'}</Text>
           </Button>
         </View>
       </SurfaceScroll>

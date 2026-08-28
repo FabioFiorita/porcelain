@@ -23,6 +23,7 @@ const environment = (overrides: Partial<Environment> = {}): Environment => ({
   activeRepoPath: null,
   baseUrl: 'http://192.168.1.10:43118',
   createdAt: 0,
+  enabled: true,
   endpoints: ['http://192.168.1.10:43118'],
   icon: 'desktop',
   id: 'env-1',

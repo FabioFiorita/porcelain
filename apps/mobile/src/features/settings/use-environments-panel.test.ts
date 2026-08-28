@@ -6,6 +6,7 @@ import type { Environment } from '@/features/remote'
 const remove = vi.fn()
 const removeEndpoint = vi.fn()
 const setIcon = vi.fn()
+const setEnabled = vi.fn()
 const setActive = vi.fn()
 const preferEndpoint = vi.fn()
 const setEndpointOrder = vi.fn()
@@ -35,6 +36,7 @@ vi.mock('@/features/remote', async () => ({
     remove: (...args: unknown[]) => remove(...args),
     removeEndpoint: (...args: unknown[]) => removeEndpoint(...args),
     setIcon: (...args: unknown[]) => setIcon(...args),
+    setEnabled: (...args: unknown[]) => setEnabled(...args),
     setActive: (...args: unknown[]) => setActive(...args),
     preferEndpoint: (...args: unknown[]) => preferEndpoint(...args),
     setEndpointOrder: (...args: unknown[]) => setEndpointOrder(...args),
@@ -49,6 +51,7 @@ const environment = (overrides: Partial<Environment> = {}): Environment => ({
   activeRepoPath: null,
   baseUrl: 'http://192.168.1.10:43118',
   createdAt: 0,
+  enabled: true,
   endpoints: ['http://192.168.1.10:43118', 'http://100.64.0.1:43118'],
   icon: 'desktop',
   id: 'env-1',
@@ -63,6 +66,7 @@ describe('useGroupDetail write failures', () => {
     remove.mockReset()
     removeEndpoint.mockReset()
     setIcon.mockReset()
+    setEnabled.mockReset()
     setActive.mockReset()
     preferEndpoint.mockReset()
     setEndpointOrder.mockReset()
@@ -118,5 +122,18 @@ describe('useGroupDetail write failures', () => {
       await flush()
     })
     expect(result.current.writeError).toBeNull()
+  })
+
+  it('routes deactivation failures to the same inline writeError channel', async () => {
+    setEnabled.mockRejectedValueOnce(new Error('secure store full'))
+    const { result } = renderHook(() => useGroupDetail(environment(), vi.fn()))
+
+    await act(async () => {
+      result.current.toggleEnabled()
+      await flush()
+    })
+
+    expect(setEnabled).toHaveBeenCalledWith('env-1', false)
+    expect(result.current.writeError).toBe('Could not deactivate environment: secure store full')
   })
 })

@@ -10,6 +10,8 @@ const environmentRecordSchema = z.object({
   nickname: z.string().min(1).max(64),
   /** The visual kind chosen for this environment group in Settings. */
   icon: z.enum(['desktop', 'terminal', 'notebook']),
+  /** Whether this environment may be selected and used by Hub. Legacy records default on. */
+  enabled: z.boolean().default(true),
   /** Normalized: scheme + host + port, no trailing slash. */
   baseUrl: z.string().url(),
   /** Every verified route for this daemon; a group of one is valid. */
@@ -43,6 +45,11 @@ export type PairedEnvironment = EnvironmentRecord & { token: string }
 
 export function isPaired(environment: Environment | null): environment is PairedEnvironment {
   return environment !== null && environment.token !== null
+}
+
+/** Whether this environment is eligible to be current and appear in Hub pickers. */
+export function isEnabled(environment: Environment | null): environment is Environment {
+  return environment !== null && environment.enabled
 }
 
 export const EMPTY_ENVIRONMENTS_FILE: EnvironmentsFile = {

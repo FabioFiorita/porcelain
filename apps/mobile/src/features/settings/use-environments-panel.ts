@@ -147,6 +147,7 @@ export type GroupDetailState = {
   makePrimary: (url: string) => void
   move: (index: number, direction: -1 | 1) => void
   setIcon: (icon: Environment['icon']) => void
+  toggleEnabled: () => void
   use: () => void
   confirmDelete: () => void
   /** Last write failure for this detail surface (pair forms use their own `error`). */
@@ -248,6 +249,13 @@ export function useGroupDetail(environment: Environment, onDeleted: () => void):
       runWrite('Could not update icon', () => environmentActions.setIcon(environment.id, icon))
     },
     setNickname,
+    toggleEnabled: (): void => {
+      const enabled = !environment.enabled
+      runWrite(
+        enabled ? 'Could not reactivate environment' : 'Could not deactivate environment',
+        () => environmentActions.setEnabled(environment.id, enabled),
+      )
+    },
     use: (): void => {
       runWrite('Could not switch environment', () => environmentActions.setActive(environment.id))
     },

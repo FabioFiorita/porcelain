@@ -43,9 +43,9 @@ export function GroupDetail({
 }): React.JSX.Element {
   const active = useActiveEnvironment()
   const connection = useConnectionState()
-  const isActive = active?.id === environment.id
+  const isCurrent = active?.id === environment.id
   const detail = useGroupDetail(environment, onDeleted)
-  const version = isActive && connection.kind === 'ready' ? connection.daemonVersion : null
+  const version = isCurrent && connection.kind === 'ready' ? connection.daemonVersion : null
   const canRemove = environment.endpoints.length > 1
 
   /**
@@ -107,20 +107,24 @@ export function GroupDetail({
             label="Porcelain"
             value={
               version ??
-              (isActive && (connection.kind === 'connecting' || connection.kind === 'loading')
-                ? 'Checking…'
-                : '—')
+              (!environment.enabled
+                ? '—'
+                : isCurrent && (connection.kind === 'connecting' || connection.kind === 'loading')
+                  ? 'Checking…'
+                  : '—')
             }
           />
           <Meta label="Connections" value={String(environment.endpoints.length)} />
           <Meta
             label="Status"
             value={
-              environment.token === null
-                ? 'Unpaired'
-                : isActive
-                  ? connectionStatusLabel(connection.kind)
-                  : 'Idle'
+              !environment.enabled
+                ? 'Inactive'
+                : environment.token === null
+                  ? 'Unpaired'
+                  : isCurrent
+                    ? connectionStatusLabel(connection.kind)
+                    : 'Idle'
             }
           />
         </View>
@@ -157,7 +161,7 @@ export function GroupDetail({
           </View>
         </View>
 
-        {!isActive && environment.token !== null ? (
+        {environment.enabled && !isCurrent && environment.token !== null ? (
           <Button
             testID="porcelain-settings-use-environment"
             variant="outline"
@@ -168,6 +172,17 @@ export function GroupDetail({
             <Text>Use this environment</Text>
           </Button>
         ) : null}
+
+        <Button
+          accessibilityLabel={
+            environment.enabled ? 'Deactivate environment' : 'Reactivate environment'
+          }
+          testID="porcelain-settings-toggle-environment"
+          variant="outline"
+          onPress={detail.toggleEnabled}
+        >
+          <Text>{environment.enabled ? 'Deactivate' : 'Reactivate'}</Text>
+        </Button>
       </View>
 
       {detail.writeError === null ? null : (

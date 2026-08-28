@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   environmentsFileSchema,
   hostOf,
+  isEnabled,
   isPaired,
   normalizeBaseUrl,
   parseEnvironmentsFile,
@@ -21,6 +22,7 @@ const RECORD = {
   preferredEndpoint: LAN,
   createdAt: 1_700_000_000_000,
   activeRepoPath: '/synthetic/repo',
+  enabled: true,
 }
 
 describe('parseEnvironmentsFile', () => {
@@ -55,6 +57,20 @@ describe('parseEnvironmentsFile', () => {
         JSON.stringify({ version: 1, activeId: RECORD.id, environments: [withoutIcon] }),
       ),
     ).toEqual({ status: 'corrupt' })
+  })
+
+  it('defaults the independent enabled state on legacy version-1 records', () => {
+    const { enabled: _enabled, ...legacyRecord } = RECORD
+    const parsed = parseEnvironmentsFile(
+      JSON.stringify({ version: 1, activeId: RECORD.id, environments: [legacyRecord] }),
+    )
+
+    expect(parsed).toEqual({
+      status: 'ok',
+      file: expect.objectContaining({
+        environments: [expect.objectContaining({ id: RECORD.id, enabled: true })],
+      }),
+    })
   })
 
   it('treats an incomplete version-1 record as corrupt', () => {
@@ -108,6 +124,14 @@ describe('isPaired', () => {
     expect(isPaired({ ...RECORD, token: null })).toBe(false)
     expect(isPaired(null)).toBe(false)
     expect(isPaired({ ...RECORD, token: 'pc_client_x' })).toBe(true)
+  })
+})
+
+describe('isEnabled', () => {
+  it('keeps inactive environments out of eligible selections', () => {
+    expect(isEnabled({ ...RECORD, enabled: true, token: null })).toBe(true)
+    expect(isEnabled({ ...RECORD, enabled: false, token: 'pc_client_x' })).toBe(false)
+    expect(isEnabled(null)).toBe(false)
   })
 })
 

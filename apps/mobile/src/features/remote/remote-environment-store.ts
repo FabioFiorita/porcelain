@@ -57,7 +57,10 @@ export function getEnvironment(id: EnvironmentId): Environment | null {
 
 export function useActiveEnvironment(): Environment | null {
   return environmentsStore(
-    (state) => state.environments.find((candidate) => candidate.id === state.activeId) ?? null,
+    (state) =>
+      state.environments.find(
+        (candidate) => candidate.id === state.activeId && candidate.enabled,
+      ) ?? null,
   )
 }
 
@@ -68,7 +71,7 @@ export function useEnvironmentsCorrupt(): boolean {
 
 export function activeEnvironment(): Environment | null {
   const { activeId, environments } = environmentsStore.getState()
-  return environments.find((candidate) => candidate.id === activeId) ?? null
+  return environments.find((candidate) => candidate.id === activeId && candidate.enabled) ?? null
 }
 
 /** Subscribe outside React (the provider drives bootstrap off this). */
@@ -123,7 +126,9 @@ async function hydrate(): Promise<void> {
     environments.push({ ...record, token: await readToken(record.id) })
   }
   const active =
-    environments.find((candidate) => candidate.id === file.activeId) ?? environments[0] ?? null
+    environments.find((candidate) => candidate.id === file.activeId && candidate.enabled) ??
+    environments.find((candidate) => candidate.enabled) ??
+    null
   environmentsStore.setState({
     activeId: active?.id ?? null,
     connection:
@@ -138,6 +143,7 @@ type EnvironmentActions = {
   addEndpoint(id: EnvironmentId, baseUrl: string): Promise<void>
   restoreToken(id: EnvironmentId, baseUrl: string, token: string): Promise<void>
   setIcon(id: EnvironmentId, icon: EnvironmentIcon): Promise<void>
+  setEnabled(id: EnvironmentId, enabled: boolean): Promise<void>
   rename(id: EnvironmentId, nickname: string): Promise<void>
   setActive(id: EnvironmentId): Promise<void>
   setActiveEndpoint(id: EnvironmentId, baseUrl: string): Promise<void>
@@ -170,6 +176,7 @@ export const environmentActions: EnvironmentActions = {
       activeRepoPath: null,
       baseUrl,
       createdAt: Date.now(),
+      enabled: true,
       endpoints: [baseUrl],
       id: randomUUID(),
       icon: 'desktop',
@@ -178,13 +185,18 @@ export const environmentActions: EnvironmentActions = {
       token: input.token,
     }
     await SecureStore.setItemAsync(tokenKey(environment.id), environment.token)
-    environmentsStore.setState((state) => ({
-      activeId: state.activeId ?? environment.id,
-      // A pairing that just succeeded is proof the index is readable again: the corrupt
-      // banner from a stale on-device blob must not survive next to a working environment.
-      corrupt: false,
-      environments: [...state.environments, environment],
-    }))
+    environmentsStore.setState((state) => {
+      const hasEnabledActive =
+        state.activeId !== null &&
+        state.environments.some((candidate) => candidate.id === state.activeId && candidate.enabled)
+      return {
+        activeId: hasEnabledActive ? state.activeId : environment.id,
+        // A pairing that just succeeded is proof the index is readable again: the corrupt
+        // banner from a stale on-device blob must not survive next to a working environment.
+        corrupt: false,
+        environments: [...state.environments, environment],
+      }
+    })
     await persist()
     return environment
   },
@@ -246,6 +258,27 @@ export const environmentActions: EnvironmentActions = {
     await persist()
   },
 
+  async setEnabled(id: EnvironmentId, enabled: boolean): Promise<void> {
+    const environment = environmentsStore
+      .getState()
+      .environments.find((candidate) => candidate.id === id)
+    if (environment === undefined) throw new Error('That environment no longer exists')
+
+    environmentsStore.setState((state) => {
+      const environments = state.environments.map((candidate) =>
+        candidate.id === id ? { ...candidate, enabled } : candidate,
+      )
+      if (enabled || state.activeId !== id) return { environments }
+      const next = environments.find((candidate) => candidate.enabled) ?? null
+      return {
+        activeId: next?.id ?? null,
+        connection: connectionFor(next),
+        environments,
+      }
+    })
+    await persist()
+  },
+
   async rename(id: EnvironmentId, nickname: string): Promise<void> {
     environmentsStore.setState((state) => ({
       environments: state.environments.map((candidate) =>
@@ -257,7 +290,8 @@ export const environmentActions: EnvironmentActions = {
 
   async setActive(id: EnvironmentId): Promise<void> {
     const next = environmentsStore.getState().environments.find((candidate) => candidate.id === id)
-    environmentsStore.setState({ activeId: id, connection: connectionFor(next ?? null) })
+    if (next === undefined || !next.enabled) return
+    environmentsStore.setState({ activeId: id, connection: connectionFor(next) })
     await persist()
   },
 
@@ -338,7 +372,7 @@ export const environmentActions: EnvironmentActions = {
     environmentsStore.setState((state) => {
       const environments = state.environments.filter((candidate) => candidate.id !== id)
       if (state.activeId !== id) return { environments }
-      const next = environments[0] ?? null
+      const next = environments.find((candidate) => candidate.enabled) ?? null
       return { activeId: next?.id ?? null, connection: connectionFor(next), environments }
     })
     await SecureStore.deleteItemAsync(tokenKey(id))

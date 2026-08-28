@@ -9,7 +9,7 @@ import { SurfaceScroll } from '@/components/surface-scroll'
 import { Input } from '@/components/ui/input'
 import { Text } from '@/components/ui/text'
 import { useHubInventories } from '@/features/projects'
-import { isPaired, useEnvironments } from '@/features/remote'
+import { isEnabled, isPaired, useEnvironments } from '@/features/remote'
 import { SheetAction, SheetBar } from '@/features/shell/sheet-bar'
 import { cn } from '@/lib/utils'
 
@@ -39,7 +39,7 @@ import { newWorktreeRequest, newWorktreeTarget, showsEnvironmentPicker } from '.
  */
 export function NewWorktreeSheet(): React.JSX.Element {
   const router = useRouter()
-  const environments = useEnvironments().filter(isPaired)
+  const environments = useEnvironments().filter(isEnabled).filter(isPaired)
   const inventories = useHubInventories()
   const actions = useCreateHubWorktree()
   const [chosen, setChosen] = useState<string | undefined>(undefined)
