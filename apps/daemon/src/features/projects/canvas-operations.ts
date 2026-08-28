@@ -321,7 +321,7 @@ export function createCanvasOperations(options: {
 
     async readCanvasAsset(input) {
       const resolved = await resolveEntry(input)
-      if (!resolved.ok || resolved.value.entry.record.kind !== 'html') return notFound()
+      if (!resolved.ok || resolved.value.entry.record.kind === 'markdown') return notFound()
       const root = await realpath(resolved.value.entry.bundleDir).catch(() => null)
       if (root === null || isAbsolute(input.assetPath) || input.assetPath.includes('\0'))
         return notFound()
