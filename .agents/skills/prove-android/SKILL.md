@@ -12,12 +12,28 @@ The emulator is the cheaper mobile surface on Linux — it runs headless on this
 needs a Mac. `scripts/mobile-android-loop.sh` is the driver; its header comments list every command
 and environment input, so read the script rather than a copy of it here.
 
+## Device boundary
+
+This machine has two personal AVDs for Android proof: `phone` and `tablet`. Run exactly one at a
+time, and select the form factor explicitly when it matters:
+
+```sh
+ANDROID_LOOP_AVD=phone pnpm dev:mobile:android up
+ANDROID_LOOP_AVD=tablet pnpm dev:mobile:android up
+```
+
+Do not create or use another AVD name. The personal profile owns the adb server on
+`127.0.0.1:5037`; never run `adb kill-server`, because another profile may be using that server.
+The mutating loop commands take `/tmp/android-device-lock/device.lock` so only one run drives the device at a
+time. A second profile participating in the same device workflow must be configured to use this
+same lock path; the lock is host-wide, not per-user.
+
 ## The loop
 
 ```sh
 pnpm dev:mobile                                      # profile Metro, background
 pnpm dev:mobile:android preflight                    # package, Metro, emulator, foreground app
-pnpm dev:mobile:android up                           # boot/reuse AVD, reverse Metro, launch client
+ANDROID_LOOP_AVD=phone pnpm dev:mobile:android up   # boot/reuse one AVD, reverse Metro, launch client
 pnpm dev:mobile:android ui                           # visible testIDs, labels, bounds, actions
 pnpm dev:mobile:android tap <testID-or-label>
 pnpm dev:mobile:android shot /tmp/porcelain-android.png
@@ -55,7 +71,9 @@ the flag set. Go back to plain `up` (no `ANDROID_LOOP_WINDOW`) once the human is
 
 `up` deep-links `porcelain-dev://` into an installed development build. A cold-booted AVD that
 never saved a snapshot has none, and `up` then leaves the launcher in the foreground with nothing
-in the log to say why. Install one and let it install to the running emulator:
+in the log to say why. Install one and let it install to the running emulator. These commands build
+Porcelain's own development client; they belong to this project and are separate from SOAP Health's
+build/Metro workflow:
 
 ```sh
 APP_VARIANT=development pnpm --dir apps/mobile android:build   # local Gradle build, ~6 min cold
@@ -72,6 +90,11 @@ JavaScript-only change needs nothing but Metro.
   checkout, so main and managed worktrees do not share Metro process state. `adb logcat -b crash`
   carries the real error whenever the app dies at launch.
 - **Export `ANDROID_HOME`.** `~/Android/Sdk` here; `adb` and `emulator` live under it.
+- **Keep the device set small.** Use only `phone` or `tablet`, and never run both at once. If no
+  device is ready, ask the personal profile to start one.
+- **Do not kill adb.** Never run `adb kill-server`; the adb server is shared across profiles.
+- **Do not delete the device lock.** `/tmp/android-device-lock/device.lock` is a live `flock` lock, not an AVD
+  stale-lock file.
 - **An emulator you did not boot belongs to someone else.** Run `adb devices` before `up`, and let
   `down` stop only the one this loop booted.
 - **Stale locks self-heal.** An emulator killed ungracefully (crashed session, host restart) can

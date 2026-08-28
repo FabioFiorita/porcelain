@@ -28,6 +28,8 @@
 #   ANDROID_LOOP_SERIAL=<serial>
 #   ANDROID_LOOP_WINDOW=1         show the emulator window instead of headless mode
 #   ANDROID_LOOP_EMULATOR_ARGS='...'
+#   ANDROID_LOOP_LOCK_FILE=<path> shared one-driver lock (default: /tmp/android-device-lock/device.lock)
+#   ANDROID_LOOP_LOCK_WAIT=<seconds> how long mutators wait for that lock
 #   ANDROID_LOOP_STATE_DIR=<temp directory for ownership state>
 #   ADB_BIN=<adb path>, EMULATOR_BIN=<emulator path>
 set -euo pipefail
@@ -41,6 +43,8 @@ METRO_PORT="${METRO_PORT:-8081}"
 STATE_DIR="${ANDROID_LOOP_STATE_DIR:-${TMPDIR:-/tmp}/porcelain-android-loop-${UID:-$(id -u)}}"
 STATE_FILE="$STATE_DIR/state"
 EMULATOR_LOG="$STATE_DIR/emulator.log"
+LOCK_FILE="${ANDROID_LOOP_LOCK_FILE:-/tmp/android-device-lock/device.lock}"
+LOCK_WAIT="${ANDROID_LOOP_LOCK_WAIT:-300}"
 
 ADB_BIN="${ADB_BIN:-}"
 EMULATOR_BIN="${EMULATOR_BIN:-}"
@@ -89,6 +93,29 @@ state_write() {
   local owned="$2"
   mkdir -p "$STATE_DIR"
   printf 'serial=%s\nowned=%s\nreverse=1\npackage=%s\n' "$serial" "$owned" "$PACKAGE" >"$STATE_FILE"
+}
+
+hold_device_lock() {
+  have flock || die "flock is required for the single-driver lock"
+  local lock_dir
+  lock_dir="$(dirname -- "$LOCK_FILE")"
+  mkdir -p "$lock_dir" || die "cannot create shared device lock directory $lock_dir"
+  if [[ "$LOCK_FILE" == "/tmp/android-device-lock/device.lock" ]]; then
+    chgrp kvm "$lock_dir" 2>/dev/null || true
+    chmod 2770 "$lock_dir" 2>/dev/null || true
+  fi
+  [[ -r "$lock_dir" && -w "$lock_dir" && -x "$lock_dir" ]] || die "shared device lock directory is not accessible: $lock_dir"
+  local old_umask
+  old_umask="$(umask)"
+  umask 000
+  if ! exec 9>>"$LOCK_FILE"; then
+    umask "$old_umask"
+    die "cannot open shared device lock $LOCK_FILE"
+  fi
+  umask "$old_umask"
+  chmod 0660 "$LOCK_FILE" 2>/dev/null || true
+  flock -w "$LOCK_WAIT" 9 \
+    || die "another Android run has held $LOCK_FILE for ${LOCK_WAIT}s"
 }
 
 running_serials() {
@@ -156,13 +183,25 @@ clear_stale_locks() {
   [[ "${#removed[@]}" -eq 0 ]] || echo "cleared stale lock(s) for AVD '$avd': ${removed[*]}" >&2
 }
 
+running_emulator_process() {
+  ps -eo comm=,args= 2>/dev/null \
+    | awk '$1 ~ /^qemu-system/ { print; found=1 } END { exit 0 }'
+}
+
 boot_emulator() {
   local avd="${ANDROID_LOOP_AVD:-}"
   [[ -n "$avd" ]] || avd="$($EMULATOR_BIN -list-avds 2>/dev/null | grep -v '^INFO' | head -n 1 || true)"
   [[ -n "$avd" ]] || die "no Android AVD found; set ANDROID_LOOP_AVD or create one"
+  case "$avd" in
+    phone|tablet) ;;
+    *) die "unsupported Android AVD '$avd'; use phone or tablet" ;;
+  esac
 
   if pgrep -fa "emulator.*-avd[ =]$avd([[:space:]]|$)" >/dev/null 2>&1; then
     die "an emulator process for AVD '$avd' already exists but adb does not show it; resolve that before booting another"
+  fi
+  if [[ -n "$(running_emulator_process)" ]]; then
+    die "another Android emulator is already running; stop it before booting '$avd'"
   fi
 
   # No live process for this AVD (checked above): any lock files left on disk
@@ -185,7 +224,7 @@ boot_emulator() {
 
   mkdir -p "$STATE_DIR"
   echo "booting AVD '$avd'..." >&2
-  nohup "$EMULATOR_BIN" "${args[@]}" >"$EMULATOR_LOG" 2>&1 < /dev/null &
+  nohup "$EMULATOR_BIN" "${args[@]}" >"$EMULATOR_LOG" 2>&1 9>&- < /dev/null &
 
   local attempt
   for attempt in $(seq 1 90); do
@@ -497,6 +536,10 @@ cmd_down() {
   fi
   rm -f "$STATE_FILE"
 }
+
+case "${1:-}" in
+  up|tap|xy|swipe|text|key|down) hold_device_lock ;;
+esac
 
 case "${1:-}" in
   preflight) shift; cmd_preflight "$@" ;;
