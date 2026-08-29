@@ -1,13 +1,11 @@
 import {
   decisionCanvasTemplateDataSchema,
-  planCanvasTemplateDataSchema,
-  reviewCanvasTemplateDataSchema,
   structuredCanvasDocumentSchema,
   structuredCanvasValidationMessage,
 } from '@porcelain/contracts/projects'
 import type { McpToolHandlers, McpToolResult } from './mcp-dispatch'
 import type { McpOperations } from './mcp-operations'
-import { decisionBundleSource, planBundleSource, reviewBundleSource } from './mcp-review'
+import { decisionBundleSource } from './mcp-canvas'
 import {
   isWorkspaceRef,
   type ResolvedWorkspace,
@@ -91,7 +89,7 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
         title: string
         kind: 'html' | 'markdown' | 'structured'
         entryFile: string
-        template?: 'review' | 'plan' | 'decision'
+        template?: 'decision'
         source: import('../../features/projects').CanvasBundleSource
       }
     | { ok: false; result: McpToolResult }
@@ -141,19 +139,13 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
     const templateData = args.templateData
     if (templateData !== undefined) {
       const template = args.template
-      const schema =
-        template === 'review'
-          ? reviewCanvasTemplateDataSchema
-          : template === 'plan'
-            ? planCanvasTemplateDataSchema
-            : decisionCanvasTemplateDataSchema
-      if (template !== 'review' && template !== 'plan' && template !== 'decision') {
+      if (template !== 'decision') {
         return {
           ok: false,
-          result: fail('template must be review, plan, or decision when templateData is provided.'),
+          result: fail('template must be decision when templateData is provided.'),
         }
       }
-      const parsed = schema.safeParse(templateData)
+      const parsed = decisionCanvasTemplateDataSchema.safeParse(templateData)
       if (!parsed.success) {
         return {
           ok: false,
@@ -162,13 +154,7 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
           ),
         }
       }
-      const assetsDir = stringField(args, 'sourceDir')
-      const source =
-        template === 'review'
-          ? reviewBundleSource(reviewCanvasTemplateDataSchema.parse(parsed.data), assetsDir)
-          : template === 'plan'
-            ? planBundleSource(planCanvasTemplateDataSchema.parse(parsed.data), assetsDir)
-            : decisionBundleSource(decisionCanvasTemplateDataSchema.parse(parsed.data))
+      const source = decisionBundleSource(decisionCanvasTemplateDataSchema.parse(parsed.data))
       return {
         ok: true,
         title: parsed.data.title,
@@ -436,7 +422,7 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
           ? ok('Project profile pins and hides promoted to .porcelain/project.json.')
           : fail(`Could not promote the profile: ${describeError(promoted.error)}`)
       }
-      return fail('op must be get or promote; review layers belong to a Review Canvas.')
+      return fail('op must be get or promote; the profile contains only manual pins and hides.')
     },
 
     async porcelain_action(args, place) {

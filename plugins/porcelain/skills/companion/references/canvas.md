@@ -1,77 +1,14 @@
-# Canvas and templates
+# Canvas
 
-Canvas is Porcelain's authored surface. Use `porcelain_canvas` for all Canvas operations; there
-is no separate Review or promotion entry point.
+Canvas is Porcelain's authored thinking surface. Use `porcelain_canvas` for every operation; there
+is no separate Decision or promotion entry point.
 
-## Generic Canvas
+## Decision flow
 
-Create from bundle files:
-
-```jsonc
-{
-  "op": "create",
-  "workspace": "/abs/path/to/checkout",
-  "title": "Release evidence",
-  "kind": "markdown",
-  "files": [{ "path": "index.md", "content": "# Checks\n" }]
-}
-```
-
-An HTML Canvas can include relative CSS, JavaScript, and media in the bundle. `sourceDir` is a
-daemon-host directory alternative when the bundle already exists on disk. Use `get` to read the
-authoritative content and `list` to see private/tracked records.
-
-### Structured Canvas
-
-Prefer the versioned structured document when the content fits a small set of named views. It uses
-the same renderer for built-in templates and custom Canvases:
-
-```jsonc
-{
-  "op": "create",
-  "workspace": "/abs/path/to/checkout",
-  "document": {
-    "version": 1,
-    "title": "Architecture decision",
-    "tabs": [
-      {
-        "id": "why",
-        "label": "Why",
-        "blocks": [{ "type": "markdown", "content": "# Context\nThe current seam leaks." }]
-      },
-      {
-        "id": "how",
-        "label": "How",
-        "blocks": [
-          { "type": "html", "content": "<figure>...</figure>", "height": 360 }
-        ]
-      }
-    ],
-    "assets": [
-      { "type": "image", "path": "assets/result.png", "alt": "Result after the change" }
-    ]
-  },
-  "sourceDir": "/abs/path/to/bundle-assets"
-}
-```
-
-Version 1 allows one to four tabs, tab labels up to 24 characters, and Markdown or sandboxed HTML
-blocks. Put image and video collections in `assets` instead of creating more content tabs; asset
-paths are bundle-relative and resolve from the optional `sourceDir`. The daemon rejects malformed
-documents before persistence with the failing field path, and clients validate tracked documents
-again before rendering them. A video may include a bundle-relative `captionsPath` pointing to a
-WebVTT captions file.
-
-Version 2 is the semantic Decision/RFC document compiled by the `decision` template below. It is
-an explicit new version: version-1 custom, Plan, and Review documents retain their existing shape
-and renderer. Do not rewrite version-1 documents merely to update them.
-
-## Decision / RFC template
-
-Use one concise semantic payload. Porcelain supplies the theme, responsive layout, bounded views,
-and comparison presentation; do not send HTML or CSS. `path` values are repository-relative and
-may include a 1-based `line`. They identify or open relevant files but never mark them reviewed or
-replace the Changes diff.
+Create one Decision Canvas when a material choice appears. Keep its returned `id`, update that same
+Canvas as evidence changes, and add `decision` only after the human chooses. Porcelain owns theme,
+responsive layout, navigation, and comparison presentation; the payload contains meaning, never
+HTML or CSS.
 
 ```jsonc
 {
@@ -81,32 +18,65 @@ replace the Changes diff.
   "templateData": {
     "title": "Choose the Canvas document model",
     "summary": "Select the authoring contract for decision-oriented Canvases.",
-    "context": "Version 1 already supports bounded Markdown and compatibility HTML tabs.",
-    "references": [{ "path": "packages/contracts/src/projects/structured-canvas.contract.ts", "line": 1 }],
+    "context": "Agents provide meaning while Porcelain owns presentation.",
+    "references": [
+      {
+        "path": "packages/contracts/src/projects/structured-canvas.contract.ts",
+        "line": 1
+      }
+    ],
     "options": [
       {
         "id": "semantic",
         "name": "Semantic contract",
-        "summary": "Agents provide meaning and Porcelain owns presentation.",
+        "summary": "Agents provide meaning and Porcelain renders it.",
         "pros": ["Responsive and theme-aware by default"],
-        "cons": ["Adds a versioned contract"],
-        "risks": [{ "summary": "Clients drift", "severity": "medium", "mitigation": "Share the contract" }],
+        "cons": ["Clients must implement the shared contract"],
+        "risks": [
+          {
+            "summary": "Client rendering drifts",
+            "severity": "medium",
+            "mitigation": "Consume the shared contract"
+          }
+        ],
         "effort": "Medium",
-        "references": [{ "path": "apps/web/src/features/projects/structured-canvas-view.tsx" }]
+        "references": [
+          { "path": "apps/web/src/features/projects/decision-canvas-view.tsx" }
+        ]
       },
-      { "id": "html", "name": "Raw HTML", "summary": "Agents own the complete presentation." }
+      {
+        "id": "prose",
+        "name": "Prose document",
+        "summary": "Agents explain the choice without structured comparison."
+      }
     ],
-    "criteria": [{ "id": "responsive", "label": "Responsive layout" }],
+    "criteria": [
+      {
+        "id": "responsive",
+        "label": "Responsive layout",
+        "description": "Readable at desktop and phone widths."
+      }
+    ],
     "assessments": [
-      { "optionId": "semantic", "criterionId": "responsive", "rating": "strong", "note": "The client adapts one meaning." },
-      { "optionId": "html", "criterionId": "responsive", "rating": "fair", "note": "Quality depends on authored CSS." }
+      {
+        "optionId": "semantic",
+        "criterionId": "responsive",
+        "rating": "strong",
+        "note": "The client adapts one meaning."
+      },
+      {
+        "optionId": "prose",
+        "criterionId": "responsive",
+        "rating": "fair",
+        "note": "The structure is implicit."
+      }
     ],
     "recommendation": {
       "optionId": "semantic",
-      "summary": "Adopt the semantic contract.",
+      "summary": "Use the semantic contract.",
       "rationale": ["It keeps presentation product-owned."],
       "confidence": "high",
-      "assumptions": ["Clients continue consuming shared contracts."],
+      "assumptions": ["Clients consume the shared contract."],
       "changeConditions": ["A required decision primitive cannot be represented."]
     }
   }
@@ -114,162 +84,30 @@ replace the Changes diff.
 ```
 
 `options` accepts two to six named options. Ratings are `poor`, `fair`, `good`, or `strong`.
-To record the accepted outcome later, call `op: "update"` with the Canvas `id`, the complete
-template payload, and optional `decision: { optionId?, summary, rationale?, references? }`.
+Repository references use repository-relative `path` values and may include a 1-based `line`.
+They identify relevant code; Changes remains the owner of diffs, status, staging, reviewed state,
+and history.
 
-### HTML presentation
-
-Make HTML Canvases self-contained and intentional: include base CSS in the bundle, set explicit
-foreground and background colors, and style the document rather than relying on browser defaults.
-Use CSS custom properties with `prefers-color-scheme` so the Canvas stays legible in both client
-themes. Keep screenshots and videos within their container to prevent horizontal overflow.
-
-Adapt this starter to the content instead of treating its exact colors or spacing as a fixed
-design system:
-
-```css
-:root {
-  color-scheme: light dark;
-  --canvas-bg: #f5f1e8;
-  --canvas-panel: #fffaf0;
-  --canvas-text: #29241f;
-  --canvas-muted: #6f665c;
-  --canvas-border: #d9d0c3;
-  --canvas-accent: #7c3aed;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --canvas-bg: #181614;
-    --canvas-panel: #211e1b;
-    --canvas-text: #f3eee7;
-    --canvas-muted: #b8aea3;
-    --canvas-border: #3b3530;
-    --canvas-accent: #a78bfa;
-  }
-}
-
-* { box-sizing: border-box; }
-
-html, body { margin: 0; min-height: 100%; }
-
-body {
-  background: var(--canvas-bg);
-  color: var(--canvas-text);
-  font: 15px/1.6 system-ui, sans-serif;
-}
-
-.canvas {
-  width: min(100% - 2rem, 72rem);
-  margin-inline: auto;
-  padding-block: 2rem 4rem;
-}
-
-h1, h2, h3 { line-height: 1.2; }
-p, li { max-width: 75ch; }
-.muted { color: var(--canvas-muted); }
-
-.checkpoint {
-  margin-block: 1rem;
-  padding: 1rem;
-  border: 1px solid var(--canvas-border);
-  border-left: 0.25rem solid var(--canvas-accent);
-  border-radius: 0.75rem;
-  background: var(--canvas-panel);
-}
-
-img, video {
-  display: block;
-  max-width: 100%;
-  height: auto;
-  border-radius: 0.5rem;
-}
-```
-
-Place the CSS in a bundled stylesheet or an inline `<style>` element; avoid runtime dependencies
-for presentation that should render consistently in browser, Electron, and mobile clients.
-
-## Review template
-
-Review is structured Canvas content, not a separate domain:
+To record the outcome, repeat the complete create call above with `"op": "update"`, the returned
+`"id"`, and this additional field inside `templateData`:
 
 ```jsonc
-{
-  "op": "create",
-  "workspace": "/abs/path/to/checkout",
-  "template": "review",
-  "templateData": {
-    "title": "Fix the save boundary",
-    "why": [
-      { "type": "markdown", "content": "# Why\nThe missing record reached persistence." }
-    ],
-    "how": [
-      { "type": "markdown", "content": "# How\nGuard the lookup before writing." }
-    ],
-    "layers": [
-      { "label": "Contract", "pattern": "packages/contracts/" },
-      { "label": "Daemon", "pattern": "apps/daemon/" }
-    ],
-    "files": [{ "path": "src/save.ts", "source": "changed", "note": "guard" }],
-    "assets": [{ "type": "image", "path": "assets/result.png", "alt": "Passing save flow" }]
-  }
+"decision": {
+  "optionId": "semantic",
+  "summary": "Adopt the semantic contract.",
+  "rationale": ["It keeps one authoring and rendering path."],
+  "references": [{ "path": "packages/contracts/src/projects/structured-canvas.contract.ts" }]
 }
 ```
 
-Every `create` produces a new Review Canvas scoped to the Worktree named by `workspace`; parallel
-reviews can therefore coexist in one Project. Keep the returned Canvas id and use `update` with
-that id for later changes to the same review. Never use `create` as an upsert. `layers` orders the
-Changes/History narrative only for this Review; a later Review in the same Worktree starts with its
-own order and does not inherit this one.
+## Lifecycle
 
-The Review Canvas always has **Why** and **How** content tabs. It has no Execution tab: `layers`
-orders the changed files while the Canvas explains them. Evidence belongs in the shared Assets
-gallery; provide its bundle files with `sourceDir`.
-
-## Plan template
-
-Plan uses the same structured renderer but lets the agent choose the bounded tabs:
-
-```jsonc
-{
-  "op": "create",
-  "workspace": "/abs/path/to/checkout",
-  "template": "plan",
-  "templateData": {
-    "title": "Pairing migration",
-    "tabs": [
-      {
-        "id": "approach",
-        "label": "Approach",
-        "blocks": [{ "type": "markdown", "content": "# Sequence\n1. Add the seam." }]
-      },
-      {
-        "id": "risks",
-        "label": "Risks",
-        "blocks": [{ "type": "html", "content": "<table>...</table>", "height": 320 }]
-      }
-    ],
-    "assets": []
-  }
-}
-```
-
-Plan tab count, labels, blocks, and Assets use the same limits as a custom structured Canvas. Use a
-custom `document` instead when Review or Plan does not fit; conforming content needs no renderer
-change.
-
-## Persistence and promotion
-
-Private Canvases live in the daemon's own store. Review Canvases are listed only with their
-Worktree review context; generic Canvases remain Project-wide. `promote` writes a bundle to:
+Private Canvases live in daemon state. `promote` writes the selected Canvas to:
 
 ```text
 .porcelain/canvases/<canvas-id>/
 ```
 
-Promotion never stages or commits. The tracked bundle is canonical for that checkout: `list` and
-`get` read it, updates rewrite it, and `delete` removes it. A successful promotion removes the
-private source so a stale duplicate cannot reappear.
-
-Keep authored content self-contained and safe to receive from Git. Never claim Evidence that was
-not actually observed.
+Promotion never stages or commits. The tracked bundle becomes canonical for that checkout: `list`
+and `get` read it, updates rewrite it, and `delete` removes it. Keep secrets out of Canvas and only
+record evidence that was actually observed.

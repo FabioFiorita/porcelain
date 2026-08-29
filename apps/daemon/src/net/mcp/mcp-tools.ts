@@ -33,13 +33,6 @@ const WORKSPACE = {
   ],
 } as const
 
-const PROFILE_LAYER = {
-  type: 'object',
-  properties: { label: { type: 'string' }, pattern: { type: 'string' } },
-  required: ['label', 'pattern'],
-  additionalProperties: false,
-} as const
-
 const CANVAS_FILE = {
   type: 'object',
   properties: {
@@ -47,83 +40,6 @@ const CANVAS_FILE = {
     content: { type: 'string' },
   },
   required: ['path', 'content'],
-  additionalProperties: false,
-} as const
-
-const STRUCTURED_BLOCK = {
-  oneOf: [
-    {
-      type: 'object',
-      properties: { type: { const: 'markdown' }, content: { type: 'string' } },
-      required: ['type', 'content'],
-      additionalProperties: false,
-    },
-    {
-      type: 'object',
-      properties: {
-        type: { const: 'html' },
-        content: { type: 'string' },
-        height: { type: 'integer', minimum: 160, maximum: 1200 },
-      },
-      required: ['type', 'content'],
-      additionalProperties: false,
-    },
-  ],
-} as const
-
-const STRUCTURED_ASSET = {
-  oneOf: [
-    {
-      type: 'object',
-      properties: {
-        type: { const: 'image' },
-        path: { type: 'string' },
-        alt: { type: 'string' },
-        caption: { type: 'string' },
-      },
-      required: ['type', 'path', 'alt'],
-      additionalProperties: false,
-    },
-    {
-      type: 'object',
-      properties: {
-        type: { const: 'video' },
-        path: { type: 'string' },
-        label: { type: 'string' },
-        caption: { type: 'string' },
-        captionsPath: { type: 'string' },
-      },
-      required: ['type', 'path', 'label'],
-      additionalProperties: false,
-    },
-  ],
-} as const
-
-const STRUCTURED_TAB = {
-  type: 'object',
-  properties: {
-    id: { type: 'string', pattern: '^[a-z0-9][a-z0-9-]*$' },
-    label: { type: 'string', minLength: 1, maxLength: 24 },
-    blocks: { type: 'array', minItems: 1, maxItems: 16, items: STRUCTURED_BLOCK },
-  },
-  required: ['id', 'label', 'blocks'],
-  additionalProperties: false,
-} as const
-
-const STRUCTURED_CANVAS_V1 = {
-  type: 'object',
-  properties: {
-    version: { const: 1 },
-    title: { type: 'string', minLength: 1, maxLength: 120 },
-    tabs: {
-      type: 'array',
-      minItems: 1,
-      maxItems: 4,
-      items: STRUCTURED_TAB,
-    },
-    assets: { type: 'array', maxItems: 64, items: STRUCTURED_ASSET },
-  },
-  required: ['version', 'title', 'tabs'],
   additionalProperties: false,
 } as const
 
@@ -236,7 +152,7 @@ const DECISION_TEMPLATE = {
   additionalProperties: false,
 } as const
 
-const STRUCTURED_CANVAS_V2 = {
+const STRUCTURED_CANVAS = {
   ...DECISION_TEMPLATE,
   properties: {
     version: { const: 2 },
@@ -253,45 +169,6 @@ const STRUCTURED_CANVAS_V2 = {
     'assessments',
     'recommendation',
   ],
-} as const
-
-const STRUCTURED_CANVAS = { oneOf: [STRUCTURED_CANVAS_V1, STRUCTURED_CANVAS_V2] } as const
-
-const REVIEW_FILE = {
-  type: 'object',
-  properties: {
-    path: { type: 'string' },
-    source: { enum: ['changed', 'context', 'shipped'] },
-    note: { type: 'string' },
-    layer: { type: 'string' },
-  },
-  required: ['path'],
-  additionalProperties: false,
-} as const
-
-const REVIEW_TEMPLATE = {
-  type: 'object',
-  properties: {
-    title: { type: 'string', minLength: 1, maxLength: 120 },
-    why: { type: 'array', minItems: 1, maxItems: 16, items: STRUCTURED_BLOCK },
-    how: { type: 'array', minItems: 1, maxItems: 16, items: STRUCTURED_BLOCK },
-    layers: { type: 'array', items: PROFILE_LAYER },
-    files: { type: 'array', items: REVIEW_FILE },
-    assets: { type: 'array', maxItems: 64, items: STRUCTURED_ASSET },
-  },
-  required: ['title', 'why', 'how'],
-  additionalProperties: false,
-} as const
-
-const PLAN_TEMPLATE = {
-  type: 'object',
-  properties: {
-    title: { type: 'string', minLength: 1, maxLength: 120 },
-    tabs: { type: 'array', minItems: 1, maxItems: 4, items: STRUCTURED_TAB },
-    assets: { type: 'array', maxItems: 64, items: STRUCTURED_ASSET },
-  },
-  required: ['title', 'tabs'],
-  additionalProperties: false,
 } as const
 
 const COMMENT = {
@@ -327,7 +204,7 @@ export const MCP_TOOLS: readonly McpToolDefinition[] = Object.freeze([
     name: 'porcelain_canvas',
     title: 'Manage a Canvas',
     description:
-      'List, read, create, update, delete, or promote an agent-authored Canvas. Prefer the semantic decision template for RFCs and choices; Porcelain renders its options, comparison, recommendation, and optional recorded decision. Custom version-1 documents, review, and plan remain supported, including compatibility HTML blocks. Decision file references open relevant repository files but never own diffs or reviewed state. Each Review create is scoped to the addressed Worktree, and update requires its id. Promotion writes files but never stages or commits.',
+      'List, read, create, update, delete, or promote an agent-authored Canvas. Use the semantic decision template for RFCs and choices; Porcelain renders its options, comparison, recommendation, and optional recorded decision. Decision file references open relevant repository files but never own diffs or reviewed state. Promotion writes files but never stages or commits.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -347,8 +224,8 @@ export const MCP_TOOLS: readonly McpToolDefinition[] = Object.freeze([
           type: 'boolean',
           description: 'Create or update directly in the tracked checkout overlay',
         },
-        template: { enum: ['review', 'plan', 'decision'] },
-        templateData: { oneOf: [REVIEW_TEMPLATE, PLAN_TEMPLATE, DECISION_TEMPLATE] },
+        template: { const: 'decision' },
+        templateData: DECISION_TEMPLATE,
       },
       required: ['op', 'workspace'],
       additionalProperties: false,
@@ -380,7 +257,7 @@ export const MCP_TOOLS: readonly McpToolDefinition[] = Object.freeze([
     name: 'porcelain_profile',
     title: 'Manage the Repository Profile',
     description:
-      'Read the manual project navigation profile or promote its portable pins/hides to .porcelain/project.json. Review layers belong to each Review Canvas, never to a persistent profile.',
+      'Read the manual project navigation profile or promote its portable pins/hides to .porcelain/project.json. Canvas presentation never persists in this profile.',
     inputSchema: {
       type: 'object',
       properties: {

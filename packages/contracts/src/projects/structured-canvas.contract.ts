@@ -1,94 +1,7 @@
 import { z } from 'zod'
 
-/** Existing generic/Plan/Review structured document version. Kept stable for source compatibility. */
-export const STRUCTURED_CANVAS_VERSION = 1 as const
-/** Semantic Decision/RFC document version. */
-export const STRUCTURED_CANVAS_SEMANTIC_VERSION = 2 as const
-export const STRUCTURED_CANVAS_MAX_TABS = 4
-export const STRUCTURED_CANVAS_MAX_TAB_LABEL_LENGTH = 24
-export const STRUCTURED_CANVAS_MAX_BLOCKS_PER_TAB = 16
-export const STRUCTURED_CANVAS_MAX_ASSETS = 64
-
-const bundlePathSchema = z
-  .string()
-  .min(1)
-  .max(512)
-  .refine(
-    (path) =>
-      !path.startsWith('/') &&
-      !path.includes('\\') &&
-      !path.split('/').some((segment) => segment === '' || segment === '.' || segment === '..'),
-    { message: 'must be a confined bundle-relative path' },
-  )
-
-export const structuredCanvasBlockSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('markdown'), content: z.string().min(1).max(250_000) }).strict(),
-  z
-    .object({
-      type: z.literal('html'),
-      content: z.string().min(1).max(250_000),
-      height: z.number().int().min(160).max(1200).optional(),
-    })
-    .strict(),
-])
-export type StructuredCanvasBlock = z.infer<typeof structuredCanvasBlockSchema>
-
-export const structuredCanvasTabSchema = z
-  .object({
-    id: z
-      .string()
-      .min(1)
-      .max(32)
-      .regex(/^[a-z0-9][a-z0-9-]*$/),
-    label: z.string().min(1).max(STRUCTURED_CANVAS_MAX_TAB_LABEL_LENGTH),
-    blocks: z.array(structuredCanvasBlockSchema).min(1).max(STRUCTURED_CANVAS_MAX_BLOCKS_PER_TAB),
-  })
-  .strict()
-export type StructuredCanvasTab = z.infer<typeof structuredCanvasTabSchema>
-
-export const structuredCanvasAssetSchema = z.discriminatedUnion('type', [
-  z
-    .object({
-      type: z.literal('image'),
-      path: bundlePathSchema,
-      alt: z.string().min(1).max(160),
-      caption: z.string().max(500).optional(),
-    })
-    .strict(),
-  z
-    .object({
-      type: z.literal('video'),
-      path: bundlePathSchema,
-      label: z.string().min(1).max(160),
-      caption: z.string().max(500).optional(),
-      captionsPath: bundlePathSchema.optional(),
-    })
-    .strict(),
-])
-export type StructuredCanvasAsset = z.infer<typeof structuredCanvasAssetSchema>
-
-export const structuredCanvasV1DocumentSchema = z
-  .object({
-    version: z.literal(STRUCTURED_CANVAS_VERSION),
-    title: z.string().min(1).max(120),
-    tabs: z.array(structuredCanvasTabSchema).min(1).max(STRUCTURED_CANVAS_MAX_TABS),
-    assets: z.array(structuredCanvasAssetSchema).max(STRUCTURED_CANVAS_MAX_ASSETS).default([]),
-  })
-  .strict()
-  .superRefine((document, context) => {
-    const ids = new Set<string>()
-    document.tabs.forEach((tab, index) => {
-      if (ids.has(tab.id)) {
-        context.addIssue({
-          code: 'custom',
-          message: `duplicate tab id: ${tab.id}`,
-          path: ['tabs', index, 'id'],
-        })
-      }
-      ids.add(tab.id)
-    })
-  })
-export type StructuredCanvasV1Document = z.infer<typeof structuredCanvasV1DocumentSchema>
+/** The only structured Canvas contract accepted by Porcelain. */
+export const STRUCTURED_CANVAS_VERSION = 2 as const
 
 export const canvasFileReferenceSchema = z
   .object({
@@ -183,12 +96,12 @@ export const recordedDecisionSchema = z
 export type RecordedDecision = z.infer<typeof recordedDecisionSchema>
 
 /**
- * Version 2 is semantic and presentation-free. Clients own navigation, comparison layout, and
+ * The structured contract is semantic and presentation-free. Clients own navigation, layout, and
  * theme; authors supply decision meaning and repository references, never HTML or CSS.
  */
-export const structuredCanvasV2DocumentSchema = z
+export const structuredCanvasDocumentSchema = z
   .object({
-    version: z.literal(STRUCTURED_CANVAS_SEMANTIC_VERSION),
+    version: z.literal(STRUCTURED_CANVAS_VERSION),
     template: z.literal('decision'),
     title: z.string().min(1).max(120),
     summary: semanticTextSchema,
@@ -263,12 +176,6 @@ export const structuredCanvasV2DocumentSchema = z
       }
     }
   })
-export type StructuredCanvasV2Document = z.infer<typeof structuredCanvasV2DocumentSchema>
-
-export const structuredCanvasDocumentSchema = z.discriminatedUnion('version', [
-  structuredCanvasV1DocumentSchema,
-  structuredCanvasV2DocumentSchema,
-])
 export type StructuredCanvasDocument = z.infer<typeof structuredCanvasDocumentSchema>
 
 export function structuredCanvasValidationMessage(error: z.ZodError): string {

@@ -234,15 +234,22 @@ describe('domain MCP entry points', () => {
   it('validates and writes a structured Canvas document', async () => {
     const { tools, calls } = harness()
     const document = {
-      version: 1,
-      title: 'Architecture',
-      tabs: [
-        {
-          id: 'why',
-          label: 'Why',
-          blocks: [{ type: 'markdown', content: '# Context' }],
-        },
+      version: 2,
+      template: 'decision',
+      title: 'Architecture decision',
+      summary: 'Choose the owning layer.',
+      options: [
+        { id: 'client', name: 'Client', summary: 'The client owns presentation.' },
+        { id: 'daemon', name: 'Daemon', summary: 'The daemon owns presentation.' },
       ],
+      criteria: [{ id: 'ownership', label: 'Ownership' }],
+      assessments: [],
+      recommendation: {
+        optionId: 'client',
+        summary: 'Use the client.',
+        rationale: ['Presentation belongs to clients.'],
+        confidence: 'high',
+      },
     }
     const result = await tools.call('porcelain_canvas', {
       op: 'create',
@@ -254,7 +261,7 @@ describe('domain MCP entry points', () => {
     expect(calls).toContainEqual({
       name: 'writeCanvas',
       input: expect.objectContaining({
-        title: 'Architecture',
+        title: 'Architecture decision',
         kind: 'structured',
         entryFile: 'canvas.json',
         source: expect.objectContaining({ kind: 'structured', document: expect.any(String) }),
@@ -269,99 +276,34 @@ describe('domain MCP entry points', () => {
       workspace: REPO,
       document: {
         version: 1,
-        title: 'Too many tabs',
-        tabs: Array.from({ length: 5 }, (_, index) => ({
-          id: `tab-${index}`,
-          label: `Tab ${index}`,
-          blocks: [{ type: 'markdown', content: 'Content' }],
-        })),
+        title: 'Old document',
+        tabs: [],
       },
     })
 
     expect(result.isError).toBe(true)
-    expect(result.text).toContain('tabs')
+    expect(result.text).toContain('version')
     expect(calls.some((call) => call.name === 'writeCanvas')).toBe(false)
   })
 
-  it('creates distinct Review Canvases in the addressed worktree', async () => {
+  it('rejects removed Plan and Review templates', async () => {
     const { tools, calls } = harness()
-    const review = {
-      title: 'Review A',
-      why: [{ type: 'markdown', content: '# Why\nThe boundary leaked.' }],
-      how: [{ type: 'markdown', content: '# How\nMove ownership.' }],
-      layers: [{ label: 'Source', pattern: '^src/' }],
-      files: [{ path: 'src/a.ts' }],
-    }
-    await tools.call('porcelain_canvas', {
+    const review = await tools.call('porcelain_canvas', {
       op: 'create',
       workspace: REPO,
       template: 'review',
-      templateData: review,
+      templateData: { title: 'Old Review' },
     })
-    await tools.call('porcelain_canvas', {
-      op: 'create',
-      workspace: REPO,
-      template: 'review',
-      templateData: {
-        title: 'Review B',
-        why: review.why,
-        how: review.how,
-        files: review.files,
-      },
-    })
-
-    const writes = calls.filter((call) => call.name === 'writeCanvas')
-    expect(writes).toHaveLength(2)
-    expect(writes).toEqual([
-      expect.objectContaining({ input: expect.not.objectContaining({ id: expect.anything() }) }),
-      expect.objectContaining({ input: expect.not.objectContaining({ id: expect.anything() }) }),
-    ])
-    expect(writes.map((write) => write.input)).toEqual([
-      expect.objectContaining({ worktreeId: WORKTREE, title: 'Review A', template: 'review' }),
-      expect.objectContaining({ worktreeId: WORKTREE, title: 'Review B', template: 'review' }),
-    ])
-    const metadata = writes.map((write) => {
-      const input = write.input as { source: { extraFiles: { path: string; content: string }[] } }
-      const reviewFile = input.source.extraFiles.find((file) => file.path === 'review.json')
-      return JSON.parse(reviewFile?.content ?? '{}')
-    })
-    expect(metadata[0].layers).toEqual([{ label: 'Source', pattern: '^src/' }])
-    expect(metadata[1].layers).toEqual([])
-    const firstWrite = writes[0]
-    if (firstWrite === undefined) throw new Error('expected first Review write')
-    const firstSource = (firstWrite.input as { source: { document: string } }).source
-    expect(
-      JSON.parse(firstSource.document).tabs.map((tab: { label: string }) => tab.label),
-    ).toEqual(['Why', 'How'])
-  })
-
-  it('creates a Plan through the shared structured renderer', async () => {
-    const { tools, calls } = harness()
-    const result = await tools.call('porcelain_canvas', {
+    const plan = await tools.call('porcelain_canvas', {
       op: 'create',
       workspace: REPO,
       template: 'plan',
-      templateData: {
-        title: 'Migration plan',
-        tabs: [
-          {
-            id: 'approach',
-            label: 'Approach',
-            blocks: [{ type: 'markdown', content: '# Sequence' }],
-          },
-        ],
-      },
+      templateData: { title: 'Old Plan' },
     })
-
-    expect(result.isError).toBeUndefined()
-    expect(calls).toContainEqual({
-      name: 'writeCanvas',
-      input: expect.objectContaining({
-        title: 'Migration plan',
-        kind: 'structured',
-        template: 'plan',
-      }),
-    })
+    expect(review.isError).toBe(true)
+    expect(plan.isError).toBe(true)
+    expect(review.text).toContain('template must be decision')
+    expect(calls.some((call) => call.name === 'writeCanvas')).toBe(false)
   })
 
   it('creates and updates a semantic Decision through porcelain_canvas', async () => {
@@ -369,7 +311,7 @@ describe('domain MCP entry points', () => {
     const templateData = {
       title: 'Canvas contract direction',
       summary: 'Choose the next structured Canvas contract.',
-      context: 'Version 1 remains supported.',
+      context: 'One semantic contract is accepted.',
       options: [
         { id: 'semantic', name: 'Semantic', summary: 'Porcelain owns presentation.' },
         { id: 'html', name: 'HTML', summary: 'The author owns presentation.' },
@@ -389,7 +331,7 @@ describe('domain MCP entry points', () => {
         summary: 'Adopt semantic documents.',
         rationale: ['Presentation stays product-owned.'],
         confidence: 'high',
-        assumptions: ['Version 1 remains readable.'],
+        assumptions: ['Clients consume the current contract.'],
         changeConditions: ['Clients cannot share the contract.'],
       },
     }
@@ -409,7 +351,7 @@ describe('domain MCP entry points', () => {
         decision: {
           optionId: 'semantic',
           summary: 'Semantic version 2 is accepted.',
-          rationale: ['It keeps old documents unchanged.'],
+          rationale: ['It keeps one authoring path.'],
         },
       },
     })

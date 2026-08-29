@@ -1,7 +1,7 @@
 import type {
   CanvasFileReference,
   DecisionOption,
-  StructuredCanvasV2Document,
+  StructuredCanvasDocument,
 } from '@porcelain/contracts/projects'
 import { Badge } from '@renderer/components/ui/badge'
 import { Button } from '@renderer/components/ui/button'
@@ -149,7 +149,7 @@ const ratingTone = {
   strong: 'border-emerald-500/30 bg-emerald-500/10',
 } as const
 
-function ComparisonView({ document }: { document: StructuredCanvasV2Document }): React.JSX.Element {
+function ComparisonView({ document }: { document: StructuredCanvasDocument }): React.JSX.Element {
   return (
     <div className="mx-auto w-full max-w-7xl space-y-7 p-5 sm:p-8">
       <header className="space-y-2">
@@ -209,7 +209,7 @@ export function DecisionCanvasView({
   document,
   repoPath,
 }: {
-  document: StructuredCanvasV2Document
+  document: StructuredCanvasDocument
   repoPath?: string
 }): React.JSX.Element {
   const openTab = useTabsStore((state) => state.openTab)

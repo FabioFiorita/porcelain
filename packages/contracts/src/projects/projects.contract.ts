@@ -189,8 +189,7 @@ export type CanvasRecord = z.infer<typeof canvasRecordSchema>
 
 /**
  * Pass `worktreePath` to merge the tracked overlay in that ONE checkout. Pass
- * `worktreeId` to show only Review templates belonging to that review context;
- * ordinary project Canvases and legacy/global Reviews remain visible.
+ * `worktreeId` scopes records that were authored for a particular worktree context.
  */
 const worktreePathSchema = z.string().min(1).optional()
 
