@@ -87,10 +87,11 @@ distinct daemon port, channels, token, playground, Electron user-data directory,
 same profile is used by `pnpm dev:daemon` and `pnpm dev:web`, so each checkout can run its own
 client stack without sharing state. `pnpm worktree list` shows the recorded allocations.
 
-If Codex or another external harness created the linked worktree, run `pnpm dev:env` before starting
-anything. When it reports `primary checkout`, adopt that checkout from the primary repository with
-`pnpm worktree adopt <path> <slug>`. Adoption keeps the checkout in place while adding its branch,
-profile, port, and playground.
+The Codex project environment automatically adopts its detached harness checkout before installing
+dependencies. For another external harness, run `pnpm dev:env` before starting anything. When it
+reports `primary checkout`, adopt that checkout from the primary repository with `pnpm worktree
+adopt <path> <slug>`. Adoption keeps the checkout in place while adding its branch, profile, port,
+and playground.
 
 `pnpm dev:mobile` gives each development profile its own Metro port and temporary state. The
 primary checkout uses port 8081; managed worktrees derive a port from their daemon allocation.

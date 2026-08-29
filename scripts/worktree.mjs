@@ -118,6 +118,16 @@ function validateSlug(value) {
   return slug
 }
 
+/** Stable managed slug for a Codex harness path such as `~/.codex/worktrees/1b28/repo`. */
+function codexSlugForPath(worktreePath) {
+  const harnessId = basename(dirname(resolve(worktreePath)))
+    .toLowerCase()
+    .replaceAll(/[^a-z0-9-]/g, '-')
+    .replaceAll(/-+/g, '-')
+    .replaceAll(/^-|-$/g, '')
+  return validateSlug(`codex-${harnessId}`)
+}
+
 /**
  * Normalize a local base branch/ref for storage. Does not talk to git — call
  * `resolveBaseRef` when the ref must exist in a concrete repository.
@@ -832,6 +842,51 @@ deletes that directory along with the branch and managed runtime state.
 `)
 }
 
+/** Adopt a detached Codex checkout during the Codex environment setup hook. */
+function bootstrapCodexWorktree(pathArg) {
+  if (!pathArg) fail('codex-bootstrap needs CODEX_WORKTREE_PATH')
+  const target = realPathOrSelf(resolve(pathArg))
+  const root = primaryRoot(target)
+  if (target === root) {
+    console.log('worktree ✓ Codex setup is using the primary checkout')
+    return
+  }
+
+  const entry = parseWorktrees(root).find((worktree) => worktree.path === target)
+  if (!entry) fail(`not a linked worktree of this repository: ${target}`)
+
+  const profile = loadManagedWorktreeProfile(target)
+  if (profile.ok) {
+    if (entry.branch !== profile.config.branch) {
+      fail(`${target} is on ${entry.branch ?? 'detached HEAD'}, expected ${profile.config.branch}`)
+    }
+    console.log(`worktree ✓ Codex checkout already uses ${profile.config.branch}`)
+    return
+  }
+
+  if (!isHarnessPath(target) || !target.includes(`${sep}.codex${sep}worktrees${sep}`)) {
+    fail(`refusing to auto-adopt a non-Codex harness path: ${target}`)
+  }
+  adopt(target, codexSlugForPath(target), { skipInstall: true })
+}
+
+/** Remove only the managed profile belonging to the exact Codex checkout being deleted. */
+async function cleanupCodexWorktree(pathArg) {
+  if (!pathArg) fail('codex-cleanup needs CODEX_WORKTREE_PATH')
+  const target = realPathOrSelf(resolve(pathArg))
+  const profile = loadManagedWorktreeProfile(target)
+  if (!profile.ok) {
+    console.log('worktree ✓ Codex checkout has no managed Porcelain profile')
+    return
+  }
+  const root = primaryRoot(target)
+  const managed = findManaged(root, profile.config.slug)
+  if (managed.path !== target) {
+    fail(`managed slug ${profile.config.slug} belongs to ${managed.path}, not ${target}`)
+  }
+  await remove(profile.config.slug, { force: true })
+}
+
 function list() {
   const root = primaryRoot()
   const rows = parseWorktrees(root)
@@ -980,6 +1035,14 @@ async function main() {
     adopt(name, positional[0], { skipInstall: rest.includes('--skip-install') })
     return
   }
+  if (verb === 'codex-bootstrap') {
+    bootstrapCodexWorktree(name)
+    return
+  }
+  if (verb === 'codex-cleanup') {
+    await cleanupCodexWorktree(name)
+    return
+  }
   if (verb === 'list') {
     list()
     return
@@ -1041,6 +1104,7 @@ function isLinkedWorktreeOf(root, worktreePath) {
 export {
   BASE_REF_PATTERN,
   CONFIG_FILE,
+  codexSlugForPath,
   DEFAULT_BASE,
   ENV,
   isLinkedWorktreeOf,

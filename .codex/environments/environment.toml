@@ -3,14 +3,17 @@ version = 1
 name = "porcelain"
 
 [setup]
-script = "pnpm install --frozen-lockfile"
+script = '''
+if [ -n "${CODEX_WORKTREE_PATH:-}" ]; then
+  node scripts/worktree.mjs codex-bootstrap "$CODEX_WORKTREE_PATH"
+fi
+pnpm install --frozen-lockfile
+'''
 
 [cleanup]
 script = '''
-cfg="$CODEX_WORKTREE_PATH/.porcelain-worktree.json"
-if [ -f "$cfg" ]; then
-  slug=$(node -p "JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).slug" "$cfg")
-  pnpm worktree remove "$slug" --force
+if [ -n "${CODEX_WORKTREE_PATH:-}" ]; then
+  node scripts/worktree.mjs codex-cleanup "$CODEX_WORKTREE_PATH"
 fi
 '''
 

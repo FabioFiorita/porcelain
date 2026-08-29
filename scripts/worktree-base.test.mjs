@@ -9,12 +9,18 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
 import {
+  codexSlugForPath,
   DEFAULT_BASE,
   normalizeBaseRef,
   parseWorktreeConfig,
   planCreateGitArgs,
   planRemoveGuard,
 } from './worktree.mjs'
+
+test('codexSlugForPath derives a stable valid slug from the harness allocation', () => {
+  assert.equal(codexSlugForPath('/home/fabio/.codex/worktrees/1b28/porcelain'), 'codex-1b28')
+  assert.equal(codexSlugForPath('/Users/fabio/.codex/worktrees/Task_42/porcelain'), 'codex-task-42')
+})
 
 test('normalizeBaseRef defaults path: main is accepted', () => {
   assert.equal(normalizeBaseRef('main'), 'main')
