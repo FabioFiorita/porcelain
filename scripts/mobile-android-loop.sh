@@ -17,13 +17,18 @@
 #   text <string>               type into the focused field
 #   key <BACK|HOME|ENTER>       send a hardware key
 #   shot <path>                 capture a screenshot (then inspect it)
+#   rec <path> [s]              record an interaction flow (default 30 seconds)
 #   fg                          print the foreground activity
 #   logs [pattern]              stream this app's logcat
-#   down                        remove this loop's reverse and stop only its emulator
+#   down [--force]              remove reverse; stop only owned emulator unless forced
 #
 # Machine-specific inputs:
+#   ANDROID_LOOP_ENV_FILE=<file> sourced first on every call (SDK paths, PATH, ownership)
 #   APP_VARIANT=development|production (default: development)
 #   METRO_PORT=8081
+#   ANDROID_LOOP_UP_CMD='...'     replace default emulator bring-up
+#   ANDROID_LOOP_DOWN_CMD='...'   replace default emulator teardown
+#   ANDROID_LOOP_NO_BOOT=1        attach only; never start an emulator
 #   ANDROID_LOOP_AVD=<name>
 #   ANDROID_LOOP_SERIAL=<serial>
 #   ANDROID_LOOP_WINDOW=1         show the emulator window instead of headless mode
@@ -33,6 +38,15 @@
 #   ANDROID_LOOP_STATE_DIR=<temp directory for ownership state>
 #   ADB_BIN=<adb path>, EMULATOR_BIN=<emulator path>
 set -euo pipefail
+
+if [[ -n ${ANDROID_LOOP_ENV_FILE:-} ]]; then
+  [[ -f $ANDROID_LOOP_ENV_FILE ]] || {
+    echo "error: ANDROID_LOOP_ENV_FILE not found: $ANDROID_LOOP_ENV_FILE" >&2
+    exit 1
+  }
+  # shellcheck source=/dev/null
+  source "$ANDROID_LOOP_ENV_FILE"
+fi
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(git -C "$SCRIPT_DIR/.." rev-parse --show-toplevel)"
@@ -64,7 +78,6 @@ resolve_tools() {
   [[ -n "$ADB_BIN" ]] || ADB_BIN="$(command -v adb || true)"
   [[ -n "$EMULATOR_BIN" ]] || EMULATOR_BIN="$(command -v emulator || true)"
   [[ -n "$ADB_BIN" ]] || die "adb is not on PATH; install Android SDK platform-tools or set ADB_BIN"
-  [[ -n "$EMULATOR_BIN" ]] || die "emulator is not on PATH; install the Android emulator or set EMULATOR_BIN"
   have python3 || die "python3 is required to parse the Android accessibility tree"
 }
 
@@ -189,14 +202,29 @@ running_emulator_process() {
 }
 
 boot_emulator() {
+  if [[ "${ANDROID_LOOP_NO_BOOT:-}" == "1" ]]; then
+    die "no booted emulator and ANDROID_LOOP_NO_BOOT=1; start it where the AVDs live, then run: $0 up"
+  fi
+  if [[ -n "${ANDROID_LOOP_UP_CMD:-}" ]]; then
+    echo "booting emulator via ANDROID_LOOP_UP_CMD..." >&2
+    bash -c "$ANDROID_LOOP_UP_CMD" >&2 9>&-
+    local attempt
+    for attempt in $(seq 1 90); do
+      local serials=()
+      mapfile -t serials < <(running_serials)
+      if [[ "${#serials[@]}" -eq 1 ]]; then
+        wait_for_boot "${serials[0]}"
+        printf '%s\n' "${serials[0]}"
+        return
+      fi
+      sleep 2
+    done
+    die "ANDROID_LOOP_UP_CMD ran but no emulator finished booting within 180 seconds"
+  fi
+  [[ -n "$EMULATOR_BIN" ]] || die "emulator is not on PATH; add the SDK emulator directory or set ANDROID_LOOP_UP_CMD"
   local avd="${ANDROID_LOOP_AVD:-}"
   [[ -n "$avd" ]] || avd="$($EMULATOR_BIN -list-avds 2>/dev/null | grep -v '^INFO' | head -n 1 || true)"
   [[ -n "$avd" ]] || die "no Android AVD found; set ANDROID_LOOP_AVD or create one"
-  case "$avd" in
-    phone|tablet) ;;
-    *) die "unsupported Android AVD '$avd'; use phone or tablet" ;;
-  esac
-
   if pgrep -fa "emulator.*-avd[ =]$avd([[:space:]]|$)" >/dev/null 2>&1; then
     die "an emulator process for AVD '$avd' already exists but adb does not show it; resolve that before booting another"
   fi
@@ -211,7 +239,8 @@ boot_emulator() {
 
   local args=(-avd "$avd" -no-boot-anim -no-snapshot-save)
   if [[ "${ANDROID_LOOP_WINDOW:-}" != "1" ]]; then
-    args+=(-no-window -no-audio -gpu swiftshader_indirect)
+    # ANGLE's software renderer is stable headless; legacy SwiftShader GLES can segfault.
+    args+=(-no-window -no-audio -gpu swangle_indirect)
   else
     # The bundled Qt UI's Wayland backend freezes on click under XWayland
     # (window stops responding until it loses/regains focus); xcb is stable.
@@ -396,7 +425,15 @@ cmd_up() {
     wait_for_boot "$serial"
   fi
 
+  # Re-running up must not disown an emulator this profile already brought up.
+  if [[ "$(state_get serial 2>/dev/null || true)" == "$serial" \
+    && "$(state_get owned 2>/dev/null || true)" == "1" ]]; then
+    owned=1
+  fi
+
   adb_cmd -s "$serial" reverse "tcp:$METRO_PORT" "tcp:$METRO_PORT" >/dev/null
+  adb_cmd -s "$serial" shell pm path "$PACKAGE" >/dev/null 2>&1 \
+    || die "$PACKAGE is not installed; run: APP_VARIANT=$APP_VARIANT pnpm --dir apps/mobile android:build"
   local url="${SCHEME}://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A${METRO_PORT}"
   adb_cmd -s "$serial" shell am start -W -a android.intent.action.VIEW -d "$url" "$PACKAGE" >/dev/null
   state_write "$serial" "$owned"
@@ -491,6 +528,19 @@ cmd_shot() {
   echo "$1"
 }
 
+cmd_rec() {
+  [[ -n "${1:-}" ]] || die "rec needs an output path"
+  resolve_tools
+  local serial
+  serial="$(select_serial)"
+  local seconds="${2:-30}"
+  mkdir -p "$(dirname -- "$1")"
+  adb_cmd -s "$serial" shell screenrecord --time-limit "$seconds" /sdcard/porcelain-loop.mp4
+  adb_cmd -s "$serial" pull /sdcard/porcelain-loop.mp4 "$1" >/dev/null
+  adb_cmd -s "$serial" shell rm -f /sdcard/porcelain-loop.mp4
+  echo "$1"
+}
+
 cmd_fg() {
   resolve_tools
   local serial="${1:-}"
@@ -516,6 +566,13 @@ cmd_logs() {
 
 cmd_down() {
   resolve_tools
+  if [[ -n "${ANDROID_LOOP_DOWN_CMD:-}" ]]; then
+    bash -c "$ANDROID_LOOP_DOWN_CMD" >&2 || true
+    rm -f "$STATE_FILE"
+    return 0
+  fi
+  local force=0
+  [[ "${1:-}" == "--force" ]] && force=1
   if [[ ! -f "$STATE_FILE" ]]; then
     echo "no emulator ownership state; leaving all emulators running"
     return 0
@@ -527,7 +584,7 @@ cmd_down() {
     if [[ "$reverse" == "1" ]]; then
       adb_cmd -s "$serial" reverse --remove "tcp:$METRO_PORT" >/dev/null 2>&1 || true
     fi
-    if [[ "$owned" == "1" ]]; then
+    if [[ "$owned" == "1" || "$force" == "1" ]]; then
       adb_cmd -s "$serial" emu kill >/dev/null 2>&1 || true
       echo "stopped emulator $serial"
     else
@@ -552,11 +609,12 @@ case "${1:-}" in
   text)      shift; cmd_text "$@" ;;
   key)       shift; cmd_key "$@" ;;
   shot)      shift; cmd_shot "$@" ;;
+  rec)       shift; cmd_rec "$@" ;;
   fg)        shift; cmd_fg "$@" ;;
   logs)      shift; cmd_logs "${1:-}" ;;
   down)      shift; cmd_down "$@" ;;
   *)
-    sed -n '2,34p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+    sed -n '2,41p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
     exit 1
     ;;
 esac
