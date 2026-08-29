@@ -364,6 +364,77 @@ describe('domain MCP entry points', () => {
     })
   })
 
+  it('creates and updates a semantic Decision through porcelain_canvas', async () => {
+    const { tools, calls } = harness()
+    const templateData = {
+      title: 'Canvas contract direction',
+      summary: 'Choose the next structured Canvas contract.',
+      context: 'Version 1 remains supported.',
+      options: [
+        { id: 'semantic', name: 'Semantic', summary: 'Porcelain owns presentation.' },
+        { id: 'html', name: 'HTML', summary: 'The author owns presentation.' },
+        { id: 'markdown', name: 'Markdown', summary: 'Use prose only.' },
+      ],
+      criteria: [{ id: 'responsive', label: 'Responsive layout' }],
+      assessments: [
+        {
+          optionId: 'semantic',
+          criterionId: 'responsive',
+          rating: 'strong',
+          note: 'The client can adapt the same meaning.',
+        },
+      ],
+      recommendation: {
+        optionId: 'semantic',
+        summary: 'Adopt semantic documents.',
+        rationale: ['Presentation stays product-owned.'],
+        confidence: 'high',
+        assumptions: ['Version 1 remains readable.'],
+        changeConditions: ['Clients cannot share the contract.'],
+      },
+    }
+    const created = await tools.call('porcelain_canvas', {
+      op: 'create',
+      workspace: REPO,
+      template: 'decision',
+      templateData,
+    })
+    const updated = await tools.call('porcelain_canvas', {
+      op: 'update',
+      workspace: REPO,
+      id: 'canvas-1',
+      template: 'decision',
+      templateData: {
+        ...templateData,
+        decision: {
+          optionId: 'semantic',
+          summary: 'Semantic version 2 is accepted.',
+          rationale: ['It keeps old documents unchanged.'],
+        },
+      },
+    })
+
+    expect(created.isError).toBeUndefined()
+    expect(updated.isError).toBeUndefined()
+    const writes = calls.filter((call) => call.name === 'writeCanvas')
+    expect(writes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          input: expect.objectContaining({
+            title: 'Canvas contract direction',
+            kind: 'structured',
+            template: 'decision',
+          }),
+        }),
+        expect.objectContaining({ input: expect.objectContaining({ id: 'canvas-1' }) }),
+      ]),
+    )
+    const firstWrite = writes[0]
+    if (firstWrite === undefined) throw new Error('expected a Decision write')
+    const source = (firstWrite.input as { source: { document: string } }).source
+    expect(JSON.parse(source.document)).toMatchObject({ version: 2, template: 'decision' })
+  })
+
   it('replaces an existing tracked Canvas on update and reads the new content', async () => {
     const { tools, calls } = harness({ trackedCanvas: true, canvasContent: '# Updated' })
     await tools.call('porcelain_canvas', {

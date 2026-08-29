@@ -1,5 +1,5 @@
 import {
-  type StructuredCanvasDocument,
+  type StructuredCanvasV1Document,
   structuredCanvasDocumentSchema,
   structuredCanvasValidationMessage,
 } from '@porcelain/contracts/projects'
@@ -8,6 +8,7 @@ import { HtmlView } from '@renderer/components/viewer/html-view'
 import { MarkdownView } from '@renderer/components/viewer/markdown-view'
 import { TestIds } from '@shared/test-ids'
 import { Images } from 'lucide-react'
+import { DecisionCanvasView } from './decision-canvas-view'
 
 function assetUrl(baseUrl: string, path: string): string {
   return `${baseUrl}/assets/${encodeURIComponent(path)}`
@@ -17,7 +18,7 @@ function AssetsView({
   document,
   assetBaseUrl,
 }: {
-  document: StructuredCanvasDocument
+  document: StructuredCanvasV1Document
   assetBaseUrl: string | null
 }): React.JSX.Element {
   if (assetBaseUrl === null) {
@@ -67,9 +68,11 @@ function AssetsView({
 export function StructuredCanvasView({
   content,
   assetBaseUrl,
+  repoPath,
 }: {
   content: string
   assetBaseUrl: string | null
+  repoPath?: string
 }): React.JSX.Element {
   let value: unknown
   try {
@@ -90,6 +93,13 @@ export function StructuredCanvasView({
     )
   }
   const document = parsed.data
+  if (document.version === 2) {
+    return (
+      <div data-testid={TestIds.structuredCanvas} className="h-full min-h-0">
+        <DecisionCanvasView document={document} repoPath={repoPath} />
+      </div>
+    )
+  }
   const firstTab = document.tabs[0]
   if (firstTab === undefined) return <div />
   return (

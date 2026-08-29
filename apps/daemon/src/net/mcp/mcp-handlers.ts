@@ -1,4 +1,5 @@
 import {
+  decisionCanvasTemplateDataSchema,
   planCanvasTemplateDataSchema,
   reviewCanvasTemplateDataSchema,
   structuredCanvasDocumentSchema,
@@ -6,7 +7,7 @@ import {
 } from '@porcelain/contracts/projects'
 import type { McpToolHandlers, McpToolResult } from './mcp-dispatch'
 import type { McpOperations } from './mcp-operations'
-import { planBundleSource, reviewBundleSource } from './mcp-review'
+import { decisionBundleSource, planBundleSource, reviewBundleSource } from './mcp-review'
 import {
   isWorkspaceRef,
   type ResolvedWorkspace,
@@ -90,7 +91,7 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
         title: string
         kind: 'html' | 'markdown' | 'structured'
         entryFile: string
-        template?: 'review' | 'plan'
+        template?: 'review' | 'plan' | 'decision'
         source: import('../../features/projects').CanvasBundleSource
       }
     | { ok: false; result: McpToolResult }
@@ -141,11 +142,15 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
     if (templateData !== undefined) {
       const template = args.template
       const schema =
-        template === 'review' ? reviewCanvasTemplateDataSchema : planCanvasTemplateDataSchema
-      if (template !== 'review' && template !== 'plan') {
+        template === 'review'
+          ? reviewCanvasTemplateDataSchema
+          : template === 'plan'
+            ? planCanvasTemplateDataSchema
+            : decisionCanvasTemplateDataSchema
+      if (template !== 'review' && template !== 'plan' && template !== 'decision') {
         return {
           ok: false,
-          result: fail('template must be review or plan when templateData is provided.'),
+          result: fail('template must be review, plan, or decision when templateData is provided.'),
         }
       }
       const parsed = schema.safeParse(templateData)
@@ -161,7 +166,9 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
       const source =
         template === 'review'
           ? reviewBundleSource(reviewCanvasTemplateDataSchema.parse(parsed.data), assetsDir)
-          : planBundleSource(planCanvasTemplateDataSchema.parse(parsed.data), assetsDir)
+          : template === 'plan'
+            ? planBundleSource(planCanvasTemplateDataSchema.parse(parsed.data), assetsDir)
+            : decisionBundleSource(decisionCanvasTemplateDataSchema.parse(parsed.data))
       return {
         ok: true,
         title: parsed.data.title,

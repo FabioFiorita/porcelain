@@ -62,6 +62,61 @@ documents before persistence with the failing field path, and clients validate t
 again before rendering them. A video may include a bundle-relative `captionsPath` pointing to a
 WebVTT captions file.
 
+Version 2 is the semantic Decision/RFC document compiled by the `decision` template below. It is
+an explicit new version: version-1 custom, Plan, and Review documents retain their existing shape
+and renderer. Do not rewrite version-1 documents merely to update them.
+
+## Decision / RFC template
+
+Use one concise semantic payload. Porcelain supplies the theme, responsive layout, bounded views,
+and comparison presentation; do not send HTML or CSS. `path` values are repository-relative and
+may include a 1-based `line`. They identify or open relevant files but never mark them reviewed or
+replace the Changes diff.
+
+```jsonc
+{
+  "op": "create",
+  "workspace": "/abs/path/to/checkout",
+  "template": "decision",
+  "templateData": {
+    "title": "Choose the Canvas document model",
+    "summary": "Select the authoring contract for decision-oriented Canvases.",
+    "context": "Version 1 already supports bounded Markdown and compatibility HTML tabs.",
+    "references": [{ "path": "packages/contracts/src/projects/structured-canvas.contract.ts", "line": 1 }],
+    "options": [
+      {
+        "id": "semantic",
+        "name": "Semantic contract",
+        "summary": "Agents provide meaning and Porcelain owns presentation.",
+        "pros": ["Responsive and theme-aware by default"],
+        "cons": ["Adds a versioned contract"],
+        "risks": [{ "summary": "Clients drift", "severity": "medium", "mitigation": "Share the contract" }],
+        "effort": "Medium",
+        "references": [{ "path": "apps/web/src/features/projects/structured-canvas-view.tsx" }]
+      },
+      { "id": "html", "name": "Raw HTML", "summary": "Agents own the complete presentation." }
+    ],
+    "criteria": [{ "id": "responsive", "label": "Responsive layout" }],
+    "assessments": [
+      { "optionId": "semantic", "criterionId": "responsive", "rating": "strong", "note": "The client adapts one meaning." },
+      { "optionId": "html", "criterionId": "responsive", "rating": "fair", "note": "Quality depends on authored CSS." }
+    ],
+    "recommendation": {
+      "optionId": "semantic",
+      "summary": "Adopt the semantic contract.",
+      "rationale": ["It keeps presentation product-owned."],
+      "confidence": "high",
+      "assumptions": ["Clients continue consuming shared contracts."],
+      "changeConditions": ["A required decision primitive cannot be represented."]
+    }
+  }
+}
+```
+
+`options` accepts two to six named options. Ratings are `poor`, `fair`, `good`, or `strong`.
+To record the accepted outcome later, call `op: "update"` with the Canvas `id`, the complete
+template payload, and optional `decision: { optionId?, summary, rationale?, references? }`.
+
 ### HTML presentation
 
 Make HTML Canvases self-contained and intentional: include base CSS in the bundle, set explicit

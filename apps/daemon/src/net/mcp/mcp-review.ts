@@ -1,4 +1,6 @@
 import {
+  type DecisionCanvasTemplateData,
+  decisionCanvasDocument,
   type PlanCanvasTemplateData,
   planCanvasDocument,
   type ReviewCanvasTemplateData,
@@ -9,7 +11,7 @@ import type { CanvasBundleSource } from '../../features/projects'
 export const REVIEW_CANVAS_METADATA = 'review.json'
 
 function structuredSource(
-  document: ReturnType<typeof reviewCanvasDocument>,
+  document: ReturnType<typeof reviewCanvasDocument> | ReturnType<typeof decisionCanvasDocument>,
   assetsDir: string | undefined,
   extraFiles: readonly { path: string; content: string }[] = [],
 ): CanvasBundleSource {
@@ -44,4 +46,9 @@ export function planBundleSource(
   assetsDir?: string,
 ): CanvasBundleSource {
   return structuredSource(planCanvasDocument(data), assetsDir)
+}
+
+/** Decision compiles semantic agent input into the version-2 Porcelain-owned renderer. */
+export function decisionBundleSource(data: DecisionCanvasTemplateData): CanvasBundleSource {
+  return structuredSource(decisionCanvasDocument(data), undefined)
 }

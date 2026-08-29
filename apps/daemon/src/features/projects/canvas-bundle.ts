@@ -35,7 +35,7 @@ export const storedCanvasSchema = z
     createdAt: z.string().min(1),
     updatedAt: z.string().min(1),
     /** Which structured template the bundle follows, when it follows one. */
-    template: z.enum(['review', 'plan']).optional(),
+    template: z.enum(['review', 'plan', 'decision']).optional(),
   })
   .strict()
 

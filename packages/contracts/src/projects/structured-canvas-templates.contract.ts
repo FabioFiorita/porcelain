@@ -1,11 +1,13 @@
 import { z } from 'zod'
 import { profileLayerSchema } from '../worktree-profile'
 import {
-  type StructuredCanvasDocument,
+  type StructuredCanvasV1Document,
+  type StructuredCanvasV2Document,
   structuredCanvasAssetSchema,
   structuredCanvasBlockSchema,
-  structuredCanvasDocumentSchema,
   structuredCanvasTabSchema,
+  structuredCanvasV1DocumentSchema,
+  structuredCanvasV2DocumentSchema,
 } from './structured-canvas.contract'
 
 const reviewFileSchema = z
@@ -51,8 +53,20 @@ export const planCanvasTemplateDataSchema = z
   })
 export type PlanCanvasTemplateData = z.infer<typeof planCanvasTemplateDataSchema>
 
-export function reviewCanvasDocument(data: ReviewCanvasTemplateData): StructuredCanvasDocument {
-  return structuredCanvasDocumentSchema.parse({
+export const decisionCanvasTemplateDataSchema = z.preprocess(
+  (value) =>
+    typeof value === 'object' && value !== null && !Array.isArray(value)
+      ? { version: 2, template: 'decision', ...value }
+      : value,
+  structuredCanvasV2DocumentSchema,
+)
+export type DecisionCanvasTemplateData = Omit<
+  z.input<typeof structuredCanvasV2DocumentSchema>,
+  'version' | 'template'
+>
+
+export function reviewCanvasDocument(data: ReviewCanvasTemplateData): StructuredCanvasV1Document {
+  return structuredCanvasV1DocumentSchema.parse({
     version: 1,
     title: data.title,
     tabs: [
@@ -63,6 +77,12 @@ export function reviewCanvasDocument(data: ReviewCanvasTemplateData): Structured
   })
 }
 
-export function planCanvasDocument(data: PlanCanvasTemplateData): StructuredCanvasDocument {
-  return structuredCanvasDocumentSchema.parse({ version: 1, ...data })
+export function planCanvasDocument(data: PlanCanvasTemplateData): StructuredCanvasV1Document {
+  return structuredCanvasV1DocumentSchema.parse({ version: 1, ...data })
+}
+
+export function decisionCanvasDocument(
+  data: DecisionCanvasTemplateData,
+): StructuredCanvasV2Document {
+  return structuredCanvasV2DocumentSchema.parse({ version: 2, template: 'decision', ...data })
 }

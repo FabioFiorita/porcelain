@@ -178,5 +178,7 @@ function StructuredCanvasContainer({
   environmentId: string | undefined
 }): React.JSX.Element {
   const assetBaseUrl = useCanvasDocumentUrl({ projectId, canvasId, worktreePath, environmentId })
-  return <StructuredCanvasView content={content} assetBaseUrl={assetBaseUrl} />
+  return (
+    <StructuredCanvasView content={content} assetBaseUrl={assetBaseUrl} repoPath={worktreePath} />
+  )
 }
