@@ -9,10 +9,10 @@ import { DEV_METRO_PORT, DEV_MOBILE_STATE, DEV_PROFILE } from './dev-env.mjs'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
 
-export function mobileLaunch(argv) {
+export function mobileLaunch(argv, inheritedEnv = process.env) {
   const [surface = 'metro', ...args] = argv
   const env = {
-    ...process.env,
+    ...inheritedEnv,
     METRO_PORT: String(DEV_METRO_PORT),
     ANDROID_LOOP_STATE_DIR: join(DEV_MOBILE_STATE, 'android'),
     TMPDIR: join(DEV_MOBILE_STATE, 'tmp'),

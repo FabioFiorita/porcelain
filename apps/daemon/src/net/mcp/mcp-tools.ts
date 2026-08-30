@@ -33,13 +33,6 @@ const WORKSPACE = {
   ],
 } as const
 
-const PROFILE_LAYER = {
-  type: 'object',
-  properties: { label: { type: 'string' }, pattern: { type: 'string' } },
-  required: ['label', 'pattern'],
-  additionalProperties: false,
-} as const
-
 const CANVAS_FILE = {
   type: 'object',
   properties: {
@@ -50,81 +43,139 @@ const CANVAS_FILE = {
   additionalProperties: false,
 } as const
 
-const STRUCTURED_BLOCK = {
-  oneOf: [
-    {
-      type: 'object',
-      properties: { type: { const: 'markdown' }, content: { type: 'string' } },
-      required: ['type', 'content'],
-      additionalProperties: false,
-    },
-    {
-      type: 'object',
-      properties: {
-        type: { const: 'html' },
-        content: { type: 'string' },
-        height: { type: 'integer', minimum: 160, maximum: 1200 },
-      },
-      required: ['type', 'content'],
-      additionalProperties: false,
-    },
-  ],
+const PROFILE_LAYER = {
+  type: 'object',
+  properties: { label: { type: 'string' }, pattern: { type: 'string' } },
+  required: ['label', 'pattern'],
+  additionalProperties: false,
 } as const
 
-const STRUCTURED_ASSET = {
-  oneOf: [
-    {
-      type: 'object',
-      properties: {
-        type: { const: 'image' },
-        path: { type: 'string' },
-        alt: { type: 'string' },
-        caption: { type: 'string' },
-      },
-      required: ['type', 'path', 'alt'],
-      additionalProperties: false,
-    },
-    {
-      type: 'object',
-      properties: {
-        type: { const: 'video' },
-        path: { type: 'string' },
-        label: { type: 'string' },
-        caption: { type: 'string' },
-        captionsPath: { type: 'string' },
-      },
-      required: ['type', 'path', 'label'],
-      additionalProperties: false,
-    },
-  ],
+const FILE_REFERENCE = {
+  type: 'object',
+  properties: {
+    path: { type: 'string', description: 'Repository-relative file path' },
+    line: { type: 'integer', minimum: 1 },
+    label: { type: 'string' },
+  },
+  required: ['path'],
+  additionalProperties: false,
 } as const
 
-const STRUCTURED_TAB = {
+const DECISION_OPTION = {
   type: 'object',
   properties: {
     id: { type: 'string', pattern: '^[a-z0-9][a-z0-9-]*$' },
-    label: { type: 'string', minLength: 1, maxLength: 24 },
-    blocks: { type: 'array', minItems: 1, maxItems: 16, items: STRUCTURED_BLOCK },
+    name: { type: 'string' },
+    summary: { type: 'string' },
+    pros: { type: 'array', items: { type: 'string' } },
+    cons: { type: 'array', items: { type: 'string' } },
+    risks: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          summary: { type: 'string' },
+          severity: { enum: ['low', 'medium', 'high'] },
+          mitigation: { type: 'string' },
+        },
+        required: ['summary'],
+        additionalProperties: false,
+      },
+    },
+    effort: { type: 'string' },
+    references: { type: 'array', items: FILE_REFERENCE },
   },
-  required: ['id', 'label', 'blocks'],
+  required: ['id', 'name', 'summary'],
   additionalProperties: false,
 } as const
 
-const STRUCTURED_CANVAS = {
-  type: 'object',
-  properties: {
-    version: { const: 1 },
-    title: { type: 'string', minLength: 1, maxLength: 120 },
-    tabs: {
-      type: 'array',
-      minItems: 1,
-      maxItems: 4,
-      items: STRUCTURED_TAB,
+const DECISION_FIELDS = {
+  title: { type: 'string', minLength: 1, maxLength: 120 },
+  summary: { type: 'string' },
+  context: { type: 'string' },
+  references: { type: 'array', items: FILE_REFERENCE },
+  options: { type: 'array', minItems: 2, maxItems: 6, items: DECISION_OPTION },
+  criteria: {
+    type: 'array',
+    minItems: 1,
+    maxItems: 12,
+    items: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', pattern: '^[a-z0-9][a-z0-9-]*$' },
+        label: { type: 'string' },
+        description: { type: 'string' },
+      },
+      required: ['id', 'label'],
+      additionalProperties: false,
     },
-    assets: { type: 'array', maxItems: 64, items: STRUCTURED_ASSET },
   },
-  required: ['version', 'title', 'tabs'],
+  assessments: {
+    type: 'array',
+    maxItems: 72,
+    items: {
+      type: 'object',
+      properties: {
+        optionId: { type: 'string' },
+        criterionId: { type: 'string' },
+        rating: { enum: ['poor', 'fair', 'good', 'strong'] },
+        note: { type: 'string' },
+      },
+      required: ['optionId', 'criterionId', 'rating', 'note'],
+      additionalProperties: false,
+    },
+  },
+  recommendation: {
+    type: 'object',
+    properties: {
+      optionId: { type: 'string' },
+      summary: { type: 'string' },
+      rationale: { type: 'array', minItems: 1, items: { type: 'string' } },
+      confidence: { enum: ['low', 'medium', 'high'] },
+      assumptions: { type: 'array', items: { type: 'string' } },
+      changeConditions: { type: 'array', items: { type: 'string' } },
+      references: { type: 'array', items: FILE_REFERENCE },
+    },
+    required: ['summary', 'rationale', 'confidence'],
+    additionalProperties: false,
+  },
+  decision: {
+    type: 'object',
+    properties: {
+      optionId: { type: 'string' },
+      summary: { type: 'string' },
+      rationale: { type: 'array', items: { type: 'string' } },
+      references: { type: 'array', items: FILE_REFERENCE },
+    },
+    required: ['summary'],
+    additionalProperties: false,
+  },
+} as const
+
+const DECISION_TEMPLATE = {
+  type: 'object',
+  properties: DECISION_FIELDS,
+  required: ['title', 'summary', 'options', 'criteria', 'assessments', 'recommendation'],
   additionalProperties: false,
+} as const
+
+const DECISION_DOCUMENT = {
+  ...DECISION_TEMPLATE,
+  properties: {
+    version: { const: 2 },
+    template: { const: 'decision' },
+    ...DECISION_FIELDS,
+  },
+  required: [
+    'version',
+    'template',
+    'title',
+    'summary',
+    'options',
+    'criteria',
+    'assessments',
+    'recommendation',
+  ],
 } as const
 
 const REVIEW_FILE = {
@@ -143,26 +194,29 @@ const REVIEW_TEMPLATE = {
   type: 'object',
   properties: {
     title: { type: 'string', minLength: 1, maxLength: 120 },
-    why: { type: 'array', minItems: 1, maxItems: 16, items: STRUCTURED_BLOCK },
-    how: { type: 'array', minItems: 1, maxItems: 16, items: STRUCTURED_BLOCK },
+    why: { type: 'string', minLength: 1 },
+    how: { type: 'string', minLength: 1 },
     layers: { type: 'array', items: PROFILE_LAYER },
     files: { type: 'array', items: REVIEW_FILE },
-    assets: { type: 'array', maxItems: 64, items: STRUCTURED_ASSET },
   },
   required: ['title', 'why', 'how'],
   additionalProperties: false,
 } as const
 
-const PLAN_TEMPLATE = {
+const REVIEW_DOCUMENT = {
   type: 'object',
   properties: {
+    version: { const: 2 },
+    template: { const: 'review' },
     title: { type: 'string', minLength: 1, maxLength: 120 },
-    tabs: { type: 'array', minItems: 1, maxItems: 4, items: STRUCTURED_TAB },
-    assets: { type: 'array', maxItems: 64, items: STRUCTURED_ASSET },
+    why: { type: 'string', minLength: 1 },
+    how: { type: 'string', minLength: 1 },
   },
-  required: ['title', 'tabs'],
+  required: ['version', 'template', 'title', 'why', 'how'],
   additionalProperties: false,
 } as const
+
+const STRUCTURED_CANVAS = { oneOf: [DECISION_DOCUMENT, REVIEW_DOCUMENT] } as const
 
 const COMMENT = {
   type: 'object',
@@ -197,7 +251,7 @@ export const MCP_TOOLS: readonly McpToolDefinition[] = Object.freeze([
     name: 'porcelain_canvas',
     title: 'Manage a Canvas',
     description:
-      'List, read, create, update, delete, or promote an agent-authored Canvas. Prefer document for a custom validated structured Canvas; sourceDir may provide bundle assets. Built-in review and plan templates compile into that same renderer. Review fixes Why/How and owns its file layers; Plan chooses bounded tabs. Each Review create is scoped to the addressed Worktree, and update requires its id. A clean Review write binds current HEAD for cross-Worktree History; a dirty write reports live-only and must be updated after commit. Promotion writes files but never stages or commits.',
+      'List, read, create, update, delete, or promote an agent-authored Canvas. Decision is the semantic RFC/choice template. Review is the semantic Why/How explanation with layers and files; clean Review writes bind History. File references never own diffs or reviewed state. Promotion writes files but never stages or commits.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -217,8 +271,8 @@ export const MCP_TOOLS: readonly McpToolDefinition[] = Object.freeze([
           type: 'boolean',
           description: 'Create or update directly in the tracked checkout overlay',
         },
-        template: { enum: ['review', 'plan'] },
-        templateData: { oneOf: [REVIEW_TEMPLATE, PLAN_TEMPLATE] },
+        template: { enum: ['decision', 'review'] },
+        templateData: { oneOf: [DECISION_TEMPLATE, REVIEW_TEMPLATE] },
       },
       required: ['op', 'workspace'],
       additionalProperties: false,
@@ -250,7 +304,7 @@ export const MCP_TOOLS: readonly McpToolDefinition[] = Object.freeze([
     name: 'porcelain_profile',
     title: 'Manage the Repository Profile',
     description:
-      'Read the manual project navigation profile or promote its portable pins/hides to .porcelain/project.json. Review layers belong to each Review Canvas, never to a persistent profile.',
+      'Read the manual project navigation profile or promote its portable pins/hides to .porcelain/project.json. Canvas presentation never persists in this profile.',
     inputSchema: {
       type: 'object',
       properties: {

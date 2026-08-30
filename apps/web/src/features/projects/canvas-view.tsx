@@ -143,15 +143,7 @@ export function CanvasView({
     return <MarkdownView content={canvas.content} />
   }
   if (canvas.record.kind === 'structured') {
-    return (
-      <StructuredCanvasContainer
-        projectId={projectId}
-        canvasId={canvasId}
-        content={canvas.content}
-        worktreePath={worktreePath}
-        environmentId={environmentId}
-      />
-    )
+    return <StructuredCanvasView content={canvas.content} repoPath={worktreePath} />
   }
   return (
     <CanvasHtmlFrame
@@ -162,21 +154,4 @@ export function CanvasView({
       environmentId={environmentId}
     />
   )
-}
-
-function StructuredCanvasContainer({
-  projectId,
-  canvasId,
-  content,
-  worktreePath,
-  environmentId,
-}: {
-  projectId: string
-  canvasId: string
-  content: string
-  worktreePath: string | undefined
-  environmentId: string | undefined
-}): React.JSX.Element {
-  const assetBaseUrl = useCanvasDocumentUrl({ projectId, canvasId, worktreePath, environmentId })
-  return <StructuredCanvasView content={content} assetBaseUrl={assetBaseUrl} />
 }

@@ -21,17 +21,15 @@ porcelain_project { "op": "list" }
 porcelain_canvas { "op": "get", "workspace": { "projectId": "…", "worktreeId": "…" }, "id": "…" }
 ```
 
-Each Review Canvas is stored under the Project but scoped to the Worktree named by `workspace`.
-Creating another Review never replaces an earlier review; update the returned Canvas id when the
-same review changes. Review layers and Assets evidence should describe the Worktree that was
-actually inspected. Actions run only after the human chooses an Environment and Worktree in the
-client. They never guess a checkout.
+A Decision Canvas is stored under the Project and uses the Worktree named by `workspace` for its
+repository file references. Update the returned Canvas id as the same decision changes. Actions run
+only after the human chooses an Environment and Worktree in the client. They never guess a checkout.
 
 ## Harness hand-off
 
 When a harness creates a Worktree, keep the implementation and its proof there until the branch is
-ready to merge. Publish or update the daemon-root Review through the target Worktree, include the
-real checks in Evidence, and let the PR carry the final hand-off if the Worktree is removed.
+ready to merge. Update the relevant Decision Canvas through the target Worktree and let the PR
+carry the final hand-off if the Worktree is removed.
 
 Tracked `.porcelain/canvases/` and `.porcelain/project.json` overlays travel with a commit. Private
 Canvas, Actions, and other daemon state stays with the Environment. Do not seed a Worktree

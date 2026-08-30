@@ -182,6 +182,27 @@ describe('canvasStore.writeCanvas', () => {
     expect(listed.ok && listed.value[0]?.template).toBe('review')
   })
 
+  it('carries the decision template without changing Review scoping', async () => {
+    const canvases = store()
+    await canvases.writeCanvas(PROJECT, {
+      worktreeId: null,
+      title: 'Architecture decision',
+      kind: 'structured',
+      entryFile: 'canvas.json',
+      template: 'decision',
+      source: {
+        kind: 'structured',
+        entryFile: 'canvas.json',
+        document: '{"version":2,"template":"decision"}',
+      },
+    })
+    const listed = await canvases.listCanvases(PROJECT)
+    expect(listed.ok && listed.value[0]).toMatchObject({
+      template: 'decision',
+      worktreeId: null,
+    })
+  })
+
   it('refuses an entry file that climbs out of the bundle', async () => {
     const canvases = store()
     const result = await canvases.writeCanvas(PROJECT, {

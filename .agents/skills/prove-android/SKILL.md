@@ -1,6 +1,6 @@
 ---
 name: prove-android
-version: 0.60.1
+version: 0.61.0
 metadata:
   internal: true
 description: Drive the Android emulator to observe a change in the mobile client — Metro, a dev client on the AVD, then semantic tap/screenshot through `scripts/mobile-android-loop.sh`. Use when the changed behavior is `apps/mobile` and Android is the surface, or when mobile evidence is asked for and no iOS device is required. Read `docs/runtime-proof.md` for what finishes a proof.
@@ -12,34 +12,43 @@ The emulator is the cheaper mobile surface on Linux — it runs headless on this
 needs a Mac. `scripts/mobile-android-loop.sh` is the driver; its header comments list every command
 and environment input, so read the script rather than a copy of it here.
 
-## Device boundary
+## Machine boundary
 
-This machine has two personal AVDs for Android proof: `phone` and `tablet`. Run exactly one at a
-time, and select the form factor explicitly when it matters:
+Keep machine-owned SDK paths, AVD names, serial selection, and emulator ownership out of this
+skill. Put them in a developer-owned environment file and pass that file on every loop call;
+shell state does not carry from one command invocation to the next:
 
 ```sh
-ANDROID_LOOP_AVD=phone pnpm dev:mobile:android up
-ANDROID_LOOP_AVD=tablet pnpm dev:mobile:android up
+ANDROID_LOOP_ENV_FILE=/path/to/android-loop-env.sh pnpm dev:mobile:android preflight
 ```
 
-Do not create or use another AVD name. The personal profile owns the adb server on
-`127.0.0.1:5037`; never run `adb kill-server`, because another profile may be using that server.
-The mutating loop commands take `/tmp/android-device-lock/device.lock` so only one run drives the device at a
-time. A second profile participating in the same device workflow must be configured to use this
-same lock path; the lock is host-wide, not per-user.
+A machine that owns its AVD can set `ANDROID_LOOP_AVD`. An account attaching to an emulator owned
+by another account or session must set `ANDROID_LOOP_NO_BOOT=1` and may pin
+`ANDROID_LOOP_SERIAL`. More specialized hosts can supply `ANDROID_LOOP_UP_CMD` and
+`ANDROID_LOOP_DOWN_CMD`; these are the only bring-up and teardown seams. Do not copy private
+machine paths or credentials into the repository.
+
+The adb server and emulator may be shared. Never run `adb kill-server`. Mutating loop commands
+take `/tmp/android-device-lock/device.lock`, so every account or project driving the same host must
+use that host-wide lock path. Run one proof flow at a time even when several AVDs exist; when more
+than one serial is ready, pin the intended one explicitly.
 
 ## The loop
 
 ```sh
-pnpm dev:mobile                                      # profile Metro, background
-pnpm dev:mobile:android preflight                    # package, Metro, emulator, foreground app
-ANDROID_LOOP_AVD=phone pnpm dev:mobile:android up   # boot/reuse one AVD, reverse Metro, launch client
-pnpm dev:mobile:android ui                           # visible testIDs, labels, bounds, actions
-pnpm dev:mobile:android tap <testID-or-label>
-pnpm dev:mobile:android shot /tmp/porcelain-android.png
-pnpm dev:mobile:android fg
-pnpm dev:mobile:android down                         # release only this loop's resources
+pnpm dev:mobile                                                        # profile Metro, background
+ANDROID_LOOP_ENV_FILE=$ANDROID_ENV pnpm dev:mobile:android preflight   # always inspect first
+ANDROID_LOOP_ENV_FILE=$ANDROID_ENV pnpm dev:mobile:android up          # boot/attach, reverse, launch
+ANDROID_LOOP_ENV_FILE=$ANDROID_ENV pnpm dev:mobile:android ui          # semantic controls and bounds
+ANDROID_LOOP_ENV_FILE=$ANDROID_ENV pnpm dev:mobile:android tap <testID-or-label>
+ANDROID_LOOP_ENV_FILE=$ANDROID_ENV pnpm dev:mobile:android shot /tmp/porcelain-android.png
+ANDROID_LOOP_ENV_FILE=$ANDROID_ENV pnpm dev:mobile:android rec /tmp/porcelain-android.mp4 20
+ANDROID_LOOP_ENV_FILE=$ANDROID_ENV pnpm dev:mobile:android fg
+ANDROID_LOOP_ENV_FILE=$ANDROID_ENV pnpm dev:mobile:android down        # release only owned resources
 ```
+
+`ANDROID_ENV` above is a task-local shell variable naming the machine environment file. Set it in
+each shell that runs the commands, or use the literal path each time.
 
 A first launch after an install lands on the development-client onboarding, then its dev menu. Both
 are plain React Native text that the tree reports as non-clickable, so `tap Continue` refuses by
@@ -58,7 +67,7 @@ deterministic. When the human asks to see the emulator or wants to click into it
 with a window instead:
 
 ```sh
-ANDROID_LOOP_WINDOW=1 pnpm dev:mobile:android up
+ANDROID_LOOP_ENV_FILE=$ANDROID_ENV ANDROID_LOOP_WINDOW=1 pnpm dev:mobile:android up
 ```
 
 This machine's desktop runs under XWayland, where the emulator's Qt UI is known to freeze on click
@@ -89,9 +98,11 @@ JavaScript-only change needs nothing but Metro.
 - **Use the profile wrappers.** They derive a Metro port and temporary directory from the current
   checkout, so main and managed worktrees do not share Metro process state. `adb logcat -b crash`
   carries the real error whenever the app dies at launch.
-- **Export `ANDROID_HOME`.** `~/Android/Sdk` here; `adb` and `emulator` live under it.
-- **Keep the device set small.** Use only `phone` or `tablet`, and never run both at once. If no
-  device is ready, ask the personal profile to start one.
+- **Pass the machine environment every time.** It should export `ANDROID_HOME`, extend `PATH` for
+  `adb` and `emulator`, and describe ownership. An attach-only account should ask the owning
+  account or session to start the AVD when preflight reports none.
+- **Headless uses ANGLE software rendering.** The default is `-gpu swangle_indirect`; legacy
+  SwiftShader GLES can segfault. Keep host-specific emulator flags in the environment file.
 - **Do not kill adb.** Never run `adb kill-server`; the adb server is shared across profiles.
 - **Do not delete the device lock.** `/tmp/android-device-lock/device.lock` is a live `flock` lock, not an AVD
   stale-lock file.
@@ -104,9 +115,11 @@ JavaScript-only change needs nothing but Metro.
 
 ## Down
 
-`pnpm dev:mobile:android down` removes this loop's Metro reverse and stops only its own emulator. Stop the Metro you
-started by its tracked task or PID.
+`ANDROID_LOOP_ENV_FILE=$ANDROID_ENV pnpm dev:mobile:android down` removes this loop's Metro reverse
+and stops only an emulator this loop brought up. Stop the Metro you started by its tracked task or
+PID. `down --force` is reserved for an explicitly identified emulator that the human has authorized
+this task to stop; it is not routine cleanup.
 
 Ownership is recorded when `up` prints `launched …`. An `up` that was interrupted before that line
 booted an emulator it never claimed, so a later `down` reports it as pre-existing and leaves it
-running: check `adb devices` and stop that one yourself with `adb -s <serial> emu kill`.
+running. Resolve the exact serial and ownership before using forced teardown.

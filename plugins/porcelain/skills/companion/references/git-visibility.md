@@ -1,13 +1,13 @@
 # Git visibility
 
-Canonical Review, Actions, and UI state live in the daemon-root Environment and
+Private Canvases, Actions, and UI state live in the daemon-root Environment and
 are private to that Environment. A checkout carries only deliberate overlays under
 `.porcelain/`:
 
 ```text
 .porcelain/
   canvases/<id>/       # promoted Canvas bundle
-  project.json         # promoted Project hide/pin and Worktree defaults
+  project.json         # promoted Project hide/pin choices
   .gitignore           # managed channel rules
 ```
 
@@ -21,8 +21,7 @@ porcelain_profile { "op": "promote", "workspace": "/abs/path/to/checkout", "leve
 
 Promotion writes plain files and adjusts the clone's Porcelain visibility rules. It does not run
 `git add`, commit, or push. The human reviews and commits the result. A tracked Canvas is a
-shareable artifact: keep it to markup, CSS, images, and links because received bundles render in a
-sandbox.
+shareable artifact: keep its semantic Decision content free of secrets.
 
 ## Visibility rules
 

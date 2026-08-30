@@ -1,12 +1,12 @@
 import {
-  planCanvasTemplateDataSchema,
+  decisionCanvasTemplateDataSchema,
   reviewCanvasTemplateDataSchema,
   structuredCanvasDocumentSchema,
   structuredCanvasValidationMessage,
 } from '@porcelain/contracts/projects'
 import type { McpToolHandlers, McpToolResult } from './mcp-dispatch'
 import type { McpOperations } from './mcp-operations'
-import { planBundleSource, reviewBundleSource } from './mcp-review'
+import { decisionBundleSource, reviewBundleSource } from './mcp-canvas'
 import {
   isWorkspaceRef,
   type ResolvedWorkspace,
@@ -93,7 +93,7 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
         title: string
         kind: 'html' | 'markdown' | 'structured'
         entryFile: string
-        template?: 'review' | 'plan'
+        template?: 'decision' | 'review'
         source: import('../../features/projects').CanvasBundleSource
       }
     | { ok: false; result: McpToolResult }
@@ -143,14 +143,14 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
     const templateData = args.templateData
     if (templateData !== undefined) {
       const template = args.template
-      const schema =
-        template === 'review' ? reviewCanvasTemplateDataSchema : planCanvasTemplateDataSchema
-      if (template !== 'review' && template !== 'plan') {
+      if (template !== 'decision' && template !== 'review') {
         return {
           ok: false,
-          result: fail('template must be review or plan when templateData is provided.'),
+          result: fail('template must be decision or review when templateData is provided.'),
         }
       }
+      const schema =
+        template === 'decision' ? decisionCanvasTemplateDataSchema : reviewCanvasTemplateDataSchema
       const parsed = schema.safeParse(templateData)
       if (!parsed.success) {
         return {
@@ -160,15 +160,10 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
           ),
         }
       }
-      const assetsDir = stringField(args, 'sourceDir')
       const source =
-        template === 'review'
-          ? reviewBundleSource(
-              reviewCanvasTemplateDataSchema.parse(parsed.data),
-              assetsDir,
-              reviewCommitHash,
-            )
-          : planBundleSource(planCanvasTemplateDataSchema.parse(parsed.data), assetsDir)
+        template === 'decision'
+          ? decisionBundleSource(decisionCanvasTemplateDataSchema.parse(parsed.data))
+          : reviewBundleSource(reviewCanvasTemplateDataSchema.parse(parsed.data), reviewCommitHash)
       return {
         ok: true,
         title: parsed.data.title,
@@ -286,9 +281,6 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
       }
       if (op !== 'create' && op !== 'update')
         return fail('op must be list, get, create, update, delete, or promote.')
-      // A Review authored on a clean checkout describes the immutable HEAD that
-      // History will later open, even from another Worktree. Dirty Reviews remain
-      // live-only until the agent updates the same Canvas after committing.
       const reviewCommitHash = await (async (): Promise<string | undefined> => {
         if (args.template !== 'review' || place.worktreePath === null) return undefined
         try {
@@ -296,7 +288,6 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
           if (!status.ok || status.value.length > 0) return undefined
           return (await operations.git.logGit({ repoPath: place.worktreePath, limit: 1 }))[0]?.hash
         } catch {
-          // An empty/unreadable Git history must not prevent authoring the live Review.
           return undefined
         }
       })()
@@ -464,7 +455,7 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
           ? ok('Project profile pins and hides promoted to .porcelain/project.json.')
           : fail(`Could not promote the profile: ${describeError(promoted.error)}`)
       }
-      return fail('op must be get or promote; review layers belong to a Review Canvas.')
+      return fail('op must be get or promote; the profile contains only manual pins and hides.')
     },
 
     async porcelain_action(args, place) {

@@ -8,15 +8,17 @@ import { useResolvedColorScheme } from '@/features/settings/theme-provider'
 
 import { useCanvas, useCanvasDocumentUrl } from './canvas-data'
 import { CanvasWebView } from './canvas-web-view'
+import { parseDecisionCanvas } from './decision-canvas'
+import { DecisionCanvasView } from './decision-canvas-view'
 
 /**
  * One Canvas, read.
  *
- * The two kinds take deliberately different routes, the same split the web Viewer makes. A
+ * The three kinds take deliberately different routes, the same split the web Viewer makes. A
  * Markdown Canvas is text: it goes through the inert reader every other repo document uses,
- * scripting off and no network at all. An HTML Canvas is a document the agent wrote to be
- * rendered, so it goes to the daemon over its own token route and keeps the response CSP the
- * daemon chose for it — see `canvas-web-view.tsx` for what that buys and what it does not.
+ * scripting off and no network at all. A structured Canvas is semantic data rendered by the
+ * native client. An HTML Canvas is an advanced document served by the daemon over its token route
+ * with the response CSP the daemon chose — see `canvas-web-view.tsx`.
  */
 export function CanvasScreen({ canvasId }: { canvasId: string }): React.JSX.Element {
   const focused = useIsFocused()
@@ -93,6 +95,19 @@ function CanvasBody({
         document={readerDocument(markdownToHtml(canvas.content), scheme)}
         testID="porcelain-canvas-document-reader"
       />
+    )
+  }
+  if (canvas.record.kind === 'structured') {
+    const parsed = parseDecisionCanvas(canvas.content)
+    return parsed.error === null ? (
+      <DecisionCanvasView document={parsed.document} />
+    ) : (
+      <View className={SURFACE_GUTTER}>
+        <ErrorNote
+          message={`This Canvas does not match the current Decision contract. ${parsed.error}`}
+          testID="porcelain-canvas-document-error"
+        />
+      </View>
     )
   }
   // A failed mint leaves the loading state standing rather than a WebView pointed nowhere.

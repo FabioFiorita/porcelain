@@ -6,13 +6,11 @@ import type { McpOperations } from './mcp-operations'
 const PROJECT = 'project-1'
 const WORKTREE = 'worktree-1'
 const REPO = process.cwd()
-const HEAD = '0123456789abcdef0123456789abcdef01234567'
 
 function harness(
   options: {
     trackedCanvas?: boolean
     canvasContent?: string
-    dirtyReview?: boolean
     worktreeOverride?: {
       layers: { label: string; pattern: string }[] | null
     } | null
@@ -31,13 +29,6 @@ function harness(
     tracked: options.trackedCanvas ?? false,
   }
   const ops = {
-    git: {
-      statusGit: async () => ({
-        ok: true,
-        value: options.dirtyReview ? [{ path: 'src/a.ts', status: 'modified' as const }] : [],
-      }),
-      logGit: async () => [{ hash: HEAD, author: 'Agent', date: '', subject: 'Review' }],
-    },
     files: {
       worktreeProfile: async () => ({
         worktreeId: WORKTREE,
@@ -94,6 +85,10 @@ function harness(
         calls.push({ name: 'promoteOverrides', input })
         return { ok: true, value: {} }
       },
+    },
+    git: {
+      statusGit: async () => ({ ok: true, value: [] }),
+      logGit: async () => [{ hash: 'abc123' }],
     },
     review: {
       listReviewComments: async () => ({ ok: true, value: comments }),
@@ -243,15 +238,22 @@ describe('domain MCP entry points', () => {
   it('validates and writes a structured Canvas document', async () => {
     const { tools, calls } = harness()
     const document = {
-      version: 1,
-      title: 'Architecture',
-      tabs: [
-        {
-          id: 'why',
-          label: 'Why',
-          blocks: [{ type: 'markdown', content: '# Context' }],
-        },
+      version: 2,
+      template: 'decision',
+      title: 'Architecture decision',
+      summary: 'Choose the owning layer.',
+      options: [
+        { id: 'client', name: 'Client', summary: 'The client owns presentation.' },
+        { id: 'daemon', name: 'Daemon', summary: 'The daemon owns presentation.' },
       ],
+      criteria: [{ id: 'ownership', label: 'Ownership' }],
+      assessments: [],
+      recommendation: {
+        optionId: 'client',
+        summary: 'Use the client.',
+        rationale: ['Presentation belongs to clients.'],
+        confidence: 'high',
+      },
     }
     const result = await tools.call('porcelain_canvas', {
       op: 'create',
@@ -263,7 +265,7 @@ describe('domain MCP entry points', () => {
     expect(calls).toContainEqual({
       name: 'writeCanvas',
       input: expect.objectContaining({
-        title: 'Architecture',
+        title: 'Architecture decision',
         kind: 'structured',
         entryFile: 'canvas.json',
         source: expect.objectContaining({ kind: 'structured', document: expect.any(String) }),
@@ -278,124 +280,117 @@ describe('domain MCP entry points', () => {
       workspace: REPO,
       document: {
         version: 1,
-        title: 'Too many tabs',
-        tabs: Array.from({ length: 5 }, (_, index) => ({
-          id: `tab-${index}`,
-          label: `Tab ${index}`,
-          blocks: [{ type: 'markdown', content: 'Content' }],
-        })),
+        title: 'Old document',
+        tabs: [],
       },
     })
 
     expect(result.isError).toBe(true)
-    expect(result.text).toContain('tabs')
+    expect(result.text).toContain('template')
     expect(calls.some((call) => call.name === 'writeCanvas')).toBe(false)
   })
 
-  it('creates distinct Review Canvases in the addressed worktree', async () => {
+  it('keeps Review as a v2 semantic History template and rejects removed Plan', async () => {
     const { tools, calls } = harness()
-    const review = {
-      title: 'Review A',
-      why: [{ type: 'markdown', content: '# Why\nThe boundary leaked.' }],
-      how: [{ type: 'markdown', content: '# How\nMove ownership.' }],
-      layers: [{ label: 'Source', pattern: '^src/' }],
-      files: [{ path: 'src/a.ts' }],
-    }
-    await tools.call('porcelain_canvas', {
-      op: 'create',
-      workspace: REPO,
-      template: 'review',
-      templateData: review,
-    })
-    await tools.call('porcelain_canvas', {
+    const review = await tools.call('porcelain_canvas', {
       op: 'create',
       workspace: REPO,
       template: 'review',
       templateData: {
-        title: 'Review B',
-        why: review.why,
-        how: review.how,
-        files: review.files,
+        title: 'Decision Canvas review',
+        why: 'The product needs a bounded decision explanation.',
+        how: 'Version 2 renders semantic templates.',
+        layers: [{ label: 'Contract', pattern: 'packages/contracts/.*' }],
+        files: [{ path: 'packages/contracts/src/projects/structured-canvas.contract.ts' }],
       },
     })
-
-    const writes = calls.filter((call) => call.name === 'writeCanvas')
-    expect(writes).toHaveLength(2)
-    expect(writes).toEqual([
-      expect.objectContaining({ input: expect.not.objectContaining({ id: expect.anything() }) }),
-      expect.objectContaining({ input: expect.not.objectContaining({ id: expect.anything() }) }),
-    ])
-    expect(writes.map((write) => write.input)).toEqual([
-      expect.objectContaining({ worktreeId: WORKTREE, title: 'Review A', template: 'review' }),
-      expect.objectContaining({ worktreeId: WORKTREE, title: 'Review B', template: 'review' }),
-    ])
-    const metadata = writes.map((write) => {
-      const input = write.input as { source: { extraFiles: { path: string; content: string }[] } }
-      const reviewFile = input.source.extraFiles.find((file) => file.path === 'review.json')
-      return JSON.parse(reviewFile?.content ?? '{}')
-    })
-    expect(metadata[0].layers).toEqual([{ label: 'Source', pattern: '^src/' }])
-    expect(metadata[0].commitHash).toBe(HEAD)
-    expect(metadata[1].layers).toEqual([])
-    expect(metadata[1].commitHash).toBe(HEAD)
-    const firstWrite = writes[0]
-    if (firstWrite === undefined) throw new Error('expected first Review write')
-    const firstSource = (firstWrite.input as { source: { document: string } }).source
-    expect(
-      JSON.parse(firstSource.document).tabs.map((tab: { label: string }) => tab.label),
-    ).toEqual(['Why', 'How'])
-  })
-
-  it('leaves a dirty Review live-only until it is updated after commit', async () => {
-    const { tools, calls } = harness({ dirtyReview: true })
-    const result = await tools.call('porcelain_canvas', {
-      op: 'create',
-      workspace: REPO,
-      template: 'review',
-      templateData: {
-        title: 'In progress',
-        why: [{ type: 'markdown', content: '# Why' }],
-        how: [{ type: 'markdown', content: '# How' }],
-        layers: [{ label: 'Source', pattern: '^src/' }],
-      },
-    })
-
-    const write = calls.find((call) => call.name === 'writeCanvas')
-    const source = (
-      write?.input as { source?: { extraFiles?: { path: string; content: string }[] } }
-    )?.source
-    const reviewFile = source?.extraFiles?.find((file) => file.path === 'review.json')
-    expect(JSON.parse(reviewFile?.content ?? '{}')).not.toHaveProperty('commitHash')
-    expect(result.text).toContain('live-only')
-  })
-
-  it('creates a Plan through the shared structured renderer', async () => {
-    const { tools, calls } = harness()
-    const result = await tools.call('porcelain_canvas', {
+    const plan = await tools.call('porcelain_canvas', {
       op: 'create',
       workspace: REPO,
       template: 'plan',
+      templateData: { title: 'Old Plan' },
+    })
+    expect(review.isError).toBeUndefined()
+    expect(plan.isError).toBe(true)
+    expect(review.text).toContain('"history": "bound"')
+    expect(plan.text).toContain('template must be decision or review')
+    expect(calls).toContainEqual(
+      expect.objectContaining({
+        name: 'writeCanvas',
+        input: expect.objectContaining({ template: 'review' }),
+      }),
+    )
+  })
+
+  it('creates and updates a semantic Decision through porcelain_canvas', async () => {
+    const { tools, calls } = harness()
+    const templateData = {
+      title: 'Canvas contract direction',
+      summary: 'Choose the next structured Canvas contract.',
+      context: 'One semantic contract is accepted.',
+      options: [
+        { id: 'semantic', name: 'Semantic', summary: 'Porcelain owns presentation.' },
+        { id: 'html', name: 'HTML', summary: 'The author owns presentation.' },
+        { id: 'markdown', name: 'Markdown', summary: 'Use prose only.' },
+      ],
+      criteria: [{ id: 'responsive', label: 'Responsive layout' }],
+      assessments: [
+        {
+          optionId: 'semantic',
+          criterionId: 'responsive',
+          rating: 'strong',
+          note: 'The client can adapt the same meaning.',
+        },
+      ],
+      recommendation: {
+        optionId: 'semantic',
+        summary: 'Adopt semantic documents.',
+        rationale: ['Presentation stays product-owned.'],
+        confidence: 'high',
+        assumptions: ['Clients consume the current contract.'],
+        changeConditions: ['Clients cannot share the contract.'],
+      },
+    }
+    const created = await tools.call('porcelain_canvas', {
+      op: 'create',
+      workspace: REPO,
+      template: 'decision',
+      templateData,
+    })
+    const updated = await tools.call('porcelain_canvas', {
+      op: 'update',
+      workspace: REPO,
+      id: 'canvas-1',
+      template: 'decision',
       templateData: {
-        title: 'Migration plan',
-        tabs: [
-          {
-            id: 'approach',
-            label: 'Approach',
-            blocks: [{ type: 'markdown', content: '# Sequence' }],
-          },
-        ],
+        ...templateData,
+        decision: {
+          optionId: 'semantic',
+          summary: 'Semantic version 2 is accepted.',
+          rationale: ['It keeps one authoring path.'],
+        },
       },
     })
 
-    expect(result.isError).toBeUndefined()
-    expect(calls).toContainEqual({
-      name: 'writeCanvas',
-      input: expect.objectContaining({
-        title: 'Migration plan',
-        kind: 'structured',
-        template: 'plan',
-      }),
-    })
+    expect(created.isError).toBeUndefined()
+    expect(updated.isError).toBeUndefined()
+    const writes = calls.filter((call) => call.name === 'writeCanvas')
+    expect(writes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          input: expect.objectContaining({
+            title: 'Canvas contract direction',
+            kind: 'structured',
+            template: 'decision',
+          }),
+        }),
+        expect.objectContaining({ input: expect.objectContaining({ id: 'canvas-1' }) }),
+      ]),
+    )
+    const firstWrite = writes[0]
+    if (firstWrite === undefined) throw new Error('expected a Decision write')
+    const source = (firstWrite.input as { source: { document: string } }).source
+    expect(JSON.parse(source.document)).toMatchObject({ version: 2, template: 'decision' })
   })
 
   it('replaces an existing tracked Canvas on update and reads the new content', async () => {

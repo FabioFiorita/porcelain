@@ -12,8 +12,11 @@ test('Metro uses the active profile port and cache directory', () => {
 })
 
 test('the Android loop uses the active profile port and ownership directory', () => {
-  const launch = mobileLaunch(['android', 'preflight'])
+  const launch = mobileLaunch(['android', 'preflight'], {
+    ANDROID_LOOP_ENV_FILE: '/tmp/machine-owned-android-loop-env.sh',
+  })
   assert.deepEqual(launch.args, ['preflight'])
   assert.equal(launch.env.METRO_PORT, String(DEV_METRO_PORT))
   assert.equal(launch.env.ANDROID_LOOP_STATE_DIR, `${DEV_MOBILE_STATE}/android`)
+  assert.equal(launch.env.ANDROID_LOOP_ENV_FILE, '/tmp/machine-owned-android-loop-env.sh')
 })
