@@ -85,6 +85,11 @@ export interface ReviewSection {
 export const reviewSetSchema = z.object({
   name: z.string().default('Active review'),
   thesis: z.string().max(4096).optional(),
+  /** The clean checkout HEAD this Review was last authored against. */
+  commitHash: z
+    .string()
+    .regex(/^[0-9a-f]{40,64}$/)
+    .optional(),
   layers: z.array(profileLayerSchema).default([]),
   files: z.array(reviewSetFileSchema).default([]),
   sections: z.array(reviewSectionSchema).max(30).default([]),
@@ -94,6 +99,8 @@ export interface ReviewSet {
   name: string
   /** One-paragraph markdown thesis shown at the top of the Review. */
   thesis?: string
+  /** Immutable History identity; absent while the authored checkout is dirty. */
+  commitHash?: string
   /** This Review's narrative order; it never carries into a later Review. */
   layers?: { label: string; pattern: string }[]
   files: ReviewSetFile[]

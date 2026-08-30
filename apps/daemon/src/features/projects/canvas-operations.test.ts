@@ -32,6 +32,16 @@ const markdownRecord: StoredCanvas = {
   updatedAt: '2026-08-15T01:00:00.000Z',
 }
 
+const structuredRecord: StoredCanvas = {
+  id: 'canvas-structured',
+  worktreeId: 'wt-1',
+  title: 'Review',
+  kind: 'structured',
+  entryFile: 'canvas.json',
+  createdAt: '2026-08-15T00:00:00.000Z',
+  updatedAt: '2026-08-15T02:00:00.000Z',
+}
+
 async function writeIndex(projectId: string, canvases: StoredCanvas[]): Promise<void> {
   const path = canvasIndexPath(homeDir, projectId)
   await mkdir(join(path, '..'), { recursive: true })
@@ -178,6 +188,25 @@ describe('Canvas operations', () => {
         assetPath: '../index.json',
       }),
     ).toEqual({ ok: false, error: { code: 'canvas.not-found' } })
+  })
+
+  it('reads gallery assets from a structured Canvas bundle', async () => {
+    await writeIndex('proj-1', [structuredRecord])
+    const bundleDir = canvasBundleDir(homeDir, 'proj-1', 'canvas-structured')
+    await mkdir(join(bundleDir, 'assets'), { recursive: true })
+    await writeFile(join(bundleDir, 'canvas.json'), '{"version":1}', 'utf8')
+    await writeFile(join(bundleDir, 'assets', 'result.svg'), '<svg></svg>', 'utf8')
+
+    expect(
+      await operations.readCanvasAsset({
+        projectId: 'proj-1',
+        canvasId: 'canvas-structured',
+        assetPath: 'assets/result.svg',
+      }),
+    ).toEqual({
+      ok: true,
+      value: { bytes: Buffer.from('<svg></svg>'), contentType: 'image/svg+xml' },
+    })
   })
 
   it('appends the external-link bridge script to HTML content only', async () => {
