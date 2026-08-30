@@ -1,6 +1,6 @@
 ---
 name: prove-android
-version: 0.61.0
+version: 0.60.2
 metadata:
   internal: true
 description: Drive the Android emulator to observe a change in the mobile client — Metro, a dev client on the AVD, then semantic tap/screenshot through `scripts/mobile-android-loop.sh`. Use when the changed behavior is `apps/mobile` and Android is the surface, or when mobile evidence is asked for and no iOS device is required. Read `docs/runtime-proof.md` for what finishes a proof.

@@ -1,3 +1,13 @@
+## [0.60.2](https://github.com/FabioFiorita/porcelain/compare/v0.60.1...v0.60.2) (2026-08-30)
+
+### Features
+
+* **canvas:** add semantic Decision Canvas v2 ([d609447](https://github.com/FabioFiorita/porcelain/commit/d60944789f9b7ed1a3e857f335b9d65d68a7e40c))
+
+### Bug Fixes
+
+* serve structured canvas assets ([511067b](https://github.com/FabioFiorita/porcelain/commit/511067beeb20164e4d5abf837d9bff343403dfb6))
+
 ## [0.60.1](https://github.com/FabioFiorita/porcelain/compare/v0.60.0...v0.60.1) (2026-08-28)
 
 ### Features
