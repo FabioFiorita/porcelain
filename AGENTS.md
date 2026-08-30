@@ -50,6 +50,14 @@ tracked PID or managed worktree record.
 5. Report the change, commands/evidence, and remaining uncertainty. Commit a coherent unit when
    the work is ready. Push only when asked.
 
+Dogfood Porcelain through its companion domain tools when they are available for the addressed
+checkout. For a material product or architecture choice, create one Decision Canvas before
+implementation, keep updating that Canvas, and record the decision only after the human chooses.
+For coherent completed work that benefits from a shared explanation, maintain one Review Canvas
+and update that same Review after committing on a clean checkout until it is bound to the commit
+for History. Canvas owns explanation; Changes remains authoritative for diffs, status, staging,
+history, and reviewed state. The companion skill owns the detailed authoring protocol.
+
 Validation is proportional: pure logic needs a focused test; daemon procedures need a focused
 procedure or integration check; UI needs a focused test and runtime proof when useful; a build or
 release change needs the affected build or smoke path. Use runtime proof when building,
