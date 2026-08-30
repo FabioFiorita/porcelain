@@ -26,6 +26,7 @@ import type {
   ReadCanvasOutput,
   RemoveHubWorktreeInput,
 } from '@porcelain/contracts/projects'
+import { settleBackground } from '@shared/background'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import { type DaemonScope, daemonScopeSchema } from '@renderer/lib/daemon-scope'
 import {
@@ -41,7 +42,11 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { useMemo } from 'react'
 import { z } from 'zod'
 
-import { SHELL_HUB_INVENTORIES_QUERY_KEY, type HubInventoryView } from './hub-inventories'
+import {
+  refreshCurrentShellHubInventory,
+  SHELL_HUB_INVENTORIES_QUERY_KEY,
+  type HubInventoryView,
+} from './hub-inventories'
 import {
   browseProjectDirectoriesOnDaemon,
   createHubWorktreeOnDaemon,
@@ -87,22 +92,24 @@ async function invalidateProjectQueries(
   environmentId: string | null = null,
 ): Promise<void> {
   const scope = daemonScopeForEnvironment(environmentId, daemon)
-  for (const query of queries) {
-    await queryClient.invalidateQueries({
+  const invalidations = queries.map((query) =>
+    queryClient.invalidateQueries({
       exact: true,
       queryKey: projectsQueryKey(scope, query),
-    })
-  }
+    }),
+  )
   // Browser secondary inventories use a connection-id key because the daemon-announced
   // Environment id is learned only after the connection has answered. Invalidate that
   // concrete cache row as well as the canonical daemon-scoped key above.
   if (isBrowser && environmentId !== null && queries.some((query) => query.name === 'inventory')) {
     const owner = environmentSessionFor(environmentId)
     if (owner !== null) {
-      await queryClient.invalidateQueries({
-        exact: true,
-        queryKey: ['browser', 'hubInventory', owner.id],
-      })
+      invalidations.push(
+        queryClient.invalidateQueries({
+          exact: true,
+          queryKey: ['browser', 'hubInventory', owner.id],
+        }),
+      )
     }
   }
   // Electron's Hub tree reads through a separate shell-router query (hub-inventories.ts) that
@@ -110,8 +117,14 @@ async function invalidateProjectQueries(
   // Worktree leaves the left sidebar showing stale state until staleTime (30s) or a window-focus
   // refetch catches up.
   if (!isBrowser && queries.some((query) => query.name === 'inventory')) {
-    await queryClient.invalidateQueries({ exact: true, queryKey: SHELL_HUB_INVENTORIES_QUERY_KEY })
+    if (environmentId === null) invalidations.push(refreshCurrentShellHubInventory(queryClient))
+    else {
+      invalidations.push(
+        queryClient.invalidateQueries({ exact: true, queryKey: SHELL_HUB_INVENTORIES_QUERY_KEY }),
+      )
+    }
   }
+  await Promise.all(invalidations)
 }
 
 export function useRecentProjects(enabled = true): readonly ProjectSummary[] {
@@ -153,13 +166,16 @@ export function useOpenProject(): {
       if (owner === null) throw new Error('The target Environment is offline.')
       return openProjectOnDaemon(owner.client, variables.path)
     },
-    onSuccess: async (project, variables) => {
+    onSuccess: (project, variables) => {
       selectProject(project)
-      await invalidateProjectQueries(
-        queryClient,
-        daemon,
-        openProject.affectedQueries(variables.path),
-        variables.environmentId,
+      settleBackground(
+        invalidateProjectQueries(
+          queryClient,
+          daemon,
+          openProject.affectedQueries(variables.path),
+          variables.environmentId,
+        ),
+        'invalidation',
       )
     },
   })

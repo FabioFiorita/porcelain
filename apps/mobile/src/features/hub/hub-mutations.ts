@@ -9,6 +9,7 @@ import {
   type HubWorktree,
   projectsProcedures,
 } from '@porcelain/contracts/projects'
+import { settleBackground } from '@porcelain/shared/background'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { callProjectDaemon, projectsQueryKey } from '@/features/projects'
@@ -47,12 +48,14 @@ async function invalidate(
   environmentId: string,
   queries: readonly ProjectsQuery[],
 ): Promise<void> {
-  for (const query of queries) {
-    await queryClient.invalidateQueries({
-      exact: true,
-      queryKey: projectsQueryKey(environmentId, query),
-    })
-  }
+  await Promise.all(
+    queries.map((query) =>
+      queryClient.invalidateQueries({
+        exact: true,
+        queryKey: projectsQueryKey(environmentId, query),
+      }),
+    ),
+  )
 }
 
 type CreateVariables = { environment: Environment; input: CreateHubWorktreeInput }
@@ -68,11 +71,14 @@ export function useCreateHubWorktree(): {
       callProjectDaemon(variables.environment, createWorktreeProcedure, variables.input),
     // Settled, not success: a write that failed in flight may still have landed, and the
     // inventory query is the only authority on what the daemon actually holds.
-    onSettled: async (_data, _error, variables): Promise<void> => {
-      await invalidate(
-        queryClient,
-        variables.environment.id,
-        createHubWorktree.affectedQueries(variables.input),
+    onSettled: (_data, _error, variables): void => {
+      settleBackground(
+        invalidate(
+          queryClient,
+          variables.environment.id,
+          createHubWorktree.affectedQueries(variables.input),
+        ),
+        'invalidation',
       )
     },
   })
@@ -112,14 +118,17 @@ export function useRetireHubWorktree(): {
         await environmentActions.setActiveProjectPath(current.id, null)
       }
     },
-    onSettled: async (_data, _error, variables): Promise<void> => {
-      await invalidate(
-        queryClient,
-        variables.environment.id,
-        removeHubWorktree.affectedQueries({
-          projectId: variables.worktree.projectId,
-          worktreeId: variables.worktree.id,
-        }),
+    onSettled: (_data, _error, variables): void => {
+      settleBackground(
+        invalidate(
+          queryClient,
+          variables.environment.id,
+          removeHubWorktree.affectedQueries({
+            projectId: variables.worktree.projectId,
+            worktreeId: variables.worktree.id,
+          }),
+        ),
+        'invalidation',
       )
     },
   })
@@ -147,11 +156,14 @@ export function useRemoveHubProject(): {
     }) => {
       await callProjectDaemon(environment, removeProjectProcedure, projectId)
     },
-    onSettled: async (_data, _error, variables): Promise<void> => {
-      await invalidate(
-        queryClient,
-        variables.environment.id,
-        removeHubProject.affectedQueries(variables.projectId),
+    onSettled: (_data, _error, variables): void => {
+      settleBackground(
+        invalidate(
+          queryClient,
+          variables.environment.id,
+          removeHubProject.affectedQueries(variables.projectId),
+        ),
+        'invalidation',
       )
     },
   })

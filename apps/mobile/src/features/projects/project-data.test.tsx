@@ -155,6 +155,14 @@ function createProjectHarness(overrides: DaemonMockHandlers = {}): {
   return { client, mock, wrapper }
 }
 
+function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((finish) => {
+    resolve = finish
+  })
+  return { promise, resolve }
+}
+
 beforeEach(() => {
   ctx.client = null
   ctx.environment = { ...pairedEnvironment }
@@ -238,6 +246,30 @@ describe('Mobile Projects adapter', () => {
     expect(daemonSession.selectProject).toHaveBeenCalledWith(beta.path)
     expect(hook.result.current.queryClient.getQueryState(falseKey)?.isInvalidated).toBe(true)
     expect(hook.result.current.queryClient.getQueryState(trueKey)?.isInvalidated).toBe(true)
+  })
+
+  it('resolves open after selection without waiting for background invalidations', async () => {
+    const invalidation = deferred<void>()
+    const { client, wrapper } = createProjectHarness()
+    ctx.client = client
+    const hook = renderHook(() => ({ open: useOpenProject(), queryClient: useQueryClient() }), {
+      wrapper,
+    })
+    const invalidateQueries = vi
+      .spyOn(hook.result.current.queryClient, 'invalidateQueries')
+      .mockReturnValue(invalidation.promise)
+
+    let opening: Promise<void> | undefined
+    act(() => {
+      opening = hook.result.current.open.open(beta.path)
+    })
+
+    await expect(opening).resolves.toBeUndefined()
+    expect(ctx.environment?.activeRepoPath).toBe(beta.path)
+    expect(daemonSession.selectProject).toHaveBeenCalledWith(beta.path)
+    expect(invalidateQueries).toHaveBeenCalledTimes(3)
+
+    invalidation.resolve()
   })
 
   it('ignores a duplicate open while the first request is pending', async () => {

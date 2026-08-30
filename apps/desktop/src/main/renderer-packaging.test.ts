@@ -1,9 +1,11 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const webViteConfig = resolve(__dirname, '../../../web/vite.config.ts')
+const webLogo = resolve(__dirname, '../../../web/src/assets/logo.png')
 const builtIndex = resolve(__dirname, '../../out/renderer/index.html')
+const builtAssets = resolve(__dirname, '../../out/renderer/assets')
 const electronBuilderYml = resolve(__dirname, '../../electron-builder.yml')
 
 describe('renderer packaging (file:// safe base)', () => {
@@ -20,6 +22,22 @@ describe('renderer packaging (file:// safe base)', () => {
       if (href.startsWith('http') || href.startsWith('data:')) continue
       expect(href.startsWith('/'), `absolute root URL breaks file://: ${href}`).toBe(false)
     }
+  })
+
+  it('keeps the app logo compact and emits only the terminal-owned Symbols font', () => {
+    const logo = readFileSync(webLogo)
+    // PNG IHDR: signature (8 bytes), chunk length/type (8 bytes), then width and height.
+    expect(logo.subarray(12, 16).toString('ascii')).toBe('IHDR')
+    expect(logo.readUInt32BE(16)).toBeLessThanOrEqual(160)
+    expect(logo.readUInt32BE(20)).toBeLessThanOrEqual(176)
+    expect(statSync(webLogo).size).toBeLessThanOrEqual(40 * 1024)
+
+    if (!existsSync(builtAssets)) return
+    const emittedSymbolsFonts = readdirSync(builtAssets).filter((name) =>
+      name.startsWith('SymbolsNerdFontMono-Regular-'),
+    )
+    expect(emittedSymbolsFonts).toHaveLength(1)
+    expect(emittedSymbolsFonts[0]).toMatch(/\.woff2$/)
   })
 
   it('asarUnpack lists node-pty and trash', () => {

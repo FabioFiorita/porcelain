@@ -320,26 +320,28 @@ describe('Project operations', () => {
         isPrimary: true,
       },
     ]
-    h.git.discoverProject.mockResolvedValue({
-      ok: true,
+    const topic = {
+      path: '/projects/alpha-worktrees/topic',
+      gitDir: '/projects/alpha/.git/worktrees/topic',
+      branch: 'topic',
+      isPrimary: false,
+    }
+    let current = live
+    h.git.discoverProject.mockImplementation(async () => ({
+      ok: true as const,
       value: {
         commonGitDir: '/projects/alpha/.git',
         groupingKey: 'name:alpha',
         name: 'alpha',
-        worktrees: live,
+        worktrees: current,
       },
-    })
-    h.git.listWorktrees.mockResolvedValueOnce({ ok: true, value: live }).mockResolvedValueOnce({
-      ok: true,
-      value: [
-        ...live,
-        {
-          path: '/projects/alpha-worktrees/topic',
-          gitDir: '/projects/alpha/.git/worktrees/topic',
-          branch: 'topic',
-          isPrimary: false,
-        },
-      ],
+    }))
+    h.git.addWorktree.mockImplementation(async () => {
+      current = [...live, topic]
+      return {
+        ok: true as const,
+        value: { path: topic.path, branch: topic.branch },
+      }
     })
 
     const created = await h.operations.createHubWorktree({

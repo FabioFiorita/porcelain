@@ -38,6 +38,9 @@ export function useGitWorkspace(options: GitWorkspaceOptions = {}): {
   const environmentId = environment?.id ?? 'none'
   const projectPath = repoPath === null ? DISABLED_PROJECT : gitProjectKey(repoPath)
   const enabled = isPaired(environment) && repoPath !== null && (options.enabled ?? true)
+  // Workspace pickers pass their own open/focus state. A bare read is allowed, but it is not a
+  // surface that may retain a polling interval.
+  const pollingEnabled = options.enabled === true
   const placeholder = options.placeholderData === true ? keepPreviousData : undefined
 
   const head = useQuery({
@@ -47,7 +50,8 @@ export function useGitWorkspace(options: GitWorkspaceOptions = {}): {
       return callGit(environment, gitHeadProcedure, projectPath)
     },
     queryKey: gitQueryKey(environmentId, gitHeadQuery(projectPath)),
-    refetchInterval: enabled ? 5_000 : false,
+    refetchInterval: enabled && pollingEnabled ? 5_000 : false,
+    refetchIntervalInBackground: false,
     staleTime: 0,
   })
   const branches = useQuery({
@@ -68,7 +72,8 @@ export function useGitWorkspace(options: GitWorkspaceOptions = {}): {
       return callGit(environment, gitWorktreesProcedure, projectPath)
     },
     queryKey: gitQueryKey(environmentId, gitWorktreesQuery(projectPath)),
-    refetchInterval: enabled ? 15_000 : false,
+    refetchInterval: enabled && pollingEnabled ? 15_000 : false,
+    refetchIntervalInBackground: false,
   })
   const refetchBranches = branches.refetch
   const refreshBranches = useCallback(async (): Promise<void> => {

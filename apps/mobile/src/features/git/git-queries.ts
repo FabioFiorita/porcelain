@@ -72,7 +72,7 @@ const IMMUTABLE = Number.POSITIVE_INFINITY
 
 export type GitFlowOptions = {
   readonly enabled?: boolean
-  /** Defaults to the live working-tree rate. */
+  /** Working-tree poll rate when the caller supplies its active surface. */
   readonly pollMs?: number
 }
 
@@ -85,6 +85,9 @@ export type GitFlowRead = {
 /** The flow-grouped working tree. */
 export function useGitFlow(options: GitFlowOptions = {}): GitFlowRead {
   const scope = useGitScope()
+  // A caller without an explicit surface-active value can still read once, but it must not
+  // quietly keep a working-tree poll alive after that surface disappears.
+  const pollMs = options.enabled === true ? (options.pollMs ?? LIVE_POLL_MS) : undefined
   const { data, error, isLoading } = useGitQuery(
     gitFlowQuery(scope.projectPath),
     flowProcedure,
@@ -92,7 +95,7 @@ export function useGitFlow(options: GitFlowOptions = {}): GitFlowRead {
     {
       enabled: scope.ready && (options.enabled ?? true),
       keepPreviousData: true,
-      pollMs: options.pollMs ?? LIVE_POLL_MS,
+      pollMs,
       staleTime: 0,
     },
   )

@@ -145,6 +145,7 @@ pnpm format           # write formatting
 pnpm lint             # source checks configured by the checkout
 pnpm test              # desktop/Vitest suite; pass a focused target when supported
 pnpm build            # product build/typechecks
+pnpm performance:check # verify the built renderer's initial-load and asset budgets
 pnpm turbo run build --filter=@porcelain/desktop  # inspect the production build graph
 ```
 

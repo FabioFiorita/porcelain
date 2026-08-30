@@ -1,5 +1,34 @@
-import { describe, expect, it } from 'vitest'
-import { pushCappedOutput, TERMINAL_THEMES } from './terminal-registry'
+import { describe, expect, it, vi } from 'vitest'
+
+const { createSurface, loadSurfaceModule, surface } = vi.hoisted(() => {
+  const surface = {
+    dispose: vi.fn(),
+    focus: vi.fn(),
+    paste: vi.fn(),
+    resetAndWrite: vi.fn(),
+    resizeToMount: vi.fn(),
+    rows: 24,
+    write: vi.fn(),
+  }
+  return {
+    createSurface: vi.fn(),
+    loadSurfaceModule: vi.fn(),
+    surface,
+  }
+})
+
+vi.mock('@renderer/terminal/ghostty/surface', () => {
+  loadSurfaceModule()
+  return { GhosttyTerminalSurface: { create: createSurface } }
+})
+
+import {
+  attachTerminal,
+  disposeTerminal,
+  pushCappedOutput,
+  receiveData,
+  TERMINAL_THEMES,
+} from './terminal-registry'
 
 describe('TERMINAL_THEMES', () => {
   it('keeps the dark palette byte-identical to the previous inline literal', () => {
@@ -65,5 +94,40 @@ describe('pushCappedOutput', () => {
     const units = pushCappedOutput(buffer, 4, 'z'.repeat(2000), 100)
     expect(buffer).toEqual(['z'.repeat(2000)])
     expect(units).toBe(2000)
+  })
+})
+
+describe('lazy Ghostty surface', () => {
+  it('buffers stream output until a deduplicated surface is attached', async () => {
+    let resolveSurface: ((value: typeof surface) => void) | undefined
+    createSurface.mockImplementation(
+      () =>
+        new Promise<typeof surface>((resolve) => {
+          resolveSurface = resolve
+        }),
+    )
+
+    // The shell starts stream subscriptions before a terminal pane exists. That
+    // must neither load Ghostty nor lose the first bytes.
+    expect(loadSurfaceModule).not.toHaveBeenCalled()
+    receiveData('lazy-terminal', 'before attach')
+    expect(createSurface).not.toHaveBeenCalled()
+
+    const first = document.createElement('div')
+    const second = document.createElement('div')
+    document.body.append(first, second)
+    attachTerminal('lazy-terminal', first)
+    attachTerminal('lazy-terminal', second)
+
+    await vi.waitFor(() => expect(createSurface).toHaveBeenCalledTimes(1))
+    receiveData('lazy-terminal', ' while creating')
+    resolveSurface?.(surface)
+
+    await vi.waitFor(() => {
+      expect(surface.write).toHaveBeenCalledWith('before attach')
+      expect(surface.write).toHaveBeenCalledWith(' while creating')
+    })
+
+    disposeTerminal('lazy-terminal')
   })
 })

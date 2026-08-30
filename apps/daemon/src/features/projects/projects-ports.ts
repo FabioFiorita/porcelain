@@ -1,4 +1,3 @@
-import { existsSync } from 'node:fs'
 import { readdir, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
@@ -47,10 +46,60 @@ export type CreateNodeProjectsPortOptions = Readonly<{
    * server.ts) still gates what can actually be opened, independent of what can be seen.
    */
   showHidden?: boolean
+  /**
+   * Internal seam for the asynchronous repository marker lookup. This remains an
+   * implementation detail of the Node adapter rather than a wire contract.
+   */
+  repositoryMarkerExists?: (path: string) => Promise<boolean>
 }>
+
+const REPOSITORY_MARKER_CONCURRENCY = 8
+
+async function mapWithConcurrency<Value, Result>(
+  values: readonly Value[],
+  concurrency: number,
+  map: (value: Value) => Promise<Result>,
+): Promise<Result[]> {
+  const results = new Array<Result>(values.length)
+  let nextIndex = 0
+
+  async function worker(): Promise<void> {
+    while (nextIndex < values.length) {
+      const index = nextIndex
+      nextIndex += 1
+      const value = values[index]
+      if (value === undefined) continue
+      results[index] = await map(value)
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(concurrency, values.length) }, () => worker()))
+  return results
+}
+
+async function defaultRepositoryMarkerExists(path: string): Promise<boolean> {
+  try {
+    await stat(path)
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function isRepositoryMarker(
+  repositoryMarkerExists: (path: string) => Promise<boolean>,
+  path: string,
+): Promise<boolean> {
+  try {
+    return await repositoryMarkerExists(path)
+  } catch {
+    return false
+  }
+}
 
 export function createNodeProjectsPort(options: CreateNodeProjectsPortOptions = {}): ProjectsPort {
   const showHidden = options.showHidden ?? false
+  const repositoryMarkerExists = options.repositoryMarkerExists ?? defaultRepositoryMarkerExists
   return Object.freeze({
     async inspectProject(path: string): Promise<ProjectsPortResult<ProjectInfo>> {
       try {
@@ -66,17 +115,15 @@ export function createNodeProjectsPort(options: CreateNodeProjectsPortOptions = 
       const target = path ?? homedir()
       try {
         const dirents = await readdir(target, { withFileTypes: true })
-        const entries = dirents
+        const directories = dirents
           .filter((entry) => entry.isDirectory() && (showHidden || !entry.name.startsWith('.')))
-          .map((entry) => {
-            const entryPath = join(target, entry.name)
-            return {
-              name: entry.name,
-              path: entryPath,
-              isRepo: existsSync(join(entryPath, '.git')),
-            }
-          })
-          .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'accent' }))
+          .map((entry) => ({ name: entry.name, path: join(target, entry.name) }))
+        const entries = (
+          await mapWithConcurrency(directories, REPOSITORY_MARKER_CONCURRENCY, async (entry) => ({
+            ...entry,
+            isRepo: await isRepositoryMarker(repositoryMarkerExists, join(entry.path, '.git')),
+          }))
+        ).sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'accent' }))
 
         const parentPath = dirname(target)
         return {

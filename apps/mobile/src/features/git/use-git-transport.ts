@@ -96,7 +96,8 @@ export function useGitQuery<TInput, TOutput>(
     placeholderData: options.keepPreviousData === true ? keepPreviousData : undefined,
     queryFn: (): Promise<TOutput> => callGit(environment, procedure, input),
     queryKey: gitQueryKey(environment?.id ?? 'none', query),
-    refetchInterval: options.pollMs ?? false,
+    refetchInterval: enabled ? (options.pollMs ?? false) : false,
+    refetchIntervalInBackground: false,
     staleTime: options.staleTime,
   })
 }

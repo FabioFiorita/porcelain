@@ -94,6 +94,12 @@ describe('Mobile Git reads', () => {
     expect(
       queryClient.getQueryData(gitQueryKey('env-git-reads', gitFlowQuery('/synthetic/repo'))),
     ).toEqual(gitContractFixtures.gitFlow.output)
+    const flowQuery = queryClient.getQueryCache().find({
+      queryKey: gitQueryKey('env-git-reads', gitFlowQuery('/synthetic/repo')),
+    })
+    expect((flowQuery?.options as { refetchInterval?: unknown } | undefined)?.refetchInterval).toBe(
+      false,
+    )
   })
 
   it('carries the history limit in the identity as well as the wire input', async () => {

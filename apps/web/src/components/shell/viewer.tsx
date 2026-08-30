@@ -1,6 +1,3 @@
-import { ChangesetView } from '@renderer/components/git/changeset-view'
-import { CommitView } from '@renderer/components/git/commit-view'
-import { DiffView } from '@renderer/components/git/diff-view'
 import {
   Empty,
   EmptyDescription,
@@ -8,17 +5,52 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from '@renderer/components/ui/empty'
-import { FileContent } from '@renderer/components/viewer/file-content'
-import { SearchView } from '@renderer/components/viewer/search-view'
-import { CanvasView } from '@renderer/features/projects'
 import { cn } from '@renderer/lib/utils'
 import { HubRepoProvider } from '@renderer/stores/hub-repo'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { type Tab, useTabsStore } from '@renderer/stores/tabs'
 import { TestIds } from '@shared/test-ids'
 import { PanelRight } from 'lucide-react'
+import { lazy, Suspense } from 'react'
 import { SplitResizeHandle } from './sidebar-resize-handle'
 import { TabBar } from './tab-bar'
+
+// Opening the shell should not parse every rich viewer (and its Markdown, syntax
+// highlighting, or canvas dependencies). Each surface stays a distinct boundary
+// so the active tab is the only one requested. Named exports keep the component
+// modules' public APIs unchanged.
+const DiffView = lazy(() =>
+  import('@renderer/components/git/diff-view').then((module) => ({ default: module.DiffView })),
+)
+const CommitView = lazy(() =>
+  import('@renderer/components/git/commit-view').then((module) => ({ default: module.CommitView })),
+)
+const ChangesetView = lazy(() =>
+  import('@renderer/components/git/changeset-view').then((module) => ({
+    default: module.ChangesetView,
+  })),
+)
+const SearchView = lazy(() =>
+  import('@renderer/components/viewer/search-view').then((module) => ({
+    default: module.SearchView,
+  })),
+)
+const FileContent = lazy(() =>
+  import('@renderer/components/viewer/file-content').then((module) => ({
+    default: module.FileContent,
+  })),
+)
+const CanvasView = lazy(() =>
+  import('@renderer/features/projects/canvas-view').then((module) => ({
+    default: module.CanvasView,
+  })),
+)
+
+function ViewerSurfaceBoundary({ children }: { children: React.ReactNode }): React.JSX.Element {
+  // Retain the pane's dimensions while a just-selected surface module loads. A
+  // blank fallback avoids flashing an unrelated loading screen between tabs.
+  return <Suspense fallback={<div className="h-full" aria-busy="true" />}>{children}</Suspense>
+}
 
 function EmptyViewer(): React.JSX.Element {
   return (
@@ -46,7 +78,11 @@ function PaneView({ paneIndex }: { paneIndex: number }): React.JSX.Element {
 
   if (!activeTab) return <EmptyViewer />
 
-  const content = <PaneContent tab={activeTab} paneIndex={paneIndex} />
+  const content = (
+    <ViewerSurfaceBoundary>
+      <PaneContent tab={activeTab} paneIndex={paneIndex} />
+    </ViewerSurfaceBoundary>
+  )
   if (activeTab.target === undefined) return content
   return <HubRepoProvider target={activeTab.target}>{content}</HubRepoProvider>
 }

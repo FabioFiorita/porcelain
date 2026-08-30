@@ -11,7 +11,7 @@ import {
 } from '@renderer/lib/environment-sessions'
 import { isBrowser } from '@renderer/lib/platform'
 import { shellTrpcClient, trpc } from '@renderer/lib/trpc'
-import { useQueries, useQuery } from '@tanstack/react-query'
+import { type QueryClient, useQueries, useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo } from 'react'
 import { hubInventoryOnDaemon } from './project-transport'
 
@@ -30,6 +30,27 @@ export type HubInventoryView = Readonly<{
  * up. Exported so that invalidation can target it directly instead of duplicating the literal.
  */
 export const SHELL_HUB_INVENTORIES_QUERY_KEY = ['shell', 'hubInventories'] as const
+
+/**
+ * Refresh just this Electron window's Hub source after a mutation on its current daemon.
+ * Keep the all-Environment read for initial loading; replacing a known cache row here avoids
+ * turning a local interaction into a probe of every saved remote Environment.
+ */
+export async function refreshCurrentShellHubInventory(queryClient: QueryClient): Promise<void> {
+  const current = await shellTrpcClient.currentHubInventory.query()
+  if (current === null) return
+  queryClient.setQueryData<readonly HubInventoryView[]>(
+    SHELL_HUB_INVENTORIES_QUERY_KEY,
+    (cached) => {
+      // With no existing query, leave initial loading to the all-Environment query. Otherwise a
+      // mutation before the Hub mounts would make its first view permanently miss secondary rows.
+      if (cached === undefined) return cached
+      const previousCurrentIndex = cached.findIndex((source) => source.current)
+      if (previousCurrentIndex === -1) return [...cached, current]
+      return cached.map((source, index) => (index === previousCurrentIndex ? current : source))
+    },
+  )
+}
 
 /** Live Hub inventories: shell fan-out in Electron and one session per browser Environment. */
 export function useHubInventories(): readonly HubInventoryView[] {

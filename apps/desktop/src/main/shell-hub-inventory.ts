@@ -81,3 +81,19 @@ export async function readHubInventories(
   ])
   return [local, ...remote].flatMap((source) => (source === null ? [] : [source]))
 }
+
+/**
+ * Read only the inventory bound to one window. Unlike `readHubInventories`, this deliberately
+ * does not inspect every saved Environment: mutations on the current daemon use it to refresh
+ * that window's Hub row without making a local interaction wait on an unrelated remote probe.
+ */
+export async function readCurrentHubInventory(
+  currentEnvironmentId: string | null,
+): Promise<ShellHubInventory | null> {
+  if (currentEnvironmentId === null) return readLocalHubInventory(true)
+  const state = await loadRemoteEnvironmentState()
+  const environment = state.environments.find((entry) => entry.id === currentEnvironmentId)
+  return environment === undefined
+    ? null
+    : readRemoteHubInventory(environment, currentEnvironmentId)
+}

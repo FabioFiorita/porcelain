@@ -129,6 +129,12 @@ export function createHubInventoryOperations(options: {
   }
 }): HubInventoryOperations {
   const createId = options.createId ?? randomUUID
+  // `registerPath` runs immediately after a Project is opened. The next Hub read normally
+  // follows right behind it, so retain that already-authoritative discovery exactly once rather
+  // than asking Git the identical question again. A rebuild takes (and clears) this map up
+  // front, which keeps the handoff local to that one composition pass instead of becoming a
+  // time-based cache with observable staleness.
+  let registeredDiscoveries = new Map<string, DiscoveredProject>()
 
   async function loadEnvironment(): Promise<ProjectOperationResult<EnvironmentIdentity>> {
     const record = await options.environment.read()
@@ -153,22 +159,32 @@ export function createHubInventoryOperations(options: {
     return { stored: { ...stored, worktrees: rematched }, live: listed.value }
   }
 
-  async function registerDiscovered(
+  async function projectExistence(
+    projects: readonly StoredHubProject[],
+  ): Promise<Map<string, boolean>> {
+    const entries = await Promise.all(
+      projects.map(
+        async (project) =>
+          [project.commonGitDir, await options.git.pathExists(project.commonGitDir)] as const,
+      ),
+    )
+    return new Map(entries)
+  }
+
+  function registerDiscovered(
     working: StoredHubProject[],
     discovered: DiscoveredProject,
-  ): Promise<StoredHubProject[]> {
-    const existence = new Map<string, boolean>()
-    await Promise.all(
-      working.map(async (project) => {
-        existence.set(project.commonGitDir, await options.git.pathExists(project.commonGitDir))
-      }),
-    )
+    existence: Map<string, boolean>,
+  ): StoredHubProject[] {
     const rematched = rematchProject(
       working,
       discovered,
       (commonGitDir) => existence.get(commonGitDir) === true,
       createId,
     )
+    // Subsequent discoveries in this same rebuild need to see the family we just observed as
+    // live. That is the same state the previous per-discovery existence probe supplied.
+    existence.set(discovered.commonGitDir, true)
     return upsertProject(working, rematched)
   }
 
@@ -186,19 +202,53 @@ export function createHubInventoryOperations(options: {
     const recents = await options.recents.readPaths()
     if (!recents.ok) return unavailable()
 
+    // A handoff is consumed by one rebuild only. Registrations racing this rebuild are retained
+    // for its successor, where their recents entry will still be present.
+    const handoffs = registeredDiscoveries
+    registeredDiscoveries = new Map()
+    const recentDiscoveries = await Promise.all(
+      recents.value.map(async (path) => {
+        const allowed = allowedPath(path, options.pathAllowed)
+        if (allowed === null) return null
+        const handedOff = handoffs.get(allowed)
+        handoffs.delete(allowed)
+        if (handedOff !== undefined) return { discovered: handedOff }
+        const discovered = await options.git.discoverProject(allowed)
+        return discovered.ok ? { discovered: discovered.value } : null
+      }),
+    )
+
     let working = [...storedResult.value]
-    for (const path of recents.value) {
-      const allowed = allowedPath(path, options.pathAllowed)
-      if (allowed === null) continue
-      const discovered = await options.git.discoverProject(allowed)
-      if (!discovered.ok) continue
-      working = await registerDiscovered(working, discovered.value)
+    const discoveredWorktrees = new Map<string, DiscoveredProject['worktrees']>()
+    if (recentDiscoveries.some((entry) => entry !== null)) {
+      // Rematching is intentionally applied in recents order so the existing identity rules keep
+      // their exact tie-breaking behavior. Only the independent Git reads above are concurrent.
+      const existence = await projectExistence(working)
+      for (const entry of recentDiscoveries) {
+        if (entry === null) continue
+        working = registerDiscovered(working, entry.discovered, existence)
+        discoveredWorktrees.set(entry.discovered.commonGitDir, entry.discovered.worktrees)
+      }
     }
+
+    // Each Project is an independent Git query. Promise.all preserves the stored ordering in its
+    // result array while avoiding a long chain of unrelated worktree scans.
+    const refreshedProjects = await Promise.all(
+      working.map(async (project) => {
+        const discovered = discoveredWorktrees.get(project.commonGitDir)
+        if (discovered !== undefined) {
+          return {
+            stored: project,
+            live: discovered,
+          }
+        }
+        return await refreshProject(project)
+      }),
+    )
 
     const live: HubProject[] = []
     const nextStored: StoredHubProject[] = []
-    for (const project of working) {
-      const refreshed = await refreshProject(project)
+    for (const refreshed of refreshedProjects) {
       // A single Git project can contain worktrees from multiple families. Filter each live
       // entry before mapping it into the public inventory; checking only `some()` and then
       // passing the complete list would leak a production checkout beside a playground one.
@@ -358,8 +408,13 @@ export function createHubInventoryOperations(options: {
       if (!discovered.ok) return
       const stored = await options.inventory.readProjects()
       if (!stored.ok) return
-      const next = await registerDiscovered(stored.value, discovered.value)
-      await options.inventory.writeProjects(next)
+      const next = registerDiscovered(
+        stored.value,
+        discovered.value,
+        await projectExistence(stored.value),
+      )
+      const written = await options.inventory.writeProjects(next)
+      if (written.ok) registeredDiscoveries.set(allowed, discovered.value)
     },
   })
 }

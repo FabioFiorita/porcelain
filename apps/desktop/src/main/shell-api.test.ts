@@ -260,6 +260,29 @@ describe('shell daemon requests', () => {
     }
   })
 
+  it('reads only the current local Hub inventory without probing saved Environments', async () => {
+    state = {
+      activeId: null,
+      environments: [
+        {
+          id: 'env-unrelated',
+          name: 'env-unrelated',
+          url: 'http://offline.synthetic',
+          token: 'pc_client_env-unrelated',
+          endpoints: ['http://offline.synthetic'],
+          preferredEndpoint: 'http://offline.synthetic',
+        },
+      ],
+    }
+
+    const inventory = await caller().currentHubInventory()
+
+    expect(inventory?.environmentId).toBeNull()
+    expect(inventory?.current).toBe(true)
+    expect(seen.filter((entry) => entry.url.includes('/trpc/hubInventory'))).toHaveLength(1)
+    expect(seen.some((entry) => entry.url.includes('offline.synthetic'))).toBe(false)
+  })
+
   it('reads one Project roster from the Environment the caller named', async () => {
     state = {
       activeId: null,

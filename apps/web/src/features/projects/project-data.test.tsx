@@ -6,7 +6,11 @@ import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useQueryClient } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createValidatingTrpcHarness, type DaemonMockHandlers } from '../../hooks/trpc-test-harness'
+import {
+  createValidatingTrpcHarness,
+  type DaemonMockHandlers,
+  deferred,
+} from '../../hooks/trpc-test-harness'
 import { setBrowserEnvironmentConnections } from '../../lib/environment-sessions'
 import {
   isProjectsQueryKey,
@@ -130,6 +134,30 @@ describe('Web Projects adapter', () => {
     expect(
       mock.requests().filter((request) => request.procedure === 'recentRepos').length,
     ).toBeGreaterThanOrEqual(2)
+  })
+
+  it('selects and resolves open before its background invalidations settle', async () => {
+    const invalidation = deferred<void>()
+    const { wrapper } = createValidatingTrpcHarness(handlers())
+    const hook = renderHook(() => ({ open: useOpenProject(), queryClient: useQueryClient() }), {
+      wrapper,
+    })
+    const invalidateQueries = vi
+      .spyOn(hook.result.current.queryClient, 'invalidateQueries')
+      .mockReturnValue(invalidation.promise)
+
+    let opening: Promise<void>
+    act(() => {
+      opening = hook.result.current.open.open(beta.path)
+    })
+
+    if (!opening) throw new Error('openProject did not return a promise')
+    await expect(opening).resolves.toBeUndefined()
+
+    expect(useProjectSelectionStore.getState().project).toEqual(beta)
+    expect(invalidateQueries).toHaveBeenCalledTimes(3)
+
+    invalidation.resolve()
   })
 
   it('clears only the selected Project after a successful remove', async () => {

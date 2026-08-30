@@ -16,11 +16,19 @@ vi.mock('@renderer/lib/platform', () => ({ isBrowser: false, isE2E: false, isLin
 // shellTrpcClient is a tRPC proxy client — vi.spyOn can't attach to its dynamically
 // generated procedure properties, so stub the whole module. Keeps `trpc` real: the
 // harness below needs its actual React Query integration, not a fake.
+const { currentHubInventoryQuery, hubInventoriesQuery } = vi.hoisted(() => ({
+  currentHubInventoryQuery: vi.fn(),
+  hubInventoriesQuery: vi.fn(),
+}))
+
 vi.mock('@renderer/lib/trpc', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@renderer/lib/trpc')>()
   return {
     ...actual,
-    shellTrpcClient: { hubInventories: { query: vi.fn().mockResolvedValue([]) } },
+    shellTrpcClient: {
+      currentHubInventory: { query: currentHubInventoryQuery },
+      hubInventories: { query: hubInventoriesQuery },
+    },
   }
 })
 
@@ -38,27 +46,58 @@ function handlers(overrides: DaemonMockHandlers = {}): DaemonMockHandlers {
 
 beforeEach(() => {
   useProjectSelectionStore.setState({ project: alpha })
+  currentHubInventoryQuery.mockReset().mockResolvedValue({
+    environmentId: null,
+    current: true,
+    inventory: projectsContractFixtures.hubInventory.output,
+  })
+  hubInventoriesQuery.mockReset().mockResolvedValue([])
 })
 
 describe('useOpenProject on the Electron shell', () => {
-  it('invalidates the shell hubInventories query, not just the per-Environment one', async () => {
+  it('refreshes only the current Hub row after a local open, without the global shell refresh', async () => {
     const { wrapper } = createValidatingTrpcHarness(handlers())
     const hook = renderHook(() => ({ open: useOpenProject(), queryClient: useQueryClient() }), {
       wrapper,
     })
+    const updatedInventory = {
+      ...projectsContractFixtures.hubInventory.output,
+      projects: [],
+    }
+    const remote = {
+      environmentId: 'group-remote',
+      current: false,
+      inventory: projectsContractFixtures.hubInventory.output,
+    }
+    currentHubInventoryQuery.mockResolvedValue({
+      environmentId: null,
+      current: true,
+      inventory: updatedInventory,
+    })
 
-    hook.result.current.queryClient.setQueryData(SHELL_HUB_INVENTORIES_QUERY_KEY, [])
+    hook.result.current.queryClient.setQueryData(SHELL_HUB_INVENTORIES_QUERY_KEY, [
+      {
+        environmentId: null,
+        current: true,
+        inventory: projectsContractFixtures.hubInventory.output,
+      },
+      remote,
+    ])
+    const invalidateQueries = vi.spyOn(hook.result.current.queryClient, 'invalidateQueries')
 
     await act(async () => {
       await hook.result.current.open.open(beta.path)
     })
 
-    await waitFor(() =>
-      expect(
-        hook.result.current.queryClient.getQueryState(SHELL_HUB_INVENTORIES_QUERY_KEY)
-          ?.isInvalidated,
-      ).toBe(true),
+    await waitFor(() => expect(currentHubInventoryQuery).toHaveBeenCalledOnce())
+    expect(hubInventoriesQuery).not.toHaveBeenCalled()
+    expect(invalidateQueries).not.toHaveBeenCalledWith(
+      expect.objectContaining({ queryKey: SHELL_HUB_INVENTORIES_QUERY_KEY }),
     )
+    expect(hook.result.current.queryClient.getQueryData(SHELL_HUB_INVENTORIES_QUERY_KEY)).toEqual([
+      { environmentId: null, current: true, inventory: updatedInventory },
+      remote,
+    ])
   })
 
   it('optimistically removes a Worktree from the shell inventory while deletion is pending', async () => {

@@ -68,7 +68,8 @@ export function useTerminals(active: boolean): {
       return callDaemon(getDaemonClient(environment), terminalSessionsProcedure, undefined)
     },
     queryKey: terminalSessionsQueryKey(environmentId, terminalSessionsQuery()),
-    refetchInterval: TERMINAL_ROSTER_POLL_MS,
+    refetchInterval: enabled ? TERMINAL_ROSTER_POLL_MS : false,
+    refetchIntervalInBackground: false,
     staleTime: 0,
   })
   useMobileTerminalRecovery(active, refetch)

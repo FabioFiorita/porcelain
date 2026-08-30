@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { homedir, tmpdir } from 'node:os'
-import { dirname, join, parse } from 'node:path'
+import { basename, dirname, join, parse } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createNodeProjectsPort } from './projects-ports'
 
@@ -81,6 +81,62 @@ describe('ProjectsPort filesystem adapter', () => {
         ['worktree', true],
       ]),
     )
+  })
+
+  it('keeps browse results sorted when asynchronous marker checks complete out of order', async () => {
+    for (const name of ['alpha', 'bravo', 'charlie']) await mkdir(join(directory, name))
+    const delays = new Map([
+      ['alpha', 30],
+      ['bravo', 20],
+      ['charlie', 10],
+    ])
+    const delayedProjects = createNodeProjectsPort({
+      repositoryMarkerExists: async (markerPath) => {
+        const name = basename(dirname(markerPath))
+        await new Promise((resolve) => setTimeout(resolve, delays.get(name)))
+        if (name === 'charlie') throw new Error('marker access denied')
+        return name === 'bravo'
+      },
+    })
+
+    const result = await delayedProjects.browseDirectories(directory)
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.value.entries).toEqual([
+      { name: 'alpha', path: join(directory, 'alpha'), isRepo: false },
+      { name: 'bravo', path: join(directory, 'bravo'), isRepo: true },
+      { name: 'charlie', path: join(directory, 'charlie'), isRepo: false },
+    ])
+  })
+
+  it('bounds concurrent asynchronous repository marker checks', async () => {
+    for (let index = 0; index < 24; index += 1) await mkdir(join(directory, `project-${index}`))
+    let active = 0
+    let maxActive = 0
+    let release: (() => void) | undefined
+    let markerChecksAtBound: (() => void) | undefined
+    const allStarted = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const checksAtBound = new Promise<void>((resolve) => {
+      markerChecksAtBound = resolve
+    })
+    const boundedProjects = createNodeProjectsPort({
+      repositoryMarkerExists: async () => {
+        active += 1
+        maxActive = Math.max(maxActive, active)
+        if (active === 8) markerChecksAtBound?.()
+        await allStarted
+        active -= 1
+        return false
+      },
+    })
+
+    const browse = boundedProjects.browseDirectories(directory)
+    await checksAtBound
+    expect(maxActive).toBe(8)
+    release?.()
+    expect(await browse).toMatchObject({ ok: true })
   })
 
   it('sorts entries with accent-sensitive locale comparison', async () => {

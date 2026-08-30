@@ -40,7 +40,7 @@ import {
   readEnvironmentConnections,
   readEnvironmentStatuses,
 } from './shell-environments'
-import { readHubInventories } from './shell-hub-inventory'
+import { readCurrentHubInventory, readHubInventories } from './shell-hub-inventory'
 import { exchangePairingLink } from './shell-pairing'
 import { checkForUpdates, installUpdate, type UpdateStatus, updateStatus } from './updater'
 import { createWindow, switchWindowEnvironment, type WindowInit, windowInitFor } from './window'
@@ -383,6 +383,11 @@ export const shellRouter = t.router({
   /** Live Hub inventory across This device and every saved Environment. */
   hubInventories: t.procedure.query(({ ctx }) =>
     readHubInventories(windowEnvironmentId(ctx.sender)),
+  ),
+
+  /** The current window's Hub source only; used to refresh a local mutation without fan-out. */
+  currentHubInventory: t.procedure.query(({ ctx }) =>
+    readCurrentHubInventory(windowEnvironmentId(ctx.sender)),
   ),
 
   /**

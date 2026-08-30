@@ -7,7 +7,7 @@ import {
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useTerminalInputStore } from '@renderer/stores/terminal-input'
 import type { GhosttyTheme } from '@renderer/terminal/ghostty/core'
-import { GhosttyTerminalSurface } from '@renderer/terminal/ghostty/surface'
+import type { GhosttyTerminalSurface } from '@renderer/terminal/ghostty/surface'
 import { runUserAction, settleBackground } from '@shared/background'
 import { toast } from 'sonner'
 import { isBrowser, isCoarseTouch, isE2E } from './platform'
@@ -104,6 +104,18 @@ interface Instance {
 const instances = new Map<string, Instance>()
 const seeded = new Set<string>()
 
+// The roster and terminal stream subscription are shell-level concerns, but the
+// Ghostty renderer is needed only after a terminal is mounted. Keep its WASM and
+// canvas implementation out of the initial renderer graph until that point.
+let ghosttySurfaceModule: Promise<typeof import('@renderer/terminal/ghostty/surface')> | null = null
+
+function loadGhosttyTerminalSurface(): Promise<
+  typeof import('@renderer/terminal/ghostty/surface')
+> {
+  ghosttySurfaceModule ??= import('@renderer/terminal/ghostty/surface')
+  return ghosttySurfaceModule
+}
+
 /**
  * Chunks buffered while a terminal has data but no Ghostty surface (the bottom panel
  * shows one tab at a time, and a closed panel still receives the live stream). A
@@ -177,33 +189,38 @@ function ensureSurface(instance: Instance): Promise<GhosttyTerminalSurface> | nu
   if (!instance.wrapper.isConnected) return null
 
   instance.wrapper.replaceChildren()
-  instance.creating = GhosttyTerminalSurface.create(instance.wrapper, {
-    theme: ghosttyTheme(currentTerminalMode()),
-    onData: (data) => terminalAdapterFor(instance.id).writeTerminal(instance.id, data),
-    onResize: (cols, rows) =>
-      terminalAdapterFor(instance.id).resizeTerminal(instance.id, cols, rows),
-    onSelectionChange: () => notifySelection(instance),
-    onCopy: (text) => {
-      copyTerminalText(instance.id, text).catch(() => toast.error('Could not copy the selection'))
-    },
-    onPaste: (event) => {
-      pasteBrowserClipboardEvent(
-        instance.id,
-        event.clipboardData?.getData('text/plain') ?? '',
-      ).catch(() => {
-        toast.error('Could not paste from the clipboard', {
-          description: 'Try copying text again.',
-        })
-      })
-    },
-    beforeKey: (event) => beforeTerminalKey(instance, event),
-    // Browser clients validate the scheme here; Electron repeats the allowlist
-    // in its window-open handler before handing a URL to the OS.
-    onLinkActivate: (text) => {
-      const url = terminalExternalUrl(text)
-      if (url !== null) window.open(url, '_blank', 'noopener,noreferrer')
-    },
-  })
+  instance.creating = loadGhosttyTerminalSurface()
+    .then(({ GhosttyTerminalSurface }) =>
+      GhosttyTerminalSurface.create(instance.wrapper, {
+        theme: ghosttyTheme(currentTerminalMode()),
+        onData: (data) => terminalAdapterFor(instance.id).writeTerminal(instance.id, data),
+        onResize: (cols, rows) =>
+          terminalAdapterFor(instance.id).resizeTerminal(instance.id, cols, rows),
+        onSelectionChange: () => notifySelection(instance),
+        onCopy: (text) => {
+          copyTerminalText(instance.id, text).catch(() =>
+            toast.error('Could not copy the selection'),
+          )
+        },
+        onPaste: (event) => {
+          pasteBrowserClipboardEvent(
+            instance.id,
+            event.clipboardData?.getData('text/plain') ?? '',
+          ).catch(() => {
+            toast.error('Could not paste from the clipboard', {
+              description: 'Try copying text again.',
+            })
+          })
+        },
+        beforeKey: (event) => beforeTerminalKey(instance, event),
+        // Browser clients validate the scheme here; Electron repeats the allowlist
+        // in its window-open handler before handing a URL to the OS.
+        onLinkActivate: (text) => {
+          const url = terminalExternalUrl(text)
+          if (url !== null) window.open(url, '_blank', 'noopener,noreferrer')
+        },
+      }),
+    )
     .then((surface) => {
       if (instance.disposed) {
         surface.dispose()

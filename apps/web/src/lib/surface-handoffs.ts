@@ -1,4 +1,4 @@
-import { changesetTabKey } from '@renderer/components/git/changeset-view'
+import { changesetTabKey } from '@renderer/components/git/changeset-tab-key'
 import { fileName } from '@renderer/lib/paths'
 import { activeTabTarget, targetedTab } from '@renderer/stores/hub-tabs'
 import { usePreferencesStore } from '@renderer/stores/preferences'

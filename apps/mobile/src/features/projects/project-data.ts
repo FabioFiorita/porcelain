@@ -8,6 +8,7 @@ import {
   removeRecentProject,
 } from '@porcelain/client-runtime/projects'
 import type { BrowseDirsOutput } from '@porcelain/contracts/projects'
+import { settleBackground } from '@porcelain/shared/background'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef } from 'react'
 import {
@@ -99,10 +100,9 @@ export function useOpenProject(): {
       const paired = pairedProjectEnvironment(environment, openProjectProcedure.name)
       await environmentActions.setActiveProjectPath(paired.id, project.path)
       daemonSession.selectProject(project.path)
-      await invalidateProjectQueries(
-        queryClient,
-        paired.id,
-        openProject.affectedQueries(project.path),
+      settleBackground(
+        invalidateProjectQueries(queryClient, paired.id, openProject.affectedQueries(project.path)),
+        'invalidation',
       )
     },
   })
