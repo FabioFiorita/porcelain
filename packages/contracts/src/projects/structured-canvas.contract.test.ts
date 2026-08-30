@@ -36,12 +36,21 @@ const decision = {
 } as const
 
 describe('structuredCanvasDocumentSchema', () => {
-  it('accepts the one current semantic Decision contract', () => {
+  it('accepts current semantic Decision and Review documents', () => {
     expect(STRUCTURED_CANVAS_VERSION).toBe(2)
     expect(structuredCanvasDocumentSchema.parse(decision)).toMatchObject({
       version: 2,
       template: 'decision',
     })
+    expect(
+      structuredCanvasDocumentSchema.parse({
+        version: 2,
+        template: 'review',
+        title: 'Review the Decision Canvas',
+        why: 'The renderer must preserve explanation.',
+        how: 'Review stores semantic Why and How sections.',
+      }),
+    ).toMatchObject({ version: 2, template: 'review' })
   })
 
   it('rejects version 1 documents instead of carrying a compatibility renderer', () => {

@@ -86,6 +86,10 @@ function harness(
         return { ok: true, value: {} }
       },
     },
+    git: {
+      statusGit: async () => ({ ok: true, value: [] }),
+      logGit: async () => [{ hash: 'abc123' }],
+    },
     review: {
       listReviewComments: async () => ({ ok: true, value: comments }),
       addReviewComment: async (input: unknown) => {
@@ -282,17 +286,23 @@ describe('domain MCP entry points', () => {
     })
 
     expect(result.isError).toBe(true)
-    expect(result.text).toContain('version')
+    expect(result.text).toContain('template')
     expect(calls.some((call) => call.name === 'writeCanvas')).toBe(false)
   })
 
-  it('rejects removed Plan and Review templates', async () => {
+  it('keeps Review as a v2 semantic History template and rejects removed Plan', async () => {
     const { tools, calls } = harness()
     const review = await tools.call('porcelain_canvas', {
       op: 'create',
       workspace: REPO,
       template: 'review',
-      templateData: { title: 'Old Review' },
+      templateData: {
+        title: 'Decision Canvas review',
+        why: 'The product needs a bounded decision explanation.',
+        how: 'Version 2 renders semantic templates.',
+        layers: [{ label: 'Contract', pattern: 'packages/contracts/.*' }],
+        files: [{ path: 'packages/contracts/src/projects/structured-canvas.contract.ts' }],
+      },
     })
     const plan = await tools.call('porcelain_canvas', {
       op: 'create',
@@ -300,10 +310,16 @@ describe('domain MCP entry points', () => {
       template: 'plan',
       templateData: { title: 'Old Plan' },
     })
-    expect(review.isError).toBe(true)
+    expect(review.isError).toBeUndefined()
     expect(plan.isError).toBe(true)
-    expect(review.text).toContain('template must be decision')
-    expect(calls.some((call) => call.name === 'writeCanvas')).toBe(false)
+    expect(review.text).toContain('"history": "bound"')
+    expect(plan.text).toContain('template must be decision or review')
+    expect(calls).toContainEqual(
+      expect.objectContaining({
+        name: 'writeCanvas',
+        input: expect.objectContaining({ template: 'review' }),
+      }),
+    )
   })
 
   it('creates and updates a semantic Decision through porcelain_canvas', async () => {

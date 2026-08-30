@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   decisionCanvasDocument,
   decisionCanvasTemplateDataSchema,
+  reviewCanvasDocument,
+  reviewCanvasTemplateDataSchema,
 } from './structured-canvas-templates.contract'
 
 describe('structured Canvas templates', () => {
@@ -28,6 +30,23 @@ describe('structured Canvas templates', () => {
       version: 2,
       template: 'decision',
       title: 'Choose a seam',
+    })
+  })
+
+  it('builds a semantic Review document with layers kept out of presentation', () => {
+    const data = reviewCanvasTemplateDataSchema.parse({
+      title: 'Review Decision Canvas',
+      why: 'The feature needs a shared explanation.',
+      how: 'The contract renders Why and How.',
+      layers: [{ label: 'Contract', pattern: 'packages/contracts/.*' }],
+      files: [{ path: 'packages/contracts/src/projects/structured-canvas.contract.ts' }],
+    })
+    expect(reviewCanvasDocument(data)).toEqual({
+      version: 2,
+      template: 'review',
+      title: 'Review Decision Canvas',
+      why: 'The feature needs a shared explanation.',
+      how: 'The contract renders Why and How.',
     })
   })
 })

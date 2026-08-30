@@ -43,6 +43,13 @@ const CANVAS_FILE = {
   additionalProperties: false,
 } as const
 
+const PROFILE_LAYER = {
+  type: 'object',
+  properties: { label: { type: 'string' }, pattern: { type: 'string' } },
+  required: ['label', 'pattern'],
+  additionalProperties: false,
+} as const
+
 const FILE_REFERENCE = {
   type: 'object',
   properties: {
@@ -152,7 +159,7 @@ const DECISION_TEMPLATE = {
   additionalProperties: false,
 } as const
 
-const STRUCTURED_CANVAS = {
+const DECISION_DOCUMENT = {
   ...DECISION_TEMPLATE,
   properties: {
     version: { const: 2 },
@@ -170,6 +177,46 @@ const STRUCTURED_CANVAS = {
     'recommendation',
   ],
 } as const
+
+const REVIEW_FILE = {
+  type: 'object',
+  properties: {
+    path: { type: 'string' },
+    source: { enum: ['changed', 'context', 'shipped'] },
+    note: { type: 'string' },
+    layer: { type: 'string' },
+  },
+  required: ['path'],
+  additionalProperties: false,
+} as const
+
+const REVIEW_TEMPLATE = {
+  type: 'object',
+  properties: {
+    title: { type: 'string', minLength: 1, maxLength: 120 },
+    why: { type: 'string', minLength: 1 },
+    how: { type: 'string', minLength: 1 },
+    layers: { type: 'array', items: PROFILE_LAYER },
+    files: { type: 'array', items: REVIEW_FILE },
+  },
+  required: ['title', 'why', 'how'],
+  additionalProperties: false,
+} as const
+
+const REVIEW_DOCUMENT = {
+  type: 'object',
+  properties: {
+    version: { const: 2 },
+    template: { const: 'review' },
+    title: { type: 'string', minLength: 1, maxLength: 120 },
+    why: { type: 'string', minLength: 1 },
+    how: { type: 'string', minLength: 1 },
+  },
+  required: ['version', 'template', 'title', 'why', 'how'],
+  additionalProperties: false,
+} as const
+
+const STRUCTURED_CANVAS = { oneOf: [DECISION_DOCUMENT, REVIEW_DOCUMENT] } as const
 
 const COMMENT = {
   type: 'object',
@@ -204,7 +251,7 @@ export const MCP_TOOLS: readonly McpToolDefinition[] = Object.freeze([
     name: 'porcelain_canvas',
     title: 'Manage a Canvas',
     description:
-      'List, read, create, update, delete, or promote an agent-authored Canvas. Use the semantic decision template for RFCs and choices; Porcelain renders its options, comparison, recommendation, and optional recorded decision. Decision file references open relevant repository files but never own diffs or reviewed state. Promotion writes files but never stages or commits.',
+      'List, read, create, update, delete, or promote an agent-authored Canvas. Decision is the semantic RFC/choice template. Review is the semantic Why/How explanation with layers and files; clean Review writes bind History. File references never own diffs or reviewed state. Promotion writes files but never stages or commits.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -224,8 +271,8 @@ export const MCP_TOOLS: readonly McpToolDefinition[] = Object.freeze([
           type: 'boolean',
           description: 'Create or update directly in the tracked checkout overlay',
         },
-        template: { const: 'decision' },
-        templateData: DECISION_TEMPLATE,
+        template: { enum: ['decision', 'review'] },
+        templateData: { oneOf: [DECISION_TEMPLATE, REVIEW_TEMPLATE] },
       },
       required: ['op', 'workspace'],
       additionalProperties: false,

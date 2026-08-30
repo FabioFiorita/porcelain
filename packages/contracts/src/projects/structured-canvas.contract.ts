@@ -99,7 +99,7 @@ export type RecordedDecision = z.infer<typeof recordedDecisionSchema>
  * The structured contract is semantic and presentation-free. Clients own navigation, layout, and
  * theme; authors supply decision meaning and repository references, never HTML or CSS.
  */
-export const structuredCanvasDocumentSchema = z
+export const decisionCanvasDocumentSchema = z
   .object({
     version: z.literal(STRUCTURED_CANVAS_VERSION),
     template: z.literal('decision'),
@@ -176,6 +176,24 @@ export const structuredCanvasDocumentSchema = z
       }
     }
   })
+export type DecisionCanvasDocument = z.infer<typeof decisionCanvasDocumentSchema>
+
+export const reviewCanvasDocumentSchema = z
+  .object({
+    version: z.literal(STRUCTURED_CANVAS_VERSION),
+    template: z.literal('review'),
+    title: z.string().min(1).max(120),
+    why: z.string().min(1).max(50_000),
+    how: z.string().min(1).max(50_000),
+  })
+  .strict()
+export type ReviewCanvasDocument = z.infer<typeof reviewCanvasDocumentSchema>
+
+/** Version 2 is the only accepted structured contract; templates are semantic discriminants. */
+export const structuredCanvasDocumentSchema = z.discriminatedUnion('template', [
+  decisionCanvasDocumentSchema,
+  reviewCanvasDocumentSchema,
+])
 export type StructuredCanvasDocument = z.infer<typeof structuredCanvasDocumentSchema>
 
 export function structuredCanvasValidationMessage(error: z.ZodError): string {

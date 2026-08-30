@@ -1,12 +1,12 @@
 import {
   structuredCanvasDocumentSchema,
   structuredCanvasValidationMessage,
-  type StructuredCanvasDocument,
+  type DecisionCanvasDocument,
 } from '@porcelain/contracts/projects'
 
 export function parseDecisionCanvas(
   content: unknown,
-): { document: StructuredCanvasDocument; error: null } | { document: null; error: string } {
+): { document: DecisionCanvasDocument; error: null } | { document: null; error: string } {
   let value: unknown
   try {
     value = typeof content === 'string' ? JSON.parse(content) : content
@@ -14,7 +14,10 @@ export function parseDecisionCanvas(
     return { document: null, error: 'Canvas content is not valid JSON.' }
   }
   const parsed = structuredCanvasDocumentSchema.safeParse(value)
-  return parsed.success
+  if (!parsed.success) {
+    return { document: null, error: structuredCanvasValidationMessage(parsed.error) }
+  }
+  return parsed.data.template === 'decision'
     ? { document: parsed.data, error: null }
-    : { document: null, error: structuredCanvasValidationMessage(parsed.error) }
+    : { document: null, error: 'template: expected decision' }
 }

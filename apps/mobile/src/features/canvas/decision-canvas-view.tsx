@@ -1,12 +1,13 @@
 import type {
   CanvasFileReference,
+  DecisionCanvasDocument,
   DecisionOption,
-  StructuredCanvasDocument,
 } from '@porcelain/contracts/projects'
 import { useState } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 
 import { SurfaceScroll } from '@/components/surface-scroll'
+import { PANEL_CARD, SURFACE_GUTTER } from '@/components/surface-layout'
 import { cn } from '@/lib/utils'
 
 type DecisionView = 'summary' | 'compare' | 'recommendation' | `option:${string}`
@@ -19,7 +20,7 @@ function Card({
   testID?: string
 }): React.JSX.Element {
   return (
-    <View className="gap-3 rounded-2xl border border-border bg-card p-4" testID={testID}>
+    <View className={cn(PANEL_CARD, 'gap-3 p-4')} testID={testID}>
       {children}
     </View>
   )
@@ -78,7 +79,7 @@ function References({
   )
 }
 
-function Summary({ document }: { document: StructuredCanvasDocument }): React.JSX.Element {
+function Summary({ document }: { document: DecisionCanvasDocument }): React.JSX.Element {
   return (
     <SurfaceScroll gap={6} testID="porcelain-decision-summary">
       <View className="gap-3">
@@ -163,7 +164,7 @@ function Option({ option }: { option: DecisionOption }): React.JSX.Element {
   )
 }
 
-function Comparison({ document }: { document: StructuredCanvasDocument }): React.JSX.Element {
+function Comparison({ document }: { document: DecisionCanvasDocument }): React.JSX.Element {
   return (
     <SurfaceScroll gap={5} testID="porcelain-decision-compare">
       <View className="gap-2">
@@ -204,7 +205,7 @@ function Comparison({ document }: { document: StructuredCanvasDocument }): React
   )
 }
 
-function Recommendation({ document }: { document: StructuredCanvasDocument }): React.JSX.Element {
+function Recommendation({ document }: { document: DecisionCanvasDocument }): React.JSX.Element {
   const label = document.decision === undefined ? 'Recommendation' : 'Decision'
   return (
     <SurfaceScroll gap={6} testID="porcelain-decision-recommendation">
@@ -252,7 +253,7 @@ function Recommendation({ document }: { document: StructuredCanvasDocument }): R
 export function DecisionCanvasView({
   document,
 }: {
-  document: StructuredCanvasDocument
+  document: DecisionCanvasDocument
 }): React.JSX.Element {
   const [active, setActive] = useState<DecisionView>('summary')
   const finalLabel = document.decision === undefined ? 'Recommendation' : 'Decision'
@@ -275,7 +276,7 @@ export function DecisionCanvasView({
         horizontal
         accessibilityRole="tablist"
         className="max-h-14 shrink-0 border-b border-border"
-        contentContainerClassName="items-center gap-2 px-3 py-2"
+        contentContainerClassName={cn('items-center gap-2 py-2', SURFACE_GUTTER)}
         showsHorizontalScrollIndicator={false}
       >
         {views.map((view) => {

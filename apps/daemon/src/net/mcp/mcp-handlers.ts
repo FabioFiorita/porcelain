@@ -1,11 +1,12 @@
 import {
   decisionCanvasTemplateDataSchema,
+  reviewCanvasTemplateDataSchema,
   structuredCanvasDocumentSchema,
   structuredCanvasValidationMessage,
 } from '@porcelain/contracts/projects'
 import type { McpToolHandlers, McpToolResult } from './mcp-dispatch'
 import type { McpOperations } from './mcp-operations'
-import { decisionBundleSource } from './mcp-canvas'
+import { decisionBundleSource, reviewBundleSource } from './mcp-canvas'
 import {
   isWorkspaceRef,
   type ResolvedWorkspace,
@@ -83,13 +84,16 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
       : { ok: false, result: fail(resolved.message) }
   }
 
-  async function canvasSource(args: Record<string, unknown>): Promise<
+  async function canvasSource(
+    args: Record<string, unknown>,
+    reviewCommitHash?: string,
+  ): Promise<
     | {
         ok: true
         title: string
         kind: 'html' | 'markdown' | 'structured'
         entryFile: string
-        template?: 'decision'
+        template?: 'decision' | 'review'
         source: import('../../features/projects').CanvasBundleSource
       }
     | { ok: false; result: McpToolResult }
@@ -139,13 +143,15 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
     const templateData = args.templateData
     if (templateData !== undefined) {
       const template = args.template
-      if (template !== 'decision') {
+      if (template !== 'decision' && template !== 'review') {
         return {
           ok: false,
-          result: fail('template must be decision when templateData is provided.'),
+          result: fail('template must be decision or review when templateData is provided.'),
         }
       }
-      const parsed = decisionCanvasTemplateDataSchema.safeParse(templateData)
+      const schema =
+        template === 'decision' ? decisionCanvasTemplateDataSchema : reviewCanvasTemplateDataSchema
+      const parsed = schema.safeParse(templateData)
       if (!parsed.success) {
         return {
           ok: false,
@@ -154,7 +160,10 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
           ),
         }
       }
-      const source = decisionBundleSource(decisionCanvasTemplateDataSchema.parse(parsed.data))
+      const source =
+        template === 'decision'
+          ? decisionBundleSource(decisionCanvasTemplateDataSchema.parse(parsed.data))
+          : reviewBundleSource(reviewCanvasTemplateDataSchema.parse(parsed.data), reviewCommitHash)
       return {
         ok: true,
         title: parsed.data.title,
@@ -272,7 +281,17 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
       }
       if (op !== 'create' && op !== 'update')
         return fail('op must be list, get, create, update, delete, or promote.')
-      const source = await canvasSource(args)
+      const reviewCommitHash = await (async (): Promise<string | undefined> => {
+        if (args.template !== 'review' || place.worktreePath === null) return undefined
+        try {
+          const status = await operations.git.statusGit(place.worktreePath)
+          if (!status.ok || status.value.length > 0) return undefined
+          return (await operations.git.logGit({ repoPath: place.worktreePath, limit: 1 }))[0]?.hash
+        } catch {
+          return undefined
+        }
+      })()
+      const source = await canvasSource(args, reviewCommitHash)
       if (!source.ok) return source.result
       const canvasId = stringField(args, 'id')
       if (op === 'create' && canvasId !== undefined)
@@ -317,11 +336,25 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
         })
         return promoted.ok
           ? ok(
-              `Canvas ${written.value.id} written to the tracked overlay. Files written; nothing staged or committed.`,
+              source.template === 'review'
+                ? `Review Canvas ${written.value.id} written to the tracked overlay${reviewCommitHash === undefined ? ' for live Changes; update it after committing to bind History' : ` and bound to commit ${reviewCommitHash} for History`}. Files written; nothing staged or committed.`
+                : `Canvas ${written.value.id} written to the tracked overlay. Files written; nothing staged or committed.`,
             )
           : fail(`Could not update the tracked Canvas: ${describeError(promoted.error)}`)
       }
-      return workspaceResult(place, written.value)
+      return workspaceResult(
+        place,
+        source.template === 'review'
+          ? {
+              ...written.value,
+              historyCommit: reviewCommitHash ?? null,
+              history:
+                reviewCommitHash === undefined
+                  ? 'live-only; update this Canvas after committing to bind History'
+                  : 'bound',
+            }
+          : written.value,
+      )
     },
 
     async porcelain_comment(args, place) {

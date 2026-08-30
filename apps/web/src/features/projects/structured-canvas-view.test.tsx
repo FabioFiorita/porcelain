@@ -53,7 +53,7 @@ const decision = JSON.stringify({
 describe('StructuredCanvasView', () => {
   it('rejects old structured documents instead of falling back to the old renderer', () => {
     render(<StructuredCanvasView content='{"version":1,"tabs":[]}' assetBaseUrl={null} />)
-    expect(screen.getByTestId(TestIds.structuredCanvasInvalid)).toHaveTextContent('version')
+    expect(screen.getByTestId(TestIds.structuredCanvasInvalid)).toHaveTextContent('template')
     expect(screen.queryByTestId(TestIds.structuredCanvas)).toBeNull()
   })
 
@@ -85,5 +85,23 @@ describe('StructuredCanvasView', () => {
       screen.getByRole('heading', { name: 'Use a semantic version 2 document.' }),
     ).toBeInTheDocument()
     expect(screen.getByText('high confidence')).toBeInTheDocument()
+  })
+
+  it('renders the semantic Review template without accepting version 1', () => {
+    render(
+      <StructuredCanvasView
+        content={JSON.stringify({
+          version: 2,
+          template: 'review',
+          title: 'Review Decision Canvas',
+          why: '# Why\nThe explanation belongs to Canvas.',
+          how: '# How\nThe renderer owns presentation.',
+        })}
+        assetBaseUrl={null}
+      />,
+    )
+    expect(screen.getByRole('heading', { name: 'Why' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('tab', { name: 'How' }))
+    expect(screen.getByRole('heading', { name: 'How' })).toBeInTheDocument()
   })
 })

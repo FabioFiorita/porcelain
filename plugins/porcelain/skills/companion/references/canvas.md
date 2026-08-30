@@ -1,7 +1,7 @@
 # Canvas
 
 Canvas is Porcelain's authored thinking surface. Use `porcelain_canvas` for every operation; there
-is no separate Decision or promotion entry point.
+is no separate Decision, Review, or promotion entry point.
 
 ## Decision flow
 
@@ -99,6 +99,14 @@ To record the outcome, repeat the complete create call above with `"op": "update
   "references": [{ "path": "packages/contracts/src/projects/structured-canvas.contract.ts" }]
 }
 ```
+
+## Review flow
+
+Use `template: "review"` with semantic Markdown strings in `templateData.why` and
+`templateData.how`, plus repository-relative `files` and regex-based `layers`. Review presentation
+is product-owned; authors do not provide HTML or CSS. A Review written while the checkout is dirty
+is live-only. Keep its id and update the same Review after committing on a clean checkout until the
+MCP confirms `bound to commit <hash> for History`.
 
 ## Lifecycle
 
