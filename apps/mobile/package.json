@@ -1,7 +1,7 @@
 {
   "name": "@porcelain/mobile",
   "main": "expo-router/entry",
-  "version": "0.60.2",
+  "version": "0.61.0",
   "dependencies": {
     "@porcelain/client-runtime": "workspace:*",
     "@porcelain/contracts": "workspace:*",

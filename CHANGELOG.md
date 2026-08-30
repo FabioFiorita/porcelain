@@ -1,3 +1,9 @@
+## [0.61.0](https://github.com/FabioFiorita/porcelain/compare/v0.60.2...v0.61.0) (2026-08-30)
+
+### Performance Improvements
+
+* tighten project opening across clients ([420325a](https://github.com/FabioFiorita/porcelain/commit/420325aa2ca87edaeff38f769f87c7f9326c7673))
+
 ## [0.60.2](https://github.com/FabioFiorita/porcelain/compare/v0.60.1...v0.60.2) (2026-08-30)
 
 ### Features
