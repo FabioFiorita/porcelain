@@ -1,3 +1,11 @@
+## [0.61.2](https://github.com/FabioFiorita/porcelain/compare/v0.61.1...v0.61.2) (2026-08-31)
+
+### Bug Fixes
+
+* **desktop:** expose MCP on the plugin port ([00b8888](https://github.com/FabioFiorita/porcelain/commit/00b88889e711b195a2f9d03314f5d83375de1d03))
+* **plugin:** identify Porcelain MCP server ([bc43f25](https://github.com/FabioFiorita/porcelain/commit/bc43f25e4d7a2b7cb990c74ff0e7fc610f37fd1c))
+* **plugin:** use a valid Porcelain MCP endpoint ([6df8558](https://github.com/FabioFiorita/porcelain/commit/6df85584f20ca852c846ed9b9a937063a9632d86))
+
 ## [0.61.1](https://github.com/FabioFiorita/porcelain/compare/v0.61.0...v0.61.1) (2026-08-31)
 
 ### Bug Fixes
