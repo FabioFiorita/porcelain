@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
 import { evaluate, hashPlugin, pluginFiles } from './plugin-version.mjs'
 
@@ -67,4 +68,14 @@ test('the hash covers the real shipped files and excludes the lock', () => {
   assert.ok(files.some((f) => f.endsWith('.claude-plugin/plugin.json')))
   assert.ok(!files.some((f) => f.endsWith('plugin.lock.json')))
   assert.match(hashPlugin(), /^[0-9a-f]{64}$/)
+})
+
+test('MCP descriptors identify their server as Porcelain', () => {
+  for (const relativePath of [
+    '../plugins/porcelain/mcp.json',
+    '../plugins/porcelain/.mcp.json',
+  ]) {
+    const descriptor = JSON.parse(readFileSync(new URL(relativePath, import.meta.url), 'utf8'))
+    assert.deepEqual(Object.keys(descriptor.mcpServers), ['Porcelain'])
+  }
 })
