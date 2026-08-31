@@ -53,6 +53,18 @@ describe('useProjectSelectionStore.boot', () => {
     expect(useProjectSelectionStore.getState().restoring).toBe(false)
   })
 
+  it("mode 'restore' keeps a persisted remote Worktree without opening it locally", async () => {
+    const remoteProject: ProjectSummary = { path: '/home/remote/code/repo', name: 'repo' }
+    vi.mocked(shellTrpcClient.windowInit.query).mockResolvedValue({ mode: 'restore' })
+
+    await useProjectSelectionStore.getState().boot(remoteProject)
+
+    expect(trpcClient.openRepoPath.mutate).not.toHaveBeenCalled()
+    expect(trpcClient.recentRepos.query).not.toHaveBeenCalled()
+    expect(useProjectSelectionStore.getState().project).toEqual(remoteProject)
+    expect(useProjectSelectionStore.getState().restoring).toBe(false)
+  })
+
   it("mode 'welcome' lands on the welcome screen", async () => {
     vi.mocked(shellTrpcClient.windowInit.query).mockResolvedValue({ mode: 'welcome' })
 

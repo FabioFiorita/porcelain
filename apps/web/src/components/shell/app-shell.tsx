@@ -16,6 +16,7 @@ import { useDocumentTitle } from '@renderer/hooks/use-document-title'
 import { useResponsiveShell } from '@renderer/hooks/use-responsive-shell'
 import { useSessionRuntime } from '@renderer/hooks/use-session-runtime'
 import { useShellEnvironmentConnections } from '@renderer/hooks/use-shell-environment-connections'
+import { fileName } from '@renderer/lib/paths'
 import { useShellEvents } from '@renderer/hooks/use-shell-events'
 import { useThemeSync } from '@renderer/hooks/use-theme'
 import { isFramelessShell } from '@renderer/lib/platform'
@@ -150,7 +151,11 @@ export function AppShell(): React.JSX.Element {
 
   useEffect(() => {
     const selection = useHubSelectionStore.getState().selection
-    boot(selection.kind === 'worktree' ? selection.path : undefined)
+    boot(
+      selection.kind === 'worktree'
+        ? { path: selection.path, name: fileName(selection.path) }
+        : undefined,
+    )
   }, [boot])
 
   if (restoring) {

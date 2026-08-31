@@ -19,12 +19,11 @@ import {
 import { createFixtureRepo } from './helpers/fixture-repo'
 
 /**
- * Opening a Hub Worktree that lives on ANOTHER Environment, in the real Electron shell.
+ * Opening and restoring a Hub Worktree that lives on ANOTHER Environment, in Electron.
  *
- * This is the one path no other spec can reach: the renderer holds exactly one daemon
- * client — its window's — so a Hub row on any other Environment can only be opened by the
- * shell rebinding the window. Everything here is real: two daemons with their own homes and
- * repositories, a real pairing exchange, a real window reload.
+ * The renderer holds one client session per Environment while the shell keeps its local child
+ * as the primary connection. Everything here is real: two daemons with their own homes and
+ * repositories, a real pairing exchange, and a reload that exercises persisted Hub selection.
  *
  * The regression it pins produced three toasts and no navigation at all — "The target
  * Environment is offline." for a row on another Environment (the renderer was handed a
@@ -107,7 +106,7 @@ async function mintPairingLink(port: number): Promise<string> {
   return url
 }
 
-test('a Hub Worktree on another Environment opens by rebinding this window', async ({
+test('a Hub Worktree on another Environment opens and survives a cold renderer restore', async ({
   page,
   app,
 }) => {
@@ -137,46 +136,51 @@ test('a Hub Worktree on another Environment opens by rebinding this window', asy
     await expect(loc.hubInventory(page)).toBeVisible()
     await expect(page).toHaveTitle(LOCAL_TITLE)
 
-    // Pair the second daemon as an Environment group. "Pair & use here" also rebinds this
-    // window to it, which is exactly the state the human reported from: a window sitting on
-    // one Environment, with the other still listed in the Hub.
+    // Pair the second daemon. The window stays local-primary while its renderer gains an
+    // explicit live session for the remote Environment.
     const link = await mintPairingLink(remote.port)
     await openSettings(page)
     await page.getByTestId(TestIds.settingsSection('remotes')).first().click()
     await page.getByRole('button', { name: 'Pair an environment group' }).click()
     await page.getByPlaceholder('Connection link').fill(link)
-    await page.getByRole('button', { name: 'Pair & use here' }).click()
+    await page.getByRole('button', { name: 'Pair environment' }).click()
+    await loc.settingsDialog(page).getByRole('button', { name: 'Close' }).click()
+    await page.reload()
 
     await waitForShell(page)
     await expect(loc.hubInventory(page)).toBeVisible()
     await expect(loc.hubProjects(page)).toHaveCount(2)
-    expect(await boundDaemonUrl(page)).toBe(remoteUrl)
+    expect(await boundDaemonUrl(page)).toBe(localUrl)
 
     // Rows name their Project, and neither fixture name contains the other.
     const localRow = loc.hubWorktrees(page).filter({ hasText: basename(REPO_DIR) })
     const remoteRow = loc.hubWorktrees(page).filter({ hasText: basename(REMOTE_REPO_DIR) })
 
-    // 1. The LOCAL row, clicked from a window bound to the other Environment. This used to
-    //    toast "The Project path was not found.": that row's null means "the local daemon",
-    //    but the renderer read it as "this window's client" and asked the WRONG daemon for
-    //    the path. On one machine the wrong daemon can still find it — so assert the window
-    //    actually moved, not merely that something opened.
+    // 1. The local row stays on the primary daemon.
     await localRow.click()
     await expect(page).toHaveTitle(LOCAL_TITLE, { timeout: 60_000 })
     await expect.poll(async () => boundDaemonUrl(page), { timeout: 60_000 }).toBe(localUrl)
     await expect(page.getByText('The Project path was not found.')).toHaveCount(0)
     await expect(page.getByText('The target Environment is offline.')).toHaveCount(0)
 
-    // 2. The row on the OTHER Environment, clicked from a local-bound window. This used to
-    //    toast "The target Environment is offline." — the renderer was handed a shell
-    //    environment-group id its session resolver cannot resolve.
+    // 2. The remote row routes through its Environment session without rebinding the shell.
     await waitForShell(page)
     await expect(loc.hubProjects(page)).toHaveCount(2)
     await remoteRow.click()
     await expect(page).toHaveTitle(REMOTE_TITLE, { timeout: 60_000 })
-    await expect.poll(async () => boundDaemonUrl(page), { timeout: 60_000 }).toBe(remoteUrl)
+    await expect.poll(async () => boundDaemonUrl(page), { timeout: 60_000 }).toBe(localUrl)
     await expect(page.getByText('The target Environment is offline.')).toHaveCount(0)
     await expect(page.getByText('The Project path was not found.')).toHaveCount(0)
+
+    // A fresh renderer boots local-primary. The persisted Worktree must remain remote-owned:
+    // asking the local daemon to open REMOTE_REPO_DIR would fall back to its local recent repo,
+    // then send that local path through the remote Files owner and leave the tree on Loading….
+    await page.reload()
+    await waitForShell(page)
+    await expect(page).toHaveTitle(REMOTE_TITLE, { timeout: 60_000 })
+    await loc.railTab(page, 'files').click()
+    await expect(loc.treeEntry(page, 'README.md')).toBeVisible({ timeout: 60_000 })
+    expect(await boundDaemonUrl(page)).toBe(localUrl)
   } finally {
     if (remote !== null) {
       const exited = new Promise<void>((resolve) => remote?.child.once('exit', () => resolve()))
