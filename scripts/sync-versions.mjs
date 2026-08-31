@@ -64,7 +64,7 @@ function readJson(path) {
 /**
  * Internal agent procedures carry the product version in their SKILL.md frontmatter: they are
  * versioned with this repo and nothing else. The *shipped* skills are not here — they live in
- * `plugins/porcelain/` under their own semver, gated by `scripts/plugin-version.mjs`.
+ * `plugins/porcelain/` under their own semver.
  */
 const SKILL_FILES = listInternalSkills(join(root, '.agents', 'skills'))
 

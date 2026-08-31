@@ -45,32 +45,6 @@
       ],
       "outputs": []
     },
-    "//#lint:one-writer": {
-      "inputs": [
-        "$TURBO_ROOT$/apps/**",
-        "$TURBO_ROOT$/packages/**",
-        "$TURBO_ROOT$/scripts/lint-one-writer*",
-        "!$TURBO_ROOT$/**/.turbo/**",
-        "!$TURBO_ROOT$/**/.expo/**",
-        "!$TURBO_ROOT$/**/out/**",
-        "!$TURBO_ROOT$/**/*.tsbuildinfo"
-      ],
-      "outputs": []
-    },
-    "//#lint:docs": {
-      "inputs": [
-        "$TURBO_ROOT$/AGENTS.md",
-        "$TURBO_ROOT$/docs/**",
-        "$TURBO_ROOT$/.agents/skills/**",
-        "$TURBO_ROOT$/plugins/**",
-        "$TURBO_ROOT$/scripts/lint-docs*"
-      ],
-      "outputs": []
-    },
-    "//#plugin:check": {
-      "inputs": ["$TURBO_ROOT$/plugins/**", "$TURBO_ROOT$/scripts/plugin-version*"],
-      "outputs": []
-    },
     "//#test:scripts": {
       "inputs": ["$TURBO_ROOT$/scripts/**", "$TURBO_ROOT$/package.json"],
       "outputs": []

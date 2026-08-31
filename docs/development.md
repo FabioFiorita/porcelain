@@ -121,14 +121,6 @@ before invoking those commands; `.turbo/` stays ignored locally. Unchanged packa
 therefore be skipped while the existing root commands keep their names. Turbo does not cache
 runtime proof, macOS signing/notarization, artifact publication, or npm registry propagation.
 
-## One step per shipped bug
-
-The verification surface grows from shipped bugs, not from policy. When a bug reaches a running
-Porcelain, record three things in the fix commit: what the user saw, what caused it, and the
-mitigation. Then add the smallest check that would have failed before the fix — usually a focused
-unit or daemon-procedure test, occasionally a browser e2e assertion. Add one step, not a new gate;
-if a whole class of bug keeps returning, that is when a broader check earns its cost.
-
 ## Useful commands
 
 The exact scripts are the source of truth (`pnpm run` lists the checkout's commands). Common entry
@@ -145,7 +137,6 @@ pnpm format           # write formatting
 pnpm lint             # source checks configured by the checkout
 pnpm test              # desktop/Vitest suite; pass a focused target when supported
 pnpm build            # product build/typechecks
-pnpm performance:check # verify the built renderer's initial-load and asset budgets
 pnpm turbo run build --filter=@porcelain/desktop  # inspect the production build graph
 ```
 

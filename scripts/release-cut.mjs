@@ -105,7 +105,7 @@ sh('pnpm', ['changelog'], { inherit: true })
 // Stage every path sync-versions writes, plus the changelog. Directories go in whole rather than
 // named children: sync-versions enumerates them, so a fixed list silently drops a stamped file —
 // v0.51.0 shipped with one dirty in the working tree that way. The shipped plugin is not here; it
-// carries its own semver under `plugins/porcelain`, gated by `pnpm plugin:check`.
+// carries its own semver under `plugins/porcelain`.
 sh('git', ['add', 'CHANGELOG.md', 'apps', 'packages', '.agents/skills'], {
   inherit: true,
 })
