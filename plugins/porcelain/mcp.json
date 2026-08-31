@@ -3,7 +3,7 @@
   "mcpServers": {
     "Porcelain": {
       "type": "streamable-http",
-      "url": "http://127.0.0.1:${PORCELAIN_DAEMON_PORT:-43117}/mcp"
+      "url": "http://127.0.0.1:43117/mcp"
     }
   }
 }
