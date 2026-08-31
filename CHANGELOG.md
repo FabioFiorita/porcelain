@@ -1,3 +1,9 @@
+## [0.61.1](https://github.com/FabioFiorita/porcelain/compare/v0.61.0...v0.61.1) (2026-08-31)
+
+### Bug Fixes
+
+* **desktop:** restore remote worktree ownership ([bf10e81](https://github.com/FabioFiorita/porcelain/commit/bf10e81ef9442b481bc80676d62aad28ad3eb7de))
+
 ## [0.61.0](https://github.com/FabioFiorita/porcelain/compare/v0.60.2...v0.61.0) (2026-08-30)
 
 ### Performance Improvements
