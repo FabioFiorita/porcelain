@@ -15,8 +15,8 @@ import { findTailscaleAddress } from './remote-tailnet'
  *
  * **Port = the daemon port.** Loopback and iface listeners share one port from
  * `PORCELAIN_DAEMON_PORT` (default 43117), so `serve --port 9999 --lan` and the dev
- * stack on 43118 stay reachable at that port on every bind. The Electron-spawned local
- * child leaves the env unset (loopback gets an OS port; Share still binds 43117).
+ * stack on 43118 stay reachable at that port on every bind. Packaged Electron supplies
+ * the default 43117; development Electron supplies its profile-specific port.
  *
  * **Reconcile, not bind-once.** Addresses appear after boot (DHCP race, resume,
  * Tailscale up, Wi-Fi join), so `start()` binds newly-appeared addresses and closes

@@ -27,7 +27,7 @@ vi.mock('@electron-toolkit/utils', () => ({
   is: { dev: false },
 }))
 
-import { DAEMON_CHILD_ARGV, daemonChildScript } from './daemon'
+import { DAEMON_CHILD_ARGV, daemonChildPort, daemonChildScript } from './daemon'
 
 describe('daemon child launch contract', () => {
   it('resolves the packaged daemon script under mainDir', () => {
@@ -37,6 +37,13 @@ describe('daemon child launch contract', () => {
   it('freezes an empty argv so no renderer-supplied command or port can sneak in', () => {
     expect(DAEMON_CHILD_ARGV).toHaveLength(0)
     expect(Object.isFrozen(DAEMON_CHILD_ARGV)).toBe(true)
+  })
+
+  it('gives the packaged daemon a stable port while preserving development profiles', () => {
+    expect(daemonChildPort(false, undefined)).toBe('43117')
+    expect(daemonChildPort(true, undefined)).toBe('')
+    expect(daemonChildPort(false, '43118')).toBe('43118')
+    expect(daemonChildPort(true, '43199')).toBe('43199')
   })
 
   it('launch forks the helper with the frozen argv and never child_process', () => {

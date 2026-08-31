@@ -1,4 +1,5 @@
 import { join } from 'node:path'
+import { LISTENER_PORT } from '@backend/features/remote/remote-listeners'
 import { ensureAdminToken } from '@backend/net/admin-token'
 import { is } from '@electron-toolkit/utils'
 import {
@@ -267,6 +268,14 @@ export function daemonChildScript(mainDir: string): string {
 /** Empty argv — no renderer-supplied command or port. */
 export const DAEMON_CHILD_ARGV = Object.freeze([] as string[]) as string[]
 
+/**
+ * The installed plugin reaches the packaged daemon through a stable loopback port.
+ * Development launchers provide their profile-specific port and keep that override.
+ */
+export function daemonChildPort(dev: boolean, inherited: string | undefined): string {
+  return inherited ?? (dev ? '' : String(LISTENER_PORT))
+}
+
 async function launch(): Promise<void> {
   const startedAt = Date.now()
   // Re-read the administrator file on every spawn so a repaired/replaced local
@@ -280,6 +289,7 @@ async function launch(): Promise<void> {
       PORCELAIN_USER_DATA: app.getPath('userData'),
       PORCELAIN_DEV: is.dev ? '1' : '',
       PORCELAIN_ADMIN_TOKEN: token,
+      PORCELAIN_DAEMON_PORT: daemonChildPort(is.dev, process.env.PORCELAIN_DAEMON_PORT),
       // A utility child gets NO stdin, so the daemon's stdin parent-death
       // watchdog would insta-exit it; Electron ties the child's lifetime to
       // this app, which supersedes the watchdog here (standalone daemons under
