@@ -33,6 +33,20 @@ describe('parseStatus', () => {
     ])
   })
 
+  it('preserves every unmerged XY state as an explicit conflict', () => {
+    const codes = ['DD', 'AU', 'UD', 'UA', 'DU', 'AA', 'UU']
+    const out = codes.map((code, index) => `${code} conflict-${index}.ts\0`).join('')
+
+    expect(parseStatus(out)).toEqual(
+      codes.map((_code, index) => ({
+        path: `conflict-${index}.ts`,
+        status: 'conflicted',
+        staged: true,
+        unstaged: true,
+      })),
+    )
+  })
+
   it('returns empty for empty output', () => {
     expect(parseStatus('')).toEqual([])
   })

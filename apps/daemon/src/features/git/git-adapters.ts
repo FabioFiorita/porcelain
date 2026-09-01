@@ -20,7 +20,6 @@ import {
   gitBranches,
   gitCommit,
   gitCommitDiff,
-  gitCommitFiles,
   gitCommitMessage,
   gitCreateBranch,
   gitDiffFile,
@@ -108,7 +107,6 @@ export function createProjectGit(): ProjectGit {
     restoreFromHead: (repoPath: string, path: string) => gitRestoreFromHead(repoPath, path),
     resetPath: (repoPath: string, path: string) => gitResetPath(repoPath, path),
     commit: (repoPath: string, message: string) => gitCommit(repoPath, message),
-    commitFiles: (repoPath: string, hash: string) => gitCommitFiles(repoPath, hash),
     status: (repoPath: string) => repositoryRead(() => gitStatus(repoPath)),
     suggestions: (repoPath: string): Promise<GitSuggestion[]> => gitSuggestions(repoPath),
     head: (repoPath: string): Promise<GitHead> => gitHead(repoPath),
@@ -174,7 +172,7 @@ export function createWorkingTreeCache(): WorkingTreeCache {
 
 export function createGitChangesPublisher(publish: (change: SessionChange) => void): GitChanges {
   return Object.freeze({
-    publishWorkingTreeChanged(projectPath: string) {
+    publishChanged(projectPath: string) {
       publish({ kind: 'git.working-tree-changed', projectPath })
     },
   })

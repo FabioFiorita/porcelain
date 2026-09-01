@@ -101,7 +101,7 @@ describe('ProjectGit adapter', () => {
     const changes: unknown[] = []
     const publisher = createGitChangesPublisher((change) => changes.push(change))
 
-    publisher.publishWorkingTreeChanged('/synthetic/repo')
+    publisher.publishChanged('/synthetic/repo')
 
     expect(changes).toEqual([{ kind: 'git.working-tree-changed', projectPath: '/synthetic/repo' }])
   })

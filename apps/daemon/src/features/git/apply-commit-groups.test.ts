@@ -68,7 +68,7 @@ function operations(): {
     commitGeneration: {} as CommitGeneration,
     workspaceTrash: {} as WorkspaceTrash,
     workingTreeCache: { clear: vi.fn() } as WorkingTreeCache,
-    changes: { publishWorkingTreeChanged: publish } as GitChanges,
+    changes: { publishChanged: publish } as GitChanges,
     diffReadingSources: {} as GitDiffReadingSources,
   })
   return { ops, publish }
@@ -144,5 +144,42 @@ describe('applyCommitGroupsGit', () => {
     // and every remaining file is still an unstaged change.
     const status = git(dir, 'status', '--porcelain').split('\n').filter(Boolean).sort()
     expect(status).toEqual([' M b1.ts', ' M b2.ts', ' M c1.ts', ' M c2.ts'])
+  })
+
+  it('reports a cleanup failure after a partial group instead of rejecting past landed work', async () => {
+    const publish = vi.fn()
+    let resetCalls = 0
+    const projectGit = createProjectGit()
+    const ops = createGitOperations({
+      workspace: {} as GitWorkspacePort,
+      projectGit: {
+        ...projectGit,
+        stageFile: async (_repoPath, path) => {
+          if (path === 'gone.ts') throw new Error('stage failed')
+        },
+        unstageAll: async () => {
+          resetCalls += 1
+          if (resetCalls > 1) throw new Error('index locked')
+        },
+      },
+      commitGeneration: {} as CommitGeneration,
+      workspaceTrash: {} as WorkspaceTrash,
+      workingTreeCache: { clear: vi.fn() } as WorkingTreeCache,
+      changes: { publishChanged: publish } as GitChanges,
+      diffReadingSources: {} as GitDiffReadingSources,
+    })
+
+    const output = await ops.applyCommitGroupsGit({
+      repoPath: '/synthetic/repo',
+      groups: [
+        { files: ['gone.ts'], message: 'fix: impossible' },
+        { files: ['later.ts'], message: 'fix: later' },
+      ],
+    })
+
+    expect(output.results.map((result) => result.status)).toEqual(['failed', 'skipped'])
+    expect(output.results[0]?.error).toContain('stage failed')
+    expect(output.results[0]?.error).toContain('Could not restore the index: index locked')
+    expect(publish).toHaveBeenCalledWith('/synthetic/repo')
   })
 })

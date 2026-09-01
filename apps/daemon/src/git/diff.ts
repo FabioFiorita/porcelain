@@ -1,6 +1,6 @@
 import { headLabel } from '@porcelain/contracts'
 
-export type FileStatus = 'modified' | 'added' | 'deleted' | 'renamed' | 'untracked'
+export type FileStatus = 'modified' | 'added' | 'deleted' | 'renamed' | 'untracked' | 'conflicted'
 
 export interface ChangedFile {
   path: string
@@ -52,6 +52,8 @@ const statusByCode: Record<string, FileStatus> = {
   R: 'renamed',
 }
 
+const UNMERGED_STATUS_CODES = new Set(['DD', 'AU', 'UD', 'UA', 'DU', 'AA', 'UU'])
+
 export function parseStatus(porcelainZ: string): ChangedFile[] {
   const segments = porcelainZ.split('\0').filter(Boolean)
   const files: ChangedFile[] = []
@@ -61,6 +63,10 @@ export function parseStatus(porcelainZ: string): ChangedFile[] {
     const path = entry.slice(3)
     if (xy === '??') {
       files.push({ path, status: 'untracked', staged: false, unstaged: true })
+      continue
+    }
+    if (UNMERGED_STATUS_CODES.has(xy)) {
+      files.push({ path, status: 'conflicted', staged: true, unstaged: true })
       continue
     }
     const code = xy.trim().charAt(0)
