@@ -6,11 +6,11 @@
  * hosts (`npx @fabiofiorita/porcelain@latest serve`). Day-to-day product work uses this
  * launcher against a built tree (`pnpm build` once, then restart here).
  *
- * Usage (pnpm needs `--` before flags):
+ * Usage:
  *   pnpm dev:daemon
- *   pnpm dev:daemon -- --host
- *   pnpm dev:daemon -- --port 43119 --host
- *   pnpm dev:daemon -- --loopback
+ *   pnpm dev:daemon --host
+ *   pnpm dev:daemon --port 43119 --host
+ *   pnpm dev:daemon --loopback
  */
 import { execFileSync, execSync, spawn } from 'node:child_process'
 import {
@@ -48,7 +48,7 @@ const serverEntry = join(root, 'apps', 'desktop', 'out', 'main', 'daemon', 'serv
 const HELP = `Porcelain DEV daemon — local tree on the isolated dev stack
 
 Usage:
-  pnpm dev:daemon -- [options]
+  pnpm dev:daemon [options]
 
 Options:
   --host, --lan        Bind LAN (RFC1918) so other machines can open
@@ -70,8 +70,8 @@ Notes:
 
 Examples:
   pnpm dev:daemon
-  pnpm dev:daemon -- --host
-  pnpm dev:daemon -- --port 43119 --loopback
+  pnpm dev:daemon --host
+  pnpm dev:daemon --port 43119 --loopback
 `
 
 function parseArgs(argv) {
@@ -291,7 +291,7 @@ async function announcePairing(port, autoAuth) {
     console.log(`
   auth        auto — open http://127.0.0.1:${port}/ and the browser is in
               ${authorized} client(s) authorized · link for another device: pnpm dev:pair
-              Testing the pairing flow itself? pnpm dev:daemon -- --no-auto-auth
+              Testing the pairing flow itself? pnpm dev:daemon --no-auto-auth
 `)
     return
   }

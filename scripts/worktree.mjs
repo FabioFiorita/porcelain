@@ -430,7 +430,7 @@ function create(slugArg, options) {
   playground  ${paths.playground}
 
   cd ${path}
-  pnpm build && pnpm dev:daemon -- --loopback
+  pnpm build && pnpm dev:daemon --loopback
   # then publish a Review-template Canvas with the porcelain_canvas MCP tool
 
 ${integrateHint}
@@ -835,7 +835,7 @@ function adopt(pathArg, slugArg, options) {
   playground  ${paths.playground}
 
   cd ${target}
-  pnpm build && pnpm dev:daemon -- --loopback
+  pnpm build && pnpm dev:daemon --loopback
 
 The checkout stays where its harness created it; \`pnpm worktree remove ${slug}\`
 deletes that directory along with the branch and managed runtime state.
