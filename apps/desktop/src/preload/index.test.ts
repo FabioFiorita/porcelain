@@ -73,7 +73,7 @@ describe('preload trpcShell', () => {
   })
 
   it('rejects a malformed shuttle response instead of handing it to the renderer', async () => {
-    const bridge = await loadBridge({ url: '', token: '' })
+    const bridge = await loadBridge({ url: 'http://127.0.0.1:43118', token: 'pc_admin' })
     const malformed: unknown[] = [
       undefined,
       null,
@@ -106,7 +106,16 @@ describe('preload daemon info', () => {
   })
 
   it('fails closed at boot when main answers with a foreign shape', async () => {
-    for (const reply of [undefined, null, 'http://127.0.0.1:43118', { url: 1, token: 2 }, {}]) {
+    for (const reply of [
+      undefined,
+      null,
+      'http://127.0.0.1:43118',
+      { url: 1, token: 2 },
+      { url: '', token: '' },
+      { url: 'file:///Applications/Porcelain.app', token: 'pc_admin' },
+      { url: 'http://127.0.0.1:43118', token: '' },
+      {},
+    ]) {
       exposed.clear()
       sendSync.mockReturnValue(reply)
       Object.defineProperty(process, 'contextIsolated', { value: true, configurable: true })

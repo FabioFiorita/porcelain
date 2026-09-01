@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process'
 import { isAbsolute } from 'node:path'
 
 const MARKETPLACE_SOURCE = 'FabioFiorita/porcelain'
+const MARKETPLACE_NAME = 'fabiofiorita'
 const PLUGIN_ID = 'porcelain@fabiofiorita'
 const COMMAND_TIMEOUT_MS = 120_000
 
@@ -92,6 +93,7 @@ export async function installCodexPlugin(
 
   try {
     await runner(codex, ['plugin', 'marketplace', 'add', MARKETPLACE_SOURCE, '--json'], env)
+    await runner(codex, ['plugin', 'marketplace', 'upgrade', MARKETPLACE_NAME, '--json'], env)
     await runner(codex, ['plugin', 'add', PLUGIN_ID, '--json'], env)
   } catch (error) {
     throw commandError(error, 'Could not add the Porcelain plugin to Codex')

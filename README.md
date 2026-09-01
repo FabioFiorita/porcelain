@@ -35,7 +35,8 @@ that device. Remote exposure and always-on setup are documented in
 ## Agent connection
 
 The **Porcelain** plugin gives agents the MCP tools and focused skills for Canvases, comments,
-Actions, profiles, and remote-daemon setup.
+Actions, profiles, and remote-daemon setup. Its MCP connector talks to the Porcelain daemon running
+on the same machine and profile as the agent.
 
 ### Codex
 
@@ -43,6 +44,7 @@ Install it from Porcelain's Companion settings, or use the Codex CLI:
 
 ```sh
 codex plugin marketplace add FabioFiorita/porcelain
+codex plugin marketplace upgrade fabiofiorita
 codex plugin add porcelain@fabiofiorita
 ```
 

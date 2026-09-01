@@ -39,11 +39,10 @@ describe('daemon child launch contract', () => {
     expect(Object.isFrozen(DAEMON_CHILD_ARGV)).toBe(true)
   })
 
-  it('gives the packaged daemon a stable port while preserving development profiles', () => {
-    expect(daemonChildPort(false, undefined)).toBe('43117')
-    expect(daemonChildPort(true, undefined)).toBe('')
-    expect(daemonChildPort(false, '43118')).toBe('43118')
-    expect(daemonChildPort(true, '43199')).toBe('43199')
+  it('leaves the renderer port to the OS unless the owning launcher selected one', () => {
+    expect(daemonChildPort(undefined)).toBe('')
+    expect(daemonChildPort('43118')).toBe('43118')
+    expect(daemonChildPort('43199')).toBe('43199')
   })
 
   it('launch forks the helper with the frozen argv and never child_process', () => {

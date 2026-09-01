@@ -17,7 +17,8 @@ agent channel ───────> daemon capabilities
 The daemon is a headless Node process with HTTP procedures and a `/session` WebSocket for live
 updates and terminal streams. The browser client is served by the daemon. Electron hosts the same
 web client and owns local process/window lifecycle. Mobile is a native client using the
-same daemon and shared contracts. Agents use the daemon's MCP endpoint through the shipped plugin.
+same daemon and shared contracts. Agents use the shipped plugin's stdio connector, which reaches
+the daemon through a profile-scoped local socket instead of its client-facing TCP listener.
 An Electron window keeps the local child daemon as its primary connection; Projects, Worktrees,
 and daemon-owned operations carry an explicit Environment target through renderer sessions, so
 selecting remote work never rebinds or reloads the window.
@@ -52,7 +53,9 @@ package that owns the behavior until a second consumer makes sharing useful.
 - Mobile owns native lifecycle and presentation. Its terminal module may render native terminal
   cells, while daemon/PTY transport remains client feature code.
 - The MCP channel adapts semantic daemon operations for agents. The daemon remains the only writer
-  of its private state; the plugin contributes connection metadata and focused procedures.
+  of its private state; the plugin contributes a bundled stdio connector and focused procedures.
+  The connector resolves the channel from `PORCELAIN_HOME`, so concurrent local profiles remain
+  isolated and no MCP route is exposed through LAN, Tailscale, Cloudflare, or renderer HTTP.
 
 ## Data boundaries
 

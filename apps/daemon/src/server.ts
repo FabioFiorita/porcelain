@@ -1,4 +1,6 @@
 import { createHash } from 'node:crypto'
+import type { IncomingMessage, ServerResponse } from 'node:http'
+import { porcelainMcpChannel } from '@shared/mcp-channel'
 import { porcelainHome, porcelainHomePath } from '@shared/porcelain-home'
 import { createDaemonOperations, createDaemonRouter, type DaemonOperations } from './api'
 import { createWorktreeScripts } from './features/actions'
@@ -43,6 +45,7 @@ import { handleFilePreviewRequest } from './net/file-preview-http'
 import { daemonIdentity } from './net/daemon-identity'
 import { daemonVersion } from './net/daemon-version'
 import { createMcpToolHandlers, handleMcpRequest } from './net/mcp'
+import { startLocalMcpServer } from './net/mcp/mcp-local-server'
 import { rendererDistExists, serveStatic } from './net/static-server'
 import { createSession, publishSessionChange } from './session/live-session'
 
@@ -102,9 +105,11 @@ const canvasStores = {
 // The single daemon shutdown path. Every shutdown route (SIGTERM from the shell's
 // utilityProcess.kill, SIGINT at a TTY, or the stdin-EOF watchdog) converges here.
 let shuttingDown = false
+let cleanupLocalMcp: (() => void) | undefined
 function shutdown(): void {
   if (shuttingDown) return
   shuttingDown = true
+  cleanupLocalMcp?.()
   process.exit(0)
 }
 // utilityProcess.kill() (the shell's teardown) sends SIGTERM; a standalone `node` daemon at
@@ -199,11 +204,16 @@ async function main(): Promise<void> {
     filePreviewTokens,
   })
   const router = createDaemonRouter({ operations })
-  // One handler set for the process; the MCP route is stateless, so nothing here is
-  // per-connection.
+  // One handler set for the process; the local MCP transport is stateless, so nothing
+  // here is per-connection.
   const mcpToolHandlers = createMcpToolHandlers({
     operations,
   })
+  const serveMcp = (req: IncomingMessage, res: ServerResponse): Promise<void> =>
+    handleMcpRequest(req, res, {
+      handlers: mcpToolHandlers,
+      serverInfo: { name: 'porcelain', version: daemonVersion() },
+    })
   daemon = createRemoteHttp({
     adminTokenHash: tokenHash,
     authenticateClient: authenticateClientToken,
@@ -228,14 +238,6 @@ async function main(): Promise<void> {
         readPreviewDocument: (scope) =>
           operations.files.previewHtml({ ...scope, inlineScripts: true }),
       }),
-    // The agent tool surface. Opt-in for the human — installing the plugin is what
-    // turns it on for an agent — but always mounted, because the daemon cannot know
-    // which agents the human has pointed at it.
-    serveMcp: (req, res) =>
-      handleMcpRequest(req, res, {
-        handlers: mcpToolHandlers,
-        serverInfo: { name: 'porcelain', version: daemonVersion() },
-      }),
     // A dev daemon hands its browser a real client token instead of demanding a pairing
     // link every context — the same provisioning the e2e harness already does, and the
     // Bearer gate still runs on every request afterwards. Production omits the option, so
@@ -247,9 +249,16 @@ async function main(): Promise<void> {
         : undefined,
   })
 
+  const localMcp = await startLocalMcpServer({
+    endpoint: porcelainMcpChannel(),
+    serveMcp,
+  })
+  cleanupLocalMcp = localMcp.cleanupSync
+  process.once('exit', localMcp.cleanupSync)
+
   // Hand the handlers to the second-listener module so its optional tailnet + LAN
-  // listeners (started/stopped live from the API) use the external surface. It
-  // deliberately has no /mcp route; the token-free agent surface stays loopback-only.
+  // listeners (started/stopped live from the API) use the external surface. MCP is
+  // absent from every TCP listener; agents use the profile-scoped local channel above.
   initIfaceHandlers(daemon.requestListener, daemon.handleUpgrade, daemon.externalRequestListener)
 
   // The daemon serves the renderer dist to the browser client (Phase 3). In dev
@@ -279,10 +288,8 @@ async function main(): Promise<void> {
         }
       })
     }),
-    // Cloudflare is a local process, but it is still a proxy boundary: target a
-    // separate loopback socket whose handler cannot dispatch /mcp. This prevents
-    // a proxy that strips forwarding headers from laundering an external request
-    // into the token-free local MCP listener.
+    // Cloudflare targets a separate loopback listener so the external transport stays
+    // independent from the renderer listener. Neither TCP listener exposes MCP.
     new Promise<number>((resolve) => {
       daemon.externalServer.listen(0, '127.0.0.1', () => {
         const address = daemon.externalServer.address()

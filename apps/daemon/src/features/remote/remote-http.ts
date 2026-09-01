@@ -15,7 +15,6 @@ import {
 import { createRequestId } from '../../daemon-composition/request-id'
 import type { AuthIdentity } from './access-store'
 import { handleDevAuthRequest } from './dev-auth-http'
-import { serveMcpRoute } from './remote-mcp-route'
 import { parseAllowedOrigins } from './remote-origins'
 import { rejectProtocolMismatch } from './remote-protocol'
 
@@ -50,12 +49,6 @@ export const TRPC_MAX_BODY_BYTES = 32 * 1024 * 1024
  * capability token (minted only to an already-Bearer-authenticated tRPC caller
  * — canvas-access-tokens.ts) is the credential there; see canvas-http.ts for
  * why the route exists at all.
- *
- * POST /mcp is the local agent tool surface: token-free only for direct loopback
- * requests, with Origin and proxy-header checks. The loopback server is the only
- * server that dispatches it; the interface listeners and the Cloudflare ingress use
- * the separate external listener below, where `/mcp` does not exist at all — see
- * remote-mcp-route.ts.
  *
  * GET /dev-auth is the one deliberate hole, mounted ONLY when the caller passes
  * `devAutoAuth` (server.ts does so only under PORCELAIN_DEV) — see dev-auth-http.ts for
@@ -92,8 +85,6 @@ export interface RemoteHttpOptions {
   serveFilePreview: (req: IncomingMessage, res: ServerResponse) => Promise<void>
   /** DEVELOPMENT ONLY — see dev-auth-http.ts. Omitted in production; the route then does not exist. */
   devAutoAuth?: () => Promise<string>
-  /** Serves POST /mcp once gated. Omitted means the route does not exist. */
-  serveMcp?: (req: IncomingMessage, res: ServerResponse) => Promise<void>
   /** Cap on a single /trpc request body, in bytes. Defaults to TRPC_MAX_BODY_BYTES;
    *  overridable only so tests can exercise the 413 path without streaming hundreds
    *  of megabytes. */
@@ -103,11 +94,10 @@ export interface RemoteHttpOptions {
 export interface RemoteHttp {
   /** The http.Server, NOT yet listening — the caller owns `.listen()`. */
   server: Server
-  /** The local (req, res) listener; `/mcp` is available only on this listener. */
+  /** The loopback request listener. */
   requestListener: (req: IncomingMessage, res: ServerResponse) => void
   /**
-   * The external (req, res) listener; `/mcp` is deliberately unavailable here.
-   * LAN/Tailscale listeners and the Cloudflare ingress use this handler.
+   * LAN/Tailscale listeners and the Cloudflare ingress use this separate handler.
    */
   externalServer: Server
   externalRequestListener: (req: IncomingMessage, res: ServerResponse) => void
@@ -299,13 +289,8 @@ export function createRemoteHttp(opts: RemoteHttpOptions): RemoteHttp {
   // stays in tRPC, exactly like the Stage-1 IPC shuttle. The appRouter context is
   // empty by design: no procedure may see the caller (per-connection concerns
   // live on the WS session). Extracted from createServer so the local and external
-  // listeners share the same authenticated pipeline; `allowMcp` is the one deliberate
-  // surface distinction, keeping the token-free agent route loopback-only.
-  async function handleRequest(
-    req: IncomingMessage,
-    res: ServerResponse,
-    allowMcp: boolean,
-  ): Promise<void> {
+  // listeners share the same authenticated pipeline.
+  async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const cors = corsHeaders(req)
     const url = req.url ?? '/'
     if (url === '/pair' && req.method === 'OPTIONS') {
@@ -349,26 +334,6 @@ export function createRemoteHttp(opts: RemoteHttpOptions): RemoteHttp {
         return
       }
       await serveFilePreview(req, res)
-      return
-    }
-    if (url === '/mcp' || url.startsWith('/mcp?')) {
-      // This is a listener-level boundary, not a header convention. A reverse
-      // proxy can strip forwarded headers and make an incoming request appear
-      // loopback, so external listeners must never call the MCP dispatcher.
-      if (!allowMcp) {
-        res.writeHead(404, cors)
-        res.end()
-        return
-      }
-      // Gates and rationale: remote-mcp-route.ts. An unexpected throw falls to the
-      // listener's catch below — /mcp has no Porcelain public-error shape to map onto.
-      await serveMcpRoute({
-        req,
-        res,
-        cors,
-        allowedOrigins,
-        serveMcp: opts.serveMcp,
-      })
       return
     }
     if (!url.startsWith('/trpc')) {
@@ -486,7 +451,7 @@ export function createRemoteHttp(opts: RemoteHttpOptions): RemoteHttp {
   // expects. Dynamic request failures handle themselves above; this last-resort
   // path preserves non-public static-route failures without logging raw details.
   const requestListener = (req: IncomingMessage, res: ServerResponse): void => {
-    handleRequest(req, res, true).catch((error) => {
+    handleRequest(req, res).catch((error) => {
       logUnexpectedError({ error, requestId: createRequestId(), path: undefined })
       if (!res.headersSent) res.writeHead(500, corsHeaders(req))
       if (!res.writableEnded) res.end()
@@ -494,7 +459,7 @@ export function createRemoteHttp(opts: RemoteHttpOptions): RemoteHttp {
   }
 
   const externalRequestListener = (req: IncomingMessage, res: ServerResponse): void => {
-    handleRequest(req, res, false).catch((error) => {
+    handleRequest(req, res).catch((error) => {
       logUnexpectedError({ error, requestId: createRequestId(), path: undefined })
       if (!res.headersSent) res.writeHead(500, corsHeaders(req))
       if (!res.writableEnded) res.end()

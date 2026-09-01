@@ -12,6 +12,7 @@ describe('installCodexPlugin', () => {
     expect(runner.mock.calls.map(([executable, args]) => [executable, args])).toEqual([
       ['codex', ['--version']],
       ['codex', ['plugin', 'marketplace', 'add', 'FabioFiorita/porcelain', '--json']],
+      ['codex', ['plugin', 'marketplace', 'upgrade', 'fabiofiorita', '--json']],
       ['codex', ['plugin', 'add', 'porcelain@fabiofiorita', '--json']],
     ])
   })
@@ -29,6 +30,7 @@ describe('installCodexPlugin', () => {
     expect(runner.mock.calls[1]?.slice(0, 2)).toEqual(['/bin/zsh', ['-lc', 'command -v codex']])
     expect(runner.mock.calls[2]?.[0]).toBe('/opt/homebrew/bin/codex')
     expect(runner.mock.calls[3]?.[0]).toBe('/opt/homebrew/bin/codex')
+    expect(runner.mock.calls[4]?.[0]).toBe('/opt/homebrew/bin/codex')
   })
 
   it('does not attempt installation after the marketplace command fails', async () => {

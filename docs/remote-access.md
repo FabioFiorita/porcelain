@@ -25,9 +25,9 @@ shared with a device.
 
 `--tailnet` and `--cloudflare` are mutually exclusive. LAN can be combined with either. The
 daemon does not bind `0.0.0.0`; LAN and tailnet use specific private interfaces, and Cloudflare
-proxies to the loopback listener. Every app/API request still requires a credential. The MCP
-endpoint is deliberately different: it is available without a token only to direct loopback
-clients and returns 404 through LAN, Tailscale, Cloudflare, or a proxy.
+proxies to the loopback listener. Every app/API request still requires a credential. MCP is not an
+HTTP route on any of these listeners: the installed plugin reaches only the profile-scoped local
+socket owned by the daemon on the agent's machine.
 
 For a named Cloudflare tunnel, set the token in the environment rather than a command-line flag:
 

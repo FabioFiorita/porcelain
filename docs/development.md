@@ -28,8 +28,8 @@ for a separate browser/mobile client; do not run both for the same profile at on
 Run `pnpm dev:web` beside the daemon and open `http://127.0.0.1:53118/` (the daemon port plus
 10000, so a managed worktree gets its own). That is the same `apps/web` source over Vite with
 hot module replacement, proxying `/trpc`, `/session`, `/dev-auth`, `/pair`, `/canvas`, and
-`/mcp` to the daemon of that checkout, so an edit is on screen in well under a second with the
-app state intact. `pnpm dev` runs the Electron client with its own HMR renderer and the same
+file previews to the daemon of that checkout, so an edit is on screen in well under a second with
+the app state intact. `pnpm dev` runs the Electron client with its own HMR renderer and the same
 profile-scoped daemon.
 
 Rebuilds are for the other layers, not for web edits:
@@ -55,6 +55,10 @@ The development environment is intentionally distinct from the published daemon:
 `PORCELAIN_DEV` enables the playground boundary and development authentication. Use
 `pnpm dev:pair` when another device needs a development pairing link. Never copy production
 credentials into a browser or local storage.
+
+Each profile also owns a local MCP channel under its `PORCELAIN_HOME`. The shipped plugin connects
+to that channel directly; MCP is not part of the daemon's TCP listener and is not forwarded by the
+web development server.
 
 ## Choose primary or a managed worktree
 

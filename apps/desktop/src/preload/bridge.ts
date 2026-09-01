@@ -89,8 +89,10 @@ type TrpcShuttle = (request: TrpcShellRequest) => Promise<TrpcShellResponse>
  */
 export const daemonInfoSchema = z
   .object({
-    url: z.string(),
-    token: z.string(),
+    url: z.url().refine((value) => value.startsWith('http://') || value.startsWith('https://'), {
+      message: 'daemon URL must use HTTP or HTTPS',
+    }),
+    token: z.string().min(1),
   })
   .strict()
 

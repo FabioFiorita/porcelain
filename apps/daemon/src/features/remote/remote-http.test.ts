@@ -183,7 +183,6 @@ type TestDaemonOverrides = Partial<
     | 'serveCanvas'
     | 'allowedOrigin'
     | 'devAutoAuth'
-    | 'serveMcp'
     | 'trpcMaxBodyBytes'
   >
 >
@@ -198,7 +197,6 @@ function testDaemonOptions({
     res.end()
   },
   devAutoAuth,
-  serveMcp,
   trpcMaxBodyBytes,
 }: TestDaemonOverrides = {}): RemoteHttpOptions {
   return {
@@ -214,7 +212,6 @@ function testDaemonOptions({
     },
     serveCanvas,
     devAutoAuth,
-    serveMcp,
     trpcMaxBodyBytes,
   }
 }
@@ -1100,155 +1097,5 @@ describe('daemon ws surface — the /session upgrade gate + dispatch', () => {
     ws.send(JSON.stringify({ t: 'terminal:create', reqId: 'r3', name: 't', cwd: '/tmp' }))
     expect(await reply).toEqual({ t: 'terminal:created', reqId: 'r3', id: 'term-1' })
     ws.close()
-  })
-})
-
-/**
- * The MCP endpoint is intentionally local-only. Installing the plugin authorizes
- * direct loopback use, while Origin and proxy-header checks stop a browser page or
- * tunnel from turning that local route into an unauthenticated remote API.
- */
-describe('POST /mcp', () => {
-  const body = JSON.stringify({
-    jsonrpc: '2.0',
-    id: 1,
-    method: 'tools/list',
-    params: {
-      _meta: {
-        'io.modelcontextprotocol/protocolVersion': '2026-07-28',
-        'io.modelcontextprotocol/clientCapabilities': {},
-      },
-    },
-  })
-  const mcpHeaders: Record<string, string> = {
-    'content-type': 'application/json',
-    'mcp-protocol-version': '2026-07-28',
-    'mcp-method': 'tools/list',
-  }
-
-  async function withMcpDaemon(
-    run: (base: string, served: { calls: number }) => Promise<void>,
-    overrides: TestDaemonOverrides = {},
-  ): Promise<void> {
-    const served = { calls: 0 }
-    const started = await startTestDaemon({
-      serveMcp: async (_req, res) => {
-        served.calls += 1
-        res.writeHead(200, { 'content-type': 'application/json' })
-        res.end('{"ok":true}')
-      },
-      ...overrides,
-    })
-    try {
-      await run(started.base, served)
-    } finally {
-      await stopTestDaemon(started.daemon)
-    }
-  }
-
-  it('serves a direct loopback request without an Authorization header', async () => {
-    await withMcpDaemon(async (base, served) => {
-      const response = await fetch(`${base}/mcp`, {
-        method: 'POST',
-        headers: mcpHeaders,
-        body,
-      })
-      expect(response.status).toBe(200)
-      expect(served.calls).toBe(1)
-    })
-  })
-
-  it('refuses a proxied loopback request so Cloudflare cannot launder remote access', async () => {
-    await withMcpDaemon(async (base, served) => {
-      const response = await fetch(`${base}/mcp`, {
-        method: 'POST',
-        headers: { ...mcpHeaders, 'x-forwarded-for': '203.0.113.10' },
-        body,
-      })
-      expect(response.status).toBe(404)
-      expect(served.calls).toBe(0)
-    })
-  })
-
-  it('does not expose MCP through the external listener even when proxy headers are stripped', async () => {
-    const served = { calls: 0 }
-    const started = await startTestDaemon({
-      serveMcp: async (_req, res) => {
-        served.calls += 1
-        res.writeHead(200, { 'content-type': 'application/json' })
-        res.end('{"ok":true}')
-      },
-    })
-    await new Promise<void>((resolve) =>
-      started.daemon.externalServer.listen(0, '127.0.0.1', resolve),
-    )
-    const address = started.daemon.externalServer.address() as AddressInfo
-    try {
-      const response = await fetch(`http://127.0.0.1:${address.port}/mcp`, {
-        method: 'POST',
-        headers: mcpHeaders,
-        body,
-      })
-      expect(response.status).toBe(404)
-      expect(served.calls).toBe(0)
-    } finally {
-      await stopTestDaemon(started.daemon)
-    }
-  })
-
-  it('refuses an untrusted Origin with a JSON-RPC error and never dispatches', async () => {
-    await withMcpDaemon(async (base, served) => {
-      const response = await fetch(`${base}/mcp`, {
-        method: 'POST',
-        headers: {
-          ...mcpHeaders,
-          origin: 'https://evil.example',
-        },
-        body,
-      })
-      expect(response.status).toBe(403)
-      const parsed = (await response.json()) as { jsonrpc: string; error: { code: number } }
-      expect(parsed.jsonrpc).toBe('2.0')
-      expect(parsed.error.code).toBe(-32600)
-      expect(served.calls).toBe(0)
-    })
-  })
-
-  it('allows the trusted browser Hub origin', async () => {
-    await withMcpDaemon(async (base, served) => {
-      const response = await fetch(`${base}/mcp`, {
-        method: 'POST',
-        headers: { ...mcpHeaders, origin: ORIGIN },
-        body,
-      })
-      expect(response.status).toBe(200)
-      expect(served.calls).toBe(1)
-    })
-  })
-
-  it('does not require the Porcelain protocol header an MCP client cannot know', async () => {
-    await withMcpDaemon(async (base, served) => {
-      const response = await fetch(`${base}/mcp`, {
-        method: 'POST',
-        headers: mcpHeaders,
-        body,
-      })
-      expect(response.status).toBe(200)
-      expect(served.calls).toBe(1)
-    })
-  })
-
-  it('is absent when the daemon does not wire it', async () => {
-    const started = await startTestDaemon()
-    try {
-      const response = await fetch(`${started.base}/mcp`, {
-        method: 'POST',
-        headers: mcpHeaders,
-        body,
-      })
-      expect(response.status).toBe(404)
-    } finally {
-      await stopTestDaemon(started.daemon)
-    }
   })
 })

@@ -31,8 +31,8 @@ the operational authority. Do not reconstruct commands from remembered versions.
 
 - Treat the administrator token and every paired-client token like host login credentials. Do not
   print, log, commit, or place them in plugin configuration.
-- Porcelain's MCP endpoint is local to the agent's daemon. Do not expose it through LAN, Tailscale,
-  Cloudflare, or an HTTP proxy to control another Environment.
+- Porcelain's MCP channel is a profile-scoped local socket on the agent's machine. Do not proxy or
+  forward it through LAN, Tailscale, Cloudflare, or HTTP to control another Environment.
 - Never replace a running daemon, port, service unit, or exposure mode until its owner and purpose
   are identified. Stop only the process or service explicitly in scope.
 - Network reachability and authorization are separate: a timeout is not a credential failure, and a

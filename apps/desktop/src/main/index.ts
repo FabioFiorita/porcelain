@@ -1,5 +1,5 @@
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
-import { app, BrowserWindow, type Session, session } from 'electron'
+import { app, BrowserWindow, dialog, type Session, session } from 'electron'
 import { startDaemon } from './daemon'
 import { registerTrpcHandler } from './ipc'
 import { installAppMenu } from './menu'
@@ -93,9 +93,14 @@ app.whenReady().then(async () => {
   try {
     await startDaemon()
   } catch (error) {
-    // The window still opens; daemon.ts keeps retrying with backoff and pushes
-    // the url over `daemon-url-changed` once a spawn succeeds.
     console.error('[daemon] initial start failed:', error)
+    const message = error instanceof Error ? error.message : String(error)
+    dialog.showErrorBox(
+      'Porcelain could not start',
+      `The local Porcelain service did not become ready.\n\n${message}\n\nQuit and reopen Porcelain to try again.`,
+    )
+    app.quit()
+    return
   }
 
   // Default open or close DevTools by F12 in development

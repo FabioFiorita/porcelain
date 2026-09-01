@@ -134,7 +134,6 @@ async function devServer() {
       '/session': { ...daemonRoute, ws: true },
       '/dev-auth': daemonRoute,
       '/canvas': daemonRoute,
-      '/mcp': daemonRoute,
       '/pair': {
         ...daemonRoute,
         // Only the credential exchange belongs to the daemon; the link itself is a client route.

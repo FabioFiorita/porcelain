@@ -1,5 +1,4 @@
 import { join } from 'node:path'
-import { LISTENER_PORT } from '@backend/features/remote/remote-listeners'
 import { ensureAdminToken } from '@backend/net/admin-token'
 import { is } from '@electron-toolkit/utils'
 import {
@@ -269,11 +268,12 @@ export function daemonChildScript(mainDir: string): string {
 export const DAEMON_CHILD_ARGV = Object.freeze([] as string[]) as string[]
 
 /**
- * The installed plugin reaches the packaged daemon through a stable loopback port.
- * Development launchers provide their profile-specific port and keep that override.
+ * An explicit launcher override keeps development/headless profiles deterministic.
+ * Packaged Electron otherwise lets the OS allocate its private renderer port; the installed
+ * plugin reaches the same daemon through the profile-scoped local MCP channel instead.
  */
-export function daemonChildPort(dev: boolean, inherited: string | undefined): string {
-  return inherited ?? (dev ? '' : String(LISTENER_PORT))
+export function daemonChildPort(inherited: string | undefined): string {
+  return inherited ?? ''
 }
 
 async function launch(): Promise<void> {
@@ -289,7 +289,7 @@ async function launch(): Promise<void> {
       PORCELAIN_USER_DATA: app.getPath('userData'),
       PORCELAIN_DEV: is.dev ? '1' : '',
       PORCELAIN_ADMIN_TOKEN: token,
-      PORCELAIN_DAEMON_PORT: daemonChildPort(is.dev, process.env.PORCELAIN_DAEMON_PORT),
+      PORCELAIN_DAEMON_PORT: daemonChildPort(process.env.PORCELAIN_DAEMON_PORT),
       // A utility child gets NO stdin, so the daemon's stdin parent-death
       // watchdog would insta-exit it; Electron ties the child's lifetime to
       // this app, which supersedes the watchdog here (standalone daemons under
@@ -323,6 +323,10 @@ async function launch(): Promise<void> {
     if (wentDown) return
     wentDown = true
     if (child === proc) child = null
+    if (port !== null) {
+      port = null
+      broadcastShellEvent('local-daemon-changed')
+    }
     if (quitting) return
     // Restart with capped backoff: a crash after a healthy stretch resets the
     // counter; 3 rapid failures in a row means something is structurally broken
