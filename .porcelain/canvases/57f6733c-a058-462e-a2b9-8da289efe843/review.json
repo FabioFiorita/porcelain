@@ -1,5 +1,6 @@
 {
   "name": "Make Project and Worktree operations truthful",
+  "commitHash": "bcb5feb61ed308a5a0ae8efd1354294d60e98811",
   "layers": [
     {
       "label": "Safety-critical Git and inventory semantics",
