@@ -24,7 +24,7 @@ const actionsCatalog = {
 }
 
 describe('actionsMutations', () => {
-  it('binds each definition to exactly one canonical ACT-001 procedure', () => {
+  it('binds each definition to exactly one canonical Actions procedure', () => {
     expect(actionsMutations.trust.procedure).toBe(actionsProcedures.trustActions)
     expect(actionsMutations.trust.procedureName).toBe('trustActions')
 

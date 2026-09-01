@@ -2,7 +2,7 @@ import { type RenameTerminalInput, terminalProcedures } from '@porcelain/contrac
 import { type TerminalSessionsQuery, terminalSessionsQuery } from './terminal-queries'
 
 /**
- * Terminal mutation consequence definitions (TRM-006).
+ * Terminal mutation consequence definitions.
  *
  * Single non-optimistic rename: the roster identity is daemon-global, so every
  * rename refetches the same sessions slot. Transport and React stay in adapters.

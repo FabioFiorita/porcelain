@@ -19,7 +19,7 @@ const DAEMON = { host: 'beelink', version: '0.52.1' }
 const OTHER_DAEMON = { host: 'mac', version: '0.52.1' }
 
 describe('filesQueryKey', () => {
-  it('embeds each of the five FIL-004 identities with daemon scope', () => {
+  it('embeds each of the five shared Files identities with daemon scope', () => {
     const tree = filesQueryKey(DAEMON, filesTreeQuery(PROJECT, 'src', false))
     expect(tree[0]).toEqual({
       domain: 'files',

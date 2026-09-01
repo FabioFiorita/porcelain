@@ -100,7 +100,7 @@ export function createActionsOperations(options: {
 
   /**
    * Every configured source in order, first claim of an id winning. With one source
-   * this is the private store's own list; #26's tracked overlay slots in beside it
+   * this is the private store's own list; the tracked overlay slots in beside it
    * without the read path changing shape.
    */
   async function readAllSources(

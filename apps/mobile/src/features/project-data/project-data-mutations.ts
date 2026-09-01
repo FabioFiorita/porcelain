@@ -9,7 +9,7 @@ import { invalidateProjectDataIdentities } from './project-data-query-key'
 import { callProjectDataProcedure } from './use-project-data-transport'
 
 /**
- * Mobile Project Data writes (PDT-003).
+ * Mobile Project Data writes.
  *
  * Success-only typed identity invalidation.
  */

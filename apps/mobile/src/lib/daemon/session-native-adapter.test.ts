@@ -25,7 +25,7 @@ import {
 
 /**
  * The adapter is proved against the REAL shared runtime and a fake socket, never a fake runtime:
- * the whole point of `RT-003` is that hello/ready, recovery, and terminal delivery have one
+ * The shared session runtime gives hello/ready, recovery, and terminal delivery one
  * implementation, so a double reimplementing them here would prove the double instead.
  */
 
@@ -358,7 +358,8 @@ describe('Session native adapter shutdown', () => {
 })
 
 /**
- * REM-003 owns the retry math and the health vocabulary; this adapter only binds them, so the
+ * The shared remote health model owns retry math and health vocabulary; this adapter only binds
+ * them, so the
  * assertions below are about the binding — never a second policy.
  */
 describe('Session native adapter binds the shared Remote retry and health policy', () => {

@@ -1,5 +1,5 @@
 /**
- * Web Project Data feature public entry point (PDT-003).
+ * Web Project Data feature public entry point.
  *
  * All that remains on the client is query-key invalidation: the companion disposition
  * and git-visibility surfaces were removed with Settings → Data, and their daemon

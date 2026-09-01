@@ -72,7 +72,7 @@ export type CanvasStore = Readonly<{
    *
    * Promotion calls this AFTER the tracked copy is in place, which is what makes
    * the tracked file canonical rather than a second editable copy free to
-   * diverge from a private one (ADR 0002 / #26).
+   * diverge from a private one.
    */
   forgetCanvas: (projectId: string, canvasId: string) => Promise<CanvasStoreResult<void>>
 }>

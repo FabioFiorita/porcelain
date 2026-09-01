@@ -10,10 +10,10 @@ import type { QueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
 
 /**
- * Web React Query keys for Actions (ACT-003).
+ * Web React Query keys for Actions.
  *
  * Cache rows hold ActionView[] under the list identity only. Trust identities from
- * ACT-002 collapse onto the same project list key — never a second wire call or row.
+ * Actions identities collapse onto the same project list key — never a second wire call or row.
  */
 
 export type ActionsDaemonScope = DaemonScope
@@ -39,7 +39,7 @@ export function actionsListKeyForProject(
 }
 
 /**
- * Map any ACT-002 identity to the cache key that holds ActionView[] for that Project.
+ * Map any shared Actions identity to the cache key that holds ActionView[] for that Project.
  * list → list key; trust → list key for the same projectId (collapse).
  */
 export function actionsCacheKeyForIdentity(

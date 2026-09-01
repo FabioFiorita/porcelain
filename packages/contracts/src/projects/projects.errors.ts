@@ -46,7 +46,7 @@ export const canvasUnavailableErrorSchema = definePublicError({
  * Project (or the `worktreeId` given names a different one). Every promotion
  * takes an explicit target and an ambiguous one is rejected, never guessed —
  * writing an agent's Canvas into the wrong repository is not undone by a retry
- * (ADR 0002).
+ * so callers can distinguish private and tracked ownership failures.
  */
 export const projectsOverlayTargetInvalidErrorSchema = definePublicError({
   code: 'projects.overlay-target-invalid',

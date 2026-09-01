@@ -17,7 +17,7 @@ import { settleBackground } from '@porcelain/shared/background'
  *
  * Parallel to the browser adapter (`apps/web/src/lib/session-browser-adapter.ts`). Everything
  * the *protocol* does — hello/ready, watches after ready, sequence recovery, terminal frames,
- * the terminal mismatch state — lives in the shared runtime (`RT-003`). What is left here is
+ * the terminal mismatch state — lives in the shared runtime. What is left here is
  * the part React Native owns: opening a `WebSocket`, carrying the token as a subprotocol,
  * resolving the daemon origin from the paired environment, and deciding when to try again.
  * This adapter never parses a frame, never invents a state, and never reimplements a recovery

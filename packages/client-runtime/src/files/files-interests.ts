@@ -30,7 +30,7 @@ export type FilesInterest = {
   readonly addDirectory: (relativePath: string) => FilesInterestHandle | null
   /**
    * Snapshot of absolute paths from currently unreleased handles.
-   * First-seen unique per list (two equal adds remain two RT-003 registrations;
+   * First-seen unique per list (two equal adds remain two session registrations;
    * held() lists the absolute path once).
    */
   readonly held: () => FilesInterestHeld
@@ -56,7 +56,7 @@ type TrackedHandle = {
 }
 
 /**
- * Bind Files relative interests to RT-003 for one project root.
+ * Bind Files relative interests to one session for one project root.
  * `projectPath` is normalized via `filesProjectKey` (absolute session project path).
  */
 export function createFilesInterest(projectPath: string, host: FilesInterestHost): FilesInterest {

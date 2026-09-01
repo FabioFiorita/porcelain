@@ -20,7 +20,7 @@ import {
 
 /**
  * The adapter is proved against the REAL shared runtime and a fake socket, never a fake runtime:
- * the whole point of `RT-003` is that hello/ready, recovery, and terminal delivery have one
+ * The shared session runtime gives hello/ready, recovery, and terminal delivery one
  * implementation, so a double reimplementing them here would prove the double instead.
  */
 
@@ -253,7 +253,7 @@ describe('Session browser adapter recovery', () => {
   })
 })
 
-describe('Session browser adapter REM-003 retry and health', () => {
+describe('Session browser adapter retry and health', () => {
   it('waits nextRemoteRetry for random 0 and 1, then caps at 10_000', () => {
     const zero = harness({ url: ORIGIN, token: TOKEN }, { random: () => 0 })
     zero.adapter.start()

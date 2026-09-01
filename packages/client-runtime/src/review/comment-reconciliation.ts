@@ -8,7 +8,7 @@ import type {
 } from '@porcelain/contracts/review'
 
 /**
- * Pure Review-comment optimistic transitions, rollback, and add reconciliation (RVC-002).
+ * Pure Review-comment optimistic transitions, rollback, and add reconciliation.
  *
  * No ambient clock or id generator — the adapter supplies `temporaryId` and `now`.
  * Daemon results remain authoritative; every mutation still requires the declared refetch.

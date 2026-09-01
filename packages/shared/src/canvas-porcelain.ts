@@ -3,7 +3,7 @@ import { projectStoreDir } from './project-store'
 
 /**
  * Daemon-root Canvas storage layout: `<homeDir>/projects/<projectId>/canvases/`.
- * Canvases are owned by the stable Project record (ADR 0002), not by an ephemeral
+ * Canvases are owned by the stable Project record, not by an ephemeral
  * Worktree, so they live under `$PORCELAIN_HOME` rather than `.porcelain/` in the
  * repo — and outlive a deleted checkout. `homeDir` is always the caller's resolved
  * `porcelainHome()`; taking it as a parameter (rather than reading the env here)

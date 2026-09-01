@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 /**
- * Typed Review-comments query identity (RVC-002).
+ * Typed Review-comments query identity.
  *
  * Adapters compose this with daemon/environment identity into a TanStack Query key.
  * It is the only Review-comments server-state identity; procedure names and cache

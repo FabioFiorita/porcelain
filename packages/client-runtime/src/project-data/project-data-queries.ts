@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 /**
- * Typed Project Data query identities (PDT-003).
+ * Typed Project Data query identities.
  *
  * Two product-distinct reads — dispositions, visibility — share a Project path and
  * nothing else. No absolute-path, host, or trailing-slash policy; the wire has none.

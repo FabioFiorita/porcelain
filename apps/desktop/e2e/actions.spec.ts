@@ -4,7 +4,7 @@ import { expect, expectTerminalText, loc, test, waitForShell } from './helpers/a
 const COMMAND = 'echo porcelain-e2e-actions'
 
 /**
- * Actions are Project-scoped (ADR 0002) and the daemon only mints a Project id once a
+ * Actions are Project-scoped and the daemon only mints a Project id once a
  * repo is opened — poll the live inventory so the test uses the daemon's canonical
  * Environment and Worktree identity, including its realpath-normalized path.
  */

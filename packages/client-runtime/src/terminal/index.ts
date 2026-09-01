@@ -1,8 +1,8 @@
 /**
  * Shared Terminal client semantics (stream + roster).
  *
- * Stream state/recovery (TRM-003) plus daemon-global sessions identity and rename
- * consequence (TRM-006). Adapters bind transport and React.
+ * Stream state/recovery plus daemon-global sessions identity and rename
+ * consequence. Adapters bind transport and React.
  */
 
 export type { DevServerMutationDefinition } from './dev-server-mutations'

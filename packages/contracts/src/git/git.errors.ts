@@ -1,6 +1,6 @@
 import { definePublicError } from '../errors/define-public-error'
 
-/** Git public-error members. Capability normalization is owned by GIT-002. */
+/** Git public-error members. Capability normalization is owned by Git capability normalization. */
 
 export const gitNotARepositoryErrorSchema = definePublicError({
   code: 'git.not-a-repository',

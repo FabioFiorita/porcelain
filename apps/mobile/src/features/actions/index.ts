@@ -1,5 +1,5 @@
 /**
- * Mobile Actions feature public entry point (ACT-003).
+ * Mobile Actions feature public entry point.
  *
  * Other mobile regions import this module only — never an Actions implementation file.
  */

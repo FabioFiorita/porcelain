@@ -1,8 +1,8 @@
 import { z } from 'zod'
 
 /**
- * The worktree profile: pinned paths, hidden paths, and declared story layers
- * (ADR 0003). Shared model rather than one domain's contract, because the
+ * The worktree profile: pinned paths, hidden paths, and declared story layers. This is a shared
+ * model rather than one domain's contract because the
  * Project store owns the document, Files serves it to the tree, and Git orders a
  * changeset with it — three domains reading one shape.
  *
@@ -20,7 +20,7 @@ import { z } from 'zod'
  * the entire point — a snapshot per worktree recreates the stale-setup problem
  * the profile exists to solve.
  *
- * Both levels are personal (ADR 0006). Neither is promoted into Git, so the
+ * Both levels are personal. Neither is promoted into Git, so the
  * tracked `.porcelain/project.json` overlay never carries `layers` or
  * `worktreeProfiles` — see `stripPersonalProfileFields`.
  */

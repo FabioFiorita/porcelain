@@ -1,5 +1,5 @@
 /**
- * Web Files feature public entry point (FIL-005).
+ * Web Files feature public entry point.
  *
  * Other Web regions import this module only — never a Files implementation file.
  */

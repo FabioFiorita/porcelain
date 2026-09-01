@@ -8,10 +8,10 @@ import { useActionsTarget } from './actions-target'
 import { callActionsProcedure } from './use-actions-transport'
 
 /**
- * Mobile authorize → Terminal create (ACT-003).
+ * Mobile authorize → Terminal create.
  *
  * The daemon authorizes the run against an explicit Environment + Project + Worktree
- * target (#24) and hands back the command plus the verified checkout; this hook only
+ * target and hands back the command plus the verified checkout; this hook only
  * spawns. Imports only the public Terminal `spawnTerminalSession` helper — never
  * terminal-store. Rejects on a missing target, a daemon refusal, or a spawn failure.
  *

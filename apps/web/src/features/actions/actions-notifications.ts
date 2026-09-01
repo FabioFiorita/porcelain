@@ -18,9 +18,9 @@ import {
 } from './actions-query-key'
 
 /**
- * Actions notification adapter (ACT-003).
+ * Actions notification adapter.
  *
- * Accepts only a validated `actions.changed` notification and maps ACT-002 effects
+ * Accepts only a validated `actions.changed` notification and maps shared Actions effects
  * onto the Web QueryClient (list keys only; trust collapses). Session-runtime no longer owns this.
  */
 

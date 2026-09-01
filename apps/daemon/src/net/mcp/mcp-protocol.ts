@@ -4,10 +4,8 @@
  *
  * The daemon speaks TWO eras, because a real client speaks both. The 2026-07-28
  * revision is stateless: no session id and no server-initiated request; every POST
- * carries its own protocol version and client capabilities in `_meta`, which is why
- * the daemon can serve MCP as one more route instead of the stdio subprocess that
- * made the old server (retired in 7833529) a per-agent configuration problem. A
- * client that finds no 2026 era — every SDK-based client today, and Claude Code when
+ * carries its own protocol version and client capabilities in `_meta`. A client that finds no
+ * 2026 era — every SDK-based client today, and Claude Code when
  * its `server/discover` probe finds nothing — falls back to the classic
  * `initialize`/`notifications/initialized` handshake, so the daemon answers that too.
  * Statelessness survives the fallback: `initialize` mints no session id.

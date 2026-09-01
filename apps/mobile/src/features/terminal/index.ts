@@ -27,7 +27,7 @@ export {
 } from './terminal-stream-adapter'
 export { TerminalsScreen } from './terminals-screen'
 
-/** Public create surface for Actions prepare → Terminal create (ACT-003). */
+/** Public create surface for Actions prepare → Terminal create. */
 export async function spawnTerminalSession(opts: {
   cwd: string
   name?: string

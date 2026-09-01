@@ -8,7 +8,7 @@ import type { QueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
 
 /**
- * Mobile React Query keys for Actions (ACT-003).
+ * Mobile React Query keys for Actions.
  *
  * Cache rows hold ActionView[] under the list identity only. Trust identities collapse
  * onto the same project list key.
@@ -48,7 +48,7 @@ export function actionsListKeyForProject(
 }
 
 /**
- * Map any ACT-002 identity to the cache key that holds ActionView[] for that project.
+ * Map any shared Actions identity to the cache key that holds ActionView[] for that project.
  * Trust collapses to the list identity shape in the key.
  */
 export function actionsCacheKeyForIdentity(

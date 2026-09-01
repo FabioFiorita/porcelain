@@ -1,4 +1,4 @@
-/** Mobile Canvas public feature boundary — read-only, as ADR 0002 makes a Canvas. */
+/** Mobile Canvas public feature boundary; the human reviews rather than edits Canvas content. */
 
 export { useCanvas, useCanvasDocumentUrl, useCanvasList } from './canvas-data'
 export {

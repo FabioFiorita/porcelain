@@ -1,9 +1,9 @@
 /**
- * Shared Files client semantics (FIL-004).
+ * Shared Files client semantics.
  *
  * Framework-neutral query identities, runtime-owned mutation/notification effects and
- * foreign tokens, and a declarative interest facade over RT-003. Web and mobile adapters
- * bind these definitions (FIL-005, FIL-006).
+ * foreign tokens, and a declarative interest facade over the shared session runtime. Web and mobile adapters
+ * bind these definitions .
  */
 
 export {

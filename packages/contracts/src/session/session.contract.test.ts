@@ -25,7 +25,7 @@ const everyChangeKind = [
 
 /**
  * Every kind's fixture: the checkout-scoped ones keyed by `projectPath`, plus
- * `actions.changed`, which names the stable Project id instead (ADR 0002).
+ * `actions.changed`, which names the stable Project id instead.
  */
 const changeFixtures = {
   'files.scope-changed': { kind: 'files.scope-changed', projectPath: '/synthetic/repo' },
@@ -85,7 +85,7 @@ describe('Session change envelope', () => {
 
   for (const kind of scopedChangeKinds) {
     it(`rejects ${kind} inside a frame when its scope key is missing`, () => {
-      // Actions are scoped by the stable Project id (ADR 0002); every other scoped
+      // Actions are scoped by the stable Project id; every other scoped
       // category still names the checkout it happened in.
       const fixture: Record<string, unknown> = { ...changeFixtures[kind] }
       const scopeKey = 'projectPath' in fixture ? 'projectPath' : 'projectId'

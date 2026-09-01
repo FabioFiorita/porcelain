@@ -19,9 +19,9 @@ renders a canvas surface.
   `native/libghostty-vt/` at the repository root; the wasm embeds the pinned revision
   in its build info and the ABI test verifies it against that source of truth.
 
-`native/libghostty-vt/VERSION` pins only the canonical upstream ABI used by
-this web foundation. It does not assert iOS parity: native iOS needs its own
-reviewed integration and may require a distinct custom-I/O fork/revision.
+`native/libghostty-vt/VERSION` pins the canonical upstream ABI used by this web adapter and the
+Android native module. iOS separately pins its custom-I/O fork in
+`apps/mobile/modules/porcelain-terminal/Vendor/libghostty/VERSION`.
 
 ## Attribution
 

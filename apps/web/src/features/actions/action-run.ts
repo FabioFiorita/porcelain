@@ -9,11 +9,11 @@ import { useTerminalsStore } from '@renderer/stores/terminals'
 import { useActionRunStore } from './action-run-store'
 
 /**
- * Authorize → Terminal create (ACT-003).
+ * Authorize → Terminal create.
  *
  * The run target is explicit: Environment + Project + Worktree + checkout path. Nothing
  * here infers it — a caller that has no Worktree selected gets `'needs-target'` back and
- * must ask the human which checkout to run in (#24). The daemon re-checks the target,
+ * must ask the human which checkout to run in. The daemon re-checks the target,
  * the Action, and machine trust before it hands back a command; this adapter only turns
  * that authorization into exactly one terminal create.
  */

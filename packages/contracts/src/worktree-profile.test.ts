@@ -98,7 +98,7 @@ describe('privateProjectDocumentSchema', () => {
   })
 })
 
-describe('stripPersonalProfileFields (ADR 0006)', () => {
+describe('stripPersonalProfileFields', () => {
   it('drops layers and worktree overrides from anything bound for a checkout', () => {
     const promoted = stripPersonalProfileFields({
       hiddenPaths: ['dist'],

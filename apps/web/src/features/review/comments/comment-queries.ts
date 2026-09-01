@@ -6,11 +6,11 @@ import { buildCommentIndex, type CommentIndex } from './comment-index'
 import { reviewCommentsKeyForProject } from './comment-query-key'
 
 /**
- * Review comments read adapter (RVC-003).
+ * Review comments read adapter.
  *
- * Binds RVC-002 `reviewCommentsQuery` + daemon identity to React Query and invokes the
- * RVC-001 `reviewComments` procedure through the Web tRPC client. Empty and unloaded remain
- * indistinguishable to callers (`[]`), matching the pre-cutover surface.
+ * Binds shared `reviewCommentsQuery` + daemon identity to React Query and invokes the
+ * `reviewComments` procedure through the Web tRPC client. Empty and unloaded remain
+ * indistinguishable to callers (`[]`).
  */
 
 /** All review comments for the current Project (newest first; live-refreshed). */

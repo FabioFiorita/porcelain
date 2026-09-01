@@ -19,7 +19,7 @@ import type { CanvasEntry, CanvasStoreError, CanvasStoreResult } from './canvas-
 
 /**
  * The tracked Git overlay: `<repo>/.porcelain/canvases/<id>/` plus
- * `<repo>/.porcelain/project.json` (ADR 0002 / #26).
+ * `<repo>/.porcelain/project.json`.
  *
  * Three rules hold this together:
  *

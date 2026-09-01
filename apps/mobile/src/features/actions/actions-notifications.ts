@@ -7,7 +7,7 @@ import type { QueryClient } from '@tanstack/react-query'
 import { invalidateActionsIdentities, invalidateAllActionsQueries } from './actions-query-key'
 
 /**
- * Mobile Actions notification adapter (ACT-003).
+ * Mobile Actions notification adapter.
  *
  * Accepts only a validated `actions.changed` notification. Provider no longer lists `'actions'`.
  */

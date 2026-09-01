@@ -3,9 +3,8 @@ import { terminalStatusSchema } from './terminal.contract'
 import { terminalPublicErrorSchema } from './terminal.errors'
 
 /**
- * The terminal stream protocol: PTY lifecycle, ordered output, and the input a client pushes
- * into a session. Transcribed from the terminal half of the deleted horizontal session protocol, including every
- * one of its resource caps.
+ * The terminal stream protocol: PTY lifecycle, ordered output, bounded attachments, and the input
+ * a client pushes into a session.
  *
  * Terminal is a stateful stream, not a change notification, and stays out of the session
  * change union on purpose. It keeps explicit commands, `reqId` correlation, attachment,

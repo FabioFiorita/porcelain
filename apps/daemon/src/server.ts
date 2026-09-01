@@ -261,7 +261,7 @@ async function main(): Promise<void> {
   // absent from every TCP listener; agents use the profile-scoped local channel above.
   initIfaceHandlers(daemon.requestListener, daemon.handleUpgrade, daemon.externalRequestListener)
 
-  // The daemon serves the renderer dist to the browser client (Phase 3). In dev
+  // The daemon serves the renderer dist to the browser client. In dev
   // the daemon runs before any build, so the dist is legitimately absent — log
   // once (static requests 404 until a build exists) instead of failing.
   if (!rendererDistExists()) {
@@ -321,7 +321,7 @@ async function main(): Promise<void> {
 
   // Parent-death watchdog: the shell holds our stdin pipe open for our lifetime,
   // so stdin ending means the Electron process is gone — exit instead of orphaning.
-  // Escape hatch for the standalone daemon package (remote-environments Phase 4):
+  // Escape hatch for the standalone daemon package:
   // a supervisor like systemd hands stdin as /dev/null, which reads EOF
   // immediately and would kill the daemon on boot. PORCELAIN_NO_STDIN_WATCHDOG=1
   // opts out. FAIL CLOSED — the watchdog stays armed unless the var is exactly '1',

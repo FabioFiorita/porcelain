@@ -23,7 +23,7 @@ const reviewProcedureCatalog = {
 }
 
 describe('reviewCommentMutations', () => {
-  it('binds each definition to exactly one canonical RVC-001 comment procedure', () => {
+  it('binds each definition to exactly one canonical Review-comment procedure', () => {
     expect(reviewCommentMutations.add.procedure).toBe(reviewProcedures.addReviewComment)
     expect(reviewCommentMutations.add.procedureName).toBe('addReviewComment')
 

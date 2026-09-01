@@ -29,7 +29,7 @@ const EXCLUDE_LINE = `${PROJECT_PORCELAIN_DIR}/`
 const MARKER = '# Porcelain companion — hidden from git in this clone only.'
 
 /**
- * The promotion form (#26). `EXCLUDE_LINE` hides the companion DIRECTORY, and
+ * The promotion form. `EXCLUDE_LINE` hides the companion directory, and
  * git will not descend into an excluded directory — so a promoted Canvas under
  * it could never become visible, no matter what a negation said. Excluding the
  * *contents* (`.porcelain/*`, one level, `*` never crossing `/`) leaves the

@@ -1,10 +1,10 @@
 /**
- * Shared Project Data client semantics (PDT-003).
+ * Shared Project Data client semantics.
  *
  * Framework-neutral disposition/visibility identities, two
  * refetch-only mutation consequence definitions, and `describeDisposition`.
  * Web and mobile adapters bind these definitions. No notifications module —
- * mutations refetch; no legacy review notification bridge is involved.
+ * mutations refetch through the owning query identities.
  */
 
 export { type Disposition, describeDisposition } from './describe-disposition'

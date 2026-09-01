@@ -20,7 +20,7 @@ import { projectOverridesPath } from '@shared/project-store'
 
 /**
  * The profile store: project-owned pins/hides and story layers, with optional
- * worktree-specific story layers (ADR 0003).
+ * worktree-specific story layers.
  *
  * The PROJECT level is the default and lives in the daemon-root private Project
  * store. The WORKTREE level is an optional override keyed by worktree id, and a
@@ -34,7 +34,7 @@ import { projectOverridesPath } from '@shared/project-store'
  * The tracked `<repo>/.porcelain/project.json` overlay is a second, read-only
  * source of project defaults — but only of hides and pins. Layers and worktree
  * overrides are stripped out of it on read as well as on promotion: a shared
- * layer order is a story written for someone else's task (ADR 0006), and
+ * layer order is a story written for someone else's task, and
  * stripping on the read path makes smuggling one in impossible rather than
  * merely discouraged. Writes stay personal, so merely changing navigation never
  * edits a checkout's tracked bytes. This module deliberately never reads or

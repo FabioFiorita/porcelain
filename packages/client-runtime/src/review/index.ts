@@ -2,9 +2,8 @@
  * Shared Review client semantics for comments and reviewed marks.
  *
  * Framework-neutral query identities, mutation consequences, pure optimistic transitions,
- * and `review.changed` notification mappings. Web and mobile adapters bind these
- * definitions to their transport and TanStack Query layers (RVC-003, RVC-004, REV-007,
- * REV-008).
+ * and `review.changed` notification mappings. Web and mobile adapters bind these definitions to
+ * their transport and TanStack Query layers.
  */
 
 export {

@@ -48,7 +48,7 @@ function rebaseTo(input: RequestInfo | URL, baseUrl: string): string {
 function appLinksFor(baseUrl: () => string, token: () => string): TRPCLink<AppRouter>[] {
   return [
     // Above the transport: every daemon call is contract-checked in and out, for the React
-    // client, the vanilla client, and the local-daemon client alike (Decision 005).
+    // client, the vanilla client, and the local-daemon client alike.
     contractValidationLink<AppRouter>(),
     httpBatchLink({
       url: `${DAEMON_PLACEHOLDER}/trpc`,

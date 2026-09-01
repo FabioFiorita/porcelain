@@ -15,14 +15,14 @@ import { z } from 'zod'
  * as `JSON.parse` produced it, so the decision can be table-tested without opening a
  * connection, and so the same rule can back any future session transport.
  *
- * Integration point for `RT-002` (session gateway): after the upgrade has authenticated the
+ * Integration point for the session gateway: after the upgrade has authenticated the
  * connection, parse the first frame's JSON, call `decideSessionHandshake` with this build's
  * `PROTOCOL_VERSION` and the daemon instance epoch, and send the returned frame. On
  * `mismatch` the gateway sends the frame and closes the socket without creating watches,
  * streams, or a publisher registration; only `ready` opens the session. Matching clients
  * pay exactly one round trip: hello in, ready out.
  *
- * Obligations this places on `RT-004` (Web) and `RT-005` (mobile): send `session:hello`
+ * Web and mobile must send `session:hello`
  * as the first frame, treat `session:mismatch` as a terminal update-required outcome rather
  * than a reconnect trigger, and attribute every later `sequence` to the epoch carried by
  * `session:ready`.

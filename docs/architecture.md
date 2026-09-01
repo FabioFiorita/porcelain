@@ -74,9 +74,5 @@ Development and production are separate environments. The development launcher s
 real checkouts. See [development.md](development.md) and [remote-access.md](remote-access.md) for
 the operational details.
 
-## Change guidance
-
-When a change crosses a boundary, name the owner before editing. Prefer one vertical slice through
-the existing seam over a new abstraction. Add a shared package only when the behavior is genuinely
-shared by more than one consumer. Update this map when runtime ownership or package topology
-actually changes; do not use it as a backlog or a justification for speculative layers.
+Update this map when runtime ownership or package topology changes. It is not a backlog or a record
+of superseded designs.

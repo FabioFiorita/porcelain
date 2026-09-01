@@ -5,7 +5,7 @@ import type { HubInventory } from '@porcelain/contracts/projects'
 import { hubInventoryKey as sharedHubInventoryKey } from '@/features/projects/hub-target'
 
 /**
- * Mobile Actions test support (#24).
+ * Mobile Actions test support.
  *
  * Actions are keyed by the stable Project id, and the phone only knows a checkout path,
  * so every Actions hook first reads the Hub inventory to resolve the active path into an

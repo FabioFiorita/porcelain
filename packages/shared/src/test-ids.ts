@@ -253,11 +253,11 @@ export const TestIds = {
   /** Publish dialog warning shown when `.porcelain/` is hidden from git in this clone. */
   reviewPublishVisibilityNote: 'review-publish-visibility-note',
 
-  // --- Canvas (daemon-root Project store, ADR 0002) ---
+  // --- Canvas (daemon-root Project store) ---
   canvasList: 'canvas-list',
   canvasListEmpty: 'canvas-list-empty',
   canvasListItem: (id: string): string => `canvas-list-item-${id}`,
-  /** Badge on a Canvas promoted into the checkout's tracked `.porcelain/` overlay (#26). */
+  /** Badge on a Canvas promoted into the checkout's tracked `.porcelain/` overlay. */
   canvasListTracked: (id: string): string => `canvas-list-tracked-${id}`,
   /** Per-row actions trigger; only private (untracked) Canvases have one. */
   canvasListMenu: (id: string): string => `canvas-list-menu-${id}`,

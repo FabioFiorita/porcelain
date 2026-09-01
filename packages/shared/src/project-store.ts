@@ -3,8 +3,8 @@ import { join } from 'node:path'
 /**
  * Daemon-root Project store layout: `<homeDir>/projects/<projectId>/`.
  *
- * ADR 0002: default Project data belongs to the owning Environment daemon's
- * `$PORCELAIN_HOME` under a stable Project record, not to a checkout that an
+ * Default Project data belongs to the owning Environment daemon's `$PORCELAIN_HOME`
+ * under a stable Project record, not to a checkout that an
  * agent can delete. Canvases (`canvas-porcelain.ts`) and Actions both hang off
  * this one root, so the two cannot drift into separate layouts.
  *

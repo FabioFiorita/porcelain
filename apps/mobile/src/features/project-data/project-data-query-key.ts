@@ -6,7 +6,7 @@ import type { QueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
 
 /**
- * Mobile React Query keys for Project Data (PDT-003).
+ * Mobile React Query keys for Project Data.
  *
  * Cache rows hold dispositions / visibility under their typed identities.
  */

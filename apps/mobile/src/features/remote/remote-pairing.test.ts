@@ -83,7 +83,7 @@ describe('parsePairingLink', () => {
 /**
  * Pairing is the only request this app makes without a bearer token, which is exactly why it
  * must still declare the protocol: it is the first thing a phone says to a daemon. Failures are
- * classified by the shared REM-003 public-error parser, never by a mobile-local error class.
+ * classified by the shared remote health model public-error parser, never by a mobile-local error class.
  */
 describe('redeemPairingLink', () => {
   afterEach(() => {

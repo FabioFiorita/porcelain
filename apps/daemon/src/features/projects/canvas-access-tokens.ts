@@ -23,7 +23,7 @@ type CanvasAccessGrant = Readonly<{
 /**
  * `worktreePath` is part of the grant, not a lookup the route redoes: the token
  * must resolve to the exact Canvas the Viewer asked for, and a promoted Canvas
- * and a private one can share an id (#26). Null means "private store only".
+ * and a private one can share an id. Null means "private store only".
  */
 export type CanvasAccessScope = Readonly<{
   projectId: string

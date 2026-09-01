@@ -2,8 +2,7 @@ import { z } from 'zod'
 
 /**
  * The session's declarative watch interests: the complete set of files and directories one
- * connection wants observed, replacing the imperative `watch:files` / `watch:dirs` pair in
- * the deleted horizontal session protocol.
+ * connection wants observed.
  *
  * The frame communicates the whole desired set, not a delta, which is what makes it
  * idempotent and makes re-registering after a reconnect the same message as the first

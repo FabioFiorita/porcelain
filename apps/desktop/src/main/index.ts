@@ -86,10 +86,9 @@ app.whenReady().then(async () => {
   // menu-bar icon duplicated that entry point without providing a useful action.
   if (shouldInstallTray(process.platform)) installTray()
 
-  // Spawn the daemon (the Electron-free backend: appRouter over HTTP, terminal/
-  // watch/legacy event bus over the WS session) before the first window so the preload's
-  // sync daemon-url getter has a port to hand out. Config seeding, the agent-channel
-  // migrations, and the channel watchers all run daemon-side now (backend/server.ts).
+  // Spawn the Electron-free daemon before the first window so the preload's synchronous daemon-url
+  // getter has a port to hand out. The daemon owns HTTP procedures, the WebSocket session, project
+  // state, and the profile-local agent channel.
   try {
     await startDaemon()
   } catch (error) {

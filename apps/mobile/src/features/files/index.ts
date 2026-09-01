@@ -1,4 +1,4 @@
-/** Mobile Files public feature boundary (FIL-006). */
+/** Mobile Files public feature boundary. */
 
 export {
   pathFromSegments,

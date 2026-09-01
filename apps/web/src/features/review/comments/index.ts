@@ -1,5 +1,5 @@
 /**
- * Web Review comments feature public entry point (RVC-003).
+ * Web Review comments feature public entry point.
  *
  * Other Web regions import this module only — never a comments implementation file.
  */

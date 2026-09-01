@@ -31,7 +31,7 @@ describe('Projects recents store', () => {
     expect(await readdir(directory)).toEqual([])
   })
 
-  it('writes and reads the strict DAT-001 v1 envelope atomically', async () => {
+  it('writes and reads the strict v1 data envelope atomically', async () => {
     expect(await store.addPath('/projects/alpha')).toEqual({ ok: true, value: undefined })
     expect(JSON.parse(await readFile(path, 'utf8'))).toEqual({
       version: 1,

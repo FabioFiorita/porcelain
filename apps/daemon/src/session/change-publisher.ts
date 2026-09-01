@@ -13,11 +13,11 @@ import {
  * Activated with the session gateway in `session/live-session.ts`. Domain sources publish
  * through `publishSessionChange` / `connectSource`; there is one process-wide publisher.
  *
- * Three rules make it different from the bus it replaces:
+ * Three rules define the boundary:
  *
  * 1. **Parsed at the boundary.** A change is untrusted until `sessionChangeSchema` accepts it,
  *    and the assembled frame is parsed again before it leaves — the daemon proves it still
- *    honors its own wire contract instead of trusting a TypeScript type (decision 010).
+ *    honors its own wire contract instead of trusting a TypeScript type.
  * 2. **Scoped, never broadcast.** A project-scoped change (one carrying `projectPath`) reaches
  *    only subscriptions scoped to that project, and an unscoped subscription receives none of
  *    them. Fail closed: a session that has not declared a project has not earned another
@@ -26,14 +26,13 @@ import {
  *    every open subscription, because there is no checkout path whose data it could leak.
  * 3. **Sequenced per subscription.** `epoch` identifies this daemon instance; `sequence` is
  *    monotonic and gapless *within one subscription* for that epoch. A single daemon-wide
- *    counter would look like a permanent gap to every client (decision 009 reads a gap as
+ *    counter would look like a permanent gap to every client (a gap means
  *    "you missed something, recover through queries"), so a busy neighbouring project would
  *    make every session refetch forever. The client-visible promise — contiguous sequences
  *    within an epoch on my connection — is exactly what per-subscription counting provides.
  *
- * Delivery stays best effort and non-durable: there is no buffer, no replay, and no retry for
- * a subscriber that is gone. That is the guarantee decision 009 accepted, and clients recover
- * through queries rather than through this module growing an event log.
+ * Delivery stays best effort and non-durable: there is no buffer, replay, or retry for a
+ * subscriber that is gone. Clients recover through queries rather than through an event log.
  */
 
 /**
@@ -77,7 +76,7 @@ export function sessionChangeCategory(change: SessionChange): SessionChangeCateg
  * An event source adapter: one host observer (the open-file watcher, the `.porcelain/`
  * watcher, a Git trigger) translated into this domain's vocabulary.
  *
- * Declared here, connected by `RT-005`. `category` is the source's authority: a source may
+ * `category` is the source's authority: a source may
  * only publish changes in its own category, so a filesystem watcher cannot start announcing
  * Review facts and no consumer has to guess which observer a change really came from.
  * `observe` returns its own teardown, which is how a source's watchers are released when the

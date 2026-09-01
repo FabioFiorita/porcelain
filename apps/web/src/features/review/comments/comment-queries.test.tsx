@@ -58,7 +58,7 @@ describe('useReviewComments', () => {
     await waitFor(() => expect(result.current).toEqual([]))
   })
 
-  it('embeds the RVC-002 comments identity and daemon scope in the React Query key', () => {
+  it('embeds the shared Review-comment identity and daemon scope in the React Query key', () => {
     const key = reviewCommentsKeyForProject({ host: 'beelink', version: '0.52.1' }, REPO)
     expect(key[0]).toEqual({ domain: 'review', name: 'comments', projectPath: REPO })
     expect(key[1]).toEqual({ host: 'beelink', version: '0.52.1' })

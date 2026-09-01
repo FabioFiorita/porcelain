@@ -191,18 +191,15 @@ export function projectPorcelainPath(repoPath: string, ...parts: string[]): stri
 }
 
 /**
- * The Git overlay (ADR 0002 / #26). Everything above this block is the legacy
- * repo-local companion; everything below is the OPT-IN tracked overlay a human
- * creates by promoting private daemon-root Project data into the repository.
+ * The opt-in Git overlay a human creates by promoting private daemon-root Project data into the
+ * repository.
  *
  * `.porcelain/` is never created by merely opening a repo — promotion is the
  * only thing that materializes these paths, and once promoted the tracked file
  * is the canonical source (the private copy is MOVED, never duplicated), so a
  * Canvas can never have a private and a tracked version that diverge.
  *
- * `OVERLAY_CHANNELS` is the index: one entry per kind of promotable data, so
- * adding Actions later (once they live in the daemon-root Project store, #24)
- * is one more channel here plus one more reader — not a second overlay design.
+ * `OVERLAY_CHANNELS` is the exhaustive index: one entry per kind of promotable data.
  */
 export const OVERLAY_CANVASES_DIR = 'canvases'
 export const OVERLAY_OVERRIDES_FILE = 'project.json'

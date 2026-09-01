@@ -11,9 +11,9 @@ import {
 } from './project-data-queries'
 
 /**
- * Project Data mutation consequence definitions (PDT-003).
+ * Project Data mutation consequence definitions.
  *
- * Each entry binds exactly one live PDT-002 procedure and the Project Data identities it
+ * Each entry binds exactly one live Project Data contract procedure and the Project Data identities it
  * makes stale. Mutations are refetch-only — no optimistic field, no Git/Review identities.
  * Cross-domain cache refresh stays in the feature adapters.
  */

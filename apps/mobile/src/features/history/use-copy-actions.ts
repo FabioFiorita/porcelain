@@ -15,7 +15,7 @@ export type CopyActions = {
 
 /**
  * Copy a commit's SHA or its full message, the pair the web row's context menu offers.
- * The commit message itself is read through the Git feature adapter (GIT-006).
+ * The commit message itself is read through the Git feature adapter.
  *
  * A pasteboard write gives no visible feedback of its own, and the message form is a daemon
  * round trip that can fail — so both report on a status line rather than leaving a tap that

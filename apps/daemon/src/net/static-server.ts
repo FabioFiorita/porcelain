@@ -6,7 +6,7 @@ import { constants, createBrotliCompress, createGzip } from 'node:zlib'
 
 /**
  * Serves the built renderer (the app shell) to the browser client — everything
- * that isn't /trpc or /session. Introduced in remote-envs Phase 3 so a plain
+ * that isn't /trpc or /session, so a plain
  * browser on the tailnet gets the same dist the Electron window loads.
  *
  * SECURITY (renderer boundary): the static assets are UNAUTHENTICATED by design — the

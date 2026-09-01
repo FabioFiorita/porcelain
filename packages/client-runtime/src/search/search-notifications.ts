@@ -9,7 +9,7 @@ export type SearchQueryEffect =
   | { readonly type: 'text'; readonly projectPath: string }
   | { readonly type: 'code'; readonly projectPath: string }
 
-/** The Search subset of FIL-004's Files-owned cross-domain tokens. */
+/** The Search subset of shared Files layer's cross-domain tokens. */
 export type SearchForeignDependency = Extract<FilesForeignDependency, { domain: 'search' }>
 
 export function searchFilesEffect(projectPath: string): SearchQueryEffect {

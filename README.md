@@ -64,7 +64,7 @@ Electron, mobile, testing, and release pointers are in [docs/development.md](doc
 
 ```sh
 pnpm install
-pnpm dev:daemon
+pnpm dev:env
 pnpm dev
 ```
 

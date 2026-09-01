@@ -7,7 +7,7 @@ import type { ActionsStoreResult, ActionTrustStore } from './actions-ports'
 export const ACTION_TRUST_FILE_MAX_BYTES = 512 * 1024
 export const ACTION_TRUST_FILE_VERSION = 1 as const
 
-/** `projects` is keyed by the stable Project id (ADR 0002), not a checkout path. */
+/** `projects` is keyed by the stable Project id, not a checkout path. */
 export type ActionTrustFileV1 = {
   version: typeof ACTION_TRUST_FILE_VERSION
   projects: Record<string, string[]>

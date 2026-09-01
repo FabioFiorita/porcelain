@@ -84,4 +84,4 @@ export {
   worktreeProfileSchema,
 } from './worktree-profile'
 // Session wire caps and paste prompt helpers live on the terminal stream contract
-// (`@porcelain/contracts/terminal`). The legacy horizontal `session contracts` surface is gone.
+// (`@porcelain/contracts/terminal`).

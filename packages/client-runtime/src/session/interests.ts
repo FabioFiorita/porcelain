@@ -9,7 +9,7 @@ import {
  * directories they need observed, combined into the one complete desired set a session may
  * send.
  *
- * Reference counting is the point (decision 009). Two screens can hold the same open document,
+ * Reference counting is the point. Two screens can hold the same open document,
  * and one of them closing must not silently unwatch it for the other, so an interest lives as
  * long as any registration holds it rather than as long as the last writer says so. The result
  * is a set, not a delta: re-sending it after a reconnect is the same message as the first

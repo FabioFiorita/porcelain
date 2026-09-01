@@ -16,11 +16,7 @@ import {
   type SessionTerminalBridge,
 } from './session-gateway'
 
-/**
- * Activated session surface: one publisher + gateway for the process, real WebSocket
- * transports, Files watch sinks, and terminal bridges. Replaces legacy `session/live-session`
- * and the `legacy event bus` bus in one switch (RT-005).
- */
+/** One process-wide publisher and gateway with WebSocket, Files-watch, and terminal adapters. */
 
 const epoch = randomUUID()
 const publisher: SessionChangePublisher = createSessionChangePublisher({ epoch })

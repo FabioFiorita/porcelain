@@ -161,7 +161,7 @@ export const createHubWorktreeInputSchema = z
 export type CreateHubWorktreeInput = z.infer<typeof createHubWorktreeInputSchema>
 export type CreateHubWorktreeOutput = HubWorktree
 
-/** Agent-authored HTML or Markdown. Read-only to the human in v1 (ADR 0002). */
+/** Agent-authored Canvas formats. The human reviews rather than directly editing their content. */
 export const canvasKindSchema = z.enum(['html', 'markdown', 'structured'])
 export type CanvasKind = z.infer<typeof canvasKindSchema>
 
@@ -180,7 +180,7 @@ export const canvasRecordSchema = z
     updatedAt: z.string().min(1),
     /**
      * True when this Canvas was promoted into the addressed checkout's
-     * `.porcelain/` Git overlay (#26). Tracked is canonical: it wins over a
+     * `.porcelain/` Git overlay. Tracked is canonical: it wins over a
      * private record with the same id, the daemon never writes back into it,
      * and the Canvas list badges it so the human knows it travels with a clone.
      */

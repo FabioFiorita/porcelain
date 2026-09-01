@@ -22,9 +22,9 @@ import { applyFilesForeignDependencies } from './files-mutations'
 import { invalidateAllFilesQueries, invalidateFilesEffects } from './files-query-filter'
 
 /**
- * Files notification adapter (FIL-005).
+ * Files notification adapter.
  *
- * Accepts only validated files.* kinds and maps FIL-004 effects onto the Web QueryClient.
+ * Accepts only validated files.* kinds and maps shared Files effects onto the Web QueryClient.
  */
 
 export type ApplyFilesNotificationOptions = {

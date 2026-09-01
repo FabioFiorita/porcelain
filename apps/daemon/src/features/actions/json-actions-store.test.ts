@@ -13,7 +13,7 @@ import { ACTIONS_FILE_MAX_BYTES, createJsonActionsStore } from './json-actions-s
 const ID = 'action-aa'
 const PROJECT = 'proj-alpha'
 
-/** `<homeDir>/projects/<projectId>/` — the daemon-root Project store (ADR 0002). */
+/** `<homeDir>/projects/<projectId>/` — the daemon-root Project store. */
 function projectDir(homeDir: string): string {
   return join(homeDir, 'projects', PROJECT)
 }

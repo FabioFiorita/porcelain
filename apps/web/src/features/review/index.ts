@@ -1,5 +1,5 @@
 /**
- * Web Review domain feature public entry point (RVC-003, REV-007).
+ * Web Review domain feature public entry point.
  *
  * One owner for Review server state on Web: the key namespace, the effect filter, the
  * nine reads, the five writes, the notification subscription, the two presentation

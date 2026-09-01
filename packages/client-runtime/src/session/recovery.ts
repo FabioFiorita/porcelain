@@ -5,7 +5,7 @@ import type { SessionChange, SessionChangeFrame } from '@porcelain/contracts/ses
  * frames that follow it, decide when this client can no longer prove its daemon-derived data
  * is current.
  *
- * Conservative by construction (decision 009). It never reconstructs what it missed: a change
+ * Conservative by construction. It never reconstructs what it missed: a change
  * notification is a signal that authoritative data moved, not the data, so the only honest
  * answer to "you missed something" is to mark the affected scope stale and let the adapter
  * refetch through ordinary queries. Nothing here replays, buffers, or guesses a mutation.
@@ -22,7 +22,7 @@ import type { SessionChange, SessionChangeFrame } from '@porcelain/contracts/ses
  * 3. **Sequence gap.** Sequences are contiguous within one subscription for one epoch, so a jump
  *    proves a notification was lost. A subscription is scoped to exactly one project, so the
  *    stale scope is usually that project rather than everything this client holds — unless the
- *    frame carries no `projectPath` at all (Project-scoped `actions.changed`, ADR 0002),
+ *    frame carries no `projectPath` at all (`actions.changed` is scoped by stable Project id),
  *    which names no path to narrow to and therefore widens the requirement to the whole session.
  *
  * Because a reconnect resets the counter, the first frame of a connection sets the baseline and
@@ -120,8 +120,8 @@ export function createSessionFreshnessTracker(): SessionFreshnessTracker {
       if (frame.sequence > expected) {
         lastSequence = frame.sequence
         // A project-scoped change names the project whose data is now unproven. A
-        // change with no `projectPath` in its contract (Project-scoped `actions.changed`,
-        // ADR 0002) names none, and narrowing the recovery to one checkout would leave
+        // change with no `projectPath` in its contract (`actions.changed` is scoped by stable
+        // Project id) names none, and narrowing the recovery to one checkout would leave
         // that surface stale — so the gap widens to the whole session, which is the honest scope.
         const scope: FreshnessScope =
           'projectPath' in frame.change

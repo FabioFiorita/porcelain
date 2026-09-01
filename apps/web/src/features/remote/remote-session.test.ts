@@ -72,7 +72,7 @@ describe('classifyRemoteFailure', () => {
 })
 
 describe('mapAdapterStatus', () => {
-  it('maps the current Web adapter vocabulary onto REM-003 health', () => {
+  it('maps the current Web adapter vocabulary onto shared remote health', () => {
     expect(mapAdapterStatus('idle')).toBe('idle')
     expect(mapAdapterStatus('connecting')).toBe('connecting')
     expect(mapAdapterStatus('open')).toBe('healthy')

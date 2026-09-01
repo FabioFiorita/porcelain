@@ -10,7 +10,7 @@ import type { trpcClient } from '@renderer/lib/trpc'
 import type { QueryClient } from '@tanstack/react-query'
 
 /**
- * Web Remote daemon transport (REM-004).
+ * Web Remote daemon transport.
  *
  * Feature keys isolate listener/access status by daemon identity. Procedure-name
  * React Query hooks are not used — callers go through the vanilla client.

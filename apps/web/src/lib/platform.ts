@@ -1,7 +1,7 @@
 /**
  * The one browser-vs-shell seam. Porcelain's renderer ships as BOTH the Electron
  * app's window (the preload injects `window.porcelain` — the shell bridge) and,
- * since remote-envs Phase 3, a plain browser client the daemon serves at `/`
+ * a plain browser client the daemon serves at `/`
  * (no preload, so `window.porcelain` is undefined). Everything that only exists
  * shell-side — the shell tRPC router (updater/skills/reveal/new-window),
  * `windowInit`, the shell-event push channel — keys off this flag.

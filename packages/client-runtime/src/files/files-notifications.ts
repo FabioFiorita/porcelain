@@ -21,7 +21,7 @@ import {
 } from './files-queries'
 
 /**
- * Exhaustive Files notification → query effect mapping (FIL-004).
+ * Exhaustive Files notification → query effect mapping.
  *
  * Coarse notification kinds are broader for foreign recovery than precise mutation
  * foreign sets because the wire fact does not name which structural/content ops occurred.

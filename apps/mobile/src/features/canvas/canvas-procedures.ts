@@ -4,7 +4,7 @@ import { namedContractProcedure } from '@/lib/daemon/procedure'
 
 /**
  * The three Canvas bindings mobile uses. Read-only by design: a Canvas is agent-authored
- * (ADR 0002), and promoting one is a write into a checkout that belongs to the desk clients.
+ * and promoting one is a write into a checkout that belongs to the desktop clients.
  */
 
 export const listCanvasesProcedure = namedContractProcedure(

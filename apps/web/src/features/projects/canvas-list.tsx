@@ -13,7 +13,7 @@ import { CanvasListRow } from './canvas-list-row'
 import { useCanvasList } from './project-data'
 
 /**
- * Right sidebar surface: every Canvas the selected Worktree resolves (ADR 0002).
+ * Right sidebar surface: every Canvas the selected Worktree resolves.
  * The Worktree's checkout path is passed through so its tracked `.porcelain/`
  * overlay is merged over the private records — tracked wins on the same id.
  */

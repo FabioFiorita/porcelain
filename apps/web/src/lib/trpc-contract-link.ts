@@ -4,7 +4,7 @@ import type { AnyTRPCRouter } from '@trpc/server'
 import { observable } from '@trpc/server/observable'
 
 /**
- * The daemon-procedure contract gate (Decision 005 / 010).
+ * The daemon-procedure contract gate.
  *
  * `AppRouter` inference is a compile-time convenience, not a runtime contract: the browser
  * client and the daemon are built and shipped independently, so the only thing that proves a
@@ -15,7 +15,7 @@ import { observable } from '@trpc/server/observable'
  * - every successful `data` is parsed before React Query (or a vanilla caller) can cache it,
  *   so a daemon that has drifted fails loudly here instead of somewhere in a component.
  *
- * Parsed values are re-emitted (Decision 005): Zod defaults and transforms are part of the
+ * Parsed values are re-emitted because Zod defaults and transforms are part of the
  * canonical contract type, so callers must observe `output.data` / the parsed input rather
  * than the raw wire shape. Operation metadata (id, type, path, context, signal) is preserved.
  *
@@ -23,7 +23,8 @@ import { observable } from '@trpc/server/observable'
  * binds it to `AppRouter`. Never compose it into the SHELL router — those procedures are
  * Electron-local and have no public contract.
  *
- * Errors are forwarded untouched: interpreting a public error is REM-003's job, not this
+ * Errors are forwarded untouched: interpreting a public error belongs to the shared remote health
+ * model, not this
  * link's.
  */
 

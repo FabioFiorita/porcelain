@@ -15,9 +15,6 @@ import { terminalChangeSchema } from '../terminal'
  * that carries one domain change notification. The domains own their own vocabulary
  * (`<domain>/<domain>.notifications.ts`); this module only composes them, so a new category
  * cannot reach the wire without a domain declaring it.
- *
- * Contracts only — the daemon and both clients keep speaking the deleted horizontal session protocol until the
- * coordinated transport cutover replaces it.
  */
 
 /**

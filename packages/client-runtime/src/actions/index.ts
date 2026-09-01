@@ -1,9 +1,9 @@
 /**
- * Shared Actions client semantics (ACT-002).
+ * Shared Actions client semantics.
  *
  * Framework-neutral list/trust query identities, five non-optimistic mutation consequence
  * definitions, exhaustive `actions.changed` → identity mapping, and pure `prepareActionRun`.
- * Web and mobile adapters bind these definitions (ACT-003).
+ * Web and mobile adapters bind these definitions.
  */
 
 export {

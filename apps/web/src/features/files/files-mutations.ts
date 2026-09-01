@@ -25,9 +25,9 @@ import {
 import { invalidateFilesEffects } from './files-query-filter'
 
 /**
- * Files mutation adapter (FIL-005).
+ * Files mutation adapter.
  *
- * Non-optimistic: success-only invalidation via FIL-004 effect tables. Transport
+ * Non-optimistic: success-only invalidation via shared Files effects. Transport
  * goes through the vanilla tRPC client so the feature owns cache identities.
  */
 
@@ -49,7 +49,7 @@ function projectPathFromEffects(effects: readonly FilesQueryEffect[]): string | 
   return first.type === 'exact' ? first.query.projectPath : first.projectPath
 }
 
-/** Map FIL-004 foreign tokens onto Web Git and typed Search effects. */
+/** Map shared Files foreign tokens onto Web Git and typed Search effects. */
 export function applyFilesForeignDependencies(
   queryClient: QueryClient,
   daemon: DaemonScope,
