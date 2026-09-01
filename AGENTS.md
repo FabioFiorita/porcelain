@@ -156,9 +156,9 @@ The development daemon uses disposable playground repositories. Authenticate bro
   product changes.
 - A successful build or mock is not runtime evidence. User-facing, remote, Electron, and mobile
   behavior needs the affected path observed in a real development client when useful.
-- Browser, Electron, Android, and iOS driving details live in
-  [docs/runtime-proof.md](docs/runtime-proof.md) and the matching `prove-*` skill. Use the agent's
-  available native tooling rather than assuming a particular driver.
+- For browser, Electron, Android, and iOS behavior, use the strongest native capability available
+  in the current harness. Repository instructions define the development environment and required
+  outcome; they do not prescribe a browser or device driver.
 - Broad verification is a delivery tool, not the inner loop. Run `pnpm verify` when the scope or
   request warrants it; CI owns clean-machine coverage.
 - Record the command, result, surfaces checked, and remaining uncertainty. Clean up fixtures,

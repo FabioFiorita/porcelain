@@ -1,4 +1,4 @@
 interface:
   display_name: "Porcelain Remote"
   short_description: "Operate the Porcelain host launcher, service, pairing, and remote exposure"
-  default_prompt: "Use $remote for Porcelain host setup, serve/access/share-status operations, pairing, systemd service configuration, or LAN/Tailscale/Cloudflare reachability. Use $companion for the local MCP domain tools."
+  default_prompt: "Use $remote for Porcelain-specific host setup, pairing, systemd service configuration, updates, or LAN/Tailscale/Cloudflare reachability. Confirm the exact host and follow the current public remote-access guide. Use $companion for Porcelain MCP collaboration state."

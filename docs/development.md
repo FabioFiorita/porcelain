@@ -1,9 +1,7 @@
 # Development
 
-This is the canonical development loop. Runtime validation continues in
-[runtime-proof.md](runtime-proof.md), releases in [release.md](release.md), and remote operations in
-[remote-access.md](remote-access.md). Those procedures reuse this setup, isolation, worktree, and
-working loop.
+This is the canonical development loop. Releases continue in [release.md](release.md), and remote
+operations in [remote-access.md](remote-access.md). Both reuse this setup and isolation model.
 
 ## First run
 
@@ -95,12 +93,8 @@ and playground.
 
 `pnpm dev:mobile` gives each development profile its own Metro port and temporary state. The
 primary checkout uses port 8081; managed worktrees derive a port from their daemon allocation.
-`pnpm dev:mobile:android <command>` gives the Android driving loop profile-owned state as well.
 Physical devices, AVDs, and iOS simulator UDIDs are still shared machine resources: select them
-explicitly, and never stop one that the current session did not start. On a machine that also runs
-a second account's work (its own `ANDROID_HOME`, its own AVDs), the AVD config is isolated per
-account but `/dev/kvm` and host RAM/CPU are not — a concurrent emulator on the other account can
-still slow or stall this one with no porcelain-side cause.
+explicitly, and never stop one that the current session did not start.
 
 ## The working loop
 
@@ -169,17 +163,18 @@ when publication is requested. After a branch is merged and clean, `pnpm worktre
 stops its recorded daemon and removes its disposable worktree state; review the command output
 before confirming removal.
 
-## Runtime proof pointers
+## Runtime proof
 
 Browser and Electron load the same web client, but they have different launch and preload paths.
-Mobile adds native lifecycle, simulator/device installation, and terminal rendering. When the
-observable outcome needs a real client, continue with [runtime-proof.md](runtime-proof.md). Keep
-client-specific commands and traps there; change this document only when the shared development
-flow changes.
+Use the browser for renderer-only work and Electron when preload, IPC, windows, menus, updates, or
+the local daemon lifecycle matter. Mobile adds native lifecycle, installation, and terminal
+rendering. Drive the selected client with the strongest native browser, computer, or device tooling
+available in the current harness; do not add a repository wrapper for a capability the harness
+already provides. Record what was observed and name any affected client left unproved.
 
 ## Cleanup
 
 Stop daemons and test servers started for the task. Remove generated evidence directories such as
-`.playwright-mcp/`, `test-results/`, `playwright-report/`, and `apps/desktop/e2e/.artifacts/` when
-they are no longer needed. Never use a broad process kill that could terminate another worktree or
-the production daemon.
+`test-results/`, `playwright-report/`, and `apps/desktop/e2e/.artifacts/` when they are no longer
+needed. Never use a broad process kill that could terminate another worktree or the production
+daemon.

@@ -1,82 +1,54 @@
 ---
 name: companion
-description: Use Porcelain's domain MCP tools for Canvases, review comments, repository profiles, and user-run Actions. Use when the human asks to use or set up Porcelain, mentions Porcelain while starting repository work, wants shared review material, asks for review feedback, wants the repository view shaped, or needs a command curated for them to run.
+description: Use Porcelain's MCP collaboration surfaces for Canvases, review comments, repository profiles, and user-run Actions. Use when the human asks to use Porcelain or repository instructions require Porcelain dogfooding. Do not load for ordinary coding merely because the plugin is installed.
 license: MIT
 ---
 
 # Porcelain companion
 
-Porcelain is the review layer around agent work. The daemon owns canonical state and the
-browser, desktop, and mobile clients render it. Use the product's domain tools; do not read
-daemon storage or call its HTTP API directly.
+Porcelain helps a human understand and review agent-created work. It does not replace the agent's
+native file, Git, terminal, browser, device, or reasoning capabilities. Use Porcelain only for the
+collaboration state it owns.
 
-## The five entry points
+## Choose the domain tool
 
-Every call that works on a checkout takes `workspace`: the absolute path of the checkout (your
-current working directory normally works) or `{projectId, worktreeId?}` for another checkout.
-`porcelain_project` discovers those ids and is the only entry point that does not need a
-workspace for `op: "list"`.
+- `porcelain_project` discovers Projects and Worktrees when the current checkout is not the target.
+- `porcelain_canvas` authors a Decision or Review Canvas.
+- `porcelain_comment` reads and participates in focused review conversations.
+- `porcelain_profile` reads or promotes the human's manual file-navigation profile.
+- `porcelain_action` defines a command the human may choose to run.
 
-| Entry point | Operations | Use |
-|---|---|---|
-| `porcelain_project` | `list`, `get` | Discover Projects and Worktrees |
-| `porcelain_canvas` | `list`, `get`, `create`, `update`, `delete`, `promote` | Author the shared surface; `decision` and `review` are semantic templates |
-| `porcelain_comment` | `list`, `get`, `create`, `update`, `delete`, `reply`, `resolve`, `reopen` | Keep the complete review-comment loop in one place |
-| `porcelain_profile` | `get`, `promote` | Read or promote manual project navigation choices |
-| `porcelain_action` | `list`, `get`, `create`, `update`, `delete` | Author a command the human may run by clicking in Porcelain |
+Use the tool schema as the authority for current operations and payloads. Most calls target the
+current checkout with its absolute path as `workspace`; use Project and Worktree ids only when
+addressing another checkout.
 
-There is no context super-tool, separate Review or reply tool, generic promotion tool, terminal
-tool, file tool, Git tool, or Action execution/trust tool. Each feature has one clear entry point.
+## Working flow
 
-## Canvas first for shared explanations
+1. Resolve the intended checkout. Never let a remote Environment or neighboring Worktree become an
+   implicit target.
+2. Read open comments when the task is responding to review feedback. Read the profile only when it
+   affects the requested work, and preserve its pins and hides unless the human explicitly asks
+   about them.
+3. Create one Decision Canvas only for a material unresolved choice that benefits from a shared
+   comparison. Keep its id, update the same Canvas as evidence changes, and record a decision only
+   after the human chooses. Do not create progress Canvases for routine implementation.
+4. Perform the actual work with the harness's native tools. A Canvas explains the work; it is not a
+   substitute for source inspection, tests, diffs, or runtime evidence.
+5. Reply to relevant comments with concrete findings. Resolve, reopen, edit, or delete product state
+   only when the human requests that change or the current task clearly authorizes it.
+6. When a coherent completed unit benefits from a shared review story, create or update one Review
+   Canvas with concise Why and How, attention-ordered layers, important files, and evidence actually
+   observed. Preserve its id. A dirty Review is live-only; after committing and cleaning the
+   checkout, update that same Review until Porcelain confirms it is bound to the commit for History.
+7. Define or edit an Action only when asked. The agent never runs, approves, or works around the
+   trust gate for an Action; the human reads the command and chooses whether to run it.
 
-Use `porcelain_canvas` for authored explanations and decisions. The semantic `decision` template
-is the structured path: one concise `templateData` payload supplies context, options, criteria,
-assessments, recommendation, and an optional recorded decision while Porcelain owns presentation.
-Update the returned Canvas id as the decision develops, then add `decision` when the human chooses.
-The semantic `review` template owns Why/How explanation plus layers/files. A dirty Review is
-live-only; update that same Canvas after committing so it binds the clean HEAD into History.
-Read [references/canvas.md](references/canvas.md) before authoring or updating a Canvas.
+## Boundaries
 
-Private Canvases live in daemon state. `op: "promote"` copies one into the addressed checkout's
-`.porcelain/canvases/<id>/` overlay. A tracked Canvas is canonical for that checkout and reads
-through `get`/`list`; updates to it remain tracked, and `delete` removes the tracked bundle.
-Promotion writes files but never stages or commits.
-
-## Comments
-
-`porcelain_comment` lists `status: "open"`, `"resolved"`, or `"all"` and keeps replies attached
-to their parent. Use `reply` for an agent response, and `resolve`/`reopen` only when the human
-has asked for that state change.
-
-## Profiles and Actions
-
-Pins, hides, and unhidden paths are manual file-tree choices and agents preserve them. `promote`
-writes the existing portable project pins/hides to `.porcelain/project.json`. Review layers belong
-to the individual Review Canvas, never the navigation profile.
-
-Actions are definitions only. Create and update the title, command, target, and optional lifecycle
-kind. The MCP surface never runs, approves, trusts, or executes an Action. The human reads it and
-starts it with a click in the app; command edits retain the app's internal approval safety state.
-
-## Starting work with Porcelain
-
-When the human asks to use or set up Porcelain for repository work, inspect the project navigation
-profile before substantial implementation and preserve its manual pins and hides. When the work
-contains a material choice, create one Decision Canvas and keep updating that id. When the work
-needs a review story, create or update one Review Canvas and preserve its id through commit. Read the
-[profile reference](references/profile.md) before profile operations. The product UI shows the
-result directly—it is not a prompt delivery mechanism.
-
-## Working rules
-
-- Use `$companion` when the human asks to use Porcelain in repository work or requests a Canvas,
-  comment, profile, or Action operation.
-- Read open comments when the human asks for review feedback; request `status: "all"` when history matters.
-- Never read or write `$PORCELAIN_HOME`, `.porcelain` files, or daemon APIs directly.
-- Keep secrets out of Canvases, Actions, and profiles.
-- Ordinary code changes follow the repository's root `AGENTS.md`; Porcelain writes are explicit product state, not a side effect of coding.
-- Work in development playgrounds. Do not aim proof at production state or an unrelated real checkout.
-
-Load the linked references only as needed. They are a progressive-disclosure aid, not additional
-protocols.
+- Changes remains authoritative for diffs, status, staging, reviewed state, and History. Canvas owns
+  the larger Why and How; comments own focused context.
+- Use MCP tools rather than reading private daemon storage, editing `.porcelain` by hand, or calling
+  internal HTTP endpoints.
+- Promotion makes selected Canvas or profile data repository-visible but never stages or commits it.
+- Keep secrets and credentials out of Canvases, comments, profiles, and Actions.
+- Ordinary repository work follows the repository's own instructions and authorization boundaries.

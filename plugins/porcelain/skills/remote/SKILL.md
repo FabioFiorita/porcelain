@@ -1,62 +1,40 @@
 ---
 name: remote
-description: "Set up or operate a remote Porcelain host: start the daemon, choose LAN/Tailscale/Cloudflare exposure, pair devices, keep it always-on, revoke access, inspect share status, or troubleshoot. Load when the human mentions a remote host, pairing, systemd, Tailscale, Cloudflare, or service reachability."
+description: Set up or operate a remote Porcelain host, including exposure, pairing, revocation, an always-on service, updates, and reachability. Use for Porcelain-specific remote administration, not general SSH or network work.
 license: MIT
 ---
 
 # Porcelain remote
 
-This skill covers the narrow host launcher and service lifecycle. It is not a general-purpose
-agent CLI and it never replaces the `porcelain` MCP domain tools from `$companion`.
+This skill covers Porcelain's host launcher and service lifecycle. It does not replace the domain
+MCP tools from `$companion`, and it does not make an SSH target implicit.
 
-## Host launcher
+Use the current CLI help and the public
+[remote-access guide](https://github.com/FabioFiorita/porcelain/blob/main/docs/remote-access.md) as
+the operational authority. Do not reconstruct commands from remembered versions.
 
-The published package is `@fabiofiorita/porcelain`; its executable is `porcelain`. The supported
-host commands are deliberately small:
+## Working flow
 
-```text
-porcelain serve [--loopback|--lan|--tailnet|--cloudflare]
-porcelain access issue|list|revoke
-porcelain share status
-```
+1. Confirm the exact host, user account, installed version, and whether the daemon is development,
+   foreground production, or an always-on service.
+2. Start with loopback. Add only the narrowest exposure the human needs: LAN on the same trusted
+   network, Tailscale for a private mesh, or Cloudflare for an explicitly public HTTPS endpoint.
+3. Pair each client with its own short-lived link. Never distribute the administrator token.
+4. When the daemon must survive logout or reboot, use the documented user-level systemd service and
+   linger setup. Keep credentials in a protected environment file rather than command arguments.
+5. Verify the daemon locally, inspect `share status`, then connect a real intended client. A running
+   process alone does not prove that exposure, pairing, or fallback routing works.
+6. For updates, restart the documented `@latest` service or follow the foreground command shown by
+   Porcelain. Wait for readiness and verify the reported version before declaring success.
 
-Use `serve` to bring up the daemon, `access` to create/revoke one-time or client access, and
-`share status` to inspect exposure. There is no `share on`/`share off` command and no hidden
-installer. Configuration belongs in the app or the service environment.
+## Safety boundaries
 
-## Setup sequence
-
-1. Install/start `@fabiofiorita/porcelain` on the remote host. Loopback is the safe default.
-2. Choose the narrowest exposure that solves the user's reach: LAN for the same network,
-   Tailscale for a private mesh, or Cloudflare for an explicitly public HTTPS endpoint.
-3. Pair each device with its own one-time link. Never put the host administrator credential in a
-   plugin, MCP config, browser storage, or pairing URL.
-4. Add the `porcelain.service` systemd user unit and enable linger when the daemon must survive
-   logout or SSH closing.
-5. Use `porcelain share status` and service logs for day-two diagnostics.
-
-Load the reference matching the task:
-
-```text
-references/serve.md            install, serve, and choose exposure
-references/pairing.md          issue/list/revoke per-device access
-references/always-on.md        systemd user service, linger, restart, readiness
-references/troubleshooting.md  ports, credentials, toolchains, reachability
-```
-
-## Security boundaries
-
-- `~/.porcelain/admin-token` is a host-administration credential; keep it mode `0600`, never
-  print or share it.
-- MCP is token-free only for a direct loopback request. LAN, Tailscale, and Cloudflare do not
-  expose `/mcp`; use the paired app APIs for remote access.
-- Pair devices instead of handing them the administrator credential. Revoke a client when it is
-  lost or no longer trusted.
-- Use `--no-watchdog` under systemd or another supervisor; foreground runs keep the watchdog.
-- Confirm the target host and development/production environment before changing a running daemon.
-
-## Completion
-
-A remote setup is complete when the intended daemon is running, the chosen exposure is visible in
-`porcelain share status`, each device is paired independently, and a real client reaches the
-intended environment. State any remaining network or live-host uncertainty explicitly.
+- Treat the administrator token and every paired-client token like host login credentials. Do not
+  print, log, commit, or place them in plugin configuration.
+- Porcelain's MCP endpoint is local to the agent's daemon. Do not expose it through LAN, Tailscale,
+  Cloudflare, or an HTTP proxy to control another Environment.
+- Never replace a running daemon, port, service unit, or exposure mode until its owner and purpose
+  are identified. Stop only the process or service explicitly in scope.
+- Network reachability and authorization are separate: a timeout is not a credential failure, and a
+  401 proves the network path already reached the daemon.
+- Report which host, route, client, and version were actually observed, plus any untested fallback.

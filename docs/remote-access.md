@@ -67,8 +67,49 @@ is connected to the daemon that served it; use another pairing link for another 
 ## Keep it running
 
 For an always-on Linux host, install the daemon as a user-level systemd unit and enable linger;
-both are required for survival across logout and reboot. The remote skill contains the unit-file,
-Node shim, readiness-polling, and node-pty troubleshooting details.
+both are required for survival across logout and reboot. Resolve the real `npx` path first; systemd
+does not load an interactive shell, and a Node-manager shim may not work outside one.
+
+```sh
+command -v npx
+mkdir -p ~/.config/systemd/user
+```
+
+Create `~/.config/systemd/user/porcelain.service`, replacing `/absolute/path/to/npx` and the
+exposure flags for this host:
+
+```ini
+[Unit]
+Description=Porcelain daemon
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Environment=PORCELAIN_USER_DATA=%h/.local/share/porcelain
+ExecStart=/absolute/path/to/npx --yes --prefer-online @fabiofiorita/porcelain@latest serve --no-watchdog --lan --tailnet
+Restart=on-failure
+RestartSec=5
+KillMode=control-group
+UMask=0077
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target
+```
+
+For Cloudflare, use `--cloudflare --cloudflare-hostname <host>` instead of `--tailnet` and load
+`PORCELAIN_CLOUDFLARE_TOKEN` from a mode-`0600` environment file. Do not put the token in
+`ExecStart`. Then enable the service and the user's systemd instance across logout:
+
+```sh
+systemctl --user daemon-reload
+systemctl --user enable --now porcelain.service
+loginctl enable-linger "$USER"
+systemctl --user status porcelain.service
+```
+
+If the service can start Node but its terminals cannot find agent CLIs, add their real binary
+directories to the unit's `PATH`. Do not copy an interactive shell's secrets into the service.
 
 ## Update the daemon
 
