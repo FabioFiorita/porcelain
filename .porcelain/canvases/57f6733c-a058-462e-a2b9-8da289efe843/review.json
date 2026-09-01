@@ -1,7 +1,10 @@
 {
   "name": "Make Project and Worktree operations truthful",
-  "commitHash": "bcb5feb61ed308a5a0ae8efd1354294d60e98811",
   "layers": [
+    {
+      "label": "Tracked Canvas storage boundary",
+      "pattern": "^(packages/shared/src/project-porcelain\\.ts|apps/daemon/src/features/projects/canvas-(overlay-store|promotion\\.test)\\.ts|apps/desktop/e2e/git-promotion\\.spec\\.ts)$"
+    },
     {
       "label": "Safety-critical Git and inventory semantics",
       "pattern": "^(apps/daemon/src/features/(git|projects)/|packages/contracts/src/projects/)"
@@ -20,6 +23,26 @@
     }
   ],
   "files": [
+    {
+      "path": "packages/shared/src/project-porcelain.ts",
+      "source": "changed",
+      "layer": "Tracked Canvas storage boundary"
+    },
+    {
+      "path": "apps/daemon/src/features/projects/canvas-overlay-store.ts",
+      "source": "changed",
+      "layer": "Tracked Canvas storage boundary"
+    },
+    {
+      "path": "apps/daemon/src/features/projects/canvas-promotion.test.ts",
+      "source": "changed",
+      "layer": "Tracked Canvas storage boundary"
+    },
+    {
+      "path": "apps/desktop/e2e/git-promotion.spec.ts",
+      "source": "changed",
+      "layer": "Tracked Canvas storage boundary"
+    },
     {
       "path": "apps/daemon/src/features/projects/hub-inventory-operations.ts",
       "source": "changed",
