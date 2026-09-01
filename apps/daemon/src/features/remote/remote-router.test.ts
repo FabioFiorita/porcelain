@@ -144,7 +144,7 @@ describe('Remote router contract boundary', () => {
     const info = await caller().daemonInfo()
 
     expect(info).toEqual(INFO)
-    expect(info.protocolVersion).toBe(1)
+    expect(info.protocolVersion).toBe(PROTOCOL_VERSION)
     expect(info.protocolVersion).not.toBe(info.version)
     expect(procedureCatalog.daemonInfo.output.safeParse(info).success).toBe(true)
     expect(operations.daemonInfo).toHaveBeenCalledOnce()

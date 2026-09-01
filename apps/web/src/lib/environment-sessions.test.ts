@@ -1,3 +1,4 @@
+import { PROTOCOL_VERSION } from '@porcelain/contracts'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // isBrowser is `true` by default under vitest/jsdom (no preload bridge); the shell-connection
@@ -139,7 +140,7 @@ describe('browser Environment session hub', () => {
           result: {
             data: {
               version: '0.52.1',
-              protocolVersion: 1,
+              protocolVersion: PROTOCOL_VERSION,
               host: 'secondary-box',
               platform: 'linux',
               arch: 'x64',

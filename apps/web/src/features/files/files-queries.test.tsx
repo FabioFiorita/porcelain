@@ -46,13 +46,13 @@ beforeEach(() => {
 })
 
 describe('useFilesTree', () => {
-  it('queries readDir with absolute wire path for root and nested dirs', async () => {
+  it('queries readDir with a project-relative wire path', async () => {
     const { mock, wrapper } = createValidatingTrpcHarness({
       ...baseHandlers,
       readDir: (input) => {
         expect(input).toEqual({
-          repoPath: REPO,
-          path: REPO,
+          projectPath: REPO,
+          path: '.',
           showHidden: false,
         })
         return { ok: true, value: filesContractFixtures.readDir.output }
@@ -60,7 +60,13 @@ describe('useFilesTree', () => {
     })
 
     const { result } = renderHook(() => useFilesTree(REPO), { wrapper })
-    await waitFor(() => expect(result.current).toEqual(filesContractFixtures.readDir.output))
+    await waitFor(() =>
+      expect(result.current).toEqual({
+        entries: filesContractFixtures.readDir.output,
+        error: null,
+        isLoading: false,
+      }),
+    )
     expect(mock.requests().some((r) => r.procedure === 'readDir')).toBe(true)
   })
 
@@ -72,7 +78,7 @@ describe('useFilesTree', () => {
       readDir: () => ({ ok: true, value: [] }),
     })
     const { result } = renderHook(() => useFilesTree(REPO), { wrapper })
-    expect(result.current).toBeUndefined()
+    expect(result.current).toEqual({ entries: undefined, error: null, isLoading: false })
     await new Promise((r) => setTimeout(r, 20))
     expect(mock.requests().filter((r) => r.procedure === 'readDir')).toHaveLength(0)
   })
@@ -104,7 +110,11 @@ describe('usePinnedFiles / useFilesScope', () => {
     const pins = renderHook(() => usePinnedFiles(), { wrapper })
     const scope = renderHook(() => useFilesScope(), { wrapper })
     await waitFor(() =>
-      expect(pins.result.current).toEqual(filesContractFixtures.pinnedEntries.output),
+      expect(pins.result.current).toEqual({
+        entries: filesContractFixtures.pinnedEntries.output,
+        error: null,
+        isLoading: false,
+      }),
     )
     await waitFor(() =>
       expect(scope.result.current).toEqual({

@@ -36,28 +36,94 @@ describe('createNodeWorkspaceFiles', () => {
       const srcPath = join(dir, 'src')
       await expect(
         files.readDir({
-          path: dir,
+          projectPath: dir,
+          path: '.',
           showHidden: false,
           hiddenPaths: new Set([hiddenPath]),
           pinnedPaths: new Set([srcPath]),
         }),
-      ).resolves.toEqual([
-        { name: 'src', path: srcPath, kind: 'dir', hidden: false, pinned: true },
-        {
-          name: 'readme.md',
-          path: join(dir, 'readme.md'),
-          kind: 'file',
-          hidden: false,
-          pinned: false,
-        },
-      ])
+      ).resolves.toEqual({
+        ok: true,
+        value: [
+          { name: 'src', path: srcPath, kind: 'dir', hidden: false, pinned: true },
+          {
+            name: 'readme.md',
+            path: join(dir, 'readme.md'),
+            kind: 'file',
+            hidden: false,
+            pinned: false,
+          },
+        ],
+      })
 
       await expect(
         files.pinnedEntries({
+          projectPath: dir,
           hiddenPaths: new Set<string>(),
           pinnedPaths: [srcPath, join(dir, 'vanished')],
         }),
       ).resolves.toEqual([{ name: 'src', path: srcPath, kind: 'dir', hidden: false, pinned: true }])
+    })
+  })
+
+  it('contains directory reads and persisted pins to the declared project', async () => {
+    await withTemporaryDirectory('porcelain-files-contained-tree-', async (root) => {
+      await withTemporaryDirectory('porcelain-files-outside-tree-', async (outside) => {
+        await writeFile(join(outside, 'secret.txt'), 'outside', 'utf8')
+        await symlink(outside, join(root, 'outside-link'))
+
+        await expect(
+          files.readDir({
+            projectPath: root,
+            path: 'outside-link',
+            showHidden: false,
+            hiddenPaths: new Set(),
+            pinnedPaths: new Set(),
+          }),
+        ).resolves.toEqual({
+          ok: false,
+          error: { code: 'path-outside-project', path: 'outside-link' },
+        })
+
+        await expect(
+          files.pinnedEntries({
+            projectPath: root,
+            hiddenPaths: new Set(),
+            pinnedPaths: [join(outside, 'secret.txt'), join(root, 'outside-link')],
+          }),
+        ).resolves.toEqual([])
+      })
+    })
+  })
+
+  it('preserves a symlinked project namespace in directory entry paths', async () => {
+    await withTemporaryDirectory('porcelain-files-project-link-', async (parent) => {
+      const realProject = join(parent, 'real-project')
+      const linkedProject = join(parent, 'linked-project')
+      await mkdir(realProject)
+      await writeFile(join(realProject, 'README.md'), 'linked checkout', 'utf8')
+      await symlink(realProject, linkedProject)
+
+      await expect(
+        files.readDir({
+          projectPath: linkedProject,
+          path: '.',
+          showHidden: false,
+          hiddenPaths: new Set(),
+          pinnedPaths: new Set(),
+        }),
+      ).resolves.toEqual({
+        ok: true,
+        value: [
+          {
+            name: 'README.md',
+            path: join(linkedProject, 'README.md'),
+            kind: 'file',
+            hidden: false,
+            pinned: false,
+          },
+        ],
+      })
     })
   })
 
@@ -143,6 +209,7 @@ describe('createNodeWorkspaceFiles', () => {
 
   it('create/write/rename/duplicate/trash mutations work with relative wire paths', async () => {
     await withTemporaryDirectory('porcelain-files-mut-', async (dir) => {
+      await writeFile(join(dir, 'written.txt'), 'before', 'utf8')
       expect(
         await files.writeTextFile({ projectPath: dir, path: 'written.txt', content: 'héllo\n' }),
       ).toEqual({ ok: true, value: undefined })
@@ -485,6 +552,18 @@ describe('createNodeWorkspaceFiles', () => {
         ok: false,
         error: { code: 'not-found', path: 'no-parent/child.txt' },
       })
+    })
+  })
+
+  it('writeTextFile refuses a missing leaf instead of recreating a renamed or trashed file', async () => {
+    await withTemporaryDirectory('porcelain-files-save-missing-', async (dir) => {
+      expect(
+        await files.writeTextFile({ projectPath: dir, path: 'gone.txt', content: 'late save' }),
+      ).toEqual({
+        ok: false,
+        error: { code: 'not-found', path: 'gone.txt' },
+      })
+      await expect(lstat(join(dir, 'gone.txt'))).rejects.toMatchObject({ code: 'ENOENT' })
     })
   })
 

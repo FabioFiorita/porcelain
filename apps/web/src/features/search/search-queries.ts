@@ -9,7 +9,7 @@ import type { DaemonScope } from '@renderer/lib/daemon-scope'
 import { daemonScopeForEnvironment, environmentClientFor } from '@renderer/lib/environment-sessions'
 import { trpc } from '@renderer/lib/trpc'
 import { useHubRepoPath, useHubRepoTarget } from '@renderer/stores/hub-repo'
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 
 import { searchQueryKey } from './search-query-key'
 
@@ -51,7 +51,6 @@ export function useFileSearch(
     canRun && projectPath !== null ? fileSearchQuery(projectPath, normalizedQuery) : DISABLED_FILES
   const result = useQuery({
     enabled: canRun,
-    placeholderData: keepPreviousData,
     queryFn: async (): Promise<SearchResult[]> => {
       if (!canRun || projectPath === null) throw new Error('Search file query is disabled')
       if (owner === null) throw new Error('The target Environment is offline.')
@@ -85,7 +84,6 @@ export function useTextSearch(
     canRun && projectPath !== null ? textSearchQuery(projectPath, normalizedQuery) : DISABLED_TEXT
   const result = useQuery({
     enabled: canRun,
-    placeholderData: keepPreviousData,
     queryFn: async (): Promise<GrepMatch[]> => {
       if (!canRun || projectPath === null) throw new Error('Search text query is disabled')
       if (owner === null) throw new Error('The target Environment is offline.')

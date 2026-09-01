@@ -60,8 +60,20 @@ function useFilesOwner(): {
   }
 }
 
+export type FilesEntriesState = {
+  entries: DirEntry[] | undefined
+  error: { message: string } | null
+  isLoading: boolean
+}
+
+function queryError(error: unknown): { message: string } | null {
+  if (error instanceof Error) return error
+  if (error === null || error === undefined) return null
+  return { message: String(error) }
+}
+
 /** Directory listing for one absolute UI path (lazy tree rows). */
-export function useFilesTree(absolutePath: string, enabled = true): DirEntry[] | undefined {
+export function useFilesTree(absolutePath: string, enabled = true): FilesEntriesState {
   const { daemon, owner, repoPath } = useFilesOwner()
   const showHidden = useProjectSelectionStore((s) => s.showHidden)
   const identityPath = repoPath !== null ? treePathFromAbsolute(repoPath, absolutePath) : null
@@ -73,33 +85,35 @@ export function useFilesTree(absolutePath: string, enabled = true): DirEntry[] |
       ? filesTreeQuery(projectKey, identityPath, showHidden)
       : DISABLED_TREE
 
-  const { data } = useQuery({
+  const { data, error, isPending } = useQuery({
     queryKey: filesQueryKey(daemon, identity),
     queryFn: async (): Promise<DirEntry[]> => {
       if (!canRun || owner === null || projectKey === null || identityPath === null) {
         return invariantDisabledQueryFn('tree')
       }
-      const wireAbs =
-        identityPath === '.' ? projectKey : projectAbsoluteFromRelative(projectKey, identityPath)
       return owner.client.readDir.query({
-        repoPath: projectKey,
-        path: wireAbs,
+        projectPath: projectKey,
+        path: identityPath,
         showHidden,
       })
     },
     enabled: canRun,
   })
 
-  return data
+  return {
+    entries: canRun ? data : undefined,
+    error: canRun ? queryError(error) : null,
+    isLoading: canRun ? isPending : false,
+  }
 }
 
 /** Pinned entries for the active project. */
-export function usePinnedFiles(): DirEntry[] | undefined {
+export function usePinnedFiles(): FilesEntriesState {
   const { daemon, owner, repoPath } = useFilesOwner()
   const projectKey = repoPath !== null ? filesProjectKey(repoPath) : null
   const identity = projectKey !== null ? filesPinsQuery(projectKey) : DISABLED_PINS
 
-  const { data } = useQuery({
+  const { data, error, isPending } = useQuery({
     queryKey: filesQueryKey(daemon, identity),
     queryFn: async (): Promise<DirEntry[]> => {
       if (owner === null || projectKey === null) return invariantDisabledQueryFn('pins')
@@ -108,7 +122,12 @@ export function usePinnedFiles(): DirEntry[] | undefined {
     enabled: repoPath !== null,
   })
 
-  return data
+  const canRun = repoPath !== null && owner !== null
+  return {
+    entries: canRun ? data : undefined,
+    error: canRun ? queryError(error) : null,
+    isLoading: canRun ? isPending : false,
+  }
 }
 
 /** Monorepo hide/pin lists; empty arrays when the project has never configured scope. */
@@ -326,5 +345,5 @@ export function useRefreshFilesTree(): () => void {
   }, [repoPath, host, version, queryClient, owner])
 }
 
-// Re-export path helpers used when building wire absolute paths from identity paths.
+// Re-export path helpers used by mutation adapters.
 export { normalizeProjectRoot, projectAbsoluteFromRelative }

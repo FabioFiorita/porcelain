@@ -66,13 +66,18 @@ export type FilesOperationResult<T> =
 
 export type WorkspaceFiles = {
   readDir(input: {
+    projectPath: string
     path: string
     showHidden: boolean
     hiddenPaths: ReadonlySet<string>
     pinnedPaths: ReadonlySet<string>
-  }): Promise<DirEntry[]>
+  }): Promise<
+    | { ok: true; value: DirEntry[] }
+    | { ok: false; error: FilesPathOutsideError | FilesNotFoundError }
+  >
 
   pinnedEntries(input: {
+    projectPath: string
     hiddenPaths: ReadonlySet<string>
     pinnedPaths: readonly string[]
   }): Promise<DirEntry[]>

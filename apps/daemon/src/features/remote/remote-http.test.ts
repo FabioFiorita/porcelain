@@ -1017,8 +1017,11 @@ function nextMessage(ws: WebSocket): Promise<Record<string, unknown>> {
 /** Complete the versioned hello/ready handshake before terminal or watches traffic. */
 async function readySession(ws: WebSocket): Promise<void> {
   const reply = nextMessage(ws)
-  ws.send(JSON.stringify({ t: 'session:hello', protocolVersion: 1 }))
-  await expect(reply).resolves.toMatchObject({ t: 'session:ready', protocolVersion: 1 })
+  ws.send(JSON.stringify({ t: 'session:hello', protocolVersion: PROTOCOL_VERSION }))
+  await expect(reply).resolves.toMatchObject({
+    t: 'session:ready',
+    protocolVersion: PROTOCOL_VERSION,
+  })
 }
 
 describe('daemon ws surface — the /session upgrade gate + dispatch', () => {

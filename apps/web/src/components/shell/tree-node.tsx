@@ -397,9 +397,17 @@ function DirNode({
         </EntryContextMenu>
         <CollapsibleContent>
           <SidebarMenuSub className="mr-0 pr-0">
-            {children?.map((child) => (
-              <TreeNode key={child.path} entry={child} parentCollapseNonce={childCollapseNonce} />
-            ))}
+            {children.isLoading ? (
+              <p className="px-2 py-1 text-2xs text-muted-foreground">Loading…</p>
+            ) : children.error !== null ? (
+              <p className="px-2 py-1 text-2xs text-destructive">{children.error.message}</p>
+            ) : children.entries === undefined || children.entries.length === 0 ? (
+              <p className="px-2 py-1 text-2xs text-muted-foreground">Empty folder</p>
+            ) : (
+              children.entries.map((child) => (
+                <TreeNode key={child.path} entry={child} parentCollapseNonce={childCollapseNonce} />
+              ))
+            )}
           </SidebarMenuSub>
         </CollapsibleContent>
       </Collapsible>

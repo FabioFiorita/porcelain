@@ -28,7 +28,7 @@ const expectedKinds = {
 } as const
 
 const expectedErrors = {
-  readDir: [],
+  readDir: ['files.path-outside-project', 'files.not-found'],
   hidePath: [],
   unhidePath: [],
   pinPath: [],
@@ -48,11 +48,11 @@ const expectedErrors = {
 } as const
 
 const invalidInputs: Record<keyof typeof filesProcedures, unknown> = {
-  readDir: { repoPath: '/synthetic/repo', path: '/synthetic/repo/src', showHidden: 'false' },
-  hidePath: { repoPath: '/synthetic/repo' },
+  readDir: { projectPath: '/synthetic/repo', path: 'src', showHidden: 'false' },
+  hidePath: { projectPath: '/synthetic/repo' },
   unhidePath: null,
-  pinPath: { repoPath: '/synthetic/repo', path: 42 },
-  unpinPath: { repoPath: 42, path: '/synthetic/repo/README.md' },
+  pinPath: { projectPath: '/synthetic/repo', path: 42 },
+  unpinPath: { projectPath: 42, path: 'README.md' },
   pinnedEntries: 42,
   readFile: 42,
   previewHtml: null,
@@ -242,16 +242,16 @@ describe('Files procedure contracts', () => {
   it('preserves relative hide/pin paths and empty/multiline write content under projectPath', () => {
     expect(
       filesProcedures.hidePath.input.safeParse({
-        repoPath: '/synthetic/repo',
+        projectPath: '/synthetic/repo',
         path: 'src/generated',
       }).success,
     ).toBe(true)
     expect(
       filesProcedures.hidePath.input.safeParse({
-        repoPath: '/synthetic/repo',
+        projectPath: '/synthetic/repo',
         path: '/synthetic/repo/src/generated',
       }).success,
-    ).toBe(true)
+    ).toBe(false)
     expect(
       filesProcedures.writeTextFile.input.parse({
         projectPath: '/synthetic/repo',

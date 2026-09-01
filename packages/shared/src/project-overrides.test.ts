@@ -12,4 +12,11 @@ describe('projectOverridePath', () => {
   it('rejects absolute paths outside the repository', () => {
     expect(() => projectOverridePath('/repo', '/other/a.ts')).toThrow(/inside the repo/)
   })
+
+  it('rejects traversal-shaped relative paths instead of persisting them', () => {
+    expect(() => projectOverridePath('/repo', '../outside.txt')).toThrow(/normalized path/)
+    expect(() => projectOverridePath('/repo', 'src/../../outside.txt')).toThrow(/normalized path/)
+    expect(() => projectOverridePath('/repo', 'src/./a.ts')).toThrow(/normalized path/)
+    expect(() => projectOverridePath('/repo', '/repo/../../outside.txt')).toThrow(/normalized path/)
+  })
 })

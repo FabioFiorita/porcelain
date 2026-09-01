@@ -232,7 +232,7 @@ describe('useFilesScopeActions', () => {
     await secondEntered.promise
 
     // Sequential: first path fully settles (mutate + success effects) before second starts.
-    expect(order[0]).toBe(`hide:${REPO}/a`)
+    expect(order[0]).toBe('hide:a')
     const secondIdx = order.indexOf('second-entered')
     expect(secondIdx).toBeGreaterThan(0)
     // Partial batch freshness: at least one Files effect refetch ran before path two started.

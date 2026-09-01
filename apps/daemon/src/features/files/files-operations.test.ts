@@ -57,7 +57,7 @@ describe('createFilesOperations', () => {
   })
 
   it('composes scope state with directory reads and delegates scope mutations', async () => {
-    const readDir = vi.fn<WorkspaceFiles['readDir']>(async () => [])
+    const readDir = vi.fn<WorkspaceFiles['readDir']>(async () => ({ ok: true, value: [] }))
     const pinnedEntries = vi.fn<WorkspaceFiles['pinnedEntries']>(async () => [])
     const scope: FilesScope = {
       read: vi.fn(async () => ({
@@ -80,21 +80,23 @@ describe('createFilesOperations', () => {
       scope,
     })
 
-    await ops.readDir({ repoPath: PROJECT, path: PROJECT, showHidden: false })
+    await ops.readDir({ projectPath: PROJECT, path: '.', showHidden: false })
     await ops.pinnedEntries(PROJECT)
-    await ops.hidePath(PROJECT, '/synthetic/repo/.env')
-    await ops.unhidePath(PROJECT, '/synthetic/repo/.env')
-    await ops.pinPath(PROJECT, '/synthetic/repo/src')
-    await ops.unpinPath(PROJECT, '/synthetic/repo/src')
+    await ops.hidePath(PROJECT, '.env')
+    await ops.unhidePath(PROJECT, '.env')
+    await ops.pinPath(PROJECT, 'src')
+    await ops.unpinPath(PROJECT, 'src')
     await ops.repoScope(PROJECT)
 
     expect(readDir).toHaveBeenCalledWith({
-      path: PROJECT,
+      projectPath: PROJECT,
+      path: '.',
       showHidden: false,
       hiddenPaths: new Set(['/synthetic/repo/.env']),
       pinnedPaths: new Set(['/synthetic/repo/src']),
     })
     expect(pinnedEntries).toHaveBeenCalledWith({
+      projectPath: PROJECT,
       hiddenPaths: new Set(['/synthetic/repo/.env']),
       pinnedPaths: ['/synthetic/repo/src'],
     })

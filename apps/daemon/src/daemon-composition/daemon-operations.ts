@@ -1,4 +1,5 @@
 import type { SessionChange } from '@porcelain/contracts/session'
+import { realpath } from 'node:fs/promises'
 import {
   type ActionsOperations,
   type ActionsProjects,
@@ -80,6 +81,11 @@ export type DaemonOperations = Readonly<{
   terminal: TerminalOperations
 }>
 
+/** Canonical spelling for checkout ownership (`/var` and `/private/var` are aliases on macOS). */
+export async function canonicalCheckoutPath(path: string): Promise<string> {
+  return realpath(path).catch(() => path)
+}
+
 export interface CreateDaemonRouterOptions {
   operations: DaemonOperations
 }
@@ -122,9 +128,17 @@ export function createDaemonOperations(options: {
   const identityForRepo = async (repoPath: string): Promise<RepoIdentity | null> => {
     const inventory = await options.projects.listHubInventory()
     if (!inventory.ok) return null
+    const canonicalRepoPath = await canonicalCheckoutPath(repoPath)
     for (const project of inventory.value.projects) {
-      const worktree = project.worktrees.find((entry) => entry.path === repoPath)
-      if (worktree !== undefined) return { projectId: project.id, worktreeId: worktree.id }
+      for (const worktree of project.worktrees) {
+        if (
+          worktree.path === repoPath ||
+          worktree.path === canonicalRepoPath ||
+          (await canonicalCheckoutPath(worktree.path)) === canonicalRepoPath
+        ) {
+          return { projectId: project.id, worktreeId: worktree.id }
+        }
+      }
     }
     return null
   }

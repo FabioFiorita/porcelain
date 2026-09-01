@@ -1,4 +1,5 @@
 import type { SessionChange } from '@porcelain/contracts/session'
+import { join } from 'node:path'
 import { createFilePreviewTokens, type FilePreviewTokens } from './file-preview-tokens'
 import { createFilesChangesPublisher } from './files-notifications'
 import type { FilesChanges, FilesScope, WorkspaceFiles } from './files-ports'
@@ -12,14 +13,14 @@ import { createNodeWorkspaceFiles } from './workspace-files'
  */
 export type FilesOperations = {
   readDir: (input: {
-    repoPath: string
+    projectPath: string
     path: string
     showHidden: boolean
   }) => ReturnType<WorkspaceFiles['readDir']>
-  hidePath: (repoPath: string, path: string) => Promise<void>
-  unhidePath: (repoPath: string, path: string) => Promise<void>
-  pinPath: (repoPath: string, path: string) => Promise<void>
-  unpinPath: (repoPath: string, path: string) => Promise<void>
+  hidePath: (projectPath: string, path: string) => Promise<void>
+  unhidePath: (projectPath: string, path: string) => Promise<void>
+  pinPath: (projectPath: string, path: string) => Promise<void>
+  unpinPath: (projectPath: string, path: string) => Promise<void>
   pinnedEntries: (repoPath: string) => ReturnType<WorkspaceFiles['pinnedEntries']>
   repoScope: FilesScope['read']
   worktreeProfile: FilesScope['readProfile']
@@ -75,21 +76,23 @@ export function createFilesOperations(
 
   return Object.freeze({
     async readDir(input) {
-      const stored = await scope.read(input.repoPath)
+      const stored = await scope.read(input.projectPath)
       return workspaceFiles.readDir({
+        projectPath: input.projectPath,
         hiddenPaths: new Set(stored.hiddenPaths),
         path: input.path,
         pinnedPaths: new Set(stored.pinnedPaths),
         showHidden: input.showHidden,
       })
     },
-    hidePath: (repoPath, path) => scope.hidePath(repoPath, path),
-    unhidePath: (repoPath, path) => scope.unhidePath(repoPath, path),
-    pinPath: (repoPath, path) => scope.pinPath(repoPath, path),
-    unpinPath: (repoPath, path) => scope.unpinPath(repoPath, path),
+    hidePath: (projectPath, path) => scope.hidePath(projectPath, join(projectPath, path)),
+    unhidePath: (projectPath, path) => scope.unhidePath(projectPath, join(projectPath, path)),
+    pinPath: (projectPath, path) => scope.pinPath(projectPath, join(projectPath, path)),
+    unpinPath: (projectPath, path) => scope.unpinPath(projectPath, join(projectPath, path)),
     async pinnedEntries(repoPath) {
       const stored = await scope.read(repoPath)
       return workspaceFiles.pinnedEntries({
+        projectPath: repoPath,
         hiddenPaths: new Set(stored.hiddenPaths),
         pinnedPaths: stored.pinnedPaths,
       })

@@ -72,7 +72,7 @@ describe('filesMutations affectedEffects tables', () => {
     ]
     for (const { key, input } of cases) {
       const effects = filesMutations[key].affectedEffects(input)
-      expect(effects).toEqual(scopeEffects(input.repoPath))
+      expect(effects).toEqual(scopeEffects(input.projectPath))
       expect(effects.some((e) => e.type === 'exact' && e.query.name === 'tree')).toBe(false)
       expect(effects.some((e) => e.type === 'tree-family')).toBe(true)
     }

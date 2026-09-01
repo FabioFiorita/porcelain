@@ -45,27 +45,27 @@ export function createFilesFeatureRouter(operations: FilesOperations) {
     readDir: publicProcedure
       .input(procedureCatalog.readDir.input)
       .output(procedureCatalog.readDir.output)
-      .query(({ input }) => operations.readDir(input)),
+      .query(async ({ input }) => throwIfFailed(await operations.readDir(input))),
 
     hidePath: publicProcedure
       .input(procedureCatalog.hidePath.input)
       .output(procedureCatalog.hidePath.output)
-      .mutation(({ input }) => operations.hidePath(input.repoPath, input.path)),
+      .mutation(({ input }) => operations.hidePath(input.projectPath, input.path)),
 
     unhidePath: publicProcedure
       .input(procedureCatalog.unhidePath.input)
       .output(procedureCatalog.unhidePath.output)
-      .mutation(({ input }) => operations.unhidePath(input.repoPath, input.path)),
+      .mutation(({ input }) => operations.unhidePath(input.projectPath, input.path)),
 
     pinPath: publicProcedure
       .input(procedureCatalog.pinPath.input)
       .output(procedureCatalog.pinPath.output)
-      .mutation(({ input }) => operations.pinPath(input.repoPath, input.path)),
+      .mutation(({ input }) => operations.pinPath(input.projectPath, input.path)),
 
     unpinPath: publicProcedure
       .input(procedureCatalog.unpinPath.input)
       .output(procedureCatalog.unpinPath.output)
-      .mutation(({ input }) => operations.unpinPath(input.repoPath, input.path)),
+      .mutation(({ input }) => operations.unpinPath(input.projectPath, input.path)),
 
     pinnedEntries: publicProcedure
       .input(procedureCatalog.pinnedEntries.input)
