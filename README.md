@@ -34,14 +34,17 @@ that device. Remote exposure and always-on setup are documented in
 
 ## Agent connection
 
-The **porcelain** plugin gives agents the MCP tools and focused skills for Canvases, comments,
-Actions, profiles, and remote-daemon setup. Choose the installation route your client
-supports:
+The **Porcelain** plugin gives agents the MCP tools and focused skills for Canvases, comments,
+Actions, profiles, and remote-daemon setup.
 
-### Agent Plugin
+### Codex
 
-Agent Plugins leaves installation and distribution to each client. In your agent's native plugin
-manager, add the repository `FabioFiorita/porcelain`.
+Install it from Porcelain's Companion settings, or use the Codex CLI:
+
+```sh
+codex plugin marketplace add FabioFiorita/porcelain
+codex plugin add porcelain@fabiofiorita
+```
 
 ### Claude Plugin
 
@@ -51,7 +54,6 @@ Claude Code can register the repository as a marketplace:
 /plugin marketplace add FabioFiorita/porcelain
 /plugin install porcelain@porcelain
 ```
-
 
 ## Development
 

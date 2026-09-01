@@ -22,7 +22,8 @@ import { isBrowser } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
 import { type SettingsSection, useSettingsDialogStore } from '@renderer/stores/settings-dialog'
 import { TestIds } from '@shared/test-ids'
-import { Cloud, Download, Settings2, Share2, SlidersHorizontal } from 'lucide-react'
+import { Cloud, Download, Plug, Settings2, Share2, SlidersHorizontal } from 'lucide-react'
+import { CompanionSection } from './companion-section'
 import { GeneralSection } from './general-section'
 import { RemotesSection } from './remotes-section'
 import { ShareSection } from './share-section'
@@ -83,6 +84,15 @@ const ALL_SECTIONS: {
     blurb: isBrowser
       ? 'The daemon that served this tab. Check npm and restart the always-on unit to install.'
       : 'Porcelain checks automatically and installs on quit.',
+  },
+  {
+    id: 'companion',
+    label: 'Companion',
+    icon: Plug,
+    title: 'Companion',
+    scope: 'app',
+    blurb: 'Connect Porcelain to the agent tools installed on this machine.',
+    shellOnly: true,
   },
   {
     id: 'remotes',
@@ -300,6 +310,7 @@ function SettingsSectionBody({ activeId }: { activeId: SettingsSection }): React
       {activeId === 'share' && <ShareSection />}
       {activeId === 'remotes' && <RemotesSection />}
       {activeId === 'updates' && <UpdatesSection />}
+      {activeId === 'companion' && <CompanionSection />}
     </>
   )
 }

@@ -35,6 +35,10 @@ vi.mock('./local-terminal-paths', () => ({
   updateLocalTerminalPaths: vi.fn(),
 }))
 
+vi.mock('./codex-plugin', () => ({
+  installCodexPlugin: vi.fn(),
+}))
+
 vi.mock('./plugin-assets', () => ({
   PLUGIN_VERSION: '1.0.0',
   agentPluginRepository: (): string => 'repository',

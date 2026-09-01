@@ -1,6 +1,6 @@
 // Install metadata for the shipped agent plugin (`plugins/porcelain/`).
-// The plugin bundles the companion and remote skills; the app only
-// tells the user how to install it.
+// The plugin bundles the companion and remote skills. The Electron app can install it into
+// Codex; the remaining metadata supports manual installation in other agent clients.
 
 /** Repository slug. Clients resolve the plugin package inside this repository. */
 const PLUGIN_REPO = 'FabioFiorita/porcelain'
@@ -13,10 +13,7 @@ const PLUGIN_REPO = 'FabioFiorita/porcelain'
  */
 export const PLUGIN_VERSION = __PORCELAIN_PLUGIN_VERSION__
 
-/**
- * Agent Plugins intentionally leaves installation and distribution to each client. Show the
- * repository rather than inventing a vendor-neutral command that no standard defines.
- */
+/** Repository source for agent clients that support plugins but not Codex installation. */
 export function agentPluginRepository(): string {
   return PLUGIN_REPO
 }

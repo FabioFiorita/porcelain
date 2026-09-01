@@ -5,6 +5,7 @@ import { createTRPCUntypedClient, httpLink } from '@trpc/client'
 import { initTRPC } from '@trpc/server'
 import { BrowserWindow, clipboard, nativeTheme, shell, type WebContents } from 'electron'
 import { z } from 'zod'
+import { installCodexPlugin } from './codex-plugin'
 import {
   getDefaultEnvironmentId,
   localDaemonPair,
@@ -301,9 +302,7 @@ export const shellRouter = t.router({
     installUpdate()
   }),
 
-  // The companion and remote skills ship inside the `porcelain` agent plugin. The app does
-  // not install it: Agent Plugins leaves distribution to each client, while Claude has a
-  // verified marketplace route. There is deliberately no generic install command.
+  // The companion and remote skills ship inside the `porcelain` agent plugin.
   pluginInfo: t.procedure.query(
     (): {
       version: string
@@ -315,6 +314,10 @@ export const shellRouter = t.router({
       claudePluginCommands: claudePluginCommands(),
     }),
   ),
+
+  // This intentionally targets the machine running Electron, not whichever daemon Environment
+  // the current window is viewing. The human triggers the external Codex configuration change.
+  installCodexPlugin: t.procedure.mutation(() => installCodexPlugin()),
 
   // Tokens stay in the shell; the renderer receives group names and verified routes only.
   remoteEnvironments: t.procedure.query(

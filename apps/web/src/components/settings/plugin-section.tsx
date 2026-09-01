@@ -2,10 +2,12 @@ import { Button } from '@renderer/components/ui/button'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { usePluginInfo } from '@renderer/hooks/use-plugin'
 import { compactButtonClass } from '@renderer/lib/controls'
+import { shellTrpc } from '@renderer/lib/trpc'
 import { copyText } from '@renderer/lib/utils'
 import { runUserAction } from '@shared/background'
-import { Check, Copy } from 'lucide-react'
+import { Check, Copy, Loader2, Plug } from 'lucide-react'
 import { useState } from 'react'
+import { toast } from 'sonner'
 
 /** One copyable block for a client-specific installation route or repository source. */
 function CopyBlock({ label, lines }: { label: string; lines: readonly string[] }) {
@@ -49,13 +51,10 @@ function CopyBlock({ label, lines }: { label: string; lines: readonly string[] }
   )
 }
 
-/**
- * The General "Companion" block owns the title and blurb so this doesn't re-introduce the
- * same-weight heading underneath. Agent Plugins leaves distribution to each client, so the
- * first option shows the repository source. Claude has an explicit marketplace route.
- */
+/** Install Porcelain into Codex, with manual sources for other plugin-capable agents. */
 export function PluginSection(): React.JSX.Element {
   const info = usePluginInfo()
+  const install = shellTrpc.installCodexPlugin.useMutation()
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
@@ -63,9 +62,38 @@ export function PluginSection(): React.JSX.Element {
         <p className="text-xs text-muted-foreground">Bundled plugin: v{info.version}.</p>
       )}
 
+      <div className="flex items-center justify-between gap-4 rounded-md border bg-card p-3">
+        <div className="min-w-0">
+          <p className="text-sm-minus font-medium">Codex</p>
+          <p className="text-xs text-muted-foreground">
+            Add the plugin to Codex on this machine. Restart Codex before opening a new task.
+          </p>
+        </div>
+        <Button
+          size="sm"
+          className={compactButtonClass}
+          disabled={install.isPending}
+          onClick={() =>
+            install.mutate(undefined, {
+              onSuccess: () => toast.success('Porcelain was added to Codex.'),
+              onError: (error) => toastUserActionError('Add Porcelain to Codex', error),
+            })
+          }
+        >
+          {install.isPending ? <Loader2 className="animate-spin" /> : <Plug />}
+          {install.isPending ? 'Adding…' : 'Add to Codex'}
+        </Button>
+      </div>
+
+      {install.isSuccess && (
+        <p className="flex items-center gap-1.5 text-xs text-success">
+          <Check className="size-3.5" /> Added. Restart Codex before opening a new task.
+        </p>
+      )}
+
       <div className="flex min-w-0 flex-col gap-1.5">
         <p className="text-2xs font-medium tracking-wider text-muted-foreground uppercase">
-          Agent Plugin
+          Other agents
         </p>
         <p className="text-xs text-muted-foreground">
           Use your agent's native plugin manager with this repository:
