@@ -1,3 +1,9 @@
+## [0.61.3](https://github.com/FabioFiorita/porcelain/compare/v0.61.2...v0.61.3) (2026-09-01)
+
+### Features
+
+* **desktop:** add Porcelain plugin installer ([24676b7](https://github.com/FabioFiorita/porcelain/commit/24676b72fe1406d7b0b2f1d7e8baf7951d6aeef2))
+
 ## [0.61.2](https://github.com/FabioFiorita/porcelain/compare/v0.61.1...v0.61.2) (2026-08-31)
 
 ### Bug Fixes
