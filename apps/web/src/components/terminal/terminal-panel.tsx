@@ -246,7 +246,11 @@ export function TerminalPanel(): React.JSX.Element {
         </Button>
       </div>
       <div className="min-h-0 flex-1">
-        {activeSession ? (
+        {/* A restored session can exist while the panel starts hidden. Do not mount Ghostty
+            into that zero-sized host: replaying daemon scrollback at one column permanently
+            mangles the grid before the first visible fit. The registry keeps stream bytes
+            buffered until the user opens the panel and a real-size host exists. */}
+        {!panelOpen ? null : activeSession ? (
           <TerminalView key={activeSession.id} sessionId={activeSession.id} />
         ) : (
           <div className="flex h-full items-center justify-center px-3 text-center">

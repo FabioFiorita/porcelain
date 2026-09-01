@@ -91,11 +91,18 @@ export interface CreateDaemonRouterOptions {
  */
 function actionsProjectsCapability(projects: ProjectsOperations): ActionsProjects {
   return {
-    async listWorktreePaths(projectId) {
+    async listRunTargets(projectId) {
       const inventory = await projects.listHubInventory()
       if (!inventory.ok) return { ok: false, error: { code: 'actions.unavailable' } }
       const project = inventory.value.projects.find((entry) => entry.id === projectId)
-      return { ok: true, value: project?.worktrees.map((worktree) => worktree.path) ?? [] }
+      return {
+        ok: true,
+        value: {
+          environmentId: inventory.value.environment.id,
+          worktrees:
+            project?.worktrees.map((worktree) => ({ id: worktree.id, path: worktree.path })) ?? [],
+        },
+      }
     },
   }
 }

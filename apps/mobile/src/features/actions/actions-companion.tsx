@@ -21,7 +21,7 @@ import { useActionsSelectionStore } from './actions-selection-store'
  *
  * Agents curate this list but never execute from it; running is human-only. A command this
  * daemon's machine has not accepted yet is gated behind an explicit confirmation, because a
- * shared action can arrive from a clone or an agent write — accepting is keyed to the command
+ * command can arrive from an agent write or change after review — accepting is keyed to the command
  * TEXT, so editing it later asks again.
  *
  * Reached from the Terminals toolbar, and running one LANDS on the shell it started: the

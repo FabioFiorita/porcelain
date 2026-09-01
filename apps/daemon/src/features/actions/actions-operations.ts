@@ -190,8 +190,10 @@ export function createActionsOperations(options: {
 
     if (input.authoredBy === 'human') {
       // Typed into the app by the person who will run it — that is the consent.
-      const trusted = await trustStore.trustCommands(input.projectId, [result.value.action.command])
-      if (!trusted.ok) return trusted
+      // The Action write is already durable, so a machine-local trust-store failure
+      // cannot honestly turn this mutation into a failure. Fail closed instead: the
+      // saved command remains untrusted and the ordinary review gate asks again.
+      await trustStore.trustCommands(input.projectId, [result.value.action.command])
     }
 
     changes.publish({ type: 'actions.changed', projectId: input.projectId })
@@ -229,8 +231,9 @@ export function createActionsOperations(options: {
     // consent, so an agent edit leaves the Action awaiting approval instead.
     if (input.command !== undefined && input.authoredBy === 'human') {
       // Fingerprint the stored normalized command, not the raw input text.
-      const trusted = await trustStore.trustCommands(input.projectId, [result.value.action.command])
-      if (!trusted.ok) return trusted
+      // As with create, the command update is already durable. Trust failure leaves
+      // it untrusted rather than misreporting the completed edit as rolled back.
+      await trustStore.trustCommands(input.projectId, [result.value.action.command])
     }
 
     changes.publish({ type: 'actions.changed', projectId: input.projectId })
@@ -312,7 +315,7 @@ export function createActionsOperations(options: {
     const [actionsResult, trustResult, worktreeResult] = await Promise.all([
       readAllSources(projectId),
       trustStore.readFingerprints(projectId),
-      options.projects.listWorktreePaths(projectId),
+      options.projects.listRunTargets(projectId),
     ])
     if (!actionsResult.ok) return actionsResult
     if (!trustResult.ok) return trustResult
@@ -324,7 +327,11 @@ export function createActionsOperations(options: {
     }
 
     const cwd = resolve(input.target.path)
-    const known = worktreeResult.value.some((path) => resolve(path) === cwd)
+    const known =
+      worktreeResult.value.environmentId === input.target.environmentId &&
+      worktreeResult.value.worktrees.some(
+        (worktree) => worktree.id === input.target.worktreeId && resolve(worktree.path) === cwd,
+      )
     if (!known) {
       return { ok: false, error: { code: 'actions.target-invalid', actionId: input.actionId } }
     }

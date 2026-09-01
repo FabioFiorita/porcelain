@@ -14,8 +14,8 @@ import { TestIds } from '@shared/test-ids'
 /**
  * Shown before an unreviewed command runs for the first time.
  *
- * Saved actions are Shared by default, so this list can arrive with a clone or be
- * written by an agent through the CLI. The command text is the thing that
+ * A command can be written by an agent or changed after the human last accepted it.
+ * The command text is the thing that
  * executes, so the command text is the thing being accepted here — in full, not
  * truncated, and never pre-scrolled past.
  *
@@ -37,10 +37,10 @@ export function ActionTrustDialog({
     <AlertDialog open onOpenChange={(open: boolean) => !open && onCancel()}>
       <AlertDialogContent data-testid={TestIds.actionTrustDialog}>
         <AlertDialogHeader>
-          <AlertDialogTitle>Run “{action.title}” for the first time?</AlertDialogTitle>
+          <AlertDialogTitle>Review “{action.title}” before running?</AlertDialogTitle>
           <AlertDialogDescription>
-            This command came with the project rather than being written here, so it has not been
-            run on this machine yet. It runs in a visible terminal as you.
+            This exact command has not been accepted on this machine. It may have been added by an
+            agent or changed since you last reviewed it. It runs in a visible terminal as you.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <pre

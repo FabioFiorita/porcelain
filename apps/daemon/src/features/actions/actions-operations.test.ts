@@ -94,8 +94,20 @@ function memoryTrust(): {
 /** The Projects capability Actions verifies a run target against. */
 function knownWorktrees(paths: readonly string[] = [WORKTREE, OTHER_WORKTREE]): ActionsProjects {
   return {
-    async listWorktreePaths(projectId) {
-      return { ok: true, value: projectId === PROJECT ? paths : [] }
+    async listRunTargets(projectId) {
+      return {
+        ok: true,
+        value: {
+          environmentId: TARGET.environmentId,
+          worktrees:
+            projectId === PROJECT
+              ? paths.map((path) => ({
+                  id: path === WORKTREE ? TARGET.worktreeId : 'wt-alpha-topic',
+                  path,
+                }))
+              : [],
+        },
+      }
     },
   }
 }
@@ -422,6 +434,58 @@ describe('actions operations', () => {
     expect(events).toEqual([`actions.changed:${PROJECT}`])
   })
 
+  it('reports durable writes and leaves them untrusted when auto-trust storage fails', async () => {
+    const mem = memoryStore({
+      version: 1,
+      actions: [{ id: ID_A, title: 'A', command: 'echo a', order: 1, createdAt: 1 }],
+    })
+    const trustStore: ActionTrustStore = {
+      async readFingerprints() {
+        return { ok: true, value: new Set() }
+      },
+      async trustCommands() {
+        return { ok: false, error: { code: 'actions.unavailable' } }
+      },
+    }
+    const { changes, events } = recordingChanges()
+    const ops = createActionsOperations({
+      sources: [{ kind: 'private', store: mem.store }],
+      trustStore,
+      projects: knownWorktrees(),
+      ids: { create: () => ID_B },
+      changes,
+    })
+
+    expect(
+      await ops.addAction({
+        authoredBy: 'human',
+        projectId: PROJECT,
+        title: 'B',
+        command: 'echo b',
+      }),
+    ).toEqual({
+      ok: true,
+      value: expect.objectContaining({ id: ID_B, command: 'echo b' }),
+    })
+    expect(
+      await ops.updateAction({
+        authoredBy: 'human',
+        projectId: PROJECT,
+        id: ID_A,
+        command: 'echo changed',
+      }),
+    ).toEqual({ ok: true, value: undefined })
+    expect(events).toEqual([`actions.changed:${PROJECT}`, `actions.changed:${PROJECT}`])
+
+    const listed = await ops.listActions({ projectId: PROJECT })
+    expect(listed.ok).toBe(true)
+    if (!listed.ok) return
+    expect(listed.value.map((action) => [action.id, action.command, action.trusted])).toEqual([
+      [ID_A, 'echo changed', false],
+      [ID_B, 'echo b', false],
+    ])
+  })
+
   it('prepareActionRun returns not-found, untrusted, or success without notifying', async () => {
     const mem = memoryStore({
       version: 1,
@@ -517,6 +581,31 @@ describe('actions operations', () => {
     expect(events).toEqual([])
   })
 
+  it('refuses mismatched Environment and Worktree identities even when the path is known', async () => {
+    const mem = memoryStore({
+      version: 1,
+      actions: [{ id: ID_A, title: 'A', command: 'echo a', order: 1, createdAt: 1 }],
+    })
+    const trust = memoryTrust()
+    await trust.trustStore.trustCommands(PROJECT, ['echo a'])
+    const ops = createActionsOperations({
+      sources: [{ kind: 'private', store: mem.store }],
+      trustStore: trust.trustStore,
+      projects: knownWorktrees(),
+      changes: recordingChanges().changes,
+    })
+
+    for (const target of [
+      { ...TARGET, environmentId: 'env-other' },
+      { ...TARGET, worktreeId: 'wt-alpha-topic' },
+    ]) {
+      expect(await ops.prepareActionRun({ actionId: ID_A, target })).toEqual({
+        ok: false,
+        error: { code: 'actions.target-invalid', actionId: ID_A },
+      })
+    }
+  })
+
   it('refuses the run when the Projects capability is unavailable', async () => {
     const mem = memoryStore({
       version: 1,
@@ -528,7 +617,7 @@ describe('actions operations', () => {
       sources: [{ kind: 'private', store: mem.store }],
       trustStore: trust.trustStore,
       projects: {
-        async listWorktreePaths() {
+        async listRunTargets() {
           return { ok: false, error: { code: 'actions.unavailable' } }
         },
       },
