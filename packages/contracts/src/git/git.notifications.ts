@@ -1,11 +1,7 @@
 import { z } from 'zod'
 
 /**
- * Git change notifications — the Git half of the current coarse `working-tree` app event
- * (the deleted horizontal session protocol), which today makes both open documents and every Git surface
- * (status, flow, diffs, log, reviewed marks) stale through one undifferentiated signal.
- *
- * One category is deliberate: Git staleness is answered by refetching the Git queries the
+ * One Git change category is deliberate: staleness is answered by refetching the Git queries the
  * client actually has open, so splitting status from diff from history would add wire
  * vocabulary without changing what any consumer does. Strict, and scoped by `projectPath`
  * because a Git working tree only means something inside one project.

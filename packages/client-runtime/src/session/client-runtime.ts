@@ -24,7 +24,7 @@ import { createSessionFreshnessTracker, type FreshnessRequirement } from './reco
  * Transport-neutral on purpose. It is handed a `SessionClientTransport` — one `send` — and told
  * when a connection opened, what arrived on it, and when it dropped. It owns no socket, no URL,
  * no token, no backoff, and no timer; those stay with the adapter that owns the platform's
- * WebSocket (`RT-004`, `RT-005`). That is what makes the whole protocol table-testable against a
+ * WebSocket. That makes the whole protocol table-testable against a
  * fake transport instead of a port.
  *
  * The order mirrors the daemon gateway's (`apps/daemon/src/session/session-gateway.ts`):
@@ -156,7 +156,7 @@ export function createSessionClientRuntime({
     const requirement = tracker.ready({ epoch: parsed.data.epoch })
     // Re-register before recovering: the refresh the adapter is about to run should land on a
     // session whose interests are already restored, or the data it refetches goes uncovered
-    // again immediately (decision 009's recovery order).
+    // again immediately.
     sendWatches()
     if (requirement) observer.onFreshnessRequired(requirement)
   }

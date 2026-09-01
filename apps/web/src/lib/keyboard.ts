@@ -2,7 +2,7 @@ import { isBrowser, isLinuxShell } from './platform'
 
 /**
  * The primary shortcut modifier is Ctrl, not Cmd. True for the browser client
- * (remote-envs Phase 3): Safari (macOS + iPad) and Chrome reserve most ⌘ chords the app
+ * Safari (macOS and iPad) and Chrome reserve most Command-key chords the app
  * binds — ⌘1–9 (tab switch), ⌘T (new tab), ⌘N (new window), ⌘W (close), ⌘P (print) — so
  * the browser either steals them or opens its own chrome. Ctrl chords, by contrast, ARE
  * interceptable in the page (that's the point of the remap), so the browser client keys

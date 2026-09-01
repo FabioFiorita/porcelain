@@ -1,5 +1,5 @@
 /**
- * Web Remote feature public entry point (REM-004).
+ * Web Remote feature public entry point.
  *
  * Settings and shell chrome import this module only — never a Remote implementation file.
  */

@@ -1,7 +1,7 @@
 import type { SetReviewedInput } from '@porcelain/contracts/review'
 
 /**
- * Pure reviewed-marks optimistic transitions and rollback (REV-006).
+ * Pure reviewed-marks optimistic transitions and rollback.
  *
  * The `comment-reconciliation.ts` idiom without temporary ids: the daemon assigns nothing
  * here, so a mark is instant, exactly reversible, and still followed by the authoritative

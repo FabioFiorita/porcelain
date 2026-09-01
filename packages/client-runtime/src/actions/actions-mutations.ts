@@ -15,11 +15,11 @@ import {
 } from './actions-queries'
 
 /**
- * Actions mutation consequence definitions (ACT-002).
+ * Actions mutation consequence definitions.
  *
- * Each entry binds exactly one ACT-001 mutation procedure and the dual list+trust identities
+ * Each entry binds exactly one Actions mutation procedure and the dual list+trust identities
  * it affects. No create-from-list optimism, no reconciliation module, no decorative
- * `optimistic` field. Transport and React stay in adapters (ACT-003).
+ * `optimistic` field. Transport and React stay in adapters.
  */
 
 export type ActionsMutationProcedureName =
@@ -30,9 +30,9 @@ export type ActionsMutationProcedureName =
   | 'deleteAction'
 
 export type ActionsMutationDefinition<TName extends ActionsMutationProcedureName, TInput> = {
-  /** Canonical ACT-001 procedure contract object (not a free-form invalidation string). */
+  /** Canonical Actions procedure contract object (not a free-form invalidation string). */
   readonly procedure: (typeof actionsProcedures)[TName]
-  /** Catalog key of the bound ACT-001 procedure. */
+  /** Catalog key of the bound Actions procedure. */
   readonly procedureName: TName
   readonly affectedQueries: (input: TInput) => readonly [ActionsQuery, ActionTrustQuery]
   readonly requiresAuthoritativeRefetch: true

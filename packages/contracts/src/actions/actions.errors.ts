@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { definePublicError } from '../errors/define-public-error'
 
 /**
- * Actions public-error members. Composed into ERR-001's `publicErrorSchema` union; procedure
+ * Actions public-error members. Composed into the shared `publicErrorSchema`; procedure
  * declarations reference the codes only. No daemon formatting or HTTP mapping lives here.
  */
 
@@ -46,7 +46,7 @@ export const actionsTargetInvalidErrorDetailsSchema = z
 
 /**
  * The run target did not name a live Worktree of the Action's Project — the
- * daemon refuses rather than picking a checkout for the caller (#24).
+ * daemon refuses rather than picking a checkout for the caller.
  */
 export const actionsTargetInvalidErrorSchema = definePublicError({
   code: 'actions.target-invalid',

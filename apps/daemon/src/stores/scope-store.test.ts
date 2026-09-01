@@ -114,7 +114,7 @@ describe('layers', () => {
   })
 
   /**
-   * ADR 0006: focus and story order are personal. A tracked overlay is a file a
+   * focus and story order are personal. A tracked overlay is a file a
    * teammate can commit, so a `layers` key in one must not reach the reader —
    * while the hides that overlay legitimately carries still must.
    */

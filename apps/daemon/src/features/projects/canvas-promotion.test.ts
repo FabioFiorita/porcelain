@@ -472,7 +472,7 @@ describe('a promoted bundle stays confined to its own directory', () => {
   })
 
   it('never inlines a tracked Canvas author script, unlike a private one', async () => {
-    // ADR 0002: a promoted Canvas is third-party code once a clone can deliver
+    // a promoted Canvas is third-party code once a clone can deliver
     // it. Its `<script src>` is left as a reference the served CSP then refuses,
     // rather than embedded into the document Porcelain hands the iframe.
     const record = { ...PRIVATE_CANVAS, worktreeId: null }

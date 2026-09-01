@@ -30,7 +30,7 @@ beforeEach(() => {
 })
 
 describe('useFilesActions', () => {
-  it('on success invalidates FIL-004 effects and never setQueryData for file bodies', async () => {
+  it('on success invalidates shared Files effects and never setQueryData for file bodies', async () => {
     const { mock, wrapper } = createValidatingTrpcHarness({
       ...baseHandlers,
       createFile: () => ({ ok: true, value: undefined }),

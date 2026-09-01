@@ -149,40 +149,21 @@ console.log(
 function readme(version) {
   return `# @fabiofiorita/porcelain (${version})
 
-Headless **Porcelain** backend — the Electron-free daemon + renderer, packaged for
-plain Node on any machine (Linux mini-PC, cloud VM, laptop). Same credential-gated
-HTTP/WS surface the Mac app and browser clients already talk to.
+The Electron-free Porcelain daemon and browser client, packaged for plain Node. Run it on the
+machine that owns the repositories and terminals you want to review.
 
-## Quick start (recommended)
+## Start and pair
 
-On the remote host (Node ≥ 22, git, and a C toolchain for \`node-pty\`):
-
-\`\`\`sh
-npx @fabiofiorita/porcelain@latest serve --lan --cloudflare
-\`\`\`
-
-That:
-
-1. Fetches the **latest** published package (use \`@latest\` so you don't stick on a
-   stale npx cache of an older version).
-2. Compiles \`node-pty\` for this host on first install.
-3. Starts the daemon on port **43117**, with LAN access and opt-in
-   public HTTPS through a Cloudflare tunnel.
-4. Keeps host administration local; it never prints the administrator credential.
-
-Leave the process in the foreground while you work (Termius / tmux / SSH session).
-Ctrl+C stops it — **no systemd required**. Start it when you sit down; stop it
-when you're done.
-
-### Pair a device
+The host needs Node 22+, Git, and a C toolchain for the first \`node-pty\` build:
 
 \`\`\`sh
-npx @fabiofiorita/porcelain@latest access issue --name "My phone"
+npx @fabiofiorita/porcelain@latest serve
+npx @fabiofiorita/porcelain@latest access issue --name "My device"
 \`\`\`
 
-Open the printed connection link in a browser, or paste it into the Mac app's
-**Settings → Remotes**. The link expires in 15 minutes, works once, and becomes
-an individually revocable device credential. Manage access only on the host:
+Porcelain always binds loopback and never \`0.0.0.0\`. Add \`--lan\`, \`--tailnet\`, or
+\`--cloudflare\` only for the route you intend to expose. Every client uses its own one-time pairing
+link; the host administrator token is never shared. Manage paired devices on the host:
 
 \`\`\`sh
 npx @fabiofiorita/porcelain@latest access list
@@ -190,80 +171,27 @@ npx @fabiofiorita/porcelain@latest access revoke <id>
 npx @fabiofiorita/porcelain@latest share status
 \`\`\`
 
-## Host launcher
+For exposure flags, browser origins, systemd, updates, and troubleshooting, use the current
+[remote-access guide](https://github.com/FabioFiorita/porcelain/blob/main/docs/remote-access.md) and
+\`porcelain --help\` rather than copying a service file from an older package version.
 
-\`\`\`text
-porcelain serve [options]
-porcelain access issue --name <device> [--base-url <url>]
-porcelain access list | revoke <id>
-porcelain share status
+## Agent connection
 
-  --port <n>           Port (default 43117)
-  --user-data <path>   Config dir (default ~/.local/share/porcelain)
-  --tailnet            Bind Tailscale interface too
-  --lan                Bind RFC1918 LAN addresses too
-  --cloudflare         Publish loopback over Cloudflare (named or quick)
-  --allowed-origin <origin>
-                       Trust a browser Hub origin (repeat for more than one)
-  --no-watchdog        For systemd / supervisors (stdin is /dev/null)
-\`\`\`
-
-Porcelain always binds loopback, never \`0.0.0.0\`. Private listeners are explicit.
-Cloudflare is public HTTPS but still credential-gated. Tailscale and Cloudflare are
-exclusive; LAN can combine with either.
-
-## Always-on (optional)
-
-If you *do* want a supervised process, use \`--no-watchdog\` and a unit like:
-
-\`\`\`ini
-[Service]
-Environment=PORCELAIN_USER_DATA=%h/.local/share/porcelain
-Environment=PORCELAIN_DAEMON_PORT=43117
-Environment=PORCELAIN_ALLOWED_ORIGIN=http://hub-host:43118
-Environment=PORCELAIN_TAILNET_BIND=1
-Environment=PORCELAIN_NO_STDIN_WATCHDOG=1
-ExecStart=/usr/bin/npx --yes @fabiofiorita/porcelain@latest serve --no-watchdog --tailnet
-Restart=on-failure
-\`\`\`
-
-Prefer a real \`node\` binary over Volta/fnm/nvm shims in \`ExecStart\` when pinning
-a global install instead of npx.
-
-For a browser Hub served from another origin, set \`PORCELAIN_ALLOWED_ORIGIN\` to that Hub's
-bare \`http(s)\` origin (repeat \`--allowed-origin\` for multiple Hubs; comma-separated values
-are accepted). Paths, credentials, wildcards, and \`null\` are rejected. This setting only
-controls CORS response headers; every API and WebSocket request remains token-gated.
-
-## Agent access (MCP)
-
-The daemon serves the Model Context Protocol at \`POST /mcp\` for direct loopback agent
-clients without an admin token. LAN, Tailscale, Cloudflare, and proxied requests receive
-404. Install the plugin through your client's native plugin manager. For an Agent Plugin client,
-add the repository \`FabioFiorita/porcelain\`; for Claude Code, use:
+Install the Porcelain plugin through the agent's plugin manager. Its bundled stdio connector
+forwards MCP to the matching daemon's profile-scoped local OS socket; it is not exposed through the
+daemon's LAN, Tailscale, Cloudflare, or renderer HTTP routes. Claude Code can install it with:
 
 \`\`\`text
 /plugin marketplace add FabioFiorita/porcelain
 /plugin install porcelain@porcelain
 \`\`\`
 
-Installing the plugin is the opt-in. The endpoint is always served, so upgrading the
-daemon ships new tools with no per-agent configuration to rewrite.
-
-## Requirements
-
-- **Node ≥ 22**
-- **git** on PATH
-- A **C toolchain** (make, g++, python3) — first install compiles \`node-pty\`
-
-## Develop / ship from the monorepo
+## Repository packaging
 
 \`\`\`sh
 pnpm build && pnpm daemon:dist
-cd dist-daemon && npm publish --access public
 \`\`\`
 
-Assembled by \`pnpm daemon:dist\` from a completed \`pnpm build\`. Do not edit
-\`dist-daemon/\` by hand — regenerate.
+\`dist-daemon/\` is generated from the completed product build; do not edit it by hand.
 `
 }

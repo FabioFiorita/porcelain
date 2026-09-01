@@ -7,7 +7,7 @@ import type { QueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
 
 /**
- * Web React Query keys for Project Data (PDT-003).
+ * Web React Query keys for Project Data.
  *
  * Cache rows hold dispositions / visibility under their typed identities.
  * Procedure-name strings never appear here.

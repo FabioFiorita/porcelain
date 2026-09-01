@@ -1,5 +1,5 @@
 /**
- * Shared Git client semantics (GIT-006).
+ * Shared Git client semantics.
  *
  * Framework-neutral exact identities, freshness families, non-optimistic mutation consequences,
  * and typed Git/Review notification mapping. Web and mobile bind these definitions to their

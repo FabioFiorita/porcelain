@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { definePublicError } from '../errors/define-public-error'
 
 /**
- * Files public-error members. Composed into ERR-001's `publicErrorSchema` union; procedure
+ * Files public-error members. Composed into the shared `publicErrorSchema`; procedure
  * declarations reference the codes only. Native errno mapping lives in the Files adapter.
  */
 

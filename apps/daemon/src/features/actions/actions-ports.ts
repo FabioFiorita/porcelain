@@ -38,7 +38,7 @@ export type ActionsTransactResult =
       error: ActionsUnavailableError | ActionsNotFoundError | ActionsRequestInvalidError
     }
 
-/** Storage for one Project's saved commands, keyed by the stable Project id (ADR 0002). */
+/** Storage for one Project's saved commands, keyed by the stable Project id. */
 export type ActionsStore = {
   read(projectId: string): Promise<ActionsStoreResult<ActionsFileV1>>
   transact(
@@ -51,7 +51,7 @@ export type ActionsStore = {
  * Where a Project's Actions come from.
  *
  * Only `private` exists today: the daemon-root Project store, which is also the only
- * writable source. #26 layers a second, read-only `tracked` source over a promoted
+ * writable source. A second, read-only `tracked` source represents a promoted
  * repo-local `.porcelain/actions.json`. Listing already walks the source list in order
  * and lets the first source that claims an id win, so adding that source is a
  * composition change rather than a reshaping of the read path.
@@ -81,7 +81,7 @@ export type ActionsProjects = {
 export type ActionsClock = { now(): number }
 export type ActionsIds = { create(): string }
 
-/** Domain-facing change fact. The publisher maps `type` onto the RT-001 `kind` wire. */
+/** Domain-facing change fact. The publisher maps `type` onto the session `kind` wire. */
 export type ActionsChanges = {
   publish(change: { type: 'actions.changed'; projectId: string }): void
 }

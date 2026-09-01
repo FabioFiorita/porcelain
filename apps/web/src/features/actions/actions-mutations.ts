@@ -11,9 +11,9 @@ import { invalidateActionsIdentities } from './actions-query-key'
 import { useSelectedProjectId } from './actions-scope'
 
 /**
- * Actions mutation adapter (ACT-003).
+ * Actions mutation adapter.
  *
- * Non-optimistic: success-only exact invalidation of list keys via ACT-002
+ * Non-optimistic: success-only exact invalidation of list keys through shared Actions effects
  * `actionsMutations.*.affectedQueries` (list+trust collapse to one list row).
  * Transport goes through the vanilla tRPC client. Failures reject without toast —
  * the edge the human touched owns the message.

@@ -7,7 +7,7 @@ import { type DaemonScope, daemonScopeSchema } from '@renderer/lib/daemon-scope'
 import { z } from 'zod'
 
 /**
- * Web React Query key for Review comments: RVC-002 identity + active daemon scope.
+ * Web React Query key for Review comments: shared Review-comment identity + active daemon scope.
  * The only comments server-state key; procedure-name strings never appear here.
  */
 

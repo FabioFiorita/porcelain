@@ -7,7 +7,7 @@ import { type DaemonScope, daemonScopeSchema } from '@renderer/lib/daemon-scope'
 import { z } from 'zod'
 
 /**
- * Web React Query key for Files: FIL-004 identity + active daemon scope.
+ * Web React Query key for Files: shared Files identity + active daemon scope.
  * Procedure-name strings never appear here.
  */
 
@@ -15,7 +15,7 @@ import { z } from 'zod'
 const filesQueryKeySchema = z.tuple([filesQuerySchema, daemonScopeSchema])
 const filesTreeQueryKeySchema = z.tuple([filesTreeQuerySchema, daemonScopeSchema])
 
-/** React Query key: FIL-004 identity + active daemon scope. Never procedure-name strings. */
+/** React Query key: shared Files identity + active daemon scope. Never procedure-name strings. */
 export function filesQueryKey(
   daemon: DaemonScope,
   query: FilesQuery,

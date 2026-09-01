@@ -228,7 +228,7 @@ export function FileFinder(): React.JSX.Element {
         }
         if (result === 'needs-target') {
           // No Worktree is selected, so there is no checkout to run in. Say so rather
-          // than silently doing nothing or picking one (#24).
+          // than silently doing nothing or picking one.
           throw new Error('Select a Worktree first — a command needs a checkout to run in.')
         }
       },

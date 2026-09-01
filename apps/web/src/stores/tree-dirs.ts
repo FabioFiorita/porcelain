@@ -3,7 +3,7 @@ import { create } from 'zustand'
 /**
  * The set of directories currently expanded in the Files tree (each `DirNode`
  * registers its absolute path while open; the tree root registers the repo root).
- * `useFilesInterestBridge` (FIL-005) registers this set as directory watch interests
+ * `useFilesInterestBridge` registers this set as directory watch interests
  * on the shared session runtime so an external add/remove — the coding agent creating
  * files in the terminal — live-refreshes the tree instead of waiting for the next
  * tab switch. This is the tree twin of the Viewer's open-file interests; like the

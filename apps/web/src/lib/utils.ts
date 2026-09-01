@@ -19,7 +19,7 @@ export function cn(...inputs: ClassValue[]): string {
   return twMerge(clsx(inputs))
 }
 
-// The tailnet browser client (Phase 3 remote envs) is served over plain HTTP on a
+// The tailnet browser client is served over plain HTTP on a
 // non-localhost origin — WireGuard encrypts the wire, so there's no TLS by design.
 // That makes it an INSECURE browser context, where secure-context-only APIs like
 // crypto.randomUUID and navigator.clipboard simply DON'T EXIST. localhost + Electron

@@ -5,8 +5,8 @@ import type { ProjectOverrides } from './projects.contract'
 /**
  * The PRIVATE project document — a superset of the promotable overlay.
  *
- * `layers` and `worktreeProfiles` are the personal half of the worktree profile
- * (ADR 0003, ADR 0006). They live only in the daemon-root Project record, never
+ * `layers` and `worktreeProfiles` are the personal half of the worktree profile. They live only
+ * in the daemon-root Project record, never
  * in the tracked `<repo>/.porcelain/project.json`: a teammate who pulls someone
  * else's layer order inherits a story written for a task they are not doing.
  *
@@ -43,8 +43,8 @@ export const emptyPrivateProjectDocument = (): PrivateProjectDocument => ({
  *
  * Promotion is the obvious caller, but the READ path calls it too: a tracked
  * `project.json` that somebody hand-wrote `layers` into would otherwise smuggle
- * a shared story order back in through the merge, which is precisely what ADR
- * 0006 forbids. Stripping on read makes that impossible rather than discouraged.
+ * a shared story order back in through the merge. Stripping on read makes that impossible rather
+ * than discouraged.
  */
 export function stripPersonalProfileFields(
   document: PrivateProjectDocument | ProjectOverrides,

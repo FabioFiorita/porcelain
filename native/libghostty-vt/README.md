@@ -13,6 +13,6 @@ Rebuild the browser artifacts with:
 pnpm --dir apps/web build:ghostty-wasm
 ```
 
-This pin deliberately makes no claim about native iOS. An eventual iOS
-integration may need a separately reviewed custom-I/O fork and must carry its
-own pinned provenance instead of silently reusing this value.
+Native iOS provenance is owned separately by
+`apps/mobile/modules/porcelain-terminal/Vendor/libghostty/VERSION`; do not reuse this browser and
+Android pin for iOS artifacts.

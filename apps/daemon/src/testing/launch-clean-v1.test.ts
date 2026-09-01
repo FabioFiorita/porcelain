@@ -50,7 +50,7 @@ function isDirectChild(root: string, child: string): boolean {
   return path !== '' && !isAbsolute(path) && !path.startsWith(`..${sep}`)
 }
 
-describe('LCH-001 clean-v1 launch fixture', () => {
+describe('clean-v1 launch fixture', () => {
   it('seeds isolated home, userData, and project roots with current v1 formats', async () => {
     await withTemporaryDirectory('porcelain-lch-001-', async (root) => {
       const fixture = await createCleanV1Fixture(root)

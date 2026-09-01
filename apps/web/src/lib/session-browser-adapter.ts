@@ -15,7 +15,7 @@ import {
  *
  * The split is the point. Everything the *protocol* does — hello/ready, watches after ready,
  * per-connection sequence recovery, terminal frame delivery, the terminal mismatch state — lives
- * in the shared runtime and is identical on Web and mobile (`RT-003`). What is left here is the
+ * in the shared runtime and is identical on Web and mobile. What is left here is the
  * part a browser owns and mobile cannot share: opening a `WebSocket`, carrying the token the one
  * way a browser can carry it, resolving the daemon origin, and deciding when to try again. This
  * adapter never parses a frame, never invents a state, and never reimplements a recovery rule.

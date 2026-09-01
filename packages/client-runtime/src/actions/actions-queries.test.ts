@@ -77,7 +77,7 @@ describe('actionsQuerySchema / actionTrustQuerySchema / actionsIdentitySchema', 
     expect(
       actionTrustQuerySchema.safeParse({ domain: 'actions', name: 'trust', projectId: '' }).success,
     ).toBe(false)
-    // The path-keyed shape is gone: identities carry a Project id (ADR 0002), not a checkout.
+    // The path-keyed shape is gone: identities carry a Project id, not a checkout.
     expect(
       actionsQuerySchema.safeParse({
         domain: 'actions',

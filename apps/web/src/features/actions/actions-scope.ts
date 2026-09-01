@@ -10,7 +10,7 @@ import { useQuery } from '@tanstack/react-query'
  * Which Project the Hub's top-corner Actions menu is showing, and where its
  * equivalents live.
  *
- * Actions are stored per Project (ADR 0002) but a Project id is Environment-local:
+ * Actions are stored per Project, but a Project id is Environment-local:
  * the same repository open on a Mac and on a Linux box is two Project records that
  * the Hub groups by `groupingKey`. The menu therefore shows the selected Project's
  * commands first and lists the sibling Environments underneath, so it is always

@@ -21,7 +21,7 @@ interface StoredCanvas {
 }
 
 /**
- * Canvas is Project-scoped (ADR 0002), and the daemon only mints a Project id
+ * Canvas is Project-scoped, and the daemon only mints a Project id
  * once a repo is opened — poll the SAME hub-inventory.json the daemon writes
  * (features/projects/hub-inventory-store.ts) rather than guessing an id ahead
  * of the boot that creates it.

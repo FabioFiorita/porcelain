@@ -14,9 +14,9 @@ import { useEffect, useMemo } from 'react'
 import { isReviewCommentsQueryKey, reviewCommentsQueryKey } from './comment-query-key'
 
 /**
- * Review comments notification adapter (RVC-003).
+ * Review comments notification adapter.
  *
- * Accepts only a validated RVC-001 `review.changed` notification and maps RVC-002 effects
+ * Accepts only a validated `review.changed` notification and maps shared Review-comment effects
  * onto the Web QueryClient for the comments identity only. Other Review queries stay on
  * session-runtime until later Review client-runtime units.
  */

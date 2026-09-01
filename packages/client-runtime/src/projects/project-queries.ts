@@ -1,7 +1,7 @@
 import type { BrowseDirsInput, ProjectInfo } from '@porcelain/contracts/projects'
 import { z } from 'zod'
 
-/** Presentation summary returned by the daemon; PRJ-003 owns the final product vocabulary. */
+/** Presentation summary returned by the daemon; the Project domain owns the vocabulary. */
 export type ProjectSummary = ProjectInfo
 
 const recentProjectsQuerySchema = z
@@ -29,7 +29,7 @@ const hubInventoryQuerySchema = z
 
 /**
  * The addressed checkout whose tracked `.porcelain/` overlay is merged over the
- * private records (#26). Part of the cache identity, never a detail: the same
+ * private records. Part of the cache identity, never a detail: the same
  * Canvas id resolves to different bytes in different checkouts, so a shared key
  * would serve one Worktree's promoted copy to another. `null` is the honest
  * "no checkout addressed" identity — only private records.

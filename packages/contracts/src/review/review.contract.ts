@@ -2,11 +2,10 @@ import { z } from 'zod'
 import { diffHunkSchema, fileStatusSchema } from '../git'
 
 /**
- * The canonical Review models (REV-001, activated by REV-009).
+ * The canonical Review models.
  *
  * One wire, one vocabulary: these shapes are what `review.procedures.ts` composes into
- * `procedure-catalog.ts` and what every router, client, and CLI caller binds. The
- * Feature-era models and the HTML Evidence union they carried are gone.
+ * `procedure-catalog.ts` and what every router, client, and CLI caller binds.
  */
 
 const MAX_DOCUMENTS = 12

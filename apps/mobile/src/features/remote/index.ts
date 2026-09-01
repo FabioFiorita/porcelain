@@ -1,5 +1,5 @@
 /**
- * Mobile Remote feature public entry point (REM-005).
+ * Mobile Remote feature public entry point.
  *
  * Settings and other domains import this module only — never a Remote implementation file.
  */

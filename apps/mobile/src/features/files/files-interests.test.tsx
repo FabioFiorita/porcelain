@@ -38,7 +38,7 @@ beforeEach(() => {
 })
 
 describe('Files interest hooks', () => {
-  it('registers a root directory with the RT-005 wrapper and releases before dispose', () => {
+  it('registers a root directory with the session wrapper and releases before dispose', () => {
     const { unmount } = renderHook(() => useFilesDirectoryInterest('', true))
     expect(ctx.registrations).toHaveLength(1)
     expect(ctx.registrations[0]?.interest).toEqual({ dirs: ['/synthetic/repo'], files: [] })

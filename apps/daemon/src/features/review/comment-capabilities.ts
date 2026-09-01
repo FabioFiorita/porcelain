@@ -49,7 +49,7 @@ export type ReviewCommentStore = {
 export type ReviewCommentClock = { now(): number }
 export type ReviewCommentIds = { create(): string }
 
-/** Domain-facing change fact. The publisher maps `type` onto the RT-001 `kind` wire. */
+/** Domain-facing change fact. The publisher maps `type` onto the session `kind` wire. */
 export type ReviewCommentChanges = {
   publish(change: { type: 'review.changed'; projectPath: string }): void
 }

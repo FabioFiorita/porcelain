@@ -106,7 +106,7 @@ describe('handleCanvasRequest', () => {
   })
 
   it('pins script-src to the link bridge alone for a promoted Canvas', async () => {
-    // A tracked Canvas can arrive by clone from another repository (ADR 0002),
+    // A tracked Canvas can arrive by clone from another repository,
     // so the browser — not a server-side sanitizer — refuses its author scripts.
     const routeDeps = deps({
       readCanvas: async () => ({

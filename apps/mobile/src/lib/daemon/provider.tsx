@@ -55,7 +55,7 @@ export function proceduresForChange(change: SessionChange): readonly string[] {
       // diff reading it also moves is a typed Git identity now.
       return []
     case 'actions.changed':
-      // ActionsNotificationBridge owns exact Actions list invalidation (ACT-003).
+      // ActionsNotificationBridge owns exact Actions list invalidation.
       return []
     case 'terminal.worktree-script-started':
     case 'terminal.dev-servers-changed':

@@ -27,7 +27,7 @@ function openFilePaths(panes: readonly Pane[]): string[] {
 }
 
 /**
- * Single Files interest bridge: open Viewer files + expanded tree dirs → RT-003 watches.
+ * Single Files interest bridge: open Viewer files and expanded tree dirs become session watches.
  * Mounted once from AppShell. Session runtime no longer registers watch interests.
  */
 export function useFilesInterestBridge(): void {

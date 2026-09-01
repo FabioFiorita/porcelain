@@ -64,7 +64,7 @@ export interface DaemonSession {
   stop: () => void
   /** Browser adapter connection status for UI chrome. */
   status: () => SessionConnectionStatus
-  /** REM-003 health for this session (never walk-exhausted on the single-URL adapter). */
+  /** Shared remote health for this session; a single-URL adapter is never walk-exhausted. */
   health: () => RemoteSessionHealth
   /** Set when the daemon refused this build's protocol (terminal mismatch). */
   updateRequiredFrame: () => SessionMismatchFrame | undefined
@@ -190,7 +190,7 @@ export function createDaemonSession(
     },
   })
 
-  /** The daemon's HTTP origin. Falls back to the page origin — Phase 3 serves the remote client FROM the daemon, making it same-origin. */
+  /** The daemon's HTTP origin. Falls back to the page origin because the daemon serves its browser client same-origin. */
   function resolvedBaseUrl(): string {
     return baseUrl !== '' ? baseUrl : window.location.origin
   }

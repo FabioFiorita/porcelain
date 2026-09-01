@@ -20,14 +20,14 @@ import { type QueryClient, useMutation, useQueryClient } from '@tanstack/react-q
 import { reviewCommentsKeyForProject, reviewCommentsQueryKey } from './comment-query-key'
 
 /**
- * Review comment mutation adapter (RVC-003).
+ * Review comment mutation adapter.
  *
- * Binds the five RVC-002 mutation definitions to Web tRPC/React Query with the full
+ * Binds the five shared Review-comment mutation definitions to Web tRPC/React Query with the full
  * cancel → snapshot → (load-gated) pure transition → mutate → rollback/reconcile → exact
  * invalidation lifecycle. Temporary ids and timestamps are supplied here only.
  *
  * Optimism is gated: if the comments list has never loaded, do not seed the cache from a
- * single write (legacy behavior). Transport calls go through the vanilla tRPC client.
+ * single write. Transport calls go through the vanilla tRPC client.
  */
 
 export type NewComment = {

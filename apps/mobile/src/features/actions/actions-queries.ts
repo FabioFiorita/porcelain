@@ -11,9 +11,9 @@ import { useActionsTarget } from './actions-target'
 import { callActionsProcedure } from './use-actions-transport'
 
 /**
- * Mobile Actions list read (ACT-003).
+ * Mobile Actions list read.
  *
- * Binds ACT-002 list identity + environment id. Filters `where === 'local'` —
+ * Binds the shared Actions list identity + environment id. Filters `where === 'local'` —
  * a phone has no local daemon.
  */
 

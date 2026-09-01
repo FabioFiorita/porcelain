@@ -16,7 +16,7 @@ const CANVAS_DOCUMENT_CSP =
   "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; media-src 'self'; connect-src 'none'; form-action 'none'"
 
 /**
- * A PROMOTED Canvas is stricter still. ADR 0002 makes this an explicit decision
+ * A promoted Canvas is stricter still: promotion makes an explicit decision
  * rather than an inherited one: an unpromoted Canvas was written on this machine
  * by an agent the user already trusts with a shell, while a promoted one is a
  * tracked file `git clone` can deliver from someone else's repository. So the
@@ -168,7 +168,7 @@ export async function handleCanvasRequest(
   }
   // The grant carries the checkout the Viewer addressed, so a promoted Canvas
   // is served from the tracked bundle the human is actually looking at rather
-  // than from a private record that happens to share its id (#26).
+  // than from a private record that happens to share its id.
   const result = await deps.readCanvas({
     projectId: scope.projectId,
     canvasId: scope.canvasId,

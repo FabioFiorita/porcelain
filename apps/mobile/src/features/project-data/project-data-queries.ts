@@ -12,7 +12,7 @@ import { projectDataQueryKey } from './project-data-query-key'
 import { callProjectDataProcedure } from './use-project-data-transport'
 
 /**
- * Mobile Project Data reads (PDT-003).
+ * Mobile Project Data reads.
  *
  * Binds typed identities + environment id. Transport is namedContractProcedure
  * plus callDaemon — no local defineQuery descriptors.

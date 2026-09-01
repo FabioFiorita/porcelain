@@ -1,14 +1,14 @@
 import { z } from 'zod'
 
 /**
- * Typed Actions list and trust query identities (ACT-002).
+ * Typed Actions list and trust query identities.
  *
  * Machine trust is product-distinct from the saved-action roster, but the only Actions
  * read procedure remains flat `actions`. Both identities exist so notification and mutation
  * consequences can name both slots; adapters may collapse them onto one cache key until a
  * separate trust read exists.
  *
- * The project dimension is the stable Project id the owning daemon minted (ADR 0002), not a
+ * The project dimension is the stable Project id the owning daemon minted, not a
  * checkout path: one Project has many Worktrees and they all share one saved-command roster.
  * An empty id is a programmer error (`ActionsIdentityError`), not a public Actions error code.
  */

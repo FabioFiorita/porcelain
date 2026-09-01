@@ -9,7 +9,7 @@ import { liveEndpoint, probeEnvironment } from './shell-environments'
  * Read one Project's saved commands from an Environment this window is NOT bound to.
  *
  * The renderer can only reach its own daemon, so the Hub's Actions menu would otherwise
- * be blind to the same Project living on a second machine (#24). This is a read: running
+ * be blind to the same Project living on a second machine. This is a read: running
  * still happens on the Environment that owns the checkout, and the token never leaves
  * the main process.
  */

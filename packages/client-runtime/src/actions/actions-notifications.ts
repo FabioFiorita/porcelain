@@ -8,9 +8,9 @@ import {
 } from './actions-queries'
 
 /**
- * Exhaustive Actions notification → query identity mapping (ACT-002).
+ * Exhaustive Actions notification → query identity mapping.
  *
- * Accepts only the RT-001/CON-009 `actions.changed` fact. No default branch, no raw
+ * Accepts only the `actions.changed` fact. No default branch, no raw
  * session-event strings, no entity payload merge. Trust is not a separate wire notification —
  * list refetch re-derives `trusted`.
  */

@@ -8,7 +8,7 @@ import { useActionsTarget } from './actions-target'
 import { callActionsProcedure } from './use-actions-transport'
 
 /**
- * Mobile Actions trust mutation (ACT-003). No CRUD API on mobile (never existed).
+ * Mobile Actions trust mutation. No CRUD API on mobile (never existed).
  * Success-only list-key invalidation — no procedure-name `'actions'` invalidation array.
  */
 

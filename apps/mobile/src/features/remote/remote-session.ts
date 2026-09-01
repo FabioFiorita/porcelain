@@ -78,7 +78,7 @@ function walkStopFrom(cause: unknown, attempts: readonly EndpointAttempt[]): Rem
 
 /**
  * The walk's own call: identical transport to `callDaemon`, minus the error wrap it applies.
- * REM-003 classifies the RAW cause with `parsePublicError`, and a wrapped error would read as
+ * shared remote health model classifies the RAW cause with `parsePublicError`, and a wrapped error would read as
  * `unreachable` for every refusal the daemon took the trouble to explain.
  */
 async function callProbe<TInput, TOutput>(

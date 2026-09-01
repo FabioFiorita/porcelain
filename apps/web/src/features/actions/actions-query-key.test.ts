@@ -58,7 +58,7 @@ describe('isActionsQueryKey', () => {
     expect(isActionsQueryKey([{ domain: 'actions', name: 'list', projectId: '' }, DAEMON])).toBe(
       false,
     )
-    // A path-keyed cache row is not an Actions key any more (ADR 0002 Project ids).
+    // A path-keyed cache row is not an Actions key any more.
     expect(
       isActionsQueryKey([
         { domain: 'actions', name: 'list', projectPath: '/synthetic/repo' },

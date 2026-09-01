@@ -1,9 +1,9 @@
 import type { ReviewComment } from '@porcelain/contracts/review'
 
 /**
- * Pure per-file presentation index for Review comments (RVC-003).
+ * Pure per-file presentation index for Review comments.
  *
- * Behavior-identical to the pre-cutover hook helper: path filter, range expansion into
+ * Filters by path and expands line ranges into
  * every covered line, and file-level routing when `startLine` is absent.
  */
 

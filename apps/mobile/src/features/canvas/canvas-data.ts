@@ -24,7 +24,7 @@ import { canvasDocumentUrl } from './canvas-document'
  * Everything is scoped to the selected Worktree's `HubTarget`, exactly as the web sidebar is:
  * a Canvas is owned by the Project, but the checkout is what merges its tracked `.porcelain/`
  * overlay over the private records, and the same id can name different bytes in two checkouts
- * (#26). So `worktreePath` is part of every call *and* of every cache identity.
+ * So `worktreePath` is part of every call and every cache identity.
  */
 
 /** A stable identity for the disabled render, so the key does not churn while nothing is selected. */

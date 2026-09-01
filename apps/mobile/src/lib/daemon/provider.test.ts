@@ -26,7 +26,7 @@ vi.mock('react-native', () => ({
 
 const { proceduresForChange } = await import('./provider')
 
-describe('proceduresForChange Files cutover (FIL-006)', () => {
+describe('proceduresForChange Files notifications', () => {
   it('leaves Files identities to the typed bridge', () => {
     expect(
       proceduresForChange({ kind: 'files.scope-changed', projectPath: '/synthetic/repo' }),
@@ -40,7 +40,7 @@ describe('proceduresForChange Files cutover (FIL-006)', () => {
     ).toEqual([])
   })
 
-  it('leaves content changes to the Files and Git bridges (GIT-006)', () => {
+  it('leaves content changes to the Files and Git bridges', () => {
     expect(
       proceduresForChange({
         kind: 'files.content-changed',
@@ -51,7 +51,7 @@ describe('proceduresForChange Files cutover (FIL-006)', () => {
   })
 })
 
-describe('proceduresForChange Git cutover (GIT-006)', () => {
+describe('proceduresForChange Git notifications', () => {
   it('handles the working-tree signal as an explicit no-op the Git bridge owns', () => {
     expect(
       proceduresForChange({ kind: 'git.working-tree-changed', projectPath: '/synthetic/repo' }),
@@ -59,7 +59,7 @@ describe('proceduresForChange Git cutover (GIT-006)', () => {
   })
 })
 
-describe('proceduresForChange Actions cutover (ACT-003)', () => {
+describe('proceduresForChange Actions notifications', () => {
   it('leaves actions.changed feature-owned (empty bulk list)', () => {
     expect(proceduresForChange({ kind: 'actions.changed', projectId: 'proj-alpha' })).toEqual([])
   })

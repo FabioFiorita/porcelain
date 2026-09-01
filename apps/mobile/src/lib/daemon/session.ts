@@ -26,7 +26,7 @@ export type { SessionConnectionStatus }
  * adapter, one runtime, and the foreground / credential close policy a phone owes its paired
  * daemon.
  *
- * There is no legacy frame path. Hello/ready, watches, change delivery, and recovery live in
+ * Hello/ready, watches, change delivery, and recovery live in
  * `@porcelain/client-runtime/session/client-runtime`. The native adapter owns the socket. This
  * module owns lifecycle that is not protocol — backgrounding, token revocation (4001), the
  * endpoint walk after a live drop, and the small listener surface terminal + provider use.
@@ -45,7 +45,7 @@ export type SessionChangeObserver = {
 
 export type DaemonSession = {
   readonly status: SessionConnectionStatus
-  /** REM-003 session health for the one native adapter. */
+  /** Shared remote health for the native adapter. */
   health(): RemoteSessionHealth
   /** The shared protocol runtime; feature adapters send only contract-typed frames through it. */
   readonly runtime: SessionClientRuntime
@@ -317,7 +317,7 @@ export function sessionClientRuntime(): SessionClientRuntime {
   return runtime
 }
 
-/** The one REM-003 health machine owned by this process's native adapter. */
+/** The shared remote health machine owned by this process's native adapter. */
 export function sessionHealth(): SessionHealth {
   return health
 }

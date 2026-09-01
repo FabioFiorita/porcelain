@@ -7,7 +7,7 @@ import type { QueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
 
 /**
- * Mobile React Query keys for Terminal roster (TRM-006).
+ * Mobile React Query keys for Terminal roster.
  *
  * Same shape family as Actions: `['daemon', environmentId, identity]`.
  */

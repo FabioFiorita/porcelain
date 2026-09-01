@@ -79,7 +79,7 @@ describe('query-blip hysteresis', () => {
     if (second.kind === 'unreachable') {
       expect(second.reachability.consecutiveFailures).toBe(2)
       expect(second.reachability.source).toBe('query')
-      // Routes come from the shared REM-003 order, not a second walk order.
+      // Routes come from the shared remote health model order, not a second walk order.
       expect(second.reachability.attempted.map((attempt) => attempt.url)).toEqual([LAN, CLOUDFLARE])
     }
   })

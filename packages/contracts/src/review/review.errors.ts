@@ -2,8 +2,8 @@ import { z } from 'zod'
 import { definePublicError } from '../errors/define-public-error'
 
 /**
- * Review public-error members owned by the comments dual-writer cutover (RVC-001).
- * Composed into ERR-001's `publicErrorSchema` union; procedure declarations reference codes only.
+ * Public errors owned by Review-comment operations.
+ * Composed into the shared `publicErrorSchema`; procedure declarations reference codes only.
  */
 
 export const reviewUnavailableErrorSchema = definePublicError({

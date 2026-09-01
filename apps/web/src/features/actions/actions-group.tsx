@@ -76,7 +76,7 @@ function SiblingEnvironment({ scope }: { scope: ActionsScope }): React.JSX.Eleme
  * The Hub's top-corner Actions menu: the selected Project's saved commands, one click
  * from running — in a Worktree the human named. The agent curates these through the
  * MCP tools; the human runs them, and nothing runs without an explicit
- * Environment + Worktree target (#24).
+ * Environment + Worktree target.
  *
  * When the same Project exists on more than one Environment the menu groups by
  * Environment, so "which machine" is never a guess the reader has to make.

@@ -1,11 +1,11 @@
 import type { PrepareActionRunOutput } from '@porcelain/contracts/actions'
 
 /**
- * Turn one daemon-authorized run into Terminal-create fields (ACT-002).
+ * Turn one daemon-authorized run into Terminal-create fields.
  *
  * Authorization is the daemon's: the `prepareActionRun` procedure is what checks that
  * the Action exists in that Project, that the explicit target names a Worktree the
- * daemon itself knows, and that the command text is trusted on that machine (#24). This
+ * daemon itself knows, and that the command text is trusted on that machine. This
  * function never re-decides any of that — it only answers "which cwd does this client
  * spawn in", which is the one thing the daemon cannot know: a `where: 'local'` action
  * runs on THIS device, in the folder the human mapped, not in the daemon's checkout.

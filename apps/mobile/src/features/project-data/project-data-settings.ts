@@ -16,7 +16,7 @@ import { projectDataQueryKey } from './project-data-query-key'
 import { callProjectDataProcedure } from './use-project-data-transport'
 
 /**
- * Settings-facing Project Data hooks (PDT-003).
+ * Settings-facing Project Data hooks.
  *
  * Failure text, 15s flow preview, and grouping-after-write order are preserved
  * from the Settings seam. Layer-editor draft state stays in Settings.

@@ -6,7 +6,7 @@ import { toDaemonError } from './errors'
 /**
  * A procedure the app knows how to call. Compatible with:
  * - hand-authored `defineQuery` / `defineMutation` descriptors (`name` + `output`)
- * - BRD-001 structural contract descriptors composed with their catalog name
+ * - structural procedure descriptors composed with their catalog name
  *   (`kind` + `input` schema + `output` + `errors` + `name`)
  *
  * `TInput` remains a phantom generic for call-site inference when no runtime input
@@ -34,7 +34,7 @@ export type DaemonProcedure<TInput, TOutput> =
   | DaemonMutation<TInput, TOutput>
 
 /**
- * Compose a catalog procedure name with a BRD-001 `ProcedureContract` into the
+ * Compose a catalog procedure name with a `ProcedureContract` into the
  * structural shape the mobile transport accepts. Domain feature adapters own the
  * name + contract pairing; this module never declares domain schemas or names.
  */

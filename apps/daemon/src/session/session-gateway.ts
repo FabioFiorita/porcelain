@@ -44,7 +44,7 @@ export type { TerminalClientFrame, TerminalServerFrame }
  * subprotocol); it is never anything the client says in a frame.
  */
 
-/** Application close codes. Distinct from the legacy 4001 'revoked' so diagnostics stay readable. */
+/** Application close codes. Distinct from the client-revocation code so diagnostics stay readable. */
 export const SESSION_CLOSE_UNAUTHENTICATED = 4401
 export const SESSION_CLOSE_PROTOCOL_MISMATCH = 4402
 
@@ -60,10 +60,7 @@ const openSessionClientFrameSchema = z.discriminatedUnion('t', [
   ...terminalClientFrameSchema.options,
 ])
 
-/**
- * Where accepted terminal frames go. Declared, not wired: `RT-005` implements it over the
- * terminal manager.
- */
+/** Where accepted terminal frames go; the live-session adapter wires this to the terminal manager. */
 export type SessionTerminalBridge = {
   readonly receive: (frame: TerminalClientFrame) => void
   /** The socket closed: detach this session's senders. PTYs are daemon-owned and live on. */

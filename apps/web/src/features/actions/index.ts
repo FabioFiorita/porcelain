@@ -1,5 +1,5 @@
 /**
- * Web Actions feature public entry point (ACT-003).
+ * Web Actions feature public entry point.
  *
  * Other Web regions import this module only — never an Actions implementation file.
  * Action / ActionView / ActionWhere types come from `@porcelain/contracts/actions`.

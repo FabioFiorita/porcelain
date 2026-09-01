@@ -1,7 +1,7 @@
 import type { Layer } from './flow'
 
 /**
- * The starter grouping, used until a profile declares its own (ADR 0003).
+ * The starter grouping, used until a profile declares its own.
  *
  * Deliberately thin: two labels every repository has, whatever it is written in.
  * Porcelain never grows this into a guess about someone's architecture, because

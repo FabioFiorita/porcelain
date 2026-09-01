@@ -60,7 +60,7 @@ async function fsyncPath(targetPath: string): Promise<void> {
 
 /**
  * JSON Actions store: one strict v1 document per Project, at
- * `<homeDir>/projects/<projectId>/actions.json` (ADR 0002). Serialized
+ * `<homeDir>/projects/<projectId>/actions.json`. Serialized
  * read-modify-write, atomic temp+rename, corruption backup, size bound.
  *
  * The document is daemon-owned, not repo-local: it must survive `git worktree remove`

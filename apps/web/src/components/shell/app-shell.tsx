@@ -133,11 +133,11 @@ export function AppShell(): React.JSX.Element {
   // non-Git recovery and Canvas/Files cross-domain concerns.
   useGitNotificationSubscription()
   useReviewCommentNotificationSubscription()
-  // Files notifications + watch interests (FIL-005); session-runtime Files arms are no-ops.
+  // Files notifications + watch interests; session-runtime Files arms are no-ops.
   useFilesNotificationSubscription()
   // Search owns its typed Search identities, Files facts, and recovery invalidation.
   useSearchNotificationSubscription()
-  // Actions owns list invalidation (ACT-003); session-runtime actions.changed is a no-op.
+  // Actions owns list invalidation; session-runtime actions.changed is a no-op.
   useActionsNotificationSubscription()
   useFilesInterestBridge()
   useEnvironmentStatuses()

@@ -122,7 +122,7 @@ const EXTERNAL_LINK_BRIDGE = `<script>${BRIDGE_SOURCE}</script>`
 /**
  * The CSP source expression that lets ONLY the bridge above execute.
  *
- * ADR 0002 requires promotion to decide the script question rather than inherit
+ * Promotion decides whether scripts may run rather than inheriting
  * the unpromoted policy: an unpromoted Canvas is agent-authored on this machine
  * by an agent the user already trusts with a shell, but a promoted one arrives
  * through `git clone` from somebody else's repository. So a tracked Canvas is

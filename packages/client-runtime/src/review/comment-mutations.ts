@@ -9,14 +9,14 @@ import {
 import { type ReviewCommentsQuery, reviewCommentsQuery } from './comment-queries'
 
 /**
- * Review-comment mutation consequence definitions (RVC-002).
+ * Review-comment mutation consequence definitions.
  *
- * Each entry binds exactly one RVC-001 comment procedure, the comments query identity it
+ * Each entry binds exactly one Review-comment procedure, the comments query identity it
  * affects via wire `repoPath`, and the authoritative-refetch requirement. Transport and
  * React stay in adapters.
  */
 
-/** Canonical Review comment procedure objects from RVC-001 (five mutations). */
+/** The five canonical Review-comment procedure objects. */
 type ReviewCommentProcedure =
   | (typeof reviewProcedures)['addReviewComment']
   | (typeof reviewProcedures)['editReviewComment']
@@ -25,9 +25,9 @@ type ReviewCommentProcedure =
   | (typeof reviewProcedures)['clearResolvedReviewComments']
 
 export type ReviewCommentMutationDefinition<TInput> = {
-  /** Canonical RVC-001 procedure contract object (not a free-form invalidation string). */
+  /** Canonical Review-comment procedure contract object (not a free-form invalidation string). */
   readonly procedure: ReviewCommentProcedure
-  /** Catalog key of the bound RVC-001 comment procedure. */
+  /** Catalog key of the bound Review-comment procedure. */
   readonly procedureName:
     | 'addReviewComment'
     | 'editReviewComment'

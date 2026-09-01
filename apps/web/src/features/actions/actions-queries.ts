@@ -8,9 +8,9 @@ import { actionsListKeyForProject } from './actions-query-key'
 import { useSelectedProjectId } from './actions-scope'
 
 /**
- * Actions list read adapter (ACT-003).
+ * Actions list read adapter.
  *
- * Binds ACT-002 list identity + daemon scope to React Query and invokes the
+ * Binds the shared Actions list identity + daemon scope to React Query and invokes the
  * `actions` procedure through the vanilla tRPC client. Procedure-name keys are never used.
  */
 

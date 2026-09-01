@@ -25,7 +25,7 @@ export const storedCanvasSchema = z
   .object({
     id: z.string().min(1),
     // null: not scoped to the Worktree that authored it — Canvases outlive a
-    // deleted checkout (ADR 0002), so a Worktree-scoped one must degrade
+    // deleted checkout, so a Worktree-scoped one must degrade
     // gracefully. Always null once promoted: a Worktree id is Environment-local
     // and would name nothing in the clone the tracked bundle travels to.
     worktreeId: z.string().min(1).nullable(),

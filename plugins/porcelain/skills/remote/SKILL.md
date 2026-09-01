@@ -6,35 +6,27 @@ license: MIT
 
 # Porcelain remote
 
-This skill covers Porcelain's host launcher and service lifecycle. It does not replace the domain
-MCP tools from `$companion`, and it does not make an SSH target implicit.
+Operate the exact Porcelain host and account the human placed in scope. Use current CLI help and the
+public [remote-access guide](https://github.com/FabioFiorita/porcelain/blob/main/docs/remote-access.md)
+as operational authority; do not reconstruct commands from memory. Use `$companion` for Canvases,
+comments, profiles, and Actions.
 
-Use the current CLI help and the public
-[remote-access guide](https://github.com/FabioFiorita/porcelain/blob/main/docs/remote-access.md) as
-the operational authority. Do not reconstruct commands from remembered versions.
+Confirm whether the target is a development daemon, a foreground production process, or an
+always-on service. Start with loopback and add only the requested route: LAN for a trusted local
+network, Tailscale for a private mesh, or Cloudflare for an explicitly public HTTPS endpoint. Pair
+each client with its own short-lived link; never distribute the administrator token.
 
-## Working flow
+For an always-on Linux host, follow the guide's user-level systemd and linger setup. Keep tokens in
+a protected environment file, not command arguments. Verify the daemon locally, inspect
+`share status`, and connect a real intended client. A running process proves neither exposure nor
+authorization. For updates, restart the documented `@latest` service or foreground command, wait
+for readiness, and verify the reported version.
 
-1. Confirm the exact host, user account, installed version, and whether the daemon is development,
-   foreground production, or an always-on service.
-2. Start with loopback. Add only the narrowest exposure the human needs: LAN on the same trusted
-   network, Tailscale for a private mesh, or Cloudflare for an explicitly public HTTPS endpoint.
-3. Pair each client with its own short-lived link. Never distribute the administrator token.
-4. When the daemon must survive logout or reboot, use the documented user-level systemd service and
-   linger setup. Keep credentials in a protected environment file rather than command arguments.
-5. Verify the daemon locally, inspect `share status`, then connect a real intended client. A running
-   process alone does not prove that exposure, pairing, or fallback routing works.
-6. For updates, restart the documented `@latest` service or follow the foreground command shown by
-   Porcelain. Wait for readiness and verify the reported version before declaring success.
+Porcelain's agent connector reaches a profile-scoped local OS socket on the agent's machine. Never
+proxy that channel through LAN, Tailscale, Cloudflare, or renderer HTTP. Do not replace a daemon,
+port, service, or exposure mode until its owner and purpose are known, and stop only the process or
+service in scope. Treat a timeout as a reachability failure; an HTTP 401 proves the route reached the
+daemon but not that credentials are valid.
 
-## Safety boundaries
-
-- Treat the administrator token and every paired-client token like host login credentials. Do not
-  print, log, commit, or place them in plugin configuration.
-- Porcelain's MCP channel is a profile-scoped local socket on the agent's machine. Do not proxy or
-  forward it through LAN, Tailscale, Cloudflare, or HTTP to control another Environment.
-- Never replace a running daemon, port, service unit, or exposure mode until its owner and purpose
-  are identified. Stop only the process or service explicitly in scope.
-- Network reachability and authorization are separate: a timeout is not a credential failure, and a
-  401 proves the network path already reached the daemon.
-- Report which host, route, client, and version were actually observed, plus any untested fallback.
+Report the host, route, client, and version actually observed, plus any untested fallback. Keep
+administrator and paired-client credentials out of logs, screenshots, URLs, prompts, and files.

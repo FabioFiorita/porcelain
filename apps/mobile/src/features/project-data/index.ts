@@ -1,5 +1,5 @@
 /**
- * Mobile Project Data feature public entry point (PDT-003).
+ * Mobile Project Data feature public entry point.
  *
  * Settings, Files companion, and Review publish import this module only —
  * never a Project Data implementation file.

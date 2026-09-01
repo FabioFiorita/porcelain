@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 /**
- * Typed Terminal roster identity (TRM-006).
+ * Typed Terminal roster identity.
  *
  * Daemon-global: the wire list is void and clients filter by project path after
  * the response. No project-path dimension on this identity.

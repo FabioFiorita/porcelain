@@ -27,7 +27,7 @@ export type ActionMoveDirection = z.infer<typeof actionMoveDirectionSchema>
 
 /**
  * The stored action as it lives in the owning daemon's Project store
- * (`$PORCELAIN_HOME/projects/<projectId>/actions.json`, ADR 0002) — never in the
+ * (`$PORCELAIN_HOME/projects/<projectId>/actions.json`) — never in the
  * checkout, so an Action outlives the Worktree an agent created it from.
  */
 export const actionSchema = z
@@ -60,7 +60,7 @@ export type ActionView = z.infer<typeof actionViewSchema>
 /**
  * The explicit Environment + Project + Worktree an Action runs against. Actions are
  * stored per Project but a Project has many checkouts, so nothing may infer which one
- * a command executes in: the caller states it and the daemon verifies it (#24).
+ * a command executes in: the caller states it and the daemon verifies it.
  */
 export const actionRunTargetSchema = z
   .object({

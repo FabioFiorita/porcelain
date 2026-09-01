@@ -23,12 +23,12 @@ import { useEffect, useMemo, useRef, useState } from 'react'
  * runtime. The Files interest bridge scopes the selected Worktree's owning session, which may
  * be a secondary Environment rather than this window's primary daemon.
  *
- * Files notifications and watch interests are owned by the Files feature adapters (FIL-005);
- * Review is feature-owned the same way (RVC-003, REV-007). Files change arms
+ * Files notifications and watch interests are owned by the Files feature adapters;
+ * Review is feature-owned the same way. Files change arms
  * here are no-ops.
  *
  * The contract of this module is that a notification is a *freshness signal*, never data
- * (decision 009). Nothing here writes a payload into the cache; every category maps to
+ * Nothing here writes a payload into the cache; every category maps to
  * `invalidate()` on the authoritative queries, which is also why processing the same
  * notification twice is harmless. Recovery is the same instruction with a wider scope: when the
  * runtime says it can no longer prove freshness, the affected scope is invalidated wholesale
@@ -49,7 +49,7 @@ export type SessionQueryUtils = {
   /** Every daemon-derived query this client holds. Used only for session-wide recovery. */
   readonly invalidate: () => Promise<void>
   readonly projectData: QueryInvalidation
-  /** Files cache — wired to the feature key predicate (FIL-005). */
+  /** Files cache — wired to the feature key predicate. */
   readonly files: QueryInvalidation
   readonly actions: QueryInvalidation
   /** Review comments cache — companion state the live `review.changed` path also owns. */
@@ -71,11 +71,11 @@ export function invalidateForChange(
     case 'files.scope-changed':
     case 'files.tree-changed':
     case 'files.content-changed':
-      // Files owns notification → identity mapping (FIL-005 feature adapter).
+      // Files owns notification → identity mapping.
       // Session runtime must not invalidate Files, Git, or Search here.
       return Promise.resolve()
     case 'git.working-tree-changed':
-      // The Git feature bridge owns it (GIT-006): one subscription maps the change to typed
+      // The Git feature bridge owns it: one subscription maps the change to typed
       // Git identities. Handled here only so the switch stays exhaustive over SessionChange.
       return Promise.resolve()
     case 'review.changed':
@@ -83,7 +83,7 @@ export function invalidateForChange(
       // so the switch stays exhaustive over SessionChange.
       return Promise.resolve()
     case 'actions.changed':
-      // Actions owns its notification → list-identity mapping (ACT-003 feature adapter).
+      // Actions owns its notification → list-identity mapping.
       // Session runtime must not invalidate Actions here; the feature subscription does.
       return Promise.resolve()
     case 'terminal.dev-servers-changed':
@@ -136,7 +136,7 @@ export type SessionRuntimeState = {
  * Defaults to `primary` so the whole window shares one socket with terminal traffic.
  * Tests may inject a purpose-built `DaemonSession` (with a fake opener) instead.
  *
- * Files watch interests are owned by `useFilesInterestBridge` (FIL-005), not here.
+ * Files watch interests are owned by `useFilesInterestBridge`, not here.
  */
 export function useSessionRuntime({
   session = primary,
