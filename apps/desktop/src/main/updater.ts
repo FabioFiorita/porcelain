@@ -2,20 +2,29 @@ import { settleBackground } from '@shared/background'
 import { app } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import { broadcastShellEvent } from './shell-events'
+import { updaterUnavailableReason } from './updater-availability'
 
 export interface UpdateStatus {
-  state: 'idle' | 'checking' | 'available' | 'downloaded' | 'up-to-date' | 'error'
+  state: 'unavailable' | 'idle' | 'checking' | 'available' | 'downloaded' | 'up-to-date' | 'error'
   /** Version of the update this state refers to, when known. */
   version: string | null
   error: string | null
   currentVersion: string
+  /** Why this shell cannot self-update. Null when the updater is available. */
+  unavailableReason: string | null
 }
 
+const unavailableReason = updaterUnavailableReason(
+  app.isPackaged,
+  process.platform,
+  process.env.APPIMAGE,
+)
 let status: UpdateStatus = {
-  state: 'idle',
+  state: unavailableReason === null ? 'idle' : 'unavailable',
   version: null,
   error: null,
   currentVersion: app.getVersion(),
+  unavailableReason,
 }
 
 function setStatus(next: Partial<UpdateStatus>): void {
@@ -31,12 +40,10 @@ const CHECK_INTERVAL = 4 * 60 * 60 * 1000
 
 /** Wire auto-update against GitHub releases. No-op in dev (no app-update.yml). */
 export function initUpdater(): void {
-  if (!app.isPackaged) return
+  if (status.state === 'unavailable') return
   // Linux auto-update only exists for the AppImage target (electron-updater
   // detects it via $APPIMAGE); a deb install has no auto-update path, so bail
   // rather than error on every check.
-  if (process.platform === 'linux' && !process.env.APPIMAGE) return
-
   autoUpdater.autoDownload = true
   autoUpdater.autoInstallOnAppQuit = true
 
@@ -60,7 +67,7 @@ export function initUpdater(): void {
 }
 
 export async function checkForUpdates(): Promise<UpdateStatus> {
-  if (app.isPackaged) {
+  if (status.state !== 'unavailable') {
     await autoUpdater.checkForUpdates().catch((error: unknown) => {
       // The 'error' listener already wrote the reason into `status`, which is what this
       // returns to the caller — but the check must still be awaited before reading it.
@@ -71,5 +78,7 @@ export async function checkForUpdates(): Promise<UpdateStatus> {
 }
 
 export function installUpdate(): void {
+  if (status.state !== 'downloaded')
+    throw new Error('No downloaded Porcelain update is ready to install')
   autoUpdater.quitAndInstall()
 }

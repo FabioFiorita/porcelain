@@ -37,6 +37,7 @@ vi.mock('./local-terminal-paths', () => ({
 
 vi.mock('./codex-plugin', () => ({
   installCodexPlugin: vi.fn(),
+  readCodexPluginStatus: vi.fn(),
 }))
 
 vi.mock('./plugin-assets', () => ({

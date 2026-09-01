@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process'
 import { isAbsolute } from 'node:path'
+import { z } from 'zod'
 
 const MARKETPLACE_SOURCE = 'FabioFiorita/porcelain'
 const MARKETPLACE_NAME = 'fabiofiorita'
@@ -10,6 +11,22 @@ interface CommandResult {
   stdout: string
   stderr: string
 }
+
+const marketplaceListSchema = z.object({
+  marketplaces: z.array(z.object({ name: z.string() }).passthrough()),
+})
+const pluginListSchema = z.object({
+  installed: z.array(
+    z
+      .object({
+        pluginId: z.string(),
+        version: z.string(),
+        installed: z.boolean(),
+        enabled: z.boolean(),
+      })
+      .passthrough(),
+  ),
+})
 
 export type CommandRunner = (
   executable: string,
@@ -84,6 +101,49 @@ export interface CodexPluginInstallResult {
   pluginId: string
 }
 
+export interface CodexPluginStatus {
+  state: 'installed' | 'not-installed' | 'unavailable'
+  version: string | null
+  enabled: boolean | null
+  error: string | null
+}
+
+function parseJson<T>(schema: z.ZodType<T>, stdout: string, label: string): T {
+  let value: unknown
+  try {
+    value = JSON.parse(stdout)
+  } catch {
+    throw new Error(`${label} returned invalid JSON`)
+  }
+  const parsed = schema.safeParse(value)
+  if (!parsed.success) throw new Error(`${label} returned an unsupported response`)
+  return parsed.data
+}
+
+/** Read the installed Porcelain plugin without changing Codex configuration. */
+export async function readCodexPluginStatus(
+  runner: CommandRunner = runCommand,
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<CodexPluginStatus> {
+  try {
+    const codex = await findCodexExecutable(runner, env)
+    const result = await runner(codex, ['plugin', 'list', '--json'], env)
+    const plugin = parseJson(pluginListSchema, result.stdout, 'Codex plugin list').installed.find(
+      (candidate) => candidate.pluginId === PLUGIN_ID && candidate.installed,
+    )
+    return plugin === undefined
+      ? { state: 'not-installed', version: null, enabled: null, error: null }
+      : { state: 'installed', version: plugin.version, enabled: plugin.enabled, error: null }
+  } catch (error) {
+    return {
+      state: 'unavailable',
+      version: null,
+      enabled: null,
+      error: commandError(error, 'Could not inspect Codex plugins').message,
+    }
+  }
+}
+
 /** Install the public Porcelain marketplace and its plugin into this machine's Codex home. */
 export async function installCodexPlugin(
   runner: CommandRunner = runCommand,
@@ -92,7 +152,14 @@ export async function installCodexPlugin(
   const codex = await findCodexExecutable(runner, env)
 
   try {
-    await runner(codex, ['plugin', 'marketplace', 'add', MARKETPLACE_SOURCE, '--json'], env)
+    const marketplaces = parseJson(
+      marketplaceListSchema,
+      (await runner(codex, ['plugin', 'marketplace', 'list', '--json'], env)).stdout,
+      'Codex marketplace list',
+    )
+    if (!marketplaces.marketplaces.some((marketplace) => marketplace.name === MARKETPLACE_NAME)) {
+      await runner(codex, ['plugin', 'marketplace', 'add', MARKETPLACE_SOURCE, '--json'], env)
+    }
     await runner(codex, ['plugin', 'marketplace', 'upgrade', MARKETPLACE_NAME, '--json'], env)
     await runner(codex, ['plugin', 'add', PLUGIN_ID, '--json'], env)
   } catch (error) {

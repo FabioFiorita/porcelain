@@ -19,7 +19,7 @@ export function UpdatesSection(): React.JSX.Element {
   return isBrowser ? <DaemonUpdatesSection /> : <AppUpdatesSection />
 }
 
-function AppUpdatesSection(): React.JSX.Element {
+export function AppUpdatesSection(): React.JSX.Element {
   const status = useUpdateStatus()
   const { check, isChecking } = useCheckForUpdates()
   const { install, isInstalling } = useInstallUpdate()
@@ -40,12 +40,19 @@ function AppUpdatesSection(): React.JSX.Element {
           size="sm"
           className={compactButtonClass}
           onClick={() => check()}
-          disabled={checking}
+          disabled={checking || status?.state === 'unavailable'}
         >
           {checking ? <Loader2 className="animate-spin" /> : <RotateCw />}
           {checking ? 'Checking…' : 'Check for updates'}
         </Button>
       </div>
+
+      {status?.state === 'unavailable' && (
+        <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+          <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
+          {status.unavailableReason}
+        </p>
+      )}
 
       {status?.state === 'up-to-date' && (
         <p className="flex items-center gap-1.5 text-xs text-success">
