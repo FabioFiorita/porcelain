@@ -1,5 +1,6 @@
 {
   "name": "Make Project and Worktree operations truthful",
+  "commitHash": "a0f9b7cc888bf7073248d12b04c70703be121063",
   "layers": [
     {
       "label": "Tracked Canvas storage boundary",
