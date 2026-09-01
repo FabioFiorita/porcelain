@@ -12,7 +12,7 @@ import { z } from 'zod'
  * enforcing it at the HTTP boundary are separate, later units — announcing first is what
  * makes those safe.
  */
-export const PROTOCOL_VERSION = 1
+export const PROTOCOL_VERSION = 2
 
 /**
  * The request header every repository-owned client sends its protocol version on.

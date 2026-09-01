@@ -69,7 +69,7 @@ beforeEach(() => {
 })
 
 describe('mobile Files reads', () => {
-  it('uses typed identities but preserves absolute readDir wire paths', async () => {
+  it('uses the project-relative readDir wire model', async () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     const { result } = renderHook(() => useDirEntries('', true), {
       wrapper: wrapper(queryClient),
@@ -79,7 +79,7 @@ describe('mobile Files reads', () => {
     expect(ctx.callDaemon).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ name: 'readDir' }),
-      { path: '/synthetic/repo', repoPath: '/synthetic/repo', showHidden: false },
+      { path: '.', projectPath: '/synthetic/repo', showHidden: false },
     )
     expect(result.current.entries[0]).toMatchObject({
       absolutePath: '/synthetic/repo/main.ts',

@@ -72,8 +72,8 @@ export type FilesResultMutationDefinition<
   readonly affectedEffectsForResult: (input: TInput, output: TOutput) => readonly FilesQueryEffect[]
 }
 
-function scopeMutationEffects(repoPath: string): readonly FilesQueryEffect[] {
-  const p = filesProjectKey(repoPath)
+function scopeMutationEffects(projectPath: string): readonly FilesQueryEffect[] {
+  const p = filesProjectKey(projectPath)
   return [
     filesExactEffect(filesScopeQuery(p)),
     filesExactEffect(filesProfileQuery(p)),
@@ -107,7 +107,7 @@ export const filesMutations = {
     procedure: filesProcedures.hidePath,
     procedureName: 'hidePath',
     affectedEffects: (input: HidePathInput): readonly FilesQueryEffect[] =>
-      scopeMutationEffects(input.repoPath),
+      scopeMutationEffects(input.projectPath),
     foreignDependencies: (_input: HidePathInput): readonly FilesForeignDependency[] =>
       PATH_INDEX_ONLY,
     requiresAuthoritativeRefetch: true,
@@ -116,7 +116,7 @@ export const filesMutations = {
     procedure: filesProcedures.unhidePath,
     procedureName: 'unhidePath',
     affectedEffects: (input: UnhidePathInput): readonly FilesQueryEffect[] =>
-      scopeMutationEffects(input.repoPath),
+      scopeMutationEffects(input.projectPath),
     foreignDependencies: (_input: UnhidePathInput): readonly FilesForeignDependency[] =>
       PATH_INDEX_ONLY,
     requiresAuthoritativeRefetch: true,
@@ -125,7 +125,7 @@ export const filesMutations = {
     procedure: filesProcedures.pinPath,
     procedureName: 'pinPath',
     affectedEffects: (input: PinPathInput): readonly FilesQueryEffect[] =>
-      scopeMutationEffects(input.repoPath),
+      scopeMutationEffects(input.projectPath),
     foreignDependencies: (_input: PinPathInput): readonly FilesForeignDependency[] => [],
     requiresAuthoritativeRefetch: true,
   },
@@ -133,7 +133,7 @@ export const filesMutations = {
     procedure: filesProcedures.unpinPath,
     procedureName: 'unpinPath',
     affectedEffects: (input: UnpinPathInput): readonly FilesQueryEffect[] =>
-      scopeMutationEffects(input.repoPath),
+      scopeMutationEffects(input.projectPath),
     foreignDependencies: (_input: UnpinPathInput): readonly FilesForeignDependency[] => [],
     requiresAuthoritativeRefetch: true,
   },

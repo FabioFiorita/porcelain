@@ -77,8 +77,8 @@ export const filesProjectRelativePathSchema = z
 
 export const readDirInputSchema = z
   .object({
-    repoPath: z.string(),
-    path: z.string(),
+    projectPath: filesProjectPathSchema,
+    path: z.union([z.literal('.'), filesProjectRelativePathSchema]),
     showHidden: z.boolean(),
   })
   .strict()
@@ -86,34 +86,34 @@ export const readDirOutputSchema = z.array(dirEntrySchema)
 export type ReadDirInput = z.infer<typeof readDirInputSchema>
 export type ReadDirOutput = z.infer<typeof readDirOutputSchema>
 
-const repoPathAndPathSchema = z
+const projectPathAndPathSchema = z
   .object({
-    repoPath: z.string(),
-    path: z.string(),
+    projectPath: filesProjectPathSchema,
+    path: filesProjectRelativePathSchema,
   })
   .strict()
 
-export const hidePathInputSchema = repoPathAndPathSchema
+export const hidePathInputSchema = projectPathAndPathSchema
 export const hidePathOutputSchema = z.void()
 export type HidePathInput = z.infer<typeof hidePathInputSchema>
 export type HidePathOutput = z.infer<typeof hidePathOutputSchema>
 
-export const unhidePathInputSchema = repoPathAndPathSchema
+export const unhidePathInputSchema = projectPathAndPathSchema
 export const unhidePathOutputSchema = z.void()
 export type UnhidePathInput = z.infer<typeof unhidePathInputSchema>
 export type UnhidePathOutput = z.infer<typeof unhidePathOutputSchema>
 
-export const pinPathInputSchema = repoPathAndPathSchema
+export const pinPathInputSchema = projectPathAndPathSchema
 export const pinPathOutputSchema = z.void()
 export type PinPathInput = z.infer<typeof pinPathInputSchema>
 export type PinPathOutput = z.infer<typeof pinPathOutputSchema>
 
-export const unpinPathInputSchema = repoPathAndPathSchema
+export const unpinPathInputSchema = projectPathAndPathSchema
 export const unpinPathOutputSchema = z.void()
 export type UnpinPathInput = z.infer<typeof unpinPathInputSchema>
 export type UnpinPathOutput = z.infer<typeof unpinPathOutputSchema>
 
-export const pinnedEntriesInputSchema = z.string()
+export const pinnedEntriesInputSchema = filesProjectPathSchema
 export const pinnedEntriesOutputSchema = z.array(dirEntrySchema)
 export type PinnedEntriesInput = z.infer<typeof pinnedEntriesInputSchema>
 export type PinnedEntriesOutput = z.infer<typeof pinnedEntriesOutputSchema>
@@ -210,7 +210,7 @@ export const trashPathOutputSchema = z.void()
 export type TrashPathInput = z.infer<typeof trashPathInputSchema>
 export type TrashPathOutput = z.infer<typeof trashPathOutputSchema>
 
-export const repoScopeInputSchema = z.string()
+export const repoScopeInputSchema = filesProjectPathSchema
 export const repoScopeOutputSchema = repoScopeSchema
 export type RepoScopeInput = z.infer<typeof repoScopeInputSchema>
 export type RepoScopeOutput = z.infer<typeof repoScopeOutputSchema>
@@ -234,7 +234,7 @@ export const worktreeProfileViewSchema = z
   .strict()
 export type WorktreeProfileView = z.infer<typeof worktreeProfileViewSchema>
 
-export const worktreeProfileInputSchema = z.string()
+export const worktreeProfileInputSchema = filesProjectPathSchema
 export type WorktreeProfileInput = z.infer<typeof worktreeProfileInputSchema>
 
 /** Representative contract-valid FileView values used by boundary tests and client mocks. */
@@ -249,7 +249,7 @@ export const fileViewFixtures = {
 /** Representative contract-valid Files values used by boundary tests and client mocks. */
 export const filesContractFixtures = {
   readDir: {
-    input: { repoPath: '/synthetic/repo', path: '/synthetic/repo/src', showHidden: false },
+    input: { projectPath: '/synthetic/repo', path: 'src', showHidden: false },
     output: [
       {
         name: 'components',
@@ -268,19 +268,19 @@ export const filesContractFixtures = {
     ],
   },
   hidePath: {
-    input: { repoPath: '/synthetic/repo', path: 'src/generated' },
+    input: { projectPath: '/synthetic/repo', path: 'src/generated' },
     output: undefined,
   },
   unhidePath: {
-    input: { repoPath: '/synthetic/repo', path: '/synthetic/repo/src/generated' },
+    input: { projectPath: '/synthetic/repo', path: 'src/generated' },
     output: undefined,
   },
   pinPath: {
-    input: { repoPath: '/synthetic/repo', path: 'README.md' },
+    input: { projectPath: '/synthetic/repo', path: 'README.md' },
     output: undefined,
   },
   unpinPath: {
-    input: { repoPath: '/synthetic/repo', path: '/synthetic/repo/README.md' },
+    input: { projectPath: '/synthetic/repo', path: 'README.md' },
     output: undefined,
   },
   pinnedEntries: {

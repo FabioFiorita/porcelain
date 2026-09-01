@@ -82,7 +82,7 @@ describe('Remote procedure contracts', () => {
     expect(output.protocolVersion).toBe(PROTOCOL_VERSION)
     expect(remoteProcedures.daemonInfo.output.parse(output)).toEqual(output)
 
-    for (const malformed of [0, 2, '1', null, undefined]) {
+    for (const malformed of [0, PROTOCOL_VERSION + 1, String(PROTOCOL_VERSION), null, undefined]) {
       expect(
         remoteProcedures.daemonInfo.output.safeParse({ ...output, protocolVersion: malformed })
           .success,

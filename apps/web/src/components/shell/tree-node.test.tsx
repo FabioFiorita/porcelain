@@ -39,7 +39,7 @@ describe('TreeNode', () => {
   beforeEach(() => {
     useTabsStore.setState({ panes: [{ tabs: [], activeTabId: null }], activePaneIndex: 0 })
     useSelectionStore.setState({ selected: new Set<string>() })
-    vi.mocked(useFilesTree).mockReturnValue([])
+    vi.mocked(useFilesTree).mockReturnValue({ entries: [], error: null, isLoading: false })
   })
 
   it('marks the row whose file the viewer is showing', () => {

@@ -11,12 +11,12 @@ import {
   filesProcedures,
   isFilesProjectRelativePath,
 } from '@porcelain/contracts/files'
-import { keepPreviousData, type UseQueryResult, useQuery } from '@tanstack/react-query'
+import { type UseQueryResult, useQuery } from '@tanstack/react-query'
 import { useHubRepoPath } from '@/features/projects'
 import { isPaired, useActiveEnvironment } from '@/features/remote'
 import { namedContractProcedure } from '@/lib/daemon/procedure'
 
-import { absolutePath, relativePath } from './file-paths'
+import { relativePath } from './file-paths'
 import { useFilesDirectoryInterest, useFilesViewerInterest } from './files-interests'
 import { filesQueryKey } from './files-query-key'
 import { useFilesStore } from './files-store'
@@ -106,13 +106,11 @@ export function useDirEntries(
   useFilesDirectoryInterest(relative, enabled)
   const query = useQuery({
     enabled,
-    placeholderData: keepPreviousData,
     queryFn: async (): Promise<DirEntry[]> => {
       if (!enabled || projectPath === null || !isPaired(environment)) return disabledQuery('tree')
-      const path = treePath === '.' ? projectPath : absolutePath(projectPath, treePath)
       return callFilesQuery(environment, readDirProcedure, {
-        path,
-        repoPath: projectPath,
+        path: treePath,
+        projectPath,
         showHidden,
       })
     },

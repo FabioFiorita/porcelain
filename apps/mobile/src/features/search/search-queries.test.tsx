@@ -1,4 +1,5 @@
 import { searchContractFixtures } from '@porcelain/contracts/search'
+import type { SearchResult } from '@porcelain/contracts/search'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
@@ -63,6 +64,28 @@ describe('mobile Search query adapters', () => {
       expect.objectContaining({ name: 'searchFiles' }),
       { query: 'src', repoPath: '/synthetic/repo' },
     )
+  })
+
+  it('drops results from the previous identity while the next file search is pending', async () => {
+    let settleNext: ((value: SearchResult[]) => void) | undefined
+    ctx.callDaemon
+      .mockResolvedValueOnce(searchContractFixtures.searchFiles.output)
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            settleNext = resolve
+          }),
+      )
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const { result, rerender } = renderHook(
+      ({ query }: { query: string }) => useFileSearch(query, true),
+      { initialProps: { query: 'src' }, wrapper: wrapper(queryClient) },
+    )
+    await waitFor(() => expect(result.current.results).toHaveLength(2))
+
+    rerender({ query: 'other' })
+    expect(result.current.results).toEqual([])
+    settleNext?.([])
   })
 
   it('gates empty text input and passes code options distinctly', async () => {

@@ -5,7 +5,7 @@ import { useEffect } from 'react'
 import { TreeNode } from './tree-node'
 
 export function FileTree({ rootPath }: { rootPath: string }): React.JSX.Element {
-  const entries = useFilesTree(rootPath)
+  const { entries, error, isLoading } = useFilesTree(rootPath)
   // Watch the project root the same way each expanded `DirNode` watches itself, so an
   // add/remove at the top level (not inside an expanded subfolder) refreshes too.
   const addWatchedDir = useTreeDirsStore((s) => s.add)
@@ -15,8 +15,16 @@ export function FileTree({ rootPath }: { rootPath: string }): React.JSX.Element 
     return () => removeWatchedDir(rootPath)
   }, [rootPath, addWatchedDir, removeWatchedDir])
 
-  if (entries === undefined) {
+  if (isLoading) {
     return <p className="p-3 text-sm text-muted-foreground">Loading…</p>
+  }
+
+  if (error !== null) {
+    return <p className="p-3 text-sm text-destructive">Could not read files: {error.message}</p>
+  }
+
+  if (entries === undefined || entries.length === 0) {
+    return <p className="p-3 text-sm text-muted-foreground">This folder is empty.</p>
   }
 
   return (

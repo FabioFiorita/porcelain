@@ -27,7 +27,7 @@ import { useHubRepoPath } from '@/features/projects'
 import { isPaired, useActiveEnvironment } from '@/features/remote'
 import { namedContractProcedure } from '@/lib/daemon/procedure'
 
-import { absolutePath, parentPath } from './file-paths'
+import { parentPath } from './file-paths'
 import { applyFilesForeignDependencies } from './files-foreign'
 import { invalidateFilesEffects } from './files-query-filter'
 import { callFilesMutation } from './use-files-mutations'
@@ -233,7 +233,7 @@ export function useFileWrites(): FileWrites {
   }
 }
 
-type ScopeMutationInput = { repoPath: string; path: string }
+type ScopeMutationInput = { projectPath: string; path: string }
 type ScopeDefinition = {
   affectedEffects: (input: ScopeMutationInput) => readonly FilesQueryEffect[]
   foreignDependencies: (input: ScopeMutationInput) => readonly FilesForeignDependency[]
@@ -249,7 +249,7 @@ async function runScopeMutation(
 ): Promise<void> {
   if (!isPaired(environment) || repoPath === null || !isFilesProjectRelativePath(relative)) return
   const projectPath = filesProjectKey(repoPath)
-  const input = { path: absolutePath(projectPath, relative), repoPath: projectPath }
+  const input = { path: relative, projectPath }
   await runMutation(
     mutation,
     input,

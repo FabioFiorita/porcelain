@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import type { SearchResult } from '@porcelain/contracts/search'
 import { renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -52,6 +53,28 @@ describe('Web Search query adapters', () => {
       query: 'src',
       repoPath: '/synthetic/repo',
     })
+  })
+
+  it('drops results from the previous identity while the next file search is pending', async () => {
+    let settleNext: ((value: SearchResult[]) => void) | undefined
+    ctx.client.searchFiles.query
+      .mockResolvedValueOnce(searchContractFixtures.searchFiles.output)
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            settleNext = resolve
+          }),
+      )
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const { result, rerender } = renderHook(
+      ({ query }: { query: string }) => useFileSearch(query, true),
+      { initialProps: { query: 'src' }, wrapper: wrapper(queryClient) },
+    )
+    await waitFor(() => expect(result.current.results).toHaveLength(2))
+
+    rerender({ query: 'other' })
+    expect(result.current.results).toEqual([])
+    settleNext?.([])
   })
 
   it('keeps empty text input disabled and exposes transport errors', async () => {

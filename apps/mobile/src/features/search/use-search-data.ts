@@ -7,7 +7,7 @@ import {
 } from '@porcelain/client-runtime/search'
 import type { CodeSearchResult, GrepMatch, SearchResult } from '@porcelain/contracts/search'
 import { searchProcedures } from '@porcelain/contracts/search'
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { useHubRepoPath } from '@/features/projects'
 import { type Environment, isPaired, useActiveEnvironment } from '@/features/remote'
 import { getDaemonClient } from '@/lib/daemon/client'
@@ -56,7 +56,6 @@ export function useFileSearch(
     enabled && projectPath !== null ? fileSearchQuery(projectPath, trimmed) : DISABLED_FILES
   const result = useQuery({
     enabled,
-    placeholderData: keepPreviousData,
     queryFn: async (): Promise<SearchResult[]> => {
       if (!enabled || projectPath === null || !isPaired(environment)) return disabledQuery('files')
       return callDaemon(getDaemonClient(environment), searchFilesProcedure, {
@@ -87,7 +86,6 @@ export function useTextSearch(
     enabled && projectPath !== null ? textSearchQuery(projectPath, trimmed) : DISABLED_TEXT
   const result = useQuery({
     enabled,
-    placeholderData: keepPreviousData,
     queryFn: async (): Promise<GrepMatch[]> => {
       if (!enabled || projectPath === null || !isPaired(environment)) return disabledQuery('text')
       return callDaemon(getDaemonClient(environment), searchTextProcedure, {
@@ -120,7 +118,6 @@ export function useCodeSearch(
       : DISABLED_CODE
   const result = useQuery({
     enabled,
-    placeholderData: keepPreviousData,
     queryFn: async (): Promise<CodeSearchResult> => {
       if (!enabled || projectPath === null || !isPaired(environment)) return disabledQuery('code')
       return callDaemon(getDaemonClient(environment), searchCodeProcedure, {

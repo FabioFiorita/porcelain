@@ -37,7 +37,12 @@ import {
 } from './files.contract'
 
 const filesProcedureDefinitions = {
-  readDir: { kind: 'query', input: readDirInputSchema, output: readDirOutputSchema, errors: [] },
+  readDir: {
+    kind: 'query',
+    input: readDirInputSchema,
+    output: readDirOutputSchema,
+    errors: ['files.path-outside-project', 'files.not-found'],
+  },
   hidePath: {
     kind: 'mutation',
     input: hidePathInputSchema,

@@ -8,6 +8,7 @@ import {
   stat as defaultStat,
   writeFile as defaultWriteFile,
 } from 'node:fs/promises'
+import type { Dirent } from 'node:fs'
 import { basename, dirname, join, relative } from 'node:path'
 import { inlineLocalAssets } from '../../fs/evidence-assets'
 import { imageMimeForPath, isBinaryBuffer } from '../../fs/image-mime'
@@ -73,30 +74,57 @@ export function createNodeWorkspaceFiles(
 
   return {
     async readDir(input) {
-      const entries = await readdir(input.path, { withFileTypes: true })
-      return entries
-        .filter((entry) => entry.name !== '.DS_Store')
-        .map((entry) => {
-          const path = join(input.path, entry.name)
-          return {
-            name: entry.name,
-            path,
-            kind: entry.isDirectory() ? ('dir' as const) : ('file' as const),
-            hidden: input.hiddenPaths.has(path),
-            pinned: input.pinnedPaths.has(path),
-          }
-        })
-        .filter((entry) => input.showHidden || !entry.hidden)
-        .sort((a, b) =>
-          a.kind === b.kind ? a.name.localeCompare(b.name) : a.kind === 'dir' ? -1 : 1,
-        )
+      const projectRootReal = await requireRoot(input.projectPath)
+      const directory =
+        input.path === '.'
+          ? { ok: true as const, value: { lexicalAbsolute: projectRootReal } }
+          : await resolveExisting(projectRootReal, input.path)
+      if (!directory.ok) return { ok: false, error: directory.error }
+      // Preserve the caller's project namespace in output paths. A registered checkout may
+      // itself be reached through a symlink; returning projectRootReal would make clients treat
+      // every row as belonging to a different checkout even though containment was proved.
+      const wireDirectory =
+        input.path === '.' ? input.projectPath : join(input.projectPath, input.path)
+
+      let entries: Dirent<string>[]
+      try {
+        entries = await readdir(wireDirectory, { withFileTypes: true })
+      } catch (err) {
+        if (errnoCode(err) === 'ENOENT' || errnoCode(err) === 'ENOTDIR') {
+          return { ok: false, error: { code: 'not-found', path: input.path } }
+        }
+        throw err
+      }
+      return {
+        ok: true,
+        value: entries
+          .filter((entry) => entry.name !== '.DS_Store')
+          .map((entry) => {
+            const path = join(wireDirectory, entry.name)
+            return {
+              name: entry.name,
+              path,
+              kind: entry.isDirectory() ? ('dir' as const) : ('file' as const),
+              hidden: input.hiddenPaths.has(path),
+              pinned: input.pinnedPaths.has(path),
+            }
+          })
+          .filter((entry) => input.showHidden || !entry.hidden)
+          .sort((a, b) =>
+            a.kind === b.kind ? a.name.localeCompare(b.name) : a.kind === 'dir' ? -1 : 1,
+          ),
+      }
     },
 
     async pinnedEntries(input) {
+      const projectRootReal = await requireRoot(input.projectPath)
       const entries = await Promise.all(
         input.pinnedPaths.map(async (path) => {
+          const pinnedRelative = relative(input.projectPath, path)
+          const resolved = await resolveExisting(projectRootReal, pinnedRelative)
+          if (!resolved.ok) return null
           try {
-            const info = await stat(path)
+            const info = await stat(resolved.value.resolvedAbsolute)
             return {
               name: basename(path),
               path,
@@ -190,10 +218,11 @@ export function createNodeWorkspaceFiles(
 
     async writeTextFile(input) {
       const projectRootReal = await requireRoot(input.projectPath)
-      const dest = await resolveMissingCapable(projectRootReal, input.path)
+      const dest = await resolveExisting(projectRootReal, input.path)
       if (!dest.ok) return { ok: false, error: dest.error }
 
-      // Always write lexicalAbsolute after containment proof; ioAbsolute is authorization evidence only.
+      // Saving edits an existing document. Creation belongs to createFile; refusing a missing
+      // leaf prevents a delayed editor flush from resurrecting a renamed or trashed file.
       try {
         await writeFile(dest.value.lexicalAbsolute, input.content, 'utf8')
         return { ok: true, value: undefined }

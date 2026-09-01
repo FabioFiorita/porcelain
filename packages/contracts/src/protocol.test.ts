@@ -7,13 +7,13 @@ import { PROTOCOL_VERSION, PROTOCOL_VERSION_HEADER, protocolVersionSchema } from
  * value and prove the schema accepts nothing else.
  */
 describe('protocol version', () => {
-  it('is the literal version 1', () => {
-    expect(PROTOCOL_VERSION).toBe(1)
+  it('is the literal version 2', () => {
+    expect(PROTOCOL_VERSION).toBe(2)
   })
 
   it('accepts only that literal', () => {
-    expect(protocolVersionSchema.parse(PROTOCOL_VERSION)).toBe(1)
-    for (const malformed of [0, 2, 1.5, '1', true, null, undefined, {}]) {
+    expect(protocolVersionSchema.parse(PROTOCOL_VERSION)).toBe(2)
+    for (const malformed of [0, 1, 1.5, '2', true, null, undefined, {}]) {
       expect(protocolVersionSchema.safeParse(malformed).success, `${String(malformed)}`).toBe(false)
     }
   })

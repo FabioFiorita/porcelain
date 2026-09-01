@@ -283,7 +283,9 @@ export function useFilesScopeActions(): {
   ): Promise<void> => {
     if (repoPath === null || owner === null) return
     for (const absolutePath of absolutePaths) {
-      const input = { repoPath, path: absolutePath }
+      const path = projectRelativeFromAbsolute(repoPath, absolutePath)
+      if (path === null) continue
+      const input = { projectPath: filesProjectKey(repoPath), path }
       switch (kind) {
         case 'hide':
           await owner.client.hidePath.mutate(input)
