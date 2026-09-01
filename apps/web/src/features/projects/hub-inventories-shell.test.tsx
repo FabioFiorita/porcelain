@@ -118,7 +118,7 @@ describe('useHubInventories on the Electron shell', () => {
   })
 
   it('aliases This device to THIS_DEVICE_CONNECTION_ID when this window is primary-bound to a saved Environment instead', async () => {
-    // "Pair & use here" (or restoring a window last bound remote) makes a saved Environment
+    // A legacy remote-bound window (or restoring one) makes a saved Environment
     // this window's primary, leaving This device as the non-current source — the reverse of
     // every other case in this file. Before the fix, This device's null shell identity was
     // never aliased in this direction, so environmentSessionFor(localRealId) could never

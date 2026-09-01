@@ -176,8 +176,11 @@ function parseWorktreeConfig(value) {
     if (!slug || !/^[a-z0-9][a-z0-9-]{1,47}$/.test(slug)) {
       return { ok: false, error: 'slug must be 2–48 lowercase letters, numbers, or hyphens' }
     }
-    const branch = `${BRANCH_PREFIX}${slug}`
-    if (value.branch !== branch) return { ok: false, error: `branch must be ${branch}` }
+    const expectedBranch = `${BRANCH_PREFIX}${slug}`
+    const branch = value.branch === null ? null : expectedBranch
+    if (value.branch !== null && value.branch !== expectedBranch) {
+      return { ok: false, error: `branch must be null or ${expectedBranch}` }
+    }
     if (!Number.isInteger(value.port) || value.port < PORT_MIN || value.port > PORT_MAX) {
       return { ok: false, error: `port must be an integer in ${PORT_MIN}–${PORT_MAX}` }
     }
@@ -648,7 +651,9 @@ function findManaged(root, slugArg) {
   const match = parseWorktrees(root).find((entry) => readConfig(entry.path)?.slug === slug)
   if (!match) fail(`managed worktree not found: ${slug}`)
   const config = readConfig(match.path)
-  if (match.branch !== config.branch) {
+  // A null branch is an isolated runtime profile, not ownership of Git state. It may remain
+  // detached or later move onto an implementation branch without rewriting the profile.
+  if (config.branch !== null && match.branch !== config.branch) {
     fail(`${match.path} is on ${match.branch ?? 'detached HEAD'}, expected ${config.branch}`)
   }
   return { ...match, config }
@@ -658,11 +663,16 @@ async function remove(slugArg, options = {}) {
   const root = primaryRoot()
   const worktree = findManaged(root, slugArg)
   const { slug, branch, base } = worktree.config
+  const currentRef = worktree.branch ?? worktree.head
   const paths = managedPaths(slug)
 
   if (!options.force) {
     const dirty = statusWithoutMetadata(worktree.path)
-    const merge = mergeStatus(root, branch, base)
+    if (typeof currentRef !== 'string' || currentRef === '') fail(`${worktree.path} has no HEAD`)
+    const merge =
+      branch === null
+        ? { merged: isAncestorOf(root, currentRef, base), kind: 'ancestor', pr: null }
+        : mergeStatus(root, branch, base)
     const guard = planRemoveGuard({
       force: false,
       dirtyLines: dirty,
@@ -675,16 +685,18 @@ async function remove(slugArg, options = {}) {
 
   await stopDaemon(worktree.path, paths.home)
   git(root, ['worktree', 'remove', ...(options.force ? ['--force'] : []), worktree.path])
-  const ancestryMerged = isAncestorOf(root, branch, base)
-  git(root, ['branch', options.force || !ancestryMerged ? '-D' : '-d', branch])
+  if (branch !== null) {
+    const ancestryMerged = isAncestorOf(root, branch, base)
+    git(root, ['branch', options.force || !ancestryMerged ? '-D' : '-d', branch])
+  }
 
   safeManagedTarget(paths.home, join(homedir(), '.porcelain-dev-worktrees'))
   safeManagedTarget(paths.userData, join(homedir(), '.local', 'share', 'porcelain-dev-worktrees'))
   safeManagedTarget(paths.playground, join(homedir(), 'code', 'porcelain-playgrounds'))
   for (const target of Object.values(paths)) rmSync(target, { recursive: true, force: true })
 
-  console.log(`worktree ✓ removed ${branch}
-  checkout, branch, channels, user data, and playground deleted
+  console.log(`worktree ✓ removed ${branch ?? slug}
+  checkout${branch === null ? '' : ', branch'}, channels, user data, and playground deleted
   deletion is permanent; Git history remains in main/the remote merge
 `)
 }
@@ -732,7 +744,10 @@ function openPullRequest(root, branch) {
 function pullRequest(slugArg, options) {
   const root = primaryRoot()
   const worktree = findManaged(root, slugArg)
-  const { branch } = worktree.config
+  const branch = worktree.branch
+  if (branch === null) {
+    fail(`${worktree.path} is detached; create an implementation branch before opening a PR`)
+  }
   if (git(root, ['rev-list', '--count', `main..${branch}`]) === '0') {
     fail(`${branch} has no commits ahead of main; commit the unit before opening a PR`)
   }
@@ -842,7 +857,7 @@ deletes that directory along with the branch and managed runtime state.
 `)
 }
 
-/** Adopt a detached Codex checkout during the Codex environment setup hook. */
+/** Give a Codex checkout an isolated runtime profile without changing its Git state. */
 function bootstrapCodexWorktree(pathArg) {
   const target = realPathOrSelf(resolve(pathArg || process.cwd()))
   const root = primaryRoot(target)
@@ -856,17 +871,40 @@ function bootstrapCodexWorktree(pathArg) {
 
   const profile = loadManagedWorktreeProfile(target)
   if (profile.ok) {
-    if (entry.branch !== profile.config.branch) {
+    if (profile.config.branch !== null && entry.branch !== profile.config.branch) {
       fail(`${target} is on ${entry.branch ?? 'detached HEAD'}, expected ${profile.config.branch}`)
     }
-    console.log(`worktree ✓ Codex checkout already uses ${profile.config.branch}`)
+    console.log(`worktree ✓ Codex checkout already uses isolated profile ${profile.config.slug}`)
     return
   }
 
   if (!isHarnessPath(target) || !target.includes(`${sep}.codex${sep}worktrees${sep}`)) {
     fail(`refusing to auto-adopt a non-Codex harness path: ${target}`)
   }
-  adopt(target, codexSlugForPath(target), { skipInstall: true })
+  const slug = codexSlugForPath(target)
+  const paths = managedPaths(slug)
+  for (const runtime of Object.values(paths)) {
+    if (existsSync(runtime)) fail(`managed runtime path already exists: ${runtime}`)
+  }
+  const port = allocatePort(root)
+  try {
+    writeConfig(target, { version: 1, slug, branch: null, port, base: DEFAULT_BASE })
+    createPlayground(paths.playground, slug)
+  } catch (error) {
+    rmSync(join(target, CONFIG_FILE), { force: true })
+    for (const runtime of Object.values(paths)) {
+      if (existsSync(runtime)) rmSync(runtime, { recursive: true, force: true })
+    }
+    throw error
+  }
+  console.log(`worktree ✓ isolated Codex checkout ${slug}
+
+  checkout    ${target}  (${entry.branch ?? 'detached HEAD'} preserved)
+  port        ${port}
+  channels    ${paths.home}
+  user data   ${paths.userData}
+  playground  ${paths.playground}
+`)
 }
 
 /** Remove only the managed profile belonging to the exact Codex checkout being deleted. */
@@ -891,15 +929,21 @@ function list() {
     .map((entry) => {
       const config = readConfig(entry.path)
       if (!config) return null
-      if (entry.branch !== config.branch) {
+      if (config.branch !== null && entry.branch !== config.branch) {
         fail(`${entry.path} is on ${entry.branch ?? 'detached HEAD'}, expected ${config.branch}`)
       }
+      const currentRef = entry.branch ?? entry.head
       return {
         slug: config.slug,
-        branch: config.branch,
+        branch: entry.branch,
         port: config.port,
         base: config.base,
-        merged: mergeStatus(root, config.branch, config.base).merged,
+        merged:
+          typeof currentRef === 'string' && currentRef !== ''
+            ? config.branch === null
+              ? isAncestorOf(root, currentRef, config.base)
+              : mergeStatus(root, config.branch, config.base).merged
+            : false,
         path: entry.path,
       }
     })
@@ -911,7 +955,9 @@ function list() {
   for (const row of rows) {
     const baseLabel = row.base === DEFAULT_BASE ? '' : ` base=${row.base}`
     console.log(
-      `${row.slug.padEnd(24)} ${String(row.port).padEnd(6)} ${row.merged ? 'merged ' : 'active '}${baseLabel} ${row.path}`,
+      `${row.slug.padEnd(24)} ${String(row.port).padEnd(6)} ${row.merged ? 'merged ' : 'active '} ${
+        row.branch ?? 'detached'
+      }${baseLabel} ${row.path}`,
     )
   }
 
@@ -947,12 +993,19 @@ function pruneHarnessWorktrees(root) {
 async function cleanup() {
   const root = primaryRoot()
   const merged = parseWorktrees(root)
-    .map((entry) => readConfig(entry.path))
-    .filter((config) => config && mergeStatus(root, config.branch, config.base).merged)
+    .map((entry) => ({ entry, config: readConfig(entry.path) }))
+    .filter(({ entry, config }) => {
+      if (!config) return false
+      const currentRef = entry.branch ?? entry.head
+      if (typeof currentRef !== 'string' || currentRef === '') return false
+      return config.branch === null
+        ? isAncestorOf(root, currentRef, config.base)
+        : mergeStatus(root, config.branch, config.base).merged
+    })
   if (merged.length === 0) {
     console.log('worktree ✓ no merged managed worktrees to clean')
   }
-  for (const config of merged) await remove(config.slug)
+  for (const { config } of merged) await remove(config.slug)
   pruneHarnessWorktrees(root)
 }
 
@@ -981,10 +1034,14 @@ create:
   those files.
 
 adopt:
-  Converts a detached harness worktree (Codex, Grok Build, hand-made) into a
+  Converts a detached external harness worktree (Grok Build, hand-made) into a
   managed one: branches work/<slug> at its current HEAD, writes the managed
   config (base=main), allocates a port, and creates the playground. The checkout
   stays where the harness put it; remove <slug> later deletes that directory.
+
+  Codex setup uses a separate hidden bootstrap command: it allocates the same isolated
+  runtime profile while preserving detached HEAD. Creating an implementation branch later
+  does not change that profile.
 
 list:
   Managed worktrees first, then any unmanaged detached checkouts a harness left
@@ -1067,7 +1124,7 @@ async function main() {
 /**
  * Load `.porcelain-worktree.json` without process.exit — for dispatch adoption.
  * @param {string} worktreePath
- * @returns {{ ok: true, config: { version: 1, slug: string, branch: string, port: number, base: string } } | { ok: false, error: string }}
+ * @returns {{ ok: true, config: { version: 1, slug: string, branch: string | null, port: number, base: string } } | { ok: false, error: string }}
  */
 function loadManagedWorktreeProfile(worktreePath) {
   const path = join(worktreePath, CONFIG_FILE)

@@ -9,7 +9,7 @@ import { parsePairingLink, redeemPairingLink } from './remote-pairing'
 
 const GRANT = `pc_pair_3f2a1c88-0f4d-4b6e-9a11-2c7d5e8b0a34_${'a'.repeat(64)}`
 const LAN = 'http://192.168.1.50:43117'
-const FUNNEL = 'https://beelink.example.ts.net'
+const CLOUDFLARE = 'https://beelink.example.ts.net'
 
 describe('parsePairingLink', () => {
   it('reads the origin and the grant out of a desktop pairing link', () => {
@@ -19,9 +19,9 @@ describe('parsePairingLink', () => {
   })
 
   it('keeps the port and scheme the daemon was reached on', () => {
-    const parsed = parsePairingLink(`${FUNNEL}/pair#token=${GRANT}`)
+    const parsed = parsePairingLink(`${CLOUDFLARE}/pair#token=${GRANT}`)
 
-    expect(parsed).toEqual({ ok: true, link: { baseUrl: FUNNEL, credential: GRANT } })
+    expect(parsed).toEqual({ ok: true, link: { baseUrl: CLOUDFLARE, credential: GRANT } })
   })
 
   it('tolerates the whitespace a paste from another device brings with it', () => {

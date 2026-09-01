@@ -75,9 +75,14 @@ export function useFilesInterestBridge(): void {
       return
     }
 
+    const ownerSession = owner?.session ?? primary
+    // Project-scoped session changes are delivered only after this declaration. Scope the
+    // Worktree's actual owner: telling Electron's local-primary session about a remote path both
+    // misses the remote notification and can subscribe the wrong daemon when that path exists
+    // on the same machine.
+    ownerSession.runtime.selectProject(repoPath)
     facadeRef.current = createFilesInterest(repoPath, {
-      registerWatchInterest: (interest) =>
-        (owner?.session ?? primary).runtime.registerWatchInterest(interest),
+      registerWatchInterest: (interest) => ownerSession.runtime.registerWatchInterest(interest),
     })
 
     return () => {

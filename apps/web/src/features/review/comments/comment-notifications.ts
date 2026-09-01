@@ -1,12 +1,16 @@
 import { reviewCommentNotificationEffects } from '@porcelain/client-runtime/review'
 import type { ReviewChanged } from '@porcelain/contracts/review'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
-import { primary } from '@renderer/lib/daemon'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
+import {
+  daemonScopeForEnvironment,
+  liveEnvironmentSessions,
+  useEnvironmentSessionsRevision,
+} from '@renderer/lib/environment-sessions'
 import { settleBackground } from '@shared/background'
 import type { QueryClient } from '@tanstack/react-query'
 import { useQueryClient } from '@tanstack/react-query'
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { isReviewCommentsQueryKey, reviewCommentsQueryKey } from './comment-query-key'
 
 /**
@@ -56,15 +60,26 @@ export function useReviewCommentNotificationSubscription(): void {
   const daemon = useDaemonIdentity()
   const host = daemon.host
   const version = daemon.version
+  const sessionRevision = useEnvironmentSessionsRevision()
+  const sessions = useMemo(() => liveEnvironmentSessions(sessionRevision), [sessionRevision])
 
   useEffect(() => {
-    const daemonScope: DaemonScope = { host, version }
-    return primary.onChange((change) => {
-      if (change.kind !== 'review.changed') return
-      applyReviewCommentNotification(
-        { kind: 'review.changed', projectPath: change.projectPath },
-        { queryClient, daemon: daemonScope },
+    const cleanups = sessions.map((entry) => {
+      const daemonScope: DaemonScope = daemonScopeForEnvironment(
+        entry.connectionId === null ? null : entry.environmentId,
+        { host, version },
       )
+      entry.session.start()
+      return entry.session.onChange((change) => {
+        if (change.kind !== 'review.changed') return
+        applyReviewCommentNotification(
+          { kind: 'review.changed', projectPath: change.projectPath },
+          { queryClient, daemon: daemonScope },
+        )
+      })
     })
-  }, [queryClient, host, version])
+    return () => {
+      for (const cleanup of cleanups) cleanup()
+    }
+  }, [queryClient, host, sessions, version])
 }

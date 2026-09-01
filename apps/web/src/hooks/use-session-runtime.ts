@@ -8,7 +8,6 @@ import { type DaemonSession, primary } from '@renderer/lib/daemon'
 import { isBrowser } from '@renderer/lib/platform'
 import type { SessionConnectionStatus } from '@renderer/lib/session-browser-adapter'
 import { shellTrpcClient, trpc } from '@renderer/lib/trpc'
-import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { unreadTabFor, useUnreadStore } from '@renderer/stores/unread'
 import { settleBackground } from '@shared/background'
 import { useQueryClient } from '@tanstack/react-query'
@@ -20,8 +19,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
  * state a human can act on.
  *
  * Owns no socket. The window's primary `DaemonSession` (or an injected test session) owns the
- * single runtime + adapter; this hook only registers invalidation handlers and project
- * selection on that runtime so terminal traffic and change signals share one connection.
+ * single runtime + adapter; this hook registers invalidation and lifecycle handlers on that
+ * runtime. The Files interest bridge scopes the selected Worktree's owning session, which may
+ * be a secondary Environment rather than this window's primary daemon.
  *
  * Files notifications and watch interests are owned by the Files feature adapters (FIL-005);
  * Review is feature-owned the same way (RVC-003, REV-007). Files change arms
@@ -145,7 +145,6 @@ export function useSessionRuntime({
 } = {}): SessionRuntimeState {
   const trpcUtils = trpc.useUtils()
   const queryClient = useQueryClient()
-  const repoPath = useProjectSelectionStore((s) => s.project?.path)
   const [status, setStatus] = useState<SessionConnectionStatus>(() => session.status())
   const [updateRequired, setUpdateRequired] = useState<SessionMismatchFrame | undefined>(() =>
     session.updateRequiredFrame(),
@@ -205,12 +204,6 @@ export function useSessionRuntime({
       offClose()
     }
   }, [session])
-
-  // Interests are project-scoped by contract, so the project is declared before any registration
-  // can reach the wire. Files interest bridge owns the watches themselves.
-  useEffect(() => {
-    if (repoPath !== undefined) session.runtime.selectProject(repoPath)
-  }, [session, repoPath])
 
   return { status, updateRequired }
 }

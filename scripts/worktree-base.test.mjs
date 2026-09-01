@@ -81,6 +81,18 @@ test('parseWorktreeConfig: explicit base is stored normalized', () => {
   assert.equal(parsed.config.base, 'work/integration')
 })
 
+test('parseWorktreeConfig: a detached runtime profile does not require a branch', () => {
+  const parsed = parseWorktreeConfig({
+    version: 1,
+    slug: 'codex-ab12',
+    branch: null,
+    port: 43211,
+    base: 'main',
+  })
+  assert.equal(parsed.ok, true)
+  assert.equal(parsed.config.branch, null)
+})
+
 test('parseWorktreeConfig: unknown fields do not break version-1 profiles', () => {
   const parsed = parseWorktreeConfig({
     version: 1,
@@ -189,6 +201,7 @@ test('Codex bootstrap and cleanup fall back to the harness checkout working dire
     git(primary, '-c', 'commit.gpgsign=false', 'commit', '-m', 'fixture')
     mkdirSync(dirname(checkout), { recursive: true })
     git(primary, 'worktree', 'add', '--detach', checkout, 'HEAD')
+    const originalHead = git(checkout, 'rev-parse', 'HEAD')
 
     const env = { ...process.env, HOME: home }
     execFileSync(process.execPath, [worktreeScript, 'codex-bootstrap'], {
@@ -201,11 +214,13 @@ test('Codex bootstrap and cleanup fall back to the harness checkout working dire
     assert.deepEqual(config, {
       version: 1,
       slug: 'codex-7f73',
-      branch: 'work/codex-7f73',
+      branch: null,
       port: 43200,
       base: 'main',
     })
-    assert.equal(git(checkout, 'branch', '--show-current'), 'work/codex-7f73')
+    assert.equal(git(checkout, 'branch', '--show-current'), '')
+    assert.equal(git(checkout, 'rev-parse', 'HEAD'), originalHead)
+    assert.equal(git(primary, 'branch', '--list', 'work/codex-7f73'), '')
     assert.equal(existsSync(join(home, 'code', 'porcelain-playgrounds', 'codex-7f73')), true)
 
     execFileSync(process.execPath, [worktreeScript, 'codex-cleanup'], {
@@ -214,7 +229,7 @@ test('Codex bootstrap and cleanup fall back to the harness checkout working dire
       stdio: 'pipe',
     })
     assert.equal(existsSync(checkout), false)
-    assert.equal(git(primary, 'branch', '--list', 'work/codex-7f73'), '')
+    assert.equal(existsSync(join(home, '.porcelain-dev-worktrees', 'codex-7f73')), false)
   } finally {
     rmSync(home, { recursive: true, force: true })
   }

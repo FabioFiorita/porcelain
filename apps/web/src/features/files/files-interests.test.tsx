@@ -13,6 +13,7 @@ const PROJECT = '/synthetic/repo'
 
 const registrations: WatchInterest[] = []
 const release = vi.fn()
+const { selectProject } = vi.hoisted(() => ({ selectProject: vi.fn() }))
 
 vi.mock(import('@renderer/lib/daemon'), async (importOriginal) => {
   const actual = await importOriginal()
@@ -22,6 +23,7 @@ vi.mock(import('@renderer/lib/daemon'), async (importOriginal) => {
       ...actual.primary,
       runtime: {
         ...actual.primary.runtime,
+        selectProject,
         registerWatchInterest: (interest: WatchInterest): WatchInterestRegistration => {
           registrations.push(interest)
           return { release }
@@ -41,6 +43,7 @@ function filePane(...paths: string[]): Pane {
 beforeEach(() => {
   registrations.length = 0
   release.mockClear()
+  selectProject.mockClear()
   useProjectSelectionStore.setState({ project: { path: PROJECT, name: 'repo' } })
   useTabsStore.setState({ panes: [filePane()], activePaneIndex: 0 })
   useTreeDirsStore.setState({ dirs: new Set<string>() })
@@ -53,6 +56,7 @@ describe('useFilesInterestBridge', () => {
 
     renderHook(() => useFilesInterestBridge())
 
+    await waitFor(() => expect(selectProject).toHaveBeenCalledWith(PROJECT))
     await waitFor(() => expect(registrations.length).toBeGreaterThan(0))
     const files = registrations.filter((r) => r.files.length > 0)
     const dirs = registrations.filter((r) => r.dirs.length > 0)

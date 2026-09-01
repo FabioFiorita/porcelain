@@ -11,7 +11,7 @@ import {
 } from './remote-environment'
 
 const LAN = 'http://192.168.1.50:43117'
-const FUNNEL = 'https://beelink.example.ts.net'
+const CLOUDFLARE = 'https://beelink.example.ts.net'
 
 const RECORD = {
   id: '3f2a1c88-0f4d-4b6e-9a11-2c7d5e8b0a34',
@@ -152,6 +152,6 @@ describe('normalizeBaseUrl', () => {
 describe('hostOf', () => {
   it('drops the scheme and the port for a default nickname', () => {
     expect(hostOf(LAN)).toBe('192.168.1.50')
-    expect(hostOf(FUNNEL)).toBe('beelink.example.ts.net')
+    expect(hostOf(CLOUDFLARE)).toBe('beelink.example.ts.net')
   })
 })

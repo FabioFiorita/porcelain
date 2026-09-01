@@ -115,7 +115,7 @@ export function useHubInventoriesState(): HubInventoriesState {
     // Bridge the shell's pairing-minted Environment id to the daemon-announced one: every
     // other resolver in the app (environmentClientFor, environmentSessionFor, HubTarget)
     // keys off the daemon-announced id, not the shell's. This window's own binding can be a
-    // saved Environment rather than This device (Settings' "Pair & use here"), which makes
+    // saved Environment rather than This device (including a legacy remote-bound window), which makes
     // This device the secondary — bridge it to the same THIS_DEVICE_CONNECTION_ID
     // environmentDaemonPairs used for its entry, or every Files/Git/Terminal query keyed off
     // it resolves no owning session and "This device" reads permanently offline.

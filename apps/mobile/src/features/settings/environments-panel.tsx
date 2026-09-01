@@ -94,7 +94,7 @@ function EnvironmentsList({
   return (
     <View className="gap-3" testID="porcelain-settings-environments">
       <Text className="text-sm text-muted-foreground">
-        Pair this device with a daemon. Prefer LAN first; add Tailscale or Funnel as fallbacks.
+        Pair this device with a daemon. Prefer LAN first; add Tailscale or Cloudflare as fallbacks.
         Production port 43117 is never used for product work on this app.
       </Text>
 

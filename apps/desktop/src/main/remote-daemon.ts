@@ -1,4 +1,4 @@
-import { readFile, rename, writeFile } from 'node:fs/promises'
+import { chmod, readFile, rename, unlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { type EndpointKind, endpointKind, orderedEndpointUrls } from '@porcelain/contracts'
 import { app } from 'electron'
@@ -45,10 +45,13 @@ const environmentSchema = z.object({
 })
 export type RemoteEnvironment = z.infer<typeof environmentSchema>
 
-const stateSchema = z.object({
-  activeId: z.string().nullable(),
-  environments: z.array(environmentSchema),
-})
+const stateSchema = z
+  .object({
+    activeId: z.string().nullable(),
+    environments: z.array(environmentSchema),
+  })
+  .strict()
+const persistedStateSchema = stateSchema.extend({ version: z.literal(1) }).strict()
 export type RemoteEnvironmentState = z.infer<typeof stateSchema>
 
 /** The resolved daemon pair a window can be pointed at. */
@@ -57,36 +60,91 @@ export type RemoteDaemon = { url: string; token: string }
 const EMPTY_STATE: RemoteEnvironmentState = { activeId: null, environments: [] }
 
 const filePath = (): string => join(app.getPath('userData'), 'remote-daemon.json')
+const recoveryPath = (): string => `${filePath()}.recovery`
+
+function isNodeError(error: unknown): error is NodeJS.ErrnoException {
+  return typeof error === 'object' && error !== null && 'code' in error
+}
+
+export class RemoteEnvironmentStateError extends Error {
+  readonly recoveryPath: string
+
+  constructor(path: string) {
+    super(
+      `Saved Environments could not be read. A recovery copy is at ${path}. Restore or remove remote-daemon.json, then reopen Porcelain.`,
+    )
+    this.name = 'RemoteEnvironmentStateError'
+    this.recoveryPath = path
+  }
+}
 
 /**
- * Parse persisted JSON into the environment-group state. PURE (exported for tests):
- * anything that does not contain the group endpoint list falls back to the empty state.
+ * Parse the current versioned document and the immediately preceding unversioned group shape.
+ * Invalid and future-version documents fail closed; callers must never turn them into empty state.
  */
 export function parseRemoteEnvironmentState(json: unknown): RemoteEnvironmentState {
-  const parsed = stateSchema.safeParse(json)
-  if (parsed.success) return parsed.data
-  return EMPTY_STATE
-}
-
-/** The persisted state, or the empty state when the file is absent/corrupt. */
-export async function loadRemoteEnvironmentState(): Promise<RemoteEnvironmentState> {
-  let json: unknown
-  try {
-    json = JSON.parse(await readFile(filePath(), 'utf8'))
-  } catch {
-    // Absent file OR corrupt JSON — either way there is nothing usable, and this
-    // runs at startup where a throw would take the shell down.
-    return EMPTY_STATE
+  const current = persistedStateSchema.safeParse(json)
+  if (current.success) {
+    return { activeId: current.data.activeId, environments: current.data.environments }
   }
-  return parseRemoteEnvironmentState(json)
+  const legacy = stateSchema.safeParse(json)
+  if (legacy.success) return legacy.data
+  throw new Error('Unsupported or invalid remote environment state')
 }
 
-/** Persist the state (atomic tmp+rename, matching the repo's store style). */
+async function preserveInvalidState(raw: string): Promise<string> {
+  const path = recoveryPath()
+  try {
+    await writeFile(path, raw, { encoding: 'utf8', flag: 'wx', mode: 0o600 })
+  } catch (error) {
+    if (!isNodeError(error) || error.code !== 'EEXIST') throw error
+  }
+  await chmod(path, 0o600)
+  return path
+}
+
+/** The persisted state. Only a genuinely absent file means an empty environment list. */
+export async function loadRemoteEnvironmentState(): Promise<RemoteEnvironmentState> {
+  const path = filePath()
+  let raw: string
+  try {
+    // Repair older files before reading them so an overly restrictive-but-owned file recovers too.
+    await chmod(path, 0o600)
+    raw = await readFile(path, 'utf8')
+  } catch (error) {
+    if (isNodeError(error) && error.code === 'ENOENT') return EMPTY_STATE
+    throw new Error(
+      `Saved Environments could not be read at ${path}. Check its ownership and permissions.`,
+    )
+  }
+  try {
+    return parseRemoteEnvironmentState(JSON.parse(raw))
+  } catch {
+    throw new RemoteEnvironmentStateError(await preserveInvalidState(raw))
+  }
+}
+
+/** Persist the state (owner-only atomic tmp+rename, repairing any older final mode). */
+let saveCounter = 0
+
 export async function saveRemoteEnvironmentState(state: RemoteEnvironmentState): Promise<void> {
   const path = filePath()
-  const tmp = `${path}.tmp`
-  await writeFile(tmp, JSON.stringify(state, null, 2), 'utf8')
-  await rename(tmp, path)
+  saveCounter += 1
+  const tmp = `${path}.tmp-${process.pid}-${saveCounter}`
+  try {
+    await writeFile(tmp, JSON.stringify({ version: 1, ...state }, null, 2), {
+      encoding: 'utf8',
+      flag: 'wx',
+      mode: 0o600,
+    })
+    await chmod(tmp, 0o600)
+    await rename(tmp, path)
+    await chmod(path, 0o600)
+  } finally {
+    await unlink(tmp).catch((error: unknown) => {
+      if (!isNodeError(error) || error.code !== 'ENOENT') throw error
+    })
+  }
 }
 
 /**

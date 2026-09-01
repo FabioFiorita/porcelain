@@ -1,19 +1,20 @@
 import type { ChildProcess } from 'node:child_process'
-import { rm } from 'node:fs/promises'
+import { readFile, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
-import { PROTOCOL_VERSION, PROTOCOL_VERSION_HEADER } from '@porcelain/contracts'
 import type { Page } from '@playwright/test'
+import { PROTOCOL_VERSION, PROTOCOL_VERSION_HEADER } from '@porcelain/contracts'
 import {
   E2E_ADMIN_TOKEN,
   expect,
   loc,
   openSettings,
+  openSurface,
   REPO_DIR,
   seedIsolatedState,
   spawnDaemon,
-  test,
   TestIds,
+  test,
   waitForShell,
 } from './helpers/app'
 import { createFixtureRepo } from './helpers/fixture-repo'
@@ -36,7 +37,7 @@ const REMOTE_REPO_DIR = join(tmpdir(), 'porcelain-e2e-remote-fixture')
 const LOCAL_TITLE = `${basename(REPO_DIR)} — Porcelain`
 const REMOTE_TITLE = `${basename(REMOTE_REPO_DIR)} — Porcelain`
 
-async function daemonCall(port: number, procedure: string, input: unknown): Promise<void> {
+async function daemonCall<T = void>(port: number, procedure: string, input: unknown): Promise<T> {
   const response = await fetch(`http://127.0.0.1:${port}/trpc/${procedure}`, {
     method: 'POST',
     headers: {
@@ -47,6 +48,22 @@ async function daemonCall(port: number, procedure: string, input: unknown): Prom
     body: JSON.stringify(input),
   })
   if (!response.ok) throw new Error(`${procedure} failed: ${response.status}`)
+  const body = (await response.json()) as { result?: { data?: T } }
+  return body.result?.data as T
+}
+
+async function daemonQuery<T>(port: number, procedure: string, input: unknown): Promise<T> {
+  const encoded = encodeURIComponent(JSON.stringify(input))
+  const response = await fetch(`http://127.0.0.1:${port}/trpc/${procedure}?input=${encoded}`, {
+    headers: {
+      authorization: `Bearer ${E2E_ADMIN_TOKEN}`,
+      [PROTOCOL_VERSION_HEADER]: String(PROTOCOL_VERSION),
+    },
+  })
+  if (!response.ok) throw new Error(`${procedure} failed: ${response.status}`)
+  const body = (await response.json()) as { result?: { data?: { json?: T } | T } }
+  const data = body.result?.data
+  return (typeof data === 'object' && data !== null && 'json' in data ? data.json : data) as T
 }
 
 /**
@@ -122,10 +139,11 @@ test('a Hub Worktree on another Environment opens and survives a cold renderer r
   let remote: { child: ChildProcess; port: number } | null = null
   try {
     remote = await spawnDaemon(remoteSeed)
-    const remoteUrl = `http://127.0.0.1:${remote.port}`
+    const remotePort = remote.port
+    const remoteUrl = `http://127.0.0.1:${remotePort}`
     // Nothing opens this checkout in a window, so register it with its own daemon the way a
     // client would — that is what puts the Project in that daemon's Hub inventory.
-    await daemonCall(remote.port, 'openRepoPath', REMOTE_REPO_DIR)
+    await daemonCall(remotePort, 'openRepoPath', REMOTE_REPO_DIR)
 
     await waitForShell(page)
     const localUrl = await boundDaemonUrl(page)
@@ -138,12 +156,24 @@ test('a Hub Worktree on another Environment opens and survives a cold renderer r
 
     // Pair the second daemon. The window stays local-primary while its renderer gains an
     // explicit live session for the remote Environment.
-    const link = await mintPairingLink(remote.port)
+    const link = await mintPairingLink(remotePort)
     await openSettings(page)
     await page.getByTestId(TestIds.settingsSection('remotes')).first().click()
     await page.getByRole('button', { name: 'Pair an environment group' }).click()
     await page.getByPlaceholder('Connection link').fill(link)
     await page.getByRole('button', { name: 'Pair environment' }).click()
+    const electronUserData = await app.evaluate(({ app: electronApp }) =>
+      electronApp.getPath('userData'),
+    )
+    const savedEnvironmentState = join(electronUserData, 'remote-daemon.json')
+    await expect
+      .poll(async () =>
+        stat(savedEnvironmentState)
+          .then((value) => value.mode & 0o777)
+          .catch(() => -1),
+      )
+      .toBe(0o600)
+    expect(JSON.parse(await readFile(savedEnvironmentState, 'utf8'))).toMatchObject({ version: 1 })
     await loc.settingsDialog(page).getByRole('button', { name: 'Close' }).click()
     await page.reload()
 
@@ -172,13 +202,67 @@ test('a Hub Worktree on another Environment opens and survives a cold renderer r
     await expect(page.getByText('The target Environment is offline.')).toHaveCount(0)
     await expect(page.getByText('The Project path was not found.')).toHaveCount(0)
 
-    // A fresh renderer boots local-primary. The persisted Worktree must remain remote-owned:
+    // 3. Review state belongs to the same remote owner as the diff. This was the production
+    // regression: Files/Git reads worked while these writes went to Electron's local child.
+    await loc.railTab(page, 'changes').click()
+    await expect(loc.changesList(page)).toBeVisible({ timeout: 60_000 })
+    await loc.changesFile(page, 'Home.tsx').click()
+    const reviewed = loc.diffReviewed(page, 'src/pages/Home.tsx')
+    await expect(reviewed).toHaveAttribute('aria-label', 'Mark reviewed')
+    await reviewed.click()
+    await expect(reviewed).toHaveAttribute('aria-label', 'Unmark reviewed')
+    await expect
+      .poll(() => daemonQuery<string[]>(remotePort, 'reviewedPaths', REMOTE_REPO_DIR))
+      .toContain('src/pages/Home.tsx')
+    await reviewed.click()
+    await expect(reviewed).toHaveAttribute('aria-label', 'Mark reviewed')
+    await expect
+      .poll(() => daemonQuery<string[]>(remotePort, 'reviewedPaths', REMOTE_REPO_DIR))
+      .not.toContain('src/pages/Home.tsx')
+    await expect(page.getByText('Update reviewed failed')).toHaveCount(0)
+
+    await page.getByRole('button', { name: 'Comment on file' }).click()
+    const addCommentDialog = page.getByRole('dialog', { name: 'Add comment' })
+    await addCommentDialog.getByRole('textbox', { name: 'Comment' }).fill('Remote review works')
+    await addCommentDialog.getByRole('button', { name: 'Comment', exact: true }).click()
+    const commentMarker = page.getByTestId(TestIds.fileComments('src/pages/Home.tsx'))
+    await expect(commentMarker.getByRole('button', { name: '1 comment, 1 open' })).toBeVisible()
+
+    // Resolve, reopen, and delete through Electron: every mutation must stay on the remote daemon.
+    await commentMarker.getByRole('button', { name: '1 comment, 1 open' }).click()
+    await page.getByRole('button', { name: 'Resolve comment' }).click()
+    await expect(commentMarker.getByRole('button', { name: '1 comment' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Reopen comment' })).toBeVisible()
+    await page.getByRole('button', { name: 'Reopen comment' }).click()
+    await expect(commentMarker.getByRole('button', { name: '1 comment, 1 open' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Delete comment' })).toBeVisible()
+    await page.getByRole('button', { name: 'Delete comment' }).click()
+    await expect(commentMarker).toHaveCount(0)
+
+    // A write made outside Electron must arrive over the secondary session's review.changed
+    // subscription and refresh only the remote Environment cache without a reload.
+    await daemonCall(remotePort, 'addReviewComment', {
+      repoPath: REMOTE_REPO_DIR,
+      path: 'src/pages/Home.tsx',
+      body: 'Remote notification refresh',
+    })
+    await expect
+      .poll(() => daemonQuery<{ body: string }[]>(remotePort, 'reviewComments', REMOTE_REPO_DIR))
+      .toEqual(
+        expect.arrayContaining([expect.objectContaining({ body: 'Remote notification refresh' })]),
+      )
+    await expect(page.getByTestId(TestIds.fileComments('src/pages/Home.tsx'))).toBeVisible({
+      timeout: 60_000,
+    })
+    expect(await boundDaemonUrl(page)).toBe(localUrl)
+
+    // 4. A fresh renderer boots local-primary. The persisted Worktree must remain remote-owned:
     // asking the local daemon to open REMOTE_REPO_DIR would fall back to its local recent repo,
     // then send that local path through the remote Files owner and leave the tree on Loading….
     await page.reload()
     await waitForShell(page)
     await expect(page).toHaveTitle(REMOTE_TITLE, { timeout: 60_000 })
-    await loc.railTab(page, 'files').click()
+    await openSurface(page, 'Files')
     await expect(loc.treeEntry(page, 'README.md')).toBeVisible({ timeout: 60_000 })
     expect(await boundDaemonUrl(page)).toBe(localUrl)
   } finally {

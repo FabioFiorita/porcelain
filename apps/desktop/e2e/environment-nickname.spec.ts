@@ -2,8 +2,8 @@ import type { ChildProcess } from 'node:child_process'
 import { mkdir, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { PROTOCOL_VERSION, PROTOCOL_VERSION_HEADER } from '@porcelain/contracts'
 import type { Page } from '@playwright/test'
+import { PROTOCOL_VERSION, PROTOCOL_VERSION_HEADER } from '@porcelain/contracts'
 import {
   E2E_ADMIN_TOKEN,
   expect,
@@ -12,8 +12,8 @@ import {
   REPO_DIR,
   seedIsolatedState,
   spawnDaemon,
-  test,
   TestIds,
+  test,
   waitForShell,
 } from './helpers/app'
 import { createFixtureRepo } from './helpers/fixture-repo'
@@ -160,11 +160,10 @@ async function pairSecondEnvironment(
   await openRemotes(page)
   await page.getByRole('button', { name: 'Pair an environment group' }).click()
   await page.getByPlaceholder('Connection link').fill(await mintPairingLink(paired.remote.port))
-  await page.getByRole('button', { name: 'Pair & use here' }).click()
+  await page.getByRole('button', { name: 'Pair environment' }).click()
 
-  await waitForShell(page)
-  await expect(loc.hubInventory(page)).toBeVisible()
-  await openRemotes(page)
+  // Pairing adds a secondary session; the local Electron child remains primary and Settings
+  // stays open. Wait for the paired group to appear in the current dialog.
   const groupRow = page.locator('[data-testid^="environment-name-"]').nth(1)
   await expect(groupRow).toBeVisible()
   const groupId = ((await groupRow.getAttribute('data-testid')) ?? '').replace(

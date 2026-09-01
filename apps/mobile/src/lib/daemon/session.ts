@@ -189,7 +189,7 @@ const adapter: SessionNativeAdapter = createSessionNativeAdapter({
       return
     }
     // A live disconnect gets one HTTP endpoint walk before this socket retries. The provider
-    // can therefore move to LAN, Tailscale, or Funnel instead of backing off against one dead URL.
+    // can therefore move to LAN, Tailscale, or Cloudflare instead of backing off against one dead URL.
     if (everReady) await onClosed?.('refused')
   },
 })
