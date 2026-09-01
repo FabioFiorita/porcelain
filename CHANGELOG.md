@@ -1,3 +1,10 @@
+## [0.61.4](https://github.com/FabioFiorita/porcelain/compare/v0.61.3...v0.61.4) (2026-09-01)
+
+### Bug Fixes
+
+* **desktop:** isolate local daemon transport ([1eb75f3](https://github.com/FabioFiorita/porcelain/commit/1eb75f3d4bb86826110bc5401752582a7326105b))
+* **dev:** document pnpm daemon flags correctly ([056283a](https://github.com/FabioFiorita/porcelain/commit/056283a0da882604b207eeb3eab80419b1be4f9f))
+
 ## [0.61.3](https://github.com/FabioFiorita/porcelain/compare/v0.61.2...v0.61.3) (2026-09-01)
 
 ### Features

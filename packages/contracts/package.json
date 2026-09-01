@@ -2,7 +2,7 @@
   "name": "@porcelain/contracts",
   "main": "src/index.ts",
   "types": "src/index.ts",
-  "version": "0.61.3",
+  "version": "0.61.4",
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
