@@ -29,12 +29,11 @@ export function projectActionsPath(homeDir: string, projectId: string): string {
 }
 
 /**
- * The PRIVATE project defaults (hidden/pinned paths, Worktree setup) — the
+ * The PRIVATE project navigation defaults (hidden/pinned paths) — the
  * daemon-root counterpart of the tracked `<repo>/.porcelain/project.json` overlay.
  *
- * Same file name on purpose: the two documents hold the same `ProjectOverrides`
- * shape and differ only in who owns them, so promotion (#26) is a copy rather
- * than a translation, and the tracked one wins wherever both exist.
+ * The private and tracked documents share these promotable fields, while personal layers and
+ * Worktree profiles remain daemon-owned.
  */
 export function projectOverridesPath(homeDir: string, projectId: string): string {
   return join(projectStoreDir(homeDir, projectId), PROJECT_STORE_FILES.overrides)

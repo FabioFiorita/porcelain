@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { persistedWorktreeProfileSchema, profileLayerSchema } from '../worktree-profile'
-import { type ProjectOverrides, projectOverridesSchema } from './projects.contract'
+import type { ProjectOverrides } from './projects.contract'
 
 /**
  * The PRIVATE project document — a superset of the promotable overlay.
@@ -13,23 +13,27 @@ import { type ProjectOverrides, projectOverridesSchema } from './projects.contra
  * Every field defaults, so a document written by an older Porcelain — or by a
  * hand-edit that dropped a key — parses instead of resetting someone's focus.
  */
-export const privateProjectDocumentSchema = projectOverridesSchema
-  .extend({
+const currentPrivateProjectDocumentSchema = z
+  .object({
     hiddenPaths: z.array(z.string()).default([]),
     pinnedPaths: z.array(z.string()).default([]),
-    worktrees: projectOverridesSchema.shape.worktrees.default({}),
     /** Project-level story order — the baseline every worktree inherits. */
     layers: z.array(profileLayerSchema).default([]),
     /** Keyed by stable Worktree id, so a branch rename does not orphan an override. */
     worktreeProfiles: z.record(z.string(), persistedWorktreeProfileSchema).default({}),
   })
   .strict()
+
+export const privateProjectDocumentSchema = z.preprocess((value) => {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return value
+  const { worktrees: _retired, ...current } = value as Record<string, unknown>
+  return current
+}, currentPrivateProjectDocumentSchema)
 export type PrivateProjectDocument = z.infer<typeof privateProjectDocumentSchema>
 
 export const emptyPrivateProjectDocument = (): PrivateProjectDocument => ({
   hiddenPaths: [],
   pinnedPaths: [],
-  worktrees: {},
   layers: [],
   worktreeProfiles: {},
 })
@@ -48,6 +52,5 @@ export function stripPersonalProfileFields(
   return {
     hiddenPaths: document.hiddenPaths,
     pinnedPaths: document.pinnedPaths,
-    worktrees: document.worktrees,
   }
 }

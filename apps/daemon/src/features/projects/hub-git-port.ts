@@ -16,13 +16,18 @@ export type HubGitPort = Readonly<{
   discoverProject: (path: string) => Promise<HubGitResult<DiscoveredProject>>
   listWorktrees: (commonGitDir: string) => Promise<HubGitResult<readonly DiscoveredWorktree[]>>
   pathExists: (path: string) => Promise<boolean>
+  worktreeDirty: (path: string) => Promise<HubGitResult<boolean>>
   addWorktree: (
     repoPath: string,
     branch: string,
     baseRef?: string,
     existing?: boolean,
   ) => Promise<GitWorkspaceResult<{ path: string; branch: string }>>
-  removeWorktree: (repoPath: string, worktreePath: string) => Promise<GitWorkspaceResult<void>>
+  removeWorktree: (
+    repoPath: string,
+    worktreePath: string,
+    force?: boolean,
+  ) => Promise<GitWorkspaceResult<void>>
 }>
 
 async function runGitDir(gitDir: string, args: string[]): Promise<string> {
@@ -98,7 +103,7 @@ export function createHubGitPort(
             commonGitDir,
             groupingKey: projectGroupingKey({
               originUrl: await originUrl(commonGitDir),
-              name,
+              localIdentity: commonGitDir,
             }),
             name,
             worktrees,
@@ -128,12 +133,20 @@ export function createHubGitPort(
       }
     },
 
+    async worktreeDirty(path: string): Promise<HubGitResult<boolean>> {
+      try {
+        return { ok: true, value: (await runGit(path, ['status', '--porcelain'])).trim() !== '' }
+      } catch {
+        return { ok: false, error: 'unavailable' }
+      }
+    },
+
     addWorktree(repoPath: string, branch: string, baseRef?: string, existing?: boolean) {
       return workspace.addWorktree(repoPath, branch, baseRef, existing)
     },
 
-    removeWorktree(repoPath: string, worktreePath: string) {
-      return workspace.removeWorktree(repoPath, worktreePath)
+    removeWorktree(repoPath: string, worktreePath: string, force?: boolean) {
+      return workspace.removeWorktree(repoPath, worktreePath, force)
     },
   })
 }

@@ -417,11 +417,10 @@ export function createCanvasOperations(options: {
 
       const current = await options.overlay.readOverrides(target.value)
       if (!current.ok) return fromStoreError(current.error)
-      const base = current.value ?? { hiddenPaths: [], pinnedPaths: [], worktrees: {} }
+      const base = current.value ?? { hiddenPaths: [], pinnedPaths: [] }
       const next: ProjectOverrides = {
         hiddenPaths: input.hiddenPaths ?? base.hiddenPaths,
         pinnedPaths: input.pinnedPaths ?? base.pinnedPaths,
-        worktrees: input.worktrees ?? base.worktrees,
       }
       const written = await options.overlay.writeOverrides(target.value, next)
       if (!written.ok) return fromStoreError(written.error)

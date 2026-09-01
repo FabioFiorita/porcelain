@@ -25,6 +25,7 @@ const project: HubProject = {
 
 const branches: BranchRef[] = [
   { name: 'main', remote: null },
+  { name: 'topic', remote: null },
   { name: 'development', remote: 'origin' },
 ]
 
@@ -93,5 +94,36 @@ describe('CreateWorktreeDialog', () => {
       })
     })
     expect(screen.queryByTestId(TestIds.hubCreateWorktreeBranch)).toBeNull()
+  })
+
+  it('offers only unchecked-out local branches in existing mode', async () => {
+    render(
+      <CreateWorktreeDialog
+        project={{
+          ...project,
+          worktrees: [
+            {
+              id: 'worktree-main',
+              projectId: project.id,
+              path: project.path,
+              name: 'alpha',
+              branch: 'main',
+              isPrimary: true,
+            },
+          ],
+        }}
+        open
+        creating={false}
+        onOpenChange={vi.fn()}
+        createWorktree={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId(TestIds.hubCreateWorktreeModeExisting))
+    fireEvent.click(screen.getByTestId(TestIds.hubCreateWorktreeBase))
+
+    expect(await screen.findByRole('option', { name: 'topic' })).toBeVisible()
+    expect(screen.queryByRole('option', { name: 'main' })).toBeNull()
+    expect(screen.queryByRole('option', { name: 'origin/development' })).toBeNull()
   })
 })

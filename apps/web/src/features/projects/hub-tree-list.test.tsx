@@ -67,6 +67,7 @@ describe('Hub inventory tree', () => {
         projectId: 'remote-proj-alpha',
         worktreeId: 'remote-wt-alpha-topic',
         environmentId: 'env-remote',
+        force: true,
       }),
     )
   })
@@ -142,6 +143,7 @@ describe('Hub inventory tree', () => {
         projectId: 'proj-alpha',
         worktreeId: 'wt-alpha-topic',
         environmentId: null,
+        force: true,
       }),
     )
   })

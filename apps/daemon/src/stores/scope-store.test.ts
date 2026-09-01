@@ -208,14 +208,7 @@ describe('writing from the tree', () => {
     })
   })
 
-  /**
-   * The regression this store shipped for months: `mutate` used to write
-   * `{ ...next, worktrees: {} }`, so one click in the tree deleted the worktree
-   * setup an agent had written. The same document now also carries layers and
-   * every worktree override, which makes that shape of bug erase a whole
-   * profile. Break the read-modify-write and this test fails.
-   */
-  it('preserves every field a pin did not name', async () => {
+  it('preserves profile fields while retiring legacy worktree setup', async () => {
     await withStore(async ({ store, homeDir, repo }) => {
       await writePrivate(homeDir, {
         hiddenPaths: [],
@@ -231,9 +224,7 @@ describe('writing from the tree', () => {
 
       const document = await readPrivate(homeDir)
       expect(document.pinnedPaths).toEqual(['README.md'])
-      expect(document.worktrees).toEqual({
-        main: { setup: { startScript: 'pnpm dev', disposeScript: '' } },
-      })
+      expect(document).not.toHaveProperty('worktrees')
       expect(document.layers).toEqual([{ label: 'View', pattern: 'components/' }])
       expect(document.worktreeProfiles).toEqual({ 'wt-other': expect.anything() })
     })

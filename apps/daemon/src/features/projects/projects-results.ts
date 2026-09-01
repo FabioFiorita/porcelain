@@ -7,6 +7,7 @@ export type ProjectsOperationError =
   | { readonly code: 'git.not-a-repository' }
   | { readonly code: 'git.branch-already-exists' }
   | { readonly code: 'git.worktree-conflict' }
+  | { readonly code: 'git.working-tree-conflict' }
   | { readonly code: 'canvas.not-found' }
   | { readonly code: 'canvas.unavailable' }
 

@@ -844,8 +844,7 @@ deletes that directory along with the branch and managed runtime state.
 
 /** Adopt a detached Codex checkout during the Codex environment setup hook. */
 function bootstrapCodexWorktree(pathArg) {
-  if (!pathArg) fail('codex-bootstrap needs CODEX_WORKTREE_PATH')
-  const target = realPathOrSelf(resolve(pathArg))
+  const target = realPathOrSelf(resolve(pathArg || process.cwd()))
   const root = primaryRoot(target)
   if (target === root) {
     console.log('worktree ✓ Codex setup is using the primary checkout')
@@ -872,8 +871,7 @@ function bootstrapCodexWorktree(pathArg) {
 
 /** Remove only the managed profile belonging to the exact Codex checkout being deleted. */
 async function cleanupCodexWorktree(pathArg) {
-  if (!pathArg) fail('codex-cleanup needs CODEX_WORKTREE_PATH')
-  const target = realPathOrSelf(resolve(pathArg))
+  const target = realPathOrSelf(resolve(pathArg || process.cwd()))
   const profile = loadManagedWorktreeProfile(target)
   if (!profile.ok) {
     console.log('worktree ✓ Codex checkout has no managed Porcelain profile')

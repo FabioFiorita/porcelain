@@ -1,8 +1,11 @@
-/** Cross-environment grouping: a normalized origin, or a name fallback. */
-export function projectGroupingKey(input: { originUrl: string | null; name: string }): string {
+/** Cross-environment grouping: a normalized origin, or an Environment-local repository key. */
+export function projectGroupingKey(input: {
+  originUrl: string | null
+  localIdentity: string
+}): string {
   const origin = normalizeOriginUrl(input.originUrl)
   if (origin !== null) return origin
-  return `name:${input.name}`
+  return `local:${input.localIdentity}`
 }
 
 /**
@@ -100,10 +103,17 @@ export function rematchProject(
     }
   }
 
-  const orphan = stored.find(
-    (project) =>
-      project.groupingKey === discovered.groupingKey && !commonGitDirExists(project.commonGitDir),
-  )
+  // Only a portable origin proves that a repository which moved is the same Project. Historical
+  // `name:*` records and current `local:*` records are deliberately not rematched across paths:
+  // a basename collision must never inherit another repository's Actions or private profile.
+  const portable = !/^(?:name|local):/.test(discovered.groupingKey)
+  const orphan = portable
+    ? stored.find(
+        (project) =>
+          project.groupingKey === discovered.groupingKey &&
+          !commonGitDirExists(project.commonGitDir),
+      )
+    : undefined
   if (orphan !== undefined) {
     return {
       ...orphan,

@@ -21,7 +21,7 @@ const CANVAS_RECORD = {
 }
 
 const TRACKED_RECORD = { ...CANVAS_RECORD, worktreeId: null, tracked: true }
-const OVERRIDES = { hiddenPaths: ['apps/legacy'], pinnedPaths: [], worktrees: {} }
+const OVERRIDES = { hiddenPaths: ['apps/legacy'], pinnedPaths: [] }
 
 const operations = {
   openProject: vi.fn<ProjectsOperations['openProject']>(async () => ({

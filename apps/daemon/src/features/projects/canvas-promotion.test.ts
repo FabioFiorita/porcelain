@@ -376,14 +376,12 @@ describe('promoted project overrides', () => {
       path: repo,
       hiddenPaths: ['apps/legacy'],
       pinnedPaths: ['apps/web'],
-      worktrees: { main: { setup: { startScript: 'pnpm dev', disposeScript: '' } } },
     })
     expect(result).toEqual({
       ok: true,
       value: {
         hiddenPaths: ['apps/legacy'],
         pinnedPaths: ['apps/web'],
-        worktrees: { main: { setup: { startScript: 'pnpm dev', disposeScript: '' } } },
       },
     })
     expect(JSON.parse(await readFile(projectOverlayOverridesPath(repo), 'utf8'))).toEqual(
@@ -400,7 +398,7 @@ describe('promoted project overrides', () => {
     })
     expect(second).toEqual({
       ok: true,
-      value: { hiddenPaths: ['a'], pinnedPaths: ['b'], worktrees: {} },
+      value: { hiddenPaths: ['a'], pinnedPaths: ['b'] },
     })
   })
 
@@ -425,7 +423,6 @@ describe('promoted project overrides', () => {
     expect(listed.value.overrides).toEqual({
       hiddenPaths: [],
       pinnedPaths: ['apps/web'],
-      worktrees: {},
     })
     expect(listed.value.canvases).toEqual([
       expect.objectContaining({ id: 'canvas-intent', tracked: true }),

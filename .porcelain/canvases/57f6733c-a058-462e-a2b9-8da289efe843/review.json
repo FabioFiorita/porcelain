@@ -1,0 +1,69 @@
+{
+  "name": "Make Project and Worktree operations truthful",
+  "layers": [
+    {
+      "label": "Safety-critical Git and inventory semantics",
+      "pattern": "^(apps/daemon/src/features/(git|projects)/|packages/contracts/src/projects/)"
+    },
+    {
+      "label": "User-visible Hub behavior",
+      "pattern": "^apps/web/src/(features/projects/|components/shell/project-picker-dialog)"
+    },
+    {
+      "label": "Persisted override cleanup",
+      "pattern": "^(apps/daemon/src/stores/|packages/(contracts/src/worktree-profile|shared/src/project-store))"
+    },
+    {
+      "label": "Codex bootstrap regression",
+      "pattern": "^(\\.codex/environments/environment\\.toml|scripts/worktree)"
+    }
+  ],
+  "files": [
+    {
+      "path": "apps/daemon/src/features/projects/hub-inventory-operations.ts",
+      "source": "changed",
+      "layer": "Safety-critical Git and inventory semantics"
+    },
+    {
+      "path": "apps/daemon/src/features/git/git-subprocess.ts",
+      "source": "changed",
+      "layer": "Safety-critical Git and inventory semantics"
+    },
+    {
+      "path": "apps/daemon/src/features/projects/hub-identity.ts",
+      "source": "changed",
+      "layer": "Safety-critical Git and inventory semantics"
+    },
+    {
+      "path": "apps/web/src/features/projects/create-worktree-dialog.tsx",
+      "source": "changed",
+      "layer": "User-visible Hub behavior"
+    },
+    {
+      "path": "apps/web/src/features/projects/hub-open.ts",
+      "source": "changed",
+      "layer": "User-visible Hub behavior"
+    },
+    {
+      "path": "apps/web/src/features/projects/hub-tree.tsx",
+      "source": "changed",
+      "layer": "User-visible Hub behavior"
+    },
+    {
+      "path": "packages/contracts/src/projects/projects.contract.ts",
+      "source": "changed",
+      "layer": "Safety-critical Git and inventory semantics"
+    },
+    {
+      "path": ".codex/environments/environment.toml",
+      "source": "changed",
+      "layer": "Codex bootstrap regression"
+    },
+    {
+      "path": "scripts/worktree.mjs",
+      "source": "changed",
+      "layer": "Codex bootstrap regression"
+    }
+  ],
+  "sections": []
+}

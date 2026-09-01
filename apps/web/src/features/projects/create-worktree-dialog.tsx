@@ -25,7 +25,7 @@ import { cn } from '@renderer/lib/utils'
 import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
 import { Check, ChevronsUpDown, GitBranch, LoaderCircle } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 function refValue(ref: BranchRef): string {
   return ref.remote === null ? ref.name : `${ref.remote}/${ref.name}`
@@ -53,14 +53,19 @@ export function CreateWorktreeDialog(props: {
   const [branch, setBranch] = useState('')
   const [baseRef, setBaseRef] = useState<string | null>(null)
   const [refOpen, setRefOpen] = useState(false)
+  const availableRefs = useMemo(() => {
+    if (mode === 'new') return branches
+    const checkedOut = new Set(props.project.worktrees.map((worktree) => worktree.branch))
+    return branches.filter((ref) => ref.remote === null && !checkedOut.has(ref.name))
+  }, [branches, mode, props.project.worktrees])
 
   useEffect(() => {
-    if (baseRef !== null || branches.length === 0) return
-    const first = branches[0]
-    if (first !== undefined) setBaseRef(refValue(first))
-  }, [baseRef, branches])
+    if (availableRefs.some((ref) => refValue(ref) === baseRef)) return
+    const first = availableRefs[0]
+    setBaseRef(first === undefined ? null : refValue(first))
+  }, [availableRefs, baseRef])
 
-  const selected = branches.find((ref) => refValue(ref) === baseRef)
+  const selected = availableRefs.find((ref) => refValue(ref) === baseRef)
   const canSubmit = mode === 'existing' ? baseRef !== null && baseRef !== '' : branch.trim() !== ''
   const submit = (event: React.FormEvent<HTMLFormElement>): void => {
     event.preventDefault()
@@ -166,14 +171,16 @@ export function CreateWorktreeDialog(props: {
                         Loading refs…
                       </CommandEmpty>
                     )}
-                    {!isFetching && branches.length === 0 && (
+                    {!isFetching && availableRefs.length === 0 && (
                       <CommandEmpty>
-                        No refs found. The worktree will use current HEAD.
+                        {mode === 'existing'
+                          ? 'No unchecked-out local branches are available.'
+                          : 'No refs found. The worktree will use current HEAD.'}
                       </CommandEmpty>
                     )}
-                    {branches.filter((ref) => ref.remote === null).length > 0 && (
+                    {availableRefs.filter((ref) => ref.remote === null).length > 0 && (
                       <CommandGroup heading="Local">
-                        {branches
+                        {availableRefs
                           .filter((ref) => ref.remote === null)
                           .map((ref) => {
                             const value = refValue(ref)
@@ -199,9 +206,9 @@ export function CreateWorktreeDialog(props: {
                           })}
                       </CommandGroup>
                     )}
-                    {branches.filter((ref) => ref.remote !== null).length > 0 && (
+                    {availableRefs.filter((ref) => ref.remote !== null).length > 0 && (
                       <CommandGroup heading="Remote">
-                        {branches
+                        {availableRefs
                           .filter((ref) => ref.remote !== null)
                           .map((ref) => {
                             const value = refValue(ref)

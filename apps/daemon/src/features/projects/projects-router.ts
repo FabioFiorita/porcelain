@@ -23,6 +23,8 @@ function throwIfFailed<Value>(result: ProjectOperationResult<Value>): Value {
       throw toTrpcError(expectedFailure('git.branch-already-exists'))
     case 'git.worktree-conflict':
       throw toTrpcError(expectedFailure('git.worktree-conflict'))
+    case 'git.working-tree-conflict':
+      throw toTrpcError(expectedFailure('git.working-tree-conflict'))
     case 'canvas.not-found':
       throw toTrpcError(expectedFailure('canvas.not-found'))
     case 'canvas.unavailable':

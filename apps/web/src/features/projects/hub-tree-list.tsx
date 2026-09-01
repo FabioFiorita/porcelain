@@ -79,6 +79,7 @@ function WorktreeRow(props: {
         await props.removeWorktree({
           projectId: props.projectId,
           worktreeId: props.worktree.id,
+          force: true,
           environmentId: props.mutationEnvironmentId,
         })
         const current = useHubSelectionStore.getState().selection

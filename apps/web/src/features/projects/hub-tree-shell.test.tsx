@@ -37,7 +37,7 @@ let inventories: readonly Source[] = []
 const openProject = vi.fn(async () => undefined)
 
 vi.mock('./project-data', () => ({
-  useHubInventories: () => inventories,
+  useHubInventoriesState: () => ({ inventories, status: 'ready' }),
   useCreateHubWorktree: () => ({ create: vi.fn(), isPending: false }),
   useOpenProject: () => ({ open: openProject }),
   useRemoveHubProject: () => ({ remove: vi.fn(async () => undefined) }),

@@ -55,9 +55,9 @@ function mapGitWorkspaceError(error: GitWorkspaceError): ProjectsOperationError 
     case 'git.not-a-repository':
     case 'git.branch-already-exists':
     case 'git.worktree-conflict':
+    case 'git.working-tree-conflict':
       return error
     case 'git.branch-not-found':
-    case 'git.working-tree-conflict':
       return { code: 'projects.unavailable' }
   }
 }
@@ -152,11 +152,16 @@ export function createHubInventoryOperations(options: {
 
   async function refreshProject(
     stored: StoredHubProject,
-  ): Promise<{ stored: StoredHubProject; live: DiscoveredProject['worktrees'] }> {
+  ): Promise<
+    | { kind: 'live'; stored: StoredHubProject; live: DiscoveredProject['worktrees'] }
+    | { kind: 'missing' }
+    | { kind: 'unavailable' }
+  > {
+    if (!(await options.git.pathExists(stored.commonGitDir))) return { kind: 'missing' }
     const listed = await options.git.listWorktrees(stored.commonGitDir)
-    if (!listed.ok) return { stored, live: [] }
+    if (!listed.ok) return { kind: 'unavailable' }
     const rematched = rematchWorktrees(stored.worktrees, listed.value, createId)
-    return { stored: { ...stored, worktrees: rematched }, live: listed.value }
+    return { kind: 'live', stored: { ...stored, worktrees: rematched }, live: listed.value }
   }
 
   async function projectExistence(
@@ -238,6 +243,7 @@ export function createHubInventoryOperations(options: {
         const discovered = discoveredWorktrees.get(project.commonGitDir)
         if (discovered !== undefined) {
           return {
+            kind: 'live' as const,
             stored: project,
             live: discovered,
           }
@@ -246,9 +252,15 @@ export function createHubInventoryOperations(options: {
       }),
     )
 
+    // A missing common Git directory is authoritative disappearance. An existing directory that
+    // Git cannot currently read is not: fail the read and preserve the stored identities rather
+    // than rewriting a transient outage as an empty inventory.
+    if (refreshedProjects.some((project) => project.kind === 'unavailable')) return unavailable()
+
     const live: HubProject[] = []
     const nextStored: StoredHubProject[] = []
     for (const refreshed of refreshedProjects) {
+      if (refreshed.kind !== 'live') continue
       // A single Git project can contain worktrees from multiple families. Filter each live
       // entry before mapping it into the public inventory; checking only `some()` and then
       // passing the complete list would leak a production checkout beside a playground one.
@@ -315,20 +327,32 @@ export function createHubInventoryOperations(options: {
     if (project === undefined || worktree === undefined) return notFound()
     if (worktree.isPrimary) return { ok: false, error: { code: 'git.worktree-conflict' } }
 
-    // Teardown runs while the checkout still exists — `git worktree remove --force` deletes
-    // the directory, so a dispose script that ran after it would have nothing to run in.
+    const dirty = await options.git.worktreeDirty(worktree.path)
+    if (!dirty.ok) return unavailable()
+    if (dirty.value && input.force !== true) {
+      return { ok: false, error: { code: 'git.working-tree-conflict' } }
+    }
+
+    // Preflight every condition we can observe before teardown. Git can still race after this
+    // point, but a known dirty checkout no longer runs dispose only to fail removal afterwards.
     await options.worktreeScripts?.runDispose({
       projectId: project.id,
       worktreeId: worktree.id,
       path: worktree.path,
     })
 
-    const removed = await options.git.removeWorktree(project.path, worktree.path)
+    const removed = await options.git.removeWorktree(project.path, worktree.path, dirty.value)
     if (!removed.ok) return { ok: false, error: mapGitWorkspaceError(removed.error) }
     const removedRecent = await options.recents.removePath(worktree.path)
-    if (!removedRecent.ok) return unavailable()
+    if (!removedRecent.ok) {
+      console.error(
+        'porcelain: Worktree was removed but its recent-path record could not be pruned',
+      )
+    }
     const refreshed = await rebuild()
-    if (!refreshed.ok) return refreshed
+    if (!refreshed.ok) {
+      console.error('porcelain: Worktree was removed but Hub inventory reconciliation failed')
+    }
     return { ok: true, value: undefined }
   }
 
@@ -382,11 +406,17 @@ export function createHubInventoryOperations(options: {
       }
 
       const refreshed = await rebuild()
-      if (!refreshed.ok) return refreshed
+      if (!refreshed.ok) {
+        await options.git.removeWorktree(project.path, added.value.path, false)
+        return refreshed
+      }
       const created = refreshed.value.live
         .find((entry) => entry.id === input.projectId)
         ?.worktrees.find((worktree) => worktree.path === added.value.path)
-      if (created === undefined) return unavailable()
+      if (created === undefined) {
+        await options.git.removeWorktree(project.path, added.value.path, false)
+        return unavailable()
+      }
 
       // Setup starts once the checkout is real and identified, and this returns as soon as
       // its terminal exists: the human watches the install, they do not wait on a spinner.
