@@ -75,7 +75,12 @@ export type ActionTrustStore = {
  * the Projects domain owns that truth, and a run target is checked against it.
  */
 export type ActionsProjects = {
-  listWorktreePaths(projectId: string): Promise<ActionsStoreResult<readonly string[]>>
+  listRunTargets(projectId: string): Promise<
+    ActionsStoreResult<{
+      readonly environmentId: string
+      readonly worktrees: readonly { readonly id: string; readonly path: string }[]
+    }>
+  >
 }
 
 export type ActionsClock = { now(): number }

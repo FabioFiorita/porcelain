@@ -69,7 +69,12 @@ const doubles = vi.hoisted(() => {
     localAdapter,
     primaryRoster,
     terminalState,
-    projectState: { project: { path: '/repo' } },
+    hubTarget: {
+      environmentId: 'environment-remote',
+      projectId: 'project-1',
+      worktreeId: 'worktree-1',
+      path: '/repo',
+    },
     localDaemon: { isLocal: false },
     localPath: '/machine/repo',
     localSessions: [
@@ -115,6 +120,9 @@ vi.mock('@renderer/hooks/use-daemon-identity', () => ({
   useDaemonIdentity: () => doubles.daemonIdentity,
 }))
 vi.mock('@renderer/lib/daemon', () => ({ primary: doubles.primarySession }))
+vi.mock('@renderer/lib/environment-sessions', () => ({
+  environmentClientFor: () => ({ client: {}, session: doubles.primarySession }),
+}))
 vi.mock('@renderer/lib/local-daemon', () => ({
   registerTerminalSession: vi.fn(),
   resetTerminalSessions: vi.fn(),
@@ -133,10 +141,8 @@ vi.mock('@renderer/lib/trpc', () => ({
     }),
   },
 }))
-vi.mock('@renderer/stores/project-selection', () => ({
-  useProjectSelectionStore: (selector: (state: typeof doubles.projectState) => unknown) =>
-    selector(doubles.projectState),
-}))
+vi.mock('@renderer/stores/hub-repo', () => ({ useHubRepoPath: () => '/repo' }))
+vi.mock('@renderer/stores/hub-selection', () => ({ useHubTarget: () => doubles.hubTarget }))
 vi.mock('@renderer/stores/terminals', () => ({
   useTerminalsStore: Object.assign(
     (selector: (state: typeof doubles.terminalState) => unknown) => selector(doubles.terminalState),
@@ -177,7 +183,7 @@ describe('useTerminalRoster', () => {
         refetchInterval: 5000,
         queryKey: [
           { domain: 'terminal', name: 'sessions' },
-          { host: 'primary', version: '0.0.0-test' },
+          { host: 'environment-remote', version: '0.0.0-test' },
         ],
       }),
     )

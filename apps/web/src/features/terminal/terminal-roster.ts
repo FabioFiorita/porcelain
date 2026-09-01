@@ -81,9 +81,12 @@ export function useTerminalRoster(): void {
   const queryClient = useQueryClient()
 
   const localDaemonState = useLocalDaemon()
-  const localDaemon = target === null ? localDaemonState : null
+  // A This-device shell is the companion to a REMOTE Worktree. Keep polling that
+  // local daemon while the remote target is open so its terminals survive the
+  // optimistic-create window and renderer reloads.
+  const localDaemon = localDaemonState?.isLocal === false ? localDaemonState : null
   const mappedPath = useLocalTerminalPath(repoPath)
-  const localPath = target === null && localDaemon?.isLocal === false ? (mappedPath ?? null) : null
+  const localPath = localDaemon?.isLocal === false ? (mappedPath ?? null) : null
   const localSessions = useLocalTerminalSessions(localPath)
   const localSession = useResolvedLocalSession(localPath)
 

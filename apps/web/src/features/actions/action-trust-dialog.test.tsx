@@ -24,6 +24,9 @@ describe('ActionTrustDialog', () => {
   it('shows the command in full — this is the whole point of the step', () => {
     render(<ActionTrustDialog action={action} onCancel={vi.fn()} onTrust={vi.fn()} />)
     expect(screen.getByTestId(TestIds.actionTrustCommand).textContent).toBe(action.command)
+    expect(
+      screen.getByText(/added by an agent or changed since you last reviewed it/i),
+    ).toBeTruthy()
   })
 
   it('accepts only on the explicit confirm', () => {
