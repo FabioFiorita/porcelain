@@ -19,7 +19,7 @@ const { currentConnection, recordReachabilityFailure, recordReachabilitySuccess 
 )
 
 const LAN = 'http://192.168.1.50:43117'
-const FUNNEL = 'https://beelink.example.ts.net'
+const CLOUDFLARE = 'https://beelink.example.ts.net'
 
 const ready = {
   daemonVersion: '1.2.3',
@@ -38,7 +38,7 @@ async function pairedGroup(): Promise<string> {
     nickname: 'studio',
     token: 'pc_client_test',
   })
-  await environmentActions.addEndpoint(environment.id, FUNNEL)
+  await environmentActions.addEndpoint(environment.id, CLOUDFLARE)
   await environmentActions.setActive(environment.id)
   environmentActions.setConnection(ready)
   return environment.id
@@ -80,7 +80,7 @@ describe('query-blip hysteresis', () => {
       expect(second.reachability.consecutiveFailures).toBe(2)
       expect(second.reachability.source).toBe('query')
       // Routes come from the shared REM-003 order, not a second walk order.
-      expect(second.reachability.attempted.map((attempt) => attempt.url)).toEqual([LAN, FUNNEL])
+      expect(second.reachability.attempted.map((attempt) => attempt.url)).toEqual([LAN, CLOUDFLARE])
     }
   })
 

@@ -89,11 +89,21 @@ distinct daemon port, channels, token, playground, Electron user-data directory,
 same profile is used by `pnpm dev:daemon` and `pnpm dev:web`, so each checkout can run its own
 client stack without sharing state. `pnpm worktree list` shows the recorded allocations.
 
-The Codex project environment automatically adopts its detached harness checkout before installing
-dependencies. For another external harness, run `pnpm dev:env` before starting anything. When it
-reports `primary checkout`, adopt that checkout from the primary repository with `pnpm worktree
-adopt <path> <slug>`. Adoption keeps the checkout in place while adding its branch, profile, port,
-and playground.
+When `.codex/environments/environment.toml` is selected for the local Porcelain project, Codex runs
+its setup command in each new harness checkout before installing dependencies. That command gives
+the checkout an isolated profile while preserving detached HEAD; profile identity, ports, paths,
+and playground do not require a Git branch. Create a branch only when implementation or PR delivery
+calls for one.
+
+Selection is Codex application state, not repository state. After adding or changing this environment,
+select the checked-in environment for the saved local Porcelain project and create a fresh worktree
+task. If an existing task starts without `.porcelain-worktree.json`, run `pnpm dev:env` and stop if it
+reports `primary checkout`; repair that exact Codex checkout with
+`node scripts/worktree.mjs codex-bootstrap "$PWD"` before starting a Porcelain process.
+
+For another external harness, run `pnpm dev:env` before starting anything. When it reports `primary
+checkout`, adopt that checkout from the primary repository with `pnpm worktree adopt <path> <slug>`.
+External adoption keeps the checkout in place while adding its branch, profile, port, and playground.
 
 `pnpm dev:mobile` gives each development profile its own Metro port and temporary state. The
 primary checkout uses port 8081; managed worktrees derive a port from their daemon allocation.

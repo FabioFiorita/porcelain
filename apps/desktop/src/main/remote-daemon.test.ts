@@ -1,15 +1,35 @@
-import { describe, expect, it } from 'vitest'
+import { chmod, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+const { testUserData } = vi.hoisted(() => ({
+  testUserData: `/tmp/porcelain-remote-daemon-${process.pid}`,
+}))
+
+vi.mock('electron', () => ({ app: { getPath: (): string => testUserData } }))
+
 import {
   activeRemoteDaemon,
   endpointKind,
+  loadRemoteEnvironmentState,
   normalizeDaemonUrl,
   orderedEndpoints,
   parseRemoteEnvironmentState,
   type RemoteEnvironment,
+  RemoteEnvironmentStateError,
+  saveRemoteEnvironmentState,
+  updateRemoteEnvironmentState,
   withActiveUrl,
   withEndpoint,
   withoutEndpoint,
 } from './remote-daemon'
+
+const statePath = join(testUserData, 'remote-daemon.json')
+
+beforeEach(async () => {
+  await rm(testUserData, { recursive: true, force: true })
+  await mkdir(testUserData, { recursive: true })
+})
 
 describe('normalizeDaemonUrl', () => {
   it('accepts http and https urls', () => {
@@ -63,18 +83,83 @@ describe('parseRemoteEnvironmentState', () => {
     expect(parseRemoteEnvironmentState(state)).toEqual(state)
   })
 
-  it('returns the empty state for garbage, null, or single-url shapes', () => {
-    const empty = { activeId: null, environments: [] }
-    expect(parseRemoteEnvironmentState(null)).toEqual(empty)
-    expect(parseRemoteEnvironmentState({ nope: true })).toEqual(empty)
-    expect(parseRemoteEnvironmentState('string')).toEqual(empty)
+  it('refuses garbage, future versions, and obsolete single-url shapes', () => {
+    expect(() => parseRemoteEnvironmentState(null)).toThrow()
+    expect(() => parseRemoteEnvironmentState({ nope: true })).toThrow()
+    expect(() => parseRemoteEnvironmentState('string')).toThrow()
+    expect(() =>
+      parseRemoteEnvironmentState({ version: 2, activeId: null, environments: [] }),
+    ).toThrow()
     // A group must declare its endpoint list; re-pair a single-url record.
-    expect(
+    expect(() =>
       parseRemoteEnvironmentState({
         url: 'http://beelink.tailnet.ts.net:43117',
         token: 'secret',
       }),
-    ).toEqual(empty)
+    ).toThrow()
+  })
+
+  it('accepts the versioned persisted shape without leaking its version into runtime state', () => {
+    expect(parseRemoteEnvironmentState({ version: 1, activeId: null, environments: [] })).toEqual({
+      activeId: null,
+      environments: [],
+    })
+  })
+})
+
+describe('remote environment persistence', () => {
+  it('treats only an absent file as empty', async () => {
+    await expect(loadRemoteEnvironmentState()).resolves.toEqual({
+      activeId: null,
+      environments: [],
+    })
+  })
+
+  it('writes the versioned document and enforces owner-only permissions on temp and final files', async () => {
+    await saveRemoteEnvironmentState({ activeId: null, environments: [] })
+
+    expect(JSON.parse(await readFile(statePath, 'utf8'))).toEqual({
+      version: 1,
+      activeId: null,
+      environments: [],
+    })
+    expect((await stat(statePath)).mode & 0o777).toBe(0o600)
+  })
+
+  it('repairs an existing final file mode while loading the legacy group shape', async () => {
+    await writeFile(statePath, JSON.stringify({ activeId: null, environments: [] }), {
+      mode: 0o644,
+    })
+    await chmod(statePath, 0o644)
+
+    await expect(loadRemoteEnvironmentState()).resolves.toEqual({
+      activeId: null,
+      environments: [],
+    })
+    expect((await stat(statePath)).mode & 0o777).toBe(0o600)
+  })
+
+  it('preserves corrupt state and refuses a mutation instead of overwriting it', async () => {
+    const raw = '{not-json'
+    await writeFile(statePath, raw)
+
+    await expect(loadRemoteEnvironmentState()).rejects.toBeInstanceOf(RemoteEnvironmentStateError)
+    expect(await readFile(`${statePath}.recovery`, 'utf8')).toBe(raw)
+    expect((await stat(`${statePath}.recovery`)).mode & 0o777).toBe(0o600)
+
+    await expect(
+      updateRemoteEnvironmentState(() => ({ activeId: null, environments: [] })),
+    ).rejects.toBeInstanceOf(RemoteEnvironmentStateError)
+    expect(await readFile(statePath, 'utf8')).toBe(raw)
+  })
+
+  it('preserves and refuses a future document version', async () => {
+    const raw = JSON.stringify({ version: 2, activeId: null, environments: [] })
+    await writeFile(statePath, raw)
+
+    await expect(loadRemoteEnvironmentState()).rejects.toBeInstanceOf(RemoteEnvironmentStateError)
+    expect(await readFile(`${statePath}.recovery`, 'utf8')).toBe(raw)
+    expect(await readFile(statePath, 'utf8')).toBe(raw)
   })
 })
 

@@ -26,7 +26,8 @@ export function CreateGroupForm({
       <BackRow label="Environments" onPress={onCancel} />
       <Text className="text-base font-semibold text-foreground">Create environment group</Text>
       <Text className="text-xs leading-5 text-muted-foreground">
-        Pair LAN first. After the group exists you can add Tailscale or Funnel as fallback routes.
+        Pair LAN first. After the group exists you can add Tailscale or Cloudflare as fallback
+        routes.
       </Text>
 
       <Field label="Nickname (optional)">

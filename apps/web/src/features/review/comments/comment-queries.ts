@@ -1,8 +1,5 @@
 import type { ReviewComment } from '@porcelain/contracts/review'
-import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
-import type { DaemonScope } from '@renderer/lib/daemon-scope'
-import { trpc } from '@renderer/lib/trpc'
-import { useHubRepoPath } from '@renderer/stores/hub-repo'
+import { hubOwnerClient, useHubRepoOwner } from '@renderer/hooks/use-hub-owner'
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { buildCommentIndex, type CommentIndex } from './comment-index'
@@ -18,20 +15,17 @@ import { reviewCommentsKeyForProject } from './comment-query-key'
 
 /** All review comments for the current Project (newest first; live-refreshed). */
 export function useReviewComments(): ReviewComment[] {
-  const projectPath = useHubRepoPath()
-  const daemon = useDaemonIdentity()
-  const daemonScope: DaemonScope = { host: daemon.host, version: daemon.version }
-  const utils = trpc.useUtils()
+  const { repoPath: projectPath, daemon, owner } = useHubRepoOwner()
 
   const query = useQuery({
     queryKey: projectPath
-      ? reviewCommentsKeyForProject(daemonScope, projectPath)
-      : ([{ domain: 'review', name: 'comments', projectPath: '' }, daemonScope] as const),
+      ? reviewCommentsKeyForProject(daemon, projectPath)
+      : ([{ domain: 'review', name: 'comments', projectPath: '' }, daemon] as const),
     queryFn: async (): Promise<ReviewComment[]> => {
       if (projectPath === null) return []
-      return utils.client.reviewComments.query(projectPath)
+      return hubOwnerClient(owner).reviewComments.query(projectPath)
     },
-    enabled: projectPath !== null,
+    enabled: projectPath !== null && owner !== null,
   })
 
   return query.data ?? []

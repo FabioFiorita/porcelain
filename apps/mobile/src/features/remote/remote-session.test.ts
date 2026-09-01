@@ -20,7 +20,7 @@ vi.mock('expo-secure-store', () => ({
 
 const LAN = 'http://192.168.1.50:43117'
 const TAILNET = 'http://100.64.0.1:43117'
-const FUNNEL = 'https://beelink.example.ts.net'
+const CLOUDFLARE = 'https://beelink.example.ts.net'
 
 /** What each origin answers on this run. */
 const answers = new Map<string, 'ok' | 'unauthorized' | 'update-required'>()
@@ -95,7 +95,7 @@ async function pairGroup(): Promise<string> {
     nickname: 'studio',
     token: 'pc_client_test',
   })
-  await environmentActions.addEndpoint(environment.id, FUNNEL)
+  await environmentActions.addEndpoint(environment.id, CLOUDFLARE)
   await environmentActions.setActive(environment.id)
   return environment.id
 }
@@ -115,14 +115,14 @@ beforeEach(() => {
 
 describe('shared endpoint order', () => {
   it('defers to the shared LAN-then-public order', () => {
-    const group = { endpoints: [LAN, FUNNEL], preferredEndpoint: LAN, url: FUNNEL }
+    const group = { endpoints: [LAN, CLOUDFLARE], preferredEndpoint: LAN, url: CLOUDFLARE }
     expect(orderMobileRemoteEndpoints(group)).toEqual(orderRemoteEndpoints(group))
-    expect(orderMobileRemoteEndpoints(group)).toEqual([LAN, FUNNEL])
+    expect(orderMobileRemoteEndpoints(group)).toEqual([LAN, CLOUDFLARE])
 
     // A last-known-good URL no longer in the group is dropped, not probed.
-    const stale = { endpoints: [LAN, FUNNEL], preferredEndpoint: FUNNEL, url: TAILNET }
+    const stale = { endpoints: [LAN, CLOUDFLARE], preferredEndpoint: CLOUDFLARE, url: TAILNET }
     expect(orderMobileRemoteEndpoints(stale)).toEqual(orderRemoteEndpoints(stale))
-    expect(orderMobileRemoteEndpoints(stale)).toEqual([LAN, FUNNEL])
+    expect(orderMobileRemoteEndpoints(stale)).toEqual([LAN, CLOUDFLARE])
   })
 
   it('classifies raw causes with the shared public-error parser', () => {
@@ -149,11 +149,11 @@ describe('shared endpoint order', () => {
 describe('automatic endpoint failover', () => {
   it('walks to the next known endpoint and makes it active when the current one is unreachable', async () => {
     const id = await pairGroup()
-    answers.set(FUNNEL, 'ok') // LAN stays unreachable — only Funnel answers.
+    answers.set(CLOUDFLARE, 'ok') // LAN stays unreachable — only Cloudflare answers.
 
     await retryConnection()
 
-    expect(getEnvironment(id)?.baseUrl).toBe(FUNNEL)
+    expect(getEnvironment(id)?.baseUrl).toBe(CLOUDFLARE)
     expect(currentConnection()).toMatchObject({ kind: 'ready' })
   })
 
@@ -174,7 +174,7 @@ describe('automatic endpoint failover', () => {
   it('does not move off the preferred endpoint while it is still the one answering', async () => {
     const id = await pairGroup()
     answers.set(LAN, 'ok')
-    answers.set(FUNNEL, 'ok')
+    answers.set(CLOUDFLARE, 'ok')
 
     await retryConnection()
 
@@ -183,9 +183,9 @@ describe('automatic endpoint failover', () => {
 
   it('climbs back to the preferred endpoint once it is reachable again', async () => {
     const id = await pairGroup()
-    answers.set(FUNNEL, 'ok')
+    answers.set(CLOUDFLARE, 'ok')
     await retryConnection()
-    expect(getEnvironment(id)?.baseUrl).toBe(FUNNEL) // Failed over, as proven above.
+    expect(getEnvironment(id)?.baseUrl).toBe(CLOUDFLARE) // Failed over, as proven above.
 
     answers.set(LAN, 'ok') // The home network is back.
     await recoverToPreferredEndpoint()
@@ -197,29 +197,29 @@ describe('automatic endpoint failover', () => {
   it('does not recover while still parked on the endpoint the user explicitly picked', async () => {
     const id = await pairGroup()
     answers.set(LAN, 'ok')
-    answers.set(FUNNEL, 'ok')
+    answers.set(CLOUDFLARE, 'ok')
     await retryConnection()
     expect(getEnvironment(id)?.baseUrl).toBe(LAN)
 
-    // The human opens Settings and pins Funnel on purpose (e.g. LAN is flaky on their router).
-    await environmentActions.preferEndpoint(id, FUNNEL)
-    await environmentActions.setActiveEndpoint(id, FUNNEL)
+    // The human opens Settings and pins Cloudflare on purpose (e.g. LAN is flaky on their router).
+    await environmentActions.preferEndpoint(id, CLOUDFLARE)
+    await environmentActions.setActiveEndpoint(id, CLOUDFLARE)
 
     // A foreground/reconnect probe must not fight a preference the user just set.
     await recoverToPreferredEndpoint()
 
-    expect(getEnvironment(id)?.baseUrl).toBe(FUNNEL)
+    expect(getEnvironment(id)?.baseUrl).toBe(CLOUDFLARE)
   })
 
   it('honors a newly preferred endpoint over whichever one merely happens to be active', async () => {
     const id = await pairGroup()
     answers.set(LAN, 'ok')
-    answers.set(FUNNEL, 'ok')
+    answers.set(CLOUDFLARE, 'ok')
     await retryConnection()
     expect(getEnvironment(id)?.baseUrl).toBe(LAN)
 
-    // Pinning Funnel in the list does not skip a reachable LAN — failover is LAN first.
-    await environmentActions.preferEndpoint(id, FUNNEL)
+    // Pinning Cloudflare in the list does not skip a reachable LAN — failover is LAN first.
+    await environmentActions.preferEndpoint(id, CLOUDFLARE)
     await retryConnection()
 
     expect(getEnvironment(id)?.baseUrl).toBe(LAN)
@@ -230,7 +230,7 @@ describe('walk stop rules', () => {
   it('goes unauthorized on a public auth refusal instead of trying the next route', async () => {
     const id = await pairGroup()
     answers.set(LAN, 'unauthorized')
-    answers.set(FUNNEL, 'ok')
+    answers.set(CLOUDFLARE, 'ok')
 
     await retryConnection()
 
@@ -242,7 +242,7 @@ describe('walk stop rules', () => {
 
   it('stops on a protocol refusal, retires the session, and reports update-required', async () => {
     answers.set(LAN, 'update-required')
-    answers.set(FUNNEL, 'ok')
+    answers.set(CLOUDFLARE, 'ok')
     await pairGroup()
 
     await retryConnection()
@@ -261,7 +261,10 @@ describe('walk stop rules', () => {
     expect(connection.kind).toBe('unreachable')
     if (connection.kind === 'unreachable') {
       expect(connection.reachability.source).toBe('endpoint-walk')
-      expect(connection.reachability.attempted.map((attempt) => attempt.url)).toEqual([LAN, FUNNEL])
+      expect(connection.reachability.attempted.map((attempt) => attempt.url)).toEqual([
+        LAN,
+        CLOUDFLARE,
+      ])
     }
     expect(sessionHealth().status()).toBe('unavailable')
   })

@@ -14,11 +14,8 @@ import type {
   ReviewComment,
 } from '@porcelain/contracts/review'
 import { onMutationError } from '@renderer/hooks/mutation-error'
-import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
-import type { DaemonScope } from '@renderer/lib/daemon-scope'
-import { trpc } from '@renderer/lib/trpc'
+import { hubOwnerClient, useHubRepoOwner } from '@renderer/hooks/use-hub-owner'
 import { randomId } from '@renderer/lib/utils'
-import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { type QueryClient, useMutation, useQueryClient } from '@tanstack/react-query'
 import { reviewCommentsKeyForProject, reviewCommentsQueryKey } from './comment-query-key'
 
@@ -94,15 +91,13 @@ export function useCommentActions(): {
   setResolved: (id: string, resolved: boolean) => Promise<void>
   clearResolved: () => Promise<void>
 } {
-  const project = useProjectSelectionStore((s) => s.project)
-  const daemon = useDaemonIdentity()
-  const daemonScope: DaemonScope = { host: daemon.host, version: daemon.version }
+  const { repoPath, daemon: daemonScope, owner } = useHubRepoOwner()
   const queryClient = useQueryClient()
-  const client = trpc.useUtils().client
+  const client = hubOwnerClient
 
   const runSerially = <T>(run: () => Promise<T>): Promise<T> => {
-    if (!project) return run()
-    const queueKey = JSON.stringify(reviewCommentsKeyForProject(daemonScope, project.path))
+    if (repoPath === null) return run()
+    const queueKey = JSON.stringify(reviewCommentsKeyForProject(daemonScope, repoPath))
     return enqueueCommentMutation(queryClient, queueKey, run)
   }
 
@@ -224,7 +219,7 @@ export function useCommentActions(): {
   }
 
   const add = useMutation({
-    mutationFn: (input: AddReviewCommentInput) => client.addReviewComment.mutate(input),
+    mutationFn: (input: AddReviewCommentInput) => client(owner).addReviewComment.mutate(input),
     onMutate: beginAdd,
     onError: (error, _vars, context): void => {
       rollback(context)
@@ -251,7 +246,7 @@ export function useCommentActions(): {
   })
 
   const edit = useMutation({
-    mutationFn: (input: EditReviewCommentInput) => client.editReviewComment.mutate(input),
+    mutationFn: (input: EditReviewCommentInput) => client(owner).editReviewComment.mutate(input),
     onMutate: beginEdit,
     onError: (error, _vars, context): void => {
       rollback(context)
@@ -265,7 +260,8 @@ export function useCommentActions(): {
   })
 
   const remove = useMutation({
-    mutationFn: (input: DeleteReviewCommentInput) => client.deleteReviewComment.mutate(input),
+    mutationFn: (input: DeleteReviewCommentInput) =>
+      client(owner).deleteReviewComment.mutate(input),
     onMutate: beginDelete,
     onError: (error, _vars, context): void => {
       rollback(context)
@@ -279,7 +275,8 @@ export function useCommentActions(): {
   })
 
   const setResolved = useMutation({
-    mutationFn: (input: ResolveReviewCommentInput) => client.resolveReviewComment.mutate(input),
+    mutationFn: (input: ResolveReviewCommentInput) =>
+      client(owner).resolveReviewComment.mutate(input),
     onMutate: beginSetResolved,
     onError: (error, _vars, context): void => {
       rollback(context)
@@ -294,7 +291,7 @@ export function useCommentActions(): {
 
   const clearResolved = useMutation({
     mutationFn: (input: ClearResolvedReviewCommentsInput) =>
-      client.clearResolvedReviewComments.mutate(input),
+      client(owner).clearResolvedReviewComments.mutate(input),
     onMutate: beginClearResolved,
     onError: (error, _vars, context): void => {
       rollback(context)
@@ -309,10 +306,10 @@ export function useCommentActions(): {
 
   return {
     add: async (input: NewComment): Promise<void> => {
-      if (!project) return
+      if (repoPath === null) return
       await runSerially(async () => {
         await add.mutateAsync({
-          repoPath: project.path,
+          repoPath,
           path: input.path,
           body: input.body,
           ...(input.startLine !== undefined ? { startLine: input.startLine } : {}),
@@ -322,27 +319,27 @@ export function useCommentActions(): {
       })
     },
     edit: async (id: string, body: string): Promise<void> => {
-      if (!project) return
+      if (repoPath === null) return
       await runSerially(async () => {
-        await edit.mutateAsync({ repoPath: project.path, id, body })
+        await edit.mutateAsync({ repoPath, id, body })
       })
     },
     remove: async (id: string): Promise<void> => {
-      if (!project) return
+      if (repoPath === null) return
       await runSerially(async () => {
-        await remove.mutateAsync({ repoPath: project.path, id })
+        await remove.mutateAsync({ repoPath, id })
       })
     },
     setResolved: async (id: string, resolved: boolean): Promise<void> => {
-      if (!project) return
+      if (repoPath === null) return
       await runSerially(async () => {
-        await setResolved.mutateAsync({ repoPath: project.path, id, resolved })
+        await setResolved.mutateAsync({ repoPath, id, resolved })
       })
     },
     clearResolved: async (): Promise<void> => {
-      if (!project) return
+      if (repoPath === null) return
       await runSerially(async () => {
-        await clearResolved.mutateAsync({ repoPath: project.path })
+        await clearResolved.mutateAsync({ repoPath })
       })
     },
   }

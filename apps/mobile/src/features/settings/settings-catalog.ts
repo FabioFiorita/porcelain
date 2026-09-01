@@ -36,7 +36,7 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDef[] = [
     title: 'Remotes',
     scope: 'environment',
     blurb:
-      'Pair this device with a daemon. Prefer LAN first; add Tailscale or Funnel as fallbacks.',
+      'Pair this device with a daemon. Prefer LAN first; add Tailscale or Cloudflare as fallbacks.',
     testID: 'porcelain-settings-section-remotes',
   },
   {

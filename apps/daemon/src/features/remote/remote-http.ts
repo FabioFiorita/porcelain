@@ -50,9 +50,11 @@ export const TRPC_MAX_BODY_BYTES = 32 * 1024 * 1024
  * — canvas-access-tokens.ts) is the credential there; see canvas-http.ts for
  * why the route exists at all.
  *
- * GET /dev-auth is the one deliberate hole, mounted ONLY when the caller passes
- * `devAutoAuth` (server.ts does so only under PORCELAIN_DEV) — see dev-auth-http.ts for
- * what it hands out and why the Bearer gate below still applies to everything behind it.
+ * GET /dev-auth is the one deliberate hole, mounted ONLY on the loopback listener when
+ * the caller passes `devAutoAuth` (server.ts does so only under PORCELAIN_DEV). The external
+ * listener has a structurally separate dispatch path that cannot serve it — see
+ * dev-auth-http.ts for what it hands out and why the Bearer gate below still applies to
+ * everything behind it.
  *
  * Both dispatching routes also require the exact wire protocol this build speaks
  * (`rejectProtocolMismatch` below): the daemon serves independently updated clients
@@ -290,7 +292,11 @@ export function createRemoteHttp(opts: RemoteHttpOptions): RemoteHttp {
   // empty by design: no procedure may see the caller (per-connection concerns
   // live on the WS session). Extracted from createServer so the local and external
   // listeners share the same authenticated pipeline.
-  async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  async function handleRequest(
+    req: IncomingMessage,
+    res: ServerResponse,
+    allowDevAutoAuth: boolean,
+  ): Promise<void> {
     const cors = corsHeaders(req)
     const url = req.url ?? '/'
     if (url === '/pair' && req.method === 'OPTIONS') {
@@ -308,7 +314,7 @@ export function createRemoteHttp(opts: RemoteHttpOptions): RemoteHttp {
       return
     }
     // Development auto-authorization. Absent in production: no option, no route.
-    if (url === '/dev-auth' && opts.devAutoAuth !== undefined) {
+    if (url === '/dev-auth' && allowDevAutoAuth && opts.devAutoAuth !== undefined) {
       await handleDevAuthRequest(req, res, cors, opts.devAutoAuth)
       return
     }
@@ -451,7 +457,7 @@ export function createRemoteHttp(opts: RemoteHttpOptions): RemoteHttp {
   // expects. Dynamic request failures handle themselves above; this last-resort
   // path preserves non-public static-route failures without logging raw details.
   const requestListener = (req: IncomingMessage, res: ServerResponse): void => {
-    handleRequest(req, res).catch((error) => {
+    handleRequest(req, res, true).catch((error) => {
       logUnexpectedError({ error, requestId: createRequestId(), path: undefined })
       if (!res.headersSent) res.writeHead(500, corsHeaders(req))
       if (!res.writableEnded) res.end()
@@ -459,7 +465,7 @@ export function createRemoteHttp(opts: RemoteHttpOptions): RemoteHttp {
   }
 
   const externalRequestListener = (req: IncomingMessage, res: ServerResponse): void => {
-    handleRequest(req, res).catch((error) => {
+    handleRequest(req, res, false).catch((error) => {
       logUnexpectedError({ error, requestId: createRequestId(), path: undefined })
       if (!res.headersSent) res.writeHead(500, corsHeaders(req))
       if (!res.writableEnded) res.end()

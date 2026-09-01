@@ -38,7 +38,7 @@ export function endpointLabel(url: string): string {
     case 'tailnet':
       return 'Tailscale'
     case 'other':
-      return 'Funnel / Internet'
+      return 'Cloudflare / Internet'
   }
 }
 

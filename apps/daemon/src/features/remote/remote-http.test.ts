@@ -225,6 +225,15 @@ async function startTestDaemon(
   return { base: `http://127.0.0.1:${address.port}`, daemon: testDaemon }
 }
 
+async function startExternalTestDaemon(
+  options: TestDaemonOverrides = {},
+): Promise<{ base: string; daemon: RemoteHttp }> {
+  const testDaemon = createRemoteHttp(testDaemonOptions(options))
+  await new Promise<void>((resolve) => testDaemon.externalServer.listen(0, '127.0.0.1', resolve))
+  const address = testDaemon.externalServer.address() as AddressInfo
+  return { base: `http://127.0.0.1:${address.port}`, daemon: testDaemon }
+}
+
 async function stopTestDaemon(testDaemon: RemoteHttp): Promise<void> {
   const close = (server: import('node:http').Server): Promise<void> =>
     server.listening
@@ -812,6 +821,18 @@ describe('daemon http surface — development auto-authorization', () => {
     try {
       const response = await fetch(`${base}/dev-auth`, { method: 'POST' })
       expect(response.status).toBe(405)
+    } finally {
+      await stopTestDaemon(testDaemon)
+    }
+  })
+
+  it('never mounts development auto-auth on the external listener', async () => {
+    const devAutoAuth = vi.fn(async () => 'pc_client_dev-auto-auth_secret')
+    const { base, daemon: testDaemon } = await startExternalTestDaemon({ devAutoAuth })
+    try {
+      const response = await fetch(`${base}/dev-auth`)
+      expect(response.status).toBe(404)
+      expect(devAutoAuth).not.toHaveBeenCalled()
     } finally {
       await stopTestDaemon(testDaemon)
     }

@@ -51,7 +51,7 @@ export function resolveDevProfile() {
     config.version !== 1 ||
     typeof config.slug !== 'string' ||
     !/^[a-z0-9][a-z0-9-]{1,47}$/.test(config.slug) ||
-    config.branch !== `work/${config.slug}` ||
+    (config.branch !== null && config.branch !== `work/${config.slug}`) ||
     !Number.isInteger(config.port) ||
     config.port < 43200 ||
     config.port > 43999
