@@ -96,6 +96,10 @@ function harness(input: { recents?: string[]; projects?: StoredHubProject[] } = 
       ok: true as const,
       value: undefined,
     })),
+    worktreeDirty: vi.fn<HubGitPort['worktreeDirty']>(async () => ({
+      ok: true as const,
+      value: false,
+    })),
   } satisfies HubGitPort
 
   const operations: HubInventoryOperations = createHubInventoryOperations({
@@ -185,5 +189,20 @@ describe('Hub inventory operations performance', () => {
     // must ask Git again.
     expect(h.git.discoverProject).toHaveBeenCalledTimes(2)
     expect(h.git.listWorktrees).not.toHaveBeenCalled()
+  })
+
+  it('preserves stored identities when Git discovery is transiently unavailable', async () => {
+    const original = stored('alpha')
+    const h = harness({ projects: [original] })
+    h.git.listWorktrees.mockResolvedValue({
+      ok: false,
+      error: { code: 'git.not-a-repository' },
+    })
+
+    expect(await h.operations.listHubInventory()).toEqual({
+      ok: false,
+      error: { code: 'projects.unavailable' },
+    })
+    expect(h.inventory.writeProjects).not.toHaveBeenCalled()
   })
 })

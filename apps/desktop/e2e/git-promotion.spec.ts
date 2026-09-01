@@ -2,6 +2,8 @@ import { execFileSync } from 'node:child_process'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { canvasBundleDir, canvasIndexPath } from '@shared/canvas-porcelain'
+import { OVERLAY_CANVAS_MANIFEST_FILE } from '@shared/project-porcelain'
+import { reviewCanvasDocument } from '@porcelain/contracts/projects'
 import { expect, loc, openSurface, TestIds, test, waitForShell } from './helpers/app'
 
 /**
@@ -20,10 +22,11 @@ interface StoredCanvas {
   id: string
   worktreeId: string | null
   title: string
-  kind: 'html' | 'markdown'
+  kind: 'html' | 'markdown' | 'structured'
   entryFile: string
   createdAt: string
   updatedAt: string
+  template?: 'review' | 'decision'
 }
 
 const NOW = '2026-08-15T00:00:00.000Z'
@@ -87,14 +90,63 @@ async function seedTrackedCanvas(
   repoDir: string,
   record: StoredCanvas,
   files: Record<string, string>,
+  manifestFile = 'canvas.json',
 ): Promise<void> {
   const dir = join(repoDir, '.porcelain', 'canvases', record.id)
   await mkdir(dir, { recursive: true })
-  await writeFile(join(dir, 'canvas.json'), JSON.stringify(record, null, 2))
+  await writeFile(join(dir, manifestFile), JSON.stringify(record, null, 2))
   for (const [name, content] of Object.entries(files)) {
     await writeFile(join(dir, name), content)
   }
 }
+
+test('a tracked semantic Review opens without treating its manifest as the document', async ({
+  page,
+  repoDir,
+  seeded,
+}) => {
+  await waitForShell(page)
+  const { worktreeId } = await waitForProjectAndWorktree(seeded.udBase)
+  const review = reviewCanvasDocument({
+    title: 'Storage boundary review',
+    why: 'The semantic document must survive promotion.',
+    how: 'Store the tracked manifest beside the structured entry.',
+    layers: [],
+    files: [],
+  })
+  await seedTrackedCanvas(
+    repoDir,
+    {
+      id: 'canvas-structured-review',
+      worktreeId: null,
+      title: review.title,
+      kind: 'structured',
+      entryFile: 'canvas.json',
+      template: 'review',
+      createdAt: NOW,
+      updatedAt: NOW,
+    },
+    {
+      'canvas.json': `${JSON.stringify(review, null, 2)}\n`,
+      'review.json': `${JSON.stringify(
+        { name: review.title, layers: [], files: [], sections: [] },
+        null,
+        2,
+      )}\n`,
+    },
+    OVERLAY_CANVAS_MANIFEST_FILE,
+  )
+
+  await loc.hubWorktree(page, worktreeId).click()
+  await openSurface(page, 'Canvas')
+  await loc.canvasListItem(page, 'canvas-structured-review').click()
+
+  await expect(page.getByTestId(TestIds.structuredCanvas)).toBeVisible()
+  await expect(page.getByTestId(TestIds.structuredCanvasInvalid)).toHaveCount(0)
+  await expect(page.getByText(review.why, { exact: true })).toBeVisible()
+  await page.getByRole('tab', { name: 'How' }).click()
+  await expect(page.getByText(review.how, { exact: true })).toBeVisible()
+})
 
 test('promoting a Canvas writes only the promoted bytes and re-opens from the tracked source', async ({
   page,
@@ -142,15 +194,15 @@ test('promoting a Canvas writes only the promoted bytes and re-opens from the tr
   // notes, no `.gitignore`, no staged change: promotion writes plain files.
   const added = statusDelta(beforePromotion, gitStatus(repoDir))
   expect(added).toEqual([
-    '?? .porcelain/canvases/canvas-architecture/canvas.json',
     '?? .porcelain/canvases/canvas-architecture/index.html',
+    `?? .porcelain/canvases/canvas-architecture/${OVERLAY_CANVAS_MANIFEST_FILE}`,
   ])
 
   // The tracked manifest is the canonical record, and the private bundle is gone
   // — one copy, not two that can drift apart.
   const manifest = JSON.parse(
     await readFile(
-      join(repoDir, '.porcelain', 'canvases', 'canvas-architecture', 'canvas.json'),
+      join(repoDir, '.porcelain', 'canvases', 'canvas-architecture', OVERLAY_CANVAS_MANIFEST_FILE),
       'utf8',
     ),
   ) as StoredCanvas

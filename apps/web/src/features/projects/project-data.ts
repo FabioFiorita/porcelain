@@ -63,8 +63,8 @@ import {
 
 export type ProjectsDaemonScope = DaemonScope
 
-export type { HubInventoryView } from './hub-inventories'
-export { useHubInventories, useHubInventory } from './hub-inventories'
+export type { HubInventoriesState, HubInventoryView } from './hub-inventories'
+export { useHubInventories, useHubInventoriesState, useHubInventory } from './hub-inventories'
 
 const projectsQueryKeySchema = z.tuple([projectsQuerySchema, daemonScopeSchema])
 
@@ -278,6 +278,7 @@ export function useRemoveHubWorktree(): {
       await removeHubWorktreeOnDaemon(owner.client, {
         projectId: variables.projectId,
         worktreeId: variables.worktreeId,
+        force: variables.force,
       })
     },
     onMutate: async (variables): Promise<readonly Snapshot[]> => {
@@ -410,10 +411,13 @@ export function useCreateHubWorktree(): {
       return createHubWorktreeOnDaemon(owner.client, {
         branch: input.branch,
         baseRef: input.baseRef,
+        existing: input.existing,
         projectId: input.projectId,
       })
     },
-    onSuccess: async (_result, input) => {
+    // A create can land before its response or reconciliation fails. Always ask the inventory
+    // authority what exists instead of leaving a successful filesystem mutation invisible.
+    onSettled: async (_result, _error, input) => {
       await invalidateProjectQueries(
         queryClient,
         daemon,

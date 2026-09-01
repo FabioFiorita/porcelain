@@ -57,6 +57,8 @@ export const removeHubWorktreeInputSchema = z
   .object({
     projectId: z.string().min(1),
     worktreeId: z.string().min(1),
+    /** Explicit authorization to discard uncommitted files in this checkout. */
+    force: z.boolean().optional(),
   })
   .strict()
 export const removeHubWorktreeOutputSchema = z.void()
@@ -240,33 +242,21 @@ export const mintCanvasAccessTokenOutputSchema = z.object({ token: z.string().mi
 export type MintCanvasAccessTokenInput = z.infer<typeof mintCanvasAccessTokenInputSchema>
 export type MintCanvasAccessTokenOutput = z.infer<typeof mintCanvasAccessTokenOutputSchema>
 
-/**
- * Promoted project/Worktree defaults — `<repo>/.porcelain/project.json`.
- *
- * The field names are deliberately the ones the private surfaces already use
- * (`hiddenPaths`/`pinnedPaths` from the private Project store, `startScript`/`disposeScript`
- * from the client's Worktree setup store) so the #27 migration is a rename of
- * the file, not a reshaping of its contents. These are project DEFAULTS: the
- * client merges them UNDER its own client-local personal state, which is never
- * written into the repository (ADR 0002).
- */
-export const worktreeSetupOverrideSchema = z
-  .object({
-    startScript: z.string(),
-    disposeScript: z.string(),
-  })
-  .strict()
-export type WorktreeSetupOverride = z.infer<typeof worktreeSetupOverrideSchema>
-
-export const projectOverridesSchema = z
+/** Promoted Project navigation defaults — `<repo>/.porcelain/project.json`. */
+const currentProjectOverridesSchema = z
   .object({
     /** Repo-relative paths shared as project defaults. */
     hiddenPaths: z.array(z.string()),
     pinnedPaths: z.array(z.string()),
-    /** Keyed by branch (or another stable Worktree key), never by absolute path. */
-    worktrees: z.record(z.string(), z.object({ setup: worktreeSetupOverrideSchema }).strict()),
   })
   .strict()
+
+/** Read old documents without retaining the lifecycle field now owned by trusted Actions. */
+export const projectOverridesSchema = z.preprocess((value) => {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return value
+  const { worktrees: _retired, ...current } = value as Record<string, unknown>
+  return current
+}, currentProjectOverridesSchema)
 export type ProjectOverrides = z.infer<typeof projectOverridesSchema>
 
 /**
@@ -300,7 +290,6 @@ export const promoteOverridesInputSchema = z
     path: z.string().min(1),
     hiddenPaths: z.array(z.string()).optional(),
     pinnedPaths: z.array(z.string()).optional(),
-    worktrees: projectOverridesSchema.shape.worktrees.optional(),
   })
   .strict()
 export type PromoteOverridesInput = z.infer<typeof promoteOverridesInputSchema>
@@ -459,7 +448,7 @@ export const projectsContractFixtures = {
       hiddenPaths: ['apps/legacy'],
       pinnedPaths: ['apps/web'],
     },
-    output: { hiddenPaths: ['apps/legacy'], pinnedPaths: ['apps/web'], worktrees: {} },
+    output: { hiddenPaths: ['apps/legacy'], pinnedPaths: ['apps/web'] },
   },
   listOverlay: {
     input: { path: '/synthetic/projects/alpha' },
@@ -477,7 +466,7 @@ export const projectsContractFixtures = {
           tracked: true,
         },
       ],
-      overrides: { hiddenPaths: ['apps/legacy'], pinnedPaths: ['apps/web'], worktrees: {} },
+      overrides: { hiddenPaths: ['apps/legacy'], pinnedPaths: ['apps/web'] },
     },
   },
 } as const

@@ -75,6 +75,11 @@ describe('ProjectPickerDialog', () => {
 
     expect(screen.queryByTestId(TestIds.projectPickerEnvironment)).toBeNull()
     expect(browsed.at(-1)?.environmentId).toBeNull()
+    expect(
+      screen.getByText(
+        'Git repositories appear in Projects. Other folders open as a workspace only.',
+      ),
+    ).toBeVisible()
   })
 
   it('browses the Environment that was chosen, not the one the window is on', async () => {

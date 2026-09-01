@@ -4,17 +4,13 @@ name = "porcelain"
 
 [setup]
 script = '''
-if [ -n "${CODEX_WORKTREE_PATH:-}" ]; then
-  node scripts/worktree.mjs codex-bootstrap "$CODEX_WORKTREE_PATH"
-fi
+node scripts/worktree.mjs codex-bootstrap "${CODEX_WORKTREE_PATH:-$PWD}"
 pnpm install --frozen-lockfile
 '''
 
 [cleanup]
 script = '''
-if [ -n "${CODEX_WORKTREE_PATH:-}" ]; then
-  node scripts/worktree.mjs codex-cleanup "$CODEX_WORKTREE_PATH"
-fi
+node scripts/worktree.mjs codex-cleanup "${CODEX_WORKTREE_PATH:-$PWD}"
 '''
 
 [[actions]]

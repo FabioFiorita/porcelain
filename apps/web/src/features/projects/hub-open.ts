@@ -19,24 +19,22 @@ export function useOpenHubWorktree(): (source: HubInventoryView, worktree: HubWo
     // `source.environmentId` is a shell connection identity in Electron and null in the
     // browser's primary source. The persisted selection always uses the daemon-announced id;
     // the open call below uses that same id so the existing renderer session owns the request.
-    const select = (): void => {
-      selectWorktree({
-        environmentId: source.inventory.environment.id,
-        projectId: worktree.projectId,
-        worktreeId: worktree.id,
-        path: worktree.path,
-        name: worktree.name,
-      })
-    }
-    select()
     runUserAction(
-      () =>
-        openProject.open(worktree.path, {
+      async () => {
+        await openProject.open(worktree.path, {
           // null means this window's own daemon. For a secondary source, use its
           // daemon-announced identity; hub-inventories registered the alias to the live
           // Electron or browser connection before the row became actionable.
           environmentId: source.current ? null : source.inventory.environment.id,
-        }),
+        })
+        selectWorktree({
+          environmentId: source.inventory.environment.id,
+          projectId: worktree.projectId,
+          worktreeId: worktree.id,
+          path: worktree.path,
+          name: worktree.name,
+        })
+      },
       (error) => toastUserActionError('Open worktree', error),
     )
   }

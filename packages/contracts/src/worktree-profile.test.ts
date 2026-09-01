@@ -75,7 +75,6 @@ describe('privateProjectDocumentSchema', () => {
     expect(privateProjectDocumentSchema.parse({})).toEqual({
       hiddenPaths: [],
       pinnedPaths: [],
-      worktrees: {},
       layers: [],
       worktreeProfiles: {},
     })
@@ -104,12 +103,11 @@ describe('stripPersonalProfileFields (ADR 0006)', () => {
     const promoted = stripPersonalProfileFields({
       hiddenPaths: ['dist'],
       pinnedPaths: ['README.md'],
-      worktrees: {},
       layers: [{ label: 'View', pattern: 'components/' }],
       worktreeProfiles: { 'wt-9': worktreeProfileSchema.parse({ layers: [] }) },
     })
 
-    expect(promoted).toEqual({ hiddenPaths: ['dist'], pinnedPaths: ['README.md'], worktrees: {} })
+    expect(promoted).toEqual({ hiddenPaths: ['dist'], pinnedPaths: ['README.md'] })
     expect(promoted).not.toHaveProperty('layers')
     expect(promoted).not.toHaveProperty('worktreeProfiles')
   })

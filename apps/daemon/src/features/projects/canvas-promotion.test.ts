@@ -4,11 +4,13 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { canvasBundleDir, canvasIndexPath } from '@shared/canvas-porcelain'
 import {
+  legacyProjectOverlayCanvasManifestPath,
   projectOverlayCanvasBundleDir,
   projectOverlayCanvasManifestPath,
   projectOverlayOverridesPath,
   projectPorcelainDir,
 } from '@shared/project-porcelain'
+import { reviewCanvasDocument, structuredCanvasDocumentSchema } from '@porcelain/contracts/projects'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createCanvasAccessTokens } from './canvas-access-tokens'
 import { type CanvasOperations, createCanvasOperations } from './canvas-operations'
@@ -24,6 +26,7 @@ let root = ''
 let homeDir = ''
 let repo = ''
 let operations: CanvasOperations
+let store: ReturnType<typeof createCanvasStore>
 
 const PRIVATE_CANVAS: StoredCanvas = {
   id: 'canvas-intent',
@@ -73,8 +76,9 @@ beforeEach(async () => {
   repo = join(root, 'repo')
   await mkdir(homeDir, { recursive: true })
   await mkdir(repo, { recursive: true })
+  store = createCanvasStore({ homeDir })
   operations = createCanvasOperations({
-    store: createCanvasStore({ homeDir }),
+    store,
     overlay: createCanvasOverlayStore(),
     accessTokens: createCanvasAccessTokens(),
     worktrees: {
@@ -93,6 +97,87 @@ afterEach(async () => {
 })
 
 describe('promoting a Canvas into the Git overlay', () => {
+  it('promotes and reads a semantic v2 Review without overwriting its document', async () => {
+    const reviewData = {
+      title: 'Truthful worktree review',
+      why: 'Git state and the UI must tell the same story.',
+      how: 'Keep semantic content separate from tracked storage metadata.',
+      layers: [{ label: 'Storage boundary', pattern: '^apps/daemon/' }],
+      files: [
+        {
+          path: 'apps/daemon/src/features/projects/canvas-overlay-store.ts',
+          source: 'changed' as const,
+          layer: 'Storage boundary',
+        },
+      ],
+    }
+    const document = reviewCanvasDocument(reviewData)
+    const written = await store.writeCanvas('proj-1', {
+      id: 'review-structured',
+      worktreeId: 'wt-1',
+      title: reviewData.title,
+      kind: 'structured',
+      entryFile: 'canvas.json',
+      template: 'review',
+      source: {
+        kind: 'structured',
+        entryFile: 'canvas.json',
+        document: `${JSON.stringify(document, null, 2)}\n`,
+        extraFiles: [
+          {
+            path: 'review.json',
+            content: `${JSON.stringify(
+              {
+                name: reviewData.title,
+                layers: reviewData.layers,
+                files: reviewData.files,
+                sections: [],
+              },
+              null,
+              2,
+            )}\n`,
+          },
+        ],
+      },
+    })
+    expect(written.ok).toBe(true)
+
+    const promoted = await operations.promoteCanvas({
+      projectId: 'proj-1',
+      canvasId: 'review-structured',
+      path: repo,
+    })
+    expect(promoted.ok).toBe(true)
+
+    const read = await operations.readCanvas({
+      projectId: 'proj-1',
+      canvasId: 'review-structured',
+      worktreePath: repo,
+    })
+    if (!read.ok) throw new Error('expected promoted Review to be readable')
+    const parsed = structuredCanvasDocumentSchema.parse(JSON.parse(read.value.content))
+    expect(parsed).toEqual(document)
+    expect(parsed).toMatchObject({
+      version: 2,
+      template: 'review',
+      why: reviewData.why,
+      how: reviewData.how,
+    })
+    expect(
+      JSON.parse(
+        await readFile(projectOverlayCanvasManifestPath(repo, 'review-structured'), 'utf8'),
+      ),
+    ).toMatchObject({ id: 'review-structured', entryFile: 'canvas.json', template: 'review' })
+    expect(
+      JSON.parse(
+        await readFile(
+          join(projectOverlayCanvasBundleDir(repo, 'review-structured'), 'canvas.json'),
+          'utf8',
+        ),
+      ),
+    ).toEqual(document)
+  })
+
   it('moves the bundle into the checkout and leaves no private copy behind', async () => {
     await writeIndex([PRIVATE_CANVAS])
     const privateDir = await writePrivateBundle(PRIVATE_CANVAS, '<p>intent</p>')
@@ -157,6 +242,26 @@ describe('promoting a Canvas into the Git overlay', () => {
       await operations.promoteCanvas({ projectId: 'proj-1', canvasId: 'ghost', path: repo }),
     ).toEqual({ ok: false, error: { code: 'canvas.not-found' } })
   })
+
+  it('reserves manifest.json instead of overwriting a generic entry with that name', async () => {
+    const reservedEntry = {
+      ...PRIVATE_CANVAS,
+      id: 'canvas-reserved-entry',
+      entryFile: 'manifest.json',
+    }
+    await writeIndex([reservedEntry])
+    const privateDir = await writePrivateBundle(reservedEntry, '<p>must survive</p>')
+
+    expect(
+      await operations.promoteCanvas({
+        projectId: 'proj-1',
+        canvasId: reservedEntry.id,
+        path: repo,
+      }),
+    ).toEqual({ ok: false, error: { code: 'canvas.unavailable' } })
+    expect(await readFile(join(privateDir, 'manifest.json'), 'utf8')).toBe('<p>must survive</p>')
+    await expect(readdir(projectOverlayCanvasBundleDir(repo, reservedEntry.id))).rejects.toThrow()
+  })
 })
 
 describe('the promotion target is explicit', () => {
@@ -206,6 +311,42 @@ describe('the promotion target is explicit', () => {
 })
 
 describe('tracked wins over private', () => {
+  it('continues reading legacy HTML and Markdown manifests named canvas.json', async () => {
+    const legacyHtml = { ...PRIVATE_CANVAS, worktreeId: null }
+    const legacyMarkdown = {
+      ...legacyHtml,
+      id: 'canvas-legacy-markdown',
+      kind: 'markdown' as const,
+      entryFile: 'index.md',
+    }
+    for (const [record, content] of [
+      [legacyHtml, '<p>legacy HTML</p>'],
+      [legacyMarkdown, '# legacy Markdown'],
+    ] as const) {
+      const dir = projectOverlayCanvasBundleDir(repo, record.id)
+      await mkdir(dir, { recursive: true })
+      await writeFile(join(dir, record.entryFile), content, 'utf8')
+      await writeFile(
+        legacyProjectOverlayCanvasManifestPath(repo, record.id),
+        `${JSON.stringify(record, null, 2)}\n`,
+        'utf8',
+      )
+    }
+
+    const html = await operations.readCanvas({
+      projectId: 'proj-1',
+      canvasId: legacyHtml.id,
+      worktreePath: repo,
+    })
+    const markdown = await operations.readCanvas({
+      projectId: 'proj-1',
+      canvasId: legacyMarkdown.id,
+      worktreePath: repo,
+    })
+    expect(html.ok && html.value.content).toContain('legacy HTML')
+    expect(markdown.ok && markdown.value.content).toBe('# legacy Markdown')
+  })
+
   it('lists the tracked record and hides the private one with the same id', async () => {
     await writeIndex([PRIVATE_CANVAS])
     await writePrivateBundle(PRIVATE_CANVAS, '<p>private</p>')
@@ -376,14 +517,12 @@ describe('promoted project overrides', () => {
       path: repo,
       hiddenPaths: ['apps/legacy'],
       pinnedPaths: ['apps/web'],
-      worktrees: { main: { setup: { startScript: 'pnpm dev', disposeScript: '' } } },
     })
     expect(result).toEqual({
       ok: true,
       value: {
         hiddenPaths: ['apps/legacy'],
         pinnedPaths: ['apps/web'],
-        worktrees: { main: { setup: { startScript: 'pnpm dev', disposeScript: '' } } },
       },
     })
     expect(JSON.parse(await readFile(projectOverlayOverridesPath(repo), 'utf8'))).toEqual(
@@ -400,7 +539,7 @@ describe('promoted project overrides', () => {
     })
     expect(second).toEqual({
       ok: true,
-      value: { hiddenPaths: ['a'], pinnedPaths: ['b'], worktrees: {} },
+      value: { hiddenPaths: ['a'], pinnedPaths: ['b'] },
     })
   })
 
@@ -425,7 +564,6 @@ describe('promoted project overrides', () => {
     expect(listed.value.overrides).toEqual({
       hiddenPaths: [],
       pinnedPaths: ['apps/web'],
-      worktrees: {},
     })
     expect(listed.value.canvases).toEqual([
       expect.objectContaining({ id: 'canvas-intent', tracked: true }),

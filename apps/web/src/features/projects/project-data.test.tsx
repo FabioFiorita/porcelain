@@ -26,6 +26,7 @@ import {
   useRemoveRecentProject,
 } from './index'
 import { usePromoteCanvas, useRemoveHubWorktree } from './project-data'
+import { useCreateHubWorktree } from './project-data'
 
 const alpha = projectsContractFixtures.openRepoPath.output
 const beta = { path: '/synthetic/projects/beta', name: 'beta' }
@@ -251,6 +252,28 @@ describe('Web Projects adapter', () => {
     )
     finishRemove?.()
     await act(async () => removal)
+  })
+
+  it('forwards existing-branch intent through the web adapter', async () => {
+    const created = projectsContractFixtures.createHubWorktree.output
+    const { mock, wrapper } = createValidatingTrpcHarness(
+      handlers({ createHubWorktree: () => ({ ok: true, value: created }) }),
+    )
+    const hook = renderHook(() => useCreateHubWorktree(), { wrapper })
+
+    await act(async () => {
+      await hook.result.current.create({
+        projectId: 'proj-alpha',
+        branch: 'topic',
+        existing: true,
+      })
+    })
+
+    expect(mock.requests()).toContainEqual({
+      procedure: 'createHubWorktree',
+      kind: 'mutation',
+      input: { projectId: 'proj-alpha', branch: 'topic', existing: true },
+    })
   })
 
   it('updates Hub inventories when browser Environment topology changes', async () => {

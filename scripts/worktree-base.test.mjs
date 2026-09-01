@@ -1,12 +1,21 @@
 #!/usr/bin/env node
 /**
- * Pure / fixture tests for managed worktree base-ref support.
- * Does not create or delete real Porcelain worktrees.
+ * Pure and disposable-fixture tests for managed worktree behavior.
+ * Never addresses a real Porcelain checkout or runtime home.
  */
 import assert from 'node:assert/strict'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { test } from 'node:test'
 import {
   codexSlugForPath,
@@ -16,6 +25,12 @@ import {
   planCreateGitArgs,
   planRemoveGuard,
 } from './worktree.mjs'
+
+const worktreeScript = resolve('scripts/worktree.mjs')
+
+function git(cwd, ...args) {
+  return execFileSync('git', args, { cwd, encoding: 'utf8' }).trim()
+}
 
 test('codexSlugForPath derives a stable valid slug from the harness allocation', () => {
   assert.equal(codexSlugForPath('/home/fabio/.codex/worktrees/1b28/porcelain'), 'codex-1b28')
@@ -157,5 +172,50 @@ test('fixture config file round-trip defaults base for old profiles', () => {
     assert.equal(parsed.config.base, 'main')
   } finally {
     rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('Codex bootstrap and cleanup fall back to the harness checkout working directory', () => {
+  const home = realpathSync(mkdtempSync(join(tmpdir(), 'porcelain-codex-hook-')))
+  const primary = join(home, 'repo')
+  const checkout = join(home, '.codex', 'worktrees', '7f73', 'porcelain')
+  try {
+    mkdirSync(primary, { recursive: true })
+    git(primary, 'init', '-b', 'main')
+    git(primary, 'config', 'user.name', 'Porcelain Test')
+    git(primary, 'config', 'user.email', 'porcelain@example.test')
+    writeFileSync(join(primary, 'README.md'), 'fixture\n')
+    git(primary, 'add', 'README.md')
+    git(primary, '-c', 'commit.gpgsign=false', 'commit', '-m', 'fixture')
+    mkdirSync(dirname(checkout), { recursive: true })
+    git(primary, 'worktree', 'add', '--detach', checkout, 'HEAD')
+
+    const env = { ...process.env, HOME: home }
+    execFileSync(process.execPath, [worktreeScript, 'codex-bootstrap'], {
+      cwd: checkout,
+      env,
+      stdio: 'pipe',
+    })
+
+    const config = JSON.parse(readFileSync(join(checkout, '.porcelain-worktree.json'), 'utf8'))
+    assert.deepEqual(config, {
+      version: 1,
+      slug: 'codex-7f73',
+      branch: 'work/codex-7f73',
+      port: 43200,
+      base: 'main',
+    })
+    assert.equal(git(checkout, 'branch', '--show-current'), 'work/codex-7f73')
+    assert.equal(existsSync(join(home, 'code', 'porcelain-playgrounds', 'codex-7f73')), true)
+
+    execFileSync(process.execPath, [worktreeScript, 'codex-cleanup'], {
+      cwd: checkout,
+      env,
+      stdio: 'pipe',
+    })
+    assert.equal(existsSync(checkout), false)
+    assert.equal(git(primary, 'branch', '--list', 'work/codex-7f73'), '')
+  } finally {
+    rmSync(home, { recursive: true, force: true })
   }
 })

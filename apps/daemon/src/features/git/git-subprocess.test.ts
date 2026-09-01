@@ -144,6 +144,29 @@ describe('Git subprocess adapter', () => {
     })
   })
 
+  it('requires an explicit force flag before removing a dirty worktree', async () => {
+    await withTemporaryDirectory('porcelain-git-subprocess-', async (root) => {
+      const repo = await makeRepo(root)
+      const worktree = join(dirname(repo), `${basename(repo)}-worktrees`, 'topic')
+      await mkdir(dirname(worktree), { recursive: true })
+      git(repo, 'worktree', 'add', '-b', 'topic', worktree)
+      await writeFile(join(worktree, 'untracked.txt'), 'keep me\n')
+
+      const adapter = createGitSubprocess()
+      await expect(adapter.removeWorktree(repo, worktree)).resolves.toEqual({
+        ok: false,
+        error: { code: 'git.working-tree-conflict' },
+      })
+      expect(git(repo, 'worktree', 'list', '--porcelain')).toContain(worktree)
+
+      await expect(adapter.removeWorktree(repo, worktree, true)).resolves.toEqual({
+        ok: true,
+        value: undefined,
+      })
+      expect(git(repo, 'worktree', 'list', '--porcelain')).not.toContain(worktree)
+    })
+  })
+
   it('checks out an existing unused branch into a new worktree without -b', async () => {
     await withTemporaryDirectory('porcelain-git-subprocess-', async (root) => {
       const repo = await makeRepo(root)

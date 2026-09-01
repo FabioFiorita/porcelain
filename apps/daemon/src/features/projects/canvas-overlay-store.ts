@@ -6,6 +6,7 @@ import type { ProjectOverrides } from '@porcelain/contracts/projects'
 import { projectOverridesSchema } from '@porcelain/contracts/projects'
 import {
   OVERLAY_CANVAS_MANIFEST_FILE,
+  legacyProjectOverlayCanvasManifestPath,
   projectOverlayCanvasBundleDir,
   projectOverlayCanvasesDir,
   projectOverlayCanvasManifestPath,
@@ -38,7 +39,7 @@ import type { CanvasEntry, CanvasStoreError, CanvasStoreResult } from './canvas-
  * manifest through the same strict schema the private index uses.
  */
 
-/** One manifest is one record; a bundle with a huge `canvas.json` is corrupt, not big. */
+/** One manifest is one record; a bundle with a huge manifest is corrupt, not big. */
 const OVERLAY_MANIFEST_MAX_BYTES = 64 * 1024
 const OVERLAY_OVERRIDES_MAX_BYTES = 256 * 1024
 
@@ -111,17 +112,20 @@ async function readOverlayManifest(
   repoPath: string,
   canvasId: string,
 ): Promise<StoredCanvas | null> {
-  const raw = await readBoundedJson(
+  for (const path of [
     projectOverlayCanvasManifestPath(repoPath, canvasId),
-    OVERLAY_MANIFEST_MAX_BYTES,
-  )
-  if (raw === null) return null
-  const parsed = storedCanvasSchema.safeParse(raw)
-  if (!parsed.success) return null
-  // The directory name is the identity that addressed this bundle; a manifest
-  // claiming a different id would let one clone shadow an unrelated Canvas.
-  if (parsed.data.id !== canvasId) return null
-  return parsed.data
+    legacyProjectOverlayCanvasManifestPath(repoPath, canvasId),
+  ]) {
+    const raw = await readBoundedJson(path, OVERLAY_MANIFEST_MAX_BYTES)
+    if (raw === null) continue
+    const parsed = storedCanvasSchema.safeParse(raw)
+    if (!parsed.success) continue
+    // The directory name is the identity that addressed this bundle; a manifest
+    // claiming a different id would let one clone shadow an unrelated Canvas.
+    if (parsed.data.id !== canvasId) return null
+    return parsed.data
+  }
+  return null
 }
 
 async function writeJsonAtomically(path: string, value: unknown): Promise<void> {
@@ -200,6 +204,14 @@ export function createCanvasOverlayStore(): CanvasOverlayStore {
         // Copy, not rename: the private store lives under $PORCELAIN_HOME, which
         // is routinely a different filesystem from the checkout (EXDEV).
         await cp(input.sourceBundleDir, staging, { recursive: true })
+        // `manifest.json` is overlay-owned. Refuse a source bundle that already
+        // uses the reserved name instead of silently replacing another entry or
+        // asset and recreating the collision this boundary exists to prevent.
+        const reservedPathExists = await stat(join(staging, OVERLAY_CANVAS_MANIFEST_FILE)).then(
+          () => true,
+          () => false,
+        )
+        if (reservedPathExists) throw new Error('reserved Canvas overlay manifest path')
         await writeJsonAtomically(join(staging, OVERLAY_CANVAS_MANIFEST_FILE), input.record)
         await rm(bundlePath, { recursive: true, force: true })
         await rename(staging, bundlePath)

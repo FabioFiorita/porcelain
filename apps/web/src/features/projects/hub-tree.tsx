@@ -1,25 +1,22 @@
-import type { HubWorktree } from '@porcelain/contracts/projects'
-import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { cn } from '@renderer/lib/utils'
 import { useHubSelectionStore } from '@renderer/stores/hub-selection'
-import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
 import { useEffect } from 'react'
 import { HubTreeFromInventories } from './hub-tree-list'
 import {
-  type HubInventoryView,
   useCreateHubWorktree,
-  useHubInventories,
-  useOpenProject,
+  useHubInventoriesState,
   useRemoveHubProject,
   useRemoveHubWorktree,
   useSelectedProject,
 } from './project-data'
+import { useOpenHubWorktree } from './hub-open'
 
 export function HubTree(props: { className?: string }): React.JSX.Element | null {
-  const inventories = useHubInventories()
+  const inventoryState = useHubInventoriesState()
+  const inventories = inventoryState.inventories
   const createWorktree = useCreateHubWorktree()
-  const openProject = useOpenProject()
+  const openWorktree = useOpenHubWorktree()
   const removeProject = useRemoveHubProject()
   const removeWorktree = useRemoveHubWorktree()
   const selectWorktree = useHubSelectionStore((state) => state.selectWorktree)
@@ -61,33 +58,20 @@ export function HubTree(props: { className?: string }): React.JSX.Element | null
     }
   }, [inventories, selectedProject, selection, selectWorktree])
 
-  if (inventories.length === 0) return null
-
-  const open = (source: HubInventoryView, worktree: HubWorktree): void => {
-    // Environment routing is uniform across both platforms now: every window can hold a live
-    // session for any Environment (environment-sessions.ts), and hub-inventories.ts registers
-    // the alias from the daemon-announced id to whatever connection/pairing id sourced the
-    // session, so `environmentSessionFor`/`environmentClientFor` resolve either platform's
-    // non-current sources the same way (see the session-routing id below). Persisted
-    // selection always uses the daemon-announced id — `source.environmentId` (Electron only)
-    // is a different, shell-specific id space and would silently break routing.
-    selectWorktree({
-      environmentId: source.inventory.environment.id,
-      projectId: worktree.projectId,
-      worktreeId: worktree.id,
-      path: worktree.path,
-      name: worktree.name,
-    })
-    runUserAction(
-      () =>
-        openProject.open(worktree.path, {
-          // null (this window's own client, bypassing environmentSessionFor entirely) for
-          // the current source: primaryEnvironmentId round-trips through daemonInfo/the
-          // shell fan-out asynchronously, so passing the real id here can momentarily treat
-          // the current Environment as an unresolved remote session and fail as "offline".
-          environmentId: source.current ? null : source.inventory.environment.id,
-        }),
-      (error) => toastUserActionError('Open worktree', error),
+  if (inventories.length === 0) {
+    const message =
+      inventoryState.status === 'loading'
+        ? 'Loading Projects…'
+        : inventoryState.status === 'error'
+          ? 'Projects are unavailable. Try again in a moment.'
+          : 'No Environments are online.'
+    return (
+      <div
+        data-testid={TestIds.hubInventory}
+        className={cn('px-2 text-xs text-muted-foreground', props.className)}
+      >
+        {message}
+      </div>
     )
   }
 
@@ -111,7 +95,7 @@ export function HubTree(props: { className?: string }): React.JSX.Element | null
       creating={createWorktree.isPending}
       removeProject={removeProject.remove}
       removeWorktree={removeWorktree.remove}
-      openWorktree={open}
+      openWorktree={openWorktree}
       createWorktree={async (input) => {
         return createWorktree.create(input)
       }}

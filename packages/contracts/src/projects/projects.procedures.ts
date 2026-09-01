@@ -72,6 +72,7 @@ const projectsProcedureDefinitions = {
       'projects.unavailable',
       'git.not-a-repository',
       'git.worktree-conflict',
+      'git.working-tree-conflict',
     ],
   },
   browseDirs: {

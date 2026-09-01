@@ -16,17 +16,28 @@ function ids(): () => string {
 
 describe('Hub identity rules', () => {
   it('groups equivalent remotes without treating the path as the identity', () => {
-    expect(projectGroupingKey({ originUrl: 'git@github.com:acme/alpha.git', name: 'alpha' })).toBe(
-      'ssh://git@github.com/acme/alpha',
-    )
+    expect(
+      projectGroupingKey({
+        originUrl: 'git@github.com:acme/alpha.git',
+        localIdentity: '/repos/alpha/.git',
+      }),
+    ).toBe('ssh://git@github.com/acme/alpha')
     expect(
       projectGroupingKey({
         originUrl: 'https://user:token@github.com/acme/alpha.git/',
-        name: 'other',
+        localIdentity: '/repos/other/.git',
       }),
     ).toBe('https://github.com/acme/alpha')
-    expect(projectGroupingKey({ originUrl: null, name: 'alpha' })).toBe('name:alpha')
+    expect(projectGroupingKey({ originUrl: null, localIdentity: '/repos/alpha/.git' })).toBe(
+      'local:/repos/alpha/.git',
+    )
     expect(normalizeOriginUrl('   ')).toBeNull()
+  })
+
+  it('does not collapse origin-less repositories that share a basename', () => {
+    expect(projectGroupingKey({ originUrl: null, localIdentity: '/a/alpha/.git' })).not.toBe(
+      projectGroupingKey({ originUrl: null, localIdentity: '/b/alpha/.git' }),
+    )
   })
 
   it('keeps a Worktree id when only its checkout path changes', () => {
@@ -110,6 +121,31 @@ describe('Hub identity rules', () => {
     expect(rematched.id).toBe('proj-alpha')
     expect(rematched.commonGitDir).toBe('/new/alpha/.git')
     expect(rematched.worktrees[0]?.id).toBe('id-1')
+  })
+
+  it('does not reuse basename-only legacy identity for an origin-less repository', () => {
+    const storedProject: StoredHubProject = {
+      id: 'legacy-alpha',
+      commonGitDir: '/old/alpha/.git',
+      groupingKey: 'name:alpha',
+      name: 'alpha',
+      worktrees: [],
+    }
+    const next = rematchProject(
+      [storedProject],
+      {
+        commonGitDir: '/new/alpha/.git',
+        groupingKey: 'local:/new/alpha/.git',
+        name: 'alpha',
+        worktrees: [
+          { path: '/new/alpha', gitDir: '/new/alpha/.git', branch: 'main', isPrimary: true },
+        ],
+      },
+      () => false,
+      ids(),
+    )
+
+    expect(next.id).toBe('id-1')
   })
 
   it('does not collapse two live Environment-local records that share a grouping key', () => {

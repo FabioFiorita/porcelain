@@ -206,8 +206,14 @@ export function projectPorcelainPath(repoPath: string, ...parts: string[]): stri
  */
 export const OVERLAY_CANVASES_DIR = 'canvases'
 export const OVERLAY_OVERRIDES_FILE = 'project.json'
-/** Per-bundle manifest — one record in the daemon-root `StoredCanvas` shape. */
-export const OVERLAY_CANVAS_MANIFEST_FILE = 'canvas.json'
+/**
+ * Per-bundle manifest. Kept distinct from every Canvas entry document: structured
+ * Canvases use `canvas.json`, so sharing that name destroyed their semantic v2
+ * document during promotion.
+ */
+export const OVERLAY_CANVAS_MANIFEST_FILE = 'manifest.json'
+/** Read-only compatibility for tracked bundles promoted before `manifest.json`. */
+export const LEGACY_OVERLAY_CANVAS_MANIFEST_FILE = 'canvas.json'
 
 export const OVERLAY_CHANNELS = [
   { key: 'canvases', kind: 'directory', path: OVERLAY_CANVASES_DIR },
@@ -232,6 +238,13 @@ export function projectOverlayCanvasBundleDir(repoPath: string, canvasId: string
 
 export function projectOverlayCanvasManifestPath(repoPath: string, canvasId: string): string {
   return join(projectOverlayCanvasBundleDir(repoPath, canvasId), OVERLAY_CANVAS_MANIFEST_FILE)
+}
+
+export function legacyProjectOverlayCanvasManifestPath(repoPath: string, canvasId: string): string {
+  return join(
+    projectOverlayCanvasBundleDir(repoPath, canvasId),
+    LEGACY_OVERLAY_CANVAS_MANIFEST_FILE,
+  )
 }
 
 /** `<repo>/.porcelain/project.json` — promoted project/Worktree defaults. */

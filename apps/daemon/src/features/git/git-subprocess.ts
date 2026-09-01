@@ -76,6 +76,12 @@ function classifyNativeFailure(action: GitAction, error: unknown): GitWorkspaceE
   ) {
     return { code: 'git.worktree-conflict' }
   }
+  if (
+    action === 'remove-worktree' &&
+    (output.includes('contains modified or untracked files') || output.includes('is dirty'))
+  ) {
+    return { code: 'git.working-tree-conflict' }
+  }
   return undefined
 }
 
@@ -144,10 +150,11 @@ export function createGitSubprocess(host: GitSubprocessHost = {}): GitWorkspaceP
   async function removeWorktree(
     repoPath: string,
     worktreePath: string,
+    force = false,
   ): Promise<GitWorkspaceResult<void>> {
     try {
       await execute(
-        ['worktree', 'remove', '--force', worktreePath],
+        ['worktree', 'remove', ...(force ? ['--force'] : []), worktreePath],
         commandOptions(repoPath, sourceEnv),
       )
       return { ok: true, value: undefined }

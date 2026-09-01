@@ -98,6 +98,10 @@ function harness(pathAllowed?: (path: string) => boolean) {
       ok: true as const,
       value: undefined,
     })),
+    worktreeDirty: vi.fn<HubGitPort['worktreeDirty']>(async () => ({
+      ok: true as const,
+      value: false,
+    })),
   } satisfies HubGitPort
   // Real Canvas storage aimed at a directory that does not exist: these cases
   // are about Project orchestration, and an absent store reads as "no Canvases"
@@ -432,12 +436,26 @@ describe('Project operations', () => {
       return { ok: true, value: undefined }
     })
 
+    h.git.worktreeDirty.mockResolvedValueOnce({ ok: true, value: true })
     expect(
       await h.operations.removeHubWorktree({ projectId: 'generated', worktreeId: 'topic-id' }),
+    ).toEqual({ ok: false, error: { code: 'git.working-tree-conflict' } })
+    expect(h.worktreeScripts.runDispose).not.toHaveBeenCalled()
+    expect(h.git.removeWorktree).not.toHaveBeenCalled()
+
+    h.git.worktreeDirty.mockResolvedValueOnce({ ok: true, value: true })
+
+    expect(
+      await h.operations.removeHubWorktree({
+        projectId: 'generated',
+        worktreeId: 'topic-id',
+        force: true,
+      }),
     ).toEqual({ ok: true, value: undefined })
     expect(h.git.removeWorktree).toHaveBeenCalledWith(
       '/projects/alpha',
       '/projects/alpha-worktrees/topic',
+      true,
     )
     expect(h.recents.removePath).toHaveBeenCalledWith('/projects/alpha-worktrees/topic')
     // Teardown has to finish while the checkout still exists.

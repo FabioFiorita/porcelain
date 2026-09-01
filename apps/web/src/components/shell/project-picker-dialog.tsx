@@ -162,6 +162,9 @@ function ProjectPicker({ onClose }: { onClose: () => void }): React.JSX.Element 
           >
             {currentPath || (error ? '—' : '…')}
           </p>
+          <p className="text-xs text-muted-foreground">
+            Git repositories appear in Projects. Other folders open as a workspace only.
+          </p>
         </DialogHeader>
 
         <ScrollArea className="h-72 rounded-md border">

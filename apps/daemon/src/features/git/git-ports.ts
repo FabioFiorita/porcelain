@@ -34,7 +34,11 @@ export type GitWorkspacePort = Readonly<{
     baseRef?: string,
     existing?: boolean,
   ): Promise<GitWorkspaceResult<Worktree>>
-  removeWorktree(repoPath: string, worktreePath: string): Promise<GitWorkspaceResult<void>>
+  removeWorktree(
+    repoPath: string,
+    worktreePath: string,
+    force?: boolean,
+  ): Promise<GitWorkspaceResult<void>>
 }>
 
 export type GitProjectError = Readonly<{ code: 'git.not-a-repository' }>

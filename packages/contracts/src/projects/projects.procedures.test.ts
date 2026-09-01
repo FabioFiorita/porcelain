@@ -36,6 +36,7 @@ const expectedErrors = {
     'projects.unavailable',
     'git.not-a-repository',
     'git.worktree-conflict',
+    'git.working-tree-conflict',
   ],
   browseDirs: ['projects.not-found', 'projects.not-a-directory', 'projects.unavailable'],
   hubInventory: ['projects.unavailable'],
@@ -97,7 +98,7 @@ const invalidOutputs = {
   readCanvas: { record: { id: 'canvas-a' }, content: 42 },
   mintCanvasAccessToken: { token: 42 },
   promoteCanvas: { record: { id: 'canvas-a' }, bundlePath: 42 },
-  promoteOverrides: { hiddenPaths: ['a'], pinnedPaths: [], worktrees: { main: {} } },
+  promoteOverrides: { hiddenPaths: ['a'], pinnedPaths: [], retiredField: {} },
   listOverlay: { path: '/x', present: 'yes', canvases: [], overrides: null },
 } as const
 
@@ -137,6 +138,15 @@ describe('Projects procedure contracts', () => {
     expect(input.parse({})).toEqual({ includeWorktrees: false })
     expect(input.safeParse({ includeWorktrees: false }).success).toBe(true)
     expect(input.safeParse({ includeWorktrees: true }).success).toBe(true)
+  })
+
+  it('reads legacy worktree setup without preserving the retired field', () => {
+    const parsed = projectsProcedures.promoteOverrides.output.parse({
+      hiddenPaths: ['a'],
+      pinnedPaths: [],
+      worktrees: { main: { setup: { startScript: 'pnpm dev' } } },
+    })
+    expect(parsed).toEqual({ hiddenPaths: ['a'], pinnedPaths: [] })
   })
 
   it('accepts nullable and non-null browse roots and nullable output parents', () => {

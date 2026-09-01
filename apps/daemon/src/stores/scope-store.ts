@@ -144,13 +144,8 @@ export function createScopeStore(options: ScopeStoreOptions): ScopeStore {
   }
 
   /**
-   * Read-modify-write the WHOLE private document.
-   *
-   * Spreading `next` over a fresh object here is what a hide gesture used to do
-   * while writing `worktrees: {}` back — a click in the tree silently deleted
-   * agent-written worktree setup. Now that the same document also carries layers
-   * and worktree overrides, that shape of bug would erase someone's whole
-   * profile on every pin. Preserve every field this update did not name.
+   * Read-modify-write the WHOLE private document so a navigation gesture preserves personal
+   * layers and Worktree profile overrides it did not name.
    */
   async function mutate(
     repoPath: string,

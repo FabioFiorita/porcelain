@@ -28,11 +28,12 @@ interface Source {
 }
 
 let inventories: readonly Source[] = []
+let inventoryStatus: 'loading' | 'ready' | 'error' = 'ready'
 const openProject = vi.fn(async () => undefined)
 const openWindow = vi.fn()
 
 vi.mock('./project-data', () => ({
-  useHubInventories: () => inventories,
+  useHubInventoriesState: () => ({ inventories, status: inventoryStatus }),
   useCreateHubWorktree: () => ({ create: vi.fn(), isPending: false }),
   useOpenProject: () => ({ open: openProject }),
   useRemoveHubProject: () => ({ remove: vi.fn(async () => undefined) }),
@@ -59,6 +60,7 @@ beforeEach(() => {
     { environmentId: null, current: true, inventory: local },
     { environmentId: 'env-remote', current: false, inventory: remote },
   ]
+  inventoryStatus = 'ready'
 })
 
 describe('HubTree', () => {
@@ -74,13 +76,15 @@ describe('HubTree', () => {
 
     fireEvent.click(screen.getByTestId(TestIds.hubWorktree(localWorktree.id)))
 
-    expect(useHubSelectionStore.getState().selection).toEqual({
-      kind: 'worktree',
-      environmentId: local.environment.id,
-      projectId: localWorktree.projectId,
-      worktreeId: localWorktree.id,
-      path: localWorktree.path,
-    })
+    await waitFor(() =>
+      expect(useHubSelectionStore.getState().selection).toEqual({
+        kind: 'worktree',
+        environmentId: local.environment.id,
+        projectId: localWorktree.projectId,
+        worktreeId: localWorktree.id,
+        path: localWorktree.path,
+      }),
+    )
     // openProject's environmentId is the session-routing identity (null = this window's
     // own client), never the persisted-selection identity above — passing the local
     // Environment's real id here made every local worktree switch look like an
@@ -112,11 +116,32 @@ describe('HubTree', () => {
     expect(openWindow).not.toHaveBeenCalled()
   })
 
-  it('renders nothing while no Environment is live', () => {
+  it('explains when no Environment is live', () => {
     inventories = []
     render(<HubTree />)
 
-    expect(screen.queryByTestId(TestIds.hubInventory)).toBeNull()
+    expect(screen.getByText('No Environments are online.')).toBeVisible()
+  })
+
+  it.each([
+    ['loading', 'Loading Projects…'],
+    ['error', 'Projects are unavailable. Try again in a moment.'],
+  ] as const)('renders the %s inventory state', (status, message) => {
+    inventories = []
+    inventoryStatus = status
+    render(<HubTree />)
+
+    expect(screen.getByText(message)).toBeVisible()
+  })
+
+  it('does not change selection when opening a Worktree fails', async () => {
+    openProject.mockRejectedValueOnce(new Error('offline'))
+    render(<HubTree />)
+
+    fireEvent.click(screen.getByTestId(TestIds.hubWorktree(localWorktree.id)))
+
+    await waitFor(() => expect(openProject).toHaveBeenCalled())
+    expect(useHubSelectionStore.getState().selection).toEqual({ kind: 'home' })
   })
 
   it('invites the human to open a repository when every live Environment is empty', () => {

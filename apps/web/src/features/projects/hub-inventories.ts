@@ -22,6 +22,11 @@ export type HubInventoryView = Readonly<{
   inventory: HubInventory
 }>
 
+export type HubInventoriesState = Readonly<{
+  inventories: readonly HubInventoryView[]
+  status: 'loading' | 'ready' | 'error'
+}>
+
 /**
  * Electron's Hub tree reads through the shell router (one IPC round trip fans out to every
  * connected Environment), never the per-Environment `hubInventoryQuery()` shape the browser
@@ -52,8 +57,8 @@ export async function refreshCurrentShellHubInventory(queryClient: QueryClient):
   )
 }
 
-/** Live Hub inventories: shell fan-out in Electron and one session per browser Environment. */
-export function useHubInventories(): readonly HubInventoryView[] {
+/** Live Hub inventories plus a truthful state when no Environment can currently answer. */
+export function useHubInventoriesState(): HubInventoriesState {
   const daemon = useDaemonIdentity()
   const environmentSessionsRevision = useEnvironmentSessionsRevision()
   const client = trpc.useUtils().client
@@ -130,7 +135,12 @@ export function useHubInventories(): readonly HubInventoryView[] {
       }
     }
   }, [browserSessions, secondaryQueries])
-  if (!isBrowser) return shellQuery.data ?? []
+  if (!isBrowser) {
+    return {
+      inventories: shellQuery.data ?? [],
+      status: shellQuery.isPending ? 'loading' : shellQuery.isError ? 'error' : 'ready',
+    }
+  }
   const primarySource =
     browserQuery.isError || browserQuery.data === undefined
       ? []
@@ -140,7 +150,18 @@ export function useHubInventories(): readonly HubInventoryView[] {
       ? []
       : [{ environmentId: query.data.environment.id, current: false, inventory: query.data }],
   )
-  return [...primarySource, ...secondarySources]
+  const inventories = [...primarySource, ...secondarySources]
+  const pending = browserQuery.isPending || secondaryQueries.some((query) => query.isPending)
+  const failed = browserQuery.isError || secondaryQueries.some((query) => query.isError)
+  return {
+    inventories,
+    status: inventories.length > 0 ? 'ready' : pending ? 'loading' : failed ? 'error' : 'ready',
+  }
+}
+
+/** Live inventories for callers whose own surface already owns loading and error presentation. */
+export function useHubInventories(): readonly HubInventoryView[] {
+  return useHubInventoriesState().inventories
 }
 
 /** The inventory for this window's bound Environment, retained for narrow callers. */
