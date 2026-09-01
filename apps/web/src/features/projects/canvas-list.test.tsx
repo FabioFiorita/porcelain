@@ -45,6 +45,11 @@ const TRACKED: CanvasRecord = { ...RECORD, id: 'canvas-2', title: 'Shipped', tra
 
 describe('CanvasList', () => {
   const promoteCanvas = vi.fn(async () => ({ record: TRACKED, bundlePath: '/repo/.porcelain' }))
+  const listState = (canvases: readonly CanvasRecord[] = []) => ({
+    canvases,
+    isLoading: false,
+    loadError: null,
+  })
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -54,21 +59,21 @@ describe('CanvasList', () => {
   })
 
   it('asks the user to select a Worktree with no Hub target', () => {
-    vi.mocked(useCanvasList).mockReturnValue([])
+    vi.mocked(useCanvasList).mockReturnValue(listState())
     renderList()
     expect(screen.getByText(/select a worktree/i)).toBeInTheDocument()
   })
 
   it('shows the empty state for a selected Worktree with no Canvases', () => {
     useHubSelectionStore.setState({ selection: { kind: 'worktree', ...TARGET } })
-    vi.mocked(useCanvasList).mockReturnValue([])
+    vi.mocked(useCanvasList).mockReturnValue(listState())
     renderList()
     expect(screen.getByTestId(TestIds.canvasListEmpty)).toBeInTheDocument()
   })
 
   it('lists a Canvas and opens a targeted canvas tab on click', () => {
     useHubSelectionStore.setState({ selection: { kind: 'worktree', ...TARGET } })
-    vi.mocked(useCanvasList).mockReturnValue([RECORD])
+    vi.mocked(useCanvasList).mockReturnValue(listState([RECORD]))
     renderList()
 
     fireEvent.click(screen.getByTestId(TestIds.canvasListItem('canvas-1')))
@@ -100,7 +105,7 @@ describe('CanvasList', () => {
       activePaneIndex: 0,
     })
     useHubSelectionStore.setState({ selection: { kind: 'worktree', ...TARGET } })
-    vi.mocked(useCanvasList).mockReturnValue([RECORD])
+    vi.mocked(useCanvasList).mockReturnValue(listState([RECORD]))
     renderList()
 
     fireEvent.click(screen.getByTestId(TestIds.canvasListItem('canvas-1')))
@@ -113,14 +118,14 @@ describe('CanvasList', () => {
 
   it('reads the Canvas list through the selected Worktree checkout', () => {
     useHubSelectionStore.setState({ selection: { kind: 'worktree', ...TARGET } })
-    vi.mocked(useCanvasList).mockReturnValue([RECORD])
+    vi.mocked(useCanvasList).mockReturnValue(listState([RECORD]))
     renderList()
     expect(useCanvasList).toHaveBeenCalledWith('proj-1', '/repo', 'env-1', 'wt-1')
   })
 
   it('badges a tracked Canvas and offers it no promotion', () => {
     useHubSelectionStore.setState({ selection: { kind: 'worktree', ...TARGET } })
-    vi.mocked(useCanvasList).mockReturnValue([TRACKED])
+    vi.mocked(useCanvasList).mockReturnValue(listState([TRACKED]))
     renderList()
 
     expect(screen.getByTestId(TestIds.canvasListTracked('canvas-2'))).toHaveTextContent('Tracked')
@@ -130,7 +135,7 @@ describe('CanvasList', () => {
 
   it('offers promotion on a private Canvas and never badges it tracked', async () => {
     useHubSelectionStore.setState({ selection: { kind: 'worktree', ...TARGET } })
-    vi.mocked(useCanvasList).mockReturnValue([RECORD])
+    vi.mocked(useCanvasList).mockReturnValue(listState([RECORD]))
     renderList()
 
     expect(screen.queryByTestId(TestIds.canvasListTracked('canvas-1'))).toBeNull()
@@ -140,7 +145,7 @@ describe('CanvasList', () => {
 
   it('promotes only after an explicit confirmation naming the target checkout', async () => {
     useHubSelectionStore.setState({ selection: { kind: 'worktree', ...TARGET } })
-    vi.mocked(useCanvasList).mockReturnValue([RECORD])
+    vi.mocked(useCanvasList).mockReturnValue(listState([RECORD]))
     renderList()
 
     fireEvent.click(screen.getByTestId(TestIds.canvasListMenu('canvas-1')))
@@ -164,10 +169,29 @@ describe('CanvasList', () => {
   })
 
   it('offers no promotion affordance at all without a selected Worktree', () => {
-    vi.mocked(useCanvasList).mockReturnValue([RECORD])
+    vi.mocked(useCanvasList).mockReturnValue(listState([RECORD]))
     renderList()
 
     expect(screen.queryByTestId(TestIds.canvasListMenu('canvas-1'))).toBeNull()
     expect(screen.queryByTestId(TestIds.canvasListPromote('canvas-1'))).toBeNull()
+  })
+
+  it('shows a loading state while the selected Worktree list resolves', () => {
+    useHubSelectionStore.setState({ selection: { kind: 'worktree', ...TARGET } })
+    vi.mocked(useCanvasList).mockReturnValue({ canvases: [], isLoading: true, loadError: null })
+    renderList()
+    expect(screen.getByText('Loading Canvases')).toBeInTheDocument()
+  })
+
+  it('shows the list failure instead of an empty state', () => {
+    useHubSelectionStore.setState({ selection: { kind: 'worktree', ...TARGET } })
+    vi.mocked(useCanvasList).mockReturnValue({
+      canvases: [],
+      isLoading: false,
+      loadError: 'Canvas service unavailable.',
+    })
+    renderList()
+    expect(screen.getByText('Canvas service unavailable.')).toBeInTheDocument()
+    expect(screen.queryByTestId(TestIds.canvasListEmpty)).toBeNull()
   })
 })

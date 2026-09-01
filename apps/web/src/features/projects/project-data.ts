@@ -434,7 +434,7 @@ export function useCanvasList(
   worktreePath: string | null = null,
   environmentId: string | null = null,
   worktreeId: string | null = null,
-): readonly CanvasRecord[] {
+): { canvases: readonly CanvasRecord[]; isLoading: boolean; loadError: string | null } {
   const daemon = useDaemonIdentity()
   const defaultClient = trpc.useUtils().client
   const owner =
@@ -453,7 +453,17 @@ export function useCanvasList(
     },
     queryKey: [...projectsQueryKey(daemon, identity), environmentId],
   })
-  return query.data ?? []
+  const enabled = projectId !== null
+  return {
+    canvases: query.data ?? [],
+    isLoading: enabled && owner !== null && query.isLoading,
+    loadError:
+      enabled && owner === null
+        ? 'The target Environment is offline.'
+        : query.isError
+          ? (errorView(query.error)?.message ?? 'Could not read this Canvas list.')
+          : null,
+  }
 }
 
 export function useCanvas(
@@ -461,7 +471,7 @@ export function useCanvas(
   canvasId: string | null,
   worktreePath: string | null = null,
   environmentId: string | null = null,
-): { canvas: ReadCanvasOutput | undefined; isLoading: boolean } {
+): { canvas: ReadCanvasOutput | undefined; isLoading: boolean; loadError: string | null } {
   const daemon = useDaemonIdentity()
   const defaultClient = trpc.useUtils().client
   const owner =
@@ -480,7 +490,16 @@ export function useCanvas(
     },
     queryKey: [...projectsQueryKey(daemon, identity), environmentId],
   })
-  return { canvas: query.data, isLoading: enabled && owner !== null && query.isLoading }
+  return {
+    canvas: query.data,
+    isLoading: enabled && owner !== null && query.isLoading,
+    loadError:
+      enabled && owner === null
+        ? 'The target Environment is offline.'
+        : query.isError
+          ? (errorView(query.error)?.message ?? 'Could not open this Canvas.')
+          : null,
+  }
 }
 
 export function useMintCanvasAccessToken(): {

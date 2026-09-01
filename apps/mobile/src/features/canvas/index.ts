@@ -10,5 +10,6 @@ export {
 export { CanvasSurfacePanel } from './canvas-surface-panel'
 export { CanvasScreen } from './canvas-screen'
 export { CanvasWebView } from './canvas-web-view'
-export { parseDecisionCanvas } from './decision-canvas'
 export { DecisionCanvasView } from './decision-canvas-view'
+export { ReviewCanvasView } from './review-canvas-view'
+export { parseStructuredCanvas } from './structured-canvas'

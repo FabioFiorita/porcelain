@@ -8,8 +8,9 @@ import { useResolvedColorScheme } from '@/features/settings/theme-provider'
 
 import { useCanvas, useCanvasDocumentUrl } from './canvas-data'
 import { CanvasWebView } from './canvas-web-view'
-import { parseDecisionCanvas } from './decision-canvas'
 import { DecisionCanvasView } from './decision-canvas-view'
+import { ReviewCanvasView } from './review-canvas-view'
+import { parseStructuredCanvas } from './structured-canvas'
 
 /**
  * One Canvas, read.
@@ -98,16 +99,18 @@ function CanvasBody({
     )
   }
   if (canvas.record.kind === 'structured') {
-    const parsed = parseDecisionCanvas(canvas.content)
-    return parsed.error === null ? (
-      <DecisionCanvasView document={parsed.document} />
-    ) : (
+    const parsed = parseStructuredCanvas(canvas.content)
+    return parsed.error !== null ? (
       <View className={SURFACE_GUTTER}>
         <ErrorNote
-          message={`This Canvas does not match the current Decision contract. ${parsed.error}`}
+          message={`This Canvas does not match the current structured contract. ${parsed.error}`}
           testID="porcelain-canvas-document-error"
         />
       </View>
+    ) : parsed.document.template === 'decision' ? (
+      <DecisionCanvasView document={parsed.document} />
+    ) : (
+      <ReviewCanvasView document={parsed.document} scheme={scheme} />
     )
   }
   // A failed mint leaves the loading state standing rather than a WebView pointed nowhere.

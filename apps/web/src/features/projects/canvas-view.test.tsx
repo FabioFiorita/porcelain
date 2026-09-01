@@ -34,7 +34,7 @@ describe('CanvasView', () => {
   })
 
   it('shows a loading state before the Canvas resolves', () => {
-    vi.mocked(useCanvas).mockReturnValue({ canvas: undefined, isLoading: true })
+    vi.mocked(useCanvas).mockReturnValue({ canvas: undefined, isLoading: true, loadError: null })
     vi.mocked(useMintCanvasAccessToken).mockReturnValue({ mint: vi.fn() })
     render(<CanvasView projectId="proj-1" canvasId="canvas-1" />)
     expect(screen.getByText(/loading/i)).toBeInTheDocument()
@@ -44,6 +44,7 @@ describe('CanvasView', () => {
     vi.mocked(useCanvas).mockReturnValue({
       canvas: { record: MARKDOWN_RECORD, content: '# Hello Canvas' },
       isLoading: false,
+      loadError: null,
     })
     vi.mocked(useMintCanvasAccessToken).mockReturnValue({ mint: vi.fn() })
     render(<CanvasView projectId="proj-1" canvasId="canvas-1" />)
@@ -56,6 +57,7 @@ describe('CanvasView', () => {
     vi.mocked(useCanvas).mockReturnValue({
       canvas: { record: HTML_RECORD, content: '<p>hi</p>' },
       isLoading: false,
+      loadError: null,
     })
     vi.mocked(useMintCanvasAccessToken).mockReturnValue({ mint })
     render(<CanvasView projectId="proj-1" canvasId="canvas-1" />)
@@ -78,6 +80,7 @@ describe('CanvasView', () => {
     vi.mocked(useCanvas).mockReturnValue({
       canvas: { record: HTML_RECORD, content: '<p>hi</p>' },
       isLoading: false,
+      loadError: null,
     })
     vi.mocked(useMintCanvasAccessToken).mockReturnValue({ mint })
     render(<CanvasView projectId="proj-1" canvasId="canvas-1" />)
@@ -101,6 +104,7 @@ describe('CanvasView', () => {
     vi.mocked(useCanvas).mockReturnValue({
       canvas: { record: HTML_RECORD, content: '<p>hi</p>' },
       isLoading: false,
+      loadError: null,
     })
     vi.mocked(useMintCanvasAccessToken).mockReturnValue({ mint })
     render(<CanvasView projectId="proj-1" canvasId="canvas-1" />)
@@ -111,6 +115,55 @@ describe('CanvasView', () => {
         new MessageEvent('message', {
           data: { source: 'porcelain-canvas', href: 'https://evil.example' },
           source: null,
+        }),
+      )
+    })
+
+    expect(openSpy).not.toHaveBeenCalled()
+  })
+
+  it('shows a read failure instead of loading forever', () => {
+    vi.mocked(useCanvas).mockReturnValue({
+      canvas: undefined,
+      isLoading: false,
+      loadError: 'Canvas not found.',
+    })
+    vi.mocked(useMintCanvasAccessToken).mockReturnValue({ mint: vi.fn() })
+    render(<CanvasView projectId="proj-1" canvasId="canvas-1" />)
+    expect(screen.getByText('Canvas not found.')).toBeInTheDocument()
+    expect(screen.queryByText(/loading/i)).toBeNull()
+  })
+
+  it('shows a token failure instead of loading forever', async () => {
+    vi.mocked(useCanvas).mockReturnValue({
+      canvas: { record: HTML_RECORD, content: '<p>hi</p>' },
+      isLoading: false,
+      loadError: null,
+    })
+    vi.mocked(useMintCanvasAccessToken).mockReturnValue({
+      mint: vi.fn().mockRejectedValue(new Error('Token expired.')),
+    })
+    render(<CanvasView projectId="proj-1" canvasId="canvas-1" />)
+    expect(await screen.findByText('Token expired.')).toBeInTheDocument()
+    expect(document.querySelector('iframe')).toBeNull()
+  })
+
+  it('refuses bridged non-web schemes', async () => {
+    const mint = vi.fn().mockResolvedValue('tok-123')
+    vi.mocked(useCanvas).mockReturnValue({
+      canvas: { record: HTML_RECORD, content: '<p>hi</p>' },
+      isLoading: false,
+      loadError: null,
+    })
+    vi.mocked(useMintCanvasAccessToken).mockReturnValue({ mint })
+    render(<CanvasView projectId="proj-1" canvasId="canvas-1" />)
+    const iframe = (await screen.findByTitle('Intent')) as HTMLIFrameElement
+
+    act(() => {
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data: { source: 'porcelain-canvas', href: 'javascript:alert(1)' },
+          source: iframe.contentWindow,
         }),
       )
     })
