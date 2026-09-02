@@ -215,7 +215,7 @@ export function SearchPanel({
           />
           <RecentSearches compact />
         </SurfaceScroll>
-      ) : !found ? (
+      ) : error !== null ? null : !found ? (
         <Text
           className="px-4 py-6 text-center text-sm text-muted-foreground"
           testID={searching ? 'porcelain-search-searching' : 'porcelain-search-empty'}

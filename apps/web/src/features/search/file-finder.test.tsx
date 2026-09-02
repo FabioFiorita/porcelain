@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { FileFinder } from './file-finder'
 
 vi.mock('./search-queries', () => ({
-  useFileSearch: vi.fn(() => ({ results: [], isFetching: false })),
+  useFileSearch: vi.fn(() => ({ error: null, results: [], isFetching: false })),
 }))
 
 vi.mock('@renderer/features/actions', () => ({
@@ -61,5 +61,25 @@ describe('FileFinder', () => {
     await waitFor(() => {
       expect(useFileFinderStore.getState().open).toBe(false)
     })
+  })
+
+  it('shows a failed file lookup instead of claiming there are no matches', async () => {
+    const { useFileSearch } = await import('./search-queries')
+    vi.mocked(useFileSearch).mockReturnValue({
+      error: { message: 'The target Environment is offline.' },
+      isFetching: false,
+      results: [],
+    })
+    render(<FileFinder />)
+    act(() => useFileFinderStore.getState().setOpen(true))
+    fireEvent.change(
+      await screen.findByPlaceholderText('Search commands, projects, files, and commits…'),
+      {
+        target: { value: 'needle' },
+      },
+    )
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('The target Environment is offline.')
+    expect(screen.queryByText('No matches found')).not.toBeInTheDocument()
   })
 })

@@ -112,7 +112,7 @@ export function FileFinder(): React.JSX.Element {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [setOpen])
 
-  const { results: files, isFetching } = useFileSearch(debouncedQuery, open)
+  const { error: fileSearchError, results: files, isFetching } = useFileSearch(debouncedQuery, open)
   // Commands + commits match the already-loaded project data instantly (no IPC), gated to
   // when the finder is open so the always-mounted finder doesn't fetch them on launch.
   const commands = matchCommands(query, useActions(open))
@@ -292,6 +292,7 @@ export function FileFinder(): React.JSX.Element {
             </CommandGroup>
           )}
           {query.trim() !== '' &&
+            fileSearchError === null &&
             empty &&
             (searching ? (
               <p className="py-6 text-center text-sm text-muted-foreground">Searching…</p>
@@ -331,6 +332,11 @@ export function FileFinder(): React.JSX.Element {
                 )
               })}
             </CommandGroup>
+          )}
+          {fileSearchError !== null && query.trim() !== '' && (
+            <p className="px-3 py-6 text-center text-sm text-destructive" role="alert">
+              {fileSearchError.message}
+            </p>
           )}
           {commands.length > 0 && (
             <CommandGroup

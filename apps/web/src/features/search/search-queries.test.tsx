@@ -87,4 +87,16 @@ describe('Web Search query adapters', () => {
     const failed = renderHook(() => useTextSearch('needle'), { wrapper: wrapper(queryClient) })
     await waitFor(() => expect(failed.result.current.error?.message).toBe('search unavailable'))
   })
+
+  it('reports an unavailable file-search Environment rather than an empty result set', async () => {
+    ctx.project = null
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const { result } = renderHook(() => useFileSearch('needle', true), {
+      wrapper: wrapper(queryClient),
+    })
+
+    await waitFor(() => expect(result.current.error?.message).toBe('Select a Worktree first.'))
+    expect(result.current.results).toEqual([])
+    expect(ctx.client.searchFiles.query).not.toHaveBeenCalled()
+  })
 })
