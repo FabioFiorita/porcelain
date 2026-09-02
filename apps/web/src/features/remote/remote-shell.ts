@@ -1,12 +1,12 @@
 import { parsePublicError } from '@porcelain/client-runtime/remote'
-import type { EndpointKind } from '@porcelain/contracts'
+import type { EndpointKind, WslDistribution } from '@porcelain/contracts'
 import { SHELL_HUB_INVENTORIES_QUERY_KEY } from '@renderer/features/projects/hub-inventories'
 import { onMutationError } from '@renderer/hooks/mutation-error'
 import {
   setShellEnvironmentConnections,
   shellConnectionId,
 } from '@renderer/lib/environment-sessions'
-import { isBrowser } from '@renderer/lib/platform'
+import { isBrowser, isWindowsShell } from '@renderer/lib/platform'
 import { shellTrpc, trpc } from '@renderer/lib/trpc'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo } from 'react'
@@ -49,6 +49,9 @@ export type WebLocalRemoteAdapter = {
   >
   readonly environmentStatuses: () => ReturnType<
     ReturnType<typeof shellTrpc.useUtils>['client']['environmentStatuses']['query']
+  >
+  readonly wslDistributions: () => ReturnType<
+    ReturnType<typeof shellTrpc.useUtils>['client']['wslDistributions']['query']
   >
   readonly pairEnvironmentConnection: (
     input: Parameters<
@@ -126,6 +129,12 @@ export function useRemoteEnvironments():
     }
   | undefined {
   const { data } = shellTrpc.remoteEnvironments.useQuery(undefined, { enabled: !isBrowser })
+  return data
+}
+
+/** Installed WSL distributions that could host their own Linux Porcelain Environment. */
+export function useWslDistributions(): WslDistribution[] | undefined {
+  const { data } = shellTrpc.wslDistributions.useQuery(undefined, { enabled: isWindowsShell })
   return data
 }
 

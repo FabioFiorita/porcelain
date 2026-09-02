@@ -38,4 +38,5 @@ export {
   useRemoveRemoteEnvironment,
   useRenameEnvironment,
   useShellEnvironmentConnections,
+  useWslDistributions,
 } from './remote-shell'

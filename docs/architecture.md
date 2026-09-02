@@ -23,6 +23,12 @@ An Electron window keeps the local child daemon as its primary connection; Proje
 and daemon-owned operations carry an explicit Environment target through renderer sessions, so
 selecting remote work never rebinds or reloads the window.
 
+On Windows, Electron may discover WSL distributions as candidate Environments, but it does not
+turn their `\\wsl.localhost` paths into Windows repositories. Each ready distribution runs a Linux
+daemon that owns its Linux filesystem, Git state, and terminals; the Windows shell connects to it
+through the same Environment boundary used for another machine. Discovery excludes Docker Desktop
+internals and only reports readiness—it does not install Linux packages or silently create a daemon.
+
 ## Packages
 
 ```text

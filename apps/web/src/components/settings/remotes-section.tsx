@@ -1,4 +1,9 @@
-import { endpointKind, isCloudflareEndpoint } from '@porcelain/contracts'
+import {
+  endpointKind,
+  isCloudflareEndpoint,
+  type WslDistribution,
+  type WslReadinessIssue,
+} from '@porcelain/contracts'
 import { Badge } from '@renderer/components/ui/badge'
 import { Button } from '@renderer/components/ui/button'
 import { Input } from '@renderer/components/ui/input'
@@ -10,12 +15,13 @@ import {
   useRemoteEnvironments,
   useRemoveEnvironmentEndpoint,
   useRemoveRemoteEnvironment,
+  useWslDistributions,
 } from '@renderer/features/remote'
 import { compactButtonClass } from '@renderer/lib/controls'
 import { cn } from '@renderer/lib/utils'
 import { platformLabel } from '@shared/platform'
 import { TestIds } from '@shared/test-ids'
-import { Cloud, Monitor, X } from 'lucide-react'
+import { Cloud, Monitor, Terminal, X } from 'lucide-react'
 import { useState } from 'react'
 import { EnvironmentName } from './environment-name'
 
@@ -51,6 +57,20 @@ function activeRoute(status: EnvironmentStatus | undefined): string | null {
   return endpointLabel(status.endpoint)
 }
 
+const WSL_ISSUE_LABELS: Record<WslReadinessIssue, string> = {
+  'unsupported-version': 'Upgrade this distribution to WSL 2',
+  'probe-failed': 'Could not inspect this distribution',
+  'node-missing': 'Install Node.js 22 or newer inside this distribution',
+  'node-too-old': 'Upgrade Node.js to version 22 or newer inside this distribution',
+  'npx-missing': 'Install npx inside this distribution',
+  'git-missing': 'Install Git inside this distribution',
+}
+
+function describeWslReadiness(distribution: WslDistribution): string {
+  if (distribution.ready) return 'Ready to host a Porcelain Linux Environment'
+  return distribution.issues.map((issue) => WSL_ISSUE_LABELS[issue]).join(' · ')
+}
+
 /**
  * Each saved environment is a group of verified connections. A group of one is the normal
  * starting point; pairing another link adds a route to this same card.
@@ -65,6 +85,7 @@ function ElectronRemotesSection(): React.JSX.Element {
   const { pair, isPending: isPairing, error } = usePairEnvironmentConnection()
   const { remove, pendingId: removingId } = useRemoveRemoteEnvironment()
   const { remove: removeEndpoint } = useRemoveEnvironmentEndpoint()
+  const wslDistributions = useWslDistributions()
   const [connectionLink, setConnectionLink] = useState('')
   const [pairingTargetId, setPairingTargetId] = useState<string | null>(null)
   const [showPairing, setShowPairing] = useState(false)
@@ -180,6 +201,60 @@ function ElectronRemotesSection(): React.JSX.Element {
           )
         })}
       </ul>
+
+      {wslDistributions !== undefined && wslDistributions.length > 0 && (
+        <section className="flex flex-col gap-2 pt-2" aria-labelledby="wsl-environments-heading">
+          <div>
+            <h3 id="wsl-environments-heading" className="text-sm font-medium">
+              Windows Subsystem for Linux
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Each distribution runs its own Linux daemon and owns its Linux projects. Porcelain
+              does not open them through a Windows UNC path.
+            </p>
+          </div>
+          <ul className="flex flex-col gap-2">
+            {wslDistributions.map((distribution) => (
+              <li
+                key={distribution.name}
+                className="flex items-start gap-3 rounded-xl border border-border/60 bg-card/40 p-4"
+              >
+                <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                  <Terminal className="size-4" aria-hidden />
+                </span>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-medium">{distribution.name}</p>
+                    <Badge variant="outline" className="rounded-md text-2xs">
+                      WSL {distribution.version}
+                    </Badge>
+                    {distribution.isDefault && (
+                      <Badge variant="secondary" className="rounded-md text-2xs">
+                        Default
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {describeWslReadiness(distribution)}
+                  </p>
+                  {(distribution.nodeVersion !== null || distribution.gitVersion !== null) && (
+                    <p className="mt-1 font-mono text-2xs text-muted-foreground">
+                      {[
+                        distribution.nodeVersion === null
+                          ? null
+                          : `Node ${distribution.nodeVersion}`,
+                        distribution.gitVersion,
+                      ]
+                        .filter((value) => value !== null)
+                        .join(' · ')}
+                    </p>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {showPairing ? (
         <div className="flex flex-col gap-2 rounded-md border border-border/60 p-3">

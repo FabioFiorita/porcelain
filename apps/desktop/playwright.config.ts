@@ -7,7 +7,7 @@ import type { AppMode } from './e2e/helpers/app'
 //   browser client — the daemon serves the SAME built renderer dist the Electron
 //   window loads, over the same tRPC + WS data path, so this asserts everything
 //   except the Electron shell layer, with no display server needed.
-// - `electron` (local Mac only — `pnpm --dir apps/desktop test:e2e:native*`): the
+// - `electron` (local macOS or Windows — `pnpm --dir apps/desktop test:e2e:native*`): the
 //   BUILT app via Playwright's `_electron`, so the real preload, native menu, and
 //   window management are present. Not CI; release packaging does not re-run this.
 //
@@ -48,8 +48,8 @@ export default defineConfig<{ appMode: AppMode }>({
       name: 'electron',
       use: { appMode: 'electron' },
       // The pre-projects template, so the committed `-darwin` baselines keep
-      // matching (the default would insert the project name). Running this
-      // project on Linux has no committed baseline — it's a macOS-only lane.
+      // matching (the default would insert the project name). Windows native tests avoid
+      // those macOS-only baselines and prove shell behavior with assertions.
       snapshotPathTemplate:
         '{snapshotDir}/{testFileDir}/{testFileName}-snapshots/{arg}-{platform}{ext}',
     },

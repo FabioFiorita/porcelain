@@ -45,6 +45,7 @@ import { readCurrentHubInventory, readHubInventories } from './shell-hub-invento
 import { exchangePairingLink } from './shell-pairing'
 import { checkForUpdates, installUpdate, type UpdateStatus, updateStatus } from './updater'
 import { createWindow, switchWindowEnvironment, type WindowInit, windowInitFor } from './window'
+import { discoverWslDistributions } from './wsl-discovery'
 
 // The Electron-side half of the router split: everything here needs the shell
 // (native dialogs, window management, the updater) or the
@@ -365,6 +366,9 @@ export const shellRouter = t.router({
   ),
 
   environmentStatuses: t.procedure.query(() => readEnvironmentStatuses()),
+
+  /** Candidate Linux Environments discovered through the Windows WSL host boundary. */
+  wslDistributions: t.procedure.query(() => discoverWslDistributions()),
 
   /**
    * Name one Environment — This device (`null`) or a saved group. The nickname is written on

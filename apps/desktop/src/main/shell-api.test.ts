@@ -52,6 +52,20 @@ vi.mock('./updater', () => ({
   updateStatus: (): { state: 'idle' } => ({ state: 'idle' }),
 }))
 
+vi.mock('./wsl-discovery', () => ({
+  discoverWslDistributions: vi.fn(async () => [
+    {
+      name: 'Ubuntu',
+      version: 2,
+      isDefault: true,
+      nodeVersion: null,
+      gitVersion: 'git version 2.53.0',
+      ready: false,
+      issues: ['node-missing', 'npx-missing'],
+    },
+  ]),
+}))
+
 vi.mock('./window', () => ({
   createWindow: vi.fn(),
   switchWindowEnvironment: switchWindowEnvironmentMock,
@@ -173,6 +187,16 @@ afterEach(() => {
  * only in the switcher, or only while pairing.
  */
 describe('shell daemon requests', () => {
+  it('exposes Windows-discovered WSL candidates without registering repository paths', async () => {
+    await expect(caller().wslDistributions()).resolves.toEqual([
+      expect.objectContaining({
+        name: 'Ubuntu',
+        ready: false,
+        issues: ['node-missing', 'npx-missing'],
+      }),
+    ])
+  })
+
   it('versions the pairing exchange and both authenticated probes', async () => {
     const result = await caller().pairEnvironmentConnection({
       connectionLink: `http://synthetic.local:43117/pair#token=${GRANT}`,

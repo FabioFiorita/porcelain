@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { RemotesSection } from './remotes-section'
 
 const environmentsMock = vi.fn()
+const wslDistributionsMock = vi.fn()
 const statusesMock = vi.fn<() => Map<string | null, EnvironmentStatus>>()
 const pair = vi.fn()
 const connect = vi.fn()
@@ -22,6 +23,7 @@ vi.mock('@renderer/features/remote', () => ({
   useOpenWindowInEnvironment: () => ({ open }),
   usePairEnvironmentConnection: () => ({ pair, isPending: false, error: null }),
   useRemoteEnvironments: () => environmentsMock(),
+  useWslDistributions: () => wslDistributionsMock(),
   useRemoveEnvironmentEndpoint: () => ({ remove: removeEndpoint, isPending: false }),
   useRemoveRemoteEnvironment: () => ({ remove: removeGroup, pendingId: null }),
   useRenameEnvironment: () => ({ rename, pendingId: undefined }),
@@ -52,6 +54,7 @@ const localStatus: EnvironmentStatus = {
 }
 
 beforeEach(() => {
+  wslDistributionsMock.mockReturnValue([])
   environmentsMock.mockReturnValue({
     activeId: null,
     defaultId: null,
@@ -92,6 +95,29 @@ function editName(rowId: string, name: string): void {
 }
 
 describe('RemotesSection', () => {
+  it('shows WSL candidates separately with actionable readiness', () => {
+    wslDistributionsMock.mockReturnValue([
+      {
+        name: 'Ubuntu',
+        version: 2,
+        isDefault: true,
+        nodeVersion: null,
+        gitVersion: 'git version 2.53.0',
+        ready: false,
+        issues: ['node-missing', 'npx-missing'],
+      },
+    ])
+
+    render(<RemotesSection />)
+
+    expect(screen.getByText('Windows Subsystem for Linux')).toBeTruthy()
+    expect(screen.getByText('Ubuntu')).toBeTruthy()
+    expect(screen.getByText('WSL 2')).toBeTruthy()
+    expect(screen.getByText('Default')).toBeTruthy()
+    expect(screen.getByText(/Install Node.js 22 or newer inside this distribution/)).toBeTruthy()
+    expect(screen.getByText(/does not open them through a Windows UNC path/)).toBeTruthy()
+  })
+
   it('renders one group with LAN and Cloudflare routes and no primary override', () => {
     render(<RemotesSection />)
 

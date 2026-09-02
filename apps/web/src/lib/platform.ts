@@ -25,6 +25,10 @@ export const isBrowser = typeof window !== 'undefined' && window.porcelain === u
  */
 export const isLinuxShell = typeof window !== 'undefined' && window.porcelain?.platform === 'linux'
 
+/** True only for the native Windows shell; browser clients must never probe their host. */
+export const isWindowsShell =
+  typeof window !== 'undefined' && window.porcelain?.platform === 'win32'
+
 /**
  * True in the Electron shell on macOS: the OS draws native traffic lights at a fixed
  * window position (see `trafficLightPosition` in `apps/desktop/src/main/window.ts`)

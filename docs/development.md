@@ -20,6 +20,12 @@ Run Porcelain from PowerShell in the Windows checkout. A WSL checkout is a separ
 Environment and must be owned by a daemon running inside that distribution; do not register a
 `\\wsl.localhost` path with the Windows daemon.
 
+The Windows app discovers installed WSL distributions and reports whether each one can host that
+daemon. The distribution itself needs WSL 2, Node 22+, `npx`, and Git; Windows-installed tools do
+not satisfy those checks. Docker Desktop's internal distributions are intentionally excluded. Once
+the Linux prerequisites are present, start the daemon inside the distribution as documented in
+[remote-access.md](remote-access.md), then pair it as its own Environment.
+
 ## Setup and isolation
 
 ```sh
