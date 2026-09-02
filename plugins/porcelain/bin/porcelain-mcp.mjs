@@ -18,6 +18,33 @@ function mcpChannel() {
   return join(home, 'mcp.sock')
 }
 
+function mcpHeaders(line) {
+  // Stdio has no HTTP headers, but the current MCP dialect carries its routing
+  // fields in both places. Reconstruct the local-channel headers from the
+  // JSON-RPC envelope so a modern client is not accidentally handled as classic.
+  try {
+    const requestBody = JSON.parse(line)
+    const meta = requestBody?.params?._meta
+    const protocolVersion = meta?.['io.modelcontextprotocol/protocolVersion']
+    if (typeof protocolVersion !== 'string' || typeof requestBody?.method !== 'string') return {}
+
+    const headers = {
+      'mcp-protocol-version': protocolVersion,
+      'mcp-method': requestBody.method,
+    }
+    if (requestBody.method === 'tools/call' && typeof requestBody?.params?.name === 'string') {
+      // Header values must remain ASCII. The daemon recognizes this RFC 8187-style
+      // wrapper before comparing the name to the JSON body.
+      headers['mcp-name'] =
+        `=?base64?${Buffer.from(requestBody.params.name, 'utf8').toString('base64')}?=`
+    }
+    return headers
+  } catch {
+    // Let the daemon produce its normal JSON-RPC parse failure for malformed input.
+    return {}
+  }
+}
+
 function forward(line) {
   return new Promise((resolveForward, reject) => {
     const body = Buffer.from(line)
@@ -29,6 +56,7 @@ function forward(line) {
         headers: {
           'content-type': 'application/json',
           'content-length': String(body.byteLength),
+          ...mcpHeaders(line),
         },
       },
       (res) => {

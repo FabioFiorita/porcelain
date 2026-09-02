@@ -9,6 +9,7 @@ import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { afterEach, describe, expect, it } from 'vitest'
 import { handleMcpRequest } from './mcp-http'
 import { startLocalMcpServer, type LocalMcpServer } from './mcp-local-server'
+import { MCP_PROTOCOL_VERSION } from './mcp-protocol'
 
 const connector = fileURLToPath(
   new URL('../../../../../plugins/porcelain/bin/porcelain-mcp.mjs', import.meta.url),
@@ -111,6 +112,36 @@ describe('profile-local MCP channel', () => {
     expect(JSON.parse(firstResponse).result.serverInfo.name).toBe('first')
     expect(JSON.parse(secondResponse).result.serverInfo.name).toBe('second')
     await Promise.all([firstExit, secondExit])
+  })
+
+  it('preserves modern MCP routing headers through the stdio connector', async () => {
+    const home = await temporaryHome()
+    await startServer(join(home, 'mcp.sock'), 'modern-profile')
+    const child = startConnector(home)
+    const exit = once(child, 'exit')
+
+    child.stdin.end(
+      `${JSON.stringify({
+        jsonrpc: '2.0',
+        id: 3,
+        method: 'tools/call',
+        params: {
+          name: 'porcelain_project',
+          arguments: { op: 'list' },
+          _meta: {
+            'io.modelcontextprotocol/protocolVersion': MCP_PROTOCOL_VERSION,
+            'io.modelcontextprotocol/clientCapabilities': {},
+          },
+        },
+      })}\n`,
+    )
+
+    const response = JSON.parse(await readLine(child.stdout)) as {
+      result: { resultType: string; content: { text: string }[] }
+    }
+    expect(response.result.resultType).toBe('complete')
+    expect(response.result.content[0]?.text).toBe('modern-profile')
+    expect(await exit).toEqual([0, null])
   })
 
   it('refuses to replace an active channel or a non-socket file', async () => {
