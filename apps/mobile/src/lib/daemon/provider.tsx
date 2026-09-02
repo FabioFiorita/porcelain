@@ -1,3 +1,4 @@
+import { reviewCommentsQuery } from '@porcelain/client-runtime/review'
 import type { FreshnessRequirement } from '@porcelain/client-runtime/session/recovery'
 import type { SessionChange } from '@porcelain/contracts/session'
 import { settleBackground } from '@porcelain/shared/background'
@@ -64,7 +65,8 @@ export function proceduresForChange(change: SessionChange): readonly string[] {
       // dropping a new signal.
       return []
     case 'review.changed':
-      // Mobile comments are stubbed; the Hub client owns review comments and marks.
+      // Review comments use their own typed identity below, rather than the legacy
+      // procedure-name cache this provider owns.
       return []
   }
 }
@@ -109,6 +111,17 @@ function invalidateProcedures(environmentId: string, names: readonly string[]): 
       'invalidation',
     )
   }
+}
+
+/** Refresh the exact comments list that a Review notification names. */
+export function invalidateReviewComments(environmentId: string, projectPath: string): void {
+  settleBackground(
+    queryClient.invalidateQueries({
+      exact: true,
+      queryKey: ['daemon', environmentId, reviewCommentsQuery(projectPath)],
+    }),
+    'invalidation',
+  )
 }
 
 const queryClient = new QueryClient({
@@ -247,6 +260,10 @@ function DaemonLifecycle(): null {
     if (environmentId === null || projectPath === null) return
     return subscribeSessionChanges({
       onChange: (change) => {
+        if (change.kind === 'review.changed') {
+          invalidateReviewComments(environmentId, change.projectPath)
+          return
+        }
         invalidateProcedures(environmentId, proceduresForChange(change))
       },
       onFreshnessRequired: (requirement) => {

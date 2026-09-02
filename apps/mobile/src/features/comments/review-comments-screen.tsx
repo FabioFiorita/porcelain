@@ -41,6 +41,7 @@ export function ReviewCommentsScreen(): React.JSX.Element {
   const repoPath = useHubRepoPath()
   const comments = useReviewComments(focused)
   const actions = useCommentActions()
+  const [editing, setEditing] = useState<ReviewComment | null>(null)
   const [replyTo, setReplyTo] = useState<CommentThread | null>(null)
   const [confirmClear, setConfirmClear] = useState(false)
   const threads = commentThreads(comments)
@@ -100,6 +101,7 @@ export function ReviewCommentsScreen(): React.JSX.Element {
               onDelete={(id) => {
                 runUserAction(() => actions.remove(id), report('Could not delete the comment'))
               }}
+              onEdit={setEditing}
               onReply={() => {
                 setReplyTo(thread)
               }}
@@ -154,6 +156,24 @@ export function ReviewCommentsScreen(): React.JSX.Element {
           )
         }}
       />
+      <CommentComposerSheet
+        anchorLabel={editing === null ? '' : 'Review comment'}
+        initialBody={editing?.body ?? ''}
+        mode="edit"
+        open={editing !== null}
+        pending={actions.isPending}
+        subject={editing?.path ?? ''}
+        testIDPrefix="porcelain-review-comment-edit"
+        onClose={() => {
+          setEditing(null)
+        }}
+        onSubmit={(body) => {
+          const target = editing
+          if (target === null) return
+          setEditing(null)
+          runUserAction(() => actions.edit(target.id, body), report('Could not edit the comment'))
+        }}
+      />
     </View>
   )
 }
@@ -170,12 +190,14 @@ function threadTestId(thread: CommentThread): string {
 function ThreadCard({
   busy,
   onDelete,
+  onEdit,
   onReply,
   onSetResolved,
   thread,
 }: {
   busy: boolean
   onDelete: (id: string) => void
+  onEdit: (comment: ReviewComment) => void
   onReply: () => void
   onSetResolved: (id: string, resolved: boolean) => void
   thread: CommentThread
@@ -203,6 +225,9 @@ function ThreadCard({
           onDelete={() => {
             onDelete(comment.id)
           }}
+          onEdit={() => {
+            onEdit(comment)
+          }}
           onSetResolved={() => {
             onSetResolved(comment.id, !comment.resolved)
           }}
@@ -225,11 +250,13 @@ function CommentCard({
   busy,
   comment,
   onDelete,
+  onEdit,
   onSetResolved,
 }: {
   busy: boolean
   comment: ReviewComment
   onDelete: () => void
+  onEdit: () => void
   onSetResolved: () => void
 }): React.JSX.Element {
   return (
@@ -251,6 +278,13 @@ function CommentCard({
             {comment.body}
           </Text>
         </View>
+        <IconAction
+          accessibilityLabel="Edit comment"
+          disabled={busy}
+          glyph="pencil"
+          testID={`porcelain-review-comment-edit-${comment.id}`}
+          onPress={onEdit}
+        />
         <IconAction
           accessibilityLabel={comment.resolved ? 'Reopen comment' : 'Resolve comment'}
           disabled={busy}
