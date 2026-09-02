@@ -11,6 +11,7 @@ import {
   callReviewDaemon,
   clearResolvedReviewCommentsProcedure,
   deleteReviewCommentProcedure,
+  editReviewCommentProcedure,
   resolveReviewCommentProcedure,
   reviewCommentsProcedure,
 } from './comment-procedures'
@@ -74,13 +75,14 @@ export type ReviewCommentActions = {
     anchorText?: string
     body: string
   }) => Promise<void>
+  edit: (id: string, body: string) => Promise<void>
   remove: (id: string) => Promise<void>
   setResolved: (id: string, resolved: boolean) => Promise<void>
   clearResolved: () => Promise<void>
   isPending: boolean
 }
 
-/** Add, delete, resolve and clear, each refetching the daemon's authoritative list after. */
+/** Add, edit, delete, resolve and clear, each refetching the daemon's authoritative list after. */
 export function useCommentActions(): ReviewCommentActions {
   const environment = useActiveEnvironment()
   const repoPath = useHubRepoPath()
@@ -120,6 +122,14 @@ export function useCommentActions(): ReviewCommentActions {
     onSettled: invalidate,
   })
 
+  const edit = useMutation({
+    mutationFn: async (input: { id: string; body: string }) => {
+      if (repoPath === null) throw new Error('editReviewComment ran without a selected checkout')
+      return callReviewDaemon(environment, editReviewCommentProcedure, { ...input, repoPath })
+    },
+    onSettled: invalidate,
+  })
+
   const setResolved = useMutation({
     mutationFn: async (input: { id: string; resolved: boolean }) => {
       if (repoPath === null) throw new Error('resolveReviewComment ran without a selected checkout')
@@ -143,8 +153,15 @@ export function useCommentActions(): ReviewCommentActions {
     clearResolved: async (): Promise<void> => {
       await clearResolved.mutateAsync()
     },
+    edit: async (id, body): Promise<void> => {
+      await edit.mutateAsync({ body, id })
+    },
     isPending:
-      add.isPending || remove.isPending || setResolved.isPending || clearResolved.isPending,
+      add.isPending ||
+      edit.isPending ||
+      remove.isPending ||
+      setResolved.isPending ||
+      clearResolved.isPending,
     remove: async (id): Promise<void> => {
       await remove.mutateAsync(id)
     },

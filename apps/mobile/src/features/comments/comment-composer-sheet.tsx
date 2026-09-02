@@ -15,6 +15,8 @@ import { cn } from '@/lib/utils'
  */
 export function CommentComposerSheet({
   anchorLabel,
+  initialBody = '',
+  mode = 'reply',
   onClose,
   onSubmit,
   open,
@@ -24,6 +26,8 @@ export function CommentComposerSheet({
 }: {
   /** "Line 12" / "File comment" — what the new comment will be attached to. */
   anchorLabel: string
+  initialBody?: string
+  mode?: 'edit' | 'reply'
   onClose: () => void
   onSubmit: (body: string) => void
   open: boolean
@@ -33,18 +37,23 @@ export function CommentComposerSheet({
   /** Distinguishes this sheet's testIDs when more than one surface can open one. */
   testIDPrefix?: string
 }): React.JSX.Element {
-  const [body, setBody] = useState('')
+  const [body, setBody] = useState(initialBody)
 
-  // A closed sheet keeps no draft: it reopens on whichever thread was tapped next, and a body
-  // written for another anchor is worse than an empty field.
+  // A closed sheet keeps no reply draft. An edit reopens with the daemon's current body, so it
+  // cannot accidentally preserve text from a different comment.
   useEffect(() => {
-    if (!open) setBody('')
-  }, [open])
+    setBody(open ? initialBody : '')
+  }, [initialBody, open])
 
   const canSend = body.trim() !== '' && !pending
 
   return (
-    <Sheet open={open} testID={testIDPrefix} title="Reply" onClose={onClose}>
+    <Sheet
+      open={open}
+      testID={testIDPrefix}
+      title={mode === 'edit' ? 'Edit comment' : 'Reply'}
+      onClose={onClose}
+    >
       <View className="gap-3 px-5 pb-2">
         <View className="gap-0.5">
           <Text className="text-xs font-medium text-foreground">{anchorLabel}</Text>
@@ -73,7 +82,7 @@ export function CommentComposerSheet({
             <Text className="text-sm font-medium text-secondary-foreground">Cancel</Text>
           </Pressable>
           <Pressable
-            accessibilityLabel="Send comment"
+            accessibilityLabel={mode === 'edit' ? 'Save comment' : 'Send comment'}
             accessibilityRole="button"
             accessibilityState={{ disabled: !canSend }}
             className={cn(
@@ -86,7 +95,9 @@ export function CommentComposerSheet({
               onSubmit(body.trim())
             }}
           >
-            <Text className="text-sm font-medium text-primary-foreground">Send</Text>
+            <Text className="text-sm font-medium text-primary-foreground">
+              {mode === 'edit' ? 'Save' : 'Send'}
+            </Text>
           </Pressable>
         </View>
       </View>

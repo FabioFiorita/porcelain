@@ -154,6 +154,21 @@ describe('useCommentActions', () => {
     )
   })
 
+  it('edits through the canonical comment procedure', async () => {
+    ctx.callDaemon.mockImplementation(dispatch({ editReviewComment: () => undefined }))
+    const { result } = renderHook(() => useCommentActions(), { wrapper: wrapper() })
+
+    await act(async () => {
+      await result.current.edit('c1', 'A clearer request')
+    })
+
+    expect(ctx.callDaemon).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ name: 'editReviewComment' }),
+      { body: 'A clearer request', id: 'c1', repoPath: REPO_PATH },
+    )
+  })
+
   it('deletes and clears resolved by id and by checkout', async () => {
     ctx.callDaemon.mockImplementation(
       dispatch({
