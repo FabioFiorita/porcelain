@@ -168,6 +168,8 @@ export function printDevEnv() {
   web HMR:    pnpm dev:web                       # http://127.0.0.1:${DEV_WEB_PORT}/ (proxies to the daemon)
   mobile:     pnpm dev:mobile                    # profile Metro (primary 8081; worktrees 44000+)
               pnpm dev:mobile:android preflight  # same port + profile-owned emulator state
+              PORCELAIN_IOS_SIMULATOR='iPhone 17 Pro' pnpm dev:mobile:ios
+                                                 # explicit simulator + profile Metro bundle
   CLI:        pnpm porcelain <noun> <verb>
   agent:      the Porcelain plugin — MCP tools over POST /mcp
   browser:    http://127.0.0.1:${DEV_PORT}/

@@ -34,6 +34,19 @@ pnpm dev:web             # Vite/HMR browser client beside dev:daemon
 pnpm dev:mobile          # profile-scoped Metro beside dev:daemon
 ```
 
+For an iPhone simulator, use the iOS launcher rather than reopening a development client that
+remembers a previous LAN server. It requires the target to be explicit and starts Expo with this
+Worktree's Metro port and the simulator-safe loopback address:
+
+```sh
+PORCELAIN_IOS_SIMULATOR='iPhone 17 Pro' pnpm dev:mobile:ios
+```
+
+The launcher owns `--device` and `--port`; choose another simulator through
+`PORCELAIN_IOS_SIMULATOR`, not a CLI override. It builds or reinstalls when needed, then launches
+the non-shipping `Porcelain Dev` development client bundle. The profile-scoped Metro process it
+starts remains the task's responsibility to stop.
+
 Do not run `pnpm dev` and `pnpm dev:daemon` for the same profile simultaneously. The daemon-served
 browser uses the port printed by `pnpm dev:env`; the HMR browser uses that port plus 10000. MCP uses
 a profile-scoped local OS channel under `PORCELAIN_HOME`, not the daemon's TCP listener.
