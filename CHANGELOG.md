@@ -1,3 +1,24 @@
+## [0.61.5](https://github.com/FabioFiorita/porcelain/compare/v0.61.4...v0.61.5) (2026-09-02)
+
+### Bug Fixes
+
+* **canvas:** complete client parity and error states ([685174f](https://github.com/FabioFiorita/porcelain/commit/685174fbd3a25148b4700844c7b27ab7ffa40918))
+* **canvas:** preserve structured documents on promotion ([a0f9b7c](https://github.com/FabioFiorita/porcelain/commit/a0f9b7cc888bf7073248d12b04c70703be121063))
+* **files:** harden project identity and state coherence ([1a01c76](https://github.com/FabioFiorita/porcelain/commit/1a01c76def820c0f96a4330e766c68c3ba031e35))
+* **git:** reconcile authoritative review state ([23b8edf](https://github.com/FabioFiorita/porcelain/commit/23b8edfabde36fa57b5196a6267d0ecb62f97384))
+* harden Actions and terminal recovery ([eac301b](https://github.com/FabioFiorita/porcelain/commit/eac301b62766819e407a4e9ec2a7ee3150267f31))
+* make environments authoritative and safe ([ce0b4e8](https://github.com/FabioFiorita/porcelain/commit/ce0b4e8928177d5d1ccf8f5e313c3d2219dbc04f))
+* **mobile:** close session when worktree clears ([6bc5b99](https://github.com/FabioFiorita/porcelain/commit/6bc5b9942839409a126e4aefacf138dda269ec0b))
+* **mobile:** complete review comment updates ([fa87d13](https://github.com/FabioFiorita/porcelain/commit/fa87d13b105001305ca703aeee722f2c5668b757))
+* **mobile:** gate session until worktree selected ([fe69924](https://github.com/FabioFiorita/porcelain/commit/fe6992476b63a3a8c84c18e891fcb404d8b18e01))
+* **mobile:** route iPhone dev clients to profile Metro ([c40421b](https://github.com/FabioFiorita/porcelain/commit/c40421b15c77335f944b1cc4c2caa9bb0309fc9f))
+* **plugin:** preserve modern MCP routing ([ca60b1f](https://github.com/FabioFiorita/porcelain/commit/ca60b1f347a482aad80c68f21eccf7649befb23a))
+* **projects:** make worktree state truthful ([bcb5feb](https://github.com/FabioFiorita/porcelain/commit/bcb5feb61ed308a5a0ae8efd1354294d60e98811))
+* **search:** distinguish unavailable results ([98541ba](https://github.com/FabioFiorita/porcelain/commit/98541ba6f26c5255d57d30ad2e74f2d319664de8))
+* serialize managed worktree allocation ([613448b](https://github.com/FabioFiorita/porcelain/commit/613448b64c6a9b2970434a9211c63e8e5a6e3141))
+* **settings:** keep plugin success copy stable ([cb9e65d](https://github.com/FabioFiorita/porcelain/commit/cb9e65d20ab2eace9a6e56e84d42f612ec69b257))
+* **settings:** report updater and companion capability ([dfe70d1](https://github.com/FabioFiorita/porcelain/commit/dfe70d1aea55b0336dfe652d6f3ebdde34f7418e))
+
 ## [0.61.4](https://github.com/FabioFiorita/porcelain/compare/v0.61.3...v0.61.4) (2026-09-01)
 
 ### Bug Fixes

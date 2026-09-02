@@ -1,6 +1,6 @@
 {
   "name": "@porcelain/client-runtime",
-  "version": "0.61.4",
+  "version": "0.61.5",
   "private": true,
   "description": "Non-UI client core shared by web and mobile.",
   "type": "module",
