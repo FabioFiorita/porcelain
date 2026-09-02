@@ -10,6 +10,7 @@ import {
   type WebContents,
 } from 'electron'
 import { z } from 'zod'
+import { isDevelopmentProfile } from './development-profile'
 import {
   loadRemoteEnvironmentState,
   type RemoteDaemon,
@@ -26,8 +27,9 @@ import { broadcastShellEvent } from './shell-events'
  * switch; the Desktop daemon lifecycle boundary records what that costs.
  *
  * The daemon resolves userData from PORCELAIN_USER_DATA (the shell owns the dev `-dev`
- * suffix) and runs dev seeding under PORCELAIN_DEV; the rest of the env is inherited, so
- * the e2e fixture's PORCELAIN_* overrides reach the daemon-side stores and terminals.
+ * suffix) and runs dev seeding under PORCELAIN_DEV. An explicit development profile is
+ * preserved for safe packaged-runtime proof; the rest of the env is inherited, so the e2e
+ * fixture's PORCELAIN_* overrides reach the daemon-side stores and terminals.
  *
  * Lifecycle: the ready line (`{"port": N}` on stdout) resolves the port; a crash restarts
  * with a capped backoff (give up after 3 rapid failures) and pushes the NEW url to every
@@ -283,11 +285,12 @@ async function launch(): Promise<void> {
   token = await ensureAdminToken()
   // utilityProcess.fork — never child_process with the run-as-Node env switch:
   // see the fork-bomb note in the module doc above.
+  const developmentProfile = isDevelopmentProfile(is.dev)
   const proc = utilityProcess.fork(daemonChildScript(__dirname), DAEMON_CHILD_ARGV, {
     env: {
       ...process.env,
       PORCELAIN_USER_DATA: app.getPath('userData'),
-      PORCELAIN_DEV: is.dev ? '1' : '',
+      PORCELAIN_DEV: developmentProfile ? '1' : '',
       PORCELAIN_ADMIN_TOKEN: token,
       PORCELAIN_DAEMON_PORT: daemonChildPort(process.env.PORCELAIN_DAEMON_PORT),
       // A utility child gets NO stdin, so the daemon's stdin parent-death

@@ -1,6 +1,7 @@
 import { settleBackground } from '@shared/background'
 import { app } from 'electron'
 import { autoUpdater } from 'electron-updater'
+import { isDevelopmentProfile } from './development-profile'
 import { broadcastShellEvent } from './shell-events'
 import { updaterUnavailableReason } from './updater-availability'
 
@@ -18,6 +19,7 @@ const unavailableReason = updaterUnavailableReason(
   app.isPackaged,
   process.platform,
   process.env.APPIMAGE,
+  isDevelopmentProfile(!app.isPackaged),
 )
 let status: UpdateStatus = {
   state: unavailableReason === null ? 'idle' : 'unavailable',

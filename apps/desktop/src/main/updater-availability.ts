@@ -3,7 +3,9 @@ export function updaterUnavailableReason(
   isPackaged: boolean,
   platform: NodeJS.Platform,
   appImage: string | undefined,
+  developmentProfile = false,
 ): string | null {
+  if (developmentProfile) return 'Automatic updates are disabled for development profiles.'
   if (!isPackaged) return 'Automatic updates are available in the installed Porcelain app.'
   if (platform === 'linux' && appImage === undefined) {
     return 'Automatic updates are unavailable for this Linux package. Update it with the package manager used to install Porcelain.'

@@ -2,6 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { updaterUnavailableReason } from './updater-availability'
 
 describe('updater availability', () => {
+  it('disables updates for an explicitly isolated development profile', () => {
+    expect(updaterUnavailableReason(true, 'win32', undefined, true)).toContain(
+      'development profiles',
+    )
+  })
+
   it('explains that a development shell cannot self-update', () => {
     expect(updaterUnavailableReason(false, 'darwin', undefined)).toBe(
       'Automatic updates are available in the installed Porcelain app.',

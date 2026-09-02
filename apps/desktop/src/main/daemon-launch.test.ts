@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { join, resolve } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 
 /**
@@ -31,7 +31,7 @@ import { DAEMON_CHILD_ARGV, daemonChildPort, daemonChildScript } from './daemon'
 
 describe('daemon child launch contract', () => {
   it('resolves the packaged daemon script under mainDir', () => {
-    expect(daemonChildScript('/synthetic/main')).toBe('/synthetic/main/daemon/server.js')
+    expect(daemonChildScript('/synthetic/main')).toBe(join('/synthetic/main', 'daemon/server.js'))
   })
 
   it('freezes an empty argv so no renderer-supplied command or port can sneak in', () => {

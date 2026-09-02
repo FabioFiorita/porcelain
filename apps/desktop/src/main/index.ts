@@ -1,6 +1,7 @@
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { app, BrowserWindow, dialog, type Session, session } from 'electron'
 import { startDaemon } from './daemon'
+import { isDevelopmentProfile } from './development-profile'
 import { registerTrpcHandler } from './ipc'
 import { installAppMenu } from './menu'
 import { installTray } from './tray'
@@ -14,7 +15,9 @@ import { createWindow } from './window'
 // makes Electron's own files and single-instance lock follow the same profile as
 // the daemon. Keep the suffix fallback for direct package-local/e2e launches that
 // intentionally do not provide a profile.
-if (is.dev) {
+const developmentProfile = isDevelopmentProfile(is.dev)
+
+if (developmentProfile) {
   app.setPath('userData', process.env.PORCELAIN_USER_DATA ?? `${app.getPath('userData')}-dev`)
 }
 
@@ -22,7 +25,7 @@ if (is.dev) {
 // *within* it), so a second OS instance is always a bug: it would boot its own
 // createWindow and a duplicate window pops up "on its own". A duplicate launch fails
 // the single-instance lock and quits before whenReady, and the holder focuses an
-// existing window via 'second-instance'. This MUST run after the is.dev setPath above:
+// existing window via 'second-instance'. This MUST run after the development-profile setPath above:
 // the lock is scoped to userData, so `pnpm dev` never contends with the packaged app
 // and each Playwright e2e instance (own --user-data-dir) holds a DISTINCT lock. Never
 // gate it on isPackaged — that leaves it live only in the build dev and e2e never run.
