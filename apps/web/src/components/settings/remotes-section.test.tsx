@@ -15,6 +15,7 @@ const open = vi.fn()
 const removeEndpoint = vi.fn()
 const removeGroup = vi.fn()
 const rename = vi.fn()
+const setupWsl = vi.fn()
 
 vi.mock('@renderer/features/remote', () => ({
   useConnectRemoteEnvironment: () => ({ connect, pendingId: null }),
@@ -23,6 +24,7 @@ vi.mock('@renderer/features/remote', () => ({
   useOpenWindowInEnvironment: () => ({ open }),
   usePairEnvironmentConnection: () => ({ pair, isPending: false, error: null }),
   useRemoteEnvironments: () => environmentsMock(),
+  useSetupWslEnvironment: () => ({ setup: setupWsl, pendingDistribution: null, error: null }),
   useWslDistributions: () => wslDistributionsMock(),
   useRemoveEnvironmentEndpoint: () => ({ remove: removeEndpoint, isPending: false }),
   useRemoveRemoteEnvironment: () => ({ remove: removeGroup, pendingId: null }),
@@ -83,6 +85,7 @@ beforeEach(() => {
   removeEndpoint.mockClear()
   removeGroup.mockClear()
   rename.mockClear()
+  setupWsl.mockClear()
 })
 
 /** Open one row's inline editor, type a name, and click Save. */
@@ -105,6 +108,9 @@ describe('RemotesSection', () => {
         gitVersion: 'git version 2.53.0',
         ready: false,
         issues: ['node-missing', 'npx-missing'],
+        managedState: 'available',
+        environmentId: null,
+        managementError: null,
       },
     ])
 
@@ -116,6 +122,29 @@ describe('RemotesSection', () => {
     expect(screen.getByText('Default')).toBeTruthy()
     expect(screen.getByText(/Install Node.js 22 or newer inside this distribution/)).toBeTruthy()
     expect(screen.getByText(/does not open them through a Windows UNC path/)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Set up and open' })).toBeNull()
+  })
+
+  it('sets up a ready WSL distribution through the shell', () => {
+    wslDistributionsMock.mockReturnValue([
+      {
+        name: 'Ubuntu',
+        version: 2,
+        isDefault: true,
+        nodeVersion: 'v22.22.1',
+        gitVersion: 'git version 2.53.0',
+        ready: true,
+        issues: [],
+        managedState: 'available',
+        environmentId: null,
+        managementError: null,
+      },
+    ])
+
+    render(<RemotesSection />)
+    fireEvent.click(screen.getByRole('button', { name: 'Set up and open' }))
+
+    expect(setupWsl).toHaveBeenCalledWith('Ubuntu')
   })
 
   it('renders one group with LAN and Cloudflare routes and no primary override', () => {

@@ -27,7 +27,11 @@ On Windows, Electron may discover WSL distributions as candidate Environments, b
 turn their `\\wsl.localhost` paths into Windows repositories. Each ready distribution runs a Linux
 daemon that owns its Linux filesystem, Git state, and terminals; the Windows shell connects to it
 through the same Environment boundary used for another machine. Discovery excludes Docker Desktop
-internals and only reports readiness—it does not install Linux packages or silently create a daemon.
+internals. The human explicitly chooses **Set up and open**; Electron then installs the matching
+published daemon runtime in that Linux user's managed runtime directory, starts it, and pairs a
+revocable client credential. Electron remembers the distribution-to-Environment mapping and
+restores configured WSL daemons on its next launch. It never installs Linux system prerequisites,
+shares the administrator token, or treats a WSL path as Windows-local data.
 
 ## Packages
 

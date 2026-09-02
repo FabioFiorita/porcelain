@@ -1,15 +1,23 @@
 export function relativeTo(repoPath: string | undefined, path: string): string {
-  return repoPath && path.startsWith(`${repoPath}/`) ? path.slice(repoPath.length + 1) : path
+  if (repoPath === undefined) return path
+  const next = path.at(repoPath.length)
+  return path.startsWith(repoPath) && (next === '/' || next === '\\')
+    ? path.slice(repoPath.length + 1)
+    : path
 }
 
-/** The last path segment (basename). `fileName('a/b/c.ts') === 'c.ts'`; no slash → the input. */
+function lastSeparator(path: string): number {
+  return Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'))
+}
+
+/** The last path segment across daemon-native POSIX and Windows paths. */
 export function fileName(path: string): string {
-  const i = path.lastIndexOf('/')
+  const i = lastSeparator(path)
   return i === -1 ? path : path.slice(i + 1)
 }
 
-/** Everything before the last slash (dirname). `dirName('a/b/c.ts') === 'a/b'`; no slash → ''. */
+/** Everything before the last separator across daemon-native POSIX and Windows paths. */
 export function dirName(path: string): string {
-  const i = path.lastIndexOf('/')
+  const i = lastSeparator(path)
   return i === -1 ? '' : path.slice(0, i)
 }

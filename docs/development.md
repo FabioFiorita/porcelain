@@ -20,11 +20,17 @@ Run Porcelain from PowerShell in the Windows checkout. A WSL checkout is a separ
 Environment and must be owned by a daemon running inside that distribution; do not register a
 `\\wsl.localhost` path with the Windows daemon.
 
-The Windows app discovers installed WSL distributions and reports whether each one can host that
-daemon. The distribution itself needs WSL 2, Node 22+, `npx`, and Git; Windows-installed tools do
-not satisfy those checks. Docker Desktop's internal distributions are intentionally excluded. Once
-the Linux prerequisites are present, start the daemon inside the distribution as documented in
-[remote-access.md](remote-access.md), then pair it as its own Environment.
+The Windows app discovers installed WSL distributions and reports whether each one can host a
+daemon. The distribution itself needs WSL 2, Node 22+, `npm`/`npx`, Git, and a C toolchain for the
+first native dependency build; Windows-installed tools do not satisfy those checks. Docker
+Desktop's internal distributions are intentionally excluded. Settings → Environments → **Set up
+and open** installs the daemon version matching the desktop app inside that distribution, starts
+it on a distribution-specific loopback port, creates a normal revocable client credential, and
+opens it as a Linux Environment. Configured WSL Environments restart with the Electron app.
+
+Production WSL state remains in the Linux user's normal Porcelain directories. Development and
+e2e launches use separate Linux profiles, just as the Windows-local daemon does. The Electron
+process owns only the WSL daemon processes it launched and stops those exact children on quit.
 
 ## Setup and isolation
 

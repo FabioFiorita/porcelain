@@ -15,6 +15,7 @@ import {
   useRemoteEnvironments,
   useRemoveEnvironmentEndpoint,
   useRemoveRemoteEnvironment,
+  useSetupWslEnvironment,
   useWslDistributions,
 } from '@renderer/features/remote'
 import { compactButtonClass } from '@renderer/lib/controls'
@@ -86,6 +87,7 @@ function ElectronRemotesSection(): React.JSX.Element {
   const { remove, pendingId: removingId } = useRemoveRemoteEnvironment()
   const { remove: removeEndpoint } = useRemoveEnvironmentEndpoint()
   const wslDistributions = useWslDistributions()
+  const { setup: setupWsl, pendingDistribution, error: wslSetupError } = useSetupWslEnvironment()
   const [connectionLink, setConnectionLink] = useState('')
   const [pairingTargetId, setPairingTargetId] = useState<string | null>(null)
   const [showPairing, setShowPairing] = useState(false)
@@ -217,42 +219,69 @@ function ElectronRemotesSection(): React.JSX.Element {
             {wslDistributions.map((distribution) => (
               <li
                 key={distribution.name}
-                className="flex items-start gap-3 rounded-xl border border-border/60 bg-card/40 p-4"
+                className="flex items-start justify-between gap-3 rounded-xl border border-border/60 bg-card/40 p-4"
               >
-                <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                  <Terminal className="size-4" aria-hidden />
-                </span>
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-medium">{distribution.name}</p>
-                    <Badge variant="outline" className="rounded-md text-2xs">
-                      WSL {distribution.version}
-                    </Badge>
-                    {distribution.isDefault && (
-                      <Badge variant="secondary" className="rounded-md text-2xs">
-                        Default
+                <div className="flex min-w-0 items-start gap-3">
+                  <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                    <Terminal className="size-4" aria-hidden />
+                  </span>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-medium">{distribution.name}</p>
+                      <Badge variant="outline" className="rounded-md text-2xs">
+                        WSL {distribution.version}
                       </Badge>
+                      {distribution.isDefault && (
+                        <Badge variant="secondary" className="rounded-md text-2xs">
+                          Default
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {distribution.managedState === 'starting'
+                        ? 'Starting Porcelain inside this distribution…'
+                        : distribution.managedState === 'online'
+                          ? 'Porcelain Linux Environment is online'
+                          : (distribution.managementError ?? describeWslReadiness(distribution))}
+                    </p>
+                    {(distribution.nodeVersion !== null || distribution.gitVersion !== null) && (
+                      <p className="mt-1 font-mono text-2xs text-muted-foreground">
+                        {[
+                          distribution.nodeVersion === null
+                            ? null
+                            : `Node ${distribution.nodeVersion}`,
+                          distribution.gitVersion,
+                        ]
+                          .filter((value) => value !== null)
+                          .join(' · ')}
+                      </p>
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    {describeWslReadiness(distribution)}
-                  </p>
-                  {(distribution.nodeVersion !== null || distribution.gitVersion !== null) && (
-                    <p className="mt-1 font-mono text-2xs text-muted-foreground">
-                      {[
-                        distribution.nodeVersion === null
-                          ? null
-                          : `Node ${distribution.nodeVersion}`,
-                        distribution.gitVersion,
-                      ]
-                        .filter((value) => value !== null)
-                        .join(' · ')}
-                    </p>
-                  )}
                 </div>
+                {distribution.ready && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={cn('shrink-0', compactButtonClass)}
+                    disabled={
+                      distribution.managedState === 'starting' ||
+                      pendingDistribution === distribution.name
+                    }
+                    onClick={() => setupWsl(distribution.name)}
+                  >
+                    {distribution.managedState === 'online'
+                      ? 'Open'
+                      : distribution.managedState === 'error'
+                        ? 'Try again'
+                        : pendingDistribution === distribution.name
+                          ? 'Setting up…'
+                          : 'Set up and open'}
+                  </Button>
+                )}
               </li>
             ))}
           </ul>
+          {wslSetupError !== null && <p className="text-xs text-destructive">{wslSetupError}</p>}
         </section>
       )}
 

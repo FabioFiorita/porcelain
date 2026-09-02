@@ -20,6 +20,7 @@ import { TestIds } from './test-ids'
 const MAIN_ENTRY = join(__dirname, '..', '..', 'out', 'main', 'index.js')
 const DAEMON_ENTRY = join(__dirname, '..', '..', 'out', 'main', 'daemon', 'server.js')
 const PORCELAIN_HOST = join(__dirname, '..', '..', '..', '..', 'scripts', 'porcelain-host.js')
+const PACKAGED_EXECUTABLE = process.env.PORCELAIN_E2E_EXECUTABLE
 
 // Seed one browser client identity directly in the isolated access store, then
 // plant its plaintext token in the same localStorage slot TokenGate uses. Minted
@@ -163,9 +164,14 @@ export async function seedIsolatedState(repoDir: string, seedRepo: boolean): Pro
       PORCELAIN_HOME: udBase,
       PORCELAIN_ADMIN_TOKEN_FILE: adminTokenFile,
       PORCELAIN_ACCESS_FILE: accessFile,
-      // Pins a fast, config-free shell so the terminal tests are deterministic and
-      // don't source the runner's zsh profile.
-      PORCELAIN_SHELL: '/bin/bash',
+      // Pin config-free platform shells. The Codex host injects its own PowerShell
+      // module path; keeping that out of the child avoids an unrelated publisher prompt.
+      ...(process.platform === 'win32'
+        ? {
+            PORCELAIN_SHELL: 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe',
+            PSModulePath: 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\Modules',
+          }
+        : { PORCELAIN_SHELL: '/bin/bash' }),
       PORCELAIN_E2E: '1',
       // The Electron lane runs unpackaged, so its child daemon is a DEV daemon and refuses
       // every path outside the playground family — an e2e app would boot with an empty Hub
@@ -283,7 +289,11 @@ export const test = baseTest.extend<Options & Fixtures, WorkerOptions & WorkerFi
       return
     }
     const app = await _electron.launch({
-      args: [MAIN_ENTRY, `--user-data-dir=${seeded.udBase}`],
+      ...(PACKAGED_EXECUTABLE === undefined ? {} : { executablePath: PACKAGED_EXECUTABLE }),
+      args: [
+        ...(PACKAGED_EXECUTABLE === undefined ? [MAIN_ENTRY] : []),
+        `--user-data-dir=${seeded.udBase}`,
+      ],
       // PORCELAIN_E2E keeps the OS window hidden (Playwright drives the renderer
       // over CDP) so the app never pops onto the screen during a run.
       env: launchEnv(seeded.env),

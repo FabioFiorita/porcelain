@@ -8,6 +8,7 @@ import { installTray } from './tray'
 import { shouldInstallTray } from './tray-policy'
 import { initUpdater } from './updater'
 import { createWindow } from './window'
+import { startManagedWslEnvironments } from './wsl-environments'
 
 // Dev gets its own config dir so `pnpm dev` never touches (or hijacks) the
 // state of the installed app the user works in. The workspace launcher supplies
@@ -104,6 +105,12 @@ app.whenReady().then(async () => {
     app.quit()
     return
   }
+
+  // Managed WSL daemons are secondary Environments. Restore them after the Windows-local
+  // daemon is healthy; failures stay on their Settings rows and never prevent the app opening.
+  void startManagedWslEnvironments().catch((error) => {
+    console.error('[wsl] managed Environment restore failed:', error)
+  })
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.

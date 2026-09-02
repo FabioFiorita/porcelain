@@ -28,10 +28,12 @@ refuses a branch that is not aligned with `origin/main`.
 
 ## What the workflow publishes
 
-The release workflow packages the macOS desktop application and the plain-Node daemon in parallel,
-publishes a GitHub Release, and publishes the prepared daemon package to npm. Linux ships the
-daemon; it is not an Electron packaging target. Desktop packaging includes the Electron app and
-native dependencies. The macOS artifact path must preserve the configured artifact name.
+The release workflow packages the macOS and Windows desktop applications and the plain-Node daemon
+in parallel, publishes a GitHub Release, and publishes the prepared daemon package to npm. Linux
+ships the daemon; it is not an Electron packaging target. Desktop packaging includes the Electron
+app and native dependencies. The macOS and Windows artifact paths must preserve the configured
+artifact names. A Windows app provisions WSL with the exact desktop version from npm, so the daemon
+package must be available for that release before first-time WSL setup can succeed.
 
 Mobile is released separately through Expo/EAS. The app keeps four profiles,
 but only the manually dispatched preview and production workflows use EAS cloud

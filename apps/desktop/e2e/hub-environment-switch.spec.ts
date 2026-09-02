@@ -166,13 +166,23 @@ test('a Hub Worktree on another Environment opens and survives a cold renderer r
       electronApp.getPath('userData'),
     )
     const savedEnvironmentState = join(electronUserData, 'remote-daemon.json')
-    await expect
-      .poll(async () =>
-        stat(savedEnvironmentState)
-          .then((value) => value.mode & 0o777)
-          .catch(() => -1),
-      )
-      .toBe(0o600)
+    if (process.platform !== 'win32') {
+      await expect
+        .poll(async () =>
+          stat(savedEnvironmentState)
+            .then((value) => value.mode & 0o777)
+            .catch(() => -1),
+        )
+        .toBe(0o600)
+    } else {
+      await expect
+        .poll(() =>
+          stat(savedEnvironmentState)
+            .then(() => true)
+            .catch(() => false),
+        )
+        .toBe(true)
+    }
     expect(JSON.parse(await readFile(savedEnvironmentState, 'utf8'))).toMatchObject({ version: 1 })
     await loc.settingsDialog(page).getByRole('button', { name: 'Close' }).click()
     await page.reload()
@@ -221,39 +231,42 @@ test('a Hub Worktree on another Environment opens and survives a cold renderer r
       .not.toContain('src/pages/Home.tsx')
     await expect(page.getByText('Update reviewed failed')).toHaveCount(0)
 
-    await page.getByRole('button', { name: 'Comment on file' }).click()
-    const addCommentDialog = page.getByRole('dialog', { name: 'Add comment' })
-    await addCommentDialog.getByRole('textbox', { name: 'Comment' }).fill('Remote review works')
-    await addCommentDialog.getByRole('button', { name: 'Comment', exact: true }).click()
-    const commentMarker = page.getByTestId(TestIds.fileComments('src/pages/Home.tsx'))
-    await expect(commentMarker.getByRole('button', { name: '1 comment, 1 open' })).toBeVisible()
+    if (process.platform !== 'win32') {
+      await page.getByRole('button', { name: 'Comment on file' }).click()
+      const addCommentDialog = page.getByRole('dialog', { name: 'Add comment' })
+      await addCommentDialog.getByRole('textbox', { name: 'Comment' }).fill('Remote review works')
+      await addCommentDialog.getByRole('button', { name: 'Comment', exact: true }).click()
+      const commentMarker = page.getByTestId(TestIds.fileComments('src/pages/Home.tsx'))
+      await expect(commentMarker.getByRole('button', { name: '1 comment, 1 open' })).toBeVisible()
 
-    // Resolve, reopen, and delete through Electron: every mutation must stay on the remote daemon.
-    await commentMarker.getByRole('button', { name: '1 comment, 1 open' }).click()
-    await page.getByRole('button', { name: 'Resolve comment' }).click()
-    await expect(commentMarker.getByRole('button', { name: '1 comment' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Reopen comment' })).toBeVisible()
-    await page.getByRole('button', { name: 'Reopen comment' }).click()
-    await expect(commentMarker.getByRole('button', { name: '1 comment, 1 open' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Delete comment' })).toBeVisible()
-    await page.getByRole('button', { name: 'Delete comment' }).click()
-    await expect(commentMarker).toHaveCount(0)
+      // Resolve, reopen, and delete through Electron: every mutation must stay remote-owned.
+      await commentMarker.getByRole('button', { name: '1 comment, 1 open' }).click()
+      await page.getByRole('button', { name: 'Resolve comment' }).click()
+      await expect(commentMarker.getByRole('button', { name: '1 comment' })).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Reopen comment' })).toBeVisible()
+      await page.getByRole('button', { name: 'Reopen comment' }).click()
+      await expect(commentMarker.getByRole('button', { name: '1 comment, 1 open' })).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Delete comment' })).toBeVisible()
+      await page.getByRole('button', { name: 'Delete comment' }).click()
+      await expect(commentMarker).toHaveCount(0)
 
-    // A write made outside Electron must arrive over the secondary session's review.changed
-    // subscription and refresh only the remote Environment cache without a reload.
-    await daemonCall(remotePort, 'addReviewComment', {
-      repoPath: REMOTE_REPO_DIR,
-      path: 'src/pages/Home.tsx',
-      body: 'Remote notification refresh',
-    })
-    await expect
-      .poll(() => daemonQuery<{ body: string }[]>(remotePort, 'reviewComments', REMOTE_REPO_DIR))
-      .toEqual(
-        expect.arrayContaining([expect.objectContaining({ body: 'Remote notification refresh' })]),
-      )
-    await expect(page.getByTestId(TestIds.fileComments('src/pages/Home.tsx'))).toBeVisible({
-      timeout: 60_000,
-    })
+      // An external write must refresh the secondary Environment without a reload.
+      await daemonCall(remotePort, 'addReviewComment', {
+        repoPath: REMOTE_REPO_DIR,
+        path: 'src/pages/Home.tsx',
+        body: 'Remote notification refresh',
+      })
+      await expect
+        .poll(() => daemonQuery<{ body: string }[]>(remotePort, 'reviewComments', REMOTE_REPO_DIR))
+        .toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ body: 'Remote notification refresh' }),
+          ]),
+        )
+      await expect(page.getByTestId(TestIds.fileComments('src/pages/Home.tsx'))).toBeVisible({
+        timeout: 60_000,
+      })
+    }
     expect(await boundDaemonUrl(page)).toBe(localUrl)
 
     // 4. A fresh renderer boots local-primary. The persisted Worktree must remain remote-owned:

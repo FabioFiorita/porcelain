@@ -45,7 +45,12 @@ import { readCurrentHubInventory, readHubInventories } from './shell-hub-invento
 import { exchangePairingLink } from './shell-pairing'
 import { checkForUpdates, installUpdate, type UpdateStatus, updateStatus } from './updater'
 import { createWindow, switchWindowEnvironment, type WindowInit, windowInitFor } from './window'
-import { discoverWslDistributions } from './wsl-discovery'
+import {
+  forgetManagedWslEnvironment,
+  managedWslDistributions,
+  prepareWslEnvironment,
+  rememberWslEnvironment,
+} from './wsl-environments'
 
 // The Electron-side half of the router split: everything here needs the shell
 // (native dialogs, window management, the updater) or the
@@ -153,6 +158,131 @@ async function refreshActiveEndpoint(id: string): Promise<string | null> {
     setWindowRemoteEndpoint(id, { token: env.token, url: live })
   }
   return live
+}
+
+type PairEnvironmentInput = {
+  connectionLink: string
+  groupId?: string | null
+  connectThisWindow?: boolean
+}
+
+async function pairEnvironmentConnection(
+  ctx: ShellTrpcContext,
+  input: PairEnvironmentInput,
+): Promise<{ id: string; reloaded: boolean; merged: boolean }> {
+  const { url, token } = await exchangePairingLink(input.connectionLink)
+  await probeDaemon(url, token)
+  const { host } = await probeEnvironment(url, token)
+
+  if (input.groupId !== undefined && input.groupId !== null) {
+    const group = (await loadRemoteEnvironmentState()).environments.find(
+      (env) => env.id === input.groupId,
+    )
+    if (group === undefined) {
+      await discardTemporaryCredential(url, token)
+      throw new Error('That environment group no longer exists')
+    }
+    if (!(await sameMachine(url, group))) {
+      await discardTemporaryCredential(url, token)
+      throw new Error('That connection does not belong to the selected environment')
+    }
+
+    await revokeClientCredential(url, token)
+    await updateRemoteEnvironmentState((state) => ({
+      ...state,
+      environments: state.environments.map((env) =>
+        env.id === group.id ? withEndpoint(env, url) : env,
+      ),
+    }))
+    await reloadEnvironmentsCache()
+    const connectGroup = input.connectThisWindow === true
+    if (connectGroup) switchWindowEnvironment(ctx.sender, group.id)
+    return { id: group.id, reloaded: connectGroup, merged: true }
+  }
+
+  if (host !== null && host !== '') {
+    const twin = (await loadRemoteEnvironmentState()).environments.find((env) => env.host === host)
+    if (twin !== undefined && (await sameMachine(url, twin))) {
+      await revokeClientCredential(url, token)
+      await updateRemoteEnvironmentState((state) => ({
+        ...state,
+        environments: state.environments.map((env) =>
+          env.id === twin.id ? withActiveUrl(withEndpoint(env, url), url) : env,
+        ),
+      }))
+      await reloadEnvironmentsCache()
+      const connectTwin = input.connectThisWindow !== false
+      if (connectTwin) switchWindowEnvironment(ctx.sender, twin.id)
+      return { id: twin.id, reloaded: connectTwin, merged: true }
+    }
+  }
+
+  let name = host ?? ''
+  if (name === '') {
+    try {
+      name = new URL(url).hostname || url
+    } catch {
+      name = url
+    }
+  }
+
+  const id = randomUUID()
+  await updateRemoteEnvironmentState((state) => ({
+    ...state,
+    environments: [
+      ...state.environments,
+      {
+        id,
+        name,
+        url,
+        token,
+        endpoints: [url],
+        preferredEndpoint: url,
+        ...(host !== null && host !== '' ? { host } : {}),
+      },
+    ],
+  }))
+  await reloadEnvironmentsCache()
+
+  const connectThis = input.connectThisWindow !== false
+  if (connectThis) switchWindowEnvironment(ctx.sender, id)
+  return { id, reloaded: connectThis, merged: false }
+}
+
+async function setupWslEnvironment(
+  ctx: ShellTrpcContext,
+  distribution: string,
+): Promise<{ id: string; reloaded: true }> {
+  const prepared = await prepareWslEnvironment(distribution)
+  if (prepared.existingEnvironmentId !== null) {
+    const existing = (await loadRemoteEnvironmentState()).environments.find(
+      (environment) => environment.id === prepared.existingEnvironmentId,
+    )
+    if (existing !== undefined) {
+      await probeDaemon(existing.url, existing.token)
+      switchWindowEnvironment(ctx.sender, existing.id)
+      return { id: existing.id, reloaded: true }
+    }
+    await forgetManagedWslEnvironment(prepared.existingEnvironmentId)
+    return setupWslEnvironment(ctx, distribution)
+  }
+
+  const paired = await pairEnvironmentConnection(ctx, {
+    connectionLink: prepared.connectionLink,
+    connectThisWindow: false,
+  })
+  await rememberWslEnvironment(distribution, prepared.port, paired.id)
+  await updateRemoteEnvironmentState((current) => ({
+    ...current,
+    environments: current.environments.map((environment) =>
+      environment.id === paired.id
+        ? { ...environment, name: `${distribution} (WSL)` }
+        : environment,
+    ),
+  }))
+  await reloadEnvironmentsCache()
+  switchWindowEnvironment(ctx.sender, paired.id)
+  return { id: paired.id, reloaded: true }
 }
 
 export const shellRouter = t.router({
@@ -368,7 +498,11 @@ export const shellRouter = t.router({
   environmentStatuses: t.procedure.query(() => readEnvironmentStatuses()),
 
   /** Candidate Linux Environments discovered through the Windows WSL host boundary. */
-  wslDistributions: t.procedure.query(() => discoverWslDistributions()),
+  wslDistributions: t.procedure.query(() => managedWslDistributions()),
+
+  setupWslEnvironment: t.procedure
+    .input(z.object({ distribution: z.string().min(1) }))
+    .mutation(({ ctx, input }) => setupWslEnvironment(ctx, input.distribution)),
 
   /**
    * Name one Environment — This device (`null`) or a saved group. The nickname is written on
@@ -419,100 +553,7 @@ export const shellRouter = t.router({
         connectThisWindow: z.boolean().optional(),
       }),
     )
-    .mutation(
-      async ({ ctx, input }): Promise<{ id: string; reloaded: boolean; merged: boolean }> => {
-        const { url, token } = await exchangePairingLink(input.connectionLink)
-        await probeDaemon(url, token)
-        const { host } = await probeEnvironment(url, token)
-
-        if (input.groupId !== undefined && input.groupId !== null) {
-          const group = (await loadRemoteEnvironmentState()).environments.find(
-            (env) => env.id === input.groupId,
-          )
-          if (group === undefined) {
-            await discardTemporaryCredential(url, token)
-            throw new Error('That environment group no longer exists')
-          }
-          if (!(await sameMachine(url, group))) {
-            await discardTemporaryCredential(url, token)
-            throw new Error('That connection does not belong to the selected environment')
-          }
-
-          // The existing group credential proved the endpoint belongs to this daemon. Keep
-          // one credential for the group and remove the one-shot pairing credential immediately.
-          await revokeClientCredential(url, token)
-          await updateRemoteEnvironmentState((state) => ({
-            ...state,
-            environments: state.environments.map((env) =>
-              env.id === group.id ? withEndpoint(env, url) : env,
-            ),
-          }))
-          await reloadEnvironmentsCache()
-          const connectGroup = input.connectThisWindow === true
-          if (connectGroup) switchWindowEnvironment(ctx.sender, group.id)
-          return { id: group.id, reloaded: connectGroup, merged: true }
-        }
-
-        // A reported host only nominates a group; its existing credential must authenticate
-        // at the new URL before the endpoint is merged.
-        if (host !== null && host !== '') {
-          const twin = (await loadRemoteEnvironmentState()).environments.find(
-            (env) => env.host === host,
-          )
-          if (twin !== undefined && (await sameMachine(url, twin))) {
-            // The twin's token is kept: we proved it works at this address. Revoke the
-            // newly issued credential before merging so repeated endpoint discovery never
-            // leaves an invisible authorized-device entry behind.
-            await revokeClientCredential(url, token)
-            await updateRemoteEnvironmentState((state) => ({
-              ...state,
-              environments: state.environments.map((env) =>
-                env.id === twin.id ? withActiveUrl(withEndpoint(env, url), url) : env,
-              ),
-            }))
-            await reloadEnvironmentsCache()
-            const connectTwin = input.connectThisWindow !== false
-            if (connectTwin) switchWindowEnvironment(ctx.sender, twin.id)
-            return { id: twin.id, reloaded: connectTwin, merged: true }
-          }
-        }
-
-        // Name it after the daemon's reported host, falling back to the URL hostname.
-        let name = host ?? ''
-        if (name === '') {
-          try {
-            name = new URL(url).hostname || url
-          } catch {
-            name = url
-          }
-        }
-
-        const id = randomUUID()
-        await updateRemoteEnvironmentState((state) => ({
-          ...state,
-          environments: [
-            ...state.environments,
-            {
-              id,
-              name,
-              url,
-              token,
-              endpoints: [url],
-              preferredEndpoint: url,
-              ...(host !== null && host !== '' ? { host } : {}),
-            },
-          ],
-        }))
-        await reloadEnvironmentsCache()
-
-        const connectThis = input.connectThisWindow !== false
-        if (connectThis) {
-          // Reloads THIS window onto the new env (welcome page of that daemon).
-          switchWindowEnvironment(ctx.sender, id)
-        }
-        return { id, reloaded: connectThis, merged: false }
-      },
-    ),
+    .mutation(({ ctx, input }) => pairEnvironmentConnection(ctx, input)),
 
   removeEnvironmentEndpoint: t.procedure
     .input(z.object({ id: z.string(), url: z.string() }))
@@ -597,6 +638,7 @@ export const shellRouter = t.router({
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }): Promise<{ wasActive: boolean; reloaded: boolean }> => {
       const wasThisWindow = windowEnvironmentId(ctx.sender) === input.id
+      await forgetManagedWslEnvironment(input.id)
       await updateRemoteEnvironmentState((state) => ({
         activeId: state.activeId === input.id ? null : state.activeId,
         environments: state.environments.filter((e) => e.id !== input.id),

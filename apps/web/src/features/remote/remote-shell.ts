@@ -53,6 +53,11 @@ export type WebLocalRemoteAdapter = {
   readonly wslDistributions: () => ReturnType<
     ReturnType<typeof shellTrpc.useUtils>['client']['wslDistributions']['query']
   >
+  readonly setupWslEnvironment: (
+    input: Parameters<
+      ReturnType<typeof shellTrpc.useUtils>['client']['setupWslEnvironment']['mutate']
+    >[0],
+  ) => ReturnType<ReturnType<typeof shellTrpc.useUtils>['client']['setupWslEnvironment']['mutate']>
   readonly pairEnvironmentConnection: (
     input: Parameters<
       ReturnType<typeof shellTrpc.useUtils>['client']['pairEnvironmentConnection']['mutate']
@@ -136,6 +141,21 @@ export function useRemoteEnvironments():
 export function useWslDistributions(): WslDistribution[] | undefined {
   const { data } = shellTrpc.wslDistributions.useQuery(undefined, { enabled: isWindowsShell })
   return data
+}
+
+export function useSetupWslEnvironment(): {
+  setup: (distribution: string) => void
+  pendingDistribution: string | null
+  error: string | null
+} {
+  const mutation = shellTrpc.setupWslEnvironment.useMutation({
+    onError: onMutationError('Set up WSL Environment'),
+  })
+  return {
+    setup: (distribution: string): void => mutation.mutate({ distribution }),
+    pendingDistribution: mutation.isPending ? (mutation.variables?.distribution ?? null) : null,
+    error: pairingErrorMessage(mutation.error),
+  }
 }
 
 /**

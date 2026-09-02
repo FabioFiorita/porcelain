@@ -52,8 +52,9 @@ vi.mock('./updater', () => ({
   updateStatus: (): { state: 'idle' } => ({ state: 'idle' }),
 }))
 
-vi.mock('./wsl-discovery', () => ({
-  discoverWslDistributions: vi.fn(async () => [
+vi.mock('./wsl-environments', () => ({
+  forgetManagedWslEnvironment: vi.fn(),
+  managedWslDistributions: vi.fn(async () => [
     {
       name: 'Ubuntu',
       version: 2,
@@ -62,8 +63,13 @@ vi.mock('./wsl-discovery', () => ({
       gitVersion: 'git version 2.53.0',
       ready: false,
       issues: ['node-missing', 'npx-missing'],
+      managedState: 'available',
+      environmentId: null,
+      managementError: null,
     },
   ]),
+  prepareWslEnvironment: vi.fn(),
+  rememberWslEnvironment: vi.fn(),
 }))
 
 vi.mock('./window', () => ({

@@ -84,6 +84,9 @@ async function probeDistribution(
       gitVersion: null,
       ready: false,
       issues: [...issues, 'probe-failed'],
+      managedState: 'available',
+      environmentId: null,
+      managementError: null,
     }
   }
 
@@ -95,7 +98,16 @@ async function probeDistribution(
   if (fields.get('npx') !== 'yes') issues.push('npx-missing')
   if (gitVersion === null) issues.push('git-missing')
 
-  return { ...listed, nodeVersion, gitVersion, ready: issues.length === 0, issues }
+  return {
+    ...listed,
+    nodeVersion,
+    gitVersion,
+    ready: issues.length === 0,
+    issues,
+    managedState: 'available',
+    environmentId: null,
+    managementError: null,
+  }
 }
 
 /** Discover user WSL distributions. Discovery never registers a UNC path with the local daemon. */

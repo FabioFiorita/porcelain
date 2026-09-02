@@ -27,7 +27,12 @@ describe('WSL discovery', () => {
     })
 
     await expect(discoverWslDistributions({ platform: 'win32', run })).resolves.toEqual([
-      expect.objectContaining({ name: 'Ubuntu', ready: true, issues: [] }),
+      expect.objectContaining({
+        name: 'Ubuntu',
+        ready: true,
+        issues: [],
+        managedState: 'available',
+      }),
       expect.objectContaining({
         name: 'Debian Dev',
         ready: false,

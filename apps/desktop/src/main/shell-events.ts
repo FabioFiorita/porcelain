@@ -18,6 +18,9 @@ export type ShellEvent =
   // The saved-environments list changed (pairing, connect, disconnect, remove, endpoint
   // healing) — renderer-side secondary daemon sessions should re-fetch it and re-point.
   | 'remote-environments-changed'
+  // Managed WSL provisioning or daemon lifecycle changed. The renderer refreshes both the
+  // candidate row and Environment reachability because one transition affects both surfaces.
+  | 'wsl-environments-changed'
   // File > Settings… (menu.ts) — open the Settings dialog in the focused window.
   | 'open-settings'
   // File > New Terminal / File > Quick Open… / View > Split Pane (menu.ts) — mirror the

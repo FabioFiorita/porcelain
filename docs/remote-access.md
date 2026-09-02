@@ -3,6 +3,13 @@
 Porcelain's UI is a client of a daemon. This guide covers running the daemon on another machine
 and pairing a browser, Mac, or mobile client. Host administration remains on the host.
 
+On Windows, a local WSL 2 distribution is a separate Linux Environment rather than a remote-host
+deployment. Once Node 22+, npm/npx, Git, and a C toolchain are installed in the distribution, use
+Settings → Environments → **Set up and open**. The Windows app installs and manages the matching
+daemon runtime, pairs it without exposing the Linux administrator token, and restores it when the
+app starts. The manual service instructions below are for independent remote hosts, not for this
+managed Windows-to-WSL path.
+
 ## Start locally on the host
 
 Node 22+, Git, and a C toolchain for the first `node-pty` build are required:

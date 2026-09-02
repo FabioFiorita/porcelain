@@ -37,6 +37,13 @@ function handle(event: ShellEvent, shellUtils: ShellUtils): Promise<unknown> {
       // pairing/connect/disconnect/remove/endpoint healing changed the saved-environments
       // list — refetch so useShellEnvironmentConnections re-points its live sessions
       return shellUtils.environmentDaemonPairs.invalidate()
+    case 'wsl-environments-changed':
+      return Promise.all([
+        shellUtils.wslDistributions.invalidate(),
+        shellUtils.remoteEnvironments.invalidate(),
+        shellUtils.environmentStatuses.invalidate(),
+        shellUtils.environmentDaemonPairs.invalidate(),
+      ])
     case 'close-tab': {
       // Cmd+W routed from the main process before-input-event — close the active
       // tab, or the window if it was the last one.

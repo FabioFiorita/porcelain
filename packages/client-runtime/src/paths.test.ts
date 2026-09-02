@@ -17,6 +17,10 @@ describe('relativeTo', () => {
   it('does not treat the repo path itself as a prefixed child', () => {
     expect(relativeTo('/repo', '/repo')).toBe('/repo')
   })
+
+  it('strips a Windows repo prefix without changing its native separators', () => {
+    expect(relativeTo('C:\\code\\repo', 'C:\\code\\repo\\src\\index.ts')).toBe('src\\index.ts')
+  })
 })
 
 describe('fileName', () => {
@@ -35,6 +39,10 @@ describe('fileName', () => {
   it('returns an empty string for a trailing-slash path', () => {
     expect(fileName('a/b/')).toBe('')
   })
+
+  it('returns the last segment of a Windows path', () => {
+    expect(fileName('C:\\code\\porcelain')).toBe('porcelain')
+  })
 })
 
 describe('dirName', () => {
@@ -52,5 +60,9 @@ describe('dirName', () => {
 
   it('returns everything before the trailing slash for a trailing-slash path', () => {
     expect(dirName('a/b/')).toBe('a/b')
+  })
+
+  it('returns the parent of a Windows path', () => {
+    expect(dirName('C:\\code\\porcelain\\README.md')).toBe('C:\\code\\porcelain')
   })
 })
