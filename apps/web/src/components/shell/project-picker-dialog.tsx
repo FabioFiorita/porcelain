@@ -55,21 +55,30 @@ function browseErrorMessage(error: { message: string }, remoteName: string | nul
  */
 export function ProjectPickerDialog(): React.JSX.Element | null {
   const open = useProjectPickerStore((s) => s.open)
+  const environmentId = useProjectPickerStore((s) => s.environmentId)
   const hide = useProjectPickerStore((s) => s.hide)
 
   if (!open) return null
-  return <ProjectPicker onClose={hide} />
+  return <ProjectPicker initialEnvironmentId={environmentId} onClose={hide} />
 }
 
-function ProjectPicker({ onClose }: { onClose: () => void }): React.JSX.Element {
+function ProjectPicker({
+  initialEnvironmentId,
+  onClose,
+}: {
+  initialEnvironmentId: string | null
+  onClose: () => void
+}): React.JSX.Element {
   // null = the daemon home; a fresh browse each open (no persistence).
   const [path, setPath] = useState<string | null>(null)
   const inventories = useHubInventories()
   const current = inventories.find((source) => source.current) ?? null
   /** The daemon-announced id of the Environment being browsed; null until one is chosen. */
-  const [chosenId, setChosenId] = useState<string | null>(null)
+  const [chosenId, setChosenId] = useState<string | null>(initialEnvironmentId)
   const target =
-    inventories.find((source) => source.inventory.environment.id === chosenId) ?? current
+    inventories.find(
+      (source) => source.inventory.environment.id === chosenId || source.environmentId === chosenId,
+    ) ?? current
   const browsingElsewhere = target !== null && !target.current
   // `null` addresses this window's own daemon directly; anything else resolves the session
   // the shell handed over for that machine.
@@ -126,7 +135,7 @@ function ProjectPicker({ onClose }: { onClose: () => void }): React.JSX.Element 
               // Without `items` the trigger shows the raw value — an Environment UUID.
               items={inventories.map((source) => ({
                 label: source.current
-                  ? `${source.inventory.environment.name} · this window`
+                  ? `${source.inventory.environment.name} · current Environment`
                   : source.inventory.environment.name,
                 value: source.inventory.environment.id,
               }))}
@@ -148,7 +157,7 @@ function ProjectPicker({ onClose }: { onClose: () => void }): React.JSX.Element 
                     value={source.inventory.environment.id}
                   >
                     {source.inventory.environment.name}
-                    {source.current ? ' · this window' : ''}
+                    {source.current ? ' · current Environment' : ''}
                   </SelectItem>
                 ))}
               </SelectContent>

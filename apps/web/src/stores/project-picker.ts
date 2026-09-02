@@ -9,12 +9,14 @@ import { create } from 'zustand'
  */
 interface ProjectPickerState {
   open: boolean
-  show: () => void
+  environmentId: string | null
+  show: (environmentId?: string | null) => void
   hide: () => void
 }
 
 export const useProjectPickerStore = create<ProjectPickerState>((set) => ({
   open: false,
-  show: () => set({ open: true }),
-  hide: () => set({ open: false }),
+  environmentId: null,
+  show: (environmentId = null) => set({ environmentId, open: true }),
+  hide: () => set({ environmentId: null, open: false }),
 }))

@@ -74,11 +74,8 @@ vi.mock('./wsl-environments', () => ({
 
 vi.mock('./window', () => ({
   createWindow: vi.fn(),
-  switchWindowEnvironment: switchWindowEnvironmentMock,
   windowInitFor: vi.fn(),
 }))
-
-const switchWindowEnvironmentMock = vi.fn()
 
 vi.mock('./remote-daemon', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./remote-daemon')>()
@@ -137,6 +134,22 @@ function stubDaemon(): void {
       if (url.includes('/trpc/daemonInfo')) {
         return new Response(JSON.stringify(DAEMON_INFO), { status: 200 })
       }
+      if (url.includes('/trpc/renameEnvironment')) {
+        return new Response(
+          JSON.stringify({
+            result: {
+              data: {
+                id: 'env-wsl',
+                name: 'WSL',
+                host: 'synthetic-host',
+                platform: 'linux',
+                arch: 'x64',
+              },
+            },
+          }),
+          { status: 200 },
+        )
+      }
       if (url.includes('/trpc/hubInventory')) {
         return new Response(JSON.stringify(HUB_INVENTORY), {
           status: 200,
@@ -176,7 +189,6 @@ const caller = (): ReturnType<typeof shellRouter.createCaller> =>
 
 beforeEach(() => {
   seen.length = 0
-  switchWindowEnvironmentMock.mockClear()
   state = { activeId: null, environments: [] }
   stubDaemon()
 })
@@ -203,10 +215,25 @@ describe('shell daemon requests', () => {
     ])
   })
 
+  it('sets up WSL as a named secondary Environment without rebinding the renderer', async () => {
+    const wsl = await import('./wsl-environments')
+    vi.mocked(wsl.prepareWslEnvironment).mockResolvedValueOnce({
+      connectionLink: `http://synthetic.local:43117/pair#token=${GRANT}`,
+      port: 43119,
+      existingEnvironmentId: null,
+    })
+
+    const result = await caller().setupWslEnvironment({ distribution: 'Ubuntu' })
+
+    expect(result).toEqual({ id: expect.any(String) })
+    expect(wsl.rememberWslEnvironment).toHaveBeenCalledWith('Ubuntu', 43119, result.id)
+    expect(request('/trpc/renameEnvironment').body).toBe(JSON.stringify({ name: 'WSL' }))
+    expect(state.environments.find((environment) => environment.id === result.id)?.name).toBe('WSL')
+  })
+
   it('versions the pairing exchange and both authenticated probes', async () => {
     const result = await caller().pairEnvironmentConnection({
       connectionLink: `http://synthetic.local:43117/pair#token=${GRANT}`,
-      connectThisWindow: false,
     })
 
     expect(result.merged).toBe(false)
@@ -245,7 +272,6 @@ describe('shell daemon requests', () => {
 
     const result = await caller().pairEnvironmentConnection({
       connectionLink: `http://synthetic.tail1234.ts.net/pair#token=${GRANT}`,
-      connectThisWindow: false,
     })
 
     expect(result.merged).toBe(true)

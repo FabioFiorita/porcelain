@@ -9,14 +9,13 @@ import { observable } from '@trpc/server/observable'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   type EnvironmentEndpoint,
-  useConnectRemoteEnvironment,
-  useDisconnectRemoteEnvironment,
   useEnvironmentStatuses,
   usePairEnvironmentConnection,
   useRemoteEnvironments,
+  useSetupWslEnvironment,
 } from './remote-shell'
 
-const platform = vi.hoisted(() => ({ isBrowser: true }))
+const platform = vi.hoisted(() => ({ isBrowser: true, isWindowsShell: false }))
 
 vi.mock('@renderer/lib/platform', () => platform)
 
@@ -66,6 +65,7 @@ const emptyEnvironments = {
 
 beforeEach(() => {
   platform.isBrowser = true
+  platform.isWindowsShell = false
 })
 
 describe('remote shell Electron gate', () => {
@@ -102,7 +102,7 @@ describe('remote shell pairing invalidation', () => {
       if (op.path === 'remoteEnvironments') return emptyEnvironments
       if (op.path === 'environmentStatuses') return []
       if (op.path === 'pairEnvironmentConnection') {
-        return { id: 'beelink', reloaded: false, merged: false }
+        return { id: 'beelink', merged: false }
       }
       return undefined
     })
@@ -130,14 +130,14 @@ describe('remote shell pairing invalidation', () => {
     expect(requests).toContain('mutation:pairEnvironmentConnection')
   })
 
-  it('does not invalidate when pairing reloads the window', async () => {
+  it('refreshes the unified Environment data after every pairing', async () => {
     const requests: string[] = []
     const wrapper = shellWrapper(async (op) => {
       requests.push(`${op.type}:${op.path}`)
       if (op.path === 'remoteEnvironments') return emptyEnvironments
       if (op.path === 'environmentStatuses') return []
       if (op.path === 'pairEnvironmentConnection') {
-        return { id: 'beelink', reloaded: true, merged: false }
+        return { id: 'beelink', merged: false }
       }
       return undefined
     })
@@ -158,47 +158,39 @@ describe('remote shell pairing invalidation', () => {
     await act(async () => {
       result.current.pair.pair({ connectionLink: 'https://beelink.example.ts.net/pair#token=x' })
     })
-    await waitFor(() => expect(requests).toContain('mutation:pairEnvironmentConnection'))
-    await new Promise((resolve) => setTimeout(resolve, 20))
-    expect(requests.filter((path) => path === 'query:remoteEnvironments')).toHaveLength(1)
-    expect(requests.filter((path) => path === 'query:environmentStatuses')).toHaveLength(1)
+    await waitFor(() =>
+      expect(requests.filter((path) => path === 'query:remoteEnvironments')).toHaveLength(2),
+    )
+    expect(requests.filter((path) => path === 'query:environmentStatuses')).toHaveLength(2)
+  })
+})
+
+describe('WSL Environment handoff', () => {
+  beforeEach(() => {
+    platform.isBrowser = false
+    platform.isWindowsShell = true
   })
 
-  it('does not invalidate on connect or disconnect', async () => {
-    const requests: string[] = []
+  it('opens the unified project picker on WSL without reloading the page', async () => {
+    const { useProjectPickerStore } = await import('@renderer/stores/project-picker')
+    const { useSettingsDialogStore } = await import('@renderer/stores/settings-dialog')
+    useProjectPickerStore.setState({ environmentId: null, open: false })
+    useSettingsDialogStore.setState({ open: true, section: 'remotes' })
     const wrapper = shellWrapper(async (op) => {
-      requests.push(`${op.type}:${op.path}`)
-      if (op.path === 'remoteEnvironments') return emptyEnvironments
-      if (op.path === 'environmentStatuses') return []
+      if (op.path === 'setupWslEnvironment') return { id: 'env-wsl' }
       return undefined
     })
+    const { result } = renderHook(() => useSetupWslEnvironment(), { wrapper })
 
-    const { result } = renderHook(
-      () => ({
-        environments: useRemoteEnvironments(),
-        statuses: useEnvironmentStatuses(),
-        connect: useConnectRemoteEnvironment(),
-        disconnect: useDisconnectRemoteEnvironment(),
-      }),
-      { wrapper },
-    )
+    await act(async () => result.current.setup('Ubuntu'))
 
     await waitFor(() =>
-      expect(requests.filter((path) => path.startsWith('query:'))).toHaveLength(2),
+      expect(useProjectPickerStore.getState()).toMatchObject({
+        environmentId: 'env-wsl',
+        open: true,
+      }),
     )
-
-    await act(async () => {
-      result.current.connect.connect('beelink')
-    })
-    await act(async () => {
-      result.current.disconnect.disconnect()
-    })
-    await waitFor(() => {
-      expect(requests).toContain('mutation:connectRemoteEnvironment')
-      expect(requests).toContain('mutation:disconnectRemoteEnvironment')
-    })
-    expect(requests.filter((path) => path === 'query:remoteEnvironments')).toHaveLength(1)
-    expect(requests.filter((path) => path === 'query:environmentStatuses')).toHaveLength(1)
+    expect(useSettingsDialogStore.getState().open).toBe(false)
   })
 })
 

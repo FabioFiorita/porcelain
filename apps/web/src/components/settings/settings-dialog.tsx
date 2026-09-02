@@ -100,7 +100,8 @@ const ALL_SECTIONS: {
     icon: Cloud,
     title: 'Environments',
     scope: 'environment',
-    blurb: 'Every daemon this app can reach. Pair one, name it, keep several live in this window.',
+    blurb:
+      'Every Environment this app can reach. Pair one, name it, and keep several live at once.',
     shellOnly: true,
   },
   {

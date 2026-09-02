@@ -270,12 +270,12 @@ function ElectronRemotesSection(): React.JSX.Element {
                     onClick={() => setupWsl(distribution.name)}
                   >
                     {distribution.managedState === 'online'
-                      ? 'Open'
+                      ? 'Browse projects'
                       : distribution.managedState === 'error'
                         ? 'Try again'
                         : pendingDistribution === distribution.name
                           ? 'Setting up…'
-                          : 'Set up and open'}
+                          : 'Set up WSL Environment'}
                   </Button>
                 )}
               </li>
@@ -314,7 +314,6 @@ function ElectronRemotesSection(): React.JSX.Element {
               onClick={() =>
                 pair({
                   connectionLink,
-                  connectThisWindow: false,
                   groupId: pairingTargetId,
                 })
               }

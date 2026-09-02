@@ -9,8 +9,6 @@ const environmentsMock = vi.fn()
 const wslDistributionsMock = vi.fn()
 const statusesMock = vi.fn<() => Map<string | null, EnvironmentStatus>>()
 const pair = vi.fn()
-const connect = vi.fn()
-const disconnect = vi.fn()
 const open = vi.fn()
 const removeEndpoint = vi.fn()
 const removeGroup = vi.fn()
@@ -18,8 +16,6 @@ const rename = vi.fn()
 const setupWsl = vi.fn()
 
 vi.mock('@renderer/features/remote', () => ({
-  useConnectRemoteEnvironment: () => ({ connect, pendingId: null }),
-  useDisconnectRemoteEnvironment: () => ({ disconnect, isPending: false }),
   useEnvironmentStatuses: () => statusesMock(),
   useOpenWindowInEnvironment: () => ({ open }),
   usePairEnvironmentConnection: () => ({ pair, isPending: false, error: null }),
@@ -79,8 +75,6 @@ beforeEach(() => {
     ]),
   )
   pair.mockClear()
-  connect.mockClear()
-  disconnect.mockClear()
   open.mockClear()
   removeEndpoint.mockClear()
   removeGroup.mockClear()
@@ -171,7 +165,6 @@ describe('RemotesSection', () => {
 
     expect(pair).toHaveBeenCalledWith({
       connectionLink: 'https://beelink/pair#token=secret',
-      connectThisWindow: false,
       groupId: null,
     })
   })

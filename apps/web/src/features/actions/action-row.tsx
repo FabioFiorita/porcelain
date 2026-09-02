@@ -110,7 +110,7 @@ export function ActionRow({
               ) : (
                 <Cloud
                   className="size-3 shrink-0 text-muted-foreground"
-                  aria-label="Runs on this window’s machine"
+                  aria-label="Runs on selected Environment"
                 />
               ))}
           </span>

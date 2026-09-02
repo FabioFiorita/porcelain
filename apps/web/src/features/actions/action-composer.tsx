@@ -150,9 +150,9 @@ export function ActionComposer({
               data-testid={TestIds.actionWhere}
               className="justify-start"
             >
-              <ToggleGroupItem value="primary" size="sm" aria-label="Run on this window’s machine">
+              <ToggleGroupItem value="primary" size="sm" aria-label="Run on selected Environment">
                 <Cloud className="size-3.5" />
-                This window’s machine
+                Selected Environment
               </ToggleGroupItem>
               <ToggleGroupItem value="local" size="sm" aria-label="Run on this device">
                 <Monitor className="size-3.5" />

@@ -7,11 +7,9 @@ import { BrowserWindow, clipboard, nativeTheme, shell, type WebContents } from '
 import { z } from 'zod'
 import { installCodexPlugin, readCodexPluginStatus } from './codex-plugin'
 import {
-  getDefaultEnvironmentId,
   localDaemonPair,
   environmentDaemonPairs as readEnvironmentDaemonPairs,
   reloadEnvironmentsCache,
-  setDefaultEnvironmentId,
   setWindowRemoteEndpoint,
   windowEnvironmentId,
 } from './daemon'
@@ -44,7 +42,7 @@ import {
 import { readCurrentHubInventory, readHubInventories } from './shell-hub-inventory'
 import { exchangePairingLink } from './shell-pairing'
 import { checkForUpdates, installUpdate, type UpdateStatus, updateStatus } from './updater'
-import { createWindow, switchWindowEnvironment, type WindowInit, windowInitFor } from './window'
+import { createWindow, type WindowInit, windowInitFor } from './window'
 import {
   forgetManagedWslEnvironment,
   managedWslDistributions,
@@ -163,13 +161,12 @@ async function refreshActiveEndpoint(id: string): Promise<string | null> {
 type PairEnvironmentInput = {
   connectionLink: string
   groupId?: string | null
-  connectThisWindow?: boolean
 }
 
 async function pairEnvironmentConnection(
-  ctx: ShellTrpcContext,
+  _ctx: ShellTrpcContext,
   input: PairEnvironmentInput,
-): Promise<{ id: string; reloaded: boolean; merged: boolean }> {
+): Promise<{ id: string; merged: boolean }> {
   const { url, token } = await exchangePairingLink(input.connectionLink)
   await probeDaemon(url, token)
   const { host } = await probeEnvironment(url, token)
@@ -195,9 +192,7 @@ async function pairEnvironmentConnection(
       ),
     }))
     await reloadEnvironmentsCache()
-    const connectGroup = input.connectThisWindow === true
-    if (connectGroup) switchWindowEnvironment(ctx.sender, group.id)
-    return { id: group.id, reloaded: connectGroup, merged: true }
+    return { id: group.id, merged: true }
   }
 
   if (host !== null && host !== '') {
@@ -211,9 +206,7 @@ async function pairEnvironmentConnection(
         ),
       }))
       await reloadEnvironmentsCache()
-      const connectTwin = input.connectThisWindow !== false
-      if (connectTwin) switchWindowEnvironment(ctx.sender, twin.id)
-      return { id: twin.id, reloaded: connectTwin, merged: true }
+      return { id: twin.id, merged: true }
     }
   }
 
@@ -244,15 +237,13 @@ async function pairEnvironmentConnection(
   }))
   await reloadEnvironmentsCache()
 
-  const connectThis = input.connectThisWindow !== false
-  if (connectThis) switchWindowEnvironment(ctx.sender, id)
-  return { id, reloaded: connectThis, merged: false }
+  return { id, merged: false }
 }
 
 async function setupWslEnvironment(
   ctx: ShellTrpcContext,
   distribution: string,
-): Promise<{ id: string; reloaded: true }> {
+): Promise<{ id: string }> {
   const prepared = await prepareWslEnvironment(distribution)
   if (prepared.existingEnvironmentId !== null) {
     const existing = (await loadRemoteEnvironmentState()).environments.find(
@@ -260,8 +251,8 @@ async function setupWslEnvironment(
     )
     if (existing !== undefined) {
       await probeDaemon(existing.url, existing.token)
-      switchWindowEnvironment(ctx.sender, existing.id)
-      return { id: existing.id, reloaded: true }
+      await renameEnvironment({ environmentId: existing.id, name: 'WSL' })
+      return { id: existing.id }
     }
     await forgetManagedWslEnvironment(prepared.existingEnvironmentId)
     return setupWslEnvironment(ctx, distribution)
@@ -269,20 +260,12 @@ async function setupWslEnvironment(
 
   const paired = await pairEnvironmentConnection(ctx, {
     connectionLink: prepared.connectionLink,
-    connectThisWindow: false,
   })
   await rememberWslEnvironment(distribution, prepared.port, paired.id)
-  await updateRemoteEnvironmentState((current) => ({
-    ...current,
-    environments: current.environments.map((environment) =>
-      environment.id === paired.id
-        ? { ...environment, name: `${distribution} (WSL)` }
-        : environment,
-    ),
-  }))
-  await reloadEnvironmentsCache()
-  switchWindowEnvironment(ctx.sender, paired.id)
-  return { id: paired.id, reloaded: true }
+  // Name the daemon-owned Environment, not just this desktop's saved connection. That keeps
+  // Windows and WSL distinct everywhere the shared Hub renders the daemon identity.
+  await renameEnvironment({ environmentId: paired.id, name: 'WSL' })
+  return { id: paired.id }
 }
 
 export const shellRouter = t.router({
@@ -549,8 +532,6 @@ export const shellRouter = t.router({
         connectionLink: z.string(),
         /** Add this endpoint to an existing group instead of creating a new group. */
         groupId: z.string().nullable().optional(),
-        /** Point THIS window at the resulting group and reload it when true. */
-        connectThisWindow: z.boolean().optional(),
       }),
     )
     .mutation(({ ctx, input }) => pairEnvironmentConnection(ctx, input)),
@@ -582,39 +563,6 @@ export const shellRouter = t.router({
       await reloadEnvironmentsCache()
     }),
 
-  /** Point THIS window at a saved environment (other windows untouched). */
-  connectRemoteEnvironment: t.procedure
-    .input(z.object({ id: z.string() }))
-    .mutation(async ({ ctx, input }): Promise<void> => {
-      // Try every known endpoint in preference order before reporting the group down.
-      const live = await refreshActiveEndpoint(input.id)
-      const state = await loadRemoteEnvironmentState()
-      const env = state.environments.find((e) => e.id === input.id)
-      if (env === undefined) throw new Error('That environment no longer exists')
-
-      // The walk already probed every address; re-probing the winner is a wasted round trip
-      // and re-probing a dead environment doubles a wait that is already seconds long. Only
-      // probe when the walk found nothing — that call is purely to raise the real error.
-      if (live === null) await probeDaemon(env.url, env.token)
-      // Remember as default for new windows / app restore.
-      await updateRemoteEnvironmentState((current) => ({ ...current, activeId: env.id }))
-      await reloadEnvironmentsCache()
-      // Main-process reload onto the remote (welcome) — see switchWindowEnvironment.
-      switchWindowEnvironment(ctx.sender, env.id)
-    }),
-
-  /** Point THIS window back at the local child (other windows untouched). */
-  disconnectRemoteEnvironment: t.procedure.mutation(async ({ ctx }): Promise<void> => {
-    // Only clear the default when THIS window was on it — leave other windows' defaults alone.
-    if (getDefaultEnvironmentId() === windowEnvironmentId(ctx.sender)) {
-      await setDefaultEnvironmentId(null)
-    } else {
-      await reloadEnvironmentsCache()
-    }
-    // Main-process reload onto This device (welcome) — renderer must not also reload.
-    switchWindowEnvironment(ctx.sender, null)
-  }),
-
   /**
    * Open a fresh window on an environment without touching the caller's binding.
    * `environmentId: null` = This device (local).
@@ -636,24 +584,13 @@ export const shellRouter = t.router({
 
   removeRemoteEnvironment: t.procedure
     .input(z.object({ id: z.string() }))
-    .mutation(async ({ ctx, input }): Promise<{ wasActive: boolean; reloaded: boolean }> => {
-      const wasThisWindow = windowEnvironmentId(ctx.sender) === input.id
+    .mutation(async ({ input }): Promise<void> => {
       await forgetManagedWslEnvironment(input.id)
       await updateRemoteEnvironmentState((state) => ({
         activeId: state.activeId === input.id ? null : state.activeId,
         environments: state.environments.filter((e) => e.id !== input.id),
       }))
       await reloadEnvironmentsCache()
-      // Any open window on the removed env falls back to local + welcome and is
-      // reloaded here (including the caller's window). Renderer onSuccess must
-      // NOT reload again when wasActive — main-process already did.
-      for (const window of BrowserWindow.getAllWindows()) {
-        if (window.isDestroyed()) continue
-        if (windowEnvironmentId(window.webContents) === input.id) {
-          switchWindowEnvironment(window.webContents, null)
-        }
-      }
-      return { wasActive: wasThisWindow, reloaded: wasThisWindow }
     }),
 })
 

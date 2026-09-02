@@ -215,7 +215,7 @@ export function TerminalPanel(): React.JSX.Element {
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={handleSpawnRemote} data-testid={TestIds.terminalNewRemote}>
                 <Cloud />
-                {environmentName ?? identity.host ?? 'This window’s machine'}
+                {environmentName ?? identity.host ?? 'Current Environment'}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleSpawnLocal} data-testid={TestIds.terminalNewLocal}>
                 <Monitor />

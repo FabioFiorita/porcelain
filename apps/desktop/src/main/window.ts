@@ -39,45 +39,6 @@ export function windowInitFor(sender: WebContents): WindowInit {
   return pendingInits.get(sender) ?? { mode: 'restore' }
 }
 
-/**
- * Replace the boot intent for an already-open window (e.g. after an environment
- * switch). Survives `webContents.reload()` the same way create-time init does —
- * cleaned up only when the window closes.
- */
-function setWindowBootIntent(sender: WebContents, init: WindowInit): void {
-  pendingInits.set(sender, init)
-}
-
-/**
- * Point THIS window at an environment and hard-reload it so the renderer boots cleanly
- * against the new daemon (new url/token via the preload sync getter). Lands on the
- * welcome page for that environment, or on `repoPath` when the caller names a checkout
- * that lives on it (a Hub click). Restoring the previous machine's path would open the
- * wrong disk, so only an explicit path is carried across. Main-process reload is deliberate: a renderer-side
- * `location.reload()` after invalidate can race or skip if the mutation onSuccess chain
- * fails, leaving shell chrome on one env and the appRouter on the other.
- */
-export function switchWindowEnvironment(
-  webContents: WebContents,
-  environmentId: string | null,
-  repoPath?: string,
-): void {
-  setWindowEnvironment(webContents, environmentId)
-  setWindowBootIntent(
-    webContents,
-    // A Hub click names both the Environment and the checkout on it, so boot straight
-    // into that path instead of the welcome page. Only a plain environment switch (no
-    // path) lands on welcome — restoring the previous machine's path would open the
-    // wrong disk.
-    repoPath === undefined
-      ? { mode: 'welcome', environmentId }
-      : { mode: 'open', repoPath, environmentId },
-  )
-  if (!webContents.isDestroyed()) {
-    webContents.reload()
-  }
-}
-
 export function createWindow(init: WindowInit = { mode: 'restore' }): BrowserWindow {
   const platform = resolvePlatform()
   // Create the browser window. Chrome is platform-split: macOS keeps its native

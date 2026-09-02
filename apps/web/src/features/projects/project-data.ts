@@ -37,6 +37,7 @@ import {
 } from '@renderer/lib/environment-sessions'
 import { isBrowser } from '@renderer/lib/platform'
 import { trpc } from '@renderer/lib/trpc'
+import { useHubSelectionStore } from '@renderer/stores/hub-selection'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo } from 'react'
@@ -50,6 +51,7 @@ import {
 import {
   browseProjectDirectoriesOnDaemon,
   createHubWorktreeOnDaemon,
+  hubInventoryOnDaemon,
   listCanvasesOnDaemon,
   mintCanvasAccessTokenOnDaemon,
   openProjectOnDaemon,
@@ -151,6 +153,7 @@ export function useOpenProject(): {
   const defaultClient = trpc.useUtils().client
   const queryClient = useQueryClient()
   const selectProject = useProjectSelectionStore((state) => state.selectProject)
+  const selectWorktree = useHubSelectionStore((state) => state.selectWorktree)
   const resetProjectPresentation = useProjectSelectionStore(
     (state) => state.resetProjectPresentation,
   )
@@ -158,16 +161,31 @@ export function useOpenProject(): {
     mutationFn: async (variables: {
       path: ProjectPath
       environmentId: string | null
-    }): Promise<ProjectSummary> => {
+    }): Promise<{ project: ProjectSummary; inventory: HubInventory | null }> => {
       const owner =
         variables.environmentId === null
           ? { client: defaultClient }
           : environmentSessionFor(variables.environmentId)
       if (owner === null) throw new Error('The target Environment is offline.')
-      return openProjectOnDaemon(owner.client, variables.path)
+      const project = await openProjectOnDaemon(owner.client, variables.path)
+      const inventory =
+        variables.environmentId === null ? null : await hubInventoryOnDaemon(owner.client)
+      return { inventory, project }
     },
-    onSuccess: (project, variables) => {
+    onSuccess: ({ inventory, project }, variables) => {
       selectProject(project)
+      const worktree = inventory?.projects
+        .flatMap((candidate) => candidate.worktrees)
+        .find((candidate) => candidate.path === project.path)
+      if (inventory !== null && worktree !== undefined) {
+        selectWorktree({
+          environmentId: inventory.environment.id,
+          projectId: worktree.projectId,
+          worktreeId: worktree.id,
+          path: worktree.path,
+          name: worktree.name,
+        })
+      }
       settleBackground(
         invalidateProjectQueries(
           queryClient,

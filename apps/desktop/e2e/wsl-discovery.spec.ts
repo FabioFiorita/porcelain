@@ -1,5 +1,4 @@
 import { execFileSync } from 'node:child_process'
-import { PROTOCOL_VERSION, PROTOCOL_VERSION_HEADER } from '@porcelain/contracts'
 import {
   expect,
   expectTerminalText,
@@ -72,63 +71,40 @@ test('Windows provisions Ubuntu, opens a Linux project, and runs its terminal in
     await waitForShell(page)
     await openSettings(page)
     await page.getByTestId(TestIds.settingsSection('remotes')).first().click()
-    await page.getByRole('button', { name: 'Set up and open' }).click()
+    const rendererMarker = `renderer-${Date.now()}`
+    await page.evaluate((marker) => {
+      ;(window as Window & { __porcelainRendererMarker?: string }).__porcelainRendererMarker =
+        marker
+    }, rendererMarker)
+    await page
+      .getByRole('button', { name: /Set up WSL Environment|Browse projects|Try again/ })
+      .click()
 
-    await expect
-      .poll(
-        () =>
-          page.evaluate(
-            async ([header, version]) => {
-              const daemon = window.porcelain?.daemon
-              if (daemon === undefined) return null
-              const response = await fetch(`${daemon.url}/trpc/daemonInfo`, {
-                headers: { authorization: `Bearer ${daemon.token}`, [header]: version },
-              })
-              if (!response.ok) return null
-              const body = (await response.json()) as {
-                result?: { data?: { platform?: string } }
-              }
-              return body.result?.data?.platform ?? null
-            },
-            [PROTOCOL_VERSION_HEADER, String(PROTOCOL_VERSION)] as const,
-          ),
-        { timeout: 2 * 60_000 },
-      )
-      .toBe('linux')
-    await waitForShell(page)
+    const environmentPicker = page.getByTestId(TestIds.projectPickerEnvironment)
+    await expect(environmentPicker).toContainText('WSL', { timeout: 2 * 60_000 })
+    expect(
+      await page.evaluate(
+        () => (window as Window & { __porcelainRendererMarker?: string }).__porcelainRendererMarker,
+      ),
+    ).toBe(rendererMarker)
 
-    const result = await page.evaluate(
-      async ([repoPath, header, version]) => {
-        const daemon = window.porcelain?.daemon
-        if (daemon === undefined) return { error: 'missing daemon pair', platform: null }
-        const info = await fetch(`${daemon.url}/trpc/daemonInfo`, {
-          headers: { authorization: `Bearer ${daemon.token}`, [header]: version },
-        })
-        const opened = await fetch(`${daemon.url}/trpc/openRepoPath`, {
-          method: 'POST',
-          headers: {
-            authorization: `Bearer ${daemon.token}`,
-            'content-type': 'application/json',
-            [header]: version,
-          },
-          body: JSON.stringify(repoPath),
-        })
-        const body = (await info.json()) as { result?: { data?: { platform?: string } } }
-        return {
-          error: opened.ok ? null : `openRepoPath failed: ${opened.status}`,
-          platform: body.result?.data?.platform ?? null,
-        }
-      },
-      [WSL_REPO, PROTOCOL_VERSION_HEADER, String(PROTOCOL_VERSION)] as const,
-    )
-    expect(result).toEqual({ error: null, platform: 'linux' })
+    const up = page.getByRole('button', { name: 'Up', exact: true })
+    const currentPath = page.locator('[role="dialog"] p[dir="rtl"]')
+    for (let depth = 0; depth < 12 && (await up.isEnabled()); depth += 1) {
+      const previousPath = await currentPath.getAttribute('title')
+      await up.click()
+      if (previousPath !== null)
+        await expect(currentPath).not.toHaveAttribute('title', previousPath)
+    }
+    await page.getByRole('button', { name: 'tmp', exact: true }).click()
+    await page
+      .getByRole('button', { name: /porcelain-wsl-e2e-project/ })
+      .first()
+      .click()
+    await page.getByRole('button', { name: 'Open this folder' }).click()
 
-    await page.reload()
-    await waitForShell(page)
     await expect(loc.hubInventory(page)).toBeVisible({ timeout: 60_000 })
-    await expect(
-      loc.hubInventory(page).getByText('porcelain-wsl-e2e-project').first(),
-    ).toBeVisible()
+    await expect(loc.hubInventory(page).getByText('WSL').first()).toBeVisible()
     await page.getByRole('button', { name: /master porcelain-wsl-e2e-project/ }).click()
     await page.getByRole('button', { name: /Files Browse the project tree/ }).click()
     await expect(loc.treeEntry(page, 'README.md')).toBeVisible({ timeout: 60_000 })

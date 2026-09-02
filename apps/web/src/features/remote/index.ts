@@ -28,8 +28,6 @@ export {
 export {
   type EnvironmentEndpoint,
   type EnvironmentStatus,
-  useConnectRemoteEnvironment,
-  useDisconnectRemoteEnvironment,
   useEnvironmentStatuses,
   useOpenWindowInEnvironment,
   usePairEnvironmentConnection,

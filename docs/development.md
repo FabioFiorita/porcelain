@@ -24,9 +24,10 @@ The Windows app discovers installed WSL distributions and reports whether each o
 daemon. The distribution itself needs WSL 2, Node 22+, `npm`/`npx`, Git, and a C toolchain for the
 first native dependency build; Windows-installed tools do not satisfy those checks. Docker
 Desktop's internal distributions are intentionally excluded. Settings → Environments → **Set up
-and open** installs the daemon version matching the desktop app inside that distribution, starts
-it on a distribution-specific loopback port, creates a normal revocable client credential, and
-opens it as a Linux Environment. Configured WSL Environments restart with the Electron app.
+WSL Environment** installs the daemon version matching the desktop app inside that distribution,
+starts it on a distribution-specific loopback port, creates a normal revocable client credential,
+names it **WSL**, and opens its project browser without replacing or reloading the Windows renderer.
+Configured WSL Environments restart with the Electron app.
 
 Production WSL state remains in the Linux user's normal Porcelain directories. Development and
 e2e launches use separate Linux profiles, just as the Windows-local daemon does. The Electron

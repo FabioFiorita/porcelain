@@ -80,9 +80,9 @@ export function LocalPathDialog({
         <DialogHeader>
           <DialogTitle>Terminal folder on this device</DialogTitle>
           <DialogDescription>
-            This window works on another machine. Choose where a terminal on this device should open
-            for <span className="font-mono">{repoPath}</span> — usually your local clone of the same
-            repo.
+            The current Environment is on another machine. Choose where a terminal on this device
+            should open for <span className="font-mono">{repoPath}</span> — usually your local clone
+            of the same repo.
           </DialogDescription>
         </DialogHeader>
         <Input

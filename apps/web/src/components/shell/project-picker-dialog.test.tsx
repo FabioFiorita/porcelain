@@ -66,7 +66,7 @@ beforeEach(() => {
   openProject.mockClear()
   browsed.length = 0
   inventories = [inventory('env-mac', 'This device', true)]
-  useProjectPickerStore.setState({ open: true })
+  useProjectPickerStore.setState({ environmentId: null, open: true })
 })
 
 describe('ProjectPickerDialog', () => {
@@ -96,6 +96,18 @@ describe('ProjectPickerDialog', () => {
     // A path read on the Mac means nothing on the Beelink: browsing restarts at its home.
     expect(browsed.at(-1)?.path).toBeNull()
     expect(screen.queryByText(/moves this window/i)).toBeNull()
+  })
+
+  it('opens directly on the Environment requested by another surface', () => {
+    inventories = [inventory('env-windows', 'Windows', true), inventory('env-wsl', 'WSL', false)]
+    // WSL setup returns the shell's saved connection id; the inventory announces the
+    // daemon-owned Environment id. The picker must resolve the alias without flashing local.
+    useProjectPickerStore.setState({ environmentId: 'shell-env-wsl', open: true })
+
+    render(<ProjectPickerDialog />)
+
+    expect(browsed.at(-1)?.environmentId).toBe('env-wsl')
+    expect(screen.getByTestId(TestIds.projectPickerEnvironment).textContent).toContain('WSL')
   })
 
   it('opens through the target Environment session when the folder lives elsewhere', async () => {

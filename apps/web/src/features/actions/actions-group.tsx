@@ -66,7 +66,7 @@ function SiblingEnvironment({ scope }: { scope: ActionsScope }): React.JSX.Eleme
         />
       ))}
       <p className="px-1 text-2xs text-muted-foreground">
-        Connect this window to {scope.environmentName} to run these.
+        Select {scope.environmentName} to manage and run these.
       </p>
     </div>
   )
@@ -196,35 +196,31 @@ export function ActionsGroup(): React.JSX.Element {
               can add them here too.
             </EmptyDescription>
           </EmptyHeader>
-          {selected.current && (
-            <EmptyContent>
-              <Button size="sm" data-testid={TestIds.actionsAdd} onClick={startNew}>
-                Add action
-              </Button>
-            </EmptyContent>
-          )}
+          <EmptyContent>
+            <Button size="sm" data-testid={TestIds.actionsAdd} onClick={startNew}>
+              Add action
+            </Button>
+          </EmptyContent>
         </Empty>
       ) : (
         <>
           <div className="flex items-center justify-end px-1">
-            {selected.current && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 px-2 text-2xs"
-                data-testid={TestIds.actionsAdd}
-                onClick={startNew}
-              >
-                Add action
-              </Button>
-            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-2xs"
+              data-testid={TestIds.actionsAdd}
+              onClick={startNew}
+            >
+              Add action
+            </Button>
           </div>
           <SidebarGroupContent className="flex flex-col gap-1.5 px-1">
             {actions.map((action, index) => (
               <ActionRow
                 key={action.id}
                 action={action}
-                readOnly={!selected.current}
+                readOnly={false}
                 onEdit={(a: ActionView): void => setDraft(draftFromAction(a))}
                 onRun={handleRun}
                 showWhere={canSpawnLocal}

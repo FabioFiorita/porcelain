@@ -38,7 +38,7 @@ describe('ActionComposer', () => {
   it('shows the where toggle when showWhere is true', () => {
     renderEdit()
     expect(screen.getByTestId('action-where')).toBeInTheDocument()
-    expect(screen.getByLabelText('Run on this window’s machine')).toBeInTheDocument()
+    expect(screen.getByLabelText('Run on selected Environment')).toBeInTheDocument()
     expect(screen.getByLabelText('Run on this device')).toBeInTheDocument()
   })
 
@@ -67,7 +67,7 @@ describe('ActionComposer', () => {
 
   it('sends where: primary when toggling back from local', async () => {
     renderEdit('local')
-    fireEvent.click(screen.getByLabelText('Run on this window’s machine'))
+    fireEvent.click(screen.getByLabelText('Run on selected Environment'))
     await fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(update).toHaveBeenCalledWith('a1', expect.objectContaining({ where: 'primary' }))

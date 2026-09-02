@@ -8,6 +8,8 @@ import {
 } from '@renderer/lib/environment-sessions'
 import { isBrowser, isWindowsShell } from '@renderer/lib/platform'
 import { shellTrpc, trpc } from '@renderer/lib/trpc'
+import { useProjectPickerStore } from '@renderer/stores/project-picker'
+import { useSettingsDialogStore } from '@renderer/stores/settings-dialog'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo } from 'react'
 
@@ -79,16 +81,6 @@ export type WebLocalRemoteAdapter = {
   ) => ReturnType<
     ReturnType<typeof shellTrpc.useUtils>['client']['removeEnvironmentEndpoint']['mutate']
   >
-  readonly connectRemoteEnvironment: (
-    input: Parameters<
-      ReturnType<typeof shellTrpc.useUtils>['client']['connectRemoteEnvironment']['mutate']
-    >[0],
-  ) => ReturnType<
-    ReturnType<typeof shellTrpc.useUtils>['client']['connectRemoteEnvironment']['mutate']
-  >
-  readonly disconnectRemoteEnvironment: () => ReturnType<
-    ReturnType<typeof shellTrpc.useUtils>['client']['disconnectRemoteEnvironment']['mutate']
-  >
   readonly openWindowInEnvironment: (
     input: Parameters<
       ReturnType<typeof shellTrpc.useUtils>['client']['openWindowInEnvironment']['mutate']
@@ -119,13 +111,7 @@ function pairingErrorMessage(error: unknown): string | null {
   return null
 }
 
-/**
- * Saved remote environments: list other Porcelain daemons and bind THIS window (or
- * a new one) to one. Per-window, so one project can stay open while another window
- * uses a different machine. Wraps the SHELL router (Electron-only).
- * Switch = main-process hard-reload of THIS window; the renderer must NOT also
- * `location.reload()` — that double-reload races.
- */
+/** Saved Environments known to the Electron shell. */
 export function useRemoteEnvironments():
   | {
       activeId: string | null
@@ -148,7 +134,20 @@ export function useSetupWslEnvironment(): {
   pendingDistribution: string | null
   error: string | null
 } {
+  const utils = shellTrpc.useUtils()
+  const queryClient = useQueryClient()
   const mutation = shellTrpc.setupWslEnvironment.useMutation({
+    onSuccess: async (result): Promise<void> => {
+      await Promise.all([
+        utils.remoteEnvironments.invalidate(),
+        utils.environmentConnections.invalidate(),
+        utils.environmentStatuses.invalidate(),
+        utils.wslDistributions.invalidate(),
+        queryClient.invalidateQueries({ exact: true, queryKey: SHELL_HUB_INVENTORIES_QUERY_KEY }),
+      ])
+      useSettingsDialogStore.getState().setOpen(false)
+      useProjectPickerStore.getState().show(result.id)
+    },
     onError: onMutationError('Set up WSL Environment'),
   })
   return {
@@ -198,37 +197,25 @@ export function useEnvironmentStatuses(): Map<string | null, EnvironmentStatus> 
 }
 
 export function usePairEnvironmentConnection(): {
-  pair: (input: {
-    connectionLink: string
-    groupId?: string | null
-    connectThisWindow?: boolean
-  }) => void
+  pair: (input: { connectionLink: string; groupId?: string | null }) => void
   isPending: boolean
   error: string | null
 } {
   const utils = shellTrpc.useUtils()
+  const queryClient = useQueryClient()
   const mutation = shellTrpc.pairEnvironmentConnection.useMutation({
-    onSuccess: async (result: {
-      id: string
-      reloaded: boolean
-      merged: boolean
-    }): Promise<void> => {
-      // Main reloads THIS window when connectThisWindow (default); only invalidate
-      // when we stayed put so the list refreshes without a full boot.
-      if (!result.reloaded) {
-        await Promise.all([
-          utils.remoteEnvironments.invalidate(),
-          utils.environmentStatuses.invalidate(),
-        ])
-      }
+    onSuccess: async (): Promise<void> => {
+      await Promise.all([
+        utils.remoteEnvironments.invalidate(),
+        utils.environmentConnections.invalidate(),
+        utils.environmentStatuses.invalidate(),
+        queryClient.invalidateQueries({ exact: true, queryKey: SHELL_HUB_INVENTORIES_QUERY_KEY }),
+      ])
     },
   })
   return {
-    pair: (input: {
-      connectionLink: string
-      groupId?: string | null
-      connectThisWindow?: boolean
-    }): void => mutation.mutate(input),
+    pair: (input: { connectionLink: string; groupId?: string | null }): void =>
+      mutation.mutate(input),
     isPending: mutation.isPending,
     error: pairingErrorMessage(mutation.error),
   }
@@ -252,28 +239,6 @@ export function useRemoveEnvironmentEndpoint(): {
     remove: (input: { id: string; url: string }): void => mutation.mutate(input),
     isPending: mutation.isPending,
   }
-}
-
-export function useConnectRemoteEnvironment(): {
-  connect: (id: string) => void
-  pendingId: string | null
-} {
-  const mutation = shellTrpc.connectRemoteEnvironment.useMutation({
-    // Main-process reload handles the switch — no renderer reload / invalidate.
-    onError: onMutationError('Connect remote daemon'),
-  })
-  return {
-    connect: (id: string): void => mutation.mutate({ id }),
-    pendingId: mutation.isPending ? (mutation.variables?.id ?? null) : null,
-  }
-}
-
-export function useDisconnectRemoteEnvironment(): { disconnect: () => void; isPending: boolean } {
-  const mutation = shellTrpc.disconnectRemoteEnvironment.useMutation({
-    // Main-process reload handles the switch — no renderer reload / invalidate.
-    onError: onMutationError('Disconnect remote daemon'),
-  })
-  return { disconnect: () => mutation.mutate(), isPending: mutation.isPending }
 }
 
 export function useOpenWindowInEnvironment(): {
