@@ -1,3 +1,4 @@
+import type { Dirent } from 'node:fs'
 import {
   cp as defaultCp,
   lstat as defaultLstat,
@@ -8,12 +9,12 @@ import {
   stat as defaultStat,
   writeFile as defaultWriteFile,
 } from 'node:fs/promises'
-import type { Dirent } from 'node:fs'
 import { basename, dirname, join, relative } from 'node:path'
 import { inlineLocalAssets } from '../../fs/evidence-assets'
 import { imageMimeForPath, isBinaryBuffer } from '../../fs/image-mime'
 import { moveToTrash as defaultMoveToTrash } from '../../fs/move-to-trash'
 import { exceedsReadLimit } from '../../fs/read-limits'
+import { toWireRelativePath } from '../../fs/wire-path'
 import {
   joinLexical,
   resolveExisting,
@@ -355,8 +356,7 @@ export function createNodeWorkspaceFiles(
             force: false,
             errorOnExist: true,
           })
-          // Project-relative wire path (POSIX relative string).
-          return { ok: true, value: destRelative }
+          return { ok: true, value: toWireRelativePath(destRelative) }
         } catch (err) {
           const code = errnoCode(err)
           if (code === 'ERR_FS_CP_EEXIST' || code === 'EEXIST') {

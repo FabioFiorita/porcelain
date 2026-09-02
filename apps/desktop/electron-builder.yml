@@ -40,10 +40,18 @@ mac:
   # Notarize via notarytool using APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD /
   # APPLE_TEAM_ID env vars (set as repo secrets).
   notarize: true
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: resources/icon.png
+  verifyUpdateCodeSignature: true
 dmg:
   # Literal, not ${name}: that macro expands this package's scoped name
   # (@porcelain/desktop) verbatim — a slash in the artifact filename.
   artifactName: porcelain-${version}.${ext}
+nsis:
+  artifactName: porcelain-${version}-windows-${arch}-setup.${ext}
 npmRebuild: false
 publish:
   provider: github

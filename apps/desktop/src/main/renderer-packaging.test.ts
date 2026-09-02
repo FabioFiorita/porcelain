@@ -7,6 +7,7 @@ const webLogo = resolve(__dirname, '../../../web/src/assets/logo.png')
 const builtIndex = resolve(__dirname, '../../out/renderer/index.html')
 const builtAssets = resolve(__dirname, '../../out/renderer/assets')
 const electronBuilderYml = resolve(__dirname, '../../electron-builder.yml')
+const afterPack = resolve(__dirname, '../../build/after-pack.js')
 
 describe('renderer packaging (file:// safe base)', () => {
   it("apps/web vite sets base: './'", () => {
@@ -44,5 +45,16 @@ describe('renderer packaging (file:// safe base)', () => {
     const yml = readFileSync(electronBuilderYml, 'utf8')
     expect(yml).toContain('node_modules/node-pty/**')
     expect(yml).toContain('node_modules/trash/**')
+  })
+
+  it('configures an x64 NSIS installer with signed-update verification', () => {
+    const yml = readFileSync(electronBuilderYml, 'utf8')
+    const fuseHook = readFileSync(afterPack, 'utf8')
+    expect(yml).toMatch(/win:\s+[\s\S]*target:\s+[\s\S]*target: nsis/)
+    expect(yml).toMatch(/arch: \[x64\]/)
+    expect(yml).toContain('verifyUpdateCodeSignature: true')
+    expect(yml).toMatch(/nsis:\s+[\s\S]*artifactName:/)
+    expect(fuseHook).toContain("['darwin', 'linux', 'win32']")
+    expect(fuseHook).toContain("electronPlatformName === 'win32' ? '.exe' : ''")
   })
 })

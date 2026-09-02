@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { mkdirSync, symlinkSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import {
   lstat,
   mkdir,
@@ -10,6 +10,7 @@ import {
   unlink,
   writeFile,
 } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { withTemporaryDirectory } from '../../testing/temporary-directory'
@@ -19,6 +20,24 @@ const trash = vi.hoisted(() => ({ moveToTrash: vi.fn(async () => undefined) }))
 vi.mock('../../fs/move-to-trash', () => trash)
 
 const files = createNodeWorkspaceFiles()
+
+function supportsFileSymlinks(): boolean {
+  const dir = mkdtempSync(join(tmpdir(), 'porcelain-symlink-probe-'))
+  try {
+    const target = join(dir, 'target')
+    writeFileSync(target, 'probe')
+    symlinkSync(target, join(dir, 'link'))
+    return true
+  } catch {
+    return false
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
+
+// Windows requires Developer Mode or elevation for ordinary file/directory symlinks.
+// Keep the full containment suite active wherever the host grants that capability.
+const symlinkIt = supportsFileSymlinks() ? it : it.skip
 
 afterEach(() => {
   vi.clearAllMocks()
@@ -66,7 +85,7 @@ describe('createNodeWorkspaceFiles', () => {
     })
   })
 
-  it('contains directory reads and persisted pins to the declared project', async () => {
+  symlinkIt('contains directory reads and persisted pins to the declared project', async () => {
     await withTemporaryDirectory('porcelain-files-contained-tree-', async (root) => {
       await withTemporaryDirectory('porcelain-files-outside-tree-', async (outside) => {
         await writeFile(join(outside, 'secret.txt'), 'outside', 'utf8')
@@ -96,7 +115,26 @@ describe('createNodeWorkspaceFiles', () => {
     })
   })
 
-  it('preserves a symlinked project namespace in directory entry paths', async () => {
+  it.runIf(process.platform === 'win32')(
+    'rejects a Windows junction that escapes the declared project',
+    async () => {
+      await withTemporaryDirectory('porcelain-files-junction-root-', async (root) => {
+        await withTemporaryDirectory('porcelain-files-junction-outside-', async (outside) => {
+          await writeFile(join(outside, 'secret.txt'), 'outside', 'utf8')
+          await symlink(outside, join(root, 'outside-junction'), 'junction')
+
+          await expect(
+            files.readFile({ projectPath: root, path: 'outside-junction/secret.txt' }),
+          ).resolves.toEqual({
+            ok: false,
+            error: { code: 'path-outside-project', path: 'outside-junction/secret.txt' },
+          })
+        })
+      })
+    },
+  )
+
+  symlinkIt('preserves a symlinked project namespace in directory entry paths', async () => {
     await withTemporaryDirectory('porcelain-files-project-link-', async (parent) => {
       const realProject = join(parent, 'real-project')
       const linkedProject = join(parent, 'linked-project')
@@ -269,7 +307,7 @@ describe('createNodeWorkspaceFiles', () => {
     })
   })
 
-  it('symlink escape is path-outside; contained symlink read follows', async () => {
+  symlinkIt('symlink escape is path-outside; contained symlink read follows', async () => {
     await withTemporaryDirectory('porcelain-files-symlink-', async (dir) => {
       const outside = join(dir, 'outside-target')
       const root = join(dir, 'root')
@@ -291,56 +329,62 @@ describe('createNodeWorkspaceFiles', () => {
     })
   })
 
-  it('missing read/preview under resolvable outside intermediate is path-outside not soft missing', async () => {
-    await withTemporaryDirectory('porcelain-files-out-int-', async (dir) => {
-      const outside = join(dir, 'outside')
-      const root = join(dir, 'root')
-      mkdirSync(outside)
-      mkdirSync(root)
-      // link → /outside (resolvable intermediate); target missing
-      symlinkSync(outside, join(root, 'link'))
-      expect(await files.readFile({ projectPath: root, path: 'link/missing.txt' })).toEqual({
-        ok: false,
-        error: { code: 'path-outside-project', path: 'link/missing.txt' },
+  symlinkIt(
+    'missing read/preview under resolvable outside intermediate is path-outside not soft missing',
+    async () => {
+      await withTemporaryDirectory('porcelain-files-out-int-', async (dir) => {
+        const outside = join(dir, 'outside')
+        const root = join(dir, 'root')
+        mkdirSync(outside)
+        mkdirSync(root)
+        // link → /outside (resolvable intermediate); target missing
+        symlinkSync(outside, join(root, 'link'))
+        expect(await files.readFile({ projectPath: root, path: 'link/missing.txt' })).toEqual({
+          ok: false,
+          error: { code: 'path-outside-project', path: 'link/missing.txt' },
+        })
+        expect(await files.previewHtml({ projectPath: root, path: 'link/missing.html' })).toEqual({
+          ok: false,
+          error: { code: 'path-outside-project', path: 'link/missing.html' },
+        })
       })
-      expect(await files.previewHtml({ projectPath: root, path: 'link/missing.html' })).toEqual({
-        ok: false,
-        error: { code: 'path-outside-project', path: 'link/missing.html' },
-      })
-    })
-  })
+    },
+  )
 
-  it('existing non-symlink under outside intermediate is path-outside for create and rename dest', async () => {
-    await withTemporaryDirectory('porcelain-files-out-exist-', async (dir) => {
-      const outside = join(dir, 'outside')
-      const root = join(dir, 'root')
-      mkdirSync(outside)
-      mkdirSync(root)
-      writeFileSync(join(outside, 'file.txt'), 'x')
-      mkdirSync(join(outside, 'folder'))
-      symlinkSync(outside, join(root, 'link'))
-      writeFileSync(join(root, 'from.txt'), 'source')
+  symlinkIt(
+    'existing non-symlink under outside intermediate is path-outside for create and rename dest',
+    async () => {
+      await withTemporaryDirectory('porcelain-files-out-exist-', async (dir) => {
+        const outside = join(dir, 'outside')
+        const root = join(dir, 'root')
+        mkdirSync(outside)
+        mkdirSync(root)
+        writeFileSync(join(outside, 'file.txt'), 'x')
+        mkdirSync(join(outside, 'folder'))
+        symlinkSync(outside, join(root, 'link'))
+        writeFileSync(join(root, 'from.txt'), 'source')
 
-      expect(await files.createFile({ projectPath: root, path: 'link/file.txt' })).toEqual({
-        ok: false,
-        error: { code: 'path-outside-project', path: 'link/file.txt' },
+        expect(await files.createFile({ projectPath: root, path: 'link/file.txt' })).toEqual({
+          ok: false,
+          error: { code: 'path-outside-project', path: 'link/file.txt' },
+        })
+        expect(await files.createFolder({ projectPath: root, path: 'link/folder' })).toEqual({
+          ok: false,
+          error: { code: 'path-outside-project', path: 'link/folder' },
+        })
+        expect(
+          await files.renamePath({ projectPath: root, from: 'from.txt', to: 'link/file.txt' }),
+        ).toEqual({
+          ok: false,
+          error: { code: 'path-outside-project', path: 'link/file.txt' },
+        })
+        // Source preserved when rename dest is rejected.
+        expect(await readFile(join(root, 'from.txt'), 'utf8')).toBe('source')
       })
-      expect(await files.createFolder({ projectPath: root, path: 'link/folder' })).toEqual({
-        ok: false,
-        error: { code: 'path-outside-project', path: 'link/folder' },
-      })
-      expect(
-        await files.renamePath({ projectPath: root, from: 'from.txt', to: 'link/file.txt' }),
-      ).toEqual({
-        ok: false,
-        error: { code: 'path-outside-project', path: 'link/file.txt' },
-      })
-      // Source preserved when rename dest is rejected.
-      expect(await readFile(join(root, 'from.txt'), 'utf8')).toBe('source')
-    })
-  })
+    },
+  )
 
-  it('final dangling symlink is path-outside for write/create', async () => {
+  symlinkIt('final dangling symlink is path-outside for write/create', async () => {
     await withTemporaryDirectory('porcelain-files-dangling-', async (dir) => {
       await symlink(join(dir, 'no-such-target'), join(dir, 'dangle'))
       expect(await files.writeTextFile({ projectPath: dir, path: 'dangle', content: 'x' })).toEqual(
@@ -356,7 +400,7 @@ describe('createNodeWorkspaceFiles', () => {
     })
   })
 
-  it('intermediate dangling symlink on missing-capable path is path-outside', async () => {
+  symlinkIt('intermediate dangling symlink on missing-capable path is path-outside', async () => {
     await withTemporaryDirectory('porcelain-files-int-dangle-', async (dir) => {
       await symlink(join(dir, 'no-such-dir'), join(dir, 'dangle-dir'))
       expect(
@@ -372,7 +416,7 @@ describe('createNodeWorkspaceFiles', () => {
     })
   })
 
-  it('final ELOOP at leaf is path-outside', async () => {
+  symlinkIt('final ELOOP at leaf is path-outside', async () => {
     await withTemporaryDirectory('porcelain-files-eloop-', async (dir) => {
       const a = join(dir, 'a')
       const b = join(dir, 'b')
@@ -385,48 +429,51 @@ describe('createNodeWorkspaceFiles', () => {
     })
   })
 
-  it('intermediate ELOOP is path-outside for write/create/rename dest (not unexpected)', async () => {
-    await withTemporaryDirectory('porcelain-files-int-eloop-', async (dir) => {
-      const loopA = join(dir, 'loop-a')
-      const loopB = join(dir, 'loop-b')
-      await symlink(loopB, loopA)
-      await symlink(loopA, loopB)
-      await writeFile(join(dir, 'from.txt'), 'source')
+  symlinkIt(
+    'intermediate ELOOP is path-outside for write/create/rename dest (not unexpected)',
+    async () => {
+      await withTemporaryDirectory('porcelain-files-int-eloop-', async (dir) => {
+        const loopA = join(dir, 'loop-a')
+        const loopB = join(dir, 'loop-b')
+        await symlink(loopB, loopA)
+        await symlink(loopA, loopB)
+        await writeFile(join(dir, 'from.txt'), 'source')
 
-      // Initial lstat on lexical absolute hits ELOOP while resolving intermediate components.
-      expect(
-        await files.writeTextFile({
-          projectPath: dir,
-          path: 'loop-a/child.txt',
-          content: 'x',
-        }),
-      ).toEqual({
-        ok: false,
-        error: { code: 'path-outside-project', path: 'loop-a/child.txt' },
+        // Initial lstat on lexical absolute hits ELOOP while resolving intermediate components.
+        expect(
+          await files.writeTextFile({
+            projectPath: dir,
+            path: 'loop-a/child.txt',
+            content: 'x',
+          }),
+        ).toEqual({
+          ok: false,
+          error: { code: 'path-outside-project', path: 'loop-a/child.txt' },
+        })
+        expect(await files.createFile({ projectPath: dir, path: 'loop-a/new.txt' })).toEqual({
+          ok: false,
+          error: { code: 'path-outside-project', path: 'loop-a/new.txt' },
+        })
+        expect(await files.createFolder({ projectPath: dir, path: 'loop-a/new-dir' })).toEqual({
+          ok: false,
+          error: { code: 'path-outside-project', path: 'loop-a/new-dir' },
+        })
+        expect(
+          await files.renamePath({
+            projectPath: dir,
+            from: 'from.txt',
+            to: 'loop-a/renamed.txt',
+          }),
+        ).toEqual({
+          ok: false,
+          error: { code: 'path-outside-project', path: 'loop-a/renamed.txt' },
+        })
+        expect(await readFile(join(dir, 'from.txt'), 'utf8')).toBe('source')
       })
-      expect(await files.createFile({ projectPath: dir, path: 'loop-a/new.txt' })).toEqual({
-        ok: false,
-        error: { code: 'path-outside-project', path: 'loop-a/new.txt' },
-      })
-      expect(await files.createFolder({ projectPath: dir, path: 'loop-a/new-dir' })).toEqual({
-        ok: false,
-        error: { code: 'path-outside-project', path: 'loop-a/new-dir' },
-      })
-      expect(
-        await files.renamePath({
-          projectPath: dir,
-          from: 'from.txt',
-          to: 'loop-a/renamed.txt',
-        }),
-      ).toEqual({
-        ok: false,
-        error: { code: 'path-outside-project', path: 'loop-a/renamed.txt' },
-      })
-      expect(await readFile(join(dir, 'from.txt'), 'utf8')).toBe('source')
-    })
-  })
+    },
+  )
 
-  it('contained symlink write follows the contained target', async () => {
+  symlinkIt('contained symlink write follows the contained target', async () => {
     await withTemporaryDirectory('porcelain-files-sym-write-', async (dir) => {
       await writeFile(join(dir, 'real.txt'), 'before')
       await symlink(join(dir, 'real.txt'), join(dir, 'link.txt'))
@@ -439,7 +486,7 @@ describe('createNodeWorkspaceFiles', () => {
     })
   })
 
-  it('rename and trash act on the contained symlink entry, not its target', async () => {
+  symlinkIt('rename and trash act on the contained symlink entry, not its target', async () => {
     await withTemporaryDirectory('porcelain-files-sym-entry-', async (dir) => {
       await writeFile(join(dir, 'target.txt'), 'payload')
       await symlink(join(dir, 'target.txt'), join(dir, 'link.txt'))
@@ -465,27 +512,30 @@ describe('createNodeWorkspaceFiles', () => {
     })
   })
 
-  it('contained intermediate symlink supports existing read and missing not-found', async () => {
-    await withTemporaryDirectory('porcelain-files-in-link-', async (dir) => {
-      await mkdir(join(dir, 'real-dir'))
-      await writeFile(join(dir, 'real-dir', 'file.txt'), 'ok')
-      await symlink(join(dir, 'real-dir'), join(dir, 'link-dir'))
-      expect(await files.readFile({ projectPath: dir, path: 'link-dir/file.txt' })).toEqual({
-        ok: true,
-        value: { type: 'text', content: 'ok' },
+  symlinkIt(
+    'contained intermediate symlink supports existing read and missing not-found',
+    async () => {
+      await withTemporaryDirectory('porcelain-files-in-link-', async (dir) => {
+        await mkdir(join(dir, 'real-dir'))
+        await writeFile(join(dir, 'real-dir', 'file.txt'), 'ok')
+        await symlink(join(dir, 'real-dir'), join(dir, 'link-dir'))
+        expect(await files.readFile({ projectPath: dir, path: 'link-dir/file.txt' })).toEqual({
+          ok: true,
+          value: { type: 'text', content: 'ok' },
+        })
+        expect(await files.readFile({ projectPath: dir, path: 'link-dir/missing.txt' })).toEqual({
+          ok: true,
+          value: { type: 'not-found' },
+        })
+        expect(await files.trashPath({ projectPath: dir, path: 'link-dir/missing.txt' })).toEqual({
+          ok: false,
+          error: { code: 'not-found', path: 'link-dir/missing.txt' },
+        })
       })
-      expect(await files.readFile({ projectPath: dir, path: 'link-dir/missing.txt' })).toEqual({
-        ok: true,
-        value: { type: 'not-found' },
-      })
-      expect(await files.trashPath({ projectPath: dir, path: 'link-dir/missing.txt' })).toEqual({
-        ok: false,
-        error: { code: 'not-found', path: 'link-dir/missing.txt' },
-      })
-    })
-  })
+    },
+  )
 
-  it('duplicate advances past dangling sibling and never clobbers', async () => {
+  symlinkIt('duplicate advances past dangling sibling and never clobbers', async () => {
     await withTemporaryDirectory('porcelain-files-dup-', async (dir) => {
       await writeFile(join(dir, 'bar.ts'), 'src')
       await symlink(join(dir, 'nope'), join(dir, 'bar copy.ts'))
@@ -526,19 +576,22 @@ describe('createNodeWorkspaceFiles', () => {
     })
   })
 
-  it('duplicate of symlink-to-directory uses directory naming while copying the entry', async () => {
-    await withTemporaryDirectory('porcelain-files-dup-dirlink-', async (dir) => {
-      await mkdir(join(dir, 'utils'))
-      await writeFile(join(dir, 'utils', 'a.ts'), '1')
-      await symlink(join(dir, 'utils'), join(dir, 'utils-link'))
-      const result = await files.duplicatePath({ projectPath: dir, path: 'utils-link' })
-      expect(result.ok).toBe(true)
-      if (result.ok) {
-        // Directory naming (no extension split) because resolved target is a directory.
-        expect(result.value).toBe('utils-link copy')
-      }
-    })
-  })
+  symlinkIt(
+    'duplicate of symlink-to-directory uses directory naming while copying the entry',
+    async () => {
+      await withTemporaryDirectory('porcelain-files-dup-dirlink-', async (dir) => {
+        await mkdir(join(dir, 'utils'))
+        await writeFile(join(dir, 'utils', 'a.ts'), '1')
+        await symlink(join(dir, 'utils'), join(dir, 'utils-link'))
+        const result = await files.duplicatePath({ projectPath: dir, path: 'utils-link' })
+        expect(result.ok).toBe(true)
+        if (result.ok) {
+          // Directory naming (no extension split) because resolved target is a directory.
+          expect(result.value).toBe('utils-link copy')
+        }
+      })
+    },
+  )
 
   it('mutation missing parent maps to not-found', async () => {
     await withTemporaryDirectory('porcelain-files-miss-parent-', async (dir) => {

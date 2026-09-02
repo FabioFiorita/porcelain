@@ -21,6 +21,7 @@ export type PtyPort = Readonly<{
 
 export type TerminalEnvironmentPort = Readonly<{
   shell: string
+  args: readonly string[]
   environment: Readonly<Record<string, string>>
 }>
 

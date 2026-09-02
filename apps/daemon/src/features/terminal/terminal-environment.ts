@@ -33,6 +33,7 @@ function firstNonBlank(...values: Array<string | undefined>): string | undefined
 
 export function createTerminalEnvironment(
   source: NodeJS.ProcessEnv = process.env,
+  platform: NodeJS.Platform = process.platform,
 ): TerminalEnvironmentPort {
   const environment: Record<string, string> = {}
   for (const [key, value] of Object.entries(source)) {
@@ -43,8 +44,19 @@ export function createTerminalEnvironment(
   environment.TERM = 'xterm-256color'
   environment.COLORTERM = 'truecolor'
 
+  const shell =
+    firstNonBlank(source.PORCELAIN_SHELL, source.SHELL) ??
+    (platform === 'win32' ? 'powershell.exe' : '/bin/zsh')
+  const shellName = shell.trim().replaceAll('\\', '/').split('/').at(-1)?.toLowerCase()
+
   return Object.freeze({
-    shell: firstNonBlank(source.PORCELAIN_SHELL, source.SHELL) ?? '/bin/zsh',
+    shell,
+    args:
+      platform === 'win32'
+        ? shellName === 'powershell.exe' || shellName === 'pwsh.exe'
+          ? Object.freeze(['-NoLogo'])
+          : Object.freeze([])
+        : Object.freeze(['-l']),
     environment: Object.freeze(environment),
   })
 }

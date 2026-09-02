@@ -1,14 +1,16 @@
 // @vitest-environment node
+
+import { type ChildProcessWithoutNullStreams, spawn } from 'node:child_process'
 import { once } from 'node:events'
 import { constants } from 'node:fs'
 import { access, chmod, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
+import { porcelainMcpChannel } from '@shared/mcp-channel'
 import { afterEach, describe, expect, it } from 'vitest'
 import { handleMcpRequest } from './mcp-http'
-import { startLocalMcpServer, type LocalMcpServer } from './mcp-local-server'
+import { type LocalMcpServer, startLocalMcpServer } from './mcp-local-server'
 import { MCP_PROTOCOL_VERSION } from './mcp-protocol'
 
 const connector = fileURLToPath(
@@ -34,6 +36,10 @@ async function startServer(endpoint: string, marker: string): Promise<LocalMcpSe
   })
   servers.push(server)
   return server
+}
+
+function endpointFor(home: string): string {
+  return porcelainMcpChannel(home)
 }
 
 function startConnector(home: string): ChildProcessWithoutNullStreams {
@@ -66,7 +72,7 @@ afterEach(async () => {
 describe('profile-local MCP channel', () => {
   it('carries stdio MCP to the matching daemon without a TCP port', async () => {
     const home = await temporaryHome()
-    await startServer(join(home, 'mcp.sock'), 'profile-a')
+    await startServer(endpointFor(home), 'profile-a')
     const child = startConnector(home)
     const exit = once(child, 'exit')
 
@@ -89,8 +95,8 @@ describe('profile-local MCP channel', () => {
   it('isolates two profiles owned by the same OS user', async () => {
     const firstHome = await temporaryHome()
     const secondHome = await temporaryHome()
-    await startServer(join(firstHome, 'mcp.sock'), 'first')
-    await startServer(join(secondHome, 'mcp.sock'), 'second')
+    await startServer(endpointFor(firstHome), 'first')
+    await startServer(endpointFor(secondHome), 'second')
 
     const request = `${JSON.stringify({
       jsonrpc: '2.0',
@@ -116,7 +122,7 @@ describe('profile-local MCP channel', () => {
 
   it('preserves modern MCP routing headers through the stdio connector', async () => {
     const home = await temporaryHome()
-    await startServer(join(home, 'mcp.sock'), 'modern-profile')
+    await startServer(endpointFor(home), 'modern-profile')
     const child = startConnector(home)
     const exit = once(child, 'exit')
 
@@ -144,12 +150,14 @@ describe('profile-local MCP channel', () => {
     expect(await exit).toEqual([0, null])
   })
 
-  it('refuses to replace an active channel or a non-socket file', async () => {
+  it('refuses to replace an active local channel', async () => {
     const home = await temporaryHome()
-    const endpoint = join(home, 'mcp.sock')
+    const endpoint = endpointFor(home)
     await startServer(endpoint, 'owner')
     await expect(startServer(endpoint, 'intruder')).rejects.toThrow(/already owns/)
+  })
 
+  it.runIf(process.platform !== 'win32')('refuses to replace a non-socket file', async () => {
     const otherHome = await temporaryHome()
     const fileEndpoint = join(otherHome, 'mcp.sock')
     await writeFile(fileEndpoint, 'keep me')
@@ -186,7 +194,7 @@ describe('profile-local MCP channel', () => {
   it('fails instead of hanging when the local daemon rejects the request', async () => {
     const home = await temporaryHome()
     const server = await startLocalMcpServer({
-      endpoint: join(home, 'mcp.sock'),
+      endpoint: endpointFor(home),
       serveMcp: async (_req, res) => {
         res.writeHead(500)
         res.end()

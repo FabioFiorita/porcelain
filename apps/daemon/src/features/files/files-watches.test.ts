@@ -81,6 +81,7 @@ describe('isGitChurn', () => {
     expect(isGitChurn('.git')).toBe(true)
     expect(isGitChurn('.git/index')).toBe(true)
     expect(isGitChurn('.git/refs/heads/main')).toBe(true)
+    expect(isGitChurn('.git\\refs\\heads\\main', '\\')).toBe(true)
   })
 
   it('passes real source paths and a missing filename through', () => {

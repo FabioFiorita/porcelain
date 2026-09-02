@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { chmod, mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
@@ -85,7 +85,7 @@ describe('createStrictJsonDocument', () => {
       expect(raw).toBe(`${JSON.stringify({ version: 1, value }, null, 2)}\n`)
       expect(await listTmpFiles(directory)).toEqual([])
       expect(await listTmpFiles(join(directory, 'nested'))).toEqual([])
-      expect((await stat(path)).mode & 0o777).toBe(0o600)
+      if (process.platform !== 'win32') expect((await stat(path)).mode & 0o777).toBe(0o600)
     })
   })
 
@@ -222,10 +222,14 @@ describe('createStrictJsonDocument', () => {
 
       await doc.write({ name: 'ok', count: 1 })
 
-      // Parent directory becomes non-writable → tmp create / rename fails.
-      await chmod(directory, 0o555)
+      // Replace the parent directory with a file so tmp creation fails on every host;
+      // chmod is not an access-control boundary on Windows.
+      const heldDirectory = `${directory}-held`
+      await rename(directory, heldDirectory)
+      await writeFile(directory, 'not a directory')
       await expect(doc.write({ name: 'blocked', count: 2 })).rejects.toThrow()
-      await chmod(directory, 0o755)
+      await rm(directory)
+      await rename(heldDirectory, directory)
 
       // FIFO tail continues after rejection.
       await doc.write({ name: 'recovered', count: 3 })

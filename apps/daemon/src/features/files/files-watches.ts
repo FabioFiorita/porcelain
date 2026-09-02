@@ -2,6 +2,7 @@ import { watch as defaultWatch } from 'node:fs'
 import { basename, dirname, isAbsolute, join, relative, sep } from 'node:path'
 import { isFilesNotificationPath } from '@porcelain/contracts/files'
 import type { SessionChange } from '@porcelain/contracts/session'
+import { toWireRelativePath } from '../../fs/wire-path'
 
 /**
  * Per-session non-recursive Files watches driven by declarative session interests.
@@ -15,8 +16,9 @@ import type { SessionChange } from '@porcelain/contracts/session'
 export const FILES_TREE_DEBOUNCE_MS = 200
 
 /** Ignore git's own churn: a `.git` entry, or anything reported beneath it. */
-export function isGitChurn(filename: string | null): boolean {
-  return filename === '.git' || (filename?.startsWith('.git/') ?? false)
+export function isGitChurn(filename: string | null, hostSeparator = sep): boolean {
+  const wirePath = filename === null ? null : toWireRelativePath(filename, hostSeparator)
+  return wirePath === '.git' || (wirePath?.startsWith('.git/') ?? false)
 }
 
 /** Minimal host surface — structural so unit tests can inject fakes without double-casts. */
@@ -50,8 +52,9 @@ function toNotificationPath(projectPath: string, absolute: string): string | nul
   const rel = relative(projectPath, absolute)
   if (rel === '') return '.'
   if (rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel)) return null
-  if (!isFilesNotificationPath(rel)) return null
-  return rel
+  const wirePath = toWireRelativePath(rel)
+  if (!isFilesNotificationPath(wirePath)) return null
+  return wirePath
 }
 
 function uniquePaths(paths: readonly string[]): string[] {

@@ -165,14 +165,32 @@ describe('Files procedure contracts', () => {
     })
   })
 
-  it('accepts POSIX-absolute projectPath including / and rejects relative projectPath', () => {
-    for (const value of ['/', '/repo', '/repo/', '/var/tmp/playground', '/synthetic/repo']) {
+  it('accepts POSIX and drive-rooted Windows projectPath values', () => {
+    for (const value of [
+      '/',
+      '/repo',
+      '/repo/',
+      '/var/tmp/playground',
+      '/synthetic/repo',
+      'C:\\',
+      'C:\\code\\porcelain',
+      'D:/code/porcelain',
+    ]) {
       expect(isFilesProjectPath(value)).toBe(true)
       expect(
         filesProcedures.readFile.input.safeParse({ projectPath: value, path: 'a.txt' }).success,
       ).toBe(true)
     }
-    for (const value of ['', 'repo', './repo', '~/repo', 'C:/repo', '\\\\server\\share', 'a\0b']) {
+    for (const value of [
+      '',
+      'repo',
+      './repo',
+      '~/repo',
+      'C:repo',
+      '\\\\server\\share',
+      '\\\\wsl.localhost\\Ubuntu\\home\\me\\repo',
+      'a\0b',
+    ]) {
       expect(isFilesProjectPath(value)).toBe(false)
     }
     expect(

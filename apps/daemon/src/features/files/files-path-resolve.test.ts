@@ -1,3 +1,4 @@
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { isPathOutsideRoot, joinLexical } from './files-path-resolve'
 
@@ -24,7 +25,7 @@ describe('joinLexical', () => {
   it('joins a contained relative path', () => {
     expect(joinLexical('/repo', 'src/main.ts')).toEqual({
       ok: true,
-      lexicalAbsolute: '/repo/src/main.ts',
+      lexicalAbsolute: resolve('/repo', 'src/main.ts'),
     })
   })
 })

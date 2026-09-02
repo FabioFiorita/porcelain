@@ -4,6 +4,20 @@ This is the supported local development environment. Release work continues in
 [release.md](release.md); remote-host operation is documented in
 [remote-access.md](remote-access.md).
 
+## Host prerequisites
+
+All hosts need Node 22+, pnpm, and Git. macOS needs the Xcode command-line tools.
+
+Windows development additionally needs Visual Studio 2022 Build Tools with the
+**Desktop development with C++** workload and a current Windows SDK. `pnpm install` invokes
+Electron's native dependency rebuild; without that toolchain, `node-pty` fails before Porcelain
+can start. Enable Windows Developer Mode when running the symlink-containment tests, or run those
+tests from an elevated shell. Ordinary Porcelain use does not require elevation.
+
+Run Porcelain from PowerShell in the Windows checkout. A WSL checkout is a separate Linux
+Environment and must be owned by a daemon running inside that distribution; do not register a
+`\\wsl.localhost` path with the Windows daemon.
+
 ## Setup and isolation
 
 ```sh

@@ -43,6 +43,7 @@ describe('createPtyAdapter', () => {
     const adapter = createPtyAdapter({
       environment: {
         shell: '/bin/fish',
+        args: ['-l'],
         environment: { PATH: '/usr/bin', TERM: 'xterm-256color' },
       },
       spawn,

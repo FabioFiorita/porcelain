@@ -72,6 +72,31 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
 
+  # Windows owns a distinct daemon runtime: drive-rooted paths, ConPTY terminals,
+  # Git for Windows, junction containment, and named-pipe agent channels must not be
+  # inferred from Linux/macOS results.
+  unit-windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: vercel/setup-turborepo-remote-cache-action@v1.0.0
+        with:
+          team: ${{ vars.TURBO_TEAM }}
+      - run: pnpm install --frozen-lockfile
+      # Expand this lane as the remaining POSIX-only fixtures gain Windows-native
+      # expectations. This set covers the supported path, persistence, MCP, terminal,
+      # watcher, and packaging foundations without pretending the whole suite is green.
+      - run: pnpm test:windows-foundation
+
   browser-smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 20

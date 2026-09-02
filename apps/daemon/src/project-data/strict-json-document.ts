@@ -102,6 +102,10 @@ async function fsyncFileHandle(handle: Awaited<ReturnType<typeof open>>): Promis
 }
 
 async function fsyncPath(targetPath: string): Promise<void> {
+  // Windows does not let Node open a directory handle with `open(path, 'r')`; it fails
+  // with EPERM. The temp file itself was flushed before rename, so retain that durability
+  // boundary and skip only the POSIX directory-entry flush that Windows cannot express.
+  if (process.platform === 'win32') return
   const handle = await open(targetPath, 'r')
   try {
     await fsyncFileHandle(handle)

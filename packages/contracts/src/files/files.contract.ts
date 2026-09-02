@@ -34,15 +34,19 @@ export type RepoScope = z.infer<typeof repoScopeSchema>
 
 /**
  * Caller-nominated operation root for Files host-fs procedures.
- * POSIX absolute path string for Linux/macOS daemons. Not a repo-authorization grant:
- * any absolute directory the credential holder names is acceptable, including `/`.
+ * Native absolute path string for the owning daemon. POSIX roots serve Linux/macOS;
+ * drive-rooted paths serve Windows. UNC paths stay excluded for now: in particular, a
+ * Windows daemon must not silently take ownership of a WSL repository through
+ * `\\wsl.localhost`, where Git, watchers, terminals, and trash would have Windows semantics.
+ *
+ * This is not a repo-authorization grant: any native absolute directory the credential
+ * holder names is acceptable, including `/` and `C:\\`.
  */
 export function isFilesProjectPath(value: string): boolean {
   if (value.length < 1 || value.length > 4096) return false
   if (value.includes('\0')) return false
-  if (!value.startsWith('/')) return false // relative roots are request.invalid
-  if (value.includes('\\')) return false
-  return true
+  if (value.startsWith('/')) return !value.includes('\\')
+  return /^[A-Za-z]:[\\/]/.test(value)
 }
 
 export const filesProjectPathSchema = z

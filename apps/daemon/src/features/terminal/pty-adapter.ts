@@ -31,7 +31,7 @@ export function createPtyAdapter(options: {
   const spawn = options.spawn ?? nodePtySpawn
   return Object.freeze({
     spawn(input): PtyProcess {
-      const pty: SpawnedPty = spawn(options.environment.shell, ['-l'], {
+      const pty: SpawnedPty = spawn(options.environment.shell, [...options.environment.args], {
         name: 'xterm-256color',
         cols: input.cols,
         rows: input.rows,
