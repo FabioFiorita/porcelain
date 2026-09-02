@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { parseDecisionCanvas } from './decision-canvas'
+import { parseStructuredCanvas } from './structured-canvas'
 
 const decision = {
   version: 2,
@@ -28,9 +28,9 @@ const decision = {
   },
 }
 
-describe('parseDecisionCanvas', () => {
+describe('parseStructuredCanvas', () => {
   it('accepts the current semantic Decision document', () => {
-    expect(parseDecisionCanvas(JSON.stringify(decision))).toMatchObject({
+    expect(parseStructuredCanvas(JSON.stringify(decision))).toMatchObject({
       error: null,
       document: { version: 2, template: 'decision' },
     })
@@ -38,16 +38,30 @@ describe('parseDecisionCanvas', () => {
 
   it('rejects old structured documents instead of falling back', () => {
     expect(
-      parseDecisionCanvas(JSON.stringify({ version: 1, title: 'Old', tabs: [] })),
+      parseStructuredCanvas(JSON.stringify({ version: 1, title: 'Old', tabs: [] })),
     ).toMatchObject({
       document: null,
     })
   })
 
   it('reports malformed JSON', () => {
-    expect(parseDecisionCanvas('{')).toEqual({
+    expect(parseStructuredCanvas('{')).toEqual({
       document: null,
       error: 'Canvas content is not valid JSON.',
     })
+  })
+
+  it('accepts the current semantic Review document', () => {
+    expect(
+      parseStructuredCanvas(
+        JSON.stringify({
+          version: 2,
+          template: 'review',
+          title: 'Canvas parity',
+          why: '# Why\nReview meaning belongs on every client.',
+          how: '# How\nNative presentation renders the semantic document.',
+        }),
+      ),
+    ).toMatchObject({ error: null, document: { version: 2, template: 'review' } })
   })
 })

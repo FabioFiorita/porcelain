@@ -18,7 +18,7 @@ function externalLinkHref(data: unknown): string | null {
   if (typeof data !== 'object' || data === null) return null
   const record = data as Record<string, unknown>
   if (record.source !== 'porcelain-canvas') return null
-  return typeof record.href === 'string' ? record.href : null
+  return typeof record.href === 'string' && /^https?:\/\//i.test(record.href) ? record.href : null
 }
 
 /**
@@ -39,15 +39,16 @@ function useCanvasDocumentUrl({
   canvasId: string
   worktreePath: string | undefined
   environmentId: string | undefined
-}): string | null {
+}): { src: string | null; error: string | null } {
   const { mint } = useMintCanvasAccessToken()
   const environment = environmentSessionFor(environmentId ?? null)
   const environmentBaseUrl = environment?.session.baseUrl() ?? daemonBaseUrl()
   const [src, setSrc] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
   useEffect(() => {
     let cancelled = false
     setSrc(null)
-    // A failed mint leaves src null — the loading state (never a broken iframe).
+    setError(null)
     const input = {
       projectId,
       canvasId,
@@ -55,11 +56,20 @@ function useCanvasDocumentUrl({
       ...(environmentId === undefined ? {} : { environmentId }),
     }
     settleBackground(
-      mint(input).then((token) => {
-        if (!cancelled) {
-          setSrc(`${environmentBaseUrl}/canvas/${token}`)
+      (async () => {
+        try {
+          const token = await mint(input)
+          if (!cancelled) setSrc(`${environmentBaseUrl}/canvas/${token}`)
+        } catch (cause) {
+          if (!cancelled) {
+            setError(
+              cause instanceof Error && cause.message.length > 0
+                ? cause.message
+                : 'Could not open this Canvas.',
+            )
+          }
         }
-      }),
+      })(),
       'fallback',
     )
     return () => {
@@ -67,7 +77,7 @@ function useCanvasDocumentUrl({
     }
   }, [projectId, canvasId, worktreePath, environmentId, environmentBaseUrl, mint])
 
-  return src
+  return { src, error }
 }
 
 function CanvasHtmlFrame({
@@ -83,7 +93,12 @@ function CanvasHtmlFrame({
   worktreePath: string | undefined
   environmentId: string | undefined
 }): React.JSX.Element {
-  const src = useCanvasDocumentUrl({ projectId, canvasId, worktreePath, environmentId })
+  const { src, error } = useCanvasDocumentUrl({
+    projectId,
+    canvasId,
+    worktreePath,
+    environmentId,
+  })
   const iframeRef = useRef<HTMLIFrameElement>(null)
 
   useEffect(() => {
@@ -97,6 +112,9 @@ function CanvasHtmlFrame({
     return () => window.removeEventListener('message', onMessage)
   }, [])
 
+  if (error !== null) {
+    return <div className="p-4 text-sm text-destructive">{error}</div>
+  }
   if (src === null) {
     return <div className="p-4 text-sm text-muted-foreground">Loading…</div>
   }
@@ -129,13 +147,16 @@ export function CanvasView({
   worktreePath?: string
   environmentId?: string
 }): React.JSX.Element {
-  const { canvas, isLoading } = useCanvas(
+  const { canvas, isLoading, loadError } = useCanvas(
     projectId,
     canvasId,
     worktreePath ?? null,
     environmentId ?? null,
   )
 
+  if (loadError !== null) {
+    return <div className="p-4 text-sm text-destructive">{loadError}</div>
+  }
   if (isLoading || canvas === undefined) {
     return <div className="p-4 text-sm text-muted-foreground">Loading…</div>
   }

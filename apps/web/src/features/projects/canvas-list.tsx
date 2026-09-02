@@ -19,7 +19,7 @@ import { useCanvasList } from './project-data'
  */
 export function CanvasList(): React.JSX.Element {
   const target = useHubTarget()
-  const canvases = useCanvasList(
+  const { canvases, isLoading, loadError } = useCanvasList(
     target?.projectId ?? null,
     target?.path ?? null,
     target?.environmentId ?? null,
@@ -34,6 +34,10 @@ export function CanvasList(): React.JSX.Element {
     )
   }
 
+  if (loadError !== null) {
+    return <p className="px-2 pt-2 text-sm text-destructive">{loadError}</p>
+  }
+
   if (canvases.length === 0) {
     return (
       <Empty
@@ -44,9 +48,11 @@ export function CanvasList(): React.JSX.Element {
           <LayoutPanelTop />
         </EmptyMedia>
         <EmptyHeader>
-          <EmptyTitle>No Canvases yet</EmptyTitle>
+          <EmptyTitle>{isLoading ? 'Loading Canvases' : 'No Canvases yet'}</EmptyTitle>
           <EmptyDescription>
-            Agent-authored explanation shows up here once written (`porcelain canvas set`).
+            {isLoading
+              ? 'Reading this Worktree’s Canvases…'
+              : 'Agent-authored explanation shows up here once written (`porcelain canvas set`).'}
           </EmptyDescription>
         </EmptyHeader>
       </Empty>

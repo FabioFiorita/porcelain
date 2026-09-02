@@ -341,11 +341,11 @@ describe('Web Projects adapter', () => {
         wrapper,
       },
     )
-    expect(hook.result.current).toEqual([])
+    expect(hook.result.current).toEqual({ canvases: [], isLoading: false, loadError: null })
     expect(mock.requests().map((r) => r.procedure)).not.toContain('listCanvases')
 
     hook.rerender({ projectId: 'proj-alpha' })
-    await waitFor(() => expect(hook.result.current).toEqual(list))
+    await waitFor(() => expect(hook.result.current.canvases).toEqual(list))
     expect(mock.requests()).toContainEqual({
       procedure: 'listCanvases',
       kind: 'query',

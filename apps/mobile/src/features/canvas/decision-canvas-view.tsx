@@ -8,6 +8,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native'
 
 import { SurfaceScroll } from '@/components/surface-scroll'
 import { PANEL_CARD, SURFACE_GUTTER } from '@/components/surface-layout'
+import { useSurfaceOpen } from '@/features/shell/use-surface-open'
 import { cn } from '@/lib/utils'
 
 type DecisionView = 'summary' | 'compare' | 'recommendation' | `option:${string}`
@@ -58,28 +59,41 @@ function List({ items, empty }: { items: readonly string[]; empty: string }): Re
 
 function References({
   references,
+  onOpen,
 }: {
   references: readonly CanvasFileReference[]
+  onOpen: (reference: CanvasFileReference) => void
 }): React.JSX.Element | null {
   if (references.length === 0) return null
   return (
     <View accessibilityLabel="Repository references" className="flex-row flex-wrap gap-2">
       {references.map((reference) => (
-        <View
+        <Pressable
           key={`${reference.path}:${reference.line ?? ''}`}
+          accessibilityLabel={`Open ${reference.label ?? reference.path}${
+            reference.line === undefined ? '' : ` at line ${reference.line}`
+          }`}
+          accessibilityRole="button"
           className="max-w-full rounded-xl border border-border bg-muted/40 px-3 py-2"
+          onPress={() => onOpen(reference)}
         >
           <Text className="font-mono text-xs text-foreground" numberOfLines={1}>
             {reference.label ?? reference.path}
             {reference.line === undefined ? '' : `:${reference.line}`}
           </Text>
-        </View>
+        </Pressable>
       ))}
     </View>
   )
 }
 
-function Summary({ document }: { document: DecisionCanvasDocument }): React.JSX.Element {
+function Summary({
+  document,
+  onOpen,
+}: {
+  document: DecisionCanvasDocument
+  onOpen: (reference: CanvasFileReference) => void
+}): React.JSX.Element {
   return (
     <SurfaceScroll gap={6} testID="porcelain-decision-summary">
       <View className="gap-3">
@@ -88,7 +102,7 @@ function Summary({ document }: { document: DecisionCanvasDocument }): React.JSX.
         </Text>
         <Text className="text-3xl font-semibold leading-9 text-foreground">{document.title}</Text>
         <Text className="text-base leading-7 text-muted-foreground">{document.summary}</Text>
-        <References references={document.references} />
+        <References references={document.references} onOpen={onOpen} />
       </View>
       {document.context === undefined ? null : (
         <Section title="Context">
@@ -107,7 +121,13 @@ function Summary({ document }: { document: DecisionCanvasDocument }): React.JSX.
   )
 }
 
-function Option({ option }: { option: DecisionOption }): React.JSX.Element {
+function Option({
+  option,
+  onOpen,
+}: {
+  option: DecisionOption
+  onOpen: (reference: CanvasFileReference) => void
+}): React.JSX.Element {
   return (
     <SurfaceScroll gap={6} testID={`porcelain-decision-option-${option.id}`}>
       <View className="gap-3">
@@ -116,7 +136,7 @@ function Option({ option }: { option: DecisionOption }): React.JSX.Element {
         </Text>
         <Text className="text-3xl font-semibold leading-9 text-foreground">{option.name}</Text>
         <Text className="text-base leading-7 text-muted-foreground">{option.summary}</Text>
-        <References references={option.references} />
+        <References references={option.references} onOpen={onOpen} />
       </View>
       <Card>
         <Section title="Pros">
@@ -205,7 +225,13 @@ function Comparison({ document }: { document: DecisionCanvasDocument }): React.J
   )
 }
 
-function Recommendation({ document }: { document: DecisionCanvasDocument }): React.JSX.Element {
+function Recommendation({
+  document,
+  onOpen,
+}: {
+  document: DecisionCanvasDocument
+  onOpen: (reference: CanvasFileReference) => void
+}): React.JSX.Element {
   const label = document.decision === undefined ? 'Recommendation' : 'Decision'
   return (
     <SurfaceScroll gap={6} testID="porcelain-decision-recommendation">
@@ -236,13 +262,13 @@ function Recommendation({ document }: { document: DecisionCanvasDocument }): Rea
           />
         </Section>
       </Card>
-      <References references={document.recommendation.references} />
+      <References references={document.recommendation.references} onOpen={onOpen} />
       {document.decision === undefined ? null : (
         <Card testID="porcelain-decision-recorded">
           <Section title="Recorded final decision">
             <Text className="text-base leading-7 text-foreground">{document.decision.summary}</Text>
             <List items={document.decision.rationale} empty="No additional rationale recorded." />
-            <References references={document.decision.references} />
+            <References references={document.decision.references} onOpen={onOpen} />
           </Section>
         </Card>
       )}
@@ -256,6 +282,10 @@ export function DecisionCanvasView({
   document: DecisionCanvasDocument
 }): React.JSX.Element {
   const [active, setActive] = useState<DecisionView>('summary')
+  const open = useSurfaceOpen()
+  const openReference = (reference: CanvasFileReference): void => {
+    open.file(reference.path, reference.line)
+  }
   const finalLabel = document.decision === undefined ? 'Recommendation' : 'Decision'
   const views: readonly { id: DecisionView; label: string }[] = [
     { id: 'summary', label: 'Summary' },
@@ -306,10 +336,12 @@ export function DecisionCanvasView({
           )
         })}
       </ScrollView>
-      {active === 'summary' ? <Summary document={document} /> : null}
+      {active === 'summary' ? <Summary document={document} onOpen={openReference} /> : null}
       {active === 'compare' ? <Comparison document={document} /> : null}
-      {active === 'recommendation' ? <Recommendation document={document} /> : null}
-      {option === undefined ? null : <Option option={option} />}
+      {active === 'recommendation' ? (
+        <Recommendation document={document} onOpen={openReference} />
+      ) : null}
+      {option === undefined ? null : <Option option={option} onOpen={openReference} />}
     </View>
   )
 }
