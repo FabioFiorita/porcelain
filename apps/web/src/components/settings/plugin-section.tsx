@@ -113,8 +113,8 @@ export function PluginSection(): React.JSX.Element {
 
       {install.isSuccess && (
         <p className="flex items-center gap-1.5 text-xs text-success">
-          <Check className="size-3.5" /> {installed ? 'Reinstalled' : 'Added'}. Restart Codex before
-          opening a new task.
+          <Check className="size-3.5" /> Installation complete. Restart Codex before opening a new
+          task.
         </p>
       )}
 

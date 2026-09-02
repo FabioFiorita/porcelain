@@ -93,6 +93,21 @@ describe('PluginSection', () => {
     expect(screen.getByRole('button', { name: 'Reinstall' })).toBeEnabled()
   })
 
+  it('keeps first-time Add success truthful after installed status refreshes', async () => {
+    const view = render(<PluginSection />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add to Codex' }))
+    const options = mutate.mock.calls[0]?.[1] as { onSuccess: () => Promise<void> }
+    await options.onSuccess()
+
+    installState.isSuccess = true
+    pluginStatus.data = { state: 'installed', version: '1.6.21', enabled: true, error: null }
+    view.rerender(<PluginSection />)
+
+    expect(screen.getByText(/Installation complete\. Restart Codex/)).toBeVisible()
+    expect(screen.queryByText(/Reinstalled\. Restart Codex/)).toBeNull()
+  })
+
   it('disables installation when Codex cannot be inspected and explains why', () => {
     pluginStatus.data = {
       state: 'unavailable',
