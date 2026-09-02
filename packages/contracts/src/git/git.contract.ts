@@ -7,7 +7,14 @@ import {
   commitModelOptionSchema,
 } from '../commit-model'
 
-export const fileStatusSchema = z.enum(['modified', 'added', 'deleted', 'renamed', 'untracked'])
+export const fileStatusSchema = z.enum([
+  'modified',
+  'added',
+  'deleted',
+  'renamed',
+  'untracked',
+  'conflicted',
+])
 export type FileStatus = z.infer<typeof fileStatusSchema>
 
 export const changedFileSchema = z

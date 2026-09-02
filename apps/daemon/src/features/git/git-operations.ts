@@ -52,8 +52,10 @@ import type {
   WorkspaceTrash,
 } from './git-ports'
 
-const QUICK_COMMANDS_WITH_WORKTREE_EFFECT = new Set<GitQuickCommandInput['command']>([
+const QUICK_COMMANDS_WITH_GIT_EFFECT = new Set<GitQuickCommandInput['command']>([
+  'fetch',
   'pull',
+  'push',
   'stash',
   'stash-pop',
 ])
@@ -119,24 +121,32 @@ export function createGitOperations(dependencies: GitOperationDependencies): Git
 
   function changed(repoPath: string): void {
     workingTreeCache.clear(repoPath)
-    changes.publishWorkingTreeChanged(repoPath)
+    changes.publishChanged(repoPath)
   }
 
   return Object.freeze({
-    checkoutGit: (input: GitCheckoutInput) => workspace.checkout(input.repoPath, input.branch),
+    async checkoutGit(input: GitCheckoutInput): Promise<GitWorkspaceResult<void>> {
+      const result = await workspace.checkout(input.repoPath, input.branch)
+      if (result.ok) changed(input.repoPath)
+      return result
+    },
     addGitWorktree: (input: GitAddWorktreeInput) =>
       workspace.addWorktree(input.repoPath, input.branch),
 
     async quickCommandGit(input: GitQuickCommandInput): Promise<string> {
       const output = await projectGit.quickCommand(input)
       workingTreeCache.clear(input.repoPath)
-      if (QUICK_COMMANDS_WITH_WORKTREE_EFFECT.has(input.command)) {
-        changes.publishWorkingTreeChanged(input.repoPath)
+      if (QUICK_COMMANDS_WITH_GIT_EFFECT.has(input.command)) {
+        changes.publishChanged(input.repoPath)
       }
       return output
     },
 
-    pushGit: (input: GitPushInput) => projectGit.push(input.repoPath),
+    async pushGit(input: GitPushInput): Promise<string> {
+      const output = await projectGit.push(input.repoPath)
+      changes.publishChanged(input.repoPath)
+      return output
+    },
 
     async stageAllGit(input: GitStageAllInput): Promise<void> {
       await projectGit.stageAll(input.repoPath)
@@ -170,9 +180,7 @@ export function createGitOperations(dependencies: GitOperationDependencies): Git
 
     async commitGit(input: GitCommitInput): Promise<void> {
       await projectGit.commit(input.repoPath, input.message)
-      workingTreeCache.clear(input.repoPath)
-      await projectGit.commitFiles(input.repoPath, 'HEAD')
-      changes.publishWorkingTreeChanged(input.repoPath)
+      changed(input.repoPath)
     },
 
     generateCommitMessageGit: (input: GitGenerateCommitMessageInput) =>
@@ -192,36 +200,52 @@ export function createGitOperations(dependencies: GitOperationDependencies): Git
      *
      * The batch stops at the first failing group and reports per-group outcomes rather than
      * throwing, because groups before the failure are already committed and the human needs to
-     * know which. The failed group's partial staging is reset so the index is never left half
-     * staged, and its files plus every skipped group's files stay in the working tree.
+     * know which. The failed group's partial staging is reset; if that cleanup itself fails,
+     * the failed result carries both errors so a partial index can never be mistaken for a clean
+     * one. Every started batch publishes freshness even when cleanup fails.
      */
     async applyCommitGroupsGit(
       input: GitApplyCommitGroupsInput,
     ): Promise<GitApplyCommitGroupsOutput> {
       const { repoPath, groups } = input
       const results: GitApplyCommitGroupsOutput['results'] = []
-      await projectGit.unstageAll(repoPath)
-      let failed = false
-      for (const group of groups) {
-        if (failed) {
-          results.push({ ...group, status: 'skipped', error: null })
-          continue
+      let mutationStarted = false
+      try {
+        await projectGit.unstageAll(repoPath)
+        mutationStarted = true
+        let failed = false
+        for (const group of groups) {
+          if (failed) {
+            results.push({ ...group, status: 'skipped', error: null })
+            continue
+          }
+          try {
+            for (const path of group.files) await projectGit.stageFile(repoPath, path)
+            await projectGit.commit(repoPath, group.message)
+            results.push({ ...group, status: 'committed', error: null })
+          } catch (error) {
+            const failure = error instanceof Error ? error.message : String(error)
+            let cleanupFailure: string | null = null
+            try {
+              await projectGit.unstageAll(repoPath)
+            } catch (cleanupError) {
+              cleanupFailure =
+                cleanupError instanceof Error ? cleanupError.message : String(cleanupError)
+            }
+            failed = true
+            results.push({
+              ...group,
+              status: 'failed',
+              error:
+                cleanupFailure === null
+                  ? failure
+                  : `${failure}\nCould not restore the index: ${cleanupFailure}`,
+            })
+          }
         }
-        try {
-          for (const path of group.files) await projectGit.stageFile(repoPath, path)
-          await projectGit.commit(repoPath, group.message)
-          results.push({ ...group, status: 'committed', error: null })
-        } catch (error) {
-          await projectGit.unstageAll(repoPath)
-          failed = true
-          results.push({
-            ...group,
-            status: 'failed',
-            error: error instanceof Error ? error.message : String(error),
-          })
-        }
+      } finally {
+        if (mutationStarted) changed(repoPath)
       }
-      changed(repoPath)
       return { results }
     },
 
@@ -238,8 +262,10 @@ export function createGitOperations(dependencies: GitOperationDependencies): Git
 
     branchesGit: (repoPath: string) => projectGit.branches(repoPath),
 
-    createBranchGit: (input: GitCreateBranchInput) =>
-      projectGit.createBranch(input.repoPath, input.branch),
+    async createBranchGit(input: GitCreateBranchInput): Promise<void> {
+      await projectGit.createBranch(input.repoPath, input.branch)
+      changed(input.repoPath)
+    },
 
     worktreesGit: (repoPath: string) => projectGit.worktrees(repoPath),
 

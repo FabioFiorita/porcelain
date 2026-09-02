@@ -270,7 +270,14 @@ describe('Git procedure contracts', () => {
   })
 
   it('accepts every flow, status, diff, and reading discriminator', () => {
-    for (const status of ['modified', 'added', 'deleted', 'renamed', 'untracked'] as const) {
+    for (const status of [
+      'modified',
+      'added',
+      'deleted',
+      'renamed',
+      'untracked',
+      'conflicted',
+    ] as const) {
       expect(
         gitProcedures.gitStatus.output.safeParse([
           { path: 'src/example.ts', status, staged: false, unstaged: true },

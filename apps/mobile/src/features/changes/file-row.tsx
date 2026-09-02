@@ -13,6 +13,7 @@ const STATUS_BADGE: Record<FileStatus, { label: string; className: string }> = {
   modified: { label: 'M', className: 'text-warning' },
   renamed: { label: 'R', className: 'text-info' },
   untracked: { label: 'U', className: 'text-success' },
+  conflicted: { label: '!', className: 'text-destructive' },
 }
 export type FileRowActions = {
   onOpen: (path: string) => void

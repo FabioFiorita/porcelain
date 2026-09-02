@@ -65,9 +65,6 @@ function projectGit(overrides: Partial<ProjectGit> = {}): ProjectGit {
     restoreFromHead: vi.fn<ProjectGit['restoreFromHead']>(async () => undefined),
     resetPath: vi.fn<ProjectGit['resetPath']>(async () => undefined),
     commit: vi.fn<ProjectGit['commit']>(async () => undefined),
-    commitFiles: vi.fn<ProjectGit['commitFiles']>(async () => [
-      { path: 'src/alpha.ts', status: 'modified' },
-    ]),
     status: vi.fn<ProjectGit['status']>(
       async (): Promise<GitProjectResult<ChangedFile[]>> => ({
         ok: true,
@@ -179,7 +176,7 @@ function dependencies(
     changes:
       overrides.changes ??
       ({
-        publishWorkingTreeChanged: vi.fn(() => undefined),
+        publishChanged: vi.fn(() => undefined),
       } satisfies GitChanges),
     diffReadingSources: overrides.diffReadingSources ?? diffReadingSources(),
   }
@@ -188,7 +185,11 @@ function dependencies(
 describe('Git operations', () => {
   it('passes checkout and worktree inputs to their workspace capabilities', async () => {
     const port = workspace()
-    const operations = createGitOperations(dependencies({ workspace: port }))
+    const cache = { clear: vi.fn(() => undefined) }
+    const changes = { publishChanged: vi.fn(() => undefined) }
+    const operations = createGitOperations(
+      dependencies({ workspace: port, workingTreeCache: cache, changes }),
+    )
 
     await expect(operations.checkoutGit(CHECKOUT_INPUT)).resolves.toEqual({
       ok: true,
@@ -200,6 +201,8 @@ describe('Git operations', () => {
     })
     expect(port.checkout).toHaveBeenCalledWith('/synthetic/repo', 'main')
     expect(port.addWorktree).toHaveBeenCalledWith('/synthetic/repo', 'feature/x')
+    expect(cache.clear).toHaveBeenCalledWith('/synthetic/repo')
+    expect(changes.publishChanged).toHaveBeenCalledWith('/synthetic/repo')
   })
 
   it('returns each typed workspace failure unchanged', async () => {
@@ -229,6 +232,27 @@ describe('Git operations', () => {
     }
   })
 
+  it('does not publish a refused checkout', async () => {
+    const changes = { publishChanged: vi.fn(() => undefined) }
+    const cache = { clear: vi.fn(() => undefined) }
+    const port = workspace({
+      checkout: vi.fn<GitWorkspacePort['checkout']>(async () => ({
+        ok: false,
+        error: { code: 'git.working-tree-conflict' },
+      })),
+    })
+    const operations = createGitOperations(
+      dependencies({ workspace: port, workingTreeCache: cache, changes }),
+    )
+
+    await expect(operations.checkoutGit(CHECKOUT_INPUT)).resolves.toEqual({
+      ok: false,
+      error: { code: 'git.working-tree-conflict' },
+    })
+    expect(cache.clear).not.toHaveBeenCalled()
+    expect(changes.publishChanged).not.toHaveBeenCalled()
+  })
+
   it('clears and publishes only after successful staging', async () => {
     const events: string[] = []
     const git = projectGit({
@@ -237,7 +261,7 @@ describe('Git operations', () => {
       },
     })
     const cache = { clear: vi.fn(() => events.push('clear')) }
-    const changes = { publishWorkingTreeChanged: vi.fn(() => events.push('publish')) }
+    const changes = { publishChanged: vi.fn(() => events.push('publish')) }
     const operations = createGitOperations(
       dependencies({ projectGit: git, workingTreeCache: cache, changes }),
     )
@@ -245,7 +269,7 @@ describe('Git operations', () => {
     await operations.stageAllGit({ repoPath: REPO })
     expect(events).toEqual(['git', 'clear', 'publish'])
     expect(cache.clear).toHaveBeenCalledWith(REPO)
-    expect(changes.publishWorkingTreeChanged).toHaveBeenCalledWith(REPO)
+    expect(changes.publishChanged).toHaveBeenCalledWith(REPO)
   })
 
   it('does not clear or publish when a mutation fails', async () => {
@@ -256,14 +280,14 @@ describe('Git operations', () => {
       },
     })
     const cache = { clear: vi.fn(() => undefined) }
-    const changes = { publishWorkingTreeChanged: vi.fn(() => undefined) }
+    const changes = { publishChanged: vi.fn(() => undefined) }
     const operations = createGitOperations(
       dependencies({ projectGit: git, workingTreeCache: cache, changes }),
     )
 
     await expect(operations.stageFileGit({ repoPath: REPO, path: 'src/a.ts' })).rejects.toBe(error)
     expect(cache.clear).not.toHaveBeenCalled()
-    expect(changes.publishWorkingTreeChanged).not.toHaveBeenCalled()
+    expect(changes.publishChanged).not.toHaveBeenCalled()
   })
 
   it('keeps discard branching and publishes after Trash succeeds', async () => {
@@ -272,7 +296,7 @@ describe('Git operations', () => {
     })
     const trash = { moveToTrash: vi.fn(async () => undefined) }
     const cache = { clear: vi.fn(() => undefined) }
-    const changes = { publishWorkingTreeChanged: vi.fn(() => undefined) }
+    const changes = { publishChanged: vi.fn(() => undefined) }
     const operations = createGitOperations(
       dependencies({
         projectGit: git,
@@ -287,22 +311,18 @@ describe('Git operations', () => {
     expect(trash.moveToTrash).toHaveBeenCalledWith('/synthetic/repo/new.ts')
     expect(git.restoreFromHead).not.toHaveBeenCalled()
     expect(cache.clear).toHaveBeenCalledWith(REPO)
-    expect(changes.publishWorkingTreeChanged).toHaveBeenCalledWith(REPO)
+    expect(changes.publishChanged).toHaveBeenCalledWith(REPO)
   })
 
-  it('commits, clears cache, then publishes', async () => {
+  it('commits, then immediately clears cache and publishes without a follow-up read', async () => {
     const events: string[] = []
     const git = projectGit({
       commit: async () => {
         events.push('commit')
       },
-      commitFiles: async () => {
-        events.push('files')
-        return [{ path: 'src/a.ts', status: 'modified' as const }]
-      },
     })
     const cache = { clear: vi.fn(() => events.push('cache')) }
-    const changes = { publishWorkingTreeChanged: vi.fn(() => events.push('publish')) }
+    const changes = { publishChanged: vi.fn(() => events.push('publish')) }
     const operations = createGitOperations(
       dependencies({
         projectGit: git,
@@ -312,7 +332,7 @@ describe('Git operations', () => {
     )
 
     await operations.commitGit({ repoPath: REPO, message: 'feat: test' })
-    expect(events).toEqual(['commit', 'cache', 'files', 'publish'])
+    expect(events).toEqual(['commit', 'cache', 'publish'])
   })
 
   it('keeps a frozen operation catalog', () => {
@@ -329,9 +349,9 @@ describe('Git operations', () => {
     await expect(operations.statusGit(REPO)).resolves.toEqual({ ok: false, error })
   })
 
-  it('keeps quick-command cache behavior and only publishes working-tree effects', async () => {
+  it('publishes every successful quick command that can stale another client', async () => {
     const cache = { clear: vi.fn(() => undefined) }
-    const changes = { publishWorkingTreeChanged: vi.fn(() => undefined) }
+    const changes = { publishChanged: vi.fn(() => undefined) }
     const git = projectGit()
     const operations = createGitOperations(
       dependencies({ projectGit: git, workingTreeCache: cache, changes }),
@@ -342,14 +362,38 @@ describe('Git operations', () => {
       command: 'fetch',
     })
     expect(cache.clear).toHaveBeenCalledWith(REPO)
-    expect(changes.publishWorkingTreeChanged).not.toHaveBeenCalled()
+    expect(changes.publishChanged).toHaveBeenCalledWith(REPO)
 
     await operations.quickCommandGit({
       repoPath: REPO,
       command: 'pull',
       pullMode: 'merge',
     })
-    expect(changes.publishWorkingTreeChanged).toHaveBeenCalledWith(REPO)
+    expect(changes.publishChanged).toHaveBeenCalledWith(REPO)
+  })
+
+  it('publishes successful push and branch creation, but never a failed branch creation', async () => {
+    const failure = new Error('branch exists')
+    const git = projectGit({
+      createBranch: vi
+        .fn<ProjectGit['createBranch']>()
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValueOnce(failure),
+    })
+    const cache = { clear: vi.fn(() => undefined) }
+    const changes = { publishChanged: vi.fn(() => undefined) }
+    const operations = createGitOperations(
+      dependencies({ projectGit: git, workingTreeCache: cache, changes }),
+    )
+
+    await expect(operations.pushGit({ repoPath: REPO })).resolves.toBe('Everything up-to-date')
+    await operations.createBranchGit({ repoPath: REPO, branch: 'topic' })
+    await expect(operations.createBranchGit({ repoPath: REPO, branch: 'duplicate' })).rejects.toBe(
+      failure,
+    )
+
+    expect(changes.publishChanged).toHaveBeenCalledTimes(2)
+    expect(cache.clear).toHaveBeenCalledTimes(1)
   })
 
   it('delegates the moved flow, diff, and history reads to their ports', async () => {
@@ -550,7 +594,7 @@ describe('Git operations', () => {
         throw error
       }),
     })
-    const changes = { publishWorkingTreeChanged: vi.fn(() => undefined) }
+    const changes = { publishChanged: vi.fn(() => undefined) }
     const cache = { clear: vi.fn(() => undefined) }
     const operations = createGitOperations(
       dependencies({ diffReadingSources: sources, changes, workingTreeCache: cache }),
@@ -561,6 +605,6 @@ describe('Git operations', () => {
     ).rejects.toBe(error)
     expect(sources.workingHunks).not.toHaveBeenCalled()
     expect(cache.clear).not.toHaveBeenCalled()
-    expect(changes.publishWorkingTreeChanged).not.toHaveBeenCalled()
+    expect(changes.publishChanged).not.toHaveBeenCalled()
   })
 })

@@ -59,7 +59,6 @@ export type ProjectGit = Readonly<{
   restoreFromHead(repoPath: string, path: string): Promise<void>
   resetPath(repoPath: string, path: string): Promise<void>
   commit(repoPath: string, message: string): Promise<void>
-  commitFiles(repoPath: string, hash: string): Promise<ChangedFile[]>
   status(repoPath: string): Promise<GitProjectResult<ChangedFile[]>>
   suggestions(repoPath: string): Promise<GitSuggestion[]>
   head(repoPath: string): Promise<GitHead>
@@ -108,5 +107,5 @@ export type WorkingTreeCache = Readonly<{
 }>
 
 export type GitChanges = Readonly<{
-  publishWorkingTreeChanged(projectPath: string): void
+  publishChanged(projectPath: string): void
 }>

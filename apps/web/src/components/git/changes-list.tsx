@@ -61,6 +61,7 @@ const statusBadge: Record<FileStatus, { label: string; className: string }> = {
   deleted: { label: 'D', className: 'text-destructive' },
   renamed: { label: 'R', className: 'text-info' },
   untracked: { label: 'U', className: 'text-success' },
+  conflicted: { label: '!', className: 'text-destructive' },
 }
 
 function FileRowImpl({
