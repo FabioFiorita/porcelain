@@ -7,6 +7,13 @@ export interface PluginInfo {
   claudePluginCommands: readonly string[]
 }
 
+export interface CodexPluginStatus {
+  state: 'installed' | 'not-installed' | 'unavailable'
+  version: string | null
+  enabled: boolean | null
+  error: string | null
+}
+
 const BUNDLED_PLUGIN: PluginInfo = {
   version: __PORCELAIN_PLUGIN_VERSION__,
   agentPluginRepository: 'FabioFiorita/porcelain',
@@ -24,4 +31,12 @@ export function usePluginInfo(): PluginInfo | undefined {
     enabled: !isBrowser,
   })
   return isBrowser ? BUNDLED_PLUGIN : data
+}
+
+export function useCodexPluginStatus(): {
+  data: CodexPluginStatus | undefined
+  isLoading: boolean
+} {
+  const query = shellTrpc.codexPluginStatus.useQuery(undefined, { enabled: !isBrowser })
+  return { data: query.data, isLoading: query.isLoading }
 }

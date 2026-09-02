@@ -1,11 +1,11 @@
 import { Button } from '@renderer/components/ui/button'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
-import { usePluginInfo } from '@renderer/hooks/use-plugin'
+import { useCodexPluginStatus, usePluginInfo } from '@renderer/hooks/use-plugin'
 import { compactButtonClass } from '@renderer/lib/controls'
 import { shellTrpc } from '@renderer/lib/trpc'
 import { copyText } from '@renderer/lib/utils'
 import { runUserAction } from '@shared/background'
-import { Check, Copy, Loader2, Plug } from 'lucide-react'
+import { Check, Copy, Loader2, Plug, TriangleAlert } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
@@ -54,7 +54,11 @@ function CopyBlock({ label, lines }: { label: string; lines: readonly string[] }
 /** Install Porcelain into Codex, with manual sources for other plugin-capable agents. */
 export function PluginSection(): React.JSX.Element {
   const info = usePluginInfo()
+  const status = useCodexPluginStatus()
   const install = shellTrpc.installCodexPlugin.useMutation()
+  const utils = shellTrpc.useUtils()
+  const installed = status.data?.state === 'installed'
+  const unavailable = status.data?.state === 'unavailable'
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
@@ -66,28 +70,51 @@ export function PluginSection(): React.JSX.Element {
         <div className="min-w-0">
           <p className="text-sm-minus font-medium">Codex</p>
           <p className="text-xs text-muted-foreground">
-            Add the plugin to Codex on this machine. Restart Codex before opening a new task.
+            {installed
+              ? `Installed${status.data?.version ? ` · v${status.data.version}` : ''}${status.data?.enabled === false ? ' · disabled' : ''}. Reinstall from the latest marketplace snapshot.`
+              : 'Add the plugin to Codex on this machine. Restart Codex before opening a new task.'}
           </p>
         </div>
         <Button
           size="sm"
           className={compactButtonClass}
-          disabled={install.isPending}
+          disabled={install.isPending || status.isLoading || unavailable}
           onClick={() =>
             install.mutate(undefined, {
-              onSuccess: () => toast.success('Porcelain was added to Codex.'),
+              onSuccess: async () => {
+                await utils.codexPluginStatus.invalidate()
+                toast.success(
+                  installed
+                    ? 'Porcelain was reinstalled in Codex.'
+                    : 'Porcelain was added to Codex.',
+                )
+              },
               onError: (error) => toastUserActionError('Add Porcelain to Codex', error),
             })
           }
         >
           {install.isPending ? <Loader2 className="animate-spin" /> : <Plug />}
-          {install.isPending ? 'Adding…' : 'Add to Codex'}
+          {install.isPending
+            ? installed
+              ? 'Reinstalling…'
+              : 'Adding…'
+            : installed
+              ? 'Reinstall'
+              : 'Add to Codex'}
         </Button>
       </div>
 
+      {unavailable && (
+        <p className="flex items-start gap-1.5 text-xs text-warning">
+          <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
+          {status.data?.error ?? 'Codex plugin status is unavailable.'}
+        </p>
+      )}
+
       {install.isSuccess && (
         <p className="flex items-center gap-1.5 text-xs text-success">
-          <Check className="size-3.5" /> Added. Restart Codex before opening a new task.
+          <Check className="size-3.5" /> Installation complete. Restart Codex before opening a new
+          task.
         </p>
       )}
 

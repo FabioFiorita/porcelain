@@ -5,7 +5,7 @@ import { createTRPCUntypedClient, httpLink } from '@trpc/client'
 import { initTRPC } from '@trpc/server'
 import { BrowserWindow, clipboard, nativeTheme, shell, type WebContents } from 'electron'
 import { z } from 'zod'
-import { installCodexPlugin } from './codex-plugin'
+import { installCodexPlugin, readCodexPluginStatus } from './codex-plugin'
 import {
   getDefaultEnvironmentId,
   localDaemonPair,
@@ -314,6 +314,8 @@ export const shellRouter = t.router({
       claudePluginCommands: claudePluginCommands(),
     }),
   ),
+
+  codexPluginStatus: t.procedure.query(() => readCodexPluginStatus()),
 
   // This intentionally targets the machine running Electron, not whichever daemon Environment
   // the current window is viewing. The human triggers the external Codex configuration change.

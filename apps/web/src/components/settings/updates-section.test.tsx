@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { UpdatesSection } from './updates-section'
+import { AppUpdatesSection, UpdatesSection } from './updates-section'
 
 const check = {
   data: { currentVersion: '0.52.1', latestVersion: '0.60.0', restartable: true },
@@ -9,6 +9,19 @@ const check = {
   mutate: vi.fn(),
 }
 const restart = { isPending: false, mutate: vi.fn() }
+const appUpdateStatus = {
+  state: 'unavailable' as const,
+  version: null,
+  error: null,
+  currentVersion: '0.61.4',
+  unavailableReason: 'Automatic updates are available in the installed Porcelain app.',
+}
+
+vi.mock('@renderer/hooks/use-updates', () => ({
+  useUpdateStatus: () => appUpdateStatus,
+  useCheckForUpdates: () => ({ check: vi.fn(), isChecking: false }),
+  useInstallUpdate: () => ({ install: vi.fn(), isInstalling: false }),
+}))
 
 vi.mock('@renderer/lib/trpc', () => ({
   trpc: {
@@ -34,5 +47,16 @@ describe('DaemonUpdatesSection', () => {
     expect(screen.getByRole('button', { name: /Check/ })).toBeDisabled()
     expect(screen.getByRole('button', { name: /Update and restart|Restarting/ })).toBeDisabled()
     expect(screen.getByRole('button', { name: /Copy restart command/ })).toBeDisabled()
+  })
+})
+
+describe('AppUpdatesSection', () => {
+  it('disables a development-shell update check and explains the installed-app boundary', () => {
+    render(<AppUpdatesSection />)
+
+    expect(screen.getByRole('button', { name: 'Check for updates' })).toBeDisabled()
+    expect(
+      screen.getByText('Automatic updates are available in the installed Porcelain app.'),
+    ).toBeVisible()
   })
 })
