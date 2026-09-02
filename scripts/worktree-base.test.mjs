@@ -4,7 +4,7 @@
  * Never addresses a real Porcelain checkout or runtime home.
  */
 import assert from 'node:assert/strict'
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawn } from 'node:child_process'
 import {
   copyFileSync,
   existsSync,
@@ -15,7 +15,7 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { hostname, tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { test } from 'node:test'
 import {
@@ -38,6 +38,21 @@ function environmentCommand(section) {
 
 function git(cwd, ...args) {
   return execFileSync('git', args, { cwd, encoding: 'utf8' }).trim()
+}
+
+function run(command, args, options) {
+  return new Promise((resolveRun, rejectRun) => {
+    const child = spawn(command, args, options)
+    let stderr = ''
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk
+    })
+    child.on('error', rejectRun)
+    child.on('exit', (code) => {
+      if (code === 0) resolveRun()
+      else rejectRun(new Error(`${command} ${args.join(' ')} exited ${code}: ${stderr}`))
+    })
+  })
 }
 
 test('codexSlugForPath derives a stable valid slug from the harness allocation', () => {
@@ -240,6 +255,141 @@ test('selected Codex environment bootstraps and cleans up its harness working di
     })
     assert.equal(existsSync(checkout), false)
     assert.equal(existsSync(join(home, '.porcelain-dev-worktrees', 'codex-7f73')), false)
+  } finally {
+    rmSync(home, { recursive: true, force: true })
+  }
+})
+
+test('simultaneous Codex bootstraps reserve distinct disposable profiles', async () => {
+  const home = realpathSync(mkdtempSync(join(tmpdir(), 'porcelain-codex-race-')))
+  const primary = join(home, 'repo')
+  const checkouts = Array.from({ length: 8 }, (_, index) =>
+    join(home, '.codex', 'worktrees', `race-${index}`, 'porcelain'),
+  )
+  try {
+    mkdirSync(primary, { recursive: true })
+    git(primary, 'init', '-b', 'main')
+    git(primary, 'config', 'user.name', 'Porcelain Test')
+    git(primary, 'config', 'user.email', 'porcelain@example.test')
+    writeFileSync(join(primary, 'README.md'), 'fixture\n')
+    mkdirSync(join(primary, 'scripts'))
+    copyFileSync(worktreeScript, join(primary, 'scripts', 'worktree.mjs'))
+    git(primary, 'add', 'README.md', 'scripts/worktree.mjs')
+    git(primary, '-c', 'commit.gpgsign=false', 'commit', '-m', 'fixture')
+    for (const checkout of checkouts) {
+      mkdirSync(dirname(checkout), { recursive: true })
+      git(primary, 'worktree', 'add', '--detach', checkout, 'HEAD')
+    }
+
+    const env = { ...process.env, HOME: home }
+    await Promise.all(
+      checkouts.map((checkout) =>
+        run('node', ['scripts/worktree.mjs', 'codex-bootstrap', checkout], {
+          cwd: checkout,
+          env,
+          stdio: ['ignore', 'pipe', 'pipe'],
+        }),
+      ),
+    )
+
+    const initialPorts = checkouts.map(
+      (checkout) =>
+        JSON.parse(readFileSync(join(checkout, '.porcelain-worktree.json'), 'utf8')).port,
+    )
+
+    // Repeat one setup concurrently with the fleet: it must observe the already
+    // published profile rather than reallocate its checkout's port or fixture.
+    await Promise.all(
+      checkouts.map((checkout) =>
+        run('node', ['scripts/worktree.mjs', 'codex-bootstrap', checkout], {
+          cwd: checkout,
+          env,
+          stdio: ['ignore', 'pipe', 'pipe'],
+        }),
+      ),
+    )
+
+    const configs = checkouts.map((checkout) =>
+      JSON.parse(readFileSync(join(checkout, '.porcelain-worktree.json'), 'utf8')),
+    )
+    assert.equal(new Set(configs.map((config) => config.port)).size, checkouts.length)
+    assert.deepEqual(
+      configs.map((config) => config.port),
+      initialPorts,
+      "a repeated setup must retain every checkout's first allocated port",
+    )
+    assert.equal(new Set(configs.map((config) => config.slug)).size, checkouts.length)
+    assert.ok(configs.every((config) => config.branch === null))
+    assert.ok(
+      configs.every((config) =>
+        existsSync(join(home, 'code', 'porcelain-playgrounds', config.slug)),
+      ),
+    )
+
+    for (const checkout of checkouts) {
+      execFileSync('node', ['scripts/worktree.mjs', 'codex-cleanup', checkout], {
+        cwd: checkout,
+        env,
+        stdio: 'pipe',
+      })
+    }
+    assert.ok(checkouts.every((checkout) => !existsSync(checkout)))
+  } finally {
+    rmSync(home, { recursive: true, force: true })
+  }
+})
+
+test('Codex bootstrap reclaims a lock left by a dead local owner', async () => {
+  const home = realpathSync(mkdtempSync(join(tmpdir(), 'porcelain-codex-stale-lock-')))
+  const primary = join(home, 'repo')
+  const checkouts = ['dead-lock-a', 'dead-lock-b'].map((slug) =>
+    join(home, '.codex', 'worktrees', slug, 'porcelain'),
+  )
+  try {
+    mkdirSync(primary, { recursive: true })
+    git(primary, 'init', '-b', 'main')
+    git(primary, 'config', 'user.name', 'Porcelain Test')
+    git(primary, 'config', 'user.email', 'porcelain@example.test')
+    writeFileSync(join(primary, 'README.md'), 'fixture\n')
+    mkdirSync(join(primary, 'scripts'))
+    copyFileSync(worktreeScript, join(primary, 'scripts', 'worktree.mjs'))
+    git(primary, 'add', 'README.md', 'scripts/worktree.mjs')
+    git(primary, '-c', 'commit.gpgsign=false', 'commit', '-m', 'fixture')
+    for (const checkout of checkouts) {
+      mkdirSync(dirname(checkout), { recursive: true })
+      git(primary, 'worktree', 'add', '--detach', checkout, 'HEAD')
+    }
+    const lock = join(
+      primary,
+      git(primary, 'rev-parse', '--git-common-dir'),
+      'porcelain-managed-worktree-allocation.lock',
+    )
+    mkdirSync(lock)
+    writeFileSync(
+      join(lock, 'owner.json'),
+      JSON.stringify({ pid: 999_999_999, hostname: hostname(), createdAt: Date.now() }),
+    )
+    // A reclaimer can crash after rename. Its uniquely named tombstone must not
+    // prevent a later allocator from claiming the canonical lock.
+    mkdirSync(`${lock}.reclaim-orphan`)
+
+    const env = { ...process.env, HOME: home }
+    await Promise.all(
+      checkouts.map((checkout) =>
+        run('node', ['scripts/worktree.mjs', 'codex-bootstrap', checkout], {
+          cwd: checkout,
+          env,
+          stdio: ['ignore', 'pipe', 'pipe'],
+        }),
+      ),
+    )
+    const ports = checkouts.map(
+      (checkout) =>
+        JSON.parse(readFileSync(join(checkout, '.porcelain-worktree.json'), 'utf8')).port,
+    )
+    assert.equal(new Set(ports).size, checkouts.length)
+    assert.equal(existsSync(lock), false)
+    assert.equal(existsSync(`${lock}.reclaim-orphan`), true)
   } finally {
     rmSync(home, { recursive: true, force: true })
   }
