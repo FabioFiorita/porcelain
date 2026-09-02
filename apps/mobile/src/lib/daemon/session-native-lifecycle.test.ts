@@ -260,26 +260,6 @@ describe('Session native lifecycle — mobile binding', () => {
     expect(['connecting', 'open', 'reconnecting', 'idle']).toContain(daemonSession.status)
   })
 
-  it('does not reopen a new Environment against the previous Environment worktree', () => {
-    configureSession({
-      baseUrl: 'http://127.0.0.1:43118',
-      token: 'first-token',
-      repo: PROJECT,
-    })
-
-    // An Environment can be paired before its first Worktree is chosen. The runtime retains
-    // the old project internally, so the lifecycle gate — rather than a made-up unwatch frame
-    // — is what prevents its new socket from subscribing to the old daemon's checkout.
-    configureSession({
-      baseUrl: 'http://127.0.0.1:43119',
-      token: 'second-token',
-      repo: null,
-    })
-    setSessionForeground(true)
-
-    expect(daemonSession.status).toBe('idle')
-  })
-
   it('forwards change and freshness signals to session observers', () => {
     const changes: SessionChange[] = []
     const requirements: FreshnessRequirement[] = []
@@ -349,6 +329,34 @@ describe('Session native lifecycle — mobile binding', () => {
     stopReady()
     stopReconnect()
     stopClose()
+  })
+
+  it('stops a same-Environment session when its Worktree is cleared', () => {
+    configureSession({
+      baseUrl: 'http://127.0.0.1:43118',
+      token: 'synthetic-token',
+      repo: PROJECT,
+    })
+    const runtime = sessionClientRuntime()
+    const sent: string[] = []
+    runtime.connected({ send: (payload) => sent.push(payload) })
+    runtime.receive(JSON.stringify(readyFrame()))
+    expect(sent.at(-1)).toContain(PROJECT)
+
+    // An Environment can remain selected after its Worktree is cleared. The URL and token stay
+    // the same, so this has to retire the adapter explicitly rather than relying on identity
+    // replacement to close the old project watch.
+    configureSession({
+      baseUrl: 'http://127.0.0.1:43118',
+      token: 'synthetic-token',
+      repo: null,
+    })
+    setSessionForeground(true)
+
+    expect(daemonSession.status).toBe('idle')
+    expect(runtime.status()).toBe('disconnected')
+    runtime.send({ t: 'terminal:resize', id: 'terminal-1', cols: 80, rows: 24 })
+    expect(sent).toHaveLength(2)
   })
 
   it('notifies the generic close seam before retiring an update-required session', () => {

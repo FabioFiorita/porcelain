@@ -293,6 +293,10 @@ export function configureSession(next: SessionEndpoint | null): void {
     // no "unselect" protocol operation). Do not reopen a fresh daemon connection against that
     // stale path; selecting a Worktree will configure this session again and replace it.
     wanted = false
+    // This can be the same daemon identity: switching from one selected Worktree to none does
+    // not change its URL or token. Retire that live socket explicitly, otherwise it keeps the
+    // previous project watch until a different endpoint happens to replace it.
+    stopAdapter()
   }
   if (changed) {
     everReady = false
