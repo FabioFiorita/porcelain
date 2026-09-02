@@ -35,7 +35,7 @@ function errorValue(error: unknown): { message: string } | null {
 export function useFileSearch(
   query: string,
   enabled: boolean,
-): { results: SearchResult[]; isFetching: boolean } {
+): { error: { message: string } | null; results: SearchResult[]; isFetching: boolean } {
   const checkout = useHubRepoPath()
   const target = useHubRepoTarget()
   const daemon = daemonScopeFromIdentity(useDaemonIdentity(), target?.environmentId)
@@ -58,7 +58,21 @@ export function useFileSearch(
     },
     queryKey: searchQueryKey(daemon, identity),
   })
-  return { isFetching: result.isFetching, results: result.data ?? [] }
+  // A disabled query is intentionally quiet (the palette is idle or has no text). A query
+  // that cannot reach its selected Environment is different: showing an empty result set would
+  // claim that the repository contains no match.
+  const unavailable =
+    enabled && normalizedQuery !== '' && (projectPath === null || owner === null)
+      ? {
+          message:
+            owner === null ? 'The target Environment is offline.' : 'Select a Worktree first.',
+        }
+      : null
+  return {
+    error: unavailable ?? errorValue(result.error),
+    isFetching: result.isFetching,
+    results: result.data ?? [],
+  }
 }
 
 export function useTextSearch(

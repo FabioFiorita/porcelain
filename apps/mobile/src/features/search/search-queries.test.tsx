@@ -122,4 +122,17 @@ describe('mobile Search query adapters', () => {
       },
     )
   })
+
+  it('reports an offline Environment instead of a quiet empty result', async () => {
+    ctx.environment = { id: 'env-search-query', token: null }
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const { result } = renderHook(() => useFileSearch('needle', true), {
+      wrapper: wrapper(queryClient),
+    })
+
+    await waitFor(() =>
+      expect(result.current.error?.message).toBe('The selected Environment is offline.'),
+    )
+    expect(ctx.callDaemon).not.toHaveBeenCalled()
+  })
 })

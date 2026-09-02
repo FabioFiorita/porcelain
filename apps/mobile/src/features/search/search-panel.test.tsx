@@ -202,4 +202,19 @@ describe('SearchPanel', () => {
     fireEvent.click(screen.getByTestId('porcelain-search-result-src/main.ts'))
     expect(openFile).toHaveBeenCalledWith('src/main.ts')
   })
+
+  it('does not pair an offline error with a misleading empty result', () => {
+    useSearchStore.setState({ query: 'main', searchMode: 'files' })
+    ctx.useFileSearch.mockReturnValue({
+      error: new Error('The selected Environment is offline.'),
+      isLoading: false,
+      results: [],
+    })
+    render(<SearchPanel active onOpenDir={vi.fn()} onOpenFile={vi.fn()} />)
+
+    expect(screen.getByTestId('porcelain-search-error')).toHaveTextContent(
+      'The selected Environment is offline.',
+    )
+    expect(screen.queryByTestId('porcelain-search-empty')).not.toBeInTheDocument()
+  })
 })

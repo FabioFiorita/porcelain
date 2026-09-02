@@ -43,6 +43,19 @@ function disabledQuery(label: string): never {
   throw new Error(`search: disabled ${label} queryFn must not run`)
 }
 
+/** A typed read must not turn a missing selected daemon into an apparently empty repository. */
+function unavailableError(
+  active: boolean,
+  query: string,
+  environment: Environment | null,
+  repoPath: string | null,
+): Error | null {
+  if (!active || query.trim() === '') return null
+  if (!isPaired(environment)) return new Error('The selected Environment is offline.')
+  if (repoPath === null) return new Error('Select a Worktree first.')
+  return null
+}
+
 export function useFileSearch(
   query: string,
   active: boolean,
@@ -67,7 +80,7 @@ export function useFileSearch(
     staleTime: 10_000,
   })
   return {
-    error: queryError(result.error),
+    error: unavailableError(active, query, environment, repoPath) ?? queryError(result.error),
     isLoading: result.isLoading && trimmed !== '',
     results: result.data ?? [],
   }
@@ -97,7 +110,7 @@ export function useTextSearch(
     staleTime: 10_000,
   })
   return {
-    error: queryError(result.error),
+    error: unavailableError(active, query, environment, repoPath) ?? queryError(result.error),
     isLoading: result.isLoading && trimmed !== '',
     matches: result.data,
   }
@@ -133,7 +146,9 @@ export function useCodeSearch(
     staleTime: 10_000,
   })
   return {
-    error: queryError(result.error),
+    error:
+      unavailableError(active, normalizedOptions.query, environment, repoPath) ??
+      queryError(result.error),
     isLoading: result.isLoading && normalizedOptions.query !== '',
     result: result.data,
   }
