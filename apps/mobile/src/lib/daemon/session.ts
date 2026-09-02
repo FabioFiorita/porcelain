@@ -287,6 +287,12 @@ export function configureSession(next: SessionEndpoint | null): void {
     runtime.selectProject(next.repo)
     // A project is the contract's scope for watches; open once one is known.
     wanted = true
+  } else {
+    // A session's watches are scoped to a project. When an Environment switch has no selected
+    // Worktree yet, the shared runtime still remembers the previous path (it deliberately has
+    // no "unselect" protocol operation). Do not reopen a fresh daemon connection against that
+    // stale path; selecting a Worktree will configure this session again and replace it.
+    wanted = false
   }
   if (changed) {
     everReady = false

@@ -260,6 +260,26 @@ describe('Session native lifecycle — mobile binding', () => {
     expect(['connecting', 'open', 'reconnecting', 'idle']).toContain(daemonSession.status)
   })
 
+  it('does not reopen a new Environment against the previous Environment worktree', () => {
+    configureSession({
+      baseUrl: 'http://127.0.0.1:43118',
+      token: 'first-token',
+      repo: PROJECT,
+    })
+
+    // An Environment can be paired before its first Worktree is chosen. The runtime retains
+    // the old project internally, so the lifecycle gate — rather than a made-up unwatch frame
+    // — is what prevents its new socket from subscribing to the old daemon's checkout.
+    configureSession({
+      baseUrl: 'http://127.0.0.1:43119',
+      token: 'second-token',
+      repo: null,
+    })
+    setSessionForeground(true)
+
+    expect(daemonSession.status).toBe('idle')
+  })
+
   it('forwards change and freshness signals to session observers', () => {
     const changes: SessionChange[] = []
     const requirements: FreshnessRequirement[] = []
