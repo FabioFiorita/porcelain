@@ -22,6 +22,7 @@ import {
   revokeRemoteAuthorizedClient,
   revokeRemotePairingLink,
   setRemoteCloudflareBind,
+  setRemoteCloudflareHostname,
   setRemoteLanBind,
   setRemoteTailnetBind,
 } from './remote-data'
@@ -59,6 +60,7 @@ export interface TailnetStatus {
 export interface CloudflareStatus {
   enabled: boolean
   url: string | null
+  customUrl: string | null
   managed: boolean
   /** Why nothing bound: 'unavailable' = cloudflared missing, 'conflict' = another tunnel. */
   error: 'unavailable' | 'conflict' | null
@@ -223,6 +225,23 @@ export function useSetCloudflareBind(): {
     setEnabled: (enabled: boolean): void => {
       mutation.mutate(enabled)
     },
+    isPending: mutation.isPending,
+  }
+}
+
+export function useSetCloudflareHostname(): {
+  save: (hostname: string | null) => void
+  isPending: boolean
+} {
+  const { daemon, client } = useShareDaemon()
+  const queryClient = useQueryClient()
+  const mutation = useMutation({
+    mutationFn: (hostname: string | null) =>
+      setRemoteCloudflareHostname(client, queryClient, daemon, hostname),
+    onError: onMutationError('Save custom Cloudflare hostname'),
+  })
+  return {
+    save: (hostname: string | null): void => mutation.mutate(hostname),
     isPending: mutation.isPending,
   }
 }

@@ -80,6 +80,7 @@ const operations: RemoteOperations = {
   cloudflareStatus: vi.fn(async () => ({
     enabled: false,
     url: null,
+    customUrl: null,
     managed: false,
     error: 'unavailable' as const,
     envForced: false,
@@ -87,8 +88,17 @@ const operations: RemoteOperations = {
   setCloudflareBind: vi.fn(async () => ({
     enabled: false,
     url: null,
+    customUrl: null,
     managed: false,
     error: 'unavailable' as const,
+    envForced: false,
+  })),
+  setCloudflareHostname: vi.fn(async () => ({
+    enabled: false,
+    url: null,
+    customUrl: 'https://porcelain.example.com',
+    managed: false,
+    error: null,
     envForced: false,
   })),
 }

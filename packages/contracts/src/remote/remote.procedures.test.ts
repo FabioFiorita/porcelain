@@ -18,6 +18,7 @@ const expectedKinds = {
   setLanBind: 'mutation',
   cloudflareStatus: 'query',
   setCloudflareBind: 'mutation',
+  setCloudflareHostname: 'mutation',
 } as const
 
 const invalidInputs: Record<keyof typeof remoteProcedures, unknown> = {
@@ -35,6 +36,7 @@ const invalidInputs: Record<keyof typeof remoteProcedures, unknown> = {
   setLanBind: 'true',
   cloudflareStatus: null,
   setCloudflareBind: 'false',
+  setCloudflareHostname: 'http://not-secure.example.com/path',
 }
 
 const invalidOutputs: Record<keyof typeof remoteProcedures, unknown> = {
@@ -52,10 +54,14 @@ const invalidOutputs: Record<keyof typeof remoteProcedures, unknown> = {
   setLanBind: { ...remoteContractFixtures.setLanBind.output, enabled: 'true' },
   cloudflareStatus: { ...remoteContractFixtures.cloudflareStatus.output, error: 'busy' },
   setCloudflareBind: { ...remoteContractFixtures.setCloudflareBind.output, managed: 'false' },
+  setCloudflareHostname: {
+    ...remoteContractFixtures.setCloudflareHostname.output,
+    customUrl: 'not-a-url',
+  },
 }
 
 describe('Remote procedure contracts', () => {
-  it('declares all fourteen procedures with their router kinds', () => {
+  it('declares all fifteen procedures with their router kinds', () => {
     expect(Object.keys(remoteProcedures).sort()).toEqual(Object.keys(expectedKinds).sort())
     for (const [name, kind] of Object.entries(expectedKinds)) {
       expect(remoteProcedures[name as keyof typeof remoteProcedures].kind).toBe(kind)

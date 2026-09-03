@@ -7,6 +7,7 @@ import type {
   IssuePairingLinkInput,
   IssuePairingLinkOutput,
   LanStatusOutput,
+  SetCloudflareHostnameInput,
   TailnetStatusOutput,
 } from '@porcelain/contracts/remote'
 import {
@@ -54,6 +55,7 @@ export type RemoteOperations = Readonly<{
   setLanBind: (input: boolean) => Promise<LanStatusOutput>
   cloudflareStatus: () => Promise<CloudflareStatusOutput>
   setCloudflareBind: (input: boolean) => Promise<CloudflareStatusOutput>
+  setCloudflareHostname: (input: SetCloudflareHostnameInput) => Promise<CloudflareStatusOutput>
 }>
 
 function invalid(): RemoteOperationResult<never> {
@@ -224,8 +226,10 @@ export function createRemoteOperations(options: {
     },
 
     async cloudflareStatus(): Promise<CloudflareStatusOutput> {
+      const flags = await options.config.load()
       return {
         ...(await options.cloudflare.status()),
+        customUrl: flags.cloudflareHostname ?? null,
         envForced: options.env.cloudflareBindForced(),
       }
     },
@@ -233,12 +237,43 @@ export function createRemoteOperations(options: {
     async setCloudflareBind(input: boolean): Promise<CloudflareStatusOutput> {
       const status = input ? await options.cloudflare.start() : await options.cloudflare.stop()
       if (input) await options.listeners.stopTailnetListener()
-      await options.config.update((current) => ({
-        ...current,
-        cloudflareBind: input,
-        tailnetBind: input ? false : current.tailnetBind,
-      }))
-      return { ...status, envForced: options.env.cloudflareBindForced() }
+      const flags = await options.config.update((current) => {
+        const { cloudflareHostname, ...rest } = current
+        return {
+          ...rest,
+          cloudflareBind: input,
+          ...(input || cloudflareHostname === undefined ? {} : { cloudflareHostname }),
+          tailnetBind: input ? false : current.tailnetBind,
+        }
+      })
+      return {
+        ...status,
+        customUrl: flags.cloudflareHostname ?? null,
+        envForced: options.env.cloudflareBindForced(),
+      }
+    },
+
+    async setCloudflareHostname(
+      input: SetCloudflareHostnameInput,
+    ): Promise<CloudflareStatusOutput> {
+      if (input !== null) {
+        await options.cloudflare.stop()
+        await options.listeners.stopTailnetListener()
+      }
+      const flags = await options.config.update((current) => {
+        const { cloudflareHostname: _cloudflareHostname, ...rest } = current
+        return {
+          ...rest,
+          cloudflareBind: input === null ? current.cloudflareBind : false,
+          tailnetBind: input === null ? current.tailnetBind : false,
+          ...(input === null ? {} : { cloudflareHostname: input }),
+        }
+      })
+      return {
+        ...(await options.cloudflare.status()),
+        customUrl: flags.cloudflareHostname ?? null,
+        envForced: options.env.cloudflareBindForced(),
+      }
     },
   })
 }

@@ -157,6 +157,8 @@ export const cloudflareStatusOutputSchema = z
   .object({
     enabled: z.boolean(),
     url: z.string().url().nullable(),
+    /** Public origin owned by an externally managed Cloudflare Tunnel. */
+    customUrl: z.string().url().nullable(),
     managed: z.boolean(),
     error: z.union([z.literal('unavailable'), z.literal('conflict')]).nullable(),
     envForced: z.boolean(),
@@ -169,6 +171,29 @@ export const setCloudflareBindInputSchema = z.boolean()
 export const setCloudflareBindOutputSchema = cloudflareStatusOutputSchema
 export type SetCloudflareBindInput = z.infer<typeof setCloudflareBindInputSchema>
 export type SetCloudflareBindOutput = z.infer<typeof setCloudflareBindOutputSchema>
+
+const customCloudflareHostnameSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .transform((value) => (/^https:\/\//i.test(value) ? value : `https://${value}`))
+  .pipe(z.string().url())
+  .refine((value) => {
+    const url = new URL(value)
+    return (
+      url.protocol === 'https:' &&
+      url.username === '' &&
+      url.password === '' &&
+      url.pathname === '/' &&
+      url.search === '' &&
+      url.hash === ''
+    )
+  }, 'Enter a bare HTTPS hostname')
+
+export const setCloudflareHostnameInputSchema = customCloudflareHostnameSchema.nullable()
+export const setCloudflareHostnameOutputSchema = cloudflareStatusOutputSchema
+export type SetCloudflareHostnameInput = z.infer<typeof setCloudflareHostnameInputSchema>
+export type SetCloudflareHostnameOutput = z.infer<typeof setCloudflareHostnameOutputSchema>
 
 /** Representative contract-valid data used by Remote boundary tests and client mocks. */
 export const remoteContractFixtures = {
@@ -249,10 +274,35 @@ export const remoteContractFixtures = {
   },
   cloudflareStatus: {
     input: undefined,
-    output: { enabled: false, url: null, managed: false, error: 'unavailable', envForced: false },
+    output: {
+      enabled: false,
+      url: null,
+      customUrl: null,
+      managed: false,
+      error: 'unavailable',
+      envForced: false,
+    },
   },
   setCloudflareBind: {
     input: false,
-    output: { enabled: false, url: null, managed: false, error: 'unavailable', envForced: false },
+    output: {
+      enabled: false,
+      url: null,
+      customUrl: null,
+      managed: false,
+      error: 'unavailable',
+      envForced: false,
+    },
+  },
+  setCloudflareHostname: {
+    input: 'https://porcelain.example.com',
+    output: {
+      enabled: false,
+      url: null,
+      customUrl: 'https://porcelain.example.com',
+      managed: false,
+      error: null,
+      envForced: false,
+    },
   },
 } as const

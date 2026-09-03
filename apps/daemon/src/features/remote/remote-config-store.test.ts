@@ -30,6 +30,10 @@ describe('appConfigSchema', () => {
       cloudflareBind: true,
     })
     expect(appConfigSchema.parse({ funnelBind: true })).toEqual({ funnelBind: true })
+    expect(appConfigSchema.parse({ cloudflareHostname: 'https://porcelain.example.com' })).toEqual({
+      cloudflareHostname: 'https://porcelain.example.com',
+    })
+    expect(appConfigSchema.safeParse({ cloudflareHostname: 'not-a-url' }).success).toBe(false)
   })
 })
 

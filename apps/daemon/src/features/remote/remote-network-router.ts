@@ -33,5 +33,10 @@ export function createRemoteNetworkRouter(operations: RemoteOperations) {
       .input(procedureCatalog.setCloudflareBind.input)
       .output(procedureCatalog.setCloudflareBind.output)
       .mutation(({ input }) => operations.setCloudflareBind(input)),
+
+    setCloudflareHostname: adminProcedure
+      .input(procedureCatalog.setCloudflareHostname.input)
+      .output(procedureCatalog.setCloudflareHostname.output)
+      .mutation(({ input }) => operations.setCloudflareHostname(input)),
   })
 }

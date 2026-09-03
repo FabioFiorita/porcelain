@@ -29,6 +29,7 @@ const LAN = {
 const CLOUDFLARE = {
   enabled: false,
   url: null,
+  customUrl: null,
   managed: false,
   error: 'unavailable' as const,
   envForced: false,
@@ -86,6 +87,7 @@ const operations = {
   setLanBind: vi.fn<RemoteOperations['setLanBind']>(async () => LAN),
   cloudflareStatus: vi.fn<RemoteOperations['cloudflareStatus']>(async () => CLOUDFLARE),
   setCloudflareBind: vi.fn<RemoteOperations['setCloudflareBind']>(async () => CLOUDFLARE),
+  setCloudflareHostname: vi.fn<RemoteOperations['setCloudflareHostname']>(async () => CLOUDFLARE),
 } satisfies RemoteOperations
 
 const router = createRemoteNetworkRouter(operations)
@@ -123,6 +125,7 @@ beforeEach(() => {
   vi.mocked(operations.setLanBind).mockResolvedValue(LAN)
   vi.mocked(operations.cloudflareStatus).mockResolvedValue(CLOUDFLARE)
   vi.mocked(operations.setCloudflareBind).mockResolvedValue(CLOUDFLARE)
+  vi.mocked(operations.setCloudflareHostname).mockResolvedValue(CLOUDFLARE)
 })
 
 describe('Remote network router contract boundary', () => {
@@ -168,6 +171,7 @@ describe('Remote network router contract boundary', () => {
     vi.mocked(operations.cloudflareStatus).mockResolvedValueOnce({
       enabled: true,
       url: 'workstation.example.ts.net',
+      customUrl: null,
       managed: true,
       error: null,
       envForced: false,

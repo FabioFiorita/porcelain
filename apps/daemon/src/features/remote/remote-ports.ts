@@ -31,6 +31,7 @@ export type RemoteNetworkFlags = {
   tailnetBind?: boolean
   lanBind?: boolean
   cloudflareBind?: boolean
+  cloudflareHostname?: string
   /** Leftover from Tailscale Funnel. Accepted so existing config.json still loads. */
   funnelBind?: boolean
 }

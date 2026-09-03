@@ -12,6 +12,7 @@ import {
   useRevokeAuthorizedClient,
   useRevokePairingLink,
   useSetCloudflareBind,
+  useSetCloudflareHostname,
   useSetLanBind,
   useSetTailnetBind,
   useTailnetStatus,
@@ -68,6 +69,7 @@ describe('remote settings status shapes', () => {
       enabled: false,
       url: null,
       managed: false,
+      customUrl: null,
       error: 'unavailable',
       envForced: false,
     })
@@ -90,6 +92,10 @@ describe('remote settings mutations', () => {
         ok: true,
         value: remoteContractFixtures.setCloudflareBind.output,
       }),
+      setCloudflareHostname: () => ({
+        ok: true,
+        value: remoteContractFixtures.setCloudflareHostname.output,
+      }),
     })
 
     const { result } = renderHook(
@@ -100,6 +106,7 @@ describe('remote settings mutations', () => {
         lan: useSetLanBind(),
         tailnet: useSetTailnetBind(),
         cloudflare: useSetCloudflareBind(),
+        cloudflareHostname: useSetCloudflareHostname(),
       }),
       { wrapper },
     )
@@ -121,6 +128,7 @@ describe('remote settings mutations', () => {
     })
     await act(async () => {
       result.current.cloudflare.setEnabled(false)
+      result.current.cloudflareHostname.save('porcelain.example.com')
     })
 
     await waitFor(() => {
@@ -132,6 +140,7 @@ describe('remote settings mutations', () => {
           'setLanBind',
           'setTailnetBind',
           'setCloudflareBind',
+          'setCloudflareHostname',
         ]),
       )
     })

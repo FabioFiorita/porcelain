@@ -15,6 +15,8 @@ export const appConfigSchema = z
     lanBind: z.boolean().optional(),
     // Public HTTPS reverse proxy managed through `cloudflared` (quick tunnel).
     cloudflareBind: z.boolean().optional(),
+    // Public hostname routed by a separately managed cloudflared service.
+    cloudflareHostname: z.string().url().optional(),
     // Leftover Tailscale Funnel flag. Accepted so existing config.json still loads.
     funnelBind: z.boolean().optional(),
   })

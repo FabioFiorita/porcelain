@@ -32,6 +32,7 @@ type RemoteDaemonClient = Pick<
   | 'setLanBind'
   | 'setTailnetBind'
   | 'setCloudflareBind'
+  | 'setCloudflareHostname'
 >
 
 export const remoteAccessStatusQueryOptions = {
@@ -161,4 +162,17 @@ export async function setRemoteCloudflareBind(
   remoteProcedures.setCloudflareBind.output.parse(await client.setCloudflareBind.mutate(wire))
   await invalidateRemoteStatus(queryClient, daemon, 'cloudflareStatus')
   await invalidateRemoteStatus(queryClient, daemon, 'tailnetStatus')
+}
+
+export async function setRemoteCloudflareHostname(
+  client: Pick<RemoteDaemonClient, 'setCloudflareHostname'>,
+  queryClient: QueryClient,
+  daemon: RemoteDaemonScope,
+  hostname: string | null,
+): Promise<void> {
+  const wire = remoteProcedures.setCloudflareHostname.input.parse(hostname)
+  remoteProcedures.setCloudflareHostname.output.parse(
+    await client.setCloudflareHostname.mutate(wire),
+  )
+  await invalidateRemoteStatus(queryClient, daemon, 'cloudflareStatus')
 }

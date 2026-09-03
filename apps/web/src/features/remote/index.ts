@@ -20,6 +20,7 @@ export {
   useRevokeAuthorizedClient,
   useRevokePairingLink,
   useSetCloudflareBind,
+  useSetCloudflareHostname,
   useSetLanBind,
   useSetTailnetBind,
   useTailnetStatus,

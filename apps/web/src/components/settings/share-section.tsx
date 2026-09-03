@@ -11,6 +11,7 @@ import {
   useRevokeAuthorizedClient,
   useRevokePairingLink,
   useSetCloudflareBind,
+  useSetCloudflareHostname,
   useSetLanBind,
   useSetTailnetBind,
   useTailnetStatus,
@@ -290,13 +291,18 @@ function LocalShareSettings(): React.JSX.Element {
   const { setEnabled: setLanEnabled } = useSetLanBind()
   const cloudflare = useCloudflareStatus()
   const { setEnabled: setCloudflareEnabled, isPending: cloudflarePending } = useSetCloudflareBind()
+  const { save: saveCloudflareHostname, isPending: cloudflareHostnamePending } =
+    useSetCloudflareHostname()
+  const [cloudflareHostnameDraft, setCloudflareHostnameDraft] = useState<string | null>(null)
+  const cloudflareHostname = cloudflareHostnameDraft ?? cloudflare?.customUrl ?? ''
 
   const lanUrl =
     lan?.numericUrl != null && lan.numericUrl !== '' ? lan.numericUrl : (lan?.url ?? null)
+  const cloudflareUrl = cloudflare?.customUrl ?? cloudflare?.url ?? null
   const endpoints: ShareEndpoint[] = [
     ...(lanUrl == null ? [] : [{ label: 'LAN', url: lanUrl }]),
     ...(tailnet?.url == null ? [] : [{ label: 'Tailscale', url: tailnet.url }]),
-    ...(cloudflare?.url == null ? [] : [{ label: 'Cloudflare', url: cloudflare.url }]),
+    ...(cloudflareUrl == null ? [] : [{ label: 'Cloudflare', url: cloudflareUrl }]),
   ]
 
   return (
@@ -356,8 +362,8 @@ function LocalShareSettings(): React.JSX.Element {
             }
           />
           <ShareToggleRow
-            label="Cloudflare"
-            description="Public HTTPS through a Cloudflare tunnel. Turns Tailscale off."
+            label="Cloudflare quick tunnel"
+            description="Temporary public HTTPS address. Turns Tailscale off."
             checked={cloudflare?.enabled ?? false}
             disabled={
               cloudflarePending ||
@@ -386,6 +392,66 @@ function LocalShareSettings(): React.JSX.Element {
                 : 'Cloudflare is not configured.'
             }
           />
+          <div className="flex flex-col gap-2 px-3 py-3">
+            <div>
+              <p className="text-sm-minus font-medium">Custom Cloudflare hostname</p>
+              <p className="text-xs text-muted-foreground">
+                For a tunnel managed by Cloudflare or the Windows cloudflared service.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Input
+                value={cloudflareHostname}
+                onChange={(event: React.ChangeEvent<HTMLInputElement>): void => {
+                  setCloudflareHostnameDraft(event.target.value)
+                }}
+                placeholder="https://porcelain.example.com"
+                disabled={cloudflareHostnamePending || cloudflare?.envForced === true}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                className={rowActionClass}
+                disabled={
+                  cloudflareHostnamePending ||
+                  cloudflare?.envForced === true ||
+                  cloudflareHostname.trim() === ''
+                }
+                onClick={() => {
+                  const trimmed = cloudflareHostname.trim()
+                  setCloudflareHostnameDraft(
+                    /^https:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`,
+                  )
+                  saveCloudflareHostname(trimmed)
+                }}
+              >
+                {cloudflareHostnamePending ? 'Saving…' : 'Save'}
+              </Button>
+              {cloudflare?.customUrl != null && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={rowActionClass}
+                  disabled={cloudflareHostnamePending || cloudflare?.envForced === true}
+                  onClick={() => {
+                    setCloudflareHostnameDraft('')
+                    saveCloudflareHostname(null)
+                  }}
+                >
+                  Remove
+                </Button>
+              )}
+            </div>
+            {lanUrl != null ? (
+              <p className="text-xs text-muted-foreground">
+                Cloudflare service URL: <span className="font-mono">{lanUrl}</span>
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Turn on Local network to give cloudflared a service URL.
+              </p>
+            )}
+          </div>
         </div>
       </section>
       <PairDevice endpoints={endpoints} />

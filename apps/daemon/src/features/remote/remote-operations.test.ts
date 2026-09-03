@@ -407,23 +407,30 @@ describe('Remote operations', () => {
     expect(await ops.setTailnetBind(false)).toMatchObject({ enabled: true, envForced: true })
   })
 
-  it('passes Cloudflare live state through status and does not read cloudflareBind', async () => {
+  it('passes Cloudflare live state through status and reads a custom hostname', async () => {
     const live: RemoteCloudflareState = {
       enabled: true,
       url: 'https://random-words-here.trycloudflare.com',
       managed: true,
       error: null,
     }
-    const config = fakeConfig({ cloudflareBind: false })
+    const config = fakeConfig({
+      cloudflareBind: false,
+      cloudflareHostname: 'https://porcelain.example.com',
+    })
     const { cloudflare, ops } = operations({
       config,
       cloudflare: { status: vi.fn(async () => live) },
       env: { cloudflareBindForced: vi.fn(() => true) },
     })
 
-    expect(await ops.cloudflareStatus()).toEqual({ ...live, envForced: true })
+    expect(await ops.cloudflareStatus()).toEqual({
+      ...live,
+      customUrl: 'https://porcelain.example.com',
+      envForced: true,
+    })
     expect(cloudflare.status).toHaveBeenCalledOnce()
-    expect(config.load).not.toHaveBeenCalled()
+    expect(config.load).toHaveBeenCalledOnce()
   })
 
   it('starts or stops Cloudflare then writes config', async () => {
@@ -447,15 +454,46 @@ describe('Remote operations', () => {
       },
     })
 
-    expect(await ops.setCloudflareBind(true)).toEqual({ ...CLOUDFLARE_ON, envForced: false })
+    expect(await ops.setCloudflareBind(true)).toEqual({
+      ...CLOUDFLARE_ON,
+      customUrl: null,
+      envForced: false,
+    })
     expect(order).toEqual(['start', 'update'])
     expect(cloudflare.start).toHaveBeenCalledOnce()
     expect(cloudflare.stop).not.toHaveBeenCalled()
 
     order.length = 0
-    expect(await ops.setCloudflareBind(false)).toEqual({ ...CLOUDFLARE_OFF, envForced: false })
+    expect(await ops.setCloudflareBind(false)).toEqual({
+      ...CLOUDFLARE_OFF,
+      customUrl: null,
+      envForced: false,
+    })
     expect(order).toEqual(['stop', 'update'])
     expect(cloudflare.stop).toHaveBeenCalledOnce()
+  })
+
+  it('stores an external hostname and stops the other off-network routes', async () => {
+    const { cloudflare, config, listeners, ops } = operations({
+      config: fakeConfig({ tailnetBind: true }),
+    })
+
+    await expect(ops.setCloudflareHostname('https://porcelain.example.com')).resolves.toMatchObject(
+      {
+        customUrl: 'https://porcelain.example.com',
+        enabled: false,
+      },
+    )
+    expect(cloudflare.stop).toHaveBeenCalledOnce()
+    expect(listeners.stopTailnetListener).toHaveBeenCalledOnce()
+    expect(await config.load()).toMatchObject({
+      cloudflareBind: false,
+      cloudflareHostname: 'https://porcelain.example.com',
+      tailnetBind: false,
+    })
+
+    await ops.setCloudflareHostname(null)
+    expect(await config.load()).not.toHaveProperty('cloudflareHostname')
   })
 
   it('turns Tailscale off when Cloudflare starts, and the reverse', async () => {

@@ -60,6 +60,9 @@ package that owns the behavior until a second consumer makes sharing useful.
 
 - The daemon owns filesystem access, Git, worktrees, terminals, development servers, remote
   listeners, pairing, persistence, and product procedures.
+- An externally managed Cloudflare connector remains host-owned. The daemon stores only its public
+  hostname and supplies authenticated pairing links for it; it never imports or exposes the tunnel
+  token, and disabling the UI route does not administer the host service.
 - `packages/contracts` owns data exchanged across process boundaries. A contract change must be
   checked against every affected client.
 - `packages/client-runtime` owns reusable client transport/query/session behavior; a component

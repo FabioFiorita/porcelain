@@ -45,6 +45,14 @@ npx @fabiofiorita/porcelain@latest serve --lan --cloudflare --cloudflare-hostnam
 
 Without a token, `--cloudflare` creates a quick `trycloudflare.com` URL that changes on restart.
 
+If `cloudflared` is already managed outside Porcelain (for example as a Windows service), use
+Settings → Share → **Custom Cloudflare hostname**. Enter the public HTTPS hostname after adding a
+Cloudflare Published application route whose service URL is the LAN URL shown beside the field.
+Porcelain stores only the public hostname, never the tunnel token, and uses it when creating the
+same one-time HTTP(S) pairing link and QR code as its other share routes. Keep Local network enabled
+while this mode uses that LAN service URL. Removing the hostname stops advertising that route in
+new pairing links; it does not stop the external `cloudflared` service.
+
 ## Browser origins
 
 When a Hub served from another origin connects to this daemon, allow that exact origin:
