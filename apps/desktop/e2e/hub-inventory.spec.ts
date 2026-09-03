@@ -32,7 +32,11 @@ test('Hub inventory creates a Worktree and removes it through a confirmation', a
   await expect(menu.getByRole('menuitem', { name: /remove worktree/i })).toHaveCount(1)
   await menu.getByRole('menuitem', { name: /remove worktree/i }).click()
 
-  await expect(loc.hubRemoveWorktreeDialog(page)).toBeVisible()
+  const removeDialog = loc.hubRemoveWorktreeDialog(page)
+  await expect(removeDialog).toBeVisible()
+  const dialogWidth = await removeDialog.evaluate((element) => element.clientWidth)
+  const dialogScrollWidth = await removeDialog.evaluate((element) => element.scrollWidth)
+  expect(dialogScrollWidth).toBeLessThanOrEqual(dialogWidth)
   await loc.hubRemoveWorktreeConfirm(page).click()
 
   await expect(loc.hubWorktrees(page)).toHaveCount(before)
