@@ -94,6 +94,13 @@ const config: ExpoConfig = {
     ],
     'expo-secure-store',
     [
+      'expo-camera',
+      {
+        cameraPermission: 'Allow Porcelain to scan pairing QR codes from your daemon.',
+        recordAudioAndroid: false,
+      },
+    ],
+    [
       // The terminal's face, embedded at build time rather than fetched at runtime: a shell is
       // often the first thing on screen after a cold start, and a terminal that repaints its
       // grid when a font arrives late is a terminal that visibly reflows under you.

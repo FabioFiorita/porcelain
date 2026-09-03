@@ -1,10 +1,13 @@
+import { useState } from 'react'
 import { View } from 'react-native'
 
+import { ChromeGlyph } from '@/components/chrome-glyph'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Text } from '@/components/ui/text'
 import type { EnvironmentId } from '@/features/remote'
 import { BackRow, Field } from './environment-chrome'
+import { PairingQrScanner } from './pairing-qr-scanner'
 import { useAddConnectionForm, useCreateGroupForm } from './use-environments-panel'
 
 /**
@@ -20,6 +23,7 @@ export function CreateGroupForm({
   onCreated: (id: EnvironmentId) => void
 }): React.JSX.Element {
   const form = useCreateGroupForm(onCreated)
+  const [scannerOpen, setScannerOpen] = useState(false)
 
   return (
     <View className="gap-3" testID="porcelain-settings-create-group">
@@ -59,6 +63,22 @@ export function CreateGroupForm({
         />
       </Field>
 
+      <Button
+        disabled={form.busy}
+        testID="porcelain-settings-scan-pairing"
+        variant="outline"
+        onPress={() => setScannerOpen(true)}
+      >
+        <ChromeGlyph name="qrCode" size={17} tone="foreground" />
+        <Text>Scan QR code</Text>
+      </Button>
+
+      <PairingQrScanner
+        open={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onScanned={form.setLink}
+      />
+
       {form.error ? (
         <Text className="text-xs text-destructive" testID="porcelain-settings-pair-error">
           {form.error}
@@ -94,6 +114,7 @@ export function AddConnectionForm({
   onAdded: () => void
 }): React.JSX.Element {
   const form = useAddConnectionForm(groupId, onAdded)
+  const [scannerOpen, setScannerOpen] = useState(false)
 
   return (
     <View className="gap-3" testID="porcelain-settings-add-connection">
@@ -116,6 +137,20 @@ export function AddConnectionForm({
           onChangeText={form.setLink}
         />
       </Field>
+      <Button
+        disabled={form.busy}
+        testID="porcelain-settings-scan-connection"
+        variant="outline"
+        onPress={() => setScannerOpen(true)}
+      >
+        <ChromeGlyph name="qrCode" size={17} tone="foreground" />
+        <Text>Scan QR code</Text>
+      </Button>
+      <PairingQrScanner
+        open={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onScanned={form.setLink}
+      />
       {form.error ? <Text className="text-xs text-destructive">{form.error}</Text> : null}
       <View className="flex-row gap-2">
         <Button

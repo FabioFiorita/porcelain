@@ -47,6 +47,7 @@ export {
   parsePairingLink,
   redeemPairingLink,
 } from './remote-pairing'
+export { type PairingQrResult, parsePairingQr } from './remote-pairing-qr'
 
 export { recoverToPreferredEndpoint, retryConnection } from './remote-session'
 

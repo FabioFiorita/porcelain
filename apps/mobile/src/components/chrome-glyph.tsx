@@ -42,6 +42,7 @@ const CHROME_SYMBOLS = {
   /** Dismiss companion inspector. */
   close: { ios: 'xmark' as SFSymbol, android: 'close' as AndroidSymbol },
   settings: { ios: 'gearshape' as SFSymbol, android: 'settings' as AndroidSymbol },
+  qrCode: { ios: 'qrcode.viewfinder' as SFSymbol, android: 'qr_code_scanner' as AndroidSymbol },
   /* The tablet's panel toggles — the web client's PanelLeft / PanelRight. A chevron would say
      "go back"; these say "there is a column here". */
   panelLeft: { ios: 'sidebar.left' as SFSymbol, android: 'left_panel_open' as AndroidSymbol },

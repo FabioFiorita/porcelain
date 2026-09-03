@@ -53,6 +53,11 @@ same one-time HTTP(S) pairing link and QR code as its other share routes. Keep L
 while this mode uses that LAN service URL. Removing the hostname stops advertising that route in
 new pairing links; it does not stop the external `cloudflared` service.
 
+In the mobile app, open Settings → Environments → Create environment group and choose **Scan QR
+code**. The scanner accepts both an individual LAN, Tailscale, or Cloudflare pairing link and the
+combined Windows + WSL link. It validates the QR payload, places it in the protected connection-link
+field, and leaves the final pairing action for the user to confirm.
+
 ## Browser origins
 
 When a Hub served from another origin connects to this daemon, allow that exact origin:
