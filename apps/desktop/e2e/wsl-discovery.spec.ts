@@ -118,7 +118,16 @@ test('Windows provisions Ubuntu, opens a Linux project, and runs its terminal in
     await page.getByTestId(TestIds.settingsSection('share')).first().click()
     await page.getByPlaceholder('Device name, e.g. My iPhone').fill('Android emulator')
     await page.getByRole('button', { name: 'Create Windows + WSL link' }).click()
-    await expect(page.getByText(/^porcelain:\/\/pair-environments#bundle=/)).toBeVisible()
+    const bundleLink = page.getByText(/^porcelain:\/\/pair-environments#bundle=/)
+    const bundleFailure = page.getByText('Create Windows + WSL link failed').first()
+    const outcome = await Promise.race([
+      bundleLink.waitFor({ state: 'visible', timeout: 30_000 }).then(() => 'created' as const),
+      bundleFailure.waitFor({ state: 'visible', timeout: 30_000 }).then(() => 'failed' as const),
+    ])
+    if (outcome === 'failed') {
+      throw new Error(await bundleFailure.locator('xpath=..').innerText())
+    }
+    await expect(bundleLink).toBeVisible()
   } finally {
     execFileSync('wsl.exe', ['--distribution', distribution, '--exec', 'rm', '-rf', '--', WSL_REPO])
   }

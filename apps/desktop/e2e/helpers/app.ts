@@ -2,6 +2,7 @@ import { type ChildProcess, spawn } from 'node:child_process'
 import { createHash, randomBytes } from 'node:crypto'
 import { realpathSync } from 'node:fs'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
@@ -120,12 +121,36 @@ interface WorkerFixtures {
 }
 
 /**
+ * Reserve an unused port across every Windows interface, then release it for the daemon.
+ * E2E must never fall back to the production share port when it exercises LAN pairing.
+ */
+async function availableDaemonPort(): Promise<number> {
+  const server = createServer()
+  const port = await new Promise<number>((resolve, reject) => {
+    server.once('error', reject)
+    server.listen(0, '0.0.0.0', () => {
+      const address = server.address()
+      if (address === null || typeof address === 'string') {
+        reject(new Error('Could not allocate an isolated daemon port'))
+        return
+      }
+      resolve(address.port)
+    })
+  })
+  await new Promise<void>((resolve, reject) => {
+    server.close((error) => (error === undefined ? resolve() : reject(error)))
+  })
+  return port
+}
+
+/**
  * Write isolated userData (daemon token/access) + project companion files under
  * the fixture repo's `.porcelain/`. Machine home stays empty of companion channels.
  */
 export async function seedIsolatedState(repoDir: string, seedRepo: boolean): Promise<Seeded> {
   const udBase = await mkdtemp(join(tmpdir(), 'porcelain-e2e-ud-'))
   const userData = `${udBase}-dev`
+  const daemonPort = await availableDaemonPort()
   await mkdir(userData, { recursive: true })
   await writeFile(
     join(userData, 'projects-recents.json'),
@@ -164,6 +189,7 @@ export async function seedIsolatedState(repoDir: string, seedRepo: boolean): Pro
       PORCELAIN_HOME: udBase,
       PORCELAIN_ADMIN_TOKEN_FILE: adminTokenFile,
       PORCELAIN_ACCESS_FILE: accessFile,
+      PORCELAIN_DAEMON_PORT: String(daemonPort),
       // Pin config-free platform shells. The Codex host injects its own PowerShell
       // module path; keeping that out of the child avoids an unrelated publisher prompt.
       ...(process.platform === 'win32'

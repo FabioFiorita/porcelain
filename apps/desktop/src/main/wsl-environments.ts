@@ -7,6 +7,7 @@ import { is } from '@electron-toolkit/utils'
 import type { WslDistribution, WslManagedState } from '@porcelain/contracts'
 import { app } from 'electron'
 import { z } from 'zod'
+import { daemonHeaders } from './daemon-headers'
 import { isDevelopmentProfile } from './development-profile'
 import { broadcastShellEvent } from './shell-events'
 import { discoverWslDistributions } from './wsl-discovery'
@@ -157,6 +158,20 @@ async function endpointResponds(port: number): Promise<boolean> {
   }
 }
 
+async function endpointBelongsToProfile(distribution: string, port: number): Promise<boolean> {
+  try {
+    const token = (await runWsl(distribution, ADMIN_TOKEN_SCRIPT, [profileName()], 10_000)).trim()
+    if (token === '') return false
+    const response = await fetch(`http://127.0.0.1:${port}/trpc/accessStatus`, {
+      headers: daemonHeaders(token),
+      signal: AbortSignal.timeout(1_500),
+    })
+    return response.ok
+  } catch {
+    return false
+  }
+}
+
 async function awaitWindowsEndpoint(port: number): Promise<void> {
   const deadline = Date.now() + 15_000
   while (Date.now() < deadline) {
@@ -201,7 +216,13 @@ function awaitReady(child: ChildProcessWithoutNullStreams): Promise<void> {
 }
 
 async function launchDaemon(distribution: string, port: number): Promise<void> {
-  if (children.has(distribution) || (await endpointResponds(port))) return
+  if (children.has(distribution)) return
+  if (await endpointResponds(port)) {
+    if (await endpointBelongsToProfile(distribution, port)) return
+    throw new Error(
+      `WSL managed port ${port} is already in use by another Porcelain profile or process`,
+    )
+  }
   const child = spawn(
     'wsl.exe',
     [
@@ -269,14 +290,20 @@ async function startDistribution(distribution: string, port: number): Promise<vo
   return start
 }
 
-async function allocatePort(distribution: string, entries: ManagedEntry[]): Promise<number> {
-  const occupied = new Set(entries.map((entry) => entry.port))
+export async function availableWslPort(
+  distribution: string,
+  occupied: ReadonlySet<number>,
+): Promise<number> {
   const preferred = preferredWslPort(distribution)
   for (let offset = 0; offset < PORT_COUNT; offset += 1) {
     const candidate = PORT_BASE + ((preferred - PORT_BASE + offset) % PORT_COUNT)
-    if (!occupied.has(candidate)) return candidate
+    if (!occupied.has(candidate) && !(await endpointResponds(candidate))) return candidate
   }
   throw new Error('No managed WSL daemon port is available')
+}
+
+async function allocatePort(distribution: string, entries: ManagedEntry[]): Promise<number> {
+  return availableWslPort(distribution, new Set(entries.map((entry) => entry.port)))
 }
 
 export async function managedWslDistributions(): Promise<WslDistribution[]> {
