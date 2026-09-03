@@ -64,3 +64,10 @@ Prefer the smallest current model over preserved alternatives. Documentation sho
 intent, ownership, non-obvious invariants, public operations, and navigation; code, contracts,
 scripts, configuration, and tests remain authoritative for implementation details. Remove obsolete
 paths and historical arguments instead of teaching new sessions how the system used to work.
+
+Tests should protect user-visible behavior, compatibility, safety, accessibility, and non-obvious
+invariants. Do not freeze incidental implementation details or aesthetic choices merely because
+they were discussed or happen to be true today; a harmless alternative should not make a test fail.
+Keep only the rationale needed to understand the current constraint. Do not preserve the journey,
+superseded decisions, or speculative alternatives in tests, comments, docs, skills, or agent
+instructions after the code has settled on one current model.
