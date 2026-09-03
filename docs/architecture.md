@@ -34,6 +34,10 @@ browser in the existing renderer. Electron remembers the distribution-to-Environ
 restores configured WSL daemons on its next launch. It never installs Linux system prerequisites,
 shares the administrator token, or treats a WSL path as Windows-local data.
 
+Pairing authority remains daemon-local even when a client presents several Environments together.
+An all-Environments link is only a client-side envelope over independently issued, single-use
+daemon grants; mobile redeems and stores one revocable credential per Environment.
+
 ## Packages
 
 ```text

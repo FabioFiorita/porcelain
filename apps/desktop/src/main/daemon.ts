@@ -107,7 +107,7 @@ export function environmentDaemonPairs(callerEnvironmentId: string | null): {
   if (callerEnvironmentId === null) return saved
   const local = localDaemonInfo()
   if (local.url === '') return saved
-  return [{ id: THIS_DEVICE_CONNECTION_ID, name: 'This device', ...local }, ...saved]
+  return [{ id: THIS_DEVICE_CONNECTION_ID, name: 'Local', ...local }, ...saved]
 }
 
 function localDaemonInfo(): { url: string; token: string } {

@@ -116,7 +116,7 @@ describe('RemotesSection', () => {
     expect(screen.getByText('Default')).toBeTruthy()
     expect(screen.getByText(/Install Node.js 22 or newer inside this distribution/)).toBeTruthy()
     expect(screen.getByText(/does not open them through a Windows UNC path/)).toBeTruthy()
-    expect(screen.queryByRole('button', { name: 'Set up and open' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Set up WSL Environment' })).toBeNull()
   })
 
   it('sets up a ready WSL distribution through the shell', () => {
@@ -136,7 +136,7 @@ describe('RemotesSection', () => {
     ])
 
     render(<RemotesSection />)
-    fireEvent.click(screen.getByRole('button', { name: 'Set up and open' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Set up WSL Environment' }))
 
     expect(setupWsl).toHaveBeenCalledWith('Ubuntu')
   })
@@ -189,22 +189,22 @@ describe('RemotesSection', () => {
     expect(screen.getByTestId(TestIds.environmentName('workstation')).textContent).toBe(
       'Beelink (work)',
     )
-    // The two rows are finally distinguishable; the machine name still reads in the sub-line.
-    expect(screen.getByTestId(TestIds.environmentName('local')).textContent).toBe('workstation')
+    // The local role stays stable; only the saved remote displays its nickname.
+    expect(screen.getByTestId(TestIds.environmentName('local')).textContent).toBe('Local')
   })
 
   it('falls back to the machine name, never a blank label, when nothing is nicknamed', () => {
     statusesMock.mockReturnValue(new Map([[null, { ...localStatus, name: null }]]))
     render(<RemotesSection />)
 
-    expect(screen.getByTestId(TestIds.environmentName('local')).textContent).toBe('workstation')
+    expect(screen.getByTestId(TestIds.environmentName('local')).textContent).toBe('Local')
   })
 
-  it('names This device when its daemon reports neither a nickname nor a host', () => {
+  it('names the built-in Environment Local regardless of daemon identity', () => {
     statusesMock.mockReturnValue(new Map([[null, { ...localStatus, host: null, name: null }]]))
     render(<RemotesSection />)
 
-    expect(screen.getByTestId(TestIds.environmentName('local')).textContent).toBe('This device')
+    expect(screen.getByTestId(TestIds.environmentName('local')).textContent).toBe('Local')
   })
 
   it('sends the typed nickname to the row the human edited', () => {
@@ -232,15 +232,9 @@ describe('RemotesSection', () => {
     })
   })
 
-  it('clears a nickname with an empty name and targets This device by null id', () => {
+  it('does not offer a nickname editor for Local', () => {
     render(<RemotesSection />)
-    fireEvent.click(screen.getByTestId(TestIds.environmentRename('local')))
-    fireEvent.change(screen.getByTestId(TestIds.environmentNameInput('local')), {
-      target: { value: '   ' },
-    })
-    fireEvent.keyDown(screen.getByTestId(TestIds.environmentNameInput('local')), { key: 'Enter' })
-
-    expect(rename.mock.calls[0]?.[0]).toEqual({ environmentId: null, name: '   ' })
+    expect(screen.queryByTestId(TestIds.environmentRename('local'))).toBeNull()
   })
 
   /**

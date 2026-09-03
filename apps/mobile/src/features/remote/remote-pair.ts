@@ -1,9 +1,14 @@
 import { parsePublicError } from '@porcelain/client-runtime/remote'
+import { isPairingBundleLink, parsePairingBundleLink } from '@porcelain/contracts/remote'
 
 import { type EnvironmentId, hostOf, type PairedEnvironment } from './remote-environment'
 import { environmentActions, getEnvironment } from './remote-environment-store'
 import { type PairingLinkProblem, parsePairingLink, redeemPairingLink } from './remote-pairing'
-import { attachPairingCredential, verifyPairingCredential } from './remote-pairing-group'
+import {
+  attachPairingCredential,
+  discardPairingCredential,
+  verifyPairingCredential,
+} from './remote-pairing-group'
 
 export type PairProblem =
   | { kind: 'link'; problem: PairingLinkProblem }
@@ -71,6 +76,42 @@ export async function pairNewGroup(input: {
   } catch (error) {
     return { ok: false, error: toDaemonProblem(error) }
   }
+}
+
+/**
+ * Import one ordinary link or a desktop bundle containing one independently-issued link per
+ * Environment. Credentials stay separate; the bundle removes repeated paste/switch work only.
+ */
+export async function pairNewGroups(input: {
+  connectionLink: string
+  nickname?: string
+}): Promise<PairResult<readonly PairedEnvironment[]>> {
+  const bundle = parsePairingBundleLink(input.connectionLink)
+  if (bundle === null) {
+    if (isPairingBundleLink(input.connectionLink)) {
+      return { ok: false, error: { kind: 'link', problem: 'malformed' } }
+    }
+    const single = await pairNewGroup(input)
+    return single.ok ? { ok: true, value: [single.value] } : single
+  }
+
+  const paired: PairedEnvironment[] = []
+  for (const entry of bundle.environments) {
+    const result = await pairNewGroup({ connectionLink: entry.url, nickname: entry.name })
+    if (!result.ok) {
+      // A later daemon can disappear after an earlier link was redeemed. Remove any local
+      // partial import and revoke those newly-created daemon credentials best-effort.
+      await Promise.all(
+        paired.map(async (environment) => {
+          await discardPairingCredential(environment.baseUrl, environment.token)
+          await environmentActions.remove(environment.id)
+        }),
+      )
+      return result
+    }
+    paired.push(result.value)
+  }
+  return { ok: true, value: paired }
 }
 
 /**

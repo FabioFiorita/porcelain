@@ -5,6 +5,7 @@ import { Switch } from '@renderer/components/ui/switch'
 import {
   useAccessStatus,
   useCloudflareStatus,
+  useIssueManagedEnvironmentBundle,
   useIssuePairingLink,
   useLanStatus,
   useRevokeAuthorizedClient,
@@ -13,9 +14,11 @@ import {
   useSetLanBind,
   useSetTailnetBind,
   useTailnetStatus,
+  useWslDistributions,
 } from '@renderer/features/remote'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { compactButtonClass, rowActionClass } from '@renderer/lib/controls'
+import { isWindowsShell } from '@renderer/lib/platform'
 import { copyText } from '@renderer/lib/utils'
 import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
@@ -76,6 +79,10 @@ function PairDevice({ endpoints }: { endpoints: ShareEndpoint[] }): React.JSX.El
   const [label, setLabel] = useState('')
   const [createdUrl, setCreatedUrl] = useState('')
   const { issue, isPending } = useIssuePairingLink()
+  const managedBundle = useIssueManagedEnvironmentBundle()
+  const hasManagedWsl = (useWslDistributions() ?? []).some(
+    (distribution) => distribution.environmentId !== null,
+  )
 
   return (
     <section className="flex flex-col gap-3">
@@ -119,6 +126,28 @@ function PairDevice({ endpoints }: { endpoints: ShareEndpoint[] }): React.JSX.El
               {isPending ? 'Creating…' : `Create ${endpoint.label} link`}
             </Button>
           ))}
+          {isWindowsShell && hasManagedWsl && (
+            <Button
+              variant="default"
+              size="sm"
+              className={compactButtonClass}
+              disabled={isPending || managedBundle.isPending || label.trim() === ''}
+              onClick={() => {
+                runUserAction(
+                  async () => {
+                    const result = await managedBundle.issue(label)
+                    setCreatedUrl(result.url)
+                    await copyText(result.url)
+                  },
+                  (error) => {
+                    toastUserActionError('Create Windows + WSL link', error)
+                  },
+                )
+              }}
+            >
+              {managedBundle.isPending ? 'Creating…' : 'Create Windows + WSL link'}
+            </Button>
+          )}
         </div>
         {endpoints.length === 0 && (
           <p className="text-xs text-muted-foreground">

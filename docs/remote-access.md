@@ -5,7 +5,7 @@ and pairing a browser, Mac, or mobile client. Host administration remains on the
 
 On Windows, a local WSL 2 distribution is a separate Linux Environment rather than a remote-host
 deployment. Once Node 22+, npm/npx, Git, and a C toolchain are installed in the distribution, use
-Settings → Environments → **Set up and open**. The Windows app installs and manages the matching
+Settings → Environments → **Set up WSL Environment**. The Windows app installs and manages the matching
 daemon runtime, pairs it without exposing the Linux administrator token, and restores it when the
 app starts. The manual service instructions below are for independent remote hosts, not for this
 managed Windows-to-WSL path.
@@ -68,8 +68,12 @@ npx @fabiofiorita/porcelain@latest access revoke <id>
 ```
 
 Open the issued link on the device. It is single-use, expires after 15 minutes, and becomes an
-individually revocable credential. The administrator token is never part of pairing. A browser tab
-is connected to the daemon that served it; use another pairing link for another environment.
+individually revocable credential. The administrator token is never part of pairing. Each grant
+still belongs to exactly one daemon. On Windows, the Electron Share page can create a **Windows +
+WSL link**: the main process asks each locally managed daemon to issue its own grant, then wraps
+those grants in one envelope. Mobile imports them as separate Environments in one action.
+Revocation and daemon authority remain independent, and WSL administrator credentials never enter
+the renderer or the bundle.
 
 ## Keep it running
 

@@ -8,7 +8,7 @@ import {
   type EnvironmentId,
   environmentActions,
   getEnvironment,
-  pairNewGroup,
+  pairNewGroups,
 } from '@/features/remote'
 import { movedOrder, promotedOrder } from './environment-labels'
 
@@ -76,10 +76,12 @@ export type CreateGroupForm = PairForm & {
 export function useCreateGroupForm(onCreated: (id: EnvironmentId) => void): CreateGroupForm {
   const [nickname, setNickname] = useState('')
   const form = usePairSubmit(async (link) => {
-    const result = await pairNewGroup({ connectionLink: link, nickname })
+    const result = await pairNewGroups({ connectionLink: link, nickname })
     if (!result.ok) return result.error
-    await environmentActions.setActive(result.value.id)
-    onCreated(result.value.id)
+    const first = result.value[0]
+    if (first === undefined) return { kind: 'mismatch', message: 'The bundle had no Environments.' }
+    await environmentActions.setActive(first.id)
+    onCreated(first.id)
     return null
   })
 

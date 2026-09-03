@@ -29,6 +29,7 @@ export {
   type EnvironmentEndpoint,
   type EnvironmentStatus,
   useEnvironmentStatuses,
+  useIssueManagedEnvironmentBundle,
   useOpenWindowInEnvironment,
   usePairEnvironmentConnection,
   useRemoteEnvironments,

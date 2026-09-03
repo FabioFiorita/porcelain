@@ -2,7 +2,7 @@ import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const setActive = vi.fn()
-const pairNewGroup = vi.fn()
+const pairNewGroups = vi.fn()
 
 vi.mock('react-native', () => ({
   Alert: { alert: vi.fn() },
@@ -18,7 +18,7 @@ vi.mock('@/features/remote', async () => ({
   getEnvironment: vi.fn(),
   addGroupConnection: vi.fn(),
   describePairProblem: (problem: { kind: string }) => `pair:${problem.kind}`,
-  pairNewGroup: (...args: unknown[]) => pairNewGroup(...args),
+  pairNewGroups: (...args: unknown[]) => pairNewGroups(...args),
 }))
 
 import { useCreateGroupForm } from './use-environments-panel'
@@ -26,7 +26,7 @@ import { useCreateGroupForm } from './use-environments-panel'
 describe('useCreateGroupForm pairing totalness', () => {
   beforeEach(() => {
     setActive.mockReset()
-    pairNewGroup.mockReset()
+    pairNewGroups.mockReset()
   })
 
   async function flush(): Promise<void> {
@@ -36,7 +36,7 @@ describe('useCreateGroupForm pairing totalness', () => {
   }
 
   it('routes unexpected rejection to error and clears busy', async () => {
-    pairNewGroup.mockRejectedValueOnce(new Error('network down'))
+    pairNewGroups.mockRejectedValueOnce(new Error('network down'))
     const onCreated = vi.fn()
     const { result } = renderHook(() => useCreateGroupForm(onCreated))
 
@@ -55,9 +55,9 @@ describe('useCreateGroupForm pairing totalness', () => {
   })
 
   it('submit returns undefined at sync UI edges and recovers busy after success', async () => {
-    pairNewGroup.mockResolvedValueOnce({
+    pairNewGroups.mockResolvedValueOnce({
       ok: true,
-      value: { id: 'env-new' },
+      value: [{ id: 'env-new' }],
     })
     setActive.mockResolvedValueOnce(undefined)
     const onCreated = vi.fn()

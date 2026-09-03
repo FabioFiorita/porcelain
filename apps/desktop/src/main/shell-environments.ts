@@ -18,7 +18,7 @@ import {
 type EnvironmentProbeState = 'online' | 'unauthorized' | 'offline'
 
 export interface EnvironmentStatus {
-  /** null = This device (the local child daemon). */
+  /** null = Local (the child daemon launched by this desktop app). */
   id: string | null
   state: EnvironmentProbeState
   /** Which of the environment group's endpoints answered; null when none did. */
@@ -197,7 +197,7 @@ export async function readEnvironmentConnections(
     ),
   ])
   const connections: EnvironmentConnection[] = localOnline
-    ? [{ id: null, name: 'This device', ...local }]
+    ? [{ id: null, name: 'Local', ...local }]
     : []
   for (const [index, env] of state.environments.entries()) {
     const url = remoteEndpoints[index]
@@ -220,7 +220,7 @@ async function probeEnvironmentEndpoints(
   return { ...(firstFailure ?? { state: 'offline', ...UNKNOWN_IDENTITY }), endpoint: null }
 }
 
-/** Live state for This device and every saved Environment; group probes run in parallel. */
+/** Live state for Local and every saved Environment; group probes run in parallel. */
 export async function readEnvironmentStatuses(): Promise<EnvironmentStatus[]> {
   const state = await loadRemoteEnvironmentState()
   const local = localDaemonPair()
@@ -279,7 +279,7 @@ export async function readEnvironmentStatuses(): Promise<EnvironmentStatus[]> {
     }
   }
   return [
-    { id: null, ...localStatus },
+    { id: null, ...localStatus, name: 'Local' },
     ...remoteStatuses.map((status, index) => ({
       id: state.environments[index]?.id ?? null,
       ...status,

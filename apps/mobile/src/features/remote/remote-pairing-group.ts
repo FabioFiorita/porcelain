@@ -45,7 +45,7 @@ export async function attachPairingCredential(
 }
 
 /** Best-effort cleanup when a one-shot pairing credential cannot be saved. */
-async function discardPairingCredential(baseUrl: string, token: string): Promise<void> {
+export async function discardPairingCredential(baseUrl: string, token: string): Promise<void> {
   try {
     await callDaemon(createDaemonClient(baseUrl, token), revokeCurrentClient, undefined)
   } catch {

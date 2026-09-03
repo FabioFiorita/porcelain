@@ -157,6 +157,19 @@ export function useSetupWslEnvironment(): {
   }
 }
 
+export function useIssueManagedEnvironmentBundle(): {
+  issue: (label: string) => Promise<{ count: number; url: string }>
+  isPending: boolean
+} {
+  const mutation = shellTrpc.issueManagedEnvironmentBundle.useMutation({
+    onError: onMutationError('Create Windows + WSL link'),
+  })
+  return {
+    issue: (label: string) => mutation.mutateAsync({ label }),
+    isPending: mutation.isPending,
+  }
+}
+
 /**
  * Feed the shell's reachable Environments into the session registry, so an Electron window
  * can open its own session to a daemon it is not bound to — the browser has done this from

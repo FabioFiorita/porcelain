@@ -1,6 +1,10 @@
 import { randomUUID } from 'node:crypto'
 import { homedir } from 'node:os'
-import { ENVIRONMENT_NAME_MAX_LENGTH } from '@porcelain/contracts/projects'
+import {
+  ENVIRONMENT_NAME_MAX_LENGTH,
+  environmentIdentitySchema,
+} from '@porcelain/contracts/projects'
+import { createPairingBundleLink, remoteProcedures } from '@porcelain/contracts/remote'
 import { createTRPCUntypedClient, httpLink } from '@trpc/client'
 import { initTRPC } from '@trpc/server'
 import { BrowserWindow, clipboard, nativeTheme, shell, type WebContents } from 'electron'
@@ -45,6 +49,7 @@ import { checkForUpdates, installUpdate, type UpdateStatus, updateStatus } from 
 import { createWindow, type WindowInit, windowInitFor } from './window'
 import {
   forgetManagedWslEnvironment,
+  managedWslAdminConnections,
   managedWslDistributions,
   prepareWslEnvironment,
   rememberWslEnvironment,
@@ -268,6 +273,73 @@ async function setupWslEnvironment(
   return { id: paired.id }
 }
 
+function adminClient(url: string, token: string): ReturnType<typeof createTRPCUntypedClient> {
+  return createTRPCUntypedClient({
+    links: [httpLink({ url: `${url}/trpc`, headers: daemonHeaders(token) })],
+  })
+}
+
+/**
+ * Create one mobile import link for this Windows daemon and every Windows-managed WSL daemon.
+ * Each daemon still mints its own grant; administrator credentials stay inside Electron main.
+ */
+async function issueManagedEnvironmentBundle(label: string): Promise<{
+  count: number
+  url: string
+}> {
+  if (process.platform !== 'win32') throw new Error('Environment bundles are managed on Windows')
+  const local = localDaemonPair()
+  const wsl = await managedWslAdminConnections()
+  if (wsl.length === 0) throw new Error('Set up a WSL Environment before pairing both Environments')
+  const targets = [
+    { fallbackName: 'Windows', ...local },
+    ...wsl.map((entry) => ({
+      fallbackName: 'WSL',
+      token: entry.token,
+      url: entry.url,
+    })),
+  ]
+
+  const issued: {
+    client: ReturnType<typeof createTRPCUntypedClient>
+    id: string
+    name: string
+    url: string
+  }[] = []
+  try {
+    for (const target of targets) {
+      const client = adminClient(target.url, target.token)
+      const [identity, lan] = await Promise.all([
+        client.query('environmentIdentity').then((value) => environmentIdentitySchema.parse(value)),
+        client
+          .mutation('setLanBind', true)
+          .then((value) => remoteProcedures.setLanBind.output.parse(value)),
+      ])
+      const baseUrl = lan.numericUrl ?? lan.url
+      if (baseUrl === null)
+        throw new Error(`${identity.name || target.fallbackName} has no LAN address`)
+      const grant = remoteProcedures.issuePairingLink.output.parse(
+        await client.mutation('issuePairingLink', { baseUrl, label }),
+      )
+      issued.push({
+        client,
+        id: grant.id,
+        name: identity.name || target.fallbackName,
+        url: grant.url,
+      })
+    }
+    return {
+      count: issued.length,
+      url: createPairingBundleLink(issued.map(({ name, url }) => ({ name, url }))),
+    }
+  } catch (error) {
+    await Promise.allSettled(
+      issued.map(({ client, id }) => client.mutation('revokePairingLink', id)),
+    )
+    throw error
+  }
+}
+
 export const shellRouter = t.router({
   windowInit: t.procedure.query(async ({ ctx }): Promise<WindowInit> => {
     const environmentId = windowEnvironmentId(ctx.sender)
@@ -486,6 +558,10 @@ export const shellRouter = t.router({
   setupWslEnvironment: t.procedure
     .input(z.object({ distribution: z.string().min(1) }))
     .mutation(({ ctx, input }) => setupWslEnvironment(ctx, input.distribution)),
+
+  issueManagedEnvironmentBundle: t.procedure
+    .input(z.object({ label: z.string().trim().min(1).max(80) }))
+    .mutation(({ input }) => issueManagedEnvironmentBundle(input.label)),
 
   /**
    * Name one Environment — This device (`null`) or a saved group. The nickname is written on

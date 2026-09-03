@@ -38,6 +38,7 @@ export {
   type PairProblem,
   type PairResult,
   pairNewGroup,
+  pairNewGroups,
 } from './remote-pair'
 export {
   type PairingLink,

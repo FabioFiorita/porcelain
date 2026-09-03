@@ -26,8 +26,8 @@ export function CreateGroupForm({
       <BackRow label="Environments" onPress={onCancel} />
       <Text className="text-base font-semibold text-foreground">Create environment group</Text>
       <Text className="text-xs leading-5 text-muted-foreground">
-        Pair LAN first. After the group exists you can add Tailscale or Cloudflare as fallback
-        routes.
+        Paste one Environment link or an all-Environments link. Each Environment keeps its own
+        credential and fallback routes.
       </Text>
 
       <Field label="Nickname (optional)">
@@ -51,7 +51,7 @@ export function CreateGroupForm({
           autoCorrect={false}
           className="h-10 font-mono text-xs"
           editable={!form.busy}
-          placeholder="https://…/pair#token=…"
+          placeholder="Connection or all-Environments link"
           secureTextEntry
           testID="porcelain-settings-group-link"
           value={form.link}

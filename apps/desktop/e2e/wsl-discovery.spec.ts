@@ -52,6 +52,7 @@ test('Windows provisions Ubuntu, opens a Linux project, and runs its terminal in
   app,
   page,
 }) => {
+  test.setTimeout(3 * 60_000)
   test.skip(process.platform !== 'win32', 'WSL integration belongs to the Windows Electron shell')
   test.skip(app === null, 'WSL integration belongs to the Electron shell')
   const distribution = installedUserDistributions().find((name) => name === 'Ubuntu')
@@ -112,6 +113,12 @@ test('Windows provisions Ubuntu, opens a Linux project, and runs its terminal in
     await openTerminals(page)
     await spawnPanelTerminal(page)
     await expectTerminalText(page, 0, '/tmp/porcelain-wsl-e2e-project')
+
+    await openSettings(page)
+    await page.getByTestId(TestIds.settingsSection('share')).first().click()
+    await page.getByPlaceholder('Device name, e.g. My iPhone').fill('Android emulator')
+    await page.getByRole('button', { name: 'Create Windows + WSL link' }).click()
+    await expect(page.getByText(/^porcelain:\/\/pair-environments#bundle=/)).toBeVisible()
   } finally {
     execFileSync('wsl.exe', ['--distribution', distribution, '--exec', 'rm', '-rf', '--', WSL_REPO])
   }

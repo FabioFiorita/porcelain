@@ -156,7 +156,7 @@ export function ActionComposer({
               </ToggleGroupItem>
               <ToggleGroupItem value="local" size="sm" aria-label="Run on this device">
                 <Monitor className="size-3.5" />
-                This device
+                Local
               </ToggleGroupItem>
             </ToggleGroup>
           </div>

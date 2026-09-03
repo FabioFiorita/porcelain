@@ -122,6 +122,12 @@ binary="$HOME/.local/share/porcelain-managed/runtime/$version/node_modules/.bin/
 exec env PORCELAIN_HOME="$porcelain_home" PORCELAIN_USER_DATA="$user_data" PORCELAIN_DAEMON_PORT="$port" "$binary" access issue --name "Porcelain for Windows" --daemon-url "http://127.0.0.1:$port" --base-url "http://127.0.0.1:$port"
 `.trim()
 
+const ADMIN_TOKEN_SCRIPT = `
+set -eu
+${PROFILE_SCRIPT}
+cat "$porcelain_home/admin-token"
+`.trim()
+
 async function runWsl(
   distribution: string,
   script: string,
@@ -323,6 +329,37 @@ export async function rememberWslEnvironment(
     ...entries.filter((entry) => entry.distribution !== distribution),
     { distribution, port, environmentId },
   ])
+}
+
+/**
+ * Administrator channels for Windows-managed WSL daemons. The token crosses only into the
+ * Electron main process long enough to perform the requested host operation; it is never
+ * persisted by Windows, returned over IPC, or exposed to the renderer/mobile bundle.
+ */
+export async function managedWslAdminConnections(): Promise<
+  readonly {
+    distribution: string
+    environmentId: string
+    url: string
+    token: string
+  }[]
+> {
+  const entries = await readManagedEntries()
+  return await Promise.all(
+    entries.map(async (entry) => {
+      await startDistribution(entry.distribution, entry.port)
+      const token = (
+        await runWsl(entry.distribution, ADMIN_TOKEN_SCRIPT, [profileName()], 10_000)
+      ).trim()
+      if (token === '') throw new Error(`WSL Environment ${entry.distribution} has no admin token`)
+      return {
+        distribution: entry.distribution,
+        environmentId: entry.environmentId,
+        token,
+        url: `http://127.0.0.1:${entry.port}`,
+      }
+    }),
+  )
 }
 
 export async function forgetManagedWslEnvironment(environmentId: string): Promise<void> {

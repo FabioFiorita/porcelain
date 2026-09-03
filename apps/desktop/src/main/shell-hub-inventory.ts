@@ -52,7 +52,14 @@ async function readLocalHubInventory(current: boolean): Promise<ShellHubInventor
     return null
   const inventory = await readHubInventory(local.url, local.token)
   if (inventory === null) return null
-  return shellHubInventorySchema.parse({ environmentId: null, current, inventory })
+  return shellHubInventorySchema.parse({
+    environmentId: null,
+    current,
+    inventory: {
+      ...inventory,
+      environment: { ...inventory.environment, name: 'Local' },
+    },
+  })
 }
 
 async function readRemoteHubInventory(

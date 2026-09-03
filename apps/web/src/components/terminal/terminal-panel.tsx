@@ -189,7 +189,7 @@ export function TerminalPanel(): React.JSX.Element {
             aria-label={hasMappedPath ? 'Change this device folder' : 'Set this device folder'}
             title={
               hasMappedPath
-                ? `This device folder: ${mappedLocalPath}`
+                ? `Local folder: ${mappedLocalPath}`
                 : 'Set this device folder (local clone of this project)'
             }
             data-testid={TestIds.localTerminalPathButton}
@@ -219,7 +219,7 @@ export function TerminalPanel(): React.JSX.Element {
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleSpawnLocal} data-testid={TestIds.terminalNewLocal}>
                 <Monitor />
-                This device
+                Local
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

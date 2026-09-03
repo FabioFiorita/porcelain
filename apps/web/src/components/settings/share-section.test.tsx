@@ -29,6 +29,7 @@ vi.mock('@renderer/features/remote', () => ({
     url: null,
   }),
   useIssuePairingLink: () => ({ issue: vi.fn(), isPending: false }),
+  useIssueManagedEnvironmentBundle: () => ({ issue: vi.fn(), isPending: false }),
   useLanStatus: () => ({
     enabled: true,
     envForced: false,
@@ -49,6 +50,7 @@ vi.mock('@renderer/features/remote', () => ({
     port: 43118,
     url: 'http://workstation.example:43118',
   }),
+  useWslDistributions: () => [],
 }))
 
 beforeEach(() => {

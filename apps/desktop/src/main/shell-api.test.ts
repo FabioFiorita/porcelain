@@ -1,6 +1,7 @@
 import { PROTOCOL_VERSION, PROTOCOL_VERSION_HEADER } from '@porcelain/contracts'
 import { actionsContractFixtures } from '@porcelain/contracts/actions'
 import { projectsContractFixtures } from '@porcelain/contracts/projects'
+import { parsePairingBundleLink } from '@porcelain/contracts/remote'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { RemoteEnvironment, RemoteEnvironmentState } from './remote-daemon'
@@ -54,6 +55,7 @@ vi.mock('./updater', () => ({
 
 vi.mock('./wsl-environments', () => ({
   forgetManagedWslEnvironment: vi.fn(),
+  managedWslAdminConnections: vi.fn(async () => []),
   managedWslDistributions: vi.fn(async () => [
     {
       name: 'Ubuntu',
@@ -150,6 +152,61 @@ function stubDaemon(): void {
           { status: 200 },
         )
       }
+      if (url.includes('/trpc/environmentIdentity')) {
+        const isWsl = url.includes(':44001')
+        return new Response(
+          JSON.stringify({
+            result: {
+              data: {
+                id: isWsl ? 'daemon-wsl' : 'daemon-windows',
+                name: isWsl ? 'WSL' : 'Windows',
+                host: 'synthetic-host',
+                platform: isWsl ? 'linux' : 'win32',
+                arch: 'x64',
+              },
+            },
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        )
+      }
+      if (url.includes('/trpc/setLanBind')) {
+        const isWsl = url.includes(':44001')
+        return new Response(
+          JSON.stringify({
+            result: {
+              data: {
+                enabled: true,
+                url: null,
+                numericUrl: isWsl ? 'http://172.24.1.2:44001' : 'http://192.168.1.10:43118',
+                error: null,
+                envForced: false,
+                port: isWsl ? 44001 : 43118,
+              },
+            },
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        )
+      }
+      if (url.includes('/trpc/issuePairingLink')) {
+        const isWsl = url.includes(':44001')
+        const id = isWsl ? 'pair-wsl' : 'pair-windows'
+        const baseUrl = isWsl ? 'http://172.24.1.2:44001' : 'http://192.168.1.10:43118'
+        return new Response(
+          JSON.stringify({
+            result: {
+              data: {
+                id,
+                label: 'Android emulator',
+                createdAt: '2026-08-09T12:00:00.000Z',
+                expiresAt: '2026-08-09T12:15:00.000Z',
+                credential: `pc_pair_${id}_secret`,
+                url: `${baseUrl}/pair#token=pc_pair_${id}_secret`,
+              },
+            },
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        )
+      }
       if (url.includes('/trpc/hubInventory')) {
         return new Response(JSON.stringify(HUB_INVENTORY), {
           status: 200,
@@ -229,6 +286,39 @@ describe('shell daemon requests', () => {
     expect(wsl.rememberWslEnvironment).toHaveBeenCalledWith('Ubuntu', 43119, result.id)
     expect(request('/trpc/renameEnvironment').body).toBe(JSON.stringify({ name: 'WSL' }))
     expect(state.environments.find((environment) => environment.id === result.id)?.name).toBe('WSL')
+  })
+
+  it('issues one independently-owned grant for Windows and managed WSL', async () => {
+    const wsl = await import('./wsl-environments')
+    vi.mocked(wsl.managedWslAdminConnections).mockResolvedValueOnce([
+      {
+        distribution: 'Ubuntu',
+        environmentId: 'env-wsl',
+        token: 'pc_admin_wsl',
+        url: 'http://127.0.0.1:44001',
+      },
+    ])
+
+    const result = await caller().issueManagedEnvironmentBundle({ label: 'Android emulator' })
+    const bundle = parsePairingBundleLink(result.url)
+
+    expect(result.count).toBe(2)
+    expect(bundle?.environments).toEqual([
+      {
+        name: 'Windows',
+        url: 'http://192.168.1.10:43118/pair#token=pc_pair_pair-windows_secret',
+      },
+      {
+        name: 'WSL',
+        url: 'http://172.24.1.2:44001/pair#token=pc_pair_pair-wsl_secret',
+      },
+    ])
+    expect(request('127.0.0.1:43118/trpc/setLanBind').headers.get('authorization')).toBe(
+      'Bearer pc_admin_local',
+    )
+    expect(request('127.0.0.1:44001/trpc/setLanBind').headers.get('authorization')).toBe(
+      'Bearer pc_admin_wsl',
+    )
   })
 
   it('versions the pairing exchange and both authenticated probes', async () => {
@@ -315,6 +405,10 @@ describe('shell daemon requests', () => {
     expect(inventories).toHaveLength(2)
     expect(inventories.map((source) => source.environmentId)).toEqual([null, 'env-online'])
     expect(inventories.map((source) => source.current)).toEqual([true, false])
+    expect(inventories[0]?.inventory.environment.name).toBe('Local')
+    expect(inventories[1]?.inventory.environment.name).toBe(
+      projectsContractFixtures.hubInventory.output.environment.name,
+    )
     expect(seen.filter((entry) => entry.url.includes('/trpc/hubInventory'))).toHaveLength(2)
     for (const entry of seen.filter((request) => request.url.includes('/trpc/hubInventory'))) {
       expectsProtocol(entry)
@@ -340,6 +434,7 @@ describe('shell daemon requests', () => {
 
     expect(inventory?.environmentId).toBeNull()
     expect(inventory?.current).toBe(true)
+    expect(inventory?.inventory.environment.name).toBe('Local')
     expect(seen.filter((entry) => entry.url.includes('/trpc/hubInventory'))).toHaveLength(1)
     expect(seen.some((entry) => entry.url.includes('offline.synthetic'))).toBe(false)
   })

@@ -351,7 +351,7 @@ export function liveEnvironmentSessions(
   const primaryEntry: LiveEnvironmentSession = {
     environmentId: primaryEnvironmentId,
     connectionId: null,
-    name: 'This device',
+    name: 'Local',
     session: primary,
     client: primaryAppClient(),
   }
@@ -380,7 +380,7 @@ export function environmentSessionFor(environmentId: string | null): Environment
   if (environmentId === null || environmentId === primaryEnvironmentId) {
     return {
       id: primaryEnvironmentId ?? 'primary',
-      name: 'This device',
+      name: 'Local',
       session: primary,
       client: primaryAppClient(),
     }
@@ -406,7 +406,7 @@ export function environmentSessionForHubTarget(
   }
   return {
     id: 'primary',
-    name: 'This device',
+    name: 'Local',
     session: primary,
     client: primaryAppClient(),
   }
