@@ -1,11 +1,24 @@
 import { describe, expect, it } from 'vitest'
 import {
+  controlIsPrimary,
   formatKbd,
   formatKbdParts,
   isModExclusive,
   isTerminalTarget,
   isTextEntry,
 } from './keyboard'
+
+describe('controlIsPrimary', () => {
+  it('uses Ctrl in browser, Linux shell, and Windows shell modes', () => {
+    expect(controlIsPrimary(true, false, false)).toBe(true)
+    expect(controlIsPrimary(false, true, false)).toBe(true)
+    expect(controlIsPrimary(false, false, true)).toBe(true)
+  })
+
+  it('keeps Command as the native macOS modifier', () => {
+    expect(controlIsPrimary(false, false, false)).toBe(false)
+  })
+})
 
 // Mount a child element inside a terminal host appended to the document body.
 // This lets `closest()` traverse correctly in the jsdom environment.

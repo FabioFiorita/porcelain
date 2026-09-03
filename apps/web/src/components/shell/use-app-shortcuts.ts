@@ -26,7 +26,7 @@ export const SIDEBAR_TAB_KEYS: Record<string, SidebarTab | undefined> = {
 /**
  * Window-level shortcuts: close-tab (Ctrl+W here on Linux/Windows, yielding to a focused
  * terminal; macOS Cmd+W goes via main's before-input-event instead), Ctrl+Tab cycling,
- * Cmd+1–5 sidebar tabs and Cmd+J for the bottom terminal panel.
+ * Mod+1–5 sidebar tabs and Mod+J for the bottom terminal panel.
  * Files' ⌘N/⌘⇧N/⌘D/⌘⌫ live in FileCommands — those go through tRPC hooks, which only a
  * component may touch.
  */

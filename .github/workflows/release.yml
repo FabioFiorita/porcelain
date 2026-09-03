@@ -1,14 +1,14 @@
 name: Release
 
-# The tag already exists on main. Package macOS and the plain-Node daemon,
-# publish the GitHub release, then publish the prepared daemon to npm.
+# The tag already exists on main. Package macOS, Windows, and the plain-Node daemon,
+# publish the daemon to npm, then expose one GitHub release with both desktop platforms.
 # Retry: re-run the failed job, or `gh workflow run release.yml -f tag=vX.Y.Z`.
 
 on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to package and publish (e.g. v0.42.4). Required.'
+        description: "Tag to package and publish (e.g. v0.42.4). Required."
         required: true
         type: string
 
@@ -86,6 +86,47 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  package-windows:
+    needs: [prepare]
+    runs-on: windows-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.prepare.outputs.tag }}
+
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: vercel/setup-turborepo-remote-cache-action@v1.0.0
+        with:
+          team: ${{ vars.TURBO_TEAM }}
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+
+      - name: Package Windows (no publish)
+        run: pnpm package:win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Packaging smoke
+        run: node scripts/release-fuse-smoke.mjs --platform win --dir apps/desktop/dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-windows-${{ needs.prepare.outputs.tag }}
+          path: |
+            apps/desktop/dist/*.exe
+            apps/desktop/dist/*.blockmap
+            apps/desktop/dist/latest.yml
+          if-no-files-found: error
+          retention-days: 14
+
   # The Linux deliverable is the plain-Node daemon published as @fabiofiorita/porcelain.
   # Build it independently of the signed Mac job, then hand the exact assembled
   # package to the post-release npm publisher instead of rebuilding the workspace.
@@ -123,41 +164,8 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-  publish:
-    needs: [prepare, package-mac]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-          ref: ${{ needs.prepare.outputs.tag }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Download mac artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: release-mac-${{ needs.prepare.outputs.tag }}
-          path: dist-mac
-
-      - name: Create/update GitHub Release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ needs.prepare.outputs.tag }}
-          VERSION: ${{ needs.prepare.outputs.version }}
-        run: |
-          set -euo pipefail
-          TARGET=$(git rev-parse "${TAG}^{commit}" 2>/dev/null || git rev-parse "$TAG")
-          node scripts/release-publish.mjs \
-            --tag "$TAG" \
-            --title "Porcelain ${VERSION}" \
-            --target "$TARGET" \
-            --assets dist-mac \
-            --cleanup-drafts
-
   publish-npm:
-    needs: [prepare, publish, package-daemon]
+    needs: [prepare, package-daemon]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -281,3 +289,45 @@ jobs:
             npx --yes "${PKG}@${VER}" --help >/dev/null
           )
           echo "${PKG}@${VER} publish verified from a clean consumer directory"
+
+  # Do not expose a Windows download until its matching WSL daemon package is
+  # available. First-time WSL setup installs this exact product version from npm.
+  publish:
+    needs: [prepare, package-mac, package-windows, publish-npm]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.prepare.outputs.tag }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download mac artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-mac-${{ needs.prepare.outputs.tag }}
+          path: dist-mac
+
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-windows-${{ needs.prepare.outputs.tag }}
+          path: dist-windows
+
+      - name: Create/update GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          set -euo pipefail
+          TARGET=$(git rev-parse "${TAG}^{commit}" 2>/dev/null || git rev-parse "$TAG")
+          node scripts/release-publish.mjs \
+            --tag "$TAG" \
+            --title "Porcelain ${VERSION}" \
+            --target "$TARGET" \
+            --assets dist-mac \
+            --assets dist-windows \
+            --cleanup-drafts

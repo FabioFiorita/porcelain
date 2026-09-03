@@ -130,7 +130,7 @@ export function useWslDistributions(): WslDistribution[] | undefined {
 }
 
 export function useSetupWslEnvironment(): {
-  setup: (distribution: string) => void
+  setup: (distribution: string, options?: { browseExisting?: boolean }) => void
   pendingDistribution: string | null
   error: string | null
 } {
@@ -145,13 +145,25 @@ export function useSetupWslEnvironment(): {
         utils.wslDistributions.invalidate(),
         queryClient.invalidateQueries({ exact: true, queryKey: SHELL_HUB_INVENTORIES_QUERY_KEY }),
       ])
-      useSettingsDialogStore.getState().setOpen(false)
-      useProjectPickerStore.getState().show(result.id)
+      if (result.created) {
+        useSettingsDialogStore.getState().setOpen(false)
+        useProjectPickerStore.getState().show(result.id)
+      }
     },
     onError: onMutationError('Set up WSL Environment'),
   })
   return {
-    setup: (distribution: string): void => mutation.mutate({ distribution }),
+    setup: (distribution: string, options): void =>
+      mutation.mutate(
+        { distribution },
+        {
+          onSuccess: (result) => {
+            if (result.created || options?.browseExisting !== true) return
+            useSettingsDialogStore.getState().setOpen(false)
+            useProjectPickerStore.getState().show(result.id)
+          },
+        },
+      ),
     pendingDistribution: mutation.isPending ? (mutation.variables?.distribution ?? null) : null,
     error: pairingErrorMessage(mutation.error),
   }

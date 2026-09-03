@@ -114,6 +114,7 @@ Use the release fuse smoke script against the packaged output when native packag
 
 ```sh
 node scripts/release-fuse-smoke.mjs --platform mac --dir apps/desktop/dist
+node scripts/release-fuse-smoke.mjs --platform win --dir apps/desktop/dist
 ```
 
 Confirm that the desktop artifact launches, the daemon distribution contains its native terminal

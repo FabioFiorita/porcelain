@@ -248,7 +248,7 @@ async function pairEnvironmentConnection(
 async function setupWslEnvironment(
   ctx: ShellTrpcContext,
   distribution: string,
-): Promise<{ id: string }> {
+): Promise<{ id: string; created: boolean }> {
   const prepared = await prepareWslEnvironment(distribution)
   if (prepared.existingEnvironmentId !== null) {
     const existing = (await loadRemoteEnvironmentState()).environments.find(
@@ -257,7 +257,7 @@ async function setupWslEnvironment(
     if (existing !== undefined) {
       await probeDaemon(existing.url, existing.token)
       await renameEnvironment({ environmentId: existing.id, name: 'WSL' })
-      return { id: existing.id }
+      return { id: existing.id, created: false }
     }
     await forgetManagedWslEnvironment(prepared.existingEnvironmentId)
     return setupWslEnvironment(ctx, distribution)
@@ -270,7 +270,7 @@ async function setupWslEnvironment(
   // Name the daemon-owned Environment, not just this desktop's saved connection. That keeps
   // Windows and WSL distinct everywhere the shared Hub renders the daemon identity.
   await renameEnvironment({ environmentId: paired.id, name: 'WSL' })
-  return { id: paired.id }
+  return { id: paired.id, created: true }
 }
 
 function adminClient(url: string, token: string): ReturnType<typeof createTRPCUntypedClient> {

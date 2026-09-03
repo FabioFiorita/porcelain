@@ -8,6 +8,7 @@
  *
  * Usage:
  *   node scripts/release-fuse-smoke.mjs --platform mac --dir apps/desktop/dist
+ *   node scripts/release-fuse-smoke.mjs --platform win --dir apps/desktop/dist
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -22,8 +23,10 @@ const { values } = parseArgs({
   strict: true,
 })
 
-if (values.help || values.platform !== 'mac') {
-  console.log('Usage: node scripts/release-fuse-smoke.mjs --platform mac [--dir apps/desktop/dist]')
+if (values.help || !['mac', 'win'].includes(values.platform)) {
+  console.log(
+    'Usage: node scripts/release-fuse-smoke.mjs --platform <mac|win> [--dir apps/desktop/dist]',
+  )
   process.exit(values.help ? 0 : 1)
 }
 
@@ -43,18 +46,32 @@ if (!fs.existsSync(root)) {
 }
 
 const entries = fs.readdirSync(root)
-const dmg = entries.find((e) => e.endsWith('.dmg'))
-const zip = entries.find((e) => e.endsWith('.zip'))
-const latestYml = entries.find((e) => e === 'latest-mac.yml')
-if (!dmg) fail('missing .dmg in dist')
-if (!zip) fail('missing .zip in dist (electron-updater needs it)')
-if (!latestYml) fail('missing latest-mac.yml')
-ok(`mac artifacts: ${dmg}, ${zip}, ${latestYml}`)
+if (values.platform === 'mac') {
+  const dmg = entries.find((e) => e.endsWith('.dmg'))
+  const zip = entries.find((e) => e.endsWith('.zip'))
+  const latestYml = entries.find((e) => e === 'latest-mac.yml')
+  if (!dmg) fail('missing .dmg in dist')
+  if (!zip) fail('missing .zip in dist (electron-updater needs it)')
+  if (!latestYml) fail('missing latest-mac.yml')
+  ok(`mac artifacts: ${dmg}, ${zip}, ${latestYml}`)
+} else {
+  const installer = entries.find((e) => /^porcelain-.+-windows-x64-setup\.exe$/u.test(e))
+  const blockmap =
+    installer === undefined ? undefined : entries.find((e) => e === `${installer}.blockmap`)
+  const latestYml = entries.find((e) => e === 'latest.yml')
+  const unpackedBinary = path.join(root, 'win-unpacked', 'Porcelain.exe')
+  if (!installer) fail('missing x64 NSIS installer in dist')
+  if (!blockmap) fail('missing Windows installer blockmap in dist')
+  if (!latestYml) fail('missing latest.yml')
+  if (!fs.existsSync(unpackedBinary)) fail('missing win-unpacked/Porcelain.exe')
+  ok(`Windows artifacts: ${installer}, ${blockmap}, ${latestYml}`)
+  ok(`Windows unpacked binary: ${path.relative(root, unpackedBinary)}`)
+}
 
 // electron-builder leaves the unpacked app under dist/mac* for some targets;
 // also check any *.app if present (mac unpack).
 function walkFind(dir, pred, depth = 0) {
-  if (depth > 6 || !fs.existsSync(dir)) return null
+  if (depth > 10 || !fs.existsSync(dir)) return null
   let names
   try {
     names = fs.readdirSync(dir)
@@ -79,6 +96,8 @@ function walkFind(dir, pred, depth = 0) {
 const ptyNode = walkFind(root, (_full, name) => name === 'pty.node')
 if (ptyNode) {
   ok(`node-pty unpacked: ${path.relative(root, ptyNode)}`)
+} else if (values.platform === 'win') {
+  fail('node-pty native addon is missing from the unpacked Windows application')
 } else {
   // Not always left on disk after dmg/zip only packaging — warn, don't fail.
   // asarUnpack is enforced by electron-builder.yml; e2e terminal is the runtime proof.

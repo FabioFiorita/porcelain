@@ -282,44 +282,47 @@ describe('shell daemon requests', () => {
 
     const result = await caller().setupWslEnvironment({ distribution: 'Ubuntu' })
 
-    expect(result).toEqual({ id: expect.any(String) })
+    expect(result).toEqual({ id: expect.any(String), created: true })
     expect(wsl.rememberWslEnvironment).toHaveBeenCalledWith('Ubuntu', 43119, result.id)
     expect(request('/trpc/renameEnvironment').body).toBe(JSON.stringify({ name: 'WSL' }))
     expect(state.environments.find((environment) => environment.id === result.id)?.name).toBe('WSL')
   })
 
-  it('issues one independently-owned grant for Windows and managed WSL', async () => {
-    const wsl = await import('./wsl-environments')
-    vi.mocked(wsl.managedWslAdminConnections).mockResolvedValueOnce([
-      {
-        distribution: 'Ubuntu',
-        environmentId: 'env-wsl',
-        token: 'pc_admin_wsl',
-        url: 'http://127.0.0.1:44001',
-      },
-    ])
+  it.runIf(process.platform === 'win32')(
+    'issues one independently-owned grant for Windows and managed WSL',
+    async () => {
+      const wsl = await import('./wsl-environments')
+      vi.mocked(wsl.managedWslAdminConnections).mockResolvedValueOnce([
+        {
+          distribution: 'Ubuntu',
+          environmentId: 'env-wsl',
+          token: 'pc_admin_wsl',
+          url: 'http://127.0.0.1:44001',
+        },
+      ])
 
-    const result = await caller().issueManagedEnvironmentBundle({ label: 'Android emulator' })
-    const bundle = parsePairingBundleLink(result.url)
+      const result = await caller().issueManagedEnvironmentBundle({ label: 'Android emulator' })
+      const bundle = parsePairingBundleLink(result.url)
 
-    expect(result.count).toBe(2)
-    expect(bundle?.environments).toEqual([
-      {
-        name: 'Windows',
-        url: 'http://192.168.1.10:43118/pair#token=pc_pair_pair-windows_secret',
-      },
-      {
-        name: 'WSL',
-        url: 'http://172.24.1.2:44001/pair#token=pc_pair_pair-wsl_secret',
-      },
-    ])
-    expect(request('127.0.0.1:43118/trpc/setLanBind').headers.get('authorization')).toBe(
-      'Bearer pc_admin_local',
-    )
-    expect(request('127.0.0.1:44001/trpc/setLanBind').headers.get('authorization')).toBe(
-      'Bearer pc_admin_wsl',
-    )
-  })
+      expect(result.count).toBe(2)
+      expect(bundle?.environments).toEqual([
+        {
+          name: 'Windows',
+          url: 'http://192.168.1.10:43118/pair#token=pc_pair_pair-windows_secret',
+        },
+        {
+          name: 'WSL',
+          url: 'http://172.24.1.2:44001/pair#token=pc_pair_pair-wsl_secret',
+        },
+      ])
+      expect(request('127.0.0.1:43118/trpc/setLanBind').headers.get('authorization')).toBe(
+        'Bearer pc_admin_local',
+      )
+      expect(request('127.0.0.1:44001/trpc/setLanBind').headers.get('authorization')).toBe(
+        'Bearer pc_admin_wsl',
+      )
+    },
+  )
 
   it('versions the pairing exchange and both authenticated probes', async () => {
     const result = await caller().pairEnvironmentConnection({

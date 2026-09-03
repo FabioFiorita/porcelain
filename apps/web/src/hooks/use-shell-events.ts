@@ -1,10 +1,12 @@
 import type { ShellEvent } from '@main/shell-events'
+import { SHELL_HUB_INVENTORIES_QUERY_KEY } from '@renderer/features/projects/hub-inventories'
 import { isBrowser } from '@renderer/lib/platform'
 import { spawnTerminal } from '@renderer/lib/terminal-actions'
 import { shellTrpc } from '@renderer/lib/trpc'
 import { useFileFinderStore } from '@renderer/stores/file-finder'
 import { useSettingsDialogStore } from '@renderer/stores/settings-dialog'
 import { useTabsStore } from '@renderer/stores/tabs'
+import { type QueryClient, useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 
 /** Same proxy for the shell router (updateStatus lives shell-side). */
@@ -20,7 +22,11 @@ type ShellUtils = ReturnType<typeof shellTrpc.useUtils>
  * annotated type at `pnpm typecheck` — so a new shell event can't silently ship
  * unhandled.
  */
-function handle(event: ShellEvent, shellUtils: ShellUtils): Promise<unknown> {
+export function handleShellEvent(
+  event: ShellEvent,
+  shellUtils: ShellUtils,
+  queryClient: QueryClient,
+): Promise<unknown> {
   switch (event) {
     case 'update-status':
       return shellUtils.updateStatus.invalidate()
@@ -36,13 +42,17 @@ function handle(event: ShellEvent, shellUtils: ShellUtils): Promise<unknown> {
     case 'remote-environments-changed':
       // pairing/connect/disconnect/remove/endpoint healing changed the saved-environments
       // list — refetch so useShellEnvironmentConnections re-points its live sessions
-      return shellUtils.environmentDaemonPairs.invalidate()
+      return Promise.all([
+        shellUtils.environmentDaemonPairs.invalidate(),
+        queryClient.invalidateQueries({ exact: true, queryKey: SHELL_HUB_INVENTORIES_QUERY_KEY }),
+      ])
     case 'wsl-environments-changed':
       return Promise.all([
         shellUtils.wslDistributions.invalidate(),
         shellUtils.remoteEnvironments.invalidate(),
         shellUtils.environmentStatuses.invalidate(),
         shellUtils.environmentDaemonPairs.invalidate(),
+        queryClient.invalidateQueries({ exact: true, queryKey: SHELL_HUB_INVENTORIES_QUERY_KEY }),
       ])
     case 'close-tab': {
       // Cmd+W routed from the main process before-input-event — close the active
@@ -83,13 +93,14 @@ function handle(event: ShellEvent, shellUtils: ShellUtils): Promise<unknown> {
  */
 export function useShellEvents(): void {
   const shellUtils = shellTrpc.useUtils()
+  const queryClient = useQueryClient()
 
   useEffect(() => {
     // The shell-event push channel is Electron-only (close-tab, update-status);
     // in the browser client there's no preload bridge, so skip it.
     if (isBrowser) return
     return window.porcelain.onShellEvent(async (event) => {
-      await handle(event, shellUtils)
+      await handleShellEvent(event, shellUtils, queryClient)
     })
-  }, [shellUtils])
+  }, [queryClient, shellUtils])
 }

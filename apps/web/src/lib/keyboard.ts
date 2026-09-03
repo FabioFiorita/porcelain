@@ -10,14 +10,24 @@ import { isBrowser, isLinuxShell } from './platform'
  * shell (native window, no such collisions) the primary mod stays Cmd.
  *
  * The OS may still be macOS here (iPad/Mac Safari) — the trigger is the browser client,
- * not the platform. The Linux Electron shell (`isLinuxShell`) is the third case: a native
- * window with no browser collisions, but a Linux keyboard where Ctrl is the primary mod —
- * so it joins the browser client on Ctrl. Under vitest/jsdom `isBrowser` is `true` (no
+ * not the platform. Linux and Windows Electron shells are native windows with no browser
+ * collisions, but both platforms use Ctrl as the primary modifier — so they join the browser
+ * client on Ctrl. Under vitest/jsdom `isBrowser` is `true` (no
  * preload bridge) and `isLinuxShell` is `false`, so the browser behaviour is the unit-test
  * baseline; the label/predicate helpers are exercised for BOTH modes via their `mac`/`ctrl`
  * params, so the default doesn't skew coverage.
  */
-export const ctrlIsPrimary: boolean = isBrowser || isLinuxShell
+export function controlIsPrimary(
+  browser: boolean,
+  linuxShell: boolean,
+  windowsShell: boolean,
+): boolean {
+  return browser || linuxShell || windowsShell
+}
+
+const isWindowsKeyboard = typeof window !== 'undefined' && window.porcelain?.platform === 'win32'
+
+export const ctrlIsPrimary: boolean = controlIsPrimary(isBrowser, isLinuxShell, isWindowsKeyboard)
 
 /**
  * True when a keystroke landed in a real text field we shouldn't hijack with an app
@@ -47,10 +57,10 @@ type ModEvent = { metaKey: boolean; ctrlKey: boolean }
 
 /**
  * True when the primary modifier is down and the OTHER one isn't — for shortcuts that
- * must not double-fire on the wrong modifier (tab switch ⌘1–7, split ⌘⇧S). Loose
+ * must not double-fire on the wrong modifier (surface switch Mod+1–5, split Mod+Shift+S). Loose
  * `e.metaKey || e.ctrlKey` checks elsewhere already accept Ctrl and don't need this.
  * `ctrlPrimary` is a param (not read from the live mode) so this stays unit-testable
- * without stubbing the bridge; in shell mode it's identical to `e.metaKey && !e.ctrlKey`.
+ * without stubbing the bridge.
  */
 export function isModExclusive(e: ModEvent, ctrlPrimary: boolean = ctrlIsPrimary): boolean {
   return ctrlPrimary ? e.ctrlKey && !e.metaKey : e.metaKey && !e.ctrlKey

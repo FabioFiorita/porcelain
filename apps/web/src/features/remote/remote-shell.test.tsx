@@ -177,7 +177,7 @@ describe('WSL Environment handoff', () => {
     useProjectPickerStore.setState({ environmentId: null, open: false })
     useSettingsDialogStore.setState({ open: true, section: 'remotes' })
     const wrapper = shellWrapper(async (op) => {
-      if (op.path === 'setupWslEnvironment') return { id: 'env-wsl' }
+      if (op.path === 'setupWslEnvironment') return { id: 'env-wsl', created: true }
       return undefined
     })
     const { result } = renderHook(() => useSetupWslEnvironment(), { wrapper })
@@ -190,6 +190,42 @@ describe('WSL Environment handoff', () => {
         open: true,
       }),
     )
+    expect(useSettingsDialogStore.getState().open).toBe(false)
+  })
+
+  it('reconnects an existing WSL Environment without opening the project picker', async () => {
+    const { useProjectPickerStore } = await import('@renderer/stores/project-picker')
+    const { useSettingsDialogStore } = await import('@renderer/stores/settings-dialog')
+    useProjectPickerStore.setState({ environmentId: null, open: false })
+    useSettingsDialogStore.setState({ open: true, section: 'remotes' })
+    const wrapper = shellWrapper(async (op) => {
+      if (op.path === 'setupWslEnvironment') return { id: 'env-wsl', created: false }
+      return undefined
+    })
+    const { result } = renderHook(() => useSetupWslEnvironment(), { wrapper })
+
+    await act(async () => result.current.setup('Ubuntu'))
+
+    await waitFor(() => expect(result.current.pendingDistribution).toBeNull())
+    expect(useProjectPickerStore.getState().open).toBe(false)
+    expect(useSettingsDialogStore.getState().open).toBe(true)
+  })
+
+  it('opens the project picker when the user explicitly browses an online WSL Environment', async () => {
+    const { useProjectPickerStore } = await import('@renderer/stores/project-picker')
+    const { useSettingsDialogStore } = await import('@renderer/stores/settings-dialog')
+    useProjectPickerStore.setState({ environmentId: null, open: false })
+    useSettingsDialogStore.setState({ open: true, section: 'remotes' })
+    const wrapper = shellWrapper(async (op) => {
+      if (op.path === 'setupWslEnvironment') return { id: 'env-wsl', created: false }
+      return undefined
+    })
+    const { result } = renderHook(() => useSetupWslEnvironment(), { wrapper })
+
+    await act(async () => result.current.setup('Ubuntu', { browseExisting: true }))
+
+    await waitFor(() => expect(useProjectPickerStore.getState().open).toBe(true))
+    expect(useProjectPickerStore.getState().environmentId).toBe('env-wsl')
     expect(useSettingsDialogStore.getState().open).toBe(false)
   })
 })

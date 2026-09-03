@@ -16,13 +16,17 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { devEnv, DEV_PROFILE, DEV_PORT, DEV_USER_DATA } from './dev-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
 
 /** Return the child command and complete profile env without starting it. */
 export function electronLaunch(args = []) {
+  const pnpmArgs = ['--dir', 'apps/desktop', 'dev', ...args]
+  // Node 24 no longer executes .cmd shims directly on Windows (`spawn EINVAL`). Route the
+  // pnpm shim through cmd.exe explicitly; keeping every argument separate preserves normal
+  // quoting and avoids building an injectable command string.
+  const command = process.platform === 'win32' ? 'cmd.exe' : 'pnpm'
   return {
-    command: pnpm,
-    args: ['--dir', 'apps/desktop', 'dev', ...args],
+    command,
+    args: process.platform === 'win32' ? ['/d', '/s', '/c', 'pnpm.cmd', ...pnpmArgs] : pnpmArgs,
     env: devEnv(),
   }
 }

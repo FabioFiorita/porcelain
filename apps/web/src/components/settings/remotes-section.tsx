@@ -267,7 +267,13 @@ function ElectronRemotesSection(): React.JSX.Element {
                       distribution.managedState === 'starting' ||
                       pendingDistribution === distribution.name
                     }
-                    onClick={() => setupWsl(distribution.name)}
+                    onClick={() => {
+                      if (distribution.managedState === 'online') {
+                        setupWsl(distribution.name, { browseExisting: true })
+                      } else {
+                        setupWsl(distribution.name)
+                      }
+                    }}
                   >
                     {distribution.managedState === 'online'
                       ? 'Browse projects'
