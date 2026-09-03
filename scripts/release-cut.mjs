@@ -53,7 +53,9 @@ const CLEAN_ENV = {
 }
 
 function sh(cmd, args, opts = {}) {
-  const out = execFileSync(cmd, args, {
+  const command = process.platform === 'win32' && cmd === 'pnpm' ? 'cmd.exe' : cmd
+  const commandArgs = command === cmd ? args : ['/d', '/s', '/c', 'pnpm.cmd', ...args]
+  const out = execFileSync(command, commandArgs, {
     cwd: root,
     encoding: 'utf8',
     stdio: opts.inherit ? 'inherit' : ['ignore', 'pipe', 'pipe'],
@@ -87,7 +89,12 @@ if (local !== remote) {
 // bare `sync-versions.mjs` after only bumping desktop would snap everyone
 // back to the daemon's old version. Always --set the desktop stamp.
 console.log(`release:cut → pnpm version ${bump} (canonical apps/desktop)`)
-const ver = spawnSync('pnpm', ['version', bump, '--no-git-tag-version'], {
+const versionCommand = process.platform === 'win32' ? 'cmd.exe' : 'pnpm'
+const versionArgs =
+  process.platform === 'win32'
+    ? ['/d', '/s', '/c', 'pnpm.cmd', 'version', bump, '--no-git-tag-version']
+    : ['version', bump, '--no-git-tag-version']
+const ver = spawnSync(versionCommand, versionArgs, {
   cwd: desktop,
   encoding: 'utf8',
   stdio: 'inherit',
