@@ -1,14 +1,23 @@
-import { render, screen } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { AppUpdatesSection, UpdatesSection } from './updates-section'
+import { AppUpdatesSection, DaemonUpdatesSection, ElectronUpdatesSection } from './updates-section'
 
-const check = {
-  data: { currentVersion: '0.52.1', latestVersion: '0.60.0', restartable: true },
-  isPending: false,
-  isSuccess: true,
-  mutate: vi.fn(),
+const checkDaemonUpdate = vi.fn(async () => ({
+  currentVersion: '0.52.1',
+  latestVersion: '0.60.0',
+  restartable: true,
+}))
+const restartDaemon = vi.fn(async () => undefined)
+const daemonClient = {
+  daemonInfo: {
+    query: vi.fn(async () => ({ version: '0.52.1', host: 'beelink' })),
+  },
+  checkDaemonUpdate: { mutate: checkDaemonUpdate },
+  restartDaemon: { mutate: restartDaemon },
 }
-const restart = { isPending: false, mutate: vi.fn() }
+const doubles = vi.hoisted(() => ({ environmentClientFor: vi.fn() }))
 const appUpdateStatus = {
   state: 'unavailable' as const,
   version: null,
@@ -23,30 +32,72 @@ vi.mock('@renderer/hooks/use-updates', () => ({
   useInstallUpdate: () => ({ install: vi.fn(), isInstalling: false }),
 }))
 
-vi.mock('@renderer/lib/trpc', () => ({
-  trpc: {
-    daemonInfo: { useQuery: () => ({ data: { version: '0.52.1' } }) },
-    checkDaemonUpdate: { useMutation: () => check },
-    restartDaemon: { useMutation: () => restart },
-  },
+vi.mock('@renderer/features/remote', () => ({
+  useEnvironmentStatuses: () =>
+    new Map([
+      [null, { name: 'Local', state: 'online' }],
+      ['remote', { name: 'Work server', state: 'online' }],
+    ]),
+  useRemoteEnvironments: () => ({
+    environments: [{ id: 'remote', name: 'Work server', endpoints: [] }],
+  }),
 }))
 
+vi.mock('@renderer/lib/environment-sessions', () => ({
+  environmentClientFor: (environmentId: string | null) => {
+    doubles.environmentClientFor(environmentId)
+    return { client: daemonClient, session: null }
+  },
+  useEnvironmentSessionsRevision: () => 0,
+}))
+
+vi.mock('@renderer/lib/trpc', () => ({
+  trpc: { useUtils: () => ({ client: daemonClient }) },
+}))
+
+function wrapper({ children }: { children: ReactNode }): React.JSX.Element {
+  return (
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
+      {children}
+    </QueryClientProvider>
+  )
+}
+
 beforeEach(() => {
-  check.isPending = false
-  restart.isPending = false
+  checkDaemonUpdate.mockClear()
+  restartDaemon.mockClear()
+  doubles.environmentClientFor.mockClear()
 })
 
 describe('DaemonUpdatesSection', () => {
-  it.each([
-    ['checking for an update', check],
-    ['restarting the daemon', restart],
-  ])('locks every update action while %s', (_label, pendingMutation) => {
-    pendingMutation.isPending = true
-    render(<UpdatesSection />)
+  it('checks and restarts the explicitly targeted Environment daemon', async () => {
+    render(<DaemonUpdatesSection environmentId="remote" environmentName="Work server" />, {
+      wrapper,
+    })
 
-    expect(screen.getByRole('button', { name: /Check/ })).toBeDisabled()
-    expect(screen.getByRole('button', { name: /Update and restart|Restarting/ })).toBeDisabled()
-    expect(screen.getByRole('button', { name: /Copy restart command/ })).toBeDisabled()
+    expect(await screen.findByText('Porcelain v0.52.1')).toBeVisible()
+    expect(doubles.environmentClientFor.mock.calls[0]?.[0]).toBe('remote')
+    fireEvent.click(screen.getByRole('button', { name: 'Check for updates' }))
+
+    expect(await screen.findByText(/Version 0.60.0 is published/)).toBeVisible()
+    expect(checkDaemonUpdate).toHaveBeenCalledOnce()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Update and restart' }))
+    await waitFor(() => expect(restartDaemon).toHaveBeenCalledOnce())
+  })
+})
+
+describe('ElectronUpdatesSection', () => {
+  it('keeps desktop and selected-Environment updates in one page', async () => {
+    render(<ElectronUpdatesSection />, { wrapper })
+
+    expect(screen.getByRole('heading', { name: 'Desktop app' })).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'Environment daemon' })).toBeVisible()
+    expect(screen.getByText(/without changing the Environment shown by this window/)).toBeVisible()
+    expect(screen.getByRole('combobox', { name: 'Daemon Environment' })).toBeVisible()
+    expect(await screen.findByText('Local daemon')).toBeVisible()
   })
 })
 

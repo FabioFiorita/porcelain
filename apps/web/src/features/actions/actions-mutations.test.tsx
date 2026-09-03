@@ -36,6 +36,36 @@ beforeEach(() => {
 })
 
 describe('useActionMutations', () => {
+  it('uses an explicit Project target instead of the currently selected row', async () => {
+    const { mock, wrapper } = createValidatingTrpcHarness({
+      ...baseHandlers,
+      addAction: () => ({ ok: true, value: actionsContractFixtures.addAction.output }),
+    })
+    useHubSelectionStore.setState({
+      selection: {
+        kind: 'worktree',
+        environmentId: 'env-local',
+        projectId: OTHER_PROJECT_ID,
+        worktreeId: 'wt-other',
+        path: '/synthetic/projects/beta',
+      },
+    })
+
+    const { result } = renderHook(
+      () => useActionMutations({ projectId: PROJECT_ID, environmentId: null }),
+      { wrapper },
+    )
+    await act(async () => {
+      await result.current.add({ title: 'Install', command: 'pnpm install' })
+    })
+
+    expect(mock.requests().filter((request) => request.procedure === 'addAction')).toContainEqual({
+      procedure: 'addAction',
+      kind: 'mutation',
+      input: { projectId: PROJECT_ID, title: 'Install', command: 'pnpm install' },
+    })
+  })
+
   it('calls each CRUD procedure and invalidates only that project list key on success', async () => {
     const { mock, wrapper } = createValidatingTrpcHarness({
       ...baseHandlers,

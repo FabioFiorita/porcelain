@@ -13,8 +13,8 @@ export interface WorktreeScriptsTarget {
   projectId: string
   projectName: string
   /** The Environment the Project record belongs to — a Project id is Environment-local. */
-  environmentId: string
-  /** False for a Project on an Environment this window's daemon does not serve: read-only. */
+  environmentId: string | null
+  /** False only when the owning Environment has no writable live session. */
   editable: boolean
 }
 

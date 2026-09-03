@@ -83,7 +83,7 @@ const ALL_SECTIONS: {
     scope: 'app',
     blurb: isBrowser
       ? 'The daemon that served this tab. Check npm and restart the always-on unit to install.'
-      : 'Porcelain checks automatically and installs on quit.',
+      : 'Update this desktop app or inspect and update any connected Environment daemon.',
   },
   {
     id: 'companion',

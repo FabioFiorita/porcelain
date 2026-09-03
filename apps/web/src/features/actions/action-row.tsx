@@ -20,10 +20,10 @@ import {
   PenLine,
   Play,
   ShieldQuestion,
-  Wrench,
   Trash2,
+  Wrench,
 } from 'lucide-react'
-import { useActionMutations } from './actions-mutations'
+import { type ActionMutationTarget, useActionMutations } from './actions-mutations'
 
 /**
  * One saved command in the Hub's Actions menu.
@@ -43,6 +43,7 @@ export function ActionRow({
   rowsBelow,
   readOnly = false,
   lifecycle = false,
+  mutationTarget,
 }: {
   action: ActionView
   onEdit: (action: ActionView) => void
@@ -60,8 +61,9 @@ export function ActionRow({
    * click still leads to the accept step while it is unreviewed.
    */
   lifecycle?: boolean
+  mutationTarget?: ActionMutationTarget
 }): React.JSX.Element {
-  const { duplicate, move, remove } = useActionMutations()
+  const { duplicate, move, remove } = useActionMutations(mutationTarget)
   const isLocal = action.where === 'local'
   // Unreviewed commands still show their full text and still sit under one click —
   // the click just lands on the accept step instead of a shell.

@@ -9,6 +9,7 @@ const environmentsMock = vi.fn()
 const wslDistributionsMock = vi.fn()
 const statusesMock = vi.fn<() => Map<string | null, EnvironmentStatus>>()
 const pair = vi.fn()
+const preferEndpoint = vi.fn()
 const open = vi.fn()
 const removeEndpoint = vi.fn()
 const removeGroup = vi.fn()
@@ -19,6 +20,7 @@ vi.mock('@renderer/features/remote', () => ({
   useEnvironmentStatuses: () => statusesMock(),
   useOpenWindowInEnvironment: () => ({ open }),
   usePairEnvironmentConnection: () => ({ pair, isPending: false, error: null }),
+  usePreferEnvironmentEndpoint: () => ({ prefer: preferEndpoint, pendingUrl: null }),
   useRemoteEnvironments: () => environmentsMock(),
   useSetupWslEnvironment: () => ({ setup: setupWsl, pendingDistribution: null, error: null }),
   useWslDistributions: () => wslDistributionsMock(),
@@ -75,6 +77,7 @@ beforeEach(() => {
     ]),
   )
   pair.mockClear()
+  preferEndpoint.mockClear()
   open.mockClear()
   removeEndpoint.mockClear()
   removeGroup.mockClear()
@@ -153,6 +156,19 @@ describe('RemotesSection', () => {
     expect(screen.queryByRole('button', { name: /New window/ })).toBeNull()
     expect(screen.queryByText('Connected')).toBeNull()
     expect(screen.getByText('Add connection')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'LAN is preferred' })).toBeDisabled()
+  })
+
+  it('lets the human choose the exact connection tried first', () => {
+    render(<RemotesSection />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Prefer Cloudflare connection' }))
+
+    expect(preferEndpoint).toHaveBeenCalledWith({
+      id: 'workstation',
+      url: 'https://random-words-here.trycloudflare.com',
+    })
+    expect(screen.getByText(/preferred first, with automatic failover/i)).toBeVisible()
   })
 
   it('pairs a new Environment without rebinding this window', () => {
@@ -174,7 +190,7 @@ describe('RemotesSection', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add connection' }))
 
     expect(screen.getByPlaceholderText('Connection link (https://…/pair#token=…)')).toBeTruthy()
-    expect(screen.getAllByText(/LAN, then Tailscale, then Cloudflare/).length).toBeGreaterThan(0)
+    expect(screen.getByText(/Choose the connection you want tried first/)).toBeTruthy()
   })
 
   it('shows the nickname the daemon announces rather than the saved machine name', () => {

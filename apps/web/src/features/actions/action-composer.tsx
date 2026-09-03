@@ -16,7 +16,7 @@ import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
 import { Cloud, Monitor } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { useActionMutations } from './actions-mutations'
+import { type ActionMutationTarget, useActionMutations } from './actions-mutations'
 
 export interface ActionDraft {
   /** Present when editing an existing action; absent when creating one. */
@@ -55,13 +55,15 @@ export function ActionComposer({
   onOpenChange,
   /** When true (remote-bound Electron window), show the primary / This device toggle. */
   showWhere,
+  mutationTarget,
 }: {
   draft: ActionDraft | null
   open: boolean
   onOpenChange: (open: boolean) => void
   showWhere: boolean
+  mutationTarget?: ActionMutationTarget
 }): React.JSX.Element {
-  const { add, update } = useActionMutations()
+  const { add, update } = useActionMutations(mutationTarget)
   const [title, setTitle] = useState('')
   const [command, setCommand] = useState('')
   const [where, setWhere] = useState<ActionWhere>('primary')

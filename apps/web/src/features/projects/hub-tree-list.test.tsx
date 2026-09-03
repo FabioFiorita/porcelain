@@ -1,10 +1,14 @@
 import { hubInventorySchema, projectsContractFixtures } from '@porcelain/contracts/projects'
+import { usePersonalizationStore } from '@renderer/stores/personalization'
+import { useWorktreeScriptsStore } from '@renderer/stores/worktree-scripts'
 import { TestIds } from '@shared/test-ids'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { usePersonalizationStore } from '@renderer/stores/personalization'
-import { useWorktreeScriptsStore } from '@renderer/stores/worktree-scripts'
 import { HubTreeFromInventories, HubTreeFromInventory } from './hub-tree-list'
+
+vi.mock('@renderer/features/git', () => ({
+  useGitBranches: () => ({ branches: [], isFetching: false }),
+}))
 
 const inventory = hubInventorySchema.parse(projectsContractFixtures.hubInventory.output)
 const createdWorktree = inventory.projects[0]?.worktrees[1]
@@ -32,14 +36,16 @@ describe('Hub inventory tree', () => {
   it('keeps equivalent Environment-local Projects distinct and routes remote removal', async () => {
     const openWorktree = vi.fn()
     const removeWorktree = vi.fn(async () => undefined)
+    const removeProject = vi.fn(async () => undefined)
+    const createWorktree = vi.fn(async () => createdWorktree)
     const local = { environmentId: null, current: true, inventory }
     const remote = { environmentId: 'env-remote', current: false, inventory: remoteInventory }
     render(
       <HubTreeFromInventories
         sources={[local, remote]}
         openWorktree={openWorktree}
-        createWorktree={vi.fn(async () => createdWorktree)}
-        removeProject={vi.fn(async () => undefined)}
+        createWorktree={createWorktree}
+        removeProject={removeProject}
         removeWorktree={removeWorktree}
       />,
     )
@@ -49,14 +55,31 @@ describe('Hub inventory tree', () => {
     expect(localProject).toHaveTextContent('synthetic')
     expect(remoteProject).toHaveTextContent('remote')
     expect(screen.getByTestId(TestIds.hubCreateWorktree('proj-alpha'))).toBeInTheDocument()
-    expect(screen.queryByTestId(TestIds.hubCreateWorktree('remote-proj-alpha'))).toBeNull()
+    expect(screen.getByTestId(TestIds.hubCreateWorktree('remote-proj-alpha'))).toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId(TestIds.hubCreateWorktree('remote-proj-alpha')))
+    fireEvent.change(screen.getByTestId(TestIds.hubCreateWorktreeBranch), {
+      target: { value: 'feature/remote-review' },
+    })
+    fireEvent.click(screen.getByTestId(TestIds.hubCreateWorktreeSubmit))
+    await waitFor(() =>
+      expect(createWorktree).toHaveBeenCalledWith({
+        projectId: 'remote-proj-alpha',
+        branch: 'feature/remote-review',
+        environmentId: 'env-remote',
+      }),
+    )
 
     fireEvent.click(screen.getByTestId(TestIds.hubWorktree('remote-wt-alpha-main')))
     expect(openWorktree).toHaveBeenCalledWith(remote, remoteInventory.projects[0]?.worktrees[0])
     fireEvent.contextMenu(
       within(remoteProject).getByRole('button', { name: 'Collapse project alpha' }),
     )
-    expect(screen.queryByRole('menuitem', { name: 'Remove project' })).toBeNull()
+    expect(screen.getByRole('menuitem', { name: 'Remove project' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Remove project' }))
+    await waitFor(() =>
+      expect(removeProject).toHaveBeenCalledWith('remote-proj-alpha', 'env-remote'),
+    )
 
     fireEvent.contextMenu(screen.getByTestId(TestIds.hubWorktree('remote-wt-alpha-topic')))
     expect(screen.getByRole('menuitem', { name: /remove worktree/i })).toBeInTheDocument()
@@ -186,12 +209,12 @@ describe('Hub inventory tree', () => {
     expect(useWorktreeScriptsStore.getState().target).toEqual({
       projectId: 'proj-alpha',
       projectName: 'alpha',
-      environmentId: inventory.environment.id,
+      environmentId: null,
       editable: true,
     })
   })
 
-  it('offers the scripts read-only for a Project this window daemon does not serve', () => {
+  it('offers editable scripts for a Project on a connected secondary Environment', () => {
     useWorktreeScriptsStore.setState({ target: null })
     render(
       <HubTreeFromInventories
@@ -206,7 +229,10 @@ describe('Hub inventory tree', () => {
     fireEvent.contextMenu(screen.getByRole('button', { name: 'Collapse project alpha' }))
     fireEvent.click(screen.getByTestId(TestIds.hubWorktreeScripts('remote-proj-alpha')))
 
-    expect(useWorktreeScriptsStore.getState().target?.editable).toBe(false)
+    expect(useWorktreeScriptsStore.getState().target).toMatchObject({
+      environmentId: 'env-remote',
+      editable: true,
+    })
   })
 
   it('opens Personalization of the Project the menu was raised on', () => {

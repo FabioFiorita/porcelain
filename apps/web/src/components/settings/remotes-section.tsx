@@ -12,6 +12,7 @@ import {
   type EnvironmentStatus,
   useEnvironmentStatuses,
   usePairEnvironmentConnection,
+  usePreferEnvironmentEndpoint,
   useRemoteEnvironments,
   useRemoveEnvironmentEndpoint,
   useRemoveRemoteEnvironment,
@@ -22,7 +23,7 @@ import { compactButtonClass } from '@renderer/lib/controls'
 import { cn } from '@renderer/lib/utils'
 import { platformLabel } from '@shared/platform'
 import { TestIds } from '@shared/test-ids'
-import { Cloud, Monitor, Terminal, X } from 'lucide-react'
+import { Check, Cloud, Monitor, Terminal, X } from 'lucide-react'
 import { useState } from 'react'
 import { EnvironmentName } from './environment-name'
 
@@ -86,6 +87,7 @@ function ElectronRemotesSection(): React.JSX.Element {
   const { pair, isPending: isPairing, error } = usePairEnvironmentConnection()
   const { remove, pendingId: removingId } = useRemoveRemoteEnvironment()
   const { remove: removeEndpoint } = useRemoveEnvironmentEndpoint()
+  const { prefer: preferEndpoint, pendingUrl: preferringUrl } = usePreferEnvironmentEndpoint()
   const wslDistributions = useWslDistributions()
   const { setup: setupWsl, pendingDistribution, error: wslSetupError } = useSetupWslEnvironment()
   const [connectionLink, setConnectionLink] = useState('')
@@ -178,14 +180,16 @@ function ElectronRemotesSection(): React.JSX.Element {
 
               <div className="flex flex-col gap-1 rounded-md border border-border/60 p-2">
                 <p className="px-1 text-2xs font-medium tracking-wider text-muted-foreground uppercase">
-                  Connections · LAN, then Tailscale, then Cloudflare
+                  Connections · preferred first, with automatic failover
                 </p>
                 {environment.endpoints.map((endpoint) => (
                   <EndpointRow
                     endpoint={endpoint}
                     environmentId={environment.id}
                     key={endpoint.url}
+                    onPrefer={() => preferEndpoint({ id: environment.id, url: endpoint.url })}
                     onRemove={() => removeEndpoint({ id: environment.id, url: endpoint.url })}
+                    preferring={preferringUrl === endpoint.url}
                     removable={environment.endpoints.length > 1}
                   />
                 ))}
@@ -307,9 +311,9 @@ function ElectronRemotesSection(): React.JSX.Element {
             className="font-mono"
           />
           <p className="text-xs text-muted-foreground">
-            Pair LAN first, then add Tailscale or Cloudflare as the fallback. Each link is verified
-            against the same daemon before it joins the group. Clients try LAN, then Tailscale, then
-            Cloudflare.
+            Each link is verified against the same daemon before it joins the group. Choose the
+            connection you want tried first; if it cannot answer, Porcelain tries the last working
+            connection and then the remaining saved connections.
           </p>
           <div className="flex items-center gap-2">
             <Button
@@ -363,11 +367,15 @@ function EndpointRow({
   endpoint,
   environmentId,
   onRemove,
+  onPrefer,
+  preferring,
   removable,
 }: {
   endpoint: { url: string; kind: 'lan' | 'tailnet' | 'other'; preferred: boolean }
   environmentId: string
   onRemove: () => void
+  onPrefer: () => void
+  preferring: boolean
   removable: boolean
 }): React.JSX.Element {
   return (
@@ -380,25 +388,49 @@ function EndpointRow({
           {endpoint.url}
         </span>
       </div>
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              disabled={!removable}
-              onClick={onRemove}
-              aria-label={`Remove ${endpointLabel(endpoint.url)} connection`}
-              data-environment-id={environmentId}
-            >
-              <X />
-            </Button>
-          }
-        />
-        <TooltipContent>
-          {removable ? 'Remove connection' : 'A group needs one connection'}
-        </TooltipContent>
-      </Tooltip>
+      <div className="flex shrink-0 items-center gap-1">
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant={endpoint.preferred ? 'secondary' : 'ghost'}
+                size="icon-sm"
+                disabled={endpoint.preferred || preferring}
+                onClick={onPrefer}
+                aria-label={
+                  endpoint.preferred
+                    ? `${endpointLabel(endpoint.url)} is preferred`
+                    : `Prefer ${endpointLabel(endpoint.url)} connection`
+                }
+              >
+                <Check />
+              </Button>
+            }
+          />
+          <TooltipContent>
+            {endpoint.preferred ? 'Tried first' : 'Try this connection first'}
+          </TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                disabled={!removable}
+                onClick={onRemove}
+                aria-label={`Remove ${endpointLabel(endpoint.url)} connection`}
+                data-environment-id={environmentId}
+              >
+                <X />
+              </Button>
+            }
+          />
+          <TooltipContent>
+            {removable ? 'Remove connection' : 'A group needs one connection'}
+          </TooltipContent>
+        </Tooltip>
+      </div>
     </div>
   )
 }

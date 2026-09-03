@@ -13,11 +13,7 @@ import { useSettingsDialogStore } from '@renderer/stores/settings-dialog'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo } from 'react'
 
-/**
- * One address of an environment group (one identity, many endpoints). `preferred`
- * is per KIND, not per address — a DHCP lease is not a preference — so every LAN
- * address of an environment reads as preferred once the LAN is the preferred kind.
- */
+/** One exact address of an environment group (one identity, many endpoints). */
 export type EnvironmentEndpoint = {
   url: string
   kind: EndpointKind
@@ -263,6 +259,27 @@ export function useRemoveEnvironmentEndpoint(): {
   return {
     remove: (input: { id: string; url: string }): void => mutation.mutate(input),
     isPending: mutation.isPending,
+  }
+}
+
+export function usePreferEnvironmentEndpoint(): {
+  prefer: (input: { id: string; url: string }) => void
+  pendingUrl: string | null
+} {
+  const utils = shellTrpc.useUtils()
+  const mutation = shellTrpc.preferEnvironmentEndpoint.useMutation({
+    onSuccess: async (): Promise<void> => {
+      await Promise.all([
+        utils.remoteEnvironments.invalidate(),
+        utils.environmentConnections.invalidate(),
+        utils.environmentStatuses.invalidate(),
+      ])
+    },
+    onError: onMutationError('Prefer connection'),
+  })
+  return {
+    prefer: (input): void => mutation.mutate(input),
+    pendingUrl: mutation.isPending ? (mutation.variables?.url ?? null) : null,
   }
 }
 

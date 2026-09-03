@@ -1,13 +1,14 @@
 import type { ActionView, WorktreeScriptKind } from '@porcelain/contracts/actions'
 import { Button } from '@renderer/components/ui/button'
-import { cn } from '@renderer/lib/utils'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
+import { cn } from '@renderer/lib/utils'
 import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
 import { useState } from 'react'
 import { ActionComposer, type ActionDraft, draftFromAction } from './action-composer'
 import { ActionRow } from './action-row'
 import { ActionTrustDialog } from './action-trust-dialog'
+import type { ActionMutationTarget } from './actions-mutations'
 import { useTrustAction } from './actions-mutations'
 
 /**
@@ -42,6 +43,7 @@ function ScriptList({
   onEdit,
   onNew,
   onAccept,
+  mutationTarget,
 }: {
   kind: WorktreeScriptKind
   title: string
@@ -51,6 +53,7 @@ function ScriptList({
   onEdit: (action: ActionView) => void
   onNew: () => void
   onAccept: (action: ActionView) => void
+  mutationTarget: ActionMutationTarget
 }): React.JSX.Element {
   return (
     <div className="flex flex-col gap-1.5 px-1 pt-2" data-testid={TestIds.actionsScripts(kind)}>
@@ -82,6 +85,7 @@ function ScriptList({
           isFirst={index === 0}
           isLast={index === scripts.length - 1}
           rowsBelow={scripts.length - 1 - index}
+          mutationTarget={mutationTarget}
         />
       ))}
       <p className="px-1 text-2xs text-muted-foreground">{blurb}</p>
@@ -93,18 +97,20 @@ export function WorktreeScriptsSection({
   actions,
   editable,
   showHeading = true,
+  mutationTarget,
 }: {
   /** The Project's full saved list; this component takes only the two script roles from it. */
   actions: readonly ActionView[]
   editable: boolean
   /** False where the host already says what this is — the dialog raised from the tree. */
   showHeading?: boolean
+  mutationTarget: ActionMutationTarget
 }): React.JSX.Element {
   const [draft, setDraft] = useState<ActionDraft | null>(null)
   // A lifecycle row has nothing to run on click, so accepting its command is the whole
   // interaction — the dialog must end here rather than chaining into a spawn like Actions do.
   const [pendingTrust, setPendingTrust] = useState<ActionView | null>(null)
-  const trustAction = useTrustAction()
+  const trustAction = useTrustAction(mutationTarget)
 
   return (
     <div
@@ -130,6 +136,7 @@ export function WorktreeScriptsSection({
             if (action.trusted) return
             setPendingTrust(action)
           }}
+          mutationTarget={mutationTarget}
         />
       ))}
       <ActionTrustDialog
@@ -149,6 +156,7 @@ export function WorktreeScriptsSection({
         draft={draft}
         open={draft !== null}
         showWhere={false}
+        mutationTarget={mutationTarget}
         onOpenChange={(open: boolean): void => {
           if (!open) setDraft(null)
         }}

@@ -33,6 +33,7 @@ export {
   useIssueManagedEnvironmentBundle,
   useOpenWindowInEnvironment,
   usePairEnvironmentConnection,
+  usePreferEnvironmentEndpoint,
   useRemoteEnvironments,
   useRemoveEnvironmentEndpoint,
   useRemoveRemoteEnvironment,

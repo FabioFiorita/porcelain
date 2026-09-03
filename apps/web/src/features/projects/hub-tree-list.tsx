@@ -230,7 +230,7 @@ function ProjectBlock(props: {
   const removeProject = (): void => {
     runUserAction(
       async () => {
-        await props.removeProject(props.project.id, props.environmentId)
+        await props.removeProject(props.project.id, props.mutationEnvironmentId)
         const current = useHubSelectionStore.getState().selection
         if (
           current.kind !== 'home' &&
@@ -250,7 +250,10 @@ function ProjectBlock(props: {
    * what puts the human in front of the install they just triggered.
    */
   const createWorktree = async (input: CreateHubWorktreeInput): Promise<HubWorktree> => {
-    const worktree = await props.createWorktree({ ...input, environmentId: props.environmentId })
+    const worktree = await props.createWorktree({
+      ...input,
+      environmentId: props.mutationEnvironmentId,
+    })
     props.openWorktree(worktree)
     return worktree
   }
@@ -316,7 +319,7 @@ function ProjectBlock(props: {
               openWorktreeScripts({
                 projectId: props.project.id,
                 projectName: props.project.name,
-                environmentId: props.environmentId,
+                environmentId: props.mutationEnvironmentId,
                 editable: props.mutable,
               })
             }
@@ -437,8 +440,10 @@ export function HubTreeFromInventories(props: {
                 project={member.project}
                 environmentId={member.environment.id}
                 environmentName={member.environment.name}
-                mutationEnvironmentId={source.current ? null : member.environment.id}
-                mutable={source.current}
+                mutationEnvironmentId={
+                  source.current ? null : (source.environmentId ?? member.environment.id)
+                }
+                mutable
                 openWorktree={(worktree) => props.openWorktree(source, worktree)}
                 createWorktree={props.createWorktree}
                 removeProject={props.removeProject}

@@ -27,6 +27,11 @@ export type NewActionInput = {
   kind?: ActionKind
 }
 
+export type ActionMutationTarget = {
+  projectId: string
+  environmentId: string | null
+}
+
 const COPY_SUFFIX = ' (copy)'
 
 /** `Serve sim` → `Serve sim (copy)`, trimmed so the daemon never rejects the title. */
@@ -43,20 +48,22 @@ function daemonScopeFromIdentity(daemon: {
 }
 
 /** Add/edit/delete/move saved actions. Each successful mutation refreshes the list. */
-export function useActionMutations(): {
+export function useActionMutations(target?: ActionMutationTarget): {
   add: (input: NewActionInput) => Promise<void>
   duplicate: (action: NewActionInput, rowsBelow: number) => Promise<void>
   update: (id: string, fields: NewActionInput) => Promise<void>
   move: (id: string, direction: 'up' | 'down') => Promise<void>
   remove: (id: string) => Promise<void>
 } {
-  const projectId = useSelectedProjectId()
+  const selectedProjectId = useSelectedProjectId()
+  const projectId = target?.projectId ?? selectedProjectId
   const daemon = useDaemonIdentity()
   const queryClient = useQueryClient()
   const client = trpc.useUtils().client
-  const environmentId = useHubSelectionStore((state) =>
+  const selectedEnvironmentId = useHubSelectionStore((state) =>
     state.selection.kind === 'home' ? null : state.selection.environmentId,
   )
+  const environmentId = target === undefined ? selectedEnvironmentId : target.environmentId
   const daemonScope = daemonScopeFromIdentity(daemonScopeForEnvironment(environmentId, daemon))
   const owner = environmentClientFor(environmentId, client)
 
@@ -168,14 +175,16 @@ export function useActionMutations(): {
  * Accept a command this machine has not run before. Trust is recorded against the
  * command TEXT on this machine only. Rejects rather than toasting: the trust dialog owns failure.
  */
-export function useTrustAction(): (id: string) => Promise<void> {
-  const projectId = useSelectedProjectId()
+export function useTrustAction(target?: ActionMutationTarget): (id: string) => Promise<void> {
+  const selectedProjectId = useSelectedProjectId()
+  const projectId = target?.projectId ?? selectedProjectId
   const daemon = useDaemonIdentity()
   const queryClient = useQueryClient()
   const client = trpc.useUtils().client
-  const environmentId = useHubSelectionStore((state) =>
+  const selectedEnvironmentId = useHubSelectionStore((state) =>
     state.selection.kind === 'home' ? null : state.selection.environmentId,
   )
+  const environmentId = target === undefined ? selectedEnvironmentId : target.environmentId
   const daemonScope = daemonScopeFromIdentity(daemonScopeForEnvironment(environmentId, daemon))
   const owner = environmentClientFor(environmentId, client)
 
