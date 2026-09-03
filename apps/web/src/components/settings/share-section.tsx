@@ -22,9 +22,36 @@ import { isWindowsShell } from '@renderer/lib/platform'
 import { copyText } from '@renderer/lib/utils'
 import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 type ShareEndpoint = { label: string; url: string }
+
+/** Encode only while a live pairing link is visible; pairing secrets never leave this renderer. */
+function PairingQr({ value }: { value: string }): React.JSX.Element {
+  const [src, setSrc] = useState<string | null>(null)
+
+  useEffect(() => {
+    let active = true
+    setSrc(null)
+    void import('qrcode')
+      .then(async (qrcode) => {
+        const svg = await qrcode.toString(value, { type: 'svg', margin: 1, width: 148 })
+        if (active) setSrc(`data:image/svg+xml,${encodeURIComponent(svg)}`)
+      })
+      .catch(() => {
+        if (active) setSrc(null)
+      })
+    return () => {
+      active = false
+    }
+  }, [value])
+
+  return (
+    <div className="size-[148px] shrink-0 overflow-hidden rounded-md bg-white">
+      {src !== null && <img src={src} alt="Pairing QR code" className="size-full" />}
+    </div>
+  )
+}
 
 function ShareToggleRow({
   label,
@@ -155,25 +182,27 @@ function PairDevice({ endpoints }: { endpoints: ShareEndpoint[] }): React.JSX.El
           </p>
         )}
         {createdUrl !== '' && (
-          <div className="flex min-w-0 items-center gap-2 rounded-md bg-muted/50 p-2">
-            <p className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground">
-              {createdUrl}
-            </p>
-            <Button
-              variant="outline"
-              size="sm"
-              className={rowActionClass}
-              onClick={() => {
-                runUserAction(
-                  () => copyText(createdUrl),
-                  (error) => {
-                    toastUserActionError('Copy pairing link', error)
-                  },
-                )
-              }}
-            >
-              Copy
-            </Button>
+          <div className="flex flex-col gap-3 rounded-md bg-muted/50 p-3 sm:flex-row sm:items-start">
+            <PairingQr value={createdUrl} />
+            <div className="flex min-w-0 flex-1 flex-col gap-2">
+              <p className="text-xs font-medium">Scan on the other device</p>
+              <p className="break-all font-mono text-xs text-muted-foreground">{createdUrl}</p>
+              <Button
+                variant="outline"
+                size="sm"
+                className={`${rowActionClass} self-start`}
+                onClick={() => {
+                  runUserAction(
+                    () => copyText(createdUrl),
+                    (error) => {
+                      toastUserActionError('Copy pairing link', error)
+                    },
+                  )
+                }}
+              >
+                Copy
+              </Button>
+            </div>
           </div>
         )}
       </div>

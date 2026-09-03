@@ -13,24 +13,64 @@ export const pairingBundleSchema = z.object({
 export type PairingBundleEntry = z.infer<typeof pairingBundleEntrySchema>
 export type PairingBundle = z.infer<typeof pairingBundleSchema>
 
-const PREFIX = 'porcelain://pair-environments#bundle='
+const LEGACY_PREFIX = 'porcelain://pair-environments#bundle='
+const HTTP_BUNDLE_LINK = /^(https?:\/\/[^/?#\s@]+)\/pair#([^#\s]*)$/i
 
 export function isPairingBundleLink(input: string): boolean {
-  return input.trim().startsWith('porcelain://pair-environments')
+  const trimmed = input.trim()
+  return (
+    trimmed.startsWith('porcelain://pair-environments') ||
+    (HTTP_BUNDLE_LINK.test(trimmed) && readFragmentBundle(trimmed) !== null)
+  )
 }
 
-/** One pasteable credential envelope; every nested link remains daemon-issued and single-use. */
+/**
+ * One browser-safe credential envelope. The first daemon's origin makes the bundle an ordinary
+ * HTTP(S) link that survives cross-device clipboard and QR handoff; the fragment still keeps every
+ * independently-issued, single-use grant out of server request lines.
+ */
 export function createPairingBundleLink(entries: readonly PairingBundleEntry[]): string {
   const bundle = pairingBundleSchema.parse({ environments: entries, version: 1 })
-  return `${PREFIX}${encodeURIComponent(JSON.stringify(bundle))}`
+  const first = new URL(bundle.environments[0]?.url ?? '')
+  if (
+    (first.protocol !== 'http:' && first.protocol !== 'https:') ||
+    first.username !== '' ||
+    first.password !== '' ||
+    first.pathname !== '/pair' ||
+    first.search !== ''
+  ) {
+    throw new Error('Pairing bundle entries must use valid HTTP(S) pairing links')
+  }
+  const credential = new URLSearchParams(first.hash.slice(1)).get('token')
+  if (credential === null || credential === '') {
+    throw new Error('The first pairing bundle entry has no credential')
+  }
+  return `${first.origin}/pair#token=${encodeURIComponent(credential)}&bundle=${encodeURIComponent(JSON.stringify(bundle))}`
 }
 
 export function parsePairingBundleLink(input: string): PairingBundle | null {
   const trimmed = input.trim()
-  if (!trimmed.startsWith(PREFIX)) return null
+  const encoded = trimmed.startsWith(LEGACY_PREFIX)
+    ? trimmed.slice(LEGACY_PREFIX.length)
+    : readFragmentBundle(trimmed)
+  if (encoded === null) return null
   try {
-    return pairingBundleSchema.parse(JSON.parse(decodeURIComponent(trimmed.slice(PREFIX.length))))
+    return pairingBundleSchema.parse(JSON.parse(decodeURIComponent(encoded)))
   } catch {
     return null
   }
+}
+
+function readFragmentBundle(input: string): string | null {
+  const match = HTTP_BUNDLE_LINK.exec(input)
+  const fragment = match?.[2]
+  if (fragment === undefined) return null
+  for (const pair of fragment.split('&')) {
+    const separator = pair.indexOf('=')
+    if (separator !== -1 && pair.slice(0, separator) === 'bundle') {
+      const value = pair.slice(separator + 1)
+      return value === '' ? null : value
+    }
+  }
+  return null
 }

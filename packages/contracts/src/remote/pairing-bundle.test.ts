@@ -8,7 +8,12 @@ describe('pairing bundle links', () => {
       { name: 'WSL', url: 'http://172.24.1.2:43119/pair#token=pc_pair_wsl_secret' },
     ]
 
-    expect(parsePairingBundleLink(createPairingBundleLink(environments))).toEqual({
+    const link = createPairingBundleLink(environments)
+
+    expect(
+      link.startsWith('http://192.168.1.4:43117/pair#token=pc_pair_windows_secret&bundle='),
+    ).toBe(true)
+    expect(parsePairingBundleLink(link)).toEqual({
       environments,
       version: 1,
     })
@@ -16,6 +21,19 @@ describe('pairing bundle links', () => {
 
   it('does not mistake an ordinary pairing link or malformed bundle for a bundle', () => {
     expect(parsePairingBundleLink('https://host/pair#token=pc_pair_one_secret')).toBeNull()
-    expect(parsePairingBundleLink('porcelain://pair-environments#bundle=%7Bbad')).toBeNull()
+    expect(parsePairingBundleLink('https://host/pair#bundle=%7Bbad')).toBeNull()
+  })
+
+  it('continues to parse previously issued custom-scheme bundles', () => {
+    const legacy =
+      'porcelain://pair-environments#bundle=' +
+      encodeURIComponent(
+        JSON.stringify({
+          environments: [{ name: 'Windows', url: 'http://host/pair#token=secret' }],
+          version: 1,
+        }),
+      )
+
+    expect(parsePairingBundleLink(legacy)?.environments[0]?.name).toBe('Windows')
   })
 })

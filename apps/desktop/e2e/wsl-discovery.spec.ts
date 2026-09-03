@@ -118,7 +118,7 @@ test('Windows provisions Ubuntu, opens a Linux project, and runs its terminal in
     await page.getByTestId(TestIds.settingsSection('share')).first().click()
     await page.getByPlaceholder('Device name, e.g. My iPhone').fill('Android emulator')
     await page.getByRole('button', { name: 'Create Windows + WSL link' }).click()
-    const bundleLink = page.getByText(/^porcelain:\/\/pair-environments#bundle=/)
+    const bundleLink = page.getByText(/^http:\/\/[^/]+\/pair#token=.+&bundle=/)
     const bundleFailure = page.getByText('Create Windows + WSL link failed').first()
     const outcome = await Promise.race([
       bundleLink.waitFor({ state: 'visible', timeout: 30_000 }).then(() => 'created' as const),

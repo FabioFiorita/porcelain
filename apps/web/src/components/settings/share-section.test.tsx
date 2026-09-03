@@ -6,6 +6,7 @@ const setLan = vi.fn()
 const setTailnet = vi.fn()
 const setCloudflare = vi.fn()
 const openWindow = vi.fn()
+const issue = vi.fn()
 /** Which Environment this window is bound to: null = This device, a string = a saved remote. */
 let activeId: string | null = null
 
@@ -28,7 +29,7 @@ vi.mock('@renderer/features/remote', () => ({
     managed: false,
     url: null,
   }),
-  useIssuePairingLink: () => ({ issue: vi.fn(), isPending: false }),
+  useIssuePairingLink: () => ({ issue, isPending: false }),
   useIssueManagedEnvironmentBundle: () => ({ issue: vi.fn(), isPending: false }),
   useLanStatus: () => ({
     enabled: true,
@@ -58,6 +59,7 @@ beforeEach(() => {
   setLan.mockClear()
   setTailnet.mockClear()
   setCloudflare.mockClear()
+  issue.mockReset()
 })
 
 describe('ShareSection', () => {
@@ -89,5 +91,20 @@ describe('ShareSection', () => {
     expect(screen.queryByTestId('share-not-administrable')).toBeNull()
     expect(screen.getByText('Local network')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Create LAN link' })).toBeTruthy()
+  })
+
+  it('shows a generated pairing link as a QR code', async () => {
+    issue.mockResolvedValueOnce({
+      url: 'http://192.168.1.10:43118/pair#token=pc_pair_example',
+    })
+    render(<ShareSection />)
+
+    fireEvent.change(screen.getByPlaceholderText('Device name, e.g. My iPhone'), {
+      target: { value: 'My phone' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Create LAN link' }))
+
+    const qr = await screen.findByAltText('Pairing QR code')
+    expect((qr as HTMLImageElement).src.startsWith('data:image/svg+xml')).toBe(true)
   })
 })

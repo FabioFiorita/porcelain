@@ -67,11 +67,13 @@ npx @fabiofiorita/porcelain@latest access list
 npx @fabiofiorita/porcelain@latest access revoke <id>
 ```
 
-Open the issued link on the device. It is single-use, expires after 15 minutes, and becomes an
+Open the issued link on the device, paste it into another Porcelain desktop, or scan its QR code
+from the Share page. It is single-use, expires after 15 minutes, and becomes an
 individually revocable credential. The administrator token is never part of pairing. Each grant
 still belongs to exactly one daemon. On Windows, the Electron Share page can create a **Windows +
 WSL link**: the main process asks each locally managed daemon to issue its own grant, then wraps
-those grants in one envelope. Mobile imports them as separate Environments in one action.
+those grants in an HTTP link based on the reachable Windows daemon. Mobile and another desktop
+import them as separate Environments in one action.
 Revocation and daemon authority remain independent, and WSL administrator credentials never enter
 the renderer or the bundle.
 

@@ -1,7 +1,7 @@
 import { PROTOCOL_VERSION, PROTOCOL_VERSION_HEADER } from '@porcelain/contracts'
 import { actionsContractFixtures } from '@porcelain/contracts/actions'
 import { projectsContractFixtures } from '@porcelain/contracts/projects'
-import { parsePairingBundleLink } from '@porcelain/contracts/remote'
+import { createPairingBundleLink, parsePairingBundleLink } from '@porcelain/contracts/remote'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { RemoteEnvironment, RemoteEnvironmentState } from './remote-daemon'
@@ -134,7 +134,21 @@ function stubDaemon(): void {
       if (url.includes('unauthorized.synthetic')) return new Response('', { status: 401 })
       if (url.includes('offline.synthetic')) throw new Error('offline')
       if (url.includes('/trpc/daemonInfo')) {
-        return new Response(JSON.stringify(DAEMON_INFO), { status: 200 })
+        const host = url.includes('windows.remote')
+          ? 'windows-host'
+          : url.includes('wsl.remote')
+            ? 'wsl-host'
+            : null
+        return new Response(
+          host === null
+            ? JSON.stringify(DAEMON_INFO)
+            : JSON.stringify({
+                result: {
+                  data: { version: '1.0.0', host, platform: 'linux', arch: 'x64' },
+                },
+              }),
+          { status: 200 },
+        )
       }
       if (url.includes('/trpc/renameEnvironment')) {
         return new Response(
@@ -323,6 +337,27 @@ describe('shell daemon requests', () => {
       )
     },
   )
+
+  it('imports an HTTP Windows + WSL bundle as separate named environments', async () => {
+    const connectionLink = createPairingBundleLink([
+      {
+        name: 'Windows',
+        url: `http://windows.remote:43118/pair#token=${GRANT}`,
+      },
+      {
+        name: 'WSL',
+        url: `http://wsl.remote:43119/pair#token=${GRANT}`,
+      },
+    ])
+
+    await caller().pairEnvironmentConnection({ connectionLink })
+
+    expect(state.environments).toEqual([
+      expect.objectContaining({ name: 'Windows', url: 'http://windows.remote:43118' }),
+      expect.objectContaining({ name: 'WSL', url: 'http://wsl.remote:43119' }),
+    ])
+    expect(seen.filter((entry) => entry.url.endsWith('/pair'))).toHaveLength(2)
+  })
 
   it('versions the pairing exchange and both authenticated probes', async () => {
     const result = await caller().pairEnvironmentConnection({

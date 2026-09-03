@@ -4,7 +4,12 @@ import {
   ENVIRONMENT_NAME_MAX_LENGTH,
   environmentIdentitySchema,
 } from '@porcelain/contracts/projects'
-import { createPairingBundleLink, remoteProcedures } from '@porcelain/contracts/remote'
+import {
+  createPairingBundleLink,
+  isPairingBundleLink,
+  parsePairingBundleLink,
+  remoteProcedures,
+} from '@porcelain/contracts/remote'
 import { createTRPCUntypedClient, httpLink } from '@trpc/client'
 import { initTRPC } from '@trpc/server'
 import { BrowserWindow, clipboard, nativeTheme, shell, type WebContents } from 'electron'
@@ -168,9 +173,9 @@ type PairEnvironmentInput = {
   groupId?: string | null
 }
 
-async function pairEnvironmentConnection(
+async function pairSingleEnvironmentConnection(
   _ctx: ShellTrpcContext,
-  input: PairEnvironmentInput,
+  input: PairEnvironmentInput & { name?: string },
 ): Promise<{ id: string; merged: boolean }> {
   const { url, token } = await exchangePairingLink(input.connectionLink)
   await probeDaemon(url, token)
@@ -215,7 +220,7 @@ async function pairEnvironmentConnection(
     }
   }
 
-  let name = host ?? ''
+  let name = input.name?.trim() || host || ''
   if (name === '') {
     try {
       name = new URL(url).hostname || url
@@ -243,6 +248,52 @@ async function pairEnvironmentConnection(
   await reloadEnvironmentsCache()
 
   return { id, merged: false }
+}
+
+/** Import an HTTP bundle pasted on another desktop, or keep the ordinary one-link flow. */
+async function pairEnvironmentConnection(
+  ctx: ShellTrpcContext,
+  input: PairEnvironmentInput,
+): Promise<{ id: string; merged: boolean }> {
+  const bundle = parsePairingBundleLink(input.connectionLink)
+  if (bundle === null) {
+    if (isPairingBundleLink(input.connectionLink)) throw new Error('That pairing bundle is invalid')
+    return pairSingleEnvironmentConnection(ctx, input)
+  }
+  if (input.groupId !== undefined && input.groupId !== null) {
+    throw new Error('A Windows + WSL link creates separate environments')
+  }
+
+  let first: { id: string; merged: boolean } | null = null
+  const created: RemoteEnvironment[] = []
+  try {
+    for (const entry of bundle.environments) {
+      const result = await pairSingleEnvironmentConnection(ctx, {
+        connectionLink: entry.url,
+        name: entry.name,
+      })
+      first ??= result
+      if (!result.merged) {
+        const environment = (await loadRemoteEnvironmentState()).environments.find(
+          (candidate) => candidate.id === result.id,
+        )
+        if (environment !== undefined) created.push(environment)
+      }
+    }
+  } catch (error) {
+    await Promise.all(
+      created.map((environment) => discardTemporaryCredential(environment.url, environment.token)),
+    )
+    const createdIds = new Set(created.map((environment) => environment.id))
+    await updateRemoteEnvironmentState((state) => ({
+      ...state,
+      environments: state.environments.filter((environment) => !createdIds.has(environment.id)),
+    }))
+    await reloadEnvironmentsCache()
+    throw error
+  }
+  if (first === null) throw new Error('That pairing bundle contains no environments')
+  return first
 }
 
 async function setupWslEnvironment(

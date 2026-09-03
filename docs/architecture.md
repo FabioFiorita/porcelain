@@ -36,7 +36,8 @@ shares the administrator token, or treats a WSL path as Windows-local data.
 
 Pairing authority remains daemon-local even when a client presents several Environments together.
 An all-Environments link is only a client-side envelope over independently issued, single-use
-daemon grants; mobile redeems and stores one revocable credential per Environment.
+daemon grants. Its outer URL uses the reachable Windows daemon's HTTP origin for portable paste and
+QR handoff; mobile and desktop clients redeem and store one revocable credential per Environment.
 
 ## Packages
 
