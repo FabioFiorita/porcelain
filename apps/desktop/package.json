@@ -1,7 +1,7 @@
 {
   "name": "@porcelain/desktop",
   "private": true,
-  "version": "0.61.5",
+  "version": "0.62.0",
   "description": "Where agent work becomes trusted work.",
   "main": "./out/main/index.js",
   "author": "Fabio Fiorita <fabiolfp@gmail.com>",
@@ -87,8 +87,8 @@
     "@vitest/coverage-v8": "^4.1.10",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "cross-env": "^10.1.0",
     "cmdk": "^1.1.1",
+    "cross-env": "^10.1.0",
     "electron": "^42.6.0",
     "electron-builder": "^26.15.3",
     "electron-devtools-installer": "^4.0.0",

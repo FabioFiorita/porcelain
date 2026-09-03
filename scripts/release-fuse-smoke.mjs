@@ -55,14 +55,18 @@ if (values.platform === 'mac') {
   if (!latestYml) fail('missing latest-mac.yml')
   ok(`mac artifacts: ${dmg}, ${zip}, ${latestYml}`)
 } else {
-  const installer = entries.find((e) => /^porcelain-.+-windows-x64-setup\.exe$/u.test(e))
+  const latestYml = entries.find((e) => e === 'latest.yml')
+  if (!latestYml) fail('missing latest.yml')
+  const version = /^version:\s*['"]?([^'"\s]+)['"]?\s*$/mu.exec(
+    fs.readFileSync(path.join(root, latestYml), 'utf8'),
+  )?.[1]
+  if (!version) fail('latest.yml has no release version')
+  const installer = entries.find((e) => e === `porcelain-${version}-windows-x64-setup.exe`)
   const blockmap =
     installer === undefined ? undefined : entries.find((e) => e === `${installer}.blockmap`)
-  const latestYml = entries.find((e) => e === 'latest.yml')
   const unpackedBinary = path.join(root, 'win-unpacked', 'Porcelain.exe')
   if (!installer) fail('missing x64 NSIS installer in dist')
   if (!blockmap) fail('missing Windows installer blockmap in dist')
-  if (!latestYml) fail('missing latest.yml')
   if (!fs.existsSync(unpackedBinary)) fail('missing win-unpacked/Porcelain.exe')
   ok(`Windows artifacts: ${installer}, ${blockmap}, ${latestYml}`)
   ok(`Windows unpacked binary: ${path.relative(root, unpackedBinary)}`)

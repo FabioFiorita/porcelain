@@ -1,3 +1,18 @@
+## [0.62.0](https://github.com/FabioFiorita/porcelain/compare/v0.61.5...v0.62.0) (2026-09-03)
+
+### Features
+
+* discover WSL environments on Windows ([810d0f6](https://github.com/FabioFiorita/porcelain/commit/810d0f6250a07559ce70eba8d91af20233bcd192))
+* establish Windows desktop foundations ([c999da9](https://github.com/FabioFiorita/porcelain/commit/c999da9aef290e080e9bc03ee81f392ee2cd9af0))
+* manage WSL environments from Windows ([117bb40](https://github.com/FabioFiorita/porcelain/commit/117bb40e7d1584ececa98c66af32169dab564eec))
+* pair Windows and WSL environments ([7a208b9](https://github.com/FabioFiorita/porcelain/commit/7a208b9c5665900fd05919b14d30170856c9cdd5))
+* unify Windows and WSL environments ([32ca101](https://github.com/FabioFiorita/porcelain/commit/32ca10179fe3e44592e923def4e5f458f08556e8))
+
+### Bug Fixes
+
+* run release cut through Windows cmd shim ([011a58f](https://github.com/FabioFiorita/porcelain/commit/011a58f0d93e9a07425265d895b3a725acb9aeaa))
+* ship reliable Windows and WSL support ([e45f724](https://github.com/FabioFiorita/porcelain/commit/e45f724667637dcbc883bcfc24cbbc5593518bd5))
+
 ## [0.61.5](https://github.com/FabioFiorita/porcelain/compare/v0.61.4...v0.61.5) (2026-09-02)
 
 ### Bug Fixes

@@ -12,6 +12,7 @@
  *   node scripts/release-cut.mjs patch --skip-push  # local bump+tag only
  */
 import { execFileSync, spawnSync } from 'node:child_process'
+import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
@@ -113,7 +114,10 @@ sh('pnpm', ['changelog'], { inherit: true })
 // named children: sync-versions enumerates them, so a fixed list silently drops a stamped file —
 // v0.51.0 shipped with one dirty in the working tree that way. The shipped plugin is not here; it
 // carries its own semver under `plugins/porcelain`.
-sh('git', ['add', 'CHANGELOG.md', 'apps', 'packages', '.agents/skills'], {
+const releasePaths = ['CHANGELOG.md', 'apps', 'packages', '.agents/skills'].filter((entry) =>
+  existsSync(path.join(root, entry)),
+)
+sh('git', ['add', ...releasePaths], {
   inherit: true,
 })
 sh('git', ['commit', '-m', `chore: release ${tag}`], { inherit: true })
