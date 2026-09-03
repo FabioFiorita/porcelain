@@ -36,7 +36,7 @@ const decision = {
 } as const
 
 describe('structuredCanvasDocumentSchema', () => {
-  it('accepts current semantic Decision and Review documents', () => {
+  it('accepts current semantic Decision and normalizes legacy Review documents', () => {
     expect(STRUCTURED_CANVAS_VERSION).toBe(2)
     expect(structuredCanvasDocumentSchema.parse(decision)).toMatchObject({
       version: 2,
@@ -50,8 +50,80 @@ describe('structuredCanvasDocumentSchema', () => {
         why: 'The renderer must preserve explanation.',
         how: 'Review stores semantic Why and How sections.',
       }),
-    ).toMatchObject({ version: 2, template: 'review' })
+    ).toMatchObject({
+      version: 2,
+      template: 'review',
+      sections: [
+        { title: 'Why', prose: 'The renderer must preserve explanation.' },
+        { title: 'How', prose: 'Review stores semantic Why and How sections.' },
+      ],
+    })
   })
+
+  it('accepts ordered Review narrative, code anchors, sandbox visuals, and evidence assets', () => {
+    expect(
+      structuredCanvasDocumentSchema.parse({
+        version: 2,
+        template: 'review',
+        title: 'Review the review',
+        summary: 'Start with the contract and finish with proof.',
+        sections: [
+          {
+            title: 'Contract',
+            prose: 'The shared shape changed.',
+            svg: '<svg><circle cx="5" cy="5" r="5" /></svg>',
+            html: '<table><tr><td>Current</td></tr></table>',
+            references: [{ path: 'src/review.ts', startLine: 10, endLine: 20 }],
+          },
+        ],
+        evidence: {
+          checks: [{ label: 'Focused tests', status: 'pass', detail: '12 passed' }],
+          assets: [
+            { kind: 'image', path: 'evidence/screenshot.png', label: 'Browser result' },
+            { kind: 'link', href: 'https://example.com/run', label: 'CI run' },
+          ],
+        },
+      }),
+    ).toMatchObject({
+      sections: [{ title: 'Contract', references: [{ startLine: 10, endLine: 20 }] }],
+      evidence: { title: 'Evidence', checks: [{ status: 'pass' }] },
+    })
+  })
+
+  it('rejects inverted Review code ranges', () => {
+    expect(
+      structuredCanvasDocumentSchema.safeParse({
+        version: 2,
+        template: 'review',
+        title: 'Unsafe review',
+        sections: [
+          {
+            title: 'Unsafe',
+            prose: '',
+            references: [{ path: 'src/a.ts', startLine: 20, endLine: 10 }],
+          },
+        ],
+        evidence: {
+          assets: [],
+        },
+      }).success,
+    ).toBe(false)
+  })
+
+  it.each(['../secret.png', '/secret.png', 'C:/secret.png', 'evidence\\secret.png'])(
+    'rejects Review asset path %s outside the bundle namespace',
+    (path) => {
+      expect(
+        structuredCanvasDocumentSchema.safeParse({
+          version: 2,
+          template: 'review',
+          title: 'Unsafe review',
+          sections: [{ title: 'Unsafe', prose: '', references: [] }],
+          evidence: { assets: [{ kind: 'image', path, label: 'Secret' }] },
+        }).success,
+      ).toBe(false)
+    },
+  )
 
   it('rejects version 1 documents instead of carrying a compatibility renderer', () => {
     expect(

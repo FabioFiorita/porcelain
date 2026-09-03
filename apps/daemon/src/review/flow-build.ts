@@ -24,6 +24,7 @@ export async function readSourcesAndBuildFlow(
   files: ChangedFile[],
   stats: DiffStat[],
   layers: Layer[],
+  orderedPaths: readonly string[] = [],
 ): Promise<FlowGroup[]> {
   const sources = new Map<string, string>()
   await Promise.all(
@@ -37,7 +38,7 @@ export async function readSourcesAndBuildFlow(
     }),
   )
   const statByPath = new Map(stats.map((s) => [s.path, s]))
-  return buildFlow(files, sources, layers).map((group) => ({
+  return buildFlow(files, sources, layers, orderedPaths).map((group) => ({
     ...group,
     files: group.files.map((file) => ({
       ...file,
@@ -65,13 +66,14 @@ const commitFlowCache = new Map<string, { key: string; groups: FlowGroup[] }>()
 export async function loadWorkingFlow(
   repoPath: string,
   declared: readonly Layer[] = [],
+  orderedPaths: readonly string[] = [],
 ): Promise<FlowGroup[]> {
   const { files, stats } = await workingTreeSnapshot(repoPath)
   const layers = effectiveLayers(declared)
-  const key = flowKey(files, stats, layers)
+  const key = `${flowKey(files, stats, layers)}\n${JSON.stringify(orderedPaths)}`
   const cached = flowCache.get(repoPath)
   if (cached && cached.key === key) return cached.groups
-  const groups = await readSourcesAndBuildFlow(repoPath, files, stats, layers)
+  const groups = await readSourcesAndBuildFlow(repoPath, files, stats, layers, orderedPaths)
   flowCache.set(repoPath, { key, groups })
   return groups
 }
@@ -89,6 +91,7 @@ export async function loadWorkingFlow(
 export async function loadRangeFlow(
   repoPath: string,
   declared: readonly Layer[] = [],
+  orderedPaths: readonly string[] = [],
   requestedBase?: string | undefined,
 ): Promise<{ groups: FlowGroup[]; base: string; defaultBase: string }> {
   const defaultBase = await gitDefaultBranch(repoPath)
@@ -100,10 +103,10 @@ export async function loadRangeFlow(
       gitRangeNumstatFrom(repoPath, mergeBase),
     ])
     const layers = effectiveLayers(declared)
-    const key = `${base}\n${flowKey(files, stats, layers)}`
+    const key = `${base}\n${flowKey(files, stats, layers)}\n${JSON.stringify(orderedPaths)}`
     const cached = rangeFlowCache.get(repoPath)
     if (cached && cached.key === key) return { base, defaultBase, groups: cached.groups }
-    const groups = await readSourcesAndBuildFlow(repoPath, files, stats, layers)
+    const groups = await readSourcesAndBuildFlow(repoPath, files, stats, layers, orderedPaths)
     rangeFlowCache.set(repoPath, { key, groups })
     return { base, defaultBase, groups }
   } catch {
@@ -129,6 +132,7 @@ export async function loadCommitFlow(
   repoPath: string,
   hash: string,
   declared: readonly Layer[] = [],
+  orderedPaths: readonly string[] = [],
 ): Promise<FlowGroup[]> {
   try {
     const [files, stats] = await Promise.all([
@@ -137,10 +141,10 @@ export async function loadCommitFlow(
     ])
     const layers = effectiveLayers(declared)
     const cacheKey = `${repoPath}\n${hash}`
-    const key = `${hash}\n${flowKey(files, stats, layers)}`
+    const key = `${hash}\n${flowKey(files, stats, layers)}\n${JSON.stringify(orderedPaths)}`
     const cached = commitFlowCache.get(cacheKey)
     if (cached && cached.key === key) return cached.groups
-    const groups = await readSourcesAndBuildFlow(repoPath, files, stats, layers)
+    const groups = await readSourcesAndBuildFlow(repoPath, files, stats, layers, orderedPaths)
     commitFlowCache.set(cacheKey, { key, groups })
     return groups
   } catch {

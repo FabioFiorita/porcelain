@@ -137,6 +137,28 @@ describe('groupByLayer', () => {
       'src/components/c.tsx',
     ])
   })
+
+  it('puts Review-authored paths first without dropping or destabilizing unlisted changes', () => {
+    const items = [
+      { path: 'src/components/a.tsx' },
+      { path: 'src/components/critical.tsx' },
+      { path: 'src/components/z.tsx' },
+      { path: 'src/services/important.ts' },
+    ]
+    const groups = groupByLayer(items, STORY_LAYERS, [
+      'src/services/important.ts',
+      'src/components/critical.tsx',
+      'src/components/missing.tsx',
+    ])
+
+    expect(groups[0]?.files.map((file) => file.path)).toEqual([
+      'src/components/critical.tsx',
+      'src/components/a.tsx',
+      'src/components/z.tsx',
+    ])
+    expect(groups[1]?.files.map((file) => file.path)).toEqual(['src/services/important.ts'])
+    expect(groups.flatMap((group) => group.files)).toHaveLength(items.length)
+  })
 })
 
 describe('groupByLayerOrdered', () => {

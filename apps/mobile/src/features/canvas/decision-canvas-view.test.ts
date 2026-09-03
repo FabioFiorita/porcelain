@@ -51,17 +51,48 @@ describe('parseStructuredCanvas', () => {
     })
   })
 
-  it('accepts the current semantic Review document', () => {
+  it('normalizes persisted Why/How Review documents into ordered sections', () => {
+    const parsed = parseStructuredCanvas(
+      JSON.stringify({
+        version: 2,
+        template: 'review',
+        title: 'Canvas parity',
+        why: '# Why\nReview meaning belongs on every client.',
+        how: '# How\nNative presentation renders the semantic document.',
+      }),
+    )
+    expect(parsed).toMatchObject({
+      error: null,
+      document: {
+        version: 2,
+        template: 'review',
+        sections: [{ title: 'Why' }, { title: 'How' }],
+      },
+    })
+  })
+
+  it('accepts rich Review narrative and evidence descriptors', () => {
     expect(
-      parseStructuredCanvas(
-        JSON.stringify({
-          version: 2,
-          template: 'review',
-          title: 'Canvas parity',
-          why: '# Why\nReview meaning belongs on every client.',
-          how: '# How\nNative presentation renders the semantic document.',
-        }),
-      ),
-    ).toMatchObject({ error: null, document: { version: 2, template: 'review' } })
+      parseStructuredCanvas({
+        version: 2,
+        template: 'review',
+        title: 'Canvas parity',
+        sections: [
+          {
+            title: 'Walkthrough',
+            prose: 'Follow the contract.',
+            html: '<table><tr><td>Proof</td></tr></table>',
+            references: [{ path: 'src/review.ts', startLine: 3 }],
+          },
+        ],
+        evidence: {
+          checks: [{ label: 'Mobile parse', status: 'pass' }],
+          assets: [{ kind: 'video', path: 'evidence/demo.mp4', label: 'Demo' }],
+        },
+      }),
+    ).toMatchObject({
+      error: null,
+      document: { template: 'review', evidence: { title: 'Evidence' } },
+    })
   })
 })

@@ -53,6 +53,7 @@ describe('dispatchMcp', () => {
     const body = outcome.body as { result: { tools: { name: string; inputSchema: unknown }[] } }
     expect(body.result.tools.length).toBe(MCP_TOOLS.length)
     expect(body.result.tools.map((t) => t.name)).toContain('porcelain_comment')
+    expect(body.result.tools.map((t) => t.name)).toContain('porcelain_review')
     expect(body.result.tools.map((t) => t.name)).toContain('porcelain_profile')
     for (const tool of body.result.tools) expect(tool.inputSchema).toBeTypeOf('object')
   })

@@ -11,6 +11,7 @@ function harness(
   options: {
     trackedCanvas?: boolean
     canvasContent?: string
+    changedPaths?: string[]
     worktreeOverride?: {
       layers: { label: string; pattern: string }[] | null
     } | null
@@ -36,10 +37,14 @@ function harness(
         override: options.worktreeOverride ?? null,
         resolved: { pinnedPaths: ['README.md'], hiddenPaths: ['dist'], layers: [] },
       }),
-      setProjectProfile: async (repoPath: string, profile: unknown) =>
-        calls.push({ name: 'setProjectProfile', input: { repoPath, profile } }),
-      setWorktreeProfile: async (repoPath: string, profile: unknown) =>
-        calls.push({ name: 'setWorktreeProfile', input: { repoPath, profile } }),
+      hidePath: async (projectPath: string, path: string) =>
+        calls.push({ name: 'hidePath', input: { projectPath, path } }),
+      unhidePath: async (projectPath: string, path: string) =>
+        calls.push({ name: 'unhidePath', input: { projectPath, path } }),
+      pinPath: async (projectPath: string, path: string) =>
+        calls.push({ name: 'pinPath', input: { projectPath, path } }),
+      unpinPath: async (projectPath: string, path: string) =>
+        calls.push({ name: 'unpinPath', input: { projectPath, path } }),
     },
     projects: {
       listHubInventory: async () => ({
@@ -87,10 +92,17 @@ function harness(
       },
     },
     git: {
-      statusGit: async () => ({ ok: true, value: [] }),
+      statusGit: async () => ({
+        ok: true,
+        value: (options.changedPaths ?? []).map((path) => ({ path, status: 'modified' as const })),
+      }),
       logGit: async () => [{ hash: 'abc123' }],
     },
     review: {
+      readReviewedPaths: async () => ['src/a.ts'],
+      setReviewed: async (input: unknown) => {
+        calls.push({ name: 'setReviewed', input })
+      },
       listReviewComments: async () => ({ ok: true, value: comments }),
       addReviewComment: async (input: unknown) => {
         calls.push({ name: 'addReviewComment', input })
@@ -199,6 +211,70 @@ describe('domain MCP entry points', () => {
         body: 'Agent context',
       }),
     })
+  })
+
+  it('reads and updates content-bound reviewed state through Review operations', async () => {
+    const { tools, calls } = harness({ changedPaths: ['src/a.ts', 'src/b.ts'] })
+    const read = await tools.call('porcelain_review', {
+      op: 'get-reviewed',
+      workspace: REPO,
+    })
+    expect(JSON.parse(read.text).value).toEqual(['src/a.ts'])
+
+    await tools.call('porcelain_review', {
+      op: 'mark',
+      workspace: REPO,
+      paths: ['src/b.ts', 'src/b.ts'],
+    })
+    await tools.call('porcelain_review', {
+      op: 'unmark',
+      workspace: REPO,
+      paths: ['src/a.ts'],
+    })
+    expect(calls).toEqual(
+      expect.arrayContaining([
+        {
+          name: 'setReviewed',
+          input: { projectPath: REPO, paths: ['src/b.ts'], reviewed: true },
+        },
+        {
+          name: 'setReviewed',
+          input: { projectPath: REPO, paths: ['src/a.ts'], reviewed: false },
+        },
+      ]),
+    )
+  })
+
+  it('does not create a reviewed mark for a clean path', async () => {
+    const { tools, calls } = harness()
+    const result = await tools.call('porcelain_review', {
+      op: 'mark',
+      workspace: REPO,
+      paths: ['src/clean.ts'],
+    })
+    expect(result.isError).toBe(true)
+    expect(result.text).toContain('Only changed files')
+    expect(calls.some((call) => call.name === 'setReviewed')).toBe(false)
+  })
+
+  it('rejects reviewed and profile paths that escape the checkout', async () => {
+    const { tools, calls } = harness()
+    const reviewed = await tools.call('porcelain_review', {
+      op: 'mark',
+      workspace: REPO,
+      paths: ['../outside.ts'],
+    })
+    const profile = await tools.call('porcelain_profile', {
+      op: 'hide',
+      workspace: REPO,
+      level: 'project',
+      path: '../outside',
+    })
+    expect(reviewed.isError).toBe(true)
+    expect(profile.isError).toBe(true)
+    expect(calls.some((call) => call.name === 'setReviewed' || call.name === 'hidePath')).toBe(
+      false,
+    )
   })
 
   it('keeps Actions CRUD-only and never exposes execution or trust', async () => {
@@ -322,6 +398,52 @@ describe('domain MCP entry points', () => {
     )
   })
 
+  it('writes rich Review sections and copies the directory that owns declared evidence assets', async () => {
+    const { tools, calls } = harness()
+    const result = await tools.call('porcelain_canvas', {
+      op: 'create',
+      workspace: REPO,
+      template: 'review',
+      sourceDir: REPO,
+      templateData: {
+        title: 'Rich review',
+        summary: 'Review the contract first.',
+        sections: [
+          {
+            title: 'Contract',
+            prose: 'One current semantic model.',
+            html: '<table><tr><td>Current</td></tr></table>',
+            references: [{ path: 'src/review.ts', startLine: 4, endLine: 8 }],
+          },
+        ],
+        evidence: {
+          checks: [{ label: 'Focused tests', status: 'pass' }],
+          assets: [{ kind: 'image', path: 'evidence/result.png', label: 'Result' }],
+        },
+        layers: [{ label: 'Contract', pattern: '^src/' }],
+        files: [{ path: 'src/review.ts', layer: 'Contract' }],
+      },
+    })
+    expect(result.isError).toBeUndefined()
+    const write = calls.find((call) => call.name === 'writeCanvas')
+    if (write === undefined) throw new Error('expected a Canvas write')
+    const source = (write.input as { source: Record<string, unknown> }).source
+    expect(source).toMatchObject({ kind: 'structured', assetsDir: REPO })
+    expect(JSON.parse(source.document as string)).toMatchObject({
+      sections: [{ title: 'Contract', references: [{ startLine: 4, endLine: 8 }] }],
+      evidence: { assets: [{ path: 'evidence/result.png' }] },
+    })
+    const metadata = (source.extraFiles as { path: string; content: string }[]).find(
+      (file) => file.path === 'review.json',
+    )
+    expect(metadata).toBeDefined()
+    expect(JSON.parse(metadata?.content ?? '{}')).toMatchObject({
+      layers: [{ label: 'Contract' }],
+      files: [{ path: 'src/review.ts' }],
+    })
+    expect(JSON.parse(metadata?.content ?? '{}')).not.toHaveProperty('sections')
+  })
+
   it('creates and updates a semantic Decision through porcelain_canvas', async () => {
     const { tools, calls } = harness()
     const templateData = {
@@ -421,6 +543,31 @@ describe('domain MCP entry points', () => {
     })
   })
 
+  it('mutates only the explicitly requested project pin or hide', async () => {
+    const { tools, calls } = harness()
+    await tools.call('porcelain_profile', {
+      op: 'pin',
+      workspace: REPO,
+      level: 'project',
+      path: 'src/important.ts',
+    })
+    await tools.call('porcelain_profile', {
+      op: 'unhide',
+      workspace: REPO,
+      level: 'project',
+      path: 'dist',
+    })
+    expect(calls).toEqual(
+      expect.arrayContaining([
+        {
+          name: 'pinPath',
+          input: { projectPath: REPO, path: 'src/important.ts' },
+        },
+        { name: 'unhidePath', input: { projectPath: REPO, path: 'dist' } },
+      ]),
+    )
+  })
+
   it('keeps review layers out of the persistent profile surface', async () => {
     const { tools, calls } = harness()
     const profile = await tools.call('porcelain_profile', {
@@ -442,6 +589,6 @@ describe('domain MCP entry points', () => {
         })
       ).isError,
     ).toBe(true)
-    expect(calls.some((call) => call.name === 'setWorktreeProfile')).toBe(false)
+    expect(calls).toEqual([])
   })
 })

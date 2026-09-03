@@ -1,4 +1,3 @@
-import type { ResolvedProfile, WorktreeProfile } from '@porcelain/contracts'
 import type { ChangedFile, Commit } from '@porcelain/contracts/git'
 import type { WorktreeProfileView } from '@porcelain/contracts/files'
 import type { PromoteOverridesInput } from '@porcelain/contracts/projects'
@@ -18,8 +17,10 @@ export type McpOperations = Readonly<{
   }>
   files: Readonly<{
     worktreeProfile: (repoPath: string) => Promise<WorktreeProfileView>
-    setProjectProfile: (repoPath: string, profile: ResolvedProfile) => Promise<void>
-    setWorktreeProfile: (repoPath: string, profile: WorktreeProfile | null) => Promise<void>
+    hidePath: (projectPath: string, path: string) => Promise<void>
+    unhidePath: (projectPath: string, path: string) => Promise<void>
+    pinPath: (projectPath: string, path: string) => Promise<void>
+    unpinPath: (projectPath: string, path: string) => Promise<void>
   }>
   projects: Readonly<{
     listHubInventory: () => Promise<OperationResult<WorkspaceInventory>>
@@ -48,6 +49,12 @@ export type McpOperations = Readonly<{
     promoteOverrides: (input: PromoteOverridesInput) => Promise<OperationResult<unknown>>
   }>
   review: Readonly<{
+    readReviewedPaths: (input: { projectPath: string }) => Promise<string[]>
+    setReviewed: (input: {
+      projectPath: string
+      paths: string[]
+      reviewed: boolean
+    }) => Promise<void>
     listReviewComments: (input: {
       projectPath: string
     }) => Promise<OperationResult<readonly ReviewComment[]>>

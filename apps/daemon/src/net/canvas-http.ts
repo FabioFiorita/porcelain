@@ -44,12 +44,7 @@ export type CanvasHttpDeps = Readonly<{
   }) => Promise<ProjectOperationResult<{ bytes: Buffer; contentType: string }>>
 }>
 
-/**
- * `/canvas/<token>` only — no further path segments. The document readCanvas
- * returns is already fully self-contained (images, stylesheets, and scripts
- * inlined by inlineLocalAssets), so there is never a second request for a
- * sibling asset, and no relative-path resolution to get right here.
- */
+/** The document token without an attachment suffix. */
 export function canvasTokenFromUrl(url: string): string | null {
   const pathOnly = url.split('?')[0]?.split('#')[0] ?? ''
   if (!pathOnly.startsWith(CANVAS_ROUTE_PREFIX)) return null

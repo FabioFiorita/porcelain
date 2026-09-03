@@ -178,22 +178,168 @@ export const decisionCanvasDocumentSchema = z
   })
 export type DecisionCanvasDocument = z.infer<typeof decisionCanvasDocumentSchema>
 
-export const reviewCanvasDocumentSchema = z
+export const reviewCanvasReferenceSchema = z
+  .object({
+    path: canvasFileReferenceSchema.shape.path,
+    startLine: z.number().int().positive().optional(),
+    endLine: z.number().int().positive().optional(),
+    label: z.string().min(1).max(120).optional(),
+  })
+  .strict()
+  .superRefine((reference, context) => {
+    if (
+      reference.startLine !== undefined &&
+      reference.endLine !== undefined &&
+      reference.endLine < reference.startLine
+    ) {
+      context.addIssue({
+        code: 'custom',
+        message: 'endLine must be greater than or equal to startLine',
+        path: ['endLine'],
+      })
+    }
+  })
+export type ReviewCanvasReference = z.infer<typeof reviewCanvasReferenceSchema>
+
+export const reviewCanvasSectionSchema = z
+  .object({
+    title: z.string().min(1).max(200),
+    prose: z.string().max(32_768),
+    /** Self-contained SVG markup. Clients render it only in an inert sandbox. */
+    svg: z.string().min(1).max(262_144).optional(),
+    /** Self-contained HTML. Clients render it only in an inert sandbox. */
+    html: z.string().min(1).max(524_288).optional(),
+    htmlHeight: z.number().int().min(160).max(1600).optional(),
+    references: z.array(reviewCanvasReferenceSchema).max(40).default([]),
+  })
+  .strict()
+export type ReviewCanvasSection = z.infer<typeof reviewCanvasSectionSchema>
+
+export const reviewCanvasEvidenceCheckSchema = z
+  .object({
+    label: z.string().min(1).max(120),
+    status: z.enum(['pass', 'fail', 'skip']),
+    detail: z.string().max(400).optional(),
+  })
+  .strict()
+export type ReviewCanvasEvidenceCheck = z.infer<typeof reviewCanvasEvidenceCheckSchema>
+
+const canvasAssetPathSchema = z
+  .string()
+  .min(1)
+  .max(512)
+  .refine(
+    (path) =>
+      !path.startsWith('/') &&
+      !/^[a-z]:\//i.test(path) &&
+      !path.includes('\\') &&
+      !path.split('/').includes('..'),
+    { message: 'must be a bundle-relative path' },
+  )
+
+const reviewCanvasBundledAssetSchema = z
+  .object({
+    kind: z.enum(['image', 'video', 'document']),
+    path: canvasAssetPathSchema,
+    label: z.string().min(1).max(120),
+    mime: z.string().min(1).max(120).optional(),
+  })
+  .strict()
+
+const reviewCanvasLinkAssetSchema = z
+  .object({
+    kind: z.literal('link'),
+    href: z
+      .string()
+      .url()
+      .refine((value) => ['http:', 'https:'].includes(new URL(value).protocol), {
+        message: 'must use http or https',
+      }),
+    label: z.string().min(1).max(120),
+  })
+  .strict()
+
+export const reviewCanvasAssetSchema = z.discriminatedUnion('kind', [
+  reviewCanvasBundledAssetSchema,
+  reviewCanvasLinkAssetSchema,
+])
+export type ReviewCanvasAsset = z.infer<typeof reviewCanvasAssetSchema>
+
+export const reviewCanvasEvidenceSchema = z
+  .object({
+    title: z.string().min(1).max(200).default('Evidence'),
+    checks: z.array(reviewCanvasEvidenceCheckSchema).max(32).default([]),
+    assets: z.array(reviewCanvasAssetSchema).max(60).default([]),
+  })
+  .strict()
+export type ReviewCanvasEvidence = z.infer<typeof reviewCanvasEvidenceSchema>
+
+const canonicalReviewCanvasDocumentSchema = z
   .object({
     version: z.literal(STRUCTURED_CANVAS_VERSION),
     template: z.literal('review'),
     title: z.string().min(1).max(120),
-    why: z.string().min(1).max(50_000),
-    how: z.string().min(1).max(50_000),
+    summary: z.string().min(1).max(4096).optional(),
+    sections: z.array(reviewCanvasSectionSchema).min(1).max(30),
+    evidence: reviewCanvasEvidenceSchema.optional(),
   })
   .strict()
+  .superRefine((document, context) => {
+    const titles = new Set<string>()
+    document.sections.forEach((section, index) => {
+      if (titles.has(section.title)) {
+        context.addIssue({
+          code: 'custom',
+          message: `duplicate section title: ${section.title}`,
+          path: ['sections', index, 'title'],
+        })
+      }
+      titles.add(section.title)
+    })
+  })
+
+/**
+ * Review v2 originally persisted only `why` and `how`. Normalize those documents at every
+ * contract boundary so existing Canvas bundles keep rendering while all consumers see the one
+ * current, ordered-section model.
+ */
+function normalizeLegacyReviewCanvas(value: unknown): unknown {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return value
+  const record = value as Record<string, unknown>
+  if (
+    record.template !== 'review' ||
+    record.sections !== undefined ||
+    typeof record.why !== 'string' ||
+    typeof record.how !== 'string'
+  ) {
+    return value
+  }
+  const { why, how, ...current } = record
+  const withoutDuplicateHeading = (content: string, heading: 'Why' | 'How'): string =>
+    content.replace(new RegExp(`^#{1,6}\\s+${heading}\\s*\\r?\\n`, 'i'), '')
+  return {
+    ...current,
+    sections: [
+      { title: 'Why', prose: withoutDuplicateHeading(why, 'Why') },
+      { title: 'How', prose: withoutDuplicateHeading(how, 'How') },
+    ],
+  }
+}
+
+export const reviewCanvasDocumentSchema = z.preprocess(
+  normalizeLegacyReviewCanvas,
+  canonicalReviewCanvasDocumentSchema,
+)
 export type ReviewCanvasDocument = z.infer<typeof reviewCanvasDocumentSchema>
 
 /** Version 2 is the only accepted structured contract; templates are semantic discriminants. */
-export const structuredCanvasDocumentSchema = z.discriminatedUnion('template', [
-  decisionCanvasDocumentSchema,
-  reviewCanvasDocumentSchema,
-])
+export const structuredCanvasDocumentSchema = z.preprocess(
+  normalizeLegacyReviewCanvas,
+  z.discriminatedUnion('template', [
+    decisionCanvasDocumentSchema,
+    canonicalReviewCanvasDocumentSchema,
+  ]),
+)
 export type StructuredCanvasDocument = z.infer<typeof structuredCanvasDocumentSchema>
 
 export function structuredCanvasValidationMessage(error: z.ZodError): string {

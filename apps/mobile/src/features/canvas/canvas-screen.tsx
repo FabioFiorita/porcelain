@@ -27,8 +27,16 @@ export function CanvasScreen({ canvasId }: { canvasId: string }): React.JSX.Elem
   const scheme = useResolvedColorScheme()
   const { canvas, isLoading, loadError } = useCanvas(canvasId, focused)
   const isHtml = canvas?.record.kind === 'html'
-  const { url, mintError } = useCanvasDocumentUrl(canvasId, focused && isHtml)
-  const error = loadError ?? mintError
+  const structured =
+    canvas?.record.kind === 'structured' ? parseStructuredCanvas(canvas.content) : null
+  const hasBundledReviewAssets =
+    structured?.document?.template === 'review' &&
+    structured.document.evidence?.assets.some((asset) => asset.kind !== 'link') === true
+  const { url, mintError } = useCanvasDocumentUrl(
+    canvasId,
+    focused && (isHtml || hasBundledReviewAssets),
+  )
+  const error = loadError ?? (isHtml ? mintError : null)
 
   return (
     <View className="flex-1 bg-background" testID="porcelain-canvas-document">
@@ -110,7 +118,11 @@ function CanvasBody({
     ) : parsed.document.template === 'decision' ? (
       <DecisionCanvasView document={parsed.document} />
     ) : (
-      <ReviewCanvasView document={parsed.document} scheme={scheme} />
+      <ReviewCanvasView
+        document={parsed.document}
+        scheme={scheme}
+        assetBaseUrl={documentUrl === null ? null : `${documentUrl}/assets`}
+      />
     )
   }
   // A failed mint leaves the loading state standing rather than a WebView pointed nowhere.

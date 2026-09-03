@@ -1,12 +1,13 @@
+import { isAbsolute, relative, resolve } from 'node:path'
 import {
   decisionCanvasTemplateDataSchema,
   reviewCanvasTemplateDataSchema,
   structuredCanvasDocumentSchema,
   structuredCanvasValidationMessage,
 } from '@porcelain/contracts/projects'
+import { decisionBundleSource, reviewBundleSource, reviewDocumentBundleSource } from './mcp-canvas'
 import type { McpToolHandlers, McpToolResult } from './mcp-dispatch'
 import type { McpOperations } from './mcp-operations'
-import { decisionBundleSource, reviewBundleSource } from './mcp-canvas'
 import {
   isWorkspaceRef,
   type ResolvedWorkspace,
@@ -59,6 +60,22 @@ function workspaceResult(place: ResolvedWorkspace, value: unknown): McpToolResul
 
 function statusOf(args: Record<string, unknown>): 'open' | 'resolved' | 'all' {
   return args.status === 'resolved' || args.status === 'all' ? args.status : 'open'
+}
+
+function repoRelativePaths(repoPath: string, value: unknown): string[] | null {
+  if (!Array.isArray(value) || value.length === 0) return null
+  const paths: string[] = []
+  const seen = new Set<string>()
+  for (const entry of value) {
+    if (typeof entry !== 'string' || entry === '' || isAbsolute(entry)) return null
+    const path = relative(repoPath, resolve(repoPath, entry)).replaceAll('\\', '/')
+    if (path === '' || path === '..' || path.startsWith('../') || isAbsolute(path)) return null
+    if (!seen.has(path)) {
+      seen.add(path)
+      paths.push(path)
+    }
+  }
+  return paths
 }
 
 export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
@@ -124,19 +141,27 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
         }
       }
       const entryFile = 'canvas.json'
+      const assetsDir = stringField(args, 'sourceDir')
       return {
         ok: true,
         title: parsed.data.title,
         kind: 'structured',
         entryFile,
-        source: {
-          kind: 'structured',
-          entryFile,
-          document: `${JSON.stringify(parsed.data, null, 2)}\n`,
-          ...(stringField(args, 'sourceDir') === undefined
-            ? {}
-            : { assetsDir: stringField(args, 'sourceDir') }),
-        },
+        template: parsed.data.template,
+        source:
+          parsed.data.template === 'review'
+            ? reviewDocumentBundleSource(
+                parsed.data,
+                { layers: [], files: [] },
+                reviewCommitHash,
+                assetsDir,
+              )
+            : {
+                kind: 'structured',
+                entryFile,
+                document: `${JSON.stringify(parsed.data, null, 2)}\n`,
+                ...(assetsDir === undefined ? {} : { assetsDir }),
+              },
       }
     }
 
@@ -163,7 +188,11 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
       const source =
         template === 'decision'
           ? decisionBundleSource(decisionCanvasTemplateDataSchema.parse(parsed.data))
-          : reviewBundleSource(reviewCanvasTemplateDataSchema.parse(parsed.data), reviewCommitHash)
+          : reviewBundleSource(
+              reviewCanvasTemplateDataSchema.parse(parsed.data),
+              reviewCommitHash,
+              stringField(args, 'sourceDir'),
+            )
       return {
         ok: true,
         title: parsed.data.title,
@@ -282,7 +311,10 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
       if (op !== 'create' && op !== 'update')
         return fail('op must be list, get, create, update, delete, or promote.')
       const reviewCommitHash = await (async (): Promise<string | undefined> => {
-        if (args.template !== 'review' || place.worktreePath === null) return undefined
+        const isReview =
+          args.template === 'review' ||
+          (isRecord(args.document) && args.document.template === 'review')
+        if (!isReview || place.worktreePath === null) return undefined
         try {
           const status = await operations.git.statusGit(place.worktreePath)
           if (!status.ok || status.value.length > 0) return undefined
@@ -427,6 +459,40 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
       return fail('op must be list, get, create, update, delete, reply, resolve, or reopen.')
     },
 
+    async porcelain_review(args, place) {
+      if (place?.worktreePath === null || place === null)
+        return fail('Reviewed state needs a checkout on the daemon host.')
+      const projectPath = place.worktreePath
+      if (args.op === 'get-reviewed') {
+        return workspaceResult(place, await operations.review.readReviewedPaths({ projectPath }))
+      }
+      if (args.op === 'mark' || args.op === 'unmark') {
+        const paths = repoRelativePaths(projectPath, args.paths)
+        if (paths === null)
+          return fail('paths must be a non-empty list of repository-relative paths.')
+        if (args.op === 'mark') {
+          const status = await operations.git.statusGit(projectPath)
+          if (!status.ok)
+            return fail(`Could not read changed files: ${describeError(status.error)}`)
+          const changedPaths = new Set(status.value.map((file) => file.path))
+          const unchanged = paths.filter((path) => !changedPaths.has(path))
+          if (unchanged.length > 0) {
+            return fail(`Only changed files can be marked reviewed: ${unchanged.join(', ')}.`)
+          }
+        }
+        await operations.review.setReviewed({
+          projectPath,
+          paths,
+          reviewed: args.op === 'mark',
+        })
+        return workspaceResult(place, {
+          reviewed: args.op === 'mark',
+          paths,
+        })
+      }
+      return fail('op must be get-reviewed, mark, or unmark.')
+    },
+
     async porcelain_profile(args, place) {
       if (place?.worktreePath === null || place === null)
         return fail('Profiles need a checkout on the daemon host.')
@@ -440,6 +506,18 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
           pinnedPaths: view.base.pinnedPaths,
           hiddenPaths: view.base.hiddenPaths,
         })
+      }
+      if (op === 'pin' || op === 'unpin' || op === 'hide' || op === 'unhide') {
+        const paths = repoRelativePaths(place.worktreePath, [args.path])
+        if (paths === null)
+          return fail('path must be a repository-relative path that stays inside the checkout.')
+        const path = paths[0]
+        if (path === undefined) return fail('path is required for this profile operation.')
+        if (op === 'pin') await operations.files.pinPath(place.worktreePath, path)
+        else if (op === 'unpin') await operations.files.unpinPath(place.worktreePath, path)
+        else if (op === 'hide') await operations.files.hidePath(place.worktreePath, path)
+        else await operations.files.unhidePath(place.worktreePath, path)
+        return workspaceResult(place, { operation: op, path })
       }
       if (op === 'promote') {
         if (level !== 'project')
@@ -455,7 +533,7 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
           ? ok('Project profile pins and hides promoted to .porcelain/project.json.')
           : fail(`Could not promote the profile: ${describeError(promoted.error)}`)
       }
-      return fail('op must be get or promote; the profile contains only manual pins and hides.')
+      return fail('op must be get, pin, unpin, hide, unhide, or promote.')
     },
 
     async porcelain_action(args, place) {

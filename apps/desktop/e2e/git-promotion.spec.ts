@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { canvasBundleDir, canvasIndexPath } from '@shared/canvas-porcelain'
 import { OVERLAY_CANVAS_MANIFEST_FILE } from '@shared/project-porcelain'
 import { reviewCanvasDocument } from '@porcelain/contracts/projects'
@@ -81,7 +81,9 @@ async function seedPrivateCanvas(
   const dir = canvasBundleDir(homeDir, projectId, record.id)
   await mkdir(dir, { recursive: true })
   for (const [name, content] of Object.entries(files)) {
-    await writeFile(join(dir, name), content)
+    const path = join(dir, name)
+    await mkdir(dirname(path), { recursive: true })
+    await writeFile(path, content)
   }
 }
 
@@ -96,7 +98,9 @@ async function seedTrackedCanvas(
   await mkdir(dir, { recursive: true })
   await writeFile(join(dir, manifestFile), JSON.stringify(record, null, 2))
   for (const [name, content] of Object.entries(files)) {
-    await writeFile(join(dir, name), content)
+    const path = join(dir, name)
+    await mkdir(dirname(path), { recursive: true })
+    await writeFile(path, content)
   }
 }
 
@@ -109,8 +113,20 @@ test('a tracked semantic Review opens without treating its manifest as the docum
   const { worktreeId } = await waitForProjectAndWorktree(seeded.udBase)
   const review = reviewCanvasDocument({
     title: 'Storage boundary review',
-    why: 'The semantic document must survive promotion.',
-    how: 'Store the tracked manifest beside the structured entry.',
+    summary: 'A human-readable Review can mix explanation, visuals, and observed proof.',
+    sections: [
+      {
+        title: 'Why',
+        prose: 'The semantic document must survive promotion.',
+        html: '<strong>Visual proof</strong>',
+      },
+      { title: 'How', prose: 'Store the tracked manifest beside the structured entry.' },
+    ],
+    evidence: {
+      title: 'Observed proof',
+      checks: [{ label: 'Browser render', status: 'pass', detail: 'Rendered in the real Viewer.' }],
+      assets: [{ kind: 'image', path: 'assets/proof.svg', label: 'Rendered proof' }],
+    },
     layers: [],
     files: [],
   })
@@ -133,6 +149,8 @@ test('a tracked semantic Review opens without treating its manifest as the docum
         null,
         2,
       )}\n`,
+      'assets/proof.svg':
+        '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="20"><rect width="40" height="20" fill="green"/></svg>',
     },
     OVERLAY_CANVAS_MANIFEST_FILE,
   )
@@ -143,9 +161,14 @@ test('a tracked semantic Review opens without treating its manifest as the docum
 
   await expect(page.getByTestId(TestIds.structuredCanvas)).toBeVisible()
   await expect(page.getByTestId(TestIds.structuredCanvasInvalid)).toHaveCount(0)
-  await expect(page.getByText(review.why, { exact: true })).toBeVisible()
+  await expect(page.getByText(review.summary ?? '', { exact: true })).toBeVisible()
+  await expect(page.getByText(review.sections[0]?.prose ?? '', { exact: true })).toBeVisible()
+  await expect(page.getByTitle('Why visual').contentFrame().getByText('Visual proof')).toBeVisible()
   await page.getByRole('tab', { name: 'How' }).click()
-  await expect(page.getByText(review.how, { exact: true })).toBeVisible()
+  await expect(page.getByText(review.sections[1]?.prose ?? '', { exact: true })).toBeVisible()
+  await page.getByRole('tab', { name: 'Evidence' }).click()
+  await expect(page.getByText('Browser render', { exact: true })).toBeVisible()
+  await expect(page.getByRole('img', { name: 'Rendered proof' })).toBeVisible()
 })
 
 test('promoting a Canvas writes only the promoted bytes and re-opens from the tracked source', async ({

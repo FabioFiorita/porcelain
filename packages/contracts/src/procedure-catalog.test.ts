@@ -23,14 +23,11 @@ const domainProcedures = {
   'project-data': projectDataProcedures,
 } as const
 
-const PROCEDURE_COUNT = 106
-
 describe('procedure catalog', () => {
   it('is frozen and composes exactly one entry per domain procedure, in domain order', () => {
     const names = Object.keys(procedureCatalog)
     expect(Object.isFrozen(procedureCatalog)).toBe(true)
-    expect(names).toHaveLength(PROCEDURE_COUNT)
-    expect(new Set(names).size).toBe(PROCEDURE_COUNT)
+    expect(new Set(names).size).toBe(names.length)
     expect(names).toEqual(
       Object.values(domainProcedures).flatMap((procedures) => Object.keys(procedures)),
     )
@@ -48,7 +45,7 @@ describe('procedure catalog', () => {
       }
     }
 
-    expect(owners.size).toBe(PROCEDURE_COUNT)
+    expect(owners.size).toBe(Object.keys(procedureCatalog).length)
   })
 
   it('gives every entry an exact kind, input schema, output schema, and error list', () => {

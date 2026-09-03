@@ -1,6 +1,7 @@
 import { readFileSync, realpathSync, statSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { isAbsolute, join, relative, resolve } from 'node:path'
+import { reviewCanvasDocumentSchema } from '@porcelain/contracts/projects'
 import { canvasBundleDir, canvasIndexPath } from '@shared/canvas-porcelain'
 import { porcelainHome } from '@shared/porcelain-home'
 import { z } from 'zod'
@@ -117,14 +118,41 @@ async function readReviewCandidate(
   record: ReviewCanvasRecord,
 ): Promise<ReviewSet | null> {
   try {
-    const raw = JSON.parse(
-      await readFile(
-        join(canvasBundleDir(porcelainHome(), projectId, record.id), 'review.json'),
-        'utf8',
-      ),
-    )
-    const parsed = reviewSetSchema.safeParse(raw)
-    return parsed.success ? parsed.data : null
+    const bundleDir = canvasBundleDir(porcelainHome(), projectId, record.id)
+    const [rawMetadata, rawDocument] = await Promise.all([
+      readFile(join(bundleDir, 'review.json'), 'utf8'),
+      readFile(join(bundleDir, 'canvas.json'), 'utf8'),
+    ])
+    const metadata = reviewSetSchema.safeParse(JSON.parse(rawMetadata))
+    const document = reviewCanvasDocumentSchema.safeParse(JSON.parse(rawDocument))
+    if (!metadata.success || !document.success) return null
+
+    // `review.json` is only Changes/History metadata now. Old bundles may still contain their
+    // walkthrough there; prefer it as a one-way migration, otherwise project the canonical
+    // semantic Canvas document into the existing Changes reading seam.
+    const migratedSections = metadata.data.sections
+    const sections =
+      migratedSections.length > 0
+        ? migratedSections
+        : document.data.sections.map((section) => ({
+            title: section.title,
+            prose: section.prose,
+            ...(section.svg === undefined ? {} : { diagram: section.svg }),
+            ...(section.html === undefined ? {} : { html: section.html }),
+            ...(section.htmlHeight === undefined ? {} : { htmlHeight: section.htmlHeight }),
+            anchors: section.references.map((reference) => ({
+              path: reference.path,
+              ...(reference.startLine === undefined ? {} : { startLine: reference.startLine }),
+              ...(reference.endLine === undefined ? {} : { endLine: reference.endLine }),
+            })),
+          }))
+    return {
+      ...metadata.data,
+      ...(metadata.data.thesis === undefined && document.data.summary !== undefined
+        ? { thesis: document.data.summary }
+        : {}),
+      sections,
+    }
   } catch {
     return null
   }
@@ -185,10 +213,17 @@ export async function readReviewSet(
   return null
 }
 
-/** Narrative order for the live Worktree, or the Review bound to a History commit. */
-export async function reviewLayersForRepo(
+/** Review-owned Changes presentation: declared layer order and attention-first file order. */
+export async function reviewFlowForRepo(
   repoPath: string,
   commitHash?: string,
-): Promise<readonly { label: string; pattern: string }[]> {
-  return (await readReviewSet(repoPath, commitHash))?.layers ?? []
+): Promise<{
+  layers: readonly { label: string; pattern: string }[]
+  orderedPaths: readonly string[]
+}> {
+  const review = await readReviewSet(repoPath, commitHash)
+  return {
+    layers: review?.layers ?? [],
+    orderedPaths: review?.files.map((file) => file.path) ?? [],
+  }
 }

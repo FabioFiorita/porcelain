@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { execFileSync } from 'node:child_process'
 import { mkdir, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { join, normalize } from 'node:path'
 import type { GitQuickCommandInput } from '@porcelain/contracts/git'
 import { describe, expect, it } from 'vitest'
 import { gitEnv } from '../../git/git-env'
@@ -66,7 +66,7 @@ describe('ProjectGit adapter', () => {
 
       const worktrees = await projectGit.worktrees(repo)
       expect(worktrees.ok).toBe(true)
-      if (worktrees.ok) expect(worktrees.value[0]?.path).toBe(repo)
+      if (worktrees.ok) expect(normalize(worktrees.value[0]?.path ?? '')).toBe(normalize(repo))
 
       const status = await projectGit.status(repo)
       expect(status).toEqual({
@@ -161,21 +161,30 @@ describe('CommitGeneration and GitDiffReadingSources adapters', () => {
     })
   })
 
-  it('orders a changeset by the layers the profile declares for that checkout', async () => {
+  it('orders a changeset by the layers and file priority the Review declares', async () => {
     await withTemporaryDirectory('porcelain-git-diff-layers-', async (root) => {
       const repo = await makeRepo(root)
       await mkdir(join(repo, 'src'), { recursive: true })
       await writeFile(join(repo, 'src', 'checkout.ts'), 'export const value = 2\n')
+      await writeFile(join(repo, 'src', 'alphabetical-first.ts'), 'export const first = true\n')
 
       const declared = await createGitDiffReadingSources({
-        review: { layersForRepo: async () => [{ label: 'Checkout', pattern: 'checkout' }] },
+        review: {
+          flowForRepo: async () => ({
+            layers: [{ label: 'Checkout', pattern: '^src/' }],
+            orderedPaths: ['src/checkout.ts', 'src/alphabetical-first.ts'],
+          }),
+        },
       }).loadWorkingFlow(repo)
       expect(declared.map((group) => group.layer)).toContain('Checkout')
+      expect(
+        declared.find((group) => group.layer === 'Checkout')?.files.map((file) => file.path),
+      ).toEqual(['src/checkout.ts', 'src/alphabetical-first.ts'])
 
-      // Same repo, nothing declared: the starters group it, and 'Checkout'
-      // cannot appear — proving the label came from the profile, not the path.
+      // Same repo, no Review declaration: the starters group it, and 'Checkout'
+      // cannot appear — proving the label came from Review metadata.
       const starters = await createGitDiffReadingSources({
-        review: { layersForRepo: async () => [] },
+        review: { flowForRepo: async () => ({ layers: [], orderedPaths: [] }) },
       }).loadWorkingFlow(repo)
       expect(starters.map((group) => group.layer)).not.toContain('Checkout')
     })

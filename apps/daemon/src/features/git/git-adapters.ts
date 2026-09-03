@@ -139,17 +139,30 @@ export function createCommitGeneration(): CommitGeneration {
  * `effectiveLayers` falls back to the starters.
  */
 export function createGitDiffReadingSources(options?: {
-  review: { layersForRepo: (repoPath: string, commitHash?: string) => Promise<readonly Layer[]> }
+  review: {
+    flowForRepo: (
+      repoPath: string,
+      commitHash?: string,
+    ) => Promise<{ layers: readonly Layer[]; orderedPaths: readonly string[] }>
+  }
 }): GitDiffReadingSources {
-  const layersFor = async (repoPath: string, commitHash?: string): Promise<readonly Layer[]> =>
-    options === undefined ? [] : options.review.layersForRepo(repoPath, commitHash)
+  const flowFor = async (repoPath: string, commitHash?: string) =>
+    options === undefined
+      ? { layers: [], orderedPaths: [] }
+      : options.review.flowForRepo(repoPath, commitHash)
   return Object.freeze({
-    loadWorkingFlow: async (repoPath: string) =>
-      loadWorkingFlow(repoPath, await layersFor(repoPath)),
-    loadRangeFlow: async (repoPath: string, base?: string) =>
-      loadRangeFlow(repoPath, await layersFor(repoPath), base),
-    loadCommitFlow: async (repoPath: string, hash: string) =>
-      loadCommitFlow(repoPath, hash, await layersFor(repoPath, hash)),
+    loadWorkingFlow: async (repoPath: string) => {
+      const review = await flowFor(repoPath)
+      return loadWorkingFlow(repoPath, review.layers, review.orderedPaths)
+    },
+    loadRangeFlow: async (repoPath: string, base?: string) => {
+      const review = await flowFor(repoPath)
+      return loadRangeFlow(repoPath, review.layers, review.orderedPaths, base)
+    },
+    loadCommitFlow: async (repoPath: string, hash: string) => {
+      const review = await flowFor(repoPath, hash)
+      return loadCommitFlow(repoPath, hash, review.layers, review.orderedPaths)
+    },
     workingHunks: (repoPath: string, path: string, context?: number) =>
       gitDiffFile(repoPath, path, context).then((result) => result.hunks),
     rangeHunks: (repoPath: string, base: string, path: string, context?: number) =>

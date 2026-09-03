@@ -37,15 +37,21 @@ export function layerFor(path: string, layers: readonly Layer[]): string {
 
 /**
  * Group files into flow layers: bucket by the deepest-matching layer, then emit
- * groups in declared layer order (with `Other` last), each file list sorted by
- * path. The ONE grouping implementation — shared by buildFlow and buildActiveReview.
+ * groups in declared layer order (with `Other` last). Review-authored paths lead
+ * each group in attention order; every unlisted change remains included afterward,
+ * sorted by path. The ONE repo-wide Changes grouping implementation.
  */
 export function groupByLayer<T extends { path: string }>(
   items: readonly T[],
   layers: readonly Layer[],
+  orderedPaths: readonly string[] = [],
 ): { layer: string; files: T[] }[] {
   const compiled = compileLayers(layers) // compile once for the whole batch
   const order = [...layers.map((l) => l.label), OTHER_LABEL]
+  const attentionRank = new Map<string, number>()
+  for (const path of orderedPaths) {
+    if (!attentionRank.has(path)) attentionRank.set(path, attentionRank.size)
+  }
   const byLayer = new Map<string, T[]>()
   for (const item of items) {
     const layer = layerForCompiled(item.path, compiled)
@@ -57,7 +63,14 @@ export function groupByLayer<T extends { path: string }>(
     .filter((layer) => byLayer.has(layer))
     .map((layer) => ({
       layer,
-      files: (byLayer.get(layer) ?? []).sort((a, b) => a.path.localeCompare(b.path)),
+      files: (byLayer.get(layer) ?? []).sort((a, b) => {
+        const aRank = attentionRank.get(a.path)
+        const bRank = attentionRank.get(b.path)
+        if (aRank !== undefined && bRank !== undefined) return aRank - bRank
+        if (aRank !== undefined) return -1
+        if (bRank !== undefined) return 1
+        return a.path.localeCompare(b.path)
+      }),
     }))
 }
 
@@ -162,6 +175,7 @@ export function buildFlow(
   files: readonly ChangedFile[],
   sources: ReadonlyMap<string, string>,
   layers: readonly Layer[],
+  orderedPaths: readonly string[] = [],
 ): FlowGroup[] {
   const paths = files.map((f) => f.path)
   const flowFiles: FlowFile[] = files.map((file) => {
@@ -174,5 +188,5 @@ export function buildFlow(
     return { ...file, connects: [...new Set(connects)] }
   })
 
-  return groupByLayer(flowFiles, layers)
+  return groupByLayer(flowFiles, layers, orderedPaths)
 }

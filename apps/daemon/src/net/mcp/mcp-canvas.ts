@@ -1,6 +1,7 @@
 import {
   type DecisionCanvasTemplateData,
   decisionCanvasDocument,
+  type ReviewCanvasDocument,
   type ReviewCanvasTemplateData,
   reviewCanvasDocument,
   type StructuredCanvasDocument,
@@ -22,26 +23,26 @@ export function decisionBundleSource(data: DecisionCanvasTemplateData): CanvasBu
 
 export const REVIEW_CANVAS_METADATA = 'review.json'
 
-/** Review keeps semantic Why/How in v2 and stores History layers beside the document. */
-export function reviewBundleSource(
-  data: ReviewCanvasTemplateData,
+export function reviewDocumentBundleSource(
+  document: ReviewCanvasDocument,
+  metadata: Pick<ReviewCanvasTemplateData, 'layers' | 'files'>,
   commitHash?: string,
+  assetsDir?: string,
 ): CanvasBundleSource {
-  const document = reviewCanvasDocument(data)
   return {
     kind: 'structured',
     entryFile: 'canvas.json',
     document: `${JSON.stringify(document, null, 2)}\n`,
+    ...(assetsDir === undefined ? {} : { assetsDir }),
     extraFiles: [
       {
         path: REVIEW_CANVAS_METADATA,
         content: `${JSON.stringify(
           {
-            name: data.title,
+            name: document.title,
             ...(commitHash === undefined ? {} : { commitHash }),
-            layers: data.layers,
-            files: data.files,
-            sections: [],
+            layers: metadata.layers,
+            files: metadata.files,
           },
           null,
           2,
@@ -49,4 +50,14 @@ export function reviewBundleSource(
       },
     ],
   }
+}
+
+/** Review stores one semantic document; Changes/History metadata stays beside it. */
+export function reviewBundleSource(
+  data: ReviewCanvasTemplateData,
+  commitHash?: string,
+  assetsDir?: string,
+): CanvasBundleSource {
+  const document = reviewCanvasDocument(data)
+  return reviewDocumentBundleSource(document, data, commitHash, assetsDir)
 }

@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { canvasBundleDir, canvasIndexPath } from '@shared/canvas-porcelain'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { isRepoContained, readReviewSet, reviewLayersForRepo } from './review-store'
+import { isRepoContained, readReviewSet, reviewFlowForRepo } from './review-store'
 
 const root = join(tmpdir(), 'porcelain-review-store-test')
 const repo = join(root, 'repo')
@@ -96,6 +96,15 @@ it('reads only Review metadata from the daemon-root Canvas', async () => {
     }),
   )
   writeFileSync(
+    join(bundle, 'canvas.json'),
+    JSON.stringify({
+      version: 2,
+      template: 'review',
+      title: 'Canvas review',
+      sections: [{ title: 'Why', prose: 'Explain the change.', references: [] }],
+    }),
+  )
+  writeFileSync(
     join(otherBundle, 'review.json'),
     JSON.stringify({
       name: 'Other worktree review',
@@ -105,10 +114,35 @@ it('reads only Review metadata from the daemon-root Canvas', async () => {
       sections: [],
     }),
   )
-  await expect(readReviewSet(repo)).resolves.toMatchObject({ name: 'Canvas review' })
-  await expect(reviewLayersForRepo(repo)).resolves.toEqual([{ label: 'Source', pattern: '^src/' }])
-  await expect(reviewLayersForRepo(repo, 'abcdef012345')).resolves.toEqual([
-    { label: 'Other', pattern: '.*' },
-  ])
-  await expect(reviewLayersForRepo(repo, '000000000000')).resolves.toEqual([])
+  writeFileSync(
+    join(otherBundle, 'canvas.json'),
+    JSON.stringify({
+      version: 2,
+      template: 'review',
+      title: 'Other worktree review',
+      sections: [{ title: 'Why', prose: 'Explain the other change.', references: [] }],
+    }),
+  )
+  await expect(readReviewSet(repo)).resolves.toMatchObject({
+    name: 'Canvas review',
+    sections: [
+      {
+        title: 'Why',
+        prose: 'Explain the change.',
+        anchors: [],
+      },
+    ],
+  })
+  await expect(reviewFlowForRepo(repo)).resolves.toEqual({
+    layers: [{ label: 'Source', pattern: '^src/' }],
+    orderedPaths: ['src/a.ts'],
+  })
+  await expect(reviewFlowForRepo(repo, 'abcdef012345')).resolves.toEqual({
+    layers: [{ label: 'Other', pattern: '.*' }],
+    orderedPaths: [],
+  })
+  await expect(reviewFlowForRepo(repo, '000000000000')).resolves.toEqual({
+    layers: [],
+    orderedPaths: [],
+  })
 })

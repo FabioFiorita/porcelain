@@ -2,6 +2,7 @@
 import { mkdir, mkdtemp, readdir, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { reviewCanvasDocument, structuredCanvasDocumentSchema } from '@porcelain/contracts/projects'
 import { canvasBundleDir, canvasIndexPath } from '@shared/canvas-porcelain'
 import {
   legacyProjectOverlayCanvasManifestPath,
@@ -10,7 +11,6 @@ import {
   projectOverlayOverridesPath,
   projectPorcelainDir,
 } from '@shared/project-porcelain'
-import { reviewCanvasDocument, structuredCanvasDocumentSchema } from '@porcelain/contracts/projects'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createCanvasAccessTokens } from './canvas-access-tokens'
 import { type CanvasOperations, createCanvasOperations } from './canvas-operations'
@@ -131,7 +131,6 @@ describe('promoting a Canvas into the Git overlay', () => {
                 name: reviewData.title,
                 layers: reviewData.layers,
                 files: reviewData.files,
-                sections: [],
               },
               null,
               2,
@@ -160,8 +159,10 @@ describe('promoting a Canvas into the Git overlay', () => {
     expect(parsed).toMatchObject({
       version: 2,
       template: 'review',
-      why: reviewData.why,
-      how: reviewData.how,
+      sections: [
+        { title: 'Why', prose: reviewData.why },
+        { title: 'How', prose: reviewData.how },
+      ],
     })
     expect(
       JSON.parse(

@@ -33,7 +33,7 @@ describe('structured Canvas templates', () => {
     })
   })
 
-  it('builds a semantic Review document with layers kept out of presentation', () => {
+  it('normalizes legacy Review input with layers kept out of presentation', () => {
     const data = reviewCanvasTemplateDataSchema.parse({
       title: 'Review Decision Canvas',
       why: 'The feature needs a shared explanation.',
@@ -45,8 +45,33 @@ describe('structured Canvas templates', () => {
       version: 2,
       template: 'review',
       title: 'Review Decision Canvas',
-      why: 'The feature needs a shared explanation.',
-      how: 'The contract renders Why and How.',
+      sections: [
+        { title: 'Why', prose: 'The feature needs a shared explanation.', references: [] },
+        { title: 'How', prose: 'The contract renders Why and How.', references: [] },
+      ],
+    })
+  })
+
+  it('builds the current rich Review document', () => {
+    const data = reviewCanvasTemplateDataSchema.parse({
+      title: 'Review Canvas delivery',
+      summary: 'Read the contract first.',
+      sections: [
+        {
+          title: 'Contract',
+          prose: 'One semantic document.',
+          references: [{ path: 'src/canvas.ts', startLine: 4 }],
+        },
+      ],
+      evidence: {
+        checks: [{ label: 'Contract tests', status: 'pass' }],
+        assets: [{ kind: 'video', path: 'evidence/demo.mp4', label: 'Demo' }],
+      },
+    })
+    expect(reviewCanvasDocument(data)).toMatchObject({
+      summary: 'Read the contract first.',
+      sections: [{ title: 'Contract' }],
+      evidence: { title: 'Evidence', assets: [{ kind: 'video' }] },
     })
   })
 })

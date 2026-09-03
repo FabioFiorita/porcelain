@@ -131,6 +131,31 @@ function CanvasHtmlFrame({
   )
 }
 
+function CanvasStructuredFrame({
+  projectId,
+  canvasId,
+  content,
+  worktreePath,
+  environmentId,
+}: {
+  projectId: string
+  canvasId: string
+  content: string
+  worktreePath: string | undefined
+  environmentId: string | undefined
+}): React.JSX.Element {
+  // The same narrow token used by HTML Canvas documents also scopes real Review attachments.
+  // A Review remains readable if minting fails; only its bundled evidence becomes unavailable.
+  const { src } = useCanvasDocumentUrl({ projectId, canvasId, worktreePath, environmentId })
+  return (
+    <StructuredCanvasView
+      content={content}
+      repoPath={worktreePath}
+      assetBaseUrl={src === null ? null : `${src}/assets`}
+    />
+  )
+}
+
 /**
  * Viewer content for a 'canvas' tab. `canvasId` is the tab's `path`.
  * `worktreePath` is the tab's target checkout: a promoted Canvas must open from
@@ -164,7 +189,15 @@ export function CanvasView({
     return <MarkdownView content={canvas.content} />
   }
   if (canvas.record.kind === 'structured') {
-    return <StructuredCanvasView content={canvas.content} repoPath={worktreePath} />
+    return (
+      <CanvasStructuredFrame
+        projectId={projectId}
+        canvasId={canvasId}
+        content={canvas.content}
+        worktreePath={worktreePath}
+        environmentId={environmentId}
+      />
+    )
   }
   return (
     <CanvasHtmlFrame

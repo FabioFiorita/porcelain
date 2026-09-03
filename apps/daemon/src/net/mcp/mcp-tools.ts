@@ -190,16 +190,106 @@ const REVIEW_FILE = {
   additionalProperties: false,
 } as const
 
+const REVIEW_REFERENCE = {
+  type: 'object',
+  properties: {
+    path: { type: 'string', minLength: 1, maxLength: 512 },
+    startLine: { type: 'integer', minimum: 1 },
+    endLine: { type: 'integer', minimum: 1 },
+    label: { type: 'string', minLength: 1, maxLength: 120 },
+  },
+  required: ['path'],
+  additionalProperties: false,
+} as const
+
+const REVIEW_SECTION = {
+  type: 'object',
+  properties: {
+    title: { type: 'string', minLength: 1, maxLength: 200 },
+    prose: { type: 'string', maxLength: 32_768 },
+    svg: { type: 'string', minLength: 1, maxLength: 262_144 },
+    html: { type: 'string', minLength: 1, maxLength: 524_288 },
+    htmlHeight: { type: 'integer', minimum: 160, maximum: 1600 },
+    references: { type: 'array', maxItems: 40, items: REVIEW_REFERENCE },
+  },
+  required: ['title', 'prose'],
+  additionalProperties: false,
+} as const
+
+const REVIEW_EVIDENCE = {
+  type: 'object',
+  properties: {
+    title: { type: 'string', minLength: 1, maxLength: 200 },
+    checks: {
+      type: 'array',
+      maxItems: 32,
+      items: {
+        type: 'object',
+        properties: {
+          label: { type: 'string', minLength: 1, maxLength: 120 },
+          status: { enum: ['pass', 'fail', 'skip'] },
+          detail: { type: 'string', maxLength: 400 },
+        },
+        required: ['label', 'status'],
+        additionalProperties: false,
+      },
+    },
+    assets: {
+      type: 'array',
+      maxItems: 60,
+      items: {
+        oneOf: [
+          {
+            type: 'object',
+            properties: {
+              kind: { enum: ['image', 'video', 'document'] },
+              path: { type: 'string', minLength: 1, maxLength: 512 },
+              label: { type: 'string', minLength: 1, maxLength: 120 },
+              mime: { type: 'string', minLength: 1, maxLength: 120 },
+            },
+            required: ['kind', 'path', 'label'],
+            additionalProperties: false,
+          },
+          {
+            type: 'object',
+            properties: {
+              kind: { const: 'link' },
+              href: { type: 'string', format: 'uri' },
+              label: { type: 'string', minLength: 1, maxLength: 120 },
+            },
+            required: ['kind', 'href', 'label'],
+            additionalProperties: false,
+          },
+        ],
+      },
+    },
+  },
+  additionalProperties: false,
+} as const
+
+const REVIEW_CONTENT_FIELDS = {
+  title: { type: 'string', minLength: 1, maxLength: 120 },
+  summary: { type: 'string', minLength: 1, maxLength: 4096 },
+  sections: { type: 'array', minItems: 1, maxItems: 30, items: REVIEW_SECTION },
+  evidence: REVIEW_EVIDENCE,
+} as const
+
 const REVIEW_TEMPLATE = {
   type: 'object',
   properties: {
-    title: { type: 'string', minLength: 1, maxLength: 120 },
+    ...REVIEW_CONTENT_FIELDS,
     why: { type: 'string', minLength: 1 },
     how: { type: 'string', minLength: 1 },
     layers: { type: 'array', items: PROFILE_LAYER },
     files: { type: 'array', items: REVIEW_FILE },
   },
-  required: ['title', 'why', 'how'],
+  required: ['title'],
+  anyOf: [
+    { required: ['sections'] },
+    {
+      required: ['why', 'how'],
+    },
+  ],
   additionalProperties: false,
 } as const
 
@@ -208,11 +298,9 @@ const REVIEW_DOCUMENT = {
   properties: {
     version: { const: 2 },
     template: { const: 'review' },
-    title: { type: 'string', minLength: 1, maxLength: 120 },
-    why: { type: 'string', minLength: 1 },
-    how: { type: 'string', minLength: 1 },
+    ...REVIEW_CONTENT_FIELDS,
   },
-  required: ['version', 'template', 'title', 'why', 'how'],
+  required: ['version', 'template', 'title', 'sections'],
   additionalProperties: false,
 } as const
 
@@ -251,7 +339,7 @@ export const MCP_TOOLS: readonly McpToolDefinition[] = Object.freeze([
     name: 'porcelain_canvas',
     title: 'Manage a Canvas',
     description:
-      'List, read, create, update, delete, or promote an agent-authored Canvas. Decision is the semantic RFC/choice template. Review is the semantic Why/How explanation with layers and files; clean Review writes bind History. File references never own diffs or reviewed state. Promotion writes files but never stages or commits.',
+      'List, read, create, update, delete, or promote an agent-authored Canvas. Decision captures an unresolved choice. Review supports ordered prose, sandboxed SVG/HTML, code references, evidence checks and assets, plus attention-ordered layers/files; clean Review writes bind History. File references never own diffs or reviewed state. Promotion writes files but never stages or commits.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -301,16 +389,37 @@ export const MCP_TOOLS: readonly McpToolDefinition[] = Object.freeze([
     },
   },
   {
-    name: 'porcelain_profile',
-    title: 'Manage the Repository Profile',
+    name: 'porcelain_review',
+    title: 'Manage Reviewed State',
     description:
-      'Read the manual project navigation profile or promote its portable pins/hides to .porcelain/project.json. Canvas presentation never persists in this profile.',
+      'Read the paths whose current diffs are marked reviewed, or mark/unmark explicit repository-relative paths. Marks are content-bound and become stale when a diff changes. This does not stage or commit files.',
     inputSchema: {
       type: 'object',
       properties: {
-        op: { enum: ['get', 'promote'] },
+        op: { enum: ['get-reviewed', 'mark', 'unmark'] },
+        workspace: WORKSPACE,
+        paths: {
+          type: 'array',
+          minItems: 1,
+          items: { type: 'string', description: 'Repository-relative changed-file path' },
+        },
+      },
+      required: ['op', 'workspace'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'porcelain_profile',
+    title: 'Manage the Repository Profile',
+    description:
+      'Read the manual project navigation profile, explicitly pin/unpin or hide/unhide one repository-relative path, or promote its portable pins/hides to .porcelain/project.json. Pins and hides are human navigation choices: change them only when the human asks.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        op: { enum: ['get', 'pin', 'unpin', 'hide', 'unhide', 'promote'] },
         workspace: WORKSPACE,
         level: { const: 'project' },
+        path: { type: 'string', description: 'Repository-relative path for a pin/hide operation' },
       },
       required: ['op', 'workspace', 'level'],
       additionalProperties: false,

@@ -104,4 +104,52 @@ describe('StructuredCanvasView', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'How' }))
     expect(screen.getByRole('heading', { name: 'How' })).toBeInTheDocument()
   })
+
+  it('renders ordered Review sections, inert visuals, code references, and real attachments', () => {
+    render(
+      <StructuredCanvasView
+        content={JSON.stringify({
+          version: 2,
+          template: 'review',
+          title: 'Rich review',
+          summary: 'Review the contract before the proof.',
+          sections: [
+            {
+              title: 'Contract',
+              prose: 'The **shared contract** is canonical.',
+              svg: '<svg><text>Flow</text></svg>',
+              references: [{ path: 'src/review.ts', startLine: 7, endLine: 12 }],
+            },
+          ],
+          evidence: {
+            title: 'Proof',
+            checks: [{ label: 'Focused tests', status: 'pass', detail: '12 passed' }],
+            assets: [
+              {
+                kind: 'image',
+                path: 'evidence/browser result.png',
+                label: 'Browser result',
+              },
+            ],
+          },
+        })}
+        assetBaseUrl="http://daemon/canvas/token/assets"
+        repoPath="/repo"
+      />,
+    )
+
+    expect(screen.getByRole('tab', { name: 'Contract' })).toBeInTheDocument()
+    expect(screen.getByText('Review the contract before the proof.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /src\/review.ts:7-12/ })).toBeInTheDocument()
+    const frame = screen.getByTitle('Contract diagram')
+    expect(frame).toHaveAttribute('sandbox', '')
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Evidence' }))
+    expect(screen.getByRole('heading', { name: 'Proof' })).toBeInTheDocument()
+    expect(screen.getByText('12 passed')).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Browser result' })).toHaveAttribute(
+      'src',
+      'http://daemon/canvas/token/assets/evidence/browser%20result.png',
+    )
+  })
 })

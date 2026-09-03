@@ -1,11 +1,13 @@
 import { z } from 'zod'
 import { profileLayerSchema } from '../worktree-profile'
 import {
-  STRUCTURED_CANVAS_VERSION,
   type DecisionCanvasDocument,
   decisionCanvasDocumentSchema,
   type ReviewCanvasDocument,
   reviewCanvasDocumentSchema,
+  reviewCanvasEvidenceSchema,
+  reviewCanvasSectionSchema,
+  STRUCTURED_CANVAS_VERSION,
 } from './structured-canvas.contract'
 
 export const decisionCanvasTemplateDataSchema = z.preprocess(
@@ -40,20 +42,47 @@ export const reviewFileSchema = z
 export const reviewCanvasTemplateDataSchema = z
   .object({
     title: z.string().min(1).max(120),
-    why: z.string().min(1).max(50_000),
-    how: z.string().min(1).max(50_000),
+    summary: z.string().min(1).max(4096).optional(),
+    sections: z.array(reviewCanvasSectionSchema).min(1).max(30).optional(),
+    /** Compatibility input for Review Canvases authored before ordered sections. */
+    why: z.string().min(1).max(50_000).optional(),
+    /** Compatibility input for Review Canvases authored before ordered sections. */
+    how: z.string().min(1).max(50_000).optional(),
+    evidence: reviewCanvasEvidenceSchema.optional(),
     layers: z.array(profileLayerSchema).default([]),
     files: z.array(reviewFileSchema).default([]),
   })
   .strict()
+  .superRefine((data, context) => {
+    const hasLegacyPair = data.why !== undefined && data.how !== undefined
+    if (data.sections === undefined && !hasLegacyPair) {
+      context.addIssue({
+        code: 'custom',
+        message: 'sections, or both why and how, are required',
+        path: ['sections'],
+      })
+    }
+    if ((data.why === undefined) !== (data.how === undefined)) {
+      context.addIssue({
+        code: 'custom',
+        message: 'why and how must be provided together',
+        path: [data.why === undefined ? 'why' : 'how'],
+      })
+    }
+  })
 export type ReviewCanvasTemplateData = z.infer<typeof reviewCanvasTemplateDataSchema>
+export type ReviewCanvasTemplateDataInput = z.input<typeof reviewCanvasTemplateDataSchema>
 
-export function reviewCanvasDocument(data: ReviewCanvasTemplateData): ReviewCanvasDocument {
+export function reviewCanvasDocument(data: ReviewCanvasTemplateDataInput): ReviewCanvasDocument {
+  const parsed = reviewCanvasTemplateDataSchema.parse(data)
   return reviewCanvasDocumentSchema.parse({
     version: STRUCTURED_CANVAS_VERSION,
     template: 'review',
-    title: data.title,
-    why: data.why,
-    how: data.how,
+    title: parsed.title,
+    ...(parsed.summary === undefined ? {} : { summary: parsed.summary }),
+    ...(parsed.sections === undefined
+      ? { why: parsed.why, how: parsed.how }
+      : { sections: parsed.sections }),
+    ...(parsed.evidence === undefined ? {} : { evidence: parsed.evidence }),
   })
 }

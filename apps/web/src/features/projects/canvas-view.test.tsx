@@ -1,5 +1,5 @@
 import type { ReadCanvasOutput } from '@porcelain/contracts/projects'
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CanvasView } from './canvas-view'
 import { useCanvas, useMintCanvasAccessToken } from './project-data'
@@ -20,6 +20,7 @@ const HTML_RECORD: ReadCanvasOutput['record'] = {
 }
 
 const MARKDOWN_RECORD: ReadCanvasOutput['record'] = { ...HTML_RECORD, kind: 'markdown' }
+const STRUCTURED_RECORD: ReadCanvasOutput['record'] = { ...HTML_RECORD, kind: 'structured' }
 
 describe('CanvasView', () => {
   let openSpy: ReturnType<typeof vi.spyOn>
@@ -73,6 +74,33 @@ describe('CanvasView', () => {
     // which would hand Canvas JS the app's real origin (localStorage, daemon token).
     expect(iframe.getAttribute('sandbox')).not.toContain('allow-same-origin')
     expect(iframe.getAttribute('src')).toContain('/canvas/tok-123')
+  })
+
+  it('mints a token for a structured Review and resolves its bundled attachments', async () => {
+    const mint = vi.fn().mockResolvedValue('tok-review')
+    vi.mocked(useCanvas).mockReturnValue({
+      canvas: {
+        record: STRUCTURED_RECORD,
+        content: JSON.stringify({
+          version: 2,
+          template: 'review',
+          title: 'Review',
+          sections: [{ title: 'Walkthrough', prose: 'Read this.', references: [] }],
+          evidence: {
+            assets: [{ kind: 'image', path: 'evidence/result.png', label: 'Result' }],
+          },
+        }),
+      },
+      isLoading: false,
+      loadError: null,
+    })
+    vi.mocked(useMintCanvasAccessToken).mockReturnValue({ mint })
+    render(<CanvasView projectId="proj-1" canvasId="canvas-1" />)
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Evidence' }))
+    expect((await screen.findByRole('img', { name: 'Result' })).getAttribute('src')).toContain(
+      '/canvas/tok-review/assets/evidence/result.png',
+    )
   })
 
   it('relays a bridged external-link postMessage from its own iframe through window.open', async () => {
