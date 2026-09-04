@@ -70,7 +70,7 @@ describe('renderer packaging (file:// safe base)', () => {
       scripts: Record<string, string>
     }
     expect(workflow).toContain('Require macOS signing and notarization credentials')
-    expect(workflow).toContain('if ($hasLink -ne $hasPassword)')
+    expect(workflow).toContain('run: node scripts/windows-signing-mode.mjs')
     expect(workflow).toContain("if: steps.windows_signing.outputs.enabled == 'true'")
     expect(workflow).toContain("if: steps.windows_signing.outputs.enabled == 'false'")
     expect(workflow).toContain('run: pnpm package:win:unsigned')

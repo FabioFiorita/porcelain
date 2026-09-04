@@ -141,23 +141,10 @@ jobs:
 
       - name: Select Windows signing mode
         id: windows_signing
-        shell: pwsh
         env:
           CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
-        run: |
-          $hasLink = -not [string]::IsNullOrWhiteSpace($env:CSC_LINK)
-          $hasPassword = -not [string]::IsNullOrWhiteSpace($env:CSC_KEY_PASSWORD)
-          if ($hasLink -ne $hasPassword) {
-            throw 'Configure both WIN_CSC_LINK and WIN_CSC_KEY_PASSWORD, or leave both unset for an unsigned Windows release.'
-          }
-          $enabled = $hasLink -and $hasPassword
-          "enabled=$($enabled.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
-          if ($enabled) {
-            Write-Output 'Windows artifacts will be Authenticode signed.'
-          } else {
-            Write-Warning 'Windows signing credentials are not configured; publishing an unsigned installer.'
-          }
+        run: node scripts/windows-signing-mode.mjs
 
       - name: Package signed Windows artifacts (no publish)
         if: steps.windows_signing.outputs.enabled == 'true'
